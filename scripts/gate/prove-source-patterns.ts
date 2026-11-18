@@ -18,6 +18,7 @@ const AT_THE_ROOT = new Set(['node_modules', 'dist', '.git'])
 const DOOR = 'flagEnv'
 const LOOSE = 'flagEnvLoose'
 const PAUSE = 'hand-built-pause'
+const ALIAS = 'sleep-alias'
 const SLEEP_DOOR = 'src/utils/sleep.ts'
 const REGISTERED = new Set(FLAG_REGISTRY.map(row => row.env))
 const DOOR_FILE = ((): string => {
@@ -29,7 +30,7 @@ const DOOR_FILE = ((): string => {
   return ''
 })()
 
-const SLEEP = 'await sleep(ms, signal) from utils/sleep.ts'
+const SLEEP = `await sleep(ms, signal) from ${SLEEP_DOOR}`
 const CLOCK = 'a module that must own a timer takes its clock from the caller (now, setTimeout, clearTimeout), as StreamTimers in the stream idle budget and the clock of the render scheduler do'
 const TICK = 'for a tick, subscribeUiClock(ms, fn) from utils/cockpit/uiClock.ts (one timer for each cadence), and in a component useInterval, useAnimationTimer or useAnimationFrame from ink/hooks (the frame clock)'
 const YIELD = `await the promise the work depends on, or ${SLEEP} with 0 to let the event loop turn; a scheduler that must defer takes the function from its caller, as the render scheduler takes queueMicrotask in its clock`
@@ -40,12 +41,13 @@ const TYPE_IT = 'narrow the value with a type guard or parse it with its schema;
 
 const HABITS = {
   setTimeout: `to wait, ${SLEEP}; to bound a call, AbortSignal.timeout(ms) or the inactivity deadline in utils/deadline.ts; ${TICK}; ${CLOCK}`,
-  setInterval: `${TICK}; off the screen, a loop that awaits sleep(ms, signal) from utils/sleep.ts and ends with its signal; ${CLOCK}`,
+  setInterval: `${TICK}; off the screen, a loop that awaits sleep(ms, signal) from ${SLEEP_DOOR} and ends with its signal; ${CLOCK}`,
   setImmediate: YIELD,
   queueMicrotask: YIELD,
   'process.nextTick': YIELD,
   'Atomics.wait': `a synchronous wait stops the event loop for every caller: in an async caller, ${SLEEP}; a caller that cannot await hands the wait to a worker`,
-  [PAUSE]: `call sleep(ms, signal?, opts?) from ${SLEEP_DOOR} where the promise is built (each line below names the call): the second argument is the signal of a caller that stops its own work when it aborts, and { unref: true } keeps the timer from holding the process open`,
+  [PAUSE]: `call sleep(ms, signal?, opts?) from ${SLEEP_DOOR} where the pause is made: a promise built over a timer, a call of the timer of timers/promises or of its scheduler, Bun.sleep, a helper that is handed the resolver (each line below names the call). The second argument is the signal of a caller that stops its own work when it aborts, { throwOnAbort: true } rejects on that abort as the timer of timers/promises does, and { unref: true } keeps the timer from holding the process open`,
+  [ALIAS]: `import the door under its own name, import { sleep } from ${SLEEP_DOOR}: a local that holds a sleep handed in through a seam takes another name (pause), and the argument of the seam keeps the name sleep for its callers`,
   useEffect: `${RENDER}; a repeating tick is useInterval or useAnimationFrame from ink/hooks`,
   useLayoutEffect: `${RENDER}; a size is read from the layout the renderer already measured (useTerminalSize, useTerminalViewport), not measured again after the paint`,
   useInsertionEffect: `${RENDER}; a write to the terminal belongs to the renderer, not to a component`,
@@ -81,11 +83,12 @@ const BEYOND: Array<[string, string]> = [
 ]
 const WRAPPED = new Set<string>(['setTimeout', 'setInterval', 'setImmediate', 'queueMicrotask', 'process.nextTick', 'useEffect', 'useLayoutEffect', 'useInsertionEffect'])
 
-type Space = 'global' | 'timers' | 'scheduler' | 'react' | 'process' | 'atomics'
+type Space = 'global' | 'timers' | 'promises' | 'scheduler' | 'react' | 'process' | 'atomics'
 const TIMERS: Array<[string, Habit]> = [['setTimeout', 'setTimeout'], ['setInterval', 'setInterval'], ['setImmediate', 'setImmediate']]
 const MEMBERS: Record<Space, Map<string, Habit>> = {
   global: new Map([...TIMERS, ['queueMicrotask', 'queueMicrotask']]),
   timers: new Map(TIMERS),
+  promises: new Map(TIMERS),
   scheduler: new Map([['wait', 'setTimeout'], ['yield', 'setImmediate']]),
   react: new Map([['useEffect', 'useEffect'], ['useLayoutEffect', 'useLayoutEffect'], ['useInsertionEffect', 'useInsertionEffect'], ['useImperativeHandle', 'useImperativeHandle']]),
   process: new Map([['nextTick', 'process.nextTick'], ['env', 'env-whole']]),
@@ -93,13 +96,14 @@ const MEMBERS: Record<Space, Map<string, Habit>> = {
 }
 const INSIDE: Record<Space, Map<string, Space>> = {
   global: new Map([['globalThis', 'global'], ['global', 'global'], ['window', 'global'], ['self', 'global'], ['process', 'process'], ['Atomics', 'atomics']]),
-  timers: new Map([['promises', 'timers'], ['scheduler', 'scheduler']]),
+  timers: new Map([['promises', 'promises'], ['scheduler', 'scheduler']]),
+  promises: new Map([['scheduler', 'scheduler']]),
   scheduler: new Map(),
   react: new Map(),
   process: new Map(),
   atomics: new Map(),
 }
-const MODULES = new Map<string, Space>([['node:timers', 'timers'], ['timers', 'timers'], ['node:timers/promises', 'timers'], ['timers/promises', 'timers'], ['react', 'react'], ['node:process', 'process'], ['process', 'process']])
+const MODULES = new Map<string, Space>([['node:timers', 'timers'], ['timers', 'timers'], ['node:timers/promises', 'promises'], ['timers/promises', 'promises'], ['react', 'react'], ['node:process', 'process'], ['process', 'process']])
 const AMBIENT = INSIDE.global
 const BARE = new Map<string, Habit>([...MEMBERS.global, ...MEMBERS.react])
 const LIFECYCLE = new Set(['componentDidMount', 'componentDidUpdate', 'componentWillUnmount'])
@@ -262,6 +266,9 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
   const habitAt = new Map<ts.Node, Habit>()
   const spaceAt = new Map<ts.Node, Space>()
   const envAt = new Set<ts.Node>()
+  const pauseAt = new Set<ts.Node>()
+  const pauses = (space: Space | undefined, key: string): boolean => (space === 'promises' && key === 'setTimeout') || (space === 'scheduler' && key === 'wait')
+  const opensDoor = (spec: string): boolean => spec.startsWith('.') && resolve(ROOT, file, '..', spec).replace(/\.js$/, '.ts') === resolve(ROOT, SLEEP_DOOR)
   const names = new Set<string>()
 
   const spaceOf = (e: ts.Expression): Space | undefined => {
@@ -312,12 +319,22 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
     const habit = owner ? MEMBERS[owner].get(ts.isPropertyAccessExpression(x) ? x.name.text : (got?.key ?? '')) : undefined
     return habit === 'env-whole' ? undefined : habit
   }
+  const pauseOfValue = (e: ts.Expression): boolean => {
+    const x = unwrapAll(e)
+    if (ts.isIdentifier(x)) {
+      const decl = declarationOf(x)
+      return decl !== undefined && pauseAt.has(decl)
+    }
+    const got = reflected(x)
+    return ts.isPropertyAccessExpression(x) ? pauses(spaceOf(x.expression), x.name.text) : got !== undefined && pauses(spaceOf(got.owner), got.key)
+  }
   const keyOf = (name: ts.Node | undefined): string | undefined => (name && (ts.isIdentifier(name) || ts.isStringLiteralLike(name)) ? name.text : undefined)
   const takes = (decl: ts.Node, source: ts.Expression, key: string): void => {
     const space = spaceOf(source)
     if (!space) return
     const inner = INSIDE[space].get(key)
     const habit = MEMBERS[space].get(key)
+    if (pauses(space, key)) pauseAt.add(decl)
     if (inner) spaceAt.set(decl, inner)
     if (habit === 'env-whole') envAt.add(decl)
     else if (habit) habitAt.set(decl, habit)
@@ -340,6 +357,7 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
           } else {
             const inner = INSIDE[space].get(imported)
             const habit = MEMBERS[space].get(imported)
+            if (pauses(space, imported)) pauseAt.add(el)
             if (inner) spaceAt.set(el, inner)
             if (habit === 'env-whole') envAt.add(el)
             else if (habit) habitAt.set(el, habit)
@@ -354,6 +372,7 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
         if (space) spaceAt.set(n, space)
         const habit = habitOfValue(n.initializer)
         if (habit) habitAt.set(n, habit)
+        if (pauseOfValue(n.initializer)) pauseAt.add(n)
       }
       if (ts.isBindingElement(n) && ts.isObjectBindingPattern(n.parent)) {
         const holder = n.parent.parent
@@ -371,6 +390,7 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
         if (space) spaceAt.set(decl, space)
         const habit = habitOfValue(n.right)
         if (habit) habitAt.set(decl, habit)
+        if (pauseOfValue(n.right)) pauseAt.add(decl)
       }
       if (ts.isIdentifier(left)) given(left)
       else if (ts.isObjectLiteralExpression(left) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
@@ -431,8 +451,15 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
     if (!resolver || !ts.isIdentifier(resolver)) return undefined
     const armed = (e: ts.Expression): string | undefined => {
       const x = unwrap(e)
-      if (!ts.isCallExpression(x) || habitOfValue(x.expression) !== 'setTimeout' || x.arguments.length < 1 || x.arguments.length > 2 || !settles(x.arguments[0]!, resolver.text)) return undefined
-      return x.arguments[1] ? squeeze(x.arguments[1].getText(sf)) : '0'
+      if (!ts.isCallExpression(x) || x.arguments.length < 1 || x.arguments.length > 2 || !settles(x.arguments[0]!, resolver.text)) return undefined
+      const habit = habitOfValue(x.expression)
+      if (habit === 'setTimeout') return x.arguments[1] ? squeeze(x.arguments[1].getText(sf)) : '0'
+      const delay = x.arguments[1] ? unwrap(x.arguments[1]) : undefined
+      if (habit !== undefined || !ts.isIdentifier(x.expression) || !delay || ts.isArrowFunction(delay) || ts.isFunctionExpression(delay)) return undefined
+      const decl = declarationOf(x.expression)
+      const helper = decl ? (functionOf(decl) ?? functionOf(importedDeclaration(modules, decl))) : undefined
+      if (helper?.body && !holds(helper.body, y => ts.isCallExpression(y) && habitOfValue(y.expression) === 'setTimeout')) return undefined
+      return squeeze(delay.getText(sf))
     }
     const steps = ts.isBlock(executor.body) ? executor.body.statements.filter(s => !ts.isEmptyStatement(s)) : undefined
     const first = steps?.[0]
@@ -519,8 +546,22 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
     } else if (ts.isNewExpression(n)) {
       const instead = pauseByHand(n)
       if (instead) hit(PAUSE, n, `${instead} from ${SLEEP_DOOR}`)
+    } else if ((ts.isImportSpecifier(n) || ts.isExportSpecifier(n)) && n.propertyName?.text === 'sleep' && n.name.text !== 'sleep') {
+      const from = n.parent.parent
+      const spec = ts.isImportClause(from) ? from.parent.moduleSpecifier : from.moduleSpecifier
+      if (spec && ts.isStringLiteral(spec) && opensDoor(spec.text)) hit(ALIAS, n, `import { sleep } from '${spec.text}'`)
+    } else if (ts.isBindingElement(n) && n.propertyName && keyOf(n.propertyName) === 'sleep' && keyOf(n.name) !== 'sleep' && ts.isObjectBindingPattern(n.parent) && ts.isVariableDeclaration(n.parent.parent) && n.parent.parent.initializer) {
+      const loaded = unwrapAll(n.parent.parent.initializer)
+      const spec = ts.isCallExpression(loaded) && loaded.expression.kind === ts.SyntaxKind.ImportKeyword ? loaded.arguments[0] : undefined
+      if (spec && ts.isStringLiteralLike(spec) && opensDoor(spec.text)) hit(ALIAS, n, `const { sleep } = await import('${spec.text}')`)
     }
     if (ts.isCallExpression(n)) {
+      const waited = n.arguments.find(a => ts.isObjectLiteralExpression(unwrap(a)))
+      const heard = waited ? (unwrap(waited) as ts.ObjectLiteralExpression).properties.find(p => (ts.isPropertyAssignment(p) || ts.isShorthandPropertyAssignment(p)) && keyOf(p.name) === 'signal') : undefined
+      const signal = heard ? (ts.isPropertyAssignment(heard) ? squeeze(heard.initializer.getText(sf)) : 'signal') : undefined
+      const first = n.arguments[0] ? squeeze(n.arguments[0].getText(sf)) : '0'
+      if (pauseOfValue(n.expression)) hit(PAUSE, n, `sleep(${first}${signal ? `, ${signal}, { throwOnAbort: true }` : ''}) from ${SLEEP_DOOR}`)
+      else if (ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === 'sleep' && ts.isIdentifier(n.expression.expression) && n.expression.expression.text === 'Bun' && !declarationOf(n.expression.expression)) hit(PAUSE, n, `sleep(${first}) from ${SLEEP_DOOR}`)
       if (ts.isPropertyAccessExpression(n.expression)) {
         const method = n.expression.name.text
         const target = n.expression.expression
@@ -849,11 +890,20 @@ function plantedEstate(): void {
         'const bound = new Promise<void>(resolve => { handle = setTimeout(resolve, 10) })',
         "const valued = new Promise<string>(resolve => setTimeout(() => resolve('late'), 11))",
         "const raced = new Promise<void>(resolve => { setTimeout(resolve, 12); socket.once('close', resolve) })",
+        'await Bun.sleep(13)',
+        'await new Promise<void>(resolve => kick(resolve, 14))',
+        'function nudge(done: () => void, ms: number): void { setTimeout(done, ms) }',
+        'await new Promise<void>(resolve => nudge(resolve, 15))',
+        "import { sleep as doze } from '../utils/sleep.js'",
+        "const { sleep: snooze } = await import('../utils/sleep.js')",
+        "export { sleep as rest } from '../utils/sleep.js'",
+        'await delay(16, undefined, { signal })',
       ],
       seen: [
-        [3, 'env-whole'], [4, 'setTimeout'], [5, 'setTimeout'], [6, 'setInterval'], [7, 'setTimeout'], [8, 'setInterval'], [9, 'setImmediate'], [10, 'setImmediate'], [11, 'queueMicrotask'], [12, 'process.nextTick'], [13, 'process.nextTick'], [14, 'setTimeout'], [15, 'setInterval'], [16, 'env-read'], [17, 'setInterval'],
-        [20, 'setTimeout'], [22, 'process.nextTick'], [23, 'setTimeout'], [24, 'setTimeout'], [25, 'setImmediate'], [26, 'setImmediate'], [28, 'setInterval'], [29, 'setTimeout'], [30, 'setTimeout'], [33, 'setTimeout'], [34, 'setTimeout'], [35, 'setImmediate'], [36, 'Atomics.wait'], [37, 'queueMicrotask'], [38, 'queueMicrotask'], [39, 'queueMicrotask'],
+        [3, 'env-whole'], [4, 'setTimeout'], [5, 'setTimeout'], [6, 'setInterval'], [7, PAUSE], [7, 'setTimeout'], [8, 'setInterval'], [9, 'setImmediate'], [10, 'setImmediate'], [11, 'queueMicrotask'], [12, 'process.nextTick'], [13, 'process.nextTick'], [14, 'setTimeout'], [15, 'setInterval'], [16, 'env-read'], [17, 'setInterval'],
+        [20, 'setTimeout'], [22, 'process.nextTick'], [23, 'setTimeout'], [24, 'setTimeout'], [25, 'setImmediate'], [26, 'setImmediate'], [28, 'setInterval'], [29, 'setTimeout'], [30, PAUSE], [30, 'setTimeout'], [33, PAUSE], [33, 'setTimeout'], [34, PAUSE], [34, 'setTimeout'], [35, 'setImmediate'], [36, 'Atomics.wait'], [37, 'queueMicrotask'], [38, 'queueMicrotask'], [39, 'queueMicrotask'],
         [40, PAUSE], [40, 'setTimeout'], [41, PAUSE], [41, 'setTimeout'], [42, PAUSE], [42, 'setTimeout'], [43, 'setTimeout'], [44, 'setTimeout'], [45, 'setTimeout'],
+        [46, PAUSE], [47, PAUSE], [48, 'setTimeout'], [49, PAUSE], [50, ALIAS], [51, ALIAS], [52, ALIAS], [53, PAUSE], [53, 'setTimeout'],
       ],
     },
     {
@@ -888,6 +938,12 @@ function plantedEstate(): void {
         'Promise.resolve(value).then(done)',
         'const store = { wait: () => 0 }; store.wait()',
         'const ticked = new Promise<void>(resolve => clock.setTimeout(resolve, 5))',
+        'await clock.sleep(5)',
+        'function heard(done: () => void, label: string): void { listeners.set(label, done) }',
+        "const closed = new Promise<void>(resolve => heard(resolve, 'closed'))",
+        'const woken = new Promise<void>(resolve => waiters.push(resolve))',
+        "import { sleep } from '../utils/sleep.js'",
+        "import { sleep as tick } from './sleep.js'",
         'export const out = [words, told, handle, able, run, mySetTimeout, setTimeoutMs, resetTimeout, wide, narrow, pattern, typed, settle, recovered, store, ticked]',
       ],
       seen: [],
@@ -991,7 +1047,7 @@ function plantedEstate(): void {
     },
     { file: DOOR_FILE, lines: doorLines, seen: [[4, 'setTimeout']] },
     { file: 'src/planted/door.ts', lines: doorLines, seen: [[2, 'env-read'], [4, 'setTimeout']] },
-    { file: 'src/planted/worker.mjs', lines: ["import { setTimeout as pause } from 'timers/promises'", 'await pause(5)', 'setInterval(() => {}, 5)', 'try { run() } catch {}', 'export const home = process.env.HOME'], seen: [[2, 'setTimeout'], [3, 'setInterval'], [4, 'empty-catch'], [5, 'env-read']] },
+    { file: 'src/planted/worker.mjs', lines: ["import { setTimeout as pause } from 'timers/promises'", 'await pause(5)', 'setInterval(() => {}, 5)', 'try { run() } catch {}', 'export const home = process.env.HOME'], seen: [[2, PAUSE], [2, 'setTimeout'], [3, 'setInterval'], [4, 'empty-catch'], [5, 'env-read']] },
     {
       file: 'src/planted/beyond.ts',
       lines: [
@@ -1025,7 +1081,7 @@ function plantedEstate(): void {
   const wanted = (file: string): string => want.filter(w => w.startsWith(`${file}:`)).join(' ')
   const stands = (file: string): boolean => of(file) === wanted(file)
   check(
-    'a timer is seen as a call of the global, as a member of globalThis or window, by a bracketed name, under the name an import gives it, as a member of the timers module, of its promises and of its scheduler, loaded by require or by a dynamic import, as a value, through a constant that holds the global or the timer, and through a name taken out of globalThis, each use counted; process.nextTick, Atomics.wait and a microtask queued through a resolved promise or an await of nothing are seen; a pause built by hand is seen where the executor of a new Promise only arms the timer that resolves it (the resolver handed to the timer or called with nothing, with unref on the handle or without), and not where the executor keeps the handle, resolves with a value or does anything more',
+    'a timer is seen as a call of the global, as a member of globalThis or window, by a bracketed name, under the name an import gives it, as a member of the timers module, of its promises and of its scheduler, loaded by require or by a dynamic import, as a value, through a constant that holds the global or the timer, and through a name taken out of globalThis, each use counted; process.nextTick, Atomics.wait and a microtask queued through a resolved promise or an await of nothing are seen; a pause built by hand is seen where the executor of a new Promise only arms the timer that resolves it (the resolver handed to the timer or called with nothing, with unref on the handle or without), and not where the executor keeps the handle, resolves with a value or does anything more; a call of the timer of timers/promises is seen as a pause under the name an import gives it, as a member, through its scheduler and with a signal, and so are Bun.sleep and a promise whose executor hands its resolver and a delay to a helper; the door imported, taken out of a dynamic import or exported again under another name is seen',
     stands('src/planted/timers.ts'),
     differs,
   )
@@ -1033,6 +1089,12 @@ function plantedEstate(): void {
     'an effect is seen as a call of the hook, under the name the import gives it, as a member of React under either import and of the React a host hands in, taken out of React with each use of the taken name, and as a value; useImperativeHandle and the lifecycle methods of a class are seen; a lint directive in a JSX comment and an environment read in a JSX expression are seen, and the same words in JSX text are not',
     stands('src/planted/Screen.tsx'),
     differs,
+  )
+  const doorSpelled = Object.entries(HABITS).filter(([, line]) => /utils\/sleep\.ts/.test(line))
+  check(
+    `a line that names the door spells it one way, ${SLEEP_DOOR} (${doorSpelled.length} of the ${NAMES.length} lines name it)`,
+    doorSpelled.length >= 8 && doorSpelled.every(([, line]) => (line.match(/[\w/]*utils\/sleep\.ts/g) ?? []).every(spelling => spelling === SLEEP_DOOR)),
+    doorSpelled.filter(([, line]) => (line.match(/[\w/]*utils\/sleep\.ts/g) ?? []).some(spelling => spelling !== SLEEP_DOOR)).map(([habit]) => habit).join(', '),
   )
   check(
     'a cast through unknown or any is seen in both spellings, and a cast to never and a cast to any alone; @ts-ignore, @ts-expect-error and @TS-NOCHECK are seen; a lint directive is seen for eslint in its three forms, biome, prettier, an editor inspection and a coverage tool; a catch block is seen empty (also with a lone semicolon or a void of the error) and answering with a default (a return, a return of null, a continue); a rejection handler is seen empty and answering with a default',
@@ -1047,7 +1109,7 @@ function plantedEstate(): void {
   check('a plain JavaScript module is read as the TypeScript ones are', stands('src/planted/worker.mjs'), differs)
   check(`the registry (${DOOR_FILE}, known by its path and its export of ${DOOR}) is the door of the environment: its own reads are not counted and its other habits are; another file that exports a function of that name is counted like any file`, DOOR_FILE !== '' && existsSync(join(ROOT, DOOR_FILE)) && stands(DOOR_FILE) && stands('src/planted/door.ts'), differs)
   check(
-    'a look-alike is not seen: the words in a string, a template or a regular expression; a type query and a typeof test; a method of that name on a socket, a clock or a store; a function, a parameter or a constant of the file under that name; a property named env; an environment a caller hands in as a parameter with no default; the any keyword and never in a type; a cast to unknown alone and a cast between two types; a catch block and a handler that do something or answer with a computed value; a schema fallback; an await of work and a promise resolved with a value; a promise that waits on the timer of a clock',
+    'a look-alike is not seen: the words in a string, a template or a regular expression; a type query and a typeof test; a method of that name on a socket, a clock or a store; a function, a parameter or a constant of the file under that name; a property named env; an environment a caller hands in as a parameter with no default; the any keyword and never in a type; a cast to unknown alone and a cast between two types; a catch block and a handler that do something or answer with a computed value; a schema fallback; an await of work and a promise resolved with a value; a promise that waits on the timer of a clock; a sleep that is the method of a clock, a helper whose body arms no timer, a list that keeps the resolver, the door under its own name and a sleep of another module',
     of('src/planted/lookalikes.ts') === '',
     of('src/planted/lookalikes.ts'),
   )
@@ -1067,12 +1129,20 @@ function plantedEstate(): void {
   const unrowed = tableOf(text.replace('env-read\tsrc/planted/Screen.tsx\t1\n', ''))!
   const lone = judge('env-read', hits, unrowed)
   check('a file with no row that holds a habit is named with its line and what to use instead, and a name of the environment with whether the registry holds its row', lone.over.length === 1 && lone.total === lone.allowed + 1 && told('env-read', lone.over).includes('src/planted/Screen.tsx:13 env-read · HOME has no row') && told('env-read', lone.over).includes('has no row:') && told('env-read', lone.over).includes(DOOR) && named(hits, 'src/planted/rest.ts', 50) === '', told('env-read', lone.over))
-  const paused = judge(PAUSE, hits, tableOf(text.replace(`${PAUSE}\tsrc/planted/timers.ts\t3\n`, ''))!)
+  const plantedPauses = hits.filter(h => h.habit === PAUSE && h.file === 'src/planted/timers.ts').length
+  const paused = judge(PAUSE, hits, tableOf(text.replace(`${PAUSE}\tsrc/planted/timers.ts\t${plantedPauses}\n`, ''))!)
   const pausedWords = told(PAUSE, paused.over)
   check(
-    'a pause built by hand in a file with no row is red by its own line, which names the call of sleep that replaces it and the file the call comes from',
-    paused.over.length === 1 && paused.total === paused.allowed + 3 && pausedWords.includes(`call sleep(ms, signal?, opts?) from ${SLEEP_DOOR}`) && [`40 ${PAUSE} · sleep(8)`, `41 ${PAUSE} · sleep(9, undefined, { unref: true })`, `42 ${PAUSE} · sleep(ms, undefined, { unref: true })`].every(line => pausedWords.includes(`src/planted/timers.ts:${line} from ${SLEEP_DOOR}`)),
+    'a pause in a file with no row is red by its own line, which names the call of sleep that replaces it and the file the call comes from: a promise built over a timer, the timer of timers/promises under a name, as a member, through its scheduler and with a signal, Bun.sleep, and a helper that is handed the resolver',
+    plantedPauses === 11 && paused.over.length === 1 && paused.total === paused.allowed + plantedPauses && pausedWords.includes(`call sleep(ms, signal?, opts?) from ${SLEEP_DOOR}`) && [`7 ${PAUSE} · sleep(5)`, `30 ${PAUSE} · sleep(4)`, `33 ${PAUSE} · sleep(5)`, `34 ${PAUSE} · sleep(6)`, `40 ${PAUSE} · sleep(8)`, `41 ${PAUSE} · sleep(9, undefined, { unref: true })`, `42 ${PAUSE} · sleep(ms, undefined, { unref: true })`, `46 ${PAUSE} · sleep(13)`, `47 ${PAUSE} · sleep(14)`, `49 ${PAUSE} · sleep(15)`, `53 ${PAUSE} · sleep(16, signal, { throwOnAbort: true })`].every(line => pausedWords.includes(`src/planted/timers.ts:${line} from ${SLEEP_DOOR}`)),
     pausedWords,
+  )
+  const aliased = judge(ALIAS, hits, tableOf(text.replace(`${ALIAS}\tsrc/planted/timers.ts\t3\n`, ''))!)
+  const aliasedWords = told(ALIAS, aliased.over)
+  check(
+    'the door under another name in a file with no row is red by its own line, which says to import it as sleep: an import, a name taken out of a dynamic import and a re-export',
+    aliased.over.length === 1 && aliased.total === aliased.allowed + 3 && aliasedWords.includes(`import { sleep } from ${SLEEP_DOOR}`) && [`50 ${ALIAS} · import { sleep } from '../utils/sleep.js'`, `51 ${ALIAS} · const { sleep } = await import('../utils/sleep.js')`, `52 ${ALIAS} · import { sleep } from '../utils/sleep.js'`].every(line => aliasedWords.includes(`src/planted/timers.ts:${line}`)),
+    aliasedWords,
   )
   const lowered = tableOf(text.replace('empty-catch\tsrc/planted/rest.ts\t4\n', 'empty-catch\tsrc/planted/rest.ts\t3\n'))!
   const raised = judge('empty-catch', hits, lowered)
