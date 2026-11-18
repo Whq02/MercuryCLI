@@ -2,7 +2,7 @@ import type { LedgerMark, ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } fro
 import type { HookEvent } from '../utils/hooks/contract.js'
 
 export type { LedgerMark, ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './runtime/usage-ledger.js'
-export { ledgerMarkAfter } from './runtime/usage-ledger.js'
+export { advanceLedgerMark, usageSince } from './runtime/usage-ledger.js'
 import type { SessionId } from '../types/ids.js'
 import type { ApiRequestParams } from '../types/wire.js'
 import type { ModelSetting } from '../utils/model/model.js'

@@ -24,7 +24,7 @@ export type LedgerMark = {
 
 const LEDGER_COUNTERS = ['inputTokens', 'outputTokens', 'cacheReadInputTokens', 'cacheCreationInputTokens', 'webSearchRequests', 'costUSD'] as const
 
-function usageSince(current: Record<string, ModelUsage>, baseline: Record<string, ModelUsage>): Record<string, ModelUsage> {
+export function usageSince(current: Record<string, ModelUsage>, baseline: Record<string, ModelUsage>): Record<string, ModelUsage> {
   const result: Record<string, ModelUsage> = {}
   for (const [model, row] of Object.entries(current)) {
     const delta = { ...row }
@@ -36,15 +36,14 @@ function usageSince(current: Record<string, ModelUsage>, baseline: Record<string
   return result
 }
 
-export function ledgerMarkAfter(mark: LedgerMark, spent: LedgerMark): LedgerMark {
-  const modelUsage = Object.fromEntries(Object.entries(mark.modelUsage).map(([model, row]) => [model, { ...row }]))
+export function advanceLedgerMark(mark: LedgerMark, spent: LedgerMark): void {
+  mark.costUSD += spent.costUSD
+  mark.apiDuration += spent.apiDuration
   for (const [model, row] of Object.entries(spent.modelUsage)) {
-    const held = (modelUsage[model] ??= { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0 })
+    const held = (mark.modelUsage[model] ??= { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0 })
     for (const counter of LEDGER_COUNTERS) held[counter] += row[counter]
   }
-  const unpricedTurns = { ...mark.unpricedTurns }
-  for (const [model, turns] of Object.entries(spent.unpricedTurns)) unpricedTurns[model] = (unpricedTurns[model] ?? 0) + turns
-  return { costUSD: mark.costUSD + spent.costUSD, apiDuration: mark.apiDuration + spent.apiDuration, modelUsage, unpricedTurns }
+  for (const [model, turns] of Object.entries(spent.unpricedTurns)) mark.unpricedTurns[model] = (mark.unpricedTurns[model] ?? 0) + turns
 }
 
 export class UsageLedgerOwner {

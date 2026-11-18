@@ -58,7 +58,7 @@ import { HOOK_CUT_BUDGET_MS } from '../utils/hooks/contract.js'
 import { getEngineModel } from '../utils/model/model.js'
 import { resolveModelPricing } from '../utils/modelCost.js'
 import { getTokenUsage, messageContextFill } from '../utils/tokens.js'
-import { getTotalCostUSD, ledgerMark, ledgerMarkAfter, ledgerSpentSince } from '../bootstrap/state.js'
+import { advanceLedgerMark, getModelUsage, getTotalCostUSD, ledgerMark, ledgerSpentSince, usageSince } from '../bootstrap/state.js'
 import { noteRunPhase } from '../utils/runPhases.js'
 import { processUserInput } from '../utils/processUserInput/processUserInput.js'
 import { getSlashCommandToolSkills } from '../commands.js'
@@ -377,7 +377,8 @@ export class Conversation {
     setCwd(config.cwd)
     const persistenceDisabled = isSessionPersistenceDisabled()
     const turnStartedAt = Date.now()
-    let ledgerAtStart = ledgerMark()
+    const modelUsageAtStart = Object.fromEntries(Object.entries(getModelUsage()).map(([model, row]) => [model, { ...row }]))
+    const ledgerAtStart = { ...ledgerMark(), modelUsage: modelUsageAtStart }
     const eagerFlush = isEnvTruthy(flagEnv('MERCURY_EAGER_FLUSH'))
     const errorWatermark = getInMemoryErrors().at(-1)
     this.turnOrdinal += 1
@@ -673,7 +674,7 @@ export class Conversation {
       const spent = ledgerSpentSince(ledgerAtStart)
       const unpricedModels = new Set(Object.keys(spent.unpricedTurns))
       const apiMs = spent.apiDuration
-      const billed = spent.modelUsage
+      const billed = usageSince(getModelUsage(), modelUsageAtStart)
       const subscriber = isClaudeAISubscriber()
       const hasUnknownCost = (model: string): boolean => unpricedModels.has(model) || (subscriber && declaredRouteOf(model) === 'anthropic')
       const pricedModels = Object.keys(billed).filter(model => !hasUnknownCost(model))
@@ -1058,7 +1059,7 @@ export class Conversation {
             const systemMessage = message
             if (systemMessage.subtype === 'close_usage') {
               const close = systemMessage as import('../types/message.js').SystemCloseUsageMessage
-              if (close.spent !== undefined) ledgerAtStart = ledgerMarkAfter(ledgerAtStart, close.spent)
+              if (close.spent !== undefined) advanceLedgerMark(ledgerAtStart, close.spent)
               yield closeRow(scope, {
                 state: close.closeState,
                 ...(close.noteChars !== undefined ? { noteChars: close.noteChars } : {}),
