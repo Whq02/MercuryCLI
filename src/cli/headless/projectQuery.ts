@@ -13,7 +13,7 @@ import { parseMercuryRef } from '../../services/resources/contracts.js'
 import { MERCURY_DAEMON_PROTO } from '../../daemon/protocol.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import { searchPointers } from '../../mneme/mnemePointers.js'
-import { RPC_INVALID_PARAMS, RpcError, refused } from '../../runner/wire/errors.js'
+import { invalidParams, refused, type RpcError } from '../../runner/wire/errors.js'
 import type { ParamsOf } from '../../runner/wire/methods.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
@@ -21,7 +21,7 @@ import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.j
 const DAEMON_ANSWERED = 'EUNKNOWN'
 
 function badParameter(message: string, ...paths: string[]): RpcError {
-  return new RpcError(RPC_INVALID_PARAMS, message, { method: 'project/query', issues: paths.map(path => ({ path, message })) })
+  return invalidParams('project/query', paths.map(path => ({ path, message })))
 }
 
 function projectSession(id: string | undefined, parameter: 'session_id' | 'ref' = 'session_id'): string {

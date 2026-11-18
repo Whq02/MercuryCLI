@@ -314,7 +314,8 @@ section('§4b project/query: a folder nobody trusted, a parameter that is missin
   const NEEDS_REF = 'A mercury:// reference is required'
   writeFileSync(join(projects, `${SAVED}.jsonl`), '')
   answers.set('getProjectDir', () => projects)
-  const badParameter = (answer: Refusal | null, sentence: string, ...paths: string[]): boolean => answer?.code === RPC_INVALID_PARAMS && answer.message === sentence && j(answer.data) === j({ method: 'project/query', issues: paths.map(path => ({ path, message: sentence })) })
+  const WIRE_FORM = 'invalid params for project/query'
+  const badParameter = (answer: Refusal | null, sentence: string, ...paths: string[]): boolean => answer?.code === RPC_INVALID_PARAMS && answer.message === WIRE_FORM && j(answer.data) === j({ method: 'project/query', issues: paths.map(path => ({ path, message: sentence })) })
   const notServed = (answer: Refusal | null, sentence: string): boolean => answer?.code === RPC_REFUSED && j(answer.data) === j({ kind: 'project' }) && answer.message === sentence
   const held: Array<{ name: string; answer: Refusal | null; ok: boolean }> = []
   const hold = async (name: string, params: Record<string, unknown>, ok: (answer: Refusal | null) => boolean): Promise<void> => {
@@ -332,10 +333,37 @@ section('§4b project/query: a folder nobody trusted, a parameter that is missin
   await hold('resource with a transcript reference whose id is no UUID', { op: 'resource', ref: 'mercury://transcript/session/not-a-uuid' }, answer => badParameter(answer, NEEDS_ID, 'ref'))
   const parameters = held.splice(0)
   check(
-    "project/query refuses a parameter that is missing or malformed with the wire's code for bad parameters (-32602), the sentence it printed as the message, and the parameter by name: session_id, sender, message, query and ref",
+    "project/query refuses a parameter that is missing or malformed in the wire's one form for bad parameters: the code -32602, invalid params for project/query as the message, and in data.issues the sentence it printed beside the parameter's name: session_id, sender, message, query and ref",
     parameters.length === 9 && parameters.every(one => one.ok),
     parameters.filter(one => !one.ok).map(one => `${one.name}: ${shown(one.answer)}`).join(' · '),
   )
+  {
+    const { automationServerFactory } = await import('../../src/services/mcp/automationServer.ts')
+    const { MercuryError } = await import('../../sdk/src/errors.ts')
+    const { Client } = await import('../../src/services/mcp/sdk.ts')
+    const { InMemoryTransport } = await import('@modelcontextprotocol/server')
+    const bridge = {
+      query: async (input: Record<string, unknown>): Promise<unknown> => {
+        try { return await runnerArmsOf(ports)['project/query'](input as never, ref, signalOf()) }
+        catch (error) { throw Object.assign(new MercuryError((error as Error).message, null), { code: (error as { code?: number }).code, data: (error as { data?: unknown }).data }) }
+      },
+      close: async (): Promise<void> => {},
+    }
+    const server = automationServerFactory(bridge as never).create({} as never)
+    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
+    await server.connect(serverSide)
+    const client = new Client({ name: 'runner-arms-proof', version: '1.0.0' }, { capabilities: {} })
+    await client.connect(clientSide)
+    const sent = await client.callTool({ name: 'mercury_send', arguments: { session_id: SAVED, sender: ' ', message: 'words' } })
+    const printed = ((sent.content ?? []) as Array<{ text?: string }>).map(part => part.text ?? '').join('')
+    const read = await client.readResource({ uri: 'mercury://transcript/session/not-a-uuid' }).then(() => null, (error: unknown) => (error instanceof Error ? error.message : String(error)))
+    check(
+      "Mercury's MCP server prints the sentence of a -32602 after the wire's message, for a tool and for a resource read, from the error the TypeScript SDK raises for it (the message, with the code and the data on the error)",
+      sent.isError === true && printed === `${WIRE_FORM}: sender: ${NEEDS_BOTH}` && read !== null && read.includes(`${WIRE_FORM}: ref: ${NEEDS_ID}`),
+      j({ tool: printed, resource: read }),
+    )
+    await client.close()
+  }
 
   type WorkerRecord = ReturnType<typeof import('../../src/daemon/concourseWorkers.ts').readSessionWorkers>[string]
   type DaemonAnswer = Awaited<ReturnType<typeof import('../../src/daemon/controlSocket.ts').daemonControlRpc>>
