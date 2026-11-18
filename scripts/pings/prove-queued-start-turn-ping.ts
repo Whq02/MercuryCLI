@@ -131,8 +131,9 @@ function writeWorkers(entries: Record<string, { sessionId: string; lastDeliveryA
   writeFileSync(join(daemonHome, 'concourse-workers.json'), JSON.stringify({ version: 1, workers }))
 }
 
+const factsFeedReads = new WeakMap<object, () => void>()
 function feedFacts(connector: InstanceType<typeof DaemonSessionConnector>): void {
-  ;(connector as unknown as { readFacts: () => void }).readFacts()
+  factsFeedReads.get(connector)!()
 }
 
 const subscribeFocusedSeatLive = subscribeThroughFocused((c, listener) => (hasSeatLive(c) ? c.subscribeLive(listener) : () => {}))
@@ -207,14 +208,21 @@ function PingHarness(): React.ReactNode {
 function makeConnector(sessionId: string): InstanceType<typeof DaemonSessionConnector> {
   const transcriptDir = join(scratch, `tr-${sessionId}`)
   mkdirSync(transcriptDir, { recursive: true })
-  return new DaemonSessionConnector({
+  let feedReads: () => void = () => {}
+  const connector = new DaemonSessionConnector({
     sessionId,
     runnerId: 'concourse-w1',
     title: 'ping-proof',
     projectLabel: 'work',
     workspaceId: work,
     home: transcriptDir,
+  }, {
+    factsRead: (read: () => void) => {
+      feedReads = read
+    },
   })
+  factsFeedReads.set(connector, feedReads)
+  return connector
 }
 
 updateLastInteractionTime(true)

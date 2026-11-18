@@ -18,7 +18,18 @@ const write = (value: typeof facts): void => {
   mkdirSync(dirname(file), { recursive: true })
   writeFileSync(file, JSON.stringify(value))
 }
-const refresh = (connector: InstanceType<typeof DaemonSessionConnector>): void => (connector as unknown as { readFacts: () => void }).readFacts()
+const feedReads = new Map<object, () => void>()
+const hosted = (rec: typeof record): InstanceType<typeof DaemonSessionConnector> => {
+  let factsFeedReads: () => void = () => {}
+  const connector = new DaemonSessionConnector(rec, {
+    factsRead: (read: () => void) => {
+      factsFeedReads = read
+    },
+  })
+  feedReads.set(connector, factsFeedReads)
+  return connector
+}
+const refresh = (connector: InstanceType<typeof DaemonSessionConnector>): void => feedReads.get(connector)!()
 const words = (connector: InstanceType<typeof DaemonSessionConnector>): string => statusLine(connector.live(), connector.status())
 let checks = 0
 let failures = 0
@@ -27,7 +38,7 @@ function check(label: string, ok: boolean): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
 }
-const cold = new DaemonSessionConnector({ ...record, sessionId: 'without-seed' })
+const cold = hosted({ ...record, sessionId: 'without-seed' })
 check('a cold resume with no projection waits for a runner answer', words(cold).startsWith('the runner is starting'))
 check('the saved record supplies the model before a runner answer', cold.modelFacts().effective === record.modelKey && cold.modelFacts().effectiveSource === 'record')
 write({ ...facts, sessionId: 'without-seed' })
@@ -35,7 +46,7 @@ refresh(cold)
 check('without a seed, the first valid projection is live', words(cold) === 'ready' && cold.modelFacts().effectiveSource === 'live')
 write(facts)
 check('the seed fixture is a valid projection', readSessionFacts(record.sessionId)?.atMs === 1000)
-const seeded = new DaemonSessionConnector(record)
+const seeded = hosted(record)
 const starting = seeded.status().runner
 check('the old seed does not make the resumed runner ready', words(seeded).startsWith('the runner is starting'))
 check('the saved record, not an older seed, names the resumed model', seeded.modelFacts().effective === record.modelKey && seeded.modelFacts().effectiveSource === 'record')

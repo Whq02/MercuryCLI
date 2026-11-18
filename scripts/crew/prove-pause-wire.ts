@@ -366,6 +366,7 @@ if (typeof seatMod.pauseSessionGate !== 'function') {
 section('P1 THE THREE LAYERS — p on a hosted chat parks a real loop in the runner; the rows carry the parked words; the chip reads the runner\'s fact; p again reopens')
 {
   const rpcLog: Record<string, unknown>[] = []
+  let factsFeedReads: () => void = () => {}
   const connector = new DaemonSessionConnector({
     sessionId: SESSION,
     runnerId: RUNNER,
@@ -383,11 +384,12 @@ section('P1 THE THREE LAYERS — p on a hosted chat parks a real loop in the run
       const out = await seatMod.pauseSessionGate(String(req.sessionId), req.paused, roster, daemonDir)
       return { ok: true, op: 'sessionControl', outcome: out.outcome, ...(out.detail !== undefined ? { detail: out.detail } : {}) }
     },
+    factsRead: (read: () => void) => {
+      factsFeedReads = read
+    },
   })
-  type Guts = { readFacts: () => void }
-  const guts = connector as unknown as Guts
   const rosterOf = (): { rows: readonly WorkRowV1[]; pauseGate?: { paused: boolean; parked: number } } => {
-    guts.readFacts()
+    factsFeedReads()
     return connector.workRoster() as never
   }
   const chipOf = (): string | null => {

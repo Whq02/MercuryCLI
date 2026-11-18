@@ -309,6 +309,7 @@ interface ConnectorHands {
   tickOnce?(pass: () => Promise<void>): Promise<void>
   armTranscriptWatcher?(): void
   armTranscriptTimer?(): void
+  factsRead?(read: () => void): void
 }
 
 async function carrierRpc(req: Record<string, unknown>, timeoutMs: number): Promise<Record<string, unknown>> {
@@ -439,7 +440,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.admissionPart.seed(this.facts?.atMs ?? null, record.runnerId === '')
     this.workPart.refreshWork()
     const idleFloor = (): number => (this.turnInFlight ? HEARTBEAT_MS : IDLE_PROJECTION_FLOOR_MS)
-    this.factsFeed = new ProjectionFeed(sessionFactsDir(), sessionFactsPath(record.sessionId), () => this.readFacts(), idleFloor)
+    const factsRead = (): void => this.readFacts()
+    this.hands.factsRead?.(factsRead)
+    this.factsFeed = new ProjectionFeed(sessionFactsDir(), sessionFactsPath(record.sessionId), factsRead, idleFloor)
     this.asksFeed = new ProjectionFeed(sessionAsksDir(), sessionAsksPath(record.sessionId), () => this.readAsks(), idleFloor)
     this.tailFeed = new ProjectionFeed(sessionTailDir(), sessionTailPath(record.sessionId), () => this.readTail(), idleFloor)
     this.progressFeed = new ProjectionFeed(sessionProgressDir(), sessionProgressPath(record.sessionId), () => this.livePart.readProgress(), idleFloor)
@@ -1004,7 +1007,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     emitAll(this.recordListeners, 'records')
   }
 
-
   checkpointFacts(): CheckpointFactsV1 {
     return this.workPart.checkpointFacts()
   }
@@ -1057,7 +1059,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return { outcome: 'refused', mode: req.mode, refusal: 'restore-failed', detail: `the daemon is not answering — nothing is assumed restored (${e instanceof Error ? e.message : String(e)})` }
     }
   }
-
 
   private readFacts(): void {
     const next = readSessionFacts(this.record.sessionId)
@@ -1247,7 +1248,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return null
     }
   }
-
 
   sessionId(): string {
     return this.record.sessionId

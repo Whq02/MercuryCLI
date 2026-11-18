@@ -32,10 +32,10 @@ type Guts = {
   dressSend: (id: string, state: Send['state']) => void
   readTail: () => void
   liveStateWord: 'compacting' | 'waiting-on-agents' | null
-  readFacts: () => void
   paint: () => void
 }
 
+let factsFeedReads: () => void = () => {}
 const connector = new DaemonSessionConnector({
   sessionId: 'held-proof',
   runnerId: 'runner-1',
@@ -44,7 +44,12 @@ const connector = new DaemonSessionConnector({
   workspaceId: 'ws',
   home: SCRATCH,
   modelKey: 'claude-sonnet-5',
-}, { rpc: async () => ({ ok: true, op: 'sessionControl', outcome: 'applied', withdrawn: true, text: 'the words' }) })
+}, {
+  rpc: async () => ({ ok: true, op: 'sessionControl', outcome: 'applied', withdrawn: true, text: 'the words' }),
+  factsRead: (read: () => void) => {
+    factsFeedReads = read
+  },
+})
 const g = connector as unknown as Guts
 const seed = (id: string, text: string, state: Send['state']): void => {
   g.sends = [...g.sends, { clientMessageId: id, text, sentAtMs: Date.now(), state, mode: 'prompt', source: { text, mode: 'prompt', pastedContents: {} } } as Send]
@@ -58,7 +63,7 @@ const { publishSessionFacts, publishSessionTail } = await import(join(SRC, 'serv
 let factsStamp = Date.now()
 const runnerSays = (busy: boolean): void => {
   publishSessionFacts({ schema: 1, sessionId: 'held-proof', atMs: ++factsStamp, busy, queueReady: false, pendingModel: null, model: { effective: 'claude-sonnet-5', setting: null }, usage: {}, queue: [] } as never)
-  g.readFacts.call(connector)
+  factsFeedReads()
 }
 let tailStamp = 0
 const tailSays = (word: 'compacting' | 'waiting-on-agents' | null): void => {

@@ -50,15 +50,18 @@ type Guts = {
   rawRecords: Message[]
   reconcileQueuedSends: (facts: Record<string, unknown>) => void
   readTail: () => void
-  readFacts: () => void
   paint: () => void
 }
+let factsFeedReads: () => void = () => {}
 let answer: (req: Reply) => Promise<Reply> = async () => ({ ok: true, op: 'sessionControl', outcome: 'applied' })
 const rpcLog: Reply[] = []
 const connector = new DaemonSessionConnector({ sessionId: 'compaction-hold-proof', runnerId: 'runner-1', title: 'compaction hold', projectLabel: 'proof', workspaceId: 'ws', home: SCRATCH, modelKey: 'claude-sonnet-5' }, {
   rpc: async (req: Reply) => {
     rpcLog.push(req)
     return answer(req)
+  },
+  factsRead: (read: () => void) => {
+    factsFeedReads = read
   },
 })
 const g = connector as unknown as Guts
@@ -78,7 +81,7 @@ const { publishSessionFacts, publishSessionTail } = await import(join(SRC, 'serv
 let factsStamp = Date.now()
 const runnerSays = (busy: boolean): void => {
   publishSessionFacts({ schema: 1, sessionId: 'compaction-hold-proof', atMs: ++factsStamp, busy, queueReady: false, pendingModel: null, model: { effective: 'claude-sonnet-5', setting: null }, usage: {}, queue: [] } as never)
-  g.readFacts.call(connector)
+  factsFeedReads()
 }
 let tailStamp = 0
 const tailSays = (word: 'compacting' | 'waiting-on-agents' | null): void => {
