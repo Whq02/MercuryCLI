@@ -18,7 +18,7 @@ import { getOriginalCwd, getSessionId } from '../bootstrap/state.js';
 import { commandOffInPlainWorld, commandSeat, getCommandName, isCommandEnabled, type Command, type ResumeEntrypoint } from '../commands.js';
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
 import { ExitFlow } from '../components/ExitFlow.js';
-import { computeUnseenDivider, countUnseenAssistantTurns, FullscreenLayout, useUnseenDivider } from '../components/FullscreenLayout.js';
+import { FullscreenLayout } from '../components/FullscreenLayout.js';
 import { TranscriptSwap } from '../components/CrewmateTranscript.js';
 import { MercuryTurnRollup } from '../components/MercuryTurnRollup.js';
 import {
@@ -35,7 +35,7 @@ import PromptInput from '../components/PromptInput/PromptInput.js';
 import { isVimModeEnabled } from '../components/PromptInput/utils.js';
 import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.js';
 import { MessageActionsBar } from '../components/messageActions.js';
-import { setMessageCursor, useMessageCursorActive } from '../components/messageCursorStore.js';
+import { useMessageCursorActive } from '../components/messageCursorStore.js';
 import { useHoldsEscape } from '../hooks/useEscapeOwned.js';
 import { FocusedSessionStatusRow, statusLine, statusRowWarns } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
@@ -59,7 +59,6 @@ import { ElicitationDialog } from '../components/mcp/ElicitationDialog.js';
 import { useMcpConnectivityStatus } from '../hooks/notifs/useMcpConnectivityStatus.js';
 import { recordBootInteractive } from '../utils/observability/frictionStopwatch.js';
 import { readAllTranscriptEntries } from '../utils/sessionStorage/materialize.js';
-import { isHumanTurn } from '../utils/messagePredicates.js';
 import { submitTrace } from '../utils/submitTrace.js';
 import { fluxMark, fluxWhy } from '../utils/flux/fluxProbe.js';
 import { SpinnerWithVerb } from '../components/Spinner.js';
@@ -98,7 +97,6 @@ import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js';
 import { Box, type DOMElement, measureElement, Text, useStdin, useTheme } from '../ink.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
-import { InkInstanceContext } from '../ink/components/InkInstanceContext.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
 import { setClipboardWithReceipt } from '../ink/termio/osc.js';
 import * as pendingInput from '../input-core/pending-input.js';
@@ -139,6 +137,7 @@ import type { SetToolJSXFn, Tool, ToolPermissionContext } from '../Tool.js';
 import { resolveToolJSX } from './toolJsxArbitration.js';
 import type { FocusedInputDialog } from './chat/focusedDialog.js';
 import type { Screen as ScreenName } from './chat/screen.js';
+import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
 import { TranscriptFooter, TranscriptSearchBar, useChatSearch } from './chat/useChatSearch.js';
 import { AnimatedTitle, useChatTitle } from './chat/useChatTitle.js';
 import type { SessionListing } from '../types/logs.js';
@@ -271,8 +270,6 @@ type PaintsRows = { addDisplayRow?: (row: Message) => void; transcriptFile?: () 
 type ToolJSXState = Parameters<SetToolJSXFn>[0];
 
 type ResumableLog = Omit<Partial<SessionListing>, 'messages'> & { messages: Message[] };
-
-type ScrollRestore = { gap: number; sticky: boolean };
 
 function getFocusedInputDialog(args: {
   isExiting: boolean;
@@ -501,18 +498,7 @@ export function Chat({
   );
   const insertTextRef = useRef<{ insert: (text: string) => void; setInputWithCursor: (value: string, cursor: number) => void; cursorOffset: number } | null>(null);
 
-  const scrollRef = useRef<ScrollBoxHandle | null>(null);
-  const scrollRestoreRef = useRef<ScrollRestore | null>(null);
-  const modalScrollRef = useRef<ScrollBoxHandle | null>(null);
-  const lastUserScrollAtRef = useRef(0);
-  const repinToBottom = useCallback(() => {
-    scrollRestoreRef.current = null;
-    scrollRef.current?.scrollToBottom();
-  }, []);
-  const noteUserScroll = useCallback(() => {
-    lastUserScrollAtRef.current = Date.now();
-  }, []);
-
+  const { scrollRef, scrollRestoreRef, modalScrollRef, lastUserScrollAtRef, repinToBottom, noteUserScroll } = useChatScrollPin();
   useEffect(() => {
     return pendingInput.registerInterceptors({
       interceptSuggestion: () => false,
@@ -1481,78 +1467,7 @@ export function Chat({
     }).catch(() => {});
   }, []);
 
-  const unseen = useUnseenDivider(messages.length, scrollRef);
-  const captureScrollForFlip = useCallback(() => {
-    const handle = scrollRef.current;
-    if (!handle) {
-      scrollRestoreRef.current = null;
-      return;
-    }
-    const gap = Math.max(0, handle.getFreshScrollHeight() - handle.getViewportHeight() - handle.getScrollTop());
-    scrollRestoreRef.current = { gap, sticky: handle.isSticky() || gap === 0 };
-  }, []);
-  const [flipGeneration, setFlipGeneration] = useState(0);
-  const flipInk = React.useContext(InkInstanceContext);
-  useLayoutEffect(() => {
-    const restore = scrollRestoreRef.current;
-    if (!restore || !flipInk) return;
-    if (!restore.sticky && scrollRef.current) {
-      const handle = scrollRef.current;
-      type ScrollNodeLike = {
-        style?: { overflowY?: string; paddingTop?: number; paddingBottom?: number };
-        scroll?: { scrollTop?: number; scrollViewportHeight?: number };
-        layoutNode?: { getComputedWidth: () => number; getComputedHeight: () => number };
-        childNodes?: ScrollNodeLike[];
-      };
-      const syncViewport = (node: ScrollNodeLike | undefined): number | undefined => {
-        if (!node) return undefined;
-        if (
-          node.style?.overflowY === 'scroll' &&
-          node.scroll !== undefined &&
-          (node.scroll.scrollTop ?? 0) === handle.getScrollTop() &&
-          (node.scroll.scrollViewportHeight ?? 0) === handle.getViewportHeight() &&
-          node.layoutNode &&
-          node.layoutNode.getComputedWidth() > 0
-        ) {
-          const inner = Math.max(0, Math.floor(node.layoutNode.getComputedHeight()) - (node.style.paddingTop ?? 0) - (node.style.paddingBottom ?? 0));
-          node.scroll.scrollViewportHeight = inner;
-          return inner;
-        }
-        for (const child of node.childNodes ?? []) {
-          const found = syncViewport(child);
-          if (found !== undefined) return found;
-        }
-        return undefined;
-      };
-      const viewport = syncViewport((flipInk as unknown as { rootNode?: ScrollNodeLike }).rootNode) ?? handle.getViewportHeight();
-      const freshHeight = handle.getFreshScrollHeight();
-      if (freshHeight <= viewport) {
-        scrollRestoreRef.current = null;
-        unseen.dividerYRef.current = null;
-        unseen.onRepin();
-        handle.scrollToBottom();
-        return;
-      }
-      const maxAboveTail = Math.max(0, freshHeight - viewport - 1);
-      handle.scrollTo(Math.min(maxAboveTail, Math.max(0, freshHeight - viewport - restore.gap)));
-    }
-    const stop = flipInk.subscribeFrame(() => {
-      if (scrollRestoreRef.current !== restore) {
-        stop();
-        return;
-      }
-      const handle = scrollRef.current;
-      if (!handle) return;
-      const target = Math.max(0, handle.getFreshScrollHeight() - handle.getViewportHeight() - restore.gap);
-      if (restore.sticky || handle.getScrollTop() === target) {
-        stop();
-        scrollRestoreRef.current = null;
-        if (restore.sticky) handle.scrollToBottom();
-      } else handle.scrollTo(target);
-    });
-    return stop;
-  }, [flipGeneration, flipInk]);
-
+  const { unseen, captureScrollForFlip, setFlipGeneration, unseenDivider, newMessageCount, onScroll, onPillClick } = useChatScroll({ messages, fullscreen, scrollRef, scrollRestoreRef, noteUserScroll });
   const {
     dumpMode,
     inVirtualTranscriptMode,
@@ -1723,25 +1638,6 @@ export function Chat({
     }, NO_CHAT_SETTLE_MS);
     return () => clearTimeout(settle);
   }, [slotHasSession, landing, chatSurfaceCovered, localJsx, armedMessage]);
-  const unseenDivider = useMemo(
-    () => (fullscreen ? computeUnseenDivider(messages, unseen.dividerIndex) : undefined),
-    [fullscreen, messages, unseen.dividerIndex],
-  );
-  const newMessageCount = unseen.dividerIndex === null ? 0 : countUnseenAssistantTurns(messages, unseen.dividerIndex);
-  const onScroll = useCallback(
-    (sticky: boolean, handle: ScrollBoxHandle) => {
-      scrollRestoreRef.current = null;
-      noteUserScroll();
-      if (sticky) unseen.onRepin();
-      else unseen.onScrollAway(handle);
-    },
-    [noteUserScroll, unseen],
-  );
-  const onPillClick = useCallback(() => {
-    scrollRestoreRef.current = null;
-    setMessageCursor(null);
-    unseen.jumpToNew(scrollRef.current);
-  }, [unseen]);
   const onTranscriptScroll = useCallback(
     (sticky: boolean, handle: ScrollBoxHandle) => {
       jumpRef.current?.disarmSearch();
@@ -1757,11 +1653,7 @@ export function Chat({
     onTranscriptScroll(true, handle);
   }, [onTranscriptScroll]);
 
-  const lastMessage = messages[messages.length - 1];
-  useEffect(() => {
-    if (lastMessage && isHumanTurn(lastMessage)) repinToBottom();
-  }, [lastMessage, repinToBottom]);
-
+  useChatScrollFollow({ messages, repinToBottom });
   const viewInProgressToolUseIDs = seatLive.inProgressToolUseIDs;
   const viewStreamMode: SpinnerMode =
     seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' || seatLive.phase === 'waiting' ? 'requesting' : 'responding';
