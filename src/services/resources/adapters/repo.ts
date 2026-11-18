@@ -1,6 +1,5 @@
 
 import type { ParsedRef, ResourceAdapter, ResourceContext, ResourceResult } from '../contracts.js'
-import { registerResourceAdapter } from '../registry.js'
 import {
   composeReviewContext,
   fetchChecks,
@@ -297,5 +296,3 @@ export const repoAdapter: ResourceAdapter = {
     return { state: 'absent', note: `unknown repo resource '${ref.id}' — try mercury://repo` }
   },
 }
-
-registerResourceAdapter(repoAdapter)

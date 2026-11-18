@@ -19,7 +19,6 @@ const { evidenceFor, _resetEvidencePlaneForTesting } = await import(
   '../../src/services/primitives/evidencePlane.ts'
 )
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
-await import('../../src/services/resources/adapters/journey.ts')
 const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
 
 const owner = processMainOwner()

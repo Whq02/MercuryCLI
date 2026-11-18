@@ -10,7 +10,6 @@ import {
   reconcileAll,
   reconcileRecord,
 } from '../../projectServices/serviceManager.js'
-import { registerResourceAdapter } from '../registry.js'
 import {
   formatRef,
   type ParsedRef,
@@ -19,7 +18,7 @@ import {
   type ResourceResult,
 } from '../contracts.js'
 
-const serviceAdapter: ResourceAdapter = {
+export const serviceAdapter: ResourceAdapter = {
   kind: 'service',
   describe: 'named project services + logs (mercury://service/<name>?child=logs)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {
@@ -109,5 +108,3 @@ const serviceAdapter: ResourceAdapter = {
     }
   },
 }
-
-registerResourceAdapter(serviceAdapter)

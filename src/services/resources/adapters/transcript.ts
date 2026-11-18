@@ -1,7 +1,6 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { registerResourceAdapter } from '../registry.js'
 import { boundedTextView, type ResourceAdapter, type ResourceChild, type ResourceContext } from '../contracts.js'
 import { parseOwnerKey } from '../../primitives/owner.js'
 import { projectIntelEnabled } from '../../projectIntel/contracts.js'
@@ -231,5 +230,3 @@ export const transcriptAdapter: ResourceAdapter = {
     return children
   },
 }
-
-registerResourceAdapter(transcriptAdapter)

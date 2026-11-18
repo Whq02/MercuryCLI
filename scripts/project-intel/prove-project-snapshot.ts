@@ -29,7 +29,6 @@ async function main(): Promise<void> {
   const contracts = await import('../../src/services/projectIntel/contracts.js')
   const owner = await import('../../src/services/primitives/owner.js')
   const registry = await import('../../src/services/resources/registry.js')
-  await import('../../src/services/resources/adapters/project.js')
 
   const cleanup: string[] = []
   const ctxFor = (cwd: string) => ({

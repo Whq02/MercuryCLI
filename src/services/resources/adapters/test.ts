@@ -6,7 +6,6 @@ import {
   pythonTestsEnabled,
   type TestRunRecord,
 } from '../../ide/pythonTests.js'
-import { registerResourceAdapter } from '../registry.js'
 import { GLYPH } from '../../../components/mercury-ui/glyphs.js'
 import { boundedTextView, type ParsedRef, type ResourceAdapter, type ResourceChild, type ResourceResult } from '../contracts.js'
 
@@ -32,7 +31,7 @@ function recordResource(record: TestRunRecord, ref: string, selectors: ParsedRef
   }
 }
 
-const testAdapter: ResourceAdapter = {
+export const testAdapter: ResourceAdapter = {
   kind: 'test',
   describe: 'durable test-run records: run/<id> · latest · failures (the Test tool writes them)',
   async resolve(ref: ParsedRef): Promise<ResourceResult> {
@@ -99,5 +98,3 @@ const testAdapter: ResourceAdapter = {
       }))
   },
 }
-
-registerResourceAdapter(testAdapter)

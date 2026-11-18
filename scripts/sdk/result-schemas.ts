@@ -6,7 +6,7 @@ export async function resultSchemas(root: string): Promise<Record<string, Schema
   const { sessionFactsToWire, rewindOutcomeToWire } = await import(join(root, 'src/services/engine-connector/seatWire.ts'))
   const config = ts.readConfigFile(join(root, 'tsconfig.json'), ts.sys.readFile)
   const options = ts.parseJsonConfigFileContent(config.config, ts.sys, root).options
-  const files = ['src/services/engine-connector/seatProjections.ts', 'src/daemon/protocol.ts', 'src/cli/run.ts']
+  const files = ['src/services/engine-connector/seatProjections.ts', 'src/daemon/protocol.ts', 'src/cli/headless/runnerArms.ts']
   const program = ts.createProgram(files.map(file => join(root, file)), options)
   const checker = program.getTypeChecker()
   const shape = (type: ts.Type, seen = new Set<ts.Type>()): Schema => {
@@ -50,7 +50,7 @@ export async function resultSchemas(root: string): Promise<Record<string, Schema
       if (ts.isPropertyAssignment(node) && ts.isStringLiteral(node.name) && node.name.text === name && ts.isArrowFunction(node.initializer)) found = node.initializer
       ts.forEachChild(node, visit)
     }
-    visit(program.getSourceFile(join(root, 'src/cli/run.ts'))!)
+    visit(program.getSourceFile(join(root, files[2]!))!)
     if (!found) throw new Error(`SDK result handler missing: ${name}`)
     const returns: Schema[] = []
     const returned = (node: ts.Node): void => {

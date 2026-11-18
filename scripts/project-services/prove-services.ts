@@ -221,7 +221,6 @@ section('T. the Service tool end-to-end')
 {
   const { ServiceTool } = await import('../../src/tools/ServiceTool/ServiceTool.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  await import('../../src/tools.ts')
   const ctx = {
     abortController: new AbortController(),
     getAppState: () => ({
