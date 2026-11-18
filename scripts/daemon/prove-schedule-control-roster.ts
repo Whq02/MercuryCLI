@@ -73,7 +73,8 @@ try {
   }
   const main = readFileSync(join(ROOT, 'src/daemon/main.ts'), 'utf8')
   check("the daemon's set-schedule control arm returns the seat function's result through settle", main.includes("return settle(applySeatScheduleControl(sessionId, scheduleEdit, by, roster))"))
-  check('the control arm no longer applies the op on its own', !main.includes('applyConcourseScheduleOp(sessionId, scheduleEdit, by, {'))
+  const runParts = [readFileSync(join(ROOT, 'src/daemon/run/state.ts'), 'utf8'), readFileSync(join(ROOT, 'src/daemon/run/owner.ts'), 'utf8'), readFileSync(join(ROOT, 'src/daemon/run/shutdown.ts'), 'utf8'), readFileSync(join(ROOT, 'src/daemon/run/restart.ts'), 'utf8')]
+  check('the control arm no longer applies the op on its own', !main.includes('applyConcourseScheduleOp(sessionId, scheduleEdit, by, {') && runParts.every(part => !part.includes('applyConcourseScheduleOp(sessionId, scheduleEdit, by, {')))
   const seatSrc = readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8')
   check('the seat function pushes the roster and asks for facts by the record\'s runnerId after an applied op', /applySeatScheduleControl[\s\S]{0,900}pushScheduleRoster\(rec\.runnerId, roster, dir\)\s*\n\s*requestSessionFacts\(rec\.runnerId, roster, \{ immediate: true \}, dir\)/.test(seatSrc))
 } finally {

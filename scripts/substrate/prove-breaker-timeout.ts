@@ -123,7 +123,8 @@ section('structural: the one feed site calls the carve-out branch (wired, not in
   const mainTs = src('daemon', 'main.ts')
   const rosterTs = src('daemon', 'roster.ts')
   const hrTs = src('daemon', 'headlessRun.ts')
-  check('main.ts holds no direct runTaskHeadless dispatch (roster owns the feed)', !/await runTaskHeadless/.test(mainTs))
+  const runParts = [src('daemon', 'run', 'state.ts'), src('daemon', 'run', 'owner.ts'), src('daemon', 'run', 'shutdown.ts'), src('daemon', 'run', 'restart.ts')]
+  check('main.ts holds no direct runTaskHeadless dispatch (roster owns the feed)', !/await runTaskHeadless/.test(mainTs) && runParts.every(part => !/await runTaskHeadless/.test(part)))
   check('roster.ts reads res.timedOut + calls recordTimeout', /res\.timedOut === true && !DaemonBreaker\.timeoutIsFleetFailure\(\)[\s\S]{0,120}recordTimeout\(\)/.test(rosterTs))
   check('headlessRun sets wasTimedOut on the cap timer', /wasTimedOut = true/.test(hrTs))
   check('headlessRun resolves timedOut:true when wasTimedOut', /wasTimedOut \? \{ timedOut: true \} : \{\}/.test(hrTs))

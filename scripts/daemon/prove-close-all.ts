@@ -122,6 +122,8 @@ console.log('Q4 the quit parks all — the screen and the daemon')
   const daemon = read('src/daemon/main.ts')
   check("the daemon's park-all from a screen keeps a chat another LIVE terminal holds", daemon.includes('exceptFocusedByLiveTerminal: true'))
   check("the roster's idle edge completes a requested park while the drain runs: the record's own completion, then the runner's retirement", daemon.includes('if (completeRequestedPark(short, roster)) {') && daemon.includes('void retireRequestedPark(short, roster)'))
+  const ownerPart = read('src/daemon/run/owner.ts')
+  check("the owned daemon's orphan reap never shuts down bare: no line where it boots or in its owner part calls shutdown('owner-orphaned') with no park-all before it", !daemon.includes("shutdown('owner-orphaned')\n") && !ownerPart.includes("shutdown('owner-orphaned')\n"))
 }
 
 console.log("Q5 the only session's release: the board stays, the reason shows")

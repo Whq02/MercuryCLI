@@ -492,6 +492,8 @@ section('§9 THE WIRING — source pins')
   check('the token is read again only when liveness moved — no probe on a cadence of its own', !/t - facts\.lastProbeAt >= floorMs/.test(read(join(ROOT, 'src/daemon/ownerWatch.ts'))) && /cameBack/.test(read(join(ROOT, 'src/daemon/ownerWatch.ts'))))
   check('the back-off unit is the minute, four units long', ownerWatch.OWNER_IDENTITY_FLOOR_MS === 60_000 && ownerWatch.OWNER_PROBE_BACKOFF_FACTOR === 4)
   check('the beat and the grace stand where they were', ownerWatch.OWNER_WATCH_INTERVAL_MS === 4000 && ownerWatch.OWNER_WATCH_GRACE_CHECKS === 2)
+  const ownerPart = read(join(ROOT, 'src/daemon/run/owner.ts'))
+  check('no beat-cadence probe survives in the daemon (the beat is the watch\'s own): none where it boots and none in the part that arms the watch', !/setInterval\([^)]*OWNER_WATCH_INTERVAL_MS/.test(main) && !main.includes('getProcessStartTokenAsync(ownerPid)') && !/setInterval\([^)]*OWNER_WATCH_INTERVAL_MS/.test(ownerPart) && !ownerPart.includes('getProcessStartTokenAsync(ownerPid)'))
 }
 
 console.log('\n' + '═'.repeat(76))

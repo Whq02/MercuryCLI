@@ -417,6 +417,9 @@ section('§E the wiring: the rows, the verb, the daemon')
   check('E5 handover.ts knows the release layout through the install layout\'s own pointer reader', handoverSrc.includes('readCurrentVersion(roots)') && handoverSrc.includes("layout: 'release'") && handoverSrc.includes('return source ?? release'))
   const hs = read('src/daemon/handshake.ts')
   check('E6 the screen reads the installed build fresh at every handshake and the operator\'s /daemon restart from an older screen is refused with the reopen line', hs.includes('await installedBuild())') && hs.includes("if (first.heal === 'reopen') return { state: 'refused', line: reopenWayOut(first) }"))
+  const dmain = read('src/daemon/main.ts')
+  const restartPart = read('src/daemon/run/restart.ts')
+  check('E4b the storm-guard refusal carries no bundle path: its words name no script, where the daemon boots and in its restart part', !dmain.includes('(${deployed.script}) — run') && !restartPart.includes('(${deployed.script}) — run'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

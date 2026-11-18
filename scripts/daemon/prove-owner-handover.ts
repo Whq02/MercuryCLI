@@ -188,6 +188,9 @@ section('§C the wiring (source pins)')
   check('the parent reaper steps aside while another live cockpit holds the daemon', od.includes('if (anotherLiveCockpitHoldsDaemon(process.pid)) return'))
   const cs = read(join(ROOT, 'src/daemon/concourseWorkers.ts'))
   check('nextLiveCockpitOwner skips ended and parked records', cs.includes('export function nextLiveCockpitOwner(') && cs.includes('rec.endedAt !== undefined || rec.parkedAt !== undefined'))
+  const main = read(join(ROOT, 'src/daemon/main.ts'))
+  const ownerPart = read(join(ROOT, 'src/daemon/run/owner.ts'))
+  check('the hello facts, the record and the hand-over never name the owner from the env stamp (§B shows the live owner on a real daemon)', !main.includes('ownerPid: parseOwnerPid()') && !ownerPart.includes('ownerPid: parseOwnerPid()'))
 }
 
 done()
