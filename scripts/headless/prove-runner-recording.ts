@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { FIXTURE_MODEL, fixtureCli, withFixtureRunner } from '../lib/builtProduct.ts'
@@ -214,8 +214,10 @@ async function claimScene(): Promise<unknown> {
   )
 }
 
-function ownHome(trusted = false): { dir: string; savedUsd: () => number | null } {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'runner-recording-home-')))
+function ownHome(trusted = false): { dir: string; root: string; savedUsd: () => number | null } {
+  const root = mkdtempSync(join(tmpdir(), 'built-product-'))
+  const dir = join(mkdtempSync(join(root, 'run-')), '.mercury')
+  mkdirSync(dir, { recursive: true })
   if (trusted) writeFileSync(join(dir, '.mercury.json'), JSON.stringify({ projects: Object.fromEntries([tmpdir(), realpathSync(tmpdir())].map(folder => [folder.replace(/\\/g, '/'), { hasTrustDialogAccepted: true }])) }))
   const savedUsd = (): number | null => {
     const file = ['.config.json', '.mercury.json'].map(name => join(dir, name)).find(path => existsSync(path))
@@ -224,7 +226,7 @@ function ownHome(trusted = false): { dir: string; savedUsd: () => number | null 
     const saved = Object.values(projects).map(project => project.lastCost).filter((cost): cost is number => typeof cost === 'number')
     return saved.length === 0 ? null : saved.reduce((sum, cost) => sum + cost, 0)
   }
-  return { dir, savedUsd }
+  return { dir, root, savedUsd }
 }
 
 async function closedMidTurnScene(): Promise<unknown> {
@@ -243,7 +245,7 @@ async function closedMidTurnScene(): Promise<unknown> {
       { env: { MERCURY_CONFIG_DIR: home.dir } },
     )
   } finally {
-    rmSync(home.dir, { recursive: true, force: true })
+    rmSync(home.root, { recursive: true, force: true })
   }
 }
 
@@ -263,7 +265,7 @@ async function closedAfterTurnScene(): Promise<unknown> {
       { env: { MERCURY_CONFIG_DIR: home.dir } },
     )
   } finally {
-    rmSync(home.dir, { recursive: true, force: true })
+    rmSync(home.root, { recursive: true, force: true })
   }
 }
 
@@ -298,7 +300,7 @@ async function trustedFolderScene(): Promise<unknown> {
       { env: { MERCURY_CONFIG_DIR: home.dir } },
     )
   } finally {
-    rmSync(home.dir, { recursive: true, force: true })
+    rmSync(home.root, { recursive: true, force: true })
   }
 }
 
@@ -346,7 +348,6 @@ function masked(recording: Recording): Recording {
       .replace(/<tmp>\/built-product-[A-Za-z0-9]+\/(?:run|fix|cli)-cwd-[A-Za-z0-9]+/g, '<cwd>')
       .replace(/<tmp>\/built-product-[A-Za-z0-9]+\/(?:run|fix|cli)-[A-Za-z0-9]+/g, '<home>')
       .replace(/<tmp>\/built-product-[A-Za-z0-9]+/g, '<scratch>')
-      .replace(/<tmp>\/runner-recording-home-[A-Za-z0-9]+/g, '<home>')
       .replace(/projects\/-[A-Za-z0-9_-]+/g, 'projects/<slug>')
       .replace(UUID, idOf)
       .replace(/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\b/g, '<time>')
