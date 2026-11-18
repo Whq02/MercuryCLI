@@ -48,7 +48,7 @@ globalThis.fetch = Object.assign(async () => {
 
 type Row = Record<string, unknown>
 
-export type ModelStep = { kind: 'yield'; value: unknown } | { kind: 'do'; fn: () => void } | { kind: 'throw'; error: unknown }
+type ModelStep = { kind: 'yield'; value: unknown } | { kind: 'do'; fn: () => void } | { kind: 'throw'; error: unknown }
 
 type Tape = {
   log: unknown[]
@@ -59,7 +59,7 @@ type Tape = {
   ends: string[]
 }
 
-export type NestedScenario = {
+type NestedScenario = {
   name: string
   starter: 'runAgent' | 'runForkedAgent' | 'runCrewmateHook'
   ends: string[]
@@ -152,7 +152,7 @@ function scriptedDeps(on: Tape, turn: number): Row {
   }
 }
 
-export function startTurn(params: Row): AsyncGenerator<unknown, unknown> {
+function startTurn(params: Row): AsyncGenerator<unknown, unknown> {
   const on = tape
   if (on === undefined) throw new Error('a nested turn was started outside a scenario of this rig')
   const turn = ++on.turns
@@ -227,7 +227,7 @@ const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
 const { runForkedAgent } = await import('../../src/utils/forkedAgent.ts')
 const { runCrewmateHook } = await import('../../src/utils/hooks/crewmateRunner.ts')
 
-export const MODEL = 'claude-opus-4-8'
+const MODEL = 'claude-opus-4-8'
 const ECHO = 'EchoTool'
 
 type AssistantRow = ReturnType<typeof createAssistantMessage>
