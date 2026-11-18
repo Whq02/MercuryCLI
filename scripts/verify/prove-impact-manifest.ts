@@ -274,6 +274,11 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
   w('scripts/named/prove-named.ts', ["import { existsSync, readFileSync } from 'node:fs'", ...head, "console.log(readFileSync(join(ROOT, 'docs/page.md'), 'utf8').length, existsSync(join(ROOT, 'src/keys/one.ts')))", ''].join('\n'))
   w('scripts/walked/run-all.sh', runner('', each))
   w('scripts/walked/prove-walked.ts', ["import { readdirSync } from 'node:fs'", ...head, "console.log(readdirSync(join(ROOT, 'src', 'keys')).length)", ''].join('\n'))
+  w('src/main.tsx', 'export const main = 1\n')
+  w('src/cli/run.ts', 'export const run = 1\n')
+  w('scripts/lib/builtProduct.ts', "export const builtCli = (): string => 'dist/mercury.mjs'\n")
+  w('scripts/built/run-all.sh', runner('', each))
+  w('scripts/built/prove-built.ts', "import { builtCli } from '../lib/builtProduct.ts'\nconsole.log(builtCli())\n")
   w('scripts/blind/run-all.sh', runner('# gate-watch: src/hidden/**\n', each))
   w(
     'scripts/blind/prove-blind.ts',
@@ -299,6 +304,7 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
   const SOURCED = 'scripts/lib/suite-env.sh'
   const want: Record<string, string[]> = {
     blind: ['scripts/blind/prove-blind.ts', SOURCED],
+    built: ['scripts/built/prove-built.ts', 'scripts/lib/builtProduct.ts', SOURCED, 'src/cli/run.ts', 'src/main.tsx'],
     child: ['scripts/child/prove-child.ts', 'scripts/lib/child.ts', SOURCED, 'src/gamma/g.ts'],
     handed: ['scripts/handed/prove-handed.ts', SOURCED, 'src/beta/b.ts'],
     named: ['docs/page.md', SOURCED, 'scripts/named/prove-named.ts', 'src/keys/one.ts'],
@@ -308,7 +314,7 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
   }
   const listOf = (map: Record<string, string[]>): string => Object.keys(map).sort().map(suite => `${suite}: ${map[suite]!.join(' ')}`).join(' · ')
   check(
-    "the computed list of a suite holds what its proofs touch: an import on a template, a path handed to a helper, a child script and what it imports, a name read as text, a walked folder, what the runner sources, and a twin's member in its parent's folder",
+    "the computed list of a suite holds what its proofs touch: an import on a template, a path handed to a helper, a child script and what it imports, a name read as text, a walked folder, what the runner sources, a twin's member in its parent's folder, and the two entry files for a proof that runs the bundle through scripts/lib/builtProduct.ts",
     listOf(computed) === listOf(want),
     `seen ${listOf(computed)} · want ${listOf(want)}`,
   )
@@ -331,6 +337,8 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
     ['walked', SOURCED],
     ['template-drives', 'scripts/template/prove-drive.ts'],
     ['template-drives', 'src/beta/b.ts'],
+    ['built', 'src/main.tsx'],
+    ['built', 'src/cli/run.ts'],
   ]
   const asleep = TOUCHED.filter(([suite, path]) => claimants(hand, path).includes(suite)).map(([suite, path]) => `${suite} ${path}`)
   check('the hand map alone wakes none of these suites for the file its proof touches (the header holds no line for it)', asleep.length === 0, asleep.join(' · '))

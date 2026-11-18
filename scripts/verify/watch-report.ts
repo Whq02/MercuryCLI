@@ -54,14 +54,15 @@ function floorOf(path: string): number {
   return floor
 }
 const doorsOf = (path: string): string[] => (manifest.doors ?? []).filter(row => row.behind !== '' && row.door !== '' && matchesOf(row.behind).has(path)).map(row => row.door)
-function globClaims(suite: string, path: string): boolean {
+function claimingGlob(suite: string, path: string): string | null {
   const floor = floorOf(path)
   for (const g of manifest.watches[suite] ?? []) {
     if (floor > 0 && g !== NET_GLOB && prefixLength(g) < floor) continue
-    if (matchesOf(g).has(path)) return true
+    if (matchesOf(g).has(path)) return g
   }
-  return false
+  return null
 }
+const globClaims = (suite: string, path: string): boolean => claimingGlob(suite, path) !== null
 const claims = (suite: string, path: string): boolean => path.startsWith(`scripts/${suite}/`) || globClaims(suite, path) || doorsOf(path).some(door => globClaims(suite, door))
 
 const tierOf = (s: Suite, file: string): Tier | null => {
@@ -76,20 +77,49 @@ const blindOf = (s: Suite): number => s.blind.imports + s.blind.paths + s.blind.
 const closed = (s: Suite): boolean => s.bundle.length === 0 && s.whole.length === 0 && blindOf(s) === 0
 
 if (chainOf.length >= 2) {
-  const s = bySuite.get(chainOf[0]!)
-  let at = chainOf[1]!
-  if (!s || !s.deps.has(at)) {
-    console.log(`${chainOf[0]} does not depend on ${at} by any import, run, text read or walk this reader sees`)
-    process.exit(1)
+  const [suite, path] = [chainOf[0]!, chainOf[1]!]
+  const s = bySuite.get(suite)
+  if (!s) {
+    console.log(`${suite} is no suite: scripts/${suite}/run-all.sh does not stand`)
+    process.exit(2)
   }
-  console.log(`${chainOf[0]} ${claims(s.suite, at) ? 'is woken' : 'is not woken'} by ${at} under the header map`)
-  for (let guard = 0; guard < 64 && s.deps.has(at); guard++) {
-    const dep = s.deps.get(at)!
-    console.log(`  ${at}  [${dep.how}${dep.hops > 0 ? ` ${dep.hops}` : ''}]  from ${dep.via}`)
-    if (dep.how === 'member' || dep.how === 'runner') break
-    at = dep.via
+  const runner = `scripts/${suite}/run-all.sh`
+  const tier = tierOf(s, path)
+  const road = (): void => {
+    let at = path
+    for (let guard = 0; guard < 64 && s.deps.has(at); guard++) {
+      const dep = s.deps.get(at)!
+      console.log(`  ${at}  [${dep.how}${dep.hops > 0 ? ` ${dep.hops}` : ''}]  from ${dep.via}`)
+      if (dep.how === 'member' || dep.how === 'runner') break
+      at = dep.via
+    }
   }
-  process.exit(0)
+  const glob = claimingGlob(suite, path) ?? doorsOf(path).map(door => claimingGlob(suite, door)).find(g => g !== null) ?? null
+  const line = `# gate-watch: ${path}`
+  if (tier === 'touched') {
+    console.log(`${suite} wakes for ${path}: its proofs touch it, and the planner reads that with no header line`)
+    road()
+    process.exit(0)
+  }
+  if (path.startsWith(`scripts/${suite}/`) || glob !== null) {
+    console.log(`${suite} wakes for ${path}: ${glob === null ? "the file stands in the suite's own folder" : `the header of ${runner} holds ${glob}`}`)
+    road()
+    process.exit(0)
+  }
+  console.log(`${suite} does not wake for ${path}`)
+  if (tier !== null) {
+    console.log(`  the reader sees a road, and no script on it names the file: it is reached ${tier === 'lazy' ? 'through an import inside a function' : `${s.deps.get(path)!.hops} import${s.deps.get(path)!.hops === 1 ? '' : 's'} into src`}`)
+    road()
+    console.log(`  the hand line, if a change to the file can turn a proof of the suite: "${line}" in the header of ${runner} — reason: depth`)
+  } else if (s.bundle.length > 0) {
+    console.log(`  the reader sees no road. ${s.bundle.length} member${s.bundle.length === 1 ? '' : 's'} of the suite run${s.bundle.length === 1 ? 's' : ''} the built bundle (${s.bundle.slice(0, 3).join(' ')}${s.bundle.length > 3 ? ' …' : ''}), which holds all of src`)
+    console.log(`  the hand line, if what they drive reaches the file: "${line}" in the header of ${runner} — reason: area`)
+  } else {
+    console.log(`  the reader sees no road and no member that runs the built bundle. Out of its sight in this suite: ${s.blind.imports} imports and ${s.blind.paths} tree paths built at run time, ${s.blind.children} child programs that name no tracked script, ${s.blind.git} git children`)
+    console.log(`  the hand line, if a proof reads the file by one of those: "${line}" in the header of ${runner} — reason: out of sight`)
+  }
+  console.log(`  a hand line raises the suite's row in scripts/gate/watch-hand-list.tsv by hand, in the same commit`)
+  process.exit(1)
 }
 
 function headerLines(suite: string): string[][] {

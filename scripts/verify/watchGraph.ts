@@ -19,6 +19,8 @@ type Dep = { how: How; hops: number; via: string }
 const CODE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
 const RUNNABLE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs|sh|py)$/
 const BUNDLE = 'dist/mercury.mjs'
+const BUILT_HELPER = 'scripts/lib/builtProduct.ts'
+const BUILT_ENTRIES = ['src/main.tsx', 'src/cli/run.ts']
 const ROOT_NAMES = new Set(['ROOT', 'REPO', 'REPO_ROOT', 'REAL_ROOT', 'root', 'repo', 'repoRoot', 'repo_root', 'GRAPH_ROOT', 'TREE'])
 const DIR_NAMES = new Set(['__dirname', 'HERE', 'here', 'DIR', 'dir', 'SUITE_DIR', 'suiteDir'])
 const FOLDER_NAMES = new Map([['SRC', 'src'], ['SRC_DIR', 'src'], ['srcDir', 'src'], ['SCRIPTS', 'scripts'], ['SCRIPTS_DIR', 'scripts']])
@@ -461,6 +463,7 @@ function readWatchGraph(root: string, tracked: string[], named: Map<string, stri
         const under = w.includes('*') ? globOf(w) : null
         for (const t of tree.list) if (under === null ? t.startsWith(`${w}/`) : under.match(t)) note(t, 'walk', f)
       }
+      if (f === BUILT_HELPER) for (const entry of BUILT_ENTRIES) if (tree.files.has(entry)) note(entry, 'run', f)
       if (facts.bundle) naming.push(f)
       blind.imports += facts.blind.imports
       blind.paths += facts.blind.paths
