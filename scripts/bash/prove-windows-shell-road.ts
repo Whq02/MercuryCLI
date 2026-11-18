@@ -151,7 +151,7 @@ console.log('── §3 the roster follows the road ──')
   const withBash = roster({ [SEAM]: 'locate', [PIN]: import.meta.path })
   const wb = withBash.r
   check('on the road WITH a bash, whatever packs stand: the found bash is the road and nothing arms the engine — the Bash tool stands, PowerShell keeps its opt-in, no notice', wb?.active === true && wb.kind === 'git-bash' && wb.bash === true && wb.ps === false && wb.notice === null, JSON.stringify(wb) || withBash.err)
-  check("…and /health's line names the found bash", /bash at .*found on this machine/.test(wb?.line ?? ''), wb?.line)
+  check("…and /health's line names that bash and who named it", /bash at .*named by MERCURY_GIT_BASH_PATH/.test(wb?.line ?? ''), wb?.line)
   const withPack = roster({ [SEAM]: 'pack' })
   const wp = withPack.r
   if (SHIPPED_BASH === null) {
@@ -163,7 +163,7 @@ console.log('── §3 the roster follows the road ──')
   const withBashKept = roster({ [SEAM]: 'locate', [PIN]: import.meta.path, [ENGINE_PIN]: 'system' })
   const wk = withBashKept.r
   check('on the road WITH a bash, MERCURY_SHELL_ENGINE=system keeps bash.exe whatever the pack: git-bash is the road, no notice', wk?.active === true && wk.kind === 'git-bash' && wk.bash === true && wk.ps === false && wk.notice === null, JSON.stringify(wk) || withBashKept.err)
-  check("…and /health's line names the found bash", /bash at .*found on this machine/.test(wk?.line ?? ''), wk?.line)
+  check("…and /health's line names that bash and who named it", /bash at .*named by MERCURY_GIT_BASH_PATH/.test(wk?.line ?? ''), wk?.line)
   const withBashOptIn = roster({ [SEAM]: 'locate', [PIN]: import.meta.path, MERCURY_USE_POWERSHELL_TOOL: '1' })
   check('…and the opt-in still turns PowerShell on beside Bash', withBashOptIn.r?.bash === true && withBashOptIn.r?.ps === true)
 

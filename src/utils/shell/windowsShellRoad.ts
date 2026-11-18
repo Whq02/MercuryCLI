@@ -186,9 +186,19 @@ export function withProgramsFirst(env: NodeJS.ProcessEnv, dir: string, platform:
   return { ...env, [key]: pathLedBy(dir, rest, platform) }
 }
 
+const SHELL_START_FILE_VARIABLES = ['BASH_ENV', 'ENV']
+
+export function withoutShellStartFiles(env: NodeJS.ProcessEnv, platform: string = process.platform): NodeJS.ProcessEnv {
+  const named = Object.keys(env).filter(name => SHELL_START_FILE_VARIABLES.includes(platform === 'win32' ? name.toUpperCase() : name))
+  if (named.length === 0) return env
+  const kept = { ...env }
+  for (const name of named) delete kept[name]
+  return kept
+}
+
 export function withRoadPrograms(env: NodeJS.ProcessEnv, origin: ShellOrigin, shellPath: string): NodeJS.ProcessEnv {
+  if (origin === 'engine') return withoutShellStartFiles(windowsShellRoadActive() ? withGitPrograms(env) : env)
   if (!windowsShellRoadActive() || origin === 'system') return env
-  if (origin === 'engine') return withGitPrograms(env)
   const shipped = shippedWindowsBash()
   return shipped === null || shipped.programsDir === null || shipped.path !== shellPath ? env : withProgramsFirst(env, shipped.programsDir)
 }
@@ -211,14 +221,17 @@ export function engineMayServe(): boolean {
 
 const firstWindowsBashRoad = memoize((): WindowsBashRoad => composeWindowsBashRoad(locatedWindowsBash(), shippedWindowsBash(), armedShellEngine()))
 
-export function roadOfRecord(first: WindowsBashRoad, settled: ShellRecord | null): WindowsBashRoad {
-  if (settled === null || first.kind === 'engine' || first.kind === 'absent') return first
+export function roadOfRecord(first: WindowsBashRoad, settled: ShellRecord | null, noneStarts = false): WindowsBashRoad {
+  if (first.kind === 'engine' || first.kind === 'absent') return first
+  if (noneStarts) return { kind: 'absent', remedy: GIT_BASH_REMEDY }
+  if (settled === null) return first
   if (settled.origin === 'engine') return { kind: 'engine', path: settled.path, arm: 'fallback' }
   return settled.origin === 'shipped' ? { kind: 'shipped', path: settled.path } : { kind: 'git-bash', path: settled.path }
 }
 
 export function windowsBashRoad(): WindowsBashRoad {
-  return roadOfRecord(firstWindowsBashRoad(), shellRecordDoor().settledSystemShell())
+  const record = shellRecordDoor()
+  return roadOfRecord(firstWindowsBashRoad(), record.settledSystemShell(), record.noSystemShellStarts())
 }
 
 export function bashToolAvailable(): boolean {
@@ -274,12 +287,20 @@ export function describeWindowsShellRoad(): {
   const road = windowsBashRoad()
   const settled = shellRecordDoor().settledSystemShell()
   const known = settled !== null && settled.path === ('path' in road ? road.path : '') && settled.version !== '' ? `bash ${settled.version}` : 'bash'
-  if (road.kind === 'git-bash') return { road: 'git-bash', absent: false, line: `${known} at ${road.path} — found on this machine; the Bash tool runs under it` }
+  if (road.kind === 'git-bash') return { road: 'git-bash', absent: false, line: `${known} at ${road.path} — ${pinnedGitBash() === road.path ? 'named by MERCURY_GIT_BASH_PATH' : 'found on this machine'}; the Bash tool runs under it` }
   if (road.kind === 'shipped') return { road: 'shipped', absent: false, line: `${known} at ${road.path} — the bash Mercury ships; the Bash tool runs under it, no bash 5 being installed on this machine` }
   if (road.kind === 'engine') return { road: 'engine', absent: false, line: engineRoadLine(road) }
   const engine = resolvedShellEngine()
   const noPack = engine.engine === 'system' && engine.requested === 'brush'
   const why = engine.engine === 'system' && engine.requested === 'brush' ? engine.reason : `the shell engine is turned off (${shellEngineArmWords(engine.arm)})`
+  if (firstWindowsBashRoad().kind !== 'absent') {
+    return {
+      road: 'absent',
+      absent: true,
+      line: 'no bash starts on this machine, neither an installed one nor the one Mercury ships, and the bundled engine does not serve — the Bash tool is absent from the roster; the PowerShell tool is present',
+      fix: WINDOWS_BASH_NOTICE_NO_PACK,
+    }
+  }
   return {
     road: 'absent',
     absent: true,

@@ -10,7 +10,7 @@ import { which } from '../which.js'
 import { bashPackProgramsDir, resolveBashPackDir, type BashPackResolution } from './bashPack.js'
 import { resolveBrushPackDir } from './brushPack.js'
 import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
-import { bashToolAvailable, describeWindowsShellRoad, engineMayServe, settleWindowsShell, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive } from './windowsShellRoad.js'
+import { bashToolAvailable, describeWindowsShellRoad, engineMayServe, settleWindowsShell, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive, withoutShellStartFiles } from './windowsShellRoad.js'
 
 export type ShellDialect = 'bash'
 export type ShellOrigin = 'shipped' | 'system' | 'engine'
@@ -31,17 +31,27 @@ const NO_SHELL_MESSAGE =
 const NO_WINDOWS_SHELL_MESSAGE =
   'No shell found. On Windows Mercury runs commands in a bash 5 that is installed (Git for Windows ships one), then in the bash it ships, then in its bundled engine, and none of the three starts here; install Git for Windows, set MERCURY_GIT_BASH_PATH to a bash.exe, or reinstall Mercury, then restart Mercury.'
 
-function startedBashVersion(path: string): Promise<string | null> {
+const BASH_VERSION_SHAPE = /^\d+\.\d+/
+
+export function startedBashVersion(path: string, limitMs: number = START_PROBE_TIMEOUT_MS): Promise<string | null> {
   return new Promise(resolve => {
     try {
-      execFile(
+      const asked = execFile(
         path,
         ['--norc', '--noprofile', '-c', 'printf %s "$BASH_VERSION"'],
-        { windowsHide: true, timeout: START_PROBE_TIMEOUT_MS, encoding: 'utf8', env: { ...subprocessEnv() } },
+        { windowsHide: true, timeout: limitMs, killSignal: 'SIGKILL', encoding: 'utf8', env: withoutShellStartFiles({ ...subprocessEnv() }) },
         (error, stdout) => {
-          const version = typeof stdout === 'string' ? stdout.trim() : ''
-          resolve(error || version === '' ? null : version)
+          const version = typeof stdout === 'string' ? (stdout.trim().split(/\r?\n/).pop() ?? '').trim() : ''
+          resolve(error || !BASH_VERSION_SHAPE.test(version) ? null : version)
         },
+      )
+      AbortSignal.timeout(limitMs).addEventListener(
+        'abort',
+        () => {
+          asked.kill('SIGKILL')
+          resolve(null)
+        },
+        { once: true },
       )
     } catch (error) {
       logForDebugging(`shell record: ${path} cannot be started — ${errorMessage(error)}`)
@@ -97,7 +107,11 @@ async function posixSystemRecord(): Promise<ShellRecord> {
   throw new Error(NO_SHELL_MESSAGE)
 }
 
-let settledWindowsNotes: { pinned: boolean; passed: string[] } = { pinned: false, passed: [] }
+let settledWindowsNotes: { passed: string[]; none: boolean } = { passed: [], none: false }
+
+export function noSystemShellStarts(): boolean {
+  return settledWindowsNotes.none
+}
 
 async function windowsSystemRecord(): Promise<ShellRecord> {
   const candidates = windowsBashCandidates()
@@ -116,7 +130,7 @@ async function windowsSystemRecord(): Promise<ShellRecord> {
     start: startedBashVersion,
   })
   for (const line of choice.passed) logForDebugging(`shell record: ${line}`)
-  settledWindowsNotes = { pinned: choice.pinned, passed: choice.passed }
+  settledWindowsNotes = { passed: choice.passed, none: choice.origin === 'none' }
   if (choice.origin === 'none') {
     logError(NO_WINDOWS_SHELL_MESSAGE)
     throw new Error(NO_WINDOWS_SHELL_MESSAGE)
@@ -204,12 +218,8 @@ export async function shellLineWords(): Promise<string> {
 }
 
 export function describeShellRecord(record: ShellRecord): string {
-  const onWindowsRoad = windowsShellRoadActive()
-  if (record.origin === 'shipped') return `bash ${record.version} at ${record.path} — the bash Mercury ships; the Bash tool runs under it${onWindowsRoad ? ', no bash 5 being installed on this machine' : ''}`
-  if (record.origin === 'system') {
-    if (!onWindowsRoad) return `bash ${record.version} at ${record.path} — the system's bash; the Bash tool runs under it because the shipped bash is absent or does not start (${shippedBashNote()})`
-    return `bash${record.version === '' ? '' : ` ${record.version}`} at ${record.path} — ${settledWindowsNotes.pinned ? 'named by MERCURY_GIT_BASH_PATH' : 'found on this machine'}; the Bash tool runs under it`
-  }
+  if (record.origin === 'shipped') return `bash ${record.version} at ${record.path} — the bash Mercury ships; the Bash tool runs under it`
+  if (record.origin === 'system') return `bash ${record.version} at ${record.path} — the system's bash; the Bash tool runs under it because the shipped bash is absent or does not start (${shippedBashNote()})`
   return `brush ${record.version} at ${record.path} — Mercury's bundled bash-compatible engine; the Bash tool runs under it`
 }
 
@@ -234,7 +244,7 @@ export async function shellRow(): Promise<ShellRow> {
   const passed = onWindowsRoad && settledWindowsNotes.passed.length > 0 ? ` — passed over: ${settledWindowsNotes.passed.join('; ')}` : ''
   if (onWindowsRoad) {
     const road = describeWindowsShellRoad()
-    if (road.absent) return { status: 'warn', evidence: road.line, ...(road.fix === undefined ? {} : { fix: road.fix }) }
+    if (road.absent) return { status: 'warn', evidence: `${road.line}${passed}`, ...(road.fix === undefined ? {} : { fix: road.fix }) }
     if (record === null) return { status: 'warn', evidence: `${NO_WINDOWS_SHELL_MESSAGE}${passed}`, ...fix }
     const armed = armedEngine()
     const names = skipped !== null && !passed.includes(skipped) ? ` — this install carries no bash pack: ${skipped}` : ''

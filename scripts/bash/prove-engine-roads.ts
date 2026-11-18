@@ -20,7 +20,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-type LegName = 'no-bash' | 'off' | 'off-pinned' | 'located'
+type LegName = 'no-bash' | 'start-files' | 'off' | 'off-pinned' | 'located'
 type LegReport = {
   leg: LegName
   engineBinary: string | null
@@ -225,6 +225,20 @@ section('§1 the Windows road with no bash.exe (MERCURY_WINDOWS_SHELL_ROAD=no-ba
     check("a crewmate's call under a ceiling of 1 is refused, and the way round names the engine process", r.crewmate.code === 1 && /the ceiling is 1/.test(r.crewmate.refusal) && r.crewmate.refusal.includes('run_in_background (its own engine process)'), JSON.stringify(r.crewmate))
     check('the Bash tool description says a run_in_background call still runs in its own engine process', r.prompt.includes('a `run_in_background` call still runs, in its own engine process.') && !r.prompt.includes('in its own system shell'), r.prompt.slice(r.prompt.indexOf('The shell.sessions setting'), r.prompt.indexOf('The shell.sessions setting') + 260))
     check("/health's line names the bundled engine as what the Bash tool runs under", /bundled shell engine at .*brush/.test(r.healthLine) && /runs under Mercury's own bash-compatible engine/.test(r.healthLine), r.healthLine)
+  }
+}
+
+section('§1b the same road with BASH_ENV and ENV set in the window: the engine is started without them, and every path answers')
+{
+  const startFile = join(scratchRoot, 'start-file.sh')
+  writeFileSync(startFile, 'echo START-FILE-RAN\n')
+  const { report: r, text } = await runLegProcess('start-files', { MERCURY_WINDOWS_SHELL_ROAD: 'no-bash', BASH_ENV: startFile, ENV: startFile })
+  check('the leg ran and reported', r !== null, text.slice(-1500))
+  if (r !== null) {
+    const engineBinary = r.engineBinary ?? ''
+    check('the plain call rides the engine session (before: brush refused every command, "not yet implemented: load config from $ENV/BASH_ENV")', r.plain.code === 0 && r.plain.out === `plain:${VERSION}:kept:scrubbed` && r.plain.session, JSON.stringify(r.plain))
+    check('the Monitor-shaped call, the run_in_background call and the inherit_session_env call run under the engine binary', r.monitor.chunks.includes(`tick1:${VERSION}:${engineBinary}`) && r.background.out === `background:${VERSION}:none:${engineBinary}` && r.inherit.code === 0 && r.inherit.out.startsWith(`inherit:${VERSION}:none:cli:`), JSON.stringify({ monitor: r.monitor.chunks, background: r.background, inherit: r.inherit }))
+    check('…and the file the two variables name was read by none of them', ![r.plain.out, r.monitor.chunks, r.background.out, r.inherit.out].some(out => out.includes('START-FILE-RAN')), JSON.stringify([r.plain.out, r.monitor.chunks, r.background.out, r.inherit.out]))
   }
 }
 

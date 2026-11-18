@@ -97,6 +97,11 @@ section('(1) the nine machines')
   check('7. the system pin with no bash and no pack: nothing serves, never the engine, and the reason says the engine is turned off', m.origin === 'none' && m.started.length === 0 && m.passed.some(line => line.includes('turned off')) && request.requested === 'system' && request.arm === 'pin', JSON.stringify({ m, request }))
   const kept = await settle({ engineOff: true, versions: withPack })
   check('…and with the pack present the system pin keeps the shipped bash', kept.origin === 'shipped' && kept.path === PACK_BASH, JSON.stringify(kept))
+  const ZSH_PIN = 'D:/tools/zsh/zsh.exe'
+  const zshPin = await settle({ pinned: ZSH_PIN, pack: false, engineOff: true })
+  check('…and the system pin with MERCURY_GIT_BASH_PATH naming a zsh: asked the one question, it is no bash, so nothing serves and no zsh is ever the shell', zshPin.origin === 'none' && zshPin.path === '' && JSON.stringify(zshPin.started) === JSON.stringify([ZSH_PIN]) && zshPin.passed.some(line => line.includes(ZSH_PIN) && line.includes('did not answer as a bash')), JSON.stringify(zshPin))
+  const zshPinPack = await settle({ pinned: ZSH_PIN, engineOff: true, versions: withPack })
+  check('…and with the pack present that pin is passed over and the shipped bash serves', zshPinPack.origin === 'shipped' && zshPinPack.path === PACK_BASH && zshPinPack.passed.some(line => line.includes(ZSH_PIN)), JSON.stringify(zshPinPack))
 }
 {
   const WSL = 'C:/Windows/System32/bash.exe'
@@ -146,6 +151,9 @@ section('(3) the first road, before any bash is started, and the road once the r
   const pinnedEngine = roadOfRecord({ kind: 'engine', path: ENGINE, arm: 'pin' }, { path: GIT_BASH, dialect: 'bash', version: '5.3.15(2)-release', origin: 'system' })
   check('once the record settles the road follows it: an old found bash gives the shipped one, no bash that starts gives the engine as the fallback, and an engine armed by the pin stays', settledShipped.kind === 'shipped' && settledShipped.path === PACK_BASH && settledEngine.kind === 'engine' && settledEngine.arm === 'fallback' && pinnedEngine.kind === 'engine' && pinnedEngine.arm === 'pin', JSON.stringify([settledShipped, settledEngine, pinnedEngine]))
   check('before the record settles the first road stands', JSON.stringify(roadOfRecord(found, null)) === JSON.stringify(found))
+  const noneStarts = roadOfRecord(found, null, true)
+  const pinnedEngineStays = roadOfRecord({ kind: 'engine', path: ENGINE, arm: 'pin' }, null, true)
+  check('once the record has settled on nothing the road is the absence, and the Bash tool leaves the roster; an engine armed by the pin stays the road', noneStarts.kind === 'absent' && pinnedEngineStays.kind === 'engine', JSON.stringify([noneStarts, pinnedEngineStays]))
 }
 
 section('(4) where Git for Windows keeps its bash')

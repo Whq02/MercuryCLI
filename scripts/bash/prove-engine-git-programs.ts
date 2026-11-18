@@ -416,9 +416,9 @@ try {
       check('nothing to borrow (no Git for Windows found, no ls on the path)', line(nothing) === noBashLine(binary(nothing), '; ls, cat, grep and the like are not on this machine: Git for Windows carries them'), line(nothing))
       check('an ls already there, Git found: the line as it stood', line(lsThere) === engineLine(binary(lsThere), 'pin', ', no Git dependency'), line(lsThere))
       check('an ls already there, no Git found: the line as it stood', noBashLs.report?.arm === 'no-bash' && line(noBashLs) === noBashLine(binary(noBashLs), ''), line(noBashLs) || noBashLs.text.slice(-600))
-      const foundLine = `bash ${standInVersion} at ${gitBash} — found on this machine; the Bash tool runs under it`
-      check('the system shell kept by the pin: the found bash is named with the version it answered', /^\d/.test(standInVersion) && line(systemPin) === foundLine, line(systemPin))
-      check('a bash found and nothing set: the same line, the found bash being the road', line(unarmed) === foundLine && unarmed.report?.health.road === 'git-bash', line(unarmed))
+      const foundLine = `bash ${standInVersion} at ${gitBash} — named by MERCURY_GIT_BASH_PATH; the Bash tool runs under it`
+      check('the system shell kept by the pin: the bash the stand names is given with the version it answered', /^\d/.test(standInVersion) && line(systemPin) === foundLine, line(systemPin))
+      check('a bash named and nothing else set: the same line, that bash being the road', line(unarmed) === foundLine && unarmed.report?.health.road === 'git-bash', line(unarmed))
       check('a POSIX host with the engine pinned: the line names the engine the record names', line(posix) === `brush ${VERSION} at ${binary(posix)} — Mercury's bundled bash-compatible engine; the Bash tool runs under it`, line(posix))
       check('the row does not move with the words: the engine road, present, with no fix, in all five engine legs', [fired, firedSetting, nothing, lsThere, noBashLs].every(stands), JSON.stringify([fired, firedSetting, nothing, lsThere, noBashLs].map(leg => leg.report?.health)))
     }
@@ -560,11 +560,8 @@ try {
     }
   }
 
-  section('§10 the source: each start of a command under the engine takes its environment through the rule, and the permission layer never reads it')
+  section('§10 the source: the permission layer never reads the rule')
   {
-    const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
-    const engine = read('src/utils/shell/engineSession.ts')
-    check('the engine session (the main conversation\'s and each crewmate\'s) is started with the ruled environment', engine.includes('env: withGitPrograms(toolShellEnv(base.env, { SHELL: binaryPath, ...envOverrides() })),'))
     const walk = (dir: string): string[] =>
       readdirSync(dir).flatMap(name => {
         const path = join(dir, name)
