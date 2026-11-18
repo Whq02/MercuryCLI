@@ -104,8 +104,12 @@ try {
     const { trillionFrames } = await import('./trillionFrames.ts')
     await trillionFrames(confirm, check, process.argv.includes('--frame-dir') ? process.argv[process.argv.indexOf('--frame-dir') + 1] : undefined)
     ssh.state.holdHealth = true
-    const release = setTimeout(() => { ssh.state.holdHealth = false }, 400)
-    try { await runHostJob(id, queued!.generation!, { runner: ssh.runner, pauseMs: 10, timeoutMs: 15000, keepAlive: false }) } finally { clearTimeout(release); ssh.state.holdHealth = false }
+    const loading = { ...ssh.runner, run: async (command: string, args: string[], signal: AbortSignal, timeoutMs?: number) => {
+      const answer = await ssh.runner.run(command, args, signal, timeoutMs)
+      if (command === 'ssh' && args.includes('22001') && String(args.at(-1)).includes('MERCURY_ENGINE_GONE')) ssh.state.holdHealth = false
+      return answer
+    } }
+    try { await runHostJob(id, queued!.generation!, { runner: loading, pauseMs: 10, timeoutMs: 15000, keepAlive: false }) } finally { ssh.state.holdHealth = false }
     const ready = readHostRecord(id)!
     check('setup dispatch reaches ready through the cluster head', ready.jobState === 'ready')
     check('cluster setup tails the head engine log, so its steps and download progress advance while the head loads', ssh.commands.some((row: any) => row.command === 'ssh' && row.args.includes('22000') && String(row.args.at(-1)).startsWith('dd if=/workspace/mercury-host/kimi-k3-b200/engine.log')) && (ready.steps ?? []).some(row => row.step === 'downloading weights on the machine'))
