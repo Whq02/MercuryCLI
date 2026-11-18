@@ -386,7 +386,6 @@ export interface CheckSpec {
   depth?: 'fast' | 'deep'
   probe?: 'functional' | 'configuration'
   timeoutMs?: number
-  dependsOn?: string[]
 }
 
 interface SectionSpec {
@@ -612,7 +611,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions, list?: read
     }
   }
 
-  const settled = new Set<string>()
   let done = 0
   const runOne = async (item: (typeof work)[number]): Promise<void> => {
     const { spec } = item
@@ -660,7 +658,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions, list?: read
       ...result,
     }
     resultSlots[item.slot] = check
-    settled.add(spec.id)
     done++
     try {
       opts?.onProgress?.({
@@ -674,40 +671,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions, list?: read
     }
   }
 
-  const queue = [...work]
-  const running: Promise<void>[] = []
-  const fastRows = work.filter(item => (item.spec.depth ?? 'fast') === 'fast').map(item => item.spec.id)
-  while (queue.length > 0 || running.length > 0) {
-    let launched = false
-    for (let i = 0; i < queue.length && running.length < HEALTH_CONCURRENCY; i++) {
-      const item = queue[i]!
-      const deps = (item.spec.depth ?? 'fast') === 'deep' ? [...fastRows, ...(item.spec.dependsOn ?? [])] : (item.spec.dependsOn ?? [])
-      if (deps.every(d => settled.has(d))) {
-        queue.splice(i, 1)
-        i--
-        const p = runOne(item).then(() => {
-          running.splice(running.indexOf(p), 1)
-        })
-        running.push(p)
-        launched = true
-      }
+  for (const rowsDepth of ['fast', 'deep'] as const) {
+    const queue = work.filter(item => (item.spec.depth ?? 'fast') === rowsDepth)
+    const worker = async (): Promise<void> => {
+      for (let item = queue.shift(); item !== undefined; item = queue.shift()) await runOne(item)
     }
-    if (running.length > 0) {
-      await Promise.race(running)
-    } else if (!launched && queue.length > 0) {
-      const stuck = queue.findIndex(waiting => (waiting.spec.depth ?? 'fast') === 'fast')
-      const item = queue.splice(Math.max(stuck, 0), 1)[0]!
-      resultSlots[item.slot] = {
-        id: item.spec.id,
-        label: item.spec.label,
-        status: 'unknown',
-        evidence: `unsatisfiable dependsOn: ${(item.spec.dependsOn ?? []).join(', ')}`,
-        probe: item.spec.probe ?? 'configuration',
-        depth: item.spec.depth ?? 'fast',
-      }
-      settled.add(item.spec.id)
-      done++
-    }
+    await Promise.all(Array.from({ length: HEALTH_CONCURRENCY }, worker))
   }
 
   const sections: HealthSection[] = []

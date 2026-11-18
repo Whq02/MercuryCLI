@@ -1,13 +1,21 @@
 import type { CheckSpec } from '../../healthReport.js'
 
 export function durabilityChecks(): CheckSpec[] {
+  const scanJournals = async () => {
+    const { listJournalOperations } = await import('../../../substrate/operationJournal.js')
+    const { changeSetJournalDir } = await import('../../../services/changeTransaction/changeSetContracts.js')
+    return Promise.all([changeSetJournalDir()].map(dir => listJournalOperations(dir)))
+  }
+  let scanning: ReturnType<typeof scanJournals> | null = null
+  const journalScan = (): ReturnType<typeof scanJournals> =>
+    (scanning ??= scanJournals().finally(() => {
+      scanning = null
+    }))
   return [
     {
       id: 'durable-journals',
       label: 'Operation journals',
       run: async () => {
-        const { listJournalOperations } = await import('../../../substrate/operationJournal.js')
-        const { changeSetJournalDir } = await import('../../../services/changeTransaction/changeSetContracts.js')
         const alive = (pid: number): boolean => {
           try {
             process.kill(pid, 0)
@@ -19,8 +27,8 @@ export function durabilityChecks(): CheckSpec[] {
         let terminal = 0
         let inFlight = 0
         let awaitingRecovery = 0
-        for (const dir of [changeSetJournalDir()]) {
-          for (const op of await listJournalOperations(dir)) {
+        for (const operations of await journalScan()) {
+          for (const op of operations) {
             if (op.state === 'committed' || op.state === 'aborted') terminal++
             else if (alive(op.writerPid)) inFlight++
             else awaitingRecovery++
@@ -40,8 +48,8 @@ export function durabilityChecks(): CheckSpec[] {
     {
       id: 'store-quarantines',
       label: 'Store quarantines',
-      dependsOn: ['durable-journals'],
       run: async () => {
+        await journalScan()
         const { readStoreRecoveryEvents } = await import('../../../substrate/storeRecovery.js')
         const events = await readStoreRecoveryEvents()
         const dayAgo = Date.now() - 24 * 60 * 60_000

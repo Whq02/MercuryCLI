@@ -8,7 +8,6 @@ export function runKernelChecks(): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 20_000,
-      dependsOn: ['transcript-store'],
       run: async () => (await import('../../healthDeepProbes.js')).probeRunKernel(),
     },
     {

@@ -16,7 +16,6 @@ export function vanguardChecks(): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 25_000,
-      dependsOn: ['execution-census'],
       run: async () => (await import('../../healthDeepProbes.js')).probeServiceLifecycle(),
     },
     {

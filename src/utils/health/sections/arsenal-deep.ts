@@ -8,7 +8,6 @@ export function arsenalDeepChecks(): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 25_000,
-      dependsOn: ['durable-journals'],
       run: async () => (await import('../../healthDeepProbes.js')).probeStructureLoop(),
     },
     {
@@ -25,7 +24,6 @@ export function arsenalDeepChecks(): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 45_000,
-      dependsOn: ['execution-census'],
       run: async () => (await import('../../healthDeepProbes.js')).probeJourneyLoop(),
     },
   ]
