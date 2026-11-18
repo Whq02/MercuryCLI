@@ -109,6 +109,7 @@ function installClock(): { now: () => number; advance: (ms: number) => void } {
     apply: target => new target(now).toString(),
     get: (target, prop, receiver) => (prop === 'now' ? () => now : Reflect.get(target, prop, receiver)),
   })
+  Object.defineProperty(globalThis.performance, 'now', { value: () => now - CLOCK_ZERO, configurable: true, writable: true })
   return {
     now: () => now,
     advance: ms => {
@@ -172,6 +173,8 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
   const { createSeatReceiptMessage } = await import(src('utils/messages/systemMessages.ts'))
   const { mcpToolsAnswerOf } = await import(src('services/mcp/toolsAnswer.ts'))
   const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
+  const progressStore = await import(src('state/ephemeralProgressStore.ts'))
+  const WATCHED_TOOLS = ['toolu_attach', 'toolu_run', 'toolu_hook', 'toolu_eval', 'toolu_mcp', 'toolu_ps', 'toolu_fed', 'toolu_old', 'toolu_f']
 
   type Pending = { req: Reply; answer: (reply: Reply | 'drop') => void; closed: Promise<void> }
   const waiting: Pending[] = []
@@ -279,6 +282,14 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
         }))
       }
       for (const method of SUBSCRIBE_METHODS) called.add(method)
+      const store = this.connector.tail() as unknown as { subscribe(cb: () => void): () => void; getSnapshot(): string | null; readSettled(): unknown; readIds(): unknown; readPhases(): unknown }
+      this.unsubscribe.push(store.subscribe(() => this.event({ tailStore: { published: store.getSnapshot(), settled: store.readSettled(), ids: store.readIds(), phases: store.readPhases() } })))
+      for (const id of WATCHED_TOOLS) {
+        this.unsubscribe.push(progressStore.subscribeEphemeralProgress(id, () => {
+          const frame = progressStore.getEphemeralProgressFrame(id) as { toolUseID?: string; data?: unknown } | undefined
+          this.event({ progress: id, frame: frame === undefined ? null : { toolUseID: frame.toolUseID, data: frame.data } })
+        }))
+      }
       this.event({ opened: this.sessionId, answers: this.changed() })
     }
 
