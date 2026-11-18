@@ -229,7 +229,7 @@ async function printRuns(): Promise<PrintRun[]> {
 const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi
 const CLOCK_KEYS = /^(?:ts|t|at|pid|port|load_per_core|available_mb)$|(?:Ms|_ms|At|_at|Duration|Seconds|_s|Time|Bytes)$/
 const FIXED = new Set(['next_fire_ms', 'nextFireMs', 'streamIdleTimeoutMs', 'stream_idle_timeout_ms'])
-const BUILD_KEYS = new Set(['build_tree', 'buildTree'])
+const BUILD_KEYS = new Set(['build_tree', 'buildTree', 'build'])
 
 function masked(recording: Recording): Recording {
   const ids = new Map<string, string>()
@@ -243,6 +243,7 @@ function masked(recording: Recording): Recording {
     let out = text
     for (const root of temp) out = out.split(root).join('<tmp>')
     return out
+      .replace(/\/[A-Za-z0-9._/-]*?\/built-product-/g, '<tmp>/built-product-')
       .replace(/<tmp>\/built-product-[A-Za-z0-9]+\/(?:run|fix|cli)-cwd-[A-Za-z0-9]+/g, '<cwd>')
       .replace(/<tmp>\/built-product-[A-Za-z0-9]+\/(?:run|fix|cli)-[A-Za-z0-9]+/g, '<home>')
       .replace(/<tmp>\/built-product-[A-Za-z0-9]+/g, '<scratch>')
@@ -297,6 +298,12 @@ function differences(a: unknown, b: unknown, path = '$', out: string[] = []): st
 }
 
 const classOf = (answer: Answer): Want => ('result' in answer ? 'answer' : answer.error.code === RPC_INVALID_PARAMS ? 'invalid' : answer.error.code === RPC_REFUSED ? 'refused' : 'failed')
+
+const remask = argOf('--remask')
+if (remask !== undefined) {
+  writeFileSync(argOf('--out') ?? remask.replace(/\.raw\.json$/, '.json'), JSON.stringify(masked(JSON.parse(readFileSync(remask, 'utf8')) as Recording), null, 1) + '\n')
+  process.exit(0)
+}
 
 section('§1 the runner of the built bundle answers each arm: one call it takes and two it refuses')
 const scenes: Record<string, unknown> = {}
