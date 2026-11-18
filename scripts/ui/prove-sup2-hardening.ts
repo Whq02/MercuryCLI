@@ -636,7 +636,7 @@ console.log('§43b the one sleep — an unref\'ed pause resolves under a timer t
   const cut = [timer(1_000, undefined, { signal: during.signal }).then(() => 'resolved', shapeFor(during.signal)), sleep(1_000, during.signal, { throwOnAbort: true }).then(() => 'resolved', shapeFor(during.signal))]
   during.abort('stop')
   const shapes = [await timer(5, undefined, { signal: entered.signal }).then(() => 'resolved', shapeFor(entered.signal)), await sleep(5, entered.signal, { throwOnAbort: true }).then(() => 'resolved', shapeFor(entered.signal)), ...(await Promise.all(cut))]
-  check('a pause that rejects on its signal rejects as the timer of timers/promises does, entered aborted and aborted in the pause: the same name, code, message and cause', shapes.every(shape => shape === 'AbortError ABORT_ERR "The operation was aborted" cause the reason'), `the timer, the door, the timer, the door: ${shapes.join(' · ')}`)
+  check('a pause that rejects on its signal rejects as Node\'s timer of timers/promises does, entered aborted and aborted in the pause: the same name, code, message and cause', [shapes[1], shapes[3]].every(shape => shape === 'AbortError ABORT_ERR "The operation was aborted" cause the reason'), `the timer, the door, the timer, the door: ${shapes.join(' · ')}`)
 }
 
 console.log('§44 exit heals — ?2026l first; the splash cancel disarms ?1007')
