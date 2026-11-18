@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 type Ran = { code: number; ms: number; text: string }
-type Row = { first: Ran; second: Ran; carried: Ran; wiped: Ran; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string }
+type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string }
 
 if (process.argv.includes('--row')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -22,6 +22,7 @@ if (process.argv.includes('--row')) {
   const first = await run('echo "ran: bash=${BASH_VERSION:-no} zsh=${ZSH_VERSION:-no} path-head=${PATH%%:*}"')
   const second = await run('echo second-ran')
   const carried = await run('alias ll 2>/dev/null; myfunc 2>/dev/null; above_guard 2>/dev/null; true')
+  const options = await run(`set -o | awk '$1 == "braceexpand" || $1 == "monitor" || $1 == "noclobber" || $1 == "onecmd" { printf "%s=%s ", $1, $2 }'`)
   const wiped = await run('echo wiped; rm -f "$TMPDIR"/mercury-cwd-*; exit 0')
   const snapshots = join(process.env.MERCURY_CONFIG_DIR ?? '', 'shell-snapshots')
   const marker = join(home, 'other-shell-was-started')
@@ -29,6 +30,7 @@ if (process.argv.includes('--row')) {
     first,
     second,
     carried,
+    options,
     wiped,
     absence: snapshot.shellSnapshotAbsence?.() ?? null,
     snapshots: existsSync(snapshots) ? readdirSync(snapshots).length : 0,
@@ -92,7 +94,7 @@ const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
   'ends-unread': {
     dir: home('ends-unread', { '.bashenv': 'case "$BASH_EXECUTION_STRING" in *mercury-cwd-*) exit 0 ;; esac\n' }),
   },
-  'login-file-only': { dir: home('login-file-only', { '.bash_profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\n' }) },
+  'login-file-only': { dir: home('login-file-only', { '.bash_profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\nset -o noclobber\n' }) },
   'guarded-bashrc': {
     dir: home('guarded-bashrc', {
       '.profile': 'if [ -n "$BASH_VERSION" ]; then\n  if [ -f "$HOME/.bashrc" ]; then\n    . "$HOME/.bashrc"\n  fi\nfi\n',
@@ -176,6 +178,17 @@ try {
     'guarded-bashrc: a ~/.bashrc that returns for a shell that is not interactive carries what stands above that line and nothing below it',
     guarded !== null && guarded.carried.text.includes('fn-above-the-guard') && !guarded.carried.text.includes('fn-below-the-guard') && !guarded.carried.text.includes('alias ll'),
     told('guarded-bashrc'),
+  )
+
+  check(
+    'login-file-only: an option the login file switched on is on in a command, and an option that was off is off — job control (monitor) and onecmd among them, though both names hold the letters "on"',
+    loginOnly?.options.text === 'braceexpand=on monitor=off noclobber=on onecmd=off',
+    JSON.stringify(loginOnly?.options),
+  )
+  check(
+    'guarded-bashrc: with a ~/.bashrc the same holds — a command runs with job control off',
+    guarded?.options.text === 'braceexpand=on monitor=off noclobber=off onecmd=off',
+    JSON.stringify(guarded?.options),
   )
 
   check(

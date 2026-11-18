@@ -231,15 +231,17 @@ fi`)
 
 
 const MERCURY_CONTENT_DELIMITER = '__MERCURY_SNAPSHOT_CONTENT__'
+const OPTIONS_THAT_ARE_ON = `set -o | awk '$2 == "on" { print "set -o " $1 }' | head -n 1000 >> "$SNAPSHOT_FILE"`
 
 function buildCaptureScript(args: {
   snapshotFilePath: string
   configFilePath: string
   configExists: boolean
   definitions: boolean
+  optionsByState: boolean
   mercuryContent: string
 }): string {
-  const { snapshotFilePath, configFilePath, configExists, definitions, mercuryContent } = args
+  const { snapshotFilePath, configFilePath, configExists, definitions, optionsByState, mercuryContent } = args
   const lines: string[] = []
 
   lines.push(`SNAPSHOT_FILE=${quote([snapshotFilePath])}`)
@@ -266,7 +268,7 @@ function buildCaptureScript(args: {
 done`)
 
     lines.push('echo "# Shell Options" >> "$SNAPSHOT_FILE"')
-    lines.push(...SNAPSHOT_OPTIONS)
+    lines.push(...(optionsByState ? SNAPSHOT_OPTIONS.map(line => (line.startsWith('set -o ') ? OPTIONS_THAT_ARE_ON : line)) : SNAPSHOT_OPTIONS))
 
     lines.push('echo "# Aliases" >> "$SNAPSHOT_FILE"')
     const winptyFilter = getPlatform() === 'windows' ? ' | grep -v winpty' : ''
@@ -327,6 +329,7 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
       configFilePath,
       configExists,
       definitions: bashOfThisMachine || configExists,
+      optionsByState: bashOfThisMachine,
       mercuryContent,
     })
 
