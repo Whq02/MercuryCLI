@@ -10,21 +10,21 @@ const hf = await hfEndpointsFixture()
 const nativeFetch = globalThis.fetch
 const escaped: string[] = []
 const realNow = Date.now
+const realSetTimeout = globalThis.setTimeout
 const deadlineMs = 60_000
 let skew = 0
-let frozen: number | undefined
 let lapsing: { path: string; reads: number } | undefined
-let held: { path: string; reads: number; cut: boolean } | undefined
-Date.now = () => frozen ?? realNow() + skew
+let held: { path: string; cut: boolean; end: () => void } | undefined
+Date.now = () => realNow() + skew
 globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: RequestInit) => {
   const request = new Request(input, init)
   const url = new URL(request.url)
   if (lapsing && request.method === 'GET' && url.pathname === lapsing.path && ++lapsing.reads === 3) skew += deadlineMs
-  if (held && request.method === 'GET' && url.pathname === held.path && ++held.reads === 2) {
+  if (held && request.method === 'GET' && url.pathname === held.path) {
     const reading = held
     return new Promise<Response>((_, reject) => {
-      const cut = (): void => { reading.cut = true; frozen = undefined; reject(request.signal.reason) }
-      if (request.signal.aborted) cut(); else request.signal.addEventListener('abort', cut, { once: true })
+      request.signal.addEventListener('abort', () => { reading.cut = true; reject(request.signal.reason) }, { once: true })
+      queueMicrotask(reading.end)
     })
   }
   if (url.origin === 'https://api.endpoints.huggingface.cloud' || url.origin === 'https://huggingface.co') return nativeFetch(new Request(hf.origin + url.pathname + url.search, request))
@@ -113,12 +113,17 @@ try {
   check('a paused managed endpoint keeps Resume but claims neither a disk nor compute billing', pausedRecord.status === 'EXITED' && pausedRecord.error?.includes('Paused · no compute bills') && pausedRecord.error.includes('Resume or Terminate') && !pausedRecord.error.includes('disk still bills') && !pausedRecord.error.includes('/hr still billing'))
   const inFlight = await api.create(offer, '', 'hf-read-in-flight')
   const inFlightSetup = setup(inFlight)
-  held = { path: '/v2/endpoint/fixture-owner/' + inFlight.name, reads: 0, cut: false }
-  const reading = held
-  frozen = Date.now()
-  try { await runHostJob(inFlightSetup.id, inFlightSetup.generation!, { runner, pauseMs: 5, timeoutMs: 100, keepAlive: false }) } finally { held = undefined; frozen = undefined }
+  const withReadHeld = async (record: { id: string; generation?: string }, name: string, timeoutMs: number, passDeadline: boolean): Promise<boolean> => {
+    const budgetTimers: (() => void)[] = []
+    const reading = { path: '/v2/endpoint/fixture-owner/' + name, cut: false, end: () => { assert.equal(budgetTimers.length, 1, 'the read budget arms one timer while the read is held'); if (passDeadline) skew += timeoutMs; budgetTimers[0]!() } }
+    held = reading
+    globalThis.setTimeout = ((run: () => void, ms?: number) => { if ((ms ?? 0) >= 30_000) budgetTimers.push(run); return realSetTimeout(run, ms) }) as typeof setTimeout
+    try { await runHostJob(record.id, record.generation!, { runner, pauseMs: 5, timeoutMs, keepAlive: false }) } finally { globalThis.setTimeout = realSetTimeout; held = undefined }
+    return reading.cut
+  }
+  const cutAtTheDeadline = await withReadHeld(inFlightSetup, inFlight.name, deadlineMs, true)
   const cutShort = readHostRecord(inFlightSetup.id)!
-  check('a status read in flight when the setup budget ends leaves the budget’s own words and offer, not a read failure with a Resume', reading.cut && cutShort.jobState === 'paused' && cutShort.status === 'PROVISIONING' && cutShort.error === budgetWords(inFlight), JSON.stringify({ cut: reading.cut, jobState: cutShort.jobState, status: cutShort.status, error: cutShort.error }))
+  check('a status read in flight when the setup budget ends leaves the budget’s own words and offer, not a read failure with a Resume', cutAtTheDeadline && cutShort.jobState === 'paused' && cutShort.status === 'PROVISIONING' && cutShort.error === budgetWords(inFlight), JSON.stringify({ cut: cutAtTheDeadline, jobState: cutShort.jobState, status: cutShort.status, error: cutShort.error }))
   const readFailure = (counted: string): string => 'Hugging Face did not answer endpoint reads for ' + counted + ' · setup paused · Mercury did not terminate the pod; it bills $' + offer.price.toFixed(2) + '/hr while it runs · Resume retries, Terminate stops the bill'
   const silent = await api.create(offer, '', 'hf-no-answer')
   const silentSetup = setup(silent)
@@ -129,13 +134,9 @@ try {
   check('a vendor that fails every status read until the budget ends keeps the read failure and its Resume', unanswered.jobState === 'paused' && unanswered.error === readFailure('1 min (HTTP 503 ×3)'), String(unanswered.error))
   const hung = await api.create(offer, '', 'hf-hung-read')
   const hungSetup = setup(hung)
-  held = { path: '/v2/endpoint/fixture-owner/' + hung.name, reads: 0, cut: false }
-  const hanging = held
-  const realSetTimeout = globalThis.setTimeout
-  globalThis.setTimeout = ((run: () => void, ms?: number) => realSetTimeout(run, ms === 4 * 60_000 ? 50 : ms)) as typeof setTimeout
-  try { await runHostJob(hungSetup.id, hungSetup.generation!, { runner, pauseMs: 5, timeoutMs: 10 * 60_000, keepAlive: false }) } finally { globalThis.setTimeout = realSetTimeout; held = undefined }
+  const cutBeforeTheDeadline = await withReadHeld(hungSetup, hung.name, 10 * 60_000, false)
   const givenUp = readHostRecord(hungSetup.id)!
-  check('a status read given up on while the setup budget still runs stays a read failure with its Resume', hanging.cut && givenUp.jobState === 'paused' && givenUp.error === readFailure('1 s (network error ×1)'), JSON.stringify({ cut: hanging.cut, error: givenUp.error }))
+  check('a status read given up on while the setup budget still runs stays a read failure with its Resume', cutBeforeTheDeadline && givenUp.jobState === 'paused' && givenUp.error === readFailure('1 s (network error ×1)'), JSON.stringify({ cut: cutBeforeTheDeadline, error: givenUp.error }))
   hf.state.neverReady = false
   for (const pod of [stuck, inFlight, silent, hung]) { await api.terminate(pod.id); removeHostRecord(pod.id) }
   const marks: string[] = []
