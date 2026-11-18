@@ -43,6 +43,7 @@ const { resetSettingsCache } = await import('../../src/utils/settings/settingsCa
 const { emptyReplyNote, markEmptyReply } = await import('../../src/services/providers/emptyReply.ts')
 const { streamFaultAfterPartialText } = await import('../../src/services/api/errors.ts')
 const gate = await import('../../src/services/providers/toolCallGate.ts')
+const { operatorPauseGate } = await import('../../src/run-core/pauseGate.ts')
 
 export const MODEL = 'claude-opus-4-8'
 export const FALLBACK_MODEL = 'claude-sonnet-5'
@@ -86,6 +87,7 @@ export type Plan = {
   loopGuard?: boolean
   env?: Record<string, string>
   recompose?: boolean
+  seatWait?: boolean
   appState?: Row
   before?: (rig: Rig) => void | (() => void)
 }
@@ -268,6 +270,11 @@ export function openRig(plan: Plan): OpenRig {
   if (plan.refreshedTools !== undefined) {
     const refreshed = [...tools, ...plan.refreshedTools.map(tool => makeTool(tool, () => rig!, toolLane, mask))]
     ;(rig.ctx.options as Row).refreshTools = () => refreshed
+  }
+  if (plan.seatWait === true) {
+    rig.ctx.onSeatWait = (words: unknown): void => {
+      log.push(mask({ seat_wait: words }))
+    }
   }
   bootstrap.regenerateSessionId()
   bootstrap.setIsInteractive(false)
@@ -606,6 +613,19 @@ const thoughtBy = (model: string): AssistantRow => {
   message.message.stop_reason = 'end_turn'
   return message
 }
+const dropped = (): AssistantRow => {
+  const message = says('the answer, with one old thought left out.')
+  ;(message.message as unknown as Row).input_transformations = [{ type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'signature_invalid' }]
+  return message
+}
+const pausedUntil = (then: (rig: Rig) => void) => (rig: Rig): (() => void) => {
+  operatorPauseGate.pause()
+  const timer = setTimeout(() => then(rig), 20)
+  return () => {
+    clearTimeout(timer)
+    operatorPauseGate.resume()
+  }
+}
 const SENTENCE = 'I will now check the configuration file and report back on what it holds. '
 const CHANT = SENTENCE.repeat(14)
 const folded = (tokens = 120): Row => ({
@@ -750,6 +770,24 @@ export const SCENARIOS: Scenario[] = [
     transitions: [],
     terminal: 'completed',
     plan: () => ({ seed: [ask('an old question'), thoughtBy(FALLBACK_MODEL), ask('hello there rig')], script: [[y(says('an answer from this model.'))]] }),
+  },
+  {
+    name: 'thinking_dropped_by_the_api',
+    transitions: [],
+    terminal: 'completed',
+    plan: () => ({ seed: [ask('an old question'), thoughtBy(MODEL), ask('hello there rig')], script: [[y(dropped())]] }),
+  },
+  {
+    name: 'paused_then_resumed',
+    transitions: [],
+    terminal: 'completed',
+    plan: () => ({ seatWait: true, before: pausedUntil(() => operatorPauseGate.resume()), script: [[y(says('the answer after the pause.'))]] }),
+  },
+  {
+    name: 'paused_then_aborted',
+    transitions: [],
+    terminal: 'aborted_streaming',
+    plan: () => ({ seatWait: true, before: pausedUntil(rig => rig.abortController.abort()), script: [[y(says('never asked'))]] }),
   },
   {
     name: 'model_throws',
