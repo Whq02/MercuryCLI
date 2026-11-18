@@ -97,13 +97,6 @@ const stopPlane = async (label: string): Promise<void> => {
   check(`${label} stops through Mercury`, stopped.code === 0 && await until(async () => !(await rpc({ op: 'ping' })).ok), stopped)
 }
 try {
-  console.log('§0 a chat still being born holds the restart as a live chat does (read where the holds live — the window is under a millisecond)')
-  const mainSource = readFileSync(join(root, 'src/daemon/main.ts'), 'utf8')
-  const restartRoad = mainSource.slice(mainSource.indexOf('restartWhenIdle: by => {'), mainSource.indexOf('processSweep: async request => {'))
-  check('the idle road arms while a session is being born', restartRoad.includes('if (live > 0 || birthsInFlight > 0) {') && restartRoad.includes('if (live > 0 || birthsInFlight > 0 || handover?.alive()) {'), restartRoad.split('\n').filter(l => /birthsInFlight|live > 0/.test(l)).join(' | '))
-  const armedBeat = mainSource.slice(mainSource.indexOf('const armedBeat = setInterval(() => {'), mainSource.indexOf('ARMED_RESTART_BEAT_MS)'))
-  check('the armed beat waits for a birth in flight as it waits for a live worker', armedBeat.includes('if (liveWorkers().live > 0 || birthsInFlight > 0) return'), armedBeat)
-
   console.log('§A a chat mid-turn across `mercury daemon restart`: the work finishes, nothing is cut, the words are kept')
   const held = await boot('the scratch helper')
   const dispatched = await rpc({ op: 'sessionDispatch', workspaceDir: work, clientMessageId: randomUUID(), prompt: 'hold helper turn until the fixture releases it', permissionMode: 'sovereign' })

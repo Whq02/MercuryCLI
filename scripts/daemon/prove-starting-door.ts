@@ -133,8 +133,18 @@ console.log('\n── E · the hold sits under the work doors\' deadlines; the h
 {
   check('E1 the hold is far under the connector\'s round-trip deadline (15s) and the seat\'s (10s)', server.ESTARTING_HOLD_MS > 0 && server.ESTARTING_HOLD_MS <= 5_000, String(server.ESTARTING_HOLD_MS))
   const mainSrc = read('src/daemon/main.ts')
-  const readyAt = mainSrc.indexOf('ready = true\n      wakeReady()')
-  check('E2 the host wakes the hold beside its own ready flip and hands the wake to the server', readyAt !== -1 && mainSrc.includes('whenReady: () => readyPromise,'))
+  const { makeDaemonRunState, markDaemonReady } = await import('../../src/daemon/run/state.ts')
+  const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
+  const host = makeDaemonRunState({ dir: home, bootBuildTree: null, foreground: false, breaker: new DaemonBreaker(), maxInflight: 1, controlEnabled: true })
+  let woke = false
+  void host.readyPromise.then(() => {
+    woke = true
+  })
+  await new Promise(resolve => setTimeout(resolve, 20))
+  const heldBefore = host.ready === false && !woke
+  markDaemonReady(host)
+  await Promise.resolve()
+  check('E2 the host wakes the hold beside its own ready flip and hands the wake to the server', heldBefore && host.ready === true && woke && mainSrc.includes('whenReady: () => readyPromise,'), `held before ${heldBefore} · ready ${host.ready} · woke ${woke}`)
   const serverSrc = read('src/daemon/controlServer.ts')
   check('E3 the polls keep the prompt refusal (list · has · status)', serverSrc.includes("const PROMPT_WHILE_STARTING = new Set(['sessionList', 'list', 'has', 'status'])"))
 }

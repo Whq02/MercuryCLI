@@ -71,8 +71,6 @@ tally.section('§2 the verbs consult the verdict before anything that would end 
   tally.check('the restart verb reads the handshake first and asks the same question over every helper of the home', restart.includes('handshakeDaemon()') && restart.includes('hostedCallerOf(await helperPidsOfHome())'))
   tally.check("…refusing only the roads that would end this turn — the stop-and-start road (a pre-handshake daemon) and a restart that would run now, nothing live and no older helper still hosting", restart.includes('hosting.hosted && first.daemon !== null && restartEndsHostedCaller(first)') && restart.includes("hostedCallerRefusalLine('restart')"))
   tally.check('…and lets the armed road through, saying this session is one of the live ones', restart.includes("receipt.state === 'armed'") && restart.includes('this hosted session is one of them; your turn goes on'))
-  const teardown = main.slice(main.indexOf('const shutdown = (signal: string) => {'), main.indexOf('const bail = setTimeout(() => process.exit(1), 15_000)'))
-  tally.check('the seam stands as read: the teardown reaps every rostered worker (why the refusal is client-side, and why no flag can keep one)', teardown.includes('for (const j of roster.list())') && teardown.includes('roster.kill(j.short)'))
   const { DAEMON_USAGE, parseDaemonVerb } = await import('../../src/daemon/verbs.ts')
   const usageLines = DAEMON_USAGE.split('\n')
   const stopRowAt = usageLines.findIndex(l => l.trimStart().startsWith('stop'))

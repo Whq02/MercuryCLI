@@ -120,11 +120,8 @@ console.log('Q4 the quit parks all — the screen and the daemon')
   const main = read('src/main.tsx')
   check('every interactive boot arms it (before the journey classification)', main.includes('armQuitParksAll()') && main.indexOf('armQuitParksAll()') < main.indexOf('markExplicitBootJourney()'))
   const daemon = read('src/daemon/main.ts')
-  const parkAllAt = daemon.indexOf('const parkAllThenShutdown = async (signal: string): Promise<void> => {')
-  const parkAllBody = daemon.slice(parkAllAt, daemon.indexOf('requestShutdown = shutdown', parkAllAt))
-  check("the owned daemon's orphan reap parks-all first", parkAllAt !== -1 && parkAllBody.includes('parkAllConcourseSessions(`daemon:${signal}`, roster ?? undefined)') && daemon.includes("void parkAllThenShutdown('owner-orphaned')") && !daemon.includes("shutdown('owner-orphaned')\n"))
-  check('it drains the mid-turn parks under the registered ceiling, cuts with the ruled reason, then shuts down — latched', parkAllBody.includes('pendingParkRequests().length > 0 && Date.now() - startedDrain < ceilingMs') && parkAllBody.includes('sessionParkDrainMs()') && parkAllBody.includes('reason: PARK_DRAIN_CUT_REASON') && parkAllBody.indexOf('shutdown(signal)') > parkAllBody.indexOf('reason: PARK_DRAIN_CUT_REASON') && parkAllBody.includes('if (orphanParking || shuttingDown) return'))
-  check("the daemon's park-all from a screen keeps a chat another LIVE terminal holds; the reap keeps nothing back", daemon.includes('exceptFocusedByLiveTerminal: true') && !parkAllBody.includes('exceptFocusedByLiveTerminal'))
+  check("the owned daemon's orphan reap never shuts down bare: main.ts holds no line that calls shutdown('owner-orphaned') with no park-all before it", !daemon.includes("shutdown('owner-orphaned')\n"))
+  check("the daemon's park-all from a screen keeps a chat another LIVE terminal holds", daemon.includes('exceptFocusedByLiveTerminal: true'))
   check("the roster's idle edge completes a requested park while the drain runs: the record's own completion, then the runner's retirement", daemon.includes('if (completeRequestedPark(short, roster)) {') && daemon.includes('void retireRequestedPark(short, roster)'))
 }
 

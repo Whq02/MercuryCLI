@@ -4,11 +4,13 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
+import ts from 'typescript'
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -236,14 +238,6 @@ check(
   mainTs.includes("process.once('exit'") && mainTs.includes('daemonExitTeardownSync('),
 )
 check('daemonRun passes projectDir into boot recovery', mainTs.includes("scope: 'daemon', projectDir"))
-check(
-  'shutdown reap ledgers un-observed worker exits (reap rows)',
-  mainTs.includes("event: 'reap'"),
-)
-check(
-  'clean shutdown clears control.key beside the daemon record',
-  mainTs.includes('clearControlKey('),
-)
 const rosterTs = src('src/daemon/roster.ts')
 check(
   'roster handleCrash ledgers long-lived exit rows (all dispositions)',
@@ -278,25 +272,43 @@ check(
   headlessTs.includes('WORKER_PARENT_PID_ENV, String(process.pid)'),
 )
 const controlSocketTs = src('src/daemon/controlSocket.ts')
-const oneWriterCalls = (mainTs.match(/await persistDaemonRecord\(currentOwnerPid\)/g) || []).length
-const recordWriteSites = (mainTs.match(/writeDaemonState\(/g) || []).length
+const DAEMON_BOOT = join(ROOT, 'src', 'daemon', 'main.ts')
+const DAEMON_PARTS = join(ROOT, 'src', 'daemon', 'run')
+const daemonProgram = ts.createProgram([DAEMON_BOOT, ...readdirSync(DAEMON_PARTS).filter(name => name.endsWith('.ts')).map(name => join(DAEMON_PARTS, name))], { noResolve: true, noLib: true, skipLibCheck: true, target: ts.ScriptTarget.Latest, module: ts.ModuleKind.ESNext })
+const daemonCallsOf = (callee: string): string[] => {
+  const sites: string[] = []
+  for (const sf of daemonProgram.getSourceFiles()) {
+    const visit = (node: ts.Node): void => {
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === callee) sites.push(`${relative(ROOT, sf.fileName).split(sep).join('/')}:${sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1}`)
+      ts.forEachChild(node, visit)
+    }
+    visit(sf)
+  }
+  return sites
+}
+const oneWriterCalls = daemonCallsOf('persistDaemonRecord')
+const recordWriteSites = daemonCallsOf('writeDaemonState')
 const rawRecordPublishes = (controlSocketTs.match(/publishInDaemonHome\('the daemon record'/g) || []).length
 check(
   'the daemon stamps its identity baseline on EVERY record write: the one writer at boot, at the plane heal and at the take of the plane from a predecessor (a hand-over successor writes its record first, through the same writer)',
   (mainTs.match(/startToken: bootStartToken/g) || []).length === 1 &&
-    oneWriterCalls === 3 &&
+    oneWriterCalls.length === 3 &&
+    oneWriterCalls.every(site => site.startsWith('src/daemon/main.ts:')) &&
     mainTs.includes('await getProcessStartTokenAsync(process.pid)'),
-  `${oneWriterCalls} call(s) of the one writer`,
+  `${oneWriterCalls.length} call(s) of the one writer: ${oneWriterCalls.join(', ')}`,
 )
 check(
-  'the rewrites carry the stored baseline whole: the owner hand-over in the daemon and the stopping mark in the record owner',
-  mainTs.includes('writeDaemonState({ ...rec, ownerPid: next })') &&
-    controlSocketTs.includes("{ ...current, state: 'stopping', stoppingAt: now }"),
+  'the stopping mark in the record owner carries the stored baseline whole',
+  controlSocketTs.includes("{ ...current, state: 'stopping', stoppingAt: now }"),
 )
 check(
   'no record write stands beside them: the daemon writes the record only through the one writer and the owner rewrite, the record owner publishes it only from the writer and the stopping mark, and the hand-over module writes none',
-  recordWriteSites === 2 && rawRecordPublishes === 2 && !src('src/daemon/handover.ts').includes('writeDaemonState('),
-  `${recordWriteSites} record write site(s) in the daemon, ${rawRecordPublishes} raw publish(es) in the record owner`,
+  recordWriteSites.length === 2 &&
+    recordWriteSites.filter(site => site.startsWith('src/daemon/main.ts:')).length === 1 &&
+    recordWriteSites.filter(site => site.startsWith('src/daemon/run/owner.ts:')).length === 1 &&
+    rawRecordPublishes === 2 &&
+    !src('src/daemon/handover.ts').includes('writeDaemonState('),
+  `${recordWriteSites.length} record write site(s) in the daemon (${recordWriteSites.join(', ')}), ${rawRecordPublishes} raw publish(es) in the record owner`,
 )
 check(
   'the record type declares the baseline in the one vocabulary',

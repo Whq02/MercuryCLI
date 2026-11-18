@@ -4,16 +4,12 @@ import { existsSync, watch as watchDir, writeSync, type FSWatcher } from 'node:f
 import { unlink } from 'fs/promises'
 import { basename, dirname, join, resolve } from 'path'
 import { MERCURY_VERSION } from '../constants/product.js'
-import { spawn } from 'node:child_process'
-import { hasStoredOAuthToken } from '../utils/auth.js'
-import { STORED_TOKEN_SCRUB_VARS } from '../utils/subprocessEnv.js'
 import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import { MERCURY_DAEMON_PROTO } from './protocol.js'
 import { DaemonBreaker } from '../utils/daemonBreaker.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
-import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
-import { stampSpawnReceipt } from '../substrate/envStamps.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
 import { getRunTimeoutMs, scrubDaemonRoleEnv } from './headlessRun.js'
 import {
@@ -36,15 +32,11 @@ import {
   focusConcourseSession,
   grantConcourseWorkflows,
   isNewbornRecord,
-  nextLiveCockpitOwner,
-  PARK_DRAIN_CUT_REASON,
   parkAllConcourseSessions,
   parkConcourseSession,
-  pendingParkRequests,
   retireConcourseSession,
   revokeConcourseWorkflows,
   turnInFlightOf,
-  withdrawParkRequestsBy,
   workerPidAlive,
 } from './concourseWorkers.js'
 import { answerPermissionAsk, holdWorkerAsk } from './permissionAsks.js'
@@ -78,7 +70,7 @@ import {
   leaveSession,
 } from './sessionSeat.js'
 import { resetSeatProjections } from '../services/engine-connector/seatProjections.js'
-import { sessionParkDrainMs, sweepIdleEmptyConcourseSessions } from './idleRetirement.js'
+import { sweepIdleEmptyConcourseSessions } from './idleRetirement.js'
 import {
   claimWarmRunner,
   ensureWarmRunner,
@@ -98,25 +90,19 @@ import { makeConcourseDispatchHandler, readConcourseControlOps, recordConcourseC
 import { TaskRoster } from './roster.js'
 import {
   parseOwnerPid,
-  parseOwnerFd,
   isProcessAlive,
   getProcessStartInstant,
   getProcessStartInstantAsync,
   getProcessStartToken,
   getProcessStartTokenAsync,
-  armOwnerPipe,
-  startOwnerWatch,
-  type OwnerPipeHandleV1,
-  type OwnerWatchHandleV1,
 } from './ownerWatch.js'
-import { startControlServer, type ControlServerHandle } from './controlServer.js'
+import { startControlServer } from './controlServer.js'
 import { tokenBinding, type ProcessSweepDaemonAnswer, type ProcessSweepRunnerRecord } from './processSweep.js'
 import { recordProcessCensusAtBoot, sweepRunnerRecord } from './processSweepRun.js'
-import { DAEMON_USAGE, isScreenHealAsk, parseDaemonVerb, daemonRecordIdentity } from './verbs.js'
+import { DAEMON_USAGE, parseDaemonVerb, daemonRecordIdentity } from './verbs.js'
 import { hostedCallerOf, hostedCallerRefusalLine, restartEndsHostedCaller } from './hostedCaller.js'
 import {
   acquireDaemonLock,
-  clearControlKey,
   clearDeadDaemonRecords,
   clearDaemonState,
   controlKeyPath,
@@ -124,7 +110,6 @@ import {
   currentVersion,
   daemonControlRpc,
   daemonDir,
-  markDaemonStoppingSync,
   mintControlKey,
   readControlKey,
   readDaemonState,
@@ -134,17 +119,19 @@ import {
   type DaemonLock,
   writeDaemonState,
 } from './controlSocket.js'
-import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
 import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, releaseVersionsDir, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
-import { OTHER_BUILD_WAY_OUT, REOPEN_WORDS } from './handshake.js'
-import { holdBuild, invokedScriptPath, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
+import { holdBuild, invokedScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, sameBuildTree, type PlaneBootFactsV1 } from './planeBoot.js'
-import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
-import { decideSessionlessExit, initialSessionlessState, SESSIONLESS_EXIT_BEAT_MS } from './sessionlessExit.js'
+import { lockHeldByLivePidSync, readPlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
+import { SESSIONLESS_EXIT_BEAT_MS } from './sessionlessExit.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidSocketsOnDisk, helperPidsOfHome } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { sleep } from '../utils/sleep.js'
+import { makeDaemonRunState, markDaemonReady } from './run/state.js'
+import { armOwnerWatch, makeSessionlessBeat, markHosted } from './run/owner.js'
+import { shutdownDaemon } from './run/shutdown.js'
+import { ARMED_RESTART_BEAT_MS, armedRestartBeat, restartWhenIdle, spawnSuccessorDaemon, successorRuntime } from './run/restart.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
@@ -314,40 +301,17 @@ async function daemonRun(args: string[]): Promise<void> {
     !isEnvTruthy(flagEnv('MERCURY_DAEMON_CONTROL_DISABLED')) &&
     flagEnv('MERCURY_DAEMON_CONTROL') !== '0'
 
-  let controlServer: ControlServerHandle | null = null
-  let stopPlaneHeal: (() => void) | null = null
-  let restartArmed = false
-  let restartAfterTeardown = false
-  let stopArmedBeat: (() => void) | null = null
   let handoverPredecessor: number | null = null
   let handover: HandoverStateV1 | null = null
-  let stopLockBeat: (() => void) | null = null
   let planeServedByOther: PlaneOwnerV1 | null = null
-  let birthsInFlight = 0
-  let sessionless = initialSessionlessState()
-  const noteHosted = (): void => {
-    if (!sessionless.hosted) sessionless = { ...sessionless, hosted: true }
-  }
-  let stopSessionlessBeat: (() => void) | null = null
-  let stopSaturnTicker: (() => void) | null = null
-  let stopHostJobs: (() => void) | null = null
   let roster: TaskRoster | null = null
-  let ownerWatch: OwnerWatchHandleV1 | undefined
-  let ownerPipe: OwnerPipeHandleV1 | undefined
-  let currentOwnerPid = parseOwnerPid()
-  const persist = isEnvTruthy(flagEnv('MERCURY_DAEMON_PERSIST'))
-  let ready = false
-  let wakeReady: () => void = () => {}
-  const readyPromise = new Promise<void>(resolve => {
-    wakeReady = resolve
-  })
-  const startedAt = Date.now()
+  const state = makeDaemonRunState({ dir, bootBuildTree, foreground, breaker, maxInflight: MAX_INFLIGHT, controlEnabled })
+  const { persist, readyPromise, startedAt } = state
+  const noteHosted = (): void => markHosted(state)
   let requestShutdown: (signal: string) => void = () => {}
-  let daemonLock: DaemonLock | null = null
-  let teardownComplete = false
-  let releaseHeldReading: () => void = () => {}
 
   if (controlEnabled) {
+    let daemonLock: DaemonLock | null = null
     const successorOf = parseHandoverFrom(flagEnv('MERCURY_DAEMON_SUCCESSOR_OF'))
     const handoverFrom = parseHandoverFrom(flagEnv('MERCURY_DAEMON_HANDOVER_FROM'))
     const stamp = successorOf !== null ? `successor of pid ${successorOf}` : handoverFrom !== null ? `handover from pid ${handoverFrom}` : 'boot'
@@ -386,12 +350,13 @@ async function daemonRun(args: string[]): Promise<void> {
     } else {
       return refuse(decision.why)
     }
+    state.daemonLock = daemonLock
     process.once('exit', code => {
-      if (!teardownComplete) daemonExitTeardownSync('exit-before-teardown', code)
+      if (!state.teardownComplete) daemonExitTeardownSync('exit-before-teardown', code)
     })
     try {
       await seatCeilingFactsAsync()
-      releaseHeldReading = serveHeldReadingFromBackground()
+      state.releaseHeldReading = serveHeldReadingFromBackground()
       roster = new TaskRoster({
         dir,
         breaker,
@@ -451,6 +416,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
         },
       })
+      state.roster = roster
       if (handoverPredecessor === null) resetSeatProjections(dir)
       const controlKey = handoverPredecessor === null ? await mintControlKey() : ((await readControlKey()) ?? (await mintControlKey()))
       const warmDeps = {
@@ -516,6 +482,7 @@ async function daemonRun(args: string[]): Promise<void> {
         }
         return asked
       }
+      const restartNeeds = { liveWorkers, askLiveSessionsForFacts, requestShutdown: (signal: string) => requestShutdown(signal) }
       const bootStartToken = await getProcessStartTokenAsync(process.pid)
       const bootStartInstant = process.platform === 'win32' ? await getProcessStartInstantAsync(process.pid) : bootStartToken
       const persistDaemonRecord = (owner: number | null): Promise<void> =>
@@ -543,7 +510,8 @@ async function daemonRun(args: string[]): Promise<void> {
           () => Object.values(readSessionWorkersSnapshot().state === 'known' ? readSessionWorkers() : {}),
           await readHandoverHosts(handoverPredecessor, controlKey),
         )
-        await persistDaemonRecord(currentOwnerPid)
+        state.handover = handover
+        await persistDaemonRecord(state.currentOwnerPid)
         const moved = renameSocketForPredecessor(handoverPredecessor)
         handover.notePlaneMoved()
         const held = handover.heldRunners(handoverPredecessor).size
@@ -563,11 +531,11 @@ async function daemonRun(args: string[]): Promise<void> {
         }
       }
       const countBirth = async <T>(door: () => Promise<T>): Promise<T> => {
-        birthsInFlight++
+        state.birthsInFlight++
         try {
           return await door()
         } finally {
-          birthsInFlight--
+          state.birthsInFlight--
         }
       }
       const concourseAdmitHandler = makeConcourseAdmitHandler({
@@ -581,7 +549,7 @@ async function daemonRun(args: string[]): Promise<void> {
           if (roster !== null) onSeatSpawned(runnerId, roster)
         },
       })
-      controlServer = await startControlServer({
+      state.controlServer = await startControlServer({
         ...(handoverRef !== null
           ? {
               handover: {
@@ -596,7 +564,7 @@ async function daemonRun(args: string[]): Promise<void> {
         startedAt,
         maxInflight: MAX_INFLIGHT,
         controlKey,
-        isReady: () => ready,
+        isReady: () => state.ready,
         whenReady: () => readyPromise,
         concourseAdmit: (...args) => countBirth(() => concourseAdmitHandler(...args)),
         concourseDispatch: (...args) => countBirth(() => concourseDispatchHandler(...args)),
@@ -959,11 +927,11 @@ async function daemonRun(args: string[]): Promise<void> {
           buildTree: bootBuildTree,
           pid: process.pid,
           startedAt,
-          ownerPid: currentOwnerPid,
+          ownerPid: state.currentOwnerPid,
           foreground,
           ...liveWorkers(),
           warm: warmRunnerCount(),
-          restartArmed,
+          restartArmed: state.restartArmed,
           predecessorPid: handover?.predecessorPids()[0] ?? null,
           predecessorPids: handover?.predecessorPids() ?? [],
         }),
@@ -976,52 +944,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return view
         },
-        restartWhenIdle: by => {
-          const counts = liveWorkers()
-          const { live } = counts
-          if (foreground) {
-            return { state: 'refused' as const, live, detail: 'runs on a terminal: stop it there (ctrl-c) and run `mercury daemon` again' }
-          }
-          const installed = deployedRuntime()
-          const other = successorRuntime()
-          if (other !== null) {
-            const detail = otherBuildInstalledDetail(other, live)
-            console.error(`[daemon] restart asked by ${by} — ${detail}`)
-            askLiveSessionsForFacts()
-            if (live > 0 || birthsInFlight > 0 || handover?.alive()) {
-              restartArmed = true
-              return { state: 'armed' as const, live }
-            }
-            setImmediate(() => requestShutdown('control:restart-when-idle'))
-            return { state: 'refused' as const, live, detail }
-          }
-          if (installed !== null && isScreenHealAsk(by)) {
-            console.error(`[daemon] restart asked by ${by} — refused: ${reopenDetail(installed)}`)
-            return { state: 'refused' as const, live, detail: reopenDetail(installed) }
-          }
-          if (handover !== null && handover.alive()) {
-            const detail = predecessorsStillHostingDetail(handover, counts)
-            restartArmed = true
-            console.error(`[daemon] restart armed by ${by} — ${detail}`)
-            return { state: 'armed' as const, live, detail }
-          }
-          if (flagEnv('MERCURY_DAEMON_SUCCESSOR_OF') && Date.now() - startedAt < RESTART_STORM_GUARD_MS) {
-            return {
-              state: 'refused' as const,
-              live,
-              detail: unchangedSuccessorDetail(Math.round((Date.now() - startedAt) / 1000)),
-            }
-          }
-          if (live > 0 || birthsInFlight > 0) {
-            restartArmed = true
-            console.error(`[daemon] restart armed by ${by} — re-executes as the deployed build when the ${live} live worker(s)${birthsInFlight > 0 ? ` and ${birthsInFlight} session(s) being born` : ''} finish`)
-            return { state: 'armed' as const, live }
-          }
-          console.error(`[daemon] restart requested by ${by} — idle, re-executing as the deployed build`)
-          restartAfterTeardown = true
-          setImmediate(() => requestShutdown('control:restart-when-idle'))
-          return { state: 'restarting' as const, live: 0 }
-        },
+        restartWhenIdle: by => restartWhenIdle(state, restartNeeds, by),
         processSweep: async request => {
           const snapshot = readSessionWorkersSnapshot()
           const known = snapshot.state === 'known' ? snapshot.workers : null
@@ -1037,15 +960,15 @@ async function daemonRun(args: string[]): Promise<void> {
           for (const [short, record] of Object.entries(known ?? {})) {
             if (!seen.has(short)) runners.push(sweepRunnerRecord(record, record.pid, false))
           }
-          const facts: ProcessSweepDaemonAnswer = { pid: process.pid, ownerPid: currentOwnerPid, ...liveWorkers(), persist, runners }
+          const facts: ProcessSweepDaemonAnswer = { pid: process.pid, ownerPid: state.currentOwnerPid, ...liveWorkers(), persist, runners }
           if (request.action === 'facts') return { ok: true, op: 'processSweep', action: 'facts', facts }
           const refuse = (reason: string, road: 'daemon' | 'none' = 'daemon') => ({ ok: true as const, op: 'processSweep' as const, action: 'end' as const, ended: false, road, reason })
           const expected = request.expected
           if (expected === undefined) return refuse('no reviewed identity was given', 'none')
           if (expected.kind === 'daemon') {
             if (expected.process.pid !== process.pid || tokenBinding(bootStartInstant, expected.startToken) !== 'bound') return refuse('the reviewed identity is not this daemon', 'none')
-            if (persist || currentOwnerPid === null) return refuse('this daemon persists by its own posture')
-            if (isProcessAlive(currentOwnerPid)) return refuse(`the owner pid ${currentOwnerPid} is alive`)
+            if (persist || state.currentOwnerPid === null) return refuse('this daemon persists by its own posture')
+            if (isProcessAlive(state.currentOwnerPid)) return refuse(`the owner pid ${state.currentOwnerPid} is alive`)
             const { live: liveNow, liveSessions } = liveWorkers()
             if (liveNow > 0 || liveSessions > 0) return refuse(`${liveNow} live worker(s) use this daemon`)
             if (runners.some(runner => !runner.warm && runner.endedAt === undefined && runner.stoppedAt === undefined && runner.parkedAt === undefined)) return refuse('an open session record is held here')
@@ -1066,7 +989,7 @@ async function daemonRun(args: string[]): Promise<void> {
           return refuse('only a daemon or a runner takes the daemon road', 'none')
         },
       }, { socketPath: process.platform === 'win32' ? controlSockPath() : predecessorSockPath(process.pid) })
-      await persistDaemonRecord(currentOwnerPid)
+      await persistDaemonRecord(state.currentOwnerPid)
       {
         let healInflight = false
         let healQueued = false
@@ -1095,6 +1018,7 @@ async function daemonRun(args: string[]): Promise<void> {
               }
             }
             planeServedByOther = foreignOwner && !takeBack ? foreign : null
+            state.planeServedByOther = planeServedByOther
             const ownDoorOnly = foreignOwner && !takeBack
             const ownSockMissing = ownDoorOnly && ownSockPath !== null && !existsSync(ownSockPath)
             if (ownDoorOnly && !ownSockMissing) return
@@ -1106,9 +1030,9 @@ async function daemonRun(args: string[]): Promise<void> {
             )
             if (!ownDoorOnly) {
               await reassertControlKey(controlKey)
-              await persistDaemonRecord(currentOwnerPid)
+              await persistDaemonRecord(state.currentOwnerPid)
             }
-            if ((sockMissing || ownSockMissing || takeBack) && daemonHomeStands('the plane heal')) await controlServer?.rebind()
+            if ((sockMissing || ownSockMissing || takeBack) && daemonHomeStands('the plane heal')) await state.controlServer?.rebind()
           } catch (e) {
             logForDebugging(`[daemon] plane self-heal failed (the next signal or floor retries): ${e}`)
           } finally {
@@ -1177,7 +1101,7 @@ async function daemonRun(args: string[]): Promise<void> {
             logForDebugging(`[daemon] the installed-build watch on ${pointerDir} did not arm (the floor keeps the check): ${e}`)
           }
         }
-        stopPlaneHeal = () => {
+        state.stopPlaneHeal = () => {
           clearInterval(planeHeal)
           if (healSignal !== undefined) clearTimeout(healSignal)
           if (installedSignal !== undefined) clearTimeout(installedSignal)
@@ -1186,54 +1110,14 @@ async function daemonRun(args: string[]): Promise<void> {
         }
       }
       {
-        const armedBeat = setInterval(() => {
-          if (!restartArmed || restartAfterTeardown) return
-          if (liveWorkers().live > 0 || birthsInFlight > 0) return
-          if (handover?.alive() && (planeServedByOther === null || !isProcessAlive(planeServedByOther.pid))) return
-          restartArmed = false
-          const other = successorRuntime()
-          if (other !== null) {
-            console.error(`[daemon] armed restart — idle now; ${otherBuildInstalledDetail(other, 0)}`)
-            requestShutdown('restart-when-idle:armed')
-            return
-          }
-          restartAfterTeardown = true
-          console.error('[daemon] armed restart — idle now, re-executing as the deployed build')
-          requestShutdown('restart-when-idle:armed')
-        }, ARMED_RESTART_BEAT_MS)
+        const armedBeat = setInterval(() => armedRestartBeat(state, restartNeeds), ARMED_RESTART_BEAT_MS)
         armedBeat.unref?.()
-        stopArmedBeat = () => clearInterval(armedBeat)
+        state.stopArmedBeat = () => clearInterval(armedBeat)
       }
       {
-        let lastHold = ''
-        const sessionlessBeat = setInterval(() => {
-          if (restartAfterTeardown) return
-          const live = liveWorkers().live
-          const superseded = planeServedByOther !== null && isProcessAlive(planeServedByOther.pid)
-          const candidate = live === 0 && birthsInFlight === 0 && (sessionless.hosted || superseded) && !foreground && (superseded || !(persist || currentOwnerPid === null))
-          const scheduled = candidate && !superseded ? Object.values(readSessionWorkers()).some(r => r.endedAt === undefined && ((r.schedules?.length ?? 0) > 0 || (r.heldFires?.length ?? 0) > 0)) : false
-          const verdict = decideSessionlessExit(sessionless, {
-            live,
-            birthsInFlight,
-            superseded,
-            persist: persist || currentOwnerPid === null,
-            foreground,
-            scheduled,
-            now: Date.now(),
-          })
-          sessionless = verdict.state
-          if (!verdict.exit) {
-            if (candidate && verdict.hold !== lastHold && !verdict.hold.startsWith('empty for')) {
-              lastHold = verdict.hold
-              console.error(`[daemon] no session is hosted here — held by: ${verdict.hold}`)
-            }
-            return
-          }
-          console.error(`[daemon] ${verdict.why} — shutting down`)
-          requestShutdown('sessionless')
-        }, SESSIONLESS_EXIT_BEAT_MS)
+        const sessionlessBeat = setInterval(makeSessionlessBeat(state, { liveWorkers, requestShutdown: signal => requestShutdown(signal) }), SESSIONLESS_EXIT_BEAT_MS)
         sessionlessBeat.unref?.()
-        stopSessionlessBeat = () => clearInterval(sessionlessBeat)
+        state.stopSessionlessBeat = () => clearInterval(sessionlessBeat)
       }
       if (handover !== null) {
         const idleReads = new Map<number, number>()
@@ -1258,7 +1142,7 @@ async function daemonRun(args: string[]): Promise<void> {
               }
               const reads = (idleReads.get(pid) ?? 0) + 1
               idleReads.set(pid, reads)
-              const holdsLock = daemonLock === null && lockHeldByLivePidSync() === pid
+              const holdsLock = state.daemonLock === null && lockHeldByLivePidSync() === pid
               if (reads < (holdsLock ? 1 : IDLE_PREDECESSOR_READS)) continue
               idleReads.delete(pid)
               console.error(`[daemon] the daemon this one took over from (pid ${pid}, v${reply.version}) holds no live session and has not left on its own — asking it to leave`)
@@ -1274,8 +1158,8 @@ async function daemonRun(args: string[]): Promise<void> {
         const idleSweep = setInterval(sweepNow, SESSIONLESS_EXIT_BEAT_MS)
         idleSweep.unref?.()
         setTimeout(sweepNow, FIRST_IDLE_SWEEP_MS).unref?.()
-        const stopBeat = stopSessionlessBeat
-        stopSessionlessBeat = () => {
+        const stopBeat = state.stopSessionlessBeat
+        state.stopSessionlessBeat = () => {
           clearInterval(idleSweep)
           stopBeat?.()
         }
@@ -1284,14 +1168,14 @@ async function daemonRun(args: string[]): Promise<void> {
         let lockClaimInflight = false
         const lockBeat = setInterval(() => {
           void (async () => {
-            if (daemonLock !== null || lockClaimInflight) return
+            if (state.daemonLock !== null || lockClaimInflight) return
             if (lockHeldByLivePidSync() !== null) return
             lockClaimInflight = true
             try {
               const taken = await acquireDaemonLock()
               if (taken === null) return
-              daemonLock = taken
-              stopLockBeat?.()
+              state.daemonLock = taken
+              state.stopLockBeat?.()
               console.error(`[daemon] handover from pid ${handoverPredecessor}: the predecessor released the daemon lock — this daemon holds it now`)
             } finally {
               lockClaimInflight = false
@@ -1299,17 +1183,16 @@ async function daemonRun(args: string[]): Promise<void> {
           })()
         }, HANDOVER_LOCK_BEAT_MS)
         lockBeat.unref?.()
-        stopLockBeat = () => {
+        state.stopLockBeat = () => {
           clearInterval(lockBeat)
-          stopLockBeat = null
+          state.stopLockBeat = null
         }
       }
       const { startHostJobSweep } = await import('../services/host/jobs.js')
-      stopHostJobs = startHostJobSweep()
-      ready = true
-      wakeReady()
+      state.stopHostJobs = startHostJobSweep()
+      markDaemonReady(state)
       console.error('[daemon] control socket up — RPC: list/has/status/dispatch/reply/kill/shutdown')
-      stopSaturnTicker = startSaturnTicker(
+      state.stopSaturnTicker = startSaturnTicker(
         {
           now: () => Date.now(),
           records: () => {
@@ -1358,7 +1241,7 @@ async function daemonRun(args: string[]): Promise<void> {
             }),
             contract: (sessionId, text, by) => applyConcourseContractOp(sessionId, { op: 'set', text }, by),
           }),
-          screenOpen: () => (controlServer?.leaseCount() ?? 0) > 0,
+          screenOpen: () => (state.controlServer?.leaseCount() ?? 0) > 0,
           rosterChanged: sessionId => {
             if (roster !== null) pushScheduleRosterForSession(sessionId, roster)
           },
@@ -1417,8 +1300,9 @@ async function daemonRun(args: string[]): Promise<void> {
     } catch (e) {
       console.error(`[daemon] ${GLYPH.warn} control layer FAILED to start: ${e}`)
       logForDebugging(`[daemon] control layer failed to start — giving the home back and exiting: ${e}`)
-      controlServer = null
+      state.controlServer = null
       roster = null
+      state.roster = null
       const holder = await planeAnswer(bootBuildTree).catch(() => null)
       try {
         writeSync(2, `[daemon] ${planeHeldLine(holder)}\n`)
@@ -1426,123 +1310,18 @@ async function daemonRun(args: string[]): Promise<void> {
       await unlink(controlKeyPath()).catch(() => {})
       await clearDaemonState()
       if (process.platform !== 'win32') await unlink(predecessorSockPath(process.pid)).catch(() => {})
-      await daemonLock?.release().catch(() => {})
-      daemonLock = null
-      teardownComplete = true
+      await state.daemonLock?.release().catch(() => {})
+      state.daemonLock = null
+      state.teardownComplete = true
       process.exit(1)
     }
   }
 
   return new Promise<void>(resolveShutdown => {
     const keepAlive = setInterval(() => {}, 1 << 30)
-    let shuttingDown = false
-    const shutdown = (signal: string) => {
-      if (shuttingDown) return
-      shuttingDown = true
-      stopPlaneHeal?.()
-      stopArmedBeat?.()
-      stopLockBeat?.()
-      stopSessionlessBeat?.()
-      stopSaturnTicker?.()
-      stopHostJobs?.()
-      const supersededBy = controlEnabled ? supersededByLivePlaneOwnerSync() : null
-      if (supersededBy !== null && restartAfterTeardown) {
-        restartAfterTeardown = false
-        console.error(`[daemon] pid ${supersededBy.pid} (build ${supersededBy.buildTree ?? 'unstamped'}) is already serving; exiting without spawning a successor`)
-      }
-      if (controlEnabled) markDaemonStoppingSync()
-      logForDebugging(`[daemon] received ${signal}, shutting down`)
-      console.error(`[daemon] ${signal} — shutting down`)
-      ownerWatch?.stop()
-      ownerWatch = undefined
-      ownerPipe?.close()
-      ownerPipe = undefined
-      if (roster) {
-        for (const j of roster.list()) {
-          if (!j.outcome) {
-            recordSpawnExit({
-              kind: j.via === 'runner' ? 'long-lived' : 'headless',
-              event: 'reap',
-              id: j.short,
-              pid: j.pid,
-              reason: `daemon-shutdown:${signal}`,
-            })
-            roster.kill(j.short)
-          }
-        }
-      }
-      void (async () => {
-        try {
-          await controlServer?.close()
-        } catch (e) {
-          logForDebugging(`[daemon] error closing control server: ${e}`)
-        }
-        if (controlEnabled) await clearControlKey().catch(() => {})
-        if (controlEnabled) await clearDaemonState().catch(() => {})
-        recordSpawnExit({
-          kind: 'daemon',
-          event: 'exit',
-          id: 'daemon',
-          pid: process.pid,
-          reason: `shutdown:${signal}`,
-        })
-        teardownComplete = true
-        releaseHeldReading()
-        if (restartAfterTeardown) spawnSuccessorDaemon()
-        await daemonLock?.release().catch(() => {})
-        daemonLock = null
-        await roster?.askedSettled()
-        clearInterval(keepAlive)
-        resolveShutdown()
-        setTimeout(() => process.exit(0), 250)
-      })()
-      const bail = setTimeout(() => process.exit(1), 15_000)
-      bail.unref?.()
-    }
-    const passOwnership = (next: number): void => {
-      currentOwnerPid = next
-      void readDaemonState()
-        .then(rec => (rec && rec.pid === process.pid ? writeDaemonState({ ...rec, ownerPid: next }) : undefined))
-        .catch(() => {})
-      void armOwnerWatch(next, false)
-    }
-    let orphanParking = false
-    const parkAllThenShutdown = async (signal: string): Promise<void> => {
-      if (orphanParking || shuttingDown) return
-      orphanParking = true
-      try {
-        const startedDrain = Date.now()
-        const receipt = parkAllConcourseSessions(`daemon:${signal}`, roster ?? undefined)
-        console.error(
-          `[daemon] the screen is gone — parking every active session: parked ${receipt.parked.length}, draining ${receipt.draining.length} (finishing their turns), released ${receipt.released.length} newborn(s), skipped ${receipt.skipped.length}${receipt.refused.length > 0 ? `, refused ${receipt.refused.join(', ')}` : ''}`,
-        )
-        const ceilingMs = sessionParkDrainMs()
-        const screenCameBack = (): boolean => {
-          const next = shuttingDown ? undefined : nextLiveCockpitOwner(null, undefined, startedDrain)
-          if (next === undefined) return false
-          const kept = withdrawParkRequestsBy(`daemon:${signal}`, receipt.draining)
-          orphanParking = false
-          passOwnership(next)
-          console.error(`[daemon] the screen came back inside the drain — ownership passes to the live cockpit pid ${next}; the daemon stays up${kept.length > 0 ? ` and ${kept.join(', ')} ${kept.length === 1 ? 'keeps its turn' : 'keep their turns'} (the park asked at the reap is withdrawn)` : ''}`)
-          return true
-        }
-        let calledOff = false
-        while (!calledOff && pendingParkRequests().length > 0 && Date.now() - startedDrain < ceilingMs) {
-          await sleep(1000)
-          calledOff = screenCameBack()
-        }
-        if (calledOff) return
-        for (const short of pendingParkRequests()) {
-          const rec = readSessionWorkers()[short]
-          if (rec === undefined) continue
-          const cut = parkConcourseSession(rec.sessionId, `daemon:${signal}`, roster ?? undefined, undefined, { afterTurn: false, reason: PARK_DRAIN_CUT_REASON })
-          console.error(`[daemon] ${short} was still mid-turn at the drain ceiling — ${cut.outcome === 'applied' ? 'its turn is cut and it parks' : cut.outcome}`)
-        }
-      } catch (e) {
-        logForDebugging(`[daemon] park-all at the orphan reap threw (ignored — shutting down): ${e}`)
-      }
-      shutdown(signal)
-    }
+    const wayOut = { keepAlive, resolveShutdown, spawnSuccessorDaemon }
+    const shutdown = (signal: string): void => shutdownDaemon(state, wayOut, signal)
+    const ownerNeeds = { shutdown }
     requestShutdown = shutdown
     armDaemonHomeWatch(daemonDir(), where => {
       shutdown(`home-gone: the daemon directory ${daemonDir()} is gone, noticed at ${where}; the world ended and nothing more is written`)
@@ -1569,48 +1348,13 @@ async function daemonRun(args: string[]): Promise<void> {
     }
     process.on('uncaughtException', err => crashShutdown('uncaughtException', err))
     process.on('unhandledRejection', reason => crashShutdown('unhandledRejection', reason))
-
-    const armOwnerWatch = async (pid: number, withPipe: boolean): Promise<void> => {
-      ownerWatch?.stop()
-      ownerPipe?.close()
-      ownerPipe = undefined
-      const ownerStartToken = await getProcessStartTokenAsync(pid)
-      if (shuttingDown || currentOwnerPid !== pid) return
-      ownerWatch = startOwnerWatch({
-        ownerPid: pid,
-        baselineToken: ownerStartToken,
-        log: line => console.error(line),
-        onOrphan: why => {
-          ownerPipe?.close()
-          const next = nextLiveCockpitOwner(pid)
-          if (next !== undefined) {
-            passOwnership(next)
-            console.error(`[daemon] owner pid ${pid} gone (${why}) — ownership passes to the live cockpit pid ${next}; the daemon stays up`)
-            return
-          }
-          console.error(`[daemon] owner pid ${pid} gone (${why}) — no live cockpit remains: parking every active session, then self-reaping (orphaned auto-start)`)
-          void parkAllThenShutdown('owner-orphaned')
-        },
-      })
-      if (withPipe) {
-        const ownerFd = parseOwnerFd()
-        if (ownerFd !== null) {
-          ownerPipe = armOwnerPipe(ownerFd, () => ownerWatch?.ownerPipeClosed(), line => console.error(line))
-          if (!ownerPipe.armed) {
-            console.error(`[daemon] owner pipe not armed (${ownerPipe.why ?? 'unknown'}) — the liveness beat and the minute identity probe watch alone`)
-          }
-        }
-      }
-    }
-    if (currentOwnerPid !== null && !persist) {
-      void armOwnerWatch(currentOwnerPid, true)
+    if (state.currentOwnerPid !== null && !persist) {
+      void armOwnerWatch(state, ownerNeeds, state.currentOwnerPid, true)
     }
   })
 }
 
 const SUCCESSOR_LOCK_WAIT_MS = 10_000
-const RESTART_STORM_GUARD_MS = 60_000
-const ARMED_RESTART_BEAT_MS = 4_000
 const HANDOVER_LOCK_BEAT_MS = 2_000
 const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
 const IDLE_PREDECESSOR_READS = 3
@@ -1651,88 +1395,3 @@ const PLANE_HEAL_FLOOR_MS = 30_000
 const PLANE_HEAL_COALESCE_MS = 250
 const INSTALLED_POINTER_NAMES = new Set(['current', 'dist', 'current.txt'])
 const RECONCILE_TICK_MS = 60_000
-
-function successorRuntime(): ReturnType<typeof deployedRuntime> {
-  const deployed = deployedRuntime()
-  if (deployed === null) return null
-  const own = selfScriptPath()
-  return own !== '' && resolveScriptPath(deployed.script) === own ? null : deployed
-}
-
-function installedWords(runtime: NonNullable<ReturnType<typeof deployedRuntime>>): string {
-  return runtime.version !== null && runtime.version !== currentVersion() ? `v${runtime.version}` : `tree ${runtime.buildTree ?? 'unstamped'}`
-}
-
-function reopenDetail(installed: NonNullable<ReturnType<typeof deployedRuntime>>): string {
-  if (installed.version !== null && installed.version !== currentVersion()) {
-    return `${REOPEN_WORDS} — a newer Mercury (${installedWords(installed)}) is installed and this daemon already runs it`
-  }
-  return `this daemon runs the installed build (${installedWords(installed)}) and cannot become another build of the same version — ${OTHER_BUILD_WAY_OUT}`
-}
-
-function otherBuildInstalledDetail(other: NonNullable<ReturnType<typeof deployedRuntime>>, live: number): string {
-  const leaves = live > 0 ? `this one leaves when its ${live} live worker(s) finish, re-executing nothing` : 'this one leaves now, re-executing nothing'
-  return `another build (${installedWords(other)}) is installed — a Mercury of that build starts its own daemon; ${leaves}`
-}
-
-function liveSessionWords(n: number): string {
-  return `${n} live session${n === 1 ? '' : 's'}`
-}
-
-function predecessorsStillHostingDetail(state: Pick<HandoverStateV1, 'predecessorPids' | 'heldRunners'>, own: { live: number; liveSessions: number }): string {
-  const rows = state.predecessorPids().map(pid => ({ pid, held: state.heldRunners(pid).size }))
-  const theirs = rows.reduce((n, row) => n + row.held, 0)
-  const one = rows.length === 1
-  const who = one
-    ? `the daemon this one took over from (pid ${rows[0]!.pid})`
-    : `the daemons this one took over from (${rows.map(row => `pid ${row.pid}: ${row.held > 0 ? liveSessionWords(row.held) : 'leaving'}`).join(', ')})`
-  const hosting = theirs > 0 ? `still ${one ? 'hosts' : 'host'} ${liveSessionWords(theirs)}` : `${one ? 'is' : 'are'} still leaving`
-  const mine = own.live === 0 ? '' : ` and this daemon ${own.liveSessions === own.live ? `hosts ${liveSessionWords(own.live)}` : `runs ${own.live} live worker${own.live === 1 ? '' : 's'}`}`
-  const when = theirs > 0 || own.live > 0 ? 'when they finish' : one ? 'when it has gone' : 'when they have gone'
-  return `${who} ${hosting}${mine} — the restart runs ${when}`
-}
-
-function unchangedSuccessorDetail(ageSeconds: number): string {
-  const deployed = deployedRuntime()
-  const still = `came back unchanged ${ageSeconds}s ago (still v${currentVersion()}, protocol ${MERCURY_DAEMON_PROTO})`
-  if (deployed === null) return `${still}: a restart runs this same build — deploy a new build first`
-  if (deployed.layout === 'release') {
-    return `${still}: the install's current version is still v${deployed.version ?? currentVersion()} — a restart runs this same build`
-  }
-  return `${still}: the deployed build is still this one — deploy a new build first`
-}
-
-function spawnSuccessorDaemon(): number | undefined {
-  try {
-    const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }
-    for (const spelling of flagSpellings('MERCURY_DAEMON_HANDOVER_FROM')) delete env[spelling]
-    stampSpawnReceipt(env, ['MERCURY_DAEMON_SUCCESSOR_OF'])
-    if (hasStoredOAuthToken()) {
-      const stripped: string[] = []
-      for (const k of STORED_TOKEN_SCRUB_VARS) {
-        if (env[k] !== undefined) stripped.push(k)
-        delete env[k]
-      }
-      if (stripped.length > 0) {
-        console.error(`[daemon] successor scrub — a stored sign-in exists; the successor re-resolves it (dropped: ${stripped.join(', ')})`)
-      }
-    }
-    const script = selfScriptPath()
-    const node = nodeForBuild(script ? dirname(script) : '')
-    const args = script ? [...process.execArgv, script, ...process.argv.slice(2)] : [...process.execArgv, ...process.argv.slice(1)]
-    const child = spawn(node, args, {
-      cwd: process.cwd(),
-      env,
-      detached: true,
-      windowsHide: true,
-      stdio: ['ignore', 'inherit', 'inherit'],
-    })
-    child.on('error', e => logForDebugging(`[daemon] successor spawn error (ignored): ${e}`))
-    child.unref()
-    console.error(`[daemon] successor spawned — pid ${child.pid} runs ${script || process.argv[1] || '?'} (this same build, v${currentVersion()}) on ${node}`)
-    return child.pid
-  } catch (e) {
-    console.error(`[daemon] successor spawn failed — the next screen starts a daemon: ${e}`)
-    return undefined
-  }
-}
