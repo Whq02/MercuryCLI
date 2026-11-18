@@ -87,6 +87,7 @@ import { CAPTCHA_ASK_UNAVAILABLE, CAPTCHA_OPERATOR_COMPLETES, CAPTCHA_QUESTION, 
 import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from './operatorPause.js'
 
 import { waitConditionPassed, waitConditionRefusal, waitConditionWords } from './waitCondition.js'
+import { COMPUTER_PROMPT } from './prompt.js'
 
 export { COMPUTER_TOOL_NAME }
 
@@ -1325,11 +1326,7 @@ export const ComputerTool = buildTool({
     return "Drive the operator's screen: screenshot, click, type, press keys, scroll and drag in the application in front, on every model route that receives images"
   },
   async prompt() {
-    return `Drive by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Trees use [n] role "title" value rows. Terminal captures default to accessibility text. fill (target/ref) sets the value and reads it back; fields lists the controls.
-
-The first act of a session asks once; tree/find/read/wait-until share its grant; other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input.
-
-After a click whose effect you assume, wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.`
+    return COMPUTER_PROMPT
   },
   userFacingName,
   shouldDefer: true,
