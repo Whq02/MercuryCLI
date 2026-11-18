@@ -15,7 +15,7 @@ interface WayOutStep {
   readonly run: (state: DaemonRunState, needs: ShutdownNeeds, signal: string) => void | Promise<void>
 }
 
-export const WAY_OUT_AT_ONCE: readonly WayOutStep[] = [
+const WAY_OUT_AT_ONCE: readonly WayOutStep[] = [
   {
     name: 'stop the plane heal',
     run: state => {
@@ -110,7 +110,7 @@ export const WAY_OUT_AT_ONCE: readonly WayOutStep[] = [
   },
 ]
 
-export const WAY_OUT_THEN: readonly WayOutStep[] = [
+const WAY_OUT_THEN: readonly WayOutStep[] = [
   {
     name: 'close the control server',
     run: async state => {
