@@ -179,6 +179,13 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
   const { createSeatReceiptMessage } = await import(src('utils/messages/systemMessages.ts'))
   const { mcpToolsAnswerOf } = await import(src('services/mcp/toolsAnswer.ts'))
   const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
+  const carrierCall = async (req: Reply, timeoutMs: number): Promise<Reply> => {
+    const { daemonControlRpc } = await import(src('daemon/controlSocket.ts'))
+    return (await daemonControlRpc(req, { timeoutMs })) as Reply
+  }
+  const carrierThrows = async (message: string): Promise<Reply> => {
+    throw new Error(message)
+  }
   const progressStore = await import(src('state/ephemeralProgressStore.ts'))
   await import(src('daemon/ownerWatch.ts'))
   const WATCHED_TOOLS = ['toolu_attach', 'toolu_run', 'toolu_hook', 'toolu_eval', 'toolu_mcp', 'toolu_ps', 'toolu_fed', 'toolu_old', 'toolu_f']
@@ -252,7 +259,8 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     readonly home: string
     readonly transcriptPath: string
     readonly connector: InstanceType<typeof DaemonSessionConnector>
-    private readonly guts: { attached: boolean; tick: () => Promise<void>; readFacts: () => void; readTail: () => void; readAsks: () => void; armTranscriptWatcher: () => void; rpc?: (req: Reply) => Promise<Reply> }
+    private readonly guts: { attached: boolean; tick: () => Promise<void>; readFacts: () => void; readTail: () => void; readAsks: () => void }
+    private carrierBroken: string | null = null
     private readonly ids = new Map<string, string>()
     private readonly last = new Map<string, string>()
     private rows: Row[] = []
@@ -265,13 +273,19 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     private readonly unsubscribe: Array<() => void> = []
     onWake: ((kind: Listener) => void) | null = null
 
-    constructor(readonly name: string, record: Record<string, unknown> = {}, before: (h: Harness) => void = () => {}) {
+    constructor(readonly name: string, record: Record<string, unknown> = {}, before: (h: Harness) => void = () => {}, watcher: 'real' | 'none' = 'none') {
       this.sessionId = `rec-${name}`
       this.home = join(scratch, 'sessions', name)
       mkdirSync(this.home, { recursive: true })
       this.transcriptPath = join(this.home, `${this.sessionId}.jsonl`)
       before(this)
-      this.connector = new DaemonSessionConnector({ sessionId: this.sessionId, runnerId: `runner-${name}`, title: `the ${name} chat`, projectLabel: 'proof', workspaceId: work, home: this.home, modelKey: 'claude-sonnet-5-5', ...record })
+      this.connector = new DaemonSessionConnector(
+        { sessionId: this.sessionId, runnerId: `runner-${name}`, title: `the ${name} chat`, projectLabel: 'proof', workspaceId: work, home: this.home, modelKey: 'claude-sonnet-5-5', ...record },
+        {
+          rpc: (req: Reply, timeoutMs: number) => (this.carrierBroken === null ? carrierCall(req, timeoutMs) : carrierThrows(this.carrierBroken)),
+          ...(watcher === 'real' ? {} : { armTranscriptWatcher: () => {} }),
+        },
+      )
       this.guts = this.connector as unknown as Harness['guts']
       const subscribe: Record<Listener, (cb: () => void) => () => void> = {
         records: cb => this.connector.subscribeRecords(cb),
@@ -395,7 +409,6 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     }
 
     private claim(): void {
-      if (!Object.hasOwn(this.guts, 'armTranscriptWatcher')) this.guts.armTranscriptWatcher = () => {}
       this.guts.attached = true
     }
 
@@ -672,18 +685,16 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
 
     breakCarrier(message: string): void {
       this.event({ step: `the carrier throws: ${message}` })
-      this.guts.rpc = async () => {
-        throw new Error(message)
-      }
+      this.carrierBroken = message
     }
 
     mendCarrier(): void {
       this.event({ step: 'the carrier answers again' })
-      delete this.guts.rpc
+      this.carrierBroken = null
     }
 
     async close(): Promise<void> {
-      if (this.guts.rpc !== undefined && Object.hasOwn(this.guts, 'rpc')) delete this.guts.rpc
+      this.carrierBroken = null
       this.guts.attached = true
       await this.call('detach')
       for (const off of this.unsubscribe) off()
@@ -702,14 +713,14 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
   const refusedBy = (error: string, extra: Reply = {}): Reply => ({ ok: false, code: 'EREFUSED', error, ...extra })
   const dispatched: Reply = { ok: true, op: 'sessionDispatch', state: 'delivered' }
   let scenariosSeen = 0
-  const scenario = async (name: string, run: (h: Harness) => Promise<void>, record: Record<string, unknown> = {}, before: (h: Harness) => void = () => {}): Promise<void> => {
+  const scenario = async (name: string, run: (h: Harness) => Promise<void>, record: Record<string, unknown> = {}, before: (h: Harness) => void = () => {}, watcher: 'real' | 'none' = 'none'): Promise<void> => {
     const hour = scenariosSeen++
     if (only.length > 0 && !only.includes(name)) return
     clock.begin(hour)
     _resetDaemonUsableMemoForProofs()
     rmSync(concourseWorkersPath(daemonDir), { force: true })
     rmSync(daemonStatePath(), { force: true })
-    const h = new Harness(name, record, before)
+    const h = new Harness(name, record, before, watcher)
     await run(h)
     await h.close()
   }
@@ -730,7 +741,7 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     projections.publishSessionTail({ schema: 1, sessionId: h.sessionId, atMs: clock.now(), text: null, turnChars: 12, turnOutputTokens: 3 }, daemonDir)
     h.publishProgress({ toolu_attach: { toolUseID: 'toolu_inner', dataType: 'bash_progress', seq: 1, latestLine: 'one line', elapsedTimeSeconds: 2, totalLines: 1, budgetMs: 120000 } })
     h.seed([h.user('the words before the window opened')])
-  })
+  }, 'real')
 
   await scenario('send-delivered', async h => {
     h.workers({})
@@ -1262,7 +1273,7 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
       toolu_mcp: { toolUseID: 'toolu_mcp_inner', dataType: 'mcp_progress', seq: 1, latestLine: 'half way', mcpProgress: 5, mcpTotal: 10 },
       toolu_ps: { toolUseID: 'toolu_ps_inner', dataType: 'powershell_progress', seq: 1, latestLine: 'a line', totalLines: 1 },
     })
-  })
+  }, 'real')
 
   await scenario('busy-turn-with-no-facts', async h => {
     await h.facts({ busy: true, turnStartedAt: clock.now() })
@@ -1292,7 +1303,7 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     await h.feed('no tool progress', () => h.publishProgress({}))
     await h.feed('nothing new', () => {})
     await h.call('detach')
-  })
+  }, {}, () => {}, 'real')
 
   await scenario('a-watchdog-the-facts-spell-as-text', async h => {
     await h.facts({ busy: true, turnStartedAt: clock.now(), streamIdleTimeoutMs: '90000' })
