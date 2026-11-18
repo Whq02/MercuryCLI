@@ -324,7 +324,7 @@ and its version. A `bash` the command starts by name, or a script that begins
 system's 3.2 unless a newer one stands earlier on PATH.
 
 Two roads that once put a command in front of another shell start Mercury's
-own. In an editor that offers its terminal, Mercury asks the editor for its
+own. In an editor that lends its terminal, Mercury asks the editor for its
 shell by path, with `-c` and one line as the arguments; before the first
 command of a session it asks once for that shell on a harmless line, and an
 editor that errors or does not print the answer within ten seconds is passed
