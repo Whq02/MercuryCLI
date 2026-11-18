@@ -488,7 +488,6 @@ async function runTransactionBody(args: {
   }
 
   if (signal.aborted) {
-    traceOnce({ ok: false })
     push(interruptResultUpdate(toolUseID, sourceUUID))
     return
   }
