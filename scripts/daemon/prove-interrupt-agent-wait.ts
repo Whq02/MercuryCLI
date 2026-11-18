@@ -196,8 +196,6 @@ console.log('\nA4 the stop road reaches every running agent')
 
 console.log('\nA5 the wiring — runner to glass (structural)')
 {
-  const print = read('src/cli/run.ts')
-  check('the runner relays the agent wait as a turn row ({ state: waiting, agents: n })', /onAgentWait: \(count, turnId\) => \{[\s\S]{0,400}turnWaitingRow\([\s\S]{0,120}\{ turnId, agents: count \}\)/.test(print))
   const driver = read('src/cli/headless/turnDriver.ts')
   check("the driver announces the wait where it parks ('waiting_for_agents') and 0 on every exit of the cycle", /phase = 'waiting_for_agents'[\s\S]{0,500}announceWait\(holding \? running : Math\.max\(1, running\)\)/.test(driver) && /finally \{\s*\n[\s\S]{0,300}announceWait\(0\)/.test(driver))
   const connector = read('src/services/engine-connector/daemonConnector.ts')

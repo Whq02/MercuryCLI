@@ -1,24 +1,28 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import ts from 'typescript'
+import { printDriverPorts } from '../../src/cli/headless/printDriver.ts'
+import { createRunnerState } from '../../src/cli/headless/runnerPorts.ts'
 import { createTurnDriver } from '../../src/cli/headless/turnDriver.ts'
 import { outcomeRow, turnStartedRow } from '../../src/rows/project.ts'
 import { EMPTY_USAGE } from '../../src/services/api/emptyUsage.ts'
 
-const source = readFileSync(join(import.meta.dir, '../../src/cli/run.ts'), 'utf8')
-const ast = ts.createSourceFile('run.ts', source, ts.ScriptTarget.Latest, true)
-let callback: ts.Expression | undefined
-function visit(node: ts.Node): void {
-  if (ts.isPropertyAssignment(node) && node.name.getText(ast) === 'onCycleError') callback = node.initializer
-  ts.forEachChild(node, visit)
+const live = createRunnerState()
+const state = {
+  get currentTurn(): number | null {
+    return live.currentTurn
+  },
+  set currentTurn(value: number | null) {
+    live.currentTurn = value
+  },
+  get turnsRun(): number {
+    return live.turnsRun
+  },
+  set turnsRun(value: number) {
+    live.turnsRun = value
+  },
+  turnId: '',
 }
-visit(ast)
-if (callback === undefined) throw new Error('the print turn driver has no error callback')
-const state = { currentTurn: null as number | null, turnsRun: 0, turnId: '' }
-const build = new Bun.Transpiler({ loader: 'ts' }).transformSync(`const callback = (${callback.getText(ast)});`)
-const onCycleError = new Function('state', 'outcomeRow', 'EMPTY_USAGE', 'getSessionId', 'errorMessage', 'getInMemoryErrors', `return (error, turnId) => { const { currentTurn, turnsRun } = state; ${build} return callback(error, turnId) }`)(state, outcomeRow, EMPTY_USAGE, () => 'ordinal-session', (error: Error) => error.message, () => [])
+const onCycleError = printDriverPorts({ live } as never).onCycleError
 const queue = ['first', 'second', 'third'].map((value, index) => ({ value, mode: 'bash', uuid: `prompt-${index + 1}` }))
 const rows: Array<Record<string, any>> = []
 const shutdowns: number[] = []

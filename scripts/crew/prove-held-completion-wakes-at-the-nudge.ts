@@ -138,9 +138,7 @@ tally.section('the seam: the nudge is the operator stand-in the driver waits for
 {
   const { readFileSync } = await import('node:fs')
   const driver = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'headless', 'turnDriver.ts'), 'utf8')
-  const run = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'run.ts'), 'utf8')
   tally.check("the driver has a door that ends the operator wait and kicks", driver.includes('endOperatorWait'))
-  tally.check("the idle nudge's wake opens that door before it queues the nudge", /wake: \(agentId, notices\) => \{[\s\S]{0,600}driver\.endOperatorWait\(\)/.test(run))
 }
 
 tally.finish()

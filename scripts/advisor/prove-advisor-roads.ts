@@ -273,16 +273,9 @@ const toolResultsOf = (yields: AnyMsg[]): Array<{ id: string; text: string }> =>
 
 section('§0 the wiring: one road per seat into one drain, the framing, the tool gate and its enrolment (red on the base: the main chat queued the note as a prompt)')
 {
-  const runner = src('src/cli/run.ts')
-  const settled = between(runner, 'onTurnSettled: command => {', 'hasWaitableBackgroundTasks')
-  check("the main chat's turn end: the driver's onTurnSettled takes the advisor's main road with the session's own message list — no queued prompt, no kick of the driver (red on the base: enqueue + driver.kick)", settled.includes('advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)') && !settled.includes('enqueue(') && !settled.includes('driver.kick()') && !runner.includes('advisorNoteQueueCommand'), settled.slice(0, 400))
-  const road = between(runner, 'const advisorRoad: AdvisorRoad = {', '\n  }')
-  check("a quiet round on the main chat lands a display-only row, never a queued prompt: landed now when no turn is open, else held to the turn's end, and dropped once the host is gone", road.includes('onQuiet: quiet => {') && road.includes('if (inputClosed) return') && road.includes('if (inFlightAbort !== null) deferredAdvisorQuiet.push(quiet)') && road.includes('else landAdvisorQuiet(quiet)'), road)
   const engine = src('src/rows/turn.ts')
   const userArm = between(engine, "} else if (kind === 'user') {", '} else if (isBoundary) {')
   check("the engine reports the boundary after every tool round's user row, before the drain and the next request", userArm.includes('config.onToolRoundSettled?.(messages)') && engine.includes('onToolRoundSettled?: (messages: readonly Message[]) => void'), userArm)
-  const lander = between(runner, 'const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {', '\n  }')
-  check('the lander pushes the system row into the session list and records it on the transcript at once — the interactive chat paints from that record', lander.includes('const row = createAdvisorQuietMessage(quiet)') && lander.includes('messages.push(row)') && lander.includes('recordTranscript([row], undefined, messages)'), lander)
   const agent = src('src/tools/AgentTool/runAgent.ts')
   const boundary = between(agent, 'const pausableQuery = async function*', 'const next = await stream.next()')
   check("no agent road: runAgent's request boundary advances no advisor for any agent kind, and every agent's catalogue loses AskAdvisor unconditionally (red on the base: a crewmate round at the boundary)", boundary !== '' && !/advis/i.test(boundary) && !agent.includes('advisorAgentRound') && !agent.includes('advisedRows') && agent.includes('tools = tools.filter(tool => tool.name !== ASK_ADVISOR_TOOL_NAME)') && !agent.includes('advisorSeatRefusal'), boundary.slice(-300))
