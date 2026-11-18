@@ -57,7 +57,7 @@ export type Rig = {
   setAppState: (update: (prev: never) => never) => void
 }
 
-type ModelStep =
+export type ModelStep =
   | { kind: 'yield'; value: unknown }
   | { kind: 'do'; fn: (env: { options: Row; signal: AbortSignal; rig: Rig }) => void }
   | { kind: 'throw'; error: unknown }
@@ -241,12 +241,27 @@ function setLoopGuard(value: boolean | undefined): void {
 
 const allowAll = async (_tool: unknown, input: Row) => ({ behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'rig' } }) as never
 
-export async function record(scenario: Scenario): Promise<Recording> {
-  const plan = scenario.plan()
+export type ModelRequest = { messages: unknown[]; systemPrompt: unknown; tools: unknown[]; signal: AbortSignal; options: Row }
+
+export type OpenRig = {
+  rig: Rig
+  params: Row
+  requests: ModelRequest[]
+  log: unknown[]
+  toolLane: unknown[]
+  consumed: string[]
+  mask: (value: unknown) => unknown
+  counts: { modelCalls: number; folds: number }
+  close: () => void
+}
+
+export function openRig(plan: Plan): OpenRig {
   const mask = masker()
   const log: unknown[] = []
   const toolLane: unknown[] = []
   const tools: unknown[] = []
+  const counts = { modelCalls: 0, folds: 0 }
+  const requests: ModelRequest[] = []
   let rig: Rig | undefined
   for (const tool of plan.tools ?? [{ name: 'EchoTool' }]) tools.push(makeTool(tool, () => rig!, toolLane, mask))
   rig = makeRig(plan, tools)
@@ -265,9 +280,9 @@ export async function record(scenario: Scenario): Promise<Recording> {
     process.env[name] = value
   }
   const undo = plan.before?.(rig)
-  let modelCalls = 0
   async function* callModel(req: { messages: unknown[]; systemPrompt: unknown; tools?: Array<{ name?: string }>; signal: AbortSignal; options: Row }): AsyncGenerator<never, void> {
-    const index = modelCalls++
+    const index = counts.modelCalls++
+    requests.push({ messages: [...req.messages], systemPrompt: req.systemPrompt, tools: [...(req.tools ?? [])], signal: req.signal, options: req.options })
     log.push(
       mask({
         model_call: index + 1,
@@ -292,42 +307,53 @@ export async function record(scenario: Scenario): Promise<Recording> {
       else throw step.error
     }
   }
-  let folds = 0
   const autocompact = async (messages: unknown[], _context: unknown, cacheSafe: { forkContextMessages?: unknown[]; postFoldCarry?: unknown[] }, source: unknown, tracking: unknown, prunedTokensFreed: unknown, forced: unknown): Promise<Row> => {
-    const index = folds++
+    const index = counts.folds++
     log.push(mask({ autocompact: index + 1, source, tracking, prunedTokensFreed, forced, messages, carry: cacheSafe?.postFoldCarry }))
     return plan.autocompact?.[index] ?? { wasCompacted: false }
   }
   let seeded = 0
-  const consumed: string[] = []
-  const gen = runEventCore(
-    {
-      messages: (plan.seed ?? [createUserMessage({ content: 'hello there rig' })]) as never,
-      systemPrompt: ['rig system prompt'] as never,
-      userContext: {},
-      systemContext: {},
-      canUseTool: allowAll as never,
-      toolUseContext: rig.ctx as never,
-      querySource: (plan.querySource ?? 'sdk') as never,
-      maxTurns: plan.maxTurns,
-      fallbackModel: plan.fallbackModel,
-      ...(plan.recompose === true
-        ? {
-            recompose: async () => {
-              log.push({ recompose: true })
-              return { systemPrompt: ['rig system prompt, composed again'] as never, userContext: { composed: 'again' }, systemContext: {} }
-            },
-          }
-        : {}),
-      deps: {
-        callModel: callModel as never,
-        autocompact: autocompact as never,
-        microcompact: (async (messages: unknown[]) => ({ messages })) as never,
-        uuid: () => `00000000-0000-4000-8000-${String(++seeded).padStart(12, '0')}`,
-      },
+  const params: Row = {
+    messages: plan.seed ?? [createUserMessage({ content: 'hello there rig' })],
+    systemPrompt: ['rig system prompt'],
+    userContext: {},
+    systemContext: {},
+    canUseTool: allowAll,
+    toolUseContext: rig.ctx,
+    querySource: plan.querySource ?? 'sdk',
+    maxTurns: plan.maxTurns,
+    fallbackModel: plan.fallbackModel,
+    ...(plan.recompose === true
+      ? {
+          recompose: async () => {
+            log.push({ recompose: true })
+            return { systemPrompt: ['rig system prompt, composed again'], userContext: { composed: 'again' }, systemContext: {} }
+          },
+        }
+      : {}),
+    deps: {
+      callModel,
+      autocompact,
+      microcompact: async (messages: unknown[]) => ({ messages }),
+      uuid: () => `00000000-0000-4000-8000-${String(++seeded).padStart(12, '0')}`,
     },
-    consumed,
-  )
+  }
+  const close = (): void => {
+    if (typeof undo === 'function') undo()
+    for (const [name, value] of envBefore) {
+      if (value === undefined) delete process.env[name]
+      else process.env[name] = value
+    }
+    setLoopGuard(undefined)
+    queue.resetCommandQueue()
+  }
+  return { rig, params, requests, log, toolLane, consumed: [], mask, counts, close }
+}
+
+export async function record(scenario: Scenario): Promise<Recording> {
+  const open = openRig(scenario.plan())
+  const { log, mask } = open
+  const gen = runEventCore(open.params as never, open.consumed)
   const transitions: string[] = []
   let terminal: unknown
   try {
@@ -343,22 +369,164 @@ export async function record(scenario: Scenario): Promise<Recording> {
     terminal = { thrown: error }
   }
   await new Promise(resolve => setTimeout(resolve, 5))
-  if (typeof undo === 'function') undo()
-  for (const [name, value] of envBefore) {
-    if (value === undefined) delete process.env[name]
-    else process.env[name] = value
-  }
-  setLoopGuard(undefined)
-  queue.resetCommandQueue()
+  const queued = queue.getCommandQueue().length
+  open.close()
   return {
     name: scenario.name,
     transitions,
     terminal: mask(terminal),
     log,
-    tools: toolLane,
-    consumed: consumed.map(uuid => mask(uuid)),
-    after: mask({ engineModel: (rig.ctx.options as Row).engineModel, modelCalls, folds, queued: queue.getCommandQueue().length }),
+    tools: open.toolLane,
+    consumed: open.consumed.map(uuid => mask(uuid)),
+    after: mask({ engineModel: (open.rig.ctx.options as Row).engineModel, modelCalls: open.counts.modelCalls, folds: open.counts.folds, queued }),
   }
+}
+
+export type ScriptedRun = { events: Array<Row & { kind: string }>; terminal: Row; requests: ModelRequest[]; rig: Rig; consumed: string[]; transitions: string[] }
+
+export async function runScripted(plan: Plan): Promise<ScriptedRun> {
+  const open = openRig(plan)
+  const events: Array<Row & { kind: string }> = []
+  const gen = runEventCore(open.params as never, open.consumed)
+  let step = await gen.next()
+  while (!step.done) {
+    events.push(step.value as unknown as Row & { kind: string })
+    step = await gen.next()
+  }
+  await new Promise(resolve => setTimeout(resolve, 5))
+  open.close()
+  const transitions = events.filter(event => event.kind === 'turn_settled').map(event => String((event.transition as { reason?: unknown }).reason))
+  return { events, terminal: step.value as unknown as Row, requests: open.requests, rig: open.rig, consumed: open.consumed, transitions }
+}
+
+export type Drained<T> = { events: Array<Row & { kind: string }>; decision: T }
+
+export async function drain<T>(steps: AsyncGenerator<unknown, T> | Generator<unknown, T>): Promise<Drained<T>> {
+  const events: Array<Row & { kind: string }> = []
+  let step = await steps.next()
+  while (!step.done) {
+    events.push(step.value as Row & { kind: string })
+    step = await steps.next()
+  }
+  return { events, decision: step.value }
+}
+
+export type Planted = OpenRig & { run: Row; state: Row }
+
+export async function plantRun(plan: Plan): Promise<Planted> {
+  const open = openRig(plan)
+  const { createEventMint } = await import('../../src/run-core/events.ts')
+  const { BudgetGuard } = await import('../../src/run-core/budget-guard.ts')
+  const { buildQueryConfig } = await import('../../src/query/config.ts')
+  const { FRESH_OVERFLOW_EPISODE } = await import('../../src/services/compact/overflowRecovery.ts')
+  const { createSystemMessage } = await import('../../src/utils/messages.ts')
+  const emit = createEventMint()
+  const pendingMemoryWrites: Array<{ id: string; argumentsRaw: string }> = []
+  const params = open.params
+  const run: Row = {
+    params,
+    systemPrompt: params.systemPrompt,
+    userContext: params.userContext,
+    systemContext: params.systemContext,
+    fallbackModel: params.fallbackModel,
+    querySource: params.querySource,
+    skipCacheWrite: undefined,
+    deps: params.deps,
+    config: buildQueryConfig(),
+    budgetGuard: new BudgetGuard(),
+    emit,
+    consumedCommandUuids: open.consumed,
+    checkpointSettleWarned: false,
+    announcedStepNudges: 0,
+    awaitingReply: [],
+    pendingMemoryWrites,
+    holdMemoryWriteRefusals: (refusals: Array<{ id: string; argumentsRaw: string }>): void => {
+      for (const refusal of gate.memoryWriteRefusals(refusals as never)) {
+        if (!pendingMemoryWrites.some(held => held.id === refusal.id && held.argumentsRaw === refusal.argumentsRaw)) pendingMemoryWrites.push(refusal)
+      }
+    },
+    memoryWriteLostEvent: (): unknown => {
+      if (pendingMemoryWrites.length === 0) return null
+      const line = gate.memoryWriteLostNotice(pendingMemoryWrites as never)
+      pendingMemoryWrites.length = 0
+      return emit({ kind: 'notice', message: createSystemMessage(line, 'error') })
+    },
+  }
+  const state: Row = {
+    messages: params.messages,
+    toolUseContext: params.toolUseContext,
+    maxOutputTokensOverride: undefined,
+    autoCompactTracking: undefined,
+    stopHookActive: undefined,
+    maxOutputTokensRecoveryCount: 0,
+    streamFaultRecoveryCount: 0,
+    toolCallRefusalRecoveryCount: 0,
+    turnCount: 1,
+    pendingToolUseSummary: undefined,
+    transition: undefined,
+    overflowEpisode: FRESH_OVERFLOW_EPISODE,
+    pendingOverflow: undefined,
+  }
+  return { ...open, run, state }
+}
+
+export type PlantedReply = Planted & { iter: Row; events: Array<Row & { kind: string }> }
+
+export async function plantReply(plan: Plan, change: { state?: Row; run?: Row } = {}): Promise<PlantedReply> {
+  const planted = await plantRun(plan)
+  Object.assign(planted.state, change.state ?? {})
+  Object.assign(planted.run, change.run ?? {})
+  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
+  const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
+  const request = await drain(makeRequest(planted.run as never, planted.state as never, 1))
+  if (request.decision.kind !== 'go_on') throw new Error(`the planted request did not go on: ${JSON.stringify(planted.mask(request.decision))}`)
+  const iter = request.decision.iter as unknown as Row
+  const reply = await drain(modelReply(planted.run as never, iter as never))
+  if (reply.decision.kind !== 'go_on') throw new Error(`the planted reply did not go on: ${JSON.stringify(planted.mask(reply.decision))}`)
+  return { ...planted, iter, events: [...request.events, ...reply.events] }
+}
+
+export const reasonOf = (decision: unknown): string => {
+  const settled = decision as { kind?: string; next?: { transition?: { reason?: string } }; terminal?: { reason?: string } } | undefined
+  if (settled === undefined) return 'nothing'
+  if (settled.kind === 'hand_over') return `hand_over ${settled.next?.transition?.reason}`
+  if (settled.kind === 'end') return `end ${settled.terminal?.reason}`
+  return String(settled.kind)
+}
+
+export const noticesOf = (events: Array<Row & { kind: string }>): string[] =>
+  events
+    .filter(event => event.kind === 'notice')
+    .map(event => {
+      const message = event.message as { content?: unknown; message?: { content?: unknown } }
+      const content = message.content ?? message.message?.content
+      return typeof content === 'string' ? content : JSON.stringify(content)
+    })
+
+export const fixtures = {
+  says: (words: string, stop = 'end_turn'): AssistantRow => says(words, stop),
+  calls: (id: string, name: string, input: Row): AssistantRow => calls(id, name, input),
+  ask: (words: string): unknown => ask(words),
+  yields: (...values: unknown[]): ModelStep[] => values.map(y),
+  outputCut: (): unknown => outputCut(),
+  thinks: (stop: string): AssistantRow => thinks(stop),
+  pauses: (words: string): AssistantRow => pauses(words),
+  empty: (kind: 'empty' | 'silence' | 'cap'): AssistantRow => empty(kind),
+  faulted: (): unknown => faulted(),
+  refusal: (over: Partial<Refusal> = {}): Refusal => refusal(over),
+  refused: (...refusals: Refusal[]): AssistantRow => refused(...refusals),
+  cutCall: (outputTokens: number, model?: string): unknown[] => cutCall(outputTokens, model),
+  overflowed: (signal: Row): unknown => overflowed(signal),
+  fat: (words: string, inputTokens: number): AssistantRow => fat(words, inputTokens),
+  folded: (tokens?: number): Row => folded(tokens),
+  history: (): unknown[] => history(),
+  liveCheckpoint: (): unknown[] => liveCheckpoint(),
+  crewTask: (pending: string[]): Row => crewTask(pending),
+  stopGuard: (id: string, judge: () => Promise<Row>) => stopGuard(id, judge),
+  hooks: (map: Row) => hooks(map),
+  chant: (): string => CHANT,
+  providerOverflow: (): Row => ({ ...PROVIDER_OVERFLOW }),
+  agent: (): string => AGENT,
 }
 
 const y = (value: unknown): ModelStep => ({ kind: 'yield', value })
