@@ -97,12 +97,28 @@ console.log('\nT7 the wiring — connector to ref to spinner (structural)')
   check('the seat-live extension declares the accessor', seatLive.includes('turnChars'))
   check('the seat-live extension declares the wire figure accessor', seatLive.includes('turnOutputTokens?(): number | null'))
   const repl = read('src/screens/Chat.tsx')
+  const { openStatusPart } = await import('../ui/chatScenarios.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const status = await openStatusPart('live-turn-chars-status', { keepHome: true })
+  type Figures = { responseLengthRef?: { current: number }; outputTokensRef?: { current: number | null }; liveTurnFactsRef?: { current: { thinkingChars?: number } } }
+  const figures = (row: Figures | null): string => `${String(row?.responseLengthRef?.current)}/${String(row?.outputTokensRef?.current)}/${String(row?.liveTurnFactsRef?.current.thinkingChars)}`
+  await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase: 'thinking' } })
+  const verbRow = status.handed.spinner as Figures | null
+  const atStart = figures(verbRow)
+  status.session.chars = 4321
+  status.session.tokens = 87
+  status.session.facts = { thinkingChars: 55 }
+  const whileAlive = figures(verbRow)
+  await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase: 'responding' }, textActive: true })
+  const holdRow = figures(status.handed.hold as Figures | null)
+  await status.close()
   check(
     'the Chat feeds the spinner ref FROM the connector (the dead useRef(0) is gone)',
-    repl.includes('getFocusedLiveResponseChars') && !repl.includes('const responseLengthRef = useRef(0)'),
+    atStart.startsWith('0/') && whileAlive.startsWith('4321/') && !repl.includes('const responseLengthRef = useRef(0)'),
+    `${atStart} then ${whileAlive}`,
   )
-  check('the Chat feeds the wire figure to the verb row and the streaming hold row from the same connector', repl.includes('getFocusedLiveOutputTokens') && (repl.match(/outputTokensRef=\{outputTokensRef\}/g) ?? []).length === 2)
-  check('the Chat feeds the turn facts (thinking chars, the first byte, the wait) to both rows from the same connector — the live counter never reads a dead 0 while the request is alive', repl.includes('getFocusedLiveTurnFacts') && (repl.match(/liveTurnFactsRef=\{liveTurnFactsRef\}/g) ?? []).length === 2)
+  check('the Chat feeds the wire figure to the verb row and the streaming hold row from the same connector', whileAlive.split('/')[1] === '87' && holdRow.split('/')[1] === '87', `${whileAlive} · ${holdRow}`)
+  check('the Chat feeds the turn facts (thinking chars, the first byte, the wait) to both rows from the same connector — the live counter never reads a dead 0 while the request is alive', whileAlive.split('/')[2] === '55' && holdRow === '4321/87/55', `${whileAlive} · ${holdRow}`)
   const spinner = read('src/components/Spinner/SpinnerAnimationRow.tsx')
   const hud = read('src/components/Spinner/spinnerHud.ts')
   check(

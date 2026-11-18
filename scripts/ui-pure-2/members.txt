@@ -108,3 +108,4 @@ prove-chat-keys-part.ts
 prove-chat-dialogs-part.ts
 prove-chat-session-part.ts
 prove-chat-selector-part.ts
+prove-chat-status-part.ts

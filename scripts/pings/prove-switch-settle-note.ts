@@ -238,15 +238,37 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
     'the publisher carries the stamp on every facts publish',
     /modelSettled: seat\.lastModelSettle/.test(seatSrc),
   )
-  const replSrc = readFileSync(join(ROOT, 'src', 'screens', 'Chat.tsx'), 'utf8')
-  check(
-    'the boundary notification renders the label, Default included',
-    /applied === null \? 'Default' : renderModelName\(applied\)/.test(replSrc),
-  )
-  check(
-    'the boundary notification carries the cross-provider note when the receipt says so',
-    /receipt\.crossProvider \? crossProviderNote\(/.test(replSrc),
-  )
+  {
+    const { openStatusPart } = await import('../ui/chatScenarios.ts')
+    const { crossProviderNote, providerFamilyOfSetting } = await import('../../src/utils/model/modelTransition.ts')
+    const { renderModelName } = await import('../../src/utils/model/model.ts')
+    const status = await openStatusPart('switch-settle-boundary', { keepHome: true })
+    const settle = async (setting: string | null): Promise<string> => {
+      status.notices.length = 0
+      status.part.store().setState(prev => ({ ...prev, pendingModelSwitch: { setting } }))
+      await status.plant({})
+      await status.plant({})
+      return status.notices.find(notice => notice.key === 'model-transition-applied')?.text ?? ''
+    }
+    const home = 'claude-opus-4-5'
+    const sibling = 'claude-sonnet-4-5'
+    const abroad = ['gpt-6.2-sol', 'gpt-6.1-sol', 'glm-4.6'].find(setting => providerFamilyOfSetting(setting) !== providerFamilyOfSetting(home) && crossProviderNote(setting) !== '') ?? ''
+    const named = await settle(home)
+    const within = await settle(sibling)
+    const across = await settle(abroad)
+    const byDefault = await settle(null)
+    await status.close()
+    check(
+      'the boundary notification renders the label, Default included',
+      named.startsWith(`${renderModelName(home)} applied — queued during the turn`) && byDefault.startsWith('Default applied — queued during the turn'),
+      `${named} | ${byDefault}`,
+    )
+    check(
+      'the boundary notification carries the cross-provider note when the receipt says so',
+      abroad !== '' && across === `${renderModelName(abroad)} applied — queued during the turn${crossProviderNote(abroad)}` && within === `${renderModelName(sibling)} applied — queued during the turn`,
+      `${across} | ${within}`,
+    )
+  }
   const wrapperSrc = readFileSync(join(ROOT, 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf8')
   check(
     "the picker wrapper's daemon branch carries the note",

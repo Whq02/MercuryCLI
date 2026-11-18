@@ -203,13 +203,28 @@ section('6 · retention + wiring (structural — the module graph is not bun-loa
       readFileSync(join(ROOT, 'src', 'utils', 'model', 'modelTransition.ts'), 'utf8'),
     ),
   )
-  const repl = readFileSync(join(ROOT, 'src', 'screens', 'Chat.tsx'), 'utf8')
-  check(
-    'the Chat boundary effect applies the parked switch exactly-once',
-    repl.includes('pendingModelSwitch === null) return') &&
-      repl.includes('settlePendingAtBoundary(') &&
-      repl.includes('lastModelTransition: settled.receipt'),
-  )
+  {
+    const { openStatusPart } = await import('../ui/chatScenarios.ts')
+    const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+    const status = await openStatusPart('selector-estate-boundary', { keepHome: true })
+    const state = () => status.part.store().getState()
+    await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase: 'thinking' } })
+    status.part.store().setState(prev => ({ ...prev, pendingModelSwitch: { setting: 'claude-opus-4-5' } }))
+    await status.plant({})
+    const heldDuringTheTurn = state().pendingModelSwitch?.setting === 'claude-opus-4-5' && state().engineModel !== 'claude-opus-4-5' && status.notices.length === 0
+    await status.plant({ seatLive: IDLE_LIVE })
+    await status.plant({ messages: [] })
+    const told = status.notices.filter(notice => notice.key === 'model-transition-applied').length
+    const receipt = state().lastModelTransition
+    const applied = state().engineModel
+    const left = state().pendingModelSwitch
+    await status.close()
+    check(
+      'the Chat boundary effect applies the parked switch exactly-once',
+      heldDuringTheTurn && applied === 'claude-opus-4-5' && left === null && receipt?.applied === 'claude-opus-4-5' && receipt.boundary === 'turn-boundary' && told === 1,
+      `held while the turn ran ${heldDuringTheTurn} · applied ${String(applied)} · left waiting ${JSON.stringify(left)} · ${told} notices · ${JSON.stringify(receipt)}`,
+    )
+  }
   const picker = readFileSync(join(ROOT, 'src', 'utils', 'model', 'modelOptions.ts'), 'utf8')
   check(
     "/model gains the qualified-GPT group behind the engines+account+catalogue gate",

@@ -111,7 +111,15 @@ console.log('\nC7 the held turn\'s wait words name the KINDS over the same count
   check("C7 the connector counts the wait's kinds over the runner's roster (the same facts read)", connector.includes("phase === 'waiting' ? workCounts(this.facts?.work ?? [])"))
   const tagBar = read('src/components/SwitchboardTagBar.tsx')
   const repl = read('src/screens/Chat.tsx')
-  check('C7 the status row retains work-kind facts while the spinner adds no duplicate sentence', tagBar.includes('workWaitingWords(live.waitingOn)') && tagBar.includes('crewWaitingWords(live.agentsWaiting)') && repl.includes('viewCompacting ? FOLD_ROW_HEAD : null}') && !repl.includes('crewWaitingWords('))
+  const { openStatusPart } = await import('../ui/chatScenarios.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const status = await openStatusPart('work-counts-status', { keepHome: true })
+  await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase: 'waiting' } })
+  const waitingRow = status.handed.spinner
+  const sentenceWhileWaiting = waitingRow === null ? 'no spinner' : String(waitingRow.overrideMessage)
+  const toldItWaits = waitingRow?.waitingOnCrewmates === true
+  await status.close()
+  check('C7 the status row retains work-kind facts while the spinner adds no duplicate sentence', tagBar.includes('workWaitingWords(live.waitingOn)') && tagBar.includes('crewWaitingWords(live.agentsWaiting)') && sentenceWhileWaiting === 'null' && toldItWaits && !repl.includes('crewWaitingWords('), `the spinner's own sentence while the turn waits on crewmates: ${sentenceWhileWaiting}`)
   const views = readFileSync('src/components/tasks/useFocusedWork.ts', 'utf8')
   check("C6 the work views' presence rides the runner-liveness law", views.includes('runnerRecordAlive(rec, pidAlive)'))
   check('C6 …and trusts endedAt alone nowhere', !views.includes('rec.sessionId === sessionId && rec.endedAt === undefined'))

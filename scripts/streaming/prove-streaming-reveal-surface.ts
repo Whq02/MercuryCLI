@@ -62,10 +62,18 @@ section('§4 source pins — the consumers ride the one owner')
     'no bare yank-bug read remains in the Chat (the owner is the only road)',
     !repl.includes('hasCursorUpViewportYankBug()'),
   )
-  check(
-    'showSpinner stands the verb row up when the reveal is suppressed',
-    repl.includes('!textActive || streamingSuppressed'),
-  )
+  {
+    const { openStatusPart } = await import('../ui/chatScenarios.ts')
+    const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+    const status = await openStatusPart('streaming-reveal-status', { keepHome: true })
+    const row = (): string => (status.handed.spinner !== null ? 'the verb row' : status.handed.hold !== null ? 'the hold row' : 'no row')
+    await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase: 'responding' }, textActive: true, streamingSuppressed: false })
+    const revealed = row()
+    await status.plant({ streamingSuppressed: true })
+    const suppressed = row()
+    await status.close()
+    check('showSpinner stands the verb row up when the reveal is suppressed', revealed === 'the hold row' && suppressed === 'the verb row', `prose streaming: ${revealed}; with the reveal suppressed: ${suppressed}`)
+  }
   check(
     'the three transcript arms mount the focused tail on every surface (the gate suppresses its text half, never its mount — FN-016 R12)',
     (repl.match(/streamingTail=\{focusedTail\}/g) ?? []).length === 3,

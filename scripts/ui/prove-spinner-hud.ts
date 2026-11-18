@@ -30,10 +30,19 @@ check('context and tool gauges stay off the quiet HUD', !HUD.includes('showCtx')
 check('the metadata remains dimmed in its existing placement', ROW.includes('<Text dimColor>') && ROW.includes('metaNodes.map'))
 
 const SPIN = readFileSync(join(root, 'src/components/Spinner.tsx'), 'utf-8')
-const Chat = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf-8')
 console.log('\n  -- work-in-flight gauge --')
-check('Chat threads activeToolCount={viewInProgressToolUseIDs.size} to the spinner',
-  /activeToolCount=\{viewInProgressToolUseIDs\.size\}/.test(Chat))
+{
+  const { openStatusPart } = await import('./chatScenarios.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const status = await openStatusPart('spinner-hud-status', { keepHome: true })
+  const counts: unknown[] = []
+  for (const ids of [['toolu_1'], ['toolu_1', 'toolu_2', 'toolu_3'], []]) {
+    await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase: 'tool', inProgressToolUseIDs: new Set(ids) } })
+    counts.push(status.handed.spinner?.activeToolCount)
+  }
+  await status.close()
+  check('Chat threads activeToolCount={viewInProgressToolUseIDs.size} to the spinner', counts.join() === '1,3,0')
+}
 check('Spinner.tsx forwards activeToolCount to SpinnerAnimationRow',
   /activeToolCount=\{activeToolCount\}/.test(SPIN))
 check('the active tool label remains the head instead of another tool counter', SPIN.includes('chosenVerb = activeToolLabel') && !HUD.includes(' tools'))

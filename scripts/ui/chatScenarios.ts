@@ -1431,6 +1431,139 @@ export async function openSelectorPart(tag: string, options: { keepHome?: boolea
   }
 }
 
+type StatusModule = typeof import('../../src/screens/chat/useChatStatus.tsx')
+type StatusRow = 'spinner' | 'hold' | 'rollup'
+type StatusPlant = {
+  seatLive: SessionLiveV1
+  focusedInputDialog: Parameters<StatusModule['useChatSeatClock']>[0]['focusedInputDialog']
+  textActive: boolean
+  toolJSX: Parameters<StatusModule['useChatStatusStrip']>[0]['toolJSX']
+  toolUseConfirmQueue: Parameters<StatusModule['useChatStatusStrip']>[0]['toolUseConfirmQueue']
+  messages: Message[]
+  isStopping: boolean
+  streamingSuppressed: boolean
+  isCompact: boolean
+  spinnerTip: Parameters<StatusModule['useChatStatusStrip']>[0]['spinnerTip']
+  verbose: boolean
+}
+type StatusValue = ReturnType<StatusModule['useChatTurnBoundary']> & ReturnType<StatusModule['useChatSeatClock']> & ReturnType<StatusModule['useChatTurnEnd']> & ReturnType<StatusModule['useChatStatusStrip']>
+
+type StatusPart = {
+  part: PartMount<StatusValue>
+  signals: typeof import('../../src/utils/cockpit/turnSignals.ts')
+  plant: (over: Partial<StatusPlant>) => Promise<void>
+  handed: Record<StatusRow, Record<string, unknown> | null>
+  mostSpinners: () => number
+  notices: Array<{ key: string; text: string }>
+  session: { chars: number; tokens: number | null; facts: Record<string, unknown>; completedAt: number | null; records: Message[]; warns: boolean }
+  focus: (id: string, over?: Partial<StatusPlant>) => Promise<void>
+  tips: { asked: Array<{ bashTools: string[] }>; next: string | null; shown: string[] }
+  close: () => Promise<void>
+}
+
+export async function openStatusPart(tag: string, options: { keepHome?: boolean } = {}): Promise<StatusPart> {
+  const home = options.keepHome === true ? null : pinScratchHome(tag)
+  const React = await import('react')
+  const handed: StatusPart['handed'] = { spinner: null, hold: null, rollup: null }
+  let spinners = 0
+  let most = 0
+  const spy = (name: StatusRow) =>
+    function Row(props: Record<string, unknown>): null {
+      const own = React.useRef(props)
+      own.current = props
+      handed[name] = props
+      React.useEffect(() => {
+        if (name === 'spinner') most = Math.max(most, ++spinners)
+        return () => {
+          if (name === 'spinner') spinners--
+          if (handed[name] === own.current) handed[name] = null
+        }
+      }, [])
+      return null
+    }
+  const realSpinner = { ...(await import('../../src/components/Spinner.tsx')) }
+  mock.module('../../src/components/Spinner.tsx', () => ({ ...realSpinner, SpinnerWithVerb: spy('spinner') }))
+  const realHold = { ...(await import('../../src/components/Spinner/StreamingHoldRow.tsx')) }
+  mock.module('../../src/components/Spinner/StreamingHoldRow.tsx', () => ({ ...realHold, StreamingHoldRow: spy('hold') }))
+  const realRollup = { ...(await import('../../src/components/MercuryTurnRollup.tsx')) }
+  mock.module('../../src/components/MercuryTurnRollup.tsx', () => ({ ...realRollup, MercuryTurnRollup: spy('rollup') }))
+  const tips: StatusPart['tips'] = { asked: [], next: null, shown: [] }
+  const realTips = { ...(await import('../../src/services/tips/tipScheduler.ts')) }
+  mock.module('../../src/services/tips/tipScheduler.ts', () => ({
+    ...realTips,
+    getTipToShowOnSpinner: async (context?: { bashTools?: Set<string> }) => {
+      tips.asked.push({ bashTools: [...(context?.bashTools ?? [])] })
+      const words = tips.next
+      return words === null ? undefined : { id: words, content: async () => words }
+    },
+    recordShownTip: (tip: { id: string }) => void tips.shown.push(tip.id),
+  }))
+  const module = await import('../../src/screens/chat/useChatStatus.tsx')
+  const signals = await import('../../src/utils/cockpit/turnSignals.ts')
+  const seatLive = await import('../../src/services/engine-connector/seatLive.ts')
+  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const before = slot.hasFocusedSession() ? slot.getFocusedSessionConnector() : null
+  const session: StatusPart['session'] = { chars: 0, tokens: null, facts: { ...seatLive.IDLE_TURN_FACTS }, completedAt: null, records: [], warns: false }
+  let plant: StatusPlant = { seatLive: seatLive.IDLE_LIVE, focusedInputDialog: undefined, textActive: false, toolJSX: null, toolUseConfirmQueue: [], messages: [], isStopping: false, streamingSuppressed: false, isCompact: false, spinnerTip: undefined, verbose: false }
+  const connectorOf = (id: string): object =>
+    Object.assign(new NoSessionConnector(), {
+      sessionId: () => id,
+      records: () => session.records,
+      live: () => plant.seatLive,
+      subscribeLive: () => () => {},
+      tail: () => ({ subscribe: () => () => {}, getSnapshot: () => null, read: () => null }),
+      turnChars: () => session.chars,
+      turnOutputTokens: () => session.tokens,
+      turnFacts: () => session.facts,
+      lastTurnCompletedAtMs: () => session.completedAt,
+      status: () => ({ title: id, projectLabel: 'proof-project', interrupting: false, hardStopping: false, wait: null, quietMs: session.warns ? 61_000 : null, watchdogMs: session.warns ? 120_000 : null, phaseMs: null, toolBudgetMs: null, stuck: session.warns, runner: null }),
+    })
+  let connector = connectorOf(tag)
+  slot.setFocusedSessionConnector(connector as never)
+  signals.resetTurnSignals()
+  const notices: Array<{ key: string; text: string }> = []
+  const addNotification = ((notice: { key: string; text?: string }) => void notices.push({ key: String(notice.key), text: String(notice.text ?? '') })) as never
+  const getReadFileState = (() => new Map()) as never
+  const use = (store: AppStateStore): StatusValue => {
+    const isLoading = plant.seatLive.inFlight
+    const setAppState = store.setState
+    const boundary = module.useChatTurnBoundary({ isLoading, setAppState, addNotification })
+    const clock = module.useChatSeatClock({ seatLive: plant.seatLive, focusedInputDialog: plant.focusedInputDialog, isLoading })
+    const end = module.useChatTurnEnd({ focusedConnector: connector as never, isLoading, setAppState, themeName: 'dark' as never, getReadFileState, seatPausedMsRef: clock.seatPausedMsRef, seatPauseStartRef: clock.seatPauseStartRef })
+    module.useChatTurnSignals({ isLoading, textActive: plant.textActive, toolUseConfirmQueue: plant.toolUseConfirmQueue, messages: plant.messages })
+    const strip = module.useChatStatusStrip({ ...plant, isLoading, focusedConnector: connector as never, ...clock })
+    return { ...boundary, ...clock, ...end, ...strip }
+  }
+  const part = await mountPart(use, { draw: value => value.workingStatusStrip })
+  return {
+    part,
+    signals,
+    plant: async over => {
+      plant = { ...plant, ...over }
+      await part.set(use)
+    },
+    handed,
+    mostSpinners: () => most,
+    notices,
+    session,
+    focus: async (id, over = {}) => {
+      connector = connectorOf(id)
+      slot.setFocusedSessionConnector(connector as never)
+      plant = { ...plant, ...over }
+      await part.set(use)
+    },
+    tips,
+    close: async () => {
+      part.unmount()
+      signals.resetTurnSignals()
+      if (before === null) slot.releaseFocusedSessionConnector()
+      else slot.setFocusedSessionConnector(before)
+      if (home !== null) await releaseScratchHome(home)
+    },
+  }
+}
+
 export async function closeStage(stage: Stage): Promise<void> {
   stage.view.unmount()
   await releaseScratchHome(stage.home)
