@@ -1,7 +1,6 @@
 
 import type { UUID } from 'node:crypto';
 import { query } from '../query.js';
-import { FOLD_ROW_HEAD } from '../services/compact/foldStatus.js';
 import { takeResumeFoldNotice } from '../services/run/runCoordinator.js';
 import { subscribeTranscriptLoadDegradation, transcriptLoadDegradation } from '../utils/sessionStorage/loading.js';
 import { subscribeTranscriptStoreHealth, transcriptStoreHealth } from '../utils/sessionStorage/writer.js';
@@ -9,7 +8,6 @@ import { basename as nodePathBasename, join } from 'node:path';
 import React, {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -19,12 +17,11 @@ import { commandOffInPlainWorld, commandSeat, getCommandName, isCommandEnabled, 
 import { ExitFlow } from '../components/ExitFlow.js';
 import { FullscreenLayout } from '../components/FullscreenLayout.js';
 import { TranscriptSwap } from '../components/CrewmateTranscript.js';
-import { MercuryTurnRollup } from '../components/MercuryTurnRollup.js';
 import { Messages } from '../components/Messages.js';
 import type { ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
 import PromptInput from '../components/PromptInput/PromptInput.js';
 import { MessageActionsBar } from '../components/messageActions.js';
-import { FocusedSessionStatusRow, statusLine, statusRowWarns } from '../components/SwitchboardTagBar.js';
+import { FocusedSessionStatusRow } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
 import {
@@ -35,9 +32,7 @@ import { useCostSummary } from '../costHook.js';
 import { useFpsMetrics } from '../context/fpsMetrics.js';
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../services/privateChannel/quietUpdateNotice.js';
-import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
 import { isSettingsPopupOpen } from '../utils/cockpit/settingsPopup.js';
-import { publishTurnSignals, turnEndedInError } from '../utils/cockpit/turnSignals.js';
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
 import { useSeatReceipts } from '../hooks/useSeatReceipts.js';
 import { useAgentNeedsYou } from '../hooks/useAgentNeedsYou.js';
@@ -45,12 +40,8 @@ import { useMcpConnectivityStatus } from '../hooks/notifs/useMcpConnectivityStat
 import { recordBootInteractive } from '../utils/observability/frictionStopwatch.js';
 import { submitTrace } from '../utils/submitTrace.js';
 import { fluxMark, fluxWhy } from '../utils/flux/fluxProbe.js';
-import { SpinnerWithVerb } from '../components/Spinner.js';
-import { StreamingHoldRow } from '../components/Spinner/StreamingHoldRow.js';
-import { adoptSeatTurnStart } from '../components/Spinner/seatClock.js';
-import type { SpinnerMode } from '../components/Spinner/types.js';
 import { useMercuryTokens } from '../components/mercury-ui/useMercuryTokens.js';
-import { LOCAL_COMMAND_STDOUT_TAG, BASH_INPUT_TAG } from '../constants/xml.js';
+import { LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js';
 import { CockpitBottomStatus } from '../context/cockpitActiveContext.js';
 import { MercuryFrame } from '../components/MercuryFrame.js';
 import { splitWayOut, useNotifications } from '../context/notifications.js';
@@ -78,9 +69,7 @@ import * as pendingInput from '../input-core/pending-input.js';
 import { HELD_FOR_COMPACTION_LINE } from '../components/messages/TranscriptNameplate.js';
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
 import { getShortcutDisplay } from '../keybindings/shortcutFormat.js';
-import { renderModelName } from '../utils/model/model.js';
-import { crossProviderNote, settlePendingAtBoundary } from '../utils/model/modelTransition.js';
-import { hasSeatLive, IDLE_LIVE, IDLE_TURN_FACTS, type LiveTurnFactsV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
+import { hasSeatLive, IDLE_LIVE, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
 import { interruptFocusedTurn } from '../hooks/useCancelRequest.js';
 import { useFocusedTailAnchor, useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
@@ -109,9 +98,10 @@ import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/use
 import { TranscriptFooter, TranscriptSearchBar, useChatSearch } from './chat/useChatSearch.js';
 import { useChatSelector, useChatSelectorView } from './chat/useChatSelector.js';
 import { useChatConversation, useChatSession } from './chat/useChatSession.js';
+import { useChatSeatClock, useChatStatusStrip, useChatTurnBoundary, useChatTurnEnd, useChatTurnSignals } from './chat/useChatStatus.js';
 import { AnimatedTitle, useChatTitle } from './chat/useChatTitle.js';
 import type { SessionListing } from '../types/logs.js';
-import type { Message, ProgressMessage, UserMessage } from '../types/message.js';
+import type { Message, UserMessage } from '../types/message.js';
 import type { PromptInputMode } from '../types/textInputTypes.js';
 import { createAbortController } from '../utils/abortController.js';
 import type { PastedContent } from '../utils/config/schema.js';
@@ -134,8 +124,7 @@ import { formatCommandLoadingMetadata, resolveUnknownSlashName, unavailableComma
 import { addToHistory, expandPastedTextRefs, resolvePastedContents } from '../history.js';
 import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../utils/healthPreflight.js';
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js';
-import { createCommandInputMessage, createUserMessage, extractTag, getUserMessageText } from '../utils/messages.js';
-import { getTipToShowOnSpinner, recordShownTip } from '../services/tips/tipScheduler.js';
+import { createCommandInputMessage, createUserMessage, getUserMessageText } from '../utils/messages.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
 import type { StreamingToolUse } from '../utils/messages/streaming.js';
 
@@ -181,18 +170,6 @@ const getFocusedTailActive = (): boolean => {
   const connector = getFocusedSessionConnector();
   return hasSeatLive(connector) ? connector.tail().getSnapshot() !== null : false;
 };
-const getFocusedLiveResponseChars = (): number => {
-  const connector = getFocusedSessionConnector();
-  return hasSeatLive(connector) ? (connector.turnChars?.() ?? 0) : 0;
-};
-const getFocusedLiveOutputTokens = (): number | null => {
-  const connector = getFocusedSessionConnector();
-  return hasSeatLive(connector) ? (connector.turnOutputTokens?.() ?? null) : null;
-};
-const getFocusedLiveTurnFacts = (): LiveTurnFactsV1 => {
-  const connector = getFocusedSessionConnector();
-  return hasSeatLive(connector) ? (connector.turnFacts?.() ?? IDLE_TURN_FACTS) : IDLE_TURN_FACTS;
-};
 const getFocusedStatusKey = (): string => {
   const connector = getFocusedSessionConnector();
   return hasSeatLive(connector) ? `${connector.status().interrupting ? 1 : 0}` : '0';
@@ -229,31 +206,6 @@ function getFocusedInputDialog(args: {
   if (showCostThreshold) return 'cost-threshold';
   if (showCrashResume) return 'crash-resume';
   return undefined;
-}
-
-function stopHookSuffix(messages: readonly Message[], isLoading: boolean): string | undefined {
-  if (!isLoading) return undefined;
-  let running = 0;
-  let ran = 0;
-  let total = 0;
-  for (const message of messages) {
-    if (message.type !== 'progress') continue;
-    const data = (message as ProgressMessage).data as { type?: string; event?: string; state?: string; count?: number };
-    if (data.type !== 'hook_progress' || data.event !== 'turn.answer') continue;
-    if (data.state === 'running') {
-      if (ran >= running) {
-        running = 0;
-        ran = 0;
-      }
-      running++;
-      total = data.count ?? running;
-    } else if (data.state === 'ran') {
-      ran++;
-    }
-  }
-  if (running === 0 || ran >= running) return undefined;
-  if (total === 1) return 'running answer hook';
-  return `running answer hooks · ${ran}/${total}`;
 }
 
 function resolveSlashCommand(input: string, commands: Command[]): Command | undefined {
@@ -319,35 +271,7 @@ export function Chat({
   const isLoadingRef = useRef(isLoading);
   isLoadingRef.current = isLoading;
 
-  useEffect(() => {
-    setAppState(prev => (prev.foregroundTurnActive === isLoading ? prev : { ...prev, foregroundTurnActive: isLoading }));
-  }, [isLoading, setAppState]);
-
-  const pendingModelSwitch = useAppState(state => state.pendingModelSwitch);
-  useEffect(() => {
-    if (isLoading || pendingModelSwitch === null) return;
-    let receipt = null as ReturnType<typeof settlePendingAtBoundary>;
-    setAppState(prev => {
-      const settled = settlePendingAtBoundary(
-        { engineModel: prev.engineModel, engineModelForSession: prev.engineModelForSession, pendingModelSwitch: prev.pendingModelSwitch },
-      );
-      if (!settled) return prev;
-      receipt = settled;
-      return { ...prev, ...settled.patch, lastModelTransition: settled.receipt };
-    });
-    const settledReceipt: ReturnType<typeof settlePendingAtBoundary> = receipt;
-    if (settledReceipt) {
-      const applied = settledReceipt.receipt.applied;
-      const label = applied === null ? 'Default' : renderModelName(applied);
-      addNotification({
-        key: 'model-transition-applied',
-        invalidates: ['model-switched'],
-        text: `${label} applied — queued during the turn${settledReceipt.receipt.crossProvider ? crossProviderNote(applied) : ''}`,
-        priority: 'immediate',
-        timeoutMs: 4000,
-      });
-    }
-  }, [isLoading, pendingModelSwitch, setAppState, addNotification]);
+  const { pendingModelSwitch } = useChatTurnBoundary({ isLoading, setAppState, addNotification });
 
   const messages = useFocusedTranscript();
   const tailAnchor = useFocusedTailAnchor();
@@ -355,7 +279,6 @@ export function Chat({
   const { toolJSX, setToolJSX, isExiting, showExitFlow, setShowExitFlow, exitCommandJsx, showCostThreshold, setShowCostThreshold, showBashesDialog, setShowBashesDialog, handleExit } = useChatDialogs({ store });
   const { showMessageSelector, setShowMessageSelector, openMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect } = useChatSelector();
   const [submitCount, setSubmitCount] = useState(0);
-  const [lastCompletedAt, setLastCompletedAt] = useState<number | null>(null);
   const [crashResumeStaged, setCrashResumeStaged] = useState<CrashResumeStaged | null>(null);
   const crashNoticeLatchedRef = useRef(false);
 
@@ -417,33 +340,7 @@ export function Chat({
   const dialogsHiddenWhileTyping =
     isPromptInputActive && !isExiting && !showMessageSelector && (toolUseConfirmQueue.length > 0 || showCostThreshold);
 
-  const seatStartTimeRef = useRef(0);
-  const seatPausedMsRef = useRef(0);
-  const seatPauseStartRef = useRef<number | null>(null);
-  {
-    const ledger = adoptSeatTurnStart(
-      { startMs: seatStartTimeRef.current, pausedMs: seatPausedMsRef.current, pauseStartMs: seatPauseStartRef.current },
-      seatLive.turnStartedAtMs,
-      Date.now(),
-    );
-    seatStartTimeRef.current = ledger.startMs;
-    seatPausedMsRef.current = ledger.pausedMs;
-    seatPauseStartRef.current = ledger.pauseStartMs;
-  }
-  const previousFocusedDialogRef = useRef<FocusedInputDialog | undefined>(undefined);
-  useEffect(() => {
-    const previous = previousFocusedDialogRef.current;
-    previousFocusedDialogRef.current = focusedInputDialog;
-    if (!isLoading) return;
-    if (previous !== 'tool-permission' && focusedInputDialog === 'tool-permission') {
-      seatPauseStartRef.current = Date.now();
-    } else if (previous === 'tool-permission' && focusedInputDialog !== 'tool-permission') {
-      if (seatPauseStartRef.current !== null) {
-        seatPausedMsRef.current += Date.now() - seatPauseStartRef.current;
-        seatPauseStartRef.current = null;
-      }
-    }
-  }, [focusedInputDialog, isLoading]);
+  const { seatStartTimeRef, seatPausedMsRef, seatPauseStartRef } = useChatSeatClock({ seatLive, focusedInputDialog, isLoading });
 
   const { permissionOverlay } = useChatAsksCard({ focusedInputDialog, repinToBottom, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, chatSurfaceCovered, verbose });
   const readFileStateRef = useRef<FileStateCache | null>(null);
@@ -507,58 +404,7 @@ export function Chat({
     [store, debug, mergedTools, themeName, getReadFileState, setAppState, setToolJSX, addNotification, paintScreenRow, apiKeyVerification],
   );
 
-  const tipPickedThisTurnRef = useRef(false);
-  const shellCommandsSeenRef = useRef(new Set<string>());
-  const shellScanCursorRef = useRef(0);
-  const pickTurnTip = useCallback(() => {
-    if (tipPickedThisTurnRef.current) return;
-    tipPickedThisTurnRef.current = true;
-    const transcript = getFocusedSessionConnector().records();
-    for (let i = shellScanCursorRef.current; i < transcript.length; i++) {
-      const message = transcript[i]!;
-      if (message.type !== 'user') continue;
-      const text = getUserMessageText(message as UserMessage);
-      const command = text ? extractTag(text, BASH_INPUT_TAG) : null;
-      if (command) shellCommandsSeenRef.current.add(command.trim());
-    }
-    shellScanCursorRef.current = transcript.length;
-    const theme = themeName;
-    void getTipToShowOnSpinner({ theme, readFileState: getReadFileState(), bashTools: new Set(shellCommandsSeenRef.current) })
-      .then(async tip => {
-        if (tip) {
-          const content = await tip.content({ theme });
-          setAppState(prev => ({ ...prev, spinnerTip: content }));
-          recordShownTip(tip);
-        } else {
-          setAppState(prev => (prev.spinnerTip === undefined ? prev : { ...prev, spinnerTip: undefined }));
-        }
-      })
-      .catch(() => {});
-  }, [setAppState, themeName, getReadFileState]);
-  const wasLoadingRef = useRef(false);
-  const connectorCompletedRef = useRef<{ connector: unknown; at: number | null }>({ connector: null, at: null });
-  const hasConnectorCompleted = typeof (focusedConnector as { lastTurnCompletedAtMs?: unknown }).lastTurnCompletedAtMs === 'function';
-  const connectorCompletedAt = hasConnectorCompleted ? (focusedConnector as unknown as { lastTurnCompletedAtMs: () => number | null }).lastTurnCompletedAtMs() : null;
-  useEffect(() => {
-    if (connectorCompletedRef.current.connector !== focusedConnector) {
-      connectorCompletedRef.current = { connector: focusedConnector, at: connectorCompletedAt };
-      if (isLoading) tipPickedThisTurnRef.current = false;
-      wasLoadingRef.current = isLoading;
-      return;
-    }
-    const completed = hasConnectorCompleted
-      ? !isLoading && connectorCompletedAt !== null && connectorCompletedAt !== connectorCompletedRef.current.at
-      : wasLoadingRef.current && !isLoading;
-    if (!isLoading) connectorCompletedRef.current.at = connectorCompletedAt;
-    if (completed) {
-      setLastCompletedAt(Date.now());
-      seatPausedMsRef.current = 0;
-      seatPauseStartRef.current = null;
-      pickTurnTip();
-    }
-    if (isLoading) tipPickedThisTurnRef.current = false;
-    wasLoadingRef.current = isLoading;
-  }, [focusedConnector, hasConnectorCompleted, connectorCompletedAt, isLoading, pickTurnTip]);
+  const { lastCompletedAt } = useChatTurnEnd({ focusedConnector, isLoading, setAppState, themeName, getReadFileState, seatPausedMsRef, seatPauseStartRef });
 
   const resume = useCallback(async (sessionId: UUID, log: ResumableLog, entrypoint: ResumeEntrypoint): Promise<void> => {
     void entrypoint;
@@ -988,14 +834,7 @@ export function Chat({
     }
   }, [submitCount]);
 
-  useEffect(() => {
-    publishTurnSignals({
-      turnLive: isLoading,
-      streaming: textActive,
-      awaitingPermission: toolUseConfirmQueue.length > 0,
-      endedInError: !isLoading && turnEndedInError(messages),
-    });
-  }, [isLoading, textActive, toolUseConfirmQueue.length, messages]);
+  useChatTurnSignals({ isLoading, textActive, toolUseConfirmQueue, messages });
 
   useEffect(() => {
     const hosted = hasSeatLive(focusedConnector) && focusedConnector.transcriptStoreFailing !== undefined ? focusedConnector : null;
@@ -1242,85 +1081,7 @@ export function Chat({
   const { warmthVersion, paintedMessages, entryLoadingLine, displayedMessages, slotHasSession } = useChatSession({ focusedConnector, messages, compactWork, unseen, repinToBottom, setConversationId, setToolJSX, toolJSXRef, localJsx, landing, armedMessage, chatSurfaceCovered, inVirtualTranscript, transcriptMessages });
 
   useChatScrollFollow({ messages, repinToBottom });
-  const viewInProgressToolUseIDs = seatLive.inProgressToolUseIDs;
-  const viewStreamMode: SpinnerMode =
-    seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' || seatLive.phase === 'waiting' ? 'requesting' : 'responding';
-  const viewCompacting = seatLive.phase === 'compacting';
-  const responseLengthRef = useMemo(
-    () => ({
-      get current(): number {
-        return getFocusedLiveResponseChars();
-      },
-    }),
-    [],
-  );
-  const outputTokensRef = useMemo(
-    () => ({
-      get current(): number | null {
-        return getFocusedLiveOutputTokens();
-      },
-    }),
-    [],
-  );
-  const liveTurnFactsRef = useMemo(
-    () => ({
-      get current(): LiveTurnFactsV1 {
-        return getFocusedLiveTurnFacts();
-      },
-    }),
-    [],
-  );
-  const onlySleepToolActive = useMemo(() => {
-    if (viewInProgressToolUseIDs.size === 0) return false;
-    const sleeping = new Set<string>();
-    for (const message of messages) {
-      if (message.type !== 'assistant') continue;
-      const content = (message as { message: { content?: unknown } }).message.content;
-      if (!Array.isArray(content)) continue;
-      for (const block of content) {
-        if ((block as { type?: string }).type === 'tool_use' && (block as { name?: string }).name === 'Sleep') sleeping.add((block as { id: string }).id);
-      }
-    }
-    for (const id of viewInProgressToolUseIDs) if (!sleeping.has(id)) return false;
-    return true;
-  }, [viewInProgressToolUseIDs, messages]);
-  const spinnerSlotReserved = (!toolJSX || toolJSX.showSpinner === true) &&
-    toolUseConfirmQueue.length === 0 &&
-    (isLoading || isStopping) &&
-    !onlySleepToolActive;
-  const showSpinner = spinnerSlotReserved && (
-    !textActive || streamingSuppressed
-  );
-  const spinnerSuffix = stopHookSuffix(messages, isLoading);
-  const hookWaitKeys = useMemo(() => [...viewInProgressToolUseIDs], [viewInProgressToolUseIDs]);
-  const compactSeatStatus = isCompact && hasSeatLive(focusedConnector) ? { ...focusedConnector.status(), wait: null } : null;
-  const compactStatus = compactSeatStatus !== null && statusRowWarns(seatLive, compactSeatStatus) ? statusLine(seatLive, compactSeatStatus, null, true) : '';
-  const workingStatusStrip = <Box flexDirection="column">
-    {showSpinner || (isCompact && spinnerSlotReserved) ? (
-      <SpinnerWithVerb compact={isCompact} compactWarning={compactStatus !== '' && compactStatus !== 'ready'} mode={viewStreamMode}
-        loadingStartTimeRef={seatStartTimeRef}
-        totalPausedMsRef={seatPausedMsRef}
-        pauseStartTimeRef={seatPauseStartRef}
-        spinnerTip={spinnerTip}
-        responseLengthRef={responseLengthRef}
-        outputTokensRef={outputTokensRef}
-        liveTurnFactsRef={liveTurnFactsRef}
-        overrideColor={null}
-        overrideShimmerColor={null}
-        overrideMessage={compactStatus !== '' && compactStatus !== 'ready' ? compactStatus : viewCompacting ? FOLD_ROW_HEAD : null}
-        still={viewCompacting}
-        spinnerSuffix={spinnerSuffix ?? null}
-        hookWaitKeys={hookWaitKeys}
-        verbose={verbose}
-        hasActiveTools={viewInProgressToolUseIDs.size > 0}
-        activeToolCount={viewInProgressToolUseIDs.size}
-        activeToolLabel={activeToolVerb(messages, viewInProgressToolUseIDs)}
-        waitingOnCrewmates={seatLive.phase === 'waiting'}
-        leaderIsIdle={!isLoading}
-      />
-    ) : spinnerSlotReserved ? <StreamingHoldRow loadingStartTimeRef={seatStartTimeRef} totalPausedMsRef={seatPausedMsRef} pauseStartTimeRef={seatPauseStartRef} responseLengthRef={responseLengthRef} outputTokensRef={outputTokensRef} liveTurnFactsRef={liveTurnFactsRef} /> : null}
-    {!isCompact ? <MercuryTurnRollup messages={messages} /> : null}
-  </Box>;
+  const { viewInProgressToolUseIDs, viewStreamMode, spinnerSlotReserved, workingStatusStrip } = useChatStatusStrip({ seatLive, messages, toolJSX, toolUseConfirmQueue, isLoading, isStopping, textActive, streamingSuppressed, isCompact, focusedConnector, spinnerTip, verbose, seatStartTimeRef, seatPausedMsRef, seatPauseStartRef });
 
   const promptInput = !disabled && !isExiting && !showExitFlow && !toolJSX?.shouldHidePromptInput && (focusedInputDialog === undefined || compactFocus === 'detail') ? (
     <PromptInput
