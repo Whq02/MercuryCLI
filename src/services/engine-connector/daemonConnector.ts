@@ -1225,13 +1225,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private async openQuestion(): Promise<string | null> {
     try {
-      const o = await import('../crew/obligations.js')
-      const open = await o.openObligations({ scope: 'switchboard' })
-      const row = open.find(r => r.sessionId === this.record.sessionId && !(r.ref ?? '').startsWith('permission:'))
-      return row?.obligationId ?? null
+      return await this.questionOpen()
     } catch {
       return null
     }
+  }
+  private async questionOpen(): Promise<string | null> {
+    const open = await (await import('../crew/obligations.js')).openObligations({ scope: 'switchboard' })
+    const row = open.find(r => r.sessionId === this.record.sessionId && !(r.ref ?? '').startsWith('permission:'))
+    return row?.obligationId ?? null
   }
 
   sessionId(): string {
@@ -1319,7 +1321,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       .catch(undo)
     return true
   }
-
 
   recallableSend(): RecallableSendV1 | null {
     let latest: SeatSend | null = null
@@ -1757,7 +1758,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return this.deliver(trimmed.startsWith('/') ? trimmed : `/${trimmed}`, {})
   }
 
-
   live(): SessionLiveV1 {
     return this.livePart.live()
   }
@@ -1788,7 +1788,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     })
   }
 }
-
 
 const connectors = new Map<string, DaemonSessionConnector>()
 
