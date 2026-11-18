@@ -41,30 +41,6 @@ export class AsksPart {
 
   constructor(private readonly needs: AsksNeeds) {}
 
-  private get record(): { readonly sessionId: string; readonly modelKey?: string } {
-    return this.needs.record()
-  }
-
-  private get rawRecords(): Message[] {
-    return this.needs.rows()
-  }
-
-  private get facts(): SessionFactsV1 | null {
-    return this.needs.facts()
-  }
-
-  private permissionMode(): PermissionMode | null {
-    return this.needs.permissionMode()
-  }
-
-  private chainRpc(req: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return this.needs.chainRpc(req)
-  }
-
-  private deliver(text: string, opts: { extraBlocks?: ContentBlockParam[] }): Promise<SendReceiptV1> {
-    return this.needs.deliver(text, opts)
-  }
-
   dropAll(): void {
     for (const entry of this.askEntries) this.confirms.delete(entry.id)
     this.askEntries = []
@@ -72,7 +48,7 @@ export class AsksPart {
   }
 
   readAsks(): void {
-    const projection = readSessionAsks(this.record.sessionId)
+    const projection = readSessionAsks(this.needs.record().sessionId)
     const rows: SessionAskProjectionV1[] = projection?.asks ?? []
     const nextIds = rows.map(r => r.requestId)
     const sameIds = nextIds.length === this.askEntries.length && nextIds.every((id, i) => id === this.askEntries[i]!.id)
@@ -100,8 +76,9 @@ export class AsksPart {
   }
 
   private assistantRecordFor(toolUseId: string, toolName: string, input: Record<string, unknown>): AssistantMessage {
-    for (let i = this.rawRecords.length - 1; i >= 0; i--) {
-      const m = this.rawRecords[i]!
+    const rows = this.needs.rows()
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const m = rows[i]!
       if (m.type !== 'assistant') continue
       const content = (m as { message?: { content?: unknown } }).message?.content
       if (Array.isArray(content) && content.some(b => (b as { type?: string; id?: string }).type === 'tool_use' && (b as { id?: string }).id === toolUseId)) {
@@ -116,13 +93,13 @@ export class AsksPart {
   }
 
   private standInToolUseContext(): ToolUseContext {
-    const facts = this.facts
+    const facts = this.needs.facts()
     return {
       options: {
         commands: [],
         debug: false,
         verbose: false,
-        engineModel: facts?.model.effective ?? this.record.modelKey ?? getEngineModel(),
+        engineModel: facts?.model.effective ?? this.needs.record().modelKey ?? getEngineModel(),
         tools: getAllBaseTools(),
         mcpClients: [],
         isNonInteractiveSession: false,
@@ -134,7 +111,7 @@ export class AsksPart {
         throw new Error('a daemon-hosted session has no in-process app state')
       },
       setAppState: () => {},
-      messages: this.rawRecords,
+      messages: this.needs.rows(),
       setResponseLength: () => {},
       updateFileHistoryState: () => {},
       updateAttributionState: () => {},
@@ -188,7 +165,7 @@ export class AsksPart {
     void Promise.resolve(
       tool.description(row.input as never, {
         isNonInteractiveSession: false,
-        toolPermissionContext: { mode: this.permissionMode() ?? 'default' } as never,
+        toolPermissionContext: { mode: this.needs.permissionMode() ?? 'default' } as never,
         tools: getAllBaseTools(),
       }),
     )
@@ -202,10 +179,10 @@ export class AsksPart {
   private async answerThroughDaemon(requestId: string, answer: AskAnswerV1): Promise<AskReceiptV1> {
     this.settleAsk(requestId)
     try {
-      const reply = await this.chainRpc({
+      const reply = await this.needs.chainRpc({
         op: 'sessionControl',
         action: 'answer-permission',
-        sessionId: this.record.sessionId,
+        sessionId: this.needs.record().sessionId,
         by: 'operator',
         requestId,
         allow: answer.kind === 'allow',
@@ -226,7 +203,7 @@ export class AsksPart {
       const feedback = answer.kind === 'allow' || answer.kind === 'deny' ? answer.feedback?.trim() : undefined
       const blocks = answer.kind === 'allow' || answer.kind === 'deny' ? answer.contentBlocks : undefined
       if ((answer.kind === 'allow' && feedback) || (blocks !== undefined && blocks.length > 0)) {
-        void this.deliver(feedback ?? '', { extraBlocks: blocks })
+        void this.needs.deliver(feedback ?? '', { extraBlocks: blocks })
       }
       return { ok: true }
     } catch (e) {
