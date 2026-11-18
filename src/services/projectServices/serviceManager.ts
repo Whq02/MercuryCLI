@@ -203,7 +203,6 @@ export function reconcileAll(cwd: string): ServiceRecord[] {
 }
 
 installServiceExecutionDomain({
-  reconcile: (cwd, name) => reconcileRecord(cwd, name),
   stop: (cwd, name) => stopService(cwd, name),
 })
 

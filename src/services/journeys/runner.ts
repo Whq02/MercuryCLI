@@ -89,10 +89,6 @@ function installJourneyExecutionDomain(): void {
   if (domainInstalled) return
   domainInstalled = true
   registerExecutionDomain('journey', {
-    reconcile: record =>
-      liveAborts.has(record.spec.id)
-        ? { state: 'running' }
-        : { state: 'stopped', reason: 'no live runner in this process' },
     requestStop: record => {
       liveAborts.get(record.spec.id)?.abort()
     },

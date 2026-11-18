@@ -2232,15 +2232,6 @@ function dapExecutionSpec(id: string, adapterKey: string) {
 }
 
 registerExecutionDomain('debug-adapter', {
-  reconcile: record => {
-    const alias = record.spec.metadata?.alias
-    if (typeof alias !== 'string') return null
-    const session = sessions.get(registryKey(record.spec.owner, alias))
-    if (!session) return { state: 'stopped', outcome: { reason: 'session gone (reconciled)' } }
-    return session.alive
-      ? { state: record.state }
-      : { state: 'stopped', outcome: { reason: 'adapter terminated (reconciled)' } }
-  },
   requestStop: record => {
     const alias = record.spec.metadata?.alias
     if (typeof alias !== 'string') return

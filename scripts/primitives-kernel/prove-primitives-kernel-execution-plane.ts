@@ -134,43 +134,6 @@ console.log('requestStop mechanics')
   P.settleExecution(owner, 'rstop', 'stopped')
 }
 
-console.log('reconciliation laws')
-{
-  P._resetExecutionPlaneForTesting()
-  events.length = 0
-  reg('dead-proc')
-  go('dead-proc', 'starting')
-  go('dead-proc', 'running', {
-    externalIdentity: { pid: 999999, startToken: 'tok' },
-  })
-  reg('mystery', { kind: 'background-job' })
-  go('mystery', 'starting')
-
-  const before = P.reconcileExecutions(owner)
-  check('no reconciler ⇒ honestly unverifiable, record untouched',
-    before.unverifiable.includes('dead-proc') && before.unverifiable.includes('mystery') &&
-      P.getExecution(owner, 'dead-proc')?.state === 'running')
-
-  P.registerExecutionDomain('process', {
-    reconcile: record =>
-      record.externalIdentity?.pid === 999999
-        ? { state: 'failed', outcome: { reason: 'process gone (reconciled)' } }
-        : null,
-  })
-  const report = P.reconcileExecutions(owner)
-  const corrected = P.getExecution(owner, 'dead-proc')
-  check('9. reconciliation corrects a stale apparent-live record',
-    report.corrected.some(c => c.id === 'dead-proc' && c.to === 'failed') &&
-      corrected?.state === 'failed')
-  const reconciledEvent = events.find(
-    e => e.event.type === 'transition' && e.event.record.spec.id === 'dead-proc' && e.event.to === 'failed',
-  )
-  check('reconciled transitions are MARKED reconciled',
-    reconciledEvent?.event.type === 'transition' && reconciledEvent.event.reconciled === true)
-  check('domains that cannot answer stay unverifiable', report.unverifiable.includes('mystery'))
-  P.settleExecution(owner, 'mystery', 'indeterminate', { outcome: { reason: 'unverifiable at teardown' } })
-}
-
 console.log('references, ordering, bounds')
 {
   reg('withrefs', { outputRef: 'mercury://execution/withrefs?child=output' })

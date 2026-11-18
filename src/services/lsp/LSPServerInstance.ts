@@ -11,7 +11,6 @@ import { logError } from '../../utils/log.js'
 import { sleep } from '../../utils/sleep.js'
 import { languageServerEnv } from '../../utils/subprocessEnv.js'
 import type { ExecutionState } from '../primitives/execution.js'
-import { registerExecutionDomain } from '../primitives/executionPlane.js'
 import { projectExternalState } from '../primitives/externalProjection.js'
 import { processMainOwner } from '../run/resolveOwner.js'
 import { lspLedgerNow } from './failureLedger.js'
@@ -84,23 +83,9 @@ const INIT_BACKOFF_BASE_MS = 15_000
 const INIT_BACKOFF_MAX_MS = 5 * 60_000
 
 
-const liveStateReaders = new Map<string, () => LspServerState>()
-
 function planeState(state: LspServerState): ExecutionState {
   return state === 'error' ? 'failed' : state
 }
-
-registerExecutionDomain('language-server', {
-  reconcile(record) {
-    const serverName = record.spec.metadata?.serverName
-    if (typeof serverName !== 'string') return null
-    const reader = liveStateReaders.get(serverName)
-    if (reader === undefined) {
-      return { state: 'stopped', outcome: { reason: 'language-server instance is gone from this process' } }
-    }
-    return { state: planeState(reader()) }
-  },
-})
 
 function projectState(name: string, state: LspServerState, error?: Error): void {
   projectExternalState(
@@ -189,8 +174,6 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
   let missingComponentCall: object | undefined
   let idleTimer: NodeJS.Timeout | null = null
   let lastActivityAt = 0
-
-  liveStateReaders.set(name, () => state)
 
   function clearIdleTimer(): void {
     if (idleTimer !== null) {

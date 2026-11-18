@@ -24,7 +24,7 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
     owner: 'projectOwner(cwd) — project-scoped by design (Δ7)',
     resourceKind: 'service',
     notes:
-      'ServiceRecord stays domain truth (readiness, restart, cursors, stop ladder); reconcile = pid+startToken; plane stop drives the real ladder.',
+      'ServiceRecord stays domain truth (readiness, restart, cursors, stop ladder); plane stop drives the real ladder.',
   },
   {
     domain: 'eval-kernel',
@@ -43,7 +43,7 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
     owner: 'conversation OwnerKey',
     resourceKind: 'journey',
     notes:
-      'arsenal slice 5: a declarative local verification journey — registered running at start, settled from the verdict (failed/cancelled honest); reconcile answers from the in-process live map; plane stop aborts the runner; step services stay the service domain’s own records.',
+      'arsenal slice 5: a declarative local verification journey — registered running at start, settled from the verdict (failed/cancelled honest); plane stop aborts the runner; step services stay the service domain’s own records.',
   },
   {
     domain: 'host-run-watch',
@@ -121,9 +121,9 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
     domain: 'debug-adapter',
     classification: 'external-projection',
     kind: 'debug-adapter',
-    adapter: 'src/services/dap/dapClient.ts (create/remove + reconcile hook)',
+    adapter: 'src/services/dap/dapClient.ts (create/remove)',
     owner: 'conversation OwnerKey (sessions are owner-addressed)',
-    notes: 'DapSession liveness (child exitCode + terminated flag) is the reconcile truth; disposal settles stopped. Child debug sessions (the multi-session tree) are projected as children on read (resource graph) from the session registry — the root record stays the one plane row.',
+    notes: 'Disposal settles stopped. Child debug sessions (the multi-session tree) are projected as children on read (resource graph) from the session registry — the root record stays the one plane row.',
   },
   {
     domain: 'model-turn',
