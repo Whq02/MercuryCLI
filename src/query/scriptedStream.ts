@@ -1,23 +1,11 @@
 import { join } from 'node:path'
 import { createAssistantMessage } from '../utils/messages.js'
 import { getCwd } from '../utils/cwd.js'
+import { sleep } from '../utils/sleep.js'
 import type { CallModel } from '../services/providers/callModelContract.js'
 
 const SLOW_TEXT_ACTIVE_MS = 8_000
 const HAMMER_ROUND_MS = 50
-
-const sleep = (ms: number, signal: AbortSignal): Promise<void> =>
-  new Promise(resolve => {
-    const onAbort = (): void => {
-      clearTimeout(t)
-      resolve()
-    }
-    const t = setTimeout(() => {
-      signal.removeEventListener('abort', onAbort)
-      resolve()
-    }, ms)
-    signal.addEventListener('abort', onAbort, { once: true })
-  })
 
 export function scriptedCallModel(
   script: string,
