@@ -11,10 +11,10 @@ const UNIT = 'Chat'
 const DOOR_EXPORTS = ['Chat', 'Props', 'Screen']
 
 const HOOK_CALLS_IN_CHAT: Record<string, number> = {
-  useEffect: 31,
+  useEffect: 30,
   useRef: 27,
   useCallback: 15,
-  useState: 17,
+  useState: 16,
   useSyncExternalStore: 9,
   useAppState: 8,
   useMemo: 6,
@@ -59,9 +59,7 @@ const HOOK_CALLS_IN_CHAT: Record<string, number> = {
   useChatSearch: 1,
   useChatScrollFollow: 1,
   useMessageCursorActive: 1,
-  useHoldsEscape: 1,
   useMessageActions: 1,
-  useStdin: 1,
 }
 
 type Edge = { from: string; to: string; line: number; spec: string }

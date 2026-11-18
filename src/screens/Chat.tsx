@@ -23,7 +23,6 @@ import { FullscreenLayout } from '../components/FullscreenLayout.js';
 import { TranscriptSwap } from '../components/CrewmateTranscript.js';
 import { MercuryTurnRollup } from '../components/MercuryTurnRollup.js';
 import {
-  MessageActionsKeybindings,
   useMessageActions,
   type MessageActionsNav,
 } from '../components/messageActions.js';
@@ -31,11 +30,8 @@ import { MessageSelector } from '../components/MessageSelector.js';
 import { Messages } from '../components/Messages.js';
 import type { ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
 import PromptInput from '../components/PromptInput/PromptInput.js';
-import { isVimModeEnabled } from '../components/PromptInput/utils.js';
-import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.js';
 import { MessageActionsBar } from '../components/messageActions.js';
 import { useMessageCursorActive } from '../components/messageCursorStore.js';
-import { useHoldsEscape } from '../hooks/useEscapeOwned.js';
 import { FocusedSessionStatusRow, statusLine, statusRowWarns } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
@@ -64,7 +60,6 @@ import { SpinnerWithVerb } from '../components/Spinner.js';
 import { StreamingHoldRow } from '../components/Spinner/StreamingHoldRow.js';
 import { adoptSeatTurnStart } from '../components/Spinner/seatClock.js';
 import type { SpinnerMode } from '../components/Spinner/types.js';
-import { SwitchboardAttributionProvider } from '../components/SwitchboardTagBar.js';
 import { useMercuryTokens } from '../components/mercury-ui/useMercuryTokens.js';
 import { LOCAL_COMMAND_STDOUT_TAG, BASH_INPUT_TAG } from '../constants/xml.js';
 import { CockpitBottomStatus } from '../context/cockpitActiveContext.js';
@@ -72,9 +67,6 @@ import { MercuryFrame } from '../components/MercuryFrame.js';
 import { splitWayOut, useNotifications } from '../context/notifications.js';
 import { performUiRouteAlias } from '../context/routeAliases.js';
 import { currentSurfaceRoute, settleAbsentChat, subscribeSurfaceRoute } from '../context/surfaceRoute.js';
-import { CancelRequestHandler } from '../hooks/useCancelRequest.js';
-import { CommandKeybindingHandlers } from '../hooks/useCommandKeybindings.js';
-import { GlobalKeybindingHandlers } from '../hooks/useGlobalKeybindings.js';
 import { useAgentsChange } from '../hooks/useAgentsChange.js';
 import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
@@ -90,7 +82,7 @@ import { useDeprecationWarningNotification } from '../hooks/notifs/useDeprecatio
 import { useLspInitializationNotification } from '../hooks/notifs/useLspInitializationNotification.js';
 import { useRateLimitWarningNotification } from '../hooks/notifs/useRateLimitWarningNotification.js';
 import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js';
-import { Box, type DOMElement, measureElement, Text, useStdin, useTheme } from '../ink.js';
+import { Box, type DOMElement, measureElement, Text, useTheme } from '../ink.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
 import { setClipboardWithReceipt } from '../ink/termio/osc.js';
@@ -129,6 +121,7 @@ import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
 import type { SetToolJSXFn, Tool } from '../Tool.js';
 import { resolveToolJSX } from './toolJsxArbitration.js';
+import { ChatKeys } from './chat/ChatKeys.js';
 import type { FocusedInputDialog } from './chat/focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './chat/limits.js';
 import type { Screen as ScreenName } from './chat/screen.js';
@@ -139,7 +132,6 @@ import { TranscriptFooter, TranscriptSearchBar, useChatSearch } from './chat/use
 import { AnimatedTitle, useChatTitle } from './chat/useChatTitle.js';
 import type { SessionListing } from '../types/logs.js';
 import type { Message, NormalizedUserMessage, ProgressMessage, UserMessage } from '../types/message.js';
-import { ASK_USER_QUESTION_TOOL_NAME } from '../tools/AskUserQuestionTool/prompt.js';
 import type { PromptInputMode } from '../types/textInputTypes.js';
 import { createAbortController } from '../utils/abortController.js';
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js';
@@ -416,7 +408,6 @@ export function Chat({
   const [exitCommandJsx, setExitCommandJsx] = useState<React.ReactNode | null>(null);
   const [submitCount, setSubmitCount] = useState(0);
   const [lastCompletedAt, setLastCompletedAt] = useState<number | null>(null);
-  const [remountKey, setRemountKey] = useState(0);
   const [showCostThreshold, setShowCostThreshold] = useState(false);
   const [crashResumeStaged, setCrashResumeStaged] = useState<{
     origin: string;
@@ -1335,22 +1326,9 @@ export function Chat({
     onTranscriptScroll,
     onTranscriptPillClick,
   } = useChatSearch({ fullscreen, virtualScrollEnabled, columns, mergedTools, messages, focusedInputDialog, captureScrollForFlip, setFlipGeneration, scrollRef, scrollRestoreRef, onScroll });
-  const globalKeybindingProps = {
-    compactWork,
-    screen,
-    setScreen,
-    showAllInTranscript,
-    setShowAllInTranscript,
-    messageCount: messages.length,
-    onEnterTranscript: handleEnterTranscript,
-    onExitTranscript: handleExitTranscript,
-    virtualScrollActive: inVirtualTranscriptMode,
-    searchBarOpen,
-  };
 
   const messageActionsDisabled = false;
   const messageCursorActive = useMessageCursorActive();
-  useHoldsEscape(helpOpen || isSearchingHistory || messageCursorActive);
   const messageNavRef = useRef<MessageActionsNav | null>(null);
   const messageActions = useMessageActions(messageNavRef, {
     copy: (text: string) => {
@@ -1411,22 +1389,6 @@ export function Chat({
     setMessageSelectorPreselect(undefined);
     refuseSessionRewrite('summarising a stretch of the conversation');
   }, [refuseSessionRewrite]);
-
-  const { internal_eventEmitter } = useStdin();
-  useEffect(() => {
-    const onSuspend = (): void => {
-      if (!fullscreen) {
-        process.stdout.write('\nMercury suspended — `fg` brings it back (ctrl+z suspends, ctrl+_ undoes input)\n');
-      }
-    };
-    const onResume = (): void => setRemountKey(k => k + 1);
-    internal_eventEmitter.on('suspend', onSuspend);
-    internal_eventEmitter.on('resume', onResume);
-    return () => {
-      internal_eventEmitter.removeListener('suspend', onSuspend);
-      internal_eventEmitter.removeListener('resume', onResume);
-    };
-  }, [fullscreen, internal_eventEmitter]);
 
   const warmthVersion = useSyncExternalStore(subscribeSessionWarmth, sessionWarmthVersion, sessionWarmthVersion);
   const focusedSessionId = focusedConnector.sessionId();
@@ -1884,43 +1846,63 @@ export function Chat({
     </Box>
   );
 
-  const cancelRequestProps = {
+  const keys = {
+    legacyTranscript,
+    fullscreen,
     compactWork,
-    isInterviewFocused:
-      focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0]?.tool.name === ASK_USER_QUESTION_TOOL_NAME,
-    isMessageSelectorVisible: showMessageSelector || showBashesDialog !== false,
     screen,
-    vimMode: isVimModeEnabled() ? vimMode : undefined,
-    isLocalJSXCommand: dialogOwnsKeys,
+    setScreen,
+    showAllInTranscript,
+    setShowAllInTranscript,
+    messages,
+    handleEnterTranscript,
+    handleExitTranscript,
+    inVirtualTranscriptMode,
+    inVirtualTranscript,
+    searchBarOpen,
+    helpOpen,
     isSearchingHistory,
-    isHelpOpen: helpOpen,
-    isInputDialogFocused: focusedInputDialog !== undefined,
-    streamMode: viewStreamMode,
-    focusedTurnActive: seatLive.inFlight,
+    messageCursorActive,
+    messageActions,
+    messageActionsDisabled,
+    focusedInputDialog,
+    toolUseConfirmQueue,
+    showMessageSelector,
+    showBashesDialog,
+    vimMode,
+    dialogOwnsKeys,
+    centredModalUp,
+    permissionOverlay,
+    viewStreamMode,
+    seatLive,
+    onSubmit,
+    commands,
+    scrollRef,
+    modalScrollRef,
+    onScroll,
+    onTranscriptScroll,
   };
-  const cancelHandler = <CancelRequestHandler {...cancelRequestProps} />;
 
   if (legacyTranscript) {
     return (
       <KeybindingSetup>
         <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix animating={titleAnimating} />
-        <GlobalKeybindingHandlers {...globalKeybindingProps} />
-        <CommandKeybindingHandlers onSubmit={onSubmit} commands={commands} isActive={!dialogOwnsKeys} />
-        {cancelHandler}
-        <Box flexDirection="column">
-          {messagesList}
-          {toolJSX?.jsx ?? null}
-          <TranscriptFooter
-            toggleChord={getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o')}
-            expandChord={getShortcutDisplay('transcript:toggleShowAll', 'Transcript', 'ctrl+e')}
-            hasSearchBadge={false}
-            virtualScroll={false}
-            showAllSuppressed={dumpMode}
-            showAll={showAllInTranscript}
-            status={editorStatus}
-            badge={null}
-          />
-        </Box>
+        <ChatKeys {...keys}>
+          <Box flexDirection="column">
+            {messagesList}
+            {toolJSX?.jsx ?? null}
+            <TranscriptFooter
+              toggleChord={getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o')}
+              expandChord={getShortcutDisplay('transcript:toggleShowAll', 'Transcript', 'ctrl+e')}
+              hasSearchBadge={false}
+              virtualScroll={false}
+              showAllSuppressed={dumpMode}
+              showAll={showAllInTranscript}
+              status={editorStatus}
+              badge={null}
+            />
+          </Box>
+        </ChatKeys>
       </KeybindingSetup>
     );
   }
@@ -1928,21 +1910,7 @@ export function Chat({
   const tree = (
     <KeybindingSetup>
       <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix animating={titleAnimating} />
-      <GlobalKeybindingHandlers {...globalKeybindingProps} />
-      <CommandKeybindingHandlers onSubmit={onSubmit} commands={commands} isActive={!dialogOwnsKeys} />
-      <ScrollKeybindingHandler
-        scrollRef={scrollRef}
-        isActive={inVirtualTranscript || (fullscreen && (centredModalUp || focusedInputDialog === undefined || focusedInputDialog === 'tool-permission'))}
-        onScroll={inVirtualTranscript ? onTranscriptScroll : (centredModalUp && dialogOwnsKeys) || permissionOverlay !== null ? undefined : onScroll}
-        isModal={inVirtualTranscript ? !searchBarOpen : false}
-        modalScrollRef={modalScrollRef}
-        modalUp={centredModalUp && dialogOwnsKeys}
-      />
-      {fullscreen && messageCursorActive ? (
-        <MessageActionsKeybindings handlers={messageActions.handlers} isActive={!messageActionsDisabled && focusedInputDialog === undefined} />
-      ) : null}
-      {cancelHandler}
-      <SwitchboardAttributionProvider key={remountKey}>
+      <ChatKeys {...keys}>
         <FullscreenLayout
           scrollRef={scrollRef}
           statusBand={inVirtualTranscript ? undefined : workingStatusStrip}
@@ -1992,7 +1960,7 @@ export function Chat({
             </Box>
           }
         />
-      </SwitchboardAttributionProvider>
+      </ChatKeys>
     </KeybindingSetup>
   );
 
