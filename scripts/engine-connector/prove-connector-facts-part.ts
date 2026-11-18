@@ -132,7 +132,9 @@ section('§3 what a read hands on: the usage every time, the OpenAI list once fo
   check('construction over facts that carry a usage and a list hands on neither: the seed is held, not read', over.seen.usage.length === 0 && over.seen.lists.length === 0 && over.facts.read()?.atMs === 10, j({ usage: over.seen.usage.length, lists: over.seen.lists.length }))
   const again = reads(over, says(seeded, 10, { openaiCatalogue: list(700) }))
   check('the first read after it finds the seed before it, hands on the usage, and nothing of the model or the mode has moved', again.prev !== null && again.prev.atMs === 10 && over.seen.usage.length === 1 && again.modelMoved === false && again.modeMoved === false, j({ prev: again.prev?.atMs, usage: over.seen.usage.length, modelMoved: again.modelMoved, modeMoved: again.modeMoved }))
-  check("the seed's list is not handed on by that read, its stamp being the seed's own", over.seen.lists.length === 0, j(over.seen.lists))
+  check('…and hands on the list the seed held, though its stamp is the seed\'s own: a window opened on facts that carry a list primes the catalogue at its first read', over.seen.lists.length === 1 && over.seen.lists[0]!.fetchedAtMs === 700, `${j(over.seen.lists)} — handOn of ${PART} hands the list on at the first read after a seed, whatever the stamp of the facts before`)
+  reads(over, says(seeded, 11, { openaiCatalogue: list(700) }))
+  check('a second read of that list hands on nothing more', over.seen.lists.length === 1, j(over.seen.lists))
 }
 
 section('§4 the two channels: which wakes, and in what order')
@@ -235,13 +237,16 @@ section('§6 what the screen is shown before the carrier answers, and how it is 
   const again = 'facts-part-seed-again'
   says(again, 5, { busy: true })
   const parked = part(again)
-  says(again, 6, { busy: false, model: { effective: 'claude-haiku-5', setting: null } })
+  says(again, 6, { busy: false, model: { effective: 'claude-haiku-5', setting: null }, openaiCatalogue: list(800) })
   parked.seen.woken.length = 0
   parked.facts.seedAgain()
-  check('seedAgain holds the file as it stands now, keeps the busy word it had, hands nothing on and wakes no one', parked.facts.read()?.atMs === 6 && parked.facts.busy() === true && parked.seen.usage.length === 0 && parked.seen.woken.length === 0, j({ atMs: parked.facts.read()?.atMs, word: parked.facts.busy(), usage: parked.seen.usage.length, woken: parked.seen.woken }))
+  check('seedAgain holds the file as it stands now, keeps the busy word it had, hands nothing on and wakes no one', parked.facts.read()?.atMs === 6 && parked.facts.busy() === true && parked.seen.usage.length === 0 && parked.seen.lists.length === 0 && parked.seen.woken.length === 0, j({ atMs: parked.facts.read()?.atMs, word: parked.facts.busy(), usage: parked.seen.usage.length, lists: parked.seen.lists.length, woken: parked.seen.woken }))
+  reads(parked, says(again, 7, { busy: false, model: { effective: 'claude-haiku-5', setting: null }, openaiCatalogue: list(800) }))
+  reads(parked, says(again, 8, { busy: false, model: { effective: 'claude-haiku-5', setting: null }, openaiCatalogue: list(800) }))
+  check('the first read after it hands on the list it held, and the read after that nothing more', parked.seen.lists.length === 1 && parked.seen.lists[0]!.fetchedAtMs === 800, j(parked.seen.lists))
   rmSync(sessionFactsPath(again), { force: true })
   parked.facts.seedAgain()
-  check('…and with the file gone it keeps the facts it held', parked.facts.read()?.atMs === 6, j(parked.facts.read()?.atMs))
+  check('…and with the file gone it keeps the facts it held', parked.facts.read()?.atMs === 8, j(parked.facts.read()?.atMs))
 }
 
 rmSync(scratch, { recursive: true, force: true })

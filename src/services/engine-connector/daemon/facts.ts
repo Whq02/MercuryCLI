@@ -24,6 +24,7 @@ interface FactsNeeds {
 export class FactsPart {
   private facts: SessionFactsV1 | null
   private factsBusy: boolean
+  private seedUnread = true
   private readonly modelListeners: Listeners = new Set()
   private readonly permissionListeners: Listeners = new Set()
 
@@ -54,6 +55,7 @@ export class FactsPart {
 
   seedAgain(): void {
     this.facts = readSessionFacts(this.needs.sessionId()) ?? this.facts
+    this.seedUnread = true
   }
 
   dropRowsWithNoFile(): boolean {
@@ -80,9 +82,10 @@ export class FactsPart {
 
   handOn(next: SessionFactsV1, prev: SessionFactsV1 | null): void {
     this.needs.adoptUsage(next.usage)
-    if (next.openaiCatalogue !== undefined && next.openaiCatalogue.fetchedAtMs !== prev?.openaiCatalogue?.fetchedAtMs) {
+    if (next.openaiCatalogue !== undefined && (this.seedUnread || next.openaiCatalogue.fetchedAtMs !== prev?.openaiCatalogue?.fetchedAtMs)) {
       this.needs.adoptOpenaiCatalogue(next.openaiCatalogue)
     }
+    this.seedUnread = false
   }
 
   followBusy(): boolean {
