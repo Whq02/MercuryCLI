@@ -14,6 +14,7 @@
 # gate-watch: scripts/streaming/prove-interrupt-tail-drive.ts scripts/streaming/prove-lifecycle-cards.ts scripts/streaming/prove-lifecycle-stopping.ts scripts/streaming/prove-polish-sweep.ts scripts/streaming/prove-ptydrive-settle-gate.ts scripts/streaming/prove-region-matrix.ts
 # gate-watch: scripts/streaming/prove-scheduler-integrity.ts scripts/streaming/prove-settle-ghost-drive.ts scripts/streaming/prove-stream-faults.ts scripts/streaming/prove-superseded-partial-dropped.ts scripts/streaming/prove-turn-end-queue.ts scripts/streaming/prove-viewport-continuity.ts
 # gate-watch: scripts/streaming/turn-end-fixture-server.ts
+# gate-watch: scripts/streaming/fixtures/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78
