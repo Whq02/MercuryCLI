@@ -25,7 +25,12 @@ if (process.argv.includes('--under-the-prefix')) {
     stays: await run('cd /tmp && pwd -P'),
     after: await run('pwd -P'),
     pattern: `/tmp/__no_such_dir_${process.pid}/*.yml`,
+    elsewhere: '',
   }
+  const { createBashShellProvider } = await import('../../src/utils/shell/bashProvider.ts')
+  const { systemShellAt } = await import('../../src/utils/shell/shellRecord.ts')
+  const elsewhere = await createBashShellProvider(systemShellAt('/nowhere/on/this/machine/bash'), { skipSnapshot: true })
+  answers.elsewhere = (await elsewhere.buildExecCommand('echo "ran elsewhere: bash=${BASH_VERSION:+yes} zsh=${ZSH_VERSION:-no}"; X="a b"; printf "[%s]" $X; echo', { id: 'elsewhere' })).commandString
   console.log(`ANSWERS ${JSON.stringify(answers)}`)
   process.exit(0)
 }
@@ -63,7 +68,7 @@ try {
   Object.assign(env, { HOME: userHome, SHELL: '/bin/zsh', MERCURY_CONFIG_DIR: join(scratch, 'config-home'), MERCURY_SHELL_PREFIX: `${wrapper} -c` })
   const child = spawnSync(process.execPath, [import.meta.path, '--under-the-prefix'], { encoding: 'utf8', env })
   const line = (child.stdout ?? '').split('\n').find(text => text.startsWith('ANSWERS '))
-  const answers = line === undefined ? null : (JSON.parse(line.slice(8)) as { record: string; where: Ran; split: Ran; glob: Ran; equals: Ran; stays: Ran; after: Ran; pattern: string })
+  const answers = line === undefined ? null : (JSON.parse(line.slice(8)) as { record: string; where: Ran; split: Ran; glob: Ran; equals: Ran; stays: Ran; after: Ran; pattern: string; elsewhere: string })
   const told = `${JSON.stringify(answers)} · exit ${String(child.status)} · ${JSON.stringify(String(child.stderr ?? '').slice(-300))}`
 
   console.log(`\n(1) the wrapper runs ${other}; the command is read by the record's shell`)
@@ -81,13 +86,29 @@ try {
   const parsed = tryParseShellCommand(handed)
   const words = parsed.success ? parsed.tokens : []
   check(
-    'that line is three words: the record\'s shell by its path, -c, and the frame — whichever shell the wrapper runs reads no word of the command',
-    answers !== null && words.length === 3 && words[0] === answers.record && words[1] === '-c' && typeof words[2] === 'string' && words[2].includes("eval 'pwd -P'"),
+    'that line is six words: /bin/sh, -c, a script that starts a shell, a name, the record\'s shell by its path, and the frame — whichever shell the wrapper runs reads no word of the command',
+    answers !== null && words.length === 6 && words[0] === '/bin/sh' && words[1] === '-c' && typeof words[2] === 'string' && words[2].includes('exec "$1" -c "$2"') && words[4] === answers.record && typeof words[5] === 'string' && words[5].includes("eval 'pwd -P'"),
     JSON.stringify(handed.slice(0, 400)),
   )
-  check('the line is quoted with single quotes alone, which sh, bash and zsh read alike', handed.startsWith(`'${answers?.record ?? ''}' -c '`) && handed.endsWith("'") && !handed.includes('"$'), JSON.stringify(handed.slice(0, 200)))
+  check('every word of the line is quoted, with single quotes alone, which sh, bash and zsh read alike', handed.startsWith("'/bin/sh' '-c' '") && /^(?:'[^']*'|\\'| )+$/.test(handed), JSON.stringify(handed.slice(0, 200)))
 
-  console.log('\n(3) the prefix\'s other users are handed what they were: a hook\'s command and an MCP server\'s go through formatShellPrefixCommand as before')
+  console.log('\n(3) a wrapper that leaves the machine: the line lands where the record\'s path cannot be run')
+  const landed = (path: string): { status: number | null; text: string } => {
+    const ran = spawnSync('/bin/bash', ['-c', answers?.elsewhere ?? 'exit 99'], { encoding: 'utf8', env: { PATH: path, HOME: userHome } })
+    return { status: ran.status, text: `${ran.stdout ?? ''}${ran.stderr ?? ''}`.trim() }
+  }
+  const withBash = landed('/usr/bin:/bin')
+  check('with a bash on PATH there, that bash runs the command: exit 0, read by bash and split as bash splits', withBash.status === 0 && withBash.text === 'ran elsewhere: bash=yes zsh=no\n[a][b]', JSON.stringify(withBash))
+  const noBash = join(scratch, 'a-path-with-no-bash')
+  mkdirSync(noBash)
+  const without = landed(noBash)
+  check(
+    'with no bash there at all the command fails with a line that says so: exit 127, the path named, nothing run',
+    without.status === 127 && without.text.includes('its shell at /nowhere/on/this/machine/bash cannot be run where this wrapper ran the line, and no bash is on PATH there, so the command did not run') && !without.text.includes('ran elsewhere'),
+    JSON.stringify(without),
+  )
+
+  console.log('\n(4) the prefix\'s other users are handed what they were: a hook\'s command and an MCP server\'s go through formatShellPrefixCommand as before')
   const { formatShellPrefixCommand } = await import('../../src/utils/bash/shellPrefix.ts')
   const SAME: Array<[string, string, string]> = [
     ['/bin/zsh -c', 'echo hi', "/bin/zsh -c 'echo hi'"],

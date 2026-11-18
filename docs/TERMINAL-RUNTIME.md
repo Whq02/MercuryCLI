@@ -329,9 +329,14 @@ shell by path, with `-c` and one line as the arguments; before the first
 command of a session it asks once for that shell on a harmless line, and an
 editor that errors or does not print the answer within ten seconds is passed
 over for the session: commands run in the local shell and the first result
-says so. A `MERCURY_SHELL_PREFIX` wrapper is handed one line that starts
-Mercury's shell on the command, quoted with single quotes alone, so whichever
-shell the wrapper runs reads that line and no word of the command. A command
+says so. On macOS and Linux a `MERCURY_SHELL_PREFIX` wrapper is handed one
+line, every word of it quoted with single quotes alone, so whichever shell the
+wrapper runs reads that line and no word of the command. The line starts
+`/bin/sh` on a few words that start Mercury's shell on the command where its
+path can be run and, where it cannot (the wrapper went into a container or to
+another host), the `bash` on `PATH` there; with no bash there the command
+fails with a line that says so. On Windows the wrapper is handed the command's
+line itself, as before, and the shell it starts reads that line. A command
 that starts zsh itself (`zsh -c '…'`) is asked about: Mercury does not read
 the script zsh will run.
 

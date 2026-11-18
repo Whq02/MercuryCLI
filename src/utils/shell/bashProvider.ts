@@ -9,7 +9,7 @@ import {
   rewriteWindowsNullRedirect,
   shouldAddStdinRedirect,
 } from '../bash/shellQuoting.js'
-import { formatShellPrefixCommand } from '../bash/shellPrefix.js'
+import { formatShellPrefixCommand, shellStartLine } from '../bash/shellPrefix.js'
 import { logForDebugging } from '../debug.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getSessionEnvironmentScript } from '../sessionEnvironment.js'
@@ -99,7 +99,7 @@ export async function createBashShellProvider(
 
       let commandString = parts.join(' && ')
       const prefix = shellPrefix()
-      if (prefix) commandString = formatShellPrefixCommand(prefix, isWindows ? commandString : `${quoteShellCommand(shellPath, false)} -c ${quoteShellCommand(commandString, false)}`)
+      if (prefix) commandString = formatShellPrefixCommand(prefix, isWindows ? commandString : shellStartLine(shellPath, commandString))
       if (!isWindows) commandString = `${markFrameRead(cwdFileInShell)}; ${commandString}`
 
       return { commandString, cwdFilePath: cwdFileForEngine, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
