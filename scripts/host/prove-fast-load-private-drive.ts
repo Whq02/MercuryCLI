@@ -1,3 +1,4 @@
+import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
