@@ -618,7 +618,7 @@ useImperativeHandle	src/ink/components/ScrollBox.tsx	1
 lifecycle-method	src/ink/components/App.tsx	3
 as-unknown-as	src/cli/handlers/providerAuth.ts	1
 as-unknown-as	src/cli/headless/inputDoor.ts	1
-as-unknown-as	src/cli/run.ts	1
+as-unknown-as	src/cli/headless/printTurn.ts	1
 as-unknown-as	src/components/Messages.tsx	1
 as-unknown-as	src/components/concourse/ConcourseStrips.tsx	1
 as-unknown-as	src/components/concourse/workerTranscriptFold.ts	1
@@ -746,8 +746,9 @@ as-unknown-as	src/utils/yaml.ts	1
 as-never	src/cli/exit.ts	3
 as-never	src/cli/headless/inputDoor.ts	1
 as-never	src/cli/headless/printRunEnd.ts	1
+as-never	src/cli/headless/printTurn.ts	1
 as-never	src/cli/headless/runnerMethods.ts	3
-as-never	src/cli/run.ts	7
+as-never	src/cli/run.ts	6
 as-never	src/cli/structuredIO.ts	1
 as-never	src/commands/contract/contract.ts	2
 as-never	src/commands/model/mercuryModel.tsx	5
@@ -901,9 +902,9 @@ empty-catch	src/cli/editorBridge.ts	1
 empty-catch	src/cli/handlers/auth.ts	8
 empty-catch	src/cli/handlers/models.ts	1
 empty-catch	src/cli/handlers/providerAuth.ts	2
+empty-catch	src/cli/headless/printTurn.ts	1
 empty-catch	src/cli/headless/turnDriver.ts	1
 empty-catch	src/cli/healthJson.ts	1
-empty-catch	src/cli/run.ts	1
 empty-catch	src/cli/structuredIO.ts	2
 empty-catch	src/cli/update.ts	1
 empty-catch	src/commands/mission/mission.ts	1

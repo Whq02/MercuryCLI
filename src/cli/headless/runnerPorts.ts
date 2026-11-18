@@ -3,16 +3,17 @@ import type { RunnerQuiescence } from '../../daemon/runnerQuiescence.js'
 import type { RowDraft, RowScope } from '../../rows/project.js'
 import type { InputRow, OutcomeRow } from '../../rows/vocabulary.js'
 import type { Peer } from '../../runner/wire/peer.js'
-import type { MCPServerConnection, ScopedMcpServerConfig } from '../../services/mcp/types.js'
+import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig } from '../../services/mcp/types.js'
 import type { AppState } from '../../state/AppStateStore.js'
-import type { ToolUseContext } from '../../Tool.js'
+import type { Tool, ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
 import type { FileStateCache } from '../../utils/fileStateCache.js'
 import type { runSessionStartHooks } from '../../utils/sessionStart.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import { createContentReplacementState, type ContentReplacementState } from '../../utils/toolResultStorage.js'
 import type { OutboundLine, StructuredIO } from '../structuredIO.js'
-import type { AdvisorQuiet } from '../../services/advisor/index.js'
+import type { AdvisorQuiet, AdvisorRoad } from '../../services/advisor/index.js'
+import type { RequestWaitV1 } from '../../services/providers/streamIdleBudget.js'
 import type { Capabilities } from '../../runner/wire/methods.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import type { HostAskLiveness } from './hostAskLiveness.js'
@@ -192,4 +193,25 @@ export type RunnerPorts = {
   announcedNotifications: WeakSet<QueuedCommand>
   emitTaskNotificationFrames: (payloads: readonly string[]) => void
   emitCommandNotifications: (commands: readonly QueuedCommand[]) => void
+  inputPrompt: string | AsyncIterable<string>
+  maxTime: { limitMs: number; at: number } | undefined
+  sessionTools: Tool[]
+  baseToolNames: Set<string>
+  answerSchemaOf: (turnSchema: Record<string, unknown> | undefined) => Record<string, unknown> | undefined
+  assembleTools: (state: AppState, turnSchema?: Record<string, unknown>) => Tool[]
+  registerElicitationHandlersForClient: (client: ConnectedMCPServer, serverName: string) => Promise<void>
+  setReadFileCache: (cache: FileStateCache) => void
+  statusIsProgress: (status: unknown) => boolean
+  promisedWaitOf: (status: unknown) => Extract<RequestWaitV1, { kind: 'first-byte' }> | null | undefined
+  statusRowOf: (status: unknown) => RowDraft | null
+  tellFailedMcpServers: () => void
+  tellSkippedProjectMcpServers: () => void
+  recordNoticeRows: (notices: readonly QueuedCommand[], mark: { isVirtual: true } | { isMeta: true }) => Promise<void>
+  recordHostNoticeRows: (notices: readonly QueuedCommand[]) => Promise<void>
+  injectModelSwitchBreadcrumbs: (toModel: string, fromModel: string, words?: string) => Promise<void>
+  advisorRoad: AdvisorRoad
+  landAdvisorQuiet: (quiet: AdvisorQuiet) => void
+  party: ReturnType<typeof import('../../services/crewBoard/party.js').partyFeed>
+  swarmLead: ReturnType<typeof import('../../services/crewBoard/seam.js').watchSwarmLead>
+  swarmResumes: ReturnType<typeof import('../../services/crewBoard/seam.js').watchSwarmResumes>
 }

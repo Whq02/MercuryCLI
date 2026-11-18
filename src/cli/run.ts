@@ -1,6 +1,5 @@
 import { requestShellBackground } from '../tools/BashTool/backgroundRequest.js'
 import { randomUUID, type UUID } from 'node:crypto'
-import { keepTurnLiveWhileHostAnswers } from './headless/hostAskLiveness.js'
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
 import {
   getEngineModelOverride,
@@ -24,7 +23,7 @@ import { sessionFilePath } from '../utils/sessionStorage/loading.js'
 import { claimSessionWriter } from '../utils/sessionStorage/sessionWriter.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
 import { refreshBoxReading } from '../utils/boxLock.js'
-import { declareLawfulPrefixChange, declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
+import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
 import { watchLiveMcpConfig } from '../services/mcp/liveConfig.js'
 import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed } from '../services/mcp/dynamicMcpSeed.js'
 import { bootModelRefusalLine, resolveHeadlessModel } from './headless/model.js'
@@ -34,10 +33,9 @@ import { DRAIN_CUT_WORDS } from '../utils/messages/turnCut.js'
 import {
   scheduleEditToWire,
 } from '../services/engine-connector/seatWire.js'
-import { ask, sessionFactsOf } from '../rows/turn.js'
-import { closeRow, commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
+import { closeRow, commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
 import { OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
-import { isOutcome, turnOpened } from '../rows/read.js'
+import { isOutcome } from '../rows/read.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
 import { clearCommandMemoizationCaches, findCommand, getCommands, isCommandEnabled } from '../commands.js'
@@ -64,6 +62,7 @@ import { runnerArmsOf } from './headless/runnerArms.js'
 import { finishPrintRun, pumpOutbound } from './headless/printRunEnd.js'
 import { hydrateResumedRun } from './headless/resumeHydration.js'
 import * as inputDoor from './headless/inputDoor.js'
+import * as printTurn from './headless/printTurn.js'
 import { priorTurnCount } from './headless/claimSession.js'
 import { fileCheckpointsFact } from './headless/sessionFactsArm.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
@@ -78,7 +77,6 @@ import {
   fetchToolsForClient,
   reconnectMcpServerImpl,
 } from '../services/mcp/client.js'
-import { withElicitationEntered } from '../services/mcp/elicitationHandler.js'
 import { getMcpPrefix } from '../services/mcp/mcpStringUtils.js'
 import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { dropMcpServerFromAppState } from '../services/mcp/kitDial.js'
@@ -88,7 +86,7 @@ import {
 } from '../services/saturn/sessionScheduleBridge.js'
 import { registerIdeToolDoor } from '../services/acp/ideToolBridge.js'
 import { crewBoardNotice } from '../utils/messages/noticeRows.js'
-import { advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
+import { advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
 import { enqueueBoardWake, swarmSessionEnabled, swarmStore, watchSwarmBoard, watchSwarmLead, watchSwarmResumes } from '../services/crewBoard/seam.js'
 import { partyFeed } from '../services/crewBoard/party.js'
 import {
@@ -133,11 +131,8 @@ import { subscribeHookExecutionEvents } from '../utils/hooks/hookEvents.js'
 import { hookTaskRow } from '../utils/hooks/rows.js'
 import { takeFirstPrompt } from '../utils/sessionStart.js'
 import { createIdleTimeoutManager } from '../utils/idleTimeout.js'
-import { armInactivityDeadline, DeadlineExceededError, declaredWaitEnd, holdDeadlineUntil, minutesKnobToMs } from '../utils/deadline.js'
-import { LOCAL_FIRST_BYTE_CAP_MS } from '../services/providers/localLiveness.js'
 import { flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
 
-const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 const SIGNAL_SETTLE_MS = 5_000
 const BUILD_BEHIND_FLOOR_MS = 60_000
 const BUILD_BEHIND_THROTTLE_MS = 2_000
@@ -152,10 +147,9 @@ import {
   peek,
   subscribeToCommandQueue,
   getCommandQueue,
-  holdQueuedWordsForTurnEnd,
 } from '../utils/messageQueueManager.js'
-import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
-import { isHeldNotice, isHostNotice, isOperatorLine } from '../input-core/command-queue.js'
+import type { QueuedCommand } from '../types/textInputTypes.js'
+import { isHeldNotice, isOperatorLine } from '../input-core/command-queue.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { agentRecipientState, MAIN_THREAD_AGENT, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { type NoticeRecord } from '../services/notices/unreadLedger.js'
@@ -208,18 +202,13 @@ import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainRows, subscribeRows } from '../utils/sdkEventQueue.js'
 import { onTasksUpdated } from '../utils/tasks.js'
 
-import { createSyntheticOutputTool, isSyntheticOutputToolEnabled, SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { compileJsonSchema } from '../services/schema/jsonSchemaEngine.js'
-import { getAllBaseTools, getTools, mcpToolPartition, toolsWithheldByDeny } from '../tools.js'
-import { ruleSourceWords, ruleSpelling, withheldByRuleWords } from '../utils/permissions/ruleReason.js'
-import { MCP_SERVER_FAILED_CODE, MCP_SERVER_SKIPPED_CODE, TOOL_WITHHELD_CODE } from '../rows/vocabulary.js'
+import { getAllBaseTools, toolsWithheldByDeny } from '../tools.js'
+import { withheldByRuleWords } from '../utils/permissions/ruleReason.js'
+import { MCP_SERVER_FAILED_CODE, MCP_SERVER_SKIPPED_CODE } from '../rows/vocabulary.js'
 import { mcpConfigAsWritten, mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
-import { clearToolRosterLatches, clearToolRosterRestore } from '../services/providers/toolEconomy.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { getCwd } from '../utils/cwd.js'
-import { runWithWorkload } from '../utils/workloadContext.js'
-import { fitCompletionCommands } from '../services/agentResults/summaryRoom.js'
-import { foldNotifications, foldNotificationValues, spokenNotifications } from './headless/turnDriver.js'
 
 export { joinPromptValues, canBatchWith }
 export { removeInterruptedMessage }
@@ -350,6 +339,27 @@ export async function runHeadless(
     get announcedNotifications() { return announcedNotifications },
     get emitTaskNotificationFrames() { return emitTaskNotificationFrames },
     get emitCommandNotifications() { return emitCommandNotifications },
+    inputPrompt,
+    get maxTime() { return maxTime },
+    get sessionTools() { return sessionTools },
+    get baseToolNames() { return baseToolNames },
+    get answerSchemaOf() { return answerSchemaOf },
+    get assembleTools() { return assembleTools },
+    get registerElicitationHandlersForClient() { return registerElicitationHandlersForClient },
+    get setReadFileCache() { return setReadFileCache },
+    get statusIsProgress() { return statusIsProgress },
+    get promisedWaitOf() { return promisedWaitOf },
+    get statusRowOf() { return statusRowOf },
+    get tellFailedMcpServers() { return tellFailedMcpServers },
+    get tellSkippedProjectMcpServers() { return tellSkippedProjectMcpServers },
+    get recordNoticeRows() { return recordNoticeRows },
+    get recordHostNoticeRows() { return recordHostNoticeRows },
+    get injectModelSwitchBreadcrumbs() { return injectModelSwitchBreadcrumbs },
+    get advisorRoad() { return advisorRoad },
+    get landAdvisorQuiet() { return landAdvisorQuiet },
+    get party() { return party },
+    get swarmLead() { return swarmLead },
+    get swarmResumes() { return swarmResumes },
   }
   const maxTime = options.maxTimeMs === undefined ? undefined : { limitMs: options.maxTimeMs, at: Date.now() + options.maxTimeMs }
   setAskChannel(options.door === 'wire' ? 'sdk' : 'none')
@@ -888,74 +898,12 @@ export async function runHeadless(
   statusListeners.add(rateLimitListener)
 
   const elicitationRegistered = new Set<string>()
-  const registerPerTurnHandlers = (clients: MCPServerConnection[]): void => {
-    for (const client of clients) {
-      if (client.type !== 'connected') continue
-      if (elicitationRegistered.has(client.name)) continue
-      try {
-        void registerElicitationHandlersForClient(client, client.name)
-        elicitationRegistered.add(client.name)
-      } catch {
-      }
-    }
-  }
-  const registerElicitationHandlersForClient = async (
-    client: ConnectedMCPServer,
-    serverName: string,
-  ): Promise<void> => {
-    client.client.setRequestHandler(
-      'elicitation/create',
-      (request, ctx) => withElicitationEntered(client.client, async () => {
-        const params = request.params
-        const mode = params.mode === 'url' ? 'url' : 'form'
-        const requestedSchema = params.mode === 'url' ? undefined : params.requestedSchema
-        const url = params.mode === 'url' ? params.url : undefined
-        const elicitationId = params.mode === 'url' ? params.elicitationId : undefined
-        return asks.handleElicitation(
-          serverName,
-          params.message,
-          requestedSchema,
-          ctx.mcpReq.signal,
-          mode,
-          url,
-          elicitationId,
-        )
-      }),
-    )
-    client.client.setNotificationHandler(
-      'notifications/elicitation/complete',
-      async notification => {
-        const elicitationId = notification.params.elicitationId
-        io.outbound.enqueue({ method: 'elicitation/complete', params: { server: serverName, elicitation_id: elicitationId } })
-      },
-    )
-  }
+  const registerPerTurnHandlers = (clients: MCPServerConnection[]): void => printTurn.registerPerTurnHandlers(clients, ports)
+  const registerElicitationHandlersForClient = (client: ConnectedMCPServer, serverName: string): Promise<void> => printTurn.registerElicitationHandlersForClient(client, serverName, ports)
 
   const baseToolNames = new Set(getAllBaseTools().map(tool => tool.name))
   const answerSchemaOf = (turnSchema: Record<string, unknown> | undefined): Record<string, unknown> | undefined => turnSchema ?? live.initializeJsonSchema ?? options.jsonSchema
-  const assembleTools = (state: AppState, turnSchema?: Record<string, unknown>): Tool[] => {
-    const mcpPartition = mcpToolPartition(state.mcp.tools as Tool[], state.toolPermissionContext)
-    const pool: Tool[] = [
-      ...getTools(state.toolPermissionContext),
-      ...sessionTools.filter(tool => !baseToolNames.has(tool.name) && !tool.isMcp),
-      ...mcpPartition,
-    ]
-    const seen = new Set<string>()
-    const deduped: Tool[] = []
-    for (const tool of pool) {
-      if (seen.has(tool.name)) continue
-      seen.add(tool.name)
-      deduped.push(tool)
-    }
-    const answerSchema = answerSchemaOf(turnSchema)
-    if (answerSchema === undefined || !isSyntheticOutputToolEnabled({ isNonInteractiveSession: true })) return deduped
-    const synthetic = createSyntheticOutputTool(answerSchema)
-    if (!('tool' in synthetic)) return deduped
-    const at = deduped.findIndex(tool => tool.name === SYNTHETIC_OUTPUT_TOOL_NAME)
-    if (at === -1) return [...deduped, synthetic.tool]
-    if (deduped[at] === synthetic.tool) return deduped
-    return deduped.map((tool, index) => (index === at ? synthetic.tool : tool))
-  }
+  const assembleTools = (state: AppState, turnSchema?: Record<string, unknown>): Tool[] => printTurn.assembleTurnTools(state, turnSchema, ports)
 
   const savedDefaultModel = (): string | null => {
     const stored = getSettingsWithSources().sources.find(source => source.source === 'userSettings')?.settings.engine?.model
@@ -1067,242 +1015,7 @@ export async function runHeadless(
     if (found !== undefined) return found.type !== 'prompt' || !isCommandEnabled(found) || found.userInvocable === false
     return /^[a-zA-Z0-9:_-]+$/.test(parsed.commandName) && !existsSync(`/${parsed.commandName}`)
   }
-  const executeTurn = async (
-    command: QueuedCommand,
-    batch: QueuedCommand[],
-    onMessage: (message: RowDraft) => void,
-    initialNotices: QueuedCommand[] = [],
-  ): Promise<void> => {
-    const { applyLiveBootMenuEnv } = await import('../substrate/startupMenu.js')
-    applyLiveBootMenuEnv()
-    const members = batch.length > 0 ? batch : [command]
-    live.turnReachedModel = false
-    if (members.some(isHostNotice) || initialNotices.some(isHostNotice)) {
-      const hostNotices = [...initialNotices, ...members].filter(isHostNotice)
-      emitCommandNotifications(hostNotices)
-      await recordHostNoticeRows(hostNotices)
-      initialNotices = initialNotices.filter(member => !isHostNotice(member))
-    }
-    const heard = members.filter(member => !isHostNotice(member))
-    if (heard.length === 0) return
-    const spoken = spokenNotifications(heard)
-    if (spoken.length < heard.length) await recordNoticeRows(heard.filter(member => !spoken.includes(member)), { isMeta: true })
-    if (spoken.length < members.length) {
-      batch = spoken.length > 1 ? spoken : []
-      command = foldNotifications(spoken)
-    }
-    live.turnReachedModel = true
-    const promptUuid = command.uuid ?? randomUUID()
-    const localCommand = localCommandInput(command)
-    live.turnAnchor = localCommand ? null : promptUuid
-    if (localCommand) party.blockOpen()
-    const delivery = command.mode === 'task-notification' ? fitCompletionCommands(batch.length > 0 ? batch : [command], { messages, model: live.activeModel ?? getEngineModel() }) : []
-    const promptValue = delivery.length > 1 ? foldNotificationValues(delivery.map(member => member.value)) : delivery[0]?.value ?? command.value
-    const batchUuids = batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined)
-    const batchTail: BatchedPrompt[] =
-      command.mode === 'prompt'
-        ? batch.slice(1).map(member => ({
-            value: member.value,
-            ...(member.uuid !== undefined ? { uuid: member.uuid } : {}),
-            ...(member.origin !== undefined ? { origin: member.origin } : {}),
-          }))
-        : []
-    emitCommandNotifications([...initialNotices, command])
-    const turnAbort = new AbortController()
-    live.inFlightAbort = turnAbort
-    live.turnsRun += 1
-    live.currentTurn = live.turnsRun
-    live.currentTurnId = null
-    const turnIdleLimitMs = headlessTurnIdleLimitMs()
-    const turnWatchdog = armInactivityDeadline({
-      seam: 'unattended turn',
-      limitMs: turnIdleLimitMs,
-      advice: 'the turn was aborted and the run exits non-zero; MERCURY_HEADLESS_IDLE_MINUTES tunes the limit (0 disables)',
-      onExpire: error => {
-        logForDebugging(`print: ${error.message}`)
-        turnAbort.abort(error)
-      },
-    })
-    let promiseHold: { cancel(): void } | null = null
-    const holdPromise = (wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null): void => {
-      promiseHold?.cancel()
-      promiseHold = wait === null || !turnWatchdog.armed ? null : holdDeadlineUntil(turnWatchdog, declaredWaitEnd(wait.sinceMs, wait.budgetMs, LOCAL_FIRST_BYTE_CAP_MS), turnIdleLimitMs / 2)
-    }
-    live.hostAsks = keepTurnLiveWhileHostAnswers({
-      watchdog: turnWatchdog,
-      limitMs: turnIdleLimitMs,
-      parkedWithHost: () => asks.pendingControlRequestCount(),
-      parkedAsks: () => asks.parkedAsks(),
-      settleParkedAsks: cause => (live.capabilities.holds_asks ? 0 : asks.denyPendingPermissionRequests(cause)),
-    })
-    const workload = command.workload ?? options.workload
-    try {
-      await runWithWorkload(workload, async () => {
-        const state = getAppState()
-        const turnClients: MCPServerConnection[] = [
-          ...state.mcp.clients,
-        ]
-        registerPerTurnHandlers(turnClients)
-        const answerSchema = answerSchemaOf(command.schema)
-        const answerSchemaKey = answerSchema === undefined ? '' : JSON.stringify(answerSchema)
-        if (live.lastAnswerSchemaKey !== null && answerSchemaKey !== live.lastAnswerSchemaKey) {
-          const owner = String(processMainOwner())
-          clearToolRosterLatches(owner)
-          clearToolRosterRestore()
-          declareLawfulPrefixChange(owner, answerSchema === undefined ? 'this turn asked for no structured output' : 'this turn asked for its own structured-output schema')
-        }
-        live.lastAnswerSchemaKey = answerSchemaKey
-        const assembledTools = assembleTools(state, command.schema)
-        const mcpCommands = state.mcp.commands
-        const dedupedCommands = [
-          ...live.activeCommands,
-          ...mcpCommands.filter(
-            mcpCommand => !live.activeCommands.some(existing => existing.name === mcpCommand.name),
-          ),
-        ]
-        if (live.sessionRowFor !== String(getSessionId())) {
-          live.sessionRowFor = String(getSessionId())
-          const withheld = toolsWithheldByDeny([...getAllBaseTools(), ...state.mcp.tools], state.toolPermissionContext)
-          const facts = await sessionFactsOf(
-            { cwd: getCwd(), tools: assembledTools, mcpClients: turnClients, commands: dedupedCommands, agents: live.activeAgents },
-            live.activeModel ?? getEngineModel(),
-            state.toolPermissionContext.mode,
-            live.resumeOf,
-            withheld.map(({ tool, rule }) => ({ tool, rule: ruleSpelling(rule.ruleValue), source: ruleSourceWords(rule.source) })),
-          )
-          enqueueRow(sessionRow({ session_id: getSessionId() }, facts))
-          for (const entry of withheld) enqueueRow(noticeRow(liveScope(), 'warning', withheldByRuleWords(entry.tool, entry.rule), TOOL_WITHHELD_CODE))
-        }
-        tellSkippedProjectMcpServers()
-        tellFailedMcpServers()
-        for await (const message of ask({
-          commands: dedupedCommands,
-          prompt: promptValue,
-          ...(options.syntaxInput !== undefined && command.value === inputPrompt ? { syntaxInput: options.syntaxInput } : {}),
-          promptUuid,
-          ...(batchUuids.length > 0 ? { batchUuids } : {}),
-          ...(batchTail.length > 0 ? { batchTail } : {}),
-          ...(initialNotices.length > 0 ? { initialNotices } : {}),
-          isMeta: command.isMeta,
-          operatorPrompt: command.mode === 'prompt' && command.isMeta !== true,
-          ...(command.origin !== undefined ? { origin: command.origin } : {}),
-          ...(command.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
-          ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
-          cwd: getCwd(),
-          tools: assembledTools,
-          mcpClients: turnClients,
-          thinkingConfig: live.thinkingConfig,
-          maxTurns: options.maxTurns,
-          maxBudgetUsd: options.maxBudgetUsd,
-          maxTime,
-          canUseTool,
-          ...(peer !== null ? { hostHoldsAsks: true } : {}),
-          userSpecifiedModel: live.activeModel,
-          fallbackModel: options.fallbackModel,
-          jsonSchema: answerSchema,
-          mutableMessages: messages,
-          onTurnMessages: read => {
-            live.turnMessages = read
-          },
-          contentReplacementState: live.contentReplacementState,
-          getReadFileCache,
-          setReadFileCache,
-          customSystemPrompt: options.systemPrompt,
-          appendSystemPrompt: options.appendSystemPrompt,
-          getAppState,
-          setAppState,
-          abortController: turnAbort,
-          partialRows: options.includePartialMessages || live.capabilities.partial_rows,
-          turn: live.currentTurn ?? undefined,
-          onLiveness: () => turnWatchdog.touch(),
-          onToolRoundSettled: rows => {
-            void advisorMainRound(String(getSessionId()), rows, advisorRoad)
-          },
-          handleElicitation: (
-            serverName: string,
-            params: { message: string; mode?: 'form' | 'url'; url?: string; elicitationId?: string },
-            elicitSignal?: AbortSignal,
-          ) =>
-            asks.handleElicitation(
-              serverName,
-              params.message,
-              undefined,
-              elicitSignal,
-              params.mode,
-              params.url,
-              params.elicitationId,
-            ),
-          agents: live.activeAgents,
-          setSDKStatus: (status: unknown) => {
-            if (statusIsProgress(status)) turnWatchdog.touch()
-            const promised = promisedWaitOf(status)
-            if (promised !== undefined) holdPromise(promised)
-            else if (typeof status === 'object' && status !== null && 'streamActivity' in status) holdPromise(null)
-            const row = statusRowOf(status)
-            if (row !== null) enqueueRow(row)
-          },
-        })) {
-          turnWatchdog.touch()
-          if (turnOpened(message as never)) {
-            live.currentTurnId = (message as unknown as { turn_id: string }).turn_id
-            if (options.door !== 'wire') for (const line of untoldHiddenCharacterLines()) process.stderr.write(`${GLYPH.warn} ${line}\n`)
-          }
-          onMessage(message)
-        }
-        tellFailedMcpServers()
-      })
-    } finally {
-      party.turnEnd()
-      live.turnAnchor = null
-      live.hostAsks?.stop()
-      live.hostAsks = null
-      holdPromise(null)
-      turnWatchdog.cancel()
-      live.inFlightAbort = null
-      live.currentTurn = null
-      if (live.heldSeatModel !== null) {
-        const held = live.heldSeatModel
-        live.heldSeatModel = null
-        await applySeatModel(held.model, held.words)
-        io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_model', model: held.model } })
-      }
-      if (live.heldSeatEffort !== null) {
-        const held = live.heldSeatEffort
-        live.heldSeatEffort = null
-        applySeatEffort(held.effort)
-        io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_effort', effort: held.effort } })
-      }
-      holdQueuedWordsForTurnEnd(false)
-      if (live.deferredModelBreadcrumb !== null) {
-        const crumb = live.deferredModelBreadcrumb
-        live.deferredModelBreadcrumb = null
-        await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)
-      }
-      if (live.deferredSpawnSwitches.length > 0) {
-        const toggles = live.deferredSpawnSwitches
-        live.deferredSpawnSwitches = []
-        for (const toggle of toggles) {
-          landSpawnSwitch(toggle.kind, toggle.on)
-          io.outbound.enqueue({ method: 'session/applied', params: { request_id: toggle.requestId, verb: 'set_spawn_switch', switch: toggle.kind, on: toggle.on } })
-        }
-      }
-      if (live.deferredAdvisorQuiet.length > 0) {
-        const quiets = live.deferredAdvisorQuiet
-        live.deferredAdvisorQuiet = []
-        for (const quiet of quiets) landAdvisorQuiet(quiet)
-      }
-      swarmLead.check()
-      swarmResumes.check()
-      void checkBuildBehind(true)
-    }
-    if (turnWatchdog.fired) {
-      throw new DeadlineExceededError('unattended turn', turnIdleLimitMs, turnIdleLimitMs, turnWatchdog.progressCount, 'no engine event for the whole limit — the turn was aborted; MERCURY_HEADLESS_IDLE_MINUTES tunes the limit (0 disables)')
-    }
-  }
-
-  function headlessTurnIdleLimitMs(): number {
-    return minutesKnobToMs(flagEnv('MERCURY_HEADLESS_IDLE_MINUTES'), DEFAULT_HEADLESS_IDLE_MINUTES)
-  }
+  const executeTurn = (command: QueuedCommand, batch: QueuedCommand[], onMessage: (message: RowDraft) => void, initialNotices?: QueuedCommand[]): Promise<void> => printTurn.runPrintTurn(command, batch, onMessage, initialNotices, ports)
 
   const stopShellsForClose = async (): Promise<void> => {
     const shells = getRunningTasks(getAppState()).filter(task => isLocalShellTask(task))
