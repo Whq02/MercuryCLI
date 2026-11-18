@@ -139,10 +139,8 @@ export function runtimeChecks(): CheckSpec[] {
       id: 'shell',
       label: 'Bash tool shell',
       run: async () => {
-        const { describeWindowsShellRoad } = await SHELL_READS.windowsRoad()
-        const shell = describeWindowsShellRoad()
-        if (shell.absent) return { status: 'warn', evidence: shell.line, fix: shell.fix }
-        return { status: 'ok', evidence: shell.line }
+        const { shellRow } = await SHELL_READS.shellRecord()
+        return shellRow()
       },
     },
     {

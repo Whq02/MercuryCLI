@@ -11,6 +11,7 @@ import {
   BASH_PACK_NAME,
   BASH_PACK_PATH,
   BASH_PACK_PLATFORMS,
+  bashPackIsFetched,
   bashPackPlatform,
   bashPackTreeDigest,
   bashPatchesDigest,
@@ -31,6 +32,7 @@ interface PinnedFile {
   sha256: string
 }
 interface LockPlatform {
+  kind?: string
   target: string
   deploymentTarget?: string
   docker?: string
@@ -96,7 +98,8 @@ function readLock(): Lock {
 }
 
 function selectPlatforms(lock: Lock): BashPackPlatform[] {
-  const known = Object.keys(lock.platforms) as BashPackPlatform[]
+  const known = (Object.keys(lock.platforms) as BashPackPlatform[]).filter(platform => !bashPackIsFetched(platform))
+  const fetched = (platform: string | null): platform is string => platform !== null && bashPackIsFetched(platform) && lock.platforms[platform] !== undefined
   if (all) return known
   const at = argv.indexOf('--target')
   if (at !== -1) {
@@ -105,7 +108,7 @@ function selectPlatforms(lock: Lock): BashPackPlatform[] {
     const ship = buildPlatformOf(value)
     const platform = bashPackPlatform(ship.platform, ship.arch)
     if (platform === null || !known.includes(platform)) {
-      console.log(`build-bash: no bash pack is built for ${value} here — nothing to build`)
+      console.log(fetched(platform) ? `build-bash: the bash pack for ${value} is fetched, not built (bun run scripts/vendor/fetch-bash-win.ts --target ${value}) — nothing to build` : `build-bash: no bash pack is built for ${value} here — nothing to build`)
       process.exit(0)
     }
     return [platform]
@@ -114,12 +117,12 @@ function selectPlatforms(lock: Lock): BashPackPlatform[] {
   if (named !== -1) {
     const value = argv[named + 1] ?? ''
     const platform = known.find(candidate => candidate === value)
-    if (platform === undefined) fail(`--platform wants one of ${known.join(', ')} (got ${value || 'nothing'})`)
+    if (platform === undefined) fail(fetched(value) ? `--platform ${value} is fetched, not built: bun run scripts/vendor/fetch-bash-win.ts --platform ${value}` : `--platform wants one of ${known.join(', ')} (got ${value || 'nothing'})`)
     return [platform]
   }
   const host = bashPackPlatform()
   if (host === null || !known.includes(host)) {
-    console.log(`build-bash: no bash pack layout exists for ${process.platform}/${process.arch} — nothing to build`)
+    console.log(fetched(host) ? `build-bash: the bash pack for ${host} is fetched, not built (bun run scripts/vendor/fetch-bash-win.ts) — nothing to build` : `build-bash: no bash pack layout exists for ${process.platform}/${process.arch} — nothing to build`)
     process.exit(0)
   }
   return [host]
@@ -159,6 +162,7 @@ function packInvalidReason(lock: Lock, platform: BashPackPlatform): string | nul
   const check = checkBashPackDir(dir, { digest: true, platform })
   if (check.state !== 'ok') return check.note
   const manifest = check.manifest
+  if (manifest.source !== 'gnu-tarball') return `the pack is ${manifest.source}, not a build from the GNU tarball`
   if (manifest.version !== lock.version || manifest.patchLevel !== lock.patchLevel) return `the pack is ${manifest.version}, the lock pins ${lock.version}`
   if (manifest.tarballSha256 !== lock.tarball.sha256) return "the pack's tarball digest is not the lock's"
   if (manifest.patchesSha256 !== bashPatchesDigest(lock.patches)) return "the pack's patch set is not the lock's"

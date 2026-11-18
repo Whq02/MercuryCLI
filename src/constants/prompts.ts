@@ -36,7 +36,7 @@ import {
   systemPromptSection,
 } from './systemPromptSections.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
-import { shellLineWords, windowsShellName } from '../utils/shell/shellRecord.js'
+import { shellLineWords } from '../utils/shell/shellRecord.js'
 import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/prompt.js'
 import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { getRuntimePostureSection, isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
@@ -97,9 +97,6 @@ function prependBullets(items: Array<string | string[]>): string[] {
 }
 
 async function shellLine(): Promise<string> {
-  if (process.platform === 'win32') {
-    return `Shell: ${windowsShellName()} — use Unix shell syntax, not Windows (for example /dev/null rather than NUL, and forward slashes in paths)`
-  }
   return `Shell: ${await shellLineWords()}`
 }
 

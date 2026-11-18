@@ -14,6 +14,7 @@ import { getPlatform } from '../platform.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, argv0FunctionBody, snapshotProfileOf, type ShellRecord } from '../shell/shellRecord.js'
+import { withShippedPrograms } from '../shell/windowsShellRoad.js'
 import { quote } from './shellQuote.js'
 
 
@@ -66,7 +67,7 @@ const defaultSnapshotPathExecutor: SnapshotPathExecutor = (file, args, timeoutMs
       {
         windowsHide: true,
         encoding: 'utf8',
-        env: { ...subprocessEnv() },
+        env: { ...withShippedPrograms(subprocessEnv(), file) },
         timeout: timeoutMs,
         maxBuffer: 1024 * 1024,
       },
@@ -324,7 +325,7 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
       mercuryContent,
     })
 
-    const inherited = subprocessEnv()
+    const inherited = withShippedPrograms(subprocessEnv(), shellPath)
     const captureEnv: NodeJS.ProcessEnv = {
       ...inherited,
       SHELL: shellPath,

@@ -20,7 +20,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-type LegName = 'no-bash' | 'off' | 'off-pinned' | 'located'
+type LegName = 'no-bash' | 'start-files' | 'off' | 'off-pinned' | 'located'
 type LegReport = {
   leg: LegName
   engineBinary: string | null
@@ -228,6 +228,20 @@ section('§1 the Windows road with no bash.exe (MERCURY_WINDOWS_SHELL_ROAD=no-ba
   }
 }
 
+section('§1b the same road with BASH_ENV and ENV set in the window: the engine is started without them, and every path answers')
+{
+  const startFile = join(scratchRoot, 'start-file.sh')
+  writeFileSync(startFile, 'echo START-FILE-RAN\n')
+  const { report: r, text } = await runLegProcess('start-files', { MERCURY_WINDOWS_SHELL_ROAD: 'no-bash', BASH_ENV: startFile, ENV: startFile })
+  check('the leg ran and reported', r !== null, text.slice(-1500))
+  if (r !== null) {
+    const engineBinary = r.engineBinary ?? ''
+    check('the plain call rides the engine session (before: brush refused every command, "not yet implemented: load config from $ENV/BASH_ENV")', r.plain.code === 0 && r.plain.out === `plain:${VERSION}:kept:scrubbed` && r.plain.session, JSON.stringify(r.plain))
+    check('the Monitor-shaped call, the run_in_background call and the inherit_session_env call run under the engine binary', r.monitor.chunks.includes(`tick1:${VERSION}:${engineBinary}`) && r.background.out === `background:${VERSION}:none:${engineBinary}` && r.inherit.code === 0 && r.inherit.out.startsWith(`inherit:${VERSION}:none:cli:`), JSON.stringify({ monitor: r.monitor.chunks, background: r.background, inherit: r.inherit }))
+    check('…and the file the two variables name was read by none of them', ![r.plain.out, r.monitor.chunks, r.background.out, r.inherit.out].some(out => out.includes('START-FILE-RAN')), JSON.stringify([r.plain.out, r.monitor.chunks, r.background.out, r.inherit.out]))
+  }
+}
+
 section('§2 off the Windows road (this host, nothing pinned): the system shell serves all four paths')
 {
   const { report: r, text } = await runLegProcess('off', {})
@@ -265,10 +279,10 @@ section('§4 the Windows road WITH a bash located (MERCURY_WINDOWS_SHELL_ROAD=lo
     check('a bash stands in for the located Git Bash on this host', false, process.platform === 'win32' ? 'no Git Bash located' : 'no /bin/bash')
   } else {
     const shellSees = process.platform === 'win32' ? execFileSync(located, ['-c', 'cygpath -u -- "$1"', '_', located], { encoding: 'utf8', windowsHide: true }).trim() : located
-    const { report: r, text } = await runLegProcess('located', { MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: located })
+    const { report: r, text } = await runLegProcess('located', { MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: located, MERCURY_SHELL_ENGINE: 'brush' })
     check('the leg ran and reported', r !== null, text.slice(-1500))
     if (r !== null) {
-      check('the engine is the road (the Windows default)', (r.engineBinary ?? '').includes('brush') && r.plain.session && r.plain.out === `plain:${VERSION}:kept:scrubbed`, JSON.stringify(r.plain))
+      check('the engine is the road (armed by its pin, a bash being found)', (r.engineBinary ?? '').includes('brush') && r.plain.session && r.plain.out === `plain:${VERSION}:kept:scrubbed`, JSON.stringify(r.plain))
       check('the Monitor-shaped, background and inheriting calls run under the located bash', r.monitor.chunks.includes(`tick1:system:${shellSees}`) && r.background.out === `background:system:none:${shellSees}` && r.inherit.out === `inherit:system:none:cli:unseeded:${shellSees}`, JSON.stringify({ monitor: r.monitor.chunks, background: r.background.out, inherit: r.inherit.out }))
       check("…and a crewmate's way round under a ceiling of 1 names that system shell", r.crewmate.refusal.includes('run_in_background (its own system shell)'), JSON.stringify(r.crewmate))
     }
@@ -287,7 +301,7 @@ section('§5 the source keeps the session road and its three exclusions; the per
   const config = readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'utf8')
   check('the /config ceiling warning follows the road the same way', config.includes("still runs, in its own ${windowsBashAbsent() ? 'engine process' : 'system shell'})."))
   const runtime = readFileSync(join(ROOT, 'docs/TERMINAL-RUNTIME.md'), 'utf8').replace(/\r\n/g, '\n')
-  check('TERMINAL-RUNTIME names which process takes the three calls, the engine itself on a box with no bash.exe', runtime.includes('A call the long-lived process cannot take runs in a process of its own') && runtime.includes('Windows box with no `bash.exe` it is the engine itself') && !runtime.includes('still runs, in its own system shell'))
+  check('TERMINAL-RUNTIME names which process takes the three calls, the engine itself on a box where no bash starts', runtime.includes('A call the long-lived process cannot take runs in a process of its own') && runtime.includes('Windows box where no bash starts it is the engine itself') && !runtime.includes('still runs, in its own system shell'))
 }
 
 section('§6 the Monitor mailbox delivers the first burst, holds later ticks, and delivers them together at 30 seconds')

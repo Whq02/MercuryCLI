@@ -47,6 +47,7 @@
 # gate-watch: src/utils/health/sections/interface.ts
 # gate-watch: src/utils/health/sections/runtime.ts
 # gate-watch: src/utils/shell/shellRecord.ts src/utils/shell/bashPack.ts src/constants/prompts.ts vendor/bash.lock.json scripts/vendor/build-bash.ts scripts/release/payloadContract.mjs
+# gate-watch: scripts/vendor/fetch-bash-win.ts scripts/vendor/lay-bash-win-pack.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -145,6 +146,10 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-saved-rule-prefix.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tracker-known-values.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tracker-known-values.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-line-break-inside-command.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-line-break-inside-command.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-pack.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-pack.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-win-pack.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-win-pack.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-bash-detector.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-bash-detector.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-road-no-zsh.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-road-no-zsh.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-road-order.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-road-order.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-record.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-system-road-bash5.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-system-road-bash5.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-profile-environment.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-profile-environment.ts" "$__t" "$__rc"

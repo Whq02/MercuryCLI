@@ -23,7 +23,7 @@ const COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seve
 check('the build names the desktop preparation command', build.includes(command))
 check('Windows source preparation builds the desktop driver before bundling', prepare.includes(command))
 check('the guide names the Computer tool and the cargo prerequisite beside the desktop step', /desktop driver[\s\S]*Computer tool[\s\S]*cargo/.test(prepare))
-check(`the setup command runs ${setupSteps.length} vendor steps and the by-hand road of steps 6 and 7 names every one (brush by its build, as no Windows binary is published; the bash pack is the macOS and Linux one and builds nothing on Windows)${unnamed.length ? `: missing ${unnamed.join(', ')}` : ''}`, setupSteps.length >= 13 && unnamed.length === 0)
+check(`the setup command runs ${setupSteps.length} vendor steps and the by-hand road of steps 6 and 7 names every one (brush by its build, as no Windows binary is published; the bash pack that is built is the macOS and Linux one, and the Windows one is fetched)${unnamed.length ? `: missing ${unnamed.join(', ')}` : ''}`, setupSteps.length >= 13 && unnamed.length === 0)
 check(`step 7 counts its own fetch commands: ${fetched} listed, the sentence says "these ${COUNT_WORDS[fetched]} commands"`, fetched > 0 && prepare.includes(`these ${COUNT_WORDS[fetched]} commands`))
 check(`step 6 names the same count of fetched packs: "the ${COUNT_WORDS[fetched]} fetched packs in step 7"`, byHand.replace(/\s+/g, ' ').includes(`the ${COUNT_WORDS[fetched]} fetched packs in step 7`))
 check('the page tells a builder how long the Rust-built packs take beside the downloads', /Time: about \d+ minutes[\s\S]{0,160}built with Rust[\s\S]{0,60}about \d+ more/.test(guide))

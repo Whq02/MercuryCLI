@@ -42,9 +42,10 @@ for (const rel of [
 console.log('§2 the discipline is in: writeSync beside the exits the audit fixed')
 {
   const wp = read('src/utils/windowsPaths.ts')
+  const { GIT_BASH_REMEDY } = await import('../../src/utils/windowsPaths.ts')
   check(
     'the git-bash refusal writes sync (the pin arm) and the remedy words stand',
-    (wp.match(/writeSync\(\s*2,/g) ?? []).length >= 1 && wp.includes('requires git-bash'),
+    (wp.match(/writeSync\(\s*2,/g) ?? []).length >= 1 && GIT_BASH_REMEDY.includes('MERCURY_GIT_BASH_PATH='),
   )
   const main = read('src/main.tsx')
   check('the --version line writes sync', main.includes('writeSync(1, `Mercury ${MERCURY_VERSION}\\n`)'))

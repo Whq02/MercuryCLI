@@ -113,8 +113,8 @@ if (!ALLOW_DEGRADED) {
   if (!query.ok) fail(`the JSON query pack: ${query.findings.join('; ')} — run bun scripts/vendor/fetch-json-query.ts, then rebuild`)
   ok(`bundled jq-wasm ${query.version} at ${query.dir}, its bytes and licences matching the lock`)
   const bundled = checkBundledVendorPacks(pkgDir, TARGET)
-  if (!bundled.ok) fail(`the ${TARGET} archive is missing or has an invalid required pack: ${bundled.findings.join('; ')} — rebuild the named pack with build-whisper.ts, build-bash.ts or build-brush.ts --target ${TARGET}, then rebuild the payload`)
-  for (const pack of bundled.packs) ok(`bundled ${pack.name} ${pack.version} rides the archive at ${pack.dir}: ${pack.binary}, its record and its licence files, the binary's digest matching the record`)
+  if (!bundled.ok) fail(`the ${TARGET} archive is missing or has an invalid required pack: ${bundled.findings.join('; ')} — rebuild the named pack with build-whisper.ts, build-bash.ts, fetch-bash-win.ts or build-brush.ts --target ${TARGET}, then rebuild the payload`)
+  for (const pack of bundled.packs) ok(`bundled ${pack.name} ${pack.version} rides the archive at ${pack.dir}: ${pack.binary}, its record and its licence files, the binary's digest matching the record${pack.tree === true ? ', and every file of the folder matching the tree digest its record carries' : ''}`)
 }
 
 const FLOOR = readCompatFloor()

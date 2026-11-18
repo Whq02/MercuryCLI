@@ -106,7 +106,6 @@ scripts/attention/prove-relations.ts	1	1	7717bc0990c0
 scripts/audit-fixes/run-all.sh	11	16	612a023bccd1
 scripts/bash/prove-bash-permissions.ts	1	1	06c62c84a388
 scripts/bash/prove-bash-tool-seams.ts	3	5	a2526c91d1de
-scripts/bash/prove-engine-git-programs.ts	3	4	c31172917653
 scripts/bash/prove-engine-roads.ts	3	10	c4234243b1dc
 scripts/bash/prove-output-budget.ts	6	27	5767cb7dee6a
 scripts/bash/prove-output-tail-truth.ts	4	27	565e3a2a86a7
@@ -129,7 +128,7 @@ scripts/bash/prove-stop-ends-the-tree.ts	4	12	3ba1e864d9a8
 scripts/bash/prove-teardown-ends-the-tree.ts	4	18	fc303cea8b69
 scripts/bash/prove-win32-console-close-cleanup.ts	3	10	bcf0e2f1667c
 scripts/bash/prove-windows-batch-invocation.ts	2	4	d74278536f3d
-scripts/bash/prove-windows-shell-road.ts	11	21	d76019d1fca5
+scripts/bash/prove-windows-shell-road.ts	6	11	0ba97e7e0404
 scripts/bash/shell-engine-parity.ts	1	2	8483e5c32179
 scripts/behaviour-laws/prove-behaviour-laws-contract.ts	1	7	79afa40efa25
 scripts/blender-bridge/prove-blender-bridge-session.ts	2	4	2a6bdef9b589
@@ -681,7 +680,7 @@ scripts/model-transition/prove-transition-e06-e07-ui.ts	9	23	15891016c15b
 scripts/model-transition/prove-transition-fieldfix-p0.ts	11	22	4fcc2dfa40a6
 scripts/model-transition/prove-transition-g03-pending-projection.ts	2	2	f99b75743e8a
 scripts/model-transition/prove-transition-g08-cachebreak-reconnected.ts	3	4	230c5a0a983f
-scripts/model-transition/prove-transition-r01-gitbash-native.ts	4	6	988cd0a36d01
+scripts/model-transition/prove-transition-r01-gitbash-native.ts	4	5	988cd0a36d01
 scripts/model-transition/prove-transition-r02-entry.ts	4	33	7b1702fa836e
 scripts/model-transition/prove-transition-r04-cap-posture.ts	9	44	9e562d2f5d2a
 scripts/model-transition/prove-transition-r06-provider-usability.ts	6	10	187d574a51ca
@@ -698,7 +697,7 @@ scripts/node-runtime/prove-compile-cache-bound.ts	1	2	8987db768251
 scripts/node-runtime/prove-compile-cache.ts	1	20	8987db768251
 scripts/node-runtime/prove-direct-splash.ts	2	10	7149c9766fc9
 scripts/node-runtime/prove-entry-gate.ts	2	8	082fa995e4da
-scripts/node-runtime/prove-field-findings-exit-writes.ts	6	11	46132edf7d4f
+scripts/node-runtime/prove-field-findings-exit-writes.ts	6	10	46132edf7d4f
 scripts/node-runtime/prove-launcher-probe-redirect.ts	2	14	47f268e7f4f8
 scripts/node-runtime/prove-launchers.ts	2	178	47f268e7f4f8
 scripts/node-runtime/prove-node-policy.ts	1	3	14000d585432

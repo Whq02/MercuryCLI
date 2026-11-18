@@ -61,9 +61,10 @@ check(
 )
 
 const windowsPaths = readFileSync(join(ROOT, 'src/utils/windowsPaths.ts'), 'utf8')
+const { GIT_BASH_REMEDY } = await import('../../src/utils/windowsPaths.ts')
 check(
-  '§D the requires-git-bash message names MERCURY_GIT_BASH_PATH',
-  /requires git-bash[\s\S]{0,300}MERCURY_GIT_BASH_PATH=/.test(windowsPaths),
+  '§D the message a machine with no bash is given names MERCURY_GIT_BASH_PATH',
+  GIT_BASH_REMEDY.includes('MERCURY_GIT_BASH_PATH='),
 )
 check(
   '§D the not-found message names MERCURY_GIT_BASH_PATH',

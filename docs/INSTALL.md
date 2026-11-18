@@ -151,18 +151,26 @@ is missing, the launcher reports an error.
 
 ### Windows shells
 
-Release archives include Mercury's bash-compatible shell engine (`brush`),
-and on Windows it serves the Bash tool by default: it finds a `.cmd` or
-`.bat` program such as `npm` by its bare name through PATHEXT, passes `%VAR%`
-and `^` to a batch file unchanged, runs a program named by a relative path
-after `cd`, and keeps shell state between calls. Git for Windows' `bash.exe`
-is not required; when it is installed, `MERCURY_SHELL_ENGINE=system` or
-`system` in `/config` under Shell engine runs the Bash tool on `bash.exe`
-alone.
+On Windows the Bash tool runs a bash 5. One that is already installed serves
+first: Git for Windows ships one, and Mercury finds it through `git`. When
+none is installed, or the one found is older than 5 or does not start, the
+Bash tool runs the bash that rides every Windows archive: GNU bash 5.3 as the
+MSYS2 project packages it, with `ls`, `grep`, `sed`, `find` and the other
+programs a command names beside it. Git for Windows is not required.
+`MERCURY_GIT_BASH_PATH` names a `bash.exe` to use before any other.
 
-Read the health check's `shell` row to see which shell is active and why: the
-bundled engine (the Windows default, or armed by the pin or the setting), or
-Git Bash when the engine was turned off or its pack is absent.
+Release archives also include Mercury's bash-compatible shell engine
+(`brush`). It serves when no bash starts, and when you choose it:
+`MERCURY_SHELL_ENGINE=brush`, or `brush` in `/config` under Shell engine. It
+finds a `.cmd` or `.bat` program such as `npm` by its bare name through
+PATHEXT, passes `%VAR%` and `^` to a batch file unchanged, runs a program
+named by a relative path after `cd`, and keeps shell state between calls.
+`MERCURY_SHELL_ENGINE=system`, or `system` written as the setting, keeps the
+Bash tool on a bash alone.
+
+Read the health check's `shell` row to see which shell is active and why: a
+bash found on the machine or named by the pin, the bash Mercury ships, or the
+bundled engine (armed by the pin or the setting, or because no bash starts).
 
 On macOS and Linux the Bash tool runs the bash Mercury ships (GNU bash 5.3),
 whatever your login shell is; the system's own bash serves when that pack is
@@ -171,8 +179,8 @@ absent, and the bundled engine when there is no bash. Set
 engine, to run the Bash tool on the bundled engine there too, with persistent
 shell state.
 
-A source build without the engine pack or Git for Windows still starts, but
-the Bash tool is unavailable. The PowerShell tool remains available, and the
+A source build without the bash pack, the engine pack or Git for Windows
+still starts, but the Bash tool is unavailable. The PowerShell tool remains available, and the
 `shell` diagnostic explains how to restore Bash support.
 
 ## Build from source
@@ -214,7 +222,7 @@ advertise it, or `MERCURY_TRUECOLOR=0` to force 256 colours.
 
 `setup` fetches the bundled capability packs: PDF.js, the JSON query engine,
 pyright, debugpy, js-debug, extra grammars, the platform's Node and Python
-runtimes, and brush. If a download fails, that pack is skipped and the build
+runtimes, brush, and on Windows the bash pack. If a download fails, that pack is skipped and the build
 and affected tools report the missing component. Running `bun install` alone
 produces a build without those packs.
 

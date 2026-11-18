@@ -212,15 +212,16 @@ section('§8 the words — the archive README, the release page, the compatibili
 
 section('§9 the Windows archive carries the bundled shell engine — the contract, the packager, the verifier, the workflow')
 {
-  type Pack = { name: string; version: string; platform: string; binary: string; degradation: string; manifestKey: string; dir: string; files: string[] }
+  type Pack = { name: string; version: string; platform: string; binary: string; degradation: string; manifestKey: string; dir: string; files: string[]; tree?: boolean; record?: Record<string, unknown> }
   type Verdict = { ok: boolean; findings: string[]; packs: Pack[] }
-  const contract = (await import('../release/payloadContract.mjs')) as { bundledVendorPacks?: (target: string) => Pack[]; checkBundledVendorPacks?: (payloadDir: string, target: string) => Verdict }
+  const contract = (await import('../release/payloadContract.mjs')) as { bundledVendorPacks?: (target: string) => Pack[]; checkBundledVendorPacks?: (payloadDir: string, target: string) => Verdict; vendorPackTreeDigest?: (dir: string) => { fileCount: number; treeDigest: string } }
   const packsOf = (target: string): Pack[] => (typeof contract.bundledVendorPacks === 'function' ? contract.bundledVendorPacks(target) : [])
   const checkAt = (dir: string, target: string): Verdict => (typeof contract.checkBundledVendorPacks === 'function' ? contract.checkBundledVendorPacks(dir, target) : { ok: false, findings: ['checkBundledVendorPacks is not exported'], packs: [] })
   const ofEngine = (verdict: Verdict): string[] => verdict.findings.filter(finding => verdict.packs.some(bundled => finding.startsWith(`${bundled.dir}/`)))
   const win = packsOf('windows-x64')
-  const pack = win[0]
-  check("windows-x64 bundles exactly one pack beyond the build's own set: the shell engine", win.length === 1 && pack?.name === 'brush' && pack.degradation === 'shell-engine' && pack.manifestKey === 'shellEngine' && pack.platform === 'win-x64', JSON.stringify(win))
+  const pack = win.find(bundled => bundled.name === 'brush')
+  const bashPack = win.find(bundled => bundled.name === 'bash')
+  check("windows-x64 bundles two packs beyond the build's own set: the bash Mercury ships, held by its tree, and the shell engine", win.length === 2 && bashPack?.tree === true && bashPack.degradation === 'shell-bash' && bashPack.platform === 'win-x64' && pack?.degradation === 'shell-engine' && pack.manifestKey === 'shellEngine' && pack.platform === 'win-x64', JSON.stringify(win.map(bundled => bundled.name)))
   const packPlatform = brushPackPlatform('win32', 'x64')
   check("the contract's pack directory and binary are the owner's spellings", pack?.dir === `${BRUSH_PACK_PATH}/${packPlatform}` && pack?.binary === brushBinaryFor(packPlatform!), `${pack?.dir} · ${pack?.binary}`)
   check("its files are the binary, the pack's record, the crate inventory and the engine's own licence", pack !== undefined && pack.files.includes(pack.binary) && pack.files.includes('.vendor-manifest.json') && pack.files.includes('NOTICES.json') && pack.files.some(f => /^licenses\/brush-shell-\d+\.\d+\.\d+\/LICENSE$/.test(f)), JSON.stringify(pack?.files))
@@ -255,12 +256,21 @@ section('§9 the Windows archive carries the bundled shell engine — the contra
     writeFileSync(join(licenceDir, 'LICENSE'), 'MIT\n')
     const record = { name: 'brush', source: 'cargo-build', version: lock.version, platform: 'win-x64', target: 'x86_64-pc-windows-msvc', crate: entry.crate, crateVersion: entry.crateVersion, crateSha256: null, cargo: 'cargo', binary: 'brush.exe', binarySha256: createHash('sha256').update(binary).digest('hex'), license: 'MIT', licenseFiles: ['NOTICES.json'], fileCount: 3, treeDigest: '0'.repeat(64) }
     writeFileSync(join(packDir, '.vendor-manifest.json'), JSON.stringify(record))
+    if (bashPack !== undefined) {
+      const bashDir = join(fixture, ...bashPack.dir.split('/'))
+      for (const file of bashPack.files) {
+        mkdirSync(join(bashDir, ...file.split('/'), '..'), { recursive: true })
+        writeFileSync(join(bashDir, ...file.split('/')), `fixture ${file}\n`)
+      }
+      const bashBytes = readFileSync(join(bashDir, ...bashPack.binary.split('/')))
+      writeFileSync(join(bashDir, '.vendor-manifest.json'), JSON.stringify({ name: 'bash', platform: bashPack.platform, version: bashPack.version, binary: bashPack.binary, binarySha256: createHash('sha256').update(bashBytes).digest('hex'), ...(bashPack.record ?? {}), ...(contract.vendorPackTreeDigest?.(bashDir) ?? {}) }))
+    }
     const laid = checkAt(fixture, 'windows-x64')
-    check('a payload with Whisper and the shell binary, records and licence files passes, the records agreeing with the bytes', laid.ok && laid.packs.length === 1, JSON.stringify(laid.findings))
+    check('a payload with Whisper, the bash pack and the shell binary, records and licence files passes, the records agreeing with the bytes', laid.ok && laid.packs.length === 2, JSON.stringify(laid.findings))
     rmSync(join(whisperDir, whisperRecord.addon))
     const withoutWhisper = checkAt(fixture, 'windows-x64')
     check('a Windows payload with only its shell engine fails for the missing Whisper addon', !withoutWhisper.ok && withoutWhisper.findings.some(f => f.includes('whisper')))
-    check('and nothing that payload is refused for is the shell engine\'s: read by its own findings, the engine is carried', withoutWhisper.packs.length === 1 && ofEngine(withoutWhisper).length === 0, JSON.stringify(ofEngine(withoutWhisper)))
+    check('and nothing that payload is refused for is the shell engine\'s or the bash pack\'s: read by their own findings, both are carried', withoutWhisper.packs.length === 2 && ofEngine(withoutWhisper).length === 0, JSON.stringify(ofEngine(withoutWhisper)))
     writeFileSync(join(whisperDir, whisperRecord.addon), whisperBytes)
     const other = Buffer.from('MZ another binary')
     writeFileSync(join(packDir, 'brush.exe'), other)

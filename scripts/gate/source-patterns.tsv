@@ -2047,7 +2047,6 @@ catch-default	src/utils/settings/mdm/rawRead.ts	1
 catch-default	src/utils/shell/brushPack.ts	2
 catch-default	src/utils/shell/outputFilter.ts	1
 catch-default	src/utils/shell/powershellDetection.ts	1
-catch-default	src/utils/shell/shellRecord.ts	1
 catch-default	src/utils/shell/windowsBatchInvocation.ts	1
 catch-default	src/utils/skills/skillChangeDetector.ts	3
 catch-default	src/utils/statusNoticeDefinitions.tsx	2
@@ -2331,7 +2330,7 @@ env-read	src/utils/secureStorage/windowsDpapiProtector.ts	1
 env-read	src/utils/sessionStorage/paths.ts	1
 env-read	src/utils/settings/managedPath.ts	1
 env-read	src/utils/shell/powershellProvider.ts	2
-env-read	src/utils/shell/shellRecord.ts	3
+env-read	src/utils/shell/shellRecord.ts	1
 env-read	src/utils/shell/windowsBatchInvocation.ts	2
 env-read	src/utils/shell/windowsShellRoad.ts	1
 env-read	src/utils/slowOperations.ts	1

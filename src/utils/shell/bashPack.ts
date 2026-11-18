@@ -10,8 +10,9 @@ export const BASH_PACK_NAME = 'bash'
 export const BASH_PACK_BINARY = 'bash'
 export const BASH_PACK_MANIFEST_FILE = '.vendor-manifest.json'
 const BASH_PACK_PREPARE = 'bun run scripts/vendor/build-bash.ts'
+const BASH_WIN_PACK_PREPARE = 'bun run scripts/vendor/fetch-bash-win.ts'
 
-export const BASH_PACK_PLATFORMS = ['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64'] as const
+export const BASH_PACK_PLATFORMS = ['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-arm64'] as const
 export type BashPackPlatform = (typeof BASH_PACK_PLATFORMS)[number]
 
 export function bashPackPlatform(platform: string = process.platform, arch: string = process.arch): BashPackPlatform | null {
@@ -19,16 +20,22 @@ export function bashPackPlatform(platform: string = process.platform, arch: stri
   if (platform === 'darwin' && arch === 'x64') return 'darwin-x64'
   if (platform === 'linux' && arch === 'x64') return 'linux-x64'
   if (platform === 'linux' && arch === 'arm64') return 'linux-arm64'
+  if (platform === 'win32' && arch === 'x64') return 'win-x64'
+  if (platform === 'win32' && arch === 'arm64') return 'win-arm64'
   return null
 }
 
+export function bashPackIsFetched(packPlatform: string): boolean {
+  return packPlatform.startsWith('win-')
+}
+
 export function bashPrepareCommand(packPlatform: string, cross: boolean): string {
+  if (bashPackIsFetched(packPlatform)) return `${BASH_WIN_PACK_PREPARE}${cross ? ` --platform ${packPlatform}` : ''} (a download of the pinned MSYS2 packages)`
   return `${BASH_PACK_PREPARE}${cross ? ` --platform ${packPlatform}` : ''} (needs ${packPlatform.startsWith('linux-') ? 'docker' : 'the Xcode command line tools'})`
 }
 
-export interface BashPackManifest {
+interface BashPackManifestBase {
   name: typeof BASH_PACK_NAME
-  source: 'gnu-tarball'
   version: string
   patchLevel: number
   bashVersion: string
@@ -39,14 +46,42 @@ export interface BashPackManifest {
   license: string
   licenseFiles: string[]
   sourceNote: string
+  fileCount: number
+  treeDigest: string
+}
+
+interface BashTarballManifest extends BashPackManifestBase {
+  source: 'gnu-tarball'
   tarballSha256: string
   patchesSha256: string
   configure: string[]
   toolchain: string
   links: string[]
-  fileCount: number
-  treeDigest: string
 }
+
+interface BashMsys2Package {
+  name: string
+  version: string
+  file: string
+  sha256: string
+  license: string
+  sourceFile: string
+  sourceSha256: string
+}
+
+export interface BashMsys2Manifest extends BashPackManifestBase {
+  source: 'msys2-packages'
+  emulated: boolean
+  runtime: string
+  runtimeVersion: string
+  runtimeSha256: string
+  programsDir: string
+  programs: string[]
+  packages: BashMsys2Package[]
+  databaseSha256: string
+}
+
+export type BashPackManifest = BashTarballManifest | BashMsys2Manifest
 
 const HEX64 = /^[0-9a-f]{64}$/
 
@@ -60,6 +95,20 @@ export function bashPackTreeDigest(dir: string): { fileCount: number; treeDigest
 
 const isStrings = (value: unknown): value is string[] => Array.isArray(value) && value.every(item => typeof item === 'string')
 
+const isHex = (value: unknown): value is string => typeof value === 'string' && HEX64.test(value)
+
+function msys2Packages(value: unknown): BashMsys2Package[] | null {
+  if (!Array.isArray(value)) return null
+  const out: BashMsys2Package[] = []
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) return null
+    const p = item as Record<string, unknown>
+    if (typeof p.name !== 'string' || typeof p.version !== 'string' || typeof p.file !== 'string' || !isHex(p.sha256) || typeof p.license !== 'string' || typeof p.sourceFile !== 'string' || !isHex(p.sourceSha256)) return null
+    out.push({ name: p.name, version: p.version, file: p.file, sha256: p.sha256, license: p.license, sourceFile: p.sourceFile, sourceSha256: p.sourceSha256 })
+  }
+  return out
+}
+
 export function readBashPackManifest(dir: string): BashPackManifest | null {
   let raw: unknown
   try {
@@ -72,34 +121,23 @@ export function readBashPackManifest(dir: string): BashPackManifest | null {
   const m = raw as Record<string, unknown>
   if (
     m.name !== BASH_PACK_NAME ||
-    m.source !== 'gnu-tarball' ||
     typeof m.version !== 'string' ||
     typeof m.patchLevel !== 'number' ||
     typeof m.bashVersion !== 'string' ||
     typeof m.platform !== 'string' ||
     typeof m.target !== 'string' ||
     typeof m.binary !== 'string' ||
-    typeof m.binarySha256 !== 'string' ||
-    !HEX64.test(m.binarySha256) ||
+    !isHex(m.binarySha256) ||
     typeof m.license !== 'string' ||
     !isStrings(m.licenseFiles) ||
     typeof m.sourceNote !== 'string' ||
-    typeof m.tarballSha256 !== 'string' ||
-    !HEX64.test(m.tarballSha256) ||
-    typeof m.patchesSha256 !== 'string' ||
-    !HEX64.test(m.patchesSha256) ||
-    !isStrings(m.configure) ||
-    typeof m.toolchain !== 'string' ||
-    !isStrings(m.links) ||
     typeof m.fileCount !== 'number' ||
-    typeof m.treeDigest !== 'string' ||
-    !HEX64.test(m.treeDigest)
+    !isHex(m.treeDigest)
   ) {
     return null
   }
-  return {
+  const base: BashPackManifestBase = {
     name: BASH_PACK_NAME,
-    source: 'gnu-tarball',
     version: m.version,
     patchLevel: m.patchLevel,
     bashVersion: m.bashVersion,
@@ -110,14 +148,30 @@ export function readBashPackManifest(dir: string): BashPackManifest | null {
     license: m.license,
     licenseFiles: m.licenseFiles,
     sourceNote: m.sourceNote,
-    tarballSha256: m.tarballSha256,
-    patchesSha256: m.patchesSha256,
-    configure: m.configure,
-    toolchain: m.toolchain,
-    links: m.links,
     fileCount: m.fileCount,
     treeDigest: m.treeDigest,
   }
+  if (m.source === 'gnu-tarball') {
+    if (!isHex(m.tarballSha256) || !isHex(m.patchesSha256) || !isStrings(m.configure) || typeof m.toolchain !== 'string' || !isStrings(m.links)) return null
+    return { ...base, source: 'gnu-tarball', tarballSha256: m.tarballSha256, patchesSha256: m.patchesSha256, configure: m.configure, toolchain: m.toolchain, links: m.links }
+  }
+  if (m.source === 'msys2-packages') {
+    const packages = msys2Packages(m.packages)
+    if (typeof m.emulated !== 'boolean' || typeof m.runtime !== 'string' || typeof m.runtimeVersion !== 'string' || !isHex(m.runtimeSha256) || typeof m.programsDir !== 'string' || !isStrings(m.programs) || packages === null || !isHex(m.databaseSha256)) return null
+    return {
+      ...base,
+      source: 'msys2-packages',
+      emulated: m.emulated,
+      runtime: m.runtime,
+      runtimeVersion: m.runtimeVersion,
+      runtimeSha256: m.runtimeSha256,
+      programsDir: m.programsDir,
+      programs: m.programs,
+      packages,
+      databaseSha256: m.databaseSha256,
+    }
+  }
+  return null
 }
 
 type BashPackCheck =
@@ -125,7 +179,7 @@ type BashPackCheck =
   | { state: 'absent'; note: string }
   | { state: 'mismatch'; note: string }
 
-export function checkBashPackDir(dir: string, opts: { digest?: boolean; platform?: string } = {}): BashPackCheck {
+export function checkBashPackDir(dir: string, opts: { digest?: boolean; tree?: boolean; platform?: string } = {}): BashPackCheck {
   const manifest = readBashPackManifest(dir)
   if (manifest === null) {
     return { state: 'absent', note: existsSync(dir) ? `${dir} carries no readable ${BASH_PACK_MANIFEST_FILE}` : `${dir} is absent` }
@@ -137,9 +191,12 @@ export function checkBashPackDir(dir: string, opts: { digest?: boolean; platform
   if (manifest.platform !== platform) {
     return { state: 'mismatch', note: `the pack at ${dir} was built for ${manifest.platform}, this host is ${platform}` }
   }
+  if ((manifest.source === 'msys2-packages') !== bashPackIsFetched(platform)) {
+    return { state: 'mismatch', note: `the pack at ${dir} is ${manifest.source}, which is not how the ${platform} pack is made` }
+  }
   const binaryPath = path.join(dir, manifest.binary)
   if (!existsSync(binaryPath)) return { state: 'mismatch', note: `the manifest at ${dir} names ${manifest.binary} but the file is absent` }
-  for (const file of [...manifest.licenseFiles, manifest.sourceNote]) {
+  for (const file of [...manifest.licenseFiles, manifest.sourceNote, ...(manifest.source === 'msys2-packages' ? [manifest.runtime] : [])]) {
     if (!existsSync(path.join(dir, file))) return { state: 'mismatch', note: `the pack at ${dir} lacks ${file}` }
   }
   if (opts.digest) {
@@ -148,7 +205,41 @@ export function checkBashPackDir(dir: string, opts: { digest?: boolean; platform
       return { state: 'mismatch', note: `${manifest.binary} does not match the manifest digest (expected ${manifest.binarySha256.slice(0, 12)}…, got ${actual.slice(0, 12)}…)` }
     }
   }
+  if (opts.tree) {
+    const tree = bashPackTreeDigest(dir)
+    if (tree.fileCount !== manifest.fileCount || tree.treeDigest !== manifest.treeDigest) {
+      return { state: 'mismatch', note: `the files at ${dir} are not the ones its record counts (${tree.fileCount} files, tree digest ${tree.treeDigest.slice(0, 12)}…; the record says ${manifest.fileCount} and ${manifest.treeDigest.slice(0, 12)}…)` }
+    }
+  }
   return { state: 'ok', binaryPath, manifest }
+}
+
+export function bashPackProgramsDir(dir: string, manifest: BashPackManifest): string | null {
+  return manifest.source === 'msys2-packages' ? path.join(dir, manifest.programsDir) : null
+}
+
+export interface BashMsys2Lock {
+  version: string
+  platforms: Record<string, { kind?: string; target: string; binary?: string; runtime?: string; emulated?: boolean }>
+  msys2?: {
+    bashVersion: string
+    runtimeVersion: string
+    database: { sha256: string }
+    packages: ReadonlyArray<{ file: string; sha256: string; source: { file: string; sha256: string } }>
+  }
+}
+
+export function bashMsys2LockMismatch(manifest: BashMsys2Manifest, lock: BashMsys2Lock, platform: string): string | null {
+  const entry = lock.platforms[platform]
+  const block = lock.msys2
+  if (entry === undefined || entry.kind !== 'msys2' || block === undefined) return `the lock names no MSYS2 pack for ${platform}`
+  if (manifest.version !== lock.version || manifest.bashVersion !== block.bashVersion) return `the pack is bash ${manifest.bashVersion}, the lock pins ${block.bashVersion}`
+  if (manifest.runtimeVersion !== block.runtimeVersion) return `the pack's runtime is ${manifest.runtimeVersion}, the lock pins ${block.runtimeVersion}`
+  if (manifest.target !== entry.target || manifest.binary !== entry.binary || manifest.runtime !== entry.runtime || manifest.emulated !== (entry.emulated === true)) return `the pack's target, binary or runtime is not the lock's for ${platform}`
+  if (manifest.databaseSha256 !== block.database.sha256) return "the pack was laid out from another package database than the lock's"
+  const pinned = block.packages.map(entry => `${entry.file} ${entry.sha256} ${entry.source.file} ${entry.source.sha256}`).join('\n')
+  const held = manifest.packages.map(entry => `${entry.file} ${entry.sha256} ${entry.sourceFile} ${entry.sourceSha256}`).join('\n')
+  return pinned === held ? null : "the pack's packages are not the lock's"
 }
 
 export type BashPackResolution =

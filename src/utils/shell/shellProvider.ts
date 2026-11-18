@@ -1,3 +1,4 @@
+import type { ShellOrigin } from './shellRecord.js'
 
 export const SHELL_TYPES = ['bash', 'powershell'] as const
 
@@ -12,6 +13,7 @@ export type BuildExecCommandOptions = {
 export type ShellProvider = {
   type: ShellType
   shellPath: string
+  origin?: ShellOrigin
   detached: boolean
   buildExecCommand(command: string, options: BuildExecCommandOptions): Promise<BuildExecCommandResult>
   getSpawnArgs(commandString: string): string[]

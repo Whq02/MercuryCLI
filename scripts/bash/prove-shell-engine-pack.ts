@@ -93,8 +93,8 @@ section('§2 engine resolution, the env pin, and the honest degrade')
   const packPresent = vendored.state === 'ok'
   const hostDefault = resolveShellEngine()
   check(
-    "default (no pin, no setting) is this host's own: the system shell, and on the Windows road with its pack present the bundled engine",
-    windowsShellRoadActive() && packPresent ? hostDefault.engine === 'brush' && (hostDefault.arm === 'windows' || hostDefault.arm === 'no-bash') : hostDefault.engine === 'system',
+    "default (no pin, no setting) is this host's own: the system shell, and on the Windows road the bundled engine only where no bash stands",
+    hostDefault.engine === 'system' || (windowsShellRoadActive() && packPresent && hostDefault.engine === 'brush' && hostDefault.arm === 'no-bash'),
     JSON.stringify(hostDefault),
   )
   check('the system setting stays system', resolveShellEngine('system').engine === 'system')
@@ -111,8 +111,8 @@ section('§2 engine resolution, the env pin, and the honest degrade')
   const bashFound = { MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: import.meta.path }
   const withBash = onRoad(bashFound)
   check(
-    packPresent ? 'on the Windows road with a bash found, the default is the bundled engine (arm windows)' : "on the Windows road with a bash found and no pack, the default is the system shell and the reason names the absent pack",
-    packPresent ? withBash.engine === 'brush' && withBash.arm === 'windows' : withBash.engine === 'system' && withBash.requested === 'system' && withBash.arm === 'default' && /pack is absent on this Windows box/.test(withBash.reason ?? ''),
+    'on the Windows road with a bash found nothing arms the engine: the system shell is the default, whether the engine pack is there or not',
+    withBash.engine === 'system' && withBash.requested === 'system' && withBash.arm === 'default',
     JSON.stringify(withBash),
   )
   const noBash = onRoad({ MERCURY_WINDOWS_SHELL_ROAD: 'no-bash' })
