@@ -87,7 +87,6 @@ const { gitArgs } = (await import(`${SRC}/utils/git/spawnArgs.ts`)) as { gitArgs
 const { gitDiff } = (await import(`${SRC}/services/gitGraph/observe.ts`)) as { gitDiff: (root: string, options: { scope: string; ref?: string; paths?: string[] }) => unknown }
 const { GitTool } = await import(`${SRC}/tools/GitTool/GitTool.ts`)
 const { InspectTool } = await import(`${SRC}/tools/InspectTool/InspectTool.ts`)
-await import(`${SRC}/tools.ts`)
 const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
 const { decideToolPermission } = await import(`${SRC}/utils/permissions/decision/engine.ts`)

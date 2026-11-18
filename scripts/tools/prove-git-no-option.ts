@@ -54,7 +54,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const { GitTool } = await import(`${SRC}/tools/GitTool/GitTool.ts`)
 const { InspectTool } = await import(`${SRC}/tools/InspectTool/InspectTool.ts`)
-await import(`${SRC}/tools.ts`)
 const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
 const { decideToolPermission } = await import(`${SRC}/utils/permissions/decision/engine.ts`)
