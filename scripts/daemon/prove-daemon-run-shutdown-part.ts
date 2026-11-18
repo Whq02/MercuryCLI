@@ -2,7 +2,8 @@
 import { mock } from 'bun:test'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
+import ts from 'typescript'
 
 const home = mkdtempSync(join(tmpdir(), 'daemon-run-shutdown-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -14,6 +15,7 @@ for (const key of ['MERCURY_HOME', 'MERCURY_DAEMON_PERSIST', 'MERCURY_DAEMON_OWN
 
 const SELF = 'scripts/daemon/prove-daemon-run-shutdown-part.ts'
 const PART = 'src/daemon/run/shutdown.ts'
+const ROOT = resolve(import.meta.dir, '..', '..')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail: unknown = ''): void => {
@@ -21,37 +23,65 @@ const check = (label: string, cond: boolean, detail: unknown = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+const realImmediate = globalThis.setImmediate
 const settle = async (): Promise<void> => {
+  for (let round = 0; round < 3; round++) {
+    for (let i = 0; i < 80; i++) await Promise.resolve()
+    await new Promise<void>(done => realImmediate(() => done()))
+  }
   for (let i = 0; i < 80; i++) await Promise.resolve()
 }
 
 const did: string[] = []
 const note = (what: string): void => void did.push(what)
-const script = { supersededBy: null as { pid: number; buildTree: string | null; alive: boolean } | null }
+const script = {
+  supersededBy: null as { pid: number; buildTree: string | null; alive: boolean } | null,
+  held: null as string | null,
+  fails: null as string | null,
+}
+let letGo: (() => void) | null = null
 const timers: Array<{ ms: number; run: () => void; unref: boolean }> = []
+const neighbour = (what: string): Promise<void> => {
+  note(what)
+  if (script.fails === what) return Promise.reject(new Error(`${what}: planted failure`))
+  if (script.held !== what) return Promise.resolve()
+  return new Promise<void>(done => {
+    letGo = done
+  })
+}
+const noting = <T extends object>(who: string, plantedCalls: T): T =>
+  new Proxy(plantedCalls, {
+    get: (target, key, receiver) => (typeof key === 'symbol' || key in target ? Reflect.get(target, key, receiver) : key === 'then' ? undefined : () => note(`${who}.${key}()`)),
+  })
+
+const STAND_INS = {
+  '../../utils/debug.js': { logForDebugging: (line: string) => note(`debug: ${line}`) },
+  '../../utils/spawnLedger.js': { recordSpawnExit: (row: { kind: string; event: string; id: string; reason: string }) => note(`ledger ${row.kind} ${row.event} ${row.id} ${row.reason}`) },
+  '../controlSocket.js': {
+    clearControlKey: () => neighbour('clear the control key'),
+    clearDaemonState: () => neighbour('clear the daemon record'),
+    markDaemonStoppingSync: () => {
+      note('mark the record stopping')
+      return true
+    },
+  },
+  '../planeRecords.js': {
+    supersededByLivePlaneOwnerSync: () => {
+      note('read who serves the plane')
+      return script.supersededBy
+    },
+  },
+}
+const IMPORTS: Record<string, string[]> = { ...Object.fromEntries(Object.entries(STAND_INS).map(([from, calls]) => [from, Object.keys(calls)])), './state.js': ['type DaemonRunState'] }
 
 const controlSocket = await import('../../src/daemon/controlSocket.ts')
 const planeRecords = await import('../../src/daemon/planeRecords.ts')
 const spawnLedger = await import('../../src/utils/spawnLedger.ts')
 const debug = await import('../../src/utils/debug.ts')
-mock.module('../../src/daemon/controlSocket.ts', () => ({
-  ...controlSocket,
-  clearControlKey: async () => note('clear the control key'),
-  clearDaemonState: async () => note('clear the daemon record'),
-  markDaemonStoppingSync: () => {
-    note('mark the record stopping')
-    return true
-  },
-}))
-mock.module('../../src/daemon/planeRecords.ts', () => ({
-  ...planeRecords,
-  supersededByLivePlaneOwnerSync: () => {
-    note('read who serves the plane')
-    return script.supersededBy
-  },
-}))
-mock.module('../../src/utils/spawnLedger.ts', () => ({ ...spawnLedger, recordSpawnExit: (row: { kind: string; event: string; id: string; reason: string }) => note(`ledger ${row.kind} ${row.event} ${row.id} ${row.reason}`) }))
-mock.module('../../src/utils/debug.ts', () => ({ ...debug, logForDebugging: (line: string) => note(`debug: ${line}`) }))
+mock.module('../../src/daemon/controlSocket.ts', () => ({ ...controlSocket, ...STAND_INS['../controlSocket.js'] }))
+mock.module('../../src/daemon/planeRecords.ts', () => ({ ...planeRecords, ...STAND_INS['../planeRecords.js'] }))
+mock.module('../../src/utils/spawnLedger.ts', () => ({ ...spawnLedger, ...STAND_INS['../../utils/spawnLedger.js'] }))
+mock.module('../../src/utils/debug.ts', () => ({ ...debug, ...STAND_INS['../../utils/debug.js'] }))
 
 const part = await import('../../src/daemon/run/shutdown.ts')
 const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
@@ -69,30 +99,33 @@ const needs = {
 }
 const shown = (value: unknown): string => (value === undefined || value === null || typeof value === 'boolean' || typeof value === 'number' ? String(value) : 'a value')
 const planted = (over: Partial<State> = {}, controlEnabled = true): State => {
-  const state = makeDaemonRunState({ dir: home, bootBuildTree: 'aaaaaaaaaaaa', foreground: false, breaker: new DaemonBreaker(), maxInflight: 1, controlEnabled })
+  const state = makeDaemonRunState({ dir: home, bootBuildTree: 'aaaaaaaaaaaa', foreground: false, breaker: noting('the breaker', new DaemonBreaker()), maxInflight: 1, controlEnabled })
   state.stopPlaneHeal = () => note('stop the plane heal')
   state.stopArmedBeat = () => note('stop the armed-restart beat')
   state.stopLockBeat = () => note('stop the handover lock beat')
   state.stopSessionlessBeat = () => note('stop the sessionless beat')
   state.stopSaturnTicker = () => note('stop the Saturn ticker')
   state.stopHostJobs = () => note('stop the host job sweep')
-  state.ownerWatch = { stop: () => note('stop the owner watch'), ownerPipeClosed: () => {} } as never
-  state.ownerPipe = { armed: true, close: () => note('close the owner pipe') } as never
-  state.roster = {
-    list: () => [
-      { short: 'concourse-w1', pid: 11, via: 'runner' },
-      { short: 'job-2', pid: 12, via: 'headless' },
-      { short: 'done-3', pid: 13, via: 'runner', outcome: { ok: true } },
-    ],
+  state.ownerWatch = noting('the owner watch', { stop: () => note('stop the owner watch') }) as never
+  state.ownerPipe = noting('the owner pipe', { armed: true, close: () => note('close the owner pipe') }) as never
+  state.roster = noting('the roster', {
+    list: () => {
+      note('list the roster')
+      return [
+        { short: 'concourse-w1', pid: 11, via: 'runner' },
+        { short: 'job-2', pid: 12, via: 'headless' },
+        { short: 'done-3', pid: 13, via: 'runner', outcome: { ok: true } },
+      ]
+    },
     kill: (short: string) => {
       note(`kill ${short}`)
       return true
     },
-    askedSettled: async () => note('the asked runners settled'),
-  } as never
-  state.controlServer = { close: async () => note('close the control server'), rebind: async () => {}, leaseCount: () => 0 }
+    askedSettled: () => neighbour('the asked runners settled'),
+  }) as never
+  state.controlServer = noting('the control server', { close: () => neighbour('close the control server') }) as never
   state.releaseHeldReading = () => note('release the held reading')
-  state.daemonLock = { release: async () => note('release the daemon lock') }
+  state.daemonLock = noting('the daemon lock', { release: () => neighbour('release the daemon lock') })
   Object.assign(state, over)
   return new Proxy(state, {
     set: (target, key, value) => {
@@ -105,12 +138,18 @@ const reset = (): void => {
   did.length = 0
   timers.length = 0
   script.supersededBy = null
+  script.held = null
+  script.fails = null
+  letGo = null
 }
+const EXIT_CODE_PLANTED = 113
 const leave = (state: State, signal: string): void => {
   did.length = 0
   timers.length = 0
+  process.exitCode = EXIT_CODE_PLANTED
   part.shutdownDaemon(state, needs, signal)
 }
+const happened = (): string[] => (process.exitCode === EXIT_CODE_PLANTED ? [...did] : [...did, `process.exitCode = ${shown(process.exitCode)}`])
 const at = (what: string): number => did.findIndex(line => line.startsWith(what))
 
 type Held = { step: string; leaves: string[] }
@@ -128,7 +167,7 @@ const AT_ONCE: Held[] = [
   { step: 'say it is leaving', leaves: ['debug: [daemon] received SIGTERM, shutting down', 'say: [daemon] SIGTERM — shutting down'] },
   { step: 'stop the owner watch', leaves: ['stop the owner watch', 'state.ownerWatch = undefined'] },
   { step: 'close the owner pipe', leaves: ['close the owner pipe', 'state.ownerPipe = undefined'] },
-  { step: 'reap every rostered worker', leaves: ['ledger long-lived reap concourse-w1 daemon-shutdown:SIGTERM', 'kill concourse-w1', 'ledger headless reap job-2 daemon-shutdown:SIGTERM', 'kill job-2'] },
+  { step: 'reap every rostered worker', leaves: ['list the roster', 'ledger long-lived reap concourse-w1 daemon-shutdown:SIGTERM', 'kill concourse-w1', 'ledger headless reap job-2 daemon-shutdown:SIGTERM', 'kill job-2'] },
 ]
 const THEN: Held[] = [
   { step: 'close the control server', leaves: ['close the control server'] },
@@ -146,10 +185,23 @@ const THEN: Held[] = [
 ]
 const PLACES = [...AT_ONCE.map((held, i) => ({ ...held, place: `place ${i + 1} of the ${AT_ONCE.length} it does at once` })), ...THEN.map((held, i) => ({ ...held, place: `place ${i + 1} of the ${THEN.length} that follow` }))]
 const KEPT = [GUARD, ...AT_ONCE.flatMap(held => held.leaves), ...THEN[0]!.leaves, BAIL, ...THEN.slice(1).flatMap(held => held.leaves)]
+const WAITS = [
+  { neighbour: 'close the control server', said: "the control server's close", how: 'the step awaits `state.controlServer?.close()` inside its try' },
+  { neighbour: 'clear the control key', said: 'the clear of the control key', how: 'the step returns the promise of `clearControlKey().catch(() => {})`, so the runner of the second list awaits it' },
+  { neighbour: 'clear the daemon record', said: 'the clear of the daemon record', how: 'the step returns the promise of `clearDaemonState().catch(() => {})`, so the runner of the second list awaits it' },
+  { neighbour: 'release the daemon lock', said: 'the release of the daemon lock', how: 'the step awaits `state.daemonLock?.release().catch(() => {})` before it lets go of the field' },
+  { neighbour: 'the asked runners settled', said: 'the wait for the runners that were asked to end', how: 'the step awaits `state.roster?.askedSettled()`' },
+]
+const FAILS = [
+  { neighbour: 'close the control server', said: 'a control server whose close fails is logged and', also: ['debug: [daemon] error closing control server: Error: close the control server: planted failure'], how: 'keep the try around the close' },
+  { neighbour: 'clear the control key', said: 'a control key whose clear fails is passed over and', also: [], how: 'keep the `.catch(() => {})` on `clearControlKey()`' },
+  { neighbour: 'clear the daemon record', said: 'a daemon record whose clear fails is passed over and', also: [], how: 'keep the `.catch(() => {})` on `clearDaemonState()`' },
+  { neighbour: 'release the daemon lock', said: 'a daemon lock whose release fails is passed over and', also: [], how: 'keep the `.catch(() => {})` on `state.daemonLock?.release()`' },
+]
 
-function readWayOut(ran: readonly string[]): string[] {
+function readWayOut(ran: readonly string[], kept: readonly string[] = KEPT): string[] {
   const said: string[] = []
-  for (const effect of ran) if (!KEPT.includes(effect)) said.push(`the way out did "${effect}", which no step this proof holds does — a step was added, or a step does more than it did: if the daemon is meant to do it on its way out, add it to the step's row in ${SELF} at the place it runs; if not, take it out of ${PART}`)
+  for (const effect of ran) if (!kept.includes(effect)) said.push(`the way out did "${effect}", which no step this proof holds does — a step was added, or a step does more than it did: if the daemon is meant to do it on its way out, add it to the step's row in ${SELF} at the place it runs; if not, take it out of ${PART}`)
   for (const held of PLACES) {
     const missing = held.leaves.find(leaf => !ran.includes(leaf))
     if (missing !== undefined) said.push(`"${held.step}" (${held.place}) did not happen: nothing did "${missing}" — a step was dropped: if the daemon is meant to stop doing it on its way out, take its row out of ${SELF}; if not, put the step back in ${PART}`)
@@ -163,16 +215,67 @@ function readWayOut(ran: readonly string[]): string[] {
     const went = order.indexOf(pushed)
     return [`"${came.step}" ran at ${PLACES[first]!.place}, where this proof holds "${pushed.step}", and "${pushed.step}" ran at ${PLACES[went]!.place}, where it holds "${PLACES[went]!.step}" — two steps changed places: the order the daemon lets go in is behaviour; put the steps of ${PART} back in the order of ${SELF}, or change both in one commit and say what a daemon now does first`]
   }
-  const off = Array.from({ length: Math.max(ran.length, KEPT.length) }).findIndex((_, i) => ran[i] !== KEPT[i])
-  return off < 0 ? [] : [`the steps ran in their order and what they did does not stand as kept: "${ran[off] ?? '(nothing more)'}" is number ${off + 1} of what happened, where this proof holds "${KEPT[off] ?? '(nothing more)'}" — a step does its work in another order, twice, or beside the 15 s bail's place: put ${PART} back, or change the row in ${SELF} in the same commit and say what moved`]
+  const off = Array.from({ length: Math.max(ran.length, kept.length) }).findIndex((_, i) => ran[i] !== kept[i])
+  return off < 0 ? [] : [`the steps ran in their order and what they did does not stand as kept: "${ran[off] ?? '(nothing more)'}" is number ${off + 1} of what happened, where this proof holds "${kept[off] ?? '(nothing more)'}" — a step does its work in another order, twice, or beside the 15 s bail's place: put ${PART} back, or change the row in ${SELF} in the same commit and say what moved`]
+}
+
+function importsOfPart(): Record<string, string[]> {
+  const path = join(ROOT, PART)
+  const sf = ts.createProgram([path], { noResolve: true, noLib: true, skipLibCheck: true, target: ts.ScriptTarget.Latest, module: ts.ModuleKind.ESNext }).getSourceFile(path)
+  const found: Record<string, string[]> = {}
+  if (sf === undefined) return found
+  const add = (from: string, names: string[]): void => void (found[from] = [...(found[from] ?? []), ...names])
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier)) {
+      const clause = node.importClause
+      const typed = clause !== undefined && clause.phaseModifier === ts.SyntaxKind.TypeKeyword ? 'type ' : ''
+      const names: string[] = []
+      if (clause === undefined) names.push('(for what loading it does)')
+      else {
+        if (clause.name !== undefined) names.push(`${typed}default`)
+        const bindings = clause.namedBindings
+        if (bindings !== undefined && ts.isNamespaceImport(bindings)) names.push(`${typed}*`)
+        if (bindings !== undefined && ts.isNamedImports(bindings)) for (const element of bindings.elements) names.push(`${typed || (element.isTypeOnly ? 'type ' : '')}${(element.propertyName ?? element.name).text}`)
+      }
+      add(node.moduleSpecifier.text, names)
+    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier !== undefined && ts.isStringLiteralLike(node.moduleSpecifier)) add(node.moduleSpecifier.text, ['(exported again)'])
+    else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === 'require'))) {
+      const from = node.arguments[0]
+      add(from !== undefined && ts.isStringLiteralLike(from) ? from.text : '(a path worked out when it runs)', ['(loaded when it runs)'])
+    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteralLike(node.argument.literal)) add(node.argument.literal.text, ['type (inside a type)'])
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return found
+}
+
+function readImports(found: Record<string, string[]>, held: Record<string, string[]> = IMPORTS): string[] {
+  const said: string[] = []
+  for (const [from, names] of Object.entries(found)) {
+    for (const name of names) {
+      if (held[from]?.includes(name)) continue
+      said.push(`${PART} takes ${name} from '${from}', which this proof does not hold — a step that calls something new is scripted here first: give '${from}' a stand-in for ${name} in STAND_INS of ${SELF} that notes each call (a type goes in IMPORTS beside './state.js'), and the step's row what it leaves; or take the import out of ${PART}`)
+    }
+  }
+  for (const [from, names] of Object.entries(held)) {
+    for (const name of names) {
+      if (found[from]?.includes(name)) continue
+      said.push(`${SELF} holds ${name} from '${from}', which ${PART} does not import — the way out stopped calling it: take its stand-in out of STAND_INS and what it left out of the step's row, or put the call back in ${PART}`)
+    }
+  }
+  return said
 }
 
 const realError = console.error
 const realExit = process.exit
 const realTimeout = globalThis.setTimeout
+const realInterval = globalThis.setInterval
 const realClearInterval = globalThis.clearInterval
+const realExitCode = process.exitCode
+const unhandled = (reason: unknown): void => note(`a rejection nobody handled: ${reason instanceof Error ? reason.message : String(reason)}`)
 console.error = (...args: unknown[]) => note(`say: ${args.map(String).join(' ')}`)
 process.exit = ((code?: number) => note(`exit ${code}`)) as never
+process.on('unhandledRejection', unhandled)
 globalThis.setTimeout = ((run: () => void, ms?: number) => {
   const timer = { ms: ms ?? 0, run, unref: false }
   timers.push(timer)
@@ -183,13 +286,21 @@ globalThis.setTimeout = ((run: () => void, ms?: number) => {
     },
   }
 }) as never
+globalThis.setInterval = ((_run: () => void, ms?: number) => {
+  note(`interval ${ms}`)
+  return { unref: () => {} }
+}) as never
+globalThis.setImmediate = (() => {
+  note('immediate')
+  return {}
+}) as never
 globalThis.clearInterval = ((timer: unknown) => {
   if (timer === KEEP_ALIVE) note('let the event loop go')
   else realClearInterval(timer as never)
 }) as never
 
 try {
-  section('§0 the reader of the way out: a swap, a step added and a step dropped, each by its own line')
+  section('§0 the reader of the way out: a swap, a step added and a step dropped, each by its own line; and what the part imports')
   {
     const swapped = (a: Held, b: Held): string[] => KEPT.flatMap(effect => (effect === a.leaves[0] ? b.leaves : effect === b.leaves[0] ? a.leaves : a.leaves.includes(effect) || b.leaves.includes(effect) ? [] : [effect]))
     const neighbours = readWayOut(swapped(AT_ONCE[7]!, AT_ONCE[8]!))
@@ -203,6 +314,15 @@ try {
     check('something no step holds is named: added', added.length === 1 && added[0]!.startsWith('the way out did "state.restartArmed = false"') && added[0]!.includes('a step was added'), added)
     const twice = readWayOut([...KEPT, 'resolve the run'])
     check('a step that does its work twice is red', twice.length === 1 && twice[0]!.includes('does not stand as kept'), twice)
+
+    const found = importsOfPart()
+    const differs = readImports(found)
+    const values = Object.values(STAND_INS).reduce((n, calls) => n + Object.keys(calls).length, 0)
+    check(`the part imports what this proof scripts and nothing else: ${Object.keys(IMPORTS).length} modules, ${values} values, each a stand-in that notes its call`, Object.keys(found).length > 0 && differs.length === 0, Object.keys(found).length === 0 ? `${PART} was not read: no import found in it` : differs.join('\n      '))
+    const more = readImports({ ...found, '../controlSocket.js': [...(found['../controlSocket.js'] ?? []), 'writeDaemonState'], '../roster.js': ['TaskRoster'] })
+    check('one more name from a module it imports, and a module it does not import, are each red by a line that says where the stand-in goes', more.length === 2 && more[0]!.startsWith(`${PART} takes writeDaemonState from '../controlSocket.js'`) && more[1]!.startsWith(`${PART} takes TaskRoster from '../roster.js'`) && more.every(line => line.includes('STAND_INS')), more)
+    const fewer = readImports(Object.fromEntries(Object.entries(found).filter(([from]) => from !== '../planeRecords.js')))
+    check('a name this proof holds and the part no longer imports is red too', fewer.length === 1 && fewer[0]!.startsWith(`${SELF} holds supersededByLivePlaneOwnerSync from '../planeRecords.js'`), fewer)
   }
 
   section('§1 the way out, in the order it lets go of what the boot took')
@@ -212,8 +332,8 @@ try {
     leave(state, 'SIGTERM')
     const atOnce = [...did]
     await settle()
-    const differs = readWayOut(did)
-    check(`every one of the ${PLACES.length} steps runs, once, in the order the daemon has always left by (${KEPT.length} things done, read in the order they happen)`, differs.length === 0, differs.join('\n      '))
+    const differs = readWayOut(happened())
+    check(`every one of the ${PLACES.length} steps runs, once, in the order the daemon has always left by (${KEPT.length} things done, read in the order they happen), and nothing else is done: no other call on the roster, the control server, the lock, the owner's watch and pipe or the breaker, no other timer, and the exit code is left as it was`, differs.length === 0, differs.join('\n      '))
     check('the shutdown road marks its record before it closes the socket', at('mark the record stopping') >= 0 && at('mark the record stopping') < at('close the control server'))
     check('the teardown reaps every rostered worker that has no outcome, each with its row in the spawn ledger first, and none that has ended', at('kill concourse-w1') > at('ledger long-lived reap concourse-w1') && at('kill job-2') > at('ledger headless reap job-2') && at('kill done-3') === -1)
     check('it waits for the runners it asked to end after it has struck them and before its own exit', at('kill job-2') < at('the asked runners settled') && at('the asked runners settled') < at('timer 250'))
@@ -253,11 +373,46 @@ try {
     check('with the control layer off nothing of the plane is touched: no mark, no key, no record, and who serves the plane is not read', at('mark the record stopping') === -1 && at('clear the control key') === -1 && at('clear the daemon record') === -1 && at('read who serves the plane') === -1 && bare.restartAfterTeardown === true && at('spawn the successor') >= 0, did)
     check('the rest of the way out still runs to its exit timer', at('ledger daemon exit daemon shutdown:SIGTERM') >= 0 && at('let the event loop go') >= 0 && at('resolve the run') < at('timer 250'))
   }
+
+  section('§3 what the way out waits for: each neighbour it awaits is held open, nothing after it has happened, it is let go, the rest follows')
+  for (const wait of WAITS) {
+    reset()
+    script.held = wait.neighbour
+    const state = planted({ restartAfterTeardown: true })
+    leave(state, 'SIGTERM')
+    await settle()
+    const before = KEPT.slice(0, Math.max(KEPT.indexOf(wait.neighbour), KEPT.indexOf(BAIL)) + 1)
+    const early = did.slice(before.length)
+    check(`while ${wait.said} is held open nothing after it has happened`, letGo !== null && did.join('\n') === before.join('\n'), letGo === null ? `the way out did not reach "${wait.neighbour}": ${JSON.stringify(did.slice(-3))}` : early.length > 0 ? `the way out went on without waiting: it did ${early.map(effect => `"${effect}"`).join(', ')} before ${wait.said} had settled — in ${PART} ${wait.how}; a step whose promise is not handed back to the runner of the second list is started and not waited for` : `what happened up to there does not stand as kept: ${readWayOut(did, before).join(' | ') || JSON.stringify(did.slice(-3))}`)
+    const open = letGo as (() => void) | null
+    open?.()
+    await settle()
+    const differs = readWayOut(happened())
+    check(`once ${wait.said} has settled the rest follows in its order, to the exit timer`, differs.length === 0 && at('timer 250') >= 0, differs.join('\n      '))
+  }
+
+  section('§4 a neighbour that fails: the way out goes on to its exit timer, as it always has')
+  for (const fail of FAILS) {
+    reset()
+    script.fails = fail.neighbour
+    const state = planted({ restartAfterTeardown: true })
+    leave(state, 'SIGTERM')
+    await settle()
+    const kept = [...KEPT.slice(0, KEPT.indexOf(BAIL) + 1), ...fail.also, ...KEPT.slice(KEPT.indexOf(BAIL) + 1)]
+    const differs = readWayOut(happened(), kept)
+    const lost = did.find(effect => effect.startsWith('a rejection nobody handled'))
+    const reached = did.filter(effect => effect !== lost)
+    check(`${fail.said} the way out goes on: every step after it runs in its order, to the exit timer`, differs.length === 0 && at('timer 250') >= 0 && lost === undefined, lost !== undefined ? `the failure ended the way out there (${lost}): ${reached.length} of ${kept.length} things happened, the last "${reached.at(-1)}", and the exit timer was never armed — in ${PART} ${fail.how}: a daemon that cannot ${fail.neighbour} still does the rest and exits` : differs.join('\n      '))
+  }
 } finally {
   console.error = realError
   process.exit = realExit
   globalThis.setTimeout = realTimeout
+  globalThis.setInterval = realInterval
+  globalThis.setImmediate = realImmediate
   globalThis.clearInterval = realClearInterval
+  process.off('unhandledRejection', unhandled)
+  process.exitCode = realExitCode
   rmSync(home, { recursive: true, force: true })
 }
 
