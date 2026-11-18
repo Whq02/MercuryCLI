@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 type Ran = { code: number; ms: number; text: string }
-type Row = { first: Ran; second: Ran; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string }
+type Row = { first: Ran; second: Ran; carried: Ran; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string }
 
 if (process.argv.includes('--row')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -21,11 +21,13 @@ if (process.argv.includes('--row')) {
   }
   const first = await run('echo "ran: bash=${BASH_VERSION:-no} zsh=${ZSH_VERSION:-no} path-head=${PATH%%:*}"')
   const second = await run('echo second-ran')
+  const carried = await run('alias ll 2>/dev/null; myfunc 2>/dev/null; above_guard 2>/dev/null; true')
   const snapshots = join(process.env.MERCURY_CONFIG_DIR ?? '', 'shell-snapshots')
   const marker = join(home, 'other-shell-was-started')
   const row: Row = {
     first,
     second,
+    carried,
     absence: snapshot.shellSnapshotAbsence?.() ?? null,
     snapshots: existsSync(snapshots) ? readdirSync(snapshots).length : 0,
     otherShellStarts: existsSync(marker) ? readFileSync(marker, 'utf8').trim().split('\n').length : 0,
@@ -87,6 +89,13 @@ const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
   slow: { dir: home('slow', { '.bash_profile': 'sleep 11\n' }) },
   'ends-unread': {
     dir: home('ends-unread', { '.bashenv': 'case "$BASH_EXECUTION_STRING" in *mercury-cwd-*) exit 0 ;; esac\n' }),
+  },
+  'login-file-only': { dir: home('login-file-only', { '.bash_profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\n' }) },
+  'guarded-bashrc': {
+    dir: home('guarded-bashrc', {
+      '.profile': 'if [ -n "$BASH_VERSION" ]; then\n  if [ -f "$HOME/.bashrc" ]; then\n    . "$HOME/.bashrc"\n  fi\nfi\n',
+      '.bashrc': 'above_guard() { echo fn-above-the-guard; }\ncase $- in\n    *i*) ;;\n      *) return;;\nesac\nalias ll="ls -la"\nmyfunc() { echo fn-below-the-guard; }\n',
+    }),
   },
 }
 HOMES['ends-unread']!.env = { BASH_ENV: join(HOMES['ends-unread']!.dir, '.bashenv') }
@@ -152,6 +161,19 @@ try {
     told('slow'),
   )
   check('slow: no snapshot stands, and the record of why says the login run was killed at the bound', slow !== null && slow.snapshots === 0 && /did not end within 10 s and was killed/.test(slow.absence ?? ''), told('slow'))
+
+  const loginOnly = of('login-file-only').row
+  check(
+    'login-file-only: what ~/.bash_profile defines is carried to a command though no ~/.bashrc exists — its alias and its function',
+    loginOnly !== null && loginOnly.carried.text.includes("alias ll='ls -la'") && loginOnly.carried.text.includes('fn-from-the-login-file') && loginOnly.snapshots === 1,
+    told('login-file-only'),
+  )
+  const guarded = of('guarded-bashrc').row
+  check(
+    'guarded-bashrc: a ~/.bashrc that returns for a shell that is not interactive carries what stands above that line and nothing below it',
+    guarded !== null && guarded.carried.text.includes('fn-above-the-guard') && !guarded.carried.text.includes('fn-below-the-guard') && !guarded.carried.text.includes('alias ll'),
+    told('guarded-bashrc'),
+  )
 
   const filesHome = home('start-up-files', {})
   const files = await new Promise<Record<string, boolean> | null>(done => {
