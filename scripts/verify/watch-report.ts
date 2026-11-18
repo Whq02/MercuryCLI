@@ -1,14 +1,12 @@
 #!/usr/bin/env bun
-import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { buildImportGraph } from '../orphans/graph.ts'
 import { loadImpactManifest, narrowedRow, NET_GLOB, RATCHETS, selectImpact } from './impactManifest.ts'
 import { DEFAULT_HUB_CEILING, estimatePooledWallS, type GateClass } from './sliceCore.ts'
-import { readWatchGraph } from './watchGraph.ts'
+import { watchGraphOf } from './watchGraph.ts'
 
 const ROOT = process.env.MERCURY_SLICE_ROOT ? resolve(process.env.MERCURY_SLICE_ROOT) : resolve(import.meta.dir, '..', '..')
-const FENCE = 'scripts/gate/prove-source-text-reads.ts'
 const DRAW = 200
 const CORES = 8
 const argv = process.argv.slice(2)
@@ -19,33 +17,14 @@ const option = (name: string): string[] => {
 const detail = option('--detail')[0]
 const chainOf = option('--chain')
 
-type Suite = ReturnType<typeof readWatchGraph>['suites'][number]
+type Suite = ReturnType<typeof watchGraphOf>['suites'][number]
 type Tier = 'touched' | 'deep' | 'lazy'
 type State = 'dead' | 'unread' | 'partial' | 'covered'
 const TIERS = ['touched', 'deep', 'lazy'] as const
 
-const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 })
-  .split('\0')
-  .filter(Boolean)
+const graph = watchGraphOf(ROOT)
+const tracked = graph.listed
 const underSrc = tracked.filter(f => f.startsWith('src/'))
-
-const fence = spawnSync(process.execPath, [FENCE, '--report', ...underSrc], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 })
-const named = new Map<string, string[]>()
-let fenceReads = 0
-{
-  let file = ''
-  for (const line of (fence.stdout ?? '').split('\n')) {
-    const head = /^ {2}(\S+) is named as text by \d+ scripts:$/.exec(line)
-    const row = head ? null : /^ {4}(\S+):\d+$/.exec(line)
-    if (head) file = head[1]!
-    else if (row && file !== '') {
-      named.set(row[1]!, [...(named.get(row[1]!) ?? []), file])
-      fenceReads++
-    } else if (line === '') file = ''
-  }
-}
-
-const graph = readWatchGraph(ROOT, tracked, named)
 const manifest = loadImpactManifest(ROOT)
 const bySuite = new Map(graph.suites.map(s => [s.suite, s]))
 
@@ -229,10 +208,10 @@ say('Written by `bun scripts/verify/watch-report.ts`. It reads the tree and chan
 say()
 say('## What was read')
 say()
-say(`- tracked files ${tracked.length} · under src ${underSrc.length} · under scripts ${tracked.filter(f => f.startsWith('scripts/')).length}`)
+say(`- files git lists in the work tree ${tracked.length} · under src ${underSrc.length} · under scripts ${tracked.filter(f => f.startsWith('scripts/')).length}`)
 say(`- suites ${rows.length} · by class: ${[...new Set(rows.map(r => r.s.cls))].sort().map(c => `${c} ${rows.filter(r => r.s.cls === c).length}`).join(' · ')}`)
 say(`- the module graph: ${graph.files.src} files under src and ${graph.files.other} outside it read, ${graph.edges} resolved edges, ${graph.unread.length} files that did not parse`)
-say(`- the text fence (${FENCE} --report, exit ${fence.status}): ${fenceReads} reads of a src file as text by ${named.size} scripts`)
+say(`- the text fence's reader (scripts/lib/sourceTextReads.ts, called here): ${graph.fence.opened} src files opened as text and ${graph.fence.onlyNamed} only named, by ${graph.fence.scripts} scripts`)
 say(`- beside scripts/orphans/graph.ts on src: ${sameGraph.files} files, ${sameGraph.edges} resolved edges there; the targets of ${sameGraph.same} files are the same here, ${sameGraph.differ.length} differ${sameGraph.differ.length > 0 ? `: ${sameGraph.differ.slice(0, 6).join(', ')}${sameGraph.differ.length > 6 ? ', …' : ''}` : ''}`)
 say()
 say('## Words')

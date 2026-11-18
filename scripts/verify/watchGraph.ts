@@ -1,8 +1,10 @@
-import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { readdirSync, readFileSync } from 'node:fs'
 import { isAbsolute, join, posix, relative, resolve } from 'node:path'
 import ts from 'typescript'
 import { census } from '../gate/prove-suite-class-census.ts'
 import { calleeName, declarationOf, parseSource, slash, stringText, unwrap } from '../gate/sourceCensus.ts'
+import { factsOf, srcOf } from '../lib/sourceTextReads.ts'
 
 type EdgeKind = 'import' | 'run' | 'lazy' | 'type'
 type Edge = { to: string; kind: EdgeKind }
@@ -29,6 +31,7 @@ const RUNNER = /^scripts\/[^/]+\/run-all\.sh$/
 const EAGER = new Set<EdgeKind>(['import', 'run'])
 const VALUE = new Set<EdgeKind>(['import', 'run', 'lazy'])
 const EVERY = new Set<EdgeKind>(['import', 'run', 'lazy', 'type'])
+const UNLISTED = new Set(['.git', '.mercury', 'dist', 'node_modules'])
 
 const blank = (): Facts => ({ edges: [], names: new Set(), walks: new Set(), bundle: false, blind: { imports: 0, paths: 0, children: 0, git: 0 } })
 
@@ -381,11 +384,11 @@ function wholeScope(walk: string): string | null {
   return m ? (m[1] ?? '') : null
 }
 
-export function readWatchGraph(root: string, tracked: string[], named: Map<string, string[]>) {
+function readWatchGraph(root: string, tracked: string[], named: Map<string, string[]>) {
   const tree = treeOf(root, tracked)
   const memo = new Map<string, Facts>()
   const unread: string[] = []
-  const factsOf = (rel: string): Facts => {
+  const factsAt = (rel: string): Facts => {
     let facts = memo.get(rel)
     if (facts) return facts
     try {
@@ -411,7 +414,7 @@ export function readWatchGraph(root: string, tracked: string[], named: Map<strin
         for (let i = 0; i < frontier.length; i++) {
           const f = frontier[i]!
           if (f.startsWith('src/') !== fromSource || RUNNER.test(f)) continue
-          for (const e of factsOf(f).edges) {
+          for (const e of factsAt(f).edges) {
             if (!allowed.has(e.kind) || seen.has(e.to)) continue
             seen.set(e.to, { hops: fromSource ? hops + 1 : hops, via: f, kind: e.kind })
             ;(fromSource ? next : frontier).push(e.to)
@@ -455,7 +458,7 @@ export function readWatchGraph(root: string, tracked: string[], named: Map<strin
       blind.git += facts.blind.git
     }
     if (tree.files.has(runner)) read(runner, shellFacts(tree, runner, true))
-    for (const f of [...value.keys()].sort()) if (!f.startsWith('src/')) read(f, factsOf(f))
+    for (const f of [...value.keys()].sort()) if (!f.startsWith('src/')) read(f, factsAt(f))
     return { suite: row.suite, cls: row.cls, members: executed.filter(f => !f.startsWith('scripts/lib/')), deps, typed: every.size - value.size, naming, bundle: [] as string[], whole, blind }
   })
   const back = new Map<string, string[]>()
@@ -480,6 +483,45 @@ export function readWatchGraph(root: string, tracked: string[], named: Map<strin
   const parsed = [...memo.keys()]
   let edges = 0
   for (const facts of memo.values()) edges += facts.edges.length
-  const targets = (rel: string): string[] => factsOf(rel).edges.map(e => e.to)
+  const targets = (rel: string): string[] => factsAt(rel).edges.map(e => e.to)
   return { suites, targets, unread: unread.sort(), edges, files: { src: parsed.filter(f => f.startsWith('src/')).length, other: parsed.filter(f => !f.startsWith('src/')).length } }
+}
+
+function walkedFiles(root: string): string[] {
+  const out: string[] = []
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
+      if (UNLISTED.has(entry.name)) continue
+      const rel = dir === '' ? entry.name : `${dir}/${entry.name}`
+      if (entry.isDirectory()) walk(rel)
+      else out.push(rel)
+    }
+  }
+  walk('')
+  return out.sort()
+}
+
+function listedFiles(root: string): string[] {
+  let out = ''
+  try {
+    out = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] })
+  } catch {
+    out = ''
+  }
+  const files = [...new Set(out.split('\0').filter(Boolean))].sort()
+  return files.length > 0 ? files : walkedFiles(root)
+}
+
+export function watchGraphOf(root: string) {
+  const listed = listedFiles(root)
+  const fence = factsOf(root, { scripts: listed.filter(f => f.startsWith('scripts/')), src: srcOf(listed), listed: true })
+  const named = new Map<string, string[]>()
+  let opened = 0
+  let onlyNamed = 0
+  for (const [script, facts] of fence.facts) {
+    opened += facts.pins.size
+    onlyNamed += facts.namesOnly.size
+    if (facts.pins.size + facts.namesOnly.size > 0) named.set(script, [...facts.pins.keys(), ...facts.namesOnly.keys()])
+  }
+  return { ...readWatchGraph(root, listed, named), listed, fence: { opened, onlyNamed, scripts: named.size } }
 }
