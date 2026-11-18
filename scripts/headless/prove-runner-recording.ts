@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { FIXTURE_MODEL, fixtureCli, withFixtureRunner } from '../lib/builtProduct.ts'
@@ -382,6 +384,55 @@ async function mcpServerScene(): Promise<unknown> {
   }
 }
 
+async function standInDaemonScene(): Promise<unknown> {
+  const turns: ScriptedTurn[] = [handoffTurn(), { kind: 'text', text: 'Sent answer.' }]
+  const home = ownHome(true)
+  const daemonDir = join(dirname(home.dir), 'daemon')
+  mkdirSync(daemonDir, { recursive: true })
+  const preferred = join(daemonDir, 'control.sock')
+  const socketPath = Buffer.byteLength(preferred, 'utf8') <= 100 ? preferred : join(tmpdir(), `hermes-daemon-${createHash('sha1').update(daemonDir).digest('hex').slice(0, 12)}.sock`)
+  let reply = ''
+  const daemon = createServer(sock => {
+    let got = ''
+    let answered = false
+    sock.on('error', () => {})
+    sock.on('data', chunk => {
+      got += String(chunk)
+      if (answered || !got.includes('\n')) return
+      answered = true
+      sock.end(reply)
+    })
+  })
+  const calls: Taken[] = []
+  try {
+    return await withFixtureRunner(
+      turns,
+      async runner => {
+        await runner.prompt('say the sent answer')
+        await settled(runner, 1)
+        const session = runner.rows.find(row => row.type === 'session') as { session_id?: string; cwd?: string } | undefined
+        const own = String(session?.session_id)
+        writeFileSync(join(daemonDir, 'concourse-workers.json'), JSON.stringify({ version: 1, workers: { 'r-1': { runnerId: 'r-1', sessionId: own, workspaceId: String(session?.cwd), attachedAt: Date.now() } } }))
+        await new Promise<void>(done => daemon.listen(socketPath, done))
+        const a = (name: string, want: Want, answer: Record<string, unknown>): Promise<Answer> => {
+          reply = `${JSON.stringify(answer)}\n`
+          return call(runner, 'project/query', `to a stand-in daemon: ${name}`, want, { op: 'send', session_id: own, sender: 'a-client', message: 'words' }, 30_000, calls)
+        }
+        await a('it will not take the dispatch', 'refused', { ok: false, code: 'EREFUSED', error: 'the session is held by another caller' })
+        await a('a throw inside it', 'failed', { ok: false, code: 'EUNKNOWN', error: 'daemon error — boom' })
+        await a('it does not know the verb', 'failed', { ok: false, code: 'EUNKNOWN', error: 'unknown op: sessionDispatch' })
+        runner.end()
+        const code = await Promise.race([runner.exited, pause(30_000).then(() => 'still running' as const)])
+        return { calls, exit: code }
+      },
+      { env: { MERCURY_CONFIG_DIR: home.dir, MERCURY_DAEMON_DIR: daemonDir } },
+    )
+  } finally {
+    daemon.close()
+    rmSync(home.root, { recursive: true, force: true })
+  }
+}
+
 async function printRuns(): Promise<PrintRun[]> {
   const asksToRead: ScriptedTurn = { kind: 'tool_use', name: 'Read', input: { file_path: join(import.meta.dir, 'no-such-file') } }
   const refusal: ScriptedTurn = { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'the fixture says no' }
@@ -494,6 +545,8 @@ const laterScenes: Record<string, unknown> = {}
 laterScenes.closedAfterTurn = await closedAfterTurnScene()
 laterScenes.trustedFolder = await trustedFolderScene()
 laterScenes.mcpServer = await mcpServerScene()
+laterScenes.standInDaemon = await standInDaemonScene()
+const daemonCalls = (laterScenes.standInDaemon as { calls?: Taken[] }).calls ?? []
 const arms = [...RUNNER_REQUEST_METHODS, ...RUNNER_NOTIFICATION_METHODS]
 const requested = RUNNER_REQUEST_METHODS.filter(arm => taken.filter(t => t.arm === arm && t.want === 'answer').length >= 1 || taken.filter(t => t.arm === arm).length >= 3)
 const wrong = [...taken, ...takenLater].filter(t => classOf(t.answer) !== t.want)
@@ -540,6 +593,12 @@ check(
   "mercury mcp-server as built, asked over stdio as an MCP client asks: a letter whose sender is not the client's name is refused before the wire is asked, with a message and without one; in the client's own name a blank message prints the wire's message and then the sentence beside its parameter, a blank query the same, and a reference the wire refuses raises those words for a resource read",
   mcpSaid.length === 5 && mcpSaid[0] === DENIED && mcpSaid[1] === DENIED && mcpSaid[2] === 'error: invalid params for project/query: message: sender and message are required' && mcpSaid[3] === 'error: invalid params for project/query: query: query is required' && (mcpSaid[4] ?? '').includes('invalid params for project/query: ref: A mercury:// reference is required'),
   mcpSaid.join('\n      '),
+)
+const daemonSaid = daemonCalls.map(t => ('error' in t.answer ? `${String(t.answer.error.code)} ${JSON.stringify((t.answer.error.data as { kind?: string } | undefined)?.kind ?? null)} ${t.answer.error.message}` : 'answered'))
+check(
+  "from the bundle, project/query send to a live session whose daemon is a stand-in on its socket: the daemon's own refusal of the dispatch (EREFUSED) is the refusal of kind project with its sentence; a throw inside the daemon and a verb it does not know (EUNKNOWN) are the internal error, each with its sentence",
+  daemonSaid.length === 3 && daemonSaid[0] === '-32010 "project" the session is held by another caller' && daemonSaid[1] === '-32603 null daemon error — boom' && /^-32603 null the daemon is an older build/.test(daemonSaid[2] ?? ''),
+  daemonSaid.join('\n      '),
 )
 
 section('§2 four scripted print runs and one refused at boot, in the three formats')
