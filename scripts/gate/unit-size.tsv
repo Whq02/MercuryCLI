@@ -143,8 +143,8 @@ src/tools/BashTool/denyRuleReach.ts	unit	reachOf	504
 src/tools/BrowserTool/BrowserTool.ts	file	-	2896
 src/tools/BrowserTool/BrowserTool.ts	unit	BrowserTool	1526
 src/tools/ChangeSetTool/ChangeSetTool.ts	unit	runApply	516
-src/tools/ComputerTool/ComputerTool.ts	file	-	2131
-src/tools/ComputerTool/ComputerTool.ts	unit	ComputerTool	832
+src/tools/ComputerTool/ComputerTool.ts	file	-	2129
+src/tools/ComputerTool/ComputerTool.ts	unit	ComputerTool	829
 src/tools/DebugTool/DebugTool.ts	unit	runOp	712
 src/tools/FileEditTool/FileEditTool.ts	file	-	1702
 src/tools/FileEditTool/FileEditTool.ts	unit	FileEditTool	959

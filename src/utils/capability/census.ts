@@ -293,8 +293,9 @@ export function censusGapLines(
     const parts: string[] = []
     if (row.support === 'unavailable' && gate !== undefined) {
       const kind = flagKind(gate)
-      const state = kind === 'opt-in' ? 'unset (an opt-in flag)' : kind === 'default-on' ? 'turned off' : 'off'
-      if (kind !== 'default-on' || conditions.length === 0 || !flagOn(gate)) parts.push(`${gate} ${state}`)
+      if (kind === 'opt-in') parts.push(`${gate} ${flagOn(gate) ? 'turned on' : 'unset (an opt-in flag)'}`)
+      else if (kind !== 'default-on') parts.push(`${gate} off`)
+      else if (!flagOn(gate)) parts.push(`${gate} turned off`)
     }
     if (conditions.length > 0) parts.push(`needs ${conditions.join(' · ')}`)
     const reason = parts.length > 0 ? parts.join(' · ') : CENSUS_NO_REASON

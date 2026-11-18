@@ -303,6 +303,7 @@ section('§5 the schema, the prompt and the words')
   const prompt = await ComputerTool.prompt({ getToolPermissionContext: async () => context.getAppState().toolPermissionContext, tools: [], agents: [] })
   const description = (ComputerTool.inputJSONSchema as { properties: { captcha: { description: string } } }).properties.captcha.description
   check('the captcha field says it asks the operator, and the prompt carries no captcha lecture', /ask/i.test(description) && /operator/i.test(description) && !/captcha/i.test(prompt), `${description}\n${prompt}`)
+  check('the prompt the model is handed: no sentence tells a model not to try', !DO_NOT_TRY.test(prompt), (DO_NOT_TRY.exec(prompt) ?? [''])[0])
   for (const file of ['src/tools/ComputerTool/captcha.ts', 'src/tools/ComputerTool/ComputerTool.ts', 'src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx', 'docs/COMPUTER-USE.md']) {
     const text = readFileSync(join(ROOT, file), 'utf8')
     check(`${file}: no sentence tells a model not to try`, !DO_NOT_TRY.test(text), (DO_NOT_TRY.exec(text) ?? [''])[0])

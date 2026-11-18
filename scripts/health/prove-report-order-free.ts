@@ -19,24 +19,34 @@ interface Run {
 
 const ROTATE = 11
 const FOLDER = 'src/utils/health/sections'
+const PLANTED = 'op-planted.json'
 
 if (process.argv[2] === '--child') {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const mode = process.argv[3] as Mode
   const depth = process.argv[4] as Depth
+  const planted = process.argv[6] === PLANTED
+  if (planted) {
+    const { changeSetJournalDir } = await import('../../src/services/changeTransaction/changeSetContracts.ts')
+    mkdirSync(changeSetJournalDir(), { recursive: true })
+    writeFileSync(join(changeSetJournalDir(), PLANTED), 'not an operation')
+  }
   const { HEALTH_SECTIONS } = await import('../../src/utils/health/sections.ts')
   const { runHealthReport } = await import('../../src/utils/healthReport.ts')
   const inOrder = [...HEALTH_SECTIONS]
   const ordered = mode === 'reversed' ? [...inOrder].reverse() : mode === 'rotated' ? [...inOrder.slice(ROTATE), ...inOrder.slice(0, ROTATE)] : inOrder
   const called: string[] = []
-  const handed = ordered.map(entry => ({
-    id: entry.id,
-    title: entry.title,
-    checks: (context: Parameters<typeof entry.checks>[0]) => {
-      called.push(entry.id)
-      return entry.checks(context)
-    },
-  }))
+  const handed = ordered
+    .filter(entry => !planted || entry.id === 'durability')
+    .map(entry => ({
+      id: entry.id,
+      title: entry.title,
+      checks: async (context: Parameters<typeof entry.checks>[0]) => {
+        called.push(entry.id)
+        const rows = await entry.checks(context)
+        return planted ? rows.filter(row => row.id === 'durable-journals' || row.id === 'store-quarantines').reverse() : rows
+      },
+    }))
   const cert = await runHealthReport({ depth }, handed)
   const rows: Record<string, RowWords> = {}
   for (const section of cert.sections) {
@@ -69,6 +79,7 @@ const MASKS: Array<[string | null, (typeof FIELDS)[number], RegExp, string]> = [
   ['js-debugger', 'evidence', /127\.0\.0\.1:(\d+)/, 'the port the operating system handed out'],
   ['iface-computer-use', 'detail', /frontmost: ([^\n]+)/, 'the application in front at that second'],
   ['config-home', 'evidence', /keychain …(\S+)/, 'the keychain suffix of the scratch home'],
+  ['memory', 'evidence', /\/projects\/([^/\s]+)\/memory\//, "the project's memory folder, which the store names after the project's path with every separator turned to a dash: each run has a folder of its own"],
   [null, 'evidence', /last write (\d+)s ago/g, 'seconds since a write'],
   [null, 'evidence', /last rollup (\d+)s ago/g, 'seconds since a rollup'],
   [null, 'evidence', /(\d+)s old/g, 'an age in seconds'],
@@ -76,16 +87,15 @@ const MASKS: Array<[string | null, (typeof FIELDS)[number], RegExp, string]> = [
 
 const scratch = mkdtempSync(join(tmpdir(), 'health-order-'))
 
-async function runOrder(mode: Mode, depth: Depth, name: string): Promise<{ run: Run | null; places: string[]; why: string }> {
+async function runOrder(mode: Mode, depth: Depth, name: string, plant = ''): Promise<{ run: Run | null; places: string[]; why: string }> {
   const root = join(scratch, `${depth}-${name}`)
   const home = join(root, 'home')
   const cwd = join(root, 'project')
   mkdirSync(home, { recursive: true })
   mkdirSync(cwd, { recursive: true })
   const out = join(root, 'run.json')
-  const folders = [home, cwd, realpathSync(home), realpathSync(cwd)]
-  const places = [...new Set([...folders, ...folders.map(folder => folder.replace(/[^A-Za-z0-9]/g, '-'))])].sort((a, b) => b.length - a.length)
-  const child = spawn(process.execPath, [import.meta.path, '--child', mode, depth, out], { cwd, env: { ...process.env, MERCURY_CONFIG_DIR: home }, stdio: ['ignore', 'pipe', 'pipe'] })
+  const places = [...new Set([home, cwd, realpathSync(home), realpathSync(cwd)])].sort((a, b) => b.length - a.length)
+  const child = spawn(process.execPath, [import.meta.path, '--child', mode, depth, out, plant], { cwd, env: { ...process.env, MERCURY_CONFIG_DIR: home }, stdio: ['ignore', 'pipe', 'pipe'] })
   let said = ''
   child.stdout.on('data', chunk => (said += String(chunk)))
   child.stderr.on('data', chunk => (said += String(chunk)))
@@ -149,21 +159,45 @@ for (const depth of ['fast', 'deep'] as const) {
   check(`the report ran the list it was handed, in the order handed (${first.run.handed[0]} first, ${reversed.run.handed[0]} first, ${rotated.run.handed[0]} first)`, ran.length === 0, ran)
 
   const control = differences({ run: first.run, places: first.places }, { run: second.run, places: second.places })
-  const moving = new Set(control.map(d => `${d.id}.${d.field}`))
-  console.log(`  two runs in the list's own order: ${control.length === 0 ? 'every row prints the same' : `${control.length} field(s) move between them and are set aside below: ${[...moving].join(', ')}`}`)
-  for (const d of control) console.log(`     ${d.id}.${d.field}: ${cut(d.a, d.b)} | ${cut(d.b, d.a)}`)
+  check(
+    `${depth}: two runs with the list in its own order print the same, row for row (${Object.keys(first.run.rows).length} rows; ${MASKS.length} masked places and each run's own folders aside)`,
+    control.length === 0,
+    control.flatMap(d => [
+      `the row '${d.id}' prints another ${d.field} in a second run of the same order: the row is not steady on this machine, and nothing is set aside for it — make the row print the same, or add its moving part to MASKS in this file with the reason`,
+      `   first run: ${cut(d.a, d.b)}`,
+      `   second run: ${cut(d.b, d.a)}`,
+    ]),
+  )
   for (const other of [reversed, rotated]) {
-    const found = differences({ run: first.run, places: first.places }, { run: other.run!, places: other.places }).filter(d => !moving.has(`${d.id}.${d.field}`))
+    const found = differences({ run: first.run, places: first.places }, { run: other.run!, places: other.places })
     check(
       `${depth}: every row prints the same by id with the list ${other.run!.mode}${other.run!.mode === 'rotated' ? ` by ${ROTATE}` : ''} (${Object.keys(first.run.rows).length} rows)`,
       Object.keys(first.run.rows).length > 100 && found.length === 0,
       found.flatMap(d => [
-        `the row '${d.id}' prints another ${d.field} when its section runs in another place: it reads what another row settled or left behind — in its file under ${FOLDER}/, settle what the row reads before it reads it, or name the row it waits for with dependsOn`,
+        `the row '${d.id}' prints another ${d.field} when its section runs in another place: it reads what another row settled or left behind — in its file under ${FOLDER}/, settle what the row reads before it reads it (the runner keeps no order between rows beyond starting the deep ones after the fast ones)`,
         `   in the list's order: ${cut(d.a, d.b)}`,
         `   ${other.run!.mode}: ${cut(d.b, d.a)}`,
       ]),
     )
   }
+}
+
+section('a row settles what it reads: an undecodable journal file in the home is named by the Store quarantines row of the same report, with that row started first (the two rows handed alone, in that order)')
+{
+  const planted = await runOrder('list', 'fast', 'refused-journal', PLANTED)
+  const quarantines = planted.run?.rows['store-quarantines']
+  const journals = planted.run?.rows['durable-journals']
+  check(
+    'the Store quarantines row, started before the Operation journals row has read the folder, names the file in that same report',
+    journals?.status === 'ok' && quarantines?.status === 'warn' && quarantines.evidence?.startsWith('1 damaged-store event(s) in the last 24h (1 on the ledger) — latest: operation-journal (') === true && quarantines.evidence.includes(`${PLANTED} is not a decodable operation`) && quarantines.evidence.endsWith(', bytes left in place'),
+    planted.run === null
+      ? [planted.why]
+      : [
+          `the row 'store-quarantines' read the recovery ledger before the journal scan had written the refusal to it: in ${FOLDER}/durability.ts the row awaits the scan it shares with 'durable-journals' (journalScan) before it reads the ledger`,
+          `   store-quarantines: ${quarantines?.status}: ${quarantines?.evidence}`,
+          `   durable-journals: ${journals?.status}: ${journals?.evidence}`,
+        ],
+  )
 }
 
 rmSync(scratch, { recursive: true, force: true })

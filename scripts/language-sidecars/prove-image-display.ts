@@ -7,6 +7,18 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const ESC = String.fromCharCode(27)
+const NO_DECODER = 'Could not load the "sharp" module using the fixture runtime'
+
+if (process.argv[2] === '--no-decoder') {
+  const { mock } = await import('bun:test')
+  mock.module('sharp', () => {
+    throw new Error(NO_DECODER)
+  })
+  const says = await (await import('../../src/utils/health/sections/crew.ts')).crewChecks().find(row => row.id === 'image-decode')?.run()
+  const tier = (await import('../../src/services/visual/imageDisplay.ts')).detectImageProtocol()
+  console.log(JSON.stringify({ says, tier }))
+  process.exit(0)
+}
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -221,6 +233,18 @@ console.log('\nWI-6 — link fallback when native decode is unavailable:')
       const tier = (await import('../../src/services/visual/imageDisplay.ts')).detectImageProtocol()
       return says !== undefined && (says.status === 'ok' ? says.evidence === `native decode available · detected tier: ${tier}` : says.status === 'warn' && says.evidence.startsWith('images render as file links on this install') && says.evidence.endsWith(`detected tier: ${tier}`))
     })(),
+  )
+  const child = spawnSync(process.execPath, [import.meta.path, '--no-decoder'], { encoding: 'utf8', timeout: 60_000 })
+  let undecoded: { says?: { status: string; evidence: string; fix?: string }; tier?: string } = {}
+  try {
+    undecoded = JSON.parse(child.stdout.trim().split('\n').pop() ?? '{}')
+  } catch {
+    undecoded = {}
+  }
+  check(
+    "/health on an install whose decoder does not load (a fresh process in which the module refuses): the row warns, says images render as file links, gives the loader's own words and the tier, and its fix is the update",
+    undecoded.says?.status === 'warn' && undecoded.says.evidence === `images render as file links on this install — native decode unavailable (${NO_DECODER}); detected tier: ${undecoded.tier}` && undecoded.says.fix?.startsWith('Reinstall via `mercury update` to restore the bundled image binding') === true,
+    `${undecoded.says?.status}: ${undecoded.says?.evidence}${child.status === 0 ? '' : ` · the child exited ${child.status}: ${child.stderr.slice(-240)}`}`,
   )
 }
 

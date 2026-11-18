@@ -78,5 +78,28 @@ check(
   credentialed?.evidence,
 )
 
+{
+  const { mock } = await import('bun:test')
+  const registryPath = join(ROOT, 'src', 'services', 'providers', 'modelRegistry.ts')
+  const registry = { ...(await import(registryPath)) }
+  const honest = registry.buildProviderSnapshot()
+  const seated = async (seat: 'gpt' | 'glm', provider: string): Promise<{ status: string; evidence: string; fix?: string } | undefined> => {
+    mock.module(registryPath, () => ({
+      ...registry,
+      buildProviderSnapshot: () => ({ ...honest, resolve: (modelClass: string) => (modelClass === seat ? { provider, model: `${seat}-fixture`, modelClass: seat, effort: 'high', contextWindow: 200_000 } : honest.resolve(modelClass)) }),
+    }))
+    const says = await (await authChecks()).find(row => row.id === 'provider-slots')?.run()
+    mock.module(registryPath, () => registry)
+    return says
+  }
+  const BROKE = 'Provider resolution broke an invariant — report this.'
+  const glmElsewhere = await seated('glm', 'openai')
+  check('a glm seat that resolves on another engine than Z.AI breaks the row (the registry stubbed to answer one): fail, seat-law=false, and the fix says to report it', glmElsewhere?.status === 'fail' && glmElsewhere.evidence.startsWith('provider honesty broke: ') && glmElsewhere.evidence.includes(' seat-law=false ') && glmElsewhere.fix === BROKE, `${glmElsewhere?.status}: ${glmElsewhere?.evidence}`)
+  const gptElsewhere = await seated('gpt', 'zai')
+  check('a gpt seat that resolves on another engine than OpenAI breaks it the same way', gptElsewhere?.status === 'fail' && gptElsewhere.evidence.includes(' seat-law=false ') && gptElsewhere.fix === BROKE, `${gptElsewhere?.status}: ${gptElsewhere?.evidence}`)
+  const glmAtHome = await seated('glm', 'zai')
+  check('the same seat on its own engine reads ok and the row names it', glmAtHome?.status === 'ok' && glmAtHome.evidence.endsWith(' · engine seats: glm→glm-fixture (explicit slots only)') && glmAtHome.fix === undefined, `${glmAtHome?.status}: ${glmAtHome?.evidence}`)
+}
+
 console.log(failures === 0 ? '\n✅ provider-slots honesty law holds' : `\n❌ ${failures} check(s) failed`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 
 process.chdir(resolve(import.meta.dir, '..', '..'))
@@ -58,6 +59,29 @@ t.section('§2 the IDE plane row names the macOS authorisation state: both answe
   )
   t.check('with the authorisation on the row says nothing of native debug and carries no fix for it', !/native debug|DevToolsSecurity/.test(`${on.evidence}\n${on.detail}\n${on.fix ?? ''}`), `${on.evidence} | ${on.detail} | ${on.fix}`)
   t.check("the list runs that row once, with the machine's own probe", codingLoopFastChecks().filter(row => row.id === 'ide-plane-fast').length === 1)
+  const PYTHON_FIX = 'Install Python 3, or point MERCURY_PYTHON at one.'
+  const empty = mkdtempSync(join(tmpdir(), 'no-python-on-path-'))
+  const names = ['PATH', 'MERCURY_PYTHON', 'VIRTUAL_ENV', 'CONDA_PREFIX'] as const
+  const before = names.map(name => [name, process.env[name]] as const)
+  for (const name of names) delete process.env[name]
+  process.env.PATH = empty
+  const bareOff = await idePlaneFastCheck(() => OFF).run()
+  const bareOn = await idePlaneFastCheck(() => ON).run()
+  for (const [name, value] of before) {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+  }
+  rmSync(empty, { recursive: true, force: true })
+  t.check(
+    "on a host with no Python (a PATH that holds none, no pin, no environment) and the authorisation off, the row names both: Python unavailable first, the authorisation in the evidence and the owner's line in the detail, and the fix is Python's",
+    bareOff.status === 'warn' && bareOff.evidence.startsWith('python UNAVAILABLE (') && bareOff.evidence.endsWith(' · native debug authorisation OFF') && bareOff.detail?.includes(`native debug: ${hintOff}`) === true && bareOff.fix === PYTHON_FIX,
+    `${bareOff.status}: ${bareOff.evidence} | ${bareOff.fix}`,
+  )
+  t.check(
+    "on that host with the authorisation on, the row names Python alone and its fix is Python's",
+    bareOn.evidence.startsWith('python UNAVAILABLE (') && !/native debug|DevToolsSecurity/.test(`${bareOn.evidence}\n${bareOn.detail}\n${bareOn.fix ?? ''}`) && bareOn.fix === PYTHON_FIX,
+    `${bareOn.status}: ${bareOn.evidence} | ${bareOn.fix}`,
+  )
 }
 
 t.section('§3 the debugger doc')

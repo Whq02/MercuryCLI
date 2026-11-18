@@ -216,6 +216,35 @@ function check(name: string, ok: boolean, detail?: string): void {
     godot.enabled && godot.projectRoot ? /godot editor (NOT )?listening :\d+/.test(says?.evidence ?? '') : says?.evidence.includes(godotWords) === true,
     says?.evidence,
   )
+  const net = await import('node:net')
+  const { mkdtempSync, rmSync, writeFileSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const game = mkdtempSync(path.join(tmpdir(), 'lsp-godot-project-'))
+  writeFileSync(path.join(game, 'project.godot'), 'config_version=5\n')
+  const editor = net.createServer()
+  await new Promise<void>(resolve => editor.listen(0, '127.0.0.1', () => resolve()))
+  const port = (editor.address() as { port: number }).port
+  const armed = [['MERCURY_GODOT', '1'], ['MERCURY_GODOT_LSP_PORT', String(port)], ['MERCURY_LSP', undefined]] as const
+  const before = armed.map(([name]) => [name, process.env[name]] as const)
+  for (const [name, value] of armed) {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+  }
+  const lspRow = runtimeChecks().find(row => row.id === 'lsp')
+  const listening = await runWithCwdOverride(game, async () => lspRow?.run())
+  await new Promise<void>(resolve => editor.close(() => resolve()))
+  const dark = await runWithCwdOverride(game, async () => lspRow?.run())
+  for (const [name, value] of before) {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+  }
+  rmSync(game, { recursive: true, force: true })
+  check(
+    'health list: in a Godot project with the lane armed the row asks the port: listening while something listens there, and NOT listening, with the way to open the editor, once nothing does',
+    listening?.evidence.includes(`godot editor listening :${port}`) === true && dark?.evidence.includes(`godot editor NOT listening :${port} — open the project in the Godot editor`) === true,
+    `${listening?.evidence} | ${dark?.evidence}`,
+  )
 }
 
 {
