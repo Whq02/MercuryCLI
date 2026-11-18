@@ -2,7 +2,7 @@
 import { appendFileSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 type Reply = Record<string, unknown>
@@ -59,10 +59,18 @@ const STEP_BUDGET_MS = 20_000
 
 const realSetTimeout = globalThis.setTimeout
 const realClearTimeout = globalThis.clearTimeout
+const realSetInterval = globalThis.setInterval
+const realClearInterval = globalThis.clearInterval
 const realSetImmediate = globalThis.setImmediate
 const RealDate = Date
 
 type FakeTimer = { id: number; at: number; every: number | null; run: () => void; dead: boolean }
+
+const PRODUCT = join(import.meta.dir, '..', '..', 'src') + sep
+const armedByTheProduct = (): boolean => {
+  const stack = new Error().stack ?? ''
+  return stack.includes(PRODUCT) || stack.includes(PRODUCT.split(sep).join('/'))
+}
 
 function installClock(): { now: () => number; advance: (ms: number) => void } {
   let now = CLOCK_ZERO
@@ -80,20 +88,22 @@ function installClock(): { now: () => number; advance: (ms: number) => void } {
     return handle
   }
   const arm = (every: boolean) => (fn: (...args: unknown[]) => void, ms?: number, ...args: unknown[]): unknown => {
+    if (!armedByTheProduct()) return (every ? realSetInterval : realSetTimeout)(fn, ms, ...args)
     const delay = typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? ms : 0
     const timer: FakeTimer = { id: nextId++, at: now + delay, every: every ? Math.max(1, delay) : null, run: () => fn(...args), dead: false }
     timers.push(timer)
     return handleOf(timer)
   }
-  const disarm = (handle: unknown): void => {
+  const disarm = (real: (handle: never) => void) => (handle: unknown): void => {
     const timer = (handle as { fake?: FakeTimer } | null | undefined)?.fake
     if (timer !== undefined) timer.dead = true
+    else if (handle !== undefined && handle !== null) real(handle as never)
   }
   const g = globalThis as Record<string, unknown>
   g.setTimeout = arm(false)
   g.setInterval = arm(true)
-  g.clearTimeout = disarm
-  g.clearInterval = disarm
+  g.clearTimeout = disarm(realClearTimeout)
+  g.clearInterval = disarm(realClearInterval)
   g.Date = new Proxy(RealDate, {
     construct: (target, args: unknown[]) => (args.length === 0 ? new target(now) : new (target as new (...a: unknown[]) => Date)(...args)),
     apply: target => new target(now).toString(),
