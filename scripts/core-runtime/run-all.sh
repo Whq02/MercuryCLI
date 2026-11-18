@@ -17,6 +17,7 @@
 # gate-watch: scripts/ink-runtime/ansiEmulator.ts scripts/ink-runtime/frameHarness.ts
 # gate-watch: src/services/tools/loopGuard* src/services/tools/toolExecution*
 # gate-watch: src/run-core/pauseGate* src/run-core/turn-machine* src/services/tools/toolOrchestration*
+# gate-watch: src/run-core/turn/**
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/lib/seatDoor.ts
 # gate-watch: scripts/compact/overflowFixture.ts
@@ -70,6 +71,12 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-runloop-contract.ts 
 
 echo "── core-runtime: the turn machine, recorded scenario by scenario"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-turn-recording.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-turn-recording.ts "$__t" "$__rc"
+
+echo "── core-runtime: the steps of a turn, each called with a planted state"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-turn-steps.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-turn-steps.ts "$__t" "$__rc"
+
+echo "── core-runtime: the rules of the reply that asks for no tool stand in their order, and the turn machine has one door"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-turn-rule-order.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-turn-rule-order.ts "$__t" "$__rc"
 
 echo "── core-runtime: the pause gate parks every loop at its two safe points"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-pause-gate.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-pause-gate.ts "$__t" "$__rc"
