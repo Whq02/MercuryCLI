@@ -87,13 +87,21 @@ section('§B B04 — the View-only path is projection-only')
   for (const forbidden of ['setMessages(', 'setConversationId', 'resetSessionFilePointer', 'removeTranscriptMessage', 'createBranchSession']) {
     check(`the Chat view callback never touches ${forbidden}`, !viewCb.includes(forbidden))
   }
-  const enterBlock = between(replSrc, 'const handleEnterTranscript', 'const handleExitTranscript', 'enter handler')
-  const exitBlock = between(replSrc, 'const handleExitTranscript', 'const globalKeybindingProps', 'exit handler')
-  check('enter freezes display lengths only', enterBlock.includes('setFrozenTranscriptState({'))
-  check('exit clears the frozen state (projection-only return)', exitBlock.includes('setFrozenTranscriptState(null)'))
-  for (const forbidden of ['setMessages(', 'setConversationId']) {
-    check(`enter/exit never touch ${forbidden}`, !enterBlock.includes(forbidden) && !exitBlock.includes(forbidden))
-  }
+  const { openTranscriptPart } = await import('../ui/chatScenarios.ts')
+  const { conversationIdHere } = await import('../../src/services/engine-connector/focusedConnector.js')
+  const view = await openTranscriptPart('b07-view-flip', { keepHome: true })
+  const rows = view.rowsOf(4)
+  const conversation = conversationIdHere()
+  await view.setRows(rows.slice(0, 2))
+  await view.act(() => view.part.value().handleEnterTranscript())
+  await view.setRows(rows)
+  const frozen = view.part.value().transcriptMessages
+  check('enter freezes display lengths only', frozen.length === 2 && frozen[0] === rows[0] && frozen[1] === rows[1], `${frozen.length} rows shown of ${rows.length}`)
+  await view.act(() => view.part.value().handleExitTranscript())
+  check('exit clears the frozen state (projection-only return)', view.part.value().transcriptMessages === rows)
+  check('enter/exit never touch the rows of the session', rows.length === 4 && view.touched.length === 0, `${rows.length} rows · ${view.touched.join(',')}`)
+  check('enter/exit never touch the conversation id', conversationIdHere() === conversation, `${conversation} → ${conversationIdHere()}`)
+  await view.close()
 }
 
 const SID = 'b7b7b7b7-c2c2-d3d3-e4e4-f5f5f5f5f5f5'

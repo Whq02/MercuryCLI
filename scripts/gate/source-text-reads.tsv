@@ -16,7 +16,7 @@ scripts/accounts/prove-picker-adopts-signin-from-another-process.ts	2	7	aef8cbf9
 scripts/accounts/prove-reauth-lands-home.ts	3	23	da0fcb5640ed
 scripts/accounts/prove-removal-total.ts	2	5	5057e07aad2b
 scripts/accounts/prove-session-account-chip.ts	5	17	18c68a2da035
-scripts/accounts/prove-sign-in-checked-before-send.ts	2	5	d093850a11c1
+scripts/accounts/prove-sign-in-checked-before-send.ts	2	3	d093850a11c1
 scripts/accounts/prove-signed-out-runner-adopts-credential.ts	1	6	79c8101c1f2a
 scripts/accounts/prove-signin-epoch-live.ts	5	10	0c3cc9dff98b
 scripts/accounts/prove-signin-names-the-landed-account.ts	1	7	b57029b0a389
@@ -87,7 +87,7 @@ scripts/api/prove-switch-row-says-default.ts	3	5	765b63b0c611
 scripts/api/prove-transport-truth.ts	6	14	d329c51b641a
 scripts/api/prove-unrecognised-4xx-sentence.ts	2	2	d8779a7d9d0d
 scripts/api/prove-watchdog-pool-reset.ts	2	4	0da3c54019d1
-scripts/apollo/prove-apollo-exit.ts	5	5	a3c81eadbe2d
+scripts/apollo/prove-apollo-exit.ts	4	4	8748af33cbad
 scripts/apollo/prove-apollo-mode.ts	24	53	abfc81fbd608
 scripts/attachments/prove-image-road.ts	2	0	bc5990e07f77
 scripts/attention/prove-attach-return.ts	2	4	08c39bb3ae66
@@ -156,7 +156,7 @@ scripts/capabilities/prove-capability-wiring.ts	1	2	ca92d1afe836
 scripts/changesets/prove-changeset-migration.ts	4	12	e82fa978fa7e
 scripts/changesets/prove-compensation-isolation.ts	1	9	1e497c20f454
 scripts/cockpit-interaction/prove-action-graph.ts	2	4	4af231053872
-scripts/cockpit-interaction/prove-adaptive-density.ts	3	14	d98f1d3fd9a1
+scripts/cockpit-interaction/prove-adaptive-density.ts	2	12	1eb6e21de13f
 scripts/cockpit-interaction/prove-cockpit-wiring.ts	6	24	c43cd3771155
 scripts/cockpit-interaction/prove-concourse-two-panes.ts	2	4	2f417bf255f6
 scripts/cockpit-interaction/prove-critter-mark.ts	4	5	23c61a39930f
@@ -172,7 +172,7 @@ scripts/cockpit-interaction/prove-select-home-end-wheel.ts	2	5	43b3548f4ae0
 scripts/cockpit-interaction/prove-shipped-keys-pins.ts	1	0	584594c7b392
 scripts/cockpit-interaction/prove-sleep-redirect.ts	2	7	8ba2e473eedb
 scripts/cockpit-interaction/prove-spectral-depth.ts	2	3	a303218c2eff
-scripts/cockpit-interaction/prove-tool-projection.ts	6	21	f6636e811246
+scripts/cockpit-interaction/prove-tool-projection.ts	5	18	10e23d1fd022
 scripts/command-catalogue/prove-effective-catalogue.ts	3	3	86b010ea25b5
 scripts/command-catalogue/prove-feedback-issue-road.ts	1	1	d41a137e2ea0
 scripts/command-catalogue/prove-settings-popup-commands.ts	3	9	e5263b8666d6
@@ -243,7 +243,7 @@ scripts/core-runtime/prove-face-birth-ground.ts	2	0	81a8f172b388
 scripts/core-runtime/prove-field-findings-input-family.ts	3	3	9d20e11e97f4
 scripts/core-runtime/prove-fork-usage-fold.ts	1	5	63d6cad9da92
 scripts/core-runtime/prove-idle-drop-receipt.ts	3	5	fc75a9b7edda
-scripts/core-runtime/prove-inputsched-contract.ts	11	63	8c3426b5c667
+scripts/core-runtime/prove-inputsched-contract.ts	11	56	8c3426b5c667
 scripts/core-runtime/prove-ledger-every-exit.ts	2	11	a097cb5285d7
 scripts/core-runtime/prove-ledger-resume-rebuild.ts	5	13	f97001ee47d1
 scripts/core-runtime/prove-metering-s3-truth.ts	4	9	b1d35c20100a
@@ -522,7 +522,7 @@ scripts/interaction/prove-board-coverage.ts	5	10	8b8c1315f397
 scripts/interaction/prove-chord-grace.ts	1	7	dcfb8579e4fb
 scripts/interaction/prove-click-expand.ts	8	16	a7e2f07a125d
 scripts/interaction/prove-composer-editing.ts	12	25	e8bae8e1e693
-scripts/interaction/prove-composer-input-claims.ts	10	19	54fdbabfadb1
+scripts/interaction/prove-composer-input-claims.ts	10	18	54fdbabfadb1
 scripts/interaction/prove-composer-mouse.ts	5	15	aea0ca78e6fc
 scripts/interaction/prove-composer-notice-row.ts	4	28	5efc4dd86bd3
 scripts/interaction/prove-copy-reply-intact.ts	5	4	d20b38cc7834
@@ -667,7 +667,7 @@ scripts/model-transition/prove-transition-a04-acp-transition.ts	3	3	fa847e2d67b9
 scripts/model-transition/prove-transition-a06-receipt-lineage.ts	5	7	b1182bd7eb60
 scripts/model-transition/prove-transition-a08-compat-independence.ts	8	7	fc1085df02e7
 scripts/model-transition/prove-transition-b-replay-core.ts	1	3	27be35de5d3f
-scripts/model-transition/prove-transition-b07-timeline.ts	3	47	9540cbda7b94
+scripts/model-transition/prove-transition-b07-timeline.ts	3	39	9540cbda7b94
 scripts/model-transition/prove-transition-c-selection-core.ts	1	6	43834e131535
 scripts/model-transition/prove-transition-d-activity.ts	3	9	b9608e939f58
 scripts/model-transition/prove-transition-daemon-facts.ts	2	9	31ced5468e18
@@ -1096,7 +1096,7 @@ scripts/switchboard/prove-one-door-lifecycle.ts	18	103	ae0615f36437
 scripts/switchboard/prove-operator-now-cell.ts	2	7	a4b49f91ca01
 scripts/switchboard/prove-projects-truth.ts	5	24	249a06fda7dc
 scripts/switchboard/prove-seat-ceiling.ts	2	2	036de2b394f0
-scripts/switchboard/prove-seat-covered-dialog-gate.ts	4	15	1bef684c8cf9
+scripts/switchboard/prove-seat-covered-dialog-gate.ts	4	14	1bef684c8cf9
 scripts/switchboard/prove-seat-lifecycle.ts	9	102	b88cf1c81dde
 scripts/switchboard/prove-seat-setting.ts	4	11	b8414dcac555
 scripts/switchboard/prove-seat-vocabulary.ts	4	7	e07cde51643a
@@ -1111,7 +1111,7 @@ scripts/switchboard/prove-split-view.ts	5	31	0b7d2405f07d
 scripts/switchboard/prove-status-prune.ts	4	45	8d4b40c37311
 scripts/switchboard/prove-strip-bridge-drive.ts	1	5	03a76e4a09f5
 scripts/switchboard/prove-swift-entry-gate.ts	4	15	4c0ccada8db9
-scripts/switchboard/prove-swift-entry-warmth.ts	3	16	d6e592462fb1
+scripts/switchboard/prove-swift-entry-warmth.ts	3	15	d6e592462fb1
 scripts/switchboard/prove-w0-laws.ts	9	42	ddd4be7d35c9
 scripts/task-durability/prove-mo5-census-and-artifact.ts	16	17	5feaf773e9ee
 scripts/tensorfold/prove-tensorfold-adapter.ts	1	2	7f9ab6641b35
@@ -1176,7 +1176,7 @@ scripts/tools/prove-turn-cut-words.ts	1	1	4132e64ccd52
 scripts/tools/prove-windows-editor-path.ts	1	1	ba7d786d3318
 scripts/tools/prove-withheld-tools.ts	3	6	39ea12c198b6
 scripts/transcript-rows/prove-append-identity.ts	3	6	0b19fffeb3d4
-scripts/transcript-rows/prove-composer-seed.ts	4	9	342e967907e8
+scripts/transcript-rows/prove-composer-seed.ts	4	8	342e967907e8
 scripts/transcript-rows/prove-landing-keeps-typed-words.ts	2	3	fbf86eb6bb9e
 scripts/transcript-rows/prove-motion-governor.ts	6	14	b5dbce34073d
 scripts/transcript-rows/prove-motion-hierarchy.ts	6	20	fc7a5779eb23
@@ -1215,11 +1215,11 @@ scripts/ui/prove-composer-persist-roads.ts	9	5	a9c0e0111792
 scripts/ui/prove-concourse-arrow-focus.ts	3	17	ae109f56e654
 scripts/ui/prove-concourse-caret-vertical.ts	1	11	848e5fc01bab
 scripts/ui/prove-concourse-compact-drive.ts	2	21	bb1093e5295e
-scripts/ui/prove-consent-queue-marker.ts	2	7	c77366c16cc1
+scripts/ui/prove-consent-queue-marker.ts	1	4	0cb40101b51c
 scripts/ui/prove-content-search.ts	4	19	e04933c42f5b
 scripts/ui/prove-contract-card-fit.ts	2	3	32bd40e1d941
 scripts/ui/prove-crews-dialog-gone.ts	4	11	92d32aff27b1
-scripts/ui/prove-ctrl-o-stable.ts	1	5	39a39ece9c17
+scripts/ui/prove-ctrl-o-stable.ts	1	4	39a39ece9c17
 scripts/ui/prove-cwd-ground-beat.ts	10	24	c7e781183340
 scripts/ui/prove-declared-keys-unshadowed.ts	37	24	b54e2c687939
 scripts/ui/prove-deepseek-live-rows-drive.ts	1	1	15870076997b
@@ -1231,7 +1231,7 @@ scripts/ui/prove-diff-width-fork.ts	4	17	ff46ced03b7a
 scripts/ui/prove-draft-per-session.ts	3	10	1a4be96e4282
 scripts/ui/prove-effort-chip-first-frame.ts	3	3	29cc07ddb4ea
 scripts/ui/prove-everyday-words.ts	1	0	730e86dd8ef2
-scripts/ui/prove-exit-reachability.ts	42	32	4d25cde65504
+scripts/ui/prove-exit-reachability.ts	41	32	c4ca0140bd2c
 scripts/ui/prove-exit-roads-disarm.ts	4	19	03e3014304a0
 scripts/ui/prove-fable-weekly-window.ts	1	2	a9419c821e5d
 scripts/ui/prove-face-doors.ts	11	64	0c770a023f32
@@ -1249,7 +1249,7 @@ scripts/ui/prove-field-findings-sededit.ts	3	9	c801530ec135
 scripts/ui/prove-field-findings-sessions.ts	4	25	ecae683beb44
 scripts/ui/prove-field-findings-strips.ts	3	13	b2a49ea34aa6
 scripts/ui/prove-field-findings-toolrows.ts	1	3	25949a0e1184
-scripts/ui/prove-field-findings-transcript-v.ts	2	12	dd074b81a005
+scripts/ui/prove-field-findings-transcript-v.ts	1	4	7ad16ee2a844
 scripts/ui/prove-field-findings-transcript.ts	3	10	287a6408db0b
 scripts/ui/prove-field-findings-width.ts	1	2	8c5399aec02c
 scripts/ui/prove-field-w6-c1-controls.ts	1	6	61662d18e34b
@@ -1274,7 +1274,7 @@ scripts/ui/prove-key-hint-labels.ts	1	2	848e5fc01bab
 scripts/ui/prove-keydead-static.ts	1	3	dff0ed9d20bf
 scripts/ui/prove-kit-menu.ts	11	76	8911f71b1ecc
 scripts/ui/prove-lanes-shed.ts	4	51	83ebaabdda5b
-scripts/ui/prove-launchripple-deletion.ts	3	10	315266b4829e
+scripts/ui/prove-launchripple-deletion.ts	3	9	315266b4829e
 scripts/ui/prove-list-door-single-swing.ts	2	18	9c1efb135623
 scripts/ui/prove-live-glyphs.ts	14	28	306deafce494
 scripts/ui/prove-logins-key-lines.ts	57	12	845d4df2fb68
@@ -1282,7 +1282,7 @@ scripts/ui/prove-logins-one-name.ts	9	15	3b68ca1151b5
 scripts/ui/prove-markdown-layout.ts	2	9	156a965fb805
 scripts/ui/prove-mcp-notif-glyph.ts	2	10	2738b31e43a1
 scripts/ui/prove-message-actions.ts	1	8	39a39ece9c17
-scripts/ui/prove-message-cursor-store.ts	6	24	cdf3ea55cb56
+scripts/ui/prove-message-cursor-store.ts	6	22	cdf3ea55cb56
 scripts/ui/prove-modal-surfaces-fit.ts	11	32	ceb699cb5e45
 scripts/ui/prove-mode-discipline.ts	4	7	834a5a4c5381
 scripts/ui/prove-model-chip.ts	3	7	e97d84a0eb7d
@@ -1329,7 +1329,7 @@ scripts/ui/prove-session-pulse.ts	2	7	d26bbe7b1f95
 scripts/ui/prove-settings-popup-header.ts	1	3	c6193943e435
 scripts/ui/prove-settings-popup-host-fit.ts	1	2	c6193943e435
 scripts/ui/prove-shell-background-hint.ts	10	40	dd5a7bd28b02
-scripts/ui/prove-size-honesty.ts	16	59	c23df7426522
+scripts/ui/prove-size-honesty.ts	15	54	e55a94c8ea5f
 scripts/ui/prove-size-ladder.ts	1	2	97d9ea818bc5
 scripts/ui/prove-sovereign-menu-warning.ts	3	3	5e0431f50cac
 scripts/ui/prove-spinner-hud.ts	6	26	99ffa6e03415

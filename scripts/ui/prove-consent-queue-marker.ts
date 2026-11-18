@@ -39,12 +39,30 @@ check('marker renders position/total in the title row',
 check('marker sits in the titleRight/modeChip cluster',
   /\{titleRight\}\s*\{queueMarker\}\s*\{modeChip\}/.test(dialog));
 
-const repl = readFileSync('src/screens/Chat.tsx', 'utf8');
+const { mountPart, openAsksPart } = await import('./chatScenarios.ts');
+const { settle, waitFor } = await import('../lib/settingsPopupHarness.ts');
+const asks = await openAsksPart('consent-queue-marker');
+await asks.setAsks([asks.ask('toolu_q1', 'touch one.txt'), asks.ask('toolu_q2', 'touch two.txt'), asks.ask('toolu_q3', 'touch three.txt')]);
+asks.part.value().resolveHeadPermission();
+await settle(80);
+const afterOne = { resolved: asks.part.value().resolvedConsentCount, waiting: asks.part.value().toolUseConfirmQueue.length, calls: asks.calls.join() };
+const card = await mountPart(
+  () => asks.module.useChatAsksCard({ focusedInputDialog: 'tool-permission', repinToBottom: () => {}, toolUseConfirmQueue: asks.part.value().toolUseConfirmQueue, resolvedConsentCount: afterOne.resolved, resolveHeadPermission: () => {}, chatSurfaceCovered: false, verbose: false }),
+  { columns: 110, rows: 24, draw: value => value.permissionOverlay },
+);
+await waitFor(() => card.view.lines().join('\n').includes('touch two.txt'), 4000);
+const headCard = card.view.lines().join('\n');
+card.unmount();
 check('provider wraps the head PermissionRequest',
-  repl.includes('<PermissionQueueContext.Provider value={permissionQueueStatus(resolvedConsentCount, toolUseConfirmQueue.length)}>'));
+  headCard.includes('touch two.txt') && headCard.includes('2/3'), headCard);
 check('resolve advances the sequence in the same handler as the settle (the connector owns the pop)',
-  /setResolvedConsentCount\(c => c \+ 1\);[\s\S]{0,220}focused\.settleAsk\(head\.id\)/.test(repl));
+  afterOne.resolved === 1 && afterOne.waiting === 2 && afterOne.calls === 'settleAsk toolu_q1', JSON.stringify(afterOne));
+asks.part.value().resolveHeadPermission();
+await settle(80);
+asks.part.value().resolveHeadPermission();
+await settle(80);
 check('sequence resets when the queue drains',
-  repl.includes('if (toolUseConfirmQueue.length === 0) setResolvedConsentCount(0);'));
+  asks.part.value().toolUseConfirmQueue.length === 0 && asks.part.value().resolvedConsentCount === 0, `${asks.part.value().toolUseConfirmQueue.length} waiting, ${asks.part.value().resolvedConsentCount} resolved`);
+await asks.close();
 
 process.exit(fail);

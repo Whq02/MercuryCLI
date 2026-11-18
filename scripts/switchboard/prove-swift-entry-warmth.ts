@@ -35,10 +35,22 @@ check(
   'the live view alone paints the hint (one lane: the composed list, never a deferred copy of it)',
   repl.includes('inVirtualTranscript ? transcriptMessages : paintedMessages') && !repl.includes('useDeferredValue'),
 )
-check(
-  '…while the transcript modes keep the connector records',
-  repl.includes('frozenTranscriptState ? messages.slice(0, frozenTranscriptState.messageCount) : messages'),
-)
+{
+  const { openTranscriptPart } = await import('../ui/chatScenarios.ts')
+  const view = await openTranscriptPart('swift-warmth-transcript', { keepHome: true })
+  const rows = view.rowsOf(4)
+  await view.setRows(rows.slice(0, 2))
+  const live = view.part.value().transcriptMessages
+  await view.act(() => view.part.value().handleEnterTranscript())
+  await view.setRows(rows)
+  const kept = view.part.value().transcriptMessages
+  await view.close()
+  check(
+    '…while the transcript modes keep the connector records',
+    live.length === 2 && live[0] === rows[0] && live[1] === rows[1] && kept.length === 2 && kept[0] === rows[0] && kept[1] === rows[1],
+    `${live.length} live rows, ${kept.length} kept of ${rows.length}`,
+  )
+}
 check(
   'the Chat settles the hint at fold-complete replace (evict + settle)',
   repl.includes('evictSessionWarmth(warmth.sessionId)') && repl.includes('settleEntryWarmth(warmth.sessionId)'),

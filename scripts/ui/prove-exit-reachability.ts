@@ -42,7 +42,7 @@ const CTRL_D = keyOf({ ctrl: true })
 
 type Hint = { file: string; needles: Array<string | RegExp> }
 type Exit =
-  | { kind: 'binding'; action: string; input?: string; key?: Key; hints: Hint[]; hintExempt?: string }
+  | { kind: 'binding'; action: string; input?: string; key?: Key; hints: Hint[]; hintExempt?: string; drawn?: () => Promise<string[]> }
   | { kind: 'raw'; route: Hint; hints: Hint[] }
   | { kind: 'host'; owner: string; reason: string }
   | { kind: 'root'; reason: string }
@@ -81,7 +81,19 @@ const EXIT_TABLE: Record<string, Exit> = {
   Transcript: {
     kind: 'binding',
     action: 'transcript:exit',
-    hints: [{ file: 'src/screens/Chat.tsx', needles: ["'q quits'"] }],
+    hints: [],
+    drawn: async () => {
+      const React = await import('react')
+      const { mountPart } = await import('./chatScenarios.ts')
+      const { waitFor } = await import('../lib/settingsPopupHarness.ts')
+      const { TranscriptFooter } = await import('../../src/screens/chat/useChatSearch.tsx')
+      const props = { toggleChord: 'ctrl+o', expandChord: 'ctrl+e', hasSearchBadge: false, virtualScroll: true, showAllSuppressed: false, showAll: false, status: null, badge: null }
+      const footer = await mountPart(() => props, { columns: 120, rows: 4, draw: value => React.createElement(TranscriptFooter, value) })
+      await waitFor(() => footer.view.lines().some(line => line.includes('detailed transcript')), 3000)
+      const drawn = footer.view.lines().join('\n')
+      footer.unmount()
+      return ['q quits', 'ctrl+o to toggle'].filter(words => !drawn.includes(words))
+    },
   },
   HistorySearch: {
     kind: 'binding',
@@ -223,6 +235,11 @@ for (const [ctx, exit] of Object.entries(EXIT_TABLE)) {
     const missing = exit.route.needles.filter(n => !has(src, n))
     check(`${ctx}: the surface decodes escape itself (${exit.route.file})`, missing.length === 0, missing.map(String).join(' · '))
   }
+  if (exit.kind === 'binding' && exit.drawn !== undefined) {
+    const missing = await exit.drawn()
+    check(`${ctx}: the hint is rendered (drawn by its mounted footer)`, missing.length === 0, missing.join(' · '))
+    continue
+  }
   if (exit.hints.length === 0) {
     note(`${ctx}: no printed hint by design — ${exit.hintExempt ?? 'UNEXPLAINED'}`)
     check(`${ctx}: a hint exemption carries its reason`, typeof exit.hintExempt === 'string' && exit.hintExempt.length > 20)
@@ -291,18 +308,31 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/ExitHandoff.tsx': { reason: 'prints the one notice it has — "writing the handoff for the next session… (ctrl-c skips)" — through the constant the mneme module owns; ctrl-c is not a spelling the needles know' },
   }
 
+  const DRAWN_BY_EXIT: Record<string, string> = {
+    'src/screens/chat/useChatSearch.tsx': 'Transcript',
+  }
+
   const routeMissing: string[] = []
   const hintMissing: string[] = []
+  const spelled = new Set<string>()
   for (const rel of inputFiles) {
     const src = read(rel)
     const routed = ROUTE_NEEDLES.some(n => n.test(src)) || shellOwned(src)
     if (!routed && !(rel in ROUTE_ROSTER)) routeMissing.push(rel)
     const code = stripComments(src)
     const hinted = HINT_NEEDLES.some(n => n.test(code))
-    if (!hinted && !(rel in HINT_ROSTER)) hintMissing.push(rel)
+    if (hinted) spelled.add(rel)
+    if (!hinted && !(rel in HINT_ROSTER) && !(rel in DRAWN_BY_EXIT)) hintMissing.push(rel)
   }
   check('every raw-input surface decodes an exit (or is a rostered non-surface)', routeMissing.length === 0, routeMissing.join(' · '))
-  check('every raw-input surface prints its way out (or is a rostered non-surface)', hintMissing.length === 0, hintMissing.join(' · '))
+  check('every raw-input surface prints its way out (or is a rostered non-surface, or its exit row reads the hint off its mounted footer)', hintMissing.length === 0, hintMissing.join(' · '))
+  const staleDrawn = Object.entries(DRAWN_BY_EXIT)
+    .filter(([rel, ctx]) => {
+      const exit = EXIT_TABLE[ctx]
+      return !inputFiles.includes(rel) || spelled.has(rel) || exit === undefined || exit.kind !== 'binding' || exit.drawn === undefined
+    })
+    .map(([rel, ctx]) => `${rel} → ${ctx}`)
+  check('every surface whose hint is read off its mounted footer is a raw-input surface, and its exit row draws it (no stale row)', staleDrawn.length === 0, staleDrawn.join(' · '))
   const staleRoute = Object.keys(ROUTE_ROSTER).filter(rel => !inputFiles.includes(rel) || ROUTE_NEEDLES.some(n => n.test(read(rel))) || shellOwned(read(rel)))
   check('the route roster is closed and current (no stale row)', staleRoute.length === 0, staleRoute.join(' · '))
   const staleHint = Object.keys(HINT_ROSTER).filter(rel => !inputFiles.includes(rel) || HINT_NEEDLES.some(n => n.test(stripComments(read(rel)))))

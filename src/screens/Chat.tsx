@@ -5,8 +5,6 @@ import { FOLD_ROW_HEAD } from '../services/compact/foldStatus.js';
 import { takeResumeFoldNotice } from '../services/run/runCoordinator.js';
 import { subscribeTranscriptLoadDegradation, transcriptLoadDegradation } from '../utils/sessionStorage/loading.js';
 import { subscribeTranscriptStoreHealth, transcriptStoreHealth } from '../utils/sessionStorage/writer.js';
-import { writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { basename as nodePathBasename, join } from 'node:path';
 import React, {
   useCallback,
@@ -21,7 +19,7 @@ import { getOriginalCwd, getSessionId } from '../bootstrap/state.js';
 import { commandOffInPlainWorld, commandSeat, getCommandName, isCommandEnabled, type Command, type ResumeEntrypoint } from '../commands.js';
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
 import { ExitFlow } from '../components/ExitFlow.js';
-import { computeUnseenDivider, countUnseenAssistantTurns, FullscreenLayout, useUnseenDivider } from '../components/FullscreenLayout.js';
+import { FullscreenLayout } from '../components/FullscreenLayout.js';
 import { TranscriptSwap } from '../components/CrewmateTranscript.js';
 import { MercuryTurnRollup } from '../components/MercuryTurnRollup.js';
 import {
@@ -31,14 +29,12 @@ import {
 } from '../components/messageActions.js';
 import { MessageSelector } from '../components/MessageSelector.js';
 import { Messages } from '../components/Messages.js';
-import { PermissionQueueContext, permissionQueueStatus } from '../components/permissions/PermissionQueueContext.js';
-import { CardQueuedWords } from '../components/permissions/CardQueuedWords.js';
-import { PermissionRequest, type ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
+import type { ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
 import PromptInput from '../components/PromptInput/PromptInput.js';
 import { isVimModeEnabled } from '../components/PromptInput/utils.js';
 import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.js';
 import { MessageActionsBar } from '../components/messageActions.js';
-import { setMessageCursor, useMessageCursorActive } from '../components/messageCursorStore.js';
+import { useMessageCursorActive } from '../components/messageCursorStore.js';
 import { useHoldsEscape } from '../hooks/useEscapeOwned.js';
 import { FocusedSessionStatusRow, statusLine, statusRowWarns } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
@@ -50,7 +46,6 @@ import {
 import { useExtensions } from '../hooks/useExtensions.js';
 import { useCostSummary } from '../costHook.js';
 import { useFpsMetrics } from '../context/fpsMetrics.js';
-import { useOverlayOpen } from '../context/overlayContext.js';
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../services/privateChannel/quietUpdateNotice.js';
 import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
@@ -63,7 +58,6 @@ import { ElicitationDialog } from '../components/mcp/ElicitationDialog.js';
 import { useMcpConnectivityStatus } from '../hooks/notifs/useMcpConnectivityStatus.js';
 import { recordBootInteractive } from '../utils/observability/frictionStopwatch.js';
 import { readAllTranscriptEntries } from '../utils/sessionStorage/materialize.js';
-import { isHumanTurn } from '../utils/messagePredicates.js';
 import { submitTrace } from '../utils/submitTrace.js';
 import { fluxMark, fluxWhy } from '../utils/flux/fluxProbe.js';
 import { SpinnerWithVerb } from '../components/Spinner.js';
@@ -76,8 +70,6 @@ import { LOCAL_COMMAND_STDOUT_TAG, BASH_INPUT_TAG } from '../constants/xml.js';
 import { CockpitBottomStatus } from '../context/cockpitActiveContext.js';
 import { MercuryFrame } from '../components/MercuryFrame.js';
 import { splitWayOut, useNotifications } from '../context/notifications.js';
-import { transitionPermissionMode } from '../utils/permissions/permissionSetup.js';
-import { permissionModeTitle } from '../utils/permissions/PermissionMode.js';
 import { performUiRouteAlias } from '../context/routeAliases.js';
 import { currentSurfaceRoute, settleAbsentChat, subscribeSurfaceRoute } from '../context/surfaceRoute.js';
 import { CancelRequestHandler } from '../hooks/useCancelRequest.js';
@@ -91,33 +83,21 @@ import { useMergedTools } from '../hooks/useMergedTools.js';
 import { useTurnEndPing } from '../hooks/useTurnEndPing.js';
 import { useFinishMarks } from '../hooks/useFinishMarks.js';
 import { useSessionTitleMint } from '../hooks/useSessionTitleMint.js';
-import { useSearchInput } from '../hooks/useSearchInput.js';
 import { useSettingsChange } from '../hooks/useSettingsChange.js';
 import { useSkillsChange } from '../hooks/useSkillsChange.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
-import { packHints } from '../components/mercury-ui/geometry.js';
-import { stringWidth } from '../ink/stringWidth.js';
-import type { VimMode } from '../hooks/useVimInput.js';
 import { useDeprecationWarningNotification } from '../hooks/notifs/useDeprecationWarningNotification.js';
 import { useLspInitializationNotification } from '../hooks/notifs/useLspInitializationNotification.js';
 import { useRateLimitWarningNotification } from '../hooks/notifs/useRateLimitWarningNotification.js';
 import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js';
 import { Box, type DOMElement, measureElement, Text, useStdin, useTheme } from '../ink.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
-import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
-import { InkInstanceContext } from '../ink/components/InkInstanceContext.js';
-import useInput from '../ink/hooks/use-input.js';
-import { useInterval } from '../ink/hooks/use-interval.js';
-import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
-import { useTerminalFocus } from '../ink/hooks/use-terminal-focus.js';
-import { useTerminalTitle } from '../ink/hooks/use-terminal-title.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
 import { setClipboardWithReceipt } from '../ink/termio/osc.js';
 import * as pendingInput from '../input-core/pending-input.js';
 import { rekeyCommandQueueToSession } from '../input-core/command-queue.js';
 import { HELD_FOR_COMPACTION_LINE } from '../components/messages/TranscriptNameplate.js';
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
-import { useKeybinding } from '../keybindings/useKeybinding.js';
 import { getShortcutDisplay } from '../keybindings/shortcutFormat.js';
 import { modelDisplayString, renderModelName } from '../utils/model/model.js';
 import { crossProviderNote, settlePendingAtBoundary } from '../utils/model/modelTransition.js';
@@ -125,7 +105,6 @@ import { createBranchSession } from '../services/branches/branchManifest.js';
 import { hasSeatLive, IDLE_LIVE, IDLE_TURN_FACTS, type LiveTurnFactsV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
 import { interruptFocusedTurn } from '../hooks/useCancelRequest.js';
 import { useFocusedTailAnchor, useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
-import { useAuthWallHold } from '../hooks/useAuthWallHold.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
 import type { AppState } from '../state/AppStateStore.js';
 import {
@@ -145,16 +124,23 @@ import {
   settleEntryWarmth,
   subscribeSessionWarmth,
 } from '../services/concourse/sessionWarmth.js';
-import type { RewindReceiptV1, SessionAskV1 } from '../services/engine-connector/types.js';
+import type { RewindReceiptV1 } from '../services/engine-connector/types.js';
 import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
-import type { SetToolJSXFn, Tool, ToolPermissionContext } from '../Tool.js';
+import type { SetToolJSXFn, Tool } from '../Tool.js';
 import { resolveToolJSX } from './toolJsxArbitration.js';
+import type { FocusedInputDialog } from './chat/focusedDialog.js';
+import { RECEIPT_TIMEOUT_MS } from './chat/limits.js';
+import type { Screen as ScreenName } from './chat/screen.js';
+import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
+import { useChatDraft } from './chat/useChatDraft.js';
+import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
+import { TranscriptFooter, TranscriptSearchBar, useChatSearch } from './chat/useChatSearch.js';
+import { AnimatedTitle, useChatTitle } from './chat/useChatTitle.js';
 import type { SessionListing } from '../types/logs.js';
 import type { Message, NormalizedUserMessage, ProgressMessage, UserMessage } from '../types/message.js';
 import { ASK_USER_QUESTION_TOOL_NAME } from '../tools/AskUserQuestionTool/prompt.js';
 import type { PromptInputMode } from '../types/textInputTypes.js';
-import { asSessionId } from '../types/ids.js';
 import { createAbortController } from '../utils/abortController.js';
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js';
 import type { PastedContent } from '../utils/config/schema.js';
@@ -170,9 +156,7 @@ import { getProjectDir } from '../utils/sessionStoragePortable.js';
 import { CrashResumeDialog } from '../components/CrashResumeDialog.js';
 import { getCwd } from '../utils/cwd.js';
 import { logForDebugging } from '../utils/debug.js';
-import { consumeEarlyInput } from '../utils/earlyInput.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
-import { renderMessagesToPlainText } from '../utils/exportRenderer.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../utils/fileStateCache.js';
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled, maybeGetTmuxMouseHint } from '../utils/fullscreen.js';
 import type { PromptInputHelpers } from '../types/promptInputHelpers.js';
@@ -182,18 +166,11 @@ import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../utils/hea
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js';
 import { createCommandInputMessage, createUserMessage, extractTag, getUserMessageText, textForResubmit } from '../utils/messages.js';
 import { getTipToShowOnSpinner, recordShownTip } from '../services/tips/tipScheduler.js';
-import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js';
-import { getCurrentSessionTitle } from '../utils/sessionStorage/logs.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
-import { registerComposerSeeder, registerComposerSeedTrimmer } from '../utils/cockpit/composerSeed.js';
-import { registerPermissionFocusNotifier } from '../utils/permissions/permissionFocus.js';
-import { recordModeTransition } from '../utils/permissions/modeTransitions.js';
-import { publishCockpitActivity, type ActivityState } from '../utils/cockpit/cockpitActivity.js';
-import { parseSearchQuery } from '../utils/transcriptSearch.js';
 import type { StreamingToolUse } from '../utils/messages/streaming.js';
 import { sleep } from '../utils/sleep.js';
 
-export type Screen = 'prompt' | 'transcript';
+export type Screen = ScreenName;
 
 export type Props = {
   commands: Command[];
@@ -203,18 +180,10 @@ export type Props = {
   disableSlashCommands?: boolean;
 };
 
-const TITLE_FRAMES = ['⠂', '⠐'] as const;
-const TITLE_STATIC_MARK = '✻';
-const TITLE_INTERVAL_MS = 960;
 const COST_THRESHOLD_USD = 5;
-const RECENT_SCROLL_REPIN_WINDOW_MS = 3000;
 const SWITCH_STATUS_TIMEOUT_MS = 30_000;
 const WORKTREE_TIP_SECONDS = 15;
 const BOOT_WARMUP_MS = 150;
-const SEARCH_WARMUP_QUIET_MS = 20;
-const SEARCH_WARMUP_SHOW_MS = 2000;
-const EDITOR_STATUS_MS = 4000;
-const RECEIPT_TIMEOUT_MS = 8000;
 const REWIND_SETTLE_WAIT_MS = 5000;
 
 function rewindReceiptLine(receipt: RewindReceiptV1): string {
@@ -235,8 +204,6 @@ const MESSAGE_ACTION_UUID_PREFIX = 24;
 const EMPTY_CONFIRM_QUEUE: ToolUseConfirm[] = [];
 const NO_STREAMING_TOOL_USES: StreamingToolUse[] = [];
 
-const subscribeFocusedAsks = subscribeThroughFocused((connector, listener) => connector.subscribeAsks(listener));
-const getFocusedAsks = (): readonly SessionAskV1[] => getFocusedSessionConnector().asks();
 const subscribeFocusedSeatLive = subscribeThroughFocused((connector, listener) =>
   hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {},
 );
@@ -254,7 +221,6 @@ setCrashConversationLocator(() => {
   }
 });
 const subscribeFocusedModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener));
-const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, listener) => connector.subscribePermissionMode(listener));
 const getFocusedEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective;
 const subscribeFocusedTail = subscribeThroughFocused((connector, listener) =>
   hasSeatLive(connector) ? connector.tail().subscribe(listener) : () => {},
@@ -290,15 +256,9 @@ const INERT_PROMPT_HELPERS: PromptInputHelpers = {
 
 type PaintsRows = { addDisplayRow?: (row: Message) => void; transcriptFile?: () => string };
 
-type FocusedInputDialog = 'message-selector' | 'tool-permission' | 'elicitation' | 'cost-threshold' | 'crash-resume';
-
 type ToolJSXState = Parameters<SetToolJSXFn>[0];
 
 type ResumableLog = Omit<Partial<SessionListing>, 'messages'> & { messages: Message[] };
-
-type FrozenTranscriptState = { messageCount: number; streamingToolUseCount: number };
-
-type ScrollRestore = { gap: number; sticky: boolean };
 
 function getFocusedInputDialog(args: {
   isExiting: boolean;
@@ -348,28 +308,6 @@ function stopHookSuffix(messages: readonly Message[], isLoading: boolean): strin
   return `running answer hooks · ${ran}/${total}`;
 }
 
-function AnimatedTitle({
-  enabled,
-  title,
-  wantsPrefix,
-  animating,
-}: {
-  enabled: boolean;
-  title: string;
-  wantsPrefix: boolean;
-  animating: boolean;
-}): null {
-  const focused = useTerminalFocus();
-  const [frame, setFrame] = useState(0);
-  useInterval(
-    () => setFrame(f => (f + 1) % TITLE_FRAMES.length),
-    enabled && wantsPrefix && animating && focused ? TITLE_INTERVAL_MS : null,
-  );
-  const prefix = animating ? TITLE_FRAMES[frame]! : TITLE_STATIC_MARK;
-  useTerminalTitle(!enabled ? null : !wantsPrefix ? title : `${prefix} ${title}`);
-  return null;
-}
-
 function resolveSlashCommand(input: string, commands: Command[]): Command | undefined {
   const trimmed = input.trimStart();
   if (!trimmed.startsWith('/')) return undefined;
@@ -393,171 +331,6 @@ function resolveGatedPlainWorldCommand(input: string, commands: Command[]): Comm
     command => command.name === name || command.aliases?.includes(name) === true || getCommandName(command) === name,
   );
   return real !== undefined && commandOffInPlainWorld(real) ? real : undefined;
-}
-
-function TranscriptSearchBar({
-  columns,
-  onQueryChange,
-  onCommit,
-  onCancel,
-  warmSearchIndex,
-  matchCount,
-  matchCurrent,
-}: {
-  columns: number;
-  onQueryChange: (query: string) => void;
-  onCommit: (query: string) => void;
-  onCancel: () => void;
-  warmSearchIndex: () => Promise<number>;
-  matchCount: number | null;
-  matchCurrent: number;
-}): React.ReactNode {
-  const tokens = useMercuryTokens();
-  const [warm, setWarm] = useState<'warming' | 'quiet' | number>('warming');
-  const committedRef = useRef(false);
-  const search = useSearchInput({
-    isActive: true,
-    onExit: () => {
-      committedRef.current = true;
-      onCommit(search.query);
-    },
-    onCancel,
-    columns,
-    backspaceExitsOnEmpty: false,
-  });
-  useEffect(() => {
-    let live = true;
-    const started = Date.now();
-    void warmSearchIndex()
-      .then(ms => {
-        if (!live) return;
-        const measured = Number.isFinite(ms) ? ms : Date.now() - started;
-        setWarm(measured < SEARCH_WARMUP_QUIET_MS ? 'quiet' : measured);
-      })
-      .catch(() => {
-        if (live) setWarm('quiet');
-      });
-    return () => {
-      live = false;
-    };
-  }, [warmSearchIndex]);
-  useEffect(() => {
-    if (typeof warm !== 'number') return;
-    const timer = setTimeout(() => setWarm('quiet'), SEARCH_WARMUP_SHOW_MS);
-    return () => clearTimeout(timer);
-  }, [warm]);
-  const { query } = search;
-  useEffect(() => {
-    if (warm === 'warming') return;
-    onQueryChange(query);
-  }, [query, warm, onQueryChange]);
-  const before = query.slice(0, search.cursorOffset);
-  const at = query.slice(search.cursorOffset, search.cursorOffset + 1) || ' ';
-  const after = query.slice(search.cursorOffset + 1);
-  let right: React.ReactNode;
-  if (warm === 'warming') {
-    right = <Text color={tokens.textSecondary}>indexing…</Text>;
-  } else if (typeof warm === 'number') {
-    right = <Text color={tokens.textSecondary}>{`indexed in ${warm}ms`}</Text>;
-  } else if (query.length > 0 && matchCount === 0) {
-    right = <Text color={tokens.failure}>no matches</Text>;
-  } else if (matchCount !== null && matchCount > 0) {
-    right = <Text color={tokens.textSecondary}>{`${matchCurrent}/${matchCount}`}</Text>;
-  } else {
-    right = null;
-  }
-  return (
-    <Box
-      flexDirection="row"
-      justifyContent="space-between"
-      borderStyle="single"
-      borderTop
-      borderBottom={false}
-      borderLeft={false}
-      borderRight={false}
-      borderColor={tokens.borderSubtle}
-      paddingX={1}
-      height={2}
-      noSelect
-    >
-      <Box flexDirection="row" flexShrink={1} overflow="hidden">
-        <Text color={tokens.textSecondary}>/</Text>
-        <Text>{before}</Text>
-        <Text inverse>{at}</Text>
-        <Text>{after}</Text>
-      </Box>
-      <Box flexShrink={0} marginLeft={1}>
-        {right}
-      </Box>
-    </Box>
-  );
-}
-
-function TranscriptFooter({
-  toggleChord,
-  expandChord,
-  hasSearchBadge,
-  virtualScroll,
-  showAllSuppressed,
-  showAll,
-  status,
-  badge,
-}: {
-  toggleChord: string;
-  expandChord: string;
-  hasSearchBadge: boolean;
-  virtualScroll: boolean;
-  showAllSuppressed: boolean;
-  showAll: boolean;
-  status: string | null;
-  badge: string | null;
-}): React.ReactNode {
-  const tokens = useMercuryTokens();
-  const { columns } = useTerminalSize();
-  let hints: string[];
-  if (hasSearchBadge) {
-    hints = ['n/N navigate matches'];
-  } else if (virtualScroll) {
-    hints = ['q quits', '/ search', 'g/G jump', 'arrows scroll', 'drag selects and copies'];
-  } else if (!showAllSuppressed) {
-    hints = [`${expandChord} ${showAll ? 'to collapse' : 'to show all'}`];
-  } else {
-    hints = [];
-  }
-  const right = status ?? badge ?? '';
-  const rightBudget = right === '' ? 0 : Math.min(stringWidth(right), Math.max(16, Math.floor((columns - 3) / 2)));
-  const rightWidth = right === '' ? 0 : rightBudget + 1;
-  const left = packHints(
-    ['detailed transcript', `${toggleChord} to toggle`, ...hints],
-    Math.max(0, columns - 2 - rightWidth),
-  );
-  return (
-    <Box
-      flexDirection="row"
-      justifyContent="space-between"
-      borderStyle="single"
-      borderTop
-      borderBottom={false}
-      borderLeft={false}
-      borderRight={false}
-      borderColor={tokens.borderSubtle}
-      paddingX={1}
-      height={2}
-    >
-      <Box flexDirection="row" flexShrink={1} overflow="hidden">
-        <Text color={tokens.textSecondary} wrap="truncate">
-          {left}
-        </Text>
-      </Box>
-      <Box flexShrink={0} marginLeft={1} width={rightBudget}>
-        {right !== '' ? (
-          <Text color={tokens.textSecondary} wrap="truncate-start">
-            {right}
-          </Text>
-        ) : null}
-      </Box>
-    </Box>
-  );
 }
 
 export function Chat({
@@ -586,8 +359,6 @@ export function Chat({
   const [fullscreen] = useState(() => isFullscreenEnvEnabled());
   const [virtualScrollEnabled] = useState(() => resolveTerminalExperience().virtualScroll.effective);
   const [terminalTitleEnabled] = useState(() => resolveTerminalExperience().terminalTitle.effective);
-  const [dumpMode, setDumpMode] = useState(false);
-  const inVirtualTranscriptMode = fullscreen && virtualScrollEnabled && !dumpMode;
 
   const focusedConnector = useSyncExternalStore(subscribeFocusedSessionConnector, getFocusedSessionConnector, getFocusedSessionConnector);
   const seatLive = useSyncExternalStore(subscribeFocusedSeatLive, getFocusedSeatLive, getFocusedSeatLive);
@@ -637,19 +408,12 @@ export function Chat({
   const setToolJSX: SetToolJSXFn = useCallback(next => {
     setToolJSXState(prev => resolveToolJSX(prev, next));
   }, []);
-  const [permissionStickyFooter, setPermissionStickyFooter] = useState<React.ReactNode>(null);
-  const stickyFooterOwnerUp = permissionStickyFooter !== null;
-  const [screen, setScreen] = useState<Screen>('prompt');
-  const [showAllInTranscript, setShowAllInTranscript] = useState(false);
   const [showMessageSelector, setShowMessageSelector] = useState(false);
   const openMessageSelector = useCallback(() => setShowMessageSelector(true), []);
   const [messageSelectorPreselect, setMessageSelectorPreselect] = useState<UserMessage | undefined>(undefined);
   const [isExiting, setIsExiting] = useState(false);
   const [showExitFlow, setShowExitFlow] = useState(false);
   const [exitCommandJsx, setExitCommandJsx] = useState<React.ReactNode | null>(null);
-  const [isPromptInputActive, setIsPromptInputActive] = useState(false);
-  const [inputMode, setInputModeState] = useState<PromptInputMode>(() => pendingInput.mode());
-  void inputMode;
   const [submitCount, setSubmitCount] = useState(0);
   const [lastCompletedAt, setLastCompletedAt] = useState<number | null>(null);
   const [remountKey, setRemountKey] = useState(0);
@@ -664,24 +428,8 @@ export function Chat({
     moreCount: number;
   } | null>(null);
   const crashNoticeLatchedRef = useRef(false);
-  const [frozenTranscriptState, setFrozenTranscriptState] = useState<FrozenTranscriptState | null>(null);
-  const [searchBarOpen, setSearchBarOpen] = useState(false);
-  const [committedSearchQuery, setCommittedSearchQuery] = useState('');
-  const [searchMatchCount, setSearchMatchCount] = useState<number | null>(null);
-  const [searchMatchCurrent, setSearchMatchCurrent] = useState(0);
-  const [editorStatus, setEditorStatus] = useState<string | null>(null);
-  const editorGenerationRef = useRef(0);
-  const editorInFlightRef = useRef(false);
-  const dumpFiredRef = useRef(false);
-  const [vimMode, setVimMode] = useState<VimMode>('INSERT');
   const [showBashesDialog, setShowBashesDialog] = useState<string | boolean>(false);
-  const [isSearchingHistory, setIsSearchingHistory] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
 
-  const [tools, setToolsState] = useState<Tool[]>(initialTools);
-  useEffect(() => {
-    setToolsState(initialTools);
-  }, [initialTools]);
   const mcpState = useAppState(state => state.mcp);
   useEffect(() => {
     publishMcpConnections(mcpState.clients);
@@ -692,7 +440,7 @@ export function Chat({
   const verbose = useAppState(state => state.verbose);
   const spinnerTip = useAppState(state => state.spinnerTip);
   const commands = useMergedCommands(initialCommands, mcpState.commands);
-  const mergedTools = useMergedTools(tools, mcpState.tools, toolPermissionContext);
+  const mergedTools = useMergedTools(initialTools, mcpState.tools, toolPermissionContext);
   const commandsRef = useRef(commands);
   commandsRef.current = commands;
   const apiKeyVerification = useApiKeyVerification();
@@ -706,139 +454,18 @@ export function Chat({
     addNotification({ key: `screen-row-${Date.now()}`, text: fallbackText, priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
   }, [addNotification]);
 
-  useState(() => {
-    pendingInput.initSession(conversationIdHere(), consumeEarlyInput());
-    return null;
-  });
-  const setInputValue = useCallback((value: string) => {
-    pendingInput.edit(value);
-  }, []);
-  const setInputMode = useCallback((mode: PromptInputMode) => {
-    pendingInput.setMode(mode);
-    setInputModeState(mode);
-  }, []);
-  const setPastedContents = useCallback((next: Record<number, PastedContent>) => {
-    pendingInput.setPastedContents(next);
-  }, []);
-  const authWallHold = useAuthWallHold(
-    messages,
-    { text: () => pendingInput.text(), restore: (text: string) => setInputValue(text) },
-    () => getFocusedSessionConnector().modelFacts().effective,
-  );
-  const insertTextRef = useRef<{ insert: (text: string) => void; setInputWithCursor: (value: string, cursor: number) => void; cursorOffset: number } | null>(null);
-
-  const scrollRef = useRef<ScrollBoxHandle | null>(null);
-  const scrollRestoreRef = useRef<ScrollRestore | null>(null);
-  const modalScrollRef = useRef<ScrollBoxHandle | null>(null);
-  const jumpRef = useRef<{ jumpToIndex: (i: number) => void; setSearchQuery: (q: string) => void; nextMatch: () => void; prevMatch: () => void; setAnchor: () => void; warmSearchIndex: () => Promise<number>; disarmSearch: () => void } | null>(null);
-  const lastUserScrollAtRef = useRef(0);
-  const repinToBottom = useCallback(() => {
-    scrollRestoreRef.current = null;
-    scrollRef.current?.scrollToBottom();
-  }, []);
-  const noteUserScroll = useCallback(() => {
-    lastUserScrollAtRef.current = Date.now();
-  }, []);
-
-  useEffect(() => {
-    return pendingInput.registerInterceptors({
-      interceptSuggestion: () => false,
-      onEmptyToNonempty: () => {
-        if (!fullscreen) return;
-        if (Date.now() - lastUserScrollAtRef.current < RECENT_SCROLL_REPIN_WINDOW_MS) return;
-        repinToBottom();
-      },
-      onActiveChange: setIsPromptInputActive,
-    });
-  }, [fullscreen, repinToBottom]);
-
-  useEffect(() => registerComposerSeeder(seed => pendingInput.append(seed)), []);
-  useEffect(
-    () =>
-      registerComposerSeedTrimmer(() => {
-        const words = pendingInput.text();
-        if (words !== '') pendingInput.edit(words.slice(0, -1));
-      }),
-    [],
-  );
-
-  useEffect(
-    () =>
-      registerPermissionFocusNotifier(text =>
-        addNotification({ key: 'permission-focus-refusal', text, priority: 'high', timeoutMs: 4000 }),
-      ),
-    [addNotification],
-  );
+  const { scrollRef, scrollRestoreRef, modalScrollRef, lastUserScrollAtRef, repinToBottom, noteUserScroll } = useChatScrollPin();
+  const { isPromptInputActive, setInputValue, setInputMode, setPastedContents, authWallHold, insertTextRef, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen } = useChatDraft({ messages, fullscreen, repinToBottom, lastUserScrollAtRef });
 
   const prefersReducedMotion = useAppState(state => state.settings.view?.reducedMotion === true);
   const reducedMotion = prefersReducedMotion || isEnvTruthy(flagEnv('MERCURY_REDUCED_MOTION'));
   const streamingSuppressed = streamingRevealSuppressed(reducedMotion, fullscreen);
 
-  const sessionAsks = useSyncExternalStore(subscribeFocusedAsks, getFocusedAsks, getFocusedAsks);
+  const { sessionAsks, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, setToolPermissionContext, elicitationQueue, respondToElicitation, dismissElicitationWaiting } = useChatAsks({ setAppState, addNotification });
   const chatSurfaceCovered = useSyncExternalStore(
     subscribeSurfaceRoute,
     () => currentSurfaceRoute().kind !== 'repl',
     () => currentSurfaceRoute().kind !== 'repl',
-  );
-  const toolUseConfirmQueue = useMemo(() => sessionAsks.map(ask => ask.confirm), [sessionAsks]);
-  const [resolvedConsentCount, setResolvedConsentCount] = useState(0);
-  useEffect(() => {
-    if (toolUseConfirmQueue.length === 0) setResolvedConsentCount(0);
-  }, [toolUseConfirmQueue.length]);
-
-  const resolveHeadPermission = useCallback(() => {
-    setResolvedConsentCount(c => c + 1);
-    const focused = getFocusedSessionConnector();
-    const head = focused.asks()[0];
-    if (head !== undefined) focused.settleAsk(head.id);
-  }, []);
-
-  const adoptRunnerMode = useCallback(() => {
-    const held = getFocusedSessionConnector().permissionMode();
-    if (held === null) return;
-    setAppState(prev => {
-      if (prev.toolPermissionContext.mode === held) return prev;
-      let next = prev.toolPermissionContext;
-      try {
-        next = transitionPermissionMode(prev.toolPermissionContext.mode, held, prev.toolPermissionContext);
-      } catch (error) {
-        logForDebugging(`permission mode adoption ${prev.toolPermissionContext.mode} → ${held} kept the standing context: ${error instanceof Error ? error.message : String(error)}`);
-      }
-      recordModeTransition({ from: prev.toolPermissionContext.mode, to: held, road: 'screen-mirror', detail: "the runner's own mode adopted" });
-      return { ...prev, toolPermissionContext: { ...next, mode: held } };
-    });
-  }, [setAppState]);
-  useEffect(() => subscribeFocusedPermissionMode(adoptRunnerMode), [adoptRunnerMode]);
-
-  const setToolPermissionContext = useCallback(
-    (context: ToolPermissionContext, options?: { preserveMode?: boolean }) => {
-      setAppState(prev => {
-        const preserved = options?.preserveMode ? prev.toolPermissionContext.mode : context.mode;
-        if (preserved !== prev.toolPermissionContext.mode) {
-          recordModeTransition({ from: prev.toolPermissionContext.mode, to: preserved, road: 'screen-mirror' });
-        }
-        return { ...prev, toolPermissionContext: { ...context, mode: preserved } };
-      });
-      if (!options?.preserveMode) {
-        void getFocusedSessionConnector()
-          .setPermissionMode(context.mode)
-          .then(receipt => {
-            if (receipt.outcome !== 'refused') return;
-            adoptRunnerMode();
-            addNotification({
-              key: 'permission-mode-refused',
-              text: `${permissionModeTitle(context.mode)} refused by the session — ${receipt.detail ?? 'the runner did not take it'}`,
-              priority: 'high',
-              color: 'error' as const,
-              timeoutMs: RECEIPT_TIMEOUT_MS,
-            });
-          });
-      }
-      setTimeout(() => {
-        for (const entry of getFocusedSessionConnector().asks()) entry.confirm.recheckPermission?.();
-      }, 0);
-    },
-    [setAppState, adoptRunnerMode, addNotification],
   );
 
   useSeatReceipts({
@@ -848,27 +475,6 @@ export function Chat({
     },
   });
   useAgentNeedsYou(messages, isLoading);
-  const elicitationQueue = useAppState(state => state.elicitation.queue);
-  const respondToElicitation = useCallback(
-    (action: 'accept' | 'decline' | 'cancel', content?: Record<string, string | number | boolean | string[]>) => {
-      const head = elicitationQueue[0];
-      if (!head) return;
-      head.respond({ action, content });
-      const params = head.params as { mode?: string };
-      if (action === 'accept' && params.mode === 'url') return;
-      setAppState(prev => ({ ...prev, elicitation: { queue: prev.elicitation.queue.slice(1) } }));
-    },
-    [elicitationQueue, setAppState],
-  );
-  const dismissElicitationWaiting = useCallback(
-    (action: 'cancel' | 'retry' | 'dismiss') => {
-      const head = elicitationQueue[0];
-      if (!head) return;
-      setAppState(prev => ({ ...prev, elicitation: { queue: prev.elicitation.queue.slice(1) } }));
-      head.onWaitingDismiss?.(action);
-    },
-    [elicitationQueue, setAppState],
-  );
   const focusedInputDialog = getFocusedInputDialog({
     isExiting: isExiting || showExitFlow,
     showMessageSelector,
@@ -910,13 +516,7 @@ export function Chat({
     }
   }, [focusedInputDialog, isLoading]);
 
-  const previousPermissionFocusRef = useRef(false);
-  useLayoutEffect(() => {
-    const now = focusedInputDialog === 'tool-permission';
-    if (now !== previousPermissionFocusRef.current) repinToBottom();
-    previousPermissionFocusRef.current = now;
-  }, [focusedInputDialog, repinToBottom]);
-
+  const { permissionStickyFooter, permissionOverlay } = useChatAsksCard({ focusedInputDialog, repinToBottom, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, chatSurfaceCovered, verbose });
   const readFileStateRef = useRef<FileStateCache | null>(null);
   const getReadFileState = useCallback((): FileStateCache => {
     if (readFileStateRef.current === null) {
@@ -1427,10 +1027,6 @@ export function Chat({
   }, [addNotification]);
 
   useEffect(() => {
-    if (stickyFooterOwnerUp && focusedInputDialog !== 'tool-permission') setPermissionStickyFooter(null);
-  }, [stickyFooterOwnerUp, focusedInputDialog]);
-
-  useEffect(() => {
     recordBootInteractive();
     setTimeout(() => {
       void import('../services/switchboard/ensureDaemon.js')
@@ -1672,23 +1268,7 @@ export function Chat({
   useDeprecationWarningNotification(engineModel);
   useLspInitializationNotification();
 
-  const isWaitingForApproval = focusedInputDialog === 'tool-permission';
-  const showingLocalDialog = focusedInputDialog !== undefined && focusedInputDialog !== 'tool-permission';
-  const sessionTitleSetting = useAppState(state => (state.settings as { terminalTitle?: { sessionTitle?: boolean } }).terminalTitle?.sessionTitle);
-  const sessionTitle = sessionTitleSetting === false ? undefined : getCurrentSessionTitle(asSessionId(focusedConnector.sessionId()));
-  const agentTitle = store.getState().standaloneAgentContext?.name;
-  const title = sessionTitle ?? agentTitle ?? 'Mercury';
-  const titleAnimating = isLoading && !isWaitingForApproval && !showingLocalDialog;
-  useEffect(() => {
-    if (!titleAnimating) return;
-    startPreventSleep();
-    return () => stopPreventSleep();
-  }, [titleAnimating]);
-  const diffReviewOpen = useOverlayOpen('diff-dialog');
-  const cockpitActivity: ActivityState = isWaitingForApproval ? 'waiting' : diffReviewOpen ? 'review' : isLoading ? 'active' : 'calm';
-  useEffect(() => {
-    publishCockpitActivity(cockpitActivity);
-  }, [cockpitActivity]);
+  const { title, titleAnimating, sessionTitleSetting } = useChatTitle({ focusedInputDialog, focusedConnector, isLoading, store });
 
   useTurnEndPing({ lastCompletedAt, busy: isLoading });
 
@@ -1725,100 +1305,36 @@ export function Chat({
     }).catch(() => {});
   }, []);
 
-  const unseen = useUnseenDivider(messages.length, scrollRef);
-  const captureScrollForFlip = useCallback(() => {
-    const handle = scrollRef.current;
-    if (!handle) {
-      scrollRestoreRef.current = null;
-      return;
-    }
-    const gap = Math.max(0, handle.getFreshScrollHeight() - handle.getViewportHeight() - handle.getScrollTop());
-    scrollRestoreRef.current = { gap, sticky: handle.isSticky() || gap === 0 };
-  }, []);
-  const [flipGeneration, setFlipGeneration] = useState(0);
-  const flipInk = React.useContext(InkInstanceContext);
-  useLayoutEffect(() => {
-    const restore = scrollRestoreRef.current;
-    if (!restore || !flipInk) return;
-    if (!restore.sticky && scrollRef.current) {
-      const handle = scrollRef.current;
-      type ScrollNodeLike = {
-        style?: { overflowY?: string; paddingTop?: number; paddingBottom?: number };
-        scroll?: { scrollTop?: number; scrollViewportHeight?: number };
-        layoutNode?: { getComputedWidth: () => number; getComputedHeight: () => number };
-        childNodes?: ScrollNodeLike[];
-      };
-      const syncViewport = (node: ScrollNodeLike | undefined): number | undefined => {
-        if (!node) return undefined;
-        if (
-          node.style?.overflowY === 'scroll' &&
-          node.scroll !== undefined &&
-          (node.scroll.scrollTop ?? 0) === handle.getScrollTop() &&
-          (node.scroll.scrollViewportHeight ?? 0) === handle.getViewportHeight() &&
-          node.layoutNode &&
-          node.layoutNode.getComputedWidth() > 0
-        ) {
-          const inner = Math.max(0, Math.floor(node.layoutNode.getComputedHeight()) - (node.style.paddingTop ?? 0) - (node.style.paddingBottom ?? 0));
-          node.scroll.scrollViewportHeight = inner;
-          return inner;
-        }
-        for (const child of node.childNodes ?? []) {
-          const found = syncViewport(child);
-          if (found !== undefined) return found;
-        }
-        return undefined;
-      };
-      const viewport = syncViewport((flipInk as unknown as { rootNode?: ScrollNodeLike }).rootNode) ?? handle.getViewportHeight();
-      const freshHeight = handle.getFreshScrollHeight();
-      if (freshHeight <= viewport) {
-        scrollRestoreRef.current = null;
-        unseen.dividerYRef.current = null;
-        unseen.onRepin();
-        handle.scrollToBottom();
-        return;
-      }
-      const maxAboveTail = Math.max(0, freshHeight - viewport - 1);
-      handle.scrollTo(Math.min(maxAboveTail, Math.max(0, freshHeight - viewport - restore.gap)));
-    }
-    const stop = flipInk.subscribeFrame(() => {
-      if (scrollRestoreRef.current !== restore) {
-        stop();
-        return;
-      }
-      const handle = scrollRef.current;
-      if (!handle) return;
-      const target = Math.max(0, handle.getFreshScrollHeight() - handle.getViewportHeight() - restore.gap);
-      if (restore.sticky || handle.getScrollTop() === target) {
-        stop();
-        scrollRestoreRef.current = null;
-        if (restore.sticky) handle.scrollToBottom();
-      } else handle.scrollTo(target);
-    });
-    return stop;
-  }, [flipGeneration, flipInk]);
-
-  const handleEnterTranscript = useCallback(() => {
-    captureScrollForFlip();
-    setFrozenTranscriptState({
-      messageCount: getFocusedSessionConnector().records().length,
-      streamingToolUseCount: 0,
-    });
-    setFlipGeneration(g => g + 1);
-  }, [captureScrollForFlip]);
-  const handleExitTranscript = useCallback(() => {
-    captureScrollForFlip();
-    setFrozenTranscriptState(null);
-    setSearchBarOpen(false);
-    setCommittedSearchQuery('');
-    setSearchMatchCount(null);
-    setSearchMatchCurrent(0);
-    jumpRef.current?.disarmSearch();
-    editorGenerationRef.current += 1;
-    setEditorStatus(null);
-    setDumpMode(false);
-    dumpFiredRef.current = false;
-    setFlipGeneration(g => g + 1);
-  }, [captureScrollForFlip]);
+  const { unseen, captureScrollForFlip, setFlipGeneration, unseenDivider, newMessageCount, onScroll, onPillClick } = useChatScroll({ messages, fullscreen, scrollRef, scrollRestoreRef, noteUserScroll });
+  const {
+    dumpMode,
+    inVirtualTranscriptMode,
+    screen,
+    setScreen,
+    showAllInTranscript,
+    setShowAllInTranscript,
+    searchBarOpen,
+    committedSearchQuery,
+    searchMatchCount,
+    searchMatchCurrent,
+    editorStatus,
+    jumpRef,
+    handleEnterTranscript,
+    handleExitTranscript,
+    inTranscript,
+    inVirtualTranscript,
+    legacyTranscript,
+    scanElement,
+    setPositions,
+    commitSearch,
+    cancelSearch,
+    previewSearch,
+    warmSearchIndex,
+    onSearchMatchesChange,
+    transcriptMessages,
+    onTranscriptScroll,
+    onTranscriptPillClick,
+  } = useChatSearch({ fullscreen, virtualScrollEnabled, columns, mergedTools, messages, focusedInputDialog, captureScrollForFlip, setFlipGeneration, scrollRef, scrollRestoreRef, onScroll });
   const globalKeybindingProps = {
     compactWork,
     screen,
@@ -1831,150 +1347,6 @@ export function Chat({
     virtualScrollActive: inVirtualTranscriptMode,
     searchBarOpen,
   };
-  const inTranscript = screen === 'transcript';
-  const inVirtualTranscript = inTranscript && inVirtualTranscriptMode;
-  const legacyTranscript = inTranscript && !inVirtualTranscriptMode;
-
-  const { setQuery: setHighlight, scanElement, setPositions } = useSearchHighlight();
-  useEffect(() => {
-    if (!inTranscript) {
-      setHighlight('');
-      setPositions(null);
-      return;
-    }
-    setHighlight(parseSearchQuery(committedSearchQuery).text ?? '');
-  }, [inTranscript, committedSearchQuery, setHighlight, setPositions]);
-  useEffect(() => {
-    if (!editorStatus) return;
-    const timer = setTimeout(() => setEditorStatus(null), EDITOR_STATUS_MS);
-    return () => clearTimeout(timer);
-  }, [editorStatus]);
-  const lastColumnsRef = useRef(columns);
-  useEffect(() => {
-    if (lastColumnsRef.current === columns) return;
-    lastColumnsRef.current = columns;
-    if (searchBarOpen || committedSearchQuery !== '') {
-      setSearchBarOpen(false);
-      setCommittedSearchQuery('');
-      setSearchMatchCount(null);
-      setSearchMatchCurrent(0);
-      jumpRef.current?.disarmSearch();
-      setHighlight('');
-    }
-  }, [columns, searchBarOpen, committedSearchQuery, setHighlight]);
-
-  const openTranscriptInEditor = useCallback(() => {
-    if (editorInFlightRef.current) return;
-    editorInFlightRef.current = true;
-    const generation = editorGenerationRef.current;
-    setEditorStatus('rendering transcript…');
-    void (async () => {
-      try {
-        const text = await renderMessagesToPlainText([...getFocusedSessionConnector().records()], mergedTools, Math.max(80, columns - 6));
-        const cleaned = text
-          .split('\n')
-          .map(line => line.replace(/\s+$/, ''))
-          .join('\n');
-        const path = join(tmpdir(), `mercury-transcript-${Date.now()}.md`);
-        writeFileSync(path, cleaned, 'utf8');
-        if (generation !== editorGenerationRef.current) return;
-        const { openFileInExternalEditor } = await import('../utils/editor.js');
-        if (openFileInExternalEditor(path)) {
-          setEditorStatus(`opening ${path}`);
-        } else {
-          setEditorStatus(
-            process.platform === 'win32'
-              ? `written to ${path} — set EDITOR (or VISUAL) to open it`
-              : `written to ${path} — set $EDITOR to open it`,
-          );
-        }
-      } catch (error) {
-        if (generation === editorGenerationRef.current) setEditorStatus(`render failed: ${error instanceof Error ? error.message : String(error)}`);
-      } finally {
-        editorInFlightRef.current = false;
-      }
-    })();
-  }, [columns, mergedTools]);
-
-  useInput(
-    (input, key) => {
-      if (currentSurfaceRoute().kind !== 'repl') return;
-      if (key.ctrl || key.meta) return;
-      if (input === '/' && !searchBarOpen) {
-        jumpRef.current?.setAnchor();
-        setSearchBarOpen(true);
-        return;
-      }
-      if ((input === 'n' || input === 'N') && !searchBarOpen && !dumpMode && searchMatchCount !== null && searchMatchCount > 0) {
-        for (const ch of input) {
-          if (ch === 'n') jumpRef.current?.nextMatch();
-          else jumpRef.current?.prevMatch();
-        }
-        return;
-      }
-      if (input === 'q' && !searchBarOpen) {
-        handleExitTranscript();
-        setScreen('prompt');
-        return;
-      }
-      if (input === 'g' && !searchBarOpen) {
-        scrollRestoreRef.current = null;
-        scrollRef.current?.scrollTo(0);
-        return;
-      }
-      if (input === 'G' && !searchBarOpen) {
-        scrollRestoreRef.current = null;
-        scrollRef.current?.scrollToBottom();
-        return;
-      }
-      if (input === '[' && !searchBarOpen && !dumpFiredRef.current) {
-        dumpFiredRef.current = true;
-        setShowAllInTranscript(true);
-        setDumpMode(true);
-        return;
-      }
-      if (input === 'v' && !searchBarOpen) {
-        openTranscriptInEditor();
-      }
-    },
-    { isActive: inTranscript && focusedInputDialog === undefined },
-  );
-
-  const commitSearch = useCallback((query: string) => {
-    setSearchBarOpen(false);
-    if (query === '' || searchMatchCount === 0) {
-      setCommittedSearchQuery('');
-      setSearchMatchCount(null);
-      setSearchMatchCurrent(0);
-      jumpRef.current?.setSearchQuery('');
-      setHighlight('');
-      return;
-    }
-    setCommittedSearchQuery(query);
-  }, [searchMatchCount, setHighlight]);
-  const cancelSearch = useCallback(() => {
-    setSearchBarOpen(false);
-    jumpRef.current?.setSearchQuery('');
-    jumpRef.current?.setSearchQuery(committedSearchQuery);
-    setHighlight(parseSearchQuery(committedSearchQuery).text ?? '');
-  }, [committedSearchQuery, setHighlight]);
-  const previewSearch = useCallback((query: string) => {
-    jumpRef.current?.setSearchQuery(query);
-    setHighlight(parseSearchQuery(query).text ?? '');
-  }, [setHighlight]);
-  const warmSearchIndex = useCallback(() => jumpRef.current?.warmSearchIndex() ?? Promise.resolve(0), []);
-  const onSearchMatchesChange = useCallback((count: number, current: number) => {
-    setSearchMatchCount(count);
-    setSearchMatchCurrent(current);
-  }, []);
-  useEffect(() => {
-    if (!inTranscript) return;
-    if (committedSearchQuery === '') return;
-    jumpRef.current?.setSearchQuery(committedSearchQuery);
-  }, [inTranscript, committedSearchQuery]);
-  useKeybinding('app:interrupt', () => {
-    if (searchBarOpen) cancelSearch();
-  }, { isActive: searchBarOpen });
 
   const messageActionsDisabled = false;
   const messageCursorActive = useMessageCursorActive();
@@ -2074,10 +1446,6 @@ export function Chat({
       settleEntryWarmth(warmth.sessionId);
     }
   }, [messages, focusedConnector, warmthVersion]);
-  const transcriptMessages = useMemo(
-    () => (frozenTranscriptState ? messages.slice(0, frozenTranscriptState.messageCount) : messages),
-    [messages, frozenTranscriptState],
-  );
   const centredModalUp = (localJsx && fullscreen) || compactDetailUp;
   const displayedMessages = inVirtualTranscript ? transcriptMessages : paintedMessages;
 
@@ -2110,45 +1478,8 @@ export function Chat({
     }, NO_CHAT_SETTLE_MS);
     return () => clearTimeout(settle);
   }, [slotHasSession, landing, chatSurfaceCovered, localJsx, armedMessage]);
-  const unseenDivider = useMemo(
-    () => (fullscreen ? computeUnseenDivider(messages, unseen.dividerIndex) : undefined),
-    [fullscreen, messages, unseen.dividerIndex],
-  );
-  const newMessageCount = unseen.dividerIndex === null ? 0 : countUnseenAssistantTurns(messages, unseen.dividerIndex);
-  const onScroll = useCallback(
-    (sticky: boolean, handle: ScrollBoxHandle) => {
-      scrollRestoreRef.current = null;
-      noteUserScroll();
-      if (sticky) unseen.onRepin();
-      else unseen.onScrollAway(handle);
-    },
-    [noteUserScroll, unseen],
-  );
-  const onPillClick = useCallback(() => {
-    scrollRestoreRef.current = null;
-    setMessageCursor(null);
-    unseen.jumpToNew(scrollRef.current);
-  }, [unseen]);
-  const onTranscriptScroll = useCallback(
-    (sticky: boolean, handle: ScrollBoxHandle) => {
-      jumpRef.current?.disarmSearch();
-      onScroll(sticky, handle);
-    },
-    [onScroll],
-  );
-  const onTranscriptPillClick = useCallback(() => {
-    const handle = scrollRef.current;
-    if (!handle) return;
-    handle.scrollTo(Math.max(0, handle.getScrollHeight() - handle.getViewportHeight()));
-    handle.scrollToBottom();
-    onTranscriptScroll(true, handle);
-  }, [onTranscriptScroll]);
 
-  const lastMessage = messages[messages.length - 1];
-  useEffect(() => {
-    if (lastMessage && isHumanTurn(lastMessage)) repinToBottom();
-  }, [lastMessage, repinToBottom]);
-
+  useChatScrollFollow({ messages, repinToBottom });
   const viewInProgressToolUseIDs = seatLive.inProgressToolUseIDs;
   const viewStreamMode: SpinnerMode =
     seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' || seatLive.phase === 'waiting' ? 'requesting' : 'responding';
@@ -2228,27 +1559,6 @@ export function Chat({
     ) : spinnerSlotReserved ? <StreamingHoldRow loadingStartTimeRef={seatStartTimeRef} totalPausedMsRef={seatPausedMsRef} pauseStartTimeRef={seatPauseStartRef} responseLengthRef={responseLengthRef} outputTokensRef={outputTokensRef} liveTurnFactsRef={liveTurnFactsRef} /> : null}
     {!isCompact ? <MercuryTurnRollup messages={messages} /> : null}
   </Box>;
-
-  const permissionOverlay =
-    focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0] && !chatSurfaceCovered ? (
-      <PermissionQueueContext.Provider value={permissionQueueStatus(resolvedConsentCount, toolUseConfirmQueue.length)}>
-        <Box flexDirection="column">
-          <PermissionRequest
-            key={toolUseConfirmQueue[0].toolUseID}
-            toolUseConfirm={toolUseConfirmQueue[0]}
-            toolUseContext={toolUseConfirmQueue[0].toolUseContext}
-            onDone={resolveHeadPermission}
-            onReject={() => {
-              resolveHeadPermission();
-            }}
-            verbose={verbose}
-            workerBadge={toolUseConfirmQueue[0].workerBadge}
-            setStickyFooter={setPermissionStickyFooter}
-          />
-          <CardQueuedWords />
-        </Box>
-      </PermissionQueueContext.Provider>
-    ) : null;
 
   const messageSelector =
     focusedInputDialog === 'message-selector' && !chatSurfaceCovered ? (

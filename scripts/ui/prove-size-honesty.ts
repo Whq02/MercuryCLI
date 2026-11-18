@@ -28,14 +28,30 @@ console.log('§1 C1 — the footer transient is one row by fold')
 
 console.log('§2 C2 — the footer right cell holds a budget and keeps its tail')
 {
-  const repl = read('src/screens/Chat.tsx')
+  const React = await import('react')
+  const { mountPart } = await import('./chatScenarios.ts')
+  const { waitFor } = await import('../lib/settingsPopupHarness.ts')
+  const { TranscriptFooter } = await import('../../src/screens/chat/useChatSearch.tsx')
+  const status = 'written to /a/long/way/down/the/tree/of/folders/mercury-transcript-1234567890.md — set $EDITOR to open it'
+  const props = { toggleChord: 'ctrl+o', expandChord: 'ctrl+e', hasSearchBadge: false, virtualScroll: true, showAllSuppressed: false, showAll: false, status, badge: null }
+  const rowAt = async (columns: number): Promise<{ row: string; rows: number }> => {
+    const footer = await mountPart(() => props, { columns, rows: 4, draw: value => React.createElement(TranscriptFooter, value) })
+    await waitFor(() => footer.view.lines().some(line => line.includes('open it')), 3000)
+    const painted = footer.view.lines().filter(line => line.trim() !== '' && !/^─+$/.test(line.trim()))
+    footer.unmount()
+    return { row: painted.find(line => line.includes('open it')) ?? painted.join('|'), rows: painted.length }
+  }
+  const wide = await rowAt(60)
+  const tight = await rowAt(30)
+  const cellOf = (row: string): string => row.slice(row.lastIndexOf('…'))
   check(
     'the budget exists and floors at 16',
-    repl.includes('Math.min(stringWidth(right), Math.max(16, Math.floor((columns - 3) / 2)))'),
+    cellOf(wide.row).length === 28 && cellOf(tight.row).length === 16,
+    `${cellOf(wide.row).length} columns at 60, ${cellOf(tight.row).length} at 30`,
   )
-  check('the cell is width-bound and truncates from the START', repl.includes('width={rightBudget}') && repl.includes('wrap="truncate-start"'))
-  check('the left pack budgets against the CAPPED width', repl.includes('const rightWidth = right === \'\' ? 0 : rightBudget + 1'))
-  check('the unbudgeted paint is gone', !repl.includes('<Text color={tokens.textSecondary}>{right}</Text>'))
+  check('the cell is width-bound and truncates from the START', wide.row.endsWith('set $EDITOR to open it') && tight.row.endsWith('open it') && cellOf(wide.row).startsWith('…') && cellOf(tight.row).startsWith('…'), `${JSON.stringify(wide.row)} · ${JSON.stringify(tight.row)}`)
+  check('the left pack budgets against the CAPPED width', wide.row.length <= 60 && tight.row.length <= 30 && wide.rows === 1 && tight.rows === 1 && wide.row.startsWith(' detailed transcript'), `${JSON.stringify(wide.row)} · ${JSON.stringify(tight.row)}`)
+  check('the unbudgeted paint is gone', !wide.row.includes('written to /a/long') && !tight.row.includes('written to'), `${JSON.stringify(wide.row)} · ${JSON.stringify(tight.row)}`)
 }
 
 console.log('§3 C3 — the hard-80 fields follow the terminal; the dialog caret is real')

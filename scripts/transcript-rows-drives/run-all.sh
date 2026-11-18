@@ -5,6 +5,7 @@
 # gate-watch: scripts/transcript-rows/* scripts/ui/* src/components/CustomSelect/use-select-input.ts
 # gate-watch: src/components/permissions/PermissionRequest.tsx src/input-core/pending-input.ts src/utils/permissions/permissionFocus.ts
 # gate-watch: src/screens/Chat.tsx src/utils/tasks.ts
+# gate-watch: src/tools/BashTool/BashTool.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

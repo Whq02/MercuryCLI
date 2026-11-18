@@ -25,6 +25,8 @@
 # gate-watch: src/utils/permissions/decision/wrapper.ts
 # gate-watch: scripts/lib/flagRegistrySource.ts
 # gate-watch: src/substrate/flagRegistry.ts
+# gate-watch: scripts/lib/settingsPopupHarness.ts
+# gate-watch: scripts/ui/chatScenarios.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1

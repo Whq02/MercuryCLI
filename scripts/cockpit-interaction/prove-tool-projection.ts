@@ -358,22 +358,17 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       /const facetsCache = useMemo\(\s*\n\s*\(\) => new WeakMap<[^>]+>\(\),\s*\n\s*\[lookups\],/.test(messages),
       'lookups-keyed, not useRef-permanent (re-audit finding)',
     )
-    const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
+    const { highlightTextOf } = await import('../../src/screens/chat/useChatSearch.tsx')
+    const highlighted = ['', 'gate verdict', 'tool:bash verdict', 'file:src/a.ts tool:"Read" failed: build ok', 'failed:'].map(query => highlightTextOf(query))
     t.check(
       'every HIGHLIGHT call either clears or routes through the query parser',
-      (() => {
-        const sites = [...repl.matchAll(/setHighlight\(/g)]
-        return sites.every(m => {
-          const arg = repl.slice(m.index! + 'setHighlight('.length, m.index! + 120)
-          return arg.startsWith("''") || arg.includes('parseSearchQuery(')
-        })
-      })(),
-      `${[...repl.matchAll(/setHighlight\(/g)].length} call sites`,
+      highlighted.join('|') === '|gate verdict|verdict|build ok|',
+      highlighted.join('|'),
     )
     t.check(
       'so an operator token is never inverse-highlighted as content',
-      !/setHighlight\((query|searchQuery)\)/.test(repl),
-      'no raw-query highlight remains',
+      highlighted.every(text => !/\b(?:tool|file|failed):/.test(text)),
+      highlighted.join('|'),
     )
     const row = readFileSync('src/components/messages/AssistantToolUseMessage.tsx', 'utf8')
     const lead = readFileSync('src/components/messages/ToolRowLead.tsx', 'utf8')

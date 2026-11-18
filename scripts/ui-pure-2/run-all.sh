@@ -36,6 +36,9 @@
 # gate-watch: src/services/engine-connector/types.ts src/services/engine-connector/seatLive.ts src/services/engine-connector/noSessionConnector.ts src/services/engine-connector/focusedConnector.ts
 # gate-watch: src/utils/Shell.ts
 # gate-watch: src/input-core/pending-input.ts
+# gate-watch: src/tools/BashTool/BashTool.tsx
+# gate-watch: src/utils/permissions/modeTransitions.ts
+# gate-watch: src/utils/permissions/permissionFocus.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

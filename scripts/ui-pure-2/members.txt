@@ -97,3 +97,10 @@ prove-paste-sent-whole.ts
 prove-command-argument-pasted.ts
 prove-landing-lines-sent-in-order.ts
 prove-paste-type-interleaving.ts
+prove-chat-recording.ts
+prove-chat-parts-law.ts
+prove-chat-title-part.ts
+prove-chat-search-part.ts
+prove-chat-scroll-part.ts
+prove-chat-asks-part.ts
+prove-chat-draft-part.ts
