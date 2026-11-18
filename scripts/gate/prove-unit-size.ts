@@ -316,17 +316,28 @@ function walk(chain: Chain, tree: ReadonlyMap<string, Measure>, data: Data): Wal
     const imports = bag(now.imports.flatMap(([from, to]) => stretch(now, from, to)))
     return less(less(bag(own(row.file, now, data)), bag(was === null ? [] : own(row.file, was, data))), imports)
   }
+  const heldAt = (id: string, row: Row): number => {
+    chain.load?.(id, [row.file])
+    const m = at(id, row.file)
+    const part = unitOf(m, row.name)
+    return (m === null ? undefined : row.kind === 'file' ? countOf(row.file, m, data) : row.kind === 'unit' ? (part === undefined ? undefined : sizeOf(part)) : dataCount(row, m, data)) ?? 0
+  }
+  let leftOut: Table = new Map()
   const settle = (prev: string, state: State, allowed: Table, marks: Map<string, Mark>): number => {
     const rows = state.rows!
     const before = new Map(allowed)
+    const back = leftOut
+    leftOut = new Map([...before].filter(([key, was]) => (rows.get(key)?.count ?? 0) < was.count))
     const born: Row[] = []
     for (const [key, row] of rows) {
       const was = before.get(key)
+      const kept = back.get(key)?.count
+      const most = was === undefined ? 0 : kept === undefined || row.count <= was.count ? was.count : Math.max(was.count, Math.min(kept, heldAt(prev, row)))
       if (was === undefined) born.push(row)
-      else if (row.count <= was.count) {
+      else if (row.count <= most) {
         allowed.set(key, row)
         marks.delete(key)
-      } else marks.set(key, { ...(marks.get(key) ?? { at: state.name, allowed: was.count, stood: null, arrived: 0, moved: 0 }), row })
+      } else marks.set(key, { ...(marks.get(key) ?? { at: state.name, allowed: most, stood: null, arrived: 0, moved: 0 }), row })
     }
     for (const key of before.keys()) if (!rows.has(key)) allowed.delete(key)
     for (const key of [...marks.keys()]) if (!rows.has(key)) marks.delete(key)
@@ -343,9 +354,11 @@ function walk(chain: Chain, tree: ReadonlyMap<string, Measure>, data: Data): Wal
         allowed.set(key, { ...row, count: Math.min(row.count, count) })
         marks.delete(key)
       }
+      const kept = back.get(key)?.count
       if (row.kind === 'table' || row.kind === 'text') {
         const base = dataCount(row, was, data)
-        if (base !== undefined && row.count > base) refuse(null, 0, 0, base)
+        const most = kept === undefined || base === undefined ? (kept ?? base) : Math.min(kept, base)
+        if (most !== undefined && row.count > most) refuse(null, 0, 0, most)
         else accept(dataCount(row, now, data) ?? row.count)
         continue
       }
@@ -355,8 +368,10 @@ function walk(chain: Chain, tree: ReadonlyMap<string, Measure>, data: Data): Wal
       const stood = was === null ? 0 : row.kind === 'file' ? countOf(row.file, was, data) : old === undefined ? 0 : sizeOf(old)
       const arrived = now === null ? null : arrivedIn(row, was, now)
       if (holds === null || arrived === null) refuse(null, row.count, 0)
-      else if (stood > (row.kind === 'file' ? FILE_CEILING : UNIT_CEILING)) refuse(stood, 0, 0)
-      else {
+      else if (stood > (row.kind === 'file' ? FILE_CEILING : UNIT_CEILING)) {
+        if (kept !== undefined && row.count <= Math.min(kept, stood)) accept(holds)
+        else refuse(kept === undefined ? stood : null, 0, 0, kept === undefined ? null : Math.min(kept, stood))
+      } else {
         const moved = drawn(row.kind === 'file' ? pool.file : pool.unit, arrived, true)
         if (moved >= size(arrived)) accept(holds)
         else refuse(null, size(arrived), moved)
@@ -377,7 +392,8 @@ function walk(chain: Chain, tree: ReadonlyMap<string, Measure>, data: Data): Wal
     const take = (rows: Table): void => {
       for (const [key, row] of rows) if (!allowed.has(key)) allowed.set(key, row)
     }
-    if (lacking().length > 0) take(measured(base, lacking()))
+    if (first !== 0) take(measured(base, rest.flatMap(state => [...state.rows!.values()].map(row => row.file))))
+    else if (lacking().length > 0) take(measured(base, lacking()))
     if (first !== 0 && lacking().length > 0) take(measured(base, chain.touched(base, next.id)))
   }
   const marks = new Map<string, Mark>()
@@ -416,6 +432,7 @@ const some = <T>(found: T[], line: (one: T) => string): string =>
     .map(one => `\n      ${line(one)}`)
     .join('') + (found.length > 40 ? `\n      … and ${found.length - 40} more` : '')
 const arrivals = (row: Row, arrived: number, moved: number): string => `of the ${arrived} lines that arrived in it, ${moved} left a ${holder(row.kind)} that has a row and the rest is new`
+const LOST = `; a row that one write of the table left out comes back at the next write alone, so if a write lost this one by mistake, name that commit as FLOOR in ${SELF}`
 const spoken = (id: string): string => (id === 'HEAD' ? 'the last commit' : id.endsWith('^') ? `the commit before ${id.slice(0, 10)}` : `commit ${id.slice(0, 10)}`)
 
 const told = (over: Over[], walked: Walked | null): string =>
@@ -424,6 +441,7 @@ const told = (over: Over[], walked: Walked | null): string =>
     const is = row.kind === 'file' ? `${row.file}: the file is ${row.count} lines` : `${row.file}: ${row.name} ${row.kind === 'unit' ? 'is' : 'holds'} ${row.count} ${worth(row.kind)}`
     if (allowed === null && (row.kind === 'table' || row.kind === 'text')) return `${is} and has no row — bun ${SELF} --write writes the row of what stands on the list of data`
     const counted = walked?.since(row) ?? null
+    if (counted !== null && counted.arrived === 0) return `${is} and ${allowed === null ? 'has no row' : `its row allows ${allowed}`}; no line arrived in it since the last write of the table, which is out of step with its tree — bun ${SELF} --write mends a row that the last write alone left out or set too low`
     if (allowed === null && counted !== null && counted.moved >= counted.arrived) return `${is} and has no row; all ${counted.arrived} lines that arrived in it left a ${holder(row.kind)} that has a row — bun ${SELF} --write writes its row`
     return `${is} and ${allowed === null ? `has no row, so it may hold at most ${row.kind === 'file' ? FILE_CEILING : UNIT_CEILING}` : `its row allows ${allowed}`}${counted === null ? '' : `; ${arrivals(row, counted.arrived, counted.moved)}`} — ${DO(row)}`
   })
@@ -433,14 +451,14 @@ const toldMarks = (marks: Mark[], fresh: Table): string =>
   some(marks, mark => {
     const holds = fresh.get(keyOf(mark.row))?.count ?? 0
     if (mark.allowed !== null) return `${called(mark.row)}: its row says ${mark.row.count} ${worth(mark.row.kind)} and may say ${mark.allowed} at most: raised by hand in ${mark.at}; the tree holds ${holds} — ${holds > mark.allowed ? `${DO(mark.row)}, then ` : ''}bun ${SELF} --write puts the row at what the tree holds`
-    return `${called(mark.row)}: its row of ${mark.row.count} ${worth(mark.row.kind)} is new in ${mark.at}${mark.stood === null ? `; ${arrivals(mark.row, mark.arrived, mark.moved)}` : `, where it stood at ${mark.stood} with no row`} — ${DO(mark.row)}`
+    return `${called(mark.row)}: its row of ${mark.row.count} ${worth(mark.row.kind)} is new in ${mark.at}${mark.stood === null ? `; ${arrivals(mark.row, mark.arrived, mark.moved)}` : `, where it stood at ${mark.stood} with no row`} — ${DO(mark.row)}${mark.stood === null ? '' : LOST}`
   })
 
 const toldRefused = (marks: Mark[]): string =>
   `${marks.length} row${marks.length === 1 ? '' : 's'} — ${LAW}:` +
   some(marks, mark => {
     if (mark.allowed !== null) return `${called(mark.row)}: its row says ${mark.allowed} ${worth(mark.row.kind)} and the tree holds ${mark.row.count}: --write lowers a row and never raises one${mark.at === WORKING_TREE ? '' : ` (the table has stood above its row since ${mark.at}, by hand)`} — ${DO(mark.row)}`
-    return `${called(mark.row)}: it holds ${mark.row.count} ${worth(mark.row.kind)} and has no row${mark.stood === null ? `; ${arrivals(mark.row, mark.arrived, mark.moved)}` : `, and it stood at ${mark.stood} with none in ${mark.at}`} — ${DO(mark.row)}`
+    return `${called(mark.row)}: it holds ${mark.row.count} ${worth(mark.row.kind)} and has no row${mark.stood === null ? `; ${arrivals(mark.row, mark.arrived, mark.moved)}` : `, and it stood at ${mark.stood} with none before`} — ${DO(mark.row)}${mark.stood === null ? '' : LOST}`
   })
 
 const toldStrays = (strays: Stray[]): string =>
@@ -773,6 +791,20 @@ function plantedEstate(): void {
     'where the floor holds no table that reads, the first one after it is held to what the commit before it measures, so that it raises nothing either; a write that does not read is passed over and the next is read against the last that did',
     said(firstTable) === '' && firstTable.base === '0' && said(firstTableRaised) === `${BIG} runBig 410 400 0/0 in commit A` && said(unread) === `${BIG} runBig 410 400 0/0 in ${WORKING_TREE}` && unread.base === null,
     `${said(firstTable)} | ${said(firstTableRaised)} | ${said(unread)}`,
+  )
+  const without: Step = { name: 'commit A', files: estate, rows: new Map() }
+  const back = walked([floor(estate), without, { name: WORKING_TREE, files: estate, rows: table }])
+  const backHigher = walked([floor(estate), without, { name: WORKING_TREE, files: grownBig, rows: lifted }])
+  const tooLate = walked([floor(estate), without, { name: 'commit B', files: estate, rows: new Map() }, { name: WORKING_TREE, files: estate, rows: table }])
+  const tooLow: Step = { name: 'commit A', files: estate, rows: rowed(fallen) }
+  const up = walked([floor(estate), tooLow, { name: WORKING_TREE, files: estate, rows: table }])
+  const upHigher = walked([floor(estate), tooLow, { name: WORKING_TREE, files: grownBig, rows: lifted }])
+  const afterACut = walked([floor(estate), { name: 'commit A', files: fallen, rows: rowed(fallen) }, { name: WORKING_TREE, files: estate, rows: table }])
+  const firstLeftOut = walked([noTable, without, { name: WORKING_TREE, files: estate, rows: table }])
+  check(
+    'a write of the table that is out of step with its tree is mended by the next write alone: a row it left out while the unit stood, or set below what the unit held, comes back at the number it had and not above it, and so it is when that write is the first table after a floor that holds none; left out by two writes it reads as a unit that stood with no row, and a row lowered by a true cut does not come back',
+    said(back) === '' && said(backHigher) === `${BIG} runBig 410 400 0/0 in ${WORKING_TREE}` && said(tooLate) === `${BIG} runBig 400 stood 400 0/0 in ${WORKING_TREE}` && said(up) === '' && said(upHigher) === `${BIG} runBig 410 400 0/0 in ${WORKING_TREE}` && said(afterACut) === `${BIG} runBig 400 350 0/0 in ${WORKING_TREE}` && said(firstLeftOut) === '',
+    `${said(back)} | ${said(backHigher)} | ${said(tooLate)} | ${said(up)} | ${said(upHigher)} | ${said(afterACut)} | ${said(firstLeftOut)}`,
   )
 }
 
