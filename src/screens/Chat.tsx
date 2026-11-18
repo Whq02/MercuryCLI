@@ -91,7 +91,7 @@ import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './chat/limits.js';
 import type { Screen as ScreenName } from './chat/screen.js';
 import type { PaintsRows, ResumableLog } from './chat/sessionShapes.js';
 import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
-import { useChatCrashResume } from './chat/useChatBoot.js';
+import { loadContextWindowWarmup, loadDaemonHandshake, loadEnsureDaemon, loadHopIntoSession, loadProjectSnapshot, useChatCrashResume } from './chat/useChatBoot.js';
 import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsView } from './chat/useChatDialogs.js';
 import { useChatDraft } from './chat/useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
@@ -446,7 +446,7 @@ export function Chat({
       const title =
         focused.record?.title ??
         (typeof focused.sessionId === 'function' ? String(focused.sessionId()).slice(0, 8) : 'this session');
-      void import('../services/switchboard/hopIntoSession.js').then(({ composeNoRunnerLine }) => {
+      void loadHopIntoSession().then(({ composeNoRunnerLine }) => {
         const segments = composeNoRunnerLine(title, refusal).split(' · ');
         addNotification({
           key: 'resume-hop',
@@ -782,14 +782,14 @@ export function Chat({
   useEffect(() => {
     recordBootInteractive();
     setTimeout(() => {
-      void import('../services/switchboard/ensureDaemon.js')
+      void loadEnsureDaemon()
         .then(async m => {
           if (await m.ensureOwnedDaemon()) await m.warmSessionRunner(getCwd());
         })
         .catch(() => {});
     }, 0);
     setTimeout(() => {
-      void import('../utils/model/contextWindowWarmup.js')
+      void loadContextWindowWarmup()
         .then(m => m.warmContextWindowSources())
         .catch(() => {});
     }, 0);
@@ -806,7 +806,7 @@ export function Chat({
     const key = 'daemon-version';
     let alive = true;
     let unsubscribe = (): void => {};
-    void import('../daemon/handshake.js')
+    void loadDaemonHandshake()
       .then(hs => {
         if (!alive) return;
         const paint = (): void => {
@@ -1002,7 +1002,7 @@ export function Chat({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      void import('../services/projectIntel/snapshot.js')
+      void loadProjectSnapshot()
         .then(m => m.getProjectSnapshotAsync(getOriginalCwd(), { maxStaleMs: 120_000 }))
         .catch(() => {});
     }, BOOT_WARMUP_MS);
