@@ -13,7 +13,7 @@ import { removeScratch } from '../lib/removeScratch.ts'
 import { hostRunner, type HostedRunner } from '../lib/runnerHost.ts'
 
 type Env = Record<string, string | undefined>
-type WireBoot = { name: string; argv: string[]; env: Env; lines: unknown[]; stderr: unknown[]; exit: number | null | string; last: { stdout: unknown; stderr: unknown } }
+type WireBoot = { name: string; argv: string[]; env: Env; lines: unknown[]; stderr: unknown[]; exit: number | null | string; last: { stdout: unknown; stderr: unknown }; notifications?: { failed: number; dropped: number } }
 type PrintBoot = { name: string; args: string[]; env: Env; status: number | null; stdout: unknown[]; stderr: unknown[]; last: { stdout: unknown; stderr: unknown }; phases: string[] | null; phaseReport?: unknown }
 type Recording = { wire: WireBoot[]; print: PrintBoot[] }
 
@@ -81,10 +81,11 @@ const linesOf = (text: string): unknown[] =>
 
 type Booted = { runner: HostedRunner; quiet: () => Promise<void>; sessionId: string | null }
 
-async function wireBoot(name: string, at: { home: string; cwd: string }, argv: string[], extra: Env, turns: ScriptedTurn[], use: (booted: Booted) => Promise<void>, ends: 'stop' | 'kill' = 'stop'): Promise<WireBoot & { sessionId: string | null }> {
+async function wireBoot(name: string, at: { home: string; cwd: string }, argv: string[], extra: Env, turns: ScriptedTurn[], use: (booted: Booted) => Promise<void>, how: { ends?: 'kill'; first?: (runner: HostedRunner) => void; logFile?: string } = {}): Promise<WireBoot & { sessionId: string | null }> {
   const api = await startFixtureApi(turns)
   let out = ''
-  const runner = hostRunner({ dist: DIST, node: nodeBinPath(), cwd: at.cwd, home: at.home, env: envOf(at.home, api.url, extra), argv, raw: chunk => (out += chunk), report: () => {} })
+  const runner = hostRunner({ dist: DIST, node: nodeBinPath(), cwd: at.cwd, home: at.home, env: envOf(at.home, api.url, extra), argv: [...argv, ...(how.logFile !== undefined ? ['--log-file', how.logFile] : [])], raw: chunk => (out += chunk), report: () => {} })
+  how.first?.(runner)
   const quiet = async (): Promise<void> => {
     let seen = -1
     let still = 0
@@ -101,7 +102,7 @@ async function wireBoot(name: string, at: { home: string; cwd: string }, argv: s
     sessionId = hello.session_id
     await quiet()
     await use({ runner, quiet, sessionId })
-    if (ends === 'kill') {
+    if (how.ends === 'kill') {
       endProcessGroup(runner.child)
       exit = await Promise.race([runner.exited.then(code => (code === null ? 'killed' : code)), pause(10_000).then(() => 'still running')])
     } else exit = await runner.stop(10_000)
@@ -113,7 +114,8 @@ async function wireBoot(name: string, at: { home: string; cwd: string }, argv: s
   }
   const lines = linesOf(out)
   const stderr = linesOf(runner.stderr())
-  return { name, argv, env: extra, lines, stderr, exit, last: { stdout: lines.at(-1) ?? null, stderr: stderr.at(-1) ?? null }, sessionId }
+  const logged = how.logFile !== undefined && existsSync(how.logFile) ? readFileSync(how.logFile, 'utf8').split('\n').filter(text => text.includes('runner wire: notification ')) : null
+  return { name, argv, env: extra, lines, stderr, exit, last: { stdout: lines.at(-1) ?? null, stderr: stderr.at(-1) ?? null }, sessionId, ...(logged !== null ? { notifications: { failed: logged.filter(text => text.includes(' failed: ')).length, dropped: logged.filter(text => text.includes(' is dropped ')).length } } : {}) }
 }
 
 async function printBoot(name: string, at: { home: string; cwd: string }, args: string[], extra: Env, turns: ScriptedTurn[], logFile?: string): Promise<PrintBoot> {
@@ -257,7 +259,7 @@ wire.push(
       await runner.prompt('hang here')
       await runner.waitFor('the hanging turn has its first byte', row => row.type === 'wait' && row.state === 'done', 60_000)
     },
-    'kill',
+    { ends: 'kill' },
   ),
 )
 wire.push(
@@ -294,8 +296,28 @@ wire.push(
     await quiet()
   }),
 )
+const worker = wire.at(-1) as WireBoot & { sessionId: string | null }
+const early = world('early')
+const earlier = await wireBoot('the session the next boot resumes', early, ['--model', FIXTURE_MODEL], {}, [handoffTurn(), { kind: 'text', text: 'First answer.' }], async ({ runner, quiet }) => {
+  await runner.prompt('say the first answer')
+  await settled(runner, 1)
+  await quiet()
+})
+const told = await wireBoot(
+  'told of new credentials while it resumes',
+  early,
+  ['--model', FIXTURE_MODEL, '--resume', earlier.sessionId ?? NO_SUCH],
+  {},
+  [handoffTurn()],
+  async ({ runner }) => {
+    await facts(runner)
+  },
+  { first: runner => runner.peer.notify('credentials/changed' as never, {} as never), logFile: join(parent, 'early', 'debug.txt') },
+)
+wire.push(told)
 check('each wire boot answered initialize and ended', wire.every(boot => typeof boot.exit !== 'string' || boot.exit === 'killed'), wire.map(boot => `${boot.name}: ${boot.exit}`).join(' · '))
-check('the cold boot carries a session and the worker carries none before its claim', cold.sessionId !== null && wire.at(-1)!.sessionId === null)
+check('the cold boot carries a session and the worker carries none before its claim', cold.sessionId !== null && worker.sessionId === null)
+check('a runner told of new credentials while it resumes a session takes them when it has booted: its debug log holds no notification that failed or was dropped', told.notifications !== undefined && told.notifications.failed === 0 && told.notifications.dropped === 0, JSON.stringify(told.notifications))
 check('the killed boot ended by its signal and every other boot by its own exit', wire.every(boot => (boot.name === 'killed in a turn') === (boot.exit === 'killed')), wire.map(boot => `${boot.name}: ${boot.exit}`).join(' · '))
 
 section('§2 the print runner boots: the six it refuses, the session kinds, a rewind, a fork, and two whose phases are read')
@@ -315,9 +337,12 @@ print.push(await printBoot('a model no provider serves, with a title', world('p1
 print.push(await printBoot('a cold run whose phases are read', world('p12'), ['--format', 'rows', '--title', 'a titled run', '--model', FIXTURE_MODEL, 'hi'], {}, said, join(parent, 'p12', 'debug.txt')))
 print.push(await printBoot('a continued run whose phases are read', w, ['--format', 'rows', '--model', FIXTURE_MODEL, '--continue', 'again'], {}, said, join(parent, 'w', 'debug.txt')))
 print.push(await printBoot('a fork of the resumed session', w, ['--format', 'rows', '--model', FIXTURE_MODEL, '--fork', '--resume', sid, 'forked'], {}, said))
+for (const format of ['text', 'json', 'rows']) print.push(await printBoot(`a worker with no session on the rows door, ${format}`, world(`p13-${format}`), ['--format', format, '--model', FIXTURE_MODEL, 'hi'], WORKER, said))
 const refusedBoots = print.filter(boot => /^(?:--replay-to without|--restore-files without|--restore-files with a prompt|--restore-files to a message nothing|no prompt|an empty prompt)/.test(boot.name))
 check('each print boot ended with an exit code', print.every(boot => boot.status !== null), print.map(boot => `${boot.name}: ${boot.status}`).join(' · '))
 check('the boots the runner refuses for their options or their prompt exit 1 or 2 with one line', refusedBoots.length === 9 && refusedBoots.every(boot => (boot.status === 1 || boot.status === 2) && boot.stdout.length + boot.stderr.length === 1), refusedBoots.map(boot => `${boot.name}: ${boot.status}, ${boot.stdout.length} + ${boot.stderr.length} lines`).join(' · '))
+const unclaimable = print.filter(boot => boot.name.startsWith('a worker with no session on the rows door'))
+check('a worker with no session on the rows door is refused at the boot: exit 2, nothing on stdout, and one sentence on stderr that names the claim it waits for', unclaimable.length === 3 && unclaimable.every(boot => boot.status === 2 && boot.stdout.length === 0 && boot.stderr.length === 1 && String(boot.stderr[0]).includes('session/claim')), unclaimable.map(boot => `${boot.name}: ${boot.status}, ${boot.stdout.length} + ${boot.stderr.length} lines`).join(' · '))
 const phased = print.filter(boot => boot.name.endsWith('whose phases are read'))
 check(`the two runs whose phases are read stamp ${BOOT_PHASES.join(', ')} in that order by their clocks`, phased.length === 2 && phased.every(boot => JSON.stringify(boot.phases) === JSON.stringify(BOOT_PHASES)), phased.map(boot => `${boot.name}: ${JSON.stringify(boot.phases)}`).join(' · '))
 
