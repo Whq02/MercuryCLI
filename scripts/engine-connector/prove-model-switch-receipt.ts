@@ -23,6 +23,8 @@ const { NoSessionConnector } = await import(join(SRC, 'services/engine-connector
 
 type Reply = Record<string, unknown>
 type Receipt = { state: string; detail?: string }
+const rpcLog: Reply[] = []
+let answer: () => Promise<Reply> = async () => ({ ok: true, outcome: 'applied' })
 const connector = new DaemonSessionConnector({
   sessionId: 'receipt-proof',
   runnerId: 'runner-1',
@@ -31,13 +33,12 @@ const connector = new DaemonSessionConnector({
   workspaceId: 'ws',
   home: SCRATCH,
   modelKey: 'claude-sonnet-5',
+}, {
+  rpc: async (req: Reply) => {
+    rpcLog.push(req)
+    return answer()
+  },
 })
-const rpcLog: Reply[] = []
-let answer: () => Promise<Reply> = async () => ({ ok: true, outcome: 'applied' })
-;(connector as unknown as { rpc: (req: Reply) => Promise<Reply> }).rpc = async req => {
-  rpcLog.push(req)
-  return answer()
-}
 const switchTo = async (model: string): Promise<Receipt> => (await connector.setModel(model)) as Receipt
 const lastRpc = (): Reply | undefined => rpcLog[rpcLog.length - 1]
 

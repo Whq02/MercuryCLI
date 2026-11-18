@@ -204,13 +204,14 @@ console.log('\nA5 the wiring — runner to glass (structural)')
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
   const { publishSessionFacts, publishSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
   const doorId = 'agentwait-door'
-  const door = new DaemonSessionConnector({ sessionId: doorId, runnerId: 'runner-agentwait', title: 'the chat', projectLabel: 'proof', workspaceId: plane, home: plane })
-  const reaches = door as unknown as { readFacts(): void; readTail(): void; rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>> }
   const presses: Array<Record<string, unknown>> = []
-  reaches.rpc = async req => {
-    presses.push(req)
-    return { ok: true, outcome: 'applied' }
-  }
+  const door = new DaemonSessionConnector({ sessionId: doorId, runnerId: 'runner-agentwait', title: 'the chat', projectLabel: 'proof', workspaceId: plane, home: plane }, {
+    rpc: async (req: Record<string, unknown>) => {
+      presses.push(req)
+      return { ok: true, outcome: 'applied' }
+    },
+  })
+  const reaches = door as unknown as { readFacts(): void; readTail(): void }
   publishSessionFacts({
     schema: 1,
     sessionId: doorId,

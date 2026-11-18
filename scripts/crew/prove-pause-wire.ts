@@ -365,6 +365,7 @@ if (typeof seatMod.pauseSessionGate !== 'function') {
 
 section('P1 THE THREE LAYERS — p on a hosted chat parks a real loop in the runner; the rows carry the parked words; the chip reads the runner\'s fact; p again reopens')
 {
+  const rpcLog: Record<string, unknown>[] = []
   const connector = new DaemonSessionConnector({
     sessionId: SESSION,
     runnerId: RUNNER,
@@ -373,18 +374,18 @@ section('P1 THE THREE LAYERS — p on a hosted chat parks a real loop in the run
     workspaceId: ROOT,
     home: scratch,
     modelKey: MODEL,
+  }, {
+    rpc: async (req: Record<string, unknown>) => {
+      rpcLog.push(req)
+      if (req.op !== 'sessionControl' || req.action !== 'pause-gate') return { ok: false, code: 'EUNKNOWN', error: `unexpected rpc ${String(req.op)}/${String(req.action)}` }
+      if (typeof req.paused !== 'boolean') return { ok: true, op: 'sessionControl', outcome: 'refused', detail: 'pause-gate requires paused' }
+      if (typeof seatMod.pauseSessionGate !== 'function') return { ok: true, op: 'sessionControl', outcome: 'refused', detail: 'no relay on this tree' }
+      const out = await seatMod.pauseSessionGate(String(req.sessionId), req.paused, roster, daemonDir)
+      return { ok: true, op: 'sessionControl', outcome: out.outcome, ...(out.detail !== undefined ? { detail: out.detail } : {}) }
+    },
   })
-  type Guts = { rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>>; readFacts: () => void }
+  type Guts = { readFacts: () => void }
   const guts = connector as unknown as Guts
-  const rpcLog: Record<string, unknown>[] = []
-  guts.rpc = async req => {
-    rpcLog.push(req)
-    if (req.op !== 'sessionControl' || req.action !== 'pause-gate') return { ok: false, code: 'EUNKNOWN', error: `unexpected rpc ${String(req.op)}/${String(req.action)}` }
-    if (typeof req.paused !== 'boolean') return { ok: true, op: 'sessionControl', outcome: 'refused', detail: 'pause-gate requires paused' }
-    if (typeof seatMod.pauseSessionGate !== 'function') return { ok: true, op: 'sessionControl', outcome: 'refused', detail: 'no relay on this tree' }
-    const out = await seatMod.pauseSessionGate(String(req.sessionId), req.paused, roster, daemonDir)
-    return { ok: true, op: 'sessionControl', outcome: out.outcome, ...(out.detail !== undefined ? { detail: out.detail } : {}) }
-  }
   const rosterOf = (): { rows: readonly WorkRowV1[]; pauseGate?: { paused: boolean; parked: number } } => {
     guts.readFacts()
     return connector.workRoster() as never

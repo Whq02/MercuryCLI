@@ -48,21 +48,21 @@ type Guts = {
   echoRows: Map<string, Message>
   deliveredNotices: Map<string, { row: Message; text: string; sentAtMs: number; seq: number }>
   rawRecords: Message[]
-  rpc: (req: Reply) => Promise<Reply>
   reconcileQueuedSends: (facts: Record<string, unknown>) => void
   readTail: () => void
   factsBusy: boolean
   paint: () => void
 }
-const connector = new DaemonSessionConnector({ sessionId: 'compaction-hold-proof', runnerId: 'runner-1', title: 'compaction hold', projectLabel: 'proof', workspaceId: 'ws', home: SCRATCH, modelKey: 'claude-sonnet-5' })
-const g = connector as unknown as Guts
-const lostLineOf = (): { text: string; atMs: number } | null | undefined => (typeof connector.lostLine === 'function' ? connector.lostLine() : undefined)
 let answer: (req: Reply) => Promise<Reply> = async () => ({ ok: true, op: 'sessionControl', outcome: 'applied' })
 const rpcLog: Reply[] = []
-g.rpc = async req => {
-  rpcLog.push(req)
-  return answer(req)
-}
+const connector = new DaemonSessionConnector({ sessionId: 'compaction-hold-proof', runnerId: 'runner-1', title: 'compaction hold', projectLabel: 'proof', workspaceId: 'ws', home: SCRATCH, modelKey: 'claude-sonnet-5' }, {
+  rpc: async (req: Reply) => {
+    rpcLog.push(req)
+    return answer(req)
+  },
+})
+const g = connector as unknown as Guts
+const lostLineOf = (): { text: string; atMs: number } | null | undefined => (typeof connector.lostLine === 'function' ? connector.lostLine() : undefined)
 let liveWakes = 0
 connector.subscribeLive(() => liveWakes++)
 const seed = (id: string, text: string, state: Send['state']): void => {

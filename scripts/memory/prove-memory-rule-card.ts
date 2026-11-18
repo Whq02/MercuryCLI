@@ -139,9 +139,8 @@ cardHost.onRequest('permission/request', params => {
   return daemonAsks.holdWorkerAsk(WORKER, params, daemonDir, undefined, () => 'attached').answer as never
 })
 const cardAsks = createRunnerAsks(cardRunner, () => cardCapabilities)
-const connector = new DaemonSessionConnector({ sessionId: SESSION, runnerId: WORKER, title: 'rule card', projectLabel: 'proof', workspaceId: REPO, home: join(HOME, 'sessions'), modelKey: 'claude-opus-4-8' } as never)
-const cockpit = connector as unknown as { readAsks: () => void; asks: () => ReadonlyArray<{ confirm: { toolUseContext: unknown } }>; rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>> }
-cockpit.rpc = async req => ({ ok: true, ...daemonAsks.answerPermissionAsk(String(req.requestId), req.allow === true, String(req.by), undefined, req.answer as never) })
+const connector = new DaemonSessionConnector({ sessionId: SESSION, runnerId: WORKER, title: 'rule card', projectLabel: 'proof', workspaceId: REPO, home: join(HOME, 'sessions'), modelKey: 'claude-opus-4-8' } as never, { rpc: async (req: Record<string, unknown>) => ({ ok: true, ...daemonAsks.answerPermissionAsk(String(req.requestId), req.allow === true, String(req.by), undefined, req.answer as never) }) })
+const cockpit = connector as unknown as { readAsks: () => void; asks: () => ReadonlyArray<{ confirm: { toolUseContext: unknown } }> }
 
 type Answer = 'yes' | 'no' | 'esc'
 type Seen = { card: string; lines: string[]; asked: number }

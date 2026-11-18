@@ -53,7 +53,6 @@ const baseAnswer = {
 const crewRow = { id: 'agent-sleep', agentId: 'agent-sleep', kind: 'agent' as const, name: 'Run sleep command', status: 'running', startTime: Date.now() - 20_000 }
 
 type Guts = {
-  rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>>
   displayRows: Array<{ row: { type?: string; subtype?: string; content?: string; level?: string } }>
   factsBusy: boolean
   readFacts: () => void
@@ -62,9 +61,8 @@ type Live = { inFlight: boolean; phase: string }
 type Roster = { rows: Array<{ status: string }>; gone?: boolean }
 
 function mount(sessionId: string): { connector: { attach(): Promise<void>; detach(): void; live(): Live; workRoster(): Roster }; g: Guts } {
-  const connector = new DaemonSessionConnector({ sessionId, runnerId: `runner-${sessionId}`, title: 'the chat', projectLabel: 'proof', workspaceId: work, home: SCRATCH, modelKey: 'claude-sonnet-5-5' })
+  const connector = new DaemonSessionConnector({ sessionId, runnerId: `runner-${sessionId}`, title: 'the chat', projectLabel: 'proof', workspaceId: work, home: SCRATCH, modelKey: 'claude-sonnet-5-5' }, { rpc: async () => { throw new Error('ENOCONN: no daemon answers') } })
   const g = connector as unknown as Guts
-  g.rpc = async () => { throw new Error('ENOCONN: no daemon answers') }
   return { connector, g }
 }
 const publishBusy = (sessionId: string, atMs: number): void => {

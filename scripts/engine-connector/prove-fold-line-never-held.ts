@@ -27,7 +27,6 @@ type Send = { clientMessageId: string; text: string; sentAtMs: number; state: 'p
 type Guts = {
   sends: Send[]
   echoRows: Map<string, { queued?: true; heldFor?: 'compaction'; timestamp?: string }>
-  rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>>
   dressSend: (id: string, state: Send['state']) => void
   readTail: () => void
   liveStateWord: 'compacting' | 'waiting-on-agents' | null
@@ -43,9 +42,8 @@ const connector = new DaemonSessionConnector({
   workspaceId: 'ws',
   home: SCRATCH,
   modelKey: 'claude-sonnet-5',
-})
+}, { rpc: async () => ({ ok: true, op: 'sessionControl', outcome: 'applied' }) })
 const g = connector as unknown as Guts
-g.rpc = async () => ({ ok: true, op: 'sessionControl', outcome: 'applied' })
 const seed = (id: string, text: string, state: Send['state']): void => {
   g.sends = [...g.sends, { clientMessageId: id, text, sentAtMs: Date.now(), state, mode: 'prompt', source: { text, mode: 'prompt', pastedContents: {} } } as Send]
   g.echoRows.set(id, { ...(createUserMessage({ content: text }) as object), ...(state === 'queued' ? { queued: true } : {}) })
