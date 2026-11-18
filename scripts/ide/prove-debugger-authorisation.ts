@@ -38,11 +38,11 @@ t.section('§1 adapterSilenceMessage — the OS is named, never guessed')
 
 t.section('§2 the IDE plane row names the macOS authorisation state')
 {
-  const src = readFileSync('src/utils/healthReport.ts', 'utf8')
-  const at = src.indexOf("id: 'ide-plane-fast'")
-  const row = src.slice(at, at + 4000)
-  t.check('the row reads darwinDebuggerAuthorisationHint', row.includes('darwinDebuggerAuthorisationHint()'))
-  t.check('an off setting is named in the evidence and carries the fix', row.includes('native debug authorisation OFF') && row.includes('sudo DevToolsSecurity -enable'))
+  const { codingLoopFastChecks } = await import('../../src/utils/health/sections/coding-loop-fast.ts')
+  const plane = await codingLoopFastChecks().find(row => row.id === 'ide-plane-fast')?.run()
+  const authorisation = darwinDebuggerAuthorisationHint()
+  t.check('the row reads darwinDebuggerAuthorisationHint', plane !== undefined && (authorisation === null ? !/native debug/.test(`${plane.evidence}\n${plane.detail}`) : plane.detail?.includes(`native debug: ${authorisation}`) === true), plane?.detail)
+  t.check('an off setting is named in the evidence and carries the fix', plane !== undefined && (authorisation === null ? !plane.evidence.includes('native debug authorisation OFF') : plane.status === 'warn' && plane.evidence.endsWith('native debug authorisation OFF') && (plane.fix === 'sudo DevToolsSecurity -enable (macOS debugger authorisation; durable across reboots).' || plane.fix === 'Install Python 3, or point MERCURY_PYTHON at one.')), plane?.evidence)
 }
 
 t.section('§3 the debugger doc')

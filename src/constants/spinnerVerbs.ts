@@ -287,7 +287,7 @@ const TENSORFOLD_VERB_WEIGHT = 12
 
 export function isTensorFoldTurn(opts?: { model?: string; tensorfold?: boolean }): boolean {
   if (opts?.tensorfold !== undefined) return opts.tensorfold
-  const model = (opts?.model ?? getInitialSettings().engine?.model ?? process.env.MERCURY_MODEL ?? '').trim().toLowerCase()
+  const model = (opts?.model ?? getInitialSettings().engine?.model ?? flagEnv('MERCURY_MODEL') ?? '').trim().toLowerCase()
   if (model.includes('tensorfold')) return true
   if (model === 'local/qwen3.5-2b' || model === 'local/qwen3.8-27b' || model === 'local/nemotron-lightning') return true
   return false

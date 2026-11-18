@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises'
 
 import { z } from 'zod/v4'
 
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import type { InlineChangeViewData } from '../../components/InlineChangeView.js'
 import { runVerbatimTextCommit } from '../../services/changeTransaction/changeSetCommit.js'
@@ -567,7 +568,7 @@ export const AstEditTool = buildTool({
       rememberAnchoredSnapshot(owner, anchor, f.after, f.abs)
       dropSeenLines(owner, f.abs)
     }
-    if (!isEnvTruthy(process.env.MERCURY_BARE)) {
+    if (!isEnvTruthy(flagEnv('MERCURY_BARE'))) {
       const paths = plan.files.map(f => f.abs)
       discoverSkillDirsForPaths(paths, getCwd())
         .then(dirs => (dirs.length > 0 ? addSkillDirectories(dirs) : undefined))

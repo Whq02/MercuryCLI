@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { useAnimationValue } from '../../ink.js'
 import { useSettingsMaybe } from '../../hooks/useSettings.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
@@ -19,7 +20,7 @@ export function useGreetingShimmer(
 ): ShimmerPhase | null {
   const reducedMotion =
     (useSettingsMaybe()?.view?.reducedMotion ?? false) ||
-    isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
+    isEnvTruthy(flagEnv('MERCURY_REDUCED_MOTION'))
   const glyphMotion = useIdleMotion('glyphs')
   const enabled = !reducedMotion && glyphMotion !== 'off' && stops.length > 1 && spanCells > 1
 

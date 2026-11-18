@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -58,12 +58,15 @@ console.log('L2 a clean project is ok')
   check('the row is ok', row?.status === 'ok', JSON.stringify(row))
 }
 
-console.log('L3 the row is in the certificate (source pin)')
+console.log('L3 the row is in the certificate (the list, read here)')
 {
-  const src = readFileSync(join(SRC, 'utils/healthReport.ts'), 'utf8')
-  const section = src.slice(src.indexOf("title: 'TOOL CAPABILITY'"), src.indexOf("title: 'TOOL CAPABILITY'") + 400)
-  check('TOOL CAPABILITY lists the skill-files row', section.includes('skillsRefusedCheck()'))
-  check("the row's id is skills-refused", src.includes("id: 'skills-refused'"))
+  const { HEALTH_SECTIONS } = await import(join(SRC, 'utils/health/sections.ts'))
+  const { toolCapabilityFastChecks } = await import(join(SRC, 'utils/health/sections/tool-capability-fast.ts'))
+  const { getCwd } = await import(join(SRC, 'utils/cwd.ts'))
+  const entry = (HEALTH_SECTIONS as Array<{ id: string; title: string; checks: unknown }>).find(listed => listed.id === 'tool-capability-fast')
+  const rows = toolCapabilityFastChecks() as Array<{ id: string; label: string; run: () => Promise<unknown> }>
+  check('TOOL CAPABILITY lists the skill-files row', entry?.title === 'TOOL CAPABILITY' && entry.checks === toolCapabilityFastChecks && rows[0]?.label === 'Skill files')
+  check("the row's id is skills-refused", rows[0]?.id === 'skills-refused' && JSON.stringify(await rows[0].run()) === JSON.stringify(await evidence?.(getCwd())))
 }
 
 rmSync(scratch, { recursive: true, force: true })

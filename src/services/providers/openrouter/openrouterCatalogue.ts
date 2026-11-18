@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import type { ModelOption } from '../../../utils/model/modelOptions.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
@@ -344,7 +345,7 @@ export function getOpenrouterAvailability(
         reason: 'the OpenRouter credential was refused — /logins re-connects',
       }
     }
-    const overrideBase = env['MERCURY_OPENROUTER_API_BASE']?.trim()
+    const overrideBase = flagEnv('MERCURY_OPENROUTER_API_BASE', env)?.trim()
     return {
       state: 'disabled',
       why: 'catalogue-error',
@@ -358,7 +359,7 @@ export function getOpenrouterAvailability(
       reason: 'the live catalogue listed no models for this credential',
     }
   }
-  const overrideBase = env['MERCURY_OPENROUTER_API_BASE']?.trim()
+  const overrideBase = flagEnv('MERCURY_OPENROUTER_API_BASE', env)?.trim()
   return {
     state: 'ready',
     ids: snapshot.models.map(m => m.id),

@@ -22,6 +22,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const waitMs = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
+const firstPauseMs = Number(process.argv.find(arg => arg.startsWith('--first-pause-ms='))?.slice('--first-pause-ms='.length) ?? 4_000)
 
 const runtimeReportsDotNamedFolders = async (): Promise<boolean> => {
   const probe = join(ROOT, 'fs-watch-probe')
@@ -133,15 +134,23 @@ section('§2 the built product: a rule written mid-session into a project that h
     check('the first Bash call is refused: nothing allows it and headless cannot ask', results()[0]?.status === 'error' && /needs approval/.test(String(results()[0]?.output ?? '')), JSON.stringify(results()[0]).slice(0, 300))
     mkdirSync(join(cwd, '.mercury'), { recursive: true })
     writeFileSync(join(cwd, '.mercury', 'settings.local.json'), JSON.stringify({ guardrails: { allow: ['Bash(git --version)'] } }))
-    await waitMs(4_000)
-    child.stdin.write(`${JSON.stringify({ type: 'prompt', content: 'which git version again' })}\n`)
-    const second = await waitForOutcomes(2, 60_000)
+    const honouredBy = Date.now() + 45_000
+    let pauseMs = firstPauseMs
+    let turns = 1
+    do {
+      await waitMs(pauseMs)
+      pauseMs = 2_000
+      child.stdin.write(`${JSON.stringify({ type: 'prompt', content: 'which git version again' })}\n`)
+      turns += 1
+      await waitForOutcomes(turns, 60_000)
+    } while (outcomes()[turns - 1]?.status !== 'completed' && Date.now() < honouredBy)
     child.stdin.end()
     const code = await closed
     clearTimeout(guard)
     await fixture.close()
-    check('turn 2 completes and the run leaves cleanly', second && outcomes()[1]?.status === 'completed' && code === 0, `${code} ${JSON.stringify(outcomes()[1])} ${stderr.slice(0, 300)}`)
-    check('the second Bash call ran: the rule written mid-session was honoured without a restart', results()[1]?.status === 'ok' && /versioned/.test(String(results()[1]?.output ?? '')), JSON.stringify(results()[1]).slice(0, 300))
+    const asked = `asked ${turns - 1} time(s) after the rule was written, the first ${firstPauseMs} ms after it, 45 s at most`
+    check(`a turn after the rule completes and the run leaves cleanly (${asked})`, outcomes()[turns - 1]?.status === 'completed' && code === 0, `${code} ${JSON.stringify(outcomes()[turns - 1])} ${stderr.slice(0, 300)}`)
+    check('its Bash call ran: the rule written mid-session was honoured without a restart', results()[turns - 1]?.status === 'ok' && /versioned/.test(String(results()[turns - 1]?.output ?? '')), JSON.stringify(results()[turns - 1]).slice(0, 300))
   }
 }
 

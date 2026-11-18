@@ -2,6 +2,7 @@ import type { ParseEntry } from 'shell-quote'
 import type { SuggestionItem } from '../../components/PromptInput/PromptInputFooterSuggestions.js'
 import { logForDebugging } from '../debug.js'
 import { exec } from '../Shell.js'
+import { completionDialect } from '../shell/shellRecord.js'
 import { quote, tryParseShellCommand } from './shellQuote.js'
 
 export type ShellCompletionType = 'command' | 'variable' | 'file'
@@ -10,14 +11,6 @@ const RESULT_CAP = 15
 const COMPLETION_TIMEOUT_MS = 1000
 
 const COMMAND_OPERATORS: ReadonlySet<string> = new Set(['|', '||', '&&', ';'])
-
-function getShellType(): string {
-  const shell = process.env.SHELL ?? ''
-  if (shell.includes('zsh')) return 'zsh'
-  if (shell.includes('bash')) return 'bash'
-  if (shell.includes('fish')) return 'fish'
-  return 'unknown'
-}
 
 type CompletionContext = { prefix: string; type: ShellCompletionType }
 
@@ -78,26 +71,16 @@ function findTokenBefore(tokens: ParseEntry[], lastToken: string): string | null
   return null
 }
 
-function buildCompletionCommand(shellType: 'bash' | 'zsh', context: CompletionContext): string {
+function buildCompletionCommand(context: CompletionContext): string {
   const { prefix, type } = context
-  if (shellType === 'bash') {
-    if (type === 'variable') {
-      const name = prefix.startsWith('$') ? prefix.slice(1) : prefix
-      return `compgen -v ${quote([name])} 2>/dev/null`
-    }
-    if (type === 'file') {
-      return `compgen -f ${quote([prefix])} 2>/dev/null | head -${RESULT_CAP} | while IFS= read -r __c; do if [ -d "$__c" ]; then printf '%s/\\n' "$__c"; else printf '%s \\n' "$__c"; fi; done`
-    }
-    return `compgen -c ${quote([prefix])} 2>/dev/null`
-  }
   if (type === 'variable') {
     const name = prefix.startsWith('$') ? prefix.slice(1) : prefix
-    return `print -rl -- \${(k)parameters[(I)${quote([`${name}*`])}]} 2>/dev/null`
+    return `compgen -v ${quote([name])} 2>/dev/null`
   }
   if (type === 'file') {
-    return `for __c in ${prefix}*(N[1,${RESULT_CAP}]); do if [ -d "$__c" ]; then print -r -- "$__c/"; else print -r -- "$__c "; fi; done 2>/dev/null`
+    return `compgen -f ${quote([prefix])} 2>/dev/null | head -${RESULT_CAP} | while IFS= read -r __c; do if [ -d "$__c" ]; then printf '%s/\\n' "$__c"; else printf '%s \\n' "$__c"; fi; done`
   }
-  return `print -rl -- \${(k)commands[(I)${quote([`${prefix}*`])}]} 2>/dev/null`
+  return `compgen -c ${quote([prefix])} 2>/dev/null`
 }
 
 export async function getShellCompletions(
@@ -106,13 +89,12 @@ export async function getShellCompletions(
   abortSignal: AbortSignal,
 ): Promise<SuggestionItem[]> {
   try {
-    const shellType = getShellType()
-    if (shellType !== 'bash' && shellType !== 'zsh') return []
+    if (completionDialect() === null) return []
 
     const context = parseCompletionContext(input.slice(0, cursorOffset))
     if (context.prefix === '' && context.type !== 'file') return []
 
-    const command = buildCompletionCommand(shellType, context)
+    const command = buildCompletionCommand(context)
     const handle = await exec(command, abortSignal, 'bash', { timeout: COMPLETION_TIMEOUT_MS })
     const result = await handle.result
     const stdout = result.stdout ?? ''

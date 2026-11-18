@@ -95,3 +95,53 @@ export type ToolPermissionContext = {
   shouldAvoidPermissionPrompts?: boolean
   awaitAutomatedChecksBeforeDialog?: boolean
 }
+
+export type DecisionEntry = 'full' | 'ruleSubset'
+
+export type DecisionStageId =
+  | 'killSwitch'
+  | 'toolDenyRule'
+  | 'toolAskRule'
+  | 'toolVerdict'
+  | 'toolVerdictDeny'
+  | 'userInteractionAsk'
+  | 'toolAskRuleCarried'
+  | 'contentAskRule'
+  | 'orgAskCeiling'
+  | 'safetyCheckAsk'
+  | 'bypassPosture'
+  | 'toolAllowRule'
+  | 'resolution'
+
+export interface DecisionStageRecord {
+  stage: DecisionStageId
+  outcome: 'pass' | 'decided'
+  note?: string
+}
+
+export interface DecisionTrace {
+  entry: DecisionEntry
+  toolName: string
+  mode: string
+  stages: DecisionStageRecord[]
+  decidedBy: DecisionStageId | 'none'
+}
+
+export type WrapperStageId =
+  | 'dontAskConversion'
+  | 'flowFloors'
+  | 'flowLaw'
+  | 'flowAllow'
+  | 'headlessHooks'
+  | 'headlessAutoDeny'
+
+export interface WrapperStageRecord {
+  stage: WrapperStageId
+  outcome: 'pass' | 'decided'
+  note?: string
+}
+
+export interface WrapperTrace {
+  stages: WrapperStageRecord[]
+  decidedBy: WrapperStageId | 'engine'
+}

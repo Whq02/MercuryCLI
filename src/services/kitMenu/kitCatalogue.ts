@@ -66,7 +66,6 @@ export function contributesWords(manifest: ExtensionManifest): string {
     n(c.agents, 'agent'),
     c.hooks ? 'hooks' : null,
     n(c.language, 'language server'),
-    c.channels ? 'channels' : null,
     c.keybindings ? 'keybindings' : null,
   ].filter((p): p is string => p !== null)
   return parts.length > 0 ? parts.join(' · ') : 'nothing yet'

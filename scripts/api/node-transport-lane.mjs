@@ -25,7 +25,6 @@ const check = (label, cond, detail = '') => {
 }
 const section = title => console.log(`\n── ${title} ──`)
 
-
 const target = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': 'text/plain' })
   res.end(`ok:${req.url}`)
@@ -271,7 +270,7 @@ clearProxyEnv()
 clearProxyCache()
 await new Promise(resolve => proxy.close(resolve))
 await new Promise(resolve => target.close(resolve))
-try { await undici.getGlobalDispatcher().close?.() } catch {  }
+try { await undici.getGlobalDispatcher().close?.() } catch { }
 
 console.log('')
 if (failures > 0) {

@@ -48,6 +48,12 @@ section('§1 invocation trace — injection: unwritable sidecar retains + escala
   await trace.flushTraceNow()
   h = trace.getTraceFlushHealth()
   check('streak reaches the escalation mark (3)', h.streak === 3, `streak=${h.streak}`)
+  {
+    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const says = await crewChecks().find(row => row.id === 'invocation-trace')?.run()
+    const named = /^mercury-trace\.jsonl flush failing — streak (\d+), (\d+) pending/.exec(says?.evidence ?? '')
+    check('the /health trace row reads that streak from the owner: warn, the streak and the pending count named', says?.status === 'warn' && named !== null && Number(named[1]) >= h.streak && Number(named[1]) <= trace.getTraceFlushHealth().streak && Number(named[2]) === h.pending, `${says?.status}: ${says?.evidence.slice(0, 70)}`)
+  }
   check('nothing landed on the occupied path', diskLines().length === 0)
 }
 
@@ -135,6 +141,12 @@ section('§4 cache-clock rollups — counted streak + recovery')
   clock.flushCacheClockNow()
   ch = clock.getCacheClockFlushHealth()
   check('rollup failures count a streak (≥3 escalates)', ch.streak >= 3, `streak=${ch.streak}`)
+  {
+    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const says = await crewChecks().find(row => row.id === 'cache-clock')?.run()
+    const named = /^session rollup writes failing — streak (\d+): /.exec(says?.evidence ?? '')
+    check('the /health metering row reads that streak from the owner: warn, the streak named', says?.status === 'warn' && named !== null && Number(named[1]) >= ch.streak && Number(named[1]) <= clock.getCacheClockFlushHealth().streak, `${says?.status}: ${says?.evidence.slice(0, 70)}`)
+  }
   check('failure detail recorded', ch.lastFailure !== null)
   rmSync(sess, { force: true })
   clock.flushCacheClockNow()
@@ -157,16 +169,24 @@ section('§5 wiring anchors')
   check('trace teardown registers one final attempt + notice', traceTs.includes('registerCleanup(') && traceTs.includes('unflushed'))
   const clockTs = src('src/utils/cache/cacheClock.ts')
   check('cache-clock teardown registers one final attempt + notice', clockTs.includes('registerCleanup(') && clockTs.includes('unflushed'))
-  const healthTs = src('src/utils/healthReport.ts')
+  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const crewRows = crewChecks()
   check(
     '/health carries freshness probes for all three ledgers',
-    healthTs.includes("id: 'history'") &&
-      healthTs.includes("id: 'invocation-trace'") &&
-      healthTs.includes("id: 'cache-clock'"),
+    ['history', 'invocation-trace', 'cache-clock'].every(id => crewRows.filter(row => row.id === id).length === 1),
   )
+  const traceOwner = await import('../../src/utils/observability/invocationTrace.ts')
+  const clockOwner = await import('../../src/utils/cache/cacheClock.ts')
+  const traceSays = await crewRows.find(row => row.id === 'invocation-trace')?.run()
+  const traceHealth = traceOwner.getTraceFlushHealth()
+  const clockSays = await crewRows.find(row => row.id === 'cache-clock')?.run()
+  const clockSnap = clockOwner.cacheClockSnapshot()
+  const clockHealth = clockOwner.getCacheClockFlushHealth()
   check(
     'the health probes read the owners’ health accessors',
-    healthTs.includes('getTraceFlushHealth') && healthTs.includes('getCacheClockFlushHealth'),
+    traceSays !== undefined && (!traceOwner.isInvocationTraceEnabled() ? traceSays.status === 'off' : traceHealth.streak >= 3 ? traceSays.status === 'warn' && traceSays.evidence.includes(`streak ${traceHealth.streak}`) : traceSays.status === 'ok' && traceSays.evidence.startsWith(traceHealth.pending === 0 ? 'appends healthy' : `${traceHealth.pending} pending`)) &&
+      clockSays !== undefined && (!clockSnap.engaged ? clockSays.status === 'off' : clockHealth.streak >= 3 ? clockSays.status === 'warn' && clockSays.evidence.includes(`streak ${clockHealth.streak}`) : clockSays.status === 'ok'),
+    `${traceSays?.evidence} | ${clockSays?.evidence}`,
   )
 }
 

@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredNousApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
@@ -11,7 +12,7 @@ export const NOUS_API_KEY_ENV = 'NOUS_API_KEY'
 export type NousCredentialSource = 'env' | 'stored' | 'signin'
 
 export function nousApiBase(env: NodeJS.ProcessEnv = process.env, tokens?: NousTokens): string {
-  return (env['MERCURY_NOUS_API_BASE']?.trim() || tokens?.inferenceBase || NOUS_API_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_NOUS_API_BASE', env)?.trim() || tokens?.inferenceBase || NOUS_API_BASE_URL).replace(/\/+$/, '')
 }
 
 export function nousChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env, source: NousCredentialSource = 'stored'): string {
@@ -23,7 +24,7 @@ export function nousModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 export function nousPortalBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env['MERCURY_NOUS_PORTAL_BASE']?.trim() || NOUS_PORTAL_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_NOUS_PORTAL_BASE', env)?.trim() || NOUS_PORTAL_BASE_URL).replace(/\/+$/, '')
 }
 
 export function nousAccountUrl(env: NodeJS.ProcessEnv = process.env): string {

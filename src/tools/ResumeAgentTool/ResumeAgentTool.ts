@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 import { mirrorSwarmResume, swarmPeerMessage, swarmRoad } from '../../services/crewBoard/seam.js'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { AGENT_INTERRUPT_BY_OPERATOR, isLocalAgentTask, queuePendingMessage, speakAgentMessageFrame } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { errorMessage } from '../../utils/errors.js'

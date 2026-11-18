@@ -6,3 +6,4 @@
 # loud red in this runner.
 prove-b2-focus-pointer.ts
 prove-c3-resize-stream.ts
+prove-b3-cards.ts

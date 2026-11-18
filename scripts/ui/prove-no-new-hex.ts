@@ -92,7 +92,6 @@ const CHALK_ALLOW: Record<string, number> = {
   'src/utils/teleport.tsx': 6,
   'src/utils/auth.ts': 6,
   'src/utils/worktree.ts': 1,
-  'src/utils/shell/prefix.ts': 1,
   'src/utils/hyperlink.ts': 1,
 }
 const chalkOffenders: string[] = []

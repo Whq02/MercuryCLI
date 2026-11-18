@@ -40,7 +40,28 @@ section('§3 THE PRINT ROAD (the existing groove, pinned)')
     'a non-completed outcome answers its sentence on stderr',
     completed.stdout === 'DONE.\n' && completed.stderr === '' && failed.stdout === '' && failed.stderr.includes('the fixture says no'),
   )
-  check('and the exit code derives from the status alone', completed.status === exitCodeOf('completed') && failed.status === exitCodeOf('failed') && completed.status !== failed.status)
+  const asksToRead = { kind: 'tool_use', name: 'Read', input: { file_path: join(import.meta.dir, 'no-such-file') } } as const
+  const ended = async (argv: string[]): Promise<{ exit: number | null; status: unknown }> => {
+    const ran = await fixtureCli([asksToRead, { kind: 'text', text: 'DONE.' }], ['run', '--format', 'json', ...argv, '--model', FIXTURE_MODEL, 'hi'])
+    try {
+      return { exit: ran.status, status: (JSON.parse(ran.stdout) as { status?: unknown }).status }
+    } catch {
+      return { exit: ran.status, status: ran.stdout.slice(0, 200) }
+    }
+  }
+  const limited = await ended(['--max-turns', '1'])
+  const blocked = await ended([])
+  check(
+    'and the exit code derives from the status alone',
+    completed.status === exitCodeOf('completed') &&
+      failed.status === exitCodeOf('failed') &&
+      completed.status !== failed.status &&
+      limited.status === 'turn_limit' &&
+      limited.exit === exitCodeOf('turn_limit') &&
+      blocked.status === 'blocked' &&
+      blocked.exit === exitCodeOf('blocked'),
+    JSON.stringify({ completed: completed.status, failed: failed.status, limited, blocked }),
+  )
 }
 
 if (failures > 0) {

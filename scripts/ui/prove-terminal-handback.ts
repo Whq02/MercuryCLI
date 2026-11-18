@@ -249,9 +249,10 @@ section('S · one owner · every hand-off site · the one native spelling · the
   check('the crate is one pack: lib.rs mounts the tty module beside the voice capture', read('native/voice/src/lib.rs').includes('pub mod tty;'))
   check('the libc dependency is unix-only', /\[target\.'cfg\(unix\)'\.dependencies\]\s*\nlibc = "0\.2"/.test(read('native/voice/Cargo.toml')))
 
-  const report = read('src/utils/healthReport.ts')
-  const row = report.slice(report.indexOf("id: 'iface-terminal'"), report.indexOf("id: 'iface-tokens'"))
-  check("/health's Terminal profile row reads describeTerminalHandback() and carries its line in the detail", row.includes("require('./terminalHandback.js')") && row.includes('describeTerminalHandback()') && row.includes('handback.line'))
+  const { interfaceChecks } = await import('../../src/utils/health/sections/interface.ts')
+  const terminalSays = await interfaceChecks().find(entry => entry.id === 'iface-terminal')?.run()
+  const handbackNow = describeTerminalHandback()
+  check("/health's Terminal profile row reads describeTerminalHandback() and carries its line in the detail", terminalSays?.detail?.split('\n').at(-1) === handbackNow.line, terminalSays?.detail?.split('\n').at(-1))
 
   const spec = FLAG_REGISTRY.find(f => f.env === TERMINAL_HANDBACK_FLAG)
   check('the gate is registered: default-on, the owner as consumer, this prover as evidence', spec !== undefined && spec.kind === 'default-on' && spec.consumer === 'src/utils/terminalHandback.ts' && spec.evidence === 'scripts/ui/prove-terminal-handback.ts', JSON.stringify(spec))

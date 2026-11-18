@@ -5,7 +5,6 @@ REORDER_FLOOR = 20
 
 
 def restock_budget(levels: "list[StockLevel]") -> int:
-    """Total cents to bring every low stock level back to the floor."""
     total = 0
     for level in levels:
         shortfall = REORDER_FLOOR - level.available

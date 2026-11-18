@@ -17,6 +17,11 @@ export function godotPrerequisiteFailure(probe: Probe): string | null {
 export async function resolveProofGodot(): Promise<{ resolved: string | null; reason: string | null }> {
   const executable = process.env.GODOT_BIN || (await resolveGodotExecutable({ census: [] })).resolved
   if (!executable) return { resolved: null, reason: 'no Godot executable is available; set GODOT_BIN to a working Godot 4 executable' }
+  const version = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: vshotBudgetMs(15_000), killSignal: 'SIGKILL' })
+  const build = (version.stdout ?? '').trim().split('\n').pop() ?? ''
+  if (/\bmono\b/.test(build) && spawnSync('dotnet', ['--version'], { encoding: 'utf8' }).status !== 0) {
+    return { resolved: null, reason: `Godot ${build} is a .NET build and no dotnet is installed, so it stops before it loads a project; use a standard Godot 4 build or run the live leg in the hosted gate` }
+  }
   const scratch = mkdtempSync(join(tmpdir(), 'godot-prerequisite-'))
   try {
     writeFileSync(join(scratch, 'project.godot'), 'config_version=5\n[application]\nconfig/name="proof prerequisite"\n')

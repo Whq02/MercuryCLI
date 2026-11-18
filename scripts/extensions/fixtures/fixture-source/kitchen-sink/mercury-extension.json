@@ -54,12 +54,6 @@
         }
       }
     },
-    "channels": [
-      {
-        "server": "fixture",
-        "label": "fixture notices"
-      }
-    ],
     "keybindings": {
       "ctrl+x f": "/kitchen-sink:fixture-skill"
     }

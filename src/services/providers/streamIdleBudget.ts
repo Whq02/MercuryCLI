@@ -1,3 +1,4 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { EMPTY_STREAM_END_MARKER, EMPTY_STREAM_REASON_WORDS, outageCauseWordsOf } from '../api/recoveryBudget.js'
 import type { SystemAPIErrorMessage } from '../../types/message.js'
 import { currentPatience, PATIENCE_NORMAL } from './patience.js'
@@ -7,7 +8,7 @@ export const STREAM_IDLE_DEFAULT_MS = 2 * 60_000
 const STREAM_IDLE_FLOOR_MS = 1_000
 
 function pinnedStreamIdleTimeoutMs(): number | null {
-  const raw = process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
+  const raw = flagEnv('MERCURY_STREAM_IDLE_TIMEOUT_MS')
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
   return Number.isFinite(parsed) && parsed >= STREAM_IDLE_FLOOR_MS ? parsed : null
 }
@@ -126,7 +127,7 @@ const SILENT_AFTER_HEADERS_FLOOR_MS = 100
 export const SILENT_AFTER_HEADERS_CODE = 'silent-after-headers'
 
 function pinnedSilentAfterHeadersMs(): number | null {
-  const raw = process.env.MERCURY_SILENT_AFTER_HEADERS_MS
+  const raw = flagEnv('MERCURY_SILENT_AFTER_HEADERS_MS')
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
   return Number.isFinite(parsed) && parsed >= SILENT_AFTER_HEADERS_FLOOR_MS ? parsed : null
 }

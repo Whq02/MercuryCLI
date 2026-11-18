@@ -192,8 +192,12 @@ try {
       /export const STORED_TOKEN_SCRUB_VARS[\s\S]{0,240}\.\.\.AGENT_CLI_TOKEN_FD_ENV_VARS/.test(subprocessEnvSource),
   )
 
-  const healthSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check('healthReport cites classifyHarnessHome', healthSource.includes('classifyHarnessHome'))
+  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { classifyHarnessHome: classify } = await import('../../src/utils/knownAgentClis.ts')
+  const { getMercuryHome: homeNow } = await import('../../src/utils/envUtils.ts')
+  const isolationRow = await crewChecks().find(row => row.id === 'isolation')?.run()
+  const classified = await classify(homeNow(), { expectedVersion: (globalThis as { MACRO?: { VERSION?: string } }).MACRO?.VERSION })
+  check('the health isolation row says what classifyHarnessHome finds for this home', isolationRow !== undefined && (classified.foreign.length > 0 ? isolationRow.status === 'warn' && classified.foreign.every(a => isolationRow.evidence.includes(a.evidence)) : isolationRow.status === 'ok' && isolationRow.evidence.startsWith(`no foreign-harness artifacts in ${homeNow()}`)), JSON.stringify(isolationRow))
 
   const daemonSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
   check('daemonRun writes the unconditional [mercury-daemon] engage stamp', daemonSource.includes('[mercury-daemon] engaged v'))

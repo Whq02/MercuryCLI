@@ -24,7 +24,7 @@ function settingsBehaviorKey(behavior: PermissionBehavior): 'allow' | 'deny' | '
   return 'ask'
 }
 
-export function supportsPersistence(
+function supportsPersistence(
   destination: PermissionUpdateDestination,
 ): destination is EditableSettingSource {
   return (

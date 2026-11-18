@@ -29,12 +29,18 @@ const everyRunnerText = readdirSync(SCRIPTS)
   .map(p => readFileSync(p, 'utf8'))
   .join('\n')
 const memberEnrolled = new Set<string>()
-for (const dir of readdirSync(SCRIPTS)) {
+const parentOfList = (dir: string): string | null => {
+  const runAll = join(SCRIPTS, dir, 'run-all.sh')
+  const named = existsSync(runAll) ? /scripts\/([A-Za-z0-9_-]+)\/\$name/.exec(readFileSync(runAll, 'utf8'))?.[1] : undefined
+  if (named !== undefined) return named
   const suffix = dir.endsWith('-drives') ? '-drives' : dir.endsWith('-boots') ? '-boots' : null
-  if (suffix === null) continue
+  return suffix === null ? null : dir.slice(0, -suffix.length)
+}
+for (const dir of readdirSync(SCRIPTS)) {
   const members = join(SCRIPTS, dir, 'members.txt')
   if (!existsSync(members)) continue
-  const parent = dir.slice(0, -suffix.length)
+  const parent = parentOfList(dir)
+  if (parent === null) continue
   for (const raw of readFileSync(members, 'utf8').split('\n')) {
     const name = raw.trim()
     if (name === '' || name.startsWith('#')) continue
@@ -144,6 +150,14 @@ check('the drive-only estate rows all point at existing suites', missingEstates.
 const missingNamers = Object.keys(NAMES_THE_FLAG_ONLY).filter(rel => !existsSync(join(ROOT, rel)))
 check('the rows of proofs that name the bundle flag without booting the product all point at existing files', missingNamers.length === 0, missingNamers.join(', '))
 check('every member list ends with a newline (a complement runner cats the sibling lists in sequence: a last row without one glues to the next list and both names escape their lists)', unterminated.length === 0, unterminated.join(', '))
+const ranBy = new Map<string, string[]>()
+for (const s of classCensus.suites) for (const rel of s.executed) ranBy.set(rel, [...(ranBy.get(rel) ?? []), s.suite])
+const twice = [...ranBy].filter(([, suites]) => suites.length > 1).map(([rel, suites]) => `${rel} runs in ${suites.join(' and ')}`)
+check(
+  `one suite for one member: no file is run by two suites (${twice.length} found)`,
+  twice.length === 0,
+  `${twice.join(' · ')} — keep each in one suite: take its line out of the other suite's run-all.sh, or its name out of the other suite's members.txt`,
+)
 
 const vacuous: string[] = []
 for (const dir of readdirSync(SCRIPTS)) {

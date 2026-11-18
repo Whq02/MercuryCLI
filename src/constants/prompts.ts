@@ -1,4 +1,5 @@
 import { platform, release, type as osType, version as osVersion } from 'node:os'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { canAnswerAsks, getOriginalCwd, getProjectRoot, getSessionId, getSessionKind } from '../bootstrap/state.js'
 import { getCwd } from '../utils/cwd.js'
 import { composeSystemPrompt } from '../prompt/composer.js'
@@ -35,6 +36,7 @@ import {
   systemPromptSection,
 } from './systemPromptSections.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
+import { shellLineWords, windowsShellName } from '../utils/shell/shellRecord.js'
 import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/prompt.js'
 import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { getRuntimePostureSection, isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
@@ -94,13 +96,11 @@ function prependBullets(items: Array<string | string[]>): string[] {
   return out
 }
 
-function shellLine(): string {
-  const shellRaw = process.env.SHELL ?? 'unknown'
-  const shell = shellRaw.includes('zsh') ? 'zsh' : shellRaw.includes('bash') ? 'bash' : shellRaw
+async function shellLine(): Promise<string> {
   if (process.platform === 'win32') {
-    return `Shell: ${shell} — use Unix shell syntax, not Windows (for example /dev/null rather than NUL, and forward slashes in paths)`
+    return `Shell: ${windowsShellName()} — use Unix shell syntax, not Windows (for example /dev/null rather than NUL, and forward slashes in paths)`
   }
-  return `Shell: ${shell}`
+  return `Shell: ${await shellLineWords()}`
 }
 
 function getUnameSR(): string {
@@ -126,7 +126,7 @@ async function environmentBlock(
   withScratchpad = true,
 ): Promise<string> {
   const cwd = getCwd()
-  const lines = [`Working directory: ${cwd}`, ...(withScratchpad ? [scratchpadLineFor(agentId)] : []), `Platform: ${platform()}`, shellLine(), `OS Version: ${getUnameSR()}`]
+  const lines = [`Working directory: ${cwd}`, ...(withScratchpad ? [scratchpadLineFor(agentId)] : []), `Platform: ${platform()}`, await shellLine(), `OS Version: ${getUnameSR()}`]
   const cutoff = knowledgeCutoffSentence(modelId)
   return `The environment this session runs in:\n<env>\n${lines.join('\n')}\n</env>${cutoff ? `\n\n${cutoff}` : ''}`
 }
@@ -154,7 +154,7 @@ export async function computeSimpleEnvInfo(
   }
   if (withScratchpad) items.push(scratchpadLineFor())
   items.push(`Platform: ${platform()}`)
-  items.push(shellLine())
+  items.push(await shellLine())
   items.push(`OS Version: ${getUnameSR()}`)
   const cutoff = knowledgeCutoffSentence(modelId)
   if (cutoff) items.push(cutoff)
@@ -335,7 +335,7 @@ async function getLocalSystemPrompt(
     keyedSystemPromptSection('local_law', () => model, () => localLaw(model)),
   ])
   const law = layers === 'replace' ? promptReplacementText() : frozenLaw ?? localLaw(model)
-  if (isEnvTruthy(process.env.MERCURY_BARE)) return [`${head}\n\n${law}`]
+  if (isEnvTruthy(flagEnv('MERCURY_BARE'))) return [`${head}\n\n${law}`]
 
   const toolNames: ReadonlySet<string> = new Set((tools as ReadonlyArray<{ name: string }>).map(tool => tool.name))
   noteSessionEngine(model)
@@ -398,7 +398,7 @@ export async function getSystemPrompt(
   const head = `Working directory: ${getOriginalCwd()}`
   if (layers === 'whole') return [head, promptReplacementText()]
   const law = layers === 'replace' ? promptReplacementText() : stockLaw
-  if (isEnvTruthy(process.env.MERCURY_BARE)) return [`${head}\n\n${law}`]
+  if (isEnvTruthy(flagEnv('MERCURY_BARE'))) return [`${head}\n\n${law}`]
 
   const toolNames: ReadonlySet<string> = new Set((tools as ReadonlyArray<{ name: string }>).map(tool => tool.name))
   noteSessionEngine(model)

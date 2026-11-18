@@ -1,6 +1,6 @@
 
 import { existsSync } from 'node:fs'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { DapCancelledError, throwIfDapAborted } from '../../services/dap/dapCancellation.js'
 import { createDapTerminalRunner, type DapTerminalRunner } from '../../services/dap/dapTerminal.js'

@@ -1,3 +1,4 @@
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { getDirectConnectServerUrl, getSessionId } from '../bootstrap/state.js'
 import { MERCURY_VERSION } from '../constants/product.js'
 import type { SessionListing } from '../types/logs.js'
@@ -45,8 +46,8 @@ export function getRecentActivity(): Promise<SessionListing[]> {
 const DEMO_PLACEHOLDER_PATH = '/code/mercury'
 
 export function getLogoDisplayData(): { version: string; cwd: string; billingType: string; agentName?: string } {
-  const version = process.env.MERCURY_DEMO_VERSION ?? MERCURY_VERSION
-  let cwd = process.env.MERCURY_DEMO_VERSION ? DEMO_PLACEHOLDER_PATH : getDisplayPath(getCwd())
+  const version = flagEnv('MERCURY_DEMO_VERSION') ?? MERCURY_VERSION
+  let cwd = flagEnv('MERCURY_DEMO_VERSION') ? DEMO_PLACEHOLDER_PATH : getDisplayPath(getCwd())
   const directConnect = getDirectConnectServerUrl()
   if (directConnect) {
     cwd = `${cwd} in ${directConnect.replace(/^https?:\/\//, '')}`

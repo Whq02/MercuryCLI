@@ -16,7 +16,7 @@
 # gate-watch: src/utils/attachments/contextCapsule.ts scripts/project-intel/fixtures/materialize.ts
 # gate-watch: scripts/ui/** scripts/memory-study/**
 # gate-watch: scripts/jev/lib/jevStandin.ts src/services/jev/jevClient.ts src/services/jev/jevSetting.ts src/services/jev/jevKey.ts src/services/jev/jevLedger.ts src/tools/MemoryTools/UI.tsx src/tools/MemoryTools/prompt.ts
-# gate-watch: src/tools/MemoryTools/ruleCard.ts src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx src/components/permissions/PermissionRequest.tsx src/hooks/toolPermission/PermissionContext.ts src/hooks/toolPermission/handlers/interactiveHandler.ts
+# gate-watch: src/tools/MemoryTools/ruleCard.ts src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx src/components/permissions/PermissionRequest.tsx
 # gate-watch: src/cli/headless/runnerAsks.ts src/utils/permissions/decision/engine.ts src/utils/permissions/decision/wrapper.ts src/utils/permissions/permissions.ts src/utils/permissions/PermissionMode.ts src/cli/run.ts
 # gate-watch: scripts/streaming/artifactArena.ts src/utils/permissions/decisionReasonWire.ts
 # gate-watch: docs/SAMPLES.md src/commands/memory/memoryPage.ts src/services/samples/**

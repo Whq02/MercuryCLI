@@ -1,4 +1,5 @@
 import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
@@ -27,10 +28,10 @@ const REFRESH_MARGIN_MS = 15 * 60 * 1000
 const WHOAMI_TIMEOUT_MS = 10_000
 
 export function huggingfaceHubBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env['MERCURY_HUGGINGFACE_HUB_BASE']?.trim() || HF_HUB_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_HUGGINGFACE_HUB_BASE', env)?.trim() || HF_HUB_BASE_URL).replace(/\/+$/, '')
 }
 export function huggingfaceRouterBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env['MERCURY_HUGGINGFACE_API_BASE']?.trim() || HF_ROUTER_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_HUGGINGFACE_API_BASE', env)?.trim() || HF_ROUTER_BASE_URL).replace(/\/+$/, '')
 }
 export function huggingfaceChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${huggingfaceRouterBase(env)}/chat/completions`
@@ -39,10 +40,10 @@ export function huggingfaceModelsUrl(env: NodeJS.ProcessEnv = process.env): stri
   return `${huggingfaceRouterBase(env)}/models`
 }
 export function huggingfaceOauthClientIdPin(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return env['MERCURY_HUGGINGFACE_OAUTH_CLIENT_ID']?.trim() || undefined
+  return flagEnv('MERCURY_HUGGINGFACE_OAUTH_CLIENT_ID', env)?.trim() || undefined
 }
 export function huggingfaceBillTo(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return env['MERCURY_HUGGINGFACE_BILL_TO']?.trim() || undefined
+  return flagEnv('MERCURY_HUGGINGFACE_BILL_TO', env)?.trim() || undefined
 }
 
 

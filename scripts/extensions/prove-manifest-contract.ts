@@ -43,7 +43,6 @@ const FULL = {
       remote: { type: 'http', url: 'https://api.example.org/mcp' },
     },
     language: { ts: { command: 'typescript-language-server', args: ['--stdio'], extensionToLanguage: { '.ts': 'typescript' } } },
-    channels: [{ server: 'review', label: 'review notices' }],
     keybindings: { 'ctrl+x r': '/review-tools:review' },
   },
   needs: {
@@ -83,9 +82,9 @@ console.log('[1] a valid manifest loads whole')
   check('the full manifest parses', parsed.ok, parsed.ok ? '' : parsed.errors.join('; '))
   check('no warnings on a clean manifest', parsed.ok && parsed.warnings.length === 0)
   if (parsed.ok) {
-    check('every kind is declared', manifestMod.declaredKinds(parsed.manifest).length === 8, manifestMod.declaredKinds(parsed.manifest).join(','))
+    check('every kind is declared', manifestMod.declaredKinds(parsed.manifest).length === 7, manifestMod.declaredKinds(parsed.manifest).join(','))
     const counts = manifestMod.contributionCounts(parsed.manifest)
-    check('counts by kind', counts.hooks === 1 && counts.servers === 2 && counts.channels === 1 && counts.keybindings === 1, JSON.stringify(counts))
+    check('counts by kind', counts.hooks === 1 && counts.servers === 2 && counts.keybindings === 1, JSON.stringify(counts))
     const root = join(scratch, 'full')
     writeExtension(root, FULL, FULL_FILES)
     const read = manifestMod.readManifest(root)
@@ -98,7 +97,6 @@ console.log('[1] a valid manifest loads whole')
     check('the hook command line has the root substituted', res.hooks[0]?.commandLine === `${root}/bin/lint.sh`)
     check('the servers are named ext:review-tools:<server>', res.servers.map(s => s.runtimeName).sort().join(',') === 'ext:review-tools:remote,ext:review-tools:review')
     check('the language server is named ext:review-tools:ts', res.language[0]?.runtimeName === 'ext:review-tools:ts')
-    check('the channel resolves to its server', res.channels[0]?.runtimeName === 'ext:review-tools:review')
     check('the keybinding targets the extension\'s own skill', res.keybindings[0]?.target === '/review-tools:review' && res.keybindings[0]?.taken === false)
   }
 }
@@ -275,7 +273,6 @@ console.log('[9] the ONE-manifest law: other files beside the manifest change no
           hooks: r.hooks.map(h => `${h.event}:${h.hook.run}`),
           servers: r.servers.map(s => s.runtimeName),
           language: r.language.map(l => l.runtimeName),
-          channels: r.channels.map(c => c.label),
           keybindings: r.keybindings.map(k => k.chord),
           defects: r.defects,
         })

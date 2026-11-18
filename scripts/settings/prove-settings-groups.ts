@@ -78,7 +78,6 @@ const rows: Row[] = [
   ['routing.openrouter', [{ dataCollection: 'allow', requireParameters: false }, {}], [false, 0, '']],
   ['shell.sessions', [1, 64], [false, 0, '']],
   ['briefs.profile', ['auto', 'native'], [false, 0, '']],
-  ['channels.enabled', [true, false], [0, '']],
   ['workspace.worktree', [{ symlinkDirectories: [] }, { sparsePaths: ['src'] }], [false, 0, '']],
   ['local.server', [{ parallelSlots: 1 }, { parallelSlots: 2 }], [false, 0, '']],
 ]

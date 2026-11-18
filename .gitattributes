@@ -1,9 +1,3 @@
-# Pin source + proof files to LF regardless of core.autocrlf / platform.
-# HB-0065: several scribe proofs anchor a literal char immediately before `\n`
-# in a cross-line regex over checked-out source; on a CRLF checkout (Windows —
-# the field machines' platform) those `\n`-anchored matches false-fail and red the
-# green-gate even though the product code is correct. Forcing LF here makes the
-# proofs deterministic across platforms (the product never depends on EOL).
 *.ts   text eol=lf
 *.tsx  text eol=lf
 *.mjs  text eol=lf
@@ -16,29 +10,12 @@ integrations/vscode/LICENSE.txt text eol=lf
 src/extensions/bundled/mercury-media/server/LICENSE text eol=lf
 src/extensions/bundled/mercury-media/server/THIRD_PARTY_NOTICES text eol=lf
 *.mts  text eol=lf
-# The Godot addon under assets/vulcan/addon/ is embedded byte-for-byte into a
-# generated module, and the vulcan suite's first step compares the checked-out
-# bytes with the committed module: a CRLF checkout turned every .gd and .cfg
-# file into drift and reddened the suite before a prover ran, and the
-# discovery prover's cross-line anchor over plugin.gd failed the same way.
-# Pinned to LF on every platform, with the Python drivers (read by the same
-# class of cross-line checks) beside them.
 *.gd   text eol=lf
 *.cfg  text eol=lf
 *.py   text eol=lf
 scripts/vendor/patches/*.patch text eol=lf
-# The vendored document licences are hash-locked: vendor/document-libs.lock.json
-# names each file's sha256 and the build refuses a file whose bytes differ. Git
-# must deliver the committed bytes unchanged on every platform, so they are
-# excluded from line-end conversion in both directions (`-text`, not
-# `text eol=lf`, which would still rewrite a CRLF upstream licence at commit
-# time and change the bytes the lock names).
 vendor/document-licences/** -text
 vendor/python-licences/** -text
 vendor/grammar-licences/** -text
-# The signed checksum fixtures are verified under the pinned release key, and a
-# signature covers the committed bytes: a checkout that rewrites the line end
-# fails every check that reads them. Excluded from conversion in both
-# directions, with their signatures.
 scripts/host/fixtures/*.sha256 -text
 scripts/host/fixtures/*.sha256.sig -text

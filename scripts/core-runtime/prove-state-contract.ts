@@ -155,8 +155,6 @@ const OBSERVABLES: Array<{
   { key: 'oauthTokenFromFd', family: 'boot', scope: 'process', read: () => state.getOauthTokenFromFd() },
   { key: 'apiKeyFromFd', family: 'boot', scope: 'process', read: () => state.getApiKeyFromFd() },
   { key: 'sessionExtensions', family: 'boot', scope: 'process', read: () => state.getSessionExtensions() },
-  { key: 'allowedChannels', family: 'boot', scope: 'process', read: () => state.getAllowedChannels() },
-  { key: 'hasDevChannels', family: 'boot', scope: 'process', read: () => state.getHasDevChannels() },
   { key: 'mainThreadAgentType', family: 'boot', scope: 'process', read: () => state.getMainThreadAgentType() },
   { key: 'directConnectServerUrl', family: 'boot', scope: 'process', read: () => state.getDirectConnectServerUrl() },
   { key: 'registeredHooks', family: 'hookRegistry', scope: 'session', read: () => state.getRegisteredHooks() },
@@ -261,11 +259,11 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'clearInvokedSkills', 'clearInvokedSkillsForAgent', 'clearRegisteredHooks',
     'clearRegisteredExtensionHooks', 'clearSystemPromptSectionState',
     'flushInteractionTime',
-    'getAgentColorMap', 'getAllowedChannels', 'getAskChannel',
+    'getAgentColorMap', 'getAskChannel',
     'getAllowedSettingSources', 'getApiKeyFromFd', 'getBudgetContinuationCount',
     'getCacheEditingHeaderLatched', 
     'getClientType', 'getCurrentTurnTokenBudget', 'getCwdState', 'getDirectConnectServerUrl', 'getFlagSettingsInline', 'getFlagSettingsPath',
-    'getHasDevChannels', 'getInitialEngineModel', 'getSessionExtensions',
+    'getInitialEngineModel', 'getSessionExtensions',
     'getInvokedSkills', 'getInvokedSkillsForAgent', 'getIsInteractive',
     'getIsNonInteractiveSession', 'getIsRemoteMode', 'getIsScrollDraining', 'getIsSessionOneShotHeadless', 'isAssistantFamilyAvailable', 'isRunInputClosed', 'setRunInputClosed',
     'isAssistantSessionActive', 'getLastAPIRequest', 'getLastAPIRequestMessages',
@@ -295,11 +293,11 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'resetStateForTests',
     'resetTotalDurationStateAndCost_FOR_TESTS_ONLY', 
     'resetTurnHookDuration', 'resetTurnToolDuration',
-    'setAllowedChannels', 'setAllowedSettingSources',
+    'setAllowedSettingSources',
     'setApiKeyFromFd', 'setAskChannel', 'setCacheEditingHeaderLatched', 
     'setClientType', 'setCostStateForRestore', 'setCwdState',
     'setDirectConnectServerUrl',
-    'setFlagSettingsInline', 'setFlagSettingsPath', 'setHasDevChannels',
+    'setFlagSettingsInline', 'setFlagSettingsPath',
     'setHasUnknownModelCost', 'setHeadlessOneShot',
     'setInitialEngineModel', 'setSessionExtensions', 'setIsInteractive', 'setIsRemoteMode',
     'setAssistantSessionActive', 'setLastAPIRequest', 'setLastAPIRequestMessages',
@@ -323,7 +321,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     missing.length === 0 && extra.length === 0,
     `missing=[${missing.join(',')}] extra=[${extra.join(',')}]`,
   )
-  for (const t of ['ChannelEntry', 'InvokedSkillInfo']) {
+  for (const t of ['InvokedSkillInfo']) {
     check(`type export survives: ${t}`, new RegExp(`export type ${t}\\b`).test(stateSrc))
   }
   check('STATE singleton stays module-private', !/export\s+const\s+STATE\b/.test(stateSrc))
@@ -1047,8 +1045,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setOauthTokenFromFd('oauth-token')
     state.setApiKeyFromFd('api-key')
     state.setSessionExtensions(['extension-a'])
-    state.setAllowedChannels([{ kind: 'server', name: 'chan' }])
-    state.setHasDevChannels(true)
     state.setMainThreadAgentType('main-agent')
     state.setDirectConnectServerUrl('http://localhost:1')
     state.clearRegisteredHooks()

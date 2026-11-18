@@ -64,9 +64,17 @@ globalConfig.enableConfigs()
 }
 
 {
-  const health = readFileSync(join(repoRoot, 'src/utils/healthReport.ts'), 'utf8')
-  check('/health’s provider-slots row refreshes local for real', health.includes("refreshProviderDiscovery('local')"))
-  check('/health’s honesty grammar accepts discovery-pending', health.includes("'discovery-pending:'"))
+  const { healthContext } = await import('../../src/utils/healthReport.ts')
+  const { authChecks, ENGINE_UNAVAILABLE_CODES } = await import('../../src/utils/health/sections/auth.ts')
+  const probedBefore = discovery.primeLocalDiscovery({ now: () => Date.now() })?.probedAtMs ?? 0
+  const targetsBefore = process.env.MERCURY_LOCAL_PROBE_TARGETS
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'openai-compatible=http://127.0.0.1:9'
+  const slotsSays = await authChecks(await healthContext()).find(row => row.id === 'provider-slots')?.run()
+  if (targetsBefore === undefined) delete process.env.MERCURY_LOCAL_PROBE_TARGETS
+  else process.env.MERCURY_LOCAL_PROBE_TARGETS = targetsBefore
+  const probedAfter = discovery.primeLocalDiscovery({ now: () => Date.now() })?.probedAtMs ?? 0
+  check('/health’s provider-slots row refreshes local for real', slotsSays !== undefined && probedAfter > probedBefore, `probed at ${probedBefore} before the row and ${probedAfter} after · ${slotsSays?.evidence.slice(0, 200)}`)
+  check('/health’s honesty grammar accepts discovery-pending', ENGINE_UNAVAILABLE_CODES.includes('discovery-pending:'))
   const board = readFileSync(join(repoRoot, 'src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
   check('the accounts board kicks one bounded local probe at mount', board.includes("refreshProviderDiscovery('local')") && board.includes('setVersion(v => v + 1)'))
   const probe = readFileSync(join(repoRoot, 'src/services/providers/providerDiscovery.ts'), 'utf8')

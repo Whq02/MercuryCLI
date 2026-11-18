@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { checker } from '../engine-durability/harness.ts'
 import { runArtifactArena, grabScreens, requireDist } from '../streaming/artifactArena.ts'
+import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 
 const t = checker()
 requireDist()
@@ -28,7 +29,7 @@ t.section('§1 — the prompts panel survives the full geometry sweep')
   const wide = grabScreens(run, 140, 40, [-1])
   void wide
   const at120 = grabScreens(run, 120, 40, [-1])[0]!
-  const framed80 = grabScreens(run, 80, 30, Array.from({ length: 36 }, (_, i) => 10000 + i * 100)).filter(s => s.rows.some(r => r.startsWith('╭') && r.endsWith('╮') && r.length === 80))
+  const framed80 = grabScreens(run, 80, 30, Array.from({ length: 36 }, (_, i) => S(10000 + i * 100))).filter(s => s.rows.some(r => r.startsWith('╭') && r.endsWith('╮') && r.length === 80))
   const at80 = framed80.at(-1)
   const text120 = flat(at120.rows)
   const text80 = flat(at80?.rows ?? [])

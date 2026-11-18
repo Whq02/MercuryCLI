@@ -70,9 +70,16 @@ console.log('§3 the wire sites + health consumers (source pins)')
   check('the App root mount no longer stamps first-frame', !/recordLaunchMilestone\('first-frame'\)/.test(app))
   const graph = src('src/boot/launchGraph.ts')
   check('input-live records at signalInputLive', /signalInputLive\(\): void \{[\s\S]{0,500}recordLaunchMilestone\('input-live'\)/.test(graph))
-  const health = src('src/utils/healthReport.ts')
-  check('the health reads the spine (launch-spine row)', health.includes("id: 'launch-spine'") && health.includes('lastBootReachedInputLive'))
-  check('the health reads the TI-01 record (invocation-record row)', health.includes("id: 'invocation-record'") && health.includes('readInvocationRecords'))
+  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const milestones = await import('../../src/substrate/launchMilestones.ts')
+  const { readInvocationRecords } = await import('../../src/substrate/invocationRecord.ts')
+  const spineSays = await crewChecks().find(row => row.id === 'launch-spine')?.run()
+  const reached = milestones.lastBootReachedInputLive()
+  check('the health reads the spine (launch-spine row)', spineSays !== undefined && (reached === null ? spineSays.status === 'off' && spineSays.evidence === 'no interactive boot recorded yet' : reached ? /^last boot('s spine fired OUT OF ORDER)?: /.test(spineSays.evidence) : spineSays.status === 'warn' && spineSays.evidence.startsWith("last boot's spine truncated: ")), spineSays?.evidence)
+  const recordSays = await crewChecks().find(row => row.id === 'invocation-record')?.run()
+  const records = readInvocationRecords()
+  const lastRecord = records[records.length - 1]
+  check('the health reads the TI-01 record (invocation-record row)', recordSays !== undefined && (lastRecord === undefined ? recordSays.status === 'off' && recordSays.evidence === 'no invocation recorded yet' : recordSays.status === 'ok' && recordSays.evidence.startsWith(`${lastRecord.platform} · ${lastRecord.shellHint} · tty in/out/err `) && recordSays.evidence.endsWith(`(${records.length} recorded)`)), recordSays?.evidence)
 }
 
 console.log('§4 C1/C2 win32 fixes (source pins)')
@@ -81,8 +88,10 @@ console.log('§4 C1/C2 win32 fixes (source pins)')
   check('C1: the editor spawn parses with the canonical legacy parser and quotes the executable',
     pe.includes('parseLegacyCommandString(editorCommand)') && pe.includes('`"${editorExe}"'))
   const rt = src('src/services/mcp/renderTuiTool.ts')
+  const { renderTuiRuntime } = await import('../../src/services/mcp/renderTuiTool.ts')
+  const pinned = renderTuiRuntime({ env: { MERCURY_BUN: process.execPath }, home: scratch })
   check('C2: render_tui writes under tmpdir() and resolves the runtime the way the suites do (MERCURY_BUN, then ~/.bun/bin/bun, then PATH), never a hard-coded spawn',
-    rt.includes('join(tmpdir(), `render-tui-mcp-') && /env\.MERCURY_BUN/.test(rt) && rt.includes("join(home, '.bun', 'bin', exe)") && rt.includes('split(delimiter)'))
+    rt.includes('join(tmpdir(), `render-tui-mcp-') && 'bun' in pinned && pinned.bun === process.execPath && rt.includes("join(home, '.bun', 'bin', exe)") && rt.includes('split(delimiter)'))
   check("C2: the checkout root comes from the module's own location, never the session cwd",
     rt.includes('fileURLToPath(import.meta.url)') && !rt.includes('process.cwd()'))
   check('C2: the spawn error surfaces (never a bare no-PNG)', rt.includes('res.error') && rt.includes('res.error ? String(res.error)'))

@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { getSessionId } from '../bootstrap/state.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
@@ -89,7 +90,7 @@ export async function getSessionEnvironmentScript(): Promise<string | null> {
   if (cache.state === 'absent') return null
   if (cache.state === 'loaded') return cache.script
   const parts: string[] = []
-  const envFile = process.env.MERCURY_ENV_FILE
+  const envFile = flagEnv('MERCURY_ENV_FILE')
   if (envFile) {
     try {
       const content = (await readFile(envFile, 'utf8')).trim()

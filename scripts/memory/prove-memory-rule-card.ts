@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // gate-watch: src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/ruleCard.ts src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts
 // gate-watch: src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx src/components/permissions/PermissionRequest.tsx
-// gate-watch: src/hooks/toolPermission/handlers/interactiveHandler.ts src/hooks/toolPermission/PermissionContext.ts src/cli/headless/runnerAsks.ts
+// gate-watch: src/cli/headless/runnerAsks.ts src/daemon/permissionAsks.ts src/services/engine-connector/daemonConnector.ts src/services/engine-connector/seatProjections.ts
 // gate-watch: src/utils/permissions/decision/engine.ts src/utils/permissions/decision/wrapper.ts src/utils/permissions/permissions.ts
 // gate-watch: src/tools/MemoryTools/prompt.ts docs/MNEME.md
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
@@ -12,6 +12,9 @@ import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFo
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
 const HOME = pinScratchHome('mercury-memory-rule-card')
+const daemonDir = join(HOME, 'daemon')
+mkdirSync(daemonDir, { recursive: true })
+process.env.MERCURY_DAEMON_DIR = daemonDir
 Object.assign(process.env, {
   MERCURY_FULLSCREEN: '1', MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1', MERCURY_BOOT_PREFLIGHT: '0', MERCURY_REDUCED_MOTION: '1',
   MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', BROWSER: '/usr/bin/true',
@@ -60,8 +63,10 @@ const { CorrectTool, RetainTool } = await import('../../src/tools/MemoryTools/Me
 const { RULE_CARD_KEEP } = await import('../../src/tools/MemoryTools/ruleCard.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
-const { createPermissionContext } = await import('../../src/hooks/toolPermission/PermissionContext.ts')
-const { handleInteractivePermission } = await import('../../src/hooks/toolPermission/handlers/interactiveHandler.ts')
+const daemonAsks = await import('../../src/daemon/permissionAsks.ts')
+const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
+const { readSessionAsks } = await import('../../src/services/engine-connector/seatProjections.ts')
+const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
 const { createRunnerAsks, createRuleOnlyAsks } = await import('../../src/cli/headless/runnerAsks.ts')
 const { createPeer } = await import('../../src/runner/wire/peer.ts')
 
@@ -118,27 +123,45 @@ const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProvid
 const { PermissionRequest } = await import('../../src/components/permissions/PermissionRequest.tsx')
 const wrap = (node: React.ReactNode): React.ReactNode => h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, node))
 
+const WORKER = 'concourse-w1'
+const SESSION = 'sess-rule-card'
+writeFileSync(concourseWorkersPath(daemonDir), j({ version: 1, workers: { [WORKER]: { runnerId: WORKER, sessionId: SESSION, workspaceId: REPO, title: 'rule card', createdAt: Date.now(), startedAt: Date.now(), permissionMode: 'default' } } }))
+const cardCapabilities = { holds_asks: true, elicitation: false, partial_rows: false }
+const toCardHost = new PassThrough()
+const toCardRunner = new PassThrough()
+const cardRunner = createPeer({ input: toCardRunner, output: toCardHost, side: 'runner', log() {} })
+const cardHost = createPeer({ input: toCardHost, output: toCardRunner, side: 'host', log() {} })
+cardRunner.onRequest('initialize', () => ({ protocol: 1, runner: { version: '1.0.0', pid: process.pid }, session_id: SESSION }))
+await cardHost.request('initialize', { protocol: 1, host: { name: 'proof', version: '1' }, capabilities: cardCapabilities })
+const sentToHost: Array<Record<string, unknown>> = []
+cardHost.onRequest('permission/request', params => {
+  sentToHost.push(params as Record<string, unknown>)
+  return daemonAsks.holdWorkerAsk(WORKER, params, daemonDir, undefined, () => 'attached').answer as never
+})
+const cardAsks = createRunnerAsks(cardRunner, () => cardCapabilities)
+const connector = new DaemonSessionConnector({ sessionId: SESSION, runnerId: WORKER, title: 'rule card', projectLabel: 'proof', workspaceId: REPO, home: join(HOME, 'sessions'), modelKey: 'claude-opus-4-8' } as never)
+const cockpit = connector as unknown as { readAsks: () => void; asks: () => ReadonlyArray<{ confirm: { toolUseContext: unknown } }>; rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>> }
+cockpit.rpc = async req => ({ ok: true, ...daemonAsks.answerPermissionAsk(String(req.requestId), req.allow === true, String(req.by), undefined, req.answer as never) })
+
 type Answer = 'yes' | 'no' | 'esc'
 type Seen = { card: string; lines: string[]; asked: number }
 function replDoor(answer: Answer, frame: string, seen: Seen) {
+  const door = cardAsks.createCanUseTool()
   return async (tool: unknown, input: Record<string, unknown>, context: unknown, message: unknown, id: string) => {
-    const evaluated = await decideToolPermissionWithModes(tool as never, input, context as never, message as never, id)
-    const result = evaluated.decision as { behavior: string; message?: string }
-    if (result.behavior !== 'ask') return result as never
-    seen.asked++
-    seen.card = result.message ?? ''
-    let entry: unknown = null
-    const ctx = createPermissionContext(tool as never, input, context as never, message as never, id, () => {}, {
-      push: e => {
-        entry = e
-      },
-      remove: () => {},
-      update: () => {},
+    const before = sentToHost.length
+    let early: { decision: unknown } | null = null
+    const decision = door(tool as never, input, context as never, message as never, id).then(value => {
+      early = { decision: value }
+      return value
     })
-    const decision = new Promise(resolve => handleInteractivePermission({ ctx, description: '', result: result as never }, resolve))
-    await waitFor(() => entry !== null, 2000)
+    await waitFor(() => early !== null || (sentToHost.length === before + 1 && (readSessionAsks(SESSION, daemonDir)?.asks.length ?? 0) === 1), 4000)
+    if (early !== null) return (early as { decision: unknown }).decision as never
+    seen.asked++
+    seen.card = String(sentToHost[before]?.reason ?? '')
+    cockpit.readAsks()
+    const entry = cockpit.asks()[0]?.confirm
     const m: Mounted = await mountOffscreen(
-      wrap(h(PermissionRequest, { toolUseConfirm: entry, toolUseContext: context, onDone: () => {}, onReject: () => {}, verbose: false, workerBadge: undefined } as never)),
+      wrap(h(PermissionRequest, { toolUseConfirm: entry, toolUseContext: entry?.toolUseContext, onDone: () => {}, onReject: () => {}, verbose: false, workerBadge: undefined } as never)),
       100,
       40,
     )
@@ -155,6 +178,7 @@ function replDoor(answer: Answer, frame: string, seen: Seen) {
     const settled = await Promise.race([decision, settle(6000).then(() => ({ behavior: 'timeout' }))])
     await settle(60)
     m.unmount()
+    cockpit.readAsks()
     return settled as never
   }
 }

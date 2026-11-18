@@ -1,6 +1,5 @@
 #!/bin/bash
-# gate-class: pty
-# gate-env: MERCURY_RENDER_CWD
+# gate-class: pure
 # gate-watch: assets/splash/mercury-splash.mjs src/commands/** src/components/*
 # gate-watch: src/components/Settings/Config.tsx src/components/concourse/*
 # gate-watch: src/components/mercury-ui/sessionAccent.ts src/entrypoints/cli.tsx src/hooks/useTextInput.ts
@@ -36,13 +35,10 @@ run scripts/compositor/prove-ground-owner.ts
 run scripts/compositor/prove-fill-law.ts
 run scripts/compositor/prove-stable-identity.ts
 run scripts/compositor/prove-surface-census.ts
-run scripts/compositor/prove-hold-takeover.ts
-run scripts/compositor/prove-resize-ghost.ts
 run scripts/compositor/prove-uiux-wave0-census.ts
 run scripts/compositor/prove-ground-contrast-floors.ts
 run scripts/compositor/prove-field-findings-keytruth.ts
 run scripts/compositor/prove-hangul-jamo-width.ts
-run scripts/compositor/prove-wire-census.ts
 run scripts/compositor/prove-reuse-equals-fresh.ts
 
 exit "$fail"

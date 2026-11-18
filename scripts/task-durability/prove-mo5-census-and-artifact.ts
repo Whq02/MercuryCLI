@@ -45,7 +45,6 @@ console.log('── mo5 census ratchet + artifact survival')
     ['src/tools/LSPTool/mercuryOps.ts', 'renameWithWin32Retry', /await rename\(absolutePath, newAbs\)/],
     ['src/utils/file.ts', 'renameWithWin32RetrySync', /fs\.renameSync\(tempPath, targetPath\)/],
     ['src/services/privateChannel/installLayout.ts', 'WIN32_RENAME_RETRY_DELAYS_MS', /RENAME_RETRY_DELAYS_MS = \[50, 100, 200\]/],
-    ['src/utils/healthReport.ts', 'if (moved) movedCount++', /\.catch\(\(\) => \{\}\)\n\s*movedCount\+\+/],
   ]
   let clean = true
   for (const [rel, marker, oldPrint] of rows) {
@@ -58,6 +57,40 @@ console.log('── mo5 census ratchet + artifact survival')
     }
   }
   ok(clean, `§2 all ${rows.length} census rows hold (marker present, old fingerprint gone)`)
+}
+
+{
+  const fsH = await import('node:fs')
+  const { join: joinH } = await import('node:path')
+  const { tmpdir: tmpH } = await import('node:os')
+  const globals = globalThis as Record<string, unknown>
+  if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
+  const home = fsH.mkdtempSync(joinH(tmpH(), 'mo5-isolation-'))
+  fsH.mkdirSync(joinH(home, 'daemon'), { recursive: true })
+  fsH.writeFileSync(joinH(home, 'daemon', 'daemon.log'), 'Restarting dead daemon: /Users/op/.npm-global/lib/node_modules/@anthropic-ai/claude-code/cli.js\n')
+  const homeBefore = process.env.MERCURY_CONFIG_DIR
+  process.env.MERCURY_CONFIG_DIR = home
+  const envUtils = await import('../../src/utils/envUtils.ts')
+  const forget = (): void => (envUtils.getMercuryHome as unknown as { cache: { clear?: () => void } }).cache.clear?.()
+  forget()
+  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const isolation = await crewChecks().find(row => row.id === 'isolation')?.run()
+  const dest = /move the foreign records to (.+) \(reversible archive/.exec(isolation?.remedy?.plan ?? '')?.[1] ?? ''
+  let blocked: { ok: boolean; note?: string } | undefined
+  let moved: { ok: boolean; note?: string } | undefined
+  if (dest !== '') {
+    fsH.mkdirSync(joinH(dest, 'daemon_daemon.log', 'held'), { recursive: true })
+    blocked = await isolation?.remedy?.apply()
+    fsH.rmSync(joinH(dest, 'daemon_daemon.log'), { recursive: true, force: true })
+    moved = await isolation?.remedy?.apply()
+  }
+  if (homeBefore === undefined) delete process.env.MERCURY_CONFIG_DIR
+  else process.env.MERCURY_CONFIG_DIR = homeBefore
+  forget()
+  ok(
+    isolation?.status === 'warn' && blocked?.ok === false && /no foreign records matched/.test(blocked.note ?? '') && moved?.ok === true && /archived 1 foreign record\(s\)/.test(moved.note ?? '') && fsH.statSync(joinH(dest, 'daemon_daemon.log')).isFile() && !fsH.existsSync(joinH(home, 'daemon', 'daemon.log')),
+    `§2 the health isolation remedy counts a record only when its move landed (run here: blocked ${JSON.stringify(blocked)} · moved ${JSON.stringify(moved)})`,
+  )
 }
 
 {

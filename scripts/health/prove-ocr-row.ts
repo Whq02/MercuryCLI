@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { ocrReadinessCheck } = await import('../../src/utils/healthReport.ts')
@@ -43,6 +41,8 @@ for (const fixture of [
   assert.ok(text.includes(`OCR — ${row.evidence}`))
 }
 assert.equal(recognitions, 0)
-const source = readFileSync(new URL('../../src/utils/healthReport.ts', import.meta.url), 'utf8')
-assert.equal(source.split('ocrReadinessCheck(),').length, 2)
+const { interfaceChecks } = await import('../../src/utils/health/sections/interface.ts')
+const listed = interfaceChecks().filter(entry => entry.id === 'iface-ocr')
+assert.equal(listed.length, 1)
+assert.deepEqual({ label: listed[0]!.label, probe: listed[0]!.probe, depth: listed[0]!.depth, timeoutMs: listed[0]!.timeoutMs }, { label: 'OCR', probe: 'configuration', depth: 'fast', timeoutMs: 11_000 })
 console.log('PASS OCR row uses the resolved engine in JSON and text; unavailable carries its hint; health never recognises an image')

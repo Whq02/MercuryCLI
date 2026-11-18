@@ -117,7 +117,7 @@
     {
       "file": "src/utils/permissions/flowLaw.ts",
       "mechanism": "hardcoded-tmp",
-      "excerpt": "for (const temp of [getMercuryTempDir(), tmpdir(), process.env.TMPDIR, process.env.MERCURY_TMPDIR, process.env.TEMP, process.env.TMP, '/tmp'",
+      "excerpt": "for (const temp of [getMercuryTempDir(), tmpdir(), process.env.TMPDIR, flagEnv('MERCURY_TMPDIR'), process.env.TEMP, process.env.TMP, '/tmp',",
       "cls": "platform-owner",
       "why": "POSIX-scoped runtime path behind a platform gate (audited per site in the census review)"
     },
@@ -484,20 +484,6 @@
       "excerpt": "const files = execSync('git ls-files -z src', { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 })",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/crew/render-crew-board.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
-      "file": "scripts/crew/render-swarm-board.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const capture = spawnCaptureSync('/usr/bin/python3', [join(root, 'scripts/ui/vshot.py'), config], {",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
       "file": "scripts/critters/prove-berth-sprite.ts",

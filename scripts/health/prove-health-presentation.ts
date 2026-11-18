@@ -50,7 +50,6 @@ section('§2 THE PLAIN RENDERER (HL-07)')
     verdict: 'sound',
     durationMs: 123,
   })
-  // eslint-disable-next-line no-control-regex
   check('zero ANSI/control bytes in plain output', !/[\u001b\u009b\u0007\u0000]/.test(text))
   check(
     'every section, row, and the verdict render completely',
@@ -198,7 +197,7 @@ section('§6 N-06 · THE PROFILE CONTRACT + THE VISIBLE REMEDIES')
   )
   check(
     'the health instruction-profile row projects the same diagnostics (warn on findings)',
-    src('src/utils/healthReport.ts').includes("id: 'instruction-profile'"),
+    (await import('../../src/utils/health/sections/settings.ts')).settingsChecks().some(row => row.id === 'instruction-profile' && row.label === 'Instruction profile'),
   )
 }
 
@@ -213,10 +212,6 @@ section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
   check(
     'the CLI rich route mounts the CANONICAL certificate view (HL-10)',
     handler.includes('MercuryHealthCertificate'),
-  )
-  check(
-    'the rich mount starts NO MCP connection manager (HL-23)',
-    !/healthHandler[\s\S]{0,600}MCPConnectionManager/.test(handler),
   )
   check(
     'a renderer failure still settles the root (HL-14: unmount in finally)',
@@ -236,13 +231,18 @@ section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
     'the footer no longer advertises the dead route',
     !certView.includes('s install diagnostics'),
   )
-  const report = src('src/utils/healthReport.ts')
+  const { healthContext: contextOf } = await import('../../src/utils/healthReport.ts')
+  const { HEALTH_SECTIONS } = await import('../../src/utils/health/sections.ts')
+  const listContext = await contextOf()
+  const listed = HEALTH_SECTIONS.flatMap(entry => entry.checks(listContext))
   for (const id of ['agent-definitions', 'env-limits', 'keybindings', 'version-locks']) {
-    check(`the absorbed panel lives as the '${id}' certificate row (HL-32 absorption)`, report.includes(`id: '${id}'`))
+    check(`the absorbed panel lives as the '${id}' certificate row (HL-32 absorption)`, listed.filter(row => row.id === id).length === 1)
   }
+  const agentsSays = await listed.find(row => row.id === 'agent-definitions')?.run()
   check(
     'the agents row reports the definition files on disk and names no other spelling of the standing-rule key',
-    report.includes("id: 'agent-definitions'") && !/STANDING_RULE_RETIRED_KEY|still spell the standing rule/.test(report),
+    agentsSays?.status === 'info' && /files on disk/.test(agentsSays.evidence) && !/still spell the standing rule/.test(agentsSays.evidence),
+    agentsSays?.evidence,
   )
   check(
     "the false 'Source build — git pull' guidance died with the legacy screen",

@@ -162,15 +162,24 @@ console.log('\n§2 the real drives plan')
         `missing: ${missing.join(' ') || 'none'}; planned twice: ${twice.join(' ') || 'none'}`,
       )
       check('no suite outside the pty class is in the drives plan', foreign.length === 0, foreign.join(' '))
-      const localDrives = readdirSync(SCRIPTS).filter(d => (d === 'host' || d.endsWith('-drives')) && existsSync(join(SCRIPTS, d, 'run-all.sh')))
+      const localDrives = readdirSync(SCRIPTS).filter(d => d.endsWith('-drives') && existsSync(join(SCRIPTS, d, 'run-all.sh')))
       check('every local *-drives suite is in the hosted drives plan', localDrives.every(d => planned.get(d) === 1), localDrives.filter(d => planned.get(d) !== 1).join(' '))
       const localPlan = (...flags: string[]): string[] => {
         const result = spawnSync('bash', ['scripts/run-all-suites.sh', ...flags, '--plan-only'], { cwd: ROOT, env, encoding: 'utf8' })
         if (result.status !== 0) throw new Error(`local ${flags.join(' ')} plan exited ${result.status}: ${result.stderr}`)
         return result.stdout.trim().split('\n').filter(Boolean)
       }
-      check('the local release plan contains no local drive suite', localPlan('--class', 'release').every(d => !localDrives.includes(d)))
-      check('the local drives plan is exactly host and the drive-suffixed suites', localPlan('--class', 'drives').sort().join(',') === localDrives.sort().join(','))
+      const releaseDrives = localPlan('--class', 'release').filter(d => localDrives.includes(d))
+      check('the local release plan contains no local drive suite', releaseDrives.length === 0, `in the release plan: ${releaseDrives.join(' ')} — is_drive_suite in scripts/run-all-suites.sh must read every *-drives suite as a drive`)
+      const drivesPlan = localPlan('--class', 'drives')
+      const strays = drivesPlan.filter(d => !localDrives.includes(d))
+      const absent = localDrives.filter(d => !drivesPlan.includes(d))
+      const repeated = drivesPlan.filter((d, i) => drivesPlan.indexOf(d) !== i)
+      check(
+        'the local drives plan is exactly the drive-suffixed suites',
+        strays.length === 0 && absent.length === 0 && repeated.length === 0,
+        `${[strays.length > 0 ? `in the drives plan without the suffix: ${strays.join(' ')}` : '', absent.length > 0 ? `drive-suffixed and not in the drives plan: ${absent.join(' ')}` : '', repeated.length > 0 ? `in the drives plan twice: ${repeated.join(' ')}` : ''].filter(Boolean).join(' · ')} — is_drive_suite in scripts/run-all-suites.sh must match *-drives and nothing else`,
+      )
       const terminalSuites = pty.filter(d => !localDrives.includes(d)).sort()
       const plannedTerminal = localPlan('--only-class', 'pty').sort()
       const plannedNonPty = localPlan('--without-class', 'pty').sort()

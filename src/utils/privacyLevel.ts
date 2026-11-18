@@ -24,7 +24,7 @@ export function isLoopbackUrl(url: string): boolean {
 }
 
 export function getPrivacyLevel(): PrivacyLevel {
-  if (process.env[NONESSENTIAL_TRAFFIC_VAR]) return 'essential-traffic'
+  if (flagEnv(NONESSENTIAL_TRAFFIC_VAR)) return 'essential-traffic'
   return 'default'
 }
 
@@ -33,5 +33,5 @@ export function isEssentialTrafficOnly(): boolean {
 }
 
 export function getEssentialTrafficOnlyReason(env: NodeJS.ProcessEnv = process.env): string | null {
-  return env[NONESSENTIAL_TRAFFIC_VAR] ? NONESSENTIAL_TRAFFIC_VAR : null
+  return flagEnv(NONESSENTIAL_TRAFFIC_VAR, env) ? NONESSENTIAL_TRAFFIC_VAR : null
 }

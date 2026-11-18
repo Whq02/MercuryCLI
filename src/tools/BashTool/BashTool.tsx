@@ -1,6 +1,7 @@
 import stripAnsi from 'strip-ansi'
 import { z } from 'zod/v4'
 import { buildTool, stringInputField, type ToolUseContext, type ToolResult, type ToolPermissionContext } from '../../Tool.js'
+import { settleShellRecord } from '../../utils/shell/shellRecord.js'
 import { bashToolAvailable } from '../../utils/shell/windowsShellRoad.js'
 import { BASH_TOOL_NAME } from './toolName.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
@@ -77,7 +78,7 @@ import {
 import type { BashProgress } from '../../types/tools.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import type { AssistantMessage } from '../../types/message.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import { existsSync, readFileSync } from 'node:fs'
 import { modifiedSinceReadMessage } from '../FileEditTool/otherSession.js'
 import { tailFile } from '../../utils/fsOperations.js'
@@ -819,6 +820,7 @@ export const BashTool = buildTool({
     return input?.description ?? 'Run a shell command'
   },
   async prompt({ tools }): Promise<string> {
+    await settleShellRecord()
     return getSimplePrompt(new Set(tools.map(tool => tool.name)))
   },
   userFacingName,

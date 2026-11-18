@@ -12,7 +12,6 @@ import type { SettingSource } from '../utils/settings/constants.js'
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
 import { ApiCaptureOwner } from './runtime/api-capture.js'
 import { BootConfigOwner } from './runtime/boot-config.js'
-import type { ChannelEntry as RuntimeChannelEntry } from './runtime/boot-config.js'
 import { CacheLatchOwner } from './runtime/cache-latches.js'
 import { CollectionsOwner } from './runtime/collections.js'
 import type {
@@ -30,7 +29,6 @@ import { TurnAccountingOwner } from './runtime/turn-accounting.js'
 import { UsageLedgerOwner } from './runtime/usage-ledger.js'
 import { resetJevLedger } from '../services/jev/jevLedger.js'
 
-export type ChannelEntry = RuntimeChannelEntry
 export type InvokedSkillInfo = RuntimeInvokedSkillInfo
 
 let sessionIdentity = new SessionIdentityOwner()
@@ -607,22 +605,6 @@ export function getMainThreadAgentType(): string | undefined {
 
 export function setMainThreadAgentType(agentType: string | undefined): void {
   bootConfig.mainThreadAgentType = agentType
-}
-
-export function getAllowedChannels(): ChannelEntry[] {
-  return bootConfig.allowedChannels
-}
-
-export function setAllowedChannels(channels: ChannelEntry[]): void {
-  bootConfig.allowedChannels = channels
-}
-
-export function getHasDevChannels(): boolean {
-  return bootConfig.hasDevChannels
-}
-
-export function setHasDevChannels(value: boolean): void {
-  bootConfig.hasDevChannels = value
 }
 
 

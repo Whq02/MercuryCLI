@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, realpathSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -30,8 +30,14 @@ check(
 )
 check('this tree resolves a real engine (present)', before.present === true, `${before.mode} @ ${before.path}`)
 {
-  const healthSrc = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check('the row consumes the OWNER presence (rg.present, no local existsSync on rg.path)', healthSrc.includes('const rgPresent = rg.present') && !healthSrc.includes('const rgPresent = existsSync(rg.path)'))
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { basename } = await import('node:path')
+  const savedHere = process.cwd()
+  process.chdir(decoyDir)
+  const rowInDecoy = await runtimeChecks().find(row => row.id === 'runtime')?.run()
+  process.chdir(savedHere)
+  const owner = getRipgrepStatus()
+  check('the row consumes the OWNER presence (rg.present, no local existsSync on rg.path)', rowInDecoy?.evidence.includes(`ripgrep ${owner.mode} @ ${basename(owner.path)} ${owner.present ? 'present' : 'MISSING'}`) === true, rowInDecoy?.evidence)
 }
 
 console.log('\n§2 the row reads a PROBED answer: a present ripgrep that fails its probe says so')

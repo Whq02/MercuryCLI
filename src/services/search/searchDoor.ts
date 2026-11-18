@@ -77,7 +77,7 @@ export function liveSearchDoorReads(env: Record<string, string | undefined> = pr
     ...(brave ? { braveKey: brave.source } : {}), ...(tavily ? { tavilyKey: tavily.source } : {}),
     ...(flagEnv('MERCURY_SEARCH_BACKEND') !== undefined ? { backendOverride: flagEnv('MERCURY_SEARCH_BACKEND') } : {}),
     keylessAllowed: duckduckgoScrapingEnabled(),
-    metasearchInstances: configuredSearxngInstances(env.MERCURY_SEARCH_SEARXNG_INSTANCES ?? '').instances.length,
+    metasearchInstances: configuredSearxngInstances(flagEnv('MERCURY_SEARCH_SEARXNG_INSTANCES', env) ?? '').instances.length,
   }
 }
 export function searchDoorLabel(door: SearchDoor): string {
@@ -93,7 +93,7 @@ export function describeSearchDoorPlan(plan: SearchDoorPlan): string {
   return `${plan.doors.length ? plan.doors.map(searchDoorLabel).join(' → ') : 'no source selected for this query'}${plan.override === 'auto' ? '' : ` [MERCURY_SEARCH_BACKEND=${plan.override}]`}${plan.closed.length ? ` · not in the walk: ${plan.closed.join('; ')}` : ''}`
 }
 export function searchDoorFact(mainModel: string, env: Record<string, string | undefined> = process.env): string {
-  const configured = configuredSearxngInstances(env.MERCURY_SEARCH_SEARXNG_INSTANCES ?? '')
+  const configured = configuredSearxngInstances(flagEnv('MERCURY_SEARCH_SEARXNG_INSTANCES', env) ?? '')
   const metasearch = configured.error ? ` · ${configured.error}` : configured.instances.length ? ` · ${configured.instances.length} metasearch instance(s) configured` : ''
   return `WebSearch: ${describeSearchDoorPlan(resolveSearchDoorPlan({ ...liveSearchDoorReads(env), mainModel }))} · official APIs selected by query shape${metasearch}`
 }

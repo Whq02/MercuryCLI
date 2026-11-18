@@ -2,8 +2,7 @@ import assert from 'node:assert/strict'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ToolUseContext } from '../../src/Tool.js'
-import type { CanUseToolFn } from '../../src/hooks/useCanUseTool.js'
+import type { CanUseToolFn, ToolUseContext } from '../../src/Tool.js'
 import type { AssistantMessage } from '../../src/types/message.js'
 
 const scratch = mkdtempSync(join(tmpdir(), 'dap-codelldb-'))

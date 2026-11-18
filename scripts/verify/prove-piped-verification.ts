@@ -7,12 +7,13 @@ import { join } from 'node:path'
 process.env.NODE_ENV = 'test'
 const state = await import('../../src/utils/verification/verificationState.js')
 const { createBashShellProvider } = await import('../../src/utils/shell/bashProvider.js')
+const { systemShellAt, systemShellRecord } = await import('../../src/utils/shell/shellRecord.js')
 const root = mkdtempSync(join(tmpdir(), 'piped-verification-'))
 try {
   const runner = join(root, 'pytest')
   writeFileSync(runner, '#!/bin/sh\nexit 7\n')
   chmodSync(runner, 0o755)
-  const provider = await createBashShellProvider('/bin/bash', { skipSnapshot: true })
+  const provider = await createBashShellProvider(systemShellAt('/bin/bash'), { skipSnapshot: true })
   const command = `${runner} | tail -n 1`
   const built = await provider.buildExecCommand(command, { id: 'pipeline-proof' }) as any
   execFileSync('/bin/bash', ['-c', built.commandString], { cwd: root })
@@ -80,12 +81,13 @@ try {
   if (state.takeUnscoredVerification() !== undefined) failures.push('a recorded pipeline status was called hidden when only cwd binding prevented scoring')
   assert.deepEqual(failures, [])
   for (const file of [built.cwdFilePath, built.pipelineStatusPath]) if (file) rmSync(file, { force: true })
-  if (existsSync('/bin/zsh')) {
-    const zsh = await createBashShellProvider('/bin/zsh', { skipSnapshot: true })
-    const z = await zsh.buildExecCommand(command, { id: 'pipeline-zsh-proof' })
-    execFileSync('/bin/zsh', ['-c', z.commandString], { cwd: root })
-    assert.deepEqual(readFileSync(z.pipelineStatusPath!, 'utf8').trim().split(/\s+/).map(Number), [7, 0])
-    for (const file of [z.cwdFilePath, z.pipelineStatusPath]) if (file) rmSync(file, { force: true })
+  const road = await systemShellRecord()
+  if (road.origin !== 'engine') {
+    const own = await createBashShellProvider(road, { skipSnapshot: true })
+    const r = await own.buildExecCommand(command, { id: 'pipeline-road-proof' })
+    execFileSync(road.path, ['-c', r.commandString], { cwd: root })
+    assert.deepEqual(readFileSync(r.pipelineStatusPath!, 'utf8').trim().split(/\s+/).map(Number), [7, 0], `the shell the system road runs (${road.path}, ${road.origin}) carries the pipeline array`)
+    for (const file of [r.cwdFilePath, r.pipelineStatusPath]) if (file) rmSync(file, { force: true })
   }
   const { exec } = await import('../../src/utils/Shell.js')
   const shell = await exec(command, new AbortController().signal, 'bash', { timeout: 10000, cwd: root, preventCwdChanges: true } as never)

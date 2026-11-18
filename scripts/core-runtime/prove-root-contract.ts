@@ -136,7 +136,6 @@ const BSU = `${ESC}[?2026h`
 const ENTER_ALT = `${ESC}[?1049h`
 const EXIT_ALT = `${ESC}[?1049l`
 function stripEsc(w: string): string {
-  // eslint-disable-next-line no-control-regex
   return w.replace(/\u001b(?:\[[0-9;?<>=]*[a-zA-Z@`]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)|[()][0-9A-B])/g, '')
 }
 function isFrameWrite(w: string): boolean {
@@ -312,11 +311,9 @@ process.exit(0)
   let sandwichOk = true
   let sandwichDetail = ''
   for (const f of frames) {
-    // eslint-disable-next-line no-control-regex
     const firstCursor = f.match(/\u001b\[[0-9;]*[HGdABCDJK]/)
     const startsHome = firstCursor?.[0] === `${ESC}[H`
       || (firstCursor?.[0] === `${ESC}[2J` && f.indexOf(`${ESC}[2J`) !== -1 && f.indexOf(`${ESC}[H`) > f.indexOf(`${ESC}[2J`))
-    // eslint-disable-next-line no-control-regex
     const cups = [...f.matchAll(/\u001b\[\d+;\d+H/g)]
     const endsParked = cups.length > 0 && cups[cups.length - 1]![0] === PARK
     if (!startsHome || !endsParked) {
@@ -384,7 +381,6 @@ process.exit(0)
   check('resize: the whole storm settles to exactly one frame and nothing erases the display',
     settledFrames.length === 1 && !realWrites.some(w => w.includes(`${ESC}[2J`)), String(settledFrames.length))
   const rf = settledFrames[0] ?? ''
-  // eslint-disable-next-line no-control-regex
   const cups = [...rf.matchAll(/\u001b\[\d+;\d+H/g)]
   check('resize: the park CUP uses the settled rows', cups.length > 0 && cups[cups.length - 1]![0] === `${ESC}[${NEW_ROWS};1H`,
     JSON.stringify(cups[cups.length - 1]?.[0]))
@@ -421,7 +417,6 @@ process.exit(0)
   const healFrames = rig.stdout.writes.slice(marker).filter(isFrameWrite)
   check('self-heal: repaintAltScreen paints exactly one frame', healFrames.length === 1, String(healFrames.length))
   const hf = healFrames[0] ?? ''
-  // eslint-disable-next-line no-control-regex
   check('self-heal: the heal frame carries no erase', !/\u001b\[[012]?J/.test(hf))
   const emu = new AnsiEmulator(COLS, ROWS, true)
   emu.feed(hf)

@@ -89,14 +89,32 @@ await guarded(async () => {
   check('the warm claim is the screen\'s own road: a headless admission never claims a warm runner', /deps\.claimWarm !== undefined &&\n\s*kind === 'oculus' &&/.test(admit))
   const warmSrc = readFileSync(join(ROOT, 'src', 'daemon', 'warmRunner.ts'), 'utf8')
   check('the warm pool spawns its runner oculus (the pool exists for the screen\'s next birth)', /kind: 'oculus',\n\s*\}\)\n\s*const reg = roster\.registerLongLived\(short, spec\)/.test(warmSrc))
-  const { firstSystemPrompt } = await import('../lib/builtProduct.ts')
+  const { FIXTURE_MODEL, firstSystemPrompt, fixtureCli, systemPromptOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const sessionLineOf = (prompt: string): string => prompt.split('\n').find(line => line.startsWith('- Session:')) ?? ''
-  const pinnedBoot = sessionLineOf(await firstSystemPrompt([], { MERCURY_SESSION_KIND: 'oculus' }))
+  const asksToRead = [{ kind: 'tool_use', name: 'Read', input: { file_path: join(ROOT, 'no-such-file') } }, { kind: 'text', text: 'done' }] as const
+  const pinned = { MERCURY_SESSION_KIND: 'oculus' }
+  const wireDoor = await withFixtureRunner(
+    [...asksToRead],
+    async (runner, api) => {
+      await runner.prompt('go')
+      const ask = await runner.waitForAsk('the wire door puts the ask to its host')
+      runner.answerAsk(ask.id, { outcome: 'deny' } as never)
+      await runner.waitFor('the asked turn ends', row => row.type === 'outcome')
+      return sessionLineOf(systemPromptOf(api))
+    },
+    { env: pinned },
+  ).catch(() => 'no ask reached the host')
+  const printRun = await fixtureCli([...asksToRead], ['run', '--format', 'json', '--model', FIXTURE_MODEL, 'hi'], { env: pinned })
+  const printDoor = { line: sessionLineOf(systemPromptOf(printRun.api)), status: /"status":"([a-z_]+)"/.exec(printRun.stdout)?.[1] ?? '' }
   const bareBoot = sessionLineOf(await firstSystemPrompt())
-  check('the runner consumes the pin at its preflight, between the ask channel and the interactivity mark', pinnedBoot.startsWith('- Session: oculus') && bareBoot.startsWith('- Session: non-interactive'))
-  const healthSrc = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  const healthRow = healthSrc.slice(healthSrc.indexOf("id: 'session-kind'"), healthSrc.indexOf("id: 'session-kind'") + 2000)
-  check("/health carries the Session kind row, read from the focused session's record and spoken in the vocabulary's words", healthSrc.includes("id: 'session-kind'") && /readSessionWorkers\(\)\)\.find\(rec => rec\.sessionId === sessionId/.test(healthRow) && /sessionKindWords\(record\.kind\)/.test(healthRow))
+  check(
+    'the runner consumes the pin at its preflight, between the ask channel and the interactivity mark',
+    wireDoor.startsWith('- Session: oculus') && printDoor.line.startsWith('- Session: non-interactive') && printDoor.status === 'blocked' && bareBoot.startsWith('- Session: non-interactive'),
+    JSON.stringify({ wireDoor: wireDoor.slice(0, 60), printDoor: { line: printDoor.line.slice(0, 60), status: printDoor.status }, bareBoot: bareBoot.slice(0, 60) }),
+  )
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const kindRow = await runtimeChecks().find(row => row.id === 'session-kind')?.run()
+  check("/health carries the Session kind row, read from the focused session's record and spoken in the vocabulary's words", kindRow?.status === 'info' && kindRow.evidence.startsWith('no session is focused here') && kindRow.evidence.includes('oculus: a screen belongs to it') && kindRow.evidence.includes('headless: unattended'), kindRow?.evidence)
   check('the two kinds have two sentences, each leading with its word', kinds.sessionKindWords('oculus').startsWith('oculus — a screen belongs to this session') && kinds.sessionKindWords('headless').startsWith('headless — unattended'))
   const saved = process.env.MERCURY_SESSION_KIND
   process.env.MERCURY_SESSION_KIND = 'oculus'

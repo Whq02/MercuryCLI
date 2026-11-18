@@ -18,7 +18,6 @@ function section(t: string): void {
 }
 
 const NOW = Date.parse('2026-01-01T12:00:00.000Z')
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const build = (m: any[], now = NOW, git?: any) => buildAwaySummary(m as any, now, git)
 let seq = 0
 const uid = () => `u-${seq++}`

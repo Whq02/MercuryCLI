@@ -20,7 +20,6 @@ import type {
   SystemMessage,
 } from './types/message.js'
 import type { HookProgress } from './types/hooks.js'
-import type { CanUseToolFn } from './hooks/useCanUseTool.js'
 import type { QuerySource } from './constants/querySource.js'
 import type {
   InternalPermissionMode,
@@ -427,6 +426,17 @@ export type Tool<
 }
 
 export type Tools = readonly Tool[]
+
+export type CanUseToolFn<
+  Input extends Record<string, unknown> = Record<string, unknown>,
+> = (
+  tool: Tool,
+  input: Input,
+  toolUseContext: ToolUseContext,
+  assistantMessage: AssistantMessage,
+  toolUseID: string,
+  forceDecision?: PermissionDecision,
+) => Promise<PermissionDecision>
 
 export type ToolInputOf<T> = T extends ZodType ? ZodOutput<T> : T
 

@@ -49,7 +49,7 @@ import { EFFORT_LEVELS, type EffortLevel } from '../../utils/effort.js'
 import { subagentConcurrencyCap } from '../../utils/agentDefaults.js'
 import { getDenyRuleForAgent } from '../../utils/permissions/decision/rules.js'
 import { reasonForRule, refusalWithReason, ruleSentence } from '../../utils/permissions/ruleReason.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
 import {
   buildAgentLaunchPlan,

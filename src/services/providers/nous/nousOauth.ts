@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
@@ -154,7 +155,7 @@ function trustedInferenceBase(value: unknown, io?: NousOauthIo): string | undefi
   try {
     const url = new URL(value)
     if (url.username || url.password || url.search || url.hash) return undefined
-    const fixture = (io?.env ?? process.env)['MERCURY_NOUS_API_BASE']?.trim()
+    const fixture = flagEnv('MERCURY_NOUS_API_BASE', io?.env ?? process.env)?.trim()
     const loopback = fixture ? new URL(fixture) : undefined
     const sameBox = loopback !== undefined && ['127.0.0.1', 'localhost', '[::1]'].includes(loopback.hostname) && url.origin === loopback.origin
     if (!sameBox && !(url.protocol === 'https:' && (url.hostname === 'nousresearch.com' || url.hostname.endsWith('.nousresearch.com')))) return undefined
@@ -185,7 +186,7 @@ export function tokensFromNousBody(body: Record<string, unknown>, io?: NousOauth
 }
 
 function portalBase(env: NodeJS.ProcessEnv | undefined): string {
-  return ((env ?? process.env)['MERCURY_NOUS_PORTAL_BASE']?.trim() || 'https://portal.nousresearch.com').replace(/\/+$/, '')
+  return (flagEnv('MERCURY_NOUS_PORTAL_BASE', env ?? process.env)?.trim() || 'https://portal.nousresearch.com').replace(/\/+$/, '')
 }
 
 export interface NousPortalAnswer {

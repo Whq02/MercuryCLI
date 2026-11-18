@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredZenApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
@@ -7,11 +8,11 @@ export const ZEN_CONSOLE_URL = 'https://opencode.ai/console'
 export const ZEN_ENV_KEY = 'OPENCODE_API_KEY'
 
 export function zenApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_ZEN_API_BASE?.trim() || ZEN_API_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_ZEN_API_BASE', env)?.trim() || ZEN_API_BASE_URL).replace(/\/+$/, '')
 }
 
 export function zenGoApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_ZEN_GO_API_BASE?.trim() || ZEN_GO_API_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_ZEN_GO_API_BASE', env)?.trim() || ZEN_GO_API_BASE_URL).replace(/\/+$/, '')
 }
 
 export function zenChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {

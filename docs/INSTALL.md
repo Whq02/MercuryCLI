@@ -164,7 +164,9 @@ Read the health check's `shell` row to see which shell is active and why: the
 bundled engine (the Windows default, or armed by the pin or the setting), or
 Git Bash when the engine was turned off or its pack is absent.
 
-On macOS and Linux the system shell is the default; set
+On macOS and Linux the Bash tool runs the bash Mercury ships (GNU bash 5.3),
+whatever your login shell is; the system's own bash serves when that pack is
+absent, and the bundled engine when there is no bash. Set
 `MERCURY_SHELL_ENGINE=brush`, or choose `brush` in `/config` under Shell
 engine, to run the Bash tool on the bundled engine there too, with persistent
 shell state.

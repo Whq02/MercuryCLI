@@ -37,7 +37,7 @@ function deepFreeze<T>(value: T): T {
 const NESTED_PROVENANCE_KEYS = new Set([
   'credentials', 'files', 'records', 'briefs', 'memory', 'turns',
   'environment', 'credit', 'guardrails', 'engine', 'kit', 'events', 'voice',
-  'activity', 'view', 'context', 'input', 'shell', 'routing', 'channels', 'workspace', 'local', 'extensions',
+  'activity', 'view', 'context', 'input', 'shell', 'routing', 'workspace', 'local', 'extensions',
 ])
 const NESTED_PROVENANCE_PATHS = new Set(['environment.values', 'activity.tips', 'view.modelPicker'])
 

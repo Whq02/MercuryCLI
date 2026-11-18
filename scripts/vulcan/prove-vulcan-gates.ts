@@ -211,8 +211,11 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, health, p
   check('boot menu: Godot lanes row moved to miscellaneous', lanesRow?.group === 'miscellaneous')
 
   const repo = path.join(import.meta.dir, '..', '..')
-  const healthSrc = readFileSync(path.join(repo, 'src/utils/healthReport.ts'), 'utf8')
-  check("health: the 'vulcan' check is wired", healthSrc.includes("id: 'vulcan'") && healthSrc.includes('vulcanInstallStatus'))
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { vulcanEnabled: armedNow } = await import('../../src/utils/vulcan/vulcanGates.ts')
+  const vulcanCheck = runtimeChecks().find(row => row.id === 'vulcan')
+  const vulcanSays = await vulcanCheck?.run()
+  check("health: the 'vulcan' check is wired", vulcanCheck?.label === 'Godot control (VULCAN)' && vulcanSays !== undefined && (armedNow() ? vulcanSays.status !== 'off' && vulcanSays.evidence.startsWith('armed (port ') || vulcanSays.evidence.startsWith('project ') : vulcanSays.status === 'off' && vulcanSays.evidence.startsWith('MERCURY_GODOT_TOOLS unset')), vulcanSays?.evidence)
   const promptsSrc = readFileSync(path.join(repo, 'src/constants/prompts.ts'), 'utf8')
   check('prompt: getVulcanSection spliced into modeSections', promptsSrc.includes('getVulcanSection()'))
   const harnessSrc = readFileSync(path.join(repo, 'src/utils/cockpit/harnessMap.ts'), 'utf8')

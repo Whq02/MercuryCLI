@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { flagReadsOff } from '../../substrate/flagOff.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { join } from 'node:path'
@@ -16,8 +17,8 @@ export function decideWin32ConsoleUtf8(
 ): Win32Utf8Decision {
   if (platform !== 'win32') return { engage: false, reason: 'not-win32' }
   if (!stdoutIsTTY) return { engage: false, reason: 'no-tty' }
-  if (flagReadsOff(env.MERCURY_WIN32_UTF8)) return { engage: false, reason: 'opted-out' }
-  if (env.MERCURY_WIN32_UTF8_PRESET === '1') return { engage: false, reason: 'launcher-preset' }
+  if (flagReadsOff(flagEnv('MERCURY_WIN32_UTF8', env))) return { engage: false, reason: 'opted-out' }
+  if (flagEnv('MERCURY_WIN32_UTF8_PRESET', env) === '1') return { engage: false, reason: 'launcher-preset' }
   return { engage: true }
 }
 

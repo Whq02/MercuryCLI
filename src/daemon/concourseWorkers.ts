@@ -11,7 +11,7 @@ import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { STORE_LOCK_OPTIONS } from '../substrate/fileStore.js'
 import { lockSync } from '../utils/lockfile.js'
 import { daemonHomeStands, publishInDaemonHome, publishTransientInDaemonHome } from './daemonHome.js'
-import { flagSpellings } from '../substrate/flagRegistry.js'
+import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
 import { getProcessStartInstant, getProcessStartInstantAsync, getProcessStartInstantCachedOrRefresh, getProcessStartTokenAsync, isProcessAlive } from './ownerWatch.js'
 import { observeSessionStates } from './sessionStateHooks.js'
@@ -795,11 +795,11 @@ export function buildConcourseWorkerSpec(args: {
     agentId: `${args.runnerId}@concourse`,
     cwd: args.cwd ?? args.workspaceId,
     extraEnv: {
-      MERCURY_SESSION_HOME: getProjectDir(args.workspaceId),
-      MERCURY_SEATS: String(effectiveSeatCeiling()),
-      ...(args.kit !== undefined ? { MERCURY_SESSION_KIT: JSON.stringify(args.kit) } : {}),
-      ...(args.restartReason !== undefined ? { MERCURY_RUNNER_RESTART_REASON: args.restartReason } : {}),
-      ...(args.kind !== undefined ? { [SESSION_KIND_ENV]: args.kind } : {}),
+      ...flagPair('MERCURY_SESSION_HOME', getProjectDir(args.workspaceId)),
+      ...flagPair('MERCURY_SEATS', String(effectiveSeatCeiling())),
+      ...(args.kit !== undefined ? { ...flagPair('MERCURY_SESSION_KIT', JSON.stringify(args.kit)) } : {}),
+      ...(args.restartReason !== undefined ? { ...flagPair('MERCURY_RUNNER_RESTART_REASON', args.restartReason) } : {}),
+      ...(args.kind !== undefined ? { ...flagPair(SESSION_KIND_ENV, args.kind) } : {}),
     },
     permissionMode: seatInitialPermissionMode(args.permissionMode),
     ...(args.bypassConsent === true ? { allowBypass: true as const } : {}),
@@ -837,7 +837,7 @@ export function stampSpawnPosture(rec: ConcourseWorkerRecordV1, posture: { permi
 }
 
 export function sessionKindOfSpec(spec: Pick<RunnerChildSpec, 'extraEnv'>): SessionKind | undefined {
-  return parseSessionKind(spec.extraEnv?.[SESSION_KIND_ENV])
+  return parseSessionKind(flagEnv(SESSION_KIND_ENV, spec.extraEnv ?? {}))
 }
 
 

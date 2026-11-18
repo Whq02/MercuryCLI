@@ -34,6 +34,7 @@ async function main(): Promise<void> {
     return
   }
 
+  const { flagEnv, stampFlagEnv } = await import('../substrate/flagRegistry.js')
   const { inspectSessionArgs, readSessionOption } = await import('../cli/sessionArgs.js')
   const runArgs = inspectSessionArgs(args)
   const hasProjectRoot = args[0] === '--project' || args[0]?.startsWith('--project=')
@@ -64,7 +65,7 @@ async function main(): Promise<void> {
   if (args.length === 0 && process.stdout.isTTY && !hasProjectRoot) {
     if (
       process.platform === 'win32' &&
-      process.env.MERCURY_WIN32_UTF8_PRESET !== '1'
+      flagEnv('MERCURY_WIN32_UTF8_PRESET') !== '1'
     ) {
       const { ensureWin32ConsoleUtf8 } = await import('../utils/runtime/win32Console.js')
       ensureWin32ConsoleUtf8()
@@ -76,7 +77,7 @@ async function main(): Promise<void> {
     }
   }
 
-  if (process.env.MERCURY_SPLASH_HANDOFF === '1') {
+  if (flagEnv('MERCURY_SPLASH_HANDOFF') === '1') {
     const { consumeSplashHandover } = await import('../substrate/splashHandover.js')
     consumeSplashHandover()
   }
@@ -121,13 +122,13 @@ async function main(): Promise<void> {
   if (
     process.platform === 'win32' &&
     process.stdout.isTTY &&
-    process.env.MERCURY_WIN32_UTF8_PRESET !== '1'
+    flagEnv('MERCURY_WIN32_UTF8_PRESET') !== '1'
   ) {
     const { ensureWin32ConsoleUtf8 } = await import('../utils/runtime/win32Console.js')
     ensureWin32ConsoleUtf8()
   }
 
-  if (process.env.MERCURY_ALT_HELD === '1') {
+  if (flagEnv('MERCURY_ALT_HELD') === '1') {
     const nonTakeover =
       !process.stdout.isTTY ||
       runArgs.command === 'run' ||
@@ -242,7 +243,7 @@ async function main(): Promise<void> {
   }
 
   if (readSessionOption(args, '--lean').present) {
-    process.env.MERCURY_BARE = '1'
+    stampFlagEnv('MERCURY_BARE', '1')
   }
 
   {
@@ -256,9 +257,10 @@ async function main(): Promise<void> {
 }
 
 async function resolveCompileCacheHome(): Promise<string | null> {
+  const { flagEnv } = await import('../substrate/flagRegistry.js')
   const env = process.env
   const home = env.HOME || env.USERPROFILE || ''
-  for (const candidate of [env.MERCURY_CONFIG_DIR, env.MERCURY_HOME]) {
+  for (const candidate of [flagEnv('MERCURY_CONFIG_DIR', env), flagEnv('MERCURY_HOME', env)]) {
     if (candidate) return candidate
   }
   if (home === '') return null

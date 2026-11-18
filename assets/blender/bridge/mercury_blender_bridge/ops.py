@@ -1,17 +1,3 @@
-"""The verb handlers — ALL bpy lives here, main thread only (Mercury
-Blender bridge). The pump timer dispatches through HANDLERS; the socket
-thread never imports this module's world.
-
-THE RENDER_ACTIVE LAW: mutate/exec verbs refuse while a
-RENDER job runs (bpy.app.is_job_running('RENDER') is the truth source);
-reads stay free — render_state DURING a render is that verb's whole point.
-RENDER_PREVIEW (viewport preview shading) never refuses anything.
-
-THE NO-RELOAD LAW: blend_open answers over a connection that HOLDS — this
-module's state, the pump timer (persistent=True) and the @persistent
-lifecycle handlers all survive bpy.ops.wm.open_mainfile by design.
-"""
-
 import contextlib
 import io
 import os

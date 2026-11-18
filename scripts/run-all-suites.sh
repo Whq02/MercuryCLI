@@ -35,7 +35,7 @@ if [ -n "$WITHOUT_CLASS" ] && [ -n "$ONLY_CLASS" ]; then
   printf '%s\n' '--without-class and --only-class split one plan into two halves; give one of them' >&2
   exit 2
 fi
-is_drive_suite() { case "$1" in host|*-drives) return 0 ;; *) return 1 ;; esac; }
+is_drive_suite() { case "$1" in *-drives) return 0 ;; *) return 1 ;; esac; }
 suite_class() {
   local c
   c=$(sed -n 's/^# gate-class:[[:space:]]*//p' "$SUITES_DIR/$1/run-all.sh" 2>/dev/null | head -1 | tr -d '[:space:]')

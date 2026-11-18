@@ -4,6 +4,7 @@
 # gate-watch: src/services/voice/** src/commands/voice/** scripts/vendor/build-voice.ts native/voice/** native/whisper/** scripts/vendor/build-whisper.ts scripts/vendor/fetch-whisper-models.ts vendor/whisper-models.lock.json build.ts
 # gate-watch: docs/VOICE.md
 # gate-watch: scripts/lib/flagRegistrySource.ts
+# gate-watch: src/utils/health/sections/interface.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

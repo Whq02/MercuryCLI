@@ -517,6 +517,44 @@ section('(3) what no reader can follow — require(), import() and createRequire
   )
 }
 
+section('(4) the record — which shell this is, asked in one place: places that test a shell\'s name or spell one shell\'s own words, in the shell folder and in every file that asks the record')
+{
+  const RECORD = 'src/utils/shell/shellRecord.ts'
+  const WORDS = /ZSH_VERSION|BASH_VERSION|BASHPID|setopt |shopt |pipestatus/i
+  const askers = new Set(edges.filter(edge => edge.to === RECORD).map(edge => edge.from))
+  const scope = files.filter(file => file.startsWith('src/utils/shell/') || askers.has(file))
+  const placesOf = (file: string): number[] => {
+    const source = ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.ESNext, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+    const hit = new Set<number>()
+    const lineOf = (node: ts.Node): number => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
+    const visit = (node: ts.Node): void => {
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'includes' && node.arguments.length === 1) {
+        const asked = node.arguments[0]!
+        if (ts.isStringLiteralLike(asked) && (asked.text === 'zsh' || asked.text === 'bash')) hit.add(lineOf(node))
+      }
+      if ((ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) && WORDS.test(node.text)) hit.add(lineOf(node))
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+    return [...hit].sort((a, b) => a - b)
+  }
+  const found = scope.map(file => ({ file, lines: placesOf(file) })).filter(row => row.lines.length > 0)
+  const outside = found.filter(row => row.file !== RECORD)
+  const inside = found.find(row => row.file === RECORD)?.lines.length ?? 0
+  check(
+    `no file but the record asks which shell this is: ${outside.reduce((n, row) => n + row.lines.length, 0)} places in ${outside.length} files outside ${RECORD}, ${inside} inside it, over the ${scope.length} files of the shell folder and the record's askers (${askers.size})`,
+    known.has(RECORD) && askers.size > 0 && outside.length === 0,
+    known.has(RECORD)
+      ? [
+          ...outside.flatMap(row => row.lines.map(line => `${row.file}:${line} tests a shell's name or spells one shell's own words`)),
+          `ask ${RECORD} instead: shellRecord() and systemShellRecord() give the path, the dialect, the version and the origin; shellRecordWords() the prompt's words; getGlobPreambleCommand(origin) the preamble; a word only one shell understands is a constant of the record`,
+        ]
+      : [
+          `${RECORD} is gone: name the module that owns the record of the shell in RECORD of ${SELF}`,
+          ...outside.flatMap(row => row.lines.map(line => `${row.file}:${line} tests a shell's name or spells one shell's own words`)),
+        ],
+  )
+}
 console.log('')
 console.log(failures === 0 ? 'prove-shell-door: BOTH COUNTS HOLD' : `prove-shell-door: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

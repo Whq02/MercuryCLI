@@ -1,3 +1,4 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
 import { getActiveMission } from '../../guards/mission.js'
 import { actionAffordance } from '../../keybindings/atlas.js'
@@ -502,7 +503,7 @@ const GENERAL_TIPS: Tip[] = [
     },
     async isRelevant() {
       if (getPlatform() !== 'windows') return false
-      return process.env.MERCURY_USE_POWERSHELL_TOOL === undefined
+      return flagEnv('MERCURY_USE_POWERSHELL_TOOL') === undefined
     },
   },
 ]

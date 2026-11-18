@@ -2,6 +2,7 @@ import { dirname } from 'node:path'
 
 import { z } from 'zod/v4'
 
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import {
   recordNoChangeOutcome,
@@ -44,7 +45,7 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import type { UUID } from 'node:crypto'
 
 import { modifiedSinceReadMessage, unreadExistingWriteMessage } from '../FileEditTool/otherSession.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import { stripSequentialReadPrefixes } from '../FileEditTool/utils.js'
 import { spellLineRanges } from '../FileEditTool/readThrough.js'
 import { APPLIED_NO_REREAD_NOTE, isFullReadEntry } from '../FileEditTool/FileEditTool.js'
@@ -265,7 +266,7 @@ export const FileWriteTool = buildTool({
     const expandedPath = farTarget !== null ? farTarget.path : expandPath(input.file_path)
     const parentDir = far !== null ? '' : dirname(expandedPath)
 
-    if (far === null && !isEnvTruthy(process.env.MERCURY_BARE)) {
+    if (far === null && !isEnvTruthy(flagEnv('MERCURY_BARE'))) {
       try {
         const dirs = await discoverSkillDirsForPaths([expandedPath], getCwd())
         const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { AnthropicClient as Anthropic } from '../providers/anthropic/anthropicClient.js'
 
 import { getSessionId } from '../../bootstrap/state.js'
@@ -107,7 +108,7 @@ function buildFetchWrapper(
 export async function getAnthropicClient(options: GetClientOptions): Promise<Anthropic> {
   const { apiKey: callerApiKey, maxRetries, fetchOverride, source } = options
 
-  const customHeadersRaw = process.env.MERCURY_PROVIDER_HEADERS
+  const customHeadersRaw = flagEnv('MERCURY_PROVIDER_HEADERS')
   const customHeaders = parseCustomHeaders(customHeadersRaw)
   logForDebugging(
     `client: MERCURY_PROVIDER_HEADERS ${customHeadersRaw ? 'present' : 'absent'}${
@@ -121,10 +122,11 @@ export async function getAnthropicClient(options: GetClientOptions): Promise<Ant
     'X-Claude-Code-Session-Id': getSessionId(),
     ...customHeaders,
   }
-  if (process.env.MERCURY_HOST_CLIENT_APP) {
-    defaultHeaders['x-client-app'] = process.env.MERCURY_HOST_CLIENT_APP
+  const hostClientApp = flagEnv('MERCURY_HOST_CLIENT_APP')
+  if (hostClientApp) {
+    defaultHeaders['x-client-app'] = hostClientApp
   }
-  if (isEnvTruthy(process.env.MERCURY_ADDITIONAL_PROTECTION)) {
+  if (isEnvTruthy(flagEnv('MERCURY_ADDITIONAL_PROTECTION'))) {
     defaultHeaders['x-anthropic-additional-protection'] = 'true'
   }
 

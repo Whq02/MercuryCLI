@@ -110,15 +110,35 @@ export function releaseLayoutSection(stagedDir, target, floor) {
   }
 }
 
-function readShellEngineLock() {
+function readVendorLock(name) {
   const here = dirname(fileURLToPath(import.meta.url))
-  return JSON.parse(readFileSync(join(here, '..', '..', 'vendor', 'brush.lock.json'), 'utf8'))
+  return JSON.parse(readFileSync(join(here, '..', '..', 'vendor', `${name}.lock.json`), 'utf8'))
 }
 
+const BASH_PACK_PLATFORM = { 'macos-arm64': 'darwin-arm64', 'macos-x64': 'darwin-x64', 'linux-arm64': 'linux-arm64', 'linux-x64': 'linux-x64' }
+
 export function bundledVendorPacks(target) {
-  if (!target.startsWith('windows-')) return []
+  if (!target.startsWith('windows-')) {
+    const platform = BASH_PACK_PLATFORM[target]
+    const lock = readVendorLock('bash')
+    if (platform === undefined || lock.platforms[platform] === undefined) return []
+    return [
+      {
+        name: lock.name,
+        version: lock.version,
+        platform,
+        binary: 'bash',
+        degradation: 'shell-bash',
+        manifestKey: 'bash',
+        dir: `vendor/bash/${platform}`,
+        files: ['bash', '.vendor-manifest.json', ...lock.licenseFiles, lock.sourceNote, ...(platform.startsWith('linux-') ? [lock.linuxBuilder.libc.licenseFile] : [])],
+        carries: 'the bash Mercury ships, the shell the Bash tool runs',
+        prepare: `bun run scripts/vendor/build-bash.ts --target ${target}`,
+      },
+    ]
+  }
   const platform = target === 'windows-arm64' ? 'win-arm64' : 'win-x64'
-  const lock = readShellEngineLock()
+  const lock = readVendorLock('brush')
   const entry = lock.platforms[platform]
   return [
     {

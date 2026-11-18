@@ -26,10 +26,6 @@ EMPTY_HOME = tempfile.mkdtemp(prefix='splash-proof-home-empty.')
 
 
 def make_populated_home():
-    """A home with TWO recent projects (live cwds) → the Continue + Projects
-    card rows appear, growing the card past what 24 rows can hold WITH the
-    strip — the pressure world for the shed-order leg. tmp cwds are honored
-    because the home itself is tmp (the scanner's proof-world carve-out)."""
     home = tempfile.mkdtemp(prefix='splash-proof-home-pop.')
     for slug in ('proj-a', 'proj-b'):
         cwd = os.path.join(home, 'fixtures', slug)
@@ -634,11 +630,6 @@ print('\n── the ACTIVATION-INTENT corpus')
 
 
 def run_corpus(cols, rows, env_extra=None, steps=None, settle=1.4, resize=None):
-    """Boot the splash live (not oneshot), fire timed steps, and observe the
-    structure: bytes before/after the LAST send, child liveness after the
-    settle window, and the exit code when the child left on its own.
-    The corpus laws bind the WAITING deck, which is the inline
-    world now — the default pin; a leg may override to the cinematic world."""
     steps = [(t * SCALE, b) for t, b in (steps or [])]
     settle = settle * SCALE
     resizes = list(resize or [])
@@ -876,8 +867,6 @@ def mix_half(a, b):
 
 
 def cell_fgs(line):
-    """Per-visible-cell fg (r,g,b) tuples for one raw line — escapes update
-    the tracked fg; every plain char appends the current one."""
     fgs, fg = [], None
     for m in re.finditer(r'(\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\\\))|(.)', line):
         esc, ch = m.group(1), m.group(2)
@@ -1220,8 +1209,6 @@ print('\n── K2: the launched cwd WINS (two-repo continue/resume dir law)')
 
 
 def two_repo_home():
-    """cwdfix (OLDER session) + other-proj (NEWER) — global recency points
-    AWAY from cwd, exactly the drift-report shape."""
     home = os.path.realpath(tempfile.mkdtemp(prefix='splash-proof-home-k2.'))
     dirs = {}
     for slug, age_s in (('cwdfix', 3600), ('other-proj', 60)):

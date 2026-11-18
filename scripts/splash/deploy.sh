@@ -27,7 +27,6 @@ if [ -f "$launcher" ] && [ -f "$block" ]; then
   python3 - "$launcher" "$block" <<'PY'
 import os, re, sys
 launcher, block = sys.argv[1], sys.argv[2]
-# the launcher path is usually a symlink: write to the real target only
 launcher = os.path.realpath(launcher)
 src = open(launcher).read()
 blk = open(block).read().rstrip('\n')
@@ -53,7 +52,6 @@ def shell_lines(text):
             if l.strip() and not l.lstrip().startswith('#') and not BEGIN.match(l) and not END.match(l)]
 
 def bare_span(text):
-    # a marker-less body, or an unbroken run of them, is the span
     want = [l for _, l in shell_lines(blk)]
     have = shell_lines(text)
     hits = [k for k in range(len(have) - len(want) + 1) if [l for _, l in have[k:k + len(want)]] == want]
@@ -76,8 +74,6 @@ is_mercury_launcher = span is not None or 'mercury_resolve_home' in src or re.se
 if not is_mercury_launcher:
     print(f'launcher action block: skipped — not ours: {launcher} (no block, no resolver, no args anchor); nothing written')
     sys.exit(0)
-# the pairing guard: the splash run line outside the block must capture
-# the exit code, or the block is a permanent no-op
 outside = src if span is None else src[:span[0]] + src[span[1]:]
 if 'unset MERCURY_SA_EXIT' in outside:
     refuse('a splash-action body lies outside the managed span and would run first')

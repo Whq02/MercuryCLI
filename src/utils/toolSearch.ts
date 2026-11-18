@@ -1,4 +1,5 @@
 import memoize from 'lodash-es/memoize.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { isUnattendedRun } from './cockpit/runtimePosture.js'
 
 import type { Tool, ToolPermissionContext, Tools } from '../Tool.js'
@@ -47,7 +48,7 @@ export function getToolSearchMode(): ToolSearchMode {
   if (isEnvTruthy('1') && !toolDeferralEnabled()) {
     return 'standard'
   }
-  const value = process.env.MERCURY_TOOL_SEARCH
+  const value = flagEnv('MERCURY_TOOL_SEARCH')
   if (value === undefined || value === '') return 'tst'
   if (value.startsWith('auto')) {
     const percent = parseAutoPercentage(value)
@@ -60,7 +61,7 @@ export function getToolSearchMode(): ToolSearchMode {
 }
 
 function getAutoPercent(): number {
-  const value = process.env.MERCURY_TOOL_SEARCH
+  const value = flagEnv('MERCURY_TOOL_SEARCH')
   if (value === undefined || value === '' || !value.startsWith('auto')) return DEFAULT_AUTO_PERCENT
   return parseAutoPercentage(value)
 }

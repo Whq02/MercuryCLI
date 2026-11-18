@@ -1,4 +1,5 @@
 import type {
+  CanUseToolFn,
   AnyObject,
   Tool,
   ToolResult,
@@ -8,7 +9,6 @@ import { closestToolByName, findToolByName, offeredToolNamesClause, toolMatchesN
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { completionIdentity } from '../agentResults/summaryRoom.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { addToToolDuration, canAnswerAsks, getSessionId, getSessionKind, getStatsStore } from '../../bootstrap/state.js'
 import { guardKeysOf, judgeToolCall } from '../../guards/guards.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'

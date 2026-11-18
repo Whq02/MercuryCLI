@@ -43,6 +43,10 @@
 # gate-watch: docs/INSTALL.md
 # gate-watch: src/utils/shell/** src/utils/bash/** src/utils/powershell/** src/tools/BashTool/** src/tools/PowerShellTool/** src/tasks/LocalShellTask/**
 # gate-watch: src/utils/wards/wardsRefusals.ts
+# gate-watch: src/utils/health/sections/crew.ts
+# gate-watch: src/utils/health/sections/interface.ts
+# gate-watch: src/utils/health/sections/runtime.ts
+# gate-watch: src/utils/shell/shellRecord.ts src/utils/shell/bashPack.ts src/constants/prompts.ts vendor/bash.lock.json scripts/vendor/build-bash.ts scripts/release/payloadContract.mjs
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -140,6 +144,10 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-words.ts" || { __rc=$?; fail
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-saved-rule-prefix.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-saved-rule-prefix.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tracker-known-values.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tracker-known-values.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-line-break-inside-command.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-line-break-inside-command.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-pack.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-pack.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-record.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-system-road-bash5.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-system-road-bash5.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-profile-environment.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-profile-environment.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"

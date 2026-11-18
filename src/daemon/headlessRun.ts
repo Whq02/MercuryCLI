@@ -15,7 +15,7 @@ import {
 import { WORKER_PARENT_PID_ENV } from './workerParentWatch.js'
 import { selfScriptPath } from './daemonBuild.js'
 import type { Capabilities } from '../runner/wire/methods.js'
-import { flagEnv, flagSpellings, stampFlagOnEnv } from '../substrate/flagRegistry.js'
+import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS } from '../utils/workerRole.js'
 
@@ -174,7 +174,7 @@ export function sessionPinArgv(pin: { sessionId: string; cwd: string } | undefin
 }
 
 export function runnerSessionHome(spec: Pick<RunnerChildSpec, 'cwd' | 'extraEnv'>): string {
-  const pinned = spec.extraEnv?.MERCURY_SESSION_HOME
+  const pinned = flagEnv('MERCURY_SESSION_HOME', spec.extraEnv ?? {})
   return typeof pinned === 'string' && pinned !== '' ? pinned : getProjectDir(spec.cwd ?? process.cwd())
 }
 
@@ -222,8 +222,8 @@ export function buildRunnerInvocation(
   const env: NodeJS.ProcessEnv = {
     ...inherited,
     ...(spec.extraEnv ?? {}),
-    MERCURY_MODEL: model,
-    MERCURY_EFFORT_LEVEL: spec.effort,
+    ...flagPair('MERCURY_MODEL', model),
+    ...flagPair('MERCURY_EFFORT_LEVEL', spec.effort),
   }
   for (const v of sweptRoleSpellings()) {
     delete env[v]

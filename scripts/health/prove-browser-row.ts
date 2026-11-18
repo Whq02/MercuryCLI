@@ -38,8 +38,10 @@ for (const kind of ['managed', 'pin', 'absent', 'broken'] as const) {
   const text = renderPlainCertificate({ sections: json.sections, verdict: 'certified', durationMs: 0 })
   assert.ok(text.includes(`[${row.status.toUpperCase()}] Browser — ${row.evidence}`))
 }
-const source = readFileSync(new URL('../../src/utils/healthReport.ts', import.meta.url), 'utf8')
-assert.ok(source.includes('browserReadinessCheck(),'))
+const { interfaceChecks } = await import('../../src/utils/health/sections/interface.ts')
+const listed = interfaceChecks().filter(row => row.id === 'iface-browser')
+assert.equal(listed.length, 1)
+assert.deepEqual({ label: listed[0]!.label, probe: listed[0]!.probe, depth: listed[0]!.depth }, { label: 'Browser', probe: 'configuration', depth: 'fast' })
 const resolver = readFileSync(new URL('../../src/services/browser/browserResolver.ts', import.meta.url), 'utf8')
 const description = resolver.slice(resolver.indexOf('export function describeBrowserReadiness'), resolver.indexOf('export function browserVersionOf'))
 assert.ok(!description.includes('browserVersionOf(') && !description.includes('execFileSync(') && !description.includes('installManagedBrowser('))

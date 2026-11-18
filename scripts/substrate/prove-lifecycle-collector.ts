@@ -360,9 +360,14 @@ section('§9 WIRING')
 {
   const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
   const health = src('src/utils/healthReport.ts')
+  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { getLifecycleHealth: lifecycleNow } = await import('../../src/substrate/stateLifecycle.ts')
+  const lifecycleSays = await crewChecks().find(row => row.id === 'lifecycle-collection')?.run()
+  const lastPass = lifecycleNow()
   check(
     '/health carries the lifecycle-collection row',
-    health.includes("id: 'lifecycle-collection'") && health.includes('getLifecycleHealth'),
+    lifecycleSays !== undefined && (/ · cleanup pending$/.test(lifecycleSays.evidence) || (lastPass && lastPass.cycleFailures > 0 ? lifecycleSays.status === 'warn' && lifecycleSays.evidence.startsWith(`collection failing — ${lastPass.cycleFailures} failure(s) this cycle`) : lifecycleSays.status === 'ok' && lifecycleSays.evidence.startsWith(lastPass ? `last pass removed ${lastPass.removed}, ${lastPass.cycleComplete ? 'cycle complete' : 'cursor mid-cycle'}` : 'no pass this session'))),
+    lifecycleSays?.evidence,
   )
   check(
     'the health verb runs the cleanup opportunity',

@@ -36,7 +36,6 @@ type Summary = { n: number; p50: number; p95: number; max: number; mean: number 
 const r1 = (x: number): number => Math.round(x * 100) / 100
 const sum = (xs: number[]): number => xs.reduce((a, b) => a + b, 0)
 const summarize = (xs: number[]): Summary => ({ n: xs.length, p50: r1(pct(xs, 50)), p95: r1(pct(xs, 95)), max: r1(xs.length ? Math.max(...xs) : 0), mean: r1(xs.length ? sum(xs) / xs.length : 0) })
-// eslint-disable-next-line no-control-regex
 const ESC_RE = /(?:\[[0-9;?<>=]*[a-zA-Z@`~]|\][^]*(?:|\\)|[()][0-9A-B]|[78=>])/g
 const cellsOf = (s: string): number => s.replace(ESC_RE, '').replace(/[\r\n]/g, '').length
 

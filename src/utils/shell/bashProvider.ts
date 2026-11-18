@@ -18,6 +18,7 @@ import { getPlatform } from '../platform.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
 import type { BuildExecCommandOptions, ShellProvider } from './shellProvider.js'
+import { PIPELINE_STATUS_ARRAY, type ShellRecord } from './shellRecord.js'
 
 function cwdFileName(id: number | string): string {
   return `mercury-cwd-${id}`
@@ -34,12 +35,13 @@ function protectBackslashRunsFromMsysArgv(script: string): string {
 }
 
 export async function createBashShellProvider(
-  shellPath: string,
+  record: ShellRecord,
   options?: { skipSnapshot?: boolean },
 ): Promise<ShellProvider> {
+  const shellPath = record.path
   let snapshotPath: string | undefined
   if (!options?.skipSnapshot) {
-    snapshotPath = await createAndSaveSnapshot(shellPath).catch(() => undefined)
+    snapshotPath = await createAndSaveSnapshot(record).catch(() => undefined)
   }
   let usedSnapshotThisExecution = false
 
@@ -68,8 +70,7 @@ export async function createBashShellProvider(
       const raw = rewriteWindowsNullRedirect(command)
       const pipelineStatusPath = raw.includes('|') ? `${cwdFileForEngine}-pipeline` : undefined
       const pipelineFileInShell = `${cwdFileInShell}-pipeline`
-      const statuses = shellPath.includes('zsh') ? '${pipestatus[@]}' : '${PIPESTATUS[@]}'
-      const normalised = pipelineStatusPath === undefined ? raw : `${raw}\n__mercury_status=$? __mercury_pipeline=("${statuses}")\nprintf '%s\\n' "\${__mercury_pipeline[@]}" >| ${quote([pipelineFileInShell])}\n(exit "$__mercury_status")`
+      const normalised = pipelineStatusPath === undefined ? raw : `${raw}\n__mercury_status=$? __mercury_pipeline=("${PIPELINE_STATUS_ARRAY}")\nprintf '%s\\n' "\${__mercury_pipeline[@]}" >| ${quote([pipelineFileInShell])}\n(exit "$__mercury_status")`
       const addStdin = shouldAddStdinRedirect(normalised)
       let quotedCommand = quoteShellCommand(normalised, addStdin)
       if (addStdin && normalised.includes('|')) {
@@ -82,7 +83,7 @@ export async function createBashShellProvider(
       }
       const sessionScript = await getSessionEnvironmentScript()
       if (sessionScript) parts.push(sessionScript)
-      const preamble = getGlobPreambleCommand(shellPath)
+      const preamble = getGlobPreambleCommand(record.origin)
       if (preamble) parts.push(preamble)
       parts.push(`eval ${quotedCommand}`)
       parts.push(`{ pwd -P >| ${quote([cwdFileInShell])} 2>/dev/null || true; }`)

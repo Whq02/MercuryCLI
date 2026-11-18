@@ -93,7 +93,7 @@ import { readCatalogueIfPending } from '../../services/providers/catalogueOnDema
 import { delegationDispatchBlocker } from '../../services/providers/providerUsability.js'
 import { classifyModelRoute } from '../../services/providers/callModelRouter.js'
 import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import {
   flushSessionStorage,

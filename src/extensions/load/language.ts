@@ -1,3 +1,4 @@
+import { flagPair } from '../../substrate/flagRegistry.js'
 import type { ScopedLspServerConfig } from '../../services/lsp/types.js'
 import { activeFor } from '../active.js'
 import { optionEnv, substituteOptionsInCommand, substituteRootAndData } from '../options.js'
@@ -20,7 +21,7 @@ export function getExtensionLspServers(): Record<string, ScopedLspServerConfig> 
         ...config,
         command: resolve(config.command),
         ...(config.args ? { args: config.args.map(resolve) } : {}),
-        env: { 'MERCURY_EXTENSION_ROOT': root, 'MERCURY_EXTENSION_DATA': getExtensionDataDir(id), ...optionEnv(ext.options), ...env },
+        env: { ...flagPair('MERCURY_EXTENSION_ROOT', root), ...flagPair('MERCURY_EXTENSION_DATA', getExtensionDataDir(id)), ...optionEnv(ext.options), ...env },
         scope: 'dynamic',
         source: ext.manifest.name,
       }

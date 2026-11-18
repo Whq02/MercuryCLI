@@ -33,7 +33,6 @@ section('(1) the seam ratchet — no direct parser imports in the entry consumer
     'src/utils/permissions/decision/wrapper.ts',
     'src/utils/permissions/decision/rules.ts',
     'src/utils/permissions/decision/requestMessage.ts',
-    'src/utils/permissions/decision/trace.ts',
     'src/utils/permissions/shellRuleMatching.ts',
     'src/tools/BashTool/bashPermissions.ts',
     'src/tools/PowerShellTool/powershellPermissions.ts',
@@ -83,7 +82,6 @@ section('(2) provider shape — every op present; effectful ops bound, not drive
     'checkSemantics',
     'nodeTypeId',
     'splitCommand',
-    'getCommandSubcommandPrefix',
     'extractOutputRedirections',
     'tryParseShellCommand',
     'parsePowerShellCommand',
@@ -96,10 +94,9 @@ section('(2) provider shape — every op present; effectful ops bound, not drive
   for (const op of ops) {
     check(`op ${op} bound`, typeof (pinnedCommandAnalysis as Record<string, unknown>)[op] === 'function')
   }
-  check(
-    'getCommandSubcommandPrefix keeps its memo cache (API-backed, /clear-cleared)',
-    typeof (pinnedCommandAnalysis.getCommandSubcommandPrefix as unknown as { cache?: { clear?: unknown } }).cache?.clear === 'function',
-  )
+  const held = Object.keys(pinnedCommandAnalysis).sort().join(' ')
+  const listed = [...ops].sort().join(' ')
+  check('the record holds these ops and no other', held === listed, `the record holds ${held}; this check lists ${listed}; an op that enters or leaves pinnedCommandAnalysis enters or leaves ops here`)
 }
 
 const SPLIT_CORPUS = [

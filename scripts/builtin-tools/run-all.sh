@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: src/Tool* src/ink/** src/services/changeTransaction/contracts*
 # gate-watch: src/services/gitGraph/** src/utils/git/spawnArgs* scripts/builtin-tools/prove-git-spawn-settings.ts scripts/tool-economy/fixtures/definition-corpus.json src/services/changeTransaction/changeSetCommit.ts
 # gate-watch: src/services/journeys/runner* src/services/primitives/**
@@ -15,12 +15,12 @@
 # gate-watch: src/utils/permissions/** src/utils/settings/permissionValidation.ts scripts/crew/crew-world.ts
 # gate-watch: package.json scripts/identity/forbidden-file-tool.ts src/services/tools/toolExecution.ts
 # gate-watch: scripts/project-services/fixtures/inventory.json scripts/provider-compat/prove-tool-call-gate.ts
-# gate-watch: scripts/ide/render-transaction-replay.tsx
 # gate-watch: src/guards/**
 # gate-watch: src/services/search/htmlText.ts src/services/search/searchPacing.ts
 # gate-watch: src/services/run/ownerKey.ts src/state/AppStateStore.ts
 # gate-watch: src/commands/swarm/swarm.ts
 # gate-watch: src/tools/BashTool/BashTool.tsx src/tools/BashTool/prompt.ts src/tools/BashTool/webContent.ts
+# gate-watch: src/utils/health/sections/tool-capability-fast.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -37,10 +37,6 @@ for proof in "$here"/prove-*.ts; do
   echo ">>> $(basename "$proof")"
   __t=$SECONDS; __rc=0; "$bun" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
 done
-echo
-echo ">>> render-builtin-tools-cards.tsx (capability cards, real PTY grid)"
-__t=$SECONDS; __rc=0; UI_RENDER=1 "$bun" run "$here"/render-builtin-tools-cards.tsx || { __rc=$?; fail=1; }; prover_mark "$here"/render-builtin-tools-cards.tsx "$__t" "$__rc"
-__t=$SECONDS; __rc=0; UI_RENDER=1 "$bun" run "$here"/../ide/render-transaction-replay.tsx || { __rc=$?; fail=1; }; prover_mark "$here"/../ide/render-transaction-replay.tsx "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL builtin-tools PROOFS PASS"; else echo "# ❌ SOME builtin-tools PROOFS FAILED"; fi
 echo "############################################################"

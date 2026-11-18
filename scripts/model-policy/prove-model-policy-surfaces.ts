@@ -56,10 +56,15 @@ console.log('\n§3/§9.13 one decision, no re-derivation (source census)')
       policy.includes('export function gatherFrontierFacts') &&
       !/axios|fetch\(/.test(policy),
   )
-  const health = src('src/utils/healthReport.ts')
+  const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+  const computed = await import('../../src/utils/model/computedDefault.ts')
+  const frontier = await import('../../src/utils/model/frontierPolicy.ts')
+  const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
+  const frontierSays = await settingsChecks().find(row => row.id === 'frontier')?.run()
   check(
     "/health's Default model row projects the computed default, the first-party decision as its detail",
-    health.includes("id: 'frontier'") && health.includes('computedDefault()') && health.includes('frontierOperatorDecision()'),
+    frontierSays?.evidence.includes(computed.describeComputedDefault(computed.computedDefault(), providerDisplayName)) === true && frontierSays.detail?.startsWith(`first-party gating: ${frontier.describeFrontierDecision(frontier.frontierOperatorDecision())} — candidates: `) === true,
+    `${frontierSays?.evidence} · ${frontierSays?.detail}`,
   )
   const policySrc2 = src('src/utils/model/frontierPolicy.ts')
   check(

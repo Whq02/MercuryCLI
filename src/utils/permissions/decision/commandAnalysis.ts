@@ -1,6 +1,6 @@
 import { parseCommandRaw } from '../../bash/parser.js'
 import { checkSemantics, nodeTypeId, parseForSecurityFromAst, parseForSecurity, preparedSecurityParse, type ParseForSecurityResult, type SimpleCommand } from '../../bash/ast.js'
-import { extractOutputRedirections, getCommandSubcommandPrefix, splitCommand } from '../../bash/commands.js'
+import { extractOutputRedirections, splitCommand } from '../../bash/commands.js'
 import { tryParseShellCommand } from '../../bash/shellQuote.js'
 import {
   classifyCommandName,
@@ -17,7 +17,6 @@ const bashLane = {
   checkSemantics,
   nodeTypeId,
   splitCommand,
-  getCommandSubcommandPrefix,
   extractOutputRedirections,
   tryParseShellCommand,
 }

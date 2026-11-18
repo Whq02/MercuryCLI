@@ -23,7 +23,6 @@ type ReloadCounts = {
   hooks: number
   servers: number
   language: number
-  channels: number
   keybindings: number
 }
 
@@ -77,7 +76,6 @@ export async function reloadExtensions(options: { cwd?: string; onServersChanged
       let partial = 0
       let broken = 0
       let off = 0
-      let channels = 0
       let keybindings = 0
       for (const [, health] of set.healthById) {
         if (health === null) off++
@@ -86,7 +84,6 @@ export async function reloadExtensions(options: { cwd?: string; onServersChanged
         else broken++
       }
       for (const ext of set.active) {
-        channels += ext.switches.channels ? ext.resolution.channels.length : 0
         keybindings += ext.switches.keybindings ? ext.resolution.keybindings.filter(k => !k.taken).length : 0
       }
       const agents = (await import('./load/agents.js')).getExtensionAgents().length
@@ -101,7 +98,6 @@ export async function reloadExtensions(options: { cwd?: string; onServersChanged
         hooks: hooks.hookCount,
         servers: Object.keys(servers).length,
         language: Object.keys(language).length,
-        channels,
         keybindings,
       }
       const line = reloadLine(counts)

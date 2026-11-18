@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { readdirSync, rmSync } from 'node:fs'
 import * as path from 'node:path'
+import { flagSpellings, stampFlagOnEnv } from '../../../substrate/flagRegistry.js'
 import { endProcessTree, endProcessTreeSurvivors, win32TaskkillCommand, type ProcessTreeKillReceipt } from '../../../utils/processGroup.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
@@ -97,8 +98,8 @@ export function spawnEngine(req: EngineSpawnRequest): EngineHandle {
     resolveDone = resolve
   })
   const env = { ...subprocessEnv(), ...engineUserEnv(req.userDir) }
-  delete env[VULCAN_INSTANCE_ENV]
-  if (req.bridge) env[VULCAN_INSTANCE_ENV] = JSON.stringify(req.bridge)
+  for (const spelling of flagSpellings(VULCAN_INSTANCE_ENV)) delete env[spelling]
+  if (req.bridge) stampFlagOnEnv(env, VULCAN_INSTANCE_ENV, JSON.stringify(req.bridge))
   const child = spawn(req.executable, req.args, {
     cwd: req.cwd,
     windowsHide: true,

@@ -3,6 +3,7 @@ import { realpath } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { z } from 'zod'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import type { ProcessSweepEntry, ProcessSweepObservation, ProcessSweepTable } from './processSweep.js'
 import { processSweepWindowsHost } from './processSweepWindowsHost.js'
@@ -143,7 +144,7 @@ export async function signalWindowsProcess(expected: Identity, force: boolean): 
   const target = expected.process
   if (!Number.isInteger(target.pid) || target.pid <= 0 || target.pid === process.pid) return { sent: false, reason: 'Invalid target or the current process' }
   if (target.pid === process.ppid) return { sent: false, reason: 'The target is the parent of the process asking for the stop' }
-  const ownerPid = Number(process.env.MERCURY_DAEMON_OWNER_PID ?? '')
+  const ownerPid = Number(flagEnv('MERCURY_DAEMON_OWNER_PID') ?? '')
   if (Number.isInteger(ownerPid) && ownerPid > 0 && target.pid === ownerPid) return { sent: false, reason: 'The target is the owner of the process asking for the stop' }
   let host: ReturnType<typeof openHost> | undefined
   try {

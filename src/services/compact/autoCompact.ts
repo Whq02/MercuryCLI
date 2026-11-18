@@ -7,7 +7,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { logError } from '../../utils/log.js'
-import { getContextWindowForModel, getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
+import { getContextWindowForModel, getModelInputCeiling, getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
 import { awaitContextWindowSource } from '../../utils/model/contextWindowWarmup.js'
 import { getTokenUsage, tokenCountWithEstimation, usageAnchorModel } from '../../utils/tokens.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
@@ -127,7 +127,7 @@ export type TokenWarningLevel = 'ok' | 'warn' | 'compact' | 'blocked'
 
 
 function modelMaxWindow(model: string): number {
-  return getContextWindowForModel(model, getSdkBetas())
+  return getModelInputCeiling(model, getContextWindowForModel(model, getSdkBetas()))
 }
 
 export function resolveAutoCompactWindow(
@@ -169,7 +169,7 @@ function pctOverride(): number | undefined {
 }
 
 function thresholdOverridden(): boolean {
-  const limitRaw = process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
+  const limitRaw = flagEnv('MERCURY_BLOCKING_LIMIT_OVERRIDE')
   if (limitRaw !== undefined && limitRaw !== '') return true
   return pctOverride() !== undefined
 }
@@ -209,7 +209,7 @@ export function compactionSettingsText(): string {
 
 export function getBlockingLimit(model: string, settingsWindow?: number): number {
   let blockingLimit = getEffectiveContextWindowSize(model, settingsWindow) - MANUAL_COMPACT_BUFFER_TOKENS
-  const overrideRaw = process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
+  const overrideRaw = flagEnv('MERCURY_BLOCKING_LIMIT_OVERRIDE')
   if (overrideRaw !== undefined && overrideRaw !== '') {
     const override = Number.parseInt(overrideRaw, 10)
     if (Number.isFinite(override) && override > 0) blockingLimit = override

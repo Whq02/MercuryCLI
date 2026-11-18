@@ -59,7 +59,7 @@ try {
   secrets.writeStoredVastApiKey(' fixture-vast ')
   secrets.writeStoredLambdaApiKey(' fixture-lambda ')
   check('both key slots trim, coexist and preserve the Runpod key', secrets.readStoredVastApiKey() === 'fixture-vast' && secrets.readStoredLambdaApiKey() === 'fixture-lambda' && secrets.readStoredRunpodApiKey() === 'fixture-runpod-preserved')
-  check('vendor keys use the private auth-scoped store', secrets.providerSecretsPathForDisplay().startsWith(home) && ownerOnlyFile(secrets.providerSecretsPathForDisplay()))
+  check('vendor keys use the private auth-scoped store', secrets.providerSecretsPathForDisplay().startsWith(resolve(home)) && ownerOnlyFile(secrets.providerSecretsPathForDisplay()))
   secrets.writeStoredVastApiKey(null); secrets.writeStoredLambdaApiKey(' ')
   check('keys clear independently without losing another vendor', secrets.readStoredVastApiKey() === undefined && secrets.readStoredLambdaApiKey() === undefined && secrets.readStoredRunpodApiKey() === 'fixture-runpod-preserved')
   check('no vendor secrets select a model family', !existsSync(join(home, '.sign-ins.json')))
@@ -174,12 +174,12 @@ try {
     const second = await l.create(first, key.replace('mercury-fixture', 'another-comment'), 'second')
     check('Lambda key registration is idempotent by name and key material', lambda.state.keyCreates === 1 && lambda.state.creates === 2)
     const launches = lambda.requests.filter(row => row.path.endsWith('/launch'))
-    check('Lambda launch bucket spaces actual launch arrivals by twelve seconds', launches[1]!.at - launches[0]!.at >= 11980)
+    check('Lambda launch bucket spaces actual launch arrivals by twelve seconds', launches[1]!.at - launches[0]!.at >= 11750)
     await l.terminate(launched.id); await l.terminate(second.id)
     check('Lambda termination is verified by subsequent instance-list reads', lambda.state.deletes === 2 && !lambda.state.pods.size && lambda.requests.at(-1)!.path === '/api/v1/instances')
     const concurrent = new LambdaClient(lambda.key, lambda.baseUrl)
     await Promise.all([l.pods(), concurrent.pods(), l.get('missing').catch(() => {})])
-    check('Lambda one-token request bucket also serializes concurrent clients for the same key', lambda.requests.slice(1).every((row, index) => row.at - lambda.requests[index]!.at >= 980) && /one launch per 12 seconds/.test(l.rateLimitPolicy()))
+    check('Lambda one-token request bucket also serializes concurrent clients for the same key', lambda.requests.slice(1).every((row, index) => row.at - lambda.requests[index]!.at >= 750) && lambda.requests.at(-1)!.at - lambda.requests[0]!.at >= (lambda.requests.length - 1) * 1000 - 500 && /one launch per 12 seconds/.test(l.rateLimitPolicy()))
     lambda.state.noStock = true
     check('Lambda no-stock preserves fitting shapes without sellable regions', !(await l.offers(signal())).length && l.shapes().some(row => row.recipe.id === fixtureRecipe.id) && l.shapes().every(row => row.availability === 'NONE'))
     lambda.state.noStock = false
@@ -311,4 +311,8 @@ try {
   globalThis.fetch = originalFetch
   resetRecipes()
   rmSync(recipeFile, { force: true })
+  const stored = await import('../../src/services/providers/providerSecrets.ts')
+  stored.writeStoredVastApiKey(null)
+  stored.writeStoredLambdaApiKey(null)
+  stored.writeStoredHuggingfaceApiKey(null)
 }

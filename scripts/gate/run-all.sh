@@ -21,6 +21,8 @@
 # gate-watch: src/tools/PowerShellTool/UI.tsx src/utils/bash/registry.ts src/utils/permissions/commandContent.ts src/utils/permissions/decision/commandAnalysis.ts
 # gate-watch: src/utils/permissions/decision/rules.ts src/utils/permissions/permissionSetup.ts src/utils/permissions/ruleReason.ts src/utils/permissions/shellProtectedPaths.ts
 # gate-watch: src/utils/permissions/shellRuleMatching.ts src/utils/Shell.ts src/utils/ShellCommand.ts
+# gate-watch: src/cli/run.ts src/main.tsx
+# gate-watch: src/utils/bash/ShellSnapshot.ts src/utils/bash/shellCompletion.ts src/utils/shell/shellRecord.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
@@ -35,6 +37,7 @@ run_proof "$here/prove-proof-scratch.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here
 run_proof "$here/prove-proof-guard.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-guard.ts" || fail=1
 run_proof "$here/prove-node-preload-path.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-node-preload-path.ts" || fail=1
 run_proof "$here/prove-remove-scratch.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-remove-scratch.ts" || fail=1
+run_proof "$here/prove-built-product.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-built-product.ts" || fail=1
 run_proof "$here/prove-suite-env-guard.sh" bash "$here/prove-suite-env-guard.sh" || fail=1
 run_proof "$here/prove-suite-home-guard.sh" bash "$here/prove-suite-home-guard.sh" || fail=1
 run_proof "$here/prove-screen-slot-claims.sh" bash "$here/prove-screen-slot-claims.sh" || fail=1
@@ -78,9 +81,7 @@ run_proof "$here/prove-vocabulary-seal.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$he
 run_proof "$here/prove-seal-in-gate.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-seal-in-gate.ts" || fail=1
 run_proof "$here/../typecheck/prove-warm-replay.sh" bash "$here/../typecheck/prove-warm-replay.sh" || fail=1
 run_proof "$here/prove-shard-compile-cache-removed.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-compile-cache-removed.ts" || fail=1
-run_proof "$here/../verify/prove-impact-manifest.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-impact-manifest.ts" || fail=1
-run_proof "$here/../verify/prove-impact-run.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-impact-run.ts" || fail=1
-run_proof "$here/../verify/prove-slice-core.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-slice-core.ts" || fail=1
+run_proof "$here/prove-shard-temp-spelling.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-temp-spelling.ts" || fail=1
 run_proof "$here/prove-shell-door.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shell-door.ts" || fail=1
 run_proof "$here/../substrate/prove-flag-registry-readers.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-readers.ts" || fail=1
 run_proof "$here/../substrate/prove-flag-registry-split.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-split.ts" || fail=1

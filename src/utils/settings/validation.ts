@@ -182,7 +182,7 @@ function settingsFaultEffect(error: Pick<ValidationError, 'severity' | 'kept'>):
 
 const EDIT_STRICT_GROUPS = [
   'credentials', 'files', 'records', 'briefs', 'memory', 'turns', 'environment', 'credit', 'engine', 'kit',
-  'events', 'voice', 'activity', 'view', 'context', 'input', 'shell', 'routing', 'channels', 'workspace', 'local',
+  'events', 'voice', 'activity', 'view', 'context', 'input', 'shell', 'routing', 'workspace', 'local',
 ] as const
 
 function editTimeSettingsSchema(): z.ZodObject {

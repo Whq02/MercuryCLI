@@ -234,10 +234,14 @@ section('§6 WIRING (DR-08)')
     ),
   )
   check('no call site discards a release receipt (bare await)', !bare)
-  const health = src('src/utils/healthReport.ts')
+  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const { pidLockReleaseHealth: releasesNow } = await import('../../src/substrate/pidLock.ts')
+  const lockSays = await crewChecks().find(row => row.id === 'pid-lock-release')?.run()
+  const lockHealth = releasesNow()
   check(
     '/health carries the pid-lock-release row reading the health accessor',
-    health.includes("id: 'pid-lock-release'") && health.includes('pidLockReleaseHealth'),
+    lockSays !== undefined && (lockHealth.notRemoved.count > 0 ? lockSays.status === 'warn' && lockSays.evidence.startsWith(`${lockHealth.notRemoved.count} lock release(s) settled`) : lockSays.status === 'ok' && lockSays.evidence === (lockHealth.retriedSuccesses.count > 0 ? `releases healthy (${lockHealth.retriedSuccesses.count} saved by the bounded retry)` : 'releases healthy')),
+    lockSays?.evidence,
   )
 }
 

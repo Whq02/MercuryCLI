@@ -9,7 +9,7 @@ type AgentSource =
   | 'agent:builtin'
   | `agent:builtin:${string}`
 
-export const COMPACTION_SOURCES = ['compact', 'session_memory', 'extract_memories', 'mneme_relevance', 'away_summary', 'concourse_coordinator_compact'] as const
+export const COMPACTION_SOURCES = ['compact', 'session_memory', 'away_summary', 'concourse_coordinator_compact'] as const
 
 type CompactionSource = (typeof COMPACTION_SOURCES)[number]
 
@@ -22,20 +22,14 @@ type ClassifierSource =
 
 type UtilitySource =
   | 'side_question'
-  | 'speculation'
   | 'verification_agent'
   | 'agent_creation'
   | 'agent_summary'
   | 'tool_use_summary_generation'
   | 'generate_session_title'
   | 'rename_generate_name'
-  | 'session_search'
   | 'prompt_suggestion'
-  | 'skill_improvement'
-  | 'skill_improvement_apply'
   | 'feedback'
-  | 'magic_docs'
-  | 'bash_extract_prefix'
   | 'mcp_datetime_parse'
   | 'web_search_tool'
   | 'web_fetch_apply'

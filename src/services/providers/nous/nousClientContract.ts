@@ -141,7 +141,7 @@ export function presentedNousClient(): NousClientPresented {
 }
 
 export function nousClientSourceBase(env: NodeJS.ProcessEnv = process.env): string {
-  const pinned = (env === process.env ? flagEnv('MERCURY_NOUS_CLIENT_SOURCE_BASE') : env['MERCURY_NOUS_CLIENT_SOURCE_BASE'])?.trim()
+  const pinned = (env === process.env ? flagEnv('MERCURY_NOUS_CLIENT_SOURCE_BASE') : flagEnv('MERCURY_NOUS_CLIENT_SOURCE_BASE', env))?.trim()
   return pinned && /^https?:\/\//i.test(pinned) ? pinned.replace(/\/+$/, '') : NOUS_CLIENT_SOURCE_DEFAULT_BASE
 }
 

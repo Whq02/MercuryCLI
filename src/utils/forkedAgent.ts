@@ -3,7 +3,7 @@ import type { UUID } from 'node:crypto'
 
 import type { QuerySource } from '../constants/querySource.js'
 import type { Terminal } from '../query/transitions.js'
-import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../Tool.js'
 import { query } from '../query.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'

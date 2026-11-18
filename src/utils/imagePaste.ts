@@ -37,7 +37,7 @@ function clipboardPlatform(): ClipboardPlatform {
 }
 
 function tempDir(): string {
-  const override = process.env.MERCURY_TMPDIR
+  const override = flagEnv('MERCURY_TMPDIR')
   if (override) return override
   if (clipboardPlatform() === 'win32') return process.env.TEMP || 'C:\\Temp'
   return '/tmp'

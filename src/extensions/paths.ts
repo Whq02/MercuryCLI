@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 
 export const MANIFEST_FILE = 'mercury-extension.json'
@@ -8,7 +9,7 @@ export const SOURCES_FILE = 'sources.json'
 export const INSTALLED_FILE = 'installed.json'
 
 export function getExtensionsRoot(): string {
-  const override = process.env.MERCURY_EXTENSIONS_DIR
+  const override = flagEnv('MERCURY_EXTENSIONS_DIR')
   if (override && override.trim() !== '') return override.trim()
   return join(getMercuryHome(), 'extensions')
 }

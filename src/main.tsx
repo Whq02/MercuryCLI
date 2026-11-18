@@ -269,13 +269,13 @@ export async function main(): Promise<void> {
   }
   setIsInteractive(!isNonInteractive)
 
-  if (!process.env.MERCURY_ENTRYPOINT) {
+  if (!flagEnv('MERCURY_ENTRYPOINT')) {
     const mcpIndex = process.argv.indexOf('mcp')
     const mcpServe = mcpIndex >= 0 && process.argv[mcpIndex + 1] === 'serve'
-    process.env.MERCURY_ENTRYPOINT = mcpServe ? 'mcp' : isNonInteractive ? 'headless' : 'cli'
+    setFlagEnv('MERCURY_ENTRYPOINT', mcpServe ? 'mcp' : isNonInteractive ? 'headless' : 'cli')
   }
 
-  const entrypoint = process.env.MERCURY_ENTRYPOINT
+  const entrypoint = flagEnv('MERCURY_ENTRYPOINT')
   const clientType = entrypoint === 'headless' ? 'headless' : entrypoint === 'local-agent' ? 'local-agent' : 'cli'
   setClientType(clientType)
 
@@ -1607,7 +1607,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   })
   const regularDynamicMcpConfig: Record<string, ScopedMcpServerConfig> = dynamicMcpConfig
 
-  if (process.env.MERCURY_ENTRYPOINT !== 'local-agent') {
+  if (flagEnv('MERCURY_ENTRYPOINT') !== 'local-agent') {
     initBundledSkills()
   }
   const { getProjectRoot } = await import('./bootstrap/state.js')
@@ -1814,7 +1814,6 @@ async function interactiveLaunch(args: {
     args.permissionMode,
     args.allowDangerousSkip,
     commands,
-    undefined,
   )
   if (onboardingShown && inputPrompt?.trim().toLowerCase() === '/logins') {
     inputPrompt = undefined

@@ -1,6 +1,6 @@
 # Mercury with Nix
 
-The flake installs the same signed Mercury release archives as the website installer, including Node, Python, ripgrep, the shell engine, structural grammars and their licences. Nix owns the installed files; configuration and sessions stay in your normal writable Mercury home.
+The flake installs the same signed Mercury release archives as the website installer, including Node, Python, ripgrep, bash, the shell engine, structural grammars and their licences. Nix owns the installed files; configuration and sessions stay in your normal writable Mercury home.
 
 ## Run or install
 

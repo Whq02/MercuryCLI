@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import type { ModelOption } from '../../../utils/model/modelOptions.js'
@@ -217,11 +218,11 @@ export function getNousAvailability(env: NodeJS.ProcessEnv = process.env): NousA
     if (/refused the credential/.test(snapshot.lastError)) {
       return { state: 'disabled', why: 'auth-invalid', reason: 'the Nous Portal key was refused — /logins nous stores another' }
     }
-    const overrideBase = env['MERCURY_NOUS_API_BASE']?.trim()
+    const overrideBase = flagEnv('MERCURY_NOUS_API_BASE', env)?.trim()
     return { state: 'disabled', why: 'catalogue-error', reason: `live catalogue unreachable (${snapshot.lastError})${overrideBase ? ` · base override ${overrideBase}` : ''}` }
   }
   if (snapshot.models.length === 0) return { state: 'disabled', why: 'no-models', reason: 'the live catalogue listed no models for this key' }
-  const overrideBase = env['MERCURY_NOUS_API_BASE']?.trim()
+  const overrideBase = flagEnv('MERCURY_NOUS_API_BASE', env)?.trim()
   return {
     state: 'ready',
     ids: snapshot.models.map(m => m.id),
@@ -278,11 +279,12 @@ export function nousWireModelId(modelId: string, env: NodeJS.ProcessEnv = proces
 }
 
 const NOUS_PORTAL_RECOMMENDATION = {
-  observedAt: '2026-10-25',
+  observedAt: '2026-11-17',
   source: 'https://inference-api.nousresearch.com/v1/models',
   ids: [
     'anthropic/claude-sonnet-5.5',
-    'openai/gpt-6.1-sol',
+    'openai/gpt-6.2-astra',
+    'openai/gpt-6.2-sol',
     'google/gemini-4-argon',
     'deepseek/deepseek-v4.1-flash-1017',
   ],

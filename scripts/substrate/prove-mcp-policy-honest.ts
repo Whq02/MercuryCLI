@@ -47,10 +47,22 @@ const sub = src('utils', 'cockpit', 'substrateSnapshot.ts')
 check('substrateSnapshot uses isMcpPolicyActive() — the canonical bug line is fixed', /isMcpPolicyActive\(\)/.test(sub) && !/=== 'high'\s*[?)]/.test(sub.split('\n').filter(l => /mcpPolic/i.test(l)).join('\n')))
 
 section('panels color/warn off the boolean, NOT the displayed === \'high\' string')
-for (const [name, p] of [
-  ['healthReport', ['utils', 'healthReport.ts']],
-] as const) {
-  check(`${name} keys off mcpPolicyActive`, /mcpPolicyActive/.test(src(...p)))
+{
+  ;(await import('../../src/utils/config.ts')).enableConfigs()
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { publishMcpConnections } = await import('../../src/utils/cockpit/mcpGauge.ts')
+  const mcpRow = runtimeChecks().find(row => row.id === 'mcp')
+  publishMcpConnections([{ name: 'fixture-srv', type: 'pending' } as never])
+  const permissive = withEnv(undefined, () => mcpRow?.run()) as { status: string; evidence: string; fix?: string } | undefined
+  const clamped = withEnv('untrusted-srv:low', () => mcpRow?.run()) as { status: string; evidence: string; fix?: string } | undefined
+  publishMcpConnections([])
+  const { describeMcpProtocolCurrency } = await import('../../src/services/mcp/protocolRevision.ts')
+  const behind = describeMcpProtocolCurrency().behind
+  check(
+    'the health mcp row keys off mcpPolicyActive',
+    permissive?.status === (behind ? 'warn' : 'info') && permissive.evidence.includes(' · policy high · permissive · ') && (behind || permissive.fix?.startsWith('Tighten if desired') === true) && clamped?.status === (behind ? 'warn' : 'ok') && clamped.evidence.includes(' · policy default high · untrusted-srv:low · '),
+    `${permissive?.status}: ${permissive?.evidence} | ${clamped?.status}: ${clamped?.evidence}`,
+  )
 }
 
 console.log('\n' + '═'.repeat(76))

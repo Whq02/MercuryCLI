@@ -8,6 +8,15 @@ if ! command -v "$GODOT" >/dev/null 2>&1; then
   exit 0
 fi
 GODOT_VERSION="$("$GODOT" --version 2>/dev/null | tail -1 || true)"
+case "$GODOT_VERSION" in
+  *mono*)
+    if ! command -v dotnet >/dev/null 2>&1; then
+      echo "prove-addon-compiles: SKIP — '$GODOT' is a .NET build ($GODOT_VERSION) and no dotnet is installed: it stops before it loads a script and stays open; set GODOT_BIN to a standard build."
+      exit 0
+    fi
+    ;;
+esac
+BOOT_LIMIT=180
 
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
@@ -33,11 +42,34 @@ cleanup() {
 }
 trap cleanup EXIT
 
+bounded() {
+  local log="$1" waited=0 rc=0
+  shift
+  "$@" > "$log" 2>&1 &
+  GODOT_PID=$!
+  while kill -0 "$GODOT_PID" 2>/dev/null; do
+    if [ "$waited" -ge "$BOOT_LIMIT" ]; then
+      kill "$GODOT_PID" 2>/dev/null || true
+      wait "$GODOT_PID" 2>/dev/null || true
+      GODOT_PID=""
+      echo "❌ prove-addon-compiles FAIL — $GODOT_VERSION did not finish within ${BOOT_LIMIT}s: $*"
+      echo "--- $(basename "$log") tail ---"
+      tail -30 "$log"
+      exit 1
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  wait "$GODOT_PID" || rc=$?
+  GODOT_PID=""
+  return "$rc"
+}
+
 echo ">>> installing the addon into the fixture"
 MERCURY_GODOT_TOOLS=1 "$bun" run "$here/smoke-driver.ts" install "$proj" >/dev/null
 
 echo ">>> boot 1: import pass"
-"$GODOT" --editor --headless --path "$proj" --quit > "$work/import.log" 2>&1 || true
+bounded "$work/import.log" "$GODOT" --editor --headless --path "$proj" --quit || true
 
 echo ">>> boot 2: serving pass (waiting for the VULCAN server to announce its port and bind it)"
 "$GODOT" --editor --headless --path "$proj" > "$work/editor.log" 2>&1 &
@@ -100,9 +132,9 @@ func _initialize() -> void:
 	print(JSON.stringify(out))
 	quit(0 if out["pass"] else 1)
 EOF
-"$GODOT" --editor --headless --path "$proj" --quit > "$work/import-fixture.log" 2>&1 || true
+bounded "$work/import-fixture.log" "$GODOT" --editor --headless --path "$proj" --quit || true
 validate_rc=0
-"$GODOT" --headless --path "$proj" --script res://validate_probe.gd > "$work/validate.log" 2>&1 || validate_rc=$?
+bounded "$work/validate.log" "$GODOT" --headless --path "$proj" --script res://validate_probe.gd || validate_rc=$?
 verdict="$(grep -E '^\{' "$work/validate.log" | tail -1 || true)"
 if [ "$validate_rc" != "0" ]; then
   echo "❌ prove-addon-compiles FAIL — the script validator on $GODOT_VERSION: ${verdict:-no verdict}"

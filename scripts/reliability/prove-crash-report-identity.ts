@@ -72,8 +72,11 @@ section('§5 the wiring (structural)')
   check('the app-root boundary hands errorInfo in (the component name derives from it)', appRoot.includes("persistCrashReport(error, errorInfo, 'app-root')"))
   const repl = src('screens/Chat.tsx')
   check('the Chat boot effect speaks once through the channel', repl.includes('unnoticedCrashReports()') && repl.includes('markCrashReportsNoticed()') && repl.includes("key: 'crash-reports'"))
-  const health = src('utils/healthReport.ts')
-  check("health's RUNTIME section carries the crash-reports row", health.includes("id: 'crash-reports'") && health.includes('listCrashReports(3)'))
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const crashOwner = await import('../../src/utils/crashReport.ts')
+  const crashSays = await runtimeChecks().find(row => row.id === 'crash-reports')?.run()
+  const recent = crashOwner.listCrashReports(3)
+  check("health's RUNTIME section carries the crash-reports row", crashSays !== undefined && (recent.length === 0 ? crashSays.status === 'ok' && crashSays.evidence === 'none recorded' : crashSays.status === 'info' && crashSays.evidence.startsWith(`${recent.length} recent · newest: ${recent[0]!.at} ${recent[0]!.origin}`) && crashSays.evidence.endsWith(crashOwner.crashReportDirDisplay())), crashSays?.evidence)
 }
 
 section('§6 session + project ride the read boundary (FN-013 CRASH-03)')
@@ -123,8 +126,13 @@ section('§7 the re-entry offer and the display latch (structural)')
     'a gone transcript keeps the plain notice and says so (no failing action offered)',
     repl.includes('its transcript is gone, so no re-entry is offered'),
   )
-  const health = src('utils/healthReport.ts')
-  check('the /health row locates the crash (session + project)', health.includes('newest.sessionId.slice(0, 8)') && health.includes('newest.cwd'))
+  const { runtimeChecks: runtimeRows } = await import('../../src/utils/health/sections/runtime.ts')
+  writeFileSync(
+    join(crash.crashReportDir(), `crash-${Date.now() + 500}-app-root.json`),
+    JSON.stringify({ origin: 'app-root', at: '2026-09-02T05:00:00.000Z', message: 'located fixture', component: 'LocatedCard', sessionId: '00000000-cccc-dddd-eeee-000000000c04', cwd: '/tmp/project-q' }),
+  )
+  const locatedSays = await runtimeRows().find(row => row.id === 'crash-reports')?.run()
+  check('the /health row locates the crash (session + project)', locatedSays?.status === 'info' && locatedSays.evidence.includes('newest: 2026-09-02T05:00:00.000Z app-root in LocatedCard — located fixture · session 00000000 in /tmp/project-q · '), locatedSays?.evidence)
   const dialog = src('components/CrashResumeDialog.tsx')
   check('the dialog offers one-keypress resume and esc dismissal', dialog.includes("value: 'resume'") && dialog.includes("onClose={() => onDone('dismiss')}"))
 }

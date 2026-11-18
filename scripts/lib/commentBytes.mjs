@@ -6,30 +6,30 @@ const HASH_FILE = /\.(sh|bash|py|yml|yaml|toml|gd|sed|ps1)$/
 const SLASH_FILE = /\.(cs|rs)$/
 
 const KEEP_TS = [
-  /^\/\/\/\s*<(reference|amd-)/,
-  /^\/\/[#@]\s*source(MappingURL|URL)=/,
-  /@ts-(expect-error|ignore|nocheck|check)\b/,
-  /\beslint-(disable|enable|env)\b|^\/\*\s*global\b/,
-  /prettier-ignore/,
-  /@jsx(ImportSource|Frag|Runtime)?\b/,
-  /^\/\*!/,
-  /@(license|preserve)\b/,
-  /[#@]__(PURE|NO_SIDE_EFFECTS)__/,
-  /\bgate-(class|watch|env|inputs):/,
-  /webpackChunkName/,
-  /\b(c8|istanbul|v8)\s+ignore\b/,
-  /^\/\/\s*@flow\b/,
+  ['reference', /^\/\/\/\s*<(reference|amd-)/],
+  ['source map', /^\/\/[#@]\s*source(MappingURL|URL)=/],
+  ['ts directive', /@ts-(expect-error|ignore|nocheck|check)\b/],
+  ['lint directive', /\beslint-(disable|enable|env)\b|^\/\*\s*global\b/],
+  ['prettier', /prettier-ignore/],
+  ['jsx pragma', /@jsx(ImportSource|Frag|Runtime)?\b/],
+  ['licence banner', /^\/\*!/],
+  ['licence tag', /@(license|preserve)\b/],
+  ['pure annotation', /[#@]__(PURE|NO_SIDE_EFFECTS)__/],
+  ['gate header', /\bgate-(class|watch|env|inputs):/],
+  ['chunk name', /webpackChunkName/],
+  ['coverage', /\b(c8|istanbul|v8)\s+ignore\b/],
+  ['flow', /^\/\/\s*@flow\b/],
 ]
 const JS_JSDOC = /@(type|param|returns?|typedef|template|property|callback|satisfies|import|this)\b/
-const KEEP_HASH = /^\s*#\s*(!|-\*-|gate-(class|watch|env|inputs):|shellcheck|type:|noqa|pragma|pylint|fmt:|ruff:|mypy:|flake8:)/
-const KEEP_SLASH = /^\s*\/\/\s*(gate-(class|watch|env|inputs):|@ts-|eslint|prettier|#|<reference)/
+const KEEP_HASH = /^\s*#(!| gate-(class|watch|env): | -\*- coding: | coding[:=]| (generated|composed|managed) by |requires -|compdef )/i
+const KEEP_SLASH = /^\s*\/\/\s*(@ts-|\/ <reference)/
 
 function keptTs(text, isJs) {
-  for (const rx of KEEP_TS) if (rx.test(text)) return true
-  return isJs && text.startsWith('/**') && JS_JSDOC.test(text)
+  for (const [name, rx] of KEEP_TS) if (rx.test(text)) return name
+  return isJs && text.startsWith('/**') && JS_JSDOC.test(text) ? 'typed jsdoc' : null
 }
 
-export function commentRanges(path, text) {
+function allCommentRanges(path, text) {
   const isJs = /\.(m|c)?js$/.test(path)
   const kind = /\.(tsx|jsx)$/.test(path) ? ts.ScriptKind.TSX : isJs ? ts.ScriptKind.JS : ts.ScriptKind.TS
   const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, kind)
@@ -55,9 +55,17 @@ export function commentRanges(path, text) {
     const next = leaves[i + 1]
     if (!(next && isJsxText(next))) add(ts.getTrailingCommentRanges(text, tok.getEnd()))
   }
-  return [...ranges.values()]
-    .sort((a, b) => a.pos - b.pos)
-    .filter(r => !keptTs(text.slice(r.pos, r.end), isJs))
+  return [...ranges.values()].sort((a, b) => a.pos - b.pos).map(r => ({ range: r, keep: keptTs(text.slice(r.pos, r.end), isJs) }))
+}
+
+export function commentRanges(path, text) {
+  return allCommentRanges(path, text)
+    .filter(r => r.keep === null)
+    .map(r => r.range)
+}
+
+export function scriptComments(path, text) {
+  return allCommentRanges(path, text).map(r => ({ pos: r.range.pos, end: r.range.end, keep: r.keep }))
 }
 
 function commentBytes(path, text) {
@@ -105,7 +113,7 @@ if (process.argv[1] && process.argv[1].endsWith('commentBytes.mjs') && process.a
   if (offenders.length > 0) {
     console.error('commit refused: comments are not written. Remove the comment lines added in:')
     for (const o of offenders) console.error(`  ${o.path} (+${o.bytes} bytes of comment)`)
-    console.error('Machine lines pass: a shebang, @ts-expect-error, eslint or prettier directives, gate-class and gate-watch header lines.')
+    console.error('Lines a tool reads pass: a shebang, @ts-expect-error, a /// <reference line, the gate headers of a runner.')
     process.exit(1)
   }
 }

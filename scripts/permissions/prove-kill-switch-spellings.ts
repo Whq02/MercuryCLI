@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_KILL = ''
@@ -71,18 +69,26 @@ section('§3 MCP SERVER SEMANTICS')
 
 section('§4 HEALTH WIRING')
 {
-  const healthSrc = readFileSync(join(import.meta.dir, '../../src/utils/healthReport.ts'), 'utf8')
+  const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+  const killsRow = settingsChecks().find(row => row.id === 'kills')
+  reseedWith('nosuchbuiltin')
+  const unmatchedSays = await killsRow?.run()
+  reseedWith('Read')
+  const matchedSays = await killsRow?.run()
   check(
     'the kills row annotates entries matching no builtin',
-    healthSrc.includes('no such builtin — read as an MCP server name'),
+    unmatchedSays?.evidence.includes('nosuchbuiltin (no such builtin — read as an MCP server name)') === true && !/no such builtin/.test(matchedSays?.evidence ?? 'no such builtin'),
+    `${unmatchedSays?.evidence} | ${matchedSays?.evidence}`,
   )
   check(
     'unmatched entries elevate the row to warn',
-    healthSrc.includes("unmatched > 0 || capRejects.length > 0 ? 'warn' : 'info'"),
+    unmatchedSays?.status === 'warn' && matchedSays?.status === 'info',
+    `${unmatchedSays?.status} | ${matchedSays?.status}`,
   )
   check(
     'the remedy teaches the unambiguous server spelling',
-    healthSrc.includes('mcp__<server>'),
+    unmatchedSays?.fix?.includes('mcp__<server>') === true && !matchedSays?.fix?.includes('mcp__<server>'),
+    `${unmatchedSays?.fix} | ${matchedSays?.fix}`,
   )
 }
 

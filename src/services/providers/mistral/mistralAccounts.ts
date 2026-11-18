@@ -1,8 +1,9 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredMistralAdminApiKey, readStoredMistralApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
 export function mistralApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_MISTRAL_API_BASE?.trim() || 'https://api.mistral.ai/v1').replace(/\/+$/, '')
+  return (flagEnv('MERCURY_MISTRAL_API_BASE', env)?.trim() || 'https://api.mistral.ai/v1').replace(/\/+$/, '')
 }
 
 export function mistralChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {

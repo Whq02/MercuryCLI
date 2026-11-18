@@ -18,7 +18,13 @@ section('(1) `mercury mcp add` is registered BEFORE the parser looks for it')
   check('registerSubcommands is awaited before parseAsync', /await registerSubcommands\(program\)\n\n\s*profileCheckpoint\('run_before_parse'\)/.test(main))
   check('registerSubcommands is async (it can await the owning modules)', /async function registerSubcommands\(program: CommanderCommand\): Promise<void>/.test(main))
   const addIdx = main.indexOf('registerMcpAddCommand(mcp')
-  check('the add command is registered by its owning module', addIdx !== -1)
+  const { builtHelp } = await import('../lib/builtProduct.ts')
+  const { registerMcpAddCommand } = await import('../../src/commands/mcp/addCommand.ts')
+  const { Command } = await import('@commander-js/extra-typings')
+  const owned = new Command('mcp')
+  registerMcpAddCommand(owned as never)
+  const add = owned.commands.find(command => command.name() === 'add')
+  check('the add command is registered by its owning module', add !== undefined && builtHelp('mcp').includes(` add ${add.usage()} ${add.description()} `), `the owning module registers: add ${add?.usage()} ${add?.description()}`)
   const guardIdx = main.lastIndexOf("if (process.argv.includes('mcp'))", addIdx)
   check('the registration is gated on argv naming mcp (the general boot pays nothing)', guardIdx !== -1 && addIdx - guardIdx < 600)
   check('the registration is AWAITED, not a fire-and-forget IIFE', !/void \(async \(\) => \{[\s\S]{0,400}registerMcpAddCommand/.test(main))
@@ -93,9 +99,22 @@ section('(3) one folder, one config key; the trust card compares keys')
 
 section('(4) executable probes ride the one PATHEXT-aware owner')
 {
-  const health = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check("the repo-host row asks whichSync('gh')", health.includes("const ghOnPath = whichSync('gh') !== null"))
-  check('no bare-name gh PATH walk survives in the health report', !/existsSync\(nodePath\.join\(d, 'gh'\)\)/.test(health))
+  const { codingLoopFastChecks } = await import('../../src/utils/health/sections/coding-loop-fast.ts')
+  const { whichSync: lookup } = await import('../../src/utils/which.ts')
+  const workbench = codingLoopFastChecks().find(row => row.id === 'anvil-workbench-fast')
+  const repoLineOf = (detail: string | undefined): string => detail?.split('\n')[0] ?? ''
+  const workbenchHere = repoLineOf((await workbench?.run())?.detail)
+  const ghHere = lookup('gh') !== null
+  const pathNow = process.env.PATH
+  process.env.PATH = join(ROOT, 'scripts', 'node-runtime')
+  let workbenchNowhere = ''
+  try {
+    workbenchNowhere = repoLineOf((await workbench?.run())?.detail)
+  } finally {
+    process.env.PATH = pathNow
+  }
+  check("the repo-host row asks whichSync('gh')", workbenchHere.startsWith('repo host: OFF') || workbenchHere === `repo host: ${ghHere ? 'gh on PATH (mercury://repo live)' : 'gh ABSENT — context unavailable (remedy: install gh + gh auth login)'}`, workbenchHere)
+  check('no bare-name gh PATH walk survives in the health report', workbenchHere.startsWith('repo host: OFF') || workbenchNowhere.startsWith('repo host: gh ABSENT'), workbenchNowhere)
   const debug = readFileSync(join(ROOT, 'src', 'tools', 'DebugTool', 'DebugTool.ts'), 'utf8')
   check("DebugTool's lldb-dap probe asks whichSync('lldb-dap')", debug.includes("return whichSync('lldb-dap') !== null"))
   check('no bare-name lldb-dap PATH walk survives', !/existsSync\(path\.join\(dir, 'lldb-dap'\)\)/.test(debug))
@@ -125,7 +144,9 @@ section('(5) one config home, one spelling')
 section('(6) the build-tree stamp rides the staleness sweep')
 {
   const build = readFileSync(join(ROOT, 'build.ts'), 'utf8')
-  const sweep = build.slice(build.indexOf("rmSync(resolve(OUT, 'manifest.json')"), build.indexOf('SELF-CONTAINMENT TRIPWIRE'))
+  const sweepEnd = build.indexOf("const bundlePath = resolve(OUT, 'mercury.mjs')")
+  check('the end of the staleness sweep is in build.ts', sweepEnd !== -1, "the end of the slice is not in the file: const bundlePath = resolve(OUT, 'mercury.mjs')")
+  const sweep = sweepEnd === -1 ? '' : build.slice(build.indexOf("rmSync(resolve(OUT, 'manifest.json')"), sweepEnd)
   check('the sweep removes the stale build-tree stamp beside the manifest', sweep.includes("rmSync(resolve(OUT, '.build-tree'), { force: true })"))
   check('the stamp is still written on success (after the sweep, not before)', build.indexOf("rmSync(resolve(OUT, '.build-tree')") !== -1 && build.indexOf("writeFileSync(resolve(OUT, '.build-tree')") > build.indexOf("rmSync(resolve(OUT, '.build-tree')"))
 }
@@ -156,9 +177,8 @@ section('(8) every honest engine-unavailable code the providers spell is on the 
       for (const m of readFileSync(file, 'utf8').matchAll(/reason: ?[`'"]([a-z-]+:)/g)) spelled.add(m[1] as string)
     }
   }
-  const health = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  const listSrc = /const ENGINE_UNAVAILABLE_CODES = \[([\s\S]*?)\]/.exec(health)?.[1] ?? ''
-  const allowed = new Set([...listSrc.matchAll(/'([a-z-]+:)'/g)].map(m => m[1] as string))
+  const { ENGINE_UNAVAILABLE_CODES } = await import('../../src/utils/health/sections/auth.ts')
+  const allowed = new Set<string>(ENGINE_UNAVAILABLE_CODES)
   check('the provider trees spell at least the three codes the audit found missing', ['not-configured:', 'no-server:', 'no-credential:'].every(c => spelled.has(c)), [...spelled].join(' '))
   const missing = [...spelled].filter(c => !allowed.has(c))
   check('every spelled reason prefix is on the allowlist (a new code lands there or goes red)', missing.length === 0, `missing: ${missing.join(' ')}`)

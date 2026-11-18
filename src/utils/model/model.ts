@@ -1,3 +1,4 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   getEngineModelOverride,
 } from '../../bootstrap/state.js'
@@ -49,25 +50,25 @@ function firstPartyString(key: keyof typeof ALL_MODEL_CONFIGS): string {
 }
 
 export function getDefaultOpusModel(): string {
-  const pin = process.env.MERCURY_DEFAULT_OPUS_MODEL
+  const pin = flagEnv('MERCURY_DEFAULT_OPUS_MODEL')
   if (pin) return pin
   return firstPartyString(newestGenerationKey('opus'))
 }
 
 export function getDefaultSonnetModel(): string {
-  const pin = process.env.MERCURY_DEFAULT_SONNET_MODEL
+  const pin = flagEnv('MERCURY_DEFAULT_SONNET_MODEL')
   if (pin) return pin
   return firstPartyString(newestGenerationKey('sonnet'))
 }
 
 export function getDefaultHaikuModel(): string {
-  const pin = process.env.MERCURY_DEFAULT_HAIKU_MODEL
+  const pin = flagEnv('MERCURY_DEFAULT_HAIKU_MODEL')
   if (pin) return pin
   return firstPartyString(newestGenerationKey('haiku'))
 }
 
 export function getDefaultFableModel(): string {
-  const pin = process.env.MERCURY_DEFAULT_FABLE_MODEL
+  const pin = flagEnv('MERCURY_DEFAULT_FABLE_MODEL')
   if (pin) return pin
   return firstPartyString(newestGenerationKey('fable'))
 }
@@ -135,15 +136,15 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
 
   switch (lowered) {
     case 'sonnet':
-      return reattach(rosterFamilyModel('sonnet', getDefaultSonnetModel(), process.env.MERCURY_DEFAULT_SONNET_MODEL))
+      return reattach(rosterFamilyModel('sonnet', getDefaultSonnetModel(), flagEnv('MERCURY_DEFAULT_SONNET_MODEL')))
     case 'opus':
-      return reattach(rosterFamilyModel('opus', getDefaultOpusModel(), process.env.MERCURY_DEFAULT_OPUS_MODEL))
+      return reattach(rosterFamilyModel('opus', getDefaultOpusModel(), flagEnv('MERCURY_DEFAULT_OPUS_MODEL')))
     case 'haiku':
-      return reattach(rosterFamilyModel('haiku', getDefaultHaikuModel(), process.env.MERCURY_DEFAULT_HAIKU_MODEL))
+      return reattach(rosterFamilyModel('haiku', getDefaultHaikuModel(), flagEnv('MERCURY_DEFAULT_HAIKU_MODEL')))
     case 'haiku55':
       return reattach(firstPartyString('haiku55'))
     case 'fable':
-      return reattach(rosterFamilyModel('fable', getDefaultFableModel(), process.env.MERCURY_DEFAULT_FABLE_MODEL))
+      return reattach(rosterFamilyModel('fable', getDefaultFableModel(), flagEnv('MERCURY_DEFAULT_FABLE_MODEL')))
     case 'fable51':
       return reattach(firstPartyString('fable51'))
     case 'fable52':
@@ -200,7 +201,7 @@ export function getUserSpecifiedModelSetting(): ModelSetting {
   if (override !== undefined) {
     setting = override
   } else {
-    const envModel = process.env.MERCURY_MODEL
+    const envModel = flagEnv('MERCURY_MODEL')
     if (envModel) {
       setting = envModel
     } else {

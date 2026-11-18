@@ -1,3 +1,4 @@
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { getSystemPrompt } from '../constants/prompts.js'
 import { getAttributionHeader } from '../constants/system.js'
 import { getSystemContext } from '../context.js'
@@ -390,7 +391,7 @@ async function countMemoryFiles(): Promise<{
   tokens: number
   details: Array<{ path: string; type: string; tokens: number }>
 }> {
-  if (isEnvTruthy(process.env.MERCURY_BARE)) {
+  if (isEnvTruthy(flagEnv('MERCURY_BARE'))) {
     return { tokens: 0, details: [] }
   }
   const own = filterInjectedInstructionFiles(await getInstructionFiles())

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: scripts/changesets/**
 # gate-watch: src/services/changeTransaction/** src/tools/ChangeSetTool/** src/tools/FileReadTool/FileReadTool.ts
 # gate-watch: src/components/permissions/ChangeSetPermissionRequest/** src/components/InlineChangeView.tsx
@@ -22,7 +22,9 @@ fail=0
 echo "############################################################"
 echo "# MERCURY changesets — atomic multi-file text change sets"
 echo "############################################################"
+claimed=$(cd "$here/../.." && cat scripts/changesets-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
 for f in "$here"/prove-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$f")" && continue
   [ -e "$f" ] || continue
   name="$(basename "$f")"
   echo ""

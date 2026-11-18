@@ -1,3 +1,4 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { META_SIGN_IN_ROADS } from '../../components/loginFamilyRows.js'
 import { getInitialSettings } from '../settings/settings.js'
 import {
@@ -1128,12 +1129,12 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
 
   options = dedupOneModelOneRow(options)
 
-  const custom = process.env.MERCURY_CUSTOM_MODEL_OPTION
+  const custom = flagEnv('MERCURY_CUSTOM_MODEL_OPTION')
   if (custom) {
     pushIfAbsent(options, {
       value: custom,
-      label: process.env.MERCURY_CUSTOM_MODEL_OPTION_NAME || custom,
-      description: process.env.MERCURY_CUSTOM_MODEL_OPTION_DESCRIPTION || '',
+      label: flagEnv('MERCURY_CUSTOM_MODEL_OPTION_NAME') || custom,
+      description: flagEnv('MERCURY_CUSTOM_MODEL_OPTION_DESCRIPTION') || '',
     })
   }
 

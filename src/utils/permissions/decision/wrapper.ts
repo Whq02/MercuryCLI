@@ -19,16 +19,11 @@ import type { PermissionUpdate } from '../PermissionUpdateSchema.js'
 import { decideRuleBasedPermissions, decideToolPermission } from './engine.js'
 import { decideUnderFlow } from '../flowPolicy.js'
 import { allowRulesThatPreAuthorise } from '../lateAllowRules.js'
-import type {
-  DecisionTrace,
-  WrapperStageId,
-  WrapperStageRecord,
-  WrapperTrace,
-} from './trace.js'
+import type { DecisionTrace, WrapperStageId, WrapperStageRecord, WrapperTrace } from '../../../types/permissions.js'
 
 
 
-export function guardHookUpdatedInput(
+function guardHookUpdatedInput(
   recheckedDecision:
     | PermissionAskDecision
     | PermissionDenyDecision

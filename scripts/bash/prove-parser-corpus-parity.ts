@@ -129,6 +129,16 @@ function plain(argv: string[], text: string): unknown {
 function stages(...commands: unknown[]): unknown {
   return { kind: 'simple', commands }
 }
+const readAborted = refusal('the shell parser did not finish reading this command; split it into simpler commands, or approve', 'PARSE_ABORT')
+function pinRead(command: string, walk: unknown): void {
+  bindingRepins.set(command, { walk, semantics: { ok: true }, string: walk, abort: readAborted })
+}
+pinRead('echo ~[x]', stages(globbed(['echo', '~[x]'], 'echo ~[x]')))
+pinRead('=ls', stages(plain(['=ls'], '=ls')))
+pinRead('echo =foo', stages(plain(['echo', '=foo'], 'echo =foo')))
+for (const command of ['zmodload zsh/system', 'emulate sh', 'zf_rm x', 'sysopen', 'zpty']) {
+  pinWalk(command, stages(plain(command.split(' '), command)), { ok: true })
+}
 for (const command of ['rm *', 'npm *', 'npm run *', 'npm *build', 'npm * *', 'bash *', 'git *', 'git push *', 'rm -rf *', 'du -sh *']) {
   pinWalk(command, stages(globbed(command.split(' '), command)), { ok: true })
 }

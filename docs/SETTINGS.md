@@ -256,7 +256,6 @@ the server definitions themselves.
 | `extensions.blocked` | Extension ids or source labels on the blocklist. |
 | `extensions.options` | Non-secret option values grouped by extension id and option name. |
 | `extensions.exclusive` | A managed lock: `true` for every customization surface, or a list drawn from `skills`, `agents`, `hooks`, `mcp`. |
-| `channels.enabled` | Enables messages from approved MCP channels. |
 
 [KIT.md](KIT.md) explains the per-repository menu and the session's dials;
 [EXTENSIONS.md](EXTENSIONS.md) explains manifests, sources and approval.
@@ -288,7 +287,7 @@ the server definitions themselves.
 | Key | What it sets |
 | --- | --- |
 | `shell.kind` | The default shell tool: `bash` or `powershell`. |
-| `shell.engine` | `system` or the persistent `brush` engine. |
+| `shell.engine` | `system` (on macOS and Linux the bash Mercury ships, then the system's bash) or the persistent `brush` engine. |
 | `shell.sessions` | The live shell-engine session ceiling, 1–64, 8 by default; the main conversation owns one. |
 | `shell.filterOutput` | Filters a command's output before the model reads it: progress-bar redraws collapse to their last line, package-manager install chatter is dropped, runs of identical lines fold to one with a count, and a footer names what was left out and the file holding the raw output. Off by default. |
 | `turns.loopGuard` | Allows the loop guard to end a turn after a repeated cycle is detected twice; off by default. |

@@ -317,7 +317,15 @@ section('§6 the shape: one rule in the owner, every road reads it')
   check('the DeepSeek, Meta, Zen, MiniMax, Cohere, OrcaRouter, Groq, Melious, Cerebras, Fireworks, Qwen and GPT pins, the carrier rows, and the first-party table with the capability rung (one shared return) resolve through the one stated-output helper: its definition and fourteen call sites', (edge.match(/statedOutputTokens\(/g) ?? []).length === 15 && edge.includes('return statedOutputTokens(deepseekOut)') && edge.includes('return statedOutputTokens(orcarouterOut)') && edge.includes('return statedOutputTokens(meliousOut)') && edge.includes('return statedOutputTokens(qwenOut)') && edge.includes('return statedOutputTokens(metaOut)') && edge.includes('return statedOutputTokens(zenOut)') && edge.includes('return statedOutputTokens(minimaxOut)') && edge.includes('return statedOutputTokens(cohereOut)') && edge.includes('return statedOutputTokens(groqOut)') && edge.includes('return statedOutputTokens(cerebrasOut)') && edge.includes('return statedOutputTokens(fireworksOut)') && edge.includes('return statedOutputTokens(gptPinOut)') && edge.includes('return statedOutputTokens(statedOut)') && edge.includes('return statedOutputTokens(upperLimit)'), String((edge.match(/statedOutputTokens\(/g) ?? []).length))
   check('the fallback pair for an unstated id is unchanged (32,000 / 64,000)', edge.includes('const MAX_OUTPUT_TOKENS_DEFAULT = 32_000') && edge.includes('const MAX_OUTPUT_TOKENS_UPPER_LIMIT = 64_000'))
   const core = src('src/services/providers/anthropic/streamCore.ts')
-  check('the env door still validates MERCURY_MAX_OUTPUT_TOKENS against the default and the upper limit', core.includes("'MERCURY_MAX_OUTPUT_TOKENS',\n    process.env.MERCURY_MAX_OUTPUT_TOKENS,\n    maxOutputTokens.default,\n    maxOutputTokens.upperLimit,"))
+  const ceilingUnder = (value: string): number => {
+    const held = process.env.MERCURY_MAX_OUTPUT_TOKENS
+    process.env.MERCURY_MAX_OUTPUT_TOKENS = value
+    const got = getMaxOutputTokensForModel('claude-opus-5-5')
+    if (held === undefined) delete process.env.MERCURY_MAX_OUTPUT_TOKENS
+    else process.env.MERCURY_MAX_OUTPUT_TOKENS = held
+    return got
+  }
+  check('the env door still validates MERCURY_MAX_OUTPUT_TOKENS against the default and the upper limit', ceilingUnder('500000') === pair('claude-opus-5-5').upperLimit && ceilingUnder('junk') === pair('claude-opus-5-5').default && ceilingUnder('8000') === 8_000, j([ceilingUnder('500000'), ceilingUnder('junk'), ceilingUnder('8000')]))
   check('the budget road still clamps thinking to max_tokens − 1', core.includes('thinkingBudget = Math.min(maxOutputTokens - 1, plannedThinkingBudget)'))
   const compact = src('src/services/compact/compact.ts')
   check('neither compaction lane overrides the output ceiling: the fold rides the session request\'s own', !compact.includes('maxOutputTokensOverride:') && !compact.includes('maxOutputTokens:') && !compact.includes('getModelMaxOutputTokens'))

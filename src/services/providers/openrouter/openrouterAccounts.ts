@@ -1,4 +1,5 @@
 import { createServer, type Server, type ServerResponse } from 'node:http'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -27,12 +28,12 @@ const openrouterRedirectUri = (port: number): string =>
 const OPENROUTER_KEY_LABEL = 'Mercury'
 
 function openrouterAuthPage(env: NodeJS.ProcessEnv = process.env): string {
-  return env['MERCURY_OPENROUTER_AUTH_BASE']?.trim() || OPENROUTER_AUTH_PAGE
+  return flagEnv('MERCURY_OPENROUTER_AUTH_BASE', env)?.trim() || OPENROUTER_AUTH_PAGE
 }
 const LOGIN_EXCHANGE_TIMEOUT_MS = 15_000
 
 export function openrouterApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return env['MERCURY_OPENROUTER_API_BASE']?.trim() || OPENROUTER_API_BASE
+  return flagEnv('MERCURY_OPENROUTER_API_BASE', env)?.trim() || OPENROUTER_API_BASE
 }
 
 

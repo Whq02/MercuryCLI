@@ -49,9 +49,10 @@ export function getFlagSpec(env: string): FlagSpec | undefined {
   return byEnv.get(env)
 }
 
-export function flagEnv(env: string): string | undefined {
+export function flagEnv(env: string, ...from: [] | [Readonly<Record<string, string | undefined>>]): string | undefined {
   const spec = byEnv.get(env)
   if (!spec) throw new Error(`flagEnv: unregistered flag ${env} — add it to FLAG_REGISTRY`)
+  if (from.length > 0) return from[0] === undefined ? undefined : from[0][spec.env]
   return process.env[spec.env]
 }
 
@@ -104,6 +105,10 @@ export function stampFlagOnEnv(
   value: string,
 ): void {
   for (const spelling of flagSpellings(name)) env[spelling] = value
+}
+
+export function stampFlagEnv(name: string, value: string): void {
+  stampFlagOnEnv(process.env, name, value)
 }
 
 export function flagPair(name: string, value: string): Record<string, string> {

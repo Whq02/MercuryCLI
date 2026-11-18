@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
+import { flagEnv } from '../substrate/flagRegistry.js'
 import type { ApiStreamEvent as BetaRawMessageStreamEvent } from '../types/wire.js'
 
 import { addToTotalSessionCost } from '../cost-tracker.js'
@@ -102,7 +103,7 @@ function isCiEnvironment(): boolean {
 }
 
 function recordsFixtures(): boolean {
-  return process.env.MERCURY_VCR_RECORD === '1'
+  return flagEnv('MERCURY_VCR_RECORD') === '1'
 }
 
 async function withFixture<T>(fixtureName: string, input: unknown, produce: () => Promise<T>): Promise<T> {

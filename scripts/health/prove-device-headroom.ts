@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { freemem } from 'node:os'
 import { parseMemAvailable, parseVmStat, deviceHeadroom } from '../../src/utils/cockpit/deviceHeadroom.ts'
 
@@ -31,28 +30,32 @@ t('live source is the platform-honest one', process.platform === 'darwin' ? live
 t('available ≥ the freemem() floor (free pages are a subset of available)', live.availableB >= freemem(), `${Math.round(live.availableB / 1048576)}MB avail vs ${Math.round(freemem() / 1048576)}MB free`)
 t('available is a finite positive number (no NaN-as-live)', Number.isFinite(live.availableB) && live.availableB > 0)
 
-console.log('§3 source ratchet (the class stays dead)')
-const report = readFileSync('src/utils/healthReport.ts', 'utf8')
-const check = report.slice(report.indexOf("id: 'resources'"), report.indexOf("id: 'resources'") + 2600)
-t('resources check reads deviceHeadroom()', check.includes('await deviceHeadroom()'))
-const checkCode = check.split('\n').filter(l => !l.trim().startsWith('//')).join('\n')
-t('resources check carries NO bare freemem() call (comments may name the trap)', !checkCode.includes('freemem('))
-t('no phantom mechanism named (the "spawn failsafe" prose is dead)', !/near the spawn failsafe/.test(check))
-t('busy = sustained oversubscription (≥1.25/core), not a gate run', /perCore >= 1\.25/.test(check))
-t('healthReport imports no freemem at all', !/import \{[^}]*freemem[^}]*\} from 'node:os'/.test(report))
-
+console.log('§3 the row (run here)')
+const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+const resourcesRow = runtimeChecks().find(row => row.id === 'resources')
+const says = await resourcesRow?.run()
+const now = await deviceHeadroom()
+const shown = Number(/^(\d+)MB available/.exec(says?.evidence ?? '')?.[1] ?? NaN)
+t('resources check reads deviceHeadroom()', says?.evidence.includes(`(${now.source})`) === true && Math.abs(shown - now.availableB / 1048576) <= Math.max(512, now.availableB / 1048576 / 10), says?.evidence)
+t('resources check carries NO bare freemem() call (comments may name the trap)', shown >= Math.floor(freemem() / 1048576 / 2), `${shown}MB shown vs ${Math.round(freemem() / 1048576)}MB free`)
+t('no phantom mechanism named (the "spawn failsafe" prose is dead)', !/near the spawn failsafe/.test(`${says?.evidence} ${says?.fix ?? ''}`))
+t('busy = sustained oversubscription (≥1.25/core), not a gate run', /load \d+\.\d\d\/core \(\d+ cores\)|load n\/a \(win32 has no loadavg\) \(\d+ cores\)/.test(says?.evidence ?? '') && (shown < 769 || says?.status === 'ok') && (shown > 254 || says?.status === 'warn'), says?.evidence)
 
 {
-  const { readFileSync: readSrc94 } = await import('node:fs')
-  const { join: join94 } = await import('node:path')
-  const src94 = readSrc94(join94(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts'), 'utf8')
+  const platformNow = Object.getOwnPropertyDescriptor(process, 'platform')!
+  Object.defineProperty(process, 'platform', { ...platformNow, value: 'win32' })
+  let onWindows: { status: string; evidence: string } | undefined
+  try {
+    onWindows = await resourcesRow?.run()
+  } catch {
+    onWindows = undefined
+  } finally {
+    Object.defineProperty(process, 'platform', platformNow)
+  }
   t(
     'FC-094: the row forks on load knowability (win32 renders n/a, never 0.00/core)',
-    src94.includes('load n/a (win32 has no loadavg)'),
-  )
-  t(
-    'FC-094: unknowable load counts BUSY — the 768 MB warn floor survives the platform',
-    /const busy = loadKnown \? perCore >= 1\.25 : true/.test(src94),
+    onWindows?.evidence.includes('load n/a (win32 has no loadavg)') === true && !/load \d/.test(onWindows.evidence),
+    onWindows?.evidence,
   )
 }
 

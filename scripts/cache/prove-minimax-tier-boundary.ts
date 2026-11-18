@@ -61,15 +61,16 @@ try {
     console.log(`[PASS] ${total}: input, cached input, output and routed ledger use ${inputRate}/${cacheRate}/${outputRate}`)
   }
   assert.equal(requests, 3)
-  for (const id of ['grok-4.7', 'zen/grok-4.7']) {
-    assert.deepEqual(rates(id, 199_999), [2, 0.5, 6])
-    assert.deepEqual(rates(id, 200_000), [4, 1, 12])
-    assert.deepEqual(rates(id, 200_001), [4, 1, 12])
-  }
+  assert.deepEqual(rates('grok-4.7', 199_999), [2, 0.5, 6])
+  assert.deepEqual(rates('grok-4.7', 200_000), [4, 1, 12])
+  assert.deepEqual(rates('grok-4.7', 200_001), [4, 1, 12])
+  console.log('[PASS] xAI retains its inclusive expensive-tier boundary')
+  assert.deepEqual(rates('zen/grok-4.7', 200_000), [2, 0.5, 6])
+  assert.deepEqual(rates('zen/grok-4.7', 200_001), [4, 1, 12])
   assert.deepEqual(rates('zen/gpt-6-astra', 271_999), [10, 1, 50])
-  assert.deepEqual(rates('zen/gpt-6-astra', 272_000), [20, 2, 75])
+  assert.deepEqual(rates('zen/gpt-6-astra', 272_000), [10, 1, 50])
   assert.deepEqual(rates('zen/gpt-6-astra', 272_001), [20, 2, 75])
-  console.log('[PASS] xAI and Zen retain their inclusive expensive-tier boundaries')
+  console.log('[PASS] Zen changes tier at more than its threshold, as its page prices it (opencode.ai/docs/zen, read 2026-11-17)')
   console.log('MINIMAX TIER BOUNDARY GREEN')
 } finally {
   server.stop(true)

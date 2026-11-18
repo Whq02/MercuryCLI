@@ -38,13 +38,13 @@ for (const spelling of RETIRED_SPELLINGS) {
   check(`${spelling}: on no file name and in no file`, where.length === 0, where.slice(0, 6).join(' · ') + (where.length > 6 ? ` … (${where.length})` : ''))
 }
 
-console.log('§2 the one owner stands and the three roads read it')
+console.log('§2 the one owner stands and the two roads read it')
 {
   const owner = readFileSync(join(REPO, 'src/utils/permissions/askClock.ts'), 'utf8')
   check('the owner spells the three clocks', owner.includes('FLOW_ASK_LIMIT_MINUTES = 10') && owner.includes('SOVEREIGN_ASK_LIMIT_MINUTES = 3') && owner.includes('CREWMATE_ASK_LIMIT_MINUTES = 10'))
-  for (const road of ['src/hooks/toolPermission/handlers/interactiveHandler.ts', 'src/cli/headless/runnerAsks.ts', 'src/daemon/permissionAsks.ts']) {
+  for (const road of ['src/cli/headless/runnerAsks.ts', 'src/daemon/permissionAsks.ts']) {
     const text = readFileSync(join(REPO, road), 'utf8')
-    check(`${road} reads the owner`, text.includes("from '../../../utils/permissions/askClock.js'") || text.includes("from '../../utils/permissions/askClock.js'") || text.includes("from '../utils/permissions/askClock.js'"))
+    check(`${road} reads the owner`, text.includes("from '../../utils/permissions/askClock.js'") || text.includes("from '../utils/permissions/askClock.js'"))
     check(`${road} spells no clock of its own`, !/\b(?:5|10|3)\s*\*\s*60_000\b/.test(text) && !/\b(?:300_000|600_000|180_000)\b/.test(text))
   }
 }

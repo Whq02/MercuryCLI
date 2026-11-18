@@ -186,12 +186,21 @@ try {
 
   section('§4 the source: an older daemon reads warn with the restart words; the fail arm names sign-in/estate')
   {
-    const health = readFileSync(join(REPO, 'src', 'utils', 'healthReport.ts'), 'utf8')
-    const row = health.slice(health.indexOf("id: 'daemon-sign-ins'"), health.indexOf("id: 'daemon',"))
-    check('the row exists once, ahead of the scheduler-daemon row', row.length > 0 && health.split("id: 'daemon-sign-ins'").length === 2)
-    check('an unanswered verb reads warn and names the restart', /status: 'warn'/.test(row) && /did not answer signIns/.test(row) && /const restart = restartDaemonWords\(binaryName\(\)\)/.test(row))
-    check('the comparison is the one owner\'s (compareSignInViews), never a hand table', row.includes('compareSignInViews(mine, reply.view)') && row.includes('composeSignInView({ refresh: true })'))
-    check('the fail arm carries both lists and a sign-in/estate fix, not a restart', /status: 'fail'/.test(row) && /daemon: \[/.test(row) && /client: \[/.test(row) && /point both at the same home or sign in there/.test(row))
+    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const ids = crewChecks().map(entry => entry.id)
+    check('the row exists once, ahead of the scheduler-daemon row', ids.filter(id => id === 'daemon-sign-ins').length === 1 && ids.indexOf('daemon-sign-ins') + 1 === ids.indexOf('daemon'), ids.join(','))
+    const fsH = await import('node:fs')
+    const rowPlane = fsH.mkdtempSync((await import('node:path')).join((await import('node:os')).tmpdir(), 'health-daemon-row-'))
+    const planeBefore = process.env.MERCURY_DAEMON_DIR
+    process.env.MERCURY_DAEMON_DIR = rowPlane
+    const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
+    fsH.writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '0.0.0-fixture', startedAt: Date.now() }))
+    const { restartDaemonWords } = await import('../../src/daemon/controlSocket.ts')
+    const { binaryName } = await import('../../src/utils/config/derived.ts')
+    const unanswered = await crewChecks().find(entry => entry.id === 'daemon-sign-ins')?.run()
+    if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+    else process.env.MERCURY_DAEMON_DIR = planeBefore
+    check('an unanswered verb reads warn and names the restart', unanswered?.status === 'warn' && /did not answer signIns/.test(unanswered.evidence) && unanswered.fix?.startsWith(restartDaemonWords(binaryName())) === true, JSON.stringify(unanswered))
   }
 
   section('§5 a catalogue-timing gap (one side has not fetched) is NOT a disagreement')

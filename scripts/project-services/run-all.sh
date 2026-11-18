@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: src/Task* src/Tool* src/constants/subagentDoctrine*
 # gate-watch: src/ink/** src/services/agentResults/** src/services/changeTransaction/**
 # gate-watch: src/services/projectServices/serviceManager* src/tools/ServiceTool/**
@@ -33,9 +33,6 @@ for proof in "$here"/prove-*.ts; do
   echo ">>> $(basename "$proof")"
   __t=$SECONDS; __rc=0; "$bun" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
 done
-echo
-echo ">>> render-project-services-cards.tsx (shared card grammar, real PTY grid)"
-__t=$SECONDS; __rc=0; UI_RENDER=1 "$bun" run "$here"/render-project-services-cards.tsx || { __rc=$?; fail=1; }; prover_mark "$here"/render-project-services-cards.tsx "$__t" "$__rc"
 echo
 echo ">>> gen-completions --check (shell completions track the live CLI)"
 __t=$SECONDS; __rc=0; "$bun" run "$here"/gen-completions.ts --check || { __rc=$?; fail=1; }; prover_mark "$here"/gen-completions.ts "$__t" "$__rc"

@@ -2,6 +2,7 @@
 import { appendFile, readFile, stat } from 'fs/promises'
 import { closeSync, openSync } from 'fs'
 import { join } from 'path'
+import { flagEnv } from './substrate/flagRegistry.js'
 import { getProjectRoot, getSessionId } from './bootstrap/state.js'
 import { durableAtomicPublish } from './substrate/durablePublish.js'
 import { CHIP_PATTERN } from './utils/inputRange.js'
@@ -52,7 +53,7 @@ function historyFilePath(): string {
 }
 
 function historyDisabled(): boolean {
-  return isEnvTruthy(process.env.MERCURY_SKIP_PROMPT_HISTORY)
+  return isEnvTruthy(flagEnv('MERCURY_SKIP_PROMPT_HISTORY'))
 }
 
 

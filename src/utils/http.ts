@@ -1,12 +1,13 @@
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { OAUTH_BETA_HEADER } from '../constants/oauth.js'
 import { anthropicApiKeyHeaders, getAnthropicApiKey, getClaudeAIOAuthTokens, isClaudeAISubscriber } from './auth.js'
 import { getWorkload } from './workloadContext.js'
 
 const hostSegments = (): string[] =>
   [
-    process.env.MERCURY_ENTRYPOINT,
-    process.env.MERCURY_HOST_VERSION && `host/${process.env.MERCURY_HOST_VERSION}`,
-    process.env.MERCURY_HOST_CLIENT_APP && `host-app/${process.env.MERCURY_HOST_CLIENT_APP}`,
+    flagEnv('MERCURY_ENTRYPOINT'),
+    flagEnv('MERCURY_HOST_VERSION') && `host/${flagEnv('MERCURY_HOST_VERSION')}`,
+    flagEnv('MERCURY_HOST_CLIENT_APP') && `host-app/${flagEnv('MERCURY_HOST_CLIENT_APP')}`,
   ].filter((segment): segment is string => Boolean(segment))
 
 function productIdentity(segments: string[]): string {

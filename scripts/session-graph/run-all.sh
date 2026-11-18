@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: scripts/session-graph/**
 # gate-watch: src/services/attention/** src/services/attention/relations.ts
 # gate-watch: src/services/workbench/** src/services/acp/** src/input-core/composer-document.ts
@@ -30,7 +30,9 @@ echo "############################################################"
 echo "# session-graph — the living-crew lane"
 echo "############################################################"
 
+claimed=$(cd "$here/../.." && cat scripts/session-graph-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
 for proof in "$here"/prove-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
   [ -e "$proof" ] || continue
   echo
   echo "── $(basename "$proof") ──"
@@ -38,19 +40,12 @@ for proof in "$here"/prove-*.ts; do
 done
 
 for repro in "$here"/repro-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$repro")" && continue
   [ -e "$repro" ] || continue
   echo
   echo "── $(basename "$repro") ──"
   __t=$SECONDS; __rc=0; (cd "$repo" && "$bun" run "$repro") || { __rc=$?; fail=1; }; prover_mark "$repro" "$__t" "$__rc"
 done
-
-if [ "${CONSTELLATION_CLOSE_ARC:-0}" = "1" ]; then
-  for runner in "$here"/run-journeys.ts "$here"/run-sensitivity.ts; do
-    echo
-    echo "── $(basename "$runner") (close-arc lane) ──"
-    __t=$SECONDS; __rc=0; (cd "$repo" && "$bun" run "$runner") || { __rc=$?; fail=1; }; prover_mark "$runner" "$__t" "$__rc"
-  done
-fi
 
 echo
 echo "############################################################"

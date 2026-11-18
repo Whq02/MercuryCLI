@@ -36,7 +36,6 @@ def main() -> None:
     tail = b""
 
     def pump(deadline: float, watch: bytes | None = None):
-        """Read until deadline or watch-bytes seen; returns (t_seen, reads, nbytes)."""
         nonlocal first_paint, alt_screen, big_frame, clears_total, clears_post_ready, tail
         seen = None
         reads = 0

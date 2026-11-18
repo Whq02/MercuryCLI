@@ -376,7 +376,7 @@ export function encodeFixtureTranscript(
 }
 
 export function writeSyntheticSession(
-  variant: 'short' | 'long' | 'tall' | 'content' | 'link' | 'tools' | 'opening-text' | 'expand' | 'errors' | 'denials' | 'model-noise' | 'channel' | 'thinking' | 'gpt-thinking' | 'gpt-record' | 'lifecycle' | 'structure' | 'changeset' | 'stream-fault' | 'stillpoint' | 'shell-interleave' | 'markdown-blocks' = 'short',
+  variant: 'short' | 'long' | 'tall' | 'content' | 'link' | 'tools' | 'opening-text' | 'expand' | 'errors' | 'denials' | 'model-noise' | 'thinking' | 'gpt-thinking' | 'gpt-record' | 'lifecycle' | 'structure' | 'changeset' | 'stream-fault' | 'stillpoint' | 'shell-interleave' | 'markdown-blocks' = 'short',
   sid: string = SID,
 ): void {
   purgeFixtureDraft(sid)
@@ -868,26 +868,6 @@ export function writeSyntheticSession(
             usage: { input_tokens: 1, output_tokens: 1 } },
           timestamp: '2026-06-19T12:02:06.000Z' }),
       ]
-    : variant === 'channel'
-    ? [
-        base({ parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-000000000001',
-          message: { role: 'user', content: 'hold the room open while I test the bus' },
-          timestamp: '2026-06-19T12:00:01.000Z' }),
-        base({ parentUuid: '00000000-0000-4000-8000-000000000001', type: 'assistant',
-          uuid: '00000000-0000-4000-8000-000000000002', requestId: 'req_synth_ch1',
-          message: { id: 'msg_synth_ch1', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
-            content: [{ type: 'text', text: 'Standing by — the room is open.' }], stop_reason: 'end_turn', stop_sequence: null,
-            usage: { input_tokens: 1, output_tokens: 1 } },
-          timestamp: '2026-06-19T12:00:02.000Z' }),
-        base({ parentUuid: '00000000-0000-4000-8000-000000000002', type: 'user',
-          uuid: '00000000-0000-4000-8000-000000000003',
-          message: { role: 'user', content: '<channel source="local" user="kim">\nship the panel fix once the gate is green\n</channel>' },
-          timestamp: '2026-06-19T12:00:03.000Z' }),
-        base({ parentUuid: '00000000-0000-4000-8000-000000000003', type: 'user',
-          uuid: '00000000-0000-4000-8000-000000000004',
-          message: { role: 'user', content: '<channel source="ext:slack-channel:slack">\ndeploy window opens at 15:00 UTC\n</channel>' },
-          timestamp: '2026-06-19T12:00:04.000Z' }),
-      ]
     : variant === 'model-noise'
     ? [
         base({ parentUuid: null, type: 'user', isMeta: true,
@@ -1221,10 +1201,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
   }
   if (name === 'thinking-row') {
     writeSyntheticSession('thinking')
-    return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
-  }
-  if (name === 'channel-message') {
-    writeSyntheticSession('channel')
     return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
   }
   if (name === 'model-switch-home') {

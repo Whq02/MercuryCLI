@@ -244,14 +244,20 @@ section('§3 WIRING (IP-01/10/12/16)')
     'resolution is bounded — no spawns in the owner (IP-16)',
     !/(?<![.\w])(spawn|spawnSync|execFile|exec)\(/.test(owner),
   )
-  const report = src('src/utils/healthReport.ts')
+  const { healthContext } = await import('../../src/utils/healthReport.ts')
+  const { identityChecks } = await import('../../src/utils/health/sections/identity.ts')
+  const provenance = await import('../../src/services/privateChannel/installProvenance.ts')
+  const provenanceRow = identityChecks(await healthContext()).find(row => row.id === 'install-provenance')
+  const provenanceSays = await provenanceRow?.run()
+  const snapshot = provenance.resolveInstallProvenance()
   check(
     'the install-provenance row reads the ONE snapshot, never a hand-rolled kind (IP-01)',
-    report.slice(report.indexOf("id: 'install-provenance'"), report.indexOf("id: 'install-provenance'") + 4000).includes('resolveInstallProvenance') && !report.includes("return 'source-build'"),
+    provenanceSays?.evidence.startsWith(provenance.provenanceLine(snapshot)) === true && (snapshot.kind === 'unknown' || snapshot.disagreements.length > 0 ? provenanceSays.status === 'warn' && provenanceSays.fix === provenance.provenanceGuidance(snapshot) : provenanceSays.status === 'ok' && provenanceSays.evidence.endsWith(provenance.provenanceGuidance(snapshot))),
+    provenanceSays?.evidence,
   )
   check(
     "/health carries the install-provenance row consuming the same snapshot (IP-10)",
-    src('src/utils/healthReport.ts').includes("id: 'install-provenance'"),
+    provenanceRow?.label === 'Install provenance',
   )
   check(
     'IP-14 rides the update verb estate (structural cite)',

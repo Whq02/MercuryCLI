@@ -62,7 +62,6 @@ function rounds(n: number, out = 'ok'): M[] {
   for (let i = 0; i < n; i++) a.push(...mkRound(i, out))
   return a
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const call = (msgs: M[], opts?: any) => computeVerbatimRecentTail(msgs as any, opts)
 
 console.log('============================================================')

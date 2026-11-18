@@ -4,7 +4,7 @@ import { isAbsolute } from 'node:path'
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import { remoteSearchRoot } from '../../services/remoteFiles/target.js'
 import { checkReadPermissionForTool, checkUncPathPermission } from '../../utils/permissions/filesystem.js'
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'

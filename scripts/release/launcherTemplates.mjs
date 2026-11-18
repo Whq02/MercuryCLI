@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs'
 
-
 export function parseEnginesNode(enginesNode) {
   const m = /^>=(\d+)\.(\d+)\.(\d+) <(\d+)$/.exec(enginesNode ?? '')
   if (!m) {
@@ -17,7 +16,6 @@ export function parseEnginesNode(enginesNode) {
   }
   return { major, minorFloor, patchFloor, range: enginesNode, label: `Node ${major} LTS` }
 }
-
 
 export function verbSurfaceFromSource(mainSource, cliSource) {
   const firstWord = spec => spec.trim().split(/[\s<[]/)[0]

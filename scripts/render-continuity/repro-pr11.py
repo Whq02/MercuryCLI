@@ -31,8 +31,6 @@ def log(s):
 
 
 def run_splash(cols, rows, hold_s=2.2, resize=None):
-    """Run the splash at cols x rows, optionally resize mid-hold, kill, and
-    return the raw byte stream."""
     pid, fd = pty.fork()
     if pid == 0:
         env = dict(os.environ)
@@ -76,7 +74,6 @@ def run_splash(cols, rows, hold_s=2.2, resize=None):
 
 
 def measure(byts, cols, rows):
-    """Replay through pyte; return (first, last, above, below, display)."""
     screen = pyte.Screen(cols, rows)
     stream = pyte.Stream(screen)
     stream.feed(byts.decode('utf-8', errors='replace'))

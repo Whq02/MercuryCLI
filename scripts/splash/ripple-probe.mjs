@@ -24,7 +24,7 @@ const capture = (chunk, enc, cb) => {
     lastWriteAfterEnter = Date.now()
   }
   if (typeof done === 'function') {
-    if ((mode === 'stall' && enterAt !== null) || mode === 'stall0') { stalledWrites++  }
+    if ((mode === 'stall' && enterAt !== null) || mode === 'stall0') { stalledWrites++ }
     else if (mode === 'slow' && enterAt !== null) setTimeout(done, drainMs)
     else done()
   }

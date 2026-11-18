@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { createHash, randomInt } from 'node:crypto'
 import { mkdirSync, readFileSync, statSync } from 'node:fs'
@@ -62,13 +63,13 @@ import { binaryName } from './config.js'
 export function isAnthropicAuthEnabled(): boolean {
   if (isBareMode()) return false
 
-  if (process.env.MERCURY_API_UNIX_SOCKET) {
-    return Boolean(process.env.MERCURY_OAUTH_TOKEN)
+  if (flagEnv('MERCURY_API_UNIX_SOCKET')) {
+    return Boolean(flagEnv('MERCURY_OAUTH_TOKEN'))
   }
 
   if (process.env.ANTHROPIC_AUTH_TOKEN) return false
   if (getInitialSettings().credentials?.keyCommand || getInitialSettings().credentials?.keyCommands?.anthropic) return false
-  if (process.env.MERCURY_API_KEY_FILE_DESCRIPTOR) return false
+  if (flagEnv('MERCURY_API_KEY_FILE_DESCRIPTOR')) return false
   try {
     const { source } = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true })
     if (source === 'ANTHROPIC_API_KEY' || source === 'credentials.keyCommand') return false
@@ -120,7 +121,7 @@ export function getAuthTokenSource(): { source: AuthTokenSource; hasToken: boole
     return getSettingsForSource('flagSettings')?.credentials?.keyCommand || getSettingsForSource('flagSettings')?.credentials?.keyCommands?.anthropic ? wrap('credentials.keyCommand') : wrap('none')
   }
   if (process.env.ANTHROPIC_AUTH_TOKEN) return wrap('ANTHROPIC_AUTH_TOKEN')
-  if (process.env.MERCURY_OAUTH_TOKEN) return wrap('MERCURY_OAUTH_TOKEN')
+  if (flagEnv('MERCURY_OAUTH_TOKEN')) return wrap('MERCURY_OAUTH_TOKEN')
   if (getOAuthTokenFromFileDescriptor() !== null) {
     return wrap('MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR')
   }
@@ -203,8 +204,8 @@ export function getAnthropicApiKeyWithSource(opts?: {
     if (fromFd !== null) return { key: fromFd, source: 'ANTHROPIC_API_KEY' }
     const keyVar = process.env.ANTHROPIC_API_KEY
     const hasTokenVar = Boolean(
-      process.env.MERCURY_OAUTH_TOKEN ||
-        process.env.MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR ||
+      flagEnv('MERCURY_OAUTH_TOKEN') ||
+        flagEnv('MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR') ||
         process.env.ANTHROPIC_AUTH_TOKEN,
     )
     if (!keyVar && !hasTokenVar) {
@@ -290,7 +291,7 @@ const DEFAULT_HELPER_TTL_MS = 5 * 60 * 1000
 const HELPER_FAILURE_BACKOFF_MS = 30_000
 
 function calculateApiKeyHelperTTL(): number {
-  const raw = process.env.MERCURY_API_KEY_HELPER_TTL_MS
+  const raw = flagEnv('MERCURY_API_KEY_HELPER_TTL_MS')
   if (!raw) return DEFAULT_HELPER_TTL_MS
   const value = parseInt(raw, 10)
   if (Number.isNaN(value) || value < 0) {
@@ -603,8 +604,9 @@ export const getClaudeAIOAuthTokens = memoize((): OAuthTokens | null => {
 
 function readStoredOAuthTokens(): OAuthTokens | null {
   if (isBareMode()) return null
-  if (process.env.MERCURY_OAUTH_TOKEN) {
-    return synthesizedEnvToken(process.env.MERCURY_OAUTH_TOKEN)
+  const envToken = flagEnv('MERCURY_OAUTH_TOKEN')
+  if (envToken) {
+    return synthesizedEnvToken(envToken)
   }
   const fromFd = getOAuthTokenFromFileDescriptor()
   if (fromFd !== null) return synthesizedEnvToken(fromFd)
@@ -619,8 +621,9 @@ function readStoredOAuthTokens(): OAuthTokens | null {
 
 export async function getClaudeAIOAuthTokensAsync(): Promise<OAuthTokens | null> {
   if (isBareMode()) return null
-  if (process.env.MERCURY_OAUTH_TOKEN) {
-    return synthesizedEnvToken(process.env.MERCURY_OAUTH_TOKEN)
+  const envToken = flagEnv('MERCURY_OAUTH_TOKEN')
+  if (envToken) {
+    return synthesizedEnvToken(envToken)
   }
   const fromFd = getOAuthTokenFromFileDescriptor()
   if (fromFd !== null) return synthesizedEnvToken(fromFd)
@@ -1038,7 +1041,7 @@ function anthropicSignInEmailLazily(): string | undefined {
 type OrgValidationResult = { valid: true } | { valid: false; message: string }
 
 export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
-  if (process.env.MERCURY_API_UNIX_SOCKET) return { valid: true }
+  if (flagEnv('MERCURY_API_UNIX_SOCKET')) return { valid: true }
   if (!isAnthropicAuthEnabled()) return { valid: true }
   const requiredOrg = getSettingsForSource('policySettings')?.credentials?.organisation
   if (!requiredOrg) return { valid: true }
@@ -1061,9 +1064,9 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
   }
   if (actualOrg === requiredOrg) return { valid: true }
 
-  const envTokenVar = process.env.MERCURY_OAUTH_TOKEN
+  const envTokenVar = flagEnv('MERCURY_OAUTH_TOKEN')
     ? 'MERCURY_OAUTH_TOKEN'
-    : process.env.MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR
+    : flagEnv('MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR')
       ? 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR'
       : null
   if (envTokenVar !== null) {

@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -12,7 +11,6 @@ using UnityEngine;
 
 namespace Mercury.UnityBridge
 {
-    /** A typed wire refusal — handlers throw it, the pump answers it. */
     internal sealed class BridgeRefusal : Exception
     {
         public readonly string Code;
@@ -56,7 +54,7 @@ namespace Mercury.UnityBridge
 
         static BridgeServer()
         {
-            BridgeSettings.ProjectRoot(); // cache-safe on the main thread
+            BridgeSettings.ProjectRoot();
             ConsoleRing.Arm();
             TestsHandler.Rearm();
             RefreshSnapshot();
@@ -65,7 +63,6 @@ namespace Mercury.UnityBridge
             AppDomain.CurrentDomain.DomainUnload += (sender, e) => Stop();
             Start();
         }
-
 
         private static void Start()
         {
@@ -108,7 +105,7 @@ namespace Mercury.UnityBridge
                 }
                 catch
                 {
-                    return; // listener stopped (domain unload / editor quit)
+                    return;
                 }
                 tcp.NoDelay = true;
                 tcp.ReceiveTimeout = 10_000;
@@ -117,7 +114,6 @@ namespace Mercury.UnityBridge
                 reader.Start();
             }
         }
-
 
         private static void ReadLoop(Client client)
         {
@@ -142,7 +138,7 @@ namespace Mercury.UnityBridge
                         line.Append(c);
                         if (line.Length > MaxLineBytes)
                         {
-                            client.Tcp.Close(); // an oversized frame is a dead peer
+                            client.Tcp.Close();
                             return;
                         }
                     }
@@ -166,8 +162,8 @@ namespace Mercury.UnityBridge
             }
             if (frame == null)
             {
-                if (!client.Authed) client.Tcp.Close(); // garbage hello ⇒ not our client
-                return; // one bad frame after auth never kills the stream
+                if (!client.Authed) client.Tcp.Close();
+                return;
             }
             if (!client.Authed)
             {
@@ -216,7 +212,7 @@ namespace Mercury.UnityBridge
                 return;
             }
             client.Authed = true;
-            client.Tcp.ReceiveTimeout = 0; // authed: the deadline comes off
+            client.Tcp.ReceiveTimeout = 0;
             lock (ClientGate)
             {
                 if (_client != null && _client != client)
@@ -231,7 +227,6 @@ namespace Mercury.UnityBridge
                 { "result", _helloSnapshot },
             });
         }
-
 
         private static void Pump()
         {
@@ -307,7 +302,6 @@ namespace Mercury.UnityBridge
             };
         }
 
-        /** Event frames ride the same connection (main thread callers). */
         public static void EmitEvent(string name, Dictionary<string, object> data)
         {
             Client client;
@@ -315,7 +309,6 @@ namespace Mercury.UnityBridge
             if (client == null || !client.Authed) return;
             Send(client, new Dictionary<string, object> { { "event", name }, { "data", data } });
         }
-
 
         private static Dictionary<string, object> ErrorFrame(object id, string code, string message, string hint = null)
         {

@@ -12,7 +12,7 @@ import { MERCURY_DAEMON_PROTO } from './protocol.js'
 import { DaemonBreaker } from '../utils/daemonBreaker.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
-import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
+import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
 import { getRunTimeoutMs, scrubDaemonRoleEnv } from './headlessRun.js'
@@ -1704,7 +1704,7 @@ function unchangedSuccessorDetail(ageSeconds: number): string {
 function spawnSuccessorDaemon(): number | undefined {
   try {
     const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }
-    delete env.MERCURY_DAEMON_HANDOVER_FROM
+    for (const spelling of flagSpellings('MERCURY_DAEMON_HANDOVER_FROM')) delete env[spelling]
     stampSpawnReceipt(env, ['MERCURY_DAEMON_SUCCESSOR_OF'])
     if (hasStoredOAuthToken()) {
       const stripped: string[] = []

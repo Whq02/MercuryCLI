@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import ts from 'typescript'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -90,16 +90,37 @@ function programFor(files: string[]): ts.Program {
   return ts.createProgram(files, { ...parsed.options, noEmit: true, skipLibCheck: true })
 }
 
+function composerFiles(program: ts.Program, entry: ts.SourceFile): ts.SourceFile[] {
+  const checker = program.getTypeChecker()
+  const imported = (file: ts.SourceFile): ts.SourceFile[] => {
+    const out: ts.SourceFile[] = []
+    const visit = (node: ts.Node): void => {
+      const spec = ts.isImportDeclaration(node) ? node.moduleSpecifier : ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword ? node.arguments[0] : undefined
+      const target = spec && ts.isStringLiteralLike(spec) ? checker.getSymbolAtLocation(spec)?.valueDeclaration : undefined
+      if (target && ts.isSourceFile(target) && !out.includes(target)) out.push(target)
+      ts.forEachChild(node, visit)
+    }
+    visit(file)
+    return out
+  }
+  const list = imported(entry).find(file => {
+    const module = checker.getSymbolAtLocation(file)
+    return module !== undefined && checker.getExportsOfModule(module).some(symbol => symbol.name === 'HEALTH_SECTIONS')
+  })
+  return list ? [entry, list, ...imported(list).filter(file => file !== entry)] : [entry]
+}
+
 console.log('the health composer: every interpolated value is a string or a number')
 const started = Date.now()
 const program = programFor([TARGET])
 const source = program.getSourceFile(TARGET)
 if (!source) throw new Error(`source not loaded: ${TARGET}`)
-const findings = dishonestSpans(program, source)
+const composer = composerFiles(program, source)
+const findings = composer.flatMap(file => dishonestSpans(program, file).map(f => ({ ...f, file: relative(REPO, file.fileName) })))
 check(
-  `src/utils/healthReport.ts interpolates no object and joins no object array (${Date.now() - started}ms)`,
-  findings.length === 0,
-  findings.map(f => `L${f.line} ${f.kind} ${f.text} : ${f.type}`).join(' · '),
+  `src/utils/healthReport.ts and the ${composer.length - 1} modules of the row list it imports interpolate no object and join no object array (${Date.now() - started}ms)`,
+  composer.length > 2 && findings.length === 0,
+  composer.length > 2 ? findings.map(f => `${f.file}:${f.line} ${f.kind} ${f.text} : ${f.type}`).join(' · ') : 'the row list was not reached: src/utils/healthReport.ts imports the module that exports HEALTH_SECTIONS, and this proof follows that import',
 )
 
 console.log('poison: a source interpolating an object and joining an object array trips the walker')
@@ -127,12 +148,26 @@ check('the honest line (names joined, a string, a boolean, undefined) is clean',
 rmSync(scratch, { recursive: true, force: true })
 
 {
-  const src95 = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
+  const globals = globalThis as Record<string, unknown>
+  if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
+  const probeTargets = process.env.MERCURY_LOCAL_PROBE_TARGETS
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  const { enableConfigs } = await import('../../src/utils/config.ts')
+  enableConfigs()
+  const { runHealthReport } = await import('../../src/utils/healthReport.ts')
+  const cert = await runHealthReport({ depth: 'fast' })
+  if (probeTargets === undefined) delete process.env.MERCURY_LOCAL_PROBE_TARGETS
+  else process.env.MERCURY_LOCAL_PROBE_TARGETS = probeTargets
+  const printed = cert.sections.flatMap(entry => entry.checks)
+  const objects = printed.filter(row => /\[object [A-Za-z]+\]/.test(`${row.evidence} ${row.detail ?? ''} ${row.fix ?? ''}`)).map(row => row.id)
+  check(`no row of a fast certificate prints an object as [object …] (${printed.length} rows run here)`, printed.length > 100 && objects.length === 0, objects.join(', '))
+  const slots = printed.find(row => row.id === 'provider-slots')
   check(
     "FC-095: the router row's engine word is 'configured' (never LIVE without a probe)",
-    src95.includes("p.available ? 'configured' : (p.reason ?? 'unavailable')") && src95.includes('anthropic configured ('),
+    slots?.evidence.startsWith('anthropic configured (') === true,
+    slots?.evidence,
   )
-  check('FC-095: the LIVE spelling is out of the router row', !src95.includes("p.available ? 'LIVE'") && !src95.includes('anthropic LIVE ('))
+  check('FC-095: the LIVE spelling is out of the router row', slots !== undefined && !/\bLIVE\b/.test(slots.evidence), slots?.evidence)
 }
 
 console.log(failures === 0 ? 'HEALTH EVIDENCE STRING LAWS HOLD' : `${failures} FAILURE(S)`)

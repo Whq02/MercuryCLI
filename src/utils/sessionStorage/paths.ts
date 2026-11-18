@@ -2,6 +2,7 @@ import { dirname, join } from 'path'
 import { readFile, readdir } from 'fs/promises'
 import type { Dirent } from 'fs'
 import type { UUID } from 'crypto'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getOriginalCwd, getSessionId, getSessionProjectDir } from '../../bootstrap/state.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { EPHEMERAL_STORAGE_PROGRESS, storageRowPolicy } from '../../rows/storage.js'
@@ -189,7 +190,7 @@ export function getNodeEnv(): string {
 }
 
 export function getEntrypoint(): string | undefined {
-  return process.env.MERCURY_ENTRYPOINT
+  return flagEnv('MERCURY_ENTRYPOINT')
 }
 
 export function isCustomTitleEnabled(): boolean {

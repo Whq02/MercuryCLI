@@ -95,7 +95,7 @@ function resolvePin(): TtlChoice | null {
 
 function resolveClass(): CacheClockClass {
   const e = process.env
-  const worker = (e.MERCURY_DAEMON_PERMISSION_MODE ?? '') !== ''
+  const worker = (flagEnv('MERCURY_DAEMON_PERMISSION_MODE', e) ?? '') !== ''
   if (worker) return 'worker'
   return getIsNonInteractiveSession() ? 'headless' : 'interactive'
 }

@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, openSync, closeSync, writeSync, unlinkSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
@@ -57,7 +58,7 @@ export function writePreferredXaiSource(source: NonNullable<AuthFile['preferredS
   writeAuth({ ...readAuth(), preferredSource: source })
 }
 function xaiAuthBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env['MERCURY_XAI_AUTH_BASE']?.trim() || 'https://auth.x.ai').replace(/\/+$/, '')
+  return (flagEnv('MERCURY_XAI_AUTH_BASE', env)?.trim() || 'https://auth.x.ai').replace(/\/+$/, '')
 }
 function jwt(token: string): Record<string, unknown> {
   try {

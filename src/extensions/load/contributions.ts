@@ -26,7 +26,6 @@ type ResolvedHook = {
 }
 type ResolvedServer = { key: string; runtimeName: string; config: ManifestServer; transport: 'stdio' | 'http' | 'sse' }
 type ResolvedLanguage = { key: string; runtimeName: string; config: NonNullable<ExtensionManifest['contributes']>['language'] extends Record<string, infer T> | undefined ? T : never }
-type ResolvedChannel = { server: string; runtimeName: string; label: string }
 type ResolvedKeybinding = { chord: string; target: string; taken: boolean }
 
 export type Resolution = {
@@ -36,7 +35,6 @@ export type Resolution = {
   hooks: ResolvedHook[]
   servers: ResolvedServer[]
   language: ResolvedLanguage[]
-  channels: ResolvedChannel[]
   keybindings: ResolvedKeybinding[]
   defects: string[]
   notes: string[]
@@ -205,7 +203,6 @@ export function resolveContributions(
     hooks: [],
     servers: [],
     language: [],
-    channels: [],
     keybindings: [],
     defects,
     notes,
@@ -379,13 +376,6 @@ export function resolveContributions(
       continue
     }
     result.language.push({ key, runtimeName: serverRuntimeName(name, key), config })
-  }
-  for (const channel of c.channels ?? []) {
-    if (!(c.servers ?? {})[channel.server]) {
-      defects.push(`channel "${channel.label}": names no server "${channel.server}"`)
-      continue
-    }
-    result.channels.push({ server: channel.server, runtimeName: serverRuntimeName(name, channel.server), label: channel.label })
   }
 
   for (const binary of needs.binaries ?? []) {

@@ -89,10 +89,10 @@ section('§3 no product string names the judge: every string, template part and 
 
 section('§4 the decision band names no judge stage')
 {
-  const trace = sources.get('src/utils/permissions/decision/trace.ts') ?? ''
+  const stageIds = sources.get('src/types/permissions.ts') ?? ''
   const wrapper = sources.get('src/utils/permissions/decision/wrapper.ts') ?? ''
   for (const word of STAGE_WORDS) {
-    check(`the trace carries no ${word} stage`, !trace.includes(word), 'trace.ts')
+    check(`the stage ids carry no ${word} stage`, stageIds.includes('export type WrapperStageId =') && !stageIds.includes(word), 'src/types/permissions.ts')
     check(`the wrapper records no ${word} stage`, !wrapper.includes(word), 'wrapper.ts')
   }
   const judgeFiles = [...sources].filter(([rel]) => /src\/utils\/permissions\/(flowClass|class)ifier|flowBlockReview|classifierApprovals|bashClass/.test(rel)).map(([rel]) => rel)

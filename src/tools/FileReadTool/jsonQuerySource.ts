@@ -7,7 +7,7 @@ import { fileReferenceCandidates } from '../../services/resources/referencePaths
 import { getCwd } from '../../utils/cwd.js'
 import { expandPath } from '../../utils/path.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import type { ReadQueryRequest } from './readQuery.js'
 import { parseRichFormatTarget, renderArchiveTarget } from './readRichFormats.js'
 

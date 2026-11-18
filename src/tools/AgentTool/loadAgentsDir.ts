@@ -1,5 +1,6 @@
 
 import { z } from 'zod'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { agentToolRuleProblem } from './agentToolRules.js'
 import { decodeAgentDocument, validateAgentIdentifier } from '../../services/agents/codec.js'
 import { revisionDigest } from '../../services/agents/contracts.js'
@@ -454,7 +455,7 @@ async function loadAgentDefinitionsUncached(
   cwd: string,
 ): Promise<AgentDefinitionsResult> {
   try {
-    if (isEnvTruthy(process.env.MERCURY_BARE)) {
+    if (isEnvTruthy(flagEnv('MERCURY_BARE'))) {
       const builtIns = getBuiltInAgents()
       return { activeAgents: builtIns, allAgents: builtIns }
     }

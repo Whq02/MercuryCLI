@@ -1,3 +1,4 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { MODEL_ALIASES } from '../../utils/model/aliases.js'
 import { MISTRAL_HOSTED_DEEPSEEK_IDS } from './mistral/mistralPins.js'
 
@@ -179,7 +180,7 @@ export function recognizeModelId(
   }
   if (lowered.includes('/')) return { kind: 'carrier-shaped' }
   for (const pin of FIRST_PARTY_MODEL_ENV_PINS) {
-    const value = env[pin]?.trim().replace(ANNOTATION_RE, '').toLowerCase()
+    const value = flagEnv(pin, env)?.trim().replace(ANNOTATION_RE, '').toLowerCase()
     if (value !== undefined && value !== '' && value === lowered) {
       return { kind: 'first-party', why: 'env-pin', envPin: pin }
     }

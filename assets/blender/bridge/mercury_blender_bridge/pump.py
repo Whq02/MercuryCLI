@@ -1,19 +1,3 @@
-"""The main-thread pump — ONE persistent bpy.app.timers callback (Mercury
-Blender bridge).
-
-THE MAIN-THREAD LAW made mechanical: the socket thread queues (op, args,
-id, conn) rows; THIS timer drains them on the main thread, runs the bpy
-handler, and hands the answer back through the server's outbox door. The
-registration is persistent=True — "Don't remove timer when a new file is
-loaded" (bpy_app_timers.cc) — which is the no-reload law's other half: the
-pump, like the connection, survives blend_open.
-
-A long handler (python_run by contract, a blocking op) delays the NEXT
-tick, never breaks it: the timer re-arms by returning the interval. Pings
-are answered on the socket thread, so a busy pump reads as busy — never as
-dead.
-"""
-
 import bpy
 
 from . import ops, server, state

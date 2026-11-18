@@ -70,9 +70,10 @@ section('§6 the health seam and the health row')
 {
   const record = row({ includeEnv: false })
   check('collectReadiness({ includeEnv: false }) carries the same row', record !== undefined && record.id === 'tool:computer' && record.state === 'configured', JSON.stringify(record))
-  const health = sourceText('src/utils/healthReport.ts')
-  check("healthReport.ts carries the health row id 'iface-computer-use'", health.includes("'iface-computer-use'"))
-  check("healthReport.ts labels it 'Computer use'", health.includes("'Computer use'"))
+  const { interfaceChecks } = await import('../../src/utils/health/sections/interface.ts')
+  const healthRow = interfaceChecks().find(entry => entry.id === 'iface-computer-use')
+  check("the health list carries the row id 'iface-computer-use' in its interface section", healthRow !== undefined)
+  check("the row is labelled 'Computer use'", healthRow?.label === 'Computer use')
 }
 
 section('§7 the access words beside the switch: the setting in words, the posture read where the health reads it')

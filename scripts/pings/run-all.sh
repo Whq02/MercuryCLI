@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: scripts/pings/**
 # gate-watch: src/hooks/useTurnEndPing.ts src/ink/termio/notifyPing.ts src/ink/session/focus-store.ts
 # gate-watch: src/ink/terminalWrite.ts src/utils/settings/types.ts src/services/attention/**
@@ -33,7 +33,9 @@ echo "############################################################"
 echo "# pings — one ping when a chat finishes its turn while you are away"
 echo "############################################################"
 
+claimed=$(cd "$repo" && cat scripts/pings-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
 for proof in "$here"/prove-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
   echo
   echo "── $(basename "$proof") ──"
   __t=$SECONDS; __rc=0; (cd "$repo" && "$bun" run "$proof") || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
@@ -41,6 +43,7 @@ done
 
 for journey in "$here"/journey-*.ts; do
   [ -e "$journey" ] || continue
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$journey")" && continue
   echo
   echo "── $(basename "$journey") (machine-gated) ──"
   __t=$SECONDS; __rc=0

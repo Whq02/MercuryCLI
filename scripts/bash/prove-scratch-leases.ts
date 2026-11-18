@@ -65,8 +65,14 @@ try {
     /delet\w* what your run created/i.test(doctrine))
   const worktreeSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
   check('a session worktree registers its lease (the one production registrar)', worktreeSrc.includes("registerScratchLease({ kind: 'session'"))
-  const healthSrc = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-  check('/health lists leftovers lease-exact', healthSrc.includes("id: 'scratch-leases'") && healthSrc.includes('Delete only the named lease paths, not all of /tmp.'))
+  const { crewChecks } = await import(join(ROOT, 'src/utils/health/sections/crew.ts'))
+  const leasesRow = crewChecks().find((row: { id: string }) => row.id === 'scratch-leases')
+  const rootH = join(projTemp, 'health-row-scratch')
+  mkdirSync(rootH, { recursive: true })
+  const lH = registerScratchLease({ kind: 'agent', id: 'agent-h' }, rootH)
+  const held = await leasesRow?.run()
+  releaseScratchLease(lH.leaseId)
+  check('/health lists leftovers lease-exact', held?.status === 'warn' && held.evidence.includes(rootH) && held.fix === 'Delete only the named lease paths, not all of /tmp.', JSON.stringify(held))
 } finally {
   rmSync(TMP_SCRATCH, { recursive: true, force: true })
 }
