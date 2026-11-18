@@ -2,6 +2,11 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import * as rig from '../core-runtime/turnScenarios.ts'
+
+const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
+const { afterTools } = await import('../../src/run-core/turn/afterTools.ts')
+const queue = await import('../../src/utils/messageQueueManager.ts')
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -30,8 +35,23 @@ console.log(' Turn-engine preserve-contracts (R7) — the off-dist core')
 console.log('============================================================')
 
 console.log('\n── the tool-round attachment pass ──')
-check('the turn machine calls getAttachmentMessages on tool rounds', /getAttachmentMessages\(/.test(q))
-check('tool-round attachments yield THEN push into toolResults (next round carries them)', /for await \(const attachment of getAttachmentMessages\([\s\S]{0,900}?yield [^\n]*attachment[^\n]*\n\s*toolResults\.push\(attachment\)/.test(q))
+{
+  const QUEUED = '22222222-2222-4222-8222-222222222222'
+  const planted = await rig.plantReply({
+    before: () => {
+      queue.enqueue({ value: 'a line queued while the tools ran', mode: 'prompt', uuid: QUEUED } as never)
+    },
+    script: [rig.fixtures.yields(rig.fixtures.calls('tu_contract_1', 'EchoTool', { text: 'x' }))],
+  })
+  await rig.drain(runToolCalls(planted.run as never, planted.iter as never))
+  const after = await rig.drain(afterTools(planted.run as never, planted.iter as never))
+  const yielded = after.events.filter(event => event.kind === 'attachment').map(event => event.message)
+  const carried = ((after.decision as { next?: { messages?: unknown[] } }).next?.messages ?? []) as unknown[]
+  const result = carried.findIndex(row => JSON.stringify(row).includes('tu_contract_1') && (row as { type?: string }).type === 'user')
+  check('the turn machine gathers attachments on tool rounds: a line queued while the tools ran comes out as an attachment row', rig.reasonOf(after.decision) === 'hand_over next_turn' && yielded.length >= 1 && JSON.stringify(yielded).includes('a line queued while the tools ran'))
+  check('tool-round attachments are yielded and then carried: the next round is handed the very rows, after the tool result', yielded.length >= 1 && result >= 0 && yielded.every(row => carried.indexOf(row) > result))
+  planted.close()
+}
 
 console.log('\n── abort plumbing ──')
 check('the query module threads the abortController through tool execution', /abortController/.test(q))

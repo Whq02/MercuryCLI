@@ -34,6 +34,7 @@ const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await 
 )
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -147,6 +148,7 @@ async function runQuery(opts: {
       state = f(state)
     },
     messages: [],
+    startTurn,
     readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
     toolDecisions: new Map(),
     nestedMemoryAttachmentTriggers: new Set<string>(),
