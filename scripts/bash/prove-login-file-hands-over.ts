@@ -102,7 +102,7 @@ if (process.argv.includes('--asked-alone')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const home = homedir()
   const { beginReadOnlyDiagnostic } = await import('../../src/utils/diagnosticReadOnly.ts')
-  beginReadOnlyDiagnostic()
+  beginReadOnlyDiagnostic(process.argv.includes('--another-row-asked') ? 'runtime' : undefined)
   const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
   const spec = runtimeChecks().find(row => row.id === 'shell')
   const started = Date.now()
@@ -243,6 +243,7 @@ const ALONE: Record<string, string> = {
   slow: home('alone-slow', WAITS),
   'login-file-only': home('alone-login-file-only', DEFINES),
 }
+const ANOTHER_ROW = home('alone-another-row-asked', HANDS_OVER)
 const FIRST_PROMPT = home('first-prompt', HANDS_OVER)
 const ENDS_EARLY = home('ends-early', WAITS)
 
@@ -272,9 +273,10 @@ const BOUND_MS = 10_000
 try {
   const names = Object.keys(HOMES)
   const aloneNames = Object.keys(ALONE)
-  const [answers, alone, firstPrompt, endsEarly] = await Promise.all([
+  const [answers, alone, anotherRow, firstPrompt, endsEarly] = await Promise.all([
     Promise.all(names.map(name => drive<Row>(HOMES[name]!.dir, '--row', 'ROW ', HOMES[name]!.env))),
     Promise.all(aloneNames.map(name => drive<Asked>(ALONE[name]!, '--asked-alone', 'ASKED '))),
+    drive<Asked>(ANOTHER_ROW, '--asked-alone --another-row-asked', 'ASKED '),
     drive<First>(FIRST_PROMPT, '--first-prompt', 'FIRST '),
     drive<{ started: boolean }>(ENDS_EARLY, '--ends-early', 'EARLY '),
   ])
@@ -454,6 +456,11 @@ try {
     const row = asked(name).row
     check(`asked with no session, ${name}: a health check writes nothing for it — no snapshot folder in the config home and nothing left in the temp folder`, row !== null && !row.snapshotFolder && row.tempLeft === 0, shownAlone(name))
   }
+  check(
+    'asked with no session for another row alone (health --only): no login shell is started, and nothing is written',
+    anotherRow.row !== null && anotherRow.row.otherShellStarts === 0 && anotherRow.row.tempLeft === 0 && !anotherRow.row.snapshotFolder && anotherRow.row.said !== null && !/login files|login run/.test(anotherRow.row.said.evidence),
+    JSON.stringify(anotherRow.row ?? anotherRow.said).slice(0, 900),
+  )
   check(
     'the login run begins when a request that offers the Bash tool is prepared, beside the rest of that request: a request that does not offer it starts none, and the description then waits for that one run and takes no second',
     firstPrompt.row !== null && firstPrompt.row.withoutBash === 0 && firstPrompt.row.begunMs !== null && firstPrompt.row.startsInAll === 1 && firstPrompt.row.described.endsWith('and no call carries the aliases, functions or options of your profile (bash) in this session.'),

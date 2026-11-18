@@ -318,12 +318,14 @@ options they define are carried to each command: from `~/.bash_profile` (or
 interactive carries nothing written below that line. A login file that ends
 the shell, hands it to another program or runs past the ten seconds carries
 nothing; commands then run without it, and the session says so. The login run
-is taken before the session's first request, so the Bash tool's description
-says there that no call carries your profile; the first result of the Bash
-tool has one line with the reason and what to change; and the health check's
-Bash tool shell row warns with the same reason and fix. A health check run
-outside a session takes a login run of its own to read this and keeps no file
-of it. What is written for zsh in `~/.zshrc`
+begins when the session prepares its first request and is over before that
+request is sent (a session that is handed no prompt takes none), so the Bash
+tool's description says there that no call carries your profile; the first
+result of the Bash tool has one line with the reason and what to change; and
+the health check's Bash tool shell row warns with the same reason and fix. A
+health check run outside a session takes a login run of its own to read this
+and keeps no file of it; asked for another row alone (`mercury health --only
+<id>`), it starts no login shell. What is written for zsh in `~/.zshrc`
 or `~/.zshenv` is not read. The session's shell line names the shell that runs
 and its version. A `bash` the command starts by name, or a script that begins
 `#!/usr/bin/env bash`, runs whichever bash PATH finds, which on a Mac is the

@@ -7,7 +7,7 @@ import { generateTaskId } from '../Task.js'
 import { createAndSaveSnapshot } from './bash/ShellSnapshot.js'
 import { contextShellCwd, getCwd, getStartingCwd, setContextShellCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
-import { isReadOnlyDiagnostic } from './diagnosticReadOnly.js'
+import { diagnosticAsksFor, isReadOnlyDiagnostic } from './diagnosticReadOnly.js'
 import { errorMessage, isENOENT } from './errors.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
 import { getPlatform } from './platform.js'
@@ -42,8 +42,9 @@ const loginFilesAsked = memoize(async (): Promise<void> => {
 })
 
 export async function settleLoginFiles(): Promise<void> {
-  if (windowsShellRoadActive() || resolveShellEngine(getInitialSettings().shell?.engine).engine === 'brush') return
   try {
+    if (windowsShellRoadActive() || resolveShellEngine(getInitialSettings().shell?.engine).engine === 'brush') return
+    if (isReadOnlyDiagnostic() && !diagnosticAsksFor('shell')) return
     if ((await fallbackEngineBinary()) !== null) return
     await (isReadOnlyDiagnostic() ? loginFilesAsked() : getShellConfig())
   } catch (error) {
