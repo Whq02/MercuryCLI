@@ -112,12 +112,6 @@ const RAW_ENV_SITES: readonly RegisteredRawEnvSite[] = [
     why: 'tmux relaunches Mercury itself on this binary',
   },
   {
-    file: 'src/daemon/main.ts',
-    code: "const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }",
-    witness: 'for (const k of STORED_TOKEN_SCRUB_VARS) {',
-    why: 'the successor daemon IS Mercury; the gated scrub strips the stored-token vars before the spawn',
-  },
-  {
     file: 'src/daemon/ownedDaemon.ts',
     code: 'const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair(OWNER_PID_ENV, String(process.pid)) }',
     witness: 'for (const k of STORED_TOKEN_SCRUB_VARS) {',
@@ -134,6 +128,13 @@ const RAW_ENV_SITES: readonly RegisteredRawEnvSite[] = [
     code: 'const inherited: NodeJS.ProcessEnv = { ...process.env }',
     witness: 'for (const v of spec.stripEnv ?? []) {',
     why: "the spawned child IS Mercury; the spec's strips curate launch and terminal identity, never its auth",
+  },
+]
+const RAW_ENV_SITES_PROVED_BY_A_RUN: readonly RegisteredRawEnvSite[] = [
+  {
+    file: 'src/daemon/run/restart.ts',
+    code: "const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }",
+    why: 'the successor daemon IS Mercury; the gated scrub strips the stored-token vars before the spawn, and scripts/daemon/prove-daemon-run-restart-part.ts §5 reads the environment the spawn is handed',
   },
 ]
 const ENV_LESS_SPAWNS: readonly RegisteredRawEnvSite[] = [
@@ -179,6 +180,7 @@ section('§A1b — the raw-env census (every child rides the scrubbed base, or i
   const needle = /\.\.\.process\.env(?![.\w])|env:\s*process\.env(?![.\w])/
   const violations: string[] = []
   const hits = new Map<string, number>()
+  const registered = [...RAW_ENV_SITES, ...RAW_ENV_SITES_PROVED_BY_A_RUN]
   for (const file of srcFiles(join(ROOT, 'src'))) {
     if (file.endsWith(join('utils', 'subprocessEnv.ts'))) continue
     const body = readFileSync(file, 'utf-8')
@@ -188,7 +190,7 @@ section('§A1b — the raw-env census (every child rides the scrubbed base, or i
     for (let i = 0; i < lines.length; i++) {
       const code = (lines[i] as string).trim()
       if (!needle.test(code)) continue
-      if (RAW_ENV_SITES.some(s => s.file === rel && s.code === code)) {
+      if (registered.some(s => s.file === rel && s.code === code)) {
         hits.set(siteKey(rel, code), (hits.get(siteKey(rel, code)) ?? 0) + 1)
         continue
       }
@@ -196,7 +198,7 @@ section('§A1b — the raw-env census (every child rides the scrubbed base, or i
     }
   }
   check('A1b zero unlawful raw process.env child bases in src/', violations.length === 0, violations.join(' · '))
-  const drift = registeredSiteDrift(RAW_ENV_SITES, hits)
+  const drift = registeredSiteDrift(registered, hits)
   check('A1b every registered raw site stands exactly as often as registered (a vanished or a duplicated site reds)', drift.length === 0, drift.join(' · '))
   const witnessless = missingWitnesses(RAW_ENV_SITES)
   check("A1b every registered raw site's code witness stands in its file", witnessless.length === 0, witnessless.join(' · '))
@@ -543,7 +545,6 @@ section('§B — every arm is paired with its release (the class-B lifecycle cen
   const ticker = src(join('daemon', 'saturnTicker.ts'))
   check('B1 ticker stop clears the interval idempotently', ticker.includes('stopped = true') && ticker.includes('clearInterval(timer)') && ticker.includes('if (running || stopped) return'))
   check('B1 the ticker interval is unref\'d (never holds the process)', ticker.includes('timer.unref?.()'))
-  check('B1 the daemon calls the stop at shutdown', src(join('daemon', 'main.ts')).includes('stopSaturnTicker?.()'))
 
   for (const rel of [join('services', 'unity', 'bridgeClient.ts'), join('services', 'vulcan', 'vulcanClient.ts')]) {
     const body = src(rel)

@@ -37,7 +37,7 @@ const script = {
   ownerFd: null as number | null,
   pipeArmed: true,
   alive: (_pid: number): boolean => true,
-  record: { pid: process.pid, ownerPid: 4242 } as { pid: number; ownerPid: number } | null,
+  record: { pid: process.pid, ownerPid: 4242, startToken: 'the-token-of-the-boot', startedAt: 1 } as { pid: number; ownerPid: number; startToken?: string; startedAt?: number } | null,
   ceilingMs: 2500,
 }
 const watches: Array<{ options: WatchOptions; stopped: boolean; pipeClosed: number }> = []
@@ -150,7 +150,7 @@ const reset = (): void => {
   script.alive = () => true
   script.records = {}
   script.receipt = { parked: ['concourse-w1'], draining: [], released: [], skipped: [], refused: [] }
-  script.record = { pid: process.pid, ownerPid: 4242 }
+  script.record = { pid: process.pid, ownerPid: 4242, startToken: 'the-token-of-the-boot', startedAt: 1 }
 }
 const calls = (name: string): unknown[][] => seen.filter(s => s.call === name).map(s => s.args)
 const order = (): string => seen.map(s => s.call).join(' ')
@@ -259,6 +259,7 @@ try {
     check('the hand-over asks for the next live cockpit other than the one that left', calls('nextOwner').length === 1 && calls('nextOwner')[0]![0] === 111)
     check('ownership passes: the state names the new owner', state.currentOwnerPid === 333)
     check('G7 the daemon record is rewritten with the live owner', calls('writeRecord').length === 1 && (calls('writeRecord')[0]![0] as { ownerPid: number }).ownerPid === 333 && (calls('writeRecord')[0]![0] as { pid: number }).pid === process.pid, calls('writeRecord'))
+    check('the rewrite carries the stored record whole, its identity baseline with it: nothing but the owner changes', JSON.stringify(calls('writeRecord')[0]?.[0]) === JSON.stringify({ pid: process.pid, ownerPid: 333, startToken: 'the-token-of-the-boot', startedAt: 1 }), calls('writeRecord'))
     check('the watch is armed again for the new owner, with no pipe', watches.length === 2 && watches[1]!.options.ownerPid === 333 && pipes.length === 1 && pipes[0]!.closed, order())
     check('the daemon stays up and says so', shutdowns.length === 0 && calls('parkAll').length === 0 && said.some(line => line.includes('owner pid 111 gone (the pid is gone) — ownership passes to the live cockpit pid 333; the daemon stays up')), said)
 
