@@ -936,7 +936,6 @@ export function getContextWindowForModel(
 }
 
 function statedInputMaximum(model: string, source: ContextResolution['source']): number | undefined {
-  if (source === 'operator') return undefined
   const id = normalizeForEnginePins(model)
   if (declaredRouteOf(model) === 'nous') {
     const openaiId = /^nous\/openai\/(.+)$/.exec(id)?.[1]
@@ -947,9 +946,11 @@ function statedInputMaximum(model: string, source: ContextResolution['source']):
 }
 
 export function getModelInputCeiling(model: string, betas?: string[]): number {
-  const resolution = resolveContextWindow(model, betas)
-  const stated = statedInputMaximum(model, resolution.source)
-  return stated === undefined ? resolution.effectiveWindow : Math.min(stated, resolution.effectiveWindow)
+  const base = baseResolveContextWindow(model, betas, 'default')
+  const operator = operatorStatedWindow(model, base)
+  if (operator !== undefined && operator.stated >= operator.floor) return operator.stated
+  const stated = statedInputMaximum(model, base.source)
+  return stated === undefined ? base.effectiveWindow : Math.min(stated, base.effectiveWindow)
 }
 
 function baseGetModelMaxOutputTokens(model: string): {
@@ -1397,12 +1398,18 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
     ...(base.kind === 'provider' && base.thinkingOffWire !== undefined ? { thinkingOffWire: base.thinkingOffWire } : {}) }
 }
 
+function operatorStatedWindow(model: string, base: ContextResolution): { stated: number; floor: number } | undefined {
+  const stated = operatorModelFacts(model, base.source === 'live-current' ? { contextWindow: base.effectiveWindow } : {})?.contextWindow
+  if (stated === undefined) return undefined
+  const floor = declaredRouteOf(model) !== 'openai-compat' && (modelHasRecordedFacts(model) || base.source === 'live-current') ? base.effectiveWindow : 0
+  return { stated, floor }
+}
+
 export function resolveContextWindow(model: string, betas?: string[], requestedMode: ContextRequestedMode = 'default'): ContextResolution {
   const base = baseResolveContextWindow(model, betas, requestedMode)
-  const stated = operatorModelFacts(model, base.source === 'live-current' ? { contextWindow: base.effectiveWindow } : {})?.contextWindow
-  if (stated === undefined) return base
-  const floor = declaredRouteOf(model) !== 'openai-compat' && (modelHasRecordedFacts(model) || base.source === 'live-current') ? base.effectiveWindow : 0
-  return { ...base, effectiveWindow: Math.max(stated, floor), source: 'operator', pinAwaitingLive: false, fallbackReason: undefined }
+  const operator = operatorStatedWindow(model, base)
+  if (operator === undefined) return base
+  return { ...base, effectiveWindow: Math.max(operator.stated, operator.floor), source: 'operator', pinAwaitingLive: false, fallbackReason: undefined }
 }
 
 export function getModelMaxOutputTokens(model: string): { default: number; upperLimit: number } {

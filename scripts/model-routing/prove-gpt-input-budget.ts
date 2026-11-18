@@ -166,6 +166,16 @@ try {
     assert.equal(resolveContextWindow(id).source, 'operator')
     assert.equal(getAutoCompactThreshold(id), 1_007_000)
   })
+  operatorStates({ 'gpt-6.2-sol': { contextWindow: 500_000 }, 'zen/gpt-6.2-astra': { contextWindow: 922_000 } })
+  for (const id of ['gpt-6.2-sol', 'zen/gpt-6.2-astra']) check(`a window the operator states for ${id} below the row's is not the window in force (the build keeps the row's 1,050,000), so the row's maximum applies: compaction at 879,000`, () => {
+    assert.equal(getContextWindowForModel(id), 1_050_000)
+    assert.equal(getAutoCompactThreshold(id), 879_000)
+  })
+  operatorStates({ 'gpt-6.2-sol': { contextWindow: 2_000_000 } })
+  check("a window the operator states above the row's decides for itself: 2,000,000 stated on gpt-6.2-sol, compaction at 1,957,000", () => {
+    assert.equal(getContextWindowForModel('gpt-6.2-sol'), 2_000_000)
+    assert.equal(getAutoCompactThreshold('gpt-6.2-sol'), 1_957_000)
+  })
   operatorStates({})
   check('with the operator fact gone the row decides again: 879,000', () => {
     assert.equal(getAutoCompactThreshold('gpt-6.2-sol'), 879_000)
