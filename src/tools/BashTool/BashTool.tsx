@@ -637,9 +637,7 @@ async function* runBash(
     const accumulator = new EndTruncatingAccumulator()
     accumulator.append(result.stdout.trimEnd() + '\n')
     if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
-    if (editorTerminalNote !== undefined) accumulator.append(editorTerminalNote + '\n')
-    const loginFilesLine = loginFilesLineOnce(agentId ?? 'main')
-    if (loginFilesLine !== null) accumulator.append(loginFilesLine + '\n')
+    for (const note of [editorTerminalNote, loginFilesLineOnce(agentId ?? 'main')]) if (note) accumulator.append(note + '\n')
     if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
     if (commandNamesBoxLock(input.command)) await refreshBoxReading()
     const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd })
@@ -822,8 +820,7 @@ export const BashTool = buildTool({
     return input?.description ?? 'Run a shell command'
   },
   async prompt({ tools }): Promise<string> {
-    await settleShellRecord()
-    await settleLoginFiles()
+    await Promise.all([settleShellRecord(), settleLoginFiles()])
     return getSimplePrompt(new Set(tools.map(tool => tool.name)))
   },
   userFacingName,
