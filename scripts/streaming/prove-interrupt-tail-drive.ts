@@ -46,7 +46,6 @@ async function connectorScenes(): Promise<void> {
     recomputeLive: () => void
     chainRpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>>
     factsBusy: boolean
-    interruptPressedAtMs: number | null
     textRows?: unknown[]
   }
   const transcript = getTranscriptPath()
@@ -106,7 +105,7 @@ async function connectorScenes(): Promise<void> {
   feed({ text: `${CUT} and more after the press`, messageId: X1, streamBlock: 'text' })
   check('C1: words that arrive after the press never paint', shown(CUT) === 0, where(CUT))
   busy(false)
-  check('C1: the latch released with the turn', g.interruptPressedAtMs === null)
+  check('C1: the latch released with the turn', connector.status().interrupting === false)
   check('C1: the settled turn leaves none of the words behind', shown(CUT) === 0, where(CUT))
   await write([createUserMessage({ content: 'the next words' })])
   busy(true)
@@ -175,7 +174,7 @@ async function connectorScenes(): Promise<void> {
   pressAnswer = { ok: false, outcome: 'refused' }
   await press()
   pressAnswer = { ok: true, outcome: 'applied' }
-  check('C5: the refused press leaves no latch', g.interruptPressedAtMs === null)
+  check('C5: the refused press leaves no latch', connector.status().interrupting === false)
   feed({ text: ON, messageId: X5, streamBlock: 'text' })
   check("C5: the stream's words paint again", connector.tail().read() === ON, where(ON))
   feed({ text: null, messageId: X5, streamBlock: 'tool_use' })

@@ -50,7 +50,7 @@ type Guts = {
   rawRecords: Message[]
   rpc: (req: Reply) => Promise<Reply>
   reconcileQueuedSends: (facts: Record<string, unknown>) => void
-  setLiveStateWord: (word: 'compacting' | null) => void
+  readTail: () => void
   factsBusy: boolean
   paint: () => void
 }
@@ -74,9 +74,15 @@ const sendOf = (id: string): Send | undefined => g.sends.find(s => s.clientMessa
 const painted = (): string => JSON.stringify(connector.records())
 const queued = (entries: Array<{ uuid: string; value: string }>): Array<{ uuid: string; value: string; mode: string; priority: string }> =>
   entries.map(e => ({ ...e, mode: 'prompt', priority: 'next' }))
+const { publishSessionTail } = await import(join(SRC, 'services/engine-connector/seatProjections.ts'))
+let tailStamp = 0
+const tailSays = (word: 'compacting' | 'waiting-on-agents' | null): void => {
+  publishSessionTail({ schema: 1, sessionId: 'compaction-hold-proof', atMs: ++tailStamp, text: null, ...(word !== null ? { stateWord: word } : {}) })
+  g.readTail.call(connector)
+}
 const foldRunning = (on: boolean): void => {
   g.factsBusy = on
-  g.setLiveStateWord(on ? 'compacting' : null)
+  tailSays(on ? 'compacting' : null)
 }
 
 section("F1 the withdraw's UNKNOWN retires the row and names the words")

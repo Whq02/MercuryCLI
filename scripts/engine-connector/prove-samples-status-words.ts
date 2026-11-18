@@ -117,11 +117,22 @@ async function main(): Promise<void> {
     const tagBar = read('src/components/SwitchboardTagBar.tsx')
     const repl = read('src/screens/Chat.tsx')
     const hook = read('src/components/tasks/useFocusedWork.ts')
-    const connector = read('src/services/engine-connector/daemonConnector.ts')
+    const { WorkPart } = await import(src('services/engine-connector/daemon/work.ts'))
+    const shown = [{ id: 'pricing', title: 'pricing table', version: 2, state: 'open', updatedAt: '2026-10-02T00:00:00.000Z', glyph: '⧉' }]
+    let seatFacts: Record<string, unknown> | null = { samples: shown }
+    const roster = new WorkPart({ facts: () => seatFacts as never, carrierGone: () => false })
+    roster.refreshWork()
+    const withSamples = roster.workRoster().samples
+    seatFacts = {}
+    roster.refreshWork()
+    const withNone = roster.workRoster().samples
+    seatFacts = null
+    roster.refreshWork()
+    const withNoFacts = roster.workRoster().samples
     check('the row reads the samples through the one roster reader', tagBar.includes('const samples = useFocusedSamples()'))
     check('the working strip reads no samples of its own', !repl.includes('useFocusedSamples') && !repl.includes('focusedSamples'))
     check("the reader is the focused connector's work roster — the one projection", hook.includes('export function useFocusedSamples(): readonly SampleRowV1[]') && hook.includes('getFocusedSessionConnector().workRoster().samples ?? []'))
-    check("the roster's samples are the seat facts' samples", connector.includes('const samples = this.facts?.samples ?? []'))
+    check("the roster's samples are the seat facts' samples", withSamples === shown && JSON.stringify(withNone) === '[]' && JSON.stringify(withNoFacts) === '[]', JSON.stringify({ withSamples, withNone, withNoFacts }))
     check('neither road reads a samples store or directory of its own', !tagBar.includes('services/samples/') && !repl.includes('services/samples/') && !hook.includes('services/samples/') && !tagBar.includes('readdirSync'))
   }
 

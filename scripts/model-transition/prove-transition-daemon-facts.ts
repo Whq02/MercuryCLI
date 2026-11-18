@@ -116,8 +116,40 @@ section('§4 the wiring, structural')
     "the confirm re-derives from the SAME source the plan was built from",
     /confirmMessages[\s\S]{0,400}reconfirmTransitionPlan\(held\.plan, confirmMessages\)/.test(model),
   )
-  const connector = readFileSync(join(import.meta.dir, '../../src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  check('the connector stamps a cold seed as recorded and a runner answer as live beside the fallback chain', connector.includes("this.facts !== null && !this.awaitingRunnerFacts ? 'live' : this.facts !== null || this.record.modelKey !== undefined ? 'record' : 'ambient'"))
+  const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const says = (sessionId: string, atMs: number): void =>
+    publishSessionFacts({
+      schema: 1,
+      sessionId,
+      atMs,
+      pendingModel: null,
+      busy: false,
+      model: { effective: 'glm-5.3', setting: 'glm-5.3' },
+      usage: { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false },
+      identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null },
+      skills: [],
+      mcp: [],
+      workspace: { cwd: scratch, originalCwd: scratch, projectRoot: scratch },
+      queue: [],
+    })
+  const parkedId = '00000000-aaaa-bbbb-cccc-00000000m203'
+  says(parkedId, 1)
+  const parked = seat.daemonSessionConnectorFor({ sessionId: parkedId, runnerId: '', title: 'parked fixture', projectLabel: 'proj', workspaceId: scratch, home: scratch })
+  const coldSeed = parked.modelFacts().effectiveSource
+  const reads = parked as unknown as { readFacts(): void }
+  reads.readFacts()
+  const sameSeed = parked.modelFacts().effectiveSource
+  says(parkedId, 2)
+  reads.readFacts()
+  const answered = parked.modelFacts().effectiveSource
+  const hostedId = '00000000-aaaa-bbbb-cccc-00000000m204'
+  says(hostedId, 1)
+  const hosted = seat.daemonSessionConnectorFor({ sessionId: hostedId, runnerId: 'runner-m2-4', title: 'hosted fixture', projectLabel: 'proj', workspaceId: scratch, home: scratch })
+  check(
+    'the connector stamps a cold seed as recorded and a runner answer as live beside the fallback chain',
+    coldSeed === 'record' && sameSeed === 'record' && answered === 'live' && hosted.modelFacts().effectiveSource === 'live',
+    JSON.stringify({ coldSeed, sameSeed, answered, hosted: hosted.modelFacts().effectiveSource }),
+  )
 }
 
 console.log('\n' + '='.repeat(60))

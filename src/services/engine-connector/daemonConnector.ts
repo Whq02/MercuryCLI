@@ -1,18 +1,15 @@
-import { appendFileSync, existsSync, statSync, watch, mkdirSync, type FSWatcher } from 'node:fs'
-import { flagEnv, flagEnabled } from '../../substrate/flagRegistry.js'
+import { existsSync, statSync, watch, mkdirSync, type FSWatcher } from 'node:fs'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { armInactivityDeadline } from '../../utils/deadline.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { basename, dirname, join } from 'node:path'
-import type { Message, AssistantMessage } from '../../types/message.js'
+import type { Message } from '../../types/message.js'
 import { readClearModelReceipt } from '../switchboard/sessionReceipts.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { PermissionMode } from '../../types/permissions.js'
-import { decodeDecisionReasonFromWire } from '../../utils/permissions/decisionReasonWire.js'
 import type { PastedContent } from '../../utils/config/schema.js'
 import { storedImageRefBlock } from '../../utils/imageStore.js'
 import { submitTrace } from '../../utils/submitTrace.js'
-import type { Tool, ToolUseContext } from '../../Tool.js'
-import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { randomUUID } from 'node:crypto'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
@@ -22,17 +19,13 @@ const BOTH_SWITCHES_ON: SpawnSwitchFacts = Object.freeze({
   subagents: Object.freeze({ on: true, source: 'default' as const }),
   workflows: Object.freeze({ on: true, source: 'default' as const }),
 })
-import { createAssistantMessage, createUserMessage } from '../../utils/messages/factories.js'
+import { createUserMessage } from '../../utils/messages/factories.js'
 import { createModelTransitionMessage, createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { createLiveTurnFold, deserializeLiveMessages, type LiveTurnFold } from '../../utils/conversationRecovery.js'
 import type { TranscriptChainCursor } from '../../utils/sessionStorage/transcriptReader.js'
-import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../../utils/fileStateCache.js'
-import { getAllBaseTools } from '../../tools.js'
-import { MCPTool } from '../../tools/MCPTool/MCPTool.js'
-import { mcpInfoFromString } from '../mcp/mcpStringUtils.js'
 import { getEngineModel } from '../../utils/model/model.js'
-import { createStreamingTailStore, type StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
+import type { StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import { adoptOpenaiObservedUsage, adoptOpenaiWindowFact } from '../providers/openai/openaiLimitState.js'
 import { adoptOpenaiCatalogueFact } from '../providers/openai/openaiCatalogue.js'
 import { adoptAnthropicObservedUsage, adoptAnthropicWindowFact } from '../anthropicLimits.js'
@@ -40,9 +33,7 @@ import { mergeRecordsContentKeyed } from './recordIdentity.js'
 import { placeLocalCommandRows } from './localCommandRows.js'
 import { endedRunResults } from './endedRunCalls.js'
 import {
-  readSessionAsks,
   readSessionFacts,
-  readSessionProgress,
   readSessionTail,
   sessionAsksDir,
   sessionAsksPath,
@@ -52,25 +43,13 @@ import {
   sessionProgressPath,
   sessionTailDir,
   sessionTailPath,
-  type SessionAskProjectionV1,
   type SessionFactsV1,
-  type SessionProgressEntryV1,
 } from './seatProjections.js'
-import { clearEphemeralProgress, publishEphemeralProgress } from '../../state/ephemeralProgressStore.js'
-import type { ProgressMessage } from '../../types/message.js'
-import type { EvalToolProgress, MCPProgress, ShellProgress } from '../../types/tools.js'
-import type { HookProgress } from '../../types/hooks.js'
 import { IDLE_LIVE, type LiveTurnFactsV1, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
-import { interruptLatchRelease } from './interruptLatch.js'
 import { createNoticeRow, deliveredNoticeRow, foldClockOf, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, placeDeliveredNotices, queueOrderedSends } from './queuedNotices.js'
 import { BASH_INPUT_TAG } from '../../constants/xml.js'
-import { createTextRow, textRowLanded, withoutRetractedReplies, type CommittedTextRow } from './midTurnText.js'
-import { computeTailRelease } from '../../utils/messages/tailRetirement.js'
-import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, type FoldStatusV1 } from '../compact/foldStatus.js'
-import { workChipLine, workCounts } from './workCounts.js'
-import { fluxMark } from '../../utils/flux/fluxProbe.js'
-import { compatEndpointIsSelfHosted } from '../providers/deferralWire.js'
-import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
+import { withoutRetractedReplies, type CommittedTextRow } from './midTurnText.js'
+import type { FoldStatusV1 } from '../compact/foldStatus.js'
 import { mcpToolsOfReply } from '../mcp/toolsAnswer.js'
 import { getFocusedSessionConnector, setFocusedSessionConnector, subscribeFocusedSessionConnector, claimHopEpoch, hopEpochIsCurrent } from './focusedConnector.js'
 import type {
@@ -105,10 +84,16 @@ import type {
   WorkspaceFactsV1,
 } from './types.js'
 import { bootBirthFacts, type BootBirthFacts } from '../switchboard/bootBirthFacts.js'
-import { readSessionWorkersSnapshot, seatInitialPermissionMode } from '../../daemon/concourseWorkers.js'
+import { seatInitialPermissionMode } from '../../daemon/concourseWorkers.js'
+import { AdmissionPart } from './daemon/admission.js'
+import { AsksPart } from './daemon/asks.js'
+import { CompletionPart } from './daemon/completion.js'
+import { FoldPart } from './daemon/fold.js'
+import { connectorTrace, ECHO_RETIRE_MS, emitAll, type Listeners } from './daemon/shared.js'
+import { TailPart } from './daemon/tail.js'
+import { LivePart } from './daemon/live.js'
+import { WorkPart } from './daemon/work.js'
 import { projectOperatorRewinds } from '../compact/checkpointRewind.js'
-
-const UNKNOWN_CHECKPOINTS: CheckpointFactsV1 = Object.freeze({ capture: 'unknown' as const, restorable: Object.freeze(new Set<string>()) as ReadonlySet<string> })
 
 export interface DaemonSessionRecordV1 {
   sessionId: string
@@ -160,58 +145,6 @@ export function lostWithRunnerLine(lines: readonly string[]): string {
 }
 const PENDING_WITHDRAW_WAIT_MS = 10_000
 
-function reconstructedProgressMessage(parentToolUseID: string, entry: SessionProgressEntryV1): ProgressMessage {
-  let data: ShellProgress | MCPProgress | EvalToolProgress | HookProgress
-  if (entry.dataType === 'hook_progress') {
-    data = {
-      type: 'hook_progress',
-      event: 'tool.before',
-      name: '',
-      state: 'waiting',
-      count: 1,
-      ...(entry.latestLine !== undefined ? { line: entry.latestLine } : {}),
-      ...(entry.elapsedTimeSeconds !== undefined ? { elapsedS: entry.elapsedTimeSeconds } : {}),
-      ...(entry.budgetMs !== undefined ? { timeoutS: entry.budgetMs / 1000 } : {}),
-    }
-  } else if (entry.dataType === 'eval_progress') {
-    data = {
-      type: 'eval_progress',
-      kind: 'running',
-      elapsedSeconds: entry.elapsedTimeSeconds ?? 0,
-      ...(entry.budgetMs !== undefined ? { budgetMs: entry.budgetMs } : {}),
-      ...(entry.latestLine !== undefined ? { tail: entry.latestLine } : {}),
-    }
-  } else if (entry.dataType === 'mcp_progress') {
-    const mcp: MCPProgress = { type: 'mcp_progress', status: 'progress', serverName: '', toolName: '' }
-    if (entry.mcpProgress !== undefined) mcp.progress = entry.mcpProgress
-    if (entry.mcpTotal !== undefined) mcp.total = entry.mcpTotal
-    if (entry.latestLine !== undefined) mcp.progressMessage = entry.latestLine
-    data = mcp
-  } else {
-    const body = {
-      output: entry.latestLine ?? '',
-      fullOutput: entry.latestLine ?? '',
-      elapsedTimeSeconds: entry.elapsedTimeSeconds ?? 0,
-      totalLines: entry.totalLines ?? 0,
-    }
-    if (entry.dataType === 'powershell_progress') {
-      data = { type: 'powershell_progress', ...body, totalBytes: entry.totalBytes ?? 0 }
-    } else {
-      const bash: ShellProgress = { type: 'bash_progress', ...body }
-      if (entry.totalBytes !== undefined) bash.totalBytes = entry.totalBytes
-      data = bash
-    }
-  }
-  return {
-    type: 'progress',
-    uuid: randomUUID(),
-    timestamp: new Date().toISOString(),
-    toolUseID: entry.toolUseID,
-    parentToolUseID,
-    data,
-  } as ProgressMessage
-}
-
 export function imageBlocksOf(pastes: Record<number, PastedContent>): ContentBlockParam[] {
   return Object.entries(pastes)
     .map(([id, content]) => ({ id: Number(id), content }))
@@ -231,9 +164,7 @@ export const HEARTBEAT_MS = 400
 const IDLE_TRANSCRIPT_FLOOR_MS = 2000
 export const IDLE_PROJECTION_FLOOR_MS = 10_000
 export const SEAT_VERB_SETTLE_MS = 4000
-const LIVENESS_TICK_MS = 1000
 export const CARRIER_GONE_WORDS = 'the background daemon ended — the next prompt starts a new one'
-const ECHO_RETIRE_MS = 10 * 60_000
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const SEAT_BY = `operator:${process.pid}`
@@ -267,17 +198,6 @@ function textOfUserRow(m: Message): string {
       .join('')
   }
   return ''
-}
-
-function toolFor(name: string): Tool {
-  const known = getAllBaseTools().find(t => t.name === name)
-  if (known) return known
-  const served = mcpInfoFromString(name)
-  return {
-    ...MCPTool,
-    name,
-    userFacingName: () => (served?.toolName === undefined ? name : `${served.serverName} - ${served.toolName} (MCP)`),
-  } as unknown as Tool
 }
 
 export function projectionChangeKey(stat: { mtimeMs: number; size: number; ino: number }): string {
@@ -384,31 +304,6 @@ export class ProjectionFeed {
   }
 }
 
-type Listeners = Set<() => void>
-function connectorTrace(entry: Record<string, unknown>): void {
-  const path = flagEnv('MERCURY_CONNECTOR_TRACE')
-  if (!path) return
-  try {
-    appendFileSync(path, `${JSON.stringify({ t: Date.now(), ...entry })}\n`)
-  } catch {
-  }
-}
-
-function foldStillRuns(status: FoldStatusV1 | null): boolean {
-  return status === null || status.exit === undefined
-}
-
-function emitAll(listeners: Listeners, what: string): void {
-  fluxMark(`emit:${what}`)
-  for (const l of [...listeners]) {
-    try {
-      l()
-    } catch (e) {
-      logForDebugging(`[engine-connector] daemon ${what} listener threw (ignored): ${e}`)
-    }
-  }
-}
-
 export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtensionV1 {
   readonly carrier = 'daemon' as const
 
@@ -503,7 +398,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.factsBusy = false
     this.disarmBusyStall()
     if (this.facts !== null) this.facts = { ...this.facts, busy: false, work: [], mission: [], samples: [] }
-    this.refreshWork()
+    this.workPart.refreshWork()
     this.recomputeLive()
     this.addDisplayRow(createSeatReceiptMessage(CARRIER_GONE_WORDS, 'warning') as unknown as Message)
   }
@@ -517,22 +412,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     return { ...next, busy: false, work: [], mission: [], samples: [] }
   }
-  private effectiveLive: SessionLiveV1 = IDLE_LIVE
   private displayRows: Array<{ row: Message; anchor: number }> = []
   private clearModelReceipt: Message | null | undefined
   private echoRows = new Map<string, Message>()
   private deliveredNotices = new Map<string, { row: Message; text: string; sentAtMs: number; seq: number }>()
   private sends: SeatSend[] = []
-  private arrivalSeq = 0
   private sendSeq = new Map<string, number>()
-  private tailSeq: number | null = null
-  private tailSinceMs = 0
   private rowsAfterTail = 0
-  private textRows: CommittedTextRow[] = []
   private textRetiredRowUuids = new Set<string>()
   private retainedSend: { text: string; id: string } | null = null
-  private interrupting = false
-  private interruptPressedAtMs: number | null = null
   private lastSize = -1
   private lastLen = -1
   private transcriptUnreadableFp: string | null = null
@@ -547,97 +435,85 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private tickDirty = false
   private readonly transcriptPath: string
   private readonly recordListeners: Listeners = new Set()
-  private readonly liveListeners: Listeners = new Set()
 
   private facts: SessionFactsV1 | null
-  private workerTurnSettledAtMs: number | null = null
-  private workerTurnDeliveryAtMs: number | null = null
-  private workerRecordPresent = false
-  private completedTurnAtMs: number | null = null
-  private completionWasInFlight = false
-  private completionSawFactsBusy = false
-  private sendDemotedToQueued = false
-  private sendDeliveredTaken = false
-  private completionHighWaterMs = 0
-  private completionUnmatchedEdgeAtMs: number | null = null
-  private completionUnmatchedStampAtMs: number | null = null
-  private openedAtMs = Date.now()
-  private startShownSinceMs: number | null = null
-  private seedFactsAtMs: number | null
-  private awaitingRunnerFacts: boolean
+  private readonly completionPart: CompletionPart
+  private readonly admissionPart = new AdmissionPart({ wakeLive: () => this.livePart.wake() })
   private readonly factsFeed: ProjectionFeed
   private readonly modelListeners: Listeners = new Set()
   private readonly permissionListeners: Listeners = new Set()
-  private readonly workListeners: Listeners = new Set()
-  private workSnapshot: WorkRosterV1 = { rows: [], mission: [] }
-  private workStamp = '[true,[],[]]'
-  private readonly checkpointListeners: Listeners = new Set()
-  private checkpointSnapshot: CheckpointFactsV1 = UNKNOWN_CHECKPOINTS
-  private checkpointStamp = ''
+  private readonly workPart = new WorkPart({ facts: () => this.facts, carrierGone: () => this.carrierGoneAtFactsMs !== null })
 
-  private askEntries: SessionAskV1[] = []
-  private readonly confirms = new Map<string, ToolUseConfirm>()
+  private readonly asksPart = new AsksPart({
+    record: () => this.record,
+    rows: () => this.rawRecords,
+    facts: () => this.facts,
+    permissionMode: () => this.permissionMode(),
+    chainRpc: req => this.chainRpc(req),
+    deliver: (text, opts) => this.deliver(text, opts),
+  })
   private readonly asksFeed: ProjectionFeed
-  private readonly askListeners: Listeners = new Set()
 
   private readonly tailFeed: ProjectionFeed
-  private readonly tailStore: StreamingTailStore = createStreamingTailStore()
-  private tailAtMs = -1
-  private tailMessageId: string | null = null
-  private interruptedMessageId: string | null = null
-  private withdrawnMessageId: string | null = null
-  private liveTurnChars = 0
-  private liveTurnOutputTokens: number | null = null
-  private liveTurnThinkingChars = 0
-  private liveTurnThinkingBlocks = 0
-  private liveFirstByteAtMs: number | null = null
-  private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
-  private liveAgentsWaiting = 0
+  private readonly tailPart = new TailPart({
+    sessionId: () => this.record.sessionId,
+    rows: () => this.rawRecords,
+    model: () => this.modelFacts().effective,
+    paint: () => this.paint(),
+  })
   private runnerGeneration: number | null = null
   private lostLineNotice: LostLineV1 | null = null
-  private liveFoldStatus: FoldStatusV1 | null = null
-  private foldExitLatch: FoldStatusV1 | null = null
-  private foldLatchTimer: ReturnType<typeof setTimeout> | null = null
-  private foldLingerTimer: ReturnType<typeof setTimeout> | null = null
-  private foldLingerOver = false
-  private readonly foldListeners = new Set<() => void>()
-  private liveWait: RequestWaitV1 | null = null
-  private liveWaitOwnAge: { wait: RequestWaitV1; own: boolean } | null = null
-  private hardStopping = false
-
-  private lastEventAtMs: number | null = null
-  private streamBlock: 'thinking' | 'text' | 'tool_use' | null = null
-  private blockSinceMs: number | null = null
-  private readonly toolBudgets = new Map<string, { budgetMs: number; elapsedMs: number; atMs: number }>()
-  private livenessTicker: ReturnType<typeof setInterval> | null = null
+  private readonly foldPart = new FoldPart({ recomputeLive: () => this.recomputeLive() })
+  private readonly livePart: LivePart = new LivePart({
+    sessionId: () => this.record.sessionId,
+    attached: () => this.attached,
+    factsBusy: () => this.factsBusy,
+    work: () => this.facts?.work ?? [],
+    factsTurnStartedAt: () => this.facts?.turnStartedAt,
+    streamIdleTimeoutMs: () => this.facts?.streamIdleTimeoutMs,
+    model: () => this.modelFacts().effective,
+    anySendDelivered: () => this.sends.some(s => s.state === 'delivered'),
+    redressQueuedSends: () => {
+      for (const s of this.sends) if (s.state === 'queued') this.dressSend(s.clientMessageId, 'queued')
+    },
+    transcriptLive: () => this.liveState,
+    toolStartedAtMs: inProgress => this.toolStartedAtMs(inProgress),
+    tailHeld: () => this.tailPart.store().read() !== null,
+    clearTail: atMs => this.tailPart.clearTail(atMs),
+    tailInterrupted: atMs => this.tailPart.interrupted(atMs),
+    tailInterruptUndone: () => this.tailPart.interruptUndone(),
+    foldStillRuns: () => this.foldPart.stillRuns(),
+    setLiveFold: next => this.foldPart.setLiveFold(next),
+    dropRunningFoldAtIdle: () => this.foldPart.dropRunningAtIdle(),
+    stepTurnCompletion: inFlight => this.completionPart.stepTurnCompletion(inFlight),
+    syncFeedCadence: inFlight => this.syncFeedCadence(inFlight),
+    probeCarrier: () => this.probeCarrier(),
+  })
 
   private readonly progressFeed: ProjectionFeed
-  private progressAtMs = -1
-  private readonly publishedProgressSeqs = new Map<string, number>()
 
   private attached = false
-  private admission: Promise<string | null> | null = null
-  private refusedAdmission: string | null = null
 
   constructor(readonly record: DaemonSessionRecordV1) {
     this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
     this.facts = readSessionFacts(record.sessionId)
     this.factsBusy = this.facts?.busy ?? false
-    this.refreshWorkerTurnMarks()
-    this.completionHighWaterMs = this.workerTurnSettledAtMs ?? 0
-    this.completionWasInFlight = this.factsBusy
-    this.completionSawFactsBusy = this.factsBusy
-    this.seedFactsAtMs = this.facts?.atMs ?? null
-    this.awaitingRunnerFacts = record.runnerId === ''
-    this.refreshWork()
+    this.completionPart = new CompletionPart({
+      sessionId: () => this.record.sessionId,
+      factsBusy: () => this.factsBusy,
+      hasUnreadTranscript: () => this.hasUnreadTranscript(),
+      tick: () => this.tick(),
+    })
+    this.admissionPart.seed(this.facts?.atMs ?? null, record.runnerId === '')
+    this.workPart.refreshWork()
     const idleFloor = (): number => (this.turnInFlight ? HEARTBEAT_MS : IDLE_PROJECTION_FLOOR_MS)
     this.factsFeed = new ProjectionFeed(sessionFactsDir(), sessionFactsPath(record.sessionId), () => this.readFacts(), idleFloor)
     this.asksFeed = new ProjectionFeed(sessionAsksDir(), sessionAsksPath(record.sessionId), () => this.readAsks(), idleFloor)
     this.tailFeed = new ProjectionFeed(sessionTailDir(), sessionTailPath(record.sessionId), () => this.readTail(), idleFloor)
-    this.progressFeed = new ProjectionFeed(sessionProgressDir(), sessionProgressPath(record.sessionId), () => this.readProgress(), idleFloor)
+    this.progressFeed = new ProjectionFeed(sessionProgressDir(), sessionProgressPath(record.sessionId), () => this.livePart.readProgress(), idleFloor)
     this.readAsks()
-    this.refreshWork()
-    this.refreshCheckpoints()
+    this.workPart.refreshWork()
+    this.workPart.refreshCheckpoints()
   }
 
 
@@ -660,7 +536,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.disarmBusyStall()
     if (!this.attached) return
     this.attached = false
-    this.syncLivenessTicker(false)
+    this.livePart.syncLivenessTicker(false)
     connectorTrace({ ev: 'detach', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length })
     if (this.transcriptTimer !== null) {
       clearInterval(this.transcriptTimer)
@@ -679,289 +555,43 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.tailFeed.stop()
     this.progressFeed.stop()
     seatVerb('blur', this.record.sessionId)
-    this.tailStore.reset(null)
-    this.tailStore.dropSettled()
-    this.tailStore.setMessageId(null)
-    this.tailStore.setPhase(null)
-    this.tailSeq = null
-    this.tailAtMs = -1
-    this.liveTurnChars = 0
-    this.liveTurnOutputTokens = null
-    this.clearLiveStateWord()
-    clearEphemeralProgress()
-    this.publishedProgressSeqs.clear()
-    this.progressAtMs = -1
-  }
-
-  private readProgress(): void {
-    const progress = readSessionProgress(this.record.sessionId)
-    if (progress === null) return
-    if (progress.atMs === this.progressAtMs) return
-    this.progressAtMs = progress.atMs
-    const entries = Object.entries(progress.tools)
-    if (entries.length === 0) {
-      if (this.publishedProgressSeqs.size > 0) {
-        clearEphemeralProgress()
-        this.publishedProgressSeqs.clear()
-      }
-      return
-    }
-    for (const [parentId, entry] of entries) {
-      if (typeof entry.budgetMs === 'number') {
-        this.toolBudgets.set(parentId, { budgetMs: entry.budgetMs, elapsedMs: (entry.elapsedTimeSeconds ?? 0) * 1000, atMs: progress.atMs })
-      }
-      const prior = this.publishedProgressSeqs.get(parentId)
-      if (prior !== undefined && entry.seq <= prior) continue
-      this.publishedProgressSeqs.set(parentId, entry.seq)
-      publishEphemeralProgress(reconstructedProgressMessage(parentId, entry))
-    }
+    this.tailPart.detached()
+    this.livePart.detached()
   }
 
   private readTail(): void {
     const tail = readSessionTail(this.record.sessionId)
     if (tail === null) {
-      this.liveTurnChars = 0
-      this.liveTurnOutputTokens = null
-      this.liveTurnThinkingChars = 0
-      this.liveTurnThinkingBlocks = 0
-      this.liveFirstByteAtMs = null
-      this.setLiveStateWord(null)
-      this.setLiveFold(null)
-      this.setStreamBlock(null, null)
-      this.lastEventAtMs = null
-      this.clearTail(Date.now())
+      this.livePart.tailGone()
+      this.tailPart.clearTail(Date.now())
       return
     }
-    this.liveTurnChars = tail.turnChars ?? 0
-    this.liveTurnOutputTokens = typeof tail.turnOutputTokens === 'number' ? tail.turnOutputTokens : null
-    this.liveTurnThinkingChars = typeof tail.turnThinkingChars === 'number' && Number.isFinite(tail.turnThinkingChars) ? Math.max(0, tail.turnThinkingChars) : 0
-    this.liveTurnThinkingBlocks = typeof tail.turnThinkingBlocks === 'number' && Number.isFinite(tail.turnThinkingBlocks) ? Math.max(0, Math.floor(tail.turnThinkingBlocks)) : 0
-    this.liveFirstByteAtMs = typeof tail.firstByteAtMs === 'number' && Number.isFinite(tail.firstByteAtMs) ? tail.firstByteAtMs : null
-    this.setLiveStateWord(
-      tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
-      tail.stateWord === 'waiting-on-agents' && typeof tail.waitingOnAgents === 'number' ? Math.max(1, Math.floor(tail.waitingOnAgents)) : 0,
-    )
-    this.setLiveFold(tail.fold !== undefined ? decodeFoldStatus(tail.fold) : null)
-    const wait = decodeRequestWait(tail.wait)
-    if (JSON.stringify(wait) !== JSON.stringify(this.liveWait)) {
-      this.liveWait = wait
-      emitAll(this.liveListeners, 'live')
-    }
-    this.lastEventAtMs = typeof tail.lastEventAtMs === 'number' ? tail.lastEventAtMs : null
-    const block = tail.streamBlock === 'thinking' || tail.streamBlock === 'text' || tail.streamBlock === 'tool_use' ? tail.streamBlock : null
-    this.setStreamBlock(block, block !== null && typeof tail.blockSinceMs === 'number' ? tail.blockSinceMs : null)
-    const withdrawn = typeof tail.withdrawn === 'string' && tail.withdrawn !== '' ? tail.withdrawn : null
-    if (withdrawn !== null && withdrawn !== this.withdrawnMessageId) {
-      this.withdrawnMessageId = withdrawn
-      const kept = this.textRows.filter(committed => committed.messageId !== withdrawn)
-      if (kept.length !== this.textRows.length) {
-        connectorTrace({ ev: 'withdrawn-rows-dropped', sid: this.record.sessionId, count: this.textRows.length - kept.length })
-        this.textRows = kept
-        this.paint()
-      }
-    }
-    if (tail.atMs === this.tailAtMs && tail.text === this.tailStore.read()) return
-    this.tailAtMs = tail.atMs
-    const id = typeof tail.messageId === 'string' && tail.messageId !== '' ? tail.messageId : null
-    this.tailMessageId = id
-    if (id !== null && id === this.interruptedMessageId) return
-    const landed = id !== null && tail.text !== null && computeTailRelease(this.rawRecords, { current: id, settled: null }).publishedShown
-    const text = landed ? null : tail.text
-    if (text !== null && this.tailStore.read() === null) {
-      this.arrivalSeq += 2
-      this.tailSeq = this.arrivalSeq
-      this.tailSinceMs = typeof tail.blockSinceMs === 'number' ? tail.blockSinceMs : tail.atMs
-    }
-    this.tailStore.setMessageId(typeof tail.messageId === 'string' && tail.messageId !== '' ? tail.messageId : null)
-    this.tailStore.setPhase(tail.phase === 'commentary' || tail.phase === 'final_answer' ? tail.phase : null)
-    if (text === null) {
-      this.clearTail(tail.atMs)
-      return
-    }
-    this.tailStore.update(() => text)
-  }
-
-  private clearTail(atMs: number): void {
-    const held = this.tailStore.read()
-    const verdict = held === null || held === '' ? 'nothing' : this.commitHeldText(held, atMs)
-    if (held !== null) this.tailStore.update(() => null)
-    if (verdict === 'committed' || verdict === 'standing' || verdict === 'dropped') {
-      this.tailStore.dropSettled()
-      this.paint()
-    }
-  }
-
-  private commitHeldText(text: string, atMs: number): 'committed' | 'standing' | 'dropped' | 'unidentified' {
-    const id = this.tailStore.readIds().current
-    if (id === null) return 'unidentified'
-    if (id === this.interruptedMessageId || id === this.withdrawnMessageId) {
-      this.tailSeq = null
-      connectorTrace({ ev: id === this.withdrawnMessageId ? 'withdrawn-text-dropped' : 'interrupted-text-dropped', sid: this.record.sessionId, chars: text.length })
-      return 'dropped'
-    }
-    if (computeTailRelease(this.rawRecords, { current: id, settled: null }).publishedShown) {
-      this.tailSeq = null
-      return 'standing'
-    }
-    const seq = this.tailSeq ?? (this.arrivalSeq += 2)
-    const row = createTextRow({ messageId: id, text, phase: this.tailStore.readPhases().current, atMs, model: this.modelFacts().effective })
-    this.textRows = [...this.textRows, { seq, sinceMs: this.tailSinceMs, atMs, messageId: id, text, row }]
-    this.tailSeq = null
-    connectorTrace({ ev: 'text-row', sid: this.record.sessionId, seq, chars: text.length })
-    return 'committed'
-  }
-
-  private retireTextRows(): boolean {
-    if (this.textRows.length === 0) return false
-    const now = Date.now()
-    const kept = this.textRows.filter(committed => {
-      if (now - committed.atMs > ECHO_RETIRE_MS) return false
-      for (let i = this.rawRecords.length - 1, walked = 0; i >= 0 && walked < 200; i--, walked++) {
-        if (textRowLanded(this.rawRecords[i]!, committed.messageId, committed.text)) return false
-      }
-      return true
-    })
-    if (kept.length === this.textRows.length) return false
-    connectorTrace({ ev: 'text-row-landed', sid: this.record.sessionId, count: this.textRows.length - kept.length })
-    this.textRows = kept
-    return true
-  }
-
-  private retireTextRowsWithRunner(): void {
-    if (this.textRows.length === 0) return
-    connectorTrace({ ev: 'lost', sid: this.record.sessionId, reason: 'runner-relaunched-text', count: this.textRows.length })
-    this.textRows = []
-    this.paint()
+    this.livePart.takeTail(tail)
+    this.tailPart.takeTail(tail)
   }
 
   turnChars(): number {
-    return this.liveTurnChars
+    return this.livePart.turnChars()
   }
 
   turnOutputTokens(): number | null {
-    return this.liveTurnOutputTokens
+    return this.livePart.turnOutputTokens()
   }
 
   turnFacts(): LiveTurnFactsV1 {
-    return {
-      replyChars: Math.max(0, this.liveTurnChars - this.liveTurnThinkingChars),
-      thinkingChars: this.liveTurnThinkingChars,
-      thinkingBlocks: this.liveTurnThinkingBlocks,
-      wireOutputTokens: this.liveTurnOutputTokens,
-      firstByteAtMs: this.liveFirstByteAtMs,
-      lastByteAtMs: this.effectiveLive.inFlight ? this.lastEventAtMs : null,
-      wait: this.liveWait,
-    }
-  }
-
-  private clearLiveStateWord(): void {
-    if (this.liveStateWord === null) return
-    const wasCompacting = this.liveStateWord === 'compacting'
-    this.liveStateWord = null
-    if (wasCompacting) {
-      for (const s of this.sends) if (s.state === 'queued') this.dressSend(s.clientMessageId, 'queued')
-    }
-  }
-
-  private setLiveStateWord(word: 'compacting' | 'waiting-on-agents' | null, agentsWaiting = 0): void {
-    const count = word === 'waiting-on-agents' ? agentsWaiting : 0
-    if (this.liveStateWord === word && this.liveAgentsWaiting === count) return
-    const wasCompacting = this.liveStateWord === 'compacting'
-    this.liveStateWord = word
-    this.liveAgentsWaiting = count
-    if (wasCompacting && word !== 'compacting') {
-      for (const s of this.sends) if (s.state === 'queued') this.dressSend(s.clientMessageId, 'queued')
-    }
-    this.recomputeLive()
-  }
-
-  private setLiveFold(next: FoldStatusV1 | null): void {
-    if (JSON.stringify(this.liveFoldStatus) === JSON.stringify(next)) return
-    if (next === null && this.liveFoldStatus !== null && this.liveFoldStatus.trigger === 'manual') {
-      this.latchFold(this.liveFoldStatus)
-    } else if (next !== null) {
-      this.clearFoldLatch()
-      this.foldLingerOver = false
-      if (next.exit !== undefined) this.armFoldLingerEnd(next)
-      else this.clearFoldLinger()
-    }
-    const wasRunning = foldStillRuns(this.liveFoldStatus)
-    this.liveFoldStatus = next
-    emitAll(this.foldListeners, 'fold')
-    if (wasRunning !== foldStillRuns(next)) this.recomputeLive()
-  }
-
-  private armFoldLingerEnd(status: FoldStatusV1): void {
-    this.clearFoldLinger()
-    const endsInMs = Math.max(0, (status.endedAtMs ?? status.startedAtMs) + FOLD_EXIT_LINGER_MS - Date.now())
-    this.foldLingerTimer = setTimeout(() => {
-      this.foldLingerTimer = null
-      this.foldLingerOver = true
-      emitAll(this.foldListeners, 'fold')
-    }, endsInMs)
-    this.foldLingerTimer.unref?.()
-  }
-
-  private clearFoldLinger(): void {
-    if (this.foldLingerTimer !== null) {
-      clearTimeout(this.foldLingerTimer)
-      this.foldLingerTimer = null
-    }
-  }
-
-  private latchFold(status: FoldStatusV1): void {
-    this.foldExitLatch = status
-    if (this.foldLatchTimer !== null) clearTimeout(this.foldLatchTimer)
-    this.foldLatchTimer = setTimeout(() => {
-      this.foldLatchTimer = null
-      this.foldExitLatch = null
-      emitAll(this.foldListeners, 'fold')
-    }, FOLD_EXIT_LINGER_MS)
-    this.foldLatchTimer.unref?.()
-  }
-
-  private clearFoldLatch(): void {
-    if (this.foldLatchTimer !== null) {
-      clearTimeout(this.foldLatchTimer)
-      this.foldLatchTimer = null
-    }
-    this.foldExitLatch = null
+    return this.livePart.turnFacts()
   }
 
   fold(): FoldStatusV1 | null {
-    const record = this.liveFoldStatus ?? this.foldExitLatch
-    return record !== null && record.exit !== undefined && this.foldLingerOver ? null : record
+    return this.foldPart.fold()
   }
 
   subscribeFold(listener: () => void): () => void {
-    this.foldListeners.add(listener)
-    return () => {
-      this.foldListeners.delete(listener)
-    }
+    return this.foldPart.subscribeFold(listener)
   }
 
-  private setStreamBlock(block: 'thinking' | 'text' | 'tool_use' | null, sinceMs: number | null): void {
-    const flipped = this.streamBlock !== block
-    this.streamBlock = block
-    this.blockSinceMs = sinceMs
-    if (flipped) this.recomputeLive()
-  }
-
-  private syncLivenessTicker(inFlight: boolean): void {
-    if (inFlight && this.attached) {
-      if (this.livenessTicker !== null) return
-      const t = setInterval(() => {
-        emitAll(this.liveListeners, 'liveness')
-        this.probeCarrier()
-      }, LIVENESS_TICK_MS)
-      t.unref?.()
-      this.livenessTicker = t
-      return
-    }
-    if (this.livenessTicker !== null) {
-      clearInterval(this.livenessTicker)
-      this.livenessTicker = null
-    }
+  private get liveStateWord(): 'compacting' | 'waiting-on-agents' | null {
+    return this.livePart.stateWord()
   }
 
   private syncFeedCadence(inFlight: boolean): void {
@@ -1062,44 +692,22 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   adoptRecord(next: DaemonSessionRecordV1, runnerLive = false): void {
     if (next.sessionId !== this.record.sessionId) return
-    if (next.runnerId === '' && (!this.awaitingRunnerFacts || this.refusedAdmission !== null)) {
+    if (this.admissionPart.parksAgain(next.runnerId)) {
       this.facts = readSessionFacts(next.sessionId) ?? this.facts
-      this.seedFactsAtMs = this.facts?.atMs ?? null
-      this.openedAtMs = Date.now()
-      this.startShownSinceMs = null
-      this.refusedAdmission = null
-      this.awaitingRunnerFacts = true
+      this.admissionPart.parked(this.facts?.atMs ?? null)
     }
     Object.assign(this.record, next)
-    if (runnerLive) this.refusedAdmission = null
-    if (runnerLive && this.awaitingRunnerFacts) {
-      this.awaitingRunnerFacts = false
-      this.startShownSinceMs = this.openedAtMs
-    }
+    if (runnerLive) this.admissionPart.runnerLive()
     emitAll(this.modelListeners, 'model')
-    emitAll(this.liveListeners, 'live')
+    this.livePart.wake()
   }
 
   awaitAdmission(admission: Promise<string | null>): void {
-    this.admission = admission
-    if (this.refusedAdmission !== null) {
-      this.refusedAdmission = null
-      emitAll(this.liveListeners, 'live')
-    }
-    void admission.then(refusal => {
-      if (this.admission !== admission) return
-      if (refusal !== null) {
-        this.refusedAdmission = refusal
-        emitAll(this.liveListeners, 'live')
-      }
-    })
-    void admission.finally(() => {
-      if (this.admission === admission) this.admission = null
-    })
+    this.admissionPart.awaitAdmission(admission)
   }
 
   admissionRefusal(): string | null {
-    return this.refusedAdmission
+    return this.admissionPart.admissionRefusal()
   }
 
 
@@ -1168,14 +776,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.rawRecords = merge.records
       if (chain.rewound) {
         this.releaseDisplayRowsPast(chain.since)
-        this.textRows = []
+        this.tailPart.dropCommittedRows()
       }
       this.liveState = this.liveFold.fold(this.rawRecords, chain.since)
-      this.releaseTail()
+      this.tailPart.releaseTail()
       this.reconcileSends()
-      this.retireTextRows()
+      this.tailPart.retireTextRows()
       this.paint()
-      if (this.awaitingRunnerFacts || this.facts?.runner?.state === 'starting') this.readFacts()
+      if (this.admissionPart.awaiting() || this.facts?.runner?.state === 'starting') this.readFacts()
       this.recomputeLive()
     } catch (error) {
       if (fpNow !== null) this.transcriptUnreadableFp = fpNow
@@ -1185,108 +793,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private recomputeLive(): void {
-    const sendInFlight = this.sends.some(s => s.state === 'delivered')
-    const inFlight = this.factsBusy || sendInFlight
-    const streaming: SessionLiveV1['phase'] | null =
-      this.streamBlock === 'thinking' ? 'thinking' : this.streamBlock !== null ? 'responding' : null
-    const phase: SessionLiveV1['phase'] =
-      inFlight && this.liveStateWord === 'compacting' && foldStillRuns(this.liveFoldStatus)
-        ? 'compacting'
-        : inFlight && this.liveStateWord === 'waiting-on-agents' && this.liveState.phase !== 'tool'
-          ? 'waiting'
-          : inFlight && this.liveState.phase !== 'tool' && streaming !== null
-            ? streaming
-            : inFlight && this.liveState.phase === 'idle'
-              ? 'thinking'
-              : this.liveState.phase
-    const agentsWaiting = phase === 'waiting' ? this.liveAgentsWaiting : 0
-    const waitingOn = phase === 'waiting' ? workCounts(this.facts?.work ?? []) : null
-    const waitingOnWords = waitingOn !== null ? workChipLine(waitingOn) : null
-    const inProgressToolUseIDs = inFlight
-      ? this.liveState.inProgressToolUseIDs
-      : IDLE_LIVE.inProgressToolUseIDs
-    const prev = this.effectiveLive
-    const changed =
-      inFlight !== prev.inFlight ||
-      phase !== prev.phase ||
-      agentsWaiting !== prev.agentsWaiting ||
-      waitingOnWords !== (prev.waitingOn !== undefined ? workChipLine(prev.waitingOn) : null) ||
-      this.liveState.turnStartedAtMs !== prev.turnStartedAtMs ||
-      inProgressToolUseIDs.size !== prev.inProgressToolUseIDs.size ||
-      [...inProgressToolUseIDs].some(id => !prev.inProgressToolUseIDs.has(id))
-    let latchReleased = false
-    if (this.interruptPressedAtMs !== null) {
-      const release = interruptLatchRelease(
-        { pressedAtMs: this.interruptPressedAtMs },
-        { inFlight, turnStartedAtMs: this.liveState.turnStartedAtMs },
-      )
-      if (release !== null) {
-        connectorTrace({ ev: 'latch-release', sid: this.record.sessionId, road: release })
-        this.interruptPressedAtMs = null
-        this.interrupting = false
-        this.hardStopping = false
-        latchReleased = true
-      }
-    }
-    if (!inFlight && this.tailStore.read() !== null) this.clearTail(Date.now())
-    if (!inFlight) this.liveTurnChars = 0
-    if (!inFlight) this.liveTurnOutputTokens = null
-    if (!inFlight && (prev.inFlight || this.liveStateWord !== 'waiting-on-agents')) this.clearLiveStateWord()
-    if (!inFlight && this.liveFoldStatus !== null && this.liveFoldStatus.exit === undefined) {
-      const gone = this.liveFoldStatus
-      this.liveFoldStatus = null
-      if (gone.trigger === 'manual') this.latchFold(gone)
-      emitAll(this.foldListeners, 'fold')
-    }
-    if (!inFlight && this.publishedProgressSeqs.size > 0) {
-      clearEphemeralProgress()
-      this.publishedProgressSeqs.clear()
-    }
-    if (!inFlight && this.toolBudgets.size > 0) this.toolBudgets.clear()
-    this.syncLivenessTicker(inFlight)
-    this.syncFeedCadence(inFlight)
-    const completionAdvanced = this.stepTurnCompletion(inFlight)
-    if (!changed && !completionAdvanced) {
-      if (latchReleased) emitAll(this.liveListeners, 'live')
-      return
-    }
-    this.effectiveLive = {
-      inFlight,
-      phase,
-      agentsWaiting,
-      ...(waitingOn !== null && waitingOnWords !== null ? { waitingOn } : {}),
-      inProgressToolUseIDs,
-      turnStartedAtMs: this.facts?.turnStartedAt ?? this.liveState.turnStartedAtMs ?? null,
-    }
-    emitAll(this.liveListeners, 'live')
+    this.livePart.recomputeLive()
   }
 
   lastTurnCompletedAtMs(): number | null {
-    return this.completedTurnAtMs
-  }
-
-  private refreshWorkerTurnMarks(): void {
-    const snap = readSessionWorkersSnapshot()
-    if (snap.state !== 'known') return
-    let bestRank = -1
-    let settled: number | null = null
-    let delivery: number | null = null
-    let present = false
-    for (const rec of Object.values(snap.workers)) {
-      if (rec.sessionId !== this.record.sessionId || rec.endedAt !== undefined) continue
-      present = true
-      const s = typeof rec.lastTurnSettledAt === 'number' && Number.isFinite(rec.lastTurnSettledAt) ? rec.lastTurnSettledAt : null
-      const d = typeof rec.lastDeliveryAt === 'number' && Number.isFinite(rec.lastDeliveryAt) ? rec.lastDeliveryAt : null
-      const rank = Math.max(s ?? 0, d ?? 0)
-      if (rank >= bestRank) {
-        bestRank = rank
-        settled = s
-        delivery = d
-      }
-    }
-    this.workerRecordPresent = present
-    this.workerTurnSettledAtMs = settled
-    this.workerTurnDeliveryAtMs = delivery
+    return this.completionPart.lastTurnCompletedAtMs()
   }
 
   private hasUnreadTranscript(): boolean {
@@ -1302,65 +813,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
   }
 
-  private stepTurnCompletion(inFlight: boolean): boolean {
-    const rawEdge = this.completionWasInFlight && !inFlight
-    const wasFactsBusy = this.completionSawFactsBusy
-    const demotedToQueued = this.sendDemotedToQueued
-    const deliveredTaken = this.sendDeliveredTaken
-    this.sendDemotedToQueued = false
-    this.sendDeliveredTaken = false
-    const canSettleLater = this.workerRecordPresent
-    const edge = rawEdge && !(demotedToQueued && !deliveredTaken && !wasFactsBusy && canSettleLater)
-    this.completionWasInFlight = inFlight
-    this.completionSawFactsBusy = inFlight ? (wasFactsBusy || this.factsBusy) : false
-    const settled = this.workerTurnSettledAtMs
-    const delivery = this.workerTurnDeliveryAtMs
-    if (inFlight) {
-      if (delivery !== null && this.completionUnmatchedStampAtMs !== null && delivery > this.completionUnmatchedStampAtMs) {
-        this.completionUnmatchedStampAtMs = null
-      }
-      return false
-    }
-    const stampAdvanced = settled !== null && settled > this.completionHighWaterMs
-    if ((edge || stampAdvanced) && this.hasUnreadTranscript()) {
-      if (edge) {
-        this.completionWasInFlight = true
-        this.completionSawFactsBusy = wasFactsBusy
-      }
-      void this.tick()
-      return false
-    }
-    if (edge && stampAdvanced) {
-      this.completionHighWaterMs = settled
-      this.completionUnmatchedEdgeAtMs = null
-      this.completionUnmatchedStampAtMs = null
-      this.completedTurnAtMs = Math.max(Date.now(), (this.completedTurnAtMs ?? 0) + 1)
-      return true
-    }
-    if (edge) {
-      if (this.completionUnmatchedStampAtMs !== null && (delivery === null || delivery <= this.completionUnmatchedStampAtMs)) {
-        this.completionUnmatchedStampAtMs = null
-        return false
-      }
-      const now = Date.now()
-      this.completionUnmatchedEdgeAtMs = now
-      this.completedTurnAtMs = Math.max(now, (this.completedTurnAtMs ?? 0) + 1)
-      return true
-    }
-    if (stampAdvanced) {
-      this.completionHighWaterMs = settled
-      if (this.completionUnmatchedEdgeAtMs !== null && (delivery === null || delivery <= this.completionUnmatchedEdgeAtMs)) {
-        this.completionUnmatchedEdgeAtMs = null
-        return false
-      }
-      this.completionUnmatchedEdgeAtMs = null
-      this.completionUnmatchedStampAtMs = settled
-      this.completedTurnAtMs = Math.max(Date.now(), (this.completedTurnAtMs ?? 0) + 1)
-      return true
-    }
-    return false
-  }
-
   private reconcileQueuedSends(facts: SessionFactsV1): void {
     if (facts.queueReady === false) return
     const queue = facts.queue ?? []
@@ -1370,7 +822,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (moved) {
         if (this.reconcileSends()) this.paint()
         this.retireSendsLostWithRunner(queue, facts.recoveredCommandIds)
-        this.retireTextRowsWithRunner()
+        this.tailPart.retireTextRowsWithRunner()
       }
     }
     let born = false
@@ -1410,9 +862,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (state === 'taken' && isNoticeKey(clientMessageId) && current !== undefined) {
       const row = this.echoRows.get(clientMessageId)
       if (row !== undefined) {
-        this.arrivalSeq += 2
         const atMs = Number.isFinite(takenAtMs) ? Math.max(current.sentAtMs, takenAtMs) : Date.now()
-        const seq = this.tailSeq !== null && atMs <= this.tailSinceMs ? this.tailSeq - 1 : this.arrivalSeq
+        const seq = this.tailPart.noticeSeqAt(atMs)
         this.deliveredNotices.set(row.uuid, { row: deliveredNoticeRow(row, atMs), text: current.text, sentAtMs: current.sentAtMs, seq })
       }
       this.sends = this.sends.filter(s => s.clientMessageId !== clientMessageId)
@@ -1422,9 +873,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return
     }
     if (current?.state === 'delivered' && state === 'queued') {
-      this.sendDemotedToQueued = true
+      this.completionPart.noteSendDemoted()
     } else if (current?.state === 'delivered' && state === 'taken') {
-      this.sendDeliveredTaken = true
+      this.completionPart.noteSendTaken()
     }
     const enqueuedUnderTheFold = current !== undefined && (current.state !== 'queued' || current.heldFor === 'compaction')
     const heldFor = state === 'queued' && this.liveStateWord === 'compacting' && enqueuedUnderTheFold ? ('compaction' as const) : undefined
@@ -1470,7 +921,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.lostLineNotice = { text: lostWithRunnerLine(lost.map(s => s.source?.text ?? s.text)), atMs: Date.now() }
     connectorTrace({ ev: 'lost', sid: this.record.sessionId, reason: 'runner-relaunched', count: lost.length })
     this.paint()
-    emitAll(this.liveListeners, 'live')
+    this.livePart.wake()
   }
 
   private retireSendUnknownToRunner(clientMessageId: string): void {
@@ -1479,7 +930,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.sends.length === 0) this.textRetiredRowUuids.clear()
     connectorTrace({ ev: 'lost', sid: this.record.sessionId, reason: 'unknown' })
     this.paint()
-    emitAll(this.liveListeners, 'live')
+    this.livePart.wake()
   }
 
   lostLine(): LostLineV1 | null {
@@ -1553,23 +1004,20 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private stampArrival(clientMessageId: string, seenAtMs?: number): void {
-    const newest = this.textRows[this.textRows.length - 1]
-    const anchor = this.tailSeq !== null ? { seq: this.tailSeq, sinceMs: this.tailSinceMs } : newest === undefined ? null : { seq: newest.seq, sinceMs: newest.sinceMs }
-    const before = anchor !== null && seenAtMs !== undefined && seenAtMs < anchor.sinceMs
-    this.arrivalSeq += 2
-    this.sendSeq.set(clientMessageId, before && anchor !== null ? anchor.seq - 1 : this.arrivalSeq)
+    this.sendSeq.set(clientMessageId, this.tailPart.arrivalSeqFor(seenAtMs))
   }
 
   private paint(): void {
     const held: Array<{ seq: number; row: Message }> = []
     const afterTail: Message[] = []
     const live = new Set<string>()
+    const tailSeq = this.tailPart.seq()
     for (const s of this.sends) {
       live.add(s.clientMessageId)
       const row = this.echoRows.get(s.clientMessageId)
       if (row === undefined) continue
       const seq = this.sendSeq.get(s.clientMessageId) ?? 0
-      if (this.tailSeq !== null && seq > this.tailSeq) afterTail.push(row)
+      if (tailSeq !== null && seq > tailSeq) afterTail.push(row)
       else held.push({ seq, row })
     }
     for (const key of this.sendSeq.keys()) if (!live.has(key)) this.sendSeq.delete(key)
@@ -1579,7 +1027,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         this.deliveredNotices.delete(key)
         continue
       }
-      if (this.tailSeq !== null && notice.seq > this.tailSeq) afterTail.push(notice.row)
+      if (tailSeq !== null && notice.seq > tailSeq) afterTail.push(notice.row)
       else held.push({ seq: notice.seq, row: notice.row })
     }
     held.sort((a, b) => a.seq - b.seq)
@@ -1625,25 +1073,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
 
-  private refreshCheckpoints(): void {
-    const fc = this.facts?.fileCheckpoints
-    const stamp = fc === undefined ? '' : JSON.stringify([fc.capture, fc.restorable, fc.files, fc.undo])
-    if (stamp === this.checkpointStamp) return
-    this.checkpointStamp = stamp
-    this.checkpointSnapshot =
-      fc === undefined ? UNKNOWN_CHECKPOINTS : { capture: fc.capture ? 'on' : 'off', restorable: new Set(fc.restorable), ...(fc.files === undefined ? {} : { files: fc.files }), ...(fc.undo === undefined ? {} : { undo: fc.undo }) }
-    emitAll(this.checkpointListeners, 'checkpoints')
-  }
-
   checkpointFacts(): CheckpointFactsV1 {
-    return this.checkpointSnapshot
+    return this.workPart.checkpointFacts()
   }
 
   subscribeCheckpoints(listener: () => void): () => void {
-    this.checkpointListeners.add(listener)
-    return () => {
-      this.checkpointListeners.delete(listener)
-    }
+    return this.workPart.subscribeCheckpoints(listener)
   }
 
   async rewind(req: RewindRequestV1): Promise<RewindReceiptV1> {
@@ -1697,20 +1132,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (next === null) {
       if (this.facts !== null && ((this.facts.work?.length ?? 0) > 0 || (this.facts.mission?.length ?? 0) > 0 || (this.facts.samples?.length ?? 0) > 0) && !existsSync(sessionFactsPath(this.record.sessionId))) {
         this.facts = { ...this.facts, work: [], mission: [], samples: [] }
-        this.refreshWork()
+        this.workPart.refreshWork()
       }
       return
     }
-    if (this.awaitingRunnerFacts) {
-      if (this.seedFactsAtMs !== null && next.atMs <= this.seedFactsAtMs) return
-      this.awaitingRunnerFacts = false
-      this.startShownSinceMs = this.refusedAdmission === null ? this.openedAtMs : null
-      this.refusedAdmission = null
-    }
+    if (!this.admissionPart.factsArrive(next.atMs)) return
     const prev = this.facts
     this.facts = this.factsFromCarrier(next)
-    if (this.facts.runner?.state !== 'starting' || this.facts.runner.respawns !== 0) this.startShownSinceMs = null
-    this.refreshCheckpoints()
+    this.admissionPart.runnerReported(this.facts.runner)
+    this.workPart.refreshCheckpoints()
     adoptOpenaiObservedUsage(next.usage?.openaiObserved)
     adoptOpenaiWindowFact(next.usage?.openaiWindow)
     adoptAnthropicWindowFact(next.usage?.anthropicWindow)
@@ -1750,160 +1180,20 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.facts.busy) this.armBusyStall()
     else this.disarmBusyStall()
     this.reconcileQueuedSends(next)
-    this.refreshWorkerTurnMarks()
+    this.completionPart.refreshWorkerTurnMarks()
     this.recomputeLive()
-    connectorTrace({ ev: 'facts', sid: this.record.sessionId, busy: next.busy, atMs: next.atMs, queue: next.queue?.length ?? 0, sends: this.sends.map(s => s.state).join(','), inFlight: this.effectiveLive.inFlight, interrupting: this.interrupting, hardStopping: this.hardStopping })
+    connectorTrace({ ev: 'facts', sid: this.record.sessionId, busy: next.busy, atMs: next.atMs, queue: next.queue?.length ?? 0, sends: this.sends.map(s => s.state).join(','), inFlight: this.livePart.live().inFlight, ...this.livePart.pressed() })
     if (modelMoved) emitAll(this.modelListeners, 'model')
     if (modeMoved) emitAll(this.permissionListeners, 'permission')
     if (!modelMoved) emitAll(this.modelListeners, 'model')
     const answered = endedRunResults(this.keptRecords, this.facts, this.carrierGoneAtFactsMs !== null)
     const answeredMoved = answered.length !== this.answeredRows.length || answered.some((row, at) => row !== this.answeredRows[at])
     if (this.reconcileSends() || this.clearModelReceipt === undefined || answeredMoved) this.paint()
-    this.refreshWork()
+    this.workPart.refreshWork()
   }
-
-  private refreshWork(): void {
-    const reported = this.facts?.work !== undefined
-    const gone = this.carrierGoneAtFactsMs !== null
-    const rows = this.facts?.work ?? []
-    const mission = this.facts?.mission ?? []
-    const missionCard = this.facts?.missionCard ?? null
-    const samples = this.facts?.samples ?? []
-    const pauseGate = this.facts?.pauseGate
-    const stamp = JSON.stringify([reported, gone, rows, mission, missionCard, samples, pauseGate, this.facts?.swarm?.snapshot, this.facts?.swarm?.on])
-    if (stamp === this.workStamp) return
-    this.workStamp = stamp
-    this.workSnapshot = { rows, mission, missionCard, samples, ...(reported ? {} : { reported: false }), ...(gone ? { gone: true } : {}), ...(pauseGate !== undefined ? { pauseGate } : {}) }
-    emitAll(this.workListeners, 'work')
-  }
-
 
   private readAsks(): void {
-    const projection = readSessionAsks(this.record.sessionId)
-    const rows: SessionAskProjectionV1[] = projection?.asks ?? []
-    const nextIds = rows.map(r => r.requestId)
-    const sameIds = nextIds.length === this.askEntries.length && nextIds.every((id, i) => id === this.askEntries[i]!.id)
-    if (sameIds && projection !== null) return
-    if (projection === null && this.askEntries.length === 0) return
-    const next: SessionAskV1[] = []
-    for (const row of rows) {
-      let confirm = this.confirms.get(row.requestId)
-      if (confirm === undefined) {
-        confirm = this.buildConfirm(row)
-        this.confirms.set(row.requestId, confirm)
-      }
-      next.push({
-        id: row.requestId,
-        confirm,
-        toolName: row.toolName,
-        ...(row.agentId !== undefined ? { agentId: row.agentId } : {}),
-        askedAt: row.askedAt,
-        ...(row.limitMs !== undefined ? { limitMs: row.limitMs } : {}),
-      })
-    }
-    for (const id of [...this.confirms.keys()]) if (!nextIds.includes(id)) this.confirms.delete(id)
-    this.askEntries = next
-    emitAll(this.askListeners, 'asks')
-  }
-
-  private assistantRecordFor(toolUseId: string, toolName: string, input: Record<string, unknown>): AssistantMessage {
-    for (let i = this.rawRecords.length - 1; i >= 0; i--) {
-      const m = this.rawRecords[i]!
-      if (m.type !== 'assistant') continue
-      const content = (m as { message?: { content?: unknown } }).message?.content
-      if (Array.isArray(content) && content.some(b => (b as { type?: string; id?: string }).type === 'tool_use' && (b as { id?: string }).id === toolUseId)) {
-        return m as AssistantMessage
-      }
-    }
-    return createAssistantMessage({
-      content: [{ type: 'tool_use', id: toolUseId, name: toolName, input }] as unknown as Parameters<
-        typeof createAssistantMessage
-      >[0]['content'],
-    })
-  }
-
-  private standInToolUseContext(): ToolUseContext {
-    const facts = this.facts
-    return {
-      options: {
-        commands: [],
-        debug: false,
-        verbose: false,
-        engineModel: facts?.model.effective ?? this.record.modelKey ?? getEngineModel(),
-        tools: getAllBaseTools(),
-        mcpClients: [],
-        isNonInteractiveSession: false,
-        agentDefinitions: { activeAgents: [], allAgents: [] },
-      },
-      abortController: new AbortController(),
-      readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
-      getAppState: () => {
-        throw new Error('a daemon-hosted session has no in-process app state')
-      },
-      setAppState: () => {},
-      messages: this.rawRecords,
-      setResponseLength: () => {},
-      updateFileHistoryState: () => {},
-      updateAttributionState: () => {},
-    } as unknown as ToolUseContext
-  }
-
-  private buildConfirm(row: SessionAskProjectionV1): ToolUseConfirm {
-    const tool = toolFor(row.toolName)
-    const decisionReason =
-      decodeDecisionReasonFromWire(row.decisionReasonDetail) ??
-      (row.decisionReason !== undefined ? { type: 'other' as const, reason: row.decisionReason } : undefined)
-    const permissionResult = {
-      behavior: 'ask' as const,
-      message: `${row.toolName} asks to run`,
-      ...(row.suggestions !== undefined ? { suggestions: row.suggestions } : {}),
-      ...(row.blockedPath !== undefined ? { blockedPath: row.blockedPath } : {}),
-      ...(decisionReason !== undefined ? { decisionReason } : {}),
-    }
-    let description = row.description ?? tool.userFacingName(row.input as never) ?? row.toolName
-    const confirm: ToolUseConfirm = {
-      assistantMessage: this.assistantRecordFor(row.toolUseId, row.toolName, row.input),
-      tool,
-      get description() {
-        return description
-      },
-      input: row.input,
-      toolUseContext: this.standInToolUseContext(),
-      toolUseID: row.toolUseId,
-      permissionResult: permissionResult as ToolUseConfirm['permissionResult'],
-      permissionPromptStartTimeMs: row.askedAt,
-      ...(row.cwd !== undefined ? { cwd: row.cwd } : {}),
-      onUserInteraction: () => {},
-      onAbort: () => {
-        void this.answerThroughDaemon(row.requestId, { kind: 'abort' })
-      },
-      onAllow: async (updatedInput, permissionUpdates, feedback, contentBlocks) => {
-        await this.answerThroughDaemon(row.requestId, {
-          kind: 'allow',
-          updatedInput: updatedInput as Record<string, unknown>,
-          permissionUpdates,
-          feedback,
-          contentBlocks,
-        })
-      },
-      onReject: async (feedback, contentBlocks) => {
-        await this.answerThroughDaemon(row.requestId, { kind: 'deny', feedback, contentBlocks })
-      },
-      recheckPermission: async () => {},
-    }
-    if (row.description !== undefined) return confirm
-    void Promise.resolve(
-      tool.description(row.input as never, {
-        isNonInteractiveSession: false,
-        toolPermissionContext: { mode: this.permissionMode() ?? 'default' } as never,
-        tools: getAllBaseTools(),
-      }),
-    )
-      .then(text => {
-        if (typeof text === 'string' && text.trim() !== '') description = text
-      })
-      .catch(() => {})
-    return confirm
+    this.asksPart.readAsks()
   }
 
 
@@ -1917,41 +1207,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const link = this.verbChain.then(() => this.rpc(req))
     this.verbChain = link.catch(() => {})
     return link
-  }
-
-  private async answerThroughDaemon(requestId: string, answer: AskAnswerV1): Promise<AskReceiptV1> {
-    this.settleAsk(requestId)
-    try {
-      const reply = await this.chainRpc({
-        op: 'sessionControl',
-        action: 'answer-permission',
-        sessionId: this.record.sessionId,
-        by: 'operator',
-        requestId,
-        allow: answer.kind === 'allow',
-        answer:
-          answer.kind === 'allow'
-            ? {
-                ...(answer.updatedInput !== undefined ? { updatedInput: answer.updatedInput } : {}),
-                ...(answer.permissionUpdates !== undefined && answer.permissionUpdates.length > 0
-                  ? { permissionUpdates: answer.permissionUpdates }
-                  : {}),
-              }
-            : answer.kind === 'deny'
-              ? { ...(answer.feedback !== undefined ? { feedback: answer.feedback } : {}) }
-              : { interrupt: true },
-      })
-      const ok = reply.ok === true && reply.outcome === 'applied'
-      if (!ok) return { ok: false, detail: String(reply.detail ?? reply.error ?? 'the ask was already answered') }
-      const feedback = answer.kind === 'allow' || answer.kind === 'deny' ? answer.feedback?.trim() : undefined
-      const blocks = answer.kind === 'allow' || answer.kind === 'deny' ? answer.contentBlocks : undefined
-      if ((answer.kind === 'allow' && feedback) || (blocks !== undefined && blocks.length > 0)) {
-        void this.deliver(feedback ?? '', { extraBlocks: blocks })
-      }
-      return { ok: true }
-    } catch (e) {
-      return { ok: false, detail: `the daemon was unreachable — ${e instanceof Error ? e.message : String(e)}` }
-    }
   }
 
   private async deliver(
@@ -1986,7 +1241,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.sends = [...this.sends.filter(s => s.clientMessageId !== clientMessageId), send]
     this.stampArrival(clientMessageId)
     this.paint()
-    emitAll(this.liveListeners, 'live')
+    this.livePart.wake()
     const settle = (state: 'delivered' | 'held' | 'refused' | 'failed', detail?: string): SendReceiptV1 => {
       this.noteSettled(clientMessageId)
       if (state !== 'delivered') {
@@ -1999,18 +1254,16 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         connectorTrace({ ev: 'send', sid: this.record.sessionId, state: queuedNow ? 'queued' : 'delivered' })
       }
       this.retainedSend = state === 'held' || state === 'failed' ? { text: expanded, id: clientMessageId } : null
-      if (state === 'delivered' && this.refusedAdmission !== null) {
-        this.refusedAdmission = null
-        if (this.awaitingRunnerFacts) this.openedAtMs = Date.now()
-      }
-      emitAll(this.liveListeners, 'live')
+      if (state === 'delivered') this.admissionPart.sendDelivered()
+      this.livePart.wake()
       if (state === 'delivered') {
         return { state: 'accepted' }
       }
       return { state: 'refused', detail: detail ?? (state === 'held' ? 'held — ↵ again replays it' : 'the session did not take it') }
     }
     try {
-      const refusal = this.admission !== null ? await this.admission : null
+      const admission = this.admissionPart.pending()
+      const refusal = admission !== null ? await admission : null
       if (refusal !== null) {
         return settle('failed', `the session could not resume — ${refusal} · ↵ again retries`)
       }
@@ -2118,67 +1371,32 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   turnActive(): boolean {
-    return this.effectiveLive.inFlight
+    return this.livePart.live().inFlight
   }
 
   asks(): readonly SessionAskV1[] {
-    return this.askEntries
+    return this.asksPart.asks()
   }
 
   subscribeAsks(listener: () => void): () => void {
-    this.askListeners.add(listener)
-    return () => {
-      this.askListeners.delete(listener)
-    }
+    return this.asksPart.subscribeAsks(listener)
   }
 
   answerAsk(askId: string, answer: AskAnswerV1): Promise<AskReceiptV1> {
-    if (!this.askEntries.some(a => a.id === askId)) {
-      return Promise.resolve({ ok: false, detail: 'no pending ask carries that id' })
-    }
-    return this.answerThroughDaemon(askId, answer)
+    return this.asksPart.answerAsk(askId, answer)
   }
 
   settleAsk(askId: string): void {
-    if (!this.askEntries.some(a => a.id === askId)) return
-    this.askEntries = this.askEntries.filter(a => a.id !== askId)
-    this.confirms.delete(askId)
-    emitAll(this.askListeners, 'asks')
+    this.asksPart.settleAsk(askId)
   }
 
   interrupt(): boolean {
-    const wasRunning = this.effectiveLive.inFlight || this.askEntries.length > 0
+    const wasRunning = this.livePart.live().inFlight || this.asksPart.asks().length > 0
     if (!wasRunning) return false
-    for (const entry of this.askEntries) this.confirms.delete(entry.id)
-    this.askEntries = []
-    emitAll(this.askListeners, 'asks')
-    if (this.interrupting && this.hardStopping) return true
-    const hard = this.interrupting
-    if (hard) this.hardStopping = true
-    else {
-      this.interrupting = true
-      this.interruptPressedAtMs = Date.now()
-      this.interruptedMessageId = this.tailStore.readIds().current ?? this.tailMessageId
-      if (this.interruptedMessageId !== null) {
-        if (this.textRows.length > 0) {
-          connectorTrace({ ev: 'interrupted-rows-dropped', sid: this.record.sessionId, count: this.textRows.length })
-          this.textRows = []
-          this.paint()
-        }
-        this.clearTail(this.interruptPressedAtMs)
-      }
-    }
-    emitAll(this.liveListeners, 'live')
-    connectorTrace({ ev: 'interrupt', sid: this.record.sessionId, hard, turnStartedAtMs: this.liveState.turnStartedAtMs })
-    const undo = (): void => {
-      if (hard) this.hardStopping = false
-      else {
-        this.interrupting = false
-        this.interruptPressedAtMs = null
-        this.interruptedMessageId = null
-      }
-      emitAll(this.liveListeners, 'live')
-    }
+    this.asksPart.dropAll()
+    const press = this.livePart.pressInterrupt()
+    if (press === null) return true
+    const { hard, undo } = press
     void this.chainRpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.record.sessionId, by: 'operator', clientOpId: randomUUID(), ...(hard ? { hard: true } : {}) })
       .then(reply => {
         if (!(reply.ok === true && reply.outcome === 'applied')) undo()
@@ -2228,7 +1446,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         this.echoRows.delete(clientMessageId)
         if (this.sends.length === 0) this.textRetiredRowUuids.clear()
         this.paint()
-        emitAll(this.liveListeners, 'live')
+        this.livePart.wake()
         connectorTrace({ ev: 'withdrawn', sid: this.record.sessionId, withdrawn: true })
         const source = send.source
         return {
@@ -2413,10 +1631,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   modelFacts(): ModelFactsV1 {
-    const retained = this.awaitingRunnerFacts ? this.record.modelKey : undefined
+    const retained = this.admissionPart.awaiting() ? this.record.modelKey : undefined
     const effective = retained ?? this.facts?.model.effective ?? this.record.modelKey ?? getEngineModel()
     const effectiveSource: 'live' | 'record' | 'ambient' =
-      this.facts !== null && !this.awaitingRunnerFacts ? 'live' : this.facts !== null || this.record.modelKey !== undefined ? 'record' : 'ambient'
+      this.facts !== null && !this.admissionPart.awaiting() ? 'live' : this.facts !== null || this.record.modelKey !== undefined ? 'record' : 'ambient'
     return {
       effective,
       effectiveSource,
@@ -2440,7 +1658,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const target = setting ?? getEngineModel()
     const current = this.modelFacts()
     if (current.effective === target && current.pendingSwitch === null) return { state: 'no-op' }
-    const busy = this.effectiveLive.inFlight
+    const busy = this.livePart.live().inFlight
     if (this.facts !== null) {
       this.facts = busy
         ? { ...this.facts, pendingModel: target }
@@ -2476,7 +1694,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   async setEffort(level: string): Promise<ModelSwitchReceiptV1> {
     const current = this.modelFacts()
     if (current.effort === level) return { state: 'no-op' }
-    const busy = this.effectiveLive.inFlight
+    const busy = this.livePart.live().inFlight
     if (this.facts !== null && !busy) {
       this.facts = { ...this.facts, effort: level }
       emitAll(this.modelListeners, 'model')
@@ -2607,7 +1825,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   workRoster(): WorkRosterV1 {
-    return this.workSnapshot
+    return this.workPart.workRoster()
   }
 
   advisorFacts(): AdvisorFactsV1 | null {
@@ -2619,10 +1837,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   subscribeWork(listener: () => void): () => void {
-    this.workListeners.add(listener)
-    return () => {
-      this.workListeners.delete(listener)
-    }
+    return this.workPart.subscribeWork(listener)
   }
 
   permissionMode(): PermissionMode | null {
@@ -2678,98 +1893,33 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
 
   live(): SessionLiveV1 {
-    return this.effectiveLive
+    return this.livePart.live()
   }
 
   subscribeLive(listener: () => void): () => void {
-    this.liveListeners.add(listener)
-    return () => {
-      this.liveListeners.delete(listener)
-    }
+    return this.livePart.subscribeLive(listener)
   }
 
   tail(): StreamingTailStore {
-    return this.tailStore
+    return this.tailPart.store()
+  }
+
+  private get textRows(): readonly CommittedTextRow[] {
+    return this.tailPart.committedRows()
   }
 
   tailAnchor(): number {
     return this.painted.length - this.rowsAfterTail
   }
 
-  private releaseTail(): void {
-    const ids = this.tailStore.readIds()
-    if (ids.current === null && ids.settled === null) return
-    const release = computeTailRelease(this.rawRecords, ids)
-    if (!release.publishedShown && !release.settledShown) return
-    if (release.publishedShown) this.tailStore.reset(null)
-    this.tailStore.dropSettled()
-    this.tailSeq = null
-  }
-
   status(): SeatStatusV1 {
-    const live = this.effectiveLive
-    const now = Date.now()
-    const quietMs = live.inFlight && this.lastEventAtMs !== null ? Math.max(0, now - this.lastEventAtMs) : null
-    const wait = live.inFlight ? this.liveWait : null
-    const waitAgeMs = wait !== null && wait.kind === 'first-byte' && this.waitCountsItsOwnAge(wait) ? Math.max(0, now - wait.sinceMs) : undefined
-    const watchdogMs =
-      wait?.kind === 'first-byte' ? wait.budgetMs : typeof this.facts?.streamIdleTimeoutMs === 'number' ? this.facts.streamIdleTimeoutMs : null
-    let phaseMs: number | null = null
-    let toolBudgetMs: number | null = null
-    if (live.inFlight) {
-      if (live.phase === 'tool') {
-        const started = this.toolStartedAtMs(live.inProgressToolUseIDs)
-        if (started !== null) phaseMs = Math.max(0, now - started)
-        for (const [id, budget] of this.toolBudgets) {
-          if (!live.inProgressToolUseIDs.has(id)) continue
-          toolBudgetMs = Math.max(toolBudgetMs ?? 0, budget.budgetMs)
-          phaseMs = Math.max(phaseMs ?? 0, budget.elapsedMs + Math.max(0, now - budget.atMs))
-        }
-      } else if (this.blockSinceMs !== null) {
-        phaseMs = Math.max(0, now - this.blockSinceMs)
-      } else if (live.turnStartedAtMs !== null) {
-        phaseMs = Math.max(0, now - live.turnStartedAtMs)
-      }
-    }
-    const stuck =
-      live.inFlight &&
-      !this.interrupting &&
-      live.phase !== 'tool' &&
-      quietMs !== null &&
-      watchdogMs !== null &&
-      quietMs >= streamIdleWarningMsOf(watchdogMs)
-    return {
+    return this.livePart.status({
       title: liveTitleDeriver?.(this.record) ?? this.record.title,
       projectLabel: this.record.projectLabel,
-      interrupting: this.interrupting,
-      hardStopping: this.hardStopping,
-      wait,
-      ...(waitAgeMs !== undefined ? { waitAgeMs } : {}),
-      quietMs,
-      watchdogMs,
-      phaseMs,
-      toolBudgetMs,
-      stuck,
       ...(this.record.isolation !== undefined ? { isolation: this.record.isolation } : {}),
       ...(this.record.branchLabel !== undefined ? { branchLabel: this.record.branchLabel } : {}),
-      runner: this.awaitingRunnerFacts
-        ? this.refusedAdmission !== null
-          ? null
-          : { state: 'starting', sinceMs: this.openedAtMs, respawns: 0, maxRespawns: 0 }
-        : this.runnerOnTheShownClock(),
-    }
-  }
-
-  private waitCountsItsOwnAge(wait: Extract<RequestWaitV1, { kind: 'first-byte' }>): boolean {
-    if (wait.promise === true) return true
-    if (this.liveWaitOwnAge?.wait !== wait) this.liveWaitOwnAge = { wait, own: compatEndpointIsSelfHosted(this.modelFacts().effective) }
-    return this.liveWaitOwnAge.own
-  }
-
-  private runnerOnTheShownClock(): NonNullable<SessionFactsV1['runner']> | null {
-    const runner = this.facts?.runner ?? null
-    if (runner === null || this.startShownSinceMs === null || runner.sinceMs <= this.startShownSinceMs) return runner
-    return { ...runner, sinceMs: this.startShownSinceMs }
+      runner: this.admissionPart.runnerShown(this.facts?.runner ?? null),
+    })
   }
 }
 

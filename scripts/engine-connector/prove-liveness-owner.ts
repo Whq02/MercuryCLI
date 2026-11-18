@@ -225,8 +225,44 @@ section('§9 structural: the row keys on its own words; the attribution provider
   check('the row’s snapshot key carries the sentence it paints (repaint economy keyed on the owner’s fact)', bar.includes('${statusLine(live, s)}'))
   check('the attribution provider subscribes on the identity key, never the per-second one', bar.includes('useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatIdentityKey, getFocusedSeatIdentityKey)'))
   check('the row reads no transcript-growth proxy', !bar.includes('silenceMs') && !bar.includes('no new words'))
-  const connector = readFileSync(join(import.meta.dir, '..', '..', 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  check('the ticker runs only in flight and only while attached', connector.includes('if (inFlight && this.attached) {') && connector.includes('this.syncLivenessTicker(false)'))
+  const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
+  const tailOf = (says: Record<string, unknown>): never => ({ schema: 1, sessionId: 'proof', atMs: 1, text: null, ...says }) as never
+  type Ticker = { ms: number; fire: () => void; cleared: boolean; unref: () => void }
+  const tickers: Ticker[] = []
+  const realSetInterval = globalThis.setInterval
+  const realClearInterval = globalThis.clearInterval
+  const g = globalThis as Record<string, unknown>
+  g.setInterval = (fire: () => void, ms: number): Ticker => {
+    const ticker: Ticker = { ms, fire, cleared: false, unref: () => {} }
+    tickers.push(ticker)
+    return ticker
+  }
+  g.clearInterval = (ticker: Ticker | null | undefined): void => {
+    if (ticker) ticker.cleared = true
+  }
+  const window = { attached: false, busy: true, wakes: 0, probes: 0 }
+  const ticking = liveWith({ attached: () => window.attached, factsBusy: () => window.busy, probeCarrier: () => void window.probes++ })
+  ticking.subscribeLive(() => void window.wakes++)
+  ticking.recomputeLive()
+  const inFlightDetached = tickers.length
+  window.busy = false
+  window.attached = true
+  ticking.recomputeLive()
+  const attachedAtRest = tickers.length
+  window.busy = true
+  ticking.recomputeLive()
+  ticking.recomputeLive()
+  const armed = tickers.length
+  const wakesBefore = window.wakes
+  tickers[0]?.fire()
+  const ticked = { wakes: window.wakes - wakesBefore, probes: window.probes, ms: tickers[0]?.ms }
+  ticking.syncLivenessTicker(false)
+  const stopped = tickers[0]?.cleared
+  g.setInterval = realSetInterval
+  g.clearInterval = realClearInterval
+  check('the ticker runs only in flight and only while attached', inFlightDetached === 0 && attachedAtRest === 0 && armed === 1 && ticked.ms === 1000 && ticked.wakes === 1 && ticked.probes === 1 && stopped === true, JSON.stringify({ inFlightDetached, attachedAtRest, armed, ticked, stopped }))
 }
 
 console.log('\n' + '='.repeat(60))

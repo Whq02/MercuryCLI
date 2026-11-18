@@ -198,8 +198,53 @@ console.log('\nA5 the wiring — runner to glass (structural)')
 {
   const driver = read('src/cli/headless/turnDriver.ts')
   check("the driver announces the wait where it parks ('waiting_for_agents') and 0 on every exit of the cycle", /phase = 'waiting_for_agents'[\s\S]{0,500}announceWait\(holding \? running : Math\.max\(1, running\)\)/.test(driver) && /finally \{\s*\n[\s\S]{0,300}announceWait\(0\)/.test(driver))
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
-  check('the connector lifts the wait into the live phase and the second esc sends hard:true (the press carries its own operation id)', /this\.liveStateWord === 'waiting-on-agents'[\s\S]{0,80}\? 'waiting'/.test(connector) && /action: 'interrupt', sessionId: this\.record\.sessionId, by: 'operator', clientOpId: randomUUID\(\), \.\.\.\(hard \? \{ hard: true \} : \{\}\)/.test(connector))
+  const plane = mkdtempSync(join(tmpdir(), 'agentwait-door-'))
+  const planeBefore = process.env.MERCURY_DAEMON_DIR
+  process.env.MERCURY_DAEMON_DIR = plane
+  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { publishSessionFacts, publishSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const doorId = 'agentwait-door'
+  const door = new DaemonSessionConnector({ sessionId: doorId, runnerId: 'runner-agentwait', title: 'the chat', projectLabel: 'proof', workspaceId: plane, home: plane })
+  const reaches = door as unknown as { readFacts(): void; readTail(): void; rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>> }
+  const presses: Array<Record<string, unknown>> = []
+  reaches.rpc = async req => {
+    presses.push(req)
+    return { ok: true, outcome: 'applied' }
+  }
+  publishSessionFacts({
+    schema: 1,
+    sessionId: doorId,
+    atMs: 1,
+    pendingModel: null,
+    busy: true,
+    model: { effective: 'claude-sonnet-5-5', setting: null },
+    usage: { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false },
+    identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null },
+    skills: [],
+    mcp: [],
+    workspace: { cwd: plane, originalCwd: plane, projectRoot: plane },
+    queue: [],
+  })
+  reaches.readFacts()
+  publishSessionTail({ schema: 1, sessionId: doorId, atMs: 1, text: null, stateWord: 'waiting-on-agents', waitingOnAgents: 2 })
+  reaches.readTail()
+  const lifted = door.live()
+  door.interrupt()
+  door.interrupt()
+  await settleTicks(6)
+  if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+  else process.env.MERCURY_DAEMON_DIR = planeBefore
+  check(
+    'the connector lifts the wait into the live phase and the second esc sends hard:true (the press carries its own operation id)',
+    lifted.phase === 'waiting' &&
+      lifted.agentsWaiting === 2 &&
+      presses.length === 2 &&
+      presses.every(press => press.op === 'sessionControl' && press.action === 'interrupt' && press.sessionId === doorId && press.by === 'operator' && typeof press.clientOpId === 'string') &&
+      presses[0]!.hard === undefined &&
+      presses[1]!.hard === true &&
+      presses[0]!.clientOpId !== presses[1]!.clientOpId,
+    JSON.stringify({ lifted: { phase: lifted.phase, agentsWaiting: lifted.agentsWaiting }, presses }),
+  )
   const main = read('src/daemon/main.ts')
   const interruptVerb = main.slice(main.indexOf("if (action === 'interrupt')"), main.indexOf("if (action === 'stop-agent'"))
   check("the daemon's interrupt verb only delivers: a second press re-sends the interrupt and never signals the runner (no kill, no timer, no cut in the verb — the stop verb is the operator's door)", interruptVerb.length > 0 && /door\.send\('turn\/interrupt'/.test(interruptVerb) && !/\.kill\(/.test(interruptVerb) && !/setTimeout\(/.test(interruptVerb) && !/hard === true && roster !== null/.test(main) && /'second interrupt' : 'interrupt'/.test(interruptVerb))

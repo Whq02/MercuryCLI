@@ -68,6 +68,7 @@
 # gate-watch: src/run-core/turn/**
 # gate-watch: scripts/core-runtime/turnScenarios.ts
 # gate-watch: src/cli/headless/*
+# gate-watch: src/services/engine-connector/daemon/work.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

@@ -35,6 +35,7 @@
 # gate-watch: src/main.tsx
 # gate-watch: src/utils/health/sections/*
 # gate-watch: src/cli/headless/*
+# gate-watch: src/services/compact/foldStatus.ts src/utils/model/model.ts tsconfig.json src/state/ephemeralProgressStore.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

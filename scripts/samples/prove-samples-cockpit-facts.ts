@@ -123,8 +123,25 @@ const print = readFileSync(join(REPO, 'src/cli/run.ts'), 'utf8')
 check('F6d the runner writes the row on every change (debounced)', print.includes('subscribeSampleChanges(() => {') && print.includes('enqueueRow(samplesUpdatedRow(liveScope()))'))
 const seat = readFileSync(join(REPO, 'src/daemon/sessionSeat.ts'), 'utf8')
 check('F6e the daemon re-asks the facts on the row', /case 'samples_updated':/.test(seat))
-const connector = readFileSync(join(REPO, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-check('F6f the connector folds the rows into the work roster it already publishes', connector.includes('const samples = this.facts?.samples ?? []') && connector.includes('this.workSnapshot = { rows, mission, missionCard, samples, ...(reported ? {} : { reported: false }), ...(gone ? { gone: true } : {}), ...(pauseGate !== undefined ? { pauseGate } : {}) }'))
+{
+  const { WorkPart } = await import('../../src/services/engine-connector/daemon/work.ts')
+  const crew = [{ id: 'agent-1', kind: 'agent', name: 'an errand', status: 'running', startTime: 1 }]
+  let seatFacts: Record<string, unknown> = { work: crew, mission: [], missionCard: null, samples: after }
+  const roster = new WorkPart({ facts: () => seatFacts as never, carrierGone: () => false })
+  let wakes = 0
+  roster.subscribeWork(() => wakes++)
+  roster.refreshWork()
+  const folded = roster.workRoster()
+  roster.refreshWork()
+  const reread = wakes
+  seatFacts = { ...seatFacts, samples: after.slice(0, 1) }
+  roster.refreshWork()
+  check(
+    'F6f the connector folds the rows into the work roster it already publishes',
+    folded.samples === after && folded.rows === crew && JSON.stringify(Object.keys(folded).sort()) === JSON.stringify(['mission', 'missionCard', 'rows', 'samples']) && reread === 1 && wakes === 2 && roster.workRoster().samples?.length === 1,
+    JSON.stringify({ keys: Object.keys(folded).sort(), reread, wakes, samples: roster.workRoster().samples?.length }),
+  )
+}
 
 section('P the poison — the comparators bite on a spoiled fixture')
 const spoiled = after.map(r => ({ ...r, url: r.url?.replace(/t=[0-9a-f]{32}$/, 't=short') }))

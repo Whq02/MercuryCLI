@@ -29,7 +29,7 @@ type Guts = {
   echoRows: Map<string, { queued?: true; heldFor?: 'compaction'; timestamp?: string }>
   rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>>
   dressSend: (id: string, state: Send['state']) => void
-  setLiveStateWord: (word: 'compacting' | 'waiting-on-agents' | null, agentsWaiting?: number) => void
+  readTail: () => void
   liveStateWord: 'compacting' | 'waiting-on-agents' | null
   factsBusy: boolean
   paint: () => void
@@ -53,9 +53,15 @@ const seed = (id: string, text: string, state: Send['state']): void => {
 }
 const sendOf = (id: string): Send | undefined => g.sends.find(s => s.clientMessageId === id)
 const rowOf = (id: string) => g.echoRows.get(id)
+const { publishSessionTail } = await import(join(SRC, 'services/engine-connector/seatProjections.ts'))
+let tailStamp = 0
+const tailSays = (word: 'compacting' | 'waiting-on-agents' | null): void => {
+  publishSessionTail({ schema: 1, sessionId: 'fold-line-proof', atMs: ++tailStamp, text: null, ...(word !== null ? { stateWord: word } : {}) })
+  g.readTail.call(connector)
+}
 const foldRunning = (on: boolean): void => {
   g.factsBusy = on
-  g.setLiveStateWord(on ? 'compacting' : null)
+  tailSays(on ? 'compacting' : null)
 }
 
 section('§1 the fold\'s own line: a queued /compact the runner takes never wears held while its facts tick is still on its way')

@@ -80,8 +80,21 @@ console.log('\nC6 the wiring — service stamp to glass word (structural)')
   check("the runner relays the stamp as a compaction row", print.includes('compactionRow(liveScope(), fold)'))
   const seatLive = read('src/services/engine-connector/seatLive.ts')
   check("the live-phase vocabulary carries 'compacting'", seatLive.includes("'compacting'"))
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
-  check("the connector lifts the word into phase 'compacting'", connector.includes("'compacting'"))
+  const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const fold = { runs: true }
+  const lifted = new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => fold.runs, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {} } as never)
+  lifted.recomputeLive()
+  const before = lifted.live().phase
+  lifted.takeTail({ schema: 1, sessionId: 'proof', atMs: 1, text: null, stateWord: 'compacting' } as never)
+  const during = lifted.live().phase
+  fold.runs = false
+  lifted.recomputeLive()
+  const ended = lifted.live().phase
+  fold.runs = true
+  lifted.recomputeLive()
+  lifted.takeTail({ schema: 1, sessionId: 'proof', atMs: 2, text: null } as never)
+  check("the connector lifts the word into phase 'compacting'", before === 'thinking' && during === 'compacting' && ended === 'thinking' && lifted.live().phase === 'thinking', JSON.stringify({ before, during, ended, after: lifted.live().phase }))
   const repl = read('src/screens/Chat.tsx')
   check(
     "the Chat paints the fold's own word (its own state word, never the thinking dress)",

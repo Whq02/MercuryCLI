@@ -100,8 +100,20 @@ section('B5 · the wiring (structural)')
   )
   const seat = src('src/daemon/sessionSeat.ts')
   check('the seat folds the wait row into the tail projection on its own key and clears it with the turn and a respawn', /case 'wait': \{[\s\S]{0,400}seat\.wait = next/.test(seat) && /\.\.\.\(seat\.wait !== null \? \{ wait: seat\.wait \} : \{\}\)/.test(seat) && (seat.match(/seat\.wait = null/g) ?? []).length >= 2)
-  const connector = src('src/services/engine-connector/daemonConnector.ts')
-  check("the connector's 'aborts at' reads the wait's budget while the first byte is outstanding", /wait\?\.kind === 'first-byte' \? wait\.budgetMs : typeof this\.facts\?\.streamIdleTimeoutMs === 'number'/.test(connector))
+  const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
+  const tailOf = (says: Record<string, unknown>): never => ({ schema: 1, sessionId: 'proof', atMs: 1, text: null, ...says }) as never
+  const shown = { title: 'the chat', projectLabel: 'proof', runner: null }
+  const waiting = liveWith({ streamIdleTimeoutMs: () => 30_000 })
+  waiting.recomputeLive()
+  waiting.takeTail(tailOf({ wait: { kind: 'first-byte', cold: true, promptTokens: 1200, model: 'the-model', budgetMs: 90_000, sinceMs: 1, attempt: 1 } }))
+  const outstanding = waiting.status(shown).watchdogMs
+  waiting.takeTail(tailOf({}))
+  const streaming = waiting.status(shown).watchdogMs
+  const unbudgeted = liveWith()
+  unbudgeted.recomputeLive()
+  check("the connector's 'aborts at' reads the wait's budget while the first byte is outstanding", outstanding === 90_000 && streaming === 30_000 && unbudgeted.status(shown).watchdogMs === null, JSON.stringify({ outstanding, streaming, neither: unbudgeted.status(shown).watchdogMs }))
   const row = src('src/components/SwitchboardTagBar.tsx')
   check('the status row speaks the wait, and past its budget says the lane is due', /if \(s\.wait !== null\) \{[\s\S]{0,600}requestWaitLine\(s\.wait, compact\)/.test(row) && /the budget is up; the lane reissues or aborts now/.test(row))
 }

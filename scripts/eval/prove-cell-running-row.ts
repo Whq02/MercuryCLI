@@ -187,8 +187,17 @@ try {
     const entries = readSessionProgress(sid, dir)
     const entry = entries?.tools['toolu_eval_1']
     check('RED ON THE BASE: the seat keeps the eval tick as eval_progress with its elapsed, budget and line', entry?.dataType === 'eval_progress' && entry.elapsedTimeSeconds === 12 && entry.budgetMs === 180_000 && entry.latestLine === 'test_two ok', j(entries))
-    const connector = read('src/services/engine-connector/daemonConnector.ts')
-    check('the connector hands the cell row a running tick rebuilt from the entry (elapsed, budget, tail)', connector.includes("if (entry.dataType === 'eval_progress')") && connector.includes("kind: 'running'") && connector.includes('elapsedSeconds: entry.elapsedTimeSeconds ?? 0'))
+    const { LivePart } = await import('../../src/services/engine-connector/daemon/live.js')
+    const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.js')
+    const { getEphemeralProgressFrame } = await import('../../src/state/ephemeralProgressStore.js')
+    const planeBefore = process.env.MERCURY_DAEMON_DIR
+    process.env.MERCURY_DAEMON_DIR = dir
+    const window = new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, sessionId: () => sid } as never)
+    window.readProgress()
+    if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+    else process.env.MERCURY_DAEMON_DIR = planeBefore
+    const tick = getEphemeralProgressFrame('toolu_eval_1')
+    check('the connector hands the cell row a running tick rebuilt from the entry (elapsed, budget, tail)', tick?.type === 'progress' && j(tick.data) === j({ type: 'eval_progress', kind: 'running', elapsedSeconds: 12, budgetMs: 180_000, tail: 'test_two ok' }), j(tick))
   }
 } finally {
   await evalKernelManager.disposeAll()
