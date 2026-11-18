@@ -1,5 +1,5 @@
 import { isIP } from 'node:net'
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../../utils/sleep.js'
 import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from '../recipes.js'
 import { currentHostRecipes } from '../recipesFile.js'
@@ -162,7 +162,7 @@ export class HyperstackClient implements HostVendor {
         if (!(error instanceof HostVendorHttpError && error.status === 400) || Date.now() >= deadline) throw error
         const pod = await (readOnly ? readOnly('instance', signal => this.get(id, signal)) : this.get(id))
         if (!['CREATING', 'BUILD', 'BUILDING', 'RUNNING'].includes(pod.status) || !/currently being created/.test(error.message)) throw error
-        await delay(this.timing.pollMs ?? 2000)
+        await sleep(this.timing.pollMs ?? 2000)
       }
     }
     await verifyVmAbsent(this.label, id, signal => this.pods(signal), this.timing, readOnly)
@@ -174,7 +174,7 @@ export class HyperstackClient implements HostVendor {
     for (;;) {
       const result = await this.api.request('/core/virtual-machines/' + id + '/logs?request_id=' + request.request_id, z.object({ logs: z.string().nullable() }), 'GET', undefined, bounded)
       if (result.logs !== null) return this.api.redact(result.logs).split('\n').slice(-12).join('\n')
-      await delay(this.timing.pollMs ?? 1000, undefined, { signal: bounded })
+      await sleep(this.timing.pollMs ?? 1000, bounded, { throwOnAbort: true })
     }
   }
 }

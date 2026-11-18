@@ -1,4 +1,4 @@
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../../utils/sleep.js'
 import type { z } from 'zod/v4'
 import type { HostPod } from './vendor.js'
 
@@ -60,7 +60,7 @@ class RateGate {
         signal?.throwIfAborted()
         const wait = Math.max(this.nextRequest, this.blockedUntil, launch ? this.nextLaunch : 0) - Date.now()
         if (wait <= 0) break
-        await delay(Math.min(wait, 2147483647), undefined, { signal })
+        await sleep(Math.min(wait, 2147483647), signal, { throwOnAbort: true })
       }
       this.nextRequest = Date.now() + 1000
       if (launch) this.nextLaunch = Date.now() + 12000
@@ -136,7 +136,7 @@ export class VendorApi {
     for (let attempt = 1; ; attempt++) {
       try { return await read() } catch {
         if (attempt >= 3) throw this.created(id, 'reading it back failed')
-        await delay(this.timing.pollMs ?? 2500)
+        await sleep(this.timing.pollMs ?? 2500)
       }
     }
   }

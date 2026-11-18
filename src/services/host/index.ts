@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { createBoxRoad } from './boxRoad.js'
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../utils/sleep.js'
 import { hostHuggingfaceScopeWords, hostPaidPodWords, LLM_HOST_WORDS as words } from '../../commands/llmhost/words.js'
 import { runLlmHost, type LlmHostRoad, type LlmHostResult } from '../llmHost/index.js'
 import { HOST_VENDORS, vendorClient, vendorKey, vendorLabel, saveVendorKey, vendorStorage, vendorKeyNotice, runpodOnly, type HostVendorId } from './vendors/client.js'
@@ -315,7 +315,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
         try {
           await api.stop(pod.id)
           const deadline = Date.now() + 120_000
-          while (Date.now() < deadline) { pod = await confirming('pod', readSignal => api!.get(pod!.id, readSignal)); if (pod.status === 'EXITED') break; await delay(pauseMs, undefined, { signal }) }
+          while (Date.now() < deadline) { pod = await confirming('pod', readSignal => api!.get(pod!.id, readSignal)); if (pod.status === 'EXITED') break; await sleep(pauseMs, signal, { throwOnAbort: true }) }
           if (pod.status !== 'EXITED') throw new Error('Stop requested but the pod has not stopped yet. It may still be billing compute.')
         } catch (error) {
           const detail = pod.id + ' · ' + plain(error) + ' · compute may still bill · /llmhost → Machines I’m paying for → Stop again or Terminate'

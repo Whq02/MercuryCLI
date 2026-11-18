@@ -4,7 +4,7 @@ import { VideoProviderRefusal } from './minimax.js'
 import { dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { spawnFfmpeg } from '../../utils/ffmpeg.js'
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../utils/sleep.js'
 import { createVideoProvider, videoProviderSelection } from './registry.js'
 import type { VideoInput, VideoJob, VideoOutput, VideoRole, VideoStatus } from './types.js'
 
@@ -144,7 +144,7 @@ export async function generateVideo(input: VideoInput, project: string, parentSi
     jobId = await provider.create(plan.job, signal)
     let task: VideoStatus
     do {
-      await delay(provider.pollIntervalMs, undefined, { signal })
+      await sleep(provider.pollIntervalMs, signal, { throwOnAbort: true })
       task = await provider.status(jobId, signal)
     } while (task.state === 'queued' || task.state === 'running')
     remoteTerminal = true

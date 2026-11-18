@@ -293,7 +293,7 @@ scripts/daemon/prove-close-all.ts	5	48	dfe85d4dd720
 scripts/daemon/prove-compact-state-word.ts	5	6	b057a4ec67c9
 scripts/daemon/prove-compaction-hold.ts	8	13	5578a2f7d83b
 scripts/daemon/prove-control-layer-held.ts	1	1	c24dc3f7fbaa
-scripts/daemon/prove-daemon-departure.ts	2	9	cdf305118c12
+scripts/daemon/prove-daemon-departure.ts	2	7	cdf305118c12
 scripts/daemon/prove-daemon-env-scrub.ts	5	10	8530045a0d59
 scripts/daemon/prove-daemon-handshake.ts	5	19	d096c230e141
 scripts/daemon/prove-daemon-home-census.ts	9	65	aebde4443d39
@@ -314,7 +314,7 @@ scripts/daemon/prove-install-fresh-folder.ts	1	1	a6c271ba6cae
 scripts/daemon/prove-interrupt-agent-wait.ts	6	18	3f1a4772978a
 scripts/daemon/prove-interrupt-keeps-runner.ts	3	23	f67c5ba90479
 scripts/daemon/prove-kit-birth.ts	15	12	5f9025b3b5a0
-scripts/daemon/prove-leak-sweep.ts	34	43	e0ab37e9814b
+scripts/daemon/prove-leak-sweep.ts	32	41	793fe99e05f6
 scripts/daemon/prove-live-turn-chars.ts	6	13	5ba2929ab4d3
 scripts/daemon/prove-liveness-stamp.ts	4	14	18666354b261
 scripts/daemon/prove-midturn-line.ts	5	6	06275a850471
@@ -361,7 +361,7 @@ scripts/daemon/prove-worker-recon.ts	2	5	7eac464fd3c7
 scripts/dap/prove-adapter-hints-platform.ts	1	7	bcce8712498a
 scripts/dap/prove-dap-lane-honesty.ts	1	2	3e90ce4a5cdf
 scripts/dap/prove-dap-multisession.ts	2	4	36cdc16f88d2
-scripts/dap/prove-dap-owner-lifecycle.ts	1	4	bcce8712498a
+scripts/dap/prove-dap-owner-lifecycle.ts	1	3	bcce8712498a
 scripts/dap/prove-dap-readiness-honesty.ts	2	7	8bc4e18352cc
 scripts/dap/prove-dap.ts	1	1	7b381cf3e55b
 scripts/dap/prove-debugpy-pycache-keys.ts	1	5	e517a14df52f
@@ -1332,7 +1332,7 @@ scripts/ui/prove-status-spine-unity.ts	1	6	0017a06bb718
 scripts/ui/prove-sticky-prompt-header-gone.ts	5	0	bee1cec8a4b1
 scripts/ui/prove-streaming-nameplate.ts	3	13	21937dc0a5e0
 scripts/ui/prove-submit-while-landing.ts	2	31	cba956a2522d
-scripts/ui/prove-sup2-hardening.ts	63	235	3d7257bb9637
+scripts/ui/prove-sup2-hardening.ts	63	233	3d7257bb9637
 scripts/ui/prove-surface-claim.ts	2	21	e35e4315178a
 scripts/ui/prove-swarm-party-receipt.ts	4	7	1068ab321c7b
 scripts/ui/prove-tasks-mission.ts	1	11	de271ec2ed92

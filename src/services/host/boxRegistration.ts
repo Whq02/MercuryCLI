@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { createServer } from 'node:net'
 import { arch, homedir, totalmem } from 'node:os'
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../utils/sleep.js'
 import { registerManagedLlmHost } from '../llmHost/index.js'
 import type { HostBox } from './boxes.js'
 import { psQuote, shQuote } from './boxExecution.js'
@@ -31,7 +31,7 @@ export async function registerBoxServer(box: HostBox, runner: HostRunner = hostR
   for (;;) {
     try { const response = await fetch(baseUrl + '/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(1000)]), redirect: 'error' }); await response.body?.cancel(); if (response.ok) break } catch { signal.throwIfAborted() }
     if (Date.now() >= deadline) throw new Error('The private tunnel did not answer; mercury host logs ' + box.name)
-    await delay(100, undefined, { signal })
+    await sleep(100, signal, { throwOnAbort: true })
   }
   const model = await registerManagedLlmHost('box-' + box.name, baseUrl, record.engine, record.model, record.baseUrl, signal)
   record.baseUrl = baseUrl; writeBoxService(record)

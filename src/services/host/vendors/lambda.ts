@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { isIP } from 'node:net'
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../../utils/sleep.js'
 import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from '../recipes.js'
 import { currentHostRecipes } from '../recipesFile.js'
@@ -162,7 +162,7 @@ export class LambdaClient implements HostVendor {
         if (!pod || pod.status === 'TERMINATED') return
       } catch (error) { if (readOnly) throw new HostTerminationUnconfirmed(this.label, error); last = ' ' + (error instanceof Error ? error.message : String(error)) }
       if (Date.now() >= deadline) throw new Error('Lambda termination is not verified; check the instance list in the console.' + last)
-      await delay(this.timing.pollMs ?? 1000)
+      await sleep(this.timing.pollMs ?? 1000)
     }
   }
   async logs(_id: string): Promise<string> { return 'Lambda exposes no instance log-read API; connect by SSH to read /var/log/cloud-init-output.log and /workspace/mercury-host, or open the instance in its console.' }

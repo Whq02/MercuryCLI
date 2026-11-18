@@ -1,4 +1,4 @@
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../utils/sleep.js'
 import { RunpodHttpError } from './runpod.js'
 import { HostVendorHttpError, HostVendorNetworkError } from './vendors/http.js'
 
@@ -40,7 +40,7 @@ export async function hostScreenRead<T>(read: () => Promise<T>, signal: AbortSig
       const http = httpError(error)
       if (attempt >= 2 || (http ? http.status !== 429 && (http.status < 500 || http.status > 599) : !networkError(error))) throw error
       const wait = Math.max(http?.status === 429 ? 5000 : 250 * 2 ** attempt, (http?.retryAfterSeconds ?? 0) * 1000)
-      await delay(wait, undefined, { signal })
+      await sleep(wait, signal, { throwOnAbort: true })
     }
   }
 }
@@ -85,7 +85,7 @@ export function hostJobReadOnly(options: HostReadRetryOptions): HostReadOnly {
           const left = deadline - Date.now()
           if (left <= 0) exhausted()
           options.mark(options.label + ' read failed (' + kind + ') · retrying in ' + Math.ceil(wait / 1000) + ' s · attempt ' + attempt)
-          try { await delay(Math.min(wait, left), undefined, { signal }) } catch {
+          try { await sleep(Math.min(wait, left), signal, { throwOnAbort: true }) } catch {
             options.signal.throwIfAborted()
             exhausted()
           }

@@ -1,7 +1,7 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredNousApiKey } from '../providerSecrets.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { sleep as wait } from '../../../utils/sleep.js'
+import { sleep } from '../../../utils/sleep.js'
 import { NOUS_API_KEY_ENV, nousApiBase, nousSigninIdentity } from './nousAccounts.js'
 import { peekNousClient } from './nousClientContract.js'
 import { pollNousDeviceToken, startNousDeviceAuth, writeNousTokens, writePreferredNousSource, type NousDeviceAuthStart, type NousOauthIo, type NousTokens } from './nousOauth.js'
@@ -76,7 +76,7 @@ export async function runNousDeviceLogin(args: {
 } = {}): Promise<{ ok: boolean; receipt: string; settledAfterCancel?: true }> {
   const cancelled = args.cancelled ?? (() => false)
   const now = args.io?.now ?? Date.now
-  const sleep = args.sleep ?? wait
+  const pause = args.sleep ?? sleep
   const fail = (what: string): { ok: false; receipt: string } => ({ ok: false, receipt: `${what} — nothing stored. ${NOUS_KEY_LEG_OFFER}` })
   args.onEvent?.({ phase: 'starting' })
   await peekNousClient(args.io).catch(() => undefined)
@@ -91,7 +91,7 @@ export async function runNousDeviceLogin(args: {
   let interval = start.intervalSec
   args.onEvent?.({ phase: 'waiting', start, polls })
   while (!cancelled() && now() < start.expiresAtMs) {
-    await sleep(Math.min(interval * 1000, Math.max(0, start.expiresAtMs - now())))
+    await pause(Math.min(interval * 1000, Math.max(0, start.expiresAtMs - now())))
     if (cancelled() || now() >= start.expiresAtMs) break
     let result: Awaited<ReturnType<typeof pollNousDeviceToken>>
     try {

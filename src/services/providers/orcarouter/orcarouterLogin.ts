@@ -1,7 +1,7 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getProductUserAgent } from '../../../utils/http.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { sleep as wait } from '../../../utils/sleep.js'
+import { sleep } from '../../../utils/sleep.js'
 import { writeStoredOrcarouterApiKey } from '../providerSecrets.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { orcarouterApiBase } from './orcarouterAccounts.js'
@@ -66,7 +66,7 @@ export async function runOrcarouterDeviceLogin(args: {
   const io = args.io ?? {}
   const now = io.now ?? Date.now
   const cancelled = args.cancelled ?? (() => false)
-  const sleep = args.sleep ?? wait
+  const pause = args.sleep ?? sleep
   const fail = (message: string): { ok: false; receipt: string } => ({ ok: false, receipt: `${message} — /logins orcarouter retries or stores an API key.` })
   const request = async (url: string, body?: Record<string, string>): Promise<{ status: number; body: Record<string, unknown> }> => {
     const response = await fetchWithProviderDeadline(io.fetchImpl ?? getApiFetch(), 'orcarouter', 15_000, url, {
@@ -107,7 +107,7 @@ export async function runOrcarouterDeviceLogin(args: {
   let polls = 0
   args.onEvent?.({ phase: 'waiting', start, polls })
   while (!cancelled() && now() < start.expiresAtMs) {
-    await sleep(Math.min(interval * 1000, Math.max(0, start.expiresAtMs - now())))
+    await pause(Math.min(interval * 1000, Math.max(0, start.expiresAtMs - now())))
     if (cancelled() || now() >= start.expiresAtMs) break
     let result: Awaited<ReturnType<typeof request>>
     try { result = await request(`${issuer}/api/v1/auth/device/token`, { grant_type: 'urn:ietf:params:oauth:grant-type:device_code', device_code: start.deviceCode }) }

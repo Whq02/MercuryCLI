@@ -11,6 +11,7 @@ import { startScreenPresenceBeat } from './screenPresence.js'
 import { sleep } from '../../utils/sleep.js'
 
 type Handshake = typeof import('../../daemon/handshake.js')
+type Pause = (ms: number) => Promise<void>
 
 let healing: Promise<boolean> | null = null
 
@@ -45,14 +46,14 @@ function adoptIfOurs(v: DaemonHandshakeVerdict): void {
     .catch(() => {})
 }
 
-async function awaitUsable(hs: Handshake, tries = ladderRounds()): Promise<boolean> {
+async function awaitUsable(hs: Handshake, pause: Pause, tries = ladderRounds()): Promise<boolean> {
   for (let i = 0; i < tries; i++) {
     const v = await hs.handshakeDaemon({ timeoutMs: 500 })
     if (usable(hs, v)) {
       adoptIfOurs(v)
       return rememberUsable()
     }
-    await sleep(250)
+    await pause(250)
   }
   return false
 }
@@ -75,7 +76,7 @@ async function planeHold(): Promise<PlaneHold> {
   return holder === null ? 'clear' : 'held'
 }
 
-async function awaitUsableOrGone(hs: Handshake, tries = ladderRounds()): Promise<'usable' | 'gone' | 'timeout'> {
+async function awaitUsableOrGone(hs: Handshake, pause: Pause, tries = ladderRounds()): Promise<'usable' | 'gone' | 'timeout'> {
   for (let i = 0; i < tries; i++) {
     const v = await hs.handshakeDaemon({ timeoutMs: 500 })
     if (usable(hs, v)) {
@@ -84,12 +85,12 @@ async function awaitUsableOrGone(hs: Handshake, tries = ladderRounds()): Promise
       return 'usable'
     }
     if (v.state === 'absent' && (await planeHold()) === 'clear') return 'gone'
-    await sleep(250)
+    await pause(250)
   }
   return 'timeout'
 }
 
-async function awaitDeparture(hs: Handshake, tries = ladderRounds()): Promise<'clear' | 'usable'> {
+async function awaitDeparture(hs: Handshake, pause: Pause, tries = ladderRounds()): Promise<'clear' | 'usable'> {
   for (let i = 0; i < tries; i++) {
     const hold = await planeHold()
     if (hold === 'clear') return 'clear'
@@ -101,19 +102,19 @@ async function awaitDeparture(hs: Handshake, tries = ladderRounds()): Promise<'c
         return 'usable'
       }
     }
-    await sleep(250)
+    await pause(250)
   }
   return 'clear'
 }
 
-async function awaitSuccessor(hs: Handshake, oldPid: number | null, tries = 40): Promise<boolean> {
+async function awaitSuccessor(hs: Handshake, pause: Pause, oldPid: number | null, tries = 40): Promise<boolean> {
   for (let i = 0; i < tries; i++) {
     const v = await hs.handshakeDaemon({ timeoutMs: 500 })
     if (usable(hs, v) && (v.daemon?.pid ?? null) !== oldPid) {
       adoptIfOurs(v)
       return rememberUsable()
     }
-    await sleep(250)
+    await pause(250)
   }
   return false
 }
@@ -152,13 +153,14 @@ function bootCarriesRunnerOptions(): boolean {
 
 let waiting: Promise<'usable' | 'gone' | 'timeout'> | null = null
 
-export async function ensureOwnedDaemon(): Promise<boolean> {
-  const usableNow = await ensureOwnedDaemonInner()
+export async function ensureOwnedDaemon(options: { sleep?: Pause } = {}): Promise<boolean> {
+  const usableNow = await ensureOwnedDaemonInner(options)
   if (usableNow) startScreenPresenceBeat()
   return usableNow
 }
 
-async function ensureOwnedDaemonInner(): Promise<boolean> {
+async function ensureOwnedDaemonInner(options: { sleep?: Pause }): Promise<boolean> {
+  const pause = options.sleep ?? sleep
   void import('../../daemon/ownedDaemon.js')
     .then(m => m.armDaemonSignInPoke())
     .catch(() => {})
@@ -166,12 +168,12 @@ async function ensureOwnedDaemonInner(): Promise<boolean> {
   const hs = await import('../../daemon/handshake.js')
   const first = await hs.handshakeDaemon({ timeoutMs: 500 })
   if (first.state === 'starting') {
-    waiting ??= awaitUsableOrGone(hs).finally(() => {
+    waiting ??= awaitUsableOrGone(hs, pause).finally(() => {
       waiting = null
     })
     const outcome = await waiting
     if (outcome === 'usable') return true
-    if (outcome === 'gone') return ensureOwnedDaemon()
+    if (outcome === 'gone') return ensureOwnedDaemon(options)
     return false
   }
   if (usable(hs, first)) {
@@ -179,13 +181,13 @@ async function ensureOwnedDaemonInner(): Promise<boolean> {
     if (first.state === 'matched') return rememberUsable()
     const heal = await hs.healDaemonVersion(first, { by: `screen ${process.pid}` })
     if (heal.state !== 'restarting') return rememberUsable()
-    if (await awaitSuccessor(hs, first.daemon?.pid ?? null)) return rememberUsable()
+    if (await awaitSuccessor(hs, pause, first.daemon?.pid ?? null)) return rememberUsable()
   }
   if (daemonHaltStanddownActive()) return false
   if (healing === null) {
     healing = (async () => {
       try {
-        if ((await awaitDeparture(hs)) === 'usable') return true
+        if ((await awaitDeparture(hs, pause)) === 'usable') return true
         const { spawnOwnedDaemon } = await import('../../daemon/ownedDaemon.js')
         const daemonExtraEnv: Record<string, string> = {}
         if (bootCarriesRunnerOptions()) {
@@ -199,7 +201,7 @@ async function ensureOwnedDaemonInner(): Promise<boolean> {
           ...(Object.keys(daemonExtraEnv).length > 0 ? { extraEnv: daemonExtraEnv } : {}),
         })
         if (pid === undefined) return false
-        return await awaitUsable(hs)
+        return await awaitUsable(hs, pause)
       } catch {
         return false
       } finally {

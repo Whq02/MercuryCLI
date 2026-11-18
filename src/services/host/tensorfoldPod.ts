@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../utils/sleep.js'
 import { hostMachineName } from '../../commands/llmhost/words.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { forgetTensorFoldHost, rememberTensorFoldHost } from '../providers/local/tensorfoldHosts.js'
@@ -175,7 +175,7 @@ export async function stopTensorFoldPod(id: string, options: { client?: HostVend
     await stopHostSetup(id)
     pod = await api.stop(id)
     const deadline = Date.now() + (options.timeoutMs ?? 10_000)
-    while (pod.status !== 'EXITED' && Date.now() < deadline) { await delay(options.pauseMs ?? 2000, undefined, { signal }); pod = await api.get(id, signal) }
+    while (pod.status !== 'EXITED' && Date.now() < deadline) { await sleep(options.pauseMs ?? 2000, signal, { throwOnAbort: true }); pod = await api.get(id, signal) }
   } catch (error) {
     return { ok: false, words: TENSORFOLD_HOST_WORDS.stopFailed(machine, error instanceof Error ? error.message : String(error)) }
   }

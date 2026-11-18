@@ -3,7 +3,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:f
 import { homedir } from 'node:os'
 import { join, posix, resolve } from 'node:path'
 import { createServer } from 'node:net'
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../utils/sleep.js'
 import { hostDirectory } from './store.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { recipeFits, type HostRecipe } from './recipes.js'
@@ -244,7 +244,7 @@ export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runn
     if (failed) throw failed
     try { await runner.run('ssh', [...sshArguments(target), recipe.engine === 'tensorfold' ? tensorFoldReadyCommand(dir) : 'curl -fsS --max-time 10 http://127.0.0.1:30000/health && curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models'], signal); return } catch (error) { last = String(error) }
     last = log || last
-    await delay(pauseMs, undefined, { signal })
+    await sleep(pauseMs, signal, { throwOnAbort: true })
   }
   const minutes = (ms: number): string => (ms >= 60_000 ? Math.round(ms / 60_000) + ' min' : Math.max(1, Math.round(ms / 1000)) + ' s')
   throw new Error('Engine not ready. The engine printed nothing new for ' + minutes(Date.now() - progressedAt) + ' after its ' + minutes(timeoutMs) + ' setup budget; it may still be loading on the machine. Last engine lines: ' + last)
@@ -259,7 +259,7 @@ export async function openHostTunnel(id: string, target: SshTarget, runner: Host
       signal.throwIfAborted()
       const failed = tunnel.failed(); if (failed) throw new Error(failed)
       try { const response = await fetch('http://127.0.0.1:' + port + service.path, { signal: AbortSignal.any([signal, AbortSignal.timeout(1000)]), redirect: 'error', headers: service.headers }); if (response.ok) { tunnels.get(id)?.stop(); tunnels.set(id, tunnel); return port } } catch {}
-      await delay(100, undefined, { signal })
+      await sleep(100, signal, { throwOnAbort: true })
     }
     throw new Error('The SSH tunnel did not answer on local port ' + port)
   } catch (error) { tunnel.stop(); throw error }

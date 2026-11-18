@@ -4,7 +4,7 @@ import { gigabytes, keptDiskPrice, matchesVolume, rentalVolume, readKeptVolume, 
 import { randomUUID } from 'node:crypto'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
 import { hostHuggingfaceDispatchCredential } from './jobCredentials.js'
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../utils/sleep.js'
 import { vendorClient, vendorKey, vendorKeyNotice, vendorLabel, runpodOnly, type HostVendorId } from './vendors/client.js'
 import { HostVendorHttpError } from './vendors/http.js'
 import type { HostVendor } from './vendors/vendor.js'
@@ -175,7 +175,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       const model = watchModel(initial)
       const rest = async (ms: number): Promise<void> => {
         for (let left = ms; left > 0; left -= 60_000) {
-          await delay(Math.min(left, 60_000), undefined, { signal })
+          await sleep(Math.min(left, 60_000), signal, { throwOnAbort: true })
           if (left > 60_000) patchHostRecord(id, { advancedAt: Date.now() })
         }
       }
@@ -355,7 +355,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         if (observed.pod.status === 'ERROR') throw new Error('HF endpoint failed to start. ' + await failureLog(readOnly))
         if (observed.pod.status === 'RUNNING' && observed.baseUrl) { endpointBase = observed.baseUrl; break }
         mark('HF endpoint · starting · ' + Math.floor((Date.now() - (initial.jobStartedAt ?? Date.now())) / 60_000) + ' min')
-        await delay(Math.min(pause, Math.max(1, deadline - Date.now())), undefined, { signal })
+        await sleep(Math.min(pause, Math.max(1, deadline - Date.now())), signal, { throwOnAbort: true })
       }
       if (!endpointBase) throw new Error('HF endpoint did not reach running within the setup budget.')
     } else if (initial.cluster) {
@@ -385,7 +385,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
             if (refused) last = keyAttached ? 'the machine still refuses Mercury’s SSH key' : 'the machine never accepted Mercury’s SSH key before the setup deadline · ' + vendorKeyNotice(vendor)
           }
         }
-        await delay(Math.min(pause, Math.max(1, sshDeadline - Date.now())), undefined, { signal })
+        await sleep(Math.min(pause, Math.max(1, sshDeadline - Date.now())), signal, { throwOnAbort: true })
       }
       signal.throwIfAborted()
       if (target) break
@@ -509,12 +509,12 @@ export async function runHostJob(id: string, generation: string, options: { runn
             signal.throwIfAborted()
             why = clean(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 200)
             if (attempt >= reconnects) throw new HostLinkLost(hostLinkLossWords(noteHostLink({ ...record, vendor }, { outcome: 'lost', attempt, why })), engineLog)
-            await delay(Math.min(60_000, pause * 2 ** attempt), undefined, { signal })
+            await sleep(Math.min(60_000, pause * 2 ** attempt), signal, { throwOnAbort: true })
           }
         }
       }
       while (!signal.aborted) {
-        await delay(pause, undefined, { signal })
+        await sleep(pause, signal, { throwOnAbort: true })
         const observed = readHostRecord(id)
         if (observed?.retuning && (hostRetuneLive(observed) || (await reconcileHostTune(id, runner, signal))?.retuning)) continue
         let response: Response

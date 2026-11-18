@@ -1,3 +1,4 @@
+import { sleep } from '../../utils/sleep.js'
 import { KEYED_DOOR_REMEDY, type SearchBackendId, type SearchHit, type SearchRequest, type SearchTier } from './searchContract.js'
 
 type PacedDoor = SearchBackendId | `searxng:${string}` | 'jina-reader'
@@ -11,20 +12,7 @@ export interface SearchClock {
 export const liveSearchClock: SearchClock = {
   now: () => Date.now(),
   random: () => Math.random(),
-  sleep: (ms, signal) =>
-    new Promise<void>(resolve => {
-      if (signal?.aborted) {
-        resolve()
-        return
-      }
-      const timer = setTimeout(done, ms)
-      function done(): void {
-        clearTimeout(timer)
-        signal?.removeEventListener('abort', done)
-        resolve()
-      }
-      signal?.addEventListener('abort', done, { once: true })
-    }),
+  sleep: (ms, signal) => sleep(ms, signal),
 }
 
 const COOL_DOWN_BASE_MS = 30_000

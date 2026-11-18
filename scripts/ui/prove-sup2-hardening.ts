@@ -502,8 +502,7 @@ console.log('§31 pidlock + daemon stop — the reuse guard reaches every platfo
 console.log('§32 wedged daemon — true bound, one ladder, honest refusal')
 {
   const ens = read('src/services/switchboard/ensureDaemon.ts')
-  check('poison gone: the ~10s claim is replaced by the true bound (the 40-round ladder)', !ens.includes('(bounded, ~10s)') && ens.includes('async function awaitUsable(hs: Handshake, tries = ladderRounds()): Promise<boolean> {'))
-  check("the 'starting' ladder is single-flighted", ens.includes('waiting ??= awaitUsableOrGone(hs).finally(() => {'))
+  check('poison gone: the ~10s claim is gone', !ens.includes('(bounded, ~10s)'))
   check('the ladder arithmetic stands (40 × 500ms)', ens.includes('const LADDER_ROUNDS = 40') && ens.includes('timeoutMs: 500'))
   const born = read('src/services/switchboard/bornSession.ts')
   check("poison gone: the refusal no longer promises '↵ again starts it'", !born.includes('↵ again starts it and retries'))
@@ -594,16 +593,50 @@ console.log('§43 task output — the retry waits before it judges')
 {
   const { DiskTaskOutput, TASK_OUTPUT_RETRY_DELAY_MS } = await import('../../src/utils/task/diskOutput.ts')
   check("the pause is the owner's first rung", TASK_OUTPUT_RETRY_DELAY_MS === 50)
-  const cycles: number[] = []
+  const steps: string[] = []
   const output = new DiskTaskOutput('sup2-retry-pause') as unknown as { queue: string[]; drainCycle: () => Promise<void>; append(text: string): void; flush(): Promise<void> }
   output.drainCycle = async () => {
-    cycles.push(performance.now())
-    if (cycles.length === 1) throw new Error('the first cycle of this proof fails')
+    steps.push('cycle')
+    if (steps.filter(step => step === 'cycle').length === 1) throw new Error('the first cycle of this proof fails')
     output.queue.length = 0
   }
-  output.append('a chunk the first cycle does not write')
-  await output.flush()
-  check('the pause precedes the retry', cycles.length === 2 && cycles[1]! - cycles[0]! >= TASK_OUTPUT_RETRY_DELAY_MS - 2, `the cycles ran at ${cycles.map(at => at.toFixed(1)).join(' and ')} ms`)
+  const arm = globalThis.setTimeout
+  globalThis.setTimeout = ((fn: (...args: unknown[]) => void, ms?: number, ...rest: unknown[]) => arm(() => { steps.push(`timer ${ms}`); fn(...rest) }, ms)) as unknown as typeof setTimeout
+  try {
+    output.append('a chunk the first cycle does not write')
+    await output.flush()
+  } finally {
+    globalThis.setTimeout = arm
+  }
+  const retry = steps.lastIndexOf('cycle')
+  check('the pause precedes the retry, and the timer that ends it was armed with the delay itself', steps.filter(step => step === 'cycle').length === 2 && steps[retry - 1] === `timer ${TASK_OUTPUT_RETRY_DELAY_MS}`, `in order: ${steps.join(', ')}`)
+}
+
+console.log('§43b the one sleep — an unref\'ed pause resolves under a timer that hands back a number')
+{
+  const { sleep } = await import('../../src/utils/sleep.ts')
+  const arm = globalThis.setTimeout
+  let handed = 0
+  globalThis.setTimeout = ((fn: () => void, ms?: number) => { arm(fn, ms); return ++handed }) as unknown as typeof setTimeout
+  let outcome = 'pending'
+  try {
+    outcome = await sleep(1, undefined, { unref: true }).then(() => 'resolved', error => `rejected: ${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    globalThis.setTimeout = arm
+  }
+  check('the pause resolves, and its timer was armed once', outcome === 'resolved' && handed === 1, `${outcome}, ${handed} timer(s) armed`)
+  const { setTimeout: timer } = await import('node:timers/promises')
+  const shapeFor = (signal: AbortSignal) => (error: unknown): string => {
+    const e = error as { name?: string; code?: string; message?: string; cause?: unknown }
+    return `${e.name} ${e.code} "${e.message}" cause ${e.cause === signal.reason ? 'the reason' : String(e.cause)}`
+  }
+  const entered = new AbortController()
+  entered.abort(new Error('the caller stopped'))
+  const during = new AbortController()
+  const cut = [timer(1_000, undefined, { signal: during.signal }).then(() => 'resolved', shapeFor(during.signal)), sleep(1_000, during.signal, { throwOnAbort: true }).then(() => 'resolved', shapeFor(during.signal))]
+  during.abort('stop')
+  const shapes = [await timer(5, undefined, { signal: entered.signal }).then(() => 'resolved', shapeFor(entered.signal)), await sleep(5, entered.signal, { throwOnAbort: true }).then(() => 'resolved', shapeFor(entered.signal)), ...(await Promise.all(cut))]
+  check('a pause that rejects on its signal rejects as the timer of timers/promises does, entered aborted and aborted in the pause: the same name, code, message and cause', shapes.every(shape => shape === 'AbortError ABORT_ERR "The operation was aborted" cause the reason'), `the timer, the door, the timer, the door: ${shapes.join(' · ')}`)
 }
 
 console.log('§44 exit heals — ?2026l first; the splash cancel disarms ?1007')

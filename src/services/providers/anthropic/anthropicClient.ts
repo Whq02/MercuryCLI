@@ -1,5 +1,6 @@
 import { OAUTH_BETA_HEADER } from '../../../constants/oauth.js'
 import type { ApiMessage } from '../../../types/wire.js'
+import { sleep } from '../../../utils/sleep.js'
 import { APIConnectionError, APIConnectionTimeoutError, APIError, APIUserAbortError } from '../../api/sdkErrors.js'
 import { AnthropicStream } from './anthropicStream.js'
 import type { AnthropicMessageParams } from './anthropicWire.js'
@@ -47,15 +48,6 @@ function retryDelay(headers: Headers | undefined, attempt: number): number {
   }
   if (ms === 0) return 0
   return Math.min(500 * 2 ** attempt, 8000) * (1 - Math.random() * 0.25)
-}
-
-async function waitForRetry(ms: number, signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) throw new APIUserAbortError()
-  await new Promise<void>((resolve, reject) => {
-    const abort = () => { clearTimeout(timer); reject(new APIUserAbortError()) }
-    const timer = setTimeout(() => { signal?.removeEventListener('abort', abort); resolve() }, ms)
-    signal?.addEventListener('abort', abort, { once: true })
-  })
 }
 
 class Messages {
@@ -169,7 +161,7 @@ export class AnthropicClient {
       } catch (cause) {
         release()
         if (options.signal?.aborted) throw new APIUserAbortError()
-        if (attempt < maxRetries) { await waitForRetry(retryDelay(undefined, attempt), options.signal); continue }
+        if (attempt < maxRetries) { await sleep(retryDelay(undefined, attempt), options.signal, { abortError: () => new APIUserAbortError() }); continue }
         const inner = cause instanceof Error ? cause.cause : undefined
         const timedOut = controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError') || /timed? ?out/i.test(`${String(cause)} ${String(inner ?? '')}`)
         if (timedOut) throw new APIConnectionTimeoutError({ requestDeadline: controller.signal.aborted })
@@ -180,7 +172,7 @@ export class AnthropicClient {
         const retry = hint === 'true' || (hint !== 'false' && ([408, 409, 429].includes(response.status) || response.status >= 500))
         if (retry && attempt < maxRetries) {
           abort()
-          await waitForRetry(retryDelay(response.headers, attempt), options.signal)
+          await sleep(retryDelay(response.headers, attempt), options.signal, { abortError: () => new APIUserAbortError() })
           continue
         }
         try {
