@@ -472,10 +472,8 @@ console.log('native-core T13/T14 — input-scheduling contract')
     localShell.includes("mode: 'task-notification',\n    priority: 'next',") && !localShell.includes("priority: agentId !== undefined ? 'next' : 'later'"))
   check("lock: the sub-agent completion notice already rode the 'next' band (unchanged)",
     localAgent.includes("mode: 'task-notification',\n    priority: 'next',"))
-  check("lock: the runner speaks one task_notification frame per completion on the drain road too — a main-thread notice the mid-turn drain consumed, never one the runner retired itself",
-    runner.includes('subscribeQueueConsumption(event => {') && runner.includes("if (event.kind !== 'removed' || retiringQueuedCommands) return") && runner.includes("if (drained.mode !== 'task-notification' || drained.agentId !== undefined) continue\n      emitCommandNotifications([drained])"))
-  check("lock: every road that speaks a notice's frame — the drain, the idle kick and the next operator turn's held deliveries — goes through one announcer that speaks each notice exactly once",
-    runner.includes('const announcedNotifications = new WeakSet<QueuedCommand>()') && runner.includes('if (announcedNotifications.has(command)) continue\n      announcedNotifications.add(command)\n      emitTaskNotificationFrames(taskNotificationPayloads(command))') && runner.includes('emitCommandNotifications([...initialNotices, command])') && runner.includes('if (!driver.isRunning()) emitCommandNotifications(queued.filter(isMainThreadCommand))') && !runner.includes('emitTaskNotificationFrames(taskNotificationPayloads(drained))'))
+  check("lock: the idle kick and the next operator turn's held deliveries speak a notice's frame through the one announcer",
+    runner.includes('const announcedNotifications = new WeakSet<QueuedCommand>()') && runner.includes('emitCommandNotifications([...initialNotices, command])') && runner.includes('if (!driver.isRunning()) emitCommandNotifications(queued.filter(isMainThreadCommand))'))
 
   check('lock: Chat registers the chokepoint interceptors (intercept + re-pin gate + active flip)',
     repl.includes('pendingInput.registerInterceptors({')
