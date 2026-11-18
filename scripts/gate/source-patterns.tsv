@@ -1022,7 +1022,8 @@ empty-catch	src/services/crewBoard/store.ts	2
 empty-catch	src/services/dap/dapClient.ts	14
 empty-catch	src/services/dap/debugpyResolver.ts	2
 empty-catch	src/services/desktop/nativeDriver.ts	2
-empty-catch	src/services/engine-connector/daemonConnector.ts	7
+empty-catch	src/services/engine-connector/daemon/shared.ts	1
+empty-catch	src/services/engine-connector/daemonConnector.ts	6
 empty-catch	src/services/engine-connector/seatProjections.ts	1
 empty-catch	src/services/eval/kernelManager.ts	1
 empty-catch	src/services/eval/procKernel.ts	1

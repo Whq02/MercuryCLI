@@ -12,13 +12,15 @@ const PARTS: Readonly<Record<string, { file: string; type: string }>> = {
   asksPart: { file: 'asks.ts', type: 'AsksPart' },
   completionPart: { file: 'completion.ts', type: 'CompletionPart' },
   foldPart: { file: 'fold.ts', type: 'FoldPart' },
+  tailPart: { file: 'tail.ts', type: 'TailPart' },
   workPart: { file: 'work.ts', type: 'WorkPart' },
 }
 
 const OF_THE_DOOR: readonly string[] = ['carrier', 'record', 'attached', 'factsFeed', 'asksFeed', 'tailFeed', 'progressFeed', 'turnInFlight', 'verbChain']
 
+const REACHED_BY_PROOFS: readonly string[] = ['textRows']
+
 const AWAITING_THEIR_PART: Readonly<Record<string, readonly string[]>> = {
-  tail: ['tailStore', 'tailAtMs', 'tailMessageId', 'interruptedMessageId', 'withdrawnMessageId', 'tailSeq', 'tailSinceMs', 'textRows', 'arrivalSeq'],
   live: ['effectiveLive', 'liveListeners', 'liveTurnChars', 'liveTurnOutputTokens', 'liveTurnThinkingChars', 'liveTurnThinkingBlocks', 'liveFirstByteAtMs', 'liveStateWord', 'liveAgentsWaiting', 'liveWait', 'liveWaitOwnAge', 'lastEventAtMs', 'streamBlock', 'blockSinceMs', 'toolBudgets', 'livenessTicker', 'interrupting', 'interruptPressedAtMs', 'hardStopping', 'progressAtMs', 'publishedProgressSeqs'],
   facts: ['facts', 'factsBusy', 'busyStallDeadline', 'BUSY_STALL_MS', 'carrierGoneTicks', 'carrierGoneAtFactsMs', 'carrierProbeInFlight', 'carrierSeen', 'CARRIER_GONE_TICKS', 'modelListeners', 'permissionListeners'],
   sends: ['sends', 'echoRows', 'deliveredNotices', 'sendSeq', 'textRetiredRowUuids', 'retainedSend', 'runnerGeneration', 'lostLineNotice', 'settleWaiters'],
@@ -35,7 +37,7 @@ const slash = (p: string): string => p.split('\\').join('/')
 const rel = (file: string): string => slash(relative(ROOT, file))
 const abs = (file: string): string => join(ROOT, file)
 
-type Finding = { law: 'field' | 'import' | 'reach' | 'list' | 'private'; at: string; what: string }
+type Finding = { law: 'field' | 'accessor' | 'import' | 'reach' | 'list' | 'private'; at: string; what: string }
 type Planted = Readonly<Record<string, (text: string, source: ts.SourceFile) => string>>
 
 const options: ts.CompilerOptions = { ...ts.parseJsonConfigFileContent(ts.readConfigFile(abs('tsconfig.json'), ts.sys.readFile).config, ts.sys, ROOT).options, noEmit: true }
@@ -106,6 +108,16 @@ function read(program: ts.Program, door: 'read' | 'declarations only' = 'declara
   for (const name of allowed) {
     if (!names.has(name)) found.push({ law: 'list', at: SELF, what: `the list holds ${name} and the class declares no such field: take it off the list, which only falls` })
   }
+  const accessors = new Set<string>()
+  for (const member of connector.members) {
+    if (!ts.isGetAccessorDeclaration(member) && !ts.isSetAccessorDeclaration(member)) continue
+    const name = member.name.getText(doorFile)
+    accessors.add(name)
+    if (!REACHED_BY_PROOFS.includes(name)) found.push({ law: 'accessor', at: `${DOOR}:${doorFile.getLineAndCharacterOfPosition(member.getStart(doorFile)).line + 1}`, what: `the accessor ${name} is declared on DaemonSessionConnector and no proof reaches that name: an accessor stands on the class only for a field a proof reads or writes through a cast, and that list only falls` })
+  }
+  for (const name of REACHED_BY_PROOFS) {
+    if (!accessors.has(name)) found.push({ law: 'list', at: SELF, what: `the list of names proofs reach holds ${name} and the class declares no such accessor: take it off the list, which only falls` })
+  }
   for (const [name, part] of Object.entries(PARTS)) {
     const field = connector.members.find(member => ts.isPropertyDeclaration(member) && member.name.getText(doorFile) === name)
     const type = field === undefined ? undefined : checker.getTypeAtLocation(field)
@@ -174,6 +186,9 @@ section('§1 the law on planted trees: a field added to the class, a part that i
   const fieldAdded = read(programWith({ [DOOR]: (text, source) => `${text.slice(0, afterBrace(text, source, 'DaemonSessionConnector'))}\n  private plantedByTheLaw = 0${text.slice(afterBrace(text, source, 'DaemonSessionConnector'))}` }))
   check('a field added to DaemonSessionConnector is refused by its name and line', fieldAdded.length === 1 && fieldAdded[0]!.law === 'field' && fieldAdded[0]!.what.includes('plantedByTheLaw') && fieldAdded[0]!.at.startsWith(`${DOOR}:`), told(fieldAdded))
 
+  const accessorAdded = read(programWith({ [DOOR]: (text, source) => `${text.slice(0, afterBrace(text, source, 'DaemonSessionConnector'))}\n  private get plantedByTheLaw(): number {\n    return 0\n  }${text.slice(afterBrace(text, source, 'DaemonSessionConnector'))}` }))
+  check('an accessor added to DaemonSessionConnector for a name no proof reaches is refused by its name and line', accessorAdded.length === 1 && accessorAdded[0]!.law === 'accessor' && accessorAdded[0]!.what.includes('plantedByTheLaw') && accessorAdded[0]!.at.startsWith(`${DOOR}:`), told(accessorAdded))
+
   const importsDoor = read(programWith({ [firstFile]: text => `import type { DaemonSessionRecordV1 } from '../daemonConnector.js'\nexport type PlantedByTheLaw = DaemonSessionRecordV1\n${text}` }))
   check('a part that imports the door is refused at the import', importsDoor.length === 1 && importsDoor[0]!.law === 'import' && importsDoor[0]!.at === `${firstFile}:1`, told(importsDoor))
 
@@ -203,6 +218,7 @@ section('§2 the estate: the class holds the parts and what the door needs; no p
   const by = (law: Finding['law']): Finding[] => found.filter(f => f.law === law)
   check(`no field is declared on DaemonSessionConnector beyond the list (${declared.length} with the record its constructor holds: ${Object.keys(PARTS).length} parts, ${OF_THE_DOOR.length} of the door, ${awaiting} awaiting their part)`, by('field').length === 0, told(by('field')))
   check('the list holds no field the class has let go, and each part is the class its file declares', by('list').length === 0, told(by('list')))
+  check(`the class declares an accessor only for a name a proof reaches through a cast (${REACHED_BY_PROOFS.length}: ${REACHED_BY_PROOFS.join(', ') || 'none'})`, by('accessor').length === 0, told(by('accessor')))
   check(`no file under ${PARTS_DIR}/ imports the door (${partFiles(estate).length} files read)`, by('import').length === 0, told(by('import')))
   check("no part reads a field of another part, and the door reads no part's field", by('reach').length === 0, told(by('reach')))
   check('every field of a part is private', by('private').length === 0, told(by('private')))

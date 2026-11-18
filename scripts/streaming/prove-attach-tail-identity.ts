@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'tailid-home-'))
 
@@ -222,45 +221,104 @@ try {
 
 console.log('\n§4 the connector stages the id and detach drops the ghost')
 {
-  const src = codeOnlyText('daemonConnector.ts', readFileSync(join(import.meta.dir, '..', '..', 'src/services/engine-connector/daemonConnector.ts'), 'utf8'))
-  const method = (name: string): string => {
-    const at = src.search(new RegExp(`\\n  (?:private |public )?${name}\\(\\): void \\{`))
-    if (at === -1) return ''
-    const open = src.indexOf('{', src.indexOf(`${name}(`, at))
-    let depth = 0
-    for (let i = open; i < src.length; i++) {
-      if (src[i] === '{') depth++
-      else if (src[i] === '}' && --depth === 0) return src.slice(at, i + 1)
-    }
-    return ''
+  const { TailPart } = await import('../../src/services/engine-connector/daemon/tail.ts')
+  type TailFile = Parameters<InstanceType<typeof TailPart>['takeTail']>[0]
+  const landed: Row[] = []
+  let paints = 0
+  const born = (): InstanceType<typeof TailPart> => {
+    landed.length = 0
+    paints = 0
+    return new TailPart({ sessionId: () => 'tailid', rows: () => landed as never, model: () => 'the-model', paint: () => void paints++ })
   }
-  const readTail = method('readTail')
-  const detach = method('detach')
-  check('readTail is a bounded method', readTail.length > 0, 'no readTail(): void method found')
-  const idAt = readTail.indexOf('this.tailStore.setMessageId(')
-  const phaseAt = readTail.indexOf('this.tailStore.setPhase(')
-  const feedAt = readTail.lastIndexOf('this.tailStore.update(() => text)')
-  check('readTail stages the file’s id into the store before every feed', idAt >= 0 && feedAt > idAt, `setMessageId@${idAt} update@${feedAt}`)
-  check('readTail stages the file’s register beside the id, before the feed', phaseAt > idAt && feedAt > phaseAt, `setPhase@${phaseAt}`)
-  check('…and reads them from the tail FILE (assign-or-null, never a cached value)', /setMessageId\(typeof tail\.messageId === 'string' && tail\.messageId !== '' \? tail\.messageId : null\)/.test(readTail) && /setPhase\(tail\.phase === 'commentary' \|\| tail\.phase === 'final_answer' \? tail\.phase : null\)/.test(readTail))
-  check('detach is a bounded method', detach.length > 0, 'no detach(): void method found')
-  const resetAt = detach.indexOf('this.tailStore.reset(null)')
-  const dropAt = detach.indexOf('this.tailStore.dropSettled()')
-  const idNullAt = detach.indexOf('this.tailStore.setMessageId(null)')
-  const phaseNullAt = detach.indexOf('this.tailStore.setPhase(null)')
-  check('detach drops the ghost with the tail (a moment, never a cache)', resetAt >= 0 && dropAt > resetAt, `reset@${resetAt} dropSettled@${dropAt}`)
-  check('…and zeroes the id and register in the SAME detach, after the drop', idNullAt > dropAt && phaseNullAt > idNullAt, `id@${idNullAt} phase@${phaseNullAt}`)
-  check('dropSettled has three scopes in the connector: detach, the release when the row lands, and the clear that commits the held words as a row or finds their row standing', (src.match(/this\.tailStore\.dropSettled\(\)/g) ?? []).length === 3)
-  const clearStart = src.indexOf('private clearTail(atMs: number): void {')
-  const clearTail = clearStart === -1 ? '' : src.slice(clearStart, src.indexOf('\n  private commitHeldText(', clearStart))
-  check('the clear drops the ghost only once the words became a row or their row stands, after the store cleared, never for a tail that names no message', clearTail.includes("verdict === 'committed' || verdict === 'standing'") && clearTail.indexOf('this.tailStore.update(() => null)') >= 0 && clearTail.indexOf('this.tailStore.dropSettled()') > clearTail.indexOf('this.tailStore.update(() => null)'))
-  const release = method('releaseTail')
-  check('releaseTail is a bounded method', release.length > 0, 'no releaseTail(): void method found')
-  check('the release reads the one law at the source (computeTailRelease over the records) and drops the tail in the same pass', /computeTailRelease\(this\.rawRecords, ids\)/.test(release) && release.includes('this.tailStore.reset(null)') && release.includes('this.tailStore.dropSettled()'))
-  const tickStart = src.indexOf('private async tickOnce(): Promise<void> {')
-  const tickOnce = tickStart === -1 ? '' : src.slice(tickStart, src.indexOf('\n  private recomputeLive(): void {', tickStart))
-  check('the release runs in the transcript tick before the paint, so the row and the tail clear commit together', tickOnce.indexOf('this.releaseTail()') >= 0 && tickOnce.indexOf('this.releaseTail()') < tickOnce.lastIndexOf('this.paint()'), 'releaseTail is not called before paint in tickOnce')
-  check('readTail never publishes a text whose row already stands', /const landed = id !== null && tail\.text !== null && computeTailRelease\(this\.rawRecords, \{ current: id, settled: null \}\)\.publishedShown/.test(readTail) && readTail.includes('const text = landed ? null : tail.text'))
+  let stamp = 0
+  const says = (file: Record<string, unknown>): TailFile => ({ schema: 1, sessionId: 'tailid', atMs: ++stamp, text: null, ...file }) as TailFile
+  const held = (part: InstanceType<typeof TailPart>): string => JSON.stringify({ text: part.store().read(), ghost: part.store().readSettled(), ids: part.store().readIds(), phases: part.store().readPhases() })
+
+  const fed = born()
+  fed.takeTail(says({ text: 'Hello', messageId: 'msg_A', phase: 'commentary' }))
+  const first = held(fed)
+  fed.takeTail(says({ text: 'Hello again', messageId: 'msg_B', phase: 'final_answer' }))
+  const second = held(fed)
+  check('readTail stages the file’s id into the store before every feed', fed.store().read() === 'Hello again' && JSON.parse(first).ids.current === 'msg_A' && JSON.parse(second).ids.current === 'msg_B', `${first} · ${second}`)
+  check('readTail stages the file’s register beside the id, before the feed', JSON.parse(first).phases.current === 'commentary' && JSON.parse(second).phases.current === 'final_answer', `${first} · ${second}`)
+  fed.takeTail(says({ text: 'Hello once more', phase: 'a register the file never names' }))
+  check('…and reads them from the tail FILE (assign-or-null, never a cached value)', fed.store().read() === 'Hello once more' && fed.store().readIds().current === null && fed.store().readPhases().current === null, held(fed))
+
+  const left = born()
+  left.takeTail(says({ text: 'mid-stream text the hop leaves behind', messageId: 'msg_D', phase: 'commentary' }))
+  left.detached()
+  check('detach drops the ghost with the tail (a moment, never a cache)', left.store().read() === null && left.store().readSettled() === null, held(left))
+  left.store().update(() => 'a feed that names no message')
+  check('…and zeroes the id and register in the SAME detach, after the drop', left.store().readIds().current === null && left.store().readIds().settled === null && left.store().readPhases().current === null, held(left))
+
+  const committing = born()
+  committing.takeTail(says({ text: 'words that become a row', messageId: 'msg_E' }))
+  committing.takeTail(says({ text: null, messageId: 'msg_E' }))
+  const committed = { ghost: committing.store().readSettled(), text: committing.store().read(), rows: committing.committedRows().length, paints }
+  const standing = born()
+  standing.takeTail(says({ text: 'words whose row lands first', messageId: 'msg_F' }))
+  landed.push(userRow, assistantTextRow('msg_F', 'words whose row lands first', 'a-f'))
+  standing.takeTail(says({ text: null, messageId: 'msg_F' }))
+  const stood = { ghost: standing.store().readSettled(), text: standing.store().read(), rows: standing.committedRows().length, paints }
+  const nameless = born()
+  nameless.takeTail(says({ text: 'words of no message' }))
+  nameless.takeTail(says({ text: null }))
+  const unnamed = { ghost: nameless.store().readSettled(), text: nameless.store().read(), rows: nameless.committedRows().length, paints }
+  const releasing = born()
+  releasing.takeTail(says({ text: 'words released when their row lands', messageId: 'msg_G' }))
+  landed.push(userRow, assistantTextRow('msg_G', 'words released when their row lands', 'a-g'))
+  releasing.releaseTail()
+  const released = { ghost: releasing.store().readSettled(), text: releasing.store().read(), seq: releasing.seq() }
+  check('dropSettled has three scopes in the connector: detach, the release when the row lands, and the clear that commits the held words as a row or finds their row standing', left.store().readSettled() === null && released.ghost === null && committed.ghost === null && stood.ghost === null && unnamed.ghost === 'words of no message', JSON.stringify({ released, committed, stood, unnamed }))
+  check('the clear drops the ghost only once the words became a row or their row stands, after the store cleared, never for a tail that names no message', committed.text === null && committed.rows === 1 && committed.paints === 1 && stood.text === null && stood.rows === 0 && stood.paints === 1 && unnamed.text === null && unnamed.rows === 0 && unnamed.paints === 0, JSON.stringify({ committed, stood, unnamed }))
+  const waiting = born()
+  waiting.takeTail(says({ text: 'words whose row has not landed', messageId: 'msg_H' }))
+  waiting.releaseTail()
+  check('a release before the row lands leaves the tail and its place in the list', waiting.store().read() === 'words whose row has not landed' && waiting.seq() !== null, held(waiting))
+  check('the release reads the one law at the source (computeTailRelease over the records) and drops the tail in the same pass', released.text === null && released.ghost === null && released.seq === null, JSON.stringify(released))
+
+  const standingAlready = born()
+  landed.push(userRow, assistantTextRow('msg_I', 'a text whose row already stands', 'a-i'))
+  standingAlready.takeTail(says({ text: 'a text whose row already stands', messageId: 'msg_I' }))
+  check('readTail never publishes a text whose row already stands', standingAlready.store().read() === null && standingAlready.committedRows().length === 0, held(standingAlready))
+
+  const home = mkdtempSync(join(tmpdir(), 'tailid-door-'))
+  const planeBefore = process.env.MERCURY_DAEMON_DIR
+  process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
+  mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
+  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { publishSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
+  const sessionId = 'tailid-door'
+  const seat = new DaemonSessionConnector({ sessionId, runnerId: 'runner-tailid', title: 'the chat', projectLabel: 'proof', workspaceId: home, home })
+  const reaches = seat as unknown as { attached: boolean; tick(): Promise<void>; readTail(): void }
+  publishSessionTail({ schema: 1, sessionId, atMs: 1, text: 'the words on their way', messageId: 'msg_door' })
+  reaches.readTail()
+  const streaming = seat.tail().read()
+  const wakes: Array<{ rowStands: boolean; tail: string | null }> = []
+  seat.subscribeRecords(() => wakes.push({ rowStands: seat.records().some(row => (row as { message?: { id?: string } }).message?.id === 'msg_door'), tail: seat.tail().read() }))
+  const base = { isSidechain: false, entrypoint: 'cli', cwd: home, sessionId, version: '1.0.0', gitBranch: 'main' }
+  writeFileSync(
+    join(home, `${sessionId}.jsonl`),
+    encodeSeedTranscript(
+      [
+        { ...base, parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-000000000001', message: { role: 'user', content: 'say it' }, timestamp: '2026-08-31T18:44:00.000Z' },
+        { ...base, parentUuid: '00000000-0000-4000-8000-000000000001', type: 'assistant', uuid: '00000000-0000-4000-8000-000000000002', requestId: 'req_door', message: { id: 'msg_door', type: 'message', role: 'assistant', model: 'x', content: [{ type: 'text', text: 'the words on their way' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }, timestamp: '2026-08-31T18:45:10.000Z' },
+      ],
+      sessionId,
+    ),
+  )
+  reaches.attached = true
+  await reaches.tick()
+  check('the release runs in the transcript tick before the paint, so the row and the tail clear commit together', streaming === 'the words on their way' && wakes.some(wake => wake.rowStands) && wakes.every(wake => !wake.rowStands || wake.tail === null), JSON.stringify({ streaming, wakes }))
+  publishSessionTail({ schema: 1, sessionId, atMs: 2, text: 'words the hop leaves behind', messageId: 'msg_hop' })
+  reaches.readTail()
+  const beforeDetach = seat.tail().read()
+  seat.detach()
+  check("the connector's own detach empties the store: no text, no ghost, no id", beforeDetach === 'words the hop leaves behind' && seat.tail().read() === null && seat.tail().readSettled() === null && seat.tail().readIds().current === null && seat.tail().readIds().settled === null, JSON.stringify({ beforeDetach, after: seat.tail().read(), ghost: seat.tail().readSettled(), ids: seat.tail().readIds() }))
+  if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+  else process.env.MERCURY_DAEMON_DIR = planeBefore
+  rmSync(home, { recursive: true, force: true })
   try {
     const store = createStreamingTailStore(timers)
     const stage = (id: string | null) => (store as unknown as { setMessageId(id: string | null): void }).setMessageId(id)
