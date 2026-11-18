@@ -7,7 +7,6 @@ const { check, section, finish, failed } = makeTally('prove-dupline-agent-drain'
 
 section('S the drain scope reads the agent id before the query source (the tool boundary, called)')
 {
-  const ambient = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
   const { afterTools } = await import('../../src/run-core/turn/afterTools.ts')
@@ -30,8 +29,6 @@ section('S the drain scope reads the agent id before the query source (the tool 
   const agentLabelledSdk = await boundary({ agentId: t.fixtures.agent(), querySource: 'sdk' })
   const agentLabelledMain = await boundary({ agentId: t.fixtures.agent(), querySource: 'main_thread' })
   const mainThread = await boundary({ querySource: 'sdk' })
-  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
-  Object.assign(process.env, ambient)
   const leftAlone = (seen: { drained: unknown[]; consumed: string[]; left: unknown[] }): boolean => seen.drained.length === 0 && seen.consumed.length === 0 && j(seen.left) === j([SENT])
   check(
     "a query that runs under an agent id is never the main thread's drain, whatever its source label",

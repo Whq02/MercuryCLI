@@ -170,7 +170,6 @@ if (import.meta.main) {
   check('the stop evaluator has no handoff decision and no re-plan directive', !evaluator.includes("kind: 'handoff'") && !evaluator.includes('REPLAN'))
   const adapter = src('src/guards/runStopAdapter.ts')
   check('the stop adapter records no handoff and no admission tuple', !adapter.includes("decision.kind === 'handoff'") && !adapter.includes('priorAdmission'))
-  const envBefore = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const barren = await t.runScripted({
     seed: [t.fixtures.ask(REREAD_ASK)],
@@ -179,8 +178,6 @@ if (import.meta.main) {
       t.fixtures.yields(t.fixtures.says(REREAD_END)),
     ],
   })
-  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
-  Object.assign(process.env, envBefore)
   type Sent = { type?: string; isMeta?: boolean; attachment?: { type?: string }; message?: { content?: unknown } }
   const blockOf = (row: Sent | undefined): { type?: string; id?: string; tool_use_id?: string } => (Array.isArray(row?.message?.content) ? (row.message.content[0] ?? {}) : {})
   const rowName = (row: Sent): string => `${String(row.type)}${row.isMeta === true ? ' (meta)' : ''}${row.attachment ? ` (${String(row.attachment.type)})` : ''}`

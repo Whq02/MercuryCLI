@@ -41,11 +41,8 @@ section('§A the wiring is live on all three lanes (+ the reference carrier)')
     )
     check(`${lane}: the snapshot names its lane`, src.includes(`lane: '${lane}'`))
   }
-  const envBefore = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const called = await t.runScripted({ tools: [{ name: 'Alpha' }, { name: 'Beta' }], script: [t.fixtures.yields(t.fixtures.says('done.'))] })
-  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
-  Object.assign(process.env, envBefore)
   const handed = called.requests[0]?.options.callReference
   const announced = called.events.find(event => event.kind === 'model_call_started')?.reference
   const owed = buildModelCallReference({ model: t.MODEL, effort: 'high', maxOutputTokensOverride: undefined, tools: [{ name: 'Alpha' }, { name: 'Beta' }] })

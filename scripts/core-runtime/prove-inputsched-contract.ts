@@ -560,7 +560,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
 }
 
 {
-  const ambient = { ...process.env }
   const t = await import('./turnScenarios.ts')
   const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
   const { afterTools } = await import('../../src/run-core/turn/afterTools.ts')
@@ -600,8 +599,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
   }
   const plain = await toolBoundary('EchoTool')
   const slept = await toolBoundary(SLEEP_TOOL_NAME)
-  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
-  Object.assign(process.env, ambient)
   check('lock: the steering drain snapshots through the queue-owned band view and removes by identity',
     plain.delivered === 'nextA,nowA' && plain.left === 'laterA,laterN,nowA' && plain.survivorsAreTheQueuesOwn && plain.twinStays
       && slept.delivered === 'laterN,nextA,nowA' && slept.left === 'laterA,nowA' && slept.survivorsAreTheQueuesOwn && slept.twinStays

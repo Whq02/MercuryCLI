@@ -99,10 +99,9 @@ section('§B C07 — settlement reconciliation through the applied plan')
   const p2 = await build(msgs, 'apply', owner, { calibrationKey: key })
   check('the NEXT plan estimates through the learned ratio', p2.tokenEstimate?.calibration.calibrated === true && p2.tokenEstimate!.estimatedTokens > est)
   check('no calibration key ⇒ tokenEstimate null (explicit absence)', (await build(msgs, 'inspect', owner)).tokenEstimate === null)
-  const envBefore = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const { declaredRouteOf } = await import('../../src/services/providers/callModelRouter.js')
-  const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.js')
+  const { mainOwnerOfSession } = await import('../../src/services/run/resolveOwner.js')
   const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.js')
   const UNDECLARED = 'model-no-road-declares'
   const carried: string[] = []
@@ -126,10 +125,8 @@ section('§B C07 — settlement reconciliation through the applied plan')
       t.fixtures.yields(t.fixtures.fat('the answer on the fallback', 9_000)),
     ],
   })
-  const applied = planMod.getLastAppliedPlan(ownerFromToolUseContext(fellBack.rig.ctx as never))?.tokenEstimate
+  const applied = planMod.getLastAppliedPlan(mainOwnerOfSession(fellBack.session))?.tokenEstimate
   const learned = cal.calibrationFor(applied?.key ?? '')
-  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
-  Object.assign(process.env, envBefore)
   check(
     'turn-machine reconciles ONLY the first call (c1)',
     fellBack.terminal.reason === 'completed' && fellBack.requests.length === 2 && applied != null && learned.calibrated && learned.samples === 1 && Math.abs(learned.ratio - 6_000 / applied.baseTokens) < 1e-9,
@@ -167,7 +164,6 @@ section('§C C08 — the SHIPPED typed ladder composes with selection')
   check('typed states compose honestly', composed.ladder === 'blocked' && composed.selection === 'closure-exceeds-budget')
   check('detectFixedPrefixOverflow stays live', typeof auto.detectFixedPrefixOverflow === 'function')
   check('the thrash guard stays live', typeof auto.rapidRefillCount === 'function' && auto.AUTOCOMPACT_THRASH_MESSAGE.length > 0)
-  const envBefore = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
   const { splitCarriedOperatorTail } = await import('../../src/services/compact/overflowRecovery.js')
@@ -182,8 +178,6 @@ section('§C C08 — the SHIPPED typed ladder composes with selection')
   }
   const opened = await t.drain(makeRequest(planted.run as never, planted.state as never, 1))
   planted.close()
-  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
-  Object.assign(process.env, envBefore)
   const selected = (opened.decision as { iter?: { requestPlan?: { messages?: AnyMessage[] } } }).iter?.requestPlan?.messages ?? []
   const leftOut = history.filter(row => !selected.some(kept => kept.uuid === row.uuid))
   const gate = folds[0] ?? { head: [], fork: [], carry: [] }

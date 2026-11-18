@@ -226,7 +226,6 @@ section("§4 the lifecycle's end-of-run drain takes exactly what it peeked; late
   const lifecycle = readFileSync(join(ROOT, 'src/tools/AgentTool/agentToolUtils.ts'), 'utf8')
   check('the lifecycle drains by the counts it peeked and marks a run that went on with the parent\'s guidance', /drainPendingMessages\(taskId, stateReader, rootSetAppState, pending\.length\)/.test(lifecycle) && /takeOperatorMessages\(taskId, stateReader, rootSetAppState, operator\.length\)/.test(lifecycle) && /continuedOnGuidance = pending\.length > 0/.test(lifecycle))
   check('a run that went on with queued guidance sends no completion notice; the resumed run sends its own when its queue is empty', /const notifies = \(overloadEpisode === null \|\| overloadDeathNotifies\(overloadEpisode\)\) && !continuedOnGuidance/.test(lifecycle))
-  const ambient = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const { NO_TOOL_RULES, readReply } = await import('../../src/run-core/turn/noToolReply.ts')
   const queuedRule = NO_TOOL_RULES.find(entry => entry.name === 'queued_message')!
@@ -238,8 +237,6 @@ section("§4 the lifecycle's end-of-run drain takes exactly what it peeked; late
   }
   const crew = await atTheNaturalEnd({ agentId: t.fixtures.agent(), querySource: 'agent:custom', appState: t.fixtures.crewTask(['read the contract', 'and conform to it']), script: [t.fixtures.yields(t.fixtures.says('the note is written.'))] })
   const lead = await atTheNaturalEnd({ appState: t.fixtures.crewTask(['read the contract', 'and conform to it']), script: [t.fixtures.yields(t.fixtures.says('the note is written.'))] })
-  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
-  Object.assign(process.env, ambient)
   const handed = (crew.decision as { next?: { transition?: unknown; messages?: unknown[] } } | undefined)?.next
   check(
     'the turn machine reads a crewmate\'s queue at the natural end of a turn and continues with reason queued_message',
