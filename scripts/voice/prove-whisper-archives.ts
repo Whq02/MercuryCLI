@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { bundledVendorPacks, checkBundledVendorPacks } from '../release/payloadContract.mjs'
+import { bundledVendorPacks, checkBundledVendorPacks, vendorPackTreeDigest } from '../release/payloadContract.mjs'
 import { RELEASE_TARGETS, buildPlatformOf } from '../../src/services/privateChannel/releaseTarget.ts'
 import { voiceCargoTriple, voicePackPlatform } from '../../src/services/voice/voicePack.ts'
 
@@ -21,7 +21,7 @@ try {
     write(join(payload, 'manifest.json'), JSON.stringify({ degraded: [], onDeviceTranscriber: { vendored: false } }))
     for (const pack of bundledVendorPacks(target)) {
       for (const file of pack.files) write(join(payload, pack.dir, file), 'fixture')
-      write(join(payload, pack.dir, '.vendor-manifest.json'), JSON.stringify({ platform: pack.platform, version: pack.version, binary: pack.binary, binarySha256: digest('fixture') }))
+      write(join(payload, pack.dir, '.vendor-manifest.json'), JSON.stringify({ platform: pack.platform, version: pack.version, binary: pack.binary, binarySha256: digest('fixture'), ...(pack.record ?? {}), ...(pack.tree === true ? vendorPackTreeDigest(join(payload, pack.dir)) : {}) }))
     }
     assert.equal(checkBundledVendorPacks(payload, target).ok, false, `${target}: an archive without Whisper must fail`)
     const ship = buildPlatformOf(target)

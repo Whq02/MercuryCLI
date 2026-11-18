@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const DOC_SET = ['README-FIRST.md', 'INSTALLING.md', 'UPDATING.md', 'RELEASE-NOTES.md', 'NOTICES.md', 'LICENSE.md', 'NOTICE', 'TRADEMARKS.md']
@@ -117,6 +117,62 @@ function readVendorLock(name) {
 
 const BASH_PACK_PLATFORM = { 'macos-arm64': 'darwin-arm64', 'macos-x64': 'darwin-x64', 'linux-arm64': 'linux-arm64', 'linux-x64': 'linux-x64' }
 
+const PACK_RECORD_FILE = '.vendor-manifest.json'
+
+export function vendorPackTreeDigest(dir) {
+  const lines = []
+  const walk = at => {
+    for (const entry of readdirSync(at, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+      const full = join(at, entry.name)
+      const rel = relative(dir, full).split(sep).join('/')
+      if (rel === PACK_RECORD_FILE) continue
+      if (entry.isDirectory()) walk(full)
+      else if (entry.isFile()) lines.push(`${rel} ${sha256File(full)}`)
+    }
+  }
+  walk(dir)
+  return { fileCount: lines.length, treeDigest: createHash('sha256').update(lines.join('\n')).digest('hex') }
+}
+
+const sameValue = (a, b) => {
+  const ordered = value => JSON.stringify(value, (_key, inner) => (inner !== null && typeof inner === 'object' && !Array.isArray(inner) ? Object.fromEntries(Object.entries(inner).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0))) : inner))
+  return ordered(a) === ordered(b)
+}
+
+function windowsBashPack(target, platform) {
+  const lock = readVendorLock('bash')
+  const entry = lock.platforms[platform]
+  const msys2 = lock.msys2
+  if (entry === undefined || entry.kind !== 'msys2' || msys2 === undefined) return []
+  const licenceFiles = [...new Set(msys2.packages.flatMap(pinned => pinned.licenseFiles))].sort()
+  const programs = msys2.programs.map(name => `${msys2.programsDir}/${name}.exe`)
+  return [
+    {
+      name: lock.name,
+      version: lock.version,
+      platform,
+      binary: entry.binary,
+      degradation: 'shell-bash',
+      manifestKey: 'bash',
+      dir: `vendor/bash/${platform}`,
+      files: [...new Set([entry.binary, entry.runtime, PACK_RECORD_FILE, 'NOTICES.json', lock.sourceNote, ...licenceFiles, ...Object.keys(msys2.files), ...programs])],
+      tree: true,
+      record: {
+        source: 'msys2-packages',
+        bashVersion: msys2.bashVersion,
+        target: entry.target,
+        emulated: entry.emulated === true,
+        runtime: entry.runtime,
+        runtimeVersion: msys2.runtimeVersion,
+        databaseSha256: msys2.database.sha256,
+        packages: msys2.packages.map(pinned => ({ name: pinned.name, version: pinned.version, file: pinned.file, sha256: pinned.sha256, license: pinned.license, sourceFile: pinned.source.file, sourceSha256: pinned.source.sha256 })),
+      },
+      carries: 'the bash Mercury ships for a Windows machine with no bash 5 of its own, with the programs a command names beside it',
+      prepare: `bun run scripts/vendor/fetch-bash-win.ts --target ${target}`,
+    },
+  ]
+}
+
 export function bundledVendorPacks(target) {
   if (!target.startsWith('windows-')) {
     const platform = BASH_PACK_PLATFORM[target]
@@ -132,6 +188,7 @@ export function bundledVendorPacks(target) {
         manifestKey: 'bash',
         dir: `vendor/bash/${platform}`,
         files: ['bash', '.vendor-manifest.json', ...lock.licenseFiles, lock.sourceNote, ...(platform.startsWith('linux-') ? [lock.linuxBuilder.libc.licenseFile] : [])],
+        tree: true,
         carries: 'the bash Mercury ships, the shell the Bash tool runs',
         prepare: `bun run scripts/vendor/build-bash.ts --target ${target}`,
       },
@@ -141,6 +198,7 @@ export function bundledVendorPacks(target) {
   const lock = readVendorLock('brush')
   const entry = lock.platforms[platform]
   return [
+    ...windowsBashPack(target, platform),
     {
       name: lock.name,
       version: lock.version,
@@ -201,6 +259,15 @@ export function checkBundledVendorPacks(payloadDir, target) {
     if (existsSync(binaryPath)) {
       const digest = sha256File(binaryPath)
       if (digest !== record.binarySha256) findings.push(`${pack.dir}/${pack.binary} does not match its record's sha256 (the record says ${String(record.binarySha256).slice(0, 12)}…, the bytes hash to ${digest.slice(0, 12)}…)`)
+    }
+    for (const [field, pinned] of Object.entries(pack.record ?? {})) {
+      if (!sameValue(record[field], pinned)) findings.push(`${pack.dir}/${PACK_RECORD_FILE} names another ${field} than vendor/${pack.name}.lock.json pins`)
+    }
+    if (pack.tree === true) {
+      const tree = vendorPackTreeDigest(dir)
+      if (tree.fileCount !== record.fileCount || tree.treeDigest !== record.treeDigest) {
+        findings.push(`${pack.dir} does not hold the files its record counts (the record says ${String(record.fileCount)} files with the tree digest ${String(record.treeDigest).slice(0, 12)}…, the folder holds ${tree.fileCount} that hash to ${tree.treeDigest.slice(0, 12)}…)`)
+      }
     }
   }
   return { ok: findings.length === 0, findings, packs }

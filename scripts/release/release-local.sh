@@ -230,6 +230,7 @@ step node-pin 0 node_pin
 [ "$CROSS" = 1 ] && step rosetta 0 rosetta_check
 step shell-engine 0 bun run scripts/vendor/fetch-brush.ts --platform "$NODE_PACK"
 step shell-bash 0 bun run scripts/vendor/build-bash.ts --target "$TARGET"
+step shell-bash-win 0 bun run scripts/vendor/fetch-bash-win.ts --target "$TARGET"
 [ "$CROSS" = 1 ] && step rust-target 1 rust_target
 step voice 1 bun run scripts/vendor/build-voice.ts --target "$TARGET"
 step cmake 1 cmake_check

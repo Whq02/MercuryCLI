@@ -157,19 +157,19 @@ if (host !== null && built.includes(host)) {
 
 section('(5) the build and the archive take the pack')
 {
-  type Pack = { name: string; version: string; platform: string; binary: string; degradation: string; manifestKey: string; dir: string; files: string[] }
+  type Pack = { name: string; version: string; platform: string; binary: string; degradation: string; manifestKey: string; dir: string; files: string[]; tree?: boolean }
   const targets: Array<[string, string]> = [['macos-arm64', 'darwin-arm64'], ['macos-x64', 'darwin-x64'], ['linux-x64', 'linux-x64'], ['linux-arm64', 'linux-arm64']]
   for (const [target, platform] of targets) {
     const packs = bundledVendorPacks(target) as Pack[]
     const pack = packs[0]
     check(
       `${target}: the payload contract requires the bash pack, its record, its licence text and its SOURCE note${platform.startsWith('linux-') ? ', and the libc licence' : ''}`,
-      packs.length === 1 && pack?.name === 'bash' && pack.version === lock.version && pack.platform === platform && pack.dir === `${BASH_PACK_PATH}/${platform}` && pack.degradation === 'shell-bash' && pack.manifestKey === 'bash' && ['bash', '.vendor-manifest.json', 'COPYING', 'SOURCE'].every(file => pack.files.includes(file)) && pack.files.includes('LICENSE.musl') === platform.startsWith('linux-'),
+      packs.length === 1 && pack?.name === 'bash' && pack.tree === true && pack.version === lock.version && pack.platform === platform && pack.dir === `${BASH_PACK_PATH}/${platform}` && pack.degradation === 'shell-bash' && pack.manifestKey === 'bash' && ['bash', '.vendor-manifest.json', 'COPYING', 'SOURCE'].every(file => pack.files.includes(file)) && pack.files.includes('LICENSE.musl') === platform.startsWith('linux-'),
       JSON.stringify(packs),
     )
   }
   const windows = bundledVendorPacks('windows-x64') as Pack[]
-  check('windows-x64: the contract is as it was, the engine pack alone', windows.length === 1 && windows[0]?.name === 'brush', JSON.stringify(windows.map(pack => pack.name)))
+  check('windows-x64: the contract requires the fetched bash pack, held by its tree, before the engine pack', windows.length === 2 && windows[0]?.name === 'bash' && windows[0].tree === true && windows[0].dir === `${BASH_PACK_PATH}/win-x64` && windows[0].binary === 'usr/bin/bash.exe' && windows[1]?.name === 'brush', JSON.stringify(windows.map(pack => pack.name)))
 
   const manifestPath = join(ROOT, 'dist', 'manifest.json')
   if (!existsSync(manifestPath)) {

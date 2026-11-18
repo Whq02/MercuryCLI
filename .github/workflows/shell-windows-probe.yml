@@ -135,6 +135,21 @@ jobs:
           }
           exit 0
 
+      - name: Lay the bash pack (vendor/bash/win-x64) from the pinned MSYS2 packages when the tree carries the fetch
+        run: |
+          if (Test-Path scripts/vendor/fetch-bash-win.ts) {
+            bun run scripts/vendor/fetch-bash-win.ts
+            if ($LASTEXITCODE -ne 0) { Write-Host 'THE BASH PACK WAS NOT LAID OUT'; exit 1 }
+            bun run scripts/vendor/fetch-bash-win.ts --check
+            if ($LASTEXITCODE -ne 0) { Write-Host 'THE LAID OUT BASH PACK DOES NOT PASS ITS OWN CHECK'; exit 1 }
+            & vendor\bash\win-x64\usr\bin\bash.exe --norc --noprofile -c 'printf "%s\n" "$BASH_VERSION"'
+            Write-Host "the pack's bash -> $LASTEXITCODE"
+            if ($LASTEXITCODE -ne 0) { Write-Host 'THE BASH OF THE PACK DOES NOT START ON THIS RUNNER'; exit 1 }
+          } else {
+            Write-Host 'no scripts/vendor/fetch-bash-win.ts on this tree - the bash pack legs below read a build without it'
+          }
+          exit 0
+
       - name: Build dist
         run: bun run build.ts
 
@@ -154,6 +169,10 @@ jobs:
           $row | Format-List
           if ($shell.status -ne 'ok') { Write-Host 'THE SHELL CHECK IS NOT ok WITH bash.exe PRESENT'; exit 1 }
           if ($row.state -ne 'ready') { Write-Host 'THE READINESS ROW IS NOT ready WITH bash.exe PRESENT'; exit 1 }
+          if ((Get-Content dist\manifest.json -Raw | ConvertFrom-Json).bash.vendored -eq $true) {
+            if ($shell.evidence -notmatch '^bash 5\.') { Write-Host 'THE SHELL CHECK DOES NOT NAME THE VERSION OF THE BASH IT FOUND'; exit 1 }
+            if ($shell.evidence -notmatch 'found on this machine') { Write-Host 'THE SHELL CHECK DOES NOT SAY THE INSTALLED BASH SERVES BEFORE THE ONE MERCURY SHIPS'; exit 1 }
+          }
           "HEALTH_PRESENT_EXIT=$code" >> $env:GITHUB_ENV
           "HEALTH_PRESENT_FAILING=$($failing -join ',')" >> $env:GITHUB_ENV
           exit 0
@@ -183,10 +202,17 @@ jobs:
             $row = $d.readiness | Where-Object { $_.id -eq 'tool:shell' }
             $row | Format-List
             if ($versionCode -ne 0) { Write-Host '--version DID NOT EXIT 0 WITHOUT bash.exe'; $verdict = 1 }
-            $packed = (Get-Content dist\manifest.json -Raw | ConvertFrom-Json).shellEngine.vendored -eq $true
-            Write-Host "shell engine pack in dist: $packed"
-            if ($packed) {
-              if ($shell.status -ne 'ok') { Write-Host 'THE SHELL CHECK IS NOT ok ON THE BUNDLED ENGINE'; $verdict = 1 }
+            $built = Get-Content dist\manifest.json -Raw | ConvertFrom-Json
+            $bashPacked = $built.bash.vendored -eq $true
+            $packed = $built.shellEngine.vendored -eq $true
+            Write-Host "bash pack in dist: $bashPacked; shell engine pack in dist: $packed"
+            if ($bashPacked) {
+              if ($shell.status -ne 'ok') { Write-Host 'THE SHELL CHECK IS NOT ok ON THE BASH MERCURY SHIPS'; $verdict = 1 }
+              if ($shell.evidence -notmatch '^bash 5\.') { Write-Host 'THE SHELL CHECK DOES NOT NAME A BASH 5'; $verdict = 1 }
+              if ($shell.evidence -notmatch 'the bash Mercury ships') { Write-Host 'THE SHELL CHECK DOES NOT NAME THE BASH MERCURY SHIPS'; $verdict = 1 }
+              if ($row.state -ne 'ready') { Write-Host 'THE READINESS ROW IS NOT ready ON THE BASH MERCURY SHIPS'; $verdict = 1 }
+            } elseif ($packed) {
+              if ($shell.status -ne 'warn') { Write-Host 'THE SHELL CHECK DOES NOT WARN ON THE BUNDLED ENGINE, THE LAST ROAD'; $verdict = 1 }
               if ($shell.evidence -notmatch 'bundled shell engine') { Write-Host 'THE SHELL CHECK DOES NOT NAME THE BUNDLED ENGINE'; $verdict = 1 }
               if ($row.state -ne 'ready') { Write-Host 'THE READINESS ROW IS NOT ready ON THE BUNDLED ENGINE'; $verdict = 1 }
             } else {
@@ -205,9 +231,42 @@ jobs:
             $offShell | Format-List
             $offRow = $off.readiness | Where-Object { $_.id -eq 'tool:shell' }
             $offRow | Format-List
-            if ($offShell.status -ne 'warn') { Write-Host 'THE SHELL CHECK DID NOT WARN WITH THE ENGINE FORCED OFF'; $verdict = 1 }
-            if ($offRow.state -ne 'unavailable') { Write-Host 'THE READINESS ROW DID NOT READ unavailable WITH THE ENGINE FORCED OFF'; $verdict = 1 }
+            if ($bashPacked) {
+              if ($offShell.status -ne 'ok') { Write-Host 'THE SHELL CHECK IS NOT ok ON THE BASH MERCURY SHIPS WITH THE ENGINE FORCED OFF'; $verdict = 1 }
+              if ($offShell.evidence -notmatch 'the bash Mercury ships') { Write-Host 'THE SYSTEM PIN DID NOT KEEP THE BASH MERCURY SHIPS'; $verdict = 1 }
+              if ($offRow.state -ne 'ready') { Write-Host 'THE READINESS ROW IS NOT ready ON THE BASH MERCURY SHIPS WITH THE ENGINE FORCED OFF'; $verdict = 1 }
+            } else {
+              if ($offShell.status -ne 'warn') { Write-Host 'THE SHELL CHECK DID NOT WARN WITH THE ENGINE FORCED OFF'; $verdict = 1 }
+              if ($offRow.state -ne 'unavailable') { Write-Host 'THE READINESS ROW DID NOT READ unavailable WITH THE ENGINE FORCED OFF'; $verdict = 1 }
+            }
             if ("$offCode" -ne "$env:HEALTH_PRESENT_EXIT") { Write-Host 'THE EXIT CODE MOVED WITH THE ENGINE FORCED OFF'; $verdict = 1 }
+            if ($bashPacked) {
+              Write-Host '== health --json with the bash pack moved away too: out of dist and out of the checkout, which the bundle also reads'
+              Rename-Item -Path 'dist\vendor\bash' -NewName 'bash.off'
+              Rename-Item -Path 'vendor\bash' -NewName 'bash.off'
+              try {
+                $env:MERCURY_CONFIG_DIR = "$env:RUNNER_TEMP\home-absent-bare"
+                node dist\mercury.mjs health --json > "$env:RUNNER_TEMP\health-absent-bare.json"
+                $bareCode = $LASTEXITCODE
+                $bare = Get-Content "$env:RUNNER_TEMP\health-absent-bare.json" -Raw | ConvertFrom-Json
+                $bareShell = $bare.sections | ForEach-Object { $_.checks } | Where-Object { $_.id -eq 'shell' }
+                $bareShell | Format-List
+                $bareRow = $bare.readiness | Where-Object { $_.id -eq 'tool:shell' }
+                $bareRow | Format-List
+                if ($packed) {
+                  if ($bareShell.status -ne 'warn') { Write-Host 'THE SHELL CHECK DOES NOT WARN ON THE BUNDLED ENGINE, THE LAST ROAD'; $verdict = 1 }
+                  if ($bareShell.evidence -notmatch 'bundled shell engine') { Write-Host 'THE SHELL CHECK DOES NOT NAME THE BUNDLED ENGINE WITH NO BASH OF ANY ORIGIN'; $verdict = 1 }
+                  if ($bareRow.state -ne 'ready') { Write-Host 'THE READINESS ROW IS NOT ready ON THE BUNDLED ENGINE'; $verdict = 1 }
+                } else {
+                  if ($bareShell.status -ne 'warn') { Write-Host 'THE SHELL CHECK DID NOT WARN WITH NO SHELL AT ALL'; $verdict = 1 }
+                  if ($bareRow.state -ne 'unavailable') { Write-Host 'THE READINESS ROW DID NOT READ unavailable WITH NO SHELL AT ALL'; $verdict = 1 }
+                }
+                if ("$bareCode" -ne "$env:HEALTH_PRESENT_EXIT") { Write-Host 'THE EXIT CODE MOVED WITH THE BASH PACK AWAY'; $verdict = 1 }
+              } finally {
+                Rename-Item -Path 'vendor\bash.off' -NewName 'bash'
+                Rename-Item -Path 'dist\vendor\bash.off' -NewName 'bash'
+              }
+            }
           } finally {
             Rename-Item -Path "$bash.off" -NewName 'bash.exe'
           }
@@ -233,6 +292,22 @@ jobs:
         continue-on-error: true
         run: bun scripts/bash/prove-shell-windows-pack-layout.ts
 
+      - name: Bash road provers (the detector, the pack, the order of the roads, the payload contract; when they landed on this tree)
+        id: bashroad
+        continue-on-error: true
+        run: |
+          $red = 0
+          foreach ($proof in 'scripts/bash/prove-windows-bash-detector.ts', 'scripts/bash/prove-bash-win-pack.ts', 'scripts/bash/prove-windows-road-order.ts', 'scripts/release/prove-windows-payload-bash-pack.ts') {
+            if (Test-Path $proof) {
+              bun $proof
+              Write-Host "$proof -> $LASTEXITCODE"
+              if ($LASTEXITCODE -ne 0) { $red = 1 }
+            } else {
+              Write-Host "no $proof on this tree - skipped"
+            }
+          }
+          exit $red
+
       - name: Engine session prover (when the engine landed on this tree)
         id: engine
         continue-on-error: true
@@ -252,6 +327,7 @@ jobs:
           $outcomes = @{
             'road prover'   = '${{ steps.road.outcome }}'
             'layout prover' = '${{ steps.layout.outcome }}'
+            'bash provers'  = '${{ steps.bashroad.outcome }}'
             'engine prover' = '${{ steps.engine.outcome }}'
           }
           $red = 0
@@ -269,5 +345,7 @@ jobs:
           path: |
             ${{ runner.temp }}/health-present.json
             ${{ runner.temp }}/health-absent.json
+            ${{ runner.temp }}/health-absent-off.json
+            ${{ runner.temp }}/health-absent-bare.json
             ${{ runner.temp }}/pin.err
           if-no-files-found: warn

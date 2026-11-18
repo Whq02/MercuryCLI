@@ -86,6 +86,7 @@ const bash = vendorLock('bash.lock.json') as {
   licenseFiles?: string[]
   sourceNote?: string
   linuxBuilder?: { libc?: { name?: string; version?: string; license?: string; licenseFile?: string } }
+  msys2?: { bashVersion?: string; runtimeVersion?: string; recipes?: string; packages?: Array<{ name: string; version: string; license: string }> }
 }
 const tsMeta = pkgMeta('typescript')
 const treeSitterMeta = pkgMeta('@vscode/tree-sitter-wasm')
@@ -246,6 +247,12 @@ const bashLibc = bash.linuxBuilder?.libc ?? {}
 lines.push(
   `- **bash pack** (\`dist/vendor/bash/<platform>/bash\`, macOS and Linux) — GNU bash ${bash.release ?? '5.3'} at patch level ${bash.patchLevel ?? 0}, Free Software Foundation, ${bash.license ?? 'GPL-3.0-or-later'} (${bash.homepage ?? 'https://www.gnu.org/software/bash/'}), the shell the Bash tool runs. Mercury starts it as a separate program and links nothing of it. Receipt: vendor/bash.lock.json (the GNU release tarball and each official patch with its url and sha256, every digest computed on bytes whose detached signature verified against the maintainer's key, and the build's flags). The pack is built from that tarball by scripts/vendor/build-bash.ts and never fetched as a binary; nothing of the tarball is in this repository. A macOS or Linux archive ships the platform's binary at dist/vendor/bash/<platform>/ with the licence text (\`${(bash.licenseFiles ?? ['COPYING']).join('`, `')}\`, from the tarball) and a \`${bash.sourceNote ?? 'SOURCE'}\` note that names the tarball, every patch, their digests and the flags: the corresponding source is exactly those files, at the urls the note gives, built by the script and lock of this repository. The macOS binaries link the operating system's own libraries and nothing else; the Linux binaries are static and carry ${bashLibc.name ?? 'musl'} ${bashLibc.version ?? ''} (${bashLibc.license ?? 'MIT'}, https://musl.libc.org/), whose licence text ships beside them as \`${bashLibc.licenseFile ?? 'LICENSE.musl'}\`.`,
 )
+const bashWin = bash.msys2
+if (bashWin?.packages !== undefined && bashWin.packages.length > 0) {
+  lines.push(
+    `- **bash pack for Windows** (\`dist/vendor/bash/<platform>/usr/bin/bash.exe\`, win-x64 and win-arm64) — GNU bash ${bashWin.bashVersion ?? ''} as the MSYS2 project packages it, with the MSYS2 runtime ${bashWin.runtimeVersion ?? ''} (\`msys-2.0.dll\`, a fork of the Cygwin library) and the programs a command names beside it (ls, cat, grep, sed, find and the like): ${bashWin.packages.length} packages (${bashWin.recipes ?? 'https://github.com/msys2/MSYS2-packages'}). The Bash tool runs it on a Windows machine that has no bash 5 of its own. Mercury starts each of these programs as a separate program and links nothing of them. Receipt: vendor/bash.lock.json, block \`msys2\` (each binary package and its source package with file name, size and sha256, and the package database the pins were read from). The pack is laid out from those packages by scripts/vendor/fetch-bash-win.ts, which checks every size and sha256 before a file is opened; no file of them is in this repository, and the same x86_64 programs serve Windows on Arm under its emulation. The Windows archive ships the files at dist/vendor/bash/<platform>/ with the licence texts under \`licenses/\`, \`NOTICES.json\` (the package and the licence of every file) and a \`${bash.sourceNote ?? 'SOURCE'}\` note that names, for each package, the address and sha256 of the binary package and of its source package: the corresponding source is those source packages, at the addresses the note gives. Packages: ${bashWin.packages.map(pinned => `${pinned.name} ${pinned.version} (${pinned.license})`).join('; ')}.`,
+  )
+}
 lines.push('')
 lines.push('## Preserved NOTICE files (Apache-2.0 §4(d))')
 lines.push('')
