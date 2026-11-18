@@ -109,6 +109,8 @@ export function boardResumeRefusal(agentId: string, tasks: Record<string, unknow
   return null
 }
 
+export class AgentNotRecorded extends Error {}
+
 export async function resumeAgentBackground(args: {
   agentId: string
   prompt: string
@@ -129,7 +131,7 @@ export async function resumeAgentBackground(args: {
     readAgentMetadata(agentId as AgentId),
   ])
   if (!transcript || transcript.messages.length === 0) {
-    throw new Error(`No transcript found for crewmate ${agentId}`)
+    throw new AgentNotRecorded(`No transcript found for crewmate ${agentId}`)
   }
   const definitions = await getAgentDefinitionsWithOverrides(getCwdState())
   const definition: AgentDefinition = definitionForStoredType(meta?.agentType, definitions.activeAgents)

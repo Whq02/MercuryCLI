@@ -81,6 +81,11 @@ await spied('src/utils/sessionStorage.ts', ['resetSessionFilePointer', 'restoreS
 await spied('src/utils/cockpit/runtimePosture.ts', ['markSessionPermissionModeAtClaim'])
 await spied('src/utils/sessionStorage/logs.ts', ['saveCustomTitle'])
 await spied('src/cli/headless/resume.ts', ['emitLoadError'])
+let trusted: boolean | null = null
+{
+  const real = { ...((await import(at('src/utils/config/trust.ts'))) as { isPathTrusted: (path: string) => boolean }) }
+  mock.module(at('src/utils/config/trust.ts'), () => ({ ...real, isPathTrusted: (path: string): boolean => (trusted === null ? real.isPathTrusted(path) : trusted) }))
+}
 
 const { runnerArmsOf } = await import('../../src/cli/headless/runnerArms.ts')
 const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
@@ -273,6 +278,22 @@ section('§4 agent/resume: a running crewmate is told, a stopped one rides the o
   const withNote = said('resumeAgentBackground')[1]?.args[0] as { prompt?: string; replyTarget?: string } | undefined
   const second = dequeue(command => typeof command.value === 'string' && command.value.includes('<task-id>gone</task-id>'))
   check("a resume with the operator's own words sends those words, answers to the operator, and leaves no receipt row of its own", withNote?.prompt === 'carry on with the tests' && withNote.replyTarget === 'operator' && receipt !== undefined && String(receipt.value).includes('(in the session folder)') && second === undefined, `${j(withNote)} · receipt ${receipt !== undefined} · second ${second !== undefined}`)
+  const owner = (await import('../../src/tools/AgentTool/resumeAgent.ts')) as { AgentNotRecorded?: new (message: string) => Error }
+  const NotRecorded = owner.AgentNotRecorded ?? Error
+  answers.set('resumeAgentBackground', async () => Promise.reject(new NotRecorded('No transcript found for crewmate a-none')))
+  const unrecorded = await refusalOf(arms['agent/resume']({ agent_id: 'a-none' }, ref, signalOf()))
+  answers.set('resumeAgentBackground', async () => Promise.reject(new Error('the resume owner broke')))
+  const broken = await refusalOf(arms['agent/resume']({ agent_id: 'a-none' }, ref, signalOf()))
+  check("agent/resume for a crewmate nothing recorded answers the typed refusal of kind agent with the owner's sentence, and a fault of the owner stays a fault", owner.AgentNotRecorded !== undefined && unrecorded?.code === RPC_REFUSED && unrecorded.data?.kind === 'agent' && unrecorded.message === 'No transcript found for crewmate a-none' && broken?.code === undefined && broken?.message === 'the resume owner broke', `${j({ code: unrecorded?.code, kind: unrecorded?.data?.kind, message: unrecorded?.message })} · ${j({ code: broken?.code, message: broken?.message })}`)
+}
+
+section('§4b project/query: a folder nobody trusted is refused, by its kind')
+{
+  const { ports } = stubPorts({ getAppState: () => ({ toolPermissionContext: {} }) })
+  trusted = false
+  const untrusted = await refusalOf(runnerArmsOf(ports)['project/query']({ op: 'sessions' }, ref, signalOf()))
+  trusted = null
+  check('project/query in a folder nobody trusted answers the typed refusal of kind trust with the sentence it printed', untrusted?.code === RPC_REFUSED && untrusted.data?.kind === 'trust' && untrusted.message === 'Trust this folder in Mercury before serving its project', j({ code: untrusted?.code, kind: untrusted?.data?.kind, message: untrusted?.message }))
 }
 
 section('§5 session/send_now: only while a turn is in flight, from the one send-now function')

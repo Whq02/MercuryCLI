@@ -13,6 +13,7 @@ import { parseMercuryRef } from '../../services/resources/contracts.js'
 import { MERCURY_DAEMON_PROTO } from '../../daemon/protocol.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import { searchPointers } from '../../mneme/mnemePointers.js'
+import { refused } from '../../runner/wire/errors.js'
 import type { ParamsOf } from '../../runner/wire/methods.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
@@ -26,7 +27,7 @@ function projectSession(id: string | undefined): string {
 
 export async function projectQuery(input: ParamsOf<'project/query'>, permissions: ToolPermissionContext): Promise<Record<string, unknown>> {
   const cwd = getOriginalCwd()
-  if (!isPathTrusted(cwd)) throw new Error('Trust this folder in Mercury before serving its project')
+  if (!isPathTrusted(cwd)) throw refused('Trust this folder in Mercury before serving its project', 'trust')
   switch (input.op) {
     case 'sessions': {
       const saved = await listSessions()

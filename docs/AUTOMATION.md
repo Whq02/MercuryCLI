@@ -413,9 +413,9 @@ The host sends `initialize` first and waits for the answer before sending work:
   sentence in `error.message` and a reason in
   `error.data.kind` (`protocol`, `claim`, `model`, `effort`, `mode`,
   `spawn-switch`, `kit`, `rewind`, `pause-gate`, `quiesce`, `queue`, `agent`,
-  `no-shell`, `nothing-to-resume`, `already-initialized` or `capability`). A
-  malformed JSON line answers `-32700`; three consecutive malformed lines end
-  the runner.
+  `no-shell`, `nothing-to-resume`, `already-initialized`, `capability` or
+  `trust`). A malformed JSON line answers `-32700`; three consecutive
+  malformed lines end the runner.
 
 ### TypeScript (Node 24, zero dependencies)
 

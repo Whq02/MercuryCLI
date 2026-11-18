@@ -62,7 +62,7 @@ async function idleScene(): Promise<unknown> {
   const turns: ScriptedTurn[] = [handoffTurn(), { kind: 'text', text: 'First answer.' }]
   return withFixtureRunner(turns, async runner => {
     const a = (arm: string, name: string, want: Want, params: unknown): Promise<Answer> => call(runner, arm, name, want, params)
-    await a('project/query', 'the sessions of a folder nobody trusted', 'failed', { op: 'sessions' })
+    await a('project/query', 'the sessions of a folder nobody trusted', 'refused', { op: 'sessions' })
     await a('project/query', 'an op that is none of the six', 'invalid', { op: 'nope' })
     await a('project/query', 'a key the strict object does not hold', 'invalid', { op: 'sessions', extra: true })
     await a('session/facts', 'the facts before a turn', 'answer', {})
@@ -137,7 +137,7 @@ async function idleScene(): Promise<unknown> {
     await a('session/file_restore', 'a dry undo with nothing to undo', 'answer', { action: 'undo', user_message_id: UNSEEN, dry_run: true })
     await a('session/file_restore', 'a restore with no file', 'invalid', { action: 'restore', user_message_id: UNSEEN })
     await a('session/file_restore', 'an action that is none', 'invalid', { action: 'explode', user_message_id: UNSEEN })
-    await a('agent/resume', 'an agent nothing recorded', 'failed', { agent_id: 'a-none' })
+    await a('agent/resume', 'an agent nothing recorded', 'refused', { agent_id: 'a-none' })
     await a('session/facts', 'the facts after a turn', 'answer', {})
     await a('session/quiesce', 'a token too short to be one', 'refused', { action: 'prepare', token: 'short' })
     await a('session/quiesce', 'prepare', 'answer', { action: 'prepare', token: QUIESCE_TOKEN })
@@ -211,6 +211,17 @@ async function claimScene(): Promise<unknown> {
     },
     { model: null, env: { MERCURY_CONCOURSE_WORKER: '1' } },
   )
+}
+
+async function closedMidTurnScene(): Promise<unknown> {
+  const turns: ScriptedTurn[] = [handoffTurn(), { kind: 'paced', deltas: ['One ', 'two ', 'three.'], gapMs: 400 }]
+  return withFixtureRunner(turns, async runner => {
+    await runner.prompt('count to three')
+    await runner.waitFor('the paced turn has its first byte', row => row.type === 'wait' && row.state === 'done', 60_000)
+    runner.end()
+    const code = await Promise.race([runner.exited, pause(30_000).then(() => 'still running' as const)])
+    return { rows: [...runner.rows], notifications: [...runner.notifications], stderr: runner.stderr(), exit: code }
+  })
 }
 
 async function printRuns(): Promise<PrintRun[]> {
@@ -320,6 +331,7 @@ const scenes: Record<string, unknown> = {}
 scenes.idle = await idleScene()
 scenes.inFlight = await inFlightScene()
 scenes.claim = await claimScene()
+scenes.closedMidTurn = await closedMidTurnScene()
 const arms = [...RUNNER_REQUEST_METHODS, ...RUNNER_NOTIFICATION_METHODS]
 const requested = RUNNER_REQUEST_METHODS.filter(arm => taken.filter(t => t.arm === arm && t.want === 'answer').length >= 1 || taken.filter(t => t.arm === arm).length >= 3)
 const wrong = taken.filter(t => classOf(t.answer) !== t.want)
@@ -328,6 +340,10 @@ const thin = RUNNER_REQUEST_METHODS.filter(arm => taken.filter(t => t.arm === ar
 check(`each of the ${RUNNER_REQUEST_METHODS.length} request arms is called at least three times, two of them calls it must refuse (${arms.length} arms with the notification)`, thin.length === 0 && requested.length === RUNNER_REQUEST_METHODS.length, thin.join(', '))
 const afterNotice = taken.find(t => t.call === 'the facts after credentials/changed')
 check('the credentials/changed notification is taken with no answer, and the runner answers the next request', afterNotice !== undefined && 'result' in afterNotice.answer)
+const closedRows = ((scenes.closedMidTurn as { rows?: Array<{ type?: string }> }).rows ?? []).map(row => String(row.type))
+const closeAt = closedRows.findIndex(type => type === 'close')
+const outcomeAt = closedRows.findIndex(type => type === 'outcome')
+check("on the wire door an input closed in the middle of a turn writes the close row before that turn's outcome row, and the turn still ends with its outcome and exit 0 (the SDKs and the daemon's seat read past a close row, so this order is recorded here and not changed)", closeAt !== -1 && outcomeAt !== -1 && closeAt < outcomeAt && (scenes.closedMidTurn as { exit?: unknown }).exit === 0, closedRows.join(' '))
 
 section('§2 four scripted print runs and one refused at boot, in the three formats')
 const prints = await printRuns()
