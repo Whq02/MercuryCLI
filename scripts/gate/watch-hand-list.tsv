@@ -25,7 +25,7 @@ builtin-tools-drives	51
 cache	4
 changesets	8
 changesets-drives	25
-cockpit-interaction	52
+cockpit-interaction	49
 cockpit-interaction-drives	37
 command-catalogue	12
 command-catalogue-drives	30
@@ -165,8 +165,8 @@ repetition-guard	7
 repetition-guard-drives	10
 rewind	5
 run	9
-run-continuity	15
-run-continuity-drives	7
+run-continuity	13
+run-continuity-drives	8
 run-recovery	10
 samples	10
 samples-drives	8
