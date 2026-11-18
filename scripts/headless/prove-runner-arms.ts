@@ -423,6 +423,10 @@ section('§4b project/query: a folder nobody trusted, a parameter that is missin
     const swollen = await answering('x'.repeat((1 << 20) + 64), swollenPath)
     const overCap = await forwardFrame(swollenPath, j({ op: 'ping' }), 5_000)
     await new Promise<void>(done => swollen.close(() => done()))
+    const { startControlServer } = await import('../../src/daemon/controlServer.ts')
+    const daemon = await startControlServer({} as never)
+    const tooLong = await query({ ...letter, message: 'x'.repeat(1 << 21) })
+    await daemon.close()
     if (daemonDirBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
     else process.env.MERCURY_DAEMON_DIR = daemonDirBefore
     rmSync(daemonHome, { recursive: true, force: true })
@@ -432,6 +436,7 @@ section('§4b project/query: a folder nobody trusted, a parameter that is missin
       j({ client: pinged, forwarder: forwarded, pastTheCap: overCap }),
     )
     check('project/query answers a reply of the daemon that cannot be read as a fault of the run: the sentence with no code and no kind, which the wire sends as the internal error', malformed !== null && malformed.code === undefined && malformed.data === undefined && malformed.message === 'malformed daemon reply', shown(malformed))
+    check("a message that makes the frame to the daemon larger than its cap is the caller's to shorten: the daemon's own control server, asked over its socket, refuses the frame, and project/query answers -32602 on message with the daemon's sentence", badParameter(tooLong, 'request exceeds 1MB — shorten the prompt or send in parts', 'message'), shown(tooLong))
   }
   rmSync(projects, { recursive: true, force: true })
   forget()
