@@ -43,12 +43,9 @@ function refreshTurnTools(context: ToolUseContext): ToolUseContext {
   return { ...context, options: { ...options, tools } }
 }
 
-export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGenerator<RunEvent, SettledDecision> {
-  const { emit, config, querySource, budgetGuard, awaitingReply, consumedCommandUuids } = run
-  const { maxTurns } = run.params
-  const { state, toolUseContext, messagesForQuery, tracking, callChain, assistantMessages, toolResults, toolUseBlocks, shouldPreventContinuation, loopStoppedCycle, loopStoppedRecord } = iter
-  const { stopHookActive, turnCount } = state
-  let { updatedToolUseContext } = iter
+function toolUseSummaryOf(run: RunCtx, iter: IterationState): Promise<ToolUseSummaryMessage | null> | undefined {
+  const { config } = run
+  const { toolUseContext, assistantMessages, toolResults, toolUseBlocks } = iter
   let nextPendingToolUseSummary:
     | Promise<ToolUseSummaryMessage | null>
     | undefined
@@ -89,65 +86,12 @@ export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGener
       .then(summary => summary ? createToolUseSummaryMessage(summary, toolUseIds) : null)
       .catch(() => null)
   }
+  return nextPendingToolUseSummary
+}
 
-  if (toolUseContext.abortController.signal.aborted) {
-    const cutReason = toolUseContext.abortController.signal.reason
-    const steer = cutReason === 'interrupt'
-    yield emit({
-      kind: 'interruption',
-      phase: 'tools',
-      steer,
-      message: steer ? null : createUserInterruptionMessage({ toolUse: true, reason: cutReason }),
-    })
-    yield emit({
-      kind: 'notice',
-      message: createSystemMessage(interruptedToolsLine(toolUseBlocks.map(block => block.name)), 'warning'),
-    })
-    const nextTurnCountOnAbort = turnCount + 1
-    if (
-      maxTurns !== undefined &&
-      budgetGuard.maxTurnsExceeded(nextTurnCountOnAbort, maxTurns)
-    ) {
-      yield emit({
-        kind: 'attachment',
-        message: createAttachmentMessage({
-          type: 'max_turns_reached',
-          maxTurns,
-          turnCount: nextTurnCountOnAbort,
-        }),
-      })
-    }
-    const terminal: Terminal = { reason: 'aborted_tools' }
-    return { kind: 'end', terminal }
-  }
-
-  if (shouldPreventContinuation) {
-    const terminal: Terminal = { reason: 'hook_stopped' }
-    return { kind: 'end', terminal }
-  }
-  if (loopStoppedCycle !== null) {
-    if (loopStoppedRecord !== null) yield emit({ kind: 'attachment', message: loopStoppedRecord })
-    const terminal: Terminal = { reason: 'loop_stopped', cycle: loopStoppedCycle }
-    return { kind: 'end', terminal }
-  }
-
-  {
-    const rewindRecord = buildRewindRecordIfSettled(
-      [...messagesForQuery, ...assistantMessages, ...toolResults],
-      toolUseBlocks,
-      toolResults,
-    )
-    if (rewindRecord !== null) {
-      yield emit({ kind: 'attachment', message: rewindRecord })
-      toolResults.push(rewindRecord)
-    }
-  }
-
-  if (tracking?.compacted) {
-    tracking.turnCounter++
-  }
-
-
+async function* drainQueuedCommands(run: RunCtx, iter: IterationState, updatedToolUseContext: ToolUseContext): AsyncGenerator<RunEvent> {
+  const { emit, querySource, awaitingReply, consumedCommandUuids } = run
+  const { toolUseContext, messagesForQuery, assistantMessages, toolResults, toolUseBlocks } = iter
   const sleepRan = toolUseBlocks.some(b => b.name === SLEEP_TOOL_NAME)
   const currentAgentId = toolUseContext.agentId
   const isMainThread =
@@ -209,7 +153,74 @@ export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGener
       })
     }
   }
+}
 
+export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGenerator<RunEvent, SettledDecision> {
+  const { emit, budgetGuard } = run
+  const { maxTurns } = run.params
+  const { state, toolUseContext, messagesForQuery, tracking, callChain, assistantMessages, toolResults, toolUseBlocks, shouldPreventContinuation, loopStoppedCycle, loopStoppedRecord } = iter
+  const { stopHookActive, turnCount } = state
+  let { updatedToolUseContext } = iter
+  const nextPendingToolUseSummary = toolUseSummaryOf(run, iter)
+
+  if (toolUseContext.abortController.signal.aborted) {
+    const cutReason = toolUseContext.abortController.signal.reason
+    const steer = cutReason === 'interrupt'
+    yield emit({
+      kind: 'interruption',
+      phase: 'tools',
+      steer,
+      message: steer ? null : createUserInterruptionMessage({ toolUse: true, reason: cutReason }),
+    })
+    yield emit({
+      kind: 'notice',
+      message: createSystemMessage(interruptedToolsLine(toolUseBlocks.map(block => block.name)), 'warning'),
+    })
+    const nextTurnCountOnAbort = turnCount + 1
+    if (
+      maxTurns !== undefined &&
+      budgetGuard.maxTurnsExceeded(nextTurnCountOnAbort, maxTurns)
+    ) {
+      yield emit({
+        kind: 'attachment',
+        message: createAttachmentMessage({
+          type: 'max_turns_reached',
+          maxTurns,
+          turnCount: nextTurnCountOnAbort,
+        }),
+      })
+    }
+    const terminal: Terminal = { reason: 'aborted_tools' }
+    return { kind: 'end', terminal }
+  }
+
+  if (shouldPreventContinuation) {
+    const terminal: Terminal = { reason: 'hook_stopped' }
+    return { kind: 'end', terminal }
+  }
+  if (loopStoppedCycle !== null) {
+    if (loopStoppedRecord !== null) yield emit({ kind: 'attachment', message: loopStoppedRecord })
+    const terminal: Terminal = { reason: 'loop_stopped', cycle: loopStoppedCycle }
+    return { kind: 'end', terminal }
+  }
+
+  {
+    const rewindRecord = buildRewindRecordIfSettled(
+      [...messagesForQuery, ...assistantMessages, ...toolResults],
+      toolUseBlocks,
+      toolResults,
+    )
+    if (rewindRecord !== null) {
+      yield emit({ kind: 'attachment', message: rewindRecord })
+      toolResults.push(rewindRecord)
+    }
+  }
+
+  if (tracking?.compacted) {
+    tracking.turnCounter++
+  }
+
+  yield* drainQueuedCommands(run, iter, updatedToolUseContext)
 
   updatedToolUseContext = refreshTurnTools(updatedToolUseContext)
   const contextForNextTurn = { ...updatedToolUseContext, callChain }
