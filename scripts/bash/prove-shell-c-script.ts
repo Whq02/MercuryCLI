@@ -41,8 +41,13 @@ try {
       const read = await checkReadOnlyConstraints(input, false)
       const verdict = await bashToolHasPermission(input, permission())
       await prepareBashReadOnly(input)
-      check(`${shell} ${flag}: read-only commands are read-only`, read.behavior === 'allow' && preparedBashReadsOnly(input), read)
-      check(`${shell} ${flag}: permission injects the git settings inside the wrapper`, verdict.behavior === 'allow' && typeof verdict.updatedInput?.command === 'string' && verdict.updatedInput.command.includes('git --no-pager -c core.quotepath=false -c core.fsmonitor=false -c core.pager=cat status'), verdict)
+      if (shell.endsWith('zsh')) {
+        check(`${shell} ${flag}: a script zsh will run is not read as bash, so the command is not read-only`, read.behavior !== 'allow' && !preparedBashReadsOnly(input), read)
+        check(`${shell} ${flag}: permission does not allow it on its reading of the script, and rewrites nothing inside the wrapper`, verdict.behavior !== 'allow' && verdict.updatedInput === undefined, verdict)
+      } else {
+        check(`${shell} ${flag}: read-only commands are read-only`, read.behavior === 'allow' && preparedBashReadsOnly(input), read)
+        check(`${shell} ${flag}: permission injects the git settings inside the wrapper`, verdict.behavior === 'allow' && typeof verdict.updatedInput?.command === 'string' && verdict.updatedInput.command.includes('git --no-pager -c core.quotepath=false -c core.fsmonitor=false -c core.pager=cat status'), verdict)
+      }
       const denied = await bashToolHasPermission({ command: wrap('rm -rf victim', shell, flag) }, permission(['Bash(*)'], ['Bash(rm *)']))
       check(`${shell} ${flag}: the inner destructive deny wins`, denied.behavior === 'deny', denied)
     }
