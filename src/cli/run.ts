@@ -104,6 +104,7 @@ import {
 import { emptyInputRow, INPUT_REFUSED_CODE, isBrokenPipeError, isRowLine, promptSchemaRefusal, StructuredIO, type OutboundLine } from './structuredIO.js'
 import { createRuleOnlyAsks, createRunnerAsks, type AskHost } from './headless/runnerAsks.js'
 import { bindRunnerMethods, checkProtocol, DEFAULT_CAPABILITIES, initializeResultOf, type RunnerArms } from './headless/runnerMethods.js'
+import { createRunnerState } from './headless/runnerPorts.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
 import { invalidParams, refused } from '../runner/wire/errors.js'
 import type { Capabilities, FileCheckpointsFact, ParamsOf } from '../runner/wire/methods.js'
@@ -418,6 +419,7 @@ export async function runHeadless(
   agents: AgentDefinition[],
   options: HeadlessOptions,
 ): Promise<void> {
+  const live = createRunnerState()
   const maxTime = options.maxTimeMs === undefined ? undefined : { limitMs: options.maxTimeMs, at: Date.now() + options.maxTimeMs }
   setAskChannel(options.door === 'wire' ? 'sdk' : 'none')
   const kindPin = consumeSessionKindPin()
@@ -483,7 +485,6 @@ export async function runHeadless(
   }
   let bootModel: string | undefined
   let bootModelRefusal: string | null = null
-  let bootRefusalFact: string | null = null
   if (options.userSpecifiedModel !== undefined) {
     try {
       bootModel = await resolveHeadlessModel(options.userSpecifiedModel)
@@ -503,8 +504,8 @@ export async function runHeadless(
   }
 
   const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
-  let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
-  if (!awaitingSessionClaim && (!options.continue && !options.resume || options.forkSession) && !isSessionPersistenceDisabled()) {
+  live.awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
+  if (!live.awaitingSessionClaim && (!options.continue && !options.resume || options.forkSession) && !isSessionPersistenceDisabled()) {
     try { await claimSessionWriter(sessionFilePath(getSessionId() as UUID)) }
     catch (error) {
       emitLoadError(errorMessage(error), options.outputFormat)
@@ -563,15 +564,12 @@ export async function runHeadless(
         if (!compiled.ok) throw invalidParams('initialize', [{ path: ['schema'], message: `not a JSON schema — ${compiled.error}` }])
         initializeJsonSchema = params.schema
       }
-      return initializeResultOf(awaitingSessionClaim ? null : String(getSessionId()), fileCheckpointsFact())
+      return initializeResultOf(live.awaitingSessionClaim ? null : String(getSessionId()), fileCheckpointsFact())
     })
     bindRunnerMethods(peer, () => arms)
   }
-  let turnsRun = 0
   let currentTurn: number | null = null
-  let currentTurnId: string | null = null
   let sessionRowFor: string | null = null
-  let resumeOf: string | undefined
   const failedMcpTold = new Set<string>()
   const tellFailedMcpServers = (): void => {
     for (const server of mcpServersFailed(getAppState().mcp.clients)) {
@@ -690,18 +688,13 @@ export async function runHeadless(
     sessionStartHooksPromise: options.sessionStartHooksPromise,
   })
   const messages: Message[] = loaded.messages
-  let turnMessages: (() => readonly Message[]) | null = null
-  resumeOf = loaded.resumedSessionId
-  turnsRun = priorTurnCount(messages)
-  let contentReplacementState = reconstructContentReplacementState(messages, loaded.contentReplacements ?? [])
+  live.resumeOf = loaded.resumedSessionId
+  live.turnsRun = priorTurnCount(messages)
+  live.contentReplacementState = reconstructContentReplacementState(messages, loaded.contentReplacements ?? [])
 
-  let mcpInitialized = !awaitingSessionClaim
-  const releaseQueueUntilClaimed: (() => void) | null = peer !== null && awaitingSessionClaim ? peer.holdScope('queue') : null
-  let claimSettling: Promise<void> | null = null
-  let sessionFactsHoldSpent = false
-  let sessionFactsHold: Promise<void> | null = null
-  let runnerRestartReason: string | undefined = flagEnv('MERCURY_RUNNER_RESTART_REASON')
-  let recoveredCommandIds: string[] = []
+  live.mcpInitialized = !live.awaitingSessionClaim
+  const releaseQueueUntilClaimed: (() => void) | null = peer !== null && live.awaitingSessionClaim ? peer.holdScope('queue') : null
+  live.runnerRestartReason = flagEnv('MERCURY_RUNNER_RESTART_REASON')
   if (isConcourseWorker) void refreshBoxReading()
   const sessionWiringModules = (): Promise<
     [
@@ -722,9 +715,9 @@ export async function runHeadless(
       logForDebugging(`[session-runner] crew identity boot failed (non-blocking): ${e}`)
     })
   }
-  if (isConcourseWorker && !awaitingSessionClaim) {
+  if (isConcourseWorker && !live.awaitingSessionClaim) {
     await armSessionRunnerWiring(String(getSessionId()))
-  } else if (awaitingSessionClaim) {
+  } else if (live.awaitingSessionClaim) {
     void sessionWiringModules().catch(() => {})
   }
 
@@ -769,12 +762,12 @@ export async function runHeadless(
         .catch((error: unknown) => logError(toError(error)))
     }
   }
-  if (options.title && !awaitingSessionClaim && !isSessionPersistenceDisabled()) {
+  if (options.title && !live.awaitingSessionClaim && !isSessionPersistenceDisabled()) {
     const { saveCustomTitle } = await import('../utils/sessionStorage/logs.js')
     await saveCustomTitle(getSessionId() as UUID, options.title)
   }
-  if (bootModelRefusal !== null) bootRefusalFact = bootModelRefusal
-  if (bootModelRefusal !== null && !awaitingSessionClaim) await persistBootModelRefusal(bootModelRefusal)
+  if (bootModelRefusal !== null) live.bootRefusalFact = bootModelRefusal
+  if (bootModelRefusal !== null && !live.awaitingSessionClaim) await persistBootModelRefusal(bootModelRefusal)
 
   const relaunchContext = async (): Promise<ToolUseContext> => {
     const { toolUseContext } = await buildSideQuestionFallbackParams({
@@ -820,7 +813,7 @@ export async function runHeadless(
     }
     try {
       const { coerceRestartReason: carriedReasonOf } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-      const carriedReason = carriedReasonOf(runnerRestartReason)
+      const carriedReason = carriedReasonOf(live.runnerRestartReason)
       if (carriedReason === 'crash' || carriedReason === 'stop' || carriedReason === 'update' || carriedReason === 'ended') {
         const { carryRunnerAcrossRestart } = await import('./headless/restartCarry.js')
         const carried = await carryRunnerAcrossRestart({
@@ -831,7 +824,7 @@ export async function runHeadless(
           canUseTool: asks.createCanUseTool(),
           relaunchContext,
         })
-        recoveredCommandIds = carried.recoveredCommandIds
+        live.recoveredCommandIds = carried.recoveredCommandIds
         logForDebugging(`[session-runner] resume after ${carriedReason}: ${carried.requeued} line(s) re-queued, ${carried.relaunched} agent(s) relaunched, ${carried.delivered} delivered from the queue log, ${carried.stopped} stopped`)
       }
     } catch (error) {
@@ -839,7 +832,7 @@ export async function runHeadless(
     }
     try {
       const { reconcileBackgroundLaunchesOnResume, coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-      const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState, Date.now(), coerceRestartReason(runnerRestartReason))
+      const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState, Date.now(), coerceRestartReason(live.runnerRestartReason))
       if (settledLaunches.length > 0) {
         logForDebugging(`[session-runner] resume: ${settledLaunches.length} background launch(es) without a live record — stop notices written`)
       }
@@ -863,7 +856,7 @@ export async function runHeadless(
     try {
       const { reconcileWatchesOnResume, reconcileBackgroundShellsOnResume, composeRestartLine } = await import('../tools/MonitorTool/watchReceipts.js')
       const { coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-      const reason = coerceRestartReason(runnerRestartReason)
+      const reason = coerceRestartReason(live.runnerRestartReason)
       const liveIds = new Set(Object.keys(getAppState().tasks ?? {}))
       const { reconcileTaskLaunchesOnResume } = await import('../tasks/taskLaunchLedger.js')
       const launches = await reconcileTaskLaunchesOnResume(String(getSessionId()), liveIds)
@@ -926,7 +919,7 @@ export async function runHeadless(
       if (agentPrompt) options.systemPrompt = agentPrompt
     }
   }
-  settleSessionBriefs(loaded, !awaitingSessionClaim)
+  settleSessionBriefs(loaded, !live.awaitingSessionClaim)
   if (options.advise === true) saveAdvisorSwitch(true)
 
   if (messages.length === 0 && process.exitCode !== undefined && process.exitCode !== 0) {
@@ -990,11 +983,11 @@ export async function runHeadless(
   noteRunPhase('config_auth')
 
   let sessionInitialized = false
-  let activeModel: string | undefined = bootModel
-  saveSessionModel(activeModel ?? getEngineModel())
+  live.activeModel = bootModel
+  saveSessionModel(live.activeModel ?? getEngineModel())
   const settleClearBirth = (): void => {
     try {
-      const row = settleClearModel(dirname(getTranscriptPath()), String(getSessionId()), activeModel ?? getEngineModel())
+      const row = settleClearModel(dirname(getTranscriptPath()), String(getSessionId()), live.activeModel ?? getEngineModel())
       if (row !== null && !messages.some(message => message.uuid === row.uuid)) {
         messages.push(row)
         void recordTranscript([row], undefined, messages).catch((error: unknown) => logError(toError(error)))
@@ -1003,24 +996,18 @@ export async function runHeadless(
       logError(toError(error))
     }
   }
-  if (isConcourseWorker && !awaitingSessionClaim) settleClearBirth()
+  if (isConcourseWorker && !live.awaitingSessionClaim) settleClearBirth()
   let thinkingConfig: ThinkingConfig | undefined = options.thinkingConfig
   let initializeJsonSchema: Record<string, unknown> | undefined
   let lastAnswerSchemaKey: string | null = null
-  let activeCommands = commands
+  live.activeCommands = commands
   let activeAgents: AgentDefinition[] = agents
   const receivedUuids = new BoundedUuidSet(RECEIVED_UUID_CAP)
   const interruptOutcomes = new Map<string, boolean>()
-  let inputClosed = false
-  let inFlightAbort: AbortController | null = null
-  let leaveAbort: AbortController | null = null
   let hostAsks: HostAskLiveness | null = null
   asks.setOnControlRequestSent(() => hostAsks?.noteParked())
   asks.setOnControlRequestResolved(() => hostAsks?.noteSettled())
   let deferredModelBreadcrumb: { to: string; from: string } | null = null
-  let heldSeatModel: { requestId: number; model: string; words?: string } | null = null
-  let heldSeatEffort: { requestId: number; effort: string } | null = null
-  let deferredSpawnSwitches: Array<{ kind: 'subagents'; on: boolean; requestId: number }> = []
   let deferredAdvisorQuiet: AdvisorQuiet[] = []
   const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {
     const row = createAdvisorQuietMessage(quiet)
@@ -1031,8 +1018,8 @@ export async function runHeadless(
   }
   const advisorRoad: AdvisorRoad = {
     onQuiet: quiet => {
-      if (inputClosed) return
-      if (inFlightAbort !== null) deferredAdvisorQuiet.push(quiet)
+      if (live.inputClosed) return
+      if (live.inFlightAbort !== null) deferredAdvisorQuiet.push(quiet)
       else landAdvisorQuiet(quiet)
     },
   }
@@ -1189,8 +1176,8 @@ export async function runHeadless(
   }
 
   const applySeatModel = async (model: string, words?: string): Promise<void> => {
-    const previous = activeModel ?? getEngineModel()
-    activeModel = model
+    const previous = live.activeModel ?? getEngineModel()
+    live.activeModel = model
     setEngineModelOverride(model)
     setFlagEnv('MERCURY_MODEL', model)
     saveSessionModel(model)
@@ -1204,7 +1191,7 @@ export async function runHeadless(
     setFlagEnv('MERCURY_EFFORT_LEVEL', effort)
     setAppState(previous => ({ ...previous, effortValue: effort }))
   }
-  armLocalWarm(() => buildSideQuestionFallbackParams({ tools: assembleTools(getAppState()), commands: activeCommands, mcpClients: getAppState().mcp.clients, messages, readFileState: getReadFileCache(), getAppState, setAppState, customSystemPrompt: options.systemPrompt, appendSystemPrompt: options.appendSystemPrompt, thinkingConfig, agents: activeAgents }), { live: () => !awaitingSessionClaim && inFlightAbort === null })
+  armLocalWarm(() => buildSideQuestionFallbackParams({ tools: assembleTools(getAppState()), commands: live.activeCommands, mcpClients: getAppState().mcp.clients, messages, readFileState: getReadFileCache(), getAppState, setAppState, customSystemPrompt: options.systemPrompt, appendSystemPrompt: options.appendSystemPrompt, thinkingConfig, agents: activeAgents }), { live: () => !live.awaitingSessionClaim && live.inFlightAbort === null })
 
   const SDK_MODES = new Set(['default', 'implement', 'sovereign', 'flow', 'dontAsk'])
   setPermissionModeChangedListener(mode => {
@@ -1216,7 +1203,7 @@ export async function runHeadless(
   skillChangeDetector.subscribe(() => {
     clearCommandMemoizationCaches()
     void getCommands(getCwd()).then(refreshed => {
-      activeCommands = refreshed
+      live.activeCommands = refreshed
     })
   })
 
@@ -1259,7 +1246,7 @@ export async function runHeadless(
     const line = typeof content === 'string' ? content : content.find(block => block.type === 'text')?.text
     const parsed = line === undefined ? null : parseSlashCommand(line)
     if (parsed === null || parsed.isMcp) return null
-    const found = findCommand(parsed.commandName, activeCommands)
+    const found = findCommand(parsed.commandName, live.activeCommands)
     if (found === undefined || found.name !== 'mission') return null
     const words = parsed.args.trim()
     return words.length > cap ? null : words
@@ -1271,7 +1258,7 @@ export async function runHeadless(
     const line = typeof value === 'string' ? value : value.find(block => block.type === 'text')?.text
     const parsed = line === undefined ? null : parseSlashCommand(line)
     if (parsed === null) return false
-    const found = findCommand(parsed.commandName, [...activeCommands, ...getAppState().mcp.commands])
+    const found = findCommand(parsed.commandName, [...live.activeCommands, ...getAppState().mcp.commands])
     if (found !== undefined) return found.type !== 'prompt' || !isCommandEnabled(found) || found.userInvocable === false
     return /^[a-zA-Z0-9:_-]+$/.test(parsed.commandName) && !existsSync(`/${parsed.commandName}`)
   }
@@ -1304,7 +1291,7 @@ export async function runHeadless(
     const localCommand = localCommandInput(command)
     turnAnchor = localCommand ? null : promptUuid
     if (localCommand) party.blockOpen()
-    const delivery = command.mode === 'task-notification' ? fitCompletionCommands(batch.length > 0 ? batch : [command], { messages, model: activeModel ?? getEngineModel() }) : []
+    const delivery = command.mode === 'task-notification' ? fitCompletionCommands(batch.length > 0 ? batch : [command], { messages, model: live.activeModel ?? getEngineModel() }) : []
     const promptValue = delivery.length > 1 ? foldNotificationValues(delivery.map(member => member.value)) : delivery[0]?.value ?? command.value
     const batchUuids = batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined)
     const batchTail: BatchedPrompt[] =
@@ -1317,10 +1304,10 @@ export async function runHeadless(
         : []
     emitCommandNotifications([...initialNotices, command])
     const turnAbort = new AbortController()
-    inFlightAbort = turnAbort
-    turnsRun += 1
-    currentTurn = turnsRun
-    currentTurnId = null
+    live.inFlightAbort = turnAbort
+    live.turnsRun += 1
+    currentTurn = live.turnsRun
+    live.currentTurnId = null
     const turnIdleLimitMs = headlessTurnIdleLimitMs()
     const turnWatchdog = armInactivityDeadline({
       seam: 'unattended turn',
@@ -1363,9 +1350,9 @@ export async function runHeadless(
         const assembledTools = assembleTools(state, command.schema)
         const mcpCommands = state.mcp.commands
         const dedupedCommands = [
-          ...activeCommands,
+          ...live.activeCommands,
           ...mcpCommands.filter(
-            mcpCommand => !activeCommands.some(existing => existing.name === mcpCommand.name),
+            mcpCommand => !live.activeCommands.some(existing => existing.name === mcpCommand.name),
           ),
         ]
         if (sessionRowFor !== String(getSessionId())) {
@@ -1373,9 +1360,9 @@ export async function runHeadless(
           const withheld = toolsWithheldByDeny([...getAllBaseTools(), ...state.mcp.tools], state.toolPermissionContext)
           const facts = await sessionFactsOf(
             { cwd: getCwd(), tools: assembledTools, mcpClients: turnClients, commands: dedupedCommands, agents: activeAgents },
-            activeModel ?? getEngineModel(),
+            live.activeModel ?? getEngineModel(),
             state.toolPermissionContext.mode,
-            resumeOf,
+            live.resumeOf,
             withheld.map(({ tool, rule }) => ({ tool, rule: ruleSpelling(rule.ruleValue), source: ruleSourceWords(rule.source) })),
           )
           enqueueRow(sessionRow({ session_id: getSessionId() }, facts))
@@ -1405,14 +1392,14 @@ export async function runHeadless(
           maxTime,
           canUseTool,
           ...(peer !== null ? { hostHoldsAsks: true } : {}),
-          userSpecifiedModel: activeModel,
+          userSpecifiedModel: live.activeModel,
           fallbackModel: options.fallbackModel,
           jsonSchema: answerSchema,
           mutableMessages: messages,
           onTurnMessages: read => {
-            turnMessages = read
+            live.turnMessages = read
           },
-          contentReplacementState,
+          contentReplacementState: live.contentReplacementState,
           getReadFileCache,
           setReadFileCache,
           customSystemPrompt: options.systemPrompt,
@@ -1452,7 +1439,7 @@ export async function runHeadless(
         })) {
           turnWatchdog.touch()
           if (turnOpened(message as never)) {
-            currentTurnId = (message as unknown as { turn_id: string }).turn_id
+            live.currentTurnId = (message as unknown as { turn_id: string }).turn_id
             if (options.door !== 'wire') for (const line of untoldHiddenCharacterLines()) process.stderr.write(`${GLYPH.warn} ${line}\n`)
           }
           onMessage(message)
@@ -1466,17 +1453,17 @@ export async function runHeadless(
       hostAsks = null
       holdPromise(null)
       turnWatchdog.cancel()
-      inFlightAbort = null
+      live.inFlightAbort = null
       currentTurn = null
-      if (heldSeatModel !== null) {
-        const held = heldSeatModel
-        heldSeatModel = null
+      if (live.heldSeatModel !== null) {
+        const held = live.heldSeatModel
+        live.heldSeatModel = null
         await applySeatModel(held.model, held.words)
         io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_model', model: held.model } })
       }
-      if (heldSeatEffort !== null) {
-        const held = heldSeatEffort
-        heldSeatEffort = null
+      if (live.heldSeatEffort !== null) {
+        const held = live.heldSeatEffort
+        live.heldSeatEffort = null
         applySeatEffort(held.effort)
         io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_effort', effort: held.effort } })
       }
@@ -1486,9 +1473,9 @@ export async function runHeadless(
         deferredModelBreadcrumb = null
         await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)
       }
-      if (deferredSpawnSwitches.length > 0) {
-        const toggles = deferredSpawnSwitches
-        deferredSpawnSwitches = []
+      if (live.deferredSpawnSwitches.length > 0) {
+        const toggles = live.deferredSpawnSwitches
+        live.deferredSpawnSwitches = []
         for (const toggle of toggles) {
           landSpawnSwitch(toggle.kind, toggle.on)
           io.outbound.enqueue({ method: 'session/applied', params: { request_id: toggle.requestId, verb: 'set_spawn_switch', switch: toggle.kind, on: toggle.on } })
@@ -1520,7 +1507,7 @@ export async function runHeadless(
   }
 
   const settleIdle = async (): Promise<'reenter' | 'close' | 'stay'> => {
-    if (inputClosed) {
+    if (live.inputClosed) {
       await stopShellsForClose()
       return 'close'
     }
@@ -1651,15 +1638,15 @@ export async function runHeadless(
     drainRows: () => drainRows().map(row => ({ ...row, ...(currentTurn !== null ? { turn: currentTurn } : {}) }) as RowDraft),
     beforeCycle: () => bootReady,
     onTurnStart: () => {
-      currentTurnId = null
+      live.currentTurnId = null
     },
     turnIdOf: () => {
-      if (currentTurnId === null) currentTurnId = randomUUID()
-      return currentTurnId
+      if (live.currentTurnId === null) live.currentTurnId = randomUUID()
+      return live.currentTurnId
     },
     openTurnRow: messageIds => {
-      if (currentTurnId === null) currentTurnId = randomUUID()
-      return turnStartedRow({ session_id: getSessionId(), turn: currentTurn ?? turnsRun }, { turnId: currentTurnId, messageIds, model: activeModel ?? getEngineModel() })
+      if (live.currentTurnId === null) live.currentTurnId = randomUUID()
+      return turnStartedRow({ session_id: getSessionId(), turn: currentTurn ?? live.turnsRun }, { turnId: live.currentTurnId, messageIds, model: live.activeModel ?? getEngineModel() })
     },
     executeTurn: (command, batch, onMessage, initialNotices) =>
       executeTurn(command, batch, message => {
@@ -1673,15 +1660,15 @@ export async function runHeadless(
       if (turnReachedModel) void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
     },
     hasWaitableBackgroundTasks: () =>
-      getRunningTasks(getAppState()).some(task => !(inputClosed && isLocalShellTask(task))) || (inputClosed && (swarmResumes.hasPending() || crewmateNoticeOwed())),
+      getRunningTasks(getAppState()).some(task => !(live.inputClosed && isLocalShellTask(task))) || (live.inputClosed && (swarmResumes.hasPending() || crewmateNoticeOwed())),
     hasHoldableBackgroundAgents: () =>
       getRunningTasks(getAppState()).some(
         task => task.type === 'local_agent',
       ),
     waitableBackgroundTaskCount: () =>
-      getRunningTasks(getAppState()).filter(task => !(inputClosed && isLocalShellTask(task))).length + (inputClosed ? swarmResumes.waitingSeats() : 0),
+      getRunningTasks(getAppState()).filter(task => !(live.inputClosed && isLocalShellTask(task))).length + (live.inputClosed ? swarmResumes.waitingSeats() : 0),
     onAgentWait: (count, turnId) => {
-      enqueueRow(turnWaitingRow({ session_id: getSessionId(), turn: turnsRun }, { turnId, agents: count }))
+      enqueueRow(turnWaitingRow({ session_id: getSessionId(), turn: live.turnsRun }, { turnId, agents: count }))
     },
     settleIdle,
     wakeSettle: () => {},
@@ -1714,7 +1701,7 @@ export async function runHeadless(
     idleTimerStart: () => idleTimeout.start?.(),
     onCycleError: (error, turnId) =>
       outcomeRow(
-        { session_id: getSessionId(), turn: currentTurn ?? Math.max(1, turnsRun) },
+        { session_id: getSessionId(), turn: currentTurn ?? Math.max(1, live.turnsRun) },
         {
           turnId,
           status: 'failed',
@@ -1739,9 +1726,9 @@ export async function runHeadless(
   subscribeToCommandQueue(() => {
     const queued = getCommandQueue()
     if (queued.some(command => command.priority === 'now')) {
-      inFlightAbort?.abort()
+      live.inFlightAbort?.abort()
     }
-    if (!inputClosed && sessionInitialized && !driver.isRunning() && queued.some(isMainThreadCommand)) {
+    if (!live.inputClosed && sessionInitialized && !driver.isRunning() && queued.some(isMainThreadCommand)) {
       driver.kick()
       if (!driver.isRunning()) emitCommandNotifications(queued.filter(isMainThreadCommand))
     }
@@ -1760,7 +1747,7 @@ export async function runHeadless(
   const { watchHostNotices } = await import('../services/host/notices.js')
   const stopHostNotices = watchHostNotices(() => getSessionId())
   const party = partyFeed({
-    store: () => (!awaitingSessionClaim && swarmSessionEnabled() ? swarmStore(false) : null),
+    store: () => (!live.awaitingSessionClaim && swarmSessionEnabled() ? swarmStore(false) : null),
     anchor: () => turnAnchor ?? undefined,
     record: async row => {
       if (messages.some(message => message.uuid === row.uuid)) return
@@ -1777,7 +1764,7 @@ export async function runHeadless(
     () => sessionInitialized && !quiescence.committed && !isShuttingDown(),
   )
   const swarmLead = watchSwarmLead(
-    () => sessionInitialized && !inputClosed && !isShuttingDown() && inFlightAbort === null,
+    () => sessionInitialized && !live.inputClosed && !isShuttingDown() && live.inFlightAbort === null,
     () => enqueueBoardWake('Read reference-only posts with CrewBoard.'),
     event => {
       if (party.paints(event) || messages.some(message => message.uuid === event.eventId)) return
@@ -1788,7 +1775,7 @@ export async function runHeadless(
     recipient: agentId => {
       if (agentId !== MAIN_THREAD_AGENT) return agentRecipientState(getAppState().tasks, agentId)
       if (isShuttingDown()) return { state: 'gone', why: 'the session is shutting down' }
-      if (inputClosed) return { state: 'gone', why: "the session's input closed" }
+      if (live.inputClosed) return { state: 'gone', why: "the session's input closed" }
       if (sessionLaneWall().closed) return { state: 'busy' }
       return !sessionInitialized || driver.isRunning() ? { state: 'busy' } : { state: 'idle' }
     },
@@ -1810,8 +1797,8 @@ export async function runHeadless(
   let signalCode: number | null = null
   const settleOnSignal = async (code: number, cut?: string): Promise<void> => {
     signalCode = code
-    const running = inFlightAbort !== null
-    inFlightAbort?.abort(cut)
+    const running = live.inFlightAbort !== null
+    live.inFlightAbort?.abort(cut)
     if (running) {
       const deadline = new Promise<void>(resolve => setTimeout(resolve, SIGNAL_SETTLE_MS).unref?.())
       await Promise.race([outcomeAfterAbort(), deadline])
@@ -1850,7 +1837,7 @@ export async function runHeadless(
   let buildBehindCheckedAt = 0
   let buildBehindConfirm: ReturnType<typeof setTimeout> | null = null
   const checkBuildBehind = async (now = false): Promise<void> => {
-    if (!isConcourseWorker || awaitingSessionClaim || inputClosed || inFlightAbort !== null) return
+    if (!isConcourseWorker || live.awaitingSessionClaim || live.inputClosed || live.inFlightAbort !== null) return
     if (!now && Date.now() - buildBehindCheckedAt < BUILD_BEHIND_THROTTLE_MS) return
     buildBehindCheckedAt = Date.now()
     const ownTree = runningBuildTree()
@@ -1873,7 +1860,7 @@ export async function runHeadless(
       }
       return
     }
-    if (inFlightAbort !== null || inputClosed) return
+    if (live.inFlightAbort !== null || live.inputClosed) return
     buildBehindToldFor.add(installedTree)
     const ownTime = describeArtifactIdentity('', process.argv[1] ?? null).buildTime
     const installedTime = describeArtifactIdentity('', installed.script).buildTime
@@ -1920,7 +1907,7 @@ export async function runHeadless(
 
   if (streamingInput) {
     const deliverLocalWake = (prompt: string, facts: LocalWakeFacts | undefined, firedAt: string, heldSince: string | undefined): void => {
-      if (inputClosed) return
+      if (live.inputClosed) return
       const nowMs = Date.now()
       const next = localWakeStep(sessionLaneWall(nowMs), nowMs, firedAt, heldSince, facts)
       if (next.step === 'wait') {
@@ -2006,7 +1993,7 @@ export async function runHeadless(
   const liveMcp = watchLiveMcpConfig({
     hosted: isConcourseWorker,
     initial: Object.fromEntries(getAppState().mcp.clients.filter(client => ['user', 'local', 'project', 'enterprise'].includes(client.config.scope) || client.config.extensionSource !== undefined).map(client => [client.name, client.config])),
-    ready: () => !awaitingSessionClaim && mcpInitialized,
+    ready: () => !live.awaitingSessionClaim && live.mcpInitialized,
     approve: async (name, config) => {
       const written = mcpConfigAsWritten(config)
       const target = written.url ?? written.command
@@ -2157,14 +2144,14 @@ export async function runHeadless(
     },
     'turn/interrupt': params => {
       if (params.op_id !== undefined && interruptOutcomes.has(params.op_id)) return { interrupted: interruptOutcomes.get(params.op_id)! }
-      if (params.turn_id !== undefined && currentTurnId !== null && params.turn_id !== currentTurnId) return { interrupted: false }
-      const interrupted = inFlightAbort !== null || leaveAbort !== null
+      if (params.turn_id !== undefined && live.currentTurnId !== null && params.turn_id !== live.currentTurnId) return { interrupted: false }
+      const interrupted = live.inFlightAbort !== null || live.leaveAbort !== null
       if (params.op_id !== undefined) {
         interruptOutcomes.set(params.op_id, interrupted)
         if (interruptOutcomes.size > INTERRUPT_DEDUPE_CAP) interruptOutcomes.delete(interruptOutcomes.keys().next().value!)
       }
-      inFlightAbort?.abort()
-      leaveAbort?.abort(new Error('the handoff was skipped by ctrl-c'))
+      live.inFlightAbort?.abort()
+      live.leaveAbort?.abort(new Error('the handoff was skipped by ctrl-c'))
       driver.releaseHold()
       if (params.hard === true) {
         for (const task of Object.values(getAppState().tasks)) {
@@ -2203,8 +2190,8 @@ export async function runHeadless(
         throw refused(errorMessage(error), 'model')
       }
       const words = typeof params.words === 'string' && params.words.trim() !== '' ? params.words.trim() : undefined
-      if (inFlightAbort !== null) {
-        heldSeatModel = { requestId: ref.id, model: String(resolved), ...(words === undefined ? {} : { words }) }
+      if (live.inFlightAbort !== null) {
+        live.heldSeatModel = { requestId: ref.id, model: String(resolved), ...(words === undefined ? {} : { words }) }
         holdQueuedWordsForTurnEnd(true)
         return { model: String(resolved), at: SEAT_VERB_AT(true) }
       }
@@ -2212,7 +2199,7 @@ export async function runHeadless(
       return { model: String(resolved), at: SEAT_VERB_AT(false) }
     },
     'session/claim': async params => {
-      if (!awaitingSessionClaim || claimSettling !== null) throw refused('claim refused — this runner already carries a session identity', 'claim')
+      if (!live.awaitingSessionClaim || live.claimSettling !== null) throw refused('claim refused — this runner already carries a session identity', 'claim')
       const sid = String(params.session_id ?? '')
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sid)) {
         throw refused(`claim refused — session_id must be a UUID (got ${JSON.stringify(sid)})`, 'claim')
@@ -2253,7 +2240,7 @@ export async function runHeadless(
         try { await claimSessionWriter(pinnedFile ?? sessionFilePath(sid as UUID)) }
         catch (error) { throw refused(errorMessage(error), 'claim') }
       }
-      if (typeof params.restart_reason === 'string') runnerRestartReason = params.restart_reason
+      if (typeof params.restart_reason === 'string') live.runnerRestartReason = params.restart_reason
       const boundAt = Date.now()
       const releaseSessionVerbs = peer?.holdScope('session') ?? null
       logForDebugging(`[session-runner] claim bound: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''}${params.resume === true ? ' — loading the conversation' : ''}`)
@@ -2291,22 +2278,22 @@ export async function runHeadless(
               }
             }
             switchSession(sid as SessionId, resumed.fullPath ? dirname(resumed.fullPath) : claimedHome)
-            resumeOf = String(resumed.sessionId ?? sid)
+            live.resumeOf = String(resumed.sessionId ?? sid)
             if (!isSessionPersistenceDisabled()) await resetSessionFilePointer()
             await restoreSessionStateFromLog(resumed, setAppState)
             restoreSessionMetadata(resumed)
             settleSessionBriefs(resumed, true)
             messages.splice(0, messages.length, ...resumed.messages)
-            turnsRun = priorTurnCount(messages)
-            contentReplacementState = reconstructContentReplacementState(messages, resumed.contentReplacements ?? [])
+            live.turnsRun = priorTurnCount(messages)
+            live.contentReplacementState = reconstructContentReplacementState(messages, resumed.contentReplacements ?? [])
           } else {
             switchSession(sid as SessionId, claimedHome)
             settleSessionBriefs({}, true)
           }
           if (claimedModel !== undefined) {
-            activeModel = claimedModel
+            live.activeModel = claimedModel
             setEngineModelOverride(claimedModel)
-            saveSessionModel(activeModel)
+            saveSessionModel(live.activeModel)
             setFlagEnv('MERCURY_MODEL', claimedModel)
           }
           if (claimedEffort !== undefined) {
@@ -2321,21 +2308,21 @@ export async function runHeadless(
           await armSessionRunnerWiring(sid)
           if (params.resume === true) await hydrateResumedRun()
           void (options.initializeMcp?.() ?? Promise.resolve()).then(() => {
-            mcpInitialized = true
+            live.mcpInitialized = true
             return liveMcp.refresh()
           }).catch(logError)
-          awaitingSessionClaim = false
+          live.awaitingSessionClaim = false
           if (claimedTitle !== undefined && !isSessionPersistenceDisabled()) {
             const { saveCustomTitle } = await import('../utils/sessionStorage/logs.js')
             await saveCustomTitle(sid as UUID, claimedTitle)
           }
           if (recordedModelRefusal !== null) {
-            bootRefusalFact = recordedModelRefusal
+            live.bootRefusalFact = recordedModelRefusal
             await persistBootModelRefusal(recordedModelRefusal)
           }
           settleClearBirth()
-          sessionFactsHoldSpent = false
-          sessionFactsHold = null
+          live.sessionFactsHoldSpent = false
+          live.sessionFactsHold = null
           releaseQueueUntilClaimed?.()
           logForDebugging(`[session-runner] claimed: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''} — ready ${Date.now() - boundAt}ms after the claim`)
           if (heldNoticeWaits()) driver.kick()
@@ -2346,17 +2333,17 @@ export async function runHeadless(
           releaseSessionVerbs?.()
         }
       })()
-      claimSettling = settling
+      live.claimSettling = settling
       void settling.finally(() => {
-        if (claimSettling === settling) claimSettling = null
+        if (live.claimSettling === settling) live.claimSettling = null
       })
       return { session_id: sid }
     },
     'session/set_effort': (params, ref) => {
       const requestedEffort = String(params.effort ?? '')
       if (!isEffortLevel(requestedEffort)) throw refused(`effort refused ('${requestedEffort}' is not on the shared ladder)`, 'effort')
-      if (inFlightAbort !== null) {
-        heldSeatEffort = { requestId: ref.id, effort: requestedEffort }
+      if (live.inFlightAbort !== null) {
+        live.heldSeatEffort = { requestId: ref.id, effort: requestedEffort }
         holdQueuedWordsForTurnEnd(true)
         return { effort: requestedEffort, at: SEAT_VERB_AT(true) }
       }
@@ -2364,14 +2351,14 @@ export async function runHeadless(
       return { effort: requestedEffort, at: SEAT_VERB_AT(false) }
     },
     'session/facts': async () => {
-      if (claimSettling !== null) await claimSettling
+      if (live.claimSettling !== null) await live.claimSettling
       void checkBuildBehind()
-      if (!sessionFactsHoldSpent) {
-        sessionFactsHoldSpent = true
+      if (!live.sessionFactsHoldSpent) {
+        live.sessionFactsHoldSpent = true
         const holdMs = Number.parseInt(flagEnv('MERCURY_SESSION_FACTS_HOLD_MS') ?? '', 10)
-        if (Number.isFinite(holdMs) && holdMs > 0) sessionFactsHold = new Promise(resolve => setTimeout(resolve, holdMs))
+        if (Number.isFinite(holdMs) && holdMs > 0) live.sessionFactsHold = new Promise(resolve => setTimeout(resolve, holdMs))
       }
-      if (sessionFactsHold !== null) await sessionFactsHold
+      if (live.sessionFactsHold !== null) await live.sessionFactsHold
       const state = getAppState()
       const anthropicWindow = anthropicWindowFact()
       const anthropicObserved = anthropicObservedUsage()
@@ -2383,10 +2370,10 @@ export async function runHeadless(
       const factsNow = Date.now()
       const answer: SessionFactsAnswerV1 = {
         model: {
-          effective: activeModel ?? getEngineModel(),
+          effective: live.activeModel ?? getEngineModel(),
           setting: getEngineModelOverride() ?? null,
         },
-        ...(bootRefusalFact !== null ? { bootRefusal: bootRefusalFact } : {}),
+        ...(live.bootRefusalFact !== null ? { bootRefusal: live.bootRefusalFact } : {}),
         usage: {
           totalCostUSD: getTotalCostUSD(),
           totalAPIDurationMs: getTotalAPIDuration(),
@@ -2400,8 +2387,8 @@ export async function runHeadless(
           hasUnknownModelCost: hasUnknownModelCost(),
           unpricedTurns: getTotalUnpricedTurns(),
           modelSpend: sessionModelSpendRows(),
-          context: { model: activeModel ?? getEngineModel(), ...contextFillView(turnMessages?.() ?? messages, activeModel ?? getEngineModel()) },
-          limitWarning: providerLimitWarning({ model: activeModel ?? getEngineModel() }),
+          context: { model: live.activeModel ?? getEngineModel(), ...contextFillView(live.turnMessages?.() ?? messages, live.activeModel ?? getEngineModel()) },
+          limitWarning: providerLimitWarning({ model: live.activeModel ?? getEngineModel() }),
           ...(() => {
             const observed = openaiObservedUsage()
             return observed.primary || observed.secondary ? { openaiObserved: observed } : {}
@@ -2420,7 +2407,7 @@ export async function runHeadless(
           claudeAiBilling: hasClaudeAiBillingAccess(),
           accountEmail: anthropicSignInEmail() ?? null,
         },
-        skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
+        skills: skillsRosterOf(live.activeCommands, offSkillNamesOf(sessionKitOf(), live.activeCommands.map(c => c.name))),
         mcp: mcpRosterEntriesOf(state.mcp.clients, []).map(row => ({
           ...row,
           toolCount: state.mcp.tools.filter(tool => tool.mcpInfo?.serverName === row.name).length,
@@ -2429,7 +2416,7 @@ export async function runHeadless(
         })),
         permissionMode: state.toolPermissionContext.mode,
         ...((): { effortSent?: string | null } => {
-          const sent = effortSentOf(resolveEffortTruth(activeModel ?? getEngineModel(), state.effortValue))
+          const sent = effortSentOf(resolveEffortTruth(live.activeModel ?? getEngineModel(), state.effortValue))
           return sent === undefined ? {} : { effortSent: sent }
         })(),
         spawnSwitches: spawnSwitchFacts(),
@@ -2440,7 +2427,7 @@ export async function runHeadless(
           originalCwd: getOriginalCwd(),
           projectRoot: getProjectRoot(),
         },
-        recoveredCommandIds,
+        recoveredCommandIds: live.recoveredCommandIds,
         queue: getCommandQueue().filter(command => command.agentId === undefined).map(command => ({
           ...(command.uuid !== undefined ? { uuid: String(command.uuid) } : {}),
           value:
@@ -2481,7 +2468,7 @@ export async function runHeadless(
           const edits = takePendingScheduleEdits()
           return edits.length > 0 ? { pendingScheduleEdits: edits } : {}
         })(),
-        streamIdleTimeoutMs: streamIdleTimeoutMsForRoute(providerFamilyOfSetting(activeModel ?? getEngineModel())),
+        streamIdleTimeoutMs: streamIdleTimeoutMsForRoute(providerFamilyOfSetting(live.activeModel ?? getEngineModel())),
         buildTree: runningBuildTree(),
         ...(transcriptStoreHealth().failing ? { transcriptStoreFailing: transcriptStoreHealth().sentence ?? '' } : {}),
         fileCheckpoints: {
@@ -2523,19 +2510,19 @@ export async function runHeadless(
         getAppState,
         setAppState,
         drift: getReadFileCache(),
-        turnActive: inFlightAbort !== null,
+        turnActive: live.inFlightAbort !== null,
       })
       return rewindOutcomeToWire(outcome) as Record<string, unknown>
     },
     'session/file_restore': async params => {
-      const outcome = await handleFileRestoreSession(params, { messages, getAppState, setAppState, drift: getReadFileCache(), turnActive: inFlightAbort !== null })
+      const outcome = await handleFileRestoreSession(params, { messages, getAppState, setAppState, drift: getReadFileCache(), turnActive: live.inFlightAbort !== null })
       return rewindOutcomeToWire(outcome) as Record<string, unknown>
     },
     'session/set_spawn_switch': (params, ref) => {
       if (params.switch === 'workflows') return { switch: params.switch, on: params.on, at: SEAT_VERB_AT(false) }
       const toggle = { kind: params.switch, on: params.on }
-      if (inFlightAbort !== null) {
-        deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), { ...toggle, requestId: ref.id }]
+      if (live.inFlightAbort !== null) {
+        live.deferredSpawnSwitches = [...live.deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), { ...toggle, requestId: ref.id }]
         holdQueuedWordsForTurnEnd(true)
         return { switch: toggle.kind, on: toggle.on, at: SEAT_VERB_AT(true) }
       }
@@ -2590,7 +2577,7 @@ export async function runHeadless(
       const state = getAppState()
       const client = state.mcp.clients.find(entry => entry.name === name)
       if (client?.type !== 'connected') return mcpToolsUnlistedAnswer(name, client)
-      const model = activeModel ?? getEngineModel()
+      const model = live.activeModel ?? getEngineModel()
       const held = new Set(heldToolsAtLastPlan(String(processMainOwner()), messages))
       const tools = await Promise.all(
         filterToolsByServer(state.mcp.tools, name).map(async tool => {
@@ -2669,15 +2656,15 @@ export async function runHeadless(
           }
         }
         clearCommandMemoizationCaches()
-        activeCommands = await getCommands(getCwd())
-        pruneSkillSessionHooks(setAppState, getSessionId(), liveSkillRootsOf(activeCommands))
+        live.activeCommands = await getCommands(getCwd())
+        pruneSkillSessionHooks(setAppState, getSessionId(), liveSkillRootsOf(live.activeCommands))
         if (sessionKitOf()?.resolved === false) {
           const { completeSessionKitFromRoster } = await import('../services/mcp/kitCompletion.js')
           const { getActiveSet } = await import('../extensions/active.js')
           completeProcessSessionKit(
             completeSessionKitFromRoster(sessionKitOf()!, {
               mcpNames: getAppState().mcp.clients.map(row => row.name),
-              commands: activeCommands,
+              commands: live.activeCommands,
               extensions: getActiveSet().active.map(ext => ext.manifest.name),
             }),
           )
@@ -2694,7 +2681,7 @@ export async function runHeadless(
       throw refused('no shell command is running in the main conversation', 'no-shell')
     },
     'session/send_now': () => {
-      if (inFlightAbort === null) return SEND_NOW_NOTHING_QUEUED
+      if (live.inFlightAbort === null) return SEND_NOW_NOTHING_QUEUED
       return sendQueuedWordsNow(getAppState, setAppState)
     },
     'session/board_post': params => {
@@ -2715,16 +2702,16 @@ export async function runHeadless(
       const answer = await quiescence.request({ subtype: 'quiesce', action: params.action, token: params.token })
       if (!answer.ok) throw refused(answer.reason, 'quiesce')
       if (answer.phase === 'committed') {
-        inputClosed = true
+        live.inputClosed = true
         setRunInputClosed(true)
         setTimeout(() => gracefulShutdownSync(0, 'closed'), 50)
       }
       return { token: answer.token, phase: answer.phase }
     },
     'session/leave': async (_params, _ref, signal) => {
-      if (inFlightAbort !== null || leaveAbort !== null) return { note: 'skipped', ledger: 'absent' }
+      if (live.inFlightAbort !== null || live.leaveAbort !== null) return { note: 'skipped', ledger: 'absent' }
       const controller = new AbortController()
-      leaveAbort = controller
+      live.leaveAbort = controller
       const onCancel = (): void => controller.abort(signal.reason)
       signal.addEventListener('abort', onCancel, { once: true })
       try {
@@ -2734,7 +2721,7 @@ export async function runHeadless(
         return { note, ledger: closed !== null && lineageKept() ? 'closed' : 'absent', ...(kept === null ? {} : { noteChars: kept }) }
       } finally {
         signal.removeEventListener('abort', onCancel)
-        if (leaveAbort === controller) leaveAbort = null
+        if (live.leaveAbort === controller) live.leaveAbort = null
       }
     },
     'agent/resume': async (params, _ref, signal) => {
@@ -2745,7 +2732,7 @@ export async function runHeadless(
         queueOperatorMessage(params.agent_id, note, setAppState)
         return { queued: true, agent_id: params.agent_id }
       }
-      if (awaitingSessionClaim) throw refused('nothing to resume from yet — the session is still starting', 'nothing-to-resume')
+      if (live.awaitingSessionClaim) throw refused('nothing to resume from yet — the session is still starting', 'nothing-to-resume')
       const { resumeAgentBackground, operatorResumeWords } = await import('../tools/AgentTool/resumeAgent.js')
       let standing = getLastCacheSafeParams()?.toolUseContext as ToolUseContext | undefined
       if (standing === undefined) {
@@ -2778,13 +2765,13 @@ export async function runHeadless(
   ): AsyncGenerator<InputRow, void, unknown> {
     const parked: InputRow[] = []
     for await (const row of source) {
-      if (awaitingSessionClaim) {
+      if (live.awaitingSessionClaim) {
         logForDebugging('[session-runner] an input row arrived before the claim — parked until the session identity lands')
         parked.push(row)
         continue
       }
       yield row
-      while (!awaitingSessionClaim && parked.length > 0) {
+      while (!live.awaitingSessionClaim && parked.length > 0) {
         yield parked.shift()!
       }
     }
@@ -2793,8 +2780,8 @@ export async function runHeadless(
   const heldNoticeWaits = (): boolean =>
     !sessionInitialized &&
     isConcourseWorker &&
-    !awaitingSessionClaim &&
-    !inputClosed &&
+    !live.awaitingSessionClaim &&
+    !live.inputClosed &&
     !driver.isRunning() &&
     getCommandQueue().some(command => isMainThreadCommand(command) && (isHeldNotice(command) || isOperatorLine(command)))
   subscribeToCommandQueue(() => {
@@ -2813,7 +2800,7 @@ export async function runHeadless(
         await acceptInputRow(row)
       }
     } finally {
-      inputClosed = true
+      live.inputClosed = true
       setRunInputClosed(true)
       if (!driver.isRunning()) {
         await stopShellsForClose()
@@ -2861,9 +2848,9 @@ export async function runHeadless(
     lastOutcome ??
     (io.rows.stamp(
       outcomeRow(
-        { session_id: getSessionId(), turn: Math.max(1, turnsRun) },
+        { session_id: getSessionId(), turn: Math.max(1, live.turnsRun) },
         {
-          turnId: currentTurnId ?? randomUUID(),
+          turnId: live.currentTurnId ?? randomUUID(),
           status: 'failed',
           steps: 0,
           wallMs: 0,
