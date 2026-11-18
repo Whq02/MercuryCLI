@@ -1,0 +1,73 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuthWallHold } from '../../hooks/useAuthWallHold.js';
+import type { VimMode } from '../../hooks/useVimInput.js';
+import * as pendingInput from '../../input-core/pending-input.js';
+import { conversationIdHere, getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js';
+import type { Message } from '../../types/message.js';
+import type { PromptInputMode } from '../../types/textInputTypes.js';
+import { registerComposerSeeder, registerComposerSeedTrimmer } from '../../utils/cockpit/composerSeed.js';
+import type { PastedContent } from '../../utils/config/schema.js';
+import { consumeEarlyInput } from '../../utils/earlyInput.js';
+
+const RECENT_SCROLL_REPIN_WINDOW_MS = 3000;
+
+export function useChatDraft({
+  messages,
+  fullscreen,
+  repinToBottom,
+  lastUserScrollAtRef,
+}: {
+  messages: Message[];
+  fullscreen: boolean;
+  repinToBottom: () => void;
+  lastUserScrollAtRef: { current: number };
+}) {
+  const [isPromptInputActive, setIsPromptInputActive] = useState(false);
+  const [inputMode, setInputModeState] = useState<PromptInputMode>(() => pendingInput.mode());
+  void inputMode;
+  const [vimMode, setVimMode] = useState<VimMode>('INSERT');
+  const [isSearchingHistory, setIsSearchingHistory] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  useState(() => {
+    pendingInput.initSession(conversationIdHere(), consumeEarlyInput());
+    return null;
+  });
+  const setInputValue = useCallback((value: string) => {
+    pendingInput.edit(value);
+  }, []);
+  const setInputMode = useCallback((mode: PromptInputMode) => {
+    pendingInput.setMode(mode);
+    setInputModeState(mode);
+  }, []);
+  const setPastedContents = useCallback((next: Record<number, PastedContent>) => {
+    pendingInput.setPastedContents(next);
+  }, []);
+  const authWallHold = useAuthWallHold(
+    messages,
+    { text: () => pendingInput.text(), restore: (text: string) => setInputValue(text) },
+    () => getFocusedSessionConnector().modelFacts().effective,
+  );
+  const insertTextRef = useRef<{ insert: (text: string) => void; setInputWithCursor: (value: string, cursor: number) => void; cursorOffset: number } | null>(null);
+  useEffect(() => {
+    return pendingInput.registerInterceptors({
+      interceptSuggestion: () => false,
+      onEmptyToNonempty: () => {
+        if (!fullscreen) return;
+        if (Date.now() - lastUserScrollAtRef.current < RECENT_SCROLL_REPIN_WINDOW_MS) return;
+        repinToBottom();
+      },
+      onActiveChange: setIsPromptInputActive,
+    });
+  }, [fullscreen, repinToBottom]);
+
+  useEffect(() => registerComposerSeeder(seed => pendingInput.append(seed)), []);
+  useEffect(
+    () =>
+      registerComposerSeedTrimmer(() => {
+        const words = pendingInput.text();
+        if (words !== '') pendingInput.edit(words.slice(0, -1));
+      }),
+    [],
+  );
+  return { isPromptInputActive, setInputValue, setInputMode, setPastedContents, authWallHold, insertTextRef, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen };
+}

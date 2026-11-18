@@ -85,7 +85,6 @@ import { useSessionTitleMint } from '../hooks/useSessionTitleMint.js';
 import { useSettingsChange } from '../hooks/useSettingsChange.js';
 import { useSkillsChange } from '../hooks/useSkillsChange.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
-import type { VimMode } from '../hooks/useVimInput.js';
 import { useDeprecationWarningNotification } from '../hooks/notifs/useDeprecationWarningNotification.js';
 import { useLspInitializationNotification } from '../hooks/notifs/useLspInitializationNotification.js';
 import { useRateLimitWarningNotification } from '../hooks/notifs/useRateLimitWarningNotification.js';
@@ -105,7 +104,6 @@ import { createBranchSession } from '../services/branches/branchManifest.js';
 import { hasSeatLive, IDLE_LIVE, IDLE_TURN_FACTS, type LiveTurnFactsV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
 import { interruptFocusedTurn } from '../hooks/useCancelRequest.js';
 import { useFocusedTailAnchor, useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
-import { useAuthWallHold } from '../hooks/useAuthWallHold.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
 import type { AppState } from '../state/AppStateStore.js';
 import {
@@ -134,6 +132,7 @@ import type { FocusedInputDialog } from './chat/focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './chat/limits.js';
 import type { Screen as ScreenName } from './chat/screen.js';
 import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
+import { useChatDraft } from './chat/useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
 import { TranscriptFooter, TranscriptSearchBar, useChatSearch } from './chat/useChatSearch.js';
 import { AnimatedTitle, useChatTitle } from './chat/useChatTitle.js';
@@ -156,7 +155,6 @@ import { getProjectDir } from '../utils/sessionStoragePortable.js';
 import { CrashResumeDialog } from '../components/CrashResumeDialog.js';
 import { getCwd } from '../utils/cwd.js';
 import { logForDebugging } from '../utils/debug.js';
-import { consumeEarlyInput } from '../utils/earlyInput.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../utils/fileStateCache.js';
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled, maybeGetTmuxMouseHint } from '../utils/fullscreen.js';
@@ -168,7 +166,6 @@ import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js';
 import { createCommandInputMessage, createUserMessage, extractTag, getUserMessageText, textForResubmit } from '../utils/messages.js';
 import { getTipToShowOnSpinner, recordShownTip } from '../services/tips/tipScheduler.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
-import { registerComposerSeeder, registerComposerSeedTrimmer } from '../utils/cockpit/composerSeed.js';
 import type { StreamingToolUse } from '../utils/messages/streaming.js';
 
 export type Screen = ScreenName;
@@ -182,7 +179,6 @@ export type Props = {
 };
 
 const COST_THRESHOLD_USD = 5;
-const RECENT_SCROLL_REPIN_WINDOW_MS = 3000;
 const SWITCH_STATUS_TIMEOUT_MS = 30_000;
 const WORKTREE_TIP_SECONDS = 15;
 const BOOT_WARMUP_MS = 150;
@@ -416,9 +412,6 @@ export function Chat({
   const [isExiting, setIsExiting] = useState(false);
   const [showExitFlow, setShowExitFlow] = useState(false);
   const [exitCommandJsx, setExitCommandJsx] = useState<React.ReactNode | null>(null);
-  const [isPromptInputActive, setIsPromptInputActive] = useState(false);
-  const [inputMode, setInputModeState] = useState<PromptInputMode>(() => pendingInput.mode());
-  void inputMode;
   const [submitCount, setSubmitCount] = useState(0);
   const [lastCompletedAt, setLastCompletedAt] = useState<number | null>(null);
   const [remountKey, setRemountKey] = useState(0);
@@ -433,10 +426,7 @@ export function Chat({
     moreCount: number;
   } | null>(null);
   const crashNoticeLatchedRef = useRef(false);
-  const [vimMode, setVimMode] = useState<VimMode>('INSERT');
   const [showBashesDialog, setShowBashesDialog] = useState<string | boolean>(false);
-  const [isSearchingHistory, setIsSearchingHistory] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
 
   const [tools, setToolsState] = useState<Tool[]>(initialTools);
   useEffect(() => {
@@ -466,49 +456,9 @@ export function Chat({
     addNotification({ key: `screen-row-${Date.now()}`, text: fallbackText, priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
   }, [addNotification]);
 
-  useState(() => {
-    pendingInput.initSession(conversationIdHere(), consumeEarlyInput());
-    return null;
-  });
-  const setInputValue = useCallback((value: string) => {
-    pendingInput.edit(value);
-  }, []);
-  const setInputMode = useCallback((mode: PromptInputMode) => {
-    pendingInput.setMode(mode);
-    setInputModeState(mode);
-  }, []);
-  const setPastedContents = useCallback((next: Record<number, PastedContent>) => {
-    pendingInput.setPastedContents(next);
-  }, []);
-  const authWallHold = useAuthWallHold(
-    messages,
-    { text: () => pendingInput.text(), restore: (text: string) => setInputValue(text) },
-    () => getFocusedSessionConnector().modelFacts().effective,
-  );
-  const insertTextRef = useRef<{ insert: (text: string) => void; setInputWithCursor: (value: string, cursor: number) => void; cursorOffset: number } | null>(null);
-
   const { scrollRef, scrollRestoreRef, modalScrollRef, lastUserScrollAtRef, repinToBottom, noteUserScroll } = useChatScrollPin();
-  useEffect(() => {
-    return pendingInput.registerInterceptors({
-      interceptSuggestion: () => false,
-      onEmptyToNonempty: () => {
-        if (!fullscreen) return;
-        if (Date.now() - lastUserScrollAtRef.current < RECENT_SCROLL_REPIN_WINDOW_MS) return;
-        repinToBottom();
-      },
-      onActiveChange: setIsPromptInputActive,
-    });
-  }, [fullscreen, repinToBottom]);
+  const { isPromptInputActive, setInputValue, setInputMode, setPastedContents, authWallHold, insertTextRef, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen } = useChatDraft({ messages, fullscreen, repinToBottom, lastUserScrollAtRef });
 
-  useEffect(() => registerComposerSeeder(seed => pendingInput.append(seed)), []);
-  useEffect(
-    () =>
-      registerComposerSeedTrimmer(() => {
-        const words = pendingInput.text();
-        if (words !== '') pendingInput.edit(words.slice(0, -1));
-      }),
-    [],
-  );
   const prefersReducedMotion = useAppState(state => state.settings.view?.reducedMotion === true);
   const reducedMotion = prefersReducedMotion || isEnvTruthy(flagEnv('MERCURY_REDUCED_MOTION'));
   const streamingSuppressed = streamingRevealSuppressed(reducedMotion, fullscreen);
