@@ -368,6 +368,8 @@ export function snapshotProfileOf(origin: ShellOrigin): { kind: 'bash' | 'sh'; f
 
 export const SNAPSHOT_KEEPS_ALIASES = 'echo "shopt -s expand_aliases" >> "$SNAPSHOT_FILE"'
 
+export const SNAPSHOT_READS_FUNCTIONS = 'echo "{ shopt -s extglob" >> "$SNAPSHOT_FILE"'
+
 export const SNAPSHOT_OPTIONS: readonly string[] = [
   `shopt -p | head -n 1000 >> "$SNAPSHOT_FILE"`,
   `set -o | awk '$2 == "on" { print "set -o " $1 }' | head -n 1000 >> "$SNAPSHOT_FILE"`,
@@ -378,8 +380,6 @@ export function argv0FunctionBody(argv0Name: string, quotedBinary: string, prepe
   return `  if [ "\${BASHPID:-$$}" != "$$" ]; then
     exec -a ${argv0Name} ${quotedBinary} ${prepend}"$@"
   else
-export const SNAPSHOT_READS_FUNCTIONS = 'echo "{ shopt -s extglob" >> "$SNAPSHOT_FILE"'
-
     ( exec -a ${argv0Name} ${quotedBinary} ${prepend}"$@" )
   fi`
 }
