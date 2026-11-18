@@ -31,13 +31,13 @@ const DEAD_ENV = ['MERCURY_HOME', 'MERCURY_DAEMON_DIR', 'MERCURY_CREW_DIR', 'MER
 
 type Reply = Record<string, unknown>
 type Exit = { code: number | null; signal: string | null }
-export type Daemon = { label: string; pid: number; child: ChildProcess; logPath: string; exit: Exit | null }
+type Daemon = { label: string; pid: number; child: ChildProcess; logPath: string; exit: Exit | null }
 type Session = { sid: string; runnerId: string; pid: number }
 type BootOptions = { env?: Record<string, string | undefined>; dist?: string; wait?: 'serve' | 'exit' | 'none'; waitMs?: number }
-export type Covers = { verbs?: string[]; doors?: string[]; periodic?: string[]; waysOut?: string[]; boot?: string[] }
+type Covers = { verbs?: string[]; doors?: string[]; periodic?: string[]; waysOut?: string[]; boot?: string[] }
 export type Scenario = { name: string; about: string; covers: Covers; seconds: number; run: (w: World) => Promise<void> }
 
-export class World {
+class World {
   readonly root: string
   readonly home: string
   readonly work: string
@@ -948,7 +948,7 @@ export const SCENARIOS: Scenario[] = [
 
 const WORLDS: World[] = []
 
-export async function recordScenario(name: string, dist: string, keep = false): Promise<string> {
+async function recordScenario(name: string, dist: string, keep = false): Promise<string> {
   const scenario = SCENARIOS.find(s => s.name === name)
   if (scenario === undefined) throw new Error(`no scenario named ${name}; the names: ${SCENARIOS.map(s => s.name).join(', ')}`)
   const w = new World(dist)

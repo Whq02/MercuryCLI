@@ -15,11 +15,11 @@ import { armOwnerPipe, getProcessStartTokenAsync, isProcessAlive, parseOwnerFd, 
 import { decideSessionlessExit } from '../sessionlessExit.js'
 import type { DaemonRunState } from './state.js'
 
-export interface OwnerNeeds {
+interface OwnerNeeds {
   shutdown: (signal: string) => void
 }
 
-export interface SessionlessNeeds {
+interface SessionlessNeeds {
   liveWorkers: () => { live: number }
   requestShutdown: (signal: string) => void
 }
@@ -28,7 +28,7 @@ export function markHosted(state: DaemonRunState): void {
   if (!state.sessionless.hosted) state.sessionless = { ...state.sessionless, hosted: true }
 }
 
-export function passOwnership(state: DaemonRunState, needs: OwnerNeeds, next: number): void {
+function passOwnership(state: DaemonRunState, needs: OwnerNeeds, next: number): void {
   state.currentOwnerPid = next
   void readDaemonState()
     .then(rec => (rec && rec.pid === process.pid ? writeDaemonState({ ...rec, ownerPid: next }) : undefined))
@@ -36,7 +36,7 @@ export function passOwnership(state: DaemonRunState, needs: OwnerNeeds, next: nu
   void armOwnerWatch(state, needs, next, false)
 }
 
-export async function parkAllThenShutdown(state: DaemonRunState, needs: OwnerNeeds, signal: string): Promise<void> {
+async function parkAllThenShutdown(state: DaemonRunState, needs: OwnerNeeds, signal: string): Promise<void> {
   if (state.orphanParking || state.shuttingDown) return
   state.orphanParking = true
   try {

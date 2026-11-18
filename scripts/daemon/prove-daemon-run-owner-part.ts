@@ -154,6 +154,16 @@ const reset = (): void => {
 }
 const calls = (name: string): unknown[][] => seen.filter(s => s.call === name).map(s => s.args)
 const order = (): string => seen.map(s => s.call).join(' ')
+const drained = async (): Promise<void> => {
+  for (let i = 0; i < 6; i++) await new Promise<void>(resolve => setImmediate(resolve))
+}
+const orphan = async (state: ReturnType<typeof makeDaemonRunState>, afterTheArm: () => void = () => {}): Promise<void> => {
+  state.currentOwnerPid ??= 111
+  await owner.armOwnerWatch(state, needs, state.currentOwnerPid, false)
+  afterTheArm()
+  watches.at(-1)!.options.onOrphan('the pid is gone')
+  await drained()
+}
 const realError = console.error
 const realNow = Date.now
 const realInterval = globalThis.setInterval
@@ -267,9 +277,9 @@ try {
     const foreign = fresh()
     foreign.currentOwnerPid = 111
     script.record = { pid: process.pid + 1, ownerPid: 4242 }
-    owner.passOwnership(foreign, needs, 555)
-    await settle()
-    check('a record that names another daemon is left as it is', calls('writeRecord').length === 0 && foreign.currentOwnerPid === 555)
+    script.nextOwner = departing => (departing === 111 ? 555 : undefined)
+    await orphan(foreign)
+    check('a record that names another daemon is left as it is', calls('writeRecord').length === 0 && foreign.currentOwnerPid === 555, calls('writeRecord'))
 
     reset()
     const orphaned = fresh()
@@ -283,7 +293,7 @@ try {
     check('the reap keeps nothing back: it parks with no exception for a chat a live terminal holds', calls('parkAll')[0]!.length === 2, calls('parkAll')[0])
   }
 
-  section('§5 parkAllThenShutdown: the drain under the ceiling, the cut, the screen that comes back, the latch')
+  section('§5 the orphan reap, by the watch that fires it: the drain under the ceiling, the cut, the screen that comes back, the latch')
   {
     reset()
     Date.now = () => script.now
@@ -293,20 +303,22 @@ try {
     script.records = { 'concourse-w1': { sessionId: 'session-one' } }
     script.ceilingMs = 2500
     const started = script.now
-    await owner.parkAllThenShutdown(state, needs, 'owner-orphaned')
+    await orphan(state)
     check('it waits for the mid-turn parks a second at a time, up to the registered ceiling', calls('sleep').length === 3 && calls('sleep').every(a => a[0] === 1000) && script.now - started === 3000, calls('sleep'))
     check('what is still mid-turn at the ceiling is cut with the ruled reason, not after its turn', calls('park').length === 1 && calls('park')[0]![0] === 'session-one' && calls('park')[0]![1] === 'daemon:owner-orphaned' && calls('park')[0]![2] === roster && JSON.stringify(calls('park')[0]![4]) === JSON.stringify({ afterTurn: false, reason: workers.PARK_DRAIN_CUT_REASON }), calls('park'))
     check('then, and only then, the daemon shuts down', shutdowns.join() === 'owner-orphaned' && order().lastIndexOf('park') > order().indexOf('parkAll') && said.some(line => line.includes('concourse-w1 was still mid-turn at the drain ceiling — its turn is cut and it parks')), said)
     check('the park line counts what it parked and what drains', said.some(line => line.includes('the screen is gone — parking every active session: parked 0, draining 1 (finishing their turns), released 0 newborn(s), skipped 0')), said)
     const before = calls('parkAll').length
-    await owner.parkAllThenShutdown(state, needs, 'owner-orphaned')
-    check('latched: a second reap while the first stands parks nothing again', calls('parkAll').length === before && shutdowns.length === 1)
+    watches.at(-1)!.options.onOrphan('the pid is gone')
+    await drained()
+    check('latched: a second reap while the first stands parks nothing again', calls('parkAll').length === before && shutdowns.length === 1, order())
 
     reset()
     const leaving = fresh()
-    leaving.shuttingDown = true
-    await owner.parkAllThenShutdown(leaving, needs, 'owner-orphaned')
-    check('a daemon already on its way out is not parked a second time', calls('parkAll').length === 0 && shutdowns.length === 0)
+    await orphan(leaving, () => {
+      leaving.shuttingDown = true
+    })
+    check('a daemon already on its way out is not parked a second time', watches.length === 1 && calls('parkAll').length === 0 && shutdowns.length === 0, order())
 
     reset()
     const back = fresh()
@@ -316,7 +328,7 @@ try {
     script.ceilingMs = 60_000
     let asked = 0
     script.nextOwner = (departing, _dir, since) => (departing === null && typeof since === 'number' && ++asked >= 2 ? 444 : undefined)
-    await owner.parkAllThenShutdown(back, needs, 'owner-orphaned')
+    await orphan(back)
     await settle()
     check('a cockpit that came back inside the drain takes ownership and the daemon stays up', shutdowns.length === 0 && back.currentOwnerPid === 444 && calls('sleep').length === 2 && calls('park').length === 0, order())
     check('the parks asked at the reap are withdrawn for the sessions still draining', calls('withdraw').length === 1 && calls('withdraw')[0]![0] === 'daemon:owner-orphaned' && JSON.stringify(calls('withdraw')[0]![1]) === JSON.stringify(['concourse-w1', 'concourse-w2']) && said.some(line => line.includes('the screen came back inside the drain — ownership passes to the live cockpit pid 444; the daemon stays up and concourse-w1, concourse-w2 keep their turns')), said)
@@ -327,8 +339,8 @@ try {
     script.pending = () => {
       throw new Error('the records are unreadable')
     }
-    await owner.parkAllThenShutdown(thrown, needs, 'owner-orphaned')
-    check('a reap that throws still shuts the daemon down', shutdowns.join() === 'owner-orphaned')
+    await orphan(thrown)
+    check('a reap that throws still shuts the daemon down', shutdowns.join() === 'owner-orphaned', shutdowns)
     Date.now = realNow
   }
 

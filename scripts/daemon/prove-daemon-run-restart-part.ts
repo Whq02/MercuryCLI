@@ -121,7 +121,11 @@ try {
     const young = fresh()
     const guarded = restart.restartWhenIdle(young, needs, 'the operator')
     await tick()
-    check('G4 a successor younger than the storm guard refuses a second restart', restart.RESTART_STORM_GUARD_MS === 60_000 && guarded.state === 'refused' && shutdowns.length === 0 && young.restartAfterTeardown === false, guarded)
+    check('G4 a successor younger than the storm guard refuses a second restart', guarded.state === 'refused' && shutdowns.length === 0 && young.restartAfterTeardown === false, guarded)
+    const nearly = restart.restartWhenIdle({ ...fresh(), startedAt: Date.now() - 59_000 }, needs, 'the operator')
+    const past = restart.restartWhenIdle({ ...fresh(), startedAt: Date.now() - 61_000 }, needs, 'the operator')
+    await tick()
+    check('the storm guard is one minute: a successor 59 s old still refuses, one 61 s old takes the restart', nearly.state === 'refused' && (nearly.detail ?? '').includes('came back unchanged 59s ago') && past.state === 'restarting' && shutdowns.join() === 'control:restart-when-idle', { nearly, past, shutdowns })
     check('E4b the storm-guard refusal names the version and the protocol and carries no bundle path', (guarded.detail ?? '').includes(`came back unchanged 0s ago (still v${currentVersion()}, protocol ${MERCURY_DAEMON_PROTO})`) && (guarded.detail ?? '').includes('deploy a new build first') && !(guarded.detail ?? '').includes(OWN), guarded.detail)
     script.deployed = null
     const noDeploy = restart.restartWhenIdle(fresh(), needs, 'the operator')

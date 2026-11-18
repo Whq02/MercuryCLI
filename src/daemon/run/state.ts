@@ -9,7 +9,7 @@ import type { PlaneOwnerV1 } from '../planeRecords.js'
 import type { TaskRoster } from '../roster.js'
 import { initialSessionlessState } from '../sessionlessExit.js'
 
-export interface DaemonRunBootFacts {
+interface DaemonRunBootFacts {
   dir: string
   bootBuildTree: string | null
   foreground: boolean

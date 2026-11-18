@@ -4,13 +4,13 @@ import { clearControlKey, clearDaemonState, markDaemonStoppingSync } from '../co
 import { supersededByLivePlaneOwnerSync } from '../planeRecords.js'
 import type { DaemonRunState } from './state.js'
 
-export interface ShutdownNeeds {
+interface ShutdownNeeds {
   keepAlive: ReturnType<typeof setInterval>
   resolveShutdown: () => void
   spawnSuccessorDaemon: () => number | undefined
 }
 
-export interface WayOutStep {
+interface WayOutStep {
   readonly name: string
   readonly run: (state: DaemonRunState, needs: ShutdownNeeds, signal: string) => void | Promise<void>
 }

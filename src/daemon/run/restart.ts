@@ -14,10 +14,10 @@ import { isProcessAlive } from '../ownerWatch.js'
 import { isScreenHealAsk } from '../verbs.js'
 import type { DaemonRunState } from './state.js'
 
-export const RESTART_STORM_GUARD_MS = 60_000
+const RESTART_STORM_GUARD_MS = 60_000
 export const ARMED_RESTART_BEAT_MS = 4_000
 
-export interface RestartNeeds {
+interface RestartNeeds {
   liveWorkers: () => { live: number; liveSessions: number }
   askLiveSessionsForFacts: () => number
   requestShutdown: (signal: string) => void
