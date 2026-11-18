@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 type Step = { label: string; title: string | null; cursor: string; calls: string[]; modes: string[]; lines: string[] }
-type Recording = { scenario: string; size: string; steps: Step[] }
+type Recording = { scenario: string; size: string; warmups: string; steps: Step[] }
 
 type Message = import('../../src/types/message.ts').Message
 type SessionLiveV1 = import('../../src/services/engine-connector/seatLive.ts').SessionLiveV1
@@ -26,6 +26,7 @@ type ScriptedSession = {
   setRunnerMode: (mode: PermissionMode | null) => void
   setModelFacts: (next: Record<string, unknown>) => void
   refuseSends: (detail: string | null) => void
+  holdSends: () => () => void
   failSends: (fault: string | null) => void
   refuseModes: (detail: string | null) => void
   setCompletedAt: (at: number | null) => void
@@ -56,6 +57,11 @@ type Stage = {
   askFor: (id: string, command: string) => SessionAskV1
   screen: () => string
   paintedAfter: (words: string) => Promise<number>
+  dialogs: Array<{ name: string; args: string; done: (result?: string, options?: Record<string, unknown>) => void }>
+  dispatch: (command: string) => void
+  plainWorld: () => void
+  handshake: (line: string | null) => void
+  warmups: () => string
   steps: Step[]
 }
 
@@ -66,7 +72,7 @@ type SrcDoor = {
   seatLive: typeof import('../../src/services/engine-connector/seatLive.ts')
 }
 
-type StageOptions = { columns?: number; rows?: number; reducedMotion?: boolean; session?: 'none' | 'empty' | 'history'; env?: Record<string, string>; plant?: 'crash' | 'crash-resumable' | 'worktree' | 'preflight' | 'fold-notice' | 'housekeeping' }
+type StageOptions = { columns?: number; rows?: number; reducedMotion?: boolean; session?: 'none' | 'empty' | 'history'; env?: Record<string, string>; plant?: 'crash' | 'crash-resumable' | 'worktree' | 'preflight' | 'fold-notice' | 'housekeeping' | 'update-notice' | 'handshake' | 'tmux' | 'commands' }
 
 type Scenario = { name: string; covers: string[]; options?: StageOptions; run: (stage: Stage) => Promise<void> }
 
@@ -182,6 +188,55 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
       },
     }))
   }
+  const warmed = { daemon: 0, runners: [] as string[], contextWindows: 0 }
+  const realEnsure = { ...(await import('../../src/services/switchboard/ensureDaemon.ts')) }
+  mock.module('../../src/services/switchboard/ensureDaemon.ts', () => ({
+    ...realEnsure,
+    ensureOwnedDaemon: async () => {
+      warmed.daemon++
+      return true
+    },
+    warmSessionRunner: async (cwd: string) => {
+      warmed.runners.push(cwd)
+      return true
+    },
+  }))
+  const realWindows = { ...(await import('../../src/utils/model/contextWindowWarmup.ts')) }
+  mock.module('../../src/utils/model/contextWindowWarmup.ts', () => ({
+    ...realWindows,
+    warmContextWindowSources: async () => {
+      warmed.contextWindows++
+    },
+  }))
+  if (options.plant === 'update-notice') {
+    const real = { ...(await import('../../src/services/privateChannel/quietUpdateNotice.ts')) }
+    mock.module('../../src/services/privateChannel/quietUpdateNotice.ts', () => ({
+      ...real,
+      scheduleQuietUpdateNotice: (notify: (text: string) => void) => {
+        const timer = setTimeout(() => notify(real.updateNoticeText('9.9.9')), 0)
+        return () => clearTimeout(timer)
+      },
+    }))
+  }
+  const handshake = { line: null as string | null, heard: new Set<() => void>() }
+  if (options.plant === 'handshake') {
+    const real = { ...(await import('../../src/daemon/handshake.ts')) }
+    mock.module('../../src/daemon/handshake.ts', () => ({
+      ...real,
+      lastDaemonHandshake: () => (handshake.line === null ? null : { line: handshake.line }),
+      subscribeDaemonHandshake: (listener: () => void) => {
+        handshake.heard.add(listener)
+        return () => void handshake.heard.delete(listener)
+      },
+    }))
+  }
+  if (options.plant === 'tmux') {
+    const real = { ...(await import('../../src/utils/fullscreen.ts')) }
+    mock.module('../../src/utils/fullscreen.ts', () => ({
+      ...real,
+      maybeGetTmuxMouseHint: async () => 'tmux detected: PageUp/PageDown scroll the transcript. Add `set -g mouse on` to ~/.tmux.conf to restore wheel scrolling.',
+    }))
+  }
 
   const React = await import('react')
   const h = React.createElement
@@ -196,7 +251,8 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
   const { setCwdState, setIsInteractive } = await import('../../src/bootstrap/state.ts')
   const { TerminalWriteContext } = await import('../../src/ink/terminalWrite.ts')
-  const { useStdin } = await import('../../src/ink.ts')
+  const { Text, useStdin } = await import('../../src/ink.ts')
+  const helm = await import('../../src/utils/cockpit/helmFocus.ts')
   setCwdState(project)
   setIsInteractive(true)
   enableConfigs()
@@ -214,7 +270,58 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   const modeRecord = await import('../../src/utils/permissions/modeTransitions.ts')
   modeRecord.clearModeTransitions()
   markDaemonHaltStanddown()
-  const commands = await getCommands(project)
+  const dialogs: Stage['dialogs'] = []
+  const scriptedLocal = (name: string, call: (args: string) => Promise<unknown>, more: Record<string, unknown> = {}): unknown => ({ type: 'local', name, description: `the scripted /${name}`, supportsNonInteractive: false, seat: 'screen', load: async () => ({ call }), ...more })
+  const scriptedDialog = (name: string, call: (done: (result?: string, options?: Record<string, unknown>) => void, args: string) => unknown): unknown => ({
+    type: 'local-jsx',
+    name,
+    description: `the scripted /${name}`,
+    load: async () => ({ call: async (done: (result?: string, options?: Record<string, unknown>) => void, _context: unknown, args: string) => call(done, args) }),
+  })
+  const scripted =
+    options.plant !== 'commands'
+      ? []
+      : [
+          scriptedLocal('proof-says', async args => ({ type: 'text', value: `the scripted command said ${args === '' ? 'nothing' : args}` })),
+          scriptedLocal('proof-throws', async () => {
+            throw new Error('a planted fault of the command')
+          }),
+          scriptedLocal('proof-throws-words', async () => {
+            throw 'a planted fault that is no Error'
+          }),
+          scriptedLocal('proof-stops', async () => ({ type: 'text', value: 'the scripted command stopped the turn first' }), { interruptFirst: true }),
+          scriptedLocal('proof-route', async () => ({ type: 'skip' }), { uiRouteAlias: 'concourse' }),
+          scriptedLocal('proof-concourse-only', async () => ({ type: 'text', value: 'a command of the concourse ran' }), { needsConcourse: true }),
+          scriptedLocal('whisper', async args => ({ type: 'text', value: `the scripted whisper said ${args}` })),
+          scriptedDialog('proof-dialog', (done, args) => {
+            dialogs.push({ name: 'proof-dialog', args, done })
+            return h(Text, null, `a scripted dialog (${args})`)
+          }),
+          scriptedDialog('proof-nothing', () => null),
+          scriptedDialog('proof-slow', async (_done, args) => {
+            await new Promise<void>(resolve => dialogs.push({ name: 'proof-slow', args, done: () => resolve() }))
+            return null
+          }),
+          scriptedDialog('proof-dialog-throws', () => {
+            throw new Error('a planted fault of the dialog')
+          }),
+          scriptedDialog('proof-dialog-throws-words', () => {
+            throw 'a planted fault of the dialog that is no Error'
+          }),
+          scriptedDialog('mission', (done, args) => {
+            done(`the scripted mission took ${args}`)
+            return null
+          }),
+          scriptedDialog('logins', (done, args) => {
+            dialogs.push({ name: 'logins', args, done })
+            return h(Text, null, 'a scripted sign-in door')
+          }),
+          scriptedDialog('model', (done, args) => {
+            dialogs.push({ name: 'model', args, done })
+            return h(Text, null, 'a scripted model door')
+          }),
+        ]
+  const commands = [...scripted, ...(await getCommands(project))] as Awaited<ReturnType<typeof getCommands>>
 
   let rowNumber = 0
   const stamped = (row: Message): Message => {
@@ -234,6 +341,7 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
     let runnerMode: PermissionMode | null = null
     let modelFacts: Record<string, unknown> = { effective: 'claude-sonnet-4-5', main: 'claude-sonnet-4-5', setting: null, sessionPin: null, pendingSwitch: null }
     let sendRefusal: string | null = null
+    let sendGate: Promise<void> | null = null
     let sendFault: string | null = null
     let modeRefusal: string | null = null
     let completedAt: number | null = null
@@ -281,6 +389,7 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
           .join(' ')
         calls.push(`sendWords ${JSON.stringify(text)}${said === '' ? '' : ` ${said}`}${sendFault !== null ? ' -> threw' : sendRefusal === null ? '' : ' -> refused'}`)
         if (sendFault !== null) throw new Error(sendFault)
+        if (sendGate !== null) await sendGate
         return sendRefusal === null ? { state: 'accepted' as const } : { state: 'refused' as const, detail: sendRefusal }
       },
       modelFacts: () => modelFacts,
@@ -343,6 +452,14 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
       },
       refuseSends: detail => {
         sendRefusal = detail
+      },
+      holdSends: () => {
+        let open: () => void = () => {}
+        sendGate = new Promise<void>(resolve => (open = resolve))
+        return () => {
+          sendGate = null
+          open()
+        }
       },
       failSends: fault => {
         sendFault = fault
@@ -559,6 +676,14 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
       }
       throw new Error(`the screen never painted "${words}" within ${SETTLE_CEILING_MS}ms`)
     },
+    dialogs,
+    dispatch: command => helm.requestCommandDispatch(command),
+    plainWorld: () => saveGlobalConfig(config => ({ ...config, concourseEnabled: false })),
+    handshake: line => {
+      handshake.line = line
+      for (const listener of [...handshake.heard]) listener()
+    },
+    warmups: () => `the daemon asked for ${warmed.daemon} · a runner warmed ${warmed.runners.length}${warmed.runners.every(cwd => cwd === project) ? '' : ' (not in the project)'} · the context windows warmed ${warmed.contextWindows}`,
     steps,
   }
   return stage
@@ -2125,6 +2250,197 @@ export const SCENARIOS: Scenario[] = [
       await stage.key(KEY.enter, 'the first prompt is sent though the housekeeping could not start', lacks('the first prompt'))
     },
   },
+  {
+    name: 'shell-road-notice',
+    covers: ['boot'],
+    options: { columns: 200, rows: 40, env: { MERCURY_WINDOWS_SHELL_ROAD: 'no-bash', MERCURY_SHELL_ENGINE: 'system' } },
+    run: async stage => {
+      await stage.mark('a host with no bash of any origin is told at the first frame', has('Bash tool absent'))
+    },
+  },
+  {
+    name: 'update-notice',
+    covers: ['boot'],
+    options: { plant: 'update-notice' },
+    run: async stage => {
+      await stage.mark('a newer version found by the quiet check is told and stays', has('9.9.9'))
+    },
+  },
+  {
+    name: 'daemon-handshake-line',
+    covers: ['boot'],
+    options: { columns: 160, rows: 40, plant: 'handshake' },
+    run: async stage => {
+      await stage.mark('first frame', has(PLACEHOLDER))
+      stage.handshake('the daemon runs an older build than this window')
+      await stage.mark('a daemon of another build is told', has('the daemon runs an older build'))
+      stage.handshake(null)
+      await stage.mark('the daemon answers with this build and the line goes', lacks('the daemon runs an older build'))
+    },
+  },
+  {
+    name: 'tmux-hint',
+    covers: ['boot'],
+    options: { columns: 160, rows: 40, plant: 'tmux' },
+    run: async stage => {
+      await stage.mark('a fullscreen window inside tmux without the mouse is given the hint', has('tmux detected'))
+    },
+  },
+  {
+    name: 'submit-screen-commands',
+    covers: ['submit'],
+    options: { plant: 'commands' },
+    run: async stage => {
+      await stage.mark('first frame', has(PLACEHOLDER))
+      await stage.type('/proof-says the words')
+      await stage.key(KEY.enter, 'a command of the screen runs and its line is painted as rows', has('the scripted command said the words'))
+      await stage.type('/proof-throws')
+      await stage.key(KEY.enter, 'a command that throws is told as failed', has('a planted fault of the command'))
+      await stage.type('/proof-throws-words')
+      await stage.key(KEY.enter, 'a command that throws what is no Error is told as failed', has('a planted fault that is no Error'))
+      stage.session.addRecords(stage.user('a turn the command stops'))
+      stage.session.setLive({ inFlight: true, phase: 'thinking', turnStartedAtMs: null })
+      await stage.mark('a turn runs', has('a turn the command stops'))
+      await stage.type('/proof-stops')
+      await stage.key(KEY.enter, 'a command that interrupts first stops the turn and then runs', has('stopped the turn first'))
+      stage.session.setLive({ inFlight: false, phase: 'idle' })
+      await stage.mark('the turn ended')
+      await stage.type('//two slashes are words')
+      await stage.key(KEY.enter, 'a line that begins with two slashes is sent as words', lacks('//two slashes are words'))
+      await stage.type('words that stay')
+      await stage.mark('other words are typed', has('words that stay'))
+      stage.dispatch('/compact')
+      await stage.mark('a command dispatched by a key is sent as one and the typed words stay', frame => frame.includes('words that stay') && stage.session.calls.some(call => call.includes('fromKeybinding')))
+    },
+  },
+  {
+    name: 'submit-route-alias',
+    covers: ['submit'],
+    options: { plant: 'commands' },
+    run: async stage => {
+      await stage.mark('first frame', has(PLACEHOLDER))
+      await stage.type('/proof-route')
+      await stage.key(KEY.enter, 'a command that is a route opens the concourse', lacks(PLACEHOLDER))
+      stage.src.route.initializeSurfaceRoute(stage.src.route.ROOT_CHAT_ROUTE)
+      await stage.mark('back on the chat', has(PLACEHOLDER))
+      await stage.type('/proof-route')
+      await stage.mark('the route is typed and not sent', has('/proof-route'))
+      stage.dispatch('/proof-route')
+      await stage.mark('the same line dispatched by a key leaves the composer and opens the concourse', lacks('/proof-route'))
+      stage.src.route.initializeSurfaceRoute(stage.src.route.ROOT_CHAT_ROUTE)
+      await stage.mark('back on the chat again', has(PLACEHOLDER))
+      stage.plainWorld()
+      await stage.type('/proof-concourse-only')
+      await stage.key(KEY.enter, 'a command of the concourse is answered as unavailable where no concourse is', has('proof-concourse-only'))
+      await stage.type('/proof-route')
+      await stage.key(KEY.enter, 'the route opens the concourse once more', lacks(PLACEHOLDER))
+      stage.dispatch('/proof-route')
+      await stage.mark('the route asked for again while the concourse is open')
+      stage.src.route.initializeSurfaceRoute(stage.src.route.ROOT_CHAT_ROUTE)
+      await stage.mark('back on the chat, which says the concourse was open already', has('already open'))
+    },
+  },
+  {
+    name: 'submit-dialog-commands',
+    covers: ['submit', 'dialogs'],
+    options: { plant: 'commands' },
+    run: async stage => {
+      const last = (): Stage['dialogs'][number] => stage.dialogs[stage.dialogs.length - 1]!
+      await stage.mark('first frame', has(PLACEHOLDER))
+      await stage.type('/proof-slow')
+      await stage.key(KEY.enter, 'a dialog command that takes long to answer is sent', () => stage.dialogs.length === 1)
+      await stage.type('/proof-dialog two')
+      await stage.key(KEY.enter, 'a second dialog command waits behind the first', has('queued — runs when /proof-slow settles'))
+      stage.dialogs[0]!.done()
+      await stage.mark('the first answers with nothing to show and the second mounts', has('a scripted dialog (two)'))
+      const second = last()
+      second.done('the second dialog ended\nwith two lines')
+      second.done()
+      await stage.mark('a result of two lines is painted as rows, and a second done is ignored', has('with two lines'))
+      await stage.type('/proof-dialog three')
+      await stage.key(KEY.enter, 'a third dialog mounts', has('a scripted dialog (three)'))
+      last().done(undefined, { display: 'skip', shouldQuery: true, metaMessages: ['meta words for the turn', ' '] })
+      await stage.mark('a dialog that asks for a turn sends its meta words', () => stage.session.calls.some(call => call.includes('meta words for the turn')))
+      stage.session.refuseSends('the session refused the meta words')
+      await stage.type('/proof-dialog four')
+      await stage.key(KEY.enter, 'a fourth dialog mounts', has('a scripted dialog (four)'))
+      last().done(undefined, { shouldQuery: true, metaMessages: ['meta words the session refuses'] })
+      await stage.mark('meta words the session refuses are told', has('could not start the turn'))
+      stage.session.refuseSends(null)
+      await stage.type('/proof-nothing')
+      await stage.key(KEY.enter, 'a dialog command with nothing to show says so', has('had nothing to show'))
+      await stage.type('/proof-dialog-throws')
+      await stage.key(KEY.enter, 'a dialog command that throws is told as failed', has('a planted fault of the dialog'))
+      await stage.type('/proof-dialog-throws-words')
+      await stage.key(KEY.enter, 'a dialog command that throws what is no Error is told as failed', has('that is no Error'))
+      await stage.type('/logins')
+      await stage.key(KEY.enter, 'the sign-in door mounts', has('a scripted sign-in door'))
+      last().done()
+      await stage.mark('the door closes with no prompt held behind a wall', lacks('a scripted sign-in door'))
+      stage.session.addRecords(stage.user('a prompt behind a wall'), { ...stage.assistant('Sign in to go on.'), isApiErrorMessage: true, error: 'authentication_failed' } as Message)
+      await stage.mark('a prompt refused at a sign-in wall goes back into the composer', frame => frame.includes('❯ a prompt behind a wall') || frame.split('a prompt behind a wall').length > 2)
+      stage.dispatch('/model')
+      await stage.mark('the model door mounts over the held prompt', has('a scripted model door'))
+      stage.session.setModelFacts({ effective: 'claude-opus-4-5', main: 'claude-opus-4-5' })
+      last().done()
+      await stage.mark('another model was chosen behind the door: the held prompt is sent again', () => stage.session.calls.some(call => call.includes('a prompt behind a wall')))
+      await stage.type('/proof-dialog typed')
+      await stage.mark('a dialog command is typed and not sent', has('/proof-dialog typed'))
+      stage.dispatch('/proof-dialog typed')
+      await stage.mark('dispatched by a key it leaves the composer and mounts', has('a scripted dialog (typed)'))
+      last().done(undefined, { nextInput: '  ', submitNextInput: true })
+      await stage.mark('a blank next line is not sent', lacks('a scripted dialog (typed)'))
+      await stage.type('/proof-dialog five')
+      await stage.key(KEY.enter, 'a fifth dialog mounts', has('a scripted dialog (five)'))
+      last().done(undefined, { nextInput: '/proof-says from a dialog', submitNextInput: true })
+      await stage.mark('a next line a dialog submits is run', has('the scripted command said from a dialog'))
+      await stage.type('/proof-dialog six')
+      await stage.key(KEY.enter, 'a sixth dialog mounts', has('a scripted dialog (six)'))
+      last().done(undefined, { nextInput: 'words a dialog hands to the composer' })
+      await stage.mark('a next line a dialog does not submit stands in the composer', has('words a dialog hands to the composer'))
+    },
+  },
+  {
+    name: 'submit-landing-refused',
+    covers: ['submit'],
+    options: { session: 'none', plant: 'commands' },
+    run: async stage => {
+      let land: () => void = () => {}
+      const landed = stage.src.slot.withLanding(new Promise<void>(resolve => (land = resolve)))
+      stage.src.route.initializeSurfaceRoute(stage.src.route.ROOT_CHAT_ROUTE)
+      await stage.mark('a session is landing and none is focused yet', has(PLACEHOLDER))
+      await stage.type('a first held line')
+      await stage.key(KEY.enter, 'the line is held for the landing', has('your line sends when it lands'))
+      await stage.type('!')
+      await stage.type('ls -la')
+      await stage.key(KEY.enter, 'a shell line is held behind it', lacks('ls -la'))
+      await stage.type('/mission ship it')
+      await stage.key(KEY.enter, 'a mission with words is held too', has('/mission sends when it lands'))
+      await stage.type('/whisper to the crew')
+      await stage.key(KEY.enter, 'and a command of the screen', has('/whisper sends when it lands'))
+      const session = stage.newSession('rec-refusing', [])
+      session.refuseSends('the landed session refused the line')
+      stage.focus(session)
+      land()
+      await landed
+      await stage.mark('the session landed and refused: both lines come back joined, the commands ran', frame => frame.includes('a first held line') && frame.includes('the scripted whisper said to the crew'))
+    },
+  },
+  {
+    name: 'submit-refusal-under-words',
+    covers: ['submit', 'draft'],
+    run: async stage => {
+      await stage.mark('first frame', has(PLACEHOLDER))
+      stage.session.refuseSends('the session refused the line — it is closing')
+      const release = stage.session.holdSends()
+      await stage.type('a line the session will refuse')
+      await stage.key(KEY.enter, 'the line is sent and its answer is not back yet', lacks('a line the session will refuse'))
+      await stage.type('words typed since')
+      await stage.mark('more words are typed', has('words typed since'))
+      release()
+      await stage.mark('the refusal is told and the words typed since stand', frame => frame.includes('it is closing') && frame.includes('words typed since'))
+    },
+  },
 ]
 
 export async function recordScenario(name: string): Promise<Recording> {
@@ -2133,14 +2449,14 @@ export async function recordScenario(name: string): Promise<Recording> {
   const stage = await openStage(name, scenario.options)
   try {
     await scenario.run(stage)
-    return { scenario: name, size: `${scenario.options?.columns ?? 120}x${scenario.options?.rows ?? 40}`, steps: stage.steps }
+    return { scenario: name, size: `${scenario.options?.columns ?? 120}x${scenario.options?.rows ?? 40}`, warmups: stage.warmups(), steps: stage.steps }
   } finally {
     await closeStage(stage)
   }
 }
 
 export function renderRecording(recording: Recording): string {
-  const out: string[] = [`scenario ${recording.scenario} · ${recording.size} · ${recording.steps.length} settled points`]
+  const out: string[] = [`scenario ${recording.scenario} · ${recording.size} · ${recording.steps.length} settled points`, `warm-ups, each a stand-in of the harness: ${recording.warmups}`]
   recording.steps.forEach((step, index) => {
     out.push('', `=== ${index + 1}. ${step.label}`, `title: ${step.title ?? '(none)'}`, `cursor: ${step.cursor}`)
     for (const call of step.calls) out.push(`call: ${call}`)
