@@ -6,10 +6,9 @@ setTimeout	src/cli/headless/hostAskLiveness.ts	2
 setTimeout	src/cli/headless/inputDoor.ts	1
 setTimeout	src/cli/headless/runnerArms.ts	1
 setTimeout	src/cli/headless/runnerAsks.ts	1
-setTimeout	src/cli/headless/sessionFactsArm.ts	1
 setTimeout	src/cli/healthJson.ts	1
 setTimeout	src/cli/healthPresentation.ts	1
-setTimeout	src/cli/run.ts	5
+setTimeout	src/cli/run.ts	3
 setTimeout	src/commands/feedback/healthSection.ts	1
 setTimeout	src/commands/logout/logout.tsx	1
 setTimeout	src/commands/mission/mission-jsx.tsx	1

@@ -1,5 +1,5 @@
 src/cli/headless/turnDriver.ts	createTurnDriver	371	491
-src/cli/run.ts	runHeadless	1102	1371
+src/cli/run.ts	runHeadless	1102	1372
 src/commands/health/HealthCertificate.tsx	MercuryHealthCertificate	317	589
 src/commands/model/mercuryModel.tsx	MercuryModelWrapper	528	1711
 src/components/BootAgentsScreen.tsx	BootAgentsScreen	871	1210

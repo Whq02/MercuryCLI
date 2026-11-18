@@ -1,6 +1,7 @@
 import type { FileCheckpointsFact, ResultOf } from '../../runner/wire/methods.js'
 import { fileHistoryEnabled, fileCheckpointSource } from '../../utils/fileHistory.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { sleep } from '../../utils/sleep.js'
 import { anthropicWindowFact, anthropicObservedUsage } from '../../services/anthropicLimits.js'
 import { openaiWindowFact } from '../../services/providers/openai/openaiWindowFact.js'
 import { laneWindowFact } from '../../services/providers/laneWindowFact.js'
@@ -62,7 +63,7 @@ export async function answerSessionFacts(ports: RunnerPorts): Promise<ResultOf<'
   if (!live.sessionFactsHoldSpent) {
     live.sessionFactsHoldSpent = true
     const holdMs = Number.parseInt(flagEnv('MERCURY_SESSION_FACTS_HOLD_MS') ?? '', 10)
-    if (Number.isFinite(holdMs) && holdMs > 0) live.sessionFactsHold = new Promise(resolve => setTimeout(resolve, holdMs))
+    if (Number.isFinite(holdMs) && holdMs > 0) live.sessionFactsHold = sleep(holdMs)
   }
   if (live.sessionFactsHold !== null) await live.sessionFactsHold
   const state = getAppState()

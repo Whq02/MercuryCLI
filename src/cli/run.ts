@@ -132,6 +132,7 @@ const BUILD_BEHIND_FLOOR_MS = 60_000
 const BUILD_BEHIND_THROTTLE_MS = 2_000
 const BUILD_BEHIND_CONFIRM_MS = 2_000
 import { logError } from '../utils/log.js'
+import { sleep } from '../utils/sleep.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import type { Message } from '../types/message.js'
 import type { ContentBlockParam } from '../types/wire.js'
@@ -1117,13 +1118,13 @@ export async function runHeadless(
     const running = live.inFlightAbort !== null
     live.inFlightAbort?.abort(cut)
     if (running) {
-      const deadline = new Promise<void>(resolve => setTimeout(resolve, SIGNAL_SETTLE_MS).unref?.())
+      const deadline = sleep(SIGNAL_SETTLE_MS, undefined, { unref: true })
       await Promise.race([outcomeAfterAbort(), deadline])
     }
     void gracefulShutdown(code)
   }
   const outcomeAfterAbort = async (): Promise<void> => {
-    while (driver.isRunning()) await new Promise(resolve => setTimeout(resolve, 20))
+    while (driver.isRunning()) await sleep(20)
     await live.lastOutcomeWritten
   }
   const hostCutWords = (): string | undefined => {
