@@ -35,11 +35,17 @@ const NO_WINDOWS_SHELL_MESSAGE =
 const BASH_VERSION_SHAPE = /^\d+\.\d+/
 const VERSION_ANSWER_LIMIT = 1024 * 1024
 
+function questionEnvironment(): NodeJS.ProcessEnv {
+  const env = withoutShellStartFiles({ ...subprocessEnv() })
+  for (const name of Object.keys(env)) if (name.startsWith('BASH_FUNC_')) delete env[name]
+  return env
+}
+
 export function startedBashVersion(path: string, limitMs: number = START_PROBE_TIMEOUT_MS): Promise<string | null> {
   return new Promise(resolve => {
     try {
       const ownGroup = process.platform !== 'win32'
-      const asked = spawn(path, ['--norc', '--noprofile', '-c', 'printf %s "$BASH_VERSION"'], { windowsHide: true, detached: ownGroup, stdio: ['ignore', 'pipe', 'ignore'], env: withoutShellStartFiles({ ...subprocessEnv() }) })
+      const asked = spawn(path, ['--norc', '--noprofile', '-c', 'printf %s "$BASH_VERSION"'], { windowsHide: true, detached: ownGroup, stdio: ['ignore', 'pipe', 'ignore'], env: questionEnvironment() })
       let said = ''
       let open = true
       const end = (): void => {

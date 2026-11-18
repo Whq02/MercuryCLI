@@ -107,6 +107,13 @@ try {
     await sleep(300)
     const leftOpen = gone(openFile)
     check('a process that ends while a question is open ends the program it asked', Number.isInteger(leftOpen.pid) && !leftOpen.alive, JSON.stringify(leftOpen))
+    if (A_BASH !== null) {
+      const names = ['BASH_FUNC_printf%%', 'BASH_FUNC_builtin%%']
+      for (const name of names) process.env[name] = '() { echo not-a-version; }'
+      const withFunctions = await ask(A_BASH)
+      for (const name of names) delete process.env[name]
+      check('exported functions named printf and builtin do not answer for the bash: the question runs no function of the user\'s', withFunctions !== null && VERSION_ALONE.test(withFunctions), String(withFunctions))
+    }
   }
 
   type Leg = { served: { path: string; version: string; origin: string } | null; ran: string | null; error: string | null; row: { status: string; evidence: string }; kind: string; tool: boolean; ms: number }
