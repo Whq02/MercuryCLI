@@ -1,7 +1,6 @@
 
 import { randomUUID } from 'crypto'
-import { existsSync, writeSync } from 'node:fs'
-import { unlink } from 'fs/promises'
+import { existsSync } from 'node:fs'
 import { join, resolve } from 'path'
 import { MERCURY_VERSION } from '../constants/product.js'
 import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
@@ -98,8 +97,6 @@ import { hostedCallerOf, hostedCallerRefusalLine, restartEndsHostedCaller } from
 import {
   acquireDaemonLock,
   clearDeadDaemonRecords,
-  clearDaemonState,
-  controlKeyPath,
   controlSockPath,
   currentVersion,
   daemonControlRpc,
@@ -111,8 +108,7 @@ import {
   daemonStatePath,
   writeDaemonState,
 } from './controlSocket.js'
-import { armDaemonHomeWatch } from './daemonHome.js'
-import { forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
+import { handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
 import { holdBuild, invokedScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync } from './planeRecords.js'
@@ -124,13 +120,21 @@ import { armHandoverBeats } from './run/handover.js'
 import { armPlaneHeal } from './run/heal.js'
 import { armOwnerWatch, makeSessionlessBeat, markHosted } from './run/owner.js'
 import { periodicArmer } from './run/periodic.js'
-import { bindWayOut, shutdownDaemon } from './run/shutdown.js'
+import { armWaysOut, bindWayOut, giveHomeBack, shutdownDaemon, stopVerb } from './run/shutdown.js'
 import { armedRestartBeat, restartWhenIdle, spawnSuccessorDaemon } from './run/restart.js'
 import { armReconcile, processSweep } from './run/sweep.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
   return arg ? resolve(arg) : process.cwd()
+}
+
+function persistDaemonCrash(err: unknown, label: string): void {
+  try {
+    const crashMod = require('../utils/crashReport.js') as typeof import('../utils/crashReport.js')
+    crashMod.persistCrashReport(err, undefined, label === 'uncaughtException' ? 'uncaught-exception' : 'unhandled-rejection')
+  } catch {
+  }
 }
 
 function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeDropWhy, roster: TaskRoster | null = null): void {
@@ -891,30 +895,7 @@ async function daemonRun(args: string[]): Promise<void> {
               : { outcome: out.outcome, detail: out.reason },
           )
         },
-        onShutdown: async (reapWorkers, forwardedFromPlane) => {
-          const workers: ReturnType<NonNullable<typeof roster>['liveWorkerFacts']> = []
-          if (reapWorkers && roster) {
-            const live = roster.liveWorkerFacts()
-            const parked = parkAllConcourseSessions('daemon:stop', roster, undefined, { reason: 'parked — the daemon was stopped', afterTurn: false })
-            console.error(`[daemon] stop parks every active session: parked ${parked.parked.length}, released ${parked.released.length} newborn(s), skipped ${parked.skipped.length}${parked.refused.length > 0 ? `, refused ${parked.refused.join(', ')}` : ''}`)
-            for (const w of live) {
-              if (roster.kill(w.short)) workers.push(w)
-            }
-          }
-          const forwarded = forwardedFromPlane
-            ? []
-            : await Promise.all(
-                (handover?.predecessorPids() ?? []).map(pid => forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers, forwarded: true }), PREDECESSOR_SHUTDOWN_WAIT_MS).catch(() => null)),
-              )
-          let reaped = workers.length
-          for (const reply of forwarded) {
-            if (reply === null || !reply.ok || reply.op !== 'shutdown') continue
-            reaped += reply.reaped
-            workers.push(...(reply.workers ?? []))
-          }
-          setImmediate(() => requestShutdown('control:shutdown'))
-          return { reaped, workers }
-        },
+        onShutdown: (reapWorkers, forwardedFromPlane) => stopVerb(state, { requestShutdown: signal => requestShutdown(signal) }, reapWorkers, forwardedFromPlane),
         hello: () => ({
           version: currentVersion(),
           buildTree: bootBuildTree,
@@ -1023,22 +1004,9 @@ async function daemonRun(args: string[]): Promise<void> {
       }
       armReconcile(state, { warmDeps, armPeriodic })
     } catch (e) {
-      console.error(`[daemon] ${GLYPH.warn} control layer FAILED to start: ${e}`)
-      logForDebugging(`[daemon] control layer failed to start — giving the home back and exiting: ${e}`)
-      state.controlServer = null
       roster = null
       state.roster = roster
-      const holder = await planeAnswer(bootBuildTree).catch(() => null)
-      try {
-        writeSync(2, `[daemon] ${planeHeldLine(holder)}\n`)
-      } catch {}
-      await unlink(controlKeyPath()).catch(() => {})
-      await clearDaemonState()
-      if (process.platform !== 'win32') await unlink(predecessorSockPath(process.pid)).catch(() => {})
-      await state.daemonLock?.release().catch(() => {})
-      state.daemonLock = null
-      state.teardownComplete = true
-      process.exit(1)
+      await giveHomeBack(state, { planeAnswer, planeHeldLine }, e)
     }
   }
 
@@ -1048,31 +1016,7 @@ async function daemonRun(args: string[]): Promise<void> {
     const shutdown = (signal: string): void => shutdownDaemon(state, wayOut, signal)
     const ownerNeeds = { shutdown }
     requestShutdown = bindWayOut(state, shutdown)
-    armDaemonHomeWatch(daemonDir(), where => {
-      shutdown(`home-gone: the daemon directory ${daemonDir()} is gone, noticed at ${where}; the world ended and nothing more is written`)
-    })
-    process.on('SIGINT', () => shutdown('SIGINT'))
-    process.on('SIGTERM', () => shutdown('SIGTERM'))
-    process.on('SIGHUP', () => shutdown('SIGHUP'))
-    process.on('SIGBREAK', () => shutdown('SIGBREAK'))
-
-    const crashShutdown = (label: string, err: unknown): void => {
-      console.error(`[daemon] ${label} — reaping workers + control socket, then exiting:`, err)
-      try {
-        const crashMod = require('../utils/crashReport.js') as typeof import('../utils/crashReport.js')
-        crashMod.persistCrashReport(err, undefined, label === 'uncaughtException' ? 'uncaught-exception' : 'unhandled-rejection')
-      } catch {
-      }
-      try {
-        shutdown(label)
-      } catch (e) {
-        logForDebugging(`[daemon] crash shutdown threw: ${e}`)
-      }
-      const bail = setTimeout(() => process.exit(1), 2000)
-      bail.unref?.()
-    }
-    process.on('uncaughtException', err => crashShutdown('uncaughtException', err))
-    process.on('unhandledRejection', reason => crashShutdown('unhandledRejection', reason))
+    armWaysOut({ shutdown, persistCrash: persistDaemonCrash })
     if (state.currentOwnerPid !== null && !persist) {
       void armOwnerWatch(state, ownerNeeds, state.currentOwnerPid, true)
     }
@@ -1080,7 +1024,6 @@ async function daemonRun(args: string[]): Promise<void> {
 }
 
 const SUCCESSOR_LOCK_WAIT_MS = 10_000
-const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
 
 export const FREE_THE_PLANE_WORDS = '`mercury daemon stop` asks the daemon that holds this home to leave (it answers over the control pipe from any Mercury build); if it does not answer, end its pid by hand, then start again'
 
