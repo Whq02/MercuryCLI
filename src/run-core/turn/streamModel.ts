@@ -119,11 +119,11 @@ export function* emitSyntheticSettlements(
   }
 }
 
-export type StreamOutcome =
+type StreamOutcome =
   | { kind: 'streamed' }
   | { kind: 'terminal'; terminal: Terminal }
 
-export type ModelCall = {
+type ModelCall = {
   callId: string
   effortValue: IterationState['appState']['effortValue']
   callReference: ReturnType<typeof buildModelCallReference>
@@ -201,7 +201,7 @@ export function* announceModelCall(iter: IterationState, emit: EventMint, callId
   return { effortValue, callReference }
 }
 
-export type ReplySettling = {
+type ReplySettling = {
   callId: string
   projectedReplies: Map<string, AssistantMessage>
   settleGauge: (message: AssistantMessage) => void

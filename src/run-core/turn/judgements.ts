@@ -2,7 +2,7 @@ export const STREAM_FAULT_RECOVERY_LIMIT = 1
 
 export const TOOL_CALL_REFUSAL_RECOVERY_LIMIT = 3
 
-export type StreamFaultDecision = { kind: 'continue'; attempt: number } | { kind: 'surface' }
+type StreamFaultDecision = { kind: 'continue'; attempt: number } | { kind: 'surface' }
 
 export function decideToolCallRefusalRecovery(input: {
   refusals: number
