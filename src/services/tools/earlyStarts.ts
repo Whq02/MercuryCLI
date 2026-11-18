@@ -28,12 +28,12 @@ type Ask = {
   heir?: string
 }
 
-function childAbortController(parent: AbortController): AbortController {
-  const child = new AbortController()
-  const forward = (): void => child.abort(parent.signal.reason)
+function childAbortController(parent: AbortController): { controller: AbortController; unlisten: () => void } {
+  const controller = new AbortController()
+  const forward = (): void => controller.abort(parent.signal.reason)
   if (parent.signal.aborted) forward()
   else parent.signal.addEventListener('abort', forward, { once: true })
-  return child
+  return { controller, unlisten: () => parent.signal.removeEventListener('abort', forward) }
 }
 
 export class EarlyStarts {
@@ -131,7 +131,7 @@ export class EarlyStarts {
   }
 
   private start(block: ToolUseBlock, parent: AssistantMessage, ordinal: number): void {
-    const controller = childAbortController(this.context.abortController)
+    const { controller, unlisten } = childAbortController(this.context.abortController)
     const context: ToolUseContext = { ...this.context, abortController: controller }
     const updates = new Stream<MessageUpdateLazy>()
     const roundID = this.roundID
@@ -145,6 +145,8 @@ export class EarlyStarts {
         updates.done()
       } catch (error) {
         updates.error(error)
+      } finally {
+        unlisten()
       }
     })()
     this.controllers.set(block.id, controller)

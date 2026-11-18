@@ -148,7 +148,6 @@ async function main(): Promise<void> {
     for (const [label, ...path] of [
       ['sessionTitle', 'utils', 'sessionTitle.ts'],
       ['generateSessionName', 'commands', 'rename', 'generateSessionName.ts'],
-      ['tool-use summary', 'services', 'toolUseSummary', 'toolUseSummaryGenerator.ts'],
       ['WebFetch reading', 'tools', 'WebFetchTool', 'utils.ts'],
       ['MCP datetime parser', 'utils', 'mcp', 'dateTimeParser.ts'],
     ] as const) {

@@ -155,7 +155,6 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check('the settled assistant message carries the typed stamp beside the typed end', /streamEnd\?: StreamEndV1[\s\S]{0,600}effortAdjusted\?: EffortAdjustedV1/.test(messageTypes))
   const lane = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
   check('the GPT lane stamps the adjustment on the settled message and no longer folds it into the reply text', lane.includes('lastMessage.effortAdjusted = ') && !lane.includes("is not in ${modelId}'s live effort catalogue"))
-  const envBefore = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const receiptsOf = async (stamp: Record<string, unknown>, agentId?: string): Promise<string> => {
     const run = await t.runScripted({
@@ -173,8 +172,6 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
     'the first pair on a crewmate thread': await receiptsOf(pair, t.fixtures.agent()),
     'the same pair again on that thread': await receiptsOf(pair, t.fixtures.agent()),
   }
-  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
-  Object.assign(process.env, envBefore)
   check(
     'the turn machine paints the receipt row from the stamp, once per thread and word pair',
     Object.values(painted).join(' / ') === [line, 'no row', effort.effortAdjustedReceiptLine(otherPair), line, 'no row'].join(' / '),

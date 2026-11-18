@@ -28,6 +28,8 @@
 # gate-watch: scripts/lib/settingsPopupHarness.ts
 # gate-watch: scripts/ui/chatScenarios.ts
 # gate-watch: src/screens/chat/*
+# gate-watch: src/services/capacity/governor.ts
+# gate-watch: src/services/tools/earlyStarts.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1
@@ -75,6 +77,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-runloop-contract.ts 
 echo "── core-runtime: the turn machine, recorded scenario by scenario"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-turn-recording.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-turn-recording.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-nested-turn-recording.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-nested-turn-recording.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-turn-stops-release.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-turn-stops-release.ts "$__t" "$__rc"
 
 echo "── core-runtime: the steps of a turn, each called with a planted state"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-turn-steps.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-turn-steps.ts "$__t" "$__rc"

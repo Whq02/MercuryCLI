@@ -14,6 +14,15 @@ delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
 delete process.env.MERCURY_AUTO_COMPACT
 delete process.env.MERCURY_COMPACT
 delete process.env.MERCURY_CTX_COMPACTION
+const ROAD_RECORD = mkdtempSync(join(tmpdir(), 'ptl-laws-roads-'))
+process.env.MERCURY_WIRE_DUMP = ROAD_RECORD
+const foldRoads = (): string[] =>
+  readdirSync(ROAD_RECORD)
+    .flatMap(name => readFileSync(join(ROAD_RECORD, name), 'utf8').split('\n'))
+    .filter(line => line.includes('"kind":"fold"'))
+    .map(line => JSON.parse(line) as { seq: number; road: string; outcome: string; detail?: string })
+    .sort((a, b) => a.seq - b.seq)
+    .map(row => `${row.road}:${row.outcome}${row.detail !== undefined ? ` (${row.detail})` : ''}`)
 
 import { z } from 'zod/v4'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -117,6 +126,7 @@ type Collected = {
   messages: Array<Record<string, unknown>>
   terminal: { reason: string } | undefined
   api: FixtureApi
+  roads: string[]
 }
 
 async function runQuery(opts: {
@@ -127,6 +137,7 @@ async function runQuery(opts: {
 }): Promise<Collected> {
   const envKeys = Object.keys(opts.env ?? {})
   for (const [k, v] of Object.entries(opts.env ?? {})) process.env[k] = v
+  const roadsBefore = foldRoads().length
   const api = await startFixtureApi(opts.turns)
   process.env.ANTHROPIC_BASE_URL = api.url
 
@@ -196,8 +207,10 @@ async function runQuery(opts: {
     await api.close()
     for (const k of envKeys) delete process.env[k]
   }
-  return { messages, terminal, api }
+  return { messages, terminal, api, roads: foldRoads().slice(roadsBefore) }
 }
+
+const FORK_LANE_NOTE = 'summarizeViaCacheSharingFork (src/services/compact/compact.ts) hands a failure of its nested turn to the direct lane and the round goes on: the context runQuery builds must let that turn start (startTurn) and carry what runForkedAgent reads'
 
 console.log('============================================================')
 console.log(' query()/queryLoop — the PTL single-shot recovery laws')
@@ -243,6 +256,7 @@ section('§1 — over-threshold history: ONE compact round, the summary installs
   })
   const reqs = r.api.messageRequests()
   check('exactly two model calls (compact + main)', reqs.length === 2, `${reqs.length}`)
+  check("…and the fold's road record reads the compact call as the fork lane's own summary: one row, fork:summary", r.roads.join(' · ') === 'fork:summary', `${r.roads.join(' · ') || 'no row'} — ${FORK_LANE_NOTE}`)
   check('call 1 is the COMPACT request (carries the summary instruction)', !!reqs[0] && isCompactRequest(reqs[0]))
   check('the compact request carries the real history', !!reqs[0] && reqs[0].raw.includes('PTL HISTORY NEEDLE alpha'))
   check('call 2 is the MAIN request (no compact instruction)', !!reqs[1] && !isCompactRequest(reqs[1]))
@@ -265,6 +279,7 @@ section('§2 — a FAILED compact round (fork + fallback) does not kill the turn
   })
   const reqs = r.api.messageRequests()
   check('exactly three model calls (fork compact + fallback compact + main)', reqs.length === 3, `${reqs.length}`)
+  check("…and the road record reads the round as the two lanes' own: the fork lane handed over on the answer it got (no usable summary), then the direct lane was refused", r.roads.length === 2 && r.roads[0] === 'fork:handover (no usable summary)' && (r.roads[1] ?? '').startsWith('direct:refused'), `${r.roads.join(' · ') || 'no row'} — ${FORK_LANE_NOTE}`)
   check('calls 1+2 are the ONE compact round (both lanes)', !!reqs[0] && !!reqs[1] && isCompactRequest(reqs[0]) && isCompactRequest(reqs[1]))
   check('call 3 is the MAIN request over the ORIGINAL history', !!reqs[2] && !isCompactRequest(reqs[2]) && reqs[2].raw.includes('PTL HISTORY NEEDLE alpha'))
   check('the main-turn text yields', r.messages.some(m => m.type === 'assistant' && j(m).includes('P2 MAIN TURN')))
@@ -410,6 +425,17 @@ section('§6 — consecutive compact failures accumulate; the FOURTH iteration m
   )
   check('the final text yields', r.messages.some(m => m.type === 'assistant' && j(m).includes('P6 FINAL TURN')))
   check("Terminal reason 'completed'", r.terminal?.reason === 'completed', r.terminal?.reason)
+}
+
+section("§7 — the fold's road record: wherever a compact round ran above, the fork lane answered it itself")
+{
+  const fork = foldRoads().filter(row => row.startsWith('fork:'))
+  const notItsOwn = fork.filter(row => row !== 'fork:summary' && row !== 'fork:handover (no usable summary)')
+  check(
+    `the fork lane was asked ${fork.length} times in the sections above, and each row is its own answer: a summary, or a hand-over on the answer it got (no usable summary)`,
+    fork.length >= 9 && notItsOwn.length === 0,
+    `${notItsOwn.length} of ${fork.length} rows are no answer of the lane (9 rows at least are asked for): ${[...new Set(notItsOwn)].slice(0, 3).join(' · ')} — ${FORK_LANE_NOTE}`,
+  )
 }
 
 console.log('\n============================================================')

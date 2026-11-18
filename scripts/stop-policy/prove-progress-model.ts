@@ -171,7 +171,6 @@ section('§7 one continuation per attempt across families; wording demoted; drai
   } as never)
   check('SS-25/29: wording never overrules a typed one-shot terminal', worded.kind === 'complete', worded.kind)
 
-  const envBefore = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const queue = await import('../../src/utils/messageQueueManager.ts')
   const NOTES = [
@@ -185,8 +184,6 @@ section('§7 one continuation per attempt across families; wording demoted; drai
     },
     script: [t.fixtures.yields(t.fixtures.calls('toolu_round', 'EchoTool', { text: 'x' })), t.fixtures.yields(t.fixtures.says('all three notes are read.'))],
   })
-  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
-  Object.assign(process.env, envBefore)
   type Queued = { type?: string; attachment?: { type?: string; prompt?: unknown; source_uuid?: unknown } }
   const queuedIn = (rows: unknown[] | undefined): string => ((rows ?? []) as Queued[]).filter(row => row.type === 'attachment' && row.attachment?.type === 'queued_command').map(row => `${String(row.attachment?.prompt)} (${String(row.attachment?.source_uuid)})`).join(' | ') || 'none'
   const window = drained.events.slice(drained.events.findIndex(event => event.kind === 'tool_settled') + 1, Math.max(drained.events.findIndex(event => event.kind === 'turn_settled'), 0))

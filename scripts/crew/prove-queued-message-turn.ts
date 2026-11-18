@@ -226,7 +226,6 @@ section("§4 the lifecycle's end-of-run drain takes exactly what it peeked; late
   const lifecycle = readFileSync(join(ROOT, 'src/tools/AgentTool/agentToolUtils.ts'), 'utf8')
   check('the lifecycle drains by the counts it peeked and marks a run that went on with the parent\'s guidance', /drainPendingMessages\(taskId, stateReader, rootSetAppState, pending\.length\)/.test(lifecycle) && /takeOperatorMessages\(taskId, stateReader, rootSetAppState, operator\.length\)/.test(lifecycle) && /continuedOnGuidance = pending\.length > 0/.test(lifecycle))
   check('a run that went on with queued guidance sends no completion notice; the resumed run sends its own when its queue is empty', /const notifies = \(overloadEpisode === null \|\| overloadDeathNotifies\(overloadEpisode\)\) && !continuedOnGuidance/.test(lifecycle))
-  const ambient = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const { NO_TOOL_RULES, readReply } = await import('../../src/run-core/turn/noToolReply.ts')
   const queuedRule = NO_TOOL_RULES.find(entry => entry.name === 'queued_message')!
@@ -237,14 +236,17 @@ section("§4 the lifecycle's end-of-run drain takes exactly what it peeked; late
     return out
   }
   const crew = await atTheNaturalEnd({ agentId: t.fixtures.agent(), querySource: 'agent:custom', appState: t.fixtures.crewTask(['read the contract', 'and conform to it']), script: [t.fixtures.yields(t.fixtures.says('the note is written.'))] })
-  const lead = await atTheNaturalEnd({ appState: t.fixtures.crewTask(['read the contract', 'and conform to it']), script: [t.fixtures.yields(t.fixtures.says('the note is written.'))] })
-  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
-  Object.assign(process.env, ambient)
+  const filedUnderNoId = (): Record<string, unknown> => {
+    const queue = t.fixtures.crewTask(['read the contract', 'and conform to it'])
+    const task = Object.values(queue.tasks as Record<string, Record<string, unknown>>)[0]!
+    return { ...queue, tasks: { [String(undefined)]: { ...task, id: String(undefined), agentId: String(undefined) } } }
+  }
+  const lead = await atTheNaturalEnd({ appState: filedUnderNoId(), script: [t.fixtures.yields(t.fixtures.says('the note is written.'))] })
   const handed = (crew.decision as { next?: { transition?: unknown; messages?: unknown[] } } | undefined)?.next
   check(
     'the turn machine reads a crewmate\'s queue at the natural end of a turn and continues with reason queued_message',
     t.reasonOf(crew.decision) === 'hand_over queued_message' && JSON.stringify(handed?.transition) === JSON.stringify({ reason: 'queued_message', count: 2 }) && crew.events.filter(event => event.kind === 'attachment').length === 2 && JSON.stringify(textsOf(handed?.messages ?? []).slice(-2)) === JSON.stringify(['read the contract', 'and conform to it']) && t.reasonOf(lead.decision) === 'nothing' && lead.events.length === 0,
-    `a crewmate with two queued messages: ${t.reasonOf(crew.decision)} ${JSON.stringify(handed?.transition)}, ${crew.events.length} row(s); a run with no agent id over the same queue: ${t.reasonOf(lead.decision)}, ${lead.events.length} row(s) — the queued_message rule of src/run-core/turn/noToolReply.ts hands over with the count of the crewmate's own pending messages, each as a row of the next turn, and decides nothing for a run with no agent id`,
+    `a crewmate with two queued messages: ${t.reasonOf(crew.decision)} ${JSON.stringify(handed?.transition)}, ${crew.events.length} row(s); a run with no agent id, the same queue filed where an absent id would read it: ${t.reasonOf(lead.decision)}, ${lead.events.length} row(s) — the queued_message rule of src/run-core/turn/noToolReply.ts hands over with the count of the crewmate's own pending messages, each as a row of the next turn; for a run with no agent id getAgentPendingMessageAttachments (src/utils/attachments/queuedCommands.ts) answers nothing, and the rule decides nothing`,
   )
 }
 

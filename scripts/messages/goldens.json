@@ -23567,16 +23567,6 @@
   "type": "system",
   "uuid": "«u1»"
  },
- "createToolUseSummaryMessage/basic": {
-  "precedingToolUseIds": [
-   "toolu_0001",
-   "toolu_0002"
-  ],
-  "summary": "summary",
-  "timestamp": "«ts»",
-  "type": "tool_use_summary",
-  "uuid": "«u1»"
- },
  "createCloseUsageMessage/stored": {
   "closeState": "stored",
   "isMeta": false,

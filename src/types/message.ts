@@ -746,11 +746,3 @@ export type TombstoneMessage = {
   type: 'tombstone'
   message: AssistantMessage
 }
-
-export type ToolUseSummaryMessage = {
-  type: 'tool_use_summary'
-  summary: string
-  precedingToolUseIds: string[]
-  uuid: UUID
-  timestamp: string
-}

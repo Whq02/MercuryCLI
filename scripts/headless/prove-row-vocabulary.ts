@@ -108,7 +108,7 @@ for (const type of everyType) {
 check('every key of every projected row is snake_case (tool input keys excepted)', offenders.filter(k => !k.startsWith('tool_call.input')).length === 0, offenders.slice(0, 5).join(' '))
 
 section('V3 no row type is a message kind of the engine or the transcript')
-const messageKinds = ['assistant', 'user', 'system', 'result', 'stream_event', 'attachment', 'progress', 'tool_use_summary', 'control_request', 'control_response', 'control_cancel_request', 'keep_alive', 'summary', 'custom_title', 'file-history-snapshot']
+const messageKinds = ['assistant', 'user', 'system', 'result', 'stream_event', 'attachment', 'progress', 'control_request', 'control_response', 'control_cancel_request', 'keep_alive', 'summary', 'custom_title', 'file-history-snapshot']
 const collisions = [...everyType, ...INPUT_ROW_TYPES].filter(type => messageKinds.includes(type))
 check('zero collisions', collisions.length === 0, collisions.join(','))
 

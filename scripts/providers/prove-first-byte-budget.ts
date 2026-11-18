@@ -82,7 +82,6 @@ section('B5 · the wiring (structural)')
   check('the budget\'s expiry becomes the typed line on the retry ladder (never the operator\'s own abort)', /if \(!signal\.aborted && isFirstByteTimeout\(sent\)\)[\s\S]{0,300}throw new APIConnectionTimeoutError\(\{ message: firstByteTimeoutLine\(wait\)[^}]*\}\)/.test(core))
   check('the wait is spoken before the request and cleared at the first byte', /options\.onWait\?\.\(wait\)/.test(core) && /result = await dispatch\(\)[\s\S]{0,1200}options\.onWait\?\.\(null\)/.test(core))
   check('every retry notice speaks a reissue on its way (attempt, cause, delay) beside the row it paints', /kind: 'retry',\s*\n\s*attempt: notice\.retryAttempt,\s*\n\s*of: notice\.maxRetries,/.test(core) && /options\.onWait\?\.\(retryWait\)/.test(core))
-  const envBefore = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const firstByte = { kind: 'first-byte', cold: true, promptTokens: 26_000, model: 'Opus 5', budgetMs: 91_200, sinceMs: 5, attempt: 1 }
   const reissue = { kind: 'retry', attempt: 2, of: 10, reason: 'a 529', delayMs: 4_000, sinceMs: 7 }
@@ -93,8 +92,6 @@ section('B5 · the wiring (structural)')
     },
     script: [[{ kind: 'do', fn: env => { for (const wait of [firstByte, reissue, null]) (env.options.onWait as (wait: unknown) => void)(wait) } }, ...t.fixtures.yields(t.fixtures.says('done.'))]],
   })
-  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
-  Object.assign(process.env, envBefore)
   const relayed = frames.filter(frame => 'wait' in frame)
   check(
     'the turn machine relays the wait on the runner\'s status frame',

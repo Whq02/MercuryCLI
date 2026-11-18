@@ -77,7 +77,7 @@ const uncached = (value: unknown): unknown => JSON.parse(JSON.stringify(value, (
 const lastModelRowAt = (rows: any[]): number => rows.reduce((last, row, at) => (row.role === 'assistant' || row.role === 'model' || row.type === 'reasoning' ? at : last), -1)
 const count = (text: string, needle: string): number => text.split(needle).length - 1
 const escaped = (text: string): string => JSON.stringify(text).slice(1, -1)
-type FoldRow = { kind: string; family?: string; road?: string; outcome?: string; model?: string }
+type FoldRow = { kind: string; family?: string; road?: string; outcome?: string; model?: string; detail?: string }
 function foldRows(): FoldRow[] {
   const rows: FoldRow[] = []
   for (const file of readdirSync(DUMP_DIR).filter(f => f.endsWith('.jsonl'))) {
@@ -153,7 +153,7 @@ async function atThreshold(label: string, model: string, family: string, resultC
   const ceilingFollows = JSON.stringify(refCeiling) === JSON.stringify(foldCeiling) || (typeof refCeiling === 'number' && typeof foldCeiling === 'number' && foldCeiling <= refCeiling && refCeiling - foldCeiling < 4_000)
   check(`${label}: the posture is the session request's, and the output ceiling is the session's or the fit's answer for the fold prompt's few extra tokens (under 4,000 lower, never higher)`, JSON.stringify(posture(reference)) === JSON.stringify(posture(requests[0]?.body as Body | undefined)) && ceilingFollows, JSON.stringify({ reference: posture(reference), fold: posture(requests[0]?.body as Body | undefined), ceilings: { reference: refCeiling, fold: foldCeiling } }).slice(0, 300))
   if (shouldRideCacheSharingFork(model, thinkingConfig as never)) {
-    check(`${label}: the cache-sharing fork carried the summary — no direct lane, no hand-over`, roads.length === 1 && roads[0]?.road === 'fork' && roads[0]?.outcome === 'summary', roads.map(r => `${r.road}:${r.outcome}`).join(', '))
+    check(`${label}: the cache-sharing fork carried the summary — no direct lane, no hand-over`, roads.length === 1 && roads[0]?.road === 'fork' && roads[0]?.outcome === 'summary', `${roads.map(r => `${r.road}:${r.outcome}${r.detail !== undefined ? ` (${r.detail})` : ''}`).join(', ') || 'no row'} — summarizeViaCacheSharingFork (src/services/compact/compact.ts) hands a failure of its nested turn to the direct lane, which lands the same summary: the context this proof builds must let that turn start (startTurn) and carry what runForkedAgent reads`)
     const rows = rowsOf(requests[0]?.body as Body | undefined) as any[]
     const marked = rows.map((row, at) => (Array.isArray(row.content) && row.content.some((block: any) => block.cache_control !== undefined) ? at : -1)).filter(at => at >= 0)
     const markedRound = marked.length === 1 ? built.ids.indexOf(rows[marked[0]!]?.content?.find((block: any) => block.type === 'tool_result')?.tool_use_id) : -1

@@ -13,7 +13,6 @@ import {
 import { createSystemMessage } from '../utils/messages.js'
 import type { QuerySource } from '../constants/querySource.js'
 import { memorySignalScope } from '../mneme/mnemeSignal.js'
-import { buildQueryConfig } from '../query/config.js'
 import { productionDeps, type QueryDeps } from '../query/deps.js'
 import type { Terminal } from '../query/transitions.js'
 import { BudgetGuard } from './budget-guard.js'
@@ -97,15 +96,12 @@ async function* runEventMachine(
     streamFaultRecoveryCount: 0,
     toolCallRefusalRecoveryCount: 0,
     turnCount: 1,
-    pendingToolUseSummary: undefined,
     transition: undefined,
     overflowEpisode: FRESH_OVERFLOW_EPISODE,
     pendingOverflow: undefined,
   }
 
   const budgetGuard = new BudgetGuard()
-
-  const config = buildQueryConfig()
 
   const pendingMemoryWrites: RefusedToolCall[] = []
   const holdMemoryWriteRefusals = (refusals: readonly RefusedToolCall[]): void => {
@@ -129,7 +125,6 @@ async function* runEventMachine(
     querySource,
     skipCacheWrite,
     deps,
-    config,
     budgetGuard,
     emit,
     consumedCommandUuids,

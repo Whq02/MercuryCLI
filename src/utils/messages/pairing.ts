@@ -1,12 +1,10 @@
 import type { ContentBlock, ContentBlockParam, ToolResultBlockParam } from '../../types/wire.js'
-import { MESSAGE_STAMPER } from '../../rows/project.js'
 import { clientCallItemsOf, contentItemsOf, resultItemsOf, storedBlocksOf } from '../../rows/content.js'
 import { getStrictToolResultPairing } from '../../bootstrap/state.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
 import type {
   AssistantMessage,
   Message,
-  ToolUseSummaryMessage,
   UserMessage,
 } from '../../types/message.js'
 import { logError } from '../log.js'
@@ -14,20 +12,6 @@ import { requestConversationPlan } from './apiPlan.js'
 import { contentBlocksOf } from './normalize.js'
 import { createUserMessage } from './factories.js'
 import { SYNTHETIC_TOOL_RESULT_PLACEHOLDER } from './rejectionText.js'
-
-export function createToolUseSummaryMessage(
-  summary: string,
-  precedingToolUseIds: string[],
-): ToolUseSummaryMessage {
-  const stamp = MESSAGE_STAMPER.mint()
-  return {
-    type: 'tool_use_summary',
-    summary,
-    precedingToolUseIds,
-    uuid: stamp.uuid,
-    timestamp: stamp.timestamp,
-  }
-}
 
 function resultsAnsweredOnce(
   content: readonly (ContentBlockParam | ContentBlock)[],

@@ -231,14 +231,11 @@ section('N0 — the nudge line is owned beside the fault marker: one bracketed s
   check('it asks for the final answer or a tool call', typeof EMPTY_NUDGE === 'string' && /final answer/i.test(EMPTY_NUDGE) && /tool call/i.test(EMPTY_NUDGE))
   check('it says the previous reply was empty', typeof EMPTY_NUDGE === 'string' && /previous reply/i.test(EMPTY_NUDGE) && /empty/i.test(EMPTY_NUDGE))
   check('the classifier accepts the wording and nothing else', isNudgeText !== undefined && EMPTY_NUDGE !== undefined && isNudgeText(EMPTY_NUDGE) && !isNudgeText(ASK) && !isNudgeText(String(errors.STREAM_FAULT_RECOVERY_NUDGE)), 'isEmptyReplyRecoveryNudgeText missing or wrong')
-  const ambient = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const { NO_TOOL_RULES, readReply } = await import('../../src/run-core/turn/noToolReply.ts')
   const planted = await t.plantReply({ script: [t.fixtures.yields(t.fixtures.empty('empty'))] })
   const retried = await t.drain(NO_TOOL_RULES.find(entry => entry.name === 'empty_reply_retry')!.decide(planted.run as never, planted.iter as never, readReply(planted.iter as never)))
   planted.close()
-  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
-  Object.assign(process.env, ambient)
   const handedRows = (retried.decision as { next?: { messages?: AnyMsg[] } } | undefined)?.next?.messages ?? []
   const added = handedRows.slice((planted.iter.messagesForQuery as unknown[]).length)
   const errorsSource = readFileSync(resolve(repoRoot, 'src/services/api/errors.ts'), 'utf8')

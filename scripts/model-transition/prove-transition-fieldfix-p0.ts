@@ -125,13 +125,10 @@ section('§C the Windows incident wave (intake F): evidence preserved, boundarie
   check('a code-less temporary message is retryable', temporary.some(event => event.type === 'stream-fault' && event.fault.retryable))
   const unknown = new ResponsesStreamFold().fold({ type: 'error', message: 'a different failure' })
   check('a code-less non-temporary message stays final', unknown.some(event => event.type === 'stream-fault' && !event.fault.retryable))
-  const envBefore = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const continued = await t.runScripted({
     script: [t.fixtures.yields(t.fixtures.says('the first half of the answer', 'stop_sequence'), t.fixtures.faulted()), t.fixtures.yields(t.fixtures.says('and the second half.'))],
   })
-  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
-  Object.assign(process.env, envBefore)
   const handedOverAt = continued.events.findIndex(event => event.kind === 'turn_settled')
   const saidFirst = t.noticesOf(continued.events.slice(0, Math.max(handedOverAt, 0)))
   check(

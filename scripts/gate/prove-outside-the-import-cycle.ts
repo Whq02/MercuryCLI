@@ -40,7 +40,6 @@ const OUTSIDE = [
   'src/services/run/requestContextPlan.ts',
   'src/services/search/nativeSearch.ts',
   'src/services/search/searchDoor.ts',
-  'src/services/toolUseSummary/toolUseSummaryGenerator.ts',
   'src/services/tools/earlyStarts.ts',
   'src/services/tools/loopGuard.ts',
   'src/services/tools/toolExecution.ts',

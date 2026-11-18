@@ -1,14 +1,10 @@
-import type { ToolResultBlockParam } from '../../types/wire.js'
 import { FRESH_OVERFLOW_EPISODE } from '../../services/compact/overflowRecovery.js'
 import type { ToolUseContext } from '../../Tool.js'
-import type { ToolUseSummaryMessage } from '../../types/message.js'
 import {
   createUserMessage,
   createUserInterruptionMessage,
   createSystemMessage,
-  createToolUseSummaryMessage,
 } from '../../utils/messages.js'
-import { generateToolUseSummary } from '../../services/toolUseSummary/toolUseSummaryGenerator.js'
 import { buildRewindRecordIfSettled } from '../../services/compact/checkpointRewind.js'
 import {
   createAttachmentMessage,
@@ -43,63 +39,14 @@ function refreshTurnTools(context: ToolUseContext): ToolUseContext {
   return { ...context, options: { ...options, tools } }
 }
 
-function toolUseSummaryOf(run: RunCtx, iter: IterationState): Promise<ToolUseSummaryMessage | null> | undefined {
-  const { config } = run
-  const { toolUseContext, assistantMessages, toolResults, toolUseBlocks } = iter
-  let nextPendingToolUseSummary:
-    | Promise<ToolUseSummaryMessage | null>
-    | undefined
-  if (
-    config.gates.emitToolUseSummaries &&
-    toolUseBlocks.length > 0 &&
-    !toolUseContext.abortController.signal.aborted &&
-    !toolUseContext.agentId
-  ) {
-    const lastTextBlock = assistantMessages.at(-1)?.message.content.findLast(
-      block => block.type === 'text',
-    )
-    const lastAssistantText = lastTextBlock && 'text' in lastTextBlock
-      ? lastTextBlock.text
-      : undefined
-
-    const firstResultByCall = new Map<string, ToolResultBlockParam>()
-    for (const result of toolResults) {
-      if (result.type !== 'user' || !Array.isArray(result.message.content)) continue
-      for (const content of result.message.content) {
-        if (content.type !== 'tool_result' || firstResultByCall.has(content.tool_use_id)) continue
-        firstResultByCall.set(content.tool_use_id, content)
-      }
-    }
-    const toolUseIds = toolUseBlocks.map(block => block.id)
-    const toolInfoForSummary = toolUseBlocks.map(({ id, name, input }) => {
-      const settlement = firstResultByCall.get(id)
-      const output = settlement && 'content' in settlement ? settlement.content : null
-      return { name, input, output }
-    })
-
-    nextPendingToolUseSummary = generateToolUseSummary({
-      tools: toolInfoForSummary,
-      signal: toolUseContext.abortController.signal,
-      isNonInteractiveSession: toolUseContext.options.isNonInteractiveSession,
-      lastAssistantText,
-    })
-      .then(summary => summary ? createToolUseSummaryMessage(summary, toolUseIds) : null)
-      .catch(() => null)
-  }
-  return nextPendingToolUseSummary
-}
-
 async function* drainQueuedCommands(run: RunCtx, iter: IterationState, updatedToolUseContext: ToolUseContext): AsyncGenerator<RunEvent> {
   const { emit, querySource, awaitingReply, consumedCommandUuids } = run
   const { toolUseContext, messagesForQuery, assistantMessages, toolResults, toolUseBlocks } = iter
   const sleepRan = toolUseBlocks.some(b => b.name === SLEEP_TOOL_NAME)
-  const currentAgentId = toolUseContext.agentId
-  const isMainThread =
-    currentAgentId === undefined &&
-    (querySource.startsWith('main_thread') || querySource === 'sdk')
+  const isMainThread = querySource.startsWith('main_thread') || querySource === 'sdk'
   const queuedCommandsSnapshot = selectDrainableCommands(
     getDrainableCommands(sleepRan),
-    { sleepRan, isMainThread, agentId: currentAgentId },
+    { sleepRan, isMainThread, agentId: toolUseContext.agentId },
     isSlashCommand,
   )
   markDraining(queuedCommandsSnapshot)
@@ -161,7 +108,6 @@ export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGener
   const { state, toolUseContext, messagesForQuery, tracking, callChain, assistantMessages, toolResults, toolUseBlocks, shouldPreventContinuation, loopStoppedCycle, loopStoppedRecord } = iter
   const { stopHookActive, turnCount } = state
   let { updatedToolUseContext } = iter
-  const nextPendingToolUseSummary = toolUseSummaryOf(run, iter)
 
   if (toolUseContext.abortController.signal.aborted) {
     const cutReason = toolUseContext.abortController.signal.reason
@@ -240,7 +186,6 @@ export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGener
     maxOutputTokensRecoveryCount: 0,
     streamFaultRecoveryCount: 0,
     toolCallRefusalRecoveryCount: 0,
-    pendingToolUseSummary: nextPendingToolUseSummary,
     maxOutputTokensOverride: undefined,
     stopHookActive,
     transition: { reason: 'next_turn' },

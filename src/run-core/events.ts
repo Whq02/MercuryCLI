@@ -6,14 +6,12 @@ import type {
   RequestStartEvent,
   StreamEvent,
   TombstoneMessage,
-  ToolUseSummaryMessage,
 } from '../types/message.js'
 type OpaqueMessage =
   | Message
   | StreamEvent
   | RequestStartEvent
   | TombstoneMessage
-  | ToolUseSummaryMessage
 
 export type RunEvent =
   | {

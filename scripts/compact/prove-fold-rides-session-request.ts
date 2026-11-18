@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -9,6 +9,16 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+const ROAD_RECORD = mkdtempSync(join(tmpdir(), 'fold-rides-session-request-roads-'))
+process.env.MERCURY_WIRE_DUMP = ROAD_RECORD
+const foldRoads = (): string[] =>
+  readdirSync(ROAD_RECORD)
+    .flatMap(name => readFileSync(join(ROAD_RECORD, name), 'utf8').split('\n'))
+    .filter(line => line.includes('"kind":"fold"'))
+    .map(line => JSON.parse(line) as { seq: number; road: string; outcome: string; detail?: string })
+    .sort((a, b) => a.seq - b.seq)
+    .map(row => `${row.road}:${row.outcome}${row.detail !== undefined ? ` (${row.detail})` : ''}`)
+const lanesAsked: string[] = []
 const { startOverflowFixture, OVERFLOW_LANES } = await import('./overflowFixture.ts')
 const fixture = await startOverflowFixture()
 Object.assign(process.env, fixture.env)
@@ -25,7 +35,7 @@ const { recordSentRequest } = await import('../../src/utils/forkedAgent.ts')
 const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { compactConversation } = await import('../../src/services/compact/compact.ts')
+const { compactConversation, shouldRideCacheSharingFork } = await import('../../src/services/compact/compact.ts')
 
 let failures = 0
 let checks = 0
@@ -99,6 +109,7 @@ async function drive(road: { lane: string; model: string; dialect: string }, eff
   const before = fixture.captured.length
   let error: unknown = referenceError
   let result: Awaited<ReturnType<typeof compactConversation>> | undefined
+  lanesAsked.push(shouldRideCacheSharingFork(road.model, thinkingConfig) ? 'fork' : 'direct')
   try {
     const overflow = opts.overflow ? { source: 'provider', family: road.lane, shape: 'context-length-exceeded' } : undefined
     result = await compactConversation(messages, context, { systemPrompt, userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages } as never, opts.auto === true, undefined, opts.auto === true, opts.auto === true ? { isRecompaction: false, turnsSincePreviousCompact: 3, autoCompactThreshold: opts.threshold ?? 150_000 } : undefined, overflow as never)
@@ -199,9 +210,20 @@ try {
       compare(label, driven.reference, driven.fold.at(-1), [], true)
     }
   }
+  {
+    const rows = foldRoads()
+    const forkFolds = lanesAsked.filter(lane => lane === 'fork').length
+    const astray = rows.map((row, at) => ({ row, lane: lanesAsked[at] })).filter(({ row, lane }) => row !== `${lane}:summary`)
+    check(
+      `the fold's road record reads one row for each of the ${lanesAsked.length} folds, the summary of the lane the model rides — the fork lane itself for the ${forkFolds} folds of a model that rides the cache-sharing fork`,
+      rows.length === lanesAsked.length && astray.length === 0 && forkFolds > 0,
+      { rows: rows.length, folds: lanesAsked.length, firstAstray: astray.slice(0, 3), change: 'summarizeViaCacheSharingFork (src/services/compact/compact.ts) hands a failure of its nested turn to the direct lane, and every comparison above then reads the direct lane\'s request: the context drive builds must let that turn start (startTurn) and carry what runForkedAgent reads' },
+    )
+  }
 } finally {
   await fixture.close()
   rmSync(home, { recursive: true, force: true })
+  rmSync(ROAD_RECORD, { recursive: true, force: true })
 }
 console.log(`${failures ? 'FAIL' : 'PASS'} fold-rides-session-request: ${checks} checks, ${failures} failures`)
 process.exit(failures ? 1 : 0)

@@ -634,23 +634,16 @@ section('E9 API-ERROR — system api_error projects to a retry wait row, categor
   check('the turn still completes after the retry', outcomeOf(r.yields)!.status === 'completed')
 }
 
-section('E10 RETRACTION + SUMMARY — the retraction is a partial row; the summary never reaches the stream')
+section('E10 RETRACTION — the retraction is a partial row')
 {
   const orphan = asstText('to be tombstoned')
   const steps = (): EngineStep[] => [
     ey(orphan),
     ey({ kind: 'assistant_retracted', message: orphan }),
-    ey({
-      type: 'tool_use_summary',
-      summary: 'did the things',
-      precedingToolUseIds: ['tu_s'],
-      uuid: 'rig-sum',
-    }),
     ey(asstText('final')),
     ey(msgDelta(undefined, 'end_turn')),
   ]
   const r = await runEngine({ steps: steps() })
-  check('the interactive tool-use summary never reaches the row stream', !r.yields.some(y => y.type === 'tool_use_summary'), rowTypes(r.yields).join(','))
   check(
     'without partialRows the retraction is invisible (CHARACTERIZED: a partial-row matter)',
     !r.yields.some(y => y.type === 'retracted'),
@@ -1326,9 +1319,6 @@ section('S6 SETTLEMENTS — atomic text clear, thinking capture, tombstone, summ
     p3.tombstoned[0] === target && p3.messages.length === 0,
     JSON.stringify(p3.trace),
   )
-  const p4 = makeProjector()
-  p4.feed({ type: 'tool_use_summary', summary: 's', precedingToolUseIds: [], uuid: 'x' })
-  check('tool_use_summary is SDK-only — zero interactive ops', p4.trace.length === 0)
 }
 
 section('S7 isDroppedLateStreamFrame — the late-frame drop table')
@@ -1501,8 +1491,7 @@ let recordedYields: unknown[] = []
     return (
       t !== 'stream_event' &&
       t !== 'stream_request_start' &&
-      t !== 'tombstone' &&
-      t !== 'tool_use_summary'
+      t !== 'tombstone'
     )
   })
   check(

@@ -7,29 +7,25 @@ import { dirname, join } from 'node:path'
 import { z } from 'zod/v4'
 
 const HOME = mkdtempSync(join(tmpdir(), 'turn-scenarios-'))
-process.env.MERCURY_CONFIG_DIR = HOME
-process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'turn-scenarios-daemon-'))
-for (const name of [
-  'MERCURY_BARE',
-  'MERCURY_EFFORT_LEVEL',
-  'MERCURY_MAX_OUTPUT_TOKENS',
-  'MERCURY_BLOCKING_LIMIT_OVERRIDE',
-  'MERCURY_COMPACT',
-  'MERCURY_AUTO_COMPACT',
-  'MERCURY_SCRIPTED_STREAM',
-  'MERCURY_MODEL',
-  'ANTHROPIC_API_KEY',
-  'NODE_ENV',
-]) {
-  delete process.env[name]
+const RIG_NAMES: Record<string, string | undefined> = {
+  MERCURY_CONFIG_DIR: HOME,
+  MERCURY_DAEMON_DIR: mkdtempSync(join(tmpdir(), 'turn-scenarios-daemon-')),
+  MERCURY_LOCAL_PROBE_TARGETS: 'none',
+  MERCURY_BARE: undefined,
+  MERCURY_EFFORT_LEVEL: undefined,
+  MERCURY_MAX_OUTPUT_TOKENS: undefined,
+  MERCURY_BLOCKING_LIMIT_OVERRIDE: undefined,
+  MERCURY_COMPACT: undefined,
+  MERCURY_AUTO_COMPACT: undefined,
+  MERCURY_SCRIPTED_STREAM: undefined,
+  MERCURY_MODEL: undefined,
+  ANTHROPIC_API_KEY: undefined,
+  NODE_ENV: undefined,
 }
-process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const { runEventCore } = await import('../../src/run-core/turn-machine.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
-bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
-enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages.ts')
 const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.ts')
@@ -254,10 +250,39 @@ export type OpenRig = {
   consumed: string[]
   mask: (value: unknown) => unknown
   counts: { modelCalls: number; folds: number }
+  session: string
+  home: string
   close: () => void
 }
 
+function takeProcess(): { put: (name: string, value: string | undefined) => void; handBack: () => void } {
+  const names = new Map<string, string | undefined>()
+  const session = bootstrap.getSessionId()
+  const projectDir = bootstrap.getSessionProjectDir()
+  const interactive = bootstrap.getIsInteractive()
+  const kind = bootstrap.getSessionKind()
+  const put = (name: string, value: string | undefined): void => {
+    if (!names.has(name)) names.set(name, process.env[name])
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+  }
+  for (const [name, value] of Object.entries(RIG_NAMES)) put(name, value)
+  const handBack = (): void => {
+    for (const [name, value] of names) {
+      if (value === undefined) delete process.env[name]
+      else process.env[name] = value
+    }
+    names.clear()
+    if (bootstrap.getSessionId() !== session) bootstrap.switchSession(session, projectDir)
+    bootstrap.setIsInteractive(interactive)
+    bootstrap.setSessionKind(kind)
+  }
+  return { put, handBack }
+}
+
 export function openRig(plan: Plan): OpenRig {
+  const taken = takeProcess()
+  enableConfigs()
   const mask = masker()
   const log: unknown[] = []
   const toolLane: unknown[] = []
@@ -276,16 +301,12 @@ export function openRig(plan: Plan): OpenRig {
       log.push(mask({ seat_wait: words }))
     }
   }
-  bootstrap.regenerateSessionId()
+  const session = String(bootstrap.regenerateSessionId())
   bootstrap.setIsInteractive(false)
   bootstrap.setSessionKind(plan.sessionKind ?? 'headless')
   queue.resetCommandQueue()
   setLoopGuard(plan.loopGuard)
-  const envBefore = new Map<string, string | undefined>()
-  for (const [name, value] of Object.entries(plan.env ?? {})) {
-    envBefore.set(name, process.env[name])
-    process.env[name] = value
-  }
+  for (const [name, value] of Object.entries(plan.env ?? {})) taken.put(name, value)
   const undo = plan.before?.(rig)
   async function* callModel(req: { messages: unknown[]; systemPrompt: unknown; tools?: Array<{ name?: string }>; signal: AbortSignal; options: Row }): AsyncGenerator<never, void> {
     const index = counts.modelCalls++
@@ -345,16 +366,16 @@ export function openRig(plan: Plan): OpenRig {
       uuid: () => `00000000-0000-4000-8000-${String(++seeded).padStart(12, '0')}`,
     },
   }
+  let closed = false
   const close = (): void => {
+    if (closed) return
+    closed = true
     if (typeof undo === 'function') undo()
-    for (const [name, value] of envBefore) {
-      if (value === undefined) delete process.env[name]
-      else process.env[name] = value
-    }
     setLoopGuard(undefined)
     queue.resetCommandQueue()
+    taken.handBack()
   }
-  return { rig, params, requests, log, toolLane, consumed: [], mask, counts, close }
+  return { rig, params, requests, log, toolLane, consumed: [], mask, counts, session, home: HOME, close }
 }
 
 export async function record(scenario: Scenario): Promise<Recording> {
@@ -389,21 +410,24 @@ export async function record(scenario: Scenario): Promise<Recording> {
   }
 }
 
-export type ScriptedRun = { events: Array<Row & { kind: string }>; terminal: Row; requests: ModelRequest[]; rig: Rig; consumed: string[]; transitions: string[] }
+export type ScriptedRun = { events: Array<Row & { kind: string }>; terminal: Row; requests: ModelRequest[]; rig: Rig; consumed: string[]; transitions: string[]; session: string; home: string }
 
 export async function runScripted(plan: Plan): Promise<ScriptedRun> {
   const open = openRig(plan)
   const events: Array<Row & { kind: string }> = []
-  const gen = runEventCore(open.params as never, open.consumed)
-  let step = await gen.next()
-  while (!step.done) {
-    events.push(step.value as unknown as Row & { kind: string })
-    step = await gen.next()
+  try {
+    const gen = runEventCore(open.params as never, open.consumed)
+    let step = await gen.next()
+    while (!step.done) {
+      events.push(step.value as unknown as Row & { kind: string })
+      step = await gen.next()
+    }
+    await new Promise(resolve => setTimeout(resolve, 5))
+    const transitions = events.filter(event => event.kind === 'turn_settled').map(event => String((event.transition as { reason?: unknown }).reason))
+    return { events, terminal: step.value as unknown as Row, requests: open.requests, rig: open.rig, consumed: open.consumed, transitions, session: open.session, home: open.home }
+  } finally {
+    open.close()
   }
-  await new Promise(resolve => setTimeout(resolve, 5))
-  open.close()
-  const transitions = events.filter(event => event.kind === 'turn_settled').map(event => String((event.transition as { reason?: unknown }).reason))
-  return { events, terminal: step.value as unknown as Row, requests: open.requests, rig: open.rig, consumed: open.consumed, transitions }
 }
 
 export type Drained<T> = { events: Array<Row & { kind: string }>; decision: T }
@@ -424,7 +448,6 @@ export async function plantRun(plan: Plan): Promise<Planted> {
   const open = openRig(plan)
   const { createEventMint } = await import('../../src/run-core/events.ts')
   const { BudgetGuard } = await import('../../src/run-core/budget-guard.ts')
-  const { buildQueryConfig } = await import('../../src/query/config.ts')
   const { FRESH_OVERFLOW_EPISODE } = await import('../../src/services/compact/overflowRecovery.ts')
   const { createSystemMessage } = await import('../../src/utils/messages.ts')
   const emit = createEventMint()
@@ -439,7 +462,6 @@ export async function plantRun(plan: Plan): Promise<Planted> {
     querySource: params.querySource,
     skipCacheWrite: undefined,
     deps: params.deps,
-    config: buildQueryConfig(),
     budgetGuard: new BudgetGuard(),
     emit,
     consumedCommandUuids: open.consumed,
@@ -469,7 +491,6 @@ export async function plantRun(plan: Plan): Promise<Planted> {
     streamFaultRecoveryCount: 0,
     toolCallRefusalRecoveryCount: 0,
     turnCount: 1,
-    pendingToolUseSummary: undefined,
     transition: undefined,
     overflowEpisode: FRESH_OVERFLOW_EPISODE,
     pendingOverflow: undefined,
@@ -481,16 +502,21 @@ export type PlantedReply = Planted & { iter: Row; events: Array<Row & { kind: st
 
 export async function plantReply(plan: Plan, change: { state?: Row; run?: Row } = {}): Promise<PlantedReply> {
   const planted = await plantRun(plan)
-  Object.assign(planted.state, change.state ?? {})
-  Object.assign(planted.run, change.run ?? {})
-  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-  const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
-  const request = await drain(makeRequest(planted.run as never, planted.state as never, 1))
-  if (request.decision.kind !== 'go_on') throw new Error(`the planted request did not go on: ${JSON.stringify(planted.mask(request.decision))}`)
-  const iter = request.decision.iter as unknown as Row
-  const reply = await drain(modelReply(planted.run as never, iter as never))
-  if (reply.decision.kind !== 'go_on') throw new Error(`the planted reply did not go on: ${JSON.stringify(planted.mask(reply.decision))}`)
-  return { ...planted, iter, events: [...request.events, ...reply.events] }
+  try {
+    Object.assign(planted.state, change.state ?? {})
+    Object.assign(planted.run, change.run ?? {})
+    const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
+    const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
+    const request = await drain(makeRequest(planted.run as never, planted.state as never, 1))
+    if (request.decision.kind !== 'go_on') throw new Error(`the planted request did not go on: ${JSON.stringify(planted.mask(request.decision))}`)
+    const iter = request.decision.iter as unknown as Row
+    const reply = await drain(modelReply(planted.run as never, iter as never))
+    if (reply.decision.kind !== 'go_on') throw new Error(`the planted reply did not go on: ${JSON.stringify(planted.mask(reply.decision))}`)
+    return { ...planted, iter, events: [...request.events, ...reply.events] }
+  } catch (error) {
+    planted.close()
+    throw error
+  }
 }
 
 export const reasonOf = (decision: unknown): string => {
@@ -593,6 +619,8 @@ const overflowed = (signal: Row): unknown => {
 }
 const PROVIDER_OVERFLOW = { source: 'provider', family: 'anthropic', shape: 'prompt-too-long', actualTokens: 210_000, limitTokens: 200_000 }
 const NARROW_OVERFLOW = { ...PROVIDER_OVERFLOW, actualTokens: 200_010 }
+const STREAM_OVERFLOW = { source: 'provider', family: 'openai', shape: 'context-length-exceeded', actualTokens: 210_000, limitTokens: 200_000 }
+const faultedPastTheWindow = (): unknown => Object.assign(faulted() as object, { overflowSignal: STREAM_OVERFLOW })
 const fat = (words: string, inputTokens: number): AssistantRow => {
   const message = createAssistantMessage({
     content: words,
@@ -1233,5 +1261,29 @@ export const SCENARIOS: Scenario[] = [
         [y(says('never asked'))],
       ],
     }),
+  },
+  {
+    name: 'paused_thought_without_words',
+    transitions: ['pause_turn_continuation'],
+    terminal: 'completed',
+    plan: () => ({ tools: [], script: [[y(thinks('pause_turn'))], [y(says('the reply, said.'))]] }),
+  },
+  {
+    name: 'turn_budget_closing_chant',
+    transitions: ['next_turn', 'chant_recovery'],
+    terminal: 'max_turns',
+    plan: () => ({ maxTurns: 1, script: [[y(calls('tu_mx', 'EchoTool', { text: 'x' }))], [y(says(CHANT))], [y(says('CLOSING WORDS: nothing remains.'))]] }),
+  },
+  {
+    name: 'paused_reply_then_overflow',
+    transitions: ['overflow_recovery'],
+    terminal: 'completed',
+    plan: () => ({ tools: [], seed: history(), autocompact: [{ wasCompacted: false }, folded()], script: [[y(pauses('Searching…')), y(overflowed(PROVIDER_OVERFLOW))], [y(says('after the fold'))]] }),
+  },
+  {
+    name: 'stream_fault_stamped_with_an_overflow',
+    transitions: ['overflow_recovery'],
+    terminal: 'completed',
+    plan: () => ({ seed: history(), autocompact: [{ wasCompacted: false }, folded()], script: [[y(says('the first half of the answer', 'stop_sequence')), y(faultedPastTheWindow())], [y(says('after the fold'))]] }),
   },
 ]

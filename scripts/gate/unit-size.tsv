@@ -130,7 +130,7 @@ src/services/providers/providerUsage.ts	unit	deriveUsageForProvider	506
 src/services/providers/zai/zaiCallModel.ts	unit	streamOneZaiAttempt	364
 src/services/samples/shell.ts	text	SCRIPT	398
 src/services/tips/tipRegistry.ts	table	GENERAL_TIPS	41
-src/services/tools/toolExecution.ts	unit	runTransactionBody	609
+src/services/tools/toolExecution.ts	unit	runTransactionBody	608
 src/services/unity/bridgeClient.ts	unit	UnityBridgeClient	316
 src/services/vulcan/engine/service.ts	unit	EngineJobService	710
 src/services/vulcan/vulcanClient.ts	unit	VulcanClient	328
