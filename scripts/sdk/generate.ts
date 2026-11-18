@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import ts from 'typescript'
-import { resultSchemas } from './result-schemas.ts'
+import { RESULT_SCHEMA_SOURCES, resultSchemas } from './result-schemas.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0' }
 process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'sdk-generate-'))
@@ -18,7 +18,7 @@ const OUT_DIR = resolve(argValue('--out') ?? join(ROOT, 'sdk', 'src'))
 const PY_OUT = resolve(argValue('--python-out') ?? (argValue('--out') ? join(OUT_DIR, 'python') : join(ROOT, 'sdk-py', 'src', 'mercury_cli_sdk')))
 const WIRE = 'src/runner/wire/methods.ts'
 const ERRORS = 'src/runner/wire/errors.ts'
-const RESULT_SOURCES = ['src/services/engine-connector/seatProjections.ts', 'src/services/engine-connector/types.ts', 'src/services/engine-connector/seatWire.ts', 'src/daemon/protocol.ts', 'src/cli/run.ts', 'scripts/sdk/result-schemas.ts']
+const RESULT_SOURCES = [RESULT_SCHEMA_SOURCES.projections, 'src/services/engine-connector/types.ts', RESULT_SCHEMA_SOURCES.encoders, RESULT_SCHEMA_SOURCES.protocol, RESULT_SCHEMA_SOURCES.arms, 'scripts/sdk/result-schemas.ts']
 const VOCABULARY = 'src/rows/vocabulary.ts'
 const PERMISSIONS = 'src/types/permissions.ts'
 const EFFORT = 'src/utils/effortLadder.ts'
