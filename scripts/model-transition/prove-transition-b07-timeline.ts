@@ -26,7 +26,6 @@ const sha = (b: Buffer | string): string => createHash('sha256').update(b).diges
 
 const ROOT = join(import.meta.dir, '../..')
 const selectorSrc = readFileSync(join(ROOT, 'src/components/MessageSelector.tsx'), 'utf8')
-const replSrc = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
 
 function between(src: string, from: string, to: string, name: string): string {
   const a = src.indexOf(from)
@@ -77,16 +76,6 @@ section('§B B04 — the View-only path is projection-only')
   for (const forbidden of ['onPreRestore', 'onRestoreMessage', 'onRestoreCode', 'onSummarize', 'setRestoring(true)']) {
     check(`the view arm never touches ${forbidden}`, !viewArm.includes(forbidden))
   }
-  const viewCb = between(replSrc, 'onViewOnly={() =>', 'onRerun={async', 'Chat onViewOnly')
-  check(
-    'the Chat callback enters the SAME display path ctrl+o rides',
-    viewCb.includes('handleEnterTranscript()') &&
-      viewCb.includes("setScreen('transcript')") &&
-      viewCb.includes('setShowAllInTranscript(true)'),
-  )
-  for (const forbidden of ['setMessages(', 'setConversationId', 'resetSessionFilePointer', 'removeTranscriptMessage', 'createBranchSession']) {
-    check(`the Chat view callback never touches ${forbidden}`, !viewCb.includes(forbidden))
-  }
   const { openTranscriptPart } = await import('../ui/chatScenarios.ts')
   const { conversationIdHere } = await import('../../src/services/engine-connector/focusedConnector.js')
   const view = await openTranscriptPart('b07-view-flip', { keepHome: true })
@@ -126,6 +115,53 @@ const N = 9
     text += enc.line
   }
   writeFileSync(SRC, text)
+}
+
+const selectorRun = await (async () => {
+  const { openSelectorPart } = await import('../ui/chatScenarios.ts')
+  const { conversationIdHere } = await import('../../src/services/engine-connector/focusedConnector.js')
+  const { readdirSync } = await import('node:fs')
+  const selector = await openSelectorPart('b07-selector', { keepHome: true })
+  const sessionRows = [{ type: 'user', uuid: '00000000-0000-4000-8000-000000000005', message: { role: 'user', content: 'turn 5' } }] as never[]
+  selector.session.records = sessionRows
+  selector.session.transcriptFile = SRC
+  const conversation = conversationIdHere()
+  const bytes = sha(readFileSync(SRC))
+  const beside = readdirSync(HOME, { recursive: true }).length
+  selector.selector().onViewOnly()
+  const view = {
+    calls: selector.calls.splice(0),
+    notices: selector.notices.splice(0),
+    asked: selector.session.calls.splice(0),
+    rowsKept: selector.session.records === sessionRows && sessionRows.length === 1,
+    conversationKept: conversationIdHere() === conversation,
+    bytesKept: sha(readFileSync(SRC)) === bytes,
+    filesAdded: readdirSync(HOME, { recursive: true }).length - beside,
+    resumes: selector.resumes.length,
+  }
+  await selector.plant({ isLoadingRef: { current: true } })
+  const midRun = await selector.selector().onRerun(sessionRows[0]!)
+  const midRunResumes = selector.resumes.length
+  await selector.plant({ isLoadingRef: { current: false } })
+  const outcome = await selector.selector().onRerun(sessionRows[0]!)
+  const [branchId, branchLog, entrypoint] = (selector.resumes[0] ?? []) as [string | undefined, { fullPath?: string } | undefined, string | undefined]
+  const branchEntries = branchLog?.fullPath === undefined ? [] : (decodeTranscriptBuffer(readFileSync(branchLog.fullPath)).entries as Array<{ uuid?: string; subtype?: string }>)
+  const rerun = { outcome, branchId, entrypoint, branchEntries, calls: selector.calls.splice(0), notices: selector.notices.splice(0), asked: selector.session.calls.splice(0), sourceKept: sha(readFileSync(SRC)) === bytes }
+  selector.selector().onBranchCreated({ branchSessionId: 'abcdef0123456789', forkOrdinal: 6 })
+  const branchNotices = selector.notices.splice(0)
+  await selector.close()
+  return { view, midRun, midRunResumes, rerun, branchNotices }
+})()
+
+section('§B B04 — the screen\'s view-only callback, read off its mounted selector part')
+{
+  const { view } = selectorRun
+  check('the Chat callback enters the SAME display path ctrl+o rides', view.calls.slice(0, 3).join(' · ') === 'handleEnterTranscript · setScreen transcript · setShowAllInTranscript true', view.calls.join(' · '))
+  check('the Chat view callback never touches the rows of the session (was: never touches setMessages()', view.rowsKept && view.asked.length === 0, `${view.asked.join(',')}`)
+  check('the Chat view callback never touches the conversation id (was: never touches setConversationId)', view.conversationKept)
+  check('the Chat view callback never touches the transcript file (was: never touches resetSessionFilePointer)', view.bytesKept)
+  check('the Chat view callback does nothing but enter the view and close the selector (was: never touches removeTranscriptMessage)', view.calls.slice(3).join(' · ') === 'setShowMessageSelector false · setMessageSelectorPreselect undefined' && view.calls.length === 5, view.calls.join(' · '))
+  check('the Chat view callback makes no branch (was: never touches createBranchSession)', view.filesAdded === 0 && view.resumes === 0, `${view.filesAdded} files added · ${view.resumes} resumes`)
 }
 
 section('§C B07 — rerun ≠ replay: rewind-branch before the anchor, fork-branch inclusive')
@@ -186,30 +222,32 @@ section('§C B07 — rerun ≠ replay: rewind-branch before the anchor, fork-bra
     )
     check('the manifests carry their distinct boundary kinds', rerun.manifest.boundaryKind === 'rewind' && fork.manifest.boundaryKind === 'fork')
   }
-  const rerunCb = between(replSrc, 'onRerun={async', 'onClose={() =>', 'Chat onRerun')
-  check("Chat rerun branches at forkOrdinal: idx (before the anchor)", rerunCb.includes('forkOrdinal: idx,'))
-  check("Chat rerun uses boundaryKind: 'rewind'", rerunCb.includes("boundaryKind: 'rewind'"))
+  const mounted = selectorRun.rerun
+  const beforeAnchor = '00000000-0000-4000-8000-000000000004'
+  check("Chat rerun branches at forkOrdinal: idx (before the anchor)", mounted.outcome.ok === true && mounted.branchEntries.some(entry => entry.uuid === beforeAnchor) && !mounted.branchEntries.some(entry => entry.uuid === anchorUuid) && mounted.sourceKept, `${JSON.stringify(mounted.outcome)} · ${mounted.branchEntries.length} entries in the branch`)
+  check("Chat rerun uses boundaryKind: 'rewind'", mounted.branchEntries.at(-1)?.subtype === 'rewind_boundary', String(mounted.branchEntries.at(-1)?.subtype))
   check("Create-branch covers the anchor: forkOrdinal: ordinal + 1 with boundaryKind: 'fork'", selectorSrc.includes('forkOrdinal: ordinal + 1') && selectorSrc.includes("boundaryKind: 'fork'"))
-  check('Chat rerun switches in-process through the ONE resume chokepoint', rerunCb.includes("await resume(branchId, branchLog, 'fork')"))
-  check('Chat rerun stages the resubmit under operator control (no auto-send)', rerunCb.includes('textForResubmit') && rerunCb.includes('setInputValue') && !rerunCb.includes('onSubmit('))
+  check('Chat rerun switches in-process through the ONE resume chokepoint', mounted.entrypoint === 'fork' && typeof mounted.branchId === 'string' && mounted.branchId !== SID, `${String(mounted.branchId)} · ${String(mounted.entrypoint)}`)
+  check('Chat rerun stages the resubmit under operator control (no auto-send)', mounted.calls.includes('setInputValue "turn 5"') && mounted.asked.length === 0, `${mounted.calls.join(' · ')} · asked of the session: ${mounted.asked.join(',')}`)
 }
 
 section('§D B07 — distinct receipts')
 {
-  const keys = ["key: 'view-only-history'", "key: 'branch-created'", "key: 'rerun-branch-created'"]
-  for (const k of keys) check(`receipt ${k}`, replSrc.includes(k))
+  const painted = { 'view-only-history': selectorRun.view.notices, 'branch-created': selectorRun.branchNotices, 'rerun-branch-created': selectorRun.rerun.notices }
+  for (const [key, notices] of Object.entries(painted)) check(`receipt key: '${key}'`, notices.length === 1 && notices[0]!.key === key, notices.map(notice => notice.key).join(','))
   check(
     'receipt copy is action-specific',
-    replSrc.includes('nothing changed') &&
-      replSrc.includes('Branch created:') &&
-      replSrc.includes('prompt staged, Enter reruns'),
+    (painted['view-only-history'][0]?.text ?? '').includes('nothing changed') &&
+      (painted['branch-created'][0]?.text ?? '').startsWith('Branch created:') &&
+      (painted['rerun-branch-created'][0]?.text ?? '').startsWith('Branch created:') &&
+      (painted['rerun-branch-created'][0]?.text ?? '').includes('prompt staged, Enter reruns'),
+    Object.values(painted).map(notices => notices[0]?.text ?? '(none)').join(' | '),
   )
 }
 
 section('§E — the rerun guard + the /rewind alias')
 {
-  const rerunCb = between(replSrc, 'onRerun={async', 'onClose={() =>', 'Chat onRerun')
-  check('a mid-run rerun refuses honestly (no switch under a live turn)', rerunCb.includes('if (isLoadingRef.current) return { ok: false as const, reason:'))
+  check('a mid-run rerun refuses honestly (no switch under a live turn)', selectorRun.midRun.ok === false && selectorRun.midRun.reason === 'a run is in flight — esc to interrupt it first' && selectorRun.midRunResumes === 0, JSON.stringify(selectorRun.midRun))
   const rewindCmd = readFileSync(join(ROOT, 'src/commands/rewind/index.ts'), 'utf8')
   check("the /rewind alias stays", rewindCmd.includes("name: 'rewind'"))
 }

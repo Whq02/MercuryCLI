@@ -1291,6 +1291,141 @@ export async function sessionRekeys(tag: string): Promise<{ atMount: string; hop
   return { atMount, hop, again, rest, landing }
 }
 
+type SelectorModule = typeof import('../../src/screens/chat/useChatSelector.tsx')
+type SelectorArgs = Parameters<SelectorModule['useChatSelectorView']>[0]
+type SelectorValue = ReturnType<SelectorModule['useChatSelectorView']>
+type RewindAnswer = { outcome: 'applied' | 'noop' | 'refused'; mode: string; refusal?: string; detail?: string; conversation?: { removed: number }; code?: { filesChanged: string[]; insertions: number; deletions: number } }
+type SelectorHandlers = {
+  messages: Message[]
+  preselectedMessage: Message | undefined
+  providerOrigin: string
+  onPreRestore: () => void
+  onRestore: (message: Message | undefined, mode: 'both' | 'conversation' | 'code', files?: { filePath?: string; undo?: boolean; userMessageId?: string }) => Promise<RewindAnswer>
+  onSummarize: () => Promise<void>
+  onViewOnly: () => void
+  onBranchCreated: (manifest: { branchSessionId: string; forkOrdinal: number }) => void
+  onRerun: (message: Message) => Promise<{ ok: boolean; reason?: string }>
+  onClose: () => void
+}
+
+type SelectorPart = {
+  module: SelectorModule
+  part: PartMount<SelectorValue>
+  cursor: typeof import('../../src/components/messageCursorStore.ts')
+  plant: (over: Partial<SelectorArgs>) => Promise<void>
+  selector: () => SelectorHandlers
+  press: (key: 'c' | 'enter', message: Message) => Promise<void>
+  calls: string[]
+  notices: Array<{ key: string; text: string }>
+  session: { calls: string[]; records: Message[]; turnActive: boolean; onInterrupt: (() => void) | undefined; rewind: (request: Record<string, unknown>) => RewindAnswer; transcriptFile: string | null }
+  draft: () => { text: string; mode: string }
+  resumes: unknown[][]
+  clipboard: { confirmation: string; copied: string[] }
+  close: () => Promise<void>
+}
+
+export async function openSelectorPart(tag: string, options: { keepHome?: boolean } = {}): Promise<SelectorPart> {
+  const home = options.keepHome === true ? null : pinScratchHome(tag)
+  const clipboard = { confirmation: 'copied (the scripted clipboard)', copied: [] as string[] }
+  const realOsc = { ...(await import('../../src/ink/termio/osc.ts')) }
+  mock.module('../../src/ink/termio/osc.ts', () => ({
+    ...realOsc,
+    setClipboardWithReceipt: async (text: string) => {
+      clipboard.copied.push(text)
+      return { sequence: '', confirmation: clipboard.confirmation, settled: [] }
+    },
+  }))
+  const module = await import('../../src/screens/chat/useChatSelector.tsx')
+  const cursor = await import('../../src/components/messageCursorStore.ts')
+  const pending = await import('../../src/input-core/pending-input.ts')
+  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const { enableConfigs } = await import('../../src/utils/config.ts')
+  enableConfigs()
+  const before = slot.hasFocusedSession() ? slot.getFocusedSessionConnector() : null
+  const calls: string[] = []
+  const notices: Array<{ key: string; text: string }> = []
+  const resumes: unknown[][] = []
+  const session: SelectorPart['session'] = { calls: [], records: [], turnActive: false, onInterrupt: undefined, rewind: request => ({ outcome: 'applied', mode: String(request.mode), conversation: { removed: 2 } }), transcriptFile: null }
+  slot.setFocusedSessionConnector(
+    Object.assign(new NoSessionConnector(), {
+      sessionId: () => tag,
+      records: () => session.records,
+      turnActive: () => session.turnActive,
+      interrupt: () => {
+        session.calls.push('interrupt')
+        session.onInterrupt?.()
+        return true
+      },
+      rewind: async (request: Record<string, unknown>) => {
+        session.calls.push(`rewind ${JSON.stringify(request)}`)
+        return session.rewind(request)
+      },
+      sendWords: async (text: string) => {
+        session.calls.push(`sendWords ${JSON.stringify(text)}`)
+        return { state: 'accepted' as const }
+      },
+      transcriptFile: () => session.transcriptFile ?? '',
+    }) as never,
+  )
+  pending.resetPendingInputForTests()
+  cursor._resetMessageCursorForTest()
+  let args: SelectorArgs = {
+    addNotification: ((notice: { key: string; text?: string }) => void notices.push({ key: String(notice.key), text: String(notice.text ?? '') })) as never,
+    setInputValue: value => void calls.push(`setInputValue ${JSON.stringify(value)}`),
+    setInputMode: mode => void calls.push(`setInputMode ${mode}`),
+    setShowMessageSelector: show => void calls.push(`setShowMessageSelector ${show}`),
+    messageSelectorPreselect: undefined,
+    setMessageSelectorPreselect: message => void calls.push(`setMessageSelectorPreselect ${message === undefined ? 'undefined' : 'a message'}`),
+    focusedInputDialog: 'message-selector',
+    chatSurfaceCovered: false,
+    messages: [],
+    onCancel: () => void calls.push('onCancel'),
+    focusedEffectiveModel: 'claude-sonnet-4-5',
+    handleEnterTranscript: () => void calls.push('handleEnterTranscript'),
+    setScreen: screen => void calls.push(`setScreen ${screen}`),
+    setShowAllInTranscript: showAll => void calls.push(`setShowAllInTranscript ${showAll}`),
+    isLoadingRef: { current: false },
+    resume: async (...call) => void resumes.push(call),
+  }
+  const use = (): SelectorValue => module.useChatSelectorView(args)
+  const part = await mountPart(use)
+  return {
+    module,
+    part,
+    cursor,
+    plant: async over => {
+      args = { ...args, ...over }
+      await part.set(use)
+    },
+    selector: () => {
+      const element = part.value().messageSelector as { props: SelectorHandlers } | null
+      if (element === null) throw new Error('the message selector is not drawn')
+      return element.props
+    },
+    press: async (key, message) => {
+      part.value().messageNavRef.current = { enter: () => {}, prev: () => {}, next: () => {}, prevUser: () => {}, nextUser: () => {}, top: () => {}, bottom: () => {}, getSelected: () => message as never }
+      cursor.setMessageCursor({ uuid: String((message as { uuid: string }).uuid), type: message.type as never, expanded: false })
+      part.value().messageActions.handlers[`messageActions:${key}`]!()
+      await settle(120)
+    },
+    calls,
+    notices,
+    session,
+    draft: () => ({ text: pending.text(), mode: pending.mode() }),
+    resumes,
+    clipboard,
+    close: async () => {
+      part.unmount()
+      cursor._resetMessageCursorForTest()
+      pending.resetPendingInputForTests()
+      if (before === null) slot.releaseFocusedSessionConnector()
+      else slot.setFocusedSessionConnector(before)
+      if (home !== null) await releaseScratchHome(home)
+    },
+  }
+}
+
 export async function closeStage(stage: Stage): Promise<void> {
   stage.view.unmount()
   await releaseScratchHome(stage.home)

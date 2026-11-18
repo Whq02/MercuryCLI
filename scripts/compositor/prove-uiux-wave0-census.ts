@@ -510,11 +510,19 @@ section('UI-124/125 — copy confirmations name the route that actually settled'
       osc.includes("if (tmuxBufferLoaded) settled.push('tmux-buffer')") &&
       !/settled\.push\('osc52'\)/.test(osc),
   )
+  const { openSelectorPart } = await import('../ui/chatScenarios.ts')
+  const { createAssistantMessage } = await import('../../src/utils/messages/factories.js')
+  const copies = await openSelectorPart('uiux-wave0-copy')
+  copies.clipboard.confirmation = 'copied (the planted route)'
+  await copies.press('c', createAssistantMessage({ content: 'the words of a row' }) as never)
+  const copyNotice = copies.notices.find(notice => notice.key === 'message-copy')
+  await copies.close()
   check(
     'UI-125: the confirmation copy is honest both ways — settled routes named, or the OSC-52 offer stated with its dependency',
     osc.includes("`copied (${settled.join(' + ')})`") &&
       osc.includes('delivery depends on your terminal') &&
-      src('src/screens/Chat.tsx').includes('text: receipt.confirmation'),
+      copyNotice?.text === 'copied (the planted route)',
+    `the chat screen painted ${JSON.stringify(copyNotice?.text)} for a receipt that said "copied (the planted route)"`,
   )
   check(
     'the win32 encoding law survives the receipt refactor (the ΓÇö paste class, the U+FEFF first character): Set-Clipboard decodes UTF-8 bytes itself, clip.exe is fed UTF-16LE with no byte-order mark',

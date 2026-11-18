@@ -35,7 +35,13 @@ check('the MessageActions nav context survives (prev/next/escape)', navMissing.l
 
 section('2. Chat: a single messageActionsDisabled gate, used at every render site')
 const repl = read('src', 'screens', 'Chat.tsx')
-check('messageActionsDisabled is false unconditionally (no feature flag)', /const messageActionsDisabled = false;/.test(repl))
+const { openSelectorPart } = await import('./chatScenarios.ts')
+const selectorPart = await openSelectorPart('message-actions-selector')
+const disabledFlags = [selectorPart.part.value().messageActionsDisabled]
+await selectorPart.plant({ focusedInputDialog: undefined, chatSurfaceCovered: true })
+disabledFlags.push(selectorPart.part.value().messageActionsDisabled)
+await selectorPart.close()
+check('messageActionsDisabled is false unconditionally (no feature flag)', disabledFlags.join() === 'false,false', disabledFlags.join())
 const { openKeysPart } = await import('./chatScenarios.ts')
 const keys = await openKeysPart('message-actions-keys')
 await keys.plant({ messageCursorActive: true })
