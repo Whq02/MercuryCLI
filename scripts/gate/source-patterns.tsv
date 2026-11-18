@@ -523,10 +523,11 @@ useEffect	src/ink/hooks/use-terminal-title.ts	1
 useEffect	src/ink/terminalWrite.ts	2
 useEffect	src/keybindings/KeybindingProviderSetup.tsx	2
 useEffect	src/keybindings/useKeybinding.ts	2
-useEffect	src/screens/Chat.tsx	20
+useEffect	src/screens/Chat.tsx	18
 useEffect	src/screens/ResumeConversation.tsx	1
 useEffect	src/screens/chat/ChatKeys.tsx	1
 useEffect	src/screens/chat/useChatAsks.tsx	3
+useEffect	src/screens/chat/useChatBoot.tsx	2
 useEffect	src/screens/chat/useChatDialogs.tsx	2
 useEffect	src/screens/chat/useChatDraft.ts	3
 useEffect	src/screens/chat/useChatScroll.ts	1

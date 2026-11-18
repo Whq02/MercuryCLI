@@ -91,7 +91,7 @@ import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './chat/limits.js';
 import type { Screen as ScreenName } from './chat/screen.js';
 import type { PaintsRows, ResumableLog } from './chat/sessionShapes.js';
 import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
-import { loadContextWindowWarmup, loadDaemonHandshake, loadEnsureDaemon, loadHopIntoSession, loadProjectSnapshot, useChatCrashResume } from './chat/useChatBoot.js';
+import { loadContextWindowWarmup, loadDaemonHandshake, loadEnsureDaemon, loadProjectSnapshot, useChatBootLines, useChatCrashResume } from './chat/useChatBoot.js';
 import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsView } from './chat/useChatDialogs.js';
 import { useChatDraft } from './chat/useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
@@ -434,53 +434,7 @@ export function Chat({
   }, [addNotification, removeNotification, setToolJSX]);
   resumeRef.current = resume;
 
-  useEffect(() => {
-    const paintNoRunnerLine = (): void => {
-      const focused = getFocusedSessionConnector() as {
-        admissionRefusal?: () => string | null;
-        record?: { title?: string };
-        sessionId?: () => string;
-      };
-      const refusal = typeof focused.admissionRefusal === 'function' ? focused.admissionRefusal() : null;
-      if (refusal === null || refusal === undefined) return;
-      const title =
-        focused.record?.title ??
-        (typeof focused.sessionId === 'function' ? String(focused.sessionId()).slice(0, 8) : 'this session');
-      void loadHopIntoSession().then(({ composeNoRunnerLine }) => {
-        const segments = composeNoRunnerLine(title, refusal).split(' · ');
-        addNotification({
-          key: 'resume-hop',
-          jsx: (
-            <Box flexDirection="column">
-              {segments.map(segment => (
-                <Text key={segment} color="error" wrap="truncate-end">
-                  {segment}
-                </Text>
-              ))}
-            </Box>
-          ),
-          priority: 'high',
-          timeoutMs: RECEIPT_TIMEOUT_MS * 2,
-        });
-      });
-    };
-    paintNoRunnerLine();
-    return hasSeatLive(focusedConnector) ? focusedConnector.subscribeLive(paintNoRunnerLine) : undefined;
-  }, [focusedConnector, addNotification]);
-
-  const lostLinePaintedAtRef = useRef(0);
-  useEffect(() => {
-    if (!hasSeatLive(focusedConnector) || focusedConnector.lostLine === undefined) return undefined;
-    const readLostLine = focusedConnector.lostLine.bind(focusedConnector);
-    const paintLostLine = (): void => {
-      const lost = readLostLine();
-      if (lost === null || lost.atMs <= lostLinePaintedAtRef.current) return;
-      lostLinePaintedAtRef.current = lost.atMs;
-      addNotification({ key: 'lost-line', text: lost.text, priority: 'high', color: 'error' as const, timeoutMs: RECEIPT_TIMEOUT_MS * 2 });
-    };
-    paintLostLine();
-    return focusedConnector.subscribeLive(paintLostLine);
-  }, [focusedConnector, addNotification]);
+  useChatBootLines({ focusedConnector, addNotification });
 
   const paintScreenCommandReceipt = useCallback((commandName: string, args: string, text: string, timestamp = new Date().toISOString()): void => {
     const focused = getFocusedSessionConnector() as PaintsRows;
