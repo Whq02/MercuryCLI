@@ -60,7 +60,6 @@ export async function* runToolCalls(run: RunCtx, iter: IterationState): AsyncGen
     const lostAtCap = memoryWriteLostEvent()
     if (lostAtCap !== null) yield lostAtCap
     const terminal: Terminal = { reason: 'max_turns', turnCount }
-    yield emit({ kind: 'run_terminal', terminal })
     return { kind: 'end', terminal }
   }
 

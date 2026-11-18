@@ -82,7 +82,7 @@ import {
   decideStreamFaultRecovery,
   decideToolCallRefusalRecovery,
 } from './judgements.js'
-import { trimChantedIteration, type EventMint, type IterationState, type RunCtx, type TurnDecision, type TurnState } from './state.js'
+import { trimChantedIteration, type EventMint, type IterationState, type NextTurn, type RunCtx, type TurnDecision } from './state.js'
 
 const OUTPUT_LIMIT_RECOVERY_TEXT =
   'The reply hit the output ceiling. Carry on from exactly where it stopped — no recap, no apology — in smaller pieces.'
@@ -261,7 +261,7 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
             message: createSystemMessage(overflowRecoveryNotice(overflow, 'fold'), 'warning'),
           })
         }
-        const next: TurnState = {
+        const next: NextTurn = {
           messages: foldInput,
           toolUseContext,
           autoCompactTracking: tracking,
@@ -280,7 +280,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           pendingOverflow: { signal: overflow, rung: decision.rung },
           transition: { reason: 'overflow_recovery', rung: decision.rung, source: overflow.source },
         }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
         return { kind: 'hand_over', next }
       }
       yield emit({
@@ -296,7 +295,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
         }),
       })
       const terminal: Terminal = decision.why === 'breaker' && tracking?.rapidRefillPaused === true ? { reason: 'rapid_refill_breaker' } : { reason: 'prompt_too_long' }
-      yield emit({ kind: 'run_terminal', terminal })
       return { kind: 'end', terminal }
     }
 
@@ -309,14 +307,13 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
         if (maxTurns !== undefined && budgetGuard.maxTurnsExceeded(nextTurnCount, maxTurns)) {
           yield emit({ kind: 'attachment', message: createAttachmentMessage({ type: 'max_turns_reached', maxTurns, turnCount: nextTurnCount }) })
           const terminal: Terminal = { reason: 'max_turns', turnCount: nextTurnCount }
-          yield emit({ kind: 'run_terminal', terminal })
           return { kind: 'end', terminal }
         }
         yield emit({
           kind: 'notice',
           message: createSystemMessage(`the provider paused the turn mid-work — sending it back to continue (${decision.attempt} of ${PAUSE_TURN_CONTINUATION_LIMIT}); it counts as a turn`, 'suggestion'),
         })
-        const next: TurnState = {
+        const next: NextTurn = {
           ...state,
           messages: [...messagesForQuery, ...assistantMessages.filter(m => m.isApiErrorMessage !== true)],
           autoCompactTracking: tracking,
@@ -327,7 +324,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           pendingOverflow: undefined,
           transition: { reason: 'pause_turn_continuation', attempt: decision.attempt },
         }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
         return { kind: 'hand_over', next }
       }
       yield emit({
@@ -363,7 +359,7 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
         const carried = assistantMessages
           .filter(m => m.isApiErrorMessage !== true)
           .map(m => (reasoningOnly.maxTokens && m === reasoningOnly.reply ? withReasoningCutMarker(m) : m))
-        const next: TurnState = {
+        const next: NextTurn = {
           messages: [...messagesForQuery, ...carried, nudge],
           toolUseContext,
           autoCompactTracking: tracking,
@@ -382,7 +378,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           reasoningOnlyRecoveryCount: reasoningOnlyRecoveryCount + 1,
           transition: { reason: 'reasoning_only_recovery', attempt: decision.attempt },
         }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
         return { kind: 'hand_over', next }
       }
       const ending = reasoningOnly.maxTokens
@@ -414,7 +409,7 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           isMeta: true,
         })
 
-        const next: TurnState = {
+        const next: NextTurn = {
           messages: [
             ...messagesForQuery,
             ...assistantMessages,
@@ -437,7 +432,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
             attempt: decision.attempt,
           },
         }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
         return { kind: 'hand_over', next }
       }
 
@@ -471,7 +465,7 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           content: streamFaultRecoveryContent(replyTextOf(assistantMessages)),
           isMeta: true,
         })
-        const next: TurnState = {
+        const next: NextTurn = {
           messages: [...messagesForQuery, ...assistantMessages.filter(m => m.isApiErrorMessage !== true), recoveryMessage],
           toolUseContext,
           autoCompactTracking: tracking,
@@ -487,7 +481,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           pendingOverflow: undefined,
           transition: { reason: 'stream_fault_recovery', attempt: decision.attempt },
         }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
         return { kind: 'hand_over', next }
       }
       yield emit({
@@ -532,7 +525,7 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           content: EMPTY_REPLY_RECOVERY_NUDGE,
           isMeta: true,
         })
-        const next: TurnState = {
+        const next: NextTurn = {
           messages: endsWithEmptyReplyRecoveryNudge(messagesForQuery) ? messagesForQuery : [...messagesForQuery, nudge],
           toolUseContext,
           autoCompactTracking: tracking,
@@ -549,7 +542,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           emptyReplyRecoveryCount: emptyReplyRecoveryCount + 1,
           transition: { reason: 'empty_reply_retry', attempt: decision.attempt },
         }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
         return { kind: 'hand_over', next }
       }
       yield emit({
@@ -577,7 +569,7 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           content: toolCallRefusalCorrection(refusedToolCalls),
           isMeta: true,
         })
-        const next: TurnState = {
+        const next: NextTurn = {
           messages: [...messagesForQuery, ...assistantMessages, correction],
           toolUseContext,
           autoCompactTracking: tracking,
@@ -593,7 +585,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           pendingOverflow: undefined,
           transition: { reason: 'tool_call_refusal_recovery', attempt: decision.attempt },
         }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
         return { kind: 'hand_over', next }
       }
       const tools = [...new Set(refusedToolCalls.map(r => r.name || 'unnamed'))]
@@ -608,7 +599,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
       const lost = memoryWriteLostEvent()
       if (lost !== null) yield lost
       const terminal: Terminal = { reason: 'tool_calls_refused', tools, corrections: toolCallRefusalRecoveryCount }
-      yield emit({ kind: 'run_terminal', terminal })
       return { kind: 'end', terminal }
     }
 
@@ -628,7 +618,7 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           ),
         })
         const nudge = createUserMessage({ content: chantNudgeText(chant), isMeta: true })
-        const next: TurnState = {
+        const next: NextTurn = {
           messages: [...messagesForQuery, ...replyMessages, nudge],
           toolUseContext,
           autoCompactTracking: tracking,
@@ -646,7 +636,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           chantRecoveryCount: chantRecoveryCount + 1,
           transition: { reason: 'chant_recovery', attempt: decision.attempt },
         }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
         return { kind: 'hand_over', next }
       }
       const chantEnds = isLoopGuardStopEnabled() ? LOOP_GUARD_STOP_SETTING : runLeftAlone(toolUseContext) ? 'nobody is at this run' : null
@@ -668,7 +657,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           }),
         })
         const terminal: Terminal = { reason: 'loop_stopped', cycle: ['reply'] }
-        yield emit({ kind: 'run_terminal', terminal })
         return { kind: 'end', terminal }
       }
       yield emit({
@@ -691,7 +679,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
       const lostAtCap = memoryWriteLostEvent()
       if (lostAtCap !== null) yield lostAtCap
       const terminal: Terminal = { reason: 'max_turns', turnCount }
-      yield emit({ kind: 'run_terminal', terminal })
       return { kind: 'end', terminal }
     }
 
@@ -703,7 +690,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
       const lostOnError = memoryWriteLostEvent()
       if (lostOnError !== null) yield lostOnError
       const terminal: Terminal = { reason: 'completed' }
-      yield emit({ kind: 'run_terminal', terminal })
       return { kind: 'end', terminal }
     }
 
@@ -718,7 +704,7 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
       if (run.announcedStepNudges < ANNOUNCED_STEP_NUDGE_LIMIT) {
         run.announcedStepNudges++
         yield emit({ kind: 'notice', message: createSystemMessage(ANNOUNCED_STEP_NOTICE, 'warning') })
-        const next: TurnState = {
+        const next: NextTurn = {
           ...state,
           messages: [
             ...messagesForQuery,
@@ -733,7 +719,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           pendingOverflow: undefined,
           transition: { reason: 'announced_step_nudge', attempt: run.announcedStepNudges },
         }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
         return { kind: 'hand_over', next }
       }
       yield emit({ kind: 'notice', message: createSystemMessage(ANNOUNCED_STEP_AGAIN_NOTICE, 'warning') })
@@ -755,12 +740,11 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
 
     if (stopHookResult.preventContinuation) {
       const terminal: Terminal = { reason: 'stop_hook_prevented' }
-      yield emit({ kind: 'run_terminal', terminal })
       return { kind: 'end', terminal }
     }
 
     if (stopHookResult.blockingErrors.length > 0) {
-      const next: TurnState = {
+      const next: NextTurn = {
         messages: [
           ...messagesForQuery,
           ...assistantMessages,
@@ -779,7 +763,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
         pendingOverflow: undefined,
         transition: { reason: 'stop_hook_blocking' },
       }
-      yield emit({ kind: 'turn_settled', transition: next.transition! })
       return { kind: 'hand_over', next }
     }
 
@@ -792,7 +775,7 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
         run.checkpointSettleWarned = true
         const warning = createSettleGuardWarning(liveCheckpoint)
         yield emit({ kind: 'attachment', message: warning })
-        const next: TurnState = {
+        const next: NextTurn = {
           messages: [...messagesForQuery, ...assistantMessages, warning],
           toolUseContext,
           autoCompactTracking: tracking,
@@ -807,7 +790,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           pendingOverflow: undefined,
           transition: { reason: 'checkpoint_settle_guard' },
         }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
         return { kind: 'hand_over', next }
       }
     }
@@ -816,7 +798,7 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
       const queued = getAgentPendingMessageAttachments(toolUseContext).map(attachment => createAttachmentMessage(attachment))
       if (queued.length > 0) {
         for (const row of queued) yield emit({ kind: 'attachment', message: row })
-        const next: TurnState = {
+        const next: NextTurn = {
           messages: [...messagesForQuery, ...assistantMessages, ...queued],
           toolUseContext,
           autoCompactTracking: tracking,
@@ -831,7 +813,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
           pendingOverflow: undefined,
           transition: { reason: 'queued_message', count: queued.length },
         }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
         return { kind: 'hand_over', next }
       }
     }
@@ -874,7 +855,6 @@ export async function* noToolReply(run: RunCtx, iter: IterationState): AsyncGene
     const lostAtEnd = memoryWriteLostEvent()
     if (lostAtEnd !== null) yield lostAtEnd
     const terminal: Terminal = { reason: 'completed' }
-    yield emit({ kind: 'run_terminal', terminal })
     return { kind: 'end', terminal }
   }
   return { kind: 'go_on' }

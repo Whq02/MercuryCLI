@@ -30,7 +30,7 @@ import {
   selectDrainableCommands,
 } from '../attachment-drain.js'
 import type { RunEvent } from '../events.js'
-import type { IterationState, RunCtx, SettledDecision, TurnState } from './state.js'
+import type { IterationState, NextTurn, RunCtx, SettledDecision } from './state.js'
 
 export const MAX_TURNS_CLOSING_TEXT =
   'The turn budget is spent: no further tool call will run. Answer in text only — what was done, what was found, and what remains.'
@@ -118,19 +118,16 @@ export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGener
       })
     }
     const terminal: Terminal = { reason: 'aborted_tools' }
-    yield emit({ kind: 'run_terminal', terminal })
     return { kind: 'end', terminal }
   }
 
   if (shouldPreventContinuation) {
     const terminal: Terminal = { reason: 'hook_stopped' }
-    yield emit({ kind: 'run_terminal', terminal })
     return { kind: 'end', terminal }
   }
   if (loopStoppedCycle !== null) {
     if (loopStoppedRecord !== null) yield emit({ kind: 'attachment', message: loopStoppedRecord })
     const terminal: Terminal = { reason: 'loop_stopped', cycle: loopStoppedCycle }
-    yield emit({ kind: 'run_terminal', terminal })
     return { kind: 'end', terminal }
   }
 
@@ -224,7 +221,7 @@ export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGener
       ? [createUserMessage({ content: MAX_TURNS_CLOSING_TEXT, isMeta: true })]
       : []
 
-  const next: TurnState = {
+  const next: NextTurn = {
     messages: [...messagesForQuery, ...assistantMessages, ...toolResults, ...closingNext],
     toolUseContext: contextForNextTurn,
     autoCompactTracking: tracking,
@@ -239,6 +236,5 @@ export async function* afterTools(run: RunCtx, iter: IterationState): AsyncGener
     overflowEpisode: FRESH_OVERFLOW_EPISODE,
     pendingOverflow: undefined,
   }
-  yield emit({ kind: 'turn_settled', transition: next.transition! })
   return { kind: 'hand_over', next }
 }

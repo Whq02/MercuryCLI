@@ -59,7 +59,7 @@ import { planToolPayloadUnseeded, toolsOnTheWire } from '../../services/provider
 import { localPromptFitRefusal, localPromptFits } from '../../services/providers/local/localCallModel.js'
 import type { Terminal } from '../../query/transitions.js'
 import type { RunEvent } from '../events.js'
-import type { IterationState, RequestDecision, RunCtx, TurnState } from './state.js'
+import type { IterationState, NextTurn, RequestDecision, RunCtx, TurnState } from './state.js'
 
 export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: number): AsyncGenerator<RunEvent, RequestDecision> {
   const { emit, deps, querySource, budgetGuard, awaitingReply, params } = run
@@ -247,13 +247,12 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
       const saving = projectTimeBasedMicrocompact(messagesForQuery, querySource, { pressure: true, supersededOnly: true })?.tokensSaved ?? 0
       const fallback = decideOverflowRecovery({ episode: overflowEpisode, gapTokens: overflowGapFor(forcedFold), pruneSavingTokens: saving, pruneAllowed: true, fold: { available: false, why: 'fold-failed' } })
       if (fallback.kind === 'recover' && fallback.rung === 'prune') {
-        const next: TurnState = {
+        const next: NextTurn = {
           ...state, messages: messagesForQuery, toolUseContext, autoCompactTracking: tracking,
           overflowEpisode: { folded: true, pruned: true },
           pendingOverflow: { signal: forcedFold, rung: 'prune' },
           transition: { reason: 'overflow_recovery', rung: 'prune', source: forcedFold.source },
         }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
         return { kind: 'hand_over', next }
       }
     }
@@ -271,7 +270,6 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
     })
     const terminal: Terminal =
       forcedFold.source === 'estimate' ? { reason: 'blocking_limit' } : { reason: 'prompt_too_long' }
-    yield emit({ kind: 'run_terminal', terminal })
     return { kind: 'end', terminal }
   }
 
@@ -379,7 +377,6 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
           }),
         })
         const terminal: Terminal = { reason: 'blocking_limit' }
-        yield emit({ kind: 'run_terminal', terminal })
         return { kind: 'end', terminal }
       }
       if (overflowLadderArmed(querySource)) {
@@ -409,7 +406,7 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
           if (decision.rung === 'fold') {
             yield emit({ kind: 'notice', message: createSystemMessage(overflowRecoveryNotice(signal, 'fold'), 'warning') })
           }
-          const next: TurnState = {
+          const next: NextTurn = {
             messages: messagesForQuery,
             toolUseContext,
             autoCompactTracking: tracking,
@@ -428,7 +425,6 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
             pendingOverflow: { signal, rung: decision.rung },
             transition: { reason: 'overflow_recovery', rung: decision.rung, source: 'estimate' },
           }
-          yield emit({ kind: 'turn_settled', transition: next.transition! })
           return { kind: 'hand_over', next }
         }
         const why = decision.kind === 'refuse' ? decision.why : 'fold-failed'
@@ -444,7 +440,6 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
           }),
         })
         const terminal: Terminal = why === 'breaker' && tracking?.rapidRefillPaused === true ? { reason: 'rapid_refill_breaker' } : { reason: 'blocking_limit' }
-        yield emit({ kind: 'run_terminal', terminal })
         return { kind: 'end', terminal }
       }
       yield emit({
@@ -455,7 +450,6 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
         }),
       })
       const terminal: Terminal = { reason: 'blocking_limit' }
-      yield emit({ kind: 'run_terminal', terminal })
       return { kind: 'end', terminal }
     }
   }

@@ -152,7 +152,11 @@ async function* runEventMachine(
   while (true) {
     const request = yield* makeRequest(run, state, ++iterationOrdinal)
     const settled = request.kind === 'go_on' ? yield* settleTurn(run, request.iter) : request
-    if (settled.kind === 'end') return settled.terminal
+    if (settled.kind === 'end') {
+      yield emit({ kind: 'run_terminal', terminal: settled.terminal })
+      return settled.terminal
+    }
+    yield emit({ kind: 'turn_settled', transition: settled.next.transition })
     state = settled.next
   }
 }

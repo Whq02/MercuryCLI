@@ -109,7 +109,9 @@ export type IterationState = {
   updatedToolUseContext: ToolUseContext
 }
 
-export type SettledDecision = { kind: 'hand_over'; next: TurnState } | { kind: 'end'; terminal: Terminal }
+export type NextTurn = TurnState & { transition: Continue }
+
+export type SettledDecision = { kind: 'hand_over'; next: NextTurn } | { kind: 'end'; terminal: Terminal }
 
 export type TurnDecision = { kind: 'go_on' } | SettledDecision
 

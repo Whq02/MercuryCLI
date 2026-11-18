@@ -18,7 +18,7 @@ import type { Terminal } from '../../query/transitions.js'
 import { isWithheldMaxOutputTokens } from '../model-lane.js'
 import type { RunEvent } from '../events.js'
 import { CUT_TOOL_CALL_RECOVERY_LIMIT, decideCutToolCallRecovery } from './judgements.js'
-import { trimChantedIteration, type IterationState, type RunCtx, type TurnDecision, type TurnState } from './state.js'
+import { trimChantedIteration, type IterationState, type NextTurn, type RunCtx, type TurnDecision } from './state.js'
 import { emitSyntheticSettlements, streamModel } from './streamModel.js'
 
 function cutToolCallOf(assistantMessages: readonly AssistantMessage[], refused: readonly RefusedToolCall[]): { name: string; cutAt: number } | null {
@@ -38,13 +38,12 @@ export async function* modelReply(run: RunCtx, iter: IterationState): AsyncGener
   let { messagesForQuery } = iter
   const streamOutcome = yield* streamModel(run, iter, emit)
   if (streamOutcome.kind === 'terminal') {
-    yield emit({ kind: 'run_terminal', terminal: streamOutcome.terminal })
     return { kind: 'end', terminal: streamOutcome.terminal }
   }
   if (thinkingRecords.length > 0) messagesForQuery = [...messagesForQuery, ...thinkingRecords]
   iter.messagesForQuery = messagesForQuery
   if (iter.streamChant !== undefined && !toolUseContext.abortController.signal.aborted) yield* trimChantedIteration(iter, iter.streamChant, emit)
-  const { assistantMessages, toolResults, toolUseBlocks } = iter
+  const { assistantMessages } = iter
   const allRefusedToolCalls = collectRefusedToolCalls(assistantMessages)
   const refusedToolCalls = unansweredRefusals(assistantMessages)
   const answeredRefusalIds = new Set(allRefusedToolCalls.filter(refusal => !refusedToolCalls.includes(refusal)).map(refusal => refusal.id))
@@ -67,7 +66,6 @@ export async function* modelReply(run: RunCtx, iter: IterationState): AsyncGener
       message: steer ? null : createUserInterruptionMessage({ toolUse: false, reason: cutReason }),
     })
     const terminal: Terminal = { reason: 'aborted_streaming' }
-    yield emit({ kind: 'run_terminal', terminal })
     return { kind: 'end', terminal }
   }
 
@@ -102,7 +100,7 @@ export async function* modelReply(run: RunCtx, iter: IterationState): AsyncGener
         if (msg.inReplyTo !== undefined) iter.replyTo.unshift(...msg.inReplyTo)
         yield emit({ kind: 'assistant_retracted', message: msg })
       }
-      const next: TurnState = {
+      const next: NextTurn = {
         ...state,
         messages: messagesForQuery,
         autoCompactTracking: tracking,
@@ -114,7 +112,6 @@ export async function* modelReply(run: RunCtx, iter: IterationState): AsyncGener
         pendingOverflow: undefined,
         transition: { reason: 'cut_tool_call_recovery', attempt: decision.attempt, outputTokens: decision.outputTokens },
       }
-      yield emit({ kind: 'turn_settled', transition: next.transition! })
       return { kind: 'hand_over', next }
     }
   }
