@@ -1317,6 +1317,7 @@ export const ComputerTool = buildTool({
     cancellation: 'cooperative',
     latency: 'interactive',
     gate: 'MERCURY_COMPUTER_USE',
+    conditions: ['a desktop driver that resolves (the native driver pack; MERCURY_DESKTOP_DRIVER=none switches it off)'],
     proof: 'scripts/computer/prove-computer-asks.ts',
   },
   maxResultSizeChars: 20_000,
