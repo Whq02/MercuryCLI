@@ -26,6 +26,7 @@ import { startBackgroundHousekeeping } from '../../utils/backgroundHousekeeping.
 import { crashReportDirDisplay, markCrashReportsNoticed, resolveCrashTranscript, unnoticedCrashReports } from '../../utils/crashReport.js';
 import { getCwd } from '../../utils/cwd.js';
 import { logForDebugging } from '../../utils/debug.js';
+import { maybeGetTmuxMouseHint } from '../../utils/fullscreen.js';
 import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../../utils/healthPreflight.js';
 import { recordBootInteractive } from '../../utils/observability/frictionStopwatch.js';
 import { useKickOffCheckAndDisableSovereignIfNeeded } from '../../utils/permissions/bypassPermissionsKillswitch.js';
@@ -34,6 +35,7 @@ import { subscribeTranscriptLoadDegradation, transcriptLoadDegradation } from '.
 import { subscribeTranscriptStoreHealth, transcriptStoreHealth } from '../../utils/sessionStorage/writer.js';
 import { getProjectDir } from '../../utils/sessionStoragePortable.js';
 import { windowsShellRoadNotice } from '../../utils/shell/windowsShellRoad.js';
+import { getCurrentWorktreeSession } from '../../utils/worktree.js';
 import type { CrashResumeStaged } from './crashResume.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';
@@ -45,6 +47,7 @@ const loadContextWindowWarmup = () => import('../../utils/model/contextWindowWar
 const loadDaemonHandshake = () => import('../../daemon/handshake.js');
 const loadProjectSnapshot = () => import('../../services/projectIntel/snapshot.js');
 
+const WORKTREE_TIP_SECONDS = 15;
 const BOOT_WARMUP_MS = 150;
 
 export function useChatCrashResume() {
@@ -379,4 +382,36 @@ export function useChatBootNotices({
   useRateLimitWarningNotification(engineModel);
   useDeprecationWarningNotification(engineModel);
   useLspInitializationNotification();
+}
+
+export function useChatBootTips({
+  fullscreen,
+  addNotification,
+}: {
+  fullscreen: boolean;
+  addNotification: ReturnType<typeof useNotifications>['addNotification'];
+}) {
+  const worktreeTipShownRef = useRef(false);
+  useEffect(() => {
+    if (worktreeTipShownRef.current) return;
+    const worktree = getCurrentWorktreeSession();
+    if (!worktree || typeof worktree.creationDurationMs !== 'number') return;
+    if (worktree.usedSparsePaths === true) return;
+    const seconds = Math.round(worktree.creationDurationMs / 1000);
+    if (seconds < WORKTREE_TIP_SECONDS) return;
+    worktreeTipShownRef.current = true;
+    addNotification({
+      key: 'worktree-tip',
+      text: `worktree creation took ${seconds}s — large repositories benefit from the sparse-paths setting, e.g. { "worktree": { "sparsePaths": ["src/"] } }`,
+      priority: 'low',
+      timeoutMs: 20_000,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    void maybeGetTmuxMouseHint().then(hint => {
+      if (hint) addNotification({ key: 'tmux-mouse-hint', text: hint, priority: 'low', timeoutMs: RECEIPT_TIMEOUT_MS });
+    }).catch(() => {});
+  }, []);
 }

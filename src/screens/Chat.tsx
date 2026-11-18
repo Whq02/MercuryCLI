@@ -69,7 +69,7 @@ import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './chat/limits.js';
 import type { Screen as ScreenName } from './chat/screen.js';
 import type { PaintsRows, ResumableLog } from './chat/sessionShapes.js';
 import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
-import { useChatBootLines, useChatBootNotices, useChatBootStart, useChatCrashResume } from './chat/useChatBoot.js';
+import { useChatBootLines, useChatBootNotices, useChatBootStart, useChatBootTips, useChatCrashResume } from './chat/useChatBoot.js';
 import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsView } from './chat/useChatDialogs.js';
 import { useChatDraft } from './chat/useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
@@ -88,7 +88,7 @@ import { getProjectDir } from '../utils/sessionStoragePortable.js';
 import { logForDebugging } from '../utils/debug.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../utils/fileStateCache.js';
-import { isFullscreenEnvEnabled, isMouseTrackingEnabled, maybeGetTmuxMouseHint } from '../utils/fullscreen.js';
+import { isFullscreenEnvEnabled, isMouseTrackingEnabled } from '../utils/fullscreen.js';
 import type { PromptInputHelpers } from '../types/promptInputHelpers.js';
 import { formatCommandLoadingMetadata, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } from '../utils/processUserInput/processSlashCommand.js';
 import { addToHistory, expandPastedTextRefs, resolvePastedContents } from '../history.js';
@@ -106,7 +106,6 @@ export type Props = {
   disableSlashCommands?: boolean;
 };
 
-const WORKTREE_TIP_SECONDS = 15;
 
 const HELD_FOR_LANDING: ReadonlySet<string> = new Set(['swarm', 'swarmchat', 'general', 'team', 'whisper', 'rename', 'title', 'contract', 'crewmates']);
 const EMPTY_CONFIRM_QUEUE: ToolUseConfirm[] = [];
@@ -703,29 +702,7 @@ export function Chat({
 
   const { centredModalUp, toolJSXRef, centredModal, bottomImmediateJsx, inlineToolJsx, focusedBottomDialog } = useChatDialogsView({ toolJSX, dialogSlotRef, localJsx, compactDetailUp, setShowCostThreshold, messages, fullscreen, compactWork, getToolUseContext, focusedEffectiveModel, chatSurfaceCovered, focusedInputDialog, elicitationQueue, respondToElicitation, dismissElicitationWaiting, crashResumeStaged, setCrashResumeStaged, addNotification, removeNotification, store });
 
-  const worktreeTipShownRef = useRef(false);
-  useEffect(() => {
-    if (worktreeTipShownRef.current) return;
-    const worktree = getCurrentWorktreeSession();
-    if (!worktree || typeof worktree.creationDurationMs !== 'number') return;
-    if (worktree.usedSparsePaths === true) return;
-    const seconds = Math.round(worktree.creationDurationMs / 1000);
-    if (seconds < WORKTREE_TIP_SECONDS) return;
-    worktreeTipShownRef.current = true;
-    addNotification({
-      key: 'worktree-tip',
-      text: `worktree creation took ${seconds}s — large repositories benefit from the sparse-paths setting, e.g. { "worktree": { "sparsePaths": ["src/"] } }`,
-      priority: 'low',
-      timeoutMs: 20_000,
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!fullscreen) return;
-    void maybeGetTmuxMouseHint().then(hint => {
-      if (hint) addNotification({ key: 'tmux-mouse-hint', text: hint, priority: 'low', timeoutMs: RECEIPT_TIMEOUT_MS });
-    }).catch(() => {});
-  }, []);
+  useChatBootTips({ fullscreen, addNotification });
 
   const { unseen, captureScrollForFlip, setFlipGeneration, unseenDivider, newMessageCount, onScroll, onPillClick } = useChatScroll({ messages, fullscreen, scrollRef, scrollRestoreRef, noteUserScroll });
   const {
