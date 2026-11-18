@@ -41,7 +41,7 @@ check('zero dangling LaunchRipple/LAUNCH_ORIGIN refs remain in src/', dangling =
 section('the LIVE anchors the deletion must NOT touch are intact')
 check('submitCount STATE is kept (useFeedbackSurvey / housekeeping / notifications depend on it)', /const \[submitCount, setSubmitCount\] = useState\(0\)/.test(repl))
 check('the setSubmitCount(count => count + 1) increment is kept', /setSubmitCount\(count => count \+ 1\)/.test(repl))
-check('permissionOverlay (the live tool-permission overlay) is kept and threaded to the layout', /const permissionOverlay =/.test(repl) && /overlay=\{inVirtualTranscript \? undefined : permissionOverlay\}/.test(repl))
+check('permissionOverlay (the live tool-permission overlay) is kept and threaded to the layout', /overlay=\{inVirtualTranscript \? undefined : permissionOverlay\}/.test(repl))
 check('the AlternateScreen wrap keeps mouseTracking + the tree child', /<AlternateScreen mouseTracking=\{isMouseTrackingEnabled\(\)\}>\{tree\}<\/AlternateScreen>/.test(repl))
 const RIPPLE = ['Temp', 'estRipple'].join('')
 const effort = readFileSync(join(root, 'src', 'commands', 'effort', 'EffortPopup.tsx'), 'utf-8')

@@ -145,7 +145,16 @@ try {
   check("the warm claim names 'claim'", /resolvePermissionModeTransition\(\n\s*claimedMode as WirePermissionMode,\n\s*getAppState\(\)\.toolPermissionContext,\n\s*'claim',/.test(src('cli', 'run.ts')))
   check("the review card names 'review-approval'", /'review-approval',/.test(src('tools', 'ApolloReviewTool', 'ApolloReviewTool.tsx')))
   check('the app-state relay audits every observed mode change', /auditModeChange\(oldMode, newMode\)/.test(src('state', 'onChangeAppState.ts')))
-  check("the screen's mirror names 'screen-mirror'", /road: 'screen-mirror'/.test(src('screens', 'Chat.tsx')))
+  const { openAsksPart } = await import('../ui/chatScenarios.ts')
+  const mirror = await openAsksPart('apollo-exit-mirror', { keepHome: true })
+  clearModeTransitions()
+  const held = mirror.mode()
+  await mirror.setRunnerMode('implement')
+  const named = modeTransitions().filter(entry => entry.road === 'screen-mirror')
+  await mirror.close()
+  clearModeTransitions()
+  process.chdir(REPO)
+  check("the screen's mirror names 'screen-mirror'", named.length === 1 && named[0]!.from === held && named[0]!.to === 'implement', JSON.stringify(named))
 }
 try {
   const relay = (await import('../../src/state/onChangeAppState.js')) as typeof import('../../src/state/onChangeAppState.js')

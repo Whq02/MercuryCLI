@@ -156,8 +156,7 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   const { getCommands } = await import('../../src/commands.ts')
   const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.ts')
   const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const buildAsk = await askBuilder()
   markDaemonHaltStanddown()
   const commands = await getCommands(project)
 
@@ -452,54 +451,52 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
     newSession,
     user,
     assistant,
-    askFor: (id, command) => {
-      const state = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' }, tasks: {}, sessionHooks: new Map() }
-      const context = {
-        options: { tools: [BashTool], commands: [], verbose: false, mcpClients: [], isNonInteractiveSession: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
-        abortController: new AbortController(),
-        messages: [],
-        readFileState: new Map(),
-        toolUseId: id,
-        getAppState: () => state,
-        setAppState: () => undefined,
-        setResponseLength: () => undefined,
-        updateFileHistoryState: () => undefined,
-        updateAttributionState: () => undefined,
-      }
-      const owner = (): ScriptedSession => {
+    askFor: (id, command) =>
+      buildAsk(id, command, project, word => {
         if (focused === null) throw new Error('an ask needs a focused session')
-        return focused
-      }
-      const confirm = {
-        tool: BashTool,
-        input: { command, description: 'Run the scripted command' },
-        toolUseID: id,
-        description: 'Run the scripted command',
-        toolUseContext: context,
-        permissionResult: { behavior: 'ask', message: 'Mercury wants to use Bash' },
-        assistantMessage: { type: 'assistant', uuid: `assistant-${id}`, message: { id: `msg_${id}`, role: 'assistant', content: [] } },
-        permissionPromptStartTimeMs: 0,
-        cwd: project,
-        onAllow: () => {
-          owner().calls.push(`ask ${id} allowed`)
-        },
-        onReject: () => {
-          owner().calls.push(`ask ${id} rejected`)
-        },
-        onAbort: () => {
-          owner().calls.push(`ask ${id} aborted`)
-        },
-        onUserInteraction: () => {},
-        recheckPermission: async () => {
-          owner().calls.push(`ask ${id} rechecked`)
-        },
-      }
-      return { id, confirm: confirm as never, toolName: 'Bash', askedAt: 0 }
-    },
+        focused.calls.push(word)
+      }),
     screen: () => frameOf().join('\n'),
     steps,
   }
   return stage
+}
+
+export async function askBuilder(): Promise<(id: string, command: string, cwd: string, tell: (word: string) => void) => SessionAskV1> {
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  return (id, command, cwd, tell) => {
+    const state = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' }, tasks: {}, sessionHooks: new Map() }
+    const context = {
+      options: { tools: [BashTool], commands: [], verbose: false, mcpClients: [], isNonInteractiveSession: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+      abortController: new AbortController(),
+      messages: [],
+      readFileState: new Map(),
+      toolUseId: id,
+      getAppState: () => state,
+      setAppState: () => undefined,
+      setResponseLength: () => undefined,
+      updateFileHistoryState: () => undefined,
+      updateAttributionState: () => undefined,
+    }
+    const confirm = {
+      tool: BashTool,
+      input: { command, description: 'Run the scripted command' },
+      toolUseID: id,
+      description: 'Run the scripted command',
+      toolUseContext: context,
+      permissionResult: { behavior: 'ask', message: 'Mercury wants to use Bash' },
+      assistantMessage: { type: 'assistant', uuid: `assistant-${id}`, message: { id: `msg_${id}`, role: 'assistant', content: [] } },
+      permissionPromptStartTimeMs: 0,
+      cwd,
+      onAllow: () => tell(`ask ${id} allowed`),
+      onReject: () => tell(`ask ${id} rejected`),
+      onAbort: () => tell(`ask ${id} aborted`),
+      onUserInteraction: () => {},
+      recheckPermission: async () => tell(`ask ${id} rechecked`),
+    }
+    return { id, confirm: confirm as never, toolName: 'Bash', askedAt: 0 }
+  }
 }
 
 export type PartMount<T> = {
@@ -712,6 +709,92 @@ export async function openTranscriptPart(tag: string, size: { columns?: number; 
     close: async () => {
       part.unmount()
       Object.defineProperty(process, 'platform', { value: realPlatform, configurable: true })
+      slot.releaseFocusedSessionConnector()
+      if (home !== null) await releaseScratchHome(home)
+    },
+  }
+}
+
+type AsksHook = typeof import('../../src/screens/chat/useChatAsks.tsx').useChatAsks
+type AsksValue = ReturnType<AsksHook>
+
+export type AsksPart = {
+  part: PartMount<AsksValue>
+  module: typeof import('../../src/screens/chat/useChatAsks.tsx')
+  calls: string[]
+  notices: Array<{ key: string; text: string }>
+  ask: (id: string, command: string) => SessionAskV1
+  setAsks: (next: SessionAskV1[]) => Promise<void>
+  setRunnerMode: (mode: PermissionMode | null) => Promise<void>
+  refuseModes: (detail: string | null) => void
+  mode: () => PermissionMode
+  close: () => Promise<void>
+}
+
+export async function openAsksPart(tag: string, options: { keepHome?: boolean } = {}): Promise<AsksPart> {
+  const home = options.keepHome === true ? null : pinScratchHome(tag)
+  const module = await import('../../src/screens/chat/useChatAsks.tsx')
+  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const buildAsk = await askBuilder()
+  const calls: string[] = []
+  const notices: Array<{ key: string; text: string }> = []
+  let asks: SessionAskV1[] = []
+  let runnerMode: PermissionMode | null = null
+  let modeRefusal: string | null = null
+  const listeners = { asks: new Set<() => void>(), mode: new Set<() => void>() }
+  const hear = (set: Set<() => void>) => (listener: () => void): (() => void) => {
+    set.add(listener)
+    return () => void set.delete(listener)
+  }
+  slot.setFocusedSessionConnector(
+    Object.assign(new NoSessionConnector(), {
+      sessionId: () => tag,
+      asks: () => asks,
+      subscribeAsks: hear(listeners.asks),
+      settleAsk: (askId: string) => {
+        calls.push(`settleAsk ${askId}`)
+        asks = asks.filter(ask => ask.id !== askId)
+        for (const listener of [...listeners.asks]) listener()
+      },
+      permissionMode: () => runnerMode,
+      subscribePermissionMode: hear(listeners.mode),
+      setPermissionMode: async (mode: PermissionMode) => {
+        calls.push(`setPermissionMode ${mode}${modeRefusal === null ? '' : ' -> refused'}`)
+        if (modeRefusal !== null) return { outcome: 'refused' as const, detail: modeRefusal }
+        runnerMode = mode
+        return { outcome: 'applied' as const }
+      },
+    }) as never,
+  )
+  const part = await mountPart(store =>
+    module.useChatAsks({
+      setAppState: updater => store.setState(updater),
+      addNotification: (notice => void notices.push({ key: String((notice as { key: string }).key), text: String((notice as { text?: string }).text ?? '') })) as never,
+    }),
+  )
+  return {
+    part,
+    module,
+    calls,
+    notices,
+    ask: (id, command) => buildAsk(id, command, process.cwd(), word => void calls.push(word)),
+    setAsks: async next => {
+      asks = next
+      for (const listener of [...listeners.asks]) listener()
+      await settle(80)
+    },
+    setRunnerMode: async mode => {
+      runnerMode = mode
+      for (const listener of [...listeners.mode]) listener()
+      await settle(80)
+    },
+    refuseModes: detail => {
+      modeRefusal = detail
+    },
+    mode: () => part.store().getState().toolPermissionContext.mode,
+    close: async () => {
+      part.unmount()
       slot.releaseFocusedSessionConnector()
       if (home !== null) await releaseScratchHome(home)
     },

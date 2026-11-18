@@ -22,10 +22,20 @@ check(
   /const chatSurfaceCovered = useSyncExternalStore\([\s\S]{0,160}currentSurfaceRoute\(\)\.kind !== 'repl'/.test(repl),
 )
 
-check(
-  'G2 the permission overlay render requires !chatSurfaceCovered',
-  /focusedInputDialog === 'tool-permission' && toolUseConfirmQueue\[0\] && !chatSurfaceCovered/.test(repl),
-)
+{
+  const { askBuilder, mountPart } = await import('../ui/chatScenarios.ts')
+  const { useChatAsksCard } = await import('../../src/screens/chat/useChatAsks.tsx')
+  const head = (await askBuilder())('toolu_gate', 'touch gate.txt', process.cwd(), () => {}).confirm
+  const drawnWhen = async (chatSurfaceCovered: boolean): Promise<boolean> => {
+    const card = await mountPart(() => useChatAsksCard({ focusedInputDialog: 'tool-permission', repinToBottom: () => {}, toolUseConfirmQueue: [head], resolvedConsentCount: 0, resolveHeadPermission: () => {}, chatSurfaceCovered, verbose: false }))
+    const drawn = card.value().permissionOverlay !== null
+    card.unmount()
+    return drawn
+  }
+  const uncovered = await drawnWhen(false)
+  const covered = await drawnWhen(true)
+  check('G2 the permission overlay render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`)
+}
 
 check(
   'G3 the message selector render requires !chatSurfaceCovered',
