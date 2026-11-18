@@ -38,22 +38,23 @@ console.log('§1 w32-02 + ctr-6 — the v opener rides utils/editor')
     t.part.value().setScreen('transcript')
   })
   const status = (): string => t.part.value().editorStatus ?? ''
+  const told = async (asked: number, before: string): Promise<string> => {
+    await waitFor(() => t.editor.asked.length === asked && status() !== '' && status() !== before && !status().startsWith('rendering'), 8000)
+    return status()
+  }
   t.editor.answer = true
   await t.press('v')
-  await waitFor(() => status().startsWith('opening '), 8000)
-  const opening = status()
-  const path = opening.replace(/^opening /, '')
+  const opening = await told(1, '')
+  const path = t.editor.asked[0] ?? ''
   t.editor.answer = false
   await t.press('v')
-  await waitFor(() => status().startsWith('written to '), 8000)
-  const unix = status()
+  const unix = await told(2, opening)
   t.editor.platform = 'win32'
   await t.press('v')
-  await waitFor(() => status().includes('EDITOR (or VISUAL)'), 8000)
-  const windows = status()
+  const windows = await told(3, unix)
   check('POISON: the raw shell:true spawn is gone from the v handler', spawned.length === 0, `spawned: ${spawned.join(', ')}`)
-  check('the handler asks the one door and reports what it can know', t.editor.asked.length === 3 && t.editor.asked[0] === path && existsSync(path) && opening === `opening ${path}`, `${opening} · asked ${t.editor.asked.join(', ')}`)
-  check("POISON: the unconditional 'opened …' claim is gone", !opening.startsWith('opened') && !unix.startsWith('open') && !windows.startsWith('open'), `${opening} · ${unix} · ${windows}`)
+  check('the handler asks the one door and reports what it can know', t.editor.asked.length === 3 && path !== '' && existsSync(path) && opening === `opening ${path}`, `${opening} · asked ${t.editor.asked.join(', ')}`)
+  check("POISON: the unconditional 'opened …' claim is gone: each status is read when the door has answered, before its timer clears it", opening !== '' && unix !== '' && windows !== '' && !opening.startsWith('opened') && !unix.startsWith('open') && !windows.startsWith('open'), `${opening} · ${unix} · ${windows}`)
   check('the no-editor advice speaks the platform (no $EDITOR on cmd/PowerShell)', /^written to .* — set \$EDITOR to open it$/.test(unix) && /^written to .* — set EDITOR \(or VISUAL\) to open it$/.test(windows), `${unix} · ${windows}`)
   await t.close()
   const editor = read('src/utils/editor.ts')
