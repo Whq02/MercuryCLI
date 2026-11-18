@@ -1,3 +1,4 @@
+import { mock } from 'bun:test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -567,6 +568,150 @@ export async function mountPart<T>(use: (store: AppStateStore) => T, options: { 
     view,
     writes,
     unmount: () => view.unmount(),
+  }
+}
+
+type TranscriptHook = typeof import('../../src/screens/chat/useChatSearch.tsx').useChatSearch
+type TranscriptArgs = Parameters<TranscriptHook>[0]
+type TranscriptValue = ReturnType<TranscriptHook>
+
+export type TranscriptPart = {
+  part: PartMount<TranscriptValue>
+  module: typeof import('../../src/screens/chat/useChatSearch.tsx')
+  plant: (over: Partial<TranscriptArgs>) => Promise<void>
+  setRows: (rows: Message[]) => Promise<void>
+  rowsOf: (count: number) => Message[]
+  press: (data: string, wait?: number) => Promise<void>
+  act: (run: () => void) => Promise<void>
+  frame: () => string
+  highlights: string[]
+  jumps: string[]
+  scroll: { calls: string[]; captures: number; flips: number; restore: { current: unknown } }
+  editor: { answer: boolean; platform: string; asked: string[] }
+  touched: string[]
+  close: () => Promise<void>
+}
+
+export async function openTranscriptPart(tag: string, size: { columns?: number; rows?: number; keepHome?: boolean } = {}): Promise<TranscriptPart> {
+  const home = size.keepHome === true ? null : pinScratchHome(tag)
+  delete process.env.EDITOR
+  delete process.env.VISUAL
+  const highlights: string[] = []
+  const highlightApi = { setQuery: (query: string) => void highlights.push(query), scanElement: () => [], setPositions: () => {} }
+  mock.module('../../src/ink/hooks/use-search-highlight.ts', () => ({ useSearchHighlight: () => highlightApi }))
+  const realEditor = await import('../../src/utils/editor.ts')
+  const realPlatform = process.platform
+  const editor = { answer: true, platform: realPlatform as string, asked: [] as string[] }
+  mock.module('../../src/utils/editor.ts', () => ({
+    ...realEditor,
+    openFileInExternalEditor: (path: string) => {
+      editor.asked.push(path)
+      Object.defineProperty(process, 'platform', { value: editor.platform, configurable: true })
+      return editor.answer
+    },
+  }))
+  const React = await import('react')
+  const h = React.createElement
+  const module = await import('../../src/screens/chat/useChatSearch.tsx')
+  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const route = await import('../../src/context/surfaceRoute.ts')
+  const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
+  const { default: useInput } = await import('../../src/ink/hooks/use-input.ts')
+  const rowsOf = (count: number): Message[] => Array.from({ length: count }, (_, i) => (i % 2 === 0 ? createUserMessage({ content: `question ${i} about the gate` }) : createAssistantMessage({ content: `answer ${i} about the gate` })) as Message)
+  let rows: Message[] = []
+  let over: Partial<TranscriptArgs> = {}
+  const touched: string[] = []
+  slot.setFocusedSessionConnector(
+    Object.assign(new NoSessionConnector(), {
+      sessionId: () => tag,
+      records: () => rows,
+      sendWords: async () => {
+        touched.push('sendWords')
+        return { state: 'accepted' as const }
+      },
+      interrupt: () => {
+        touched.push('interrupt')
+        return false
+      },
+      rewind: async () => {
+        touched.push('rewind')
+        return { outcome: 'noop' as const, mode: 'both' as const }
+      },
+    }) as never,
+  )
+  route.initializeSurfaceRoute(route.ROOT_CHAT_ROUTE)
+  const scroll = { calls: [] as string[], captures: 0, flips: 0, restore: { current: null as unknown } }
+  const scrollRef = { current: { scrollTo: (y: number) => void scroll.calls.push(`scrollTo ${y}`), scrollToBottom: () => void scroll.calls.push('scrollToBottom') } }
+  const jumps: string[] = []
+  const jumpHandle = {
+    jumpToIndex: (i: number) => void jumps.push(`jump ${i}`),
+    setSearchQuery: (query: string) => void jumps.push(`query ${JSON.stringify(query)}`),
+    nextMatch: () => void jumps.push('next'),
+    prevMatch: () => void jumps.push('prev'),
+    setAnchor: () => void jumps.push('anchor'),
+    warmSearchIndex: async () => 5,
+    disarmSearch: () => void jumps.push('disarm'),
+  }
+  const use = (): TranscriptValue =>
+    module.useChatSearch({
+      fullscreen: true,
+      virtualScrollEnabled: true,
+      columns: size.columns ?? 100,
+      mergedTools: [] as never,
+      messages: rows,
+      focusedInputDialog: undefined,
+      captureScrollForFlip: () => void scroll.captures++,
+      setFlipGeneration: () => void scroll.flips++,
+      scrollRef: scrollRef as never,
+      scrollRestoreRef: scroll.restore,
+      ...over,
+    })
+  function KeySink(): null {
+    useInput(() => {})
+    return null
+  }
+  const bottomOf = (value: TranscriptValue): import('react').ReactNode => {
+    if (!value.inTranscript) return null
+    const badged = value.committedSearchQuery !== '' && value.searchMatchCount !== null && value.searchMatchCount > 0
+    return value.searchBarOpen
+      ? h(module.TranscriptSearchBar, { columns: size.columns ?? 100, onQueryChange: value.previewSearch, onCommit: value.commitSearch, onCancel: value.cancelSearch, warmSearchIndex: value.warmSearchIndex, matchCount: value.searchMatchCount, matchCurrent: value.searchMatchCurrent })
+      : h(module.TranscriptFooter, { toggleChord: 'ctrl+o', expandChord: 'ctrl+e', hasSearchBadge: badged, virtualScroll: value.inVirtualTranscript, showAllSuppressed: value.dumpMode, showAll: value.showAllInTranscript, status: value.editorStatus, badge: badged ? `${value.searchMatchCurrent}/${value.searchMatchCount}` : null })
+  }
+  const part = await mountPart(use, { columns: size.columns ?? 100, rows: size.rows ?? 12, draw: value => h(React.Fragment, null, h(KeySink), bottomOf(value)) })
+  part.value().jumpRef.current = jumpHandle
+  return {
+    part,
+    module,
+    plant: async next => {
+      over = next
+      await part.set(use)
+    },
+    setRows: async next => {
+      rows = next
+      await part.set(use)
+    },
+    rowsOf,
+    press: async (data, wait = 120) => {
+      part.view.push(data)
+      await settle(wait)
+    },
+    act: async run => {
+      run()
+      await settle(120)
+    },
+    frame: () => part.view.lines().join('\n'),
+    highlights,
+    jumps,
+    scroll,
+    editor,
+    touched,
+    close: async () => {
+      part.unmount()
+      Object.defineProperty(process, 'platform', { value: realPlatform, configurable: true })
+      slot.releaseFocusedSessionConnector()
+      if (home !== null) await releaseScratchHome(home)
+    },
   }
 }
 

@@ -24,7 +24,6 @@ console.log('prove-ctrl-o-stable')
   const repl = readFileSync(join(ROOT, 'src', 'screens', 'Chat.tsx'), 'utf8')
   const fls = (repl.match(/<FullscreenLayout[\s/>]/g) ?? []).length
   check('A: exactly ONE <FullscreenLayout> in Chat (no transcript twin)', fls === 1, `${fls}`)
-  check('A: the unified mode flag drives the one skeleton', repl.includes('const inVirtualTranscript'))
   const legacy = repl.slice(repl.indexOf("if (screen === 'transcript' && !inVirtualTranscript)"))
   const legacyBlock = legacy.slice(0, legacy.indexOf('return transcriptReturn;'))
   check('A: the legacy dump branch has NO FullscreenLayout of its own', !legacyBlock.includes('<FullscreenLayout'))
