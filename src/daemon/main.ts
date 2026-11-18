@@ -304,7 +304,6 @@ async function daemonRun(args: string[]): Promise<void> {
   let handoverPredecessor: number | null = null
   let handover: HandoverStateV1 | null = null
   let planeServedByOther: PlaneOwnerV1 | null = null
-  let birthsInFlight = 0
   let roster: TaskRoster | null = null
   const state = makeDaemonRunState({ dir, bootBuildTree, foreground, breaker, maxInflight: MAX_INFLIGHT, controlEnabled })
   const { persist, readyPromise, startedAt } = state
@@ -532,13 +531,11 @@ async function daemonRun(args: string[]): Promise<void> {
         }
       }
       const countBirth = async <T>(door: () => Promise<T>): Promise<T> => {
-        birthsInFlight++
-        state.birthsInFlight = birthsInFlight
+        state.birthsInFlight++
         try {
           return await door()
         } finally {
-          birthsInFlight--
-          state.birthsInFlight = birthsInFlight
+          state.birthsInFlight--
         }
       }
       const concourseAdmitHandler = makeConcourseAdmitHandler({

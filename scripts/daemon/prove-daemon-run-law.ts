@@ -8,12 +8,14 @@ const SELF = 'scripts/daemon/prove-daemon-run-law.ts'
 const MAIN = 'src/daemon/main.ts'
 const PARTS = 'src/daemon/run/'
 const UNIT = 'daemonRun'
-const LET_BUDGET = 6
+const STATE = 'DaemonRunState'
+const LET_BUDGET = 5
+const TWICE_BUDGET = 3
 const rootAt = process.argv.indexOf('--root')
 const ROOT = resolve(rootAt < 0 ? join(import.meta.dir, '..', '..') : process.argv[rootAt + 1]!)
 
-type Finding = { law: 'outside' | 'back' | 'let' | 'module'; file: string; line: number; said: string }
-type Reading = { findings: Finding[]; files: number; parts: string[]; lets: number | null; letLines: number[] }
+type Finding = { law: 'outside' | 'back' | 'let' | 'module' | 'twice'; file: string; line: number; said: string }
+type Reading = { findings: Finding[]; files: number; parts: string[]; lets: number | null; letLines: number[]; twice: string[] }
 
 const slash = (p: string): string => p.split('\\').join('/')
 
@@ -60,6 +62,8 @@ function readProgram(root: string): Reading {
   const mainTarget = MAIN.replace(/\.ts$/, '')
   let lets: number | null = null
   const letLines: number[] = []
+  const stateFields = new Set<string>()
+  let unit: { sf: ts.SourceFile; body: ts.Block } | null = null
   for (const path of files) {
     const sf = program.getSourceFile(path)
     if (sf === undefined) continue
@@ -67,6 +71,10 @@ function readProgram(root: string): Reading {
     const isPart = rel.startsWith(PARTS)
     if (isPart) {
       parts.push(rel)
+      for (const statement of sf.statements) {
+        if (!ts.isInterfaceDeclaration(statement) || statement.name.text !== STATE) continue
+        for (const member of statement.members) if (ts.isPropertySignature(member) && ts.isIdentifier(member.name)) stateFields.add(member.name.text)
+      }
       for (const statement of sf.statements) {
         if (ts.isVariableStatement(statement) && (statement.declarationList.flags & ts.NodeFlags.Const) === 0) {
           const line = sf.getLineAndCharacterOfPosition(statement.getStart(sf)).line + 1
@@ -83,6 +91,7 @@ function readProgram(root: string): Reading {
     if (rel === MAIN) {
       for (const statement of sf.statements) {
         if (!ts.isFunctionDeclaration(statement) || statement.name?.text !== UNIT || statement.body === undefined) continue
+        unit = { sf, body: statement.body }
         lets = 0
         for (const inner of statement.body.statements) {
           if (!ts.isVariableStatement(inner) || (inner.declarationList.flags & ts.NodeFlags.Let) === 0) continue
@@ -92,7 +101,43 @@ function readProgram(root: string): Reading {
       }
     }
   }
-  return { findings, files: files.length, parts: parts.sort(), lets, letLines }
+  const twice: string[] = []
+  if (unit !== null) {
+    const { sf, body } = unit
+    const checker = program.getTypeChecker()
+    const held = new Map<ts.Symbol, string>()
+    for (const inner of body.statements) {
+      if (!ts.isVariableStatement(inner) || (inner.declarationList.flags & ts.NodeFlags.Let) === 0) continue
+      for (const declared of inner.declarationList.declarations) {
+        const symbol = ts.isIdentifier(declared.name) && stateFields.has(declared.name.text) ? checker.getSymbolAtLocation(declared.name) : undefined
+        if (symbol !== undefined) held.set(symbol, declared.name.getText(sf))
+      }
+    }
+    twice.push(...held.values())
+    const heldName = (node: ts.Node): string | undefined => {
+      const symbol = ts.isIdentifier(node) ? checker.getSymbolAtLocation(node) : undefined
+      return symbol === undefined ? undefined : held.get(symbol)
+    }
+    const handsOver = (next: ts.Node | undefined, name: string, value: string): boolean => next !== undefined && ts.isExpressionStatement(next) && ts.isBinaryExpression(next.expression) && next.expression.operatorToken.kind === ts.SyntaxKind.EqualsToken && next.expression.left.getText(sf) === `state.${name}` && [name, value].includes(next.expression.right.getText(sf))
+    const visit = (node: ts.Node): void => {
+      const assigned = ts.isBinaryExpression(node) && node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
+      const stepped = (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) && (node.operator === ts.SyntaxKind.PlusPlusToken || node.operator === ts.SyntaxKind.MinusMinusToken)
+      const name = assigned ? heldName(node.left) : stepped ? heldName(node.operand) : undefined
+      if (name !== undefined) {
+        const statement = node.parent
+        const siblings = ts.isExpressionStatement(statement) && (ts.isBlock(statement.parent) || ts.isCaseClause(statement.parent) || ts.isDefaultClause(statement.parent)) ? statement.parent.statements : undefined
+        const next = siblings === undefined ? undefined : siblings[siblings.findIndex(sibling => sibling === statement) + 1]
+        const plain = ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+        if (!plain || !handsOver(next, name, (node as ts.BinaryExpression).right.getText(sf))) {
+          const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1
+          findings.push({ law: 'twice', file: MAIN, line, said: `${MAIN}:${line} writes ${name}, which ${UNIT} holds beside the field state.${name}, and the next line does not hand the value to the state: the parts read state.${name} and would go on reading the old one — write \`state.${name} = ${name}\` on the line after it, or move the bodies that still read the local into their part and drop the local` })
+        }
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(body)
+  }
+  return { findings, files: files.length, parts: parts.sort(), lets, letLines, twice }
 }
 
 function judge(reading: Reading, budget: number): string[] {
@@ -133,6 +178,15 @@ section('§0 the reader on a planted estate: each of the laws is red by its own 
   plant(`${PARTS}part.ts`, `import { daemonMain } from '../main.js'\nlet remembered = 0\nexport function part(): number {\n  remembered++\n  return daemonMain.length\n}\n`)
   const back = judge(readProgram(estate), 3)
   check('a part that imports the file that starts it is red, and so is a variable a part keeps at module level', back.length === 2 && back.some(line => line.startsWith(`${PARTS}part.ts:1 imports ${MAIN}`)) && back.some(line => line.startsWith(`${PARTS}part.ts:2 keeps a variable at module level (remembered)`)), back.join(' | '))
+  plant(`${PARTS}part.ts`, `export function part(): number {\n  return 1\n}\n`)
+  plant(`${PARTS}state.ts`, `export interface ${STATE} {\n  held: number\n  other: number\n}\nexport function make(): ${STATE} {\n  return { held: 0, other: 0 }\n}\n`)
+  const holding = (writes: string): string => `import { make } from './run/state.js'\nasync function ${UNIT}(): Promise<void> {\n  let held = 0\n  let free = 1\n  const state = make()\n${writes}  const inner = (held: number): number => {\n    held = 9\n    return held + free\n  }\n  inner(state.held)\n}\n`
+  plant(MAIN, holding(`  held = 2\n  state.held = held\n  free = 3\n`))
+  const handed = readProgram(estate)
+  check('a variable the unit holds beside a field of the state reads clean when each write hands the value over on the next line; a parameter of its name and a variable the state does not hold are not read', judge(handed, 3).length === 0 && handed.twice.join() === 'held', JSON.stringify([judge(handed, 3), handed.twice]))
+  plant(MAIN, holding(`  held = 2\n  free = 3\n  state.held = held\n  held++\n`))
+  const kept = judge(readProgram(estate), 3)
+  check('a write the next line does not hand to the state is red by its own line, and so is a step of it', kept.length === 2 && kept[0]!.startsWith(`${MAIN}:6 writes held`) && kept[0]!.includes('`state.held = held`') && kept[1]!.startsWith(`${MAIN}:9 writes held`), kept.join(' | '))
   plant(MAIN, `export const moved = 1\n`)
   check('a file with no such unit is red, not read as zero', judge(readProgram(estate), 3).some(line => line.includes(`holds no function ${UNIT}`)))
   rmSync(estate, { recursive: true, force: true })
@@ -146,8 +200,11 @@ section(`§1 the program under ${slash(relative(process.cwd(), ROOT)) || '.'}: w
   check(`no file outside ${MAIN} and ${PARTS} imports a file under ${PARTS}`, !reading.findings.some(f => f.law === 'outside'), reading.findings.filter(f => f.law === 'outside').map(f => f.said).join('\n      '))
   check(`no file under ${PARTS} imports ${MAIN}`, !reading.findings.some(f => f.law === 'back'), reading.findings.filter(f => f.law === 'back').map(f => f.said).join('\n      '))
   check(`no file under ${PARTS} keeps a variable at module level`, !reading.findings.some(f => f.law === 'module'), reading.findings.filter(f => f.law === 'module').map(f => f.said).join('\n      '))
-  check(`${UNIT} declares no more variables with let than it holds (${LET_BUDGET}; the number may only fall)`, reading.lets !== null && reading.lets <= LET_BUDGET, said.filter(line => line.startsWith(MAIN)).join('\n      '))
+  check(`${UNIT} declares no more variables with let than it holds (${LET_BUDGET}; the number may only fall)`, reading.lets !== null && reading.lets <= LET_BUDGET, said.filter(line => line.startsWith(`${MAIN}: `)).join('\n      '))
   if (reading.lets !== null && reading.lets < LET_BUDGET) console.log(`  ${UNIT} is ${LET_BUDGET - reading.lets} under what it holds: lower LET_BUDGET in ${SELF} to ${reading.lets}`)
+  check(`every write of a variable ${UNIT} holds beside a field of the state hands the value to the state on the next line (held twice: ${reading.twice.join(', ') || 'none'})`, !reading.findings.some(f => f.law === 'twice'), reading.findings.filter(f => f.law === 'twice').map(f => f.said).join('\n      '))
+  check(`${UNIT} holds no more variables beside a field of the state than ${TWICE_BUDGET} (the number may only fall)`, reading.twice.length <= TWICE_BUDGET, `${reading.twice.length} (${reading.twice.join(', ')}): a variable of ${UNIT} that the state holds too is the field alone — read and write state.<name> in ${MAIN} and declare no local for it`)
+  if (reading.twice.length < TWICE_BUDGET) console.log(`  ${UNIT} holds ${TWICE_BUDGET - reading.twice.length} fewer than that: lower TWICE_BUDGET in ${SELF} to ${reading.twice.length}`)
   check('the parts stand where the law reads them', reading.parts.includes(`${PARTS}state.ts`), `${PARTS}state.ts is not among the files read`)
 }
 
