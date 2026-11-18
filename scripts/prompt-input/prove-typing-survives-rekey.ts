@@ -67,10 +67,10 @@ console.log('§2 the command queue: a hop parks and restores; a landing keeps wh
 
 console.log('§3 the Chat names the landing to both owners')
 {
-  const { readFileSync } = await import('node:fs')
-  const repl = readFileSync(join(process.cwd(), 'src/screens/Chat.tsx'), 'utf8')
-  check('the draft store hears the landing word', repl.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })"))
-  check('the command queue hears the same landing word', repl.includes("rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })"))
+  const { sessionRekeys } = await import('../ui/chatScenarios.ts')
+  const rekeys = await sessionRekeys('typing-rekey-session')
+  check('the draft store hears the landing word', rekeys.landing.split(' · ')[0] === 'draft typing-rekey-session-c landing=true', rekeys.landing)
+  check('the command queue hears the same landing word', rekeys.landing.split(' · ')[1] === 'queue typing-rekey-session-c landing=true', rekeys.landing)
 }
 
 rmSync(scratch, { recursive: true, force: true })

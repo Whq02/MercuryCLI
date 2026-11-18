@@ -1176,6 +1176,121 @@ export async function openDialogsPart(tag: string, options: { keepHome?: boolean
   }
 }
 
+type SessionModule = typeof import('../../src/screens/chat/useChatSession.ts')
+type SessionArgs = Parameters<SessionModule['useChatSession']>[0]
+type SessionValue = ReturnType<SessionModule['useChatSession']>
+
+type SessionPart = {
+  module: SessionModule
+  part: PartMount<SessionValue>
+  warmth: typeof import('../../src/services/concourse/sessionWarmth.ts')
+  route: typeof import('../../src/context/surfaceRoute.ts')
+  plant: (over: Partial<SessionArgs>) => Promise<void>
+  focus: (id: string | null, over?: Partial<SessionArgs>) => Promise<void>
+  rekeys: string[]
+  calls: string[]
+  close: () => Promise<void>
+}
+
+export async function openSessionPart(tag: string, options: { keepHome?: boolean } = {}): Promise<SessionPart> {
+  const home = options.keepHome === true ? null : pinScratchHome(tag)
+  const rekeys: string[] = []
+  const calls: string[] = []
+  const realPending = { ...(await import('../../src/input-core/pending-input.ts')) }
+  mock.module('../../src/input-core/pending-input.ts', () => ({
+    ...realPending,
+    rekeyToSession: (id: string | null, opts?: { landing?: boolean }) => {
+      rekeys.push(`draft ${id ?? 'null'} landing=${opts?.landing === true}`)
+      return realPending.rekeyToSession(id, opts)
+    },
+  }))
+  const realQueue = { ...(await import('../../src/input-core/command-queue.ts')) }
+  mock.module('../../src/input-core/command-queue.ts', () => ({
+    ...realQueue,
+    rekeyCommandQueueToSession: (id: string | null, opts?: { landing?: boolean }) => {
+      rekeys.push(`queue ${id ?? 'null'} landing=${opts?.landing === true}`)
+      realQueue.rekeyCommandQueueToSession(id, opts)
+    },
+  }))
+  await import('../../src/components/SurfaceRouter.tsx')
+  const module = await import('../../src/screens/chat/useChatSession.ts')
+  const warmth = await import('../../src/services/concourse/sessionWarmth.ts')
+  const route = await import('../../src/context/surfaceRoute.ts')
+  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const before = slot.hasFocusedSession() ? slot.getFocusedSessionConnector() : null
+  const fullscreenBefore = process.env.MERCURY_FULLSCREEN
+  process.env.MERCURY_FULLSCREEN = '1'
+  const connectorOf = (id: string): SessionArgs['focusedConnector'] => Object.assign(new NoSessionConnector(), { sessionId: () => id }) as never
+  route.initializeSurfaceRoute(route.ROOT_CHAT_ROUTE)
+  warmth._resetSessionWarmthForTesting()
+  let args: SessionArgs = {
+    focusedConnector: connectorOf(tag),
+    messages: [],
+    compactWork: { read: () => 'composer', set: focus => void calls.push(`compactWork.set ${focus}`), toggleSummary: () => {}, bindToggle: () => {}, detailState: { selectedId: null, detailTaskId: undefined } },
+    unseen: { onRepin: () => void calls.push('unseen.onRepin') },
+    repinToBottom: () => void calls.push('repinToBottom'),
+    setConversationId: id => void calls.push(`setConversationId ${id === '' ? "''" : id}`),
+    setToolJSX: (next => void calls.push(`setToolJSX ${next === null ? 'null' : 'a dialog'}`)) as never,
+    toolJSXRef: { current: null },
+    localJsx: false,
+    landing: false,
+    armedMessage: null,
+    chatSurfaceCovered: false,
+    inVirtualTranscript: false,
+    transcriptMessages: [],
+  }
+  slot.setFocusedSessionConnector(args.focusedConnector as never)
+  const use = (): SessionValue => module.useChatSession(args)
+  const part = await mountPart(use)
+  return {
+    module,
+    part,
+    warmth,
+    route,
+    plant: async over => {
+      args = { ...args, ...over }
+      await part.set(use)
+    },
+    focus: async (id, over = {}) => {
+      const next = connectorOf(id ?? '')
+      if (id === null) slot.releaseFocusedSessionConnector()
+      else slot.setFocusedSessionConnector(next as never)
+      args = { ...args, ...over, focusedConnector: next }
+      await part.set(use)
+    },
+    rekeys,
+    calls,
+    close: async () => {
+      part.unmount()
+      warmth._resetSessionWarmthForTesting()
+      realPending.resetPendingInputForTests()
+      realQueue.resetCommandQueue()
+      if (fullscreenBefore === undefined) delete process.env.MERCURY_FULLSCREEN
+      else process.env.MERCURY_FULLSCREEN = fullscreenBefore
+      if (before === null) slot.releaseFocusedSessionConnector()
+      else slot.setFocusedSessionConnector(before)
+      if (home !== null) await releaseScratchHome(home)
+    },
+  }
+}
+
+export async function sessionRekeys(tag: string): Promise<{ atMount: string; hop: string; again: string; rest: string; landing: string }> {
+  const session = await openSessionPart(tag, { keepHome: true })
+  const said = (): string => session.rekeys.splice(0).join(' · ')
+  const atMount = said()
+  await session.focus(`${tag}-b`)
+  const hop = said()
+  await session.plant({ messages: [] })
+  const again = said()
+  await session.focus(null)
+  const rest = said()
+  await session.focus(`${tag}-c`)
+  const landing = said()
+  await session.close()
+  return { atMount, hop, again, rest, landing }
+}
+
 export async function closeStage(stage: Stage): Promise<void> {
   stage.view.unmount()
   await releaseScratchHome(stage.home)

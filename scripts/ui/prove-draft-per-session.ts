@@ -16,12 +16,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 console.log('§1 the owners (Chat swap · PromptInput cursor · owner-keyed persistence)')
-const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
-check(
-  'the Chat hop effect owns the swap, mount-skip guarded',
-  repl.includes('rekeyedSessionRef.current !== focusedSessionId') &&
-    repl.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })"),
-)
 const prompt = readFileSync('src/components/PromptInput/useComposerDraft.ts', 'utf8')
 check(
   "PromptInput's cursor re-key is the boot-seed promoted (ref-guarded)",
@@ -89,6 +83,13 @@ await p.rekeyToSession(null)
 p.edit('typed on the resting slot')
 await p.rekeyToSession('session-born', { landing: true })
 check("(h) a landing into a session with its own saved page restores the page", p.text() === 'page for D', `text=${JSON.stringify(p.text())}`)
+
+console.log('\n§3 the owner of the swap, read off the mounted session part of the chat screen')
+{
+  const { sessionRekeys } = await import('./chatScenarios.ts')
+  const rekeys = await sessionRekeys('draft-per-session')
+  check('the Chat hop effect owns the swap, mount-skip guarded', rekeys.atMount === '' && rekeys.hop.startsWith('draft draft-per-session-b landing=false') && rekeys.again === '', `at mount "${rekeys.atMount}" · on a hop "${rekeys.hop}" · on the next render "${rekeys.again}"`)
+}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-draft-per-session: ALL LAWS HOLD' : `\nprove-draft-per-session: ${failures} FAILURE(S)`)

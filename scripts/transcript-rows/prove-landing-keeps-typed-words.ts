@@ -232,14 +232,14 @@ console.log('\n§5 only a born session is named early: in a hop, or a landing on
 }
 
 console.log('\n§6 the owner')
+let migrationCallers = -1
 {
   const store = readFileSync(join(ROOT, 'src/input-core/pending-input.ts'), 'utf8').replace(/\r\n/g, '\n')
   check(
     'the identity-switch listener re-keys only where a composer has been seeded and no seat holds the slot',
     store.includes("onSessionSwitch(id => {\n  if (!initialized || getFocusedSessionConnector().sessionId() !== '') return\n  void rekeyToSession(String(id), { landing: true })\n})"),
   )
-  const chat = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8').replace(/\r\n/g, '\n')
-  check("the screen's own landing is the one mover of a page under a born session's id: Chat's re-key effect calls the landing re-key, and the migration has that one caller", chat.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })") && (store.match(/migrateOrphanedDraft\(/g) ?? []).length === 1)
+  migrationCallers = (store.match(/migrateOrphanedDraft\(/g) ?? []).length
 }
 
 console.log('\n§7 a flush waits for a save that is still being written')
@@ -264,6 +264,12 @@ console.log('\n§7 a flush waits for a save that is still being written')
   await release()
   await flushed
   check('a flush called while a save the timer started is still being written returns when that page is in the file, and not before', waited && page('flight-session') === 'typed and left alone', j({ returnedBeforeTheWrite: !waited, page: page('flight-session') }))
+}
+
+{
+  const { sessionRekeys } = await import('../ui/chatScenarios.ts')
+  const rekeys = await sessionRekeys('landing-words-session')
+  check("the screen's own landing is the one mover of a page under a born session's id: Chat's re-key effect calls the landing re-key, and the migration has that one caller", rekeys.landing.startsWith('draft landing-words-session-c landing=true') && migrationCallers === 1, `on the landing "${rekeys.landing}" · ${migrationCallers} callers of the migration`)
 }
 
 console.log(`\nprove-landing-keeps-typed-words: ${checks} checks, ${failures} failed`)
