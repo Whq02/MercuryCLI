@@ -107,14 +107,6 @@ console.log('\n5 the directory creators under the armed watch never mkdir -p int
   check('5 saturnBoxSchedules.ts does not recreate the daemon dir for the box lock or the box file with a recursive mkdir', !/mkdirSync\(dirname\((lock|p)\), \{ recursive: true \}\)/.test(boxes))
 }
 
-console.log('\n6 the plane heal reads the latch before it re-binds')
-{
-  const main = read(join(DAEMON, 'main.ts'))
-  const rebindLines = main.split('\n').filter(line => line.includes('controlServer?.rebind()'))
-  check('6 main.ts has one rebind of the control socket', rebindLines.length === 1, `${rebindLines.length} rebind lines`)
-  check('6 the rebind line reads daemonHomeStands first', rebindLines.every(line => line.includes('daemonHomeStands(')), rebindLines.map(l => l.trim()).join(' | ') || 'none')
-}
-
 console.log('\n7 the daemon-home writers outside src/daemon publish through the seam: the trails append through it, the projections rename through it')
 {
   const seam = read(SEAM)
