@@ -8,6 +8,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { daemonHaltStanddownActive } from '../../utils/daemonStanddown.js'
 import { runnerArgvFromBoot } from './runnerArgv.js'
 import { startScreenPresenceBeat } from './screenPresence.js'
+import { sleep } from '../../utils/sleep.js'
 
 type Handshake = typeof import('../../daemon/handshake.js')
 
@@ -51,7 +52,7 @@ async function awaitUsable(hs: Handshake, tries = ladderRounds()): Promise<boole
       adoptIfOurs(v)
       return rememberUsable()
     }
-    await new Promise(res => setTimeout(res, 250))
+    await sleep(250)
   }
   return false
 }
@@ -83,7 +84,7 @@ async function awaitUsableOrGone(hs: Handshake, tries = ladderRounds()): Promise
       return 'usable'
     }
     if (v.state === 'absent' && (await planeHold()) === 'clear') return 'gone'
-    await new Promise(res => setTimeout(res, 250))
+    await sleep(250)
   }
   return 'timeout'
 }
@@ -100,7 +101,7 @@ async function awaitDeparture(hs: Handshake, tries = ladderRounds()): Promise<'c
         return 'usable'
       }
     }
-    await new Promise(res => setTimeout(res, 250))
+    await sleep(250)
   }
   return 'clear'
 }
@@ -112,7 +113,7 @@ async function awaitSuccessor(hs: Handshake, oldPid: number | null, tries = 40):
       adoptIfOurs(v)
       return rememberUsable()
     }
-    await new Promise(res => setTimeout(res, 250))
+    await sleep(250)
   }
   return false
 }

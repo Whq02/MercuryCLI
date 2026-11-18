@@ -2,6 +2,7 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { renameWithWin32RetrySync } from '../../substrate/durablePublish.js'
 import * as path from 'node:path'
+import { sleep } from '../../utils/sleep.js'
 import { vulcanEnabled, vulcanLiteMode } from '../../utils/vulcan/vulcanGates.js'
 import { listVulcanInstances, selectVulcanInstance } from './instances.js'
 import { VULCAN_ADDON_DIGEST, VULCAN_ADDON_FILES } from './addonFiles.generated.js'
@@ -241,8 +242,6 @@ export const PLUGIN_RELOAD_SCRIPT =
 
 const RELOAD_SETTLE_MS = 6_000
 const RELOAD_OP_TIMEOUT_MS = 8_000
-
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 function serverStartedMs(r: VulcanResult): number | undefined {
   if (!r.ok || typeof r.result !== 'object' || r.result === null) return undefined

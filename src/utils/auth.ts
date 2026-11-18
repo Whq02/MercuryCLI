@@ -58,6 +58,7 @@ import {
 import { getOauthProfileFromOauthToken } from '../services/oauth/getOauthProfile.js'
 import type { OAuthTokens, SubscriptionType, RateLimitTier } from '../services/oauth/types.js'
 import { binaryName } from './config.js'
+import { sleep } from './sleep.js'
 
 
 export function isAnthropicAuthEnabled(): boolean {
@@ -802,10 +803,7 @@ async function doRefresh(retryCount: number, force: boolean): Promise<boolean> {
   } catch (error) {
     if ((error as { code?: string }).code === 'ELOCKED') {
       if (retryCount < MAX_LOCK_RETRIES) {
-        await new Promise(resolvePromise => {
-          const timer = setTimeout(resolvePromise, 1000 + randomInt(1000))
-          timer.unref?.()
-        })
+        await sleep(1000 + randomInt(1000), undefined, { unref: true })
         return checkAndRefreshOAuthTokenIfNeeded(retryCount + 1, force)
       }
       logForDebugging(`OAuth refresh: lock still held after ${MAX_LOCK_RETRIES} retries; giving up`)

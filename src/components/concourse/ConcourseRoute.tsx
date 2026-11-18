@@ -49,6 +49,7 @@ import { useSessionAccent } from '../mercury-ui/sessionAccent.js';
 import { ConcourseScreen } from './ConcourseScreen.js';
 import { SessionWaitingRoom } from './SessionWaitingRoom.js';
 import { thisMercuryCommand } from '../../services/privateChannel/installPath.js';
+import { sleep } from '../../utils/sleep.js';
 
 
 let lastCoherentSnapshot: ConcourseSnapshotV1 | null = null
@@ -1222,7 +1223,7 @@ function LiveConcourse(): React.ReactNode {
             submitDraft(offer.draft)
             return
           }
-          await new Promise(res => setTimeout(res, 250))
+          await sleep(250)
         }
         noteControl('strip:composer', {
           state: 'failed',

@@ -4,6 +4,7 @@ import { delimiter, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { type CaptureStreamErrors, loadVoiceAddon, resolveVoicePackDir, voiceCheckoutRoot } from './voicePack.js'
 import { encodeWav, pcmDurationMs, pcmIsSilent, pcmSamples, readWav, VOICE_SAMPLE_RATE } from './wav.js'
+import { sleep } from '../../utils/sleep.js'
 
 export const CAPTURE_BOUND_MS = 5 * 60_000
 
@@ -280,7 +281,7 @@ function startPathRecorder(kind: 'sox' | 'arecord' | 'ffmpeg', env: NodeJS.Proce
     } catch {
     }
     if (process.platform !== 'win32') child.kill('SIGINT')
-    const grace = new Promise<void>(resolve => setTimeout(resolve, 3_000))
+    const grace = sleep(3_000)
     await Promise.race([exited, grace])
     if (child.exitCode === null) child.kill('SIGKILL')
     await exited

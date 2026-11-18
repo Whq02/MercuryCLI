@@ -13,6 +13,7 @@ import {
   type MoonshotOauthIo,
 } from './moonshotAccounts.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
+import { sleep as wait } from '../../../utils/sleep.js'
 import {
   fetchKimiManagedUsage,
   fetchMoonshotBalance,
@@ -55,10 +56,6 @@ export const KIMI_SETTLED_AFTER_CANCEL_RECEIPT =
 
 const RFC_SLOW_DOWN_STEP_SEC = 5
 
-function defaultSleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
 export function kimiUsageReceiptLine(usage: KimiManagedUsage): string {
   const window = usage.quota ?? usage.windows[0]
   if (!window) return 'usage endpoint answered (no windows stated)'
@@ -71,7 +68,7 @@ export function kimiUsageReceiptLine(usage: KimiManagedUsage): string {
 
 export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<KimiDeviceLoginOutcome> {
   const { region, io, onEvent } = args
-  const sleep = args.sleep ?? defaultSleep
+  const sleep = args.sleep ?? wait
   const cancelled = args.cancelled ?? (() => false)
   const env = io?.env ?? process.env
   const now = (): number => io?.now?.() ?? Date.now()

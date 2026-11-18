@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { logForDebugging } from '../../utils/debug.js'
 import { killProcessGroup } from '../../utils/processGroup.js'
+import { sleep } from '../../utils/sleep.js'
 import { getToolResultsDir } from '../../utils/toolResultStorage.js'
 import { clampClause } from '../../utils/waitCeiling.js'
 import { BoundedStreamSink } from './outputSink.js'
@@ -513,7 +514,7 @@ export class EvalKernelManager {
     const watcher = (async (): Promise<void> => {
       let interruptAt: number | null = null
       while (!watchStop) {
-        await sleep(100)
+        await sleep(100, undefined, { unref: true })
         if (watchStop) return
         if (interruptRequested === null) {
           if (abortSignal.aborted) interruptRequested = 'abort'
@@ -710,13 +711,6 @@ function writeSpill(
     annotations.push(`output was truncated and the spill write failed: ${String(error)}`)
     return undefined
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => {
-    const t = setTimeout(resolve, ms)
-    t.unref?.()
-  })
 }
 
 function refusalOutcome(message: string, annotations: string[] = []): EvalCellOutcome {

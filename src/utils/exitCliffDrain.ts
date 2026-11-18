@@ -1,6 +1,7 @@
 import { channel } from 'node:diagnostics_channel'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { logForDebugging } from './debug.js'
+import { sleep } from './sleep.js'
 
 const EXIT_CLIFF_DRAIN_CHANNEL = 'mercury:exit-cliff-drain'
 const drainChannel = channel(EXIT_CLIFF_DRAIN_CHANNEL)
@@ -122,7 +123,7 @@ const EXIT_CLIFF_LOOP_TURNS = 2
 async function turnLoopForTeardown(grace: ExitCliffGrace): Promise<void> {
   for (let hop = 0; hop < EXIT_CLIFF_LOOP_TURNS; hop++) {
     if (grace.spent) return
-    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    await sleep(0)
   }
 }
 

@@ -16,6 +16,7 @@ import {
   retrievePastedText,
   storePastedText,
 } from './utils/pasteStore.js'
+import { sleep } from './utils/sleep.js'
 
 
 export type HistoryRecord = {
@@ -137,7 +138,7 @@ async function flushWithRetries(): Promise<void> {
         return
       } catch {
         if (attempt >= FLUSH_MAX_RETRIES) return
-        await new Promise(resolve => setTimeout(resolve, FLUSH_RETRY_DELAY_MS))
+        await sleep(FLUSH_RETRY_DELAY_MS)
       } finally {
         inFlightFlush = null
       }

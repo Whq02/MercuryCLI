@@ -21,6 +21,7 @@ import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { compatDispatchModelId } from '../openaicompat/compatChatCallModel.js'
 import { fitOutputTokensForRequest, outputFitWords } from '../../api/outputFit.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { sleep } from '../../../utils/sleep.js'
 
 function bearerFromAuthHeaders(headers: Record<string, string>): string | undefined {
   const auth = headers['authorization'] ?? headers['Authorization']
@@ -276,7 +277,7 @@ const GEMINI_PLAN_ROSTER_REREAD_MS = 5_000
 
 async function rosterReadBounded(force: boolean, waitMs: number): Promise<void> {
   const read = refreshGeminiCatalogue('plan', force ? { force: true } : undefined).then(() => undefined, () => undefined)
-  await Promise.race([read, new Promise<void>(resolve => setTimeout(resolve, waitMs).unref?.())])
+  await Promise.race([read, sleep(waitMs, undefined, { unref: true })])
 }
 
 export async function* geminiCallModel(params: CallModelParams): CallModelStream {

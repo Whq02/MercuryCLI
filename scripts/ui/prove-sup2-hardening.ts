@@ -504,7 +504,7 @@ console.log('§32 wedged daemon — true bound, one ladder, honest refusal')
   const ens = read('src/services/switchboard/ensureDaemon.ts')
   check('poison gone: the ~10s claim is replaced by the true bound (the 40-round ladder)', !ens.includes('(bounded, ~10s)') && ens.includes('async function awaitUsable(hs: Handshake, tries = ladderRounds()): Promise<boolean> {'))
   check("the 'starting' ladder is single-flighted", ens.includes('waiting ??= awaitUsableOrGone(hs).finally(() => {'))
-  check('the ladder arithmetic stands (40 × 500ms + 250ms)', ens.includes('const LADDER_ROUNDS = 40') && ens.includes('timeoutMs: 500') && ens.includes('setTimeout(res, 250)'))
+  check('the ladder arithmetic stands (40 × 500ms)', ens.includes('const LADDER_ROUNDS = 40') && ens.includes('timeoutMs: 500'))
   const born = read('src/services/switchboard/bornSession.ts')
   check("poison gone: the refusal no longer promises '↵ again starts it'", !born.includes('↵ again starts it and retries'))
   check('the refusal names the retry and the wedge remedy', born.includes('`mercury daemon stop` clears a daemon that holds the pipe but never answers'))
@@ -601,10 +601,18 @@ console.log('§42 change-set delete — the win32 retry ladder')
 
 console.log('§43 task output — the retry waits before it judges')
 {
-  const dio = read('src/utils/task/diskOutput.ts')
-  const { TASK_OUTPUT_RETRY_DELAY_MS } = await import('../../src/utils/task/diskOutput.ts')
+  const { DiskTaskOutput, TASK_OUTPUT_RETRY_DELAY_MS } = await import('../../src/utils/task/diskOutput.ts')
   check("the pause is the owner's first rung", TASK_OUTPUT_RETRY_DELAY_MS === 50)
-  check('the pause precedes the retry', dio.indexOf('setTimeout(r, TASK_OUTPUT_RETRY_DELAY_MS)') !== -1 && dio.indexOf('setTimeout(r, TASK_OUTPUT_RETRY_DELAY_MS)') < dio.indexOf('await this.drainCycle()', dio.indexOf('setTimeout(r, TASK_OUTPUT_RETRY_DELAY_MS)')))
+  const cycles: number[] = []
+  const output = new DiskTaskOutput('sup2-retry-pause') as unknown as { queue: string[]; drainCycle: () => Promise<void>; append(text: string): void; flush(): Promise<void> }
+  output.drainCycle = async () => {
+    cycles.push(performance.now())
+    if (cycles.length === 1) throw new Error('the first cycle of this proof fails')
+    output.queue.length = 0
+  }
+  output.append('a chunk the first cycle does not write')
+  await output.flush()
+  check('the pause precedes the retry', cycles.length === 2 && cycles[1]! - cycles[0]! >= TASK_OUTPUT_RETRY_DELAY_MS - 2, `the cycles ran at ${cycles.map(at => at.toFixed(1)).join(' and ')} ms`)
 }
 
 console.log('§44 exit heals — ?2026l first; the splash cancel disarms ?1007')

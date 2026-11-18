@@ -31,6 +31,7 @@ import { clearKeychainCache, getSecureStorage } from '../../utils/secureStorage/
 import { getMcpServerHeaders } from './headersHelper.js'
 import { buildRedirectUri, findAvailablePort } from './oauthPort.js'
 import type { McpServerConfig } from './types.js'
+import { sleep } from '../../utils/sleep.js'
 
 
 
@@ -565,7 +566,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
         release = await lock(lockPath, { realpath: false })
       } catch (err) {
         if ((err as { code?: string }).code === 'ELOCKED') {
-          await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000))
+          await sleep(1000 + Math.random() * 1000)
           continue
         }
         logForDebugging(`mcp auth [${this.serverName}]: refresh lock error, proceeding without lock: ${String(err)}`)
@@ -650,7 +651,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
             oauthCode === OAuthErrorCode.TooManyRequests
           lastRetryable = retryable
           if (!retryable || attempt === REFRESH_ATTEMPTS) break
-          await new Promise(resolve => setTimeout(resolve, 1000 * 2 ** (attempt - 1)))
+          await sleep(1000 * 2 ** (attempt - 1))
         }
       }
       emitRefreshEvent(lastRetryable ? 'transient_retries_exhausted' : 'request_failed')

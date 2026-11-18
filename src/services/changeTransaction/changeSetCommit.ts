@@ -26,6 +26,7 @@ import {
   changeSetJournalDir,
 } from './changeSetContracts.js'
 import { canonicalPathKey, sha256Hex } from './changeSetPlan.js'
+import { sleep } from '../../utils/sleep.js'
 
 export const TEXT_CHANGE_SET_KIND = 'text-change-set'
 
@@ -725,7 +726,7 @@ async function unlinkWithWin32Retry(path: string): Promise<void> {
       const delay = WIN32_RENAME_RETRY_DELAYS_MS[attempt]
       if (process.platform !== 'win32' || !isTransientWin32FsCode(code) || delay === undefined) throw e
       attempt++
-      await new Promise(r => setTimeout(r, delay))
+      await sleep(delay)
     }
   }
 }

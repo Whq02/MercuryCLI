@@ -3,6 +3,7 @@ import { writeStoredXaiApiKey, writeStoredXaiManagementApiKey } from '../provide
 import { resolveXaiApiKey, xaiApiBase, xaiInferenceBase } from './xaiAccounts.js'
 import { startXaiDeviceAuth, pollXaiDeviceToken, writeXaiTokens, writePreferredXaiSource, type XaiDeviceAuthStart, type XaiOauthIo } from './xaiOauth.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
+import { sleep as wait } from '../../../utils/sleep.js'
 import { fetchXaiUsage, xaiUsageFailureWords, type XaiUsageIo } from './xaiUsageState.js'
 import { fetchXaiLiveModels, fetchXaiSubscriptionModels, XaiCatalogueHttpError } from './xaiCatalogue.js'
 
@@ -72,7 +73,7 @@ export async function runXaiDeviceLogin(args: {
 } = {}): Promise<{ ok: boolean; receipt: string; settledAfterCancel?: true }> {
   const cancelled = args.cancelled ?? (() => false)
   const now = args.io?.now ?? Date.now
-  const sleep = args.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)))
+  const sleep = args.sleep ?? wait
   args.onEvent?.({ phase: 'starting' })
   let start: XaiDeviceAuthStart
   try { start = await startXaiDeviceAuth(args.io) } catch (error) {

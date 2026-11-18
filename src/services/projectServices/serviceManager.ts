@@ -35,6 +35,7 @@ import {
   installServiceExecutionDomain,
   projectServiceExecution,
 } from './executionProjection.js'
+import { sleep } from '../../utils/sleep.js'
 
 const RESTART_BACKOFF_BASE_MS = 500
 const RESTART_BACKOFF_MAX_MS = 15_000
@@ -361,7 +362,7 @@ export async function waitForReady(
     const record = reconcileRecord(cwd, name)
     if (!record) {
       if (Date.now() >= registrationGrace) return { ready: false, statuses: [], record: null }
-      await new Promise(r => setTimeout(r, 100))
+      await sleep(100)
       continue
     }
     if (record.state === 'failed' || record.state === 'stopped') {
@@ -387,7 +388,7 @@ export async function waitForReady(
       writeRecord(cwd, updated)
       return { ready: false, statuses, record: updated }
     }
-    await new Promise(r => setTimeout(r, 250))
+    await sleep(250)
   }
 }
 
@@ -637,7 +638,7 @@ export async function stopService(
   const deadline = Date.now() + 5_000
   while (Date.now() < deadline) {
     if (!processAlive(record.pid, record.startToken)) break
-    await new Promise(r => setTimeout(r, 100))
+    await sleep(100)
   }
   if (processAlive(record.pid, record.startToken)) {
     const stillOwned = ownedLiveChild(cwd, name, record.pid)
@@ -744,7 +745,7 @@ export async function awaitOutput(
     if (record === null || record.pid === null) return { record, grew: seen > cursor }
     if (lastGrowth !== null && now - lastGrowth >= OUTPUT_QUIET_MS) return { record, grew: true }
     if (now >= deadline) return { record, grew: seen > cursor }
-    await new Promise(r => setTimeout(r, Math.min(OUTPUT_POLL_MS, Math.max(1, deadline - now))))
+    await sleep(Math.min(OUTPUT_POLL_MS, Math.max(1, deadline - now)))
   }
 }
 

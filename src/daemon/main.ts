@@ -144,6 +144,7 @@ import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSy
 import { decideSessionlessExit, initialSessionlessState, SESSIONLESS_EXIT_BEAT_MS } from './sessionlessExit.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidSocketsOnDisk, helperPidsOfHome } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
+import { sleep } from '../utils/sleep.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
@@ -359,7 +360,7 @@ async function daemonRun(args: string[]): Promise<void> {
     if (decision.road === 'wait-lock') {
       const deadline = Date.now() + SUCCESSOR_LOCK_WAIT_MS
       while (decision.road === 'wait-lock' && Date.now() < deadline) {
-        await new Promise(res => setTimeout(res, 100))
+        await sleep(100)
         decision = decidePlaneBoot(await planeBootFacts(stamps))
       }
       if (decision.road === 'wait-lock') decision = { road: 'refuse', why: `the predecessor pid ${decision.for} did not release the daemon lock within ${SUCCESSOR_LOCK_WAIT_MS / 1000}s` }
@@ -1527,7 +1528,7 @@ async function daemonRun(args: string[]): Promise<void> {
         }
         let calledOff = false
         while (!calledOff && pendingParkRequests().length > 0 && Date.now() - startedDrain < ceilingMs) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          await sleep(1000)
           calledOff = screenCameBack()
         }
         if (calledOff) return

@@ -9,6 +9,7 @@ import { getUserAgent } from '../../../utils/http.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
+import { sleep } from '../../../utils/sleep.js'
 
 const XAI_OAUTH_CLIENT_ID = 'b1a00492-073a-47ea-816f-4c329264a828'
 const XAI_OAUTH_SCOPE = 'openid profile email offline_access grok-cli:access api:access'
@@ -152,7 +153,7 @@ async function withRefreshLock<T>(path: string, run: () => Promise<T>): Promise<
         }
       } catch {}
       if (performance.now() >= deadline) throw new Error('Another process is refreshing Grok; retry after it finishes.')
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await sleep(100)
     }
   }
   try { return await run() } finally {

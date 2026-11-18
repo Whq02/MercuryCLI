@@ -6,6 +6,7 @@ import { presenceNudge, derivePresence, takeCensus, type AddonPresenceFacts } fr
 import { selectVulcanInstance } from './instances.js'
 import { resolveGodotExecutable } from './portabilityHealth.js'
 import { getVulcanClient } from './vulcanClient.js'
+import { sleep } from '../../utils/sleep.js'
 
 interface GlobalClassEntry {
   class: string
@@ -240,7 +241,7 @@ async function refreshClassesViaEditor(projectRoot: string, selector?: unknown):
   const t0 = Date.now()
   let after = classCacheReport(projectRoot)
   while (Date.now() - t0 < RESCAN_SETTLE_MS && (after.stale.length > 0 || after.cacheMtimeMs === before.cacheMtimeMs)) {
-    await new Promise(resolve => setTimeout(resolve, RESCAN_POLL_MS))
+    await sleep(RESCAN_POLL_MS)
     after = classCacheReport(projectRoot)
   }
   const beforeNames = new Set(before.classes.map(c => c.class))

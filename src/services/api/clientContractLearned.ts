@@ -615,10 +615,7 @@ async function runPeek(clock: () => number, signal: AbortSignal): Promise<Client
 export function startClientContractPeek(): Promise<ClientContractPeek> {
   if (bootPeek === null) {
     registerExitCliffSeam(peekSeam)
-    bootPeek = new Promise<void>(resolve => {
-      const timer = setTimeout(resolve, 0)
-      timer.unref?.()
-    }).then(() => peekClientContract())
+    bootPeek = sleep(0, undefined, { unref: true }).then(() => peekClientContract())
   }
   return bootPeek
 }

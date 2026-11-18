@@ -92,6 +92,7 @@ import {
   renderToolUseMessage,
   userFacingName,
 } from './UI.js'
+import { sleep } from '../../utils/sleep.js'
 
 const OPS = [
   'status',
@@ -633,10 +634,7 @@ function markAct(s: LiveSession): ActMarks {
 }
 
 function bounded(ms: number): Promise<void> {
-  return new Promise(resolve => {
-    const t = setTimeout(resolve, ms)
-    ;(t as { unref?: () => void }).unref?.()
-  })
+  return sleep(ms, undefined, { unref: true })
 }
 
 async function settleAfterAct(s: LiveSession, deadline: number, marks: ActMarks): Promise<void> {

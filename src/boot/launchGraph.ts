@@ -1,4 +1,5 @@
 import { logForDebugging } from '../utils/debug.js'
+import { sleep } from '../utils/sleep.js'
 
 
 let inputLive = false
@@ -58,9 +59,9 @@ export function armBackgroundDiscovery(): void {
   void (async () => {
     await Promise.race([
       inputLivePromise,
-      new Promise<void>(resolve => setTimeout(resolve, BACKGROUND_DEADLINE_MS)),
+      sleep(BACKGROUND_DEADLINE_MS),
     ])
-    await new Promise<void>(resolve => setTimeout(resolve, BACKGROUND_SETTLE_MS))
+    await sleep(BACKGROUND_SETTLE_MS)
     backgroundStarted = true
     const inFlight = new Set<Promise<void>>()
     while (backgroundNodes.length > 0) {
@@ -73,7 +74,7 @@ export function armBackgroundDiscovery(): void {
         inFlight.delete(tracked)
       })
       inFlight.add(tracked)
-      await new Promise<void>(resolve => setTimeout(resolve, 0))
+      await sleep(0)
     }
   })()
 }

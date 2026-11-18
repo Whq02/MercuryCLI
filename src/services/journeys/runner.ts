@@ -27,6 +27,7 @@ import type {
   JourneySpec,
   JourneyStep,
 } from './contracts.js'
+import { sleep } from '../../utils/sleep.js'
 
 const RING = 16
 const MAX_DETAIL = 400
@@ -285,7 +286,7 @@ async function runStep(
           return { ok: false, detail: `no log line matched /${step.pattern}/ within the timeout (${out.lines.length} line(s) scanned)` }
         }
         if (ctx.signal.aborted) return { ok: false, detail: 'cancelled while waiting on logs' }
-        await new Promise(r => setTimeout(r, 150))
+        await sleep(150, ctx.signal)
       }
     }
     case 'diagnostic.check': {

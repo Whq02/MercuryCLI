@@ -190,6 +190,7 @@ import { recordModeTransition } from '../utils/permissions/modeTransitions.js';
 import { publishCockpitActivity, type ActivityState } from '../utils/cockpit/cockpitActivity.js';
 import { parseSearchQuery } from '../utils/transcriptSearch.js';
 import type { StreamingToolUse } from '../utils/messages/streaming.js';
+import { sleep } from '../utils/sleep.js';
 
 export type Screen = 'prompt' | 'transcript';
 
@@ -2004,7 +2005,7 @@ export function Chat({
         connector.interrupt();
         const deadline = Date.now() + REWIND_SETTLE_WAIT_MS;
         while (connector.turnActive() && Date.now() < deadline) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await sleep(100);
         }
       }
       if (message === undefined && files?.userMessageId === undefined) return { outcome: 'refused', mode, refusal: 'not-found', detail: 'no restore point was selected' };

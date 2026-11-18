@@ -1352,7 +1352,7 @@ scripts/ui/prove-status-spine-unity.ts	1	6	0017a06bb718
 scripts/ui/prove-sticky-prompt-header-gone.ts	5	0	bee1cec8a4b1
 scripts/ui/prove-streaming-nameplate.ts	3	13	21937dc0a5e0
 scripts/ui/prove-submit-while-landing.ts	2	31	cba956a2522d
-scripts/ui/prove-sup2-hardening.ts	64	242	bb865f054fec
+scripts/ui/prove-sup2-hardening.ts	63	237	3d7257bb9637
 scripts/ui/prove-surface-claim.ts	2	21	e35e4315178a
 scripts/ui/prove-swarm-party-receipt.ts	4	7	1068ab321c7b
 scripts/ui/prove-tasks-mission.ts	1	11	de271ec2ed92

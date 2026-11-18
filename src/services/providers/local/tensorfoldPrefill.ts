@@ -15,6 +15,7 @@ import { mapMessagesToZai } from '../zai/zaiCodec.js'
 import { fetchTensorFold, type LocalModelRecord } from './localDiscovery.js'
 import { onTensorFoldStopping } from './tensorfoldStopping.js'
 import { tensorFoldTurnReadings } from './tensorfoldUsage.js'
+import { sleep } from '../../../utils/sleep.js'
 
 export const NEXT_TURN_SETTLE_MS = 750
 export const NEXT_TURN_STAGE_SECONDS = 5
@@ -261,10 +262,7 @@ function watchTheCut(offer: Offer): () => void {
 async function engineIdle(offer: Offer, signal: AbortSignal): Promise<boolean | undefined> {
   for (let look = 0; look < 2; look++) {
     if (look > 0) {
-      await new Promise<void>(resolve => {
-        const pause = setTimeout(resolve, state.io.lookMs ?? NEXT_TURN_LOOK_MS)
-        pause.unref?.()
-      })
+      await sleep(state.io.lookMs ?? NEXT_TURN_LOOK_MS, signal, { unref: true })
     }
     if (signal.aborted) return false
     const load = await engineLoad(offer, signal)

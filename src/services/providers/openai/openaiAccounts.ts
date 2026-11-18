@@ -15,6 +15,7 @@ import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
+import { sleep } from '../../../utils/sleep.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
@@ -435,11 +436,6 @@ export async function currentSubscriptionTokens(opts?: {
   if (knownDeadRefreshTokens.has(tokens.refreshToken)) return undefined
   if (refreshInFlight) return refreshInFlight
   refreshInFlight = (async () => {
-    const sleep = (ms: number): Promise<void> =>
-      new Promise(resolve => {
-        const t = setTimeout(resolve, ms)
-        ;(t as { unref?: () => void }).unref?.()
-      })
     let locked = false
     let usedRefreshToken: string | undefined
     try {
@@ -447,7 +443,7 @@ export async function currentSubscriptionTokens(opts?: {
       if (!locked) {
         const deadline = now() + REFRESH_WAIT_TOTAL_MS
         while (now() < deadline) {
-          await sleep(REFRESH_WAIT_STEP_MS)
+          await sleep(REFRESH_WAIT_STEP_MS, undefined, { unref: true })
           const latest = readAuthFile()?.tokens
           if (adoptable(latest)) return latest
         }
@@ -790,10 +786,7 @@ export async function beginOpenaiDeviceConnect(opts?: {
       if (Date.now() > deadline) {
         throw new Error('OpenAI sign-in expired before the code was approved — retry from /logins openai')
       }
-      await new Promise(resolve => {
-        const t = setTimeout(resolve, intervalMs)
-        ;(t as { unref?: () => void }).unref?.()
-      })
+      await sleep(intervalMs, undefined, { unref: true })
       const poll = await fetchWithProviderDeadline(fetchImpl, 'openai', LOGIN_EXCHANGE_TIMEOUT_MS, `${accountsBase}/deviceauth/token`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'user-agent': getUserAgent() },

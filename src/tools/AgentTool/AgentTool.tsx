@@ -106,6 +106,7 @@ import { isResultTruncated } from './UI.js'
 import type { AgentToolProgress, ShellProgress } from '../../types/tools.js'
 import { envelopeFor } from '../../services/agentResults/ingest.js'
 import { formatEnvelopeBlock } from '../../services/agentResults/normalize.js'
+import { sleep } from '../../utils/sleep.js'
 
 export type Progress = AgentToolProgress | ShellProgress
 
@@ -328,7 +329,7 @@ async function waitForRequiredMcpServers(
       client => client.type === 'failed' && matchesRequired(client.name),
     )
     if (failedRequired) break
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await sleep(500)
   }
   const serversWithTools = mcpServerNamesWithTools(
     context.getAppState().mcp.tools ?? [],

@@ -1,6 +1,7 @@
 
 import { writeSync } from 'node:fs'
 import * as net from 'node:net'
+import { sleep } from '../../utils/sleep.js'
 
 const CONNECT_ATTEMPTS = 5
 const CONNECT_RETRY_DELAY_MS = 250
@@ -63,7 +64,7 @@ async function connectWithRetry(
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err)
       if (attempt < CONNECT_ATTEMPTS) {
-        await new Promise(res => setTimeout(res, CONNECT_RETRY_DELAY_MS))
+        await sleep(CONNECT_RETRY_DELAY_MS)
       }
     }
   }

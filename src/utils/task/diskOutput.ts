@@ -7,6 +7,7 @@ import { logError } from '../log.js'
 import { getPlatform } from '../platform.js'
 import { getProjectTempDir } from '../permissions/filesystem.js'
 import { getSessionId } from '../../bootstrap/state.js'
+import { sleep } from '../sleep.js'
 
 
 export const TASK_OUTPUT_RETRY_DELAY_MS = 50
@@ -210,7 +211,7 @@ export class DiskTaskOutput {
     } catch (error) {
       logError(error)
       if (this.queue.length > 0) {
-        await new Promise(r => setTimeout(r, TASK_OUTPUT_RETRY_DELAY_MS))
+        await sleep(TASK_OUTPUT_RETRY_DELAY_MS)
         try {
           await this.drainCycle()
         } catch (retryError) {
