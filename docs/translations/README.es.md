@@ -107,16 +107,6 @@ La versión mínima de Node incluye la corrección de nodejs/node#56645. Por deb
 
 Los lanzadores eligen Node en este orden: el binario indicado en `MERCURY_NODE`, el entorno de ejecución incluido y, después, una instalación de Node compatible en PATH. Si falta el entorno de ejecución, el lanzador muestra un error.
 
-### Shells de Windows
-
-Los archivos de versión incluyen el motor de shell compatible con bash de Mercury (`brush`), y en Windows es el que atiende la herramienta Bash de forma predeterminada: encuentra un programa `.cmd` o `.bat`, como `npm`, por su nombre simple mediante PATHEXT, pasa `%VAR%` y `^` a un archivo por lotes sin cambios, ejecuta un programa indicado con una ruta relativa tras `cd` y mantiene el estado del shell entre llamadas. No hace falta el `bash.exe` de Git para Windows; si está instalado, `MERCURY_SHELL_ENGINE=system`, o `system` en `/config` bajo Shell engine, hace que la herramienta Bash use solo `bash.exe`.
-
-Lea la fila `shell` de la comprobación de estado para ver qué shell está activo y por qué: el motor incluido (el predeterminado en Windows, o activado por la fijación o la configuración), o Git Bash cuando el motor está desactivado o falta su paquete.
-
-En macOS y Linux, el shell del sistema es el predeterminado; defina `MERCURY_SHELL_ENGINE=brush` o elija `brush` en `/config`, bajo Shell engine, para que la herramienta Bash use también allí el motor incluido, con estado de shell persistente.
-
-Una compilación desde el código fuente sin el paquete del motor ni Git para Windows sigue arrancando, pero la herramienta Bash no está disponible. La herramienta PowerShell sigue disponible, y el diagnóstico `shell` explica cómo restaurar la compatibilidad con Bash.
-
 ## Compilar desde el código fuente
 
 Mercury se compila con bun y se ejecuta en Node 24 LTS. Instale [los requisitos para compilar desde el código fuente](#requisitos), incluido bun 1.4.4:
@@ -151,7 +141,7 @@ La fila Terminal color de la comprobación de estado indica la profundidad detec
 
 Para compilar el soporte de voz, ejecute `setup` con Rust instalado. Eso compila `native/voice`. Añada cmake para compilar también `native/whisper`. Con Rust instalado, `setup` también compila el addon del controlador de escritorio (`native/desktop`), por el que funciona la herramienta `Computer`. Con Rust instalado, `setup` además compila el addon local de embeddings (`native/embed`, `bun run scripts/vendor/build-embed.ts`) y descarga el modelo BGE de 118 MB (`bun run scripts/vendor/fetch-embed-models.ts --default`); sin cargo, el paquete se omite, setup lo indica y la búsqueda en la memoria de Mneme se limita a la coincidencia de palabras. Cada archivo de versión incluye el paquete de embeddings compilado para su plataforma; en Linux y Windows, el cálculo usa un kernel vectorizado, de modo que un Recall por significado tarda alrededor de una décima de segundo (unas pocas centésimas en macOS, que usa Accelerate). Si una compilación nativa carece de sus herramientas, setup la omite y la comprobación de estado informa del addon que falta. El motor de shell de Windows también se compila en su equipo, porque upstream no tiene binario para Windows.
 
-Consulte [Shells de Windows](#shells-de-windows) y [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) para el motor de shell `brush`.
+Consulte [Shells de Windows](../INSTALL.md#windows-shells) y [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) para el motor de shell `brush`.
 
 La compilación escribe solo en `dist/`. La configuración y las sesiones se guardan en `~/.mercury`, o en el directorio que define `MERCURY_CONFIG_DIR`, y se crean en la primera ejecución. En Windows, ejecute `node dist\mercury.mjs` directamente.
 

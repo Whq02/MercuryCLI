@@ -6,6 +6,7 @@ import { clearMTLSCache } from './mtls.js'
 import { clearProxyCache, configureGlobalAgents } from './proxy.js'
 import { isSettingSourceEnabled, type SettingSource } from './settings/constants.js'
 import { getInitialSettings, getSettingsForSource } from './settings/settings.js'
+import { subprocessEnv } from './subprocessEnv.js'
 
 
 type EnvObject = Record<string, string>
@@ -69,4 +70,9 @@ export function applyConfigEnvironmentVariables(): void {
   clearMTLSCache()
   clearProxyCache()
   configureGlobalAgents()
+}
+
+export function configEnvironmentIsApplied(): boolean {
+  const env = subprocessEnv()
+  return Object.entries(getInitialSettings().environment?.values ?? {}).every(([key, value]) => env[key] === String(value))
 }

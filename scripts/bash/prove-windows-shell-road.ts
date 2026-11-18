@@ -148,7 +148,17 @@ console.log('── §3 the roster follows the road ──')
   const withBash = roster({ [SEAM]: 'locate', [PIN]: import.meta.path })
   const wb = withBash.r
   check('on the road WITH a bash, whatever packs stand: the found bash is the road and nothing arms the engine — the Bash tool stands, PowerShell keeps its opt-in, no notice', wb?.active === true && wb.kind === 'git-bash' && wb.bash === true && wb.ps === false && wb.notice === null, JSON.stringify(wb) || withBash.err)
-  check("…and /health's line names that bash and who named it", /bash at .*named by MERCURY_GIT_BASH_PATH/.test(wb?.line ?? ''), wb?.line)
+  const unasked = (line: string | undefined): boolean => line !== undefined && line.startsWith(`${import.meta.path} — named by MERCURY_GIT_BASH_PATH; whether it is a bash is asked when the Bash tool is first offered`) && !/the Bash tool runs under it|bash at/.test(line)
+  check("…and /health's line names the pinned program and who named it, and calls it no bash before it has answered: the road does not trust that the pin's file exists", unasked(wb?.line), wb?.line)
+  const readinessProbe = `const config = await import('${join(ROOT, 'src/utils/config.ts').replace(/\\/g, '\\\\')}'); config.enableConfigs(); const readiness = await import('${join(ROOT, 'src/utils/readiness.ts').replace(/\\/g, '\\\\')}'); console.log(JSON.stringify(readiness.collectReadiness({ includeEnv: false }).records.find(row => row.id === 'tool:shell')))`
+  const pinnedRow = roadSubprocess(readinessProbe, { [SEAM]: 'locate', [PIN]: import.meta.path })
+  let pr: { state?: string; detail?: string } | null = null
+  try {
+    pr = JSON.parse(pinnedRow.stdout.split('\n').at(-1) ?? 'null') as { state?: string; detail?: string } | null
+  } catch {
+    pr = null
+  }
+  check('…and the readiness row of that machine reads configured, not ready, with that line: a pinned program is no shell until it has answered', pr?.state === 'configured' && pr.detail === wb?.line, JSON.stringify(pr) || pinnedRow.stderr.slice(0, 300))
   const withPack = roster({ [SEAM]: 'pack' })
   const wp = withPack.r
   if (SHIPPED_BASH === null) {
@@ -160,7 +170,7 @@ console.log('── §3 the roster follows the road ──')
   const withBashKept = roster({ [SEAM]: 'locate', [PIN]: import.meta.path, [ENGINE_PIN]: 'system' })
   const wk = withBashKept.r
   check('on the road WITH a bash, MERCURY_SHELL_ENGINE=system keeps bash.exe whatever the pack: git-bash is the road, no notice', wk?.active === true && wk.kind === 'git-bash' && wk.bash === true && wk.ps === false && wk.notice === null, JSON.stringify(wk) || withBashKept.err)
-  check("…and /health's line names that bash and who named it", /bash at .*named by MERCURY_GIT_BASH_PATH/.test(wk?.line ?? ''), wk?.line)
+  check("…and /health's line names the pinned program and who named it, and calls it no bash before it has answered", unasked(wk?.line), wk?.line)
   const withBashOptIn = roster({ [SEAM]: 'locate', [PIN]: import.meta.path, MERCURY_USE_POWERSHELL_TOOL: '1' })
   check('…and the opt-in still turns PowerShell on beside Bash', withBashOptIn.r?.bash === true && withBashOptIn.r?.ps === true)
 

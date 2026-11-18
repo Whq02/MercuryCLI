@@ -107,16 +107,6 @@ Minimalna verzija Node-a uključuje ispravku za nodejs/node#56645. Ispod 24.20.0
 
 Launcher-i biraju Node ovim redoslijedom: eksplicitno navedeni binarni fajl `MERCURY_NODE`, ugrađeno izvršno okruženje, pa zatim kompatibilna instalacija Node-a u PATH-u. Ako izvršno okruženje nedostaje, launcher prijavljuje grešku.
 
-### Windows ljuske
-
-Arhive izdanja uključuju Mercury-jev shell engine kompatibilan s bash-om (`brush`), a na Windows-u on podrazumijevano služi alatu Bash: pronalazi program `.cmd` ili `.bat`, kao što je `npm`, po njegovom običnom imenu preko PATHEXT-a, prosljeđuje `%VAR%` i `^` batch datoteci nepromijenjeno, pokreće program naveden relativnom putanjom nakon `cd` i zadržava stanje shell-a između poziva. `bash.exe` iz Git for Windows nije potreban; kada je instaliran, `MERCURY_SHELL_ENGINE=system` ili `system` u `/config` pod Shell engine pokreću alat Bash isključivo preko `bash.exe`.
-
-Pročitajte red `shell` u provjeri stanja da vidite koja je ljuska aktivna i zašto: ugrađeni engine (podrazumijevani na Windows-u, ili aktiviran fiksiranjem ili postavkom), ili Git Bash kada je engine isključen ili mu paket nedostaje.
-
-Na macOS-u i Linux-u sistemska ljuska je podrazumijevana; postavite `MERCURY_SHELL_ENGINE=brush` ili odaberite `brush` u `/config` pod Shell engine da alat Bash radi i tamo na ugrađenom engine-u, uz trajno stanje ljuske.
-
-Izgradnja iz izvornog koda bez paketa engine-a ili Git for Windows-a i dalje se pokreće, ali alat Bash nije dostupan. Alat PowerShell ostaje dostupan, a dijagnostika `shell` objašnjava kako vratiti podršku za Bash.
-
 ## Izgradnja iz izvornog koda
 
 Mercury se gradi pomoću bun-a i radi na Node-u 24 LTS. Instalirajte [zahtjeve za izgradnju iz izvornog koda](#zahtjevi), uključujući bun 1.4.4:
@@ -151,7 +141,7 @@ Red Terminal color u provjeri stanja prijavljuje otkrivenu dubinu boja i razlog.
 
 Da biste izgradili podršku za glas, pokrenite `setup` s instaliranim Rust-om. To gradi `native/voice`. Dodajte cmake da izgradite i `native/whisper`. Uz instalirani Rust, `setup` takođe gradi dodatak drajvera za desktop (`native/desktop`) kroz koji radi alat `Computer`. Uz instalirani Rust, `setup` takođe gradi lokalni dodatak za embedding (`native/embed`, `bun run scripts/vendor/build-embed.ts`) i preuzima BGE model od 118 MB (`bun run scripts/vendor/fetch-embed-models.ts --default`); bez cargo-a paket se preskače, setup to kaže, a pretraga Mneme memorije radi samo na poklapanju riječi. Svaka arhiva izdanja sadrži embedding paket izgrađen za njenu platformu; na Linux-u i Windows-u računanje izvršava vektorizovani kernel, pa Recall po značenju traje otprilike desetinu sekunde (nekoliko stotinki na macOS-u, koji koristi Accelerate). Ako nativnoj izgradnji nedostaju potrebni alati, setup je preskače, a provjera stanja prijavljuje nedostajući dodatak. Shell engine za Windows se takođe kompajlira na vašoj mašini, jer upstream nema Windows binarnu datoteku.
 
-Pogledajte [Windows ljuske](#windows-ljuske) i [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) za shell engine `brush`.
+Pogledajte [Windows ljuske](../INSTALL.md#windows-shells) i [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) za shell engine `brush`.
 
 Izgradnja piše samo u `dist/`. Konfiguracija i sesije nalaze se u `~/.mercury`, ili u direktoriju koji postavlja `MERCURY_CONFIG_DIR`, i kreiraju se pri prvom pokretanju. Na Windows-u pokrenite direktno `node dist\mercury.mjs`.
 

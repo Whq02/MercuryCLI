@@ -1,16 +1,19 @@
-import { execFile } from 'node:child_process'
+import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import memoize from 'lodash-es/memoize.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
 import { logError } from '../log.js'
+import { endProcessTree, strikeProcessGroupNow } from '../processGroup.js'
 import { getInitialSettings } from '../settings/settings.js'
+import { sleep } from '../sleep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { which } from '../which.js'
 import { bashPackProgramsDir, resolveBashPackDir, type BashPackResolution } from './bashPack.js'
 import { resolveBrushPackDir } from './brushPack.js'
 import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
-import { bashToolAvailable, describeWindowsShellRoad, engineMayServe, settleWindowsShell, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive, withoutShellStartFiles } from './windowsShellRoad.js'
+import { NO_SHELL_WAYS_OUT, PIN_WAYS_OUT, bashToolAvailable, describeWindowsShellRoad, engineMayServe, pinPassedOver, settleWindowsShell, shellFollowsTheRecord, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive, withoutShellStartFiles } from './windowsShellRoad.js'
 
 export type ShellDialect = 'bash'
 export type ShellOrigin = 'shipped' | 'system' | 'engine'
@@ -32,29 +35,63 @@ const NO_WINDOWS_SHELL_MESSAGE =
   'No shell found. On Windows Mercury runs commands in a bash 5 that is installed (Git for Windows ships one), then in the bash it ships, then in its bundled engine, and none of the three starts here; install Git for Windows, set MERCURY_GIT_BASH_PATH to a bash.exe, or reinstall Mercury, then restart Mercury.'
 
 const BASH_VERSION_SHAPE = /^\d+\.\d+/
+const VERSION_ANSWER_LIMIT = 1024 * 1024
+
+let askedNow: string | null = null
+const whyNoAnswer = new Map<string, string>()
+
+function questionEnvironment(): NodeJS.ProcessEnv {
+  const env = withoutShellStartFiles({ ...subprocessEnv() })
+  for (const name of Object.keys(env)) if (name.startsWith('BASH_FUNC_')) delete env[name]
+  return env
+}
 
 export function startedBashVersion(path: string, limitMs: number = START_PROBE_TIMEOUT_MS): Promise<string | null> {
   return new Promise(resolve => {
     try {
-      const asked = execFile(
-        path,
-        ['--norc', '--noprofile', '-c', 'printf %s "$BASH_VERSION"'],
-        { windowsHide: true, timeout: limitMs, killSignal: 'SIGKILL', encoding: 'utf8', env: withoutShellStartFiles({ ...subprocessEnv() }) },
-        (error, stdout) => {
-          const version = typeof stdout === 'string' ? (stdout.trim().split(/\r?\n/).pop() ?? '').trim() : ''
-          resolve(error || !BASH_VERSION_SHAPE.test(version) ? null : version)
-        },
-      )
-      AbortSignal.timeout(limitMs).addEventListener(
-        'abort',
-        () => {
-          asked.kill('SIGKILL')
-          resolve(null)
-        },
-        { once: true },
-      )
+      const ownGroup = process.platform !== 'win32'
+      askedNow = path
+      const asked = spawn(path, ['--norc', '--noprofile', '-c', 'printf %s "$BASH_VERSION"'], { windowsHide: true, detached: ownGroup, stdio: ['ignore', 'pipe', 'ignore'], env: questionEnvironment() })
+      let said = ''
+      let open = true
+      const end = (): void => {
+        if (ownGroup) strikeProcessGroupNow(asked)
+        else void endProcessTree(asked, 'SIGKILL')
+      }
+      const endWithThisProcess = (): void => {
+        if (ownGroup) strikeProcessGroupNow(asked)
+        else asked.kill()
+      }
+      const answer = (version: string | null, why: string): void => {
+        if (!open) return
+        open = false
+        if (askedNow === path) askedNow = null
+        if (version === null) whyNoAnswer.set(path, why)
+        process.removeListener('exit', endWithThisProcess)
+        resolve(version)
+      }
+      const unanswered = (why: string): void => {
+        if (!open) return
+        end()
+        answer(null, why)
+      }
+      process.once('exit', endWithThisProcess)
+      asked.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+        said += chunk
+        if (said.length > VERSION_ANSWER_LIMIT) unanswered('it printed more than 1 MiB')
+      })
+      asked.once('error', error => {
+        logForDebugging(`shell record: ${path} cannot be started — ${errorMessage(error)}`)
+        answer(null, `it could not be started (${errorMessage(error)})`)
+      })
+      asked.once('close', code => {
+        const version = (said.trim().split(/\r?\n/).pop() ?? '').trim()
+        answer(code !== 0 || !BASH_VERSION_SHAPE.test(version) ? null : version, code === 0 ? 'it printed no bash version' : code === null ? 'it was ended by a signal' : `it ended with exit ${code}`)
+      })
+      AbortSignal.timeout(limitMs).addEventListener('abort', () => unanswered(`it gave no answer within ${limitMs / 1000} s`), { once: true })
     } catch (error) {
       logForDebugging(`shell record: ${path} cannot be started — ${errorMessage(error)}`)
+      whyNoAnswer.set(path, `it could not be started (${errorMessage(error)})`)
       resolve(null)
     }
   })
@@ -85,32 +122,43 @@ export function shippedBashOnDisk(): { path: string; programsDir: string | null 
   return pack.state === 'ok' ? { path: pack.binaryPath, programsDir: bashPackProgramsDir(pack.dir, pack.manifest) } : null
 }
 
+const passedOver: string[] = []
+let noneStarts = false
+
+function passOver(line: string): void {
+  passedOver.push(line)
+  logForDebugging(`shell record: ${line}`)
+}
+
+export function noSystemShellStarts(): boolean {
+  return noneStarts
+}
+
 async function posixSystemRecord(): Promise<ShellRecord> {
   const pack = shippedBash()
   if (pack.state === 'ok') {
     const version = await startedBashVersion(pack.binaryPath)
     if (version !== null) return { path: pack.binaryPath, dialect: 'bash', version, origin: 'shipped' }
-    logForDebugging(`shell record: the shipped bash at ${pack.binaryPath} does not start; the system bash is next`)
+    passOver(`the bash Mercury ships, ${pack.binaryPath}, does not start`)
   } else {
-    logForDebugging(`shell record: no shipped bash (${pack.note}); the system bash is next`)
+    passOver(`this install carries no bash of its own: ${pack.note}`)
   }
-  for (const candidate of await systemBashCandidates()) {
+  const found = (await systemBashCandidates()).filter(candidate => existsSync(candidate))
+  for (const candidate of found) {
     const version = await startedBashVersion(candidate)
     if (version !== null) return { path: candidate, dialect: 'bash', version, origin: 'system' }
+    passOver(`${candidate} does not start`)
   }
+  if (found.length === 0) passOver(`no bash is on PATH or in ${SHELL_FALLBACK_DIRECTORIES.join(', ')}`)
   const engine = resolveBrushPackDir()
   if (engine.state === 'ok') {
     logForDebugging(`shell record: no bash starts on this machine; the bundled engine at ${engine.binaryPath} serves`)
     return { path: engine.binaryPath, dialect: 'bash', version: engine.manifest.version, origin: 'engine' }
   }
+  passOver(`the bundled engine is unavailable: ${engine.note}`)
+  noneStarts = true
   logError(NO_SHELL_MESSAGE)
   throw new Error(NO_SHELL_MESSAGE)
-}
-
-let settledWindowsNotes: { passed: string[]; none: boolean } = { passed: [], none: false }
-
-export function noSystemShellStarts(): boolean {
-  return settledWindowsNotes.none
 }
 
 async function windowsSystemRecord(): Promise<ShellRecord> {
@@ -128,9 +176,12 @@ async function windowsSystemRecord(): Promise<ShellRecord> {
     },
     engineAllowed: engineMayServe(),
     start: startedBashVersion,
+    why: path => whyNoAnswer.get(path),
+    passed: passedOver,
   })
   for (const line of choice.passed) logForDebugging(`shell record: ${line}`)
-  settledWindowsNotes = { passed: choice.passed, none: choice.origin === 'none' }
+  noneStarts = choice.origin === 'none'
+  shellFollowsTheRecord(choice.origin === 'none' ? null : choice.path)
   if (choice.origin === 'none') {
     logError(NO_WINDOWS_SHELL_MESSAGE)
     throw new Error(NO_WINDOWS_SHELL_MESSAGE)
@@ -264,14 +315,37 @@ export function beginLoginFiles(): void {
 
 export type ShellRow = { status: 'ok' | 'warn'; evidence: string; fix?: string }
 
-export async function shellRow(): Promise<ShellRow> {
-  const record = await shellRecordIfAny()
+const SHELL_ROW_WAITS_MS = 15_000
+const LAST_ROAD_FIX = 'Reinstall Mercury to restore the bash it ships, or install bash so that it is on PATH, then restart Mercury.'
+const NO_SHELL_FOR_THE_MODEL = 'Bash cannot run in this session: no shell starts on this machine, and no shell tool is offered.'
+
+let shellWordTold = false
+
+function shellWordForTheUser(served: boolean): string | null {
+  if (!served) return `No shell starts on this machine, so this session has no shell tool${passedOver.length > 0 ? ` — passed over: ${passedOver.join('; ')}` : ''}. ${windowsShellRoadActive() ? NO_SHELL_WAYS_OUT : LAST_ROAD_FIX}`
+  const pin = pinPassedOver(passedOver)
+  return pin === null ? null : `The shell you pinned does not serve this session — passed over: ${pin}. Serving instead: ${describeWindowsShellRoad().line}. ${PIN_WAYS_OUT}`
+}
+
+export async function shellWordOwed(): Promise<{ model: string | null; user: string | null }> {
+  const served = (await shellRecordIfAny()) !== null
+  const user = shellWordTold ? null : shellWordForTheUser(served)
+  if (user !== null) shellWordTold = true
+  return { model: served ? null : NO_SHELL_FOR_THE_MODEL, user }
+}
+
+const passedNow = (): string => (passedOver.length > 0 ? ` — passed over: ${passedOver.join('; ')}` : '')
+
+function loginFilesRideIt(record: ShellRecord | null): boolean {
+  return record !== null && record.origin !== 'engine' && !windowsShellRoadActive() && armedEngine() === null
+}
+
+function shellRowOf(record: ShellRecord | null, absent: LoginFilesAbsence | null): ShellRow {
   const pack = shippedBash()
   const skipped = pack.state === 'ok' ? null : pack.note
   const fix = skipped === null ? {} : { fix: `The bash pack is skipped in this install: ${skipped}` }
-  const onWindowsRoad = windowsShellRoadActive()
-  const passed = onWindowsRoad && settledWindowsNotes.passed.length > 0 ? ` — passed over: ${settledWindowsNotes.passed.join('; ')}` : ''
-  if (onWindowsRoad) {
+  if (windowsShellRoadActive()) {
+    const passed = passedNow()
     const road = describeWindowsShellRoad()
     if (road.absent) return { status: 'warn', evidence: `${road.line}${passed}`, ...(road.fix === undefined ? {} : { fix: road.fix }) }
     if (record === null) return { status: 'warn', evidence: `${NO_WINDOWS_SHELL_MESSAGE}${passed}`, ...fix }
@@ -280,10 +354,12 @@ export async function shellRow(): Promise<ShellRow> {
     const lastRoad = road.road === 'engine' && (armed === null || armed.arm === 'no-bash')
     return { status: lastRoad ? 'warn' : 'ok', evidence: `${road.line}${names}${passed}`, ...(lastRoad ? fix : {}) }
   }
-  if (record === null) return { status: 'warn', evidence: NO_SHELL_MESSAGE, ...fix }
+  if (record === null) return { status: 'warn', evidence: `${NO_SHELL_MESSAGE}${passedNow()}`, fix: skipped === null ? LAST_ROAD_FIX : `The bash pack is skipped in this install: ${skipped}` }
   const armed = armedEngine()
   if (armed !== null) return { status: 'ok', evidence: `${describeShellRecord(record)} (${shellEngineArmWords(armed.arm)})${skipped === null ? '' : ` — this install carries no bash pack: ${skipped}`}` }
-  const absent = await loginFilesSettled()
+  if (record.origin === 'engine') {
+    return { status: 'warn', evidence: `${describeShellRecord(record)}, because no bash starts on this machine${passedNow()}`, fix: skipped === null ? LAST_ROAD_FIX : `The bash pack is skipped in this install: ${skipped}` }
+  }
   if (absent !== null) {
     return {
       status: 'warn',
@@ -293,6 +369,29 @@ export async function shellRow(): Promise<ShellRow> {
   }
   if (record.origin === 'shipped') return { status: 'ok', evidence: describeShellRecord(record) }
   return { status: 'warn', evidence: describeShellRecord(record), ...fix }
+}
+
+export async function shellRow(waitMs: number = SHELL_ROW_WAITS_MS): Promise<ShellRow> {
+  const waited = new AbortController()
+  const settled = await Promise.race([shellRecordIfAny().then(record => ({ record })), sleep(waitMs, waited.signal).then(() => null)])
+  waited.abort()
+  if (settled === null) {
+    return {
+      status: 'warn',
+      evidence: `no shell has answered after ${waitMs / 1000} s${askedNow === null ? '' : `: ${askedNow} is being asked for its bash version and has ${START_PROBE_TIMEOUT_MS / 1000} s to answer`}${passedNow()}`,
+      fix: `Run the health check again in a moment: a program that does not answer within ${START_PROBE_TIMEOUT_MS / 1000} s is passed over and named in this row.`,
+    }
+  }
+  return shellRowOf(settled.record, loginFilesRideIt(settled.record) ? await loginFilesSettled() : null)
+}
+
+export function shellRowNow(): ShellRow {
+  const record = shellRecordNow()
+  if (record !== null || noneStarts) return shellRowOf(record, loginFilesAbsence)
+  const road = describeWindowsShellRoad()
+  const pack = shippedBash()
+  const skipped = pack.state === 'ok' ? {} : { fix: `The bash pack is skipped in this install: ${pack.note}` }
+  return { status: road.absent || pack.state !== 'ok' ? 'warn' : 'ok', evidence: road.line, ...(road.fix === undefined ? skipped : { fix: road.fix }) }
 }
 
 export const BASH_GLOB_PREAMBLE = 'shopt -u extglob 2>/dev/null || true'
@@ -305,9 +404,11 @@ export function snapshotProfileOf(origin: ShellOrigin): { kind: 'bash' | 'sh'; f
 
 export const SNAPSHOT_KEEPS_ALIASES = 'echo "shopt -s expand_aliases" >> "$SNAPSHOT_FILE"'
 
+export const SNAPSHOT_READS_FUNCTIONS = 'echo "{ shopt -s extglob" >> "$SNAPSHOT_FILE"'
+
 export const SNAPSHOT_OPTIONS: readonly string[] = [
   `shopt -p | head -n 1000 >> "$SNAPSHOT_FILE"`,
-  `set -o | grep on | awk '{print $1}' | sed 's/^/set -o /' | head -n 1000 >> "$SNAPSHOT_FILE"`,
+  `set -o | awk '$2 == "on" { print "set -o " $1 }' | head -n 1000 >> "$SNAPSHOT_FILE"`,
   SNAPSHOT_KEEPS_ALIASES,
 ]
 

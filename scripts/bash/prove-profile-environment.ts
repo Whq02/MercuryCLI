@@ -7,7 +7,7 @@ import { Readable, Writable } from 'node:stream'
 import * as acp from '@agentclientprotocol/sdk'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import { nodeBinPath } from '../lib/nodeBin.ts'
+import { nodeBinPath, requireLiveDaemon } from '../lib/nodeBin.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -202,12 +202,15 @@ async function aRunnerNotHandedAPrompt(): Promise<void> {
   writeFileSync(join(w.root, 'user-home', '.bash_profile'), COUNTS_ITS_RUNS)
   let why = ''
   let beforeAPrompt = -1
+  let requestsBeforeAPrompt = -1
   const runner = hostRunner({ dist: DIST, node: nodeBinPath(), cwd: w.cwd, home: w.root, env: w.env, argv: ['--model', MODEL], report: () => {} })
   try {
     runner.onAsk(params => (params.kind === 'tool' ? { outcome: 'allow', input: params.input } : { outcome: 'allow' }))
     await bounded(runner.initialize(), 'the runner start')
-    await new Promise(done => setTimeout(done, 2_500))
+    const began = Date.now()
+    while (loginRuns(w) === 0 && Date.now() - began < 30_000) await new Promise(done => setTimeout(done, 25))
     beforeAPrompt = loginRuns(w)
+    requestsBeforeAPrompt = api.messageRequests().length
     await runner.prompt(ASK)
     await bounded(runner.waitFor('the turn ends', row => row.type === 'outcome', 120_000), 'the hosted turn')
   } catch (error) {
@@ -216,8 +219,96 @@ async function aRunnerNotHandedAPrompt(): Promise<void> {
     await runner.stop()
     await api.close()
   }
-  check('a hosted runner that is started and handed no prompt takes no login run: none 2.5 s after its start', beforeAPrompt === 0, `${beforeAPrompt} · ${why}`)
-  check('…and takes one, and one alone, with its first prompt', loginRuns(w) === 1 && resultOf(api).includes('fn-from-bash-profile'), `${loginRuns(w)} · ${why} · ${JSON.stringify(resultOf(api).slice(0, 300))}`)
+  check('a hosted runner starts its one login run at its own start: the run has begun before the runner is handed a prompt, so before any request is built', beforeAPrompt === 1 && requestsBeforeAPrompt === 0, `${beforeAPrompt} run(s), ${requestsBeforeAPrompt} request(s) · ${why}`)
+  check('…and its first prompt takes no second: one login run in all, and the command reads what the login file defines', loginRuns(w) === 1 && resultOf(api).includes('fn-from-bash-profile'), `${loginRuns(w)} · ${why} · ${JSON.stringify(resultOf(api).slice(0, 300))}`)
+}
+
+async function noToolListNoLoginShell(): Promise<void> {
+  const api = await startFixtureApi(TURNS)
+  const w = world('no-tool-list', api)
+  writeFileSync(join(w.root, 'user-home', '.bash_profile'), COUNTS_ITS_RUNS)
+  try {
+    const version = spawnSync(nodeBinPath(), [DIST, '--version'], { cwd: w.cwd, env: w.env, encoding: 'utf8', timeout: 60_000 })
+    check('--version settles no tool list and starts no login shell', version.status === 0 && loginRuns(w) === 0, `exit ${String(version.status)} · login runs ${loginRuns(w)}`)
+    const only = spawnSync(nodeBinPath(), [DIST, 'health', '--only', 'build-identity', '--json'], { cwd: w.cwd, env: w.env, encoding: 'utf8', timeout: 180_000, maxBuffer: 64 * 1024 * 1024 })
+    check('health --only build-identity settles no tool list and starts no login shell', (only.status === 0 || only.status === 3) && loginRuns(w) === 0, `exit ${String(only.status)} · login runs ${loginRuns(w)} · ${String(only.stderr ?? '').slice(-200)}`)
+    const before = process.env.MERCURY_DAEMON_DIR
+    process.env.MERCURY_DAEMON_DIR = w.env.MERCURY_DAEMON_DIR
+    const daemonLife = async (extra: Record<string, string>, whileItLives: () => Promise<void>): Promise<void> => {
+      const daemon = spawn(nodeBinPath(), [DIST, 'daemon', 'run', w.cwd], { cwd: w.cwd, env: { ...w.env, ...extra, MERCURY_DAEMON_OWNER_PID: String(process.pid) }, stdio: 'ignore' })
+      try {
+        await requireLiveDaemon(daemon, { what: 'profile-environment: a daemon that boots', timeoutMs: 45_000 })
+        await whileItLives()
+      } finally {
+        daemon.kill('SIGTERM')
+        await bounded(new Promise<void>(done => { if (daemon.exitCode !== null || daemon.signalCode !== null) done(); else daemon.once('close', () => done()) }), 'the daemon end', 20_000).catch(() => daemon.kill('SIGKILL'))
+      }
+    }
+    try {
+      await daemonLife({ MERCURY_WARM_RUNNER: '0' }, async () => {})
+      check("a daemon that warms no runner settles no tool list and starts no login shell: it booted, answered on its socket and ended, and none has run", loginRuns(w) === 0, `login runs ${loginRuns(w)}`)
+      await daemonLife({}, async () => {
+        const began = Date.now()
+        while (loginRuns(w) === 0 && Date.now() - began < 30_000) await new Promise(done => setTimeout(done, 25))
+      })
+      check('a daemon that warms a runner at its boot: that runner, a process with a tool list of its own, takes its one login run at its start, before any session claims it or hands it a prompt', loginRuns(w) === 1 && api.messageRequests().length === 0, `login runs ${loginRuns(w)} · requests ${api.messageRequests().length}`)
+    } finally {
+      if (before === undefined) delete process.env.MERCURY_DAEMON_DIR
+      else process.env.MERCURY_DAEMON_DIR = before
+    }
+  } finally {
+    await api.close()
+  }
+}
+
+const RUN_WITH_NO_PROMPT = ['run', '--mode', 'sovereign', '--model', MODEL, '--format', 'text']
+
+async function aRunStillWaitingForItsPrompt(): Promise<void> {
+  const api = await startFixtureApi(TURNS)
+  const w = world('waits-for-its-prompt', api)
+  writeFileSync(join(w.root, 'user-home', '.bash_profile'), COUNTS_ITS_RUNS)
+  const child = spawn(nodeBinPath(), [DIST, ...RUN_WITH_NO_PROMPT], { cwd: w.cwd, env: w.env, stdio: ['pipe', 'pipe', 'pipe'] })
+  let stderr = ''
+  child.stderr.on('data', chunk => { stderr += String(chunk) })
+  child.stdout.resume()
+  const closed = new Promise<number | null>(done => { child.once('close', exit => done(exit)); child.once('error', () => done(null)) })
+  const began = Date.now()
+  while (loginRuns(w) === 0 && child.exitCode === null && Date.now() - began < 20_000) await new Promise(done => setTimeout(done, 25))
+  const beforeItsPrompt = loginRuns(w)
+  const requestsBefore = api.messageRequests().length
+  child.stdin.end(ASK)
+  const code = await bounded(closed, 'the run').catch(error => { child.kill('SIGKILL'); return String(error) })
+  await api.close()
+  const why = `exit ${String(code)} · stderr ${JSON.stringify(stderr.slice(-300))}`
+  check('a headless run that still waits for its prompt on stdin, so has taken no tool list and built no request, has already started its login run', beforeItsPrompt === 1 && requestsBefore === 0, `${beforeItsPrompt} run(s), ${requestsBefore} request(s) · ${why}`)
+  check('…and with its prompt it takes its tool list and sends its first request with no second login run: one in all, and the command reads what the login file defines', loginRuns(w) === 1 && resultOf(api).includes('fn-from-bash-profile'), `${loginRuns(w)} · ${why} · ${JSON.stringify(resultOf(api).slice(0, 300))}`)
+}
+
+async function aRunEndedWhileItsLoginRunGoes(): Promise<void> {
+  const api = await startFixtureApi(TURNS)
+  const w = world('ended-in-flight', api)
+  const pidFile = join(w.root, 'user-home', 'waited-on.pid')
+  writeFileSync(join(w.root, 'user-home', '.bash_profile'), 'sh -c \'echo $$ > "$HOME/waited-on.pid"; exec sleep 600\'\n')
+  const child = spawn(nodeBinPath(), [DIST, ...RUN_WITH_NO_PROMPT], { cwd: w.cwd, env: w.env, stdio: ['pipe', 'pipe', 'pipe'] })
+  child.stdout.resume()
+  child.stderr.resume()
+  const closed = new Promise<number | null>(done => { child.once('close', exit => done(exit)); child.once('error', () => done(null)) })
+  const began = Date.now()
+  while (!existsSync(pidFile) && child.exitCode === null && Date.now() - began < 20_000) await new Promise(done => setTimeout(done, 25))
+  const started = existsSync(pidFile)
+  child.kill('SIGTERM')
+  const code = await bounded(closed, 'the end of the run', 20_000).catch(error => { child.kill('SIGKILL'); return String(error) })
+  await api.close()
+  await new Promise(done => setTimeout(done, 400))
+  const pid = started ? Number(readFileSync(pidFile, 'utf8').trim()) : NaN
+  let alive = started
+  try {
+    process.kill(pid, 0)
+    process.kill(pid, 'SIGKILL')
+  } catch {
+    alive = false
+  }
+  check('a headless run that is ended while its login run is still going leaves no child of it: what the login file waited on is gone', started && !alive, `the login run had started: ${String(started)} · pid ${String(pid)} alive ${String(alive)} · the run ended with ${String(code)}`)
 }
 
 async function whereNothingIsCarried(): Promise<void> {
@@ -368,6 +459,9 @@ try {
     await byAnEditor('editor-nothing', 'started by an editor whose terminal starts nothing', 'starts nothing')
     await whereNothingIsCarried()
     await aRunnerNotHandedAPrompt()
+    await aRunStillWaitingForItsPrompt()
+    await aRunEndedWhileItsLoginRunGoes()
+    await noToolListNoLoginShell()
   }
 } finally {
   if (KEEP) console.log(`world kept: ${scratch}`)

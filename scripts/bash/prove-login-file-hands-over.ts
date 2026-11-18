@@ -1,15 +1,17 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync, chmodSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 type Ran = { code: number; ms: number; text: string }
 type Said = { status: string; evidence: string; fix?: string }
-type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolFirst: string; toolSecond: string; said: Said | null }
+type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolNeverStarted: string; toolFirst: string; toolSecond: string; said: Said | null; many: Ran; readWithNoProgram: string; helper: Ran; extglobOn: Ran }
 type Asked = { said: Said | null; ms: number; limit: number | null; snapshotFolder: boolean; tempLeft: number; waitedOnAlive: boolean | null; otherShellStarts: number }
 type First = { withoutBash: number; begunMs: number | null; startsInAll: number; described: string }
+type Listed = { drawnOnAScreen: boolean; offeredWithout: boolean; withoutBash: number; offeredWith: boolean; beforeAnyRequest: number; runsInAll: number; described: string }
+type Lines = { beforeAnyToolList: number; offered: boolean; saw: string[]; described: string }
 
 function waitedOn(home: string): boolean | null {
   if (!existsSync(join(home, 'waited-on.pid'))) return null
@@ -41,6 +43,7 @@ if (process.argv.includes('--row')) {
   const record = await import('../../src/utils/shell/shellRecord.ts')
   const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
   const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+  const { formatError } = await import('../../src/utils/toolErrors.ts')
   setCwd(home)
   let appState = getDefaultAppState()
   const toolContext = {
@@ -51,12 +54,12 @@ if (process.argv.includes('--row')) {
     abortController: new AbortController(),
     toolUseId: 'login-file-call',
   } as never
-  const asTool = async (command: string): Promise<string> => {
+  const asTool = async (command: string, cwd?: string): Promise<string> => {
     try {
-      const result = await BashTool.call({ command }, toolContext)
+      const result = await BashTool.call({ command, ...(cwd === undefined ? {} : { cwd }) }, toolContext)
       return String(BashTool.mapToolResultToToolResultBlockParam(result.data, 'x').content)
     } catch (error) {
-      return `threw: ${error instanceof Error ? error.message : String(error)}`
+      return `threw: ${formatError(error)}`
     }
   }
   const run = async (command: string): Promise<Ran> => {
@@ -73,11 +76,20 @@ if (process.argv.includes('--row')) {
   const second = await run('echo second-ran')
   const carried = await run('alias ll 2>/dev/null; myfunc 2>/dev/null; above_guard 2>/dev/null; true')
   const options = await run(`set -o | awk '$1 == "braceexpand" || $1 == "monitor" || $1 == "noclobber" || $1 == "onecmd" { printf "%s=%s ", $1, $2 }'`)
+  const many = await run('fn_0 2>&1; fn_299 2>&1; declare -F | grep -c "^declare -f fn_"')
+  const helper = await run('calls_helper 2>&1; declare -F uses_extglob > /dev/null && echo extglob-fn-is-defined; uses_extglob aab 2>&1; shopt -p extglob')
+  const extglobOn = await run('shopt -s extglob\nuses_extglob aab 2>&1')
   const wiped = await run('echo wiped; rm -f "$TMPDIR"/mercury-cwd-*; exit 0')
+  const toolNeverStarted = await asTool('echo never-started', join(home, 'a-folder-that-is-not-there'))
   const toolFirst = await asTool('echo tool-first')
   const toolSecond = await asTool('echo tool-second')
   const said = await record.shellRow().catch(() => null)
   const snapshots = join(process.env.MERCURY_CONFIG_DIR ?? '', 'shell-snapshots')
+  const taken = existsSync(snapshots) ? readdirSync(snapshots)[0] : undefined
+  const readWithNoProgram =
+    taken === undefined
+      ? 'no snapshot'
+      : `${spawnSync((await record.systemShellRecord()).path, ['-c', 'source "$1"; n=0; while read -r _ _ name; do case "$name" in fn_*) n=$((n+1)) ;; esac; done < <(declare -F); echo "$n"', '_', join(snapshots, taken)], { encoding: 'utf8', env: { PATH: '/nonexistent', HOME: home } }).stdout}`.trim()
   const row: Row = {
     first,
     second,
@@ -90,9 +102,14 @@ if (process.argv.includes('--row')) {
     otherShellStarts: otherShellStarts(home),
     pathHead: (process.env.PATH ?? '').split(':')[0] ?? '',
     described,
+    toolNeverStarted,
     toolFirst,
     toolSecond,
     said,
+    many,
+    readWithNoProgram,
+    helper,
+    extglobOn,
   }
   console.log(`ROW ${JSON.stringify(row)}`)
   process.exit(0)
@@ -151,6 +168,108 @@ if (process.argv.includes('--first-prompt')) {
   process.exit(0)
 }
 
+if (process.argv.includes('--tool-list')) {
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  plugin({
+    name: 'stub-color-diff-napi',
+    setup(build) {
+      build.module('color-diff-napi', () => ({ loader: 'object', exports: { ColorDiff: class {}, ColorFile: class {}, getSyntaxTheme: () => ({}) } }))
+    },
+  })
+  const home = homedir()
+  const runs = (): number => (existsSync(join(home, 'login-runs')) ? readFileSync(join(home, 'login-runs'), 'utf8').trim().split('\n').length : 0)
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  enableConfigs()
+  const { getTools } = await import('../../src/tools.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  const empty = getEmptyToolPermissionContext()
+  setIsInteractive(true)
+  const drawn = getTools(empty)
+  setIsInteractive(false)
+  const without = getTools({ ...empty, baseTools: ['Read'] })
+  await pause(1_500)
+  const withoutBash = runs()
+  const withBash = getTools(empty)
+  const began = Date.now()
+  while (runs() === 0 && Date.now() - began < 8_000) await pause(25)
+  const beforeAnyRequest = runs()
+  await getSystemPrompt([BashTool] as never, 'claude-opus-4-8')
+  const description = await BashTool.prompt({ tools: [] } as never)
+  const listed: Listed = {
+    drawnOnAScreen: drawn.some(tool => tool.name === 'Bash'),
+    offeredWithout: without.some(tool => tool.name === 'Bash'),
+    withoutBash,
+    offeredWith: withBash.some(tool => tool.name === 'Bash'),
+    beforeAnyRequest,
+    runsInAll: runs(),
+    described: description.split('\n\n').find(part => part.startsWith('In the main conversation')) ?? '',
+  }
+  console.log(`LIST ${JSON.stringify(listed)}`)
+  process.exit(0)
+}
+
+if (process.argv.includes('--first-lines')) {
+  const kind = process.argv[process.argv.indexOf('--first-lines') + 1] ?? ''
+  const ARGUMENTS: Record<string, string[]> = {
+    run: ['run', '--format', 'text', 'say hi'],
+    runner: ['runner', '--model', 'claude-opus-4-8'],
+    screen: [],
+    toolset: ['run', '--toolset', 'Read', 'Edit', '--', 'say hi'],
+    blocked: ['run', '--block-tools', 'Bash', '--', 'say hi'],
+    pending: ['run', '--format', 'text', 'say hi'],
+    'ends-early': ['run', '--format', 'text', 'say hi'],
+  }
+  process.argv = [process.argv[0]!, 'mercury', ...(ARGUMENTS[kind] ?? [])]
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  plugin({
+    name: 'stub-color-diff-napi',
+    setup(build) {
+      build.module('color-diff-napi', () => ({ loader: 'object', exports: { ColorDiff: class {}, ColorFile: class {}, getSyntaxTheme: () => ({}) } }))
+    },
+  })
+  const home = homedir()
+  const runs = (): string[] => (existsSync(join(home, 'login-runs')) ? readFileSync(join(home, 'login-runs'), 'utf8').trim().split('\n') : [])
+  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  setIsInteractive(kind === 'screen')
+  const { init } = await import('../../src/entrypoints/init.ts')
+  await init()
+  if (kind === 'ends-early') {
+    const began = Date.now()
+    while (!existsSync(join(home, 'waited-on.pid')) && Date.now() - began < 8_000) await pause(25)
+    console.log(`EARLY ${JSON.stringify({ started: existsSync(join(home, 'waited-on.pid')) })}`)
+    process.exit(0)
+  }
+  const early = kind === 'run' || kind === 'runner'
+  const began = Date.now()
+  while (early && runs().length === 0 && Date.now() - began < 8_000) await pause(25)
+  if (!early) await pause(1_500)
+  const beforeAnyToolList = runs().length
+  const { getTools } = await import('../../src/tools.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const empty = getEmptyToolPermissionContext()
+  if (kind === 'pending') {
+    const { getInitialSettings } = await import('../../src/utils/settings/settings.ts')
+    for (const [key, value] of Object.entries(getInitialSettings().environment?.values ?? {})) process.env[key] = String(value)
+  }
+  const list = getTools(kind === 'toolset' ? { ...empty, baseTools: ['Read', 'Edit'] } : kind === 'blocked' ? { ...empty, alwaysDenyRules: { ...empty.alwaysDenyRules, cliArg: ['Bash'] } } : empty)
+  const offered = list.some(tool => tool.name === 'Bash')
+  let described = ''
+  if (offered && kind !== 'screen') {
+    await getSystemPrompt([BashTool] as never, 'claude-opus-4-8')
+    described = (await BashTool.prompt({ tools: [] } as never)).split('\n\n').find(part => part.startsWith('In the main conversation')) ?? ''
+  } else {
+    await pause(1_500)
+  }
+  const lines: Lines = { beforeAnyToolList, offered, saw: runs(), described }
+  console.log(`LINES ${JSON.stringify(lines)}`)
+  process.exit(0)
+}
+
 if (process.argv.includes('--ends-early')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   plugin({
@@ -161,7 +280,15 @@ if (process.argv.includes('--ends-early')) {
   })
   const home = homedir()
   const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-  void BashTool.prompt({ tools: [] } as never)
+  if (process.argv.includes('--by-the-tool-list')) {
+    const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+    enableConfigs()
+    const { getTools } = await import('../../src/tools.ts')
+    const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+    getTools(getEmptyToolPermissionContext())
+  } else {
+    void BashTool.prompt({ tools: [] } as never)
+  }
   const began = Date.now()
   while (!existsSync(join(home, 'waited-on.pid')) && Date.now() - began < 8_000) await pause(25)
   console.log(`EARLY ${JSON.stringify({ started: existsSync(join(home, 'waited-on.pid')) })}`)
@@ -222,10 +349,20 @@ const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
   slow: { dir: home('slow', WAITS) },
   'prints-at-length': { dir: home('prints-at-length', { '.bash_profile': 'head -c 2200000 /dev/zero | tr "\\0" x\n' }) },
   'no-snapshot-folder': { dir: home('no-snapshot-folder', {}) },
+  'unsets-path': { dir: home('unsets-path', { '.bash_profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\nunset PATH\n' }) },
   'ends-unread': {
     dir: home('ends-unread', { '.bashenv': 'case "$BASH_EXECUTION_STRING" in *mercury-cwd-*) exit 0 ;; esac\n' }),
   },
   'login-file-only': { dir: home('login-file-only', DEFINES) },
+  'what-is-carried': {
+    dir: home('what-is-carried', {
+      '.bash_profile': 'shopt -s extglob\n_helper() { echo helper-ran; }\ncalls_helper() { _helper; }\nuses_extglob() { case "$1" in +(a|b)) echo extglob-fn-matched;; *) echo extglob-fn-no-match;; esac; }\nalias ll="ls -la"\n',
+    }),
+  },
+  'engine-armed': { dir: home('engine-armed', { '.profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\n' }), env: { MERCURY_SHELL_ENGINE: 'brush' } },
+  'engine-armed-bash-env': { dir: home('engine-armed-bash-env', { '.profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\n', '.bashenv': 'export FROM_BASH_ENV=1\n' }) },
+  'posix-mode': { dir: home('posix-mode', { '.bash_profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\nset -o posix\n' }) },
+  'many-functions': { dir: home('many-functions', { '.bash_profile': `${Array.from({ length: 300 }, (_, index) => `fn_${index}() { echo ${index}; }`).join('\n')}\n` }) },
   'guarded-bashrc': {
     dir: home('guarded-bashrc', {
       '.profile': 'if [ -n "$BASH_VERSION" ]; then\n  if [ -f "$HOME/.bashrc" ]; then\n    . "$HOME/.bashrc"\n  fi\nfi\n',
@@ -234,6 +371,7 @@ const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
   },
 }
 HOMES['ends-unread']!.env = { BASH_ENV: join(HOMES['ends-unread']!.dir, '.bashenv') }
+HOMES['engine-armed-bash-env']!.env = { MERCURY_SHELL_ENGINE: 'brush', BASH_ENV: join(HOMES['engine-armed-bash-env']!.dir, '.bashenv') }
 const locked = join(HOMES['no-snapshot-folder']!.dir, 'locked')
 mkdirSync(locked, { mode: 0o555 })
 HOMES['no-snapshot-folder']!.env = { MERCURY_CONFIG_DIR: join(locked, 'config-home') }
@@ -246,8 +384,20 @@ const ALONE: Record<string, string> = {
 const ANOTHER_ROW = home('alone-another-row-asked', HANDS_OVER)
 const FIRST_PROMPT = home('first-prompt', HANDS_OVER)
 const ENDS_EARLY = home('ends-early', WAITS)
+const ENDS_EARLY_LISTED = home('ends-early-by-the-tool-list', WAITS)
+const TOOL_LIST = home('tool-list', { '.bash_profile': 'echo run >> "$HOME/login-runs"\nmyfunc() { echo fn-from-the-login-file; }\n' })
+const FIRST_LINES_KINDS = ['run', 'runner', 'screen', 'toolset', 'blocked', 'pending']
+const FIRST_LINES: Record<string, string> = Object.fromEntries(
+  FIRST_LINES_KINDS.map(kind => [kind, home(`first-lines-${kind}`, { '.bash_profile': 'echo "run:${ANTHROPIC_BASE_URL:-unset}" >> "$HOME/login-runs"\nmyfunc() { echo fn-from-the-login-file; }\n' })]),
+)
+const ENDS_EARLY_FIRST = home('ends-early-by-the-first-lines', WAITS)
+const projectOf = (dir: string): string => join(dir, 'project')
+for (const dir of [...Object.values(FIRST_LINES), ENDS_EARLY_FIRST]) mkdirSync(projectOf(dir))
+const HOST_MANAGED_VALUE = 'http://127.0.0.1:9/named-by-the-settings'
+mkdirSync(join(FIRST_LINES.pending!, 'config-home'))
+writeFileSync(join(FIRST_LINES.pending!, 'config-home', 'settings.json'), JSON.stringify({ environment: { values: { ANTHROPIC_BASE_URL: HOST_MANAGED_VALUE } } }))
 
-function drive<T>(dir: string, mode: string, mark: string, env: Record<string, string> = {}): Promise<{ row: T | null; said: string }> {
+function drive<T>(dir: string, mode: string, mark: string, env: Record<string, string> = {}, cwd?: string): Promise<{ row: T | null; said: string }> {
   const childEnv: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined || /^(?:BASH_ENV|ENV|MERCURY_SHELL_PREFIX|MERCURY_SHELL_ENGINE|MERCURY_WINDOWS_SHELL_ROAD)$/.test(key)) continue
@@ -256,7 +406,7 @@ function drive<T>(dir: string, mode: string, mark: string, env: Record<string, s
   mkdirSync(join(dir, 'temp'))
   Object.assign(childEnv, { HOME: dir, SHELL: ZSH, MERCURY_CONFIG_DIR: join(dir, 'config-home'), TMPDIR: join(dir, 'temp') }, env)
   return new Promise(done => {
-    const child = spawn(process.execPath, [import.meta.path, ...mode.split(' ')], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(process.execPath, [import.meta.path, ...mode.split(' ')], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'], ...(cwd === undefined ? {} : { cwd }) })
     let said = ''
     child.stdout.on('data', chunk => { said += String(chunk) })
     child.stderr.on('data', chunk => { said += String(chunk) })
@@ -273,14 +423,22 @@ const BOUND_MS = 10_000
 try {
   const names = Object.keys(HOMES)
   const aloneNames = Object.keys(ALONE)
-  const [answers, alone, anotherRow, firstPrompt, endsEarly] = await Promise.all([
+  const [answers, alone, anotherRow, firstPrompt, endsEarly, endsEarlyListed, toolList, firstLines, endsEarlyFirst] = await Promise.all([
     Promise.all(names.map(name => drive<Row>(HOMES[name]!.dir, '--row', 'ROW ', HOMES[name]!.env))),
     Promise.all(aloneNames.map(name => drive<Asked>(ALONE[name]!, '--asked-alone', 'ASKED '))),
     drive<Asked>(ANOTHER_ROW, '--asked-alone --another-row-asked', 'ASKED '),
     drive<First>(FIRST_PROMPT, '--first-prompt', 'FIRST '),
     drive<{ started: boolean }>(ENDS_EARLY, '--ends-early', 'EARLY '),
+    drive<{ started: boolean }>(ENDS_EARLY_LISTED, '--ends-early --by-the-tool-list', 'EARLY '),
+    drive<Listed>(TOOL_LIST, '--tool-list', 'LIST '),
+    Promise.all(FIRST_LINES_KINDS.map(kind => drive<Lines>(FIRST_LINES[kind]!, `--first-lines ${kind}`, 'LINES ', kind === 'pending' ? { MERCURY_PROVIDER_MANAGED_BY_HOST: '1' } : {}, projectOf(FIRST_LINES[kind]!)))),
+    drive<{ started: boolean }>(ENDS_EARLY_FIRST, '--first-lines ends-early', 'EARLY ', {}, projectOf(ENDS_EARLY_FIRST)),
   ])
   const leftByTheEarlyEnd = waitedOn(ENDS_EARLY)
+  const leftByTheEarlyEndListed = waitedOn(ENDS_EARLY_LISTED)
+  const leftByTheEarlyEndFirst = waitedOn(ENDS_EARLY_FIRST)
+  const linesOf = (kind: string): Lines | null => firstLines[FIRST_LINES_KINDS.indexOf(kind)]!.row
+  const shownLines = (...kinds: string[]): string => JSON.stringify(kinds.map(kind => firstLines[FIRST_LINES_KINDS.indexOf(kind)]!.row ?? firstLines[FIRST_LINES_KINDS.indexOf(kind)]!.said)).slice(0, 1_100)
   const of = (name: string): { row: Row | null; said: string } => answers[names.indexOf(name)]!
   const ranInBash = (ran: Ran | undefined): boolean => ran !== undefined && ran.code === 0 && /ran: bash=\d/.test(ran.text) && ran.text.includes('zsh=no')
   const told = (name: string): string => JSON.stringify(of(name).row ?? of(name).said).slice(0, 700)
@@ -341,6 +499,65 @@ try {
     loginOnly !== null && loginOnly.carried.text.includes("alias ll='ls -la'") && loginOnly.carried.text.includes('fn-from-the-login-file') && loginOnly.snapshots === 1,
     told('login-file-only'),
   )
+  const manyFunctions = of('many-functions').row
+  check(
+    'many-functions: all 300 functions of the login file are carried to a command',
+    manyFunctions !== null && manyFunctions.many.text === '0\n299\n300',
+    JSON.stringify(manyFunctions?.many),
+  )
+  check(
+    'many-functions: a command that reads what is carried starts no program for it — the file read with no program on PATH defines all 300',
+    manyFunctions !== null && manyFunctions.readWithNoProgram === '300',
+    JSON.stringify(manyFunctions?.readWithNoProgram),
+  )
+  check(
+    'many-functions: 300 carried functions do not slow a command — its second command starts within 300 ms of the same command where three things are carried',
+    manyFunctions !== null && loginOnly !== null && manyFunctions.second.ms - loginOnly.second.ms < 300,
+    `${manyFunctions?.second.ms} ms with 300 functions, ${loginOnly?.second.ms} ms with one`,
+  )
+  const whatIsCarried = of('what-is-carried').row
+  const said4 = (whatIsCarried?.helper.text ?? '').split('\n')
+  check(
+    'what-is-carried: a function whose name begins with an underscore is carried, so the function that calls it works',
+    said4[0] === 'helper-ran',
+    JSON.stringify(whatIsCarried?.helper),
+  )
+  check(
+    'what-is-carried: a function whose body holds an extended glob is carried, and extglob is off when a command starts though the login file switched it on: the pattern does not match there',
+    said4[1] === 'extglob-fn-is-defined' && said4[2] === 'extglob-fn-no-match' && said4[3] === 'shopt -u extglob',
+    JSON.stringify(whatIsCarried?.helper),
+  )
+  check(
+    'what-is-carried: the same function matches in a command that switches extglob on before it calls it',
+    whatIsCarried !== null && whatIsCarried.extglobOn.text === 'extglob-fn-matched',
+    JSON.stringify(whatIsCarried?.extglobOn),
+  )
+  const engineArmed = of('engine-armed').row
+  const engineWithBashEnv = of('engine-armed-bash-env').row
+  if (!/^brush /.test(engineArmed?.said?.evidence ?? '')) console.log('  [SKIP] engine-armed: the bundled engine does not serve here (its pack is absent), so its login run is not driven')
+  else {
+    check(
+      'engine-armed: under the bundled engine what ~/.profile defines is carried to a command, its alias and its function',
+      engineArmed !== null && engineArmed.carried.text.includes("alias ll='ls -la'") && engineArmed.carried.text.includes('fn-from-the-login-file'),
+      JSON.stringify(engineArmed?.carried),
+    )
+    check(
+      'engine-armed: a command there runs with job control off, and onecmd off: the options carried are those that are on',
+      engineArmed?.options.text === 'braceexpand=on monitor=off noclobber=off onecmd=off',
+      JSON.stringify(engineArmed?.options),
+    )
+    check(
+      'engine-armed-bash-env: with BASH_ENV set where Mercury was started the engine still takes its login run, and commands run with what ~/.profile defines',
+      engineWithBashEnv !== null && engineWithBashEnv.first.code === 0 && engineWithBashEnv.carried.text.includes("alias ll='ls -la'") && engineWithBashEnv.carried.text.includes('fn-from-the-login-file'),
+      JSON.stringify({ first: engineWithBashEnv?.first, carried: engineWithBashEnv?.carried }),
+    )
+  }
+  const posixMode = of('posix-mode').row
+  check(
+    'posix-mode: under set -o posix the alias is carried as an alias, with the function',
+    posixMode !== null && posixMode.carried.text.includes("ll='ls -la'") && posixMode.carried.text.includes('fn-from-the-login-file'),
+    JSON.stringify(posixMode?.carried),
+  )
   const guarded = of('guarded-bashrc').row
   check(
     'guarded-bashrc: a ~/.bashrc that returns for a shell that is not interactive carries what stands above that line and nothing below it',
@@ -395,6 +612,7 @@ try {
     ['exits', HANDED, /that ends the shell or starts another one \(`exec zsh -l`\) and run it only in an interactive shell/],
     ['slow', /did not end within 10 s and was killed: a login file waits or runs long/, /Find what waits in the files bash reads at login/],
     ['prints-at-length', /printed more than 1 MiB and was ended: a login file prints at length/, /Find what prints in the files bash reads at login/],
+    ['unsets-path', /the login files leave PATH without awk, sed, head or cat, which the login run needs to carry anything/, /Keep \/usr\/bin and \/bin on PATH in the files bash reads at login/],
     ...(isRoot ? [] : ([['no-snapshot-folder', /could not be made \(.*\), so no login run was tried/, /or name another in MERCURY_CONFIG_DIR, then restart Mercury/]] as Array<[string, RegExp, RegExp]>)),
   ]
   for (const [name, why, change] of NOT_CARRIED) {
@@ -411,6 +629,11 @@ try {
       shown,
     )
     check(`${name}: the second result does not carry it`, row !== null && row.toolSecond.includes('tool-second') && !/login files|login run/.test(row.toolSecond), shown)
+    check(
+      `${name}: a call before it that never started (its folder is not there) is an error without the line, and does not use the line up`,
+      row !== null && row.toolNeverStarted.startsWith('threw:') && /does not exist/.test(row.toolNeverStarted) && !/login files|login run/.test(row.toolNeverStarted) && row.toolFirst.includes(LINE),
+      JSON.stringify({ neverStarted: row?.toolNeverStarted, first: row?.toolFirst }).slice(0, 900),
+    )
     check(
       `${name}: the health check's shell row, asked in the session, warns with the same reason, and its fix says what to change`,
       row !== null && row.said !== null && row.said.status === 'warn' && row.said.evidence.includes('nothing the bash login files define is carried: ') && why.test(row.said.evidence) && change.test(row.said.fix ?? ''),
@@ -462,7 +685,7 @@ try {
     JSON.stringify(anotherRow.row ?? anotherRow.said).slice(0, 900),
   )
   check(
-    'the login run begins when a request that offers the Bash tool is prepared, beside the rest of that request: a request that does not offer it starts none, and the description then waits for that one run and takes no second',
+    'where no tool list was settled first, the login run begins when a request that offers the Bash tool is prepared, beside the rest of that request: a request that does not offer it starts none, and the description then waits for that one run and takes no second',
     firstPrompt.row !== null && firstPrompt.row.withoutBash === 0 && firstPrompt.row.begunMs !== null && firstPrompt.row.startsInAll === 1 && firstPrompt.row.described.endsWith('and no call carries the aliases, functions or options of your profile (bash) in this session.'),
     JSON.stringify(firstPrompt.row ?? firstPrompt.said).slice(0, 900),
   )
@@ -470,6 +693,51 @@ try {
     'a process that ends while its login run is still going ends what that run started',
     endsEarly.row !== null && endsEarly.row.started && leftByTheEarlyEnd === false,
     `${JSON.stringify(endsEarly.row ?? endsEarly.said).slice(0, 600)} · alive after the process ended: ${String(leftByTheEarlyEnd)}`,
+  )
+  check(
+    'the login run starts when a process that is no screen settles a tool list with the Bash tool in it, before any request is prepared; a list without Bash starts none, and the list a screen takes to draw its rows, Bash among them, starts none',
+    toolList.row !== null && toolList.row.drawnOnAScreen === true && toolList.row.offeredWithout === false && toolList.row.withoutBash === 0 && toolList.row.offeredWith === true && toolList.row.beforeAnyRequest === 1,
+    JSON.stringify(toolList.row ?? toolList.said).slice(0, 900),
+  )
+  check(
+    '…the first request then waits for that one run and takes no second, and its description says the files are carried',
+    toolList.row !== null && toolList.row.runsInAll === 1 && toolList.row.described.endsWith('and each call starts from your profile (bash).'),
+    JSON.stringify(toolList.row ?? toolList.said).slice(0, 900),
+  )
+  check(
+    'a process that ends while the run its tool list started is still going leaves no child of it',
+    endsEarlyListed.row !== null && endsEarlyListed.row.started && leftByTheEarlyEndListed === false,
+    `${JSON.stringify(endsEarlyListed.row ?? endsEarlyListed.said).slice(0, 600)} · alive after the process ended: ${String(leftByTheEarlyEndListed)}`,
+  )
+  check(
+    'a process that knows from its arguments that it is a headless run starts its login run in its first lines, when its settings and environment are read and before any tool list is taken; a runner does the same',
+    linesOf('run')?.beforeAnyToolList === 1 && linesOf('runner')?.beforeAnyToolList === 1,
+    shownLines('run', 'runner'),
+  )
+  check(
+    '…and neither the tool list nor the first request takes a second: one login run in the process, and the description says the files are carried',
+    ['run', 'runner'].every(kind => linesOf(kind) !== null && linesOf(kind)!.offered && linesOf(kind)!.saw.length === 1 && linesOf(kind)!.described.endsWith('and each call starts from your profile (bash).')),
+    shownLines('run', 'runner'),
+  )
+  check(
+    "the screen's own process starts none: neither its first lines nor the tool list it draws its rows from, Bash among them",
+    linesOf('screen') !== null && linesOf('screen')!.beforeAnyToolList === 0 && linesOf('screen')!.offered && linesOf('screen')!.saw.length === 0,
+    shownLines('screen'),
+  )
+  check(
+    'a run whose arguments leave Bash out starts none, in its first lines or at its tool list: --toolset without Bash, and --block-tools with Bash',
+    ['toolset', 'blocked'].every(kind => linesOf(kind) !== null && linesOf(kind)!.beforeAnyToolList === 0 && !linesOf(kind)!.offered && linesOf(kind)!.saw.length === 0),
+    shownLines('toolset', 'blocked'),
+  )
+  check(
+    'where the settings name an environment value that is not in place at the first lines (one a host manages, which the first pass leaves out), the run waits for the tool list as before: the login files see the value a command will see',
+    linesOf('pending') !== null && linesOf('pending')!.beforeAnyToolList === 0 && linesOf('pending')!.saw.length === 1 && linesOf('pending')!.saw[0] === `run:${HOST_MANAGED_VALUE}`,
+    shownLines('pending'),
+  )
+  check(
+    'a process that ends while the run its first lines started is still going leaves no child of it',
+    endsEarlyFirst.row !== null && endsEarlyFirst.row.started && leftByTheEarlyEndFirst === false,
+    `${JSON.stringify(endsEarlyFirst.row ?? endsEarlyFirst.said).slice(0, 600)} · alive after the process ended: ${String(leftByTheEarlyEndFirst)}`,
   )
 } finally {
   rmSync(scratch, { recursive: true, force: true })

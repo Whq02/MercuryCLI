@@ -107,16 +107,6 @@ Minimalna wersja Node zawiera poprawkę nodejs/node#56645. Poniżej 24.20.0 pole
 
 Launchery wybierają Node w tej kolejności: jawnie wskazany plik binarny `MERCURY_NODE`, dołączone środowisko uruchomieniowe, a następnie zgodna instalacja Node w PATH. Jeśli środowiska uruchomieniowego brakuje, launcher zgłasza błąd.
 
-### Powłoki Windows
-
-Archiwa wydań zawierają silnik powłoki zgodny z bash (`brush`), a w Windows domyślnie obsługuje on narzędzie Bash: znajduje program `.cmd` lub `.bat`, taki jak `npm`, po samej nazwie dzięki PATHEXT, przekazuje `%VAR%` i `^` do pliku wsadowego bez zmian, uruchamia program wskazany ścieżką względną po `cd` i zachowuje stan powłoki między wywołaniami. `bash.exe` z Git for Windows nie jest wymagany; jeśli jest zainstalowany, `MERCURY_SHELL_ENGINE=system` albo `system` w `/config`, w ustawieniu Shell engine, uruchamia narzędzie Bash wyłącznie na `bash.exe`.
-
-Wiersz `shell` w kontroli stanu pokazuje, która powłoka jest aktywna i dlaczego: dołączony silnik (domyślny w Windows albo po przypięciu lub ustawieniu) czy Git Bash, gdy silnik został wyłączony albo jego pakiet jest nieobecny.
-
-Na macOS i Linuksie domyślna jest powłoka systemowa. Ustaw `MERCURY_SHELL_ENGINE=brush` albo wybierz `brush` w `/config`, w ustawieniu Shell engine, aby także tam narzędzie Bash działało na dołączonym silniku, z trwałym stanem powłoki.
-
-Budowanie ze źródeł bez pakietu silnika ani Git for Windows uruchamia się, ale narzędzie Bash jest niedostępne. Narzędzie PowerShell pozostaje dostępne, a diagnostyka `shell` wyjaśnia, jak przywrócić obsługę Bash.
-
 ## Budowanie ze źródeł
 
 Mercury buduje się przy użyciu bun i działa na Node 24 LTS. Zainstaluj [wymagania do budowania ze źródeł](#wymagania), w tym bun 1.4.4:
@@ -151,7 +141,7 @@ Wiersz Terminal color w kontroli stanu podaje wykrytą głębię kolorów i jej 
 
 Aby zbudować obsługę głosu, uruchom `setup` z zainstalowanym Rust. Buduje to `native/voice`. Dodaj cmake, aby zbudować także `native/whisper`. Z zainstalowanym Rust `setup` buduje też dodatek sterownika pulpitu (`native/desktop`), z którego korzysta narzędzie `Computer`. Z zainstalowanym Rust `setup` buduje również lokalny dodatek embeddingów (`native/embed`, `bun run scripts/vendor/build-embed.ts`) i pobiera model BGE o rozmiarze 118 MB (`bun run scripts/vendor/fetch-embed-models.ts --default`). Bez cargo pakiet jest pomijany, setup o tym informuje, a wyszukiwanie w pamięci Mneme działa tylko na dopasowaniu słów. Każde archiwum wydania zawiera pakiet embeddingów zbudowany dla jego platformy. W Linuksie i Windows obliczenia wykonuje jądro wektorowe, więc wywołanie Recall po znaczeniu trwa około jednej dziesiątej sekundy (kilka setnych na macOS, który używa Accelerate). Jeśli w natywnej kompilacji brakuje wymaganych narzędzi, setup ją pomija, a kontrola stanu zgłasza brakujący dodatek. Silnik powłoki Windows także jest budowany na twojej maszynie, ponieważ upstream nie dostarcza pliku binarnego dla Windows.
 
-Zobacz [Powłoki Windows](#powłoki-windows) oraz [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) w sprawie silnika powłoki `brush`.
+Zobacz [Powłoki Windows](../INSTALL.md#windows-shells) oraz [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) w sprawie silnika powłoki `brush`.
 
 Budowanie zapisuje wyłącznie do `dist/`. Konfiguracja i sesje znajdują się w `~/.mercury` albo w katalogu ustawionym przez `MERCURY_CONFIG_DIR` i są tworzone przy pierwszym uruchomieniu. W Windows uruchom bezpośrednio `node dist\mercury.mjs`.
 

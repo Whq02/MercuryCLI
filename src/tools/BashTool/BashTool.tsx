@@ -62,6 +62,8 @@ import {
   resizeShellImageOutput,
   applyShellOutputFilter,
   redactedCopy,
+  sayWhatTheShellOwes,
+  truncateForSummary,
 } from './utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from './maxOutputChars.js'
 import { resolveOutputBudget } from '../../utils/shell/outputLimits.js'
@@ -637,7 +639,7 @@ async function* runBash(
     const accumulator = new EndTruncatingAccumulator()
     accumulator.append(result.stdout.trimEnd() + '\n')
     if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
-    for (const note of [editorTerminalNote, loginFilesLineOnce(agentId ?? 'main')]) if (note) accumulator.append(note + '\n')
+    for (const note of [editorTerminalNote, result.preSpawnError ? null : loginFilesLineOnce(agentId ?? 'main')]) if (note) accumulator.append(note + '\n')
     if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
     if (commandNamesBoxLock(input.command)) await refreshBoxReading()
     const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd })
@@ -874,6 +876,7 @@ export const BashTool = buildTool({
       if (input._simulatedSedEdit) {
         return { data: await runSimulatedSedEdit(input, context, parentMessageId) }
       }
+      await sayWhatTheShellOwes(context)
       const generator = runBash(input, context, agentId)
       let step = await generator.next()
       while (!step.done) {
@@ -904,8 +907,4 @@ export const BashTool = buildTool({
   renderToolUseErrorMessage,
 })
 
-const TOOL_USE_SUMMARY_LIMIT = 100
 const EMPTY_COMMAND_REFUSAL = 'Nothing to run: the command is empty. Pass the command to execute.'
-function truncateForSummary(command: string): string {
-  return command.length > TOOL_USE_SUMMARY_LIMIT ? command.slice(0, TOOL_USE_SUMMARY_LIMIT) : command
-}

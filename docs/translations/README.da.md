@@ -107,16 +107,6 @@ Node-minimumsversionen indeholder rettelsen for nodejs/node#56645. Under 24.20.0
 
 Launcherne vælger Node i denne rækkefølge: den eksplicitte `MERCURY_NODE`-binær, den medleverede runtime og derefter en kompatibel Node-installation i PATH. Mangler runtime'en, rapporterer launcheren en fejl.
 
-### Windows-shells
-
-Releasearkiver indeholder Mercurys bash-kompatible shell-motor (`brush`), og på Windows betjener den som standard Bash-værktøjet: Den finder et `.cmd`- eller `.bat`-program som `npm` med sit almindelige navn via PATHEXT, sender `%VAR%` og `^` uændret til en batchfil, kører et program, der er angivet med en relativ sti, efter `cd`, og bevarer shell-tilstanden mellem kald. `bash.exe` fra Git for Windows er ikke påkrævet; hvis den er installeret, kører `MERCURY_SHELL_ENGINE=system` eller `system` under Shell engine i `/config` Bash-værktøjet udelukkende på `bash.exe`.
-
-Læs `shell`-rækken i health-checket for at se, hvilken shell der er aktiv, og hvorfor: den medleverede motor (Windows-standarden, eller aktiveret af pinnen eller indstillingen) eller Git Bash, når motoren er slået fra, eller dens pakke mangler.
-
-På macOS og Linux er systemets shell standard. Sæt `MERCURY_SHELL_ENGINE=brush`, eller vælg `brush` i `/config` under Shell engine, for også at køre Bash-værktøjet på den medleverede motor dér, med vedvarende shell-tilstand.
-
-Et build fra kildekoden uden motorpakken eller Git for Windows starter stadig, men Bash-værktøjet er ikke tilgængeligt. PowerShell-værktøjet er fortsat tilgængeligt, og diagnosen `shell` forklarer, hvordan Bash-understøttelsen gendannes.
-
 ## Build fra kildekoden
 
 Mercury bygges med bun og kører på Node 24 LTS. Installér [kravene til build fra kildekoden](#krav), inklusive bun 1.4.4:
@@ -151,7 +141,7 @@ Rækken Terminal color i health-checket angiver den registrerede farvedybde og �
 
 Hvis du vil bygge stemmeunderstøttelse, kører du `setup` med Rust installeret. Det bygger `native/voice`. Tilføj cmake for også at bygge `native/whisper`. Med Rust installeret bygger `setup` desuden desktop-driver-addonet (`native/desktop`), som værktøjet `Computer` kører igennem. Med Rust installeret bygger `setup` også det lokale embedding-addon (`native/embed`, `bun run scripts/vendor/build-embed.ts`) og henter BGE-modellen på 118 MB (`bun run scripts/vendor/fetch-embed-models.ts --default`); uden cargo springes pakken over, setup siger det, og Mneme-hukommelsesopslag kører kun med ordmatch. Hvert releasearkiv indeholder embedding-pakken bygget til sin platform; på Linux og Windows kører matematikken i en vektoriseret kerne, så et Recall efter betydning tager cirka en tiendedel sekund (et par hundredele på macOS, som bruger Accelerate). Hvis et native build mangler sine værktøjer, springer setup det over, og health-checket rapporterer det manglende addon. Windows-shell-motoren kompileres også på din maskine, fordi upstream ikke leverer en Windows-binær.
 
-Se [Windows-shells](#windows-shells) og [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) for `brush`-shell-motoren.
+Se [Windows-shells](../INSTALL.md#windows-shells) og [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) for `brush`-shell-motoren.
 
 Buildet skriver kun til `dist/`. Konfiguration og sessioner ligger i `~/.mercury` eller i den mappe, som `MERCURY_CONFIG_DIR` angiver, og oprettes ved første kørsel. På Windows kører du `node dist\mercury.mjs` direkte.
 

@@ -76,7 +76,7 @@ export async function createBashShellProvider(
       const raw = rewriteWindowsNullRedirect(command)
       const pipelineStatusPath = raw.includes('|') ? `${cwdFileForEngine}-pipeline` : undefined
       const pipelineFileInShell = `${cwdFileInShell}-pipeline`
-      const normalised = pipelineStatusPath === undefined ? raw : `${raw}\n__mercury_status=$? __mercury_pipeline=("${PIPELINE_STATUS_ARRAY}")\nprintf '%s\\n' "\${__mercury_pipeline[@]}" >| ${quote([pipelineFileInShell])}\n(exit "$__mercury_status")`
+      const normalised = pipelineStatusPath === undefined ? raw : `${raw}\n__mercury_status=$? __mercury_pipeline=("${PIPELINE_STATUS_ARRAY}")\n{ printf '%s\\n' "\${__mercury_pipeline[@]}" >| ${quote([pipelineFileInShell])}; } 2>/dev/null\n(exit "$__mercury_status")`
       const addStdin = shouldAddStdinRedirect(normalised)
       let quotedCommand = quoteShellCommand(normalised, addStdin)
       if (addStdin && normalised.includes('|')) {
@@ -92,7 +92,7 @@ export async function createBashShellProvider(
       const preamble = getGlobPreambleCommand(record.origin)
       if (preamble) parts.push(preamble)
       parts.push(`eval ${quotedCommand}`)
-      parts.push(`{ pwd -P >| ${quote([cwdFileInShell])} 2>/dev/null || true; }`)
+      parts.push(`{ { pwd -P >| ${quote([cwdFileInShell])}; } 2>/dev/null || true; }`)
       if (isWindows) {
         parts.push(`{ pwd -W >> ${quote([cwdFileInShell])} 2>/dev/null || true; }`)
       }

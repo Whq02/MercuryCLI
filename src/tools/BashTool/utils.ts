@@ -10,12 +10,30 @@ import { countCharInString, plural } from '../../utils/stringUtils.js'
 import { cutAroundSpillNotice } from '../../utils/toolErrors.js'
 import { clampClause } from '../../utils/waitCeiling.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
+import { createSystemMessage } from '../../utils/messages.js'
+import { shellWordOwed } from '../../utils/shell/shellRecord.js'
+import type { ToolUseContext } from '../../Tool.js'
 import type {
   Base64ImageSource,
   ImageBlockParam,
   ToolResultBlockParam,
 } from '../../types/wire.js'
 
+
+const TOOL_USE_SUMMARY_LIMIT = 100
+
+export function truncateForSummary(command: string): string {
+  return command.length > TOOL_USE_SUMMARY_LIMIT ? command.slice(0, TOOL_USE_SUMMARY_LIMIT) : command
+}
+
+export async function sayWhatTheShellOwes(context: Pick<ToolUseContext, 'appendSystemMessage'>): Promise<void> {
+  const owed = await shellWordOwed()
+  if (owed.user !== null) {
+    if (context.appendSystemMessage) context.appendSystemMessage(createSystemMessage(owed.user, 'warning'))
+    else process.stderr.write(`${owed.user}\n`)
+  }
+  if (owed.model !== null) throw new Error(owed.model)
+}
 
 export function stripEmptyLines(content: string): string {
   const normalised = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')

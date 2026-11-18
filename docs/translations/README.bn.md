@@ -107,16 +107,6 @@ Node-এর ন্যূনতম সংস্করণে nodejs/node#56645-এ
 
 লঞ্চার এই ক্রমে Node বেছে নেয়: স্পষ্টভাবে নির্দিষ্ট `MERCURY_NODE` বাইনারি, সঙ্গে থাকা runtime, তারপর PATH-এ একটি উপযুক্ত Node ইনস্টলেশন। runtime না থাকলে লঞ্চার একটি ত্রুটি জানায়।
 
-### Windows-এর শেল
-
-রিলিজ আর্কাইভে Mercury-র bash-সামঞ্জস্যপূর্ণ shell engine (`brush`) অন্তর্ভুক্ত থাকে। Windows-এ এটিই ডিফল্টভাবে Bash টুল চালায়: `.cmd` বা `.bat` প্রোগ্রাম (যেমন `npm`) PATHEXT-এর মাধ্যমে শুধু নাম দিয়েই খুঁজে পায়, `%VAR%` ও `^`-কে কোনো পরিবর্তন ছাড়াই batch ফাইলে পাঠায়, `cd`-এর পরে আপেক্ষিক পথে নির্দিষ্ট প্রোগ্রাম চালায়, এবং কলের মধ্যে shell-এর অবস্থা ধরে রাখে। Git for Windows-এর `bash.exe` লাগে না। ইনস্টল থাকলে `MERCURY_SHELL_ENGINE=system` সেট করুন, অথবা `system` বেছে নিন `/config`-এর Shell engine-এ; তখন Bash টুল শুধু `bash.exe`-এ চলে।
-
-কোন shell সক্রিয় এবং কেন, তা জানতে স্বাস্থ্য পরীক্ষার `shell` সারিটি পড়ুন: সঙ্গে আসা engine (Windows-এর ডিফল্ট, অথবা pin বা সেটিং দিয়ে সক্রিয় করা), অথবা engine বন্ধ থাকলে বা তার pack না থাকলে Git Bash।
-
-macOS ও Linux-এ সিস্টেমের shell-ই ডিফল্ট। সেখানেও সঙ্গে আসা engine-এ Bash টুল চালাতে, এবং স্থায়ী shell অবস্থা পেতে `MERCURY_SHELL_ENGINE=brush` সেট করুন, অথবা `brush` বেছে নিন `/config`-এর Shell engine থেকে।
-
-engine pack বা Git for Windows ছাড়া সোর্স বিল্ড তবুও শুরু হয়, কিন্তু Bash টুল পাওয়া যায় না। PowerShell টুল উপলব্ধ থাকে, এবং `shell` ডায়াগনস্টিক Bash সমর্থন ফিরিয়ে আনার উপায় বলে দেয়।
-
 ## সোর্স থেকে বিল্ড
 
 Mercury bun দিয়ে বিল্ড হয় এবং Node 24 LTS-এ চলে। bun 1.4.4-সহ [সোর্স-বিল্ডের প্রয়োজনীয়তা](#প্রয়োজনীয়তা) ইনস্টল করুন:
@@ -151,7 +141,7 @@ node dist/mercury.mjs health --json
 
 voice সমর্থন তৈরি করতে Rust ইনস্টল থাকা অবস্থায় `setup` চালান। এতে `native/voice` তৈরি হয়। `native/whisper`-ও বানাতে cmake যোগ করুন। Rust ইনস্টল থাকলে `setup` desktop driver addon (`native/desktop`)-ও বানায়, যার মাধ্যমে `Computer` টুল কাজ করে। এছাড়া Rust ইনস্টল থাকলে `setup` লোকাল embedding addon (`native/embed`, `bun run scripts/vendor/build-embed.ts`)-ও বানায় এবং 118 MB BGE মডেল (`bun run scripts/vendor/fetch-embed-models.ts --default`) নামিয়ে আনে। cargo ছাড়া pack বাদ যায়, setup সে কথা জানায়, এবং Mneme মেমরি খোঁজে শুধু শব্দ-মিল ব্যবহৃত হয়। প্রতিটি রিলিজ আর্কাইভে তার প্ল্যাটফর্মের জন্য বানানো embedding pack থাকে। Linux ও Windows-এ গণনা একটি vectorised kernel-এ চলে, তাই অর্থের ভিত্তিতে Recall প্রায় এক-দশমাংশ সেকেন্ড নেয় (macOS-এ, যেখানে Accelerate ব্যবহৃত হয়, কয়েক শতাংশ সেকেন্ড)। নেটিভ বিল্ডে টুল না থাকলে setup সেটি বাদ দেয় এবং স্বাস্থ্য পরীক্ষা অনুপস্থিত addon-এর কথা জানায়। Windows shell engine-ও আপনার মেশিনে কম্পাইল হয়, কারণ upstream-এ কোনো Windows binary নেই।
 
-`brush` shell engine-এর জন্য [Windows-এর শেল](#windows-এর-শেল) ও [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) দেখুন।
+`brush` shell engine-এর জন্য [Windows-এর শেল](../INSTALL.md#windows-shells) ও [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) দেখুন।
 
 বিল্ড শুধু `dist/`-এ লেখে। কনফিগারেশন ও সেশন থাকে `~/.mercury`-এ, অথবা `MERCURY_CONFIG_DIR` দিয়ে সেট করা ডিরেক্টরিতে; প্রথম চালানোর সময় এগুলো তৈরি হয়। Windows-এ সরাসরি `node dist\mercury.mjs` চালান।
 

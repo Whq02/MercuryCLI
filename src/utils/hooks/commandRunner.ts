@@ -7,7 +7,7 @@ import { recordHookFailure } from '../../extensions/health.js'
 import { optionSchemaFor } from '../../extensions/load/optionSchema.js'
 import { loadOptionValues, optionEnv, substituteOptionsInCommand, type OptionValues } from '../../extensions/options.js'
 import { secondsWord, type HookEnding } from '../../rows/vocabulary.js'
-import { formatShellPrefixCommand } from '../bash/shellPrefix.js'
+import { formatShellPrefixCommand, shStartLine } from '../bash/shellPrefix.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage, getErrnoCode } from '../errors.js'
@@ -105,7 +105,7 @@ async function prepareCommand(run: CommandHookRun): Promise<{ command: string; e
   }
   if (isWindows && !isPowerShell) command = winShHookCommand(command)
   const prefix = flagEnv('MERCURY_SHELL_PREFIX')
-  if (!isPowerShell && prefix) command = formatShellPrefixCommand(prefix, command)
+  if (!isPowerShell && prefix) command = formatShellPrefixCommand(prefix, isWindows ? command : shStartLine(command))
   if (!isPowerShell && hookEventWritesEnvFile(run.event)) {
     stampFlagOnEnv(env, 'MERCURY_ENV_FILE', await getHookEnvFilePath(run.event, run.index))
   }

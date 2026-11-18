@@ -1,5 +1,7 @@
 import { memoize } from 'lodash-es'
 import '../bootstrap/state.js'
+import { isSessionRunArgv, readSessionOptionValues } from '../cli/sessionArgs.js'
+import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { enableConfigs } from '../utils/config.js'
 import { findMostRecentBackup } from '../utils/config/globalConfig.js'
 import { applyExtraCACertsFromConfig } from '../utils/caCertsConfig.js'
@@ -8,8 +10,11 @@ import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { recordFirstStartTime } from '../utils/config/derived.js'
 import { configureGlobalMTLS } from '../utils/mtls.js'
 import { configureGlobalAgents } from '../utils/proxy.js'
+import { beginLoginFiles } from '../utils/shell/shellRecord.js'
 import { armWindowsShellRoad } from '../utils/shell/windowsShellRoad.js'
-import { applyConfigEnvironmentVariables, applySafeConfigEnvironmentVariables } from '../utils/managedEnv.js'
+import { applyConfigEnvironmentVariables, applySafeConfigEnvironmentVariables, configEnvironmentIsApplied } from '../utils/managedEnv.js'
+import { permissionRuleValueFromString } from '../utils/permissions/permissionRuleParser.js'
+import { parseToolListFromCLI } from '../utils/permissions/permissionSetup.js'
 import { ensureLocalSettingsSchema } from '../utils/settings/localSchema.js'
 import { getGithubRepo } from '../utils/git.js'
 import { restoreGatewayAuth } from '../utils/gatewayTrust.js'
@@ -20,6 +25,15 @@ import { logForDebugging } from '../utils/debug.js'
 import { isSessionMarkedNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { profileCheckpoint } from '../utils/startupProfiler.js'
 import { armScratchpadSweep } from '../utils/scratchpad.js'
+
+function runArgumentsLeaveBashOut(args: readonly string[]): boolean {
+  const toolset = readSessionOptionValues(args, '--toolset')
+  if (toolset !== null && !parseToolListFromCLI(toolset).includes(BASH_TOOL_NAME)) return true
+  return parseToolListFromCLI(readSessionOptionValues(args, '--block-tools') ?? []).some(rule => {
+    const denied = permissionRuleValueFromString(rule)
+    return denied.toolName === BASH_TOOL_NAME && denied.ruleContent === undefined
+  })
+}
 
 export const init: () => Promise<void> = memoize(async (): Promise<void> => {
   profileCheckpoint('init_function_start')
@@ -42,6 +56,8 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
     setupGracefulShutdown()
     armScratchpadSweep()
     profileCheckpoint('init_shutdown_installed')
+
+    if (isSessionRunArgv() && !runArgumentsLeaveBashOut(process.argv.slice(2)) && configEnvironmentIsApplied()) beginLoginFiles()
 
     void populateOAuthAccountInfoIfNeeded().catch((error: unknown) =>
       logForDebugging(`init: oauth account populate failed: ${String(error)}`),

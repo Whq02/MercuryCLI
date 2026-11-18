@@ -3,13 +3,15 @@ import { writeFile } from 'node:fs/promises'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
 import type { ParamsOf, ResultOf } from '../../runner/wire/methods.js'
+import { PeerDeadline } from '../../runner/wire/peer.js'
 import type { ReadFileRangeResult } from '../../utils/readFileInRange.js'
 import type { LineEndingType } from '../../utils/fileRead.js'
 import { detectLineEndingsForString } from '../../utils/fileRead.js'
 import { writeTextContent } from '../../utils/file.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
 import { generateTaskId } from '../../Task.js'
-import { createAbortedCommand, type ExecResult, type ShellCommand } from '../../utils/ShellCommand.js'
+import { createAbortedCommand, createFailedCommand, type ExecResult, type ShellCommand } from '../../utils/ShellCommand.js'
+import { sleep } from '../../utils/sleep.js'
 import type { ProcessTreeKillReceipt } from '../../utils/processGroup.js'
 import { getTaskOutputDir } from '../../utils/task/diskOutput.js'
 
@@ -256,6 +258,27 @@ type EditorTerminalShell = {
 }
 
 const EDITOR_SHELL_PROBE_MS = 10_000
+const EDITOR_OUTPUT_POLL_MS = 100
+const EDITOR_OUTPUT_QUIET_MS = 1_000
+const EDITOR_OUTPUT_BOUND_MS = 3_000
+
+async function outputAfterExit(door: IdeToolDoor, terminalId: string, wait: boolean, signal?: AbortSignal): Promise<{ output: string; notes: string[] }> {
+  let snap = await door.terminalOutput({ terminal_id: terminalId }, signal)
+  const began = Date.now()
+  let changed = began
+  while (wait && snap.exit_status == null && Date.now() - changed < EDITOR_OUTPUT_QUIET_MS && Date.now() - began < EDITOR_OUTPUT_BOUND_MS) {
+    await sleep(EDITOR_OUTPUT_POLL_MS)
+    const next = await door.terminalOutput({ terminal_id: terminalId }, signal)
+    if (next.output !== snap.output) changed = Date.now()
+    snap = next
+  }
+  const notes: string[] = []
+  if (wait && snap.exit_status == null && Date.now() - changed < EDITOR_OUTPUT_QUIET_MS) {
+    notes.push(`The editor's terminal was still printing ${EDITOR_OUTPUT_BOUND_MS / 1000} s after the command ended, so the end of its output may be missing here.`)
+  }
+  if (snap.truncated) notes.push("The editor's terminal kept only the end of this output: it reports the output as truncated.")
+  return { output: snap.output, notes }
+}
 
 let editorShellAsked: { refusal: Promise<string | null>; said: boolean } | null = null
 
@@ -281,8 +304,9 @@ async function editorShellRefusal(
   let refusal: string | null
   try {
     await door.terminalWaitForExit({ terminal_id: terminalId }, bound)
-    const said = await door.terminalOutput({ terminal_id: terminalId }, bound)
-    refusal = said.output.includes(word) ? null : `asked to start ${shell.file} on one line, it did not print what that line prints`
+    let said = (await door.terminalOutput({ terminal_id: terminalId }, bound)).output
+    if (!said.includes(word)) said = (await outputAfterExit(door, terminalId, true, bound)).output
+    refusal = said.includes(word) ? null : `asked to start ${shell.file} on one line, it did not print what that line prints`
   } catch (error) {
     refusal = `asked to start ${shell.file} on one line, it did not answer within ${EDITOR_SHELL_PROBE_MS / 1000} s: ${error instanceof Error ? error.message : String(error)}`
     try {
@@ -347,6 +371,9 @@ export async function execViaIdeTerminal(
     terminalId = created.terminal_id
   } catch (error) {
     if (abortSignal.aborted) return createAbortedCommand()
+    if (error instanceof PeerDeadline) {
+      return createFailedCommand(`The editor did not answer the request for a terminal within ${Math.round(error.deadlineMs / 1000)} s, so this command may be running in the editor's terminal; it was not run again in the local shell. Look at the editor's terminal before you run it again.`)
+    }
     throw new IdeTerminalUnavailableError(`The editor could not open a terminal (${error instanceof Error ? error.message : String(error)}); this command ran in the local shell.`)
   }
 
@@ -432,12 +459,14 @@ export async function execViaIdeTerminal(
       if (timeoutTimer !== undefined) clearTimeout(timeoutTimer)
       if (pollTimer !== undefined) clearInterval(pollTimer)
       let finalSnap = lastOutput
+      let notes: string[] = []
       try {
-        const snap = await door.terminalOutput({ terminal_id: terminalId })
+        const snap = await outputAfterExit(door, terminalId, !killedByUs)
         if (snap.output.length > lastOutput.length) {
           taskOutput.writeStdout(snap.output.slice(lastOutput.length))
         }
         finalSnap = snap.output
+        notes = snap.notes
       } catch {
         finalSnap = lastOutput
       }
@@ -445,7 +474,7 @@ export async function execViaIdeTerminal(
       await taskOutput.flush()
       if (status === 'running' || status === 'backgrounded') status = 'completed'
       const code = typeof exit.exit_code === 'number' ? exit.exit_code : killedByUs ? 137 : 1
-      const stderr = killedByTimeout ? `Command timed out after ${Math.round(options.timeout / 1000)}s` : ''
+      const stderr = [...(killedByTimeout ? [`Command timed out after ${Math.round(options.timeout / 1000)}s`] : []), ...notes].join('\n')
       return {
         ...(backgroundTaskId === undefined ? await settleCapturedOutput(finalSnap) : { stdout: finalSnap }),
         stderr,

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, resolve, win32 } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -38,12 +38,14 @@ type Machine = {
   engineOff?: boolean
 }
 
+const held = (files: ReadonlySet<string>) => (file: string): boolean => files.has(file.replace(/\\/g, '/'))
+
 function worldOf(machine: Machine): { world: World; started: string[] } {
   const files = new Set(machine.files ?? [])
   const started: string[] = []
   const world: World = {
     pinned: machine.pinned ?? null,
-    installed: () => (machine.bashes ?? []).map(path => describeBashCandidate(path, file => files.has(file))),
+    installed: () => (machine.bashes ?? []).map(path => describeBashCandidate(path, held(files))),
     shipped: () => (machine.pack === false ? { absent: 'no bash pack for win-x64' } : { path: PACK_BASH }),
     engine: () => (machine.engine === false ? { absent: 'no shell-engine pack for win-x64' } : { path: ENGINE, version: '0.4.0' }),
     engineAllowed: machine.engineOff !== true,
@@ -65,6 +67,15 @@ const PACK_VERSION = '5.3.20(3)-release'
 const withPack = { [PACK_BASH]: PACK_VERSION }
 
 section('(1) the nine machines')
+{
+  const described = held(new Set(gitFiles(GIT)))
+  const asWindowsJoins = [win32.join(GIT, 'usr', 'bin', 'msys-2.0.dll'), ...BASH_COMPANION_PROGRAMS.map(name => win32.join(GIT, 'usr', 'bin', `${name}.exe`))]
+  check(
+    '0. a described machine holds its files by the name node:path joins on Windows too, with backslashes: the machines below read the same there',
+    asWindowsJoins.every(file => file.includes('\\') && described(file)),
+    asWindowsJoins.filter(file => !described(file)).join(' · '),
+  )
+}
 {
   const m = await settle({ files: gitFiles(GIT), bashes: [GIT_BASH], versions: { [GIT_BASH]: '5.3.15(2)-release', ...withPack } })
   check('1. Git for Windows with a bash 5.3: the installed bash serves, and the shipped one is never started', m.origin === 'system' && m.path === GIT_BASH && m.version === '5.3.15(2)-release' && JSON.stringify(m.started) === JSON.stringify([GIT_BASH]) && m.passed.length === 0, JSON.stringify(m))

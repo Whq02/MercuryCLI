@@ -119,7 +119,9 @@ as `system`) keeps the Bash tool on a bash alone; the `/config` row
 **Shell engine** shows `system` for the default, which lets the engine serve
 where no bash starts.
 A `MERCURY_GIT_BASH_PATH` that points at a file that does not exist stops
-Mercury at start with a message saying so; fix the path.
+Mercury at start with a message saying so; fix the path. One that names a
+program which does not answer as a bash is passed over: the first Bash call
+of the session tells you once why and which shell serves instead.
 ---
 
 ## 3. Install Node 24

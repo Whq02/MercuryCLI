@@ -151,8 +151,8 @@ const src = (p: string) => readFileSync(join(ROOT, p), 'utf8')
 const snapshotTs = src('src/utils/bash/ShellSnapshot.ts')
 check('no {shell:true} PATH probe remains in ShellSnapshot',
   !/echo \$PATH',\s*\{\s*shell: true/.test(snapshotTs) && !snapshotTs.includes('shell: true'))
-check('the snapshot content generator receives the resolved shell',
-  snapshotTs.includes('getMercurySnapshotContent(shellPath)') &&
+check('the snapshot content generator receives the resolved shell, and the path an engine session runs with',
+  snapshotTs.includes('getMercurySnapshotContent(shellPath, pathOfTheEngine)') &&
     snapshotTs.includes('resolveSnapshotPathValue(binShell)'))
 const appTsx = src('src/ink/components/App.tsx')
 check('UI-074: SUPPORTS_SUSPEND is the platform gate',

@@ -14,8 +14,8 @@ import { getPlatform } from '../platform.js'
 import { strikeProcessGroupNow } from '../processGroup.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
-import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, argv0FunctionBody, noteLoginFiles, snapshotProfileOf, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
-import { withShippedPrograms } from '../shell/windowsShellRoad.js'
+import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginFiles, snapshotProfileOf, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
+import { withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
 import { quote } from './shellQuote.js'
 
 
@@ -220,8 +220,8 @@ function createRipgrepShellIntegration(): RipgrepShellIntegration {
   return { type: 'function', snippet: createResilientRgFunction(rgCommand) }
 }
 
-async function getMercurySnapshotContent(binShell: string): Promise<string> {
-  const pathValue = await resolveSnapshotPathValue(binShell)
+async function getMercurySnapshotContent(binShell: string, sessionPath: string | undefined): Promise<string> {
+  const pathValue = sessionPath ?? (await resolveSnapshotPathValue(binShell))
   const rgIntegration = createRipgrepShellIntegration()
 
   const sections: string[] = []
@@ -236,17 +236,17 @@ fi`)
 
 
 const MERCURY_CONTENT_DELIMITER = '__MERCURY_SNAPSHOT_CONTENT__'
-const OPTIONS_THAT_ARE_ON = `set -o | awk '$2 == "on" { print "set -o " $1 }' | head -n 1000 >> "$SNAPSHOT_FILE"`
+const PATH_LEFT_WITHOUT_PROGRAMS = 96
 
 function buildCaptureScript(args: {
   snapshotFilePath: string
   configFilePath: string
   configExists: boolean
   definitions: boolean
-  optionsByState: boolean
+  programsNeeded: boolean
   mercuryContent: string
 }): string {
-  const { snapshotFilePath, configFilePath, configExists, definitions, optionsByState, mercuryContent } = args
+  const { snapshotFilePath, configFilePath, configExists, definitions, programsNeeded, mercuryContent } = args
   const lines: string[] = []
 
   lines.push(`SNAPSHOT_FILE=${quote([snapshotFilePath])}`)
@@ -257,27 +257,24 @@ function buildCaptureScript(args: {
     lines.push('# no user config file to source')
   }
 
+  if (programsNeeded) lines.push(`for __mercury_program in awk sed head cat; do command -v "$__mercury_program" >/dev/null 2>&1 || exit ${PATH_LEFT_WITHOUT_PROGRAMS}; done`)
   lines.push('echo "# Mercury shell environment snapshot" >| "$SNAPSHOT_FILE"')
   lines.push(`echo "unalias -a 2>/dev/null || true" >> "$SNAPSHOT_FILE"`)
 
   if (definitions) {
     lines.push('echo "# Functions" >> "$SNAPSHOT_FILE"')
+    lines.push(SNAPSHOT_READS_FUNCTIONS)
     lines.push(`for __mercury_fn in $(declare -F | awk '{print $NF}'); do
-  case "$__mercury_fn" in
-    _[!_]*) ;;
-    *)
-      __mercury_encoded=$(declare -f -- "$__mercury_fn" | base64 | tr -d '\\n')
-      printf 'eval "$(printf %%s %s | base64 -d)" >/dev/null 2>&1\\n' "$__mercury_encoded" >> "$SNAPSHOT_FILE"
-      ;;
-  esac
+  printf 'eval %q\\n' "$(declare -f -- "$__mercury_fn")" >> "$SNAPSHOT_FILE"
 done`)
+    lines.push('echo "} >/dev/null 2>&1" >> "$SNAPSHOT_FILE"')
 
     lines.push('echo "# Shell Options" >> "$SNAPSHOT_FILE"')
-    lines.push(...(optionsByState ? SNAPSHOT_OPTIONS.map(line => (line.startsWith('set -o ') ? OPTIONS_THAT_ARE_ON : line)) : SNAPSHOT_OPTIONS))
+    lines.push(...SNAPSHOT_OPTIONS)
 
     lines.push('echo "# Aliases" >> "$SNAPSHOT_FILE"')
     const winptyFilter = getPlatform() === 'windows' ? ' | grep -v winpty' : ''
-    lines.push(`alias${winptyFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
+    lines.push(`( set +o posix 2>/dev/null; alias )${winptyFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
   } else {
     lines.push(SNAPSHOT_KEEPS_ALIASES)
   }
@@ -317,6 +314,12 @@ function loginRunLeftNothing(outcome: BoundedRun): LoginFilesAbsence {
   }
   if (outcome.exitCode === undefined) {
     return { why: `the login run was ended by ${outcome.signal ?? 'a signal'}`, change: `Restart Mercury; if this comes back, run \`bash -l -c true\` in a terminal to see which of ${LOGIN_FILES} ends the shell.` }
+  }
+  if (outcome.exitCode === PATH_LEFT_WITHOUT_PROGRAMS) {
+    return {
+      why: 'the login files leave PATH without awk, sed, head or cat, which the login run needs to carry anything',
+      change: `Keep /usr/bin and /bin on PATH in ${LOGIN_FILES}, ${THEN_RESTART}.`,
+    }
   }
   return {
     why: `the login run ended with exit ${String(outcome.exitCode)}`,
@@ -375,17 +378,18 @@ export async function createAndSaveSnapshot(
     )
 
     const configExists = await pathExists(configFilePath)
-    const mercuryContent = await getMercurySnapshotContent(shellPath)
+    const inherited = withRoadPrograms(subprocessEnv(), shell.origin, shellPath)
+    const pathOfTheEngine = shell.origin === 'engine' ? Object.entries(inherited).find(([name]) => name.toUpperCase() === 'PATH')?.[1] : undefined
+    const mercuryContent = await getMercurySnapshotContent(shellPath, pathOfTheEngine)
     const script = buildCaptureScript({
       snapshotFilePath,
       configFilePath,
       configExists,
       definitions: bashOfThisMachine || configExists,
-      optionsByState: bashOfThisMachine,
+      programsNeeded: bashOfThisMachine,
       mercuryContent,
     })
 
-    const inherited = withShippedPrograms(subprocessEnv(), shellPath)
     const captureEnv: NodeJS.ProcessEnv = {
       ...inherited,
       ...(bashOfThisMachine ? {} : { SHELL: shellPath }),
@@ -393,7 +397,7 @@ export async function createAndSaveSnapshot(
       MERCURY: '1',
     }
 
-    const outcome = await runBounded(shellPath, ['-c', '-l', script], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
+    const outcome = await runBounded(shellPath, shell.origin === 'engine' ? ['-l', '-c', script] : ['-c', '-l', script], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
 
     if (outcome.killed || outcome.exitCode !== 0) {
       const absence = loginRunLeftNothing(outcome)

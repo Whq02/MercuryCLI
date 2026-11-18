@@ -290,8 +290,9 @@ default is the bash Mercury ships (GNU bash 5.3), spawning a fresh child per
 command where the working directory carries from call to call and everything
 else resets; `system` is that road's name in the setting. When the shipped
 bash is absent or does not start, the system's own bash runs the command,
-whatever its version, and when no bash starts the bundled engine does. The Bash
-tool never runs a command in zsh and never hands one to it, whatever `$SHELL` names.
+whatever its version, and when no bash starts the bundled engine does. On
+those two systems the Bash tool never runs a command in zsh and never hands
+one to it, whatever `$SHELL` names.
 On Windows the default is a bash 5 too: one
 that is installed first (Git for Windows ships one, found through `git`, or
 the `bash.exe` that `MERCURY_GIT_BASH_PATH` names), then the bash that rides
@@ -309,17 +310,30 @@ patches and the build's flags. Mercury starts it as a separate program. It
 links nothing outside the operating system: the macOS binary uses the system's
 own libraries and the Linux binary is static. A command starts from the
 environment Mercury was started with, unchanged: `PATH` first, and `SHELL` as
-the launcher had it (`$BASH` names the shell that runs). No command is a login
-shell. Your bash login files are read once a session, in one login run that
-has no input and is ended after ten seconds, and the aliases, functions and
-options they define are carried to each command: from `~/.bash_profile` (or
-`~/.bash_login`, or `~/.profile`) and from `~/.bashrc`, whether or not
-`~/.bashrc` exists. A `~/.bashrc` that returns early for a shell that is not
-interactive carries nothing written below that line. A login file that ends
-the shell, hands it to another program or runs past the ten seconds carries
-nothing; commands then run without it, and the session says so. The login run
-begins when the session prepares its first request and is over before that
-request is sent (a session that is handed no prompt takes none), so the Bash
+the launcher had it (`$BASH` names the shell that runs; a program that starts
+`$SHELL` itself, as an editor's `!` command does, starts your own shell). No
+command is a login shell. Your bash login files are read once a session, in
+one login run that has no input and is ended after ten seconds, and the
+aliases, functions and options they define are carried to each command: from
+`~/.bash_profile` (or `~/.bash_login`, or `~/.profile`) and from `~/.bashrc`,
+whether or not `~/.bashrc` exists. Every function is carried, whatever its
+name, and an alias under `set -o posix` too. One option is not: `extglob` is
+off when a command starts, whatever the files set, because Mercury reads a
+command's words without it; a function whose patterns need it switches it on
+in its own body. What the files export, and a `PATH` they set, is not carried
+either: a command starts from the environment Mercury was started with. A
+`~/.bashrc` that returns early for a shell that is not interactive carries
+nothing written below that line. A login file that ends the shell, hands it
+to another program or runs past the ten seconds carries nothing; commands
+then run without it, and the session says so. A file that hands the shell
+over to zsh (`exec zsh -l`) carries what it defines once it hands over only
+in an interactive shell (`case $- in *i*) exec zsh -l ;; esac`). The login run
+begins in the first lines of the process that runs a session (a headless
+`mercury run`, or the runner a screen's session is served by), once its
+settings are read and before it takes its tool list, unless its arguments
+already leave the Bash tool out (`--toolset` without it, `--block-tools`
+with it). Nothing waits for it there; the
+first request that carries the Bash tool waits for that same run, so the Bash
 tool's description says there that no call carries your profile; the first
 result of the Bash tool has one line with the reason and what to change; and
 the health check's Bash tool shell row warns with the same reason and fix. A
@@ -337,13 +351,24 @@ shell by path, with `-c` and one line as the arguments; before the first
 command of a session it asks once for that shell on a harmless line, and an
 editor that errors or does not print the answer within ten seconds is passed
 over for the session: commands run in the local shell and the first result
-says so. On macOS and Linux a `MERCURY_SHELL_PREFIX` wrapper is handed one
+says so. A command whose request for a terminal the editor does not answer
+within thirty seconds is not run again in the local shell: the result is an
+error that says the command may be running in the editor's terminal. When a
+command ends, Mercury reads the terminal's output until the editor reports the
+exit with it or the output has stood still for a second, three seconds at
+most; the result says so when the output was still growing then, and when the
+editor reports that it truncated the output. A command in the editor's
+terminal reads no standard input, as in the local shell.
+
+On macOS and Linux a `MERCURY_SHELL_PREFIX` wrapper is handed one
 line, every word of it quoted with single quotes alone, so whichever shell the
 wrapper runs reads that line and no word of the command. The line starts
 `/bin/sh` on a few words that start Mercury's shell on the command where its
 path can be run and, where it cannot (the wrapper went into a container or to
 another host), the `bash` on `PATH` there; with no bash there the command
-fails with a line that says so. On Windows the wrapper is handed the command's
+fails with a line that says so. A hook under the wrapper is handed one quoted
+line too, which starts `/bin/sh` on the hook, so the wrapper's shell reads no
+word of it. On Windows the wrapper is handed the command's
 line itself, as before, and the shell it starts reads that line. A command
 that starts zsh itself (`zsh -c '…'`) is asked about: Mercury does not read
 the script zsh will run.
@@ -367,7 +392,9 @@ long-lived brush process serves the main conversation and a separate process ser
 each crewmate: variables, functions, aliases and options persist between
 calls for their owner (state set by one crewmate is isolated from other crewmates and
 the main conversation, and a crewmate's shell process exits when the crewmate finishes), and
-the same shell runs on every OS without requiring Git for Windows. On
+the same shell runs on every OS without requiring Git for Windows. A session
+of the engine starts from one login run of the engine itself: the aliases,
+functions and options `~/.profile` defines are carried into it. On
 Windows it finds a `.cmd` or `.bat` program such as `npm` or `npx` by its
 bare name through PATHEXT, passes `%VAR%` and `^` to a batch file unchanged,
 and runs a program named by a relative path after a `cd`.
@@ -410,7 +437,9 @@ the machine or named by the pin, the bash Mercury ships, the engine because
 no bash starts, or the engine selected by the setting or env pin), names what
 was passed over, and warns when the engine is the last road or the install
 carries no bash pack; its **Shell engine** row
-(`iface-shell-engine`) says the same from the engine's side. The Bash tool's own description
+(`iface-shell-engine`) says the same from the engine's side. Once a session
+has settled on a shell, the **Bash tool shell** row of `/capabilities` says
+what the health row says, with the same fix. The Bash tool's own description
 always states which engine is live, and the command parser and permission
 rules judge the command text identically on either engine.
 

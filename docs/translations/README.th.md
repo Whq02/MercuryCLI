@@ -107,16 +107,6 @@ archive ของรีลีสมาพร้อม Node 24 LTS ตัวเ�
 
 ตัวเปิดจะเลือก Node ตามลำดับนี้: ไบนารี `MERCURY_NODE` ที่ระบุไว้อย่างชัดเจน รันไทม์ที่รวมมา แล้วจึงเป็นการติดตั้ง Node ที่เข้ากันได้บน PATH หากไม่มีรันไทม์ ตัวเปิดจะรายงานข้อผิดพลาด
 
-### เชลล์บน Windows
-
-archive ของรีลีสรวม shell engine ที่เข้ากันได้กับ bash ของ Mercury (`brush`) และบน Windows engine นี้จะให้บริการเครื่องมือ Bash เป็นค่าเริ่มต้น โดยค้นหาโปรแกรม `.cmd` หรือ `.bat` เช่น `npm` ด้วยชื่อสั้นผ่าน PATHEXT ส่ง `%VAR%` และ `^` ให้ไฟล์ batch โดยไม่เปลี่ยนแปลง รันโปรแกรมที่ระบุด้วยพาธสัมพัทธ์หลัง `cd` และคงสถานะของ shell ไว้ระหว่างการเรียกแต่ละครั้ง ไม่ต้องใช้ `bash.exe` ของ Git for Windows เมื่อมีการติดตั้งไว้ `MERCURY_SHELL_ENGINE=system` หรือ `system` ใน `/config` ภายใต้ Shell engine จะให้เครื่องมือ Bash ทำงานผ่าน `bash.exe` เพียงอย่างเดียว
-
-อ่านแถว `shell` ของ health check เพื่อดูว่า shell ใดกำลังทำงานอยู่และเพราะเหตุใด คือ engine ที่รวมมา (ค่าเริ่มต้นบน Windows หรือถูกเปิดใช้โดยการปักหมุดหรือการตั้งค่า) หรือ Git Bash เมื่อปิด engine แล้ว หรือไม่มีแพ็กของ engine
-
-บน macOS และ Linux shell ของระบบเป็นค่าเริ่มต้น ตั้งค่า `MERCURY_SHELL_ENGINE=brush` หรือเลือก `brush` ใน `/config` ภายใต้ Shell engine เพื่อให้เครื่องมือ Bash ทำงานบน engine ที่รวมมาด้วยที่นั่นเช่นกัน พร้อมคงสถานะของ shell ไว้
-
-บิลด์จากซอร์สที่ไม่มีแพ็ก engine หรือ Git for Windows ยังเริ่มทำงานได้ แต่เครื่องมือ Bash จะใช้ไม่ได้ เครื่องมือ PowerShell ยังคงใช้ได้ และการวินิจฉัย `shell` จะอธิบายวิธีคืนการรองรับ Bash
-
 ## การบิลด์จากซอร์ส
 
 Mercury บิลด์ด้วย bun และรันบน Node 24 LTS ติดตั้ง [ข้อกำหนดสำหรับการบิลด์จากซอร์ส](#ข้อกำหนดเบื้องต้น) รวมถึง bun 1.4.4:
@@ -151,7 +141,7 @@ Mercury ใช้สี 24 บิตเมื่อเทอร์มินั�
 
 หากต้องการบิลด์การรองรับเสียง ให้รัน `setup` เมื่อติดตั้ง Rust แล้ว ซึ่งจะบิลด์ `native/voice` หากต้องการบิลด์ `native/whisper` ด้วย ให้เพิ่ม cmake เมื่อติดตั้ง Rust แล้ว `setup` จะบิลด์ desktop driver addon (`native/desktop`) ที่เครื่องมือ `Computer` ใช้งานด้วย เมื่อติดตั้ง Rust แล้ว `setup` ก็จะบิลด์ local embedding addon (`native/embed`, `bun run scripts/vendor/build-embed.ts`) และดาวน์โหลดโมเดล BGE ขนาด 118 MB (`bun run scripts/vendor/fetch-embed-models.ts --default`) หากไม่มี cargo แพ็กนี้จะถูกข้าม setup จะแจ้งให้ทราบ และการค้นหาหน่วยความจำ Mneme จะทำได้เพียงการจับคู่คำ ทุก archive ของรีลีสมีแพ็ก embedding ที่บิลด์มาสำหรับแพลตฟอร์มนั้น บน Linux และ Windows การคำนวณทำงานบน vectorised kernel ทำให้ Recall ตามความหมายใช้เวลาประมาณหนึ่งในสิบของวินาที (บน macOS ซึ่งใช้ Accelerate จะเร็วกว่า เหลือเพียงไม่กี่ส่วนร้อยของวินาที) หากการบิลด์ native ขาดเครื่องมือที่ต้องใช้ setup จะข้ามการบิลด์นั้น และ health check จะรายงาน addon ที่หายไป shell engine ของ Windows ก็ถูกคอมไพล์บนเครื่องของคุณด้วย เพราะ upstream ไม่มีไบนารีสำหรับ Windows
 
-ดู [เชลล์บน Windows](#เชลล์บน-windows) และ [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) สำหรับ shell engine `brush`
+ดู [เชลล์บน Windows](../INSTALL.md#windows-shells) และ [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) สำหรับ shell engine `brush`
 
 การบิลด์เขียนลงเฉพาะ `dist/` การตั้งค่าและเซสชันอยู่ใน `~/.mercury` หรือไดเรกทอรีที่ตั้งด้วย `MERCURY_CONFIG_DIR` และจะถูกสร้างตอนรันครั้งแรก บน Windows ให้รัน `node dist\mercury.mjs` โดยตรง
 

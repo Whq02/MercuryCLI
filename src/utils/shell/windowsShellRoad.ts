@@ -32,6 +32,12 @@ export const WINDOWS_BASH_NOTICE =
 export const WINDOWS_BASH_NOTICE_NO_PACK =
   'Bash tool absent — no bash.exe found and the bundled shell engine is unavailable: install Git for Windows, set MERCURY_GIT_BASH_PATH=<path to bash.exe>, or restore the bash pack or the shell engine pack (a release archive carries both; a source build makes them with bun run scripts/vendor/fetch-bash-win.ts and bun run scripts/vendor/build-brush.ts, then bun run build.ts)'
 
+export const NO_SHELL_WAYS_OUT = 'Install Git for Windows, set MERCURY_GIT_BASH_PATH to a bash.exe, or reinstall Mercury; then restart Mercury.'
+
+export const PIN_WAYS_OUT = 'Name a bash.exe in MERCURY_GIT_BASH_PATH or unset it, then restart Mercury.'
+
+const pinWords = (path: string): string => `${path}, named by MERCURY_GIT_BASH_PATH`
+
 function roadProbe(): 'no-bash' | 'pack' | 'locate' | null {
   const value = flagEnv('MERCURY_WINDOWS_SHELL_ROAD')
   return value === 'no-bash' || value === 'pack' || value === 'locate' ? value : null
@@ -78,16 +84,19 @@ export type WindowsShellWorld = {
   engine: () => { path: string; version: string } | { absent: string }
   engineAllowed: boolean
   start: (path: string) => Promise<string | null>
+  why?: (path: string) => string | undefined
+  passed?: string[]
 }
 
 export type WindowsShellChoice = { origin: ShellOrigin | 'none'; path: string; version: string; pinned: boolean; passed: string[] }
 
 export async function settleWindowsShell(world: WindowsShellWorld): Promise<WindowsShellChoice> {
-  const passed: string[] = []
+  const passed: string[] = world.passed ?? []
   if (world.pinned !== null) {
     const version = await world.start(world.pinned)
     if (version !== null) return { origin: 'system', path: world.pinned, version, pinned: true, passed }
-    passed.push(`${world.pinned}, named by MERCURY_GIT_BASH_PATH, did not answer as a bash`)
+    const why = world.why?.(world.pinned)
+    passed.push(`${pinWords(world.pinned)}, did not answer as a bash${why === undefined ? '' : `: ${why}`}`)
   }
   for (const candidate of world.installed()) {
     if (!candidate.runtimeBeside) {
@@ -143,6 +152,12 @@ export function windowsBashCandidates(): { pinned: string | null; installed: () 
   return { pinned: pinnedGitBash(), installed: () => installedGitBashes().map(path => describeBashCandidate(path)) }
 }
 
+export function pinPassedOver(passed: readonly string[]): string | null {
+  if (passed.length === 0 || !windowsShellRoadActive()) return null
+  const pin = windowsBashCandidates().pinned
+  return pin === null ? null : (passed.find(line => line.startsWith(pinWords(pin))) ?? null)
+}
+
 type ToolPrograms = { from: 'path' } | { from: 'git' | 'pack'; dir: string; key: string; path: string } | { from: 'nowhere' }
 
 type ProgramsWorld = { platform: string; gitBash: GitBashLocation; packDir?: string | null }
@@ -187,9 +202,10 @@ export function withProgramsFirst(env: NodeJS.ProcessEnv, dir: string, platform:
 }
 
 const SHELL_START_FILE_VARIABLES = ['BASH_ENV', 'ENV']
+const ENGINE_REFUSES = ['BASH_ENV']
 
-export function withoutShellStartFiles(env: NodeJS.ProcessEnv, platform: string = process.platform): NodeJS.ProcessEnv {
-  const named = Object.keys(env).filter(name => SHELL_START_FILE_VARIABLES.includes(platform === 'win32' ? name.toUpperCase() : name))
+export function withoutShellStartFiles(env: NodeJS.ProcessEnv, platform: string = process.platform, names: readonly string[] = SHELL_START_FILE_VARIABLES): NodeJS.ProcessEnv {
+  const named = Object.keys(env).filter(name => names.includes(platform === 'win32' ? name.toUpperCase() : name))
   if (named.length === 0) return env
   const kept = { ...env }
   for (const name of named) delete kept[name]
@@ -202,8 +218,12 @@ export function withShippedPrograms(env: NodeJS.ProcessEnv, shellPath: string): 
   return shipped === null || shipped.programsDir === null || shipped.path !== shellPath ? env : withProgramsFirst(env, shipped.programsDir)
 }
 
+export function withoutWhatTheEngineRefuses(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return withoutShellStartFiles(env, process.platform, ENGINE_REFUSES)
+}
+
 export function withRoadPrograms(env: NodeJS.ProcessEnv, origin: ShellOrigin, shellPath: string): NodeJS.ProcessEnv {
-  if (origin === 'engine') return withoutShellStartFiles(windowsShellRoadActive() ? withGitPrograms(env) : env)
+  if (origin === 'engine') return withoutWhatTheEngineRefuses(windowsShellRoadActive() ? withGitPrograms(env) : env)
   return origin === 'system' ? env : withShippedPrograms(env, shellPath)
 }
 
@@ -256,10 +276,20 @@ export async function hookBashShell(hookCommand: string): Promise<string> {
   return road.path
 }
 
+function withShellOfThisProcess(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const shell = subprocessEnv().SHELL
+  if (env.SHELL === shell) return env
+  const own = { ...env }
+  if (shell === undefined) delete own.SHELL
+  else own.SHELL = shell
+  return own
+}
+
 export function hookBashEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const road = windowsBashRoad()
-  if (road.kind === 'absent' || road.kind === 'git-bash') return env
-  return withRoadPrograms(env, road.kind === 'engine' ? 'engine' : 'shipped', road.path)
+  const own = withShellOfThisProcess(env)
+  if (road.kind === 'absent' || road.kind === 'git-bash') return own
+  return withRoadPrograms(own, road.kind === 'engine' ? 'engine' : 'shipped', road.path)
 }
 
 function engineRoadLine(road: { path: string; arm: RoadEngineArm }): string {
@@ -282,16 +312,23 @@ function engineRoadLine(road: { path: string; arm: RoadEngineArm }): string {
 export function describeWindowsShellRoad(): {
   road: 'system' | 'git-bash' | 'shipped' | 'engine' | 'absent'
   absent: boolean
+  unasked?: boolean
   line: string
   fix?: string
 } {
   if (!windowsShellRoadActive()) {
-    return { road: 'system', absent: false, line: shellRecordDoor().shellRoadWordsNow() }
+    return { road: 'system', absent: shellRecordDoor().noSystemShellStarts(), line: shellRecordDoor().shellRoadWordsNow() }
   }
   const road = windowsBashRoad()
   const settled = shellRecordDoor().settledSystemShell()
   const known = settled !== null && settled.path === ('path' in road ? road.path : '') && settled.version !== '' ? `bash ${settled.version}` : 'bash'
-  if (road.kind === 'git-bash') return { road: 'git-bash', absent: false, line: `${known} at ${road.path} — ${pinnedGitBash() === road.path ? 'named by MERCURY_GIT_BASH_PATH' : 'found on this machine'}; the Bash tool runs under it` }
+  if (road.kind === 'git-bash') {
+    const pinned = pinnedGitBash() === road.path
+    if (pinned && settled === null) {
+      return { road: 'git-bash', absent: false, unasked: true, line: `${road.path} — named by MERCURY_GIT_BASH_PATH; whether it is a bash is asked when the Bash tool is first offered, and a program that does not answer as one is passed over` }
+    }
+    return { road: 'git-bash', absent: false, line: `${known} at ${road.path} — ${pinned ? 'named by MERCURY_GIT_BASH_PATH' : 'found on this machine'}; the Bash tool runs under it` }
+  }
   if (road.kind === 'shipped') return { road: 'shipped', absent: false, line: `${known} at ${road.path} — the bash Mercury ships; the Bash tool runs under it, no bash 5 being installed on this machine` }
   if (road.kind === 'engine') return { road: 'engine', absent: false, line: engineRoadLine(road) }
   const engine = resolvedShellEngine()
@@ -301,8 +338,8 @@ export function describeWindowsShellRoad(): {
     return {
       road: 'absent',
       absent: true,
-      line: 'no bash starts on this machine, neither an installed one nor the one Mercury ships, and the bundled engine does not serve — the Bash tool is absent from the roster; the PowerShell tool is present',
-      fix: WINDOWS_BASH_NOTICE_NO_PACK,
+      line: 'no bash starts on this machine, neither an installed one nor the one Mercury ships, and the bundled engine does not serve — a session here has no shell tool',
+      fix: NO_SHELL_WAYS_OUT,
     }
   }
   return {
@@ -319,12 +356,28 @@ export function shellEnvForRoad(road: WindowsBashRoad, gitBash: GitBashLocation)
   return null
 }
 
+let armedShell: { before: string | undefined; set: string } | null = null
+
+export function shellFollowsTheRecord(served: string | null): void {
+  if (armedShell === null || firstWindowsBashRoad().kind === 'engine') return
+  const { before, set } = armedShell
+  if (subprocessEnv().SHELL !== set || served === set) return
+  armedShell = null
+  exportShell(served ?? before ?? '')
+  logForDebugging(`windows shell road: SHELL was ${set} and follows the record: ${served ?? before ?? 'empty, the record having settled on nothing'}`)
+}
+
+function exportShell(shell: string): void {
+  process.env.SHELL = shell
+}
+
 export function armWindowsShellRoad(): void {
   if (!windowsShellRoadActive()) return
   const road = firstWindowsBashRoad()
   const shell = shellEnvForRoad(road, locatedWindowsBash())
   if (shell !== null) {
-    process.env.SHELL = shell
+    armedShell = { before: subprocessEnv().SHELL, set: shell }
+    exportShell(shell)
     logForDebugging(`windows shell road: SHELL set to ${shell}`)
   }
   if (road.kind === 'engine') {

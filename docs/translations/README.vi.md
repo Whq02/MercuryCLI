@@ -107,16 +107,6 @@ Mức Node tối thiểu đã bao gồm bản sửa nodejs/node#56645. Dưới 2
 
 Trình khởi chạy chọn Node theo thứ tự sau: binary `MERCURY_NODE` được chỉ định rõ, runtime đi kèm, rồi đến một cài đặt Node tương thích trên PATH. Nếu thiếu runtime, trình khởi chạy báo lỗi.
 
-### Shell trên Windows
-
-Các gói phát hành bao gồm engine shell tương thích bash của Mercury (`brush`). Trên Windows, engine này phục vụ công cụ Bash theo mặc định: nó tìm một chương trình `.cmd` hoặc `.bat` như `npm` theo tên trần thông qua PATHEXT, truyền `%VAR%` và `^` đến tệp batch mà không thay đổi, chạy một chương trình được đặt tên bằng đường dẫn tương đối sau `cd`, và giữ trạng thái shell giữa các lần gọi. `bash.exe` của Git for Windows không bắt buộc. Khi đã được cài, `MERCURY_SHELL_ENGINE=system`, hoặc `system` trong `/config` tại mục Shell engine, sẽ chạy công cụ Bash chỉ bằng `bash.exe`.
-
-Đọc dòng `shell` trong health check để xem shell nào đang hoạt động và vì sao: engine đi kèm (mặc định trên Windows, hoặc được bật bởi ghim hoặc thiết lập), hoặc Git Bash khi engine đã bị tắt hoặc gói engine không có.
-
-Trên macOS và Linux, shell hệ thống là mặc định. Đặt `MERCURY_SHELL_ENGINE=brush`, hoặc chọn `brush` trong `/config` tại mục Shell engine, để công cụ Bash cũng chạy trên engine đi kèm ở đó, với trạng thái shell được giữ lại.
-
-Bản biên dịch từ mã nguồn không có gói engine hoặc Git for Windows vẫn khởi động được, nhưng công cụ Bash không khả dụng. Công cụ PowerShell vẫn dùng được, và chẩn đoán `shell` giải thích cách khôi phục hỗ trợ Bash.
-
 ## Biên dịch từ mã nguồn
 
 Mercury biên dịch bằng bun và chạy trên Node 24 LTS. Cài đặt [các yêu cầu biên dịch từ mã nguồn](#yêu-cầu), bao gồm bun 1.4.4:
@@ -151,7 +141,7 @@ Hàng Terminal color trong health check báo cáo độ sâu màu được phát
 
 Để biên dịch hỗ trợ giọng nói, chạy `setup` khi đã cài Rust. Lệnh này biên dịch `native/voice`. Thêm cmake để biên dịch cả `native/whisper`. Khi đã cài Rust, `setup` cũng biên dịch addon trình điều khiển máy tính để bàn (`native/desktop`) mà công cụ `Computer` chạy qua. Khi đã cài Rust, `setup` cũng biên dịch addon embedding cục bộ (`native/embed`, `bun run scripts/vendor/build-embed.ts`) và tải mô hình BGE 118 MB (`bun run scripts/vendor/fetch-embed-models.ts --default`); nếu không có cargo, gói đó bị bỏ qua, setup thông báo điều này, và việc tra cứu bộ nhớ Mneme chỉ so khớp từ. Mọi gói lưu trữ phát hành đều mang gói embedding được biên dịch cho nền tảng của nó; trên Linux và Windows, phép tính chạy bằng một kernel vector hóa, nên một Recall theo ý nghĩa mất khoảng một phần mười giây (vài phần trăm giây trên macOS, nơi dùng Accelerate). Nếu một bản biên dịch native thiếu công cụ, setup bỏ qua nó và health check báo cáo addon bị thiếu. Engine shell của Windows cũng được biên dịch trên máy bạn vì upstream không có binary cho Windows.
 
-Xem [Shell trên Windows](#shell-trên-windows) và [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) để biết về engine shell `brush`.
+Xem [Shell trên Windows](../INSTALL.md#windows-shells) và [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) để biết về engine shell `brush`.
 
 Quá trình biên dịch chỉ ghi vào `dist/`. Cấu hình và phiên nằm trong `~/.mercury`, hoặc thư mục do `MERCURY_CONFIG_DIR` đặt, và được tạo ở lần chạy đầu tiên. Trên Windows, chạy trực tiếp `node dist\mercury.mjs`.
 

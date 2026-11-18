@@ -201,9 +201,16 @@ const exitCode = await new Promise(done => {
   child.once('error', () => done(null))
 })
 clearTimeout(ceiling)
+const health = spawnSync(process.execPath, [dist, 'health', '--json'], { cwd, env, encoding: 'utf8', timeout: 120000, maxBuffer: 64 * 1024 * 1024 })
+let shellRow = null
+try {
+  shellRow = (JSON.parse(health.stdout).sections ?? []).flatMap(part => part.checks ?? []).find(row => row.id === 'shell') ?? null
+} catch {
+  shellRow = null
+}
 await new Promise(done => server.close(() => done()))
 for (const path of hidden) renameSync(realpathSync(dirname(path)) + '/bash.hidden-by-the-proof', realpathSync(dirname(path)) + '/bash')
-writeFileSync(arg('--out'), JSON.stringify({ dist, exitCode, results, shellLines: [...shellLines], description, system, hidden, served, stdout: stdout.slice(-600), stderr: stderr.slice(-1200) }))
+writeFileSync(arg('--out'), JSON.stringify({ dist, exitCode, results, shellLines: [...shellLines], description, system, hidden, served, shellRow, stdout: stdout.slice(-600), stderr: stderr.slice(-1200) }))
 `
 
 type Report = {
@@ -215,6 +222,7 @@ type Report = {
   system: { path: string; version: string } | null
   hidden: string[]
   served: number
+  shellRow: { status: string; evidence: string; fix?: string } | null
   stdout: string
   stderr: string
 }
@@ -253,6 +261,7 @@ function judge(where: string, pack: Pack, shipped: Report, away: Report, bare: R
     check(`${where}: the shell that ran is the bundle's own bash ($BASH names it), and $SHELL is what the launcher had, zsh, not rewritten`, first !== null && first.ran.endsWith('/bash') && first.ran.includes('/vendor/bash/') && first.shell === '/bin/zsh' && first.zsh === 'none' && first.brush === 'none', JSON.stringify(first))
     check(`${where}: the prompt's shell line names that shell and its version`, shipped.shellLines.length === 1 && shipped.shellLines[0] === `Shell: bash ${bashLock.version}`, JSON.stringify(shipped.shellLines))
     check(`${where}: the Bash tool's description names the dialect of that shell`, shipped.description.includes('each call starts from your profile (bash).'), shipped.description.slice(-140))
+    check(`${where}: the health check's shell row reads ok and names that bash`, shipped.shellRow?.status === 'ok' && shipped.shellRow.evidence.includes('the bash Mercury ships') && shipped.shellRow.fix === undefined, JSON.stringify(shipped.shellRow))
   }
 
   const second = roadOf(away)
@@ -276,13 +285,18 @@ function judge(where: string, pack: Pack, shipped: Report, away: Report, bare: R
   check(`${where}: with no bash that starts, the bundled engine answers (brush ${brushLock.version})`, third?.brush === brushLock.version && third.shell.includes('/vendor/brush/') && third.zsh === 'none', `${JSON.stringify(third)} · ${told(bare)}`)
   check(`${where}: the prompt's shell line names the engine`, bare.shellLines.length === 1 && bare.shellLines[0] === `Shell: brush ${brushLock.version} (bash-compatible)`, JSON.stringify(bare.shellLines))
   check(`${where}: the Bash tool's description is the engine's: one session serves the conversation`, bare.description.includes('One shell session serves the whole conversation'), bare.description.slice(0, 200))
+  check(
+    `${where}: the health check's shell row warns with its reason, that no bash starts, names each one passed over, and its fix says what to do`,
+    bare.shellRow !== null && bare.shellRow.status === 'warn' && bare.shellRow.evidence.includes('because no bash starts on this machine') && bare.shellRow.evidence.includes(' — passed over: ') && /^(?:Reinstall Mercury to restore the bash it ships|The bash pack is skipped in this install)/.test(bare.shellRow.fix ?? ''),
+    JSON.stringify(bare.shellRow),
+  )
 }
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'system-road-')))
 const driver = join(scratch, 'drive.mjs')
 writeFileSync(driver, DRIVER)
 const readReport = (path: string): Report | null => (existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Report) : null)
-const empty = (why: string): Report => ({ dist: '', exitCode: null, results: [], shellLines: [], description: '', system: null, hidden: [], served: 0, stdout: '', stderr: why })
+const empty = (why: string): Report => ({ dist: '', exitCode: null, results: [], shellLines: [], description: '', system: null, hidden: [], served: 0, shellRow: null, stdout: '', stderr: why })
 
 function hostLeg(name: string, flags: string[], wrap: string[] = []): Report {
   const world = join(scratch, name)

@@ -17,3 +17,7 @@ const START_THE_SHELL_WHERE_THE_LINE_LANDS =
 export function shellStartLine(shellPath: string, frame: string): string {
   return ['/bin/sh', '-c', START_THE_SHELL_WHERE_THE_LINE_LANDS, 'mercury-shell', shellPath, frame].map(word => quoteShellCommand(word, false)).join(' ')
 }
+
+export function shStartLine(script: string): string {
+  return ['/bin/sh', '-c', script].map(word => quoteShellCommand(word, false)).join(' ')
+}

@@ -242,7 +242,7 @@ section("§4 the cwd record never replaces the command's status")
   const back = await plain(`cd "${PROJECT}"`)
   check('…and back', back.shellCwd === PROJECT && back.cwd === PROJECT, `shell ${back.shellCwd} session ${back.cwd}`)
   const provider = readFileSync(join(ROOT, 'src', 'utils', 'shell', 'bashProvider.ts'), 'utf8')
-  check('the record step is grouped with || true on the POSIX leg', /\{ pwd -P >\| \$\{quote\(\[cwdFileInShell\]\)\} 2>\/dev\/null \|\| true; \}/.test(provider))
+  check('the record step is grouped with || true on the POSIX leg, and what its redirect says goes nowhere', /\{ \{ pwd -P >\| \$\{quote\(\[cwdFileInShell\]\)\}; \} 2>\/dev\/null \|\| true; \}/.test(provider))
 }
 
 section('§5 the timed-out note reaches the result')
