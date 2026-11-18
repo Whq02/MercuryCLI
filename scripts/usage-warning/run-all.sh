@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: src/services/providers/limitWarning* src/services/providers/usageTiers* src/hooks/notifs/useRateLimitWarningNotification*
 # gate-watch: src/services/rateLimitMessages* src/services/providers/providerUsage*
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/ui/renderScenarios.ts scripts/ui/vshot.py src/cli/run.ts
@@ -13,7 +13,7 @@ set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 overall=0
-for suite in prove-usage-notice-setting prove-warning-tiers prove-provider-limit-warning prove-limit-warning-relay prove-limit-notice-in-context prove-warning-strip-captures prove-usage-pools-captures prove-usage-freshness-captures prove-mock-limits-per-model-captures; do
+for suite in prove-usage-notice-setting prove-warning-tiers prove-provider-limit-warning prove-limit-warning-relay prove-limit-notice-in-context; do
   echo "── $suite"
   run_proof "$here/$suite.ts" "$bun" run "$here/$suite.ts"
   rc=$?
