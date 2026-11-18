@@ -619,6 +619,8 @@ const overflowed = (signal: Row): unknown => {
 }
 const PROVIDER_OVERFLOW = { source: 'provider', family: 'anthropic', shape: 'prompt-too-long', actualTokens: 210_000, limitTokens: 200_000 }
 const NARROW_OVERFLOW = { ...PROVIDER_OVERFLOW, actualTokens: 200_010 }
+const STREAM_OVERFLOW = { source: 'provider', family: 'openai', shape: 'context-length-exceeded', actualTokens: 210_000, limitTokens: 200_000 }
+const faultedPastTheWindow = (): unknown => Object.assign(faulted() as object, { overflowSignal: STREAM_OVERFLOW })
 const fat = (words: string, inputTokens: number): AssistantRow => {
   const message = createAssistantMessage({
     content: words,
@@ -1259,5 +1261,29 @@ export const SCENARIOS: Scenario[] = [
         [y(says('never asked'))],
       ],
     }),
+  },
+  {
+    name: 'paused_thought_without_words',
+    transitions: ['pause_turn_continuation'],
+    terminal: 'completed',
+    plan: () => ({ tools: [], script: [[y(thinks('pause_turn'))], [y(says('the reply, said.'))]] }),
+  },
+  {
+    name: 'turn_budget_closing_chant',
+    transitions: ['next_turn', 'chant_recovery'],
+    terminal: 'max_turns',
+    plan: () => ({ maxTurns: 1, script: [[y(calls('tu_mx', 'EchoTool', { text: 'x' }))], [y(says(CHANT))], [y(says('CLOSING WORDS: nothing remains.'))]] }),
+  },
+  {
+    name: 'paused_reply_then_overflow',
+    transitions: ['overflow_recovery'],
+    terminal: 'completed',
+    plan: () => ({ tools: [], seed: history(), autocompact: [{ wasCompacted: false }, folded()], script: [[y(pauses('Searching…')), y(overflowed(PROVIDER_OVERFLOW))], [y(says('after the fold'))]] }),
+  },
+  {
+    name: 'stream_fault_stamped_with_an_overflow',
+    transitions: ['overflow_recovery'],
+    terminal: 'completed',
+    plan: () => ({ seed: history(), autocompact: [{ wasCompacted: false }, folded()], script: [[y(says('the first half of the answer', 'stop_sequence')), y(faultedPastTheWindow())], [y(says('after the fold'))]] }),
   },
 ]
