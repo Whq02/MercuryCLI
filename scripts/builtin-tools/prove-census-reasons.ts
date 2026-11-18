@@ -52,19 +52,33 @@ console.log('[2] the grouped lines (pure)')
       row('Recall', 'unavailable', { gate: 'FLAG_OPT' }),
       row('Godot', 'unavailable', { gate: 'FLAG_OPT', conditions: ['a project.godot root'] }),
       row('Debug', 'unavailable', { gate: 'FLAG_ON' }),
+      row('Eval', 'unavailable', { gate: 'FLAG_LEFT_ON', conditions: ['a resolvable interpreter'] }),
+      row('Bare', 'unavailable', { gate: 'FLAG_LEFT_ON' }),
       row('Mystery', 'unavailable', null),
     ],
   } as unknown as Census
-  const kinds: Record<string, string> = { FLAG_OPT: 'opt-in', FLAG_ON: 'default-on' }
-  const lines = censusGapLines(synthetic, env => kinds[env])
+  const kinds: Record<string, string> = { FLAG_OPT: 'opt-in', FLAG_ON: 'default-on', FLAG_LEFT_ON: 'default-on' }
+  const lines = censusGapLines(synthetic, env => kinds[env], env => env === 'FLAG_LEFT_ON')
   const byTools = (tools: string): string | undefined => lines.find(l => l.tools.join(',') === tools)?.reason
   check('tools sharing one condition ride one line', byTools('Glob,Grep') === 'needs a search binary', JSON.stringify(lines))
   check('an isEnabled()=false conditional tool wears "(off right now)"', byTools('LSP (off right now)') === 'needs a connected language server')
   check('an opt-in gate says unset (an opt-in flag)', byTools('Retain,Recall') === 'FLAG_OPT unset (an opt-in flag)')
   check('a gate plus a condition carries both', byTools('Godot') === 'FLAG_OPT unset (an opt-in flag) · needs a project.godot root')
-  check('a default-on gate says turned off', byTools('Debug') === 'FLAG_ON turned off')
-  check('a row with no reason is named as the gap', byTools('Mystery') === CENSUS_NO_REASON)
+  check('a default-on gate that was turned off says turned off', byTools('Debug') === 'FLAG_ON turned off')
+  check('a default-on gate left on, with the tool out for another reason, says that reason and not that the flag was turned off', byTools('Eval') === 'needs a resolvable interpreter', JSON.stringify(lines))
+  check('a row with no reason is named as the gap, and so is a tool out behind a flag nobody turned off that declares no condition', byTools('Bare,Mystery') === CENSUS_NO_REASON, JSON.stringify(lines))
   check('conditional lines carry the conditional support word, gated lines the unavailable one', lines.every(l => (l.tools[0]!.startsWith('G') && l.tools[0] !== 'Godot') || l.tools[0] === 'LSP (off right now)' ? l.support === 'conditional' : l.support === 'unavailable'))
+  const dapBefore = process.env.MERCURY_DAP
+  delete process.env.MERCURY_DAP
+  const gated = { rows: [row('Debug', 'unavailable', { gate: 'MERCURY_DAP', conditions: ['a resolvable debug adapter'] })] } as unknown as Census
+  const unset = censusGapLines(gated)[0]?.reason
+  process.env.MERCURY_DAP = '0'
+  const turnedOff = censusGapLines(gated)[0]?.reason
+  const live = censusGapLines(buildToolCensus()).find(l => l.tools.includes('Debug'))?.reason
+  if (dapBefore === undefined) delete process.env.MERCURY_DAP
+  else process.env.MERCURY_DAP = dapBefore
+  check('MERCURY_DAP unset and the gate false: the line gives the reason the census holds and does not say the flag was turned off', unset === 'needs a resolvable debug adapter', String(unset))
+  check('MERCURY_DAP=0: the line says the flag was turned off, on the same row and on the live census', turnedOff === 'MERCURY_DAP turned off · needs a resolvable debug adapter' && live !== undefined && live.startsWith('MERCURY_DAP turned off'), `${turnedOff} | ${live}`)
 }
 
 console.log('[3] the truths driven on this box')
