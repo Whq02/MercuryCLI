@@ -86,7 +86,8 @@ setTimeout	src/native-ts/file-index/index.ts	1
 setTimeout	src/query/scriptedStream.ts	1
 setTimeout	src/rows/turn.ts	1
 setTimeout	src/runner/wire/peer.ts	1
-setTimeout	src/screens/Chat.tsx	8
+setTimeout	src/screens/Chat.tsx	6
+setTimeout	src/screens/chat/useChatSearch.tsx	2
 setTimeout	src/services/AgentSummary/agentSummary.ts	2
 setTimeout	src/services/acp/childSession.ts	1
 setTimeout	src/services/acp/ideToolBridge.ts	1
@@ -558,8 +559,9 @@ useEffect	src/ink/hooks/use-terminal-title.ts	1
 useEffect	src/ink/terminalWrite.ts	2
 useEffect	src/keybindings/KeybindingProviderSetup.tsx	2
 useEffect	src/keybindings/useKeybinding.ts	2
-useEffect	src/screens/Chat.tsx	47
+useEffect	src/screens/Chat.tsx	40
 useEffect	src/screens/ResumeConversation.tsx	1
+useEffect	src/screens/chat/useChatSearch.tsx	7
 useEffect	src/screens/chat/useChatTitle.tsx	2
 useEffect	src/services/anthropicLimitsHook.ts	1
 useEffect	src/services/crewBoard/implementation.ts	1
