@@ -258,6 +258,10 @@ async function loginFilesSettled(): Promise<LoginFilesAbsence | null> {
   return loginFilesAbsence
 }
 
+export function beginLoginFiles(): void {
+  void loginFilesSettled().catch((error: unknown) => logForDebugging(`the login run was not begun: ${errorMessage(error)}`))
+}
+
 export type ShellRow = { status: 'ok' | 'warn'; evidence: string; fix?: string }
 
 export async function shellRow(): Promise<ShellRow> {

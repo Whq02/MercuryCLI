@@ -9,6 +9,7 @@ type Ran = { code: number; ms: number; text: string }
 type Said = { status: string; evidence: string; fix?: string }
 type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolFirst: string; toolSecond: string; said: Said | null }
 type Asked = { said: Said | null; ms: number; limit: number | null; snapshotFolder: boolean; tempLeft: number; waitedOnAlive: boolean | null; otherShellStarts: number }
+type First = { withoutBash: number; begunMs: number | null; startsInAll: number; described: string }
 
 function waitedOn(home: string): boolean | null {
   if (!existsSync(join(home, 'waited-on.pid'))) return null
@@ -119,6 +120,54 @@ if (process.argv.includes('--asked-alone')) {
   process.exit(0)
 }
 
+const pause = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
+
+if (process.argv.includes('--first-prompt')) {
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  plugin({
+    name: 'stub-color-diff-napi',
+    setup(build) {
+      build.module('color-diff-napi', () => ({ loader: 'object', exports: { ColorDiff: class {}, ColorFile: class {}, getSyntaxTheme: () => ({}) } }))
+    },
+  })
+  const home = homedir()
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  enableConfigs()
+  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  await getSystemPrompt([{ name: 'Read' }] as never, 'claude-opus-4-8')
+  await pause(1_500)
+  const withoutBash = otherShellStarts(home)
+  await getSystemPrompt([BashTool] as never, 'claude-opus-4-8')
+  const began = Date.now()
+  let begunMs: number | null = null
+  while (begunMs === null && Date.now() - began < 5_000) {
+    if (otherShellStarts(home) > 0) begunMs = Date.now() - began
+    else await pause(25)
+  }
+  const description = await BashTool.prompt({ tools: [] } as never)
+  const first: First = { withoutBash, begunMs, startsInAll: otherShellStarts(home), described: description.split('\n\n').find(part => part.startsWith('In the main conversation')) ?? '' }
+  console.log(`FIRST ${JSON.stringify(first)}`)
+  process.exit(0)
+}
+
+if (process.argv.includes('--ends-early')) {
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  plugin({
+    name: 'stub-color-diff-napi',
+    setup(build) {
+      build.module('color-diff-napi', () => ({ loader: 'object', exports: { ColorDiff: class {}, ColorFile: class {}, getSyntaxTheme: () => ({}) } }))
+    },
+  })
+  const home = homedir()
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  void BashTool.prompt({ tools: [] } as never)
+  const began = Date.now()
+  while (!existsSync(join(home, 'waited-on.pid')) && Date.now() - began < 8_000) await pause(25)
+  console.log(`EARLY ${JSON.stringify({ started: existsSync(join(home, 'waited-on.pid')) })}`)
+  process.exit(0)
+}
+
 if (process.argv.includes('--start-up-files')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const { checkPathSafetyForAutoEdit } = await import('../../src/utils/permissions/filesystem.ts')
@@ -194,8 +243,10 @@ const ALONE: Record<string, string> = {
   slow: home('alone-slow', WAITS),
   'login-file-only': home('alone-login-file-only', DEFINES),
 }
+const FIRST_PROMPT = home('first-prompt', HANDS_OVER)
+const ENDS_EARLY = home('ends-early', WAITS)
 
-function drive<T>(dir: string, mode: '--row' | '--asked-alone', mark: string, env: Record<string, string> = {}): Promise<{ row: T | null; said: string }> {
+function drive<T>(dir: string, mode: string, mark: string, env: Record<string, string> = {}): Promise<{ row: T | null; said: string }> {
   const childEnv: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined || /^(?:BASH_ENV|ENV|MERCURY_SHELL_PREFIX|MERCURY_SHELL_ENGINE|MERCURY_WINDOWS_SHELL_ROAD)$/.test(key)) continue
@@ -204,7 +255,7 @@ function drive<T>(dir: string, mode: '--row' | '--asked-alone', mark: string, en
   mkdirSync(join(dir, 'temp'))
   Object.assign(childEnv, { HOME: dir, SHELL: ZSH, MERCURY_CONFIG_DIR: join(dir, 'config-home'), TMPDIR: join(dir, 'temp') }, env)
   return new Promise(done => {
-    const child = spawn(process.execPath, [import.meta.path, mode], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(process.execPath, [import.meta.path, ...mode.split(' ')], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
     let said = ''
     child.stdout.on('data', chunk => { said += String(chunk) })
     child.stderr.on('data', chunk => { said += String(chunk) })
@@ -221,10 +272,13 @@ const BOUND_MS = 10_000
 try {
   const names = Object.keys(HOMES)
   const aloneNames = Object.keys(ALONE)
-  const [answers, alone] = await Promise.all([
+  const [answers, alone, firstPrompt, endsEarly] = await Promise.all([
     Promise.all(names.map(name => drive<Row>(HOMES[name]!.dir, '--row', 'ROW ', HOMES[name]!.env))),
     Promise.all(aloneNames.map(name => drive<Asked>(ALONE[name]!, '--asked-alone', 'ASKED '))),
+    drive<First>(FIRST_PROMPT, '--first-prompt', 'FIRST '),
+    drive<{ started: boolean }>(ENDS_EARLY, '--ends-early', 'EARLY '),
   ])
+  const leftByTheEarlyEnd = waitedOn(ENDS_EARLY)
   const of = (name: string): { row: Row | null; said: string } => answers[names.indexOf(name)]!
   const ranInBash = (ran: Ran | undefined): boolean => ran !== undefined && ran.code === 0 && /ran: bash=\d/.test(ran.text) && ran.text.includes('zsh=no')
   const told = (name: string): string => JSON.stringify(of(name).row ?? of(name).said).slice(0, 700)
@@ -400,6 +454,16 @@ try {
     const row = asked(name).row
     check(`asked with no session, ${name}: a health check writes nothing for it — no snapshot folder in the config home and nothing left in the temp folder`, row !== null && !row.snapshotFolder && row.tempLeft === 0, shownAlone(name))
   }
+  check(
+    'the login run begins when a request that offers the Bash tool is prepared, beside the rest of that request: a request that does not offer it starts none, and the description then waits for that one run and takes no second',
+    firstPrompt.row !== null && firstPrompt.row.withoutBash === 0 && firstPrompt.row.begunMs !== null && firstPrompt.row.startsInAll === 1 && firstPrompt.row.described.endsWith('and no call carries the aliases, functions or options of your profile (bash) in this session.'),
+    JSON.stringify(firstPrompt.row ?? firstPrompt.said).slice(0, 900),
+  )
+  check(
+    'a process that ends while its login run is still going ends what that run started',
+    endsEarly.row !== null && endsEarly.row.started && leftByTheEarlyEnd === false,
+    `${JSON.stringify(endsEarly.row ?? endsEarly.said).slice(0, 600)} · alive after the process ended: ${String(leftByTheEarlyEnd)}`,
+  )
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

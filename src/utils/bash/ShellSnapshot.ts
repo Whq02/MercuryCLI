@@ -80,6 +80,7 @@ function runBounded(
       } catch {
       }
     }
+    if (ownGroup) process.once('exit', end)
     const guard = setTimeout(() => {
       end()
       settle({ stdout: '', stderr: '', killed: true, overflowed: false })
@@ -88,6 +89,7 @@ function runBounded(
       if (settled) return
       settled = true
       clearTimeout(guard)
+      process.removeListener('exit', end)
       resolve(result)
     }
     const read = (stream: NodeJS.ReadableStream, keep: (chunk: string) => void): void => {
