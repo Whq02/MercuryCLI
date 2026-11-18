@@ -94,17 +94,9 @@ async function main(): Promise<void> {
 
   section('F01 wiring — the twelve stamps live at their owners (both provider lanes)')
   {
-    const print = src('src/cli/run.ts')
     const engine = src('src/rows/turn.ts')
     const anthropic = src('src/services/providers/anthropic/streamCore.ts')
     const openai = src('src/services/providers/openai/openaiCallModel.ts')
-    check(
-      'run.ts stamps graph_load (backdated to cli_entry) · cli_parse · invocation_resolution · config_auth',
-      print.includes("noteRunPhase('graph_load', getPerformance().getEntriesByName('cli_entry')[0]?.startTime)") &&
-        print.includes("noteRunPhase('cli_parse')") &&
-        print.includes("noteRunPhase('invocation_resolution')") &&
-        print.includes("noteRunPhase('config_auth')"),
-    )
     check(
       'the turn stamps assembly · first_canonical_event · terminal · settlement (settlement inside the outcome facts — every outcome passes it)',
       engine.includes("noteRunPhase('assembly')") &&

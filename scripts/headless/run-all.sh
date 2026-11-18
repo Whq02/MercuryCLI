@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: src/cli/run*
 # gate-watch: src/utils/permissions/permissionSetup.ts
-# gate-watch: src/tools/AgentTool/foregroundExecution* src/cost-tracker*
+# gate-watch: src/tools/AgentTool/foregroundExecution*
 # gate-watch: scripts/lib/* src/cli/headless/hostAskLiveness.ts
 # gate-watch: src/services/api/withRetry.ts
 # gate-watch: src/services/browser/browserResolver.ts src/services/compact/compact.ts
@@ -26,6 +26,8 @@
 # gate-watch: src/services/api/reconnectLadder.ts
 # gate-watch: src/run-core/turn/**
 # gate-watch: src/cli/headless/*
+# gate-watch: src/cli/headless/boot/*
+# gate-watch: src/utils/settings/changeDetector.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

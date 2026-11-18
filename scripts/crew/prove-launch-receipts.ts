@@ -178,8 +178,6 @@ check('the tail window ends with the stream\'s last line', tail.text.trimEnd().e
 check('the cap is half a megabyte', AGENT_TAIL_READ_CAP_BYTES === 512 * 1024)
 
 section('R7 · the seams in source')
-const print = src('src/cli/run.ts')
-check('the cold road (--continue/--resume) runs the one resume closure', /if \(options\.continue \|\| options\.resume\) await hydrateResumedRun\(ports\)/.test(print))
 const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
 check('the receipt line is the Crewmate tool\'s own first line', agentTool.includes(`'${lr.BACKGROUND_LAUNCH_LINE}',`))
 const adapter = src('src/services/resources/adapters/agent.ts')

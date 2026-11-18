@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: scripts/interaction/**
 # gate-watch: src/components/design-system/ThemeProvider* src/components/mercuryPalette*
-# gate-watch: src/ink/** src/state/AppState* src/utils/inputRange* src/utils/mercuryTokens*
+# gate-watch: src/ink/** src/utils/inputRange* src/utils/mercuryTokens*
 # gate-watch: src/components/MessageSelector* src/keybindings/**
 # gate-watch: src/components/CustomSelect/** src/components/permissions/AskUserQuestionPermissionRequest/**
 # gate-watch: src/components/* src/components/PromptInput/* src/components/Settings/*

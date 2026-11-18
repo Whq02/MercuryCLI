@@ -112,8 +112,13 @@ The output row types, by their `type` field:
 - `outcome`: the turn's result, described below.
 - `close`: on a `mercury runner` session, the note left for the next session
   when the host closes its end without `session/leave`: `state` (`stored`,
-  `skipped` or `none`) and the `usage` of the model calls that wrote it. It
-  follows the last `outcome`, whose totals do not include it. A `mercury run`
+  `skipped` or `none`), the `usage` of the model calls that wrote it, and
+  `models`, those calls by model, each with its `cost_usd` where the model
+  has a price. It follows the last `outcome`, whose totals do not include it.
+  When the host closes its end while a turn is running, the note is written
+  as that turn ends and the row comes before that turn's `outcome`, whose
+  totals do not include it either: in both orders the note's calls are
+  counted once, on the `close` row. A `mercury run`
   ends on the model's final answer and leaves no note, so its stream carries
   no `close` row.
 - `wait`: a wait on the model: `state` (`first_byte`, `retry`, `silence`,
@@ -413,9 +418,9 @@ The host sends `initialize` first and waits for the answer before sending work:
   sentence in `error.message` and a reason in
   `error.data.kind` (`protocol`, `claim`, `model`, `effort`, `mode`,
   `spawn-switch`, `kit`, `rewind`, `pause-gate`, `quiesce`, `queue`, `agent`,
-  `no-shell`, `nothing-to-resume`, `already-initialized` or `capability`). A
-  malformed JSON line answers `-32700`; three consecutive malformed lines end
-  the runner.
+  `no-shell`, `nothing-to-resume`, `already-initialized`, `capability`,
+  `trust` or `project`). A malformed JSON line answers `-32700`; three
+  consecutive malformed lines end the runner.
 
 ### TypeScript (Node 24, zero dependencies)
 

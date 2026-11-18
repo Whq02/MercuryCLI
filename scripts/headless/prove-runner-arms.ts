@@ -81,11 +81,24 @@ await spied('src/utils/sessionStorage.ts', ['resetSessionFilePointer', 'restoreS
 await spied('src/utils/cockpit/runtimePosture.ts', ['markSessionPermissionModeAtClaim'])
 await spied('src/utils/sessionStorage/logs.ts', ['saveCustomTitle'])
 await spied('src/cli/headless/resume.ts', ['emitLoadError'])
+let trusted: boolean | null = null
+{
+  const real = { ...((await import(at('src/utils/config/trust.ts'))) as { isPathTrusted: (path: string) => boolean }) }
+  mock.module(at('src/utils/config/trust.ts'), () => ({ ...real, isPathTrusted: (path: string): boolean => (trusted === null ? real.isPathTrusted(path) : trusted) }))
+}
+async function lent(rel: string, names: string[]): Promise<void> {
+  const real = { ...((await import(at(rel))) as Record<string, (...args: unknown[]) => unknown>) }
+  mock.module(at(rel), () => ({ ...real, ...Object.fromEntries(names.map(name => [name, (...args: unknown[]): unknown => (answers.has(name) ? answers.get(name)!(...args) : real[name]!(...args))])) }))
+}
+await lent('src/utils/sessionStorage/paths.ts', ['getProjectDir'])
+await lent('src/daemon/concourseWorkers.ts', ['readSessionWorkers', 'sessionOwnedByLiveWorker'])
+await lent('src/daemon/controlSocket.ts', ['daemonControlRpc'])
+await lent('src/utils/permissions/filesystem.ts', ['checkReadPermissionForTool'])
 
 const { runnerArmsOf } = await import('../../src/cli/headless/runnerArms.ts')
 const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
 const { RUNNER_NOTIFICATION_METHODS, RUNNER_REQUEST_METHODS } = await import('../../src/cli/headless/runnerMethods.ts')
-const { RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+const { RPC_INVALID_PARAMS, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
 const { isLocalShellTask } = await import('../../src/tasks/LocalShellTask/guards.ts')
 const { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, peekOperatorMessages } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
@@ -98,7 +111,7 @@ const { capabilityHoldWords, runnerCapabilityHolds } = await import('../../src/d
 const { sessionKitOf, setProcessSessionKit } = await import('../../src/services/mcp/sessionKitPin.ts')
 const { answerSessionFacts } = await import('../../src/cli/headless/sessionFactsArm.ts')
 const { sessionFactsFromWire, sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const { getOriginalCwd, getSessionId } = await import('../../src/bootstrap/state.ts')
 const { getEngineModel } = await import('../../src/utils/model/model.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -273,6 +286,164 @@ section('§4 agent/resume: a running crewmate is told, a stopped one rides the o
   const withNote = said('resumeAgentBackground')[1]?.args[0] as { prompt?: string; replyTarget?: string } | undefined
   const second = dequeue(command => typeof command.value === 'string' && command.value.includes('<task-id>gone</task-id>'))
   check("a resume with the operator's own words sends those words, answers to the operator, and leaves no receipt row of its own", withNote?.prompt === 'carry on with the tests' && withNote.replyTarget === 'operator' && receipt !== undefined && String(receipt.value).includes('(in the session folder)') && second === undefined, `${j(withNote)} · receipt ${receipt !== undefined} · second ${second !== undefined}`)
+  const owner = (await import('../../src/tools/AgentTool/resumeAgent.ts')) as { AgentNotRecorded?: new (message: string) => Error }
+  const NotRecorded = owner.AgentNotRecorded ?? Error
+  answers.set('resumeAgentBackground', async () => Promise.reject(new NotRecorded('No transcript found for crewmate a-none')))
+  const unrecorded = await refusalOf(arms['agent/resume']({ agent_id: 'a-none' }, ref, signalOf()))
+  answers.set('resumeAgentBackground', async () => Promise.reject(new Error('the resume owner broke')))
+  const broken = await refusalOf(arms['agent/resume']({ agent_id: 'a-none' }, ref, signalOf()))
+  check("agent/resume for a crewmate nothing recorded answers the typed refusal of kind agent with the owner's sentence, and a fault of the owner stays a fault", owner.AgentNotRecorded !== undefined && unrecorded?.code === RPC_REFUSED && unrecorded.data?.kind === 'agent' && unrecorded.message === 'No transcript found for crewmate a-none' && broken?.code === undefined && broken?.message === 'the resume owner broke', `${j({ code: unrecorded?.code, kind: unrecorded?.data?.kind, message: unrecorded?.message })} · ${j({ code: broken?.code, message: broken?.message })}`)
+}
+
+section('§4b project/query: a folder nobody trusted, a parameter that is missing or malformed, and what the project does not hold or will not serve')
+{
+  const { ports } = stubPorts({ getAppState: () => ({ toolPermissionContext: {} }) })
+  const query = (params: Record<string, unknown>): Promise<Refusal | null> => refusalOf(runnerArmsOf(ports)['project/query'](params as never, ref, signalOf()))
+  const shown = (answer: Refusal | null): string => j({ code: answer?.code, message: answer?.message, data: answer?.data })
+  trusted = false
+  const untrusted = await query({ op: 'sessions' })
+  check('project/query in a folder nobody trusted answers the typed refusal of kind trust with the sentence it printed', untrusted?.code === RPC_REFUSED && untrusted.data?.kind === 'trust' && untrusted.message === 'Trust this folder in Mercury before serving its project', j({ code: untrusted?.code, kind: untrusted?.data?.kind, message: untrusted?.message }))
+
+  trusted = true
+  forget()
+  const projects = mkdtempSync(join(tmpdir(), 'runner-arms-project-'))
+  const SAVED = '11111111-2222-4333-8444-555555555555'
+  const UNSAVED = '99999999-8888-4777-a666-555555555555'
+  const NEEDS_ID = 'A session_id UUID is required'
+  const NEEDS_BOTH = 'sender and message are required'
+  const NEEDS_REF = 'A mercury:// reference is required'
+  writeFileSync(join(projects, `${SAVED}.jsonl`), '')
+  answers.set('getProjectDir', () => projects)
+  const WIRE_FORM = 'invalid params for project/query'
+  const badParameter = (answer: Refusal | null, sentence: string, ...paths: string[]): boolean => answer?.code === RPC_INVALID_PARAMS && answer.message === WIRE_FORM && j(answer.data) === j({ method: 'project/query', issues: paths.map(path => ({ path, message: sentence })) })
+  const notServed = (answer: Refusal | null, sentence: string): boolean => answer?.code === RPC_REFUSED && j(answer.data) === j({ kind: 'project' }) && answer.message === sentence
+  const held: Array<{ name: string; answer: Refusal | null; ok: boolean }> = []
+  const hold = async (name: string, params: Record<string, unknown>, ok: (answer: Refusal | null) => boolean): Promise<void> => {
+    const answer = await query(params)
+    held.push({ name, answer, ok: ok(answer) })
+  }
+  await hold('rows with no session_id', { op: 'rows' }, answer => badParameter(answer, NEEDS_ID, 'session_id'))
+  await hold('rows with a session_id that is no UUID', { op: 'rows', session_id: 'not-a-uuid' }, answer => badParameter(answer, NEEDS_ID, 'session_id'))
+  await hold('send with no sender', { op: 'send', session_id: SAVED, message: 'words' }, answer => badParameter(answer, NEEDS_BOTH, 'sender'))
+  await hold('send with no message', { op: 'send', session_id: SAVED, sender: 'a-client' }, answer => badParameter(answer, NEEDS_BOTH, 'message'))
+  await hold('send with neither', { op: 'send', session_id: SAVED }, answer => badParameter(answer, NEEDS_BOTH, 'sender', 'message'))
+  await hold('recall with no query', { op: 'recall' }, answer => badParameter(answer, 'query is required', 'query'))
+  await hold('resource with no ref', { op: 'resource' }, answer => badParameter(answer, NEEDS_REF, 'ref'))
+  await hold('resource with a ref that is no mercury:// reference', { op: 'resource', ref: 'https://example.test/x' }, answer => badParameter(answer, NEEDS_REF, 'ref'))
+  await hold('resource with a transcript reference whose id is no UUID', { op: 'resource', ref: 'mercury://transcript/session/not-a-uuid' }, answer => badParameter(answer, NEEDS_ID, 'ref'))
+  const parameters = held.splice(0)
+  check(
+    "project/query refuses a parameter that is missing or malformed in the wire's one form for bad parameters: the code -32602, invalid params for project/query as the message, and in data.issues the sentence it printed beside the parameter's name: session_id, sender, message, query and ref",
+    parameters.length === 9 && parameters.every(one => one.ok),
+    parameters.filter(one => !one.ok).map(one => `${one.name}: ${shown(one.answer)}`).join(' · '),
+  )
+  {
+    const { automationServerFactory } = await import('../../src/services/mcp/automationServer.ts')
+    const { MercuryError } = await import('../../sdk/src/errors.ts')
+    const { Client } = await import('../../src/services/mcp/sdk.ts')
+    const { InMemoryTransport } = await import('@modelcontextprotocol/server')
+    const bridge = {
+      query: async (input: Record<string, unknown>): Promise<unknown> => {
+        try { return await runnerArmsOf(ports)['project/query'](input as never, ref, signalOf()) }
+        catch (error) { throw Object.assign(new MercuryError((error as Error).message, null), { code: (error as { code?: number }).code, data: (error as { data?: unknown }).data }) }
+      },
+      close: async (): Promise<void> => {},
+    }
+    const server = automationServerFactory(bridge as never).create({} as never)
+    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
+    await server.connect(serverSide)
+    const client = new Client({ name: 'runner-arms-proof', version: '1.0.0' }, { capabilities: {} })
+    await client.connect(clientSide)
+    const sent = await client.callTool({ name: 'mercury_send', arguments: { session_id: SAVED, sender: ' ', message: 'words' } })
+    const printed = ((sent.content ?? []) as Array<{ text?: string }>).map(part => part.text ?? '').join('')
+    const read = await client.readResource({ uri: 'mercury://transcript/session/not-a-uuid' }).then(() => null, (error: unknown) => (error instanceof Error ? error.message : String(error)))
+    check(
+      "Mercury's MCP server prints the sentence of a -32602 after the wire's message, for a tool and for a resource read, from the error the TypeScript SDK raises for it (the message, with the code and the data on the error)",
+      sent.isError === true && printed === `${WIRE_FORM}: sender: ${NEEDS_BOTH}` && read !== null && read.includes(`${WIRE_FORM}: ref: ${NEEDS_ID}`),
+      j({ tool: printed, resource: read }),
+    )
+    const both = await client.callTool({ name: 'mercury_send', arguments: { session_id: SAVED, sender: ' ', message: ' ' } })
+    const printedBoth = ((both.content ?? []) as Array<{ text?: string }>).map(part => part.text ?? '').join('')
+    check("Mercury's MCP server names the parameters that share one sentence together, before the sentence said once", both.isError === true && printedBoth === `${WIRE_FORM}: sender, message: ${NEEDS_BOTH}`, j({ tool: printedBoth }))
+    await client.close()
+  }
+
+  type WorkerRecord = ReturnType<typeof import('../../src/daemon/concourseWorkers.ts').readSessionWorkers>[string]
+  type DaemonAnswer = Awaited<ReturnType<typeof import('../../src/daemon/controlSocket.ts').daemonControlRpc>>
+  type ReadDecision = ReturnType<typeof import('../../src/utils/permissions/filesystem.ts').checkReadPermissionForTool>
+  const elsewhere = { sessionId: SAVED, workspaceId: join(tmpdir(), 'another-project') } satisfies Pick<WorkerRecord, 'sessionId' | 'workspaceId'>
+  const here = { sessionId: SAVED, workspaceId: getOriginalCwd() } satisfies Pick<WorkerRecord, 'sessionId' | 'workspaceId'>
+  const daemonSaysNo = { ok: false, code: 'EUNKNOWN', error: 'the session is held by another caller' } satisfies DaemonAnswer
+  const daemonUnreached = { ok: false, code: 'ENOCONN', error: 'the daemon is not reachable (ENOCONN)' } satisfies DaemonAnswer
+  const denied = { behavior: 'deny', message: 'Permission to read that file has not been granted.', decisionReason: { type: 'other', reason: 'a deny rule of this proof' } } satisfies ReadDecision
+  const allowed = { behavior: 'allow' } satisfies ReadDecision
+  const letter = { op: 'send', session_id: SAVED, sender: 'a-client', message: 'words' }
+  await hold('rows of a session that is not saved', { op: 'rows', session_id: UNSAVED }, answer => notServed(answer, `No saved session ${UNSAVED} in this project`))
+  await hold('a transcript reference to a session that is not saved', { op: 'resource', ref: `mercury://transcript/session/${UNSAVED}` }, answer => notServed(answer, `No saved session ${UNSAVED} in this project`))
+  await hold('send to a session that is not live', letter, answer => notServed(answer, `Session ${SAVED} is not live`))
+  answers.set('sessionOwnedByLiveWorker', () => 'runner-1')
+  answers.set('readSessionWorkers', () => ({ 'runner-1': elsewhere }))
+  await hold('send to a session of another project', letter, answer => notServed(answer, 'The session belongs to another project'))
+  answers.set('readSessionWorkers', () => ({ 'runner-1': here }))
+  answers.set('daemonControlRpc', async () => daemonSaysNo)
+  await hold('send that the daemon does not take', letter, answer => notServed(answer, daemonSaysNo.error))
+  answers.set('checkReadPermissionForTool', () => denied)
+  await hold('a file the read rules do not allow', { op: 'resource', ref: 'mercury://file/README.md' }, answer => notServed(answer, denied.message))
+  answers.set('checkReadPermissionForTool', () => allowed)
+  await hold('a file outside the project', { op: 'resource', ref: 'mercury://file/../outside.txt' }, answer => notServed(answer, 'File resources must stay inside this project'))
+  const refusals = held.splice(0)
+  check(
+    'project/query refuses what the project does not hold or will not serve with the typed refusal of kind project and the sentence it printed: a session that is not saved, by its id and by a transcript reference, a session that is not live, a session of another project, a message the daemon does not take, a file the read rules do not allow, a file outside the project',
+    refusals.length === 7 && refusals.every(one => one.ok),
+    refusals.filter(one => !one.ok).map(one => `${one.name}: ${shown(one.answer)}`).join(' · '),
+  )
+  answers.set('daemonControlRpc', async () => daemonUnreached)
+  const unreached = await query(letter)
+  check('a daemon that cannot be reached stays a fault of the run: the sentence with no code and no kind, which the wire sends as the internal error', unreached !== null && unreached.code === undefined && unreached.data === undefined && unreached.message === daemonUnreached.error, shown(unreached))
+  {
+    const net = await import('node:net')
+    const socket = (await import(at('src/daemon/controlSocket.ts'))) as typeof import('../../src/daemon/controlSocket.ts')
+    const { forwardFrame } = await import('../../src/daemon/handover.ts')
+    const daemonHome = mkdtempSync(join(tmpdir(), 'arms-d-'))
+    const daemonDirBefore = process.env.MERCURY_DAEMON_DIR
+    process.env.MERCURY_DAEMON_DIR = daemonHome
+    const answering = async (reply: string, path: string): Promise<import('node:net').Server> => {
+      const server = net.createServer(sock => {
+        sock.on('error', () => {})
+        sock.on('data', () => sock.write(reply))
+      })
+      await new Promise<void>(done => server.listen(path, done))
+      return server
+    }
+    const codeOf = (reply: unknown): string => String((reply as { ok?: unknown; code?: unknown }).ok === false ? (reply as { code?: unknown }).code : 'answered')
+    const garbled = await answering('not a reply\n', socket.controlSockPath())
+    answers.delete('daemonControlRpc')
+    const pinged = await socket.daemonControlRpc({ op: 'ping' } as never, { timeoutMs: 2_000 })
+    const malformed = await query(letter)
+    const forwarded = await forwardFrame(socket.controlSockPath(), j({ op: 'ping' }), 2_000)
+    await new Promise<void>(done => garbled.close(() => done()))
+    const swollenPath = process.platform === 'win32' ? `\\\\.\\pipe\\runner-arms-swollen-${process.pid}` : join(daemonHome, 'b.sock')
+    const swollen = await answering('x'.repeat((1 << 20) + 64), swollenPath)
+    const overCap = await forwardFrame(swollenPath, j({ op: 'ping' }), 5_000)
+    await new Promise<void>(done => swollen.close(() => done()))
+    const { startControlServer } = await import('../../src/daemon/controlServer.ts')
+    const daemon = await startControlServer({} as never)
+    const tooLong = await query({ ...letter, message: 'x'.repeat(1 << 21) })
+    await daemon.close()
+    if (daemonDirBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+    else process.env.MERCURY_DAEMON_DIR = daemonDirBefore
+    rmSync(daemonHome, { recursive: true, force: true })
+    check(
+      "a reply on the daemon's socket that cannot be read is a fault on the caller's side with a code of its own (EBADMSG), never a code the daemon's own refusals carry: the socket's client names it for a frame that is no JSON, and the forwarding daemon for one that is no JSON and one past the frame cap",
+      codeOf(pinged) === 'EBADMSG' && codeOf(forwarded) === 'EBADMSG' && codeOf(overCap) === 'EBADMSG',
+      j({ client: pinged, forwarder: forwarded, pastTheCap: overCap }),
+    )
+    check('project/query answers a reply of the daemon that cannot be read as a fault of the run: the sentence with no code and no kind, which the wire sends as the internal error', malformed !== null && malformed.code === undefined && malformed.data === undefined && malformed.message === 'malformed daemon reply', shown(malformed))
+    check("a message that makes the frame to the daemon larger than its cap is the caller's to shorten: the daemon's own control server, asked over its socket, refuses the frame, and project/query answers -32602 on message with the daemon's sentence", badParameter(tooLong, 'request exceeds 1MB — shorten the prompt or send in parts', 'message'), shown(tooLong))
+  }
+  rmSync(projects, { recursive: true, force: true })
+  forget()
+  trusted = null
 }
 
 section('§5 session/send_now: only while a turn is in flight, from the one send-now function')
@@ -348,12 +519,13 @@ section('§8 session/facts: each fact comes from its one owner, and a fact its o
   const appState = { mcp: { clients: [], tools: [] }, toolPermissionContext: { mode: 'implement' }, effortValue: 'xhigh', tasks: {}, fileHistory: { snapshots: [], trackedFiles: new Set<string>(), rewindUndo: undefined } }
   const scene = (): { ports: Ports; live: Ports['live']; used: Call[] } => stubPorts({ getAppState: () => appState, liveMcp: { addedAt: new Map() }, mcpSignIns: new Map(), messages: [], missionGuard: { missionCardView: () => null } })
   const tasks = [{ id: '1', subject: 'S'.repeat(140), status: 'in_progress', blocks: ['2'], blockedBy: [], metadata: { ledger: ' the ledger ' } }, { id: '2', subject: 'second', activeForm: 'Seconding', status: 'pending', blocks: [], blockedBy: ['1'], metadata: {} }]
+  type Owned<Owner extends (...args: never[]) => unknown> = NonNullable<Awaited<ReturnType<Owner>>>
   const held = {
     noticeRows: [{ key: 'n-1', state: 'unread', summary: 'a notice the owner holds' }],
-    providerLimitWarning: { words: 'the warning the owner holds' },
-    anthropicObservedUsage: { observed: 'the observation the owner holds' },
-    anthropicWindowFact: { window: 'the verdict the owner holds' },
-    openaiCatalogueFact: { catalogue: 'the catalogue the owner holds' },
+    providerLimitWarning: { provider: 'anthropic', text: 'the warning the owner holds' } satisfies Owned<typeof import('../../src/services/providers/limitWarning.ts').providerLimitWarning>,
+    anthropicObservedUsage: { owner: 'the owner of the observation', fiveHour: { utilization: 0.41, resetsAt: 1_800_000_000, observedAtMs: 1_700_000_000_000 } } satisfies Owned<typeof import('../../src/services/anthropicLimits.ts').anthropicObservedUsage>,
+    anthropicWindowFact: { status: 'allowed_warning', observedAtMs: 1_700_000_000_000, owner: 'the owner of the window' } satisfies Owned<typeof import('../../src/services/anthropicLimits.ts').anthropicWindowFact>,
+    openaiCatalogueFact: { sourceKind: 'api-key', models: [{ id: 'gpt-fixture', displayName: 'GPT Fixture', supportedReasoningEfforts: ['low', 'high'], reasoningEffortsStated: true }], fetchedAtMs: 1_700_000_000_000 } satisfies Owned<typeof import('../../src/services/providers/openai/openaiCatalogue.ts').openaiCatalogueFact>,
     openaiObservedUsage: { primary: { used: 41 } },
     sampleRowsOf: [{ id: 'sample-1', title: 'the sample the owner holds' }],
     anthropicSignInEmail: 'who@example.test',

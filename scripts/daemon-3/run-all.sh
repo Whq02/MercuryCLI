@@ -12,7 +12,7 @@
 # gate-watch: scripts/ops/deploy-runtime.sh scripts/ops/launcher-mercury.sh scripts/ops/deploy-launcher.sh scripts/splash/deploy.sh docs/TERMINAL-RUNTIME.md
 # gate-watch: src/utils/healthReport.ts src/cli/update.ts src/services/privateChannel/installLayout.ts src/services/privateChannel/vendoredRuntime.ts package.json
 # gate-watch: src/rows/*
-# gate-watch: src/tasks/LocalAgentTask/* src/input-core/* src/state/AppState*
+# gate-watch: src/tasks/LocalAgentTask/* src/input-core/*
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

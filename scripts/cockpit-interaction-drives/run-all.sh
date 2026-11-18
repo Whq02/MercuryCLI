@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/cockpit-interaction/**
 # gate-watch: src/components/** src/keybindings/**
-# gate-watch: src/input-core/command-queue* src/run-core/attachment-drain*
+# gate-watch: src/run-core/attachment-drain*
 # gate-watch: src/run-core/turn-machine*
 # gate-watch: src/services/providers/zai/** src/services/providers/zai/zaiAdapter.ts
 # gate-watch: src/services/workbench/** src/utils/artifacts/** src/commands/diff/**

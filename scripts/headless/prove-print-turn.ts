@@ -164,7 +164,7 @@ section('§1 what the turn hands the engine')
     await run(each, command as never)
     marks[name] = each.asked[0]?.operatorPrompt
   }
-  check("the runner marks the operator's own words — a prompt-mode command that is not meta — and nothing else (task notifications, the crew-board nudge and channel messages carry no mark)", j(marks) === j({ 'operator words': true, 'a meta prompt': false, 'a task notification': false, 'a shell line': false }), j(marks))
+  check("the runner marks the operator's own words — a prompt-mode command that is not meta — and none of the three other kinds driven here: a meta prompt, a task notification and a shell line carry no mark", j(marks) === j({ 'operator words': true, 'a meta prompt': false, 'a task notification': false, 'a shell line': false }), j(marks))
 
   const fire = scene({ options: { workload: 'the-run-workload' } })
   await run(fire, prompt('the fire', { workload: 'cron' }))

@@ -10,7 +10,9 @@ import { dequeue, peek, getCommandQueue, enqueue } from '../../utils/messageQueu
 import { notifyCommandLifecycle } from '../../utils/commandLifecycle.js'
 import { isOutcome } from '../../rows/read.js'
 import { type OutcomeRow, OUTCOME_SENTENCES } from '../../rows/vocabulary.js'
-import { type RowDraft, turnStartedRow, turnWaitingRow, noticeRow, closeRow, outcomeRow } from '../../rows/project.js'
+import { type RowDraft, turnStartedRow, turnWaitingRow, noticeRow, outcomeRow } from '../../rows/project.js'
+import { closeRowOf } from '../../rows/turn.js'
+import { ledgerMark, ledgerSpentSince } from '../../utils/ledgerMark.js'
 import { drainRows } from '../../utils/sdkEventQueue.js'
 import { randomUUID } from 'node:crypto'
 import { getSessionId, getTotalAPIDuration } from '../../bootstrap/state.js'
@@ -111,12 +113,13 @@ export function printDriverPorts(ports: RunnerPorts): TurnDriverPorts {
       const { exitNoteDue } = await import('../../mneme/exitHandoff.js')
       const ranHere = exitNoteDue()
       let closeUsage: import('../../services/api/emptyUsage.js').NonNullableUsage | undefined
+      const beforeNote = ledgerMark()
       const outcome = await leaveNoteBeforeExit({
         budgetMs: HANDOFF_ASK_BUDGET_MS,
         onNotice: text => io.outbound.enqueue(noticeRow(liveScope(), 'warning', text)),
         onUsage: usage => { closeUsage = usage },
       })
-      if (ranHere) io.outbound.enqueue(closeRow(liveScope(), { state: outcome, ...(closeUsage !== undefined ? { usage: closeUsage } : {}) }))
+      if (ranHere) io.outbound.enqueue(closeRowOf(liveScope(), { closeState: outcome, ...(closeUsage !== undefined ? { usage: closeUsage } : {}), spent: ledgerSpentSince(beforeNote) }))
     },
     closeOutput: async () => {
       const { endBackgroundHooks } = await import('../../utils/hooks/background.js')

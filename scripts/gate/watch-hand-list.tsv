@@ -26,12 +26,12 @@ cache	4
 changesets	8
 changesets-drives	25
 cockpit-interaction	52
-cockpit-interaction-drives	38
+cockpit-interaction-drives	37
 command-catalogue	12
 command-catalogue-drives	30
 commit-gate	3
 compact	23
-compositor	16
+compositor	9
 compositor-drives	32
 computer	5
 computer-drives	23
@@ -44,8 +44,8 @@ crew-drives	16
 critters	2
 critters-drives	11
 daemon	24
-daemon-2	35
-daemon-3	36
+daemon-2	34
+daemon-3	35
 daemon-4	36
 daemon-drives	12
 dap	3
@@ -77,7 +77,7 @@ gate	60
 golden-journeys	12
 golden-journeys-drives	12
 harness-compare	2
-headless	42
+headless	43
 headless-2	45
 health	6
 health-drives	6
@@ -91,7 +91,7 @@ identity	7
 idiom	18
 ink-runtime	1
 interaction	20
-interaction-pure	21
+interaction-pure	20
 interview	13
 interview-drives	19
 jev	8
@@ -141,7 +141,7 @@ orphans	1
 outcome-pack	5
 ownership	26
 permissions	29
-pings	9
+pings	8
 pings-drives	38
 primitives-kernel	4
 primitives-kernel-drives	16
@@ -149,7 +149,7 @@ project-intel	5
 project-services	13
 project-services-drives	38
 prompt	9
-prompt-input	32
+prompt-input	23
 prompt-input-drives	33
 prompts-panel	28
 prompts-panel-drives	22
@@ -157,7 +157,7 @@ provauth	18
 provider-compat	31
 providers	22
 release	5
-reliability	8
+reliability	7
 remote-files	13
 render-continuity	13
 render-continuity-drives	20
@@ -223,7 +223,7 @@ ui-3	11
 ui-4	19
 ui-census	5
 ui-drives	36
-ui-pure-1	31
+ui-pure-1	30
 ui-pure-2	25
 ui-pure-3	17
 unity-bridge	3

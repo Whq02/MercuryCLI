@@ -15,10 +15,25 @@ const automationSchemas = {
 }
 
 const json = (value: Record<string, unknown>): CallToolResult => ({ content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value })
+const wordsOf = (error: unknown): string => {
+  if (!(error instanceof Error)) return String(error)
+  const issues = (error as { data?: { issues?: unknown } }).data?.issues
+  const named = new Map<string, string[]>()
+  for (const issue of (Array.isArray(issues) ? issues : []) as Array<{ path?: unknown; message?: unknown } | null>) {
+    if (typeof issue?.message !== 'string' || error.message.includes(issue.message)) continue
+    named.set(issue.message, [...(named.get(issue.message) ?? []), ...(typeof issue.path === 'string' && issue.path !== '' ? [issue.path] : [])])
+  }
+  const sentences = [...named].map(([sentence, paths]) => (paths.length > 0 ? `${paths.join(', ')}: ${sentence}` : sentence))
+  return sentences.length > 0 ? `${error.message}: ${sentences.join('; ')}` : error.message
+}
+const told = async <T>(action: () => Promise<T>): Promise<T> => {
+  try { return await action() }
+  catch (error) { throw error instanceof Error ? Object.assign(error, { message: wordsOf(error) }) : error }
+}
 const safely = async (action: () => Promise<Record<string, unknown>>): Promise<CallToolResult> => {
   try { return json(await action()) }
   catch (error) {
-    return { isError: true, content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], ...(error instanceof AutomationPermissionRefusal ? { structuredContent: { code: error.code, message: error.message } } : {}) }
+    return { isError: true, content: [{ type: 'text', text: wordsOf(error) }], ...(error instanceof AutomationPermissionRefusal ? { structuredContent: { code: error.code, message: error.message } } : {}) }
   }
 }
 
@@ -37,7 +52,7 @@ export function automationServerFactory(bridge: AutomationBridge): { create: (co
           return { resources: result.resources as Array<{ uri: string; name: string; description: string; mimeType: string }> }
         },
       }), { description: 'Read-only Mercury project records, using the same references as Inspect.', mimeType: 'application/json' }, async uri => {
-        const result = await bridge.query({ op: 'resource', ref: uri.href })
+        const result = await told(() => bridge.query({ op: 'resource', ref: uri.href }))
         return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(result) }] }
       })
       return server

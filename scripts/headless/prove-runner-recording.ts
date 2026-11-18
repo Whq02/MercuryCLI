@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { FIXTURE_MODEL, fixtureCli, withFixtureRunner } from '../lib/builtProduct.ts'
@@ -14,7 +14,7 @@ type Want = 'answer' | 'refused' | 'invalid' | 'failed'
 type Answer = { result: unknown } | { error: { code?: number; message: string; data?: unknown } }
 type Taken = { arm: string; call: string; want: Want; params: unknown; answer: Answer }
 type PrintRun = { name: string; format: string; args: string[]; status: number | null; stdout: string; stderr: string }
-type Recording = { arms: Taken[]; scenes: Record<string, unknown>; prints: PrintRun[] }
+type Recording = { arms: Taken[]; scenes: Record<string, unknown>; prints: PrintRun[]; later?: { calls: Taken[]; scenes: Record<string, unknown> } }
 
 const argOf = (flag: string): string | undefined => {
   const at = process.argv.indexOf(flag)
@@ -34,8 +34,9 @@ const OTHER_MODEL = 'claude-sonnet-5'
 const QUIESCE_TOKEN = 'recording-token-0001'
 
 const taken: Taken[] = []
+const takenLater: Taken[] = []
 
-async function call(runner: HostedRunner, arm: string, name: string, want: Want, params: unknown, deadlineMs = 30_000): Promise<Answer> {
+async function call(runner: HostedRunner, arm: string, name: string, want: Want, params: unknown, deadlineMs = 30_000, into: Taken[] = taken): Promise<Answer> {
   let answer: Answer
   try {
     answer = { result: await runner.peer.request(arm as never, params as never, { deadlineMs }) }
@@ -43,7 +44,7 @@ async function call(runner: HostedRunner, arm: string, name: string, want: Want,
     const e = error as { code?: number; message?: string; data?: unknown }
     answer = { error: { ...(e.code !== undefined ? { code: e.code } : {}), message: String(e.message), ...(e.data !== undefined ? { data: e.data } : {}) } }
   }
-  taken.push({ arm, call: name, want, params, answer })
+  into.push({ arm, call: name, want, params, answer })
   return answer
 }
 
@@ -62,7 +63,7 @@ async function idleScene(): Promise<unknown> {
   const turns: ScriptedTurn[] = [handoffTurn(), { kind: 'text', text: 'First answer.' }]
   return withFixtureRunner(turns, async runner => {
     const a = (arm: string, name: string, want: Want, params: unknown): Promise<Answer> => call(runner, arm, name, want, params)
-    await a('project/query', 'the sessions of a folder nobody trusted', 'failed', { op: 'sessions' })
+    await a('project/query', 'the sessions of a folder nobody trusted', 'refused', { op: 'sessions' })
     await a('project/query', 'an op that is none of the six', 'invalid', { op: 'nope' })
     await a('project/query', 'a key the strict object does not hold', 'invalid', { op: 'sessions', extra: true })
     await a('session/facts', 'the facts before a turn', 'answer', {})
@@ -137,7 +138,7 @@ async function idleScene(): Promise<unknown> {
     await a('session/file_restore', 'a dry undo with nothing to undo', 'answer', { action: 'undo', user_message_id: UNSEEN, dry_run: true })
     await a('session/file_restore', 'a restore with no file', 'invalid', { action: 'restore', user_message_id: UNSEEN })
     await a('session/file_restore', 'an action that is none', 'invalid', { action: 'explode', user_message_id: UNSEEN })
-    await a('agent/resume', 'an agent nothing recorded', 'failed', { agent_id: 'a-none' })
+    await a('agent/resume', 'an agent nothing recorded', 'refused', { agent_id: 'a-none' })
     await a('session/facts', 'the facts after a turn', 'answer', {})
     await a('session/quiesce', 'a token too short to be one', 'refused', { action: 'prepare', token: 'short' })
     await a('session/quiesce', 'prepare', 'answer', { action: 'prepare', token: QUIESCE_TOKEN })
@@ -213,6 +214,96 @@ async function claimScene(): Promise<unknown> {
   )
 }
 
+function ownHome(trusted = false): { dir: string; root: string; savedUsd: () => number | null } {
+  const root = mkdtempSync(join(tmpdir(), 'built-product-'))
+  const dir = join(mkdtempSync(join(root, 'run-')), '.mercury')
+  mkdirSync(dir, { recursive: true })
+  if (trusted) writeFileSync(join(dir, '.mercury.json'), JSON.stringify({ projects: Object.fromEntries([tmpdir(), realpathSync(tmpdir())].map(folder => [folder.replace(/\\/g, '/'), { hasTrustDialogAccepted: true }])) }))
+  const savedUsd = (): number | null => {
+    const file = ['.config.json', '.mercury.json'].map(name => join(dir, name)).find(path => existsSync(path))
+    if (file === undefined) return null
+    const projects = (JSON.parse(readFileSync(file, 'utf8')) as { projects?: Record<string, { lastCost?: unknown }> }).projects ?? {}
+    const saved = Object.values(projects).map(project => project.lastCost).filter((cost): cost is number => typeof cost === 'number')
+    return saved.length === 0 ? null : saved.reduce((sum, cost) => sum + cost, 0)
+  }
+  return { dir, root, savedUsd }
+}
+
+async function closedMidTurnScene(): Promise<unknown> {
+  const turns: ScriptedTurn[] = [handoffTurn(), { kind: 'paced', deltas: ['One ', 'two ', 'three.'], gapMs: 400 }]
+  const home = ownHome()
+  try {
+    return await withFixtureRunner(
+      turns,
+      async runner => {
+        await runner.prompt('count to three')
+        await runner.waitFor('the paced turn has its first byte', row => row.type === 'wait' && row.state === 'done', 60_000)
+        runner.end()
+        const code = await Promise.race([runner.exited, pause(30_000).then(() => 'still running' as const)])
+        return { rows: [...runner.rows], notifications: [...runner.notifications], stderr: runner.stderr(), exit: code, ledger_usd: home.savedUsd() }
+      },
+      { env: { MERCURY_CONFIG_DIR: home.dir } },
+    )
+  } finally {
+    rmSync(home.root, { recursive: true, force: true })
+  }
+}
+
+async function closedAfterTurnScene(): Promise<unknown> {
+  const turns: ScriptedTurn[] = [handoffTurn(), { kind: 'text', text: 'One answer.' }]
+  const home = ownHome()
+  try {
+    return await withFixtureRunner(
+      turns,
+      async runner => {
+        await runner.prompt('answer once')
+        await settled(runner, 1)
+        runner.end()
+        const code = await Promise.race([runner.exited, pause(30_000).then(() => 'still running' as const)])
+        return { rows: [...runner.rows], notifications: [...runner.notifications], stderr: runner.stderr(), exit: code, ledger_usd: home.savedUsd() }
+      },
+      { env: { MERCURY_CONFIG_DIR: home.dir } },
+    )
+  } finally {
+    rmSync(home.root, { recursive: true, force: true })
+  }
+}
+
+async function trustedFolderScene(): Promise<unknown> {
+  const turns: ScriptedTurn[] = [handoffTurn(), { kind: 'text', text: 'Trusted answer.' }]
+  const home = ownHome(true)
+  try {
+    return await withFixtureRunner(
+      turns,
+      async runner => {
+        const a = (name: string, want: Want, params: unknown): Promise<Answer> => call(runner, 'project/query', `in a trusted folder: ${name}`, want, params, 30_000, takenLater)
+        await runner.prompt('say the trusted answer')
+        await settled(runner, 1)
+        const own = String(runner.rows.find(row => row.type === 'session')?.session_id)
+        await a('the sessions', 'answer', { op: 'sessions' })
+        await a('rows with no session id', 'invalid', { op: 'rows' })
+        await a('rows with a session id that is no uuid', 'invalid', { op: 'rows', session_id: 'not-a-uuid' })
+        await a('rows of a session that is not saved', 'refused', { op: 'rows', session_id: UNSEEN })
+        await a('a letter with no sender and no message', 'invalid', { op: 'send', session_id: own })
+        await a('a letter with no message', 'invalid', { op: 'send', session_id: own, sender: 'a-client' })
+        await a('a letter to a session that is not live', 'refused', { op: 'send', session_id: own, sender: 'a-client', message: 'words' })
+        await a('a recall with no query', 'invalid', { op: 'recall' })
+        await a('a resource with no reference', 'invalid', { op: 'resource' })
+        await a('a resource whose reference is no mercury:// reference', 'invalid', { op: 'resource', ref: 'https://example.test/x' })
+        await a('a transcript reference whose id is no uuid', 'invalid', { op: 'resource', ref: 'mercury://transcript/session/not-a-uuid' })
+        await a('a transcript reference to a session that is not saved', 'refused', { op: 'resource', ref: `mercury://transcript/session/${UNSEEN}` })
+        await a('a file outside the project', 'refused', { op: 'resource', ref: 'mercury://file/../outside.txt' })
+        runner.end()
+        const code = await Promise.race([runner.exited, pause(30_000).then(() => 'still running' as const)])
+        return { rows: [...runner.rows], notifications: [...runner.notifications], stderr: runner.stderr(), exit: code }
+      },
+      { env: { MERCURY_CONFIG_DIR: home.dir } },
+    )
+  } finally {
+    rmSync(home.root, { recursive: true, force: true })
+  }
+}
+
 async function printRuns(): Promise<PrintRun[]> {
   const asksToRead: ScriptedTurn = { kind: 'tool_use', name: 'Read', input: { file_path: join(import.meta.dir, 'no-such-file') } }
   const refusal: ScriptedTurn = { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'the fixture says no' }
@@ -247,8 +338,10 @@ function masked(recording: Recording): Recording {
     return ids.get(key)!
   }
   const temp = [...new Set([tmpdir(), realpathSync(tmpdir())])].sort((x, y) => y.length - x.length)
+  const trees = [...new Set([join(import.meta.dir, '..', '..'), ...(argOf('--tree') !== undefined ? [argOf('--tree')!] : [])])].sort((x, y) => y.length - x.length)
   const words = (text: string): string => {
     let out = text
+    for (const tree of trees) out = out.split(tree).join('<tree>')
     for (const root of temp) out = out.split(root).join('<tmp>')
     return out
       .replace(/\/[A-Za-z0-9._/-]*?\/built-product-/g, '<tmp>/built-product-')
@@ -265,11 +358,11 @@ function masked(recording: Recording): Recording {
       .replace(/\b1[6-9]\d{11}\b/g, '<ms>')
       .replace(/\b[0-9a-f]{40}\b/g, '<digest>')
   }
-  const walk = (value: unknown, key = ''): unknown => {
-    if (typeof value === 'string') return BUILD_KEYS.has(key) ? `<${key}>` : words(value)
+  const walk = (value: unknown, key = '', under = ''): unknown => {
+    if (typeof value === 'string') return BUILD_KEYS.has(key) ? `<${key}>` : key === 'read' && under === 'memory' ? '<read>' : words(value)
     if (typeof value === 'number') return CLOCK_KEYS.test(key) && !FIXED.has(key) ? `<${key}>` : value
-    if (Array.isArray(value)) return value.map(item => walk(item, key))
-    if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, walk(v, k)]))
+    if (Array.isArray(value)) return value.map(item => walk(item, key, under))
+    if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, walk(v, k, key)]))
     return value
   }
   const lines = (text: string): unknown =>
@@ -283,11 +376,11 @@ function masked(recording: Recording): Recording {
           return words(line)
         }
       })
-  return {
-    arms: recording.arms.map(t => walk(t) as Taken),
-    scenes: walk(recording.scenes) as Record<string, unknown>,
-    prints: recording.prints.map(p => ({ ...p, args: p.args.map(words), stdout: lines(p.stdout) as never, stderr: lines(p.stderr) as never })),
-  }
+  const arms = recording.arms.map(t => walk(t) as Taken)
+  const scenes = walk(recording.scenes) as Record<string, unknown>
+  const prints = recording.prints.map(p => ({ ...p, args: p.args.map(words), stdout: lines(p.stdout) as never, stderr: lines(p.stderr) as never }))
+  const later = recording.later === undefined ? undefined : { calls: recording.later.calls.map(t => walk(t) as Taken), scenes: walk(recording.later.scenes) as Record<string, unknown> }
+  return { arms, scenes, prints, ...(later !== undefined ? { later } : {}) }
 }
 
 function differences(a: unknown, b: unknown, path = '$', out: string[] = []): string[] {
@@ -318,14 +411,50 @@ const scenes: Record<string, unknown> = {}
 scenes.idle = await idleScene()
 scenes.inFlight = await inFlightScene()
 scenes.claim = await claimScene()
+scenes.closedMidTurn = await closedMidTurnScene()
+const laterScenes: Record<string, unknown> = {}
+laterScenes.closedAfterTurn = await closedAfterTurnScene()
+laterScenes.trustedFolder = await trustedFolderScene()
 const arms = [...RUNNER_REQUEST_METHODS, ...RUNNER_NOTIFICATION_METHODS]
 const requested = RUNNER_REQUEST_METHODS.filter(arm => taken.filter(t => t.arm === arm && t.want === 'answer').length >= 1 || taken.filter(t => t.arm === arm).length >= 3)
-const wrong = taken.filter(t => classOf(t.answer) !== t.want)
-check(`every call came back in its class: an answer, a refusal of the runner (${RPC_REFUSED}) or params the wire refuses (${RPC_INVALID_PARAMS}) (${taken.length} calls)`, wrong.length === 0, wrong.map(t => `${t.arm} · ${t.call}: wanted ${t.want}, got ${JSON.stringify(t.answer).slice(0, 200)}`).join('\n      '))
+const wrong = [...taken, ...takenLater].filter(t => classOf(t.answer) !== t.want)
+check(`every call came back in its class: an answer, a refusal of the runner (${RPC_REFUSED}) or params the wire refuses (${RPC_INVALID_PARAMS}) (${taken.length + takenLater.length} calls)`, wrong.length === 0, wrong.map(t => `${t.arm} · ${t.call}: wanted ${t.want}, got ${JSON.stringify(t.answer).slice(0, 200)}`).join('\n      '))
 const thin = RUNNER_REQUEST_METHODS.filter(arm => taken.filter(t => t.arm === arm).length < 3 || taken.filter(t => t.arm === arm && t.want !== 'answer').length < 2)
 check(`each of the ${RUNNER_REQUEST_METHODS.length} request arms is called at least three times, two of them calls it must refuse (${arms.length} arms with the notification)`, thin.length === 0 && requested.length === RUNNER_REQUEST_METHODS.length, thin.join(', '))
 const afterNotice = taken.find(t => t.call === 'the facts after credentials/changed')
 check('the credentials/changed notification is taken with no answer, and the runner answers the next request', afterNotice !== undefined && 'result' in afterNotice.answer)
+const closedRows = ((scenes.closedMidTurn as { rows?: Array<{ type?: string }> }).rows ?? []).map(row => String(row.type))
+const closeAt = closedRows.findIndex(type => type === 'close')
+const outcomeAt = closedRows.findIndex(type => type === 'outcome')
+check("on the wire door an input closed in the middle of a turn writes the close row before that turn's outcome row, and the turn still ends with its outcome and exit 0 (the SDKs and the daemon's seat read past a close row, so this order is recorded here and not changed)", closeAt !== -1 && outcomeAt !== -1 && closeAt < outcomeAt && (scenes.closedMidTurn as { exit?: unknown }).exit === 0, closedRows.join(' '))
+type SpendRow = { type?: string; usage?: { input_tokens?: number; output_tokens?: number }; cost_usd?: number }
+const spendRows = (type: string): SpendRow[] => ((scenes.closedMidTurn as { rows?: SpendRow[] }).rows ?? []).filter(row => row.type === type)
+const spendOf = (rows: SpendRow[]): string => `${rows.reduce((sum, row) => sum + (row.usage?.input_tokens ?? 0), 0)} in ${rows.reduce((sum, row) => sum + (row.usage?.output_tokens ?? 0), 0)} out`
+check("the outcome of a turn the input closed in counts its steps' model calls and not the note's, which the close row carries: a client that adds each outcome and the close row counts every call once", spendRows('step').length === 1 && spendRows('close').length === 1 && spendOf(spendRows('close')) !== '0 in 0 out' && spendOf(spendRows('outcome')) === spendOf(spendRows('step')), `steps ${spendOf(spendRows('step'))} · close ${spendOf(spendRows('close'))} · outcome ${spendOf(spendRows('outcome'))} at ${spendRows('outcome')[0]?.cost_usd} USD`)
+type CostRow = { type?: string; cost_usd?: number; models?: Record<string, { cost_usd?: number }> }
+const sceneOf = (scene: string): unknown => scenes[scene] ?? laterScenes[scene]
+const costRows = (scene: string): CostRow[] => ((sceneOf(scene) as { rows?: CostRow[] }).rows ?? []).filter(row => row.type === 'outcome' || row.type === 'close')
+const usdOf = (row: CostRow): number => (row.type === 'outcome' ? (row.cost_usd ?? 0) : Object.values(row.models ?? {}).reduce((sum, model) => sum + (model.cost_usd ?? 0), 0))
+const ledgerOf = (scene: string): number | null => (sceneOf(scene) as { ledger_usd?: number | null }).ledger_usd ?? null
+const addsUp = (scene: string, order: string): boolean => {
+  const rows = costRows(scene)
+  const ledger = ledgerOf(scene)
+  return rows.map(row => row.type).join(' ') === order && ledger !== null && ledger > 0 && rows.every(row => usdOf(row) > 0) && Math.abs(rows.reduce((sum, row) => sum + usdOf(row), 0) - ledger) < 1e-9
+}
+check(
+  "in both orders, the input closed inside a turn and after one, the cost of the outcome and of the close row's models add up to the ledger's total as the runner saved it at its exit",
+  addsUp('closedMidTurn', 'close outcome') && addsUp('closedAfterTurn', 'outcome close'),
+  ['closedMidTurn', 'closedAfterTurn'].map(scene => `${scene}: ${costRows(scene).map(row => `${row.type} ${usdOf(row)}`).join(', ')} on the rows, ${ledgerOf(scene)} USD on the ledger`).join(' · '),
+)
+const trustedCalls = takenLater
+const errorOf = (t: Taken): { code?: number; message?: string; data?: { kind?: string; method?: string; issues?: Array<{ path?: unknown; message?: unknown }> } } => ('error' in t.answer ? (t.answer.error as never) : {})
+const inWireForm = (t: Taken): boolean => errorOf(t).code === RPC_INVALID_PARAMS && errorOf(t).message === 'invalid params for project/query' && errorOf(t).data?.method === 'project/query' && (errorOf(t).data?.issues ?? []).length > 0 && (errorOf(t).data?.issues ?? []).every(issue => typeof issue.path === 'string' && typeof issue.message === 'string' && issue.message !== '')
+const ofTheProject = (t: Taken): boolean => errorOf(t).code === RPC_REFUSED && errorOf(t).data?.kind === 'project' && typeof errorOf(t).message === 'string' && errorOf(t).message !== ''
+check(
+  "in a folder the home trusts, project/query serves the sessions, answers a parameter that is missing or malformed in the wire's one form (-32602, invalid params for project/query, the sentence under data.issues beside the parameter's name) and refuses what the project does not hold or will not serve with the kind project",
+  trustedCalls.length === 13 && trustedCalls.filter(t => t.want === 'answer').every(t => 'result' in t.answer) && trustedCalls.filter(t => t.want === 'invalid').length === 8 && trustedCalls.filter(t => t.want === 'invalid').every(inWireForm) && trustedCalls.filter(t => t.want === 'refused').length === 4 &&trustedCalls.filter(t => t.want === 'refused').every(ofTheProject),
+  trustedCalls.filter(t => (t.want === 'invalid' && !inWireForm(t)) || (t.want === 'refused' && !ofTheProject(t)) || (t.want === 'answer' && !('result' in t.answer))).map(t => `${t.call}: ${JSON.stringify(t.answer).slice(0, 300)}`).join('\n      '),
+)
 
 section('§2 four scripted print runs and one refused at boot, in the three formats')
 const prints = await printRuns()
@@ -333,14 +462,15 @@ const statusOf = (name: string): string => prints.filter(p => p.name === name).m
 check('each print run ended with an exit code', prints.every(p => p.status !== null), prints.map(p => `${p.name}/${p.format}: ${p.status}`).join(' · '))
 check('the completed run exits 0 and the others do not', prints.filter(p => p.name === 'completed').every(p => p.status === 0) && prints.filter(p => p.name !== 'completed').every(p => p.status !== 0), ['completed', 'refused', 'failed', 'turn limit', 'blocked'].map(name => `${name}: ${statusOf(name)}`).join(' | '))
 
-const recording = masked({ arms: taken, scenes, prints })
+const whole: Recording = { arms: taken, scenes, prints, later: { calls: takenLater, scenes: laterScenes } }
+const recording = masked(whole)
 const out = argOf('--out')
 if (out !== undefined) {
   writeFileSync(out, JSON.stringify(recording, null, 1) + '\n')
   console.log(`  wrote ${out}`)
 }
 const raw = argOf('--raw')
-if (raw !== undefined) writeFileSync(raw, JSON.stringify({ arms: taken, scenes, prints }, null, 1) + '\n')
+if (raw !== undefined) writeFileSync(raw, JSON.stringify(whole, null, 1) + '\n')
 const against = argOf('--against')
 if (against !== undefined) {
   section(`§3 the recording against ${against}`)

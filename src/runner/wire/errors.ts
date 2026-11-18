@@ -35,6 +35,8 @@ export const REFUSAL_KINDS = [
   'nothing-to-resume',
   'already-initialized',
   'capability',
+  'trust',
+  'project',
 ] as const
 type RefusalKind = (typeof REFUSAL_KINDS)[number]
 

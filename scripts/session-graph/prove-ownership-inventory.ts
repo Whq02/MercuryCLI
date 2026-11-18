@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { codeOnlyText } from '../lib/codeText.ts'
@@ -15,7 +15,6 @@ const INVENTORY: Record<string, string[]> = {
   'bindAgent': ['src/services/crew/seatBridge.ts'],
   'registerAgentSession': ['src/services/crew/seatBridge.ts'],
   'endAgentSession': ['src/services/crew/seatBridge.ts'],
-  'bootCrewIdentity': ['src/cli/run.ts'],
   'crewStoreRoot': ['src/services/crew/conversations.ts', 'src/services/crew/descriptor.ts', 'src/services/crew/dispatch.ts'],
   'crewDirectoryEnabled': ['src/commands/crew/index.ts', 'src/services/crew/seatBridge.ts'],
   'displayLabelsOf': ['src/services/crew/projection.ts'],
@@ -54,6 +53,10 @@ const INVENTORY: Record<string, string[]> = {
   'resolveObligation': ['src/components/concourse/ConcourseRoute.tsx'],
   'obligationOf': ['src/components/concourse/ConcourseRoute.tsx'],
   'subscribeObligations': ['src/services/crew/obligationsBridge.ts'],
+}
+
+const HELD_BY_A_CALL: Record<string, string> = {
+  'bootCrewIdentity': 'scripts/headless/prove-runner-boot-steps.ts',
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -112,6 +115,8 @@ t.section('§1 — every inventoried consumer still consumes')
     }
   }
   t.check('no severed production loops (and no self-file tautology rows)', broken === 0, `${broken} broken row(s)`)
+  const unheld = Object.entries(HELD_BY_A_CALL).filter(([sym, proof]) => sym in INVENTORY || !existsSync(join(ROOT, proof)))
+  t.check('a consumer held by a call of the code names a proof that stands, and has no row beside it', unheld.length === 0, unheld.map(([sym, proof]) => `${sym}: ${proof}`).join(', '))
 }
 
 t.section('§2 — no NEW crew export ships without an inventory row')
@@ -155,7 +160,7 @@ t.section('§2 — no NEW crew export ships without an inventory row')
     )
   for (const file of walk(crewDir)) {
     for (const name of functionExportsIn(codeOnlyText(file, readFileSync(file, 'utf8')))) {
-      if (!(name in INVENTORY) && !KNOWN_NON_PRODUCTION.has(name)) missing.push(name)
+      if (!(name in INVENTORY) && !(name in HELD_BY_A_CALL) && !KNOWN_NON_PRODUCTION.has(name)) missing.push(name)
     }
   }
   t.check(

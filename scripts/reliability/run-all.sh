@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/bootstrap/state* src/daemon/**
+# gate-watch: src/daemon/**
 # gate-watch: src/services/run/** src/substrate/** src/utils/**
 # gate-watch: build.ts src/mneme/*
 # gate-watch: src/services/lsp/LSPClient.ts

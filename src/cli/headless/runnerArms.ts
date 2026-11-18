@@ -235,7 +235,7 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
         return { queued: true, agent_id: params.agent_id }
       }
       if (live.awaitingSessionClaim) throw refused('nothing to resume from yet — the session is still starting', 'nothing-to-resume')
-      const { resumeAgentBackground, operatorResumeWords } = await import('../../tools/AgentTool/resumeAgent.js')
+      const { AgentNotRecorded, resumeAgentBackground, operatorResumeWords } = await import('../../tools/AgentTool/resumeAgent.js')
       let standing = getLastCacheSafeParams()?.toolUseContext as ToolUseContext | undefined
       if (standing === undefined) {
         await options.initializeMcp?.()
@@ -250,6 +250,8 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
         replyTarget: params.note?.trim() ? 'operator' : 'parent',
         toolUseContext: { ...lastContext, abortController: new AbortController() } as ToolUseContext,
         canUseTool,
+      }).catch((error: unknown) => {
+        throw error instanceof AgentNotRecorded ? refused(error.message, 'agent') : error
       })
       if (!params.note?.trim()) enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })
       return {

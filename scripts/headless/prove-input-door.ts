@@ -21,11 +21,12 @@ setTimeout(() => {
   process.exit(1)
 }, 120_000).unref()
 
-type Call = { name: string; args: unknown[]; retiring?: boolean }
+type Call = { name: string; args: unknown[]; retiring?: boolean; started?: boolean }
 const seen: Call[] = []
 const answers = new Map<string, (...args: unknown[]) => unknown>()
 const said = (name: string): Call[] => seen.filter(call => call.name === name)
 let retiringNow: () => boolean = () => false
+let startedNow: () => boolean = () => false
 
 async function spied(rel: string, wanted: string[]): Promise<void> {
   const real = (await import(at(rel))) as Record<string, unknown>
@@ -33,7 +34,7 @@ async function spied(rel: string, wanted: string[]): Promise<void> {
     wanted.map(name => [
       name,
       (...args: unknown[]): unknown => {
-        seen.push({ name, args, retiring: retiringNow() })
+        seen.push({ name, args, retiring: retiringNow(), started: startedNow() })
         return answers.get(name)?.(...args)
       },
     ]),
@@ -49,6 +50,7 @@ await spied('src/tools/MonitorTool/laneWall.ts', ['sessionLaneWall'])
 await spied('src/utils/sessionStorage.ts', ['doesMessageExistInSession'])
 await spied('src/utils/commandLifecycle.ts', ['notifyCommandLifecycle'])
 await spied('src/guards/mission.ts', ['syncMissionFromCard', 'resumeMissionOnOperatorInput', 'clearActiveMission', 'setActiveMission'])
+await spied('src/utils/gracefulShutdown.ts', ['gracefulShutdownSync'])
 
 const door = await import('../../src/cli/headless/inputDoor.ts')
 const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
@@ -76,8 +78,8 @@ function scene(given: Record<string, unknown> = {}): Scene {
   const received = new Set<string>()
   const ports = {
     live,
-    options: { initializeMcp: async () => void inits++ },
-    driver: { kick: () => void kicks++, isRunning: () => running.now },
+    options: { initializeMcp: async () => void (inits++, seen.push({ name: 'port:initializeMcp', args: [], started: live.sessionInitialized })) },
+    driver: { kick: () => void (kicks++, seen.push({ name: 'port:kick', args: [], started: live.sessionInitialized })), isRunning: () => running.now },
     getAppState: () => ({}),
     setAppState: () => {},
     localCommandInput: () => local.now,
@@ -86,6 +88,7 @@ function scene(given: Record<string, unknown> = {}): Scene {
     ...given,
   } as unknown as Ports
   retiringNow = () => live.retiringQueuedCommands
+  startedNow = () => live.sessionInitialized
   return { ports, live, kicks: () => kicks, running, local, received, inits: () => inits }
 }
 const queued = (): Queued[] => said('enqueue').map(call => call.args[0] as Queued)
@@ -102,7 +105,18 @@ section('§1 a queued command is stamped: its time from the frame or the arrival
   const [first, second, third] = queued()
   const arrived = (command: Queued | undefined): boolean => typeof command?.sentAt === 'string' && Math.abs(Date.parse(command.sentAt as string) - before) < 5_000
   check("the runner stamps the queued command from the frame's timestamp, or the arrival", j(verdict) === j({ accepted: true }) && first?.sentAt === '2026-01-02T03:04:05.000Z' && arrived(second) && arrived(third) && first.value === 'the words' && first.mode === 'prompt', j(queued().map(command => command.sentAt)))
-  check('the door starts the MCP servers and marks the session started before it queues, and kicks the driver once for each line', framed.inits() === 3 && framed.live.sessionInitialized && framed.kicks() === 3 && said('syncMissionFromCard').length === 3)
+  check('the door starts the MCP servers, marks the session started and kicks the driver once for each line', framed.inits() === 3 && framed.live.sessionInitialized && framed.kicks() === 3 && said('syncMissionFromCard').length === 3)
+  const ordered = scene()
+  await within(door.acceptInput({ kind: 'prompt', content: 'one line' }, ordered.ports))
+  const placeOf = (name: string): number => seen.findIndex(call => call.name === name)
+  const startAt = placeOf('port:initializeMcp')
+  const queueAt = placeOf('enqueue')
+  const kickAt = placeOf('port:kick')
+  check(
+    'the door starts the MCP servers and marks the session started before it queues, and kicks the driver after: for one line the start stands before the enqueue and the enqueue before the kick, the session is unmarked at the start and marked at the enqueue',
+    startAt !== -1 && queueAt !== -1 && kickAt !== -1 && startAt < queueAt && queueAt < kickAt && seen[startAt]!.started === false && seen[queueAt]!.started === true && ordered.inits() === 1 && ordered.kicks() === 1,
+    j(seen.map(call => `${call.name}${call.started ? ' (started)' : ''}`)),
+  )
 
   const fire = scene()
   await within(door.acceptInput({ kind: 'prompt', content: 'the fire', origin: SATURN }, fire.ports))
@@ -189,29 +203,34 @@ section('§4 a row from the wire: refused when empty, carried whole when not')
   )
 }
 
-section('§5 the gate before the claim, and the local wake')
+section('§5 the rows door of a runner that waits for a claim, and the local wake')
 {
-  const s = scene()
-  s.live.awaitingSessionClaim = true
-  const rows = ['one', 'two', 'three', 'four'].map(content => ({ type: 'prompt', content }))
-  const out: string[] = []
-  async function* source(): AsyncGenerator<never, void, unknown> {
-    for (const [index, row] of rows.entries()) {
-      if (index === 2) s.live.awaitingSessionClaim = false
-      yield row as never
+  const { BOOT_STEPS } = await import('../../src/cli/headless/boot/bootList.ts')
+  const { BOOT_ENDS } = await import('../../src/cli/headless/runnerPorts.ts')
+  const refusal = BOOT_STEPS.find(step => step.name === 'refuseClaimlessRowsDoor')
+  const booting = async (wire: boolean, awaiting: boolean): Promise<{ result: unknown; lines: string[]; exits: unknown[] }> => {
+    const s = scene({ options: wire ? { door: 'wire' } : {} })
+    s.live.awaitingSessionClaim = awaiting
+    const lines: string[] = []
+    const real = process.stderr.write
+    process.stderr.write = ((chunk: unknown): boolean => (lines.push(String(chunk)), true)) as typeof process.stderr.write
+    let result: unknown
+    try {
+      result = await refusal?.run(s.ports)
+    } finally {
+      process.stderr.write = real
     }
+    return { result, lines, exits: said('gracefulShutdownSync').map(call => call.args[0]) }
   }
-  for await (const row of door.claimGatedInput(source(), s.ports)) out.push(String((row as { content: string }).content))
-  check('W13 the pre-claim gate parks user frames (belt: the daemon orders claim before words): nothing passes before the claim, and the parked frames follow the first frame after it, in their order', j(out) === j(['three', 'one', 'two', 'four']), j(out))
-  const never = scene()
-  never.live.awaitingSessionClaim = true
-  const held: string[] = []
-  async function* two(): AsyncGenerator<never, void, unknown> {
-    yield { type: 'prompt', content: 'one' } as never
-    yield { type: 'prompt', content: 'two' } as never
-  }
-  for await (const row of door.claimGatedInput(two(), never.ports)) held.push(String(row))
-  check('…and a runner that is never claimed passes none', held.length === 0, j(held))
+  const unclaimable = await booting(false, true)
+  check(
+    'a run on the rows door that waits for a claim is refused at the boot, where no claim can land: the boot ends with one sentence on stderr that says what it waits for and how to name a session, and exit 2',
+    refusal !== undefined && unclaimable.result === BOOT_ENDS && j(unclaimable.exits) === j([2]) && unclaimable.lines.length === 1 && ['MERCURY_CONCOURSE_WORKER=1', 'session/claim', 'mercury runner', '--session-id', '--continue', '--resume'].every(word => unclaimable.lines[0]!.includes(word)) && unclaimable.lines[0]!.endsWith('\n'),
+    `${j(unclaimable.exits)} · ${j(unclaimable.lines)}`,
+  )
+  const onTheWire = await booting(true, true)
+  const named = await booting(false, false)
+  check('…the wire door, where a claim does land, and a run that carries its session boot on and write nothing', onTheWire.result !== BOOT_ENDS && onTheWire.exits.length === 0 && onTheWire.lines.length === 0 && named.result !== BOOT_ENDS && named.exits.length === 0 && named.lines.length === 0, `${j(onTheWire)} · ${j(named)}`)
 
   const oneShot = scene({ streamingInput: false })
   door.armLocalWake(oneShot.ports)

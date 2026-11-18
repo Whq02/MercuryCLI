@@ -339,8 +339,6 @@ if (ledger === null) {
 
 section('N6 — the wiring: the runner starts the nudge and publishes the ledger; the queue and the agent task record')
 {
-  const print = src('src/cli/run.ts')
-  check('N6 the nudge stops with the runner', print.includes('idleNudge.stop()'), 'run.ts')
   const q = src('src/input-core/command-queue.ts')
   check('N6 the queue records what it carries at both enqueue doors and reports every consumption', (q.match(/recordQueuedNotice\(stamped\)/g) ?? []).length === 2 && (q.match(/consumeNotices\(queuedNoticeKeys\(/g) ?? []).length === 3 && (q.match(/retireNotices\(queuedNoticeKeys\(/g) ?? []).length === 2, 'command-queue.ts')
   const agent = src('src/tasks/LocalAgentTask/LocalAgentTask.tsx')
