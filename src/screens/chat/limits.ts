@@ -1,1 +1,2 @@
 export const RECEIPT_TIMEOUT_MS = 8000;
+export const SWITCH_STATUS_TIMEOUT_MS = 30_000;

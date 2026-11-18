@@ -530,10 +530,11 @@ useEffect	src/ink/hooks/use-terminal-title.ts	1
 useEffect	src/ink/terminalWrite.ts	2
 useEffect	src/keybindings/KeybindingProviderSetup.tsx	2
 useEffect	src/keybindings/useKeybinding.ts	2
-useEffect	src/screens/Chat.tsx	30
+useEffect	src/screens/Chat.tsx	28
 useEffect	src/screens/ResumeConversation.tsx	1
 useEffect	src/screens/chat/ChatKeys.tsx	1
 useEffect	src/screens/chat/useChatAsks.tsx	3
+useEffect	src/screens/chat/useChatDialogs.tsx	2
 useEffect	src/screens/chat/useChatDraft.ts	3
 useEffect	src/screens/chat/useChatScroll.ts	1
 useEffect	src/screens/chat/useChatSearch.tsx	7
@@ -583,8 +584,8 @@ useLayoutEffect	src/ink/hooks/use-declared-cursor.ts	2
 useLayoutEffect	src/ink/hooks/use-input.ts	1
 useLayoutEffect	src/ink/hooks/use-terminal-viewport.ts	1
 useLayoutEffect	src/keybindings/KeybindingContext.tsx	1
-useLayoutEffect	src/screens/Chat.tsx	1
 useLayoutEffect	src/screens/chat/useChatAsks.tsx	1
+useLayoutEffect	src/screens/chat/useChatDialogs.tsx	1
 useLayoutEffect	src/screens/chat/useChatScroll.ts	1
 useLayoutEffect	src/utils/staticRender.tsx	1
 useInsertionEffect	src/components/FullscreenLayout.tsx	1

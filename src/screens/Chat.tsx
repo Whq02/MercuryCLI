@@ -9,7 +9,6 @@ import { basename as nodePathBasename, join } from 'node:path';
 import React, {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -17,7 +16,6 @@ import React, {
 } from 'react';
 import { getOriginalCwd, getSessionId } from '../bootstrap/state.js';
 import { commandOffInPlainWorld, commandSeat, getCommandName, isCommandEnabled, type Command, type ResumeEntrypoint } from '../commands.js';
-import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
 import { ExitFlow } from '../components/ExitFlow.js';
 import { FullscreenLayout } from '../components/FullscreenLayout.js';
 import { TranscriptSwap } from '../components/CrewmateTranscript.js';
@@ -35,7 +33,6 @@ import { useMessageCursorActive } from '../components/messageCursorStore.js';
 import { FocusedSessionStatusRow, statusLine, statusRowWarns } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
-import { BackgroundTasksDialog } from '../components/tasks/BackgroundTasksDialog.js';
 import {
   useKickOffCheckAndDisableSovereignIfNeeded,
 } from '../utils/permissions/bypassPermissionsKillswitch.js';
@@ -50,7 +47,6 @@ import { publishTurnSignals, turnEndedInError } from '../utils/cockpit/turnSigna
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
 import { useSeatReceipts } from '../hooks/useSeatReceipts.js';
 import { useAgentNeedsYou } from '../hooks/useAgentNeedsYou.js';
-import { ElicitationDialog } from '../components/mcp/ElicitationDialog.js';
 import { useMcpConnectivityStatus } from '../hooks/notifs/useMcpConnectivityStatus.js';
 import { recordBootInteractive } from '../utils/observability/frictionStopwatch.js';
 import { readAllTranscriptEntries } from '../utils/sessionStorage/materialize.js';
@@ -82,7 +78,7 @@ import { useDeprecationWarningNotification } from '../hooks/notifs/useDeprecatio
 import { useLspInitializationNotification } from '../hooks/notifs/useLspInitializationNotification.js';
 import { useRateLimitWarningNotification } from '../hooks/notifs/useRateLimitWarningNotification.js';
 import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js';
-import { Box, type DOMElement, measureElement, Text, useTheme } from '../ink.js';
+import { Box, Text, useTheme } from '../ink.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
 import { setClipboardWithReceipt } from '../ink/termio/osc.js';
@@ -119,13 +115,14 @@ import {
 import type { RewindReceiptV1 } from '../services/engine-connector/types.js';
 import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
-import type { SetToolJSXFn, Tool } from '../Tool.js';
-import { resolveToolJSX } from './toolJsxArbitration.js';
+import type { Tool } from '../Tool.js';
 import { ChatKeys } from './chat/ChatKeys.js';
+import type { CrashResumeStaged } from './chat/crashResume.js';
 import type { FocusedInputDialog } from './chat/focusedDialog.js';
-import { RECEIPT_TIMEOUT_MS } from './chat/limits.js';
+import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './chat/limits.js';
 import type { Screen as ScreenName } from './chat/screen.js';
 import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
+import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsView } from './chat/useChatDialogs.js';
 import { useChatDraft } from './chat/useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
 import { TranscriptFooter, TranscriptSearchBar, useChatSearch } from './chat/useChatSearch.js';
@@ -134,7 +131,6 @@ import type { SessionListing } from '../types/logs.js';
 import type { Message, NormalizedUserMessage, ProgressMessage, UserMessage } from '../types/message.js';
 import type { PromptInputMode } from '../types/textInputTypes.js';
 import { createAbortController } from '../utils/abortController.js';
-import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js';
 import type { PastedContent } from '../utils/config/schema.js';
 import {
   crashReportDirDisplay,
@@ -145,7 +141,6 @@ import {
 } from '../utils/crashReport.js';
 import { clearedSessionAt } from '../utils/sessionStorage/clearedSessions.js';
 import { getProjectDir } from '../utils/sessionStoragePortable.js';
-import { CrashResumeDialog } from '../components/CrashResumeDialog.js';
 import { getCwd } from '../utils/cwd.js';
 import { logForDebugging } from '../utils/debug.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
@@ -172,8 +167,6 @@ export type Props = {
   disableSlashCommands?: boolean;
 };
 
-const COST_THRESHOLD_USD = 5;
-const SWITCH_STATUS_TIMEOUT_MS = 30_000;
 const WORKTREE_TIP_SECONDS = 15;
 const BOOT_WARMUP_MS = 150;
 const REWIND_SETTLE_WAIT_MS = 5000;
@@ -247,8 +240,6 @@ const INERT_PROMPT_HELPERS: PromptInputHelpers = {
 };
 
 type PaintsRows = { addDisplayRow?: (row: Message) => void; transcriptFile?: () => string };
-
-type ToolJSXState = Parameters<SetToolJSXFn>[0];
 
 type ResumableLog = Omit<Partial<SessionListing>, 'messages'> & { messages: Message[] };
 
@@ -396,30 +387,14 @@ export function Chat({
   const messages = useFocusedTranscript();
   const tailAnchor = useFocusedTailAnchor();
   const [conversationId, setConversationId] = useState<string>(() => focusedConnector.sessionId());
-  const [toolJSX, setToolJSXState] = useState<ToolJSXState>(null);
-  const setToolJSX: SetToolJSXFn = useCallback(next => {
-    setToolJSXState(prev => resolveToolJSX(prev, next));
-  }, []);
+  const { toolJSX, setToolJSX, isExiting, showExitFlow, setShowExitFlow, exitCommandJsx, showCostThreshold, setShowCostThreshold, showBashesDialog, setShowBashesDialog, handleExit } = useChatDialogs({ store });
   const [showMessageSelector, setShowMessageSelector] = useState(false);
   const openMessageSelector = useCallback(() => setShowMessageSelector(true), []);
   const [messageSelectorPreselect, setMessageSelectorPreselect] = useState<UserMessage | undefined>(undefined);
-  const [isExiting, setIsExiting] = useState(false);
-  const [showExitFlow, setShowExitFlow] = useState(false);
-  const [exitCommandJsx, setExitCommandJsx] = useState<React.ReactNode | null>(null);
   const [submitCount, setSubmitCount] = useState(0);
   const [lastCompletedAt, setLastCompletedAt] = useState<number | null>(null);
-  const [showCostThreshold, setShowCostThreshold] = useState(false);
-  const [crashResumeStaged, setCrashResumeStaged] = useState<{
-    origin: string;
-    component: string | null;
-    message: string;
-    sessionId: string;
-    cwd: string | null;
-    transcriptPath: string | undefined;
-    moreCount: number;
-  } | null>(null);
+  const [crashResumeStaged, setCrashResumeStaged] = useState<CrashResumeStaged | null>(null);
   const crashNoticeLatchedRef = useRef(false);
-  const [showBashesDialog, setShowBashesDialog] = useState<string | boolean>(false);
 
   const mcpState = useAppState(state => state.mcp);
   useEffect(() => {
@@ -711,19 +686,7 @@ export function Chat({
   const dialogInFlightRef = useRef<{ name: string; mounted: boolean } | null>(null);
   const armedHandedBackRef = useRef<{ text: string; pastedContents: Record<number, PastedContent> } | null>(null);
   const queuedDialogCommandsRef = useRef<Array<{ input: string; name: string; submittedAt: string; pastedContents: Record<number, PastedContent> }>>([]);
-  const dialogSlotRef = useRef<DOMElement | null>(null);
-  const [dialogPaints, setDialogPaints] = useState(false);
-  useEffect(() => {
-    const node = dialogSlotRef.current;
-    const paints = toolJSX?.isLocalJSXCommand === true && node !== null && measureElement(node).height > 0;
-    setDialogPaints(prev => (prev === paints ? prev : paints));
-  });
-  const localJsx = Boolean(toolJSX?.jsx && toolJSX.isLocalJSXCommand);
-  const compactDetailUp = compactFocus === 'detail' && fullscreen && !chatSurfaceCovered && focusedInputDialog === undefined && !localJsx;
-  const dialogOwnsKeys = (toolJSX?.isLocalJSXCommand === true && dialogPaints) || compactDetailUp;
-  useLayoutEffect(() => {
-    if (compactWork.read() === 'detail' && !compactDetailUp) compactWork.set('composer');
-  }, [compactDetailUp, compactWork]);
+  const { dialogSlotRef, dialogPaints, localJsx, compactDetailUp, dialogOwnsKeys } = useChatDialogPaints({ toolJSX, compactFocus, compactWork, fullscreen, chatSurfaceCovered, focusedInputDialog });
   const drainQueuedDialogCommand = useCallback((): void => {
     const next = queuedDialogCommandsRef.current.shift();
     if (next === undefined) return;
@@ -1263,14 +1226,7 @@ export function Chat({
 
   useTurnEndPing({ lastCompletedAt, busy: isLoading });
 
-  const costThresholdShownRef = useRef<boolean>(getGlobalConfig().hasAcknowledgedCostThreshold === true);
-  useEffect(() => {
-    if (costThresholdShownRef.current) return;
-    const focused = getFocusedSessionConnector();
-    if (focused.usage().totalCostUSD < COST_THRESHOLD_USD) return;
-    costThresholdShownRef.current = true;
-    if (focused.identity().consoleBilling) setShowCostThreshold(true);
-  }, [messages.length]);
+  const { centredModalUp, toolJSXRef, centredModal, bottomImmediateJsx, inlineToolJsx, focusedBottomDialog } = useChatDialogsView({ toolJSX, dialogSlotRef, localJsx, compactDetailUp, setShowCostThreshold, messages, fullscreen, compactWork, getToolUseContext, focusedEffectiveModel, chatSurfaceCovered, focusedInputDialog, elicitationQueue, respondToElicitation, dismissElicitationWaiting, crashResumeStaged, setCrashResumeStaged, addNotification, removeNotification, store });
 
   const worktreeTipShownRef = useRef(false);
   useEffect(() => {
@@ -1408,7 +1364,6 @@ export function Chat({
       settleEntryWarmth(warmth.sessionId);
     }
   }, [messages, focusedConnector, warmthVersion]);
-  const centredModalUp = (localJsx && fullscreen) || compactDetailUp;
   const displayedMessages = inVirtualTranscript ? transcriptMessages : paintedMessages;
 
   const rekeyedSessionRef = useRef(focusedSessionId);
@@ -1426,8 +1381,6 @@ export function Chat({
     }
   }, [focusedSessionId]);
   const slotHasSession = useSyncExternalStore(subscribeFocusedSessionConnector, hasFocusedSession, hasFocusedSession);
-  const toolJSXRef = useRef(toolJSX);
-  toolJSXRef.current = toolJSX;
   const armedMessageRef = useRef(armedMessage);
   armedMessageRef.current = armedMessage;
   useEffect(() => {
@@ -1595,91 +1548,6 @@ export function Chat({
         }}
       />
     ) : null;
-
-  const dialogSlot: React.ReactNode = toolJSX?.jsx ? (
-    <Box ref={dialogSlotRef} width="100%" flexDirection="column">
-      {toolJSX.jsx}
-    </Box>
-  ) : null;
-  const centredModal: React.ReactNode = compactDetailUp ? <BackgroundTasksDialog entry="compact-summary" compactControls={compactWork} onDone={() => compactWork.set('composer')} toolUseContext={getToolUseContext(messages, [], new AbortController(), focusedEffectiveModel)} /> : centredModalUp ? dialogSlot : null;
-  const bottomImmediateJsx: React.ReactNode = localJsx && !fullscreen && toolJSX!.isImmediate ? dialogSlot : null;
-  const inlineToolJsx = toolJSX?.jsx && !centredModal && !bottomImmediateJsx ? dialogSlot : null;
-
-  const focusedBottomDialog: React.ReactNode = chatSurfaceCovered ? null :
-    focusedInputDialog === 'elicitation' && elicitationQueue[0] ? (
-      <ElicitationDialog event={elicitationQueue[0]} onResponse={respondToElicitation} onWaitingDismiss={dismissElicitationWaiting} />
-    ) : focusedInputDialog === 'cost-threshold' ? (
-      <CostThresholdDialog
-        onDone={() => {
-          setShowCostThreshold(false);
-          saveGlobalConfig(config => ({ ...config, hasAcknowledgedCostThreshold: true }));
-        }}
-      />
-    ) : focusedInputDialog === 'crash-resume' && crashResumeStaged !== null ? (
-      <CrashResumeDialog
-        origin={crashResumeStaged.origin}
-        component={crashResumeStaged.component}
-        message={crashResumeStaged.message}
-        sessionId={crashResumeStaged.sessionId}
-        cwd={crashResumeStaged.cwd}
-        moreCount={crashResumeStaged.moreCount}
-        onDone={action => {
-          const staged = crashResumeStaged;
-          setCrashResumeStaged(null);
-          if (action !== 'resume' || staged === null) return;
-          void (async () => {
-            addNotification({
-              key: 'session-switch',
-              text: `opening ${staged.sessionId.slice(0, 8)}…`,
-              priority: 'medium',
-              timeoutMs: SWITCH_STATUS_TIMEOUT_MS,
-            });
-            const { focusResumedSession } = await import('../services/switchboard/hopIntoSession.js');
-            const outcome = await focusResumedSession(staged.sessionId, staged.transcriptPath, {
-              permissionMode: store.getState().toolPermissionContext.mode,
-            });
-            removeNotification('session-switch');
-            if (!outcome.ok) {
-              addNotification({
-                key: 'resume-hop',
-                text: `the crashed session could not be reopened — ${outcome.reason}`,
-                priority: 'high',
-                color: 'error',
-                timeoutMs: RECEIPT_TIMEOUT_MS,
-              });
-            }
-          })();
-        }}
-      />
-    ) : null;
-
-  const handleExit = useCallback(() => {
-    if (getCurrentWorktreeSession() !== null) {
-      setShowExitFlow(true);
-      return;
-    }
-    setIsExiting(true);
-    void (async () => {
-      try {
-        const module = await import('../commands/exit/exit.js');
-        const element = await module.call(
-          () => {
-            setExitCommandJsx(null);
-            setIsExiting(false);
-          },
-          { getAppState: () => store.getState() },
-        );
-        if (element === null || element === undefined) {
-          setIsExiting(false);
-          return;
-        }
-        setExitCommandJsx(element);
-      } catch (error) {
-        logForDebugging(`exit command failed: ${String(error)}`);
-        setIsExiting(false);
-      }
-    })();
-  }, [store]);
 
   const promptInput = !disabled && !isExiting && !showExitFlow && !toolJSX?.shouldHidePromptInput && (focusedInputDialog === undefined || compactFocus === 'detail') ? (
     <PromptInput
