@@ -106,7 +106,7 @@ const RETIRED: Array<[string, RegExp, string[]]> = [
   ['turn-engine-names', new RegExp(J('Query', 'Engine|submit', 'Message')), [J('Query', 'Engine'), J('submit', 'Message')]],
   ['crew-names', new RegExp(J('utils/', 'swarm|isAgent', 'SwarmsEnabled')), [J('utils/', 'swarm'), J('isAgent', 'Swarms')]],
   ['crew-launch-phrase', new RegExp(J('[Tt]eam', ' launch')), [J('eam', ' launch')]],
-  ['crew-spawn-tool', asName(J('Team', 'Create')), [J('Team', 'Create')]],
+  ['crew-spawn-tool', asName(J('Tea', 'mCreate')), [J('Tea', 'mCreate')]],
   ['crew-shared-estate', new RegExp(J('[Mm]ulti', 'player')), [J('ulti', 'player')]],
   ['engine-model-name', new RegExp(J('[mM]ain', 'LoopModel')), [J('ain', 'LoopModel')]],
   ['respond-to-model-name', new RegExp(J('RespondTo', 'Claude')), [J('RespondTo', 'Claude')]],
@@ -623,8 +623,8 @@ function main(): void {
       ['route-board-names', 'import { ' + J('Rou', 'terBoard') + " } from './" + J('Rou', 'terBoard') + ".js'"],
       ['route-store-files', "join(dir, '" + J('posture', '.json') + "')"],
       ['lineage-deprecated-suffix', 'export const getSettings' + J('_DEPRE', 'CATED') + ' = getInitialSettings'],
-      ['crew-launch-phrase', 'the ' + J('Team', ' launch') + ' backend'],
-      ['crew-spawn-tool', 'call ' + J('Team', 'Create') + ' first'],
+      ['crew-launch-phrase', 'the ' + J('Tea', 'm launch') + ' backend'],
+      ['crew-spawn-tool', 'call ' + J('Tea', 'mCreate') + ' first'],
       ['crew-shared-estate', 'a ' + J('multi', 'player') + ' session'],
     ]
     check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(','))
