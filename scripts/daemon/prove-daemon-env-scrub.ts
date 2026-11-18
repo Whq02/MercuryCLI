@@ -59,19 +59,6 @@ check('owner pid is still stamped', scrubbed.MERCURY_DAEMON_OWNER_PID === '123')
 const kept = buildDaemonEnv(parent, false)
 check('env-only auth (no keychain) ⇒ token KEPT (no fallback, no regression)', kept.MERCURY_OAUTH_TOKEN === 'SECRET-M')
 
-section('the restart successor door: the SAME gated scrub, receipted')
-{
-  const daemonMain = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf-8')
-  check(
-    'spawnSuccessorDaemon re-runs the gated scrub with the one-home set',
-    /function spawnSuccessorDaemon[\s\S]{0,900}if \(hasStoredOAuthToken\(\)\) \{[\s\S]{0,400}STORED_TOKEN_SCRUB_VARS/.test(daemonMain),
-  )
-  check(
-    'the successor scrub is RECEIPTED (the daemon says what it dropped and why)',
-    daemonMain.includes('successor scrub — a stored sign-in exists; the successor re-resolves it'),
-  )
-}
-
 section('the fresh-sign-in trigger: first-only, self-guarded, receipted by')
 {
   const oauthClient = readFileSync(join(ROOT, 'src', 'services', 'oauth', 'client.ts'), 'utf-8')

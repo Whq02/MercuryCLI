@@ -4,16 +4,12 @@ import { existsSync, watch as watchDir, writeSync, type FSWatcher } from 'node:f
 import { unlink } from 'fs/promises'
 import { basename, dirname, join, resolve } from 'path'
 import { MERCURY_VERSION } from '../constants/product.js'
-import { spawn } from 'node:child_process'
-import { hasStoredOAuthToken } from '../utils/auth.js'
-import { STORED_TOKEN_SCRUB_VARS } from '../utils/subprocessEnv.js'
 import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import { MERCURY_DAEMON_PROTO } from './protocol.js'
 import { DaemonBreaker } from '../utils/daemonBreaker.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
-import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
-import { stampSpawnReceipt } from '../substrate/envStamps.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
 import { getRunTimeoutMs, scrubDaemonRoleEnv } from './headlessRun.js'
 import {
@@ -103,7 +99,7 @@ import {
 import { startControlServer } from './controlServer.js'
 import { tokenBinding, type ProcessSweepDaemonAnswer, type ProcessSweepRunnerRecord } from './processSweep.js'
 import { recordProcessCensusAtBoot, sweepRunnerRecord } from './processSweepRun.js'
-import { DAEMON_USAGE, isScreenHealAsk, parseDaemonVerb, daemonRecordIdentity } from './verbs.js'
+import { DAEMON_USAGE, parseDaemonVerb, daemonRecordIdentity } from './verbs.js'
 import { hostedCallerOf, hostedCallerRefusalLine, restartEndsHostedCaller } from './hostedCaller.js'
 import {
   acquireDaemonLock,
@@ -125,8 +121,7 @@ import {
 } from './controlSocket.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
 import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, releaseVersionsDir, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
-import { OTHER_BUILD_WAY_OUT, REOPEN_WORDS } from './handshake.js'
-import { holdBuild, invokedScriptPath, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
+import { holdBuild, invokedScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, sameBuildTree, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
 import { SESSIONLESS_EXIT_BEAT_MS } from './sessionlessExit.js'
@@ -136,6 +131,7 @@ import { sleep } from '../utils/sleep.js'
 import { makeDaemonRunState, markDaemonReady } from './run/state.js'
 import { armOwnerWatch, makeSessionlessBeat, markHosted } from './run/owner.js'
 import { shutdownDaemon } from './run/shutdown.js'
+import { ARMED_RESTART_BEAT_MS, armedRestartBeat, restartWhenIdle, spawnSuccessorDaemon, successorRuntime } from './run/restart.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
@@ -487,6 +483,7 @@ async function daemonRun(args: string[]): Promise<void> {
         }
         return asked
       }
+      const restartNeeds = { liveWorkers, askLiveSessionsForFacts, requestShutdown: (signal: string) => requestShutdown(signal) }
       const bootStartToken = await getProcessStartTokenAsync(process.pid)
       const bootStartInstant = process.platform === 'win32' ? await getProcessStartInstantAsync(process.pid) : bootStartToken
       const persistDaemonRecord = (owner: number | null): Promise<void> =>
@@ -514,6 +511,7 @@ async function daemonRun(args: string[]): Promise<void> {
           () => Object.values(readSessionWorkersSnapshot().state === 'known' ? readSessionWorkers() : {}),
           await readHandoverHosts(handoverPredecessor, controlKey),
         )
+        state.handover = handover
         await persistDaemonRecord(state.currentOwnerPid)
         const moved = renameSocketForPredecessor(handoverPredecessor)
         handover.notePlaneMoved()
@@ -949,52 +947,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return view
         },
-        restartWhenIdle: by => {
-          const counts = liveWorkers()
-          const { live } = counts
-          if (foreground) {
-            return { state: 'refused' as const, live, detail: 'runs on a terminal: stop it there (ctrl-c) and run `mercury daemon` again' }
-          }
-          const installed = deployedRuntime()
-          const other = successorRuntime()
-          if (other !== null) {
-            const detail = otherBuildInstalledDetail(other, live)
-            console.error(`[daemon] restart asked by ${by} — ${detail}`)
-            askLiveSessionsForFacts()
-            if (live > 0 || birthsInFlight > 0 || handover?.alive()) {
-              state.restartArmed = true
-              return { state: 'armed' as const, live }
-            }
-            setImmediate(() => requestShutdown('control:restart-when-idle'))
-            return { state: 'refused' as const, live, detail }
-          }
-          if (installed !== null && isScreenHealAsk(by)) {
-            console.error(`[daemon] restart asked by ${by} — refused: ${reopenDetail(installed)}`)
-            return { state: 'refused' as const, live, detail: reopenDetail(installed) }
-          }
-          if (handover !== null && handover.alive()) {
-            const detail = predecessorsStillHostingDetail(handover, counts)
-            state.restartArmed = true
-            console.error(`[daemon] restart armed by ${by} — ${detail}`)
-            return { state: 'armed' as const, live, detail }
-          }
-          if (flagEnv('MERCURY_DAEMON_SUCCESSOR_OF') && Date.now() - startedAt < RESTART_STORM_GUARD_MS) {
-            return {
-              state: 'refused' as const,
-              live,
-              detail: unchangedSuccessorDetail(Math.round((Date.now() - startedAt) / 1000)),
-            }
-          }
-          if (live > 0 || birthsInFlight > 0) {
-            state.restartArmed = true
-            console.error(`[daemon] restart armed by ${by} — re-executes as the deployed build when the ${live} live worker(s)${birthsInFlight > 0 ? ` and ${birthsInFlight} session(s) being born` : ''} finish`)
-            return { state: 'armed' as const, live }
-          }
-          console.error(`[daemon] restart requested by ${by} — idle, re-executing as the deployed build`)
-          state.restartAfterTeardown = true
-          setImmediate(() => requestShutdown('control:restart-when-idle'))
-          return { state: 'restarting' as const, live: 0 }
-        },
+        restartWhenIdle: by => restartWhenIdle(state, restartNeeds, by),
         processSweep: async request => {
           const snapshot = readSessionWorkersSnapshot()
           const known = snapshot.state === 'known' ? snapshot.workers : null
@@ -1160,21 +1113,7 @@ async function daemonRun(args: string[]): Promise<void> {
         }
       }
       {
-        const armedBeat = setInterval(() => {
-          if (!state.restartArmed || state.restartAfterTeardown) return
-          if (liveWorkers().live > 0 || birthsInFlight > 0) return
-          if (handover?.alive() && (planeServedByOther === null || !isProcessAlive(planeServedByOther.pid))) return
-          state.restartArmed = false
-          const other = successorRuntime()
-          if (other !== null) {
-            console.error(`[daemon] armed restart — idle now; ${otherBuildInstalledDetail(other, 0)}`)
-            requestShutdown('restart-when-idle:armed')
-            return
-          }
-          state.restartAfterTeardown = true
-          console.error('[daemon] armed restart — idle now, re-executing as the deployed build')
-          requestShutdown('restart-when-idle:armed')
-        }, ARMED_RESTART_BEAT_MS)
+        const armedBeat = setInterval(() => armedRestartBeat(state, restartNeeds), ARMED_RESTART_BEAT_MS)
         armedBeat.unref?.()
         state.stopArmedBeat = () => clearInterval(armedBeat)
       }
@@ -1419,8 +1358,6 @@ async function daemonRun(args: string[]): Promise<void> {
 }
 
 const SUCCESSOR_LOCK_WAIT_MS = 10_000
-const RESTART_STORM_GUARD_MS = 60_000
-const ARMED_RESTART_BEAT_MS = 4_000
 const HANDOVER_LOCK_BEAT_MS = 2_000
 const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
 const IDLE_PREDECESSOR_READS = 3
@@ -1461,88 +1398,3 @@ const PLANE_HEAL_FLOOR_MS = 30_000
 const PLANE_HEAL_COALESCE_MS = 250
 const INSTALLED_POINTER_NAMES = new Set(['current', 'dist', 'current.txt'])
 const RECONCILE_TICK_MS = 60_000
-
-function successorRuntime(): ReturnType<typeof deployedRuntime> {
-  const deployed = deployedRuntime()
-  if (deployed === null) return null
-  const own = selfScriptPath()
-  return own !== '' && resolveScriptPath(deployed.script) === own ? null : deployed
-}
-
-function installedWords(runtime: NonNullable<ReturnType<typeof deployedRuntime>>): string {
-  return runtime.version !== null && runtime.version !== currentVersion() ? `v${runtime.version}` : `tree ${runtime.buildTree ?? 'unstamped'}`
-}
-
-function reopenDetail(installed: NonNullable<ReturnType<typeof deployedRuntime>>): string {
-  if (installed.version !== null && installed.version !== currentVersion()) {
-    return `${REOPEN_WORDS} — a newer Mercury (${installedWords(installed)}) is installed and this daemon already runs it`
-  }
-  return `this daemon runs the installed build (${installedWords(installed)}) and cannot become another build of the same version — ${OTHER_BUILD_WAY_OUT}`
-}
-
-function otherBuildInstalledDetail(other: NonNullable<ReturnType<typeof deployedRuntime>>, live: number): string {
-  const leaves = live > 0 ? `this one leaves when its ${live} live worker(s) finish, re-executing nothing` : 'this one leaves now, re-executing nothing'
-  return `another build (${installedWords(other)}) is installed — a Mercury of that build starts its own daemon; ${leaves}`
-}
-
-function liveSessionWords(n: number): string {
-  return `${n} live session${n === 1 ? '' : 's'}`
-}
-
-function predecessorsStillHostingDetail(state: Pick<HandoverStateV1, 'predecessorPids' | 'heldRunners'>, own: { live: number; liveSessions: number }): string {
-  const rows = state.predecessorPids().map(pid => ({ pid, held: state.heldRunners(pid).size }))
-  const theirs = rows.reduce((n, row) => n + row.held, 0)
-  const one = rows.length === 1
-  const who = one
-    ? `the daemon this one took over from (pid ${rows[0]!.pid})`
-    : `the daemons this one took over from (${rows.map(row => `pid ${row.pid}: ${row.held > 0 ? liveSessionWords(row.held) : 'leaving'}`).join(', ')})`
-  const hosting = theirs > 0 ? `still ${one ? 'hosts' : 'host'} ${liveSessionWords(theirs)}` : `${one ? 'is' : 'are'} still leaving`
-  const mine = own.live === 0 ? '' : ` and this daemon ${own.liveSessions === own.live ? `hosts ${liveSessionWords(own.live)}` : `runs ${own.live} live worker${own.live === 1 ? '' : 's'}`}`
-  const when = theirs > 0 || own.live > 0 ? 'when they finish' : one ? 'when it has gone' : 'when they have gone'
-  return `${who} ${hosting}${mine} — the restart runs ${when}`
-}
-
-function unchangedSuccessorDetail(ageSeconds: number): string {
-  const deployed = deployedRuntime()
-  const still = `came back unchanged ${ageSeconds}s ago (still v${currentVersion()}, protocol ${MERCURY_DAEMON_PROTO})`
-  if (deployed === null) return `${still}: a restart runs this same build — deploy a new build first`
-  if (deployed.layout === 'release') {
-    return `${still}: the install's current version is still v${deployed.version ?? currentVersion()} — a restart runs this same build`
-  }
-  return `${still}: the deployed build is still this one — deploy a new build first`
-}
-
-function spawnSuccessorDaemon(): number | undefined {
-  try {
-    const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }
-    for (const spelling of flagSpellings('MERCURY_DAEMON_HANDOVER_FROM')) delete env[spelling]
-    stampSpawnReceipt(env, ['MERCURY_DAEMON_SUCCESSOR_OF'])
-    if (hasStoredOAuthToken()) {
-      const stripped: string[] = []
-      for (const k of STORED_TOKEN_SCRUB_VARS) {
-        if (env[k] !== undefined) stripped.push(k)
-        delete env[k]
-      }
-      if (stripped.length > 0) {
-        console.error(`[daemon] successor scrub — a stored sign-in exists; the successor re-resolves it (dropped: ${stripped.join(', ')})`)
-      }
-    }
-    const script = selfScriptPath()
-    const node = nodeForBuild(script ? dirname(script) : '')
-    const args = script ? [...process.execArgv, script, ...process.argv.slice(2)] : [...process.execArgv, ...process.argv.slice(1)]
-    const child = spawn(node, args, {
-      cwd: process.cwd(),
-      env,
-      detached: true,
-      windowsHide: true,
-      stdio: ['ignore', 'inherit', 'inherit'],
-    })
-    child.on('error', e => logForDebugging(`[daemon] successor spawn error (ignored): ${e}`))
-    child.unref()
-    console.error(`[daemon] successor spawned — pid ${child.pid} runs ${script || process.argv[1] || '?'} (this same build, v${currentVersion()}) on ${node}`)
-    return child.pid
-  } catch (e) {
-    console.error(`[daemon] successor spawn failed — the next screen starts a daemon: ${e}`)
-    return undefined
-  }
-}

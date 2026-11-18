@@ -785,7 +785,7 @@ export const SCENARIOS: Scenario[] = [
       const next = await w.successor(d)
       await w.rpc('hello of the successor', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
       await w.rpc('restart-when-idle again', { op: 'restart-when-idle', by: 'recorder' })
-      await w.rpc('restart-when-idle by a screen heal', { op: 'restart-when-idle', by: 'screen-heal' })
+      await w.rpc('restart-when-idle by a screen heal', { op: 'restart-when-idle', by: 'screen 4242' })
       w.files('the successor serves')
       await w.cli('mercury daemon stop', ['daemon', 'stop'])
       await w.until('the successor left', () => !alive(next), 20_000)

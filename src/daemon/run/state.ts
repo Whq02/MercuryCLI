@@ -3,6 +3,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { ControlServerHandle } from '../controlServer.js'
 import type { DaemonLock } from '../controlSocket.js'
+import type { HandoverStateV1 } from '../handover.js'
 import { parseOwnerPid, type OwnerPipeHandleV1, type OwnerWatchHandleV1 } from '../ownerWatch.js'
 import type { PlaneOwnerV1 } from '../planeRecords.js'
 import type { TaskRoster } from '../roster.js'
@@ -24,6 +25,7 @@ export interface DaemonRunState extends Readonly<DaemonRunBootFacts> {
   readonly wakeReady: () => void
   ready: boolean
   roster: TaskRoster | null
+  handover: HandoverStateV1 | null
   daemonLock: DaemonLock | null
   controlServer: ControlServerHandle | null
   releaseHeldReading: () => void
@@ -63,6 +65,7 @@ export function makeDaemonRunState(boot: DaemonRunBootFacts): DaemonRunState {
     wakeReady,
     ready: false,
     roster: null,
+    handover: null,
     daemonLock: null,
     controlServer: null,
     releaseHeldReading: () => {},
