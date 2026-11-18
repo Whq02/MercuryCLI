@@ -16,7 +16,6 @@ import { hasConversationTurn } from '../utils/conversationRecovery.js'
 import { reconstructContentReplacementState } from '../utils/toolResultStorage.js'
 import { adoptResumedSessionFile, flushSessionStorage, getSessionMessages, peekProject, recordTranscript } from '../utils/sessionStorage/writer.js'
 import { RunnerQuiescence } from '../daemon/runnerQuiescence.js'
-import { capabilityHoldWords, runnerCapabilityHolds } from '../daemon/runnerCapabilityCensus.js'
 import { sessionFilePath } from '../utils/sessionStorage/loading.js'
 import { claimSessionWriter } from '../utils/sessionStorage/sessionWriter.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
@@ -62,6 +61,7 @@ import { hydrateResumedRun } from './headless/resumeHydration.js'
 import * as inputDoor from './headless/inputDoor.js'
 import * as printTurn from './headless/printTurn.js'
 import * as printDriver from './headless/printDriver.js'
+import { runnerParkRefusal } from './headless/parkRefusal.js'
 import { priorTurnCount } from './headless/claimSession.js'
 import { fileCheckpointsFact } from './headless/sessionFactsArm.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
@@ -1028,13 +1028,7 @@ export async function runHeadless(
   const idleTimeout = createIdleTimeoutManager(() => !driver.isRunning())
 
   const quiescence = new RunnerQuiescence({
-    refusal: () => {
-      if (driver.isRunning()) return 'a turn is running'
-      if (getCommandQueue().some(isMainThreadCommand)) return 'a prompt is queued'
-      const busy = getRunningTasks(getAppState())
-      if (busy.length > 0) return `${busy.length} background task(s) still running`
-      return capabilityHoldWords(runnerCapabilityHolds(asks))
-    },
+    refusal: () => runnerParkRefusal(ports),
     flush: () => flushSessionStorage(),
   })
   subscribeToCommandQueue(() => {
