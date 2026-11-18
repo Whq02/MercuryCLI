@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path'
 import { buildImportGraph } from '../orphans/graph.ts'
 import { loadImpactManifest, narrowedRow, NET_GLOB, RATCHETS, selectImpact } from './impactManifest.ts'
 import { DEFAULT_HUB_CEILING, estimatePooledWallS, type GateClass } from './sliceCore.ts'
-import { watchGraphOf } from './watchGraph.ts'
+import { computedWatch, watchGraphOf } from './watchGraph.ts'
 
 const ROOT = process.env.MERCURY_SLICE_ROOT ? resolve(process.env.MERCURY_SLICE_ROOT) : resolve(import.meta.dir, '..', '..')
 const DRAW = 200
@@ -16,6 +16,7 @@ const option = (name: string): string[] => {
 }
 const detail = option('--detail')[0]
 const chainOf = option('--chain')
+const claimantsTo = option('--claimants')[0]
 
 type Suite = ReturnType<typeof watchGraphOf>['suites'][number]
 type Tier = 'touched' | 'deep' | 'lazy'
@@ -28,6 +29,26 @@ const underSrc = tracked.filter(f => f.startsWith('src/'))
 const manifest = loadImpactManifest(ROOT)
 const bySuite = new Map(graph.suites.map(s => [s.suite, s]))
 const classOf = (suite: string): string => manifest.classes?.[suite] ?? 'undeclared'
+
+if (claimantsTo) {
+  const hand = selectImpact(manifest, tracked).perPath
+  const both = selectImpact(loadImpactManifest(ROOT, computedWatch(ROOT)), tracked).perPath
+  const suitesOf = (map: Record<string, string[]>, path: string): string[] => (map[path] ?? []).filter(c => !c.startsWith('(')).sort()
+  let before = 0
+  let after = 0
+  let lost = 0
+  const lines = tracked.map(path => {
+    const byHand = suitesOf(hand, path)
+    const byBoth = suitesOf(both, path)
+    before += byHand.length
+    after += byBoth.length
+    lost += byHand.filter(s => !byBoth.includes(s)).length
+    return `${path}\t${byHand.join(' ')}\t${byBoth.join(' ')}`
+  })
+  writeFileSync(claimantsTo, ['path\tthe hand map\tthe hand map and the computed list', ...lines].join('\n') + '\n')
+  console.log(`${tracked.length} paths · ${before} claims under the hand map · ${after} with the computed list beside it · ${lost} lost · written to ${claimantsTo}`)
+  process.exit(lost === 0 ? 0 : 1)
+}
 
 const globs = new Map<string, Set<string>>()
 function matchesOf(pattern: string): Set<string> {
