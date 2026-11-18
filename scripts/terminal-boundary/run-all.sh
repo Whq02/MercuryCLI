@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: src/cli/run* src/utils/process.ts src/utils/crashReport* src/ink/components/ErrorOverview* src/ink/components/App.tsx src/components/RowErrorBoundary* src/main.tsx src/ink/launcherAltHold.ts src/entrypoints/cli.tsx scripts/ops/launcher-mercury.sh
 # gate-watch: scripts/lib/fixtureApi.ts scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py
 # gate-watch: src/components/** src/ink/session/querier.ts src/screens/**
@@ -9,6 +9,7 @@
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,7 +18,9 @@ echo "############################################################"
 echo "# terminal-boundary — presentation boundary + machine-output contracts"
 echo "############################################################"
 shopt -s nullglob
+claimed=$(cd "$here/../.." && members_cat scripts/terminal-boundary-*/members.txt)
 for proof in "$here"/prove-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
   echo
   echo "── $(basename "$proof") ──"
   __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"

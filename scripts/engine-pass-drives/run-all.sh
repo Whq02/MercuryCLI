@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# gate-class: pty
+# gate-watch: scripts/engine-pass/**
+# gate-watch: src/ink/** src/ink.ts
+# gate-watch: src/utils/staticRender.tsx src/components/mercury-ui/** assets/splash/**
+# gate-watch: scripts/ui/** scripts/critters/fixtures/** scripts/critters/zzzFrames.ts scripts/engine-connector/fixtures/**
+# gate-watch: design-system/live/** scripts/lib/ptyRecorder.ts scripts/lib/firstRunSeed.ts scripts/lib/distProvenance.ts
+# gate-watch: scripts/engine-connector/prove-crew-token-rows.ts scripts/critters/prove-critter-sleep.ts scripts/visual-contract/baseline-capture.ts
+set -uo pipefail
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
+
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/engine-pass-drives"
+if [ ! -f dist/mercury.mjs ]; then
+  printf '%s\n' 'engine-pass-drives: dist/mercury.mjs absent; build before running terminal drives'
+  exit 1
+fi
+
+drive_members engine-pass-drives 'scripts/engine-pass/$name' "$here/members.txt"

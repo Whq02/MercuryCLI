@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: scripts/repetition-guard/**
 # gate-watch: src/services/changeTransaction/repetitionPolicy.ts
 # gate-watch: src/tools/FileEditTool/** src/tools/FileWriteTool/** src/tools/ChangeSetTool/**
@@ -9,6 +9,7 @@
 # gate-watch: src/services/run/effectObserver.ts src/utils/verification/verificationState.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -17,7 +18,9 @@ fail=0
 echo "############################################################"
 echo "# MERCURY repetition-guard — truthful no-change + bounded repetition"
 echo "############################################################"
+claimed=$(cd "$here/../.." && members_cat scripts/repetition-guard-*/members.txt)
 for f in "$here"/prove-*.ts "$here"/render-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$f")" && continue
   [ -e "$f" ] || continue
   name="$(basename "$f")"
   echo ""

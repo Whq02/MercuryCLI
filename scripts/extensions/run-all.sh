@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
-# gate-env: MERCURY_EXTUI_CAPTURE_DIR MERCURY_EXTUI_ONLY
+# gate-class: pure
 # gate-watch: src/extensions/** src/skills/loadSkillsDir* src/utils/hooks/**
 # gate-watch: docs/EXTENSIONS.md docs/templates/extension-source-README.md
 # gate-watch: mercury-skills/extension-maker/SKILL.md

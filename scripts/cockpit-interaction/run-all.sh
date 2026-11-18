@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: src/components/** src/keybindings/**
 # gate-watch: src/utils/mercuryTokens* src/utils/helmDensity* src/utils/helmGeometry*
 # gate-watch: src/utils/transcriptSearch* src/utils/cockpit/cockpitActivity*
@@ -30,6 +30,7 @@
 # gate-watch: src/screens/chat/useChatTitle.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -40,7 +41,9 @@ echo "############################################################"
 echo "# cockpit-interaction — UI fluency, adaptive cockpit, platform parity"
 echo "############################################################"
 
+claimed=$(cd "$here/../.." && members_cat scripts/cockpit-interaction-*/members.txt)
 for proof in "$here"/prove-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
   [ -e "$proof" ] || continue
   name="$(basename "$proof")"
   case "$name" in _*) continue ;; esac

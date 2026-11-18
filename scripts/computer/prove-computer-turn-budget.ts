@@ -1,6 +1,6 @@
 import { rmSync } from 'node:fs'
-import { check, finish, HOME, section } from '../computer/computerProofKit.ts'
-import { ownerOf, toolContext } from '../computer/computerToolKit.ts'
+import { check, finish, HOME, section } from './computerProofKit.ts'
+import { ownerOf, toolContext } from './computerToolKit.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { CARD, CONTROL, CONTROL_BASE, DIALOG, VALUES, controlCalls, installTurnBudgetDesktop, targetCalls, type Call } from './turnBudgetFixture.ts'

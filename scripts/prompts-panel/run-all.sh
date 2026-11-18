@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: scripts/prompts-panel/** scripts/ui/vshot.py scripts/ui/renderScenarios.ts
 # gate-watch: src/components/prompts-panel/** src/commands/workbench/**
 # gate-watch: src/utils/savedPrompts/**
@@ -21,7 +21,7 @@ fail=0
 echo "############################################################"
 echo "# PROMPTS PANEL — records · saved prompts"
 echo "############################################################"
-for f in prove-prompt-rows prove-saved-prompts-store prove-panel-captures prove-hop-follows-focus prove-detail-footer-honesty; do
+for f in prove-prompt-rows prove-saved-prompts-store prove-detail-footer-honesty; do
   echo "── scripts/prompts-panel/$f.ts"
   __t=$SECONDS; __rc=0; "$BUN" run "$here/$f.ts" || { __rc=$?; fail=1; }; prover_mark "$here/$f.ts" "$__t" "$__rc"
 done

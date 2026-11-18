@@ -114,9 +114,15 @@ const PANEL_FIXTURE_KEY = 'sk-ant-panel-captures-probe'
 }
 
 const settingsPath = join(CONFIG_HOME, 'settings.json')
+const readSettings = (): string | null => (existsSync(settingsPath) ? readFileSync(settingsPath, 'utf8') : null)
+const settingsAsFound = readSettings()
 function setSwarmMaster(enabled: boolean): void {
   const current = existsSync(settingsPath) ? (JSON.parse(readFileSync(settingsPath, 'utf8')) as Record<string, unknown>) : {}
   writeFileSync(settingsPath, JSON.stringify({ ...current, swarm: { ...((current['swarm'] as Record<string, unknown> | undefined) ?? {}), enabled } }))
+}
+function restoreSettings(): void {
+  if (settingsAsFound === null) rmSync(settingsPath, { force: true })
+  else writeFileSync(settingsPath, settingsAsFound)
 }
 setSwarmMaster(false)
 
@@ -380,6 +386,8 @@ for (const [cols, rows] of SIZES) {
 
 cleanupScenario('resume-2turn')
 clearSavedPrompts()
+restoreSettings()
+check("the home's settings.json ends as this proof found it: a later suite in the same home reads the swarm switch it was given", readSettings() === settingsAsFound, `found ${settingsAsFound ?? 'no file'} · left ${readSettings() ?? 'no file'}`)
 console.log(`\n  captures: ${CAPTURE_DIR}`)
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-panel-captures — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)
 process.exit(failures === 0 ? 0 : 1)

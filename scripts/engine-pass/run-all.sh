@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: src/ink/** src/ink.ts
 # gate-watch: src/utils/staticRender.tsx src/components/mercury-ui/** assets/splash/**
 # gate-watch: scripts/ui/** scripts/critters/fixtures/** scripts/critters/zzzFrames.ts scripts/engine-connector/fixtures/**
@@ -12,9 +12,5 @@ cd "$(dirname "$0")/../.." || exit 1
 BUN="${BUN:-bun}"
 fail=0
 run_proof scripts/engine-pass/prove-judge-teeth.ts "$BUN" scripts/engine-pass/prove-judge-teeth.ts || fail=1
-run_proof scripts/engine-pass/prove-recorder.ts "$BUN" scripts/engine-pass/prove-recorder.ts || fail=1
 run_proof scripts/engine-pass/prove-engine-contract.ts "$BUN" scripts/engine-pass/prove-engine-contract.ts || fail=1
-run_proof scripts/engine-pass/prove-frame-wire.ts "$BUN" scripts/engine-pass/prove-frame-wire.ts || fail=1
-run_proof scripts/engine-pass/prove-frames-identical.ts "$BUN" scripts/engine-pass/prove-frames-identical.ts || fail=1
-run_proof scripts/engine-pass/prove-frame-cost.ts "$BUN" scripts/engine-pass/prove-frame-cost.ts || fail=1
 exit "$fail"

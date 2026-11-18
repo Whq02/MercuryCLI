@@ -1,5 +1,5 @@
-import { check, finish } from '../computer/computerProofKit.ts'
-import { ownerOf, resultOf, toolContext } from '../computer/computerToolKit.ts'
+import { check, finish } from './computerProofKit.ts'
+import { ownerOf, resultOf, toolContext } from './computerToolKit.ts'
 import type { DesktopApplication, DesktopDriver, DesktopFocusedText, DesktopAnswer, DesktopTreeElement } from '../../src/services/desktop/driver.ts'
 
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')

@@ -1,5 +1,5 @@
-import { check, finish, section } from '../computer/computerProofKit.ts'
-import { allowEverything, resultOf, toolContext, toolUseTurn } from '../computer/computerToolKit.ts'
+import { check, finish, section } from './computerProofKit.ts'
+import { allowEverything, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
 import type { DesktopTreeElement } from '../../src/services/desktop/driver.ts'
 
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
@@ -85,7 +85,7 @@ section('a trailing wait under a session grant still reads the observation (the 
   const { writeComputerGrant, timedComputerGrant, clearComputerGrant } = await import('../../src/services/desktop/computerGrant.ts')
   const { getSessionId } = await import('../../src/bootstrap/state.ts')
   const session = await import('../../src/services/desktop/desktopSession.ts')
-  const { ownerOf } = await import('../computer/computerToolKit.ts')
+  const { ownerOf } = await import('./computerToolKit.ts')
   const owner = ownerOf(context)
   const sessionId = String(getSessionId())
   for (const capture of [false, true]) {
