@@ -208,7 +208,7 @@ if (anchor) {
 
 const manifest = loadImpactManifest(ROOT, anchor !== null && paths.length > 0 ? (await import('./watchGraph.ts')).computedWatch(ROOT) : undefined)
 const launches = anchor !== null && paths.length > 0 ? runnerLaunches(ROOT) : []
-const runsOneMember = (suite: string): boolean => /^\s*drive_members\s/m.test(readFileSync(join(ROOT, 'scripts', suite, 'run-all.sh'), 'utf8'))
+const runsOneMember = (suite: string): boolean => /^\s*(?:[A-Z_][A-Z0-9_]*=\S*\s+)*drive_members\s/m.test(readFileSync(join(ROOT, 'scripts', suite, 'run-all.sh'), 'utf8'))
 
 function loadDurations(): Record<string, number> {
   const out: Record<string, number> = {}
