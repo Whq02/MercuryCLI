@@ -154,8 +154,24 @@ async function main(): Promise<void> {
     const repl = read('src/screens/Chat.tsx')
     const connector = read('src/services/engine-connector/daemonConnector.ts')
     check('the Chat no longer composes a duplicate delegation-wait sentence', !repl.includes('viewDelegationWait') && !repl.includes('const viewAgentWait ='))
-    check('the spinner override is reserved for compaction and attention', repl.includes('viewCompacting ? FOLD_ROW_HEAD : null}'))
-    check('compact attention still uses the real status facts', repl.includes('statusRowWarns(seatLive, compactSeatStatus)') && repl.includes('statusLine(seatLive, compactSeatStatus, null, true)'))
+    const { openStatusPart } = await import(join(ROOT, 'scripts/ui/chatScenarios.ts'))
+    const { FOLD_ROW_HEAD } = await import(src('services/compact/foldStatus.ts'))
+    const slot = await import(src('services/engine-connector/focusedConnector.ts'))
+    const strip = await openStatusPart('crewmate-wait-words-strip', { keepHome: true })
+    const said = async (live: SessionLiveV1, isCompact = false): Promise<{ words: unknown; warning: unknown }> => {
+      await strip.plant({ seatLive: live, isCompact })
+      return { words: strip.handed.spinner?.overrideMessage, warning: strip.handed.spinner?.compactWarning }
+    }
+    const plain = [await said(foreground), await said(background), await said({ ...background, phase: 'thinking' }), await said({ ...background, phase: 'responding' })]
+    const folding = await said({ ...background, phase: 'compacting' })
+    const calm = await said(background, true)
+    strip.session.warns = true
+    const wide = await said(background)
+    const attention = await said(background, true)
+    const facts = { ...slot.getFocusedSessionConnector().status(), wait: null }
+    await strip.close()
+    check('the spinner override is reserved for compaction and attention', plain.every(row => row.words === null) && wide.words === null && calm.words === null && folding.words === FOLD_ROW_HEAD && typeof attention.words === 'string' && attention.words !== '', JSON.stringify({ plain, wide, calm, folding, attention }))
+    check('compact attention still uses the real status facts', attention.warning === true && calm.warning === false && bar.statusRowWarns(background, facts) === true && attention.words === bar.statusLine(background, facts, null, true), JSON.stringify({ attention, calm }))
     check('a running tool keeps the tool phase in the connector (the foreground case never reads as a bare wait)', connector.includes("this.liveStateWord === 'waiting-on-agents' && this.liveState.phase !== 'tool'"))
   }
 
