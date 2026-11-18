@@ -336,7 +336,7 @@ async function* runBash(
           onProgress,
         }).catch((error: unknown) => {
           if (!(error instanceof IdeTerminalUnavailableError)) throw error
-          editorTerminalNote = `The editor's terminal was not used (${error.message}); this command ran in the local shell.`
+          editorTerminalNote = error.message
           return null
         })
       : null

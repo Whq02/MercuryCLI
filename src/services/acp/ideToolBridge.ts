@@ -257,7 +257,7 @@ type EditorTerminalShell = {
 
 const EDITOR_SHELL_PROBE_MS = 10_000
 
-let editorShellAsked: { file: string; refusal: Promise<string | null> } | null = null
+let editorShellAsked: { refusal: Promise<string | null>; said: boolean } | null = null
 
 async function editorShellRefusal(
   door: IdeToolDoor,
@@ -282,19 +282,19 @@ async function editorShellRefusal(
   try {
     await door.terminalWaitForExit({ terminal_id: terminalId }, bound)
     const said = await door.terminalOutput({ terminal_id: terminalId }, bound)
-    refusal = said.output.includes(word) ? null : `its terminal did not start ${shell.file} on the line it was handed`
+    refusal = said.output.includes(word) ? null : `asked to start ${shell.file} on one line, it did not print what that line prints`
   } catch (error) {
-    refusal = `its terminal did not answer for ${shell.file} within ${EDITOR_SHELL_PROBE_MS / 1000} s (${error instanceof Error ? error.message : String(error)})`
+    refusal = `asked to start ${shell.file} on one line, it did not answer within ${EDITOR_SHELL_PROBE_MS / 1000} s: ${error instanceof Error ? error.message : String(error)}`
     try {
       await door.terminalKill({ terminal_id: terminalId })
     } catch (killError) {
-      refusal = `${refusal}; ending it failed too (${killError instanceof Error ? killError.message : String(killError)})`
+      refusal = `${refusal}; ending that terminal failed too: ${killError instanceof Error ? killError.message : String(killError)}`
     }
   }
   try {
     await door.terminalRelease({ terminal_id: terminalId })
   } catch (releaseError) {
-    if (refusal !== null) refusal = `${refusal}; releasing it failed too (${releaseError instanceof Error ? releaseError.message : String(releaseError)})`
+    if (refusal !== null) refusal = `${refusal}; releasing that terminal failed too: ${releaseError instanceof Error ? releaseError.message : String(releaseError)}`
   }
   return refusal
 }
@@ -319,16 +319,18 @@ export async function execViaIdeTerminal(
     if (typeof v === 'string') envList.push({ name: k, value: v })
   }
 
-  if (editorShellAsked === null || editorShellAsked.file !== shell.file) {
-    editorShellAsked = { file: shell.file, refusal: editorShellRefusal(door, shell, envList, options.cwd, abortSignal) }
-  }
+  editorShellAsked ??= { refusal: editorShellRefusal(door, shell, envList, options.cwd, abortSignal), said: false }
   const asked = editorShellAsked
   const refusal = await asked.refusal
   if (abortSignal.aborted) {
-    if (refusal !== null && editorShellAsked === asked) editorShellAsked = null
+    if (refusal !== null && !asked.said && editorShellAsked === asked) editorShellAsked = null
     return createAbortedCommand()
   }
-  if (refusal !== null) throw new IdeTerminalUnavailableError(refusal)
+  if (refusal !== null) {
+    if (asked.said) return null
+    asked.said = true
+    throw new IdeTerminalUnavailableError(`The editor's terminal could not start Mercury's shell (${refusal}); this command ran in the local shell, and so will the rest of this session's.`)
+  }
 
   let terminalId: string
   try {
@@ -345,7 +347,7 @@ export async function execViaIdeTerminal(
     terminalId = created.terminal_id
   } catch (error) {
     if (abortSignal.aborted) return createAbortedCommand()
-    throw new IdeTerminalUnavailableError(error instanceof Error ? error.message : String(error))
+    throw new IdeTerminalUnavailableError(`The editor could not open a terminal (${error instanceof Error ? error.message : String(error)}); this command ran in the local shell.`)
   }
 
   const taskId = generateTaskId('local_bash')

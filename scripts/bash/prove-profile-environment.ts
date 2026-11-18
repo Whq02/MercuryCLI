@@ -229,7 +229,7 @@ async function byAnEditor(name: string, situation: string, terminal: EditorTermi
   if (terminal === 'starts what it is asked') {
     check(`${situation}: the second thing asked is the command, inside the line the local road builds (eval and the quoted text)`, asked.length === 2 && (asked[1]?.args?.[1] ?? '').includes("eval 'echo \"path=$PATH\"") && result.includes('ran in the editor terminal'), `${told} · ${JSON.stringify(result.slice(-200))}`)
   } else {
-    check(`${situation}: an editor whose terminal does not start the shell is asked once and not again, and the result says the command ran in the local shell`, asked.length === 1 && /editor's terminal was not used .*ran in the local shell/.test(result), `${told} · ${JSON.stringify(result.slice(-300))}`)
+    check(`${situation}: an editor whose terminal does not start the shell is asked once and not again, and the result says in one sentence that the command ran in the local shell`, asked.length === 1 && /The editor's terminal could not start Mercury's shell \(.*\); this command ran in the local shell, and so will the rest of this session's\./.test(result), `${told} · ${JSON.stringify(result.slice(-300))}`)
   }
 }
 
