@@ -197,7 +197,7 @@ section('(4) the runner runs this list: it builds the ports from what it is hand
   check('before the list has run, the ports refuse a member the list makes', call !== undefined && thrown(() => call.ports.wire).startsWith("the runner's port wire is read before the boot step "), [call === undefined ? '' : thrown(() => call.ports.wire)])
 }
 
-section('(5) a notification that arrives while the runner boots is held with the requests and delivered after the boot, in the order it arrived')
+section('(5) what arrives while the runner boots is held behind initialize and handed on after the boot, in the order it arrived')
 {
   const { PassThrough } = await import('node:stream')
   const { createPeer } = await import('../../src/runner/wire/peer.ts')
@@ -205,49 +205,84 @@ section('(5) a notification that arrives while the runner boots is held with the
   const turn = (): Promise<void> => new Promise(done => setTimeout(done, 25))
   const line = (frame: Record<string, unknown>): string => `${JSON.stringify({ jsonrpc: '2.0', ...frame })}\n`
   const hello = { protocol: 1, host: { name: 'proof-host', version: '0' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }
-  const booting = async (answer: 'the boot ends' | 'the boot refuses'): Promise<{ during: string[]; after: string[]; said: string[]; answers: string }> => {
+  const N = (): string => line({ method: 'credentials/changed', params: {} })
+  const INIT = (id = 1): string => line({ id, method: 'initialize', params: hello })
+  const R = (id: number, method: string, params: Record<string, unknown> = {}): string => line({ id, method, params })
+  const world = (): { write: (text: string) => void; order: string[]; said: string[]; answers: () => string; settleBoot: () => void; refuseNext: () => void; close: () => void } => {
     const input = new PassThrough()
     const output = new PassThrough()
     let answers = ''
     output.on('data', chunk => (answers += String(chunk)))
     const said: string[] = []
     const peer = createPeer({ input, output, side: 'runner', log: text => void said.push(text) })
-    let bootSettled: () => void = () => {}
-    const bootReady = new Promise<void>(done => (bootSettled = done))
+    let settleBoot: () => void = () => {}
+    const bootReady = new Promise<void>(done => (settleBoot = done))
     const order: string[] = []
     let changes = 0
+    let refusing = false
     peer.onRequest('initialize', async () => {
       await bootReady
       order.push('the boot ended')
-      if (answer === 'the boot refuses') throw new Error('the boot refused')
+      if (refusing) {
+        refusing = false
+        throw new Error('the boot refused')
+      }
       return initializeResultOf(null, { capable: false } as never)
     })
     peer.onNotification('credentials/changed', () => void order.push(`credentials/changed ${++changes}`))
-    peer.onRequest('session/send_now', async () => {
-      order.push('session/send_now')
-      return {} as never
-    })
-    input.write(line({ method: 'credentials/changed', params: {} }) + line({ id: 1, method: 'initialize', params: hello }) + line({ method: 'credentials/changed', params: {} }) + line({ id: 2, method: 'session/send_now', params: {} }) + line({ method: 'credentials/changed', params: {} }))
-    await turn()
-    const during = [...order]
-    bootSettled()
-    await turn()
-    const after = [...order]
-    peer.close('the proof is done')
-    return { during, after, said, answers }
+    for (const method of ['session/send_now', 'session/facts', 'queue/add', 'session/set_mode'] as const) {
+      peer.onRequest(method, async () => {
+        order.push(method)
+        return {} as never
+      })
+    }
+    return { write: text => void input.write(text), order, said, answers: () => answers, settleBoot: () => settleBoot(), refuseNext: () => void (refusing = true), close: () => peer.close('the proof is done') }
   }
-  const booted = await booting('the boot ends')
+  const booting = async (frames: string[], apart: boolean): Promise<{ during: string[]; after: string[]; said: string[] }> => {
+    const w = world()
+    if (apart) {
+      for (const frame of frames) {
+        w.write(frame)
+        await turn()
+      }
+    } else {
+      w.write(frames.join(''))
+      await turn()
+    }
+    const during = [...w.order]
+    w.settleBoot()
+    await turn()
+    w.close()
+    return { during, after: w.order.slice(during.length), said: w.said }
+  }
+  const oneWrite = await booting([N(), INIT(), N(), R(2, 'session/send_now'), N()], false)
+  const apart = await booting([N(), INIT(), N(), R(2, 'session/facts'), N()], true)
+  const scoped = await booting([N(), INIT(), N(), R(2, 'queue/add', { type: 'prompt', content: 'words' }), N(), R(3, 'session/set_mode', { mode: 'implement' }), N()], true)
+  const quiet = (scene: { during: string[]; said: string[] }): boolean => scene.during.length === 0 && !scene.said.some(text => text.includes('failed') || text.includes('dropped'))
   check(
-    'three credentials/changed sent before initialize, behind it and behind a request reach their arm only after the boot has ended and initialize is answered, each once, in the order they arrived, and the request held with them is served',
-    booted.during.length === 0 && booted.after[0] === 'the boot ended' && j(booted.after.filter(name => name.startsWith('credentials/changed'))) === j(['credentials/changed 1', 'credentials/changed 2', 'credentials/changed 3']) && booted.after.includes('session/send_now') && booted.after.length === 5 && !booted.said.some(text => text.includes('failed')),
-    [`during the boot: ${j(booted.during)}`, `after it: ${j(booted.after)}`, `the peer said: ${j(booted.said)}`],
+    'notifications and a request of no scope held behind initialize reach their arms only after the boot has ended and initialize is answered, each once, in the order they arrived: the whole order, in one write (N, initialize, N, session/send_now, N) and 25 ms apart (N, initialize, N, session/facts, N)',
+    quiet(oneWrite) && j(oneWrite.after) === j(['the boot ended', 'credentials/changed 1', 'credentials/changed 2', 'session/send_now', 'credentials/changed 3']) && quiet(apart) && j(apart.after) === j(['the boot ended', 'credentials/changed 1', 'credentials/changed 2', 'session/facts', 'credentials/changed 3']),
+    [`one write, after the boot: ${j(oneWrite.after)}`, `25 ms apart, after the boot: ${j(apart.after)}`, `the peer said: ${j([...oneWrite.said, ...apart.said])}`],
   )
-  const refused = await booting('the boot refuses')
   check(
-    'a boot that refuses initialize delivers none of them: the notifications held behind it are dropped with a line that says so, as the requests held behind it are refused',
-    refused.during.length === 0 && j(refused.after) === j(['the boot ended']) && refused.said.filter(text => text.includes('credentials/changed') && text.includes('initialize')).length === 3 && refused.answers.includes('"id":2'),
-    [`after it: ${j(refused.after)}`, `the peer said: ${j(refused.said)}`],
+    "a request of a scope held with them is handed to its scope's queue in its turn and reaches its arm when that queue lets it, which is behind every notification held with it: the whole order (N, initialize, N, queue/add, N, session/set_mode, N)",
+    quiet(scoped) && j(scoped.after) === j(['the boot ended', 'credentials/changed 1', 'credentials/changed 2', 'credentials/changed 3', 'credentials/changed 4', 'queue/add', 'session/set_mode']),
+    [`after the boot: ${j(scoped.after)}`, `the peer said: ${j(scoped.said)}`],
   )
+  const refused = world()
+  refused.refuseNext()
+  refused.write(N() + INIT() + N() + R(2, 'session/facts') + N())
+  await turn()
+  refused.settleBoot()
+  await turn()
+  const afterRefusal = [...refused.order]
+  const saidAtRefusal = [...refused.said]
+  check(
+    'a boot that refuses initialize delivers none of them: the requests held behind it are refused, and the notifications held behind it are dropped with a line that says so',
+    j(afterRefusal) === j(['the boot ended']) && saidAtRefusal.filter(text => text.includes('credentials/changed') && text.includes('initialize')).length === 3 && refused.answers().includes('"id":2'),
+    [`after it: ${j(afterRefusal)}`, `the peer said: ${j(saidAtRefusal)}`],
+  )
+  refused.close()
 }
 
 console.log(failures === 0 ? '\nprove-runner-boot-order: green' : `\nprove-runner-boot-order: ${failures} failed`)
