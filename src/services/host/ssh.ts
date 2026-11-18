@@ -7,7 +7,6 @@ import { sleep } from '../../utils/sleep.js'
 import { hostDirectory } from './store.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { sleep } from '../../utils/sleep.js'
 import { recipeFits, type HostRecipe } from './recipes.js'
 
 import { downloadFailure, hostDownloadScript } from './download.js'
