@@ -276,13 +276,19 @@ section('(5) what arrives while the runner boots is held behind initialize and h
   refused.settleBoot()
   await turn()
   const afterRefusal = [...refused.order]
-  const saidAtRefusal = [...refused.said]
-  check(
-    'a boot that refuses initialize delivers none of them: the requests held behind it are refused, and the notifications held behind it are dropped with a line that says so',
-    j(afterRefusal) === j(['the boot ended']) && saidAtRefusal.filter(text => text.includes('credentials/changed') && text.includes('initialize')).length === 3 && refused.answers().includes('"id":2'),
-    [`after it: ${j(afterRefusal)}`, `the peer said: ${j(saidAtRefusal)}`],
-  )
+  refused.write(N())
+  await turn()
+  const keptWaiting = refused.order.slice(afterRefusal.length)
+  refused.write(INIT(3))
+  await turn()
+  const afterTheNext = refused.order.slice(afterRefusal.length)
   refused.close()
+  const refusedRequest = refused.answers().split('\n').filter(text => text !== '').map(text => JSON.parse(text) as { id?: number; error?: { code?: number } }).find(frame => frame.id === 2)
+  check(
+    'a notification held behind an initialize that is refused is treated as one that arrives just after the refusal: each is kept, none is said to be dropped, and after the next initialize that is answered they reach their arm in the order they arrived (three before the refusal, one after it); the request held behind the refused one is answered -32002',
+    j(afterRefusal) === j(['the boot ended']) && keptWaiting.length === 0 && j(afterTheNext) === j(['the boot ended', 'credentials/changed 1', 'credentials/changed 2', 'credentials/changed 3', 'credentials/changed 4']) && !refused.said.some(text => text.includes('dropped')) && refusedRequest?.error?.code === -32002,
+    [`after the refusal: ${j(afterRefusal)}`, `before the next initialize: ${j(keptWaiting)}`, `after it: ${j(afterTheNext)}`, `the peer said: ${j(refused.said)}`, `the request: ${j(refusedRequest)}`],
+  )
 }
 
 console.log(failures === 0 ? '\nprove-runner-boot-order: green' : `\nprove-runner-boot-order: ${failures} failed`)

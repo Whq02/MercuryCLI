@@ -634,8 +634,8 @@ export class Peer {
     if ('error' in body) {
       this.initState = 'none'
       const waiters = this.initWaiters
-      this.initWaiters = []
-      for (const waiter of waiters) waiter.fail()
+      this.initWaiters = waiters.filter(waiter => waiter.id === null)
+      for (const waiter of waiters) if (waiter.id !== null) waiter.fail()
       return
     }
     this.initState = 'done'

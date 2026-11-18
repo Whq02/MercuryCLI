@@ -366,7 +366,9 @@ The host sends `initialize` first and waits for the answer before sending work:
   `-32002`. `initialize` also accepts an optional `schema` (a JSON Schema object
   used for any turn that does not specify its own `schema`); an invalid schema
   returns `-32602` (`path: ["schema"]`), after which `initialize` can be sent
-  again.
+  again. A notification sent before `initialize` is answered
+  (`credentials/changed`) is kept until an `initialize` is answered with a
+  result, and is then taken in the order it arrived.
 - **File checkpoints:** A hosted runner does not capture per-turn file
   checkpoints by default, so `session/rewind` with `mode: "code"` returns
   `capture-off`. Pass `"file_checkpoints": true` in `initialize` to enable
