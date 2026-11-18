@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import stripAnsi from 'strip-ansi'
@@ -17,6 +18,8 @@ enableConfigs()
 const React = (await import('react')).default
 const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
 const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
+await import('../../src/daemon/ownerWatch.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
 const { recordTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
 const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.ts')
@@ -46,7 +49,7 @@ const watchdog = setTimeout(() => {
 watchdog.unref?.()
 
 type Facts = { schema: 1; sessionId: string; atMs: number; busy: boolean; runnerGeneration: number; queue: unknown[]; pendingModel: null; turnStartedAt?: number; transcriptStoreFailing?: string }
-type Guts = { attached: boolean; tick: () => Promise<void>; readFacts: () => void; settleCarrierGone: () => void }
+type Guts = { attached: boolean; tick: () => Promise<void>; readFacts: () => void }
 
 const sid = bootstrap.getSessionId()
 const file = getTranscriptPathForSession(sid)
@@ -82,8 +85,30 @@ const paintsOver = (reads: Facts[]): number => {
   for (const read of reads) told(read)
   return paints - before
 }
-const carrierGone = (): readonly Message[] => {
-  g.settleCarrierGone.call(connector)
+const carrierGone = async (): Promise<readonly Message[]> => {
+  const seconds: Array<() => void> = []
+  const realSetInterval = globalThis.setInterval
+  globalThis.setInterval = ((fire: () => void, ms: number) => {
+    if (ms === 1000) seconds.push(fire)
+    const never = realSetInterval(() => {}, 0x3fffffff)
+    never.unref?.()
+    return never
+  }) as typeof setInterval
+  try {
+    await connector.attach()
+    const aSecondPasses = async (): Promise<void> => {
+      for (const fire of [...seconds]) fire()
+      for (let i = 0; i < 8; i++) await readFile(daemonStatePath(), 'utf8').catch(() => null)
+      await new Promise(resolve => setImmediate(resolve))
+    }
+    writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: Date.now(), dir: process.env.MERCURY_DAEMON_DIR, controlSock: join(process.env.MERCURY_DAEMON_DIR!, 'control.sock') }))
+    for (let i = 0; i < 3; i++) await aSecondPasses()
+    rmSync(daemonStatePath(), { force: true })
+    for (let i = 0; i < 40 && connector.workRoster().gone !== true; i++) await aSecondPasses()
+  } finally {
+    connector.detach()
+    globalThis.setInterval = realSetInterval
+  }
   return connector.records()
 }
 const facts = (busy: boolean, atMs: number, turnStartedAt?: number): Facts => ({ schema: 1, sessionId: sid, atMs, busy, runnerGeneration: 1, queue: [], pendingModel: null, ...(turnStartedAt !== undefined ? { turnStartedAt } : {}) })
@@ -194,9 +219,13 @@ section('B — the runner answers idle after the call was written: its run ended
 
 section('C — the daemon that carried the session is gone: the same')
 {
-  const stale = told(facts(false, replyAt - 2_000))
-  const gone = carrierGone()
-  check('C1 from an answer that left the call open, the call is answered once, by the same sentence', answersTo(stale, BUILD).length === 0 && answersTo(gone, BUILD).length === 1 && answersTo(gone, BUILD)[0]?.block.content === ENDED_RUN_TOOL_RESULT, tail(gone))
+  const live = told(facts(true, replyAt - 2_000, replyAt - 3_000))
+  const gone = await carrierGone()
+  check(
+    'C1 from a live turn whose last answer is older than the call, the call is answered once, by the same sentence',
+    answersTo(live, BUILD).length === 0 && connector.workRoster().gone === true && answersTo(gone, BUILD).length === 1 && answersTo(gone, BUILD)[0]?.block.content === ENDED_RUN_TOOL_RESULT,
+    `${tail(gone)} gone=${String(connector.workRoster().gone)} — the window attached on that live turn, its daemon's record read alive once and then gone at each second: paint of daemonConnector.ts answers the open call once the carrier part says gone`,
+  )
 }
 
 section('D — older damage: a call left open in the middle of a conversation that went on is painted as today')
@@ -236,9 +265,13 @@ section("E — the same run goes on and its record cannot be written: a call who
   check('E4 …and the card does not say a call failed', failingCard.includes('resumed clean') && !failingCard.includes('tool call failed'), failingCard)
   const nextTurn = told({ ...facts(true, deployAt + 20_000, deployAt + 15_000), transcriptStoreFailing: UNWRITABLE })
   check('E5 a turn that began after the call, the record still unwritable: nothing is painted', answersTo(nextTurn, DEPLOY).length === 0, tail(nextTurn))
-  told({ ...facts(false, deployAt + 21_000), transcriptStoreFailing: UNWRITABLE })
-  const gone = carrierGone()
-  check('E6 the daemon that carried the session is gone, its last word the same: the run did end, and the call is answered as in C', answersTo(gone, DEPLOY).length === 1 && answersTo(gone, DEPLOY)[0]?.block.content === ENDED_RUN_TOOL_RESULT, tail(gone))
+  const lastWord = told({ ...facts(true, deployAt + 21_000, deployAt + 15_000), transcriptStoreFailing: UNWRITABLE })
+  const gone = await carrierGone()
+  check(
+    'E6 the daemon that carried the session is gone, its last word the same: the run did end, and the call is answered as in C',
+    answersTo(lastWord, DEPLOY).length === 0 && connector.workRoster().gone === true && answersTo(gone, DEPLOY).length === 1 && answersTo(gone, DEPLOY)[0]?.block.content === ENDED_RUN_TOOL_RESULT,
+    `${tail(gone)} gone=${String(connector.workRoster().gone)}`,
+  )
   await write([
     createUserMessage({ content: [{ type: 'tool_result', tool_use_id: DEPLOY, content: 'deployed' }] as never, toolUseResult: 'deployed' as never }),
     createAssistantMessage({ content: 'Deployed.' }),

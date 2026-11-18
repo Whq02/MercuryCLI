@@ -56,11 +56,10 @@ type Guts = {
   rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>>
   displayRows: Array<{ row: { type?: string; subtype?: string; content?: string; level?: string } }>
   factsBusy: boolean
-  carrierGoneAtFactsMs: number | null
   readFacts: () => void
 }
 type Live = { inFlight: boolean; phase: string }
-type Roster = { rows: Array<{ status: string }> }
+type Roster = { rows: Array<{ status: string }>; gone?: boolean }
 
 function mount(sessionId: string): { connector: { attach(): Promise<void>; detach(): void; live(): Live; workRoster(): Roster }; g: Guts } {
   const connector = new DaemonSessionConnector({ sessionId, runnerId: `runner-${sessionId}`, title: 'the chat', projectLabel: 'proof', workspaceId: work, home: SCRATCH, modelKey: 'claude-sonnet-5-5' })
@@ -97,7 +96,11 @@ section("§1 the daemon carrying a busy, waiting session is gone (its record cle
   check('the notice is said once', noticeRows(g).length === 1, j(noticeRows(g)))
   publishBusy(sid, Date.now())
   g.readFacts()
-  check('a FRESH publication (a new daemon speaks: a new stamp) lifts the latch and the busy word is believed again', g.carrierGoneAtFactsMs === null && g.factsBusy === true, j({ latch: g.carrierGoneAtFactsMs, busy: g.factsBusy }))
+  check(
+    'a FRESH publication (a new daemon speaks: a new stamp) lifts the latch and the busy word is believed again',
+    connector.workRoster().gone !== true && connector.workRoster().rows.some(r => r.status === 'running') && connector.live().inFlight === true && g.factsBusy === true,
+    `${j({ roster: connector.workRoster(), live: connector.live(), busy: g.factsBusy })} — the roster is no longer gone, its running row is back and the turn is in flight: CarrierPart.factsFromCarrier in src/services/engine-connector/daemon/carrier.ts lets go of the verdict when the facts carry another stamp`,
+  )
   connector.detach()
 }
 
