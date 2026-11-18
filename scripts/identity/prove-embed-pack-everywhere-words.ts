@@ -103,6 +103,11 @@ console.log('\n§3 no page says the pack is the Apple silicon archive\'s alone')
   const ownersWords = [...(readiness.state === 'ok' ? [readiness.model, String(readiness.dimension)] : [readiness.words, readiness.note]), embedModels.memoryRecallModeWords()].filter(words => words.length > 0).sort((a, b) => b.length - a.length)
   const rowsOwnWords = ownersWords.reduce((text, words) => text.split(words).join('…'), `${embedderSays?.evidence ?? ''} ${embedderSays?.fix ?? ''}`)
   check('the health row names no platform for the embedder', embedderSays !== undefined && /present: |degraded: /.test(embedderSays.evidence) && !/darwin|macOS|Apple silicon|Windows|Linux/.test(rowsOwnWords), rowsOwnWords)
+  const { healthRowLiterals, LITERAL_BAN_LINE } = await import('../lib/healthRowLiterals.ts')
+  const ofTheRow = healthRowLiterals().literals.filter(literal => literal.row === 'memory-embedder')
+  console.log(`  ${LITERAL_BAN_LINE}`)
+  const platforms = ofTheRow.filter(literal => /darwin|macOS|Apple silicon|Windows|Linux/.test(literal.text)).map(literal => `${literal.file}:${literal.line} ${literal.text.slice(0, 90)}`)
+  check(`no string of the embedder row names a platform, in the arm this machine prints or in the other (${ofTheRow.length} strings of the row)`, ofTheRow.length > 3 && platforms.length === 0, platforms.join(' · '))
 }
 
 console.log('\n' + '='.repeat(60))

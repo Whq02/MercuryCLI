@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { healthRowLiterals, LITERAL_BAN_LINE } from '../lib/healthRowLiterals.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -89,6 +90,22 @@ section('§2 every settings key a live certificate\'s remedies name exists in th
   check('no row of the live certificate names a sandbox key in its evidence, detail or fix', checks.length > 100 && sandboxed.length === 0, `${checks.length} rows · ${sandboxed.join(', ')}`)
   const missing = named.filter(n => !keyExists(n.key))
   check('every key a remedy tells the user to set exists in the schema', missing.length === 0, JSON.stringify(missing))
+}
+
+section('§3 no string of the health rows names a settings key the schema refuses')
+{
+  const read = healthRowLiterals()
+  console.log(`  ${LITERAL_BAN_LINE}`)
+  const refused: string[] = []
+  for (const literal of read.literals) {
+    if (/sandbox\.enabled|guardrails\.sandbox/.test(literal.text)) refused.push(`${literal.file}:${literal.line} names a sandbox key, which scripts/settings/settings-schema.json does not hold — take the key out of the sentence: ${literal.text.slice(0, 110)}`)
+    else for (const key of keysNamedBy(literal.text)) if (!keyExists(key)) refused.push(`${literal.file}:${literal.line} tells the user to set '${key}', which scripts/settings/settings-schema.json does not declare: ${literal.text.slice(0, 110)}`)
+  }
+  check(
+    `no string of the ${read.files.length} modules that hold the rows names sandbox.enabled or guardrails.sandbox, and every key a string names beside settings.json is in the schema (${read.literals.length} strings of ${read.rows.length} rows, ${read.ms}ms)`,
+    read.files.length > 20 && read.literals.length > 1000 && refused.length === 0,
+    refused.join(' · '),
+  )
 }
 
 rmSync(scratchHome, { recursive: true, force: true })
