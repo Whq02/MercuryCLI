@@ -290,8 +290,8 @@ default is the bash Mercury ships (GNU bash 5.3), spawning a fresh child per
 command where the working directory carries from call to call and everything
 else resets; `system` is that road's name in the setting. When the shipped
 bash is absent or does not start, the system's own bash runs the command,
-whatever its version, and when no bash starts the bundled engine does. Mercury
-never starts zsh and never hands it a command, whatever `$SHELL` names. On Windows the default is the bundled **brush**
+whatever its version, and when no bash starts the bundled engine does. The Bash
+tool never runs a command in zsh and never hands one to it, whatever `$SHELL` names. On Windows the default is the bundled **brush**
 engine whenever its pack is present (every release archive includes it);
 `bash.exe` from Git for Windows serves the Bash tool when the engine is turned
 off by the pin or the setting, or its pack is absent.
