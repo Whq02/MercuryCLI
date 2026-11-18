@@ -290,8 +290,9 @@ setInterval	src/utils/verification/verificationState.ts	1
 setInterval	src/utils/worktreeClone.ts	1
 setImmediate	src/components/permissions/hooks.ts	2
 setImmediate	src/daemon/concourseDispatch.ts	1
-setImmediate	src/daemon/main.ts	2
+setImmediate	src/daemon/main.ts	1
 setImmediate	src/daemon/run/restart.ts	2
+setImmediate	src/daemon/run/sweep.ts	1
 setImmediate	src/entrypoints/init.ts	1
 setImmediate	src/ink/components/App.tsx	1
 setImmediate	src/services/voice/holdToTalk.ts	1
@@ -919,13 +920,14 @@ empty-catch	src/daemon/concourseWorkers.ts	20
 empty-catch	src/daemon/concourseWorktrees.ts	1
 empty-catch	src/daemon/controlSocket.ts	3
 empty-catch	src/daemon/handshake.ts	1
-empty-catch	src/daemon/main.ts	5
+empty-catch	src/daemon/main.ts	4
 empty-catch	src/daemon/ownedDaemon.ts	4
 empty-catch	src/daemon/ownerWatch.ts	1
 empty-catch	src/daemon/processSweepRun.ts	1
 empty-catch	src/daemon/processSweepWindows.ts	1
 empty-catch	src/daemon/reconcileRecords.ts	1
 empty-catch	src/daemon/roster.ts	1
+empty-catch	src/daemon/run/sweep.ts	1
 empty-catch	src/daemon/runnerQuiescence.ts	1
 empty-catch	src/daemon/saturn.ts	2
 empty-catch	src/daemon/saturnAccount.ts	1
