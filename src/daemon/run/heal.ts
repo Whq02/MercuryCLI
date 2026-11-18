@@ -6,7 +6,7 @@ import { controlKeyPath, controlSockPath, daemonStatePath, reassertControlKey } 
 import { daemonHomeStands } from '../daemonHome.js'
 import { deployedRuntime, predecessorSockPath, releaseVersionsDir } from '../handover.js'
 import { sameBuildTree } from '../planeBoot.js'
-import { readPlaneOwnerSync, type PlaneOwnerV1 } from '../planeRecords.js'
+import { readPlaneOwnerSync } from '../planeRecords.js'
 import type { periodicArmer } from './periodic.js'
 import type { DaemonRunState } from './state.js'
 
@@ -16,11 +16,10 @@ interface HealNeeds {
   controlKey: string
   persistDaemonRecord: (owner: number | null) => Promise<void>
   askLiveSessionsForFacts: () => number
-  planeReadAs: (servedByOther: PlaneOwnerV1 | null) => void
   armPeriodic: ReturnType<typeof periodicArmer>
 }
 
-export function armPlaneHeal(state: DaemonRunState, { controlKey, persistDaemonRecord, askLiveSessionsForFacts, planeReadAs, armPeriodic }: HealNeeds): void {
+export function armPlaneHeal(state: DaemonRunState, { controlKey, persistDaemonRecord, askLiveSessionsForFacts, armPeriodic }: HealNeeds): void {
   const { bootBuildTree } = state
   const INSTALLED_POINTER_NAMES = new Set(['current', 'dist', 'current.txt'])
   let healInflight = false
@@ -49,7 +48,7 @@ export function armPlaneHeal(state: DaemonRunState, { controlKey, persistDaemonR
           takeBack = sameBuildTree(deployed, bootBuildTree) && !sameBuildTree(deployed, foreign.buildTree)
         }
       }
-      planeReadAs(foreignOwner && !takeBack ? foreign : null)
+      state.planeServedByOther = foreignOwner && !takeBack ? foreign : null
       const ownDoorOnly = foreignOwner && !takeBack
       const ownSockMissing = ownDoorOnly && ownSockPath !== null && !existsSync(ownSockPath)
       if (ownDoorOnly && !ownSockMissing) return

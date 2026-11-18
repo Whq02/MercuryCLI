@@ -30,7 +30,7 @@ const { CronCreateTool } = await import('../../src/tools/ScheduleCronTool/CronCr
 const main = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../src/daemon/main.ts'), 'utf8')
 const recordInput = main.slice(main.indexOf('stopSaturnTicker = startSaturnTicker(')).match(/records: \(\) => \{([\s\S]*?)\n\s+\},/)?.[1]
 if (!recordInput) throw new Error('the ticker record input is missing')
-const tickerRecords = new Function('readSessionWorkers', 'planeServedByOther', 'isProcessAlive', 'roster', 'handover', recordInput) as (...args: unknown[]) => ReturnType<typeof workers.readSessionWorkers>[string][]
+const tickerRecords = new Function('readSessionWorkers', 'state', 'isProcessAlive', 'roster', 'handover', recordInput) as (...args: unknown[]) => ReturnType<typeof workers.readSessionWorkers>[string][]
 const NOW = Date.parse('2026-10-25T12:00:00Z')
 const SESSION = 'parked-wake-fixture'
 const SHORT = 'concourse-w1'
@@ -68,7 +68,7 @@ const verdict = (superseded = false): { exit: boolean; hold: string } => {
 const deliveries: Array<{ parked: boolean; sessionId: string; prompt: string }> = []
 const ports = {
   now: () => now,
-  records: () => tickerRecords(workers.readSessionWorkers, null, () => true, undefined, undefined),
+  records: () => tickerRecords(workers.readSessionWorkers, { planeServedByOther: null }, () => true, undefined, undefined),
   ...deps,
   liveFacts: () => ({ credentialed: true, stranded: false, expiresAt: null, refreshable: false }),
   deliver: async (d: typeof deliveries[number]) => { deliveries.push(d); return { ok: true } },
@@ -107,8 +107,8 @@ try {
     check(`${kind}: the daemon holds beyond its empty grace, naming the pending wake`, !held.exit && /wake/.test(held.hold), held)
     check(`${kind}: a pre-due tick preserves the schedule without firing`, record().schedules?.[0]?.id === armed.id && deliveries.length === 0, record())
     const handover = handoverState(process.pid, () => false, () => Object.values(workers.readSessionWorkers()), [{ pid: process.pid, runners: [] }])
-    const predecessorRecords = tickerRecords(workers.readSessionWorkers, { pid: process.pid }, () => true, { has: () => ({ alive: false }) }, undefined)
-    const successorRecords = tickerRecords(workers.readSessionWorkers, null, () => true, undefined, handover)
+    const predecessorRecords = tickerRecords(workers.readSessionWorkers, { planeServedByOther: { pid: process.pid } }, () => true, { has: () => ({ alive: false }) }, undefined)
+    const successorRecords = tickerRecords(workers.readSessionWorkers, { planeServedByOther: null }, () => true, undefined, handover)
     check(`${kind}: only the successor walks the parked record after handover`, predecessorRecords.length === 0 && successorRecords.some(r => r.sessionId === SESSION), { predecessorRecords, successorRecords })
     check(`${kind}: the superseded empty helper may leave while the successor holds the wake`, verdict(true).exit && !verdict().exit)
     now = due

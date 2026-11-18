@@ -9,8 +9,8 @@ const MAIN = 'src/daemon/main.ts'
 const PARTS = 'src/daemon/run/'
 const UNIT = 'daemonRun'
 const STATE = 'DaemonRunState'
-const LET_BUDGET = 5
-const TWICE_BUDGET = 3
+const LET_BUDGET = 4
+const TWICE_BUDGET = 2
 const rootAt = process.argv.indexOf('--root')
 const ROOT = resolve(rootAt < 0 ? join(import.meta.dir, '..', '..') : process.argv[rootAt + 1]!)
 

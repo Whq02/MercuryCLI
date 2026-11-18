@@ -121,7 +121,7 @@ import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
 import { forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
 import { holdBuild, invokedScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, type PlaneBootFactsV1 } from './planeBoot.js'
-import { lockHeldByLivePidSync, readPlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
+import { lockHeldByLivePidSync, readPlaneOwnerSync } from './planeRecords.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidsOfHome } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { sleep } from '../utils/sleep.js'
@@ -303,7 +303,6 @@ async function daemonRun(args: string[]): Promise<void> {
 
   let handoverPredecessor: number | null = null
   let handover: HandoverStateV1 | null = null
-  let planeServedByOther: PlaneOwnerV1 | null = null
   let roster: TaskRoster | null = null
   const state = makeDaemonRunState({ dir, bootBuildTree, foreground, breaker, maxInflight: MAX_INFLIGHT, controlEnabled })
   const { persist, readyPromise, startedAt } = state
@@ -993,10 +992,6 @@ async function daemonRun(args: string[]): Promise<void> {
         controlKey,
         persistDaemonRecord,
         askLiveSessionsForFacts,
-        planeReadAs: served => {
-          planeServedByOther = served
-          state.planeServedByOther = planeServedByOther
-        },
         armPeriodic,
       })
       armPeriodic('the armed-restart beat', () => armedRestartBeat(state, restartNeeds))
@@ -1010,7 +1005,7 @@ async function daemonRun(args: string[]): Promise<void> {
         {
           now: () => Date.now(),
           records: () => {
-            const superseded = planeServedByOther !== null && isProcessAlive(planeServedByOther.pid)
+            const superseded = state.planeServedByOther !== null && isProcessAlive(state.planeServedByOther.pid)
             return Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined && (superseded ? (roster?.has(r.runnerId).alive ?? false) : !(handover?.holds(r.runnerId) ?? false)))
           },
           liveFacts: (account, sessionId) => {
