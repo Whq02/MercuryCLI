@@ -119,7 +119,6 @@ const PURE_FACE: string[] = [
   ...(existsSync(join(process.cwd(), 'src/hooks/useCommandQueue.ts')) ? ['src/hooks/useCommandQueue.ts'] : []),
   'src/hooks/useDisplayedSessionModel.ts',
   'src/hooks/useSessionConnector.ts',
-  ...listFiles('src/screens/chat'),
 ]
 
 const RESIDUE: Record<string, Partial<Record<NeedleName, number>>> = {
@@ -127,8 +126,6 @@ const RESIDUE: Record<string, Partial<Record<NeedleName, number>>> = {
   'src/hooks/useCancelRequest.ts': { queueModule: 1 },
   'src/components/PromptInput/Notifications.tsx': { modelResolution: 2 },
   'src/components/permissions/MediaPermissionRequest.tsx': { cwdOwner: 1 },
-  'src/screens/chat/useChatSelector.tsx': { cwdOwner: 1 },
-  'src/screens/chat/useChatSession.ts': { queueModule: 1 },
 }
 
 for (const rel of PURE_FACE) {
