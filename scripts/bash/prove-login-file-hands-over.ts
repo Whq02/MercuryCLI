@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 type Ran = { code: number; ms: number; text: string }
-type Row = { first: Ran; second: Ran; carried: Ran; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string }
+type Row = { first: Ran; second: Ran; carried: Ran; wiped: Ran; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string }
 
 if (process.argv.includes('--row')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -22,12 +22,14 @@ if (process.argv.includes('--row')) {
   const first = await run('echo "ran: bash=${BASH_VERSION:-no} zsh=${ZSH_VERSION:-no} path-head=${PATH%%:*}"')
   const second = await run('echo second-ran')
   const carried = await run('alias ll 2>/dev/null; myfunc 2>/dev/null; above_guard 2>/dev/null; true')
+  const wiped = await run('echo wiped; rm -f "$TMPDIR"/mercury-cwd-*; exit 0')
   const snapshots = join(process.env.MERCURY_CONFIG_DIR ?? '', 'shell-snapshots')
   const marker = join(home, 'other-shell-was-started')
   const row: Row = {
     first,
     second,
     carried,
+    wiped,
     absence: snapshot.shellSnapshotAbsence?.() ?? null,
     snapshots: existsSync(snapshots) ? readdirSync(snapshots).length : 0,
     otherShellStarts: existsSync(marker) ? readFileSync(marker, 'utf8').trim().split('\n').length : 0,
@@ -107,7 +109,8 @@ function drive(name: string): Promise<{ row: Row | null; said: string }> {
     if (value === undefined || /^(?:BASH_ENV|ENV|MERCURY_SHELL_PREFIX|MERCURY_SHELL_ENGINE|MERCURY_WINDOWS_SHELL_ROAD)$/.test(key)) continue
     childEnv[key] = value
   }
-  Object.assign(childEnv, { HOME: dir, SHELL: ZSH, MERCURY_CONFIG_DIR: join(dir, 'config-home') }, env ?? {})
+  mkdirSync(join(dir, 'temp'))
+  Object.assign(childEnv, { HOME: dir, SHELL: ZSH, MERCURY_CONFIG_DIR: join(dir, 'config-home'), TMPDIR: join(dir, 'temp') }, env ?? {})
   return new Promise(done => {
     const child = spawn(process.execPath, [import.meta.path, '--row', name], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
     let said = ''
@@ -173,6 +176,12 @@ try {
     'guarded-bashrc: a ~/.bashrc that returns for a shell that is not interactive carries what stands above that line and nothing below it',
     guarded !== null && guarded.carried.text.includes('fn-above-the-guard') && !guarded.carried.text.includes('fn-below-the-guard') && !guarded.carried.text.includes('alias ll'),
     told('guarded-bashrc'),
+  )
+
+  check(
+    'a command that removes the file its directory is written to and ends the shell itself is still a command that ran: exit 0 and its output, with no word about an unread command',
+    loginOnly !== null && loginOnly.wiped.code === 0 && loginOnly.wiped.text === 'wiped',
+    JSON.stringify(loginOnly?.wiped),
   )
 
   const filesHome = home('start-up-files', {})

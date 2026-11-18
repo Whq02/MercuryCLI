@@ -1,5 +1,5 @@
 import { spawnOwnedShell } from './shell/parentGuard.js'
-import { closeSync, constants as fsConstants, existsSync, openSync, readFileSync } from 'node:fs'
+import { closeSync, constants as fsConstants, existsSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
@@ -107,6 +107,16 @@ export async function terminalShellInvocation(
 
 const SHELL_ENDED_UNREAD =
   'The shell ended before it read this command, so nothing ran. A file the shell reads when it starts can end it or hand it to another program: BASH_ENV names such a file.'
+
+const FRAME_UNREAD = 'the shell has not read this command\n'
+
+function markFrameUnread(path: string): void {
+  try {
+    writeFileSync(path, FRAME_UNREAD)
+  } catch (error) {
+    logForDebugging(`no mark of an unread command at ${path}: ${errorMessage(error)}`)
+  }
+}
 
 async function shellGoneWords(shellPath: string): Promise<string> {
   const origin = (await systemShellRecord()).origin
@@ -306,6 +316,7 @@ export async function exec(
   const cwdBefore = cwd
   let outputFd: number | undefined
   let shellCommand: ShellCommand
+  if (road.recordsBash) markFrameUnread(built.cwdFilePath)
   try {
     let stdio: ('pipe' | 'ignore' | number)[]
     if (pipeMode) {
@@ -360,6 +371,7 @@ export async function exec(
       }
     }
     taskOutput.clear()
+    if (road.recordsBash) void Promise.allSettled([getFsImplementation().unlink(built.cwdFilePath)])
     logForDebugging(`spawn failed for shell command: ${errorMessage(spawnError)}`)
     const code = (spawnError as NodeJS.ErrnoException).code
     const message = errorMessage(spawnError)
@@ -373,15 +385,14 @@ export async function exec(
     const cwdFilePath =
       getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
 
-    const frameRead = !road.recordsBash || existsSync(cwdFilePath)
-    if (!frameRead && !result.interrupted && result.backgroundTaskId === undefined) {
-      result.stderr = result.stderr === '' ? SHELL_ENDED_UNREAD : `${result.stderr}\n${SHELL_ENDED_UNREAD}`
-      if (result.code === 0) result.code = 126
-    }
-
     try {
-      if (result && !options.preventCwdChanges && cwdOverride === undefined && result.backgroundTaskId === undefined) {
-        const record = readFileSync(cwdFilePath, 'utf8')
+      const record = readFileSync(cwdFilePath, 'utf8')
+      if (road.recordsBash && record === FRAME_UNREAD) {
+        if (!result.interrupted && result.backgroundTaskId === undefined) {
+          result.stderr = result.stderr === '' ? SHELL_ENDED_UNREAD : `${result.stderr}\n${SHELL_ENDED_UNREAD}`
+          if (result.code === 0) result.code = 126
+        }
+      } else if (result && !options.preventCwdChanges && cwdOverride === undefined && result.backgroundTaskId === undefined) {
         const recorded =
           getPlatform() === 'windows' ? nativeCwdFromShellRecord(record) : { path: record.trim() }
         if (road.recordsBash && record.trim() === '') {
