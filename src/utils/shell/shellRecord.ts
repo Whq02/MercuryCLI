@@ -13,7 +13,7 @@ import { which } from '../which.js'
 import { bashPackProgramsDir, resolveBashPackDir, type BashPackResolution } from './bashPack.js'
 import { resolveBrushPackDir } from './brushPack.js'
 import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
-import { NO_SHELL_WAYS_OUT, bashToolAvailable, describeWindowsShellRoad, engineMayServe, settleWindowsShell, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive, withoutShellStartFiles } from './windowsShellRoad.js'
+import { NO_SHELL_WAYS_OUT, PIN_WAYS_OUT, bashToolAvailable, describeWindowsShellRoad, engineMayServe, pinPassedOver, settleWindowsShell, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive, withoutShellStartFiles } from './windowsShellRoad.js'
 
 export type ShellDialect = 'bash'
 export type ShellOrigin = 'shipped' | 'system' | 'engine'
@@ -38,6 +38,7 @@ const BASH_VERSION_SHAPE = /^\d+\.\d+/
 const VERSION_ANSWER_LIMIT = 1024 * 1024
 
 let askedNow: string | null = null
+const whyNoAnswer = new Map<string, string>()
 
 function questionEnvironment(): NodeJS.ProcessEnv {
   const env = withoutShellStartFiles({ ...subprocessEnv() })
@@ -61,34 +62,36 @@ export function startedBashVersion(path: string, limitMs: number = START_PROBE_T
         if (ownGroup) strikeProcessGroupNow(asked)
         else asked.kill()
       }
-      const answer = (version: string | null): void => {
+      const answer = (version: string | null, why: string): void => {
         if (!open) return
         open = false
         if (askedNow === path) askedNow = null
+        if (version === null) whyNoAnswer.set(path, why)
         process.removeListener('exit', endWithThisProcess)
         resolve(version)
       }
-      const unanswered = (): void => {
+      const unanswered = (why: string): void => {
         if (!open) return
         end()
-        answer(null)
+        answer(null, why)
       }
       process.once('exit', endWithThisProcess)
       asked.stdout.setEncoding('utf8').on('data', (chunk: string) => {
         said += chunk
-        if (said.length > VERSION_ANSWER_LIMIT) unanswered()
+        if (said.length > VERSION_ANSWER_LIMIT) unanswered('it printed more than 1 MiB')
       })
       asked.once('error', error => {
         logForDebugging(`shell record: ${path} cannot be started — ${errorMessage(error)}`)
-        answer(null)
+        answer(null, `it could not be started (${errorMessage(error)})`)
       })
       asked.once('close', code => {
         const version = (said.trim().split(/\r?\n/).pop() ?? '').trim()
-        answer(code !== 0 || !BASH_VERSION_SHAPE.test(version) ? null : version)
+        answer(code !== 0 || !BASH_VERSION_SHAPE.test(version) ? null : version, code === 0 ? 'it printed no bash version' : code === null ? 'it was ended by a signal' : `it ended with exit ${code}`)
       })
-      AbortSignal.timeout(limitMs).addEventListener('abort', unanswered, { once: true })
+      AbortSignal.timeout(limitMs).addEventListener('abort', () => unanswered(`it gave no answer within ${limitMs / 1000} s`), { once: true })
     } catch (error) {
       logForDebugging(`shell record: ${path} cannot be started — ${errorMessage(error)}`)
+      whyNoAnswer.set(path, `it could not be started (${errorMessage(error)})`)
       resolve(null)
     }
   })
@@ -173,6 +176,7 @@ async function windowsSystemRecord(): Promise<ShellRecord> {
     },
     engineAllowed: engineMayServe(),
     start: startedBashVersion,
+    why: path => whyNoAnswer.get(path),
     passed: passedOver,
   })
   for (const line of choice.passed) logForDebugging(`shell record: ${line}`)
@@ -314,13 +318,19 @@ const SHELL_ROW_WAITS_MS = 15_000
 const LAST_ROAD_FIX = 'Reinstall Mercury to restore the bash it ships, or install bash so that it is on PATH, then restart Mercury.'
 const NO_SHELL_FOR_THE_MODEL = 'Bash cannot run in this session: no shell starts on this machine, and no shell tool is offered.'
 
-let noShellTold = false
+let shellWordTold = false
 
-export async function noShellHere(): Promise<{ model: string; user: string | null } | null> {
-  if ((await shellRecordIfAny()) !== null) return null
-  const user = noShellTold ? null : `No shell starts on this machine, so this session has no shell tool${passedOver.length > 0 ? ` — passed over: ${passedOver.join('; ')}` : ''}. ${windowsShellRoadActive() ? NO_SHELL_WAYS_OUT : LAST_ROAD_FIX}`
-  noShellTold = true
-  return { model: NO_SHELL_FOR_THE_MODEL, user }
+function shellWordForTheUser(served: boolean): string | null {
+  if (!served) return `No shell starts on this machine, so this session has no shell tool${passedOver.length > 0 ? ` — passed over: ${passedOver.join('; ')}` : ''}. ${windowsShellRoadActive() ? NO_SHELL_WAYS_OUT : LAST_ROAD_FIX}`
+  const pin = pinPassedOver(passedOver)
+  return pin === null ? null : `The shell you pinned does not serve this session — passed over: ${pin}. Serving instead: ${describeWindowsShellRoad().line}. ${PIN_WAYS_OUT}`
+}
+
+export async function shellWordOwed(): Promise<{ model: string | null; user: string | null }> {
+  const served = (await shellRecordIfAny()) !== null
+  const user = shellWordTold ? null : shellWordForTheUser(served)
+  if (user !== null) shellWordTold = true
+  return { model: served ? null : NO_SHELL_FOR_THE_MODEL, user }
 }
 
 export async function shellRow(waitMs: number = SHELL_ROW_WAITS_MS): Promise<ShellRow> {

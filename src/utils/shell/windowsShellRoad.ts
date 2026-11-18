@@ -34,6 +34,10 @@ export const WINDOWS_BASH_NOTICE_NO_PACK =
 
 export const NO_SHELL_WAYS_OUT = 'Install Git for Windows, set MERCURY_GIT_BASH_PATH to a bash.exe, or reinstall Mercury; then restart Mercury.'
 
+export const PIN_WAYS_OUT = 'Name a bash.exe in MERCURY_GIT_BASH_PATH or unset it, then restart Mercury.'
+
+const pinWords = (path: string): string => `${path}, named by MERCURY_GIT_BASH_PATH`
+
 function roadProbe(): 'no-bash' | 'pack' | 'locate' | null {
   const value = flagEnv('MERCURY_WINDOWS_SHELL_ROAD')
   return value === 'no-bash' || value === 'pack' || value === 'locate' ? value : null
@@ -80,6 +84,7 @@ export type WindowsShellWorld = {
   engine: () => { path: string; version: string } | { absent: string }
   engineAllowed: boolean
   start: (path: string) => Promise<string | null>
+  why?: (path: string) => string | undefined
   passed?: string[]
 }
 
@@ -90,7 +95,8 @@ export async function settleWindowsShell(world: WindowsShellWorld): Promise<Wind
   if (world.pinned !== null) {
     const version = await world.start(world.pinned)
     if (version !== null) return { origin: 'system', path: world.pinned, version, pinned: true, passed }
-    passed.push(`${world.pinned}, named by MERCURY_GIT_BASH_PATH, did not answer as a bash`)
+    const why = world.why?.(world.pinned)
+    passed.push(`${pinWords(world.pinned)}, did not answer as a bash${why === undefined ? '' : `: ${why}`}`)
   }
   for (const candidate of world.installed()) {
     if (!candidate.runtimeBeside) {
@@ -144,6 +150,12 @@ export function describeBashCandidate(path: string, fileExists: (file: string) =
 export function windowsBashCandidates(): { pinned: string | null; installed: () => BashCandidate[] } {
   if (installedBashHidden()) return { pinned: null, installed: () => [] }
   return { pinned: pinnedGitBash(), installed: () => installedGitBashes().map(path => describeBashCandidate(path)) }
+}
+
+export function pinPassedOver(passed: readonly string[]): string | null {
+  if (passed.length === 0 || !windowsShellRoadActive()) return null
+  const pin = windowsBashCandidates().pinned
+  return pin === null ? null : (passed.find(line => line.startsWith(pinWords(pin))) ?? null)
 }
 
 type ToolPrograms = { from: 'path' } | { from: 'git' | 'pack'; dir: string; key: string; path: string } | { from: 'nowhere' }

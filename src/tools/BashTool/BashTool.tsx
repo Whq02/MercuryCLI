@@ -62,7 +62,7 @@ import {
   resizeShellImageOutput,
   applyShellOutputFilter,
   redactedCopy,
-  refuseWhereNoShellStarts,
+  sayWhatTheShellOwes,
   truncateForSummary,
 } from './utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from './maxOutputChars.js'
@@ -876,7 +876,7 @@ export const BashTool = buildTool({
       if (input._simulatedSedEdit) {
         return { data: await runSimulatedSedEdit(input, context, parentMessageId) }
       }
-      await refuseWhereNoShellStarts(context)
+      await sayWhatTheShellOwes(context)
       const generator = runBash(input, context, agentId)
       let step = await generator.next()
       while (!step.done) {

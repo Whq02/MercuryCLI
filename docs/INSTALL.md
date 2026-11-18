@@ -157,7 +157,10 @@ none is installed, or the one found is older than 5 or does not start, the
 Bash tool runs the bash that rides every Windows archive: GNU bash 5.3 as the
 MSYS2 project packages it, with `ls`, `grep`, `sed`, `find` and the other
 programs a command names beside it. Git for Windows is not required.
-`MERCURY_GIT_BASH_PATH` names a `bash.exe` to use before any other.
+`MERCURY_GIT_BASH_PATH` names a `bash.exe` to use before any other. A program
+named there that does not answer as a bash is passed over, and the first Bash
+call of the session tells you once why and which shell serves instead. Name a
+`bash.exe` in `MERCURY_GIT_BASH_PATH` or unset it, then restart Mercury.
 
 Release archives also include Mercury's bash-compatible shell engine
 (`brush`). It serves when no bash starts, and when you choose it:
