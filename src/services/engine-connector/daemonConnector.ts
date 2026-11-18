@@ -1677,7 +1677,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       const detail = typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : undefined
       if (outcome === 'refused') return refuse(detail ?? 'the daemon refused the switch')
       if (outcome !== 'applied' && outcome !== 'queued' && outcome !== 'noop') return refuse(`unexpected outcome ${String(outcome)}`)
-      if ((outcome === 'queued') !== busy) this.readFacts()
+      if (outcome === 'noop' || (outcome === 'queued') !== busy) this.readFacts()
       if (outcome === 'noop') return { state: 'no-op' }
       this.factsFeed.settle(SEAT_VERB_SETTLE_MS)
       if (outcome === 'applied') {

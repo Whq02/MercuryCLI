@@ -881,7 +881,6 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     await h.call('setModel', ['gpt-6.2-sol'], [refusedBy('the daemon refused it')])
     await h.call('setModel', ['gpt-6.2-sol'], [outcome('queued')])
     await h.call('setModel', ['gpt-6.2-sol'], [outcome('noop')])
-    await h.call('setModel', ['gpt-6.2-sol'])
     await h.facts({ busy: false, model: { effective: 'claude-opus-5', setting: 'claude-opus-5' } })
     await h.call('setModel', ['gpt-6.2-sol'], [outcome('weird')])
     h.breakCarrier('ECONNREFUSED')
@@ -1240,6 +1239,14 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     await h.advance(44_000)
     await h.advance(1_000, [applied()])
     await h.facts({ busy: false })
+  })
+
+  await scenario('the-setting-chosen-again-while-another-model-serves', async h => {
+    await h.facts({ busy: false, model: { effective: 'claude-haiku-5', setting: 'claude-opus-5' } })
+    await h.call('setModel', ['claude-opus-5'], [outcome('noop')])
+    await h.facts({ busy: true, turnStartedAt: clock.now(), model: { effective: 'claude-haiku-5', setting: 'claude-opus-5' } })
+    await h.call('setModel', ['claude-opus-5'], [outcome('noop')])
+    await h.facts({ busy: false, model: { effective: 'claude-haiku-5', setting: 'claude-opus-5' } })
   })
 
   server.close()
