@@ -59,7 +59,7 @@ export type HeadlessOptions = {
   setSDKStatus?: unknown
 }
 
-export type RunnerState = {
+type RunnerState = {
   awaitingSessionClaim: boolean
   bootRefusalFact: string | null
   turnsRun: number

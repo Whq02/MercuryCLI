@@ -11,7 +11,7 @@ import {
   setSessionKind,
 } from '../bootstrap/state.js'
 import { existsSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
 import { hasConversationTurn } from '../utils/conversationRecovery.js'
 import { reconstructContentReplacementState } from '../utils/toolResultStorage.js'
 import { adoptResumedSessionFile, flushSessionStorage, getSessionMessages, peekProject, recordTranscript } from '../utils/sessionStorage/writer.js'
@@ -137,7 +137,6 @@ import type { Message } from '../types/message.js'
 import type { ContentBlockParam } from '../types/wire.js'
 import {
   dequeue,
-  enqueue,
   subscribeToCommandQueue,
   getCommandQueue,
 } from '../utils/messageQueueManager.js'

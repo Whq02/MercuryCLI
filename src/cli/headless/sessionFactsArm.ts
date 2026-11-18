@@ -1,4 +1,4 @@
-import type { FileCheckpointsFact, ParamsOf, ResultOf } from '../../runner/wire/methods.js'
+import type { FileCheckpointsFact, ResultOf } from '../../runner/wire/methods.js'
 import { fileHistoryEnabled, fileCheckpointSource } from '../../utils/fileHistory.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { anthropicWindowFact, anthropicObservedUsage } from '../../services/anthropicLimits.js'
