@@ -236,15 +236,17 @@ fi`)
 
 
 const MERCURY_CONTENT_DELIMITER = '__MERCURY_SNAPSHOT_CONTENT__'
+const PATH_LEFT_WITHOUT_PROGRAMS = 96
 
 function buildCaptureScript(args: {
   snapshotFilePath: string
   configFilePath: string
   configExists: boolean
   definitions: boolean
+  programsNeeded: boolean
   mercuryContent: string
 }): string {
-  const { snapshotFilePath, configFilePath, configExists, definitions, mercuryContent } = args
+  const { snapshotFilePath, configFilePath, configExists, definitions, programsNeeded, mercuryContent } = args
   const lines: string[] = []
 
   lines.push(`SNAPSHOT_FILE=${quote([snapshotFilePath])}`)
@@ -255,6 +257,7 @@ function buildCaptureScript(args: {
     lines.push('# no user config file to source')
   }
 
+  if (programsNeeded) lines.push(`for __mercury_program in awk sed head cat; do command -v "$__mercury_program" >/dev/null 2>&1 || exit ${PATH_LEFT_WITHOUT_PROGRAMS}; done`)
   lines.push('echo "# Mercury shell environment snapshot" >| "$SNAPSHOT_FILE"')
   lines.push(`echo "unalias -a 2>/dev/null || true" >> "$SNAPSHOT_FILE"`)
 
@@ -311,6 +314,12 @@ function loginRunLeftNothing(outcome: BoundedRun): LoginFilesAbsence {
   }
   if (outcome.exitCode === undefined) {
     return { why: `the login run was ended by ${outcome.signal ?? 'a signal'}`, change: `Restart Mercury; if this comes back, run \`bash -l -c true\` in a terminal to see which of ${LOGIN_FILES} ends the shell.` }
+  }
+  if (outcome.exitCode === PATH_LEFT_WITHOUT_PROGRAMS) {
+    return {
+      why: 'the login files leave PATH without awk, sed, head or cat, which the login run needs to carry anything',
+      change: `Keep /usr/bin and /bin on PATH in ${LOGIN_FILES}, ${THEN_RESTART}.`,
+    }
   }
   return {
     why: `the login run ended with exit ${String(outcome.exitCode)}`,
@@ -377,6 +386,7 @@ export async function createAndSaveSnapshot(
       configFilePath,
       configExists,
       definitions: bashOfThisMachine || configExists,
+      programsNeeded: bashOfThisMachine,
       mercuryContent,
     })
 

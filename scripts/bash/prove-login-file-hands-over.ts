@@ -237,6 +237,7 @@ const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
   slow: { dir: home('slow', WAITS) },
   'prints-at-length': { dir: home('prints-at-length', { '.bash_profile': 'head -c 2200000 /dev/zero | tr "\\0" x\n' }) },
   'no-snapshot-folder': { dir: home('no-snapshot-folder', {}) },
+  'unsets-path': { dir: home('unsets-path', { '.bash_profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\nunset PATH\n' }) },
   'ends-unread': {
     dir: home('ends-unread', { '.bashenv': 'case "$BASH_EXECUTION_STRING" in *mercury-cwd-*) exit 0 ;; esac\n' }),
   },
@@ -479,6 +480,7 @@ try {
     ['exits', HANDED, /that ends the shell or starts another one \(`exec zsh -l`\) and run it only in an interactive shell/],
     ['slow', /did not end within 10 s and was killed: a login file waits or runs long/, /Find what waits in the files bash reads at login/],
     ['prints-at-length', /printed more than 1 MiB and was ended: a login file prints at length/, /Find what prints in the files bash reads at login/],
+    ['unsets-path', /the login files leave PATH without awk, sed, head or cat, which the login run needs to carry anything/, /Keep \/usr\/bin and \/bin on PATH in the files bash reads at login/],
     ...(isRoot ? [] : ([['no-snapshot-folder', /could not be made \(.*\), so no login run was tried/, /or name another in MERCURY_CONFIG_DIR, then restart Mercury/]] as Array<[string, RegExp, RegExp]>)),
   ]
   for (const [name, why, change] of NOT_CARRIED) {
