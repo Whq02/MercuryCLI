@@ -480,7 +480,26 @@ section('W1 THE WIRE — the verb\'s ceremony at each layer, pinned in source')
   check('the facts wire spells the fact pause_gate (snake_case at every depth)', wire.includes("pauseGate: 'pause_gate'"))
   const connectorSource = read('src/services/engine-connector/daemonConnector.ts')
   check("the connector's door rides the seat's verb chain and re-reads the facts on the applied word", connectorSource.includes("pauseGate(paused: boolean): Promise<AgentControlReceiptV1>") && connectorSource.includes("action: 'pause-gate'"))
-  check('the roster snapshot carries the gate fact and the live swarm snapshot, content-keyed with the rows', connectorSource.includes('pauseGate') && connectorSource.includes('const stamp = JSON.stringify([reported, gone, rows, mission, missionCard, samples, pauseGate, this.facts?.swarm?.snapshot, this.facts?.swarm?.on])'))
+  {
+    const { WorkPart } = await import('../../src/services/engine-connector/daemon/work.ts')
+    let seatFacts: Record<string, unknown> = { work: [], pauseGate: { paused: false, parked: 0 }, swarm: { on: true, snapshot: { seq: 1 } } }
+    const roster = new WorkPart({ facts: () => seatFacts as never, carrierGone: () => false })
+    let wakes = 0
+    roster.subscribeWork(() => wakes++)
+    const reread = (next: Record<string, unknown>): number => {
+      const before = wakes
+      seatFacts = next
+      roster.refreshWork()
+      return wakes - before
+    }
+    const first = reread(seatFacts)
+    const same = reread({ ...seatFacts })
+    const gateMoved = reread({ ...seatFacts, pauseGate: { paused: true, parked: 2 } })
+    const carried = j((roster.workRoster() as { pauseGate?: unknown }).pauseGate)
+    const swarmMoved = reread({ ...seatFacts, swarm: { on: true, snapshot: { seq: 2 } } })
+    const swarmOff = reread({ ...seatFacts, swarm: { on: false, snapshot: { seq: 2 } } })
+    check('the roster snapshot carries the gate fact and the live swarm snapshot, content-keyed with the rows', first === 1 && same === 0 && gateMoved === 1 && carried === j({ paused: true, parked: 2 }) && swarmMoved === 1 && swarmOff === 1, j({ first, same, gateMoved, carried, swarmMoved, swarmOff }))
+  }
   const view = read('src/components/mercury-ui/screens/CrewView.tsx')
   check("the crew view sends the press through the focused connector's door and reads the chip from the roster's fact for a hosted chat", view.includes('getFocusedSessionConnector().pauseGate(paused)') && view.includes('roster.pauseGate'))
   const doorSource = read('src/components/mercury-ui/screens/crewPauseDoor.ts')

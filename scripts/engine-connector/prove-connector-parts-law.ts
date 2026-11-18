@@ -10,12 +10,12 @@ const SELF = 'scripts/engine-connector/prove-connector-parts-law.ts'
 const PARTS: Readonly<Record<string, { file: string; type: string }>> = {
   completionPart: { file: 'completion.ts', type: 'CompletionPart' },
   foldPart: { file: 'fold.ts', type: 'FoldPart' },
+  workPart: { file: 'work.ts', type: 'WorkPart' },
 }
 
 const OF_THE_DOOR: readonly string[] = ['carrier', 'record', 'attached', 'factsFeed', 'asksFeed', 'tailFeed', 'progressFeed', 'turnInFlight', 'verbChain']
 
 const AWAITING_THEIR_PART: Readonly<Record<string, readonly string[]>> = {
-  work: ['workListeners', 'workSnapshot', 'workStamp', 'checkpointListeners', 'checkpointSnapshot', 'checkpointStamp'],
   asks: ['askEntries', 'confirms', 'askListeners'],
   admission: ['admission', 'refusedAdmission', 'awaitingRunnerFacts', 'openedAtMs', 'startShownSinceMs', 'seedFactsAtMs'],
   tail: ['tailStore', 'tailAtMs', 'tailMessageId', 'interruptedMessageId', 'withdrawnMessageId', 'tailSeq', 'tailSinceMs', 'textRows', 'arrivalSeq'],

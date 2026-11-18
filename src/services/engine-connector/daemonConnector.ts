@@ -108,9 +108,8 @@ import { seatInitialPermissionMode } from '../../daemon/concourseWorkers.js'
 import { CompletionPart } from './daemon/completion.js'
 import { FoldPart } from './daemon/fold.js'
 import { emitAll, type Listeners } from './daemon/shared.js'
+import { WorkPart } from './daemon/work.js'
 import { projectOperatorRewinds } from '../compact/checkpointRewind.js'
-
-const UNKNOWN_CHECKPOINTS: CheckpointFactsV1 = Object.freeze({ capture: 'unknown' as const, restorable: Object.freeze(new Set<string>()) as ReadonlySet<string> })
 
 export interface DaemonSessionRecordV1 {
   sessionId: string
@@ -489,7 +488,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.factsBusy = false
     this.disarmBusyStall()
     if (this.facts !== null) this.facts = { ...this.facts, busy: false, work: [], mission: [], samples: [] }
-    this.refreshWork()
+    this.workPart.refreshWork()
     this.recomputeLive()
     this.addDisplayRow(createSeatReceiptMessage(CARRIER_GONE_WORDS, 'warning') as unknown as Message)
   }
@@ -544,12 +543,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly factsFeed: ProjectionFeed
   private readonly modelListeners: Listeners = new Set()
   private readonly permissionListeners: Listeners = new Set()
-  private readonly workListeners: Listeners = new Set()
-  private workSnapshot: WorkRosterV1 = { rows: [], mission: [] }
-  private workStamp = '[true,[],[]]'
-  private readonly checkpointListeners: Listeners = new Set()
-  private checkpointSnapshot: CheckpointFactsV1 = UNKNOWN_CHECKPOINTS
-  private checkpointStamp = ''
+  private readonly workPart = new WorkPart({ facts: () => this.facts, carrierGone: () => this.carrierGoneAtFactsMs !== null })
 
   private askEntries: SessionAskV1[] = []
   private readonly confirms = new Map<string, ToolUseConfirm>()
@@ -602,15 +596,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     })
     this.seedFactsAtMs = this.facts?.atMs ?? null
     this.awaitingRunnerFacts = record.runnerId === ''
-    this.refreshWork()
+    this.workPart.refreshWork()
     const idleFloor = (): number => (this.turnInFlight ? HEARTBEAT_MS : IDLE_PROJECTION_FLOOR_MS)
     this.factsFeed = new ProjectionFeed(sessionFactsDir(), sessionFactsPath(record.sessionId), () => this.readFacts(), idleFloor)
     this.asksFeed = new ProjectionFeed(sessionAsksDir(), sessionAsksPath(record.sessionId), () => this.readAsks(), idleFloor)
     this.tailFeed = new ProjectionFeed(sessionTailDir(), sessionTailPath(record.sessionId), () => this.readTail(), idleFloor)
     this.progressFeed = new ProjectionFeed(sessionProgressDir(), sessionProgressPath(record.sessionId), () => this.readProgress(), idleFloor)
     this.readAsks()
-    this.refreshWork()
-    this.refreshCheckpoints()
+    this.workPart.refreshWork()
+    this.workPart.refreshCheckpoints()
   }
 
 
@@ -1453,25 +1447,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
 
-  private refreshCheckpoints(): void {
-    const fc = this.facts?.fileCheckpoints
-    const stamp = fc === undefined ? '' : JSON.stringify([fc.capture, fc.restorable, fc.files, fc.undo])
-    if (stamp === this.checkpointStamp) return
-    this.checkpointStamp = stamp
-    this.checkpointSnapshot =
-      fc === undefined ? UNKNOWN_CHECKPOINTS : { capture: fc.capture ? 'on' : 'off', restorable: new Set(fc.restorable), ...(fc.files === undefined ? {} : { files: fc.files }), ...(fc.undo === undefined ? {} : { undo: fc.undo }) }
-    emitAll(this.checkpointListeners, 'checkpoints')
-  }
-
   checkpointFacts(): CheckpointFactsV1 {
-    return this.checkpointSnapshot
+    return this.workPart.checkpointFacts()
   }
 
   subscribeCheckpoints(listener: () => void): () => void {
-    this.checkpointListeners.add(listener)
-    return () => {
-      this.checkpointListeners.delete(listener)
-    }
+    return this.workPart.subscribeCheckpoints(listener)
   }
 
   async rewind(req: RewindRequestV1): Promise<RewindReceiptV1> {
@@ -1525,7 +1506,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (next === null) {
       if (this.facts !== null && ((this.facts.work?.length ?? 0) > 0 || (this.facts.mission?.length ?? 0) > 0 || (this.facts.samples?.length ?? 0) > 0) && !existsSync(sessionFactsPath(this.record.sessionId))) {
         this.facts = { ...this.facts, work: [], mission: [], samples: [] }
-        this.refreshWork()
+        this.workPart.refreshWork()
       }
       return
     }
@@ -1538,7 +1519,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const prev = this.facts
     this.facts = this.factsFromCarrier(next)
     if (this.facts.runner?.state !== 'starting' || this.facts.runner.respawns !== 0) this.startShownSinceMs = null
-    this.refreshCheckpoints()
+    this.workPart.refreshCheckpoints()
     adoptOpenaiObservedUsage(next.usage?.openaiObserved)
     adoptOpenaiWindowFact(next.usage?.openaiWindow)
     adoptAnthropicWindowFact(next.usage?.anthropicWindow)
@@ -1587,24 +1568,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const answered = endedRunResults(this.keptRecords, this.facts, this.carrierGoneAtFactsMs !== null)
     const answeredMoved = answered.length !== this.answeredRows.length || answered.some((row, at) => row !== this.answeredRows[at])
     if (this.reconcileSends() || this.clearModelReceipt === undefined || answeredMoved) this.paint()
-    this.refreshWork()
+    this.workPart.refreshWork()
   }
-
-  private refreshWork(): void {
-    const reported = this.facts?.work !== undefined
-    const gone = this.carrierGoneAtFactsMs !== null
-    const rows = this.facts?.work ?? []
-    const mission = this.facts?.mission ?? []
-    const missionCard = this.facts?.missionCard ?? null
-    const samples = this.facts?.samples ?? []
-    const pauseGate = this.facts?.pauseGate
-    const stamp = JSON.stringify([reported, gone, rows, mission, missionCard, samples, pauseGate, this.facts?.swarm?.snapshot, this.facts?.swarm?.on])
-    if (stamp === this.workStamp) return
-    this.workStamp = stamp
-    this.workSnapshot = { rows, mission, missionCard, samples, ...(reported ? {} : { reported: false }), ...(gone ? { gone: true } : {}), ...(pauseGate !== undefined ? { pauseGate } : {}) }
-    emitAll(this.workListeners, 'work')
-  }
-
 
   private readAsks(): void {
     const projection = readSessionAsks(this.record.sessionId)
@@ -2435,7 +2400,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   workRoster(): WorkRosterV1 {
-    return this.workSnapshot
+    return this.workPart.workRoster()
   }
 
   advisorFacts(): AdvisorFactsV1 | null {
@@ -2447,10 +2412,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   subscribeWork(listener: () => void): () => void {
-    this.workListeners.add(listener)
-    return () => {
-      this.workListeners.delete(listener)
-    }
+    return this.workPart.subscribeWork(listener)
   }
 
   permissionMode(): PermissionMode | null {

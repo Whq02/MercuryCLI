@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -44,13 +45,55 @@ check("another session's row is not this runner's to drop", other['agent-elsewhe
 check('the rows read for the rail hide a hosted row while the runner is gone even before the fold lands', sessionCrewRows(listed, [], SID, true, 3_000, true).length === 0)
 
 console.log('\n(2) the connector says when the runner is gone')
-const connector = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-const refresh = connector.slice(connector.indexOf('private refreshWork(): void {'), connector.indexOf('private readAsks(): void {'))
-check('refreshWork reads the carrier-gone verdict into the roster snapshot (gone: true) and stamps it', /const gone = this\.carrierGoneAtFactsMs !== null/.test(refresh) && /\.\.\.\(gone \? \{ gone: true \} : \{\}\)/.test(refresh) && /JSON\.stringify\(\[reported, gone, /.test(refresh), refresh.slice(0, 400))
-const settle = connector.slice(connector.indexOf('private settleCarrierGone(): void {'), connector.indexOf('private factsFromCarrier('))
-const verdictAt = settle.indexOf('this.carrierGoneAtFactsMs = this.facts?.atMs ?? 0')
-const refreshAt = settle.indexOf('this.refreshWork()')
-check('settleCarrierGone sets the verdict before it refreshes the work (the roster carries both at once)', verdictAt !== -1 && refreshAt !== -1 && verdictAt < refreshAt, `${verdictAt} / ${refreshAt}`)
+{
+  const { WorkPart } = await import('../../src/services/engine-connector/daemon/work.ts')
+  let carrierGone = false
+  const roster = new WorkPart({ facts: () => ({ work: [sleeper] }) as never, carrierGone: () => carrierGone })
+  let wakes = 0
+  roster.subscribeWork(() => wakes++)
+  roster.refreshWork()
+  const live = { gone: roster.workRoster().gone, wakes }
+  carrierGone = true
+  roster.refreshWork()
+  const dead = { gone: roster.workRoster().gone, wakes }
+  roster.refreshWork()
+  const again = wakes
+  carrierGone = false
+  roster.refreshWork()
+  const back = { gone: roster.workRoster().gone, wakes }
+  check('refreshWork reads the carrier-gone verdict into the roster snapshot (gone: true) and stamps it', live.gone === undefined && live.wakes === 1 && dead.gone === true && dead.wakes === 2 && again === 2 && back.gone === undefined && back.wakes === 3, JSON.stringify({ live, dead, again, back }))
+}
+{
+  const scratch = mkdtempSync(join(tmpdir(), 'crew-rail-leaves-'))
+  process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
+  mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
+  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const seat = new DaemonSessionConnector({ sessionId: SID, runnerId: 'runner-air-8b', title: 'the chat', projectLabel: 'proof', workspaceId: scratch, home: scratch })
+  publishSessionFacts({
+    schema: 1,
+    sessionId: SID,
+    atMs: 1,
+    pendingModel: null,
+    busy: true,
+    model: { effective: 'claude-sonnet-5-5', setting: null },
+    usage: { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false },
+    identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null },
+    skills: [],
+    mcp: [],
+    workspace: { cwd: scratch, originalCwd: scratch, projectRoot: scratch },
+    queue: [],
+    work: [sleeper],
+  })
+  const reaches = seat as unknown as { readFacts(): void; settleCarrierGone(): void }
+  reaches.readFacts()
+  const seen: Array<{ rows: number; gone: boolean }> = []
+  seat.subscribeWork(() => seen.push({ rows: seat.workRoster().rows.length, gone: seat.workRoster().gone === true }))
+  const before = { rows: seat.workRoster().rows.length, gone: seat.workRoster().gone === true }
+  reaches.settleCarrierGone()
+  check('settleCarrierGone sets the verdict before it refreshes the work (the roster carries both at once)', before.rows === 1 && !before.gone && seen.length === 1 && seen[0]!.rows === 0 && seen[0]!.gone, JSON.stringify({ before, seen }))
+  rmSync(scratch, { recursive: true, force: true })
+}
 const types = readFileSync(join(ROOT, 'src/services/engine-connector/types.ts'), 'utf8')
 check('WorkRosterV1 carries the additive gone flag', /reported\?: boolean\s*\n\s*gone\?: boolean/.test(types))
 const hook = readFileSync(join(ROOT, 'src/components/tasks/useCrewLedger.ts'), 'utf8')
