@@ -5,6 +5,7 @@ import {
   calculateTokenWarningState,
   getBlockingLimit,
   isAutoCompactEnabled,
+  type AutoCompactTrackingState,
 } from '../../services/compact/autoCompact.js'
 import { buildPostCompactMessages } from '../../services/compact/compact.js'
 import { estimateContextTokens, projectTimeBasedMicrocompact } from '../../services/compact/microCompact.js'
@@ -25,11 +26,15 @@ import {
   overflowRefusalText,
   foldRemedyIsHeadless,
   splitCarriedOperatorTail,
+  type OverflowEpisode,
 } from '../../services/compact/overflowRecovery.js'
 import { estimateOverflowSignal } from '../../services/api/overflowSignal.js'
-import { advanceToolCallChain } from '../../Tool.js'
-import { asSystemPrompt } from '../../utils/systemPromptType.js'
-import type { AttachmentMessage } from '../../types/message.js'
+import { advanceToolCallChain, type ToolUseContext } from '../../Tool.js'
+import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
+import type {
+  AttachmentMessage,
+  Message,
+} from '../../types/message.js'
 import {
   API_ERROR_MESSAGE_PREFIX,
   PROMPT_TOO_LONG_ERROR_MESSAGE,
@@ -47,7 +52,7 @@ import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { EarlyStarts } from '../../services/tools/earlyStarts.js'
 import { emitCompactionTrace } from '../../utils/observability/invocationTrace.js'
 import { flushSessionStorage, recordContentReplacement } from '../../utils/sessionStorage.js'
-import { buildRequestContextPlan } from '../../services/run/requestContextPlan.js'
+import { buildRequestContextPlan, type RequestContextPlan } from '../../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../../services/run/contextCalibration.js'
 import { randomUUID, type UUID } from 'node:crypto'
 import { requestGaugeFixed } from '../../services/run/requestGauge.js'
@@ -57,49 +62,44 @@ import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { planToolPayloadUnseeded, toolsOnTheWire } from '../../services/providers/toolEconomy.js'
 import { localPromptFitRefusal, localPromptFits } from '../../services/providers/local/localCallModel.js'
+import type { QueryDeps } from '../../query/deps.js'
 import type { Terminal } from '../../query/transitions.js'
 import type { RunEvent } from '../events.js'
-import type { IterationState, NextTurn, RequestDecision, RunCtx, TurnState } from './state.js'
+import type { IterationState, NextTurn, RequestDecision, RunCtx, SettledDecision, TurnState } from './state.js'
 
-export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: number): AsyncGenerator<RunEvent, RequestDecision> {
-  const { emit, deps, querySource, budgetGuard, awaitingReply, params } = run
-  const { canUseTool, maxTurns } = params
-  let { systemPrompt, userContext, systemContext } = run
-  let { toolUseContext } = state
-  const {
-    messages,
-    autoCompactTracking,
-    maxOutputTokensRecoveryCount,
-    maxOutputTokensOverride,
-    streamFaultRecoveryCount,
-    toolCallRefusalRecoveryCount,
-    pendingToolUseSummary,
-    stopHookActive,
-    turnCount,
-    pendingOverflow,
-  } = state
-  let overflowEpisode = state.overflowEpisode
-  const closingTurn = maxTurns !== undefined && budgetGuard.maxTurnsExceeded(turnCount, maxTurns)
+type Autocompacted = Awaited<ReturnType<QueryDeps['autocompact']>>
 
-  const turnId = `t${ordinal}`
-  yield emit({ kind: 'turn_started', turnId, n: ordinal })
+type PlannedContext = {
+  requestPlan: RequestContextPlan
+  messagesForQuery: Message[]
+  prunedTokensFreed: number
+  thinkingRecords: AttachmentMessage[]
+  fullSystemPrompt: SystemPrompt
+}
 
-  if (!toolUseContext.agentId) {
-    headlessProfilerCheckpoint('query_started')
-  }
+type FoldedContext = {
+  kind: 'go_on'
+  messagesForQuery: Message[]
+  tracking: AutoCompactTrackingState | undefined
+  overflowEpisode: OverflowEpisode
+  fullSystemPrompt: SystemPrompt
+  compactionResult: Autocompacted['compactionResult']
+  consecutiveFailures: Autocompacted['consecutiveFailures']
+  measuredRawTokenCount: Autocompacted['measuredRawTokenCount']
+  compactionRefusal: Autocompacted['refusal']
+  foldSplit: ReturnType<typeof splitCarriedOperatorTail>
+}
 
-  const callChain = advanceToolCallChain(toolUseContext, () => deps.uuid())
+type FittingRequest = {
+  kind: 'go_on'
+  toolUseContext: ToolUseContext
+  appState: ReturnType<ToolUseContext['getAppState']>
+  currentModel: string
+}
 
-  const chainIdForAnalytics =
-    callChain.key
-
-  toolUseContext = {
-    ...toolUseContext,
-    callChain,
-  }
-
-  let tracking = autoCompactTracking
-
+export async function* planContext(run: RunCtx, state: TurnState, toolUseContext: ToolUseContext): AsyncGenerator<RunEvent, PlannedContext> {
+  const { emit, deps, querySource, systemPrompt, userContext, systemContext } = run
+  const { messages, pendingOverflow } = state
   const persistReplacements =
     querySource === 'sdk' ||
     querySource.startsWith('agent:') ||
@@ -202,7 +202,16 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
   let fullSystemPrompt = asSystemPrompt(
     appendSystemContext(systemPrompt, systemContext, toolUseContext.options.engineModel),
   )
+  return { requestPlan, messagesForQuery, prunedTokensFreed, thinkingRecords, fullSystemPrompt }
+}
 
+export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext: ToolUseContext, opened: Pick<FoldedContext, 'tracking' | 'overflowEpisode'>, planned: PlannedContext): AsyncGenerator<RunEvent, FoldedContext | SettledDecision> {
+  const { emit, deps, querySource, params } = run
+  let { systemPrompt, userContext, systemContext } = run
+  const { pendingOverflow } = state
+  const { prunedTokensFreed } = planned
+  let { messagesForQuery, fullSystemPrompt } = planned
+  let { tracking, overflowEpisode } = opened
   const forcedFold = pendingOverflow?.rung === 'fold' ? pendingOverflow.signal : undefined
   const foldSplit = splitCarriedOperatorTail(messagesForQuery)
   const {
@@ -333,7 +342,14 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
       ...(rapidRefillPaused ? { rapidRefillPaused: true as const } : {}),
     }
   }
+  return { kind: 'go_on', messagesForQuery, tracking, overflowEpisode, fullSystemPrompt, compactionResult, consecutiveFailures, measuredRawTokenCount, compactionRefusal, foldSplit }
+}
 
+export async function* holdBlockingLimit(run: RunCtx, state: TurnState, toolUseContext: ToolUseContext, planned: PlannedContext, folded: FoldedContext): AsyncGenerator<RunEvent, FittingRequest | SettledDecision> {
+  const { emit, querySource } = run
+  const { autoCompactTracking, maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, pendingToolUseSummary, stopHookActive, turnCount } = state
+  const { prunedTokensFreed } = planned
+  const { messagesForQuery, tracking, overflowEpisode, fullSystemPrompt, compactionResult, consecutiveFailures, measuredRawTokenCount, compactionRefusal, foldSplit } = folded
   toolUseContext = {
     ...toolUseContext,
     messages: messagesForQuery,
@@ -453,38 +469,70 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
       return { kind: 'end', terminal }
     }
   }
+  return { kind: 'go_on', toolUseContext, appState, currentModel }
+}
+
+export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: number): AsyncGenerator<RunEvent, RequestDecision> {
+  const { emit, deps, budgetGuard, awaitingReply } = run
+  const { canUseTool, maxTurns } = run.params
+  let { toolUseContext } = state
+  const { autoCompactTracking, maxOutputTokensOverride, turnCount } = state
+  const closingTurn = maxTurns !== undefined && budgetGuard.maxTurnsExceeded(turnCount, maxTurns)
+
+  const turnId = `t${ordinal}`
+  yield emit({ kind: 'turn_started', turnId, n: ordinal })
+
+  if (!toolUseContext.agentId) {
+    headlessProfilerCheckpoint('query_started')
+  }
+
+  const callChain = advanceToolCallChain(toolUseContext, () => deps.uuid())
+
+  const chainIdForAnalytics =
+    callChain.key
+
+  toolUseContext = {
+    ...toolUseContext,
+    callChain,
+  }
+
+  const planned = yield* planContext(run, state, toolUseContext)
+  const folded = yield* foldContext(run, state, toolUseContext, { tracking: autoCompactTracking, overflowEpisode: state.overflowEpisode }, planned)
+  if (folded.kind !== 'go_on') return folded
+  const fitting = yield* holdBlockingLimit(run, state, toolUseContext, planned, folded)
+  if (fitting.kind !== 'go_on') return fitting
 
   const iter: IterationState = {
     state,
     turnId,
     ordinal,
-    requestPlan,
-    messagesForQuery,
-    toolUseContext,
+    requestPlan: planned.requestPlan,
+    messagesForQuery: folded.messagesForQuery,
+    toolUseContext: fitting.toolUseContext,
     callChain,
     chainIdForAnalytics,
-    tracking,
-    fullSystemPrompt,
-    appState,
-    currentModel,
+    tracking: folded.tracking,
+    fullSystemPrompt: folded.fullSystemPrompt,
+    appState: fitting.appState,
+    currentModel: fitting.currentModel,
     maxOutputTokensOverride,
     assistantMessages: [],
     toolResults: [],
-    thinkingRecords,
+    thinkingRecords: planned.thinkingRecords,
     toolUseBlocks: [],
     needsFollowUp: false,
     closingTurn,
     callOrdinal: 0,
     replyTo: awaitingReply,
-    early: new EarlyStarts(toolUseContext, canUseTool),
-    overflowEpisode,
+    early: new EarlyStarts(fitting.toolUseContext, canUseTool),
+    overflowEpisode: folded.overflowEpisode,
     allRefusedToolCalls: [],
     refusedToolCalls: [],
     answeredRefusalIds: new Set(),
     shouldPreventContinuation: false,
     loopStoppedCycle: null,
     loopStoppedRecord: null,
-    updatedToolUseContext: toolUseContext,
+    updatedToolUseContext: fitting.toolUseContext,
   }
   return { kind: 'go_on', iter }
 }

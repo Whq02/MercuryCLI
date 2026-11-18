@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import * as t from './turnScenarios.ts'
 
-const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
+const { makeRequest, planContext, foldContext, holdBlockingLimit } = await import('../../src/run-core/turn/makeRequest.ts')
 const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
 const { noToolReply } = await import('../../src/run-core/turn/noToolReply.ts')
 const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
@@ -90,6 +90,30 @@ section('(1) making the request: src/run-core/turn/makeRequest.ts')
   const unarmed = await request({ script: [], env: BLOCKED, querySource: 'side_question', seed: fatHistory() })
   check('the same request on a run that owns no turn ends blocking_limit with the prompt-too-long words, and no model call', said(unarmed.decision) === 'end blocking_limit' && unarmed.planted.requests.length === 0 && !unarmed.events.some(event => event.kind === 'run_terminal'), `${said(unarmed.decision)} · ${kinds(unarmed.events)}`)
   unarmed.planted.close()
+}
+
+section('(1b) the three parts of making the request, each called alone')
+{
+  const p = await t.plantRun({ script: [], seed: f.history() })
+  const context = p.state.toolUseContext as never
+  const planned = await t.drain(planContext(p.run as never, p.state as never, context))
+  check('the context plan is made of the turn\'s rows, with nothing said when nothing was cut', planned.events.length === 0 && planned.decision.messagesForQuery.length === 3 && planned.decision.prunedTokensFreed === 0 && planned.decision.thinkingRecords.length === 0 && planned.decision.requestPlan.messages === planned.decision.messagesForQuery, `${kinds(planned.events)} · ${planned.decision.messagesForQuery.length} rows`)
+  const opened = { tracking: undefined, overflowEpisode: p.state.overflowEpisode as never }
+  const folded = await t.drain(foldContext(p.run as never, p.state as never, context, opened, planned.decision))
+  const kept = folded.decision as Row & { kind: string }
+  check('with no fold due the summariser is asked once and the rows go on as they were', kept.kind === 'go_on' && p.counts.folds === 1 && kept.messagesForQuery === planned.decision.messagesForQuery && kept.compactionResult === undefined && folded.events.length === 0, `${said(folded.decision)} · folds ${p.counts.folds}`)
+  const fitting = await t.drain(holdBlockingLimit(p.run as never, p.state as never, context, planned.decision, folded.decision as never))
+  const fits = fitting.decision as Row & { kind: string; toolUseContext?: Row }
+  check('a request under the blocking limit goes on, and the tools are handed the very rows the model will be sent', fits.kind === 'go_on' && fits.toolUseContext?.messages === planned.decision.messagesForQuery && fits.currentModel === t.MODEL && fitting.events.length === 0, `${said(fitting.decision)} · ${kinds(fitting.events)}`)
+  p.close()
+
+  const tight = await t.plantRun({ script: [], env: BLOCKED, querySource: 'side_question', seed: fatHistory() })
+  const tightContext = tight.state.toolUseContext as never
+  const tightPlan = await t.drain(planContext(tight.run as never, tight.state as never, tightContext))
+  const tightFold = await t.drain(foldContext(tight.run as never, tight.state as never, tightContext, { tracking: undefined, overflowEpisode: tight.state.overflowEpisode as never }, tightPlan.decision))
+  const refused = await t.drain(holdBlockingLimit(tight.run as never, tight.state as never, tightContext, tightPlan.decision, tightFold.decision as never))
+  check('a request over the blocking limit is refused by the last part alone: the first two say nothing', said(refused.decision) === 'end blocking_limit' && tightPlan.events.length === 0 && tightFold.events.length === 0 && kinds(refused.events) === 'notice', `${said(refused.decision)} · ${kinds(refused.events)}`)
+  tight.close()
 }
 
 section("(2) the model's reply: src/run-core/turn/modelReply.ts")
