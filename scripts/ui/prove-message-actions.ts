@@ -36,14 +36,23 @@ check('the MessageActions nav context survives (prev/next/escape)', navMissing.l
 section('2. Chat: a single messageActionsDisabled gate, used at every render site')
 const repl = read('src', 'screens', 'Chat.tsx')
 check('messageActionsDisabled is false unconditionally (no feature flag)', /const messageActionsDisabled = false;/.test(repl))
-check('the MessageActionsKeybindings render gates on the one disabled flag', /isActive=\{!messageActionsDisabled && focusedInputDialog === undefined\}/.test(repl))
+const { openKeysPart } = await import('./chatScenarios.ts')
+const keys = await openKeysPart('message-actions-keys')
+await keys.plant({ messageCursorActive: true })
+const activeWhenEnabled = keys.handed.actions?.isActive
+await keys.plant({ messageActionsDisabled: true })
+const activeWhenDisabled = keys.handed.actions?.isActive
+await keys.plant({ messageActionsDisabled: false, focusedInputDialog: 'tool-permission' })
+const activeUnderDialog = keys.handed.actions?.isActive
+await keys.close()
+check('the MessageActionsKeybindings the chat screen mounts gate on the one disabled flag and on no dialog having the focus', activeWhenEnabled === true && activeWhenDisabled === false && activeUnderDialog === false, `${String(activeWhenEnabled)} · ${String(activeWhenDisabled)} · ${String(activeUnderDialog)}`)
 check('the onMessageActionsEnter handler gates on the one disabled flag', /onMessageActionsEnter=\{messageActionsDisabled \? undefined : messageActions\.enter\}/.test(repl))
 check('exactly one feature(MESSAGE_ACTIONS) in Chat (the messageActionsEnabled def)', (repl.match(/feature\('MESSAGE_ACTIONS'\)/g) ?? []).length === 0)
 check('the gate lives in the hand-written Chat() (no _c slot patched)', /export function Chat\(/.test(repl) && !/const \$ = _c\([\s\S]{0,4000}messageActionsDisabled/.test(repl))
 
 section('3. no env opt-out: message actions are unconditional (the compat env spelling retired with its estate)')
 check('no retired DISABLE_MESSAGE_ACTIONS env read remains', !/DISABLE_MESSAGE_ACTIONS/.test(repl))
-check('every render site respects !messageActionsDisabled', (repl.match(/!messageActionsDisabled/g) ?? []).length >= 2)
+check('every render site respects the disabled flag: the bar in the screen, the key handlers on the mount', repl.includes('messageCursorActive && !messageActionsDisabled ? <MessageActionsBar /> : composerGroup') && activeWhenDisabled === false)
 
 section('4. it SHIPS in dist')
 const dist = join(root, 'dist', 'mercury.mjs')

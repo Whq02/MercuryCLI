@@ -177,12 +177,6 @@ console.log('== 5 · one receipt · truthful footer ==')
   )
   const clearAt = skh.indexOf('if (shouldClearSelectionOnKey(key_0)) {')
   check('…and registers BEFORE the key-driven clear listener', guardAt !== -1 && clearAt !== -1 && guardAt < clearAt)
-  const repl = read('src/screens/Chat.tsx')
-  check(
-    'ScrollKeybindingHandler mounts before CancelRequestHandler in the permanent JSX (listener order is mount order)',
-    repl.indexOf('<ScrollKeybindingHandler') !== -1 &&
-      repl.indexOf('<ScrollKeybindingHandler') < repl.indexOf('{cancelHandler}', repl.indexOf('<ScrollKeybindingHandler')),
-  )
 
   const footer = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
   const notice = read('src/components/PromptInput/ExitChordNotice.tsx')
@@ -230,11 +224,22 @@ console.log('== 6 · the busy fall-through ==')
     '…except while a focused input dialog owns its own settlement',
     body.includes('!isInputDialogFocused'),
   )
-  const repl = read('src/screens/Chat.tsx')
+  const { openKeysPart } = await import('../ui/chatScenarios.ts')
+  const keys = await openKeysPart('exit-copy-grammar-keys')
   check(
-    'Chat feeds the dialog-focus truth into the handler',
-    repl.includes('isInputDialogFocused: focusedInputDialog !== undefined'),
+    'the scroll handler mounts before the cancel handler among the keys of the chat screen (listener order is mount order)',
+    keys.mounted.includes('scroll') && keys.mounted.indexOf('scroll') < keys.mounted.indexOf('cancel'),
+    keys.mounted.join(' '),
   )
+  await keys.plant({ focusedInputDialog: 'cost-threshold' })
+  const whileFocused = keys.handed.cancel?.isInputDialogFocused
+  await keys.plant({ focusedInputDialog: undefined })
+  check(
+    'the chat screen feeds the dialog-focus truth into the handler: true while a dialog has the focus, false when none has',
+    whileFocused === true && keys.handed.cancel?.isInputDialogFocused === false,
+    `${String(whileFocused)} then ${String(keys.handed.cancel?.isInputDialogFocused)}`,
+  )
+  await keys.close()
 }
 
 console.log(failures === 0 ? '✅ exit-copy-grammar GREEN' : `❌ exit-copy-grammar RED (${failures})`)

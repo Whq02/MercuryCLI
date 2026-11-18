@@ -937,6 +937,143 @@ export async function openDraftPart(tag: string, options: { keepHome?: boolean; 
   }
 }
 
+type KeysProps = Parameters<typeof import('../../src/screens/chat/ChatKeys.tsx').ChatKeys>[0]
+type KeysHandler = 'global' | 'command' | 'scroll' | 'actions' | 'cancel'
+
+type KeysPart = {
+  handed: Record<KeysHandler, Record<string, unknown> | null>
+  mounted: KeysHandler[]
+  props: () => KeysProps
+  plant: (over: Partial<KeysProps>) => Promise<void>
+  escapeHeld: () => boolean
+  bodyMounts: () => number
+  emit: (event: 'suspend' | 'resume') => Promise<void>
+  written: string[]
+  close: () => Promise<void>
+}
+
+export async function openKeysPart(tag: string, options: { keepHome?: boolean } = {}): Promise<KeysPart> {
+  const home = options.keepHome === true ? null : pinScratchHome(tag)
+  const React = await import('react')
+  const h = React.createElement
+  const handed: KeysPart['handed'] = { global: null, command: null, scroll: null, actions: null, cancel: null }
+  const mounted: KeysHandler[] = []
+  const spy = (name: KeysHandler) =>
+    function Handler(props: Record<string, unknown>): null {
+      const own = React.useRef(props)
+      own.current = props
+      handed[name] = props
+      React.useEffect(() => {
+        mounted.push(name)
+        return () => {
+          if (handed[name] === own.current) handed[name] = null
+          mounted.splice(mounted.indexOf(name), 1)
+        }
+      }, [])
+      return null
+    }
+  const realGlobal = { ...(await import('../../src/hooks/useGlobalKeybindings.tsx')) }
+  mock.module('../../src/hooks/useGlobalKeybindings.tsx', () => ({ ...realGlobal, GlobalKeybindingHandlers: spy('global') }))
+  const realCommand = { ...(await import('../../src/hooks/useCommandKeybindings.tsx')) }
+  mock.module('../../src/hooks/useCommandKeybindings.tsx', () => ({ ...realCommand, CommandKeybindingHandlers: spy('command') }))
+  const realScroll = { ...(await import('../../src/components/ScrollKeybindingHandler.tsx')) }
+  mock.module('../../src/components/ScrollKeybindingHandler.tsx', () => ({ ...realScroll, ScrollKeybindingHandler: spy('scroll') }))
+  const realActions = { ...(await import('../../src/components/messageActions.tsx')) }
+  mock.module('../../src/components/messageActions.tsx', () => ({ ...realActions, MessageActionsKeybindings: spy('actions') }))
+  const realCancel = { ...(await import('../../src/hooks/useCancelRequest.ts')) }
+  mock.module('../../src/hooks/useCancelRequest.ts', () => ({ ...realCancel, CancelRequestHandler: spy('cancel') }))
+  const { ChatKeys } = await import('../../src/screens/chat/ChatKeys.tsx')
+  const { useEscapeOwned } = await import('../../src/hooks/useEscapeOwned.ts')
+  const { useStdin } = await import('../../src/ink.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  slot.setFocusedSessionConnector(Object.assign(new NoSessionConnector(), { sessionId: () => tag }) as never)
+  let mounts = 0
+  function Body(): null {
+    React.useEffect(() => void mounts++, [])
+    return null
+  }
+  let held = false
+  let stdinEvents: { emit: (event: string) => boolean } | undefined
+  function Reader(): null {
+    held = useEscapeOwned()
+    stdinEvents = useStdin().internal_eventEmitter
+    return null
+  }
+  let props: KeysProps = {
+    legacyTranscript: false,
+    fullscreen: true,
+    compactWork: { read: () => 'composer', set: () => {}, toggleSummary: () => {}, bindToggle: () => {}, detailState: { selectedId: null, detailTaskId: undefined } },
+    screen: 'prompt',
+    setScreen: () => {},
+    showAllInTranscript: false,
+    setShowAllInTranscript: () => {},
+    messages: [],
+    handleEnterTranscript: () => {},
+    handleExitTranscript: () => {},
+    inVirtualTranscriptMode: true,
+    inVirtualTranscript: false,
+    searchBarOpen: false,
+    helpOpen: false,
+    isSearchingHistory: false,
+    messageCursorActive: false,
+    messageActions: { handlers: {} },
+    messageActionsDisabled: false,
+    focusedInputDialog: undefined,
+    toolUseConfirmQueue: [],
+    showMessageSelector: false,
+    showBashesDialog: false,
+    vimMode: 'INSERT',
+    dialogOwnsKeys: false,
+    centredModalUp: false,
+    permissionOverlay: null,
+    viewStreamMode: 'responding',
+    seatLive: IDLE_LIVE,
+    onSubmit: async () => {},
+    commands: [],
+    scrollRef: { current: null },
+    modalScrollRef: { current: null },
+    onScroll: () => {},
+    onTranscriptScroll: () => {},
+    children: null,
+  }
+  const draw = (): import('react').ReactNode => h(React.Fragment, null, h(ChatKeys, props, h(Body)), h(Reader))
+  const part = await mountPart(() => null, { draw })
+  const written: string[] = []
+  return {
+    handed,
+    mounted,
+    props: () => props,
+    plant: async over => {
+      props = { ...props, ...over }
+      await part.set(() => null)
+    },
+    escapeHeld: () => held,
+    bodyMounts: () => mounts,
+    emit: async event => {
+      if (stdinEvents === undefined) throw new Error('the stdin events were not tapped')
+      const real = process.stdout.write
+      process.stdout.write = ((data: unknown): boolean => {
+        written.push(String(data))
+        return true
+      }) as never
+      try {
+        stdinEvents.emit(event)
+      } finally {
+        process.stdout.write = real
+      }
+      await settle(80)
+    },
+    written,
+    close: async () => {
+      part.unmount()
+      slot.releaseFocusedSessionConnector()
+      if (home !== null) await releaseScratchHome(home)
+    },
+  }
+}
+
 export async function closeStage(stage: Stage): Promise<void> {
   stage.view.unmount()
   await releaseScratchHome(stage.home)

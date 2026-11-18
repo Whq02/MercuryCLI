@@ -62,7 +62,18 @@ section('§2 the wiring — by census at every owner')
     check('the Chat keeps no cursor state of its own (its one clear — the jump-to-new pill — writes the store)', !repl.includes('useState<MessageActionsState | null>') && cleared && jumps.join() === 'bottom', `cleared ${cleared} · ${jumps.join()}`)
   }
   check('the Chat subscribes to the active flag only', repl.includes('const messageCursorActive = useMessageCursorActive();') && repl.includes("import { useMessageCursorActive } from '../components/messageCursorStore.js';"))
-  check('the bar and the key handlers mount on the active flag', repl.includes('messageCursorActive && !messageActionsDisabled ? <MessageActionsBar /> : composerGroup') && repl.includes('{fullscreen && messageCursorActive ? ('))
+  {
+    const { openKeysPart } = await import('./chatScenarios.ts')
+    const keys = await openKeysPart('message-cursor-store-keys', { keepHome: true })
+    const withoutCursor = keys.handed.actions === null
+    await keys.plant({ messageCursorActive: true })
+    const withCursor = keys.handed.actions !== null
+    await keys.plant({ fullscreen: false })
+    const outsideFullscreen = keys.handed.actions === null
+    await keys.close()
+    process.chdir(ROOT)
+    check('the bar and the key handlers mount on the active flag', repl.includes('messageCursorActive && !messageActionsDisabled ? <MessageActionsBar /> : composerGroup') && withoutCursor && withCursor && outsideFullscreen, `handlers absent with no cursor ${withoutCursor} · mounted with one ${withCursor} · absent outside the fullscreen layout ${outsideFullscreen}`)
+  }
   check('the live transcript owns the cursor; no transcript mount passes a cursor prop', /ownsCursor\s*\n\s*cursorNavRef=\{messageNavRef\}/.test(repl) && !/\bcursor=\{/.test(repl))
   check('the hook takes the nav ref and the capabilities, reading the cursor live', repl.includes('useMessageActions(messageNavRef, {'))
 

@@ -280,7 +280,6 @@ console.log('WINDOW LAW — a window paints the view lane, never writes:')
   const replSrc = readFileSync(join(import.meta.dirname, '../../src/screens/Chat.tsx'), 'utf8')
   check('the screen holds no transcript writer', !replSrc.includes('useLogMessages'))
   check('the Chat renders the focused records and no engine lane', replSrc.includes('const messages = useFocusedTranscript();') && !replSrc.includes('useEngineTranscriptMessages'))
-  check('the cancel handler reaches the focused turn', replSrc.includes('focusedTurnActive: seatLive.inFlight,'))
   check('no engine dialog of the screen\'s own exists to hold off-screen (the sandbox queue is the session runner\'s)', !replSrc.includes('sandboxPermissionQueue'))
   check('the consent card is the FOCUSED chat\'s', replSrc.includes('toolUseConfirmQueueLength: toolUseConfirmQueue.length'))
   check('the dead transcript store is gone (no screen-side engine lane exists)', !existsSync(join(import.meta.dirname, '../../src/state/transcriptStore.ts')))
@@ -320,6 +319,18 @@ console.log('\n§ drive-12 — the live view, the one lift, the stale-tag law, P
   check('the delivery valve holds with-you on the enter valve too', dispSrc.includes("(targetRec.attachedAt !== undefined || targetRec.attachRequestedAt !== undefined)"))
   const mirrorSrc = readFileSync(join(import.meta.dirname, '../../src/components/concourse/SessionMirror.tsx'), 'utf8')
   check('the mirror paints a WORKING session\'s life (glyph + activity) beside the title', mirrorSrc.includes("state === 'working'") && mirrorSrc.includes('<WorkingGlyph'))
+}
+
+console.log("\n§ the cancel handler and the focused turn, read off the mounted keys of the chat screen")
+{
+  const { openKeysPart } = await import('../ui/chatScenarios.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.js')
+  const keys = await openKeysPart('switchboard-w0-keys', { keepHome: true })
+  await keys.plant({ seatLive: { ...IDLE_LIVE, inFlight: true } })
+  const inFlight = keys.handed.cancel?.focusedTurnActive
+  await keys.plant({ seatLive: IDLE_LIVE })
+  check('the cancel handler reaches the focused turn', inFlight === true && keys.handed.cancel?.focusedTurnActive === false, `${String(inFlight)} then ${String(keys.handed.cancel?.focusedTurnActive)}`)
+  await keys.close()
 }
 
 console.log(
