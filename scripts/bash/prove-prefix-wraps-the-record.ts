@@ -18,7 +18,7 @@ if (process.argv.includes('--under-the-prefix')) {
   }
   const { startCommandHook } = await import('../../src/utils/hooks/commandRunner.ts')
   const hook = async (command: string): Promise<Ran> => {
-    const started = await startCommandHook({ command, shell: 'bash', name: 'prefix-proof', event: 'PreToolUse', index: 0, payloadJson: '{}', timeoutMs: 20_000, source: { kind: 'settings' } })
+    const started = await startCommandHook({ command, shell: 'bash', name: 'prefix-proof', event: 'tool.before', index: 0, payloadJson: '{}', timeoutMs: 20_000, source: { kind: 'settings' } })
     const end = await started.result
     return { code: end.kind === 'exited' ? end.code : -1, text: `${end.stdout}${end.stderr}`.trim() }
   }
