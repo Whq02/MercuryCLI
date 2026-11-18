@@ -898,6 +898,7 @@ try {
 
   await import(`${root}/src/tasks.ts`)
   const { runAgent } = await import(`${root}/src/tools/AgentTool/runAgent.ts`)
+  const { query: startTurn } = await import(`${root}/src/query.ts`)
   const { getDefaultAppState } = await import(`${root}/src/state/AppStateStore.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/utils/fileStateCache.ts`)
   const { runWithCwdOverride } = await import(`${root}/src/utils/cwd.ts`)
@@ -928,6 +929,7 @@ try {
         appState = typeof update === 'function' ? update(appState) : update
       },
       messages: [],
+      startTurn,
       readFileState: createFileStateCacheWithSizeLimit(100),
       setInProgressToolUseIDs: () => {},
       setResponseLength: () => {},

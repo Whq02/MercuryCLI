@@ -46,6 +46,7 @@ const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 
 const MODEL = 'claude-opus-4-8'
 const PARENT_SOURCE = 'main_thread'
@@ -94,6 +95,7 @@ function makeContext(): Record<string, unknown> {
     messages: [],
     agentType: undefined,
     agentId: undefined,
+    startTurn,
     readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024),
     options: {
       tools: [],

@@ -84,6 +84,7 @@ run_proof "$here/../typecheck/prove-warm-replay.sh" bash "$here/../typecheck/pro
 run_proof "$here/prove-shard-compile-cache-removed.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-compile-cache-removed.ts" || fail=1
 run_proof "$here/prove-shard-temp-spelling.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-temp-spelling.ts" || fail=1
 run_proof "$here/prove-shell-door.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shell-door.ts" || fail=1
+run_proof "$here/prove-outside-the-import-cycle.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-outside-the-import-cycle.ts" || fail=1
 run_proof "$here/../substrate/prove-flag-registry-readers.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-readers.ts" || fail=1
 run_proof "$here/../substrate/prove-flag-registry-split.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-split.ts" || fail=1
 run_proof "$here/prove-source-text-reads.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-source-text-reads.ts" || fail=1

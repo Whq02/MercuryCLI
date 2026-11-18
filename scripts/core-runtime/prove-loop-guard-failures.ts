@@ -103,6 +103,7 @@ function context(agentId?: string): never {
     abortController: new AbortController(), agentId,
     options: { commands: [], tools, engineModel: MODEL, thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: false, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
     getAppState: () => state, setAppState: set, setAppStateForTasks: set, messages: [],
+    startTurn: queryModule.query,
     readFileState: createFileStateCacheWithSizeLimit(100), setInProgressToolUseIDs() {}, setResponseLength() {}, updateFileHistoryState() {}, updateAttributionState() {},
   } as never
 }

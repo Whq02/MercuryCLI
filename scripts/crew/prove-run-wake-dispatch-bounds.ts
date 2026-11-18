@@ -31,12 +31,13 @@ updateSettingsForSource('userSettings', { swarm: { enabled: true } })
 const seam = await import(join(source, 'services/crewBoard/seam.ts'))
 const { flushSessionStorage } = await import(join(source, 'utils/sessionStorage/writer.ts'))
 const { runSwarmCommand } = await import(join(source, 'commands/swarm/swarm.ts'))
+const { query: startTurn } = await import(join(source, 'query.ts'))
 assert(runSwarmCommand('on').startsWith('Swarm on'))
 await seam.latchSwarmAgent('poster', 'Poster')
 const store = () => seam.swarmStore()!
 const tasks: Record<string, { type: string; id: string; agentId: string; status: string }> = {}
 let contextReads = 0
-const context = { getAppState: () => { contextReads++; return { tasks } }, options: {}, abortController: new AbortController() }
+const context = { getAppState: () => { contextReads++; return { tasks } }, options: {}, startTurn, abortController: new AbortController() }
 const turn = async (): Promise<void> => { await flushSessionStorage(); for (let n = 0; n < 6; n++) await new Promise<void>(resolve => setImmediate(resolve)) }
 let serial = 0
 async function park(id: string, status = 'completed'): Promise<void> {

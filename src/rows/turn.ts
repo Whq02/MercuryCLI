@@ -4,7 +4,7 @@ import type { Command } from '../commands.js'
 import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
 import { armWorkerParentWatch } from '../daemon/workerParentWatch.js'
 import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
-import { queryEvents } from '../query.js'
+import { query, queryEvents } from '../query.js'
 import type { Terminal } from '../query/transitions.js'
 import type { RunEvent } from '../run-core/events.js'
 import { legacyYieldsOf } from '../run-core/project-legacy.js'
@@ -286,6 +286,28 @@ class StepLedger {
   }
 }
 
+function conversationOptions(config: ConversationConfig, model: string, thinkingConfig: ThinkingConfig): ToolUseContext['options'] {
+  return {
+    commands: config.commands,
+    debug: false,
+    verbose: false,
+    engineModel: model,
+    thinkingConfig,
+    tools: config.tools,
+    mcpClients: config.mcpClients,
+    mcpResources: {},
+    isNonInteractiveSession: true,
+    ...(config.hostHoldsAsks === true ? { hostHoldsAsks: true } : {}),
+    customSystemPrompt: config.customSystemPrompt,
+    appendSystemPrompt: config.appendSystemPrompt,
+    agentDefinitions: { activeAgents: config.agents ?? [], allAgents: [] },
+    theme: getGlobalConfig().theme,
+    maxBudgetUsd: config.maxBudgetUsd,
+    runDeadline: config.maxTime,
+    querySource: 'sdk',
+  }
+}
+
 export class Conversation {
   private readonly config: ConversationConfig
   private readonly mutableMessages: Message[]
@@ -455,25 +477,8 @@ export class Conversation {
     armWorkerParentWatch()
 
     const buildContext = (messages: Message[], model: string): ToolUseContext => ({
-      options: {
-        commands: config.commands,
-        debug: false,
-        verbose: false,
-        engineModel: model,
-        thinkingConfig,
-        tools: config.tools,
-        mcpClients: config.mcpClients,
-        mcpResources: {},
-        isNonInteractiveSession: true,
-        ...(config.hostHoldsAsks === true ? { hostHoldsAsks: true } : {}),
-        customSystemPrompt: config.customSystemPrompt,
-        appendSystemPrompt: config.appendSystemPrompt,
-        agentDefinitions: { activeAgents: config.agents ?? [], allAgents: [] },
-        theme: getGlobalConfig().theme,
-        maxBudgetUsd: config.maxBudgetUsd,
-        runDeadline: config.maxTime,
-        querySource: 'sdk',
-      },
+      options: conversationOptions(config, model, thinkingConfig),
+      startTurn: query,
       abortController: this.abortController,
       readFileState: this.readFileState,
       contentReplacementState: this.contentReplacementState,

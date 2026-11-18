@@ -157,6 +157,7 @@ const { runAsyncAgentLifecycle, automaticResumePending } = await import('../../s
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
 const { createUserMessage } = await import('../../src/utils/messages.js')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
+const { query: startTurn } = await import('../../src/query.ts')
 const { registerAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
 const { pauseStatusWords } = await import('../../src/tasks/LocalAgentTask/agentPause.js')
 const { openaiLimitWindow } = await import('../../src/services/providers/openai/openaiLimitState.js')
@@ -169,6 +170,7 @@ const ctx = {
   abortController: new AbortController(),
   options: { commands: [], tools: [], engineModel: MODEL, thinkingConfig: { type: 'enabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
   getAppState: () => state, setAppState: setState, setAppStateForTasks: setState, messages: [],
+  startTurn,
   readFileState: createFileStateCacheWithSizeLimit(100), setInProgressToolUseIDs: () => {}, setResponseLength: () => {}, updateFileHistoryState: () => {}, updateAttributionState: () => {},
 } as never
 const definition = { agentType: 'provider-attacks-fixture', whenToUse: 'provider refusal fixture', source: 'projectSettings', getSystemPrompt: () => 'Answer with one line. Do not call tools.' } as never

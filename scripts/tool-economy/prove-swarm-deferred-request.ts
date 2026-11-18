@@ -77,6 +77,7 @@ const seam = await import('../../src/services/crewBoard/seam.ts')
 runSwarmCommand('on')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
 const { getAttachments, createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
@@ -102,7 +103,7 @@ const context = (tools: Tool[], messages: Message[], agentId = 'fixture-seat', e
   options: { commands: [], tools, engineModel, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [] } },
   getAppState: () => appState,
   setAppState: (update: (state: typeof appState) => typeof appState) => { appState = update(appState) },
-  abortController: new AbortController(), messages, readFileState: createFileStateCacheWithSizeLimit(100),
+  abortController: new AbortController(), messages, startTurn, readFileState: createFileStateCacheWithSizeLimit(100),
   loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(),
 }) as unknown as ToolUseContext
 const collect = (tools: Tool[], messages: Message[], agentId?: string, engineModel?: string) => getAttachments(null, context(tools, messages, agentId, engineModel), [], messages, undefined, { localSubmission: true })

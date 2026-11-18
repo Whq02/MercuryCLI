@@ -1,6 +1,7 @@
 import { ProtocolError, ProtocolErrorCode, Server, serveStdio, type Tool as McpTool } from '../services/mcp/sdk.js'
 import { getEmptyToolPermissionContext, type Tool, type ToolUseContext } from '../Tool.js'
 import { getSessionId } from '../bootstrap/state.js'
+import { query } from '../query.js'
 import { engageCommitGate } from '../guards/commitGate.js'
 import { judgeToolCall } from '../guards/guards.js'
 import { registerWardsGuard } from '../guards/wardsGuard.js'
@@ -114,6 +115,7 @@ export async function startMCPServer(
     const abortController = new AbortController()
     const toolUseContext = {
       abortController,
+      startTurn: query,
       options: {
         commands: [review],
         tools: pool,

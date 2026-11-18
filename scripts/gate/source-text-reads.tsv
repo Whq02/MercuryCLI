@@ -1187,7 +1187,7 @@ scripts/transcript-rows/prove-wait-row-estimate.ts	1	2	eac662bfcfbb
 scripts/transcript-rows/prove-writing-indicator.ts	3	11	7acf64826445
 scripts/tree-ownership/prove-tree-ownership-namespace.ts	2	3	13bc58066c8a
 scripts/turnEngine/prove-ptl-recovery.ts	1	1	ad0978c0145d
-scripts/turnEngine/prove-turn-engine-contracts.ts	3	6	bec4a6193ad7
+scripts/turnEngine/prove-turn-engine-contracts.ts	3	4	bec4a6193ad7
 scripts/ui/prove-accent-override.ts	3	8	9307f0310e2a
 scripts/ui/prove-accent-subscriptions.ts	3	3	f712728a7d8c
 scripts/ui/prove-action-honesty.ts	2	12	1eb6e21de13f

@@ -61,6 +61,7 @@ function launch(agentId: string, mode: string) {
     setAppState,
     setAppStateForTasks: setAppState,
     messages: [],
+    startTurn: realQuery.query,
     readFileState: createFileStateCacheWithSizeLimit(100),
     setInProgressToolUseIDs: () => {},
     setResponseLength: () => {},

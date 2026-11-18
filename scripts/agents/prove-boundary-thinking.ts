@@ -31,6 +31,7 @@ if (childAt !== -1) {
   const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
   const { createUserMessage } = await import('../../src/utils/messages.ts')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+  const { query: startTurn } = await import('../../src/query.ts')
   const { readAgentMetadata, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
   await import('../../src/tasks.ts')
   type AppState = import('../../src/state/AppStateStore.ts').AppState
@@ -40,6 +41,7 @@ if (childAt !== -1) {
     abortController: new AbortController(),
     options: { commands: [], tools: [], engineModel: model, ...(mode === 'default' ? {} : { thinkingConfig: mode === 'launch' ? thinking : { type: 'disabled' } }), mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
     getAppState: () => state, setAppState: setState, setAppStateForTasks: setState, messages: [],
+    startTurn,
     readFileState: createFileStateCacheWithSizeLimit(100), setInProgressToolUseIDs: () => {}, setResponseLength: () => {}, updateFileHistoryState: () => {}, updateAttributionState: () => {},
   } as never
   const allow = (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never

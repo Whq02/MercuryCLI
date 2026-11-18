@@ -335,6 +335,7 @@ const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
 const { GLM_STATIC_CATALOGUE } = await import('../../src/services/providers/zai/zaiAdapter.ts')
@@ -416,6 +417,7 @@ function makeCtx(parentModel: string): { ctx: never; abort: AbortController } {
       appState = f(appState as never) as unknown as Record<string, unknown>
     },
     messages: [],
+    startTurn,
     readFileState: createFileStateCacheWithSizeLimit(100),
     setInProgressToolUseIDs: () => {},
     setResponseLength: () => {},

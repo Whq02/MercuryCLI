@@ -122,6 +122,7 @@ const { mediaRefusalOf } = await import('../../src/services/api/mediaRefusal.ts'
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs.ts')
 const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
 const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
@@ -165,6 +166,7 @@ function makeCtx(store: Store, agentId?: string): never {
     setAppState: store.set,
     setAppStateForTasks: store.set,
     messages: [],
+    startTurn,
     readFileState: createFileStateCacheWithSizeLimit(100),
     setInProgressToolUseIDs: () => {},
     setResponseLength: () => {},

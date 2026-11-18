@@ -30,6 +30,7 @@ const model = `compat/parent/${f.model}`
 bootstrap.setEngineModelOverride('compat/first/Wrong/First')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { runAgent } = await import('../../src/tools/AgentTool/runAgent.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { getAgentModel } = await import('../../src/utils/model/agent.ts')
@@ -40,7 +41,7 @@ const previousCwd = process.cwd()
 process.chdir(f.home)
 let state: any = getDefaultAppState()
 const setState = (update: any) => { state = update(state) }
-const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: setState, setAppStateForTasks: setState, readFileState: createFileStateCacheWithSizeLimit(100), messages: [], options: { engineModel: model, thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, tools: [], commands: [], mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } }, setInProgressToolUseIDs: () => {}, setResponseLength: () => {}, updateFileHistoryState: () => {}, updateAttributionState: () => {} }
+const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: setState, setAppStateForTasks: setState, startTurn, readFileState: createFileStateCacheWithSizeLimit(100), messages: [], options: { engineModel: model, thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, tools: [], commands: [], mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } }, setInProgressToolUseIDs: () => {}, setResponseLength: () => {}, updateFileHistoryState: () => {}, updateAttributionState: () => {} }
 const definition = { agentType: 'mercury-crew', whenToUse: 'compat inheritance fixture', source: 'projectSettings', getSystemPrompt: () => 'Answer without tools.' } as never
 const allow = (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never
 const launched: string[] = []

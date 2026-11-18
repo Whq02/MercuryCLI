@@ -71,6 +71,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-runloop-contract.ts 
 
 echo "── core-runtime: the turn machine, recorded scenario by scenario"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-turn-recording.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-turn-recording.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-nested-turn-recording.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-nested-turn-recording.ts "$__t" "$__rc"
 
 echo "── core-runtime: the steps of a turn, each called with a planted state"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-turn-steps.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-turn-steps.ts "$__t" "$__rc"

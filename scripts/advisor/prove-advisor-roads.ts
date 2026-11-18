@@ -247,6 +247,7 @@ function makeCtx(agentId?: string): Raw {
       appState = f(appState as never) as unknown as Raw
     },
     messages: [],
+    startTurn: query,
     readFileState: createFileStateCacheWithSizeLimit(100),
     setInProgressToolUseIDs: () => {},
     setResponseLength: () => {},

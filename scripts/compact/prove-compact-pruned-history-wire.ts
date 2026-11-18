@@ -51,6 +51,7 @@ const { productionDeps } = await import('../../src/query/deps.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
 const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
@@ -107,6 +108,7 @@ function makeCtx(model: string = MODEL): Record<string, unknown> {
       appState = f(appState as never) as unknown as Record<string, unknown>
     },
     messages: [],
+    startTurn,
     readFileState: createFileStateCacheWithSizeLimit(100),
     contentReplacementState: createContentReplacementState(),
     setInProgressToolUseIDs: () => {},
