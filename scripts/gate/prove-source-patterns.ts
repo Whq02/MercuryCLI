@@ -17,6 +17,8 @@ const PAYLOAD_FILES = new Set(readFileSync(join(ROOT, PAYLOAD_LIST), 'utf8').spl
 const AT_THE_ROOT = new Set(['node_modules', 'dist', '.git'])
 const DOOR = 'flagEnv'
 const LOOSE = 'flagEnvLoose'
+const PAUSE = 'hand-built-pause'
+const SLEEP_DOOR = 'src/utils/sleep.ts'
 const REGISTERED = new Set(FLAG_REGISTRY.map(row => row.env))
 const DOOR_FILE = ((): string => {
   const self = ts.createSourceFile(SELF, readFileSync(import.meta.path, 'utf8'), ts.ScriptTarget.Latest, false)
@@ -43,6 +45,7 @@ const HABITS = {
   queueMicrotask: YIELD,
   'process.nextTick': YIELD,
   'Atomics.wait': `a synchronous wait stops the event loop for every caller: in an async caller, ${SLEEP}; a caller that cannot await hands the wait to a worker`,
+  [PAUSE]: `call sleep(ms, signal?, opts?) from ${SLEEP_DOOR} where the promise is built (each line below names the call): the second argument is the signal of a caller that stops its own work when it aborts, and { unref: true } keeps the timer from holding the process open`,
   useEffect: `${RENDER}; a repeating tick is useInterval or useAnimationFrame from ink/hooks`,
   useLayoutEffect: `${RENDER}; a size is read from the layout the renderer already measured (useTerminalSize, useTerminalViewport), not measured again after the paint`,
   useInsertionEffect: `${RENDER}; a write to the terminal belongs to the renderer, not to a component`,
@@ -403,6 +406,51 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
     if (isEnv(source)) hit('env-read', at, named(key))
     else member(source, key, at)
   }
+  const callsBare = (e: ts.Expression, name: string): boolean => {
+    const x = unwrap(e)
+    return ts.isCallExpression(x) && ts.isIdentifier(x.expression) && x.expression.text === name && (x.arguments.length === 0 || (x.arguments.length === 1 && yieldsNothing(x.arguments[0]!)))
+  }
+  const settles = (callback: ts.Expression, resolver: string): boolean => {
+    const x = unwrap(callback)
+    if (ts.isIdentifier(x)) return x.text === resolver
+    if (!(ts.isArrowFunction(x) || ts.isFunctionExpression(x)) || x.parameters.length > 0) return false
+    if (!ts.isBlock(x.body)) return callsBare(x.body, resolver)
+    const rest = x.body.statements.filter(s => !ts.isEmptyStatement(s))
+    const only = rest.length === 1 ? rest[0]! : undefined
+    return only !== undefined && (ts.isExpressionStatement(only) || ts.isReturnStatement(only)) && only.expression !== undefined && callsBare(only.expression, resolver)
+  }
+  const unrefed = (e: ts.Expression): ts.Expression | undefined => {
+    const x = unwrap(e)
+    return ts.isCallExpression(x) && x.arguments.length === 0 && ts.isPropertyAccessExpression(x.expression) && x.expression.name.text === 'unref' ? unwrap(x.expression.expression) : undefined
+  }
+  const pauseByHand = (n: ts.NewExpression): string | undefined => {
+    const made = n.expression
+    const executor = n.arguments?.length === 1 ? unwrap(n.arguments[0]!) : undefined
+    if (!ts.isIdentifier(made) || made.text !== 'Promise' || declarationOf(made) || !executor || !(ts.isArrowFunction(executor) || ts.isFunctionExpression(executor))) return undefined
+    const resolver = executor.parameters[0]?.name
+    if (!resolver || !ts.isIdentifier(resolver)) return undefined
+    const armed = (e: ts.Expression): string | undefined => {
+      const x = unwrap(e)
+      if (!ts.isCallExpression(x) || habitOfValue(x.expression) !== 'setTimeout' || x.arguments.length < 1 || x.arguments.length > 2 || !settles(x.arguments[0]!, resolver.text)) return undefined
+      return x.arguments[1] ? squeeze(x.arguments[1].getText(sf)) : '0'
+    }
+    const steps = ts.isBlock(executor.body) ? executor.body.statements.filter(s => !ts.isEmptyStatement(s)) : undefined
+    const first = steps?.[0]
+    const lone = steps === undefined ? (executor.body as ts.Expression) : steps.length === 1 && first && (ts.isExpressionStatement(first) || ts.isReturnStatement(first)) ? first.expression : undefined
+    if (lone) {
+      const held = unrefed(lone)
+      const delay = armed(held ?? lone)
+      return delay === undefined ? undefined : `sleep(${delay}${held ? ', undefined, { unref: true }' : ''})`
+    }
+    const second = steps?.length === 2 ? steps[1]! : undefined
+    const kept = first && second && ts.isVariableStatement(first) && first.declarationList.declarations.length === 1 ? first.declarationList.declarations[0]! : undefined
+    if (!second || !kept || !ts.isIdentifier(kept.name) || !kept.initializer) return undefined
+    const guarded = ts.isIfStatement(second) && !second.elseStatement ? second.thenStatement : second
+    const release = ts.isBlock(guarded) ? (guarded.statements.length === 1 ? guarded.statements[0]! : undefined) : guarded
+    const handle = release && ts.isExpressionStatement(release) ? unrefed(release.expression) : undefined
+    const delay = handle && ts.isIdentifier(handle) && handle.text === kept.name.text ? armed(kept.initializer) : undefined
+    return delay === undefined ? undefined : `sleep(${delay}, undefined, { unref: true })`
+  }
   const walk = (n: ts.Node): void => {
     if (n.kind === ts.SyntaxKind.AnyKeyword) tally('any-type')
     if (ts.isIdentifier(n)) {
@@ -468,6 +516,9 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
       let x: ts.Expression = n.expression
       while (ts.isVoidExpression(x) || ts.isAwaitExpression(x)) x = x.expression
       if (ts.isCallExpression(x) && squeeze(x.expression.getText(sf)) === 'Promise.allSettled') tally('all-settled')
+    } else if (ts.isNewExpression(n)) {
+      const instead = pauseByHand(n)
+      if (instead) hit(PAUSE, n, `${instead} from ${SLEEP_DOOR}`)
     }
     if (ts.isCallExpression(n)) {
       if (ts.isPropertyAccessExpression(n.expression)) {
@@ -792,10 +843,17 @@ function plantedEstate(): void {
         'void Promise.resolve().then(() => {})',
         'await Promise.resolve()',
         'await null',
+        'await new Promise(resolve => setTimeout(resolve, 8))',
+        'const napped = new Promise<void>(done => { const held = setTimeout(() => done(), 9); held.unref?.() })',
+        'function linger(ms: number): Promise<void> { return new Promise(function (ok) { globalThis.setTimeout(ok, ms).unref() }) }',
+        'const bound = new Promise<void>(resolve => { handle = setTimeout(resolve, 10) })',
+        "const valued = new Promise<string>(resolve => setTimeout(() => resolve('late'), 11))",
+        "const raced = new Promise<void>(resolve => { setTimeout(resolve, 12); socket.once('close', resolve) })",
       ],
       seen: [
         [3, 'env-whole'], [4, 'setTimeout'], [5, 'setTimeout'], [6, 'setInterval'], [7, 'setTimeout'], [8, 'setInterval'], [9, 'setImmediate'], [10, 'setImmediate'], [11, 'queueMicrotask'], [12, 'process.nextTick'], [13, 'process.nextTick'], [14, 'setTimeout'], [15, 'setInterval'], [16, 'env-read'], [17, 'setInterval'],
         [20, 'setTimeout'], [22, 'process.nextTick'], [23, 'setTimeout'], [24, 'setTimeout'], [25, 'setImmediate'], [26, 'setImmediate'], [28, 'setInterval'], [29, 'setTimeout'], [30, 'setTimeout'], [33, 'setTimeout'], [34, 'setTimeout'], [35, 'setImmediate'], [36, 'Atomics.wait'], [37, 'queueMicrotask'], [38, 'queueMicrotask'], [39, 'queueMicrotask'],
+        [40, PAUSE], [40, 'setTimeout'], [41, PAUSE], [41, 'setTimeout'], [42, PAUSE], [42, 'setTimeout'], [43, 'setTimeout'], [44, 'setTimeout'], [45, 'setTimeout'],
       ],
     },
     {
@@ -829,7 +887,8 @@ function plantedEstate(): void {
         'await work()',
         'Promise.resolve(value).then(done)',
         'const store = { wait: () => 0 }; store.wait()',
-        'export const out = [words, told, handle, able, run, mySetTimeout, setTimeoutMs, resetTimeout, wide, narrow, pattern, typed, settle, recovered, store]',
+        'const ticked = new Promise<void>(resolve => clock.setTimeout(resolve, 5))',
+        'export const out = [words, told, handle, able, run, mySetTimeout, setTimeoutMs, resetTimeout, wide, narrow, pattern, typed, settle, recovered, store, ticked]',
       ],
       seen: [],
     },
@@ -966,7 +1025,7 @@ function plantedEstate(): void {
   const wanted = (file: string): string => want.filter(w => w.startsWith(`${file}:`)).join(' ')
   const stands = (file: string): boolean => of(file) === wanted(file)
   check(
-    'a timer is seen as a call of the global, as a member of globalThis or window, by a bracketed name, under the name an import gives it, as a member of the timers module, of its promises and of its scheduler, loaded by require or by a dynamic import, as a value, through a constant that holds the global or the timer, and through a name taken out of globalThis, each use counted; process.nextTick, Atomics.wait and a microtask queued through a resolved promise or an await of nothing are seen',
+    'a timer is seen as a call of the global, as a member of globalThis or window, by a bracketed name, under the name an import gives it, as a member of the timers module, of its promises and of its scheduler, loaded by require or by a dynamic import, as a value, through a constant that holds the global or the timer, and through a name taken out of globalThis, each use counted; process.nextTick, Atomics.wait and a microtask queued through a resolved promise or an await of nothing are seen; a pause built by hand is seen where the executor of a new Promise only arms the timer that resolves it (the resolver handed to the timer or called with nothing, with unref on the handle or without), and not where the executor keeps the handle, resolves with a value or does anything more',
     stands('src/planted/timers.ts'),
     differs,
   )
@@ -988,7 +1047,7 @@ function plantedEstate(): void {
   check('a plain JavaScript module is read as the TypeScript ones are', stands('src/planted/worker.mjs'), differs)
   check(`the registry (${DOOR_FILE}, known by its path and its export of ${DOOR}) is the door of the environment: its own reads are not counted and its other habits are; another file that exports a function of that name is counted like any file`, DOOR_FILE !== '' && existsSync(join(ROOT, DOOR_FILE)) && stands(DOOR_FILE) && stands('src/planted/door.ts'), differs)
   check(
-    'a look-alike is not seen: the words in a string, a template or a regular expression; a type query and a typeof test; a method of that name on a socket, a clock or a store; a function, a parameter or a constant of the file under that name; a property named env; an environment a caller hands in as a parameter with no default; the any keyword and never in a type; a cast to unknown alone and a cast between two types; a catch block and a handler that do something or answer with a computed value; a schema fallback; an await of work and a promise resolved with a value',
+    'a look-alike is not seen: the words in a string, a template or a regular expression; a type query and a typeof test; a method of that name on a socket, a clock or a store; a function, a parameter or a constant of the file under that name; a property named env; an environment a caller hands in as a parameter with no default; the any keyword and never in a type; a cast to unknown alone and a cast between two types; a catch block and a handler that do something or answer with a computed value; a schema fallback; an await of work and a promise resolved with a value; a promise that waits on the timer of a clock',
     of('src/planted/lookalikes.ts') === '',
     of('src/planted/lookalikes.ts'),
   )
@@ -1008,6 +1067,13 @@ function plantedEstate(): void {
   const unrowed = tableOf(text.replace('env-read\tsrc/planted/Screen.tsx\t1\n', ''))!
   const lone = judge('env-read', hits, unrowed)
   check('a file with no row that holds a habit is named with its line and what to use instead, and a name of the environment with whether the registry holds its row', lone.over.length === 1 && lone.total === lone.allowed + 1 && told('env-read', lone.over).includes('src/planted/Screen.tsx:13 env-read · HOME has no row') && told('env-read', lone.over).includes('has no row:') && told('env-read', lone.over).includes(DOOR) && named(hits, 'src/planted/rest.ts', 50) === '', told('env-read', lone.over))
+  const paused = judge(PAUSE, hits, tableOf(text.replace(`${PAUSE}\tsrc/planted/timers.ts\t3\n`, ''))!)
+  const pausedWords = told(PAUSE, paused.over)
+  check(
+    'a pause built by hand in a file with no row is red by its own line, which names the call of sleep that replaces it and the file the call comes from',
+    paused.over.length === 1 && paused.total === paused.allowed + 3 && pausedWords.includes(`call sleep(ms, signal?, opts?) from ${SLEEP_DOOR}`) && [`40 ${PAUSE} · sleep(8)`, `41 ${PAUSE} · sleep(9, undefined, { unref: true })`, `42 ${PAUSE} · sleep(ms, undefined, { unref: true })`].every(line => pausedWords.includes(`src/planted/timers.ts:${line} from ${SLEEP_DOOR}`)),
+    pausedWords,
+  )
   const lowered = tableOf(text.replace('empty-catch\tsrc/planted/rest.ts\t4\n', 'empty-catch\tsrc/planted/rest.ts\t3\n'))!
   const raised = judge('empty-catch', hits, lowered)
   check('a file that holds one more than its row allows is named with every line it holds', raised.over.length === 1 && ['13', '14', '16', '37'].every(line => told('empty-catch', raised.over).includes(`src/planted/rest.ts:${line} empty-catch`)) && told('empty-catch', raised.over).includes('its row allows 3'), told('empty-catch', raised.over))
