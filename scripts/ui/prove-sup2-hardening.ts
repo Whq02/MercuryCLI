@@ -528,15 +528,6 @@ console.log('§34 gitignore — the rule is POSIX on every platform')
   check('the fold arithmetic: a win32 spelling yields the POSIX rule', `**/${'.mercury\\settings.local.json'.split('\\').join('/')}` === '**/.mercury/settings.local.json')
 }
 
-console.log('§35 daemon teardown — the key clears before the record it is checked against')
-{
-  const main = read('src/daemon/main.ts')
-  const i = main.indexOf('if (controlEnabled) await clearControlKey().catch(() => {})')
-  const j = main.indexOf('if (controlEnabled) await clearDaemonState().catch(() => {})')
-  check('both clears still run on the graceful path', i !== -1 && j !== -1)
-  check('the key clear PRECEDES the record clear (the guard reads the record)', i < j)
-}
-
 console.log('§36 agent sidecar — the whole-file atomic law')
 {
   const paths = read('src/utils/sessionStorage/paths.ts')

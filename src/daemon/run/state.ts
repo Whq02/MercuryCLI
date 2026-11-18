@@ -2,6 +2,7 @@ import type { DaemonBreaker } from '../../utils/daemonBreaker.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { ControlServerHandle } from '../controlServer.js'
+import type { DaemonLock } from '../controlSocket.js'
 import { parseOwnerPid, type OwnerPipeHandleV1, type OwnerWatchHandleV1 } from '../ownerWatch.js'
 import type { PlaneOwnerV1 } from '../planeRecords.js'
 import type { TaskRoster } from '../roster.js'
@@ -23,6 +24,7 @@ export interface DaemonRunState extends Readonly<DaemonRunBootFacts> {
   readonly wakeReady: () => void
   ready: boolean
   roster: TaskRoster | null
+  daemonLock: DaemonLock | null
   controlServer: ControlServerHandle | null
   releaseHeldReading: () => void
   stopPlaneHeal: (() => void) | null
@@ -61,6 +63,7 @@ export function makeDaemonRunState(boot: DaemonRunBootFacts): DaemonRunState {
     wakeReady,
     ready: false,
     roster: null,
+    daemonLock: null,
     controlServer: null,
     releaseHeldReading: () => {},
     stopPlaneHeal: null,

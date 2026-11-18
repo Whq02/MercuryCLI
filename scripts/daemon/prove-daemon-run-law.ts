@@ -8,7 +8,7 @@ const SELF = 'scripts/daemon/prove-daemon-run-law.ts'
 const MAIN = 'src/daemon/main.ts'
 const PARTS = 'src/daemon/run/'
 const UNIT = 'daemonRun'
-const LET_BUDGET = 7
+const LET_BUDGET = 6
 const rootAt = process.argv.indexOf('--root')
 const ROOT = resolve(rootAt < 0 ? join(import.meta.dir, '..', '..') : process.argv[rootAt + 1]!)
 

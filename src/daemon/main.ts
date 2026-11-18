@@ -107,7 +107,6 @@ import { DAEMON_USAGE, isScreenHealAsk, parseDaemonVerb, daemonRecordIdentity } 
 import { hostedCallerOf, hostedCallerRefusalLine, restartEndsHostedCaller } from './hostedCaller.js'
 import {
   acquireDaemonLock,
-  clearControlKey,
   clearDeadDaemonRecords,
   clearDaemonState,
   controlKeyPath,
@@ -115,7 +114,6 @@ import {
   currentVersion,
   daemonControlRpc,
   daemonDir,
-  markDaemonStoppingSync,
   mintControlKey,
   readControlKey,
   readDaemonState,
@@ -125,19 +123,19 @@ import {
   type DaemonLock,
   writeDaemonState,
 } from './controlSocket.js'
-import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
 import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, releaseVersionsDir, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
 import { OTHER_BUILD_WAY_OUT, REOPEN_WORDS } from './handshake.js'
 import { holdBuild, invokedScriptPath, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, sameBuildTree, type PlaneBootFactsV1 } from './planeBoot.js'
-import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
+import { lockHeldByLivePidSync, readPlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
 import { SESSIONLESS_EXIT_BEAT_MS } from './sessionlessExit.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidSocketsOnDisk, helperPidsOfHome } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { sleep } from '../utils/sleep.js'
 import { makeDaemonRunState, markDaemonReady } from './run/state.js'
 import { armOwnerWatch, makeSessionlessBeat, markHosted } from './run/owner.js'
+import { shutdownDaemon } from './run/shutdown.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
@@ -316,9 +314,9 @@ async function daemonRun(args: string[]): Promise<void> {
   const { persist, readyPromise, startedAt } = state
   const noteHosted = (): void => markHosted(state)
   let requestShutdown: (signal: string) => void = () => {}
-  let daemonLock: DaemonLock | null = null
 
   if (controlEnabled) {
+    let daemonLock: DaemonLock | null = null
     const successorOf = parseHandoverFrom(flagEnv('MERCURY_DAEMON_SUCCESSOR_OF'))
     const handoverFrom = parseHandoverFrom(flagEnv('MERCURY_DAEMON_HANDOVER_FROM'))
     const stamp = successorOf !== null ? `successor of pid ${successorOf}` : handoverFrom !== null ? `handover from pid ${handoverFrom}` : 'boot'
@@ -357,6 +355,7 @@ async function daemonRun(args: string[]): Promise<void> {
     } else {
       return refuse(decision.why)
     }
+    state.daemonLock = daemonLock
     process.once('exit', code => {
       if (!state.teardownComplete) daemonExitTeardownSync('exit-before-teardown', code)
     })
@@ -1207,7 +1206,7 @@ async function daemonRun(args: string[]): Promise<void> {
               }
               const reads = (idleReads.get(pid) ?? 0) + 1
               idleReads.set(pid, reads)
-              const holdsLock = daemonLock === null && lockHeldByLivePidSync() === pid
+              const holdsLock = state.daemonLock === null && lockHeldByLivePidSync() === pid
               if (reads < (holdsLock ? 1 : IDLE_PREDECESSOR_READS)) continue
               idleReads.delete(pid)
               console.error(`[daemon] the daemon this one took over from (pid ${pid}, v${reply.version}) holds no live session and has not left on its own — asking it to leave`)
@@ -1233,13 +1232,13 @@ async function daemonRun(args: string[]): Promise<void> {
         let lockClaimInflight = false
         const lockBeat = setInterval(() => {
           void (async () => {
-            if (daemonLock !== null || lockClaimInflight) return
+            if (state.daemonLock !== null || lockClaimInflight) return
             if (lockHeldByLivePidSync() !== null) return
             lockClaimInflight = true
             try {
               const taken = await acquireDaemonLock()
               if (taken === null) return
-              daemonLock = taken
+              state.daemonLock = taken
               state.stopLockBeat?.()
               console.error(`[daemon] handover from pid ${handoverPredecessor}: the predecessor released the daemon lock — this daemon holds it now`)
             } finally {
@@ -1375,8 +1374,8 @@ async function daemonRun(args: string[]): Promise<void> {
       await unlink(controlKeyPath()).catch(() => {})
       await clearDaemonState()
       if (process.platform !== 'win32') await unlink(predecessorSockPath(process.pid)).catch(() => {})
-      await daemonLock?.release().catch(() => {})
-      daemonLock = null
+      await state.daemonLock?.release().catch(() => {})
+      state.daemonLock = null
       state.teardownComplete = true
       process.exit(1)
     }
@@ -1384,69 +1383,8 @@ async function daemonRun(args: string[]): Promise<void> {
 
   return new Promise<void>(resolveShutdown => {
     const keepAlive = setInterval(() => {}, 1 << 30)
-    const shutdown = (signal: string) => {
-      if (state.shuttingDown) return
-      state.shuttingDown = true
-      state.stopPlaneHeal?.()
-      state.stopArmedBeat?.()
-      state.stopLockBeat?.()
-      state.stopSessionlessBeat?.()
-      state.stopSaturnTicker?.()
-      state.stopHostJobs?.()
-      const supersededBy = controlEnabled ? supersededByLivePlaneOwnerSync() : null
-      if (supersededBy !== null && state.restartAfterTeardown) {
-        state.restartAfterTeardown = false
-        console.error(`[daemon] pid ${supersededBy.pid} (build ${supersededBy.buildTree ?? 'unstamped'}) is already serving; exiting without spawning a successor`)
-      }
-      if (controlEnabled) markDaemonStoppingSync()
-      logForDebugging(`[daemon] received ${signal}, shutting down`)
-      console.error(`[daemon] ${signal} — shutting down`)
-      state.ownerWatch?.stop()
-      state.ownerWatch = undefined
-      state.ownerPipe?.close()
-      state.ownerPipe = undefined
-      if (roster) {
-        for (const j of roster.list()) {
-          if (!j.outcome) {
-            recordSpawnExit({
-              kind: j.via === 'runner' ? 'long-lived' : 'headless',
-              event: 'reap',
-              id: j.short,
-              pid: j.pid,
-              reason: `daemon-shutdown:${signal}`,
-            })
-            roster.kill(j.short)
-          }
-        }
-      }
-      void (async () => {
-        try {
-          await state.controlServer?.close()
-        } catch (e) {
-          logForDebugging(`[daemon] error closing control server: ${e}`)
-        }
-        if (controlEnabled) await clearControlKey().catch(() => {})
-        if (controlEnabled) await clearDaemonState().catch(() => {})
-        recordSpawnExit({
-          kind: 'daemon',
-          event: 'exit',
-          id: 'daemon',
-          pid: process.pid,
-          reason: `shutdown:${signal}`,
-        })
-        state.teardownComplete = true
-        state.releaseHeldReading()
-        if (state.restartAfterTeardown) spawnSuccessorDaemon()
-        await daemonLock?.release().catch(() => {})
-        daemonLock = null
-        await roster?.askedSettled()
-        clearInterval(keepAlive)
-        resolveShutdown()
-        setTimeout(() => process.exit(0), 250)
-      })()
-      const bail = setTimeout(() => process.exit(1), 15_000)
-      bail.unref?.()
-    }
+    const wayOut = { keepAlive, resolveShutdown, spawnSuccessorDaemon }
+    const shutdown = (signal: string): void => shutdownDaemon(state, wayOut, signal)
     const ownerNeeds = { shutdown }
     requestShutdown = shutdown
     armDaemonHomeWatch(daemonDir(), where => {

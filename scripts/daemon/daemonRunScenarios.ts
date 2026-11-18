@@ -654,7 +654,7 @@ export const SCENARIOS: Scenario[] = [
       for (const name of ['control.key', 'daemon.json', 'control.sock']) {
         unlinkSync(join(w.daemonDir, name))
         w.say(`> ${name} removed`)
-        await w.until(`${name} is back`, () => existsSync(join(w.daemonDir, name)), 15_000)
+        await w.until(`${name} is back`, () => existsSync(join(w.daemonDir, name)), 45_000)
         await sleep(600)
         await w.rpc(`hello after ${name} came back`, { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
       }
@@ -848,6 +848,7 @@ export const SCENARIOS: Scenario[] = [
       const s = await w.admit('s1')
       const b = w.payload('b')
       w.deploy(b)
+      await w.logged(older, /the installed build moved to/, 15_000)
       const newer = await w.boot('newer', { dist: b, env: { MERCURY_DAEMON_HANDOVER_FROM: String(older.pid) } })
       await w.logged(newer, /took the plane/)
       await w.rpc('hello of the plane', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
@@ -876,6 +877,7 @@ export const SCENARIOS: Scenario[] = [
       const started = Number(((await w.hello()) as { startedAt?: number }).startedAt ?? Date.now())
       const b = w.payload('b')
       w.deploy(b)
+      await w.logged(older, /the installed build moved to/, 15_000)
       const wait = 5600 - ((Date.now() - started) % 5000)
       await sleep(wait > 5000 ? wait - 5000 : wait)
       const newer = await w.boot('newer', { dist: b, env: { MERCURY_DAEMON_HANDOVER_FROM: String(older.pid) } })

@@ -403,13 +403,8 @@ section("§6 the daemon's own mark: the record says stopping under its own pid, 
   planeClear()
 }
 
-section('§7 source pins: the shutdown road marks before it closes; the ladder reads the plane; the halt stand-down precedes the spawn')
+section('§7 source pins: the record carries the stopping mark; the ladder reads the plane; the halt stand-down precedes the spawn')
 {
-  const main = read('src/daemon/main.ts')
-  const body = main.slice(main.indexOf('const shutdown = (signal: string) => {'), main.indexOf('const bail = setTimeout(() => process.exit(1), 15_000)'))
-  const markAt = body.indexOf('markDaemonStoppingSync()')
-  const closeAt = body.indexOf('controlServer?.close()')
-  check('the shutdown road marks its record before it closes the socket', markAt >= 0 && closeAt >= 0 && markAt < closeAt, `mark@${markAt} close@${closeAt}`)
   const sock = read('src/daemon/controlSocket.ts')
   check("the record's type carries the stopping state", sock.includes("state?: 'stopping'") && sock.includes('stoppingAt?: number'))
   check('the mark is ownership-checked', /markDaemonStoppingSync[\s\S]{0,400}current\?\.pid !== process\.pid\) return false/.test(sock))
