@@ -209,6 +209,70 @@ if (process.platform !== 'win32') {
   }
 }
 
+section('§6 from the built bundle, under Node: a session interrupted while a search runs ends the search program, though it ignores SIGTERM')
+if (process.platform !== 'win32') {
+  const { spawn } = await import('node:child_process')
+  const { realpathSync } = await import('node:fs')
+  const { resolve } = await import('node:path')
+  const distAt = process.argv.indexOf('--dist')
+  const dist = distAt === -1 ? join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs') : resolve(process.argv[distAt + 1]!)
+  if (!existsSync(dist)) {
+    console.log('  [SKIP — LOUD] dist/mercury.mjs absent — build first (the gate prebuilds)')
+  } else {
+    const { FIXTURE_API_KEY, seedFirstRun } = await import('../lib/firstRunSeed.ts')
+    const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+    const { nodeBinPath } = await import('../lib/nodeBin.ts')
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'teardown-tree-search-')))
+    const [home, config, cwd, bin] = ['user-home', 'config-home', 'work', 'bin'].map(name => join(root, name)) as [string, string, string, string]
+    for (const dir of [home, config, cwd, bin]) mkdirSync(dir)
+    const pidFile = join(root, 'search.pid')
+    writeFileSync(join(bin, 'rg'), `#!/bin/sh\ncase " $* " in *" --version "*) echo "ripgrep 14.1.0"; exit 0;; esac\ntrap '' TERM INT\necho "$$" > ${JSON.stringify(pidFile)}\nwhile :; do /bin/sleep 1; done\n`)
+    chmodSync(join(bin, 'rg'), 0o755)
+    writeFileSync(join(cwd, 'a.txt'), 'needle\n')
+    seedFirstRun(config, [cwd])
+    const api = await startFixtureApi([
+      { kind: 'tool_use', name: 'Grep', id: 'toolu_search', input: { pattern: 'needle' } },
+      { kind: 'text', text: 'done' },
+    ])
+    let searching = -1
+    try {
+      const child = spawn(nodeBinPath(), [dist, 'run', '--mode', 'sovereign', '--model', 'claude-opus-4-8', '--format', 'text', 'teardown-search'], {
+        cwd,
+        stdio: ['ignore', 'ignore', 'ignore'],
+        env: {
+          HOME: home,
+          SHELL: '/bin/zsh',
+          TERM: 'dumb',
+          PATH: `${bin}:/usr/bin:/bin:/usr/sbin:/sbin`,
+          TMPDIR: tmpdir(),
+          MERCURY_CONFIG_DIR: config,
+          MERCURY_DAEMON_DIR: join(config, 'daemon'),
+          MERCURY_CREDENTIAL_STORE: 'file',
+          MERCURY_LOCAL_PROBE_TARGETS: 'none',
+          MERCURY_BUILTIN_RIPGREP: '0',
+          ANTHROPIC_API_KEY: FIXTURE_API_KEY,
+          ANTHROPIC_BASE_URL: api.url,
+        },
+      })
+      const ended = new Promise<number | null>(done => child.once('exit', code => done(code)))
+      const began = Date.now()
+      while (!existsSync(pidFile) && Date.now() - began < 60_000) await sleep(50)
+      searching = await readPid(pidFile)
+      check('the session started the search program it was handed (a stand-in that ignores SIGTERM and never answers)', searching > 1, `pid=${searching}`)
+      await sleep(500)
+      child.kill('SIGINT')
+      const guard = setTimeout(() => child.kill('SIGKILL'), 60_000)
+      const code = await ended
+      clearTimeout(guard)
+      check('the interrupted session ended by itself', code !== null, `exit ${String(code)}`)
+      check('the search program is gone 2.5 s after the session ended: it was killed, not asked', searching > 1 && (await diedWithin(searching, 2_500)), `pid ${searching} still alive`)
+    } finally {
+      reap(searching)
+      await api.close()
+      rmSync(root, { recursive: true, force: true })
+    }
+  }
+}
 if (failures > 0) {
   console.error(`\nprove-teardown-ends-the-tree: ${failures} FAILURE(S)`)
   process.exit(1)

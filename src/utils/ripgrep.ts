@@ -254,13 +254,18 @@ export function getRipgrepStatus(): { mode: RipgrepMode | 'none'; path: string; 
 
 const liveChildren = new Set<ChildProcess>()
 
-function track<T extends ChildProcess>(child: T): T {
+function track<T extends ChildProcess>(child: T, abortSignal?: AbortSignal): T {
   liveChildren.add(child)
-  const forget = (): void => {
-    liveChildren.delete(child)
+  const end = (): void => {
+    if (process.platform === 'win32') child.kill()
+    else child.kill('SIGKILL')
   }
-  child.once('close', forget)
-  child.once('error', forget)
+  if (abortSignal?.aborted) end()
+  abortSignal?.addEventListener('abort', end, { once: true })
+  child.once('close', () => {
+    liveChildren.delete(child)
+    abortSignal?.removeEventListener('abort', end)
+  })
   return child
 }
 
@@ -310,6 +315,7 @@ function spawnWithArgv0(
         ...(cwd !== undefined ? { cwd } : {}),
         ...(abortSignal ? { signal: abortSignal } : {}),
       }),
+      abortSignal,
     )
     let stdout = ''
     let stderr = ''
@@ -404,6 +410,7 @@ function spawnExecFile(
           resolvePromise({ stdout, stderr, error: err, signal: err?.signal ?? null })
         },
       ),
+      abortSignal,
     )
   })
 }
