@@ -159,13 +159,19 @@ export async function* waitForModelPermit(run: RunCtx, iter: IterationState, emi
     if (toolUseContext.abortController.signal.aborted) return null
     throw waitError
   }
-  yield emit({
-    kind: 'model_permit',
-    callId,
-    lane: permit.lane,
-    waitedMs: permit.waitedMs,
-    reacquired: permit.reacquired,
-  })
+  let handedOn = false
+  try {
+    yield emit({
+      kind: 'model_permit',
+      callId,
+      lane: permit.lane,
+      waitedMs: permit.waitedMs,
+      reacquired: permit.reacquired,
+    })
+    handedOn = true
+  } finally {
+    if (!handedOn) releaseModelPermitByCall(permitKey)
+  }
   return { callId, permitKey }
 }
 
@@ -516,13 +522,13 @@ export async function* streamModel(
       const permit = yield* waitForModelPermit(run, iter, emit)
       if (permit === null) return { kind: 'streamed' }
       const { callId, permitKey } = permit
-      const { effortValue, callReference } = yield* announceModelCall(iter, emit, callId)
       const streamController = new AbortController()
       const parentSignal = toolUseContext.abortController.signal
       const onAbort = (): void => streamController.abort(parentSignal.reason)
-      parentSignal.addEventListener('abort', onAbort, { once: true })
-      if (parentSignal.aborted) onAbort()
       try {
+        const { effortValue, callReference } = yield* announceModelCall(iter, emit, callId)
+        parentSignal.addEventListener('abort', onAbort, { once: true })
+        if (parentSignal.aborted) onAbort()
         yield* streamOneCall(run, iter, emit, { callId, effortValue, callReference, streamController }, backups)
       } catch (innerError) {
         if (innerError instanceof FallbackTriggeredError && backups.take(innerError.fallbackModel)) {
