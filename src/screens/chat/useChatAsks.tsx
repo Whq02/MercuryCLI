@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { CardQueuedWords } from '../../components/permissions/CardQueuedWords.js';
 import { PermissionQueueContext, permissionQueueStatus } from '../../components/permissions/PermissionQueueContext.js';
 import { PermissionRequest, type ToolUseConfirm } from '../../components/permissions/PermissionRequest.js';
@@ -136,17 +136,12 @@ export function useChatAsksCard({
   chatSurfaceCovered: boolean;
   verbose: boolean;
 }) {
-  const [permissionStickyFooter, setPermissionStickyFooter] = useState<React.ReactNode>(null);
-  const stickyFooterOwnerUp = permissionStickyFooter !== null;
   const previousPermissionFocusRef = useRef(false);
   useLayoutEffect(() => {
     const now = focusedInputDialog === 'tool-permission';
     if (now !== previousPermissionFocusRef.current) repinToBottom();
     previousPermissionFocusRef.current = now;
   }, [focusedInputDialog, repinToBottom]);
-  useEffect(() => {
-    if (stickyFooterOwnerUp && focusedInputDialog !== 'tool-permission') setPermissionStickyFooter(null);
-  }, [stickyFooterOwnerUp, focusedInputDialog]);
   const permissionOverlay =
     focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0] && !chatSurfaceCovered ? (
       <PermissionQueueContext.Provider value={permissionQueueStatus(resolvedConsentCount, toolUseConfirmQueue.length)}>
@@ -161,11 +156,10 @@ export function useChatAsksCard({
             }}
             verbose={verbose}
             workerBadge={toolUseConfirmQueue[0].workerBadge}
-            setStickyFooter={setPermissionStickyFooter}
           />
           <CardQueuedWords />
         </Box>
       </PermissionQueueContext.Provider>
     ) : null;
-  return { permissionStickyFooter, permissionOverlay };
+  return { permissionOverlay };
 }

@@ -516,7 +516,7 @@ export function Chat({
     }
   }, [focusedInputDialog, isLoading]);
 
-  const { permissionStickyFooter, permissionOverlay } = useChatAsksCard({ focusedInputDialog, repinToBottom, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, chatSurfaceCovered, verbose });
+  const { permissionOverlay } = useChatAsksCard({ focusedInputDialog, repinToBottom, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, chatSurfaceCovered, verbose });
   const readFileStateRef = useRef<FileStateCache | null>(null);
   const getReadFileState = useCallback((): FileStateCache => {
     if (readFileStateRef.current === null) {
@@ -1977,7 +1977,6 @@ export function Chat({
               </Box>
               {}
               {!isCompact ? <FocusedSessionStatusRow /> : null}
-              {permissionStickyFooter}
               {bottomImmediateJsx}
               {focusedBottomDialog}
               {showExitFlow ? (

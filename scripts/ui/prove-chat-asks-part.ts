@@ -16,7 +16,6 @@ const { part, calls, notices } = t
 const { useChatAsksCard } = t.module
 const React = await import('react')
 const h = React.createElement
-const { Text } = await import('../../src/ink.ts')
 const { modeTransitions, clearModeTransitions } = await import('../../src/utils/permissions/modeTransitions.ts')
 const { armPermissionFocus, refuseGestureWhileModal } = await import('../../src/utils/permissions/permissionFocus.ts')
 const act = async (run: () => void): Promise<void> => {
@@ -94,14 +93,14 @@ check('dismissing the wait takes it off the queue and tells its owner', answers.
 const builder = t.ask
 await t.close()
 
-section('§5 the card alone: when it is drawn, what it tells the scroll, and its footer')
+section('§5 the card alone: when it is drawn and what it tells the scroll')
 {
   let pins = 0
   const queue = [builder('toolu_x', 'touch x.txt').confirm, builder('toolu_y', 'touch y.txt').confirm]
   type CardArgs = Parameters<typeof useChatAsksCard>[0]
   let args: CardArgs = { focusedInputDialog: undefined, repinToBottom: () => void pins++, toolUseConfirmQueue: queue as never, resolvedConsentCount: 1, resolveHeadPermission: () => {}, chatSurfaceCovered: false, verbose: false }
   const plant = (over: Partial<CardArgs>) => (): ReturnType<typeof useChatAsksCard> => useChatAsksCard((args = { ...args, ...over }))
-  const card = await mountPart(plant({}), { columns: 110, rows: 24, draw: value => h(React.Fragment, null, value.permissionOverlay, value.permissionStickyFooter) })
+  const card = await mountPart(plant({}), { columns: 110, rows: 24, draw: value => h(React.Fragment, null, value.permissionOverlay) })
   const shown = (): string => card.view.lines().join('\n')
   check('with no card in focus nothing is drawn and the scroll is left alone', card.value().permissionOverlay === null && pins === 0)
   await card.set(plant({ focusedInputDialog: 'tool-permission' }))
@@ -114,15 +113,10 @@ section('§5 the card alone: when it is drawn, what it tells the scroll, and its
   await card.set(plant({ chatSurfaceCovered: true }))
   check('while another surface covers the chat the card is not drawn', card.value().permissionOverlay === null && !shown().includes('touch x.txt'))
   await card.set(plant({ chatSurfaceCovered: false }))
-  const overlay = card.value().permissionOverlay as { props: { children: { props: { children: Array<{ props: { setStickyFooter: (node: unknown) => void } }> } } } }
-  await (async () => {
-    overlay.props.children.props.children[0]!.props.setStickyFooter(h(Text, null, 'FOOTER OF THE CARD'))
-    await settle(120)
-  })()
-  check('a footer the card sets is held and drawn while the card has the focus', card.value().permissionStickyFooter !== null && shown().includes('FOOTER OF THE CARD'), shown())
+  check('the part hands back the card and nothing else', Object.keys(card.value()).join() === 'permissionOverlay', Object.keys(card.value()).join())
   await card.set(plant({ focusedInputDialog: undefined }))
   await settle(120)
-  check('the card losing the focus pins the transcript once more and drops its footer', pins === 2 && card.value().permissionStickyFooter === null && !shown().includes('FOOTER OF THE CARD'), `${pins} · ${shown()}`)
+  check('the card losing the focus pins the transcript once more', pins === 2 && card.value().permissionOverlay === null, `${pins} · ${shown()}`)
   card.unmount()
 }
 
