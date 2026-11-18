@@ -166,6 +166,8 @@ export const IDLE_PROJECTION_FLOOR_MS = 10_000
 export const SEAT_VERB_SETTLE_MS = 4000
 export const CARRIER_GONE_WORDS = 'the background daemon ended — the next prompt starts a new one'
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const BUSY_STALL_MS = 45_000
+const CARRIER_GONE_TICKS = 3
 
 const SEAT_BY = `operator:${process.pid}`
 
@@ -315,12 +317,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private liveState: SessionLiveV1 = IDLE_LIVE
   private factsBusy = false
   private busyStallDeadline: ReturnType<typeof armInactivityDeadline> | null = null
-  private static readonly BUSY_STALL_MS = 45_000
   private carrierGoneTicks = 0
   private carrierGoneAtFactsMs: number | null = null
   private carrierProbeInFlight = false
   private carrierSeen = false
-  private static readonly CARRIER_GONE_TICKS = 3
 
   private armBusyStall(): void {
     if (this.busyStallDeadline !== null) {
@@ -329,7 +329,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     const deadline = armInactivityDeadline({
       seam: 'engine-connector.factsBusy',
-      limitMs: DaemonSessionConnector.BUSY_STALL_MS,
+      limitMs: BUSY_STALL_MS,
       advice: 'the chat turn indicator was busy with no facts movement — probing the session host',
     })
     this.busyStallDeadline = deadline
@@ -360,7 +360,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private settleStalledTurn(why: string): void {
     if (!this.factsBusy) return
-    logForDebugging(`[engine-connector] busy turn stalled ${DaemonSessionConnector.BUSY_STALL_MS}ms with no facts and no live runner — settling idle (${why})`)
+    logForDebugging(`[engine-connector] busy turn stalled ${BUSY_STALL_MS}ms with no facts and no live runner — settling idle (${why})`)
     this.factsBusy = false
     this.recomputeLive()
   }
@@ -368,22 +368,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private probeCarrier(): void {
     if (this.carrierProbeInFlight || this.carrierGoneAtFactsMs !== null) return
     this.carrierProbeInFlight = true
-    void (async () => {
-      const { readDaemonState } = await import('../../daemon/controlSocket.js')
-      const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
-      const state = await readDaemonState()
-      if (state === null) return this.carrierSeen ? 'gone' : 'unknown'
-      if (state.state === 'stopping' || !isProcessAlive(state.pid)) return 'gone'
-      this.carrierSeen = true
-      return 'alive'
-    })()
+    void this.carrierVerdict()
       .then(verdict => {
         if (verdict !== 'gone') {
           this.carrierGoneTicks = 0
           return
         }
         this.carrierGoneTicks += 1
-        if (this.carrierGoneTicks >= DaemonSessionConnector.CARRIER_GONE_TICKS) this.settleCarrierGone()
+        if (this.carrierGoneTicks >= CARRIER_GONE_TICKS) this.settleCarrierGone()
       })
       .catch(() => {})
       .finally(() => {
@@ -391,10 +383,20 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       })
   }
 
+  private async carrierVerdict(): Promise<'alive' | 'gone' | 'unknown'> {
+    const { readDaemonState } = await import('../../daemon/controlSocket.js')
+    const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
+    const state = await readDaemonState()
+    if (state === null) return this.carrierSeen ? 'gone' : 'unknown'
+    if (state.state === 'stopping' || !isProcessAlive(state.pid)) return 'gone'
+    this.carrierSeen = true
+    return 'alive'
+  }
+
   private settleCarrierGone(): void {
     if (this.carrierGoneAtFactsMs !== null) return
     this.carrierGoneAtFactsMs = this.facts?.atMs ?? 0
-    logForDebugging(`[engine-connector] the daemon carrying ${this.record.sessionId} is gone (${DaemonSessionConnector.CARRIER_GONE_TICKS} reads) — settling idle, dropping its work rows, saying so`)
+    logForDebugging(`[engine-connector] the daemon carrying ${this.record.sessionId} is gone (${CARRIER_GONE_TICKS} reads) — settling idle, dropping its work rows, saying so`)
     this.factsBusy = false
     this.disarmBusyStall()
     if (this.facts !== null) this.facts = { ...this.facts, busy: false, work: [], mission: [], samples: [] }
@@ -515,7 +517,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.workPart.refreshWork()
     this.workPart.refreshCheckpoints()
   }
-
 
   attach(): Promise<void> {
     if (this.attached) return Promise.resolve()
@@ -709,7 +710,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   admissionRefusal(): string | null {
     return this.admissionPart.admissionRefusal()
   }
-
 
   private tick(): Promise<void> {
     if (this.tickInFlight !== null) {

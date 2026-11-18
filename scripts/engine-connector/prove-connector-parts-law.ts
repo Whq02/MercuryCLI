@@ -23,7 +23,7 @@ const OF_THE_DOOR: readonly string[] = ['carrier', 'record', 'attached', 'factsF
 const REACHED_BY_PROOFS: readonly string[] = ['textRows', 'liveStateWord']
 
 const AWAITING_THEIR_PART: Readonly<Record<string, readonly string[]>> = {
-  facts: ['facts', 'factsBusy', 'busyStallDeadline', 'BUSY_STALL_MS', 'carrierGoneTicks', 'carrierGoneAtFactsMs', 'carrierProbeInFlight', 'carrierSeen', 'CARRIER_GONE_TICKS', 'modelListeners', 'permissionListeners'],
+  facts: ['facts', 'factsBusy', 'busyStallDeadline', 'carrierGoneTicks', 'carrierGoneAtFactsMs', 'carrierProbeInFlight', 'carrierSeen', 'modelListeners', 'permissionListeners'],
   sends: ['sends', 'echoRows', 'deliveredNotices', 'sendSeq', 'textRetiredRowUuids', 'retainedSend', 'runnerGeneration', 'lostLineNotice', 'settleWaiters'],
   transcript: ['rawRecords', 'recordSigs', 'painted', 'keptRecords', 'answeredRows', 'liveState', 'displayRows', 'clearModelReceipt', 'rowsAfterTail', 'lastSize', 'lastLen', 'transcriptUnreadableFp', 'chainCursor', 'liveFold', 'releaseTranscript', 'transcriptWatcher', 'transcriptTimer', 'transcriptTimerMs', 'tickInFlight', 'tickDirty', 'transcriptPath', 'recordListeners'],
 }
