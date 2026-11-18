@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync } from 'node:fs'
-import { join, posix } from 'node:path'
+import { join } from 'node:path'
 import ts from 'typescript'
+import { largestCycle, readImports, staticPairs, type Edge, type Kind, type Unread } from '../lib/importCycle.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SELF = 'scripts/gate/prove-shell-door.ts'
@@ -121,8 +121,6 @@ const IN_CYCLE = [
   'src/tools/BashTool/BashToolResultMessage.tsx',
   'src/tools/BashTool/UI.tsx',
   'src/tools/BashTool/utils.ts',
-  'src/tools/PowerShellTool/PowerShellTool.tsx',
-  'src/tools/PowerShellTool/UI.tsx',
 ]
 
 const UNREAD: Array<[string, number]> = [
@@ -145,10 +143,6 @@ const UNREAD: Array<[string, number]> = [
   ['src/utils/pdfTextWorker.mjs', 1],
 ]
 
-type Kind = 'static' | 'lazy' | 'type'
-type Edge = { from: string; to: string; kind: Kind; line: number; names: string[]; leaves: boolean }
-type Unread = { file: string; line: number; text: string }
-
 let failures = 0
 function check(label: string, cond: boolean, detail: string[] = []): void {
   if (!cond) failures++
@@ -157,202 +151,13 @@ function check(label: string, cond: boolean, detail: string[] = []): void {
 }
 const section = (title: string): void => console.log('\n' + '─'.repeat(76) + '\n' + title)
 
-const files: string[] = []
-const walk = (dir: string): void => {
-  for (const entry of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
-    if (entry.isDirectory()) walk(`${dir}/${entry.name}`)
-    else if (entry.isFile() && /\.(?:[cm]?[jt]s|[jt]sx)$/.test(entry.name)) files.push(`${dir}/${entry.name}`)
-  }
-}
-walk('src')
-files.sort()
-const known = new Set(files)
 const inside = (file: string): boolean => SHELL_DIRS.some(dir => file.startsWith(dir)) || SHELL_FILES.includes(file)
-
-const tsconfig = ts.readConfigFile(join(ROOT, 'tsconfig.json'), ts.sys.readFile)
-const aliases = Object.entries(((tsconfig.config as { compilerOptions?: { paths?: Record<string, string[]> } } | undefined)?.compilerOptions?.paths ?? {}))
-
-function aliased(spec: string): string[] {
-  const out: string[] = []
-  for (const [pattern, targets] of aliases) {
-    const star = pattern.indexOf('*')
-    const head = star < 0 ? pattern : pattern.slice(0, star)
-    const tail = star < 0 ? '' : pattern.slice(star + 1)
-    if (star < 0 ? spec !== pattern : spec.length < head.length + tail.length || !spec.startsWith(head) || !spec.endsWith(tail)) continue
-    const middle = star < 0 ? '' : spec.slice(head.length, spec.length - tail.length)
-    for (const target of targets) out.push(posix.normalize(target.replace('*', middle)))
-  }
-  return out
-}
-
-const SUFFIXES = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']
-function resolveSpec(from: string, spec: string): string | null {
-  const bases = spec.startsWith('.') ? [posix.join(posix.dirname(from), spec)] : spec.startsWith('src/') ? [spec] : aliased(spec)
-  for (const base of bases) {
-    const tries = [
-      base,
-      base.replace(/\.jsx?$/, '.ts'),
-      base.replace(/\.jsx?$/, '.tsx'),
-      base.replace(/\.mjs$/, '.mts'),
-      base.replace(/\.cjs$/, '.cts'),
-      ...SUFFIXES.map(suffix => base + suffix),
-      ...SUFFIXES.map(suffix => `${base}/index${suffix}`),
-    ]
-    const hit = tries.find(candidate => known.has(candidate))
-    if (hit !== undefined) return hit
-  }
-  return null
-}
-
-function bare(expression: ts.Expression): ts.Expression {
-  let current = expression
-  while (ts.isParenthesizedExpression(current) || ts.isAsExpression(current) || ts.isSatisfiesExpression(current) || ts.isNonNullExpression(current) || ts.isTypeAssertionExpression(current)) current = current.expression
-  return current
-}
-
-const typeOnlyClause = (clause: ts.ImportClause): boolean =>
-  clause.isTypeOnly === true || (clause as { phaseModifier?: ts.SyntaxKind }).phaseModifier === ts.SyntaxKind.TypeKeyword
-
-function importKind(node: ts.ImportDeclaration): Kind {
-  const clause = node.importClause
-  if (!clause) return 'static'
-  if (typeOnlyClause(clause)) return 'type'
-  const bindings = clause.namedBindings
-  if (clause.name || !bindings || ts.isNamespaceImport(bindings)) return 'static'
-  return bindings.elements.length > 0 && bindings.elements.every(element => element.isTypeOnly) ? 'type' : 'static'
-}
-
-function importedNames(clause: ts.ImportClause | undefined): string[] {
-  const bindings = clause?.namedBindings
-  if (!clause || (bindings && ts.isNamespaceImport(bindings))) return []
-  return [...(clause.name ? ['default'] : []), ...(bindings ? bindings.elements.map(element => (element.propertyName ?? element.name).text) : [])]
-}
-
-function exportKind(node: ts.ExportDeclaration): Kind {
-  if (node.isTypeOnly) return 'type'
-  const clause = node.exportClause
-  return clause && ts.isNamedExports(clause) && clause.elements.length > 0 && clause.elements.every(element => element.isTypeOnly) ? 'type' : 'static'
-}
-
-const unread: Unread[] = []
-const passedOn = new Set<string>()
-
-function importsOf(file: string): Edge[] {
-  const kind = /\.tsx$/.test(file) ? ts.ScriptKind.TSX : /\.jsx$/.test(file) ? ts.ScriptKind.JSX : /\.[cm]?js$/.test(file) ? ts.ScriptKind.JS : ts.ScriptKind.TS
-  const source = ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.ESNext, false, kind)
-  const out: Edge[] = []
-  const lineOf = (node: ts.Node): number => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
-  const add = (spec: string, edgeKind: Kind, node: ts.Node, names: string[] = [], leaves = false): void => {
-    const to = resolveSpec(file, spec)
-    if (to !== null) out.push({ from: file, to, kind: edgeKind, line: lineOf(node), names, leaves })
-  }
-  const makers = new Set(['createRequire'])
-  for (const statement of source.statements) {
-    const bindings = ts.isImportDeclaration(statement) ? statement.importClause?.namedBindings : undefined
-    if (bindings && ts.isNamedImports(bindings)) for (const element of bindings.elements) if ((element.propertyName ?? element.name).text === 'createRequire') makers.add(element.name.text)
-  }
-  const makesRequire = (expression: ts.Expression): boolean => {
-    const call = bare(expression)
-    if (!ts.isCallExpression(call)) return false
-    const callee = bare(call.expression)
-    return ts.isIdentifier(callee) ? makers.has(callee.text) : ts.isPropertyAccessExpression(callee) && callee.name.text === 'createRequire'
-  }
-  const calledInPlace = new Set<ts.Node>()
-  const visit = (node: ts.Node, enclosed: boolean, requires: ReadonlySet<string>): void => {
-    let inner = enclosed
-    let scope = requires
-    if (ts.isFunctionLike(node) ? !calledInPlace.has(node) : ts.isPropertyDeclaration(node) && !node.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.StaticKeyword)) inner = true
-    if (ts.isSourceFile(node) || ts.isBlock(node) || ts.isModuleBlock(node) || ts.isCaseOrDefaultClause(node)) {
-      const bound: string[] = []
-      for (const statement of node.statements) {
-        if (!ts.isVariableStatement(statement)) continue
-        for (const declaration of statement.declarationList.declarations) if (ts.isIdentifier(declaration.name) && declaration.initializer && makesRequire(declaration.initializer)) bound.push(declaration.name.text)
-      }
-      if (bound.length > 0) scope = new Set([...requires, ...bound])
-    }
-    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) add(node.moduleSpecifier.text, importKind(node), node, importedNames(node.importClause))
-    else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-      const clause = node.exportClause
-      add(node.moduleSpecifier.text, exportKind(node), node, clause && ts.isNamedExports(clause) ? clause.elements.map(element => (element.propertyName ?? element.name).text) : [], true)
-    } else if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
-      for (const element of node.exportClause.elements) passedOn.add(`${file}\t${(element.propertyName ?? element.name).text}`)
-    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && ts.isStringLiteralLike(node.moduleReference.expression)) {
-      add(node.moduleReference.expression.text, node.isTypeOnly ? 'type' : 'static', node)
-    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) add(node.argument.literal.text, 'type', node)
-    else if (ts.isCallExpression(node)) {
-      const callee = bare(node.expression)
-      if (ts.isFunctionExpression(callee) || ts.isArrowFunction(callee)) calledInPlace.add(callee)
-      const first = node.arguments[0]
-      if (first && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(callee) && requires.has(callee.text)) || makesRequire(callee))) {
-        const specifier = bare(first)
-        if (ts.isStringLiteralLike(specifier)) add(specifier.text, enclosed ? 'lazy' : 'static', node)
-        else unread.push({ file, line: lineOf(node), text: node.getText(source).replace(/\s+/g, ' ').slice(0, 80) })
-      }
-    }
-    ts.forEachChild(node, child => visit(child, inner, scope))
-  }
-  visit(source, false, new Set(['require']))
-  return out
-}
-
-function largestCycle(pairs: Array<[string, string]>): Set<string> {
-  const next = new Map<string, string[]>(files.map(file => [file, []]))
-  for (const [from, to] of pairs) next.get(from)!.push(to)
-  const index = new Map<string, number>()
-  const low = new Map<string, number>()
-  const onStack = new Set<string>()
-  const stack: string[] = []
-  let counter = 0
-  let best: string[] = []
-  for (const root of files) {
-    if (index.has(root)) continue
-    const work: Array<[string, number]> = [[root, 0]]
-    index.set(root, counter)
-    low.set(root, counter)
-    counter++
-    stack.push(root)
-    onStack.add(root)
-    while (work.length > 0) {
-      const frame = work[work.length - 1]!
-      const node = frame[0]
-      const targets = next.get(node)!
-      if (frame[1] < targets.length) {
-        const target = targets[frame[1]++]!
-        if (!index.has(target)) {
-          index.set(target, counter)
-          low.set(target, counter)
-          counter++
-          stack.push(target)
-          onStack.add(target)
-          work.push([target, 0])
-        } else if (onStack.has(target)) low.set(node, Math.min(low.get(node)!, index.get(target)!))
-      } else {
-        if (low.get(node) === index.get(node)) {
-          const component: string[] = []
-          let member: string
-          do {
-            member = stack.pop()!
-            onStack.delete(member)
-            component.push(member)
-          } while (member !== node)
-          if (component.length > best.length) best = component
-        }
-        work.pop()
-        if (work.length > 0) {
-          const parent = work[work.length - 1]![0]
-          low.set(parent, Math.min(low.get(parent)!, low.get(node)!))
-        }
-      }
-    }
-  }
-  return new Set(best.length > 1 ? best : [])
-}
 
 console.log('============================================================')
 console.log(' The shell door — two counts that may only fall')
 console.log('============================================================')
 
-const edges = files.flatMap(importsOf)
+const { files, known, tsconfig, aliases, edges, unread, passedOn } = readImports(ROOT)
 const shellFiles = files.filter(inside)
 const misplaced = [...SHELL_DIRS.filter(dir => !files.some(file => file.startsWith(dir))), ...SHELL_FILES.filter(file => !known.has(file))]
 check(
@@ -428,8 +233,8 @@ section('(1) the door — files outside the shell path that import from inside i
 
 section('(2) the cycle — shell-path files inside the static import cycle: the largest group of files under src/ that reach one another through imports that run when a file is loaded (import and export statements, and require() or import() calls that no function encloses)')
 {
-  const pairs = [...new Set(edges.filter(edge => edge.kind === 'static' && edge.from !== edge.to).map(edge => `${edge.from}\t${edge.to}`))].map(pair => pair.split('\t') as [string, string])
-  const cycle = largestCycle(pairs)
+  const pairs = staticPairs(edges)
+  const cycle = largestCycle(files, pairs)
   const inCycle = shellFiles.filter(file => cycle.has(file))
   const allowed = new Set(IN_CYCLE)
   const loose = inCycle.filter(file => !allowed.has(file))
@@ -439,7 +244,7 @@ section('(2) the cycle — shell-path files inside the static import cycle: the 
     const rows = pairs
       .filter(([from, to]) => looseSet.has(from) && cycle.has(to))
       .map(([from, to]) => {
-        const rest = largestCycle(pairs.filter(pair => pair[0] !== from || pair[1] !== to))
+        const rest = largestCycle(files, pairs.filter(pair => pair[0] !== from || pair[1] !== to))
         const left = shellFiles.filter(file => rest.has(file))
         const line = edges.find(edge => edge.kind === 'static' && edge.from === from && edge.to === to)!.line
         return { site: `${from}:${line} imports ${to}`, left: left.length, loose: left.filter(file => !allowed.has(file)).length, outward: !inside(to) }
