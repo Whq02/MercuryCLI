@@ -18,8 +18,8 @@ const liveEnd = main.indexOf('return { live, liveSessions }', liveAt)
 const live = liveAt !== -1 && liveEnd !== -1 ? main.slice(liveAt, liveEnd) : ''
 check('liveWorkers counts every live rostered worker, whenever admitted', live.includes('roster.liveWorkerFacts()') && live.includes('live++'))
 check('only pre-booted warm runners are set aside (a claimed late session counts)', live.includes('warmRunnerShorts()') && live.includes('warm.has(w.short)'))
-const beatAt = main.indexOf('const armedBeat = setInterval(')
-const beatEnd = main.indexOf('ARMED_RESTART_BEAT_MS)', beatAt)
+const beatAt = main.indexOf("armPeriodic('the armed-restart beat', ")
+const beatEnd = main.indexOf('restartNeeds))', beatAt)
 const beat = beatAt !== -1 && beatEnd !== -1 ? main.slice(beatAt, beatEnd) : ''
 check('the beat holds no count frozen at arming (a session admitted after arming is not excluded)', beat !== '' && !/arm(ed)?Live|liveAtArm|countAtArm|frozen/i.test(beat))
 console.log(`\n${failures === 0 ? 'prove-restart-waits-live: ALL LAWS HOLD' : `prove-restart-waits-live: ${failures} FAILURE(S)`}`)

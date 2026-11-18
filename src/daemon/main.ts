@@ -127,7 +127,7 @@ import { SESSIONLESS_EXIT_BEAT_MS } from './sessionlessExit.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidSocketsOnDisk, helperPidsOfHome } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { sleep } from '../utils/sleep.js'
-import { makeDaemonRunState, markDaemonReady } from './run/state.js'
+import { makeDaemonRunState, markDaemonReady, type DaemonRunState } from './run/state.js'
 import { armOwnerWatch, makeSessionlessBeat, markHosted } from './run/owner.js'
 import { shutdownDaemon } from './run/shutdown.js'
 import { ARMED_RESTART_BEAT_MS, armedRestartBeat, restartWhenIdle, spawnSuccessorDaemon, successorRuntime } from './run/restart.js'
@@ -307,6 +307,7 @@ async function daemonRun(args: string[]): Promise<void> {
   const state = makeDaemonRunState({ dir, bootBuildTree, foreground, breaker, maxInflight: MAX_INFLIGHT, controlEnabled })
   const { persist, readyPromise, startedAt } = state
   const noteHosted = (): void => markHosted(state)
+  const armPeriodic = periodicArmer(state)
   let requestShutdown: (signal: string) => void = () => {}
 
   if (controlEnabled) {
@@ -1040,10 +1041,18 @@ async function daemonRun(args: string[]): Promise<void> {
             }
           }
         }
-        const planeHeal = setInterval(() => {
-          void healCheck()
-        }, PLANE_HEAL_FLOOR_MS)
-        planeHeal.unref?.()
+        armPeriodic(
+          'the plane heal floor',
+          () => {
+            void healCheck()
+          },
+          () => {
+            if (healSignal !== undefined) clearTimeout(healSignal)
+            if (installedSignal !== undefined) clearTimeout(installedSignal)
+            for (const watcher of planeWatchers) watcher.close()
+            for (const watcher of installedWatchers) watcher.close()
+          },
+        )
         const planeNames = new Set([
           basename(controlKeyPath()),
           basename(daemonStatePath()),
@@ -1098,24 +1107,9 @@ async function daemonRun(args: string[]): Promise<void> {
             logForDebugging(`[daemon] the installed-build watch on ${pointerDir} did not arm (the floor keeps the check): ${e}`)
           }
         }
-        state.stopPlaneHeal = () => {
-          clearInterval(planeHeal)
-          if (healSignal !== undefined) clearTimeout(healSignal)
-          if (installedSignal !== undefined) clearTimeout(installedSignal)
-          for (const watcher of planeWatchers) watcher.close()
-          for (const watcher of installedWatchers) watcher.close()
-        }
       }
-      {
-        const armedBeat = setInterval(() => armedRestartBeat(state, restartNeeds), ARMED_RESTART_BEAT_MS)
-        armedBeat.unref?.()
-        state.stopArmedBeat = () => clearInterval(armedBeat)
-      }
-      {
-        const sessionlessBeat = setInterval(makeSessionlessBeat(state, { liveWorkers, requestShutdown: signal => requestShutdown(signal) }), SESSIONLESS_EXIT_BEAT_MS)
-        sessionlessBeat.unref?.()
-        state.stopSessionlessBeat = () => clearInterval(sessionlessBeat)
-      }
+      armPeriodic('the armed-restart beat', () => armedRestartBeat(state, restartNeeds))
+      armPeriodic('the sessionless beat', makeSessionlessBeat(state, { liveWorkers, requestShutdown: signal => requestShutdown(signal) }))
       if (handover !== null) {
         const idleReads = new Map<number, number>()
         let sweepInflight = false
@@ -1152,18 +1146,12 @@ async function daemonRun(args: string[]): Promise<void> {
         const sweepNow = (): void => {
           void askIdlePredecessorsToLeave().catch(e => logForDebugging(`[daemon] the idle-predecessor sweep failed (the next beat retries): ${e}`))
         }
-        const idleSweep = setInterval(sweepNow, SESSIONLESS_EXIT_BEAT_MS)
-        idleSweep.unref?.()
+        armPeriodic('the idle-predecessor sweep', sweepNow)
         setTimeout(sweepNow, FIRST_IDLE_SWEEP_MS).unref?.()
-        const stopBeat = state.stopSessionlessBeat
-        state.stopSessionlessBeat = () => {
-          clearInterval(idleSweep)
-          stopBeat?.()
-        }
       }
       if (handoverPredecessor !== null && state.daemonLock === null) {
         let lockClaimInflight = false
-        const lockBeat = setInterval(() => {
+        const lockBeat = (): void => {
           void (async () => {
             if (state.daemonLock !== null || lockClaimInflight) return
             if (lockHeldByLivePidSync() !== null) return
@@ -1178,12 +1166,10 @@ async function daemonRun(args: string[]): Promise<void> {
               lockClaimInflight = false
             }
           })()
-        }, HANDOVER_LOCK_BEAT_MS)
-        lockBeat.unref?.()
-        state.stopLockBeat = () => {
-          clearInterval(lockBeat)
-          state.stopLockBeat = null
         }
+        armPeriodic('the handover lock beat', lockBeat, () => {
+          state.stopLockBeat = null
+        })
       }
       const { startHostJobSweep } = await import('../services/host/jobs.js')
       state.stopHostJobs = startHostJobSweep()
@@ -1267,7 +1253,7 @@ async function daemonRun(args: string[]): Promise<void> {
         let reconcileRosterSig = [...liveShorts].sort().join(' ')
         let reconcileRecordsStamp = fileMoveStamp(concourseWorkersPath())
         let reconcileHadLive = bootReconcile.live.length > 0
-        const reconcileTick = setInterval(() => {
+        const reconcileTick = (): void => {
           try {
             if (!daemonHomeStands('the reconcile tick')) return
             const live = rosteredOrHeld()
@@ -1291,8 +1277,8 @@ async function daemonRun(args: string[]): Promise<void> {
           } catch (e) {
             logForDebugging(`[daemon] warm runner sweep threw (ignored): ${e}`)
           }
-        }, RECONCILE_TICK_MS)
-        reconcileTick.unref?.()
+        }
+        armPeriodic('the reconcile tick', reconcileTick)
       }
     } catch (e) {
       console.error(`[daemon] ${GLYPH.warn} control layer FAILED to start: ${e}`)
@@ -1315,7 +1301,7 @@ async function daemonRun(args: string[]): Promise<void> {
   }
 
   return new Promise<void>(resolveShutdown => {
-    const keepAlive = setInterval(() => {}, 1 << 30)
+    const keepAlive = armPeriodic('the keep-alive', () => {})
     const wayOut = { keepAlive, resolveShutdown, spawnSuccessorDaemon }
     const shutdown = (signal: string): void => shutdownDaemon(state, wayOut, signal)
     const ownerNeeds = { shutdown }
@@ -1392,3 +1378,44 @@ const PLANE_HEAL_FLOOR_MS = 30_000
 const PLANE_HEAL_COALESCE_MS = 250
 const INSTALLED_POINTER_NAMES = new Set(['current', 'dist', 'current.txt'])
 const RECONCILE_TICK_MS = 60_000
+
+type PeriodicStop = 'stopPlaneHeal' | 'stopArmedBeat' | 'stopSessionlessBeat' | 'stopLockBeat'
+
+interface PeriodicRow {
+  readonly name: string
+  readonly everyMs: number
+  readonly holdsTheProcess: boolean
+  readonly stoppedBy: PeriodicStop | null
+}
+
+const PERIODIC = [
+  { name: 'the plane heal floor', everyMs: PLANE_HEAL_FLOOR_MS, holdsTheProcess: false, stoppedBy: 'stopPlaneHeal' },
+  { name: 'the armed-restart beat', everyMs: ARMED_RESTART_BEAT_MS, holdsTheProcess: false, stoppedBy: 'stopArmedBeat' },
+  { name: 'the sessionless beat', everyMs: SESSIONLESS_EXIT_BEAT_MS, holdsTheProcess: false, stoppedBy: 'stopSessionlessBeat' },
+  { name: 'the idle-predecessor sweep', everyMs: SESSIONLESS_EXIT_BEAT_MS, holdsTheProcess: false, stoppedBy: 'stopSessionlessBeat' },
+  { name: 'the handover lock beat', everyMs: HANDOVER_LOCK_BEAT_MS, holdsTheProcess: false, stoppedBy: 'stopLockBeat' },
+  { name: 'the reconcile tick', everyMs: RECONCILE_TICK_MS, holdsTheProcess: false, stoppedBy: null },
+  { name: 'the keep-alive', everyMs: 1 << 30, holdsTheProcess: true, stoppedBy: null },
+] as const satisfies readonly PeriodicRow[]
+
+function periodicArmer(state: DaemonRunState): (name: (typeof PERIODIC)[number]['name'], work: () => void, alsoStops?: () => void) => ReturnType<typeof setInterval> {
+  let next = 0
+  return (name, work, alsoStops) => {
+    const at = PERIODIC.findIndex(row => row.name === name)
+    if (at < next) throw new Error(`the daemon's periodic work is armed in the order of its list: "${name}" was asked after "${PERIODIC[next - 1]?.name ?? 'nothing'}"`)
+    next = at + 1
+    const row = PERIODIC[at]!
+    const timer = setInterval(work, row.everyMs)
+    if (!row.holdsTheProcess) timer.unref?.()
+    const stoppedBy = row.stoppedBy
+    if (stoppedBy !== null) {
+      const before = state[stoppedBy]
+      state[stoppedBy] = () => {
+        clearInterval(timer)
+        alsoStops?.()
+        before?.()
+      }
+    }
+    return timer
+  }
+}
