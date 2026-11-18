@@ -368,7 +368,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     let keyAttached = false
     for (;;) {
       while (!signal.aborted && Date.now() < sshDeadline) {
-        const pod = await sshRead('pod', readSignal => api.get(id, readSignal)).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); if (hostReadFailureWords(error) && Date.now() >= sshDeadline - pause) throw new Error(last); throw error })
+        const pod = await sshRead('pod', readSignal => api.get(id, readSignal)).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); if (hostReadFailureWords(error) && Date.now() >= sshDeadline - pause) return undefined; throw error }); if (!pod) break
         const current = readHostRecord(id)
         if (!current || current.generation !== generation || current.jobState === 'stopped' || current.status === 'TERMINATED') return
         patchHostRecord(id, { status: pod.status })

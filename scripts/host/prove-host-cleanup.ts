@@ -1,3 +1,4 @@
+import './loopbackOnly.ts'
 import assert from 'node:assert/strict'
 import { pinSourceRef } from '../lib/settingsPopupHarness.ts'
 import { llmhostFixture } from '../providers/lib/llmhostFixture.ts'

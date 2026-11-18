@@ -6,6 +6,8 @@ import { createServer } from 'node:net'
 import { sleep } from '../../utils/sleep.js'
 import { hostDirectory } from './store.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { sleep } from '../../utils/sleep.js'
 import { recipeFits, type HostRecipe } from './recipes.js'
 
 import { downloadFailure, hostDownloadScript } from './download.js'
@@ -18,6 +20,7 @@ export interface HostRunner {
 }
 const tunnels = new Map<string, ReturnType<HostRunner['tunnel']>>()
 const children = new Set<ChildProcess>()
+const EXIT_OUTPUT_GRACE_MS = 2000
 process.once('exit', () => { for (const child of children) child.kill() })
 export const hostRunner: HostRunner = {
   run(command, args, signal, timeoutMs = 30_000, env) {
@@ -27,14 +30,17 @@ export const hostRunner: HostRunner = {
       children.add(child)
       let output = ''
       let settled = false
-      const finish = (error?: Error): void => { if (settled) return; settled = true; clearTimeout(timer); signal.removeEventListener('abort', abort); children.delete(child); if (error) reject(error); else resolve(output) }
+      const grace = new AbortController()
+      const finish = (error?: Error): void => { if (settled) return; settled = true; clearTimeout(timer); grace.abort(); signal.removeEventListener('abort', abort); children.delete(child); if (error) reject(error); else resolve(output) }
+      const ended = (code: number | null): void => finish(code === 0 ? undefined : new Error(command + ' exited ' + code + '. ' + output.slice(-2000)))
       const abort = (): void => { child.kill(); finish(new Error('Stopped')) }
       const timer = setTimeout(() => { child.kill(); finish(new Error(command + ' timed out. ' + output.slice(-2000))) }, timeoutMs)
       signal.addEventListener('abort', abort, { once: true })
       child.stdout.on('data', data => { output = (output + String(data)).slice(-12000) })
       child.stderr.on('data', data => { output = (output + String(data)).slice(-12000) })
       child.on('error', error => finish(error))
-      child.on('exit', code => finish(code === 0 ? undefined : new Error(command + ' exited ' + code + '. ' + output.slice(-2000))))
+      child.on('close', ended)
+      child.on('exit', code => { void sleep(EXIT_OUTPUT_GRACE_MS, grace.signal).then(() => { if (settled) return; logForDebugging(command + ' exited and its output had not ended after ' + EXIT_OUTPUT_GRACE_MS + ' ms (a process it started holds the pipe) · settled with what was read'); ended(code) }) })
     })
   },
   tunnel(args) {

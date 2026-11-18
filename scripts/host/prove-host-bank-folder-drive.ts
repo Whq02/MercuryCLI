@@ -1,3 +1,4 @@
+import './loopbackOnly.ts'
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'

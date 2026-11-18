@@ -1,3 +1,4 @@
+import './loopbackOnly.ts'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { ownerOnlyFile } from '../lib/ownerOnly.ts'

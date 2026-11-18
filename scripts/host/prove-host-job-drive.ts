@@ -1,3 +1,4 @@
+import './loopbackOnly.ts'
 import assert from 'node:assert/strict'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs'

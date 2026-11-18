@@ -44,6 +44,22 @@ def class_of(runner):
     return "undeclared"
 
 
+MEMBER = re.compile(r"── (\S+)\s+\d+s rc=(\d+)\s*$")
+
+
+def red_members(log):
+    found = []
+    try:
+        with open(log, encoding="utf-8", errors="replace") as rows_of_log:
+            for line in rows_of_log:
+                m = MEMBER.search(line)
+                if m and m.group(2) != "0" and m.group(1) not in found:
+                    found.append(m.group(1))
+    except OSError:
+        pass
+    return found
+
+
 runners = {os.path.basename(os.path.dirname(p)): p for p in glob.glob("scripts/*/run-all.sh")}
 estate = sorted(runners)
 declared = {d: class_of(runners[d]) for d in estate}
@@ -57,6 +73,7 @@ if scope in OTHER:
 rows = {}
 duplicated = []
 for tsv in sorted(glob.glob(os.path.join(results_dir, "**", "results.tsv"), recursive=True)):
+    before = 0
     for line in open(tsv):
         parts = line.rstrip("\n").split("\t")
         if len(parts) != 6:
@@ -70,7 +87,10 @@ for tsv in sorted(glob.glob(os.path.join(results_dir, "**", "results.tsv"), recu
             "secs": int(secs),
             "retryRc": None if retry_rc == "-" else int(retry_rc),
             "retrySecs": None if retry_secs == "-" else int(retry_secs),
+            "shard": os.path.dirname(tsv),
+            "before": before,
         }
+        before += 1
 notes = {}
 for tsv in sorted(glob.glob(os.path.join(results_dir, "**", "notes.tsv"), recursive=True)):
     for line in open(tsv):
@@ -92,6 +112,9 @@ for dom, r in sorted(rows.items()):
                 "pooledSecs": r["secs"],
                 "soloRc": r["retryRc"],
                 "soloSecs": r["retrySecs"],
+                "pooledMembers": red_members(os.path.join(r["shard"], dom + ".out")),
+                "soloMembers": red_members(os.path.join(r["shard"], "retry", dom + ".out")),
+                "homeSuitesBefore": r["before"],
             }
         )
     (passed if final_rc == 0 else failed).append(dom)
@@ -148,6 +171,13 @@ if flakes:
         "- recorded runner flakes: "
         + ", ".join(f"{f['suite']} (solo rc {f['soloRc']})" for f in flakes)
     )
+    for f in flakes:
+        first = ", ".join(f["pooledMembers"]) or "no member row in its log"
+        second = "green" if f["soloRc"] == 0 else ", ".join(f["soloMembers"]) or "no member row in its log"
+        lines.append(
+            f"  - {f['suite']}: first attempt after {f['homeSuitesBefore']} suite(s) in the shard's home, red: {first}"
+            f" · second run in a home of its own: {second}"
+        )
 lines.append("")
 lines.append("| suite | class | rc | secs | retry | first stuck send |")
 lines.append("|---|---|---|---|---|---|")

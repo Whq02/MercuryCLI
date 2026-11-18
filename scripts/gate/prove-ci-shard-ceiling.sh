@@ -184,4 +184,39 @@ else
   echo "  ✗ notes.tsv wrong:"; sed 's/^/      /' "$work/outC2/notes.tsv" 2>/dev/null; fail=1
 fi
 
+rm -rf "$work/suites" "$work/h1.once" "$work/h1.homes" "$work/h1.seeded"
+mk_suite first '# gate-class: pure' 'exit 0'
+mk_suite h1 '# gate-class: pure' "echo \"\$MERCURY_CONFIG_DIR\" >>'$work/h1.homes'; [ -f \"\$MERCURY_CONFIG_DIR/.mercury.json\" ] && echo seeded >>'$work/h1.seeded'; if [ -e \"\$MERCURY_CONFIG_DIR/h1.marker\" ]; then echo '── scripts/h1/prove-stands-on-an-unused-home.sh  0s rc=1'; exit 1; fi; touch \"\$MERCURY_CONFIG_DIR/h1.marker\"; if [ ! -f '$work/h1.once' ]; then touch '$work/h1.once'; echo '── scripts/h1/prove-loses-the-clock.sh  0s rc=1'; exit 5; fi; exit 0"
+printf 'first\t5\nh1\t1\n' >"$work/seed.tsv"
+: >"$work/ceilings.tsv"
+outD=$(shard_class outD release MERCURY_SUITE_CEILING=20); rcD=$?
+tsvD="$work/outD/results.tsv"
+homeD1=$(sed -n 1p "$work/h1.homes" 2>/dev/null)
+homeD2=$(sed -n 2p "$work/h1.homes" 2>/dev/null)
+besideD="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+besideD="${besideD%/}"
+if [ "$rcD" = "0" ] && grep -q '^h1	pure	5	[0-9]*	0	[0-9]*$' "$tsvD" && printf '%s' "$outD" | grep -q 'h1.*re-run GREEN — runner flake RECORDED' \
+   && [ "$homeD1" = "$MERCURY_CONFIG_DIR" ] && [ -e "$MERCURY_CONFIG_DIR/h1.marker" ] && [ "$(grep -c seeded "$work/h1.seeded" 2>/dev/null)" = "2" ]; then
+  echo "  ✓ second home: a suite red once found no marker of its first run the second time (rc 5 → 0, RECORDED), and both homes were seeded"
+else
+  echo "  ✗ second home: the second run stood on the first run's home — rc=$rcD row='$(grep '^h1' "$tsvD" 2>/dev/null)' homes='$(paste -sd' ' "$work/h1.homes" 2>/dev/null)' — scripts/gate/ci-shard.sh gives the re-run a home of its own"; printf '%s\n' "$outD" | grep h1 | sed 's/^/      /'; fail=1
+fi
+case "$homeD2" in
+  ("$besideD"/mercury-proof-home.??????)
+    if [ ! -e "$homeD2" ]; then
+      echo "  ✓ second home: made beside the shard's by the same form (mercury-proof-home.XXXXXX under the shard's temp root) and removed after the run"
+    else
+      echo "  ✗ second home: $homeD2 still stands after the shard — scripts/gate/ci-shard.sh removes the re-run's home when the re-run ends"; fail=1
+    fi ;;
+  (*) echo "  ✗ second home: '$homeD2' is not a mercury-proof-home.XXXXXX under $besideD — scripts/gate/ci-shard.sh makes the re-run's home as it makes the shard's"; fail=1 ;;
+esac
+mkdir -p "$work/verdictD/results"
+cp -R "$work/suites" "$work/verdictD/scripts"
+cp -R "$work/outD" "$work/verdictD/results/s0"
+( cd "$work/verdictD" && unset GITHUB_STEP_SUMMARY && /usr/bin/env python3 "$here/ci-verdict.py" results --scope release ) >"$work/verdictD/out.txt" 2>&1; rcV=$?
+if [ "$rcV" = "0" ] && /usr/bin/env python3 -c "import json,sys; v=json.load(open('$work/verdictD/ci-verdict.json')); f=v['flakes']; sys.exit(0 if v['ok'] and len(f)==1 and f[0]['suite']=='h1' and f[0]['pooledRc']==5 and f[0]['soloRc']==0 and f[0]['pooledMembers']==['scripts/h1/prove-loses-the-clock.sh'] and f[0]['soloMembers']==[] and f[0]['homeSuitesBefore']==1 else 1)"; then
+  echo "  ✓ verdict row: the flake names the member red in the first attempt and the one suite that had used the shard's home before it"
+else
+  echo "  ✗ verdict row: rc=$rcV flakes=$(/usr/bin/env python3 -c "import json; print(json.load(open('$work/verdictD/ci-verdict.json')).get('flakes'))" 2>&1 | head -3) — scripts/gate/ci-verdict.py reads the members from <suite>.out beside results.tsv"; fail=1
+fi
 exit "$fail"
