@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { check, finish, scratchDir, section } from '../computer/computerProofKit.ts'
-import { ownerOf, resultOf, toolContext } from '../computer/computerToolKit.ts'
+import { check, finish, scratchDir, section } from './computerProofKit.ts'
+import { ownerOf, resultOf, toolContext } from './computerToolKit.ts'
 import type { DesktopApplication, DesktopTree, DesktopTreeElement } from '../../src/services/desktop/driver.ts'
 
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')

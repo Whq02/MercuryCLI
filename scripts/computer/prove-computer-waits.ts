@@ -1,5 +1,5 @@
-import { check, finish, section } from '../computer/computerProofKit.ts'
-import { resultOf, toolContext } from '../computer/computerToolKit.ts'
+import { check, finish, section } from './computerProofKit.ts'
+import { resultOf, toolContext } from './computerToolKit.ts'
 import type { DesktopTree } from '../../src/services/desktop/driver.ts'
 
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
@@ -43,7 +43,7 @@ for (const until of [{ gone: true }, { title: '' }, { url: '', text: 'Ready' }, 
 
 section('a dialog condition and a focus condition: the stop line for a click whose effect the model assumes')
 {
-  const { allowEverything, toolUseTurn } = await import('../computer/computerToolKit.ts')
+  const { allowEverything, toolUseTurn } = await import('./computerToolKit.ts')
   let dialogOpen = false
   let focusedRole: string | null = null
   driver.accessibilityTree = async () => {

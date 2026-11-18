@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { check, finish, scratchDir } from '../computer/computerProofKit.ts'
-import { allowEverything, resultOf, toolContext, toolUseTurn } from '../computer/computerToolKit.ts'
+import { check, finish, scratchDir } from './computerProofKit.ts'
+import { allowEverything, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
 
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
 const { resetDesktopDriverForTest, resolveDesktopDriver } = await import('../../src/services/desktop/resolveDriver.ts')

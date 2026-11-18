@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { check, finish, scratchDir } from '../computer/computerProofKit.ts'
-import { allowEverything, resultOf, toolContext, toolUseTurn } from '../computer/computerToolKit.ts'
+import { check, finish, scratchDir } from './computerProofKit.ts'
+import { allowEverything, resultOf, toolContext, toolUseTurn } from './computerToolKit.ts'
 import type { DesktopBounds, DesktopTree, DesktopTreeElement } from '../../src/services/desktop/driver.ts'
 
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
