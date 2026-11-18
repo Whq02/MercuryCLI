@@ -18,14 +18,13 @@ import { adoptResumedSessionFile, flushSessionStorage, getSessionMessages, peekP
 import { RunnerQuiescence } from '../daemon/runnerQuiescence.js'
 import { sessionFilePath } from '../utils/sessionStorage/loading.js'
 import { claimSessionWriter } from '../utils/sessionStorage/sessionWriter.js'
-import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
 import { refreshBoxReading } from '../utils/boxLock.js'
-import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
+import { requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
 import { watchLiveMcpConfig } from '../services/mcp/liveConfig.js'
 import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed } from '../services/mcp/dynamicMcpSeed.js'
 import { bootModelRefusalLine, resolveHeadlessModel } from './headless/model.js'
 import { formatPrintsOutcomeRow, refusedOutcome } from './headless/refusalEnvelope.js'
-import { createRosterTransitionMessage, createSeatReceiptMessage } from '../utils/messages/systemMessages.js'
+import { createSeatReceiptMessage } from '../utils/messages/systemMessages.js'
 import { DRAIN_CUT_WORDS } from '../utils/messages/turnCut.js'
 import {
   scheduleEditToWire,
@@ -62,6 +61,7 @@ import * as inputDoor from './headless/inputDoor.js'
 import * as printTurn from './headless/printTurn.js'
 import * as printDriver from './headless/printDriver.js'
 import { runnerParkRefusal } from './headless/parkRefusal.js'
+import { landSpawnSwitch as landSwitch } from './headless/spawnSwitchLanding.js'
 import { priorTurnCount } from './headless/claimSession.js'
 import { fileCheckpointsFact } from './headless/sessionFactsArm.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
@@ -845,12 +845,7 @@ export async function runHeadless(
   asks.setOnControlRequestResolved(() => live.hostAsks?.noteSettled())
   const landAdvisorQuiet = (quiet: AdvisorQuiet): void => printDriver.landAdvisorQuiet(quiet, ports)
   const advisorRoad = printDriver.advisorRoadOf(ports)
-  const landSpawnSwitch = (kind: 'subagents', on: boolean): void => {
-    const landed = setSpawnSwitch(kind, on)
-    if (!landed.changed) return
-    messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))
-    declareLawfulPrefixChangeForEveryOwner(`you turned ${SPAWN_SWITCH_LABEL[kind]} ${on ? 'on' : 'off'}`)
-  }
+  const landSpawnSwitch = (kind: 'subagents', on: boolean): void => landSwitch(kind, on, ports)
 
   let mcpChangeChain: Promise<unknown> = Promise.resolve()
   const serializeMcpChange = <T,>(operation: () => Promise<T>): Promise<T> => {
