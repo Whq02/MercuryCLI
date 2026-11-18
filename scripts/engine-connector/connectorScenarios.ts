@@ -1232,6 +1232,16 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     await h.call('detach')
   })
 
+  await scenario('a-watchdog-the-facts-spell-as-text', async h => {
+    await h.facts({ busy: true, turnStartedAt: clock.now(), streamIdleTimeoutMs: '90000' })
+    await h.tail({ text: 'words', messageId: 'msg_w', streamBlock: 'text', blockSinceMs: clock.now(), lastEventAtMs: clock.now() })
+    await h.advance(44_000)
+    await h.advance(1_000, [applied()])
+    await h.advance(44_000)
+    await h.advance(1_000, [applied()])
+    await h.facts({ busy: false })
+  })
+
   server.close()
   rmSync(scratch, { recursive: true, force: true })
   return { scenarios, called: [...called].sort(), woken: [...woken].sort() }

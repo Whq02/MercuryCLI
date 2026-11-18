@@ -470,7 +470,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     factsBusy: () => this.factsBusy,
     work: () => this.facts?.work ?? [],
     factsTurnStartedAt: () => this.facts?.turnStartedAt,
-    streamIdleTimeoutMs: () => this.facts?.streamIdleTimeoutMs,
+    streamIdleTimeoutMs: () => (typeof this.facts?.streamIdleTimeoutMs === 'number' ? this.facts.streamIdleTimeoutMs : undefined),
     model: () => this.modelFacts().effective,
     anySendDelivered: () => this.sends.some(s => s.state === 'delivered'),
     redressQueuedSends: () => {

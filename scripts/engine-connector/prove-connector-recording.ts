@@ -101,6 +101,10 @@ const RECORDED: Readonly<Record<string, { whole: string; events: string }>> = {
     whole: '7abf71156a7cf3d58803102f35e32e9650aeadb1bb39cbf58c679d4696263482',
     events: 'ce3d2a1d495c068621d59d131759552a7689a5e547d8a419b64339d7fc09109be2b387fef5db17144a1617142fadff2d',
   },
+  'a-watchdog-the-facts-spell-as-text': {
+    whole: 'ccbd24f2b27455531b5132c4f1308782eca93fb45ff5ae15b04d73c4f65cdd4e',
+    events: 'a8878d7ecf0247d81759552acd41cf604b7e67d2ecc76fc917321c2267d28c8a6fc91732086e60068c4f858747d817142fad7399',
+  },
 }
 
 let failures = 0
