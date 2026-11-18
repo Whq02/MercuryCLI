@@ -78,6 +78,13 @@ src/rows/turn.ts
 # The run-core owners:
 src/run-core/turn-machine.ts
 src/run-core/turn/judgements.ts
+src/run-core/turn/state.ts
+src/run-core/turn/streamModel.ts
+src/run-core/turn/makeRequest.ts
+src/run-core/turn/modelReply.ts
+src/run-core/turn/noToolReply.ts
+src/run-core/turn/runToolCalls.ts
+src/run-core/turn/afterTools.ts
 src/run-core/events.ts
 src/run-core/project-legacy.ts
 src/run-core/model-lane.ts
