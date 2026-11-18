@@ -89,7 +89,9 @@ const { RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
 const { isLocalShellTask } = await import('../../src/tasks/LocalShellTask/guards.ts')
 const { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, peekOperatorMessages } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
-const { dequeue } = await import('../../src/utils/messageQueueManager.ts')
+const { dequeue, enqueue } = await import('../../src/utils/messageQueueManager.ts')
+const { runnerParkRefusal } = await import('../../src/cli/headless/parkRefusal.ts')
+const { capabilityHoldWords, runnerCapabilityHolds } = await import('../../src/daemon/runnerCapabilityCensus.ts')
 const { sessionKitOf, setProcessSessionKit } = await import('../../src/services/mcp/sessionKitPin.ts')
 const { answerSessionFacts } = await import('../../src/cli/headless/sessionFactsArm.ts')
 const { sessionFactsFromWire, sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
@@ -389,6 +391,30 @@ section('§8 session/facts: each fact comes from its one owner, and a fact its o
   check('…and spreads them onto the usage row and the answer, absent when undefined', !('anthropicWindow' in none.usage) && !('openaiCatalogue' in none) && !('anthropicObserved' in none.usage) && 'anthropicWindow' in got.usage && j(got.openaiCatalogue) === j(held.openaiCatalogueFact), `${Object.keys(none.usage).join(' ')} · ${j(got.openaiCatalogue)}`)
   check('an OpenAI observation with neither window is not spread, an unsent effort leaves its key ABSENT, no sign-in email is null, and an unreadable task list is an empty mission', !('openaiObserved' in none.usage) && !('effortSent' in none) && none.identity.accountEmail === null && j(none.mission) === j([]), `${Object.keys(none.usage).join(' ')} · ${j(none.identity)} · ${j(none.mission)}`)
   check('with no model of its own the seat answers on the engine model, and asks the owner of the warning about that one', j(said('providerLimitWarning').map(call => call.args[0])) === j([{ model: getEngineModel() }]) && (none as unknown as { model: { effective: string } }).model.effective === getEngineModel(), j(said('providerLimitWarning').map(call => call.args[0])))
+}
+
+section('§8b the park: what refuses it, in its order')
+{
+  let running = false
+  let pending = 0
+  const store = storeOf({})
+  const asks = { pendingControlRequestCount: () => pending }
+  const { ports } = stubPorts({ getAppState: store.get, asks, driver: { isRunning: () => running }, isMainThreadCommand: (command: { agentId?: unknown }) => command.agentId === undefined })
+  const free = runnerParkRefusal(ports)
+  pending = 2
+  const census = runnerParkRefusal(ports)
+  const wanted = capabilityHoldWords(runnerCapabilityHolds(asks))
+  store.state.tasks = { a1: agentTask('a1'), a2: agentTask('a2'), a3: agentTask('a3', 'completed') }
+  const tasks = runnerParkRefusal(ports)
+  enqueue({ value: 'for a crewmate', mode: 'task-notification', agentId: 'a1' } as never)
+  const agentLine = runnerParkRefusal(ports)
+  enqueue({ value: 'the operator waits', mode: 'prompt', uuid: 'park-line' } as never)
+  const queuedLine = runnerParkRefusal(ports)
+  running = true
+  const turn = runnerParkRefusal(ports)
+  dequeue(command => command.uuid === ('park-line' as never))
+  dequeue(command => command.agentId === ('a1' as never))
+  check('the quiesce refusal ends on the census (turn, queued prompt, background tasks first; the census closes it)', free === null && census !== null && census === wanted && tasks === '2 background task(s) still running' && agentLine === tasks && queuedLine === 'a prompt is queued' && turn === 'a turn is running', j({ free, census, tasks, agentLine, queuedLine, turn }))
 }
 
 section('§9 session/claim: the claim binds and answers, the load runs behind the answer, and every step keeps its place')
