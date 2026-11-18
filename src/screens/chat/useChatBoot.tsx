@@ -1,31 +1,51 @@
+import { basename as nodePathBasename } from 'node:path';
 import { useEffect, useRef, useState } from 'react';
+import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js';
 import { splitWayOut, type useNotifications } from '../../context/notifications.js';
 import { useFpsMetrics } from '../../context/fpsMetrics.js';
 import { useCostSummary } from '../../costHook.js';
+import { useDeprecationWarningNotification } from '../../hooks/notifs/useDeprecationWarningNotification.js';
+import { useLspInitializationNotification } from '../../hooks/notifs/useLspInitializationNotification.js';
+import { useRateLimitWarningNotification } from '../../hooks/notifs/useRateLimitWarningNotification.js';
+import { useSettingsErrors } from '../../hooks/notifs/useSettingsErrors.js';
 import { useAgentsChange } from '../../hooks/useAgentsChange.js';
+import type { useApiKeyVerification } from '../../hooks/useApiKeyVerification.js';
+import type { useEngineModel } from '../../hooks/useEngineModel.js';
 import { useExtensions } from '../../hooks/useExtensions.js';
 import { useFinishMarks } from '../../hooks/useFinishMarks.js';
 import { useSessionTitleMint } from '../../hooks/useSessionTitleMint.js';
 import { useSettingsChange } from '../../hooks/useSettingsChange.js';
 import { useSkillsChange } from '../../hooks/useSkillsChange.js';
 import { Box, Text } from '../../ink.js';
-import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js';
+import { conversationIdHere, getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js';
 import { hasSeatLive } from '../../services/engine-connector/seatLive.js';
 import type { EngineConnectorV1 } from '../../services/engine-connector/types.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../../services/privateChannel/quietUpdateNotice.js';
+import { takeResumeFoldNotice } from '../../services/run/runCoordinator.js';
 import { startBackgroundHousekeeping } from '../../utils/backgroundHousekeeping.js';
+import { crashReportDirDisplay, markCrashReportsNoticed, resolveCrashTranscript, unnoticedCrashReports } from '../../utils/crashReport.js';
 import { getCwd } from '../../utils/cwd.js';
 import { logForDebugging } from '../../utils/debug.js';
+import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../../utils/healthPreflight.js';
 import { recordBootInteractive } from '../../utils/observability/frictionStopwatch.js';
 import { useKickOffCheckAndDisableSovereignIfNeeded } from '../../utils/permissions/bypassPermissionsKillswitch.js';
+import { clearedSessionAt } from '../../utils/sessionStorage/clearedSessions.js';
+import { subscribeTranscriptLoadDegradation, transcriptLoadDegradation } from '../../utils/sessionStorage/loading.js';
+import { subscribeTranscriptStoreHealth, transcriptStoreHealth } from '../../utils/sessionStorage/writer.js';
+import { getProjectDir } from '../../utils/sessionStoragePortable.js';
+import { windowsShellRoadNotice } from '../../utils/shell/windowsShellRoad.js';
 import type { CrashResumeStaged } from './crashResume.js';
+import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';
+import type { PaintsRows } from './sessionShapes.js';
 
 const loadHopIntoSession = () => import('../../services/switchboard/hopIntoSession.js');
 const loadEnsureDaemon = () => import('../../services/switchboard/ensureDaemon.js');
 const loadContextWindowWarmup = () => import('../../utils/model/contextWindowWarmup.js');
 const loadDaemonHandshake = () => import('../../daemon/handshake.js');
-export const loadProjectSnapshot = () => import('../../services/projectIntel/snapshot.js');
+const loadProjectSnapshot = () => import('../../services/projectIntel/snapshot.js');
+
+const BOOT_WARMUP_MS = 150;
 
 export function useChatCrashResume() {
   const [crashResumeStaged, setCrashResumeStaged] = useState<CrashResumeStaged | null>(null);
@@ -160,4 +180,203 @@ export function useChatBootStart({
       logForDebugging(`background housekeeping failed to start: ${String(error)}`);
     }
   }, [submitCount]);
+}
+
+export function useChatBootNotices({
+  focusedConnector,
+  addNotification,
+  removeNotification,
+  focusedInputDialog,
+  setCrashResumeStaged,
+  crashNoticeLatchedRef,
+  apiKeyVerification,
+  engineModel,
+}: {
+  focusedConnector: EngineConnectorV1;
+  addNotification: ReturnType<typeof useNotifications>['addNotification'];
+  removeNotification: ReturnType<typeof useNotifications>['removeNotification'];
+  focusedInputDialog: FocusedInputDialog | undefined;
+  setCrashResumeStaged: (staged: CrashResumeStaged | null) => void;
+  crashNoticeLatchedRef: { current: boolean };
+  apiKeyVerification: ReturnType<typeof useApiKeyVerification>;
+  engineModel: ReturnType<typeof useEngineModel>;
+}) {
+  useEffect(() => {
+    const hosted = hasSeatLive(focusedConnector) && focusedConnector.transcriptStoreFailing !== undefined ? focusedConnector : null;
+    const paint = (): void => {
+      const health = transcriptStoreHealth();
+      const sentence = health.failing ? health.sentence : (hosted?.transcriptStoreFailing?.() ?? undefined);
+      if (sentence !== undefined) {
+        addNotification({
+          key: 'transcript-store',
+          text: sentence || 'the session transcript store is failing to write',
+          priority: 'high',
+          timeoutMs: 3_600_000,
+        });
+      } else {
+        removeNotification('transcript-store');
+      }
+    };
+    paint();
+    const offStore = subscribeTranscriptStoreHealth(paint);
+    const offFacts = hosted?.subscribeModel(paint);
+    return () => {
+      offStore();
+      offFacts?.();
+    };
+  }, [focusedConnector]);
+
+  useEffect(() => {
+    const paintDegradation = (): void => {
+      try {
+        const focused = getFocusedSessionConnector() as PaintsRows;
+        const fact = transcriptLoadDegradation(typeof focused.transcriptFile === 'function' ? focused.transcriptFile() : undefined);
+        if (!fact) {
+          removeNotification('transcript-degraded');
+          return;
+        }
+        const where = fact.path;
+        addNotification({
+          key: 'transcript-degraded',
+          text:
+            fact.refusal !== null
+              ? `transcript refused on load: ${fact.refusal} — ${where} · this session resumed WITHOUT its prior records (nothing was repaired)`
+              : `transcript degraded on load: ${fact.malformed} malformed, ${fact.invalid} invalid of ${fact.totalLines} line(s) — ${where} · the valid records loaded; nothing was repaired`,
+          priority: 'high',
+          timeoutMs: 3_600_000,
+        });
+      } catch {
+      }
+    };
+    paintDegradation();
+    return subscribeTranscriptLoadDegradation(paintDegradation);
+  }, [focusedConnector]);
+
+  useEffect(() => {
+    if (!mercuryBootPreflightEnabled()) return;
+    void runAndRecordPreflight()
+      .then(summary => {
+        const failing = summary.failing[0];
+        if (!failing) return;
+        addNotification({
+          key: 'boot-preflight',
+          text: `boot preflight: ${failing.id} failed${failing.evidence ? ` — ${failing.evidence}` : ''} · /health for details`,
+          priority: 'high',
+          timeoutMs: 60_000,
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const notice = windowsShellRoadNotice();
+    if (notice === null) return;
+    addNotification({
+      key: 'shell-road',
+      text: `${notice} · /health`,
+      priority: 'high',
+      timeoutMs: 60_000,
+    });
+  }, []);
+
+  useEffect(() => {
+    try {
+      const unnoticed = unnoticedCrashReports();
+      const newest = unnoticed[0];
+      if (!newest) return;
+      const more = unnoticed.length - 1;
+      const identityBits = [
+        newest.sessionId !== null ? `session ${newest.sessionId.slice(0, 8)}` : null,
+        newest.cwd !== null ? `in ${nodePathBasename(newest.cwd) || newest.cwd}` : null,
+      ].filter((bit): bit is string => bit !== null);
+      let resolved: ReturnType<typeof resolveCrashTranscript> = null;
+      try {
+        resolved = resolveCrashTranscript(newest, {
+          projectDirOf: getProjectDir,
+          currentCwd: getCwd(),
+          excludeSessionIds: [String(getSessionId())],
+          clearedAt: clearedSessionAt,
+          notAfterMs: Date.now() - process.uptime() * 1000,
+        });
+      } catch {
+      }
+      const backInside = resolved !== null && resolved.sessionId === conversationIdHere();
+      if (resolved !== null && !backInside) {
+        setCrashResumeStaged({
+          origin: newest.origin,
+          component: newest.component,
+          message: newest.message,
+          sessionId: resolved.sessionId,
+          cwd: newest.cwd,
+          transcriptPath: resolved.transcriptPath,
+          moreCount: more,
+        });
+        return;
+      }
+      const wayBack = backInside ? ' — this is that session, back in' : ' — its transcript is gone, so no re-entry is offered';
+      addNotification({
+        key: 'crash-reports',
+        text: `a previous session crashed (${newest.origin}${newest.component ? ` in ${newest.component}` : ''} — ${newest.message.slice(0, 80)})${identityBits.length > 0 ? ` · ${identityBits.join(' ')}` : ''}${wayBack}${more > 0 ? ` +${more} more` : ''} · reports in ${crashReportDirDisplay()}`,
+        priority: 'high',
+        timeoutMs: 60_000,
+      });
+      if (!crashNoticeLatchedRef.current) {
+        crashNoticeLatchedRef.current = true;
+        markCrashReportsNoticed();
+      }
+    } catch {
+    }
+  }, []);
+
+  useEffect(() => {
+    if (focusedInputDialog === 'crash-resume' && !crashNoticeLatchedRef.current) {
+      crashNoticeLatchedRef.current = true;
+      try {
+        markCrashReportsNoticed();
+      } catch {
+      }
+    }
+  }, [focusedInputDialog]);
+
+  useEffect(() => {
+    try {
+      const notice = takeResumeFoldNotice();
+      if (!notice) return;
+      if (notice.interruptedTools > 0) {
+        addNotification({
+          key: 'resume-run-fold',
+          text: `${notice.interruptedTools} tool call(s) interrupted — /run for details`,
+          priority: 'high',
+          timeoutMs: 60_000,
+        });
+      }
+      if (notice.blocker) {
+        addNotification({
+          key: 'resume-run-blocker',
+          text: `${notice.blocker.description} — ${notice.blocker.resumeCondition}`,
+          priority: 'high',
+          timeoutMs: 60_000,
+        });
+      }
+    } catch {
+    }
+  }, []);
+
+  useEffect(() => {
+    void apiKeyVerification.reverify({ probe: false }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void loadProjectSnapshot()
+        .then(m => m.getProjectSnapshotAsync(getOriginalCwd(), { maxStaleMs: 120_000 }))
+        .catch(() => {});
+    }, BOOT_WARMUP_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useSettingsErrors();
+  useRateLimitWarningNotification(engineModel);
+  useDeprecationWarningNotification(engineModel);
+  useLspInitializationNotification();
 }

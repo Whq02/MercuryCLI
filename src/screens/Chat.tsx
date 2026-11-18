@@ -1,10 +1,7 @@
 
 import type { UUID } from 'node:crypto';
 import { query } from '../query.js';
-import { takeResumeFoldNotice } from '../services/run/runCoordinator.js';
-import { subscribeTranscriptLoadDegradation, transcriptLoadDegradation } from '../utils/sessionStorage/loading.js';
-import { subscribeTranscriptStoreHealth, transcriptStoreHealth } from '../utils/sessionStorage/writer.js';
-import { basename as nodePathBasename, join } from 'node:path';
+import { join } from 'node:path';
 import React, {
   useCallback,
   useEffect,
@@ -12,7 +9,6 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react';
-import { getOriginalCwd, getSessionId } from '../bootstrap/state.js';
 import { commandOffInPlainWorld, commandSeat, getCommandName, isCommandEnabled, type Command, type ResumeEntrypoint } from '../commands.js';
 import { ExitFlow } from '../components/ExitFlow.js';
 import { FullscreenLayout } from '../components/FullscreenLayout.js';
@@ -44,10 +40,6 @@ import { useMergedCommands } from '../hooks/useMergedCommands.js';
 import { useMergedTools } from '../hooks/useMergedTools.js';
 import { useTurnEndPing } from '../hooks/useTurnEndPing.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
-import { useDeprecationWarningNotification } from '../hooks/notifs/useDeprecationWarningNotification.js';
-import { useLspInitializationNotification } from '../hooks/notifs/useLspInitializationNotification.js';
-import { useRateLimitWarningNotification } from '../hooks/notifs/useRateLimitWarningNotification.js';
-import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js';
 import { Box, Text, useTheme } from '../ink.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
@@ -77,7 +69,7 @@ import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './chat/limits.js';
 import type { Screen as ScreenName } from './chat/screen.js';
 import type { PaintsRows, ResumableLog } from './chat/sessionShapes.js';
 import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
-import { loadProjectSnapshot, useChatBootLines, useChatBootStart, useChatCrashResume } from './chat/useChatBoot.js';
+import { useChatBootLines, useChatBootNotices, useChatBootStart, useChatCrashResume } from './chat/useChatBoot.js';
 import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsView } from './chat/useChatDialogs.js';
 import { useChatDraft } from './chat/useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
@@ -91,16 +83,8 @@ import type { Message, UserMessage } from '../types/message.js';
 import type { PromptInputMode } from '../types/textInputTypes.js';
 import { createAbortController } from '../utils/abortController.js';
 import type { PastedContent } from '../utils/config/schema.js';
-import {
-  crashReportDirDisplay,
-  markCrashReportsNoticed,
-  resolveCrashTranscript,
-  setCrashConversationLocator,
-  unnoticedCrashReports,
-} from '../utils/crashReport.js';
-import { clearedSessionAt } from '../utils/sessionStorage/clearedSessions.js';
+import { setCrashConversationLocator } from '../utils/crashReport.js';
 import { getProjectDir } from '../utils/sessionStoragePortable.js';
-import { getCwd } from '../utils/cwd.js';
 import { logForDebugging } from '../utils/debug.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../utils/fileStateCache.js';
@@ -108,8 +92,6 @@ import { isFullscreenEnvEnabled, isMouseTrackingEnabled, maybeGetTmuxMouseHint }
 import type { PromptInputHelpers } from '../types/promptInputHelpers.js';
 import { formatCommandLoadingMetadata, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } from '../utils/processUserInput/processSlashCommand.js';
 import { addToHistory, expandPastedTextRefs, resolvePastedContents } from '../history.js';
-import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../utils/healthPreflight.js';
-import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js';
 import { createCommandInputMessage, createUserMessage, getUserMessageText } from '../utils/messages.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
 import type { StreamingToolUse } from '../utils/messages/streaming.js';
@@ -125,7 +107,6 @@ export type Props = {
 };
 
 const WORKTREE_TIP_SECONDS = 15;
-const BOOT_WARMUP_MS = 150;
 
 const HELD_FOR_LANDING: ReadonlySet<string> = new Set(['swarm', 'swarmchat', 'general', 'team', 'whisper', 'rename', 'title', 'contract', 'crewmates']);
 const EMPTY_CONFIRM_QUEUE: ToolUseConfirm[] = [];
@@ -714,184 +695,7 @@ export function Chat({
 
   useChatTurnSignals({ isLoading, textActive, toolUseConfirmQueue, messages });
 
-  useEffect(() => {
-    const hosted = hasSeatLive(focusedConnector) && focusedConnector.transcriptStoreFailing !== undefined ? focusedConnector : null;
-    const paint = (): void => {
-      const health = transcriptStoreHealth();
-      const sentence = health.failing ? health.sentence : (hosted?.transcriptStoreFailing?.() ?? undefined);
-      if (sentence !== undefined) {
-        addNotification({
-          key: 'transcript-store',
-          text: sentence || 'the session transcript store is failing to write',
-          priority: 'high',
-          timeoutMs: 3_600_000,
-        });
-      } else {
-        removeNotification('transcript-store');
-      }
-    };
-    paint();
-    const offStore = subscribeTranscriptStoreHealth(paint);
-    const offFacts = hosted?.subscribeModel(paint);
-    return () => {
-      offStore();
-      offFacts?.();
-    };
-  }, [focusedConnector]);
-
-  useEffect(() => {
-    const paintDegradation = (): void => {
-      try {
-        const focused = getFocusedSessionConnector() as PaintsRows;
-        const fact = transcriptLoadDegradation(typeof focused.transcriptFile === 'function' ? focused.transcriptFile() : undefined);
-        if (!fact) {
-          removeNotification('transcript-degraded');
-          return;
-        }
-        const where = fact.path;
-        addNotification({
-          key: 'transcript-degraded',
-          text:
-            fact.refusal !== null
-              ? `transcript refused on load: ${fact.refusal} — ${where} · this session resumed WITHOUT its prior records (nothing was repaired)`
-              : `transcript degraded on load: ${fact.malformed} malformed, ${fact.invalid} invalid of ${fact.totalLines} line(s) — ${where} · the valid records loaded; nothing was repaired`,
-          priority: 'high',
-          timeoutMs: 3_600_000,
-        });
-      } catch {
-      }
-    };
-    paintDegradation();
-    return subscribeTranscriptLoadDegradation(paintDegradation);
-  }, [focusedConnector]);
-
-  useEffect(() => {
-    if (!mercuryBootPreflightEnabled()) return;
-    void runAndRecordPreflight()
-      .then(summary => {
-        const failing = summary.failing[0];
-        if (!failing) return;
-        addNotification({
-          key: 'boot-preflight',
-          text: `boot preflight: ${failing.id} failed${failing.evidence ? ` — ${failing.evidence}` : ''} · /health for details`,
-          priority: 'high',
-          timeoutMs: 60_000,
-        });
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const notice = windowsShellRoadNotice();
-    if (notice === null) return;
-    addNotification({
-      key: 'shell-road',
-      text: `${notice} · /health`,
-      priority: 'high',
-      timeoutMs: 60_000,
-    });
-  }, []);
-
-  useEffect(() => {
-    try {
-      const unnoticed = unnoticedCrashReports();
-      const newest = unnoticed[0];
-      if (!newest) return;
-      const more = unnoticed.length - 1;
-      const identityBits = [
-        newest.sessionId !== null ? `session ${newest.sessionId.slice(0, 8)}` : null,
-        newest.cwd !== null ? `in ${nodePathBasename(newest.cwd) || newest.cwd}` : null,
-      ].filter((bit): bit is string => bit !== null);
-      let resolved: ReturnType<typeof resolveCrashTranscript> = null;
-      try {
-        resolved = resolveCrashTranscript(newest, {
-          projectDirOf: getProjectDir,
-          currentCwd: getCwd(),
-          excludeSessionIds: [String(getSessionId())],
-          clearedAt: clearedSessionAt,
-          notAfterMs: Date.now() - process.uptime() * 1000,
-        });
-      } catch {
-      }
-      const backInside = resolved !== null && resolved.sessionId === conversationIdHere();
-      if (resolved !== null && !backInside) {
-        setCrashResumeStaged({
-          origin: newest.origin,
-          component: newest.component,
-          message: newest.message,
-          sessionId: resolved.sessionId,
-          cwd: newest.cwd,
-          transcriptPath: resolved.transcriptPath,
-          moreCount: more,
-        });
-        return;
-      }
-      const wayBack = backInside ? ' — this is that session, back in' : ' — its transcript is gone, so no re-entry is offered';
-      addNotification({
-        key: 'crash-reports',
-        text: `a previous session crashed (${newest.origin}${newest.component ? ` in ${newest.component}` : ''} — ${newest.message.slice(0, 80)})${identityBits.length > 0 ? ` · ${identityBits.join(' ')}` : ''}${wayBack}${more > 0 ? ` +${more} more` : ''} · reports in ${crashReportDirDisplay()}`,
-        priority: 'high',
-        timeoutMs: 60_000,
-      });
-      if (!crashNoticeLatchedRef.current) {
-        crashNoticeLatchedRef.current = true;
-        markCrashReportsNoticed();
-      }
-    } catch {
-    }
-  }, []);
-
-  useEffect(() => {
-    if (focusedInputDialog === 'crash-resume' && !crashNoticeLatchedRef.current) {
-      crashNoticeLatchedRef.current = true;
-      try {
-        markCrashReportsNoticed();
-      } catch {
-      }
-    }
-  }, [focusedInputDialog]);
-
-  useEffect(() => {
-    try {
-      const notice = takeResumeFoldNotice();
-      if (!notice) return;
-      if (notice.interruptedTools > 0) {
-        addNotification({
-          key: 'resume-run-fold',
-          text: `${notice.interruptedTools} tool call(s) interrupted — /run for details`,
-          priority: 'high',
-          timeoutMs: 60_000,
-        });
-      }
-      if (notice.blocker) {
-        addNotification({
-          key: 'resume-run-blocker',
-          text: `${notice.blocker.description} — ${notice.blocker.resumeCondition}`,
-          priority: 'high',
-          timeoutMs: 60_000,
-        });
-      }
-    } catch {
-    }
-  }, []);
-
-  useEffect(() => {
-    void apiKeyVerification.reverify({ probe: false }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void loadProjectSnapshot()
-        .then(m => m.getProjectSnapshotAsync(getOriginalCwd(), { maxStaleMs: 120_000 }))
-        .catch(() => {});
-    }, BOOT_WARMUP_MS);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useSettingsErrors();
-  useRateLimitWarningNotification(engineModel);
-  useDeprecationWarningNotification(engineModel);
-  useLspInitializationNotification();
+  useChatBootNotices({ focusedConnector, addNotification, removeNotification, focusedInputDialog, setCrashResumeStaged, crashNoticeLatchedRef, apiKeyVerification, engineModel });
 
   const { title, titleAnimating, sessionTitleSetting } = useChatTitle({ focusedInputDialog, focusedConnector, isLoading, store });
 

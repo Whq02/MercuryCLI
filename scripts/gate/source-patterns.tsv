@@ -83,9 +83,8 @@ setTimeout	src/mneme/mnemeIndex.ts	1
 setTimeout	src/mneme/mnemeMaintenance.ts	1
 setTimeout	src/rows/turn.ts	1
 setTimeout	src/runner/wire/peer.ts	1
-setTimeout	src/screens/Chat.tsx	1
 setTimeout	src/screens/chat/useChatAsks.tsx	1
-setTimeout	src/screens/chat/useChatBoot.tsx	2
+setTimeout	src/screens/chat/useChatBoot.tsx	3
 setTimeout	src/screens/chat/useChatSearch.tsx	2
 setTimeout	src/screens/chat/useChatSession.ts	1
 setTimeout	src/services/AgentSummary/agentSummary.ts	2
@@ -524,11 +523,11 @@ useEffect	src/ink/hooks/use-terminal-title.ts	1
 useEffect	src/ink/terminalWrite.ts	2
 useEffect	src/keybindings/KeybindingProviderSetup.tsx	2
 useEffect	src/keybindings/useKeybinding.ts	2
-useEffect	src/screens/Chat.tsx	14
+useEffect	src/screens/Chat.tsx	5
 useEffect	src/screens/ResumeConversation.tsx	1
 useEffect	src/screens/chat/ChatKeys.tsx	1
 useEffect	src/screens/chat/useChatAsks.tsx	3
-useEffect	src/screens/chat/useChatBoot.tsx	6
+useEffect	src/screens/chat/useChatBoot.tsx	15
 useEffect	src/screens/chat/useChatDialogs.tsx	2
 useEffect	src/screens/chat/useChatDraft.ts	3
 useEffect	src/screens/chat/useChatScroll.ts	1
@@ -967,7 +966,7 @@ empty-catch	src/mneme/mnemeConsolidate.ts	13
 empty-catch	src/mneme/mnemeMaintenance.ts	2
 empty-catch	src/mneme/mnemeRerank.ts	2
 empty-catch	src/prompt/mercuryContract.ts	1
-empty-catch	src/screens/Chat.tsx	5
+empty-catch	src/screens/chat/useChatBoot.tsx	5
 empty-catch	src/services/acp/acpLoginScreen.tsx	2
 empty-catch	src/services/acp/acpServer.ts	1
 empty-catch	src/services/acp/childSession.ts	1
@@ -1383,8 +1382,8 @@ empty-catch-handler	src/ink/ink.tsx	1
 empty-catch-handler	src/keybindings/loadUserBindings.ts	1
 empty-catch-handler	src/main.tsx	15
 empty-catch-handler	src/rows/turn.ts	3
-empty-catch-handler	src/screens/Chat.tsx	4
-empty-catch-handler	src/screens/chat/useChatBoot.tsx	3
+empty-catch-handler	src/screens/Chat.tsx	1
+empty-catch-handler	src/screens/chat/useChatBoot.tsx	6
 empty-catch-handler	src/screens/chat/useChatStatus.tsx	1
 empty-catch-handler	src/services/acp/acpServer.ts	2
 empty-catch-handler	src/services/acp/ideToolBridge.ts	1
