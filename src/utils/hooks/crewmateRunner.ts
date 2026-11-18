@@ -3,7 +3,6 @@ import { toolMatchesName, type ToolPermissionContext, type ToolUseContext } from
 import { ALL_AGENT_DISALLOWED_TOOLS } from '../../constants/tools.js'
 import { clearGuards } from '../../guards/guards.js'
 import { registerStructuredOutputGuard } from '../../guards/structuredOutput.js'
-import { query } from '../../query.js'
 import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
 import { declaredRouteOf } from '../../services/providers/routeLaw.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../../tools/SyntheticOutputTool/constants.js'
@@ -82,7 +81,7 @@ export async function runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd> 
     registerStructuredOutputGuard(hookAgentId)
     let assistantTurns = 0
     let answer: unknown
-    const stream = query({
+    const stream = run.toolUseContext.startTurn({
       messages: [createUserMessage({ content: hookBrief(run.text, run.payloadJson) })],
       systemPrompt,
       userContext: {},

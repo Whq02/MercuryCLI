@@ -4,7 +4,7 @@ import type { Command } from '../commands.js'
 import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
 import { armWorkerParentWatch } from '../daemon/workerParentWatch.js'
 import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
-import { queryEvents } from '../query.js'
+import { query, queryEvents } from '../query.js'
 import type { Terminal } from '../query/transitions.js'
 import type { RunEvent } from '../run-core/events.js'
 import { legacyYieldsOf } from '../run-core/project-legacy.js'
@@ -474,6 +474,7 @@ export class Conversation {
         runDeadline: config.maxTime,
         querySource: 'sdk',
       },
+      startTurn: query,
       abortController: this.abortController,
       readFileState: this.readFileState,
       contentReplacementState: this.contentReplacementState,

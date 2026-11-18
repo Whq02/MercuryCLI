@@ -1,5 +1,6 @@
 
 import type { UUID } from 'node:crypto';
+import { query } from '../query.js';
 import { FOLD_ROW_HEAD } from '../services/compact/foldStatus.js';
 import { takeResumeFoldNotice } from '../services/run/runCoordinator.js';
 import { subscribeTranscriptLoadDegradation, transcriptLoadDegradation } from '../utils/sessionStorage/loading.js';
@@ -942,6 +943,7 @@ export function Chat({
           refreshTools: () => mergedTools,
           theme: themeName,
         },
+        startTurn: query,
         abortController: controller,
         readFileState: getReadFileState(),
         discoveredSkillNames: new Set<string>(),

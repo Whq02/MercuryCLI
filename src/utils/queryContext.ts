@@ -1,5 +1,6 @@
 import { getSystemContext, getUserContext } from '../context.js'
 import { getSystemPrompt } from '../constants/prompts.js'
+import { query } from '../query.js'
 import type { Command } from '../commands.js'
 import type { MCPServerConnection } from '../services/mcp/types.js'
 import type { AppState } from '../state/AppStateStore.js'
@@ -56,6 +57,7 @@ function forkContext(input: ForkInputs, engineModel: string, messages: Message[]
   }
   return {
     options, abortController: createAbortController(), readFileState: input.readFileState,
+    startTurn: query,
     getAppState: input.getAppState, setAppState: input.setAppState,
     setInProgressToolUseIDs: () => {}, setResponseLength: () => {},
     updateFileHistoryState: () => {}, updateAttributionState: () => {}, messages,

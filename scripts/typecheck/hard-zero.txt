@@ -74,6 +74,7 @@ src/services/providers/anthropic/requestParams.ts
 src/services/providers/anthropic/streamCore.ts
 # The turn engine — the off-dist core, strict-clean, zero tolerance:
 src/query.ts
+src/query/startTurn.ts
 src/rows/turn.ts
 # The run-core owners:
 src/run-core/turn-machine.ts

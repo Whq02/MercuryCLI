@@ -1,3 +1,4 @@
+import type { StartTurn } from './query/startTurn.js'
 import type * as React from 'react'
 
 import { logError } from './utils/log.js'
@@ -257,6 +258,7 @@ export type ToolTerminalOptions = {
 
 export type ToolUseContext = ToolTerminalOptions & ToolCallChainCarrier & {
   options: ToolSessionOptions
+  startTurn: StartTurn
   abortController: AbortController
   readFileState: FileStateCache
   getAppState: () => AppState

@@ -4,7 +4,6 @@ import type { UUID } from 'node:crypto'
 import type { QuerySource } from '../constants/querySource.js'
 import type { Terminal } from '../query/transitions.js'
 import type { CanUseToolFn } from '../Tool.js'
-import { query } from '../query.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
 import { rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
@@ -214,6 +213,7 @@ export function createSubagentContext(parentContext: ToolUseContext, overrides: 
 
   return {
     options: overrides.options ?? parentContext.options,
+    startTurn: parentContext.startTurn,
     abortController,
     readFileState,
     getAppState,
@@ -307,7 +307,7 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
   }
   let terminal: Terminal | undefined
   const stream = async function* () {
-    terminal = yield* query({
+    terminal = yield* cacheSafeParams.toolUseContext.startTurn({
       messages,
       systemPrompt: cacheSafeParams.systemPrompt,
       userContext: cacheSafeParams.userContext,

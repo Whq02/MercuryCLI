@@ -8,7 +8,7 @@ import type { Command, PromptCommand } from '../../types/command.js'
 import {
   enhanceSystemPromptWithEnvDetails,
 } from '../../constants/prompts.js'
-import { query, type QueryParams } from '../../query.js'
+import type { QueryParams } from '../../run-core/turn-machine.js'
 import { productionDeps } from '../../query/deps.js'
 import type { LegacyQueryYield } from '../../run-core/project-legacy.js'
 import { randomUUID } from 'node:crypto'
@@ -1193,7 +1193,7 @@ export async function* runAgent(
     const retriedRefusals = new Set<string>()
     let runMessages: Message[] = messages
     const pausableQuery = async function* (): AsyncGenerator<LegacyQueryYield, void> {
-      const stream = settledSidechainMessages(query({ ...queryParams, messages: runMessages }), observeProgress)
+      const stream = settledSidechainMessages(toolUseContext.startTurn({ ...queryParams, messages: runMessages }), observeProgress)
       try {
         for (;;) {
           const next = await stream.next()
