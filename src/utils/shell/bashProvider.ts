@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, posix as posixPath } from 'node:path'
-import { createAndSaveSnapshot, shellSnapshotAbsence } from '../bash/ShellSnapshot.js'
+import { createAndSaveSnapshot } from '../bash/ShellSnapshot.js'
 import { quote } from '../bash/shellQuote.js'
 import { rearrangePipeCommand } from '../bash/bashPipeCommand.js'
 import {
@@ -18,7 +18,7 @@ import { getPlatform } from '../platform.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
 import type { BuildExecCommandOptions, ShellProvider } from './shellProvider.js'
-import { PIPELINE_STATUS_ARRAY, type ShellRecord } from './shellRecord.js'
+import { PIPELINE_STATUS_ARRAY, loginFilesNotCarried, type ShellRecord } from './shellRecord.js'
 
 function cwdFileName(id: number | string): string {
   return `mercury-cwd-${id}`
@@ -63,7 +63,7 @@ export async function createBashShellProvider(
         snapshotPath = undefined
       }
       usedSnapshotThisExecution = snapshot !== undefined
-      if (!snapshot) logForDebugging(`no shell snapshot in use${shellSnapshotAbsence() === null ? '' : ` (${shellSnapshotAbsence()})`}`)
+      if (!snapshot) logForDebugging(`no shell snapshot in use${loginFilesNotCarried() === null ? '' : ` (${loginFilesNotCarried()?.why})`}`)
 
       const name = cwdFileName(opts.id)
       const isWindows = getPlatform() === 'windows'

@@ -48,7 +48,8 @@ try {
     check('the row names the path of the shell the record names', row !== undefined && row.evidence.includes(served.path), JSON.stringify({ row, served }))
     check('…and its version', row !== undefined && served.version !== '' && row.evidence.includes(served.version), JSON.stringify({ row, served }))
     check('…and no zsh: neither a zsh as the shell that runs nor the words "bash or zsh"', row !== undefined && !/zsh[^/]* — /i.test(row.evidence) && !row.evidence.includes('bash or zsh'), row?.evidence)
-    check('the bash Mercury ships reads ok; any other shell is a warning, with what to change where a pack is skipped', row !== undefined && (served.origin === 'shipped' ? row.status === 'ok' && row.fix === undefined : row.status === 'warn' || (row.status === 'ok' && /MERCURY_SHELL_ENGINE|Shell engine setting/.test(row.evidence))), JSON.stringify(row))
+    const ownLoginFiles = row !== undefined && row.status === 'warn' && row.evidence.includes('nothing the bash login files define is carried: ')
+    check("the bash Mercury ships reads ok, or warns that this machine's own login files are not carried; any other shell is a warning, with what to change where a pack is skipped", row !== undefined && (served.origin === 'shipped' ? (row.status === 'ok' && row.fix === undefined) || ownLoginFiles : row.status === 'warn' || (row.status === 'ok' && /MERCURY_SHELL_ENGINE|Shell engine setting/.test(row.evidence))), JSON.stringify(row))
   }
 
   section('(2) the built bundle')

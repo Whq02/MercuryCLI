@@ -233,6 +233,31 @@ export function shellRoadWordsNow(): string {
   return record === null ? 'bash — the bash Mercury ships, else the system\'s bash, else the bundled engine; which one is settled when the first command needs a shell' : describeShellRecord(record)
 }
 
+export type LoginFilesAbsence = { why: string; change: string }
+
+let loginFilesAbsence: LoginFilesAbsence | null = null
+const toldOfLoginFiles = new Set<string>()
+
+export function noteLoginFiles(absence: LoginFilesAbsence | null): void {
+  loginFilesAbsence = absence
+}
+
+export function loginFilesNotCarried(): LoginFilesAbsence | null {
+  return loginFilesAbsence
+}
+
+export function loginFilesLineOnce(reader: string): string | null {
+  if (loginFilesAbsence === null || toldOfLoginFiles.has(reader)) return null
+  toldOfLoginFiles.add(reader)
+  return `Nothing your bash login files define is carried in this session: ${loginFilesAbsence.why}. ${loginFilesAbsence.change}`
+}
+
+async function loginFilesSettled(): Promise<LoginFilesAbsence | null> {
+  const { settleLoginFiles } = await import('../Shell.js')
+  await settleLoginFiles()
+  return loginFilesAbsence
+}
+
 export type ShellRow = { status: 'ok' | 'warn'; evidence: string; fix?: string }
 
 export async function shellRow(): Promise<ShellRow> {
@@ -254,6 +279,14 @@ export async function shellRow(): Promise<ShellRow> {
   if (record === null) return { status: 'warn', evidence: NO_SHELL_MESSAGE, ...fix }
   const armed = armedEngine()
   if (armed !== null) return { status: 'ok', evidence: `${describeShellRecord(record)} (${shellEngineArmWords(armed.arm)})${skipped === null ? '' : ` — this install carries no bash pack: ${skipped}`}` }
+  const absent = await loginFilesSettled()
+  if (absent !== null) {
+    return {
+      status: 'warn',
+      evidence: `${describeShellRecord(record)} — nothing the bash login files define is carried: ${absent.why}`,
+      fix: record.origin === 'shipped' || skipped === null ? absent.change : `${absent.change} The bash pack is skipped in this install: ${skipped}`,
+    }
+  }
   if (record.origin === 'shipped') return { status: 'ok', evidence: describeShellRecord(record) }
   return { status: 'warn', evidence: describeShellRecord(record), ...fix }
 }

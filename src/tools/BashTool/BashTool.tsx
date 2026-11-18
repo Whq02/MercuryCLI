@@ -1,7 +1,7 @@
 import stripAnsi from 'strip-ansi'
 import { z } from 'zod/v4'
 import { buildTool, stringInputField, type ToolUseContext, type ToolResult, type ToolPermissionContext } from '../../Tool.js'
-import { settleShellRecord } from '../../utils/shell/shellRecord.js'
+import { loginFilesLineOnce, settleShellRecord } from '../../utils/shell/shellRecord.js'
 import { bashToolAvailable } from '../../utils/shell/windowsShellRoad.js'
 import { BASH_TOOL_NAME } from './toolName.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
@@ -10,7 +10,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { isRunInputClosed } from '../../bootstrap/state.js'
 import { SLEEP_TOOL_NAME } from '../SleepTool/prompt.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
-import { exec, resolveShellCwd, terminalShellInvocation } from '../../utils/Shell.js'
+import { exec, resolveShellCwd, settleLoginFiles, terminalShellInvocation } from '../../utils/Shell.js'
 import { captureVerificationStart } from '../../utils/verification/verificationState.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import { execViaIdeTerminal, IdeTerminalUnavailableError, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
@@ -638,6 +638,8 @@ async function* runBash(
     accumulator.append(result.stdout.trimEnd() + '\n')
     if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
     if (editorTerminalNote !== undefined) accumulator.append(editorTerminalNote + '\n')
+    const loginFilesLine = loginFilesLineOnce(agentId ?? 'main')
+    if (loginFilesLine !== null) accumulator.append(loginFilesLine + '\n')
     if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
     if (commandNamesBoxLock(input.command)) await refreshBoxReading()
     const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd })
@@ -821,6 +823,7 @@ export const BashTool = buildTool({
   },
   async prompt({ tools }): Promise<string> {
     await settleShellRecord()
+    await settleLoginFiles()
     return getSimplePrompt(new Set(tools.map(tool => tool.name)))
   },
   userFacingName,

@@ -4,8 +4,10 @@ import { isAbsolute, resolve as resolvePath } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
+import { createAndSaveSnapshot } from './bash/ShellSnapshot.js'
 import { contextShellCwd, getCwd, getStartingCwd, setContextShellCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
+import { isReadOnlyDiagnostic } from './diagnosticReadOnly.js'
 import { errorMessage, isENOENT } from './errors.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
 import { getPlatform } from './platform.js'
@@ -34,6 +36,20 @@ export const getShellConfig = memoize(async (): Promise<ShellConfig> => {
   const provider = await createBashShellProvider(await systemShellRecord())
   return { provider }
 })
+
+const loginFilesAsked = memoize(async (): Promise<void> => {
+  await createAndSaveSnapshot(await systemShellRecord(), { keptNowhere: true })
+})
+
+export async function settleLoginFiles(): Promise<void> {
+  if (windowsShellRoadActive() || resolveShellEngine(getInitialSettings().shell?.engine).engine === 'brush') return
+  try {
+    if ((await fallbackEngineBinary()) !== null) return
+    await (isReadOnlyDiagnostic() ? loginFilesAsked() : getShellConfig())
+  } catch (error) {
+    logForDebugging(`the login files are not settled: ${errorMessage(error)}`)
+  }
+}
 
 const getPsProvider = memoize(async (): Promise<ShellProvider> => {
   const powershellPath = await getCachedPowerShellPath()

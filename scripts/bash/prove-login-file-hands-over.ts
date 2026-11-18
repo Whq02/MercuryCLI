@@ -1,42 +1,82 @@
 #!/usr/bin/env bun
+import { plugin } from 'bun'
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync, chmodSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 type Ran = { code: number; ms: number; text: string }
-type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string }
+type Said = { status: string; evidence: string; fix?: string }
+type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolFirst: string; toolSecond: string; said: Said | null }
+type Asked = { said: Said | null; ms: number; limit: number | null; snapshotFolder: boolean; tempLeft: number; waitedOnAlive: boolean | null; otherShellStarts: number }
+
+function waitedOn(home: string): boolean | null {
+  if (!existsSync(join(home, 'waited-on.pid'))) return null
+  const pid = Number(readFileSync(join(home, 'waited-on.pid'), 'utf8').trim())
+  try {
+    process.kill(pid, 0)
+    process.kill(pid, 'SIGKILL')
+    return true
+  } catch {
+    return false
+  }
+}
+
+function otherShellStarts(home: string): number {
+  const marker = join(home, 'other-shell-was-started')
+  return existsSync(marker) ? readFileSync(marker, 'utf8').trim().split('\n').length : 0
+}
 
 if (process.argv.includes('--row')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  plugin({
+    name: 'stub-color-diff-napi',
+    setup(build) {
+      build.module('color-diff-napi', () => ({ loader: 'object', exports: { ColorDiff: class {}, ColorFile: class {}, getSyntaxTheme: () => ({}) } }))
+    },
+  })
   const home = homedir()
   const { exec, setCwd } = await import('../../src/utils/Shell.ts')
-  const snapshot = (await import('../../src/utils/bash/ShellSnapshot.ts')) as { shellSnapshotAbsence?: () => string | null }
+  const record = await import('../../src/utils/shell/shellRecord.ts')
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
   setCwd(home)
+  let appState = getDefaultAppState()
+  const toolContext = {
+    options: { engineModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },
+    readFileState: new Map(),
+    getAppState: () => appState,
+    setAppState: (update: (state: typeof appState) => typeof appState) => { appState = update(appState) },
+    abortController: new AbortController(),
+    toolUseId: 'login-file-call',
+  } as never
+  const asTool = async (command: string): Promise<string> => {
+    try {
+      const result = await BashTool.call({ command }, toolContext)
+      return String(BashTool.mapToolResultToToolResultBlockParam(result.data, 'x').content)
+    } catch (error) {
+      return `threw: ${error instanceof Error ? error.message : String(error)}`
+    }
+  }
   const run = async (command: string): Promise<Ran> => {
     const started = Date.now()
     const handle = await exec(command, new AbortController().signal, 'bash', { timeout: 60_000 })
     const result = await handle.result
     return { code: result.code, ms: Date.now() - started, text: `${result.stdout ?? ''}${result.stderr ?? ''}`.trim() }
   }
+  const describeStarted = Date.now()
+  const description = await BashTool.prompt({ tools: [] } as never)
+  const described = { ms: Date.now() - describeStarted, text: description.split('\n\n').find(part => part.startsWith('In the main conversation')) ?? '' }
   const first = await run('echo "ran: bash=${BASH_VERSION:-no} zsh=${ZSH_VERSION:-no} path-head=${PATH%%:*}"')
-  let waitedOnAlive: boolean | null = null
-  if (existsSync(join(home, 'waited-on.pid'))) {
-    const pid = Number(readFileSync(join(home, 'waited-on.pid'), 'utf8').trim())
-    try {
-      process.kill(pid, 0)
-      waitedOnAlive = true
-      process.kill(pid, 'SIGKILL')
-    } catch {
-      waitedOnAlive = false
-    }
-  }
+  const waitedOnAlive = waitedOn(home)
   const second = await run('echo second-ran')
   const carried = await run('alias ll 2>/dev/null; myfunc 2>/dev/null; above_guard 2>/dev/null; true')
   const options = await run(`set -o | awk '$1 == "braceexpand" || $1 == "monitor" || $1 == "noclobber" || $1 == "onecmd" { printf "%s=%s ", $1, $2 }'`)
   const wiped = await run('echo wiped; rm -f "$TMPDIR"/mercury-cwd-*; exit 0')
+  const toolFirst = await asTool('echo tool-first')
+  const toolSecond = await asTool('echo tool-second')
+  const said = await record.shellRow().catch(() => null)
   const snapshots = join(process.env.MERCURY_CONFIG_DIR ?? '', 'shell-snapshots')
-  const marker = join(home, 'other-shell-was-started')
   const row: Row = {
     first,
     second,
@@ -44,12 +84,38 @@ if (process.argv.includes('--row')) {
     options,
     wiped,
     waitedOnAlive,
-    absence: snapshot.shellSnapshotAbsence?.() ?? null,
+    absence: record.loginFilesNotCarried()?.why ?? null,
     snapshots: existsSync(snapshots) ? readdirSync(snapshots).length : 0,
-    otherShellStarts: existsSync(marker) ? readFileSync(marker, 'utf8').trim().split('\n').length : 0,
+    otherShellStarts: otherShellStarts(home),
     pathHead: (process.env.PATH ?? '').split(':')[0] ?? '',
+    described,
+    toolFirst,
+    toolSecond,
+    said,
   }
   console.log(`ROW ${JSON.stringify(row)}`)
+  process.exit(0)
+}
+
+if (process.argv.includes('--asked-alone')) {
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  const home = homedir()
+  const { beginReadOnlyDiagnostic } = await import('../../src/utils/diagnosticReadOnly.ts')
+  beginReadOnlyDiagnostic()
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const spec = runtimeChecks().find(row => row.id === 'shell')
+  const started = Date.now()
+  const said = spec === undefined ? null : ((await spec.run()) as Said)
+  const asked: Asked = {
+    said,
+    ms: Date.now() - started,
+    limit: spec?.timeoutMs ?? null,
+    snapshotFolder: existsSync(join(process.env.MERCURY_CONFIG_DIR ?? '', 'shell-snapshots')),
+    tempLeft: readdirSync(tmpdir()).filter(name => name.startsWith('mercury-login-run-')).length,
+    waitedOnAlive: waitedOn(home),
+    otherShellStarts: otherShellStarts(home),
+  }
+  console.log(`ASKED ${JSON.stringify(asked)}`)
   process.exit(0)
 }
 
@@ -93,22 +159,24 @@ writeFileSync(standIn, '#!/bin/sh\necho started >> "$HOME/other-shell-was-starte
 chmodSync(standIn, 0o755)
 const other = realZsh ? ZSH : standIn
 
+const HANDS_OVER = {
+  '.bash_profile': `export SHELL=${other}\n[ -z "$ZSH_VERSION" ] && exec "$SHELL" -l\n`,
+  '.zshenv': 'echo started >> "$HOME/other-shell-was-started"\n',
+}
+const WAITS = { '.bash_profile': 'sh -c \'echo $$ > "$HOME/waited-on.pid"; exec sleep 600\'\n' }
+const DEFINES = { '.bash_profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\nset -o noclobber\n' }
+
 const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
-  'hands-over': {
-    dir: home('hands-over', {
-      '.bash_profile': `export SHELL=${other}\n[ -z "$ZSH_VERSION" ] && exec "$SHELL" -l\n`,
-      '.zshenv': 'echo started >> "$HOME/other-shell-was-started"\n',
-    }),
-  },
+  'hands-over': { dir: home('hands-over', HANDS_OVER) },
   exits: { dir: home('exits', { '.bash_profile': 'exit 0\n' }) },
   'reads-stdin': { dir: home('reads-stdin', { '.bash_profile': 'read -r answer\necho "got:$answer"\n' }) },
-  slow: { dir: home('slow', { '.bash_profile': 'sh -c \'echo $$ > "$HOME/waited-on.pid"; exec sleep 600\'\n' }) },
+  slow: { dir: home('slow', WAITS) },
   'prints-at-length': { dir: home('prints-at-length', { '.bash_profile': 'head -c 2200000 /dev/zero | tr "\\0" x\n' }) },
   'no-snapshot-folder': { dir: home('no-snapshot-folder', {}) },
   'ends-unread': {
     dir: home('ends-unread', { '.bashenv': 'case "$BASH_EXECUTION_STRING" in *mercury-cwd-*) exit 0 ;; esac\n' }),
   },
-  'login-file-only': { dir: home('login-file-only', { '.bash_profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\nset -o noclobber\n' }) },
+  'login-file-only': { dir: home('login-file-only', DEFINES) },
   'guarded-bashrc': {
     dir: home('guarded-bashrc', {
       '.profile': 'if [ -n "$BASH_VERSION" ]; then\n  if [ -f "$HOME/.bashrc" ]; then\n    . "$HOME/.bashrc"\n  fi\nfi\n',
@@ -121,24 +189,28 @@ const locked = join(HOMES['no-snapshot-folder']!.dir, 'locked')
 mkdirSync(locked, { mode: 0o555 })
 HOMES['no-snapshot-folder']!.env = { MERCURY_CONFIG_DIR: join(locked, 'config-home') }
 const isRoot = process.getuid?.() === 0
+const ALONE: Record<string, string> = {
+  'hands-over': home('alone-hands-over', HANDS_OVER),
+  slow: home('alone-slow', WAITS),
+  'login-file-only': home('alone-login-file-only', DEFINES),
+}
 
-function drive(name: string): Promise<{ row: Row | null; said: string }> {
-  const { dir, env } = HOMES[name]!
+function drive<T>(dir: string, mode: '--row' | '--asked-alone', mark: string, env: Record<string, string> = {}): Promise<{ row: T | null; said: string }> {
   const childEnv: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined || /^(?:BASH_ENV|ENV|MERCURY_SHELL_PREFIX|MERCURY_SHELL_ENGINE|MERCURY_WINDOWS_SHELL_ROAD)$/.test(key)) continue
     childEnv[key] = value
   }
   mkdirSync(join(dir, 'temp'))
-  Object.assign(childEnv, { HOME: dir, SHELL: ZSH, MERCURY_CONFIG_DIR: join(dir, 'config-home'), TMPDIR: join(dir, 'temp') }, env ?? {})
+  Object.assign(childEnv, { HOME: dir, SHELL: ZSH, MERCURY_CONFIG_DIR: join(dir, 'config-home'), TMPDIR: join(dir, 'temp') }, env)
   return new Promise(done => {
-    const child = spawn(process.execPath, [import.meta.path, '--row', name], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(process.execPath, [import.meta.path, mode], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
     let said = ''
     child.stdout.on('data', chunk => { said += String(chunk) })
     child.stderr.on('data', chunk => { said += String(chunk) })
     child.once('close', () => {
-      const line = said.split('\n').find(text => text.startsWith('ROW '))
-      done({ row: line === undefined ? null : (JSON.parse(line.slice(4)) as Row), said: said.slice(-400) })
+      const line = said.split('\n').find(text => text.startsWith(mark))
+      done({ row: line === undefined ? null : (JSON.parse(line.slice(mark.length)) as T), said: said.slice(-400) })
     })
   })
 }
@@ -148,10 +220,15 @@ const BOUND_MS = 10_000
 
 try {
   const names = Object.keys(HOMES)
-  const answers = await Promise.all(names.map(drive))
+  const aloneNames = Object.keys(ALONE)
+  const [answers, alone] = await Promise.all([
+    Promise.all(names.map(name => drive<Row>(HOMES[name]!.dir, '--row', 'ROW ', HOMES[name]!.env))),
+    Promise.all(aloneNames.map(name => drive<Asked>(ALONE[name]!, '--asked-alone', 'ASKED '))),
+  ])
   const of = (name: string): { row: Row | null; said: string } => answers[names.indexOf(name)]!
   const ranInBash = (ran: Ran | undefined): boolean => ran !== undefined && ran.code === 0 && /ran: bash=\d/.test(ran.text) && ran.text.includes('zsh=no')
   const told = (name: string): string => JSON.stringify(of(name).row ?? of(name).said).slice(0, 700)
+  const waited = (row: Row): number => row.described.ms + row.first.ms
 
   for (const name of ['hands-over', 'exits', 'reads-stdin', 'slow']) {
     const row = of(name).row
@@ -161,26 +238,26 @@ try {
   }
 
   const handsOver = of('hands-over').row
-  check('hands-over: the first command does not wait for the other shell', handsOver !== null && handsOver.first.ms < FAST_MS, told('hands-over'))
+  check('hands-over: neither the description nor the first command waits for the other shell', handsOver !== null && waited(handsOver) < FAST_MS, told('hands-over'))
   check(
     `hands-over: the user's own file started ${realZsh ? 'zsh' : 'the other shell'} once, in the one login run, and no command started it again`,
     handsOver !== null && handsOver.otherShellStarts === 1,
     told('hands-over'),
   )
-  check('hands-over: no snapshot stands, and the record of why says the login run ended before it wrote one', handsOver !== null && handsOver.snapshots === 0 && /ended before it wrote the snapshot/.test(handsOver.absence ?? ''), told('hands-over'))
+  check('hands-over: no snapshot stands, and the record of why says a login file ended the shell or handed it over', handsOver !== null && handsOver.snapshots === 0 && /a login file ended the shell or handed it to another program/.test(handsOver.absence ?? ''), told('hands-over'))
 
   const exits = of('exits').row
-  check('exits: the first command does not wait', exits !== null && exits.first.ms < FAST_MS, told('exits'))
-  check('exits: no snapshot stands, and the record of why says the login run ended before it wrote one', exits !== null && exits.snapshots === 0 && /ended before it wrote the snapshot/.test(exits.absence ?? ''), told('exits'))
+  check('exits: neither the description nor the first command waits', exits !== null && waited(exits) < FAST_MS, told('exits'))
+  check('exits: no snapshot stands, and the record of why says a login file ended the shell or handed it over', exits !== null && exits.snapshots === 0 && /a login file ended the shell or handed it to another program/.test(exits.absence ?? ''), told('exits'))
 
   const reads = of('reads-stdin').row
-  check('reads-stdin: the login run finds its standard input closed, so the first command does not wait', reads !== null && reads.first.ms < FAST_MS, told('reads-stdin'))
+  check('reads-stdin: the login run finds its standard input closed, so neither the description nor the first command waits', reads !== null && waited(reads) < FAST_MS, told('reads-stdin'))
   check('reads-stdin: the snapshot is taken', reads !== null && reads.snapshots === 1 && reads.absence === null, told('reads-stdin'))
 
   const slow = of('slow').row
   check(
-    `slow: the login run is ended at its bound of ${BOUND_MS / 1000} s, so the first command waits that long once and no longer`,
-    slow !== null && slow.first.ms >= BOUND_MS - 1_000 && slow.first.ms < BOUND_MS + FAST_MS,
+    `slow: the login run is ended at its bound of ${BOUND_MS / 1000} s, so a session waits that long once and no longer`,
+    slow !== null && waited(slow) >= BOUND_MS - 1_000 && waited(slow) < BOUND_MS + FAST_MS,
     told('slow'),
   )
   check('slow: no snapshot stands, and the record of why says the login run was killed at the bound', slow !== null && slow.snapshots === 0 && /did not end within 10 s and was killed/.test(slow.absence ?? ''), told('slow'))
@@ -197,7 +274,7 @@ try {
   else {
     check(
       'no-snapshot-folder: with a config home that cannot be made commands run, and the record of why says the folder could not be made and that no login run was tried',
-      ranInBash(noFolder?.first) && /^the snapshot folder .* could not be made \(.*\), so no login run was tried$/.test(noFolder?.absence ?? ''),
+      ranInBash(noFolder?.first) && /^the folder .* could not be made \(.*\), so no login run was tried$/.test(noFolder?.absence ?? ''),
       told('no-snapshot-folder'),
     )
   }
@@ -254,6 +331,75 @@ try {
     unread !== null && unread.first.code !== 0 && /ended before it read this command/.test(unread.first.text) && !unread.first.text.includes('ran:') && unread.second.code !== 0 && /ended before it read this command/.test(unread.second.text),
     told('ends-unread'),
   )
+
+  const LINE = 'Nothing your bash login files define is carried in this session: '
+  const HANDED = /ended before it carried anything: a login file ended the shell or handed it to another program/
+  const NOT_CARRIED: Array<[string, RegExp, RegExp]> = [
+    ['hands-over', HANDED, /that ends the shell or starts another one \(`exec zsh -l`\) and run it only in an interactive shell/],
+    ['exits', HANDED, /that ends the shell or starts another one \(`exec zsh -l`\) and run it only in an interactive shell/],
+    ['slow', /did not end within 10 s and was killed: a login file waits or runs long/, /Find what waits in the files bash reads at login/],
+    ['prints-at-length', /printed more than 1 MiB and was ended: a login file prints at length/, /Find what prints in the files bash reads at login/],
+    ...(isRoot ? [] : ([['no-snapshot-folder', /could not be made \(.*\), so no login run was tried/, /or name another in MERCURY_CONFIG_DIR, then restart Mercury/]] as Array<[string, RegExp, RegExp]>)),
+  ]
+  for (const [name, why, change] of NOT_CARRIED) {
+    const row = of(name).row
+    const shown = JSON.stringify(row === null ? of(name).said : { described: row.described, toolFirst: row.toolFirst, toolSecond: row.toolSecond, said: row.said }).slice(0, 1800)
+    check(
+      `${name}: the Bash tool's description, composed before the first command, does not say a call starts from your profile; it says no call carries the profile's aliases, functions or options in this session`,
+      row !== null && !row.described.text.includes('starts from your profile') && row.described.text.endsWith('and no call carries the aliases, functions or options of your profile (bash) in this session.'),
+      shown,
+    )
+    check(
+      `${name}: the first result of the Bash tool carries one line that says the login files are not carried, why, and what to change`,
+      row !== null && row.toolFirst.includes('tool-first') && row.toolFirst.split('\n').filter(line => line.startsWith(LINE)).length === 1 && row.toolFirst.split(LINE).length === 2 && why.test(row.toolFirst) && change.test(row.toolFirst),
+      shown,
+    )
+    check(`${name}: the second result does not carry it`, row !== null && row.toolSecond.includes('tool-second') && !/login files|login run/.test(row.toolSecond), shown)
+    check(
+      `${name}: the health check's shell row, asked in the session, warns with the same reason, and its fix says what to change`,
+      row !== null && row.said !== null && row.said.status === 'warn' && row.said.evidence.includes('nothing the bash login files define is carried: ') && why.test(row.said.evidence) && change.test(row.said.fix ?? ''),
+      shown,
+    )
+  }
+  for (const name of ['reads-stdin', 'login-file-only', 'guarded-bashrc']) {
+    const row = of(name).row
+    check(
+      `${name}: where the login files are carried the description says each call starts from your profile, no result carries the line and the health row does not speak of login files`,
+      row !== null && row.described.text.endsWith('and each call starts from your profile (bash).') && row.toolFirst.includes('tool-first') && !/login files|login run/.test(`${row.toolFirst}${row.toolSecond}`) && row.said !== null && !/login files|login run/.test(`${row.said.evidence}${row.said.fix ?? ''}`),
+      JSON.stringify(row === null ? of(name).said : { described: row.described, toolFirst: row.toolFirst, toolSecond: row.toolSecond, said: row.said }).slice(0, 1800),
+    )
+  }
+  check(
+    'slow: the ten seconds are paid when the description is composed, so what it says is true before the first request, and the first command does not wait again',
+    slow !== null && slow.described.ms >= BOUND_MS - 1_000 && slow.first.ms < FAST_MS,
+    JSON.stringify({ described: slow?.described.ms, first: slow?.first.ms }),
+  )
+
+  const asked = (name: string): { row: Asked | null; said: string } => alone[aloneNames.indexOf(name)]!
+  const shownAlone = (name: string): string => JSON.stringify(asked(name).row ?? asked(name).said).slice(0, 1400)
+  const aloneHandsOver = asked('hands-over').row
+  check(
+    'asked with no session, hands-over: the health check takes one login run of its own, and its shell row warns with the reason and what to change',
+    aloneHandsOver !== null && aloneHandsOver.said !== null && aloneHandsOver.said.status === 'warn' && HANDED.test(aloneHandsOver.said.evidence) && /run it only in an interactive shell/.test(aloneHandsOver.said.fix ?? '') && aloneHandsOver.otherShellStarts === 1,
+    shownAlone('hands-over'),
+  )
+  const aloneSlow = asked('slow').row
+  check(
+    `asked with no session, slow: the row has a limit of its own above the ${BOUND_MS / 1000} s a login run may take, so it names the reason where the default limit of 10 s would read unknown`,
+    aloneSlow !== null && aloneSlow.limit !== null && aloneSlow.limit > BOUND_MS + 1_000 && aloneSlow.ms < aloneSlow.limit && aloneSlow.said !== null && aloneSlow.said.status === 'warn' && /did not end within 10 s and was killed/.test(aloneSlow.said.evidence),
+    shownAlone('slow'),
+  )
+  check('asked with no session, slow: what the login file was waiting on is ended with that login run', aloneSlow !== null && aloneSlow.waitedOnAlive === false, shownAlone('slow'))
+  const aloneFine = asked('login-file-only').row
+  check(
+    'asked with no session, login-file-only: where the login files are carried the row does not speak of them',
+    aloneFine !== null && aloneFine.said !== null && /Bash tool runs under it/.test(aloneFine.said.evidence) && !/login files|login run/.test(`${aloneFine.said.evidence}${aloneFine.said.fix ?? ''}`),
+    shownAlone('login-file-only'),
+  )
+  for (const name of aloneNames) {
+    const row = asked(name).row
+    check(`asked with no session, ${name}: a health check writes nothing for it — no snapshot folder in the config home and nothing left in the temp folder`, row !== null && !row.snapshotFolder && row.tempLeft === 0, shownAlone(name))
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
