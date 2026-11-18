@@ -174,10 +174,11 @@ console.log('\n§2 the real drives plan')
       const drivesPlan = localPlan('--class', 'drives')
       const strays = drivesPlan.filter(d => !localDrives.includes(d))
       const absent = localDrives.filter(d => !drivesPlan.includes(d))
+      const repeated = drivesPlan.filter((d, i) => drivesPlan.indexOf(d) !== i)
       check(
         'the local drives plan is exactly the drive-suffixed suites',
-        strays.length === 0 && absent.length === 0,
-        `${[strays.length > 0 ? `in the drives plan without the suffix: ${strays.join(' ')}` : '', absent.length > 0 ? `drive-suffixed and not in the drives plan: ${absent.join(' ')}` : ''].filter(Boolean).join(' · ')} — is_drive_suite in scripts/run-all-suites.sh must match *-drives and nothing else`,
+        strays.length === 0 && absent.length === 0 && repeated.length === 0,
+        `${[strays.length > 0 ? `in the drives plan without the suffix: ${strays.join(' ')}` : '', absent.length > 0 ? `drive-suffixed and not in the drives plan: ${absent.join(' ')}` : '', repeated.length > 0 ? `in the drives plan twice: ${repeated.join(' ')}` : ''].filter(Boolean).join(' · ')} — is_drive_suite in scripts/run-all-suites.sh must match *-drives and nothing else`,
       )
       const terminalSuites = pty.filter(d => !localDrives.includes(d)).sort()
       const plannedTerminal = localPlan('--only-class', 'pty').sort()
