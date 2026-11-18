@@ -50,8 +50,26 @@ function importsOf(sf: ts.SourceFile): Array<{ spec: string; line: number }> {
 }
 
 function targetOf(fromRel: string, spec: string): string | null {
-  if (!spec.startsWith('.')) return null
-  return posix.normalize(posix.join(posix.dirname(fromRel), spec)).replace(/\.(?:js|jsx|mjs|cjs|ts|tsx)$/, '')
+  const base = spec.startsWith('.') ? posix.join(posix.dirname(fromRel), spec) : spec.startsWith('src/') ? spec : null
+  return base === null ? null : posix.normalize(base).replace(/\.(?:js|jsx|mjs|cjs|ts|tsx)$/, '')
+}
+
+function heldByConst(declared: ts.VariableDeclaration, sf: ts.SourceFile): string | null {
+  let value = declared.initializer
+  if (value === undefined) return 'a value given elsewhere'
+  while (ts.isParenthesizedExpression(value) || ts.isAsExpression(value) || ts.isSatisfiesExpression(value)) {
+    if (ts.isAsExpression(value) && ts.isTypeReferenceNode(value.type) && value.type.typeName.getText(sf) === 'const' && ts.isArrayLiteralExpression(value.expression)) return null
+    value = value.expression
+  }
+  if (ts.isLiteralExpression(value) || value.kind === ts.SyntaxKind.TrueKeyword || value.kind === ts.SyntaxKind.FalseKeyword || value.kind === ts.SyntaxKind.NullKeyword) return null
+  if (ts.isPrefixUnaryExpression(value) && (value.operator === ts.SyntaxKind.MinusToken || value.operator === ts.SyntaxKind.PlusToken) && ts.isNumericLiteral(value.operand)) return null
+  if (ts.isArrowFunction(value) || ts.isFunctionExpression(value)) return null
+  const type = declared.type
+  const readonlyList = type !== undefined && ((ts.isTypeOperatorNode(type) && type.operator === ts.SyntaxKind.ReadonlyKeyword) || (ts.isTypeReferenceNode(type) && type.typeName.getText(sf) === 'ReadonlyArray'))
+  if (ts.isArrayLiteralExpression(value)) return readonlyList ? null : 'a list that is not declared readonly'
+  if (ts.isNewExpression(value)) return `a new ${value.expression.getText(sf)}`
+  if (ts.isObjectLiteralExpression(value)) return 'an object'
+  return ts.isCallExpression(value) ? 'what a call answered when the file was loaded' : 'a value worked out when the file was loaded'
 }
 
 function readProgram(root: string): Reading {
@@ -76,9 +94,15 @@ function readProgram(root: string): Reading {
         for (const member of statement.members) if (ts.isPropertySignature(member) && ts.isIdentifier(member.name)) stateFields.add(member.name.text)
       }
       for (const statement of sf.statements) {
-        if (ts.isVariableStatement(statement) && (statement.declarationList.flags & ts.NodeFlags.Const) === 0) {
-          const line = sf.getLineAndCharacterOfPosition(statement.getStart(sf)).line + 1
+        if (!ts.isVariableStatement(statement)) continue
+        const line = sf.getLineAndCharacterOfPosition(statement.getStart(sf)).line + 1
+        if ((statement.declarationList.flags & ts.NodeFlags.Const) === 0) {
           findings.push({ law: 'module', file: rel, line, said: `${rel}:${line} keeps a variable at module level (${statement.declarationList.declarations.map(d => d.name.getText(sf)).join(', ')}): what a part remembers is a field of the state made in ${PARTS}state.ts, or a local of the function that arms it` })
+          continue
+        }
+        for (const declared of statement.declarationList.declarations) {
+          const holds = heldByConst(declared, sf)
+          if (holds !== null) findings.push({ law: 'module', file: rel, line, said: `${rel}:${line} keeps ${declared.name.getText(sf)} at module level, a const that holds ${holds}: a const of a part is a literal, a function or a list declared readonly, and what a part remembers is a field of the state made in ${PARTS}state.ts, or a local of the function that arms it` })
         }
       }
     }
@@ -162,22 +186,26 @@ section('§0 the reader on a planted estate: each of the laws is red by its own 
     writeFileSync(join(estate, rel), text)
   }
   plant(MAIN, `import { part } from './run/part.js'\nexport async function daemonMain(): Promise<void> {\n  await ${UNIT}()\n}\nasync function ${UNIT}(): Promise<void> {\n  let first = 1\n  const fixed = 2\n  let second = 3, third = 4\n  if (fixed > first) {\n    let inner = 5\n    first = inner + second + third\n  }\n  part()\n}\n`)
-  plant(`${PARTS}part.ts`, `export function part(): number {\n  return 1\n}\n`)
-  plant(`${PARTS}state.ts`, `import { part } from './part.js'\nexport const made = part()\n`)
+  plant(`${PARTS}part.ts`, `const LIMIT = 60_000\nconst BELOW = -1\nconst WORDS = 'said'\nconst STEPS: readonly string[] = ['first', WORDS]\nconst PAIR = ['a', 'b'] as const\nconst twice = (n: number): number => n * 2\nexport function part(): number {\n  return twice(LIMIT + BELOW + STEPS.length + PAIR.length)\n}\n`)
+  plant(`${PARTS}state.ts`, `import { part } from './part.js'\nexport const made = (): number => part()\n`)
   plant('src/daemon/neighbour.ts', `export const near = 1\n`)
   const clean = readProgram(estate)
-  check('a clean estate reads clean: the boot imports a part, a part imports a part, the unit holds its three', judge(clean, 3).length === 0 && clean.lets === 3 && clean.parts.length === 2, JSON.stringify(judge(clean, 3)))
+  check('a clean estate reads clean: the boot imports a part, a part imports a part and keeps constants (a literal, a function, a list declared readonly), the unit holds its three', judge(clean, 3).length === 0 && clean.lets === 3 && clean.parts.length === 2, JSON.stringify(judge(clean, 3)))
   check('a let inside a block of the unit is not counted: the count is the unit\'s top level', clean.letLines.join() === '6,8')
   check('one let above what the unit holds is red, and the line says where the variable goes', judge(clean, 2).length === 1 && judge(clean, 2)[0]!.includes(`declares 3 variables with let`) && judge(clean, 2)[0]!.includes(`${PARTS}state.ts`), judge(clean, 2).join(' | '))
   plant('src/daemon/neighbour.ts', `import { part } from './run/part.js'\nexport const near = part()\n`)
   plant('src/screens/far.tsx', `export async function far(): Promise<unknown> {\n  return import('../daemon/run/state.js')\n}\n`)
   plant('src/cli/typed.ts', `export type Made = typeof import('../daemon/run/state.js').made\nexport const again = require('../daemon/run/part.js')\n`)
+  plant('src/cli/rooted.ts', `import { part } from 'src/daemon/run/part.js'\nexport const rooted = part\n`)
   const outside = judge(readProgram(estate), 3)
-  check('an import of a part planted outside is red by its own line: static, dynamic, in a type and by require', outside.length === 4 && ['src/daemon/neighbour.ts:1 imports src/daemon/run/part', 'src/screens/far.tsx:2 imports src/daemon/run/state', 'src/cli/typed.ts:1 imports src/daemon/run/state', 'src/cli/typed.ts:2 imports src/daemon/run/part'].every(head => outside.some(line => line.startsWith(head))), outside.join(' | '))
-  for (const rel of ['src/daemon/neighbour.ts', 'src/screens/far.tsx', 'src/cli/typed.ts']) rmSync(join(estate, rel))
+  check('an import of a part planted outside is red by its own line: static, dynamic, in a type, by require, and spelled from the root as tsconfig.json lets it be', outside.length === 5 && ['src/daemon/neighbour.ts:1 imports src/daemon/run/part', 'src/screens/far.tsx:2 imports src/daemon/run/state', 'src/cli/typed.ts:1 imports src/daemon/run/state', 'src/cli/typed.ts:2 imports src/daemon/run/part', 'src/cli/rooted.ts:1 imports src/daemon/run/part'].every(head => outside.some(line => line.startsWith(head))), outside.join(' | '))
+  for (const rel of ['src/daemon/neighbour.ts', 'src/screens/far.tsx', 'src/cli/typed.ts', 'src/cli/rooted.ts']) rmSync(join(estate, rel))
   plant(`${PARTS}part.ts`, `import { daemonMain } from '../main.js'\nlet remembered = 0\nexport function part(): number {\n  remembered++\n  return daemonMain.length\n}\n`)
   const back = judge(readProgram(estate), 3)
   check('a part that imports the file that starts it is red, and so is a variable a part keeps at module level', back.length === 2 && back.some(line => line.startsWith(`${PARTS}part.ts:1 imports ${MAIN}`)) && back.some(line => line.startsWith(`${PARTS}part.ts:2 keeps a variable at module level (remembered)`)), back.join(' | '))
+  plant(`${PARTS}part.ts`, `import { daemonMain } from 'src/daemon/main.js'\nconst remembered = new Map<string, number>()\nconst table = { seen: 0 }\nconst open = ['a']\nconst read = String(daemonMain.length)\nexport function part(): number {\n  return remembered.size + table.seen + open.length + read.length\n}\n`)
+  const rooted = judge(readProgram(estate), 3)
+  check('the same import spelled from the root is red, and so is a const of a part that holds state: a map, an object, a list not declared readonly, what a call answered', rooted.length === 5 && rooted.some(line => line.startsWith(`${PARTS}part.ts:1 imports ${MAIN}`)) && ['2 keeps remembered at module level, a const that holds a new Map', '3 keeps table at module level, a const that holds an object', '4 keeps open at module level, a const that holds a list that is not declared readonly', '5 keeps read at module level, a const that holds what a call answered when the file was loaded'].every(head => rooted.some(line => line.startsWith(`${PARTS}part.ts:${head}`))), rooted.join(' | '))
   plant(`${PARTS}part.ts`, `export function part(): number {\n  return 1\n}\n`)
   plant(`${PARTS}state.ts`, `export interface ${STATE} {\n  held: number\n  other: number\n}\nexport function make(): ${STATE} {\n  return { held: 0, other: 0 }\n}\n`)
   const holding = (writes: string): string => `import { make } from './run/state.js'\nasync function ${UNIT}(): Promise<void> {\n  let held = 0\n  let free = 1\n  const state = make()\n${writes}  const inner = (held: number): number => {\n    held = 9\n    return held + free\n  }\n  inner(state.held)\n}\n`
@@ -199,7 +227,7 @@ section(`§1 the program under ${slash(relative(process.cwd(), ROOT)) || '.'}: w
   console.log(`  ${reading.files} files under src · ${reading.parts.length} under ${PARTS} (${reading.parts.map(p => p.slice(PARTS.length)).join(', ')}) · ${UNIT} declares ${reading.lets ?? 'no'} variables with let at its top level, holds ${LET_BUDGET}`)
   check(`no file outside ${MAIN} and ${PARTS} imports a file under ${PARTS}`, !reading.findings.some(f => f.law === 'outside'), reading.findings.filter(f => f.law === 'outside').map(f => f.said).join('\n      '))
   check(`no file under ${PARTS} imports ${MAIN}`, !reading.findings.some(f => f.law === 'back'), reading.findings.filter(f => f.law === 'back').map(f => f.said).join('\n      '))
-  check(`no file under ${PARTS} keeps a variable at module level`, !reading.findings.some(f => f.law === 'module'), reading.findings.filter(f => f.law === 'module').map(f => f.said).join('\n      '))
+  check(`no file under ${PARTS} keeps a variable at module level, nor a const that is not a literal, a function or a list declared readonly`, !reading.findings.some(f => f.law === 'module'), reading.findings.filter(f => f.law === 'module').map(f => f.said).join('\n      '))
   check(`${UNIT} declares no more variables with let than it holds (${LET_BUDGET}; the number may only fall)`, reading.lets !== null && reading.lets <= LET_BUDGET, said.filter(line => line.startsWith(`${MAIN}: `)).join('\n      '))
   if (reading.lets !== null && reading.lets < LET_BUDGET) console.log(`  ${UNIT} is ${LET_BUDGET - reading.lets} under what it holds: lower LET_BUDGET in ${SELF} to ${reading.lets}`)
   check(`every write of a variable ${UNIT} holds beside a field of the state hands the value to the state on the next line (held twice: ${reading.twice.join(', ') || 'none'})`, !reading.findings.some(f => f.law === 'twice'), reading.findings.filter(f => f.law === 'twice').map(f => f.said).join('\n      '))
