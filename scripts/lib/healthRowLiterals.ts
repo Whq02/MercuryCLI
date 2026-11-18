@@ -5,7 +5,7 @@ const REPO = resolve(import.meta.dir, '..', '..')
 const ENTRY = resolve(REPO, 'src', 'utils', 'healthReport.ts')
 const LIST_EXPORT = 'HEALTH_SECTIONS'
 
-export interface RowLiteral {
+interface RowLiteral {
   file: string
   line: number
   row: string | null
@@ -13,7 +13,7 @@ export interface RowLiteral {
   text: string
 }
 
-export interface RowLiteralRead {
+interface RowLiteralRead {
   files: string[]
   rows: string[]
   literals: RowLiteral[]
