@@ -14,15 +14,24 @@ const escaped: string[] = []
 const realNow = Date.now
 let skew = 0
 Date.now = () => realNow() + skew
-const deadlineMs = 60_000
+const owned = { pass: 3, hold: 0 }
+const cut = { pass: 0, hold: 2 }
+const plain = { pass: 0, hold: 0 }
+let deadlineMs = 60_000
 let instancePath = ''
 let reads = 0
+let wait = plain
+let afterAttach = plain
 globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: RequestInit) => {
   const request = new Request(input, init)
   const url = new URL(request.url)
   if (!['127.0.0.1', '[::1]'].includes(url.hostname)) { escaped.push(request.url); throw new Error('Attach-key proof permits loopback only') }
-  if (url.pathname === instancePath + 'ssh/') reads = 0
-  else if (url.pathname === instancePath && request.method === 'GET' && ++reads === 3) { reads = 0; skew += deadlineMs }
+  if (url.pathname === instancePath + 'ssh/') { reads = 0; wait = afterAttach }
+  else if (url.pathname === instancePath && request.method === 'GET') {
+    reads++
+    if (reads === wait.hold) { reads = 0; wait = plain; return new Promise<Response>((_, reject) => { if (request.signal.aborted) reject(request.signal.reason); else request.signal.addEventListener('abort', () => reject(request.signal.reason), { once: true }) }) }
+    if (reads === wait.pass) { reads = 0; skew += deadlineMs }
+  }
   return nativeFetch(request)
 }, nativeFetch)
 const failures: string[] = []
@@ -43,10 +52,13 @@ try {
   ssh = fakeSshRunner(f.baseUrl, hostRunner)
   const key = await ensureHostKey(ssh.runner, new AbortController().signal)
   const notices = (id: string) => readdirSync(join(hostDirectory(), 'notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(hostDirectory(), 'notices', name), 'utf8')).words as string).filter(words => words.includes(id))
-  for (const mode of ['accept', 'refuse', 'attach-failed', 'network', 'loading'] as const) {
+  for (const mode of ['accept', 'refuse', 'attach-failed', 'network', 'loading', 'cut-before-attach', 'cut-after-attach'] as const) {
     const pod = await api.create(offer, key.publicKey, 'key-' + mode)
     const instance = vast.state.pods.get(Number(pod.id))!
     if (mode === 'loading') instance.actual_status = 'loading'
+    deadlineMs = mode === 'cut-before-attach' || mode === 'cut-after-attach' ? 1_000 : 60_000
+    wait = mode === 'cut-before-attach' ? cut : owned
+    afterAttach = mode === 'cut-after-attach' ? cut : owned
     instancePath = '/api/v0/instances/' + pod.id + '/'
     reads = 0
     const attachPath = instancePath + 'ssh/'
@@ -82,6 +94,12 @@ try {
       }
     } else if (mode === 'attach-failed') {
       check('an attachment refusal is not retried or claimed successful, and the machine pauses', sent.length === 1 && ended.jobState === 'paused' && ended.error?.includes('could not attach the SSH key') && !ended.error.includes('attached the SSH key to this instance and retried'), ended.error)
+    } else if (mode === 'cut-before-attach') {
+      check('a status read the read budget ends at the deadline: the key is attached by the exact instance path and registered public key body', sent.length === 1 && Object.keys(sent[0]!.body).join(',') === 'ssh_key' && sent[0]!.body.ssh_key === key.publicKey && sent[0]!.authorization === 'Bearer ' + vast.key, JSON.stringify(sent) + ' ' + ended.error)
+      check('a status read the read budget ends at the deadline: the attach comes at the deadline and SSH is retried on the same instance', sent.length === 1 && sent[0]!.at - start >= deadlineMs - 50 && probesAfterAttach >= 1 && vast.state.pods.has(Number(pod.id)), JSON.stringify({ sent: sent[0]?.at, start, probesAfterAttach, sshTimes, error: ended.error }))
+    } else if (mode === 'cut-after-attach') {
+      const posted = notices(pod.id)
+      check('a status read the read budget ends after the attach: the pause notice says the key was attached and SSH retried, with machine, rate and actions', sent.length === 1 && probesAfterAttach >= 1 && ended.jobState === 'paused' && posted.length === 1 && posted[0]!.includes('Mercury attached the SSH key to this instance and retried') && posted[0]!.includes('Vast.ai instance ' + pod.id) && posted[0]!.includes('$' + pod.cost.toFixed(2) + '/hr still billing') && posted[0]!.includes('Resume or Terminate in /llmhost'), posted.join('\n') + ' ' + ended.error)
     } else check(mode + ': no key is attached without a running instance refusing publickey', sent.length === 0 && ended.jobState === 'paused', ended.error)
     check(mode + ': no terminate or replacement and no secrets in the notice', vast.state.deletes === 0 && !notices(pod.id).some(text => text.includes(vast.key) || text.includes(key.publicKey)), notices(pod.id).join('\n'))
     closeHostTunnel(pod.id)
