@@ -107,7 +107,6 @@ console.log('\nT7 the wiring — connector to ref to spinner (structural)')
   check('the seat-live extension declares the wire figure accessor', seatLive.includes('turnOutputTokens?(): number | null'))
   const repl = read('src/screens/Chat.tsx')
   const { openStatusPart } = await import('../ui/chatScenarios.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
   const status = await openStatusPart('live-turn-chars-status', { keepHome: true })
   type Figures = { responseLengthRef?: { current: number }; outputTokensRef?: { current: number | null }; liveTurnFactsRef?: { current: { thinkingChars?: number } } }
   const figures = (row: Figures | null): string => `${String(row?.responseLengthRef?.current)}/${String(row?.outputTokensRef?.current)}/${String(row?.liveTurnFactsRef?.current.thinkingChars)}`

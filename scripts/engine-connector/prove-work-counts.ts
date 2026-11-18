@@ -124,7 +124,6 @@ console.log('\nC7 the held turn\'s wait words name the KINDS over the same count
   const tagBar = read('src/components/SwitchboardTagBar.tsx')
   const repl = read('src/screens/Chat.tsx')
   const { openStatusPart } = await import('../ui/chatScenarios.ts')
-  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
   const status = await openStatusPart('work-counts-status', { keepHome: true })
   await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase: 'waiting' } })
   const waitingRow = status.handed.spinner
