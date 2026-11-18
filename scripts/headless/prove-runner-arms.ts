@@ -348,12 +348,13 @@ section('§8 session/facts: each fact comes from its one owner, and a fact its o
   const appState = { mcp: { clients: [], tools: [] }, toolPermissionContext: { mode: 'implement' }, effortValue: 'xhigh', tasks: {}, fileHistory: { snapshots: [], trackedFiles: new Set<string>(), rewindUndo: undefined } }
   const scene = (): { ports: Ports; live: Ports['live']; used: Call[] } => stubPorts({ getAppState: () => appState, liveMcp: { addedAt: new Map() }, mcpSignIns: new Map(), messages: [], missionGuard: { missionCardView: () => null } })
   const tasks = [{ id: '1', subject: 'S'.repeat(140), status: 'in_progress', blocks: ['2'], blockedBy: [], metadata: { ledger: ' the ledger ' } }, { id: '2', subject: 'second', activeForm: 'Seconding', status: 'pending', blocks: [], blockedBy: ['1'], metadata: {} }]
+  type Owned<Owner extends (...args: never[]) => unknown> = NonNullable<Awaited<ReturnType<Owner>>>
   const held = {
     noticeRows: [{ key: 'n-1', state: 'unread', summary: 'a notice the owner holds' }],
-    providerLimitWarning: { words: 'the warning the owner holds' },
-    anthropicObservedUsage: { observed: 'the observation the owner holds' },
-    anthropicWindowFact: { window: 'the verdict the owner holds' },
-    openaiCatalogueFact: { catalogue: 'the catalogue the owner holds' },
+    providerLimitWarning: { provider: 'anthropic', text: 'the warning the owner holds' } satisfies Owned<typeof import('../../src/services/providers/limitWarning.ts').providerLimitWarning>,
+    anthropicObservedUsage: { owner: 'the owner of the observation', fiveHour: { utilization: 0.41, resetsAt: 1_800_000_000, observedAtMs: 1_700_000_000_000 } } satisfies Owned<typeof import('../../src/services/anthropicLimits.ts').anthropicObservedUsage>,
+    anthropicWindowFact: { status: 'allowed_warning', observedAtMs: 1_700_000_000_000, owner: 'the owner of the window' } satisfies Owned<typeof import('../../src/services/anthropicLimits.ts').anthropicWindowFact>,
+    openaiCatalogueFact: { sourceKind: 'api-key', models: [{ id: 'gpt-fixture', displayName: 'GPT Fixture' }], fetchedAtMs: 1_700_000_000_000 } satisfies Owned<typeof import('../../src/services/providers/openai/openaiCatalogue.ts').openaiCatalogueFact>,
     openaiObservedUsage: { primary: { used: 41 } },
     sampleRowsOf: [{ id: 'sample-1', title: 'the sample the owner holds' }],
     anthropicSignInEmail: 'who@example.test',

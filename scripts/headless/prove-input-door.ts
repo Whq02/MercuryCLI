@@ -21,11 +21,12 @@ setTimeout(() => {
   process.exit(1)
 }, 120_000).unref()
 
-type Call = { name: string; args: unknown[]; retiring?: boolean }
+type Call = { name: string; args: unknown[]; retiring?: boolean; started?: boolean }
 const seen: Call[] = []
 const answers = new Map<string, (...args: unknown[]) => unknown>()
 const said = (name: string): Call[] => seen.filter(call => call.name === name)
 let retiringNow: () => boolean = () => false
+let startedNow: () => boolean = () => false
 
 async function spied(rel: string, wanted: string[]): Promise<void> {
   const real = (await import(at(rel))) as Record<string, unknown>
@@ -33,7 +34,7 @@ async function spied(rel: string, wanted: string[]): Promise<void> {
     wanted.map(name => [
       name,
       (...args: unknown[]): unknown => {
-        seen.push({ name, args, retiring: retiringNow() })
+        seen.push({ name, args, retiring: retiringNow(), started: startedNow() })
         return answers.get(name)?.(...args)
       },
     ]),
@@ -76,8 +77,8 @@ function scene(given: Record<string, unknown> = {}): Scene {
   const received = new Set<string>()
   const ports = {
     live,
-    options: { initializeMcp: async () => void inits++ },
-    driver: { kick: () => void kicks++, isRunning: () => running.now },
+    options: { initializeMcp: async () => void (inits++, seen.push({ name: 'port:initializeMcp', args: [], started: live.sessionInitialized })) },
+    driver: { kick: () => void (kicks++, seen.push({ name: 'port:kick', args: [], started: live.sessionInitialized })), isRunning: () => running.now },
     getAppState: () => ({}),
     setAppState: () => {},
     localCommandInput: () => local.now,
@@ -86,6 +87,7 @@ function scene(given: Record<string, unknown> = {}): Scene {
     ...given,
   } as unknown as Ports
   retiringNow = () => live.retiringQueuedCommands
+  startedNow = () => live.sessionInitialized
   return { ports, live, kicks: () => kicks, running, local, received, inits: () => inits }
 }
 const queued = (): Queued[] => said('enqueue').map(call => call.args[0] as Queued)
@@ -102,7 +104,18 @@ section('§1 a queued command is stamped: its time from the frame or the arrival
   const [first, second, third] = queued()
   const arrived = (command: Queued | undefined): boolean => typeof command?.sentAt === 'string' && Math.abs(Date.parse(command.sentAt as string) - before) < 5_000
   check("the runner stamps the queued command from the frame's timestamp, or the arrival", j(verdict) === j({ accepted: true }) && first?.sentAt === '2026-01-02T03:04:05.000Z' && arrived(second) && arrived(third) && first.value === 'the words' && first.mode === 'prompt', j(queued().map(command => command.sentAt)))
-  check('the door starts the MCP servers and marks the session started before it queues, and kicks the driver once for each line', framed.inits() === 3 && framed.live.sessionInitialized && framed.kicks() === 3 && said('syncMissionFromCard').length === 3)
+  check('the door starts the MCP servers, marks the session started and kicks the driver once for each line', framed.inits() === 3 && framed.live.sessionInitialized && framed.kicks() === 3 && said('syncMissionFromCard').length === 3)
+  const ordered = scene()
+  await within(door.acceptInput({ kind: 'prompt', content: 'one line' }, ordered.ports))
+  const placeOf = (name: string): number => seen.findIndex(call => call.name === name)
+  const startAt = placeOf('port:initializeMcp')
+  const queueAt = placeOf('enqueue')
+  const kickAt = placeOf('port:kick')
+  check(
+    'the door starts the MCP servers and marks the session started before it queues, and kicks the driver after: for one line the start stands before the enqueue and the enqueue before the kick, the session is unmarked at the start and marked at the enqueue',
+    startAt !== -1 && queueAt !== -1 && kickAt !== -1 && startAt < queueAt && queueAt < kickAt && seen[startAt]!.started === false && seen[queueAt]!.started === true && ordered.inits() === 1 && ordered.kicks() === 1,
+    j(seen.map(call => `${call.name}${call.started ? ' (started)' : ''}`)),
+  )
 
   const fire = scene()
   await within(door.acceptInput({ kind: 'prompt', content: 'the fire', origin: SATURN }, fire.ports))
