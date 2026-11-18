@@ -13,6 +13,7 @@
 # gate-watch: scripts/release/winget-manifest.mjs scripts/lib/python3.ts
 # gate-watch: Dockerfile .dockerignore bunfig.toml src/services/privateChannel/vendoredRuntime.ts src/services/providers/credentialEnvSpellings.ts scripts/lib/fixtureApi.ts
 # gate-watch: README.md scripts/release/readmeAuthor.mjs
+# gate-watch: src/cli/headless/runnerArms.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
