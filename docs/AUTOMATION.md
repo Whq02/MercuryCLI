@@ -112,11 +112,14 @@ The output row types, by their `type` field:
 - `outcome`: the turn's result, described below.
 - `close`: on a `mercury runner` session, the note left for the next session
   when the host closes its end without `session/leave`: `state` (`stored`,
-  `skipped` or `none`) and the `usage` of the model calls that wrote it. It
-  follows the last `outcome`, whose totals do not include it. When the host
-  closes its end while a turn is running, the note is written as that turn
-  ends and the row comes before that turn's `outcome`, whose totals do not
-  include it either: every model call is counted once. A `mercury run`
+  `skipped` or `none`), the `usage` of the model calls that wrote it, and
+  `models`, those calls by model, each with its `cost_usd` where the model
+  has a price. It follows the last `outcome`, whose totals do not include it.
+  When the host closes its end while a turn is running, the note is written
+  as that turn ends and the row comes before that turn's `outcome`, whose
+  totals do not include it either: every model call is counted once, and in
+  both orders the `cost_usd` of a session's outcomes and of the `close`
+  row's models add up to what the session spent. A `mercury run`
   ends on the model's final answer and leaves no note, so its stream carries
   no `close` row.
 - `wait`: a wait on the model: `state` (`first_byte`, `retry`, `silence`,

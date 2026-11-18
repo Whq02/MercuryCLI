@@ -21,7 +21,7 @@ import { accumulateUsage, updateUsage } from '../services/providers/anthropic/ca
 import { refusalAnsweredBy } from '../services/providers/toolCallGate.js'
 import type { Tools, ToolUseContext } from '../Tool.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/constants.js'
-import type { AssistantMessage, CompactMetadata, Message, MessageOrigin, ProgressMessage } from '../types/message.js'
+import type { AssistantMessage, CompactMetadata, Message, MessageOrigin, ProgressMessage, SystemCloseUsageMessage } from '../types/message.js'
 import type { ApiStreamEvent, ContentBlockParam } from '../types/wire.js'
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
 import type { EvalToolProgress, MCPProgress, ShellProgress } from '../types/tools.js'
@@ -210,6 +210,18 @@ function lastTextBlockOf(message: AssistantMessage): string {
     if (block.type === 'text' && typeof block.text === 'string') return block.text === NO_CONTENT_MESSAGE ? '' : block.text
   }
   return ''
+}
+
+const costUnknownIn = (unpricedTurns: Record<string, number>, subscriber: boolean) => (model: string): boolean => (unpricedTurns[model] ?? 0) > 0 || (subscriber && declaredRouteOf(model) === 'anthropic')
+
+export function closeRowOf(scope: RowScope, note: Pick<SystemCloseUsageMessage, 'closeState' | 'noteChars' | 'usage' | 'spent'>): ReturnType<typeof closeRow> {
+  const models = modelUsageRows(note.spent?.modelUsage, costUnknownIn(note.spent?.unpricedTurns ?? {}, isClaudeAISubscriber()))
+  return closeRow(scope, {
+    state: note.closeState,
+    ...(note.noteChars !== undefined ? { noteChars: note.noteChars } : {}),
+    ...(note.usage !== undefined ? { usage: note.usage } : {}),
+    ...(Object.keys(models).length > 0 ? { models } : {}),
+  })
 }
 
 export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 'tools' | 'mcpClients' | 'commands' | 'agents'>, model: string, mode: string, resumeOf?: string, toolsWithheld?: SessionFacts['toolsWithheld']): Promise<SessionFacts> {
@@ -677,7 +689,7 @@ export class Conversation {
       const apiMs = spent.apiDuration
       const billed = usageSince(getModelUsage(), modelUsageAtStart)
       const subscriber = isClaudeAISubscriber()
-      const hasUnknownCost = (model: string): boolean => unpricedModels.has(model) || (subscriber && declaredRouteOf(model) === 'anthropic')
+      const hasUnknownCost = costUnknownIn(spent.unpricedTurns, subscriber)
       const pricedModels = Object.keys(billed).filter(model => !hasUnknownCost(model))
       const costUsd = subscriber ? pricedModels.reduce((sum, model) => sum + Math.max(0, billed[model]?.costUSD ?? 0), 0) : spent.costUSD
       const costKnown = subscriber ? pricedModels.length > 0 : unpricedModels.size === 0 || costUsd > 0
@@ -1059,13 +1071,9 @@ export class Conversation {
           case 'system': {
             const systemMessage = message
             if (systemMessage.subtype === 'close_usage') {
-              const close = systemMessage as import('../types/message.js').SystemCloseUsageMessage
+              const close = systemMessage as SystemCloseUsageMessage
               if (close.spent !== undefined) advanceLedgerMark(ledgerAtStart, close.spent)
-              yield closeRow(scope, {
-                state: close.closeState,
-                ...(close.noteChars !== undefined ? { noteChars: close.noteChars } : {}),
-                ...(close.usage !== undefined ? { usage: close.usage } : {}),
-              })
+              yield closeRowOf(scope, close)
               break
             }
             if (systemMessage.subtype === 'api_error') {

@@ -619,6 +619,7 @@
    "src/rows/turn.ts": [
     "Conversation",
     "ask",
+    "closeRowOf",
     "sessionFactsOf",
     "type:AskOptions",
     "type:ConversationConfig",
