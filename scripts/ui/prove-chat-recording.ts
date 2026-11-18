@@ -116,7 +116,7 @@ for (const name of names) {
 
 const covered = new Map<string, string[]>()
 for (const scenario of SCENARIOS) for (const part of scenario.covers) covered.set(part, [...(covered.get(part) ?? []), scenario.name])
-const PARTS = ['submit', 'search', 'selector', 'boot', 'asks', 'dialogs', 'title', 'keys', 'scroll', 'draft']
+const PARTS = ['submit', 'search', 'selector', 'boot', 'asks', 'dialogs', 'title', 'keys', 'scroll', 'draft', 'status', 'session']
 check(`every part of the screen is reached by a scenario (${PARTS.length} parts)`, PARTS.every(part => (covered.get(part) ?? []).length > 0), PARTS.filter(part => (covered.get(part) ?? []).length === 0).join(', '))
 console.log(`\n  settled points: ${[...settledPoints].map(([name, count]) => `${name} ${count}`).join(' · ')}`)
 console.log(`  parts: ${PARTS.map(part => `${part} ${(covered.get(part) ?? []).length}`).join(' · ')}`)

@@ -1,5 +1,5 @@
 import { mock } from 'bun:test'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, type Mounted } from '../lib/settingsPopupHarness.ts'
 
@@ -26,6 +26,7 @@ type ScriptedSession = {
   setRunnerMode: (mode: PermissionMode | null) => void
   setModelFacts: (next: Record<string, unknown>) => void
   refuseSends: (detail: string | null) => void
+  failSends: (fault: string | null) => void
   refuseModes: (detail: string | null) => void
   setCompletedAt: (at: number | null) => void
   setLostLine: (line: { text: string; atMs: number } | null) => void
@@ -45,6 +46,8 @@ type Stage = {
   mark: (label: string, ready?: (frame: string) => boolean) => Promise<void>
   key: (data: string, label: string, ready?: (frame: string) => boolean) => Promise<void>
   type: (text: string) => Promise<void>
+  whileTyped: (run: () => Promise<void>) => Promise<void>
+  emit: (event: 'suspend' | 'resume') => void
   resize: (columns: number, rows: number, label: string) => Promise<void>
   focus: (session: ScriptedSession | null) => void
   newSession: (id: string, records?: Message[]) => ScriptedSession
@@ -63,7 +66,7 @@ type SrcDoor = {
   seatLive: typeof import('../../src/services/engine-connector/seatLive.ts')
 }
 
-type StageOptions = { columns?: number; rows?: number; reducedMotion?: boolean; session?: 'none' | 'empty' | 'history'; env?: Record<string, string>; plant?: 'crash' }
+type StageOptions = { columns?: number; rows?: number; reducedMotion?: boolean; session?: 'none' | 'empty' | 'history'; env?: Record<string, string>; plant?: 'crash' | 'crash-resumable' | 'worktree' | 'preflight' | 'fold-notice' | 'housekeeping' }
 
 type Scenario = { name: string; covers: string[]; options?: StageOptions; run: (stage: Stage) => Promise<void> }
 
@@ -131,6 +134,36 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   mkdirSync(project, { recursive: true })
   process.chdir(project)
 
+  if (options.plant === 'preflight') {
+    const real = await import('../../src/utils/healthPreflight.ts')
+    mock.module('../../src/utils/healthPreflight.ts', () => ({
+      ...real,
+      mercuryBootPreflightEnabled: () => true,
+      runAndRecordPreflight: async () => ({ verdict: 'fail', ranAt: FIXED_STAMP, failing: [{ id: 'ripgrep', evidence: 'ripgrep MISSING @ rg' }], degraded: [], durationMs: 1, via: 'preflight' }),
+    }))
+  }
+  if (options.plant === 'fold-notice') {
+    const real = await import('../../src/services/run/runCoordinator.ts')
+    let notice: unknown = { interruptedTools: 2, blocker: { description: 'the build waits for a sign-in', resumeCondition: 'sign in with /logins and say continue' } }
+    mock.module('../../src/services/run/runCoordinator.ts', () => ({
+      ...real,
+      takeResumeFoldNotice: () => {
+        const taken = notice
+        notice = null
+        return taken
+      },
+    }))
+  }
+  if (options.plant === 'housekeeping') {
+    const real = await import('../../src/utils/backgroundHousekeeping.ts')
+    mock.module('../../src/utils/backgroundHousekeeping.ts', () => ({
+      ...real,
+      startBackgroundHousekeeping: () => {
+        throw new Error('a planted fault of the housekeeping')
+      },
+    }))
+  }
+
   const React = await import('react')
   const h = React.createElement
   const { App } = await import('../../src/components/App.tsx')
@@ -144,6 +177,7 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
   const { setCwdState, setIsInteractive } = await import('../../src/bootstrap/state.ts')
   const { TerminalWriteContext } = await import('../../src/ink/terminalWrite.ts')
+  const { useStdin } = await import('../../src/ink.ts')
   setCwdState(project)
   setIsInteractive(true)
   enableConfigs()
@@ -179,6 +213,7 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
     let runnerMode: PermissionMode | null = null
     let modelFacts: Record<string, unknown> = { effective: 'claude-sonnet-4-5', main: 'claude-sonnet-4-5', setting: null, sessionPin: null, pendingSwitch: null }
     let sendRefusal: string | null = null
+    let sendFault: string | null = null
     let modeRefusal: string | null = null
     let completedAt: number | null = null
     let lostLine: { text: string; atMs: number } | null = null
@@ -223,7 +258,8 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
           .filter(([name, value]) => name !== 'pastedContents' || Object.keys(value as object).length > 0)
           .map(([name, value]) => `${name}=${typeof value === 'object' ? JSON.stringify(value) : String(value)}`)
           .join(' ')
-        calls.push(`sendWords ${JSON.stringify(text)}${said === '' ? '' : ` ${said}`}${sendRefusal === null ? '' : ' -> refused'}`)
+        calls.push(`sendWords ${JSON.stringify(text)}${said === '' ? '' : ` ${said}`}${sendFault !== null ? ' -> threw' : sendRefusal === null ? '' : ' -> refused'}`)
+        if (sendFault !== null) throw new Error(sendFault)
         return sendRefusal === null ? { state: 'accepted' as const } : { state: 'refused' as const, detail: sendRefusal }
       },
       modelFacts: () => modelFacts,
@@ -287,6 +323,9 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
       refuseSends: detail => {
         sendRefusal = detail
       },
+      failSends: fault => {
+        sendFault = fault
+      },
       refuseModes: detail => {
         modeRefusal = detail
       },
@@ -331,6 +370,21 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
     const { persistCrashReport } = await import('../../src/utils/crashReport.ts')
     persistCrashReport(new Error('a planted crash of an earlier session'), undefined, 'app-root')
   }
+  if (options.plant === 'crash-resumable') {
+    const { persistCrashReport } = await import('../../src/utils/crashReport.ts')
+    const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+    const crashed = newSession('rec-crashed', [])
+    mkdirSync(getProjectDir(project), { recursive: true })
+    writeFileSync(join(getProjectDir(project), 'rec-crashed.jsonl'), `${JSON.stringify(user('what the crashed session was asked'))}\n`)
+    slot.setFocusedSessionConnector(crashed.connector as never)
+    persistCrashReport(new Error('a planted crash of a session that can be opened again'), undefined, 'app-root')
+    if (focused === null) slot.releaseFocusedSessionConnector()
+    else slot.setFocusedSessionConnector(focused.connector as never)
+  }
+  if (options.plant === 'worktree') {
+    const { restoreWorktreeSession } = await import('../../src/utils/worktree.ts')
+    restoreWorktreeSession({ originalCwd: project, worktreePath: project, worktreeName: 'proof-tree', sessionId: 'rec-session', creationDurationMs: 21_000 })
+  }
   route.initializeSurfaceRoute(route.ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   resetOverlayStackForTests()
@@ -340,9 +394,11 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   pending.setPastedContents({})
 
   let store: AppStateStore | undefined
+  let stdinEvents: { emit: (event: string) => boolean } | undefined
   let title: string | null = null
   function StoreTap(): null {
     store = useAppStateStore()
+    stdinEvents = useStdin().internal_eventEmitter
     return null
   }
   function TitleTap(props: { children?: import('react').ReactNode }): import('react').ReactElement {
@@ -436,6 +492,18 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
         view.push(ch)
         await settle(12)
       }
+    },
+    whileTyped: async run => {
+      const hold = setInterval(() => pending.edit(pending.text()), 250)
+      try {
+        await run()
+      } finally {
+        clearInterval(hold)
+      }
+    },
+    emit: event => {
+      if (stdinEvents === undefined) throw new Error('the stdin events were not tapped')
+      stdinEvents.emit(event)
     },
     resize: async (nextColumns, nextRows, label) => {
       layoutChromeLive(nextColumns, nextRows)
@@ -896,7 +964,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'no-chat-and-back',
-    covers: ['boot', 'draft', 'scroll'],
+    covers: ['boot', 'draft', 'scroll', 'session'],
     options: { session: 'none' },
     run: async stage => {
       await stage.mark('the first settled frame with no session: the screen has left for the boot face', () => stage.src.route.currentSurfaceRoute().kind !== 'repl')
@@ -908,7 +976,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'prompt-turn',
-    covers: ['draft', 'submit', 'title', 'scroll'],
+    covers: ['draft', 'submit', 'title', 'scroll', 'status'],
     run: async stage => {
       await stage.mark('first frame', has(PLACEHOLDER))
       await stage.type('explain the gate')
@@ -931,7 +999,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'stream-reveal',
-    covers: ['submit', 'scroll'],
+    covers: ['submit', 'scroll', 'status'],
     options: { reducedMotion: false },
     run: async stage => {
       await stage.mark('first frame', has(PLACEHOLDER))
@@ -988,9 +1056,10 @@ export const SCENARIOS: Scenario[] = [
       stage.session.setAsks([stage.askFor('toolu_ask_3', 'touch marker.txt')])
       await stage.mark('an ask is shown', has('Do you want to proceed'))
       await stage.type('words under the card')
-      await stage.mark('words typed while the card is up', has('words under the card'))
-      await stage.key(SHIFT_TAB, 'shift+tab while the words are typed')
-      await settle(1800)
+      await stage.whileTyped(async () => {
+        await stage.mark('words typed while the card is up', has('words under the card'))
+        await stage.key(SHIFT_TAB, 'shift+tab while the words are typed')
+      })
       await stage.mark('the words have rested and the card stands with the words beneath it', has('Do you want to proceed'))
       await stage.key('1', 'the digit approves the card and the words stay in the composer', lacks('Do you want to proceed'))
     },
@@ -1080,7 +1149,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'interrupt',
-    covers: ['keys', 'submit'],
+    covers: ['keys', 'submit', 'status'],
     run: async stage => {
       await stage.mark('first frame', has(PLACEHOLDER))
       stage.session.addRecords(stage.user('a turn to stop'))
@@ -1106,7 +1175,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'compaction',
-    covers: ['submit', 'title'],
+    covers: ['submit', 'title', 'status'],
     run: async stage => {
       await stage.mark('first frame', has(PLACEHOLDER))
       stage.session.setLive({ inFlight: true, phase: 'compacting', turnStartedAtMs: null })
@@ -1132,7 +1201,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'session-switch',
-    covers: ['draft', 'scroll', 'dialogs'],
+    covers: ['draft', 'scroll', 'dialogs', 'session'],
     run: async stage => {
       await stage.mark('first frame', has(PLACEHOLDER))
       await stage.type('a draft for the first session')
@@ -1159,7 +1228,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'landing',
-    covers: ['submit', 'draft', 'boot'],
+    covers: ['submit', 'draft', 'boot', 'session'],
     options: { session: 'none' },
     run: async stage => {
       let land: () => void = () => {}
@@ -1179,7 +1248,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'model-switch-queued',
-    covers: ['submit', 'title'],
+    covers: ['submit', 'title', 'status'],
     run: async stage => {
       await stage.mark('first frame', has(PLACEHOLDER))
       stage.session.addRecords(stage.user('a turn in which the model is switched'))
@@ -1273,6 +1342,126 @@ export const SCENARIOS: Scenario[] = [
       stage.session.addRecords(stage.assistant('An expensive answer.'))
       await stage.mark('the cost threshold dialog is shown', has('An expensive answer.'))
       await stage.key(KEY.enter, 'enter acknowledges the cost')
+    },
+  },
+  {
+    name: 'no-runner-refusal',
+    covers: ['boot'],
+    run: async stage => {
+      await stage.mark('first frame', has(PLACEHOLDER))
+      stage.session.setAdmissionRefusal('the daemon holds no seat for it')
+      await stage.mark('a session with no runner says so and how to revive it', has('has no live runner'))
+    },
+  },
+  {
+    name: 'armed-line-throws',
+    covers: ['submit'],
+    options: { session: 'none' },
+    run: async stage => {
+      let land: () => void = () => {}
+      const landed = stage.src.slot.withLanding(new Promise<void>(resolve => (land = resolve)))
+      stage.src.route.initializeSurfaceRoute(stage.src.route.ROOT_CHAT_ROUTE)
+      await stage.mark('a session is landing and none is focused yet', has(PLACEHOLDER))
+      await stage.type('a line the session will not take')
+      await stage.key(KEY.enter, 'the line is held for the landing', has('your line sends when it lands'))
+      const session = stage.newSession('rec-faulty', [])
+      session.failSends('the line to the session broke')
+      stage.focus(session)
+      land()
+      await landed
+      await stage.mark('the session landed, the send threw, and the screen stands', () => session.calls.some(call => call.endsWith('-> threw')))
+    },
+  },
+  {
+    name: 'transcript-degraded',
+    covers: ['boot'],
+    options: { columns: 200, rows: 40 },
+    run: async stage => {
+      await stage.mark('first frame', has(PLACEHOLDER))
+      const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
+      const retired = join(stage.project, 'retired.jsonl')
+      writeFileSync(retired, `${JSON.stringify(stage.user('a row in a format no longer read'))}\n`)
+      await loadTranscriptFile(retired)
+      await stage.mark('a transcript the loader refused is told', has('transcript refused on load'))
+    },
+  },
+  {
+    name: 'crash-resume-staged',
+    covers: ['boot', 'dialogs'],
+    options: { plant: 'crash-resumable' },
+    run: async stage => {
+      await stage.mark('a crashed session that can be opened again is offered', has('Resume that session'))
+      await stage.key(KEY.esc, 'esc dismisses the offer', has(PLACEHOLDER))
+    },
+  },
+  {
+    name: 'worktree-tip',
+    covers: ['boot'],
+    options: { plant: 'worktree' },
+    run: async stage => {
+      await stage.mark('a worktree that took long to make gets the sparse-paths tip', has('worktree creation took'))
+    },
+  },
+  {
+    name: 'suspend-resume',
+    covers: ['keys'],
+    run: async stage => {
+      await stage.mark('first frame', has(PLACEHOLDER))
+      await stage.type('words kept across the remount')
+      await stage.mark('a draft is typed', has('words kept across the remount'))
+      stage.emit('suspend')
+      await stage.mark('the terminal suspends: a fullscreen screen writes nothing', has('words kept across the remount'))
+      stage.emit('resume')
+      await stage.mark('the terminal resumes: the layout is mounted again with the draft', has('words kept across the remount'))
+    },
+  },
+  {
+    name: 'entry-warmth',
+    covers: ['session'],
+    run: async stage => {
+      await stage.mark('first frame', has(PLACEHOLDER))
+      const warmth = await import('../../src/services/concourse/sessionWarmth.ts')
+      const kept = [stage.user('what the warm session was asked'), stage.assistant('WARM-1 an answer kept from the last visit.')]
+      warmth.rememberSessionWarmth('rec-warm', kept, 0)
+      warmth.armEntryWarmth('rec-warm', 'the warm session', 'rec-session')
+      await stage.mark('an entry is armed over the session in view: the kept rows are painted', has('WARM-1'))
+      const warm = stage.newSession('rec-warm', [])
+      stage.focus(warm)
+      await stage.mark('the session is focused before its rows arrive: the kept rows stand', has('WARM-1'))
+      warm.setRecords([...kept, stage.assistant('WARM-2 a row that arrived since.')])
+      await stage.mark('its rows arrive and the entry settles', has('WARM-2'))
+      warmth.armEntryWarmth('rec-cold', 'the cold session')
+      const cold = stage.newSession('rec-cold', [])
+      stage.focus(cold)
+      await stage.mark('a session with nothing kept says it is loading', has('loading the conversation'))
+      stage.focus(warm)
+      await stage.mark('another session is focused instead and the entry is dropped', has('WARM-2'))
+    },
+  },
+  {
+    name: 'boot-preflight-fails',
+    covers: ['boot'],
+    options: { plant: 'preflight' },
+    run: async stage => {
+      await stage.mark('a failing check of the boot preflight is told', has('boot preflight: ripgrep failed'))
+    },
+  },
+  {
+    name: 'resume-fold-notice',
+    covers: ['boot'],
+    options: { plant: 'fold-notice' },
+    run: async stage => {
+      await stage.mark('a resumed run tells of its interrupted tools and its blocker', frame => frame.includes('tool call(s) interrupted') || frame.includes('the build waits for a sign-in'))
+    },
+  },
+  {
+    name: 'housekeeping-throws',
+    covers: ['boot', 'submit'],
+    options: { plant: 'housekeeping' },
+    run: async stage => {
+      await stage.mark('first frame', has(PLACEHOLDER))
+      await stage.type('the first prompt')
+      await stage.key(KEY.enter, 'the first prompt is sent though the housekeeping could not start', lacks('the first prompt'))
     },
   },
 ]
