@@ -42,7 +42,7 @@ const CTRL_D = keyOf({ ctrl: true })
 
 type Hint = { file: string; needles: Array<string | RegExp> }
 type Exit =
-  | { kind: 'binding'; action: string; input?: string; key?: Key; hints: Hint[]; hintExempt?: string }
+  | { kind: 'binding'; action: string; input?: string; key?: Key; hints: Hint[]; hintExempt?: string; drawn?: () => Promise<string[]> }
   | { kind: 'raw'; route: Hint; hints: Hint[] }
   | { kind: 'host'; owner: string; reason: string }
   | { kind: 'root'; reason: string }
@@ -81,7 +81,19 @@ const EXIT_TABLE: Record<string, Exit> = {
   Transcript: {
     kind: 'binding',
     action: 'transcript:exit',
-    hints: [{ file: 'src/screens/Chat.tsx', needles: ["'q quits'"] }],
+    hints: [],
+    drawn: async () => {
+      const React = await import('react')
+      const { mountPart } = await import('./chatScenarios.ts')
+      const { waitFor } = await import('../lib/settingsPopupHarness.ts')
+      const { TranscriptFooter } = await import('../../src/screens/chat/useChatSearch.tsx')
+      const props = { toggleChord: 'ctrl+o', expandChord: 'ctrl+e', hasSearchBadge: false, virtualScroll: true, showAllSuppressed: false, showAll: false, status: null, badge: null }
+      const footer = await mountPart(() => props, { columns: 120, rows: 4, draw: value => React.createElement(TranscriptFooter, value) })
+      await waitFor(() => footer.view.lines().some(line => line.includes('detailed transcript')), 3000)
+      const drawn = footer.view.lines().join('\n')
+      footer.unmount()
+      return ['q quits', 'ctrl+o to toggle'].filter(words => !drawn.includes(words))
+    },
   },
   HistorySearch: {
     kind: 'binding',
@@ -223,6 +235,11 @@ for (const [ctx, exit] of Object.entries(EXIT_TABLE)) {
     const missing = exit.route.needles.filter(n => !has(src, n))
     check(`${ctx}: the surface decodes escape itself (${exit.route.file})`, missing.length === 0, missing.map(String).join(' · '))
   }
+  if (exit.kind === 'binding' && exit.drawn !== undefined) {
+    const missing = await exit.drawn()
+    check(`${ctx}: the hint is rendered (drawn by its mounted footer)`, missing.length === 0, missing.join(' · '))
+    continue
+  }
   if (exit.hints.length === 0) {
     note(`${ctx}: no printed hint by design — ${exit.hintExempt ?? 'UNEXPLAINED'}`)
     check(`${ctx}: a hint exemption carries its reason`, typeof exit.hintExempt === 'string' && exit.hintExempt.length > 20)
@@ -288,6 +305,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/mercury-ui/useFlatList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useInteractiveList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useNavigablePanes.ts': { reason: 'the panes engine; NavigablePanes prints the footer', witness: 'src/components/mercury-ui/NavigablePanes.tsx' },
+    'src/screens/chat/useChatSearch.tsx': { reason: 'the keys of the transcript view; the footer in the same file prints q quits and the toggle chord, which the Transcript row of the exit table reads from the mounted footer' },
     'src/components/ExitHandoff.tsx': { reason: 'prints the one notice it has — "writing the handoff for the next session… (ctrl-c skips)" — through the constant the mneme module owns; ctrl-c is not a spelling the needles know' },
   }
 

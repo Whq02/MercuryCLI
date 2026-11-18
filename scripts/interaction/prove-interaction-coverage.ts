@@ -192,7 +192,7 @@ reg(
 
     'src/components/TraceView.tsx',
     'src/keybindings/KeybindingProviderSetup.tsx',
-    'src/screens/Chat.tsx',
+    'src/screens/chat/useChatSearch.tsx',
     'src/screens/ResumeConversation.tsx',
     'src/components/Settings/Config.tsx',
     'src/components/HelpV2/Commands.tsx',

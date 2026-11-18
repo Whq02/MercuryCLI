@@ -42,7 +42,7 @@ const hostsTextField = (src: string): boolean => /BaseTextInput|<TextInput\b|fro
 type Gate = { file: string; needles: Array<string | RegExp> }
 type Rule =
   | { rule: 'no-field'; reason: string; hosts: string[] }
-  | { rule: 'gated'; reason: string; gates: Gate[] }
+  | { rule: 'gated'; reason: string; gates: Gate[]; shown?: () => Promise<string[]> }
 const CAPTURE_RULES: Record<string, Rule> = {
   Settings: {
     rule: 'gated',
@@ -79,9 +79,34 @@ const CAPTURE_RULES: Record<string, Rule> = {
     gates: [
       {
         file: 'src/screens/Chat.tsx',
-        needles: ["if (input === 'q' && !searchBarOpen)", "if (input === '/' && !searchBarOpen)", "if (input === 'g' && !searchBarOpen)", /searchBarOpen \? \(\s*\n\s*<TranscriptSearchBar/],
+        needles: [/searchBarOpen \? \(\s*\n\s*<TranscriptSearchBar/],
       },
     ],
+    shown: async () => {
+      const { openTranscriptPart, KEY } = await import('./chatScenarios.ts')
+      const { waitFor } = await import('../lib/settingsPopupHarness.ts')
+      const view = await openTranscriptPart('declared-keys-transcript')
+      const miss: string[] = []
+      await view.setRows(view.rowsOf(3))
+      await view.act(() => {
+        view.part.value().handleEnterTranscript()
+        view.part.value().setScreen('transcript')
+      })
+      await view.press('/')
+      await waitFor(() => view.jumps.includes('query ""'), 2000)
+      for (const letter of 'qg/') await view.press(letter, 40)
+      if (view.part.value().screen !== 'transcript') miss.push('q left the transcript while the search bar was open')
+      if (!view.jumps.includes('query "qg/"')) miss.push(`q, g and / were not typed into the query: ${view.jumps.slice(-3).join(',')}`)
+      if (view.scroll.calls.length > 0) miss.push(`g scrolled while the search bar was open: ${view.scroll.calls.join(',')}`)
+      await view.press(KEY.esc)
+      await view.press('g')
+      if (view.scroll.calls.join() !== 'scrollTo 0') miss.push(`g does not go to the top once the bar is closed: ${view.scroll.calls.join(',')}`)
+      await view.press('q')
+      if (view.part.value().screen !== 'prompt') miss.push('q does not leave the transcript once the bar is closed')
+      await view.close()
+      process.chdir(ROOT)
+      return miss
+    },
   },
   MessageSelector: {
     rule: 'gated',
@@ -136,6 +161,10 @@ section('§1 the registry — every context that binds a bare printable declares
     for (const gate of rule.gates) {
       const miss = missingIn(gate.file, gate.needles)
       check(`${ctx} (${keys}): gated in ${gate.file}`, miss.length === 0, miss.join(' · '))
+    }
+    if (rule.shown !== undefined) {
+      const miss = await rule.shown()
+      check(`${ctx} (${keys}): the raw keys stand down while the field captures, shown by the mounted part`, miss.length === 0, miss.join(' · '))
     }
   }
 }
