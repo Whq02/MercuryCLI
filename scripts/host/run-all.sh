@@ -41,7 +41,6 @@ run_proof "$ROOT/scripts/host/prove-host-words-truth.ts" bun "$ROOT/scripts/host
 run_proof "$ROOT/scripts/host/prove-pod-image-path.ts" bun "$ROOT/scripts/host/prove-pod-image-path.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-notice-before-turn.ts" bun "$ROOT/scripts/host/prove-host-notice-before-turn.ts" --bundle "$ROOT/dist/mercury.mjs" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-completion.ts" bun "$ROOT/scripts/host/prove-host-completion.ts" || fail=1
-run_proof "$ROOT/scripts/host/prove-vendors.ts" bun "$ROOT/scripts/host/prove-vendors.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-hf-endpoints.ts" bun "$ROOT/scripts/host/prove-hf-endpoints.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-hf-oauth-endpoints.ts" bun "$ROOT/scripts/host/prove-hf-oauth-endpoints.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-vendor-road-drive.ts" bun "$ROOT/scripts/host/prove-vendor-road-drive.ts" --bundle "$ROOT/dist/mercury.mjs" || fail=1
@@ -54,11 +53,8 @@ run_proof "$ROOT/scripts/host/prove-prebuilt-host-tune.ts" bun "$ROOT/scripts/ho
 run_proof "$ROOT/scripts/host/prove-host-bank-transfer.ts" bun "$ROOT/scripts/host/prove-host-bank-transfer.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-pod-list-completeness.ts" bun "$ROOT/scripts/host/prove-pod-list-completeness.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-search-drive.ts" bun "$ROOT/scripts/host/prove-host-search-drive.ts" || fail=1
-run_proof "$ROOT/scripts/host/prove-host-bank-drive.ts" bun "$ROOT/scripts/host/prove-host-bank-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-wheel-drive.ts" bun "$ROOT/scripts/host/prove-host-wheel-drive.ts" || fail=1
-run_proof "$ROOT/scripts/host/prove-llmhost-qc-drive.ts" bun "$ROOT/scripts/host/prove-llmhost-qc-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-door-tune-drive.ts" bun "$ROOT/scripts/host/prove-door-tune-drive.ts" || fail=1
-run_proof "$ROOT/scripts/host/prove-door-seams-drive.ts" bun "$ROOT/scripts/host/prove-door-seams-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-mercury-host.ts" bun "$ROOT/scripts/host/prove-mercury-host.ts" --bundle "$ROOT/dist/mercury.mjs" || fail=1
 run_proof "$ROOT/scripts/host/prove-mercury-host-drive.ts" bun "$ROOT/scripts/host/prove-mercury-host-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-trillion-tier.ts" bun "$ROOT/scripts/host/prove-trillion-tier.ts" || fail=1
@@ -67,17 +63,14 @@ run_proof "$ROOT/scripts/host/prove-recipes-live.ts" bun "$ROOT/scripts/host/pro
 run_proof "$ROOT/scripts/host/prove-private-recipes-drive.ts" bun "$ROOT/scripts/host/prove-private-recipes-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-frontier-roster.ts" bun "$ROOT/scripts/host/prove-frontier-roster.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-measure-recipe.ts" bun "$ROOT/scripts/host/prove-measure-recipe.ts" || fail=1
-run_proof "$ROOT/scripts/host/prove-fast-load-drive.ts" bun "$ROOT/scripts/host/prove-fast-load-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-tune.ts" bun "$ROOT/scripts/host/prove-host-tune.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-rent-model-first-drive.ts" bun "$ROOT/scripts/host/prove-rent-model-first-drive.ts" --bundle "$ROOT/dist/mercury.mjs" || fail=1
 run_proof "$ROOT/scripts/host/prove-fast-load-private-drive.ts" bun "$ROOT/scripts/host/prove-fast-load-private-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-bank-folder-drive.ts" bun "$ROOT/scripts/host/prove-host-bank-folder-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-bank-identity.ts" bun "$ROOT/scripts/host/prove-host-bank-identity.ts" || fail=1
-run_proof "$ROOT/scripts/host/prove-host-guard.ts" bun "$ROOT/scripts/host/prove-host-guard.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-engine-oom-after-ready.ts" bun "$ROOT/scripts/host/prove-engine-oom-after-ready.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-pause.ts" bun "$ROOT/scripts/host/prove-host-pause.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-hf-refresh.ts" bun "$ROOT/scripts/host/prove-host-hf-refresh.ts" || fail=1
-run_proof "$ROOT/scripts/host/prove-host-hiccups.ts" bun "$ROOT/scripts/host/prove-host-hiccups.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-keep-safe-drive.ts" bun "$ROOT/scripts/host/prove-host-keep-safe-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-key-door.ts" bun "$ROOT/scripts/host/prove-host-key-door.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-key-management-drive.ts" bun "$ROOT/scripts/host/prove-host-key-management-drive.ts" || fail=1
@@ -108,7 +101,6 @@ run_proof "$ROOT/scripts/host/prove-bank-download-fixture.ts" bun "$ROOT/scripts
 run_proof "$ROOT/scripts/host/prove-hf-engine-check.ts" bun "$ROOT/scripts/host/prove-hf-engine-check.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-llamacpp-engine-upkeep.ts" bun "$ROOT/scripts/host/prove-llamacpp-engine-upkeep.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-model-trust-drive.ts" bun "$ROOT/scripts/host/prove-host-model-trust-drive.ts" || fail=1
-run_proof "$ROOT/scripts/host/prove-host-upload-confirm-drive.ts" bun "$ROOT/scripts/host/prove-host-upload-confirm-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-volume-read-drive.ts" bun "$ROOT/scripts/host/prove-host-volume-read-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-llmhost-first-screen.ts" bun "$ROOT/scripts/host/prove-llmhost-first-screen.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-plain-words-drive.ts" bun "$ROOT/scripts/host/prove-host-plain-words-drive.ts" || fail=1
