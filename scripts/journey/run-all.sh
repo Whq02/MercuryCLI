@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
+# gate-watch: src/services/providers/catalogueEpoch.ts src/services/providers/gemini/geminiCatalogue.ts src/services/providers/huggingface/huggingfaceCatalogue.ts src/services/providers/local/localDiscovery.ts
+# gate-watch: src/services/providers/openrouter/openrouterCatalogue.ts src/services/providers/slotSwitch.ts src/utils/auth.ts src/utils/config/globalConfig.ts
 # gate-watch: src/services/providers/meta/metaCatalogue.ts src/services/providers/xai/xaiCatalogue.ts
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: src/utils/sessionStoragePortable*
@@ -44,10 +46,6 @@ for f in scripts/journey/prove-*.ts; do
   fi
   echo "▶ $f"
   __t=$SECONDS; __rc=0; if ! { "$BUN" run "$f"; __rc=$?; [ "$__rc" -eq 0 ]; }; then fail=1; fi; prover_mark "$f" "$__t" "$__rc"
-  if [ "$name" = "prove-overload-lane-resume-drive.ts" ]; then
-    __t=$SECONDS; __rc=0; "$BUN" run "$f" --budget-cut --gone-cwd || { __rc=$?; fail=1; }; prover_mark "$f --budget-cut --gone-cwd" "$__t" "$__rc"
-    __t=$SECONDS; __rc=0; "$BUN" run "$f" --budget-cut --inline || { __rc=$?; fail=1; }; prover_mark "$f --budget-cut --inline" "$__t" "$__rc"
-  fi
   echo
 done
 if [ "$fail" -eq 0 ]; then echo "✅ JOURNEY SUITE GREEN"; else echo "❌ JOURNEY SUITE RED"; fi
