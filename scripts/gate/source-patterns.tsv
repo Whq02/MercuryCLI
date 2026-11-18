@@ -105,7 +105,8 @@ setTimeout	src/services/dap/dapClient.ts	2
 setTimeout	src/services/desktop/desktopClaim.ts	1
 setTimeout	src/services/desktop/fakeDesktopDriver.ts	1
 setTimeout	src/services/desktop/nativeDriver.ts	2
-setTimeout	src/services/engine-connector/daemonConnector.ts	5
+setTimeout	src/services/engine-connector/daemon/fold.ts	2
+setTimeout	src/services/engine-connector/daemonConnector.ts	3
 setTimeout	src/services/eval/kernelManager.ts	1
 setTimeout	src/services/eval/procKernel.ts	4
 setTimeout	src/services/host/boxEngine.ts	3

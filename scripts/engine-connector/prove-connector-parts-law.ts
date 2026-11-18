@@ -8,13 +8,13 @@ const PARTS_DIR = 'src/services/engine-connector/daemon'
 const SELF = 'scripts/engine-connector/prove-connector-parts-law.ts'
 
 const PARTS: Readonly<Record<string, { file: string; type: string }>> = {
-  completion: { file: 'completion.ts', type: 'CompletionPart' },
+  completionPart: { file: 'completion.ts', type: 'CompletionPart' },
+  foldPart: { file: 'fold.ts', type: 'FoldPart' },
 }
 
 const OF_THE_DOOR: readonly string[] = ['carrier', 'record', 'attached', 'factsFeed', 'asksFeed', 'tailFeed', 'progressFeed', 'turnInFlight', 'verbChain']
 
 const AWAITING_THEIR_PART: Readonly<Record<string, readonly string[]>> = {
-  fold: ['liveFoldStatus', 'foldExitLatch', 'foldLatchTimer', 'foldLingerTimer', 'foldLingerOver', 'foldListeners'],
   work: ['workListeners', 'workSnapshot', 'workStamp', 'checkpointListeners', 'checkpointSnapshot', 'checkpointStamp'],
   asks: ['askEntries', 'confirms', 'askListeners'],
   admission: ['admission', 'refusedAdmission', 'awaitingRunnerFacts', 'openedAtMs', 'startShownSinceMs', 'seedFactsAtMs'],

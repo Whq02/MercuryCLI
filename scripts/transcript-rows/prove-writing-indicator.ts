@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -72,20 +73,64 @@ section('W1 the fold is honest per phase')
 
 section('W2 the connector busy-union never claims writing for a fold-idle transcript')
 {
-  const src = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
+  const scratch = mkdtempSync(join(tmpdir(), 'writing-indicator-'))
+  process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
+  mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
+  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const { publishSessionFacts, publishSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const sessionId = 'writing-indicator'
+  const seat = new DaemonSessionConnector({ sessionId, runnerId: 'runner-1', title: 'the chat', projectLabel: 'proof', workspaceId: scratch, home: scratch })
+  const reads = seat as unknown as { readFacts(): void; readTail(): void }
+  let stamp = 0
+  const facts = (busy: boolean): void => {
+    publishSessionFacts({
+      schema: 1,
+      sessionId,
+      atMs: ++stamp,
+      pendingModel: null,
+      busy,
+      model: { effective: 'claude-sonnet-5-5', setting: null },
+      usage: { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false },
+      identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null },
+      skills: [],
+      mcp: [],
+      workspace: { cwd: scratch, originalCwd: scratch, projectRoot: scratch },
+      queue: [],
+    })
+    reads.readFacts()
+  }
+  const tail = (says: Record<string, unknown>): void => {
+    publishSessionTail({ schema: 1, sessionId, atMs: ++stamp, text: null, ...says } as never)
+    reads.readTail()
+  }
+  const fold = { schema: 1, trigger: 'auto', startedAtMs: 1, stages: ['summarising', 'restoring'], stage: 'summarising', fill: 0.4, summaryTokens: 10, summaryCapTokens: 100, attempt: 1 }
+  facts(true)
   check(
     "the union stamps 'thinking' when busy over an idle fold (dispatched, nothing streamed)",
-    /this\.liveState\.phase === 'idle'\s*\?\s*'thinking'/.test(src),
+    seat.live().inFlight === true && seat.live().phase === 'thinking',
+    JSON.stringify(seat.live()),
   )
+  tail({ stateWord: 'compacting', fold })
+  const running = seat.live().phase
+  tail({ stateWord: 'compacting', fold: { ...fold, exit: 'landed', endedAtMs: 2 } })
+  const landed = seat.live().phase
+  tail({ stateWord: 'compacting' })
+  const unrecorded = seat.live().phase
   check(
     "…the compacting window keeps the fold's own word (never the thinking dress) — only while the fold's record says it still runs: the word ranks below the record's exit, so a landed fold never dresses the next turn",
-    /this\.liveStateWord === 'compacting' && foldStillRuns\(this\.liveFoldStatus\)\s*\?\s*'compacting'/.test(src) &&
-      /function foldStillRuns\(status: FoldStatusV1 \| null\): boolean \{\s*return status === null \|\| status\.exit === undefined/.test(src),
+    running === 'compacting' && landed === 'thinking' && unrecorded === 'compacting',
+    `running ${running} · landed ${landed} · no record ${unrecorded}`,
   )
+  tail({})
+  const quiet = seat.live().phase
+  tail({ streamBlock: 'text', blockSinceMs: 3 })
+  const streaming = seat.live().phase
   check(
     "…and no code path stamps 'responding' from the busy bit",
-    !/phase === 'idle'\s*\?\s*'responding'/.test(src),
+    quiet === 'thinking' && streaming === 'responding',
+    `busy with nothing streaming ${quiet} · a text block streaming ${streaming}`,
   )
+  rmSync(scratch, { recursive: true, force: true })
 }
 
 section('W3 the Chat hands the spinner all three live phases')

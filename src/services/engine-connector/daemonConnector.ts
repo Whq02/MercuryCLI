@@ -66,9 +66,8 @@ import { createNoticeRow, deliveredNoticeRow, foldClockOf, isNoticeFact, isNotic
 import { BASH_INPUT_TAG } from '../../constants/xml.js'
 import { createTextRow, textRowLanded, withoutRetractedReplies, type CommittedTextRow } from './midTurnText.js'
 import { computeTailRelease } from '../../utils/messages/tailRetirement.js'
-import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, type FoldStatusV1 } from '../compact/foldStatus.js'
+import { decodeFoldStatus, type FoldStatusV1 } from '../compact/foldStatus.js'
 import { workChipLine, workCounts } from './workCounts.js'
-import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import { compatEndpointIsSelfHosted } from '../providers/deferralWire.js'
 import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import { mcpToolsOfReply } from '../mcp/toolsAnswer.js'
@@ -107,6 +106,8 @@ import type {
 import { bootBirthFacts, type BootBirthFacts } from '../switchboard/bootBirthFacts.js'
 import { seatInitialPermissionMode } from '../../daemon/concourseWorkers.js'
 import { CompletionPart } from './daemon/completion.js'
+import { FoldPart } from './daemon/fold.js'
+import { emitAll, type Listeners } from './daemon/shared.js'
 import { projectOperatorRewinds } from '../compact/checkpointRewind.js'
 
 const UNKNOWN_CHECKPOINTS: CheckpointFactsV1 = Object.freeze({ capture: 'unknown' as const, restorable: Object.freeze(new Set<string>()) as ReadonlySet<string> })
@@ -385,28 +386,12 @@ export class ProjectionFeed {
   }
 }
 
-type Listeners = Set<() => void>
 function connectorTrace(entry: Record<string, unknown>): void {
   const path = flagEnv('MERCURY_CONNECTOR_TRACE')
   if (!path) return
   try {
     appendFileSync(path, `${JSON.stringify({ t: Date.now(), ...entry })}\n`)
   } catch {
-  }
-}
-
-function foldStillRuns(status: FoldStatusV1 | null): boolean {
-  return status === null || status.exit === undefined
-}
-
-function emitAll(listeners: Listeners, what: string): void {
-  fluxMark(`emit:${what}`)
-  for (const l of [...listeners]) {
-    try {
-      l()
-    } catch (e) {
-      logForDebugging(`[engine-connector] daemon ${what} listener threw (ignored): ${e}`)
-    }
   }
 }
 
@@ -551,7 +536,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly liveListeners: Listeners = new Set()
 
   private facts: SessionFactsV1 | null
-  private readonly completion: CompletionPart
+  private readonly completionPart: CompletionPart
   private openedAtMs = Date.now()
   private startShownSinceMs: number | null = null
   private seedFactsAtMs: number | null
@@ -586,12 +571,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private liveAgentsWaiting = 0
   private runnerGeneration: number | null = null
   private lostLineNotice: LostLineV1 | null = null
-  private liveFoldStatus: FoldStatusV1 | null = null
-  private foldExitLatch: FoldStatusV1 | null = null
-  private foldLatchTimer: ReturnType<typeof setTimeout> | null = null
-  private foldLingerTimer: ReturnType<typeof setTimeout> | null = null
-  private foldLingerOver = false
-  private readonly foldListeners = new Set<() => void>()
+  private readonly foldPart = new FoldPart({ recomputeLive: () => this.recomputeLive() })
   private liveWait: RequestWaitV1 | null = null
   private liveWaitOwnAge: { wait: RequestWaitV1; own: boolean } | null = null
   private hardStopping = false
@@ -614,7 +594,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
     this.facts = readSessionFacts(record.sessionId)
     this.factsBusy = this.facts?.busy ?? false
-    this.completion = new CompletionPart({
+    this.completionPart = new CompletionPart({
       sessionId: () => this.record.sessionId,
       factsBusy: () => this.factsBusy,
       hasUnreadTranscript: () => this.hasUnreadTranscript(),
@@ -719,7 +699,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.liveTurnThinkingBlocks = 0
       this.liveFirstByteAtMs = null
       this.setLiveStateWord(null)
-      this.setLiveFold(null)
+      this.foldPart.setLiveFold(null)
       this.setStreamBlock(null, null)
       this.lastEventAtMs = null
       this.clearTail(Date.now())
@@ -734,7 +714,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
       tail.stateWord === 'waiting-on-agents' && typeof tail.waitingOnAgents === 'number' ? Math.max(1, Math.floor(tail.waitingOnAgents)) : 0,
     )
-    this.setLiveFold(tail.fold !== undefined ? decodeFoldStatus(tail.fold) : null)
+    this.foldPart.setLiveFold(tail.fold !== undefined ? decodeFoldStatus(tail.fold) : null)
     const wait = decodeRequestWait(tail.wait)
     if (JSON.stringify(wait) !== JSON.stringify(this.liveWait)) {
       this.liveWait = wait
@@ -868,69 +848,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.recomputeLive()
   }
 
-  private setLiveFold(next: FoldStatusV1 | null): void {
-    if (JSON.stringify(this.liveFoldStatus) === JSON.stringify(next)) return
-    if (next === null && this.liveFoldStatus !== null && this.liveFoldStatus.trigger === 'manual') {
-      this.latchFold(this.liveFoldStatus)
-    } else if (next !== null) {
-      this.clearFoldLatch()
-      this.foldLingerOver = false
-      if (next.exit !== undefined) this.armFoldLingerEnd(next)
-      else this.clearFoldLinger()
-    }
-    const wasRunning = foldStillRuns(this.liveFoldStatus)
-    this.liveFoldStatus = next
-    emitAll(this.foldListeners, 'fold')
-    if (wasRunning !== foldStillRuns(next)) this.recomputeLive()
-  }
-
-  private armFoldLingerEnd(status: FoldStatusV1): void {
-    this.clearFoldLinger()
-    const endsInMs = Math.max(0, (status.endedAtMs ?? status.startedAtMs) + FOLD_EXIT_LINGER_MS - Date.now())
-    this.foldLingerTimer = setTimeout(() => {
-      this.foldLingerTimer = null
-      this.foldLingerOver = true
-      emitAll(this.foldListeners, 'fold')
-    }, endsInMs)
-    this.foldLingerTimer.unref?.()
-  }
-
-  private clearFoldLinger(): void {
-    if (this.foldLingerTimer !== null) {
-      clearTimeout(this.foldLingerTimer)
-      this.foldLingerTimer = null
-    }
-  }
-
-  private latchFold(status: FoldStatusV1): void {
-    this.foldExitLatch = status
-    if (this.foldLatchTimer !== null) clearTimeout(this.foldLatchTimer)
-    this.foldLatchTimer = setTimeout(() => {
-      this.foldLatchTimer = null
-      this.foldExitLatch = null
-      emitAll(this.foldListeners, 'fold')
-    }, FOLD_EXIT_LINGER_MS)
-    this.foldLatchTimer.unref?.()
-  }
-
-  private clearFoldLatch(): void {
-    if (this.foldLatchTimer !== null) {
-      clearTimeout(this.foldLatchTimer)
-      this.foldLatchTimer = null
-    }
-    this.foldExitLatch = null
-  }
-
   fold(): FoldStatusV1 | null {
-    const record = this.liveFoldStatus ?? this.foldExitLatch
-    return record !== null && record.exit !== undefined && this.foldLingerOver ? null : record
+    return this.foldPart.fold()
   }
 
   subscribeFold(listener: () => void): () => void {
-    this.foldListeners.add(listener)
-    return () => {
-      this.foldListeners.delete(listener)
-    }
+    return this.foldPart.subscribeFold(listener)
   }
 
   private setStreamBlock(block: 'thinking' | 'text' | 'tool_use' | null, sinceMs: number | null): void {
@@ -1183,7 +1106,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const streaming: SessionLiveV1['phase'] | null =
       this.streamBlock === 'thinking' ? 'thinking' : this.streamBlock !== null ? 'responding' : null
     const phase: SessionLiveV1['phase'] =
-      inFlight && this.liveStateWord === 'compacting' && foldStillRuns(this.liveFoldStatus)
+      inFlight && this.liveStateWord === 'compacting' && this.foldPart.stillRuns()
         ? 'compacting'
         : inFlight && this.liveStateWord === 'waiting-on-agents' && this.liveState.phase !== 'tool'
           ? 'waiting'
@@ -1225,12 +1148,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (!inFlight) this.liveTurnChars = 0
     if (!inFlight) this.liveTurnOutputTokens = null
     if (!inFlight && (prev.inFlight || this.liveStateWord !== 'waiting-on-agents')) this.clearLiveStateWord()
-    if (!inFlight && this.liveFoldStatus !== null && this.liveFoldStatus.exit === undefined) {
-      const gone = this.liveFoldStatus
-      this.liveFoldStatus = null
-      if (gone.trigger === 'manual') this.latchFold(gone)
-      emitAll(this.foldListeners, 'fold')
-    }
+    if (!inFlight) this.foldPart.dropRunningAtIdle()
     if (!inFlight && this.publishedProgressSeqs.size > 0) {
       clearEphemeralProgress()
       this.publishedProgressSeqs.clear()
@@ -1238,7 +1156,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (!inFlight && this.toolBudgets.size > 0) this.toolBudgets.clear()
     this.syncLivenessTicker(inFlight)
     this.syncFeedCadence(inFlight)
-    const completionAdvanced = this.completion.stepTurnCompletion(inFlight)
+    const completionAdvanced = this.completionPart.stepTurnCompletion(inFlight)
     if (!changed && !completionAdvanced) {
       if (latchReleased) emitAll(this.liveListeners, 'live')
       return
@@ -1255,7 +1173,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   lastTurnCompletedAtMs(): number | null {
-    return this.completion.lastTurnCompletedAtMs()
+    return this.completionPart.lastTurnCompletedAtMs()
   }
 
   private hasUnreadTranscript(): boolean {
@@ -1332,9 +1250,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return
     }
     if (current?.state === 'delivered' && state === 'queued') {
-      this.completion.noteSendDemoted()
+      this.completionPart.noteSendDemoted()
     } else if (current?.state === 'delivered' && state === 'taken') {
-      this.completion.noteSendTaken()
+      this.completionPart.noteSendTaken()
     }
     const enqueuedUnderTheFold = current !== undefined && (current.state !== 'queued' || current.heldFor === 'compaction')
     const heldFor = state === 'queued' && this.liveStateWord === 'compacting' && enqueuedUnderTheFold ? ('compaction' as const) : undefined
@@ -1660,7 +1578,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.facts.busy) this.armBusyStall()
     else this.disarmBusyStall()
     this.reconcileQueuedSends(next)
-    this.completion.refreshWorkerTurnMarks()
+    this.completionPart.refreshWorkerTurnMarks()
     this.recomputeLive()
     connectorTrace({ ev: 'facts', sid: this.record.sessionId, busy: next.busy, atMs: next.atMs, queue: next.queue?.length ?? 0, sends: this.sends.map(s => s.state).join(','), inFlight: this.effectiveLive.inFlight, interrupting: this.interrupting, hardStopping: this.hardStopping })
     if (modelMoved) emitAll(this.modelListeners, 'model')
