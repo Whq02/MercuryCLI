@@ -66,7 +66,8 @@ console.log('[2] the grouped lines (pure)')
   check('a gate plus a condition carries both', byTools('Godot') === 'FLAG_OPT unset (an opt-in flag) · needs a project.godot root')
   check('a default-on gate that was turned off says turned off', byTools('Debug') === 'FLAG_ON turned off')
   check('a default-on gate left on, with the tool out for another reason, says that reason and not that the flag was turned off', byTools('Eval') === 'needs a resolvable interpreter', JSON.stringify(lines))
-  check('a row with no reason is named as the gap, and so is a tool out behind a flag nobody turned off that declares no condition', byTools('Bare,Mystery') === CENSUS_NO_REASON, JSON.stringify(lines))
+  check('a tool out behind a default-on flag that declares no condition keeps the flag\'s words: the census holds no other reason for it', byTools('Bare') === 'FLAG_LEFT_ON turned off', JSON.stringify(lines))
+  check('a row with no reason is named as the gap', byTools('Mystery') === CENSUS_NO_REASON, JSON.stringify(lines))
   check('conditional lines carry the conditional support word, gated lines the unavailable one', lines.every(l => (l.tools[0]!.startsWith('G') && l.tools[0] !== 'Godot') || l.tools[0] === 'LSP (off right now)' ? l.support === 'conditional' : l.support === 'unavailable'))
   const dapBefore = process.env.MERCURY_DAP
   delete process.env.MERCURY_DAP
