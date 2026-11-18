@@ -27,7 +27,7 @@ type Row = Record<string, unknown>
 type Reply = Record<string, unknown>
 type Neighbours = {
   rows: Row[]
-  facts: { model: { effective: string } } | null
+  seatFacts: { model: { effective: string } } | null
   modelKey: string | undefined
   mode: string | null
   modeAsked: number
@@ -38,12 +38,12 @@ type Neighbours = {
 let born = 0
 function part(over: Partial<Neighbours> = {}): { asks: InstanceType<typeof AsksPart>; n: Neighbours; sessionId: string; publish: (rows: Row[] | null) => void; seen: { wakes: number } } {
   const sessionId = `asks-part-${++born}`
-  const n: Neighbours = { rows: [], facts: null, modelKey: undefined, mode: 'default', modeAsked: 0, asked: [], answer: async () => ({ ok: true, outcome: 'applied' }), delivered: [], ...over }
+  const n: Neighbours = { rows: [], seatFacts: null, modelKey: undefined, mode: 'default', modeAsked: 0, asked: [], answer: async () => ({ ok: true, outcome: 'applied' }), delivered: [], ...over }
   const seen = { wakes: 0 }
   const asks = new AsksPart({
     record: () => ({ sessionId, ...(n.modelKey !== undefined ? { modelKey: n.modelKey } : {}) }),
     rows: () => n.rows as never,
-    facts: () => n.facts as never,
+    facts: () => n.seatFacts as never,
     permissionMode: () => {
       n.modeAsked++
       return n.mode as never
@@ -100,7 +100,7 @@ section('§1 the list is what the runner parked, in its order')
 section('§2 the card of an ask: the tool, the input, the words, the record it answers')
 {
   const record = { type: 'assistant', uuid: 'row-with-the-call', message: { content: [{ type: 'text', text: 'I will run it' }, { type: 'tool_use', id: 'toolu_1', name: 'Bash', input: { command: 'step 1' } }] } }
-  const { asks, publish, n } = part({ rows: [{ type: 'user', message: { content: 'go' } }, record], facts: { model: { effective: 'the-facts-model' } }, modelKey: 'the-record-model' })
+  const { asks, publish, n } = part({ rows: [{ type: 'user', message: { content: 'go' } }, record], seatFacts: { model: { effective: 'the-facts-model' } }, modelKey: 'the-record-model' })
   publish([
     ask(1, { cwd: '/work', decisionReason: 'the rule asks', blockedPath: '/etc/hosts', suggestions: [{ type: 'addRules', rules: [], behavior: 'allow', destination: 'session' }] }),
     ask(2, { toolName: 'mcp__files__write', input: { path: 'a.txt' } }),
