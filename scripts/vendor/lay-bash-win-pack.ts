@@ -15,7 +15,7 @@ import {
 type Copy = { from: string; to: string }
 type SourceCopy = { inner: string; member: string; to: string }
 
-export type BashWinPackage = {
+type BashWinPackage = {
   name: string
   version: string
   file: string
@@ -164,7 +164,7 @@ function* tarEntries(buffer: Uint8Array): Generator<TarEntry> {
   }
 }
 
-export function tarFileMembers(buffer: Uint8Array): Array<{ path: string; body: Uint8Array }> {
+function tarFileMembers(buffer: Uint8Array): Array<{ path: string; body: Uint8Array }> {
   const entries = [...tarEntries(buffer)]
   const bodies = new Map(entries.filter(entry => entry.type === '0').map(entry => [entry.path, entry.body]))
   const out: Array<{ path: string; body: Uint8Array }> = []
@@ -183,7 +183,7 @@ function matcher(patterns: string[]): (candidate: string) => boolean {
   return candidate => tests.some(test => test.test(candidate))
 }
 
-export type PeFile = { machine: string; imports: string[] }
+type PeFile = { machine: string; imports: string[] }
 
 export function readPe(data: Buffer): PeFile | null {
   if (data.length < 0x40 || data.readUInt16LE(0) !== 0x5a4d) return null
@@ -266,7 +266,7 @@ function sourceNoteText(lock: BashWinLock): string {
   ].join('\n')
 }
 
-export type LaidBashWinPack = { manifest: BashMsys2Manifest; files: number; bytes: number; programs: string[]; windowsLibraries: string[] }
+type LaidBashWinPack = { manifest: BashMsys2Manifest; files: number; bytes: number; programs: string[]; windowsLibraries: string[] }
 
 export function layBashWinPack(args: { lock: BashWinLock; platform: string; cacheDir: string; destDir: string }): LaidBashWinPack {
   const { lock, platform, cacheDir, destDir } = args

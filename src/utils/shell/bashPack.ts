@@ -50,7 +50,7 @@ interface BashPackManifestBase {
   treeDigest: string
 }
 
-export interface BashTarballManifest extends BashPackManifestBase {
+interface BashTarballManifest extends BashPackManifestBase {
   source: 'gnu-tarball'
   tarballSha256: string
   patchesSha256: string
@@ -59,7 +59,7 @@ export interface BashTarballManifest extends BashPackManifestBase {
   links: string[]
 }
 
-export interface BashMsys2Package {
+interface BashMsys2Package {
   name: string
   version: string
   file: string
