@@ -31,6 +31,7 @@ type LegReport = {
   timeout: { autoBackgroundOffered: boolean; code: number; stderr: string }
   cwd: { moved: boolean; keptAfterFailure: boolean; recordsLeft: number }
   crewmate: { code: number; out: string; refusal: string }
+  startFiles: { session: string; ownProcess: string }
   prompt: string
   healthLine: string
 }
@@ -64,6 +65,9 @@ async function runLeg(leg: LegName): Promise<LegReport> {
   await (await exec('export ROADS_MARK=kept', signal(), 'bash', { timeout: 30_000 })).result
   const plainHandle = await exec(`echo "plain:${SERVED}:\${ROADS_MARK:-none}:\${MERCURY_ENTRYPOINT:-scrubbed}"`, signal(), 'bash', { timeout: 30_000 })
   const plain = await plainHandle.result
+  const SEES = 'echo "ENV=${ENV:-unset} BASH_ENV=${BASH_ENV:-unset}"'
+  const seenInTheSession = await (await exec(SEES, signal(), 'bash', { timeout: 30_000 })).result
+  const seenInItsOwnProcess = await (await exec(SEES, signal(), 'bash', { timeout: 30_000, inheritSessionEnv: true })).result
 
   const monitorGate = join(scratch, 'monitor-gate')
   let chunks = ''
@@ -132,6 +136,7 @@ async function runLeg(leg: LegName): Promise<LegReport> {
     timeout: { autoBackgroundOffered, code: slow.code, stderr: slow.stderr },
     cwd: { moved, keptAfterFailure, recordsLeft: records() },
     crewmate: { code: crewmate.code, out: crewmate.stdout.trim(), refusal: crewmate.preSpawnError ?? '' },
+    startFiles: { session: seenInTheSession.stdout.trim(), ownProcess: seenInItsOwnProcess.stdout.trim() },
     prompt: getSimplePrompt(),
     healthLine: road.describeWindowsShellRoad().line,
   }
@@ -228,7 +233,7 @@ section('§1 the Windows road with no bash.exe (MERCURY_WINDOWS_SHELL_ROAD=no-ba
   }
 }
 
-section('§1b the same road with BASH_ENV and ENV set in the window: the engine is started without them, and every path answers')
+section('§1b the same road with BASH_ENV and ENV set in the window: the engine is started without BASH_ENV, which it refuses, and every path answers')
 {
   const startFile = join(scratchRoot, 'start-file.sh')
   writeFileSync(startFile, 'echo START-FILE-RAN\n')
@@ -239,6 +244,8 @@ section('§1b the same road with BASH_ENV and ENV set in the window: the engine 
     check('the plain call rides the engine session (before: brush refused every command, "not yet implemented: load config from $ENV/BASH_ENV")', r.plain.code === 0 && r.plain.out === `plain:${VERSION}:kept:scrubbed` && r.plain.session, JSON.stringify(r.plain))
     check('the Monitor-shaped call, the run_in_background call and the inherit_session_env call run under the engine binary', r.monitor.chunks.includes(`tick1:${VERSION}:${engineBinary}`) && r.background.out === `background:${VERSION}:none:${engineBinary}` && r.inherit.code === 0 && r.inherit.out.startsWith(`inherit:${VERSION}:none:cli:`), JSON.stringify({ monitor: r.monitor.chunks, background: r.background, inherit: r.inherit }))
     check('…and the file the two variables name was read by none of them', ![r.plain.out, r.monitor.chunks, r.background.out, r.inherit.out].some(out => out.includes('START-FILE-RAN')), JSON.stringify([r.plain.out, r.monitor.chunks, r.background.out, r.inherit.out]))
+    const seen = `ENV=${startFile} BASH_ENV=unset`
+    check('a command under the engine sees ENV as it was set where Mercury was started, and not BASH_ENV: in the session and in a process of its own', r.startFiles.session === seen && r.startFiles.ownProcess === seen, JSON.stringify(r.startFiles))
   }
 }
 

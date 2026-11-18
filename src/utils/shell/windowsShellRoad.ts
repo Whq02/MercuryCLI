@@ -187,9 +187,10 @@ export function withProgramsFirst(env: NodeJS.ProcessEnv, dir: string, platform:
 }
 
 const SHELL_START_FILE_VARIABLES = ['BASH_ENV', 'ENV']
+const ENGINE_REFUSES = ['BASH_ENV']
 
-export function withoutShellStartFiles(env: NodeJS.ProcessEnv, platform: string = process.platform): NodeJS.ProcessEnv {
-  const named = Object.keys(env).filter(name => SHELL_START_FILE_VARIABLES.includes(platform === 'win32' ? name.toUpperCase() : name))
+export function withoutShellStartFiles(env: NodeJS.ProcessEnv, platform: string = process.platform, names: readonly string[] = SHELL_START_FILE_VARIABLES): NodeJS.ProcessEnv {
+  const named = Object.keys(env).filter(name => names.includes(platform === 'win32' ? name.toUpperCase() : name))
   if (named.length === 0) return env
   const kept = { ...env }
   for (const name of named) delete kept[name]
@@ -202,8 +203,12 @@ export function withShippedPrograms(env: NodeJS.ProcessEnv, shellPath: string): 
   return shipped === null || shipped.programsDir === null || shipped.path !== shellPath ? env : withProgramsFirst(env, shipped.programsDir)
 }
 
+export function withoutWhatTheEngineRefuses(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return withoutShellStartFiles(env, process.platform, ENGINE_REFUSES)
+}
+
 export function withRoadPrograms(env: NodeJS.ProcessEnv, origin: ShellOrigin, shellPath: string): NodeJS.ProcessEnv {
-  if (origin === 'engine') return withoutShellStartFiles(windowsShellRoadActive() ? withGitPrograms(env) : env)
+  if (origin === 'engine') return withoutWhatTheEngineRefuses(windowsShellRoadActive() ? withGitPrograms(env) : env)
   return origin === 'system' ? env : withShippedPrograms(env, shellPath)
 }
 
