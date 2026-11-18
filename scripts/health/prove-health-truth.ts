@@ -27,7 +27,7 @@ const { HEALTH_SECTIONS } = await import('../../src/utils/health/sections.ts')
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
 const { getRipgrepStatus } = await import('../../src/utils/ripgrep.ts')
 const context = await healthContext()
-const rows = new Map(HEALTH_SECTIONS.flatMap(entry => entry.checks(context)).map(row => [row.id, row]))
+const rows = new Map((await Promise.all(HEALTH_SECTIONS.map(entry => entry.checks(context)))).flat().map(row => [row.id, row]))
 const run = async (id: string) => rows.get(id)!.run()
 
 const { getSettingsWithAllErrors } = await import('../../src/utils/settings/allErrors.ts')

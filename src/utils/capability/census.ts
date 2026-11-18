@@ -1,7 +1,7 @@
 
 import { getAllBaseTools } from '../../tools.js'
 import { toolMatchesName, type Tool } from '../../Tool.js'
-import { getFlagSpec } from '../../substrate/flagRegistry.js'
+import { flagEnabled, getFlagSpec } from '../../substrate/flagRegistry.js'
 import {
   deriveCapabilityDescriptor,
   type CapabilityCategory,
@@ -283,6 +283,7 @@ interface CensusGapLine {
 export function censusGapLines(
   census: ToolCensus,
   flagKind: (env: string) => string | undefined = env => getFlagSpec(env)?.kind,
+  flagOn: (env: string) => boolean = flagEnabled,
 ): CensusGapLine[] {
   const groups = new Map<string, CensusGapLine>()
   for (const row of census.rows) {
@@ -293,7 +294,7 @@ export function censusGapLines(
     if (row.support === 'unavailable' && gate !== undefined) {
       const kind = flagKind(gate)
       const state = kind === 'opt-in' ? 'unset (an opt-in flag)' : kind === 'default-on' ? 'turned off' : 'off'
-      parts.push(`${gate} ${state}`)
+      if (kind !== 'default-on' || conditions.length === 0 || !flagOn(gate)) parts.push(`${gate} ${state}`)
     }
     if (conditions.length > 0) parts.push(`needs ${conditions.join(' · ')}`)
     const reason = parts.length > 0 ? parts.join(' · ') : CENSUS_NO_REASON

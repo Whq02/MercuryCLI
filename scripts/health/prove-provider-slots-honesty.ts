@@ -22,11 +22,9 @@ console.log('============================================================')
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { healthContext } = await import('../../src/utils/healthReport.ts')
 const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
 const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
-const context = await healthContext()
-const slots = await authChecks(context).find(row => row.id === 'provider-slots')?.run()
+const slots = await (await authChecks()).find(row => row.id === 'provider-slots')?.run()
 const snap = buildProviderSnapshot()
 const unavailable = snap.providers.filter(p => p.id !== 'anthropic' && !p.available).map(p => p.reason ?? '')
 check('the accepted-code list exists', slots?.status === 'ok' && unavailable.length > 0, slots?.evidence)
@@ -59,7 +57,7 @@ check(
   slots?.evidence,
 )
 
-const authIds = authChecks(context).map(row => row.id).filter(id => id.startsWith('auth-'))
+const authIds = (await authChecks()).map(row => row.id).filter(id => id.startsWith('auth-'))
 check(
   'AUTH rows enumerate the catalogue (buildProviderSnapshot inside providerAuthChecks)',
   authIds.length === snap.providers.length && authIds.length > 5,
@@ -72,7 +70,7 @@ check(
 )
 process.env.ZAI_API_KEY = 'fixture-zai-key'
 process.env.MERCURY_ZAI_API_BASE = 'http://127.0.0.1:9'
-const credentialed = await authChecks(context).find(row => row.id === 'auth-zai')?.run()
+const credentialed = await (await authChecks()).find(row => row.id === 'auth-zai')?.run()
 delete process.env.ZAI_API_KEY
 check(
   'the no-network-probe law is stated on present credentials',

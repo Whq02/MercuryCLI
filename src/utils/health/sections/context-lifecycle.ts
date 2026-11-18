@@ -1,8 +1,6 @@
-import type { CheckSpec, HealthContext } from '../../healthReport.js'
+import type { CheckSpec } from '../../healthReport.js'
 
-export function contextLifecycleChecks(context: HealthContext): CheckSpec[] {
-  const { probes } = context
-  if (probes === null) return []
+export function contextLifecycleChecks(): CheckSpec[] {
   return [
     {
       id: 'context-parity',
@@ -10,7 +8,7 @@ export function contextLifecycleChecks(context: HealthContext): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 20_000,
-      run: () => probes.probeContextParity(),
+      run: async () => (await import('../../healthDeepProbes.js')).probeContextParity(),
     },
   ]
 }

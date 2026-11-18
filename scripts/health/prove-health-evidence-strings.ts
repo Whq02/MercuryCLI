@@ -168,6 +168,23 @@ rmSync(scratch, { recursive: true, force: true })
     slots?.evidence,
   )
   check('FC-095: the LIVE spelling is out of the router row', slots !== undefined && !/\bLIVE\b/.test(slots.evidence), slots?.evidence)
+  const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
+  const before = { key: process.env.ZAI_API_KEY, base: process.env.MERCURY_ZAI_API_BASE, targets: process.env.MERCURY_LOCAL_PROBE_TARGETS }
+  process.env.ZAI_API_KEY = 'fixture-zai-key'
+  process.env.MERCURY_ZAI_API_BASE = 'http://127.0.0.1:9'
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  const keyed = await (await authChecks()).find(row => row.id === 'provider-slots')?.run()
+  for (const [name, value] of [['ZAI_API_KEY', before.key], ['MERCURY_ZAI_API_BASE', before.base], ['MERCURY_LOCAL_PROBE_TARGETS', before.targets]] as const) {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+  }
+  const engineLine = / · engines: (.*?) · engine seats/.exec(keyed?.evidence ?? '')?.[1] ?? ''
+  const words = engineLine.split(' · ').filter(part => /(?:^|[ ,])zai(?:,|$)/.test(part))
+  check(
+    "FC-095: with a Z.AI key the engine reads available, and the row's word for it is 'configured' (no probe went out, so never LIVE)",
+    keyed?.status === 'ok' && words.length === 1 && words[0]!.startsWith('configured ') && !/\bLIVE\b/.test(keyed.evidence),
+    keyed?.evidence,
+  )
 }
 
 console.log(failures === 0 ? 'HEALTH EVIDENCE STRING LAWS HOLD' : `${failures} FAILURE(S)`)

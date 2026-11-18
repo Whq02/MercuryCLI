@@ -406,7 +406,7 @@ scripts/engine-connector/prove-connector-contract.ts	3	8	65572e5ec3e0
 scripts/engine-connector/prove-crew-rail-leaves-with-runner.ts	3	13	76d44bceca27
 scripts/engine-connector/prove-crew-truth.ts	13	21	6227b4f866c0
 scripts/engine-connector/prove-crew-views-agree.ts	2	4	73087a9b0897
-scripts/engine-connector/prove-crew-vocabulary.ts	19	0	25db9ad4381c
+scripts/engine-connector/prove-crew-vocabulary.ts	18	0	e3e7f13e934c
 scripts/engine-connector/prove-face-census.ts	10	18	23a5a7224e12
 scripts/engine-connector/prove-foreground-crewmate-wait-words.ts	2	6	a9d6f4e625f7
 scripts/engine-connector/prove-header-truth.ts	3	24	b63d98d6009f

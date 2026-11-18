@@ -266,7 +266,7 @@ export function _resetDarwinDebuggerAuthForTesting(): void {
   darwinDebuggerAuthMemo = undefined
 }
 
-export function darwinDebuggerAuthorisationHint(): string | null {
+function devToolsSecurityStatus(): string | null {
   if (process.platform !== 'darwin') return null
   if (darwinDebuggerAuthMemo !== undefined) return darwinDebuggerAuthMemo
   try {
@@ -277,14 +277,18 @@ export function darwinDebuggerAuthorisationHint(): string | null {
       windowsHide: true,
       env: subprocessEnv(),
     })
-    const text = `${status.stdout ?? ''}${status.stderr ?? ''}`
-    darwinDebuggerAuthMemo = /disabled/i.test(text)
-      ? 'macOS debugger authorisation is off (DevToolsSecurity -status: disabled) — a native debugger blocks in task_for_pid until it is granted, and the grant lasts one boot; enable it durably with: sudo DevToolsSecurity -enable'
-      : null
+    darwinDebuggerAuthMemo = `${status.stdout ?? ''}${status.stderr ?? ''}`
   } catch {
     darwinDebuggerAuthMemo = null
   }
   return darwinDebuggerAuthMemo
+}
+
+export function darwinDebuggerAuthorisationHint(status: () => string | null = devToolsSecurityStatus): string | null {
+  const text = status()
+  return text !== null && /disabled/i.test(text)
+    ? 'macOS debugger authorisation is off (DevToolsSecurity -status: disabled) — a native debugger blocks in task_for_pid until it is granted, and the grant lasts one boot; enable it durably with: sudo DevToolsSecurity -enable'
+    : null
 }
 
 export function adapterSilenceMessage(base: string, adapterKey: string): string {

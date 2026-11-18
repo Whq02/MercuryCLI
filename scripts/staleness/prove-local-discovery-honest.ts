@@ -64,12 +64,11 @@ globalConfig.enableConfigs()
 }
 
 {
-  const { healthContext } = await import('../../src/utils/healthReport.ts')
   const { authChecks, ENGINE_UNAVAILABLE_CODES } = await import('../../src/utils/health/sections/auth.ts')
   const probedBefore = discovery.primeLocalDiscovery({ now: () => Date.now() })?.probedAtMs ?? 0
   const targetsBefore = process.env.MERCURY_LOCAL_PROBE_TARGETS
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'openai-compatible=http://127.0.0.1:9'
-  const slotsSays = await authChecks(await healthContext()).find(row => row.id === 'provider-slots')?.run()
+  const slotsSays = await (await authChecks()).find(row => row.id === 'provider-slots')?.run()
   if (targetsBefore === undefined) delete process.env.MERCURY_LOCAL_PROBE_TARGETS
   else process.env.MERCURY_LOCAL_PROBE_TARGETS = targetsBefore
   const probedAfter = discovery.primeLocalDiscovery({ now: () => Date.now() })?.probedAtMs ?? 0

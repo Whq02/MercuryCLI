@@ -90,11 +90,10 @@ section('§1 the per-model pools ride the active-source view, and every renderer
   const tab = src('src/components/Settings/Usage.tsx')
   check('the tab reads the pools through the owner\'s pool view, titled by label', tab.includes('anthropicPoolWindowViews()') && tab.includes('`Current week (${w.label})`'))
   check('the tab decodes the fetch response nowhere (one owner, one decode)', !tab.includes('data.seven_day_') && !tab.includes('data.five_hour'))
-  const { healthContext } = await import('../../src/utils/healthReport.ts')
   const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
   const zaiKey = process.env.ZAI_API_KEY
   process.env.ZAI_API_KEY = 'fixture-zai-key'
-  const authRows = authChecks(await healthContext())
+  const authRows = await authChecks()
   const credentialed = owner.providerFamilyPresences().filter(presence => presence.credentialed).map(presence => presence.id)
   const usageSays = await authRows.find(row => row.id === 'usage-zai')?.run()
   const usageWords = owner.usageSummaryWords(owner.usageForProvider('zai'))
@@ -547,12 +546,11 @@ section('§9 the carry words: a reached window says what carries the requests fr
   check('the OpenAI wall row carries them after the wire\'s words', openaiWall.includes("usageCarryWords(usageForProvider('openai').carry)") && openaiWall.includes('— ${outcome.fault.message}${carryClause}. The next request goes to OpenAI again; resume any time.'))
   const strip = src('src/services/providers/limitWarning.ts')
   check('the strip warning appends them only at 100%', strip.includes('if (facts === null || facts.pct < 100) return facts') && strip.includes('text: `${facts.view.text} · ${carry}`'))
-  const { healthContext } = await import('../../src/utils/healthReport.ts')
   const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
   const { standingAnthropicRefusal } = await import('../../src/services/providers/anthropicRefusal.ts')
   const anthropicKey = process.env.ANTHROPIC_API_KEY
   if (!owner.anthropicCredentialPresence().credentialed) process.env.ANTHROPIC_API_KEY = 'fixture-anthropic-key'
-  const anthropicUsage = await authChecks(await healthContext()).find(row => row.id === 'usage-anthropic')?.run()
+  const anthropicUsage = await (await authChecks()).find(row => row.id === 'usage-anthropic')?.run()
   const standing = standingAnthropicRefusal()
   const expected = `${owner.usageSummaryWords(owner.usageForProvider('anthropic'))}${standing?.kind === 'window' ? ` · ${standing.words}` : ''}`
   if (anthropicKey === undefined) delete process.env.ANTHROPIC_API_KEY

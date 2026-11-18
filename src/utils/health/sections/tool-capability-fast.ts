@@ -9,6 +9,11 @@ function skillsRefusedCheck(): CheckSpec {
   }
 }
 
+async function settleCatalogueGates(): Promise<void> {
+  const [{ settleDapAdapterProbes }, { primeEvalAvailability }] = await Promise.all([import('../../../services/dap/dapClient.js'), import('../../../services/eval/interpreters.js')])
+  await Promise.all([settleDapAdapterProbes(), primeEvalAvailability(getCwd())])
+}
+
 export function toolCapabilityFastChecks(): CheckSpec[] {
   return [
     skillsRefusedCheck(),
@@ -17,6 +22,7 @@ export function toolCapabilityFastChecks(): CheckSpec[] {
       label: 'Capability census',
       run: async () => {
         const { buildToolCensus, censusGapLines, CENSUS_NO_REASON, CENSUS_VERSION } = await import('../../capability/census.js')
+        await settleCatalogueGates()
         const c = buildToolCensus()
         const s = c.summary
         const undeclared = c.rows.filter(r => r.declared === null).map(r => r.name)
@@ -65,6 +71,7 @@ export function toolCapabilityFastChecks(): CheckSpec[] {
       label: 'Lifecycle integrations',
       run: async () => {
         const { buildToolCensus } = await import('../../capability/census.js')
+        await settleCatalogueGates()
         const s = buildToolCensus().summary
         return {
           status: 'ok' as const,
@@ -81,6 +88,7 @@ export function toolCapabilityFastChecks(): CheckSpec[] {
       run: async () => {
         const { getAllBaseTools } = await import('../../../tools.js')
         const { searchToolsWithKeywords } = await import('../../../tools/ToolSearchTool/ToolSearchTool.js')
+        await settleCatalogueGates()
         const tools = getAllBaseTools()
         const deferred = tools.filter(t => t.shouldDefer === true)
         if (!tools.some(t => t.name === 'Git')) {

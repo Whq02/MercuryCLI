@@ -1,6 +1,58 @@
 import { whichSync } from '../../which.js'
 import { flagAsSet, type CheckSpec } from '../../healthReport.js'
 
+export function idePlaneFastCheck(devToolsSecurity?: () => string | null): CheckSpec {
+  return {
+    id: 'ide-plane-fast',
+    label: 'IDE plane',
+    run: async () => {
+      const { selectPythonInterpreter } = await import('../../../services/ide/pythonProject.js')
+      const { probeBuiltinPyright } = await import('../../../services/lsp/pyrightLane.js')
+      const { probeRuff } = await import('../../../services/lsp/ruffLane.js')
+      const { projectPythonDebuggerProvenance } = await import('../../../services/ide/pythonProject.js')
+      const { probeBuiltinClangd, probeCompileDb } = await import('../../../services/lsp/clangdLane.js')
+      const { mercuryGodotEnabled } = await import('../../../services/lsp/godotLane.js')
+      const { vulcanEnabled } = await import('../../vulcan/vulcanGates.js')
+      const { latestTransaction } = await import('../../../services/ide/ideTransaction.js')
+      const { latestRun } = await import('../../../services/ide/pythonTests.js')
+      const { darwinDebuggerAuthorisationHint } = await import('../../../services/dap/dapClient.js')
+
+      const py = selectPythonInterpreter()
+      const pyright = probeBuiltinPyright()
+      const ruff = probeRuff()
+      const debugpy = projectPythonDebuggerProvenance()
+      const clangd = probeBuiltinClangd()
+      const db = probeCompileDb()
+      const tx = latestTransaction()
+      const test = latestRun()
+      const debugAuth = darwinDebuggerAuthorisationHint(devToolsSecurity)
+
+      const pyLine =
+        py.state === 'ok'
+          ? `python ${py.version} (${py.envKind}) · pyright ${pyright.available ? `${pyright.source}${pyright.version ? ` ${pyright.version}` : ''}` : 'ABSENT'} · ruff ${ruff.available ? (ruff.version ?? 'ok') : 'ABSENT'} · debugpy ${debugpy.adapterSource}`
+          : `python UNAVAILABLE (${py.detail.slice(0, 80)})`
+      const cppLine =
+        (clangd.available
+          ? `clangd ${clangd.clangdPath} · compile DB ${db.compileDb ?? 'ABSENT'}`
+          : `clangd ABSENT (${clangd.reason?.slice(0, 60)})`) +
+        (debugAuth ? ` · native debug: ${debugAuth}` : '')
+      const godotLine = `godot lanes ${mercuryGodotEnabled() ? 'armed' : 'disarmed'} · vulcan ${vulcanEnabled() ? 'armed' : 'disarmed'}`
+      const planeLine = `latest transaction ${tx ? `${tx.id} [${tx.verdict}]` : '—'} · latest test run ${test ? `${test.id} (${test.counts.failed === 0 ? 'green' : `${test.counts.failed} failing`})` : '—'}`
+      const healthy = py.state === 'ok' || clangd.available
+      return {
+        status: healthy && debugAuth === null ? ('ok' as const) : ('warn' as const),
+        evidence: debugAuth ? `${pyLine} · native debug authorisation OFF` : pyLine,
+        detail: [cppLine, godotLine, planeLine].join('\n'),
+        ...(py.state !== 'ok'
+          ? { fix: 'Install Python 3, or point MERCURY_PYTHON at one.' }
+          : debugAuth
+            ? { fix: 'sudo DevToolsSecurity -enable (macOS debugger authorisation; durable across reboots).' }
+            : {}),
+      }
+    },
+  }
+}
+
 export function codingLoopFastChecks(): CheckSpec[] {
   return [
     {
@@ -42,55 +94,7 @@ export function codingLoopFastChecks(): CheckSpec[] {
         }
       },
     },
-    {
-      id: 'ide-plane-fast',
-      label: 'IDE plane',
-      run: async () => {
-        const { selectPythonInterpreter } = await import('../../../services/ide/pythonProject.js')
-        const { probeBuiltinPyright } = await import('../../../services/lsp/pyrightLane.js')
-        const { probeRuff } = await import('../../../services/lsp/ruffLane.js')
-        const { projectPythonDebuggerProvenance } = await import('../../../services/ide/pythonProject.js')
-        const { probeBuiltinClangd, probeCompileDb } = await import('../../../services/lsp/clangdLane.js')
-        const { mercuryGodotEnabled } = await import('../../../services/lsp/godotLane.js')
-        const { vulcanEnabled } = await import('../../vulcan/vulcanGates.js')
-        const { latestTransaction } = await import('../../../services/ide/ideTransaction.js')
-        const { latestRun } = await import('../../../services/ide/pythonTests.js')
-        const { darwinDebuggerAuthorisationHint } = await import('../../../services/dap/dapClient.js')
-
-        const py = selectPythonInterpreter()
-        const pyright = probeBuiltinPyright()
-        const ruff = probeRuff()
-        const debugpy = projectPythonDebuggerProvenance()
-        const clangd = probeBuiltinClangd()
-        const db = probeCompileDb()
-        const tx = latestTransaction()
-        const test = latestRun()
-        const debugAuth = darwinDebuggerAuthorisationHint()
-
-        const pyLine =
-          py.state === 'ok'
-            ? `python ${py.version} (${py.envKind}) · pyright ${pyright.available ? `${pyright.source}${pyright.version ? ` ${pyright.version}` : ''}` : 'ABSENT'} · ruff ${ruff.available ? (ruff.version ?? 'ok') : 'ABSENT'} · debugpy ${debugpy.adapterSource}`
-            : `python UNAVAILABLE (${py.detail.slice(0, 80)})`
-        const cppLine =
-          (clangd.available
-            ? `clangd ${clangd.clangdPath} · compile DB ${db.compileDb ?? 'ABSENT'}`
-            : `clangd ABSENT (${clangd.reason?.slice(0, 60)})`) +
-          (debugAuth ? ` · native debug: ${debugAuth}` : '')
-        const godotLine = `godot lanes ${mercuryGodotEnabled() ? 'armed' : 'disarmed'} · vulcan ${vulcanEnabled() ? 'armed' : 'disarmed'}`
-        const planeLine = `latest transaction ${tx ? `${tx.id} [${tx.verdict}]` : '—'} · latest test run ${test ? `${test.id} (${test.counts.failed === 0 ? 'green' : `${test.counts.failed} failing`})` : '—'}`
-        const healthy = py.state === 'ok' || clangd.available
-        return {
-          status: healthy && debugAuth === null ? ('ok' as const) : ('warn' as const),
-          evidence: debugAuth ? `${pyLine} · native debug authorisation OFF` : pyLine,
-          detail: [cppLine, godotLine, planeLine].join('\n'),
-          ...(py.state !== 'ok'
-            ? { fix: 'Install Python 3, or point MERCURY_PYTHON at one.' }
-            : debugAuth
-              ? { fix: 'sudo DevToolsSecurity -enable (macOS debugger authorisation; durable across reboots).' }
-              : {}),
-        }
-      },
-    },
+    idePlaneFastCheck(),
     {
       id: 'anvil-workbench-fast',
       label: 'Utility workbench',

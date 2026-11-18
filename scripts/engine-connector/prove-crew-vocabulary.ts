@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { healthRowLiterals, LITERAL_BAN_LINE } from '../lib/healthRowLiterals.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -14,13 +15,11 @@ const NEEDLES: Array<[string, RegExp]> = [
   ['a terminal multiplexer named where no real session is meant', new RegExp(J('\\b', 'tm', 'ux\\b'), 'i')],
   ['the retired member word', new RegExp(J('(?<!/)\\b', 'team', 'mates?\\b'), 'i')],
   ['the retired capitalised group word', new RegExp(J('\\b', 'Team', 's?\\b'))],
-  ['the retired launch phrase', new RegExp(J('team', ' launch'), 'i')],
-  ['the spawn tool named as copy', new RegExp(J('Team', 'Create'))],
-  ['the retired shared-estate word', new RegExp(J('multi', 'player'), 'i')],
   ['the retired seat-estate word', new RegExp(J('(?<!(?:third|first)[- ])\\b', 'party', '\\b'), 'i')],
 ]
 
 const BARE_TOKEN = /^['"][A-Za-z0-9_./@:-]+['"]$/
+const BARE_WORD = /^[A-Za-z0-9_./@:-]+$/
 const HOLES = /\$\{[^}]*\}/g
 
 const FILES = [
@@ -42,7 +41,6 @@ const FILES = [
   'src/services/engine-connector/crewFacts.ts',
   'src/utils/cockpit/fleetGauge.ts',
   'src/state/vitalsBus.ts',
-  'src/utils/healthReport.ts',
 ]
 
 const ALLOW: Array<[string, string, string]> = []
@@ -92,6 +90,7 @@ function scan(source: string): Hit[] {
   return hits
 }
 
+console.log('Three retired words need no reading of copy and are held over the whole product by scripts/gate/prove-vocabulary-seal.ts (crew-launch-phrase, crew-spawn-tool, crew-shared-estate); the four here are words the product also holds as names, so they are read in copy alone.')
 console.log('— §0 the scanner bites (poison control) —')
 {
   const poison = [
@@ -144,7 +143,16 @@ for (const rel of FILES) {
 }
 console.log(`  (${allowedCount} allowed literal(s) — each with its reason in ALLOW)`)
 
-console.log('— §1b the words the health rows print —')
+console.log('— §1b the words the health rows hold —')
+const rowsRead = healthRowLiterals()
+{
+  console.log(`  ${LITERAL_BAN_LINE}`)
+  const held = rowsRead.literals.filter(literal => !BARE_WORD.test(literal.text))
+  const retired = held.flatMap(literal => NEEDLES.filter(([, re]) => re.test(literal.text) && !ROW_ALLOW.some(([fragment]) => literal.text.includes(fragment))).map(([needle]) => `\n      ${literal.file}:${literal.line} [${needle}] ${literal.text.slice(0, 100)}`))
+  check(`the ${rowsRead.files.length} modules that hold the health rows: no retired word in a string of theirs (${held.length} strings, ${rowsRead.ms}ms)`, rowsRead.files.length > 20 && held.length > 1000 && retired.length === 0, retired.join(''))
+}
+
+console.log('— §1c the words the health rows print —')
 {
   const globals = globalThis as Record<string, unknown>
   if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
@@ -171,6 +179,9 @@ console.log('— §2 every allowed fragment still exists (no dead exception) —
 for (const [file, fragment, reason] of ALLOW) {
   const present = readFileSync(join(ROOT, file), 'utf8').includes(fragment)
   check(`${file} carries '${fragment}' (${reason})`, present)
+}
+for (const [fragment, reason] of ROW_ALLOW) {
+  check(`a string of the health rows carries '${fragment}' (${reason})`, rowsRead.literals.some(literal => literal.text.includes(fragment)))
 }
 
 console.log(failures === 0 ? '\nprove-crew-vocabulary: ALL LAWS HOLD' : `\nprove-crew-vocabulary: ${failures} FAILURE(S)`)

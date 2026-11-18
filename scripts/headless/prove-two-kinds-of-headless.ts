@@ -115,6 +115,19 @@ await guarded(async () => {
   const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
   const kindRow = await runtimeChecks().find(row => row.id === 'session-kind')?.run()
   check("/health carries the Session kind row, read from the focused session's record and spoken in the vocabulary's words", kindRow?.status === 'info' && kindRow.evidence.startsWith('no session is focused here') && kindRow.evidence.includes('oculus: a screen belongs to it') && kindRow.evidence.includes('headless: unattended'), kindRow?.evidence)
+  const focus = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const sessionRecords = await import('../../src/daemon/concourseWorkers.ts')
+  const focusedId = 'two-kinds-focused-session'
+  const kindOnRecord = async (kind: 'oculus' | 'headless' | undefined): Promise<string> => {
+    sessionRecords.updateConcourseWorkers(all => {
+      all['concourse-w1'] = { schema: 1, runnerId: 'concourse-w1', sessionId: focusedId, workspaceId: 'two-kinds', isolation: 'shared', modelKey: MODEL, spawnedAt: Date.now(), lastLiveAt: Date.now(), pid: process.pid, ...(kind === undefined ? {} : { kind }) }
+    })
+    return (await runtimeChecks().find(row => row.id === 'session-kind')?.run())?.evidence ?? ''
+  }
+  focus.setFocusedSessionConnector({ sessionId: () => focusedId } as never)
+  const focusedSays = { oculus: await kindOnRecord('oculus'), headless: await kindOnRecord('headless'), unstamped: await kindOnRecord(undefined) }
+  focus._resetFocusedSessionConnectorForTesting()
+  check("with a session focused the row reads the kind from that session's record and speaks the vocabulary's sentence for it: oculus, headless, and a record with no kind", focusedSays.oculus === `the focused session is ${kinds.sessionKindWords('oculus')}` && focusedSays.headless === `the focused session is ${kinds.sessionKindWords('headless')}` && focusedSays.unstamped.startsWith('the focused session carries no kind on its record'), j(focusedSays))
   check('the two kinds have two sentences, each leading with its word', kinds.sessionKindWords('oculus').startsWith('oculus — a screen belongs to this session') && kinds.sessionKindWords('headless').startsWith('headless — unattended'))
   const saved = process.env.MERCURY_SESSION_KIND
   process.env.MERCURY_SESSION_KIND = 'oculus'

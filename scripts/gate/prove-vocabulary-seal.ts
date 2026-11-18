@@ -105,6 +105,9 @@ const RETIRED: Array<[string, RegExp, string[]]> = [
   ['mneme-home-name', new RegExp(J('mem', 'dir'), 'i'), [J('mem', 'dir'), J('mem', 'Dir'), J('Mem', 'dir'), J('Mem', 'Dir'), J('MEM', 'DIR')]],
   ['turn-engine-names', new RegExp(J('Query', 'Engine|submit', 'Message')), [J('Query', 'Engine'), J('submit', 'Message')]],
   ['crew-names', new RegExp(J('utils/', 'swarm|isAgent', 'SwarmsEnabled')), [J('utils/', 'swarm'), J('isAgent', 'Swarms')]],
+  ['crew-launch-phrase', new RegExp(J('[Tt]eam', ' launch')), [J('eam', ' launch')]],
+  ['crew-spawn-tool', asName(J('Tea', 'mCreate')), [J('Tea', 'mCreate')]],
+  ['crew-shared-estate', new RegExp(J('[Mm]ulti', 'player')), [J('ulti', 'player')]],
   ['engine-model-name', new RegExp(J('[mM]ain', 'LoopModel')), [J('ain', 'LoopModel')]],
   ['respond-to-model-name', new RegExp(J('RespondTo', 'Claude')), [J('RespondTo', 'Claude')]],
   ['shell-snapshot-name', new RegExp(J('ClaudeCode', 'Snapshot')), [J('ClaudeCode', 'Snapshot')]],
@@ -130,7 +133,7 @@ const RETIRED: Array<[string, RegExp, string[]]> = [
   ['route-store-files', new RegExp(J('posture', '\\.json|utils/rou', 'ter/|commands/rou', 'ter/|scripts/rou', 'ter/')), [J('posture', '.json'), J('/rou', 'ter/')]],
   ['claude-site-names', new RegExp(J('claudeAi', 'Limits|ClaudeAI', 'Limits|useClaudeAi', 'Limits|mcp/', 'claudeai\\b|claudeai\\.(?:ts|js)|claudeAiMcp', 'Armed|fetchClaudeAI', 'Mcp|clearClaudeAI', 'Mcp|markClaudeAi', 'Mcp|hasClaudeAiMcp', 'Ever|dedupClaudeAi', 'Mcp|McpClaudeAI', 'Proxy|ClaudeAI', 'ServerInfo|createClaudeAi', 'ProxyFetch|connectClaudeAi', 'Connectors|MERCURY_CLAUDEAI', '_MCP|prove-claudeai', '-optin')), [J('laudeAi', 'Limits'), J('ClaudeAI', 'Limits'), J('laude', 'ai'), J('ClaudeAI', 'Mcp'), J('ClaudeAi', 'Mcp'), J('McpClaudeAI', ''), J('ClaudeAI', 'ServerInfo'), J('ClaudeAi', 'Proxy'), J('ClaudeAi', 'Connectors'), J('CLAUDEAI', '_MCP')]],
 ]
-const PRODUCT_ONLY_ROWS = new Set(['other-tool-home'])
+const PRODUCT_ONLY_ROWS = new Set(['other-tool-home', 'crew-launch-phrase', 'crew-spawn-tool', 'crew-shared-estate'])
 const SETTINGS_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/)/
 const RETIRED_SETTINGS_ROOTS = [
   'apiKeyHelper', 'proxyAuthHelper', 'forceLoginMethod', 'forceLoginOrgUUID', 'fileSuggestion', 'respectGitignore', 'cleanupPeriodDays',
@@ -620,6 +623,9 @@ function main(): void {
       ['route-board-names', 'import { ' + J('Rou', 'terBoard') + " } from './" + J('Rou', 'terBoard') + ".js'"],
       ['route-store-files', "join(dir, '" + J('posture', '.json') + "')"],
       ['lineage-deprecated-suffix', 'export const getSettings' + J('_DEPRE', 'CATED') + ' = getInitialSettings'],
+      ['crew-launch-phrase', 'the ' + J('Tea', 'm launch') + ' backend'],
+      ['crew-spawn-tool', 'call ' + J('Tea', 'mCreate') + ' first'],
+      ['crew-shared-estate', 'a ' + J('multi', 'player') + ' session'],
     ]
     check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(','))
     check('§5 self-test: the rows reach docs, the README and the script estate', retiredHits('docs/x.md', trips[0]![1]).length === 1 && retiredHits('README.md', trips[0]![1]).length === 1 && retiredHits('scripts/x/prove-x.ts', trips[0]![1]).length === 1)

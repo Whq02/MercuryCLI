@@ -2,7 +2,7 @@ import { getAnthropicApiKeyWithSource, getAuthTokenSource } from '../../auth.js'
 import { buildProviderSnapshot } from '../../../services/providers/modelRegistry.js'
 import { getEngineModel, getUserSpecifiedModelSetting } from '../../model/model.js'
 import { computedDefault, mostRecentSignInFamily } from '../../model/computedDefault.js'
-import { unresolvedDefaultRow, type CheckSpec, type HealthContext } from '../../healthReport.js'
+import { tensorFoldHealthChecks, unresolvedDefaultRow, type CheckSpec } from '../../healthReport.js'
 
 const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string }> = {
   anthropic: { label: 'Anthropic', signIn: 'Run /logins (or export ANTHROPIC_API_KEY)' },
@@ -220,7 +220,7 @@ function modelListsCheck(): CheckSpec {
   }
 }
 
-export const ENGINE_UNAVAILABLE_CODES = [
+export const ENGINE_UNAVAILABLE_CODES: readonly string[] = Object.freeze([
   'discovery-pending:',
   'no-executable:',
   'no-auth:',
@@ -230,7 +230,7 @@ export const ENGINE_UNAVAILABLE_CODES = [
   'no-server:',
   'no-credential:',
   'disabled:',
-]
+])
 
 function providerSlotsCheck(): CheckSpec {
   return {
@@ -318,7 +318,7 @@ function extraCaCertsCheck(): CheckSpec {
   }
 }
 
-export function authChecks(context: HealthContext): CheckSpec[] {
-  const { tensorFoldChecks } = context
+export async function authChecks(): Promise<CheckSpec[]> {
+  const tensorFoldChecks = await tensorFoldHealthChecks()
   return [...providerAuthChecks(), ...providerUsageChecks(), ...tensorFoldChecks, providerSlotsCheck(), modelListsCheck(), webSearchDoorCheck(), extraCaCertsCheck()]
 }
