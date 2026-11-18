@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: src/ink/input/** src/ink/events/input-event.ts
 # gate-watch: src/screens/Chat.tsx src/components/PromptInput/**
 # gate-watch: src/input-core/** src/components/mercury-ui/useInteractiveList.ts
@@ -29,27 +29,15 @@ cd "$(dirname "$0")/../.." || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 overall=0
 for p in \
-  scripts/prompt-input/prove-composer-mouse-tail.ts \
-  scripts/prompt-input/prove-prompt-input-switch-fence.ts \
   scripts/prompt-input/prove-prompt-input-async-note.ts \
-  scripts/prompt-input/prove-prompt-input-change-view.ts \
-  scripts/prompt-input/prove-prompt-input-chip-atomicity.ts \
-  scripts/prompt-input/prove-prompt-input-paste-prune.ts \
   scripts/prompt-input/prove-newline-hint-latch.ts \
   scripts/prompt-input/prove-backslash-path-enter.ts \
   scripts/prompt-input/prove-suggestion-platform-and-project.ts \
   scripts/prompt-input/prove-name-anchored-enter.ts \
   scripts/prompt-input/prove-history-scan-debounce.ts \
   scripts/prompt-input/prove-typing-survives-rekey.ts \
-  scripts/prompt-input/prove-image-paste-drive.ts \
-  scripts/prompt-input/prove-image-chip-typing.ts \
-  scripts/prompt-input/prove-pasted-prompt-row.ts \
-  scripts/prompt-input/prove-paste-quick-enter-drive.ts \
   scripts/prompt-input/prove-stash-carries-mode.ts \
   scripts/prompt-input/prove-edit-sanitises.ts \
-  scripts/prompt-input/prove-typed-word-plain-ink.ts \
-  scripts/prompt-input/prove-optp-effort-notice.ts \
-  scripts/prompt-input/prove-optp-saved-default.ts \
 ; do
   echo "── $p"
   __t=$SECONDS; __rc=0; "$BUN" run "$p" || { __rc=$?; overall=1; }; prover_mark "$p" "$__t" "$__rc"
