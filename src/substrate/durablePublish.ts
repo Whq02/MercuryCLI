@@ -1,4 +1,5 @@
 import { flagEnv } from './flagRegistry.js'
+import { sleep } from '../utils/sleep.js'
 
 import {
   closeSync,
@@ -110,8 +111,6 @@ export function renameRetryDelayMs(
   return WIN32_RENAME_RETRY_DELAYS_MS[attempt - 1]!
 }
 
-const sleepAsync = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-
 function isReadOnlyDestination(to: string): boolean {
   try {
     const stats = statSync(to)
@@ -180,7 +179,7 @@ export async function renameWithWin32Retry(
       const delay = renameRetryDelayMs(errnoOf(e), attempt)
       if (delay === null) throw e
       if (attempt === 1 && isReadOnlyDestination(to)) throw e
-      await sleepAsync(delay)
+      await sleep(delay)
     }
   }
 }
@@ -309,7 +308,7 @@ export async function durableAtomicPublish(
       } catch (e) {
         const delay = renameRetryDelayMs(errnoOf(e), renameAttempts)
         if (delay === null) throw e
-        await sleepAsync(delay)
+        await sleep(delay)
       }
     }
   } catch (e) {

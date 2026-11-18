@@ -4,6 +4,7 @@ import { homedir, totalmem } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 import { getApiFetch } from '../../utils/proxy.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { sleep } from '../../utils/sleep.js'
 import { writeLocalWindowSetting } from '../providers/local/localWindow.js'
 import { readLocalServerSettings } from '../localServer/localServerKnobs.js'
 import { readLocalMachineTruth, type LocalServerTruth } from '../localServer/localServerTruth.js'
@@ -102,10 +103,7 @@ function defaultRealpath(path: string): string | undefined {
 }
 
 function defaultSleep(ms: number): Promise<void> {
-  return new Promise(resolve => {
-    const timer = setTimeout(resolve, ms)
-    timer.unref?.()
-  })
+  return sleep(ms, undefined, { unref: true })
 }
 
 function defaultExec(file: string, args: string[], opts: ExecOptions = {}): Promise<ExecResult> {

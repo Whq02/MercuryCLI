@@ -40,6 +40,7 @@ import { isScreenCommandOrigin, type ScreenCommandOrigin } from '../utils/messag
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
 import type { ProcessSweepEntry } from './processSweep.js'
+import { sleep } from '../utils/sleep.js'
 
 export type ControlOutcome = {
   outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'
@@ -491,7 +492,7 @@ async function awaitReadiness(deps: ControlServerDeps, holdMs: number): Promise<
     return deps.isReady()
   }
   while (Date.now() < deadline) {
-    await new Promise<void>(resolve => setTimeout(resolve, 25))
+    await sleep(25)
     if (deps.isReady()) return true
   }
   return deps.isReady()
@@ -801,7 +802,7 @@ async function routeControlRequest(
       let r = await deps.concourseAdmit(admitRequest)
       const seatDeadline = Date.now() + waitForSeatMs
       while (!r.ok && r.code === 'runtime-ceiling' && waitForSeatMs > 0 && Date.now() < seatDeadline && !sock.destroyed) {
-        await new Promise(resolveWait => setTimeout(resolveWait, Math.min(1000, Math.max(50, seatDeadline - Date.now()))))
+        await sleep(Math.min(1000, Math.max(50, seatDeadline - Date.now())))
         r = await deps.concourseAdmit(admitRequest)
       }
       if (!r.ok) {

@@ -1,6 +1,7 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredNousApiKey } from '../providerSecrets.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
+import { sleep as wait } from '../../../utils/sleep.js'
 import { NOUS_API_KEY_ENV, nousApiBase, nousSigninIdentity } from './nousAccounts.js'
 import { peekNousClient } from './nousClientContract.js'
 import { pollNousDeviceToken, startNousDeviceAuth, writeNousTokens, writePreferredNousSource, type NousDeviceAuthStart, type NousOauthIo, type NousTokens } from './nousOauth.js'
@@ -75,7 +76,7 @@ export async function runNousDeviceLogin(args: {
 } = {}): Promise<{ ok: boolean; receipt: string; settledAfterCancel?: true }> {
   const cancelled = args.cancelled ?? (() => false)
   const now = args.io?.now ?? Date.now
-  const sleep = args.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)))
+  const sleep = args.sleep ?? wait
   const fail = (what: string): { ok: false; receipt: string } => ({ ok: false, receipt: `${what} — nothing stored. ${NOUS_KEY_LEG_OFFER}` })
   args.onEvent?.({ phase: 'starting' })
   await peekNousClient(args.io).catch(() => undefined)

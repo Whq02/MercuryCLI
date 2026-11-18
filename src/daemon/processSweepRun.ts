@@ -6,6 +6,7 @@ import { renameWithWin32Retry } from '../substrate/durablePublish.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { runningBuildTree } from '../utils/artifactIdentity.js'
 import { getMercuryHome } from '../utils/envUtils.js'
+import { sleep as wait } from '../utils/sleep.js'
 import { readSessionWorkersSnapshot, stampedTerminalPid, type ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 import { daemonControlRpc, daemonDir } from './controlSocket.js'
 import { sessionParkDrainMs } from './idleRetirement.js'
@@ -341,7 +342,7 @@ export async function endStaleProcesses(reviewed: readonly ProcessSweepEntry[], 
       return false
     }
   })
-  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)))
+  const sleep = deps.sleep ?? wait
   const endings: ProcessSweepEnding[] = []
   const record = (entry: ProcessSweepEntry, outcome: ProcessSweepEnding['outcome'], road: ProcessSweepEnding['road'], reason: string): void => {
     endings.push({ entry, outcome, road, reason, at: now() })

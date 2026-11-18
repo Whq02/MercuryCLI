@@ -31,6 +31,7 @@ import { subprocessEnv } from './subprocessEnv.js'
 import { isTransientWin32FsCode } from '../substrate/durablePublish.js'
 import type { HealthCheck } from './healthCertCore.js'
 import { deleteFlagEnv, flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
+import { sleep } from './sleep.js'
 
 type CheckResult = Omit<HealthCheck, 'id' | 'label'>
 
@@ -409,7 +410,7 @@ export async function probeJsDebugBoot(signal?: AbortSignal): Promise<CheckResul
           evidence: `the resolved js-debug server never listened on 127.0.0.1:${port} within 8s — ${outputTail.trim().slice(-180) || 'no output'}`,
         }
       }
-      await new Promise(r => setTimeout(r, 150))
+      await sleep(150, signal)
     }
   } finally {
     child.kill()

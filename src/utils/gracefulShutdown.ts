@@ -12,6 +12,7 @@ import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { logError } from './log.js'
 import { isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
 import { profileReport } from './startupProfiler.js'
+import { sleep } from './sleep.js'
 
 
 export type GracefulShutdownOptions = {
@@ -627,7 +628,7 @@ export async function drainPipedStdoutForExit(
   const readerAlive = (): boolean => !readerGone() && stdout.destroyed !== true && stdout.writable !== false
   const pressured = (): boolean => stdoutPressure.get(stdout)?.pending === true
   while ((stdout.writableLength > 0 || pressured()) && readerAlive()) {
-    await new Promise(resolve => setTimeout(resolve, 10))
+    await sleep(10)
   }
   const remainingBytes = stdout.writableLength
   const drained = remainingBytes === 0 && !pressured() && !readerGone()

@@ -36,6 +36,7 @@ import { getUserSpecifiedModelSetting } from './model/model.js'
 import { computedDefault } from './model/computedDefault.js'
 import { gitSnapshot } from './cockpit/gitSnapshot.js'
 import { healthFixEnabled } from './healthFix.js'
+import { sleep } from './sleep.js'
 
 const treeScratchDirs = new Set<string>()
 const treeScratchGits = new Set<ChildProcess>()
@@ -126,7 +127,7 @@ export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: Ab
     if (!removeTreeScratch(idxDir) && process.platform === 'win32') {
       const giveUpAt = Date.now() + TREE_SCRATCH_RELEASE_MS
       while (treeScratchDirs.has(idxDir) && Date.now() < giveUpAt) {
-        await new Promise<void>(resume => setTimeout(resume, TREE_SCRATCH_RETRY_MS))
+        await sleep(TREE_SCRATCH_RETRY_MS)
         removeTreeScratch(idxDir)
       }
     }

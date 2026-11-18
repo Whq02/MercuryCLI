@@ -3,6 +3,7 @@ import { dirname } from 'node:path'
 import { FIT_REMEDY, LOCAL_SERVER_KNOBS, chosenKnobs, fitVerdict, memoryFactsOf, settingsAsEnv, type FitVerdict, type LocalServerSettings } from './localServerKnobs.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { resolveLocalServerIo, type LaunchFormKind, type LocalServerIo, type LocalServerTruth } from './localServerTruth.js'
+import { sleep } from '../../utils/sleep.js'
 
 export interface LocalServerChange {
   name: string
@@ -338,7 +339,7 @@ export async function applyLocalServerPlan(plan: LocalServerApplyPlan, confirmat
     writeText: seam.writeText ?? defaultWriteText,
     copyFile: seam.copyFile ?? ((from: string, to: string) => copyFileSync(from, to)),
     run: seam.run ?? resolveLocalServerIo({}).run,
-    sleep: seam.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))),
+    sleep: seam.sleep ?? sleep,
     probe: seam.probe ?? defaultProbe,
     now: seam.now ?? Date.now,
   }

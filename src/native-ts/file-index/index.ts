@@ -1,12 +1,11 @@
+import { sleep } from '../../utils/sleep.js'
 
 type SearchResult = { path: string; score: number }
 
 const CHUNK_MS = 4
 
 function yieldToEventLoop(): Promise<void> {
-  return new Promise(resolve => {
-    setTimeout(resolve, 0)
-  })
+  return sleep(0)
 }
 
 const MAX_QUERY_LENGTH = 64

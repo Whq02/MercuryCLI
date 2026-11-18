@@ -35,6 +35,7 @@ import {
   type MessageActionsNav,
   type MessageActionsState,
 } from './messageActions.js'
+import { sleep } from '../utils/sleep.js'
 
 const JUMP_HEADROOM_ROWS = 3
 const PHANTOM_LIMIT = 20
@@ -626,7 +627,7 @@ export function VirtualMessageList({
         const list = messagesRef.current
         let workMs = 0
         for (let start = 0; start < list.length; start += WARM_CHUNK) {
-          await new Promise<void>(resolve => setTimeout(resolve, 0))
+          await sleep(0)
           const began = performance.now()
           const end = Math.min(list.length, start + WARM_CHUNK)
           for (let i = start; i < end; i++) searchTextOf(list[i]!)

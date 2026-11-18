@@ -3,7 +3,7 @@ import type { AppState } from '../../state/AppState.js'
 import { stopOrDismissAgent } from '../../state/crewmateViewHelpers.js'
 import { AGENT_STOP_BY_OPERATOR, isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isPausedAgentRow, StopTaskError, stopPausedAgent, stopTask, taskNotFoundWords } from '../../tasks/stopTask.js'
-import { sleep as wait } from '../../utils/processGroup.js'
+import { sleep as wait } from '../../utils/sleep.js'
 
 export const AGENT_STOP_SETTLE_MS = 3_000
 const SETTLE_TICK_MS = 50

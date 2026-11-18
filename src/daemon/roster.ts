@@ -43,6 +43,7 @@ const AUTO_CLEAR_CONTEXT_PCT = 85
 import { currentVersion } from './controlSocket.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import type { DispatchBody, DispatchSource, WireRosterEntry } from './protocol.js'
+import { sleep } from '../utils/sleep.js'
 
 type RosterState =
   | 'spawning'
@@ -343,7 +344,7 @@ export class TaskRoster {
   }
 
   async askedSettled(): Promise<void> {
-    while (this.asked.size > 0) await new Promise(resolve => setTimeout(resolve, 25))
+    while (this.asked.size > 0) await sleep(25)
   }
 
   reapSettled(keepRecent = 0): void {

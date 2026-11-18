@@ -1,6 +1,7 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { formatAge } from '../../../utils/healthCertCore.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
+import { sleep as wait } from '../../../utils/sleep.js'
 import { writeStoredMetaApiKey } from '../providerSecrets.js'
 import {
   metaApiBase,
@@ -158,10 +159,6 @@ export const META_SETTLED_AFTER_CANCEL_RECEIPT =
 
 const RFC_SLOW_DOWN_STEP_SEC = 5
 
-function defaultSleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
 export type MetaDeviceLoginEvent =
   | { phase: 'starting' }
   | { phase: 'waiting'; start: MetaDeviceAuthStart; polls: number; note?: string }
@@ -203,7 +200,7 @@ export function metaMuseCodeUsageReceiptLine(usage?: MetaSubsUsageRecord): strin
 
 export async function runMetaDeviceLogin(args: MetaDeviceLoginArgs = {}): Promise<MetaDeviceLoginOutcome> {
   const { io, onEvent } = args
-  const sleep = args.sleep ?? defaultSleep
+  const sleep = args.sleep ?? wait
   const cancelled = args.cancelled ?? (() => false)
   const env = io?.env ?? process.env
   const now = (): number => io?.now?.() ?? Date.now()

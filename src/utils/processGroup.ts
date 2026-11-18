@@ -2,6 +2,7 @@ import { execFile } from 'child_process'
 import type { ChildProcess } from 'child_process'
 import { existsSync } from 'node:fs'
 import { win32 as pathWin32 } from 'node:path'
+import { sleep } from './sleep.js'
 
 
 export type ProcessTreeKillReceipt = {
@@ -19,8 +20,6 @@ const REAP_BOUND_MS = 800
 const REAP_POLL_MS = 40
 const MSYS_TABLE_BOUND_MS = 800
 const MSYS_SWEEP_ROUNDS = 3
-
-export const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 export function win32TaskkillCommand(pid: number): { file: string; args: string[] } {
   return {

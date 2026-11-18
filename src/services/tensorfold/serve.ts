@@ -6,6 +6,7 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { sleep as wait } from '../../utils/sleep.js'
 import { announcerMachineName } from '../lan/announcer.js'
 import { startPairingServer } from '../lan/pairing.js'
 import { gibWords } from '../localServer/localServerMemory.js'
@@ -277,8 +278,6 @@ function logTail(record: ServiceRecord | null, bytes = 65_536): string {
   }
 }
 
-const defaultSleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-
 export async function startTensorFold(request: TensorFoldServeRequest, io: ServeIo = {}): Promise<TensorFoldServedByEngine> {
   const role = request.role ?? io.role ?? 'session'
   const scoped: ServeIo = { ...io, role }
@@ -295,7 +294,7 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
   const name = request.name ?? point.shortName
   const cwd = io.cwd ?? getCwd()
   const sessionId = io.sessionId ?? getSessionId()
-  const sleep = io.sleep ?? defaultSleep
+  const sleep = io.sleep ?? wait
   const machine = io.machine ?? (await cachedTensorFoldMachineTruth(io))
   if (machine.platform === 'darwin' || io.app !== undefined) {
     const app = await (io.app ?? detectTensorFoldApp)().catch(() => undefined)

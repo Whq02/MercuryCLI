@@ -12,6 +12,7 @@ import {
 } from './controlSocket.js'
 import { isProcessAlive, OWNER_PID_ENV } from './ownerWatch.js'
 import { MERCURY_DAEMON_PROTO, MIN_PROTO, type DaemonReply } from './protocol.js'
+import { sleep } from '../utils/sleep.js'
 
 export interface ClientVersionFacts {
   proto: number
@@ -726,7 +727,7 @@ async function waitForHandshake(
   for (let i = 0; i < tries; i++) {
     const v = await handshakeDaemon({ timeoutMs: 500 })
     if (done(v)) return v
-    await new Promise(res => setTimeout(res, pollMs))
+    await sleep(pollMs)
   }
   return null
 }

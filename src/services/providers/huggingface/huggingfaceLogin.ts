@@ -1,5 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
+import { sleep as wait } from '../../../utils/sleep.js'
 import { writeStoredHuggingfaceApiKey } from '../providerSecrets.js'
 import {
   fetchHuggingfaceIdentity,
@@ -47,10 +48,6 @@ export const HUGGINGFACE_SETTLED_AFTER_CANCEL_RECEIPT =
 
 const RFC_SLOW_DOWN_STEP_SEC = 5
 
-function defaultSleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
 function catalogueNoteOf(snapshot: { models: unknown[]; lastError?: string } | null): string {
   return snapshot?.lastError
     ? ` · catalogue: unavailable (${snapshot.lastError})`
@@ -63,7 +60,7 @@ export async function runHuggingfaceDeviceLogin(
   args: HuggingfaceDeviceLoginArgs = {},
 ): Promise<HuggingfaceDeviceLoginOutcome> {
   const { io, onEvent } = args
-  const sleep = args.sleep ?? defaultSleep
+  const sleep = args.sleep ?? wait
   const cancelled = args.cancelled ?? (() => false)
   const refresh = args.refreshCatalogue ?? (() => refreshHuggingfaceCatalogue({ force: true }).catch(() => null))
   const now = (): number => io?.now?.() ?? Date.now()

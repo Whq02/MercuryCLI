@@ -1,6 +1,7 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
+import { sleep as wait } from '../../../utils/sleep.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { antigravityUserAgent } from './antigravityClientContract.js'
 
@@ -271,7 +272,7 @@ async function loadGeminiPlanAccess(io: GeminiPlanIo, projectId?: string): Promi
 
 async function onboardGeminiPlanFreeTier(io: GeminiPlanIo): Promise<void> {
   const now = io.now ?? Date.now
-  const sleep = io.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)))
+  const sleep = io.sleep ?? wait
   const deadline = now() + GEMINI_PLAN_ONBOARD_DEADLINE_MS
   const { answer: first, base } = await overBases(io, b => codeAssistCall(io, b, 'onboardUser', { tierId: GEMINI_PLAN_FREE_TIER_ID, metadata: ANTIGRAVITY_CLIENT_METADATA }, 'POST'))
   let operation = record(first) ?? {}

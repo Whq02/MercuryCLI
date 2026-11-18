@@ -18,6 +18,7 @@ import {
   type BrowserResolution,
 } from './browserResolver.js'
 import { beginTransfer, endTransfers, moveTransfer, newTransferBook, sweepIncoming, type Transfer, type TransferBook } from './browserTransfers.js'
+import { sleep } from '../../utils/sleep.js'
 
 export interface ConsoleEntry {
   at: number
@@ -1403,7 +1404,7 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
       const born = id === null ? undefined : hold.births.get(id)
       let url = popup.url()
       if (!url || url === 'about:blank') {
-        await new Promise(r => setTimeout(r, 300))
+        await sleep(300)
         url = popup.url()
       }
       const download = born !== undefined && hold.downloads === null && (!url || url === 'about:blank') ? born.wiring.downloads.last : null

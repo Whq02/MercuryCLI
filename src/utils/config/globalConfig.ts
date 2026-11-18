@@ -21,6 +21,7 @@ import {
   DEFAULT_GLOBAL_CONFIG,
   type GlobalConfig,
 } from './schema.js'
+import { sleep } from '../sleep.js'
 
 const TEST_GLOBAL_CONFIG_FOR_TESTING: GlobalConfig = {
   ...DEFAULT_GLOBAL_CONFIG,
@@ -85,7 +86,7 @@ export async function flushDeferredGlobalConfigSaves(): Promise<void> {
         logError(error)
         return
       }
-      await new Promise<void>(resolve => setTimeout(resolve, Math.min(1000, 15 * 2 ** attempt)))
+      await sleep(Math.min(1000, 15 * 2 ** attempt))
     }
   }
   if (pendingDeferredUpdaters.length > 0) noteConfigContentionRefusal('flushDeferredGlobalConfigSaves')

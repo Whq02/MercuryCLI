@@ -478,6 +478,7 @@ import { workerPidAlive } from './workerIdentity.js'
 import { tokenBinding } from './processSweep.js'
 import { readProcessBirth, readProcessTreeUnder } from './processTree.js'
 import { endProcessTree } from '../utils/processGroup.js'
+import { sleep } from '../utils/sleep.js'
 export { workerPidAlive } from './workerIdentity.js'
 
 export function markConcourseWorkerRespawn(runnerId: string, pid: number, dir?: string): void {
@@ -2555,7 +2556,7 @@ export async function retireConcourseSession(
         const seat = roster.has(runnerId)
         const now = current()
         if (!seat.alive && !(now !== undefined && workerPidAlive(now))) return true
-        await new Promise(resolve => setTimeout(resolve, 50))
+        await sleep(50)
       }
       return false
     },
@@ -2720,7 +2721,7 @@ export async function endRunnersLeftWithoutHost(
     if (tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart)) !== 'bound') continue
     await endProcessTree(pid, 'SIGTERM')
     const deadline = Date.now() + (opts?.graceMs ?? HOSTLESS_RUNNER_GRACE_MS)
-    while ((isProcessAlive(pid) || under.some(member => isProcessAlive(member.pid))) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50))
+    while ((isProcessAlive(pid) || under.some(member => isProcessAlive(member.pid))) && Date.now() < deadline) await sleep(50)
     let gone = !isProcessAlive(pid)
     if (!gone) {
       const still = tokenBinding(rec.procStart, await getProcessStartTokenAsync(pid, rec.procStart))

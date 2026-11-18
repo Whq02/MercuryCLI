@@ -1,6 +1,7 @@
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import type { LocalCommandCall } from '../../types/command.js'
 import { RESTART_DURING_TURN, restartAlreadyCurrentWords } from './words.js'
+import { sleep } from '../../utils/sleep.js'
 
 type RestartOutcome = { ok: true; line: string } | { ok: false; reason: string }
 
@@ -16,7 +17,7 @@ export async function startInstalledDaemon(installed: import('../../daemon/hando
   spawnOwnedDaemon(getCwd(), { label: 'switchboard', script: installed.script, ...(installed.node !== null ? { node: installed.node } : {}) })
   let verdict = await handshakeDaemon({ timeoutMs: 500 })
   for (let round = 0; round < INSTALLED_DAEMON_WAIT_ROUNDS && (verdict.daemon === null || verdict.state === 'starting' || !sameBuildTree(verdict.daemon.buildTree, installed.buildTree)); round++) {
-    await new Promise(resolve => setTimeout(resolve, 250))
+    await sleep(250)
     verdict = await handshakeDaemon({ timeoutMs: 500 })
   }
   return verdict
@@ -91,7 +92,7 @@ export async function restartSessionOnInstalledBuild(args: {
     const deadline = Date.now() + STOP_SETTLE_MS
     let settled = standing()
     while (settled !== undefined && (settled.stoppedAt === undefined || runnerAlive(settled)) && Date.now() < deadline) {
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await sleep(100)
       settled = standing()
     }
     if (settled === undefined) return { ok: false, reason: 'the session record left the board while it stopped — /sessions finds its transcript' }

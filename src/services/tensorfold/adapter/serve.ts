@@ -11,6 +11,7 @@ import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { ADAPTER_CHILD_PREFIX, ADAPTER_SERVED_BY, ADAPTER_SPEAKER, ADAPTER_VERSION, adapterChildPidFile, cpuModelWords, llamaCppWords } from './identity.js'
 import { readLlamaServerVersion, resolveLlamaServer, type LlamaServerVersion } from './llama.js'
 import { ADAPTER_CHECKPOINTS, adapterCheckpointOf, type AdapterCheckpoint } from './models.js'
+import { sleep } from '../../../utils/sleep.js'
 
 type ServeArgs = { repo: string; name?: string; window: number; port: number; host: string; promptCacheGib: number; apiKeyFile?: string; drafter?: string }
 
@@ -560,7 +561,7 @@ export async function runServe(args: ServeArgs, io: ServeIo = {}): Promise<numbe
   for (;;) {
     if (child.exitCode !== null || child.signalCode !== null) return exitCode ?? 1
     if (await innerHealthy(innerPort)) break
-    await new Promise(resolve => setTimeout(resolve, poll))
+    await sleep(poll)
   }
   served = (await innerContext(innerPort)) ?? args.window
   state = 'ready'

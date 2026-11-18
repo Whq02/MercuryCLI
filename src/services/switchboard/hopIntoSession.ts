@@ -7,6 +7,7 @@ import { armLandingWords, bootBirthFacts, carriedConsentOf, carriedKitOf, peekWo
 import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { validateUuid } from '../../utils/sessionStoragePortable.js'
+import { sleep } from '../../utils/sleep.js'
 
 export function liveTitleDeriverFor(
   workers: {
@@ -77,7 +78,7 @@ async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaint
     ...(rec.worktreePath !== undefined ? { worktreePath: rec.worktreePath } : {}),
   }, workers.sessionOwnedByLiveWorker(sessionId) !== null)
   void hop.catch(() => settleLandingWords())
-  await Promise.race([hop, new Promise<void>(r => setTimeout(r, opts?.firstPaintMs ?? 250))])
+  await Promise.race([hop, sleep(opts?.firstPaintMs ?? 250)])
   void withLanding(hop.then(() => undefined)).catch(() => {})
   void import('./ensureDaemon.js')
     .then(m => m.ensureOwnedDaemon())
@@ -237,7 +238,7 @@ async function focusResumedSessionLanding(
   connector.awaitAdmission(refusal)
   const admitted = refusal.then(r => r === null)
   const pointed = seat.focusDaemonSession(connector.record)
-  await Promise.race([pointed, new Promise<void>(r => setTimeout(r, opts?.firstPaintMs ?? 250))])
+  await Promise.race([pointed, sleep(opts?.firstPaintMs ?? 250)])
   void withLanding(pointed.then(() => undefined)).catch(() => {})
   void Promise.all([refusal, pointed.catch(() => undefined)]).then(([refused]) => {
     if (refused === null && note !== undefined) void paintAdmissionNote(sessionId, note)
@@ -369,7 +370,7 @@ async function paintResumeRecap(sessionId: string, launchWon: Promise<LaunchWonV
     if (connector === undefined) return
     const t0 = Date.now()
     while (Date.now() - t0 < 3000 && connector.records().length === 0) {
-      await new Promise(r => setTimeout(r, 100))
+      await sleep(100)
     }
     const records = [...connector.records()]
     if (records.length === 0) return

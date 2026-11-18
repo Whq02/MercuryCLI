@@ -47,6 +47,7 @@ import {
   UNITY_ADAPTER_ARM_HINT,
   UNITY_DAP_ADAPTER_KEY,
 } from './unityAdapter.js'
+import { sleep } from '../../utils/sleep.js'
 
 export type DapLaunchOptions = {
   program: string
@@ -1393,7 +1394,7 @@ export class DapSession {
       if (Date.now() - start > deadlineMs) {
         throw new Error(`adapter never opened ${host}:${port} within ${deadlineMs}ms`)
       }
-      await new Promise(r => setTimeout(r, 100))
+      await sleep(100)
     }
   }
 
@@ -2134,7 +2135,7 @@ export class DapSession {
     let lastChange = Date.now()
     for (;;) {
       if (Date.now() - start >= maxMs) break
-      await waitForDap(new Promise<void>(res => setTimeout(res, 50)), signal)
+      await waitForDap(sleep(50), signal)
       if (this.output.length !== lastLen) {
         lastLen = this.output.length
         lastChange = Date.now()

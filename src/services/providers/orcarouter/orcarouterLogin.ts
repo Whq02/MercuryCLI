@@ -1,6 +1,7 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getProductUserAgent } from '../../../utils/http.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
+import { sleep as wait } from '../../../utils/sleep.js'
 import { writeStoredOrcarouterApiKey } from '../providerSecrets.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { orcarouterApiBase } from './orcarouterAccounts.js'
@@ -65,7 +66,7 @@ export async function runOrcarouterDeviceLogin(args: {
   const io = args.io ?? {}
   const now = io.now ?? Date.now
   const cancelled = args.cancelled ?? (() => false)
-  const sleep = args.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)))
+  const sleep = args.sleep ?? wait
   const fail = (message: string): { ok: false; receipt: string } => ({ ok: false, receipt: `${message} — /logins orcarouter retries or stores an API key.` })
   const request = async (url: string, body?: Record<string, string>): Promise<{ status: number; body: Record<string, unknown> }> => {
     const response = await fetchWithProviderDeadline(io.fetchImpl ?? getApiFetch(), 'orcarouter', 15_000, url, {
