@@ -27,6 +27,10 @@ const EDITOR_STATUS_MS = 4000;
 
 type FrozenTranscriptState = { messageCount: number; streamingToolUseCount: number };
 
+export function highlightTextOf(query: string): string {
+  return parseSearchQuery(query).text ?? '';
+}
+
 export function TranscriptSearchBar({
   columns,
   onQueryChange,
@@ -262,7 +266,7 @@ export function useChatSearch({
       setPositions(null);
       return;
     }
-    setHighlight(parseSearchQuery(committedSearchQuery).text ?? '');
+    setHighlight(highlightTextOf(committedSearchQuery));
   }, [inTranscript, committedSearchQuery, setHighlight, setPositions]);
   useEffect(() => {
     if (!editorStatus) return;
@@ -376,11 +380,11 @@ export function useChatSearch({
     setSearchBarOpen(false);
     jumpRef.current?.setSearchQuery('');
     jumpRef.current?.setSearchQuery(committedSearchQuery);
-    setHighlight(parseSearchQuery(committedSearchQuery).text ?? '');
+    setHighlight(highlightTextOf(committedSearchQuery));
   }, [committedSearchQuery, setHighlight]);
   const previewSearch = useCallback((query: string) => {
     jumpRef.current?.setSearchQuery(query);
-    setHighlight(parseSearchQuery(query).text ?? '');
+    setHighlight(highlightTextOf(query));
   }, [setHighlight]);
   const warmSearchIndex = useCallback(() => jumpRef.current?.warmSearchIndex() ?? Promise.resolve(0), []);
   const onSearchMatchesChange = useCallback((count: number, current: number) => {
