@@ -200,7 +200,7 @@ section('§3 the list lands: exactly the account ids, the base alias first, trut
   check('the list state reads live with the count', listState()?.kind === 'live' && listState()?.count === 2, JSON.stringify(listState()))
   const { decision } = moonshotVerdict()
   check('the default is the head of the live list: kimi-for-coding, named from the live catalogue', decision.provider === 'moonshot' && decision.setting === ALIAS && decision.row === ALIAS_NAME && decision.why.includes('the live catalogue'), JSON.stringify({ provider: decision.provider, setting: decision.setting, row: decision.row, why: decision.why }))
-  check('the frontier fact names the head from the live source', providerFrontierFact('moonshot')?.modelId === ALIAS && providerFrontierFact('moonshot')?.observedAt === undefined && catalogue.moonshotCatalogueSourceWords() === '2 models live', JSON.stringify(providerFrontierFact('moonshot')))
+  check('the frontier fact names the head from the live source', providerFrontierFact('moonshot')?.modelId === ALIAS && providerFrontierFact('moonshot')?.source === '2 models live', JSON.stringify(providerFrontierFact('moonshot')))
   const requestsBefore = listRequests
   const word = await kimiWord()
   check("the 'kimi' family word resolves the head without another request", word === `resolved ${ALIAS}` && listRequests === requestsBefore, word)

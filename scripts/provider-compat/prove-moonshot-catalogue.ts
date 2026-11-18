@@ -80,7 +80,7 @@ if (catalogue) {
   resetComputedDefaultMemo()
   const choice = computedDefault()
   check('a newly signed-in family defaults to the newest served row', choice.setting === 'kimi-fixture-next' && choice.why.includes('live'), JSON.stringify(choice))
-  check('the recommendation uses the live source, not a static frontier', providerFrontierFact('moonshot')?.modelId === 'kimi-fixture-next' && providerFrontierFact('moonshot')?.observedAt === undefined && catalogue?.moonshotCatalogueSourceWords() === '2 models live')
+  check('the recommendation uses the live source, not a static frontier', providerFrontierFact('moonshot')?.modelId === 'kimi-fixture-next' && providerFrontierFact('moonshot')?.source === '2 models live')
   check('the adapter describes and lists the same live rows', describeMoonshotProvider().catalogueSource === 'live-discovery' && listMoonshotModels()[0]?.ref.model === 'kimi-fixture-next')
   const absent = await c.qualifyMoonshotModel('kimi-k3')
   check('a missing typed id refuses with the shared account-labelled sentence', absent.kind === 'refused' && absent.message === "model 'kimi-k3' is not offered by the Moonshot API key (stored, auth-scoped) live catalogue. The catalogue offers: kimi-fixture-next, kimi-k2.6.", JSON.stringify(absent))

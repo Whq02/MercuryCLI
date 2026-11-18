@@ -51,12 +51,6 @@ const theReleaseWithoutItsSol: Array<[string, string[], string]> = [
   ['5.6 with Luna and Terra, Luna first on the list', ['gpt-5.4-mini', 'gpt-5.6-luna', 'gpt-5.6-terra'], 'gpt-5.6-terra'],
   ['5.5 alone, its Pro first on the list', ['gpt-5.4', 'gpt-5.5-pro', 'gpt-5.5'], 'gpt-5.5'],
 ]
-const aSpecialRowIsPassedOver: Array<[string, string[], string]> = [
-  ['a Cyber row is the newest release served', ['gpt-5.5', 'gpt-5.6-cyber'], 'gpt-5.5'],
-  ['a Pro row is the newest release served', ['gpt-5.4', 'gpt-5.5-pro'], 'gpt-5.4'],
-  ['the newest release is served by its Cyber row alone and GPT-5.4 is first on the list', ['gpt-5.4', 'gpt-5.5', 'gpt-5.6-cyber'], 'gpt-5.5'],
-  ['a release served by its Pro and its Mini, Pro first on the list and in the table', ['gpt-5.4-pro', 'gpt-5.4-mini'], 'gpt-5.4-mini'],
-]
 try {
   process.env.OPENAI_API_KEY = 'fixture-key-not-real'
   recordSignIn('openai', 'subscription')
@@ -75,29 +69,6 @@ try {
   })
   await check('a row the build does not know never outranks one it knows: gpt-9.9-nova, gpt-6.1-sol starts on gpt-6.1-sol', async () => {
     assert.equal((await startsOn(['gpt-9.9-nova', 'gpt-6.1-sol'])).setting, 'gpt-6.1-sol')
-  })
-  for (const [name, list, want] of aSpecialRowIsPassedOver) await check(`a row the table marks specialised or premium is never the default while the list serves a general one: ${name} (${list.join(', ')}) starts on ${want}`, async () => {
-    const got = await startsOn(list)
-    assert.deepEqual([got.setting, got.provider, got.source], [want, 'openai', 'sign-in'])
-    assert.ok(got.why.endsWith(`; the newest row this sign-in can use (the recorded release, ${gptDisplayPin(want)!.observedAt})`), got.why)
-  })
-  await check("a list that serves special rows only starts on the list's own first row: gpt-5.5-pro, gpt-5.6-cyber starts on gpt-5.5-pro and gpt-5.6-cyber, gpt-5.4-pro on gpt-5.6-cyber", async () => {
-    const first = await startsOn(['gpt-5.5-pro', 'gpt-5.6-cyber'])
-    assert.deepEqual([first.setting, first.provider, first.source], ['gpt-5.5-pro', 'openai', 'sign-in'])
-    assert.ok(first.why.endsWith("; the first row this sign-in can use (the catalogue's own order)"), first.why)
-    assert.equal((await startsOn(['gpt-5.6-cyber', 'gpt-5.4-pro'])).setting, 'gpt-5.6-cyber')
-  })
-  await check('the mark is a fact on the row: the table marks its two Cyber rows specialised and its two Pro rows premium, and no other row', () => {
-    assert.deepEqual(GPT_DISPLAY_PINS.filter(pin => pin.variantKind !== undefined).map(pin => [pin.id, pin.variantKind]), [['gpt-5.6-cyber', 'specialised'], ['gpt-5.5-pro', 'premium'], ['gpt-5.5-cyber', 'specialised'], ['gpt-5.4-pro', 'premium']])
-  })
-  await check('the picker still offers every row: a Cyber and a Pro row are listed and selectable beside the default', async () => {
-    assert.equal((await startsOn(['gpt-5.5', 'gpt-5.6-cyber', 'gpt-5.5-pro'])).setting, 'gpt-5.5')
-    const rows = getModelOptions()
-    for (const id of ['gpt-5.6-cyber', 'gpt-5.5-pro']) {
-      const row = rows.find(option => option.value === id)
-      assert.ok(row, id)
-      assert.equal(row.unavailable, undefined, id)
-    }
   })
   await check('the reason line is true of the row it stands on: the recorded release and that row\'s own date, on Sol, on Astra and on GPT-5.5 alike, and the word frontier is on none', async () => {
     const dateOf = (id: string): string => gptDisplayPin(id)!.observedAt
@@ -118,14 +89,11 @@ try {
       assert.equal(row.unavailable, undefined, id)
     }
   })
-  await check('the rule is one function over the served ids: the Sol of the newest release that serves a general row, else that release\'s first general row in table order, else nothing', () => {
+  await check('the rule is one function over the served ids: the Sol of the newest served release, else that release\'s first served row in table order, else nothing', () => {
     assert.equal(openaiSessionDefault([astra, sol])?.modelId, sol)
     assert.equal(openaiSessionDefault([astra])?.modelId, astra)
     assert.equal(openaiSessionDefault(['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.5'])?.modelId, 'gpt-5.6-terra')
     assert.equal(openaiSessionDefault(['gpt-5.5', 'gpt-6.1-sol', 'gpt-6-astra'])?.modelId, 'gpt-6.1-sol')
-    assert.equal(openaiSessionDefault(['gpt-5.5', 'gpt-5.6-cyber'])?.modelId, 'gpt-5.5')
-    assert.equal(openaiSessionDefault(['gpt-5.4', 'gpt-5.5-pro'])?.modelId, 'gpt-5.4')
-    assert.equal(openaiSessionDefault(['gpt-5.5-pro', 'gpt-5.6-cyber']), undefined)
     assert.equal(openaiSessionDefault(['whisper-1', 'gpt-9.9-nova']), undefined)
     assert.equal(openaiSessionDefault([]), undefined)
     assert.deepEqual(GPT_DISPLAY_PINS.slice(0, 2).map(pin => pin.id), [sol, astra])
@@ -141,5 +109,5 @@ try {
 } finally {
   rmSync(home, { recursive: true, force: true })
 }
-console.log(`${checks - failures.length}/${checks} passed; the rule: the Sol of the newest release that serves a general row, then that release's first general row in the pin table's order, then the list's first row when it serves no general row the build knows`)
+console.log(`${checks - failures.length}/${checks} passed; the rule: the Sol of the newest release the list serves, then that release's first served row in the pin table's order, then the list's first row when it serves no row the build knows`)
 process.exit(failures.length ? 1 : 0)

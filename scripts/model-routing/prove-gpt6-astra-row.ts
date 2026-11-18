@@ -76,8 +76,8 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
     JSON.stringify(pin?.longContext),
   )
   check(
-    'the row states the levels its page states ("`reasoning.effort` supports `low`, `medium`, `high`, `xhigh`, and `max`.", read 2026-11-18) and no default, since the page names none',
-    JSON.stringify(pin?.supportedReasoningEfforts) === JSON.stringify(LADDER) && pin?.defaultReasoningEffort === undefined,
+    "the row states the levels its page states (low, medium, high, xhigh, max; read 2026-11-17) and medium, the API reference's default for the parameter",
+    JSON.stringify(pin?.supportedReasoningEfforts) === JSON.stringify(LADDER) && pin?.defaultReasoningEffort === 'medium',
     JSON.stringify([pin?.supportedReasoningEfforts, pin?.defaultReasoningEffort]),
   )
   check(
@@ -306,12 +306,10 @@ process.env.OPENAI_API_KEY = 'prover-key'
   const bare = catalogue.evaluateGptCandidate(ID, 'api-key')
   const bareLive = bare.ok ? bare.candidate.live : undefined
   check(
-    "on a bare API list the dial is sent as asked: 'max' rides, 'none' answers with 'low', and nothing asked rides the session's own default 'high', the row stating none",
+    "on a bare API list the dial is sent as asked: 'max' rides, nothing asked rides 'medium', 'none' answers with 'low'",
     bareLive !== undefined &&
-      bareLive.defaultReasoningEffort === undefined &&
       catalogue.resolveGptReasoningProfile('max', bareLive).wireEffort === 'max' &&
-      catalogue.resolveGptReasoningProfile(undefined, bareLive).wireEffort === 'high' &&
-      catalogue.resolveGptReasoningProfile(undefined, bareLive).source === 'model-default' &&
+      catalogue.resolveGptReasoningProfile(undefined, bareLive).wireEffort === 'medium' &&
       catalogue.resolveGptReasoningProfile('none', bareLive).wireEffort === 'low',
     JSON.stringify(bareLive?.supportedReasoningEfforts),
   )

@@ -52,7 +52,7 @@ const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../
 const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
 const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
 const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
-const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
+const { providerFrontierFact, providerFrontierLine } = await import('../../src/utils/model/providerFrontier.ts')
 const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
 const { writeStoredDeepseekApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
@@ -226,7 +226,8 @@ if (catalogue) {
   delete process.env.DEEPSEEK_API_KEY
   check('the router entry lookup reads the live list first', router.deepseekCatalogueEntry?.('deepseek-fixture-next')?.displayLabel === 'Deepseek Fixture Next' && router.deepseekCatalogueEntry?.(RETIRED_FLASH)?.id === CURRENT_FLASH)
   const fact = providerFrontierFact('deepseek')
-  check('the frontier fact is the first pinned row, by its name, with no pin date while the list is live, and the list counts its three rows', fact?.modelId === 'deepseek-v4-pro' && fact?.displayName === 'DeepSeek V4 Pro' && fact?.observedAt === undefined && catalogue?.deepseekCatalogueSourceWords() === '3 models live', `${JSON.stringify(fact)} · ${catalogue?.deepseekCatalogueSourceWords()}`)
+  check('the frontier fact is the first pinned row with the live words in place of the date', fact?.modelId === 'deepseek-v4-pro' && fact?.source === '3 models live' && fact?.observedAt === undefined, JSON.stringify(fact))
+  check('the group line paints the live grammar', providerFrontierLine('deepseek') === 'frontier: DeepSeek V4 Pro · 3 models live', String(providerFrontierLine('deepseek')))
   const options = getModelOptions().filter(o => o.group === DEEPSEEK_MODEL_GROUP)
   check('the picker\'s DeepSeek rows are the live rows, in order', options.map(o => o.value).join(',') === `deepseek-v4-pro,${CURRENT_FLASH},deepseek-fixture-next`, options.map(o => o.value).join(','))
   check('a live row\'s description names the live list; the unpinned row states no window', (options[2]?.descriptionForModel ?? '').includes('live') && options[2]?.statedContextWindow === undefined && options[0]?.statedContextWindow === proPin?.contextWindow, options[2]?.descriptionForModel)
@@ -235,7 +236,7 @@ if (catalogue) {
   const dropped = catalogue.deepseekCatalogueRows()
   check('a pin the live list no longer names is dropped from the rows', dropped.rows.map(r => r.id).join(',') === 'deepseek-v4-pro' && dropped.source.kind === 'live', dropped.rows.map(r => r.id).join(','))
   check('…while a saved retired id still resolves to the current id (the alias outlives the list)', parseUserSpecifiedModel(RETIRED_FLASH) === CURRENT_FLASH && deepseekDisplayPin(RETIRED_FLASH)?.id === CURRENT_FLASH)
-  check('the frontier fact keeps the head row and the list counts the one row it names', providerFrontierFact('deepseek')?.displayName === 'DeepSeek V4 Pro' && providerFrontierFact('deepseek')?.observedAt === undefined && catalogue?.deepseekCatalogueSourceWords() === '1 model live', `${JSON.stringify(providerFrontierFact('deepseek'))} · ${catalogue?.deepseekCatalogueSourceWords()}`)
+  check('the group line counts the rows the list names', providerFrontierLine('deepseek') === 'frontier: DeepSeek V4 Pro · 1 model live', String(providerFrontierLine('deepseek')))
 }
 
 section('5 · the fallback: no list, the dated pins stand in')
@@ -248,7 +249,8 @@ if (catalogue) {
   const described = describeDeepseekProvider()
   check('the router describes the static pins with no stamp', described.catalogueSource === 'static-pin' && described.discoveredAtMs === undefined && described.catalogue.length === 2)
   const fact = providerFrontierFact('deepseek')
-  check('the frontier fact carries the pin\'s name and date, and the list has no live words', fact?.modelId === 'deepseek-v4-pro' && fact?.displayName === 'DeepSeek V4 Pro' && fact?.observedAt === PIN_DATE && catalogue?.deepseekCatalogueSourceWords() === undefined, `${JSON.stringify(fact)} · ${catalogue?.deepseekCatalogueSourceWords()}`)
+  check('the frontier fact carries the pin\'s date and no live words', fact?.modelId === 'deepseek-v4-pro' && fact?.observedAt === PIN_DATE && fact?.source === undefined, JSON.stringify(fact))
+  check('the group line paints the date', providerFrontierLine('deepseek') === `frontier: DeepSeek V4 Pro · ${PIN_DATE}`, String(providerFrontierLine('deepseek')))
   const options = getModelOptions().filter(o => o.group === DEEPSEEK_MODEL_GROUP)
   check('the picker paints the pins with their windows', options.map(o => o.value).join(',') === `deepseek-v4-pro,${CURRENT_FLASH}` && options.every(o => o.statedContextWindow === 1_048_576), options.map(o => o.value).join(','))
   await catalogue.refreshDeepseekCatalogue({ force: true, fetchImpl: statusFetch(503) })

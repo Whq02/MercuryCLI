@@ -47,7 +47,7 @@ const pins = await import('../../src/services/providers/deepseek/deepseekPins.ts
 const catalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')
 const router = await import('../../src/services/providers/deepseek/deepseekAdapter.ts')
 const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
-const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
+const { providerFrontierLine } = await import('../../src/utils/model/providerFrontier.ts')
 const { writeStoredDeepseekApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
 
@@ -121,7 +121,7 @@ section('3 · signed in with the stub list: the off-grammar id routes and paints
   const described = router.describeDeepseekProvider()
   check('the router catalogue carries the off-grammar id with the lane\'s effort words', described.catalogueSource === 'live-discovery' && described.catalogue.some(e => e.id === OFF && e.efforts.join(',') === 'low,high,max' && e.displayLabel === 'V4 Flash'), JSON.stringify(described.catalogue.map(e => e.id)))
   check('the seat listing and the folding entry lookup both find it', router.listDeepseekModels().some(m => m.ref.model === OFF) && router.deepseekCatalogueEntry(OFF)?.displayLabel === 'V4 Flash')
-  check('the frontier fact names the head row with no pin date, and the list counts both rows live', providerFrontierFact('deepseek')?.displayName === 'DeepSeek V4 Pro' && providerFrontierFact('deepseek')?.observedAt === undefined && catalogue.deepseekCatalogueSourceWords() === '2 models live', `${JSON.stringify(providerFrontierFact('deepseek'))} · ${catalogue.deepseekCatalogueSourceWords()}`)
+  check('the frontier line counts both rows live', providerFrontierLine('deepseek') === 'frontier: DeepSeek V4 Pro · 2 models live', String(providerFrontierLine('deepseek')))
   const dial = (model: string, effort: string): string | undefined =>
     (wire.buildDeepseekExtras({ wireModel: model, effortValue: effort, thinkingEnabled: true, maxOutputTokensOverride: undefined }) as { reasoning_effort?: string }).reasoning_effort
   check('the wire effort dial answers the off-grammar id exactly as the pinned id (the family decided the lane, not the prefix)', ['low', 'high', 'max', 'medium', 'xhigh'].every(effort => dial(OFF, effort) === dial(PRO, effort)) && dial(OFF, 'high') === 'high' && dial(OFF, 'max') === 'max', JSON.stringify(['low', 'high', 'max', 'medium', 'xhigh'].map(e => [e, dial(OFF, e), dial(PRO, e)])))
@@ -146,7 +146,7 @@ section('5 · a list holding only the off-grammar id')
   const derived = catalogue.deepseekCatalogueRows()
   check('the rows are that one live row', derived.rows.map(r => r.id).join(',') === OFF && derived.source.kind === 'live' && derived.source.count === 1, JSON.stringify(derived))
   check('cachedLiveIds() names it alone', ids().join(',') === OFF, ids().join(','))
-  check('the frontier fact follows the one live row', providerFrontierFact('deepseek')?.displayName === 'V4 Flash' && providerFrontierFact('deepseek')?.observedAt === undefined && catalogue.deepseekCatalogueSourceWords() === '1 model live', `${JSON.stringify(providerFrontierFact('deepseek'))} · ${catalogue.deepseekCatalogueSourceWords()}`)
+  check('the frontier line follows the one live row', providerFrontierLine('deepseek') === 'frontier: V4 Flash · 1 model live', String(providerFrontierLine('deepseek')))
 }
 
 section('6 · a failed read, a stale list, a departed key')

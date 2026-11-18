@@ -22,7 +22,7 @@ const router = await import('../../src/services/providers/zai/zaiAdapter.ts')
 const { keyLanePins, keyLaneListState, getModelOptions, ZAI_MODEL_GROUP, LIVE_UNKNOWN_ROW_WORDS } = await import('../../src/utils/model/modelOptions.ts')
 const { resolveContextWindow, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
 const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
-const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
+const { providerFrontierLine } = await import('../../src/utils/model/providerFrontier.ts')
 const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.ts')
 const { zaiApiBase } = await import('../../src/services/providers/zai/zaiClient.ts')
 
@@ -99,7 +99,7 @@ try {
   check("the flash price is the page's current rate; FlashX is priced; the unknown id stays unpriced", resolveModelPricing('glm-5.3-flash').costs.inputTokens === 0.15 && resolveModelPricing('glm-5.3-flash').costs.outputTokens === 0.5 && resolveModelPricing('glm-5.3-flashx').costs.inputTokens === 0.37 && resolveModelPricing('glm-5-turbo').basis === 'unpriced', JSON.stringify(resolveModelPricing('glm-5.3-flash')))
   check('every price pin cites the page and its read date', pins.GLM_PRICE_PINS.every(pin => pin.source === pins.GLM_PRICING_PAGE && /^\d{4}-\d{2}-\d{2}$/.test(pin.observedAt)))
 
-  check("the family word 'glm' is the newest live row, and the frontier fact names that row with no pin date while the list is live", parseUserSpecifiedModel('glm') === 'glm-5.3' && declaredRouteOf('glm-5.3-flash') === 'zai' && JSON.stringify(providerFrontierFact('zai')) === JSON.stringify({ modelId: 'glm-5.3', displayName: 'GLM-5.3' }) && cat.zaiCatalogueSourceWords() === '11 models live', JSON.stringify(providerFrontierFact('zai')))
+  check("the family word 'glm' is the newest live row and the frontier line counts the list", parseUserSpecifiedModel('glm') === 'glm-5.3' && declaredRouteOf('glm-5.3-flash') === 'zai' && providerFrontierLine('zai') === 'frontier: GLM-5.3 · 11 models live', String(providerFrontierLine('zai')))
   const fact = readModelListFacts().find(row => row.family === 'zai')
   check('the health row judges the typed floor against the live list: every floor id served', fact?.list.kind === 'list' && fact.list.ids.length === 11 && fact.typed.join(',') === FLOOR && fact.source === 'GLM Coding Plan key (stored)', JSON.stringify(fact))
 
