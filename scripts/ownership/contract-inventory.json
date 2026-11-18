@@ -538,6 +538,7 @@
     "WARNING_THRESHOLD_BUFFER_TOKENS",
     "autoCompactDisabledReason",
     "autoCompactIfNeeded",
+    "autoCompactWindowIsInputLimit",
     "calculateTokenWarningState",
     "compactionBreakerText",
     "compactionSettingsText",
