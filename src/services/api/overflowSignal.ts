@@ -25,6 +25,7 @@ export type OverflowSignal = {
   detail?: string
   measuredTokens?: number
   measuredWindow?: number
+  measuredInputLimit?: true
 }
 
 const DETAIL_MAX_CHARS = 240
@@ -239,7 +240,7 @@ export function overflowNumbersClause(signal: OverflowSignal): string | undefine
 export function overflowMeasuredClause(signal: OverflowSignal): string | undefined {
   if (signal.measuredTokens === undefined || signal.measuredWindow === undefined) return undefined
   const fmt = (n: number): string => n.toLocaleString('en-US')
-  return `about ${fmt(signal.measuredTokens)} tokens by Mercury's count against the ${fmt(signal.measuredWindow)}-token window`
+  return `about ${fmt(signal.measuredTokens)} tokens by Mercury's count against the ${fmt(signal.measuredWindow)}-token ${signal.measuredInputLimit === true ? 'input limit' : 'window'}`
 }
 
 export function overflowWhoClause(signal: OverflowSignal): string {

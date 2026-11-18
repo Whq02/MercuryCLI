@@ -116,10 +116,9 @@ src/services/mcp/client.ts	unit	connectImpl	338
 src/services/providers/accountSlots.ts	file	-	1766
 src/services/providers/anthropic/streamCore.ts	file	-	1858
 src/services/providers/anthropic/streamCore.ts	unit	queryModel	1320
-src/services/providers/openai/openaiCallModel.ts	file	-	1751
+src/services/providers/openai/openaiCallModel.ts	file	-	1746
 src/services/providers/openai/openaiCallModel.ts	unit	openaiTurn	499
-src/services/providers/openai/openaiCallModel.ts	unit	streamOneOpenaiAttempt	514
-src/services/providers/openai/openaiWire.ts	unit	ResponsesStreamFold	307
+src/services/providers/openai/openaiCallModel.ts	unit	streamOneOpenaiAttempt	492
 src/services/providers/openaicompat/compatChatCallModel.ts	file	-	1502
 src/services/providers/openaicompat/compatChatCallModel.ts	unit	compatChatCallModel	426
 src/services/providers/openaicompat/compatChatCallModel.ts	unit	streamOneCompatAttempt	593

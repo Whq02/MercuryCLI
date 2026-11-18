@@ -130,10 +130,12 @@ function plainDetail(detail: string | undefined): string {
 
 export function measureOverflow(signal: OverflowSignal, messages: readonly Message[], model: string): OverflowSignal {
   if (signal.measuredTokens !== undefined && signal.measuredWindow !== undefined) return signal
+  const window = resolveAutoCompactWindow(model).window
   return {
     ...signal,
     measuredTokens: tokenCountWithEstimation(messages, model),
-    measuredWindow: resolveAutoCompactWindow(model).window,
+    measuredWindow: window,
+    ...(autoCompactWindowIsInputLimit(model, window) ? { measuredInputLimit: true as const } : {}),
   }
 }
 

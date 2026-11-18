@@ -81,7 +81,7 @@ const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-const { refreshMinimaxCatalogue, __resetMinimaxCatalogueForTest, minimaxCatalogueRows, minimaxCatalogueSourceWords } = await import('../../src/services/providers/minimax/minimaxCatalogue.ts')
+const { refreshMinimaxCatalogue, __resetMinimaxCatalogueForTest, minimaxCatalogueRows } = await import('../../src/services/providers/minimax/minimaxCatalogue.ts')
 const { buildMinimaxExtras } = await import('../../src/services/providers/minimax/minimaxCallModel.ts')
 const { storeMinimaxApiKeyLogin } = await import('../../src/services/providers/minimax/minimaxLogin.ts')
 const { fetchMinimaxPlanUsage, refreshMinimaxPlanUsage, minimaxObservedPlanUsage, minimaxPlanFailureWords, __resetMinimaxUsageForTest } = await import('../../src/services/providers/minimax/minimaxUsageState.ts')
@@ -251,7 +251,7 @@ try {
   modelList = []; await refreshMinimaxCatalogue({ force: true })
   const emptyPins = minimaxCatalogueRows()
   const { minimaxDisplayPin } = await import('../../src/services/providers/minimax/minimaxPins.ts')
-  check('an empty live list falls to the pins labelled as pins with each row\'s own date, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 7 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === minimaxDisplayPin(row.id)?.observedAt) && keyLaneListState('minimax').kind === 'pin' && (minimaxCatalogueSourceWords() ?? '').includes('pinned list — ') && !(await run()).some(row => row.isApiErrorMessage) && captures.length === before + 1 && captures.at(-1)?.body.model === 'MiniMax-M3')
+  check('an empty live list falls to the pins labelled as pins with each row\'s own date, and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 7 && emptyPins.rows.every(row => row.listedLive === false && row.observedAt === minimaxDisplayPin(row.id)?.observedAt) && keyLaneListState('minimax').kind === 'pin' && !(await run()).some(row => row.isApiErrorMessage) && captures.length === before + 1 && captures.at(-1)?.body.model === 'MiniMax-M3')
   before = captures.length
   modelList = MINIMAX_FIXTURE_MODELS
   listStatus = 299; await refreshMinimaxCatalogue({ force: true })
@@ -266,7 +266,7 @@ try {
   process.env.MERCURY_MINIMAX_API_BASE = 'http://127.0.0.1:1/v1'
   await refreshMinimaxCatalogue({ force: true })
   const pinRows = minimaxCatalogueRows()
-  check('with the list unreachable the picker shows the pins, labelled as pins, each dated from the vendor pages', pinRows.source.kind === 'pins' && pinRows.rows.length === 7 && pinRows.rows.every(row => row.listedLive === false && row.observedAt === minimaxDisplayPin(row.id)?.observedAt) && keyLaneListState('minimax').kind === 'pin' && (minimaxCatalogueSourceWords() ?? '').includes('pinned list — ') && keyLanePins('minimax').every(pin => pin.liveUnknown !== true))
+  check('with the list unreachable the picker shows the pins, labelled as pins, each dated from the vendor pages', pinRows.source.kind === 'pins' && pinRows.rows.length === 7 && pinRows.rows.every(row => row.listedLive === false && row.observedAt === minimaxDisplayPin(row.id)?.observedAt) && keyLaneListState('minimax').kind === 'pin' && keyLanePins('minimax').every(pin => pin.liveUnknown !== true))
   process.env.MERCURY_MINIMAX_API_BASE = liveBase
   __resetMinimaxCatalogueForTest()
   const aborted = new AbortController(); aborted.abort()

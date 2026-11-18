@@ -88,7 +88,7 @@ try {
     assert.equal((await startsOn(['gpt-5.6-cyber', 'gpt-5.4-pro'])).setting, 'gpt-5.6-cyber')
   })
   await check('the mark is a fact on the row: the table marks its two Cyber rows specialised and its two Pro rows premium, and no other row', () => {
-    assert.deepEqual(GPT_DISPLAY_PINS.filter(pin => pin.variantKind !== undefined).map(pin => [pin.id, pin.variantKind]), [['gpt-5.6-cyber', 'specialised'], ['gpt-5.5-pro', 'premium'], ['gpt-5.5-cyber', 'specialised'], ['gpt-5.4-pro', 'premium']])
+    assert.deepEqual(GPT_DISPLAY_PINS.filter(pin => pin.variantKind !== undefined).map(pin => [pin.id, pin.variantKind]), [['gpt-5.6-cyber', 'specialised'], ['gpt-5.5-pro', 'premium'], ['gpt-5.5-cyber-preview', 'specialised'], ['gpt-5.4-pro', 'premium']])
   })
   await check('the picker still offers every row: a Cyber and a Pro row are listed and selectable beside the default', async () => {
     assert.equal((await startsOn(['gpt-5.5', 'gpt-5.6-cyber', 'gpt-5.5-pro'])).setting, 'gpt-5.5')
@@ -98,6 +98,31 @@ try {
       assert.ok(row, id)
       assert.equal(row.unavailable, undefined, id)
     }
+  })
+  await check('a row carries the status its page states: GPT-5.4 nano ("Status: Deprecated" on its model page) and GPT-5.5 Cyber, under the id gpt-5.5-cyber-preview the deprecations page names, are marked deprecated, and no other row', () => {
+    assert.deepEqual(GPT_DISPLAY_PINS.filter(pin => pin.status !== undefined).map(pin => [pin.id, pin.status, pin.statusSource ?? pin.source]), [['gpt-5.5-cyber-preview', 'deprecated', 'https://developers.openai.com/api/docs/deprecations'], ['gpt-5.4-nano', 'deprecated', 'https://developers.openai.com/api/docs/models/gpt-5.4-nano.md']])
+    assert.equal(gptDisplayPin('gpt-5.5-cyber'), undefined)
+  })
+  await check("a deprecated row is passed over by the default as a special one is: a list of GPT-5.4 nano alone starts on it as the list's first row and the reason line says so", async () => {
+    const alone = await startsOn(['gpt-5.4-nano'])
+    assert.deepEqual([alone.setting, alone.provider, alone.source], ['gpt-5.4-nano', 'openai', 'sign-in'])
+    assert.ok(alone.why.endsWith("; the first row this sign-in can use (the catalogue's own order)"), alone.why)
+    assert.equal(alone.why.includes('recorded release'), false, alone.why)
+  })
+  await check("a list that serves a deprecated row and nothing the default may start on starts on the list's own first row, whichever row that is: gpt-9.9-nova, gpt-5.4-nano on gpt-9.9-nova; gpt-5.4-nano, gpt-9.9-nova and gpt-5.4-nano, gpt-5.5-pro on gpt-5.4-nano", async () => {
+    assert.equal((await startsOn(['gpt-9.9-nova', 'gpt-5.4-nano'])).setting, 'gpt-9.9-nova')
+    for (const list of [['gpt-5.4-nano', 'gpt-9.9-nova'], ['gpt-5.4-nano', 'gpt-5.5-pro']]) {
+      const got = await startsOn(list)
+      assert.equal(got.setting, 'gpt-5.4-nano', list.join(', '))
+      assert.ok(got.why.endsWith("; the first row this sign-in can use (the catalogue's own order)"), got.why)
+    }
+  })
+  await check('a list that serves a general row beside the deprecated one starts on the general row, and the picker still lists the deprecated row as selectable: gpt-5.4-nano, gpt-5.4-mini starts on gpt-5.4-mini', async () => {
+    const got = await startsOn(['gpt-5.4-nano', 'gpt-5.4-mini'])
+    assert.equal(got.setting, 'gpt-5.4-mini')
+    const row = getModelOptions().find(option => option.value === 'gpt-5.4-nano')
+    assert.ok(row)
+    assert.equal(row.unavailable, undefined)
   })
   await check('the reason line is true of the row it stands on: the recorded release and that row\'s own date, on Sol, on Astra and on GPT-5.5 alike, and the word frontier is on none', async () => {
     const dateOf = (id: string): string => gptDisplayPin(id)!.observedAt
@@ -126,6 +151,9 @@ try {
     assert.equal(openaiSessionDefault(['gpt-5.5', 'gpt-5.6-cyber'])?.modelId, 'gpt-5.5')
     assert.equal(openaiSessionDefault(['gpt-5.4', 'gpt-5.5-pro'])?.modelId, 'gpt-5.4')
     assert.equal(openaiSessionDefault(['gpt-5.5-pro', 'gpt-5.6-cyber']), undefined)
+    assert.equal(openaiSessionDefault(['gpt-5.4-nano']), undefined)
+    assert.equal(openaiSessionDefault(['gpt-5.4-nano', 'gpt-5.5-cyber-preview']), undefined)
+    assert.equal(openaiSessionDefault(['gpt-5.4-nano', 'gpt-5.4-mini'])?.modelId, 'gpt-5.4-mini')
     assert.equal(openaiSessionDefault(['whisper-1', 'gpt-9.9-nova']), undefined)
     assert.equal(openaiSessionDefault([]), undefined)
     assert.deepEqual(GPT_DISPLAY_PINS.slice(0, 2).map(pin => pin.id), [sol, astra])

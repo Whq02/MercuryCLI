@@ -228,7 +228,7 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
 
 export type GptEffortVocabularyView =
   | { state: 'not-gpt' }
-  | { state: 'live'; vocabulary: readonly string[]; defaultEffort?: string }
+  | { state: 'live'; vocabulary: readonly string[]; defaultEffort?: string; wordsFromRow?: true }
   | { state: 'known-empty'; defaultEffort?: string }
   | { state: 'unstated'; defaultEffort?: string }
   | { state: 'unavailable' }
@@ -243,6 +243,7 @@ export function gptEffortVocabularyView(model: string): GptEffortVocabularyView 
       state: 'live',
       vocabulary: catalogue.vocabulary,
       ...(catalogue.defaultEffort ? { defaultEffort: catalogue.defaultEffort } : {}),
+      ...(catalogue.wordsFromRow === true ? { wordsFromRow: true as const } : {}),
     }
   }
   if (catalogue.stated) {

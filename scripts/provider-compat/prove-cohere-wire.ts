@@ -66,7 +66,7 @@ const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
-const { refreshCohereCatalogue, __resetCohereCatalogueForTest, cohereCatalogueRows, cohereCatalogueSourceWords } = await import('../../src/services/providers/cohere/cohereCatalogue.ts')
+const { refreshCohereCatalogue, __resetCohereCatalogueForTest, cohereCatalogueRows } = await import('../../src/services/providers/cohere/cohereCatalogue.ts')
 const { buildCohereExtras } = await import('../../src/services/providers/cohere/cohereCallModel.ts')
 const { storeCohereApiKeyLogin } = await import('../../src/services/providers/cohere/cohereLogin.ts')
 const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
@@ -185,7 +185,7 @@ try {
   check('an id the account does not list refuses before inference', captures.length === before && absent.some(row => row.isApiErrorMessage) && words(absent).includes('command-fixture-absent'))
   modelList = []; await refreshCohereCatalogue({ force: true })
   const emptyPins = cohereCatalogueRows()
-  check('an empty live list falls to the 15 pins labelled as pins (nine observed 2026-10-17, the six Tiny Aya and translate rows 2026-10-25), and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 15 && emptyPins.rows.every(row => row.listedLive === false) && emptyPins.rows.filter(row => row.observedAt === '2026-10-17').length === 9 && emptyPins.rows.filter(row => row.observedAt === '2026-10-25').length === 6 && keyLaneListState('cohere').kind === 'pin' && (cohereCatalogueSourceWords() ?? '').includes('pinned list — ') && !(await run()).some(row => row.isApiErrorMessage) && captures.length === before + 1 && captures.at(-1)?.body.model === 'command-a-plus-05-2026')
+  check('an empty live list falls to the 15 pins labelled as pins (nine observed 2026-10-17, the six Tiny Aya and translate rows 2026-10-25), and a pinned id still rides under the note', emptyPins.source.kind === 'pins' && emptyPins.rows.length === 15 && emptyPins.rows.every(row => row.listedLive === false) && emptyPins.rows.filter(row => row.observedAt === '2026-10-17').length === 9 && emptyPins.rows.filter(row => row.observedAt === '2026-10-25').length === 6 && keyLaneListState('cohere').kind === 'pin' && !(await run()).some(row => row.isApiErrorMessage) && captures.length === before + 1 && captures.at(-1)?.body.model === 'command-a-plus-05-2026')
   before = captures.length
   modelList = COHERE_FIXTURE_MODELS
   listStatus = 401; __resetCohereCatalogueForTest(); await refreshCohereCatalogue({ force: true })
@@ -195,7 +195,7 @@ try {
   check('a key the list refuses is never stored and the receipt names the key page', !refusedLogin.ok && !refusedLogin.stored && refusedLogin.receipt.includes('HTTP 401') && refusedLogin.receipt.includes('dashboard.cohere.com/api-keys') && readStoredCohereApiKey() === 'proof-key-cohere-login-fixture-not-a-real-key')
   listStatus = 500; __resetCohereCatalogueForTest(); await refreshCohereCatalogue({ force: true })
   const pinRows = cohereCatalogueRows()
-  check('with the list unreachable the picker shows the 15 pins, labelled as pins, dated from the vendor pages', pinRows.source.kind === 'pins' && pinRows.rows.length === 15 && pinRows.rows.every(row => row.listedLive === false && (row.observedAt === '2026-10-17' || row.observedAt === '2026-10-25')) && keyLaneListState('cohere').kind === 'pin' && (cohereCatalogueSourceWords() ?? '').includes('pinned list — ') && keyLanePins('cohere').every(pin => pin.liveUnknown !== true))
+  check('with the list unreachable the picker shows the 15 pins, labelled as pins, dated from the vendor pages', pinRows.source.kind === 'pins' && pinRows.rows.length === 15 && pinRows.rows.every(row => row.listedLive === false && (row.observedAt === '2026-10-17' || row.observedAt === '2026-10-25')) && keyLaneListState('cohere').kind === 'pin' && keyLanePins('cohere').every(pin => pin.liveUnknown !== true))
   before = captures.length
   const unreachableTurn = await run(params('command-r-08-2024'))
   check('with the list unreachable a pinned id still rides, with the note that the provider decides', captures.length === before + 1 && captures.at(-1)?.body.model === 'command-r-08-2024' && textOf(unreachableTurn).startsWith('Cohere model list unavailable') && textOf(unreachableTurn).endsWith('COHERE-FIXTURE-SETTLED'))

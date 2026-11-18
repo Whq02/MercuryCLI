@@ -628,6 +628,29 @@ function bareStreamErrorFault(nth: number): OpenaiFault {
   }
 }
 
+function finishReasonOf(
+  terminal: 'response.completed' | 'response.failed' | 'response.incomplete',
+  response: Record<string, unknown> | undefined,
+  toolCalls: number,
+): { reason: OpenaiFinishReason; incompleteDetail: string | undefined } {
+  let reason: OpenaiFinishReason
+  let incompleteDetail: string | undefined
+  if (terminal === 'response.incomplete') {
+    const details = asRecord(response?.incomplete_details)
+    const raw = typeof details?.reason === 'string' ? details.reason : ''
+    incompleteDetail = raw === '' ? 'no reason stated' : raw
+    reason =
+      raw === 'max_output_tokens'
+        ? 'max_output_tokens'
+        : raw === 'content_filter'
+          ? 'content_filter'
+          : 'other-incomplete'
+  } else {
+    reason = toolCalls > 0 ? 'tool_calls' : 'completed'
+  }
+  return { reason, incompleteDetail }
+}
+
 export class ResponsesStreamFold {
   finished = false
   private bareStreamError: OpenaiFault | null = null
@@ -896,21 +919,7 @@ export class ResponsesStreamFold {
     terminal: 'response.completed' | 'response.failed' | 'response.incomplete',
     response: Record<string, unknown> | undefined,
   ): Extract<OpenaiStreamEvent, { type: 'finish' }> {
-    let reason: OpenaiFinishReason
-    let incompleteDetail: string | undefined
-    if (terminal === 'response.incomplete') {
-      const details = asRecord(response?.incomplete_details)
-      const raw = typeof details?.reason === 'string' ? details.reason : ''
-      incompleteDetail = raw === '' ? 'no reason stated' : raw
-      reason =
-        raw === 'max_output_tokens'
-          ? 'max_output_tokens'
-          : raw === 'content_filter'
-            ? 'content_filter'
-            : 'other-incomplete'
-    } else {
-      reason = this.toolCalls.length > 0 ? 'tool_calls' : 'completed'
-    }
+    const { reason, incompleteDetail } = finishReasonOf(terminal, response, this.toolCalls.length)
     const inputTransformations = readInputTransformations(response)
     return {
       type: 'finish',

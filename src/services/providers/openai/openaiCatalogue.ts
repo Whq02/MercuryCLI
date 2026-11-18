@@ -371,7 +371,7 @@ export interface GptReasoningProfile {
 
 export function resolveGptReasoningProfile(
   requested: string | undefined,
-  live: Pick<OpenaiLiveModel, 'supportedReasoningEfforts' | 'defaultReasoningEffort'>,
+  live: Pick<OpenaiLiveModel, 'supportedReasoningEfforts' | 'defaultReasoningEffort' | 'effortWordsFromRow'>,
 ): GptReasoningProfile {
   const supported = live.supportedReasoningEfforts
   if (supported.length === 0) {
@@ -383,14 +383,14 @@ export function resolveGptReasoningProfile(
   if (requested) {
     const nearest = nearestSupportedWireEffort(requested, supported)
     if (nearest === requested) return { wireEffort: requested, source: 'user' }
-    const fallback = nearest ?? wireEffortForListDefault(live.defaultReasoningEffort, supported)
+    const fallback = nearest ?? wireEffortForListDefault(live.defaultReasoningEffort, supported, live.effortWordsFromRow)
     return {
       ...(fallback ? { wireEffort: fallback } : {}),
       source: 'unsupported-fallback',
       adjustedFrom: requested,
     }
   }
-  const fallback = wireEffortForListDefault(live.defaultReasoningEffort, supported)
+  const fallback = wireEffortForListDefault(live.defaultReasoningEffort, supported, live.effortWordsFromRow)
   return { ...(fallback ? { wireEffort: fallback } : {}), source: 'model-default' }
 }
 
@@ -439,7 +439,7 @@ function liveGptCanonicalId(modelId: string): string | undefined {
 export function rowAsWireServes(live: OpenaiLiveModel, sourceKind: OpenaiAccountSourceKind): OpenaiLiveModel {
   const pin = sourceKind === 'api-key' ? gptDisplayPin(live.id) : undefined
   if (!live.reasoningEffortsStated && live.supportedReasoningEfforts.length === 0 && pin?.supportedReasoningEfforts !== undefined) {
-    live = { ...live, supportedReasoningEfforts: [...pin.supportedReasoningEfforts], reasoningEffortsStated: true, defaultReasoningEffort: live.defaultReasoningEffort ?? pin.defaultReasoningEffort }
+    live = { ...live, supportedReasoningEfforts: [...pin.supportedReasoningEfforts], reasoningEffortsStated: true, effortWordsFromRow: true, defaultReasoningEffort: live.defaultReasoningEffort ?? pin.defaultReasoningEffort }
   }
   if (live.inputModalities === undefined && pin?.inputModalities !== undefined) live = { ...live, inputModalities: [...pin.inputModalities] }
   const { operatorModelFacts, modelHasRecordedFacts } = require('../../../utils/model/modelOverrides.js') as typeof import('../../../utils/model/modelOverrides.js')
@@ -460,7 +460,7 @@ export function rowAsWireServes(live: OpenaiLiveModel, sourceKind: OpenaiAccount
   return served.length === live.supportedReasoningEfforts.length ? live : { ...live, supportedReasoningEfforts: served }
 }
 
-export type LiveGptEffortCatalogue = { vocabulary: readonly string[]; stated: boolean; defaultEffort?: string }
+export type LiveGptEffortCatalogue = { vocabulary: readonly string[]; stated: boolean; defaultEffort?: string; wordsFromRow?: true }
 
 const servedEffortCatalogues = new Map<string, LiveGptEffortCatalogue>()
 
@@ -476,6 +476,7 @@ export function liveGptEffortCatalogue(modelId: string): LiveGptEffortCatalogue 
     vocabulary: [...live.row.supportedReasoningEfforts],
     stated: live.row.reasoningEffortsStated,
     ...(live.row.defaultReasoningEffort ? { defaultEffort: live.row.defaultReasoningEffort } : {}),
+    ...(live.row.effortWordsFromRow === true ? { wordsFromRow: true as const } : {}),
   }
   if (served.vocabulary.length > 0) servedEffortCatalogues.set(key, served)
   return served

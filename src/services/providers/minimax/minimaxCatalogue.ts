@@ -195,14 +195,6 @@ export function minimaxWireId(model: string, env: NodeJS.ProcessEnv = process.en
   return minimaxListedModel(getCachedMinimaxCatalogue(env), asked)?.id ?? minimaxDisplayPin(asked)?.wireId ?? asked
 }
 
-export function minimaxCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  const snapshot = getCachedMinimaxCatalogue(env)
-  const { source } = minimaxCatalogueRows(env)
-  if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no text models'}`
-  if (snapshot?.lastError) return snapshot.lastError
-  return source.kind === 'live' ? `${source.count} text ${source.count === 1 ? 'model' : 'models'} live${source.otherLines > 0 ? ` · ${source.otherLines} of other lines not listed` : ''}` : undefined
-}
-
 export function minimaxModelFacts(id: string): { contextWindow?: number; outputMax?: number; thinking: MinimaxThinkingDial | undefined; images?: boolean; tools?: boolean; efforts: readonly string[] } {
   const pin = minimaxDisplayPin(id)
   return {

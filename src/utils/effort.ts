@@ -227,7 +227,7 @@ function resolveEffortTruthWithEnv(
 
     if (gptView.state === 'live') {
       const vocabulary = gptView.vocabulary
-      const fallback = wireEffortForListDefault(gptView.defaultEffort, vocabulary)
+      const fallback = wireEffortForListDefault(gptView.defaultEffort, vocabulary, gptView.wordsFromRow)
       const wire =
         request === undefined ? fallback : (nearestSupportedWireEffort(request, vocabulary) ?? fallback)
       const applied = wire !== undefined && isEffortLevel(wire) ? wire : undefined
