@@ -433,7 +433,9 @@ the machine or named by the pin, the bash Mercury ships, the engine because
 no bash starts, or the engine selected by the setting or env pin), names what
 was passed over, and warns when the engine is the last road or the install
 carries no bash pack; its **Shell engine** row
-(`iface-shell-engine`) says the same from the engine's side. The Bash tool's own description
+(`iface-shell-engine`) says the same from the engine's side. Once a session
+has settled on a shell, the **Bash tool shell** row of `/capabilities` says
+what the health row says, with the same fix. The Bash tool's own description
 always states which engine is live, and the command parser and permission
 rules judge the command text identically on either engine.
 

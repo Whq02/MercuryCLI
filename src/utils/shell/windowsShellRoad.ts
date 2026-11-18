@@ -307,7 +307,7 @@ export function describeWindowsShellRoad(): {
   fix?: string
 } {
   if (!windowsShellRoadActive()) {
-    return { road: 'system', absent: false, line: shellRecordDoor().shellRoadWordsNow() }
+    return { road: 'system', absent: shellRecordDoor().noSystemShellStarts(), line: shellRecordDoor().shellRoadWordsNow() }
   }
   const road = windowsBashRoad()
   const settled = shellRecordDoor().settledSystemShell()

@@ -42,6 +42,7 @@ import { resolvePrimaryAgentBackend } from '../services/providers/primaryBackend
 import { getBundledSkills } from '../skills/bundledSkills.js'
 import { logForDebugging } from './debug.js'
 import { listCapabilityKills } from './permissions/capabilityGate.js'
+import { shellRowNow } from './shell/shellRecord.js'
 import { describeWindowsShellRoad } from './shell/windowsShellRoad.js'
 import { extensionReadinessRows } from '../extensions/boot.js'
 import { searchToolsAvailability } from './ripgrep.js'
@@ -139,13 +140,14 @@ function toolRecords(): ReadinessRecord[] {
   })
 
   const shell = describeWindowsShellRoad()
+  const said = shellRowNow()
   records.push({
     id: 'tool:shell',
     kind: 'tool',
     label: 'Bash tool shell',
     state: shell.absent ? 'unavailable' : shell.road === 'system' || shell.unasked === true ? 'configured' : 'ready',
-    detail: shell.line,
-    ...(shell.fix !== undefined ? { remedy: shell.fix } : {}),
+    detail: said.evidence,
+    ...(said.fix !== undefined ? { remedy: said.fix } : {}),
     source: 'Windows shell road',
     lastCheckedAt: Date.now(),
   })

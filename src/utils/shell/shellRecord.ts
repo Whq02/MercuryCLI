@@ -333,25 +333,18 @@ export async function shellWordOwed(): Promise<{ model: string | null; user: str
   return { model: served ? null : NO_SHELL_FOR_THE_MODEL, user }
 }
 
-export async function shellRow(waitMs: number = SHELL_ROW_WAITS_MS): Promise<ShellRow> {
-  const waited = new AbortController()
-  const settled = await Promise.race([shellRecordIfAny().then(record => ({ record })), sleep(waitMs, waited.signal).then(() => null)])
-  waited.abort()
-  const passedNow = passedOver.length > 0 ? ` — passed over: ${passedOver.join('; ')}` : ''
-  if (settled === null) {
-    return {
-      status: 'warn',
-      evidence: `no shell has answered after ${waitMs / 1000} s${askedNow === null ? '' : `: ${askedNow} is being asked for its bash version and has ${START_PROBE_TIMEOUT_MS / 1000} s to answer`}${passedNow}`,
-      fix: `Run the health check again in a moment: a program that does not answer within ${START_PROBE_TIMEOUT_MS / 1000} s is passed over and named in this row.`,
-    }
-  }
-  const record = settled.record
+const passedNow = (): string => (passedOver.length > 0 ? ` — passed over: ${passedOver.join('; ')}` : '')
+
+function loginFilesRideIt(record: ShellRecord | null): boolean {
+  return record !== null && record.origin !== 'engine' && !windowsShellRoadActive() && armedEngine() === null
+}
+
+function shellRowOf(record: ShellRecord | null, absent: LoginFilesAbsence | null): ShellRow {
   const pack = shippedBash()
   const skipped = pack.state === 'ok' ? null : pack.note
   const fix = skipped === null ? {} : { fix: `The bash pack is skipped in this install: ${skipped}` }
-  const onWindowsRoad = windowsShellRoadActive()
-  const passed = onWindowsRoad ? passedNow : ''
-  if (onWindowsRoad) {
+  if (windowsShellRoadActive()) {
+    const passed = passedNow()
     const road = describeWindowsShellRoad()
     if (road.absent) return { status: 'warn', evidence: `${road.line}${passed}`, ...(road.fix === undefined ? {} : { fix: road.fix }) }
     if (record === null) return { status: 'warn', evidence: `${NO_WINDOWS_SHELL_MESSAGE}${passed}`, ...fix }
@@ -360,13 +353,12 @@ export async function shellRow(waitMs: number = SHELL_ROW_WAITS_MS): Promise<She
     const lastRoad = road.road === 'engine' && (armed === null || armed.arm === 'no-bash')
     return { status: lastRoad ? 'warn' : 'ok', evidence: `${road.line}${names}${passed}`, ...(lastRoad ? fix : {}) }
   }
-  if (record === null) return { status: 'warn', evidence: `${NO_SHELL_MESSAGE}${passedNow}`, fix: skipped === null ? LAST_ROAD_FIX : `The bash pack is skipped in this install: ${skipped}` }
+  if (record === null) return { status: 'warn', evidence: `${NO_SHELL_MESSAGE}${passedNow()}`, fix: skipped === null ? LAST_ROAD_FIX : `The bash pack is skipped in this install: ${skipped}` }
   const armed = armedEngine()
   if (armed !== null) return { status: 'ok', evidence: `${describeShellRecord(record)} (${shellEngineArmWords(armed.arm)})${skipped === null ? '' : ` — this install carries no bash pack: ${skipped}`}` }
   if (record.origin === 'engine') {
-    return { status: 'warn', evidence: `${describeShellRecord(record)}, because no bash starts on this machine${passedNow}`, fix: skipped === null ? LAST_ROAD_FIX : `The bash pack is skipped in this install: ${skipped}` }
+    return { status: 'warn', evidence: `${describeShellRecord(record)}, because no bash starts on this machine${passedNow()}`, fix: skipped === null ? LAST_ROAD_FIX : `The bash pack is skipped in this install: ${skipped}` }
   }
-  const absent = await loginFilesSettled()
   if (absent !== null) {
     return {
       status: 'warn',
@@ -376,6 +368,29 @@ export async function shellRow(waitMs: number = SHELL_ROW_WAITS_MS): Promise<She
   }
   if (record.origin === 'shipped') return { status: 'ok', evidence: describeShellRecord(record) }
   return { status: 'warn', evidence: describeShellRecord(record), ...fix }
+}
+
+export async function shellRow(waitMs: number = SHELL_ROW_WAITS_MS): Promise<ShellRow> {
+  const waited = new AbortController()
+  const settled = await Promise.race([shellRecordIfAny().then(record => ({ record })), sleep(waitMs, waited.signal).then(() => null)])
+  waited.abort()
+  if (settled === null) {
+    return {
+      status: 'warn',
+      evidence: `no shell has answered after ${waitMs / 1000} s${askedNow === null ? '' : `: ${askedNow} is being asked for its bash version and has ${START_PROBE_TIMEOUT_MS / 1000} s to answer`}${passedNow()}`,
+      fix: `Run the health check again in a moment: a program that does not answer within ${START_PROBE_TIMEOUT_MS / 1000} s is passed over and named in this row.`,
+    }
+  }
+  return shellRowOf(settled.record, loginFilesRideIt(settled.record) ? await loginFilesSettled() : null)
+}
+
+export function shellRowNow(): ShellRow {
+  const record = shellRecordNow()
+  if (record !== null || noneStarts) return shellRowOf(record, loginFilesAbsence)
+  const road = describeWindowsShellRoad()
+  const pack = shippedBash()
+  const skipped = pack.state === 'ok' ? {} : { fix: `The bash pack is skipped in this install: ${pack.note}` }
+  return { status: road.absent || pack.state !== 'ok' ? 'warn' : 'ok', evidence: road.line, ...(road.fix === undefined ? skipped : { fix: road.fix }) }
 }
 
 export const BASH_GLOB_PREAMBLE = 'shopt -u extglob 2>/dev/null || true'
