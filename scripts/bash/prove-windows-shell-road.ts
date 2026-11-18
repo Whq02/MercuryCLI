@@ -89,9 +89,6 @@ console.log('── §1 the composer and the arm ladder are pure ──')
   check('the ladder has no arm of its own for Windows: it takes the pin, the setting and whether a bash stands, and nothing else', shellEngineRequest.length === 3)
   check('the system pin and the system setting keep a bash and never arm the engine', ladder('system', undefined, false) === want('system', 'pin') && ladder(undefined, 'system', false) === want('system', 'setting'))
   check('the no-bash arm says both things it means: no bash.exe was found and the install carries none', /no bash\.exe was found/.test(shellEngineArmWords('no-bash')) && /no bash of its own/.test(shellEngineArmWords('no-bash')))
-  const readme = read('docs/INSTALL.md')
-  const runtime = read('docs/TERMINAL-RUNTIME.md')
-  check('INSTALL.md and TERMINAL-RUNTIME say the engine is the Windows default and no longer name the cmd /c npm hole', readme.includes('on Windows it serves the Bash tool by default') && !readme.includes('cmd /c npm') && runtime.includes('On Windows the default is the bundled **brush**') && !runtime.includes('Two\nthings the engine cannot do') && !runtime.includes('cmd /c npm'))
 }
 
 console.log('── §2 the locator: typed answers, one loud refusal ──')

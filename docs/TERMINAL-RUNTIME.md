@@ -291,10 +291,11 @@ command where the working directory carries from call to call and everything
 else resets; `system` is that road's name in the setting. When the shipped
 bash is absent or does not start, the system's own bash runs the command,
 whatever its version, and when no bash starts the bundled engine does. zsh is
-never run, whatever `$SHELL` names. On Windows the default is the bundled **brush**
-engine whenever its pack is present (every release archive includes it);
-`bash.exe` from Git for Windows serves the Bash tool when the engine is turned
-off by the pin or the setting, or its pack is absent.
+never run, whatever `$SHELL` names. On Windows the default is a bash 5 too: one
+that is installed first (Git for Windows ships one, found through `git`, or
+the `bash.exe` that `MERCURY_GIT_BASH_PATH` names), then the bash that rides
+every Windows archive, and the bundled engine when no bash starts. An
+installed bash older than 5 does not count: the shipped one serves.
 In both modes, the Bash tool tracks its own shell working directory across
 calls: a `cd` inside a Bash command moves where subsequent shell commands run
 without changing the session's starting folder.
@@ -315,6 +316,16 @@ command starts by name, or a script that begins `#!/usr/bin/env bash`, runs
 whichever bash PATH finds, which on a Mac is the system's 3.2 unless a newer
 one stands earlier on PATH.
 
+The bash of the Windows archives is GNU bash 5.3 as the MSYS2 project packages
+it, with the MSYS2 runtime (`msys-2.0.dll`) and the programs a command names
+(`ls`, `cat`, `grep`, `sed`, `find` and the like): nineteen packages, each
+pinned with its size and digest in `vendor/bash.lock.json` beside its source
+package, and laid out at `dist/vendor/bash/<platform>/` with the licence
+texts under `licenses/`, `NOTICES.json` and a `SOURCE` note naming where each
+binary and source package is. The same x86_64 programs serve Windows on Arm.
+Mercury puts the folder of those programs first on the PATH of a command that
+runs in the shipped bash.
+
 The optional **brush** engine is a vendored Rust bash-compatible shell (MIT),
 shipped as an upstream release binary per platform at
 `dist/vendor/brush/<platform>/` and verified against
@@ -332,9 +343,8 @@ and runs a program named by a relative path after a `cd`.
 A call the long-lived process cannot take runs in a process of its own: a
 Monitor watch, a `run_in_background` command, and a command with
 `inherit_session_env`. That process is the shipped bash on macOS and Linux,
-and on Windows the `bash.exe` from Git for Windows when one is found; on a
-Windows box with no `bash.exe` it is the engine itself, so every Bash call
-runs without Git for Windows.
+and on Windows the installed bash 5 when one is found, else the shipped one;
+on a Windows box where no bash starts it is the engine itself.
 
 The sessions have a ceiling: the `shell.sessions` setting (a whole
 number, 8 by default: the main conversation plus seven crewmates), the
@@ -356,16 +366,18 @@ ends.
 
 Select it with the **Shell engine** row in `/config` (setting `shell.engine`:
 `system` | `brush`) or the `MERCURY_SHELL_ENGINE=brush` env pin, which
-outranks the setting; on macOS and Linux the shipped bash stays the default,
-on Windows the engine is the default. A `brush` choice whose pack is absent
-degrades to the default road and the `health` row names why, never falling
-back silently. On a Windows box with no `bash.exe`, `system` written as the
-setting's value or as the env pin turns the engine off and the Bash tool
-leaves the roster; the `/config` row's `system` is the default, which lets
-the engine arm itself. The `health` report's **Bash tool shell** row (check
-id `shell`) says which shell runs and why (the engine as the Windows default,
-the engine because no `bash.exe` was found, the engine selected by the
-setting or env pin, or a found `bash.exe`), and its **Shell engine** row
+outranks the setting; on every platform a bash stays the default. A `brush`
+choice whose pack is absent degrades to the default road and the `health` row
+names why, never falling back silently. `system` written as the setting's
+value or as the env pin means a bash and never the engine: on a Windows box
+with no installed bash 5 and no bash pack the Bash tool then leaves the
+roster; the `/config` row's `system` is the default, which lets the engine
+serve where no bash starts. The `health` report's **Bash tool shell** row
+(check id `shell`) says which shell runs, its version and why (a bash found on
+the machine or named by the pin, the bash Mercury ships, the engine because
+no bash starts, or the engine selected by the setting or env pin), names what
+was passed over, and warns when the engine is the last road or the install
+carries no bash pack; its **Shell engine** row
 (`iface-shell-engine`) says the same from the engine's side. The Bash tool's own description
 always states which engine is live, and the command parser and permission
 rules judge the command text identically on either engine.

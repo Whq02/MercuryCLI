@@ -94,26 +94,26 @@ winget install --id Git.Git --source winget
 
 Close the terminal, open a new one, run the check again.
 
-Git for Windows also installs `bash.exe`. A release archive carries its own
-bash-compatible shell engine as well (brush, built from its published crate),
-and on Windows the Bash tool runs through it by default whenever its pack is
-present, with nothing to set: it finds a `.cmd` or `.bat` program such as
-`npm` by its bare name through PATHEXT, passes `%VAR%` and `^` to a batch
-file unchanged, and runs a program named by a relative path after a `cd`.
-The `health` report's **Bash tool shell** row (check id `shell`) reports the
-bundled shell engine and why (the Windows default, or no `bash.exe` found),
-or `git-bash` when the engine is turned off or its pack is absent. A source
-build gets the same engine once step 7 builds it; until then the Bash tool
-runs under `bash.exe` when Git for Windows is present. Without either shell (no Git for Windows and no engine
-pack), Mercury still starts, but the Bash tool is missing from the model's
-tool list (the PowerShell tool stays), the **Bash tool shell** row warns,
-and a notice at the start of a session names the ways out: install Git for
-Windows; set `MERCURY_GIT_BASH_PATH` to your `bash.exe` when Git is
-installed somewhere Mercury does not look; or build the engine (step 7).
+Git for Windows also installs `bash.exe`, and the Bash tool runs under it
+when it is a bash 5, with nothing to set. A release archive carries a bash of
+its own for a machine that has none (GNU bash 5.3 as the MSYS2 project
+packages it, with `ls`, `grep`, `sed` and the other programs a command names),
+and its bash-compatible shell engine (brush, built from its published crate),
+which serves when no bash starts or when you choose it. The `health` report's
+**Bash tool shell** row (check id `shell`) says which of the three runs, its
+version and why. A source build gets the bash pack once step 7 fetches it and
+the engine once step 7 builds it; until then the Bash tool runs under
+`bash.exe` when Git for Windows is present. Without any of the three (no Git
+for Windows, no bash pack and no engine pack), Mercury still starts, but the
+Bash tool is missing from the model's tool list (the PowerShell tool stays),
+the **Bash tool shell** row warns, and a notice at the start of a session
+names the ways out: install Git for Windows; set `MERCURY_GIT_BASH_PATH` to
+your `bash.exe` when Git is installed somewhere Mercury does not look; or
+fetch the bash pack or build the engine (step 7).
 `$env:MERCURY_SHELL_ENGINE = "system"` (or the `shell.engine` setting written
-as `system`) keeps the Bash tool on `bash.exe` alone; the `/config` row
-**Shell engine** shows `system` for the default, which lets the engine arm
-itself.
+as `system`) keeps the Bash tool on a bash alone; the `/config` row
+**Shell engine** shows `system` for the default, which lets the engine serve
+where no bash starts.
 A `MERCURY_GIT_BASH_PATH` that points at a file that does not exist stops
 Mercury at start with a message saying so; fix the path.
 ---
@@ -210,7 +210,7 @@ one command, run:
 bun run setup
 ```
 
-`bun run setup` runs `bun install`, downloads the PDF library and the seven
+`bun run setup` runs `bun install`, downloads the PDF library and the eight
 fetched packs in step 7, and builds the native addons (`native/voice`, `native/whisper`,
 `native/desktop` and `native/embed`) plus the default embedding model whenever
 Rust (`cargo`, and `cmake` for `native/whisper`) is installed, skipping any
@@ -252,14 +252,18 @@ bun run scripts/vendor/fetch-pdfjs.ts
 
 If you already ran `bun run setup` in step 6, only `bun run scripts/vendor/build-brush.ts`
 remains here (upstream publishes no Windows binary for `brush`, so it is compiled
-from its crate). Otherwise, these seven commands download pinned, hash-verified
+from its crate). Otherwise, these eight commands download pinned, hash-verified
 helpers: the Python language server, the Python debugger, the Node/TypeScript
 debug adapter, extra tree-sitter grammars for the structural code tools,
 the Windows Node runtime (the official `win-x64` build, vendored beside
 the bundle so a release archive made from this build needs no Node
-install), and the Python runtime the Python debugger runs on (without it
+install), the Python runtime the Python debugger runs on (without it
 the debugger uses a `python3` on PATH and the build records
-`degraded: python-runtime`). Mercury builds and runs **without** them (the build prints a
+`degraded: python-runtime`), and the bash pack (nineteen MSYS2 packages
+and one source package, 17 MB of downloads, laid out as `vendor\bash\win-x64`
+in 23 MB; without it the Bash tool
+runs an installed bash 5, then the engine, and the build records
+`degraded: shell-bash`). Mercury builds and runs **without** them (the build prints a
 warning naming what was skipped, and the affected tools say so honestly
 at runtime), but a full install has them.
 
@@ -271,6 +275,7 @@ bun run scripts/vendor/fetch-grammars.ts
 bun run scripts/vendor/fetch-json-query.ts
 bun run scripts/vendor/fetch-node.ts
 bun run scripts/vendor/fetch-python.ts
+bun run scripts/vendor/fetch-bash-win.ts
 ```
 
 Four more packs are built from source, each with a Rust toolchain

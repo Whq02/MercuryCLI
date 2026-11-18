@@ -233,6 +233,25 @@ against their checked-in lock files before a byte is consumed.
   (exit 0). `--check` = validity against the lock.
   `MERCURY_BUILD_NO_VENDOR_BASH=1` forces the degraded arm. The release
   packager requires the pack on the four macOS and Linux targets.
+- **Bash pack for Windows** (optional at build; FETCHED, the one bash pack
+  that is not built). GNU bash as the MSYS2 project packages it, with the
+  MSYS2 runtime and the programs a command names: the nineteen packages
+  `vendor/bash.lock.json` pins in its `msys2` block, each with its size,
+  sha256 and source package. `bun run scripts/vendor/fetch-bash-win.ts` (a
+  link of `bun run setup`; on a Mac or Linux host it fetches nothing unless
+  `--platform win-x64`, `--target windows-x64` or `--all` names a Windows
+  pack) downloads them into `vendor/bash/archive/msys2/`, checks every size
+  and sha256 before a file is opened, and lays out `vendor/bash/win-x64/`
+  and `win-arm64/` (the same x86_64 programs): `usr/bin`, `etc/fstab` and
+  `etc/nsswitch.conf` from the lock, the licence texts under `licenses/`,
+  `NOTICES.json`, a `SOURCE` note and a manifest carrying the count of files
+  and the digest of the tree. `--check` = validity against the lock,
+  `--offline` = the cache alone, `--sources` = every source package into the
+  cache as well. The build copies the SHIP platform's pack to
+  `dist/vendor/bash/<platform>/` after checking the tree digest; absent ⇒
+  degraded `shell-bash` (the Bash tool runs an installed bash 5, then the
+  bundled engine). The release packager requires the pack on the two Windows
+  targets and holds every bash pack by its tree digest.
 - **debugpy** (optional). The Python debug adapter, an extracted wheel under
   `dist/vendor/debugpy/`. Truth is `vendor/debugpy.lock.json`
   (version · wheel · sha256 · adapter entry); the local cache is reproduced
