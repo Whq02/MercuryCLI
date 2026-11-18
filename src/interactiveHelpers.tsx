@@ -61,8 +61,6 @@ import { recordFrameTrace } from './ink/root/frame-trace.js'
 import { isWarmBackgroundEnabled } from './utils/cockpit/warmBackground.js'
 import type { InternalPermissionMode } from './types/permissions.js'
 import { modeBypassesPermissions } from './utils/permissions/PermissionMode.js'
-import { onChangeAppState as defaultOnChangeAppState } from './state/onChangeAppState.js'
-import type { AppState } from './state/AppStateStore.js'
 
 
 function completeOnboarding(): void {
@@ -106,15 +104,10 @@ export function SetupScreenHost({ children }: { children: React.ReactNode }): Re
 function showSetupDialog<T>(
   root: Root,
   renderer: (done: (result: T) => void) => React.ReactNode,
-  options?: {
-    onChangeAppState?: (change: { newState: AppState; oldState: AppState }) => void
-  },
 ): Promise<T> {
   return new Promise<T>(resolve => {
     root.render(
-      <AppStateProvider
-        onChangeAppState={options?.onChangeAppState ?? defaultOnChangeAppState}
-      >
+      <AppStateProvider>
         <KeybindingSetup>
           <SetupScreenHost>{renderer(result => resolve(result))}</SetupScreenHost>
         </KeybindingSetup>

@@ -8,7 +8,6 @@ import { Box, Text } from '../../ink.js'
 import { SetupScreenHost } from '../../interactiveHelpers.js'
 import { KeybindingSetup } from '../../keybindings/KeybindingProviderSetup.js'
 import { AppStateProvider } from '../../state/AppState.js'
-import { onChangeAppState } from '../../state/onChangeAppState.js'
 import { ACP_LOGIN_FLAG } from './acpSignIn.js'
 
 export const ACP_LOGIN_INTRO = 'Sign in to use Mercury from your editor; this window closes when you are done.'
@@ -51,7 +50,7 @@ function AcpLoginScreen({ onSettled }: { onSettled: (outcome: AcpLoginOutcome) =
 
 export function acpLoginElement(onSettled: (outcome: AcpLoginOutcome) => void): React.ReactNode {
   return (
-    <AppStateProvider onChangeAppState={onChangeAppState}>
+    <AppStateProvider>
       <KeybindingSetup>
         <SetupScreenHost>
           <AcpLoginScreen onSettled={onSettled} />

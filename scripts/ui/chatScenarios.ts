@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, type Mounted } from '../lib/settingsPopupHarness.ts'
 
-type Step = { label: string; title: string | null; cursor: string; calls: string[]; lines: string[] }
+type Step = { label: string; title: string | null; cursor: string; calls: string[]; modes: string[]; lines: string[] }
 type Recording = { scenario: string; size: string; steps: Step[] }
 
 type Message = import('../../src/types/message.ts').Message
@@ -192,6 +192,8 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   const { markDaemonHaltStanddown } = await import('../../src/utils/daemonStanddown.ts')
   const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
   const buildAsk = await askBuilder()
+  const modeRecord = await import('../../src/utils/permissions/modeTransitions.ts')
+  modeRecord.clearModeTransitions()
   markDaemonHaltStanddown()
   const commands = await getCommands(project)
 
@@ -426,6 +428,7 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   const mask = maskerFor(home)
   const steps: Step[] = []
   let seen = 0
+  let modesSeen = 0
   const frameOf = (): string[] => view.lines().map(mask)
 
   const settled = async (label: string, ready?: (frame: string) => boolean): Promise<string[]> => {
@@ -458,7 +461,9 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
     const at = view.cursor()
     const calls = focusedCalls().slice(seen)
     seen = focusedCalls().length
-    steps.push({ label, title: maskTitle(title), cursor: `${at.x},${at.y} ${at.visible ? 'shown' : 'hidden'}`, calls, lines })
+    const modes = modeRecord.modeTransitions().slice(modesSeen).map(entry => `${entry.from} → ${entry.to} via ${entry.road}`)
+    modesSeen = modeRecord.modeTransitions().length
+    steps.push({ label, title: maskTitle(title), cursor: `${at.x},${at.y} ${at.visible ? 'shown' : 'hidden'}`, calls, modes, lines })
   }
   const allCalls: string[] = []
   const sessions: ScriptedSession[] = focused === null ? [] : [focused]
@@ -1972,6 +1977,7 @@ export function renderRecording(recording: Recording): string {
   recording.steps.forEach((step, index) => {
     out.push('', `=== ${index + 1}. ${step.label}`, `title: ${step.title ?? '(none)'}`, `cursor: ${step.cursor}`)
     for (const call of step.calls) out.push(`call: ${call}`)
+    for (const mode of step.modes) out.push(`mode: ${mode}`)
     out.push('--- screen', ...step.lines.map(line => `|${line}`), '--- end')
   })
   return out.join('\n') + '\n'

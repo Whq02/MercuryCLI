@@ -41,7 +41,7 @@ const startMode = t.mode()
 await t.setRunnerMode('implement')
 const adopted = modeTransitions().find(entry => entry.road === 'screen-mirror')
 check("the runner's own mode is adopted into the app state", t.mode() === 'implement', `${startMode} → ${t.mode()}`)
-check("and the change is written on the road 'screen-mirror'", adopted?.road === 'screen-mirror' && adopted.from === startMode && adopted.to === 'implement' && adopted.detail === "the runner's own mode adopted", JSON.stringify(adopted))
+check("and the change is written on the road 'screen-mirror', once", adopted?.road === 'screen-mirror' && adopted.from === startMode && adopted.to === 'implement' && adopted.detail === "the runner's own mode adopted" && modeTransitions().length === 1, JSON.stringify(modeTransitions()))
 const before = modeTransitions().length
 await t.setRunnerMode('implement')
 check('the same mode heard again changes nothing and writes nothing', t.mode() === 'implement' && modeTransitions().length === before, `${modeTransitions().length} entries, ${before} before`)
@@ -118,6 +118,47 @@ section('§5 the card alone: when it is drawn and what it tells the scroll')
   await settle(120)
   check('the card losing the focus pins the transcript once more', pins === 2 && card.value().permissionOverlay === null, `${pins} · ${shown()}`)
   card.unmount()
+}
+
+section('§6 the relay of the app state: a change of mode is recorded once, under the root of the screen and under a bare provider')
+{
+  const { mountOffscreen } = await import('../lib/settingsPopupHarness.ts')
+  const { AppStateProvider, useAppStateStore } = await import('../../src/state/AppState.tsx')
+  const { lastModeTransitionFrom, recordModeTransition } = await import('../../src/utils/permissions/modeTransitions.ts')
+  const { setPermissionModeChangedListener } = await import('../../src/utils/sessionState.ts')
+  type ModeStore = ReturnType<typeof useAppStateStore>
+  const told: string[] = []
+  setPermissionModeChangedListener(mode => void told.push(mode))
+  const rows = (): string => modeTransitions().map(entry => `${entry.from} → ${entry.to} via ${entry.road}`).join(' | ')
+  const setMode = (store: ModeStore, mode: string): void => store.setState(prev => ({ ...prev, toolPermissionContext: { ...prev.toolPermissionContext, mode: mode as never } }))
+  const root = await mountPart(() => null)
+  const first = root.store().getState().toolPermissionContext.mode
+  clearModeTransitions()
+  told.length = 0
+  recordModeTransition({ from: first, to: 'apollo', road: 'carousel' })
+  await act(() => setMode(root.store(), 'apollo'))
+  check('under the root of the screen a change of mode its writer announced is one row of the mode record, on the road announced', rows() === `${first} → apollo via carousel`, rows())
+  check('and the permission-mode listener is told once', told.join() === 'apollo', told.join())
+  recordModeTransition({ from: 'apollo', to: 'implement', road: 'review-approval', detail: 'the spec was approved' })
+  await act(() => setMode(root.store(), 'implement'))
+  const exit = lastModeTransitionFrom('apollo')
+  check('the reader of why a mode ended answers the road its writer announced, with its detail', exit?.road === 'review-approval' && exit.detail === 'the spec was approved' && modeTransitions().length === 2, `${rows()} · ${JSON.stringify(exit)}`)
+  root.unmount()
+  let bare: ModeStore | undefined
+  function Tap(): null {
+    bare = useAppStateStore()
+    return null
+  }
+  const view = await mountOffscreen(h(AppStateProvider, null, h(Tap)), 60, 6)
+  await settle(80)
+  clearModeTransitions()
+  told.length = 0
+  const bareFirst = bare!.getState().toolPermissionContext.mode
+  await act(() => setMode(bare!, bareFirst === 'apollo' ? 'implement' : 'apollo'))
+  check('under a provider mounted bare, as a dialog mounts it, a change nobody announced is one row too, and one telling', modeTransitions().length === 1 && modeTransitions()[0]!.road === 'unnamed' && told.length === 1, `${rows()} · told ${told.join()}`)
+  view.unmount()
+  setPermissionModeChangedListener(null)
+  clearModeTransitions()
 }
 
 console.log(`\n${failures === 0 ? 'prove-chat-asks-part: ALL PASS' : `prove-chat-asks-part: ${failures} FAILURE(S)`}`)
