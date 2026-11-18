@@ -101,7 +101,7 @@ export function narrowedRow(manifest: ImpactManifest, path: string): string | nu
   return row
 }
 
-export function watchClaims(manifest: ImpactManifest, suite: string, path: string): boolean {
+function watchClaims(manifest: ImpactManifest, suite: string, path: string): boolean {
   const row = narrowedRow(manifest, path)
   const floor = row === null ? 0 : literalPrefix(row).length
   for (const g of manifest.watches[suite] ?? []) {
@@ -111,7 +111,7 @@ export function watchClaims(manifest: ImpactManifest, suite: string, path: strin
   return false
 }
 
-export function doorsOf(manifest: ImpactManifest, path: string): string[] {
+function doorsOf(manifest: ImpactManifest, path: string): string[] {
   return (manifest.doors ?? []).filter(row => row.behind !== '' && row.door !== '' && new Bun.Glob(row.behind).match(path)).map(row => row.door)
 }
 
