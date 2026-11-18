@@ -74,6 +74,7 @@ section('W1 the fold is honest per phase')
 section('W2 the connector busy-union never claims writing for a fold-idle transcript')
 {
   const scratch = mkdtempSync(join(tmpdir(), 'writing-indicator-'))
+  const planeBefore = process.env.MERCURY_DAEMON_DIR
   process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
   mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
@@ -130,6 +131,8 @@ section('W2 the connector busy-union never claims writing for a fold-idle transc
     quiet === 'thinking' && streaming === 'responding',
     `busy with nothing streaming ${quiet} · a text block streaming ${streaming}`,
   )
+  if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+  else process.env.MERCURY_DAEMON_DIR = planeBefore
   rmSync(scratch, { recursive: true, force: true })
 }
 

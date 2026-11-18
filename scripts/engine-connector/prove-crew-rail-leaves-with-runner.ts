@@ -65,6 +65,7 @@ console.log('\n(2) the connector says when the runner is gone')
 }
 {
   const scratch = mkdtempSync(join(tmpdir(), 'crew-rail-leaves-'))
+  const planeBefore = process.env.MERCURY_DAEMON_DIR
   process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
   mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
@@ -92,6 +93,8 @@ console.log('\n(2) the connector says when the runner is gone')
   const before = { rows: seat.workRoster().rows.length, gone: seat.workRoster().gone === true }
   reaches.settleCarrierGone()
   check('settleCarrierGone sets the verdict before it refreshes the work (the roster carries both at once)', before.rows === 1 && !before.gone && seen.length === 1 && seen[0]!.rows === 0 && seen[0]!.gone, JSON.stringify({ before, seen }))
+  if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+  else process.env.MERCURY_DAEMON_DIR = planeBefore
   rmSync(scratch, { recursive: true, force: true })
 }
 const types = readFileSync(join(ROOT, 'src/services/engine-connector/types.ts'), 'utf8')
