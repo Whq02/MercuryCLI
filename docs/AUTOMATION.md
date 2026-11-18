@@ -366,7 +366,12 @@ The host sends `initialize` first and waits for the answer before sending work:
   `-32002`. `initialize` also accepts an optional `schema` (a JSON Schema object
   used for any turn that does not specify its own `schema`); an invalid schema
   returns `-32602` (`path: ["schema"]`), after which `initialize` can be sent
-  again.
+  again. A notification sent before `initialize` is answered
+  (`credentials/changed`) is kept until an `initialize` is answered with a
+  result. The notifications that waited and the requests that waited with
+  them are then taken in the order they arrived; a request of a scope, one
+  the runner takes one at a time (`session/claim`, `session/set_mode`,
+  `queue/add` and their like), is taken after those, in its scope's turn.
 - **File checkpoints:** A hosted runner does not capture per-turn file
   checkpoints by default, so `session/rewind` with `mode: "code"` returns
   `capture-off`. Pass `"file_checkpoints": true` in `initialize` to enable
@@ -419,8 +424,9 @@ The host sends `initialize` first and waits for the answer before sending work:
   `error.data.kind` (`protocol`, `claim`, `model`, `effort`, `mode`,
   `spawn-switch`, `kit`, `rewind`, `pause-gate`, `quiesce`, `queue`, `agent`,
   `no-shell`, `nothing-to-resume`, `already-initialized`, `capability`,
-  `trust` or `project`). A malformed JSON line answers `-32700`; three
-  consecutive malformed lines end the runner.
+  `trust` or `project`). A fault of the runner's own, or of the daemon it
+  asked, answers `-32603` with a sentence in `error.message`. A malformed JSON
+  line answers `-32700`; three consecutive malformed lines end the runner.
 
 ### TypeScript (Node 24, zero dependencies)
 

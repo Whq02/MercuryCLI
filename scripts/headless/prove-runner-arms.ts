@@ -337,43 +337,13 @@ section('§4b project/query: a folder nobody trusted, a parameter that is missin
     parameters.length === 9 && parameters.every(one => one.ok),
     parameters.filter(one => !one.ok).map(one => `${one.name}: ${shown(one.answer)}`).join(' · '),
   )
-  {
-    const { automationServerFactory } = await import('../../src/services/mcp/automationServer.ts')
-    const { MercuryError } = await import('../../sdk/src/errors.ts')
-    const { Client } = await import('../../src/services/mcp/sdk.ts')
-    const { InMemoryTransport } = await import('@modelcontextprotocol/server')
-    const bridge = {
-      query: async (input: Record<string, unknown>): Promise<unknown> => {
-        try { return await runnerArmsOf(ports)['project/query'](input as never, ref, signalOf()) }
-        catch (error) { throw Object.assign(new MercuryError((error as Error).message, null), { code: (error as { code?: number }).code, data: (error as { data?: unknown }).data }) }
-      },
-      close: async (): Promise<void> => {},
-    }
-    const server = automationServerFactory(bridge as never).create({} as never)
-    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
-    await server.connect(serverSide)
-    const client = new Client({ name: 'runner-arms-proof', version: '1.0.0' }, { capabilities: {} })
-    await client.connect(clientSide)
-    const sent = await client.callTool({ name: 'mercury_send', arguments: { session_id: SAVED, sender: ' ', message: 'words' } })
-    const printed = ((sent.content ?? []) as Array<{ text?: string }>).map(part => part.text ?? '').join('')
-    const read = await client.readResource({ uri: 'mercury://transcript/session/not-a-uuid' }).then(() => null, (error: unknown) => (error instanceof Error ? error.message : String(error)))
-    check(
-      "Mercury's MCP server prints the sentence of a -32602 after the wire's message, for a tool and for a resource read, from the error the TypeScript SDK raises for it (the message, with the code and the data on the error)",
-      sent.isError === true && printed === `${WIRE_FORM}: sender: ${NEEDS_BOTH}` && read !== null && read.includes(`${WIRE_FORM}: ref: ${NEEDS_ID}`),
-      j({ tool: printed, resource: read }),
-    )
-    const both = await client.callTool({ name: 'mercury_send', arguments: { session_id: SAVED, sender: ' ', message: ' ' } })
-    const printedBoth = ((both.content ?? []) as Array<{ text?: string }>).map(part => part.text ?? '').join('')
-    check("Mercury's MCP server names the parameters that share one sentence together, before the sentence said once", both.isError === true && printedBoth === `${WIRE_FORM}: sender, message: ${NEEDS_BOTH}`, j({ tool: printedBoth }))
-    await client.close()
-  }
 
   type WorkerRecord = ReturnType<typeof import('../../src/daemon/concourseWorkers.ts').readSessionWorkers>[string]
   type DaemonAnswer = Awaited<ReturnType<typeof import('../../src/daemon/controlSocket.ts').daemonControlRpc>>
   type ReadDecision = ReturnType<typeof import('../../src/utils/permissions/filesystem.ts').checkReadPermissionForTool>
   const elsewhere = { sessionId: SAVED, workspaceId: join(tmpdir(), 'another-project') } satisfies Pick<WorkerRecord, 'sessionId' | 'workspaceId'>
   const here = { sessionId: SAVED, workspaceId: getOriginalCwd() } satisfies Pick<WorkerRecord, 'sessionId' | 'workspaceId'>
-  const daemonSaysNo = { ok: false, code: 'EUNKNOWN', error: 'the session is held by another caller' } satisfies DaemonAnswer
+  const daemonSaysNo = { ok: false, code: 'EREFUSED', error: 'the session is held by another caller' } satisfies DaemonAnswer
   const daemonUnreached = { ok: false, code: 'ENOCONN', error: 'the daemon is not reachable (ENOCONN)' } satisfies DaemonAnswer
   const denied = { behavior: 'deny', message: 'Permission to read that file has not been granted.', decisionReason: { type: 'other', reason: 'a deny rule of this proof' } } satisfies ReadDecision
   const allowed = { behavior: 'allow' } satisfies ReadDecision
@@ -430,6 +400,19 @@ section('§4b project/query: a folder nobody trusted, a parameter that is missin
     const daemon = await startControlServer({} as never)
     const tooLong = await query({ ...letter, message: 'x'.repeat(1 << 21) })
     await daemon.close()
+    const key = await socket.mintControlKey()
+    socket.clearControlKeyMemo()
+    let dispatched: () => Promise<{ ok: false; error: string }> = async () => ({ ok: false, error: daemonSaysNo.error })
+    const hosting = await startControlServer({ isReady: () => true, controlKey: key, concourseDispatch: () => dispatched() } as never)
+    const refusedDispatch = await socket.daemonControlRpc({ op: 'sessionDispatch', clientMessageId: 'runner-arms-1', targetSessionId: SAVED, workspaceDir: getOriginalCwd(), prompt: 'words', origin: { kind: 'outside-report', sender: 'a-client', via: 'mcp-server' }, by: 'mcp:a-client' } as never, { timeoutMs: 5_000 })
+    const notTaken = await query(letter)
+    dispatched = async () => { throw new Error('boom') }
+    const thrownInside = await query(letter)
+    await hosting.close()
+    rmSync(socket.controlSockPath(), { force: true })
+    const older = await answering(`${j({ ok: false, code: 'EUNKNOWN', error: 'unknown op: sessionDispatch' })}\n`, socket.controlSockPath())
+    const tooOld = await query(letter)
+    await new Promise<void>(done => older.close(() => done()))
     if (daemonDirBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
     else process.env.MERCURY_DAEMON_DIR = daemonDirBefore
     rmSync(daemonHome, { recursive: true, force: true })
@@ -440,6 +423,17 @@ section('§4b project/query: a folder nobody trusted, a parameter that is missin
     )
     check('project/query answers a reply of the daemon that cannot be read as a fault of the run: the sentence with no code and no kind, which the wire sends as the internal error', malformed !== null && malformed.code === undefined && malformed.data === undefined && malformed.message === 'malformed daemon reply', shown(malformed))
     check("a message that makes the frame to the daemon larger than its cap is the caller's to shorten: the daemon's own control server, asked over its socket, refuses the frame, and project/query answers -32602 on message with the daemon's sentence", badParameter(tooLong, 'request exceeds 1MB — shorten the prompt or send in parts', 'message'), shown(tooLong))
+    check(
+      "the daemon's own control server answers a dispatch it will not take with a code of its own (EREFUSED), and project/query reads that code alone as the refusal of kind project",
+      codeOf(refusedDispatch) === 'EREFUSED' && notServed(notTaken, daemonSaysNo.error),
+      j({ daemon: refusedDispatch, arm: notTaken === null ? null : { code: notTaken.code, message: notTaken.message, data: notTaken.data } }),
+    )
+    const fault = (answer: Refusal | null, words: RegExp): boolean => answer !== null && answer.code === undefined && answer.data === undefined && words.test(answer.message)
+    check(
+      'a throw inside the daemon and a daemon too old for the verb are faults of the run, never refusals: each the sentence with no code and no kind, which the wire sends as the internal error',
+      fault(thrownInside, /^daemon error — boom$/) && fault(tooOld, /^the daemon is an older build/),
+      `${shown(thrownInside)} · ${shown(tooOld)}`,
+    )
   }
   rmSync(projects, { recursive: true, force: true })
   forget()

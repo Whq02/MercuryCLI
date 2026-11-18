@@ -234,14 +234,19 @@ function isRpcId(value: unknown): value is RpcId {
   return typeof value === 'number' && Number.isInteger(value) && value > 0
 }
 
-function notificationDelivery(method: string, handler: (params: unknown) => unknown, params: unknown, log: (line: string) => void): { run: () => void; fail: () => void } {
+function notificationDelivery(method: string, handler: (params: unknown) => unknown, params: unknown, log: (line: string) => void): { run: () => void; held: { id: null; run: () => void; fail: () => void } } {
+  const failed = (error: unknown): void => log(`runner wire: notification ${method} failed: ${error instanceof Error ? error.message : String(error)}`)
+  const reach = (): void => {
+    try {
+      const settling = handler(params)
+      if (settling instanceof Promise) settling.catch(failed)
+    } catch (error) {
+      failed(error)
+    }
+  }
   return {
-    run: () => {
-      void Promise.resolve()
-        .then(() => handler(params))
-        .catch(error => log(`runner wire: notification ${method} failed: ${error instanceof Error ? error.message : String(error)}`))
-    },
-    fail: () => log(`runner wire: notification ${method} arrived before initialize was answered and is dropped with it`),
+    run: () => void Promise.resolve().then(reach),
+    held: { id: null, run: reach, fail: () => log(`runner wire: notification ${method} arrived before initialize was answered and is dropped with it`) },
   }
 }
 
@@ -542,7 +547,7 @@ export class Peer {
     }
     const delivery = notificationDelivery(method, handler, check.value, this.log)
     if (this.initState === 'done') delivery.run()
-    else this.initWaiters.push({ id: null, ...delivery })
+    else this.initWaiters.push(delivery.held)
   }
 
   private onRequestLine(id: RpcId, method: string, params: unknown): void {
@@ -629,8 +634,8 @@ export class Peer {
     if ('error' in body) {
       this.initState = 'none'
       const waiters = this.initWaiters
-      this.initWaiters = []
-      for (const waiter of waiters) waiter.fail()
+      this.initWaiters = waiters.filter(waiter => waiter.id === null)
+      for (const waiter of waiters) if (waiter.id !== null) waiter.fail()
       return
     }
     this.initState = 'done'

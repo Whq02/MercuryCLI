@@ -61,6 +61,7 @@ type DaemonErrorCode =
   | 'ENOREPLY'
   | 'EBADMSG'
   | 'ENOTSUP'
+  | 'EREFUSED'
   | 'EUNKNOWN'
 
 export type DaemonOp =
