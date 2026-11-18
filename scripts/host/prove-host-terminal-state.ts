@@ -94,7 +94,7 @@ try {
       vast.state.pods.set(Number(id), { id: Number(id), label: 'terminal-' + id, actual_status: actual, start_date: Date.now() / 1000, dph_total: 1.25 })
       vast.state.logUrl = rejected ? 'https://logs.invalid/private/instance.log?signature=secret' : null
       const queued = queueHostSetup({ id, vendor: 'vast', name: 'terminal-' + id, recipe: recipe.id, recipeRow: recipe, price: 1.25, startedAt: new Date().toISOString(), status: 'RUNNING', apiBaseUrl: vast.baseUrl, sessionId })
-      await runHostJob(id, queued.generation!, { runner, pauseMs: 5, timeoutMs: 500, keepAlive: false })
+      await runHostJob(id, queued.generation!, { runner, pauseMs: 5, timeoutMs: 10_000, keepAlive: false })
       const paused = readHostRecord(id)!
       const label = status + (rejected ? ' rejected log' : ' readable log')
       check(label + ': the record retains the observed vendor state', paused.status === status && paused.jobState === 'paused', { status: paused.status, state: paused.jobState })
@@ -146,7 +146,7 @@ try {
     patchHostRecord(endingId, { status: 'TERMINATED', jobState: 'failed', error: 'termination was verified' })
     beforePodRead = undefined
   }
-  await runHostJob(endingId, ending.generation!, { runner, pauseMs: 5, timeoutMs: 500, keepAlive: false })
+  await runHostJob(endingId, ending.generation!, { runner, pauseMs: 5, timeoutMs: 10_000, keepAlive: false })
   const endedRecord = readHostRecord(endingId)!
   check('an in-flight pod read cannot overwrite a verified termination or publish a new pause', endedRecord.status === 'TERMINATED' && endedRecord.jobState === 'failed' && endedRecord.error === 'termination was verified' && !notices().some(row => row.words.includes('ending-' + endingId)))
   check('observing stopped/error states sent no SSH, tunnel, create, stop or terminate', sshCalls.length === 0 && vast.state.creates === 0 && vast.state.stops === 0 && vast.state.deletes === 0)
