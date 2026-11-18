@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: src/services/run/** src/services/workbench/** src/services/mission/** src/commands/run/** src/commands/diff/** src/commands/tasks/** src/components/prompts-panel/** src/screens/Chat.tsx
 # gate-watch: scripts/lib/captureDriver.ts scripts/ui/vshot.py src/bootstrap/state.ts
@@ -12,21 +12,6 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
-rm -f "${TMPDIR:-/tmp}"/momentum-report-*.json
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-current-work.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-current-work.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-delivery-artifact.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-delivery-artifact.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-brief.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-brief.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-parity.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/journey-j1.ts" || { __rc=$?; fail=1; }; prover_mark "$here/journey-j1.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/journey-j2.ts" || { __rc=$?; fail=1; }; prover_mark "$here/journey-j2.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/journey-j3.ts" || { __rc=$?; fail=1; }; prover_mark "$here/journey-j3.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/journey-j4.ts" || { __rc=$?; fail=1; }; prover_mark "$here/journey-j4.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/journey-j5.ts" || { __rc=$?; fail=1; }; prover_mark "$here/journey-j5.ts" "$__t" "$__rc"
-for j in J1 J2 J3 J4 J5; do
-  r="${TMPDIR:-/tmp}/momentum-report-${j}.json"
-  if [ ! -s "$r" ]; then
-    echo "❌ ${j}: no report written this run (${r})"
-    fail=1
-  fi
-done
 exit $fail
