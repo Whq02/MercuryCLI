@@ -431,7 +431,8 @@ const some = <T>(found: T[], line: (one: T) => string): string =>
     .slice(0, 40)
     .map(one => `\n      ${line(one)}`)
     .join('') + (found.length > 40 ? `\n      … and ${found.length - 40} more` : '')
-const arrivals = (row: Row, arrived: number, moved: number): string => `of the ${arrived} lines that arrived in it, ${moved} left a ${holder(row.kind)} that has a row and the rest is new`
+const arrivals = (row: Row, arrived: number, moved: number): string =>
+  arrived > 0 && moved >= arrived ? `all ${arrived} lines that arrived in it left a ${holder(row.kind)} that has a row, and a row does not rise by moved lines either` : `of the ${arrived} lines that arrived in it, ${moved} left a ${holder(row.kind)} that has a row and the rest is new`
 const LOST = `; a row that one write of the table left out comes back at the next write alone, so if a write lost this one by mistake, name that commit as FLOOR in ${SELF}`
 const spoken = (id: string): string => (id === 'HEAD' ? 'the last commit' : id.endsWith('^') ? `the commit before ${id.slice(0, 10)}` : `commit ${id.slice(0, 10)}`)
 
@@ -731,7 +732,7 @@ function plantedEstate(): void {
   const tallSplitAndGrown: Files = { ...tallSplit, [HALF]: text(["import { step } from './step.ts'", ...half, 'export const fresh = step']) }
   check(
     `no row rises, by new lines or by moved ones: lines that leave one unit with a row for another are refused in the one that grew, and so are lines that leave one file over ${FILE_CEILING} lines for another; a file's row is new only by lines that left a file that has a row, the import lines of the new file not counted and a line that is no import counted`,
-    written(pair, drawnIn) === `${B} runB 410 400 0/0 in ${WORKING_TREE}` && written(tallEstate, tallMoved) === `${OTHER} ${FILE_CEILING + 110} ${FILE_CEILING + 50} 0/0 in ${WORKING_TREE}` && written(tallEstate, tallGrown) === `${OTHER} ${FILE_CEILING + 60} ${FILE_CEILING + 50} 0/0 in ${WORKING_TREE}` && written(tallEstate, tallSplit) === '' && render(rowed(tallSplit)) === `${HALF}\tfile\t-\t${FILE_CEILING + 11}\n${OTHER}\tfile\t-\t${FILE_CEILING + 50}\n` && written(tallEstate, tallSplitAndGrown) === `${HALF} ${FILE_CEILING + 12} new ${FILE_CEILING + 11}/${FILE_CEILING + 10} in ${WORKING_TREE}`,
+    written(pair, drawnIn) === `${B} runB 410 400 0/0 in ${WORKING_TREE}` && told(judge(rowed(drawnIn), rowed(pair)), walked([floor(pair), { name: WORKING_TREE, files: drawnIn, rows: rowed(pair) }])).includes(`${B}: runB is 410 lines and its row allows 400; all 10 lines that arrived in it left a unit that has a row, and a row does not rise by moved lines either — move part of runB into a function or file of its own`) && written(tallEstate, tallMoved) === `${OTHER} ${FILE_CEILING + 110} ${FILE_CEILING + 50} 0/0 in ${WORKING_TREE}` && written(tallEstate, tallGrown) === `${OTHER} ${FILE_CEILING + 60} ${FILE_CEILING + 50} 0/0 in ${WORKING_TREE}` && written(tallEstate, tallSplit) === '' && render(rowed(tallSplit)) === `${HALF}\tfile\t-\t${FILE_CEILING + 11}\n${OTHER}\tfile\t-\t${FILE_CEILING + 50}\n` && written(tallEstate, tallSplitAndGrown) === `${HALF} ${FILE_CEILING + 12} new ${FILE_CEILING + 11}/${FILE_CEILING + 10} in ${WORKING_TREE}`,
     `${written(pair, drawnIn)} | ${written(tallEstate, tallMoved)} | ${written(tallEstate, tallGrown)} | ${written(tallEstate, tallSplit)} | ${written(tallEstate, tallSplitAndGrown)}`,
   )
 
