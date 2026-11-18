@@ -421,6 +421,42 @@ try {
     await settle()
     check('…and what is taken is the whole way out, to its exit timer', readWayOut(happened()).length === 0 && at('timer 250') >= 0, readWayOut(happened()))
   }
+
+  section('§6 a step that throws: the daemon names the step, and the failure goes where it went')
+  {
+    reset()
+    const early = planted({ restartAfterTeardown: true })
+    early.stopSaturnTicker = () => {
+      throw new Error('the planted failure')
+    }
+    did.length = 0
+    let reached: unknown = null
+    try {
+      leave(early, 'SIGTERM')
+    } catch (error) {
+      reached = error
+    }
+    await settle()
+    const first = KEPT.slice(1, KEPT.indexOf('stop the Saturn ticker'))
+    check('a step of the first list that throws is named in the daemon\'s log, the throw reaches the caller, and nothing after it runs', reached instanceof Error && reached.message === 'the planted failure' && did.join(' · ') === [GUARD, ...first, 'say: [daemon] the way out failed at "stop the Saturn ticker": Error: the planted failure'].join(' · '), did.slice(-3))
+
+    reset()
+    const late = planted({ restartAfterTeardown: true })
+    late.releaseHeldReading = () => {
+      throw new Error('the planted failure')
+    }
+    leave(late, 'SIGTERM')
+    await settle()
+    const before = KEPT.slice(0, KEPT.indexOf('release the held reading'))
+    check('a step of the second list that throws is named too, the way out ends there, and the rejection goes unhandled to the crash arm as it did', did.join(' · ') === [...before, 'say: [daemon] the way out failed at "release the held reading": Error: the planted failure', 'a rejection nobody handled: the planted failure'].join(' · '), did.slice(-3))
+
+    reset()
+    script.fails = 'the asked runners settled'
+    const waiting = planted({ restartAfterTeardown: true })
+    leave(waiting, 'SIGTERM')
+    await settle()
+    check('a wait that rejects is named by its step as well', did.includes('say: [daemon] the way out failed at "wait for the runners that were asked to end": Error: the asked runners settled: planted failure') && at('timer 250') === -1, did.slice(-3))
+  }
 } finally {
   console.error = realError
   process.exit = realExit

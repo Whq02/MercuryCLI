@@ -197,14 +197,29 @@ export function bindWayOut(state: DaemonRunState, shutdown: (signal: string) => 
   return shutdown
 }
 
+function failedAt(step: WayOutStep, e: unknown): never {
+  console.error(`[daemon] the way out failed at "${step.name}": ${e}`)
+  throw e
+}
+
 export function shutdownDaemon(state: DaemonRunState, needs: ShutdownNeeds, signal: string): void {
   if (state.shuttingDown) return
   state.shuttingDown = true
-  for (const step of WAY_OUT_AT_ONCE) void step.run(state, needs, signal)
+  for (const step of WAY_OUT_AT_ONCE) {
+    try {
+      void step.run(state, needs, signal)
+    } catch (e) {
+      failedAt(step, e)
+    }
+  }
   void (async () => {
     for (const step of WAY_OUT_THEN) {
-      const held = step.run(state, needs, signal)
-      if (held !== undefined) await held
+      try {
+        const held = step.run(state, needs, signal)
+        if (held !== undefined) await held
+      } catch (e) {
+        failedAt(step, e)
+      }
     }
   })()
   const bail = setTimeout(() => process.exit(1), 15_000)
