@@ -12,8 +12,16 @@ import type { runSessionStartHooks } from '../../utils/sessionStart.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import { createContentReplacementState, type ContentReplacementState } from '../../utils/toolResultStorage.js'
 import type { OutboundLine, StructuredIO } from '../structuredIO.js'
+import type { AdvisorQuiet } from '../../services/advisor/index.js'
+import type { Capabilities } from '../../runner/wire/methods.js'
+import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
+import type { HostAskLiveness } from './hostAskLiveness.js'
 import type { AskHost } from './runnerAsks.js'
+import { DEFAULT_CAPABILITIES } from './runnerMethods.js'
 import type { TurnDriver } from './turnDriver.js'
+import type { AcceptedInput, InputVerdict } from './inputDoor.js'
+import type { QueuedCommand } from '../../types/textInputTypes.js'
+import type { ContentBlockParam } from '../../types/wire.js'
 
 export type HeadlessOptions = {
   continue?: boolean
@@ -73,6 +81,20 @@ export type RunnerState = {
   lastOutcome: OutcomeRow | null
   lastOutcomeWritten: Promise<unknown>
   signalCode: number | null
+  sessionInitialized: boolean
+  retiringQueuedCommands: boolean
+  currentTurn: number | null
+  sessionRowFor: string | null
+  turnReachedModel: boolean
+  turnAnchor: string | null
+  lastAnswerSchemaKey: string | null
+  hostAsks: HostAskLiveness | null
+  deferredModelBreadcrumb: { to: string; from: string } | null
+  deferredAdvisorQuiet: AdvisorQuiet[]
+  capabilities: Capabilities
+  activeAgents: AgentDefinition[]
+  thinkingConfig: ThinkingConfig | undefined
+  initializeJsonSchema: Record<string, unknown> | undefined
 }
 
 export function createRunnerState(): RunnerState {
@@ -101,6 +123,20 @@ export function createRunnerState(): RunnerState {
     lastOutcome: null,
     lastOutcomeWritten: Promise.resolve(),
     signalCode: null,
+    sessionInitialized: false,
+    retiringQueuedCommands: false,
+    currentTurn: null,
+    sessionRowFor: null,
+    turnReachedModel: false,
+    turnAnchor: null,
+    lastAnswerSchemaKey: null,
+    hostAsks: null,
+    deferredModelBreadcrumb: null,
+    deferredAdvisorQuiet: [],
+    capabilities: { ...DEFAULT_CAPABILITIES },
+    activeAgents: [],
+    thinkingConfig: undefined,
+    initializeJsonSchema: undefined,
   }
 }
 
@@ -148,4 +184,12 @@ export type RunnerPorts = {
   killTask: (taskId: string, setAppState: RunnerPorts['setAppState']) => Promise<unknown>
   requestShellBackground: () => number
   routeOutbound: (message: OutboundLine) => void
+  streamingInput: boolean
+  acceptInput: (input: AcceptedInput) => Promise<InputVerdict>
+  receivedUuids: { add(value: string): void; has(value: string): boolean }
+  missionLineOf: (content: string | ContentBlockParam[], cap: number) => string | null
+  localCommandInput: (command: QueuedCommand) => boolean
+  announcedNotifications: WeakSet<QueuedCommand>
+  emitTaskNotificationFrames: (payloads: readonly string[]) => void
+  emitCommandNotifications: (commands: readonly QueuedCommand[]) => void
 }

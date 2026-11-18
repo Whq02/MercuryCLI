@@ -1,6 +1,6 @@
 import { requestShellBackground } from '../tools/BashTool/backgroundRequest.js'
 import { randomUUID, type UUID } from 'node:crypto'
-import { keepTurnLiveWhileHostAnswers, type HostAskLiveness } from './headless/hostAskLiveness.js'
+import { keepTurnLiveWhileHostAnswers } from './headless/hostAskLiveness.js'
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
 import {
   getEngineModelOverride,
@@ -35,7 +35,7 @@ import {
   scheduleEditToWire,
 } from '../services/engine-connector/seatWire.js'
 import { ask, sessionFactsOf } from '../rows/turn.js'
-import { closeRow, commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
+import { closeRow, commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
 import { OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
 import { isOutcome, turnOpened } from '../rows/read.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
@@ -56,18 +56,18 @@ import {
   joinPromptValues,
   type TurnDriver,
 } from './headless/turnDriver.js'
-import { emptyInputRow, INPUT_REFUSED_CODE, isBrokenPipeError, isRowLine, promptSchemaRefusal, StructuredIO, type OutboundLine } from './structuredIO.js'
+import { INPUT_REFUSED_CODE, isBrokenPipeError, isRowLine, StructuredIO, type OutboundLine } from './structuredIO.js'
 import { createRuleOnlyAsks, createRunnerAsks, type AskHost } from './headless/runnerAsks.js'
 import { bindRunnerMethods, checkProtocol, DEFAULT_CAPABILITIES, initializeResultOf } from './headless/runnerMethods.js'
 import { createRunnerState, type HeadlessOptions, type RunnerPorts } from './headless/runnerPorts.js'
 import { runnerArmsOf } from './headless/runnerArms.js'
 import { finishPrintRun, pumpOutbound } from './headless/printRunEnd.js'
 import { hydrateResumedRun } from './headless/resumeHydration.js'
+import * as inputDoor from './headless/inputDoor.js'
 import { priorTurnCount } from './headless/claimSession.js'
 import { fileCheckpointsFact } from './headless/sessionFactsArm.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
 import { invalidParams } from '../runner/wire/errors.js'
-import type { Capabilities, ParamsOf } from '../runner/wire/methods.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
 import { statusListeners, type AnthropicLimits } from '../services/anthropicLimits.js'
 import { sessionLaneWall } from '../tools/MonitorTool/laneWall.js'
@@ -84,15 +84,13 @@ import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { dropMcpServerFromAppState } from '../services/mcp/kitDial.js'
 import { subscribeSampleChanges } from '../services/samples/store.js'
 import {
-  registerLocalWakeSink,
   registerScheduleEditDoor,
 } from '../services/saturn/sessionScheduleBridge.js'
 import { registerIdeToolDoor } from '../services/acp/ideToolBridge.js'
-import { crewBoardNotice, saturnQueueStamp, screenCommandQueueStamp } from '../utils/messages/noticeRows.js'
+import { crewBoardNotice } from '../utils/messages/noticeRows.js'
 import { advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
 import { enqueueBoardWake, swarmSessionEnabled, swarmStore, watchSwarmBoard, watchSwarmLead, watchSwarmResumes } from '../services/crewBoard/seam.js'
 import { partyFeed } from '../services/crewBoard/party.js'
-import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import {
   getMcpConfigByName,
   getMercuryMcpConfigs,
@@ -138,7 +136,6 @@ import { createIdleTimeoutManager } from '../utils/idleTimeout.js'
 import { armInactivityDeadline, DeadlineExceededError, declaredWaitEnd, holdDeadlineUntil, minutesKnobToMs } from '../utils/deadline.js'
 import { LOCAL_FIRST_BYTE_CAP_MS } from '../services/providers/localLiveness.js'
 import { flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
-import { AGENT_MESSAGE_STATUS } from '../constants/agentMessage.js'
 
 const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 const SIGNAL_SETTLE_MS = 5_000
@@ -153,13 +150,12 @@ import {
   dequeue,
   enqueue,
   peek,
-  remove as removeQueuedCommands,
   subscribeToCommandQueue,
   getCommandQueue,
   holdQueuedWordsForTurnEnd,
 } from '../utils/messageQueueManager.js'
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
-import { isHeldNotice, isHostNotice, isOperatorLine, queuedWordsWaitForTurnEnd, subscribeQueueConsumption } from '../input-core/command-queue.js'
+import { isHeldNotice, isHostNotice, isOperatorLine } from '../input-core/command-queue.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { agentRecipientState, MAIN_THREAD_AGENT, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { type NoticeRecord } from '../services/notices/unreadLedger.js'
@@ -184,7 +180,6 @@ import { buildSideQuestionFallbackParams } from '../utils/queryContext.js'
 import { armLocalWarm } from '../services/providers/local/localWarm.js'
 import { extractReadFilesFromMessages } from '../utils/queryHelpers.js'
 import {
-  doesMessageExistInSession,
   saveAdvisorSwitch,
   saveAgentSetting,
   saveSessionBrief,
@@ -203,7 +198,6 @@ import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installWireStdoutGuard } from '../utils/wireStdoutGuard.js'
 import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
-import { handOverForegroundAgentsToQueuedMessage } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { markSessionBootRules, markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { consumeSessionKindPin } from '../utils/sessionKind.js'
 import { describeArtifactIdentity, runningBuildTree } from '../utils/artifactIdentity.js'
@@ -213,9 +207,7 @@ import { composeBuildBehindLine } from '../tools/MonitorTool/watchReceipts.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainRows, subscribeRows } from '../utils/sdkEventQueue.js'
 import { onTasksUpdated } from '../utils/tasks.js'
-import { operatorPauseGate } from '../run-core/pauseGate.js'
 
-import type { ThinkingConfig } from '../utils/thinking.js'
 import { createSyntheticOutputTool, isSyntheticOutputToolEnabled, SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { compileJsonSchema } from '../services/schema/jsonSchemaEngine.js'
 import { getAllBaseTools, getTools, mcpToolPartition, toolsWithheldByDeny } from '../tools.js'
@@ -350,6 +342,14 @@ export async function runHeadless(
     killTask,
     requestShellBackground,
     get routeOutbound() { return routeOutbound },
+    get streamingInput() { return streamingInput },
+    get acceptInput() { return acceptInput },
+    get receivedUuids() { return receivedUuids },
+    get missionLineOf() { return missionLineOf },
+    get localCommandInput() { return localCommandInput },
+    get announcedNotifications() { return announcedNotifications },
+    get emitTaskNotificationFrames() { return emitTaskNotificationFrames },
+    get emitCommandNotifications() { return emitCommandNotifications },
   }
   const maxTime = options.maxTimeMs === undefined ? undefined : { limitMs: options.maxTimeMs, at: Date.now() + options.maxTimeMs }
   setAskChannel(options.door === 'wire' ? 'sdk' : 'none')
@@ -446,7 +446,7 @@ export async function runHeadless(
   }
   const io = new StructuredIO(normalizeInputPrompt(inputPrompt), text => enqueueRow(noticeRow(liveScope(), 'error', text, INPUT_REFUSED_CODE)))
   const wire = options.door === 'wire'
-  let capabilities: Capabilities = { ...DEFAULT_CAPABILITIES }
+  live.capabilities = { ...DEFAULT_CAPABILITIES }
   let bootSettled: () => void = () => {}
   const bootReady = new Promise<void>(resolve => {
     bootSettled = resolve
@@ -468,14 +468,14 @@ export async function runHeadless(
         log: logForDebugging,
       })
     : null
-  const asks: AskHost = peer !== null ? createRunnerAsks(peer, () => capabilities) : createRuleOnlyAsks()
+  const asks: AskHost = peer !== null ? createRunnerAsks(peer, () => live.capabilities) : createRuleOnlyAsks()
   if (peer !== null) {
     registerScheduleEditDoor((edit, signal) => peer.request('schedule/edit', { edit: scheduleEditToWire(edit) }, { signal }))
     registerIdeToolDoor({
       capabilities: () => ({
-        readTextFile: capabilities.fs_read_text_file === true,
-        writeTextFile: capabilities.fs_write_text_file === true,
-        terminal: capabilities.terminal === true,
+        readTextFile: live.capabilities.fs_read_text_file === true,
+        writeTextFile: live.capabilities.fs_write_text_file === true,
+        terminal: live.capabilities.terminal === true,
       }),
       readTextFile: (params, signal) => peer.request('fs/read_text_file', params, signal ? { signal } : {}),
       writeTextFile: (params, signal) => peer.request('fs/write_text_file', params, signal ? { signal } : {}),
@@ -487,20 +487,18 @@ export async function runHeadless(
     })
     peer.onRequest('initialize', async params => {
       checkProtocol(params)
-      capabilities = params.capabilities
+      live.capabilities = params.capabilities
       if (params.file_checkpoints !== undefined) requestFileCheckpoints(params.file_checkpoints)
       await bootReady
       if (params.schema !== undefined) {
         const compiled = compileJsonSchema(params.schema)
         if (!compiled.ok) throw invalidParams('initialize', [{ path: ['schema'], message: `not a JSON schema — ${compiled.error}` }])
-        initializeJsonSchema = params.schema
+        live.initializeJsonSchema = params.schema
       }
       return initializeResultOf(live.awaitingSessionClaim ? null : String(getSessionId()), fileCheckpointsFact())
     })
     bindRunnerMethods(peer, () => runnerArmsOf(ports))
   }
-  let currentTurn: number | null = null
-  let sessionRowFor: string | null = null
   const failedMcpTold = new Set<string>()
   const tellFailedMcpServers = (): void => {
     for (const server of mcpServersFailed(getAppState().mcp.clients)) {
@@ -520,12 +518,12 @@ export async function runHeadless(
       if (options.door !== 'wire') process.stderr.write(`${GLYPH.warn} ${line}\n`)
     }
   }
-  const liveScope = (): RowScope => ({ session_id: getSessionId(), ...(currentTurn !== null ? { turn: currentTurn } : {}) })
+  const liveScope = (): RowScope => ({ session_id: getSessionId(), ...(live.currentTurn !== null ? { turn: live.currentTurn } : {}) })
   const enqueueRow = (row: RowDraft): void => io.outbound.enqueue(row)
   const hookRowsActive = peer !== null || options.outputFormat === 'rows'
   const releaseHookRows = hookRowsActive
     ? subscribeHookExecutionEvents(event => {
-        if (currentTurn === null) enqueueRow(hookTaskRow(liveScope(), event))
+        if (live.currentTurn === null) enqueueRow(hookTaskRow(liveScope(), event))
       })
     : undefined
   let openFold: { trigger: CompactionRow['trigger']; landing: boolean } | null = null
@@ -809,7 +807,6 @@ export async function runHeadless(
   registerProcessOutputErrorHandlers()
   noteRunPhase('config_auth')
 
-  let sessionInitialized = false
   live.activeModel = bootModel
   saveSessionModel(live.activeModel ?? getEngineModel())
   const settleClearBirth = (): void => {
@@ -824,18 +821,13 @@ export async function runHeadless(
     }
   }
   if (isConcourseWorker && !live.awaitingSessionClaim) settleClearBirth()
-  let thinkingConfig: ThinkingConfig | undefined = options.thinkingConfig
-  let initializeJsonSchema: Record<string, unknown> | undefined
-  let lastAnswerSchemaKey: string | null = null
+  live.thinkingConfig = options.thinkingConfig
   live.activeCommands = commands
-  let activeAgents: AgentDefinition[] = agents
+  live.activeAgents = agents
   const receivedUuids = new BoundedUuidSet(RECEIVED_UUID_CAP)
   const interruptOutcomes = new Map<string, boolean>()
-  let hostAsks: HostAskLiveness | null = null
-  asks.setOnControlRequestSent(() => hostAsks?.noteParked())
-  asks.setOnControlRequestResolved(() => hostAsks?.noteSettled())
-  let deferredModelBreadcrumb: { to: string; from: string } | null = null
-  let deferredAdvisorQuiet: AdvisorQuiet[] = []
+  asks.setOnControlRequestSent(() => live.hostAsks?.noteParked())
+  asks.setOnControlRequestResolved(() => live.hostAsks?.noteSettled())
   const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {
     const row = createAdvisorQuietMessage(quiet)
     messages.push(row)
@@ -846,7 +838,7 @@ export async function runHeadless(
   const advisorRoad: AdvisorRoad = {
     onQuiet: quiet => {
       if (live.inputClosed) return
-      if (live.inFlightAbort !== null) deferredAdvisorQuiet.push(quiet)
+      if (live.inFlightAbort !== null) live.deferredAdvisorQuiet.push(quiet)
       else landAdvisorQuiet(quiet)
     },
   }
@@ -940,7 +932,7 @@ export async function runHeadless(
   }
 
   const baseToolNames = new Set(getAllBaseTools().map(tool => tool.name))
-  const answerSchemaOf = (turnSchema: Record<string, unknown> | undefined): Record<string, unknown> | undefined => turnSchema ?? initializeJsonSchema ?? options.jsonSchema
+  const answerSchemaOf = (turnSchema: Record<string, unknown> | undefined): Record<string, unknown> | undefined => turnSchema ?? live.initializeJsonSchema ?? options.jsonSchema
   const assembleTools = (state: AppState, turnSchema?: Record<string, unknown>): Tool[] => {
     const mcpPartition = mcpToolPartition(state.mcp.tools as Tool[], state.toolPermissionContext)
     const pool: Tool[] = [
@@ -1018,7 +1010,7 @@ export async function runHeadless(
     setFlagEnv('MERCURY_EFFORT_LEVEL', effort)
     setAppState(previous => ({ ...previous, effortValue: effort }))
   }
-  armLocalWarm(() => buildSideQuestionFallbackParams({ tools: assembleTools(getAppState()), commands: live.activeCommands, mcpClients: getAppState().mcp.clients, messages, readFileState: getReadFileCache(), getAppState, setAppState, customSystemPrompt: options.systemPrompt, appendSystemPrompt: options.appendSystemPrompt, thinkingConfig, agents: activeAgents }), { live: () => !live.awaitingSessionClaim && live.inFlightAbort === null })
+  armLocalWarm(() => buildSideQuestionFallbackParams({ tools: assembleTools(getAppState()), commands: live.activeCommands, mcpClients: getAppState().mcp.clients, messages, readFileState: getReadFileCache(), getAppState, setAppState, customSystemPrompt: options.systemPrompt, appendSystemPrompt: options.appendSystemPrompt, thinkingConfig: live.thinkingConfig, agents: live.activeAgents }), { live: () => !live.awaitingSessionClaim && live.inFlightAbort === null })
 
   const SDK_MODES = new Set(['default', 'implement', 'sovereign', 'flow', 'dontAsk'])
   setPermissionModeChangedListener(mode => {
@@ -1036,27 +1028,15 @@ export async function runHeadless(
 
   const disarmAgentFreshness = armRunnerAgentFreshness({
     cwd: () => getCwd(),
-    getActive: () => activeAgents,
+    getActive: () => live.activeAgents,
     setActive: next => {
-      activeAgents = next
+      live.activeAgents = next
     },
   })
 
   const isMainThreadCommand = (command: QueuedCommand): boolean =>
     command.agentId === undefined
   const takeMainThread = (): QueuedCommand | undefined => dequeue(isMainThreadCommand)
-
-  const taskNotificationPayloads = (command: QueuedCommand): string[] => {
-    if (command.origin?.kind === 'outside-report') return []
-    const texts =
-      typeof command.value === 'string'
-        ? [command.value]
-        : Array.isArray(command.value)
-          ? command.value.flatMap(block => (block.type === 'text' && typeof block.text === 'string' ? [block.text] : []))
-          : []
-    if (command.mode !== 'task-notification' && !texts.some(text => text.includes('<task-notification>'))) return []
-    return texts.flatMap(text => text.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? [text])
-  }
 
   const recordNoticeRows = async (notices: readonly QueuedCommand[], mark: { isVirtual: true } | { isMeta: true }): Promise<void> => {
     const { createUserMessage } = await import('../utils/messages/factories.js')
@@ -1067,8 +1047,6 @@ export async function runHeadless(
     })
   }
   const recordHostNoticeRows = (notices: readonly QueuedCommand[]): Promise<void> => recordNoticeRows(notices, { isVirtual: true })
-  let turnReachedModel = false
-  let turnAnchor: string | null = null
   const missionLineOf = (content: string | ContentBlockParam[], cap: number): string | null => {
     const line = typeof content === 'string' ? content : content.find(block => block.type === 'text')?.text
     const parsed = line === undefined ? null : parseSlashCommand(line)
@@ -1098,7 +1076,7 @@ export async function runHeadless(
     const { applyLiveBootMenuEnv } = await import('../substrate/startupMenu.js')
     applyLiveBootMenuEnv()
     const members = batch.length > 0 ? batch : [command]
-    turnReachedModel = false
+    live.turnReachedModel = false
     if (members.some(isHostNotice) || initialNotices.some(isHostNotice)) {
       const hostNotices = [...initialNotices, ...members].filter(isHostNotice)
       emitCommandNotifications(hostNotices)
@@ -1113,10 +1091,10 @@ export async function runHeadless(
       batch = spoken.length > 1 ? spoken : []
       command = foldNotifications(spoken)
     }
-    turnReachedModel = true
+    live.turnReachedModel = true
     const promptUuid = command.uuid ?? randomUUID()
     const localCommand = localCommandInput(command)
-    turnAnchor = localCommand ? null : promptUuid
+    live.turnAnchor = localCommand ? null : promptUuid
     if (localCommand) party.blockOpen()
     const delivery = command.mode === 'task-notification' ? fitCompletionCommands(batch.length > 0 ? batch : [command], { messages, model: live.activeModel ?? getEngineModel() }) : []
     const promptValue = delivery.length > 1 ? foldNotificationValues(delivery.map(member => member.value)) : delivery[0]?.value ?? command.value
@@ -1133,7 +1111,7 @@ export async function runHeadless(
     const turnAbort = new AbortController()
     live.inFlightAbort = turnAbort
     live.turnsRun += 1
-    currentTurn = live.turnsRun
+    live.currentTurn = live.turnsRun
     live.currentTurnId = null
     const turnIdleLimitMs = headlessTurnIdleLimitMs()
     const turnWatchdog = armInactivityDeadline({
@@ -1150,12 +1128,12 @@ export async function runHeadless(
       promiseHold?.cancel()
       promiseHold = wait === null || !turnWatchdog.armed ? null : holdDeadlineUntil(turnWatchdog, declaredWaitEnd(wait.sinceMs, wait.budgetMs, LOCAL_FIRST_BYTE_CAP_MS), turnIdleLimitMs / 2)
     }
-    hostAsks = keepTurnLiveWhileHostAnswers({
+    live.hostAsks = keepTurnLiveWhileHostAnswers({
       watchdog: turnWatchdog,
       limitMs: turnIdleLimitMs,
       parkedWithHost: () => asks.pendingControlRequestCount(),
       parkedAsks: () => asks.parkedAsks(),
-      settleParkedAsks: cause => (capabilities.holds_asks ? 0 : asks.denyPendingPermissionRequests(cause)),
+      settleParkedAsks: cause => (live.capabilities.holds_asks ? 0 : asks.denyPendingPermissionRequests(cause)),
     })
     const workload = command.workload ?? options.workload
     try {
@@ -1167,13 +1145,13 @@ export async function runHeadless(
         registerPerTurnHandlers(turnClients)
         const answerSchema = answerSchemaOf(command.schema)
         const answerSchemaKey = answerSchema === undefined ? '' : JSON.stringify(answerSchema)
-        if (lastAnswerSchemaKey !== null && answerSchemaKey !== lastAnswerSchemaKey) {
+        if (live.lastAnswerSchemaKey !== null && answerSchemaKey !== live.lastAnswerSchemaKey) {
           const owner = String(processMainOwner())
           clearToolRosterLatches(owner)
           clearToolRosterRestore()
           declareLawfulPrefixChange(owner, answerSchema === undefined ? 'this turn asked for no structured output' : 'this turn asked for its own structured-output schema')
         }
-        lastAnswerSchemaKey = answerSchemaKey
+        live.lastAnswerSchemaKey = answerSchemaKey
         const assembledTools = assembleTools(state, command.schema)
         const mcpCommands = state.mcp.commands
         const dedupedCommands = [
@@ -1182,11 +1160,11 @@ export async function runHeadless(
             mcpCommand => !live.activeCommands.some(existing => existing.name === mcpCommand.name),
           ),
         ]
-        if (sessionRowFor !== String(getSessionId())) {
-          sessionRowFor = String(getSessionId())
+        if (live.sessionRowFor !== String(getSessionId())) {
+          live.sessionRowFor = String(getSessionId())
           const withheld = toolsWithheldByDeny([...getAllBaseTools(), ...state.mcp.tools], state.toolPermissionContext)
           const facts = await sessionFactsOf(
-            { cwd: getCwd(), tools: assembledTools, mcpClients: turnClients, commands: dedupedCommands, agents: activeAgents },
+            { cwd: getCwd(), tools: assembledTools, mcpClients: turnClients, commands: dedupedCommands, agents: live.activeAgents },
             live.activeModel ?? getEngineModel(),
             state.toolPermissionContext.mode,
             live.resumeOf,
@@ -1213,7 +1191,7 @@ export async function runHeadless(
           cwd: getCwd(),
           tools: assembledTools,
           mcpClients: turnClients,
-          thinkingConfig,
+          thinkingConfig: live.thinkingConfig,
           maxTurns: options.maxTurns,
           maxBudgetUsd: options.maxBudgetUsd,
           maxTime,
@@ -1234,8 +1212,8 @@ export async function runHeadless(
           getAppState,
           setAppState,
           abortController: turnAbort,
-          partialRows: options.includePartialMessages || capabilities.partial_rows,
-          turn: currentTurn ?? undefined,
+          partialRows: options.includePartialMessages || live.capabilities.partial_rows,
+          turn: live.currentTurn ?? undefined,
           onLiveness: () => turnWatchdog.touch(),
           onToolRoundSettled: rows => {
             void advisorMainRound(String(getSessionId()), rows, advisorRoad)
@@ -1254,7 +1232,7 @@ export async function runHeadless(
               params.url,
               params.elicitationId,
             ),
-          agents: activeAgents,
+          agents: live.activeAgents,
           setSDKStatus: (status: unknown) => {
             if (statusIsProgress(status)) turnWatchdog.touch()
             const promised = promisedWaitOf(status)
@@ -1275,13 +1253,13 @@ export async function runHeadless(
       })
     } finally {
       party.turnEnd()
-      turnAnchor = null
-      hostAsks?.stop()
-      hostAsks = null
+      live.turnAnchor = null
+      live.hostAsks?.stop()
+      live.hostAsks = null
       holdPromise(null)
       turnWatchdog.cancel()
       live.inFlightAbort = null
-      currentTurn = null
+      live.currentTurn = null
       if (live.heldSeatModel !== null) {
         const held = live.heldSeatModel
         live.heldSeatModel = null
@@ -1295,9 +1273,9 @@ export async function runHeadless(
         io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_effort', effort: held.effort } })
       }
       holdQueuedWordsForTurnEnd(false)
-      if (deferredModelBreadcrumb !== null) {
-        const crumb = deferredModelBreadcrumb
-        deferredModelBreadcrumb = null
+      if (live.deferredModelBreadcrumb !== null) {
+        const crumb = live.deferredModelBreadcrumb
+        live.deferredModelBreadcrumb = null
         await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)
       }
       if (live.deferredSpawnSwitches.length > 0) {
@@ -1308,9 +1286,9 @@ export async function runHeadless(
           io.outbound.enqueue({ method: 'session/applied', params: { request_id: toggle.requestId, verb: 'set_spawn_switch', switch: toggle.kind, on: toggle.on } })
         }
       }
-      if (deferredAdvisorQuiet.length > 0) {
-        const quiets = deferredAdvisorQuiet
-        deferredAdvisorQuiet = []
+      if (live.deferredAdvisorQuiet.length > 0) {
+        const quiets = live.deferredAdvisorQuiet
+        live.deferredAdvisorQuiet = []
         for (const quiet of quiets) landAdvisorQuiet(quiet)
       }
       swarmLead.check()
@@ -1367,7 +1345,7 @@ export async function runHeadless(
       return peer.flush().then(() => row)
     }
     if (message.method === 'elicitation/complete') {
-      if (capabilities.elicitation) peer.notify(message.method, message.params)
+      if (live.capabilities.elicitation) peer.notify(message.method, message.params)
     } else peer.notify(message.method, message.params)
     return peer.flush().then(() => null)
   }
@@ -1386,67 +1364,13 @@ export async function runHeadless(
     if (isOutcome(message as never)) live.lastOutcome = io.rows.stamp(message as never) as OutcomeRow
   }
 
-  const emitTaskNotificationFrames = (payloads: readonly string[]): void => {
-    for (const payload of payloads) {
-      const pick = (tag: string): string | undefined => {
-        const match = payload.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))
-        return match?.[1]?.trim()
-      }
-      const statusRaw = pick('status')
-      if (statusRaw !== undefined) {
-        const normalized =
-          statusRaw === AGENT_MESSAGE_STATUS || statusRaw === 'paused'
-            ? undefined
-            : ['completed', 'failed', 'stopped', 'killed'].includes(statusRaw)
-              ? statusRaw === 'killed'
-                ? 'stopped'
-                : statusRaw
-              : 'completed'
-        const totalTokens = Number(pick('total-tokens') ?? pick('total_tokens'))
-        const toolUses = Number(pick('tool-uses') ?? pick('tool_uses'))
-        const callId = pick('tool-use-id')
-        enqueueRow(
-          taskRow(liveScope(), {
-            state: normalized !== undefined ? 'ended' : 'progress',
-            taskId: pick('task-id') ?? pick('task_id') ?? '',
-            ...(callId !== undefined ? { callId } : {}),
-            outputFile: pick('output-file') ?? pick('output_file') ?? '',
-            ...(normalized !== undefined ? { status: normalized as 'completed' | 'failed' | 'stopped' } : {}),
-            summary: pick('summary') ?? '',
-            ...(Number.isFinite(totalTokens) && Number.isFinite(toolUses)
-              ? { usage: { tokens: totalTokens, toolUses, durationMs: Number(pick('duration-ms') ?? pick('duration_ms')) || 0 } }
-              : {}),
-          }),
-        )
-      }
-    }
-  }
+  const emitTaskNotificationFrames = (payloads: readonly string[]): void => inputDoor.emitTaskNotificationFrames(payloads, ports)
 
   const announcedNotifications = new WeakSet<QueuedCommand>()
-  const emitCommandNotifications = (commands: readonly QueuedCommand[]): void => {
-    for (const command of commands) {
-      if (announcedNotifications.has(command)) continue
-      announcedNotifications.add(command)
-      emitTaskNotificationFrames(taskNotificationPayloads(command))
-    }
-  }
+  const emitCommandNotifications = (commands: readonly QueuedCommand[]): void => inputDoor.emitCommandNotifications(commands, ports)
 
-  let retiringQueuedCommands = false
-  const retireQueuedCommands = (commands: QueuedCommand[]): void => {
-    retiringQueuedCommands = true
-    try {
-      removeQueuedCommands(commands)
-    } finally {
-      retiringQueuedCommands = false
-    }
-  }
-  const stopDrainedNotificationFrames = subscribeQueueConsumption(event => {
-    if (event.kind !== 'removed' || retiringQueuedCommands) return
-    for (const drained of event.commands) {
-      if (drained.mode !== 'task-notification' || drained.agentId !== undefined) continue
-      emitCommandNotifications([drained])
-    }
-  })
+  const retireQueuedCommands = (commands: QueuedCommand[]): void => inputDoor.retireQueuedCommands(commands, ports)
+  const stopDrainedNotificationFrames = inputDoor.watchDrainedNotifications(ports)
 
   const driver: TurnDriver = createTurnDriver({
     dequeue: takeMainThread,
@@ -1461,7 +1385,7 @@ export async function runHeadless(
     writeDirect: async message => {
       await writeLine(message)
     },
-    drainRows: () => drainRows().map(row => ({ ...row, ...(currentTurn !== null ? { turn: currentTurn } : {}) }) as RowDraft),
+    drainRows: () => drainRows().map(row => ({ ...row, ...(live.currentTurn !== null ? { turn: live.currentTurn } : {}) }) as RowDraft),
     beforeCycle: () => bootReady,
     onTurnStart: () => {
       live.currentTurnId = null
@@ -1472,7 +1396,7 @@ export async function runHeadless(
     },
     openTurnRow: messageIds => {
       if (live.currentTurnId === null) live.currentTurnId = randomUUID()
-      return turnStartedRow({ session_id: getSessionId(), turn: currentTurn ?? live.turnsRun }, { turnId: live.currentTurnId, messageIds, model: live.activeModel ?? getEngineModel() })
+      return turnStartedRow({ session_id: getSessionId(), turn: live.currentTurn ?? live.turnsRun }, { turnId: live.currentTurnId, messageIds, model: live.activeModel ?? getEngineModel() })
     },
     executeTurn: (command, batch, onMessage, initialNotices) =>
       executeTurn(command, batch, message => {
@@ -1483,7 +1407,7 @@ export async function runHeadless(
     onTurnSettled: command => {
       logHeadlessProfilerTurn()
       headlessProfilerStartTurn()
-      if (turnReachedModel) void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
+      if (live.turnReachedModel) void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
     },
     hasWaitableBackgroundTasks: () =>
       getRunningTasks(getAppState()).some(task => !(live.inputClosed && isLocalShellTask(task))) || (live.inputClosed && (swarmResumes.hasPending() || crewmateNoticeOwed())),
@@ -1527,7 +1451,7 @@ export async function runHeadless(
     idleTimerStart: () => idleTimeout.start?.(),
     onCycleError: (error, turnId) =>
       outcomeRow(
-        { session_id: getSessionId(), turn: currentTurn ?? Math.max(1, live.turnsRun) },
+        { session_id: getSessionId(), turn: live.currentTurn ?? Math.max(1, live.turnsRun) },
         {
           turnId,
           status: 'failed',
@@ -1547,14 +1471,14 @@ export async function runHeadless(
   })
 
   const stopSdkDrain = subscribeRows(() => {
-    for (const row of drainRows()) enqueueRow({ ...row, ...(currentTurn !== null ? { turn: currentTurn } : {}) } as RowDraft)
+    for (const row of drainRows()) enqueueRow({ ...row, ...(live.currentTurn !== null ? { turn: live.currentTurn } : {}) } as RowDraft)
   })
   subscribeToCommandQueue(() => {
     const queued = getCommandQueue()
     if (queued.some(command => command.priority === 'now')) {
       live.inFlightAbort?.abort()
     }
-    if (!live.inputClosed && sessionInitialized && !driver.isRunning() && queued.some(isMainThreadCommand)) {
+    if (!live.inputClosed && live.sessionInitialized && !driver.isRunning() && queued.some(isMainThreadCommand)) {
       driver.kick()
       if (!driver.isRunning()) emitCommandNotifications(queued.filter(isMainThreadCommand))
     }
@@ -1574,7 +1498,7 @@ export async function runHeadless(
   const stopHostNotices = watchHostNotices(() => getSessionId())
   const party = partyFeed({
     store: () => (!live.awaitingSessionClaim && swarmSessionEnabled() ? swarmStore(false) : null),
-    anchor: () => turnAnchor ?? undefined,
+    anchor: () => live.turnAnchor ?? undefined,
     record: async row => {
       if (messages.some(message => message.uuid === row.uuid)) return
       if ((peekProject()?.sessionFile ?? null) === null && hasConversationTurn(messages) && !isSessionPersistenceDisabled()) adoptResumedSessionFile()
@@ -1587,10 +1511,10 @@ export async function runHeadless(
   const swarmResumes = watchSwarmResumes(
     () => getLastCacheSafeParams()?.toolUseContext as ToolUseContext | undefined ?? null,
     canUseTool,
-    () => sessionInitialized && !quiescence.committed && !isShuttingDown(),
+    () => live.sessionInitialized && !quiescence.committed && !isShuttingDown(),
   )
   const swarmLead = watchSwarmLead(
-    () => sessionInitialized && !live.inputClosed && !isShuttingDown() && live.inFlightAbort === null,
+    () => live.sessionInitialized && !live.inputClosed && !isShuttingDown() && live.inFlightAbort === null,
     () => enqueueBoardWake('Read reference-only posts with CrewBoard.'),
     event => {
       if (party.paints(event) || messages.some(message => message.uuid === event.eventId)) return
@@ -1603,7 +1527,7 @@ export async function runHeadless(
       if (isShuttingDown()) return { state: 'gone', why: 'the session is shutting down' }
       if (live.inputClosed) return { state: 'gone', why: "the session's input closed" }
       if (sessionLaneWall().closed) return { state: 'busy' }
-      return !sessionInitialized || driver.isRunning() ? { state: 'busy' } : { state: 'idle' }
+      return !live.sessionInitialized || driver.isRunning() ? { state: 'busy' } : { state: 'idle' }
     },
     wake: (agentId, notices) => {
       const waitedMs = Date.now() - Math.min(...notices.map(notice => notice.deliveredAtMs))
@@ -1730,30 +1654,7 @@ export async function runHeadless(
     })
   })
 
-  if (streamingInput) {
-    const deliverLocalWake = (prompt: string, facts: LocalWakeFacts | undefined, firedAt: string, heldSince: string | undefined): void => {
-      if (live.inputClosed) return
-      const nowMs = Date.now()
-      const next = localWakeStep(sessionLaneWall(nowMs), nowMs, firedAt, heldSince, facts)
-      if (next.step === 'wait') {
-        const recheck = setTimeout(() => deliverLocalWake(prompt, facts, firedAt, next.heldSince), next.delayMs)
-        recheck.unref?.()
-        return
-      }
-      enqueue({
-        value: prompt,
-        mode: 'prompt',
-        uuid: randomUUID(),
-        priority: 'later',
-        skipSlashCommands: true,
-        ...saturnQueueStamp(next.origin),
-      })
-      driver.kick()
-    }
-    registerLocalWakeSink((prompt: string, facts?: LocalWakeFacts) => {
-      deliverLocalWake(prompt, facts, new Date().toISOString(), undefined)
-    })
-  }
+  inputDoor.armLocalWake(ports)
 
 
   const modelInfos = buildModelCatalogue()
@@ -1855,131 +1756,14 @@ export async function runHeadless(
     for (const flow of mcpSignIns.values()) flow.controller.abort()
   })
 
-  const acceptInput = async (
-    input:
-      | { kind: 'prompt'; content: string | ContentBlockParam[]; schema?: Record<string, unknown>; id?: string; priority?: 'now' | 'next' | 'later'; sentAt?: string; origin?: unknown }
-      | { kind: 'shell'; command: string; id?: string; priority?: 'now' | 'next' | 'later'; sentAt?: string; origin?: unknown }
-      | { kind: 'note'; to: string; content: string; id?: string }
-      | { kind: 'outside-report'; sender: string; content: string; id?: string },
-  ): Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }> => {
-    await options.initializeMcp?.()
-    sessionInitialized = true
-    const missionSync = await import('../guards/mission.js')
-    missionSync.syncMissionFromCard(String(getSessionId()))
-    const uuid = input.id
-    if (uuid) {
-      const historical = await doesMessageExistInSession(
-        getSessionId(),
-        uuid as UUID,
-      ).catch(() => false)
-      const runtime = receivedUuids.has(uuid)
-      if (historical || runtime) {
-        if (historical && !runtime) {
-          notifyCommandLifecycle(uuid, 'completed')
-        }
-        return { accepted: false, reason: 'duplicate' }
-      }
-      receivedUuids.add(uuid)
-    }
-    if (input.kind === 'outside-report') {
-      enqueue({
-        value: input.content,
-        mode: 'task-notification',
-        origin: { kind: 'outside-report', sender: input.sender, via: 'mcp-server' },
-        priority: 'next',
-        ridesNextWords: true,
-        skipSlashCommands: true,
-        ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
-      })
-      return { accepted: true }
-    }
-    if (input.kind === 'note') {
-      operatorPauseGate.lift(input.to)
-      enqueue({
-        value: input.content,
-        mode: 'task-notification',
-        agentId: input.to as never,
-        origin: { kind: 'human' },
-        priority: 'next',
-        ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
-      })
-      return { accepted: true }
-    }
-    const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()
-    const operatorWords = input.kind === 'prompt' && !('origin' in saturnQueueStamp(input.origin))
-    if (operatorWords) operatorPauseGate.resume()
-    if (operatorWords && !('origin' in screenCommandQueueStamp(input.origin))) missionSync.resumeMissionOnOperatorInput(String(getSessionId()))
-    const missionWords = input.kind === 'prompt' ? missionLineOf(input.content, missionSync.MISSION_CONDITION_MAX_LENGTH) : null
-    if (missionWords !== null && missionSync.isMissionClearKeyword(missionWords)) {
-      missionSync.clearActiveMission(String(getSessionId()))
-      if (uuid !== undefined) notifyCommandLifecycle(uuid, 'completed')
-      return { accepted: true }
-    }
-    const missionSet = missionWords !== null && missionWords !== ''
-    const command: QueuedCommand = {
-      value: missionSet ? missionSync.setActiveMission(missionWords, { sessionId: String(getSessionId()) }) : input.kind === 'shell' ? input.command : input.content,
-      mode: input.kind === 'shell' ? 'bash' : 'prompt',
-      sentAt,
-      ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
-      ...(input.priority !== undefined ? { priority: input.priority } : {}),
-      ...(input.kind === 'prompt' && input.schema !== undefined ? { schema: input.schema } : {}),
-      ...saturnQueueStamp(input.origin),
-      ...screenCommandQueueStamp(input.origin),
-      ...(missionSet ? { isMeta: true } : {}),
-    }
-    if (localCommandInput(command)) command.localCommand = true
-    enqueue(command)
-    if (input.kind === 'prompt' && command.localCommand !== true && input.priority !== 'later' && !('origin' in saturnQueueStamp(input.origin)) && driver.isRunning() && !queuedWordsWaitForTurnEnd()) {
-      handOverForegroundAgentsToQueuedMessage(getAppState, setAppState)
-    }
-    driver.kick()
-    return { accepted: true }
-  }
-  const promptContentOf = (content: Extract<ParamsOf<'queue/add'>, { type: 'prompt' }>['content']): string | ContentBlockParam[] => {
-    if (typeof content === 'string') return content
-    return (content as Array<{ type: string; text?: string; media_type?: string; data?: string }>).map(block =>
-      block.type === 'image'
-        ? ({ type: 'image', source: { type: 'base64', media_type: block.media_type, data: block.data } } as unknown as ContentBlockParam)
-        : ({ type: 'text', text: block.text ?? '' } as ContentBlockParam),
-    )
-  }
+  const acceptInput = (input: inputDoor.AcceptedInput): Promise<inputDoor.InputVerdict> => inputDoor.acceptInput(input, ports)
 
-  const acceptInputRow = async (row: InputRow): Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }> => {
-    const empty = emptyInputRow(row)
-    if (empty !== null) throw invalidParams('queue/add', [{ path: [row.type === 'shell' ? 'command' : 'content'], message: empty }])
-    const schemaRefusal = promptSchemaRefusal(row)
-    if (schemaRefusal !== null) throw invalidParams('queue/add', [{ path: ['schema'], message: schemaRefusal }])
-    if (row.type === 'outside-report') return acceptInput({ kind: 'outside-report', sender: row.sender, content: row.content, ...(row.id !== undefined ? { id: row.id } : {}) })
-    if (row.type === 'note') return acceptInput({ kind: 'note', to: row.to, content: row.content, ...(row.id !== undefined ? { id: row.id } : {}) })
-    const stamp = {
-      ...(row.id !== undefined ? { id: row.id } : {}),
-      ...(row.priority !== undefined ? { priority: row.priority } : {}),
-      ...(row.sent_at !== undefined ? { sentAt: row.sent_at } : {}),
-      ...(row.origin !== undefined ? { origin: row.origin } : {}),
-    }
-    if (row.type === 'shell') return acceptInput({ kind: 'shell', command: row.command, ...stamp })
-    return acceptInput({ kind: 'prompt', content: promptContentOf(row.content), ...(row.schema !== undefined ? { schema: row.schema } : {}), ...stamp })
-  }
+  const acceptInputRow = (row: InputRow): Promise<inputDoor.InputVerdict> => inputDoor.acceptInputRow(row, ports)
 
-  async function* claimGatedInput(
-    source: AsyncGenerator<InputRow, void, unknown>,
-  ): AsyncGenerator<InputRow, void, unknown> {
-    const parked: InputRow[] = []
-    for await (const row of source) {
-      if (live.awaitingSessionClaim) {
-        logForDebugging('[session-runner] an input row arrived before the claim — parked until the session identity lands')
-        parked.push(row)
-        continue
-      }
-      yield row
-      while (!live.awaitingSessionClaim && parked.length > 0) {
-        yield parked.shift()!
-      }
-    }
-  }
+  const claimGatedInput = (source: AsyncGenerator<InputRow, void, unknown>): AsyncGenerator<InputRow, void, unknown> => inputDoor.claimGatedInput(source, ports)
 
   const heldNoticeWaits = (): boolean =>
-    !sessionInitialized &&
+    !live.sessionInitialized &&
     isConcourseWorker &&
     !live.awaitingSessionClaim &&
     !live.inputClosed &&
