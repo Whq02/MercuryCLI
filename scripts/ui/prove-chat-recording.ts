@@ -1,0 +1,118 @@
+#!/usr/bin/env bun
+import { spawn } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pinSourceRef } from '../lib/settingsPopupHarness.ts'
+import { SCENARIOS, recordScenario, renderRecording } from './chatScenarios.ts'
+
+const SELF = 'scripts/ui/prove-chat-recording.ts'
+const arg = (name: string): string | undefined => {
+  const at = process.argv.indexOf(name)
+  return at < 0 ? undefined : process.argv[at + 1]
+}
+
+const one = arg('--scenario')
+if (one !== undefined) {
+  pinSourceRef()
+  const out = arg('--out')
+  const recording = await recordScenario(one)
+  const text = renderRecording(recording)
+  if (out !== undefined) writeFileSync(out, text)
+  else process.stdout.write(text)
+  process.exit(0)
+}
+
+const ROOT = join(import.meta.dir, '..', '..')
+const writeTo = arg('--write')
+const against = arg('--against')
+const sourceRef = arg('--source-ref')
+const only = arg('--only')?.split(',')
+const jobs = Math.max(1, Number(arg('--jobs') ?? '4'))
+const scratch = mkdtempSync(join(tmpdir(), 'chat-recording-'))
+const names = SCENARIOS.map(scenario => scenario.name).filter(name => only === undefined || only.includes(name))
+
+let failures = 0
+function check(label: string, ok: boolean, detail = ''): void {
+  if (!ok) failures++
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+}
+
+type Run = { name: string; pass: number; file: string; rc: number; log: string }
+
+function record(name: string, pass: number): Promise<Run> {
+  const file = join(scratch, `${name}.${pass}.txt`)
+  const args = [join(ROOT, SELF), '--scenario', name, '--out', file, ...(sourceRef === undefined ? [] : ['--source-ref', sourceRef])]
+  return new Promise(resolve => {
+    const child = spawn(process.execPath, args, { cwd: ROOT, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
+    let log = ''
+    child.stdout.on('data', chunk => (log += String(chunk)))
+    child.stderr.on('data', chunk => (log += String(chunk)))
+    child.on('close', code => resolve({ name, pass, file, rc: code ?? 1, log }))
+  })
+}
+
+async function pool<T>(tasks: Array<() => Promise<T>>, width: number): Promise<T[]> {
+  const out: T[] = new Array(tasks.length)
+  let next = 0
+  await Promise.all(
+    Array.from({ length: Math.min(width, tasks.length) }, async () => {
+      for (;;) {
+        const at = next++
+        if (at >= tasks.length) return
+        out[at] = await tasks[at]!()
+      }
+    }),
+  )
+  return out
+}
+
+function firstDifference(a: string, b: string): string {
+  const left = a.split('\n')
+  const right = b.split('\n')
+  let step = ''
+  for (let i = 0; i < Math.max(left.length, right.length); i++) {
+    if (left[i]?.startsWith('=== ')) step = left[i]!
+    if (left[i] !== right[i]) return `${step || 'the head'} · line ${i + 1}\n        one: ${JSON.stringify(left[i] ?? '(nothing)')}\n        two: ${JSON.stringify(right[i] ?? '(nothing)')}`
+  }
+  return 'no line differs'
+}
+
+console.log(`${names.length} scenarios, each recorded twice in two processes${sourceRef === undefined ? '' : ` from the product source at ${sourceRef}`}, ${jobs} at once`)
+const runs = await pool(
+  names.flatMap(name => [1, 2].map(pass => () => record(name, pass))),
+  jobs,
+)
+
+const settledPoints = new Map<string, number>()
+for (const name of names) {
+  const [first, second] = runs.filter(run => run.name === name)
+  const ran = first!.rc === 0 && second!.rc === 0 && existsSync(first!.file) && existsSync(second!.file)
+  check(`${name}: the scenario ran to its end in both processes`, ran, ran ? '' : `rc ${first!.rc} and ${second!.rc}\n${(first!.rc !== 0 ? first!.log : second!.log).split('\n').slice(-40).join('\n')}`)
+  if (!ran) continue
+  const one = readFileSync(first!.file, 'utf8')
+  const two = readFileSync(second!.file, 'utf8')
+  settledPoints.set(name, (one.match(/^=== /gm) ?? []).length)
+  check(`${name}: the two recordings are the same at every settled point (${settledPoints.get(name)})`, one === two, one === two ? '' : `a recording that differs from itself is not a recording yet: ${firstDifference(one, two)}`)
+  if (writeTo !== undefined && one === two) {
+    mkdirSync(writeTo, { recursive: true })
+    writeFileSync(join(writeTo, `${name}.txt`), one)
+  }
+  if (against !== undefined) {
+    const kept = join(against, `${name}.txt`)
+    const stood = existsSync(kept) ? readFileSync(kept, 'utf8') : null
+    check(`${name}: the recording equals the one kept in ${against}`, stood === one, stood === null ? `no recording is kept there: record the base first with --write ${against}` : `the screen draws something else than it drew: ${firstDifference(stood, one)} — find the part of src/screens/chat/ whose move or edit changed the frame and put it back`)
+  }
+}
+
+const covered = new Map<string, string[]>()
+for (const scenario of SCENARIOS) for (const part of scenario.covers) covered.set(part, [...(covered.get(part) ?? []), scenario.name])
+const PARTS = ['submit', 'search', 'selector', 'boot', 'asks', 'dialogs', 'title', 'keys', 'scroll', 'draft']
+check(`every part of the screen is reached by a scenario (${PARTS.length} parts)`, PARTS.every(part => (covered.get(part) ?? []).length > 0), PARTS.filter(part => (covered.get(part) ?? []).length === 0).join(', '))
+console.log(`\n  settled points: ${[...settledPoints].map(([name, count]) => `${name} ${count}`).join(' · ')}`)
+console.log(`  parts: ${PARTS.map(part => `${part} ${(covered.get(part) ?? []).length}`).join(' · ')}`)
+if (writeTo !== undefined) console.log(`  recordings written to ${writeTo}`)
+if (failures === 0) rmSync(scratch, { recursive: true, force: true })
+else console.log(`  the recordings of this run are kept in ${scratch}`)
+console.log(`\n${failures === 0 ? 'prove-chat-recording: ALL PASS' : `prove-chat-recording: ${failures} FAILURE(S)`}`)
+process.exit(failures === 0 ? 0 : 1)
