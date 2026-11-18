@@ -97,6 +97,33 @@ mkdir -p "$work/flake/results/s0"
 row alpha pty 1 30 0 25 > "$work/flake/results/s0/results.tsv"
 run_case flake "$work"; check "a solo-green flake passes (exit 0)" "$?" 0
 json_has "the flake is RECORDED, never silent" "$work/flake/ci-verdict.json" "v['ok'] and v['pass']==['alpha'] and len(v['flakes'])==1 and v['flakes'][0]['suite']=='alpha'"
+json_has "a flake with no log beside its row keeps its five keys and names no member" "$work/flake/ci-verdict.json" "v['flakes'][0]=={'suite':'alpha','pooledRc':1,'pooledSecs':30,'soloRc':0,'soloSecs':25,'pooledMembers':[],'soloMembers':[],'homeSuitesBefore':0}"
+
+echo "── what a second run leaves to read ──"
+
+mk_estate "$work/members" alpha:pure beta:pure
+mkdir -p "$work/members/results/s0/retry"
+{ row alpha pure 0 10 - -; row beta pure 1 30 0 25; } > "$work/members/results/s0/results.tsv"
+printf 'PASS a row\n── scripts/beta/prove-first.ts  3s rc=0\n4mu── scripts/beta/prove-clock.ts  4s rc=1\n── scripts/beta/prove-last.ts  0s rc=0\n' > "$work/members/results/s0/beta.out"
+printf '── scripts/beta/prove-clock.ts  4s rc=0\n' > "$work/members/results/s0/retry/beta.out"
+run_case members "$work"; check "a suite red once whose log names the member is still a green verdict (exit 0)" "$?" 0
+json_has "the flake row names the member red in the first attempt and the suites that had used the shard's home" "$work/members/ci-verdict.json" "v['ok'] and v['flakes']==[{'suite':'beta','pooledRc':1,'pooledSecs':30,'soloRc':0,'soloSecs':25,'pooledMembers':['scripts/beta/prove-clock.ts'],'soloMembers':[],'homeSuitesBefore':1}]"
+if grep -q "  - beta: first attempt after 1 suite(s) in the shard's home, red: scripts/beta/prove-clock.ts · second run in a home of its own: green" "$work/members/out.txt" && grep -q -- '- recorded runner flakes: beta (solo rc 0)' "$work/members/out.txt"; then
+  echo "  [PASS] the summary keeps its flake line and says below it which member was red and after how many suites"
+else
+  echo "  [FAIL] flake summary"; grep -n 'beta' "$work/members/out.txt" | sed 's/^/      /'; fail=1
+fi
+
+mk_estate "$work/twice" alpha:pure
+mkdir -p "$work/twice/results/s0/retry"
+row alpha pure 1 30 1 25 > "$work/twice/results/s0/results.tsv"
+printf '── scripts/alpha/prove-a.ts  1s rc=1\n── scripts/alpha/prove-b.ts  1s rc=0\n' > "$work/twice/results/s0/alpha.out"
+printf '── scripts/alpha/prove-a.ts  1s rc=0\n── scripts/alpha/prove-b.ts  1s rc=1\n' > "$work/twice/results/s0/retry/alpha.out"
+run_case twice "$work"; check "a suite red twice is red whichever member is red the second time (exit 1)" "$?" 1
+json_has "its row names the member of each run, so the same member twice reads apart from two members once each" "$work/twice/ci-verdict.json" "v['fail']==['alpha'] and v['flakes'][0]['pooledMembers']==['scripts/alpha/prove-a.ts'] and v['flakes'][0]['soloMembers']==['scripts/alpha/prove-b.ts'] and v['flakes'][0]['homeSuitesBefore']==0"
+grep -q "  - alpha: first attempt after 0 suite(s) in the shard's home, red: scripts/alpha/prove-a.ts · second run in a home of its own: scripts/alpha/prove-b.ts" "$work/twice/out.txt" \
+  && echo "  [PASS] the summary names the second run's member beside the first's" \
+  || { echo "  [FAIL] red-twice summary"; grep -n 'alpha' "$work/twice/out.txt" | sed 's/^/      /'; fail=1; }
 
 echo "── the split ──"
 
