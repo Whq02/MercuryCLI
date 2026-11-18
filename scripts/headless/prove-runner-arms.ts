@@ -100,6 +100,8 @@ const { answerSessionFacts } = await import('../../src/cli/headless/sessionFacts
 const { sessionFactsFromWire, sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
 const { getSessionId } = await import('../../src/bootstrap/state.ts')
 const { getEngineModel } = await import('../../src/utils/model/model.ts')
+const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+enableConfigs()
 const { claimSession } = await import('../../src/cli/headless/claimSession.ts')
 const { clearModeTransitions, modeTransitions } = await import('../../src/utils/permissions/modeTransitions.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
