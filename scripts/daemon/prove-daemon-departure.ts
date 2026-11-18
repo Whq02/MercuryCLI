@@ -108,6 +108,7 @@ type OldMode = 'silent' | 'answer' | 'slow-then-answer'
 interface OldDaemon {
   pid: number
   hellos: number
+  helloAt: number[]
   leave: (opts?: { mark?: boolean; keepPlaneMs?: number }) => Promise<void>
   close: () => Promise<void>
 }
@@ -116,7 +117,7 @@ async function startOldDaemon(mode: OldMode, opts: { record?: boolean; lock?: bo
   await sleep(150)
   const pid = holder.pid ?? 0
   const conns = new Set<Socket>()
-  const state = { hellos: 0 }
+  const state = { hellos: 0, at: [] as number[] }
   const server = net.createServer(sock => {
     conns.add(sock)
     sock.on('close', () => conns.delete(sock))
@@ -132,6 +133,7 @@ async function startOldDaemon(mode: OldMode, opts: { record?: boolean; lock?: bo
         return
       }
       state.hellos++
+      state.at.push(performance.now())
       if (mode === 'silent' || (mode === 'slow-then-answer' && state.hellos === 1)) return
       sock.end(
         `${JSON.stringify({
@@ -187,6 +189,9 @@ async function startOldDaemon(mode: OldMode, opts: { record?: boolean; lock?: bo
     pid,
     get hellos() {
       return state.hellos
+    },
+    get helloAt() {
+      return state.at
     },
     close,
     leave: async (o = {}) => {
@@ -364,6 +369,9 @@ section('§5 a wedged daemon that never leaves keeps its wait: the door answers 
   check('the door answers false after its rounds', ok === false, `resolved ${String(ok)} after ${Date.now() - started}ms`)
   check('no spawn beside a daemon that holds its pipe and its plane', spawnsSeen() === before, `spawns=${spawnsSeen() - before}`)
   check('the ladder walked its rounds against the pipe', old.hellos >= (roundsSeam ? 6 : 40), `hellos=${old.hellos}`)
+  const beats = old.helloAt.slice(1).map((at, i) => at - old.helloAt[i]!)
+  const beat = [...beats].sort((a, b) => a - b)[Math.floor(beats.length / 2)] ?? 0
+  check('the ladder beats every 750 ms against the silent pipe: the 500 ms a hello may take and the 250 ms pause before the next', beats.length >= 5 && beat >= 740 && beat < 1000, `the hellos came ${beats.map(ms => ms.toFixed(0)).join(', ')} ms apart`)
   await old.leave({ mark: false })
   planeClear()
 }
