@@ -36,7 +36,7 @@ import {
   systemPromptSection,
 } from './systemPromptSections.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
-import { shellLineWords } from '../utils/shell/shellRecord.js'
+import { beginLoginFiles, shellLineWords } from '../utils/shell/shellRecord.js'
 import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/prompt.js'
 import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { getRuntimePostureSection, isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
@@ -380,6 +380,7 @@ export async function getSystemPrompt(
   permissionMode?: import('../types/permissions.js').InternalPermissionMode,
   memoryTask?: import('../mneme/entryKnapsack.js').StartTask,
 ): Promise<string[]> {
+  if (tools.some(tool => tool.name === BASH_TOOL_NAME)) beginLoginFiles()
   const recorded = recordedComposition(model)
   if (recorded !== null) {
     noteSessionEngine(model)

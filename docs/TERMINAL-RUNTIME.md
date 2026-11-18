@@ -317,7 +317,15 @@ options they define are carried to each command: from `~/.bash_profile` (or
 `~/.bashrc` exists. A `~/.bashrc` that returns early for a shell that is not
 interactive carries nothing written below that line. A login file that ends
 the shell, hands it to another program or runs past the ten seconds carries
-nothing; commands then run without it. What is written for zsh in `~/.zshrc`
+nothing; commands then run without it, and the session says so. The login run
+begins when the session prepares its first request and is over before that
+request is sent (a session that is handed no prompt takes none), so the Bash
+tool's description says there that no call carries your profile; the first
+result of the Bash tool has one line with the reason and what to change; and
+the health check's Bash tool shell row warns with the same reason and fix. A
+health check run outside a session takes a login run of its own to read this
+and keeps no file of it; asked for another row alone (`mercury health --only
+<id>`), it starts no login shell. What is written for zsh in `~/.zshrc`
 or `~/.zshenv` is not read. The session's shell line names the shell that runs
 and its version. A `bash` the command starts by name, or a script that begins
 `#!/usr/bin/env bash`, runs whichever bash PATH finds, which on a Mac is the
@@ -329,9 +337,14 @@ shell by path, with `-c` and one line as the arguments; before the first
 command of a session it asks once for that shell on a harmless line, and an
 editor that errors or does not print the answer within ten seconds is passed
 over for the session: commands run in the local shell and the first result
-says so. A `MERCURY_SHELL_PREFIX` wrapper is handed one line that starts
-Mercury's shell on the command, quoted with single quotes alone, so whichever
-shell the wrapper runs reads that line and no word of the command. A command
+says so. On macOS and Linux a `MERCURY_SHELL_PREFIX` wrapper is handed one
+line, every word of it quoted with single quotes alone, so whichever shell the
+wrapper runs reads that line and no word of the command. The line starts
+`/bin/sh` on a few words that start Mercury's shell on the command where its
+path can be run and, where it cannot (the wrapper went into a container or to
+another host), the `bash` on `PATH` there; with no bash there the command
+fails with a line that says so. On Windows the wrapper is handed the command's
+line itself, as before, and the shell it starts reads that line. A command
 that starts zsh itself (`zsh -c '…'`) is asked about: Mercury does not read
 the script zsh will run.
 

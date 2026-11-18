@@ -2,7 +2,7 @@ import { getDefaultBashTimeoutMs, getMaxBashTimeoutMs } from '../../utils/timeou
 import { getMaxOutputLength, getMinOutputLength } from '../../utils/shell/outputLimits.js'
 import { PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { resolveShellEngine, resolveEngineSessionCeiling } from '../../utils/shell/engineSession.js'
-import { profileShellWords, shellRecordNow } from '../../utils/shell/shellRecord.js'
+import { loginFilesNotCarried, profileShellWords, shellRecordNow } from '../../utils/shell/shellRecord.js'
 import { windowsBashAbsent } from '../../utils/shell/windowsShellRoad.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
@@ -53,7 +53,7 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
     sections.push(...brushShellParagraphs(windowsBashAbsent() || resolveShellEngine(getInitialSettings().shell?.engine).engine !== 'brush'))
   } else {
     sections.push(
-      `In the main conversation the working directory persists between calls (a crewmate's does not); shell variables, functions and options never do, and each call starts from your profile (${profileShellWords(shell)}).`,
+      `In the main conversation the working directory persists between calls (a crewmate's does not); shell variables, functions and options never do, and ${loginFilesNotCarried() === null ? `each call starts from your profile (${profileShellWords(shell)})` : `no call carries the aliases, functions or options of your profile (${profileShellWords(shell)}) in this session`}.`,
     )
   }
   if (ideTerminalAvailable()) sections.push(EDITOR_TERMINAL_PARAGRAPH)

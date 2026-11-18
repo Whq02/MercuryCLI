@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -163,6 +163,125 @@ async function byTheDaemon(): Promise<void> {
   judge('started by the daemon (the hosted runner)', w, resultOf(api), why)
 }
 
+const TWO_COMMANDS: ScriptedTurn[] = [
+  { kind: 'tool_use', name: 'Bash', id: 'toolu_first', input: { command: 'echo first-ran; from_profile_fn', description: 'the first command' } },
+  { kind: 'tool_use', name: 'Bash', id: 'toolu_second', input: { command: 'echo second-ran', description: 'the second command' } },
+  { kind: 'text', text: 'two commands done' },
+]
+
+type Part = { type?: string; tool_use_id?: string; content?: unknown; text?: string }
+
+function askedOfTheModel(api: FixtureApi): { results: Map<string, string>; description: string } {
+  const results = new Map<string, string>()
+  let description = ''
+  for (const request of api.messageRequests()) {
+    const body = request.body as { tools?: Array<{ name?: string; description?: string }>; messages?: Array<{ role?: string; content?: unknown }> } | null
+    const bash = body?.tools?.find(tool => tool.name === 'Bash')
+    if (description === '' && typeof bash?.description === 'string') description = bash.description
+    for (const message of body?.messages ?? []) {
+      if (message.role !== 'user' || !Array.isArray(message.content)) continue
+      for (const part of message.content as Part[]) {
+        if (part.type !== 'tool_result' || part.tool_use_id === undefined) continue
+        results.set(part.tool_use_id, typeof part.content === 'string' ? part.content : Array.isArray(part.content) ? (part.content as Part[]).map(inner => (inner.type === 'text' ? (inner.text ?? '') : '')).join('') : '')
+      }
+    }
+  }
+  return { results, description }
+}
+
+const COUNTS_ITS_RUNS = 'echo run >> "$HOME/login-runs"\nfrom_profile_fn() { echo fn-from-bash-profile; }\n'
+
+function loginRuns(w: World): number {
+  const file = join(w.root, 'user-home', 'login-runs')
+  return existsSync(file) ? readFileSync(file, 'utf8').trim().split('\n').length : 0
+}
+
+async function aRunnerNotHandedAPrompt(): Promise<void> {
+  const api = await startFixtureApi(TURNS)
+  const w = world('warm-runner', api)
+  writeFileSync(join(w.root, 'user-home', '.bash_profile'), COUNTS_ITS_RUNS)
+  let why = ''
+  let beforeAPrompt = -1
+  const runner = hostRunner({ dist: DIST, node: nodeBinPath(), cwd: w.cwd, home: w.root, env: w.env, argv: ['--model', MODEL], report: () => {} })
+  try {
+    runner.onAsk(params => (params.kind === 'tool' ? { outcome: 'allow', input: params.input } : { outcome: 'allow' }))
+    await bounded(runner.initialize(), 'the runner start')
+    await new Promise(done => setTimeout(done, 2_500))
+    beforeAPrompt = loginRuns(w)
+    await runner.prompt(ASK)
+    await bounded(runner.waitFor('the turn ends', row => row.type === 'outcome', 120_000), 'the hosted turn')
+  } catch (error) {
+    why = `${error instanceof Error ? error.message : String(error)} · stderr ${JSON.stringify(runner.stderr().slice(-300))}`
+  } finally {
+    await runner.stop()
+    await api.close()
+  }
+  check('a hosted runner that is started and handed no prompt takes no login run: none 2.5 s after its start', beforeAPrompt === 0, `${beforeAPrompt} · ${why}`)
+  check('…and takes one, and one alone, with its first prompt', loginRuns(w) === 1 && resultOf(api).includes('fn-from-bash-profile'), `${loginRuns(w)} · ${why} · ${JSON.stringify(resultOf(api).slice(0, 300))}`)
+}
+
+async function whereNothingIsCarried(): Promise<void> {
+  const situation = 'a login file that ends the shell'
+  const api = await startFixtureApi(TWO_COMMANDS)
+  const w = world('ends-the-shell', api)
+  writeFileSync(join(w.root, 'user-home', '.bash_profile'), `${COUNTS_ITS_RUNS}exit 0\n`)
+  let why = ''
+  try {
+    const child = spawn(nodeBinPath(), [DIST, 'run', '--mode', 'sovereign', '--model', MODEL, '--format', 'text', ASK], { cwd: w.cwd, env: w.env, stdio: ['ignore', 'pipe', 'pipe'] })
+    let stderr = ''
+    child.stderr.on('data', chunk => { stderr += String(chunk) })
+    child.stdout.resume()
+    const code = await bounded(new Promise<number | null>(done => { child.once('close', exit => done(exit)); child.once('error', () => done(null)) }), 'the run').catch(error => { child.kill('SIGKILL'); return String(error) })
+    why = `exit ${String(code)} · stderr ${JSON.stringify(stderr.slice(-300))}`
+  } finally {
+    await api.close()
+  }
+  const { results, description } = askedOfTheModel(api)
+  const first = results.get('toolu_first') ?? ''
+  const second = results.get('toolu_second') ?? ''
+  const LINE = 'Nothing your bash login files define is carried in this session: '
+  const sentence = description.split('\n\n').find(part => part.startsWith('In the main conversation')) ?? ''
+  const brief = `${why} · first ${JSON.stringify(first.slice(0, 700))} · second ${JSON.stringify(second.slice(0, 200))}`
+  check(`${situation}: the commands run, without what the file defines`, first.includes('first-ran') && !first.includes('fn-from-bash-profile') && second.includes('second-ran'), brief)
+  check(
+    `${situation}: the description the model is sent with its first request does not say a call starts from your profile`,
+    sentence !== '' && !sentence.includes('starts from your profile') && sentence.endsWith('and no call carries the aliases, functions or options of your profile (bash) in this session.'),
+    JSON.stringify(sentence),
+  )
+  check(
+    `${situation}: the first result carries one line that says the login files are not carried, why, and what to change`,
+    first.split('\n').filter(line => line.startsWith(LINE)).length === 1 && first.split(LINE).length === 2 && /a login file ended the shell or handed it to another program\. Find the line in the files bash reads at login/.test(first) && first.includes('only in an interactive shell') && first.includes('then restart Mercury.'),
+    brief,
+  )
+  check(`${situation}: the second result does not carry it`, second.includes('second-ran') && !/login files|login run/.test(second), brief)
+  check(`${situation}: the session took one login run`, loginRuns(w) === 1, String(loginRuns(w)))
+  const snapshots = join(w.env.MERCURY_CONFIG_DIR!, 'shell-snapshots')
+  const before = existsSync(snapshots) ? readdirSync(snapshots).length : 0
+  const health = spawnSync(nodeBinPath(), [DIST, 'health', '--json'], { cwd: w.cwd, env: w.env, encoding: 'utf8', timeout: 180_000, maxBuffer: 64 * 1024 * 1024 })
+  let row: { status?: string; evidence?: string; fix?: string } | undefined
+  let another: string | undefined
+  try {
+    const rows = (JSON.parse(health.stdout) as { sections?: Array<{ checks: Array<{ id: string; status?: string; evidence?: string; fix?: string }> }> }).sections?.flatMap(part => part.checks) ?? []
+    row = rows.find(check => check.id === 'shell')
+    another = rows.find(check => check.id !== 'shell')?.id
+  } catch {
+    row = undefined
+  }
+  check(
+    `${situation}: mercury health, run by itself in that home, warns on the Bash tool shell row with the reason, and its fix says what to change`,
+    row !== undefined && row.status === 'warn' && (row.evidence ?? '').includes('nothing the bash login files define is carried: ') && /a login file ended the shell or handed it to another program/.test(row.evidence ?? '') && (row.fix ?? '').includes('only in an interactive shell'),
+    `${JSON.stringify(row)} · exit ${String(health.status)} · ${String(health.stderr ?? '').slice(-200)}`,
+  )
+  check(`${situation}: that health run keeps no file of its login run in the config home`, (existsSync(snapshots) ? readdirSync(snapshots).length : 0) === before, `${before} before, ${existsSync(snapshots) ? readdirSync(snapshots).join(' ') : 'no folder'} after`)
+  check(`${situation}: that health run took one login run of its own`, loginRuns(w) === 2, String(loginRuns(w)))
+  const only = spawnSync(nodeBinPath(), [DIST, 'health', '--json', '--only', another ?? 'no-other-row'], { cwd: w.cwd, env: w.env, encoding: 'utf8', timeout: 180_000, maxBuffer: 64 * 1024 * 1024 })
+  check(
+    `${situation}: mercury health --only ${another ?? '<another row>'} answers for that row and starts no login shell`,
+    another !== undefined && (only.status === 0 || only.status === 3) && only.stdout.includes(`"id": "${another}"`) && loginRuns(w) === 2,
+    `exit ${String(only.status)} · login runs ${loginRuns(w)} · ${only.stdout.slice(0, 200)} ${String(only.stderr ?? '').slice(-200)}`,
+  )
+}
+
 type EditorTerminal = 'not offered' | 'starts what it is asked' | 'starts nothing'
 type Asked = { command: string; args: string[] | null; shell: string | null }
 
@@ -247,6 +366,8 @@ try {
     await byAnEditor('editor', 'started by an editor (mercury acp)', 'not offered')
     await byAnEditor('editor-terminal', 'started by an editor that offers its terminal and starts what it is asked', 'starts what it is asked')
     await byAnEditor('editor-nothing', 'started by an editor whose terminal starts nothing', 'starts nothing')
+    await whereNothingIsCarried()
+    await aRunnerNotHandedAPrompt()
   }
 } finally {
   if (KEEP) console.log(`world kept: ${scratch}`)

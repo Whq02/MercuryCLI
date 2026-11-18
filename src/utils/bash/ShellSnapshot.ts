@@ -1,6 +1,6 @@
-import { execFile } from 'node:child_process'
-import { stat } from 'node:fs/promises'
-import { homedir } from 'node:os'
+import { spawn } from 'node:child_process'
+import { mkdtemp, rm, stat } from 'node:fs/promises'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { getCwd } from '../cwd.js'
@@ -11,9 +11,10 @@ import { pathExists } from '../file.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
 import { getPlatform } from '../platform.js'
+import { strikeProcessGroupNow } from '../processGroup.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
-import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, argv0FunctionBody, snapshotProfileOf, type ShellRecord } from '../shell/shellRecord.js'
+import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, argv0FunctionBody, noteLoginFiles, snapshotProfileOf, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
 import { withShippedPrograms } from '../shell/windowsShellRoad.js'
 import { quote } from './shellQuote.js'
 
@@ -52,7 +53,9 @@ const SNAPSHOT_PATH_PROBE_TIMEOUT_MS = 10_000
 const SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS = 250
 const SNAPSHOT_CAPTURE_BOUND_MS = 10_000
 
-type BoundedRun = { exitCode?: number; stdout: string; stderr: string; killed: boolean }
+const SNAPSHOT_OUTPUT_LIMIT = 1024 * 1024
+
+type BoundedRun = { exitCode?: number; signal?: string; stdout: string; stderr: string; killed: boolean; overflowed: boolean; unstarted?: string }
 
 function runBounded(
   file: string,
@@ -63,50 +66,51 @@ function runBounded(
 ): Promise<BoundedRun> {
   return new Promise(resolve => {
     let settled = false
-    let guard: ReturnType<typeof setTimeout> | null = null
-    const settle = (result: BoundedRun): void => {
-      if (settled) return
-      settled = true
-      if (guard !== null) clearTimeout(guard)
-      resolve(result)
-    }
-    const child = execFile(
-      file,
-      args,
-      {
-        windowsHide: true,
-        encoding: 'utf8',
-        env,
-        timeout: timeoutMs,
-        maxBuffer: 1024 * 1024,
-        ...(login ? { killSignal: 'SIGKILL' as const } : {}),
-      },
-      (error, stdout, stderr) => {
-        if (error) {
-          const exitCode = typeof error.code === 'number' ? error.code : undefined
-          settle({ exitCode, stdout, stderr, killed: error.killed === true })
-          return
-        }
-        settle({ exitCode: 0, stdout, stderr, killed: false })
-      },
-    )
-    if (login) {
-      let said = ''
-      child.stdin?.end()
-      child.stderr?.on('data', (chunk: string) => {
-        said += chunk
-      })
-      child.once('exit', code => {
-        if (code !== null) settle({ exitCode: code, stdout: '', stderr: said, killed: false })
-      })
-    }
-    guard = setTimeout(() => {
+    let stdout = ''
+    let stderr = ''
+    const ownGroup = login && getPlatform() !== 'windows'
+    const child = spawn(file, args, { windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'], detached: ownGroup })
+    const end = (): void => {
+      if (ownGroup) {
+        strikeProcessGroupNow(child)
+        return
+      }
       try {
         child.kill(login ? 'SIGKILL' : undefined)
       } catch {
       }
-      settle({ exitCode: undefined, stdout: '', stderr: '', killed: true })
+    }
+    if (ownGroup) process.once('exit', end)
+    const guard = setTimeout(() => {
+      end()
+      settle({ stdout: '', stderr: '', killed: true, overflowed: false })
     }, timeoutMs + SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS)
+    const settle = (result: BoundedRun): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(guard)
+      process.removeListener('exit', end)
+      resolve(result)
+    }
+    const read = (stream: NodeJS.ReadableStream, keep: (chunk: string) => void): void => {
+      stream.setEncoding('utf8')
+      stream.on('data', (chunk: string) => {
+        keep(chunk)
+        if (stdout.length + stderr.length <= SNAPSHOT_OUTPUT_LIMIT) return
+        end()
+        settle({ stdout, stderr, killed: false, overflowed: true })
+      })
+    }
+    read(child.stdout, chunk => {
+      stdout += chunk
+    })
+    read(child.stderr, chunk => {
+      stderr += chunk
+    })
+    child.once('error', error => settle({ stdout, stderr, killed: false, overflowed: false, unstarted: errorMessage(error) }))
+    child.once(login ? 'exit' : 'close', (code, signal) =>
+      settle({ ...(code === null ? {} : { exitCode: code }), ...(signal === null ? {} : { signal }), stdout, stderr, killed: false, overflowed: false }),
+    )
   })
 }
 
@@ -291,10 +295,38 @@ fi`)
 }
 
 
-let captureLeftNoFile: string | null = null
+const LOGIN_FILES = 'the files bash reads at login (~/.bash_profile, ~/.bash_login or ~/.profile, and ~/.bashrc)'
+const INTERACTIVE_ONLY = 'only in an interactive shell (inside `case $- in *i*) … ;; esac`)'
+const THEN_RESTART = 'then restart Mercury'
 
-export function shellSnapshotAbsence(): string | null {
-  return captureLeftNoFile
+function loginRunLeftNothing(outcome: BoundedRun): LoginFilesAbsence {
+  if (outcome.killed) {
+    return {
+      why: `the login run did not end within ${SNAPSHOT_CAPTURE_BOUND_MS / 1000} s and was killed: a login file waits or runs long`,
+      change: `Find what waits in ${LOGIN_FILES} (a question, a read from the terminal, a command that needs the network) and run it ${INTERACTIVE_ONLY}, ${THEN_RESTART}.`,
+    }
+  }
+  if (outcome.overflowed) {
+    return {
+      why: `the login run printed more than ${SNAPSHOT_OUTPUT_LIMIT / (1024 * 1024)} MiB and was ended: a login file prints at length`,
+      change: `Find what prints in ${LOGIN_FILES} and print it ${INTERACTIVE_ONLY}, ${THEN_RESTART}.`,
+    }
+  }
+  if (outcome.unstarted !== undefined) {
+    return { why: `the login run could not be started: ${outcome.unstarted}`, change: `Restart Mercury; if this comes back, the message names what keeps the shell from starting.` }
+  }
+  if (outcome.exitCode === undefined) {
+    return { why: `the login run was ended by ${outcome.signal ?? 'a signal'}`, change: `Restart Mercury; if this comes back, run \`bash -l -c true\` in a terminal to see which of ${LOGIN_FILES} ends the shell.` }
+  }
+  return {
+    why: `the login run ended with exit ${String(outcome.exitCode)}`,
+    change: `Find the line in ${LOGIN_FILES} that ends the shell (an \`exit\`, or a command that fails under \`set -e\`) and run it ${INTERACTIVE_ONLY}, ${THEN_RESTART}.`,
+  }
+}
+
+const LOGIN_RUN_HANDED_OVER: LoginFilesAbsence = {
+  why: 'the login run ended before it carried anything: a login file ended the shell or handed it to another program',
+  change: `Find the line in ${LOGIN_FILES} that ends the shell or starts another one (\`exec zsh -l\`) and run it ${INTERACTIVE_ONLY}, so that the rest of the file is carried, ${THEN_RESTART}.`,
 }
 
 function randomSnapshotSuffix(): string {
@@ -306,13 +338,33 @@ function randomSnapshotSuffix(): string {
   return suffix
 }
 
-export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'origin'>): Promise<string | undefined> {
+export async function createAndSaveSnapshot(
+  shell: Pick<ShellRecord, 'path' | 'origin'>,
+  options?: { keptNowhere?: boolean },
+): Promise<string | undefined> {
   const shellPath = shell.path
+  const bashOfThisMachine = shell.origin !== 'engine' && getPlatform() !== 'windows'
+  const nothing = (absence: LoginFilesAbsence): undefined => {
+    if (bashOfThisMachine) noteLoginFiles(absence)
+    return undefined
+  }
+  let scratch: string | undefined
   try {
     const fs = getFsImplementation()
     const mercuryHome = getMercuryHome()
-    const snapshotsDir = join(mercuryHome, 'shell-snapshots')
-    await fs.mkdir(snapshotsDir)
+    let snapshotsDir = join(mercuryHome, 'shell-snapshots')
+    if (options?.keptNowhere) {
+      snapshotsDir = await mkdtemp(join(tmpdir(), 'mercury-login-run-'))
+      scratch = snapshotsDir
+    } else {
+      const unmade = await fs.mkdir(snapshotsDir).then(() => null, (error: unknown) => errorMessage(error))
+      if (unmade !== null) {
+        const why = `the folder ${snapshotsDir} could not be made (${unmade}), so no login run was tried`
+        logForDebugging(`shell snapshot capture skipped: ${why}`)
+        logError(`shell snapshot creation failed: ${why}`)
+        return nothing({ why, change: `Make ${mercuryHome} a folder Mercury can write in, or name another in MERCURY_CONFIG_DIR, ${THEN_RESTART}.` })
+      }
+    }
 
     const profile = snapshotProfileOf(shell.origin)
     const configFilePath = join(homedir(), profile.file)
@@ -322,7 +374,6 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
       `snapshot-${profile.kind}-${Date.now()}-${randomSnapshotSuffix()}.sh`,
     )
 
-    const bashOfThisMachine = shell.origin !== 'engine' && getPlatform() !== 'windows'
     const configExists = await pathExists(configFilePath)
     const mercuryContent = await getMercurySnapshotContent(shellPath)
     const script = buildCaptureScript({
@@ -345,13 +396,11 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
     const outcome = await runBounded(shellPath, ['-c', '-l', script], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
 
     if (outcome.killed || outcome.exitCode !== 0) {
-      captureLeftNoFile = outcome.killed
-        ? `the login run of ${shellPath} did not end within ${SNAPSHOT_CAPTURE_BOUND_MS / 1000} s and was killed: a login file waits or runs long`
-        : `the login run of ${shellPath} ended with exit ${String(outcome.exitCode)}`
+      const absence = loginRunLeftNothing(outcome)
       logForDebugging(
         [
           'shell snapshot capture failed',
-          `  ${captureLeftNoFile}`,
+          `  ${absence.why} (${shellPath})`,
           `  config file: ${configFilePath} (exists: ${configExists})`,
           `  cwd: ${getCwd()}`,
           `  mercury home: ${mercuryHome}`,
@@ -365,26 +414,26 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
             : '  stderr: none captured',
         ].join('\n'),
       )
-      logError(`shell snapshot creation failed: ${captureLeftNoFile}`)
-      return undefined
+      logError(`shell snapshot creation failed: ${absence.why} (${shellPath})`)
+      return nothing(absence)
     }
 
     try {
       const stats = await stat(snapshotFilePath)
       logForDebugging(`shell snapshot created at ${snapshotFilePath} (${stats.size} bytes)`)
     } catch {
-      captureLeftNoFile = `the login run of ${shellPath} ended before it wrote the snapshot: a login file ended the shell or handed it to another program`
-      logForDebugging(`shell snapshot file missing after capture: ${snapshotFilePath} (${captureLeftNoFile})`)
+      logForDebugging(`shell snapshot file missing after capture: ${snapshotFilePath} (${LOGIN_RUN_HANDED_OVER.why}; ${shellPath})`)
       try {
         const entries = await fs.readdir(snapshotsDir)
         logForDebugging(`snapshots directory ${snapshotsDir} holds ${entries.length} entries`)
       } catch {
         logForDebugging(`snapshots directory ${snapshotsDir} no longer exists`)
       }
-      return undefined
+      return nothing(LOGIN_RUN_HANDED_OVER)
     }
 
-    captureLeftNoFile = null
+    if (bashOfThisMachine) noteLoginFiles(null)
+    if (scratch !== undefined) return undefined
     registerCleanup(async () => {
       try {
         await getFsImplementation().unlink(snapshotFilePath)
@@ -403,8 +452,11 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
         stack ? `\n${stack}` : ''
       }`,
     )
-    captureLeftNoFile = `the login run of ${shellPath} could not be started: ${errorMessage(unexpectedError)}`
     logError(`shell snapshot creation failed: ${errorMessage(unexpectedError)}`)
-    return undefined
+    return nothing(loginRunLeftNothing({ stdout: '', stderr: '', killed: false, overflowed: false, unstarted: errorMessage(unexpectedError) }))
+  } finally {
+    if (scratch !== undefined) {
+      await rm(scratch, { recursive: true, force: true }).catch((error: unknown) => logForDebugging(`the login run's folder ${scratch} was not removed: ${errorMessage(error)}`))
+    }
   }
 }
