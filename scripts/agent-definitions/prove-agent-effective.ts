@@ -250,8 +250,11 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   )
   check('…and never an effort key', !/\beffort: effortValue/.test(scoped) && !/\{ effort\?: unknown \}/.test(scoped) && !/\beffort: facts\.effortValue/.test(posture) && /^\s*effortValue: EffortValue \| undefined/m.test(posture))
   check('the identity readout rides the same ladder', /const resolvedEffort = resolveAgentEffort\(\{/.test(runAgent))
-  const turnMachine = readFileSync('src/run-core/turn-machine.ts', 'utf-8')
-  check('dispatch reads appState.effortValue (the key the scoped state now carries)', /iter\.appState\.effortValue/.test(turnMachine))
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const dispatched = await t.runScripted({ appState: { effortValue: 'low', effort: 'max' }, script: [t.fixtures.yields(t.fixtures.says('done.'))] })
+  const sent = dispatched.requests[0]?.options.effortValue
+  const announced = dispatched.events.find(event => event.kind === 'model_call_started')?.effort
+  check('dispatch reads appState.effortValue (the key the scoped state now carries)', sent === 'low' && announced === 'low', `a run whose app state holds effortValue low (and a stray effort key max) sent ${String(sent)} to the model and announced ${String(announced)}: the model call of src/run-core/turn/streamModel.ts must carry the effortValue key of the context's app state`)
   const store = readFileSync('src/state/AppStateStore.ts', 'utf-8')
   check('AppState declares effortValue and no effort key', /^\s*effortValue: EffortValue \| undefined/m.test(store) && !/^\s*effort: /m.test(store))
   check('the instruction capture reads bundleDigest (no structural cast to a field that does not exist)', /digest: slice\.bundle\.bundleDigest/.test(runAgent) && !/\{ digest\?: string \}/.test(runAgent))

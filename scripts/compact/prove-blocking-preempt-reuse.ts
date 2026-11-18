@@ -93,7 +93,7 @@ section('R2 · the early returns surface nothing')
   check('auto-compact off never calls onMeasured', called === 0, `called=${called}`)
 }
 
-section('R3 · the wiring reads the carried count first (source pins)')
+section('R3 · the wiring reads the carried count first (source pins on the fold gate; the preempt, called)')
 {
   const auto = readFileSync(join(ROOT, 'src/services/compact/autoCompact.ts'), 'utf8')
   check(
@@ -104,19 +104,77 @@ section('R3 · the wiring reads the carried count first (source pins)')
     'the advance branch reuses the measured count (the whole view: the fold input and the carried operator turn) and recounts only as fallback',
     auto.includes('(measuredRawTokenCount ?? tokenCountWithEstimation([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model)) - snipTokensFreed') && auto.includes('shouldAutoCompact([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model, querySource, snipTokensFreed, raw => {'),
   )
-  const tm = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
+  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const f = t.fixtures
+  type Row = Record<string, unknown>
+  const j = (value: unknown): string => JSON.stringify(value)
+  const preempt = async (plan: Parameters<typeof t.plantRun>[0], state: Row = {}, realPrune = false) => {
+    const planted = await t.plantRun(plan)
+    Object.assign(planted.state, state)
+    if (realPrune) planted.run.deps = { ...(planted.run.deps as Row), microcompact: undefined }
+    const out = await t.drain(makeRequest(planted.run as never, planted.state as never, 1))
+    planted.close()
+    const iter = (out.decision as { iter?: Row }).iter
+    const built = iter?.requestPlan as { gauge?: { tokens: number; rebase?: boolean }; reductions: { pressurePruned?: { tokensSaved: number } } } | undefined
+    return { said: t.reasonOf(out.decision), events: out.events, iter, gauge: built?.gauge, saved: built?.reductions.pressurePruned?.tokensSaved ?? 0, folds: (planted.log as Row[]).filter(row => row.autocompact !== undefined) }
+  }
+  const under = (limit: number): Record<string, string> => ({ MERCURY_BLOCKING_LIMIT_OVERRIDE: String(limit) })
+  const small = (): unknown[] => [f.ask('hello there rig')]
+  const fat = (): unknown[] => [f.ask('hello there rig'), f.fat('previous fat turn', 5_000)]
+  const sideQuestion = (seed: unknown[], answer: Row): Parameters<typeof t.plantRun>[0] => ({ env: under(100), querySource: 'side_question', seed, autocompact: [answer], script: [] })
+
+  const carriedOver = await preempt(sideQuestion(small(), { wasCompacted: false, measuredRawTokenCount: 5_000 }))
+  const carriedUnder = await preempt(sideQuestion(fat(), { wasCompacted: false, measuredRawTokenCount: 10 }))
+  const recountedOver = await preempt(sideQuestion(fat(), { wasCompacted: false }))
+  const recountedUnder = await preempt(sideQuestion(small(), { wasCompacted: false }))
+
+  const FILE_BODY = 'a line of the file that was read over and over\n'.repeat(350)
+  const readTwelveTimes = (): unknown[] => [
+    f.ask('read the notes again and again'),
+    ...Array.from({ length: 12 }, (_, i) => [f.calls(`read_${i + 1}`, 'Read', { file_path: '/rig/notes.txt' }), createUserMessage({ content: [{ type: 'tool_result', tool_use_id: `read_${i + 1}`, content: FILE_BODY }] as never })]).flat(),
+    f.fat('every read is in.', 60_000),
+    f.ask('hello there rig'),
+  ]
+  const pruneRung = { pendingOverflow: { signal: { source: 'estimate', family: 'anthropic', shape: 'prompt-too-long', actualTokens: 60_000, limitTokens: 100 }, rung: 'prune' }, overflowEpisode: { pruned: true, folded: true } }
+  const pruning = (limit: number, model?: string): Parameters<typeof t.plantRun>[0] => ({ env: under(limit), querySource: 'side_question', tools: [{ name: 'Read' }], seed: readTwelveTimes(), ...(model !== undefined ? { model } : {}), script: [] })
+  const NO_MODEL = ''
+
+  const gauged = await preempt(pruning(10_000_000), pruneRung, true)
+  const gaugedCount = gauged.gauge?.tokens ?? 0
+  const gaugedBetween = await preempt(pruning(gaugedCount - Math.floor(gauged.saved / 2)), pruneRung, true)
+  const gaugedAbove = await preempt(pruning(gaugedCount + 1), pruneRung, true)
+  const unstamped = await preempt(pruning(10_000_000, NO_MODEL), pruneRung, true)
+  const unstampedCount = unstamped.iter === undefined ? 0 : tokens.tokenCountWithEstimation(unstamped.iter.messagesForQuery as never, NO_MODEL)
+  const unstampedBetween = await preempt(pruning(unstampedCount - Math.floor(unstamped.saved / 2), NO_MODEL), pruneRung, true)
+  const nothingPruned = await preempt(pruning(unstampedCount - Math.floor(unstamped.saved / 2), NO_MODEL), pruneRung)
+  const tracking = { compacted: false, turnId: 'rig-turn', turnCounter: 0, consecutiveFailures: 1 }
+  const forced = await preempt({ seed: f.history(), autocompact: [f.folded()], script: [] }, { pendingOverflow: { signal: f.providerOverflow(), rung: 'fold' }, overflowEpisode: { pruned: false, folded: true }, autoCompactTracking: tracking })
+
   check(
     'the blocking preempt reuses the carried count, recounts only as fallback, and credits the prune receipt of this iteration against either (never below zero)',
-    /const estimatedTokens =\s*compactionResult\?\.truePostCompactTokenCount \?\?\s*Math\.max\(\s*0,\s*\(measuredRawTokenCount \?\? tokenCountWithEstimation\(messagesForQuery, toolUseContext\.options\.engineModel\)\) -\s*prunedTokensFreed,\s*\)[\s\S]{0,80}calculateTokenWarningState\(\s*estimatedTokens,/.test(tm),
+    carriedOver.said === 'end blocking_limit' && carriedUnder.said === 'go_on' && recountedOver.said === 'end blocking_limit' && recountedUnder.said === 'go_on' && unstamped.saved > 0 && unstampedBetween.said === 'go_on' && nothingPruned.said === 'end blocking_limit',
+    `limit 100 — a carried count of 5,000 over a one-line transcript: ${carriedOver.said} (end blocking_limit is right); a carried count of 10 over a transcript stamped 5,000: ${carriedUnder.said} (go_on); no carried count, the stamped transcript: ${recountedOver.said} (end blocking_limit); no carried count, one line: ${recountedUnder.said} (go_on); a prune that saved ${unstamped.saved} of ${unstampedCount} with the limit between the two: ${unstampedBetween.said} (go_on), the same limit with nothing pruned: ${nothingPruned.said} (end blocking_limit) — the blocking check of makeRequest in src/run-core/turn/makeRequest.ts judges by the count the fold gate measured when it carried one, recounts the view only when it carried none, and takes this turn's prune saving off`,
   )
   check(
     'a projected request gauge needs no prune subtraction; an unstamped view keeps the receipt credit',
-    /const prunedTokensFreed = requestPlan\.gauge === undefined \? Math\.max\(0, requestPlan\.reductions\.pressurePruned\?\.tokensSaved \?\? 0\) : 0/.test(tm) &&
-      /querySource,\s*tracking,\s*prunedTokensFreed,\s*forcedFold,\s*\)/.test(tm),
+    gauged.gauge !== undefined && gauged.gauge.rebase === true && gauged.saved > 0 && gaugedBetween.said === 'end blocking_limit' && gaugedAbove.said === 'go_on' && unstamped.said === 'go_on' && unstamped.gauge === undefined && unstampedBetween.said === 'go_on' &&
+      forced.folds.length === 1 && forced.folds[0]?.source === 'sdk' && j(forced.folds[0]?.tracking) === j(tracking) && forced.folds[0]?.prunedTokensFreed === 0 && j(forced.folds[0]?.forced) === j(f.providerOverflow()),
+    `a pruned view with a projected gauge of ${gaugedCount} (the prune saved ${gauged.saved}): limit ${gaugedCount - Math.floor(gauged.saved / 2)} ${gaugedBetween.said} (end blocking_limit is right: nothing is taken off a count made of the pruned view), limit ${gaugedCount + 1} ${gaugedAbove.said} (go_on); a view with no gauge counted ${unstampedCount} by its usage stamp: limit ${unstampedCount - Math.floor(unstamped.saved / 2)} ${unstampedBetween.said} (go_on: the saving is taken off); the fold gate was asked ${j(forced.folds.map(row => ({ source: row.source, tracking: row.tracking, prunedTokensFreed: row.prunedTokensFreed, forced: row.forced })))} (the source, the turn's tracking, a saving of 0, the overflow that forces it) — src/run-core/turn/makeRequest.ts`,
   )
+
+  const landedUnder = await preempt(sideQuestion(fat(), { ...f.folded(50), measuredRawTokenCount: 5_000 }))
+  const landedOver = await preempt(sideQuestion(fat(), f.folded(5_000)))
+  const noTrueFigure = f.folded(50)
+  ;(noTrueFigure.compactionResult as Row).truePostCompactTokenCount = undefined
+  const landedUncounted = await preempt(sideQuestion(fat(), { ...noTrueFigure, measuredRawTokenCount: 5_000 }))
+  const summariser = await preempt({ ...sideQuestion(fat(), { wasCompacted: false }), querySource: 'compact' })
+  const sessionMemory = await preempt({ ...sideQuestion(fat(), { wasCompacted: false }), querySource: 'session_memory' })
   check(
     'the preempt stays gated on the just-compacted exemption (a compaction-changed view never reuses a stale number; the exemption holds only under the limit)',
-    /const justCompactedUnderLimit =\s*compactionResult !== undefined &&[\s\S]{0,400}!justCompactedUnderLimit &&[\s\S]{0,220}querySource !== 'session_memory'[\s\S]{0,900}?measuredRawTokenCount \?\?\s*tokenCountWithEstimation\(messagesForQuery, toolUseContext\.options\.engineModel\)/.test(tm),
+    landedUnder.said === 'go_on' && landedUnder.events.some(event => event.kind === 'compaction_boundary') && landedOver.said === 'end blocking_limit' && landedUncounted.said === 'go_on' && summariser.said === 'go_on' && sessionMemory.said === 'go_on',
+    `limit 100 — a fold that landed at 50 beside a carried count of 5,000 taken before it: ${landedUnder.said} (go_on is right); a fold that landed at 5,000: ${landedOver.said} (end blocking_limit); a fold with no true post figure beside the same carried count: ${landedUncounted.said} (go_on); the summariser's own request over the limit: ${summariser.said} (go_on); the session-memory request: ${sessionMemory.said} (go_on) — the blocking check of makeRequest in src/run-core/turn/makeRequest.ts`,
   )
 }
 

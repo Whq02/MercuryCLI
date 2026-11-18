@@ -29,13 +29,73 @@ console.log('============================================================')
 section('§1 the writer: no site arms a thinking-clear latch after the idle threshold, and the mark writer passes no such flag')
 {
   const stream = src('src/services/providers/anthropic/streamCore.ts')
-  const turn = src('src/run-core/turn-machine.ts')
   const state = src('src/bootstrap/state.ts')
   check('streamCore has no thinking-clear latch accessor (the arming site is gone)', !stream.includes('ThinkingClearLatched'), 'streamCore.ts still names a thinking-clear latch')
   check('streamCore does not arm a thinking-clear latch from the idle-hour completion gap', !/setThinkingClearLatched\(true\)/.test(stream) && !/thinkingClearLatched\s*=\s*true/.test(stream), 'an idle-hour arming survives in streamCore.ts')
   check('bootstrap state exposes no getThinkingClearLatched / setThinkingClearLatched', !state.includes('ThinkingClearLatched'), 'a thinking-clear latch accessor survives in state.ts')
-  check('the mark writer (turn-machine) passes no thinkingClearActive into the prefix mark', !turn.includes('thinkingClearActive'), 'turn-machine.ts still passes thinkingClearActive')
-  check('…and it passes only the request plan as the mark context', turn.includes('{ requestPlan: iter.requestPlan }'), 'the mark context is not the request-plan-only shape')
+
+  const ambient = { ...process.env }
+  const t = await import('./turnScenarios.ts')
+  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
+  const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
+  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const f = t.fixtures
+  type Row = Record<string, unknown>
+  const HOURS_AGO = new Date(Date.now() - 3 * 3_600_000).toISOString()
+  const oldThought = (): Row => {
+    const reply = f.says('an old answer') as unknown as Row
+    Object.assign(reply.message as Row, { model: t.MODEL, content: [{ type: 'thinking', thinking: 'an old thought', signature: 'rig-signature' }, { type: 'text', text: 'an old answer' }] })
+    reply.timestamp = HOURS_AGO
+    return reply
+  }
+  const replyWithADrop = (): unknown => {
+    const reply = f.says('the answer, with one old thought left out.')
+    ;(reply.message as unknown as Row).input_transformations = [DROP]
+    return reply
+  }
+  const noteOf = (events: Array<Row & { kind: string }>): { level?: unknown; content: string } | undefined => {
+    const note = events.filter(event => event.kind === 'notice').map(event => event.message as Row).find(message => message.subtype === 'thinking_note')
+    return note === undefined ? undefined : { level: note.level, content: String(note.content) }
+  }
+
+  resetThinkingDropStates()
+  const afterIdle = await t.plantReply({ seed: [f.ask('an old question'), oldThought(), f.ask('hello there rig')], script: [f.yields(replyWithADrop())] })
+  afterIdle.close()
+  const idleNote = noteOf(afterIdle.events)
+
+  const FILE_BODY = 'a line of the file that was read over and over\n'.repeat(350)
+  const readTwelveTimes = (): unknown[] => [
+    f.ask('read the notes again and again'),
+    ...Array.from({ length: 12 }, (_, i) => [f.calls(`read_${i + 1}`, 'Read', { file_path: '/rig/notes.txt' }), createUserMessage({ content: [{ type: 'tool_result', tool_use_id: `read_${i + 1}`, content: FILE_BODY }] as never })]).flat(),
+    oldThought(),
+    f.ask('hello there rig'),
+  ]
+  const onThePruneRung = async (prunes: boolean): Promise<{ level?: unknown; content: string } | undefined> => {
+    resetThinkingDropStates()
+    const planted = await t.plantRun({ tools: [{ name: 'Read' }], seed: readTwelveTimes(), script: [f.yields(replyWithADrop())] })
+    Object.assign(planted.state, { pendingOverflow: { signal: { source: 'estimate', family: 'anthropic', shape: 'prompt-too-long', actualTokens: 60_000, limitTokens: 100 }, rung: 'prune' }, overflowEpisode: { pruned: true, folded: true } })
+    if (prunes) planted.run.deps = { ...(planted.run.deps as Row), microcompact: undefined }
+    const request = await t.drain(makeRequest(planted.run as never, planted.state as never, 1))
+    const reply = request.decision.kind === 'go_on' ? await t.drain(modelReply(planted.run as never, request.decision.iter as never)) : { events: [] }
+    planted.close()
+    return noteOf([...request.events, ...reply.events])
+  }
+  const pruned = await onThePruneRung(true)
+  const unpruned = await onThePruneRung(false)
+  resetThinkingDropStates()
+  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
+  Object.assign(process.env, ambient)
+
+  check(
+    'a drop the API reports after an idle gap is written by the turn machine at WARNING level and names no idle clear (the mark writer arms no thinking-clear flag)',
+    idleNote?.level === 'warning' && !idleNote.content.includes('after an hour idle') && !idleNote.content.includes('cleared reasoning'),
+    `the note of a reply that dropped a thought written three hours earlier: ${JSON.stringify(idleNote)} — the model call of src/run-core/turn/streamModel.ts classifies the drop against a mark that says no thinking was cleared, so it reads as a first unlawful drop`,
+  )
+  check(
+    "…and the mark reads this request's own plan: on a request whose plan pruned superseded results the same drop is the INFO note that names Mercury's prune, and the WARNING where nothing was pruned",
+    pruned?.level === 'info' && pruned.content.includes('pruned superseded tool results') && unpruned?.level === 'warning',
+    `on the prune rung with two results cleared: ${JSON.stringify(pruned)}; on the same rung with nothing cleared: ${JSON.stringify(unpruned)} — the mark's context in src/run-core/turn/streamModel.ts is the request plan of this very request and nothing else`,
+  )
 }
 
 section('§2 the mark the product builds carries thinkingClearActive=false; the classifier vocabulary is retained (settable by hand, never by the product)')

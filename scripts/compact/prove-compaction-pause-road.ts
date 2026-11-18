@@ -244,8 +244,16 @@ section('B4 the hand road — /compact reads no failure count: the command calls
   const command = readFileSync(join(ROOT, 'src/commands/compact/compact.ts'), 'utf8')
   check('the command calls compactConversation itself', /await compactConversation\(/.test(command))
   check('…and consults no breaker, no failure count, no automatic orchestration', !/consecutiveFailures|autoCompactIfNeeded|compactionBreakerAllows|MAX_CONSECUTIVE_FAILURES/.test(command))
-  const machine = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-  check('the failure count is seeded empty at every run entry — the pause is the run\'s', /autoCompactTracking: undefined,/.test(machine))
+  const ctx = makeCtx()
+  const readCall = createAssistantMessage({ content: [{ type: 'tool_use', id: 'toolu_carry', name: 'Read', input: {} }] as never })
+  const counting = await run(ctx, [createUserMessage({ content: 'the lane ask' })], [[ping(), readCall], [ping(), asstText('the reply after two failed folds')]], [{ wasCompacted: false, consecutiveFailures: 2 }, { wasCompacted: false }])
+  const entering = await run(ctx, [createUserMessage({ content: 'the next ask' })], [[ping(), asstText('the reply of a fresh run')]], [{ wasCompacted: false }])
+  const carriedWithin = (counting.compact[1]?.tracking as { consecutiveFailures?: number } | undefined)?.consecutiveFailures
+  check(
+    'the failure count is seeded empty at every run entry — the pause is the run\'s',
+    counting.compact.length === 2 && counting.compact[0]?.tracking === undefined && carriedWithin === 2 && entering.compact.length === 1 && entering.compact[0]?.tracking === undefined,
+    `a run whose first fold ask reported two failures asked the gate ${counting.compact.length} time(s) with ${JSON.stringify(counting.compact.map(ask => ask.tracking))} (nothing, then a count of 2 carried to its next turn); the next run on the same context asked with ${JSON.stringify(entering.compact.map(ask => ask.tracking))} (nothing is right) — runEventMachine in src/run-core/turn-machine.ts opens every run with no fold tracking`,
+  )
 }
 
 clearTimeout(guard)

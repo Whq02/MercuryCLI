@@ -1,16 +1,42 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { AGENT_TURN_ASK, bootRunner, bound, briefly, carrying, childEnv, describeRequests, DIST, exportWorld, inMainFile, isDrainedMainRow, isSession, isOutcome, j, LINE, makeTally, removeWorld, REPO, requestsOf, SCRATCH_ROOT, seedHome, settledCarriers, startFixture, waitWire } from './dupline-world.ts'
+import { AGENT_TURN_ASK, bootRunner, bound, briefly, carrying, childEnv, describeRequests, DIST, exportWorld, inMainFile, isDrainedMainRow, isSession, isOutcome, j, LINE, makeTally, removeWorld, requestsOf, SCRATCH_ROOT, seedHome, settledCarriers, startFixture, waitWire } from './dupline-world.ts'
 
 const { check, section, finish, failed } = makeTally('prove-dupline-agent-drain')
 
-section('S the drain scope reads the agent id before the query source (the source)')
+section('S the drain scope reads the agent id before the query source (the tool boundary, called)')
 {
-  const machine = readFileSync(join(REPO, 'src', 'run-core', 'turn-machine.ts'), 'utf8')
+  const ambient = { ...process.env }
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
+  const { afterTools } = await import('../../src/run-core/turn/afterTools.ts')
+  const queue = await import('../../src/utils/messageQueueManager.ts')
+  const SENT = '30000000-0000-4000-8000-000000000001'
+  const boundary = async (who: { agentId?: string; querySource: string }): Promise<{ drained: unknown[]; consumed: string[]; left: unknown[] }> => {
+    const planted = await t.plantReply({
+      ...who,
+      before: () => {
+        queue.enqueue({ value: LINE, mode: 'prompt', uuid: SENT } as never)
+      },
+      script: [t.fixtures.yields(t.fixtures.calls('tu_1', 'EchoTool', { text: 'x' }))],
+    })
+    await t.drain(runToolCalls(planted.run as never, planted.iter as never))
+    const out = await t.drain(afterTools(planted.run as never, planted.iter as never))
+    const left = queue.getCommandQueue().map(command => command.uuid)
+    planted.close()
+    return { drained: out.events.filter(event => event.kind === 'followup_drained').map(event => event.uuid), consumed: [...planted.consumed], left }
+  }
+  const agentLabelledSdk = await boundary({ agentId: t.fixtures.agent(), querySource: 'sdk' })
+  const agentLabelledMain = await boundary({ agentId: t.fixtures.agent(), querySource: 'main_thread' })
+  const mainThread = await boundary({ querySource: 'sdk' })
+  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
+  Object.assign(process.env, ambient)
+  const leftAlone = (seen: { drained: unknown[]; consumed: string[]; left: unknown[] }): boolean => seen.drained.length === 0 && seen.consumed.length === 0 && j(seen.left) === j([SENT])
   check(
     "a query that runs under an agent id is never the main thread's drain, whatever its source label",
-    machine.includes("currentAgentId === undefined &&\n      (querySource.startsWith('main_thread') || querySource === 'sdk')"),
+    leftAlone(agentLabelledSdk) && leftAlone(agentLabelledMain) && j(mainThread.drained) === j([SENT]) && j(mainThread.consumed) === j([SENT]) && mainThread.left.length === 0,
+    `the operator's line queued at a tool boundary — under an agent id labelled sdk: ${j(agentLabelledSdk)}; under an agent id labelled main_thread: ${j(agentLabelledMain)}; the main thread itself: ${j(mainThread)} — the drain of src/run-core/turn/afterTools.ts takes the main thread's queue only for a run with no agent id`,
   )
 }
 

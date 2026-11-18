@@ -157,8 +157,27 @@ try {
     check('the stop-hook path settles the writer\'s diagnostics after the guards and before the turn.answer hooks', guards !== -1 && settlement > guards && answerHooks > settlement, `${guards} ${settlement} ${answerHooks}`)
     check('the rows ride the transcript as the one attachment the model knows, and hold the turn once (never a hold already granted)', stopHooks.includes('const message = createAttachmentMessage(row)\n        yield message\n        if (stopHookActive !== true) settlementBlocks.push(message)'))
     check('bare mode is left alone', /if \(!isBareMode\(\)\) \{\n\s+try \{\n\s+for \(const row of await settleWriterDiagnosticsAtTurnEnd/.test(stopHooks))
-    const machine = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-    check('a held turn continues with the rows in its messages (the existing stop-hook gate)', machine.includes('...stopHookResult.blockingErrors,') && machine.includes("transition: { reason: 'stop_hook_blocking' }"))
+    registry.resetAllLSPDiagnosticState()
+    const t = await import('../core-runtime/turnScenarios.ts')
+    const held = await t.runScripted({
+      tools: [{ name: BASH_TOOL_NAME }],
+      before: () => {
+        const writer = processOwnerForLane(null)
+        writeAsTheToolsDo(writer, FILE, 1)
+        registry.settleWritesAwaitingReport(writer, [FILE])
+        publish(FILE, [typeError(0)], 2)
+      },
+      script: [t.fixtures.yields(t.fixtures.says('the edit is in.')), t.fixtures.yields(t.fixtures.says('the type is fixed.'))],
+    })
+    type Sent = { type?: string; attachment?: Row }
+    const [asked, again] = held.requests.map(request => request.messages as Sent[])
+    const added = (again ?? []).slice((asked ?? []).length)
+    const carried = added.filter(row => row.type === 'attachment' && row.attachment?.type === 'diagnostics').map(row => row.attachment as Row)
+    check(
+      'a held turn continues with the rows in its messages (the existing stop-hook gate)',
+      held.transitions.join(',') === 'stop_hook_blocking' && held.requests.length === 2 && held.terminal.reason === 'completed' && added.length === 2 && added[0]?.type === 'assistant' && added[1]?.attachment === carried[0] && messagesOf(carried).join('|') === "Type 'string' is not assignable to type 'number'.",
+      `the stop_hooks rule (src/run-core/turn/noToolReply.ts) must hand a held turn over as stop_hook_blocking with the request's rows, the reply and the gate's blocking rows, once; a turn that ended with the writer's publish unread handed over [${held.transitions.join(',')}] in ${held.requests.length} model calls, ended ${j(held.terminal)}, and its second request adds ${added.map(row => `${String(row.type)}${row.attachment ? ` (${row.attachment.type})` : ''}`).join(', ') || 'nothing'} carrying ${j(messagesOf(carried))}`,
+    )
   }
 } finally {
   spy.mockRestore()

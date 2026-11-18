@@ -23,7 +23,7 @@ const { CompactionRowSchema } = await import('../../src/rows/vocabulary.ts')
 const { bindRequestGauge, requestGaugeFixed } = await import('../../src/services/run/requestGauge.ts')
 const { calibrationKeyFor } = await import('../../src/services/run/contextCalibration.ts')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
-const { planToolPayload, toolsOnTheWire, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
+const { planToolPayload, toolsOnTheWire, toolRosterLatchFor, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
@@ -61,9 +61,49 @@ const schemasOf = async (tools: readonly { name: string }[], model: string): Pro
   const afterAdmission = await planToolPayload({ model: 'local/qwen3.5:9b', tools: pool, messages: admitted, getToolPermissionContext: permission, agents: [], source: 'gauge' })
   const admittedWire = toolsOnTheWire(afterAdmission)
   check('an admitted tool\'s definition rides the text-append wire and so joins the fixed material (one more schema, the tools term itself unmoved)', admittedWire.length === localWire.length + 1 && admittedWire.some(tool => tool.name === 'Retain') && afterAdmission.roster.length === local.roster.length, `${admittedWire.length} vs ${localWire.length}`)
-  const turnMachine = readFileSync(new URL('../../src/run-core/turn-machine.ts', import.meta.url), 'utf8')
+  const ambient = { ...process.env }
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
+  const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const LOCAL = 'local/qwen3.5:9b'
+  const FIRST_PARTY = 'claude-opus-4-8'
+  const gaugedRequest = async (model: string, tools: readonly unknown[]): Promise<{ fixed: number; latched: boolean; key: string; rows: Message[] }> => {
+    const planted = await t.plantRun({
+      model,
+      script: [],
+      before: rig => {
+        ;(rig.ctx.options as { tools: unknown }).tools = tools
+      },
+    })
+    const key = String(rosterOwnerFromToolUseContext(planted.rig.ctx as never))
+    const rows = planted.state.messages as Message[]
+    const made = await t.drain(makeRequest(planted.run as never, planted.state as never, 1))
+    const latched = toolRosterLatchFor(key, rows, model) !== undefined
+    planted.close()
+    return { fixed: made.decision.kind === 'go_on' ? (made.decision.iter.requestPlan.gauge?.fixed.tokens ?? Number.NaN) : Number.NaN, latched, key, rows }
+  }
+  const weightOf = async (tools: readonly { name: string }[], model: string): Promise<number> => requestGaugeFixed({ tools: await schemasOf(tools, model) }).tokens - requestGaugeFixed({ tools: [] }).tokens
+  const wireOf = async (model: string, rows: Message[]) => toolsOnTheWire(await planToolPayload({ model, tools: pool, messages: rows, getToolPermissionContext: permission, agents: [], source: 'gauge' }))
+  const localRequest = await gaugedRequest(LOCAL, pool)
+  const localGrew = localRequest.fixed - (await gaugedRequest(LOCAL, [])).fixed
+  const localWireWeighs = await weightOf(await wireOf(LOCAL, localRequest.rows), LOCAL)
+  const localCatalogueWeighs = await weightOf(pool, LOCAL)
+  const firstPartyRequest = await gaugedRequest(FIRST_PARTY, pool)
+  const firstPartyGrew = firstPartyRequest.fixed - (await gaugedRequest(FIRST_PARTY, [])).fixed
+  const firstPartyWireWeighs = await weightOf(await wireOf(FIRST_PARTY, firstPartyRequest.rows), FIRST_PARTY)
+  await planToolPayload({ model: LOCAL, tools: pool, messages: localRequest.rows, getToolPermissionContext: permission, agents: [], source: 'prove', latchKey: localRequest.key })
+  const latchingPlannerLatches = toolRosterLatchFor(localRequest.key, localRequest.rows, LOCAL) !== undefined
+  const wholeRunRows = [t.fixtures.ask('hello there rig')] as Message[]
+  const wholeRun = await t.runScripted({ seed: wholeRunRows, script: [t.fixtures.yields(t.fixtures.calls('tu_1', 'EchoTool', { text: 'x' })), t.fixtures.yields(t.fixtures.says('after tools.'))] })
+  const wholeRunLatched = toolRosterLatchFor(String(rosterOwnerFromToolUseContext(wholeRun.rig.ctx as never)), wholeRunRows, t.MODEL) !== undefined
+  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
+  Object.assign(process.env, ambient)
   const localEstimator = readFileSync(new URL('../../src/services/providers/local/localCallModel.ts', import.meta.url), 'utf8')
-  check('the turn machine builds the gauge\'s fixed material from the tools on the wire, through the one owner the local estimator reads too — planned unseeded, so the gauge never takes a conversation\'s first latch', /fixedRequest: requestGaugeFixed\(\{[\s\S]{0,400}toolsOnTheWire\(await planToolPayloadUnseeded\(/.test(turnMachine) && !/\bplanToolPayload\(/.test(turnMachine) && localEstimator.includes('toolsOnTheWire(plan)'))
+  check(
+    'the turn machine builds the gauge\'s fixed material from the tools on the wire, through the one owner the local estimator reads too — planned unseeded, so the gauge never takes a conversation\'s first latch',
+    Math.abs(localGrew - localWireWeighs) <= 1 && localGrew < localCatalogueWeighs / 2 && Math.abs(firstPartyGrew - firstPartyWireWeighs) <= 1 && !localRequest.latched && !firstPartyRequest.latched && latchingPlannerLatches && wholeRun.terminal.reason === 'completed' && !wholeRunLatched && localEstimator.includes('toolsOnTheWire(plan)'),
+    `with the catalogue in the pool the gauge's fixed material grew by ${localGrew} tokens on the local road (the tools on its wire weigh ${localWireWeighs}, the whole catalogue ${localCatalogueWeighs}) and by ${firstPartyGrew} on the first-party road (its wire weighs ${firstPartyWireWeighs}); a roster latch stood after the request: local ${localRequest.latched}, first-party ${firstPartyRequest.latched}, after a whole run ${wholeRunLatched} (none is right; the latching planner leaves one under the same key: ${latchingPlannerLatches}) — makeRequest in src/run-core/turn/makeRequest.ts sizes the gauge by toolsOnTheWire of a plan made with planToolPayloadUnseeded`,
+  )
   clearToolRosterLatches()
 }
 

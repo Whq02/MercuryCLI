@@ -142,16 +142,59 @@ section('§C the record + the projection')
   check('a non-root record with no boundary excludes NOTHING (stands alone)', cr.projectRewoundWindows(stray).length === 3)
 }
 
-section('§D the machine + registry pins (structural)')
+section('§D the machine, called + registry pins (structural)')
 {
-  const machine = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-  const guardAt = machine.indexOf('if (!checkpointSettleWarned) {')
-  const completedAfterGuard = machine.indexOf("reason: 'completed' }", guardAt)
-  check('the settle guard sits BEFORE the natural-end completed terminal', guardAt !== -1 && completedAfterGuard !== -1 && machine.slice(guardAt, completedAfterGuard).includes('findActiveCheckpoint('))
-  check('the guard warns ONCE per run (the warned latch)', machine.includes('checkpointSettleWarned = true'))
-  const recordAt = machine.indexOf('const rewindRecord = buildRewindRecordIfSettled(')
-  const drainAt = machine.indexOf('const queuedCommandsSnapshot = selectDrainableCommands(', recordAt)
-  check('the rewind record appends BEFORE the steering drain closes the round', recordAt !== -1 && drainAt !== -1 && machine.slice(recordAt, drainAt).includes('toolResults.push(rewindRecord)'))
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const { noToolReply } = await import('../../src/run-core/turn/noToolReply.ts')
+  const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
+  const { afterTools } = await import('../../src/run-core/turn/afterTools.ts')
+  const queue = await import('../../src/utils/messageQueueManager.ts')
+  const f = t.fixtures
+  const rowsOf = (decision: unknown): unknown[] => (decision as { next?: { messages?: unknown[] } } | undefined)?.next?.messages ?? []
+  const isGuardWarning = (row: unknown): boolean => text(row).includes('A checkpoint is still active')
+
+  const open = await t.plantReply({ tools: [{ name: cr.CHECKPOINT_TOOL_NAME }], seed: f.liveCheckpoint(), script: [f.yields(f.says('the store lives in sessionStorage.'))] })
+  const guarded = await t.drain(noToolReply(open.run as never, open.iter as never))
+  open.close()
+  const settled = await t.plantReply({ script: [f.yields(f.says('nothing was left open.'))] })
+  const ended = await t.drain(noToolReply(settled.run as never, settled.iter as never))
+  settled.close()
+  const warning = guarded.events.find(event => event.kind === 'attachment')?.message
+  check(
+    'the settle guard sits BEFORE the natural-end completed terminal',
+    t.reasonOf(guarded.decision) === 'hand_over checkpoint_settle_guard' && isGuardWarning(warning) && rowsOf(guarded.decision).at(-1) === warning && t.reasonOf(ended.decision) === 'end completed',
+    `a reply with no tool call while a checkpoint is live: ${t.reasonOf(guarded.decision)}; with none live: ${t.reasonOf(ended.decision)} — the checkpoint_settle_guard rule of src/run-core/turn/noToolReply.ts decides before the reply is left to stand, and hands over with its warning as the last row of the next turn`,
+  )
+
+  const twice = await t.runScripted({ tools: [{ name: cr.CHECKPOINT_TOOL_NAME }], seed: f.liveCheckpoint(), script: [f.yields(f.says('the store lives in sessionStorage.')), f.yields(f.says('still digging.'))] })
+  const warnings = twice.events.filter(event => event.kind === 'attachment' && isGuardWarning(event.message)).length
+  check(
+    'the guard warns ONCE per run (the warned latch)',
+    JSON.stringify(twice.transitions) === JSON.stringify(['checkpoint_settle_guard']) && warnings === 1 && twice.requests.length === 2 && isGuardWarning(twice.requests[1]?.messages.at(-1)) && twice.terminal.reason === 'completed',
+    `a run whose two replies both leave the checkpoint open: transitions ${JSON.stringify(twice.transitions)}, ${warnings} warning(s), ${twice.requests.length} model call(s), ended ${String(twice.terminal.reason)} — the rule warns once in a run (checkpointSettleWarned on the run context) and the second natural end completes`,
+  )
+
+  const STEER = 'a line the operator sent during the exploration'
+  const rewound = await t.plantReply({
+    tools: [{ name: cr.CHECKPOINT_TOOL_NAME }, { name: cr.REWIND_TOOL_NAME }],
+    seed: f.liveCheckpoint(),
+    before: () => {
+      queue.enqueue({ value: STEER, mode: 'prompt', uuid: '11111111-1111-4111-8111-111111111111' } as never)
+    },
+    script: [f.yields(f.calls('rw_1', cr.REWIND_TOOL_NAME, { report: 'the store lives in sessionStorage/' }))],
+  })
+  await t.drain(runToolCalls(rewound.run as never, rewound.iter as never))
+  const closed = await t.drain(afterTools(rewound.run as never, rewound.iter as never))
+  rewound.close()
+  const round = rowsOf(closed.decision)
+  const recordAt = round.findIndex(row => text(row).includes(cr.REWIND_RECORD_TAG))
+  const steerAt = round.findIndex(row => text(row).includes(STEER))
+  const keptForTheModel = text(cr.projectRewoundWindows(round as Message[])).includes(STEER)
+  check(
+    'the rewind record appends BEFORE the steering drain closes the round',
+    t.reasonOf(closed.decision) === 'hand_over next_turn' && recordAt !== -1 && steerAt !== -1 && recordAt < steerAt && keptForTheModel,
+    `after a settled Rewind with a line queued: ${t.reasonOf(closed.decision)}, the record at row ${recordAt}, the operator's line at row ${steerAt} of ${round.length}, the line in the model's view: ${keptForTheModel} — afterTools of src/run-core/turn/afterTools.ts adds the rewind record to the round before it drains the queue, so the line stands after the record and outside the rewound window`,
+  )
   const transitions = readFileSync(join(ROOT, 'src/query/transitions.ts'), 'utf8')
   check("the Continue union carries 'checkpoint_settle_guard'", transitions.includes("'checkpoint_settle_guard'"))
   const tools = readFileSync(join(ROOT, 'src/tools.ts'), 'utf8')

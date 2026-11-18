@@ -107,8 +107,27 @@ section('§4 the resume and the launch wire the record end to end')
   const run = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
   check('the run takes the override before composing live', run.includes('override?.userContext ?? (await getUserContext())') && run.includes('override?.systemContext ?? (await getSystemContext())'))
   check('an instruction-profile slice never reshapes a recorded user context', run.includes("if (override?.userContext === undefined) {\n            userContext = { ...userContext }"))
-  const machine = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-  check('the turn machine hands a crewmate\'s own request contexts to its record', machine.includes('{ rosterOnly: true, context: { userContext: run.userContext, systemContext: run.systemContext } }'))
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
+  const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
+  const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const firstExchangeRecordOf = async (who: { agentId?: string; querySource?: string }): Promise<Record_ | undefined> => {
+    const planted = await t.plantRun({ ...who, script: [t.fixtures.yields(t.fixtures.says('the note is written.'))] })
+    Object.assign(planted.run, { userContext: launchUserContext, systemContext: launchSystemContext })
+    await planToolPayload({ model: t.MODEL, tools: (planted.rig.ctx.options as { tools: never }).tools, messages: planted.state.messages as never, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], source: 'prove', latchKey: String(rosterOwnerFromToolUseContext(planted.rig.ctx as never)) })
+    const request = await t.drain(makeRequest(planted.run as never, planted.state as never, 1))
+    const reply = request.decision.kind === 'go_on' ? await t.drain(modelReply(planted.run as never, request.decision.iter as never)) : { events: [] }
+    planted.close()
+    return [...request.events, ...reply.events].map(event => (event.message as { attachment?: Record_ } | undefined)?.attachment).find(attachment => attachment?.type === 'bound_prefix')
+  }
+  freshProcess()
+  const crewRecord = await firstExchangeRecordOf({ agentId: t.fixtures.agent(), querySource: 'agent:custom' })
+  const leadRecord = await firstExchangeRecordOf({})
+  check(
+    'the turn machine hands a crewmate\'s own request contexts to its record',
+    crewRecord !== undefined && crewRecord.sections.length === 0 && j(crewRecord.userContext) === j(launchUserContext) && j(crewRecord.systemContext) === j(launchSystemContext) && leadRecord !== undefined && leadRecord.userContext === undefined,
+    `the record a run under an agent id wrote after its first reply: ${j(crewRecord && { sections: crewRecord.sections.length, userContext: crewRecord.userContext, systemContext: crewRecord.systemContext })}; the record of a run with no agent id: ${j(leadRecord && { userContext: leadRecord.userContext })} — the model call of src/run-core/turn/streamModel.ts writes a crewmate's record roster-only with the user and system contexts of its own request, and the main conversation's without a user context`,
+  )
 }
 
 freshProcess()

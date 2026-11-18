@@ -210,11 +210,31 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   const sumPlan = await plan([readTool, search], { pending: false, key: 'conv-marks' })
   check("the summariser's plan under the conversation's key — from its own two-tool pool — yields the conversation's array and marks, byte for byte", names(sumPlan) === names(j1) && j([...sumPlan.deferredNames].sort()) === j([...j1.deferredNames].sort()), names(sumPlan))
   const forkSrc = readFileSync(join(ROOT, 'src', 'utils', 'forkedAgent.ts'), 'utf8')
-  const tmSrc = readFileSync(join(ROOT, 'src', 'run-core', 'turn-machine.ts'), 'utf8')
   const compactSrc = readFileSync(join(ROOT, 'src', 'services', 'compact', 'compact.ts'), 'utf8')
   const scSrc = readFileSync(join(ROOT, 'src', 'services', 'providers', 'anthropic', 'streamCore.ts'), 'utf8')
   check("the fork runner stamps the parent's roster owner on the fork context (rosterOwner)", forkSrc.includes('rosterOwner: rosterOwnerFromToolUseContext(cacheSafeParams.toolUseContext)'))
-  check('the turn machine keys the roster latch on the roster owner', tmSrc.includes('ownerKey: String(rosterOwnerFromToolUseContext(toolUseContext))'))
+  const ambient = { ...process.env }
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const ownerKeySentBy = async (owners: Record<string, string>): Promise<{ sent: unknown; processOwner: string }> => {
+    const run = await t.runScripted({
+      before: rig => {
+        Object.assign(rig.ctx, owners)
+      },
+      script: [t.fixtures.yields(t.fixtures.says('done.'))],
+    })
+    return { sent: run.requests[0]?.options.ownerKey, processOwner: String(rosterOwnerFromToolUseContext({ agentId: run.rig.ctx.agentId as string | undefined })) }
+  }
+  const forked = await ownerKeySentBy({ owner: 'the-fork', rosterOwner: 'the-parent-conversation' })
+  const unforked = await ownerKeySentBy({ owner: 'the-fork' })
+  const plain = await ownerKeySentBy({})
+  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
+  Object.assign(process.env, ambient)
+  check(
+    'the turn machine keys the roster latch on the roster owner',
+    forked.sent === 'the-parent-conversation' && unforked.sent === 'the-fork' && plain.sent === plain.processOwner,
+    `the ownerKey the model call was handed — by a context that carries a roster owner beside its own: ${j(forked.sent)} (the-parent-conversation is right); by one that carries only its own owner: ${j(unforked.sent)} (the-fork); by one that carries neither: ${j(plain.sent)} (its process owner ${j(plain.processOwner)}) — the model call of src/run-core/turn/streamModel.ts passes rosterOwnerFromToolUseContext of the context as ownerKey, the key the provider latches the roster under`,
+  )
   check("the direct summariser road keys the latch on the conversation's roster owner", compactSrc.includes('ownerKey: String(rosterOwnerFromToolUseContext(context))'))
   check('the Anthropic lane uses only the plan marks, with no language-server deferral override', scSrc.includes('const deferredToolNames = plan.deferredNames') && !scSrc.includes('shouldDeferLspTool'))
 

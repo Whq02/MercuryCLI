@@ -172,8 +172,54 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   const watchdog = read('src/services/providers/anthropic/streamCore.ts')
   check('the watchdog reads its budget from the one owner (no second constant)', watchdog.includes("streamIdleTimeoutMsForRoute('anthropic')") && watchdog.includes('streamIdleWarningMsOf(STREAM_IDLE_TIMEOUT_MS)') && !watchdog.includes('parsed >= 1_000 ? parsed : 90_000'))
   check("the stream core relays the transport's liveness beside the watchdog's note (a quiet chunk) and marks every parsed event", watchdog.includes('activityRelay.noteChunk()') && watchdog.includes('activityRelay.noteEvent()'))
-  const machine = read('src/run-core/turn-machine.ts')
-  check("the turn machine relays the stream's activity on the runner's status frame, then presents the crew board", /onStreamActivity: atMs => \{\n\s+toolUseContext\.setSDKStatus\?\.\(\{ streamActivity: atMs \}\)\n\s+presentBoard\(\)\n\s+\},/.test(machine))
+  const ambient = { ...process.env }
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
+  const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
+  const seam = await import('../../src/services/crewBoard/seam.ts')
+  const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
+  const { getSwarmAttachments } = await import('../../src/utils/attachments/queuedCommands.ts')
+  const { createAttachmentMessage } = await import('../../src/utils/attachments.ts')
+  const STREAM_SPOKE_AT = 4_242
+  const relayed: Array<{ frame: unknown; unpresented: number }> = []
+  const unpresented = { beforeTheStreamSpoke: -1, afterItSpoke: -1 }
+  const reader = await t.plantRun({
+    agentId: 'reader',
+    querySource: 'agent:mercury-crew',
+    script: [
+      [
+        {
+          kind: 'do',
+          fn: env => {
+            unpresented.beforeTheStreamSpoke = getSwarmAttachments(env.rig.ctx as never, []).length
+            ;(env.options.onStreamActivity as (atMs: number) => void)(STREAM_SPOKE_AT)
+            unpresented.afterItSpoke = getSwarmAttachments(env.rig.ctx as never, []).length
+          },
+        },
+        ...t.fixtures.yields(t.fixtures.says('read.')),
+      ],
+    ],
+  })
+  runSwarmCommand('on')
+  await seam.latchSwarmAgent('reader', 'Reader')
+  await seam.latchSwarmAgent('writer', 'Writer')
+  const board = seam.swarmStore()
+  const posted = board?.post(seam.swarmPrincipal('writer')!, { clientOpId: 'liveness-stamp', kind: 'message', text: 'Read this before you answer.', mentions: ['reader'] })
+  reader.rig.ctx.setSDKStatus = (frame: unknown): void => {
+    relayed.push({ frame, unpresented: getSwarmAttachments(reader.rig.ctx as never, []).length })
+  }
+  ;(reader.state.messages as unknown[]).push(...getSwarmAttachments(reader.rig.ctx as never, []).map(createAttachmentMessage))
+  const asked = await t.drain(makeRequest(reader.run as never, reader.state as never, 1))
+  if (asked.decision.kind === 'go_on') await t.drain(modelReply(reader.run as never, asked.decision.iter as never))
+  reader.close()
+  board?.close()
+  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
+  Object.assign(process.env, ambient)
+  check(
+    "the turn machine relays the stream's activity on the runner's status frame, then presents the crew board",
+    posted?.ok === true && JSON.stringify(relayed) === JSON.stringify([{ frame: { streamActivity: STREAM_SPOKE_AT }, unpresented: 1 }]) && unpresented.beforeTheStreamSpoke === 1 && unpresented.afterItSpoke === 0,
+    `a crewmate's model call with one board post in its request, the provider reporting stream activity before any event: status frames ${JSON.stringify(relayed)} (one frame { streamActivity: ${STREAM_SPOKE_AT} }, relayed while the post was still unpresented); posts unpresented before the stream spoke ${unpresented.beforeTheStreamSpoke} and after ${unpresented.afterItSpoke} (1, then 0) — onStreamActivity of the model call in src/run-core/turn/streamModel.ts hands the moment to setSDKStatus, then presents the crew board`,
+  )
   const { liveFactsOf, withFixtureRunner, withLiveRunner } = await import('../lib/builtProduct.ts')
   const { streamIdleTimeoutMs, streamIdleTimeoutMsForRoute } = await import('../../src/services/providers/streamIdleBudget.ts')
   const pinned = (await withLiveRunner(liveFactsOf, { env: { MERCURY_STREAM_IDLE_TIMEOUT_MS: '4321' } })).streamIdleTimeoutMs
