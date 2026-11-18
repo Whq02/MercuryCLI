@@ -3,8 +3,8 @@ import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, type Mounted } from '../lib/settingsPopupHarness.ts'
 
-export type Step = { label: string; title: string | null; cursor: string; calls: string[]; lines: string[] }
-export type Recording = { scenario: string; size: string; steps: Step[] }
+type Step = { label: string; title: string | null; cursor: string; calls: string[]; lines: string[] }
+type Recording = { scenario: string; size: string; steps: Step[] }
 
 type Message = import('../../src/types/message.ts').Message
 type SessionLiveV1 = import('../../src/services/engine-connector/seatLive.ts').SessionLiveV1
@@ -13,7 +13,7 @@ type SessionAskV1 = import('../../src/services/engine-connector/types.ts').Sessi
 type PermissionMode = import('../../src/types/permissions.ts').PermissionMode
 type AppStateStore = ReturnType<typeof import('../../src/state/AppState.tsx').useAppStateStore>
 
-export type ScriptedSession = {
+type ScriptedSession = {
   connector: object
   calls: string[]
   hooks: { onInterrupt?: () => void }
@@ -35,7 +35,7 @@ export type ScriptedSession = {
   stream: (text: string | null) => void
 }
 
-export type Stage = {
+type Stage = {
   view: Mounted
   home: string
   project: string
@@ -63,21 +63,21 @@ type SrcDoor = {
   seatLive: typeof import('../../src/services/engine-connector/seatLive.ts')
 }
 
-export type StageOptions = { columns?: number; rows?: number; reducedMotion?: boolean; session?: 'none' | 'empty' | 'history'; env?: Record<string, string>; plant?: 'crash' }
+type StageOptions = { columns?: number; rows?: number; reducedMotion?: boolean; session?: 'none' | 'empty' | 'history'; env?: Record<string, string>; plant?: 'crash' }
 
-export type Scenario = { name: string; covers: string[]; options?: StageOptions; run: (stage: Stage) => Promise<void> }
+type Scenario = { name: string; covers: string[]; options?: StageOptions; run: (stage: Stage) => Promise<void> }
 
 const FIXED_STAMP = '2026-01-02T03:04:05.000Z'
 const QUIET_STEP_MS = 40
 const QUIET_POLLS = 8
 const SETTLE_CEILING_MS = 20_000
 
-export const CTRL_O = '\x0f'
-export const SHIFT_TAB = '\x1b[Z'
-export const ALT_DOWN = '\x1b[1;3B'
-export const PAGE_UP = '\x1b[5~'
-export const SHIFT_UP = '\x1b[1;2A'
-export const CTRL_R = '\x12'
+const CTRL_O = '\x0f'
+const SHIFT_TAB = '\x1b[Z'
+const ALT_DOWN = '\x1b[1;3B'
+const PAGE_UP = '\x1b[5~'
+const SHIFT_UP = '\x1b[1;2A'
+const CTRL_R = '\x12'
 export { KEY }
 
 function maskerFor(home: string): (line: string) => string {
@@ -509,7 +509,7 @@ export async function askBuilder(): Promise<(id: string, command: string, cwd: s
   }
 }
 
-export type PartMount<T> = {
+type PartMount<T> = {
   value: () => T
   renders: () => number
   set: (use: (store: AppStateStore) => T) => Promise<void>
@@ -582,7 +582,7 @@ type TranscriptHook = typeof import('../../src/screens/chat/useChatSearch.tsx').
 type TranscriptArgs = Parameters<TranscriptHook>[0]
 type TranscriptValue = ReturnType<TranscriptHook>
 
-export type TranscriptPart = {
+type TranscriptPart = {
   part: PartMount<TranscriptValue>
   module: typeof import('../../src/screens/chat/useChatSearch.tsx')
   plant: (over: Partial<TranscriptArgs>) => Promise<void>
@@ -728,7 +728,7 @@ export async function openTranscriptPart(tag: string, size: { columns?: number; 
 type AsksHook = typeof import('../../src/screens/chat/useChatAsks.tsx').useChatAsks
 type AsksValue = ReturnType<AsksHook>
 
-export type AsksPart = {
+type AsksPart = {
   part: PartMount<AsksValue>
   module: typeof import('../../src/screens/chat/useChatAsks.tsx')
   calls: string[]
@@ -815,7 +815,7 @@ type DraftHook = typeof import('../../src/screens/chat/useChatDraft.ts').useChat
 type DraftArgs = Parameters<DraftHook>[0]
 type DraftValue = ReturnType<DraftHook>
 
-export type DraftPart = {
+type DraftPart = {
   part: PartMount<DraftValue>
   pending: typeof import('../../src/input-core/pending-input.ts')
   seed: typeof import('../../src/utils/cockpit/composerSeed.ts')
