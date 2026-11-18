@@ -18,12 +18,8 @@ const json = (value: Record<string, unknown>): CallToolResult => ({ content: [{ 
 const wordsOf = (error: unknown): string => {
   if (!(error instanceof Error)) return String(error)
   const issues = (error as { data?: { issues?: unknown } }).data?.issues
-  const named = new Map<string, string[]>()
-  for (const issue of (Array.isArray(issues) ? issues : []) as Array<{ path?: unknown; message?: unknown } | null>) {
-    if (typeof issue?.message !== 'string' || error.message.includes(issue.message)) continue
-    named.set(issue.message, [...(named.get(issue.message) ?? []), ...(typeof issue.path === 'string' && issue.path !== '' ? [issue.path] : [])])
-  }
-  const sentences = [...named].map(([sentence, paths]) => (paths.length > 0 ? `${paths.join(', ')}: ${sentence}` : sentence))
+  const sentences = (Array.isArray(issues) ? issues : []).flatMap((issue: { path?: unknown; message?: unknown } | null) =>
+    typeof issue?.message === 'string' && !error.message.includes(issue.message) ? [typeof issue.path === 'string' && issue.path !== '' ? `${issue.path}: ${issue.message}` : issue.message] : [])
   return sentences.length > 0 ? `${error.message}: ${sentences.join('; ')}` : error.message
 }
 const told = async <T>(action: () => Promise<T>): Promise<T> => {
