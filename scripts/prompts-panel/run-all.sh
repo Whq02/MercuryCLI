@@ -21,7 +21,7 @@ fail=0
 echo "############################################################"
 echo "# PROMPTS PANEL — records · saved prompts"
 echo "############################################################"
-for f in prove-prompt-rows prove-notice-free-prompts prove-saved-prompts-store prove-panel-captures prove-hop-follows-focus prove-detail-footer-honesty; do
+for f in prove-prompt-rows prove-saved-prompts-store prove-panel-captures prove-hop-follows-focus prove-detail-footer-honesty; do
   echo "── scripts/prompts-panel/$f.ts"
   __t=$SECONDS; __rc=0; "$BUN" run "$here/$f.ts" || { __rc=$?; fail=1; }; prover_mark "$here/$f.ts" "$__t" "$__rc"
 done

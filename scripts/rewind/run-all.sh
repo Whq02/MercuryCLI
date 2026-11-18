@@ -35,7 +35,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-row-counts.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-wire.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-wire.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-restore.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-restore.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-cockpit.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-cockpit.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/../prompts-panel/prove-notice-free-prompts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/../prompts-panel/prove-notice-free-prompts.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/../../scripts/prompts-panel/prove-notice-free-prompts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/../../scripts/prompts-panel/prove-notice-free-prompts.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-checkpoint-sweep-economy.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-checkpoint-sweep-economy.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-damaged-blob.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-damaged-blob.ts" "$__t" "$__rc"
 
