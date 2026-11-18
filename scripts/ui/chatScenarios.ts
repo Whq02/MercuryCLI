@@ -642,7 +642,9 @@ export async function openTranscriptPart(tag: string, size: { columns?: number; 
   )
   route.initializeSurfaceRoute(route.ROOT_CHAT_ROUTE)
   const scroll = { calls: [] as string[], captures: 0, flips: 0, restore: { current: null as unknown } }
-  const scrollRef = { current: { scrollTo: (y: number) => void scroll.calls.push(`scrollTo ${y}`), scrollToBottom: () => void scroll.calls.push('scrollToBottom') } }
+  const scrollRef = {
+    current: { scrollTo: (y: number) => void scroll.calls.push(`scrollTo ${y}`), scrollToBottom: () => void scroll.calls.push('scrollToBottom'), getScrollHeight: () => 90, getViewportHeight: () => 20 },
+  }
   const jumps: string[] = []
   const jumpHandle = {
     jumpToIndex: (i: number) => void jumps.push(`jump ${i}`),
@@ -665,6 +667,7 @@ export async function openTranscriptPart(tag: string, size: { columns?: number; 
       setFlipGeneration: () => void scroll.flips++,
       scrollRef: scrollRef as never,
       scrollRestoreRef: scroll.restore,
+      onScroll: (sticky: boolean) => void scroll.calls.push(`onScroll ${sticky ? 'sticky' : 'away'}`),
       ...over,
     })
   function KeySink(): null {

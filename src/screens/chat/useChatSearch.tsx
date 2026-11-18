@@ -207,6 +207,7 @@ export function useChatSearch({
   setFlipGeneration,
   scrollRef,
   scrollRestoreRef,
+  onScroll,
 }: {
   fullscreen: boolean;
   virtualScrollEnabled: boolean;
@@ -218,6 +219,7 @@ export function useChatSearch({
   setFlipGeneration: React.Dispatch<React.SetStateAction<number>>;
   scrollRef: React.RefObject<ScrollBoxHandle | null>;
   scrollRestoreRef: { current: unknown };
+  onScroll: (sticky: boolean, handle: ScrollBoxHandle) => void;
 }) {
   const [dumpMode, setDumpMode] = useState(false);
   const inVirtualTranscriptMode = fullscreen && virtualScrollEnabled && !dumpMode;
@@ -403,6 +405,20 @@ export function useChatSearch({
     () => (frozenTranscriptState ? messages.slice(0, frozenTranscriptState.messageCount) : messages),
     [messages, frozenTranscriptState],
   );
+  const onTranscriptScroll = useCallback(
+    (sticky: boolean, handle: ScrollBoxHandle) => {
+      jumpRef.current?.disarmSearch();
+      onScroll(sticky, handle);
+    },
+    [onScroll],
+  );
+  const onTranscriptPillClick = useCallback(() => {
+    const handle = scrollRef.current;
+    if (!handle) return;
+    handle.scrollTo(Math.max(0, handle.getScrollHeight() - handle.getViewportHeight()));
+    handle.scrollToBottom();
+    onTranscriptScroll(true, handle);
+  }, [onTranscriptScroll]);
   return {
     dumpMode,
     inVirtualTranscriptMode,
@@ -429,5 +445,7 @@ export function useChatSearch({
     warmSearchIndex,
     onSearchMatchesChange,
     transcriptMessages,
+    onTranscriptScroll,
+    onTranscriptPillClick,
   };
 }

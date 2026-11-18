@@ -78,6 +78,13 @@ check('g drops the kept scroll and goes to the top', scroll.calls.join() === 'sc
 scroll.restore.current = { gap: 2, sticky: false }
 await press('G')
 check('G drops the kept scroll and goes to the bottom', scroll.calls.join() === 'scrollTo 0,scrollToBottom' && scroll.restore.current === null, scroll.calls.join())
+scroll.calls.length = 0
+jumps.length = 0
+await act(() => part.value().onTranscriptScroll(false, {} as never))
+check('a scroll of the transcript disarms the search and is handed on to the scroll part', jumps.join() === 'disarm' && scroll.calls.join() === 'onScroll away', `${jumps.join()} · ${scroll.calls.join()}`)
+scroll.calls.length = 0
+await act(() => part.value().onTranscriptPillClick())
+check('the pill of the transcript goes to the very bottom and tells the scroll part it stands on the tail', scroll.calls.join() === 'scrollTo 70,scrollToBottom,onScroll sticky', scroll.calls.join())
 await t.plant({ columns: 90 })
 check('a change of width drops the committed search, its counts and its highlight', part.value().committedSearchQuery === '' && part.value().searchMatchCount === null && highlights.at(-1) === '' && jumps.includes('disarm'), `${part.value().committedSearchQuery} · ${highlights.at(-1)}`)
 await act(() => part.value().onSearchMatchesChange(0, 0))

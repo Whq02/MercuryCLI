@@ -96,7 +96,6 @@ import { useRateLimitWarningNotification } from '../hooks/notifs/useRateLimitWar
 import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js';
 import { Box, type DOMElement, measureElement, Text, useStdin, useTheme } from '../ink.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
-import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
 import { setClipboardWithReceipt } from '../ink/termio/osc.js';
 import * as pendingInput from '../input-core/pending-input.js';
@@ -1494,7 +1493,9 @@ export function Chat({
     warmSearchIndex,
     onSearchMatchesChange,
     transcriptMessages,
-  } = useChatSearch({ fullscreen, virtualScrollEnabled, columns, mergedTools, messages, focusedInputDialog, captureScrollForFlip, setFlipGeneration, scrollRef, scrollRestoreRef });
+    onTranscriptScroll,
+    onTranscriptPillClick,
+  } = useChatSearch({ fullscreen, virtualScrollEnabled, columns, mergedTools, messages, focusedInputDialog, captureScrollForFlip, setFlipGeneration, scrollRef, scrollRestoreRef, onScroll });
   const globalKeybindingProps = {
     compactWork,
     screen,
@@ -1638,20 +1639,6 @@ export function Chat({
     }, NO_CHAT_SETTLE_MS);
     return () => clearTimeout(settle);
   }, [slotHasSession, landing, chatSurfaceCovered, localJsx, armedMessage]);
-  const onTranscriptScroll = useCallback(
-    (sticky: boolean, handle: ScrollBoxHandle) => {
-      jumpRef.current?.disarmSearch();
-      onScroll(sticky, handle);
-    },
-    [onScroll],
-  );
-  const onTranscriptPillClick = useCallback(() => {
-    const handle = scrollRef.current;
-    if (!handle) return;
-    handle.scrollTo(Math.max(0, handle.getScrollHeight() - handle.getViewportHeight()));
-    handle.scrollToBottom();
-    onTranscriptScroll(true, handle);
-  }, [onTranscriptScroll]);
 
   useChatScrollFollow({ messages, repinToBottom });
   const viewInProgressToolUseIDs = seatLive.inProgressToolUseIDs;
