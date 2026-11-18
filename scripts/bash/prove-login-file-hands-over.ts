@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 type Ran = { code: number; ms: number; text: string }
 type Said = { status: string; evidence: string; fix?: string }
-type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolFirst: string; toolSecond: string; said: Said | null; many: Ran; readWithNoProgram: string }
+type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolNeverStarted: string; toolFirst: string; toolSecond: string; said: Said | null; many: Ran; readWithNoProgram: string }
 type Asked = { said: Said | null; ms: number; limit: number | null; snapshotFolder: boolean; tempLeft: number; waitedOnAlive: boolean | null; otherShellStarts: number }
 type First = { withoutBash: number; begunMs: number | null; startsInAll: number; described: string }
 
@@ -41,6 +41,7 @@ if (process.argv.includes('--row')) {
   const record = await import('../../src/utils/shell/shellRecord.ts')
   const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
   const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+  const { formatError } = await import('../../src/utils/toolErrors.ts')
   setCwd(home)
   let appState = getDefaultAppState()
   const toolContext = {
@@ -51,12 +52,12 @@ if (process.argv.includes('--row')) {
     abortController: new AbortController(),
     toolUseId: 'login-file-call',
   } as never
-  const asTool = async (command: string): Promise<string> => {
+  const asTool = async (command: string, cwd?: string): Promise<string> => {
     try {
-      const result = await BashTool.call({ command }, toolContext)
+      const result = await BashTool.call({ command, ...(cwd === undefined ? {} : { cwd }) }, toolContext)
       return String(BashTool.mapToolResultToToolResultBlockParam(result.data, 'x').content)
     } catch (error) {
-      return `threw: ${error instanceof Error ? error.message : String(error)}`
+      return `threw: ${formatError(error)}`
     }
   }
   const run = async (command: string): Promise<Ran> => {
@@ -75,6 +76,7 @@ if (process.argv.includes('--row')) {
   const options = await run(`set -o | awk '$1 == "braceexpand" || $1 == "monitor" || $1 == "noclobber" || $1 == "onecmd" { printf "%s=%s ", $1, $2 }'`)
   const many = await run('fn_0 2>&1; fn_299 2>&1; declare -F | grep -c "^declare -f fn_"')
   const wiped = await run('echo wiped; rm -f "$TMPDIR"/mercury-cwd-*; exit 0')
+  const toolNeverStarted = await asTool('echo never-started', join(home, 'a-folder-that-is-not-there'))
   const toolFirst = await asTool('echo tool-first')
   const toolSecond = await asTool('echo tool-second')
   const said = await record.shellRow().catch(() => null)
@@ -96,6 +98,7 @@ if (process.argv.includes('--row')) {
     otherShellStarts: otherShellStarts(home),
     pathHead: (process.env.PATH ?? '').split(':')[0] ?? '',
     described,
+    toolNeverStarted,
     toolFirst,
     toolSecond,
     said,
@@ -436,6 +439,11 @@ try {
       shown,
     )
     check(`${name}: the second result does not carry it`, row !== null && row.toolSecond.includes('tool-second') && !/login files|login run/.test(row.toolSecond), shown)
+    check(
+      `${name}: a call before it that never started (its folder is not there) is an error without the line, and does not use the line up`,
+      row !== null && row.toolNeverStarted.startsWith('threw:') && /does not exist/.test(row.toolNeverStarted) && !/login files|login run/.test(row.toolNeverStarted) && row.toolFirst.includes(LINE),
+      JSON.stringify({ neverStarted: row?.toolNeverStarted, first: row?.toolFirst }).slice(0, 900),
+    )
     check(
       `${name}: the health check's shell row, asked in the session, warns with the same reason, and its fix says what to change`,
       row !== null && row.said !== null && row.said.status === 'warn' && row.said.evidence.includes('nothing the bash login files define is carried: ') && why.test(row.said.evidence) && change.test(row.said.fix ?? ''),
