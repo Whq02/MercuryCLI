@@ -267,6 +267,7 @@ try {
   await refreshMinimaxCatalogue({ force: true })
   const pinRows = minimaxCatalogueRows()
   check('with the list unreachable the picker shows the pins, labelled as pins, each dated from the vendor pages', pinRows.source.kind === 'pins' && pinRows.rows.length === 7 && pinRows.rows.every(row => row.listedLive === false && row.observedAt === minimaxDisplayPin(row.id)?.observedAt) && keyLaneListState('minimax').kind === 'pin' && keyLanePins('minimax').every(pin => pin.liveUnknown !== true))
+  check('the catalogue keeps no source words: nothing under src read them, and the pin label is read from the rows and the list state', !('minimaxCatalogueSourceWords' in (await import('../../src/services/providers/minimax/minimaxCatalogue.ts') as Record<string, unknown>)))
   process.env.MERCURY_MINIMAX_API_BASE = liveBase
   __resetMinimaxCatalogueForTest()
   const aborted = new AbortController(); aborted.abort()

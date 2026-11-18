@@ -196,6 +196,7 @@ try {
   listStatus = 500; __resetCohereCatalogueForTest(); await refreshCohereCatalogue({ force: true })
   const pinRows = cohereCatalogueRows()
   check('with the list unreachable the picker shows the 15 pins, labelled as pins, dated from the vendor pages', pinRows.source.kind === 'pins' && pinRows.rows.length === 15 && pinRows.rows.every(row => row.listedLive === false && (row.observedAt === '2026-10-17' || row.observedAt === '2026-10-25')) && keyLaneListState('cohere').kind === 'pin' && keyLanePins('cohere').every(pin => pin.liveUnknown !== true))
+  check('the catalogue keeps no source words: nothing under src read them, and the pin label is read from the rows and the list state', !('cohereCatalogueSourceWords' in (await import('../../src/services/providers/cohere/cohereCatalogue.ts') as Record<string, unknown>)))
   before = captures.length
   const unreachableTurn = await run(params('command-r-08-2024'))
   check('with the list unreachable a pinned id still rides, with the note that the provider decides', captures.length === before + 1 && captures.at(-1)?.body.model === 'command-r-08-2024' && textOf(unreachableTurn).startsWith('Cohere model list unavailable') && textOf(unreachableTurn).endsWith('COHERE-FIXTURE-SETTLED'))
