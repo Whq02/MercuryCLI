@@ -1,10 +1,9 @@
 
 import { missionEnabled } from '../../mission/contracts.js'
 import { buildMissionRow, gatherMissionView } from '../../mission/projection.js'
-import { registerResourceAdapter } from '../registry.js'
 import type { ResourceAdapter } from '../contracts.js'
 
-const missionAdapter: ResourceAdapter = {
+export const missionAdapter: ResourceAdapter = {
   kind: 'mission',
   describe: "the composed mission view — goal · the session's model · fingerprint · evidence refs",
   async resolve(ref, _ctx) {
@@ -59,5 +58,3 @@ const missionAdapter: ResourceAdapter = {
     }
   },
 }
-
-registerResourceAdapter(missionAdapter)

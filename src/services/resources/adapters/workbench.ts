@@ -4,7 +4,6 @@ import {
   resolveWorkbenchSnapshot,
 } from '../../workbench/projection.js'
 import { workbenchEnabled, type WorkbenchSnapshot } from '../../workbench/contracts.js'
-import { registerResourceAdapter } from '../registry.js'
 import type {
   ParsedRef,
   Resource,
@@ -101,7 +100,7 @@ function currentResource(snap: WorkbenchSnapshot, ref: ParsedRef): Resource {
   }
 }
 
-const workbenchAdapter = {
+export const workbenchAdapter = {
   kind: 'workbench',
   describe: 'the unified crewmate/worktree workbench projection (current · work · thread/<id> · lane/<id>)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {
@@ -253,5 +252,3 @@ const workbenchAdapter = {
     return children
   },
 }
-
-registerResourceAdapter(workbenchAdapter)

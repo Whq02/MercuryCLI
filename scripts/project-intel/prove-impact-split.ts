@@ -31,8 +31,6 @@ async function main(): Promise<void> {
   const steering = await import('../../src/services/projectIntel/steering.js')
   const owner = await import('../../src/services/primitives/owner.js')
   const registry = await import('../../src/services/resources/registry.js')
-  await import('../../src/services/resources/adapters/project.js')
-  await import('../../src/services/resources/adapters/transcript.js')
 
   const dir = materializeFixture('ts')
   const ctx = {

@@ -12,8 +12,6 @@ process.env.MERCURY_PYTHON = SYS_PY
 const { runPythonTests } = await import('../../src/services/ide/pythonTests.js')
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
 const { resolveResource } = await import('../../src/services/resources/registry.js')
-await import('../../src/services/resources/adapters/ide.js')
-await import('../../src/services/resources/adapters/test.js')
 
 emit(f)
 const early = await finish(f)

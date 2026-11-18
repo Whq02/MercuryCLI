@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -144,7 +144,6 @@ try {
 
   section('(D) the mercury://ide/python/project resource')
   {
-    await import('../../src/services/resources/adapters/ide.js')
     const { resolveResource } = await import('../../src/services/resources/registry.js')
     const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
     const owner = makeOwnerKey({ workspace: arena, sessionId: 'py-res-proof', lane: 'main' })
@@ -161,7 +160,6 @@ try {
     }
     const listing = await resolveResource('mercury://ide', { owner, cwd: withVenvs })
     check('D5 kind listing names the projection', listing.state === 'ok' && (listing.state === 'ok' ? listing.resource.children?.some(c => c.ref === 'mercury://ide/python/project') === true : false))
-    check('D6 tools.ts carries the side-effect registration', readFileSync(join(ROOT, 'src', 'tools.ts'), 'utf8').includes("./services/resources/adapters/ide.js"))
   }
 } finally {
   restoreEnv()

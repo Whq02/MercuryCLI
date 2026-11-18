@@ -109,17 +109,7 @@ import { WebSearchTool } from './tools/WebSearchTool/WebSearchTool.js'
 import { ProviderSearchTool } from './tools/WebSearchTool/ProviderSearchTool.js'
 import { isPowerShellToolEnabled } from './utils/shell/shellToolUtils.js'
 
-import './services/resources/adapters/git.js'
-import './services/resources/adapters/journey.js'
-import './services/resources/adapters/service.js'
-import './services/resources/adapters/structure.js'
-import './services/resources/adapters/test.js'
-import './services/resources/adapters/ide.js'
-import './services/resources/adapters/mission.js'
-import './services/resources/adapters/project.js'
-import './services/resources/adapters/repo.js'
-import './services/resources/adapters/transcript.js'
-import './services/resources/adapters/workbench.js'
+import './services/resources/kinds.js'
 
 
 export { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS }

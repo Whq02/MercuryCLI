@@ -17,7 +17,6 @@ function section(t: string): void {
 
 const { preparePlan, applyPlan, _resetGitPlanStoreForTesting } = await import('../../src/services/gitGraph/plan.ts')
 const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
-await import('../../src/services/resources/adapters/git.ts')
 
 const owner = processMainOwner()
 const env = {

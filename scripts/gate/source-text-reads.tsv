@@ -487,7 +487,6 @@ scripts/host/prove-recipes-live.ts	1	1	57b46d20516a
 scripts/host/prove-vendor-drift-signals.ts	2	2	369daad4a613
 scripts/ide/prove-cpp-project.ts	1	5	3db192da6b8e
 scripts/ide/prove-godot-session.ts	1	2	3882747d4763
-scripts/ide/prove-python-project.ts	1	1	7b381cf3e55b
 scripts/ide/prove-runner-debug.ts	1	8	f6ef3bce806a
 scripts/ide/render-transaction-replay.tsx	1	0	f83d9750cb31
 scripts/identity/prove-ask-clock-words-gone.ts	3	7	627575cd9717

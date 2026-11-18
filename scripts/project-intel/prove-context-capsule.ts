@@ -28,7 +28,6 @@ async function main(): Promise<void> {
   const intel = await import('../../src/services/projectIntel/snapshot.js')
   const owner = await import('../../src/services/primitives/owner.js')
   const registry = await import('../../src/services/resources/registry.js')
-  await import('../../src/services/resources/adapters/project.js')
 
   const dir = materializeFixture('ts')
   const ctx = {

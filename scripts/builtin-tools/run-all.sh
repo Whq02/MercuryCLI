@@ -21,6 +21,14 @@
 # gate-watch: src/commands/swarm/swarm.ts
 # gate-watch: src/tools/BashTool/BashTool.tsx src/tools/BashTool/prompt.ts src/tools/BashTool/webContent.ts
 # gate-watch: src/utils/health/sections/tool-capability-fast.ts
+# gate-watch: src/cli/run.ts
+# gate-watch: src/entrypoints/cli.tsx
+# gate-watch: src/entrypoints/mcp.ts
+# gate-watch: src/entrypoints/shellParentGuard.ts
+# gate-watch: src/entrypoints/tensorfoldAdapter.ts
+# gate-watch: src/services/crewBoard/implementation.ts
+# gate-watch: src/services/privateChannel/verifyArtifactStandalone.ts
+# gate-watch: src/services/resources/kinds.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

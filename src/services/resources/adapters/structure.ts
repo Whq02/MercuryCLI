@@ -7,10 +7,9 @@ import {
   listQueries,
   structureIdExpired,
 } from '../../structure/store.js'
-import { registerResourceAdapter } from '../registry.js'
 import type { ResourceAdapter, ResourceChild } from '../contracts.js'
 
-const structureAdapter: ResourceAdapter = {
+export const structureAdapter: ResourceAdapter = {
   kind: 'structure',
   describe: 'structural queries + previewed codemods (query/<id> · preview/<id>)',
   async resolve(ref, ctx) {
@@ -129,5 +128,3 @@ const structureAdapter: ResourceAdapter = {
     ]
   },
 }
-
-registerResourceAdapter(structureAdapter)
