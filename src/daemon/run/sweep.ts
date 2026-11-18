@@ -25,6 +25,7 @@ interface ProcessSweepNeeds {
 }
 
 export function armReconcile(state: DaemonRunState, { warmDeps, armPeriodic }: ReconcileNeeds): void {
+  state.bootStep = 'the boot reconcile'
   const rosteredOrHeld = (): Set<string> =>
     new Set([...(state.roster ? state.roster.list().filter(j => !j.outcome).map(j => j.short) : []), ...(state.handover?.heldRunners() ?? [])])
   const liveShorts = rosteredOrHeld()

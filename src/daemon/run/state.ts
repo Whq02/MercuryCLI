@@ -23,6 +23,7 @@ export interface DaemonRunState extends Readonly<DaemonRunBootFacts> {
   readonly startedAt: number
   readonly readyPromise: Promise<void>
   readonly wakeReady: () => void
+  bootStep: string
   ready: boolean
   roster: TaskRoster | null
   handover: HandoverStateV1 | null
@@ -64,6 +65,7 @@ export function makeDaemonRunState(boot: DaemonRunBootFacts): DaemonRunState {
     startedAt,
     readyPromise,
     wakeReady,
+    bootStep: 'the plane decision',
     ready: false,
     roster: null,
     handover: null,
@@ -89,6 +91,11 @@ export function makeDaemonRunState(boot: DaemonRunBootFacts): DaemonRunState {
     shuttingDown: false,
     teardownComplete: false,
   }
+}
+
+export function atBootStep(state: DaemonRunState, name: string): <T>(started: T) => T {
+  state.bootStep = name
+  return started => started
 }
 
 export function markDaemonReady(state: DaemonRunState): void {

@@ -31,6 +31,7 @@ export function periodicArmer(state: DaemonRunState): (name: (typeof PERIODIC)[n
     const at = PERIODIC.findIndex(row => row.name === name)
     if (at < next) throw new Error(`the daemon's periodic work is armed in the order of its list: "${name}" was asked after "${PERIODIC[next - 1]?.name ?? 'nothing'}"`)
     next = at + 1
+    state.bootStep = name
     const row = PERIODIC[at]!
     const timer = setInterval(work, row.everyMs)
     if (!row.holdsTheProcess) timer.unref?.()

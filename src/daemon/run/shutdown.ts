@@ -1,10 +1,11 @@
-import { writeSync } from 'node:fs'
+import { lstatSync, readlinkSync, unlinkSync, writeSync } from 'node:fs'
 import { unlink } from 'fs/promises'
+import { basename } from 'path'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { recordSpawnExit } from '../../utils/spawnLedger.js'
 import { parkAllConcourseSessions } from '../concourseWorkers.js'
-import { clearControlKey, clearDaemonState, controlKeyPath, daemonDir, markDaemonStoppingSync } from '../controlSocket.js'
+import { clearControlKey, clearDaemonState, controlKeyPath, controlSockPath, daemonDir, markDaemonStoppingSync } from '../controlSocket.js'
 import { armDaemonHomeWatch } from '../daemonHome.js'
 import { forwardFrame, predecessorSockPath } from '../handover.js'
 import { supersededByLivePlaneOwnerSync } from '../planeRecords.js'
@@ -298,9 +299,18 @@ export function armWaysOut({ shutdown, persistCrash }: WaysOutNeeds): void {
   process.on('unhandledRejection', reason => crashShutdown('unhandledRejection', reason))
 }
 
+function unpublishOwnPlane(): void {
+  const plane = controlSockPath()
+  try {
+    if (lstatSync(plane, { throwIfNoEntry: false })?.isSymbolicLink() && readlinkSync(plane) === basename(predecessorSockPath(process.pid))) unlinkSync(plane)
+  } catch (e) {
+    logForDebugging(`[daemon] the published ${plane} could not be removed: ${e}`)
+  }
+}
+
 export async function giveHomeBack(state: DaemonRunState, { planeAnswer, planeHeldLine }: FailedBootNeeds, e: unknown): Promise<void> {
   const { bootBuildTree } = state
-  console.error(`[daemon] ${GLYPH.warn} control layer FAILED to start: ${e}`)
+  console.error(`[daemon] ${GLYPH.warn} control layer FAILED to start at "${state.bootStep}": ${e}`)
   logForDebugging(`[daemon] control layer failed to start — giving the home back and exiting: ${e}`)
   state.controlServer = null
   const holder = await planeAnswer(bootBuildTree).catch(() => null)
@@ -309,7 +319,10 @@ export async function giveHomeBack(state: DaemonRunState, { planeAnswer, planeHe
   } catch {}
   await unlink(controlKeyPath()).catch(() => {})
   await clearDaemonState()
-  if (process.platform !== 'win32') await unlink(predecessorSockPath(process.pid)).catch(() => {})
+  if (process.platform !== 'win32') {
+    unpublishOwnPlane()
+    await unlink(predecessorSockPath(process.pid)).catch(() => {})
+  }
   await state.daemonLock?.release().catch(() => {})
   state.daemonLock = null
   state.teardownComplete = true
