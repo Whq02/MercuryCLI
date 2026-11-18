@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 type Ran = { code: number; ms: number; text: string }
 type Said = { status: string; evidence: string; fix?: string }
-type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolNeverStarted: string; toolFirst: string; toolSecond: string; said: Said | null; many: Ran; readWithNoProgram: string }
+type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolNeverStarted: string; toolFirst: string; toolSecond: string; said: Said | null; many: Ran; readWithNoProgram: string; helper: Ran; extglobOn: Ran }
 type Asked = { said: Said | null; ms: number; limit: number | null; snapshotFolder: boolean; tempLeft: number; waitedOnAlive: boolean | null; otherShellStarts: number }
 type First = { withoutBash: number; begunMs: number | null; startsInAll: number; described: string }
 
@@ -75,6 +75,8 @@ if (process.argv.includes('--row')) {
   const carried = await run('alias ll 2>/dev/null; myfunc 2>/dev/null; above_guard 2>/dev/null; true')
   const options = await run(`set -o | awk '$1 == "braceexpand" || $1 == "monitor" || $1 == "noclobber" || $1 == "onecmd" { printf "%s=%s ", $1, $2 }'`)
   const many = await run('fn_0 2>&1; fn_299 2>&1; declare -F | grep -c "^declare -f fn_"')
+  const helper = await run('calls_helper 2>&1; declare -F uses_extglob > /dev/null && echo extglob-fn-is-defined; uses_extglob aab 2>&1; shopt -p extglob')
+  const extglobOn = await run('shopt -s extglob\nuses_extglob aab 2>&1')
   const wiped = await run('echo wiped; rm -f "$TMPDIR"/mercury-cwd-*; exit 0')
   const toolNeverStarted = await asTool('echo never-started', join(home, 'a-folder-that-is-not-there'))
   const toolFirst = await asTool('echo tool-first')
@@ -104,6 +106,8 @@ if (process.argv.includes('--row')) {
     said,
     many,
     readWithNoProgram,
+    helper,
+    extglobOn,
   }
   console.log(`ROW ${JSON.stringify(row)}`)
   process.exit(0)
@@ -237,6 +241,12 @@ const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
     dir: home('ends-unread', { '.bashenv': 'case "$BASH_EXECUTION_STRING" in *mercury-cwd-*) exit 0 ;; esac\n' }),
   },
   'login-file-only': { dir: home('login-file-only', DEFINES) },
+  'what-is-carried': {
+    dir: home('what-is-carried', {
+      '.bash_profile': 'shopt -s extglob\n_helper() { echo helper-ran; }\ncalls_helper() { _helper; }\nuses_extglob() { case "$1" in +(a|b)) echo extglob-fn-matched;; *) echo extglob-fn-no-match;; esac; }\nalias ll="ls -la"\n',
+    }),
+  },
+  'posix-mode': { dir: home('posix-mode', { '.bash_profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\nset -o posix\n' }) },
   'many-functions': { dir: home('many-functions', { '.bash_profile': `${Array.from({ length: 300 }, (_, index) => `fn_${index}() { echo ${index}; }`).join('\n')}\n` }) },
   'guarded-bashrc': {
     dir: home('guarded-bashrc', {
@@ -368,6 +378,29 @@ try {
     'many-functions: 300 carried functions do not slow a command — its second command starts within 300 ms of the same command where three things are carried',
     manyFunctions !== null && loginOnly !== null && manyFunctions.second.ms - loginOnly.second.ms < 300,
     `${manyFunctions?.second.ms} ms with 300 functions, ${loginOnly?.second.ms} ms with one`,
+  )
+  const whatIsCarried = of('what-is-carried').row
+  const said4 = (whatIsCarried?.helper.text ?? '').split('\n')
+  check(
+    'what-is-carried: a function whose name begins with an underscore is carried, so the function that calls it works',
+    said4[0] === 'helper-ran',
+    JSON.stringify(whatIsCarried?.helper),
+  )
+  check(
+    'what-is-carried: a function whose body holds an extended glob is carried, and extglob is off when a command starts though the login file switched it on: the pattern does not match there',
+    said4[1] === 'extglob-fn-is-defined' && said4[2] === 'extglob-fn-no-match' && said4[3] === 'shopt -u extglob',
+    JSON.stringify(whatIsCarried?.helper),
+  )
+  check(
+    'what-is-carried: the same function matches in a command that switches extglob on before it calls it',
+    whatIsCarried !== null && whatIsCarried.extglobOn.text === 'extglob-fn-matched',
+    JSON.stringify(whatIsCarried?.extglobOn),
+  )
+  const posixMode = of('posix-mode').row
+  check(
+    'posix-mode: under set -o posix the alias is carried as an alias, with the function',
+    posixMode !== null && posixMode.carried.text.includes("ll='ls -la'") && posixMode.carried.text.includes('fn-from-the-login-file'),
+    JSON.stringify(posixMode?.carried),
   )
   const guarded = of('guarded-bashrc').row
   check(

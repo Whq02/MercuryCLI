@@ -314,7 +314,12 @@ shell. Your bash login files are read once a session, in one login run that
 has no input and is ended after ten seconds, and the aliases, functions and
 options they define are carried to each command: from `~/.bash_profile` (or
 `~/.bash_login`, or `~/.profile`) and from `~/.bashrc`, whether or not
-`~/.bashrc` exists. A `~/.bashrc` that returns early for a shell that is not
+`~/.bashrc` exists. Every function is carried, whatever its name, and an alias
+under `set -o posix` too. One option is not: `extglob` is off when a command
+starts, whatever the files set, because Mercury reads a command's words
+without it; a function whose patterns need it switches it on in its own body.
+What the files export, and a `PATH` they set, is not carried either: a command
+starts from the environment Mercury was started with. A `~/.bashrc` that returns early for a shell that is not
 interactive carries nothing written below that line. A login file that ends
 the shell, hands it to another program or runs past the ten seconds carries
 nothing; commands then run without it, and the session says so. The login run

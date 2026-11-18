@@ -262,12 +262,9 @@ function buildCaptureScript(args: {
 
   if (definitions) {
     lines.push('echo "# Functions" >> "$SNAPSHOT_FILE"')
-    lines.push('echo "{ :" >> "$SNAPSHOT_FILE"')
+    lines.push('echo "{ shopt -s extglob" >> "$SNAPSHOT_FILE"')
     lines.push(`for __mercury_fn in $(declare -F | awk '{print $NF}'); do
-  case "$__mercury_fn" in
-    _[!_]*) ;;
-    *) printf 'eval %q\\n' "$(declare -f -- "$__mercury_fn")" >> "$SNAPSHOT_FILE" ;;
-  esac
+  printf 'eval %q\\n' "$(declare -f -- "$__mercury_fn")" >> "$SNAPSHOT_FILE"
 done`)
     lines.push('echo "} >/dev/null 2>&1" >> "$SNAPSHOT_FILE"')
 
@@ -276,7 +273,7 @@ done`)
 
     lines.push('echo "# Aliases" >> "$SNAPSHOT_FILE"')
     const winptyFilter = getPlatform() === 'windows' ? ' | grep -v winpty' : ''
-    lines.push(`alias${winptyFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
+    lines.push(`( set +o posix 2>/dev/null; alias )${winptyFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
   } else {
     lines.push(SNAPSHOT_KEEPS_ALIASES)
   }
