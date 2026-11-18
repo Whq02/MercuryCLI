@@ -7,6 +7,7 @@ import { errorMessage } from '../errors.js'
 import { logError } from '../log.js'
 import { endProcessTree, strikeProcessGroupNow } from '../processGroup.js'
 import { getInitialSettings } from '../settings/settings.js'
+import { sleep } from '../sleep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { which } from '../which.js'
 import { bashPackProgramsDir, resolveBashPackDir, type BashPackResolution } from './bashPack.js'
@@ -36,6 +37,8 @@ const NO_WINDOWS_SHELL_MESSAGE =
 const BASH_VERSION_SHAPE = /^\d+\.\d+/
 const VERSION_ANSWER_LIMIT = 1024 * 1024
 
+let askedNow: string | null = null
+
 function questionEnvironment(): NodeJS.ProcessEnv {
   const env = withoutShellStartFiles({ ...subprocessEnv() })
   for (const name of Object.keys(env)) if (name.startsWith('BASH_FUNC_')) delete env[name]
@@ -46,6 +49,7 @@ export function startedBashVersion(path: string, limitMs: number = START_PROBE_T
   return new Promise(resolve => {
     try {
       const ownGroup = process.platform !== 'win32'
+      askedNow = path
       const asked = spawn(path, ['--norc', '--noprofile', '-c', 'printf %s "$BASH_VERSION"'], { windowsHide: true, detached: ownGroup, stdio: ['ignore', 'pipe', 'ignore'], env: questionEnvironment() })
       let said = ''
       let open = true
@@ -60,6 +64,7 @@ export function startedBashVersion(path: string, limitMs: number = START_PROBE_T
       const answer = (version: string | null): void => {
         if (!open) return
         open = false
+        if (askedNow === path) askedNow = null
         process.removeListener('exit', endWithThisProcess)
         resolve(version)
       }
@@ -305,11 +310,22 @@ export function beginLoginFiles(): void {
 
 export type ShellRow = { status: 'ok' | 'warn'; evidence: string; fix?: string }
 
+const SHELL_ROW_WAITS_MS = 15_000
 const LAST_ROAD_FIX = 'Reinstall Mercury to restore the bash it ships, or install bash so that it is on PATH, then restart Mercury.'
 
-export async function shellRow(): Promise<ShellRow> {
-  const record = await shellRecordIfAny()
+export async function shellRow(waitMs: number = SHELL_ROW_WAITS_MS): Promise<ShellRow> {
+  const waited = new AbortController()
+  const settled = await Promise.race([shellRecordIfAny().then(record => ({ record })), sleep(waitMs, waited.signal).then(() => null)])
+  waited.abort()
   const passedNow = passedOver.length > 0 ? ` — passed over: ${passedOver.join('; ')}` : ''
+  if (settled === null) {
+    return {
+      status: 'warn',
+      evidence: `no shell has answered after ${waitMs / 1000} s${askedNow === null ? '' : `: ${askedNow} is being asked for its bash version and has ${START_PROBE_TIMEOUT_MS / 1000} s to answer`}${passedNow}`,
+      fix: `Run the health check again in a moment: a program that does not answer within ${START_PROBE_TIMEOUT_MS / 1000} s is passed over and named in this row.`,
+    }
+  }
+  const record = settled.record
   const pack = shippedBash()
   const skipped = pack.state === 'ok' ? null : pack.note
   const fix = skipped === null ? {} : { fix: `The bash pack is skipped in this install: ${skipped}` }

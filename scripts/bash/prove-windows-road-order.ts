@@ -194,6 +194,19 @@ try {
       const stubborn = script('stubborn-pinned-bash', "#!/bin/sh\ntrap '' TERM\nwhile :; do sleep 1; done\n")
       const passed = leg('stubborn-pin', { MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: stubborn })
       check(`a pin that names a program which ignores SIGTERM and never answers: the record settles all the same (${String(passed?.ms)} ms), on the bash Mercury ships`, passed?.served?.origin === 'shipped' && (passed?.ms ?? 99_999) < 12_000 && answer(passed).bash === packVersion, JSON.stringify(passed))
+      mkdirSync(join(scratch, 'row-bound'), { recursive: true })
+      const asking = spawnSync(
+        process.execPath,
+        ['-e', `;(globalThis).MACRO = { VERSION: '0.0.0' }\nconst record = await import('${source('src/utils/shell/shellRecord.ts')}')\nconst started = Date.now()\nconst row = await record.shellRow(1500)\nconsole.log('ROW ' + JSON.stringify({ row, ms: Date.now() - started }))\nprocess.exit(0)`],
+        { cwd: scratch, encoding: 'utf8', timeout: 60_000, env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'row-bound', 'config'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_SHELL_ENGINE: undefined, MERCURY_SHELL_PREFIX: undefined, MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: stubborn, BASH_ENV: undefined, ENV: undefined } },
+      )
+      const rowLine = (asking.stdout ?? '').split('\n').find(text => text.startsWith('ROW '))
+      const bound = rowLine === undefined ? null : (JSON.parse(rowLine.slice(4)) as { row: { status: string; evidence: string; fix?: string }; ms: number })
+      check(
+        'the health row does not wait for a shell past a bound of its own: asked while the pin is still being asked, it answers at the bound, names the program being asked and how long it has, and says what to do',
+        bound !== null && bound.ms < 4_000 && bound.row.status === 'warn' && bound.row.evidence.startsWith(`no shell has answered after 1.5 s: ${stubborn} is being asked for its bash version and has 5 s to answer`) && (bound.row.fix ?? '').startsWith('Run the health check again in a moment'),
+        `${JSON.stringify(bound)} ${(asking.stderr ?? '').slice(-300)}`,
+      )
     }
   }
   const engine = leg('no-bash', { MERCURY_WINDOWS_SHELL_ROAD: 'no-bash' })
