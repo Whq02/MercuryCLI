@@ -49,7 +49,6 @@ import {
 import { useExtensions } from '../hooks/useExtensions.js';
 import { useCostSummary } from '../costHook.js';
 import { useFpsMetrics } from '../context/fpsMetrics.js';
-import { useOverlayOpen } from '../context/overlayContext.js';
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../services/privateChannel/quietUpdateNotice.js';
 import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
@@ -106,10 +105,7 @@ import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import { InkInstanceContext } from '../ink/components/InkInstanceContext.js';
 import useInput from '../ink/hooks/use-input.js';
-import { useInterval } from '../ink/hooks/use-interval.js';
 import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
-import { useTerminalFocus } from '../ink/hooks/use-terminal-focus.js';
-import { useTerminalTitle } from '../ink/hooks/use-terminal-title.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
 import { setClipboardWithReceipt } from '../ink/termio/osc.js';
 import * as pendingInput from '../input-core/pending-input.js';
@@ -149,11 +145,12 @@ import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
 import type { SetToolJSXFn, Tool, ToolPermissionContext } from '../Tool.js';
 import { resolveToolJSX } from './toolJsxArbitration.js';
+import type { FocusedInputDialog } from './chat/focusedDialog.js';
+import { AnimatedTitle, useChatTitle } from './chat/useChatTitle.js';
 import type { SessionListing } from '../types/logs.js';
 import type { Message, NormalizedUserMessage, ProgressMessage, UserMessage } from '../types/message.js';
 import { ASK_USER_QUESTION_TOOL_NAME } from '../tools/AskUserQuestionTool/prompt.js';
 import type { PromptInputMode } from '../types/textInputTypes.js';
-import { asSessionId } from '../types/ids.js';
 import { createAbortController } from '../utils/abortController.js';
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js';
 import type { PastedContent } from '../utils/config/schema.js';
@@ -181,13 +178,10 @@ import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../utils/hea
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js';
 import { createCommandInputMessage, createUserMessage, extractTag, getUserMessageText, textForResubmit } from '../utils/messages.js';
 import { getTipToShowOnSpinner, recordShownTip } from '../services/tips/tipScheduler.js';
-import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js';
-import { getCurrentSessionTitle } from '../utils/sessionStorage/logs.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
 import { registerComposerSeeder, registerComposerSeedTrimmer } from '../utils/cockpit/composerSeed.js';
 import { registerPermissionFocusNotifier } from '../utils/permissions/permissionFocus.js';
 import { recordModeTransition } from '../utils/permissions/modeTransitions.js';
-import { publishCockpitActivity, type ActivityState } from '../utils/cockpit/cockpitActivity.js';
 import { parseSearchQuery } from '../utils/transcriptSearch.js';
 import type { StreamingToolUse } from '../utils/messages/streaming.js';
 
@@ -201,9 +195,6 @@ export type Props = {
   disableSlashCommands?: boolean;
 };
 
-const TITLE_FRAMES = ['⠂', '⠐'] as const;
-const TITLE_STATIC_MARK = '✻';
-const TITLE_INTERVAL_MS = 960;
 const COST_THRESHOLD_USD = 5;
 const RECENT_SCROLL_REPIN_WINDOW_MS = 3000;
 const SWITCH_STATUS_TIMEOUT_MS = 30_000;
@@ -288,8 +279,6 @@ const INERT_PROMPT_HELPERS: PromptInputHelpers = {
 
 type PaintsRows = { addDisplayRow?: (row: Message) => void; transcriptFile?: () => string };
 
-type FocusedInputDialog = 'message-selector' | 'tool-permission' | 'elicitation' | 'cost-threshold' | 'crash-resume';
-
 type ToolJSXState = Parameters<SetToolJSXFn>[0];
 
 type ResumableLog = Omit<Partial<SessionListing>, 'messages'> & { messages: Message[] };
@@ -344,28 +333,6 @@ function stopHookSuffix(messages: readonly Message[], isLoading: boolean): strin
   if (running === 0 || ran >= running) return undefined;
   if (total === 1) return 'running answer hook';
   return `running answer hooks · ${ran}/${total}`;
-}
-
-function AnimatedTitle({
-  enabled,
-  title,
-  wantsPrefix,
-  animating,
-}: {
-  enabled: boolean;
-  title: string;
-  wantsPrefix: boolean;
-  animating: boolean;
-}): null {
-  const focused = useTerminalFocus();
-  const [frame, setFrame] = useState(0);
-  useInterval(
-    () => setFrame(f => (f + 1) % TITLE_FRAMES.length),
-    enabled && wantsPrefix && animating && focused ? TITLE_INTERVAL_MS : null,
-  );
-  const prefix = animating ? TITLE_FRAMES[frame]! : TITLE_STATIC_MARK;
-  useTerminalTitle(!enabled ? null : !wantsPrefix ? title : `${prefix} ${title}`);
-  return null;
 }
 
 function resolveSlashCommand(input: string, commands: Command[]): Command | undefined {
@@ -1669,23 +1636,7 @@ export function Chat({
   useDeprecationWarningNotification(engineModel);
   useLspInitializationNotification();
 
-  const isWaitingForApproval = focusedInputDialog === 'tool-permission';
-  const showingLocalDialog = focusedInputDialog !== undefined && focusedInputDialog !== 'tool-permission';
-  const sessionTitleSetting = useAppState(state => (state.settings as { terminalTitle?: { sessionTitle?: boolean } }).terminalTitle?.sessionTitle);
-  const sessionTitle = sessionTitleSetting === false ? undefined : getCurrentSessionTitle(asSessionId(focusedConnector.sessionId()));
-  const agentTitle = store.getState().standaloneAgentContext?.name;
-  const title = sessionTitle ?? agentTitle ?? 'Mercury';
-  const titleAnimating = isLoading && !isWaitingForApproval && !showingLocalDialog;
-  useEffect(() => {
-    if (!titleAnimating) return;
-    startPreventSleep();
-    return () => stopPreventSleep();
-  }, [titleAnimating]);
-  const diffReviewOpen = useOverlayOpen('diff-dialog');
-  const cockpitActivity: ActivityState = isWaitingForApproval ? 'waiting' : diffReviewOpen ? 'review' : isLoading ? 'active' : 'calm';
-  useEffect(() => {
-    publishCockpitActivity(cockpitActivity);
-  }, [cockpitActivity]);
+  const { title, titleAnimating, sessionTitleSetting } = useChatTitle({ focusedInputDialog, focusedConnector, isLoading, store });
 
   useTurnEndPing({ lastCompletedAt, busy: isLoading });
 
