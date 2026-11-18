@@ -8,7 +8,7 @@ import type { HostRecord } from '../../src/services/host/store.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 let checks = 0
-const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
+const check = (name: string, truth: unknown, detail = '') => { assert.ok(truth, name + (detail ? ': ' + detail : '')); checks++; console.log('PASS ' + name) }
 const f = await trillionKimiFixture()
 const rp = await runpodFixture()
 const realFetch = globalThis.fetch
@@ -134,7 +134,7 @@ try {
       rp.state.clusterCreateOutcomes.push(outcome)
       const before = rp.state.clusterCreates
       const ambiguous = await road(async q => q.step === 'door-models' ? 'other' : q.step === 'where' ? 'rent' : q.step === 'rental-vendor' ? 'runpod' : q.step === 'budget' ? '' : q.step === 'models' ? 'Kimi K3' : q.step === 'offers' ? q.rows!.find(row => row.label.includes('2 nodes × 8× B200'))!.value : q.step === 'rent-confirm' ? 'rent' : null, () => {}, new AbortController().signal)
-      check(outcome + ' is ambiguous, never retried or called a non-create', !ambiguous.ok && ambiguous.words.includes('may exist') && !ambiguous.words.includes('no cluster was created') && rp.state.clusterCreates === before + 1)
+      check(outcome + ' is ambiguous, never retried or called a non-create', !ambiguous.ok && ambiguous.words.includes('may exist') && !ambiguous.words.includes('no cluster was created') && rp.state.clusterCreates === before + 1, 'the road answered ' + JSON.stringify({ ok: ambiguous.ok, words: ambiguous.words }) + ' after ' + (rp.state.clusterCreates - before) + ' cluster create(s); the fixture’s last requests: ' + rp.requests.slice(-6).map((row: any) => row.method + ' ' + row.path).join(', '))
       const created = (await listHostResources(api)).at(-1)!
       await terminateHostResource(api, created)
     }
