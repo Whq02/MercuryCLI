@@ -143,7 +143,7 @@ function toolRecords(): ReadinessRecord[] {
     id: 'tool:shell',
     kind: 'tool',
     label: 'Bash tool shell',
-    state: shell.absent ? 'unavailable' : shell.road === 'system' ? 'configured' : 'ready',
+    state: shell.absent ? 'unavailable' : shell.road === 'system' || shell.unasked === true ? 'configured' : 'ready',
     detail: shell.line,
     ...(shell.fix !== undefined ? { remedy: shell.fix } : {}),
     source: 'Windows shell road',

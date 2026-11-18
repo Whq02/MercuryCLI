@@ -302,6 +302,7 @@ function engineRoadLine(road: { path: string; arm: RoadEngineArm }): string {
 export function describeWindowsShellRoad(): {
   road: 'system' | 'git-bash' | 'shipped' | 'engine' | 'absent'
   absent: boolean
+  unasked?: boolean
   line: string
   fix?: string
 } {
@@ -311,7 +312,13 @@ export function describeWindowsShellRoad(): {
   const road = windowsBashRoad()
   const settled = shellRecordDoor().settledSystemShell()
   const known = settled !== null && settled.path === ('path' in road ? road.path : '') && settled.version !== '' ? `bash ${settled.version}` : 'bash'
-  if (road.kind === 'git-bash') return { road: 'git-bash', absent: false, line: `${known} at ${road.path} — ${pinnedGitBash() === road.path ? 'named by MERCURY_GIT_BASH_PATH' : 'found on this machine'}; the Bash tool runs under it` }
+  if (road.kind === 'git-bash') {
+    const pinned = pinnedGitBash() === road.path
+    if (pinned && settled === null) {
+      return { road: 'git-bash', absent: false, unasked: true, line: `${road.path} — named by MERCURY_GIT_BASH_PATH; whether it is a bash is asked when the Bash tool is first offered, and a program that does not answer as one is passed over` }
+    }
+    return { road: 'git-bash', absent: false, line: `${known} at ${road.path} — ${pinned ? 'named by MERCURY_GIT_BASH_PATH' : 'found on this machine'}; the Bash tool runs under it` }
+  }
   if (road.kind === 'shipped') return { road: 'shipped', absent: false, line: `${known} at ${road.path} — the bash Mercury ships; the Bash tool runs under it, no bash 5 being installed on this machine` }
   if (road.kind === 'engine') return { road: 'engine', absent: false, line: engineRoadLine(road) }
   const engine = resolvedShellEngine()
