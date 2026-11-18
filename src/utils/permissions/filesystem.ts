@@ -47,6 +47,7 @@ const DANGEROUS_FILES: string[] = [
   '.gitmodules',
   '.bashrc',
   '.bash_profile',
+  '.bash_login',
   '.zshrc',
   '.zprofile',
   '.profile',

@@ -35,6 +35,15 @@ if (process.argv.includes('--row')) {
   process.exit(0)
 }
 
+if (process.argv.includes('--start-up-files')) {
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  const { checkPathSafetyForAutoEdit } = await import('../../src/utils/permissions/filesystem.ts')
+  const home = homedir()
+  const asked = Object.fromEntries(['.bash_profile', '.bash_login', '.profile', '.bashrc', 'notes.txt'].map(name => [name, checkPathSafetyForAutoEdit(join(home, name)).safe === false]))
+  console.log(`FILES ${JSON.stringify(asked)}`)
+  process.exit(0)
+}
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -143,6 +152,22 @@ try {
     told('slow'),
   )
   check('slow: no snapshot stands, and the record of why says the login run was killed at the bound', slow !== null && slow.snapshots === 0 && /did not end within 10 s and was killed/.test(slow.absence ?? ''), told('slow'))
+
+  const filesHome = home('start-up-files', {})
+  const files = await new Promise<Record<string, boolean> | null>(done => {
+    const child = spawn(process.execPath, [import.meta.path, '--start-up-files'], { env: { ...process.env, HOME: filesHome, MERCURY_CONFIG_DIR: join(filesHome, 'config-home') }, stdio: ['ignore', 'pipe', 'pipe'] })
+    let said = ''
+    child.stdout.on('data', chunk => { said += String(chunk) })
+    child.once('close', () => {
+      const line = said.split('\n').find(text => text.startsWith('FILES '))
+      done(line === undefined ? null : (JSON.parse(line.slice(6)) as Record<string, boolean>))
+    })
+  })
+  check(
+    'a write to any file bash reads at login is asked about: ~/.bash_profile, ~/.bash_login and ~/.profile, and ~/.bashrc with them; a plain file in the same folder is not',
+    files !== null && files['.bash_profile'] === true && files['.bash_login'] === true && files['.profile'] === true && files['.bashrc'] === true && files['notes.txt'] === false,
+    JSON.stringify(files),
+  )
 
   const unread = of('ends-unread').row
   check(

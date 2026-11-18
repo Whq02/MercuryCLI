@@ -90,6 +90,8 @@ async function verificationCommand(command: string, worktree: string, receipt: s
   return { command }
 }
 
+const SHELL_THAT_RUNS_THIS = '"${BASH:-/bin/bash}"'
+
 function confinedVerification(command: string, worktree: string, receipt: string, scratch: string, lockRoot: string | undefined): string {
   const home = join(scratch, 'home')
   mkdirSync(home)
@@ -111,12 +113,12 @@ function confinedVerification(command: string, worktree: string, receipt: string
       `(deny file-write* ${writeConfig.denyWithinAllow.map(path => `(subpath ${JSON.stringify(path)})`).join(' ')})`,
     ].join('\n')
     writeFileSync(profilePath, profile, { mode: 0o600 })
-    return quote(['/usr/bin/sandbox-exec', '-f', profilePath, '/bin/bash', '-c', inner])
+    return `${quote(['/usr/bin/sandbox-exec', '-f', profilePath])} ${SHELL_THAT_RUNS_THIS} ${quote(['-c', inner])}`
   }
   if (process.platform === 'linux') {
     const bwrap = whichSync('bwrap')
     if (bwrap === null) throw new Error('Reviewer verification needs filesystem confinement: bubblewrap is unavailable; no command ran.')
-    return quote([bwrap, '--die-with-parent', '--unshare-user', '--unshare-pid', '--unshare-ipc', '--unshare-uts', '--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--bind', scratch, scratch, ...(lockRoot ? ['--bind', lockRoot, lockRoot] : []), '--chdir', worktree, '--', '/bin/bash', '-c', inner])
+    return `${quote([bwrap, '--die-with-parent', '--unshare-user', '--unshare-pid', '--unshare-ipc', '--unshare-uts', '--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--bind', scratch, scratch, ...(lockRoot ? ['--bind', lockRoot, lockRoot] : []), '--chdir', worktree, '--'])} ${SHELL_THAT_RUNS_THIS} ${quote(['-c', inner])}`
   }
   throw new Error('Reviewer verification needs filesystem confinement, unavailable on this platform; no command ran.')
 }
