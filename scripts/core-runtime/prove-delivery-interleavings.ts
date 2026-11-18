@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
@@ -336,21 +336,67 @@ section('A6 — gen.throw() at the attachment yield still consumes the yielded c
 
 section('A7 — silence stays detail-only; every other turn-machine notice is recorded')
 {
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src/run-core/turn-machine.ts'), 'utf8')
-  const parts = src.split('createSystemMessage(')
-  check('the turn machine emits system notices', parts.length > 1, String(parts.length - 1))
-  const quietSilence = (text: string): boolean => /^silence,\s*'info'\)/.test(text)
-  check('exactly one silence notice is detail-only, guarded by the silence outcome', parts.filter(quietSilence).length === 1 && /emptyReplyKindOf\(lastMessage\) === 'silence'[\s\S]{0,300}createSystemMessage\(silence, 'info'\)/.test(src))
-  for (let i = 1; i < parts.length; i++) {
-    const level = /'(info|warning|error|suggestion)',?\s*\)/.exec(parts[i]!)
-    const window = parts[i]!.slice(0, Math.min(level === null ? 300 : level.index + level[0].length, 600))
-    const line = src.slice(0, src.indexOf('createSystemMessage(') + parts.slice(1, i).join('createSystemMessage(').length).split('\n').length
-    check(
-      `notice #${i} is the detail-only silence notice or carries an operator-visible level`,
-      quietSilence(window) || /'(warning|error|suggestion)',?\s*\)/.test(window),
-      `near line ${line}: ${window.slice(0, 80).replace(/\n/g, ' ')}`,
-    )
+  const t = await import('./turnScenarios.ts')
+  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
+  const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
+  const { NO_TOOL_RULES, readReply } = await import('../../src/run-core/turn/noToolReply.ts')
+  const { createAssistantAPIErrorMessage } = await import('../../src/utils/messages.ts')
+  const { resolveAutoCompactWindow } = await import('../../src/services/compact/autoCompact.ts')
+  const { fitImagesToRequestCap } = await import('../../src/utils/imageResizer.ts')
+  const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const f = t.fixtures
+  type Spoken = { where: string; level: unknown; words: string }
+  const systemNotices = (where: string, events: ReadonlyArray<Record<string, unknown> & { kind: string }>): Spoken[] =>
+    events.flatMap(event => {
+      const message = event.message as { type?: string; subtype?: string; level?: unknown; content?: unknown } | undefined
+      return event.kind === 'notice' && message?.type === 'system' && message.subtype === 'informational' ? [{ where, level: message.level, words: String(message.content) }] : []
+    })
+
+  const spoken: Spoken[] = []
+  for (const scenario of t.SCENARIOS) spoken.push(...systemNotices(scenario.name, (await t.runScripted(scenario.plan())).events))
+  const NEAR_THE_WINDOW = 'a request that failed near the window'
+  const nearTheWindow = Math.floor(resolveAutoCompactWindow(t.MODEL).window * 0.9)
+  const failed = await t.runScripted({ seed: [f.ask('an old question'), f.fat('a long history', nearTheWindow), f.ask('hello there rig')], script: [f.yields(createAssistantAPIErrorMessage({ content: 'API Error: 500 upstream' }))] })
+  spoken.push(...systemNotices(NEAR_THE_WINDOW, failed.events))
+  const IMAGE_LEFT_OUT = 'a request that left an image out'
+  const image = (data: string, kind: string): Record<string, unknown> => ({ type: 'image', source: { type: 'base64', media_type: `image/${kind}`, data } })
+  const unreadable = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x10]), Buffer.alloc(4096, 0x5a)]).toString('base64')
+  const dot = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+  const manyImages = createUserMessage({ content: [image(unreadable, 'jpeg'), ...Array.from({ length: 20 }, () => image(dot, 'png')), { type: 'text', text: 'twenty-one images' }] as never })
+  const sized = await t.plantRun({ script: [f.yields(f.says('twenty of them.'))] })
+  await fitImagesToRequestCap([manyImages] as never, { model: t.MODEL, owner: String(rosterOwnerFromToolUseContext(sized.rig.ctx as never)) })
+  const asked = await t.drain(makeRequest(sized.run as never, sized.state as never, 1))
+  const answered = asked.decision.kind === 'go_on' ? await t.drain(modelReply(sized.run as never, asked.decision.iter as never)) : { events: [] }
+  sized.close()
+  spoken.push(...systemNotices(IMAGE_LEFT_OUT, [...asked.events, ...answered.events]))
+  check(
+    'the turn machine emits system notices',
+    spoken.length > 0 && spoken.some(notice => notice.where === NEAR_THE_WINDOW) && spoken.some(notice => notice.where === IMAGE_LEFT_OUT),
+    `${spoken.length} system notice(s) over ${t.SCENARIOS.length} recorded scenarios and two planted requests; ${NEAR_THE_WINDOW}: ${spoken.filter(notice => notice.where === NEAR_THE_WINDOW).length}; ${IMAGE_LEFT_OUT}: ${spoken.filter(notice => notice.where === IMAGE_LEFT_OUT).length}`,
+  )
+
+  const silenceRule = NO_TOOL_RULES.find(entry => entry.name === 'empty_reply_retry')!
+  const saidAfter = async (reply: unknown, plan: Partial<Parameters<typeof t.plantReply>[0]> = {}): Promise<Spoken[]> => {
+    const planted = await t.plantReply({ ...plan, script: [f.yields(reply)] })
+    const out = await t.drain(silenceRule.decide(planted.run as never, planted.iter as never, readReply(planted.iter as never)))
+    planted.close()
+    return systemNotices('the rule', out.events)
   }
+  const afterSilence = await saidAfter(f.empty('silence'), { sessionKind: 'oculus' })
+  const afterOtherReplies = [...(await saidAfter(f.empty('empty'))), ...(await saidAfter(f.empty('cap'))), ...(await saidAfter(f.says('an answer.')))]
+  const silenceWords = afterSilence[0]?.words
+  const detailOnly = spoken.filter(notice => notice.level === 'info')
+  check(
+    'exactly one silence notice is detail-only, guarded by the silence outcome',
+    afterSilence.length === 1 && afterSilence[0]?.level === 'info' && afterOtherReplies.every(notice => notice.level !== 'info') && detailOnly.length > 0 && detailOnly.every(notice => notice.words === silenceWords),
+    `a reply the provider ended with nothing said: ${JSON.stringify(afterSilence)}; an empty reply, a reply cut at the cap and a reply of words: ${JSON.stringify(afterOtherReplies.map(notice => notice.level))}; detail-only notices in the runs: ${JSON.stringify(detailOnly)} — the empty_reply_retry rule of src/run-core/turn/noToolReply.ts gives the silence note alone the level 'info'`,
+  )
+  const unheard = spoken.filter(notice => !(notice.level === 'info' && notice.words === silenceWords) && notice.level !== 'warning' && notice.level !== 'error' && notice.level !== 'suggestion')
+  check(
+    'every other system notice of those runs carries an operator-visible level: warning, error or suggestion',
+    unheard.length === 0,
+    `${unheard.length} of ${spoken.length - detailOnly.length}: ${unheard.map(notice => `${notice.where} raised [${String(notice.level)}] ${notice.words.slice(0, 80)}`).join(' · ')} — a notice of the turn machine is given 'warning', 'error' or 'suggestion' where it is made under src/run-core/turn/; 'info' reaches no operator`,
+  )
 }
 
 console.log('\n' + '='.repeat(76))

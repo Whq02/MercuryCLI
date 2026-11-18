@@ -308,9 +308,47 @@ section('§2 the once-per-session notice: the receipt, the transcript mark, the 
     check('the notice names the count, the limit, what the model sees, the transcript and the image processor', /^one image of the 21 in this request/.test(line) && /2000 px/.test(line) && /what the model sees/.test(line) && /transcript keeps the original;/.test(line) && /Image processor/.test(line), line)
     const two = leftOutApi.imagesLeftOutNoticeLine({ count: 2, images: 2, sidePx: 8000 })
     check('…and the plural form', /^2 images could not be sized to the API's 8000 px limit and were left out/.test(two) && /originals/.test(two), two)
+
+    const ambient = { ...process.env }
+    const sessionBefore = bootstrap.getSessionId()
+    const t = await import(join(ROOT, 'scripts/core-runtime/turnScenarios.ts'))
+    const { makeRequest } = await import(join(ROOT, 'src/run-core/turn/makeRequest.ts'))
+    const { modelReply } = await import(join(ROOT, 'src/run-core/turn/modelReply.ts'))
+    type Settled = { order: string; notices: Array<{ level?: unknown; content?: unknown }>; marks: unknown[]; receiptLeft: unknown }
+    const small = await flatPng(8, 8)
+    const manyImages = userRow([imageBlock(Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x10]), Buffer.alloc(4096, 0x5a)]), 'jpeg'), ...Array.from({ length: MANY_THRESHOLD }, () => imageBlock(small, 'png')), { type: 'text', text: 'twenty-one images' }])
+    const settledReply = async (leavesAnImageOut: boolean, seed?: unknown[]): Promise<Settled> => {
+      leftOutApi.resetImagesLeftOutForTesting()
+      const planted = await t.plantRun({ ...(seed !== undefined ? { seed } : {}), script: [t.fixtures.yields(t.fixtures.says('twenty of them.'))] })
+      const owner = String(rosterOwnerFromToolUseContext(planted.rig.ctx as never))
+      if (leavesAnImageOut) await resizer.fitImagesToRequestCap([manyImages], { model: MODEL_A, owner })
+      const request = await t.drain(makeRequest(planted.run as never, planted.state as never, 1))
+      const reply = request.decision.kind === 'go_on' ? await t.drain(modelReply(planted.run as never, request.decision.iter as never)) : { events: [] }
+      planted.close()
+      const events = [...request.events, ...reply.events] as Array<{ kind: string; message?: { level?: unknown; content?: unknown; attachment?: { type?: string } } }>
+      const told = events.filter(event => event.kind === 'notice' || (event.kind === 'attachment' && event.message?.attachment?.type === 'images_left_out') || event.kind === 'assistant_settled')
+      return {
+        order: told.map(event => event.kind).join(','),
+        notices: events.filter(event => event.kind === 'notice').map(event => ({ level: event.message?.level, content: event.message?.content })),
+        marks: events.filter(event => event.kind === 'attachment' && event.message?.attachment?.type === 'images_left_out').map(event => event.message?.attachment),
+        receiptLeft: leftOutApi.takeImagesLeftOutReceipt(owner),
+      }
+    }
+    const firstTime = await settledReply(true)
+    const alreadyTold = await settledReply(true, [t.fixtures.ask('hello there rig'), createAttachmentMessage(leftOutMark.attachment as never)])
+    const nothingLeftOut = await settledReply(false)
+    leftOutApi.resetImagesLeftOutForTesting()
+    for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
+    Object.assign(process.env, ambient)
+    bootstrap.switchSession(sessionBefore)
+    const receipt = { count: 1, images: MANY_THRESHOLD + 1, sidePx: MANY_CAP }
+    check(
+      'the turn machine reads the conversation\'s receipt after the stream settles, paints the notice when the transcript carries no mark yet, and writes the mark beside it',
+      firstTime.order === 'assistant_settled,notice,attachment' && firstTime.notices[0]?.level === 'warning' && firstTime.notices[0]?.content === leftOutApi.imagesLeftOutNoticeLine(receipt) && j(firstTime.marks) === j([{ type: 'images_left_out', ...receipt }]) && firstTime.receiptLeft === null &&
+        alreadyTold.order === 'assistant_settled' && alreadyTold.receiptLeft === null && nothingLeftOut.order === 'assistant_settled',
+      `a reply to a request that left one image of 21 out: ${j(firstTime)} (the reply settled, then the warning, then the mark; the receipt taken); the same on a transcript that already carries the mark: ${j(alreadyTold)} (the reply alone; the receipt taken); a request that left nothing out: ${j(nothingLeftOut)} — the model call of src/run-core/turn/streamModel.ts takes the owner's receipt once the stream has settled and, where the transcript has no images_left_out mark, yields the notice of imagesLeftOutNoticeLine and the mark after it`,
+    )
   }
-  const turn = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-  check('the turn machine reads the conversation\'s receipt after the stream settles, paints the notice when the transcript carries no mark yet, and writes the mark beside it', turn.includes('takeImagesLeftOutReceipt(owner)') && turn.includes('!imagesLeftOutMarked(iter.messagesForQuery)') && turn.includes('createSystemMessage(imagesLeftOutNoticeLine(leftOut)') && turn.includes("createAttachmentMessage({ type: 'images_left_out'"))
   const chain = await import(join(ROOT, 'src/utils/sessionStorage/chain.ts'))
   const render = readFileSync(join(ROOT, 'src/components/messages/nullRenderingAttachments.ts'), 'utf8')
   const { normalizeAttachmentForAPI } = await import(join(ROOT, 'src/utils/messages/attachmentText.ts'))

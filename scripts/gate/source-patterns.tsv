@@ -747,7 +747,7 @@ as-never	src/hooks/useHistorySearch.ts	1
 as-never	src/ink/compose-walk.ts	1
 as-never	src/query/scriptedStream.ts	18
 as-never	src/rows/turn.ts	2
-as-never	src/run-core/turn-machine.ts	1
+as-never	src/run-core/turn/noToolReply.ts	1
 as-never	src/services/PromptSuggestion/promptSuggestion.ts	1
 as-never	src/services/acp/acpServer.ts	3
 as-never	src/services/acp/acpSignIn.ts	1
@@ -2086,7 +2086,7 @@ handler-default	src/dialogLaunchers.tsx	1
 handler-default	src/hooks/useApiKeyVerification.ts	1
 handler-default	src/main.tsx	2
 handler-default	src/mneme/memoryVerbs.ts	1
-handler-default	src/run-core/turn-machine.ts	1
+handler-default	src/run-core/turn/afterTools.ts	1
 handler-default	src/services/acp/acpServer.ts	3
 handler-default	src/services/acp/acpSignIn.ts	2
 handler-default	src/services/api/withRetry.ts	1

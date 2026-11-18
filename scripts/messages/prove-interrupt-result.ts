@@ -197,13 +197,45 @@ section('E the source census over every recogniser of the interrupt text')
     ['src/utils/transcriptSearch.ts', 'return isTurnCutText(text)'],
     ['src/utils/crew/agentTranscriptReader.ts', 'turnCutOfText(text)'],
     ['src/tools/SkillTool/SkillTool.ts', 'texts.includes(INTERRUPT_MESSAGE)'],
-    ['src/run-core/turn-machine.ts', 'turnCutResultText(turnCutOf(cutReason))'],
   ]
   for (const [rel, needle] of locks) {
     check(`${rel} still recognises through ${needle}`, src(rel).includes(needle))
   }
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const settledTextsOf = (events: Array<{ kind: string; message?: unknown }>): string[] =>
+    events.filter(event => event.kind === 'tool_settled').map(event => String((event.message as { message: { content: Array<{ content?: unknown }> } }).message.content[0]?.content))
+  const CUTS: unknown[] = [undefined, 'interrupt', { code: 'DEADLINE_EXCEEDED' }, new Error('the run was aborted')]
+  const cutMidStream = []
+  for (const reason of CUTS) {
+    cutMidStream.push(await t.runScripted({ tools: [{ name: 'Bash' }], script: [[...t.fixtures.yields(t.fixtures.calls('toolu_cut', 'Bash', { command: 'sleep 30' })), { kind: 'do', fn: env => env.rig.abortController.abort(reason) }]] }))
+  }
+  const wrote = cutMidStream.map(run => settledTextsOf(run.events).join(' | '))
+  const owed = CUTS.map(reason => turnCutResultText(turnCutOf(reason)))
+  check(
+    'the turn machine still settles a call cut mid-stream through turnCutResultText(turnCutOf(reason)), in words every recogniser reads as a stop',
+    wrote.join(' / ') === owed.join(' / ') && wrote[0] === result && wrote.every(isDenialResultText),
+    `modelReply (src/run-core/turn/modelReply.ts) must settle a tool call the abort cut with turnCutResultText(turnCutOf(the abort's reason)); for no reason, a steer, a deadline and an Error it wrote ${JSON.stringify(wrote)}, and the owner says ${JSON.stringify(owed)}`,
+  )
+  const cutMidTool = await t.runScripted({
+    tools: [{ name: 'SlowTool', result: 'finished during the abort', onCall: rig => rig.abortController.abort() }],
+    script: [t.fixtures.yields(t.fixtures.calls('toolu_running', 'SlowTool', {}))],
+  })
+  const said: string[] = []
+  const gather = (value: unknown, seen: Set<unknown>): void => {
+    if (typeof value === 'string') said.push(value)
+    else if (typeof value === 'object' && value !== null && !seen.has(value)) {
+      seen.add(value)
+      for (const inner of Object.values(value)) gather(inner, seen)
+    }
+  }
+  for (const run of [cutMidStream[0]!, cutMidTool]) gather(run.events, new Set())
+  const minted = said.filter(text => PARTIAL.test(text))
   const turnCut = src('src/utils/messages/turnCut.ts')
-  check('the facts are minted in turnCut.ts and nowhere else', /partially executed/.test(turnCut) && !/partially executed/.test(src('src/run-core/turn-machine.ts')))
+  check(
+    'the facts are minted in turnCut.ts and nowhere else',
+    /partially executed/.test(turnCut) && cutMidTool.terminal.reason === 'aborted_tools' && minted.length > 0 && minted.every(text => text === result),
+    `a run the operator cuts, in the stream or in the tools, must say what may have happened only in the owner's result text, word for word: the steps under src/run-core/turn/ write no such sentence of their own; of ${said.length} strings in the two runs' events these name the facts and are not the owner's text: ${JSON.stringify(minted.filter(text => text !== result))}${minted.length === 0 ? ' (and none names them at all)' : ''}`,
+  )
 }
 
 console.log('\n' + '='.repeat(60))

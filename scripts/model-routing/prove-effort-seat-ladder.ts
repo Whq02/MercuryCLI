@@ -155,8 +155,31 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check('the settled assistant message carries the typed stamp beside the typed end', /streamEnd\?: StreamEndV1[\s\S]{0,600}effortAdjusted\?: EffortAdjustedV1/.test(messageTypes))
   const lane = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
   check('the GPT lane stamps the adjustment on the settled message and no longer folds it into the reply text', lane.includes('lastMessage.effortAdjusted = ') && !lane.includes("is not in ${modelId}'s live effort catalogue"))
-  const machine = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-  check('the turn machine paints the receipt row from the stamp, once per thread and word pair', machine.includes('const adjusted = settled.effortAdjusted') && machine.includes('effortAdjustedReceiptLine(adjusted)') && /effortAdjustmentsReceipted\.has\(key\)/.test(machine))
+  const envBefore = { ...process.env }
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const receiptsOf = async (stamp: Record<string, unknown>, agentId?: string): Promise<string> => {
+    const run = await t.runScripted({
+      ...(agentId !== undefined ? { agentId, querySource: 'agent:custom' } : {}),
+      script: [t.fixtures.yields(Object.assign(t.fixtures.says('the reply at the lower effort.'), { effortAdjusted: stamp }))],
+    })
+    return t.noticesOf(run.events).join(' | ') || 'no row'
+  }
+  const pair = { model: 'gpt-5.5', name: 'GPT-5.5', asked: 'max', sent: 'xhigh' }
+  const otherPair = { ...pair, sent: 'high' }
+  const painted = {
+    'the first reply stamped max>xhigh': await receiptsOf(pair),
+    'a second reply with the same pair': await receiptsOf(pair),
+    'a reply stamped max>high': await receiptsOf(otherPair),
+    'the first pair on a crewmate thread': await receiptsOf(pair, t.fixtures.agent()),
+    'the same pair again on that thread': await receiptsOf(pair, t.fixtures.agent()),
+  }
+  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
+  Object.assign(process.env, envBefore)
+  check(
+    'the turn machine paints the receipt row from the stamp, once per thread and word pair',
+    Object.values(painted).join(' / ') === [line, 'no row', effort.effortAdjustedReceiptLine(otherPair), line, 'no row'].join(' / '),
+    `the model call (streamModel, src/run-core/turn/streamModel.ts) must yield effortAdjustedReceiptLine(stamp) as a notice for a settled reply stamped effortAdjusted, once for each thread, model and asked>sent pair in the process — ${JSON.stringify(painted)}`,
+  )
 }
 
 console.log('\n— the sent word: resolved · no key · unresolved —')

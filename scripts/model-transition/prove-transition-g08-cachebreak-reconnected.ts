@@ -41,10 +41,18 @@ section('§A the wiring is live on all three lanes (+ the reference carrier)')
     )
     check(`${lane}: the snapshot names its lane`, src.includes(`lane: '${lane}'`))
   }
-  const machine = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
+  const envBefore = { ...process.env }
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const called = await t.runScripted({ tools: [{ name: 'Alpha' }, { name: 'Beta' }], script: [t.fixtures.yields(t.fixtures.says('done.'))] })
+  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
+  Object.assign(process.env, envBefore)
+  const handed = called.requests[0]?.options.callReference
+  const announced = called.events.find(event => event.kind === 'model_call_started')?.reference
+  const owed = buildModelCallReference({ model: t.MODEL, effort: 'high', maxOutputTokensOverride: undefined, tools: [{ name: 'Alpha' }, { name: 'Beta' }] })
   check(
     'the turn machine carries the frozen reference to the lanes (callReference)',
-    machine.includes('callReference,') && machine.includes('const callReference = buildModelCallReference'),
+    called.requests.length === 1 && typeof handed === 'object' && handed !== null && Object.isFrozen(handed) && JSON.stringify(handed) === JSON.stringify(owed) && announced === handed,
+    `the model call (streamModel, src/run-core/turn/streamModel.ts) must hand the lane, as options.callReference, the frozen buildModelCallReference({ model, effort, maxOutputTokensOverride, tools }) of the call it announces; the lane received ${JSON.stringify(handed)}, the call was announced with ${JSON.stringify(announced)}, and the owner builds ${JSON.stringify(owed)}`,
   )
   const options = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
   check('the callModel Options contract carries callReference', options.includes('callReference?: ModelCallReference'))

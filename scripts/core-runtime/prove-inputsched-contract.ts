@@ -545,12 +545,56 @@ console.log('native-core T13/T14 — input-scheduling contract')
       && ['pendingInput.text()', 'pendingInput.mode()', 'pendingInput.pastedContents()', 'pendingInput.stashedPrompt()']
         .every(read => promptInput.includes(read)))
 
-  const turnMachine = readFileSync(join(repoRoot, 'src/run-core/turn-machine.ts'), 'utf8')
-  check('lock: the steering drain snapshots through the queue-owned band view and removes by identity',
-    turnMachine.includes('getDrainableCommands(sleepRan)') && turnMachine.includes('...consumeDrainedCommands(')
-      && turnMachine.includes('? queuedCommandsSnapshot')
-      && readFileSync('src/run-core/attachment-drain.ts', 'utf8').includes('effects.removeFromQueue(consumed)'))
+}
 
+{
+  const ambient = { ...process.env }
+  const t = await import('./turnScenarios.ts')
+  const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
+  const { afterTools } = await import('../../src/run-core/turn/afterTools.ts')
+  const { SLEEP_TOOL_NAME } = await import('../../src/tools/SleepTool/prompt.ts')
+  const cmd = (value: string, extra: Partial<QueuedCommand> = {}): QueuedCommand =>
+    ({ value, mode: 'prompt', ...extra }) as QueuedCommand
+  const sorted = (values: readonly unknown[]): string => values.map(String).sort().join(',')
+  const toolBoundary = async (tool: string): Promise<{ delivered: string; left: string; survivorsAreTheQueuesOwn: boolean; twinStays: boolean }> => {
+    const planted = await t.plantReply({
+      tools: [{ name: tool }],
+      before: () => {
+        q.enqueue(cmd('nowA', { priority: 'now' }))
+        q.enqueue(cmd('nextA', { priority: 'next' }))
+        q.enqueue(cmd('laterA', { priority: 'later' }))
+        q.enqueue(cmd('laterN', { mode: 'task-notification', priority: 'later' }))
+      },
+      script: [t.fixtures.yields(t.fixtures.calls('tu_1', tool, { text: 'x' }))],
+    })
+    await t.drain(runToolCalls(planted.run as never, planted.iter as never))
+    const held = [...q.getCommandQueue()]
+    const delivered: unknown[] = []
+    const steps = afterTools(planted.run as never, planted.iter as never)
+    for (let step = await steps.next(); !step.done; step = await steps.next()) {
+      const attachment = (step.value as { message?: { attachment?: { type?: string; prompt?: unknown } } }).message?.attachment
+      if (step.value.kind !== 'attachment' || attachment?.type !== 'queued_command') continue
+      if (delivered.length === 0) q.enqueue(cmd('nowA', { priority: 'now' }))
+      delivered.push(attachment.prompt)
+    }
+    const left = [...q.getCommandQueue()]
+    planted.close()
+    return {
+      delivered: sorted(delivered),
+      left: sorted(left.map(c => c.value)),
+      survivorsAreTheQueuesOwn: left.filter(c => c.value !== 'nowA').every(c => held.includes(c)),
+      twinStays: left.filter(c => c.value === 'nowA').length === 1 && !held.includes(left.find(c => c.value === 'nowA')!),
+    }
+  }
+  const plain = await toolBoundary('EchoTool')
+  const slept = await toolBoundary(SLEEP_TOOL_NAME)
+  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
+  Object.assign(process.env, ambient)
+  check('lock: the steering drain snapshots through the queue-owned band view and removes by identity',
+    plain.delivered === 'nextA,nowA' && plain.left === 'laterA,laterN,nowA' && plain.survivorsAreTheQueuesOwn && plain.twinStays
+      && slept.delivered === 'laterN,nextA,nowA' && slept.left === 'laterA,nowA' && slept.survivorsAreTheQueuesOwn && slept.twinStays
+      && readFileSync('src/run-core/attachment-drain.ts', 'utf8').includes('effects.removeFromQueue(consumed)'),
+    `a tool boundary over now, next, later and a later notification, with an equal twin of the first command queued while the drain ran — plain: ${JSON.stringify(plain)} (nextA,nowA delivered; laterA,laterN and the twin left); after Sleep: ${JSON.stringify(slept)} (the later notification joins; laterA and the twin left) — afterTools in src/run-core/turn/afterTools.ts takes its snapshot from getDrainableCommands and removes exactly those queue entries`)
 }
 
 {

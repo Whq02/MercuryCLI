@@ -171,10 +171,33 @@ section('§7 one continuation per attempt across families; wording demoted; drai
   } as never)
   check('SS-25/29: wording never overrules a typed one-shot terminal', worded.kind === 'complete', worded.kind)
 
-  const turnMachine = src('src/run-core/turn-machine.ts')
+  const envBefore = { ...process.env }
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const queue = await import('../../src/utils/messageQueueManager.ts')
+  const NOTES = [
+    { value: 'steer note one', uuid: '11111111-1111-4111-8111-111111111111' },
+    { value: 'steer note two', uuid: '22222222-2222-4222-8222-222222222222' },
+    { value: 'steer note three', uuid: '33333333-3333-4333-8333-333333333333' },
+  ]
+  const drained = await t.runScripted({
+    before: () => {
+      for (const note of NOTES) queue.enqueue({ ...note, mode: 'prompt' } as never)
+    },
+    script: [t.fixtures.yields(t.fixtures.calls('toolu_round', 'EchoTool', { text: 'x' })), t.fixtures.yields(t.fixtures.says('all three notes are read.'))],
+  })
+  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
+  Object.assign(process.env, envBefore)
+  type Queued = { type?: string; attachment?: { type?: string; prompt?: unknown; source_uuid?: unknown } }
+  const queuedIn = (rows: unknown[] | undefined): string => ((rows ?? []) as Queued[]).filter(row => row.type === 'attachment' && row.attachment?.type === 'queued_command').map(row => `${String(row.attachment?.prompt)} (${String(row.attachment?.source_uuid)})`).join(' | ') || 'none'
+  const window = drained.events.slice(drained.events.findIndex(event => event.kind === 'tool_settled') + 1, Math.max(drained.events.findIndex(event => event.kind === 'turn_settled'), 0))
+  const produced = queuedIn(window.filter(event => event.kind === 'attachment').map(event => event.message))
+  const acknowledged = window.filter(event => event.kind === 'followup_drained').map(event => String(event.uuid)).join(',')
+  const all = NOTES.map(note => `${note.value} (${note.uuid})`).join(' | ')
+  const uuids = NOTES.map(note => note.uuid).join(',')
   check(
     'BM-02 coalesce: the drain snapshot folds into ONE attachment production (single call window)',
-    turnMachine.includes('getDrainableCommands(sleepRan)') && turnMachine.includes('queuedCommandsSnapshot,'),
+    drained.requests.length === 2 && drained.transitions.join(',') === 'next_turn' && queuedIn(drained.requests[0]?.messages) === 'none' && produced === all && queuedIn(drained.requests[1]?.messages) === all && acknowledged === uuids && drained.consumed.join(',') === uuids,
+    `afterTools (src/run-core/turn/afterTools.ts) must take one snapshot of the drainable queue after a tool round, hand it whole to one getAttachmentMessages and consume it, so every queued prompt rides the next request together; with three prompts queued the run made ${drained.requests.length} model calls over [${drained.transitions.join(',')}], produced after the tools [${produced}], sent the second request [${queuedIn(drained.requests[1]?.messages)}], acknowledged [${acknowledged}] and consumed [${drained.consumed.join(',')}]`,
   )
 }
 

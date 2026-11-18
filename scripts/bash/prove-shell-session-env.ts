@@ -170,8 +170,23 @@ resetSessionEnvNoticeForTesting()
 sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' })
 const afterCompaction = (resetSessionEnvNoticeOnCompaction(), sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' }))
 check('a compaction resets the latch, so the first result after the fold carries the full note again', afterCompaction === scrubbedSessionEnvNotice(scrubbedSet) && afterCompaction.includes('inherit_session_env'))
-const turnMachineSrc = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-check('the turn machine resets the notice latch at the compaction boundary', turnMachineSrc.includes('resetSessionEnvNoticeOnCompaction()') && /compaction_boundary[\s\S]{0,200}resetSessionEnvNoticeOnCompaction\(\)/.test(turnMachineSrc))
+const ambient = { ...process.env }
+const t = await import('../core-runtime/turnScenarios.ts')
+const noticeAfterARun = async (plan: Parameters<typeof t.runScripted>[0]): Promise<{ folded: boolean; notice: string }> => {
+  resetSessionEnvNoticeForTesting()
+  sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' })
+  const run = await t.runScripted(plan)
+  return { folded: run.events.some(event => event.kind === 'compaction_boundary'), notice: sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' }) }
+}
+const acrossAFold = await noticeAfterARun({ seed: [t.fixtures.ask('hello there rig'), t.fixtures.fat('old fat turn', 700)], autocompact: [t.fixtures.folded()], script: [t.fixtures.yields(t.fixtures.says('the turn after the fold.'))] })
+const acrossNoFold = await noticeAfterARun({ script: [t.fixtures.yields(t.fixtures.says('a turn with no fold.'))] })
+for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
+Object.assign(process.env, ambient)
+check(
+  'the turn machine resets the notice latch at the compaction boundary',
+  acrossAFold.folded && acrossAFold.notice === scrubbedSessionEnvNotice(scrubbedSet) && !acrossNoFold.folded && acrossNoFold.notice === '',
+  `after a run in which a fold landed (boundary seen: ${acrossAFold.folded}) the next scrubbing result carried ${JSON.stringify(acrossAFold.notice)} (the full note is right); after a run with no fold (boundary seen: ${acrossNoFold.folded}) it carried ${JSON.stringify(acrossNoFold.notice)} (nothing is right) — makeRequest in src/run-core/turn/makeRequest.ts resets the once-per-session latch where it yields the compaction boundary`,
+)
 resetSessionEnvNoticeForTesting()
 const { normalizeToolInput } = await import('../../src/utils/api.ts')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')

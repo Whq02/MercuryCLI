@@ -25,6 +25,8 @@
 # gate-watch: src/constants/oauth.ts src/constants/messages.ts src/constants/xml.ts
 # gate-watch: src/utils/hooks/contract.ts
 # gate-watch: scripts/lib/settingsPopupHarness.ts
+# gate-watch: src/run-core/turn/**
+# gate-watch: scripts/core-runtime/turnScenarios.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

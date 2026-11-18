@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -99,9 +99,42 @@ section('§B C07 — settlement reconciliation through the applied plan')
   const p2 = await build(msgs, 'apply', owner, { calibrationKey: key })
   check('the NEXT plan estimates through the learned ratio', p2.tokenEstimate?.calibration.calibrated === true && p2.tokenEstimate!.estimatedTokens > est)
   check('no calibration key ⇒ tokenEstimate null (explicit absence)', (await build(msgs, 'inspect', owner)).tokenEstimate === null)
-  const tm = readFileSync(join(import.meta.dir, '../../src/run-core/turn-machine.ts'), 'utf8')
-  check("turn-machine passes calibrationKeyFor(declaredRouteOf(model) ?? 'unrecognised', model)", tm.includes("calibrationKeyFor(declaredRouteOf(model) ?? 'unrecognised', model)"))
-  check('turn-machine reconciles ONLY the first call (c1)', tm.includes('`${iter.turnId}.c1`') && tm.includes('reconcileAppliedPlanUsage('))
+  const envBefore = { ...process.env }
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const { declaredRouteOf } = await import('../../src/services/providers/callModelRouter.js')
+  const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.js')
+  const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.js')
+  const UNDECLARED = 'model-no-road-declares'
+  const carried: string[] = []
+  const owedKeys: string[] = []
+  for (const model of [t.MODEL, 'gpt-5.6-sol', UNDECLARED]) {
+    const planted = await t.plantReply({ model, script: [t.fixtures.yields(t.fixtures.says('done.'))] })
+    planted.close()
+    carried.push(String((planted.iter.requestPlan as { tokenEstimate?: { key?: string } | null }).tokenEstimate?.key))
+    owedKeys.push(cal.calibrationKeyFor(declaredRouteOf(model) ?? 'unrecognised', model))
+  }
+  check(
+    "turn-machine passes calibrationKeyFor(declaredRouteOf(model) ?? 'unrecognised', model)",
+    carried.join(' ') === owedKeys.join(' ') && owedKeys[0] === cal.calibrationKeyFor('anthropic', t.MODEL) && owedKeys[2] === cal.calibrationKeyFor('unrecognised', UNDECLARED),
+    `makeRequest (src/run-core/turn/makeRequest.ts) must hand buildRequestContextPlan the calibration key of the run's model on its declared road, and of the road 'unrecognised' for a model no road declares; for an Anthropic model, a GPT model and an undeclared one the plan's estimate carries [${carried.join(' ')}] and the owner mints [${owedKeys.join(' ')}]`,
+  )
+  cal.resetCalibration()
+  const fellBack = await t.runScripted({
+    fallbackModel: t.FALLBACK_MODEL,
+    script: [
+      [...t.fixtures.yields(t.fixtures.fat('cut before the fallback', 6_000)), { kind: 'throw', error: new FallbackTriggeredError(t.MODEL, t.FALLBACK_MODEL) }],
+      t.fixtures.yields(t.fixtures.fat('the answer on the fallback', 9_000)),
+    ],
+  })
+  const applied = planMod.getLastAppliedPlan(ownerFromToolUseContext(fellBack.rig.ctx as never))?.tokenEstimate
+  const learned = cal.calibrationFor(applied?.key ?? '')
+  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
+  Object.assign(process.env, envBefore)
+  check(
+    'turn-machine reconciles ONLY the first call (c1)',
+    fellBack.terminal.reason === 'completed' && fellBack.requests.length === 2 && applied != null && learned.calibrated && learned.samples === 1 && Math.abs(learned.ratio - 6_000 / applied.baseTokens) < 1e-9,
+    `the model call (streamModel, src/run-core/turn/streamModel.ts) must reconcile the applied plan's estimate against the measured input of the turn's first call alone, the call whose request the plan sized; a turn whose first call measured 6,000 tokens and fell back to a second that measured 9,000, over a plan of ${String(applied?.baseTokens)} base tokens, made ${fellBack.requests.length} model calls and left the key at ${JSON.stringify(learned)}`,
+  )
   cal.resetCalibration()
 }
 
@@ -134,15 +167,38 @@ section('§C C08 — the SHIPPED typed ladder composes with selection')
   check('typed states compose honestly', composed.ladder === 'blocked' && composed.selection === 'closure-exceeds-budget')
   check('detectFixedPrefixOverflow stays live', typeof auto.detectFixedPrefixOverflow === 'function')
   check('the thrash guard stays live', typeof auto.rapidRefillCount === 'function' && auto.AUTOCOMPACT_THRASH_MESSAGE.length > 0)
-  const tm = readFileSync(join(import.meta.dir, '../../src/run-core/turn-machine.ts'), 'utf8')
-  const planAt = tm.indexOf('const requestPlan = await buildRequestContextPlan(')
-  const gateAt = tm.indexOf('await deps.autocompact(')
-  check('selection precedes the compaction gate (source order)', planAt !== -1 && gateAt !== -1 && planAt < gateAt)
-  const selectedAt = tm.indexOf('let messagesForQuery = requestPlan.messages')
-  const splitAt = tm.indexOf('splitCarriedOperatorTail(messagesForQuery)')
+  const envBefore = { ...process.env }
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
+  const { splitCarriedOperatorTail } = await import('../../src/services/compact/overflowRecovery.js')
+  const history: AnyMessage[] = []
+  for (let i = 1; i <= 40; i++) history.push((i % 2 ? t.fixtures.ask(`q${i}`) : t.fixtures.says(`a${i}`)) as AnyMessage)
+  history.push(t.fixtures.ask('the request') as AnyMessage)
+  const planted = await t.plantRun({ env: { MERCURY_CONTEXT_SELECTION: 'bounded-optional', MERCURY_SELECTION_BUDGET: '5' }, seed: history, script: [t.fixtures.yields(t.fixtures.says('done.'))] })
+  const folds: Array<{ head: AnyMessage[]; fork: AnyMessage[]; carry: AnyMessage[] }> = []
+  ;(planted.run.deps as AnyMessage).autocompact = async (head: AnyMessage[], _context: unknown, cacheSafe: { forkContextMessages: AnyMessage[]; postFoldCarry: AnyMessage[] }) => {
+    folds.push({ head, fork: cacheSafe.forkContextMessages, carry: cacheSafe.postFoldCarry })
+    return { wasCompacted: false }
+  }
+  const opened = await t.drain(makeRequest(planted.run as never, planted.state as never, 1))
+  planted.close()
+  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
+  Object.assign(process.env, envBefore)
+  const selected = (opened.decision as { iter?: { requestPlan?: { messages?: AnyMessage[] } } }).iter?.requestPlan?.messages ?? []
+  const leftOut = history.filter(row => !selected.some(kept => kept.uuid === row.uuid))
+  const gate = folds[0] ?? { head: [], fork: [], carry: [] }
+  const reached = [...gate.head, ...gate.carry]
+  const same = (a: AnyMessage[], b: AnyMessage[]): boolean => a.length === b.length && a.every((row, at) => row === b[at])
+  check(
+    'selection precedes the compaction gate: the rows selection left out of the request are gone from what the gate is handed',
+    folds.length === 1 && leftOut.length > 0 && selected.length === history.length - leftOut.length && same(reached, selected) && !reached.some(row => leftOut.some(out => out.uuid === row.uuid)),
+    `makeRequest (src/run-core/turn/makeRequest.ts) must build the request's context plan before it asks deps.autocompact, and ask it with the plan's rows; of ${history.length} rows selection kept ${selected.length} and left out ${leftOut.length}, the gate was asked ${folds.length} time(s) with ${reached.length} rows, ${reached.filter(row => leftOut.some(out => out.uuid === row.uuid)).length} of them rows selection left out`,
+  )
+  const split = splitCarriedOperatorTail(selected as never) as unknown as { head: AnyMessage[]; carry: AnyMessage[] }
   check(
     'the gate consumes the SELECTED view (through the carried-tail split)',
-    selectedAt !== -1 && splitAt !== -1 && selectedAt < splitAt && splitAt < gateAt && tm.slice(gateAt, gateAt + 200).includes('foldSplit.head'),
+    folds.length === 1 && same(gate.head, split.head) && gate.fork === gate.head && same(gate.carry, split.carry) && gate.carry.length === 1 && (gate.carry[0]?.message as AnyMessage | undefined)?.content === 'the request',
+    `makeRequest (src/run-core/turn/makeRequest.ts) must hand deps.autocompact splitCarriedOperatorTail(the plan's rows).head, as its messages and as forkContextMessages, with the split's carry in postFoldCarry; the split is ${split.head.length} rows and a carry of ${split.carry.length}, and the gate was handed ${gate.head.length} rows${gate.fork === gate.head ? '' : ' (another list as forkContextMessages)'} and a carry of ${gate.carry.length}`,
   )
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   delete process.env.MERCURY_CONTEXT_SELECTION

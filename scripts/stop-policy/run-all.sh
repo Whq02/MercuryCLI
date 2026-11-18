@@ -13,6 +13,7 @@
 # gate-watch: scripts/providers/lib/refused-call-result.ts
 # gate-watch: scripts/lib/builtProduct.ts
 # gate-watch: src/utils/health/sections/crew.ts
+# gate-watch: src/run-core/turn/** scripts/core-runtime/turnScenarios.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -30,6 +31,7 @@ PROOFS=(
   prove-tool-delta-grammar.ts
   prove-run-phases.ts
   prove-run-stop-hook.ts
+  prove-turn-rules.ts
 )
 
 echo "############################################################"

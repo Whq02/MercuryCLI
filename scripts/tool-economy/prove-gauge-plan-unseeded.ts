@@ -29,7 +29,7 @@ bootstrap.setIsInteractive(false)
 const { z } = await import('zod')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { planToolPayload, planToolPayloadUnseeded, toolRosterLatchFor, clearToolRosterLatches, armToolRosterRestore, clearToolRosterRestore, conversationRosterKey } = await import('../../src/services/providers/toolEconomy.ts')
+const { planToolPayload, planToolPayloadUnseeded, toolsOnTheWire, toolRosterLatchFor, clearToolRosterLatches, armToolRosterRestore, clearToolRosterRestore, conversationRosterKey } = await import('../../src/services/providers/toolEconomy.ts')
 const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
 const { runEventCore } = await import('../../src/run-core/turn-machine.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
@@ -130,9 +130,72 @@ section('§2 the real turn machine: the request gauge plans before the model is 
 
 section('§3 the owners: the gauge and the local warm read the one unseeded planner; the lanes plan latched')
 {
-  const turnMachine = readFileSync(new URL('../../src/run-core/turn-machine.ts', import.meta.url), 'utf8')
+  const usage = { input_tokens: 4_000, output_tokens: 10, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
+  async function turnWhoseLaneNeverPlans(tools: Tool[], opts: { toolRound: boolean; restore: boolean }) {
+    clearToolRosterLatches()
+    clearToolRosterRestore()
+    const first = createUserMessage({ content: 'resume: read the plan' }) as Message
+    let state = getDefaultAppState()
+    const context = {
+      abortController: new AbortController(),
+      options: { commands: [], tools, engineModel: MODEL, thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+      getAppState: () => state,
+      setAppState: (f: (prior: typeof state) => typeof state) => { state = f(state) },
+      messages: [], readFileState: createFileStateCacheWithSizeLimit(100), setInProgressToolUseIDs() {}, setResponseLength() {}, updateFileHistoryState() {}, updateAttributionState() {},
+    }
+    const ownerKey = String(rosterOwnerFromToolUseContext(context as never))
+    if (opts.restore) armToolRosterRestore({ key: conversationRosterKey(ownerKey, [first], MODEL), enabled: true, marks: restoredMarks })
+    const latchedAtCall: boolean[] = []
+    const replies: Array<{ contextGauge?: { fixed?: { digest?: string } } }> = []
+    const machine = runEventCore({
+      messages: [first], systemPrompt: ['fixture'], userContext: {}, systemContext: {}, querySource: 'sdk', toolUseContext: context,
+      canUseTool: async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input }),
+      deps: {
+        async *callModel(params: { messages: Message[] }) {
+          latchedAtCall.push(toolRosterLatchFor(ownerKey, params.messages, MODEL) !== undefined)
+          const calling = opts.toolRound && latchedAtCall.length === 1
+          const message = createAssistantMessage({ content: calling ? ([{ type: 'tool_use', id: 'toolu_plain', name: 'Plain', input: { path: '/x' } }] as never) : 'done', usage: usage as never })
+          message.message.stop_reason = calling ? 'tool_use' : 'end_turn'
+          replies.push(message as never)
+          yield message
+        },
+        autocompact: async () => ({ wasCompacted: false }), microcompact: async (messages: unknown[]) => ({ messages }), uuid: () => crypto.randomUUID(),
+      },
+    } as never, [])
+    let step = await machine.next()
+    while (!step.done) step = await machine.next()
+    return {
+      first,
+      ownerKey,
+      ended: String((step.value as { reason?: unknown }).reason),
+      latchedAtCall: latchedAtCall.join(','),
+      latchedAfter: toolRosterLatchFor(ownerKey, [first], MODEL) !== undefined,
+      fixed: replies.map(reply => reply.contextGauge?.fixed?.digest?.slice(0, 12) ?? 'no gauge').join(','),
+    }
+  }
+  const plannedFor = async (tools: Tool[]): Promise<string> =>
+    toolsOnTheWire(await planToolPayloadUnseeded({ ...laneInput([createUserMessage({ content: 'resume: read the plan' }) as Message], 'owner-of-no-turn'), tools, source: 'gauge' })).map(tool => tool.name).join(',')
+  const plain = fixtureTool('Plain')
+  const pools: Array<[string, Tool[]]> = [['Plain alone', [plain]], ['Plain beside ToolSearch', [plain, ToolSearchTool as never]], ['Plain, ToolSearch and a deferring F', pool]]
+  const sized: Array<{ pool: string; planned: string; fixed: string }> = []
+  for (const [name, tools] of pools) sized.push({ pool: name, planned: await plannedFor(tools), fixed: (await turnWhoseLaneNeverPlans(tools, { toolRound: false, restore: false })).fixed })
+  const [alone, beside, deferring] = sized as [(typeof sized)[number], (typeof sized)[number], (typeof sized)[number]]
+  check(
+    'the request gauge plans through planToolPayloadUnseeded: a pool the planner plans as another gives the request the same fixed part, and a pool it plans otherwise gives another',
+    beside.planned === alone.planned && deferring.planned !== alone.planned && alone.fixed !== 'no gauge' && deferring.fixed !== 'no gauge' && beside.fixed === alone.fixed && deferring.fixed !== alone.fixed,
+    `makeRequest (src/run-core/turn/makeRequest.ts) must size the request's fixed part from toolsOnTheWire(planToolPayloadUnseeded({ …, source: 'gauge' })), never from the pool it is handed; the planner's roster and the fixed part the reply was stamped with read ${JSON.stringify(sized)}`,
+  )
+  const runnable = { ...plain, mapToolResultToToolResultBlockParam: (data: unknown, toolUseId: string) => ({ type: 'tool_result', tool_use_id: toolUseId, content: String(data) }) } as unknown as Tool
+  const round = await turnWhoseLaneNeverPlans([runnable, ToolSearchTool as never, fixtureTool('F', { shouldDefer: true })], { toolRound: true, restore: true })
+  const laneFirst = (await planToolPayload(laneInput([round.first], round.ownerKey))).restoredMissingTools.join(',') || '(none)'
+  check(
+    'nothing else in the turn machine plans: over a run of two model calls and a tool round whose lane never plans, the conversation stays unlatched and the restored record unspent, so the lane\'s first plan after it still names the retired tool',
+    round.ended === 'completed' && round.latchedAtCall === 'false,false' && round.latchedAfter === false && laneFirst === 'RetiredTool',
+    `no step under src/run-core/turn/ may plan with a latch key: planToolPayload seeds the conversation's roster and spends the restored record, and the gauge's plan is the unseeded one; the run ended ${round.ended}, the latch read [${round.latchedAtCall}] at its model calls and ${String(round.latchedAfter)} after it, and the lane's first plan after it names ${laneFirst}`,
+  )
+  clearToolRosterLatches()
+  clearToolRosterRestore()
   const warm = readFileSync(new URL('../../src/services/providers/local/localWarm.ts', import.meta.url), 'utf8')
-  check('the request gauge plans through planToolPayloadUnseeded and nothing else in the turn machine plans', /toolsOnTheWire\(await planToolPayloadUnseeded\(\{[\s\S]{0,600}source: 'gauge'/.test(turnMachine) && !/\bplanToolPayload\(/.test(turnMachine))
   check('the local warm plans through the same owner, no copy of the latch check', warm.includes('planToolPayloadUnseeded({') && !warm.includes('toolRosterLatchFor'))
 }
 

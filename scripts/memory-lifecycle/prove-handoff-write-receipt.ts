@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { spyOn } from 'bun:test'
 import { chmodSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -34,8 +35,40 @@ try {
   const note = await handoff.askForHandoff({ cacheSafeParams: params, run })
   assert.equal(note?.stored, false)
   assert.match(handoff.handoffNotice(note), /the note could not be stored/)
-  const turn = readFileSync(new URL('../../src/run-core/turn-machine.ts', import.meta.url), 'utf8')
-  assert.match(turn, /createSystemMessage\(\s*handoffNotice\(note\)/, 'the turn caller uses the same truthful notice')
+  const t = await import('../core-runtime/turnScenarios.ts')
+  process.env.MERCURY_CONFIG_DIR = home
+  process.env.NODE_ENV = 'test'
+  const forked = await import('../../src/utils/forkedAgent.ts')
+  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const asks: string[] = []
+  const runner = spyOn(forked, 'runForkedAgent').mockImplementation((async (asked: { forkLabel?: string }) => {
+    asks.push(String(asked.forkLabel))
+    return run()
+  }) as never)
+  const lastTurn = await t.runScripted({
+    before: () => {
+      chmodSync(file, 0o600)
+      noteSessionEngine('fixture')
+      chmodSync(file, 0o400)
+      handoff._resetHandoffAskForTesting()
+      bootstrap.setRunInputClosed(true)
+      return () => bootstrap.setRunInputClosed(false)
+    },
+    script: [t.fixtures.yields(t.fixtures.says('the work is done.'))],
+  })
+  runner.mockRestore()
+  const said = lastTurn.events
+    .filter(event => event.kind === 'notice')
+    .map(event => event.message as { subtype?: string; level?: string; content?: unknown; closeState?: string })
+    .map(row => (row.subtype === 'close_usage' ? `close ${String(row.closeState)}` : `${String(row.level)}: ${String(row.content)}`))
+  assert.deepEqual(asks, ['handoff'], 'the turn that ends the session asks for its note once')
+  assert.ok(!readFileSync(file, 'utf8').includes('a note that cannot be saved'), 'fixture really refused the append of the turn\'s note')
+  assert.equal(lastTurn.terminal.reason, 'completed')
+  assert.deepEqual(
+    said,
+    ['close skipped', `warning: ${handoff.handoffNotice(note)}`],
+    'the turn caller uses the same truthful notice: after a handoff ask whose note was not stored, replyStands (src/run-core/turn/noToolReply.ts) must yield the close row as skipped and then createSystemMessage(handoffNotice(note), \'warning\')',
+  )
   console.log('HANDOFF WRITE RECEIPT GREEN')
 } finally {
   rmSync(home, { recursive: true, force: true })

@@ -170,8 +170,36 @@ if (import.meta.main) {
   check('the stop evaluator has no handoff decision and no re-plan directive', !evaluator.includes("kind: 'handoff'") && !evaluator.includes('REPLAN'))
   const adapter = src('src/guards/runStopAdapter.ts')
   check('the stop adapter records no handoff and no admission tuple', !adapter.includes("decision.kind === 'handoff'") && !adapter.includes('priorAdmission'))
-  const turnMachine = src('src/run-core/turn-machine.ts')
-  check('the turn machine consults no snapshot before the next provider call', !turnMachine.includes('getRunSnapshot(') && !turnMachine.includes('cycleDirectiveMessages'))
+  const envBefore = { ...process.env }
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const barren = await t.runScripted({
+    seed: [t.fixtures.ask(REREAD_ASK)],
+    script: [
+      ...Array.from({ length: REREAD_ROUNDS }, (_, round) => t.fixtures.yields(t.fixtures.calls(`toolu_read_${round + 1}`, 'EchoTool', { text: `the notes, read ${round + 1}` }))),
+      t.fixtures.yields(t.fixtures.says(REREAD_END)),
+    ],
+  })
+  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
+  Object.assign(process.env, envBefore)
+  type Sent = { type?: string; isMeta?: boolean; attachment?: { type?: string }; message?: { content?: unknown } }
+  const blockOf = (row: Sent | undefined): { type?: string; id?: string; tool_use_id?: string } => (Array.isArray(row?.message?.content) ? (row.message.content[0] ?? {}) : {})
+  const rowName = (row: Sent): string => `${String(row.type)}${row.isMeta === true ? ' (meta)' : ''}${row.attachment ? ` (${String(row.attachment.type)})` : ''}`
+  const strays: string[] = []
+  barren.requests.forEach((request, index) => {
+    const rows = request.messages as Sent[]
+    const earlier = index === 0 ? [] : (barren.requests[index - 1]!.messages as Sent[])
+    const added = rows.slice(earlier.length)
+    const id = `toolu_read_${index}`
+    const owed = index === 0 ? added.length === 1 && added[0]?.type === 'user' && added[0].message?.content === REREAD_ASK : added.length === 2 && added[0]?.type === 'assistant' && blockOf(added[0]).id === id && added[1]?.type === 'user' && blockOf(added[1]).type === 'tool_result' && blockOf(added[1]).tool_use_id === id
+    if (!earlier.every((row, at) => rows[at] === row)) strays.push(`request ${index + 1} rewrites a row an earlier request sent`)
+    if (!owed) strays.push(`request ${index + 1} adds ${added.map(rowName).join(', ') || 'nothing'}`)
+    if (JSON.stringify(rows).includes(HIDDEN_DIRECTIVE) || JSON.stringify(request.systemPrompt) !== JSON.stringify(barren.requests[0]!.systemPrompt)) strays.push(`request ${index + 1} carries a directive the transcript does not hold`)
+  })
+  check(
+    `the turn machine consults no snapshot before the next provider call: over ${REREAD_ROUNDS} rounds that change nothing, each request is the one before it, the reply and its tool result, under the same system prompt, and the run ends when the model ends it`,
+    barren.requests.length === REREAD_ROUNDS + 1 && strays.length === 0 && barren.terminal.reason === 'completed' && barren.transitions.every(reason => reason === 'next_turn'),
+    `between a tool round and the next model call the steps (afterTools, makeRequest and modelReply under src/run-core/turn/) must add to the request only what the transcript holds, whatever the run's record says of its progress; the run made ${barren.requests.length} model calls and ended ${JSON.stringify(barren.terminal)} over [${[...new Set(barren.transitions)].join(',')}] — ${strays.slice(0, 6).join(' · ') || 'no stray row'}`,
+  )
   const kernel = src('src/services/run/runKernel.ts')
   check('the run kernel keeps no attempt ledger', !kernel.includes("type: 'attempt'") && !kernel.includes('foldAttempt'))
   const scriptsNamed = offenders(join(REPO, 'scripts'), GOVERNOR_NAMES)

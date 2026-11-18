@@ -65,6 +65,8 @@
 # gate-watch: scripts/lib/settingsPopupHarness.ts src/components/App.tsx src/components/SurfaceRouter.tsx src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/input-core/pending-input.ts
 # gate-watch: src/guards/mission.ts src/services/saturn/sessionScheduleBridge.ts src/tools/MonitorTool/watchReceipts.ts src/constants/agentMessage.ts src/services/host/notices.ts
 # gate-watch: scripts/lib/builtProduct.ts
+# gate-watch: src/run-core/turn/**
+# gate-watch: scripts/core-runtime/turnScenarios.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

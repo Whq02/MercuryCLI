@@ -162,6 +162,9 @@ function scanRequest(c: { headers: Record<string, string>; body: Body }): Hit[] 
   }
   return hits
 }
+function scanOptions(options: Record<string, unknown>): Hit[] {
+  return Object.keys(options).filter(name => FAST_WORDS.test(name)).map(name => ({ where: `options.${name}`, what: `option ${name}` }))
+}
 
 section('§0 the scanner trips on planted poison')
 {
@@ -175,6 +178,8 @@ section('§0 the scanner trips on planted poison')
   check('a fast-mode token in the anthropic-beta header is flagged', poisonHeader.length === 1)
   const clean = scanRequest({ headers: { 'anthropic-beta': 'claude-code-20250219', 'content-type': 'application/json' }, body: { model: 'x', messages: [{ role: 'user', content: 'a fast answer please' }], betas: ['context-1m-2025-08-07'] } })
   check('an ordinary request (prose may say "fast") is clean', clean.length === 0, JSON.stringify(clean))
+  const poisonOptions = scanOptions({ model: 'x', fastMode: true, speed: 'fast', effortValue: 'high', querySource: 'sdk' })
+  check('a `fastMode` or `speed` option a turn hands its lane is flagged, and an ordinary option is not', poisonOptions.map(h => h.where).join(',') === 'options.fastMode,options.speed', JSON.stringify(poisonOptions))
 }
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -220,9 +225,10 @@ function makeCtx(model: string): Record<string, unknown> {
   }
 }
 
-async function drive(model: string): Promise<{ wire: Captured[]; threw: string | undefined; terminal: Record<string, unknown> }> {
+async function drive(model: string): Promise<{ wire: Captured[]; threw: string | undefined; terminal: Record<string, unknown>; handed: Array<Record<string, unknown>> }> {
   requestOrdinal = 0
   const before = captured.length
+  const handed: Array<Record<string, unknown>> = []
   const ctx = makeCtx(model)
   const canUseTool = (async (_tool: { name: string }, input: Record<string, unknown>) => ({
     behavior: 'allow',
@@ -242,7 +248,10 @@ async function drive(model: string): Promise<{ wire: Captured[]; threw: string |
       toolUseContext: ctx as never,
       querySource: 'sdk' as never,
       deps: {
-        callModel: deps.callModel,
+        callModel: ((request: { options: Record<string, unknown> }) => {
+          handed.push(request.options)
+          return deps.callModel(request as never)
+        }) as never,
         autocompact: (async () => ({ wasCompacted: false })) as never,
         microcompact: (async (messages: unknown[]) => ({ messages })) as never,
         uuid: deps.uuid,
@@ -255,7 +264,7 @@ async function drive(model: string): Promise<{ wire: Captured[]; threw: string |
     threw = error instanceof Error ? error.message : String(error)
   }
   await new Promise(resolve => setTimeout(resolve, 5))
-  return { wire: captured.slice(before), threw, terminal }
+  return { wire: captured.slice(before), threw, terminal, handed }
 }
 
 const LANES: Array<{ lane: string; model: string; dialect: Dialect }> = [
@@ -264,9 +273,11 @@ const LANES: Array<{ lane: string; model: string; dialect: Dialect }> = [
   { lane: 'zai', model: 'glm-5.2', dialect: 'chat' },
 ]
 
+const turnOptions: Array<Record<string, unknown>> = []
 for (const { lane, model, dialect } of LANES) {
   section(`${lane} · ${dialect} dialect · ${model}`)
   const r = await drive(model)
+  turnOptions.push(...r.handed)
   check('the turn completed through the fixture in exactly one request', r.threw === undefined && r.terminal.reason === 'completed' && r.wire.length === 1, `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} requests=${r.wire.length}`)
   const req = r.wire[0]
   check('the request left on the expected dialect', req?.dialect === dialect, req?.path)
@@ -296,7 +307,12 @@ section('static pins — the owners carry no speed-tier vocabulary')
   check('the Anthropic transport neither latches a fast-mode header nor sets a speed param', offenders.length === 0, offenders.join(','))
   check('the settings schema carries no fast-mode key', !/fastMode/.test(read('src/utils/settings/types.ts')))
   check('the global config schema carries no fast-mode key', !/fastMode/i.test(read('src/utils/config/schema.ts')))
-  check('the turn seeds no fast-mode state', !/fastMode|fast_mode/.test(read('src/rows/turn.ts')) && !/fastMode/.test(read('src/run-core/turn-machine.ts')))
+  const seeded = turnOptions.flatMap(scanOptions)
+  check(
+    'the turn seeds no fast-mode state',
+    !/fastMode|fast_mode/.test(read('src/rows/turn.ts')) && turnOptions.length === LANES.length && seeded.length === 0,
+    `the model call (streamModel, src/run-core/turn/streamModel.ts) must hand a lane no fast-mode, speed or service-tier option; over the ${LANES.length} lanes' runs the turn made ${turnOptions.length} model calls and handed ${seeded.map(h => h.where).join(', ') || 'no such option'}`,
+  )
 }
 
 server.close()

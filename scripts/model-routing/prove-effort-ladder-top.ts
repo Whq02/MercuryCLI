@@ -137,7 +137,15 @@ const LIST_WORD = 'ultra'
   check('the window words: a day · an hour · 3 hours · 2 days', store.describeWireEffortProbeWindow() === 'a day' && store.describeWireEffortProbeWindow(3_600_000) === 'an hour' && store.describeWireEffortProbeWindow(3 * 3_600_000) === '3 hours' && store.describeWireEffortProbeWindow(48 * 3_600_000) === '2 days')
   const lane = src('src/services/providers/openai/openaiCallModel.ts')
   check('the OpenAI lane stamps the road and the re-probe on a fresh refusal and on a remembered one (the listed word the served row lacks)', lane.includes('effortAdjusted = receiptOf(profile, true)') && lane.includes('wireRefused: { road: accountRoad, reprobeAfter: describeWireEffortProbeWindow() }') && lane.includes('const accountRoad = auth.account.label') && lane.includes('listedWords.includes(asked)'))
-  check('the turn machine paints the line from the one owner', src('src/run-core/turn-machine.ts').includes('effortAdjustedReceiptLine(adjusted)'))
+  const t = await import('../core-runtime/turnScenarios.ts')
+  const stamp = { model: 'gpt-6-astra', name: 'GPT-6 Astra', asked: 'max', sent: 'xhigh', wireRefused: { road: 'ChatGPT subscription', reprobeAfter: store.describeWireEffortProbeWindow() } }
+  const stepped = await t.runScripted({ script: [t.fixtures.yields(Object.assign(t.fixtures.says('the reply at the lower effort.'), { effortAdjusted: stamp }))] })
+  const painted = stepped.events.filter(event => event.kind === 'notice').map(event => `${String((event.message as { level?: unknown }).level)}: ${t.noticesOf([event])[0]}`)
+  check(
+    'the turn machine paints the line from the one owner',
+    painted.length === 1 && painted[0] === `warning: ${refused}`,
+    `a reply stamped effortAdjusted must reach the operator as one warning notice whose words are effortAdjustedReceiptLine(stamp), yielded after the model call's stream (streamModel, src/run-core/turn/streamModel.ts); the run yielded ${JSON.stringify(painted)}`,
+  )
 }
 
 for (const [key, value] of Object.entries(savedEnv)) {
