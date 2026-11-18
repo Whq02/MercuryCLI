@@ -1,11 +1,16 @@
 import type { CheckSpec } from '../../healthReport.js'
 
+async function settleToolList(): Promise<void> {
+  await import('../../../tools.js')
+}
+
 export function architectureFastChecks(): CheckSpec[] {
   return [
     {
       id: 'owner-vocabulary',
       label: 'Store owners',
       run: async () => {
+        await settleToolList()
         const { ownerLifecycleCounts } = await import('../../../services/run/ownerLifecycle.js')
         const counts = ownerLifecycleCounts()
         const names = Object.keys(counts.stores)
@@ -38,6 +43,7 @@ export function architectureFastChecks(): CheckSpec[] {
       id: 'execution-census',
       label: 'Execution domains',
       run: async () => {
+        await settleToolList()
         const { executionDomainKinds, executionPlaneCounts } = await import(
           '../../../services/primitives/executionPlane.js'
         )

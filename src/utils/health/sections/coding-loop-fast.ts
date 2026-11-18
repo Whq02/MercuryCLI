@@ -1,6 +1,10 @@
 import { whichSync } from '../../which.js'
 import { flagAsSet, type CheckSpec } from '../../healthReport.js'
 
+async function settleToolList(): Promise<void> {
+  await import('../../../tools.js')
+}
+
 export function idePlaneFastCheck(devToolsSecurity?: () => string | null): CheckSpec {
   return {
     id: 'ide-plane-fast',
@@ -65,6 +69,7 @@ export function codingLoopFastChecks(): CheckSpec[] {
         if (!changeTransactionEnabled()) {
           return { status: 'off' as const, evidence: flagAsSet('MERCURY_CHANGE_RECEIPTS') }
         }
+        await settleToolList()
         const { _toolTerminalSubscriberCountForTesting } = await import(
           '../../../services/run/effectObserver.js'
         )
