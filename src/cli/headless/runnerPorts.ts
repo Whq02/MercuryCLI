@@ -23,6 +23,7 @@ import type { AskHost } from './runnerAsks.js'
 import { DEFAULT_CAPABILITIES } from './runnerMethods.js'
 import type { TurnDriver } from './turnDriver.js'
 import type { AcceptedInput, InputVerdict } from './inputDoor.js'
+import type { ModelCatalogueEntry } from './boot/catalogueModels.js'
 import type { QueuedCommand } from '../../types/textInputTypes.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 
@@ -246,4 +247,62 @@ export type RunnerPorts = {
   rateLimitListener: (limits: AnthropicLimits) => void
   carriersOf: (notices: readonly NoticeRecord[]) => QueuedCommand[]
   retireQueuedCommands: (commands: QueuedCommand[]) => void
+  windowsShellRoadNotice: () => string | null
+  commands: Command[]
+  tools: Tool[]
+  agents: AgentDefinition[]
+  bootSettled: () => void
+  releaseHookRows: (() => void) | undefined
+  foldLanded: (row: OutboundLine) => void
+  loaded: Awaited<ReturnType<typeof import('./resume.js').loadInitialMessages>>
+  stopShellsForClose: () => Promise<void>
+  stopHostNotices: () => void
+  stopParty: () => void
+  idleNudge: ReturnType<typeof import('./printDriver.js').startRunnerIdleNudge>
+  buildBehindFloor: ReturnType<typeof setInterval> | null
+  registerCleanup: typeof import('../../utils/cleanupRegistry.js').registerCleanup
+  modelInfos: ModelCatalogueEntry[]
+  claimGatedInput: (source: AsyncGenerator<InputRow, void, unknown>) => AsyncGenerator<InputRow, void, unknown>
+  stdinLoop: Promise<void>
+}
+
+export const BOOT_ENDS = 'the boot ends'
+
+export type BootMade<K extends keyof RunnerPorts> = Pick<RunnerPorts, K> | typeof BOOT_ENDS
+
+export type BootStep<K extends keyof RunnerPorts> = {
+  name: string
+  makes: readonly K[]
+  run: (ports: RunnerPorts) => BootMade<K> | Promise<BootMade<K>>
+}
+
+export type AnyBootStep = {
+  name: string
+  makes: readonly (keyof RunnerPorts)[]
+  run: (ports: RunnerPorts) => Partial<RunnerPorts> | typeof BOOT_ENDS | Promise<Partial<RunnerPorts> | typeof BOOT_ENDS>
+}
+
+export type GivenPorts = Pick<RunnerPorts, 'live' | 'options' | 'inputPrompt' | 'getAppState' | 'setAppState' | 'commands' | 'tools' | 'agents' | 'isLocalShellTask' | 'killTask' | 'requestShellBackground' | 'windowsShellRoadNotice' | 'hydrateResumedRun'>
+
+export function createRunnerPorts(given: GivenPorts, steps: readonly AnyBootStep[]): { ports: RunnerPorts; give: (step: AnyBootStep, made: Partial<RunnerPorts>) => void } {
+  const held = new Map<PropertyKey, unknown>(Object.entries(given))
+  const makerOf = new Map<PropertyKey, string>()
+  for (const step of steps) for (const member of step.makes) makerOf.set(member, step.name)
+  const ports = new Proxy({} as RunnerPorts, {
+    get: (_none, member) => {
+      if (held.has(member)) return held.get(member)
+      if (typeof member === 'symbol' || member === 'then') return undefined
+      const maker = makerOf.get(member)
+      throw new Error(maker === undefined ? `the runner's port ${member} is made by no step of the boot` : `the runner's port ${member} is read before the boot step ${maker} has made it`)
+    },
+  })
+  return {
+    ports,
+    give: (step, made) => {
+      for (const member of step.makes) {
+        if (!(member in made)) throw new Error(`the boot step ${step.name} names ${member} and did not make it`)
+        held.set(member, made[member])
+      }
+    },
+  }
 }

@@ -1,0 +1,36 @@
+import { missionUpdatedRow, samplesUpdatedRow } from '../../../rows/project.js'
+import { onTasksUpdated } from '../../../utils/tasks.js'
+import { subscribeSampleChanges } from '../../../services/samples/store.js'
+import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
+
+async function run(ports: RunnerPorts): Promise<BootMade<'missionGuard'>> {
+  const { enqueueRow, liveScope } = ports
+  const missionGuard = await import('../../../guards/mission.js')
+  {
+    let missionTimer: NodeJS.Timeout | null = null
+    const missionMoved = (): void => {
+      if (missionTimer !== null) return
+      missionTimer = setTimeout(() => {
+        missionTimer = null
+        enqueueRow(missionUpdatedRow(liveScope()))
+      }, 50)
+      missionTimer.unref?.()
+    }
+    onTasksUpdated(missionMoved)
+    missionGuard.subscribeActiveMission(missionMoved)
+  }
+  {
+    let samplesTimer: NodeJS.Timeout | null = null
+    subscribeSampleChanges(() => {
+      if (samplesTimer !== null) return
+      samplesTimer = setTimeout(() => {
+        samplesTimer = null
+        enqueueRow(samplesUpdatedRow(liveScope()))
+      }, 50)
+      samplesTimer.unref?.()
+    })
+  }
+  return { missionGuard }
+}
+
+export const watchMission: BootStep<'missionGuard'> = { name: 'watchMission', makes: ['missionGuard'], run }
