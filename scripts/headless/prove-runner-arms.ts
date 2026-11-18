@@ -362,6 +362,9 @@ section('§4b project/query: a folder nobody trusted, a parameter that is missin
       sent.isError === true && printed === `${WIRE_FORM}: sender: ${NEEDS_BOTH}` && read !== null && read.includes(`${WIRE_FORM}: ref: ${NEEDS_ID}`),
       j({ tool: printed, resource: read }),
     )
+    const both = await client.callTool({ name: 'mercury_send', arguments: { session_id: SAVED, sender: ' ', message: ' ' } })
+    const printedBoth = ((both.content ?? []) as Array<{ text?: string }>).map(part => part.text ?? '').join('')
+    check("Mercury's MCP server names the parameters that share one sentence together, before the sentence said once", both.isError === true && printedBoth === `${WIRE_FORM}: sender, message: ${NEEDS_BOTH}`, j({ tool: printedBoth }))
     await client.close()
   }
 
