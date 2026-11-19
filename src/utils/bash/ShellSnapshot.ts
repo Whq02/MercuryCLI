@@ -540,7 +540,7 @@ export async function createAndSaveSnapshot(
     const outcome = await runBounded(shellPath, shell.origin === 'engine' ? ['-l', '-c', handed] : ['-c', '-l', handed], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
     if (scriptFile !== undefined) await rm(scriptFile, { force: true }).catch(() => {})
     await readByZsh
-    const carried = await carriedBy(outcome, session && zsh === null)
+    const carried = await carriedBy(outcome, session && zsh === null && !(shell.origin === 'engine' && getPlatform() === 'windows'))
     if (carried !== undefined) carriedFromBash.set(shellPath, carried)
 
     if (outcome.killed || outcome.exitCode !== 0) {
@@ -582,7 +582,7 @@ export async function createAndSaveSnapshot(
 
     if (bashOfThisMachine) noteLoginFiles(null)
     if (scratch !== undefined) return undefined
-    const path = pathOfTheEngine !== undefined && getPlatform() === 'windows' ? pathValue : pathWithLoginEntries(pathValue, loginExports(shellPath))
+    const path = pathWithLoginEntries(pathValue, loginExports(shellPath))
     if (path !== pathValue) await appendFile(snapshotFilePath, `export PATH=${quote([path])}\n`)
     registerCleanup(async () => {
       try {
