@@ -219,60 +219,10 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
     const parked = isParkedRecord(rec)
     const movesBefore = report.fired + report.held + report.missed + report.replayed + report.dropped
 
-    let heldList = Array.isArray(rec.heldFires) ? rec.heldFires.filter(saturnHeldRowUsable) : []
-    let scheduleList = Array.isArray(rec.schedules) ? rec.schedules.filter(saturnScheduleRowUsable) : []
-    const mangledCount =
-      (Array.isArray(rec.heldFires) ? rec.heldFires.length - heldList.length : rec.heldFires !== undefined ? 1 : 0) +
-      (Array.isArray(rec.schedules) ? rec.schedules.length - scheduleList.length : rec.schedules !== undefined ? 1 : 0)
-    if (mangledCount > 0) {
-      logForDebugging(`[saturn] session ${sessionId}: ${mangledCount} mangled schedule/hold entr${mangledCount === 1 ? 'y' : 'ies'} skipped (record surgery?) — healthy rows proceed`)
-    }
-
-    if (rec.stoppedAt !== undefined && scheduleList.some(isSaturnSelfWake)) {
-      const gone = dropSaturnSelfWakes(sessionId, id => `saturn:${id}`, 'stopped', ports.dir)
-      if (gone.dropped.length > 0) {
-        report.dropped += gone.dropped.length
-        const ids = new Set(gone.dropped)
-        scheduleList = scheduleList.filter(s => !ids.has(s.id))
-        heldList = heldList.filter(h => !ids.has(h.scheduleId))
-        logForDebugging(`[saturn] session ${sessionId}: ${gone.dropped.length} self-paced wake${gone.dropped.length === 1 ? '' : 's'} dropped (${gone.droppedHolds} held) — the session is stopped`)
-      }
-    }
-    report.pending += heldList.length + scheduleList.length
+    const { heldList, scheduleList } = sessionScheduleListsOf(rec, sessionId, report, ports)
 
     if (heldList.length > 0) {
-      const releasable: Array<{ scheduleId: string; dueAt: number }> = []
-      const refreshOnRelease = new Map<string, { account: ScheduleAccountV1; modelKey?: string }>()
-      for (const h of heldList) {
-        if (h.reason === 'parked-queued') {
-          if (!parked) releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
-          continue
-        }
-        if (h.reason === 'admission-refused') {
-          releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
-          continue
-        }
-        const schedule = scheduleList.find(s => s.id === h.scheduleId)
-        if (schedule === undefined) continue
-        const resolvedHold = resolveFireTimeAccount(ports, schedule, rec.modelKey)
-        if (resolvedHold.kind === 'no-credential') continue
-        const verdict = scheduleAccountVerdict({ account: resolvedHold.account, nextFireMs: now, nowMs: now, live: ports.liveFacts(resolvedHold.account, sessionId) })
-        if (verdict.state !== 'ready') continue
-        if (h.reason === 'account-mismatch') {
-          if (resolvedHold.identityMismatch !== true) {
-            releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
-          } else if (identityLabelOf(resolvedHold.account) !== h.mismatchIdentity) {
-            releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
-            refreshOnRelease.set(`${h.scheduleId}@${h.dueAt}`, {
-              account: resolvedHold.account,
-              ...(schedule.action.kind === 'fire' ? { modelKey: resolvedHold.fireModelKey } : {}),
-            })
-          }
-          continue
-        }
-        if (resolvedHold.identityMismatch === true) continue
-        releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
-      }
+      const { releasable, refreshOnRelease } = releasableSessionHoldsOf(heldList, scheduleList, rec, sessionId, parked, now, ports)
       if (releasable.length > 0) {
         const taken = takeSaturnHeldFires(sessionId, releasable, ports.dir)
         for (const h of taken) {
@@ -456,51 +406,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
       const marked = markSaturnFired(sessionId, schedule.id, now, ports.dir)
       if (marked === 'missing') continue
       const effect = await replayEnvelope(ports, rec, envelopeOf(schedule, dueAt), parked, by, now, { schedule })
-      if (effect.ok) {
-        report.fired++
-        const movedClause =
-          resolved.movedFromFamily !== undefined
-            ? ` — fired on ${fireAccount.family}: the session's model moved after scheduling (was ${resolved.movedFromFamily})`
-            : ''
-        if (resolved.movedFromFamily !== undefined && marked === 'marked') {
-          refreshSaturnScheduleAccount(
-            sessionId,
-            schedule.id,
-            fireAccount,
-            schedule.action.kind === 'fire' ? resolved.fireModelKey : undefined,
-            ports.dir,
-          )
-        }
-        rowSaturnTickReceipt(rec, by, 'schedule-fire', (lateMs > 60_000 ? `fired ~${Math.round(lateMs / 60000)}m late (${describeWhen(schedule.when)})` : `fired (${describeWhen(schedule.when)})`) + reasonClause(schedule) + movedClause, {
-          outcome: lateMs > 60_000 ? 'fired-late' : 'fired',
-          scheduleId: schedule.id,
-          dueAt,
-          firedAt: now,
-          lateMs,
-          kind: schedule.action.kind,
-          ...(schedule.note !== undefined ? { note: schedule.note } : {}),
-          ...(resolved.movedFromFamily !== undefined ? { firedOnFamily: fireAccount.family, movedFromFamily: resolved.movedFromFamily } : {}),
-          ...(effect.sessionId !== undefined ? { bornSessionId: effect.sessionId } : {}),
-        })
-      } else if (schedule.action.kind === 'birth') {
-        const held = holdSaturnFire(sessionId, { scheduleId: schedule.id, dueAt, reason: 'admission-refused', envelope: envelopeOf(schedule, dueAt), heldAt: now, ...(effect.detail !== undefined ? { detail: effect.detail } : {}) }, ports.dir)
-        if (held === 'held') {
-          report.held++
-          rowSaturnTickReceipt(rec, by, 'schedule-held', `held: the admission refused — ${effect.detail ?? 'no detail'}`, {
-            reason: 'admission-refused',
-            scheduleId: schedule.id,
-            dueAt,
-            detail: effect.detail ?? null,
-          })
-        }
-      } else {
-        rowSaturnTickReceipt(rec, by, 'schedule-fire', `fire failed — ${effect.detail ?? 'no detail'}`, {
-          outcome: 'failed',
-          scheduleId: schedule.id,
-          dueAt,
-          detail: effect.detail ?? null,
-        })
-      }
+      settleSessionFire({ report, rec, ports, sessionId, schedule, by, dueAt, now, lateMs, resolved, fireAccount, marked, effect })
     }
     if (report.fired + report.held + report.missed + report.replayed + report.dropped !== movesBefore) ports.rosterChanged?.(sessionId)
   }
@@ -508,33 +414,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
   {
     report.pending += box.schedules.length + box.heldFires.length
     if (box.heldFires.length > 0) {
-      const releasable: Array<{ scheduleId: string; dueAt: number }> = []
-      const boxRefreshOnRelease = new Map<string, ScheduleAccountV1>()
-      for (const h of box.heldFires) {
-        const schedule = box.schedules.find(s => s.id === h.scheduleId)
-        if (schedule?.paused === true) continue
-        if (h.envelope.birth?.presence === 'screen-present' && !ports.screenOpen()) continue
-        if (h.reason === 'admission-refused') {
-          releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
-          continue
-        }
-        if (schedule === undefined) continue
-        const resolvedHold = resolveFireTimeAccount(ports, schedule, undefined)
-        if (resolvedHold.kind === 'no-credential') continue
-        const verdict = scheduleAccountVerdict({ account: resolvedHold.account, nextFireMs: now, nowMs: now, live: ports.liveFacts(resolvedHold.account) })
-        if (verdict.state !== 'ready') continue
-        if (h.reason === 'account-mismatch') {
-          if (resolvedHold.identityMismatch !== true) {
-            releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
-          } else if (identityLabelOf(resolvedHold.account) !== h.mismatchIdentity) {
-            releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
-            boxRefreshOnRelease.set(`${h.scheduleId}@${h.dueAt}`, resolvedHold.account)
-          }
-          continue
-        }
-        if (resolvedHold.identityMismatch === true) continue
-        releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
-      }
+      const { releasable, boxRefreshOnRelease } = releasableBoxHoldsOf(box, now, ports)
       for (const h of takeBoxHeldFires(releasable, ports.dir)) {
         const boxRearm = boxRefreshOnRelease.get(`${h.scheduleId}@${h.dueAt}`)
         if (boxRearm !== undefined) refreshBoxScheduleAccount(h.scheduleId, boxRearm, ports.dir)
@@ -551,14 +431,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
           logForDebugging(`[saturn] box held fire ${h.scheduleId} replay threw (${error instanceof Error ? error.message : String(error)}) — banked again`)
           landed = { ok: false }
         }
-        if (landed.ok) {
-          report.replayed++
-          spendBoxOneShot(h.scheduleId, ports.dir)
-          logForDebugging(`[saturn] box birth ${h.scheduleId} landed late (held since ${new Date(h.heldAt).toISOString()}) as ${landed.sessionId ?? '?'}`)
-        } else {
-          const held = holdBoxFire({ ...h, reason: 'admission-refused', ...(landed.detail !== undefined ? { detail: landed.detail } : {}) }, ports.dir, box.schedules.some(s => s.id === h.scheduleId))
-          if (held === 'held') report.held++
-        }
+        settleBoxHeldReplay(h, landed, box, report, ports)
       }
     }
     const boxHeldAtStart = new Set(box.heldFires.map(h => h.scheduleId))
@@ -595,21 +468,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
       }
       const boxAccount = resolvedBox.account
       if (resolvedBox.identityMismatch === true) {
-        const held = holdBoxFire(
-          {
-            scheduleId: schedule.id,
-            dueAt,
-            reason: 'account-mismatch',
-            envelope: envelopeOf(schedule, dueAt),
-            heldAt: now,
-            ...(identityLabelOf(boxAccount) !== undefined ? { mismatchIdentity: identityLabelOf(boxAccount) } : {}),
-          },
-          ports.dir,
-        )
-        if (held === 'held') {
-          report.held++
-          logForDebugging(`[saturn] box schedule ${schedule.id} held (account-mismatch) — made under a different ${boxAccount.family} account; /logins or run-now releases on the current one`)
-        }
+        holdBoxMismatch(schedule, dueAt, now, boxAccount, report, ports)
         continue
       }
       const verdict = scheduleAccountVerdict({ account: boxAccount, nextFireMs: dueAt, nowMs: now, live: ports.liveFacts(boxAccount) })
@@ -631,24 +490,224 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
       const marked = markBoxScheduleFired(schedule.id, now, ports.dir)
       if (marked === 'missing') continue
       const landed = await ports.birth(schedule.action.birth, { scheduleId: schedule.id, dueAt, by, owner: 'box' })
-      if (landed.ok) {
-        report.fired++
-        const spent = spendBoxOneShot(schedule.id, ports.dir)
-        if (resolvedBox.movedFromFamily !== undefined && marked === 'marked' && spent === 'kept') {
-          refreshBoxScheduleAccount(schedule.id, boxAccount, ports.dir)
-          logForDebugging(`[saturn] box birth ${schedule.id} fired on ${boxAccount.family} — the model's route moved after scheduling (was ${resolvedBox.movedFromFamily})`)
-        }
-        logForDebugging(`[saturn] box birth ${schedule.id} fired as ${landed.sessionId ?? '?'}`)
-      } else {
-        const held = holdBoxFire({ scheduleId: schedule.id, dueAt, reason: 'admission-refused', envelope: envelopeOf(schedule, dueAt), heldAt: now, ...(landed.detail !== undefined ? { detail: landed.detail } : {}) }, ports.dir, true)
-        if (held === 'held') {
-          report.held++
-          logForDebugging(`[saturn] box birth ${schedule.id} refused by the admission (${landed.detail ?? 'no detail'}) — banked, retried each tick`)
-        }
-      }
+      settleBoxFire({ report, ports, schedule, dueAt, now, resolvedBox, boxAccount, marked, landed })
     }
   }
   return report
+}
+
+function sessionScheduleListsOf(rec: ConcourseWorkerRecordV1, sessionId: string, report: SaturnTickReportV1, ports: SaturnTickerPortsV1) {
+  let heldList = Array.isArray(rec.heldFires) ? rec.heldFires.filter(saturnHeldRowUsable) : []
+  let scheduleList = Array.isArray(rec.schedules) ? rec.schedules.filter(saturnScheduleRowUsable) : []
+  const mangledCount =
+    (Array.isArray(rec.heldFires) ? rec.heldFires.length - heldList.length : rec.heldFires !== undefined ? 1 : 0) +
+    (Array.isArray(rec.schedules) ? rec.schedules.length - scheduleList.length : rec.schedules !== undefined ? 1 : 0)
+  if (mangledCount > 0) {
+    logForDebugging(`[saturn] session ${sessionId}: ${mangledCount} mangled schedule/hold entr${mangledCount === 1 ? 'y' : 'ies'} skipped (record surgery?) — healthy rows proceed`)
+  }
+
+  if (rec.stoppedAt !== undefined && scheduleList.some(isSaturnSelfWake)) {
+    const gone = dropSaturnSelfWakes(sessionId, id => `saturn:${id}`, 'stopped', ports.dir)
+    if (gone.dropped.length > 0) {
+      report.dropped += gone.dropped.length
+      const ids = new Set(gone.dropped)
+      scheduleList = scheduleList.filter(s => !ids.has(s.id))
+      heldList = heldList.filter(h => !ids.has(h.scheduleId))
+      logForDebugging(`[saturn] session ${sessionId}: ${gone.dropped.length} self-paced wake${gone.dropped.length === 1 ? '' : 's'} dropped (${gone.droppedHolds} held) — the session is stopped`)
+    }
+  }
+  report.pending += heldList.length + scheduleList.length
+  return { heldList, scheduleList }
+}
+
+function releasableSessionHoldsOf(heldList: HeldFireV1[], scheduleList: SaturnScheduleV1[], rec: ConcourseWorkerRecordV1, sessionId: string, parked: boolean, now: number, ports: SaturnTickerPortsV1) {
+  const releasable: Array<{ scheduleId: string; dueAt: number }> = []
+  const refreshOnRelease = new Map<string, { account: ScheduleAccountV1; modelKey?: string }>()
+  for (const h of heldList) {
+    if (h.reason === 'parked-queued') {
+      if (!parked) releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
+      continue
+    }
+    if (h.reason === 'admission-refused') {
+      releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
+      continue
+    }
+    const schedule = scheduleList.find(s => s.id === h.scheduleId)
+    if (schedule === undefined) continue
+    const resolvedHold = resolveFireTimeAccount(ports, schedule, rec.modelKey)
+    if (resolvedHold.kind === 'no-credential') continue
+    const verdict = scheduleAccountVerdict({ account: resolvedHold.account, nextFireMs: now, nowMs: now, live: ports.liveFacts(resolvedHold.account, sessionId) })
+    if (verdict.state !== 'ready') continue
+    if (h.reason === 'account-mismatch') {
+      if (resolvedHold.identityMismatch !== true) {
+        releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
+      } else if (identityLabelOf(resolvedHold.account) !== h.mismatchIdentity) {
+        releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
+        refreshOnRelease.set(`${h.scheduleId}@${h.dueAt}`, {
+          account: resolvedHold.account,
+          ...(schedule.action.kind === 'fire' ? { modelKey: resolvedHold.fireModelKey } : {}),
+        })
+      }
+      continue
+    }
+    if (resolvedHold.identityMismatch === true) continue
+    releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
+  }
+  return { releasable, refreshOnRelease }
+}
+
+interface SessionFireFactsV1 {
+  report: SaturnTickReportV1
+  rec: ConcourseWorkerRecordV1
+  ports: SaturnTickerPortsV1
+  sessionId: string
+  schedule: SaturnScheduleV1
+  by: string
+  dueAt: number
+  now: number
+  lateMs: number
+  resolved: Extract<FireTimeAccountV1, { kind: 'account' }>
+  fireAccount: ScheduleAccountV1
+  marked: ReturnType<typeof markSaturnFired>
+  effect: { ok: boolean; sessionId?: string; detail?: string }
+}
+
+function settleSessionFire({ report, rec, ports, sessionId, schedule, by, dueAt, now, lateMs, resolved, fireAccount, marked, effect }: SessionFireFactsV1): void {
+  if (effect.ok) {
+    report.fired++
+    const movedClause =
+      resolved.movedFromFamily !== undefined
+        ? ` — fired on ${fireAccount.family}: the session's model moved after scheduling (was ${resolved.movedFromFamily})`
+        : ''
+    if (resolved.movedFromFamily !== undefined && marked === 'marked') {
+      refreshSaturnScheduleAccount(
+        sessionId,
+        schedule.id,
+        fireAccount,
+        schedule.action.kind === 'fire' ? resolved.fireModelKey : undefined,
+        ports.dir,
+      )
+    }
+    rowSaturnTickReceipt(rec, by, 'schedule-fire', (lateMs > 60_000 ? `fired ~${Math.round(lateMs / 60000)}m late (${describeWhen(schedule.when)})` : `fired (${describeWhen(schedule.when)})`) + reasonClause(schedule) + movedClause, {
+      outcome: lateMs > 60_000 ? 'fired-late' : 'fired',
+      scheduleId: schedule.id,
+      dueAt,
+      firedAt: now,
+      lateMs,
+      kind: schedule.action.kind,
+      ...(schedule.note !== undefined ? { note: schedule.note } : {}),
+      ...(resolved.movedFromFamily !== undefined ? { firedOnFamily: fireAccount.family, movedFromFamily: resolved.movedFromFamily } : {}),
+      ...(effect.sessionId !== undefined ? { bornSessionId: effect.sessionId } : {}),
+    })
+  } else if (schedule.action.kind === 'birth') {
+    const held = holdSaturnFire(sessionId, { scheduleId: schedule.id, dueAt, reason: 'admission-refused', envelope: envelopeOf(schedule, dueAt), heldAt: now, ...(effect.detail !== undefined ? { detail: effect.detail } : {}) }, ports.dir)
+    if (held === 'held') {
+      report.held++
+      rowSaturnTickReceipt(rec, by, 'schedule-held', `held: the admission refused — ${effect.detail ?? 'no detail'}`, {
+        reason: 'admission-refused',
+        scheduleId: schedule.id,
+        dueAt,
+        detail: effect.detail ?? null,
+      })
+    }
+  } else {
+    rowSaturnTickReceipt(rec, by, 'schedule-fire', `fire failed — ${effect.detail ?? 'no detail'}`, {
+      outcome: 'failed',
+      scheduleId: schedule.id,
+      dueAt,
+      detail: effect.detail ?? null,
+    })
+  }
+}
+
+function releasableBoxHoldsOf(box: ReturnType<typeof readBoxSchedules>, now: number, ports: SaturnTickerPortsV1) {
+  const releasable: Array<{ scheduleId: string; dueAt: number }> = []
+  const boxRefreshOnRelease = new Map<string, ScheduleAccountV1>()
+  for (const h of box.heldFires) {
+    const schedule = box.schedules.find(s => s.id === h.scheduleId)
+    if (schedule?.paused === true) continue
+    if (h.envelope.birth?.presence === 'screen-present' && !ports.screenOpen()) continue
+    if (h.reason === 'admission-refused') {
+      releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
+      continue
+    }
+    if (schedule === undefined) continue
+    const resolvedHold = resolveFireTimeAccount(ports, schedule, undefined)
+    if (resolvedHold.kind === 'no-credential') continue
+    const verdict = scheduleAccountVerdict({ account: resolvedHold.account, nextFireMs: now, nowMs: now, live: ports.liveFacts(resolvedHold.account) })
+    if (verdict.state !== 'ready') continue
+    if (h.reason === 'account-mismatch') {
+      if (resolvedHold.identityMismatch !== true) {
+        releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
+      } else if (identityLabelOf(resolvedHold.account) !== h.mismatchIdentity) {
+        releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
+        boxRefreshOnRelease.set(`${h.scheduleId}@${h.dueAt}`, resolvedHold.account)
+      }
+      continue
+    }
+    if (resolvedHold.identityMismatch === true) continue
+    releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
+  }
+  return { releasable, boxRefreshOnRelease }
+}
+
+function settleBoxHeldReplay(h: HeldFireV1, landed: { ok: boolean; sessionId?: string; detail?: string }, box: ReturnType<typeof readBoxSchedules>, report: SaturnTickReportV1, ports: SaturnTickerPortsV1): void {
+  if (landed.ok) {
+    report.replayed++
+    spendBoxOneShot(h.scheduleId, ports.dir)
+    logForDebugging(`[saturn] box birth ${h.scheduleId} landed late (held since ${new Date(h.heldAt).toISOString()}) as ${landed.sessionId ?? '?'}`)
+  } else {
+    const held = holdBoxFire({ ...h, reason: 'admission-refused', ...(landed.detail !== undefined ? { detail: landed.detail } : {}) }, ports.dir, box.schedules.some(s => s.id === h.scheduleId))
+    if (held === 'held') report.held++
+  }
+}
+
+function holdBoxMismatch(schedule: SaturnScheduleV1, dueAt: number, now: number, boxAccount: ScheduleAccountV1, report: SaturnTickReportV1, ports: SaturnTickerPortsV1): void {
+  const held = holdBoxFire(
+    {
+      scheduleId: schedule.id,
+      dueAt,
+      reason: 'account-mismatch',
+      envelope: envelopeOf(schedule, dueAt),
+      heldAt: now,
+      ...(identityLabelOf(boxAccount) !== undefined ? { mismatchIdentity: identityLabelOf(boxAccount) } : {}),
+    },
+    ports.dir,
+  )
+  if (held === 'held') {
+    report.held++
+    logForDebugging(`[saturn] box schedule ${schedule.id} held (account-mismatch) — made under a different ${boxAccount.family} account; /logins or run-now releases on the current one`)
+  }
+}
+
+interface BoxFireFactsV1 {
+  report: SaturnTickReportV1
+  ports: SaturnTickerPortsV1
+  schedule: SaturnScheduleV1
+  dueAt: number
+  now: number
+  resolvedBox: Extract<FireTimeAccountV1, { kind: 'account' }>
+  boxAccount: ScheduleAccountV1
+  marked: ReturnType<typeof markBoxScheduleFired>
+  landed: { ok: boolean; sessionId?: string; detail?: string }
+}
+
+function settleBoxFire({ report, ports, schedule, dueAt, now, resolvedBox, boxAccount, marked, landed }: BoxFireFactsV1): void {
+  if (landed.ok) {
+    report.fired++
+    const spent = spendBoxOneShot(schedule.id, ports.dir)
+    if (resolvedBox.movedFromFamily !== undefined && marked === 'marked' && spent === 'kept') {
+      refreshBoxScheduleAccount(schedule.id, boxAccount, ports.dir)
+      logForDebugging(`[saturn] box birth ${schedule.id} fired on ${boxAccount.family} — the model's route moved after scheduling (was ${resolvedBox.movedFromFamily})`)
+    }
+    logForDebugging(`[saturn] box birth ${schedule.id} fired as ${landed.sessionId ?? '?'}`)
+  } else {
+    const held = holdBoxFire({ scheduleId: schedule.id, dueAt, reason: 'admission-refused', envelope: envelopeOf(schedule, dueAt), heldAt: now, ...(landed.detail !== undefined ? { detail: landed.detail } : {}) }, ports.dir, true)
+    if (held === 'held') {
+      report.held++
+      logForDebugging(`[saturn] box birth ${schedule.id} refused by the admission (${landed.detail ?? 'no detail'}) — banked, retried each tick`)
+    }
+  }
 }
 
 async function replayEnvelope(
