@@ -1022,7 +1022,7 @@ export async function revokeServerTokens(
       const record = metadata as Record<string, unknown> | undefined
       const endpoint = record?.revocation_endpoint as string | undefined
       if (discovered.lookupError !== undefined) {
-        logError(new Error(`mcp auth [${serverName}]: the authorization server's metadata could not be fetched, so the tokens were not revoked there and stay valid until they expire: ${errorMessage(discovered.lookupError)}`))
+        logError(new Error(`mcp auth [${serverName}]: the authorization server's metadata could not be fetched, so the tokens were not revoked there and stay valid until they expire: ${errorMessage(discovered.lookupError).replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, '<url>')}`))
       } else if (!metadata || !endpoint) {
         logForDebugging(`mcp auth [${serverName}]: no revocation endpoint; skipping revocation`)
       } else {
