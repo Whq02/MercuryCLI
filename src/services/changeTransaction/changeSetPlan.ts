@@ -217,12 +217,13 @@ function spansOfPlacements(body: string, placements: readonly EditPlacement[]): 
   return spans
 }
 
-export function planChangeSet(
-  members: ChangeSetMemberInput[],
-  ctx: ChangeSetPlanContext,
-): ChangeSetPlanResult {
-  const now = ctx.now ?? Date.now()
+interface Resolved {
+  member: ChangeSetMemberInput
+  canonical: string
+  destination?: string
+}
 
+function memberBoundsRefusal(members: ChangeSetMemberInput[]): ChangeSetRefusal | null {
   if (members.length === 0) {
     return refusal('schema', 'changes is empty — provide at least one file member', 'Add one or more { file_path, expected_anchor, hunks or edits } members.')
   }
@@ -277,12 +278,10 @@ export function planChangeSet(
       'Split the change into smaller sets.',
     )
   }
+  return null
+}
 
-  interface Resolved {
-    member: ChangeSetMemberInput
-    canonical: string
-    destination?: string
-  }
+function resolveMembers(members: ChangeSetMemberInput[]): Resolved[] | ChangeSetRefusal {
   const resolved: Resolved[] = []
   const classFailures: ChangeSetMemberFailure[] = []
   for (const m of members) {
@@ -324,6 +323,10 @@ export function planChangeSet(
       classFailures,
     )
   }
+  return resolved
+}
+
+function destinationRefusal(resolved: Resolved[]): ChangeSetRefusal | null {
   const seen = new Map<string, string>()
   for (const r of resolved) {
     const key = canonicalPathKey(r.canonical)
@@ -387,6 +390,22 @@ export function planChangeSet(
     destinations.set(destKey, r.member.file_path)
     r.destination = canonicalDest
   }
+  return null
+}
+
+export function planChangeSet(
+  members: ChangeSetMemberInput[],
+  ctx: ChangeSetPlanContext,
+): ChangeSetPlanResult {
+  const now = ctx.now ?? Date.now()
+
+  const bounds = memberBoundsRefusal(members)
+  if (bounds !== null) return bounds
+
+  const resolved = resolveMembers(members)
+  if (!Array.isArray(resolved)) return resolved
+  const destination = destinationRefusal(resolved)
+  if (destination !== null) return destination
 
   const failures: ChangeSetMemberFailure[] = []
   const targets: ChangeSetTargetPlan[] = []
