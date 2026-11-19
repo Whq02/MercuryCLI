@@ -1347,6 +1347,11 @@ if (!existsSync(DIST)) {
       check(`§10 ${tag}: every main request after the dispatch carries the dispatch row (three Agent tool_use blocks)`, dispatchRows.length >= 2 && dispatchRows.every(d => d !== null), j(dispatchRows.map(d => d?.index ?? null)))
       const bytesOf = (row: unknown): string => j(withoutCacheControl(row))
       const first = dispatchRows[0] !== null ? bytesOf(dispatchRows[0]!.row) : ''
+      const firstDiff = (a: string, b: string): string => {
+        let at = 0
+        while (at < a.length && at < b.length && a[at] === b[at]) at++
+        return `differs at ${at}: ${a.slice(at, at + 60)} | ${b.slice(at, at + 60)}`
+      }
       const moved = dispatchRows.map((d, i) => (d === null ? `#${i + 2}: absent` : bytesOf(d.row) === first ? null : `#${i + 2}: ${firstDiff(first, bytesOf(d.row))}`)).filter((x): x is string => x !== null)
       check(`§10 ${tag}: the dispatch row is byte-identical on every later request — the launches resolved nothing INTO the sent blocks`, moved.length === 0, moved.join(' | '))
       const inputsOf = (row: unknown): string[] => ((row as { content?: Array<{ type?: string; input?: unknown }> }).content ?? []).filter(b => b.type === 'tool_use').map(b => j(b.input))
