@@ -100,11 +100,19 @@ export function firstByteBudgetMs(args: { cold: boolean; promptTokens: number; i
   return Math.min(ceiling, Math.max(idle, idle + allowance))
 }
 
+let estimateFailureSaid: string | undefined
+
 export function estimateRequestTokens(body: unknown, model?: string): number {
   try {
     const { estimateRequestTokens: estimate } = require('../tokenEstimation.js') as typeof import('../tokenEstimation.js')
     return Math.max(1, estimate(body, model))
-  } catch {
+  } catch (error) {
+    const why = error instanceof SyntaxError ? 'a part of the request is not valid JSON' : error instanceof Error ? error.message : String(error)
+    if (why !== estimateFailureSaid) {
+      estimateFailureSaid = why
+      const { logForDebugging } = require('../../utils/debug.js') as typeof import('../../utils/debug.js')
+      logForDebugging(`[stream-budget] the tokens of a request to ${model ?? 'the model'} could not be estimated (${why}), so it counts as 1 token: the served-window fit and the first-byte allowance read it as small`, { level: 'warn' })
+    }
     return 1
   }
 }
