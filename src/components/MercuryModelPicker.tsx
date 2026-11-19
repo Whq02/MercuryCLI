@@ -15,7 +15,7 @@ import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import { focusedOptionSupports1m, stripContext1m, withContext1m } from '../utils/model/modelOptions.js'
+import { focusedOptionSupports1m, stripContext1m } from '../utils/model/modelOptions.js'
 import { has1mContext } from '../utils/context.js'
 import { parseUserSpecifiedModel } from '../utils/model/model.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
@@ -52,7 +52,6 @@ import {
   headingIndexOf,
   headingWords,
   initialPickerFolds,
-  isCuratedGroup,
   isCursorStop,
   isModelRow,
   isSearchCharacter,
@@ -66,7 +65,6 @@ import {
   pickerReachTotal,
   providerNameOfGroup,
   rowKey,
-  type CatalogueDoorFacet,
   type FoldState,
   type PickerGroup,
   type PickerLine,
@@ -79,7 +77,6 @@ import {
   tensorFoldFoldedOnOpen,
   tensorFoldPickerRows,
   type TensorFoldAct,
-  type TensorFoldChoice,
   type TensorFoldPickerFacts,
   type TensorFoldTyping,
 } from './tensorfold/tensorfoldRows.js'
@@ -95,17 +92,12 @@ import {
   liveGptContextWindow,
   liveGptContextCeiling,
   stripGptServedWindowSuffix,
-  withGptServedWindowSuffix,
 } from '../services/providers/openai/openaiCatalogue.js'
+import { fmtCtx, type ModelChoice } from './modelPicker/choice.js'
+import { pickerActs, pickerCursor } from './modelPicker/moves.js'
 
-export const fmtCtx = (n: number, local = false): string =>
-  local && n > 0 && n % 1_048_576 === 0
-    ? `${n / 1_048_576}M`
-    : local && n > 0 && n % 1024 === 0
-      ? `${n / 1024}k`
-      : n >= 1_000_000
-        ? `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M`
-        : `${Math.round(n / 1000)}k`
+export { fmtCtx } from './modelPicker/choice.js'
+export type { ModelChoice } from './modelPicker/choice.js'
 
 export function modelPickerCentred(): boolean {
   try {
@@ -120,26 +112,6 @@ function bar(pct: number, width = 10): string {
   return '█'.repeat(f) + '░'.repeat(width - f)
 }
 
-export type ModelChoice = {
-  id: string
-  name: string
-  tag: string
-  ctx: string
-  ctxBase?: string
-  ctx1m?: string
-  group: string
-  door?: string
-  gated?: boolean
-  enableFlag?: string
-  gatedReason?: string
-  action?: boolean
-  searchableAction?: boolean
-  expand?: CatalogueDoorFacet
-  choice?: string
-  rest?: boolean
-  key?: string
-  tensorfold?: TensorFoldChoice
-}
 
 type Props = {
   models: ModelChoice[]
@@ -377,95 +349,8 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
       return false
     }
   })()
-  const selectRow = (n: number): void => {
-    setI(n)
-    setCtxNotice(null)
-    setWindowTyping(null)
-    setTfTyping(null)
-    setTfConfirm(null)
-    const line = lines[n]
-    if (line?.kind === 'row') setContext1m(ctxStateOf(line.row.id))
-  }
-  const landOn = (next: PickerLine<ModelChoice>[], preferKey: string | undefined, fallbackGroup?: string): void => {
-    let at = preferKey === undefined ? -1 : next.findIndex(line => line.kind === 'row' && line.key === preferKey)
-    if (at < 0 && fallbackGroup !== undefined) at = headingIndexOf(next, fallbackGroup)
-    if (at < 0) at = firstRowIndex(next)
-    if (at < 0) at = Math.max(0, next.findIndex(line => isCursorStop(line)))
-    setI(at)
-    setCtxNotice(null)
-    setWindowTyping(null)
-    setTfTyping(null)
-    setTfConfirm(null)
-    const line = next[at]
-    if (line?.kind === 'row') setContext1m(ctxStateOf(line.row.id))
-  }
-  const setFilterText = (text: string): void => {
-    const next = composePickerLines(groups, folds, text, fullRowsOf)
-    setFilter(text)
-    const keep = focusedModel !== undefined ? rowKey(focusedModel) : undefined
-    landOn(next, text.trim() === '' ? (keep ?? currentKey) : keep)
-  }
-  const setFold = (group: string, fold: FoldState, keep?: string, reveal = false): void => {
-    const nextFolds = { ...folds, [group]: fold }
-    const next = composePickerLines(groups, nextFolds, filter, fullRowsOf)
-    setFolds(nextFolds)
-    const own = groups.find(candidate => candidate.group === group)
-    const revealed = keep === undefined && fold !== 'folded' && own !== undefined && (reveal || isCuratedGroup(own))
-      ? next.find(line => line.kind === 'row' && line.row.group === group && !lines.some(seen => seen.kind === 'row' && seen.key === line.key))
-      : undefined
-    landOn(next, revealed?.kind === 'row' ? revealed.key : keep, group)
-  }
-  const stepWindow = (window: { rungs: readonly number[]; at: number; repo: string }, step: 1 | -1): void => {
-    const at = window.rungs.indexOf(window.at)
-    const next = window.rungs[Math.max(0, Math.min(window.rungs.length - 1, (at < 0 ? 0 : at) + step))]
-    if (next === undefined || next === window.at) return
-    setTfWindows(prev => ({ ...prev, [window.repo]: next }))
-    setTfConfirm(null)
-  }
-  const tensorFoldEnter = (m: ModelChoice): void => {
-    const enter = m.tensorfold?.keys.enter
-    if (enter === undefined) return
-    if (enter.input !== undefined) {
-      setTfTyping({ key: rowKey(m), input: enter.input, text: '' })
-      return
-    }
-    if (enter.act?.kind === 'switch') onSelect?.(enter.act.id)
-    else if (enter.act !== undefined) onTensorFold?.(enter.act)
-  }
-  const groupHidden = (group: string): boolean => lines.some(line => line.kind === 'more' && line.group === group)
-  const commitCurrent = (): void => {
-    const line = lines[i]
-    if (!line) return
-    if (line.kind === 'heading') {
-      if (filtering) return
-      setFold(line.group, line.fold === 'folded' ? 'top' : 'folded')
-      return
-    }
-    if (line.kind === 'more') {
-      setFold(line.group, 'full', undefined, true)
-      return
-    }
-    if (line.kind !== 'row') return
-    const m = line.row
-    if (m.tensorfold !== undefined) {
-      tensorFoldEnter(m)
-      return
-    }
-    if (!onSelect) return
-    if (m.gated) {
-      if (m.gatedReason) setCtxNotice(`${m.gatedReason} — not selectable`)
-      return
-    }
-    const p = m.id
-    if (p && focusedOptionSupports1m(p)) {
-      const base = stripContext1m(p)
-      onSelect(context1m === has1mContext(p) ? m.id : (context1m ? withContext1m(base) : base), m.door)
-    } else if (p && parseGptModelId(p) && focusedGptToggle) {
-      onSelect(context1m ? m.id : withGptServedWindowSuffix(m.id), m.door)
-    } else {
-      onSelect(m.id, m.door)
-    }
-  }
+  const { selectRow, setFilterText, setFold } = pickerCursor({ setI, setCtxNotice, setWindowTyping, setTfTyping, setTfConfirm, lines, setContext1m, ctxStateOf, groups, folds, setFolds, fullRowsOf, setFilter, focusedModel, currentKey, filter })
+  const { stepWindow, groupHidden, commitCurrent } = pickerActs({ setTfWindows, setTfConfirm, setTfTyping, onSelect, onTensorFold, lines, i, filtering, setFold, setCtxNotice, context1m, focusedGptToggle })
   const pastOpenEvent = useOpenEventGate()
   const overlayToken = useRegisterOverlay('model-picker', true)
   useInput((input, key, event) => {
