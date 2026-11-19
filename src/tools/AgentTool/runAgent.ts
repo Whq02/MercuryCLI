@@ -1,8 +1,8 @@
 
 import { getProjectRoot, getSessionId } from '../../bootstrap/state.js'
 import { getCwd } from '../../utils/cwd.js'
-import { ASK_ADVISOR_TOOL_NAME } from '../AskAdvisorTool/constants.js'
-import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
+import '../AskAdvisorTool/constants.js'
+import '../../services/desktop/toolName.js'
 import { getSkillToolCommands } from '../../commands.js'
 import type { Command, PromptCommand } from '../../types/command.js'
 import {
@@ -30,19 +30,20 @@ import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { killShellTasksForAgent } from '../../tasks/LocalShellTask/killShellTasks.js'
 import { endEngineSessionFor } from '../../utils/shell/engineSession.js'
 import { INSTRUCTIONS_CONTEXT_KEY } from '../../utils/userContextReminder.js'
-import { claimDiagnosticsRoot, releaseDiagnosticsWriter } from '../../services/lsp/LSPDiagnosticRegistry.js'
+import { releaseDiagnosticsWriter } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { disposeOwnerProcesses } from '../../services/run/ownerLifecycle.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import { beginAgentProjectLeases } from '../../services/vulcan/engine/leases.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
-import { readToolCallChain, type Tool, type Tools, type ToolUseContext } from '../../Tool.js'
+import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
+import '../../Tool.js'
 import { McpServerConfigSchema, type MCPServerConnection } from '../../services/mcp/types.js'
 import { generateTaskId } from '../../Task.js'
 import { getUserContext, getSystemContext, isInstructionDiscoveryDisabled } from '../../context.js'
 import { forgetAgentEffortWord, noteAgentEffortWord, parseEffortValue, type EffortValue } from '../../utils/effort.js'
 import { subagentDefaultEffort } from '../../utils/agentDefaults.js'
-import { createSubagentContext } from '../../utils/forkedAgent.js'
+import '../../utils/forkedAgent.js'
 import {
   cloneFileStateCache,
   createFileStateCacheWithSizeLimit,
@@ -52,21 +53,18 @@ import { removeSessionHooks } from '../../utils/hooks/sessionHooks.js'
 import { registerAgentHooks } from '../../utils/hooks/registerFrontmatterHooks.js'
 import { fireHooks } from '../../utils/hooks/fire.js'
 import { hasHooksFor } from '../../utils/hooks/matching.js'
-import { hookMayMeetCopy, worktreeHoldOf, worktreeReadyOf } from '../../utils/worktreeReadiness.js'
-import { bankHookOutcomes } from '../../utils/hooks/background.js'
-import { HOOK_CUT_BUDGET_MS, HOOK_EVENTS } from '../../utils/hooks/contract.js'
+import { hookMayMeetCopy, worktreeHoldOf } from '../../utils/worktreeReadiness.js'
+import '../../utils/hooks/background.js'
+import { HOOK_EVENTS } from '../../utils/hooks/contract.js'
 import { hookRowsOfResult } from '../../utils/hooks/rows.js'
 import { createAttachmentMessage } from '../../utils/attachments.js'
 import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
 import { accumulateUsage, updateUsage } from '../../services/providers/anthropic/cacheAndUsage.js'
-import { usageOf, OUTCOME_SENTENCES, type OutcomeStatus } from '../../rows/vocabulary.js'
-import { turnCutOf } from '../../utils/messages/rejectionText.js'
-import { agentStopReasonOf } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { OUTCOME_SENTENCES, type OutcomeStatus } from '../../rows/vocabulary.js'
+import '../../utils/messages/rejectionText.js'
+import '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { logForDebugging } from '../../utils/debug.js'
-import {
-  getSchemaBoundStructuredOutputTool,
-  STRUCTURED_OUTPUT_TOOL_NAME,
-} from '../SyntheticOutputTool/structuredOutputTool.js'
+import { STRUCTURED_OUTPUT_TOOL_NAME } from '../SyntheticOutputTool/structuredOutputTool.js'
 import { armInactivityDeadline, DeadlineExceededError, minutesKnobToMs } from '../../utils/deadline.js'
 import {
   honourRecoveryWait,
@@ -92,7 +90,6 @@ import { getAgentModel } from '../../utils/model/agent.js'
 import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
 import { delegationDispatchBlocker } from '../../services/providers/providerUsability.js'
 import { classifyModelRoute } from '../../services/providers/callModelRouter.js'
-import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import type { CanUseToolFn } from '../../Tool.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import {
@@ -104,7 +101,7 @@ import {
   writeAgentMetadata,
   writtenChainTail,
 } from '../../utils/sessionStorage.js'
-import { recordAtRunStart } from '../../utils/crew/crewmateRecord.js'
+import '../../utils/crew/crewmateRecord.js'
 import { settledSidechainMessages } from '../../utils/sessionStorage/settledSidechainMessages.js'
 import { latchSwarmAgent, settleSwarmAgent, swarmBrief } from '../../services/crewBoard/seam.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
@@ -112,21 +109,20 @@ import {
   isRestrictedToExtensionsOnly,
   isSourceAdminTrusted,
 } from '../../utils/settings/extensionOnlyPolicy.js'
-import { sessionThinkingConfig, type ThinkingConfig } from '../../utils/thinking.js'
+import type { ThinkingConfig } from '../../utils/thinking.js'
+import '../../utils/thinking.js'
 import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import { buildSubagentMercurySections } from '../../constants/subagentDoctrine.js'
 import type { MercuryAgentSeat } from '../../prompt/mercuryContract.js'
 import type { AgentDefinition, AgentMcpServerSpec } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
-import { REVIEW_BRIEF, canonicalReviewerReceipt, restrictReviewerTools, reviewerRefusal } from './reviewerPolicy.js'
+import { REVIEW_BRIEF, canonicalReviewerReceipt, reviewerRefusal } from './reviewerPolicy.js'
 import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
-import { restrictScoutTools, scoutRefusal } from './scoutPolicy.js'
-import {
-  composeAgentAppState,
-  definitionModeWithinConsent,
-  resolveAgentPromptPosture,
-} from './agentPermissionPosture.js'
+import { scoutRefusal } from './scoutPolicy.js'
+import './agentPermissionPosture.js'
 
+import { fireCrewmateEndOf } from './runAgent/crewmateEnd.js'
+import { agentPostureOf, agentToolsOf, childContextOf, runStartRecordOf } from './runAgent/setup.js'
 export function filterIncompleteToolCalls(messages: Message[]): Message[] {
   const resolvedToolUseIds = new Set<string>()
   for (const message of messages) {
@@ -753,46 +749,7 @@ export async function* runAgent(
   }
   const hookScope = { sessionId: String(getSessionId()), crewmateId: agentId }
   const crewmateRun = { usage: { ...EMPTY_USAGE }, steps: 0, answer: undefined as string | undefined, endedBy: 'completed' as OutcomeStatus, reason: undefined as string | undefined }
-  const fireCrewmateEnd = async (): Promise<void> => {
-    const aborted = abortController.signal.aborted
-    const status: OutcomeStatus = aborted && crewmateRun.endedBy === 'completed' ? 'interrupted' : crewmateRun.endedBy
-    const cut = aborted ? turnCutOf(abortController.signal.reason) : null
-    const usage = usageOf(crewmateRun.usage)
-    const wallMs = Date.now() - startedAt
-    try {
-      if (hasHooksFor('turn.end', hookScope, toolUseContext.getAppState()) || hasHooksFor('crewmate.end', hookScope, toolUseContext.getAppState())) await worktreeReadyOf(agentId)
-      await fireHooks(
-        'turn.end',
-        {
-          turn_id: readToolCallChain(childContextRef.current)?.key ?? agentId,
-          status,
-          ...(crewmateRun.reason !== undefined && status === 'failed' ? { error: { message: crewmateRun.reason, class: 'internal' } } : {}),
-          ...(cut !== null ? { cut: { reason: cut.kind, ...(cut.detail !== undefined ? { detail: cut.detail } : {}), tools: [] } } : {}),
-          steps: crewmateRun.steps,
-          wall_ms: wallMs,
-          usage,
-          ...(crewmateRun.answer !== undefined ? { answer: crewmateRun.answer } : {}),
-        },
-        { scope: hookScope, toolUseContext: childContextRef.current ?? toolUseContext, crewmateType: agentDefinition.agentType, ...(cut !== null ? { budgetMs: HOOK_CUT_BUDGET_MS } : {}) },
-      )
-      const ended = await fireHooks(
-        'crewmate.end',
-        {
-          ...(name !== undefined ? { name } : {}),
-          status: status === 'failed' ? 'failed' : aborted ? 'stopped' : 'finished',
-          ...(crewmateRun.reason !== undefined ? { reason: crewmateRun.reason } : aborted ? { reason: agentStopReasonOf(abortController.signal.reason) ?? 'stopped' } : {}),
-          ...(crewmateRun.answer !== undefined ? { answer: crewmateRun.answer } : {}),
-          ...(worktreePath !== undefined ? { worktree_path: worktreePath } : {}),
-          crewmate_transcript_path: getAgentTranscriptPath(agentId),
-          usage,
-        },
-        { scope: { sessionId: hookScope.sessionId }, toolUseContext, crewmateType: agentDefinition.agentType },
-      )
-      bankHookOutcomes(ended.outcomes)
-    } catch (error) {
-      logForDebugging(`runAgent: the end-of-crewmate hooks failed: ${errorMessage(error)}`)
-    }
-  }
+  const fireCrewmateEnd = (): Promise<void> => fireCrewmateEndOf({ abortController, crewmateRun, startedAt, hookScope, toolUseContext, agentId, childContextRef, agentDefinition, name, worktreePath })
   const childContextRef: { current: ToolUseContext | undefined } = { current: undefined }
   let runDeadlineTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -866,47 +823,7 @@ export async function* runAgent(
       }
     }
 
-    const parentGetAppState = toolUseContext.getAppState
-    const definitionMode = agentDefinition.permissionMode as
-      | PermissionMode
-      | undefined
-    const parentPermissionContext = parentGetAppState?.()?.toolPermissionContext
-    if (
-      definitionMode !== undefined &&
-      parentPermissionContext !== undefined &&
-      definitionModeWithinConsent(definitionMode, parentPermissionContext) === undefined
-    ) {
-      logForDebugging(
-        `runAgent: ${agentDefinition.agentType} declares permissionMode ${definitionMode} — Sovereign Mode requires launching with --sovereign; the agent keeps the session's posture`,
-      )
-    }
-    const posture = resolveAgentPromptPosture({
-      isAsync,
-      canShowPermissionPrompts,
-      definitionMode,
-      parentAvoidsPrompts:
-        parentGetAppState?.()?.toolPermissionContext
-          .shouldAvoidPermissionPrompts === true,
-      parentNonInteractive: toolUseContext.options.isNonInteractiveSession,
-      parentHostHoldsAsks: toolUseContext.options.hostHoldsAsks,
-    })
-    const avoidPrompts = posture.avoidPrompts
-    const agentGetAppState: typeof parentGetAppState = () => {
-      const state = parentGetAppState()
-      return composeAgentAppState(state, {
-        definitionMode,
-        definitionTools: agentDefinition,
-        avoidPrompts,
-        isAsync,
-        allowedTools,
-        effortValue: resolveAgentEffort({
-          effortOverride,
-          useExactTools,
-          definitionEffort: agentDefinition.effort,
-          defaultEffort: subagentDefaultEffort(),
-        }),
-      })
-    }
+    const { posture, agentGetAppState } = agentPostureOf({ toolUseContext, agentDefinition, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort })
 
     const hookContextMessages: Message[] = []
     try {
@@ -948,34 +865,7 @@ export async function* runAgent(
     mcp.tools = agentMcp.tools
     mcp.cleanup = agentMcp.cleanup
 
-    let tools: Tools = availableTools
-      .filter(tool => tool.name !== COMPUTER_TOOL_NAME && (swarm || tool.name !== 'CrewBoard'))
-      .map(tool => tool.name === 'CrewBoard' ? { ...tool, alwaysLoad: true } : tool)
-    if (mcp.tools.length > 0) {
-      const merged = [...tools]
-      for (const mcpTool of mcp.tools) {
-        if (!merged.some(existing => existing.name === mcpTool.name)) {
-          merged.push(mcpTool)
-        }
-      }
-      tools = merged
-    }
-
-    if (structuredOutputSpec !== undefined) {
-      const bound = getSchemaBoundStructuredOutputTool(structuredOutputSpec.schema)
-      if (bound.tool !== undefined) {
-        tools = [...tools.filter(t => t.name !== bound.tool.name), bound.tool]
-      } else {
-        logForDebugging(
-          `runAgent: structured-output schema failed to bind (${bound.error ?? 'unknown'}) — dispatch proceeds without the tool`,
-          { level: 'error' },
-        )
-      }
-    }
-
-    if (reviewReceipt !== undefined) tools = restrictReviewerTools(tools, reviewReceipt, worktreePath!)
-    if (readOnlyScout) tools = restrictScoutTools(tools)
-    tools = tools.filter(tool => tool.name !== ASK_ADVISOR_TOOL_NAME)
+    const tools = agentToolsOf({ availableTools, swarm, mcp, structuredOutputSpec, reviewReceipt, worktreePath, readOnlyScout })
 
     const enabledToolNames = new Set(tools.map(tool => tool.name))
     const systemPrompt: string[] =
@@ -1001,49 +891,7 @@ export async function* runAgent(
     const swarmWords = swarm ? swarmBrief(agentId, override?.swarmBrief) : null
     if (swarmWords !== null) systemPrompt.push(swarmWords)
 
-    const parentOptions = toolUseContext.options
-    const isNonInteractiveSession = posture.isNonInteractiveSession
-
-    const thinkingOverride = { thinkingConfig: thinkingConfigOverride ?? parentOptions.thinkingConfig ?? sessionThinkingConfig() }
-
-    const childContext = createSubagentContext(toolUseContext, {
-      agentId,
-      agentType: agentDefinition.agentType,
-      abortController,
-      getAppState: agentGetAppState,
-      shareSetAppState: !isAsync,
-      shareSetResponseLength: true,
-      options: {
-        isNonInteractiveSession,
-        runDeadline: parentOptions.runDeadline,
-        ...(posture.hostHoldsAsks === true ? { hostHoldsAsks: true } : {}),
-        appendSystemPrompt: parentOptions.appendSystemPrompt,
-        tools,
-        commands: [],
-        debug: parentOptions.debug,
-        verbose: parentOptions.verbose,
-        engineModel: resolvedAgentModel,
-        ...thinkingOverride,
-        mcpClients: [...parentOptions.mcpClients, ...mcp.clients],
-        mcpResources: parentOptions.mcpResources,
-        agentDefinitions: parentOptions.agentDefinitions,
-        ...(isFork ? { querySource } : {}),
-      },
-      readFileState,
-      ...(agentDefinition.standingRule
-        ? { standingRule: agentDefinition.standingRule }
-        : {}),
-      ...(contentReplacementState ? { contentReplacementState } : {}),
-    })
-    childContextRef.current = childContext
-    if (worktreePath !== undefined) claimDiagnosticsRoot(processOwnerForLane(agentId), worktreePath)
-    childContext.agentKind = agentKind
-    childContext.seatHolder = seatHolder ?? description ?? agentDefinition.agentType
-    if (onWait !== undefined) childContext.onSeatWait = onWait
-    if (preserveToolUseResults) {
-      ;(childContext as { preserveToolResults?: boolean }).preserveToolResults =
-        true
-    }
+    const { childContext, thinkingOverride } = childContextOf({ toolUseContext, posture, thinkingConfigOverride, agentId, agentDefinition, abortController, agentGetAppState, isAsync, tools, resolvedAgentModel, mcp, isFork, querySource, readFileState, contentReplacementState, childContextRef, worktreePath, agentKind, seatHolder, description, onWait, preserveToolUseResults })
     childContext.setSDKStatus = (status: unknown) => {
       if (status === null || typeof status !== 'object') return
       if ('streamActivity' in status) {
@@ -1094,31 +942,7 @@ export async function* runAgent(
     await landAgentTranscriptRows(messages, agentId)
 
     const latestRecord = await readAgentMetadata(agentId).catch(() => null)
-    await writeAgentMetadata(agentId, recordAtRunStart(latestRecord, { model, effortOverride }, {
-      fresh: {
-        agentType: agentDefinition.agentType,
-        swarm,
-        ...(worktreePath ? { worktreePath } : {}),
-        ...(cwd ? { cwd } : {}),
-        ...(description ? { description } : {}),
-        ...(name ? { name } : {}),
-        ...(launchedAt !== undefined ? { launchedAt } : {}),
-        ...(swarmWords !== null ? { swarmBrief: swarmWords } : {}),
-        thinkingConfig: thinkingOverride.thinkingConfig,
-        ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
-        ...(instructionCapture
-          ? {
-              instructionProfile: instructionCapture.profile,
-              ...(instructionCapture.digest
-                ? { instructionDigest: instructionCapture.digest }
-                : {}),
-            }
-          : {}),
-      },
-      model: resolvedAgentModel,
-      effortOverride,
-      effort: resolvedEffort !== undefined ? String(resolvedEffort) : undefined,
-    })).catch(() => {})
+    await writeAgentMetadata(agentId, runStartRecordOf({ latestRecord, model, effortOverride, agentDefinition, swarm, worktreePath, cwd, description, name, launchedAt, swarmWords, thinkingOverride, structuredOutputSpec, instructionCapture, resolvedAgentModel, resolvedEffort })).catch(() => {})
 
     let lastRecordedUuid: string | undefined = writtenChainTail(messages)
     const effectiveMaxTurns = maxTurns ?? agentDefinition.maxTurns
