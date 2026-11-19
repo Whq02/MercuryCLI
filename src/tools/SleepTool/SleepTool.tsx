@@ -23,7 +23,7 @@ export const TRACKED_SETTLE_POLL_MS = 250
 
 export const TRACKED_ARM_GRACE_TICKS = 4
 
-export const TRACKED_AGENT_TASK_TYPES: ReadonlySet<string> = new Set([
+const TRACKED_AGENT_TASK_TYPES: ReadonlySet<string> = new Set([
   'local_agent',
   'remote_agent',
 ])
@@ -33,7 +33,7 @@ export const UNTRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
   ['monitor_mcp', 'gated off by the MONITOR_TOOL feature macro in Mercury — no producer'],
 ])
 
-export const SUBAGENT_TRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
+const SUBAGENT_TRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
   ['local_bash', "a waiter's own background shells: a crewmate's wait ends when the shells it launched settle (a shell task carries the spawning crewmate's id), and a one-prompt run's wait — its input closed, so the run ends with the turn and no notice could reach it between turns — ends when the run's own shells settle"],
 ])
 

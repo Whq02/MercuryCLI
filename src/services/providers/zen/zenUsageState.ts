@@ -8,28 +8,28 @@ import { resolveZenApiKey, zenGoUsageUrl } from './zenAccounts.js'
 export const ZEN_BALANCE_NOTE = 'the pay-as-you-go balance is shown in the OpenCode console (opencode.ai/auth → Billing); the gateway states no balance to clients'
 export const ZEN_GO_ABSENT_NOTE = 'no OpenCode Go plan on this key — turns draw the pay-as-you-go balance'
 
-export type ZenGoWindowName = '5 hour' | 'weekly' | 'monthly'
+type ZenGoWindowName = '5 hour' | 'weekly' | 'monthly'
 
-export interface ZenGoWindow {
+interface ZenGoWindow {
   name: ZenGoWindowName
   status: 'ok' | 'rate-limited'
   usedPercent: number
   resetsAtMs?: number
 }
 
-export interface ZenGoUsage {
+interface ZenGoUsage {
   observedAtMs: number
   windows: ZenGoWindow[]
 }
 
-export type ZenGoProbe =
+type ZenGoProbe =
   | { state: 'confirmed'; usage: ZenGoUsage }
   | { state: 'no-plan' }
   | { state: 'refused'; status: number; message?: string }
   | { state: 'invalid' }
   | { state: 'unreachable'; message: string }
 
-export interface ZenGoObservation {
+interface ZenGoObservation {
   usage: ZenGoUsage | null
   plan: 'go' | 'none' | 'unknown'
   failure: { atMs: number; kind: 'refused' | 'unreachable' | 'invalid'; status?: number } | null
@@ -66,7 +66,7 @@ const WINDOW_KEYS: ReadonlyArray<{ key: 'rolling' | 'weekly' | 'monthly'; name: 
   { key: 'monthly', name: 'monthly' },
 ]
 
-export function decodeZenGoUsage(body: unknown, nowMs: number): ZenGoUsage | undefined {
+function decodeZenGoUsage(body: unknown, nowMs: number): ZenGoUsage | undefined {
   if (typeof body !== 'object' || body === null) return undefined
   const usage = (body as Record<string, unknown>).usage
   if (typeof usage !== 'object' || usage === null) return undefined
@@ -85,7 +85,7 @@ export function decodeZenGoUsage(body: unknown, nowMs: number): ZenGoUsage | und
   return { observedAtMs: nowMs, windows }
 }
 
-export function zenGoErrorType(body: unknown): string | undefined {
+function zenGoErrorType(body: unknown): string | undefined {
   if (typeof body !== 'object' || body === null) return undefined
   const error = (body as Record<string, unknown>).error
   if (typeof error !== 'object' || error === null) return undefined
@@ -93,7 +93,7 @@ export function zenGoErrorType(body: unknown): string | undefined {
   return typeof type === 'string' ? type : undefined
 }
 
-export function zenGoErrorMessage(body: unknown): string | undefined {
+function zenGoErrorMessage(body: unknown): string | undefined {
   if (typeof body !== 'object' || body === null) return undefined
   const error = (body as Record<string, unknown>).error
   if (typeof error !== 'object' || error === null) return undefined

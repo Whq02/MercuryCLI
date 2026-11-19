@@ -34,7 +34,7 @@ import { openCompatBlocks, streamEvent } from './attemptBlocks.js'
 import { openCompatEvents } from './attemptEvents.js'
 import { gateCompatToolCalls, paintedCallsOf, settleCompatUsage, terminationNoteOf } from './attemptSettle.js'
 
-export type AttemptOutcome =
+type AttemptOutcome =
   | { kind: 'done'; served?: string }
   | { kind: 'cancelled' }
   | { kind: 'fault'; fault: CompatFault; retryEligible: boolean; invisibleOnly?: boolean }

@@ -43,8 +43,6 @@ export function verbBornAt(op: string, action?: string): number {
   return DAEMON_VERB_BORN_AT[op] ?? MIN_PROTO
 }
 
-export const DAEMON_PROTO_SHAPE = 'sha256:2fec03b2bad52d391b6e48e1686bda8fead3707177835cef3dfd06ed7cc534ae'
-
 export const CONTROL_FRAME_CAP = 1 << 20
 
 type DaemonErrorCode =
@@ -63,37 +61,6 @@ type DaemonErrorCode =
   | 'ENOTSUP'
   | 'EREFUSED'
   | 'EUNKNOWN'
-
-export type DaemonOp =
-  | 'ping'
-  | 'nudge'
-  | 'shutdown'
-  | 'leases'
-  | 'list'
-  | 'has'
-  | 'status'
-  | 'dispatch'
-  | 'reply'
-  | 'kill'
-  | 'reconfigure'
-  | 'concourseAdmit'
-  | 'concourseDispatch'
-  | 'concourseList'
-  | 'concourseRelease'
-  | 'concourseControl'
-  | 'concourseWithdraw'
-  | 'concourseWarm'
-  | 'hello'
-  | 'restart-when-idle'
-  | 'sessionAdmit'
-  | 'sessionDispatch'
-  | 'sessionList'
-  | 'sessionRelease'
-  | 'sessionControl'
-  | 'sessionRewind'
-  | 'signIns'
-  | 'processSweep'
-  | 'sessionFileRestore'
 
 export type DispatchSource = 'user' | 'cron' | 'dispatch'
 

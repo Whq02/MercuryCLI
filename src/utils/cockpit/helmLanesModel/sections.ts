@@ -76,7 +76,7 @@ function glanceLabelsOf(reads: GlanceReads, tok: MercuryThemeTokens): {
   return { usage: usageLabel, ctx: ctxLabel, health: healthLabel, healthTone, healthGlyph }
 }
 
-export interface SectionFacts {
+interface SectionFacts {
   input: LanesInput
   tok: MercuryThemeTokens
   accent: string

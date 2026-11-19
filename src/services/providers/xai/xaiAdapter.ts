@@ -3,8 +3,8 @@ import { xaiCatalogueRows, xaiModelFacts } from './xaiCatalogue.js'
 import type { ProviderCatalogueEntry, ProviderDescription, ProviderModelRef, ProviderModelClass, ProviderAdapter, ProviderModel, ProviderStatus } from '../providerAdapter.js'
 import { SPECIALIST_ROLES } from '../providerAdapter.js'
 
-export const XAI_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] = []
-export function xaiLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+const XAI_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] = []
+function xaiLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = xaiCatalogueRows()
   if (source.kind !== 'live') return undefined
   return { fetchedAtMs: source.fetchedAtMs, entries: rows.map(row => ({
@@ -19,7 +19,7 @@ export function xaiCatalogueEntries(): readonly ProviderCatalogueEntry[] {
 export function xaiCatalogueEntry(id: string): ProviderCatalogueEntry | undefined {
   return xaiCatalogueEntries().find(row => row.id.toLowerCase() === id.trim().toLowerCase())
 }
-export function describeXaiProvider(): ProviderDescription {
+function describeXaiProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('xai')
   const record = discovery?.provider === 'xai' ? discovery : undefined
   const live = xaiLiveCatalogue()
@@ -32,17 +32,17 @@ export function describeXaiProvider(): ProviderDescription {
     ...(live ? { catalogueSource: 'live-discovery' as const, discoveredAtMs: live.fetchedAtMs } : { catalogueSource: 'static-pin' as const }),
   }
 }
-export function xaiStatus(): ProviderStatus {
+function xaiStatus(): ProviderStatus {
   return primeXaiDiscovery()?.keyPresent ? { available: true } : { available: false, reason: 'no-api-key:xai' }
 }
-export function listXaiModels(): ProviderModel[] {
+function listXaiModels(): ProviderModel[] {
   if (!xaiStatus().available) return []
   return xaiCatalogueEntries().map(entry => ({ ref: { provider: 'xai', model: entry.id, modelClass: 'grok', effort: 'high', contextWindow: entry.contextWindow ?? 0 }, displayLabel: entry.displayLabel }))
 }
-export function resolveXaiModel(_modelClass: ProviderModelClass): ProviderModelRef | null {
+function resolveXaiModel(_modelClass: ProviderModelClass): ProviderModelRef | null {
   return null
 }
-export function buildXaiLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
+function buildXaiLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
   throw new Error('seat: provider xai has no SEAT runtime — xAI specialists dispatch through the AgentTool engine path')
 }
 export const xaiProviderAdapter: ProviderAdapter = {

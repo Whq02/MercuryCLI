@@ -11,4 +11,3 @@ export function stripControls(value: string): string {
   )
 }
 
-export const __stripControlsForTest = stripControls

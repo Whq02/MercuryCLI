@@ -9,7 +9,7 @@ import {
   type GptCandidate,
 } from '../openaiCatalogue.js'
 
-export type QualificationOutcome =
+type QualificationOutcome =
   | { kind: 'ok'; modelId: string; candidate: GptCandidate }
   | { kind: 'degraded'; modelId: string; note: string }
   | { kind: 'refused'; message: string }

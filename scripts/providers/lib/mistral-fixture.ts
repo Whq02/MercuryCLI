@@ -16,7 +16,7 @@ export const MISTRAL_FIXTURE_MODELS = [
   { id: 'zai-glm-5-3', object: 'model', created: 1_757_894_400, owned_by: 'zai', max_context_length: 1_048_576, aliases: ['zai-glm-latest'], capabilities: { completion_chat: true, function_calling: true, vision: false, reasoning: true } },
 ]
 
-export const MISTRAL_FIXTURE_IDENTITY = {
+const MISTRAL_FIXTURE_IDENTITY = {
   id: 'user-fixture-0001', email: 'fixture@example.invalid', first_name: 'Fixture', last_name: 'Operator',
   workspace: { id: 'ws-fixture', name: 'Fixture workspace' }, organization: { id: 'org-fixture', name: 'Fixture org' },
 }

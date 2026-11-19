@@ -26,7 +26,7 @@ import type { wireParamsFor } from './wireParams.js'
 
 export type SignInRefusal = typeof import('../../../../utils/accounts/signInRefusal.js')
 
-export type BetaStopReason = NonNullable<BetaMessage['stop_reason']>
+type BetaStopReason = NonNullable<BetaMessage['stop_reason']>
 
 export type QueryYield = StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage
 

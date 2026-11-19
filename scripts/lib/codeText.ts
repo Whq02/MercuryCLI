@@ -2,7 +2,7 @@ import ts from 'typescript'
 
 type CommentRange = { pos: number; end: number }
 
-export const CODE_TEXT_FILE = /\.(ts|tsx|mts|cts|js|mjs|cjs|jsx)$/
+const CODE_TEXT_FILE = /\.(ts|tsx|mts|cts|js|mjs|cjs|jsx)$/
 
 function scriptKind(path: string): ts.ScriptKind {
   if (/\.(tsx|jsx)$/.test(path)) return ts.ScriptKind.TSX

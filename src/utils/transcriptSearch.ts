@@ -25,7 +25,7 @@ function toolUseSearchText(input: unknown): string {
   return parts.join('\n')
 }
 
-export function toolResultSearchText(result: unknown): string {
+function toolResultSearchText(result: unknown): string {
   if (typeof result === 'string') return result
   if (typeof result !== 'object' || result === null) return ''
   const record = result as Record<string, unknown>

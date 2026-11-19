@@ -36,7 +36,7 @@ export function git(root: string, args: string[]): string {
   })
 }
 
-export async function gitAsync(root: string, args: string[]): Promise<string> {
+async function gitAsync(root: string, args: string[]): Promise<string> {
   const argv = await gitArgsAsync(args, root)
   return new Promise((resolve, reject) => {
     execFile(
@@ -112,7 +112,7 @@ const notARepoNote = (failure: string | null): GitUnavailable => ({
 
 const notARepo = (): GitUnavailable => notARepoNote(lastProbeFailure)
 
-export async function isGitRepoAsync(root: string): Promise<{ repo: boolean; failure: string | null }> {
+async function isGitRepoAsync(root: string): Promise<{ repo: boolean; failure: string | null }> {
   const probe = await tryGitAsync(root, ['rev-parse', '--is-inside-work-tree'])
   if (probe.out === null) return { repo: false, failure: probe.failure }
   return { repo: probe.out.trim() === 'true', failure: null }

@@ -2,7 +2,7 @@ import { shellTextOutsideFileHeredocs } from '../../wards/wards.js'
 import type { ShellRead } from '../../wards/wardsShellRead.js'
 import { peelWrappers, pinnedCommandAnalysis } from '../decision/commandAnalysis.js'
 
-export function words(text: string, powershell: boolean): Array<string | { op?: string }> {
+function words(text: string, powershell: boolean): Array<string | { op?: string }> {
   const prepared = powershell ? text.replace(/`\r?\n/g, '').replace(/`([^\r\n])/g, '$1').replace(/\\/g, '\\\\') : text
   const parsed = pinnedCommandAnalysis.tryParseShellCommand(prepared, name => `$${name}`)
   return parsed.success ? parsed.tokens.flatMap<string | { op?: string }>(token => {

@@ -19,7 +19,7 @@ export type CallModelParams = {
   options: Options
 }
 
-export type CallModelYield = StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage
+type CallModelYield = StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage
 
 export type CallModelStream = AsyncGenerator<CallModelYield, void>
 

@@ -198,4 +198,3 @@ export function openAttemptBlocks(ctx: OpenaiAttemptCtx) {
   }
 }
 
-export type AttemptBlocks = ReturnType<typeof openAttemptBlocks>

@@ -105,7 +105,7 @@ export type TurnOpening = {
   account: NonNullable<ReturnType<typeof resolveOpenaiAccount>>
 }
 
-export type PreparedOpenaiTurn = {
+type PreparedOpenaiTurn = {
   auth: OpenaiRequestAuth
   modelId: string
   candidate: GptCandidate | undefined

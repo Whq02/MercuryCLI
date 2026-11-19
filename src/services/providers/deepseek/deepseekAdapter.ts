@@ -29,7 +29,7 @@ export const DEEPSEEK_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] =
     roles: ALL_ROLES,
   }))
 
-export function deepseekLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+function deepseekLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = deepseekCatalogueRows()
   if (source.kind !== 'live') return undefined
   return {
@@ -85,7 +85,7 @@ export function describeDeepseekProvider(): ProviderDescription {
   }
 }
 
-export function deepseekStatus(): ProviderStatus {
+function deepseekStatus(): ProviderStatus {
   const discovery = primeDeepseekDiscovery()
   return discovery?.keyPresent
     ? { available: true }
@@ -106,13 +106,13 @@ export function listDeepseekModels(): ProviderModel[] {
   }))
 }
 
-export function resolveDeepseekModel(
+function resolveDeepseekModel(
   _modelClass: ProviderModelClass,
 ): ProviderModelRef | null {
   return null
 }
 
-export function buildDeepseekLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
+function buildDeepseekLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
   throw new Error(
     'seat: provider deepseek has no SEAT runtime — roster seats stay Anthropic; DeepSeek specialists dispatch through the AgentTool engine path',
   )

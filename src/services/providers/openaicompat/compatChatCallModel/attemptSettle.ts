@@ -33,7 +33,7 @@ export function mapCompatUsageToAnthropic(usage: CompatUsage | undefined): typeo
   }
 }
 
-export const FINISH_TO_STOP: Record<CompatFinishReason, 'end_turn' | 'tool_use' | 'max_tokens'> = {
+const FINISH_TO_STOP: Record<CompatFinishReason, 'end_turn' | 'tool_use' | 'max_tokens'> = {
   stop: 'end_turn',
   tool_calls: 'tool_use',
   length: 'max_tokens',
@@ -114,7 +114,7 @@ export function terminationNoteOf(profile: CompatLaneProfile, finish: CompatAtte
   }
 }
 
-export type CompatUsageFacts = {
+type CompatUsageFacts = {
   finish: CompatAttemptFinish | undefined
   fault: CompatFault | undefined
   usageSeen: CompatUsage | undefined

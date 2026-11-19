@@ -18,7 +18,7 @@ export function composerTargetPinned(
   return appState.mainChatTaskId !== undefined
 }
 
-export type ActiveAgentForInput =
+type ActiveAgentForInput =
   | { type: 'leader' }
   | { type: 'named_agent'; task: LocalAgentTaskState }
 
@@ -50,7 +50,8 @@ type IsEqual<A, B> =
     ? true
     : false
 type Assert<T extends true> = T
-export type EveryTaskTypeClassified = Assert<IsEqual<TaskType, ClassifiedTaskType>>
+type EveryTaskTypeClassified = Assert<IsEqual<TaskType, ClassifiedTaskType>>
+void (true satisfies EveryTaskTypeClassified)
 
 
 type ViewedAgent = {

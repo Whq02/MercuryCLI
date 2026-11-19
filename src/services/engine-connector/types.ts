@@ -186,7 +186,7 @@ export type JevFactsV1 = {
   status: { kind: JevStatusKind; words: string }
 }
 
-export type OpenaiObservedBandV1 = {
+type OpenaiObservedBandV1 = {
   source?: 'headers' | 'endpoint'
   usedPct?: number
   windowMinutes?: number

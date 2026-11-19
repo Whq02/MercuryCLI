@@ -3,7 +3,7 @@ import { env } from '../../utils/env.js'
 import { BEL } from './ansi.js'
 import { osc, OSC, wrapForMultiplexer } from './osc.js'
 
-export type PingMethod = 'osc9' | 'bell'
+type PingMethod = 'osc9' | 'bell'
 
 const MAX_PING_MESSAGE = 200
 

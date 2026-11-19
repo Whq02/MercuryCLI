@@ -3,15 +3,15 @@ import { logForDebugging } from '../../utils/debug.js'
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { CHOOSE_A_MODEL_WORDS, NO_SIGN_IN_ROW, NO_USABLE_ROW, isChooseAModel, keylessReason, resetComputedDefaultMemo, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
 
-export type WorkerModelRefusal =
+type WorkerModelRefusal =
   | `no-credential:${string}`
   | `unreachable:${string}`
   | 'withdrawn-at-provider'
   | `not-runnable:${string}`
 
-export type WorkerDispatchArm = 'session' | 'crew'
+type WorkerDispatchArm = 'session' | 'crew'
 
-export type WorkerArmAvailabilityV1 =
+type WorkerArmAvailabilityV1 =
   | { availability: 'available' }
   | { availability: 'refused'; refusal: WorkerModelRefusal; detail?: string; action?: string }
 
@@ -25,12 +25,12 @@ export interface WorkerModelEntryV1 {
   isNeutralDefault?: true
 }
 
-export interface WorkerModelRegistryV1 {
+interface WorkerModelRegistryV1 {
   schema: 1
   entries: WorkerModelEntryV1[]
 }
 
-export interface WorkerRegistryReads {
+interface WorkerRegistryReads {
   modelOptions?: () => Array<{ value: string; label: string }>
 }
 
@@ -52,7 +52,7 @@ export function loginsActionFor(family: string, compatEndpoint?: string): string
 
 const SEAT_FAMILY_WORDS = new Set([...LOGINS_FAMILY_WORDS, 'openai-compat', 'local'])
 
-export interface SeatFamilyChoiceV1 {
+interface SeatFamilyChoiceV1 {
   family: string
   setting: string
   row: string
@@ -90,7 +90,7 @@ function familySeatSetting(family: string): string | undefined {
   return seatFamilyChoices().find(c => c.family === family)?.setting
 }
 
-export function noCredentialAction(family: string, compatEndpoint?: string): string {
+function noCredentialAction(family: string, compatEndpoint?: string): string {
   const door = loginsActionFor(family, compatEndpoint)
   const other = seatFamilyChoices().find(c => c.family !== family)
   if (other === undefined) return door
@@ -120,8 +120,8 @@ export function defaultProviderDriftNote(
 }
 
 export const NO_ACCOUNT_REFUSAL = 'no-credential:any' satisfies WorkerModelRefusal
-export const NO_ACCOUNT_DETAIL = 'no provider is signed in on this account'
-export const NO_ACCOUNT_ACTION = '/logins to choose an account or connect an API key'
+const NO_ACCOUNT_DETAIL = 'no provider is signed in on this account'
+const NO_ACCOUNT_ACTION = '/logins to choose an account or connect an API key'
 
 export function noAccountRefusal(
   refusal: WorkerModelRefusal,
@@ -319,7 +319,7 @@ export function defaultWorkerModelId(registry: WorkerModelRegistryV1, arm: Worke
   return registry.entries[0]?.modelId ?? foldLegacyWorkerModelKey('fable')
 }
 
-export type WorkerModelValidation =
+type WorkerModelValidation =
   | {
       ok: true
       entry: WorkerModelEntryV1

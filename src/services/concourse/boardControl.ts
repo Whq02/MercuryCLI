@@ -7,7 +7,7 @@ import {
 import type { CrewAgentId } from '../crew/identity.js'
 
 
-export type BoardControlV1 =
+type BoardControlV1 =
   | { verb: 'session.pause'; sessionId: string; by: string; reason: string; clientOpId?: string }
   | { verb: 'session.resume'; sessionId: string; by: string; clientOpId?: string }
   | { verb: 'session.redirect'; sessionId: string; clientMessageId: string; instruction: string; by: string }
@@ -21,14 +21,14 @@ export type BoardControlV1 =
       by: string
     }
 
-export interface BoardControlOutcomeV1 {
+interface BoardControlOutcomeV1 {
   verb: BoardControlV1['verb']
   objectRef: string
   outcome: 'applied' | 'noop' | 'refused' | 'failed' | 'queued'
   detail?: string
 }
 
-export interface BoardControlDeps {
+interface BoardControlDeps {
   crewDir?: string
 }
 

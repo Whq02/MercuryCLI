@@ -213,7 +213,7 @@ export async function checkForUpdate(roots: LayoutRoots, progress: Progress): Pr
 }
 
 
-export const NOTHING_ACTIVATED_WORDS = 'nothing was activated — the active installation was not changed'
+const NOTHING_ACTIVATED_WORDS = 'nothing was activated — the active installation was not changed'
 
 type UpdateStage =
   | 'lock'
@@ -534,7 +534,7 @@ async function acquireAndActivate(
 }
 
 
-export type RollbackOutcome =
+type RollbackOutcome =
   | { state: 'rolled-back'; from: string | null; to: string }
   | { state: 'refused'; reason: string; remedy: string }
 

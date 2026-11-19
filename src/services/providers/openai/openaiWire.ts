@@ -6,7 +6,7 @@ import type { OutageCause } from '../../api/reconnectLadder.js'
 import { retryAfterHeaderMs, retryAfterSaysNow } from '../../api/retryAfter.js'
 import { providerWaitWords } from '../../api/recoveryBudget.js'
 import { isTemporaryStreamError } from '../temporaryStreamError.js'
-import type { StreamCapabilityAdvertisement, TextPhase } from '../../../types/wire.js'
+import type { TextPhase } from '../../../types/wire.js'
 
 
 export interface OpenaiFunctionTool {
@@ -247,14 +247,6 @@ export type OpenaiStreamEvent =
       fault: OpenaiFault
       settledItems?: OpenaiInputItem[]
     }
-
-export const OPENAI_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
-  textDelta: true,
-  reasoningDelta: true,
-  toolArgsDelta: true,
-  usage: true,
-  timing: true,
-}
 
 interface OpenaiFailureCaptureContext {
   request?: unknown

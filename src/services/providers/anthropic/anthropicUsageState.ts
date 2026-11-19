@@ -121,7 +121,7 @@ export function isServerWait(f: { kind?: string; status?: number; retryAfterMs?:
   return f !== undefined && (f.kind === undefined || f.kind === 'http') && f.status === 429 && f.retryAfterMs !== undefined
 }
 
-export const SERVER_WAIT_CEILING_MS = 15 * 60_000
+const SERVER_WAIT_CEILING_MS = 15 * 60_000
 
 function failedWords(f: AnthropicUsageReadFailure): string {
   switch (f.kind) {

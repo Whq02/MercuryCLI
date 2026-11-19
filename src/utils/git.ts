@@ -209,14 +209,6 @@ async function probeUpstream(): Promise<{ value: UpstreamFact | null; fault: str
   return { value: { hasUpstream: true, unpushed: Number.isFinite(count) ? count : 0 }, fault: null }
 }
 
-async function getUnpushedCount(): Promise<number> {
-  return (await readFact('upstream')).unpushed
-}
-
-export async function hasUnpushedCommits(): Promise<boolean> {
-  return (await getUnpushedCount()) > 0
-}
-
 type UntrackedMode = 'all' | 'normal' | 'no'
 
 async function probeClean(mode: UntrackedMode): Promise<{ value: boolean | null; fault: string | null }> {

@@ -80,7 +80,7 @@ export function replayableItems(
   return kept
 }
 
-export const FINISH_TO_STOP: Record<OpenaiFinishReason, 'end_turn' | 'tool_use' | 'max_tokens' | 'refusal'> = {
+const FINISH_TO_STOP: Record<OpenaiFinishReason, 'end_turn' | 'tool_use' | 'max_tokens' | 'refusal'> = {
   completed: 'end_turn',
   tool_calls: 'tool_use',
   max_output_tokens: 'max_tokens',
@@ -88,7 +88,7 @@ export const FINISH_TO_STOP: Record<OpenaiFinishReason, 'end_turn' | 'tool_use' 
   'other-incomplete': 'end_turn',
 }
 
-export type AttemptFacts = {
+type AttemptFacts = {
   usageSeen: OpenaiUsage | undefined
   responseId: string | undefined
   refusalStreamed: boolean

@@ -162,7 +162,7 @@ export function pageText(): string {
   return readFileSync(join(TREE, 'docs', 'TRUST.md'), 'utf8').replace(/\s+/g, ' ')
 }
 
-export function sourceText(relativePath: string): string {
+function sourceText(relativePath: string): string {
   return readFileSync(join(TREE, relativePath), 'utf8')
 }
 

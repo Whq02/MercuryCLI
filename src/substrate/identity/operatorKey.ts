@@ -21,9 +21,9 @@ import {
 import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 
-export const OPERATOR_KEY_VERSION = 1 as const
+const OPERATOR_KEY_VERSION = 1 as const
 
-export interface OperatorKeyFileV1 {
+interface OperatorKeyFileV1 {
   v: typeof OPERATOR_KEY_VERSION
   alg: 'Ed25519'
   createdAt: number
@@ -31,7 +31,7 @@ export interface OperatorKeyFileV1 {
   privateKey: string
 }
 
-export interface OperatorKey {
+interface OperatorKey {
   id: string
   publicKeyRaw: Buffer
   publicKey: KeyObject
@@ -43,7 +43,7 @@ export function operatorKeyPath(home: string = getMercuryHome()): string {
   return join(home, 'identity', 'operator.json')
 }
 
-export function deriveOperatorIdFromPublicKey(publicKeyRaw: Buffer): string {
+function deriveOperatorIdFromPublicKey(publicKeyRaw: Buffer): string {
   return `op-${createHash('sha256').update(publicKeyRaw).digest('hex').slice(0, 12)}`
 }
 

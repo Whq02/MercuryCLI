@@ -7,7 +7,7 @@ import type { RunnerChildSpec } from '../headlessRun.js'
 import type { LongLivedRespawnConfig } from '../longLivedRespawn.js'
 import type { DispatchSource } from '../protocol.js'
 
-export type RosterState =
+type RosterState =
   | 'spawning'
   | 'running'
   | 'retiring'

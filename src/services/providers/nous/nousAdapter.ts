@@ -9,7 +9,7 @@ import type {
   ProviderStatus,
 } from '../providerAdapter.js'
 
-export function describeNousProvider(): ProviderDescription {
+function describeNousProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('nous') ?? primeNousDiscovery()
   const record = discovery?.provider === 'nous' ? discovery : undefined
   const keyPresent = record?.keyPresent ?? false
@@ -30,20 +30,20 @@ export function describeNousProvider(): ProviderDescription {
   }
 }
 
-export function nousStatus(): ProviderStatus {
+function nousStatus(): ProviderStatus {
   const discovery = primeNousDiscovery()
   return discovery?.keyPresent ? { available: true } : { available: false, reason: 'no-api-key:nous' }
 }
 
-export function listNousModels(): ProviderModel[] {
+function listNousModels(): ProviderModel[] {
   return []
 }
 
-export function resolveNousModel(_modelClass: ProviderModelClass): ProviderModelRef | null {
+function resolveNousModel(_modelClass: ProviderModelClass): ProviderModelRef | null {
   return null
 }
 
-export function buildNousLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
+function buildNousLaunchPatch(_ref: ProviderModelRef): { model: string; effort: string } {
   throw new Error('seat: provider nous has no SEAT runtime — roster seats stay Anthropic; Nous Portal models dispatch through the AgentTool engine path')
 }
 

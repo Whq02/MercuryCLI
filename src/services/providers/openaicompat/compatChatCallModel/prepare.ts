@@ -121,7 +121,7 @@ async function buildToolDeclarationRows(
   return { rows, admitted }
 }
 
-export type PreparedCompatTurn = {
+type PreparedCompatTurn = {
   credential: CompatCredential
   plan: ToolPayloadPlan
   callableTools: ApiShapedTool[]
@@ -138,7 +138,7 @@ export type PreparedCompatTurn = {
   withEffort: (message: AssistantMessage) => AssistantMessage
 }
 
-export type FittedCompatTurn = {
+type FittedCompatTurn = {
   credential: CompatCredential
   plan: ToolPayloadPlan
   apiTools: ApiShapedTool[]

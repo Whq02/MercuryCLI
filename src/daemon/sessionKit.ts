@@ -20,7 +20,7 @@ export interface SessionKitV1 {
   deltas?: KitDeltasV1
 }
 
-export const KIT_MCP_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/
+const KIT_MCP_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/
 export const KIT_EXTENSION_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,39}$/
 const KIT_EXTENSION_SERVER_PATTERN = /^ext:[a-z0-9][a-z0-9-]{0,39}:[^\s\x00-\x1f\x7f]{1,128}$/
 const KIT_SKILL_NAME_PATTERN = /^[^\s/\\\x00-\x1f\x7f]{1,200}$/

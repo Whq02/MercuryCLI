@@ -21,11 +21,11 @@ export function pythonTestsEnabled(): boolean {
   return flagEnabled('MERCURY_TESTS')
 }
 
-export type TestFramework = 'pytest' | 'unittest'
+type TestFramework = 'pytest' | 'unittest'
 
 export type RunnerFramework = 'node-test' | 'vitest' | 'jest' | 'cargo' | 'go'
 
-export type EngineFramework = 'unity'
+type EngineFramework = 'unity'
 
 export interface TestCaseResult {
   id: string
