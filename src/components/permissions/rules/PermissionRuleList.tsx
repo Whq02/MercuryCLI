@@ -311,7 +311,7 @@ export function PermissionRuleList({
         })
         .catch((error: unknown) => {
           const why = error instanceof SyntaxError ? 'a settings file is not valid JSON' : errorMessage(error)
-          logError(new Error(`the ${rule.ruleBehavior} rule ${permissionRuleValueToString(rule.ruleValue)} could not be deleted: ${why}`))
+          logError(new Error(`a ${rule.ruleBehavior} rule of ${rule.source} could not be deleted: ${why}`))
           appendLog(
             `Could not delete ${BEHAVIOR_ADJECTIVE[rule.ruleBehavior]} rule ${chalk.bold(
               permissionRuleValueToString(rule.ruleValue),
