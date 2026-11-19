@@ -35,7 +35,7 @@ import {
   type HealthStatus,
 } from '../../utils/healthReport.js'
 import { isFixable } from '../../utils/healthCertCore.js'
-import { applyRemedy, healthFixEnabled, type AppliedFix } from '../../utils/healthFix.js'
+import { applyRemedy, healthFixEnabled } from '../../utils/healthFix.js'
 import { healthCertificateView, type FixFlow } from './healthCertificate/healthCertificateView.js'
 
 
