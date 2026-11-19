@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { readdir, rename, symlink, unlink } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
+import { errorMessage, isENOENT } from '../utils/errors.js'
 import type { DaemonBreaker } from '../utils/daemonBreaker.js'
 import {
   CONTROL_FRAME_CAP,
@@ -314,12 +315,13 @@ function removeStaleSocket(sockPath: string): Promise<void> {
   return unlink(sockPath).catch(() => {})
 }
 
-function livePlaneOwnerIsForeign(): boolean {
+function planeTakeRefusal(): string | null {
   try {
     const raw = JSON.parse(readFileSync(daemonStatePath(), 'utf8')) as { pid?: number }
-    return typeof raw?.pid === 'number' && raw.pid !== process.pid && isProcessAlive(raw.pid)
-  } catch {
-    return false
+    return typeof raw?.pid === 'number' && raw.pid !== process.pid && isProcessAlive(raw.pid) ? 'a live foreign pid owns the plane' : null
+  } catch (err) {
+    if (isENOENT(err)) return null
+    return `the daemon record ${daemonStatePath()} could not be read (${err instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(err)}), so a live owner of the plane cannot be ruled out`
   }
 }
 
@@ -433,9 +435,9 @@ export async function startControlServer(
       return new Promise<void>(resolve => {
         for (const c of conns) c.destroy()
         server.close(() => {
-          const foreignLive = !ownsControlPlaneSync() && livePlaneOwnerIsForeign()
-          if (foreignLive && sockPath === planePath) {
-            logForDebugging('[daemon] rebind aborted — a live foreign pid owns the plane')
+          const refusal = ownsControlPlaneSync() ? null : planeTakeRefusal()
+          if (refusal !== null && sockPath === planePath) {
+            logForDebugging(`[daemon] rebind aborted — ${refusal}`)
             resolve()
             return
           }
@@ -449,7 +451,7 @@ export async function startControlServer(
               server.listen(sockPath, () => {
                 server.removeListener('error', listenFailed)
                 logForDebugging(`[daemon] control server re-bound at ${sockPath} (self-heal)`)
-                if (foreignLive) {
+                if (refusal !== null) {
                   resolve()
                   return
                 }
