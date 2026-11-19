@@ -151,144 +151,34 @@ async function runOp(
 
   switch (input.op) {
     case 'status': {
-      const all = gitStatus(root)
-      if ('state' in all) return { result: all.note, outcome: 'failed' }
-      const s = { ...all, files: all.files.filter(f => !denied(f.path)) }
-      const rows = s.files
-        .slice(0, 40)
-        .map(f => `  ${(f.staged || '.') + (f.unstaged || '.')} ${f.kind === 'untracked' ? '?' : f.kind === 'unmerged' ? 'U' : ' '} ${f.path}${f.origPath ? ` (from ${f.origPath})` : ''}`)
-      return {
-        result: [
-          `${s.branch} @ ${s.head.slice(0, 8)}${s.upstream ? ` (${s.upstream} +${s.ahead} -${s.behind})` : ''} · digest ${s.digest}`,
-          s.clean ? 'clean' : `${s.files.length} changed file(s):`,
-          ...rows,
-          ...(s.files.length > 40 ? [`  … +${s.files.length - 40} more (mercury://git/status)`] : []),
-          ...withheldLine(all.files.length - s.files.length),
-          'record: mercury://git/status',
-        ].join('\n'),
-        outcome: 'no-change',
-      }
+      return statusOp(root, denied)
     }
     case 'diff': {
-      const d = gitDiff(root, {
-        scope: input.scope ?? 'worktree',
-        ...(input.ref !== undefined && { ref: input.ref }),
-        ...(input.paths !== undefined && { paths: input.paths }),
-      })
-      if ('state' in d) return { result: d.note, outcome: 'failed' }
-      const files = d.files.filter(f => !denied(f.path))
-      const hunks = d.hunks.filter(h => !denied(h.file))
-      const fileRows = files.slice(0, 30).map(f => `  ${f.path} +${f.additions} -${f.deletions}${f.binary ? ' (binary)' : ''}`)
-      const hunkRows = hunks.slice(0, 20).map(h => `  ${h.id} ${h.file} ${h.header} (+${h.additions} -${h.deletions})`)
-      return {
-        result: [
-          `${d.scope}${d.ref ? ` ${d.ref}` : ''}: ${files.length} file(s), ${hunks.length} hunk(s)${d.truncated ? ' · TRUNCATED' : ''}`,
-          ...fileRows,
-          ...withheldLine(d.files.length - files.length),
-          'hunks (stable ids for plan/stage):',
-          ...hunkRows,
-          ...(hunks.length > 20 ? [`  … +${hunks.length - 20} more (mercury://git/diff)`] : []),
-        ].join('\n'),
-        outcome: 'no-change',
-      }
+      return diffOp(input, root, denied)
     }
     case 'show': {
-      if (!input.sha) return { result: 'show needs sha', outcome: 'failed' }
-      const c = gitCommitMeta(root, input.sha)
-      if ('state' in c) return { result: c.note, outcome: 'failed' }
-      return {
-        result: [
-          `${c.sha.slice(0, 12)} ${c.subject}`,
-          `${c.author} <${c.authorEmail}> · ${c.date} · parents: ${c.parents.map(p => p.slice(0, 8)).join(', ') || '(root)'}`,
-          ...c.files.filter(f => !denied(f.path)).slice(0, 30).map(f => `  ${f.status} ${f.path}`),
-          ...withheldLine(c.files.filter(f => denied(f.path)).length),
-          `record: mercury://git/commit/${c.sha}`,
-        ].join('\n'),
-        outcome: 'no-change',
-      }
+      return showOp(input, root, denied)
     }
     case 'worktree': {
-      const w = gitWorktrees(root)
-      if ('state' in w) return { result: w.note, outcome: 'failed' }
-      return {
-        result: w.map(t => `  ${t.isMain ? 'main' : '    '} ${t.path} @ ${t.head.slice(0, 8)}${t.branch ? ` (${t.branch})` : ''}`).join('\n'),
-        outcome: 'no-change',
-      }
+      return worktreeOp(root)
     }
     case 'conflicts': {
-      const all = gitConflicts(root, owner)
-      if ('state' in all) return { result: all.note, outcome: 'failed' }
-      if (all.length === 0) return { result: 'no unmerged conflicts', outcome: 'no-change' }
-      const readable = all.filter(c => !denied(c.path))
-      return {
-        result: [...readable
-          .flatMap(c => [`  ${c.id} ${c.path} (base ${c.base.length}L · ours ${c.ours.length}L · theirs ${c.theirs.length}L) — mercury://git/conflict/${c.id}`, ...(c.regions ?? []).slice(0, 50).map(r => `    ${r.id} lines ${r.startLine}-${r.endLine} — mercury://git/conflict/${c.id}/${r.id}`), ...((c.regions?.length ?? 0) > 50 ? [`    … ${c.regions!.length - 50} more regions — mercury://git/conflict/${c.id}`] : [])]), ...withheldLine(all.length - readable.length)]
-          .join('\n'),
-        outcome: 'no-change',
-      }
+      return conflictsOp(root, owner, denied)
     }
     case 'mergebase': {
-      if (!input.refA || !input.refB) return { result: 'mergebase needs refA + refB', outcome: 'failed' }
-      const base = gitMergeBase(root, input.refA, input.refB)
-      if (typeof base !== 'string') return { result: base.note, outcome: 'failed' }
-      return { result: `merge-base(${input.refA}, ${input.refB}) = ${base}`, outcome: 'no-change' }
+      return mergebaseOp(input, root)
     }
     case 'plan': {
-      if (!input.groups?.length) return { result: 'plan needs groups', outcome: 'failed' }
-      const fileHistory = context.getAppState().fileHistory
-      const mercuryTouched = fileHistory && fileHistoryEnabled()
-        ? new Set([...fileHistory.trackedFiles].map(maybeExpandFilePath))
-        : undefined
-      const plan = preparePlan(owner, root, input.groups as GitPlanGroup[], mercuryTouched)
-      if ('reason' in plan) return { result: `plan refused: ${plan.reason}`, outcome: 'failed' }
-      const prov = plan.provenance ?? {}
-      const mark = (f: string): string => (prov[f] === 'external' ? `${f} [EXTERNAL]` : f)
-      const externalInGroups = plan.groups.flatMap(g => g.files).filter(f => prov[f] === 'external')
-      return {
-        result: [
-          `${plan.id} [proposed] — ${plan.groups.length} group(s) on digest ${plan.digest}`,
-          ...plan.groups.map((g, i) => `  ${i + 1}. ${plan.originalGroups ? `[group ${plan.originalGroups[i]}] ` : ''}${g.message.split('\n')[0]} — ${g.files.map(mark).join(', ')}${g.hunks ? ` (hunk subsets: ${Object.keys(g.hunks).join(', ')})` : ''}${plan.originalGroups ? `; depends on: ${g.dependsOn?.join(', ') || '(none)'}` : ''}`),
-          plan.exclusions.length ? `exclusions (stay uncommitted): ${plan.exclusions.map(mark).join(', ')}` : 'no exclusions',
-          externalInGroups.length ? `CAUTION: group(s) include work Mercury did not write this session — ${externalInGroups.join(', ')}; confirm these external edits belong in the commit` : '',
-          plan.ambiguous.length ? `ambiguous (staged+unstaged; staging state re-derived, content never lost): ${plan.ambiguous.join(', ')}` : '',
-          commitIdentityLine(root) ?? '',
-          `NOTHING committed — apply with op:"apply" planId:"${plan.id}" (stale-safe)`,
-          `record: mercury://git/plan/${plan.id}`,
-        ].filter(Boolean).join('\n'),
-        outcome: 'succeeded',
-      }
+      return planOp(input, context, root, owner)
     }
     case 'apply': {
-      if (!input.planId) return { result: 'apply needs planId (gp-…)', outcome: 'failed' }
-      const out = applyPlan(owner, input.planId, { signal: context.abortController?.signal })
-      if (out.state === 'refused') {
-        const created = out.commitsCreated?.length
-          ? `\ncommits already created (they stand): ${out.commitsCreated.map(c => `${c.sha.slice(0, 8)} ${c.message.split('\n')[0]}`).join(' · ')}`
-          : ''
-        return { result: `apply refused [${out.code}]: ${out.reason}${created}`, outcome: 'failed' }
-      }
-      return {
-        result: [
-          `${input.planId} APPLIED — ${out.commits.length} commit(s):`,
-          'Repository pre-commit and commit-msg hooks are not run for these commits.',
-          ...out.commits.map(c => `  ${c.sha.slice(0, 8)} ${c.message.split('\n')[0]} (${c.files.length} file(s)) — mercury://git/commit/${c.sha} · mercury://transaction/${c.transactionId}`),
-          ...gitFilterSkipMessages(root),
-          `record: mercury://git/plan/${input.planId}`,
-        ].join('\n'),
-        outcome: 'succeeded',
-      }
+      return applyOp(input, context, root, owner)
     }
     case 'stage': {
-      if (!input.files?.length) return { result: 'stage needs files', outcome: 'failed' }
-      const out = stageSelection(root, input.files, input.hunks)
-      if (out.state === 'refused') return { result: `stage refused: ${out.reason}`, outcome: 'failed' }
-      return { result: out.detail, outcome: 'succeeded' }
+      return stageOp(input, root)
     }
     case 'restore': {
-      if (!input.files?.length) return { result: 'restore needs files', outcome: 'failed' }
-      const out = restoreStaged(root, input.files)
-      if (out.state === 'refused') return { result: `restore refused: ${out.reason}`, outcome: 'failed' }
-      return { result: out.detail, outcome: 'succeeded' }
+      return restoreOp(input, root)
     }
     case 'resolve': {
       if (input.resolutions) {
@@ -513,6 +403,158 @@ async function runOp(
       }
     }
   }
+}
+
+type OpAnswer = { result: string; outcome: ToolEffectOutcome; changedPaths?: string[] }
+
+function statusOp(root: string, denied: Awaited<ReturnType<typeof repositoryDenied>>): OpAnswer {
+  const all = gitStatus(root)
+  if ('state' in all) return { result: all.note, outcome: 'failed' }
+  const s = { ...all, files: all.files.filter(f => !denied(f.path)) }
+  const rows = s.files
+    .slice(0, 40)
+    .map(f => `  ${(f.staged || '.') + (f.unstaged || '.')} ${f.kind === 'untracked' ? '?' : f.kind === 'unmerged' ? 'U' : ' '} ${f.path}${f.origPath ? ` (from ${f.origPath})` : ''}`)
+  return {
+    result: [
+      `${s.branch} @ ${s.head.slice(0, 8)}${s.upstream ? ` (${s.upstream} +${s.ahead} -${s.behind})` : ''} · digest ${s.digest}`,
+      s.clean ? 'clean' : `${s.files.length} changed file(s):`,
+      ...rows,
+      ...(s.files.length > 40 ? [`  … +${s.files.length - 40} more (mercury://git/status)`] : []),
+      ...withheldLine(all.files.length - s.files.length),
+      'record: mercury://git/status',
+    ].join('\n'),
+    outcome: 'no-change',
+  }
+}
+
+function diffOp(input: Input, root: string, denied: Awaited<ReturnType<typeof repositoryDenied>>): OpAnswer {
+  const d = gitDiff(root, {
+    scope: input.scope ?? 'worktree',
+    ...(input.ref !== undefined && { ref: input.ref }),
+    ...(input.paths !== undefined && { paths: input.paths }),
+  })
+  if ('state' in d) return { result: d.note, outcome: 'failed' }
+  const files = d.files.filter(f => !denied(f.path))
+  const hunks = d.hunks.filter(h => !denied(h.file))
+  const fileRows = files.slice(0, 30).map(f => `  ${f.path} +${f.additions} -${f.deletions}${f.binary ? ' (binary)' : ''}`)
+  const hunkRows = hunks.slice(0, 20).map(h => `  ${h.id} ${h.file} ${h.header} (+${h.additions} -${h.deletions})`)
+  return {
+    result: [
+      `${d.scope}${d.ref ? ` ${d.ref}` : ''}: ${files.length} file(s), ${hunks.length} hunk(s)${d.truncated ? ' · TRUNCATED' : ''}`,
+      ...fileRows,
+      ...withheldLine(d.files.length - files.length),
+      'hunks (stable ids for plan/stage):',
+      ...hunkRows,
+      ...(hunks.length > 20 ? [`  … +${hunks.length - 20} more (mercury://git/diff)`] : []),
+    ].join('\n'),
+    outcome: 'no-change',
+  }
+}
+
+function showOp(input: Input, root: string, denied: Awaited<ReturnType<typeof repositoryDenied>>): OpAnswer {
+  if (!input.sha) return { result: 'show needs sha', outcome: 'failed' }
+  const c = gitCommitMeta(root, input.sha)
+  if ('state' in c) return { result: c.note, outcome: 'failed' }
+  return {
+    result: [
+      `${c.sha.slice(0, 12)} ${c.subject}`,
+      `${c.author} <${c.authorEmail}> · ${c.date} · parents: ${c.parents.map(p => p.slice(0, 8)).join(', ') || '(root)'}`,
+      ...c.files.filter(f => !denied(f.path)).slice(0, 30).map(f => `  ${f.status} ${f.path}`),
+      ...withheldLine(c.files.filter(f => denied(f.path)).length),
+      `record: mercury://git/commit/${c.sha}`,
+    ].join('\n'),
+    outcome: 'no-change',
+  }
+}
+
+function worktreeOp(root: string): OpAnswer {
+  const w = gitWorktrees(root)
+  if ('state' in w) return { result: w.note, outcome: 'failed' }
+  return {
+    result: w.map(t => `  ${t.isMain ? 'main' : '    '} ${t.path} @ ${t.head.slice(0, 8)}${t.branch ? ` (${t.branch})` : ''}`).join('\n'),
+    outcome: 'no-change',
+  }
+}
+
+function conflictsOp(root: string, owner: ReturnType<typeof ownerFromToolUseContext>, denied: Awaited<ReturnType<typeof repositoryDenied>>): OpAnswer {
+  const all = gitConflicts(root, owner)
+  if ('state' in all) return { result: all.note, outcome: 'failed' }
+  if (all.length === 0) return { result: 'no unmerged conflicts', outcome: 'no-change' }
+  const readable = all.filter(c => !denied(c.path))
+  return {
+    result: [...readable
+      .flatMap(c => [`  ${c.id} ${c.path} (base ${c.base.length}L · ours ${c.ours.length}L · theirs ${c.theirs.length}L) — mercury://git/conflict/${c.id}`, ...(c.regions ?? []).slice(0, 50).map(r => `    ${r.id} lines ${r.startLine}-${r.endLine} — mercury://git/conflict/${c.id}/${r.id}`), ...((c.regions?.length ?? 0) > 50 ? [`    … ${c.regions!.length - 50} more regions — mercury://git/conflict/${c.id}`] : [])]), ...withheldLine(all.length - readable.length)]
+      .join('\n'),
+    outcome: 'no-change',
+  }
+}
+
+function mergebaseOp(input: Input, root: string): OpAnswer {
+  if (!input.refA || !input.refB) return { result: 'mergebase needs refA + refB', outcome: 'failed' }
+  const base = gitMergeBase(root, input.refA, input.refB)
+  if (typeof base !== 'string') return { result: base.note, outcome: 'failed' }
+  return { result: `merge-base(${input.refA}, ${input.refB}) = ${base}`, outcome: 'no-change' }
+}
+
+function planOp(input: Input, context: ToolUseContext, root: string, owner: ReturnType<typeof ownerFromToolUseContext>): OpAnswer {
+  if (!input.groups?.length) return { result: 'plan needs groups', outcome: 'failed' }
+  const fileHistory = context.getAppState().fileHistory
+  const mercuryTouched = fileHistory && fileHistoryEnabled()
+    ? new Set([...fileHistory.trackedFiles].map(maybeExpandFilePath))
+    : undefined
+  const plan = preparePlan(owner, root, input.groups as GitPlanGroup[], mercuryTouched)
+  if ('reason' in plan) return { result: `plan refused: ${plan.reason}`, outcome: 'failed' }
+  const prov = plan.provenance ?? {}
+  const mark = (f: string): string => (prov[f] === 'external' ? `${f} [EXTERNAL]` : f)
+  const externalInGroups = plan.groups.flatMap(g => g.files).filter(f => prov[f] === 'external')
+  return {
+    result: [
+      `${plan.id} [proposed] — ${plan.groups.length} group(s) on digest ${plan.digest}`,
+      ...plan.groups.map((g, i) => `  ${i + 1}. ${plan.originalGroups ? `[group ${plan.originalGroups[i]}] ` : ''}${g.message.split('\n')[0]} — ${g.files.map(mark).join(', ')}${g.hunks ? ` (hunk subsets: ${Object.keys(g.hunks).join(', ')})` : ''}${plan.originalGroups ? `; depends on: ${g.dependsOn?.join(', ') || '(none)'}` : ''}`),
+      plan.exclusions.length ? `exclusions (stay uncommitted): ${plan.exclusions.map(mark).join(', ')}` : 'no exclusions',
+      externalInGroups.length ? `CAUTION: group(s) include work Mercury did not write this session — ${externalInGroups.join(', ')}; confirm these external edits belong in the commit` : '',
+      plan.ambiguous.length ? `ambiguous (staged+unstaged; staging state re-derived, content never lost): ${plan.ambiguous.join(', ')}` : '',
+      commitIdentityLine(root) ?? '',
+      `NOTHING committed — apply with op:"apply" planId:"${plan.id}" (stale-safe)`,
+      `record: mercury://git/plan/${plan.id}`,
+    ].filter(Boolean).join('\n'),
+    outcome: 'succeeded',
+  }
+}
+
+function applyOp(input: Input, context: ToolUseContext, root: string, owner: ReturnType<typeof ownerFromToolUseContext>): OpAnswer {
+  if (!input.planId) return { result: 'apply needs planId (gp-…)', outcome: 'failed' }
+  const out = applyPlan(owner, input.planId, { signal: context.abortController?.signal })
+  if (out.state === 'refused') {
+    const created = out.commitsCreated?.length
+      ? `\ncommits already created (they stand): ${out.commitsCreated.map(c => `${c.sha.slice(0, 8)} ${c.message.split('\n')[0]}`).join(' · ')}`
+      : ''
+    return { result: `apply refused [${out.code}]: ${out.reason}${created}`, outcome: 'failed' }
+  }
+  return {
+    result: [
+      `${input.planId} APPLIED — ${out.commits.length} commit(s):`,
+      'Repository pre-commit and commit-msg hooks are not run for these commits.',
+      ...out.commits.map(c => `  ${c.sha.slice(0, 8)} ${c.message.split('\n')[0]} (${c.files.length} file(s)) — mercury://git/commit/${c.sha} · mercury://transaction/${c.transactionId}`),
+      ...gitFilterSkipMessages(root),
+      `record: mercury://git/plan/${input.planId}`,
+    ].join('\n'),
+    outcome: 'succeeded',
+  }
+}
+
+function stageOp(input: Input, root: string): OpAnswer {
+  if (!input.files?.length) return { result: 'stage needs files', outcome: 'failed' }
+  const out = stageSelection(root, input.files, input.hunks)
+  if (out.state === 'refused') return { result: `stage refused: ${out.reason}`, outcome: 'failed' }
+  return { result: out.detail, outcome: 'succeeded' }
+}
+
+function restoreOp(input: Input, root: string): OpAnswer {
+  if (!input.files?.length) return { result: 'restore needs files', outcome: 'failed' }
+  const out = restoreStaged(root, input.files)
+  if (out.state === 'refused') return { result: `restore refused: ${out.reason}`, outcome: 'failed' }
+  return { result: out.detail, outcome: 'succeeded' }
 }
 
 function resolutionFor(input: Input, root: string, owner: ReturnType<typeof ownerFromToolUseContext>) {
