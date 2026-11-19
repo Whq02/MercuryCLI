@@ -55,7 +55,7 @@ function readMutableSessionWorkersFromDisk(
 ): { kind: 'known'; workers: Record<string, ConcourseWorkerRecordV1> } | { kind: 'absent' } | { kind: 'unavailable'; why: string } | { kind: 'unusable'; why: string } {
   try {
     const raw = JSON.parse(readFileSync(path, 'utf8')) as ConcourseWorkerFileV1
-    if (!raw || raw.version !== 1 || typeof raw.workers !== 'object' || raw.workers === null || Array.isArray(raw.workers)) {
+    if (!raw || raw.version !== 1 || typeof raw.workers !== 'object' || raw.workers === null || Array.isArray(raw.workers) || Object.values(raw.workers).some(rec => typeof rec !== 'object' || rec === null)) {
       return { kind: 'unusable', why: 'it is not a version 1 session file' }
     }
     for (const rec of Object.values(raw.workers)) {

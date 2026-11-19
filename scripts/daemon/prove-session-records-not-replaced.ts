@@ -91,6 +91,8 @@ try {
     ['cut short', THREE.slice(0, Math.floor(THREE.length * 0.6)), 'it is not valid JSON'],
     ['of another version', THREE.replace('"version": 1', '"version": 2'), 'it is not a version 1 session file'],
     ['holding a list where the sessions should be', '{"version":1,"workers":[]}\n', 'it is not a version 1 session file'],
+    ['holding a record that is no record beside two whole ones', THREE.replace(/"concourse-w1": \{[^}]*\}/, '"concourse-w1": null'), 'it is not a version 1 session file'],
+    ['holding a number where a record should be', '{"version":1,"workers":{"concourse-w1":7}}\n', 'it is not a version 1 session file'],
   ] as const) {
     console.log(`the session records — there, read and ${title}: kept aside first, then the change is written`)
     const { dir, file } = fresh()
