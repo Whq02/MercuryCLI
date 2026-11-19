@@ -1,9 +1,10 @@
 import { readFileSync, readdirSync } from 'node:fs'
-import { userInfo } from 'node:os'
-import { dirname, join, posix } from 'node:path'
+import { homedir, userInfo } from 'node:os'
+import { dirname, join, posix, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { describeArtifactIdentity } from '../artifactIdentity.js'
 import { defaultMercuryHome, getMercuryHome } from '../envUtils.js'
+import { getErrnoCode } from '../errors.js'
 import { getShellCwd } from '../Shell.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { execFileNoThrow } from '../execFileNoThrow.js'
@@ -145,11 +146,16 @@ function imageMatches(pattern: string, regex: boolean, full: boolean, insensitiv
   const images = [name(process.execPath), name(process.execPath) + '.exe', 'mercury', 'mercury.exe', ...own.names]
   const candidates = full ? [...images, [process.execPath, ...process.argv.slice(1)].join(' '), ...own.lines] : images
   if (!regex) return candidates.some(image => matchWildcardPattern(pattern, image, insensitive))
+  let re: RegExp
   try {
-    const re = new RegExp(pattern, insensitive ? 'i' : '')
-    return candidates.some(image => re.test(image))
-  } catch { return false }
+    re = new RegExp(pattern, insensitive ? 'i' : '')
+  } catch (error) {
+    throw new UnreadPattern(error instanceof Error ? error.message : String(error))
+  }
+  return candidates.some(image => re.test(image))
 }
+
+class UnreadPattern extends Error {}
 
 function operandsBeforeRedirect(args: string[], end?: number): string[] {
   return end === undefined ? args : args.slice(0, Math.max(0, end - 1))
@@ -173,7 +179,13 @@ function selectedImages(argv: string[], end?: number): string[] {
 }
 
 export async function namesMercuryProcess(pattern: string): Promise<boolean> {
-  return imageMatches(pattern, true, true, true, await ownProcesses(await protectedPids()))
+  const own = await ownProcesses(await protectedPids())
+  try {
+    return imageMatches(pattern, true, true, true, own)
+  } catch (error) {
+    if (error instanceof UnreadPattern) return true
+    throw error
+  }
 }
 
 function ownUser(named: string): boolean {
@@ -182,31 +194,46 @@ function ownUser(named: string): boolean {
   try {
     const info = userInfo()
     names.push(info.username, String(info.uid))
-  } catch {}
+  } catch {
+    if (process.getuid !== undefined) names.push(String(process.getuid()))
+  }
   return names.some(candidate => candidate !== undefined && candidate !== '' && candidate === named)
+}
+
+const ownsMercury = (target: string): string => 'Stopping ' + target + ' is refused: it owns Mercury’s running process or daemon.'
+
+const unreadWhy = (error: unknown): string => getErrnoCode(error) ?? (error instanceof Error ? error.message : String(error))
+
+function launchctlAnswered(error: unknown): boolean {
+  return typeof (error as { status?: unknown } | null)?.status === 'number' || getErrnoCode(error) === 'ENOENT'
 }
 
 async function launchAgentReason(args: string[], pids: number[]): Promise<string | null> {
   if (!['bootout', 'unload', 'remove', 'kill', 'stop', 'disable', 'kickstart'].includes(args[0] ?? '')) return null
   const targets = args.slice(1).filter(arg => !arg.startsWith('-'))
   const named = targets.find(target => /mercury[^/]*$/i.test(target))
-  if (named !== undefined) return named
+  if (named !== undefined) return ownsMercury(named)
   for (const target of targets) {
     if (!target.endsWith('.plist') && !target.includes('/')) continue
     if (target.endsWith('.plist')) {
       try {
-        const text = readFileSync(target, 'utf8')
+        const text = readFileSync(resolve(getShellCwd(), target.replace(/^~(?=\/|$)/, process.env.HOME || homedir())), 'utf8')
         const program = /<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(text)?.[1]
           ?? /<key>Program<\/key>\s*(<string>[^<]*<\/string>)/.exec(text)?.[1] ?? ''
         const paths = [...program.matchAll(/<string>([^<]+)/g)].map(match => match[1]!)
         const entries = [process.argv[1], (await readDaemonState())?.script].filter((path): path is string => !!path).flatMap(path => protectedPathForms(path))
-        if (paths.some(path => protectedPathForms(path).some(form => entries.includes(form)))) return target
-      } catch {}
+        if (paths.some(path => protectedPathForms(path).some(form => entries.includes(form)))) return ownsMercury(target)
+      } catch (error) {
+        const code = getErrnoCode(error)
+        if (code !== 'ENOENT' && code !== 'ENOTDIR') return 'Stopping ' + target + ' is refused: Mercury could not read it (' + unreadWhy(error) + '), so it cannot tell whether it runs Mercury’s own process or daemon. Stop the agent by its service target instead.'
+      }
     } else if (process.platform === 'darwin') {
       try {
         const printed = execFileSync('launchctl', ['print', target], { encoding: 'utf8', timeout: 2000, windowsHide: true, env: { ...subprocessEnv() }, stdio: ['ignore', 'pipe', 'ignore'] })
-        if ([...printed.matchAll(/\bpid\s*=\s*(\d+)/g)].some(match => pids.includes(Number(match[1])))) return target
-      } catch {}
+        if ([...printed.matchAll(/\bpid\s*=\s*(\d+)/g)].some(match => pids.includes(Number(match[1])))) return ownsMercury(target)
+      } catch (error) {
+        if (!launchctlAnswered(error)) return 'Stopping ' + target + ' is refused: launchctl print gave no answer (' + unreadWhy(error) + '), so Mercury cannot tell whether it runs its own process or daemon. Try again in a moment.'
+      }
     }
   }
   return null
@@ -231,8 +258,8 @@ export async function runtimeProcessRefusal(commands: string[][], operandEnds?: 
     const args = argv.slice(1)
     if (args.some(arg => /^-whatif$/i.test(arg))) continue
     if (command === 'launchctl') {
-      const target = await launchAgentReason(args, pids)
-      if (target) return 'Stopping ' + target + ' is refused: it owns Mercury’s running process or daemon.'
+      const refusal = await launchAgentReason(args, pids)
+      if (refusal) return refusal
     }
     if (command === 'lldb' || command === 'gdb') {
       const attached = [...optionValues(args, /^(?:-p|--pid|--attach-pid)$/), ...(command === 'gdb' ? positionals(args, /^-(?:ex|x|-command|-eval-command|-args|-pid|p)$/) : [])].find(value => /^\d+$/.test(value) && pids.includes(Number(value)))
@@ -273,7 +300,15 @@ export async function runtimeProcessRefusal(commands: string[][], operandEnds?: 
     const images = [...selectedImages(argv, end), ...filters.flatMap(value => /^imagename\s+eq\s+(.+)$/i.exec(value)?.slice(1) ?? [])]
     for (const image of images) {
       const exact = regex && args.some(arg => /^-(?:[a-z]*x[a-z]*|-exact)$/.test(arg))
-      if (imageMatches(exact ? '^(?:' + image + ')$' : image, regex, full, insensitive, await ownProcesses(pids))) return 'Killing by image ' + image + ' is refused: it can terminate Mercury’s running process or daemon. Use the pid of the unrelated process instead.'
+      const own = await ownProcesses(pids)
+      let matched: boolean
+      try {
+        matched = imageMatches(exact ? '^(?:' + image + ')$' : image, regex, full, insensitive, own)
+      } catch (error) {
+        if (!(error instanceof UnreadPattern)) throw error
+        return 'Killing by image ' + image + ' is refused: Mercury cannot read it as a pattern (' + error.message + '), so it cannot tell whether it names Mercury’s running process or daemon. Use the pid of the unrelated process instead.'
+      }
+      if (matched) return 'Killing by image ' + image + ' is refused: it can terminate Mercury’s running process or daemon. Use the pid of the unrelated process instead.'
     }
   }
   return null
