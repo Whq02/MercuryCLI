@@ -402,11 +402,16 @@ const THEN_RESTART = 'then restart Mercury'
 type LoginFilesRead = { files: string; only: string; asked: string; other: string }
 
 const BASH_READS: LoginFilesRead = { files: LOGIN_FILES, only: INTERACTIVE_ONLY, asked: '`bash -l -c true`', other: '`exec zsh -l`' }
-const ZSH_READS: LoginFilesRead = {
-  files: 'the files zsh reads at login (~/.zshenv, ~/.zprofile, ~/.zshrc and ~/.zlogin)',
-  only: 'only where a terminal is attached (inside `if [[ -t 0 ]]; then … fi`)',
-  asked: '`zsh -l -i -c true`',
-  other: '`exec fish -l`',
+
+function zshReads(dotDir: string | undefined = subprocessEnv().ZDOTDIR): LoginFilesRead {
+  const home = homedir()
+  const at = dotDir === undefined || dotDir === '' ? '~' : (dotDir === home || dotDir.startsWith(`${home}/`) ? `~${dotDir.slice(home.length)}` : dotDir).replace(/\/+$/, '')
+  return {
+    files: `the files zsh reads at login (${at}/.zshenv, ${at}/.zprofile, ${at}/.zshrc and ${at}/.zlogin)`,
+    only: 'only where a terminal is attached (inside `if [[ -t 0 ]]; then … fi`)',
+    asked: '`zsh -l -i -c true`',
+    other: '`exec fish -l`',
+  }
 }
 
 function loginRunLeftNothing(outcome: BoundedRun, read: LoginFilesRead = BASH_READS): LoginFilesAbsence {
@@ -484,13 +489,13 @@ const exportsReadByZsh = memoize(async (zsh: string, session: boolean): Promise<
     const run = await runBounded(zsh, ['-l', '-i', '-c', ZSH_PRINTS_EXPORTS], { ...subprocessEnv(), GIT_EDITOR: 'true', MERCURY: '1', SHELL_SESSIONS_DISABLE: '1' }, SNAPSHOT_CAPTURE_BOUND_MS, true)
     const carried = await carriedBy(run, session)
     if (session) carriedFromZsh = carried
-    const absence = run.killed || run.exitCode !== 0 ? loginRunLeftNothing(run, ZSH_READS) : (run.exported ?? null) === null ? loginRunHandedOver(ZSH_READS) : null
+    const absence = run.killed || run.exitCode !== 0 ? loginRunLeftNothing(run, zshReads()) : (run.exported ?? null) === null ? loginRunHandedOver(zshReads()) : null
     noteLoginExports(absence)
     if (absence === null) return
     logForDebugging(`the zsh login files carry nothing: ${absence.why} (${zsh})${run.stderr.length > 0 ? `\n  stderr (${run.stderr.length} chars):\n${run.stderr}` : ''}`)
     logError(`the zsh login files were not read: ${absence.why} (${zsh})`)
   } catch (error) {
-    noteLoginExports(loginRunLeftNothing({ stdout: '', stderr: '', killed: false, overflowed: false, unstarted: errorMessage(error) }, ZSH_READS))
+    noteLoginExports(loginRunLeftNothing({ stdout: '', stderr: '', killed: false, overflowed: false, unstarted: errorMessage(error) }, zshReads()))
     logError(`the zsh login files were not read: ${errorMessage(error)} (${zsh})`)
   }
 }, (zsh: string, session: boolean) => `${session ? 'session' : 'asked'} ${zsh}`)
