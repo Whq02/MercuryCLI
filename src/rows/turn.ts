@@ -6,12 +6,11 @@ import type { Terminal } from '../query/transitions.js'
 import type { RunEvent } from '../run-core/events.js'
 import { legacyYieldsOf } from '../run-core/project-legacy.js'
 import type { QueryParams } from '../run-core/turn-machine.js'
-import { retryReasonWords } from '../services/providers/streamIdleBudget.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/emptyUsage.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import type { Tools, ToolUseContext } from '../Tool.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/constants.js'
-import type { AssistantMessage, CompactMetadata, Message, MessageOrigin, SystemCloseUsageMessage } from '../types/message.js'
+import type { AssistantMessage, CompactMetadata, Message, MessageOrigin } from '../types/message.js'
 import type { ApiStreamEvent, ContentBlockParam } from '../types/wire.js'
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
 import { createAttachmentMessage } from '../utils/attachments/orchestrator.js'
@@ -26,14 +25,13 @@ import { headlessProfilerCheckpoint } from '../utils/headlessProfiler.js'
 import { forgetWardFirings, wardFiringsOf } from '../guards/wardsGuard.js'
 import { getInMemoryErrors, logError } from '../utils/log.js'
 import { isClaudeAISubscriber } from '../utils/auth.js'
-import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { turnCutOf } from '../utils/messages/turnCut.js'
 import type { HookAttachment } from '../utils/attachments/types.js'
 import { getEngineModel } from '../utils/model/model.js'
 import { resolveModelPricing } from '../utils/modelCost.js'
 import { getTokenUsage, messageContextFill } from '../utils/tokens.js'
 import { getModelUsage, getTotalCostUSD } from '../bootstrap/state.js'
-import { advanceLedgerMark, ledgerMark, ledgerSpentSince, usageSince } from '../utils/ledgerMark.js'
+import { ledgerMark, ledgerSpentSince, usageSince } from '../utils/ledgerMark.js'
 import { noteRunPhase } from '../utils/runPhases.js'
 import { processUserInput } from '../utils/processUserInput/processUserInput.js'
 import { getSlashCommandToolSkills } from '../commands.js'
@@ -50,11 +48,9 @@ import {
   compactionEndedRow,
   modelUsageRows,
   noticeRow,
-  closeRow,
   outcomeRow,
   partialRowsOf,
   retractedRow,
-  retryWaitRow,
   toolResultRowsOf,
   turnStartedRow,
   type OutcomeFacts,
@@ -75,6 +71,10 @@ import { latestAnswerOf } from './turn/answer.js'
 import { openCallsCutter } from './turn/cut.js'
 import { turnEnder } from './turn/end.js'
 import { MaxTimeCut, settledTurnRows } from './turn/settle.js'
+import { costUnknownIn } from './turn/close.js'
+import { systemMessageRows } from './turn/system.js'
+
+export { closeRowOf } from './turn/close.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
 
@@ -140,18 +140,6 @@ function inputFloorUsd(messages: readonly Message[], model: string): number | nu
     return (carried * Math.min(pricing.costs.promptCacheReadTokens, pricing.costs.inputTokens)) / 1e6
   }
   return null
-}
-
-const costUnknownIn = (unpricedTurns: Record<string, number>, subscriber: boolean) => (model: string): boolean => (unpricedTurns[model] ?? 0) > 0 || (subscriber && declaredRouteOf(model) === 'anthropic')
-
-export function closeRowOf(scope: RowScope, note: Pick<SystemCloseUsageMessage, 'closeState' | 'noteChars' | 'usage' | 'spent'>): ReturnType<typeof closeRow> {
-  const models = modelUsageRows(note.spent?.modelUsage, costUnknownIn(note.spent?.unpricedTurns ?? {}, isClaudeAISubscriber()))
-  return closeRow(scope, {
-    state: note.closeState,
-    ...(note.noteChars !== undefined ? { noteChars: note.noteChars } : {}),
-    ...(note.usage !== undefined ? { usage: note.usage } : {}),
-    ...(Object.keys(models).length > 0 ? { models } : {}),
-  })
 }
 
 export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 'tools' | 'mcpClients' | 'commands' | 'agents'>, model: string, mode: string, resumeOf?: string, toolsWithheld?: SessionFacts['toolsWithheld']): Promise<SessionFacts> {
@@ -671,52 +659,7 @@ export class Conversation {
             break
           }
           case 'system': {
-            const systemMessage = message
-            if (systemMessage.subtype === 'close_usage') {
-              const close = systemMessage as SystemCloseUsageMessage
-              if (close.spent !== undefined) advanceLedgerMark(ledgerAtStart, close.spent)
-              yield closeRowOf(scope, close)
-              break
-            }
-            if (systemMessage.subtype === 'api_error') {
-              this.mutableMessages.push(systemMessage)
-              turnMessages.push(systemMessage)
-              await recordDelta()
-              const apiError = systemMessage as { retryAttempt?: number; maxRetries?: number; retryInMs?: number; errorDetail?: { status?: number | null }; error?: { status?: number | null; message?: string } }
-              const httpStatus = apiError.errorDetail?.status ?? apiError.error?.status ?? null
-              yield retryWaitRow(scope, {
-                attempt: apiError.retryAttempt,
-                of: apiError.maxRetries,
-                reason: retryReasonWords(httpStatus, apiError.error?.message),
-                delayMs: apiError.retryInMs,
-                httpStatus,
-                sinceMs: Date.now() - turnStartedAt,
-              })
-              break
-            }
-            if (systemMessage.subtype !== 'compact_boundary') {
-              const level = (systemMessage as { level?: string }).level
-              if (systemMessage.subtype === 'informational' && (level === 'warning' || level === 'error')) {
-                this.mutableMessages.push(systemMessage)
-                turnMessages.push(systemMessage)
-                await recordDelta()
-                const text = String((systemMessage as { content?: unknown }).content ?? '')
-                notices.push({ level, text })
-                yield noticeRow(scope, level, text)
-                break
-              }
-              this.mutableMessages.push(systemMessage)
-              if (level === 'warning' || level === 'error' || level === 'suggestion' || systemMessage.subtype === 'thinking_note' || systemMessage.subtype === 'stream_cut' || systemMessage.subtype === 'busy_recovery') {
-                turnMessages.push(systemMessage)
-                await recordDelta()
-              }
-              if (systemMessage.subtype === 'stream_cut') {
-                const text = String((systemMessage as { content?: unknown }).content ?? '')
-                notices.push({ level: 'warning', text })
-                yield noticeRow(scope, 'warning', text)
-              }
-              break
-            }
+            if (yield* systemMessageRows({ scope, ledgerAtStart, turnStartedAt, mutableMessages: this.mutableMessages, turnMessages, notices, recordDelta }, message)) break
             shouldRecord = true
             isBoundary = true
             break
