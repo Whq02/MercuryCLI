@@ -14,6 +14,7 @@ import {
   type LayoutWrap,
 } from './node.js'
 import { AUTO, type DimValue, type EdgeStore, edgeValue, type InsetStore, insetValue, pointOrAuto, resolve } from './cellLayout/values.js'
+import { clampH, clampW, crossGapOf, hasMeasureFuncInSubtree, isReverse, mainAxis, mainGapOf, marginH, marginV, padBorderH, padBorderV, resolvedAlign } from './cellLayout/box.js'
 import { axisReusable, markSubtreeDirty, type SizingEntry, storeSizing, zeroSubtree } from './cellLayout/sizing.js'
 import { type FinalRect, roundPass } from './cellLayout/rounding.js'
 
@@ -31,9 +32,6 @@ export function getCellLayoutCounters(): {
 } {
   return { visited: _visited, measured: _measured, cacheHits: _cacheHits, live: _liveNodes }
 }
-
-
-type Axis = 'row' | 'column'
 
 class CellLayoutNode implements LayoutNode {
   children: CellLayoutNode[] = []
@@ -315,65 +313,6 @@ class CellLayoutNode implements LayoutNode {
     roundPass(this, 0, 0)
   }
 
-
-  private mainAxis(): Axis {
-    return this.flexDirection === 'row' || this.flexDirection === 'row-reverse'
-      ? 'row'
-      : 'column'
-  }
-  private isReverse(): boolean {
-    return this.flexDirection === 'row-reverse' || this.flexDirection === 'column-reverse'
-  }
-
-  private edgesH(store: EdgeStore): number {
-    return edgeValue(store, 'left') + edgeValue(store, 'right')
-  }
-  private edgesV(store: EdgeStore): number {
-    return edgeValue(store, 'top') + edgeValue(store, 'bottom')
-  }
-
-  private clampW(v: number, ownerW: number | undefined): number {
-    const min = resolve(this.styleMinWidth, ownerW)
-    const max = resolve(this.styleMaxWidth, ownerW)
-    let out = v
-    if (max !== undefined) out = Math.min(out, max)
-    if (min !== undefined) out = Math.max(out, min)
-    return Math.max(0, out)
-  }
-  private clampH(v: number, ownerH: number | undefined): number {
-    const min = resolve(this.styleMinHeight, ownerH)
-    const max = resolve(this.styleMaxHeight, ownerH)
-    let out = v
-    if (max !== undefined) out = Math.min(out, max)
-    if (min !== undefined) out = Math.max(out, min)
-    return Math.max(0, out)
-  }
-
-  private marginH(): number {
-    return this.edgesH(this.margin)
-  }
-  private marginV(): number {
-    return this.edgesV(this.margin)
-  }
-  private padBorderH(): number {
-    return this.edgesH(this.padding) + this.edgesH(this.border)
-  }
-  private padBorderV(): number {
-    return this.edgesV(this.padding) + this.edgesV(this.border)
-  }
-
-  private resolvedAlign(parent: CellLayoutNode): LayoutAlign {
-    return this.alignSelf === 'auto' ? parent.alignItems : this.alignSelf
-  }
-
-  private hasMeasureFuncInSubtree(): boolean {
-    if (this.measureFunc) return true
-    for (const c of this.children) {
-      if (c.hasMeasureFuncInSubtree()) return true
-    }
-    return false
-  }
-
   private layoutInternal(
     availableWidth: number | undefined,
     widthMode: LayoutMeasureMode,
@@ -407,10 +346,10 @@ class CellLayoutNode implements LayoutNode {
       }
     }
     if (availableWidth !== undefined) {
-      availableWidth = this.clampW(availableWidth, ownerWidth)
+      availableWidth = clampW(this, availableWidth, ownerWidth)
     }
     if (availableHeight !== undefined) {
-      availableHeight = this.clampH(availableHeight, ownerHeight)
+      availableHeight = clampH(this, availableHeight, ownerHeight)
     }
 
     {
@@ -443,8 +382,8 @@ class CellLayoutNode implements LayoutNode {
 
     let out: { width: number; height: number }
     if (this.measureFunc && this.children.length === 0) {
-      const pbH = this.padBorderH()
-      const pbV = this.padBorderV()
+      const pbH = padBorderH(this)
+      const pbV = padBorderV(this)
       const innerW =
         widthMode === 'undefined' || availableWidth === undefined
           ? undefined
@@ -454,22 +393,22 @@ class CellLayoutNode implements LayoutNode {
         width:
           widthMode === 'exactly'
             ? availableWidth!
-            : this.clampW(measured.width + pbH, ownerWidth),
+            : clampW(this, measured.width + pbH, ownerWidth),
         height:
           heightMode === 'exactly'
             ? availableHeight!
-            : this.clampH(measured.height + pbV, ownerHeight),
+            : clampH(this, measured.height + pbV, ownerHeight),
       }
     } else if (this.children.length === 0) {
       out = {
         width:
           widthMode === 'exactly'
             ? availableWidth!
-            : this.clampW(this.padBorderH(), ownerWidth),
+            : clampW(this, padBorderH(this), ownerWidth),
         height:
           heightMode === 'exactly'
             ? availableHeight!
-            : this.clampH(this.padBorderV(), ownerHeight),
+            : clampH(this, padBorderV(this), ownerHeight),
       }
     } else {
       out = this.layoutContainer(
@@ -520,13 +459,6 @@ class CellLayoutNode implements LayoutNode {
     return result
   }
 
-  private mainGap(axis: Axis): number {
-    return (axis === 'row' ? this.gap.column : this.gap.row) ?? this.gap.all ?? 0
-  }
-  private crossGap(axis: Axis): number {
-    return (axis === 'row' ? this.gap.row : this.gap.column) ?? this.gap.all ?? 0
-  }
-
   private layoutContainer(
     availW: number | undefined,
     wMode: LayoutMeasureMode,
@@ -536,10 +468,10 @@ class CellLayoutNode implements LayoutNode {
     callerOwnerH: number | undefined,
     performLayout: boolean,
   ): { width: number; height: number } {
-    const axis = this.mainAxis()
+    const axis = mainAxis(this)
     const row = axis === 'row'
-    const pbH = this.padBorderH()
-    const pbV = this.padBorderV()
+    const pbH = padBorderH(this)
+    const pbV = padBorderV(this)
     const mainSize = row ? availW : availH
     const crossSize = row ? availH : availW
     const mainMode = row ? wMode : hMode
@@ -552,8 +484,8 @@ class CellLayoutNode implements LayoutNode {
     const ownerW = availW
     const ownerH = availH
 
-    const mainGap = this.mainGap(axis)
-    const crossGap = this.crossGap(axis)
+    const mainGap = mainGapOf(this, axis)
+    const crossGap = crossGapOf(this, axis)
     const isWrapStyle = this.flexWrap !== 'nowrap'
 
     for (const c of this.children) {
@@ -567,9 +499,9 @@ class CellLayoutNode implements LayoutNode {
     )
 
     const clampMain = (c: CellLayoutNode, v: number) =>
-      row ? c.clampW(v, ownerW) : c.clampH(v, ownerH)
-    const mainMarginOf = (c: CellLayoutNode) => (row ? c.marginH() : c.marginV())
-    const crossMarginOf = (c: CellLayoutNode) => (row ? c.marginV() : c.marginH())
+      row ? clampW(c, v, ownerW) : clampH(c, v, ownerH)
+    const mainMarginOf = (c: CellLayoutNode) => (row ? marginH(c) : marginV(c))
+    const crossMarginOf = (c: CellLayoutNode) => (row ? marginV(c) : marginH(c))
 
     type Item = {
       node: CellLayoutNode
@@ -609,7 +541,7 @@ class CellLayoutNode implements LayoutNode {
       }
       if (basis === undefined) {
         const mainConstrained =
-          row && innerMain !== undefined && child.hasMeasureFuncInSubtree()
+          row && innerMain !== undefined && hasMeasureFuncInSubtree(child)
         const mainAvail = mainConstrained ? innerMain : undefined
         const mainModeB: LayoutMeasureMode = mainConstrained ? 'at-most' : 'undefined'
         let crossAvail: number | undefined
@@ -623,7 +555,7 @@ class CellLayoutNode implements LayoutNode {
         } else if (innerCross !== undefined) {
           crossAvail = Math.max(0, innerCross - crossMarginOf(child))
           crossModeB =
-            crossIsExact && child.resolvedAlign(this) === 'stretch'
+            crossIsExact && resolvedAlign(child, this) === 'stretch'
               ? 'exactly'
               : 'at-most'
         } else {
@@ -696,7 +628,7 @@ class CellLayoutNode implements LayoutNode {
       let consumed = gaps
       for (const item of line) {
         const child = item.node
-        const align = child.resolvedAlign(this)
+        const align = resolvedAlign(child, this)
         const crossStyleResolved = row
           ? resolve(child.styleHeight, ownerH)
           : resolve(child.styleWidth, ownerW)
@@ -757,8 +689,8 @@ class CellLayoutNode implements LayoutNode {
         : crossMode === 'at-most' && isScroll
           ? Math.max(Math.min(crossSize!, contentCross), crossPB)
           : contentCross
-    const outW = this.clampW(row ? finalMain : finalCross, callerOwnerW)
-    const outH = this.clampH(row ? finalCross : finalMain, callerOwnerH)
+    const outW = clampW(this, row ? finalMain : finalCross, callerOwnerW)
+    const outH = clampH(this, row ? finalCross : finalMain, callerOwnerH)
 
     if (!performLayout) return { width: outW, height: outH }
 
@@ -771,7 +703,7 @@ class CellLayoutNode implements LayoutNode {
     const crossLeadPB = row
       ? edgeValue(this.padding, 'top') + edgeValue(this.border, 'top')
       : edgeValue(this.padding, 'left') + edgeValue(this.border, 'left')
-    const reversed = this.isReverse()
+    const reversed = isReverse(this)
     const mainContainerSize = row ? outW : outH
     const crossContainerSize = row ? outH : outW
     const wrapReverse = this.flexWrap === 'wrap-reverse'
@@ -786,7 +718,7 @@ class CellLayoutNode implements LayoutNode {
         const lineCross = lineCrossSizes[li]!
         for (const item of line) {
           const child = item.node
-          const align = child.resolvedAlign(this)
+          const align = resolvedAlign(child, this)
           const crossStyleResolved = row
             ? resolve(child.styleHeight, ownerH)
             : resolve(child.styleWidth, ownerW)
@@ -865,7 +797,7 @@ class CellLayoutNode implements LayoutNode {
           ? mainContainerSize - (pos + mMainLead) - item.targetMain
           : pos + mMainLead
 
-        const align = child.resolvedAlign(this)
+        const align = resolvedAlign(child, this)
         let crossPos = effectiveLineCrossPos + mCrossLead
         const crossFree = lineCross - item.crossSize - item.crossMargin
         switch (align) {
@@ -1009,13 +941,13 @@ class CellLayoutNode implements LayoutNode {
     let w = resolve(child.styleWidth, innerW)
     let h = resolve(child.styleHeight, innerH)
     if (w === undefined && left !== undefined && right !== undefined) {
-      w = Math.max(0, outW - bl - br - left - right - child.marginH())
+      w = Math.max(0, outW - bl - br - left - right - marginH(child))
     }
     if (h === undefined && top !== undefined && bottom !== undefined) {
-      h = Math.max(0, outH - bt - bb - top - bottom - child.marginV())
+      h = Math.max(0, outH - bt - bb - top - bottom - marginV(child))
     }
-    if (w !== undefined) w = child.clampW(w, innerW)
-    if (h !== undefined) h = child.clampH(h, innerH)
+    if (w !== undefined) w = clampW(child, w, innerW)
+    if (h !== undefined) h = clampH(child, h, innerH)
 
     const size = child.layoutInternal(
       w,
