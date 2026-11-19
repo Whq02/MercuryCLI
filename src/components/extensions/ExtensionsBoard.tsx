@@ -1,14 +1,10 @@
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { basename } from 'node:path'
-import { Box, Text, useInput } from '../../ink.js'
+import { Text, useInput } from '../../ink.js'
 import { useAppState, useSetAppState } from '../../state/AppState.js'
-import { matchBlock } from '../../extensions/blocklist.js'
-import { contributionCounts } from '../../extensions/manifest.js'
-import { saveOptionValues, type OptionValue } from '../../extensions/options.js'
 import { rosterSummary, trustStateOf } from '../../extensions/roster.js'
 import {
-  installedFromSource,
   listSources,
   type SourceRow,
 } from '../../extensions/sources.js'
@@ -16,8 +12,6 @@ import type { Health, RosterEntry } from '../../extensions/types.js'
 import { getCwd } from '../../utils/cwd.js'
 import {
   NavigablePanes,
-  type ColumnDef,
-  type RowAction,
   type SectionDef,
 } from '../mercury-ui/NavigablePanes.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
@@ -25,18 +19,18 @@ import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { ApprovalCardView } from './ApprovalCardView.js'
 import { charWord, resolveExtensionsBindings } from './bindings.js'
-import { ExtensionView, bytesWord } from './ExtensionView.js'
+import { ExtensionView } from './ExtensionView.js'
 import { SourceView } from './SourceView.js'
 import {
   installedRollup,
   noteWords,
-  sourceStateWord,
-  sourceWhereWords,
   sourcesRollup,
-  trustWord,
 } from './rowWords.js'
 import { boardActions, installCardActions, rowSourceActions } from './board/actions.js'
+import { boardColumns } from './board/columns.js'
+import { boardRowActions } from './board/rowActions.js'
 import { ExtensionSidePane, SourceSidePane } from './board/SidePanes.js'
+import { slotParts } from './board/slot.js'
 import { rowKeyOf, type BoardRow, type BoardSeed, type Slot, type View } from './board/shapes.js'
 
 export type { CardSpec } from './board/shapes.js'
@@ -178,424 +172,11 @@ export function ExtensionsBoard({
     setNote(kb.declined.length === 1 ? kb.declined[0]! : `${kb.declined[0]!} (+${kb.declined.length - 1} more — /keys lists the table)`)
   }, [])
 
-  const onSlotInput = (input: string, key: Record<string, boolean>): void => {
-    if (slot === null || key['ctrl'] || key['meta'] || key['super']) return
-    const typed = input && !key['tab'] && !key['return'] ? input : ''
-    switch (slot.mode) {
-      case 'add': {
-        if (slot.busy) return
-        if (key['return']) {
-          void runAdd(slot.text)
-          return
-        }
-        if (key['backspace'] || key['delete']) setSlot({ ...slot, text: slot.text.slice(0, -1), error: null })
-        else if (typed) setSlot({ ...slot, text: slot.text + typed, error: null })
-        return
-      }
-      case 'filter': {
-        if (key['return']) {
-          setSlot(null)
-          return
-        }
-        const next = key['backspace'] || key['delete'] ? slot.text.slice(0, -1) : typed ? slot.text + typed : slot.text
-        setSlot({ ...slot, text: next })
-        setFilterText(next)
-        return
-      }
-      case 'uninstall': {
-        if (input === 'y') void doUninstallNow(slot.id, false)
-        else if (input === 'k' && slot.dataBytes > 0 && !slot.inPlace) void doUninstallNow(slot.id, true)
-        else if (key['return'] && (slot.inPlace || slot.dataBytes === 0)) void doUninstallNow(slot.id, false)
-        return
-      }
-      case 'remove-source': {
-        if (key['return']) void doRemoveSource(slot.label, false)
-        else if (input === 'y' && slot.installedIds.length > 0) void doRemoveSource(slot.label, true)
-        return
-      }
-      case 'fetch': {
-        if (key['return']) void runFetchProposal(slot)
-        return
-      }
-      case 'option': {
-        if (key['return']) {
-          const keyName = slot.keys[slot.index]!
-          const declared = slot.schema[keyName]
-          const value: OptionValue =
-            declared?.type === 'number' ? Number(slot.text) : declared?.type === 'boolean' ? slot.text.trim() === 'true' : slot.text
-          const out = saveOptionValues(slot.id, slot.schema, { [keyName]: value })
-          if (!out.ok) {
-            setNote(out.error)
-            setSlot(null)
-            return
-          }
-          const nextIndex = slot.index + 1
-          if (nextIndex < slot.keys.length) setSlot({ ...slot, index: nextIndex, text: '' })
-          else {
-            setSlot(null)
-            setNote('options saved')
-            refresh()
-          }
-          return
-        }
-        if (key['backspace'] || key['delete']) setSlot({ ...slot, text: slot.text.slice(0, -1) })
-        else if (typed) setSlot({ ...slot, text: slot.text + typed })
-        return
-      }
-      default:
-        return
-    }
-  }
+  const { onSlotInput, onSlotEscape, slotNode } = slotParts({ slot, setSlot, setFilterText, setNote, note, cols, tokens, runAdd, doUninstallNow, doRemoveSource, runFetchProposal, refresh })
 
-  const onSlotEscape = (): void => {
-    if (slot === null) return
-    if (slot.mode === 'add' && slot.busy) return
-    if (slot.mode === 'filter' && slot.text !== '') {
-      setSlot({ ...slot, text: '' })
-      setFilterText('')
-      return
-    }
-    setSlot(null)
-  }
+  const { installedColumns, sourceColumns } = boardColumns({ cols, tokens })
 
-  const confirmFace = (parts: [string, string]): { node: React.ReactNode; rows: number } => {
-    const one = `${parts[0]} · ${parts[1]}`
-    if (one.length <= Math.max(20, cols - 6)) {
-      return {
-        rows: 1,
-        node: (
-          <Text color={tokens.textSecondary} wrap="truncate-end">
-            {one}
-          </Text>
-        ),
-      }
-    }
-    return {
-      rows: 2,
-      node: (
-        <Box flexDirection="column">
-          <Text color={tokens.textSecondary} wrap="truncate-end">
-            {parts[0]}
-          </Text>
-          <Text color={tokens.textSecondary} wrap="truncate-end">
-            {parts[1]}
-          </Text>
-        </Box>
-      ),
-    }
-  }
-  const slotNode = ((): { node: React.ReactNode; rows: number } | null => {
-    if (slot !== null) {
-      switch (slot.mode) {
-        case 'add': {
-          const line = slot.busy ?? slot.error ?? 'a git URL, a folder or an archive · ↵ adds · esc cancels'
-          return {
-            rows: 2,
-            node: (
-              <Box flexDirection="column">
-                <Text color={slot.error ? tokens.failure : tokens.textMuted} wrap="truncate-end">
-                  {line}
-                </Text>
-                <Text wrap="truncate-end">
-                  <Text color={tokens.accent}>add › </Text>
-                  <Text color={tokens.textPrimary}>{slot.text}</Text>
-                  <Text color={tokens.accent}>▌</Text>
-                </Text>
-              </Box>
-            ),
-          }
-        }
-        case 'filter':
-          return {
-            rows: 2,
-            node: (
-              <Box flexDirection="column">
-                <Text color={tokens.textMuted} wrap="truncate-end">
-                  typing narrows both sections · esc clears, then closes
-                </Text>
-                <Text wrap="truncate-end">
-                  <Text color={tokens.accent}>filter › </Text>
-                  <Text color={tokens.textPrimary}>{slot.text}</Text>
-                  <Text color={tokens.accent}>▌</Text>
-                </Text>
-              </Box>
-            ),
-          }
-        case 'uninstall':
-          return confirmFace(
-            slot.inPlace
-              ? [`forget ${slot.name}? the folder stays in the repo`, '↵ forget · esc cancel']
-              : slot.dataBytes > 0
-                ? [`uninstall ${slot.name} ${slot.version} (${slot.label}) · data ${bytesWord(slot.dataBytes)}`, 'y delete data · k keep data · esc cancel']
-                : [`uninstall ${slot.name} ${slot.version} (${slot.label})`, '↵ uninstall · esc cancel'],
-          )
-        case 'remove-source': {
-          const names = slot.installedIds.map(id => id.split('@')[0])
-          const shown = names.slice(0, 2).join(', ') + (names.length > 2 ? ` +${names.length - 2} more` : '')
-          return confirmFace(
-            slot.installedIds.length > 0
-              ? [`remove ${slot.label}? · ${slot.installedIds.length} installed from it: ${shown}`, '↵ remove the source only · y also uninstall them · esc cancel']
-              : [`remove ${slot.label}?`, '↵ remove · esc cancel'],
-          )
-        }
-        case 'fetch':
-          return confirmFace([`fetch ${slot.name} from ${slot.url} to inspect?`, '↵ fetch · esc not now'])
-        case 'option': {
-          const keyName = slot.keys[slot.index]!
-          const declared = slot.schema[keyName]
-          const masked = declared?.sensitive ? '•'.repeat(slot.text.length) : slot.text
-          return {
-            rows: 2,
-            node: (
-              <Box flexDirection="column">
-                <Text color={tokens.textMuted} wrap="truncate-end">
-                  {`option ${slot.index + 1}/${slot.keys.length} · ${keyName}${declared?.sensitive ? ' (sensitive)' : ''}${declared?.required ? ' · required' : ''}${declared?.description ? ` · ${declared.description}` : ''} · ↵ saves · esc skips`}
-                </Text>
-                <Text wrap="truncate-end">
-                  <Text color={tokens.accent}>{keyName} › </Text>
-                  <Text color={tokens.textPrimary}>{masked}</Text>
-                  <Text color={tokens.accent}>▌</Text>
-                </Text>
-              </Box>
-            ),
-          }
-        }
-        default:
-          return null
-      }
-    }
-    if (note !== null) {
-      const budget = Math.max(20, cols - 6)
-      const noteRows: string[] = []
-      let current = ''
-      for (const piece of note.split(' — ')) {
-        const candidate = current === '' ? piece : `${current} — ${piece}`
-        if (candidate.length <= budget || current === '') current = candidate
-        else {
-          noteRows.push(current)
-          current = piece
-        }
-      }
-      noteRows.push(current)
-      const shown = noteRows.slice(0, 3)
-      return {
-        rows: shown.length,
-        node: (
-          <Box flexDirection="column">
-            {shown.map((line, i) => (
-              <Text key={i} color={tokens.textMuted} wrap="truncate-end">
-                {line}
-              </Text>
-            ))}
-          </Box>
-        ),
-      }
-    }
-    return null
-  })()
-
-  const wide = cols >= 140
-  const installedColumns: ColumnDef<BoardRow>[] = [
-    {
-      key: 'state',
-      header: 'state',
-      width: 10,
-      cell: r => {
-        if (r.kind !== 'ext') return <Text color={tokens.textMuted}>—</Text>
-        const w = trustWord(trustStateOf(r.entry), r.health)
-        return (
-          <Text color={tokens[w.role]} wrap="truncate-end">
-            {w.glyph} {w.word}
-          </Text>
-        )
-      },
-    },
-    {
-      key: 'name',
-      header: 'name',
-      width: 16,
-      cell: r => (
-        <Text color={tokens.textPrimary} wrap="truncate-end">
-          {r.kind === 'ext' ? r.entry.name : r.row.label}
-        </Text>
-      ),
-    },
-    {
-      key: 'ver',
-      header: 'ver',
-      width: 7,
-      cell: r => (
-        <Text color={tokens.textMuted} wrap="truncate-end">
-          {r.kind === 'ext' ? r.entry.version || '—' : '—'}
-        </Text>
-      ),
-    },
-    {
-      key: 'from',
-      header: 'from',
-      width: 11,
-      cell: r => (
-        <Text color={tokens.textMuted} wrap="truncate-end">
-          {r.kind === 'ext' ? r.entry.label : r.row.record.kind}
-        </Text>
-      ),
-    },
-    ...(wide
-      ? [
-          {
-            key: 'adds',
-            header: 'adds',
-            width: 22,
-            cell: (r: BoardRow) => {
-              if (r.kind !== 'ext' || r.entry.manifest === null) return <Text color={tokens.textMuted}>—</Text>
-              const counts = contributionCounts(r.entry.manifest)
-              const parts = Object.entries(counts).map(([kind, n]) => `${n} ${n === 1 ? kind.replace(/s$/, '') : kind}`)
-              return (
-                <Text color={tokens.textMuted} wrap="truncate-end">
-                  {parts.length > 0 ? parts.join(' · ') : '—'}
-                </Text>
-              )
-            },
-          } satisfies ColumnDef<BoardRow>,
-        ]
-      : []),
-    {
-      key: 'note',
-      header: 'note',
-      cell: r => (
-        <Text color={tokens.textMuted} wrap="truncate-end">
-          {r.kind === 'ext' ? noteWords(r.entry, r.health) : ''}
-        </Text>
-      ),
-    },
-  ]
-
-  const sourceColumns: ColumnDef<BoardRow>[] = [
-    {
-      key: 'state',
-      header: 'state',
-      width: 11,
-      cell: r => {
-        if (r.kind !== 'src') return <Text color={tokens.textMuted}>—</Text>
-        const w = sourceStateWord(r.row.state)
-        return (
-          <Text color={tokens[w.role]} wrap="truncate-end">
-            {w.glyph} {w.word}
-          </Text>
-        )
-      },
-    },
-    {
-      key: 'source',
-      header: 'source',
-      width: 12,
-      cell: r => (
-        <Text color={tokens.textPrimary} wrap="truncate-end">
-          {r.kind === 'src' ? r.row.label : ''}
-        </Text>
-      ),
-    },
-    {
-      key: 'kind',
-      header: 'kind',
-      width: 7,
-      cell: r => (
-        <Text color={tokens.textMuted} wrap="truncate-end">
-          {r.kind === 'src' ? r.row.record.kind : ''}
-        </Text>
-      ),
-    },
-    {
-      key: 'where',
-      header: 'where',
-      cell: r => {
-        if (r.kind !== 'src') return <Text color={tokens.textMuted}>—</Text>
-        const blocked = matchBlock([r.row.label, r.row.record.where]) !== null
-        return (
-          <Text color={tokens.textMuted} wrap="truncate-end">
-            {sourceWhereWords(r.row)}
-            {blocked ? <Text color={tokens.failure}> · blocked</Text> : null}
-          </Text>
-        )
-      },
-    },
-  ]
-
-  const isExt = (r: BoardRow): r is Extract<BoardRow, { kind: 'ext' }> => r.kind === 'ext'
-  const isSrc = (r: BoardRow): r is Extract<BoardRow, { kind: 'src' }> => r.kind === 'src'
-  const toggleable = (r: BoardRow): boolean =>
-    isExt(r) && (r.entry.home === 'installed' || r.entry.home === 'bundled' || (r.entry.home === 'project' && r.entry.record !== null))
-
-  const act = (action: string, label: string, when: (r: BoardRow) => boolean, run: (r: BoardRow) => void): RowAction<BoardRow>[] => {
-    const char = kchar(action)
-    if (char === null) return []
-    return [{ key: char, label, ...(char === ' ' ? { hint: `space ${label}` } : {}), when, run }]
-  }
-  const rowActions: RowAction<BoardRow>[] = [
-    ...act('toggle', 'off', r => toggleable(r) && isExt(r) && r.entry.switchedOn && r.entry.blockedBy === null, r => isExt(r) && toggleRow(r.entry)),
-    ...act('toggle', 'on', r => toggleable(r) && isExt(r) && !r.entry.switchedOn && r.entry.blockedBy === null, r => isExt(r) && toggleRow(r.entry)),
-    ...act(
-      'install',
-      'install',
-      r => isExt(r) && trustStateOf(r.entry) === 'found' && r.entry.home === 'project',
-      r => isExt(r) && openCardForEntry(r.entry, { section: 'installed', row: rowKeyOf(r) }),
-    ),
-    ...act(
-      'install',
-      'fetch',
-      r => isExt(r) && r.entry.home === 'proposal' && r.entry.blockedBy === null,
-      r => isExt(r) && openCardForEntry(r.entry, { section: 'installed', row: rowKeyOf(r) }),
-    ),
-    ...act(
-      'install',
-      'approve',
-      r =>
-        isExt(r) &&
-        r.entry.home !== 'proposal' &&
-        trustStateOf(r.entry) === 'off' &&
-        (!r.entry.approved || r.entry.changedSinceApproval) &&
-        r.entry.root !== null,
-      r => isExt(r) && openCardForEntry(r.entry, { section: 'installed', row: rowKeyOf(r) }),
-    ),
-    ...act(
-      'update',
-      'update',
-      r => isExt(r) && r.entry.availableVersion !== null && r.entry.home === 'installed',
-      r => isExt(r) && void doUpdate(r.entry, { section: 'installed', row: rowKeyOf(r) }),
-    ),
-    ...act('remove', 'uninstall', r => isExt(r) && r.entry.home === 'installed', r => isExt(r) && openUninstallConfirm(r.entry)),
-    ...act(
-      'remove',
-      'forget',
-      r => isExt(r) && r.entry.home === 'project' && r.entry.record !== null,
-      r => isExt(r) && openUninstallConfirm(r.entry),
-    ),
-    ...act(
-      'block',
-      'block',
-      r => isExt(r) && r.entry.blockedBy === null && (r.entry.home === 'installed' || trustStateOf(r.entry) === 'found'),
-      r => isExt(r) && toggleBlockEntry(r.entry),
-    ),
-    ...act('block', 'unblock', r => isExt(r) && r.entry.blockedBy === 'operator', r => isExt(r) && toggleBlockEntry(r.entry)),
-    ...act(
-      'options',
-      'options',
-      r => isExt(r) && r.entry.manifest !== null && Object.keys(r.entry.manifest.needs?.options ?? {}).length > 0,
-      r => isExt(r) && openOptions(r.entry),
-    ),
-    ...act('previous', 'previous', r => isExt(r) && r.entry.previous !== null, r => isExt(r) && doSwapPrevious(r.entry)),
-    ...act('refresh', 'refresh', isSrc, r => isSrc(r) && void doRefreshSource(r.row.label)),
-    ...act('remove', 'remove', isSrc, r =>
-      isSrc(r) ? setSlot({ mode: 'remove-source', label: r.row.label, installedIds: installedFromSource(r.row.label) }) : undefined,
-    ),
-    ...act('block', 'block', r => isSrc(r) && matchBlock([r.row.label, r.row.record.where]) === null, r => isSrc(r) && toggleBlockSource(r.row)),
-    ...act(
-      'block',
-      'unblock',
-      r => isSrc(r) && matchBlock([r.row.label, r.row.record.where])?.by === 'operator',
-      r => isSrc(r) && toggleBlockSource(r.row),
-    ),
-  ]
+  const rowActions = boardRowActions({ kchar, toggleRow, openCardForEntry, doUpdate, openUninstallConfirm, toggleBlockEntry, openOptions, doSwapPrevious, doRefreshSource, setSlot, toggleBlockSource })
 
   const sideInfo = (r: BoardRow): React.ReactNode => {
     if (r.kind === 'ext') return <ExtensionSidePane entry={r.entry} health={healthOf(r.entry.id)} />
