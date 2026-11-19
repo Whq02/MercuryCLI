@@ -47,6 +47,7 @@
  "src/tools/FileReadTool/sqliteQueryProcess.ts :: kill-signal": 1,
  "src/tools/GlobTool/GlobTool.ts :: split-slash": 1,
  "src/tools/PowerShellTool/gitSafety.ts :: split-slash": 1,
+ "src/utils/bash/ShellSnapshot.ts :: kill-signal": 1,
  "src/utils/git/gitFilesystem.ts :: split-slash": 1,
  "src/utils/globPattern.ts :: split-slash": 1,
  "src/utils/gracefulShutdown.ts :: kill-signal": 1,
