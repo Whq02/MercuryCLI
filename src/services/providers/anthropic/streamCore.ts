@@ -7,77 +7,40 @@ import {
   APIError,
   APIUserAbortError,
 } from '../../api/sdkErrors.js'
-import type {
-  ContentBlock as BetaContentBlock,
-  JsonOutputFormat as BetaJSONOutputFormat,
-  ApiMessage as BetaMessage,
-  ApiStreamEvent as BetaRawMessageStreamEvent,
-  ApiToolUnion as BetaToolUnion,
-} from '../../../types/wire.js'
-import type { AnthropicMessageParams as BetaMessageStreamParams, AnthropicOutputConfig as BetaOutputConfig } from './anthropicWire.js'
+import type { ContentBlock as BetaContentBlock } from '../../../types/wire.js'
+import type { AnthropicMessageParams as BetaMessageStreamParams } from './anthropicWire.js'
 import type { AnthropicStream } from './anthropicStream.js'
-type BetaStopReason = NonNullable<BetaMessage['stop_reason']>
-type BetaToolChoiceAuto = Extract<BetaMessageStreamParams['tool_choice'], { type: 'auto' }>
-type BetaToolChoiceTool = Extract<BetaMessageStreamParams['tool_choice'], { type: 'tool' }>
-type BetaToolChoiceNone = Extract<BetaMessageStreamParams['tool_choice'], { type: 'none' }>
 import { randomUUID } from 'crypto'
 import {
   getCacheEditingHeaderLatched,
-  setLastMainRequestId,
   setLastApiCompletionTimestamp,
 } from 'src/bootstrap/state.js'
-import { STRUCTURED_OUTPUTS_BETA_HEADER } from 'src/constants/betas.js'
 import type { QuerySource } from 'src/constants/querySource.js'
 import type { Notification } from 'src/context/notifications.js'
-import { applyThinkingBinding } from './thinkingBinding.js'
-import { applyThinkingDisplay } from './thinkingDisplay.js'
 import { addToTotalSessionCost } from 'src/cost-tracker.js'
 import type { AgentId } from 'src/types/ids.js'
 import type { NativeWebSearchRequest } from 'src/services/search/nativeSearchRequest.js'
-import { getAgentContext } from 'src/utils/agentContext.js'
-import {
-  getToolSearchBetaHeader,
-  modelSupportsStructuredOutputs,
-} from 'src/utils/betas.js'
-import {
-  cacheClockObserve,
-  noteCacheClockPrefix,
-} from 'src/utils/cache/cacheClock.js'
-import { getMaxThinkingTokensForModel } from 'src/utils/context.js'
+import { cacheClockObserve } from 'src/utils/cache/cacheClock.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
 import type { EffortValue } from 'src/utils/effort.js'
 import { headlessProfilerCheckpoint } from 'src/utils/headlessProfiler.js'
 import { calculateUSDCost } from 'src/utils/modelCost.js'
-import { roughTokenCountEstimation } from 'src/services/tokenEstimation.js'
 import { isFirstPartyAnthropicBaseUrl } from 'src/utils/model/providers.js'
 import { noteRunPhase } from 'src/utils/runPhases.js'
 import { resetApiConnectionPool } from 'src/utils/proxy.js'
-import {
-  modelSupportsAdaptiveThinking,
-  modelSupportsThinking,
-  type ThinkingConfig,
-} from 'src/utils/thinking.js'
-import { foldToolChoiceForModel, getContextWindowForModel } from 'src/utils/model/capabilities.js'
-import { ANTHROPIC_IMAGE_LIMITS } from '../../../constants/apiLimits.js'
-import { getAttributionHeader } from '../../../constants/system.js'
+import type { ThinkingConfig } from 'src/utils/thinking.js'
 import {
   getEmptyToolPermissionContext,
   type ToolCallChain,
-  type Tool,
   type ToolPermissionContext,
   type Tools,
 } from '../../../Tool.js'
 import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
-import { ensureGatewayProbe, gatewayProbePolicyAllows, type GatewayProbeAnswer } from '../deferralProbe.js'
-import { gatewayHost } from '../deferralWire.js'
-import { deadlineBreachLine, isDeadlineBreach } from '../fetchDeadline.js'
-import { conversationRosterKey, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
-import { declareLawfulPrefixChange } from '../lawfulPrefixChange.js'
-import { applyInducedPrefixEdit, inducedEditApplies, judgeAndRecordPrefix, noteRequestOnWire, resolveInducedPrefixEdit, type PrefixMismatch, type WirePrefixParts } from './prefixLedger.js'
-import { cacheDiagnosticsParam, noteCacheDiagnostics } from './cacheDiagnostics.js'
-import { carriesThinking, deadThinkingMarks, droppedThinkingMarks, stripDeadThinking, thinkingCarryRides, thinkingPrefixDigest } from './thinkingBinding.js'
+import { planToolPayload } from '../toolEconomy.js'
+import { noteRequestOnWire } from './prefixLedger.js'
+import { noteCacheDiagnostics } from './cacheDiagnostics.js'
 import type {
   ConnectorTextBlock,
   ConnectorTextDelta,
@@ -88,7 +51,6 @@ import type {
   StreamEvent,
   SystemAPIErrorMessage,
   SystemStreamCutMessage,
-  UserMessage,
 } from '../../../types/message.js'
 import type {
   ApiToolUnion,
@@ -96,20 +58,10 @@ import type {
   StreamCapabilityAdvertisement,
 } from '../../../types/wire.js'
 import { toolToAPISchema } from '../../../utils/api.js'
-import { isToolSearchEnabledOptimistic, isToolSearchToolAvailable, modelSupportsToolReference } from '../../../utils/toolSearch.js'
-import {
-  getMergedBetas,
-  modelSupportsTemperature,
-} from '../../../utils/betas.js'
-import {
-  getModelMaxOutputTokens,
-} from '../../../utils/context.js'
 import { isTurnOwningQuerySource, resolveAppliedEffort, resolveEffortTruth } from '../../../utils/effort.js'
-import { effortStampOf, type EffortStampV1 } from '../../../utils/effortStamp.js'
-import { validateBoundedIntEnvVar } from '../../../utils/envValidation.js'
+import { effortStampOf } from '../../../utils/effortStamp.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { errorMessage } from '../../../utils/errors.js'
-import { computeFingerprintFromMessages } from '../../../utils/fingerprint.js'
 import { fitImagesToRequestCap, manyImageLimitStatedIn } from '../../../utils/imageResizer.js'
 import { captureAPIRequest } from '../../../utils/log.js'
 import {
@@ -117,25 +69,11 @@ import {
   createStreamCutMessage,
   createSystemAPIErrorMessage,
   createUserMessage,
-  normalizeContentFromAPI,
-  normalizeMessagesForAPI,
-  stripCallerFieldFromAssistantMessage,
-  stripToolReferenceBlocksFromUserMessage,
-  stripUnsignedThinkingBlocks,
 } from '../../../utils/messages.js'
-import { stripThinkingFromIndex, stripThinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
-import { pairConversationMessages } from '../../../utils/messages/pairing.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
-import {
-  getCanonicalName,
-  getPublicModelDisplayName,
-  normalizeModelStringForAPI,
-} from '../../../utils/model/model.js'
+import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { utilityCallFor } from '../../../utils/model/utilityModel.js'
-import {
-  startSessionActivity,
-  stopSessionActivity,
-} from '../../../utils/sessionActivity.js'
+import { startSessionActivity } from '../../../utils/sessionActivity.js'
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
 import {
   asSystemPrompt,
@@ -144,7 +82,6 @@ import {
 import {
   anthropicLimitVerdict,
   clearAnthropicUsageLimit,
-  extractQuotaStatusFromError,
   extractQuotaStatusFromHeaders,
 } from '../../anthropicLimits.js'
 import {
@@ -154,22 +91,15 @@ import {
 import { refreshProviderUsage } from '../providerUsage.js'
 import { withStreamingVCR, withVCR } from '../../vcr.js'
 import { CLIENT_REQUEST_ID_HEADER, getAnthropicClient } from '../../api/client.js'
-import { clientContractMoveOf } from '../../api/clientContractLearned.js'
 import { transportCutOf, transportCutWords } from '../../api/transportEvidence.js'
-import { captureModelRefusalRequest, clearModelRefusal, type ModelRefusalRequest } from './modelRefusal.js'
+import { captureModelRefusalRequest, type ModelRefusalRequest } from './modelRefusal.js'
 import {
   API_ERROR_MESSAGE_PREFIX,
   getAssistantMessageFromError,
   getErrorMessageIfRefusal,
   malformedStreamFrameText,
 } from '../../api/errors.js'
-import {
-  EMPTY_USAGE,
-  logAPIError,
-  logAPIDuration,
-  logAPISuccessAndDuration,
-  type NonNullableUsage,
-} from '../../api/logging.js'
+import { EMPTY_USAGE } from '../../api/logging.js'
 import {
   checkResponseForCacheBreak,
   recordPromptState,
@@ -181,28 +111,16 @@ import {
   CannotRetryError,
   FallbackTriggeredError,
   is529Error,
-  type RetryContext,
   withRetry,
 } from '../../api/withRetry.js'
 import type { HeldBusyRetryWait } from '../busyRetry.js'
 import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords } from '../emptyStreamRetry.js'
 import { retrySeconds } from '../../api/recoveryBudget.js'
-import { fitOutputTokensForRequest, outputFitWords } from '../../api/outputFit.js'
 import { toolCallRefusalNote } from '../toolCallGate.js'
 import { safeParseJSON } from '../../../utils/json.js'
 import type { RefusedToolCall } from '../../../types/message.js'
 import { sleep } from '../../../utils/sleep.js'
-import {
-  addCacheBreakpoints,
-  assembleTurnSystemPrompt,
-  buildSystemPromptBlocks,
-  type CachedMCEditsBlock,
-  type CachedMCPinnedEdits,
-  cleanupStream,
-  updateUsage,
-} from './cacheAndUsage.js'
-import { fitWireImages } from '../../../utils/messages/imageRequestFit.js'
-import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
+import { updateUsage } from './cacheAndUsage.js'
 import {
   coldPrefixOf,
   estimateRequestTokens,
@@ -210,25 +128,22 @@ import {
   firstByteTimeoutLine,
   retryNoticeWait,
   retryReasonWords,
-  silentAfterHeadersFaultWords,
-  silentAfterHeadersWindowMs,
   streamActivityFetchOptions,
-  createStreamActivityRelay,
-  createStreamIdleWatchdog,
-  streamEndReceiptLine,
   streamIdleTimeoutMsForRoute,
-  streamIdleWarningMsOf,
   type RequestWaitV1,
-  type StreamEndV1,
 } from '../streamIdleBudget.js'
-import { nonstreamingFallbackCeilingMs, patienceSeconds } from '../patience.js'
-import {
-  anthropicEffortWireFact,
-  configureEffortParams,
-  getAPIMetadata,
-  getExtraBodyParams,
-  getPromptCachingEnabled,
-} from './requestParams.js'
+import { patienceSeconds } from '../patience.js'
+import { anthropicEffortWireFact } from './requestParams.js'
+type BetaToolChoiceAuto = Extract<BetaMessageStreamParams['tool_choice'], { type: 'auto' }>
+type BetaToolChoiceTool = Extract<BetaMessageStreamParams['tool_choice'], { type: 'tool' }>
+type BetaToolChoiceNone = Extract<BetaMessageStreamParams['tool_choice'], { type: 'none' }>
+import type { CallState, QueryCtx, StreamPass } from './streamCore/state.js'
+import { createCallLedger } from './streamCore/callLedger.js'
+import { executeNonStreamingRequest, getNonstreamingFallbackTimeoutMs, isFirstByteTimeout } from './streamCore/nonStreaming.js'
+import { messagesBeforeImages, requestBetas, toolRosterOf, wireRequestOf } from './streamCore/requestPlan.js'
+import { closeSucceededRequest, settleAttemptLedger } from './streamCore/settleCall.js'
+import { watchStream } from './streamCore/watchStream.js'
+import { wireParamsFor } from './streamCore/wireParams.js'
 
 export const ANTHROPIC_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
   textDelta: true,
@@ -315,39 +230,6 @@ export async function* queryModelWithStreaming({
   })
 }
 
-const GATEWAY_PROBE_TIMEOUT_MS = 8_000
-async function sendGatewayProbe(
-  body: Record<string, unknown>,
-  betaHeader: string,
-  options: Options,
-): Promise<GatewayProbeAnswer> {
-  try {
-    const client = await getAnthropicClient({
-      maxRetries: 0,
-      fetchOverride: options.fetchOverride,
-      source: options.querySource,
-    })
-    await client.beta.messages.create(
-      { ...body, betas: [betaHeader] } as never,
-      { timeout: GATEWAY_PROBE_TIMEOUT_MS, maxRetries: 0 },
-    )
-    return { status: 200, bodyText: '' }
-  } catch (error) {
-    if (isDeadlineBreach(error)) {
-      return { status: null, bodyText: deadlineBreachLine('the gateway', GATEWAY_PROBE_TIMEOUT_MS) }
-    }
-    const status = (error as { status?: unknown }).status
-    return {
-      status: typeof status === 'number' ? status : null,
-      bodyText: error instanceof Error ? error.message : String(error),
-    }
-  }
-}
-
-function getNonstreamingFallbackTimeoutMs(): number {
-  return nonstreamingFallbackCeilingMs()
-}
-
 const NO_EVENTS_MESSAGE = 'Stream ended without receiving any events'
 const EMPTY_CLOSE_DETAIL = 'closed with no events'
 
@@ -355,81 +237,7 @@ function spokenByProvider(error: unknown): boolean {
   return error instanceof APIError && !(error instanceof APIConnectionError)
 }
 
-function withoutToolSearchFields(message: UserMessage | AssistantMessage): UserMessage | AssistantMessage {
-  return message.type === 'user'
-    ? stripToolReferenceBlocksFromUserMessage(message)
-    : stripCallerFieldFromAssistantMessage(message)
-}
-
-export async function* executeNonStreamingRequest(
-  clientOptions: {
-    model: string
-    fetchOverride?: Options['fetchOverride']
-    source: string
-  },
-  retryOptions: {
-    model: string
-    fallbackModel?: string
-    thinkingConfig: ThinkingConfig
-    signal: AbortSignal
-    initialConsecutive529Errors?: number
-    querySource?: QuerySource
-    onHeldWait?: (wait: HeldBusyRetryWait) => void
-  },
-  paramsFromContext: (context: RetryContext) => BetaMessageStreamParams,
-  onAttempt: (attempt: number, start: number, maxOutputTokens: number) => void,
-  captureRequest: (params: BetaMessageStreamParams) => void,
-  originatingRequestId?: string | null,
-  afterSilence?: { idleMs: number; model: string },
-): AsyncGenerator<SystemAPIErrorMessage, BetaMessage> {
-  const timeout = getNonstreamingFallbackTimeoutMs()
-  const client = () => getAnthropicClient({ maxRetries: 0, fetchOverride: clientOptions.fetchOverride, source: clientOptions.source })
-  const attemptRequest = async (anthropic: Awaited<ReturnType<typeof getAnthropicClient>>, attempt: number, context: RetryContext) => {
-    if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
-    const started = Date.now()
-    const params = paramsFromContext(context)
-    captureRequest(params)
-    onAttempt(attempt, started, params.max_tokens)
-    const fitted = adjustParamsForNonStreaming(params, MAX_NON_STREAMING_TOKENS)
-    return nonStreamingAnswer(anthropic, fitted, retryOptions.signal, timeout, started, afterSilence)
-  }
-  const retries = withRetry(client, attemptRequest, {
-    model: retryOptions.model, fallbackModel: retryOptions.fallbackModel,
-    thinkingConfig: retryOptions.thinkingConfig, signal: retryOptions.signal,
-    initialConsecutive529Errors: retryOptions.initialConsecutive529Errors, querySource: retryOptions.querySource,
-    ...(retryOptions.onHeldWait !== undefined ? { onHeldWait: retryOptions.onHeldWait } : {}), healClientContract: true,
-  })
-  while (true) {
-    const step = await retries.next()
-    if (step.done) return step.value as BetaMessage
-    if (step.value.type === 'system') yield step.value
-  }
-}
-
-async function nonStreamingAnswer(
-  client: Awaited<ReturnType<typeof getAnthropicClient>>, params: BetaMessageStreamParams,
-  signal: AbortSignal, timeout: number, started: number, silence?: { idleMs: number; model: string },
-) {
-  try {
-    const reply = await client.beta.messages.create(
-      { ...params, model: normalizeModelStringForAPI(params.model) }, { signal, timeout },
-    )
-    clearAnthropicUsageLimit(started)
-    return reply
-  } catch (error) {
-    if (error instanceof APIUserAbortError) throw error
-    logForDiagnosticsNoPII('error', 'cli_nonstreaming_fallback_error')
-    if (silence !== undefined && isFirstByteTimeout(error)) {
-      throw new Error(`the stream went quiet for ${patienceSeconds(silence.idleMs)} and one non-streamed answer got nothing in ${patienceSeconds(timeout)} from ${silence.model} — no keep-alive arrived: a dead connection, or a request the provider parked; the turn was ended`)
-    }
-    throw error
-  }
-}
-
-function isFirstByteTimeout(error: unknown): boolean {
-  if (error instanceof APIConnectionTimeoutError) return true
-  return error instanceof Error && error.constructor?.name === 'APIConnectionTimeoutError'
-}
+export { executeNonStreamingRequest } from './streamCore/nonStreaming.js'
 
 export function cutToolCallOf(block: { type: string; id?: string; name?: string; input?: unknown }): RefusedToolCall | null {
   if (block.type !== 'tool_use' || typeof block.input !== 'string' || block.input.length === 0) return null
@@ -457,28 +265,44 @@ async function* queryModel(
 > {
 
   const { captureSignInRequest, observeSignInResponse } = require('../../../utils/accounts/signInRefusal.js') as typeof import('../../../utils/accounts/signInRefusal.js')
-  let signInRequest: ReturnType<typeof captureSignInRequest>
   const resolvedModel = options.model
   const modelRefusalRequest: { current?: ModelRefusalRequest } = {}
   const effortPinned = options.effortPinned === true
   const effortTruth = resolveEffortTruth(options.model, options.effortValue, { agentId: options.agentId, pinned: effortPinned })
   const effortRides = effortPinned || options.ridesSessionEffort !== false
   const effortAsked = effortRides ? effortTruth.requested : undefined
-  let effortOnWire: EffortStampV1 = effortStampOf(effortAsked, effortTruth.supportsEffort ? { kind: 'omitted' } : { kind: 'unsupported' })
+  const call: CallState = {
+    signInRequest: undefined,
+    effortOnWire: effortStampOf(effortAsked, effortTruth.supportsEffort ? { kind: 'omitted' } : { kind: 'unsupported' }),
+    start: 0,
+    stream: undefined,
+    streamRequestId: undefined,
+    clientRequestId: undefined,
+    streamResponse: undefined,
+    sentThinkingPrefix: undefined,
+    ledgerFirstDifference: null,
+    ttftMs: 0,
+    partialMessage: undefined,
+    usage: EMPTY_USAGE,
+    servedModel: undefined,
+    stopReason: null,
+    ledgerSettled: false,
+    didFallBackToNonStreaming: false,
+    fallbackMessage: undefined,
+    maxOutputTokens: 0,
+    preFirstEventStreamRetryUsed: false,
+    streamCutRetryUsed: false,
+    emptyStreamEnds: 0,
+    settledNormally: false,
+  }
   const captureModelRequest = (params: BetaMessageStreamParams): void => {
     modelRefusalRequest.current = captureModelRefusalRequest(params.model)
-    effortOnWire = effortStampOf(effortAsked, anthropicEffortWireFact(params as Parameters<typeof anthropicEffortWireFact>[0], effortTruth.supportsEffort))
-    signInRequest = captureSignInRequest('anthropic')
+    call.effortOnWire = effortStampOf(effortAsked, anthropicEffortWireFact(params as Parameters<typeof anthropicEffortWireFact>[0], effortTruth.supportsEffort))
+    call.signInRequest = captureSignInRequest('anthropic')
     captureAPIRequest(params, options.querySource)
   }
 
-  const isAgenticQuery =
-    options.querySource.startsWith('main_thread') ||
-    options.querySource.startsWith('agent:') ||
-    options.querySource === 'sdk' ||
-    options.querySource === 'hook_agent' ||
-    options.querySource === 'verification_agent'
-  const betas = getMergedBetas(options.model, { isAgenticQuery })
+  const betas = requestBetas(options)
 
   const rosterOwnerKey = options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null))
   const plan = await planToolPayload({
@@ -491,40 +315,9 @@ async function* queryModel(
     source: 'query',
     latchKey: rosterOwnerKey,
   })
-  const useToolSearch = plan.enabled
-  const deferredToolNames = plan.deferredNames
-  const blockForm = plan.wireForm === 'block'
-  const filteredTools: Tools = plan.roster
-  if (!useToolSearch) {
-    logForDebugging('Tool search disabled for this request (the payload plan)')
-  }
-  if (plan.restoredMissingTools.length > 0) {
-    declareLawfulPrefixChange(
-      rosterOwnerKey,
-      `a tool the earlier session offered is no longer available (${plan.restoredMissingTools.join(', ')})`,
-    )
-  }
-
-  if (plan.wireWhy === 'gateway-unprobed' && gatewayProbePolicyAllows() && modelSupportsToolReference(options.model) && isToolSearchToolAvailable(tools) && isToolSearchEnabledOptimistic()) {
-    const host = gatewayHost()
-    if (host !== null) {
-      void ensureGatewayProbe(
-        host,
-        (body, betaHeader) => sendGatewayProbe(body, betaHeader, options),
-        options.model,
-      )
-    }
-  }
-
-  const toolSearchHeader = useToolSearch && blockForm ? getToolSearchBetaHeader() : null
-  if (toolSearchHeader && !betas.includes(toolSearchHeader)) {
-    betas.push(toolSearchHeader)
-  }
+  const { useToolSearch, blockForm, filteredTools, willDefer } = toolRosterOf(plan, betas, tools, options, rosterOwnerKey)
 
   const cachedMCEnabled = false
-  const cacheEditingBetaHeader = ''
-
-  const willDefer = (t: Tool) => useToolSearch && blockForm && deferredToolNames.has(t.name)
 
   const toolSchemas = await Promise.all(
     filteredTools.map(tool =>
@@ -541,361 +334,44 @@ async function* queryModel(
     ),
   )
 
-  let messagesForAPI = normalizeMessagesForAPI(messages, filteredTools)
-
-  if (!useToolSearch) {
-    messagesForAPI = messagesForAPI.map(withoutToolSearchFields)
-  } else if (!blockForm) {
-    messagesForAPI = renderAdmissionRecordsAsText(messagesForAPI).map(msg =>
-      msg.type === 'assistant' ? stripCallerFieldFromAssistantMessage(msg) : msg,
-    )
-  }
-
-  messagesForAPI = pairConversationMessages(messagesForAPI, 'canonical')
-
-  messagesForAPI = stripUnsignedThinkingBlocks(messagesForAPI)
-
-  const retiredScreenshots = retireOlderScreenshots(messagesForAPI, undefined, undefined, rosterOwnerKey)
-  messagesForAPI =
-    retiredScreenshots.firstEdited === -1
-      ? retiredScreenshots.messages
-      : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
-  const fittedImages = await fitImagesToRequestCap(messagesForAPI, { model: options.model, owner: rosterOwnerKey, statedSidePx: manyImageLimitStatedIn(messages) })
-  messagesForAPI =
-    fittedImages.firstEdited === -1
-      ? fittedImages.messages
-      : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
-
-  messagesForAPI = stripDeadThinking(messagesForAPI, deadThinkingMarks(messages))
-  if (thinkingConfig.type === 'disabled') messagesForAPI = stripThinkingFromIndex(messagesForAPI, 0)
-
-  const fingerprint = computeFingerprintFromMessages(messages)
-  const prefixKey = conversationRosterKey(rosterOwnerKey, messages, options.model)
-  const turnOwning = isTurnOwningQuerySource(options.querySource)
-  if (turnOwning) noteCacheClockPrefix(prefixKey)
-
-  const sessionSystemPrompt = systemPrompt
-  const assembleSystemPrompt = (attribution: string): SystemPrompt =>
-    assembleTurnSystemPrompt(attribution, sessionSystemPrompt)
-  let attributionLine = getAttributionHeader(fingerprint)
-  systemPrompt = assembleSystemPrompt(attributionLine)
-
-  const enablePromptCaching =
-    options.enablePromptCaching ?? getPromptCachingEnabled(options.model)
-  let system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching)
-  const systemForAttribution = (attribution: string): typeof system =>
-    buildSystemPromptBlocks(assembleSystemPrompt(attribution), enablePromptCaching)
-
-  const extraToolSchemas = [...(options.extraToolSchemas ?? [])]
-  if (options.nativeWebSearch) {
-    const { allowedDomains, blockedDomains, maxUses } = options.nativeWebSearch
-    extraToolSchemas.push({
-      type: 'web_search_20250305',
-      name: 'web_search',
-      ...(allowedDomains && allowedDomains.length > 0 ? { allowed_domains: allowedDomains } : {}),
-      ...(blockedDomains && blockedDomains.length > 0 ? { blocked_domains: blockedDomains } : {}),
-      max_uses: maxUses,
-    })
-  }
-  const allTools = [...toolSchemas, ...extraToolSchemas] as unknown as BetaToolUnion[]
-
-  const carryPrefix = thinkingCarryRides() ? thinkingPrefixDigest(system, allTools) : undefined
-  const droppedThinking = droppedThinkingMarks(messages)
-  messagesForAPI = stripThinkingFromOtherModels(
-    messagesForAPI,
-    options.model,
-    (_writer, target, row) => carriesThinking(row, target, carryPrefix, droppedThinking),
-  )
-  let sentThinkingPrefix: string | undefined
-
+  const unfittedMessages = messagesBeforeImages(messages, filteredTools, useToolSearch, blockForm, rosterOwnerKey)
+  const fittedImages = await fitImagesToRequestCap(unfittedMessages, { model: options.model, owner: rosterOwnerKey, statedSidePx: manyImageLimitStatedIn(messages) })
+  const planned = wireRequestOf(fittedImages, messages, systemPrompt, thinkingConfig, options, rosterOwnerKey, toolSchemas)
+  const { messagesForAPI, prefixKey, turnOwning } = planned
 
   const cacheEditingHeaderLatched = getCacheEditingHeaderLatched() === true
 
   const effort = effortRides ? resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId, pinned: effortPinned }) : undefined
 
   const startIncludingRetries = Date.now()
-  let start = Date.now()
-  let settledNormally = false
-  let stream: AnthropicStream | undefined = undefined
-  let streamRequestId: string | null | undefined = undefined
-  let clientRequestId: string | undefined = undefined
-  let streamResponse: Response | undefined = undefined
-
-  function releaseStreamResources(): void {
-    const held = { stream, response: streamResponse }
-    stream = undefined
-    streamResponse = undefined
-    cleanupStream(held.stream)
-    held.response?.body?.cancel().catch(() => {})
-  }
+  call.start = Date.now()
 
   const consumedCacheEdits = cachedMCEnabled ? consumePendingCacheEdits() : null
   const consumedPinnedEdits = cachedMCEnabled ? getPinnedCacheEdits() : []
-  let ledgerFirstDifference: PrefixMismatch | null = null
-
-  const paramsFromContext = (retryContext: RetryContext) => {
-    const attribution = getAttributionHeader(fingerprint)
-    if (attribution !== attributionLine) {
-      attributionLine = attribution
-      system = systemForAttribution(attribution)
-    }
-    const betasParams = [...betas]
-
-    const extraBodyParams = getExtraBodyParams([])
-
-    const outputConfig: BetaOutputConfig = {
-      ...((extraBodyParams.output_config as BetaOutputConfig) ?? {}),
-    }
-
-    configureEffortParams(
-      effort,
-      outputConfig,
-      extraBodyParams,
-      options.model,
-    )
-
-    if (options.outputFormat && !('format' in outputConfig)) {
-      outputConfig.format = options.outputFormat as BetaJSONOutputFormat
-      if (
-        modelSupportsStructuredOutputs(options.model) &&
-        !betasParams.includes(STRUCTURED_OUTPUTS_BETA_HEADER)
-      ) {
-        betasParams.push(STRUCTURED_OUTPUTS_BETA_HEADER)
-      }
-    }
-
-    const hasThinking = thinkingConfig.type !== 'disabled'
-    const budgetThinking = hasThinking && modelSupportsThinking(options.model) && !modelSupportsAdaptiveThinking(options.model)
-    const plannedThinkingBudget = !budgetThinking
-      ? 0
-      : thinkingConfig.type === 'enabled' && thinkingConfig.budgetTokens !== undefined
-        ? thinkingConfig.budgetTokens
-        : getMaxThinkingTokensForModel(options.model)
-
-    const outputFit = fitOutputTokensForRequest({
-      asked:
-        retryContext?.maxTokensOverride ||
-        options.maxOutputTokensOverride ||
-        getMaxOutputTokensForModel(options.model),
-      messages,
-      model: options.model,
-      fixed: [system, allTools],
-      betas,
-      least: plannedThinkingBudget + 1,
-    })
-    if (outputFit.clamped) logForDebugging(outputFitWords(outputFit, options.model))
-    const maxOutputTokens = outputFit.tokens
-
-    let thinking: BetaMessageStreamParams['thinking'] | undefined = undefined
-
-    if (hasThinking && modelSupportsThinking(options.model)) {
-      if (modelSupportsAdaptiveThinking(options.model)) {
-        thinking = {
-          type: 'adaptive',
-        } satisfies BetaMessageStreamParams['thinking']
-      } else {
-        const thinkingBudget = Math.min(maxOutputTokens - 1, plannedThinkingBudget)
-        thinking = {
-          budget_tokens: thinkingBudget,
-          type: 'enabled',
-        } satisfies BetaMessageStreamParams['thinking']
-      }
-    }
-
-    thinking = applyThinkingDisplay(options.model, thinking, betasParams) as typeof thinking
-    thinking = applyThinkingBinding(thinking, betasParams) as typeof thinking
-    const sendBetas = betasParams.length > 0
-
-    const enablePromptCaching =
-      options.enablePromptCaching ?? getPromptCachingEnabled(retryContext.model)
-
-    const useCachedMC =
-      cachedMCEnabled &&
-      options.querySource === 'main_thread'
-    if (
-      cacheEditingHeaderLatched &&
-      options.querySource === 'main_thread' &&
-      !betasParams.includes(cacheEditingBetaHeader)
-    ) {
-      betasParams.push(cacheEditingBetaHeader)
-      logForDebugging(
-        'Cache editing beta header enabled for cached microcompact',
-      )
-    }
-
-    const temperature =
-      !hasThinking && modelSupportsTemperature(options.model)
-        ? (options.temperatureOverride ?? 1)
-        : undefined
-
-    const toolChoice = foldToolChoiceForModel(options.model, options.toolChoice)
-    if (toolChoice !== options.toolChoice) {
-      logForDebugging(
-        `forced tool_choice folded to auto for ${options.model} (the model rejects forced tool choice)`,
-      )
-    }
-
-    let wireParts: WirePrefixParts = {
-      system,
-      tools: allTools,
-      messages: addCacheBreakpoints(
-        messagesForAPI,
-        enablePromptCaching,
-        useCachedMC,
-        consumedCacheEdits as CachedMCEditsBlock | null,
-        consumedPinnedEdits as CachedMCPinnedEdits[],
-        options.skipCacheWrite,
-      ),
-    }
-    const inducedEdit = resolveInducedPrefixEdit()
-    if (inducedEdit !== null && inducedEditApplies(messages)) wireParts = applyInducedPrefixEdit(wireParts, inducedEdit)
-    const wireMessages = wireParts.messages
-    const wireMessageIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
-    const diagnostics = cacheDiagnosticsParam(wireMessageIds, options.querySource)
-
-    const params = fitWireImages({
-      model: normalizeModelStringForAPI(options.model),
-      messages: wireMessages as ReturnType<typeof addCacheBreakpoints>,
-      system: wireParts.system as typeof system,
-      tools: wireParts.tools as typeof allTools,
-      tool_choice: toolChoice,
-      ...(sendBetas && { betas: betasParams }),
-      metadata: getAPIMetadata(),
-      max_tokens: maxOutputTokens,
-      thinking,
-      ...(temperature !== undefined && { temperature }),
-      ...(diagnostics !== null && { diagnostics }),
-      ...extraBodyParams,
-      ...(Object.keys(outputConfig).length > 0 && {
-        output_config: outputConfig,
-      }),
-    }, { ...ANTHROPIC_IMAGE_LIMITS, maxImagesPerRequest: getContextWindowForModel(options.model) <= 200_000 ? 100 : ANTHROPIC_IMAGE_LIMITS.maxImagesPerRequest }).request
-    sentThinkingPrefix = thinkingPrefixDigest(params.system, params.tools)
-    const verdict = judgeAndRecordPrefix(rosterOwnerKey, prefixKey, {
-      system: params.system,
-      tools: params.tools,
-      messages: params.messages,
-    }, params.messages === wireMessages ? wireMessageIds : params.messages.map(() => null), {
-      replaceRecord: isTurnOwningQuerySource(options.querySource),
-    })
-    ledgerFirstDifference = verdict.mismatch
-    const contractMove = clientContractMoveOf(verdict.mismatch)
-    if (contractMove !== null) declareLawfulPrefixChange(rosterOwnerKey, contractMove)
-    return params
-  }
+  const paramsFromContext = wireParamsFor(call, { messages, thinkingConfig, options, betas, rosterOwnerKey, planned, cachedMCEnabled, cacheEditingHeaderLatched, effort, consumedCacheEdits, consumedPinnedEdits })
 
   const newMessages: AssistantMessage[] = []
-  let ttftMs = 0
-  let partialMessage: BetaMessage | undefined = undefined
   const contentBlocks: (BetaContentBlock | ConnectorTextBlock)[] = []
   const stoppedBlockIndices = new Set<number>()
-  let usage: NonNullableUsage = EMPTY_USAGE
-
-  const requestedWire = normalizeModelStringForAPI(options.model)
-  let servedModel: string | undefined
-  const noteServedModel = (model: string | undefined): void => {
-    if (!model || model === servedModel) return
-    if (getCanonicalName(model) === getCanonicalName(requestedWire)) return
-    servedModel = model
-    logForDebugging(`served by ${model} (requested ${requestedWire})`)
-  }
-  const pricingModel = (): string => servedModel ?? resolvedModel
-  let stopReason: BetaStopReason | null = null
-  let ledgerSettled = false
-  let didFallBackToNonStreaming = false
-  let fallbackMessage: AssistantMessage | undefined
-  let maxOutputTokens = 0
-  let preFirstEventStreamRetryUsed = false
-  let streamCutRetryUsed = false
-  let emptyStreamEnds = 0
-
-  const mintAssistantMessage = (
-    base: BetaMessage,
-    blocks: BetaContentBlock[],
-  ): AssistantMessage => ({
-    message: {
-      ...base,
-      ...(servedModel && { model: servedModel }),
-      content: normalizeContentFromAPI(blocks, tools),
-    },
-    requestId: streamRequestId ?? undefined,
-    type: 'assistant',
-    uuid: randomUUID(),
-    timestamp: new Date().toISOString(),
-    effort: effortOnWire,
-    ...(sentThinkingPrefix !== undefined ? { thinkingPrefix: sentThinkingPrefix } : {}),
-  })
-
-  function* yieldAbortedPartialText(): Generator<AssistantMessage> {
-    if (!partialMessage) return
-    const inFlight = contentBlocks.filter(
-      (b, i) =>
-        b !== undefined &&
-        !stoppedBlockIndices.has(i) &&
-        b.type === 'text' &&
-        typeof (b as { text?: unknown }).text === 'string' &&
-        (b as { text: string }).text.length > 0,
-    )
-    if (inFlight.length === 0) return
-    const m = mintAssistantMessage(
-      partialMessage,
-      inFlight as BetaContentBlock[],
-    )
-    newMessages.push(m)
-    yield m
-  }
-
-  const settleUnpricedAttempt = (): void => {
-    if (ledgerSettled || partialMessage === undefined) return
-    ledgerSettled = true
-    let streamedText = ''
-    for (const block of contentBlocks) {
-      if (block === undefined) continue
-      const text = (block as { text?: unknown }).text
-      if (typeof text === 'string') streamedText += text
-      const thinking = (block as { thinking?: unknown }).thinking
-      if (typeof thinking === 'string') streamedText += thinking
-    }
-    const settled: NonNullableUsage = {
-      ...usage,
-      output_tokens: Math.max(
-        usage.output_tokens,
-        roughTokenCountEstimation(streamedText),
-      ),
-    }
-    addToTotalSessionCost(
-      calculateUSDCost(pricingModel(), settled),
-      settled,
-      pricingModel(),
-    )
-  }
-
-  const logRequestFailure = (
-    thrown: unknown,
-  ): { error: unknown; errorModel: string } => {
-    let error = thrown
-    let errorModel = options.model
-    if (thrown instanceof CannotRetryError) {
-      error = thrown.originalError
-      errorModel = thrown.retryContext.model
-    }
-
-    if (error instanceof APIError) {
-      extractQuotaStatusFromError(error)
-      observeSignInResponse(signInRequest, error.status)
-    }
-
-    logAPIError({ error, clientRequestId })
-
-    return { error, errorModel }
-  }
+  const ledger = createCallLedger(call, tools, options, resolvedModel, newMessages, contentBlocks, stoppedBlockIndices, observeSignInResponse)
+  const { releaseStreamResources, noteServedModel, pricingModel, mintAssistantMessage, yieldAbortedPartialText, settleUnpricedAttempt, logRequestFailure } = ledger
 
   const heldWaitDoor = options.agentId !== undefined ? (wait: HeldBusyRetryWait): void => options.onWait?.(wait) : undefined
+  const ctx: QueryCtx = { options, modelRefusalRequest, observeSignInResponse, startIncludingRetries, newMessages, contentBlocks, stoppedBlockIndices, ...ledger }
   try {
     streamingPass: for (;;) {
-    let noteTransportActivity: (() => void) | null = null
-    let transportSawByte = false
     const firstByte: { wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null } = { wait: null }
+    const pass: StreamPass = {
+      noteTransportActivity: null,
+      transportSawByte: false,
+      firstByte,
+      streamIdleAborted: false,
+      streamedToolUse: false,
+      sawFirstStreamEvent: false,
+      streamEventCount: 0,
+      streamWatchdogFiredAt: null,
+      sawMessageStop: false,
+    }
     const generator = withRetry(
       () =>
         getAnthropicClient({
@@ -905,7 +381,7 @@ async function* queryModel(
         }),
       async (anthropic, attempt, context) => {
         if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
-        start = Date.now()
+        call.start = Date.now()
 
         const params = paramsFromContext(context)
         captureModelRequest(params)
@@ -922,7 +398,7 @@ async function* queryModel(
           callReference: options.callReference,
         })
 
-        maxOutputTokens = params.max_tokens
+        call.maxOutputTokens = params.max_tokens
 
         const promptTokens = estimateRequestTokens({ system: params.system, tools: params.tools, messages: params.messages })
         const cold = coldPrefixOf(messages, options.model)
@@ -936,7 +412,7 @@ async function* queryModel(
           attempt,
         }
         firstByte.wait = wait
-        transportSawByte = false
+        pass.transportSawByte = false
         options.onWait?.(wait)
 
         if (!options.agentId) {
@@ -944,7 +420,7 @@ async function* queryModel(
           noteRunPhase('dispatch')
         }
 
-        clientRequestId = isFirstPartyAnthropicBaseUrl() ? randomUUID() : undefined
+        call.clientRequestId = isFirstPartyAnthropicBaseUrl() ? randomUUID() : undefined
 
         const dispatch = () =>
           anthropic.beta.messages
@@ -954,11 +430,11 @@ async function* queryModel(
                 signal,
                 timeout: wait.budgetMs,
                 fetchOptions: streamActivityFetchOptions(() => {
-                  transportSawByte = true
-                  noteTransportActivity?.()
+                  pass.transportSawByte = true
+                  pass.noteTransportActivity?.()
                 }) as never,
-                ...(clientRequestId && {
-                  headers: { [CLIENT_REQUEST_ID_HEADER]: clientRequestId },
+                ...(call.clientRequestId && {
+                  headers: { [CLIENT_REQUEST_ID_HEADER]: call.clientRequestId },
                 }),
               },
             )
@@ -974,8 +450,8 @@ async function* queryModel(
           throw sent
         }
         options.onWait?.(null)
-        streamRequestId = result.request_id
-        streamResponse = result.response
+        call.streamRequestId = result.request_id
+        call.streamResponse = result.response
         if (isTurnOwningQuerySource(options.querySource)) noteRequestOnWire(rosterOwnerKey)
         return result.data
       },
@@ -1009,107 +485,18 @@ async function* queryModel(
         yield e.value
       }
     } while (!e.done)
-    stream = e.value as AnthropicStream
+    call.stream = e.value as AnthropicStream
 
     settleUnpricedAttempt()
     newMessages.length = 0
-    ttftMs = 0
-    partialMessage = undefined
+    call.ttftMs = 0
+    call.partialMessage = undefined
     contentBlocks.length = 0
     stoppedBlockIndices.clear()
-    usage = EMPTY_USAGE
-    stopReason = null
-    ledgerSettled = false
-
-    const STREAM_IDLE_TIMEOUT_MS = streamIdleTimeoutMsForRoute('anthropic')
-    const STREAM_IDLE_WARNING_MS = streamIdleWarningMsOf(STREAM_IDLE_TIMEOUT_MS)
-    let streamIdleAborted = false
-    let streamedToolUse = false
-    let sawFirstStreamEvent = false
-    let streamEventCount = 0
-    let streamWatchdogFiredAt: number | null = null
-    let sawMessageStop = false
-    const modelWords = getPublicModelDisplayName(options.model) ?? options.model
-    const preEventSilenceWords = (): string => {
-      const fired = streamIdleWatchdog.fired()
-      return fired?.noBytes === true
-        ? silentAfterHeadersFaultWords(modelWords, fired.silentMs, firstByte.wait?.promptTokens ?? 0)
-        : `no stream events within ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} of dispatch — the request was accepted and the wait is provider-side (a switched or uncached prompt can ingest slowly)`
-    }
-    const streamIdleWatchdog = createStreamIdleWatchdog({
-      timeoutMs: STREAM_IDLE_TIMEOUT_MS,
-      silentAfterHeadersMs: silentAfterHeadersWindowMs({
-        route: 'anthropic',
-        cold: firstByte.wait?.cold === true,
-        promptTokens: firstByte.wait?.promptTokens ?? 0,
-        idleMs: STREAM_IDLE_TIMEOUT_MS,
-      }),
-      onWarning: () => {
-        logForDebugging(
-          `stream silent for ${patienceSeconds(STREAM_IDLE_WARNING_MS)} — watchdog warning`,
-          { level: 'warn' },
-        )
-        logForDiagnosticsNoPII('warn', 'cli_streaming_idle_warning')
-      },
-      onFire: () => {
-        streamIdleAborted = true
-        streamWatchdogFiredAt = performance.now()
-        logForDebugging(
-          streamIdleWatchdog.fired()?.noBytes === true
-            ? `${preEventSilenceWords()} — watchdog aborting the stream`
-            : `stream silent for ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} — watchdog aborting the stream`,
-          { level: 'error' },
-        )
-        logForDiagnosticsNoPII('error', 'cli_streaming_idle_timeout')
-        releaseStreamResources()
-      },
-    })
-    if (transportSawByte) streamIdleWatchdog.noteActivity()
-    const activityRelay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
-    noteTransportActivity = () => {
-      streamIdleWatchdog.noteActivity()
-      activityRelay.noteChunk()
-    }
-    function clearStreamIdleTimers(): void {
-      noteTransportActivity = null
-      streamIdleWatchdog.stop()
-    }
-    function settledTailType(): string | null {
-      if (!partialMessage || newMessages.length === 0 || stopReason !== null) return null
-      let last: (typeof contentBlocks)[number] | undefined
-      for (let i = 0; i < contentBlocks.length; i++) {
-        const block = contentBlocks[i]
-        if (block === undefined) continue
-        if (!stoppedBlockIndices.has(i)) return null
-        last = block
-      }
-      return last?.type ?? null
-    }
-    function settledTailStands(): boolean {
-      return !streamedToolUse && settledTailType() === 'text'
-    }
-    function* settleTypedEnd(end: StreamEndV1, reason: 'end_turn' | 'tool_use' = 'end_turn') {
-      const lastMsg = newMessages.at(-1)
-      if (!lastMsg) return
-      stopReason = reason
-      lastMsg.message.usage = usage as AssistantMessage['message']['usage']
-      lastMsg.message.stop_reason = reason
-      lastMsg.streamEnd = end
-      void settleTranscriptMessage(lastMsg)
-      logForDebugging(streamEndReceiptLine(end), { level: 'warn' })
-      yield {
-        type: 'stream_event' as const,
-        event: {
-          type: 'message_delta',
-          delta: { stop_reason: reason, stop_sequence: null },
-          usage,
-        } as unknown as BetaRawMessageStreamEvent,
-      }
-      yield {
-        type: 'stream_event' as const,
-        event: { type: 'message_stop' } as BetaRawMessageStreamEvent,
-      }
-    }
+    call.usage = EMPTY_USAGE
+    call.stopReason = null
+    call.ledgerSettled = false
+    const { STREAM_IDLE_TIMEOUT_MS, modelWords, preEventSilenceWords, streamIdleWatchdog, activityRelay, clearStreamIdleTimers, settledTailType, settledTailStands, settleTypedEnd } = watchStream(ctx, call, pass)
 
     startSessionActivity('api_call')
     try {
@@ -1119,11 +506,11 @@ async function* queryModel(
       let totalStallTime = 0
       let stallCount = 0
 
-      for await (const part of stream) {
+      for await (const part of call.stream) {
         streamIdleWatchdog.noteActivity()
         activityRelay.noteEvent()
-        sawFirstStreamEvent = true
-        streamEventCount++
+        pass.sawFirstStreamEvent = true
+        pass.streamEventCount++
         const now = Date.now()
 
         if (lastEventTime !== null) {
@@ -1150,11 +537,11 @@ async function* queryModel(
 
         switch (part.type) {
           case 'message_start': {
-            partialMessage = part.message
-            ttftMs = Date.now() - start
-            usage = updateUsage(usage, part.message?.usage)
+            call.partialMessage = part.message
+            call.ttftMs = Date.now() - call.start
+            call.usage = updateUsage(call.usage, part.message?.usage)
             noteServedModel(part.message?.model)
-            noteCacheDiagnostics(part.message, part.message?.usage, ledgerFirstDifference)
+            noteCacheDiagnostics(part.message, part.message?.usage, call.ledgerFirstDifference)
             break
           }
           case 'content_block_start':
@@ -1242,12 +629,12 @@ async function* queryModel(
             if (!contentBlock) {
               throw new RangeError('Content block not found')
             }
-            if (!partialMessage) {
+            if (!call.partialMessage) {
               throw new Error('Message not found')
             }
             const cutCall = cutToolCallOf(contentBlock)
             if (cutCall !== null) {
-              const note = mintAssistantMessage(partialMessage, [
+              const note = mintAssistantMessage(call.partialMessage, [
                 { type: 'text', text: toolCallRefusalNote('anthropic', cutCall), citations: null },
               ] as BetaContentBlock[])
               note.refusedToolCalls = [cutCall]
@@ -1256,12 +643,12 @@ async function* queryModel(
               yield note
               break
             }
-            const m = mintAssistantMessage(partialMessage, [
+            const m = mintAssistantMessage(call.partialMessage, [
               contentBlock,
             ] as BetaContentBlock[])
             stoppedBlockIndices.add(part.index)
             if (contentBlock.type === 'tool_use') {
-              streamedToolUse = true
+              pass.streamedToolUse = true
             }
             newMessages.push(m)
             yield m
@@ -1271,66 +658,66 @@ async function* queryModel(
             if (part.delta == null) {
               throw new Error(malformedStreamFrameText('message_delta', 'delta'))
             }
-            usage = updateUsage(usage, part.usage)
+            call.usage = updateUsage(call.usage, part.usage)
 
-            stopReason = part.delta.stop_reason
+            call.stopReason = part.delta.stop_reason
 
             const lastMsg = newMessages.at(-1)
             if (lastMsg) {
-              lastMsg.message.usage = usage as AssistantMessage['message']['usage']
-              lastMsg.message.stop_reason = stopReason
+              lastMsg.message.usage = call.usage as AssistantMessage['message']['usage']
+              lastMsg.message.stop_reason = call.stopReason
               void settleTranscriptMessage(lastMsg)
             }
 
-            const costUSDForPart = calculateUSDCost(pricingModel(), usage)
-            addToTotalSessionCost(costUSDForPart, usage, pricingModel())
-            ledgerSettled = true
+            const costUSDForPart = calculateUSDCost(pricingModel(), call.usage)
+            addToTotalSessionCost(costUSDForPart, call.usage, pricingModel())
+            call.ledgerSettled = true
 
             void checkResponseForCacheBreak(
               options.querySource,
-              usage.cache_read_input_tokens,
-              usage.cache_creation_input_tokens,
+              call.usage.cache_read_input_tokens,
+              call.usage.cache_creation_input_tokens,
               messages,
               options.agentId,
-              clientRequestId ?? null,
+              call.clientRequestId ?? null,
             )
 
             const refusalMessage = getErrorMessageIfRefusal(
               part.delta.stop_reason,
               options.model,
-              { requestId: clientRequestId ?? null, raw: part.delta },
+              { requestId: call.clientRequestId ?? null, raw: part.delta },
             )
             if (refusalMessage) {
-              yield { ...refusalMessage, effort: effortOnWire }
+              yield { ...refusalMessage, effort: call.effortOnWire }
             }
 
-            if (stopReason === 'max_tokens') {
+            if (call.stopReason === 'max_tokens') {
               yield {
                 ...createAssistantAPIErrorMessage({
                   content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response exceeded the ${
-                    maxOutputTokens
+                    call.maxOutputTokens
                   } output token maximum. To configure this behavior, set the MERCURY_MAX_OUTPUT_TOKENS environment variable.`,
                   apiError: 'max_output_tokens',
                   error: 'max_output_tokens',
                 }),
-                effort: effortOnWire,
+                effort: call.effortOnWire,
               }
             }
 
-            if (stopReason === 'model_context_window_exceeded') {
+            if (call.stopReason === 'model_context_window_exceeded') {
               yield {
                 ...createAssistantAPIErrorMessage({
                   content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response stopped at the model's context window limit.`,
                   apiError: 'max_output_tokens',
                   error: 'max_output_tokens',
                 }),
-                effort: effortOnWire,
+                effort: call.effortOnWire,
               }
             }
             break
           }
           case 'message_stop':
-            sawMessageStop = true
+            pass.sawMessageStop = true
             setLastApiCompletionTimestamp(Date.now())
             break
         }
@@ -1338,9 +725,9 @@ async function* queryModel(
         yield {
           type: 'stream_event',
           event: part,
-          ...(part.type === 'message_start' ? { ttftMs } : undefined),
+          ...(part.type === 'message_start' ? { ttftMs: call.ttftMs } : undefined),
         }
-        if (sawMessageStop) break
+        if (pass.sawMessageStop) break
       }
       clearStreamIdleTimers()
 
@@ -1350,10 +737,10 @@ async function* queryModel(
         return
       }
 
-      if (streamIdleAborted) {
+      if (pass.streamIdleAborted) {
         const exitDelayMs =
-          streamWatchdogFiredAt !== null
-            ? Math.round(performance.now() - streamWatchdogFiredAt)
+          pass.streamWatchdogFiredAt !== null
+            ? Math.round(performance.now() - pass.streamWatchdogFiredAt)
             : -1
         logForDiagnosticsNoPII(
           'info',
@@ -1362,7 +749,7 @@ async function* queryModel(
         logForDebugging(
           `stream loop exited ${exitDelayMs}ms after watchdog abort (clean exit)`,
         )
-        streamWatchdogFiredAt = null
+        pass.streamWatchdogFiredAt = null
         if (settledTailStands()) {
           yield* settleTypedEnd({
             reason: 'silent-after-last-item',
@@ -1374,16 +761,16 @@ async function* queryModel(
         }
       }
 
-      if (!partialMessage || (newMessages.length === 0 && !stopReason)) {
+      if (!call.partialMessage || (newMessages.length === 0 && !call.stopReason)) {
         logForDebugging(
-          !partialMessage
+          !call.partialMessage
             ? 'stream closed before message_start'
             : 'stream closed after message_start with no completed block and no stop_reason — routing to the non-streaming fallback',
           { level: 'error' },
         )
         throw new Error(NO_EVENTS_MESSAGE)
       }
-      if (stopReason === null) {
+      if (call.stopReason === null) {
         if (settledTailStands()) {
           yield* settleTypedEnd({ reason: 'closed-after-last-item', provider: 'Anthropic' })
         } else if (settledTailType() === 'tool_use') {
@@ -1405,27 +792,27 @@ async function* queryModel(
       }
 
       cacheClockObserve({
-        cacheReadTokens: usage.cache_read_input_tokens,
-        cacheCreationTotal: usage.cache_creation_input_tokens,
-        cacheCreation5m: usage.cache_creation?.ephemeral_5m_input_tokens ?? null,
-        cacheCreation1h: usage.cache_creation?.ephemeral_1h_input_tokens ?? null,
-        uncachedInputTokens: usage.input_tokens,
+        cacheReadTokens: call.usage.cache_read_input_tokens,
+        cacheCreationTotal: call.usage.cache_creation_input_tokens,
+        cacheCreation5m: call.usage.cache_creation?.ephemeral_5m_input_tokens ?? null,
+        cacheCreation1h: call.usage.cache_creation?.ephemeral_1h_input_tokens ?? null,
+        uncachedInputTokens: call.usage.input_tokens,
         now: Date.now(),
         prefixKey: turnOwning ? prefixKey : null,
-        startedAt: start,
+        startedAt: call.start,
       })
 
-      const resp = streamResponse as unknown as Response | undefined
+      const resp = call.streamResponse as unknown as Response | undefined
       if (resp) {
-        extractQuotaStatusFromHeaders(resp.headers, start)
-        clearAnthropicUsageLimit(start)
+        extractQuotaStatusFromHeaders(resp.headers, call.start)
+        clearAnthropicUsageLimit(call.start)
       }
     } catch (streamingError) {
       clearStreamIdleTimers()
 
-      if (streamIdleAborted && streamWatchdogFiredAt !== null) {
+      if (pass.streamIdleAborted && pass.streamWatchdogFiredAt !== null) {
         const exitDelayMs = Math.round(
-          performance.now() - streamWatchdogFiredAt,
+          performance.now() - pass.streamWatchdogFiredAt,
         )
         logForDiagnosticsNoPII(
           'info',
@@ -1436,7 +823,7 @@ async function* queryModel(
         )
       }
 
-      if (streamIdleAborted && !signal.aborted && settledTailStands()) {
+      if (pass.streamIdleAborted && !signal.aborted && settledTailStands()) {
         yield* settleTypedEnd({
           reason: 'silent-after-last-item',
           provider: 'Anthropic',
@@ -1460,15 +847,15 @@ async function* queryModel(
         }
       }
 
-      if (!sawFirstStreamEvent && !streamIdleAborted && !signal.aborted && !spokenByProvider(streamingError)) {
-        emptyStreamEnds++
+      if (!pass.sawFirstStreamEvent && !pass.streamIdleAborted && !signal.aborted && !spokenByProvider(streamingError)) {
+        call.emptyStreamEnds++
         const cutBeforeEvents = transportCutOf(streamingError)
         const detail = cutBeforeEvents !== null ? cutBeforeEvents.code : errorMessage(streamingError) === NO_EVENTS_MESSAGE ? EMPTY_CLOSE_DETAIL : errorMessage(streamingError)
-        if (emptyStreamEnds < EMPTY_STREAM_TRIES) {
+        if (call.emptyStreamEnds < EMPTY_STREAM_TRIES) {
           resetApiConnectionPool()
           const waitMs = emptyStreamRetryWaitMs()
-          const notice = emptyStreamRetryNotice({ provider: 'Anthropic', detail, cause: streamingError, attempt: emptyStreamEnds + 1, waitMs })
-          logForDebugging(`${notice.error.message} — retrying in ${retrySeconds(waitMs)} (attempt ${emptyStreamEnds + 1} of ${EMPTY_STREAM_TRIES})`, { level: 'warn' })
+          const notice = emptyStreamRetryNotice({ provider: 'Anthropic', detail, cause: streamingError, attempt: call.emptyStreamEnds + 1, waitMs })
+          logForDebugging(`${notice.error.message} — retrying in ${retrySeconds(waitMs)} (attempt ${call.emptyStreamEnds + 1} of ${EMPTY_STREAM_TRIES})`, { level: 'warn' })
           yield notice
           options.onWait?.(retryNoticeWait(notice))
           await sleep(waitMs, signal)
@@ -1481,7 +868,7 @@ async function* queryModel(
 
       const disableFallback =
         isEnvTruthy(flagEnv('MERCURY_DISABLE_NONSTREAMING_FALLBACK')) ||
-        (streamIdleAborted && streamedToolUse)
+        (pass.streamIdleAborted && pass.streamedToolUse)
 
       if (disableFallback) {
         logForDebugging(
@@ -1492,11 +879,11 @@ async function* queryModel(
       }
 
       if (
-        streamIdleAborted &&
-        !sawFirstStreamEvent &&
-        !preFirstEventStreamRetryUsed
+        pass.streamIdleAborted &&
+        !pass.sawFirstStreamEvent &&
+        !call.preFirstEventStreamRetryUsed
       ) {
-        preFirstEventStreamRetryUsed = true
+        call.preFirstEventStreamRetryUsed = true
         resetApiConnectionPool()
         logForDiagnosticsNoPII('info', 'cli_stream_preevent_streaming_retry')
         logForDebugging(
@@ -1519,8 +906,8 @@ async function* queryModel(
       }
 
       const cut = signal.aborted ? null : transportCutOf(streamingError)
-      if (cut !== null && !streamedToolUse && !streamCutRetryUsed) {
-        streamCutRetryUsed = true
+      if (cut !== null && !pass.streamedToolUse && !call.streamCutRetryUsed) {
+        call.streamCutRetryUsed = true
         resetApiConnectionPool()
         if (options.onStreamingFallback) {
           options.onStreamingFallback()
@@ -1544,18 +931,18 @@ async function* queryModel(
         `The stream failed; the request is retried as one shot: ${errorMessage(streamingError)}`,
         { level: 'error' },
       )
-      if (streamIdleAborted) resetApiConnectionPool()
+      if (pass.streamIdleAborted) resetApiConnectionPool()
       if (cut !== null) resetApiConnectionPool()
-      didFallBackToNonStreaming = true
+      call.didFallBackToNonStreaming = true
       if (options.onStreamingFallback) {
         options.onStreamingFallback()
       }
       const fallbackWaitWords = `waiting up to ${patienceSeconds(getNonstreamingFallbackTimeoutMs())} for ONE non-streamed completion (no tokens stream while it runs; esc abandons it)`
-      const noticeError = streamIdleAborted
+      const noticeError = pass.streamIdleAborted
         ? Object.assign(
             new Error(
-              sawFirstStreamEvent
-                ? `stream idle watchdog fired after ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} of mid-stream silence (${streamEventCount} event(s) arrived, then the stream went quiet — the connection likely dropped) — ${fallbackWaitWords}`
+              pass.sawFirstStreamEvent
+                ? `stream idle watchdog fired after ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} of mid-stream silence (${pass.streamEventCount} event(s) arrived, then the stream went quiet — the connection likely dropped) — ${fallbackWaitWords}`
                 : streamIdleWatchdog.fired()?.noBytes === true
                   ? `${preEventSilenceWords()}, TWICE (the request authenticates and is accepted, then nothing arrives) — ${fallbackWaitWords}; /model can switch families meanwhile`
                   : `stream idle watchdog fired after ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} with no first event, TWICE (the request authenticates and is accepted, then nothing arrives — a dead connection, or a request the server parks) — ${fallbackWaitWords}; /model can switch families meanwhile`,
@@ -1564,7 +951,7 @@ async function* queryModel(
           )
         : cut !== null
           ? Object.assign(
-              new Error(`${transportCutWords('Anthropic', cut)}${streamCutRetryUsed ? ', twice' : ''} — ${fallbackWaitWords}`),
+              new Error(`${transportCutWords('Anthropic', cut)}${call.streamCutRetryUsed ? ', twice' : ''} — ${fallbackWaitWords}`),
               { cause: streamingError },
             )
           : (streamingError as APIError)
@@ -1586,11 +973,11 @@ async function* queryModel(
         },
         paramsFromContext,
         (_attempt, _startTime, tokens) => {
-          maxOutputTokens = tokens
+          call.maxOutputTokens = tokens
         },
         captureModelRequest,
-        streamRequestId,
-        streamIdleAborted
+        call.streamRequestId,
+        pass.streamIdleAborted
           ? { idleMs: streamIdleWatchdog.fired()?.silentMs ?? STREAM_IDLE_TIMEOUT_MS, model: modelWords }
           : undefined,
       )
@@ -1599,7 +986,7 @@ async function* queryModel(
       noteServedModel(result.model)
       const m = mintAssistantMessage(result, nonStreamContent)
       newMessages.push(m)
-      fallbackMessage = m
+      call.fallbackMessage = m
       if (isTurnOwningQuerySource(options.querySource)) noteRequestOnWire(rosterOwnerKey)
       yield m
     } finally {
@@ -1607,14 +994,14 @@ async function* queryModel(
     }
     break
     }
-    settledNormally = true
+    call.settledNormally = true
   } catch (errorFromRetry) {
     if (errorFromRetry instanceof FallbackTriggeredError) {
       throw errorFromRetry
     }
 
     const is404StreamCreationError =
-      !didFallBackToNonStreaming &&
+      !call.didFallBackToNonStreaming &&
       errorFromRetry instanceof CannotRetryError &&
       errorFromRetry.originalError instanceof APIError &&
       errorFromRetry.originalError.status === 404
@@ -1626,7 +1013,7 @@ async function* queryModel(
         'The streaming endpoint answered 404; the request is retried as one shot',
         { level: 'warn' },
       )
-      didFallBackToNonStreaming = true
+      call.didFallBackToNonStreaming = true
       if (options.onStreamingFallback) {
         options.onStreamingFallback()
       }
@@ -1650,7 +1037,7 @@ async function* queryModel(
           },
           paramsFromContext,
           (_attempt, _startTime, tokens) => {
-            maxOutputTokens = tokens
+            call.maxOutputTokens = tokens
           },
           captureModelRequest,
           failedRequestId,
@@ -1660,7 +1047,7 @@ async function* queryModel(
         noteServedModel(result.model)
         const m = mintAssistantMessage(result, nonStreamContent)
         newMessages.push(m)
-        fallbackMessage = m
+        call.fallbackMessage = m
         if (isTurnOwningQuerySource(options.querySource)) noteRequestOnWire(rosterOwnerKey)
         yield m
 
@@ -1718,51 +1105,10 @@ async function* queryModel(
       return
     }
   } finally {
-    stopSessionActivity('api_call')
-    releaseStreamResources()
-
-    settleUnpricedAttempt()
-    if (!settledNormally) logAPIDuration({ start, startIncludingRetries })
-
-    if (fallbackMessage) {
-      const fallbackUsage = fallbackMessage.message.usage
-      usage = updateUsage(EMPTY_USAGE, fallbackUsage)
-      stopReason = fallbackMessage.message.stop_reason
-      const fallbackCost = calculateUSDCost(
-        pricingModel(),
-        fallbackUsage as NonNullableUsage,
-      )
-      addToTotalSessionCost(
-        fallbackCost,
-        fallbackUsage as NonNullableUsage,
-        pricingModel(),
-      )
-    }
+    settleAttemptLedger(ctx, call)
   }
 
-  if (
-    streamRequestId &&
-    !getAgentContext() &&
-    (options.querySource.startsWith('main_thread') ||
-      options.querySource === 'sdk')
-  ) {
-    setLastMainRequestId(streamRequestId)
-  }
-
-  observeSignInResponse(signInRequest, 200)
-  const successfulRequest = modelRefusalRequest.current
-  if (successfulRequest !== undefined) {
-    clearModelRefusal(successfulRequest.id, successfulRequest.door, successfulRequest.home, successfulRequest.presented)
-  }
-
-  void options.getToolPermissionContext().then(() => {
-    logAPISuccessAndDuration({
-      start,
-      startIncludingRetries,
-    })
-  })
-
-  releaseStreamResources()
+  closeSucceededRequest(ctx, call)
 }
 
 type UtilityOptions = Omit<Options, 'model' | 'getToolPermissionContext' | 'effortValue' | 'effortPinned' | 'ridesSessionEffort'>
@@ -1827,32 +1173,6 @@ export async function queryWithModel(question: OneShotQuestion): Promise<Assista
   return reply! as AssistantMessage
 }
 
-export const MAX_NON_STREAMING_TOKENS = 64_000
+export { MAX_NON_STREAMING_TOKENS, adjustParamsForNonStreaming } from './streamCore/nonStreaming.js'
 
-export function adjustParamsForNonStreaming<
-  T extends {
-    max_tokens: number
-    thinking?: BetaMessageStreamParams['thinking']
-  },
->(params: T, maxTokensCap: number): T {
-  const max_tokens = Math.min(params.max_tokens, maxTokensCap)
-  const budgetBelow = (thinking: T['thinking'], ceiling: number): T['thinking'] =>
-    thinking?.type === 'enabled' && thinking.budget_tokens
-      ? { ...thinking, budget_tokens: Math.min(thinking.budget_tokens, ceiling) }
-      : thinking
-  return 'thinking' in params
-    ? { ...params, max_tokens, thinking: budgetBelow(params.thinking, max_tokens - 1) }
-    : { ...params, max_tokens }
-}
-
-export function getMaxOutputTokensForModel(model: string): number {
-  const maxOutputTokens = getModelMaxOutputTokens(model)
-
-  const result = validateBoundedIntEnvVar(
-    'MERCURY_MAX_OUTPUT_TOKENS',
-    flagEnv('MERCURY_MAX_OUTPUT_TOKENS'),
-    maxOutputTokens.default,
-    maxOutputTokens.upperLimit,
-  )
-  return result.effective
-}
+export { getMaxOutputTokensForModel } from './streamCore/wireParams.js'

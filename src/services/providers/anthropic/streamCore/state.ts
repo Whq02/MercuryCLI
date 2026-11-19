@@ -1,0 +1,68 @@
+import type {
+  ContentBlock as BetaContentBlock,
+  ApiMessage as BetaMessage,
+} from '../../../../types/wire.js'
+import type { AnthropicStream } from '../anthropicStream.js'
+import type { PrefixMismatch } from '../prefixLedger.js'
+import type { ConnectorTextBlock } from '../../../../types/connectorText.js'
+import type { AssistantMessage } from '../../../../types/message.js'
+import type { EffortStampV1 } from '../../../../utils/effortStamp.js'
+import type { ModelRefusalRequest } from '../modelRefusal.js'
+import type { NonNullableUsage } from '../../../api/logging.js'
+import type { RequestWaitV1 } from '../../streamIdleBudget.js'
+import type { Options } from '../streamCore.js'
+import type { createCallLedger } from './callLedger.js'
+import type { wireRequestOf } from './requestPlan.js'
+
+export type SignInRefusal = typeof import('../../../../utils/accounts/signInRefusal.js')
+
+export type BetaStopReason = NonNullable<BetaMessage['stop_reason']>
+
+export type PlannedRequest = ReturnType<typeof wireRequestOf>
+
+export type CallState = {
+  signInRequest: ReturnType<SignInRefusal['captureSignInRequest']>
+  effortOnWire: EffortStampV1
+  start: number
+  stream: AnthropicStream | undefined
+  streamRequestId: string | null | undefined
+  clientRequestId: string | undefined
+  streamResponse: Response | undefined
+  sentThinkingPrefix: string | undefined
+  ledgerFirstDifference: PrefixMismatch | null
+  ttftMs: number
+  partialMessage: BetaMessage | undefined
+  usage: NonNullableUsage
+  servedModel: string | undefined
+  stopReason: BetaStopReason | null
+  ledgerSettled: boolean
+  didFallBackToNonStreaming: boolean
+  fallbackMessage: AssistantMessage | undefined
+  maxOutputTokens: number
+  preFirstEventStreamRetryUsed: boolean
+  streamCutRetryUsed: boolean
+  emptyStreamEnds: number
+  settledNormally: boolean
+}
+
+export type QueryCtx = {
+  options: Options
+  modelRefusalRequest: { current?: ModelRefusalRequest }
+  observeSignInResponse: SignInRefusal['observeSignInResponse']
+  startIncludingRetries: number
+  newMessages: AssistantMessage[]
+  contentBlocks: (BetaContentBlock | ConnectorTextBlock)[]
+  stoppedBlockIndices: Set<number>
+} & ReturnType<typeof createCallLedger>
+
+export type StreamPass = {
+  noteTransportActivity: (() => void) | null
+  transportSawByte: boolean
+  firstByte: { wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null }
+  streamIdleAborted: boolean
+  streamedToolUse: boolean
+  sawFirstStreamEvent: boolean
+  streamEventCount: number
+  streamWatchdogFiredAt: number | null
+  sawMessageStop: boolean
+}
