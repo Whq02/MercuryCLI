@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describeAnthropicClientContract } from '../../../constants/oauth.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { isENOENT } from '../../../utils/errors.js'
 import { clientContractGateText } from '../../api/clientContractGate.js'
 import { clientContractHealOf, clientContractStory, type ClientContractSource } from '../../api/clientContractLearned.js'
 import { classifyAnthropicRefusal } from '../anthropicRefusal.js'
@@ -219,12 +220,15 @@ function readModelRefusals(home = getAuthConfigHomeDir()): ModelRefusalFile[] {
   }
 }
 
-function removeModelRefusalFile(path: string): void {
+function removeModelRefusalFile(path: string): boolean {
   try {
     unlinkSync(path)
     modelRefusalCache = null
-  } catch {
-    return
+    return true
+  } catch (error) {
+    if (isENOENT(error)) return true
+    logForDebugging(`[model-refusals] a refusal record could not be removed and still stands: ${String(error)}`)
+    return false
   }
 }
 
@@ -275,10 +279,10 @@ export function modelRefusalHealthStatus(refusal: Pick<ModelRefusal, 'kind' | 's
 }
 
 export function forgetModelRefusals(home = getAuthConfigHomeDir()): number {
-  const files = readModelRefusals(home)
-  for (const file of files) removeModelRefusalFile(file.path)
+  let removed = 0
+  for (const file of readModelRefusals(home)) if (removeModelRefusalFile(file.path)) removed++
   modelRefusalCache = null
-  return files.length
+  return removed
 }
 
 export function modelRefusalWords(id: string): string | undefined {
