@@ -114,7 +114,7 @@ export async function askForHandoff(input: {
   }
   try {
     const run: AskRunner = input.run ?? runForkedAgent
-    const askMessage = createUserMessage({ content: ask.text, isMeta: true })
+    const askMessage: Message = { ...createUserMessage({ content: ask.text, isMeta: true }), replyEffort: 'low' }
     const params = (promptMessages: Message[]): ForkedAgentParams =>
       ({
         promptMessages,

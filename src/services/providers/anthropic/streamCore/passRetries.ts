@@ -37,6 +37,7 @@ import type { Options } from '../streamCore.js'
 import { isFirstByteTimeout } from './nonStreaming.js'
 import type { CallState, StreamPass } from './state.js'
 import type { wireParamsFor } from './wireParams.js'
+import { noteMessageEffortRefusal } from '../messageEffort.js'
 
 type PassRetryInputs = {
   messages: Message[]
@@ -126,6 +127,7 @@ export function streamPassRetries(call: CallState, pass: StreamPass, { messages,
           logForDebugging(`first-byte budget fired: ${firstByteTimeoutLine(wait)}`, { level: 'warn' })
           throw new APIConnectionTimeoutError({ message: firstByteTimeoutLine(wait), requestDeadline: (sent as { requestDeadline?: unknown }).requestDeadline === true })
         }
+        noteMessageEffortRefusal(params.messages, sent)
         throw sent
       }
       options.onWait?.(null)
