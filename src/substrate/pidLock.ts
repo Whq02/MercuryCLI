@@ -8,7 +8,7 @@ import {
   renameWithWin32Retry,
 } from './durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'
-import { getErrnoCode } from '../utils/errors.js'
+import { getErrnoCode, isENOENT } from '../utils/errors.js'
 import { procStartToken, currentProcStart } from '../utils/genericProcessUtils.js'
 import { getProcessStartTokenAsync, getProcessStartTokenCachedOrRefresh } from '../daemon/ownerWatch.js'
 import { safeParseJSON } from '../utils/json.js'
@@ -77,7 +77,8 @@ async function readHolder(path: string): Promise<PidLockHolder | null> {
 async function readRawRecord(path: string): Promise<string | null> {
   try {
     return await readFile(path, 'utf8')
-  } catch {
+  } catch (e) {
+    if (!isENOENT(e)) logForDebugging(`[pidLock] the record at ${path} could not be read: ${e}`)
     return null
   }
 }
@@ -429,9 +430,17 @@ export async function probePidLock(
     } catch {
       return null
     }
-    const takenHolder = parseHolder((await readRawRecord(taken)) ?? '')
-    if (takenHolder && holderAlive(takenHolder, opts.liveness, await liveTokenFor(takenHolder))) {
-      await link(taken, path).catch(() => {})
+    const takenRead = await readRawClassified(taken)
+    const takenHolder = takenRead.kind === 'ok' ? parseHolder(takenRead.raw) : null
+    if (takenRead.kind === 'unreadable') {
+      logForDebugging(`[pidLock] the record moved aside to ${taken} could not be read (${takenRead.code ?? 'EUNKNOWN'}), so it is put back at ${path} as a live holder's`)
+    }
+    if (takenRead.kind === 'unreadable' || (takenHolder && holderAlive(takenHolder, opts.liveness, await liveTokenFor(takenHolder)))) {
+      await link(taken, path).catch((e: unknown) => {
+        if (getErrnoCode(e) !== 'EEXIST') {
+          logForDebugging(`[pidLock] the live holder's record moved aside to ${taken} could not be linked back to ${path} (${getErrnoCode(e) ?? e}), so its lock is removed`)
+        }
+      })
     }
     await unlink(taken).catch(() => {})
   }

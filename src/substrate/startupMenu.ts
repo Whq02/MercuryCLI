@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { flagEnabled, flagSpellings, stampFlagOnEnv } from './flagRegistry.js'
 import { addBootNote } from './bootNotes.js'
+import { logForDebugging } from '../utils/debug.js'
 
 export interface MenuRow {
   env: string
@@ -640,7 +641,11 @@ export function readBootEnvChoices(
       if (typeof v === 'string') out[k] = v
     }
     return out
-  } catch {
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      const why = err instanceof SyntaxError ? 'it is not valid JSON' : String(err)
+      logForDebugging(`[boot-env] the saved boot settings at ${path} could not be read (${why}); they are taken as none, so the next choice saved replaces them all`, { level: 'warn' })
+    }
     return null
   }
 }
