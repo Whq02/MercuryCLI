@@ -41,27 +41,27 @@ interface Pending {
 }
 
 export class VulcanClient {
-  private readonly port: number
+  readonly port: number
   private readonly token: string
-  private readonly expectedInstance: VulcanInstance | undefined
-  private reachedInstance: VulcanInstance | undefined
-  private socket: net.Socket | null = null
-  private state: 'disconnected' | 'connecting' | 'ready' = 'disconnected'
+  readonly expectedInstance: VulcanInstance | undefined
+  reachedInstance: VulcanInstance | undefined
+  socket: net.Socket | null = null
+  state: 'disconnected' | 'connecting' | 'ready' = 'disconnected'
   private closed = false
   private buf = ''
   private nextId = 1
-  private pending = new Map<number, Pending>()
-  private queue: Array<{ op: string; args: Record<string, unknown> | undefined; timeoutMs: number; resolve: (r: VulcanResult) => void; queueTimer: NodeJS.Timeout | null }> = []
-  private helloTimer: NodeJS.Timeout | null = null
-  private events: VulcanEvent[] = []
+  pending = new Map<number, Pending>()
+  queue: Array<{ op: string; args: Record<string, unknown> | undefined; timeoutMs: number; resolve: (r: VulcanResult) => void; queueTimer: NodeJS.Timeout | null }> = []
+  helloTimer: NodeJS.Timeout | null = null
+  events: VulcanEvent[] = []
   private heartbeat: NodeJS.Timeout | null = null
   private pongTimer: NodeJS.Timeout | null = null
-  private backoffMs: number
-  private backoffUntil = 0
-  private helloError: VulcanError | null = null
+  backoffMs: number
+  backoffUntil = 0
+  helloError: VulcanError | null = null
   private readonly heartbeatMs: number
   private readonly pongTimeoutMs: number
-  private readonly backoffStartMs: number
+  readonly backoffStartMs: number
   private readonly backoffCapMs: number
   private readonly connectTimeoutMs: number
   private readonly helloTimeoutMs: number
@@ -216,67 +216,10 @@ export class VulcanClient {
   }
 
   private onFrame(frame: Record<string, unknown>): void {
-    if (this.state === 'connecting') {
-      if (this.helloTimer) {
-        clearTimeout(this.helloTimer)
-        this.helloTimer = null
-      }
-      if (frame.ok === true) {
-        const reached = parseVulcanInstance(frame.instance)
-        if (!reached || reached.port !== this.port || (this.expectedInstance && !sameVulcanInstance(reached, this.expectedInstance))) {
-          this.helloError = { code: 'INSTANCE_MISMATCH', message: 'the hello did not identify the selected Godot instance; no operation was sent' }
-          this.socket?.destroy()
-          return
-        }
-        this.reachedInstance = reached ?? undefined
-        this.state = 'ready'
-        this.backoffMs = this.backoffStartMs
-        this.backoffUntil = 0
-        this.armHeartbeat()
-        const queued = this.queue.splice(0)
-        for (const q of queued) {
-          if (q.queueTimer) clearTimeout(q.queueTimer)
-          void this.send(q.op, q.args, q.timeoutMs).then(q.resolve)
-        }
-      } else {
-        const e = (frame as { error?: VulcanError }).error
-        this.helloError = e ?? { code: 'AUTH_FAILED', message: 'handshake refused' }
-      }
-      return
-    }
-    if (typeof frame.id === 'number' && this.pending.has(frame.id)) {
-      const p = this.pending.get(frame.id)!
-      this.pending.delete(frame.id)
-      clearTimeout(p.timer)
-      const actual = parseVulcanInstance(frame.instance)
-      const via = parseVulcanInstance(frame.via)
-      const expected = this.expectedInstance ?? this.reachedInstance
-      if (!expected || !actual || (!sameVulcanInstance(actual, expected) && (!via || !sameVulcanInstance(via, expected)))) {
-        p.resolve(err('INSTANCE_MISMATCH', 'the response did not identify the selected Godot instance'))
-        this.socket?.destroy()
-        return
-      }
-      const identity = { ...(actual ? { instance: actual } : {}), ...(via ? { via } : {}) }
-      if (frame.ok === true) p.resolve({ ok: true, result: (frame as { result?: unknown }).result, ...identity })
-      else {
-        const e = (frame as { error?: VulcanError }).error
-        p.resolve({
-          ok: false,
-          error: e ?? { code: 'BAD_FRAME', message: 'error frame without error body' },
-          ...identity,
-        })
-      }
-      return
-    }
-    if (typeof frame.event === 'string') {
-      const instance = parseVulcanInstance(frame.instance)
-      const via = parseVulcanInstance(frame.via)
-      this.events.push({ event: frame.event, data: (frame as { data?: unknown }).data, at: Date.now(), ...(instance ? { instance } : {}), ...(via ? { via } : {}) })
-      if (this.events.length > MAX_EVENTS) this.events.splice(0, this.events.length - MAX_EVENTS)
-    }
+    return onFrameOf.call(this, frame)
   }
 
-  private send(
+  send(
     op: string,
     args: Record<string, unknown> | undefined,
     timeoutMs: number,
@@ -304,7 +247,7 @@ export class VulcanClient {
     })
   }
 
-  private armHeartbeat(): void {
+  armHeartbeat(): void {
     this.clearHeartbeat()
     this.heartbeat = setInterval(() => {
       const socket = this.socket
@@ -366,6 +309,67 @@ export class VulcanClient {
       if (q.queueTimer) clearTimeout(q.queueTimer)
       q.resolve(reason)
     }
+  }
+}
+
+function onFrameOf(this: VulcanClient, frame: Record<string, unknown>): void {
+  if (this.state === 'connecting') {
+    if (this.helloTimer) {
+      clearTimeout(this.helloTimer)
+      this.helloTimer = null
+    }
+    if (frame.ok === true) {
+      const reached = parseVulcanInstance(frame.instance)
+      if (!reached || reached.port !== this.port || (this.expectedInstance && !sameVulcanInstance(reached, this.expectedInstance))) {
+        this.helloError = { code: 'INSTANCE_MISMATCH', message: 'the hello did not identify the selected Godot instance; no operation was sent' }
+        this.socket?.destroy()
+        return
+      }
+      this.reachedInstance = reached ?? undefined
+      this.state = 'ready'
+      this.backoffMs = this.backoffStartMs
+      this.backoffUntil = 0
+      this.armHeartbeat()
+      const queued = this.queue.splice(0)
+      for (const q of queued) {
+        if (q.queueTimer) clearTimeout(q.queueTimer)
+        void this.send(q.op, q.args, q.timeoutMs).then(q.resolve)
+      }
+    } else {
+      const e = (frame as { error?: VulcanError }).error
+      this.helloError = e ?? { code: 'AUTH_FAILED', message: 'handshake refused' }
+    }
+    return
+  }
+  if (typeof frame.id === 'number' && this.pending.has(frame.id)) {
+    const p = this.pending.get(frame.id)!
+    this.pending.delete(frame.id)
+    clearTimeout(p.timer)
+    const actual = parseVulcanInstance(frame.instance)
+    const via = parseVulcanInstance(frame.via)
+    const expected = this.expectedInstance ?? this.reachedInstance
+    if (!expected || !actual || (!sameVulcanInstance(actual, expected) && (!via || !sameVulcanInstance(via, expected)))) {
+      p.resolve(err('INSTANCE_MISMATCH', 'the response did not identify the selected Godot instance'))
+      this.socket?.destroy()
+      return
+    }
+    const identity = { ...(actual ? { instance: actual } : {}), ...(via ? { via } : {}) }
+    if (frame.ok === true) p.resolve({ ok: true, result: (frame as { result?: unknown }).result, ...identity })
+    else {
+      const e = (frame as { error?: VulcanError }).error
+      p.resolve({
+        ok: false,
+        error: e ?? { code: 'BAD_FRAME', message: 'error frame without error body' },
+        ...identity,
+      })
+    }
+    return
+  }
+  if (typeof frame.event === 'string') {
+    const instance = parseVulcanInstance(frame.instance)
+    const via = parseVulcanInstance(frame.via)
+    this.events.push({ event: frame.event, data: (frame as { data?: unknown }).data, at: Date.now(), ...(instance ? { instance } : {}), ...(via ? { via } : {}) })
+    if (this.events.length > MAX_EVENTS) this.events.splice(0, this.events.length - MAX_EVENTS)
   }
 }
 
