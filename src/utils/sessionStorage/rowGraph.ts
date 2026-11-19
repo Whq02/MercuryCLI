@@ -16,12 +16,12 @@ const stampOf = (row: TranscriptMessage): number => {
 class TranscriptRows {
   private positions = new Map<UUID, number>()
   private ordinal = 0
-  private children = new Map<UUID, Set<UUID>>()
-  private assistants = new Map<string, Set<UUID>>()
+  children = new Map<UUID, Set<UUID>>()
+  assistants = new Map<string, Set<UUID>>()
   private terminals = new Set<UUID>()
   private boundaries = new Set<UUID>()
   private anchors = new Map<UUID, Set<UUID>>()
-  private removals = new Map<UUID, UUID[]>()
+  removals = new Map<UUID, UUID[]>()
   private structural = false
 
   constructor(readonly rows: Map<UUID, TranscriptMessage>, order: Iterable<UUID> = []) {
@@ -114,11 +114,11 @@ class TranscriptRows {
     this.structural = false
   }
 
-  private positionOf(id: UUID): number {
+  positionOf(id: UUID): number {
     return this.positions.get(id) ?? -1
   }
 
-  private ordered(ids: Iterable<UUID>): TranscriptMessage[] {
+  ordered(ids: Iterable<UUID>): TranscriptMessage[] {
     return [...ids].filter(id => this.has(id)).sort((a, b) => this.positionOf(a) - this.positionOf(b)).map(id => this.get(id)!)
   }
 
@@ -197,39 +197,7 @@ class TranscriptRows {
     for (const id of folded) this.delete(id)
   }
 
-  removeSnipped(): void {
-    const removed = new Set<UUID>()
-    for (const ids of this.removals.values()) for (const id of ids) removed.add(id)
-    if (removed.size === 0) return
-    const parents = new Map<UUID, UUID | null>()
-    const affected = new Set<UUID>()
-    for (const id of removed) {
-      const row = this.get(id)
-      if (row) parents.set(id, row.parentUuid)
-      for (const child of this.children.get(id) ?? []) affected.add(child)
-    }
-    let removedCount = 0
-    for (const id of removed) if (this.delete(id)) removedCount++
-    const resolve = (start: UUID): UUID | null => {
-      let cursor: UUID | null = start
-      const visited = new Set<UUID>()
-      while (cursor && removed.has(cursor)) {
-        if (visited.has(cursor)) { cursor = null; break }
-        visited.add(cursor)
-        cursor = parents.get(cursor) ?? null
-      }
-      for (const id of visited) parents.set(id, cursor)
-      return cursor
-    }
-    let relinkedCount = 0
-    for (const id of affected) {
-      const row = this.get(id)
-      if (!row?.parentUuid || !removed.has(row.parentUuid)) continue
-      this.set(id, { ...row, parentUuid: resolve(row.parentUuid) })
-      relinkedCount++
-    }
-    if (removedCount > 0 || relinkedCount > 0) logForDebugging(`snip replay on load: ${removedCount} message(s) removed, ${relinkedCount} survivor(s) re-linked`)
-  }
+  removeSnipped(): void { return removeSnippedOf.call(this) }
 
   resumeLeaves(): Set<UUID> {
     const leaves = new Set<UUID>()
@@ -253,7 +221,7 @@ class TranscriptRows {
     return leaves
   }
 
-  private ancestry(leaf: TranscriptMessage, seen: Set<UUID>): TranscriptMessage[] {
+  ancestry(leaf: TranscriptMessage, seen: Set<UUID>): TranscriptMessage[] {
     const path: TranscriptMessage[] = []
     let cursor: TranscriptMessage | undefined = leaf
     while (cursor) {
@@ -269,41 +237,9 @@ class TranscriptRows {
     return path
   }
 
-  private decorate(spine: TranscriptMessage[], seen: Set<UUID>): TranscriptMessage[] {
-    const anchors = new Map<string, UUID>()
-    for (const row of spine) if (row.type === 'assistant' && row.message.id) anchors.set(row.message.id, row.uuid)
-    const inserts = new Map<UUID, TranscriptMessage[]>()
-    const byTime = (a: TranscriptMessage, b: TranscriptMessage): number => a.timestamp.localeCompare(b.timestamp)
-    for (const [messageId, anchor] of anchors) {
-      const group = this.ordered(this.assistants.get(messageId) ?? [])
-      const siblings = group.filter(row => !seen.has(row.uuid)).sort(byTime)
-      const results: TranscriptMessage[] = []
-      for (const member of group) {
-        for (const child of this.ordered(this.children.get(member.uuid) ?? [])) {
-          if (child.type === 'user' && !seen.has(child.uuid) && Array.isArray(child.message.content) && child.message.content.some(block => block.type === 'tool_result')) results.push(child)
-        }
-      }
-      results.sort(byTime)
-      const restored = [...siblings, ...results]
-      if (restored.length) {
-        inserts.set(anchor, restored)
-        for (const row of restored) seen.add(row.uuid)
-      }
-    }
-    const conversation: TranscriptMessage[] = []
-    for (const row of spine) {
-      conversation.push(row)
-      const restored = inserts.get(row.uuid)
-      if (restored) conversation.push(...restored)
-    }
-    const withNotes: TranscriptMessage[] = []
-    for (const row of conversation) {
-      withNotes.push(row, ...this.notesUnder(row.uuid, seen))
-    }
-    return withNotes
-  }
+  decorate(spine: TranscriptMessage[], seen: Set<UUID>): TranscriptMessage[] { return decorateOf.call(this, spine, seen) }
 
-  private notesUnder(id: UUID, seen: Set<UUID>): TranscriptMessage[] {
+  notesUnder(id: UUID, seen: Set<UUID>): TranscriptMessage[] {
     const notes = this.systemNotesUnder(id, seen)
     notes.push(...this.hookRowsHangingOff(id, seen))
     const pending = [...this.ordered(this.children.get(id) ?? [])]
@@ -331,7 +267,7 @@ class TranscriptRows {
     return this.decorate(this.ancestry(leaf, seen), seen)
   }
 
-  private reaches(leaf: TranscriptMessage, target: UUID): boolean {
+  reaches(leaf: TranscriptMessage, target: UUID): boolean {
     const visited = new Set<UUID>()
     let cursor: TranscriptMessage | undefined = leaf
     while (cursor && !visited.has(cursor.uuid)) {
@@ -342,62 +278,9 @@ class TranscriptRows {
     return false
   }
 
-  private strandedAfter(boundary: BoundaryRow, seen: Set<UUID>): TranscriptMessage[] {
-    const floor = this.positionOf(boundary.uuid)
-    const verdicts = new Map<UUID, 'stranded' | 'attached'>()
-    const stranded: TranscriptMessage[] = []
-    for (const [id, row] of this) {
-      if (this.positionOf(id) <= floor || seen.has(id) || verdicts.has(id)) continue
-      const walked: TranscriptMessage[] = []
-      const visited = new Set<UUID>()
-      let cursor: TranscriptMessage | undefined = row
-      let verdict: 'stranded' | 'attached' = 'attached'
-      while (cursor) {
-        if (seen.has(cursor.uuid) || visited.has(cursor.uuid)) break
-        const known = verdicts.get(cursor.uuid)
-        if (known !== undefined) { verdict = known; break }
-        visited.add(cursor.uuid)
-        walked.push(cursor)
-        if (!cursor.parentUuid) { verdict = 'stranded'; break }
-        const parent = this.get(cursor.parentUuid)
-        if (parent === undefined) { verdict = 'stranded'; break }
-        cursor = parent
-      }
-      for (const step of walked) {
-        verdicts.set(step.uuid, verdict)
-        if (verdict === 'stranded' && this.positionOf(step.uuid) > floor) stranded.push(step)
-      }
-    }
-    stranded.sort((a, b) => this.positionOf(a.uuid) - this.positionOf(b.uuid))
-    return stranded
-  }
+  strandedAfter(boundary: BoundaryRow, seen: Set<UUID>): TranscriptMessage[] { return strandedAfterOf.call(this, boundary, seen) }
 
-  screenConversation(): TranscriptMessage[] {
-    const leaves = this.resumeLeaves()
-    const candidates = [...leaves]
-      .map(id => this.get(id))
-      .filter((row): row is TranscriptMessage => row !== undefined && (row.type === 'user' || row.type === 'assistant'))
-      .sort((a, b) => stampOf(b) - stampOf(a) || this.positionOf(b.uuid) - this.positionOf(a.uuid))
-    const newest = candidates[0]
-    if (newest === undefined) return []
-    const boundary = this.newestBoundary()
-    const main = boundary === undefined ? newest : candidates.find(leaf => this.reaches(leaf, boundary.uuid))
-    if (boundary === undefined || main === undefined) return this.chain(newest)
-    const seen = new Set<UUID>()
-    const path = this.ancestry(main, seen)
-    const stranded = this.strandedAfter(boundary, seen)
-    if (stranded.length === 0) return this.decorate(path, seen)
-    for (const row of stranded) seen.add(row.uuid)
-    const spine: TranscriptMessage[] = []
-    let next = 0
-    for (const row of path) {
-      const at = this.positionOf(row.uuid)
-      while (next < stranded.length && this.positionOf(stranded[next]!.uuid) < at) spine.push(stranded[next++]!)
-      spine.push(row)
-    }
-    while (next < stranded.length) spine.push(stranded[next++]!)
-    return this.decorate(spine, seen)
-  }
+  screenConversation(): TranscriptMessage[] { return screenConversationOf.call(this) }
 
   private hookRowsHangingOff(id: UUID, seen: Set<UUID>): TranscriptMessage[] {
     const hooks: TranscriptMessage[] = []
@@ -414,6 +297,131 @@ class TranscriptRows {
     }
     return hooks
   }
+}
+
+function removeSnippedOf(this: TranscriptRows): void {
+  const removed = new Set<UUID>()
+  for (const ids of this.removals.values()) for (const id of ids) removed.add(id)
+  if (removed.size === 0) return
+  const parents = new Map<UUID, UUID | null>()
+  const affected = new Set<UUID>()
+  for (const id of removed) {
+    const row = this.get(id)
+    if (row) parents.set(id, row.parentUuid)
+    for (const child of this.children.get(id) ?? []) affected.add(child)
+  }
+  let removedCount = 0
+  for (const id of removed) if (this.delete(id)) removedCount++
+  const resolve = (start: UUID): UUID | null => {
+    let cursor: UUID | null = start
+    const visited = new Set<UUID>()
+    while (cursor && removed.has(cursor)) {
+      if (visited.has(cursor)) { cursor = null; break }
+      visited.add(cursor)
+      cursor = parents.get(cursor) ?? null
+    }
+    for (const id of visited) parents.set(id, cursor)
+    return cursor
+  }
+  let relinkedCount = 0
+  for (const id of affected) {
+    const row = this.get(id)
+    if (!row?.parentUuid || !removed.has(row.parentUuid)) continue
+    this.set(id, { ...row, parentUuid: resolve(row.parentUuid) })
+    relinkedCount++
+  }
+  if (removedCount > 0 || relinkedCount > 0) logForDebugging(`snip replay on load: ${removedCount} message(s) removed, ${relinkedCount} survivor(s) re-linked`)
+}
+
+function decorateOf(this: TranscriptRows, spine: TranscriptMessage[], seen: Set<UUID>): TranscriptMessage[] {
+  const anchors = new Map<string, UUID>()
+  for (const row of spine) if (row.type === 'assistant' && row.message.id) anchors.set(row.message.id, row.uuid)
+  const inserts = new Map<UUID, TranscriptMessage[]>()
+  const byTime = (a: TranscriptMessage, b: TranscriptMessage): number => a.timestamp.localeCompare(b.timestamp)
+  for (const [messageId, anchor] of anchors) {
+    const group = this.ordered(this.assistants.get(messageId) ?? [])
+    const siblings = group.filter(row => !seen.has(row.uuid)).sort(byTime)
+    const results: TranscriptMessage[] = []
+    for (const member of group) {
+      for (const child of this.ordered(this.children.get(member.uuid) ?? [])) {
+        if (child.type === 'user' && !seen.has(child.uuid) && Array.isArray(child.message.content) && child.message.content.some(block => block.type === 'tool_result')) results.push(child)
+      }
+    }
+    results.sort(byTime)
+    const restored = [...siblings, ...results]
+    if (restored.length) {
+      inserts.set(anchor, restored)
+      for (const row of restored) seen.add(row.uuid)
+    }
+  }
+  const conversation: TranscriptMessage[] = []
+  for (const row of spine) {
+    conversation.push(row)
+    const restored = inserts.get(row.uuid)
+    if (restored) conversation.push(...restored)
+  }
+  const withNotes: TranscriptMessage[] = []
+  for (const row of conversation) {
+    withNotes.push(row, ...this.notesUnder(row.uuid, seen))
+  }
+  return withNotes
+}
+
+function strandedAfterOf(this: TranscriptRows, boundary: BoundaryRow, seen: Set<UUID>): TranscriptMessage[] {
+  const floor = this.positionOf(boundary.uuid)
+  const verdicts = new Map<UUID, 'stranded' | 'attached'>()
+  const stranded: TranscriptMessage[] = []
+  for (const [id, row] of this) {
+    if (this.positionOf(id) <= floor || seen.has(id) || verdicts.has(id)) continue
+    const walked: TranscriptMessage[] = []
+    const visited = new Set<UUID>()
+    let cursor: TranscriptMessage | undefined = row
+    let verdict: 'stranded' | 'attached' = 'attached'
+    while (cursor) {
+      if (seen.has(cursor.uuid) || visited.has(cursor.uuid)) break
+      const known = verdicts.get(cursor.uuid)
+      if (known !== undefined) { verdict = known; break }
+      visited.add(cursor.uuid)
+      walked.push(cursor)
+      if (!cursor.parentUuid) { verdict = 'stranded'; break }
+      const parent = this.get(cursor.parentUuid)
+      if (parent === undefined) { verdict = 'stranded'; break }
+      cursor = parent
+    }
+    for (const step of walked) {
+      verdicts.set(step.uuid, verdict)
+      if (verdict === 'stranded' && this.positionOf(step.uuid) > floor) stranded.push(step)
+    }
+  }
+  stranded.sort((a, b) => this.positionOf(a.uuid) - this.positionOf(b.uuid))
+  return stranded
+}
+
+function screenConversationOf(this: TranscriptRows): TranscriptMessage[] {
+  const leaves = this.resumeLeaves()
+  const candidates = [...leaves]
+    .map(id => this.get(id))
+    .filter((row): row is TranscriptMessage => row !== undefined && (row.type === 'user' || row.type === 'assistant'))
+    .sort((a, b) => stampOf(b) - stampOf(a) || this.positionOf(b.uuid) - this.positionOf(a.uuid))
+  const newest = candidates[0]
+  if (newest === undefined) return []
+  const boundary = this.newestBoundary()
+  const main = boundary === undefined ? newest : candidates.find(leaf => this.reaches(leaf, boundary.uuid))
+  if (boundary === undefined || main === undefined) return this.chain(newest)
+  const seen = new Set<UUID>()
+  const path = this.ancestry(main, seen)
+  const stranded = this.strandedAfter(boundary, seen)
+  if (stranded.length === 0) return this.decorate(path, seen)
+  for (const row of stranded) seen.add(row.uuid)
+  const spine: TranscriptMessage[] = []
+  let next = 0
+  for (const row of path) {
+    const at = this.positionOf(row.uuid)
+    while (next < stranded.length && this.positionOf(stranded[next]!.uuid) < at) spine.push(stranded[next++]!)
+    spine.push(row)
+  }
+  while (next < stranded.length) spine.push(stranded[next++]!)
+  return this.decorate(spine, seen)
 }
 
 const indexedRows = new WeakMap<Map<UUID, TranscriptMessage>, TranscriptRows>()
