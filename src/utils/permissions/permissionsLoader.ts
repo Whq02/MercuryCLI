@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { logError } from '../log.js'
 import { logForDebugging } from '../debug.js'
+import { errorMessage, isENOENT } from '../errors.js'
+import { stripBOM } from '../jsonRead.js'
 import { safeResolvePath } from '../fsOperations.js'
 import { getFsImplementation } from '../fsOperations.js'
 import type {
@@ -69,16 +71,20 @@ export function loadAllPermissionRulesFromDisk(): PermissionRule[] {
 export type PermissionRuleFromEditableSettings = PermissionRule & { source: EditableSettingSource }
 
 function loadSettingsLenient(source: EditableSettingSource): SettingsJson {
+  let path: string | undefined
   try {
-    const path = getSettingsFilePathForSource(source)
+    path = getSettingsFilePathForSource(source)
     if (!path) return {} as SettingsJson
     const resolved = safeResolvePath(getFsImplementation(), path).resolvedPath
-    const text = readFileSync(resolved, 'utf8')
+    const text = stripBOM(readFileSync(resolved, 'utf8'))
     if (text.trim() === '') return {} as SettingsJson
     const parsed = JSON.parse(text)
     if (parsed && typeof parsed === 'object') return parsed as SettingsJson
     return {} as SettingsJson
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error)) {
+      logError(new Error(`the settings file ${path ?? source} could not be read before a permission rule was added to it: ${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}`))
+    }
     return {} as SettingsJson
   }
 }
