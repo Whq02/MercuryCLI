@@ -79,19 +79,19 @@ export class ProcKernel {
   readonly startedAt = Date.now()
   private child: ChildProcess
   private decoder: RunnerFrameDecoder
-  private currentCellId: string | null = null
-  private handlers: CellFrameHandlers | null = null
+  currentCellId: string | null = null
+  handlers: CellFrameHandlers | null = null
   private cellEnd: ((end: CellEnd) => void) | null = null
-  private exited: { code: number | null; signal: string | null } | null = null
+  exited: { code: number | null; signal: string | null } | null = null
   private exitWaiters: Array<() => void> = []
   private held: Record<DataStream, string> = { stdout: '', stderr: '' }
   private marked: Record<DataStream, boolean> = { stdout: false, stderr: false }
-  private pendingDone: Extract<CellEnd, { kind: 'done' }> | null = null
-  private settleTimer: NodeJS.Timeout | null = null
-  private readonly protocol: LoopbackProtocol | null
-  private readonly protocolSockets = new Set<Socket>()
-  private protocolProven = false
-  private provenSocket: Socket | null = null
+  pendingDone: Extract<CellEnd, { kind: 'done' }> | null = null
+  settleTimer: NodeJS.Timeout | null = null
+  readonly protocol: LoopbackProtocol | null
+  readonly protocolSockets = new Set<Socket>()
+  protocolProven = false
+  provenSocket: Socket | null = null
   executionCount = 0
 
   static async launch(spec: Omit<KernelSpawnSpec, 'protocol'> & { transport: KernelTransport }): Promise<ProcKernel> {
@@ -196,11 +196,11 @@ export class ProcKernel {
     }
   }
 
-  private maybeSettle(): void {
+  maybeSettle(): void {
     if (this.pendingDone && this.marked.stdout && this.marked.stderr) this.settle()
   }
 
-  private settle(): void {
+  settle(): void {
     const end = this.pendingDone
     if (!end) return
     if (this.settleTimer) {
@@ -230,40 +230,7 @@ export class ProcKernel {
   }
 
   private admitProtocolSocket(socket: Socket): void {
-    if (this.protocolProven || this.exited !== null) {
-      socket.destroy()
-      return
-    }
-    this.protocolSockets.add(socket)
-    socket.setEncoding('utf8')
-    socket.on('error', () => undefined)
-    socket.on('close', () => this.protocolSockets.delete(socket))
-    let head = ''
-    const decoder = new RunnerFrameDecoder(this.token)
-    socket.on('data', (chunk: string | Buffer) => {
-      if (this.protocolProven) {
-        if (socket === this.provenSocket) for (const frame of decoder.push(String(chunk))) this.route(frame)
-        return
-      }
-      head += String(chunk)
-      const newline = head.indexOf('\n')
-      if (newline < 0) {
-        if (head.length > UNPROVEN_SOCKET_CAP) socket.destroy()
-        return
-      }
-      const frames = decoder.push(head)
-      head = ''
-      if (frames.length === 0) {
-        logForDebugging('eval protocol: a connection whose first line carried no frame of this kernel was closed')
-        socket.destroy()
-        return
-      }
-      this.protocolProven = true
-      this.provenSocket = socket
-      this.protocol?.server.close()
-      for (const other of this.protocolSockets) if (other !== socket) other.destroy()
-      for (const frame of frames) this.route(frame)
-    })
+    return kernelAdmitProtocolSocket.call(this, socket)
   }
 
   private closeProtocol(): void {
@@ -277,41 +244,11 @@ export class ProcKernel {
     return this.exited === null && this.child.pid !== undefined
   }
 
-  private route(frame: RunnerFrame): void {
-    switch (frame.t) {
-      case 'ready':
-        this.readyResolve?.()
-        return
-      case 'started':
-        return
-      case 'display':
-        if (frame.id === this.currentCellId) this.handlers?.onDisplay(frame)
-        return
-      case 'result':
-        if (frame.id === this.currentCellId) this.handlers?.onResult(frame.repr)
-        return
-      case 'error':
-        if (frame.id === this.currentCellId) {
-          this.handlers?.onError({ name: frame.name, value: frame.value, traceback: frame.traceback, ...(frame.survived !== undefined ? { survived: frame.survived } : {}), ...(frame.declared !== undefined ? { declared: frame.declared } : {}) })
-        }
-        return
-      case 'bridge':
-        if (frame.id === this.currentCellId) this.handlers?.onBridge(frame)
-        return
-      case 'done': {
-        if (frame.id !== this.currentCellId) return
-        this.pendingDone = { kind: 'done', status: frame.status }
-        this.maybeSettle()
-        if (this.pendingDone) {
-          this.settleTimer = setTimeout(() => this.settle(), END_MARK_GRACE_MS)
-          this.settleTimer.unref?.()
-        }
-        return
-      }
-    }
+  route(frame: RunnerFrame): void {
+    return kernelRoute.call(this, frame)
   }
 
-  private readyResolve: (() => void) | null = null
+  readyResolve: (() => void) | null = null
 
   async handshake(cwd: string, timeoutMs = 15_000): Promise<boolean> {
     const ready = new Promise<boolean>(resolve => {
@@ -418,5 +355,76 @@ export class ProcKernel {
       }
     }
     await endProcessTree(this.child, 'SIGKILL')
+  }
+}
+
+function kernelAdmitProtocolSocket(this: ProcKernel, socket: Socket): void {
+  if (this.protocolProven || this.exited !== null) {
+    socket.destroy()
+    return
+  }
+  this.protocolSockets.add(socket)
+  socket.setEncoding('utf8')
+  socket.on('error', () => undefined)
+  socket.on('close', () => this.protocolSockets.delete(socket))
+  let head = ''
+  const decoder = new RunnerFrameDecoder(this.token)
+  socket.on('data', (chunk: string | Buffer) => {
+    if (this.protocolProven) {
+      if (socket === this.provenSocket) for (const frame of decoder.push(String(chunk))) this.route(frame)
+      return
+    }
+    head += String(chunk)
+    const newline = head.indexOf('\n')
+    if (newline < 0) {
+      if (head.length > UNPROVEN_SOCKET_CAP) socket.destroy()
+      return
+    }
+    const frames = decoder.push(head)
+    head = ''
+    if (frames.length === 0) {
+      logForDebugging('eval protocol: a connection whose first line carried no frame of this kernel was closed')
+      socket.destroy()
+      return
+    }
+    this.protocolProven = true
+    this.provenSocket = socket
+    this.protocol?.server.close()
+    for (const other of this.protocolSockets) if (other !== socket) other.destroy()
+    for (const frame of frames) this.route(frame)
+  })
+}
+
+function kernelRoute(this: ProcKernel, frame: RunnerFrame): void {
+  switch (frame.t) {
+    case 'ready':
+      this.readyResolve?.()
+      return
+    case 'started':
+      return
+    case 'display':
+      if (frame.id === this.currentCellId) this.handlers?.onDisplay(frame)
+      return
+    case 'result':
+      if (frame.id === this.currentCellId) this.handlers?.onResult(frame.repr)
+      return
+    case 'error':
+      if (frame.id === this.currentCellId) {
+        this.handlers?.onError({ name: frame.name, value: frame.value, traceback: frame.traceback, ...(frame.survived !== undefined ? { survived: frame.survived } : {}), ...(frame.declared !== undefined ? { declared: frame.declared } : {}) })
+      }
+      return
+    case 'bridge':
+      if (frame.id === this.currentCellId) this.handlers?.onBridge(frame)
+      return
+    case 'done': {
+      if (frame.id !== this.currentCellId) return
+      this.pendingDone = { kind: 'done', status: frame.status }
+      this.maybeSettle()
+      if (this.pendingDone) {
+        this.settleTimer = setTimeout(() => this.settle(), END_MARK_GRACE_MS)
+        this.settleTimer.unref?.()
+      }
+      return
+    }
   }
 }

@@ -188,7 +188,7 @@ export class EvalKernelManager {
   private exitHookInstalled = false
   private sweepTimer: ReturnType<typeof setInterval> | null = null
   private reapedIdle = new Map<string, { idleMs: number; owner: string }>()
-  private interruptedKernels = new Map<string, string>()
+  interruptedKernels = new Map<string, string>()
 
   constructor(private readonly tuning: { idleTtlMs?: number; idleSweepMs?: number; pyTransport?: KernelTransport } = {}) {}
 
@@ -296,7 +296,7 @@ export class EvalKernelManager {
     }
   }
 
-  private async getOrSpawn(
+  async getOrSpawn(
     owner: string,
     language: EvalLanguage,
     cwd: string,
@@ -322,7 +322,7 @@ export class EvalKernelManager {
     return this.spawnKernel(owner, language, cwd, interpreter)
   }
 
-  private async disposeKey(key: string): Promise<void> {
+  async disposeKey(key: string): Promise<void> {
     const entry = this.kernels.get(key)
     if (!entry) return
     this.kernels.delete(key)
@@ -396,202 +396,17 @@ export class EvalKernelManager {
     })
   }
 
-  private async runCellOnce(
+  runCellOnce(
     request: RunCellRequest,
     key: string,
     interpreter: string,
     annotations: string[],
     retriesLeft: number,
   ): Promise<EvalCellOutcome> {
-    const { owner, cwd, input, abortSignal, serveBridge } = request
-    const spawned = await this.getOrSpawn(owner, input.language, cwd, interpreter, annotations)
-    if ('spawnError' in spawned) return refusalOutcome(spawned.spawnError, annotations)
-    const entry = spawned
-
-    const timeoutSeconds =
-      input.timeoutSeconds === 0
-        ? null
-        : Math.min(Math.max(input.timeoutSeconds ?? EVAL_DEFAULT_TIMEOUT_SECONDS, 1), EVAL_MAX_TIMEOUT_SECONDS)
-    const runtime = new PauseableDeadline(timeoutSeconds === null ? null : timeoutSeconds * 1000)
-    const wall = new PauseableDeadline(EVAL_WALL_CEILING_MS)
-    let bridgeMs = 0
-    let bridgeDepth = 0
-    const budget: CellBudgetHooks = {
-      bridgeBegin: (): void => {
-        bridgeDepth += 1
-        if (bridgeDepth === 1) runtime.pause()
-      },
-      bridgeEnd: (): void => {
-        bridgeDepth = Math.max(0, bridgeDepth - 1)
-        if (bridgeDepth === 0) runtime.resume()
-      },
-      askBegin: (): void => wall.pause(),
-      askEnd: (): void => wall.resume(),
-    }
-
-    const stdout = new BoundedStreamSink()
-    const stderr = new BoundedStreamSink()
-    const displays: EvalDisplay[] = []
-    const samples: SampleItem[] = []
-    let displaysDropped = 0
-    let resultRepr: string | undefined
-    let cellError: { name: string; value: string; traceback: string; survived?: string[]; declared?: string[] } | undefined
-    const nested: { seq: number; name: string; ok: boolean; error?: string; code?: number }[] = []
-
-    const cellId = `cell-${entry.kernel.executionCount + 1}-${Date.now().toString(36)}`
-    const code = input.code
-
-    let interruptRequested: 'budget' | 'wall' | 'abort' | null = null
-    let escalated = false
-
-    request.onCellStarted?.({ budgetMs: timeoutSeconds === null ? null : timeoutSeconds * 1000 })
-    const execPromise = entry.kernel.exec(cellId, code, {
-      onStdout: chunk => {
-        stdout.push(chunk)
-        request.onLiveOutput?.('stdout', chunk)
-      },
-      onStderr: chunk => {
-        stderr.push(chunk)
-        request.onLiveOutput?.('stderr', chunk)
-      },
-      onDisplay: frame => {
-        if (displays.length >= MAX_DISPLAYS_PER_CELL) {
-          displaysDropped += 1
-          return
-        }
-        const mime = frame.mime
-        if (
-          mime === 'text/plain' ||
-          mime === 'text/markdown' ||
-          mime === 'application/json' ||
-          mime === 'image/png' ||
-          mime === 'image/jpeg'
-        ) {
-          displays.push({ mime, data: frame.data, ...(frame.b64 ? { b64: true } : {}) })
-        } else {
-          displaysDropped += 1
-        }
-      },
-      onResult: repr => {
-        resultRepr = repr
-      },
-      onError: error => {
-        cellError = error
-      },
-      onBridge: frame => {
-        const startedAt = Date.now()
-        budget.bridgeBegin()
-        const seq = nested.length + 1
-        const called = nestedCallName(frame)
-        if (called !== null) nested.push({ seq, name: called, ok: true })
-        void serveBridge(frame, budget)
-          .then(result => {
-            if (frame.kind === 'sample' && result.ok) samples.push(result.value as SampleItem)
-            if (called !== null) {
-              const row = nested.find(r => r.seq === seq)
-              if (row !== undefined) {
-                row.ok = result.ok
-                if (!result.ok) row.error = String(result.error ?? 'failed').slice(0, 160)
-                else if (typeof result.code === 'number') row.code = result.code
-              }
-            }
-            entry.kernel.answerBridge(frame.bridgeId, result.ok, result.value, result.error, result.errorKind)
-          })
-          .catch(error => {
-            entry.kernel.answerBridge(frame.bridgeId, false, undefined, String(error))
-          })
-          .finally(() => {
-            bridgeMs += Date.now() - startedAt
-            budget.bridgeEnd()
-          })
-      },
-    })
-
-    runtime.start()
-    wall.start()
-
-    let watchStop = false
-    const watcher = (async (): Promise<void> => {
-      let interruptAt: number | null = null
-      while (!watchStop) {
-        await sleep(100, undefined, { unref: true })
-        if (watchStop) return
-        if (interruptRequested === null) {
-          if (abortSignal.aborted) interruptRequested = 'abort'
-          else if (runtime.expired()) interruptRequested = 'budget'
-          else if (wall.expired()) interruptRequested = 'wall'
-          if (interruptRequested !== null) {
-            interruptAt = Date.now()
-            entry.kernel.interrupt()
-          }
-        } else if (interruptAt !== null && Date.now() - interruptAt > EVAL_INTERRUPT_ESCALATION_MS) {
-          escalated = true
-          entry.kernel.kill()
-          return
-        }
-      }
-    })()
-
-    const end: CellEnd = await execPromise
-    watchStop = true
-    await watcher.catch(() => undefined)
-    runtime.pause()
-    wall.pause()
-
-    const runtimeMs = runtime.consumed()
-
-    if (end.kind === 'kernel-exit') {
-      if (interruptRequested !== null) {
-        this.interruptedKernels.set(key, owner)
-        annotations.push(
-          escalated
-            ? 'the interrupt was not honoured in time (stuck native code?) — the kernel was killed and will be recreated on the next call'
-            : 'the kernel exited while being interrupted — it will be recreated on the next call',
-        )
-        annotations.push(cancelReasonNote(interruptRequested, timeoutSeconds))
-        return this.composeOutcome('cancelled', stdout, stderr, displays, displaysDropped, resultRepr, cellError, annotations, runtimeMs, bridgeMs, entry, cellId, samples)
-      }
-      if (retriesLeft > 0 && !abortSignal.aborted) {
-        annotations.push(
-          `the kernel died mid-cell (${end.signal ?? `exit ${end.code}`}) — replaced and the cell retried once on a fresh kernel`,
-        )
-        return this.runCellOnce(request, key, interpreter, annotations, retriesLeft - 1)
-      }
-      annotations.push(
-        abortSignal.aborted
-          ? `the kernel died mid-cell (${end.signal ?? `exit ${end.code}`}) while the call was aborting — not retried`
-          : `the kernel died mid-cell again (${end.signal ?? `exit ${end.code}`}) — giving up after one retry`,
-      )
-      const outcome = this.composeOutcome('error', stdout, stderr, displays, displaysDropped, resultRepr, cellError ?? { name: 'KernelDied', value: `the kernel exited with ${end.signal ?? `code ${end.code}`}`, traceback: '' }, annotations, runtimeMs, bridgeMs, entry, cellId, samples)
-      return outcome
-    }
-
-    let status = end.status
-    if (interruptRequested !== null && status !== 'cancelled') {
-      annotations.push('an interrupt was requested but the cell had already settled')
-    }
-    if (status === 'cancelled') {
-      annotations.push(cancelReasonNote(interruptRequested ?? 'abort', timeoutSeconds))
-      if (input.language === 'js') {
-        await this.disposeKey(key)
-        this.interruptedKernels.set(key, owner)
-        annotations.push('the JS kernel was recreated after the interrupt: kernel state was reset (re-run your setup cell)')
-      } else {
-        annotations.push('the kernel survived: variables are intact; pass reset:true if you want a clean runtime')
-      }
-    }
-    if (status === 'error') {
-      annotations.push(...stateAfterFailure(input.language, cellError?.declared ?? [], cellError))
-      annotations.push(...jsEnvironmentNotes(input.language, cellError))
-    }
-    if (status === 'error' || nested.some(r => !r.ok)) {
-      const line = nestedCallsLine(nested)
-      if (line !== null) annotations.push(line)
-    }
-    return this.composeOutcome(status, stdout, stderr, displays, displaysDropped, resultRepr, cellError, annotations, runtimeMs, bridgeMs, entry, cellId, samples)
+    return runCellOnceOf.call(this, request, key, interpreter, annotations, retriesLeft)
   }
 
-  private composeOutcome(
+  composeOutcome(
     status: 'ok' | 'error' | 'cancelled',
     stdout: BoundedStreamSink,
     stderr: BoundedStreamSink,
@@ -630,6 +445,202 @@ export class EvalKernelManager {
       executionCount: entry.kernel.executionCount,
     }
   }
+}
+
+async function runCellOnceOf(
+  this: EvalKernelManager,
+  request: RunCellRequest,
+  key: string,
+  interpreter: string,
+  annotations: string[],
+  retriesLeft: number,
+): Promise<EvalCellOutcome> {
+  const { owner, cwd, input, abortSignal, serveBridge } = request
+  const spawned = await this.getOrSpawn(owner, input.language, cwd, interpreter, annotations)
+  if ('spawnError' in spawned) return refusalOutcome(spawned.spawnError, annotations)
+  const entry = spawned
+
+  const timeoutSeconds =
+    input.timeoutSeconds === 0
+      ? null
+      : Math.min(Math.max(input.timeoutSeconds ?? EVAL_DEFAULT_TIMEOUT_SECONDS, 1), EVAL_MAX_TIMEOUT_SECONDS)
+  const runtime = new PauseableDeadline(timeoutSeconds === null ? null : timeoutSeconds * 1000)
+  const wall = new PauseableDeadline(EVAL_WALL_CEILING_MS)
+  let bridgeMs = 0
+  let bridgeDepth = 0
+  const budget: CellBudgetHooks = {
+    bridgeBegin: (): void => {
+      bridgeDepth += 1
+      if (bridgeDepth === 1) runtime.pause()
+    },
+    bridgeEnd: (): void => {
+      bridgeDepth = Math.max(0, bridgeDepth - 1)
+      if (bridgeDepth === 0) runtime.resume()
+    },
+    askBegin: (): void => wall.pause(),
+    askEnd: (): void => wall.resume(),
+  }
+
+  const stdout = new BoundedStreamSink()
+  const stderr = new BoundedStreamSink()
+  const displays: EvalDisplay[] = []
+  const samples: SampleItem[] = []
+  let displaysDropped = 0
+  let resultRepr: string | undefined
+  let cellError: { name: string; value: string; traceback: string; survived?: string[]; declared?: string[] } | undefined
+  const nested: { seq: number; name: string; ok: boolean; error?: string; code?: number }[] = []
+
+  const cellId = `cell-${entry.kernel.executionCount + 1}-${Date.now().toString(36)}`
+  const code = input.code
+
+  let interruptRequested: 'budget' | 'wall' | 'abort' | null = null
+  let escalated = false
+
+  request.onCellStarted?.({ budgetMs: timeoutSeconds === null ? null : timeoutSeconds * 1000 })
+  const execPromise = entry.kernel.exec(cellId, code, {
+    onStdout: chunk => {
+      stdout.push(chunk)
+      request.onLiveOutput?.('stdout', chunk)
+    },
+    onStderr: chunk => {
+      stderr.push(chunk)
+      request.onLiveOutput?.('stderr', chunk)
+    },
+    onDisplay: frame => {
+      if (displays.length >= MAX_DISPLAYS_PER_CELL) {
+        displaysDropped += 1
+        return
+      }
+      const mime = frame.mime
+      if (
+        mime === 'text/plain' ||
+        mime === 'text/markdown' ||
+        mime === 'application/json' ||
+        mime === 'image/png' ||
+        mime === 'image/jpeg'
+      ) {
+        displays.push({ mime, data: frame.data, ...(frame.b64 ? { b64: true } : {}) })
+      } else {
+        displaysDropped += 1
+      }
+    },
+    onResult: repr => {
+      resultRepr = repr
+    },
+    onError: error => {
+      cellError = error
+    },
+    onBridge: frame => {
+      const startedAt = Date.now()
+      budget.bridgeBegin()
+      const seq = nested.length + 1
+      const called = nestedCallName(frame)
+      if (called !== null) nested.push({ seq, name: called, ok: true })
+      void serveBridge(frame, budget)
+        .then(result => {
+          if (frame.kind === 'sample' && result.ok) samples.push(result.value as SampleItem)
+          if (called !== null) {
+            const row = nested.find(r => r.seq === seq)
+            if (row !== undefined) {
+              row.ok = result.ok
+              if (!result.ok) row.error = String(result.error ?? 'failed').slice(0, 160)
+              else if (typeof result.code === 'number') row.code = result.code
+            }
+          }
+          entry.kernel.answerBridge(frame.bridgeId, result.ok, result.value, result.error, result.errorKind)
+        })
+        .catch(error => {
+          entry.kernel.answerBridge(frame.bridgeId, false, undefined, String(error))
+        })
+        .finally(() => {
+          bridgeMs += Date.now() - startedAt
+          budget.bridgeEnd()
+        })
+    },
+  })
+
+  runtime.start()
+  wall.start()
+
+  let watchStop = false
+  const watcher = (async (): Promise<void> => {
+    let interruptAt: number | null = null
+    while (!watchStop) {
+      await sleep(100, undefined, { unref: true })
+      if (watchStop) return
+      if (interruptRequested === null) {
+        if (abortSignal.aborted) interruptRequested = 'abort'
+        else if (runtime.expired()) interruptRequested = 'budget'
+        else if (wall.expired()) interruptRequested = 'wall'
+        if (interruptRequested !== null) {
+          interruptAt = Date.now()
+          entry.kernel.interrupt()
+        }
+      } else if (interruptAt !== null && Date.now() - interruptAt > EVAL_INTERRUPT_ESCALATION_MS) {
+        escalated = true
+        entry.kernel.kill()
+        return
+      }
+    }
+  })()
+
+  const end: CellEnd = await execPromise
+  watchStop = true
+  await watcher.catch(() => undefined)
+  runtime.pause()
+  wall.pause()
+
+  const runtimeMs = runtime.consumed()
+
+  if (end.kind === 'kernel-exit') {
+    if (interruptRequested !== null) {
+      this.interruptedKernels.set(key, owner)
+      annotations.push(
+        escalated
+          ? 'the interrupt was not honoured in time (stuck native code?) — the kernel was killed and will be recreated on the next call'
+          : 'the kernel exited while being interrupted — it will be recreated on the next call',
+      )
+      annotations.push(cancelReasonNote(interruptRequested, timeoutSeconds))
+      return this.composeOutcome('cancelled', stdout, stderr, displays, displaysDropped, resultRepr, cellError, annotations, runtimeMs, bridgeMs, entry, cellId, samples)
+    }
+    if (retriesLeft > 0 && !abortSignal.aborted) {
+      annotations.push(
+        `the kernel died mid-cell (${end.signal ?? `exit ${end.code}`}) — replaced and the cell retried once on a fresh kernel`,
+      )
+      return this.runCellOnce(request, key, interpreter, annotations, retriesLeft - 1)
+    }
+    annotations.push(
+      abortSignal.aborted
+        ? `the kernel died mid-cell (${end.signal ?? `exit ${end.code}`}) while the call was aborting — not retried`
+        : `the kernel died mid-cell again (${end.signal ?? `exit ${end.code}`}) — giving up after one retry`,
+    )
+    const outcome = this.composeOutcome('error', stdout, stderr, displays, displaysDropped, resultRepr, cellError ?? { name: 'KernelDied', value: `the kernel exited with ${end.signal ?? `code ${end.code}`}`, traceback: '' }, annotations, runtimeMs, bridgeMs, entry, cellId, samples)
+    return outcome
+  }
+
+  let status = end.status
+  if (interruptRequested !== null && status !== 'cancelled') {
+    annotations.push('an interrupt was requested but the cell had already settled')
+  }
+  if (status === 'cancelled') {
+    annotations.push(cancelReasonNote(interruptRequested ?? 'abort', timeoutSeconds))
+    if (input.language === 'js') {
+      await this.disposeKey(key)
+      this.interruptedKernels.set(key, owner)
+      annotations.push('the JS kernel was recreated after the interrupt: kernel state was reset (re-run your setup cell)')
+    } else {
+      annotations.push('the kernel survived: variables are intact; pass reset:true if you want a clean runtime')
+    }
+  }
+  if (status === 'error') {
+    annotations.push(...stateAfterFailure(input.language, cellError?.declared ?? [], cellError))
+    annotations.push(...jsEnvironmentNotes(input.language, cellError))
+  }
+  if (status === 'error' || nested.some(r => !r.ok)) {
+    const line = nestedCallsLine(nested)
+    if (line !== null) annotations.push(line)
+  }
+  return this.composeOutcome(status, stdout, stderr, displays, displaysDropped, resultRepr, cellError, annotations, runtimeMs, bridgeMs, entry, cellId, samples)
 }
 
 export function nestedCallName(frame: { kind: string; payload?: unknown }): string | null {

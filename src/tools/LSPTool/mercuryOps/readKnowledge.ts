@@ -1,0 +1,80 @@
+import { realpathSync } from 'node:fs'
+import { checkSeenLines, fileGeneration } from '../../../services/changeTransaction/seenLines.js'
+import { type NormalizedFileEdits } from '../../../services/lsp/workspaceEditApply.js'
+import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
+import { getFileModificationTime } from '../../../utils/file.js'
+import { MAX_LINES_TO_READ } from '../../FileReadTool/prompt.js'
+import type { OpEnv } from './types.js'
+
+type ReadCache = {
+  get: (path: string) => { content: string; timestamp: number; offset: number | undefined; limit: number | undefined; isPartialView?: boolean } | undefined
+  entries?: () => IterableIterator<[string, { content: string; timestamp: number; offset: number | undefined; limit: number | undefined; isPartialView?: boolean }]>
+}
+
+function readEntryFor(cache: ReadCache | undefined, abs: string): ReturnType<ReadCache['get']> {
+  if (!cache) return undefined
+  const direct = cache.get(abs)
+  if (direct) return direct
+  let real: string
+  try {
+    real = realpathSync(abs)
+  } catch {
+    return undefined
+  }
+  if (real !== abs) {
+    const viaReal = cache.get(real)
+    if (viaReal) return viaReal
+  }
+  if (typeof cache.entries !== 'function') return undefined
+  let scanned = 0
+  for (const [key, entry] of cache.entries()) {
+    if (++scanned > 512) break
+    try {
+      if (realpathSync(key) === real) return entry
+    } catch {
+      continue
+    }
+  }
+  return undefined
+}
+
+const lineFeeds = (text: string): string => text.replaceAll('\r\n', '\n')
+
+export function readKnowledgeHolds(
+  env: OpEnv,
+  abs: string,
+  snapshot: string,
+  touched: Array<{ start: number; end: number }>,
+): boolean {
+  const entry = readEntryFor(env.context.readFileState as unknown as ReadCache | undefined, abs)
+  if (entry && entry.isPartialView !== true) {
+    const full = (entry.offset === undefined || entry.offset === 0) && entry.limit === undefined
+    if (full) {
+      if (lineFeeds(entry.content) === lineFeeds(snapshot)) return true
+    } else {
+      const start = Math.max(1, entry.offset ?? 1)
+      const count = Math.min(entry.limit ?? MAX_LINES_TO_READ, entry.content.split('\n').length)
+      const covers = touched.every(range => range.start >= start && range.end < start + count)
+      if (covers && getFileModificationTime(abs) <= entry.timestamp) return true
+    }
+  }
+  try {
+    const generation = fileGeneration(abs)
+    if (generation !== null) {
+      const seen = checkSeenLines(
+        ownerFromToolUseContext(env.context),
+        abs,
+        generation,
+        touched.map((range, index) => ({ index: index + 1, start: range.start, end: range.end, replace: '' })),
+      )
+      if (seen.ok) return true
+    }
+  } catch {
+    return false
+  }
+  return false
+}
+
+export function touchedLinesOf(file: NormalizedFileEdits): Array<{ start: number; end: number }> {
+  return file.edits.map(edit => ({ start: edit.range.start.line + 1, end: edit.range.end.line + 1 }))
+}
