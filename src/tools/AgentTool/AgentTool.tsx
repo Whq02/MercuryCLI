@@ -1,16 +1,9 @@
 
-import { realpathSync, statSync } from 'node:fs'
-import { isAbsolute } from 'node:path'
-import { hasControlCharacter } from '../../utils/path.js'
-import { z, type ZodType } from 'zod'
-import type { PermissionAskDecision } from '../../types/permissions.js'
-import { semanticBoolean } from '../../utils/semanticBoolean.js'
+import type { ZodType } from 'zod'
 import {
   getCwdState,
   getSdkAgentProgressSummariesEnabled,
 } from '../../bootstrap/state.js'
-import { pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
-import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
 import { enhanceSystemPromptWithEnvDetails } from '../../constants/prompts.js'
 import { agentFanoutCap, buildSubagentMercurySections } from '../../constants/subagentDoctrine.js'
 import type { MercuryAgentSeat } from '../../prompt/mercuryContract.js'
@@ -24,14 +17,7 @@ import {
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { foregroundNotKeptLine, type BackgroundHandoverReason } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import { getRunningTasks } from '../../utils/task/framework.js'
-import {
-  buildTool,
-  toolMatchesName,
-  type Tool as ToolShape,
-  type ToolDef,
-  type ToolPermissionContext,
-  type ToolUseContext,
-} from '../../Tool.js'
+import { buildTool, toolMatchesName, type Tool as ToolShape, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { assembleToolPool } from '../../tools.js'
 import { generateTaskId } from '../../Task.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
@@ -41,11 +27,8 @@ import {
   type SubagentContext,
 } from '../../utils/agentContext.js'
 import { getCwd, runWithCwdOverride, runWithOwnShellCwd } from '../../utils/cwd.js'
-import { getPlatform } from '../../utils/platform.js'
-import { posixPathToWindowsPath } from '../../utils/windowsPaths.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
-import { EFFORT_LEVELS, type EffortLevel } from '../../utils/effort.js'
 import { subagentConcurrencyCap } from '../../utils/agentDefaults.js'
 import { getDenyRuleForAgent } from '../../utils/permissions/decision/rules.js'
 import { reasonForRule, refusalWithReason, ruleSentence } from '../../utils/permissions/ruleReason.js'
@@ -70,7 +53,6 @@ import {
 } from '../../utils/worktree.js'
 import { holdToolsUntil, releaseToolHold } from '../../utils/worktreeReadiness.js'
 import { crewWorktreeLeftoverNoted, crewWorktreeLeftoverOf, crewWorktreeReminderTail, noteCrewWorktreeLeftover } from '../../utils/crew/crewWorktreeReminder.js'
-import { lazySchema } from '../../utils/lazySchema.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
@@ -80,19 +62,9 @@ import {
   runForegroundAgentExecution,
   type ForegroundAgentMetadata,
 } from './foregroundExecution.js'
-import {
-  agentToolResultSchema,
-  PROMOTED_NARRATION_NOTE,
-  resolveWorkerTools,
-  runAsyncAgentLifecycle,
-  structuredResultBlock,
-} from './agentToolUtils.js'
+import { PROMOTED_NARRATION_NOTE, resolveWorkerTools, runAsyncAgentLifecycle, structuredResultBlock } from './agentToolUtils.js'
 import { getSchemaBoundStructuredOutputTool } from '../SyntheticOutputTool/structuredOutputTool.js'
-import {
-  AGENT_TOOL_NAME,
-  MERCURY_CREW_AGENT_TYPE,
-  ONE_SHOT_BUILTIN_AGENT_TYPES,
-} from './constants.js'
+import { AGENT_TOOL_NAME, ONE_SHOT_BUILTIN_AGENT_TYPES } from './constants.js'
 import { buildFrozenWorktreeNotice } from './frozenWorktreeNotice.js'
 import { buildWorktreePrepareNotice } from './worktreePrepareNotice.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
@@ -103,200 +75,16 @@ import { reserveSwarmLaunch, watchSwarmLaunch } from '../../services/crewBoard/s
 import { setAgentColor } from './agentColorManager.js'
 import * as UI from './UI.js'
 import { isResultTruncated } from './UI.js'
-import type { AgentToolProgress, ShellProgress } from '../../types/tools.js'
 import { envelopeFor } from '../../services/agentResults/ingest.js'
 import { formatEnvelopeBlock } from '../../services/agentResults/normalize.js'
 import { sleep } from '../../utils/sleep.js'
+import { type Progress, BACKGROUND_TASKS_DISABLED, DEFAULT_AGENT_TYPE, type AgentToolInput, inputSchema, outputSchema, type AgentToolOutput } from './agent/schema.js'
+import { resolveAgentCwd, agentCwdQuestion } from './agent/cwd.js'
+export type { Progress, AgentToolInput, AgentToolOutput } from './agent/schema.js'
+export { inputSchema, outputSchema } from './agent/schema.js'
+export { resolveAgentCwd, agentCwdQuestion } from './agent/cwd.js'
 
-export type Progress = AgentToolProgress | ShellProgress
-
-const BACKGROUND_TASKS_DISABLED = false
-
-const DEFAULT_AGENT_TYPE = MERCURY_CREW_AGENT_TYPE
 const RESULT_SIZE_CAP = 100_000
-
-
-export type AgentToolInput = {
-  description: string
-  prompt: string
-  crewmate_type?: string
-  model?: string
-  effort?: EffortLevel
-  run_in_background?: boolean
-  name?: string
-  team?: string
-  captain?: boolean
-  mode?: string
-  isolation?: 'worktree'
-  worktree_at?: string
-  review_receipt?: string
-  output_schema?: Record<string, unknown>
-  schema_mode?: 'permissive' | 'strict'
-  cwd?: string
-}
-
-const CWD_PARAM_DESCRIPTION =
-  "Absolute starting directory. Starting outside the session's folder asks for permission; with isolation, its repository supplies the worktree that becomes the child's directory."
-
-function agentDirectoryOf(spelling: string): string {
-  if (!isAbsolute(spelling) || hasControlCharacter(spelling)) {
-    throw new Error(`cwd must be an absolute directory: ${spelling} (the session folder is ${getCwd()})`)
-  }
-  const onDisk = getPlatform() === 'windows' && /^\/[a-zA-Z]\//.test(spelling) ? posixPathToWindowsPath(spelling) : spelling
-  const entry = (() => {
-    try {
-      return statSync(onDisk)
-    } catch {
-      return null
-    }
-  })()
-  if (entry === null) {
-    throw new Error(`cwd does not exist: ${spelling} (the session folder is ${getCwd()})`)
-  }
-  if (!entry.isDirectory()) throw new Error(`cwd is not a folder: ${spelling}`)
-  return realpathSync(onDisk)
-}
-
-export function resolveAgentCwd(spelling: string, _permissionContext: ToolPermissionContext, _options?: { admit?: boolean }): string {
-  return agentDirectoryOf(spelling)
-}
-
-export function agentCwdQuestion(spelling: string, permissionContext: ToolPermissionContext): PermissionAskDecision | null {
-  let dir: string
-  try {
-    dir = agentDirectoryOf(spelling)
-  } catch {
-    return null
-  }
-  if (pathInAllowedWorkingPath(dir, permissionContext) || modeBypassesPermissions(permissionContext.mode)) return null
-  return {
-    behavior: 'ask',
-    message: `Allow the crewmate to start in ${dir}, outside this session's starting folder?`,
-    decisionReason: { type: 'workingDir', reason: `The crewmate would start in ${dir}` },
-  }
-}
-
-
-function effortParamDescription(): string {
-  return "Reasoning effort; omitted, the agent definition's effort, else the configured crewmate default (high unless the operator changed it), never the parent level. An unsupported level maps to the nearest served level; models without effort control ignore it."
-}
-
-export const inputSchema = lazySchema(() => {
-  const base = {
-    description: z
-      .string()
-      .describe('Short (3-5 word) task summary'),
-    prompt: z.string().describe('Task brief: objective, evidence, boundaries, acceptance criteria and whether to implement or research.'),
-    crewmate_type: z
-      .string()
-      .optional()
-      .describe(`Crewmate type (default ${DEFAULT_AGENT_TYPE}).`),
-    model: z
-      .string()
-      .optional()
-      .describe("Exact model id or family word; read mercury://models. [1m] selects the 1M variant; your own family keeps your exact model. Overrides the agent definition; omitted, the definition's model, else the configured crewmate default, else yours. Follow the operator's model and effort; never downgrade to obtain read-only scoping."),
-    effort: z
-      .enum(EFFORT_LEVELS)
-      .optional()
-      .describe(effortParamDescription()),
-    ...(BACKGROUND_TASKS_DISABLED
-      ? {}
-      : {
-          run_in_background: semanticBoolean(z.boolean().optional()).describe(
-            'Run asynchronously: acknowledge now, notify on completion.',
-          ),
-        }),
-    name: z
-      .string()
-      .optional()
-      .refine(value => value === undefined || (!value.includes('@') && value !== '*'), {
-        message:
-          'A crewmate name must be addressable by SendMessage and ResumeCrewmate: it cannot contain "@" or be "*".',
-      })
-      .describe(
-        'Seat name for later messages and additional work; omitted, the crewmate runs its brief once.',
-      ),
-    team: z.string().regex(/^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$/u).refine(value => !['all', 'general'].includes(value.toLowerCase())).optional().describe('Crew-board team label (delivery only, not privacy).'),
-    captain: z.boolean().optional().describe('Appoint this named seat as its team captain. Requires name, team, swarm enrollment and the lead; a team of five or more needs one before its fifth seat.'),
-    isolation: z
-      .literal('worktree')
-      .optional()
-      .describe('Temporary git worktree; kept unlocked when the crewmate ends, with its path and branch in the result.'),
-    worktree_at: z
-      .string()
-      .optional()
-      .describe(
-        "With isolation 'worktree': commit ref for a detached, frozen worktree.",
-      ),
-    cwd: z
-      .string()
-      .optional()
-      .describe(CWD_PARAM_DESCRIPTION),
-    review_receipt: z.string().optional().describe('Absolute path to existing Markdown report outside worktree; only "## Review" may be edited (requires isolation + worktree_at).'),
-    output_schema: z
-      .record(z.string(), z.unknown())
-      .optional()
-      .describe(
-        'JSON Schema for the final answer. The result carries the checked JSON with status valid, missing or invalid; valid means schema-valid, not independently verified.',
-      ),
-    schema_mode: z
-      .enum(['permissive', 'strict'])
-      .optional()
-      .describe(
-        "With output_schema: 'strict' fails the call when none passed; 'permissive' (default) returns the prose under status \"missing\" or \"invalid\".",
-      ),
-  }
-  return z.object(base).refine(input => !input.captain || Boolean(input.name?.trim() && input.team), { message: 'A captain launch needs name and team.' })
-})
-
-
-export const outputSchema = lazySchema(() => {
-  const result = agentToolResultSchema()
-  return z.union([
-    result.extend({
-      status: z.literal('completed'),
-      prompt: z.string(),
-      worktreePath: z.string().optional(),
-      worktreeBranch: z.string().optional(),
-    }),
-    result.extend({
-      status: z.literal('failed'),
-      error: z.string(),
-      prompt: z.string(),
-      lastCalls: z.array(z.string()).optional(),
-      worktreePath: z.string().optional(),
-      worktreeBranch: z.string().optional(),
-    }),
-    z.object({
-      status: z.literal('async_launched'),
-      agentId: z.string().describe('The launched crewmate\'s id'),
-      description: z.string().describe('The task description'),
-      prompt: z.string().describe('The prompt handed to the crewmate'),
-      outputFile: z
-        .string()
-        .describe('Output-file path for progress checks'),
-      canReadOutputFile: z
-        .boolean()
-        .optional()
-        .describe('Whether the caller can read the output file'),
-      modelNote: z.string().optional().describe('The engine note'),
-      agentName: z.string().optional().describe('The name the launch gave the crewmate — an address beside the id'),
-      backgroundReason: z
-        .enum(['turn-interrupted', 'backgrounded', 'agent-type', 'sibling-ended', 'message-queued'])
-        .optional()
-        .describe('Why a foreground ask ran in the background: the turn was interrupted, the crewmate was moved, the type always does, a sibling crewmate failed or stopped and the group wait returned, or the operator sent a message while the crewmate held the turn'),
-      siblingEnd: z
-        .object({ taskId: z.string(), description: z.string(), status: z.enum(['failed', 'stopped']), error: z.string().optional() })
-        .optional()
-        .describe('The sibling whose failure or stop returned the group wait'),
-    }),
-  ])
-})
-
-export type AgentToolOutput = z.infer<ReturnType<typeof outputSchema>> & {
-  isAsync?: true
-  agentName?: string
-}
 
 
 function mcpServerNamesWithTools(tools: readonly ToolShape[]): string[] {
