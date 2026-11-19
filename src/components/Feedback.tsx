@@ -17,7 +17,6 @@ import {
   getLastMainRequestId,
 } from '../bootstrap/state.js'
 import { getIsGit } from '../utils/git.js'
-import { errorMessage } from '../utils/errors.js'
 import { mkdirSync } from 'node:fs'
 import { homedir, release, type as osType } from 'node:os'
 import { join } from 'node:path'
@@ -271,7 +270,7 @@ async function gatherReport(
     (loadError: unknown) => {
       logError(loadError)
       errors.push({
-        error: redactSensitiveInfo(`subagent transcripts could not be read from disk; the report carries only those in memory: ${errorMessage(loadError)}`),
+        error: redactSensitiveInfo(`subagent transcripts could not be read from disk; the report carries only those in memory: ${loadError instanceof Error ? loadError.message : String(loadError)}`),
         timestamp: new Date().toISOString(),
       })
       return {} as Record<string, Message[]>
