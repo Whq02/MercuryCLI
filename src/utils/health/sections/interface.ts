@@ -145,6 +145,7 @@ export function interfaceChecks(): CheckSpec[] {
     {
       id: 'iface-shell-engine',
       label: 'Shell engine',
+      timeoutMs: 30_000,
       run: async () => {
         const { engineSessionCeilingPinned, resolveEngineSessionCeiling, resolveShellEngine } = await SHELL_READS.engineSession()
         const { shellEngineArmWords } = await SHELL_READS.engineArm()
@@ -163,9 +164,13 @@ export function interfaceChecks(): CheckSpec[] {
         }
         const wanted = resolved.requested === 'brush'
         const packRemedy = process.platform === 'win32' ? 'Build the pack: bun run scripts/vendor/build-brush.ts, then rebuild — a release archive carries it.' : 'Fetch the pack: bun run scripts/vendor/fetch-brush.ts, then rebuild.'
+        const { settleShellRecord, shellRecordNow } = await SHELL_READS.shellRecord()
+        if (!wanted) await settleShellRecord()
+        const record = shellRecordNow()
+        const serving = record === null ? 'no shell' : record.origin === 'shipped' ? 'the shipped bash' : record.origin === 'engine' ? 'the bundled engine' : process.platform === 'win32' ? 'an installed bash' : "the system's bash"
         return {
           status: 'info' as const,
-          evidence: wanted ? resolved.reason : `the system shell serves the Bash tool (${shellEngineArmWords(resolved.arm)}); arm the vendored engine with the Shell engine setting or MERCURY_SHELL_ENGINE=brush`,
+          evidence: wanted ? resolved.reason : `${serving} serves the Bash tool (${shellEngineArmWords(resolved.arm)}); arm the vendored engine with the Shell engine setting or MERCURY_SHELL_ENGINE=brush`,
           ...(wanted ? { fix: packRemedy } : {}),
         }
       },
