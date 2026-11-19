@@ -18,7 +18,6 @@ import { dormantBuiltinAdapterHints, knownAdapterKeys, resolveAdapter } from './
 import { dialListener, listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
 import { adapterSilenceMessage } from './client/probes.js'
 import {
-  applyBreakpointEvent,
   dataBreakpointInfo,
   setBreakpoints,
   setDataBreakpoints,
@@ -27,6 +26,7 @@ import {
   writeMemory,
 } from './client/breakpoints.js'
 import { startBodyOf, type DapStartOptions } from './client/launch.js'
+import { MessagesPart } from './client/messages.js'
 import { OutputPart } from './client/output.js'
 import { childBoundRefusal, ReversePart } from './client/reverse.js'
 import { TerminalPart } from './client/terminal.js'
@@ -111,9 +111,6 @@ export {
   settleDapAdapterProbes,
 } from './client/adapters.js'
 
-let stopStamp = 0
-
-
 export class DapSession {
   readonly adapterKey: string
   readonly program: string
@@ -133,7 +130,7 @@ export class DapSession {
     transportReady: () => this.#transportReady,
     child: () => this.#child,
     socketClosed: closedDetail => this.#socketClosed(closedDetail),
-    onMessage: msg => this.#onMessage(msg),
+    onMessage: msg => this.#messages.onMessage(msg),
   })
   #terminal: TerminalPart = new TerminalPart({
     cwd: () => this.#cwd,
@@ -155,6 +152,18 @@ export class DapSession {
     operationSignal: () => this.#operationSignal ?? this.root().#operationSignal,
     runChildDance: (child, requestKind, configuration) => child.#runChildDance(requestKind, configuration),
     runInTerminal: msg => this.#terminal.runInTerminal(msg),
+  })
+  #messages: MessagesPart = new MessagesPart(this, {
+    reverse: () => this.#reverse,
+    wire: () => this.#wire,
+    out: () => this.#out,
+    terminal: () => this.#terminal,
+    lifetime: () => this.#lifetime,
+    resolveInitialized: () => this.#resolveInitialized(),
+    hostsDebuggee: () => {
+      this.#hostsDebuggee = true
+    },
+    wakeStateWaiters: () => this.#wakeStateWaiters(),
   })
   #initializedEvent: Promise<void>
   #resolveInitialized!: () => void
@@ -429,65 +438,6 @@ export class DapSession {
 
   flushPartialOutput(): void {
     this.#out.flushPartialOutput()
-  }
-
-  #onMessage(msg: Record<string, unknown>): void {
-    if (msg.type === 'request') {
-      this.#reverse.onReverseRequest(msg)
-      return
-    }
-    if (msg.type === 'response') {
-      this.#wire.onResponse(msg)
-      return
-    }
-    if (msg.type === 'event') {
-      const body = (msg.body as Record<string, unknown>) ?? {}
-      switch (msg.event) {
-        case 'initialized':
-          this.#resolveInitialized()
-          break
-        case 'process':
-        case 'thread':
-          this.#hostsDebuggee = true
-          break
-        case 'stopped':
-          this.#hostsDebuggee = true
-          this.lastStopped = {
-            reason: String(body.reason ?? 'unknown'),
-            threadId: typeof body.threadId === 'number' ? body.threadId : undefined,
-            description:
-              typeof body.description === 'string' ? body.description : undefined,
-          }
-          this.lastStoppedAt = ++stopStamp
-          this.#wakeStateWaiters()
-          break
-        case 'continued':
-          this.lastStopped = null
-          break
-        case 'output': {
-          if (body.category === 'telemetry') break
-          this.#out.pushOutputChunk(String(body.output ?? ''))
-          break
-        }
-        case 'breakpoint': {
-          applyBreakpointEvent(this, body)
-          break
-        }
-        case 'terminated':
-        case 'exited':
-          this.terminated = true
-          this.#lifetime.abort()
-          void this.#terminal.reapTerminalProcesses()
-          this.flushPartialOutput()
-          if (msg.event === 'exited') {
-            this.exitDetail = `debuggee exited (code ${String(body.exitCode ?? '?')})`
-          }
-          this.#wakeStateWaiters()
-          break
-        default:
-          break
-      }
-    }
   }
 
   #createChildSession(configuration: Record<string, unknown>): DapSession {
