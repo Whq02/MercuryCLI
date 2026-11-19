@@ -19,10 +19,7 @@ import { claimHover, releaseHover } from '../utils/cockpit/hoverOwner.js'
 import type { RenderableMessage } from '../types/message.js'
 import { hasNoticeFold } from '../utils/messages/noticeRows.js'
 import {
-  facetsSatisfy,
-  parseSearchQuery,
   renderableSearchText,
-  type SearchQuery,
   type TranscriptFacets,
 } from '../utils/transcriptSearch.js'
 import { TextHoverColorContext } from './design-system/ThemedText.js'
@@ -35,22 +32,10 @@ import {
   type MessageActionsNav,
   type MessageActionsState,
 } from './messageActions.js'
-import { sleep } from '../utils/sleep.js'
+import { JUMP_HEADROOM_ROWS, MOUNT_ATTEMPT_LIMIT, newEngineState, PHANTOM_LIMIT, type JumpHandle, type SearchEngineState } from './virtualMessageList/engine.js'
+import { cursorNavHandleOf, jumpHandleOf } from './virtualMessageList/handles.js'
 
-const JUMP_HEADROOM_ROWS = 3
-const PHANTOM_LIMIT = 20
-const MOUNT_ATTEMPT_LIMIT = 3
-const WARM_CHUNK = 500
-
-export type JumpHandle = {
-  jumpToIndex: (index: number) => void
-  setSearchQuery: (query: string) => void
-  nextMatch: () => void
-  prevMatch: () => void
-  setAnchor: () => void
-  warmSearchIndex: () => Promise<number>
-  disarmSearch: () => void
-}
+export type { JumpHandle } from './virtualMessageList/engine.js'
 
 type VirtualMessageListProps = {
   messages: readonly RenderableMessage[]
@@ -113,54 +98,6 @@ function VirtualItem({
       </TextHoverColorContext.Provider>
     </InteractiveDisclosure>
   )
-}
-
-
-type SearchEngineState = {
-  query: SearchQuery | null
-  counts: number[]
-  prefix: number[]
-  total: number
-  messagePointer: number
-  ordinal: number
-  wrapStart: number
-  phantomRun: number
-  mountAttempts: number
-  seekInFlight: boolean
-  queuedStep: 1 | -1 | null
-  anchor: number | null
-  pendingTimer: ReturnType<typeof setTimeout> | null
-  warm: boolean
-}
-
-function newEngineState(): SearchEngineState {
-  return {
-    query: null,
-    counts: [],
-    prefix: [],
-    total: 0,
-    messagePointer: -1,
-    ordinal: 0,
-    wrapStart: -1,
-    phantomRun: 0,
-    mountAttempts: 0,
-    seekInFlight: false,
-    queuedStep: null,
-    anchor: null,
-    pendingTimer: null,
-    warm: false,
-  }
-}
-
-function countOccurrences(haystack: string, needle: string): number {
-  if (needle === '') return 0
-  let count = 0
-  let at = haystack.indexOf(needle)
-  while (at !== -1) {
-    count += 1
-    at = haystack.indexOf(needle, at + needle.length)
-  }
-  return count
 }
 
 
@@ -244,77 +181,7 @@ export function VirtualMessageList({
 
   useImperativeHandle(
     cursorNavRef,
-    (): MessageActionsNav => ({
-      enter: () => {
-        for (let i = messagesRef.current.length - 1; i >= 0; i--) {
-          if (messagesRef.current[i]!.type === 'user' && isVisibleAt(i)) {
-            publishCursor(i)
-            return
-          }
-        }
-      },
-      prev: () => {
-        const from = selectedIndexRef.current
-        if (from === undefined) return
-        for (let i = from - 1; i >= 0; i--) {
-          if (isVisibleAt(i)) {
-            publishCursor(i)
-            return
-          }
-        }
-      },
-      next: () => {
-        const from = selectedIndexRef.current
-        if (from === undefined) return
-        for (let i = from + 1; i < messagesRef.current.length; i++) {
-          if (isVisibleAt(i)) {
-            publishCursor(i)
-            return
-          }
-        }
-        exitCursorMode()
-      },
-      prevUser: () => {
-        const from = selectedIndexRef.current
-        if (from === undefined) return
-        for (let i = from - 1; i >= 0; i--) {
-          if (messagesRef.current[i]!.type === 'user' && isVisibleAt(i)) {
-            publishCursor(i)
-            return
-          }
-        }
-      },
-      nextUser: () => {
-        const from = selectedIndexRef.current
-        if (from === undefined) return
-        for (let i = from + 1; i < messagesRef.current.length; i++) {
-          if (messagesRef.current[i]!.type === 'user' && isVisibleAt(i)) {
-            publishCursor(i)
-            return
-          }
-        }
-      },
-      top: () => {
-        for (let i = 0; i < messagesRef.current.length; i++) {
-          if (isVisibleAt(i)) {
-            publishCursor(i)
-            return
-          }
-        }
-      },
-      bottom: () => {
-        for (let i = messagesRef.current.length - 1; i >= 0; i--) {
-          if (isVisibleAt(i)) {
-            publishCursor(i)
-            return
-          }
-        }
-      },
-      getSelected: () => {
-        const at = selectedIndexRef.current
-        return at === undefined ? undefined : messagesRef.current[at]
-      },
-    }),
+    (): MessageActionsNav => cursorNavHandleOf({ messagesRef, selectedIndexRef, isVisibleAt, publishCursor, exitCursorMode }),
     [isVisibleAt, publishCursor, exitCursorMode],
   )
 
@@ -539,111 +406,7 @@ export function VirtualMessageList({
 
   useImperativeHandle(
     jumpRef,
-    (): JumpHandle => ({
-      jumpToIndex: (index: number): void => {
-        if (index < 0 || index >= messagesRef.current.length) return
-        scrollMessageIntoView(index)
-      },
-      setSearchQuery: (raw: string): void => {
-        const engine = engineRef.current
-        if (engine.pendingTimer !== null) clearTimeout(engine.pendingTimer)
-        engine.seekInFlight = false
-        engine.queuedStep = null
-        engine.wrapStart = -1
-        engine.phantomRun = 0
-        engine.mountAttempts = 0
-        clearHighlight()
-
-        const query = parseSearchQuery(raw)
-        const list = messagesRef.current
-        const counts: number[] = new Array(list.length).fill(0)
-        const prefix: number[] = new Array(list.length).fill(0)
-        let total = 0
-        const hasOperators =
-          query.structured ||
-          query.tools.length > 0 ||
-          query.files.length > 0 ||
-          query.failedOnly
-        if (query.text !== '' || hasOperators) {
-          const needle = query.text.toLowerCase()
-          for (let i = 0; i < list.length; i++) {
-            prefix[i] = total
-            const msg = list[i]!
-            if (hasOperators) {
-              const facets = getFacetsRef.current?.(msg)
-              if (!facets || !facetsSatisfy(facets, query)) continue
-            }
-            if (needle === '') {
-              counts[i] = 1
-              total += 1
-              continue
-            }
-            const occurrences = countOccurrences(searchTextOf(msg), needle)
-            counts[i] = occurrences
-            total += occurrences
-          }
-        }
-        engine.query = query
-        engine.counts = counts
-        engine.prefix = prefix
-        engine.total = total
-
-        if (total === 0) {
-          engine.messagePointer = -1
-          engine.ordinal = 0
-          onMatchChangeRef.current?.(0, 0)
-          if (engine.anchor !== null) scrollRef.current?.scrollTo(engine.anchor)
-          return
-        }
-
-        const reference =
-          engine.anchor ?? scrollRef.current?.getScrollTop() ?? 0
-        let best = -1
-        let bestDistance = Infinity
-        for (let i = 0; i < list.length; i++) {
-          if ((counts[i] ?? 0) === 0) continue
-          const distance = Math.abs(vsRef.current.getItemTop(i) - reference)
-          if (distance <= bestDistance) {
-            bestDistance = distance
-            best = i
-          }
-        }
-        if (best === -1) return
-        engine.wrapStart = best
-        seekToMessage(best, 1, Math.max(0, (counts[best] ?? 1) - 1))
-      },
-      nextMatch: (): void => {
-        step(1)
-      },
-      prevMatch: (): void => {
-        step(-1)
-      },
-      setAnchor: (): void => {
-        engineRef.current.anchor = scrollRef.current?.getScrollTop() ?? null
-      },
-      warmSearchIndex: async (): Promise<number> => {
-        const engine = engineRef.current
-        if (engine.warm) return 0
-        const list = messagesRef.current
-        let workMs = 0
-        for (let start = 0; start < list.length; start += WARM_CHUNK) {
-          await sleep(0)
-          const began = performance.now()
-          const end = Math.min(list.length, start + WARM_CHUNK)
-          for (let i = start; i < end; i++) searchTextOf(list[i]!)
-          workMs += performance.now() - began
-        }
-        engine.warm = true
-        return Math.round(workMs)
-      },
-      disarmSearch: (): void => {
-        const engine = engineRef.current
-        if (engine.pendingTimer !== null) clearTimeout(engine.pendingTimer)
-        engine.seekInFlight = false
-        engine.queuedStep = null
-        clearHighlight()
-      },
-    }),
+    (): JumpHandle => jumpHandleOf({ messagesRef, engineRef, scrollRef, vsRef, getFacetsRef, onMatchChangeRef, scrollMessageIntoView, clearHighlight, seekToMessage, step, searchTextOf }),
     [clearHighlight, scrollMessageIntoView, seekToMessage, step, scrollRef, searchTextOf],
   )
 
