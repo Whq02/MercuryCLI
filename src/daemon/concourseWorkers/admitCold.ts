@@ -1,24 +1,21 @@
 import { join } from 'node:path'
 import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
-import { randomUUID } from '../../utils/crypto.js'
 import { recordToEntry } from '../../fabric/entryCodec.js'
 import { resolveEffectiveSettingsSnapshot } from '../../substrate/startupMenu.js'
-import { getProcessStartInstantAsync } from '../ownerWatch.js'
-import { workspaceKindOf, ensureWorkerWorktree } from '../concourseWorktrees.js'
-import { describeSeatReading } from '../../services/switchboard/capacityCheck.js'
+import { workspaceKindOf } from '../concourseWorktrees.js'
 import { normalizeEffortLevelString } from '../../utils/effort.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 import { scanTranscriptLinesBackward } from '../../utils/sessionStorage/transcriptReader.js'
 import { kitStampOf, noteRecordlessResumeKit } from '../sessionKit.js'
-import { CONCOURSE_SHORT_PREFIX, effectiveSeatCeiling } from './admission.js'
+import { CONCOURSE_SHORT_PREFIX } from './admission.js'
 import { updateConcourseWorkers } from './store.js'
 import { buildConcourseWorkerSpec, spawnPostureOf } from './spec.js'
 import { pidFieldsOf, buildTreeFields } from './marks.js'
 import { migrateTranscriptHomeToLaw } from './revive.js'
 import type { ConcourseWorkerRecordV1 } from './record.js'
-import type { AdmitSeat, ConcourseAdmitDeps, ConcourseAdmitResult } from './admit.js'
+import type { AdmitSeat, ConcourseAdmitDeps, ConcourseAdmitResult, WorkerRosterPort } from './admit.js'
 
-export async function admitCold({ req, deps, records, workspaceId, effectiveIsolation, kind, modelKey, modelDisplayName, keyless, kit, preset, retainedNote, carryBuildNotices, roster, liveWorkers }: AdmitSeat & { roster: NonNullable<ReturnType<ConcourseAdmitDeps['roster']>>; liveWorkers: ConcourseWorkerRecordV1[] }): Promise<ConcourseAdmitResult> {
+export function coldRunnerIdOf(records: Record<string, ConcourseWorkerRecordV1>, roster: NonNullable<ReturnType<ConcourseAdmitDeps['roster']>>): string | null {
   const used = new Set(
     Object.values(records)
       .filter(r => r.endedAt === undefined)
@@ -32,42 +29,10 @@ export async function admitCold({ req, deps, records, workspaceId, effectiveIsol
       break
     }
   }
-  if (runnerId === null) {
-    return { ok: false, code: 'runtime-ceiling', error: `at the live-session limit — ${describeSeatReading(effectiveSeatCeiling())}` }
-  }
+  return runnerId
+}
 
-  const sessionId = req.resumeSessionId ?? randomUUID()
-  const workspaceKind = workspaceKindOf(workspaceId)
-  let workerCwd = workspaceId
-  let worktreePath: string | undefined
-  let worktreeBranch: string | undefined
-  if (effectiveIsolation === 'worktree-isolated') {
-    const wt = await ensureWorkerWorktree(workspaceId, runnerId, deps.dir, {
-      branchName: mintWorktreeBranchName(req.title ?? sessionId.slice(0, 8), records),
-    })
-    if (!wt.ok) {
-      if (wt.code === 'no-repository' || wt.code === 'unborn-head') {
-        return {
-          ok: false,
-          code: wt.code,
-          error: wt.error,
-          moves: [{ verb: 'init-git', label: 'say yes to the git offer — then it forks on its own' }],
-        }
-      }
-      if (wt.code === 'git-unavailable') {
-        return {
-          ok: false,
-          code: wt.code,
-          error: wt.error,
-          moves: [{ verb: 'retry', label: 'install git, then retry the launch' }],
-        }
-      }
-      return { ok: false, code: 'invalid-request', error: wt.error }
-    }
-    workerCwd = wt.path
-    worktreePath = wt.path
-    worktreeBranch = wt.branchName
-  }
+export function coldSpecOf({ req, records, workspaceId, sessionId, runnerId, worktreePath, workerCwd, modelKey, keyless, kit, kind }: Pick<AdmitSeat, 'req' | 'records' | 'workspaceId' | 'modelKey' | 'keyless' | 'kit' | 'kind'> & { sessionId: string; runnerId: string; worktreePath: string | undefined; workerCwd: string }) {
   const priorSnapshot =
     req.resumeSessionId !== undefined
       ? Object.values(records)
@@ -128,10 +93,10 @@ export async function admitCold({ req, deps, records, workspaceId, effectiveIsol
     ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv } : {}),
     kind,
   })
-  carryBuildNotices(sessionId)
-  const reg = roster.registerLongLived(runnerId, spec)
-  if (!reg.ok) return { ok: false, code: 'spawn-failed', error: reg.error ?? 'registerLongLived refused' }
-  const pidFields = pidFieldsOf(reg.pid, reg.pid === undefined ? null : await getProcessStartInstantAsync(reg.pid))
+  return { snapshot, effort, runnerArgv, spec }
+}
+
+export function coldSeatAnswer({ req, deps, workspaceId, effectiveIsolation, modelKey, modelDisplayName, keyless, kit, preset, retainedNote, liveWorkers, runnerId, sessionId, workspaceKind, worktreePath, worktreeBranch, snapshot, effort, runnerArgv, spec, reg, pidFields }: AdmitSeat & ReturnType<typeof coldSpecOf> & { liveWorkers: ConcourseWorkerRecordV1[]; runnerId: string; sessionId: string; workspaceKind: ReturnType<typeof workspaceKindOf>; worktreePath: string | undefined; worktreeBranch: string | undefined; reg: ReturnType<WorkerRosterPort['registerLongLived']>; pidFields: ReturnType<typeof pidFieldsOf> }): ConcourseAdmitResult {
   updateConcourseWorkers(workers => {
     workers[runnerId!] = {
       schema: 1,
@@ -188,27 +153,4 @@ export async function admitCold({ req, deps, records, workspaceId, effectiveIsol
     ...(worktreeBranch !== undefined ? { branchName: worktreeBranch } : {}),
     ...(mainHolderTitle !== undefined ? { mainHolderTitle } : {}),
   }
-}
-
-function mintWorktreeBranchName(
-  seed: string,
-  records: Record<string, ConcourseWorkerRecordV1>,
-): string {
-  const slug =
-    seed
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 32) || 'session'
-  const taken = new Set(
-    Object.values(records)
-      .map(r => r.branchName)
-      .filter((b): b is string => b !== undefined),
-  )
-  const base = `mercury/${slug}`
-  if (!taken.has(base)) return base
-  for (let n = 2; n <= 9; n++) {
-    if (!taken.has(`${base}-${n}`)) return `${base}-${n}`
-  }
-  return `${base}-${Date.now().toString(36).slice(-4)}`
 }
