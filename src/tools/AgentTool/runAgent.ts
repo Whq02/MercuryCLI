@@ -1,6 +1,6 @@
 
 import { getProjectRoot, getSessionId } from '../../bootstrap/state.js'
-import { getCwd } from '../../utils/cwd.js'
+import '../../utils/cwd.js'
 import '../AskAdvisorTool/constants.js'
 import '../../services/desktop/toolName.js'
 import { getSkillToolCommands } from '../../commands.js'
@@ -18,14 +18,8 @@ import {
   doesEnterpriseMcpConfigExist,
   filterMcpServersByPolicy,
 } from '../../services/mcp/config.js'
-import {
-  getInstructionSliceForProfile,
-} from '../../services/instructions/engine.js'
-import {
-  isInstructionProfile,
-  resolveRequestedInstructionProfile,
-} from '../../services/instructions/profile.js'
-import type { InstructionProfile } from '../../services/instructions/contracts.js'
+import '../../services/instructions/engine.js'
+import '../../services/instructions/profile.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { killShellTasksForAgent } from '../../tasks/LocalShellTask/killShellTasks.js'
 import { endEngineSessionFor } from '../../utils/shell/engineSession.js'
@@ -40,7 +34,7 @@ import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
 import '../../Tool.js'
 import { McpServerConfigSchema, type MCPServerConnection } from '../../services/mcp/types.js'
 import { generateTaskId } from '../../Task.js'
-import { getUserContext, getSystemContext, isInstructionDiscoveryDisabled } from '../../context.js'
+import '../../context.js'
 import { forgetAgentEffortWord, noteAgentEffortWord, parseEffortValue, type EffortValue } from '../../utils/effort.js'
 import { subagentDefaultEffort } from '../../utils/agentDefaults.js'
 import '../../utils/forkedAgent.js'
@@ -50,21 +44,21 @@ import {
   READ_FILE_STATE_CACHE_SIZE,
 } from '../../utils/fileStateCache.js'
 import { removeSessionHooks } from '../../utils/hooks/sessionHooks.js'
-import { registerAgentHooks } from '../../utils/hooks/registerFrontmatterHooks.js'
-import { fireHooks } from '../../utils/hooks/fire.js'
-import { hasHooksFor } from '../../utils/hooks/matching.js'
-import { hookMayMeetCopy, worktreeHoldOf } from '../../utils/worktreeReadiness.js'
+import '../../utils/hooks/registerFrontmatterHooks.js'
+import '../../utils/hooks/fire.js'
+import '../../utils/hooks/matching.js'
+import '../../utils/worktreeReadiness.js'
 import '../../utils/hooks/background.js'
-import { HOOK_EVENTS } from '../../utils/hooks/contract.js'
-import { hookRowsOfResult } from '../../utils/hooks/rows.js'
-import { createAttachmentMessage } from '../../utils/attachments.js'
+import '../../utils/hooks/contract.js'
+import '../../utils/hooks/rows.js'
+import '../../utils/attachments.js'
 import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
 import { accumulateUsage, updateUsage } from '../../services/providers/anthropic/cacheAndUsage.js'
 import { OUTCOME_SENTENCES, type OutcomeStatus } from '../../rows/vocabulary.js'
 import '../../utils/messages/rejectionText.js'
 import '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { STRUCTURED_OUTPUT_TOOL_NAME } from '../SyntheticOutputTool/structuredOutputTool.js'
+import '../SyntheticOutputTool/structuredOutputTool.js'
 import { DeadlineExceededError, minutesKnobToMs } from '../../utils/deadline.js'
 import { honourRecoveryWait, makeRecoveryBudget, retryWaitWords, settleRecoveryWait, type RecoveryBudget, type RecoveryNoticeFacts, type RecoveryReservation } from '../../services/api/recoveryBudget.js'
 import '../../services/providers/busyRetry.js'
@@ -80,18 +74,10 @@ import { delegationDispatchBlocker } from '../../services/providers/providerUsab
 import { classifyModelRoute } from '../../services/providers/callModelRouter.js'
 import type { CanUseToolFn } from '../../Tool.js'
 import type { QuerySource } from '../../constants/querySource.js'
-import {
-  flushSessionStorage,
-  getAgentTranscriptPath,
-  readAgentMetadata,
-  recordSidechainTranscript,
-  registerAgentTranscriptDestination,
-  writeAgentMetadata,
-  writtenChainTail,
-} from '../../utils/sessionStorage.js'
+import { flushSessionStorage, recordSidechainTranscript, writtenChainTail } from '../../utils/sessionStorage.js'
 import '../../utils/crew/crewmateRecord.js'
 import { settledSidechainMessages } from '../../utils/sessionStorage/settledSidechainMessages.js'
-import { latchSwarmAgent, settleSwarmAgent, swarmBrief } from '../../services/crewBoard/seam.js'
+import { settleSwarmAgent } from '../../services/crewBoard/seam.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import {
   isRestrictedToExtensionsOnly,
@@ -104,14 +90,14 @@ import { buildSubagentMercurySections } from '../../constants/subagentDoctrine.j
 import type { MercuryAgentSeat } from '../../prompt/mercuryContract.js'
 import type { AgentDefinition, AgentMcpServerSpec } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
-import { REVIEW_BRIEF, canonicalReviewerReceipt } from './reviewerPolicy.js'
+import { canonicalReviewerReceipt } from './reviewerPolicy.js'
 import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
 import './scoutPolicy.js'
 import './agentPermissionPosture.js'
 
 import { fireCrewmateEndOf } from './runAgent/crewmateEnd.js'
-import { agentPostureOf, agentToolsOf, childContextOf, runStartRecordOf } from './runAgent/setup.js'
-import { type AgentRun, armWatchdogOf, askLivelyOf, callModelOf, cutAtBudgetOf, observeProgressOf, sdkStatusOf, stalledErrorOf, touchThroughOf } from './runAgent/watch.js'
+import { type AgentRun, armWatchdogOf, askLivelyOf, callModelOf, cutAtBudgetOf, observeProgressOf, stalledErrorOf, touchThroughOf } from './runAgent/watch.js'
+import { prepareAgentRun } from './runAgent/prepare.js'
 export function filterIncompleteToolCalls(messages: Message[]): Message[] {
   const resolvedToolUseIds = new Set<string>()
   for (const message of messages) {
@@ -648,7 +634,6 @@ export async function* runAgent(
   const endProjectLeases = beginAgentProjectLeases(agentId, abortController.signal)
   noteAgentEffortWord(agentId, resolvedEffort)
 
-  let swarm = false
 
   const filteredContext = forkContextMessages
     ? filterIncompleteToolCalls(forkContextMessages)
@@ -683,163 +668,7 @@ export async function* runAgent(
       runDeadlineTimer = setTimeout(cut, deadline.at - Date.now())
       runDeadlineTimer.unref?.()
     }
-    swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, params.resumed === true, params.team, abortController.signal)
-    let userContext = override?.userContext ?? (await getUserContext())
-    const systemContext = { ...(override?.systemContext ?? (await getSystemContext())) }
-
-    if (
-      agentDefinition.omitProjectInstructions &&
-      slimAgentGateOn() &&
-      !override?.userContext
-    ) {
-      userContext = withoutInstructionBlob(userContext)
-    }
-
-    const sessionResolution = resolveRequestedInstructionProfile()
-    const requestedProfile =
-      (instructionProfileOverride &&
-      isInstructionProfile(instructionProfileOverride)
-        ? instructionProfileOverride
-        : undefined) ??
-      agentDefinition.instructionProfile ??
-      sessionResolution.profile
-    let instructionCapture:
-      | { profile: InstructionProfile; digest: string }
-      | undefined
-    if (
-      !agentDefinition.omitProjectInstructions &&
-      !isInstructionDiscoveryDisabled() &&
-      isInstructionProfile(requestedProfile)
-    ) {
-      if (requestedProfile !== sessionResolution.profile) {
-        try {
-          const slice = await getInstructionSliceForProfile(requestedProfile)
-          if (override?.userContext === undefined) {
-            userContext = { ...userContext }
-            if (slice.instructionPrompt) {
-              userContext[INSTRUCTIONS_CONTEXT_KEY] = slice.instructionPrompt
-            } else {
-              userContext = withoutInstructionBlob(userContext)
-            }
-          }
-          instructionCapture = {
-            profile: requestedProfile,
-            digest: slice.bundle.bundleDigest,
-          }
-        } catch (error) {
-          logForDebugging(
-            `runAgent: instruction slice for '${requestedProfile}' failed: ${errorMessage(error)}`,
-          )
-        }
-      } else {
-        instructionCapture = { profile: requestedProfile, digest: '' }
-      }
-    }
-
-    if (readOnlyScout) {
-      for (const key of Object.keys(systemContext)) {
-        if (/gitstatus/i.test(key)) delete systemContext[key]
-      }
-    }
-
-    const { posture, agentGetAppState } = agentPostureOf({ toolUseContext, agentDefinition, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort })
-
-    const hookContextMessages: Message[] = []
-    try {
-      if (agentDefinition.hooks !== undefined || HOOK_EVENTS.some(event => hookMayMeetCopy(event) && hasHooksFor(event, hookScope, toolUseContext.getAppState()))) await worktreeHoldOf({ agentId, abortController })
-      const started = await fireHooks(
-        'crewmate.start',
-        { ...(name !== undefined ? { name } : {}), prompt: promptMessages.map(message => {
-          if (message.type !== 'user' && message.type !== 'assistant') return ''
-          const content = message.message.content
-          return typeof content === 'string' ? content : extractTextContent(content, '\n')
-        }).filter(Boolean).join('\n'), model: resolvedAgentModel, directory: cwd ?? getCwd() },
-        { scope: hookScope, signal: abortController.signal, toolUseContext, crewmateType: agentDefinition.agentType },
-      )
-      for (const row of hookRowsOfResult(started)) hookContextMessages.push(createAttachmentMessage(row) as Message)
-      for (const context of started.answer.contexts) hookContextMessages.push(createUserMessage({ content: context, isMeta: true }))
-    } catch (error) {
-      logForDebugging(`runAgent: the crewmate.start hooks failed: ${errorMessage(error)}`)
-    }
-
-    if (
-      agentDefinition.hooks &&
-      (!isRestrictedToExtensionsOnly('hooks') ||
-        isSourceAdminTrusted(agentDefinition.source))
-    ) {
-      registerAgentHooks(rootSetAppState, hookScope, agentDefinition.hooks, agentDefinition.agentType)
-    }
-
-    const skillMessages = await preloadSkills(agentDefinition, toolUseContext)
-
-    const agentMcp = await connectAgentMcpServers(
-      agentDefinition.mcpServers,
-      agentDefinition,
-      [
-        ...toolUseContext.options.mcpClients,
-        ...(toolUseContext.getAppState?.().mcp.clients ?? []),
-      ],
-    )
-    mcp.clients = agentMcp.clients
-    mcp.tools = agentMcp.tools
-    mcp.cleanup = agentMcp.cleanup
-
-    const tools = agentToolsOf({ availableTools, swarm, mcp, structuredOutputSpec, reviewReceipt, worktreePath, readOnlyScout })
-
-    const enabledToolNames = new Set(tools.map(tool => tool.name))
-    const systemPrompt: string[] =
-      override?.systemPrompt ??
-      (await buildAgentSystemPrompt(
-        agentDefinition,
-        toolUseContext,
-        resolvedAgentModel,
-        enabledToolNames,
-        agentId,
-        seat,
-      ))
-    if (reviewReceipt !== undefined) systemPrompt.push(REVIEW_BRIEF, `Your declared review receipt is ${reviewReceipt}. Only its Review section is editable. Run bun verification under scripts, bash suite runners, or bun run typecheck in the frozen worktree; a with-box-lock.sh wrapper with a literal temporary BASE is accepted. Verification commands have a fresh temporary home and filesystem confinement: sources and the report are read-only, temporary results are writable. Ordinary permission checks still apply; unavailable confinement refuses without running.`)
-    if (structuredOutputSpec !== undefined) {
-      systemPrompt.push(
-        `When the task is COMPLETE, deliver the final answer by calling the ${STRUCTURED_OUTPUT_TOOL_NAME} tool with data matching its schema${
-          structuredOutputSpec.mode === 'strict'
-            ? ' — the dispatch FAILS without a conforming call'
-            : ' — prose alone is accepted but the caller loses the parsed data'
-        }. Prose before the call is welcome; the structured payload is the contract.`,
-      )
-    }
-    const swarmWords = swarm ? swarmBrief(agentId, override?.swarmBrief) : null
-    if (swarmWords !== null) systemPrompt.push(swarmWords)
-
-    const { childContext, thinkingOverride } = childContextOf({ toolUseContext, posture, thinkingConfigOverride, agentId, agentDefinition, abortController, agentGetAppState, isAsync, tools, resolvedAgentModel, mcp, isFork, querySource, readFileState, contentReplacementState, childContextRef, worktreePath, agentKind, seatHolder, description, onWait, preserveToolUseResults })
-    childContext.setSDKStatus = sdkStatusOf(run, { onQueryProgress, accountant, touchThrough })
-
-    const messages: Message[] = [
-      ...initialMessages,
-      ...hookContextMessages,
-      ...skillMessages,
-    ]
-
-    if (onCacheSafeParams) {
-      onCacheSafeParams({
-        systemPrompt: asSystemPrompt(systemPrompt),
-        userContext,
-        systemContext,
-        toolUseContext: childContext,
-        forkContextMessages: messages,
-      })
-    }
-
-    try {
-      registerAgentTranscriptDestination(
-        agentId,
-        getAgentTranscriptPath(agentId),
-      )
-    } catch {
-    }
-    await landAgentTranscriptRows(messages, agentId)
-
-    const latestRecord = await readAgentMetadata(agentId).catch(() => null)
-    await writeAgentMetadata(agentId, runStartRecordOf({ latestRecord, model, effortOverride, agentDefinition, swarm, worktreePath, cwd, description, name, launchedAt, swarmWords, thinkingOverride, structuredOutputSpec, instructionCapture, resolvedAgentModel, resolvedEffort })).catch(() => {})
+    const { userContext, systemContext, systemPrompt, childContext, messages } = await prepareAgentRun({ agentId, name, description, params, abortController, override, agentDefinition, slimAgentGateOn, withoutInstructionBlob, instructionProfileOverride, readOnlyScout, toolUseContext, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort, hookScope, promptMessages, resolvedAgentModel, cwd, rootSetAppState, preloadSkills, connectAgentMcpServers, mcp, availableTools, structuredOutputSpec, reviewReceipt, worktreePath, buildAgentSystemPrompt, seat, thinkingConfigOverride, isFork, querySource, readFileState, contentReplacementState, childContextRef, agentKind, seatHolder, onWait, preserveToolUseResults, run, onQueryProgress, accountant, touchThrough, initialMessages, onCacheSafeParams, landAgentTranscriptRows, model, launchedAt, resolvedEffort })
 
     let lastRecordedUuid: string | undefined = writtenChainTail(messages)
     const effectiveMaxTurns = maxTurns ?? agentDefinition.maxTurns
