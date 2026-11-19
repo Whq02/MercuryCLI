@@ -30,7 +30,7 @@ import {
 import { logForDebugging } from '../../../utils/debug.js'
 import { MODEL_NOT_FOUND_CODE, OPENAI_MAX_ATTEMPTS, apiErrorMessage, openaiFaultToTypedError, openaiRetryDelayMs, overflowOf } from './openaiCallModel/faults.js'
 import { applyCompactedToolResults, compactedToolResultsByConversation, isCompactionSource, priorConversation4xx, priorTurn4xxCodeOf } from './openaiCallModel/resumeTrim.js'
-import { prepareOpenaiTurn } from './openaiCallModel/prepareTurn.js'
+import { openOpenaiTurn, prepareOpenaiTurn, type TurnOpening } from './openaiCallModel/prepareTurn.js'
 import { settleOpenaiTurn } from './openaiCallModel/turnSettled.js'
 import { streamOneOpenaiAttempt } from './openaiCallModel/attempt.js'
 import { reissueAtServedEffort, reissueTextForm, trimResumedTranscript } from './openaiCallModel/faultReissue.js'
@@ -69,11 +69,13 @@ async function* openaiTurn(
     return
   }
   if (openaiLimitWindow(account.kind).state === 'limited') await refreshProviderUsage('openai', { force: true, reason: 'operator' })
-  const turn = await prepareOpenaiTurn({ params, deferralFormReissued, resumeTrimReissued, systemPrompt, tools, signal, options, requestedId, conversation4xxKey, messages, prior4xxCode, account })
-  if ('refusal' in turn) {
-    yield turn.refusal
+  const opening: TurnOpening = { params, deferralFormReissued, resumeTrimReissued, systemPrompt, tools, signal, options, requestedId, conversation4xxKey, messages, prior4xxCode, account }
+  const prepared = await prepareOpenaiTurn(opening)
+  if ('refusal' in prepared) {
+    yield prepared.refusal
     return
   }
+  const turn = openOpenaiTurn(opening, prepared)
   const { modelId } = turn
   let attemptStartedAtMs = turn.turnStartedAtMs
   for (let attempt = 1; attempt <= OPENAI_MAX_ATTEMPTS || turn.busy !== undefined; attempt++) {
