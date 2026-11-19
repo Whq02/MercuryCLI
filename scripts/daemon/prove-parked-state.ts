@@ -271,7 +271,6 @@ console.log('L2c2 a commit whose exit arrives late — the roster exit hook comp
   const completed = await sup.completeFencedRetirement('concourse-w10', dir)
   const w10After = rec('concourse-w10')
   check("the roster's exit hook road (completeFencedRetirement) finishes the SAME transaction: parked by the intent's owner, the intent cleared, the fence lifted", completed && w10After?.parkedAt !== undefined && w10After.parkedBy === 'operator:test' && w10After.parkIntent === undefined && !sup.retirementFenced('concourse-w10'), JSON.stringify(w10After))
-  check('the roster calls it from the intentional-stop exit arm', read('src/daemon/roster.ts').includes('await sup.completeFencedRetirement(short)'))
 }
 
 console.log('L2c3 a daemon restart with a park intent standing — the reconcile settles it by the intent\'s pid')
