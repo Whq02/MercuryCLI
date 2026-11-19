@@ -776,8 +776,14 @@ async function whileFiring(taskId: string, fire: () => Promise<void>): Promise<v
   }
 }
 
+function dropPauseRecord(taskId: string): void {
+  void clearAgentPauseRecord(taskId).catch((error: unknown) => {
+    logForDebugging(`agent lifecycle: the pause record of ${taskId} could not be removed, so the next session start arms it again: ${errorMessage(error)}`)
+  })
+}
+
 export function cancelAutomaticResume(taskId: string): boolean {
-  void clearAgentPauseRecord(taskId).catch(() => undefined)
+  dropPauseRecord(taskId)
   const timer = pendingAutomaticResumes.get(taskId)
   if (timer === undefined) return false
   clearTimeout(timer)
@@ -819,7 +825,7 @@ export function armBudgetCutResume(args: {
     if (armed !== undefined) clearTimeout(armed)
     pendingAutomaticResumes.delete(args.taskId)
     cutsAlreadyResumed.add(args.registration)
-    void clearAgentPauseRecord(args.taskId).catch(() => undefined)
+    dropPauseRecord(args.taskId)
     let tasksNow: Record<string, unknown> | undefined
     args.rootSetAppState(prev => {
       tasksNow = prev.tasks
@@ -966,7 +972,7 @@ export function armOverloadProbe(args: {
   if (delayMs === null) {
     unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
     closeOverloadEpisode(args.taskId)
-    void clearAgentPauseRecord(args.taskId).catch(() => undefined)
+    dropPauseRecord(args.taskId)
     return null
   }
   pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
@@ -989,7 +995,7 @@ export function armOverloadProbe(args: {
       armOverloadProbe({ ...args, afterDeath: false, recorded: true })
       return
     }
-    void clearAgentPauseRecord(args.taskId).catch(() => undefined)
+    dropPauseRecord(args.taskId)
     const { liveAgentOwner, resumeAgentBackground } = await import('./resumeAgent.js')
     let tasksNow: Record<string, unknown> | undefined
     args.rootSetAppState(prev => {
