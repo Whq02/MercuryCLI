@@ -35,9 +35,11 @@ let patching = 0
 let beforeRequest: ((who: string, method: string, path: string, key: string) => void) | undefined
 let beforePatch: ((id: string, patch: Partial<HostRecord>) => void) | undefined
 
+const CONFIG_HOME = process.env.MERCURY_CONFIG_DIR!
 const secretsShown: ReadonlyArray<readonly [string, string]> = [[HF_KEY_AFTER, '<the Hugging Face key after a new sign-in>'], [hf.key, '<the Hugging Face key>'], [rp.key, '<the Runpod key>']]
 function mask(text: string): string {
   let out = text.split(f.home).join('<home>').split(f.home.replace(/^\/private/, '')).join('<home>')
+  out = out.split(CONFIG_HOME).join('<config home>').split(CONFIG_HOME.replace(/^\/private/, '')).join('<config home>')
   for (const [secret, shown] of secretsShown) out = out.split(secret).join(shown)
   return out
     .replace(/mercury-[0-9a-f-]{12}/g, 'mercury-<id>')
@@ -106,7 +108,7 @@ mock.module('../../src/services/host/store.ts', () => ({
     store.removeHostRecord(id)
   },
   writeHostRecord: (record: HostRecord) => {
-    if (patching === 0) say(`record ${mask(record.id)} write jobKind=${record.jobKind} jobState=${record.jobState} step=${shown(record.step)} watchedFrom=${shown(record.watchedFrom)}`)
+    if (patching === 0) say(`record ${mask(record.id)} write jobKind=${record.jobKind} jobState=${record.jobState} step=${shown(record.step)} watchedFrom=${shown(record.watchedFrom)} sshKey=${shown(record.sshKey)}`)
     if (scening && record.log) logs.set(record.log, logs.get(record.log) ?? 0)
     store.writeHostRecord(record)
   },
@@ -344,6 +346,12 @@ await scene('a watch stopped while it reads the stock', async () => {
   return [record.id]
 })
 
+await scene('a watch that finds no stock at its price until its window ends', async () => {
+  const record = watchOf('watch-no-stock-at-the-price', { price: 0.01 })
+  await ran(record, { runner: ssh.runner, pauseMs: 5, timeoutMs: 600, keepAlive: false })
+  return [record.id]
+})
+
 await scene('a watch that finds stock its weights disk cannot reach, until its window ends', async () => {
   const record = watchOf('watch-volume-elsewhere', { weightsSource: { kind: 'volume', volumeId: 'a-volume-kept-elsewhere' } })
   await ran(record, { runner: ssh.runner, pauseMs: 5, timeoutMs: 2000, keepAlive: false })
@@ -403,6 +411,12 @@ await scene('a watch whose create is refused for payment', async () => {
   rp.state.createOutcomes.push('refuse402')
   await ran(record, { runner: ssh.runner, pauseMs: 5, timeoutMs: 5000, keepAlive: false })
   return [record.id]
+})
+
+await scene('a watch that rents a pod and sets it up', async () => {
+  const record = watchOf('watch-rents-and-sets-up')
+  await ran(record, { runner: ssh.runner, pauseMs: 5, timeoutMs: 8000, keepAlive: false })
+  return [record.id, `fixture-pod-${rp.state.creates}`]
 })
 
 await scene('a watch that rents a pod it cannot record', async () => {

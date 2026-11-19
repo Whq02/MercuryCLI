@@ -128,7 +128,7 @@
   record fixture-pod-6 patch step="starting engine" advancedAt=<at> steps+="starting engine"
   request GET the tunnel /v1/models
   the setup is stopped as this write lands
-  record fixture-pod-6 write jobKind=setup jobState=stopped step="starting engine" watchedFrom=undefined
+  record fixture-pod-6 write jobKind=setup jobState=stopped step="starting engine" watchedFrom=undefined sshKey=undefined
   record fixture-pod-6 patch localPort=<port>
   the job ended
   at the end, record fixture-pod-6: jobKind=setup jobState=stopped status=RUNNING step="starting engine" error=undefined steps=["waiting for SSH","installing","building llama.cpp","downloading weights on the machine","starting engine"]
@@ -162,10 +162,21 @@
   record watch-stopped-mid-read patch jobState="running" error=undefined
   record watch-stopped-mid-read patch advancedAt=<at>
   the watch is stopped while this read is on its way
-  record watch-stopped-mid-read write jobKind=watch jobState=stopped step="watching for stock ≤ $10.00/hr" watchedFrom=undefined
+  record watch-stopped-mid-read write jobKind=watch jobState=stopped step="watching for stock ≤ $10.00/hr" watchedFrom=undefined sshKey=undefined
   request GET Runpod /v2/catalog/gpus
   the job ended
   at the end, record watch-stopped-mid-read: jobKind=watch jobState=stopped status=WATCHING step="watching for stock ≤ $10.00/hr" error=undefined steps=["watching for stock ≤ $10.00/hr"]
+== a watch that finds no stock at its price until its window ends
+  record watch-no-stock-at-the-price patch jobState="running" error=undefined
+  record watch-no-stock-at-the-price patch advancedAt=<at>
+  request GET Runpod /v2/catalog/gpus
+  record watch-no-stock-at-the-price patch rateLimit="one catalogue read every 0.005 s (12000 a minute) · this account’s Runpod quota: 60 a minute, 3000 an hour, 50000 a day"
+  record watch-no-stock-at-the-price patch advancedAt=<at>
+  request GET Runpod /v2/catalog/gpus
+  record watch-no-stock-at-the-price patch jobState="stopped" status="EXPIRED" step="watch ended after 1 s without stock ≤ $0.01/hr · no pod was created"
+  notice expired for watch-no-stock-at-the-price: Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · watch ended after 1 s without stock ≤ $0.01/hr · no pod was created
+  the job ended
+  at the end, record watch-no-stock-at-the-price: jobKind=watch jobState=stopped status=EXPIRED step="watch ended after 1 s without stock ≤ $0.01/hr · no pod was created" error=undefined steps=["watching for stock ≤ $0.01/hr"]
 == a watch that finds stock its weights disk cannot reach, until its window ends
   record watch-volume-elsewhere patch jobState="running" error=undefined
   record watch-volume-elsewhere patch advancedAt=<at>
@@ -187,7 +198,7 @@
   request GET Runpod /v2/catalog/gpus
   record watch-stopped-at-the-mark patch rateLimit="one catalogue read every 0.005 s (12000 a minute) · this account’s Runpod quota: 60 a minute, 3000 an hour, 50000 a day"
   the watch is stopped as this write lands
-  record watch-stopped-at-the-mark write jobKind=watch jobState=stopped step="watching for stock ≤ $10.00/hr" watchedFrom=undefined
+  record watch-stopped-at-the-mark write jobKind=watch jobState=stopped step="watching for stock ≤ $10.00/hr" watchedFrom=undefined sshKey=undefined
   record watch-stopped-at-the-mark patch creating="mercury-<id>" step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr"
   the job ended
   at the end, record watch-stopped-at-the-mark: jobKind=watch jobState=stopped status=WATCHING step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr" error=undefined steps=["watching for stock ≤ $10.00/hr"]
@@ -269,6 +280,50 @@
   notice failed for watch-create-unpaid: Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · stock watch stopped · Error: Runpod POST /pods returned HTTP 402 · fixture: insufficient balance · Runpod refused it; no pod was created.
   the job ended
   at the end, record watch-create-unpaid: jobKind=watch jobState=failed status=WATCHING step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr" error="stock watch stopped · Error: Runpod POST /pods returned HTTP 402 · fixture: insufficient balance · Runpod refused it; no pod was created." steps=["watching for stock ≤ $10.00/hr"]
+== a watch that rents a pod and sets it up
+  record watch-rents-and-sets-up patch jobState="running" error=undefined
+  record watch-rents-and-sets-up patch advancedAt=<at>
+  request GET Runpod /v2/catalog/gpus
+  record watch-rents-and-sets-up patch rateLimit="one catalogue read every 0.005 s (12000 a minute) · this account’s Runpod quota: 60 a minute, 3000 an hour, 50000 a day"
+  record watch-rents-and-sets-up patch creating="mercury-<id>" step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr"
+  request POST Runpod /v2/pods
+  log Rented Nemotron 3.5 Super VL 120B · 1× RTX PRO 6000 · $2.49/hr · setting up
+  record fixture-pod-8 write jobKind=setup jobState=queued step="waiting for SSH" watchedFrom="watch-rents-and-sets-up" sshKey="<home>/host/keys/id_ed25519"
+  notice rented for fixture-pod-8: Rented Nemotron 3.5 Super VL 120B · 1× RTX PRO 6000 · $2.49/hr · setting up
+  record watch-rents-and-sets-up remove
+  record fixture-pod-8 patch jobState="running" error=undefined
+  request GET Runpod /v2/pods/fixture-pod-8
+  record fixture-pod-8 patch status="RUNNING"
+  record fixture-pod-8 patch target={"host":"127.0.0.1","port":"<port>","user":"root","key":"<home>/host/keys/id_ed25519"} status="RUNNING"
+  record fixture-pod-8 patch step="checking engine" advancedAt=<at> steps+="checking engine"
+  log MERCURY_STEP installing
+  log MERCURY_STEP building llama.cpp
+  log MERCURY_STEP downloading weights
+  record fixture-pod-8 patch step="installing" advancedAt=<at> steps+="installing"
+  record fixture-pod-8 patch step="building llama.cpp" advancedAt=<at> steps+="building llama.cpp"
+  record fixture-pod-8 patch step="downloading weights on the machine" advancedAt=<at> steps+="downloading weights on the machine"
+  request GET the model /v1/models
+  record fixture-pod-8 patch target={"host":"127.0.0.1","port":"<port>","user":"root","key":"<home>/host/keys/id_ed25519"} status="RUNNING"
+  record fixture-pod-8 patch step="starting engine" advancedAt=<at> steps+="starting engine"
+  request GET the tunnel /v1/models
+  record fixture-pod-8 patch localPort=<port>
+  record fixture-pod-8 patch step="tunnel on 127.0.0.1:<port>" advancedAt=<at> steps+="tunnel on 127.0.0.1:<port>"
+  request GET the tunnel /v1/models
+  request GET the tunnel /model_info
+  request GET the tunnel /props
+  request GET the tunnel /api/tags
+  request GET the tunnel /get_model_info
+  request GET the tunnel /v1/models
+  request GET the tunnel /props
+  request GET the tunnel /metrics
+  request POST the tunnel /v1/chat/completions
+  record fixture-pod-8 patch provider="pod-fixture-pod-8"
+  record fixture-pod-8 patch step="ready" advancedAt=<at> steps+="ready"
+  record fixture-pod-8 patch jobState="ready" engineDeath=undefined linkLost=undefined loadedWeights="/workspace/mercury-host/nemotron35-super-gguf-rtx-pro-6000/weights"
+  notice ready for fixture-pod-8: Nemotron 3.5 Super VL 120B · UD-Q3_K_XL ready · /model compat/pod-fixture-pod-8/Fixture/Reasoner ⏎ ~$<spent> so far + storage.
+  the job ended
+  at the end, record watch-rents-and-sets-up: gone
+  at the end, record fixture-pod-8: jobKind=setup jobState=ready status=RUNNING step="ready" error=undefined steps=["waiting for SSH","checking engine","installing","building llama.cpp","downloading weights on the machine","starting engine","tunnel on 127.0.0.1:<port>","ready"]
 == a watch that rents a pod it cannot record
   record watch-rented-unrecorded patch jobState="running" error=undefined
   record watch-rented-unrecorded patch advancedAt=<at>
@@ -278,11 +333,11 @@
   a folder stands where the rented pod is to be recorded
   request POST Runpod /v2/pods
   log Rented Nemotron 3.5 Super VL 120B · 1× RTX PRO 6000 · $2.49/hr · setting up
-  record watch-rented-unrecorded patch jobState="failed" error="fixture-pod-8 was created but could not be recorded · Error: EISDIR: illegal operation on a directory, read · /llmhost → Machines I’m paying for"
-  log fixture-pod-8 was created but could not be recorded · Error: EISDIR: illegal operation on a directory, read · /llmhost → Machines I’m paying for
-  notice failed for watch-rented-unrecorded: Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · fixture-pod-8 was created but could not be recorded · Error: EISDIR: illegal operation on a directory, read · /llmhost → Machines I’m paying for
+  record watch-rented-unrecorded patch jobState="failed" error="fixture-pod-9 was created but could not be recorded · Error: EISDIR: illegal operation on a directory, read · /llmhost → Machines I’m paying for"
+  log fixture-pod-9 was created but could not be recorded · Error: EISDIR: illegal operation on a directory, read · /llmhost → Machines I’m paying for
+  notice failed for watch-rented-unrecorded: Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · fixture-pod-9 was created but could not be recorded · Error: EISDIR: illegal operation on a directory, read · /llmhost → Machines I’m paying for
   the job ended
-  at the end, record watch-rented-unrecorded: jobKind=watch jobState=failed status=WATCHING step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr" error="fixture-pod-8 was created but could not be recorded · Error: EISDIR: illegal operation on a directory, read · /llmhost → Machines I’m paying for" steps=["watching for stock ≤ $10.00/hr"]
+  at the end, record watch-rented-unrecorded: jobKind=watch jobState=failed status=WATCHING step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr" error="fixture-pod-9 was created but could not be recorded · Error: EISDIR: illegal operation on a directory, read · /llmhost → Machines I’m paying for" steps=["watching for stock ≤ $10.00/hr"]
 == a bank check on a folder that holds no sums
   record bank-check-no-sums patch jobState="running" error=undefined
   log bank-check-no-sums · verification failed: No SHA256SUMS in <home>/a-bank-with-no-sums/Qwen--Qwen3.8-27B-FP8 · b banks the weights and seals one. · b banks the weights again · /llmhost → Bank
