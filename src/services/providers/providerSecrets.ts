@@ -3,7 +3,8 @@ import { join } from 'node:path'
 import { DurablePublishError, durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { recordSignIn, noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
-import { getErrnoCode } from '../../utils/errors.js'
+import { errorMessage, getErrnoCode, isENOENT } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../utils/proofHomeGuard.js'
 
 const PROVIDER_SECRETS_VERSION = 1
@@ -111,7 +112,8 @@ function publishSecrets(mutate: (next: ProviderSecretsFile) => void): void {
         chmodSync(copy, 0o600)
       } catch {
       }
-    } catch {
+    } catch (error) {
+      if (!isENOENT(error)) logError(new Error(`the provider secrets store at ${path} is not valid JSON and could not be copied aside to ${copy} (${errorMessage(error)}), so this write replaces it with no backup`))
     }
   }
   const existing: ProviderSecretsFile = probe.state === 'ok' ? probe.file : { version: PROVIDER_SECRETS_VERSION }
@@ -503,7 +505,9 @@ export function publishAuthScopedJson(
     if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
       existing = parsed as Record<string, unknown>
     }
-  } catch {}
+  } catch (error) {
+    if (!isENOENT(error)) logError(new Error(`the auth file ${path} could not be read (${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}), so this write replaces it with only the new fields`))
+  }
   const next = mutate({ ...existing, version: 1 })
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
   try {
