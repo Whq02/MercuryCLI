@@ -159,7 +159,7 @@ export function readMarks(sessionId: string, id: string, n: number): SampleMarks
     return Array.isArray(raw) ? (raw as SampleMarksV1[]) : []
   } catch (err) {
     if (!isENOENT(err)) {
-      logForDebugging(`samples: the marks of ${id} v${n} could not be read — ${errorMessage(err)}`)
+      logForDebugging(`samples: the marks of ${id} v${n} could not be read — ${err instanceof SyntaxError ? 'the file is not valid JSON' : errorMessage(err)}`)
     }
     return []
   }
