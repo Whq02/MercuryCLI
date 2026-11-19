@@ -9,7 +9,6 @@ import {
   attachContext,
   buildContextBlocks,
   cancelInterview,
-  commitAnswer,
   detachContext,
   draftAnswer,
   imageRefNumericId,
@@ -39,9 +38,10 @@ import { cacheImagePath, storeImage } from '../../../utils/imageStore.js'
 import { logError } from '../../../utils/log.js'
 import { applyMarkdown } from '../../../utils/markdown.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
-import { composeAnswer, OTHER_OPTION_VALUE, projectQuestionState, type QuestionState } from './questionState.js'
-import { QuestionView } from './QuestionView.js'
-import { SubmitQuestionsView } from './SubmitQuestionsView.js'
+import { OTHER_OPTION_VALUE, projectQuestionState, type QuestionState } from './questionState.js'
+import './QuestionView.js'
+import './SubmitQuestionsView.js'
+import { currentQuestionView, handleQuestionAnswerOf, submitQuestionsViewOf } from './askUserQuestionParts.js'
 
 const MIN_CONTENT_HEIGHT = 12
 
@@ -239,38 +239,7 @@ function AskUserQuestionPermissionRequestBody(
   )
 
   const handleQuestionAnswer = useCallback(
-    (questionText: string, label: string | string[], textInput?: string, shouldAdvance = true) => {
-      const q = byText(questionText)
-      if (!q) return
-      const isMulti = Array.isArray(label)
-      const labels = isMulti ? label : [label]
-      const live = interviewSnapshot().questions[q.id]
-      const typed = textInput ?? live?.draft?.freeText ?? live?.committed?.freeText ?? ''
-      const hasImage = session.context.some(
-        c =>
-          c.kind === 'image' &&
-          (session.contextScope[c.refId] === undefined || session.contextScope[c.refId] === q.id),
-      )
-      const { commit, keptDraft } = composeAnswer({ question: q, labels, typed, hasImage })
-      commitAnswer(q.id, commit)
-      if (keptDraft) draftAnswer(q.id, keptDraft)
-      const isSingleQuestion = questions.length === 1
-      if (!isMulti && isSingleQuestion && shouldAdvance) {
-        handleSubmit().catch(logError)
-        return
-      }
-      if (shouldAdvance) {
-        if (editReturnRef.current === q.text) {
-          editReturnRef.current = null
-          setReviewFocusValue(q.text)
-          navigateTo('review')
-          return
-        }
-        const idx = questions.findIndex(x => x.id === q.id)
-        const next = questions[idx + 1]
-        navigateTo(next ? next.id : 'review')
-      }
-    },
+    (questionText: string, label: string | string[], textInput?: string, shouldAdvance = true) => handleQuestionAnswerOf({ byText, session, questions, handleSubmit, editReturnRef, setReviewFocusValue }, questionText, label, textInput, shouldAdvance),
     [byText, session, questions, handleSubmit],
   )
 
@@ -381,58 +350,8 @@ function AskUserQuestionPermissionRequestBody(
     void session.phase
   }, [session.phase])
 
-  if (currentQuestion) {
-    const legacyQuestion = toLegacyQuestion(currentQuestion)
-    const legacyQuestions = questions.map(toLegacyQuestion)
-    return (
-      <QuestionView
-        key={currentQuestion.id}
-        question={legacyQuestion}
-        questions={legacyQuestions}
-        currentQuestionIndex={currentQuestionIndex}
-        answers={answers}
-        questionStates={questionStates}
-        hideSubmitTab={hideSubmitTab}
-        minContentHeight={globalContentHeight}
-        minContentWidth={globalContentWidth}
-        onUpdateQuestionState={handleUpdateQuestionState}
-        onAnswer={handleQuestionAnswer}
-        onTextInputFocus={handleTextInputFocus}
-        onCancel={handleCancel}
-        onSubmit={handleTabNext}
-        onTabPrev={handleTabPrev}
-        onTabNext={handleTabNext}
-        onRespondToModel={() => void handleRespondToModel().catch(logError)}
-        onImagePaste={(base64, mediaType, filename, dims, path) =>
-          onImagePaste(currentQuestion.text, base64, mediaType, filename, dims, path)
-        }
-        pastedContents={chipContents}
-        onRemoveImage={id => onRemoveImage(currentQuestion.text, id)}
-        onNotesPasteLarge={handleNotesPasteLarge}
-      />
-    )
-  }
-  if (isInSubmitView) {
-    const noteByText: Record<string, string> = {}
-    for (const q of questions) {
-      const note = session.questions[q.id]?.note
-      if (note?.trim()) noteByText[q.text] = note.trim()
-    }
-    return (
-      <SubmitQuestionsView
-        questions={questions.map(toLegacyQuestion)}
-        currentQuestionIndex={currentQuestionIndex}
-        answers={answers}
-        notes={noteByText}
-        allQuestionsAnswered={allQuestionsAnswered}
-        permissionResult={toolUseConfirm.permissionResult}
-        minContentHeight={globalContentHeight}
-        onEditQuestion={handleEditQuestion}
-        initialFocusValue={reviewFocusValue}
-        onFinalResponse={handleFinalResponse}
-      />
-    )
-  }
+  if (currentQuestion) return currentQuestionView({ currentQuestion, toLegacyQuestion, questions, currentQuestionIndex, answers, questionStates, hideSubmitTab, globalContentHeight, globalContentWidth, handleUpdateQuestionState, handleQuestionAnswer, handleTextInputFocus, handleCancel, handleTabNext, handleTabPrev, handleRespondToModel, onImagePaste, chipContents, onRemoveImage, handleNotesPasteLarge })
+  if (isInSubmitView) return submitQuestionsViewOf({ questions, session, toLegacyQuestion, currentQuestionIndex, answers, allQuestionsAnswered, toolUseConfirm, globalContentHeight, handleEditQuestion, reviewFocusValue, handleFinalResponse })
   return null
 }
 
