@@ -321,7 +321,13 @@ name, and an alias under `set -o posix` too. One option is not: `extglob` is
 off when a command starts, whatever the files set, because Mercury reads a
 command's words without it; a function whose patterns need it switches it on
 in its own body. What the files export, and a `PATH` they set, is not carried
-either: a command starts from the environment Mercury was started with. A
+either: a command starts from the environment Mercury was started with.
+A background job a login file starts in that run, under `nohup` too, is ended
+when the run ends, and so is an `ssh-agent` the files started, by the pid they
+export in `SSH_AGENT_PID` once they are read; an agent that was already
+running is left alone. Start such a helper only in an interactive shell
+(`case $- in *i*) … ;; esac`) or outside the login files: a command reaches
+an `ssh-agent` through the environment Mercury was started with. A
 `~/.bashrc` that returns early for a shell that is not interactive carries
 nothing written below that line. A login file that ends the shell, hands it
 to another program or runs past the ten seconds carries nothing; commands
