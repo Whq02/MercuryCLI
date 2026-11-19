@@ -181,11 +181,19 @@ export function loginExportsCarried(exported: NodeJS.ProcessEnv): NodeJS.Process
   return carried
 }
 
+const SYSTEM_PROGRAM_FOLDERS: ReadonlySet<string> = new Set(['/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin'])
+
 export function pathWithLoginEntries(own: string, carried: NodeJS.ProcessEnv | undefined, platform: string = process.platform): string {
   const exported = Object.entries(carried ?? {}).find(([name]) => toolShellKey(name, platform) === 'PATH')?.[1] ?? ''
   const held = new Set(own.split(':'))
-  const added = [...new Set(exported.split(':'))].filter(entry => entry !== '' && !held.has(entry))
-  return added.length === 0 ? own : [...(own === '' ? [] : [own]), ...added].join(':')
+  const login = [...new Set(exported.split(':'))].filter(entry => entry !== '')
+  const added = login.filter(entry => !held.has(entry))
+  if (added.length === 0) return own
+  if (platform === 'win32') return [...(own === '' ? [] : [own]), ...added].join(':')
+  const ofTheLogin = new Set(login)
+  const front = [...held].filter(entry => entry !== '' && !(ofTheLogin.has(entry) && SYSTEM_PROGRAM_FOLDERS.has(entry)))
+  const kept = new Set(front)
+  return [...front, ...login.filter(entry => !kept.has(entry))].join(':')
 }
 
 const GIT_FOR_WINDOWS_ASKPASS_DISPLAY = 'needs-to-be-defined'

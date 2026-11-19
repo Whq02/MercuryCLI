@@ -418,10 +418,12 @@ async function commandSees(w: World, home: string, launcher: Record<string, stri
   return { value: name => lines.find(line => line.startsWith(`${name}=`))?.slice(name.length + 1) ?? '', home, brief: `${why} · ${JSON.stringify(result.slice(0, 700))}` }
 }
 
-function pathKeepsItsOwnFirst(seen: Seen, w: World, added: string): boolean {
+function pathTakesTheLoginOrder(seen: Seen, w: World, added: string): boolean {
   const own = w.launchPath.split(':')
   const path = seen.value('path').split(':')
-  return own.every((entry, at) => path[at] === entry) && path.indexOf(added) >= own.length
+  let at = 0
+  for (const entry of path) if (entry === own[at]) at++
+  return path[0] === own[0] && at === own.length && path.includes(added) && path.indexOf(added) < path.indexOf('/usr/bin')
 }
 
 const readsOf = (home: string): number => (existsSync(join(home, 'login-reads')) ? readFileSync(join(home, 'login-reads'), 'utf8').trim().split('\n').length : 0)
@@ -475,7 +477,7 @@ async function whatTheLoginFilesExport(): Promise<void> {
     const home = homeWith(w, { [login.file]: exportsOf(login.from) })
     const seen = await commandSees(w, home, bare(w, login))
     check(`${situation}: the variable reaches the command`, seen.value('foo') === `from-${login.from}`, seen.brief)
-    check(`${situation}: PATH keeps the launcher's folders first, in their order, and gains the folder the file adds`, pathKeepsItsOwnFirst(seen, w, join(home, `${login.from}-bin`)), `launcher ${w.launchPath} · command ${seen.value('path')}`)
+    check(`${situation}: PATH keeps the launcher's own folder first and its folders in their order, and the folder the file adds stands ahead of the system's folders, where a terminal has it`, pathTakesTheLoginOrder(seen, w, join(home, `${login.from}-bin`)), `launcher ${w.launchPath} · command ${seen.value('path')}`)
     check(`${situation}: the command still runs in bash, and what the shell keeps for itself is not carried (HISTFILE and PS1, which the file exports too)`, seen.value('shell') === 'bash' && seen.value('kept') === 'unset/unset', seen.brief)
     check(`${situation}: the file was read once for the session`, readsOf(home) === 1, `${readsOf(home)} read(s)`)
   }
@@ -484,7 +486,7 @@ async function whatTheLoginFilesExport(): Promise<void> {
     const w = world('exports-mine', unused)
     const home = homeWith(w, { [own.file]: exportsOf(own.from) })
     const seen = await commandSees(w, home, bare(w, own, { FOO: 'mine' }))
-    check(`started with FOO=mine where ~/${own.file} exports FOO: the command reads mine, and PATH still gains the file's folder`, seen.value('foo') === 'mine' && pathKeepsItsOwnFirst(seen, w, join(home, `${own.from}-bin`)), seen.brief)
+    check(`started with FOO=mine where ~/${own.file} exports FOO: the command reads mine, and PATH still gains the file's folder`, seen.value('foo') === 'mine' && pathTakesTheLoginOrder(seen, w, join(home, `${own.from}-bin`)), seen.brief)
   }
 
   {
