@@ -5,6 +5,7 @@ import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 import { writeSessionCloseReceipts } from '../../services/switchboard/sessionReceipts.js'
 import type { SessionKind } from '../../utils/sessionKind.js'
 import type { WorkspaceIsolation } from './admission.js'
+import { errorMessage } from '../../utils/errors.js'
 
 export interface ConcourseWorkerRecordV1 {
   schema: 1
@@ -154,7 +155,8 @@ export function stampParked(rec: ConcourseWorkerRecordV1, by: string, reason?: s
   delete rec.focusedBy
   try {
     writeSessionCloseReceipts(getProjectDir(rec.workspaceId), rec.sessionId, 'park', rec.agentName)
-  } catch {
+  } catch (err) {
+    console.error(`[daemon] ${rec.runnerId}: the park close receipts of session ${rec.sessionId} were not written: ${errorMessage(err)}`)
   }
 }
 
