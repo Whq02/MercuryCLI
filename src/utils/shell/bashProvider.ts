@@ -33,6 +33,9 @@ let frameFiles = 0
 
 const UTF8_CONSOLE = '{ chcp.com 65001 >/dev/null 2>&1 || true; }'
 
+const CMD_SWITCHES_AS_WRITTEN =
+  '{ cmd() { local a w=(); case "${1-}" in /[a-zA-Z]|/[a-zA-Z]:*) for a in "$@"; do case "$a" in /*/*) ;; /[a-zA-Z]*) a="/$a";; esac; w+=("$a"); done; set -- "${w[@]}";; esac; command cmd "$@"; }; alias cmd.exe=cmd 2>/dev/null || true; }'
+
 function msysSpawnArgs(commandString: string, noLoginFiles: boolean): string[] {
   const script = protectBackslashRunsFromMsysArgv(commandString)
   return noLoginFiles ? ['-c', script] : ['-c', '-l', script]
@@ -95,6 +98,7 @@ export async function createBashShellProvider(
       if (sessionScript) parts.push(sessionScript)
       const preamble = getGlobPreambleCommand(record.origin)
       if (preamble) parts.push(preamble)
+      if (isWindows) parts.push(CMD_SWITCHES_AS_WRITTEN)
       if (isWindows) parts.push(UTF8_CONSOLE)
       parts.push(`eval ${quotedCommand}`)
       parts.push(`{ { pwd -P >| ${quote([cwdFileInShell])}; } 2>/dev/null || true; }`)
