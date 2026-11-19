@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const distAt = process.argv.indexOf('--dist')
@@ -97,6 +97,19 @@ const { FREE_THE_PLANE_WORDS } = await import('../../src/daemon/main.ts')
 check('the refused-start words name `mercury daemon stop` and the hand remedy', /mercury daemon stop/.test(FREE_THE_PLANE_WORDS) && /end its pid by hand/.test(FREE_THE_PLANE_WORDS), FREE_THE_PLANE_WORDS)
 const mainSource = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
 check('the boot refusal line ("refusing to start so the live one is not clobbered") carries those words', /refusing to start so the live one is not clobbered · \$\{FREE_THE_PLANE_WORDS\}/.test(mainSource))
+
+if (process.platform !== 'win32') {
+  console.log('\n§3 a boot that fails after its own control socket is up says which step failed, names no holder, and leaves no link behind')
+  const file = join(scratch, 'failed-boot.txt')
+  const ran = spawnSync(process.execPath, [join(import.meta.dir, 'daemonRunScenarios.ts'), 'periodic-failed-boot', '--dist', dirname(DIST), '--out', file], { cwd: ROOT, env: process.env, stdio: ['ignore', 'ignore', 'inherit'], timeout: 240_000 })
+  const lines = existsSync(file) ? readFileSync(file, 'utf8').split('\n') : []
+  const failed = lines.filter(line => line.includes('control layer FAILED to start'))
+  const left = lines.filter(line => /^@ the (first|second) left: /.test(line))
+  check('two daemons were started and each boot failed with its control socket up, exit 1', ran.status === 0 && failed.length === 2 && lines.filter(line => / left: code 1 signal null$/.test(line)).length === 2 && lines.filter(line => line.includes('clock: rename control.sock')).length === 2, lines.slice(0, 8).join(' | ') || `the harness wrote no recording (exit ${ran.status})`)
+  check('each says which step of its start failed, with the error', failed.join(' | ').includes('FAILED to start at "the sessionless beat": Error: ') && failed.join(' | ').includes('FAILED to start at "the reconcile tick": Error: '), failed.join(' | '))
+  check('neither names itself as a daemon that holds the home: no holder is named and nobody is told to stop one', lines.filter(line => line.includes('gives the home back and exits: no other daemon holds the control socket')).length === 2 && !lines.some(line => /pid .*\) holds the control socket/.test(line) || line.includes('mercury daemon stop')), lines.filter(line => line.includes('gives the home back')).join(' | '))
+  check('neither leaves control.sock behind: the link to its own socket goes with the socket', left.length === 2 && left.every(line => !line.includes('control.sock')), left.join(' | '))
+}
 
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ control-layer-held PROVEN' : `\n❌ ${failures} FAILURE(S)`)

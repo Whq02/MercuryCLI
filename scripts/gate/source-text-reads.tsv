@@ -299,7 +299,7 @@ scripts/daemon/prove-daemon-handshake.ts	5	19	d096c230e141
 scripts/daemon/prove-daemon-home-census.ts	8	59	a5ad6360bec3
 scripts/daemon/prove-daemon-lock.ts	1	5	c24dc3f7fbaa
 scripts/daemon/prove-daemon-log-stamps.ts	1	3	c24dc3f7fbaa
-scripts/daemon/prove-daemon-owner-watch-budget.ts	4	12	fc96fc366058
+scripts/daemon/prove-daemon-owner-watch-budget.ts	4	11	fc96fc366058
 scripts/daemon/prove-daemon-stop-parks.ts	1	3	c24dc3f7fbaa
 scripts/daemon/prove-daemon-verbs.ts	4	37	ebb373ea7827
 scripts/daemon/prove-dispatch-death-settles.ts	1	8	c24dc3f7fbaa
@@ -309,7 +309,7 @@ scripts/daemon/prove-field-e004-daemon-skew.ts	4	13	3a0fc52ac2fc
 scripts/daemon/prove-field-findings-daemon-older.ts	1	3	82bc89e328ff
 scripts/daemon/prove-focus-one-writer.ts	7	24	9aea55a54bf8
 scripts/daemon/prove-headless-permission-mode.ts	2	4	d2188a2d3e2c
-scripts/daemon/prove-idle-daemon-launches-nothing.ts	3	6	b8c8624bf106
+scripts/daemon/prove-idle-daemon-launches-nothing.ts	2	4	46974cb624b7
 scripts/daemon/prove-install-fresh-folder.ts	1	1	a6c271ba6cae
 scripts/daemon/prove-interrupt-agent-wait.ts	6	18	3f1a4772978a
 scripts/daemon/prove-interrupt-keeps-runner.ts	3	23	f67c5ba90479
@@ -345,7 +345,7 @@ scripts/daemon/prove-schedule-roster-fresh.ts	1	6	c24dc3f7fbaa
 scripts/daemon/prove-seat-door-direct.ts	5	17	7109db76d33e
 scripts/daemon/prove-send-hops.ts	3	15	4da3397abdde
 scripts/daemon/prove-sessionless-daemon-exits.ts	1	3	c24dc3f7fbaa
-scripts/daemon/prove-start-token-forms.ts	15	29	c93e638f3d59
+scripts/daemon/prove-start-token-forms.ts	15	28	c93e638f3d59
 scripts/daemon/prove-starting-door.ts	2	2	9a334474f2a6
 scripts/daemon/prove-status-honesty.ts	1	2	2b5b3f61bbda
 scripts/daemon/prove-stop-acknowledged.ts	3	10	0f6fbf1a1d2b
@@ -354,7 +354,7 @@ scripts/daemon/prove-think-pulse-reading.ts	1	1	127bf0941f54
 scripts/daemon/prove-transient-publish-held-file.ts	1	4	02e14c981b0d
 scripts/daemon/prove-unattended-ask-denied.ts	2	3	0c0df0c6117d
 scripts/daemon/prove-warm-claim-binds-first.ts	3	6	c320f2950a6b
-scripts/daemon/prove-warm-runner.ts	12	29	ee756fd3b091
+scripts/daemon/prove-warm-runner.ts	12	28	ee756fd3b091
 scripts/daemon/prove-wire-answer-whole.ts	2	11	3842c9eb03d0
 scripts/daemon/prove-worker-liveness-identity.ts	2	3	6e5743284407
 scripts/daemon/prove-worker-recon.ts	2	5	7eac464fd3c7

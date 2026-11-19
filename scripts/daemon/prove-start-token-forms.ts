@@ -134,7 +134,6 @@ console.log('S6 who writes which form')
   check("a scratchpad's owner record is the instant", read('src/utils/scratchpad.ts').includes('getProcessStartInstantAsync(process.pid)'))
   const main = read('src/daemon/main.ts')
   check("the daemon record keeps startToken in today's bytes and carries the instant beside it", main.includes('const bootStartToken = await getProcessStartTokenAsync(process.pid)') && main.includes('startToken: bootStartToken,') && main.includes('...(bootStartInstant && bootStartInstant !== bootStartToken ? { startInstant: bootStartInstant } : {}),'))
-  check("the daemon's own identity for the sweep's verbs is the instant", main.includes("tokenBinding(bootStartInstant, expected.startToken) !== 'bound'"))
   for (const [file, line] of [
     ['src/substrate/pidLock.ts', 'return getProcessStartTokenAsync(holder.pid, holder.procStart)'],
     ['src/substrate/pidLock.ts', 'getProcessStartTokenCachedOrRefresh(holder.pid, undefined, holder.procStart)'],

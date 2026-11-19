@@ -1,7 +1,6 @@
 
 import { randomUUID } from 'crypto'
-import { existsSync, writeSync } from 'node:fs'
-import { unlink } from 'fs/promises'
+import { existsSync } from 'node:fs'
 import { join, resolve } from 'path'
 import { MERCURY_VERSION } from '../constants/product.js'
 import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
@@ -13,12 +12,10 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
 import { getRunTimeoutMs, scrubDaemonRoleEnv } from './headlessRun.js'
 import {
-  concourseWorkersPath,
   listConcourseWorkers,
   makeConcourseAdmitHandler,
   pauseConcourseWorker,
   readSessionWorkers,
-  reconcileConcourseWorkers,
   resumeConcourseWorker,
   settleConcourseWorker,
 } from './concourseWorkers.js'
@@ -70,11 +67,9 @@ import {
   leaveSession,
 } from './sessionSeat.js'
 import { resetSeatProjections } from '../services/engine-connector/seatProjections.js'
-import { sweepIdleEmptyConcourseSessions } from './idleRetirement.js'
 import {
   claimWarmRunner,
   ensureWarmRunner,
-  sweepIdleWarmRunners,
   warmRunnerCount,
   warmRunnerShorts,
 } from './warmRunner.js'
@@ -84,7 +79,7 @@ import { applyConcourseContractOp } from './sessionContract.js'
 import { dropSaturnSelfWakes, type SaturnSelfWakeDropWhy } from './saturn.js'
 import { deriveScheduleAccountForModel, liveFactsForSessionFire } from './saturnAccount.js'
 import { composeSignInView, refreshSignInReads } from './signInView.js'
-import { fileMoveStamp, startSaturnTicker } from './saturnTicker.js'
+import { startSaturnTicker } from './saturnTicker.js'
 import { makeSaturnBirthPort } from './saturnBirth.js'
 import { makeConcourseDispatchHandler, readConcourseControlOps, recordConcourseControlOp, buildConcoursePromptRow, failWorkingDispatchesForRunner, heldGitLaunchesFor, reconcileWorkingDispatches, replayGitBlockedDispatches, denyProceedLaunchesFor, replayDenyProceedDispatches } from './concourseDispatch.js'
 import { TaskRoster } from './roster.js'
@@ -97,15 +92,11 @@ import {
   getProcessStartTokenAsync,
 } from './ownerWatch.js'
 import { startControlServer } from './controlServer.js'
-import { tokenBinding, type ProcessSweepDaemonAnswer, type ProcessSweepRunnerRecord } from './processSweep.js'
-import { recordProcessCensusAtBoot, sweepRunnerRecord } from './processSweepRun.js'
 import { DAEMON_USAGE, parseDaemonVerb, daemonRecordIdentity } from './verbs.js'
 import { hostedCallerOf, hostedCallerRefusalLine, restartEndsHostedCaller } from './hostedCaller.js'
 import {
   acquireDaemonLock,
   clearDeadDaemonRecords,
-  clearDaemonState,
-  controlKeyPath,
   controlSockPath,
   currentVersion,
   daemonControlRpc,
@@ -117,25 +108,33 @@ import {
   daemonStatePath,
   writeDaemonState,
 } from './controlSocket.js'
-import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
-import { forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
+import { handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
 import { holdBuild, invokedScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, type PlaneBootFactsV1 } from './planeBoot.js'
-import { lockHeldByLivePidSync, readPlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
+import { lockHeldByLivePidSync, readPlaneOwnerSync } from './planeRecords.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidsOfHome } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { sleep } from '../utils/sleep.js'
-import { makeDaemonRunState, markDaemonReady } from './run/state.js'
+import { atBootStep, makeDaemonRunState, markDaemonReady } from './run/state.js'
 import { armHandoverBeats } from './run/handover.js'
 import { armPlaneHeal } from './run/heal.js'
 import { armOwnerWatch, makeSessionlessBeat, markHosted } from './run/owner.js'
 import { periodicArmer } from './run/periodic.js'
-import { bindWayOut, shutdownDaemon } from './run/shutdown.js'
+import { armWaysOut, bindWayOut, giveHomeBack, shutdownDaemon, stopVerb } from './run/shutdown.js'
 import { armedRestartBeat, restartWhenIdle, spawnSuccessorDaemon } from './run/restart.js'
+import { armReconcile, processSweep } from './run/sweep.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
   return arg ? resolve(arg) : process.cwd()
+}
+
+function persistDaemonCrash(err: unknown, label: string): void {
+  try {
+    const crashMod = require('../utils/crashReport.js') as typeof import('../utils/crashReport.js')
+    crashMod.persistCrashReport(err, undefined, label === 'uncaughtException' ? 'uncaught-exception' : 'unhandled-rejection')
+  } catch {
+  }
 }
 
 function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeDropWhy, roster: TaskRoster | null = null): void {
@@ -303,7 +302,6 @@ async function daemonRun(args: string[]): Promise<void> {
 
   let handoverPredecessor: number | null = null
   let handover: HandoverStateV1 | null = null
-  let planeServedByOther: PlaneOwnerV1 | null = null
   let roster: TaskRoster | null = null
   const state = makeDaemonRunState({ dir, bootBuildTree, foreground, breaker, maxInflight: MAX_INFLIGHT, controlEnabled })
   const { persist, readyPromise, startedAt } = state
@@ -354,9 +352,9 @@ async function daemonRun(args: string[]): Promise<void> {
       if (!state.teardownComplete) daemonExitTeardownSync('exit-before-teardown', code)
     })
     try {
-      await seatCeilingFactsAsync()
+      await atBootStep(state, 'the seat ceiling')(seatCeilingFactsAsync())
       state.releaseHeldReading = serveHeldReadingFromBackground()
-      roster = new TaskRoster({
+      roster = atBootStep(state, 'the roster')(new TaskRoster({
         dir,
         breaker,
         maxInflight: MAX_INFLIGHT,
@@ -414,10 +412,10 @@ async function daemonRun(args: string[]): Promise<void> {
             onSeatIdle(short, roster)
           }
         },
-      })
+      }))
       state.roster = roster
       if (handoverPredecessor === null) resetSeatProjections(dir)
-      const controlKey = handoverPredecessor === null ? await mintControlKey() : ((await readControlKey()) ?? (await mintControlKey()))
+      const controlKey = atBootStep(state, 'the control key')(handoverPredecessor === null ? await mintControlKey() : ((await readControlKey()) ?? (await mintControlKey())))
       const warmDeps = {
         roster: () => roster ?? undefined,
         onWarmSpawned: (short: string, workspaceId: string, pid: number | undefined) => {
@@ -482,7 +480,7 @@ async function daemonRun(args: string[]): Promise<void> {
         return asked
       }
       const restartNeeds = { liveWorkers, askLiveSessionsForFacts, requestShutdown: (signal: string) => requestShutdown(signal) }
-      const bootStartToken = await getProcessStartTokenAsync(process.pid)
+      const bootStartToken = await atBootStep(state, 'the start token')(getProcessStartTokenAsync(process.pid))
       const bootStartInstant = process.platform === 'win32' ? await getProcessStartInstantAsync(process.pid) : bootStartToken
       const persistDaemonRecord = (owner: number | null): Promise<void> =>
         writeDaemonState({
@@ -507,7 +505,7 @@ async function daemonRun(args: string[]): Promise<void> {
           handoverPredecessor,
           short => rosterRef?.has(short).present ?? false,
           () => Object.values(readSessionWorkersSnapshot().state === 'known' ? readSessionWorkers() : {}),
-          await readHandoverHosts(handoverPredecessor, controlKey),
+          await atBootStep(state, 'the handover take')(readHandoverHosts(handoverPredecessor, controlKey)),
         )
         state.handover = handover
         await persistDaemonRecord(state.currentOwnerPid)
@@ -519,7 +517,7 @@ async function daemonRun(args: string[]): Promise<void> {
       const handoverRef = handover
       {
         const rosterRef = roster
-        const left = await endRunnersLeftWithoutHost(short => (rosterRef?.has(short).present ?? false) || (handoverRef?.holds(short) ?? false))
+        const left = await atBootStep(state, 'the runners left without a host')(endRunnersLeftWithoutHost(short => (rosterRef?.has(short).present ?? false) || (handoverRef?.holds(short) ?? false)))
         if (left.length > 0) {
           console.error(`[daemon] ${left.length} runner${left.length === 1 ? '' : 's'} left by a daemon that died ${left.length === 1 ? 'was' : 'were'} ended: ${left.map(r => `${r.runnerId} (pid ${r.pid})`).join(', ')}; each session answers its next message on a fresh runner`)
           try {
@@ -548,7 +546,7 @@ async function daemonRun(args: string[]): Promise<void> {
           if (roster !== null) onSeatSpawned(runnerId, roster)
         },
       })
-      state.controlServer = await startControlServer({
+      state.controlServer = await atBootStep(state, 'the control server')(startControlServer({
         ...(handoverRef !== null
           ? {
               handover: {
@@ -897,30 +895,7 @@ async function daemonRun(args: string[]): Promise<void> {
               : { outcome: out.outcome, detail: out.reason },
           )
         },
-        onShutdown: async (reapWorkers, forwardedFromPlane) => {
-          const workers: ReturnType<NonNullable<typeof roster>['liveWorkerFacts']> = []
-          if (reapWorkers && roster) {
-            const live = roster.liveWorkerFacts()
-            const parked = parkAllConcourseSessions('daemon:stop', roster, undefined, { reason: 'parked — the daemon was stopped', afterTurn: false })
-            console.error(`[daemon] stop parks every active session: parked ${parked.parked.length}, released ${parked.released.length} newborn(s), skipped ${parked.skipped.length}${parked.refused.length > 0 ? `, refused ${parked.refused.join(', ')}` : ''}`)
-            for (const w of live) {
-              if (roster.kill(w.short)) workers.push(w)
-            }
-          }
-          const forwarded = forwardedFromPlane
-            ? []
-            : await Promise.all(
-                (handover?.predecessorPids() ?? []).map(pid => forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers, forwarded: true }), PREDECESSOR_SHUTDOWN_WAIT_MS).catch(() => null)),
-              )
-          let reaped = workers.length
-          for (const reply of forwarded) {
-            if (reply === null || !reply.ok || reply.op !== 'shutdown') continue
-            reaped += reply.reaped
-            workers.push(...(reply.workers ?? []))
-          }
-          setImmediate(() => requestShutdown('control:shutdown'))
-          return { reaped, workers }
-        },
+        onShutdown: (reapWorkers, forwardedFromPlane) => stopVerb(state, { requestShutdown: signal => requestShutdown(signal) }, reapWorkers, forwardedFromPlane),
         hello: () => ({
           version: currentVersion(),
           buildTree: bootBuildTree,
@@ -944,73 +919,27 @@ async function daemonRun(args: string[]): Promise<void> {
           return view
         },
         restartWhenIdle: by => restartWhenIdle(state, restartNeeds, by),
-        processSweep: async request => {
-          const snapshot = readSessionWorkersSnapshot()
-          const known = snapshot.state === 'known' ? snapshot.workers : null
-          const live = roster === null ? [] : roster.liveWorkerFacts()
-          const warm = new Set(warmRunnerShorts())
-          const runners: ProcessSweepRunnerRecord[] = []
-          const seen = new Set<string>()
-          for (const worker of live) {
-            const record = known?.[worker.short]
-            if (record !== undefined) seen.add(worker.short)
-            runners.push(sweepRunnerRecord(record, worker.pid ?? record?.pid, warm.has(worker.short)))
-          }
-          for (const [short, record] of Object.entries(known ?? {})) {
-            if (!seen.has(short)) runners.push(sweepRunnerRecord(record, record.pid, false))
-          }
-          const facts: ProcessSweepDaemonAnswer = { pid: process.pid, ownerPid: state.currentOwnerPid, ...liveWorkers(), persist, runners }
-          if (request.action === 'facts') return { ok: true, op: 'processSweep', action: 'facts', facts }
-          const refuse = (reason: string, road: 'daemon' | 'none' = 'daemon') => ({ ok: true as const, op: 'processSweep' as const, action: 'end' as const, ended: false, road, reason })
-          const expected = request.expected
-          if (expected === undefined) return refuse('no reviewed identity was given', 'none')
-          if (expected.kind === 'daemon') {
-            if (expected.process.pid !== process.pid || tokenBinding(bootStartInstant, expected.startToken) !== 'bound') return refuse('the reviewed identity is not this daemon', 'none')
-            if (persist || state.currentOwnerPid === null) return refuse('this daemon persists by its own posture')
-            if (isProcessAlive(state.currentOwnerPid)) return refuse(`the owner pid ${state.currentOwnerPid} is alive`)
-            const { live: liveNow, liveSessions } = liveWorkers()
-            if (liveNow > 0 || liveSessions > 0) return refuse(`${liveNow} live worker(s) use this daemon`)
-            if (runners.some(runner => !runner.warm && runner.endedAt === undefined && runner.stoppedAt === undefined && runner.parkedAt === undefined)) return refuse('an open session record is held here')
-            logForDebugging(`[daemon] process sweep: no owner, session, schedule or persistence holds pid ${process.pid} — shutting down at the operator's request`)
-            setImmediate(() => requestShutdown('control:processSweep'))
-            return { ok: true, op: 'processSweep', action: 'end', ended: true, road: 'daemon', reason: 'the daemon confirmed nothing uses it and shut itself down' }
-          }
-          if (expected.kind === 'runner') {
-            const match = runners.find(runner => runner.pid === expected.process.pid)
-            if (match === undefined || tokenBinding(match.procStart, expected.startToken) !== 'bound') return refuse('this daemon does not roster the reviewed runner', 'none')
-            if (match.warm) return refuse('a warm runner is held by the daemon')
-            if (match.endedAt === undefined && match.stoppedAt === undefined) return refuse('the runner\'s session is still open here')
-            const short = live.find(worker => worker.pid === match.pid)?.short ?? Object.entries(known ?? {}).find(([, record]) => record.pid === match.pid)?.[0]
-            if (short === undefined || roster === null || !roster.kill(short)) return refuse(`the daemon holds no live handle for the released runner pid ${match.pid}; if it is truly abandoned, end it by hand`, 'none')
-            logForDebugging(`[daemon] process sweep: killed the released runner ${short} (pid ${match.pid}) at the operator's request`)
-            return { ok: true, op: 'processSweep', action: 'end', ended: true, road: 'daemon', reason: 'the daemon killed its released runner' }
-          }
-          return refuse('only a daemon or a runner takes the daemon road', 'none')
-        },
-      }, { socketPath: process.platform === 'win32' ? controlSockPath() : predecessorSockPath(process.pid) })
-      await persistDaemonRecord(state.currentOwnerPid)
+        processSweep: request => processSweep(state, { liveWorkers, requestShutdown: signal => requestShutdown(signal), bootStartInstant }, request),
+      }, { socketPath: process.platform === 'win32' ? controlSockPath() : predecessorSockPath(process.pid) }))
+      await atBootStep(state, 'the daemon record')(persistDaemonRecord(state.currentOwnerPid))
       armPlaneHeal(state, {
         controlKey,
         persistDaemonRecord,
         askLiveSessionsForFacts,
-        planeReadAs: served => {
-          planeServedByOther = served
-          state.planeServedByOther = planeServedByOther
-        },
         armPeriodic,
       })
       armPeriodic('the armed-restart beat', () => armedRestartBeat(state, restartNeeds))
       armPeriodic('the sessionless beat', makeSessionlessBeat(state, { liveWorkers, requestShutdown: signal => requestShutdown(signal) }))
       armHandoverBeats(state, { handoverPredecessor, armPeriodic })
-      const { startHostJobSweep } = await import('../services/host/jobs.js')
+      const { startHostJobSweep } = await atBootStep(state, 'the host job sweep')(import('../services/host/jobs.js'))
       state.stopHostJobs = startHostJobSweep()
       markDaemonReady(state)
       console.error('[daemon] control socket up — RPC: list/has/status/dispatch/reply/kill/shutdown')
-      state.stopSaturnTicker = startSaturnTicker(
+      state.stopSaturnTicker = atBootStep(state, 'the Saturn ticker')(startSaturnTicker(
         {
           now: () => Date.now(),
           records: () => {
-            const superseded = planeServedByOther !== null && isProcessAlive(planeServedByOther.pid)
+            const superseded = state.planeServedByOther !== null && isProcessAlive(state.planeServedByOther.pid)
             return Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined && (superseded ? (roster?.has(r.runnerId).alive ?? false) : !(handover?.holds(r.runnerId) ?? false)))
           },
           liveFacts: (account, sessionId) => {
@@ -1063,7 +992,7 @@ async function daemonRun(args: string[]): Promise<void> {
         r => {
           console.error(`[daemon] saturn tick: ${r.fired} fired, ${r.replayed} replayed, ${r.held} held, ${r.missed} missed${r.dropped > 0 ? `, ${r.dropped} self-paced wake${r.dropped === 1 ? '' : 's'} dropped (stopped)` : ''}`)
         },
-      )
+      ))
       if (parseOwnerPid() !== null && flagEnv('MERCURY_DAEMON_NO_SELF_WARM') !== '1') {
         void ensureWarmRunner({ workspaceDir: dir, ...(flagEnv('MERCURY_DAEMON_SELF_WARM_CONSENT') === '1' ? { bypassConsent: true } : {}) }, warmDeps)
           .then(w => {
@@ -1073,61 +1002,11 @@ async function daemonRun(args: string[]): Promise<void> {
           })
           .catch(e => logForDebugging(`[daemon] boot self-warm failed (the first dispatch spawns cold): ${e}`))
       }
-      {
-        const rosteredOrHeld = (): Set<string> =>
-          new Set([...(roster ? roster.list().filter(j => !j.outcome).map(j => j.short) : []), ...(handover?.heldRunners() ?? [])])
-        const liveShorts = rosteredOrHeld()
-        const bootReconcile = reconcileConcourseWorkers(liveShorts)
-        void recordProcessCensusAtBoot({ rpc: async () => ({ ok: false, code: 'ENOTSUP', error: 'the daemon reads its own facts in-process' }) })
-          .then(census => logForDebugging(`[daemon] boot process census: ${census.entries.length} Mercury process(es) read, ${census.entries.filter(entry => entry.classification === 'stale').length} stale — nothing ended at boot`))
-          .catch(error => logForDebugging(`[daemon] boot process census failed: ${error}`))
-        let reconcileRosterSig = [...liveShorts].sort().join(' ')
-        let reconcileRecordsStamp = fileMoveStamp(concourseWorkersPath())
-        let reconcileHadLive = bootReconcile.live.length > 0
-        const reconcileTick = (): void => {
-          try {
-            if (!daemonHomeStands('the reconcile tick')) return
-            const live = rosteredOrHeld()
-            const rosterSig = [...live].sort().join(' ')
-            const stamp = fileMoveStamp(concourseWorkersPath())
-            if (rosterSig !== reconcileRosterSig || stamp !== reconcileRecordsStamp || reconcileHadLive) {
-              reconcileRosterSig = rosterSig
-              const receipt = reconcileConcourseWorkers(live)
-              reconcileHadLive = receipt.live.length > 0
-              try {
-                sweepIdleEmptyConcourseSessions(roster ?? undefined)
-              } catch (e) {
-                logForDebugging(`[daemon] idle retirement sweep threw (ignored): ${e}`)
-              }
-              reconcileRecordsStamp = fileMoveStamp(concourseWorkersPath())
-            }
-          } catch {
-          }
-          try {
-            sweepIdleWarmRunners(warmDeps)
-          } catch (e) {
-            logForDebugging(`[daemon] warm runner sweep threw (ignored): ${e}`)
-          }
-        }
-        armPeriodic('the reconcile tick', reconcileTick)
-      }
+      armReconcile(state, { warmDeps, armPeriodic })
     } catch (e) {
-      console.error(`[daemon] ${GLYPH.warn} control layer FAILED to start: ${e}`)
-      logForDebugging(`[daemon] control layer failed to start — giving the home back and exiting: ${e}`)
-      state.controlServer = null
       roster = null
       state.roster = roster
-      const holder = await planeAnswer(bootBuildTree).catch(() => null)
-      try {
-        writeSync(2, `[daemon] ${planeHeldLine(holder)}\n`)
-      } catch {}
-      await unlink(controlKeyPath()).catch(() => {})
-      await clearDaemonState()
-      if (process.platform !== 'win32') await unlink(predecessorSockPath(process.pid)).catch(() => {})
-      await state.daemonLock?.release().catch(() => {})
-      state.daemonLock = null
-      state.teardownComplete = true
-      process.exit(1)
+      await giveHomeBack(state, { planeAnswer, planeHeldLine }, e)
     }
   }
 
@@ -1137,31 +1016,7 @@ async function daemonRun(args: string[]): Promise<void> {
     const shutdown = (signal: string): void => shutdownDaemon(state, wayOut, signal)
     const ownerNeeds = { shutdown }
     requestShutdown = bindWayOut(state, shutdown)
-    armDaemonHomeWatch(daemonDir(), where => {
-      shutdown(`home-gone: the daemon directory ${daemonDir()} is gone, noticed at ${where}; the world ended and nothing more is written`)
-    })
-    process.on('SIGINT', () => shutdown('SIGINT'))
-    process.on('SIGTERM', () => shutdown('SIGTERM'))
-    process.on('SIGHUP', () => shutdown('SIGHUP'))
-    process.on('SIGBREAK', () => shutdown('SIGBREAK'))
-
-    const crashShutdown = (label: string, err: unknown): void => {
-      console.error(`[daemon] ${label} — reaping workers + control socket, then exiting:`, err)
-      try {
-        const crashMod = require('../utils/crashReport.js') as typeof import('../utils/crashReport.js')
-        crashMod.persistCrashReport(err, undefined, label === 'uncaughtException' ? 'uncaught-exception' : 'unhandled-rejection')
-      } catch {
-      }
-      try {
-        shutdown(label)
-      } catch (e) {
-        logForDebugging(`[daemon] crash shutdown threw: ${e}`)
-      }
-      const bail = setTimeout(() => process.exit(1), 2000)
-      bail.unref?.()
-    }
-    process.on('uncaughtException', err => crashShutdown('uncaughtException', err))
-    process.on('unhandledRejection', reason => crashShutdown('unhandledRejection', reason))
+    armWaysOut({ shutdown, persistCrash: persistDaemonCrash })
     if (state.currentOwnerPid !== null && !persist) {
       void armOwnerWatch(state, ownerNeeds, state.currentOwnerPid, true)
     }
@@ -1169,12 +1024,12 @@ async function daemonRun(args: string[]): Promise<void> {
 }
 
 const SUCCESSOR_LOCK_WAIT_MS = 10_000
-const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
 
 export const FREE_THE_PLANE_WORDS = '`mercury daemon stop` asks the daemon that holds this home to leave (it answers over the control pipe from any Mercury build); if it does not answer, end its pid by hand, then start again'
 
 function planeHeldLine(holder: { pid: number; buildTree: string | null } | null, plane: string = controlSockPath(), stateFile: string = daemonStatePath()): string {
   const door = process.platform === 'win32' ? 'control pipe' : 'control socket'
+  if (holder !== null && holder.pid === process.pid) return `this daemon gives the home back and exits: no other daemon holds the ${door} ${plane} — start again`
   if (holder !== null) {
     return `this daemon gives the home back and exits: pid ${holder.pid} (build ${holder.buildTree ?? 'unstamped'}) holds the ${door} ${plane} — ${FREE_THE_PLANE_WORDS}`
   }

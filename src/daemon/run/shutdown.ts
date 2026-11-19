@@ -1,13 +1,36 @@
+import { lstatSync, readlinkSync, unlinkSync, writeSync } from 'node:fs'
+import { unlink } from 'fs/promises'
+import { basename } from 'path'
+import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { recordSpawnExit } from '../../utils/spawnLedger.js'
-import { clearControlKey, clearDaemonState, markDaemonStoppingSync } from '../controlSocket.js'
+import { parkAllConcourseSessions } from '../concourseWorkers.js'
+import { clearControlKey, clearDaemonState, controlKeyPath, controlSockPath, daemonDir, markDaemonStoppingSync } from '../controlSocket.js'
+import { armDaemonHomeWatch } from '../daemonHome.js'
+import { forwardFrame, predecessorSockPath } from '../handover.js'
 import { supersededByLivePlaneOwnerSync } from '../planeRecords.js'
 import type { DaemonRunState } from './state.js'
+
+const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
 
 interface ShutdownNeeds {
   keepAlive: ReturnType<typeof setInterval>
   resolveShutdown: () => void
   spawnSuccessorDaemon: () => number | undefined
+}
+
+interface StopNeeds {
+  requestShutdown: (signal: string) => void
+}
+
+interface WaysOutNeeds {
+  shutdown: (signal: string) => void
+  persistCrash: (err: unknown, label: string) => void
+}
+
+interface FailedBootNeeds {
+  planeAnswer: (bootBuildTree: string | null) => Promise<{ pid: number; buildTree: string | null } | null>
+  planeHeldLine: (holder: { pid: number; buildTree: string | null } | null) => string
 }
 
 interface WayOutStep {
@@ -224,4 +247,84 @@ export function shutdownDaemon(state: DaemonRunState, needs: ShutdownNeeds, sign
   })()
   const bail = setTimeout(() => process.exit(1), 15_000)
   bail.unref?.()
+}
+
+export async function stopVerb(state: DaemonRunState, { requestShutdown }: StopNeeds, reapWorkers: boolean, forwardedFromPlane: boolean): Promise<{ reaped: number; workers: ReturnType<NonNullable<DaemonRunState['roster']>['liveWorkerFacts']> }> {
+  const { roster, handover } = state
+  const workers: ReturnType<NonNullable<typeof roster>['liveWorkerFacts']> = []
+  if (reapWorkers && roster) {
+    const live = roster.liveWorkerFacts()
+    const parked = parkAllConcourseSessions('daemon:stop', roster, undefined, { reason: 'parked — the daemon was stopped', afterTurn: false })
+    console.error(`[daemon] stop parks every active session: parked ${parked.parked.length}, released ${parked.released.length} newborn(s), skipped ${parked.skipped.length}${parked.refused.length > 0 ? `, refused ${parked.refused.join(', ')}` : ''}`)
+    for (const w of live) {
+      if (roster.kill(w.short)) workers.push(w)
+    }
+  }
+  const forwarded = forwardedFromPlane
+    ? []
+    : await Promise.all(
+        (handover?.predecessorPids() ?? []).map(pid => forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers, forwarded: true }), PREDECESSOR_SHUTDOWN_WAIT_MS).catch(() => null)),
+      )
+  let reaped = workers.length
+  for (const reply of forwarded) {
+    if (reply === null || !reply.ok || reply.op !== 'shutdown') continue
+    reaped += reply.reaped
+    workers.push(...(reply.workers ?? []))
+  }
+  setImmediate(() => requestShutdown('control:shutdown'))
+  return { reaped, workers }
+}
+
+export function armWaysOut({ shutdown, persistCrash }: WaysOutNeeds): void {
+  armDaemonHomeWatch(daemonDir(), where => {
+    shutdown(`home-gone: the daemon directory ${daemonDir()} is gone, noticed at ${where}; the world ended and nothing more is written`)
+  })
+  process.on('SIGINT', () => shutdown('SIGINT'))
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGHUP', () => shutdown('SIGHUP'))
+  process.on('SIGBREAK', () => shutdown('SIGBREAK'))
+
+  const crashShutdown = (label: string, err: unknown): void => {
+    console.error(`[daemon] ${label} — reaping workers + control socket, then exiting:`, err)
+    persistCrash(err, label)
+    try {
+      shutdown(label)
+    } catch (e) {
+      logForDebugging(`[daemon] crash shutdown threw: ${e}`)
+    }
+    const bail = setTimeout(() => process.exit(1), 2000)
+    bail.unref?.()
+  }
+  process.on('uncaughtException', err => crashShutdown('uncaughtException', err))
+  process.on('unhandledRejection', reason => crashShutdown('unhandledRejection', reason))
+}
+
+function unpublishOwnPlane(): void {
+  const plane = controlSockPath()
+  try {
+    if (lstatSync(plane, { throwIfNoEntry: false })?.isSymbolicLink() && readlinkSync(plane) === basename(predecessorSockPath(process.pid))) unlinkSync(plane)
+  } catch (e) {
+    logForDebugging(`[daemon] the published ${plane} could not be removed: ${e}`)
+  }
+}
+
+export async function giveHomeBack(state: DaemonRunState, { planeAnswer, planeHeldLine }: FailedBootNeeds, e: unknown): Promise<void> {
+  const { bootBuildTree } = state
+  console.error(`[daemon] ${GLYPH.warn} control layer FAILED to start at "${state.bootStep}": ${e}`)
+  logForDebugging(`[daemon] control layer failed to start — giving the home back and exiting: ${e}`)
+  state.controlServer = null
+  const holder = await planeAnswer(bootBuildTree).catch(() => null)
+  try {
+    writeSync(2, `[daemon] ${planeHeldLine(holder)}\n`)
+  } catch {}
+  await unlink(controlKeyPath()).catch(() => {})
+  await clearDaemonState()
+  if (process.platform !== 'win32') {
+    unpublishOwnPlane()
+    await unlink(predecessorSockPath(process.pid)).catch(() => {})
+  }
+  await state.daemonLock?.release().catch(() => {})
+  state.daemonLock = null
+  state.teardownComplete = true
+  process.exit(1)
 }

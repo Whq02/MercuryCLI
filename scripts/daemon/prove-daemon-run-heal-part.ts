@@ -123,6 +123,14 @@ const arm = (): State => {
   const state = makeDaemonRunState({ dir: home, bootBuildTree: OURS, foreground: false, breaker: new DaemonBreaker(), maxInflight: 1, controlEnabled: true })
   state.currentOwnerPid = 4242
   state.controlServer = { close: async () => {}, rebind: () => neighbour('bind the control socket again'), leaseCount: () => 0 }
+  let served: Owner | null = null
+  Object.defineProperty(state, 'planeServedByOther', {
+    get: () => served,
+    set: (next: Owner | null) => {
+      served = next
+      note(`the plane is read as served by ${next === null ? 'nobody else' : `pid ${next.pid}`}`)
+    },
+  })
   part.armPlaneHeal(state, {
     controlKey: 'the-key',
     persistDaemonRecord: owner => neighbour(`write the daemon record for owner ${owner}`),
@@ -130,7 +138,6 @@ const arm = (): State => {
       note('ask the live sessions for their facts')
       return ++asked
     },
-    planeReadAs: served => note(`the plane is read as served by ${served === null ? 'nobody else' : `pid ${served.pid}`}`),
     armPeriodic: ((name: string, work: () => void, also?: () => void) => {
       note(`arm "${name}"`)
       armed.floor = work
