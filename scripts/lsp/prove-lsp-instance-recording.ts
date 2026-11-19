@@ -377,10 +377,10 @@ try {
     step('two stops, the server not yet down')
     let firstResult: unknown
     let secondResult: unknown
-    const firstStop = instance.stop().then(result => {
+    const firstStop = instance.stop().then((result: unknown) => {
       firstResult = result
     })
-    const secondStop = instance.stop().then(result => {
+    const secondStop = instance.stop().then((result: unknown) => {
       secondResult = result
     })
     await turn()
@@ -492,8 +492,8 @@ try {
     step('a start in another call')
     await asked('start', () => instance.start())
     step('a start outside any call, twice')
-    await bounded(instance.start().then(() => say('  start -> undefined'), error => say(`  start -> refused ${told(error)}`)))
-    await bounded(instance.start().then(() => say('  start -> undefined'), error => say(`  start -> refused ${told(error)}`)))
+    await bounded(instance.start().then(() => say('  start -> undefined'), (error: unknown) => say(`  start -> refused ${told(error)}`)))
+    await bounded(instance.start().then(() => say('  start -> undefined'), (error: unknown) => say(`  start -> refused ${told(error)}`)))
     shot('rust')
     step('inside one call: a start, a second start, then a restart, which forgets the call that saw the failure')
     await runWithLspAbortSignal(undefined, async () => {
