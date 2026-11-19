@@ -2,6 +2,8 @@
 import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'fs'
 import { join, resolve, sep } from 'path'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
+import { errorMessage, isENOENT } from './errors.js'
+import { logError } from './log.js'
 import { getProjectTempDir } from './permissions/filesystem.js'
 
 const SCRATCH_LEASE_REGISTRY_VERSION = 1
@@ -30,7 +32,8 @@ function loadRegistry(): ScratchLease[] {
     const parsed = JSON.parse(readFileSync(registryPath(), 'utf8')) as RegistryFile
     if (parsed?.v !== SCRATCH_LEASE_REGISTRY_VERSION || !Array.isArray(parsed.leases)) return []
     return parsed.leases
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error)) logError(new Error(`scratch lease registry ${registryPath()} could not be read: ${errorMessage(error)}`))
     return []
   }
 }
