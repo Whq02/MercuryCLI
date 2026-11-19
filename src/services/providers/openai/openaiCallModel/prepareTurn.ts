@@ -5,8 +5,10 @@ import { mintCacheDomainKey } from '../../../../utils/cache/cacheDomain.js'
 import type { Tools } from '../../../../Tool.js'
 import type {
   AssistantMessage,
+  Message,
 } from '../../../../types/message.js'
 import type { CallModelParams } from '../../callModelContract.js'
+import { API_ERROR_MESSAGE_PREFIX } from '../../../api/errors.js'
 import {
   recordPromptState,
   type NeutralToolSchema,
@@ -21,6 +23,10 @@ import {
   resolveBehaviourContract,
   stableBehaviourDigest,
 } from '../../../../prompt/behaviourContract.js'
+import {
+  resolveOpenaiAccount,
+  resolveOpenaiRequestAuth,
+} from '../openaiAccounts.js'
 import { openaiCacheRetention } from '../openaiCacheRetention.js'
 import { getModelMaxOutputTokens, modelSupportsPDF } from '../../../../utils/model/capabilities.js'
 import { operatorModelFacts } from '../../../../utils/model/modelOverrides.js'
@@ -36,10 +42,11 @@ import { logForDebugging } from '../../../../utils/debug.js'
 import { planToolPayload, renderAdmissionRecordsAsText } from '../../toolEconomy.js'
 import { fitWireImages } from '../../../../utils/messages/imageRequestFit.js'
 import { OPENAI_IMAGE_LIMITS } from '../../../../constants/apiLimits.js'
-import { admitOpenaiTurn } from './admitTurn.js'
 import { resolveTurnEffort } from './turnEffort.js'
 import { bridgeTurnMessages } from './bridgeMessages.js'
 import { sendOpenaiGatewayProbe } from './gatewayProbe.js'
+import { apiErrorMessage } from './faults.js'
+import { qualifyRequestedModel } from './qualify.js'
 import type { OpenaiTurn } from './turnState.js'
 
 async function buildApiShapedTools(
@@ -74,15 +81,36 @@ async function buildApiShapedTools(
   return out
 }
 
-export async function* prepareOpenaiTurn(
-  params: CallModelParams,
-  deferralFormReissued: string | undefined,
-  resumeTrimReissued: string | undefined,
-): AsyncGenerator<AssistantMessage, OpenaiTurn | undefined> {
-  const { systemPrompt, tools, signal, options } = params
-  const admitted = yield* admitOpenaiTurn(params)
-  if (admitted === undefined) return
-  const { conversation4xxKey, messages, prior4xxCode, auth, qualification, modelId, candidate } = admitted
+export type TurnOpening = {
+  params: CallModelParams
+  deferralFormReissued: string | undefined
+  resumeTrimReissued: string | undefined
+  systemPrompt: CallModelParams['systemPrompt']
+  tools: CallModelParams['tools']
+  signal: CallModelParams['signal']
+  options: CallModelParams['options']
+  requestedId: string
+  conversation4xxKey: string
+  messages: Message[]
+  prior4xxCode: string | undefined
+  account: NonNullable<ReturnType<typeof resolveOpenaiAccount>>
+}
+
+export async function prepareOpenaiTurn(opening: TurnOpening): Promise<OpenaiTurn | { refusal: AssistantMessage }> {
+  const { params, deferralFormReissued, resumeTrimReissued, systemPrompt, tools, signal, options, requestedId, conversation4xxKey, messages, prior4xxCode, account } = opening
+  let auth = await resolveOpenaiRequestAuth({ sourceKind: account.kind })
+  if (!auth) {
+    return { refusal: apiErrorMessage(
+      `${API_ERROR_MESSAGE_PREFIX}: the ${account.label} source failed to produce request credentials (expired/revoked sign-in or missing key) — reconnect the OpenAI account. Model '${requestedId}' cannot run.`,
+    ) }
+  }
+
+  const qualification = await qualifyRequestedModel(requestedId, auth)
+  if (qualification.kind === 'refused') {
+    return { refusal: apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${qualification.message}`) }
+  }
+  const modelId = qualification.modelId
+  const candidate = qualification.kind === 'ok' ? qualification.candidate : undefined
 
   const plan = await planToolPayload({
     model: modelId,
