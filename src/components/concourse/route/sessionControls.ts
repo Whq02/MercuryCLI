@@ -2,7 +2,22 @@ import { logForDebugging } from '../../../utils/debug.js';
 import { markParkedCleared, OLDER_CHATS_ROW_PREFIX } from '../../../services/concourse/concourseSnapshot.js';
 import { removePrefixRecord } from '../../../services/providers/anthropic/prefixRecordStore.js';
 import { keyHintLabel } from '../../mercury-ui/keyHintLabel.js';
+import type { ControlNoteState } from '../contracts.js';
 import type { RouteControls } from './controlContext.js';
+
+async function clearedMarkWritten(sessionId: string): Promise<boolean> {
+  try {
+    await markParkedCleared(sessionId)
+    return true
+  } catch (e) {
+    logForDebugging(`[concourse] the cleared mark of ${sessionId} was not written, the row can come back: ${e}`)
+    return false
+  }
+}
+
+function clearedMarkMissedNote(): ControlNoteState {
+  return { state: 'failed', reason: 'released, but the board could not record it as cleared', next: `it may show again; ${keyHintLabel('⌃x ⌃x')} clears it then` }
+}
 
 async function restFocusedSlotAfterRelease(
   sessionId: string,
@@ -98,8 +113,8 @@ export function archiveSession({ noteControl, refresh, snapshotRef }: RouteContr
       const parkApplied = reply.ok === true && reply.outcome !== 'refused'
       const workers = await import('../../../daemon/concourseWorkers.js')
       const released = parkApplied && !Object.values(workers.readSessionWorkers()).some(r => r.sessionId === sessionId && r.endedAt === undefined)
+      const markWritten = released ? await clearedMarkWritten(sessionId) : true
       if (released) {
-        await markParkedCleared(sessionId).catch(() => {})
         removePrefixRecord(sessionId)
         await restFocusedSlotAfterRelease(sessionId, snapshotRef.current?.groups.flatMap(g => g.rows) ?? [])
       }
@@ -107,7 +122,9 @@ export function archiveSession({ noteControl, refresh, snapshotRef }: RouteContr
         'strip:composer',
         parkApplied
           ? released
-            ? { state: 'applied', reason: 'removed from the board — the chat held no message' }
+            ? markWritten
+              ? { state: 'applied', reason: 'removed from the board — the chat held no message' }
+              : clearedMarkMissedNote()
             : { state: 'applied', reason: `archived — the chat stands parked; ${keyHintLabel('⌃x ⌃x')} again in 5 s deletes it` }
           : { state: 'refused', reason: reply.detail ?? reply.error ?? `archive refused${reply.code !== undefined ? ` (${reply.code})` : ''}` },
       )
@@ -188,8 +205,8 @@ export function removeSession({ noteControl, refresh, snapshotRef }: RouteContro
           ? { ok: false, error: `the daemon that hosts sessions is not reachable and the runner is alive — ${keyHintLabel('⌃x ⌃x')} retries once the daemon is back` }
           : { ok: true, settled: workers.settleConcourseWorker(rec.runnerId) }
       }
+      const markWritten = reply.ok === true && reply.settled !== false ? await clearedMarkWritten(sessionId) : true
       if (reply.ok === true && reply.settled !== false) {
-        await markParkedCleared(sessionId).catch(() => {})
         removePrefixRecord(sessionId)
       }
       if (reply.ok === true && reply.settled !== false) {
@@ -198,7 +215,9 @@ export function removeSession({ noteControl, refresh, snapshotRef }: RouteContro
       noteControl(
         'strip:composer',
         reply.ok === true && reply.settled !== false
-          ? { state: 'applied', reason: 'removed from the board — the transcript survives' }
+          ? markWritten
+            ? { state: 'applied', reason: 'removed from the board — the transcript survives' }
+            : clearedMarkMissedNote()
           : {
               state: 'refused',
               reason:
