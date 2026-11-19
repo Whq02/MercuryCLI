@@ -125,7 +125,10 @@ type RepositoryLayout = { root: string; gitDir: string; commonDir: string; finge
 
 const layoutCache = new Map<string, RepositoryLayout>()
 
-class GitFactsUnread extends Error {}
+class GitFactsUnread extends Error {
+  readonly shortMessage = this.message
+  readonly stderr = this.message
+}
 
 function gitAnswered(error: unknown): boolean {
   if (error === null || typeof error !== 'object') return false
