@@ -182,6 +182,35 @@ async function carrierRpc(req: Record<string, unknown>, timeoutMs: number): Prom
   return (await daemonControlRpc(req as never, { timeoutMs })) as Record<string, unknown>
 }
 
+function modelSettledRow(settled: { from: string; to: string }): Message {
+  return createModelTransitionMessage({
+    previous: settled.from,
+    requested: settled.to,
+    applied: settled.to,
+    resolution: 'applied',
+    boundary: 'turn-boundary',
+    crossProvider:
+      providerFamilyOfSetting(settled.from) !==
+      providerFamilyOfSetting(settled.to),
+    cacheDisposition: 'keyed-sections-recompute-once',
+  }) as unknown as Message
+}
+
+async function questionOpenFor(sessionId: string): Promise<string | null> {
+  const open = await (await import('../crew/obligations.js')).openObligations({ scope: 'switchboard' })
+  const row = open.find(r => r.sessionId === sessionId && !(r.ref ?? '').startsWith('permission:'))
+  return row?.obligationId ?? null
+}
+
+function seatLabelsOf(record: DaemonSessionRecordV1): Pick<DaemonSessionRecordV1, 'title' | 'projectLabel'> & Partial<Pick<DaemonSessionRecordV1, 'isolation' | 'branchLabel'>> {
+  return {
+    title: liveTitleDeriver?.(record) ?? record.title,
+    projectLabel: record.projectLabel,
+    ...(record.isolation !== undefined ? { isolation: record.isolation } : {}),
+    ...(record.branchLabel !== undefined ? { branchLabel: record.branchLabel } : {}),
+  }
+}
+
 export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtensionV1 {
   readonly carrier = 'daemon' as const
 
@@ -565,19 +594,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       settled !== undefined &&
       prev.modelSettled?.atMs !== settled.atMs
     ) {
-      this.addDisplayRow(
-        createModelTransitionMessage({
-          previous: settled.from,
-          requested: settled.to,
-          applied: settled.to,
-          resolution: 'applied',
-          boundary: 'turn-boundary',
-          crossProvider:
-            providerFamilyOfSetting(settled.from) !==
-            providerFamilyOfSetting(settled.to),
-          cacheDisposition: 'keyed-sections-recompute-once',
-        }) as unknown as Message,
-      )
+      this.addDisplayRow(modelSettledRow(settled))
     }
     if (this.factsPart.followBusy()) this.carrierPart.armBusyStall()
     else this.carrierPart.disarmBusyStall()
@@ -609,15 +626,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private async openQuestion(): Promise<string | null> {
     try {
-      return await this.questionOpen()
+      return await questionOpenFor(this.record.sessionId)
     } catch {
       return null
     }
-  }
-  private async questionOpen(): Promise<string | null> {
-    const open = await (await import('../crew/obligations.js')).openObligations({ scope: 'switchboard' })
-    const row = open.find(r => r.sessionId === this.record.sessionId && !(r.ref ?? '').startsWith('permission:'))
-    return row?.obligationId ?? null
   }
   sessionId(): string {
     return this.record.sessionId
@@ -827,13 +839,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   status(): SeatStatusV1 {
-    return this.livePart.status({
-      title: liveTitleDeriver?.(this.record) ?? this.record.title,
-      projectLabel: this.record.projectLabel,
-      ...(this.record.isolation !== undefined ? { isolation: this.record.isolation } : {}),
-      ...(this.record.branchLabel !== undefined ? { branchLabel: this.record.branchLabel } : {}),
-      runner: this.admissionPart.runnerShown(this.factsPart.read()?.runner ?? null),
-    })
+    return this.livePart.status({ ...seatLabelsOf(this.record), runner: this.admissionPart.runnerShown(this.factsPart.read()?.runner ?? null) })
   }
 }
 
