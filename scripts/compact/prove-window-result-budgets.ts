@@ -124,7 +124,7 @@ try {
   const result = updates.flatMap(update => update.message?.message?.content ?? []).find(b => b.tool_use_id === id)
   check('tool execution on 128k window keeps 60,000-char result inline (raised to 76,800)', result !== undefined && result.content === text, String(result?.content).slice(0, 80))
   const conversation = new Conversation({ ...ctx, tools: [tool], initialMessages: [], contentReplacementState: undefined, readFileState: ctx.readFileState })
-  check('headless Conversation uses the interactive aggregate default', conversation.contentReplacementState.budgetChars !== Infinity)
+  check('headless Conversation uses the interactive aggregate default', conversation.state.contentReplacementState.budgetChars !== Infinity)
 
   console.log('\nrefusals')
   for (const [model, size] of [['local/room-8k', 50_000], ['local/room-32k', 50_000], ['local/room-128k', 76_800], ['local/room-200k', 120_000], ['local/room-zero', 50_000], ['local/not-listed', 50_000], [undefined, 50_000]] as const) {
