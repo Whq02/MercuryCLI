@@ -109,7 +109,11 @@ async function settleAgentOfTheLoginFiles(exported: string | undefined, began: B
     if (born === null) return
     agentsOfTheSession.add(pid)
     onExit(() => {
-      endProcessBornAt(pid, born)
+      try {
+        endProcessBornAt(pid, born)
+      } catch (error) {
+        logForDebugging(`the ssh-agent the login files started was not ended at exit: ${errorMessage(error)}`)
+      }
     })
     logForDebugging(`the ssh-agent the login files started (pid ${exported}) lives for this session and ends with it`)
   } catch (error) {
@@ -150,7 +154,7 @@ function runBounded(
         return
       }
       if (windowsLogin) {
-        if (child.exitCode === null && child.signalCode === null) treeEnded = endProcessTree(child, 'SIGKILL').catch(() => undefined)
+        if (child.exitCode === null && child.signalCode === null) treeEnded = endProcessTree(child, 'SIGKILL').catch((error: unknown) => logForDebugging(`the login run's tree was not ended: ${errorMessage(error)}`))
         return
       }
       try {
@@ -467,7 +471,8 @@ function zshOfTheUser(): string | null {
 function accountShell(): string | undefined {
   try {
     return userInfo().shell ?? undefined
-  } catch {
+  } catch (error) {
+    logForDebugging(`the account's shell was not read: ${errorMessage(error)}`)
     return undefined
   }
 }
@@ -574,7 +579,7 @@ export async function createAndSaveSnapshot(
     if (scriptFile !== undefined) await writeFile(scriptFile, script)
     const handed = scriptFile === undefined ? script : msysSourceLine(windowsPathToPosixPath(scriptFile))
     const outcome = await runBounded(shellPath, shell.origin === 'engine' ? ['-l', '-c', handed] : ['-c', '-l', handed], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
-    if (scriptFile !== undefined) await rm(scriptFile, { force: true }).catch(() => {})
+    if (scriptFile !== undefined) await rm(scriptFile, { force: true }).catch((error: unknown) => logForDebugging(`the login run's script file was not removed (${scriptFile}): ${errorMessage(error)}`))
     await readByZsh
     const carried = await carriedBy(outcome, session && zsh === null && !(shell.origin === 'engine' && getPlatform() === 'windows'))
     if (carried !== undefined) carriedFromBash.set(shellPath, carried)
