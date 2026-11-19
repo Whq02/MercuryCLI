@@ -69,7 +69,7 @@ check('every burst caller resolved (joiners share the flight)', true)
 appendFileSync(transcriptPath, 'appended-after-burst\n')
 await seam.tick()
 const sizeNow = statSync(transcriptPath).size
-const lastSize = (conn as unknown as { lastSize: number }).lastSize
+const lastSize = (conn as unknown as { transcriptPart: { lastSize: number } }).transcriptPart.lastSize
 check('the pass after an append reads the appended bytes (lastSize = on-disk size)', lastSize === sizeNow, `lastSize=${lastSize} disk=${sizeNow}`)
 
 conn.detach()

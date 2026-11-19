@@ -66,7 +66,7 @@ function mount(sessionId: string): { connector: { attach(): Promise<void>; detac
       factsFeedReads = read
     },
   })
-  const g = connector as unknown as Guts
+  const g = (connector as unknown as { transcriptPart: Guts }).transcriptPart
   return { connector, g, factsFeedReads }
 }
 const publishBusy = (sessionId: string, atMs: number): void => {

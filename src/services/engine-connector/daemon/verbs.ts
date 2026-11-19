@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
 import { submitTrace } from '../../../utils/submitTrace.js'
-import type { SessionLiveV1 } from '../seatLive.js'
 import type {
   AgentControlReceiptV1,
   BoardPostReceiptV1,
@@ -9,7 +8,6 @@ import type {
   RewindReceiptV1,
   RewindRequestV1,
   SendReceiptV1,
-  SessionAskV1,
 } from '../types.js'
 import { REFUSED_EMPTY } from './shared.js'
 
@@ -22,10 +20,6 @@ interface VerbsNeeds {
   verbChain(): Promise<unknown>
   tick(): Promise<void>
   readFacts(): void
-  live(): SessionLiveV1
-  asks(): readonly SessionAskV1[]
-  dropAsks(): void
-  pressInterrupt(): { hard: boolean; undo: () => void } | null
 }
 
 export class VerbsPart {
@@ -102,21 +96,6 @@ export class VerbsPart {
     } catch (e) {
       return { state: 'refused', detail: `the daemon was unreachable — ${e instanceof Error ? e.message : String(e)}` }
     }
-  }
-
-  interrupt(): boolean {
-    const wasRunning = this.needs.live().inFlight || this.needs.asks().length > 0
-    if (!wasRunning) return false
-    this.needs.dropAsks()
-    const press = this.needs.pressInterrupt()
-    if (press === null) return true
-    const { hard, undo } = press
-    void this.needs.chainRpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.needs.record().sessionId, by: 'operator', clientOpId: randomUUID(), ...(hard ? { hard: true } : {}) })
-      .then(reply => {
-        if (!(reply.ok === true && reply.outcome === 'applied')) undo()
-      })
-      .catch(undo)
-    return true
   }
 
   async backgroundShell(): Promise<AgentControlReceiptV1> {

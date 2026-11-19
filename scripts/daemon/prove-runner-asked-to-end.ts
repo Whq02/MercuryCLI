@@ -35,7 +35,7 @@ const seatOf = (held: ChildProcess, facts: { turnActive?: boolean; waitingOnAgen
   done: Promise.resolve(),
   longLived: { spec: {}, intentionalStop: false, turnEdges: 0, spawnGeneration: 1, turnActive: facts.turnActive ?? false, waitingOnAgents: facts.waitingOnAgents ?? 0 },
 })
-type Inside = { handles: Map<string, Seat>; classifyRow(short: string, seat: Seat['longLived'], row: Record<string, unknown>): void }
+type Inside = { handles: Map<string, Seat>; spawnPart: { classifyRow(short: string, seat: Seat['longLived'], row: Record<string, unknown>): void } }
 const rosterOf = (platform: NodeJS.Platform, boundMs: number, seat: Seat): TaskRoster => {
   const roster = new TaskRoster({ platform, runnerAskBoundMs: boundMs } as never)
   ;(roster as unknown as Inside).handles.set('held', seat)
@@ -64,9 +64,9 @@ section('S1 the roster knows a runner that waits on its crewmates')
   const seat = seatOf(held)
   const roster = rosterOf('win32', RUNNER_ASK_BOUND_MS, seat)
   const inside = roster as unknown as Inside
-  inside.classifyRow('held', seat.longLived, { type: 'turn', state: 'waiting', turn_id: 'one', agents: 2 })
+  inside.spawnPart.classifyRow('held', seat.longLived, { type: 'turn', state: 'waiting', turn_id: 'one', agents: 2 })
   const waited = seat.longLived.waitingOnAgents
-  inside.classifyRow('held', seat.longLived, { type: 'turn', state: 'waiting', turn_id: 'one', agents: 0 })
+  inside.spawnPart.classifyRow('held', seat.longLived, { type: 'turn', state: 'waiting', turn_id: 'one', agents: 0 })
   check('it keeps the count the runner’s own row says, and none once the row says none', waited === 2 && seat.longLived.waitingOnAgents === 0, `${waited} then ${seat.longLived.waitingOnAgents}`)
   held.kill('SIGKILL')
 }

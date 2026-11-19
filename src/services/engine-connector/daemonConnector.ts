@@ -9,6 +9,7 @@ import '../switchboard/sessionReceipts.js'
 import { storedImageRefBlock } from '../../utils/imageStore.js'
 import '../../utils/submitTrace.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { randomUUID } from 'node:crypto'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
 import { createModelTransitionMessage, createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
@@ -91,7 +92,7 @@ import '../compact/checkpointRewind.js'
 import { TranscriptPart } from './daemon/transcript.js'
 import { VerbsPart } from './daemon/verbs.js'
 import { DialsPart } from './daemon/dials.js'
-import { HEARTBEAT_MS, ProjectionFeed } from './daemon/feed.js'
+import { HEARTBEAT_MS, ProjectionFeed } from './projectionFeed.js'
 
 export interface DaemonSessionRecordV1 {
   sessionId: string
@@ -142,7 +143,7 @@ export function imageBlocksOf(pastes: Record<number, PastedContent>): ContentBlo
         }) as unknown as ContentBlockParam,
     )
 }
-export { HEARTBEAT_MS, PROJECTION_ABSENT, ProjectionFeed, projectionChangeKey } from './daemon/feed.js'
+export { HEARTBEAT_MS, PROJECTION_ABSENT, ProjectionFeed, projectionChangeKey } from './projectionFeed.js'
 const RPC_TIMEOUT_MS = 15_000
 export const IDLE_PROJECTION_FLOOR_MS = 10_000
 export { SEAT_VERB_SETTLE_MS } from './daemon/dials.js'
@@ -297,10 +298,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     verbChain: () => this.verbChain,
     tick: () => this.tick(),
     readFacts: () => this.readFacts(),
-    live: () => this.livePart.live(),
-    asks: () => this.asksPart.asks(),
-    dropAsks: () => this.asksPart.dropAll(),
-    pressInterrupt: () => this.livePart.pressInterrupt(),
   })
 
   private readonly dialsPart = new DialsPart({
@@ -322,7 +319,19 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private attached = false
 
   constructor(readonly record: DaemonSessionRecordV1, private readonly hands: ConnectorHands = {}) {
-    this.transcriptPart = new TranscriptPart(join(record.home, `${record.sessionId}.jsonl`), this.hands, {
+    this.transcriptPart = new TranscriptPart({
+      transcriptPath: join(record.home, `${record.sessionId}.jsonl`),
+      armWatcherByHand: () => {
+        if (this.hands.armTranscriptWatcher === undefined) return false
+        this.hands.armTranscriptWatcher()
+        return true
+      },
+      armTimerByHand: () => {
+        if (this.hands.armTranscriptTimer === undefined) return false
+        this.hands.armTranscriptTimer()
+        return true
+      },
+      tickByHand: pass => (this.hands.tickOnce === undefined ? undefined : this.hands.tickOnce(pass)),
       record: () => this.record,
       attached: () => this.attached,
       turnInFlight: () => this.turnInFlight,
@@ -651,7 +660,18 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   interrupt(): boolean {
-    return this.verbsPart.interrupt()
+    const wasRunning = this.livePart.live().inFlight || this.asksPart.asks().length > 0
+    if (!wasRunning) return false
+    this.asksPart.dropAll()
+    const press = this.livePart.pressInterrupt()
+    if (press === null) return true
+    const { hard, undo } = press
+    void this.chainRpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.record.sessionId, by: 'operator', clientOpId: randomUUID(), ...(hard ? { hard: true } : {}) })
+      .then(reply => {
+        if (!(reply.ok === true && reply.outcome === 'applied')) undo()
+      })
+      .catch(undo)
+    return true
   }
 
   recallableSend(): RecallableSendV1 | null {

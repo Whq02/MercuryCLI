@@ -19,8 +19,7 @@ const { publishSessionFacts } = await import('../../src/services/engine-connecto
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 
 type Seam = {
-  tickOnce: () => Promise<void>
-  rawRecords: unknown[]
+  transcriptPart: { tickOnce: () => Promise<void>; rawRecords: unknown[] }
   recomputeLive: () => void
   feedCadencesForProofs: () => { transcript: number; facts: number; asks: number; tail: number; progress: number }
   attach: () => Promise<void>
@@ -61,16 +60,16 @@ async function appendPass(label: string, turns: number): Promise<{ ms: number; o
   writeFileSync(path, lines.slice(0, -1).join('\n') + '\n')
   const conn = new DaemonSessionConnector({ sessionId, runnerId: 'concourse-w1', title: label, projectLabel: 'scratch', workspaceId: home, home }) as unknown as Seam
   await conn.attach()
-  const before = conn.rawRecords.length
-  const first = conn.rawRecords[0]
+  const before = conn.transcriptPart.rawRecords.length
+  const first = conn.transcriptPart.rawRecords[0]
   conn.recomputeLive()
   const cadences = conn.feedCadencesForProofs()
   appendFileSync(path, lines[lines.length - 1] + '\n')
   const t0 = performance.now()
-  await conn.tickOnce()
+  await conn.transcriptPart.tickOnce()
   const ms = performance.now() - t0
-  const after = conn.rawRecords.length
-  const ok = after === before + 1 && conn.rawRecords[0] === first
+  const after = conn.transcriptPart.rawRecords.length
+  const ok = after === before + 1 && conn.transcriptPart.rawRecords[0] === first
   check(`${label}: the append landed as one row (${before} → ${after}) and the first row kept its object`, ok)
   const load = lastLoadRow(sessionId)
   conn.detach()
@@ -134,12 +133,12 @@ check(
   const loadsFor = (): number => (existsSync(TRACE) ? readFileSync(TRACE, 'utf8').split('\n').filter(l => l.includes('"ev":"load"') && l.includes(sessionId)).length : 0)
   await conn.attach()
   const afterAttach = loadsFor()
-  for (let i = 0; i < 5; i++) await conn.tickOnce()
+  for (let i = 0; i < 5; i++) await conn.transcriptPart.tickOnce()
   check('§3 an absent transcript is read once (the attach) and gated on every heartbeat after', afterAttach === 1 && loadsFor() === 1, `loads after attach=${afterAttach} after 5 ticks=${loadsFor()}`)
   const lines = transcriptLines(sessionId, home, 1, 40)
   writeFileSync(join(home, `${sessionId}.jsonl`), lines.join('\n') + '\n')
-  await conn.tickOnce()
-  check('§3 the file appearing is read on the next pass', loadsFor() === 2 && conn.rawRecords.length === 3, `loads=${loadsFor()} rows=${conn.rawRecords.length}`)
+  await conn.transcriptPart.tickOnce()
+  check('§3 the file appearing is read on the next pass', loadsFor() === 2 && conn.transcriptPart.rawRecords.length === 3, `loads=${loadsFor()} rows=${conn.transcriptPart.rawRecords.length}`)
   conn.detach()
 }
 {

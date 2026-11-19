@@ -15,11 +15,14 @@ const PARTS: Readonly<Record<string, { file: string; type: string }>> = {
   carrierPart: { file: 'carrier.ts', type: 'CarrierPart' },
   completionPart: { file: 'completion.ts', type: 'CompletionPart' },
   deliveryPart: { file: 'delivery.ts', type: 'DeliveryPart' },
+  dialsPart: { file: 'dials.ts', type: 'DialsPart' },
   factsPart: { file: 'facts.ts', type: 'FactsPart' },
   foldPart: { file: 'fold.ts', type: 'FoldPart' },
   livePart: { file: 'live.ts', type: 'LivePart' },
   sendsPart: { file: 'sends.ts', type: 'SendsPart' },
   tailPart: { file: 'tail.ts', type: 'TailPart' },
+  transcriptPart: { file: 'transcript.ts', type: 'TranscriptPart' },
+  verbsPart: { file: 'verbs.ts', type: 'VerbsPart' },
   workPart: { file: 'work.ts', type: 'WorkPart' },
 }
 
@@ -27,9 +30,7 @@ const OF_THE_DOOR: readonly string[] = ['carrier', 'record', 'hands', 'attached'
 
 const REACHED_BY_PROOFS: readonly string[] = ['textRows', 'liveStateWord']
 
-const AWAITING_THEIR_PART: Readonly<Record<string, readonly string[]>> = {
-  transcript: ['rawRecords', 'recordSigs', 'painted', 'keptRecords', 'answeredRows', 'liveState', 'displayRows', 'clearModelReceipt', 'rowsAfterTail', 'lastSize', 'lastLen', 'transcriptUnreadableFp', 'chainCursor', 'liveFold', 'releaseTranscript', 'transcriptWatcher', 'transcriptTimer', 'transcriptTimerMs', 'tickInFlight', 'tickDirty', 'transcriptPath', 'recordListeners'],
-}
+const AWAITING_THEIR_PART: Readonly<Record<string, readonly string[]>> = {}
 
 const STEPPED_BY_A_HAND: Readonly<Record<string, string>> = { readFacts: 'factsRead' }
 
