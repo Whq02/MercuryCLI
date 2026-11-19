@@ -14,8 +14,6 @@ import {
 } from 'node:fs'
 import * as path from 'node:path'
 import { getMercuryHome } from '../envUtils.js'
-import { errorMessage, getErrnoCode, isENOENT } from '../errors.js'
-import { logError } from '../log.js'
 import {
   classifyReadFailure,
   sourceEmpty,
@@ -95,8 +93,9 @@ export function artifactLockOwnedBy(lock: string, token: string): boolean {
   try {
     return readFileSync(path.join(lock, 'owner'), 'utf8') === token
   } catch (error) {
-    if (isENOENT(error)) return true
-    logError(new Error(`review artifact lock ${lock}: its owner could not be read, so the lock is left in place — ${errorMessage(error)}`))
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return true
+    const message = error instanceof Error ? error.message : String(error)
+    void import('../log.js').then(({ logError }) => logError(new Error(`review artifact lock ${lock}: its owner could not be read, so the lock is left in place — ${message}`)))
     return false
   }
 }
@@ -124,12 +123,12 @@ function withArtifactLock<T>(id: string, fn: () => T): T {
           continue
         }
       } catch (lockFailure) {
-        const held = getErrnoCode(mkdirFailure) === 'EEXIST'
-        if (held && isENOENT(lockFailure)) continue
+        const held = (mkdirFailure as NodeJS.ErrnoException).code === 'EEXIST'
+        if (held && (lockFailure as NodeJS.ErrnoException).code === 'ENOENT') continue
         untaken = held ? lockFailure : mkdirFailure
       }
       if (Date.now() > deadline) {
-        throw new Error(untaken === undefined ? `the artifact '${id}' write lock is held (waited ${LOCK_TIMEOUT_MS}ms)` : `the artifact '${id}' write lock could not be taken (waited ${LOCK_TIMEOUT_MS}ms): ${errorMessage(untaken)}`)
+        throw new Error(untaken === undefined ? `the artifact '${id}' write lock is held (waited ${LOCK_TIMEOUT_MS}ms)` : `the artifact '${id}' write lock could not be taken (waited ${LOCK_TIMEOUT_MS}ms): ${untaken instanceof Error ? untaken.message : String(untaken)}`)
       }
       sleepSync(15)
     }
