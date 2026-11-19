@@ -2,12 +2,13 @@ import * as React from 'react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { Box, Text, useInput, wrapText } from '../../ink.js'
 import type { DOMElement } from '../../ink.js'
-import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
-import { PopupScrollViewport } from '../../components/CustomSelect/popup-list.js'
+import '../../ink/components/ScrollBox.js'
+import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
+import '../../components/CustomSelect/popup-list.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mercuryPalette.js'
-import { ProductLockup, SectionHeader, StateBadge } from '../../components/mercury-ui/components.js'
+import '../../components/mercury-ui/components.js'
 import { padTo, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
 import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js'
 import { CursorCell } from '../../components/mercury-ui/LiveGlyphs.js'
@@ -35,6 +36,7 @@ import {
 } from '../../utils/healthReport.js'
 import { isFixable } from '../../utils/healthCertCore.js'
 import { applyRemedy, healthFixEnabled, type AppliedFix } from '../../utils/healthFix.js'
+import { healthCertificateView } from './healthCertificate/healthCertificateView.js'
 
 
 const TONE_COLOR: Record<(typeof HEALTH_STATUS_META)[HealthStatus]['tone'], string> = {
@@ -178,7 +180,7 @@ function CheckRow({
   )
 }
 
-type FixFlow =
+export type FixFlow =
   | { phase: 'confirm'; check: HealthCheck }
   | { phase: 'running'; check: HealthCheck }
   | { phase: 'done'; check: HealthCheck; outcome: AppliedFix }
@@ -504,86 +506,7 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
       ? `◐ Checking…${progress ? ` ${progress.done}/${progress.total} · ${progress.current}` : ''}`
       : `▲ Health check failed — r retries${loadError ? ` · ${loadError}` : ''}`
 
-  return (
-    <Box ref={elevatedRef} flexDirection="column" width={width} flexShrink={0} borderStyle="round" borderColor={tok.borderStrong} paddingX={1} opaque={true} {...(ground !== undefined ? { backgroundColor: ground } : {})}>
-      <Box flexDirection="row" height={1} overflow="hidden">
-        <ProductLockup view={HEALTH_POPUP_VIEW} separator=" · " />
-        {cert && meta ? (
-          <Text wrap="truncate-end">
-            <Text color={FAINT}> · </Text>
-            <StateBadge state={meta.state} label={meta.label} />
-          </Text>
-        ) : null}
-      </Box>
-      {layout.compact ? null : (
-        <Box height={1}>
-          <Text color={loading ? FAINT : AMBER} wrap="truncate-end">{statusLine}</Text>
-        </Box>
-      )}
-      {layout.compact ? null : (
-        <Box height={1}>
-          {counts ? (
-            <Text color={FAINT} wrap="truncate-end">
-              {checks.length} checks
-              {counts.fail ? <Text color={CRIMSON}> · {counts.fail} fail</Text> : null}
-              {counts.stale ? <Text color={AMBER}> · {counts.stale} stale</Text> : null}
-              {counts.warn ? <Text color={AMBER}> · {counts.warn} warn</Text> : null}
-              {counts.unknown ? <Text color={SECOND}> · {counts.unknown} unknown</Text> : null}
-              {counts.ok ? <Text color={TEAL}> · {counts.ok} ok</Text> : null}
-              {counts.off ? <Text color={FAINT}> · {counts.off} off</Text> : null}
-              {counts.info ? <Text color={FAINT}> · {counts.info} info</Text> : null}
-            </Text>
-          ) : null}
-        </Box>
-      )}
-      {layout.compact ? null : <Box height={1} />}
-      {fixFlow ? (
-        <Box flexDirection="column" maxHeight={layout.cardRows} overflow="hidden" flexShrink={0}>
-          <FixCard flow={fixFlow} />
-        </Box>
-      ) : null}
-      <PopupScrollViewport scrollRef={scrollRef}>{scrolls => (
-      <ScrollBox ref={scrollRef} height={layout.listRows} flexShrink={0} flexDirection="column">
-        {layout.compact && statusLine !== null ? <Text color={loading ? FAINT : AMBER} wrap="truncate-end">{statusLine}</Text> : null}
-        {actions.length > 0 ? (
-          <Box flexDirection="column">
-            <SectionHeader marginTop={0}>NEXT</SectionHeader>
-            {actions.map((a, i) => (
-              <Text key={i} wrap="truncate-end">
-                <Text color={statusColor(a.status)}>{HEALTH_STATUS_META[a.status].glyph} </Text>
-                <Text color={IVORY}>{a.fix}</Text>
-              </Text>
-            ))}
-          </Box>
-        ) : null}
-        {sections.map((section, sectionIndex) => (
-          <Box key={section.id} flexDirection="column">
-            <SectionHeader marginTop={sectionIndex === 0 && actions.length === 0 ? 0 : 1}>{section.title}</SectionHeader>
-            {section.checks.map(c => {
-              const index = checks.findIndex(candidate => candidate.id === c.id)
-              return (
-                <CheckRow
-                  key={c.id}
-                  check={c}
-                  active={selId === c.id}
-                  open={openId === c.id}
-                  width={Math.max(1, innerW - (scrolls ? 1 : 0))}
-                  rowRef={selId === c.id ? selRowRef : undefined}
-                  onSelect={() => moveTo(index)}
-                  onActivate={() => toggleOpen(index)}
-                />
-              )
-            })}
-          </Box>
-        ))}
-      </ScrollBox>
-      )}</PopupScrollViewport>
-      {layout.legend ? <Box height={1} /> : null}
-      <Box height={1} width={innerW + 1} marginRight={-1}>
-        <Text color={tok.textMuted} wrap="truncate-end">{footer}</Text>
-      </Box>
-    </Box>
-  )
+  return healthCertificateView({ tok, elevatedRef, width, innerW, ground, cert, loading, openId, fixFlow, checks, scrollRef, selRowRef, moveTo, toggleOpen, selId, counts, meta, actions, sections, layout, footer, statusLine, statusColor, HEALTH_POPUP_VIEW, CheckRow, FixCard })
 }
 
 export { MercuryHealthCertificate }
