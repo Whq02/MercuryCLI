@@ -28,18 +28,31 @@ export interface PlaneOwnerV1 {
   alive: boolean
 }
 
-export function readPlaneOwnerSync(path: string = daemonStatePath()): PlaneOwnerV1 | null {
+type PlaneRecordReadV1 = { state: 'missing' } | { state: 'unreadable'; why: string } | { state: 'read'; owner: PlaneOwnerV1 }
+
+export function readPlaneRecordSync(path: string = daemonStatePath()): PlaneRecordReadV1 {
+  let parsed: { pid?: unknown; buildTree?: unknown } | null
   try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as { pid?: unknown; buildTree?: unknown }
-    if (typeof parsed?.pid !== 'number' || !Number.isInteger(parsed.pid) || parsed.pid <= 0) return null
-    return {
+    parsed = JSON.parse(readFileSync(path, 'utf8')) as { pid?: unknown; buildTree?: unknown } | null
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return { state: 'missing' }
+    return { state: 'unreadable', why: error instanceof SyntaxError ? 'it is not valid JSON' : (code ?? (error instanceof Error ? error.message : String(error))) }
+  }
+  if (typeof parsed?.pid !== 'number' || !Number.isInteger(parsed.pid) || parsed.pid <= 0) return { state: 'unreadable', why: 'it names no daemon pid' }
+  return {
+    state: 'read',
+    owner: {
       pid: parsed.pid,
       buildTree: typeof parsed.buildTree === 'string' ? parsed.buildTree : null,
       alive: isProcessAlive(parsed.pid),
-    }
-  } catch {
-    return null
+    },
   }
+}
+
+export function readPlaneOwnerSync(path: string = daemonStatePath()): PlaneOwnerV1 | null {
+  const record = readPlaneRecordSync(path)
+  return record.state === 'read' ? record.owner : null
 }
 
 export function supersededByLivePlaneOwnerSync(selfPid: number = process.pid): PlaneOwnerV1 | null {

@@ -68,8 +68,14 @@ export function signOutAnthropicSlot(
 export function executeSlotRemoval(
   slot: AccountSlot,
   owners: SlotRemovalOwners = {},
-): { note: string; mutated: boolean } {
-  const outcome = routeSlotRemoval(slot, owners)
+): { note: string; mutated: boolean; refused?: true } {
+  let outcome: { note: string; mutated: boolean }
+  try {
+    outcome = routeSlotRemoval(slot, owners)
+  } catch (error) {
+    if (!(error instanceof Error) || typeof (error as NodeJS.ErrnoException).code !== 'string') throw error
+    return { note: `Could not sign out: ${error.message}`, mutated: false, refused: true }
+  }
   if (outcome.mutated) afterCredentialLeft(slot)
   return outcome
 }

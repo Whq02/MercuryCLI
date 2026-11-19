@@ -6,7 +6,7 @@ import { controlKeyPath, controlSockPath, daemonStatePath, reassertControlKey } 
 import { daemonHomeStands } from '../daemonHome.js'
 import { deployedRuntime, predecessorSockPath, releaseVersionsDir } from '../handover.js'
 import { sameBuildTree } from '../planeBoot.js'
-import { readPlaneOwnerSync } from '../planeRecords.js'
+import { readPlaneOwnerSync, readPlaneRecordSync } from '../planeRecords.js'
 import type { periodicArmer } from './periodic.js'
 import type { DaemonRunState } from './state.js'
 
@@ -24,6 +24,7 @@ export function armPlaneHeal(state: DaemonRunState, { controlKey, persistDaemonR
   const INSTALLED_POINTER_NAMES = new Set(['current', 'dist', 'current.txt'])
   let healInflight = false
   let healQueued = false
+  let recordUnreadSaid: string | undefined
   const ownSockPath = process.platform === 'win32' ? null : predecessorSockPath(process.pid)
   const healCheck = async (): Promise<void> => {
     if (healInflight) {
@@ -38,7 +39,17 @@ export function armPlaneHeal(state: DaemonRunState, { controlKey, persistDaemonR
       let foreignOwner = false
       let stateMissing = false
       let takeBack = false
-      const foreign = readPlaneOwnerSync()
+      const named = readPlaneOwnerSync()
+      const record = named === null ? readPlaneRecordSync() : undefined
+      if (record?.state === 'unreadable') {
+        if (record.why !== recordUnreadSaid) {
+          recordUnreadSaid = record.why
+          console.error(`[daemon] the daemon record ${daemonStatePath()} is there and could not be read (${record.why}), so a live owner of the plane cannot be ruled out: the key, the record and the socket are left as they stand — the next beat reads it again; if it stays so, move it away`)
+        }
+        return
+      }
+      recordUnreadSaid = undefined
+      const foreign = named ?? (record?.state === 'read' ? record.owner : null)
       if (foreign === null) stateMissing = true
       else if (foreign.pid !== process.pid) {
         foreignOwner = foreign.alive

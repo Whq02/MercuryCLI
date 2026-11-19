@@ -52,11 +52,11 @@ function workersStatFingerprint(path: string): string | null {
 
 function readMutableSessionWorkersFromDisk(
   path: string,
-): { kind: 'known'; workers: Record<string, ConcourseWorkerRecordV1> } | { kind: 'absent' } | { kind: 'unavailable' } {
+): { kind: 'known'; workers: Record<string, ConcourseWorkerRecordV1> } | { kind: 'absent' } | { kind: 'unavailable'; why: string } | { kind: 'unusable'; why: string } {
   try {
     const raw = JSON.parse(readFileSync(path, 'utf8')) as ConcourseWorkerFileV1
-    if (!raw || raw.version !== 1 || typeof raw.workers !== 'object' || raw.workers === null || Array.isArray(raw.workers)) {
-      return { kind: 'unavailable' }
+    if (!raw || raw.version !== 1 || typeof raw.workers !== 'object' || raw.workers === null || Array.isArray(raw.workers) || Object.values(raw.workers).some(rec => typeof rec !== 'object' || rec === null)) {
+      return { kind: 'unusable', why: 'it is not a version 1 session file' }
     }
     for (const rec of Object.values(raw.workers)) {
       const legacy = rec as ConcourseWorkerRecordV1 & { workerId?: string }
@@ -68,7 +68,10 @@ function readMutableSessionWorkersFromDisk(
     }
     return { kind: 'known', workers: raw.workers }
   } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? { kind: 'absent' } : { kind: 'unavailable' }
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return { kind: 'absent' }
+    if (error instanceof SyntaxError) return { kind: 'unusable', why: 'it is not valid JSON' }
+    return { kind: 'unavailable', why: code ?? (error instanceof Error ? error.message : String(error)) }
   }
 }
 
@@ -90,7 +93,7 @@ export function readSessionWorkersSnapshot(dir?: string): SessionWorkersSnapshot
     workersSnapshotMemo.delete(path)
     return EMPTY_SESSION_WORKERS
   }
-  if (parsed.kind === 'unavailable') {
+  if (parsed.kind === 'unavailable' || parsed.kind === 'unusable') {
     workersSnapshotMemo.delete(path)
     return UNAVAILABLE_SESSION_WORKERS
   }
@@ -145,6 +148,42 @@ function publishConcourseWorkers(workers: Record<string, ConcourseWorkerRecordV1
 
 let sessionRecordsInFlight: { path: string; workers: Record<string, ConcourseWorkerRecordV1> } | null = null
 
+const sessionRecordsUnread = new Map<string, { why: string; refused: number }>()
+
+function sessionRecordsRefusal(path: string, why: string): Error {
+  const unread = sessionRecordsUnread.get(path)
+  if (unread === undefined || unread.why !== why) {
+    console.error(`[daemon] ${path}: the session records are there and could not be read (${why}), so changes to them are refused and the file is left as it stands — make it readable, or move it away and the next change writes a new one`)
+  }
+  sessionRecordsUnread.set(path, { why, refused: (unread?.refused ?? 0) + 1 })
+  return new Error(`the session records at ${path} were not updated: the file is there and could not be read (${why}); nothing was written`)
+}
+
+export function unreadSessionRecordsRefusal(dir?: string): Error | null {
+  const path = concourseWorkersPath(dir)
+  const fresh = readMutableSessionWorkersFromDisk(path)
+  return fresh.kind === 'unavailable' ? sessionRecordsRefusal(path, fresh.why) : null
+}
+
+function keepUnusedSessionRecordsAside(path: string, why: string): void {
+  const { keepDamagedFileAsideSync } = require('../../substrate/storeRecovery.js') as typeof import('../../substrate/storeRecovery.js')
+  let aside: string
+  try {
+    aside = keepDamagedFileAsideSync({ store: 'concourse-workers', path, reason: why, by: 'rename', asideAt: stamp => `${path}.corrupt.${stamp}` })
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? (error instanceof Error ? error.message : String(error))
+    throw new Error(`the session records at ${path} were not updated: the file could not be used (${why}) and could not be kept aside (${code}); nothing was written`)
+  }
+  console.error(`[daemon] ${path}: the session records could not be used (${why}); they are kept aside at ${aside} with every session's record, and a new file is written`)
+}
+
+function noteSessionRecordsRead(path: string): void {
+  const unread = sessionRecordsUnread.get(path)
+  if (unread === undefined) return
+  sessionRecordsUnread.delete(path)
+  console.error(`[daemon] ${path}: the session records read again; changes to them were refused ${unread.refused} time(s) meanwhile`)
+}
+
 export function updateConcourseWorkers(
   mutate: (workers: Record<string, ConcourseWorkerRecordV1>) => void,
   dir?: string,
@@ -156,6 +195,9 @@ export function updateConcourseWorkers(
   }
   const workers = withDaemonStoreLock('the session records', path, dir, ({ assertStillHeld }) => {
     const fresh = readMutableSessionWorkersFromDisk(path)
+    if (fresh.kind === 'unavailable') throw sessionRecordsRefusal(path, fresh.why)
+    if (fresh.kind === 'unusable') keepUnusedSessionRecordsAside(path, fresh.why)
+    noteSessionRecordsRead(path)
     const next = fresh.kind === 'known' ? fresh.workers : {}
     const outer = sessionRecordsInFlight
     sessionRecordsInFlight = { path, workers: next }

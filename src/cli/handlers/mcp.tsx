@@ -38,6 +38,7 @@ import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { errorMessage } from '../../utils/errors.js'
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { safeParseJSONC } from '../../utils/json.js'
+import { sleep } from '../../utils/sleep.js'
 
 type ProbeOutcome =
   | 'connected'
@@ -131,25 +132,37 @@ export async function mcpServeHandler(options: {
 }
 
 
+const MCP_REVOKE_WAIT_MS = 10_000
+
+async function revocationAnswered(name: string, revoked: Promise<void>): Promise<void> {
+  const waited = new AbortController()
+  const late = await Promise.race([revoked.then(() => false), sleep(MCP_REVOKE_WAIT_MS, waited.signal).then(() => true)])
+  waited.abort()
+  if (late) console.error(`The authorization server of ${name} did not answer within ${MCP_REVOKE_WAIT_MS / 1000} s, so its tokens may stay valid there until they expire; the local copies are cleared.`)
+}
+
 export async function mcpRemoveHandler(
   name: string,
   options: { scope?: string },
 ): Promise<void> {
   try {
     const existing = getMcpConfigByName(name)
-    const cleanSecureStorage = (config: McpServerConfig | null): void => {
-      if (!config) return
+    const cleanSecureStorage = (config: McpServerConfig | null): Promise<void> | null => {
+      if (!config) return null
       if (config.type === 'sse' || config.type === 'http') {
-        void revokeServerTokens(name, config).catch(() => {})
+        const revoked = revokeServerTokens(name, config)
         clearServerTokensFromLocalStorage(name, config)
         clearMcpClientConfig(name, config)
+        return revoked
       }
+      return null
     }
     if (options.scope !== undefined) {
       const scope = normalizeScope(options.scope, 'local')
       await removeMcpConfig(name, scope)
-      cleanSecureStorage(existing as McpServerConfig | null)
+      const revoked = cleanSecureStorage(existing as McpServerConfig | null)
       process.stdout.write(`Removed MCP server ${name} from ${scope} scope\n`)
+      if (revoked !== null) await revocationAnswered(name, revoked)
       return cliOk(`Modified: ${scopeConfigFileLabel(scope)}`)
     }
     const holders: CliScope[] = []
@@ -165,8 +178,9 @@ export async function mcpRemoveHandler(
     if (holders.length === 1) {
       const scope = holders[0]!
       await removeMcpConfig(name, scope)
-      cleanSecureStorage(existing as McpServerConfig | null)
+      const revoked = cleanSecureStorage(existing as McpServerConfig | null)
       process.stdout.write(`Removed MCP server ${name} from ${scope} scope\n`)
+      if (revoked !== null) await revocationAnswered(name, revoked)
       return cliOk(`Modified: ${scopeConfigFileLabel(scope)}`)
     }
     console.error(`MCP server ${name} exists in multiple scopes:`)

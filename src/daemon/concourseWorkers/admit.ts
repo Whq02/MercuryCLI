@@ -11,7 +11,7 @@ import { inheritBuildNotices, carryClearModel } from '../../services/switchboard
 import { type SessionKitV1, deriveSessionKitForPreset, deriveSessionKitForWorkspace } from '../sessionKit.js'
 import { sessionKindOfAsker, type SessionKind } from '../../utils/sessionKind.js'
 import { type WorkspaceIsolation, type ConcourseMoveV1, canonicalWorkspaceId, resolveDefaultedAdmission } from './admission.js'
-import { readSessionWorkers } from './store.js'
+import { readSessionWorkers, unreadSessionRecordsRefusal } from './store.js'
 import { reactivateConcourseSession } from './reactivate.js'
 import type { ConcourseWorkerRecordV1 } from './record.js'
 import { validateWorkerModelChoice, canonicalWorkerModelId } from '../../services/concourse/workerModels.js'
@@ -218,6 +218,8 @@ export function makeConcourseAdmitHandler(
       if (!derived.ok) return { ok: false, code: 'invalid-request', error: derived.reason }
       preset = { name: req.kitPreset, kit: derived.kit, ...(derived.note !== undefined ? { note: derived.note } : {}) }
     }
+    const unread = unreadSessionRecordsRefusal(deps.dir)
+    if (unread !== null) return { ok: false, code: 'not-ready', error: `no session was started: ${unread.message}` }
     const records = readSessionWorkers(deps.dir)
     const liveShorts = new Set(roster.list().filter(j => !j.outcome).map(j => j.short))
     const liveWorkers = Object.values(records).filter(

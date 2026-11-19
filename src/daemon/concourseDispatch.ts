@@ -2,10 +2,10 @@ import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { partiallySanitizeUnicode } from '../utils/sanitization.js'
-import { recordRefusedDurableFile } from '../substrate/storeRecovery.js'
+import { keepDamagedFileAsideSync, recordRefusedDurableFile } from '../substrate/storeRecovery.js'
 import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import { logForDebugging } from '../utils/debug.js'
-import { errorMessage, isENOENT } from '../utils/errors.js'
+import { errorMessage, getErrnoCode, isENOENT } from '../utils/errors.js'
 import { gitInitRefusal } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
 import { isProcessAlive } from './ownerWatch.js'
@@ -188,29 +188,43 @@ export async function flushDeferredDispatchPublishes(): Promise<void> {
   await Promise.all([...deferredPublish.values()].map(e => e.done))
 }
 
+function keepUnusedLedgerAside(path: string, why: string, asBefore: string): void {
+  try {
+    const aside = keepDamagedFileAsideSync({ store: 'concourse-dispatches', path, reason: why, by: 'rename', asideAt: stamp => `${path}.corrupt.${stamp}` })
+    console.error(`[daemon] ${path}: the dispatch ledger could not be read for the merge before publish (${why}); it is kept aside at ${aside} with its other writers' records, and a new ledger is written`)
+  } catch {
+    console.error(`[daemon] ${path}: the dispatch ledger could not be read for the merge before publish, its other writers' records are not merged: ${asBefore}`)
+  }
+}
+
 function mergeForeignDispatches(path: string, dispatches: Record<string, ConcourseDispatchRecordV1>): void {
   const diskStamp = ledgerStamp(path)
   if (diskStamp === null) return
   const memo = ledgerMemo.get(path)
   if (memo !== undefined && memo.stamp === diskStamp && memo.map === dispatches) return
+  let raw: DispatchFileV1
   try {
-    const raw = JSON.parse(readFileSync(path, 'utf8')) as DispatchFileV1
-    if (!raw || raw.version !== 1 || typeof raw.dispatches !== 'object' || raw.dispatches === null) return
-    for (const [id, diskRec] of Object.entries(raw.dispatches)) {
-      const n = normalizeHoldReason(diskRec.heldReason)
-      if (n !== undefined && diskRec.heldReason !== n) diskRec.heldReason = n
-      const local = dispatches[id]
-      if (
-        local === undefined ||
-        (diskRec.stateRevision ?? 0) > (local.stateRevision ?? 0) ||
-        (diskRec.state === 'failed' && local.state !== 'failed')
-      ) {
-        dispatches[id] = diskRec
-      }
-    }
+    raw = JSON.parse(readFileSync(path, 'utf8')) as DispatchFileV1
   } catch (err) {
-    if (!isENOENT(err)) {
-      console.error(`[daemon] ${path}: the dispatch ledger could not be read for the merge before publish, its other writers' records are not merged: ${err instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(err)}`)
+    if (isENOENT(err)) return
+    const notJson = err instanceof SyntaxError
+    keepUnusedLedgerAside(path, notJson ? 'it is not valid JSON' : (getErrnoCode(err) ?? errorMessage(err)), notJson ? 'it is not valid JSON' : errorMessage(err))
+    return
+  }
+  if (!raw || raw.version !== 1 || typeof raw.dispatches !== 'object' || raw.dispatches === null || Object.values(raw.dispatches).some(rec => typeof rec !== 'object' || rec === null)) {
+    keepUnusedLedgerAside(path, 'it is not a version 1 dispatch ledger', 'it is not a version 1 dispatch ledger')
+    return
+  }
+  for (const [id, diskRec] of Object.entries(raw.dispatches)) {
+    const n = normalizeHoldReason(diskRec.heldReason)
+    if (n !== undefined && diskRec.heldReason !== n) diskRec.heldReason = n
+    const local = dispatches[id]
+    if (
+      local === undefined ||
+      (diskRec.stateRevision ?? 0) > (local.stateRevision ?? 0) ||
+      (diskRec.state === 'failed' && local.state !== 'failed')
+    ) {
+      dispatches[id] = diskRec
     }
   }
 }

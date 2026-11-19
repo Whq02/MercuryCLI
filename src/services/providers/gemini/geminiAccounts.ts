@@ -1,10 +1,10 @@
 import { createServer, type Server } from 'node:http'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
-import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
+import { chmodSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
-import { errorMessageWithCause, isENOENT } from '../../../utils/errors.js'
+import { errorMessageWithCause } from '../../../utils/errors.js'
 import { logError } from '../../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
@@ -16,7 +16,7 @@ import {
   generateCodeVerifier,
   generateState,
 } from '../../oauth/crypto.js'
-import { readStoredGeminiApiKey } from '../providerSecrets.js'
+import { credentialJsonToWriteOver, probeCredentialJson, readStoredGeminiApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
@@ -112,25 +112,22 @@ function authFilePath(): string {
 let authFileUnreadSaid: string | undefined
 
 function readAuthFile(): GeminiAuthFile | null {
-  try {
-    const parsed = JSON.parse(readFileSync(authFilePath(), 'utf8')) as unknown
-    if (typeof parsed !== 'object' || parsed === null) return null
-    return parsed as GeminiAuthFile
-  } catch (error) {
-    if (isENOENT(error)) return null
-    const why = error instanceof SyntaxError ? 'it is not valid JSON' : errorMessageWithCause(error)
+  const read = probeCredentialJson(authFilePath())
+  if (read.state === 'ok') return read.file as GeminiAuthFile
+  if (read.state !== 'absent') {
+    const why = read.state === 'unreadable' ? read.message : `it is ${read.why}`
     if (why !== authFileUnreadSaid) {
       authFileUnreadSaid = why
-      logError(new Error(`the Gemini auth file ${AUTH_FILE_NAME} could not be read (${why}), so the next save writes it anew without its stored tokens, plan and accounts`))
+      logError(new Error(`the Gemini auth file ${AUTH_FILE_NAME} could not be read (${why}), so its stored tokens, plan and accounts are not used`))
     }
-    return null
   }
+  return null
 }
 
 function writeAuthFile(mutate: (file: GeminiAuthFile) => GeminiAuthFile): void {
   refuseProofWriteIntoAccountStore(getAuthConfigHomeDir(), `the auth file ${AUTH_FILE_NAME}`)
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
-  const existing = readAuthFile() ?? { version: GEMINI_AUTH_VERSION }
+  const existing = (credentialJsonToWriteOver('The Gemini auth file', 'gemini-auth', authFilePath()) as GeminiAuthFile | null) ?? { version: GEMINI_AUTH_VERSION }
   const next = mutate({ ...existing, version: GEMINI_AUTH_VERSION })
   const path = authFilePath()
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
