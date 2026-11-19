@@ -137,7 +137,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 }, nativeFetch)
 
 const worker = await import('../../src/services/host/worker.ts')
-const { queueHostSetup, queueHostWatch } = await import('../../src/services/host/jobs.ts')
+const { queueHostBank, queueHostSetup, queueHostWatch } = await import('../../src/services/host/jobs.ts')
 const { hostRecords } = await import('../../src/services/host/store.ts')
 const { hostRunner, closeHostTunnel } = await import('../../src/services/host/ssh.ts')
 const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
@@ -148,6 +148,11 @@ const { getAuthConfigHomeDir } = await import('../../src/utils/envUtils.ts')
 
 const ssh = fakeSshRunner(f.baseUrl, hostRunner)
 const noShell = { async run(): Promise<string> { throw new Error('a managed endpoint never uses SSH') }, tunnel(): never { throw new Error('a managed endpoint never tunnels') } }
+const refusingAfterTheProbe = (words: string): typeof ssh.runner => ({
+  ...ssh.runner,
+  run: (command: string, args: string[], signal: AbortSignal, timeoutMs?: number): Promise<string> =>
+    command === 'ssh' && args.at(-1) !== 'true' ? Promise.reject(new Error(words)) : ssh.runner.run(command, args, signal, timeoutMs),
+})
 const signal = new AbortController().signal
 const lines: string[] = []
 
@@ -243,6 +248,23 @@ await scene('a setup whose endpoint lists no model', async () => {
     f.state.listed = true
   }
   return [record.id]
+})
+
+await scene('a setup whose machine names the vendor key in its refusal', async () => {
+  const record = await podSetup('machine-names-the-key')
+  await ran(record, { runner: refusingAfterTheProbe('ssh exited 255. the machine refused and named the key ' + rp.key), pauseMs: 5, timeoutMs: 8000, keepAlive: false })
+  return [record.id]
+})
+
+await scene('a private repository whose download names the Hugging Face key in its failure', async () => {
+  writeStoredHuggingfaceApiKey(hf.key)
+  try {
+    const record = await podSetup('download-names-the-key', { weightsSource: { kind: 'private-repo', repo: 'fixture-owner/private-weights' } })
+    await ran(record, { runner: refusingAfterTheProbe('ssh exited 1. the machine refused and named the sign-in ' + hf.key), pauseMs: 5, timeoutMs: 8000, keepAlive: false })
+    return [record.id]
+  } finally {
+    writeStoredHuggingfaceApiKey(null)
+  }
 })
 
 await scene('a managed endpoint kept alive through a new sign-in, then refused', async () => {
@@ -352,6 +374,30 @@ await scene('a watch whose every create is refused for placement, until its wind
   return [record.id]
 })
 
+await scene('a watch whose stock read fails twice, is refused a place, fails once more and is then refused for payment', async () => {
+  const record = watchOf('watch-read-failures')
+  const failing = (times: number): void => { rp.state.failNext = { route: 'GET /v2/catalog/gpus', status: 503, times } }
+  failing(2)
+  rp.state.createOutcomes.push('refuse', 'refuse402')
+  let creates = 0
+  beforeRequest = (who, method, path) => {
+    if (who === 'Runpod' && method === 'POST' && path === '/v2/pods' && ++creates === 1) failing(1)
+  }
+  try {
+    await ran(record, { runner: ssh.runner, pauseMs: 260, timeoutMs: 30_000, keepAlive: false })
+  } finally {
+    rp.state.failNext = null
+  }
+  return [record.id]
+})
+
+await scene('a watch whose create gets no clear answer', async () => {
+  const record = watchOf('watch-create-unclear')
+  rp.state.createOutcomes.push('http503')
+  await ran(record, { runner: ssh.runner, pauseMs: 5, timeoutMs: 5000, keepAlive: false })
+  return [record.id]
+})
+
 await scene('a watch whose create is refused for payment', async () => {
   const record = watchOf('watch-create-unpaid')
   rp.state.createOutcomes.push('refuse402')
@@ -373,6 +419,31 @@ await scene('a watch that rents a pod it cannot record', async () => {
     rmSync(inTheWay, { recursive: true, force: true })
   }
   return [record.id]
+})
+
+const bankOf = (id: string, extra: Partial<HostRecord>): HostRecord =>
+  queueHostBank({ id, name: id, recipe: podRecipe.id, recipeRow: podRecipe, price: 0, startedAt: started(), status: 'BANKING', sessionId: `session-${id}`, ...extra })
+
+await scene('a bank check on a folder that holds no sums', async () => {
+  const folder = join(f.home, 'a-bank-with-no-sums')
+  mkdirSync(folder, { recursive: true })
+  const record = bankOf('bank-check-no-sums', { bankTask: 'verify', bankFolder: folder, status: 'VERIFYING' })
+  await ran(record, { runner: ssh.runner, pauseMs: 5, timeoutMs: 5000, keepAlive: false })
+  return [record.id]
+})
+
+await scene('a banking whose folder cannot be made and is named with the Hugging Face key', async () => {
+  const inTheWay = join(f.home, 'a-file-where-the-bank-is-to-stand')
+  writeFileSync(inTheWay, '')
+  writeStoredHuggingfaceApiKey(hf.key)
+  try {
+    const record = bankOf('bank-folder-in-the-way', { bankTask: 'bank', bankFolder: join(inTheWay, hf.key) })
+    await ran(record, { runner: ssh.runner, pauseMs: 5, timeoutMs: 5000, keepAlive: false })
+    return [record.id]
+  } finally {
+    writeStoredHuggingfaceApiKey(null)
+    rmSync(inTheWay, { force: true })
+  }
 })
 
 globalThis.fetch = nativeFetch
