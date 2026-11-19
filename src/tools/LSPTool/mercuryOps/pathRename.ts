@@ -13,6 +13,65 @@ import { changeViewOf, planFiles, planTokenOf, editRowsFor } from './preview.js'
 import { applyPrepared } from './apply.js'
 import { pathRenameClaimants, prepareApplyFanOut, advertisesFileOperation } from './pathRenameFanOut.js'
 
+function pathRenamePreviewOf(
+  env: OpEnv,
+  preparedFiles: NormalizedFileEdits[],
+  preparedSnapshots: Map<string, string>,
+  display: string,
+  newDisplay: string,
+  supportNote: string,
+  notesBlock: string,
+): MercuryLspOpOutput {
+  const set = planFiles(preparedFiles, preparedSnapshots)
+  if (!set.ok) {
+    return {
+      result: `LspMoveFile failed while planning the import edits: ${set.reason}. Nothing was moved.`,
+      resultCount: 0,
+      fileCount: 0,
+      applied: false,
+      effect: { outcome: 'failed', changedPaths: [], evidence: 'edit set ambiguous — nothing moved' },
+    }
+  }
+  const token = set.planned.length > 0 ? planTokenOf(set.planned) : undefined
+  const editPreview =
+    preparedFiles.length > 0
+      ? `\n${formatEditPreview(
+          preparedFiles,
+          uri => preparedSnapshots.get(uriToFilePath(uri)),
+          uri => displayPathFor(env.cwd, uriToFilePath(uri)),
+        )}`
+      : ''
+  const rerun =
+    token !== undefined
+      ? `plan: ${token} — re-run with apply: true, plan: "${token}" to move (refused if any of these files changes first).`
+      : 'Re-run with apply: true to move.'
+  return {
+    result: `Move: ${display} → ${newDisplay}\n${supportNote}${notesBlock}${editPreview}\nPreview only — nothing moved, nothing written. ${rerun}`,
+    resultCount: preparedFiles.reduce((sum, file) => sum + file.edits.length, 0),
+    fileCount: preparedFiles.length,
+    applied: false,
+    effect: {
+      outcome: 'succeeded',
+      changedPaths: [],
+      evidence: 'move previewed, nothing written',
+      details: { preview: true, ...(token !== undefined ? { plan: token } : {}) },
+    },
+    ...(preparedFiles.length > 0
+      ? {
+          changeView: changeViewOf(
+            'pathRename',
+            'proposed',
+            env.cwd,
+            preparedFiles,
+            preparedSnapshots,
+          ),
+          ...editRowsFor(env, preparedFiles, preparedSnapshots),
+        }
+      : {}),
+    ...(token !== undefined ? { plan: token } : {}),
+  }
+}
+
 export async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
   const input = env.input
   const oldPath = env.absolutePath
@@ -124,54 +183,7 @@ export async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
   const preparedSnapshots = prepared.snapshots
   const notesBlock = fanOutNotes.length > 0 ? `\n${fanOutNotes.map(n => `note: ${n}`).join('\n')}` : ''
   if (input.apply !== true) {
-    const set = planFiles(preparedFiles, preparedSnapshots)
-    if (!set.ok) {
-      return {
-        result: `LspMoveFile failed while planning the import edits: ${set.reason}. Nothing was moved.`,
-        resultCount: 0,
-        fileCount: 0,
-        applied: false,
-        effect: { outcome: 'failed', changedPaths: [], evidence: 'edit set ambiguous — nothing moved' },
-      }
-    }
-    const token = set.planned.length > 0 ? planTokenOf(set.planned) : undefined
-    const editPreview =
-      preparedFiles.length > 0
-        ? `\n${formatEditPreview(
-            preparedFiles,
-            uri => preparedSnapshots.get(uriToFilePath(uri)),
-            uri => displayPathFor(env.cwd, uriToFilePath(uri)),
-          )}`
-        : ''
-    const rerun =
-      token !== undefined
-        ? `plan: ${token} — re-run with apply: true, plan: "${token}" to move (refused if any of these files changes first).`
-        : 'Re-run with apply: true to move.'
-    return {
-      result: `Move: ${display} → ${newDisplay}\n${supportNote}${notesBlock}${editPreview}\nPreview only — nothing moved, nothing written. ${rerun}`,
-      resultCount: preparedFiles.reduce((sum, file) => sum + file.edits.length, 0),
-      fileCount: preparedFiles.length,
-      applied: false,
-      effect: {
-        outcome: 'succeeded',
-        changedPaths: [],
-        evidence: 'move previewed, nothing written',
-        details: { preview: true, ...(token !== undefined ? { plan: token } : {}) },
-      },
-      ...(preparedFiles.length > 0
-        ? {
-            changeView: changeViewOf(
-              'pathRename',
-              'proposed',
-              env.cwd,
-              preparedFiles,
-              preparedSnapshots,
-            ),
-            ...editRowsFor(env, preparedFiles, preparedSnapshots),
-          }
-        : {}),
-      ...(token !== undefined ? { plan: token } : {}),
-    }
+    return pathRenamePreviewOf(env, preparedFiles, preparedSnapshots, display, newDisplay, supportNote, notesBlock)
   }
 
   const permissionContext = env.context.getAppState().toolPermissionContext
