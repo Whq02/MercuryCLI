@@ -31,17 +31,10 @@ import { createServer as createNetServer, type Socket } from 'node:net'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { dormantBuiltinAdapterHints, knownAdapterKeys, resolveAdapter } from './client/adapters.js'
 import { dialListener, listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
-import {
-  dataBreakpointInfo,
-  setBreakpoints,
-  setDataBreakpoints,
-  setFunctionBreakpoints,
-  setInstructionBreakpoints,
-  writeMemory,
-} from './client/breakpoints.js'
+import './client/breakpoints.js'
 import type { DapStartOptions } from './client/launch.js'
 import { FramePart } from './client/frame.js'
-import { disconnectArguments, LifePart } from './client/life.js'
+import { LifePart } from './client/life.js'
 import { MessagesPart } from './client/messages.js'
 import { OutputPart, pushOutput } from './client/output.js'
 import { StartPart } from './client/start.js'
@@ -49,29 +42,13 @@ import { childBoundRefusal, ReversePart } from './client/reverse.js'
 import { TerminalPart } from './client/terminal.js'
 import { WirePart } from './client/wire.js'
 import { drainOutput, waitForStop, waitForStopOutcome } from './client/stops.js'
-import {
-  debuggeeEndDetail,
-  debugTarget,
-  root,
-  treeExitDetail,
-  treeNewestStopStamp,
-  treeSessions,
-  treeStopped,
-  treeTerminated,
-  treeVerifiedBreakpoints,
-  treeVerifiedFunctionBreakpoints,
-} from './client/tree.js'
+import { treeTerminated } from './client/tree.js'
 import {
   REQUEST_TIMEOUT_MS,
   type DapAdapterSpec,
   type DapBreakpointSpec,
-  type DapBreakpointVerdict,
-  type DapDataBreakpointInfo,
-  type DapDataBreakpointSpec,
   type DapFunctionBreakpointSpec,
-  type DapInstructionBreakpointSpec,
   type DapListenerTarget,
-  type DapWriteMemoryReceipt,
   type StoppedInfo,
 } from './client/shared.js'
 
@@ -128,8 +105,9 @@ export {
   resolveAdapter,
   settleDapAdapterProbes,
 } from './client/adapters.js'
+import { DapSessionPublicLayer } from './client/publicLayer.js'
 
-export class DapSession {
+export class DapSession extends DapSessionPublicLayer {
   readonly adapterKey: string
   readonly program: string
   #spec: DapAdapterSpec
@@ -228,6 +206,7 @@ export class DapSession {
     treeInit?: { parent: DapSession | null; label: string },
     listener?: DapListenerTarget & { socket?: Socket },
   ) {
+    super()
     this.adapterKey = adapterKey
     this.program = program
     this.#spec = spec
@@ -292,36 +271,8 @@ export class DapSession {
     if (this.parentSession) this.parentSession.#wakeStateWaiters()
   }
 
-
-  root(): DapSession {
-    return root(this)
-  }
-
-  treeSessions(): DapSession[] {
-    return treeSessions(this)
-  }
-
-  treeSize(): number {
-    return this.treeSessions().length
-  }
-
-  treeStopped(sinceStamp = 0): DapSession | null {
-    return treeStopped(this, sinceStamp)
-  }
-
-  treeNewestStopStamp(): number {
-    return treeNewestStopStamp(this)
-  }
-
   stoppedFrameId(): Promise<number | null> {
     return this.#frame.stoppedFrameId()
-  }
-
-  treeVerifiedBreakpoints(): Map<
-    string,
-    Array<{ line: number; verified: boolean; message?: string; id?: number; verifier?: string }>
-  > {
-    return treeVerifiedBreakpoints(this)
   }
 
   setBreakpointsTree(
@@ -329,14 +280,6 @@ export class DapSession {
     breakpoints: Array<number | DapBreakpointSpec>,
   ): Promise<Array<{ line: number; verified: boolean; message?: string; id?: number; verifier?: string }>> {
     return this.#start.setBreakpointsTree(path, breakpoints)
-  }
-
-  acceptsFunctionBreakpoints(): boolean {
-    return this.capabilities === null || this.capabilities.supportsFunctionBreakpoints === true
-  }
-
-  treeVerifiedFunctionBreakpoints(): Array<{ name: string; verified: boolean; message?: string; id?: number; verifier?: string }> {
-    return treeVerifiedFunctionBreakpoints(this)
   }
 
   setFunctionBreakpointsTree(
@@ -347,18 +290,6 @@ export class DapSession {
 
   treeTerminated(): boolean {
     return treeTerminated(this, this.#hostsDebuggee)
-  }
-
-  treeExitDetail(): string {
-    return treeExitDetail(this)
-  }
-
-  debuggeeEndDetail(): string {
-    return debuggeeEndDetail(this)
-  }
-
-  debugTarget(): { session: DapSession } | { ambiguousDetail: string } {
-    return debugTarget(this)
   }
 
   get listener(): DapListenerTarget | null {
@@ -437,42 +368,6 @@ export class DapSession {
     return this.#start.launch(options)
   }
 
-  setBreakpoints(
-    path: string,
-    breakpoints: Array<number | DapBreakpointSpec>,
-  ): Promise<Array<{ line: number; verified: boolean; message?: string; id?: number }>> {
-    return setBreakpoints(this, path, breakpoints)
-  }
-
-  setFunctionBreakpoints(specs: DapFunctionBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
-    return setFunctionBreakpoints(this, specs)
-  }
-
-  dataBreakpointInfo(args: {
-    name: string
-    variablesReference?: number
-    frameId?: number
-  }): Promise<DapDataBreakpointInfo> {
-    return dataBreakpointInfo(this, args)
-  }
-
-  setDataBreakpoints(specs: DapDataBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
-    return setDataBreakpoints(this, specs)
-  }
-
-  setInstructionBreakpoints(specs: DapInstructionBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
-    return setInstructionBreakpoints(this, specs)
-  }
-
-  writeMemory(args: {
-    memoryReference: string
-    data: string
-    offset?: number
-    allowPartial?: boolean
-  }): Promise<DapWriteMemoryReceipt> {
-    return writeMemory(this, args)
-  }
-
   waitForStopOutcome(
     timeoutMs = 10_000,
     signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal,
@@ -492,10 +387,6 @@ export class DapSession {
 
   drainOutput(quietMs = 200, maxMs = 1_000, signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {
     return drainOutput(this, quietMs, maxMs, signal)
-  }
-
-  disconnectArguments(): Record<string, unknown> {
-    return disconnectArguments(this)
   }
 
   dispose(signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {
