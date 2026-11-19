@@ -89,13 +89,13 @@ export function teeCommitGeometry(this: Pick<Ink, 'rootNode'>, layoutMs: number)
   }
 }
 
-export function rowText(screen: Screen, y: number): string {
+function rowText(screen: Screen, y: number): string {
   let text = ''
   for (let x = 0; x < screen.width; x++) text += charInCellAt(screen, x, y) ?? ' '
   return text
 }
 
-export function teeBeforeDiff(this: Pick<Ink, 'rowText'>, base: Frame, next: Frame): void {
+export function teeBeforeDiff(base: Frame, next: Frame): void {
   if (!WRITE_TEE_PATH) return
   try {
     const probe = WRITE_TEE_PROBE ?? ''
@@ -106,8 +106,8 @@ export function teeBeforeDiff(this: Pick<Ink, 'rowText'>, base: Frame, next: Fra
     let probeInBase = false
     let probeInNext = false
     for (let y = 0; y < height; y++) {
-      const a = y < base.screen.height ? this.rowText(base.screen, y) : ''
-      const b = y < next.screen.height ? this.rowText(next.screen, y) : ''
+      const a = y < base.screen.height ? rowText(base.screen, y) : ''
+      const b = y < next.screen.height ? rowText(next.screen, y) : ''
       if (probe && a.includes(probe)) probeInBase = true
       if (probe && b.includes(probe)) probeInNext = true
       for (let x = 0; x < width; x++) {

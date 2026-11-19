@@ -12,7 +12,7 @@ import '../utils/log.js'
 import { setStdinRecovery } from '../utils/process.js'
 import '../utils/cockpit/pointerShape.js'
 import '../utils/cockpit/motionGovernor.js'
-import { CharPool, HyperlinkPool, StylePool, type Screen } from './cell-grid.js'
+import { CharPool, HyperlinkPool, StylePool } from './cell-grid.js'
 import './colorize.js'
 import './compose-buffer.js'
 import './compose-walk.js'
@@ -54,7 +54,6 @@ import './root/screen-session.js'
 import { termWrite } from './terminalOut.js'
 import './constants.js'
 import './root/teardown.js'
-import type { TeardownHost } from './root/teardown.js'
 import './root/stop-continue.js'
 import './root/terminalModeLedger.js'
 import { shouldHoldFirstPaintForSyncProbe } from './session/capabilities.js'
@@ -64,19 +63,19 @@ import './termio/csi.js'
 import './termio/dec.js'
 import './termio/osc.js'
 import { TerminalWriteProvider } from './terminalWrite.js'
-import { TREE_DUMP_PATH, TREE_DUMP_BUDGET, teeCommitGeometry, rowText, teeBeforeDiff, teeAfterDiff, dumpTree } from './ink/tees.js'
-import { DEFAULT_COLUMNS, DEFAULT_ROWS, newEmptyFrame, buildParkPatch, liveSize, resetFramesForAltScreen, repaintMainScreen, resetLineCount, resetPools } from './ink/frames.js'
-import { handleResize, settleResize, handleWinch, paintResizeHold, consoleBufferOutlivesWindow, fitConsoleBufferToWindow, applySettledResize, applySize, clearResizeSettle, reconcileSize } from './ink/resize.js'
+import { TREE_DUMP_PATH, TREE_DUMP_BUDGET } from './ink/tees.js'
+import { DEFAULT_COLUMNS, DEFAULT_ROWS, buildParkPatch, newEmptyFrame, resetLineCount, resetPools } from './ink/frames.js'
+import { handleResize, handleWinch, applySettledResize, reconcileSize } from './ink/resize.js'
 import { calculateLayout, layoutAfterCommit, subscribeLayout } from './ink/layout.js'
-import { onRender, recoverFromRenderFault, renderFrame, subscribeFrame, resolveCursorTarget, setCursorDeclaration } from './ink/frame-loop.js'
+import { onRender, subscribeFrame, setCursorDeclaration } from './ink/frame-loop.js'
 export { RENDER_FAULT_RETRY_BUDGET, renderFaultRecoveryPlan } from './ink/frame-loop.js'
-import { setAltScreenActive, registerTranscriptScrollTarget, registerArrowKeyOwner, arrowKeysOwned, setMouseTrackingEnabled, awaitTerminalQueries, drainUnsettledQueries, enterAlternateScreen, exitAlternateScreen, reassertScreenState, armScreenWatchdog, reenterAltScreen, reassertTerminalModes, repaintAfterNestedAltScreenClose, armAltScreenTakeover, armAltScreenEntry, forceRedraw, repaintAltScreen, overwriteScreen, repaint, pause, resume } from './ink/alt-screen.js'
-import { attachStopListeners, detachStopListeners, teardownHost, stopForSignal, resumeAfterContinue } from './ink/stop-continue.js'
-import { notifySelectionChange, subscribeToSelectionChange, applySelectionClipBand, offerTextGesture, textGestureTookPress, handleSelectionStart, handleMultiClick, handleSelectionDrag, handleSelectionRelease, moveSelectionFocus, copySelectionNoClear, copySelection, copyText, clearTextSelection, setSelectionBgColor } from './ink/selection.js'
+import { setAltScreenActive, registerTranscriptScrollTarget, registerArrowKeyOwner, arrowKeysOwned, setMouseTrackingEnabled, awaitTerminalQueries, enterAlternateScreen, exitAlternateScreen, reassertScreenState, armScreenWatchdog, reassertTerminalModes, repaintAfterNestedAltScreenClose, armAltScreenTakeover, armAltScreenEntry, forceRedraw, repaintAltScreen, overwriteScreen, repaint, pause, resume } from './ink/alt-screen.js'
+import { attachStopListeners, detachStopListeners, stopForSignal, resumeAfterContinue } from './ink/stop-continue.js'
+import { notifySelectionChange, subscribeToSelectionChange, handleSelectionStart, handleMultiClick, handleSelectionDrag, handleSelectionRelease, moveSelectionFocus, copySelectionNoClear, copySelection, copyText, clearTextSelection, setSelectionBgColor } from './ink/selection.js'
 import { setSearchHighlight, setSearchPositions, scanElementSubtree } from './ink/search.js'
-import { getHyperlinkAt, dispatchClick, pointerOnBlank, dispatchHover, dispatchKeyboardEvent } from './ink/pointer.js'
-import { drainStdin, suspendStdin, resumeStdin, recoverStdin, rearmStdinAfterFault } from './ink/stdin.js'
-import { patchConsole, interceptStderr } from './ink/console-patch.js'
+import { getHyperlinkAt, dispatchClick, dispatchHover, dispatchKeyboardEvent } from './ink/pointer.js'
+import { drainStdin, suspendStdin, resumeStdin, recoverStdin } from './ink/stdin.js'
+import { patchConsole } from './ink/console-patch.js'
 import { unmount, waitUntilExit, detachForShutdown } from './ink/exit.js'
 import type { ExitOutcome } from './ink/record.js'
 
@@ -171,9 +170,9 @@ export default class Ink {
 
     this.cachedColumns = options.stdout.columns || DEFAULT_COLUMNS
     this.cachedRows = options.stdout.rows || DEFAULT_ROWS
-    this.parkPatch = this.buildParkPatch()
-    this.frontFrame = this.newEmptyFrame()
-    this.backFrame = this.newEmptyFrame()
+    this.parkPatch = buildParkPatch.call(this)
+    this.frontFrame = newEmptyFrame.call(this)
+    this.backFrame = newEmptyFrame.call(this)
     this.mouseTracking = mouseTrackingEnabledByEnvironment()
     this.mouseTrackingPref = this.mouseTracking && isMouseCaptureEnabled()
 
@@ -189,7 +188,7 @@ export default class Ink {
       options.stdout.on('resize', this.handleResize)
       process.on('SIGWINCH', this.handleWinch)
       process.on('SIGCONT', this.resumeAfterContinue)
-      this.attachStopListeners()
+      attachStopListeners.call(this)
       const win32SizeTimer: ReturnType<typeof setInterval> | null =
         process.platform === 'win32'
           ? setInterval(() => this.reconcileSize(), 5_000)
@@ -200,7 +199,7 @@ export default class Ink {
         options.stdout.off('resize', this.handleResize)
         process.off('SIGWINCH', this.handleWinch)
         process.off('SIGCONT', this.resumeAfterContinue)
-        this.detachStopListeners()
+        detachStopListeners.call(this)
         if (win32SizeTimer !== null) clearInterval(win32SizeTimer)
         setStdinRecovery(null)
       }
@@ -252,27 +251,15 @@ export default class Ink {
     }
   }
 
-  private newEmptyFrame(): Frame { return newEmptyFrame.call(this) }
-  buildParkPatch(): Patch { return buildParkPatch.call(this) }
-  liveSize(): { columns: number; rows: number } { return liveSize.call(this) }
-  resetFramesForAltScreen(): void { resetFramesForAltScreen.call(this) }
-  repaintMainScreen(): void { repaintMainScreen.call(this) }
   resetLineCount(): void { resetLineCount.call(this) }
   resetPools(): void { resetPools.call(this) }
   handleResize = (): void => handleResize.call(this)
-  settleResize(): void { settleResize.call(this) }
   private handleWinch = (): void => handleWinch.call(this)
-  paintResizeHold(columns: number, rows: number): void { paintResizeHold.call(this, columns, rows) }
-  consoleBufferOutlivesWindow(): boolean { return consoleBufferOutlivesWindow.call(this) }
-  fitConsoleBufferToWindow(): void { fitConsoleBufferToWindow.call(this) }
   applySettledResize = (): void => applySettledResize.call(this)
-  applySize(columns: number, rows: number): void { applySize.call(this, columns, rows) }
-  clearResizeSettle(): void { clearResizeSettle.call(this) }
   reconcileSize(): void { reconcileSize.call(this) }
   calculateLayout = (): void => calculateLayout.call(this)
   private layoutAfterCommit = (): void => layoutAfterCommit.call(this)
   subscribeLayout(listener: () => void): () => void { return subscribeLayout.call(this, listener) }
-  teeCommitGeometry(layoutMs: number): void { teeCommitGeometry.call(this, layoutMs) }
   scheduleRender = (): void => { this.scheduler.requestFrame() }
   renderFaultStreak = 0
   firstFrameStamped = false
@@ -285,14 +272,7 @@ export default class Ink {
     } catch {
     }
   }
-  recoverFromRenderFault(error: unknown): void { recoverFromRenderFault.call(this, error) }
-  renderFrame(): void { renderFrame.call(this) }
   subscribeFrame(listener: () => void): () => void { return subscribeFrame.call(this, listener) }
-  resolveCursorTarget(): CursorPoint | null { return resolveCursorTarget.call(this) }
-  rowText(screen: Screen, y: number): string { return rowText.call(this, screen, y) }
-  teeBeforeDiff(base: Frame, next: Frame): void { teeBeforeDiff.call(this, base, next) }
-  teeAfterDiff(patches: Patch[]): void { teeAfterDiff.call(this, patches) }
-  dumpTree(reason: string | null): void { dumpTree.call(this, reason) }
   get isAltScreenActive(): boolean { return this.altScreenActive }
   setAltScreenActive(active: boolean, mouseTracking = true): void { setAltScreenActive.call(this, active, mouseTracking) }
   isMouseTrackingEnabled(): boolean { return this.mouseTracking }
@@ -305,15 +285,10 @@ export default class Ink {
   isMouseTrackingPreferred(): boolean { return this.mouseTrackingPref }
   setMouseTrackingEnabled(on: boolean): void { setMouseTrackingEnabled.call(this, on) }
   awaitTerminalQueries(): Promise<void> { return awaitTerminalQueries.call(this) }
-  drainUnsettledQueries(): void { drainUnsettledQueries.call(this) }
   enterAlternateScreen(): void { enterAlternateScreen.call(this) }
   exitAlternateScreen(): void { exitAlternateScreen.call(this) }
   reassertScreenState(reason: string, opts: { repaint?: boolean } = {}): void { reassertScreenState.call(this, reason, opts) }
   armScreenWatchdog(): void { armScreenWatchdog.call(this) }
-  reenterAltScreen(): void { reenterAltScreen.call(this) }
-  attachStopListeners(): void { attachStopListeners.call(this) }
-  detachStopListeners(): void { detachStopListeners.call(this) }
-  teardownHost(): TeardownHost { return teardownHost.call(this) }
   stopForSignal = (signal: NodeJS.Signals): void => stopForSignal.call(this, signal)
   private resumeAfterContinue = (): void => resumeAfterContinue.call(this)
   reassertTerminalModes(includeAltScreen = false): void { reassertTerminalModes.call(this, includeAltScreen) }
@@ -331,9 +306,6 @@ export default class Ink {
   notifySelectionChange = (): void => notifySelectionChange.call(this)
   subscribeToSelectionChange(callback: () => void): () => void { return subscribeToSelectionChange.call(this, callback) }
   hasTextSelection(): boolean { return hasSelection(this.selection) }
-  applySelectionClipBand(col: number, row: number): void { applySelectionClipBand.call(this, col, row) }
-  offerTextGesture(col: number, row: number, clickCount: 1 | 2 | 3): boolean { return offerTextGesture.call(this, col, row, clickCount) }
-  textGestureTookPress(): void { textGestureTookPress.call(this) }
   handleSelectionStart(col: number, row: number, pressHadAlt = false): void { handleSelectionStart.call(this, col, row, pressHadAlt) }
   handleMultiClick(col: number, row: number, count: 2 | 3): void { handleMultiClick.call(this, col, row, count) }
   handleSelectionDrag(col: number, row: number): void { handleSelectionDrag.call(this, col, row) }
@@ -350,7 +322,6 @@ export default class Ink {
   getHyperlinkAt(col: number, row: number): string | undefined { return getHyperlinkAt.call(this, col, row) }
   openHyperlink = (url: string): void => { this.onHyperlinkClick?.(url) }
   dispatchClick(col: number, row: number): boolean { return dispatchClick.call(this, col, row) }
-  pointerOnBlank(col: number, row: number): boolean { return pointerOnBlank.call(this, col, row) }
   dispatchHover(col: number, row: number): void { dispatchHover.call(this, col, row) }
   dispatchKeyboardEvent(parsedKey: ParsedKey): void { dispatchKeyboardEvent.call(this, parsedKey) }
   private setCursorDeclaration = (declaration: CursorDeclaration | null, clearIfNode?: DOMElement | null): void => setCursorDeclaration.call(this, declaration, clearIfNode)
@@ -358,9 +329,7 @@ export default class Ink {
   suspendStdin(): void { suspendStdin.call(this) }
   resumeStdin(): void { resumeStdin.call(this) }
   recoverStdin = (code: string, syscall: string): void => recoverStdin.call(this, code, syscall)
-  rearmStdinAfterFault(code: string, syscall: string, attempt: number): void { rearmStdinAfterFault.call(this, code, syscall, attempt) }
   patchConsole(): () => void { return patchConsole.call(this) }
-  interceptStderr(): () => void { return interceptStderr.call(this) }
   private writeRaw = (data: string): void => { termWrite(this.options.stdout, data) }
 
   render(node: ReactNode): void {

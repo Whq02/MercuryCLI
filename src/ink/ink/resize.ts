@@ -5,34 +5,42 @@ import { RESIZE_SETTLE_MS } from '../constants.js'
 import { syncOutputSupportedNow, syncOutputCapabilityNow } from '../session/capabilities.js'
 import { writeDiffToTerminal } from '../session/delivery.js'
 import { ENTER_ALT_SCREEN } from '../termio/dec.js'
+import { liveSize, buildParkPatch, resetFramesForAltScreen } from './frames.js'
 import type Ink from '../ink.js'
 
-export function handleResize(this: Pick<Ink, 'isRendering' | 'fittingConsoleBuffer' | 'settleResize'>): void {
+type HandleResizeReads = Pick<
+  Ink,
+  | 'options' | 'isTTY' | 'frontFrame' | 'cachedColumns' | 'cachedRows' | 'writer' | 'scheduler' | 'isPaused' | 'isRendering' | 'altScreenActive'
+  | 'displayCursor' | 'wholeFrameDue' | 'resizeSettleTimer' | 'fittingConsoleBuffer' | 'applySettledResize'
+>
+
+export function handleResize(this: HandleResizeReads): void {
   if (this.isRendering || this.fittingConsoleBuffer) return
-  this.settleResize()
+  settleResize.call(this)
 }
 
 type SettleResizeReads = Pick<
   Ink,
-  | 'cachedColumns' | 'cachedRows' | 'scheduler' | 'resizeSettleTimer' | 'liveSize' | 'paintResizeHold' | 'applySettledResize'
+  | 'options' | 'isTTY' | 'frontFrame' | 'cachedColumns' | 'cachedRows' | 'writer' | 'scheduler' | 'isPaused' | 'altScreenActive' | 'displayCursor'
+  | 'wholeFrameDue' | 'resizeSettleTimer' | 'applySettledResize'
 >
 
 export function settleResize(this: SettleResizeReads): void {
-  const { columns, rows } = this.liveSize()
+  const { columns, rows } = liveSize.call(this)
   if (this.resizeSettleTimer === null) {
     if (columns === this.cachedColumns && rows === this.cachedRows) return
     this.scheduler.holdForSettle()
-    this.paintResizeHold(columns, rows)
+    paintResizeHold.call(this, columns, rows)
   } else {
     clearTimeout(this.resizeSettleTimer)
   }
   this.resizeSettleTimer = setTimeout(this.applySettledResize, RESIZE_SETTLE_MS)
 }
 
-export function handleWinch(this: Pick<Ink, 'options' | 'cachedColumns' | 'cachedRows' | 'resizeSettleTimer' | 'liveSize' | 'overwriteScreen'>): void {
+export function handleWinch(this: Pick<Ink, 'options' | 'cachedColumns' | 'cachedRows' | 'resizeSettleTimer' | 'overwriteScreen'>): void {
   refreshConsoleSize(this.options.stdout)
   if (this.resizeSettleTimer !== null) return
-  const { columns, rows } = this.liveSize()
+  const { columns, rows } = liveSize.call(this)
   if (columns === this.cachedColumns && rows === this.cachedRows) this.overwriteScreen()
 }
 
@@ -41,7 +49,7 @@ type PaintResizeHoldReads = Pick<
   | 'options' | 'isTTY' | 'frontFrame' | 'writer' | 'isPaused' | 'altScreenActive' | 'displayCursor' | 'wholeFrameDue'
 >
 
-export function paintResizeHold(this: PaintResizeHoldReads, columns: number, rows: number): void {
+function paintResizeHold(this: PaintResizeHoldReads, columns: number, rows: number): void {
   if (!this.altScreenActive || this.isPaused || !this.isTTY || this.wholeFrameDue) return
   const patches = this.writer.holdingClipPaint(this.frontFrame, columns, rows)
   if (patches.length === 0) return
@@ -57,8 +65,8 @@ export function consoleBufferOutlivesWindow(this: Pick<Ink, 'isTTY' | 'isPaused'
   return process.platform === 'win32' && !syncOutputCapabilityNow() && this.altScreenActive && !this.isPaused && this.isTTY
 }
 
-export function fitConsoleBufferToWindow(this: Pick<Ink, 'options' | 'fittingConsoleBuffer' | 'consoleBufferOutlivesWindow'>): void {
-  if (!this.consoleBufferOutlivesWindow()) return
+function fitConsoleBufferToWindow(this: Pick<Ink, 'options' | 'isTTY' | 'isPaused' | 'altScreenActive' | 'fittingConsoleBuffer'>): void {
+  if (!consoleBufferOutlivesWindow.call(this)) return
   termWrite(this.options.stdout, ENTER_ALT_SCREEN)
   this.fittingConsoleBuffer = true
   try {
@@ -70,31 +78,33 @@ export function fitConsoleBufferToWindow(this: Pick<Ink, 'options' | 'fittingCon
 
 type ApplySettledResizeReads = Pick<
   Ink,
-  | 'scheduler' | 'currentTree' | 'resizeSettleTimer' | 'liveSize' | 'fitConsoleBufferToWindow' | 'applySize' | 'render'
+  | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
+  | 'scheduler' | 'ledger' | 'currentTree' | 'isPaused' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'resizeSettleTimer'
+  | 'glassOverlay' | 'fittingConsoleBuffer' | 'render'
 >
 
 export function applySettledResize(this: ApplySettledResizeReads): void {
   this.resizeSettleTimer = null
-  this.fitConsoleBufferToWindow()
-  const { columns, rows } = this.liveSize()
-  this.applySize(columns, rows)
+  fitConsoleBufferToWindow.call(this)
+  const { columns, rows } = liveSize.call(this)
+  applySize.call(this, columns, rows)
   this.scheduler.releaseSettleHold(false)
   if (this.currentTree !== null) this.render(this.currentTree)
 }
 
 type ApplySizeReads = Pick<
   Ink,
-  | 'options' | 'isTTY' | 'cachedColumns' | 'cachedRows' | 'parkPatch' | 'isPaused' | 'altScreenActive' | 'mouseTracking' | 'wholeFrameDue'
-  | 'buildParkPatch' | 'resetFramesForAltScreen'
+  | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
+  | 'ledger' | 'isPaused' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'glassOverlay'
 >
 
 export function applySize(this: ApplySizeReads, columns: number, rows: number): void {
   this.cachedColumns = columns
   this.cachedRows = rows
-  this.parkPatch = this.buildParkPatch()
+  this.parkPatch = buildParkPatch.call(this)
   if (this.altScreenActive && !this.isPaused && this.isTTY) {
     termWrite(this.options.stdout, resizeReassertBytes(this.mouseTracking))
-    this.resetFramesForAltScreen()
+    resetFramesForAltScreen.call(this)
     this.wholeFrameDue = true
   }
 }

@@ -106,19 +106,23 @@ export function resumeStdin(this: ResumeStdinReads): void {
   this.armScreenWatchdog();
 }
 
-export function recoverStdin(this: Pick<Ink, 'isTTY' | 'isUnmounted' | 'stdinRecoveryArmed' | 'rearmStdinAfterFault'>, code: string, syscall: string): void {
+type RecoverStdinReads = Pick<
+  Ink,
+  | 'options' | 'isTTY' | 'currentTree' | 'isUnmounted' | 'storedReadableListeners' | 'wasRawMode' | 'consoleReadHeld' | 'stdinRecoveryArmed' | 'render'
+>
+
+export function recoverStdin(this: RecoverStdinReads, code: string, syscall: string): void {
   if (this.isUnmounted || !this.isTTY || this.stdinRecoveryArmed) return
   this.stdinRecoveryArmed = true
-  setTimeout(() => this.rearmStdinAfterFault(code, syscall, 1), STDIN_REARM_DELAY_MS)
+  setTimeout(() => rearmStdinAfterFault.call(this, code, syscall, 1), STDIN_REARM_DELAY_MS)
 }
 
 type RearmStdinAfterFaultReads = Pick<
   Ink,
-  | 'options' | 'currentTree' | 'isUnmounted' | 'storedReadableListeners' | 'wasRawMode' | 'consoleReadHeld' | 'stdinRecoveryArmed'
-  | 'rearmStdinAfterFault' | 'render'
+  | 'options' | 'currentTree' | 'isUnmounted' | 'storedReadableListeners' | 'wasRawMode' | 'consoleReadHeld' | 'stdinRecoveryArmed' | 'render'
 >
 
-export function rearmStdinAfterFault(this: RearmStdinAfterFaultReads, code: string, syscall: string, attempt: number): void {
+function rearmStdinAfterFault(this: RearmStdinAfterFaultReads, code: string, syscall: string, attempt: number): void {
   if (this.isUnmounted) {
     this.stdinRecoveryArmed = false
     return
@@ -157,7 +161,7 @@ export function rearmStdinAfterFault(this: RearmStdinAfterFaultReads, code: stri
     }
     if (!rawModeOn(stdin)) {
       if (attempt < STDIN_REARM_ATTEMPTS) {
-        setTimeout(() => this.rearmStdinAfterFault(code, syscall, attempt + 1), STDIN_REARM_DELAY_MS)
+        setTimeout(() => rearmStdinAfterFault.call(this, code, syscall, attempt + 1), STDIN_REARM_DELAY_MS)
         return
       }
       logForDebugging(`${label}: raw mode could not be re-armed in ${attempt} tries — keys may not arrive until the terminal is re-opened`, { level: 'warn' })

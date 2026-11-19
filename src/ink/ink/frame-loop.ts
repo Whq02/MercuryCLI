@@ -18,7 +18,9 @@ import { readFrameWire } from '../root/frame-trace.js'
 import { applyOverlayPass } from '../root/overlay-pass.js'
 import { syncOutputSupportedNow, regionScrollTrustedNow } from '../session/capabilities.js'
 import { writeDiffToTerminal } from '../session/delivery.js'
-import { COMPOSED_TEE_PATH, safeAppend, WRITE_TEE_PATH } from './tees.js'
+import { COMPOSED_TEE_PATH, safeAppend, WRITE_TEE_PATH, dumpTree, teeBeforeDiff, teeAfterDiff } from './tees.js'
+import { liveSize, resetFramesForAltScreen } from './frames.js'
+import { consoleBufferOutlivesWindow, settleResize, applySize } from './resize.js'
 import type Ink from '../ink.js'
 
 export const RENDER_FAULT_RETRY_BUDGET = 3
@@ -33,9 +35,12 @@ const HOME_CURSOR = Object.freeze({ x: 0, y: 0, visible: false })
 
 type OnRenderReads = Pick<
   Ink,
-  | 'options' | 'isTTY' | 'cachedColumns' | 'cachedRows' | 'currentTree' | 'isUnmounted' | 'isPaused' | 'isRendering' | 'resizeSettleTimer' | 'liveSize'
-  | 'settleResize' | 'consoleBufferOutlivesWindow' | 'applySize' | 'calculateLayout' | 'renderFaultStreak' | 'onRender' | 'recoverFromRenderFault'
-  | 'renderFrame' | 'render'
+  | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
+  | 'pendingAltEntry' | 'lastPoolReset' | 'rootNode' | 'renderer' | 'writer' | 'scheduler' | 'ledger' | 'layoutCounters' | 'currentTree' | 'isUnmounted'
+  | 'isPaused' | 'isRendering' | 'lastRenderTime' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'wholeFrameAt'
+  | 'resizeSettleTimer' | 'watchdogCommitsRemaining' | 'zeroByteRenderStreak' | 'selection' | 'selectionListeners' | 'glassOverlay' | 'searchQuery'
+  | 'searchPositions' | 'cursorDeclaration' | 'frameListeners' | 'treeDumpBudget' | 'resetPools' | 'applySettledResize' | 'calculateLayout'
+  | 'scheduleRender' | 'renderFaultStreak' | 'firstFrameStamped' | 'onRender' | 'stampFirstFrame' | 'reassertScreenState' | 'render'
 >
 
 export function onRender(this: OnRenderReads): void {
@@ -44,30 +49,36 @@ export function onRender(this: OnRenderReads): void {
   this.isRendering = true
   try {
     if (this.isTTY && process.platform === 'win32') refreshConsoleSize(this.options.stdout)
-    const { columns, rows } = this.liveSize()
+    const { columns, rows } = liveSize.call(this)
     if (columns !== this.cachedColumns || rows !== this.cachedRows) {
       if (reconciler.isAlreadyRendering()) {
         queueMicrotask(this.onRender)
         return
       }
-      if (this.consoleBufferOutlivesWindow()) {
-        this.settleResize()
+      if (consoleBufferOutlivesWindow.call(this)) {
+        settleResize.call(this)
         return
       }
-      this.applySize(columns, rows)
+      applySize.call(this, columns, rows)
       if (this.currentTree !== null) this.render(this.currentTree)
       this.calculateLayout()
     }
-    this.renderFrame()
+    renderFrame.call(this)
     this.renderFaultStreak = 0
   } catch (error) {
-    this.recoverFromRenderFault(error)
+    recoverFromRenderFault.call(this, error)
   } finally {
     this.isRendering = false
   }
 }
 
-export function recoverFromRenderFault(this: Pick<Ink, 'ledger' | 'altScreenActive' | 'wholeFrameDue' | 'resetFramesForAltScreen' | 'scheduleRender' | 'renderFaultStreak'>, error: unknown): void {
+type RecoverFromRenderFaultReads = Pick<
+  Ink,
+  | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger' | 'altScreenActive'
+  | 'displayCursor' | 'wholeFrameDue' | 'glassOverlay' | 'scheduleRender' | 'renderFaultStreak'
+>
+
+function recoverFromRenderFault(this: RecoverFromRenderFaultReads, error: unknown): void {
   this.renderFaultStreak += 1
   const message = error instanceof Error ? error.message : String(error)
   logForDebugging(`[ink] render fault ${this.renderFaultStreak}/${RENDER_FAULT_RETRY_BUDGET}: ${message}`, { level: 'warn' })
@@ -77,7 +88,7 @@ export function recoverFromRenderFault(this: Pick<Ink, 'ledger' | 'altScreenActi
   }
   logError(error instanceof Error ? error : new Error(message))
   if (this.altScreenActive) {
-    this.resetFramesForAltScreen()
+    resetFramesForAltScreen.call(this)
     this.wholeFrameDue = true
   }
   this.ledger.contaminate('self-heal')
@@ -86,14 +97,14 @@ export function recoverFromRenderFault(this: Pick<Ink, 'ledger' | 'altScreenActi
 
 type RenderFrameReads = Pick<
   Ink,
-  | 'options' | 'isTTY' | 'stylePool' | 'frontFrame' | 'backFrame' | 'parkPatch' | 'pendingAltEntry' | 'lastPoolReset' | 'rootNode' | 'renderer'
-  | 'writer' | 'scheduler' | 'ledger' | 'layoutCounters' | 'lastRenderTime' | 'altScreenActive' | 'displayCursor' | 'wholeFrameDue' | 'wholeFrameAt'
-  | 'watchdogCommitsRemaining' | 'zeroByteRenderStreak' | 'selection' | 'selectionListeners' | 'glassOverlay' | 'searchQuery' | 'searchPositions'
-  | 'frameListeners' | 'treeDumpBudget' | 'liveSize' | 'resetFramesForAltScreen' | 'resetPools' | 'firstFrameStamped' | 'onRender' | 'stampFirstFrame'
-  | 'resolveCursorTarget' | 'teeBeforeDiff' | 'teeAfterDiff' | 'dumpTree' | 'reassertScreenState'
+  | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'parkPatch'
+  | 'pendingAltEntry' | 'lastPoolReset' | 'rootNode' | 'renderer' | 'writer' | 'scheduler' | 'ledger' | 'layoutCounters' | 'lastRenderTime'
+  | 'altScreenActive' | 'displayCursor' | 'wholeFrameDue' | 'wholeFrameAt' | 'watchdogCommitsRemaining' | 'zeroByteRenderStreak' | 'selection'
+  | 'selectionListeners' | 'glassOverlay' | 'searchQuery' | 'searchPositions' | 'cursorDeclaration' | 'frameListeners' | 'treeDumpBudget' | 'resetPools'
+  | 'firstFrameStamped' | 'onRender' | 'stampFirstFrame' | 'reassertScreenState'
 >
 
-export function renderFrame(this: RenderFrameReads): void {
+function renderFrame(this: RenderFrameReads): void {
   const frameStart = performance.now()
   burnFrameCostPad()
   fluxMark('paint:entry')
@@ -106,13 +117,13 @@ export function renderFrame(this: RenderFrameReads): void {
     this.lastRenderTime !== null &&
     now - this.lastRenderTime > 30_000
   ) {
-    this.resetFramesForAltScreen()
+    resetFramesForAltScreen.call(this)
     this.wholeFrameDue = true
     this.ledger.contaminate('self-heal');
   }
   this.lastRenderTime = now
 
-  const { columns, rows } = this.liveSize()
+  const { columns, rows } = liveSize.call(this)
   const wasContaminated = this.ledger.isContaminated()
   const regionScrollUsable =
     this.altScreenActive && syncOutputSupportedNow() && regionScrollTrustedNow()
@@ -174,7 +185,7 @@ export function renderFrame(this: RenderFrameReads): void {
     } else {
       screen.damage = { x: 0, y: 0, width: screen.width, height: screen.height }
     }
-    if (this.treeDumpBudget > 0 && signals.layoutShifted) this.dumpTree(signals.shiftReason)
+    if (this.treeDumpBudget > 0 && signals.layoutShifted) dumpTree.call(this, signals.shiftReason)
     if (COMPOSED_TEE_PATH && this.altScreenActive) {
       safeAppend(
         COMPOSED_TEE_PATH,
@@ -197,7 +208,7 @@ export function renderFrame(this: RenderFrameReads): void {
     ? { ...this.frontFrame, cursor: HOME_CURSOR }
     : this.frontFrame
 
-  if (WRITE_TEE_PATH) this.teeBeforeDiff(baseFrame, frame)
+  if (WRITE_TEE_PATH) teeBeforeDiff(baseFrame, frame)
 
   const diffStart = performance.now()
   const whole = this.wholeFrameDue && this.altScreenActive
@@ -244,7 +255,7 @@ export function renderFrame(this: RenderFrameReads): void {
     altScreen: this.altScreenActive,
     hasDiff,
     parkPatch: this.parkPatch,
-    target: this.resolveCursorTarget(),
+    target: resolveCursorTarget.call(this),
     parked: this.displayCursor,
     prevCursor: { x: baseFrame.cursor.x, y: baseFrame.cursor.y },
     frameCursor: { x: frame.cursor.x, y: frame.cursor.y },
@@ -265,7 +276,7 @@ export function renderFrame(this: RenderFrameReads): void {
     !syncOutputSupportedNow(),
   )
   const writeMs = performance.now() - writeStart
-  if (WRITE_TEE_PATH) this.teeAfterDiff(finalPatches)
+  if (WRITE_TEE_PATH) teeAfterDiff(finalPatches)
 
   this.ledger.settle(delivered, null)
 
@@ -334,7 +345,7 @@ export function subscribeFrame(this: Pick<Ink, 'frameListeners'>, listener: () =
   }
 }
 
-export function resolveCursorTarget(this: Pick<Ink, 'cursorDeclaration'>): CursorPoint | null {
+function resolveCursorTarget(this: Pick<Ink, 'cursorDeclaration'>): CursorPoint | null {
   const declaration = this.cursorDeclaration
   if (!declaration) return null
   const rect = nodeCache.get(declaration.node)

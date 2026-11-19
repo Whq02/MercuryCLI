@@ -8,6 +8,7 @@ import { extendedKeysSupportedNow } from '../session/capabilities.js'
 import { writeAllSync, streamTakesWrites } from '../session/delivery.js'
 import { HIDE_CURSOR } from '../termio/dec.js'
 import { supportsTabStatus } from '../termio/osc.js'
+import { reenterAltScreen } from './alt-screen.js'
 import { drainStdin } from './stdin.js'
 import type Ink from '../ink.js'
 
@@ -37,28 +38,28 @@ export function teardownHost(this: Pick<Ink, 'options' | 'altScreenActive'>): Te
 
 type StopForSignalReads = Pick<
   Ink,
-  | 'options' | 'isTTY' | 'isUnmounted' | 'rawModeOffForStop' | 'attachStopListeners' | 'detachStopListeners' | 'teardownHost'
+  | 'options' | 'isTTY' | 'isUnmounted' | 'altScreenActive' | 'rawModeOffForStop' | 'stopListenersAttached' | 'stopForSignal'
 >
 
 export function stopForSignal(this: StopForSignalReads, signal: NodeJS.Signals): void {
   if (!isStopSignal(signal)) return
-  this.detachStopListeners()
+  detachStopListeners.call(this)
   if (this.isTTY && !this.isUnmounted) {
-    const receipt = restoreTerminalForStop(signal, this.teardownHost(), this.options.stdin)
+    const receipt = restoreTerminalForStop(signal, teardownHost.call(this), this.options.stdin)
     this.rawModeOffForStop = receipt.rawModeOff
   }
   try {
     process.kill(process.pid, signal)
   } catch {
   }
-  if (!this.isUnmounted) this.attachStopListeners()
+  if (!this.isUnmounted) attachStopListeners.call(this)
 }
 
 type ResumeAfterContinueReads = Pick<
   Ink,
-  | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'ledger' | 'isUnmounted' | 'altScreenActive'
-  | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'rawModeOffForStop' | 'scheduleRender' | 'armScreenWatchdog' | 'reenterAltScreen'
-  | 'attachStopListeners'
+  | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger'
+  | 'isUnmounted' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'glassOverlay' | 'rawModeOffForStop'
+  | 'stopListenersAttached' | 'scheduleRender' | 'armScreenWatchdog' | 'stopForSignal'
 >
 
 export function resumeAfterContinue(this: ResumeAfterContinueReads): void {
@@ -70,7 +71,7 @@ export function resumeAfterContinue(this: ResumeAfterContinueReads): void {
     } catch {
     }
   }
-  this.attachStopListeners()
+  attachStopListeners.call(this)
   if (streamTakesWrites(this.options.stdout)) {
     termWrite(
       this.options.stdout,
@@ -85,7 +86,7 @@ export function resumeAfterContinue(this: ResumeAfterContinueReads): void {
     }
   }
   if (this.altScreenActive) {
-    this.reenterAltScreen();
+    reenterAltScreen.call(this);
     this.armScreenWatchdog();
     this.wholeFrameDue = true
     this.scheduleRender()

@@ -25,7 +25,7 @@ export function subscribeToSelectionChange(this: Pick<Ink, 'selectionListeners'>
   }
 }
 
-export function applySelectionClipBand(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'selection'>, col: number, row: number): void {
+function applySelectionClipBand(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'selection'>, col: number, row: number): void {
   try {
     const hit = hitTest(this.rootNode, col, row)
     let owner: DOMElement | null = null
@@ -57,7 +57,7 @@ export function applySelectionClipBand(this: Pick<Ink, 'frontFrame' | 'rootNode'
   }
 }
 
-export function offerTextGesture(this: Pick<Ink, 'rootNode' | 'textGesture'>, col: number, row: number, clickCount: 1 | 2 | 3): boolean {
+function offerTextGesture(this: Pick<Ink, 'rootNode' | 'textGesture'>, col: number, row: number, clickCount: 1 | 2 | 3): boolean {
   this.textGesture = null
   let node: DOMElement | undefined = hitTest(this.rootNode, col, row) ?? undefined
   while (node) {
@@ -75,37 +75,32 @@ export function offerTextGesture(this: Pick<Ink, 'rootNode' | 'textGesture'>, co
   return false
 }
 
-export function textGestureTookPress(this: Pick<Ink, 'selection' | 'notifySelectionChange'>): void {
+function textGestureTookPress(this: Pick<Ink, 'selection' | 'notifySelectionChange'>): void {
   if (this.selection.anchor === null) return
   clearSelection(this.selection)
   this.notifySelectionChange()
 }
 
-export function handleSelectionStart(this: Pick<Ink, 'altScreenActive' | 'selection' | 'notifySelectionChange' | 'applySelectionClipBand' | 'offerTextGesture' | 'textGestureTookPress'>, col: number, row: number, pressHadAlt: boolean): void {
+export function handleSelectionStart(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number, pressHadAlt: boolean): void {
   if (!this.altScreenActive) return
-  if (this.offerTextGesture(col, row, 1)) {
-    this.textGestureTookPress()
+  if (offerTextGesture.call(this, col, row, 1)) {
+    textGestureTookPress.call(this)
     return
   }
   startSelection(this.selection, col, row)
   this.selection.lastPressHadAlt = pressHadAlt
-  this.applySelectionClipBand(col, row)
+  applySelectionClipBand.call(this, col, row)
   this.notifySelectionChange()
 }
 
-type HandleMultiClickReads = Pick<
-  Ink,
-  | 'frontFrame' | 'altScreenActive' | 'selection' | 'notifySelectionChange' | 'applySelectionClipBand' | 'offerTextGesture' | 'textGestureTookPress'
->
-
-export function handleMultiClick(this: HandleMultiClickReads, col: number, row: number, count: 2 | 3): void {
+export function handleMultiClick(this: Pick<Ink, 'frontFrame' | 'rootNode' | 'altScreenActive' | 'selection' | 'textGesture' | 'notifySelectionChange'>, col: number, row: number, count: 2 | 3): void {
   if (!this.altScreenActive) return
-  if (this.offerTextGesture(col, row, count)) {
-    this.textGestureTookPress()
+  if (offerTextGesture.call(this, col, row, count)) {
+    textGestureTookPress.call(this)
     return
   }
   startSelection(this.selection, col, row)
-  this.applySelectionClipBand(col, row)
+  applySelectionClipBand.call(this, col, row)
   const screen = this.frontFrame.screen
   if (count === 2) selectWordAt(this.selection, screen, col, row)
   else selectLineAt(this.selection, screen, row)

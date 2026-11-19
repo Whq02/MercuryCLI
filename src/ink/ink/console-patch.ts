@@ -22,7 +22,7 @@ const CONSOLE_DEBUG_METHODS = [
 
 const CONSOLE_ERROR_METHODS = ['warn', 'error', 'trace'] as const
 
-export function patchConsole(this: Pick<Ink, 'interceptStderr'>): () => void {
+export function patchConsole(this: Pick<Ink, 'options' | 'ledger' | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'scheduleRender'>): () => void {
   const restorers: Array<() => void> = []
   const consoleRecord = console as unknown as Record<string, (...args: unknown[]) => void>
   for (const method of CONSOLE_DEBUG_METHODS) {
@@ -52,13 +52,13 @@ export function patchConsole(this: Pick<Ink, 'interceptStderr'>): () => void {
   restorers.push(() => {
     console.assert = originalAssert
   })
-  restorers.push(this.interceptStderr())
+  restorers.push(interceptStderr.call(this))
   return () => {
     for (const restore of restorers) restore()
   }
 }
 
-export function interceptStderr(this: Pick<Ink, 'options' | 'ledger' | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'scheduleRender'>): () => void {
+function interceptStderr(this: Pick<Ink, 'options' | 'ledger' | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'scheduleRender'>): () => void {
   const stream = this.options.stderr
   const originalWrite = stream.write.bind(stream)
   let reentered = false

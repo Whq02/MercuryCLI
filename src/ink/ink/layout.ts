@@ -1,13 +1,12 @@
 import { logForDebugging } from '../../utils/debug.js'
 import { getCellLayoutCounters } from '../layout/cellLayout.js'
 import { recordLayoutMs, noteSlowLayout } from '../reconciler.js'
-import { COMMIT_TEE_PATH } from './tees.js'
+import { COMMIT_TEE_PATH, teeCommitGeometry } from './tees.js'
 import type Ink from '../ink.js'
 
 type CalculateLayoutReads = Pick<
   Ink,
   | 'cachedColumns' | 'cachedRows' | 'rootNode' | 'lastAssignedWidth' | 'lastAssignedMaxHeight' | 'layoutCounters' | 'isUnmounted' | 'altScreenActive'
-  | 'teeCommitGeometry'
 >
 
 export function calculateLayout(this: CalculateLayoutReads): void {
@@ -29,7 +28,7 @@ export function calculateLayout(this: CalculateLayoutReads): void {
   recordLayoutMs(elapsed)
   this.layoutCounters = getCellLayoutCounters()
   noteSlowLayout(elapsed, this.layoutCounters)
-  if (COMMIT_TEE_PATH) this.teeCommitGeometry(elapsed)
+  if (COMMIT_TEE_PATH) teeCommitGeometry.call(this, elapsed)
 }
 
 export function layoutAfterCommit(this: Pick<Ink, 'isUnmounted' | 'layoutListeners' | 'calculateLayout'>): void {

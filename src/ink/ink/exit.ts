@@ -3,6 +3,8 @@ import { optimizePatches } from '../patch-stream.js'
 import reconciler from '../reconciler.js'
 import { runTeardownSuite } from '../root/teardown.js'
 import { writeDiffToTerminal } from '../session/delivery.js'
+import { clearResizeSettle } from './resize.js'
+import { teardownHost } from './stop-continue.js'
 import { drainStdin } from './stdin.js'
 import type Ink from '../ink.js'
 import type { ExitOutcome } from './record.js'
@@ -10,8 +12,8 @@ import type { ExitOutcome } from './record.js'
 type UnmountReads = Pick<
   Ink,
   | 'options' | 'isTTY' | 'frontFrame' | 'rootNode' | 'container' | 'writer' | 'scheduler' | 'isUnmounted' | 'restoreConsole' | 'removeTtySubscriptions'
-  | 'exitOutcomeLatch' | 'exitOutcome' | 'unsubscribeExit' | 'resolveExitPromise' | 'rejectExitPromise' | 'clearResizeSettle' | 'onRender'
-  | 'teardownHost'
+  | 'exitOutcomeLatch' | 'altScreenActive' | 'resizeSettleTimer' | 'exitOutcome' | 'unsubscribeExit' | 'resolveExitPromise' | 'rejectExitPromise'
+  | 'onRender'
 >
 
 export function unmount(this: UnmountReads, error?: Error | number | null): void {
@@ -33,11 +35,11 @@ export function unmount(this: UnmountReads, error?: Error | number | null): void
   )
 
   if (this.isTTY) {
-    runTeardownSuite(this.teardownHost())
+    runTeardownSuite(teardownHost.call(this))
   }
 
   this.isUnmounted = true
-  this.clearResizeSettle()
+  clearResizeSettle.call(this)
   this.scheduler.cancel()
   reconciler.updateContainerSync(null, this.container, null, null)
   reconciler.flushSyncWork()
@@ -70,9 +72,9 @@ export function waitUntilExit(this: Pick<Ink, 'options' | 'exitPromise' | 'exitO
   return this.exitPromise
 }
 
-export function detachForShutdown(this: Pick<Ink, 'options' | 'scheduler' | 'isUnmounted' | 'clearResizeSettle'>): void {
+export function detachForShutdown(this: Pick<Ink, 'options' | 'scheduler' | 'isUnmounted' | 'resizeSettleTimer'>): void {
   this.isUnmounted = true
-  this.clearResizeSettle()
+  clearResizeSettle.call(this)
   this.scheduler.cancel()
   drainStdin(this.options.stdin)
   const { stdin } = this.options

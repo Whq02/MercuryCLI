@@ -21,12 +21,12 @@ export function getHyperlinkAt(this: Pick<Ink, 'frontFrame' | 'altScreenActive'>
   return findPlainTextUrlAt(screen, col, row)
 }
 
-export function dispatchClick(this: Pick<Ink, 'rootNode' | 'altScreenActive' | 'pointerOnBlank'>, col: number, row: number): boolean {
+export function dispatchClick(this: Pick<Ink, 'stylePool' | 'frontFrame' | 'rootNode' | 'altScreenActive'>, col: number, row: number): boolean {
   if (!this.altScreenActive) return false
-  return dispatchClickInTree(this.rootNode, col, row, this.pointerOnBlank(col, row))
+  return dispatchClickInTree(this.rootNode, col, row, pointerOnBlank.call(this, col, row))
 }
 
-export function pointerOnBlank(this: Pick<Ink, 'stylePool' | 'frontFrame' | 'rootNode'>, col: number, row: number): boolean {
+function pointerOnBlank(this: Pick<Ink, 'stylePool' | 'frontFrame' | 'rootNode'>, col: number, row: number): boolean {
   const screen = this.frontFrame.screen
   if (!isInklessCellAt(screen, col, row, this.stylePool)) return false
   const hit = hitTest(this.rootNode, col, row)

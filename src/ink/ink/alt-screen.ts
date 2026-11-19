@@ -9,6 +9,7 @@ import { terminalQuerierFor, terminalQuerySettleMs } from '../session/querier.js
 import { streamTakesWrites } from '../session/delivery.js'
 import { ERASE_SCREEN, CURSOR_HOME } from '../termio/csi.js'
 import { ENABLE_MOUSE_TRACKING, DISABLE_MOUSE_TRACKING, ENTER_ALT_SCREEN } from '../termio/dec.js'
+import { resetFramesForAltScreen, repaintMainScreen } from './frames.js'
 import { drainStdin } from './stdin.js'
 import type Ink from '../ink.js'
 
@@ -20,8 +21,8 @@ const ALT_SCREEN_SESSION_OWNER = 'alt-screen-session'
 
 type SetAltScreenActiveReads = Pick<
   Ink,
-  | 'options' | 'pendingAltEntry' | 'ledger' | 'altScreenActive' | 'mouseTracking' | 'wheelReportingConfirmed' | 'resetFramesForAltScreen'
-  | 'repaintMainScreen'
+  | 'options' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'pendingAltEntry' | 'ledger'
+  | 'altScreenActive' | 'mouseTracking' | 'wheelReportingConfirmed' | 'displayCursor' | 'glassOverlay'
 >
 
 export function setAltScreenActive(this: SetAltScreenActiveReads, active: boolean, mouseTracking: boolean): void {
@@ -30,11 +31,11 @@ export function setAltScreenActive(this: SetAltScreenActiveReads, active: boolea
   this.mouseTracking = active && mouseTracking
   this.wheelReportingConfirmed = false
   if (active) {
-    this.resetFramesForAltScreen()
+    resetFramesForAltScreen.call(this)
   } else {
     this.pendingAltEntry = null
     resetPointerShape(s => termWrite(this.options.stdout, s))
-    this.repaintMainScreen()
+    repaintMainScreen.call(this)
     this.ledger.contaminate('blank-reset')
   }
 }
@@ -76,7 +77,7 @@ export async function awaitTerminalQueries(this: Pick<Ink, 'options'>): Promise<
   await querier.whenSettled(terminalQuerySettleMs())
 }
 
-export function drainUnsettledQueries(this: Pick<Ink, 'options'>): void {
+function drainUnsettledQueries(this: Pick<Ink, 'options'>): void {
   const querier = terminalQuerierFor(this.options.stdout)
   if (querier === undefined || querier.settled()) return
   drainStdin(this.options.stdin)
@@ -94,8 +95,9 @@ export function enterAlternateScreen(this: Pick<Ink, 'options' | 'editorHandover
 
 type ExitAlternateScreenReads = Pick<
   Ink,
-  | 'options' | 'ledger' | 'editorHandoverDepth' | 'altScreenActive' | 'mouseTracking' | 'wholeFrameDue' | 'resetFramesForAltScreen'
-  | 'repaintMainScreen' | 'reassertScreenState' | 'resume' | 'resumeStdin'
+  | 'options' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger'
+  | 'editorHandoverDepth' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'glassOverlay' | 'reassertScreenState' | 'resume'
+  | 'resumeStdin'
 >
 
 export function exitAlternateScreen(this: ExitAlternateScreenReads): void {
@@ -110,10 +112,10 @@ export function exitAlternateScreen(this: ExitAlternateScreenReads): void {
   )
   this.resumeStdin()
   if (this.altScreenActive) {
-    this.resetFramesForAltScreen();
+    resetFramesForAltScreen.call(this);
     this.wholeFrameDue = true;
   } else {
-    this.repaintMainScreen()
+    repaintMainScreen.call(this)
     this.ledger.contaminate('blank-reset')
   }
   this.resume()
@@ -122,7 +124,8 @@ export function exitAlternateScreen(this: ExitAlternateScreenReads): void {
 
 type ReassertScreenStateReads = Pick<
   Ink,
-  | 'options' | 'ledger' | 'isUnmounted' | 'altScreenActive' | 'wholeFrameDue' | 'screenReassertCount' | 'resetFramesForAltScreen' | 'repaint'
+  | 'options' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger' | 'isUnmounted'
+  | 'altScreenActive' | 'displayCursor' | 'wholeFrameDue' | 'glassOverlay' | 'screenReassertCount' | 'repaint'
 >
 
 export function reassertScreenState(this: ReassertScreenStateReads, reason: string, opts: { repaint?: boolean }): void {
@@ -133,7 +136,7 @@ export function reassertScreenState(this: ReassertScreenStateReads, reason: stri
   )
   if (this.altScreenActive) {
     termWrite(this.options.stdout, ENTER_ALT_SCREEN);
-    this.resetFramesForAltScreen();
+    resetFramesForAltScreen.call(this);
     this.wholeFrameDue = true;
   }
   this.ledger.contaminate('self-heal');
@@ -145,15 +148,21 @@ export function armScreenWatchdog(this: Pick<Ink, 'watchdogCommitsRemaining' | '
   this.zeroByteRenderStreak = 0
 }
 
-export function reenterAltScreen(this: Pick<Ink, 'options' | 'mouseTracking' | 'resetFramesForAltScreen'>): void {
+type ReenterAltScreenReads = Pick<
+  Ink,
+  | 'options' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger' | 'mouseTracking'
+  | 'displayCursor' | 'glassOverlay'
+>
+
+export function reenterAltScreen(this: ReenterAltScreenReads): void {
   termWrite(this.options.stdout, reenterAltBytes(this.mouseTracking))
-  this.resetFramesForAltScreen()
+  resetFramesForAltScreen.call(this)
 }
 
 type ReassertTerminalModesReads = Pick<
   Ink,
-  | 'options' | 'isTTY' | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'mouseTracking' | 'wholeFrameDue' | 'resetFramesForAltScreen'
-  | 'scheduleRender'
+  | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger'
+  | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'mouseTracking' | 'displayCursor' | 'wholeFrameDue' | 'glassOverlay' | 'scheduleRender'
 >
 
 export function reassertTerminalModes(this: ReassertTerminalModesReads, includeAltScreen: boolean): void {
@@ -170,15 +179,21 @@ export function reassertTerminalModes(this: ReassertTerminalModesReads, includeA
   )
   if (includeAltScreen && this.altScreenActive) {
     termWrite(this.options.stdout, wakeReenterAltBytes(this.mouseTracking))
-    this.resetFramesForAltScreen()
+    resetFramesForAltScreen.call(this)
     this.wholeFrameDue = true
     this.scheduleRender()
   }
 }
 
-export function repaintAfterNestedAltScreenClose(this: Pick<Ink, 'altScreenActive' | 'wholeFrameDue' | 'resetFramesForAltScreen' | 'scheduleRender'>): void {
+type RepaintAfterNestedAltScreenCloseReads = Pick<
+  Ink,
+  | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger' | 'altScreenActive'
+  | 'displayCursor' | 'wholeFrameDue' | 'glassOverlay' | 'scheduleRender'
+>
+
+export function repaintAfterNestedAltScreenClose(this: RepaintAfterNestedAltScreenCloseReads): void {
   if (!this.altScreenActive) return
-  this.resetFramesForAltScreen()
+  resetFramesForAltScreen.call(this)
   this.wholeFrameDue = true
   this.scheduleRender()
 }
@@ -195,18 +210,18 @@ export function armAltScreenEntry(this: Pick<Ink, 'pendingAltEntry' | 'ledger'>,
 
 type ForceRedrawReads = Pick<
   Ink,
-  | 'options' | 'isTTY' | 'ledger' | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'wholeFrameDue' | 'resetFramesForAltScreen' | 'repaintMainScreen'
-  | 'onRender'
+  | 'options' | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger'
+  | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'displayCursor' | 'wholeFrameDue' | 'glassOverlay' | 'onRender'
 >
 
 export function forceRedraw(this: ForceRedrawReads): void {
   if (!this.isTTY || this.isUnmounted || this.isPaused) return
   if (this.altScreenActive) {
-    this.resetFramesForAltScreen()
+    resetFramesForAltScreen.call(this)
     this.wholeFrameDue = true
   } else {
     termWrite(this.options.stdout, ERASE_SCREEN + CURSOR_HOME)
-    this.repaintMainScreen()
+    repaintMainScreen.call(this)
   }
   this.ledger.contaminate('force-redraw')
   this.onRender()
@@ -214,7 +229,8 @@ export function forceRedraw(this: ForceRedrawReads): void {
 
 type RepaintAltScreenReads = Pick<
   Ink,
-  | 'isTTY' | 'isUnmounted' | 'isPaused' | 'altScreenActive' | 'wholeFrameDue' | 'resetFramesForAltScreen' | 'onRender' | 'forceRedraw'
+  | 'isTTY' | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger' | 'isUnmounted'
+  | 'isPaused' | 'altScreenActive' | 'displayCursor' | 'wholeFrameDue' | 'glassOverlay' | 'onRender' | 'forceRedraw'
 >
 
 export function repaintAltScreen(this: RepaintAltScreenReads): void {
@@ -223,7 +239,7 @@ export function repaintAltScreen(this: RepaintAltScreenReads): void {
     this.forceRedraw()
     return
   }
-  this.resetFramesForAltScreen()
+  resetFramesForAltScreen.call(this)
   this.wholeFrameDue = true
   this.onRender()
 }
@@ -248,18 +264,24 @@ export function overwriteScreen(this: OverwriteScreenReads): void {
   this.scheduleRender()
 }
 
-export function repaint(this: Pick<Ink, 'ledger' | 'altScreenActive' | 'resetFramesForAltScreen' | 'repaintMainScreen' | 'onRender'>): void {
+type RepaintReads = Pick<
+  Ink,
+  | 'stylePool' | 'charPool' | 'hyperlinkPool' | 'frontFrame' | 'backFrame' | 'cachedColumns' | 'cachedRows' | 'ledger' | 'altScreenActive'
+  | 'displayCursor' | 'glassOverlay' | 'onRender'
+>
+
+export function repaint(this: RepaintReads): void {
   if (this.altScreenActive) {
-    this.resetFramesForAltScreen()
+    resetFramesForAltScreen.call(this)
   } else {
-    this.repaintMainScreen()
+    repaintMainScreen.call(this)
     this.ledger.contaminate('blank-reset')
   }
   this.onRender()
 }
 
-export function pause(this: Pick<Ink, 'isPaused' | 'onRender' | 'drainUnsettledQueries'>): void {
-  this.drainUnsettledQueries()
+export function pause(this: Pick<Ink, 'options' | 'isPaused' | 'onRender'>): void {
+  drainUnsettledQueries.call(this)
   reconciler.flushSyncWork()
   this.onRender()
   this.isPaused = true
