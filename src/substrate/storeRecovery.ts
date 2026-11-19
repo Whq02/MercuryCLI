@@ -1,6 +1,6 @@
 
 import { appendFile, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
-import { mkdirSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -90,6 +90,57 @@ export async function recordStoreReadDegradation(args: {
   } catch (e) {
     logForDebugging(`[${args.store}] read-degrade ledger append failed: ${e}`)
   }
+}
+
+const ASIDE_NAMES_TRIED = 64
+
+function copiedAside(path: string, asideAt: (stamp: number) => string): string {
+  const bytes = readFileSync(path)
+  const first = Date.now()
+  for (let stamp = first; ; stamp++) {
+    const aside = asideAt(stamp)
+    try {
+      writeFileSync(aside, bytes, { flag: 'wx', mode: 0o600 })
+      return aside
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST' || stamp - first >= ASIDE_NAMES_TRIED) throw e
+    }
+  }
+}
+
+function renamedAside(path: string, asideAt: (stamp: number) => string): string {
+  let stamp = Date.now()
+  while (existsSync(asideAt(stamp))) stamp++
+  const aside = asideAt(stamp)
+  renameSync(path, aside)
+  return aside
+}
+
+export function keepDamagedFileAsideSync(args: {
+  store: string
+  path: string
+  reason: string
+  by: 'copy' | 'rename'
+  asideAt: (stamp: number) => string
+}): string {
+  const aside = args.by === 'copy' ? copiedAside(args.path, args.asideAt) : renamedAside(args.path, args.asideAt)
+  const event: StoreRecoveryEvent = {
+    ts: new Date().toISOString(),
+    store: args.store,
+    path: args.path,
+    reason: args.reason.slice(0, 300),
+    quarantinePath: aside,
+    resumedFrom: 'empty',
+    kind: 'quarantine',
+  }
+  try {
+    const ledger = storeRecoveryLedgerPath()
+    mkdirSync(dirname(ledger), { recursive: true })
+    appendFileSync(ledger, JSON.stringify(event) + '\n', 'utf-8')
+  } catch (e) {
+    logForDebugging(`[${args.store}] recovery ledger append failed: ${e}`)
+  }
+  return aside
 }
 
 const refusedNamed = new Set<string>()

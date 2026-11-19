@@ -1,10 +1,10 @@
-import { chmodSync, copyFileSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { DurablePublishError, durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { recordSignIn, noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../../utils/errors.js'
-import { logError } from '../../utils/log.js'
+import '../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../utils/proofHomeGuard.js'
 
 const PROVIDER_SECRETS_VERSION = 1
@@ -62,13 +62,13 @@ function readFile(): ProviderSecretsFile | null {
   }
 }
 
-type SecretsProbe =
+type CredentialJsonProbe =
   | { state: 'absent' }
-  | { state: 'ok'; file: ProviderSecretsFile }
-  | { state: 'unparseable' }
+  | { state: 'ok'; file: Record<string, unknown> }
+  | { state: 'unusable'; why: 'not valid JSON' | 'not a JSON object' }
   | { state: 'unreadable'; code: string; message: string }
 
-function probeSecrets(path: string): SecretsProbe {
+export function probeCredentialJson(path: string): CredentialJsonProbe {
   let raw: string
   try {
     raw = readFileSync(path, 'utf8')
@@ -83,11 +83,39 @@ function probeSecrets(path: string): SecretsProbe {
   }
   try {
     const parsed = JSON.parse(raw) as unknown
-    if (typeof parsed !== 'object' || parsed === null) return { state: 'unparseable' }
-    return { state: 'ok', file: parsed as ProviderSecretsFile }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return { state: 'unusable', why: 'not a JSON object' }
+    return { state: 'ok', file: parsed as Record<string, unknown> }
   } catch {
-    return { state: 'unparseable' }
+    return { state: 'unusable', why: 'not valid JSON' }
   }
+}
+
+function credentialAsidePath(path: string, stamp: number): string {
+  return path.endsWith('-auth.json') ? `${path.slice(0, -'-auth.json'.length)}.corrupt.${stamp}-auth.json` : `${path}.corrupt.${stamp}`
+}
+
+function keepCredentialFileAside(what: string, store: string, path: string, why: string): void {
+  const { keepDamagedFileAsideSync } = require('../../substrate/storeRecovery.js') as typeof import('../../substrate/storeRecovery.js')
+  try {
+    keepDamagedFileAsideSync({ store, path, reason: why, by: 'copy', asideAt: stamp => credentialAsidePath(path, stamp) })
+  } catch (error) {
+    if (isENOENT(error)) return
+    const code = getErrnoCode(error) ?? errorMessage(error)
+    throw Object.assign(new Error(`${what} at ${path} is ${why} and could not be kept aside (${code}); nothing was written. Move it away, then try again.`), { code })
+  }
+}
+
+export function credentialJsonToWriteOver(what: string, store: string, path: string): Record<string, unknown> | null {
+  const probe = probeCredentialJson(path)
+  if (probe.state === 'ok') return probe.file
+  if (probe.state === 'unreadable') {
+    throw Object.assign(
+      new Error(`${what} at ${path} exists but could not be read (${probe.code}); nothing was written. Make it readable, or move it away to start a new one, then try again.`),
+      { code: probe.code },
+    )
+  }
+  if (probe.state === 'unusable') keepCredentialFileAside(what, store, path, probe.why)
+  return null
 }
 
 function publishSecrets(mutate: (next: ProviderSecretsFile) => void): void {
@@ -95,7 +123,7 @@ function publishSecrets(mutate: (next: ProviderSecretsFile) => void): void {
   refuseProofWriteIntoAccountStore(dir, 'the provider secrets store')
   mkdirSync(dir, { recursive: true })
   const path = secretsPath()
-  const probe = probeSecrets(path)
+  const probe = probeCredentialJson(path)
   if (probe.state === 'unreadable') {
     throw Object.assign(
       new Error(
@@ -104,19 +132,8 @@ function publishSecrets(mutate: (next: ProviderSecretsFile) => void): void {
       { code: probe.code },
     )
   }
-  if (probe.state === 'unparseable') {
-    const copy = `${path}.corrupt.${Date.now()}`
-    try {
-      copyFileSync(path, copy)
-      try {
-        chmodSync(copy, 0o600)
-      } catch {
-      }
-    } catch (error) {
-      if (!isENOENT(error)) logError(new Error(`the provider secrets store at ${path} is not valid JSON and could not be copied aside to ${copy} (${errorMessage(error)}), so this write replaces it with no backup`))
-    }
-  }
-  const existing: ProviderSecretsFile = probe.state === 'ok' ? probe.file : { version: PROVIDER_SECRETS_VERSION }
+  if (probe.state === 'unusable') keepCredentialFileAside('The provider secrets store', 'provider-secrets', path, probe.why)
+  const existing: ProviderSecretsFile = probe.state === 'ok' ? (probe.file as ProviderSecretsFile) : { version: PROVIDER_SECRETS_VERSION }
   const next: ProviderSecretsFile = { ...existing, version: PROVIDER_SECRETS_VERSION }
   mutate(next)
   try {
@@ -499,15 +516,7 @@ export function publishAuthScopedJson(
   refuseProofWriteIntoAccountStore(dir, `the auth file ${fileName}`)
   mkdirSync(dir, { recursive: true })
   const path = join(dir, fileName)
-  let existing: Record<string, unknown> = { version: 1 }
-  try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown
-    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-      existing = parsed as Record<string, unknown>
-    }
-  } catch (error) {
-    if (!isENOENT(error)) logError(new Error(`the auth file ${path} could not be read (${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}), so this write replaces it with only the new fields`))
-  }
+  const existing = credentialJsonToWriteOver('The auth file', fileName.replace(/^\./, '').replace(/\.json$/, ''), path) ?? { version: 1 }
   const next = mutate({ ...existing, version: 1 })
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
   try {

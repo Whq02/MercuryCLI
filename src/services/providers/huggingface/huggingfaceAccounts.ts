@@ -1,15 +1,15 @@
-import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
+import { chmodSync, mkdirSync } from 'node:fs'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
-import { errorMessageWithCause, isENOENT } from '../../../utils/errors.js'
+import { errorMessageWithCause } from '../../../utils/errors.js'
 import { logError } from '../../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { readStoredHuggingfaceApiKey } from '../providerSecrets.js'
+import { credentialJsonToWriteOver, probeCredentialJson, readStoredHuggingfaceApiKey } from '../providerSecrets.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 
 
@@ -82,25 +82,22 @@ function authFilePath(): string {
 let authFileUnreadSaid: string | undefined
 
 function readAuthFile(): HuggingfaceAuthFile | null {
-  try {
-    const parsed = JSON.parse(readFileSync(authFilePath(), 'utf8')) as unknown
-    if (typeof parsed !== 'object' || parsed === null) return null
-    return parsed as HuggingfaceAuthFile
-  } catch (error) {
-    if (isENOENT(error)) return null
-    const why = error instanceof SyntaxError ? 'it is not valid JSON' : errorMessageWithCause(error)
+  const read = probeCredentialJson(authFilePath())
+  if (read.state === 'ok') return read.file as HuggingfaceAuthFile
+  if (read.state !== 'absent') {
+    const why = read.state === 'unreadable' ? read.message : `it is ${read.why}`
     if (why !== authFileUnreadSaid) {
       authFileUnreadSaid = why
-      logError(new Error(`the Hugging Face auth file ${AUTH_FILE_NAME} could not be read (${why}), so the next save writes it anew without its stored tokens and identity`))
+      logError(new Error(`the Hugging Face auth file ${AUTH_FILE_NAME} could not be read (${why}), so its stored tokens and identity are not used`))
     }
-    return null
   }
+  return null
 }
 
 function writeAuthFile(mutate: (file: HuggingfaceAuthFile) => HuggingfaceAuthFile): void {
   refuseProofWriteIntoAccountStore(getAuthConfigHomeDir(), `the auth file ${AUTH_FILE_NAME}`)
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
-  const existing = readAuthFile() ?? { version: HF_AUTH_VERSION }
+  const existing = (credentialJsonToWriteOver('The Hugging Face auth file', 'huggingface-auth', authFilePath()) as HuggingfaceAuthFile | null) ?? { version: HF_AUTH_VERSION }
   const next = mutate({ ...existing, version: HF_AUTH_VERSION })
   const path = authFilePath()
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })

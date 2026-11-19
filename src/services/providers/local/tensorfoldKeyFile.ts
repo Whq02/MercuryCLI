@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { mintTensorFoldKey } from '../../lan/pairing.js'
 import { publishAtomicSync } from '../../../substrate/fileStore.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
-import { errorMessage, isENOENT } from '../../../utils/errors.js'
+import { errorMessage, getErrnoCode, isENOENT } from '../../../utils/errors.js'
 import { logError } from '../../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 
@@ -16,6 +16,12 @@ interface TensorFoldKeyFile {
   line: string
 }
 
+type TensorFoldKeyFileRead =
+  | { state: 'absent' }
+  | { state: 'read'; file: TensorFoldKeyFile }
+  | { state: 'unusable'; why: 'can be read by other users' | 'holds no key' }
+  | { state: 'unreadable'; code: string; message: string }
+
 function tensorFoldKeyLine(key: string, label: string = TENSORFOLD_KEY_LABEL): string {
   return `${label}[${TENSORFOLD_KEY_SCOPE}]: ${key}`
 }
@@ -24,33 +30,62 @@ export function tensorFoldKeyFilePath(home: string = getMercuryHome()): string {
   return join(home, 'local-setup', 'tensorfold', 'api-key')
 }
 
+function probeTensorFoldKeyFile(path: string): TensorFoldKeyFileRead {
+  let line: string | undefined
+  try {
+    if ((statSync(path).mode & 0o066) !== 0) return { state: 'unusable', why: 'can be read by other users' }
+    line = readFileSync(path, 'utf8').split('\n').find(row => row.trim() !== '' && !row.trim().startsWith('#'))
+  } catch (error) {
+    const code = getErrnoCode(error)
+    if (code === 'ENOENT' || code === 'ENOTDIR') return { state: 'absent' }
+    return { state: 'unreadable', code: code ?? 'EUNKNOWN', message: errorMessage(error) }
+  }
+  if (line === undefined) return { state: 'unusable', why: 'holds no key' }
+  const colon = line.indexOf(':')
+  const key = (colon >= 0 ? line.slice(colon + 1) : line).trim()
+  if (key === '' || /\s/.test(key)) return { state: 'unusable', why: 'holds no key' }
+  return { state: 'read', file: { path, key, line: line.trim() } }
+}
+
 let keyFileUnreadSaid: string | undefined
 
 export function readTensorFoldKeyFile(path: string = tensorFoldKeyFilePath()): TensorFoldKeyFile | undefined {
-  try {
-    if ((statSync(path).mode & 0o066) !== 0) return undefined
-    const line = readFileSync(path, 'utf8').split('\n').find(row => row.trim() !== '' && !row.trim().startsWith('#'))
-    if (line === undefined) return undefined
-    const colon = line.indexOf(':')
-    const key = (colon >= 0 ? line.slice(colon + 1) : line).trim()
-    if (key === '' || /\s/.test(key)) return undefined
-    return { path, key, line: line.trim() }
-  } catch (error) {
-    if (isENOENT(error)) return undefined
-    const why = errorMessage(error)
-    if (why !== keyFileUnreadSaid) {
-      keyFileUnreadSaid = why
-      logError(new Error(`the TensorFold key file could not be read (${why}), so the next share mints a new key over it and the clients paired with the old one lose it`))
-    }
-    return undefined
+  const read = probeTensorFoldKeyFile(path)
+  if (read.state === 'read') return read.file
+  if (read.state === 'unreadable' && read.message !== keyFileUnreadSaid) {
+    keyFileUnreadSaid = read.message
+    logError(new Error(`the TensorFold key file could not be read (${read.message}), so its key is not used`))
   }
+  return undefined
+}
+
+function keyToKeep(path: string, home: string): string | undefined {
+  const read = probeTensorFoldKeyFile(path)
+  if (read.state === 'read') return read.file.key
+  if (read.state === 'unreadable') {
+    throw Object.assign(
+      new Error(`The TensorFold key file at ${path} exists but could not be read (${read.code}); nothing was written. Make it readable, or move it away to mint a new key, then share again.`),
+      { code: read.code },
+    )
+  }
+  if (read.state === 'unusable') {
+    const { keepDamagedFileAsideSync } = require('../../../substrate/storeRecovery.js') as typeof import('../../../substrate/storeRecovery.js')
+    try {
+      keepDamagedFileAsideSync({ store: 'tensorfold-key', path, reason: read.why, by: 'copy', asideAt: stamp => join(home, `.tensorfold-key.corrupt.${stamp}-auth.json`) })
+    } catch (error) {
+      if (isENOENT(error)) return undefined
+      const code = getErrnoCode(error) ?? errorMessage(error)
+      throw Object.assign(new Error(`The TensorFold key file at ${path} ${read.why} and could not be kept aside (${code}); nothing was written. Move it away, then share again.`), { code })
+    }
+  }
+  return undefined
 }
 
 export function writeTensorFoldKeyFile(opts: { path?: string; key?: string; label?: string } = {}): TensorFoldKeyFile {
   const path = opts.path ?? tensorFoldKeyFilePath()
   const home = getMercuryHome()
   refuseProofWriteIntoAccountStore(home, 'the TensorFold key file')
-  const key = opts.key ?? readTensorFoldKeyFile(path)?.key ?? mintTensorFoldKey()
+  const key = opts.key ?? keyToKeep(path, home) ?? mintTensorFoldKey()
   const line = tensorFoldKeyLine(key, opts.label)
   mkdirSync(join(path, '..'), { recursive: true, mode: 0o700 })
   publishAtomicSync(path, `${line}\n`, { mode: 0o600 })

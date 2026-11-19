@@ -1,15 +1,15 @@
-import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
+import { chmodSync, mkdirSync } from 'node:fs'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
-import { errorMessage, isENOENT } from '../../../utils/errors.js'
+import '../../../utils/errors.js'
 import { logError } from '../../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { readStoredMoonshotApiKey } from '../providerSecrets.js'
+import { credentialJsonToWriteOver, probeCredentialJson, readStoredMoonshotApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
@@ -115,25 +115,22 @@ function authFilePath(): string {
 let authFileUnreadSaid: string | undefined
 
 function readAuthFile(): MoonshotAuthFile | null {
-  try {
-    const parsed = JSON.parse(readFileSync(authFilePath(), 'utf8')) as unknown
-    if (typeof parsed !== 'object' || parsed === null) return null
-    return parsed as MoonshotAuthFile
-  } catch (error) {
-    if (isENOENT(error)) return null
-    const why = error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)
+  const read = probeCredentialJson(authFilePath())
+  if (read.state === 'ok') return read.file as MoonshotAuthFile
+  if (read.state !== 'absent') {
+    const why = read.state === 'unreadable' ? read.message : `it is ${read.why}`
     if (why !== authFileUnreadSaid) {
       authFileUnreadSaid = why
-      logError(new Error(`the Moonshot auth file ${AUTH_FILE_NAME} could not be read (${why}), so the next save writes it anew without its stored tokens and served-model tables`))
+      logError(new Error(`the Moonshot auth file ${AUTH_FILE_NAME} could not be read (${why}), so its stored tokens and served-model tables are not used`))
     }
-    return null
   }
+  return null
 }
 
 function publishAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): void {
   refuseProofWriteIntoAccountStore(getAuthConfigHomeDir(), `the auth file ${AUTH_FILE_NAME}`)
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
-  const existing = readAuthFile() ?? { version: MOONSHOT_AUTH_VERSION }
+  const existing = (credentialJsonToWriteOver('The Moonshot auth file', 'moonshot-auth', authFilePath()) as MoonshotAuthFile | null) ?? { version: MOONSHOT_AUTH_VERSION }
   const next = mutate({ ...existing, version: MOONSHOT_AUTH_VERSION })
   const path = authFilePath()
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
