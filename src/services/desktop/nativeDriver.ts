@@ -360,8 +360,8 @@ class NativeDesktopDriver implements DesktopDriver {
     try {
       const value = this.addon.keyboardIdleMs?.()
       return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
-    } catch {
-      return null
+    } catch (error) {
+      throw new Error(`the keyboard idle time could not be read (${error instanceof Error ? error.message : String(error)}), so Mercury cannot tell whether the operator is typing — nothing done; try again in a moment`)
     }
   }
   async permissions(): Promise<DesktopAnswer<DesktopPermissions>> {
