@@ -90,7 +90,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const vendor = initial.vendor ?? 'runpod'
   const secrets: string[] = []
   const run: HostJobRun = { key: undefined, keyRefusal: undefined }
-  const ports: HostJobPorts = { id, generation, initial, controller, signal, vendor, secrets }
+  const ports: HostJobPorts = { id, generation, initial, options, controller, signal, runner, vendor, secrets }
   const tools = hostJobTools(run, ports)
   const { huggingfaceKey, clean, mark, log } = tools
   run.key = vendor === 'huggingface' ? await huggingfaceKey() : vendorKey(vendor)
@@ -170,131 +170,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           return
         }
         patchHostRecord(id, { advancedAt: Date.now() })
-        let offer: HostOffer | undefined
-        let hit: HostVendorId = 'runpod'
-        let volume: KeptVolume | undefined
-        let outside: string | undefined
-        let stage = 'provider read failed'
-        try {
-          const reads = await Promise.allSettled([...clients].map(async ([name, client]) => ({ name, offer: await client.watchOffer(recipe, maxPrice, signal) })))
-          const failures: string[] = []
-          const hits: { name: HostVendorId; offer: HostOffer }[] = []
-          for (const [index, read] of reads.entries()) {
-            if (read.status === 'fulfilled') { if (read.value.offer) hits.push({ name: read.value.name, offer: read.value.offer }) }
-            else if (signal.aborted || unauthorized(read.reason) || clients.size === 1) throw read.reason
-            else failures.push(vendorLabel([...clients.keys()][index]!) + ' read failed: ' + clean(String(read.reason)).slice(0, 120))
-          }
-          if (!hits.length && failures.length === clients.size) throw new Error(failures.join(' · '))
-          if (failures.length) log(failures.join(' · '))
-          const best = hits.sort((a, b) => a.offer.price - b.offer.price)[0]
-          offer = best?.offer
-          hit = best?.name ?? 'runpod'
-          const wantsVolume = !current.weightsSource || current.weightsSource.kind === 'volume'
-          if (offer && hit === 'runpod' && runpod && wantsVolume) {
-            stage = 'weights disk not ready'
-            volume = await rentalVolume(runpod, offer.recipe, signal)
-            stage = 'provider read failed'
-            const disk = volume
-            if (disk?.kind === 'network' && offer.dataCenter && offer.dataCenter !== disk.dataCenter) {
-              outside = offer.dataCenter
-              offer = (await runpod.offers(signal)).filter(row => matchesVolume(disk, row.recipe) && row.dataCenter === disk.dataCenter && cents(row.price) <= cents(maxPrice)).sort((a, b) => a.price - b.price)[0]
-            }
-          }
-          const vast = clients.get('vast')
-          if (offer && hit === 'vast' && vast instanceof VastClient && wantsVolume) {
-            stage = 'Vast.ai volume not ready'
-            const mount = await vastRentalVolume(vast, offer.recipe, offer, signal)
-            volume = mount ? readKeptVolume(mount.id) : undefined
-            stage = 'provider read failed'
-          }
-        } catch (error) {
-          if (signal.aborted || unauthorized(error)) throw error
-          watch.wait = Math.max(Math.min(60_000, watch.wait * 2), (error instanceof RunpodHttpError ? error.retryAfterSeconds ?? 0 : 0) * 1000)
-          const step = (error instanceof RunpodHttpError ? 'Runpod read failed' : stage) + ' · next read in ' + Math.ceil(watch.wait / 1000) + ' s · ' + clean(String(error)).slice(0, 200)
-          log(step)
-          patchHostRecord(id, { step })
-          await rest(watch.wait)
-          continue
-        }
-        watch.wait = pollMs
-        const rateLimit = watchRateWords(pollMs, runpod ? runpod.rateLimitPolicy() ?? '' : undefined, [...clients.keys()])
-        const afterPoll = readHostRecord(id)
-        if (!afterPoll || afterPoll.generation !== generation || afterPoll.jobState === 'stopped') return
-        if (afterPoll.rateLimit !== rateLimit) patchHostRecord(id, { rateLimit })
-        if (!offer && outside && volume) {
-          const step = 'stock only in ' + outside + ' · weights disk ' + volume.id + ' lives in ' + volume.dataCenter + ' · next read in ' + Math.ceil(pollMs * 12 / 1000) + ' s'
-          log(step)
-          patchHostRecord(id, { step })
-          await rest(pollMs * 12)
-          continue
-        }
-        if (!offer) { await rest(pollMs); continue }
-        const api = clients.get(hit)!
-        const shapeWords = hostShape(offer.recipe) + ' · $' + offer.price.toFixed(2) + '/hr' + (offer.dataCenter ? ' in ' + offer.dataCenter : '') + (hit !== 'runpod' || clients.size > 1 ? ' · ' + vendorLabel(hit) : '')
-        const watched = watchedSourceFor(afterPoll.weightsSource, hit, Boolean(api.capabilities.managed), volume)
-        if (watched.skip) {
-          const step = 'stock at ' + vendorLabel(hit) + ' (' + shapeWords + ') but ' + watched.skip + ' · no ' + hostResourceKind(offer.recipe) + ' was created · still watching'
-          log(step)
-          patchHostRecord(id, { step })
-          await rest(pollMs * 12)
-          continue
-        }
-        const mount = !afterPoll.weightsSource || watched.source?.kind === 'volume' ? volume : undefined
-        const podName = 'mercury-' + randomUUID().slice(0, 12)
-        const marked = patchHostRecord(id, { creating: podName, step: 'creating ' + podName + ' · ' + shapeWords })
-        if (!marked || marked.generation !== generation || marked.jobState === 'stopped') return
-        let pod: HostPod
-        try {
-          if (!api.capabilities.managed) watch.sshKey ??= await ensureHostKey(runner, signal)
-          pod = await createHostResource(api, offer, watch.sshKey?.publicKey ?? '', podName, mount)
-        } catch (error) {
-          const refusal = hostCreateRefusal(offer.recipe, error)
-          if (!refusal) {
-            const words = podName + ' may exist: ' + vendorLabel(hit) + ' gave no clear answer to the create · /llmhost → Machines I’m paying for · the watch stopped so it cannot rent twice · ' + clean(String(error))
-            log(words)
-            const failed = patchHostRecord(id, { jobState: 'failed', error: words, step: words })
-            if (failed) hostNotice(failed, 'failed', failed.name + ' · ' + words)
-            return
-          }
-          patchHostRecord(id, { creating: undefined })
-          if (refusal.status !== 400 && refusal.status !== 429) throw error
-          watch.refused = vendorLabel(hit) + ' could not place ' + shapeWords + (refusal.detail ? ' · ' + refusal.detail : '')
-          const step = vendorLabel(hit) + ' could not place ' + shapeWords + ' · no ' + hostResourceKind(offer.recipe) + ' was created · still watching' + (refusal.detail ? ' · ' + refusal.detail : '')
-          log(step)
-          patchHostRecord(id, { step })
-          await rest(Math.max(pollMs, (refusal.retryAfterSeconds ?? 0) * 1000))
-          continue
-        }
-        watch.created = pod
-        const rentedWords = 'Rented ' + model + ' · ' + shapeWords + ' · setting up'
-        log(rentedWords)
-        const setupRecord = queueHostSetup({
-          ...hostClusterRecord(pod),
-          vendor: hit,
-          id: pod.id,
-          machineId: hostMachineOf(hit, offer),
-          name: pod.name,
-          recipe: offer.recipe.id,
-          recipeRow: offer.recipe,
-          price: offer.price,
-          ...(hit === 'huggingface' ? { recipeRow: offer.recipe } : {}),
-          startedAt: pod.startedAt ?? pod.createdAt,
-          status: pod.status,
-          sessionId: afterPoll.sessionId,
-          workspace: afterPoll.workspace,
-          sshKey: api.capabilities.managed ? undefined : watch.sshKey?.path,
-          watchedFrom: id,
-          huggingfaceCredential: afterPoll.huggingfaceCredential,
-          volumeId: mount?.id,
-          ...(watched.source ? { weightsSource: watched.source } : {}),
-          ...(hit === vendor && afterPoll.apiBaseUrl ? { apiBaseUrl: afterPoll.apiBaseUrl } : {}),
-        })
-        hostNotice(setupRecord, 'rented', rentedWords)
-        removeHostRecord(id)
-        if (!reconcileRecord(hostDirectory(), 'host-' + id.toLowerCase())) {
-          await runHostJob(setupRecord.id, setupRecord.generation!, options)
-        }
-        return
+        if (await hostWatchRound(watch, ports, tools, { recipe, clients, runpod, pollMs, maxPrice, model, rest }, current)) return
       }
       const ended = readHostRecord(id)
       if (ended && ended.generation === generation && ended.jobState !== 'stopped') {
@@ -558,6 +434,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   } finally { clearInterval(timer) }
 }
 
+type HostJobOptions = NonNullable<Parameters<typeof runHostJob>[2]>
 interface HostJobRun {
   key: string | undefined
   keyRefusal: string | undefined
@@ -566,8 +443,10 @@ interface HostJobPorts {
   id: string
   generation: string
   initial: HostRecord
+  options: HostJobOptions
   controller: AbortController
   signal: AbortSignal
+  runner: HostRunner
   vendor: HostVendorId
   secrets: string[]
 }
@@ -577,6 +456,15 @@ interface HostWatchRun {
   sshKey: Awaited<ReturnType<typeof ensureHostKey>> | undefined
   wait: number
   refused: string
+}
+interface HostWatchPorts {
+  recipe: HostRecipe
+  clients: Map<HostVendorId, HostVendor>
+  runpod: ReturnType<typeof runpodOnly> | undefined
+  pollMs: number
+  maxPrice: number
+  model: string
+  rest: (ms: number) => Promise<void>
 }
 function hostJobTools(run: HostJobRun, { id, generation, initial, controller, signal, secrets }: HostJobPorts) {
   const huggingfaceKey = async (): Promise<string | undefined> => { try { return (await hostHuggingfaceDispatchCredential(initial))?.key } catch (error) { run.keyRefusal = error instanceof Error ? error.message : String(error); return undefined } }
@@ -606,6 +494,133 @@ function hostBankFailed({ id, generation, initial }: HostJobPorts, { log }: Host
     hostNotice(current, 'failed', words)
     removeHostRecord(id)
   }
+}
+async function hostWatchRound(watch: HostWatchRun, { id, generation, options, signal, runner, vendor }: HostJobPorts, { clean, log }: HostJobTools, { recipe, clients, runpod, pollMs, maxPrice, model, rest }: HostWatchPorts, current: HostRecord): Promise<boolean> {
+  let offer: HostOffer | undefined
+  let hit: HostVendorId = 'runpod'
+  let volume: KeptVolume | undefined
+  let outside: string | undefined
+  let stage = 'provider read failed'
+  try {
+    const reads = await Promise.allSettled([...clients].map(async ([name, client]) => ({ name, offer: await client.watchOffer(recipe, maxPrice, signal) })))
+    const failures: string[] = []
+    const hits: { name: HostVendorId; offer: HostOffer }[] = []
+    for (const [index, read] of reads.entries()) {
+      if (read.status === 'fulfilled') { if (read.value.offer) hits.push({ name: read.value.name, offer: read.value.offer }) }
+      else if (signal.aborted || unauthorized(read.reason) || clients.size === 1) throw read.reason
+      else failures.push(vendorLabel([...clients.keys()][index]!) + ' read failed: ' + clean(String(read.reason)).slice(0, 120))
+    }
+    if (!hits.length && failures.length === clients.size) throw new Error(failures.join(' · '))
+    if (failures.length) log(failures.join(' · '))
+    const best = hits.sort((a, b) => a.offer.price - b.offer.price)[0]
+    offer = best?.offer
+    hit = best?.name ?? 'runpod'
+    const wantsVolume = !current.weightsSource || current.weightsSource.kind === 'volume'
+    if (offer && hit === 'runpod' && runpod && wantsVolume) {
+      stage = 'weights disk not ready'
+      volume = await rentalVolume(runpod, offer.recipe, signal)
+      stage = 'provider read failed'
+      const disk = volume
+      if (disk?.kind === 'network' && offer.dataCenter && offer.dataCenter !== disk.dataCenter) {
+        outside = offer.dataCenter
+        offer = (await runpod.offers(signal)).filter(row => matchesVolume(disk, row.recipe) && row.dataCenter === disk.dataCenter && cents(row.price) <= cents(maxPrice)).sort((a, b) => a.price - b.price)[0]
+      }
+    }
+    const vast = clients.get('vast')
+    if (offer && hit === 'vast' && vast instanceof VastClient && wantsVolume) {
+      stage = 'Vast.ai volume not ready'
+      const mount = await vastRentalVolume(vast, offer.recipe, offer, signal)
+      volume = mount ? readKeptVolume(mount.id) : undefined
+      stage = 'provider read failed'
+    }
+  } catch (error) {
+    if (signal.aborted || unauthorized(error)) throw error
+    watch.wait = Math.max(Math.min(60_000, watch.wait * 2), (error instanceof RunpodHttpError ? error.retryAfterSeconds ?? 0 : 0) * 1000)
+    const step = (error instanceof RunpodHttpError ? 'Runpod read failed' : stage) + ' · next read in ' + Math.ceil(watch.wait / 1000) + ' s · ' + clean(String(error)).slice(0, 200)
+    log(step)
+    patchHostRecord(id, { step })
+    await rest(watch.wait)
+    return false
+  }
+  watch.wait = pollMs
+  const rateLimit = watchRateWords(pollMs, runpod ? runpod.rateLimitPolicy() ?? '' : undefined, [...clients.keys()])
+  const afterPoll = readHostRecord(id)
+  if (!afterPoll || afterPoll.generation !== generation || afterPoll.jobState === 'stopped') return true
+  if (afterPoll.rateLimit !== rateLimit) patchHostRecord(id, { rateLimit })
+  if (!offer && outside && volume) {
+    const step = 'stock only in ' + outside + ' · weights disk ' + volume.id + ' lives in ' + volume.dataCenter + ' · next read in ' + Math.ceil(pollMs * 12 / 1000) + ' s'
+    log(step)
+    patchHostRecord(id, { step })
+    await rest(pollMs * 12)
+    return false
+  }
+  if (!offer) { await rest(pollMs); return false }
+  const api = clients.get(hit)!
+  const shapeWords = hostShape(offer.recipe) + ' · $' + offer.price.toFixed(2) + '/hr' + (offer.dataCenter ? ' in ' + offer.dataCenter : '') + (hit !== 'runpod' || clients.size > 1 ? ' · ' + vendorLabel(hit) : '')
+  const watched = watchedSourceFor(afterPoll.weightsSource, hit, Boolean(api.capabilities.managed), volume)
+  if (watched.skip) {
+    const step = 'stock at ' + vendorLabel(hit) + ' (' + shapeWords + ') but ' + watched.skip + ' · no ' + hostResourceKind(offer.recipe) + ' was created · still watching'
+    log(step)
+    patchHostRecord(id, { step })
+    await rest(pollMs * 12)
+    return false
+  }
+  const mount = !afterPoll.weightsSource || watched.source?.kind === 'volume' ? volume : undefined
+  const podName = 'mercury-' + randomUUID().slice(0, 12)
+  const marked = patchHostRecord(id, { creating: podName, step: 'creating ' + podName + ' · ' + shapeWords })
+  if (!marked || marked.generation !== generation || marked.jobState === 'stopped') return true
+  let pod: HostPod
+  try {
+    if (!api.capabilities.managed) watch.sshKey ??= await ensureHostKey(runner, signal)
+    pod = await createHostResource(api, offer, watch.sshKey?.publicKey ?? '', podName, mount)
+  } catch (error) {
+    const refusal = hostCreateRefusal(offer.recipe, error)
+    if (!refusal) {
+      const words = podName + ' may exist: ' + vendorLabel(hit) + ' gave no clear answer to the create · /llmhost → Machines I’m paying for · the watch stopped so it cannot rent twice · ' + clean(String(error))
+      log(words)
+      const failed = patchHostRecord(id, { jobState: 'failed', error: words, step: words })
+      if (failed) hostNotice(failed, 'failed', failed.name + ' · ' + words)
+      return true
+    }
+    patchHostRecord(id, { creating: undefined })
+    if (refusal.status !== 400 && refusal.status !== 429) throw error
+    watch.refused = vendorLabel(hit) + ' could not place ' + shapeWords + (refusal.detail ? ' · ' + refusal.detail : '')
+    const step = vendorLabel(hit) + ' could not place ' + shapeWords + ' · no ' + hostResourceKind(offer.recipe) + ' was created · still watching' + (refusal.detail ? ' · ' + refusal.detail : '')
+    log(step)
+    patchHostRecord(id, { step })
+    await rest(Math.max(pollMs, (refusal.retryAfterSeconds ?? 0) * 1000))
+    return false
+  }
+  watch.created = pod
+  const rentedWords = 'Rented ' + model + ' · ' + shapeWords + ' · setting up'
+  log(rentedWords)
+  const setupRecord = queueHostSetup({
+    ...hostClusterRecord(pod),
+    vendor: hit,
+    id: pod.id,
+    machineId: hostMachineOf(hit, offer),
+    name: pod.name,
+    recipe: offer.recipe.id,
+    recipeRow: offer.recipe,
+    price: offer.price,
+    ...(hit === 'huggingface' ? { recipeRow: offer.recipe } : {}),
+    startedAt: pod.startedAt ?? pod.createdAt,
+    status: pod.status,
+    sessionId: afterPoll.sessionId,
+    workspace: afterPoll.workspace,
+    sshKey: api.capabilities.managed ? undefined : watch.sshKey?.path,
+    watchedFrom: id,
+    huggingfaceCredential: afterPoll.huggingfaceCredential,
+    volumeId: mount?.id,
+    ...(watched.source ? { weightsSource: watched.source } : {}),
+    ...(hit === vendor && afterPoll.apiBaseUrl ? { apiBaseUrl: afterPoll.apiBaseUrl } : {}),
+  })
+  hostNotice(setupRecord, 'rented', rentedWords)
+  removeHostRecord(id)
+  if (!reconcileRecord(hostDirectory(), 'host-' + id.toLowerCase())) {
+    await runHostJob(setupRecord.id, setupRecord.generation!, options)
+  }
+  return true
 }
 function hostWatchFailed(watch: HostWatchRun, { id, generation }: HostJobPorts, { clean, log }: HostJobTools, error: unknown): void {
   const current = readHostRecord(id)
