@@ -238,7 +238,7 @@ async function runOp(
           `${input.previewId} APPLIED — ${outcome.changedPaths.length} file(s) written, re-read verified`,
           `post-apply parse diagnostics:`,
           ...diagRows,
-          `evidence: ${outcome.evidenceRefs.join(' · ')}`,
+          `evidence: ${outcome.evidenceRefs.join(' · ') || 'none'}${outcome.preview.note !== undefined ? ` — ${outcome.preview.note}` : ''}`,
           `record: mercury://structure/preview/${input.previewId} (receipt + transaction refs attach at the exactly-once seam)`,
         ].join('\n'),
         outcome: 'succeeded',
