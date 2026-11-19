@@ -1581,8 +1581,8 @@ export const SCENES: readonly Scene[] = [
   { name: 'the cursor declared where it is never hidden', world: 'plain', env: () => ({ MERCURY_ACCESSIBILITY: '1' }), play: accessibleCursor },
   { name: 'clicks, hovers and keys', world: 'atomic', play: pointerAndKeys },
   { name: 'clicks, hovers and keys on a plain terminal', world: 'plain', play: pointerOnAPlainTerminal },
-  { name: 'a selection started, dragged, released and copied', world: 'atomic', env: folder => ({ MERCURY_CLIPBOARD_FILE: join(folder, 'clipboard') }), play: selection },
-  { name: 'a copy offered to the terminal', world: 'plain', env: () => ({ SSH_CONNECTION: 'scripted' }), play: copyOverOsc52 },
+  { name: 'a selection started, dragged, released and copied', world: 'atomic', play: selection },
+  { name: 'a copy offered to the terminal', world: 'plain', env: () => ({ MERCURY_CLIPBOARD_FILE: '', SSH_CONNECTION: 'scripted' }), play: copyOverOsc52 },
   { name: 'search highlight', world: 'plain', play: searchHighlight },
   { name: 'frames the terminal refuses, on the alternate screen', world: 'plain', play: p => renderFaults(p, true) },
   { name: 'frames the terminal refuses, on the main screen', world: 'atomic', play: p => renderFaults(p, false) },
@@ -1614,7 +1614,8 @@ export async function playScene(name: string, fd1File: string | null, folder: st
   const scene = SCENES.find(candidate => candidate.name === name)
   if (scene === undefined) throw new Error(`no scene is named "${name}"`)
   enterWorld(scene.world)
-  Object.assign(process.env, scene.env?.(folder) ?? {})
+  const clipboard = join(folder, 'clipboard')
+  Object.assign(process.env, { MERCURY_CLIPBOARD_FILE: clipboard }, scene.env?.(folder) ?? {})
   for (const tee of scene.tees ?? []) process.env[tee] = join(folder, tee)
   if (scene.tees !== undefined) process.env.INK_TEE_PROBE = 'needle'
   installStage(fd1File)
@@ -1628,8 +1629,7 @@ export async function playScene(name: string, fd1File: string | null, folder: st
     note(`the tee ${tee} holds ${held.length} lines`)
     for (const line of held) note(`  ${escaped(line)}`)
   }
-  const clipboard = process.env.MERCURY_CLIPBOARD_FILE
-  if (clipboard !== undefined) note(`the clipboard file holds ${existsSync(clipboard) ? escaped(JSON.stringify(readFileSync(clipboard, 'utf8'))) : 'nothing'}`)
+  if (existsSync(clipboard)) note(`the clipboard file holds ${escaped(JSON.stringify(readFileSync(clipboard, 'utf8')))}`)
   const out = recorded().join('\n').split('\n')
   leaveStage()
   return out

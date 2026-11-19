@@ -39,7 +39,7 @@ function playInChild(name: string, round: number, at: number): Promise<string[]>
   mkdirSync(tees)
   const fd1 = openSync(`${stem}.fd1`, 'w')
   return new Promise((done, refuse) => {
-    const child = spawn(process.execPath, [import.meta.path, '--scene', name, '--out', `${stem}.txt`, '--fd1', `${stem}.fd1`, '--tees', tees, '--log-stderr'], {
+    const child = spawn(process.execPath, [...process.execArgv, import.meta.path, '--scene', name, '--out', `${stem}.txt`, '--fd1', `${stem}.fd1`, '--tees', tees, '--log-stderr'], {
       stdio: ['ignore', fd1, 'pipe'],
       env: process.env,
     })
@@ -61,19 +61,24 @@ function playInChild(name: string, round: number, at: number): Promise<string[]>
   })
 }
 
-async function record(round: number, names: readonly string[]): Promise<Recorded> {
+let stopped = false
+
+async function record(round: number, names: readonly string[], seen: (name: string, lines: string[]) => void = () => {}): Promise<Recorded> {
   const out: Recorded = new Map()
   let next = 0
   const worker = async (): Promise<void> => {
-    for (;;) {
+    while (!stopped) {
       const at = next++
       const name = names[at]
       if (name === undefined) return
-      out.set(name, await playInChild(name, round, at))
+      const lines = await playInChild(name, round, at)
+      out.set(name, lines)
+      seen(name, lines)
     }
   }
-  await Promise.all(Array.from({ length: AT_ONCE }, worker))
-  return new Map(names.map(name => [name, out.get(name)!]))
+  const ended = await Promise.allSettled(Array.from({ length: AT_ONCE }, worker))
+  for (const end of ended) if (end.status === 'rejected') throw end.reason
+  return new Map(names.filter(name => out.has(name)).map(name => [name, out.get(name)!]))
 }
 
 function written(recording: Recorded): string {
@@ -129,12 +134,19 @@ const source = Bun.resolveSync('../../src/ink/ink.js', import.meta.dir)
 if (source.replaceAll('\\', '/').endsWith('/src/ink/ink.tsx')) console.log(`  [PASS] the class recorded is the product's own ${UNIT} of src/ink/ink.tsx: no module is replaced; the terminal, the keys, the clock and the timers are scripted, and each scene plays in a process of its own`)
 else fail(`the module under the recording is not src/ink/ink.tsx: it is ${source}`)
 
+const once = process.argv.includes('--once')
+const firstRed = process.argv.includes('--first-red')
+const stoodNow = existsSync(RECORDING) ? read(readFileSync(RECORDING, 'utf8')) : new Map<string, string[]>()
+
 let first: Recorded = new Map()
 let second: Recorded = new Map()
 try {
-  first = await record(1, names)
-  second = await record(2, names)
+  first = await record(1, names, (name, lines) => {
+    if (firstRed && firstDifference(stoodNow.get(name) ?? [], lines) !== null) stopped = true
+  })
+  second = once || stopped ? first : await record(2, names)
 } catch (error) {
+  stopped = true
   fail(error instanceof Error ? error.message : String(error))
 } finally {
   try {
@@ -143,6 +155,8 @@ try {
     console.log(`  [NOTE] the scratch of this run was not removed — ${(error as NodeJS.ErrnoException).code ?? String(error)}`)
   }
 }
+if (once) console.log('  [NOTE] --once: each scene was recorded once, so nothing says that two recordings of this tree are equal')
+if (stopped) console.log(`  [NOTE] the run stopped at the first scene that differs: ${first.size} of ${names.length} scenes were recorded`)
 
 for (const [name, lines] of first) {
   const twice = firstDifference(lines, second.get(name) ?? [])
@@ -187,7 +201,7 @@ else {
     if (moved === null) console.log(`  [PASS] ${name} (${lines.length} lines)`)
     else fail(`the recorded behaviour of ${UNIT} changed in "${name}" at ${moved}\n      if nobody asked for the change, the change is the fault: mend src/ink/ink.tsx or its parts in src/ink/ink/ until the scene is equal; if it was asked for, run \`bun run ${SELF} --write\`, read the difference it prints, and commit the recording with the change`)
   }
-  if (only === null) for (const name of stood.keys()) if (!first.has(name)) fail(`${name}: a recording stands that no scene records; run \`bun run ${SELF} --write\` to drop it`)
+  if (only === null && !stopped) for (const name of stood.keys()) if (!first.has(name)) fail(`${name}: a recording stands that no scene records; run \`bun run ${SELF} --write\` to drop it`)
 }
 
 console.log(`\n${failures === 0 ? 'green' : 'RED'}: prove-ink-recording — ${first.size} scenes, ${failures === 0 ? 'equal to the recording' : `${failures} failed`}`)

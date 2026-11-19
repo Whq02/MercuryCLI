@@ -2127,7 +2127,6 @@ out \e[?2026h\e[H\e[5;6H\e[7m6                  \e[6;1Hrow 07 \e[27m\e[8;1H\e[?2
 out \e[?2026h\e[H\e[2;2How 03                  \e[3;1Hrow 04                  \e[4;1Hrow 05                  \e[5;1Hrow 06                  \e[6;1Hrow 07 \e[8;1H\e[?2026l
   frame 17: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=66/16/44/21
   copied: "ow 03\\nrow 04\\nrow 05\\nrow 06\\nrow 07"
-  timers: 134 2000
   selection: anchor=none focus=none dragging=no span=none band=-..- x 1..5 alt-press=no off=0/0 has=no
   screen:
     |head
@@ -2143,7 +2142,7 @@ out \e[?2026h\e[H\e[2;2How 03                  \e[3;1Hrow 04                  \e
 > the pane jumps to the top
 out \e[?2026h\e[H\e[2;6r\e[2T\e[r\e[H\e[2;1Hrow\e[5G01\e[3;1Hrow\e[5G02\e[8;1H\e[?2026l
   frame 18: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=9 nodes=66/16/44/21
-  timers: 150 2000
+  timers: 150
   screen:
     |head
     |row 01
@@ -2154,18 +2153,18 @@ out \e[?2026h\e[H\e[2;6r\e[2T\e[r\e[H\e[2;1Hrow\e[5G01\e[3;1Hrow\e[5G02\e[8;1H\e
     |foot
     |
 > 4 ms pass
-  timers: 146 1996
+  timers: 146
 > 4 ms pass
-  timers: 142 1992
+  timers: 142
 > 4 ms pass
-  timers: 138 1988
+  timers: 138
 > 4 ms pass
-  timers: 134 1984
+  timers: 134
   the pane stands at 0 of 14 with 0 to come
 > a row is added while the pane rests
   frame 19: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=1 commit=16000017 patches=0 nodes=70/1/63/22
 > 16 ms pass
-  timers: 118 1968
+  timers: 118
   the pane stands at 0 of 15 with 0 to come
 > the screen is unmounted
   frame 20: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=70/1/63/22
@@ -2192,7 +2191,8 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   stdin: raw=off readable=0
   screen: empty
 > 600 ms pass
-  timers: 1368
+  timers: none
+the clipboard file holds "ow 03\\nrow 04\\nrow 05\\nrow 06\\nrow 07"
 
 ## a scrolled pane on a terminal with no atomic drawing
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -2449,7 +2449,6 @@ out \e[H\e[5;6H\e[7m6                  \e[6;1Hrow 07 \e[27m\e[8;1H
 out \e[H\e[2;2How 03                  \e[3;1Hrow 04                  \e[4;1Hrow 05                  \e[5;1Hrow 06                  \e[6;1Hrow 07 \e[8;1H
   frame 17: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=66/16/44/21
   copied: "ow 03\\nrow 04\\nrow 05\\nrow 06\\nrow 07"
-  timers: 134 2000
   selection: anchor=none focus=none dragging=no span=none band=-..- x 1..5 alt-press=no off=0/0 has=no
   screen:
     |head
@@ -2465,7 +2464,7 @@ out \e[H\e[2;2How 03                  \e[3;1Hrow 04                  \e[4;1Hrow 
 > the pane jumps to the top
 out \e[H\e[2;6H1\e[3;6H2\e[4;6H3\e[5;6H4\e[6;6H5\e[8;1H
   frame 18: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=66/16/44/21
-  timers: 150 2000
+  timers: 150
   screen:
     |head
     |row 01
@@ -2476,18 +2475,18 @@ out \e[H\e[2;6H1\e[3;6H2\e[4;6H3\e[5;6H4\e[6;6H5\e[8;1H
     |foot
     |
 > 4 ms pass
-  timers: 146 1996
+  timers: 146
 > 4 ms pass
-  timers: 142 1992
+  timers: 142
 > 4 ms pass
-  timers: 138 1988
+  timers: 138
 > 4 ms pass
-  timers: 134 1984
+  timers: 134
   the pane stands at 0 of 14 with 0 to come
 > a row is added while the pane rests
   frame 19: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=1 commit=16000017 patches=0 nodes=70/1/63/22
 > 16 ms pass
-  timers: 118 1968
+  timers: 118
   the pane stands at 0 of 15 with 0 to come
 > the screen is unmounted
   frame 20: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=70/1/63/22
@@ -2514,7 +2513,8 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   stdin: raw=off readable=0
   screen: empty
 > 600 ms pass
-  timers: 1368
+  timers: none
+the clipboard file holds "ow 03\\nrow 04\\nrow 05\\nrow 06\\nrow 07"
 
 ## the cursor declared on the alternate screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
