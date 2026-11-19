@@ -33,7 +33,7 @@ function loadRegistry(): ScratchLease[] {
     if (parsed?.v !== SCRATCH_LEASE_REGISTRY_VERSION || !Array.isArray(parsed.leases)) return []
     return parsed.leases
   } catch (error) {
-    if (!isENOENT(error)) logError(new Error(`scratch lease registry ${registryPath()} could not be read: ${errorMessage(error)}`))
+    if (!isENOENT(error)) logError(new Error(`scratch lease registry ${registryPath()} could not be read: ${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}`))
     return []
   }
 }
