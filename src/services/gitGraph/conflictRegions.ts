@@ -235,7 +235,9 @@ export async function applyResolution(plan: ResolutionPlan, signal?: AbortSignal
       const env = { ...subprocessEnv(), GIT_INDEX_FILE: temporary }
       const indexed = (args: string[], input?: Buffer) => execFileSync('git', gitArgs(args, root), { cwd: root, env, windowsHide: true, encoding: 'utf8', timeout: 30_000, input, stdio: ['pipe', 'pipe', 'pipe'] })
       let trusted = true
-      try { trusted = indexed(['config', '--bool', 'core.filemode']).trim() !== 'false' } catch {}
+      try { trusted = indexed(['config', '--bool', 'core.filemode']).trim() !== 'false' } catch (err) {
+        if ((err as { status?: unknown }).status !== 1) throw new Error(`core.filemode could not be read, so the staged mode is unknown (${(err as Error).message.trim()}) — nothing written`)
+      }
       for (const f of final) {
         const oid = indexed(['hash-object', '-w', '--stdin', `--path=${f.path}`], f.after).trim()
         const stages = trusted ? [] : indexed(['ls-files', '--stage', '--', `:(literal)${f.path}`]).split('\n').filter(Boolean)
