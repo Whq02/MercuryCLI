@@ -49,7 +49,7 @@ export class TaskOutput {
   readonly path: string
   readonly stdoutToFile: boolean
 
-  private onProgress: ProgressCallback | null
+  onProgress: ProgressCallback | null
   private readonly maxMemoryBytes: number
 
   private stdoutChunks: string[] = []
@@ -58,10 +58,10 @@ export class TaskOutput {
   private stderrLength = 0
   private spilled = false
   private diskWriter: DiskTaskOutput | null = null
-  private readonly recentLines = new CircularBuffer<string>(ROLLING_LINE_CAPACITY)
+  readonly recentLines = new CircularBuffer<string>(ROLLING_LINE_CAPACITY)
 
-  private lineCount = 0
-  private byteTotal = 0
+  lineCount = 0
+  byteTotal = 0
 
   private liveNotice: string | null = null
 
@@ -130,51 +130,7 @@ export class TaskOutput {
     )
   }
 
-  async sampleFileProgress(): Promise<void> {
-    let sample: { content: string; bytesRead: number; bytesTotal: number }
-    try {
-      sample = await tailFile(this.path, POLL_SAMPLE_BYTES)
-    } catch {
-      return
-    }
-    const onProgress = this.onProgress
-    if (!onProgress) return
-
-    if (sample.content.length === 0) {
-      onProgress('', '', this.lineCount, sample.bytesTotal, false)
-      return
-    }
-
-    const content = sample.content
-    let cursor = content.length
-    let count = 0
-    let newlines = 0
-    let recentBoundary = 0
-    let fullBoundary = 0
-    while (cursor > 0) {
-      const newline = content.lastIndexOf('\n', cursor - 1)
-      count++
-      if (newline !== -1) newlines++
-      if (count === RECENT_VIEW_LINES) recentBoundary = newline <= 0 ? 0 : newline + 1
-      if (count === FULL_VIEW_LINES) fullBoundary = newline <= 0 ? 0 : newline + 1
-      cursor = newline
-    }
-
-    const lines = content.endsWith('\n') ? newlines : newlines + 1
-    const sampledWholeFile = sample.bytesRead === sample.bytesTotal
-    const totalLines = sampledWholeFile
-      ? lines
-      : Math.max(Math.round(lines * (sample.bytesTotal / sample.bytesRead)), this.lineCount)
-    this.lineCount = totalLines
-    this.byteTotal = sample.bytesTotal
-    onProgress(
-      content.slice(recentBoundary),
-      content.slice(fullBoundary),
-      totalLines,
-      sample.bytesTotal,
-      !sampledWholeFile,
-    )
-  }
+  sampleFileProgress(): Promise<void> { return sampleFileProgressOf.call(this) }
 
   writeStdout(data: string): void {
     this.write(data, false)
@@ -214,47 +170,9 @@ export class TaskOutput {
     }
   }
 
-  private atLineStart = true
+  atLineStart = true
 
-  private harvest(chunk: string): boolean {
-    const collected: string[] = []
-    let budget = HARVEST_BUDGET_UNITS
-    let cursor = chunk.length
-    while (cursor > 0) {
-      const newline = chunk.lastIndexOf('\n', cursor - 1)
-      if (newline === -1) break
-      this.lineCount++
-      const segment = chunk.slice(newline + 1, cursor)
-      if (
-        collected.length < HARVEST_MAX_SEGMENTS &&
-        segment.length > 0 &&
-        segment.length <= budget &&
-        segment.trim().length > 0
-      ) {
-        budget -= segment.length
-        collected.push(materialiseSegment(segment))
-      }
-      cursor = newline
-    }
-    const firstNewline = chunk.indexOf('\n')
-    if (this.atLineStart && firstNewline !== -1) {
-      const first = chunk.slice(0, firstNewline)
-      if (
-        collected.length < HARVEST_MAX_SEGMENTS &&
-        first.length > 0 &&
-        first.length <= budget &&
-        first.trim().length > 0
-      ) {
-        budget -= first.length
-        collected.push(materialiseSegment(first))
-      }
-    }
-    if (chunk.length > 0) this.atLineStart = chunk.endsWith('\n')
-    for (let i = collected.length - 1; i >= 0; i--) {
-      this.recentLines.add(collected[i]!)
-    }
-    return collected.length > 0
-  }
+  private harvest(chunk: string): boolean { return harvestOf.call(this, chunk) }
 
   private joinRecent(count: number): string {
     return safeJoinLines(this.recentLines.getRecent(count), '\n')
@@ -398,4 +316,90 @@ export class TaskOutput {
     TaskOutput.stopPolling(this.taskId)
     pollRegistry.delete(this.taskId)
   }
+}
+
+async function sampleFileProgressOf(this: TaskOutput): Promise<void> {
+  let sample: { content: string; bytesRead: number; bytesTotal: number }
+  try {
+    sample = await tailFile(this.path, POLL_SAMPLE_BYTES)
+  } catch {
+    return
+  }
+  const onProgress = this.onProgress
+  if (!onProgress) return
+
+  if (sample.content.length === 0) {
+    onProgress('', '', this.lineCount, sample.bytesTotal, false)
+    return
+  }
+
+  const content = sample.content
+  let cursor = content.length
+  let count = 0
+  let newlines = 0
+  let recentBoundary = 0
+  let fullBoundary = 0
+  while (cursor > 0) {
+    const newline = content.lastIndexOf('\n', cursor - 1)
+    count++
+    if (newline !== -1) newlines++
+    if (count === RECENT_VIEW_LINES) recentBoundary = newline <= 0 ? 0 : newline + 1
+    if (count === FULL_VIEW_LINES) fullBoundary = newline <= 0 ? 0 : newline + 1
+    cursor = newline
+  }
+
+  const lines = content.endsWith('\n') ? newlines : newlines + 1
+  const sampledWholeFile = sample.bytesRead === sample.bytesTotal
+  const totalLines = sampledWholeFile
+    ? lines
+    : Math.max(Math.round(lines * (sample.bytesTotal / sample.bytesRead)), this.lineCount)
+  this.lineCount = totalLines
+  this.byteTotal = sample.bytesTotal
+  onProgress(
+    content.slice(recentBoundary),
+    content.slice(fullBoundary),
+    totalLines,
+    sample.bytesTotal,
+    !sampledWholeFile,
+  )
+}
+
+function harvestOf(this: TaskOutput, chunk: string): boolean {
+  const collected: string[] = []
+  let budget = HARVEST_BUDGET_UNITS
+  let cursor = chunk.length
+  while (cursor > 0) {
+    const newline = chunk.lastIndexOf('\n', cursor - 1)
+    if (newline === -1) break
+    this.lineCount++
+    const segment = chunk.slice(newline + 1, cursor)
+    if (
+      collected.length < HARVEST_MAX_SEGMENTS &&
+      segment.length > 0 &&
+      segment.length <= budget &&
+      segment.trim().length > 0
+    ) {
+      budget -= segment.length
+      collected.push(materialiseSegment(segment))
+    }
+    cursor = newline
+  }
+  const firstNewline = chunk.indexOf('\n')
+  if (this.atLineStart && firstNewline !== -1) {
+    const first = chunk.slice(0, firstNewline)
+    if (
+      collected.length < HARVEST_MAX_SEGMENTS &&
+      first.length > 0 &&
+      first.length <= budget &&
+      first.trim().length > 0
+    ) {
+      budget -= first.length
+      collected.push(materialiseSegment(first))
+    }
+  }
+  if (chunk.length > 0) this.atLineStart = chunk.endsWith('\n')
+  for (let i = collected.length - 1; i >= 0; i--) {
+    this.recentLines.add(collected[i]!)
+  }
+  return collected.length > 0
 }
