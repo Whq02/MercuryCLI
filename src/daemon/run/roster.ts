@@ -1,5 +1,6 @@
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage } from '../../utils/errors.js'
 import { failWorkingDispatchesForRunner } from '../concourseDispatch.js'
 import { settleConcourseWorker, completeRequestedPark, retireRequestedPark } from '../concourseWorkers.js'
 import { holdWorkerAsk } from '../permissionAsks.js'
@@ -48,7 +49,8 @@ export function makeDaemonRoster(state: DaemonRunState): TaskRoster {
         }
         try {
           failWorkingDispatchesForRunner(short, reason)
-        } catch {
+        } catch (e) {
+          console.error(`[daemon] ${short}: its working dispatches were not settled as failed, so their sends read in progress until the next daemon boot: ${errorMessage(e)}`)
         }
       }
     },

@@ -216,6 +216,8 @@ export async function prepareAgentRun({ agentId, name, description, swarm, abort
   await landAgentTranscriptRows(messages, agentId)
 
   const latestRecord = await readAgentMetadata(agentId).catch(() => null)
-  await writeAgentMetadata(agentId, runStartRecordOf({ latestRecord, model, effortOverride, agentDefinition, swarm, worktreePath, cwd, description, name, launchedAt, swarmWords, thinkingOverride, structuredOutputSpec, instructionCapture, resolvedAgentModel, resolvedEffort })).catch(() => {})
+  await writeAgentMetadata(agentId, runStartRecordOf({ latestRecord, model, effortOverride, agentDefinition, swarm, worktreePath, cwd, description, name, launchedAt, swarmWords, thinkingOverride, structuredOutputSpec, instructionCapture, resolvedAgentModel, resolvedEffort })).catch((error: unknown) => {
+    logForDebugging(`runAgent: the record of crewmate ${agentId} could not be saved, so a resume falls back to the default agent type, model and directory: ${errorMessage(error)}`)
+  })
   return { userContext, systemContext, systemPrompt, childContext, messages }
 }

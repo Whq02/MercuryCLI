@@ -5,6 +5,7 @@ import { partiallySanitizeUnicode } from '../utils/sanitization.js'
 import { recordRefusedDurableFile } from '../substrate/storeRecovery.js'
 import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import { logForDebugging } from '../utils/debug.js'
+import { errorMessage, isENOENT } from '../utils/errors.js'
 import { gitInitRefusal } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
 import { isProcessAlive } from './ownerWatch.js'
@@ -207,7 +208,11 @@ function mergeForeignDispatches(path: string, dispatches: Record<string, Concour
         dispatches[id] = diskRec
       }
     }
-  } catch {}
+  } catch (err) {
+    if (!isENOENT(err)) {
+      console.error(`[daemon] ${path}: the dispatch ledger could not be read for the merge before publish, its other writers' records are not merged: ${err instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(err)}`)
+    }
+  }
 }
 
 function publishDispatches(dispatches: Record<string, ConcourseDispatchRecordV1>, dir?: string): void {

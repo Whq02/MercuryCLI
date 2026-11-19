@@ -267,7 +267,14 @@ async function gatherReport(
   }
 
   const fromDisk = await loadAllSubagentTranscriptsFromDisk().catch(
-    () => ({}) as Record<string, Message[]>,
+    (loadError: unknown) => {
+      logError(loadError)
+      errors.push({
+        error: redactSensitiveInfo(`subagent transcripts could not be read from disk; the report carries only those in memory: ${loadError instanceof Error ? loadError.message : String(loadError)}`),
+        timestamp: new Date().toISOString(),
+      })
+      return {} as Record<string, Message[]>
+    },
   )
   const fromTasks: Record<string, Message[]> = {}
   for (const task of Object.values(backgroundTasks)) {

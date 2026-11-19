@@ -9,6 +9,7 @@ import { CONTRACT_TEXT_CAP } from './sessionContract.js'
 import { updateConcourseWorkers } from './concourseWorkers.js'
 import { wakeDelayOfSpelling } from '../utils/messages/noticeRows.js'
 import { isRecord } from '../utils/isRecord.js'
+import { errorMessage } from '../utils/errors.js'
 
 
 export interface ScheduleAccountV1 {
@@ -464,7 +465,8 @@ function rowScheduleReceipt(
       summary,
       details,
     })
-  } catch {
+  } catch (err) {
+    console.error(`[daemon] session ${rec.sessionId}: a schedule-set receipt was not written to its session record: ${errorMessage(err)}`)
   }
 }
 
@@ -583,7 +585,8 @@ export function rowSaturnTickReceipt(
       summary,
       details,
     })
-  } catch {
+  } catch (err) {
+    console.error(`[daemon] session ${rec.sessionId}: a ${kind} receipt was not written to its session record: ${errorMessage(err)}`)
   }
 }
 

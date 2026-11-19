@@ -28,8 +28,9 @@ import { closeSettingsPopup, openSettingsPopup } from '../../utils/cockpit/setti
 import { getContextWindowForModel } from '../../utils/context.js'
 import { crewmateModelOverride } from '../../utils/crew/crewmateModelWord.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString, resolveStampedEffortTruth, selectableEffortLevels, type EffortLevel } from '../../utils/effort.js'
-import { errorMessage } from '../../utils/errors.js'
+import { errorMessage, isENOENT } from '../../utils/errors.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
+import { logError } from '../../utils/log.js'
 import { parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
 import { MODEL_PICKER_PANEL } from '../../utils/model/modelPickerGroups.js'
 import type { AgentMetadata } from '../../utils/sessionStorage/paths.js'
@@ -81,7 +82,8 @@ function agentTypeOf(crewmate: CrewmateInView, meta: AgentMetadata | null): stri
 async function readRecord(file: string): Promise<AgentMetadata | null> {
   try {
     return JSON.parse(await readFile(file, 'utf8')) as AgentMetadata
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error)) logError(new Error(`crewmate metadata ${file} could not be read: ${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}`))
     return null
   }
 }

@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { formatEditPreview, type NormalizedFileEdits, type WorkspaceEditLike } from '../../../services/lsp/workspaceEditApply.js'
 import { renameWithWin32Retry } from '../../../substrate/durablePublish.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { errorMessage, getErrnoCode } from '../../../utils/errors.js'
 import { checkWritePermissionForTool, pathInAllowedWorkingPath } from '../../../utils/permissions/filesystem.js'
 import { postureBypassesAsks } from '../../../utils/permissions/decision/engine.js'
 import type { MercuryLspOpOutput, OpEnv } from './types.js'
@@ -113,7 +114,20 @@ export async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
         evidence: 'target exists — nothing moved',
       },
     }
-  } catch {
+  } catch (error) {
+    const code = getErrnoCode(error)
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+      return {
+        result: `LspMoveFile refused: the target ${newDisplay} could not be checked (${errorMessage(error)}) — nothing moved.`,
+        resultCount: 0,
+        fileCount: 0,
+        effect: {
+          outcome: 'failed',
+          changedPaths: [],
+          evidence: 'target unchecked — nothing moved',
+        },
+      }
+    }
   }
 
   const claimants = await pathRenameClaimants(env, oldPath, newPath, isDirectory)

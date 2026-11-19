@@ -42,6 +42,9 @@ import { writeEngineContactSheet } from './frames.js'
 import { startEngineHeartbeat } from './liveness.js'
 import { engineLeaseRefusal, projectLeaseHolder, type LeaseHolder } from './leases.js'
 import { engineLogDrift, proofTreeFingerprint, sourceProofDrift, type ProofDriftRow } from './proofDrift.js'
+import { logError } from '../../../utils/log.js'
+
+const unsavedRecordsNamed = new Set<string>()
 
 export type EnginePriority = 'verifier' | 'fold-gate' | 'lane-gate' | 'profile'
 
@@ -386,8 +389,10 @@ export class EngineJobService {
     try {
       mkdirSync(job.runDir, { recursive: true })
       writeFileSync(engineRunResultFile(job.runDir), JSON.stringify(job.record, null, 2))
-    } catch {
-      return
+    } catch (error) {
+      if (unsavedRecordsNamed.has(job.id)) return
+      unsavedRecordsNamed.add(job.id)
+      logError(new Error(`the record of engine job ${job.id} could not be written to ${engineRunResultFile(job.runDir)} (${error instanceof Error ? error.message : String(error)}), so op:"engine_result" reads it only while this process holds it`))
     }
   }
 
@@ -434,8 +439,8 @@ export class EngineJobService {
     let processes: GodotProcess[] = []
     try {
       processes = await this.census()
-    } catch {
-      return null
+    } catch (error) {
+      throw new Error(`native run refused: whether another Godot holds the display could not be read (${error instanceof Error ? error.message : String(error)}) — pass displayShared:true to run beside it`)
     }
     const holder = processes.find(p => !p.headless && !(p.project !== undefined && isEnginePath(this.projectRoot, p.project)))
     return holder ? describeGodotProcess(holder) : null
@@ -870,8 +875,8 @@ async function runOneOf(
   try {
     mkdirSync(path.dirname(logFile), { recursive: true })
     writeFileSync(logFile, out.output)
-  } catch {
-    void 0
+  } catch (error) {
+    logError(new Error(`the log of suite ${name} in engine job ${job.id} could not be written to ${logFile} (${error instanceof Error ? error.message : String(error)}), so its row names a log that is not there`))
   }
   const clean = isCleanEngineLog(out.output, unclean)
   const markerLine = marker ? markerLineOf(marker, out.output) : null

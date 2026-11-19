@@ -4,7 +4,8 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
-import { errorMessageWithCause } from '../../../utils/errors.js'
+import { errorMessageWithCause, isENOENT } from '../../../utils/errors.js'
+import { logError } from '../../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
@@ -78,12 +79,20 @@ function authFilePath(): string {
   return join(getAuthConfigHomeDir(), AUTH_FILE_NAME)
 }
 
+let authFileUnreadSaid: string | undefined
+
 function readAuthFile(): HuggingfaceAuthFile | null {
   try {
     const parsed = JSON.parse(readFileSync(authFilePath(), 'utf8')) as unknown
     if (typeof parsed !== 'object' || parsed === null) return null
     return parsed as HuggingfaceAuthFile
-  } catch {
+  } catch (error) {
+    if (isENOENT(error)) return null
+    const why = error instanceof SyntaxError ? 'it is not valid JSON' : errorMessageWithCause(error)
+    if (why !== authFileUnreadSaid) {
+      authFileUnreadSaid = why
+      logError(new Error(`the Hugging Face auth file ${AUTH_FILE_NAME} could not be read (${why}), so the next save writes it anew without its stored tokens and identity`))
+    }
     return null
   }
 }

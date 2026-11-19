@@ -11,6 +11,7 @@ import { workerPidAlive } from '../workerIdentity.js'
 import { updateConcourseWorkers, readSessionWorkers } from './store.js'
 import { recordCollisionEvidence } from './collisions.js'
 import { type ConcourseWorkerRecordV1, isNewbornRecord, stampedTerminalPid, stampParked, stampStopped, turnCutStanding } from './record.js'
+import { errorMessage } from '../../utils/errors.js'
 
 export type ConcoursePauseOutcome =
   | { outcome: 'applied' }
@@ -134,14 +135,16 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
   if (settled && settledRec !== undefined && settledRec.parkedAt === undefined && !isNewbornRecord(settledRec)) {
     try {
       writeSessionCloseReceipts(getProjectDir(settledRec.workspaceId), settledRec.sessionId, 'settle', settledRec.agentName)
-    } catch {
+    } catch (err) {
+      console.error(`[daemon] ${runnerId}: the settle close receipts of session ${settledRec.sessionId} were not written: ${errorMessage(err)}`)
     }
   }
   if (settled && settledRec !== undefined) reapSettledWorktree(settledRec, dir)
   if (settled && endedSessionId !== undefined) {
     try {
       retireSeatProjections(endedSessionId, dir)
-    } catch {
+    } catch (err) {
+      console.error(`[daemon] ${runnerId}: the seat files (facts, asks, tail, progress) of ended session ${endedSessionId} were not all removed and stay stale: ${errorMessage(err)}`)
     }
   }
   if (settled && settledRec !== undefined) {

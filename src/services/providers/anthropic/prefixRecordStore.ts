@@ -115,6 +115,7 @@ export async function sweepPrefixRecords(options: PrefixRecordSweepOptions = {})
   } catch {
   }
   for (const id of options.liveSessionIds ?? []) live.add(sessionSegment(id))
+  let unreadRegistry: string | null = null
   for (const entry of entries) {
     const registered = REGISTRY_FILE.exec(entry.name)
     if (registered === null || !entry.isFile()) continue
@@ -123,7 +124,8 @@ export async function sweepPrefixRecords(options: PrefixRecordSweepOptions = {})
     try {
       const record = JSON.parse(await readFile(join(root, entry.name), 'utf8')) as { sessionId?: unknown } | null
       if (typeof record?.sessionId === 'string') live.add(sessionSegment(record.sessionId))
-    } catch {
+    } catch (error) {
+      if (!isMissing(error)) unreadRegistry ??= `${join(root, entry.name)}: ${error instanceof SyntaxError ? 'it is not valid JSON' : String(error)}`
     }
   }
   const now = options.now ?? Date.now()
@@ -145,6 +147,10 @@ export async function sweepPrefixRecords(options: PrefixRecordSweepOptions = {})
       receipt.kept++
       continue
     }
+    if (unreadRegistry !== null) {
+      receipt.kept++
+      continue
+    }
     if (age > retentionMs) {
       removePrefixRecordIn(folder)
       receipt.expired.push(entry.name)
@@ -157,6 +163,9 @@ export async function sweepPrefixRecords(options: PrefixRecordSweepOptions = {})
       continue
     }
     receipt.kept++
+  }
+  if (unreadRegistry !== null) {
+    logForDebugging(`preserved thinking: the boot sweep removed no prefix record: the registry of a running session could not be read (${unreadRegistry}), so its record cannot be told from the others`, { level: 'warn' })
   }
   if (receipt.expired.length > 0 || receipt.orphaned.length > 0) {
     logForDebugging(`preserved thinking: the boot sweep removed ${receipt.expired.length} prefix record(s) older than ${retentionDays} days and ${receipt.orphaned.length} whose transcript is gone; ${receipt.kept} kept, ${receipt.live} of them live`)

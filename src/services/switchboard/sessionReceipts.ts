@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import { recordToEntry } from '../../fabric/entryCodec.js'
 import { MAX_TRANSCRIPT_READ_BYTES } from '../../utils/sessionStorage/paths.js'
 import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptReader.js'
-import { logForDebugging } from '../../utils/debug.js'
 import { SHELL_TOOL_NAMES } from '../../utils/shell/shellToolUtils.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
@@ -334,33 +333,28 @@ export function writeSessionCloseReceipts(
   closedBy: SessionCloseSeam,
   agentName?: string,
 ): number {
-  try {
-    const walked = deriveSessionFloor(home, sessionId, closedBy)
-    if (walked === null || !walked.hasConversation) return 0
-    const at = new Date().toISOString()
-    appendSessionReceipt(home, sessionId, {
-      at,
-      by: 'daemon',
-      kind: 'machine-floor',
-      summary: machineFloorSummaryOf(walked.floor),
-      details: walked.floor as unknown as Record<string, unknown>,
-    })
-    if (walked.finalAssistant === undefined) return 1
-    appendSessionReceipt(home, sessionId, {
-      at,
-      by: agentName ?? 'session',
-      kind: 'agent-close',
-      summary: walked.finalAssistant.text,
-      details: {
-        ...(walked.finalAssistant.at !== undefined ? { messageAt: walked.finalAssistant.at } : {}),
-        ...(walked.finalAssistant.clippedFromChars !== undefined
-          ? { clippedFromChars: walked.finalAssistant.clippedFromChars }
-          : {}),
-      },
-    })
-    return 2
-  } catch (err) {
-    logForDebugging(`[receipts] close write failed for ${sessionId}: ${err}`)
-    return 0
-  }
+  const walked = deriveSessionFloor(home, sessionId, closedBy)
+  if (walked === null || !walked.hasConversation) return 0
+  const at = new Date().toISOString()
+  appendSessionReceipt(home, sessionId, {
+    at,
+    by: 'daemon',
+    kind: 'machine-floor',
+    summary: machineFloorSummaryOf(walked.floor),
+    details: walked.floor as unknown as Record<string, unknown>,
+  })
+  if (walked.finalAssistant === undefined) return 1
+  appendSessionReceipt(home, sessionId, {
+    at,
+    by: agentName ?? 'session',
+    kind: 'agent-close',
+    summary: walked.finalAssistant.text,
+    details: {
+      ...(walked.finalAssistant.at !== undefined ? { messageAt: walked.finalAssistant.at } : {}),
+      ...(walked.finalAssistant.clippedFromChars !== undefined
+        ? { clippedFromChars: walked.finalAssistant.clippedFromChars }
+        : {}),
+    },
+  })
+  return 2
 }

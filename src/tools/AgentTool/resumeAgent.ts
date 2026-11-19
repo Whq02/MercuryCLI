@@ -289,7 +289,7 @@ export async function resumeAgentBackground(args: {
     throw error
   }
   const latest = await readAgentMetadata(agentId as AgentId).catch(() => null)
-  await writeAgentMetadata(agentId as AgentId, recordAfterResume(meta, latest, {
+  const recordNote = await writeAgentMetadata(agentId as AgentId, recordAfterResume(meta, latest, {
     fresh: {
       agentType: definition.agentType,
       swarm: meta?.swarm === true,
@@ -306,7 +306,10 @@ export async function resumeAgentBackground(args: {
     },
     model: restoredModel,
     effortOverride: restoredEffort,
-  })).catch(() => {})
+  })).then(
+    () => '',
+    (error: unknown) => ` NOTE: the crewmate's record could not be saved (${errorMessage(error)}) — its next resume reads the model, effort and directory recorded before this one.`,
+  )
 
   const querySource = getQuerySourceForAgent(
     definition.agentType,
@@ -402,7 +405,7 @@ export async function resumeAgentBackground(args: {
     description,
     outputFile: getTaskOutputPath(agentId),
     ...directoryFacts,
-    ...(note ? { note } : {}),
+    ...(note || recordNote ? { note: note + recordNote } : {}),
   }
 }
 
