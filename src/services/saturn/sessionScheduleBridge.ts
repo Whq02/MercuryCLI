@@ -1,4 +1,6 @@
 import { flagEnabled } from '../../substrate/flagRegistry.js'
+import { errorMessage } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 import type { SaturnFactsRowV1, ScheduleOpRequestV1 } from '../../daemon/saturn.js'
 import type { LocalWakeFacts } from '../../tools/ScheduleWakeupTool/localWake.js'
 
@@ -92,7 +94,8 @@ export function armLocalWake(delaySeconds: number, prompt: string, facts?: Local
     localWakeTimers.delete(timer)
     try {
       sink(prompt, facts)
-    } catch {
+    } catch (err) {
+      logError(new Error(`the local wake armed for ${facts?.spelling ?? `${Math.round(delaySeconds)}s`} could not be queued and was not delivered: ${errorMessage(err)}`))
     }
   }, Math.max(1000, Math.round(delaySeconds) * 1000))
   timer.unref?.()
