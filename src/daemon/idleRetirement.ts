@@ -3,6 +3,7 @@ import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { formatLimit, minutesKnobToMs } from '../utils/deadline.js'
 import { logForDebugging } from '../utils/debug.js'
+import { errorMessage } from '../utils/errors.js'
 import { recordToEntry } from '../fabric/entryCodec.js'
 import { workerTranscriptPath } from '../services/concourse/workerTranscript.js'
 import { readConcourseDispatches } from './concourseDispatch.js'
@@ -104,8 +105,11 @@ function lineIsConversation(raw: string): boolean {
   let shape: { type?: unknown }
   try {
     shape = recordToEntry(entry as never) as { type?: unknown }
-  } catch {
-    return false
+  } catch (err) {
+    const kind = (env.payload as { kind?: unknown }).kind
+    if (kind !== 'input' && kind !== 'output') return false
+    logForDebugging(`[daemon] idle retirement: a transcript record of kind ${kind} did not convert, so it counts as conversation and the session is not retired as empty: ${errorMessage(err)}`)
+    return true
   }
   return shape.type === 'user' || shape.type === 'assistant'
 }
