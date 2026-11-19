@@ -39,15 +39,16 @@ function count(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0
 }
 
-function countedUsageOf(raw: unknown): CountedUsage | null {
+function countedUsageOf(raw: unknown, timestamp: string): CountedUsage | null {
   if (raw === null || typeof raw !== 'object') return null
   const u = raw as Record<string, unknown>
+  const startedAtMs = count(u.request_started_at_ms) || count(Date.parse(timestamp))
   const searches = count((u.server_tool_use as Record<string, unknown> | null | undefined)?.web_search_requests)
   const oneHour = count((u.cache_creation as Record<string, unknown> | null | undefined)?.ephemeral_1h_input_tokens)
   const usage: CountedUsage = {
     input_tokens: count(u.input_tokens),
     output_tokens: count(u.output_tokens),
-    ...(count(u.request_started_at_ms) > 0 ? { request_started_at_ms: count(u.request_started_at_ms) } : {}),
+    ...(startedAtMs > 0 ? { request_started_at_ms: startedAtMs } : {}),
     cache_read_input_tokens: count(u.cache_read_input_tokens),
     cache_creation_input_tokens: count(u.cache_creation_input_tokens),
     ...(searches > 0 ? { server_tool_use: { web_search_requests: searches } } : {}),
@@ -62,7 +63,7 @@ function countedRowOf(entry: Entry, seq: number): CountedRow | null {
   const model = servedModelOfAssistantRow(entry)
   if (model === undefined) return null
   const message = entry.message as { id?: unknown; usage?: unknown }
-  const usage = countedUsageOf(message.usage)
+  const usage = countedUsageOf(message.usage, entry.timestamp)
   if (usage === null) return null
   const id = message.id
   const workload = (entry as { workload?: unknown }).workload

@@ -264,13 +264,18 @@ function huggingfaceFloorPricing(model: string): ResolvedModelPricing | undefine
   return costs === undefined ? undefined : { costs, basis: 'floor' }
 }
 
-type PricingOwner = (model: string, promptTokens: number | undefined) => ResolvedModelPricing | undefined
+function utcDayOf(startedAtMs: number | undefined): string | undefined {
+  const date = new Date(startedAtMs ?? NaN)
+  return Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : undefined
+}
+
+type PricingOwner = (model: string, promptTokens: number | undefined, startedAtMs: number | undefined) => ResolvedModelPricing | undefined
 
 const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   anthropic: (model, promptTokens) => firstPartyPricing(model, promptTokens),
-  openai: (model, promptTokens) => {
+  openai: (model, promptTokens, startedAtMs) => {
     const pin = gptDisplayPin(model)
-    return pin === undefined ? undefined : recorded(engineTier(gptPriceTierFor(pin, promptTokens)))
+    return pin === undefined ? undefined : recorded(engineTier(gptPriceTierFor(pin, promptTokens, utcDayOf(startedAtMs))))
   },
   zai: model => recorded(engineTier(glmPricePin(model))),
   moonshot: model => recorded(engineTier(kimiDisplayPin(model))),
@@ -280,9 +285,9 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
     return recorded(engineTier(pin?.longContext && promptTokens !== undefined && promptTokens >= (pin.longContextThreshold ?? Infinity) ? pin.longContext : pin))
   },
   meta: model => recorded(engineTier(metaDisplayPin(model))),
-  gemini: (model, promptTokens) => {
+  gemini: (model, promptTokens, startedAtMs) => {
     const pin = geminiPricePin(model)
-    return pin === undefined ? undefined : recorded(engineTier(geminiPriceTierFor(pin, promptTokens)))
+    return pin === undefined ? undefined : recorded(engineTier(geminiPriceTierFor(pin, promptTokens, utcDayOf(startedAtMs))))
   },
   openrouter: model => openrouterCataloguePricing(model),
   huggingface: model => huggingfaceFloorPricing(model),
@@ -319,7 +324,7 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
 
 export function resolveModelPricing(model: string, opts?: { promptTokens?: number; startedAtMs?: number }): ResolvedModelPricing {
   const route = declaredRouteOf(model)
-  const resolved = route === null ? undefined : PRICING_OWNERS[route](model, opts?.promptTokens)
+  const resolved = route === null ? undefined : PRICING_OWNERS[route](model, opts?.promptTokens, opts?.startedAtMs)
   let base: ResolvedModelPricing = resolved ?? { costs: COST_UNPRICED, basis: 'unpriced' }
   if (route === 'deepseek' && resolved !== undefined && opts?.startedAtMs !== undefined) {
     const period = deepseekRatePeriod(opts.startedAtMs)

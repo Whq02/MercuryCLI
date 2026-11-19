@@ -150,7 +150,7 @@ scripts/builtin-tools/prove-glob-separator-door.ts	2	8	398a5428af3f
 scripts/builtin-tools/prove-webfetch-cache-hygiene.ts	1	5	d57d879b4e24
 scripts/builtin-tools/prove-webfetch-summariser-fallback.ts	6	11	98b103db5629
 scripts/cache/prove-cache-clock.ts	3	7	31b4172c543e
-scripts/cache/prove-lane-priced-ledger.ts	2	6	6880afa24ba9
+scripts/cache/prove-lane-priced-ledger.ts	2	2	6880afa24ba9
 scripts/cache/prove-pricing-by-provider.ts	12	56	cf7598d751b5
 scripts/capabilities/prove-capability-wiring.ts	1	2	ca92d1afe836
 scripts/changesets/prove-changeset-migration.ts	4	12	e82fa978fa7e

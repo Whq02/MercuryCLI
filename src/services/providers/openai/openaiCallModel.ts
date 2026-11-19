@@ -1270,7 +1270,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   busy?: { ladder: BusyRetryLadder; fault: OpenaiFault }
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
   const { request, auth, signal, tools, options, modelId } = ctx
-
+  const requestStartedAtMs = Date.now()
   const partial: ApiMessage = {
     id: `openai_${randomUUID()}`,
     type: 'message' as const,
@@ -1679,9 +1679,9 @@ export async function* streamOneOpenaiAttempt(ctx: {
   const mappedFinish = refusalStreamed || finish?.refusalText ? 'refusal' : FINISH_TO_STOP[finish?.reason ?? 'completed'] ?? 'end_turn'
   const stopReason =
     accepted.length > 0 || answered.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
-  const finalUsage = mapOpenaiUsageToAnthropic(usageSeen, finish?.webSearchCalls.length ?? 0)
+  const finalUsage = Object.assign(mapOpenaiUsageToAnthropic(usageSeen, finish?.webSearchCalls.length ?? 0), { request_started_at_ms: requestStartedAtMs })
   if (!usageSeen && fault !== undefined) {
-    const estimated = estimateFaultedRequestUsage({ lane: 'openai', model: modelId, request, minted, faultCode: fault.code })
+    const estimated = Object.assign(estimateFaultedRequestUsage({ lane: 'openai', model: modelId, request, minted, faultCode: fault.code }), { request_started_at_ms: requestStartedAtMs })
     addToTotalSessionCost(calculateUSDCost(modelId, estimated), estimated, modelId)
   }
   if (usageSeen) {
