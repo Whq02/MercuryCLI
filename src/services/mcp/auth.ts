@@ -25,6 +25,8 @@ import { join } from 'node:path'
 import { MCP_CLIENT_METADATA_URL } from '../../constants/oauth.js'
 import { openBrowser } from '../../utils/browser.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { lock } from '../../utils/lockfile.js'
 import { clearKeychainCache, getSecureStorage } from '../../utils/secureStorage/index.js'
@@ -1012,12 +1014,16 @@ export async function revokeServerTokens(
   if (entry && (entry.accessToken || entry.refreshToken)) {
     try {
       const authServerUrl = entry.discoveryState?.authorizationServerUrl ?? (serverConfig as RemoteServerConfig).url ?? ''
-      const metadata = await discoverAuthorizationServerMetadata(authServerUrl, { fetchFn: fetchFn as never }).catch(
-        () => undefined,
+      const discovered = await discoverAuthorizationServerMetadata(authServerUrl, { fetchFn: fetchFn as never }).then(
+        metadata => ({ metadata, lookupError: undefined as unknown }),
+        (lookupError: unknown) => ({ metadata: undefined, lookupError }),
       )
+      const metadata = discovered.metadata
       const record = metadata as Record<string, unknown> | undefined
       const endpoint = record?.revocation_endpoint as string | undefined
-      if (!metadata || !endpoint) {
+      if (discovered.lookupError !== undefined) {
+        logError(new Error(`mcp auth [${serverName}]: the authorization server's metadata could not be fetched, so the tokens were not revoked there and stay valid until they expire: ${errorMessage(discovered.lookupError)}`))
+      } else if (!metadata || !endpoint) {
         logForDebugging(`mcp auth [${serverName}]: no revocation endpoint; skipping revocation`)
       } else {
         const supported =
