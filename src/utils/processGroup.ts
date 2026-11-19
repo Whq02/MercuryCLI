@@ -271,7 +271,7 @@ export function msysTableReaderOf(spawnfile: string | undefined, fileExists: (fi
   const runtimes = [holder, pathWin32.join(holder, '..', 'usr', 'bin')].filter(dir => fileExists(pathWin32.join(dir, 'msys-2.0.dll')) || fileExists(pathWin32.join(dir, 'cygwin1.dll')))
   const ps = runtimes.map(dir => pathWin32.join(dir, 'ps.exe')).find(file => fileExists(file))
   if (ps !== undefined) return { file: ps, args: ['-e', '-l'] }
-  return runtimes.length > 0 && /^bash(?:\.exe)?$/i.test(pathWin32.basename(spawnfile)) ? { file: spawnfile, args: ['-p', '-c', MSYS_TABLE_BY_BUILTINS] } : undefined
+  return runtimes.length > 0 && /^bash(?:\.exe)?$/i.test(pathWin32.basename(spawnfile)) ? { file: spawnfile, args: ['-o', 'privileged', '-c', MSYS_TABLE_BY_BUILTINS] } : undefined
 }
 
 function startsNode(spawnfile: string): boolean {
@@ -577,7 +577,7 @@ function readBirth(pid: number): Promise<number | null> {
 
 function readBirthNow(pid: number): number | null {
   if (process.platform === 'linux') return linuxBirth(pid)
-  return birthSaid(spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { ...BIRTH_ASKED, encoding: 'utf8' }).stdout)
+  return birthSaid(spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { ...BIRTH_ASKED, windowsHide: true, encoding: 'utf8' }).stdout)
 }
 
 export function birthMark(pid: number | undefined, askedAtMs: number): BirthMark | null {

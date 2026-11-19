@@ -116,8 +116,8 @@ section('§1 the MSYS table reader and the tree walk (pure)')
     const beside = readerOf(`${git}\\usr\\bin\\bash.exe`, gitWorld)
     check('a usr\\bin bash is read by the ps.exe beside it', beside?.file === `${git}\\usr\\bin\\ps.exe`, JSON.stringify(beside))
     const bare = readerOf('C:\\pin\\bin\\bash.exe', world('C:\\pin\\bin\\msys-2.0.dll'))
-    check('a bash with its runtime and no ps.exe beside it reads the table itself: -p -c and one line', bare?.file === 'C:\\pin\\bin\\bash.exe' && bare.args.length === 3 && bare.args[0] === '-p' && bare.args[1] === '-c', JSON.stringify(bare))
-    const line = bare?.args[2] ?? ''
+    check('a bash with its runtime and no ps.exe beside it reads the table itself: privileged, -c and one line', bare?.file === 'C:\\pin\\bin\\bash.exe' && bare.args.length === 4 && bare.args.slice(0, 3).join(' ') === '-o privileged -c', JSON.stringify(bare))
+    const line = bare?.args[3] ?? ''
     check('…a line with no quote and no backslash in it, so MSYS=noglob has nothing to misread', line !== '' && !/["'\\\\]/.test(line), line)
     check('a bash with no runtime beside it has no table to read, with a ps.exe there or without', readerOf('C:\\pin\\bin\\bash.exe', world()) === undefined && readerOf('C:\\pin\\bin\\bash.exe', world('C:\\pin\\bin\\ps.exe')) === undefined)
     check('a program that is not a bash is never started as one', readerOf('C:\\pin\\bin\\rsync.exe', world('C:\\pin\\bin\\msys-2.0.dll')) === undefined)
@@ -139,10 +139,10 @@ section('§1 the MSYS table reader and the tree walk (pure)')
       put(404, { winpid: '5004\n', ppid: '1\n' })
       mkdirSync(join(stand, 'self'))
       writeFileSync(join(stand, 'start-file'), 'echo 9 9 9 9\n')
-      const ran = spawnSync('/bin/bash', ['-p', '-c', line.split('/proc/').join(`${stand}/`)], { encoding: 'utf8', env: { ...process.env, BASH_ENV: join(stand, 'start-file'), SHELLOPTS: 'noglob' } })
+      const ran = spawnSync('/bin/bash', [...(bare?.args.slice(0, 3) ?? []), line.split('/proc/').join(`${stand}/`)], { encoding: 'utf8', env: { ...process.env, BASH_ENV: join(stand, 'start-file'), SHELLOPTS: 'noglob' } })
       const rows = group.parseMsysProcessTable(ran.stdout ?? '') as Row[]
       check('run by a bash against a stand-in folder, the line gives one row a process to the same parser, passes over one that left midway, and ends 0', ran.status === 0 && JSON.stringify(rows) === JSON.stringify([{ pid: 101, ppid: 1, pgid: 101, winpid: 5001 }, { pid: 202, ppid: 101, pgid: 101, winpid: 5002 }, { pid: 303, ppid: 202, pgid: 303, winpid: 5003 }]), `exit ${String(ran.status)} · ${JSON.stringify(ran.stdout)}`)
-      check('…and -p keeps a BASH_ENV file and an exported SHELLOPTS out of it', !(ran.stdout ?? '').includes('9 9 9 9') && rows.length === 3, JSON.stringify(ran.stdout))
+      check('…and the privileged start keeps a BASH_ENV file and an exported SHELLOPTS out of it', !(ran.stdout ?? '').includes('9 9 9 9') && rows.length === 3, JSON.stringify(ran.stdout))
     }
     rmSync(stand, { recursive: true, force: true })
   }
