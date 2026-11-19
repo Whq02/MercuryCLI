@@ -86,7 +86,8 @@ check(
 section('scan: named chalk colours (UX-6 — the hex ratchet blind spot)')
 const CHALK_NAMED = /chalk(?:\.\w+)*\.(cyan|magenta|yellow|red|green|blue|white|black|gray|grey|cyanBright|magentaBright|yellowBright|redBright|greenBright|blueBright)\b/
 const CHALK_ALLOW: Record<string, number> = {
-  'src/main.tsx': 28,
+  'src/main/cli.ts': 1,
+  'src/main/mcpConfigs.ts': 1,
   'src/setup.ts': 9,
   'src/ink/colorize.ts': 15,
   'src/utils/teleport.tsx': 6,
