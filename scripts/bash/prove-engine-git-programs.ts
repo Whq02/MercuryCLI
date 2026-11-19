@@ -174,9 +174,19 @@ const legEnvBase = (): NodeJS.ProcessEnv => {
   return env
 }
 
+const LEG_PATH = 'PROVE_ENGINE_LEG_PATH'
+const PUTS_THE_LEG_PATH_BACK = `[ -z "\${${LEG_PATH}+x}" ] || { PATH=$${LEG_PATH}; export PATH; }\n`
+
+function loginRunHeldStill(path: string | undefined): Record<string, string> {
+  const home = join(scratch, 'user')
+  mkdirSync(home, { recursive: true })
+  for (const file of ['.profile', '.zlogin']) writeFileSync(join(home, file), PUTS_THE_LEG_PATH_BACK)
+  return path === undefined ? {} : { [LEG_PATH]: path }
+}
+
 function runLegProcess(leg: string, depth: Depth, extra: Record<string, string>, settings?: unknown): Promise<{ report: LegReport | null; text: string }> {
   const legTmp = realpathSync(mkdtempSync(join(scratch, `${leg}-tmp-`)))
-  const env: NodeJS.ProcessEnv = { ...legEnvBase(), HOME: join(scratch, 'user'), TMPDIR: legTmp, MERCURY_TMPDIR: legTmp, MERCURY_CREDENTIAL_STORE: 'file', ...extra }
+  const env: NodeJS.ProcessEnv = { ...legEnvBase(), HOME: join(scratch, 'user'), TMPDIR: legTmp, MERCURY_TMPDIR: legTmp, MERCURY_CREDENTIAL_STORE: 'file', ...extra, ...loginRunHeldStill(extra.PATH) }
   const args = [import.meta.path, '--leg', leg, '--depth', depth, ...(settings === undefined ? [] : ['--settings', JSON.stringify(settings)])]
   return new Promise(resolvePromise => {
     const child = spawn(process.execPath, args, { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -462,7 +472,7 @@ try {
         type Row = { status?: string; evidence?: string; state?: string; detail?: string }
         const health = (label: string, extra: Record<string, string>): Promise<{ shell: Row | null; ready: Row | null; text: string }> => {
           const home = realpathSync(mkdtempSync(join(scratch, `${label}-health-home-`)))
-          const env: NodeJS.ProcessEnv = { ...legEnvBase(), HOME: join(scratch, 'user'), MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_OPERATOR: 'sam', ...extra }
+          const env: NodeJS.ProcessEnv = { ...legEnvBase(), HOME: join(scratch, 'user'), MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_OPERATOR: 'sam', ...extra, ...loginRunHeldStill(extra.PATH) }
           return new Promise(resolvePromise => {
             const child = spawn(NODE, [DIST, 'health', '--json'], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] })
             let out = ''
@@ -527,7 +537,7 @@ try {
           })
           const env: NodeJS.ProcessEnv = childEnv(home, Number(new URL(fixture.base).port))
           for (const name of [ENGINE_PIN, 'MERCURY_SHELL_ENGINE_SESSIONS', SEAM, PIN, 'MERCURY_SHELL_PREFIX', 'MERCURY_ENV_FILE', 'SHELL']) delete env[name]
-          Object.assign(env, located, { [ENGINE_PIN]: 'brush', PATH: path, HOME: join(scratch, 'user'), MERCURY_TMPDIR: realpathSync(mkdtempSync(join(scratch, `${label}-run-tmp-`))) })
+          Object.assign(env, located, { [ENGINE_PIN]: 'brush', PATH: path, HOME: join(scratch, 'user'), MERCURY_TMPDIR: realpathSync(mkdtempSync(join(scratch, `${label}-run-tmp-`))) }, loginRunHeldStill(path))
           const run = await new Promise<{ code: number | null; out: string }>(resolvePromise => {
             const child = spawn(NODE, [DIST, 'run', ASK, '--format', 'rows', '--mode', 'sovereign', '--model', MODEL], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
             let out = ''

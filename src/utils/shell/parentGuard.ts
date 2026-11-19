@@ -3,13 +3,27 @@ import { existsSync } from 'node:fs'
 import { constants } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { endProcessTree, registerProcessTreeGuard, type ProcessTreeKillReceipt } from '../processGroup.js'
+import { endProcessTree, registerProcessTreeGuard, runsInAnMsysRuntime, type ProcessTreeKillReceipt } from '../processGroup.js'
 
 const SHELL_PARENT_GUARD = '--tool-shell-parent'
 const SHELL_PARENT_GUARD_BUNDLE = 'shell-parent-guard.mjs'
 
 type ShellLaunch = { file: string; args: string[]; detached?: boolean; windowsVerbatimArguments?: boolean }
-type GuardMessage = { kind: 'spawned'; pid: number } | { kind: 'spawn-error'; message: string; code?: string } | { kind: 'ended'; receipt: ProcessTreeKillReceipt }
+type GuardMessage = { kind: 'spawned'; pid: number } | { kind: 'spawn-error'; message: string; code?: string } | { kind: 'ended'; receipt: ProcessTreeKillReceipt } | { kind: 'signalled'; status: number; leaves: number }
+
+const MSYS_COUNTS_A_SIGNAL_BY = 256
+const MSYS_SIGNALS = 64
+
+export function statusAnMsysShellLeaves(status: number, underMsys: boolean, platform: string = process.platform): number {
+  const signal = status / MSYS_COUNTS_A_SIGNAL_BY
+  return platform === 'win32' && underMsys && Number.isInteger(signal) && signal >= 1 && signal <= MSYS_SIGNALS ? 128 + signal : status
+}
+
+let saysWhatTheGuardRead: ((line: string) => void) | undefined
+
+export function tellWhatTheShellGuardReads(say: (line: string) => void): void {
+  saysWhatTheGuardRead = say
+}
 
 export function shellParentGuardEntry(self: string): string {
   if (!self.endsWith('.mjs')) return fileURLToPath(new URL('../../entrypoints/cli.tsx', import.meta.url))
@@ -35,6 +49,7 @@ export async function spawnOwnedShell(file: string, args: string[], options: Spa
   let ended = false
   guard.on('message', (message: GuardMessage) => {
     if (message.kind === 'ended') receipt = message.receipt
+    if (message.kind === 'signalled') saysWhatTheGuardRead?.(`${file} left with status ${message.status}, which is signal ${message.status / MSYS_COUNTS_A_SIGNAL_BY} as the MSYS runtime counts it: the command's exit code reads ${message.leaves}`)
   })
   guard.once('exit', () => { ended = true })
   let stopping: Promise<ProcessTreeKillReceipt | null> | undefined
@@ -129,7 +144,15 @@ export async function runShellParentGuard(): Promise<void> {
   })
   child.once('error', failed)
   child.once('exit', (code, signal) => {
-    if (!ending) void spawnSent.then(() => exitLikeChild(code, signal))
+    if (ending) return
+    void spawnSent.then(() => {
+      const leaves = code === null ? null : statusAnMsysShellLeaves(code, runsInAnMsysRuntime(launch.file))
+      if (code === null || leaves === null || leaves === code || !process.connected) {
+        exitLikeChild(leaves, signal)
+        return
+      }
+      process.send!({ kind: 'signalled', status: code, leaves }, () => exitLikeChild(leaves, signal))
+    })
   })
   if (!process.connected) await end()
 }

@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, posix as posixPath } from 'node:path'
@@ -17,7 +18,7 @@ import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPlatform } from '../platform.js'
 import { WINDOWS_STARTS_A_PROGRAM_IN, folderWindowsStartsIn, windowsPathToPosixPath } from '../windowsPaths.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
-import { msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } from './msysArgv.js'
+import { carriedByFile, msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } from './msysArgv.js'
 import type { BuildExecCommandOptions, FrameHandOver, ShellProvider } from './shellProvider.js'
 import { PIPELINE_STATUS_ARRAY, loginFilesNotCarried, type ShellRecord } from './shellRecord.js'
 
@@ -125,8 +126,8 @@ export async function createBashShellProvider(
           if (msysArgvCarries(frame, env)) return { args: msysSpawnArgs(frame, noLoginFiles), ...where }
           const own = `-${process.pid}-${frameFiles++}-frame`
           const file = join(nativeTmp, `${name}${own}`)
-          const gone = { words: `Mercury: the file that carries this command to bash is gone (${file}), so nothing ran.`, exit: 126 }
-          return { args: msysSpawnArgs(msysSourceLine(`${cwdFileInShell}${own}`, gone), noLoginFiles), file: { path: file, text: frame }, ...where }
+          const gone = { words: `Mercury: the file that carries this command to bash is gone (${file}), so nothing ran.`, exit: 126, mark: randomBytes(6).toString('hex') }
+          return { args: msysSpawnArgs(msysSourceLine(`${cwdFileInShell}${own}`, gone), noLoginFiles), file: { path: file, text: carriedByFile(frame, gone.mark) }, ...where }
         }
         return { commandString, cwdFilePath: cwdFileForEngine, handOver, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }), ...(jobsPath === undefined ? {} : { jobsPath }) }
       }

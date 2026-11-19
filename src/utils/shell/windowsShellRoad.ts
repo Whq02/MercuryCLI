@@ -85,6 +85,7 @@ export type WindowsShellWorld = {
   engineAllowed: boolean
   start: (path: string) => Promise<string | null>
   why?: (path: string) => string | undefined
+  unfit?: (path: string) => string | undefined
   passed?: string[]
 }
 
@@ -95,8 +96,9 @@ export async function settleWindowsShell(world: WindowsShellWorld): Promise<Wind
   if (world.pinned !== null) {
     const version = await world.start(world.pinned)
     if (version !== null) return { origin: 'system', path: world.pinned, version, pinned: true, passed }
+    const unfit = world.unfit?.(world.pinned)
     const why = world.why?.(world.pinned)
-    passed.push(`${pinWords(world.pinned)}, did not answer as a bash${why === undefined ? '' : `: ${why}`}`)
+    passed.push(unfit !== undefined ? `${pinWords(world.pinned)}: ${unfit}` : `${pinWords(world.pinned)}, did not answer as a bash${why === undefined ? '' : `: ${why}`}`)
   }
   for (const candidate of world.installed()) {
     if (!candidate.runtimeBeside) {
@@ -109,7 +111,8 @@ export async function settleWindowsShell(world: WindowsShellWorld): Promise<Wind
     }
     const version = await world.start(candidate.path)
     if (version === null) {
-      passed.push(`${candidate.path} does not start`)
+      const unfit = world.unfit?.(candidate.path)
+      passed.push(unfit !== undefined ? `${candidate.path}: ${unfit}` : `${candidate.path} does not start`)
       continue
     }
     if (!(Number(/^\d+/.exec(version)?.[0]) >= OLDEST_BASH_THAT_COUNTS)) {

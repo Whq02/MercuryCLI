@@ -15,7 +15,14 @@ export function msysArgvCarries(script: string, env: NodeJS.ProcessEnv): boolean
 
 const singleQuoted = (text: string): string => `'${text.split("'").join("'\\''")}'`
 
-export function msysSourceLine(fileInShell: string, gone?: { words: string; exit: number }): string {
+const CARRIED = '__mercury_carried'
+
+export function carriedByFile(text: string, mark: string): string {
+  return `${CARRIED}=${mark}\n${text}`
+}
+
+export function msysSourceLine(fileInShell: string, gone?: { words: string; exit: number; mark: string }): string {
   const file = singleQuoted(fileInShell)
-  return gone === undefined ? `source ${file}` : `[ -r ${file} ] || { echo ${singleQuoted(gone.words)} >&2; exit ${gone.exit}; }; source ${file}`
+  if (gone === undefined) return `source ${file}`
+  return `__mercury_left=${gone.exit}; [ -r ${file} ] && { source ${file}; __mercury_left=$?; }; [[ \${${CARRIED}-} == ${gone.mark} ]] || { echo ${singleQuoted(gone.words)} >&2; __mercury_left=${gone.exit}; }; __mercury_leave() { return $1; }; __mercury_leave $__mercury_left`
 }

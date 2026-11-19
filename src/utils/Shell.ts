@@ -1,4 +1,4 @@
-import { spawnOwnedShell } from './shell/parentGuard.js'
+import { spawnOwnedShell, tellWhatTheShellGuardReads } from './shell/parentGuard.js'
 import { randomBytes } from 'node:crypto'
 import { closeSync, constants as fsConstants, existsSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
@@ -20,8 +20,8 @@ import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
 import { fallbackEngineBinary, systemShellRecord } from './shell/shellRecord.js'
-import { wrapSpawn, createAbortedCommand, createFailedCommand, type ShellCommand } from './ShellCommand.js'
-import { noteMsysGroupLeftBehind, tellWhatProcessGroupEnds } from './processGroup.js'
+import { wrapSpawn, createAbortedCommand, createFailedCommand, type ExecResult, type ShellCommand } from './ShellCommand.js'
+import { noteMsysGroupLeftBehind, noteShellOfThisProcess, tellProcessGroupTheShell, tellWhatProcessGroupEnds } from './processGroup.js'
 import { toolShellEnv, subprocessEnv, withLoginExports } from './subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../substrate/envStamps.js'
 import { getTaskOutputDir } from './task/diskOutput.js'
@@ -124,7 +124,33 @@ export async function terminalShellInvocation(
   }
 }
 
-if (process.platform === 'win32') tellWhatProcessGroupEnds(line => logForDebugging(`shell jobs: ${line}`))
+if (process.platform === 'win32') {
+  tellWhatProcessGroupEnds(line => logForDebugging(`shell jobs: ${line}`))
+  tellProcessGroupTheShell(() => subprocessEnv().SHELL)
+  tellWhatTheShellGuardReads(line => logForDebugging(`shell guard: ${line}`))
+}
+
+const ranUnderABashOfWindows = new WeakSet<ExecResult>()
+
+export function signalsCountIn(result: ExecResult): boolean {
+  return process.platform !== 'win32' || ranUnderABashOfWindows.has(result)
+}
+
+function noteServingShell(shellPath: string): void {
+  try {
+    noteShellOfThisProcess(shellPath)
+  } catch (error) {
+    logForDebugging(`shell jobs: the bash that serves was not recorded for whoever ends this process: ${errorMessage(error)}`)
+  }
+}
+
+function dropOwnFile(path: string, what: string): void {
+  void getFsImplementation()
+    .unlink(path)
+    .catch((error: unknown) => {
+      if (!isENOENT(error)) logForDebugging(`${what} was not removed (${path}): ${errorMessage(error)}`)
+    })
+}
 
 async function noteJobsLeftBehind(shellPath: string, group: number): Promise<void> {
   try {
@@ -368,8 +394,9 @@ export async function exec(
   let shellCommand: ShellCommand
   if (road.recordsBash) markFrameUnread(built.cwdFilePath)
   const handed = built.handOver?.(childEnv, cwd)
+  if (handed !== undefined) noteServingShell(spawnFile)
   const dropFrame = (): void => {
-    if (handed?.file !== undefined) void getFsImplementation().unlink(handed.file.path).catch(() => {})
+    if (handed?.file !== undefined) dropOwnFile(handed.file.path, "the file that carried the command's frame")
   }
   try {
     if (handed?.file !== undefined) writeFileSync(handed.file.path, handed.file.text)
@@ -438,6 +465,7 @@ export async function exec(
   }
 
   void shellCommand.result.then(result => {
+    if (handed !== undefined && provider.origin !== 'engine') ranUnderABashOfWindows.add(result)
     const cwdFilePath =
       getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
 
@@ -490,8 +518,10 @@ export async function exec(
       let group = Number.NaN
       try {
         group = Number(readFileSync(file, 'utf8').trim())
-      } catch {}
-      void getFsImplementation().unlink(file).catch(() => {})
+      } catch (error) {
+        if (!isENOENT(error)) logForDebugging(`shell jobs: the record of the command's group was not read (${file}): ${errorMessage(error)}`)
+      }
+      dropOwnFile(file, "shell jobs: the record of the command's group")
       if (Number.isSafeInteger(group) && result.backgroundTaskId === undefined) void noteJobsLeftBehind(spawnFile, group)
     }
     dropFrame()

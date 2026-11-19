@@ -10,7 +10,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { isRunInputClosed } from '../../bootstrap/state.js'
 import { SLEEP_TOOL_NAME } from '../SleepTool/prompt.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
-import { exec, resolveShellCwd, settleLoginFiles, terminalShellInvocation } from '../../utils/Shell.js'
+import { exec, resolveShellCwd, settleLoginFiles, signalsCountIn, terminalShellInvocation } from '../../utils/Shell.js'
 import { captureVerificationStart } from '../../utils/verification/verificationState.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import { execViaIdeTerminal, IdeTerminalUnavailableError, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
@@ -636,7 +636,7 @@ async function postProcess(result: ExecResult, { input, creations, editorTermina
   const noOutputExpected = isSilentCommand(input.command)
   const interruptedByUser = result.interrupted && abortController.signal.reason === 'interrupt'
   if (interpretation.isError && !interruptedByUser && result.code !== 0) {
-    accumulator.append(`\n${exitLine(result.code, !result.interrupted && result.stderr.trim() === '')}`)
+    accumulator.append(`\n${exitLine(result.code, !result.interrupted && result.stderr.trim() === '', signalsCountIn(result))}`)
   }
 
   let stderr = ''

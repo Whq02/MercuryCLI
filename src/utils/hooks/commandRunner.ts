@@ -22,7 +22,7 @@ import { endProcessTree } from '../processGroup.js'
 import { getHookEnvFilePath, hookEventWritesEnvFile } from '../sessionEnvironment.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
 import { buildPowerShellArgs } from '../shell/powershellProvider.js'
-import { msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } from '../shell/msysArgv.js'
+import { carriedByFile, msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } from '../shell/msysArgv.js'
 import { hookBashEnv, hookBashShell, windowsBashRoad } from '../shell/windowsShellRoad.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
@@ -141,16 +141,19 @@ function spawnUnderWindowsBash(shell: string, prepared: { command: string; env: 
   const options = { env: hookBashEnv(prepared.env), cwd: prepared.cwd, shell, windowsHide: true }
   if (msysArgvCarries(prepared.command, options.env)) return spawn(protectBackslashRunsFromMsysArgv(prepared.command), [], options) as ChildProcessWithoutNullStreams
   const file = join(tmpdir(), `mercury-hook-${randomBytes(6).toString('hex')}`)
+  const mark = randomBytes(6).toString('hex')
   try {
-    writeFileSync(file, prepared.command)
+    writeFileSync(file, carriedByFile(prepared.command, mark))
   } catch (error) {
     throw new HookNotHandedOver(`The hook did not run: on Windows a command this long, or any command while MSYS names glob, reaches bash through a file, and that file could not be written (${file}: ${errorMessage(error)}).`)
   }
   const drop = (): void => {
-    void unlink(file).catch(() => {})
+    void unlink(file).catch((error: unknown) => {
+      if (getErrnoCode(error) !== 'ENOENT') logForDebugging(`the file that carried a hook's command was not removed (${file}): ${errorMessage(error)}`)
+    })
   }
   try {
-    const gone = { words: `The hook did not run: the file that carries its command to bash is gone (${file}).`, exit: 2 }
+    const gone = { words: `The hook did not run: the file that carries its command to bash is gone (${file}).`, exit: 2, mark }
     const child = spawn(protectBackslashRunsFromMsysArgv(msysSourceLine(windowsPathToPosixPath(file), gone)), [], options) as ChildProcessWithoutNullStreams
     child.once('close', drop)
     child.once('error', drop)

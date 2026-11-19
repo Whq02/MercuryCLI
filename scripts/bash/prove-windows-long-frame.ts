@@ -19,7 +19,7 @@ console.log('============================================================')
 console.log(' A frame the MSYS2 runtime would cut or misread goes through a file')
 console.log('============================================================')
 
-const { msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } = await import(join(ROOT, 'src/utils/shell/msysArgv.ts'))
+const { carriedByFile, msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } = await import(join(ROOT, 'src/utils/shell/msysArgv.ts'))
 const KEPT = 8186
 
 section('(1) which frames argv carries')
@@ -30,8 +30,11 @@ check('it is counted on the text as it rides, with every backslash run doubled',
 check('a frame of any length leaves for the file when the environment its bash starts with names glob in MSYS, whatever the case of the name', !msysArgvCarries('echo hi', { MSYS: 'noglob' }) && !msysArgvCarries('echo hi', { msys: 'winsymlinks:nativestrict noglob' }) && !msysArgvCarries('echo hi', { Msys: 'glob' }))
 check('another word in MSYS, an empty MSYS and MSYS_NO_PATHCONV change nothing', msysArgvCarries('echo hi', { MSYS: 'winsymlinks:nativestrict' }) && msysArgvCarries('echo hi', { MSYS: '' }) && msysArgvCarries('echo hi', { MSYS_NO_PATHCONV: '1' }))
 check('the loader is single-quoted, an apostrophe written as a quoted backslash: it adds no double quote of its own', msysSourceLine('/c/Users/x/AppData/Local/Temp/f') === "source '/c/Users/x/AppData/Local/Temp/f'" && msysSourceLine("/c/O'Brien & Co/f") === "source '/c/O'\\''Brien & Co/f'", msysSourceLine("/c/O'Brien & Co/f"))
-const guarded = msysSourceLine("/c/it's/f", { words: "the file is gone (C:\\it's\\f)", exit: 126 })
-check('…and with words for a file that is gone it tests the file first, still with no double quote', guarded.startsWith("[ -r '/c/it'\\''s/f' ] || { echo 'the file is gone (C:\\it'\\''s\\f)' >&2; exit 126; }; source '/c/it'\\''s/f'") && !guarded.includes('"'), guarded)
+const MARK = 'ab12cd34ef56'
+const guarded = msysSourceLine("/c/it's/f", { words: "the file is gone (C:\\it's\\f)", exit: 126, mark: MARK })
+check('…and with words for a file that is gone it tests the file, sources it, and then asks for the mark the file\'s own first line sets, still with no double quote', guarded.includes("[ -r '/c/it'\\''s/f' ] && { source '/c/it'\\''s/f'; __mercury_left=$?; }") && guarded.includes(`[[ \${__mercury_carried-} == ${MARK} ]] || { echo 'the file is gone (C:\\it'\\''s\\f)' >&2; __mercury_left=126; }`) && !guarded.includes('"'), guarded)
+check('…and it never calls exit, so a login shell reads no logout file on the loader\'s account', !/\bexit\b/.test(guarded), guarded)
+check('the file a command is carried by opens with the mark on a line of its own', carriedByFile('echo hi', MARK) === `__mercury_carried=${MARK}\necho hi`, JSON.stringify(carriedByFile('echo hi', MARK)))
 
 const scratch = mkdtempSync(join(tmpdir(), 'windows-long-frame-'))
 try {
@@ -62,18 +65,65 @@ try {
       ['its exit status is the frame\'s', 'echo before; (exit 7)', r => r.status === 7 && r.stdout.trim() === 'before'],
       ['a here-document of 300 lines is written whole', `cat > ${JSON.stringify(inShell(target))} <<'EOF'\n${lines.join('\n')}\nEOF\necho "wrote $(wc -l < ${JSON.stringify(inShell(target))} | tr -d ' ') lines"`, r => r.status === 0 && r.stdout.trim() === 'wrote 300 lines' && readFileSync(target, 'utf8').trim().split('\n').length === 300],
     ]
+    const WORDS = 'the file is gone, so nothing ran'
+    const loaderOf = (file: string): string => protectBackslashRunsFromMsysArgv(msysSourceLine(inShell(file), { words: WORDS, exit: 126, mark: MARK }))
+    const runLoader = (file: string, env?: NodeJS.ProcessEnv) => spawnSync(bash, ['-c', loaderOf(file)], { encoding: 'utf8', windowsHide: true, timeout: 60_000, ...(env === undefined ? {} : { env }) })
+    const said = (r: { status: number | null; stdout: string | null; stderr: string | null }): string => `exit ${String(r.status)} · ${JSON.stringify((r.stdout ?? '').slice(0, 120))} · ${JSON.stringify((r.stderr ?? '').slice(0, 300))}`
     for (const [label, text, good] of frames) {
       const file = join(odd, 'frame')
-      writeFileSync(file, text)
-      const ran = spawnSync(bash, ['-c', protectBackslashRunsFromMsysArgv(msysSourceLine(inShell(file)))], { encoding: 'utf8', windowsHide: true, timeout: 60_000 })
-      check(label, good({ status: ran.status, stdout: ran.stdout ?? '' }), `exit ${String(ran.status)} · ${JSON.stringify((ran.stdout ?? '').slice(0, 120))} · ${JSON.stringify((ran.stderr ?? '').slice(0, 200))}`)
-      const gone = spawnSync(bash, ['-c', protectBackslashRunsFromMsysArgv(msysSourceLine(inShell(join(odd, 'no-such-frame')), { words: 'the file is gone, so nothing ran', exit: 126 }))], { encoding: 'utf8', windowsHide: true, timeout: 60_000 })
-      if (label.startsWith('a frame in a folder')) check('a loader whose file is gone ends 126 with its words and runs nothing', gone.status === 126 && (gone.stderr ?? '').trim() === 'the file is gone, so nothing ran' && (gone.stdout ?? '') === '', `exit ${String(gone.status)} · ${JSON.stringify((gone.stderr ?? '').slice(0, 200))}`)
+      writeFileSync(file, carriedByFile(text, MARK))
+      const ran = runLoader(file)
+      check(label, good({ status: ran.status, stdout: ran.stdout ?? '' }), said(ran))
       if (windows) {
-        const plain = spawnSync(bash, ['-c', protectBackslashRunsFromMsysArgv(msysSourceLine(inShell(file)))], { encoding: 'utf8', windowsHide: true, timeout: 60_000, env: { ...process.env, MSYS: 'noglob' } })
-        check(`…and the same with MSYS=noglob in the bash's environment`, good({ status: plain.status, stdout: plain.stdout ?? '' }), `exit ${String(plain.status)} · ${JSON.stringify((plain.stdout ?? '').slice(0, 120))} · ${JSON.stringify((plain.stderr ?? '').slice(0, 200))}`)
+        const plain = runLoader(file, { ...process.env, MSYS: 'noglob' })
+        check(`…and the same with MSYS=noglob in the bash's environment`, good({ status: plain.status, stdout: plain.stdout ?? '' }), said(plain))
       }
     }
+    const gone = runLoader(join(odd, 'no-such-frame'))
+    check('a loader whose file is gone ends 126 with its words and runs nothing', gone.status === 126 && (gone.stderr ?? '').trim() === WORDS && (gone.stdout ?? '') === '', said(gone))
+    const folder = join(odd, 'a-folder-where-the-file-should-be')
+    mkdirSync(folder)
+    const unread = runLoader(folder)
+    check('a file that passes the test and then cannot be read ends 126 with the words too (a folder stands in for a file taken between the test and the read): the refusal follows from the source not having run', unread.status === 126 && (unread.stderr ?? '').includes(WORDS) && (unread.stdout ?? '') === '', said(unread))
+    const inherited = runLoader(folder, { ...process.env, __mercury_carried: 'ffffffffffff' })
+    check('a mark that only the environment holds does not stand in for the file\'s own', inherited.status === 126 && (inherited.stderr ?? '').includes(WORDS), said(inherited))
+    const another = join(odd, 'another-commands-file')
+    writeFileSync(another, carriedByFile('echo ran', 'ffffffffffff'))
+    const mismatched = runLoader(another)
+    check('a file that opens with another mark is not this command\'s file: 126 with the words', mismatched.status === 126 && (mismatched.stderr ?? '').includes(WORDS), said(mismatched))
+
+    section('(2b) the remover\'s race: a file taken at any moment ends as a whole run or as the refusal, never as a failure of bash\'s own')
+    const before = Date.now()
+    spawnSync(bash, ['-c', ':'], { windowsHide: true, timeout: 60_000 })
+    const startMs = Math.max(2, Date.now() - before)
+    const rounds = 120
+    const seen = { whole: 0, refused: 0, other: [] as string[] }
+    for (let round = 0; round < rounds; round++) {
+      const file = join(odd, `raced-${round}`)
+      writeFileSync(file, carriedByFile('echo whole; (exit 7)', MARK))
+      const delay = Math.round(((round % 24) * startMs) / 12)
+      const result = await new Promise<{ status: number | null; stdout: string; stderr: string }>(done => {
+        const child = spawn(bash, ['-c', loaderOf(file)], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+        let stdout = ''
+        let stderr = ''
+        child.stdout.setEncoding('utf8').on('data', (chunk: string) => { stdout += chunk })
+        child.stderr.setEncoding('utf8').on('data', (chunk: string) => { stderr += chunk })
+        const remover = setTimeout(() => {
+          try {
+            rmSync(file, { force: true })
+          } catch {
+          }
+        }, delay)
+        child.once('error', error => { clearTimeout(remover); done({ status: null, stdout, stderr: `${stderr}${String(error)}` }) })
+        child.once('close', status => { clearTimeout(remover); done({ status, stdout, stderr }) })
+      })
+      rmSync(file, { force: true })
+      if (result.status === 7 && result.stdout.trim() === 'whole') seen.whole++
+      else if (result.status === 126 && result.stderr.includes(WORDS) && result.stdout === '') seen.refused++
+      else seen.other.push(`round ${round}, removed after ${delay} ms: ${said(result)}`)
+    }
+    check(`${rounds} commands, each with its file removed between 0 and ${2 * startMs} ms after its bash was started (a bash starts in ${startMs} ms here): every one ran whole or ended as the refusal`, seen.other.length === 0, seen.other.slice(0, 3).join(' | '))
+    console.log(`        note: ran whole ${seen.whole} · refused ${seen.refused}`)
   }
 
   section('(3) the Windows road hands its frames over: the provider, the hand-over and the bash that serves')
@@ -115,7 +165,7 @@ try {
         return text
       }
       const record = read(built.cwdFilePath).trim().split(/\r?\n/).filter(line => line !== '')
-      const pipeline = read(built.pipelineStatusPath).trim()
+      const pipeline = read(built.pipelineStatusPath).trim().split(/\s+/).join(' ')
       read(built.jobsPath)
       if (handed.file !== undefined) rmSync(handed.file.path, { force: true })
       return { ...ran, viaFile: handed.file !== undefined, startedIn, record, pipeline }

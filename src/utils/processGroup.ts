@@ -208,7 +208,7 @@ export type MsysTreeMemory = { pids: Set<number>; groups: Set<number> }
 export function parseMsysProcessTable(stdout: string): MsysProcessRow[] {
   const rows: MsysProcessRow[] = []
   for (const line of stdout.split(/\r?\n/)) {
-    const match = /^[A-Z ]?\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s/.exec(line)
+    const match = /^[A-Z ]?\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)(?:\s|$)/.exec(line)
     if (!match) continue
     rows.push({ pid: Number(match[1]), ppid: Number(match[2]), pgid: Number(match[3]), winpid: Number(match[4]) })
   }
@@ -260,27 +260,46 @@ export function msysTreeRows(
   return [...found.values()].filter(row => row.winpid > 1)
 }
 
-function msysPsBeside(spawnfile: string | undefined): string | undefined {
-  if (typeof spawnfile !== 'string' || !pathWin32.isAbsolute(spawnfile)) return undefined
+type MsysTableReader = { file: string; args: string[] }
+
+const MSYS_TABLE_BY_BUILTINS =
+  'for d in /proc/[0-9]*; do w= pp= pg=; { read w < $d/winpid; read pp < $d/ppid; read pg < $d/pgid; } 2>/dev/null; [[ -n $w && -n $pp && -n $pg ]] && echo ${d#/proc/} $pp $pg $w; done; :'
+
+function msysRuntimesOf(spawnfile: string, fileExists: (file: string) => boolean): string[] {
   const holder = pathWin32.dirname(spawnfile)
-  for (const dir of [holder, pathWin32.join(holder, '..', 'usr', 'bin')]) {
-    const ps = pathWin32.join(dir, 'ps.exe')
-    if (existsSync(ps) && (existsSync(pathWin32.join(dir, 'msys-2.0.dll')) || existsSync(pathWin32.join(dir, 'cygwin1.dll')))) {
-      return ps
-    }
+  return [holder, pathWin32.join(holder, '..', 'usr', 'bin')].filter(dir => fileExists(pathWin32.join(dir, 'msys-2.0.dll')) || fileExists(pathWin32.join(dir, 'cygwin1.dll')))
+}
+
+export function runsInAnMsysRuntime(spawnfile: string | undefined, fileExists: (file: string) => boolean = existsSync): boolean {
+  return typeof spawnfile === 'string' && pathWin32.isAbsolute(spawnfile) && msysRuntimesOf(spawnfile, fileExists).length > 0
+}
+
+export function msysTableReaderOf(spawnfile: string | undefined, fileExists: (file: string) => boolean = existsSync): MsysTableReader | undefined {
+  if (typeof spawnfile !== 'string' || !pathWin32.isAbsolute(spawnfile)) return undefined
+  const runtimes = msysRuntimesOf(spawnfile, fileExists)
+  const ps = runtimes.map(dir => pathWin32.join(dir, 'ps.exe')).find(file => fileExists(file))
+  if (ps !== undefined) return { file: ps, args: ['-e', '-l'] }
+  return runtimes.length > 0 && /^bash(?:\.exe)?$/i.test(pathWin32.basename(spawnfile)) ? { file: spawnfile, args: ['-o', 'privileged', '-c', MSYS_TABLE_BY_BUILTINS] } : undefined
+}
+
+function readersOf(shells: ReadonlyArray<string | undefined>): MsysTableReader[] {
+  const readers = new Map<string, MsysTableReader>()
+  for (const shell of shells) {
+    const reader = msysTableReaderOf(shell)
+    if (reader !== undefined) readers.set([reader.file, ...reader.args].join('\n'), reader)
   }
-  return undefined
+  return [...readers.values()]
 }
 
 function startsNode(spawnfile: string): boolean {
   return spawnfile === process.execPath || /^(?:node|bun)(?:\.exe)?$/i.test(pathWin32.basename(spawnfile))
 }
 
-function readMsysTable(ps: string): Promise<MsysProcessRow[]> {
+function readMsysTable(reader: MsysTableReader): Promise<MsysProcessRow[]> {
   return new Promise(resolve => {
     execFile(
-      ps,
-      ['-e', '-l'],
+      reader.file,
+      reader.args,
       { windowsHide: true, timeout: MSYS_TABLE_BOUND_MS, maxBuffer: 8 * 1024 * 1024 },
       (error, stdout) => {
         resolve(error || typeof stdout !== 'string' ? [] : parseMsysProcessTable(stdout))
@@ -290,7 +309,7 @@ function readMsysTable(ps: string): Promise<MsysProcessRow[]> {
 }
 
 async function sweepMsysTree(
-  ps: string,
+  reader: MsysTableReader,
   before: readonly MsysProcessRow[],
   rootWinpids: readonly number[],
 ): Promise<number[]> {
@@ -307,7 +326,7 @@ async function sweepMsysTree(
           resolve(typeof out === 'string' ? out : String(out ?? ''))
         })
       }),
-      readMsysTable(ps),
+      readMsysTable(reader),
     ])
     for (const winpid of [...live, ...taskkillActedPids(stdout)]) {
       if (!struck.includes(winpid)) struck.push(winpid)
@@ -319,9 +338,9 @@ async function sweepMsysTree(
 
 export async function endMsysGroupBeside(spawnfile: string, pgid: number): Promise<number[]> {
   if (process.platform !== 'win32' || !Number.isSafeInteger(pgid) || pgid <= 1) return []
-  const ps = msysPsBeside(spawnfile)
-  if (ps === undefined) return []
-  const live = (await readMsysTable(ps))
+  const reader = msysTableReaderOf(spawnfile)
+  if (reader === undefined) return []
+  const live = (await readMsysTable(reader))
     .filter(row => row.pgid === pgid && row.winpid > 1 && row.winpid !== process.pid)
     .map(row => row.winpid)
     .filter(isAlivePid)
@@ -338,28 +357,62 @@ export async function endMsysGroupBeside(spawnfile: string, pgid: number): Promi
 type LeftBehind = { shell: string; pgid: number; members: Array<[number, number]> }
 
 const leftBehindHere: LeftBehind[] = []
+const shellsNotedHere = new Set<string>()
+let recordKeptHere = false
 let saysWhatEnded: ((line: string) => void) | undefined
+let shellThatServes: (() => string | undefined) | undefined
 
 export function tellWhatProcessGroupEnds(say: (line: string) => void): void {
   saysWhatEnded = say
+}
+
+export function tellProcessGroupTheShell(read: () => string | undefined): void {
+  shellThatServes = read
 }
 
 function leftBehindFile(winpid: number): string {
   return pathWin32.join(tmpdir(), `mercury-jobs-${winpid}`)
 }
 
-function readLeftBehind(text: string): LeftBehind[] {
+function readRecord(text: string): LeftBehind[] {
   const entries: LeftBehind[] = []
   for (const line of text.split('\n')) {
+    if (line.trim() === '') continue
+    let read: unknown
     try {
-      const entry = JSON.parse(line) as Partial<LeftBehind>
-      if (typeof entry.shell !== 'string' || !Number.isSafeInteger(entry.pgid) || (entry.pgid as number) <= 1 || !Array.isArray(entry.members)) continue
-      const members = entry.members.filter((pair): pair is [number, number] => Array.isArray(pair) && Number.isSafeInteger(pair[0]) && Number.isSafeInteger(pair[1]))
-      entries.push({ shell: entry.shell, pgid: entry.pgid as number, members })
-    } catch {
+      read = JSON.parse(line)
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error
+      saysWhatEnded?.(`a line of a jobs record is no record and is passed over: ${line.slice(0, 120)}`)
+      continue
     }
+    const entry = (typeof read === 'object' && read !== null ? read : {}) as Partial<LeftBehind>
+    if (typeof entry.shell !== 'string' || !Number.isSafeInteger(entry.pgid) || (entry.pgid as number) < 0 || !Array.isArray(entry.members)) continue
+    const members = entry.members.filter((pair): pair is [number, number] => Array.isArray(pair) && Number.isSafeInteger(pair[0]) && Number.isSafeInteger(pair[1]))
+    entries.push({ shell: entry.shell, pgid: entry.pgid as number, members })
   }
   return entries
+}
+
+function recordOf(winpid: number): LeftBehind[] {
+  try {
+    return readRecord(readFileSync(leftBehindFile(winpid), 'utf8'))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') saysWhatEnded?.(`the jobs record of process ${winpid} was not read: ${String(error)}`)
+    return []
+  }
+}
+
+function keepRecordHere(entry: LeftBehind): void {
+  appendFileSync(leftBehindFile(process.pid), `${JSON.stringify(entry)}\n`)
+  if (!recordKeptHere) process.once('exit', endLeftBehindHereNow)
+  recordKeptHere = true
+}
+
+export function noteShellOfThisProcess(shellPath: string): void {
+  if (process.platform !== 'win32' || shellsNotedHere.has(shellPath) || msysTableReaderOf(shellPath) === undefined) return
+  shellsNotedHere.add(shellPath)
+  keepRecordHere({ shell: shellPath, pgid: 0, members: [] })
 }
 
 function stillLeftBehind(table: readonly MsysProcessRow[], entry: LeftBehind): number[] {
@@ -372,9 +425,9 @@ function stillLeftBehind(table: readonly MsysProcessRow[], entry: LeftBehind): n
 
 function endLeftBehindHereNow(): void {
   for (const entry of leftBehindHere) {
-    const ps = msysPsBeside(entry.shell)
-    if (ps === undefined) continue
-    const said = spawnSync(ps, ['-e', '-l'], { windowsHide: true, timeout: MSYS_TABLE_BOUND_MS, encoding: 'utf8' })
+    const reader = msysTableReaderOf(entry.shell)
+    if (reader === undefined) continue
+    const said = spawnSync(reader.file, reader.args, { windowsHide: true, timeout: MSYS_TABLE_BOUND_MS, encoding: 'utf8' })
     const live = stillLeftBehind(parseMsysProcessTable(typeof said.stdout === 'string' ? said.stdout : ''), entry)
     if (live.length === 0) continue
     const { file, args } = win32TaskkillSweepCommand(live)
@@ -383,19 +436,19 @@ function endLeftBehindHereNow(): void {
   }
   try {
     rmSync(leftBehindFile(process.pid), { force: true })
-  } catch {
+  } catch (error) {
+    saysWhatEnded?.(`the jobs record of this process was not removed: ${String(error)}`)
   }
 }
 
 export async function noteMsysGroupLeftBehind(shellPath: string, pgid: number): Promise<number[]> {
   if (process.platform !== 'win32' || !Number.isSafeInteger(pgid) || pgid <= 1) return []
-  const ps = msysPsBeside(shellPath)
-  if (ps === undefined) return []
-  const members = (await readMsysTable(ps)).filter(row => row.pgid === pgid && row.winpid > 1 && row.winpid !== process.pid)
+  const reader = msysTableReaderOf(shellPath)
+  if (reader === undefined) return []
+  const members = (await readMsysTable(reader)).filter(row => row.pgid === pgid && row.winpid > 1 && row.winpid !== process.pid)
   if (members.length === 0) return []
   const entry: LeftBehind = { shell: shellPath, pgid, members: members.map(row => [row.pid, row.winpid]) }
-  appendFileSync(leftBehindFile(process.pid), `${JSON.stringify(entry)}\n`)
-  if (leftBehindHere.length === 0) process.once('exit', endLeftBehindHereNow)
+  keepRecordHere(entry)
   leftBehindHere.push(entry)
   return members.map(row => row.winpid)
 }
@@ -403,17 +456,10 @@ export async function noteMsysGroupLeftBehind(shellPath: string, pgid: number): 
 async function endLeftBehindOf(winpids: readonly number[]): Promise<number[]> {
   const struck: number[] = []
   for (const winpid of winpids) {
-    const record = leftBehindFile(winpid)
-    let text: string
-    try {
-      text = readFileSync(record, 'utf8')
-    } catch {
-      continue
-    }
-    for (const entry of readLeftBehind(text)) {
-      const ps = msysPsBeside(entry.shell)
-      if (ps === undefined) continue
-      const live = stillLeftBehind(await readMsysTable(ps), entry)
+    for (const entry of recordOf(winpid)) {
+      const reader = entry.pgid > 1 ? msysTableReaderOf(entry.shell) : undefined
+      if (reader === undefined) continue
+      const live = stillLeftBehind(await readMsysTable(reader), entry)
       if (live.length === 0) continue
       const { file, args } = win32TaskkillSweepCommand(live)
       const stdout = await new Promise<string>(resolve => {
@@ -427,8 +473,9 @@ async function endLeftBehindOf(winpids: readonly number[]): Promise<number[]> {
       saysWhatEnded?.(`ended with process ${winpid}, left running by a finished command of it (MSYS group ${entry.pgid}): Windows pid ${live.join(', ')}`)
     }
     try {
-      rmSync(record, { force: true })
-    } catch {
+      rmSync(leftBehindFile(winpid), { force: true })
+    } catch (error) {
+      saysWhatEnded?.(`the jobs record of process ${winpid} was not removed: ${String(error)}`)
     }
   }
   return struck
@@ -436,8 +483,9 @@ async function endLeftBehindOf(winpids: readonly number[]): Promise<number[]> {
 
 async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTreeKillReceipt> {
   if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) return { ended: 0, survivors: [] }
-  const msysPs = msysPsBeside(spawnfile) ?? (spawnfile === undefined || startsNode(spawnfile) ? msysPsBeside(process.env.SHELL) : undefined)
-  const before = msysPs === undefined ? [] : await readMsysTable(msysPs)
+  const own = msysTableReaderOf(spawnfile)
+  const readers = own !== undefined ? [own] : readersOf([...recordOf(pid).map(entry => entry.shell), ...(spawnfile === undefined || startsNode(spawnfile) ? [shellThatServes?.()] : [])])
+  const tables = await Promise.all(readers.map(async reader => ({ reader, before: await readMsysTable(reader) })))
   const { file, args } = win32TaskkillCommand(pid)
   const stdout = await new Promise<string>(resolve => {
     execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (_error, out) => {
@@ -445,8 +493,9 @@ async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTre
     })
   })
   const acted = taskkillActedPids(stdout)
-  if (msysPs !== undefined && before.length > 0) {
-    for (const swept of await sweepMsysTree(msysPs, before, [pid, ...acted])) {
+  for (const { reader, before } of tables) {
+    if (before.length === 0) continue
+    for (const swept of await sweepMsysTree(reader, before, [pid, ...acted])) {
       if (!acted.includes(swept)) acted.push(swept)
     }
   }
@@ -561,7 +610,7 @@ function readBirth(pid: number): Promise<number | null> {
 
 function readBirthNow(pid: number): number | null {
   if (process.platform === 'linux') return linuxBirth(pid)
-  return birthSaid(spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { ...BIRTH_ASKED, encoding: 'utf8' }).stdout)
+  return birthSaid(spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { ...BIRTH_ASKED, windowsHide: true, encoding: 'utf8' }).stdout)
 }
 
 export function birthMark(pid: number | undefined, askedAtMs: number): BirthMark | null {
@@ -583,11 +632,7 @@ export async function endProcessBornAfter(pid: number, mark: BirthMark | null, s
 }
 
 export function endProcessBornAt(pid: number, at: number, signal: NodeJS.Signals = 'SIGTERM'): boolean {
-  try {
-    if (readBirthNow(pid) !== at) return false
-  } catch {
-    return false
-  }
+  if (readBirthNow(pid) !== at) return false
   signalPid(pid, signal)
   return true
 }

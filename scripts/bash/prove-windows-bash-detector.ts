@@ -36,6 +36,7 @@ type Machine = {
   pack?: boolean
   engine?: boolean
   engineOff?: boolean
+  unfit?: Record<string, string>
 }
 
 const held = (files: ReadonlySet<string>) => (file: string): boolean => files.has(file.replace(/\\/g, '/'))
@@ -51,8 +52,9 @@ function worldOf(machine: Machine): { world: World; started: string[] } {
     engineAllowed: machine.engineOff !== true,
     start: async path => {
       started.push(path)
-      return machine.versions?.[path] ?? null
+      return machine.unfit?.[path] !== undefined ? null : (machine.versions?.[path] ?? null)
     },
+    unfit: path => machine.unfit?.[path],
   }
   return { world, started }
 }
@@ -141,6 +143,15 @@ section('(2) the order')
   check('the bash MERCURY_GIT_BASH_PATH names serves before any found one, whatever its version: it is the user\'s word', pinned.origin === 'system' && pinned.path === PIN && pinned.version === '4.4.23(1)-release' && JSON.stringify(pinned.started) === JSON.stringify([PIN]), JSON.stringify(pinned))
   const notBash = await settle({ pinned: 'D:/tools/zsh/zsh.exe', files: gitFiles(GIT), bashes: [GIT_BASH], versions: { [GIT_BASH]: '5.3.15(2)-release', ...withPack } })
   check('a pinned program that does not answer as a bash is passed over, named, and the next road serves', notBash.origin === 'system' && notBash.path === GIT_BASH && notBash.passed.some(line => line.includes('zsh.exe') && line.includes('MERCURY_GIT_BASH_PATH')), JSON.stringify(notBash))
+  const CYGDRIVE = 'its runtime reads drive C as /cygdrive/c, and Mercury names its files /c/…'
+  const cygdrive = await settle({ pinned: PIN, files: gitFiles(GIT), bashes: [GIT_BASH], versions: { [PIN]: '5.3.15(1)-release', [GIT_BASH]: '5.3.15(2)-release', ...withPack }, unfit: { [PIN]: CYGDRIVE } })
+  check('a pinned bash whose runtime does not read /c as drive C is passed over with that reason, and the next bash serves', cygdrive.origin === 'system' && cygdrive.path === GIT_BASH && cygdrive.passed.some(line => line === `${PIN}, named by MERCURY_GIT_BASH_PATH: ${CYGDRIVE}`), JSON.stringify(cygdrive))
+  const record = await import(join(ROOT, 'src/utils/shell/shellRecord.ts'))
+  const question = record.windowsShellQuestion('C:\\Users\\x\\AppData\\Local\\Temp') as { text: string; drive: string | null }
+  check('on Windows the version question also asks how the bash reads the drive of TEMP, with no quote and no backslash in it', question.drive === 'C' && question.text === 'printf %s $BASH_VERSION; cd C:/ && printf :%s $PWD; :' && !/["\'\\\\]/.test(question.text), JSON.stringify(question))
+  check('a TEMP with no drive letter asks the version alone', record.windowsShellQuestion('\\\\server\\share\\temp').drive === null && record.windowsShellQuestion('\\\\server\\share\\temp').text === 'printf %s $BASH_VERSION')
+  const reads = (said: string): { version: string; unfit?: string } => record.windowsShellAnswer(said, 'C')
+  check('an answer of the version and /c is fit; /cygdrive/c is unfit and says so; a bash that could not enter the drive is taken by its version alone', reads('5.3.15(1)-release:/c').unfit === undefined && reads('5.3.15(1)-release:/c').version === '5.3.15(1)-release' && reads('5.3.15(1)-release:/C').unfit === undefined && reads('noise\n5.3.15(1)-release:/cygdrive/c').unfit === CYGDRIVE && reads('noise\n5.3.15(1)-release:/cygdrive/c').version === '5.3.15(1)-release' && reads('5.3.15(1)-release').unfit === undefined && reads('5.3.15(1)-release').version === '5.3.15(1)-release', JSON.stringify([reads('5.3.15(1)-release:/c'), reads('5.3.15(1)-release:/cygdrive/c'), reads('5.3.15(1)-release')]))
   const broken = await settle({ versions: {} })
   check('a shipped bash that does not start gives way to the engine, and the reason says so', broken.origin === 'engine' && broken.passed.some(line => line.includes(PACK_BASH) && line.includes('does not start')), JSON.stringify(broken))
   const nothing = await settle({ pack: false, engine: false })
