@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { mintTensorFoldKey } from '../../lan/pairing.js'
 import { publishAtomicSync } from '../../../substrate/fileStore.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
+import { errorMessage, isENOENT } from '../../../utils/errors.js'
+import { logError } from '../../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 
 const TENSORFOLD_KEY_LABEL = 'mercury'
@@ -22,6 +24,8 @@ export function tensorFoldKeyFilePath(home: string = getMercuryHome()): string {
   return join(home, 'local-setup', 'tensorfold', 'api-key')
 }
 
+let keyFileUnreadSaid: string | undefined
+
 export function readTensorFoldKeyFile(path: string = tensorFoldKeyFilePath()): TensorFoldKeyFile | undefined {
   try {
     if ((statSync(path).mode & 0o066) !== 0) return undefined
@@ -31,7 +35,13 @@ export function readTensorFoldKeyFile(path: string = tensorFoldKeyFilePath()): T
     const key = (colon >= 0 ? line.slice(colon + 1) : line).trim()
     if (key === '' || /\s/.test(key)) return undefined
     return { path, key, line: line.trim() }
-  } catch {
+  } catch (error) {
+    if (isENOENT(error)) return undefined
+    const why = errorMessage(error)
+    if (why !== keyFileUnreadSaid) {
+      keyFileUnreadSaid = why
+      logError(new Error(`the TensorFold key file could not be read (${why}), so the next share mints a new key over it and the clients paired with the old one lose it`))
+    }
     return undefined
   }
 }
