@@ -1,7 +1,10 @@
 import type React from 'react'
 import type { SuggestionItem as Suggestion } from '../../components/PromptInput/PromptInputFooterSuggestions.js'
 import type { Notification } from '../../context/notifications.js'
-import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
+import { anyModalOverlayActive } from '../../context/overlayStack.js'
+import { currentSurfaceRoute } from '../../context/surfaceRoute.js'
+import type { InputEvent, Key } from '../../ink/events/input-event.js'
+import { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import type { useOptionalKeybindingContext } from '../../keybindings/KeybindingContext.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
 import type { AppStateStore } from '../../state/AppStateStore.js'
@@ -125,5 +128,72 @@ export function handleTypeaheadKey(
   if (event.key === 'return' && !event.shift && !event.meta) {
     event.stopImmediatePropagation()
     acceptSuggestion(undefined, true)
+  }
+}
+
+export function typeaheadKeybindings({
+  isModalOverlayActive,
+  hasSuggestionsOrGhost,
+  acceptSuggestion,
+  cancelFileFetch,
+  cancelChannelFetch,
+  clearSuggestions,
+  moveSelection,
+  dismissedForInputRef,
+  inputRef,
+  suggestionsRef,
+}: {
+  isModalOverlayActive: boolean
+  hasSuggestionsOrGhost: boolean
+  acceptSuggestion: (atIndex: number | undefined, viaEnter: boolean) => void
+  cancelFileFetch: () => void
+  cancelChannelFetch: () => void
+  clearSuggestions: () => void
+  moveSelection: (delta: number) => void
+  dismissedForInputRef: React.MutableRefObject<string | null>
+  inputRef: React.MutableRefObject<string>
+  suggestionsRef: React.MutableRefObject<Suggestion[]>
+}) {
+  return {
+    'autocomplete:accept': () => {
+      if (isModalOverlayActive) return false
+      if (!hasSuggestionsOrGhost) return false
+      acceptSuggestion(undefined, false)
+    },
+    'autocomplete:dismiss': () => {
+      if (isModalOverlayActive) return false
+      if (!hasSuggestionsOrGhost) return false
+      cancelFileFetch()
+      cancelChannelFetch()
+      dismissedForInputRef.current = inputRef.current
+      clearSuggestions()
+    },
+    'autocomplete:previous': () => {
+      if (isModalOverlayActive) return false
+      if (suggestionsRef.current.length === 0) return false
+      moveSelection(-1)
+    },
+    'autocomplete:next': () => {
+      if (isModalOverlayActive) return false
+      if (suggestionsRef.current.length === 0) return false
+      moveSelection(1)
+    },
+  }
+}
+
+export function routeTypeaheadInput(
+  input_: string,
+  key: Key,
+  event: InputEvent,
+  handleKeyboardEvent: (event: KeyboardEvent) => void,
+): void {
+  void input_
+  void key
+  if (currentSurfaceRoute().kind !== 'repl') return
+  if (anyModalOverlayActive()) return
+  const adapter = new KeyboardEvent(event.keypress)
+  handleKeyboardEvent(adapter)
+  if (adapter.didStopImmediatePropagation()) {
+    event.stopImmediatePropagation()
   }
 }

@@ -2,12 +2,13 @@ import type React from 'react'
 import type { Command } from '../../commands.js'
 import type { SuggestionItem as Suggestion } from '../../components/PromptInput/PromptInputFooterSuggestions.js'
 import { findLongestCommonPrefix } from '../fileSuggestions.js'
-import type { PromptInputMode } from '../../types/textInputTypes.js'
+import type { InlineGhostText, PromptInputMode } from '../../types/textInputTypes.js'
 import { getShellCompletions } from '../../utils/bash/shellCompletion.js'
 import { logError } from '../../utils/log.js'
 import {
   applyCommandSuggestion,
   findChannelTargetQuery,
+  findMidInputSlashCommand,
   isNameAnchoredSuggestion,
 } from '../../utils/suggestions/commandSuggestions.js'
 import type { Publish } from './state.js'
@@ -39,6 +40,38 @@ export type AcceptContext = {
   userNavigatedRef: React.MutableRefObject<boolean>
   inputRef: React.MutableRefObject<string>
   cursorOffsetRef: React.MutableRefObject<number>
+  promptGhost: InlineGhostText | undefined
+  asyncGhostText: InlineGhostText | null
+  setAsyncGhostText: React.Dispatch<React.SetStateAction<InlineGhostText | null>>
+}
+
+export function acceptGhost({ mode, promptGhost, asyncGhostText, viaEnter, currentInput, cursorOffsetRef, setInput, setCursorOffset, setAsyncGhostText, clearSuggestions }: AcceptContext): boolean {
+  const ghost =
+    mode === 'prompt' ? promptGhost : (asyncGhostText ?? undefined)
+  if (ghost && !viaEnter) {
+    if (mode === 'bash') {
+      setInput(ghost.fullCommand)
+      setCursorOffset(ghost.fullCommand.length)
+      setAsyncGhostText(null)
+      return true
+    }
+    const midCommand = findMidInputSlashCommand(
+      currentInput,
+      cursorOffsetRef.current,
+    )
+    if (midCommand) {
+      const before = currentInput.slice(0, midCommand.startPos)
+      const after = currentInput.slice(
+        midCommand.startPos + 1 + midCommand.partialCommand.length,
+      )
+      const replaced = `${before}/${ghost.fullCommand} `
+      setInput(replaced + after)
+      setCursorOffset(replaced.length)
+      clearSuggestions()
+      return true
+    }
+  }
+  return false
 }
 
 export function acceptCommand({ viaEnter, atIndex, userNavigatedRef, currentInput, clearSuggestions, onSubmit, commands, setInput, setCursorOffset }: AcceptContext, suggestion: Suggestion): void {

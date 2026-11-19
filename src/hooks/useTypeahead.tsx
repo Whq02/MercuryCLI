@@ -9,8 +9,6 @@ import { getSelectedSuggestion } from '../components/PromptInput/suggestionSelec
 import { useNotifications } from '../context/notifications.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { useIsModalOverlayActive, useRegisterOverlay } from '../context/overlayContext.js'
-import { anyModalOverlayActive } from '../context/overlayStack.js'
-import { currentSurfaceRoute } from '../context/surfaceRoute.js'
 import { useInput } from '../ink.js'
 import { KeyboardEvent } from '../ink/events/keyboard-event.js'
 import { useOptionalKeybindingContext } from '../keybindings/KeybindingContext.js'
@@ -22,36 +20,23 @@ import type {
 } from '../types/textInputTypes.js'
 import {
   findChannelTargetQuery,
-  findMidInputSlashCommand,
-  getBestCommandMatch,
 } from '../utils/suggestions/commandSuggestions.js'
 import { subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
-import {
-  getPathCompletions,
-  isPathLikeToken,
-} from '../utils/suggestions/directoryCompletion.js'
 import {
   onIndexBuildComplete,
   startBackgroundCacheRefresh,
 } from '../hooks/fileSuggestions.js'
-import { generateUnifiedSuggestions } from '../hooks/unifiedSuggestions.js'
-import { logError } from '../utils/log.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
-import { armTypeaheadTimer, disarmTypeaheadTimer } from './typeahead/timers.js'
-import {
-  extractCompletionToken,
-  extractSearchToken,
-  preservedSelection,
-} from './typeahead/tokens.js'
+import { disarmTypeaheadTimer } from './typeahead/timers.js'
 import { ladderChannelTarget, ladderClearStale, ladderCommands, ladderMentions, ladderPaths, type LadderContext } from './typeahead/ladder.js'
 import type { SuggestionsState } from './typeahead/state.js'
-import { acceptAgent, acceptChannelTarget, acceptCommand, acceptCustomTitle, acceptDirectory, acceptFile, acceptShell, acceptSlackChannel, acceptWithoutList, type AcceptContext } from './typeahead/accept.js'
-import { acceptPromptSuggestionOf, handleTypeaheadKey } from './typeahead/keys.js'
+import { acceptAgent, acceptChannelTarget, acceptCommand, acceptGhost, acceptCustomTitle, acceptDirectory, acceptFile, acceptShell, acceptSlackChannel, acceptWithoutList, type AcceptContext } from './typeahead/accept.js'
+import { acceptPromptSuggestionOf, handleTypeaheadKey, routeTypeaheadInput, typeaheadKeybindings } from './typeahead/keys.js'
+import { promptGhostOf, publishSuggestionsOf, rerunLadderOf, runUnifiedFetchOf } from './typeahead/fetch.js'
 
 
 export { armTypeaheadTimer, disarmTypeaheadTimer, typeaheadTimerCensus } from './typeahead/timers.js'
 
-const FILE_FETCH_DEBOUNCE_MS = 50
 
 
 export type { SuggestionsState } from './typeahead/state.js'
@@ -169,23 +154,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
       type: SuggestionType,
       opts?: { selected?: number; maxWidth?: number; argumentHint?: string },
     ): void => {
-      setSuggestionType(type)
-      if (opts?.maxWidth !== undefined) setMaxColumnWidth(opts.maxWidth)
-      userNavigatedRef.current = false
-      const selected =
-        opts?.selected ??
-        preservedSelection(next, suggestionsRef.current, getSelectedSuggestion())
-      setSuggestionsState(prev => ({
-        suggestions: next,
-        selectedSuggestion: selected,
-        ...(opts?.argumentHint !== undefined
-          ? { commandArgumentHint: opts.argumentHint }
-          : opts?.selected === -1
-            ? {}
-            : prev.commandArgumentHint !== undefined
-              ? { commandArgumentHint: prev.commandArgumentHint }
-              : {}),
-      }))
+      publishSuggestionsOf(next, type, opts, { setSuggestionType, setMaxColumnWidth, setSuggestionsState, userNavigatedRef, suggestionsRef })
     },
     [setSuggestionsState],
   )
@@ -206,26 +175,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
 
   const runUnifiedFetch = useCallback(
     (token: string): void => {
-      cancelFileFetch()
-      fileFetchTimerRef.current = armTypeaheadTimer(() => {
-        fileFetchTimerRef.current = null
-        lastSearchTokenRef.current = token
-        const state = appStateStore.getState()
-        void generateUnifiedSuggestions(
-          token,
-          state.mcp.resources,
-          agentsRef.current ?? [],
-        )
-          .then(results => {
-            if (lastSearchTokenRef.current !== token) return
-            if (results.length === 0) {
-              resetOnEmptyFetch()
-              return
-            }
-            publish(results, 'file')
-          })
-          .catch(error => logError(error))
-      }, FILE_FETCH_DEBOUNCE_MS)
+      runUnifiedFetchOf(token, { cancelFileFetch, resetOnEmptyFetch, publish, appStateStore, fileFetchTimerRef, lastSearchTokenRef, agentsRef })
     },
     [cancelFileFetch, publish, resetOnEmptyFetch],
   )
@@ -272,17 +222,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
   }, [input, mode, suppressSuggestions, commands, rosterStamp])
 
   const promptGhost = useMemo((): InlineGhostText | undefined => {
-    if (mode !== 'prompt') return undefined
-    const midCommand = findMidInputSlashCommand(input, cursorOffset)
-    if (!midCommand) return undefined
-    const best = getBestCommandMatch(midCommand.partialCommand, commands)
-    if (!best) return undefined
-    return {
-      text: best.suffix,
-      fullCommand: best.fullCommand,
-      insertPosition:
-        midCommand.startPos + 1 + midCommand.partialCommand.length,
-    }
+    return promptGhostOf({ mode, input, cursorOffset, commands })
   }, [mode, input, cursorOffset, commands])
 
   const inlineGhostText = suppressSuggestions
@@ -294,19 +234,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
 
   const rerunLadderForInput = useCallback(
     (nextInput: string): void => {
-      const token = extractCompletionToken(nextInput, nextInput.length, true)
-      if (!token) return
-      const search = extractSearchToken(token)
-      if (isPathLikeToken(search)) {
-        void getPathCompletions(search, { maxResults: 10 })
-          .then(entries => {
-            if (entries.length > 0) publish(entries, 'directory')
-            else clearSuggestions()
-          })
-          .catch(error => logError(error))
-      } else {
-        runUnifiedFetch(search)
-      }
+      rerunLadderOf(nextInput, { publish, clearSuggestions, runUnifiedFetch })
     },
     [publish, clearSuggestions, runUnifiedFetch],
   )
@@ -317,33 +245,9 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
       const cursor = cursorOffsetRef.current
       const list = suggestionsRef.current
       const type = suggestionTypeRef.current
-      const accept: AcceptContext = { atIndex, viaEnter, currentInput, cursor, list, mode, commands, setInput, setCursorOffset, onSubmit, publish, clearSuggestions, runUnifiedFetch, rerunLadderForInput, userNavigatedRef, inputRef, cursorOffsetRef }
+      const accept: AcceptContext = { atIndex, viaEnter, currentInput, cursor, list, mode, commands, setInput, setCursorOffset, onSubmit, publish, clearSuggestions, runUnifiedFetch, rerunLadderForInput, userNavigatedRef, inputRef, cursorOffsetRef, promptGhost, asyncGhostText, setAsyncGhostText }
 
-      const ghost =
-        mode === 'prompt' ? promptGhost : (asyncGhostText ?? undefined)
-      if (ghost && !viaEnter) {
-        if (mode === 'bash') {
-          setInput(ghost.fullCommand)
-          setCursorOffset(ghost.fullCommand.length)
-          setAsyncGhostText(null)
-          return
-        }
-        const midCommand = findMidInputSlashCommand(
-          currentInput,
-          cursorOffsetRef.current,
-        )
-        if (midCommand) {
-          const before = currentInput.slice(0, midCommand.startPos)
-          const after = currentInput.slice(
-            midCommand.startPos + 1 + midCommand.partialCommand.length,
-          )
-          const replaced = `${before}/${ghost.fullCommand} `
-          setInput(replaced + after)
-          setCursorOffset(replaced.length)
-          clearSuggestions()
-          return
-        }
-      }
+      if (acceptGhost(accept)) return
 
       if (list.length > 0) {
         cancelFileFetch()
@@ -404,31 +308,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
   )
 
   useKeybindings(
-    {
-      'autocomplete:accept': () => {
-        if (isModalOverlayActive) return false
-        if (!hasSuggestionsOrGhost) return false
-        acceptSuggestion(undefined, false)
-      },
-      'autocomplete:dismiss': () => {
-        if (isModalOverlayActive) return false
-        if (!hasSuggestionsOrGhost) return false
-        cancelFileFetch()
-        cancelChannelFetch()
-        dismissedForInputRef.current = inputRef.current
-        clearSuggestions()
-      },
-      'autocomplete:previous': () => {
-        if (isModalOverlayActive) return false
-        if (suggestionsRef.current.length === 0) return false
-        moveSelection(-1)
-      },
-      'autocomplete:next': () => {
-        if (isModalOverlayActive) return false
-        if (suggestionsRef.current.length === 0) return false
-        moveSelection(1)
-      },
-    },
+    typeaheadKeybindings({ isModalOverlayActive, hasSuggestionsOrGhost, acceptSuggestion, cancelFileFetch, cancelChannelFetch, clearSuggestions, moveSelection, dismissedForInputRef, inputRef, suggestionsRef }),
     { context: 'Autocomplete', isActive: hasSuggestionsOrGhost },
   )
 
@@ -453,15 +333,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
 
   useInput(
     (input_, key, event) => {
-      void input_
-      void key
-      if (currentSurfaceRoute().kind !== 'repl') return
-      if (anyModalOverlayActive()) return
-      const adapter = new KeyboardEvent(event.keypress)
-      handleKeyboardEvent(adapter)
-      if (adapter.didStopImmediatePropagation()) {
-        event.stopImmediatePropagation()
-      }
+      routeTypeaheadInput(input_, key, event, handleKeyboardEvent)
     },
     { isActive: hasSuggestionsOrGhost || mode === 'prompt' },
   )
