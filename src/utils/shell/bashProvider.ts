@@ -15,7 +15,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getSessionEnvironmentScript } from '../sessionEnvironment.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPlatform } from '../platform.js'
-import { windowsPathToPosixPath } from '../windowsPaths.js'
+import { WINDOWS_STARTS_A_PROGRAM_IN, folderWindowsStartsIn, windowsPathToPosixPath } from '../windowsPaths.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
 import { msysArgvCarries, protectBackslashRunsFromMsysArgv } from './msysArgv.js'
 import type { BuildExecCommandOptions, FrameHandOver, ShellProvider } from './shellProvider.js'
@@ -104,9 +104,13 @@ export async function createBashShellProvider(
 
       if (isWindows) {
         const snapshotSourced = snapshot !== undefined
-        const handOver = (env: NodeJS.ProcessEnv): FrameHandOver => {
-          if (msysArgvCarries(commandString, env)) return { args: msysSpawnArgs(commandString, snapshotSourced) }
-          return { args: msysSpawnArgs(`source ${quote([`${cwdFileInShell}-frame`])}`, snapshotSourced), file: { path: join(nativeTmp, `${name}-frame`), text: commandString } }
+        const handOver = (env: NodeJS.ProcessEnv, cwd?: string): FrameHandOver => {
+          const { frame, ...where } =
+            cwd !== undefined && cwd.length > WINDOWS_STARTS_A_PROGRAM_IN
+              ? { frame: `cd -- ${quote([windowsPathToPosixPath(cwd)])} || exit; ${commandString}`, startIn: folderWindowsStartsIn(cwd) }
+              : { frame: commandString }
+          if (msysArgvCarries(frame, env)) return { args: msysSpawnArgs(frame, snapshotSourced), ...where }
+          return { args: msysSpawnArgs(`source ${quote([`${cwdFileInShell}-frame`])}`, snapshotSourced), file: { path: join(nativeTmp, `${name}-frame`), text: frame }, ...where }
         }
         return { commandString, cwdFilePath: cwdFileForEngine, handOver, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
       }

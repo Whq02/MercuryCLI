@@ -24,7 +24,7 @@ import { toolShellEnv, subprocessEnv, withLoginExports } from './subprocessEnv.j
 import { scrubSessionEnvStamps } from '../substrate/envStamps.js'
 import { getTaskOutputDir } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
-import { nativeCwdFromShellRecord, posixPathToWindowsPath } from './windowsPaths.js'
+import { WINDOWS_STARTS_A_PROGRAM_IN, nativeCwdFromShellRecord, posixPathToWindowsPath } from './windowsPaths.js'
 import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/windowsBatchInvocation.js'
 import { windowsShellRoadActive, withRoadPrograms } from './shell/windowsShellRoad.js'
 
@@ -191,6 +191,23 @@ function recordShellCwd(path: string, base: string): void {
   writeShellCwd(getFsImplementation().realpathSync(resolved).normalize('NFC'))
 }
 
+const NO_PROGRAM_STARTS_PAST = `Windows starts no program in a folder whose path is longer than ${WINDOWS_STARTS_A_PROGRAM_IN} characters`
+
+function shellDirectoryStays(before: string, why: string): string {
+  return `The shell's directory stays ${before}: ${why}.`
+}
+
+function startRefusal(folder: string, tracked: boolean): string | null {
+  if (getPlatform() !== 'windows' || folder.length <= WINDOWS_STARTS_A_PROGRAM_IN) return null
+  return shellDirectoryStays(tracked ? folder : getShellCwd(), `${NO_PROGRAM_STARTS_PAST}, and ${tracked ? 'this one' : folder} has ${folder.length}, so the command was not started${tracked ? '; cd to a shorter folder with the Bash tool' : ''}`)
+}
+
+function folderNoProgramStartsIn(path: string, base: string): string | null {
+  if (getPlatform() !== 'windows') return null
+  const physical = getFsImplementation().realpathSync(isAbsolute(path) ? path : resolvePath(base, path))
+  return physical.length > WINDOWS_STARTS_A_PROGRAM_IN ? shellDirectoryStays(base, `${NO_PROGRAM_STARTS_PAST}, and ${physical} has ${physical.length}; name such a folder by its path`) : null
+}
+
 function directoryResolves(path: string): boolean {
   try {
     getFsImplementation().realpathSync(path)
@@ -278,6 +295,8 @@ export async function exec(
     if (directoryResolves(shellDirectory)) {
       const invocation = await planWindowsBatchInvocation(command, { cwd: shellDirectory })
       if (invocation.kind === 'batch') {
+        const unstartable = startRefusal(shellDirectory, cwdOverride === undefined)
+        if (unstartable !== null) return createFailedCommand(unstartable)
         logForDebugging(`batch invocation through cmd.exe: ${invocation.batchPath}`)
         return await runWindowsBatchCommand(invocation, abortSignal, {
           timeout,
@@ -318,6 +337,9 @@ export async function exec(
     }
   }
 
+  const refusal = built.handOver === undefined ? startRefusal(cwd, cwdOverride === undefined) : null
+  if (refusal !== null) return createFailedCommand(refusal)
+
   if (abortSignal.aborted) {
     return createAbortedCommand()
   }
@@ -336,7 +358,7 @@ export async function exec(
   let outputFd: number | undefined
   let shellCommand: ShellCommand
   if (road.recordsBash) markFrameUnread(built.cwdFilePath)
-  const handed = built.handOver?.(childEnv)
+  const handed = built.handOver?.(childEnv, cwd)
   const dropFrame = (): void => {
     if (handed?.file !== undefined) void getFsImplementation().unlink(handed.file.path).catch(() => {})
   }
@@ -351,7 +373,7 @@ export async function exec(
     }
 
     const child = await spawnOwnedShell(spawnFile, handed?.args ?? spawnArgs, {
-      cwd,
+      cwd: handed?.startIn ?? cwd,
       env: provider.origin === undefined ? childEnv : withRoadPrograms(childEnv, provider.origin, provider.shellPath),
       stdio,
       detached: provider.detached,
@@ -425,8 +447,13 @@ export async function exec(
         } else if ('refused' in recorded) {
           logForDebugging(`bash cwd tracking: the shell directory stays put — ${recorded.refused}`)
         } else if (recorded.path.normalize('NFC') !== cwdBefore.normalize('NFC')) {
-          recordShellCwd(recorded.path, cwdBefore)
-          invalidateSessionEnvCache()
+          const unstartable = built.handOver === undefined ? folderNoProgramStartsIn(recorded.path, cwdBefore) : null
+          if (unstartable !== null) {
+            result.stderr = result.stderr === '' ? unstartable : `${result.stderr}\n${unstartable}`
+          } else {
+            recordShellCwd(recorded.path, cwdBefore)
+            invalidateSessionEnvCache()
+          }
         }
       }
     } catch (error) {

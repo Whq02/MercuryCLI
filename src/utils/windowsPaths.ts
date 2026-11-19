@@ -153,6 +153,14 @@ export function nativeCwdFromShellRecord(record: string): { path: string } | { r
   return { path: converted }
 }
 
+export const WINDOWS_STARTS_A_PROGRAM_IN = 258
+
+export function folderWindowsStartsIn(folder: string): string {
+  let above = folder
+  while (above.length > WINDOWS_STARTS_A_PROGRAM_IN && pathWin32.dirname(above) !== above) above = pathWin32.dirname(above)
+  return above
+}
+
 export function stripExtendedLengthPrefix(path: string): string {
   if (/^\\\\\?\\UNC\\/i.test(path)) return '\\\\' + path.slice(8)
   if (path.startsWith('\\\\?\\')) return path.slice(4)
