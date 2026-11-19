@@ -106,3 +106,21 @@ export function oneShotAnswerOf(call: CallState, result: BetaMessage, noteServed
   if (isTurnOwningQuerySource(options.querySource)) noteRequestOnWire(rosterOwnerKey)
   return m
 }
+
+export function streamCreation404Row(call: CallState, options: Options, originalError: APIError) {
+  logForDebugging(
+    'The streaming endpoint answered 404; the request is retried as one shot',
+    { level: 'warn' },
+  )
+  call.didFallBackToNonStreaming = true
+  if (options.onStreamingFallback) {
+    options.onStreamingFallback()
+  }
+  return createSystemAPIErrorMessage(
+    originalError,
+    0,
+    1,
+    1,
+    { recoveryTimeoutMs: getNonstreamingFallbackTimeoutMs() },
+  )
+}
