@@ -26,7 +26,13 @@ import {
 import {
   resolveOpenaiAccount,
   resolveOpenaiRequestAuth,
+  type OpenaiRequestAuth,
 } from '../openaiAccounts.js'
+import {
+  type GptCandidate,
+  type GptReasoningProfile,
+} from '../openaiCatalogue.js'
+import { type EffortAdjustedV1 } from '../../../../utils/effort.js'
 import { openaiCacheRetention } from '../openaiCacheRetention.js'
 import { getModelMaxOutputTokens, modelSupportsPDF } from '../../../../utils/model/capabilities.js'
 import { operatorModelFacts } from '../../../../utils/model/modelOverrides.js'
@@ -39,11 +45,14 @@ import {
 } from '../../deferralProbe.js'
 import { openaiGatewayHost } from '../../deferralWire.js'
 import { logForDebugging } from '../../../../utils/debug.js'
-import { planToolPayload, renderAdmissionRecordsAsText } from '../../toolEconomy.js'
+import { planToolPayload, renderAdmissionRecordsAsText, type ToolPayloadPlan } from '../../toolEconomy.js'
+import { retireOlderScreenshots } from '../../../desktop/screenshotRetention.js'
+import { fitImagesToRequestCap, type RequestImageFit } from '../../../../utils/imageResizer.js'
+import { stripThinkingFromIndex } from '../../../../utils/messages/apiFilters.js'
 import { fitWireImages } from '../../../../utils/messages/imageRequestFit.js'
 import { OPENAI_IMAGE_LIMITS } from '../../../../constants/apiLimits.js'
-import { resolveTurnEffort } from './turnEffort.js'
-import { bridgeTurnMessages } from './bridgeMessages.js'
+import { resolveTurnEffort, type TurnEffort } from './turnEffort.js'
+import { bridgeFittedMessages } from './bridgeMessages.js'
 import { sendOpenaiGatewayProbe } from './gatewayProbe.js'
 import { apiErrorMessage } from './faults.js'
 import { qualifyRequestedModel } from './qualify.js'
@@ -96,8 +105,24 @@ export type TurnOpening = {
   account: NonNullable<ReturnType<typeof resolveOpenaiAccount>>
 }
 
-export async function prepareOpenaiTurn(opening: TurnOpening): Promise<OpenaiTurn | { refusal: AssistantMessage }> {
-  const { params, deferralFormReissued, resumeTrimReissued, systemPrompt, tools, signal, options, requestedId, conversation4xxKey, messages, prior4xxCode, account } = opening
+export type PreparedOpenaiTurn = {
+  auth: OpenaiRequestAuth
+  modelId: string
+  candidate: GptCandidate | undefined
+  plan: ToolPayloadPlan
+  nativeDeferral: boolean
+  apiTools: ApiShapedTool[]
+  requestedEffort: TurnEffort['requestedEffort']
+  effortTruth: TurnEffort['effortTruth']
+  profile: GptReasoningProfile
+  receiptOf: TurnEffort['receiptOf']
+  effortAdjusted: EffortAdjustedV1 | undefined
+  settlementNotes: string[]
+  fittedImages: RequestImageFit<Message>
+}
+
+export async function prepareOpenaiTurn(opening: TurnOpening): Promise<PreparedOpenaiTurn | { refusal: AssistantMessage }> {
+  const { deferralFormReissued, resumeTrimReissued, tools, signal, options, requestedId, messages, account } = opening
   let auth = await resolveOpenaiRequestAuth({ sourceKind: account.kind })
   if (!auth) {
     return { refusal: apiErrorMessage(
@@ -143,7 +168,19 @@ export async function prepareOpenaiTurn(opening: TurnOpening): Promise<OpenaiTur
   if (deferralFormReissued !== undefined) settlementNotes.push(deferralFormReissued)
   if (resumeTrimReissued !== undefined) settlementNotes.push(resumeTrimReissued)
 
-  const { imagesRide, bridge } = await bridgeTurnMessages(wireMessages, options, modelId, candidate, settlementNotes)
+  const retiredScreenshots = retireOlderScreenshots(wireMessages, undefined, undefined, options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)))
+  const retiredMessages =
+    retiredScreenshots.firstEdited === -1
+      ? retiredScreenshots.messages
+      : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
+  const fittedImages = await fitImagesToRequestCap(retiredMessages, { model: modelId, owner: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)) })
+  return { auth, modelId, candidate, plan, nativeDeferral, apiTools, requestedEffort, effortTruth, profile, receiptOf, effortAdjusted, settlementNotes, fittedImages }
+}
+
+export function openOpenaiTurn(opening: TurnOpening, prepared: PreparedOpenaiTurn): OpenaiTurn {
+  const { params, deferralFormReissued, resumeTrimReissued, systemPrompt, tools, signal, options, conversation4xxKey, messages, prior4xxCode } = opening
+  const { auth, modelId, candidate, plan, nativeDeferral, apiTools, requestedEffort, effortTruth, profile, receiptOf, effortAdjusted, settlementNotes, fittedImages } = prepared
+  const { imagesRide, bridge } = bridgeFittedMessages(fittedImages, options, modelId, candidate, settlementNotes)
 
   const contract = resolveBehaviourContract([...systemPrompt])
   const renderedInstructions = renderOpenaiInstructions(contract)

@@ -1,4 +1,3 @@
-import { processOwnerForLane } from '../../../run/resolveOwner.js'
 import type {
   MessageParam,
 } from '../../../../types/wire.js'
@@ -24,10 +23,9 @@ import {
   type OpenaiTurnRecord,
 } from '../responsesBridge.js'
 import { logForDebugging } from '../../../../utils/debug.js'
-import { retireOlderScreenshots } from '../../../desktop/screenshotRetention.js'
-import { fitImagesToRequestCap } from '../../../../utils/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../../utils/messages/apiFilters.js'
 import { imagesSupportedForModel } from './images.js'
+import type { RequestImageFit } from '../../../../utils/imageResizer.js'
 
 function recordAgreesWithContent(record: OpenaiTurnRecord, content: MessageParam['content']): boolean {
   const minted = new Set<string>()
@@ -103,19 +101,13 @@ export function toBridgeMessages(
 const reconstructionNoted = new Set<string>()
 const foreignRecordNoted = new Set<string>()
 
-export async function bridgeTurnMessages(
-  wireMessages: Message[],
+export function bridgeFittedMessages(
+  fittedImages: RequestImageFit<Message>,
   options: Options,
   modelId: string,
   candidate: GptCandidate | undefined,
   settlementNotes: string[],
-): Promise<{ imagesRide: boolean; bridge: ReturnType<typeof toBridgeMessages> }> {
-  const retiredScreenshots = retireOlderScreenshots(wireMessages, undefined, undefined, options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)))
-  const retiredMessages =
-    retiredScreenshots.firstEdited === -1
-      ? retiredScreenshots.messages
-      : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
-  const fittedImages = await fitImagesToRequestCap(retiredMessages, { model: modelId, owner: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)) })
+): { imagesRide: boolean; bridge: ReturnType<typeof toBridgeMessages> } {
   const wireMessagesForBridge =
     fittedImages.firstEdited === -1
       ? fittedImages.messages

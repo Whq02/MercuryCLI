@@ -50,7 +50,7 @@ import {
 import { renderToolDialectHistory, toolDialectSystemText } from '../../local/toolDialect.js'
 import { planToolPayload, renderAdmissionRecordsAsText, type ToolPayloadPlan } from '../../toolEconomy.js'
 import { retireOlderScreenshots } from '../../../desktop/screenshotRetention.js'
-import { fitImagesToRequestCap } from '../../../../utils/imageResizer.js'
+import { fitImagesToRequestCap, type RequestImageFit } from '../../../../utils/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../../utils/messages/apiFilters.js'
 import { fitToolResultImages } from '../../../../utils/messages/imageRequestFit.js'
 import { imagesSupportedForCompatModel, laneExtrasWithOperatorEffort, type CompatCallModelParams, type CompatCredential, type CompatLaneProfile } from './lane.js'
@@ -138,12 +138,32 @@ export type PreparedCompatTurn = {
   withEffort: (message: AssistantMessage) => AssistantMessage
 }
 
+export type FittedCompatTurn = {
+  credential: CompatCredential
+  plan: ToolPayloadPlan
+  apiTools: ApiShapedTool[]
+  callableTools: ApiShapedTool[]
+  toolDeclarations: ReadonlyMap<string, ZaiWireMessage>
+  systemText: string
+  wireModel: string
+  cacheDomainKey: string
+  imagesSupported: boolean
+  leadingNotes: string[]
+  deferral: CompatDeferralFacts | undefined
+  effortView: ReturnType<typeof effortVocabularyFor>
+  effortValue: string | undefined
+  effortTruth: ReturnType<typeof resolveEffortTruth>
+  thinkingEnabled: boolean
+  toolsInPrompt: boolean
+  fittedImages: RequestImageFit<Message>
+}
+
 export async function prepareCompatTurn(
   profile: CompatLaneProfile,
   turnParams: Omit<CompatCallModelParams, 'signal'>,
   modelId: string,
   hasImage: (message: Message) => boolean,
-): Promise<PreparedCompatTurn | { refusal: AssistantMessage }> {
+): Promise<FittedCompatTurn | { refusal: AssistantMessage }> {
   const { messages, systemPrompt, thinkingConfig, tools, options } = turnParams
   let credential = await profile.resolveCredential()
   if (credential === undefined) {
@@ -220,6 +240,17 @@ export async function prepareCompatTurn(
       ? retiredScreenshots.messages
       : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
   const fittedImages = await fitImagesToRequestCap(retiredMessages, { model: modelId, owner: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)) })
+  return { credential, plan, apiTools, callableTools, toolDeclarations, systemText, wireModel, cacheDomainKey, imagesSupported, leadingNotes, deferral, effortView, effortValue, effortTruth, thinkingEnabled, toolsInPrompt, fittedImages }
+}
+
+export function openCompatTurn(
+  profile: CompatLaneProfile,
+  turnParams: Omit<CompatCallModelParams, 'signal'>,
+  modelId: string,
+  fitted: FittedCompatTurn,
+): PreparedCompatTurn | { refusal: AssistantMessage } {
+  const { messages, options } = turnParams
+  const { credential, plan, apiTools, callableTools, toolDeclarations, systemText, wireModel, cacheDomainKey, imagesSupported, leadingNotes, deferral, effortView, effortValue, effortTruth, thinkingEnabled, toolsInPrompt, fittedImages } = fitted
   const wireMessagesForBridge =
     fittedImages.firstEdited === -1
       ? fittedImages.messages

@@ -1,36 +1,81 @@
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
+import '../catalogueAdmission.js'
+import '../../../utils/sessionStorage/writer.js'
+import '../../run/resolveOwner.js'
+import '../../../utils/cwd.js'
+import '../../../utils/cache/cacheDomain.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
+import './streamCutForensics.js'
+import '../../api/overflowSignal.js'
+import '../../api/emptyUsage.js'
+import '../../api/promptCacheBreakDetection.js'
+import '../anthropic/messageParams.js'
+import '../../../utils/api.js'
+import '../../../utils/messages/apiView.js'
+import '../../../utils/messages/apiPlan.js'
+import '../../../utils/messages/factories.js'
+import '../../../constants/querySource.js'
+import '../../compact/microCompact.js'
+import '../../compact/microCompactDigest.js'
+import '../../tokenEstimation.js'
+import '../../../utils/imageValidation.js'
 import { classifyImageRefusalFault } from '../../api/mediaRefusal.js'
 import {
   createAssistantMessage,
   createSystemAPIErrorMessage,
 } from '../../../utils/messages.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
+import '../../../cost-tracker.js'
+import '../../../utils/modelCost.js'
+import '../faultUsageEstimate.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { noteRunPhase } from '../../../utils/runPhases.js'
+import '../emptyReply.js'
+import '../../../prompt/behaviourContract.js'
 import {
   resolveOpenaiAccount,
   resolveOpenaiRequestAuth,
 } from './openaiAccounts.js'
+import './openaiCatalogue.js'
+import './qualificationStore.js'
 import { openaiLimitWindow } from './openaiLimitState.js'
 import { refreshProviderUsage } from '../providerUsage.js'
+import '../../../utils/effort.js'
+import '../../../utils/model/utilityModel.js'
 import { recordLaneBillingRefusal } from '../laneBillingState.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
+import './openaiClient.js'
+import './openaiSocketTransport.js'
 import { rejectOpenaiCacheRetention } from './openaiCacheRetention.js'
 import { retryNoticeWait, retryReasonWords } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds } from '../../api/recoveryBudget.js'
+import '../../api/backupEngines.js'
 import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError } from '../../api/reconnectLadder.js'
 import { sleep } from '../../../utils/sleep.js'
 import { busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder } from '../busyRetry.js'
 import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords, isEmptyStreamFault } from '../emptyStreamRetry.js'
+import '../temporaryStreamError.js'
+import '../../../utils/model/capabilities.js'
+import '../../../utils/model/modelOverrides.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import {
   requestCarriesInputImage,
 } from './responsesBridge.js'
+import '../deferralProbe.js'
+import '../deferralWire.js'
+import '../../../utils/effortStamp.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import './openaiWire.js'
+import '../toolCallGate.js'
+import '../toolEconomy.js'
+import '../../desktop/screenshotRetention.js'
+import '../../../utils/imageResizer.js'
+import '../../../utils/messages/apiFilters.js'
+import '../../../utils/messages/imageRequestFit.js'
+import '../../../constants/apiLimits.js'
 import { MODEL_NOT_FOUND_CODE, OPENAI_MAX_ATTEMPTS, apiErrorMessage, openaiFaultToTypedError, openaiRetryDelayMs, overflowOf } from './openaiCallModel/faults.js'
 import { applyCompactedToolResults, compactedToolResultsByConversation, isCompactionSource, priorConversation4xx, priorTurn4xxCodeOf } from './openaiCallModel/resumeTrim.js'
-import { prepareOpenaiTurn } from './openaiCallModel/prepareTurn.js'
+import { openOpenaiTurn, prepareOpenaiTurn, type TurnOpening } from './openaiCallModel/prepareTurn.js'
 import { settleOpenaiTurn } from './openaiCallModel/turnSettled.js'
 import { streamOneOpenaiAttempt } from './openaiCallModel/attempt.js'
 import { reissueAtServedEffort, reissueTextForm, trimResumedTranscript } from './openaiCallModel/faultReissue.js'
@@ -69,11 +114,13 @@ async function* openaiTurn(
     return
   }
   if (openaiLimitWindow(account.kind).state === 'limited') await refreshProviderUsage('openai', { force: true, reason: 'operator' })
-  const turn = await prepareOpenaiTurn({ params, deferralFormReissued, resumeTrimReissued, systemPrompt, tools, signal, options, requestedId, conversation4xxKey, messages, prior4xxCode, account })
-  if ('refusal' in turn) {
-    yield turn.refusal
+  const opening: TurnOpening = { params, deferralFormReissued, resumeTrimReissued, systemPrompt, tools, signal, options, requestedId, conversation4xxKey, messages, prior4xxCode, account }
+  const prepared = await prepareOpenaiTurn(opening)
+  if ('refusal' in prepared) {
+    yield prepared.refusal
     return
   }
+  const turn = openOpenaiTurn(opening, prepared)
   const { modelId } = turn
   let attemptStartedAtMs = turn.turnStartedAtMs
   for (let attempt = 1; attempt <= OPENAI_MAX_ATTEMPTS || turn.busy !== undefined; attempt++) {

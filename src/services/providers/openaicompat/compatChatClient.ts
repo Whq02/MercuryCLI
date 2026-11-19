@@ -4,7 +4,7 @@ import { sendWithCacheField } from '../cacheFieldRetry.js'
 import { wrapFetchWithWireDump } from '../../api/dumpPrompts.js'
 import type { ZaiContentPart } from '../zai/zaiClient.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { SseDecoder } from '../sseDecoder.js'
+import { SseDecoder, type SseDecodeResult } from '../sseDecoder.js'
 import { toolCallSlot, toolCallId, type ToolCallAccumulator } from '../chatToolCallSlots.js'
 import { outageCauseOfFetchFailure, type OutageCause } from '../../api/reconnectLadder.js'
 import { providerWaitWords } from '../../api/recoveryBudget.js'
@@ -457,7 +457,7 @@ async function* streamCompatChatRaw(
   unrefTimer(totalTimer)
   let idleWatchdog: StreamIdleWatchdog | null = null
   let silenceWatch: LocalSilenceWatch | null = null
-  let livenessTimer: unknown = null
+  const s: CompatStreamState = { livenessTimer: null, firstByteFired: false, firstByteExtended: false, slotWords: null, firstByteTimer: null, headersLanded: false, ingestStartedAt: 0, quietSinceMs: 0, sawBytes: false, livenessCut: null, silencePublished: false }
   let ingestMs: number | null = null
 
   const toolAcc = new Map<number, ToolCallAccumulator>()
@@ -468,187 +468,27 @@ async function* streamCompatChatRaw(
 
   try {
     let response: Response
-    const firstByteBudget =
-      local !== undefined
-        ? local.promiseMs
-        : firstByteBudgetMs({
-            cold: options.firstByte?.cold === true,
-            promptTokens: options.firstByte?.promptTokens ?? 0,
-            idleMs,
-            prefillMs: options.firstByte?.prefillMs,
-          })
-    const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
-      kind: 'first-byte',
-      cold: options.firstByte?.cold === true,
-      promptTokens: options.firstByte?.promptTokens ?? 0,
-      model: options.firstByte?.model ?? local?.wireModel ?? 'the model',
-      budgetMs: firstByteBudget,
-      sinceMs: timers.now(),
-      attempt: options.firstByte?.attempt ?? 1,
-      ...(options.firstByte?.prefillMs !== undefined ? { prefillMs: options.firstByte.prefillMs } : {}),
-      ...(local !== undefined ? { promise: true } : {}),
-    }
+    const { firstByteBudget, wait } = firstByteWaitOf({ options, local, idleMs, timers })
     const publish = (next: RequestWaitV1 | null): void => options.firstByte?.onWait?.(next)
     publish(wait)
-    let firstByteFired = false
-    let firstByteExtended = false
-    let slotWords: string | null = null
-    let firstByteTimer: unknown = null
-    let headersLanded = false
-    let ingestStartedAt = timers.now()
-    let promiseLoop: LocalLivenessLoop | null = null
-    let loadingHandle: unknown = null
-    const stopIngestWatch = (): void => {
-      promiseLoop?.stop()
-      promiseLoop = null
-      if (loadingHandle !== null) {
-        timers.clearTimeout(loadingHandle)
-        loadingHandle = null
-      }
-    }
-    if (local === undefined) {
-      const armFirstByteTimer = (): void => {
-        firstByteTimer = timers.setTimeout(() => {
-          if (headersLanded || options.signal?.aborted || cut.cap) return
-          const live = options.liveness
-          if (live === undefined) {
-            firstByteFired = true
-            controller.abort()
-            return
-          }
-          void live
-            .read()
-            .catch((): CompatLivenessReading => ({ state: 'unknown', answered: false, words: '' }))
-            .then(reading => {
-              if (headersLanded || options.signal?.aborted || cut.cap) return
-              if (reading.state === 'working') {
-                firstByteExtended = true
-                options.onStreamActivity?.(Date.now())
-                armFirstByteTimer()
-                return
-              }
-              if (reading.words !== '') slotWords = reading.words
-              firstByteFired = true
-              controller.abort()
-            })
-        }, firstByteBudget)
-        unrefTimer(firstByteTimer)
-      }
-      armFirstByteTimer()
-    } else {
-      const law = local
-      let promisedMs = law.promiseMs
-      const startPromiseLoop = (): void => {
-        promiseLoop?.stop()
-        promiseLoop = startLocalLivenessLoop({
-          timers,
-          dueMs: ingestStartedAt + promisedMs - timers.now(),
-          probe: () => law.seam.probe(),
-          onAlive: () => {
-            if (headersLanded) return null
-            const sinceIngest = timers.now() - ingestStartedAt
-            const extension = localPromiseExtensionMs(law.promiseMs)
-            promisedMs = sinceIngest + extension
-            publish({ ...wait, sinceMs: ingestStartedAt, budgetMs: promisedMs, checkedMs: sinceIngest })
-            return extension
-          },
-          onDead: (_elapsed, unansweredMs) => {
-            if (headersLanded) return
-            cut.dead = { unansweredMs }
-            controller.abort()
-          },
-        })
-      }
-      const watchLoading = async (): Promise<void> => {
-        let isLoaded: boolean | null = law.loadedAtSend === false ? false : await law.seam.loaded()
-        if (headersLanded || isLoaded !== false) return
-        stopIngestWatch()
-        const sizeGb = await law.seam.sizeGb()
-        if (headersLanded) return
-        publish({ ...wait, phase: 'loading', ...(sizeGb !== undefined ? { sizeGb } : {}) })
-        while (!headersLanded && isLoaded === false) {
-          await new Promise<void>(resolve => {
-            loadingHandle = timers.setTimeout(resolve, LOCAL_LOADING_POLL_MS)
-          })
-          loadingHandle = null
-          if (headersLanded) return
-          isLoaded = await law.seam.loaded()
-        }
-        if (headersLanded) return
-        ingestStartedAt = timers.now()
-        promisedMs = law.promiseMs
-        publish({ ...wait, sinceMs: ingestStartedAt, budgetMs: promisedMs })
-        startPromiseLoop()
-      }
-      if (law.loadedAtSend !== false) startPromiseLoop()
-      void watchLoading().catch(() => undefined)
-    }
+    s.ingestStartedAt = timers.now()
+    const stopIngestWatch = watchFirstByte(s, { local, timers, options, cut, controller, firstByteBudget, wait, publish })
     try {
-      const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'compat')
-      const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
-      const { extra, ...core } = request
-      response = await sendWithCacheField({ body: { ...core, ...(extra ?? {}), stream: true }, url: options.url, field: 'prompt_cache_key' }, body => fetchImpl(options.url, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          accept: 'text/event-stream',
-          ...(options.apiKey ? { authorization: `Bearer ${options.apiKey}` } : {}),
-          'user-agent': getUserAgent(),
-          ...(options.extraHeaders ?? {}),
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-        ...(proxyOptions as Record<string, unknown>),
-      } as RequestInit))
+      response = await sendCompatRequest(options, request, controller)
     } catch (error) {
-      headersLanded = true
-      if (firstByteTimer !== null) timers.clearTimeout(firstByteTimer)
+      s.headersLanded = true
+      if (s.firstByteTimer !== null) timers.clearTimeout(s.firstByteTimer)
       stopIngestWatch()
-      const cancelled = options.signal?.aborted === true
-      if (!cancelled && local !== undefined && cut.dead !== null) {
-        yield {
-          type: 'stream-fault',
-          fault: { kind: 'timeout', code: LOCAL_DEAD_SERVER_CODE, message: localDeadServerLine(local.serverWords, cut.dead.unansweredMs, 'ingesting'), retryable: false },
-        }
-        return
-      }
-      if (!cancelled && local !== undefined && cut.cap) {
-        yield {
-          type: 'stream-fault',
-          fault: { kind: 'timeout', code: LOCAL_CAP_CODE, message: localCapLine(wait.model, timers.now() - requestStartedAt, 'ingesting'), retryable: false },
-        }
-        return
-      }
-      if (!cancelled && firstByteFired) {
-        const waited = firstByteTimeoutLine(firstByteExtended ? { ...wait, budgetMs: Math.max(wait.budgetMs, timers.now() - wait.sinceMs) } : wait)
-        yield {
-          type: 'stream-fault',
-          fault: { kind: 'timeout', code: 'first-byte-timeout', message: slotWords !== null ? `${waited} — ${slotWords}` : waited, retryable: true },
-        }
-        return
-      }
-      const outage = cancelled ? null : outageCauseOfFetchFailure(error)
-      yield {
-        type: 'stream-fault',
-        fault: cancelled
-          ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled before response', retryable: false }
-          : {
-              kind: 'transport-error',
-              code: 'fetch-failed',
-              message: describeTransportFailure(error, options.url),
-              retryable: true,
-              ...(outage !== null ? { outage } : {}),
-            },
-      }
+      yield fetchFailureEvent(s, { options, local, cut, wait, timers, requestStartedAt, error })
       return
     }
 
-    headersLanded = true
+    s.headersLanded = true
     try {
       options.onResponseHeaders?.(response.headers, response.status)
     } catch {
     }
-    if (firstByteTimer !== null) timers.clearTimeout(firstByteTimer)
+    if (s.firstByteTimer !== null) timers.clearTimeout(s.firstByteTimer)
     stopIngestWatch()
     publish(response.ok ? { ...wait, phase: 'tokens' } : null)
     let tokenWait = response.ok
@@ -679,54 +519,14 @@ async function* streamCompatChatRaw(
     let watchdog = local === undefined ? createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: options.silentAfterHeadersMs ?? null }) : null
     idleWatchdog = watchdog
     if (local !== undefined) {
-      const law = local
-      silenceWatch = startLocalSilenceWatch({
-        timers,
-        idleMs,
-        probe: () => law.seam.probe(),
-        onWarning: (silentMs, sinceMs) => publish({ kind: 'silence', model: wait.model, silentMs, sinceMs, answered: false, askAtMs: idleMs }),
-        onAlive: (silentMs, sinceMs) => publish({ kind: 'silence', model: wait.model, silentMs, sinceMs, answered: true }),
-        onResume: () => publish(null),
-        onDead: (_silentMs, unansweredMs) => {
-          cut.dead = { unansweredMs }
-          controller.abort()
-        },
-      })
+      silenceWatch = watchLocalSilence(local, { timers, idleMs, publish, wait, cut, controller })
     }
     const relay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
     let pendingRead: Promise<ReadableStreamReadResult<Uint8Array>> | null = null
-    let quietSinceMs = Date.now()
+    s.quietSinceMs = Date.now()
     let quietExtended = false
-    let sawBytes = false
-    let livenessCut: string | null = null
-    let silencePublished = false
     const fenceMs = local === undefined ? options.liveness?.fenceMs ?? null : null
-    const armLivenessProbe = (): void => {
-      const live = options.liveness
-      if (fenceMs === null || live === undefined) return
-      livenessTimer = timers.setTimeout(() => {
-        livenessTimer = null
-        if (sawBytes || options.signal?.aborted || cut.cap) return
-        void live
-          .read()
-          .catch((): CompatLivenessReading => ({ state: 'unknown', answered: false, words: '' }))
-          .then(reading => {
-            if (sawBytes || options.signal?.aborted || cut.cap) return
-            const silentMs = Date.now() - quietSinceMs
-            logForDebugging(`[compat] ${Math.round(silentMs / 1000)} s without a byte after the headers: ${reading.words || 'the liveness read failed'}`)
-            if (reading.state === 'dead') {
-              livenessCut = reading.words
-              controller.abort()
-              return
-            }
-            if (reading.state === 'working') options.onStreamActivity?.(Date.now())
-            silencePublished = true
-            publish({ kind: 'silence', model: wait.model, silentMs, sinceMs: quietSinceMs, answered: reading.answered, ...(reading.answered ? {} : { askAtMs: silentMs + fenceMs }) })
-            armLivenessProbe()
-          })
-      }, fenceMs)
-      unrefTimer(livenessTimer)
-    }
+    const armLivenessProbe = livenessProbeOf(s, { fenceMs, options, timers, cut, controller, wait, publish })
     armLivenessProbe()
 
     readLoop: for (;;) {
@@ -737,16 +537,16 @@ async function* streamCompatChatRaw(
         pendingRead = null
         if (!chunk.done && chunk.value.byteLength > 0) {
           watchdog?.noteActivity()
-          quietSinceMs = Date.now()
+          s.quietSinceMs = Date.now()
           quietExtended = false
-          if (!sawBytes) {
-            sawBytes = true
-            if (livenessTimer !== null) {
-              timers.clearTimeout(livenessTimer)
-              livenessTimer = null
+          if (!s.sawBytes) {
+            s.sawBytes = true
+            if (s.livenessTimer !== null) {
+              timers.clearTimeout(s.livenessTimer)
+              s.livenessTimer = null
             }
-            if (silencePublished) {
-              silencePublished = false
+            if (s.silencePublished) {
+              s.silencePublished = false
               publish(null)
             }
           }
@@ -774,8 +574,8 @@ async function* streamCompatChatRaw(
           type: 'stream-fault',
           fault: cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
-            : livenessCut !== null
-              ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, silentMs: Date.now() - quietSinceMs, message: `${silentAfterHeadersFaultWords(wait.model, Date.now() - quietSinceMs, wait.promptTokens)} — ${livenessCut}`, retryable: true }
+            : s.livenessCut !== null
+              ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, silentMs: Date.now() - s.quietSinceMs, message: `${silentAfterHeadersFaultWords(wait.model, Date.now() - s.quietSinceMs, wait.promptTokens)} — ${s.livenessCut}`, retryable: true }
             : local !== undefined && cut.dead !== null
               ? { kind: 'timeout', code: LOCAL_DEAD_SERVER_CODE, message: localDeadServerLine(local.serverWords, cut.dead.unansweredMs, 'writing'), retryable: false }
               : local !== undefined && cut.cap
@@ -783,7 +583,7 @@ async function* streamCompatChatRaw(
                 : noBytes
                   ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, silentMs: error.silentMs, message: `${silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens)}${slotNote}`, retryable: true }
                   : isIdle
-                    ? { kind: 'timeout', code: 'idle-timeout', silentMs: error.silentMs, message: `${streamIdleFaultWords(quietExtended ? Math.max(idleMs, Date.now() - quietSinceMs) : idleMs)}${slotNote}`, retryable: true }
+                    ? { kind: 'timeout', code: 'idle-timeout', silentMs: error.silentMs, message: `${streamIdleFaultWords(quietExtended ? Math.max(idleMs, Date.now() - s.quietSinceMs) : idleMs)}${slotNote}`, retryable: true }
                     : {
                       kind: 'transport-error',
                       code: 'read-failed',
@@ -804,15 +604,7 @@ async function* streamCompatChatRaw(
       let chunkHadEvent = false
       for (const item of results) {
         if (item.kind === 'fault') {
-          yield {
-            type: 'stream-fault',
-            fault: {
-              kind: 'truncated-stream',
-              code: 'sse-dangling-event',
-              message: `dangling SSE fragment: ${item.preview}`,
-              retryable: false,
-            },
-          }
+          yield danglingFragmentEvent(item)
           continue
         }
         chunkHadEvent = true
@@ -849,7 +641,7 @@ async function* streamCompatChatRaw(
           if (event.type === 'text-delta' || event.type === 'reasoning-delta' || event.type === 'reasoning-withheld' || event.type === 'finish' || event.type === 'tool-call-fragment') {
             if (tokenWait) {
               tokenWait = false
-              ingestMs = timers.now() - ingestStartedAt
+              ingestMs = timers.now() - s.ingestStartedAt
               publish(null)
             }
             chunkNotedEvent = true
@@ -929,11 +721,273 @@ async function* streamCompatChatRaw(
     }
   } finally {
     timers.clearTimeout(totalTimer)
-    if (livenessTimer !== null) timers.clearTimeout(livenessTimer)
+    if (s.livenessTimer !== null) timers.clearTimeout(s.livenessTimer)
     idleWatchdog?.stop()
     silenceWatch?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
     controller.abort()
+  }
+}
+
+type CompatStreamState = {
+  livenessTimer: unknown
+  firstByteFired: boolean
+  firstByteExtended: boolean
+  slotWords: string | null
+  firstByteTimer: unknown
+  headersLanded: boolean
+  ingestStartedAt: number
+  quietSinceMs: number
+  sawBytes: boolean
+  livenessCut: string | null
+  silencePublished: boolean
+}
+
+type CompatStreamNeeds = {
+  options: CompatStreamOptions
+  local: LocalStreamLaw | undefined
+  timers: StreamTimers
+  idleMs: number
+  cut: { dead: { unansweredMs: number } | null; cap: boolean }
+  controller: AbortController
+  firstByteBudget: number
+  wait: Extract<RequestWaitV1, { kind: 'first-byte' }>
+  publish: (next: RequestWaitV1 | null) => void
+  requestStartedAt: number
+  fenceMs: number | null
+  error: unknown
+}
+
+function firstByteWaitOf(needs: Pick<CompatStreamNeeds, 'options' | 'local' | 'idleMs' | 'timers'>) {
+  const { options, local, idleMs, timers } = needs
+  const firstByteBudget =
+    local !== undefined
+      ? local.promiseMs
+      : firstByteBudgetMs({
+          cold: options.firstByte?.cold === true,
+          promptTokens: options.firstByte?.promptTokens ?? 0,
+          idleMs,
+          prefillMs: options.firstByte?.prefillMs,
+        })
+  const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
+    kind: 'first-byte',
+    cold: options.firstByte?.cold === true,
+    promptTokens: options.firstByte?.promptTokens ?? 0,
+    model: options.firstByte?.model ?? local?.wireModel ?? 'the model',
+    budgetMs: firstByteBudget,
+    sinceMs: timers.now(),
+    attempt: options.firstByte?.attempt ?? 1,
+    ...(options.firstByte?.prefillMs !== undefined ? { prefillMs: options.firstByte.prefillMs } : {}),
+    ...(local !== undefined ? { promise: true } : {}),
+  }
+  return { firstByteBudget, wait }
+}
+
+function watchFirstByte(s: CompatStreamState, needs: Pick<CompatStreamNeeds, 'local' | 'timers' | 'options' | 'cut' | 'controller' | 'firstByteBudget' | 'wait' | 'publish'>): () => void {
+  const { local, timers, options, cut, controller, firstByteBudget, wait, publish } = needs
+  let promiseLoop: LocalLivenessLoop | null = null
+  let loadingHandle: unknown = null
+  const stopIngestWatch = (): void => {
+    promiseLoop?.stop()
+    promiseLoop = null
+    if (loadingHandle !== null) {
+      timers.clearTimeout(loadingHandle)
+      loadingHandle = null
+    }
+  }
+  if (local === undefined) {
+    const armFirstByteTimer = (): void => {
+      s.firstByteTimer = timers.setTimeout(() => {
+        if (s.headersLanded || options.signal?.aborted || cut.cap) return
+        const live = options.liveness
+        if (live === undefined) {
+          s.firstByteFired = true
+          controller.abort()
+          return
+        }
+        void live
+          .read()
+          .catch((): CompatLivenessReading => ({ state: 'unknown', answered: false, words: '' }))
+          .then(reading => {
+            if (s.headersLanded || options.signal?.aborted || cut.cap) return
+            if (reading.state === 'working') {
+              s.firstByteExtended = true
+              options.onStreamActivity?.(Date.now())
+              armFirstByteTimer()
+              return
+            }
+            if (reading.words !== '') s.slotWords = reading.words
+            s.firstByteFired = true
+            controller.abort()
+          })
+      }, firstByteBudget)
+      unrefTimer(s.firstByteTimer)
+    }
+    armFirstByteTimer()
+  } else {
+    const law = local
+    let promisedMs = law.promiseMs
+    const startPromiseLoop = (): void => {
+      promiseLoop?.stop()
+      promiseLoop = startLocalLivenessLoop({
+        timers,
+        dueMs: s.ingestStartedAt + promisedMs - timers.now(),
+        probe: () => law.seam.probe(),
+        onAlive: () => {
+          if (s.headersLanded) return null
+          const sinceIngest = timers.now() - s.ingestStartedAt
+          const extension = localPromiseExtensionMs(law.promiseMs)
+          promisedMs = sinceIngest + extension
+          publish({ ...wait, sinceMs: s.ingestStartedAt, budgetMs: promisedMs, checkedMs: sinceIngest })
+          return extension
+        },
+        onDead: (_elapsed, unansweredMs) => {
+          if (s.headersLanded) return
+          cut.dead = { unansweredMs }
+          controller.abort()
+        },
+      })
+    }
+    const watchLoading = async (): Promise<void> => {
+      let isLoaded: boolean | null = law.loadedAtSend === false ? false : await law.seam.loaded()
+      if (s.headersLanded || isLoaded !== false) return
+      stopIngestWatch()
+      const sizeGb = await law.seam.sizeGb()
+      if (s.headersLanded) return
+      publish({ ...wait, phase: 'loading', ...(sizeGb !== undefined ? { sizeGb } : {}) })
+      while (!s.headersLanded && isLoaded === false) {
+        await new Promise<void>(resolve => {
+          loadingHandle = timers.setTimeout(resolve, LOCAL_LOADING_POLL_MS)
+        })
+        loadingHandle = null
+        if (s.headersLanded) return
+        isLoaded = await law.seam.loaded()
+      }
+      if (s.headersLanded) return
+      s.ingestStartedAt = timers.now()
+      promisedMs = law.promiseMs
+      publish({ ...wait, sinceMs: s.ingestStartedAt, budgetMs: promisedMs })
+      startPromiseLoop()
+    }
+    if (law.loadedAtSend !== false) startPromiseLoop()
+    void watchLoading().catch(() => undefined)
+  }
+  return stopIngestWatch
+}
+
+function sendCompatRequest(options: CompatStreamOptions, request: CompatChatRequest, controller: AbortController): Promise<Response> {
+  const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'compat')
+  const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
+  const { extra, ...core } = request
+  return sendWithCacheField({ body: { ...core, ...(extra ?? {}), stream: true }, url: options.url, field: 'prompt_cache_key' }, body => fetchImpl(options.url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      accept: 'text/event-stream',
+      ...(options.apiKey ? { authorization: `Bearer ${options.apiKey}` } : {}),
+      'user-agent': getUserAgent(),
+      ...(options.extraHeaders ?? {}),
+    },
+    body: JSON.stringify(body),
+    signal: controller.signal,
+    ...(proxyOptions as Record<string, unknown>),
+  } as RequestInit))
+}
+
+function fetchFailureEvent(s: CompatStreamState, needs: Pick<CompatStreamNeeds, 'options' | 'local' | 'cut' | 'wait' | 'timers' | 'requestStartedAt' | 'error'>): CompatStreamEvent {
+  const { options, local, cut, wait, timers, requestStartedAt, error } = needs
+  const cancelled = options.signal?.aborted === true
+  if (!cancelled && local !== undefined && cut.dead !== null) {
+    return {
+      type: 'stream-fault',
+      fault: { kind: 'timeout', code: LOCAL_DEAD_SERVER_CODE, message: localDeadServerLine(local.serverWords, cut.dead.unansweredMs, 'ingesting'), retryable: false },
+    }
+  }
+  if (!cancelled && local !== undefined && cut.cap) {
+    return {
+      type: 'stream-fault',
+      fault: { kind: 'timeout', code: LOCAL_CAP_CODE, message: localCapLine(wait.model, timers.now() - requestStartedAt, 'ingesting'), retryable: false },
+    }
+  }
+  if (!cancelled && s.firstByteFired) {
+    const waited = firstByteTimeoutLine(s.firstByteExtended ? { ...wait, budgetMs: Math.max(wait.budgetMs, timers.now() - wait.sinceMs) } : wait)
+    return {
+      type: 'stream-fault',
+      fault: { kind: 'timeout', code: 'first-byte-timeout', message: s.slotWords !== null ? `${waited} — ${s.slotWords}` : waited, retryable: true },
+    }
+  }
+  const outage = cancelled ? null : outageCauseOfFetchFailure(error)
+  return {
+    type: 'stream-fault',
+    fault: cancelled
+      ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled before response', retryable: false }
+      : {
+          kind: 'transport-error',
+          code: 'fetch-failed',
+          message: describeTransportFailure(error, options.url),
+          retryable: true,
+          ...(outage !== null ? { outage } : {}),
+        },
+  }
+}
+
+function watchLocalSilence(local: LocalStreamLaw, needs: Pick<CompatStreamNeeds, 'timers' | 'idleMs' | 'publish' | 'wait' | 'cut' | 'controller'>): LocalSilenceWatch {
+  const { timers, idleMs, publish, wait, cut, controller } = needs
+  const law = local
+  return startLocalSilenceWatch({
+    timers,
+    idleMs,
+    probe: () => law.seam.probe(),
+    onWarning: (silentMs, sinceMs) => publish({ kind: 'silence', model: wait.model, silentMs, sinceMs, answered: false, askAtMs: idleMs }),
+    onAlive: (silentMs, sinceMs) => publish({ kind: 'silence', model: wait.model, silentMs, sinceMs, answered: true }),
+    onResume: () => publish(null),
+    onDead: (_silentMs, unansweredMs) => {
+      cut.dead = { unansweredMs }
+      controller.abort()
+    },
+  })
+}
+
+function livenessProbeOf(s: CompatStreamState, needs: Pick<CompatStreamNeeds, 'fenceMs' | 'options' | 'timers' | 'cut' | 'controller' | 'wait' | 'publish'>): () => void {
+  const { fenceMs, options, timers, cut, controller, wait, publish } = needs
+  const armLivenessProbe = (): void => {
+    const live = options.liveness
+    if (fenceMs === null || live === undefined) return
+    s.livenessTimer = timers.setTimeout(() => {
+      s.livenessTimer = null
+      if (s.sawBytes || options.signal?.aborted || cut.cap) return
+      void live
+        .read()
+        .catch((): CompatLivenessReading => ({ state: 'unknown', answered: false, words: '' }))
+        .then(reading => {
+          if (s.sawBytes || options.signal?.aborted || cut.cap) return
+          const silentMs = Date.now() - s.quietSinceMs
+          logForDebugging(`[compat] ${Math.round(silentMs / 1000)} s without a byte after the headers: ${reading.words || 'the liveness read failed'}`)
+          if (reading.state === 'dead') {
+            s.livenessCut = reading.words
+            controller.abort()
+            return
+          }
+          if (reading.state === 'working') options.onStreamActivity?.(Date.now())
+          s.silencePublished = true
+          publish({ kind: 'silence', model: wait.model, silentMs, sinceMs: s.quietSinceMs, answered: reading.answered, ...(reading.answered ? {} : { askAtMs: silentMs + fenceMs }) })
+          armLivenessProbe()
+        })
+    }, fenceMs)
+    unrefTimer(s.livenessTimer)
+  }
+  return armLivenessProbe
+}
+
+function danglingFragmentEvent(item: Extract<SseDecodeResult, { kind: 'fault' }>): CompatStreamEvent {
+  return {
+    type: 'stream-fault',
+    fault: {
+      kind: 'truncated-stream',
+      code: 'sse-dangling-event',
+      message: `dangling SSE fragment: ${item.preview}`,
+      retryable: false,
+    },
   }
 }
 

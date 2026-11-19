@@ -1,3 +1,5 @@
+import '../../../utils/sessionStorage/writer.js'
+import '../../run/resolveOwner.js'
 import { llamacppOriginRefusal } from './compatRefusals.js'
 import type {
   AssistantMessage,
@@ -5,6 +7,9 @@ import type {
   StreamEvent,
   SystemAPIErrorMessage,
 } from '../../../types/message.js'
+import './compatToolSchemas.js'
+import '../../../utils/cwd.js'
+import '../../../utils/cache/cacheDomain.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { retryNoticeWait, retryReasonWords, requestWaitLine, streamReconnectSpentLine, streamReconnectWait } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
@@ -14,22 +19,52 @@ import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessa
 import { sleep } from '../../../utils/sleep.js'
 import { busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
 import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords, isEmptyStreamFault } from '../emptyStreamRetry.js'
+import '../temporaryStreamError.js'
+import '../../../utils/model/model.js'
+import '../../api/overflowSignal.js'
+import '../../api/outputFit.js'
+import '../../api/emptyUsage.js'
+import '../../api/promptCacheBreakDetection.js'
+import '../anthropic/messageParams.js'
+import '../../../utils/api.js'
+import '../../../utils/messages.js'
+import '../../../utils/effort.js'
+import '../../../utils/model/utilityModel.js'
+import '../../../utils/effortStamp.js'
+import './compatWire.js'
 import { replayKimiHistory } from './kimiReplay.js'
+import '../openai/gptPins.js'
+import '../../../utils/model/modelOverrides.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { classifyCredentialWall, credentialWallLine } from '../credentialWall.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { canonicalWireModelId } from '../routeLaw.js'
+import '../../../prompt/behaviourContract.js'
+import '../../../cost-tracker.js'
+import '../../../utils/modelCost.js'
+import '../faultUsageEstimate.js'
 import { imageRefusalWords } from '../zai/zaiCodec.js'
+import '../../../utils/model/capabilities.js'
 import { noteImageRefusal } from '../../desktop/desktopSession.js'
 import { compatImageRefusalWords, refreshCompatModelImageReading } from './compatProbe.js'
+import './compatChatClient.js'
 import {
   type CompatFault,
 } from './compatChatClient.js'
+import '../toolCallGate.js'
+import '../localLiveness.js'
+import '../local/toolCallMarkup.js'
 import { localServerKind } from '../../../constants/localPromptProfile.js'
+import '../local/toolDialect.js'
+import '../toolEconomy.js'
+import '../../desktop/screenshotRetention.js'
+import '../../../utils/imageResizer.js'
+import '../../../utils/messages/apiFilters.js'
+import '../../../utils/messages/imageRequestFit.js'
 import { compatDispatchModelId, type CompatCallModelParams, type CompatLaneId, type CompatLaneProfile } from './compatChatCallModel/lane.js'
 import { apiErrorMessage, compatFaultToTypedError, compatTerminalFaultText, overflowOf } from './compatChatCallModel/faults.js'
-import { prepareCompatTurn } from './compatChatCallModel/prepare.js'
+import { openCompatTurn, prepareCompatTurn } from './compatChatCallModel/prepare.js'
 import { streamOneCompatAttempt } from './compatChatCallModel/attempt.js'
 
 export { compatDispatchModelId, imagesSupportedForCompatModel, laneExtrasWithOperatorEffort, type CompatCallModelParams, type CompatLaneProfile } from './compatChatCallModel/lane.js'
@@ -62,7 +97,13 @@ export async function* compatChatCallModel(
   )
   if (profile.lane === 'openai-compat' && messages.some(hasImage)) await refreshCompatModelImageReading(modelId, signal)
   if (signal.aborted) return
-  const prepared = await prepareCompatTurn(profile, { messages, systemPrompt, thinkingConfig, tools, options }, modelId, hasImage)
+  const turnParams = { messages, systemPrompt, thinkingConfig, tools, options }
+  const fitted = await prepareCompatTurn(profile, turnParams, modelId, hasImage)
+  if ('refusal' in fitted) {
+    yield fitted.refusal
+    return
+  }
+  const prepared = openCompatTurn(profile, turnParams, modelId, fitted)
   if ('refusal' in prepared) {
     yield prepared.refusal
     return
