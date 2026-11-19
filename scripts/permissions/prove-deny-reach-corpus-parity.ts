@@ -35,6 +35,7 @@ const CONFIG = join(ROOT, 'config')
 const RUN = join(ROOT, 'outer', 'middle', 'run')
 const WIDE = 520
 const PAD = ` #${'x'.repeat(10_050)}`
+const LONG_NAME = 'n'.repeat(300)
 
 function put(path: string, text: string): void {
   mkdirSync(dirname(join(RUN, path)), { recursive: true })
@@ -136,7 +137,7 @@ const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${t
 
 const NAMED: Array<[string, string]> = ([[RUN, '<root>'], [HOME, '<home>'], [CONFIG, '<config>'], [ROOT, '<scratch>']] as Array<[string, string]>).flatMap(([path, word]) => (path.toLowerCase() === path ? [[path, word]] : [[path, word], [path.toLowerCase(), word]]))
 const named = (text: string): string => NAMED.reduce((out, [path, word]) => out.replaceAll(path, word), text)
-const filled = (command: string): string => command.replaceAll('<PAD>', PAD)
+const filled = (command: string): string => command.replaceAll('<PAD>', PAD).replaceAll('<LONG>', LONG_NAME)
 const mapsAsLists = (_key: string, value: unknown): unknown => (value instanceof Map ? { entries: [...value] } : value)
 const digest = (text: string): string => createHash('sha256').update(text).digest('hex').slice(0, 16)
 
