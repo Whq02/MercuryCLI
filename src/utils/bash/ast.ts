@@ -412,166 +412,8 @@ function writtenVariables(argv: string[]): string[] {
   return written.map(variable => variable.replace(/\[.*$/, '')).filter(variable => IDENTIFIER_RE.test(variable))
 }
 
-class Walk {
-  readonly commands: SimpleCommand[] = []
-
-  invalidateAssignments(node: Node, scope: Scope): void {
-    if (node.type === 'subshell' || node.type === 'command_substitution') return
-    if (node.type === 'variable_assignment') {
-      const name = childOfKind(node, 'variable_name')?.text
-      const value = node.children.find(child => child.type !== 'variable_name' && child.type !== '=' && child.type !== '+=')
-      const previous = scope.get(name ?? '')
-      const integer = value !== undefined && (value.type === 'arithmetic_expansion' || (value.type === 'number' && value.children.length === 0)) && (previous === undefined || integerValued(previous))
-      if (name !== undefined) scope.set(name, integer ? UNKNOWN_INTEGER : UNKNOWN_VALUE)
-    }
-    if (node.type === 'unset_command') {
-      for (const child of node.children) {
-        if (child.type === 'variable_name') scope.set(child.text, UNKNOWN_VALUE)
-        else if (child.type !== 'unset' && child.type !== 'unsetenv') for (const name of scope.keys()) scope.set(name, UNKNOWN_VALUE)
-      }
-    }
-    if (node.type === 'command' && commandMayWriteVariables(node)) {
-      const changed = new Map(scope)
-      try {
-        new Walk().command(node, changed)
-        for (const [name, value] of changed) {
-          if (value !== scope.get(name)) scope.set(name, UNKNOWN_VALUE)
-        }
-      } catch (error) {
-        if (!(error instanceof Refusal)) throw error
-        for (const name of scope.keys()) scope.set(name, UNKNOWN_VALUE)
-      }
-    }
-    for (const child of node.children) this.invalidateAssignments(child, scope)
-  }
-
-  node(node: Node, scope: Scope): void {
-    switch (node.type) {
-      case 'program':
-        this.statements(node.children, scope)
-        return
-      case 'list':
-        this.chain(node, scope)
-        return
-      case 'pipeline':
-        this.pipeline(node, scope)
-        return
-      case 'comment':
-        return
-      case 'command':
-        this.command(node, scope)
-        return
-      case 'redirected_statement':
-        this.redirected(node, scope)
-        return
-      case 'negated_command':
-        for (const child of node.children) {
-          if (child.type === '!') continue
-          this.node(child, scope)
-          return
-        }
-        return
-      case 'declaration_command':
-        this.declaration(node, scope)
-        return
-      case 'variable_assignment':
-        assign(scope, this.assignment(node, scope))
-        return
-      case 'for_statement':
-        this.loop(node, scope)
-        return
-      case 'if_statement':
-        this.conditional(node, scope)
-        return
-      case 'while_statement':
-        this.whileLoop(node, scope)
-        return
-      case 'subshell':
-        this.subshell(node, scope)
-        return
-      case 'compound_statement':
-        this.statements(node.children.filter(child => child.type !== '{' && child.type !== '}'), scope)
-        return
-      case 'test_command':
-        this.test(node, scope)
-        return
-      case 'unset_command':
-        this.unset(node, scope)
-        return
-      default:
-        refuseNode(node)
-    }
-  }
-
-  statements(children: Node[], scope: Scope): void {
-    const chain = children.some(child => child.type === '||' || child.type === '&&')
-    if (chain) {
-      this.chain({ type: 'list', text: children.map(child => child.text).join(' '), startIndex: children[0]?.startIndex ?? 0, endIndex: children.at(-1)?.endIndex ?? 0, children }, scope)
-      return
-    }
-    for (const child of children) {
-      switch (child.type) {
-        case ';':
-        case '\n':
-          break
-        case '&':
-          refuse('the background operator & starts work outside the foreground command; run it in the foreground, or approve', child.type)
-        default:
-          this.node(child, scope)
-      }
-    }
-  }
-
-  chain(node: Node, scope: Scope): void {
-    const items: Node[] = []
-    const operators: string[] = []
-    const flatten = (list: Node): void => {
-      for (const child of list.children) {
-        if (child.type === 'list') flatten(child)
-        else if (child.type === '&&' || child.type === '||') operators.push(child.type)
-        else if (child.type === '&') refuse('the background operator & starts work outside the foreground command; run it in the foreground, or approve', child.type)
-        else if (child.type !== '\n' && child.type !== ';' && child.type !== 'comment') items.push(child)
-      }
-    }
-    flatten(node)
-    if (items.length !== operators.length + 1) refuse('the shell parser cannot establish the order of this list; split it into explicit commands, or approve', node.type)
-    const after: Scope[] = []
-    for (let index = 0; index < items.length; index++) {
-      let current: Scope
-      if (index === 0) current = new Map(scope)
-      else if (index === 1 || operators[index - 2] === operators[index - 1]) current = new Map(after[index - 1] as Scope)
-      else {
-        current = new Map(after[0] as Scope)
-        for (let earlier = 1; earlier < index; earlier++) this.invalidateAssignments(items[earlier] as Node, current)
-      }
-      this.node(items[index] as Node, current)
-      after.push(current)
-    }
-    const settled = new Map(after[0] as Scope)
-    for (let index = 1; index < items.length; index++) this.invalidateAssignments(items[index] as Node, settled)
-    scope.clear()
-    for (const [name, value] of settled) scope.set(name, value)
-  }
-
-  pipeline(node: Node, scope: Scope): void {
-    let current = new Map(scope)
-    for (const child of node.children) {
-      if (child.type === '|' || child.type === '|&') {
-        current = new Map(scope)
-        continue
-      }
-      if (child.type === '\n') continue
-      this.node(child, current)
-    }
-  }
-
-  subshell(node: Node, scope: Scope): void {
-    this.statements(node.children.filter(child => child.type !== '(' && child.type !== ')'), new Map(scope))
-  }
-
-  substitution(node: Node, scope: Scope): void {
-    this.statements(substitutionStatements(node), new Map(scope))
-  }
+abstract class WordWalk {
+  abstract substitution(node: Node, scope: Scope): void
 
   heredocPrinting(node: Node): string | null {
     const inner = substitutionStatements(node)
@@ -813,6 +655,12 @@ class Walk {
     }
     return { name, value, append }
   }
+}
+
+abstract class CommandWalk extends WordWalk {
+  readonly commands: SimpleCommand[] = []
+
+  abstract node(node: Node, scope: Scope): void
 
   command(node: Node, scope: Scope): void {
     refuseWordListFault(wordListFault(node), node.type)
@@ -1020,6 +868,10 @@ class Walk {
       last.redirects.push(...redirects)
     }
   }
+}
+
+abstract class FlowWalk extends CommandWalk {
+  abstract invalidateAssignments(node: Node, scope: Scope): void
 
   loop(node: Node, scope: Scope): void {
     let variable: string | null = null
@@ -1151,6 +1003,166 @@ class Walk {
       }
     }
     this.invalidateAssignments(node, scope)
+  }
+}
+
+class Walk extends FlowWalk {
+  invalidateAssignments(node: Node, scope: Scope): void {
+    if (node.type === 'subshell' || node.type === 'command_substitution') return
+    if (node.type === 'variable_assignment') {
+      const name = childOfKind(node, 'variable_name')?.text
+      const value = node.children.find(child => child.type !== 'variable_name' && child.type !== '=' && child.type !== '+=')
+      const previous = scope.get(name ?? '')
+      const integer = value !== undefined && (value.type === 'arithmetic_expansion' || (value.type === 'number' && value.children.length === 0)) && (previous === undefined || integerValued(previous))
+      if (name !== undefined) scope.set(name, integer ? UNKNOWN_INTEGER : UNKNOWN_VALUE)
+    }
+    if (node.type === 'unset_command') {
+      for (const child of node.children) {
+        if (child.type === 'variable_name') scope.set(child.text, UNKNOWN_VALUE)
+        else if (child.type !== 'unset' && child.type !== 'unsetenv') for (const name of scope.keys()) scope.set(name, UNKNOWN_VALUE)
+      }
+    }
+    if (node.type === 'command' && commandMayWriteVariables(node)) {
+      const changed = new Map(scope)
+      try {
+        new Walk().command(node, changed)
+        for (const [name, value] of changed) {
+          if (value !== scope.get(name)) scope.set(name, UNKNOWN_VALUE)
+        }
+      } catch (error) {
+        if (!(error instanceof Refusal)) throw error
+        for (const name of scope.keys()) scope.set(name, UNKNOWN_VALUE)
+      }
+    }
+    for (const child of node.children) this.invalidateAssignments(child, scope)
+  }
+
+  node(node: Node, scope: Scope): void {
+    switch (node.type) {
+      case 'program':
+        this.statements(node.children, scope)
+        return
+      case 'list':
+        this.chain(node, scope)
+        return
+      case 'pipeline':
+        this.pipeline(node, scope)
+        return
+      case 'comment':
+        return
+      case 'command':
+        this.command(node, scope)
+        return
+      case 'redirected_statement':
+        this.redirected(node, scope)
+        return
+      case 'negated_command':
+        for (const child of node.children) {
+          if (child.type === '!') continue
+          this.node(child, scope)
+          return
+        }
+        return
+      case 'declaration_command':
+        this.declaration(node, scope)
+        return
+      case 'variable_assignment':
+        assign(scope, this.assignment(node, scope))
+        return
+      case 'for_statement':
+        this.loop(node, scope)
+        return
+      case 'if_statement':
+        this.conditional(node, scope)
+        return
+      case 'while_statement':
+        this.whileLoop(node, scope)
+        return
+      case 'subshell':
+        this.subshell(node, scope)
+        return
+      case 'compound_statement':
+        this.statements(node.children.filter(child => child.type !== '{' && child.type !== '}'), scope)
+        return
+      case 'test_command':
+        this.test(node, scope)
+        return
+      case 'unset_command':
+        this.unset(node, scope)
+        return
+      default:
+        refuseNode(node)
+    }
+  }
+
+  statements(children: Node[], scope: Scope): void {
+    const chain = children.some(child => child.type === '||' || child.type === '&&')
+    if (chain) {
+      this.chain({ type: 'list', text: children.map(child => child.text).join(' '), startIndex: children[0]?.startIndex ?? 0, endIndex: children.at(-1)?.endIndex ?? 0, children }, scope)
+      return
+    }
+    for (const child of children) {
+      switch (child.type) {
+        case ';':
+        case '\n':
+          break
+        case '&':
+          refuse('the background operator & starts work outside the foreground command; run it in the foreground, or approve', child.type)
+        default:
+          this.node(child, scope)
+      }
+    }
+  }
+
+  chain(node: Node, scope: Scope): void {
+    const items: Node[] = []
+    const operators: string[] = []
+    const flatten = (list: Node): void => {
+      for (const child of list.children) {
+        if (child.type === 'list') flatten(child)
+        else if (child.type === '&&' || child.type === '||') operators.push(child.type)
+        else if (child.type === '&') refuse('the background operator & starts work outside the foreground command; run it in the foreground, or approve', child.type)
+        else if (child.type !== '\n' && child.type !== ';' && child.type !== 'comment') items.push(child)
+      }
+    }
+    flatten(node)
+    if (items.length !== operators.length + 1) refuse('the shell parser cannot establish the order of this list; split it into explicit commands, or approve', node.type)
+    const after: Scope[] = []
+    for (let index = 0; index < items.length; index++) {
+      let current: Scope
+      if (index === 0) current = new Map(scope)
+      else if (index === 1 || operators[index - 2] === operators[index - 1]) current = new Map(after[index - 1] as Scope)
+      else {
+        current = new Map(after[0] as Scope)
+        for (let earlier = 1; earlier < index; earlier++) this.invalidateAssignments(items[earlier] as Node, current)
+      }
+      this.node(items[index] as Node, current)
+      after.push(current)
+    }
+    const settled = new Map(after[0] as Scope)
+    for (let index = 1; index < items.length; index++) this.invalidateAssignments(items[index] as Node, settled)
+    scope.clear()
+    for (const [name, value] of settled) scope.set(name, value)
+  }
+
+  pipeline(node: Node, scope: Scope): void {
+    let current = new Map(scope)
+    for (const child of node.children) {
+      if (child.type === '|' || child.type === '|&') {
+        current = new Map(scope)
+        continue
+      }
+      if (child.type === '\n') continue
+      this.node(child, current)
+    }
+  }
+
+  subshell(node: Node, scope: Scope): void {
+    this.statements(node.children.filter(child => child.type !== '(' && child.type !== ')'), new Map(scope))
+  }
+
+  substitution(node: Node, scope: Scope): void {
+    this.statements(substitutionStatements(node), new Map(scope))
   }
 }
 
