@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync, chmodSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 type Ran = { code: number; ms: number; text: string }
 type Said = { status: string; evidence: string; fix?: string }
-type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolNeverStarted: string; toolFirst: string; toolSecond: string; said: Said | null; many: Ran; readWithNoProgram: string; helper: Ran; extglobOn: Ran }
+type Helpers = Record<string, { pid: number; alive: boolean }>
+type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; helpers: Helpers; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolNeverStarted: string; toolFirst: string; toolSecond: string; said: Said | null; many: Ran; readWithNoProgram: string; helper: Ran; extglobOn: Ran }
 type Asked = { said: Said | null; ms: number; limit: number | null; snapshotFolder: boolean; tempLeft: number; waitedOnAlive: boolean | null; otherShellStarts: number }
 type First = { withoutBash: number; begunMs: number | null; startsInAll: number; described: string }
 type Listed = { drawnOnAScreen: boolean; offeredWithout: boolean; withoutBash: number; offeredWith: boolean; beforeAnyRequest: number; runsInAll: number; described: string }
@@ -23,6 +24,28 @@ function waitedOn(home: string): boolean | null {
   } catch {
     return false
   }
+}
+
+function helpers(home: string): Helpers {
+  const found: Helpers = {}
+  for (const name of readdirSync(home)) {
+    if (!name.endsWith('.helper')) continue
+    const pid = Number(readFileSync(join(home, name), 'utf8').trim())
+    let alive = true
+    try {
+      process.kill(pid, 0)
+    } catch {
+      alive = false
+    }
+    found[name.slice(0, -'.helper'.length)] = { pid, alive }
+  }
+  return found
+}
+
+async function helpersAfter(home: string, waitMs: number): Promise<Helpers> {
+  const began = Date.now()
+  while (Object.values(helpers(home)).some(helper => helper.alive) && Date.now() - began < waitMs) await new Promise(done => setTimeout(done, 25))
+  return helpers(home)
 }
 
 function otherShellStarts(home: string): number {
@@ -73,6 +96,7 @@ if (process.argv.includes('--row')) {
   const described = { ms: Date.now() - describeStarted, text: description.split('\n\n').find(part => part.startsWith('In the main conversation')) ?? '' }
   const first = await run('echo "ran: bash=${BASH_VERSION:-no} zsh=${ZSH_VERSION:-no} path-head=${PATH%%:*}"')
   const waitedOnAlive = waitedOn(home)
+  const helpersLeft = await helpersAfter(home, 1_000)
   const second = await run('echo second-ran')
   const carried = await run('alias ll 2>/dev/null; myfunc 2>/dev/null; above_guard 2>/dev/null; true')
   const options = await run(`set -o | awk '$1 == "braceexpand" || $1 == "monitor" || $1 == "noclobber" || $1 == "onecmd" { printf "%s=%s ", $1, $2 }'`)
@@ -97,6 +121,7 @@ if (process.argv.includes('--row')) {
     options,
     wiped,
     waitedOnAlive,
+    helpers: helpersLeft,
     absence: record.loginFilesNotCarried()?.why ?? null,
     snapshots: existsSync(snapshots) ? readdirSync(snapshots).length : 0,
     otherShellStarts: otherShellStarts(home),
@@ -292,6 +317,7 @@ if (process.argv.includes('--ends-early')) {
   const began = Date.now()
   while (!existsSync(join(home, 'waited-on.pid')) && Date.now() - began < 8_000) await pause(25)
   console.log(`EARLY ${JSON.stringify({ started: existsSync(join(home, 'waited-on.pid')) })}`)
+  if (process.argv.includes('--stays')) await pause(20_000)
   process.exit(0)
 }
 
@@ -342,7 +368,25 @@ const HANDS_OVER = {
 const WAITS = { '.bash_profile': 'sh -c \'echo $$ > "$HOME/waited-on.pid"; exec sleep 600\'\n' }
 const DEFINES = { '.bash_profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\nset -o noclobber\n' }
 
-const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
+const AGENT = join(scratch, 'agent-stand-in.mjs')
+writeFileSync(AGENT, "import { spawn } from 'node:child_process'\nconst agent = spawn('/bin/sleep', [process.argv[2]], { detached: true, stdio: 'ignore' })\nagent.unref()\nconsole.log(`SSH_AGENT_PID=${agent.pid}; export SSH_AGENT_PID;`)\n")
+const STARTS_HELPERS = {
+  '.bash_profile': [
+    'sleep 47101 &',
+    'echo $! > "$HOME/plain-job.helper"',
+    'nohup sleep 47102 >/dev/null 2>&1 &',
+    'echo $! > "$HOME/nohup-job.helper"',
+    `eval "$('${process.execPath}' '${AGENT}' 47103)"`,
+    'echo "$SSH_AGENT_PID" > "$HOME/agent.helper"',
+    'myfunc() { echo fn-from-the-login-file; }',
+    '',
+  ].join('\n'),
+}
+const agentFromBefore = Number(/SSH_AGENT_PID=(\d+);/.exec(spawnSync(process.execPath, [AGENT, '47104'], { encoding: 'utf8' }).stdout)?.[1])
+const EXPORTS_THE_AGENT_FROM_BEFORE = { '.bash_profile': `export SSH_AGENT_PID=${agentFromBefore}\necho "$SSH_AGENT_PID" > "$HOME/agent.helper"\nmyfunc() { echo fn-from-the-login-file; }\n` }
+const A_SECOND_AND_MORE = 1_100
+
+const HOMES: Record<string, { dir: string; env?: Record<string, string>; after?: number }> = {
   'hands-over': { dir: home('hands-over', HANDS_OVER) },
   exits: { dir: home('exits', { '.bash_profile': 'exit 0\n' }) },
   'reads-stdin': { dir: home('reads-stdin', { '.bash_profile': 'read -r answer\necho "got:$answer"\n' }) },
@@ -354,6 +398,8 @@ const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
     dir: home('ends-unread', { '.bashenv': 'case "$BASH_EXECUTION_STRING" in *mercury-cwd-*) exit 0 ;; esac\n' }),
   },
   'login-file-only': { dir: home('login-file-only', DEFINES) },
+  'starts-helpers': { dir: home('starts-helpers', STARTS_HELPERS) },
+  'agent-from-before': { dir: home('agent-from-before', EXPORTS_THE_AGENT_FROM_BEFORE), after: A_SECOND_AND_MORE },
   'what-is-carried': {
     dir: home('what-is-carried', {
       '.bash_profile': 'shopt -s extglob\n_helper() { echo helper-ran; }\ncalls_helper() { _helper; }\nuses_extglob() { case "$1" in +(a|b)) echo extglob-fn-matched;; *) echo extglob-fn-no-match;; esac; }\nalias ll="ls -la"\n',
@@ -391,13 +437,14 @@ const FIRST_LINES: Record<string, string> = Object.fromEntries(
   FIRST_LINES_KINDS.map(kind => [kind, home(`first-lines-${kind}`, { '.bash_profile': 'echo "run:${ANTHROPIC_BASE_URL:-unset}" >> "$HOME/login-runs"\nmyfunc() { echo fn-from-the-login-file; }\n' })]),
 )
 const ENDS_EARLY_FIRST = home('ends-early-by-the-first-lines', WAITS)
+const QUITS = home('quits-in-flight', { '.bash_profile': 'echo $$ > "$HOME/login-shell.helper"\nsh -c \'echo $$ > "$HOME/waited-on.helper"; echo $$ > "$HOME/waited-on.pid"; exec sleep 47105\'\n' })
 const projectOf = (dir: string): string => join(dir, 'project')
 for (const dir of [...Object.values(FIRST_LINES), ENDS_EARLY_FIRST]) mkdirSync(projectOf(dir))
 const HOST_MANAGED_VALUE = 'http://127.0.0.1:9/named-by-the-settings'
 mkdirSync(join(FIRST_LINES.pending!, 'config-home'))
 writeFileSync(join(FIRST_LINES.pending!, 'config-home', 'settings.json'), JSON.stringify({ environment: { values: { ANTHROPIC_BASE_URL: HOST_MANAGED_VALUE } } }))
 
-function drive<T>(dir: string, mode: string, mark: string, env: Record<string, string> = {}, cwd?: string): Promise<{ row: T | null; said: string }> {
+function drive<T>(dir: string, mode: string, mark: string, env: Record<string, string> = {}, cwd?: string, heard?: (child: ChildProcess, said: string) => void): Promise<{ row: T | null; said: string }> {
   const childEnv: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined || /^(?:BASH_ENV|ENV|MERCURY_SHELL_PREFIX|MERCURY_SHELL_ENGINE|MERCURY_WINDOWS_SHELL_ROAD)$/.test(key)) continue
@@ -408,7 +455,10 @@ function drive<T>(dir: string, mode: string, mark: string, env: Record<string, s
   return new Promise(done => {
     const child = spawn(process.execPath, [import.meta.path, ...mode.split(' ')], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'], ...(cwd === undefined ? {} : { cwd }) })
     let said = ''
-    child.stdout.on('data', chunk => { said += String(chunk) })
+    child.stdout.on('data', chunk => {
+      said += String(chunk)
+      heard?.(child, said)
+    })
     child.stderr.on('data', chunk => { said += String(chunk) })
     child.once('close', () => {
       const line = said.split('\n').find(text => text.startsWith(mark))
@@ -417,14 +467,24 @@ function drive<T>(dir: string, mode: string, mark: string, env: Record<string, s
   })
 }
 
+async function quitInFlight(dir: string): Promise<{ started: boolean; said: string; left: Helpers }> {
+  let quitAt = 0
+  const ended = await drive<{ started: boolean }>(dir, '--ends-early --stays', 'EARLY ', {}, undefined, (child, said) => {
+    if (quitAt !== 0 || !said.includes('EARLY ')) return
+    quitAt = Date.now()
+    child.kill('SIGQUIT')
+  })
+  return { started: ended.row?.started === true && quitAt !== 0, said: ended.said, left: await helpersAfter(dir, Math.max(0, 1_000 - (Date.now() - quitAt))) }
+}
+
 const FAST_MS = 8_000
 const BOUND_MS = 10_000
 
 try {
   const names = Object.keys(HOMES)
   const aloneNames = Object.keys(ALONE)
-  const [answers, alone, anotherRow, firstPrompt, endsEarly, endsEarlyListed, toolList, firstLines, endsEarlyFirst] = await Promise.all([
-    Promise.all(names.map(name => drive<Row>(HOMES[name]!.dir, '--row', 'ROW ', HOMES[name]!.env))),
+  const [answers, alone, anotherRow, firstPrompt, endsEarly, endsEarlyListed, toolList, firstLines, endsEarlyFirst, quit] = await Promise.all([
+    Promise.all(names.map(name => pause(HOMES[name]!.after ?? 0).then(() => drive<Row>(HOMES[name]!.dir, '--row', 'ROW ', HOMES[name]!.env)))),
     Promise.all(aloneNames.map(name => drive<Asked>(ALONE[name]!, '--asked-alone', 'ASKED '))),
     drive<Asked>(ANOTHER_ROW, '--asked-alone --another-row-asked', 'ASKED '),
     drive<First>(FIRST_PROMPT, '--first-prompt', 'FIRST '),
@@ -433,6 +493,7 @@ try {
     drive<Listed>(TOOL_LIST, '--tool-list', 'LIST '),
     Promise.all(FIRST_LINES_KINDS.map(kind => drive<Lines>(FIRST_LINES[kind]!, `--first-lines ${kind}`, 'LINES ', kind === 'pending' ? { MERCURY_PROVIDER_MANAGED_BY_HOST: '1' } : {}, projectOf(FIRST_LINES[kind]!)))),
     drive<{ started: boolean }>(ENDS_EARLY_FIRST, '--first-lines ends-early', 'EARLY ', {}, projectOf(ENDS_EARLY_FIRST)),
+    quitInFlight(QUITS),
   ])
   const leftByTheEarlyEnd = waitedOn(ENDS_EARLY)
   const leftByTheEarlyEndListed = waitedOn(ENDS_EARLY_LISTED)
@@ -498,6 +559,18 @@ try {
     'login-file-only: what ~/.bash_profile defines is carried to a command though no ~/.bashrc exists — its alias and its function',
     loginOnly !== null && loginOnly.carried.text.includes("alias ll='ls -la'") && loginOnly.carried.text.includes('fn-from-the-login-file') && loginOnly.snapshots === 1,
     told('login-file-only'),
+  )
+  const startsHelpers = of('starts-helpers').row
+  check(
+    'starts-helpers: what the login file started is ended with the login run — its background job, its nohup job and the agent it started and exports in SSH_AGENT_PID are gone when the first command has returned, and what the file defines is carried',
+    startsHelpers !== null && ['plain-job', 'nohup-job', 'agent'].every(name => (startsHelpers.helpers[name]?.pid ?? 0) > 1 && startsHelpers.helpers[name]?.alive === false) && startsHelpers.carried.text.includes('fn-from-the-login-file'),
+    JSON.stringify(startsHelpers === null ? of('starts-helpers').said : { helpers: startsHelpers.helpers, carried: startsHelpers.carried }).slice(0, 700),
+  )
+  const agentBefore = of('agent-from-before').row
+  check(
+    'agent-from-before: an agent that was alive before the login run, whose pid the login file exports in SSH_AGENT_PID, is alive after it, and what the file defines is carried',
+    agentBefore !== null && agentFromBefore > 1 && agentBefore.helpers.agent?.pid === agentFromBefore && agentBefore.helpers.agent.alive === true && agentBefore.carried.text.includes('fn-from-the-login-file'),
+    JSON.stringify(agentBefore === null ? of('agent-from-before').said : { started: agentFromBefore, helpers: agentBefore.helpers, carried: agentBefore.carried }).slice(0, 700),
   )
   const manyFunctions = of('many-functions').row
   check(
@@ -739,7 +812,19 @@ try {
     endsEarlyFirst.row !== null && endsEarlyFirst.row.started && leftByTheEarlyEndFirst === false,
     `${JSON.stringify(endsEarlyFirst.row ?? endsEarlyFirst.said).slice(0, 600)} · alive after the process ended: ${String(leftByTheEarlyEndFirst)}`,
   )
+  check(
+    'a process that is sent SIGQUIT while its login run is still going leaves no login shell: the shell and what the login file waited on are gone within a second',
+    quit.started && ['login-shell', 'waited-on'].every(name => (quit.left[name]?.pid ?? 0) > 1 && quit.left[name]?.alive === false),
+    JSON.stringify(quit).slice(0, 700),
+  )
 } finally {
+  const left = [HOMES['starts-helpers']!.dir, HOMES['agent-from-before']!.dir, QUITS].flatMap(dir => Object.values(helpers(dir)).map(helper => helper.pid))
+  for (const pid of [...left, agentFromBefore]) {
+    try {
+      if (pid > 1) process.kill(pid, 'SIGKILL')
+    } catch {
+    }
+  }
   rmSync(scratch, { recursive: true, force: true })
 }
 

@@ -11,7 +11,7 @@ import { pathExists } from '../file.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
 import { getPlatform } from '../platform.js'
-import { strikeProcessGroupNow } from '../processGroup.js'
+import { birthMark, endProcessBornAfter, strikeProcessGroupNow, type BirthMark } from '../processGroup.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginFiles, snapshotProfileOf, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
@@ -57,6 +57,19 @@ const SNAPSHOT_OUTPUT_LIMIT = 1024 * 1024
 
 type BoundedRun = { exitCode?: number; signal?: string; stdout: string; stderr: string; killed: boolean; overflowed: boolean; unstarted?: string }
 
+const LOGIN_AGENT_MARK = '__MERCURY_LOGIN_AGENT__'
+const LOGIN_AGENT_LINE = new RegExp(`${LOGIN_AGENT_MARK}=(\\d+)\\n`)
+
+async function endAgentOfTheLoginFiles(said: string, inherited: string | undefined, began: BirthMark | null): Promise<void> {
+  const exported = LOGIN_AGENT_LINE.exec(said)?.[1]
+  if (exported === undefined || exported === inherited) return
+  try {
+    if (await endProcessBornAfter(Number(exported), began)) logForDebugging(`the login run ended the ssh-agent its files started (pid ${exported})`)
+  } catch (error) {
+    logForDebugging(`the ssh-agent the login files started was not ended: ${errorMessage(error)}`)
+  }
+}
+
 function runBounded(
   file: string,
   args: string[],
@@ -69,7 +82,9 @@ function runBounded(
     let stdout = ''
     let stderr = ''
     const ownGroup = login && getPlatform() !== 'windows'
+    const askedAt = Date.now()
     const child = spawn(file, args, { windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'], detached: ownGroup })
+    const began = ownGroup ? birthMark(child.pid, askedAt) : null
     const end = (): void => {
       if (ownGroup) {
         strikeProcessGroupNow(child)
@@ -80,7 +95,14 @@ function runBounded(
       } catch {
       }
     }
-    if (ownGroup) process.once('exit', end)
+    const quit = (): void => {
+      end()
+      if (process.listenerCount('SIGQUIT') === 0) process.kill(process.pid, 'SIGQUIT')
+    }
+    if (ownGroup) {
+      process.once('exit', end)
+      process.once('SIGQUIT', quit)
+    }
     const guard = setTimeout(() => {
       end()
       settle({ stdout: '', stderr: '', killed: true, overflowed: false })
@@ -90,7 +112,13 @@ function runBounded(
       settled = true
       clearTimeout(guard)
       process.removeListener('exit', end)
-      resolve(result)
+      process.removeListener('SIGQUIT', quit)
+      if (!ownGroup) {
+        resolve(result)
+        return
+      }
+      end()
+      void endAgentOfTheLoginFiles(stdout, env.SSH_AGENT_PID, began).then(() => resolve(result))
     }
     const read = (stream: NodeJS.ReadableStream, keep: (chunk: string) => void): void => {
       stream.setEncoding('utf8')
@@ -256,6 +284,8 @@ function buildCaptureScript(args: {
   } else {
     lines.push('# no user config file to source')
   }
+
+  if (getPlatform() !== 'windows') lines.push(`[ -z "\${SSH_AGENT_PID:-}" ] || echo "${LOGIN_AGENT_MARK}=$SSH_AGENT_PID"`)
 
   if (programsNeeded) lines.push(`for __mercury_program in awk sed head cat; do command -v "$__mercury_program" >/dev/null 2>&1 || exit ${PATH_LEFT_WITHOUT_PROGRAMS}; done`)
   lines.push('echo "# Mercury shell environment snapshot" >| "$SNAPSHOT_FILE"')

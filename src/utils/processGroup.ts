@@ -1,6 +1,6 @@
 import { execFile } from 'child_process'
 import type { ChildProcess } from 'child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { win32 as pathWin32 } from 'node:path'
 import { sleep } from './sleep.js'
 
@@ -400,4 +400,48 @@ export function strikeProcessGroupNow(childProcess: Pick<ChildProcess, 'pid'>, s
   } catch {
     signalPid(pid, signal)
   }
+}
+
+export type BirthMark = { pid: number; at: number }
+
+const BIRTH_READ_BOUND_MS = 800
+const LINUX_STAT_START_TIME = 19
+
+function linuxBirth(pid: number): number | null {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8')
+    const ticks = Number(stat.slice(stat.lastIndexOf(')') + 1).trim().split(/\s+/)[LINUX_STAT_START_TIME])
+    return Number.isSafeInteger(ticks) ? ticks : null
+  } catch {
+    return null
+  }
+}
+
+function readBirth(pid: number): Promise<number | null> {
+  if (process.platform === 'linux') return Promise.resolve(linuxBirth(pid))
+  return new Promise(resolve => {
+    execFile(
+      'ps',
+      ['-o', 'lstart=', '-p', String(pid)],
+      { windowsHide: true, timeout: BIRTH_READ_BOUND_MS, env: { ...process.env, LC_ALL: 'C', TZ: 'UTC' } },
+      (error, stdout) => {
+        const at = error || typeof stdout !== 'string' ? Number.NaN : Date.parse(`${stdout.trim()} UTC`)
+        resolve(Number.isFinite(at) ? Math.floor(at / 1000) : null)
+      },
+    )
+  })
+}
+
+export function birthMark(pid: number | undefined, askedAtMs: number): BirthMark | null {
+  if (pid === undefined) return null
+  const at = process.platform === 'linux' ? linuxBirth(pid) : Math.floor(askedAtMs / 1000)
+  return at === null ? null : { pid, at }
+}
+
+export async function endProcessBornAfter(pid: number, mark: BirthMark | null, signal: NodeJS.Signals = 'SIGTERM'): Promise<boolean> {
+  if (mark === null || !Number.isSafeInteger(pid) || pid <= 1 || pid === process.pid) return false
+  const born = await readBirth(pid)
+  if (born === null || born < mark.at || (born === mark.at && pid <= mark.pid)) return false
+  signalPid(pid, signal)
+  return true
 }
