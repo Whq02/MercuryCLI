@@ -31,7 +31,7 @@ import {
 
 type TeeName = (typeof TEE_NAMES)[number]
 
-export type Scene = {
+type Scene = {
   name: string
   world: WorldName
   env?: (folder: string) => Record<string, string>
@@ -94,7 +94,7 @@ function selectionWords(ink: InkClass): string {
 
 const sgr = (button: number, col: number, row: number, up = false): string => `\u001b[<${button};${col + 1};${row + 1}${up ? 'm' : 'M'}`
 
-export class Play {
+class Play {
   ink!: InkClass
   out!: StageScreen
   err!: StageScreen
