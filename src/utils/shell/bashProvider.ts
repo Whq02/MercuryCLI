@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, posix as posixPath } from 'node:path'
-import { createAndSaveSnapshot } from '../bash/ShellSnapshot.js'
+import { createAndSaveSnapshot, loginRunFailed } from '../bash/ShellSnapshot.js'
 import { quote } from '../bash/shellQuote.js'
 import { rearrangePipeCommand } from '../bash/bashPipeCommand.js'
 import {
@@ -15,9 +15,10 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getSessionEnvironmentScript } from '../sessionEnvironment.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPlatform } from '../platform.js'
-import { windowsPathToPosixPath } from '../windowsPaths.js'
+import { WINDOWS_STARTS_A_PROGRAM_IN, folderWindowsStartsIn, windowsPathToPosixPath } from '../windowsPaths.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
-import type { BuildExecCommandOptions, ShellProvider } from './shellProvider.js'
+import { msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } from './msysArgv.js'
+import type { BuildExecCommandOptions, FrameHandOver, ShellProvider } from './shellProvider.js'
 import { PIPELINE_STATUS_ARRAY, loginFilesNotCarried, type ShellRecord } from './shellRecord.js'
 
 function cwdFileName(id: number | string): string {
@@ -28,12 +29,18 @@ function shellPrefix(): string {
   return flagEnv('MERCURY_SHELL_PREFIX') ?? ''
 }
 
-const MSYS_ARGV_HALVED_BACKSLASH_RUN_RE = /\\{2,}(?=[^\\"])/g
+let frameFiles = 0
 
-const MSYS_ARGUMENT_KEEPS = 8186
+const UTF8_CONSOLE = '{ chcp.com 65001 >/dev/null 2>&1 || true; }'
 
-function protectBackslashRunsFromMsysArgv(script: string): string {
-  return script.replace(MSYS_ARGV_HALVED_BACKSLASH_RUN_RE, run => run + run)
+const STARTS_A_JOB = /(?:^|[^&>|<\\])&(?![&>])/
+
+const CMD_SWITCHES_AS_WRITTEN =
+  '{ cmd() { local a w=(); case "${1-}" in /[a-zA-Z]|/[a-zA-Z]:*) for a in "$@"; do case "$a" in /*/*) ;; /[a-zA-Z]*) a="/$a";; esac; w+=("$a"); done; set -- "${w[@]}";; esac; command cmd "$@"; }; alias cmd.exe=cmd 2>/dev/null || true; }'
+
+function msysSpawnArgs(commandString: string, noLoginFiles: boolean): string[] {
+  const script = protectBackslashRunsFromMsysArgv(commandString)
+  return noLoginFiles ? ['-c', script] : ['-c', '-l', script]
 }
 
 function markFrameRead(cwdFileInShell: string): string {
@@ -89,10 +96,14 @@ export async function createBashShellProvider(
       if (snapshot) {
         parts.push(`source ${quote([snapshot])} 2>/dev/null || true`)
       }
-      const sessionScript = await getSessionEnvironmentScript()
+      const sessionScript = await getSessionEnvironmentScript(record.origin !== 'engine')
       if (sessionScript) parts.push(sessionScript)
       const preamble = getGlobPreambleCommand(record.origin)
       if (preamble) parts.push(preamble)
+      if (isWindows) parts.push(CMD_SWITCHES_AS_WRITTEN)
+      if (isWindows) parts.push(UTF8_CONSOLE)
+      const jobsPath = isWindows && STARTS_A_JOB.test(raw) ? `${cwdFileForEngine}-jobs` : undefined
+      if (jobsPath !== undefined) parts.push(`{ { echo $$ >| ${quote([`${cwdFileInShell}-jobs`])}; } 2>/dev/null || true; }`)
       parts.push(`eval ${quotedCommand}`)
       parts.push(`{ { pwd -P >| ${quote([cwdFileInShell])}; } 2>/dev/null || true; }`)
       if (isWindows) {
@@ -104,17 +115,27 @@ export async function createBashShellProvider(
       if (prefix) commandString = formatShellPrefixCommand(prefix, isWindows ? commandString : shellStartLine(shellPath, commandString))
       if (!isWindows) commandString = `${markFrameRead(cwdFileInShell)}; ${commandString}`
 
-      if (isWindows && Buffer.byteLength(protectBackslashRunsFromMsysArgv(commandString)) > MSYS_ARGUMENT_KEEPS) {
-        const frame = { path: join(nativeTmp, `${name}-frame`), text: commandString }
-        return { commandString: `source ${quote([`${cwdFileInShell}-frame`])}`, cwdFilePath: cwdFileForEngine, frame, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
+      if (isWindows) {
+        const noLoginFiles = snapshot !== undefined || loginRunFailed(shellPath)
+        const handOver = (env: NodeJS.ProcessEnv, cwd?: string): FrameHandOver => {
+          const { frame, ...where } =
+            cwd !== undefined && cwd.length > WINDOWS_STARTS_A_PROGRAM_IN
+              ? { frame: `cd -- ${quote([windowsPathToPosixPath(cwd)])} || exit; ${commandString}`, startIn: folderWindowsStartsIn(cwd) }
+              : { frame: commandString }
+          if (msysArgvCarries(frame, env)) return { args: msysSpawnArgs(frame, noLoginFiles), ...where }
+          const own = `-${process.pid}-${frameFiles++}-frame`
+          const file = join(nativeTmp, `${name}${own}`)
+          const gone = { words: `Mercury: the file that carries this command to bash is gone (${file}), so nothing ran.`, exit: 126 }
+          return { args: msysSpawnArgs(msysSourceLine(`${cwdFileInShell}${own}`, gone), noLoginFiles), file: { path: file, text: frame }, ...where }
+        }
+        return { commandString, cwdFilePath: cwdFileForEngine, handOver, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }), ...(jobsPath === undefined ? {} : { jobsPath }) }
       }
       return { commandString, cwdFilePath: cwdFileForEngine, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
     },
 
     getSpawnArgs(commandString: string): string[] {
       if (getPlatform() !== 'windows') return ['-c', commandString]
-      const script = protectBackslashRunsFromMsysArgv(commandString)
-      return usedSnapshotThisExecution ? ['-c', script] : ['-c', '-l', script]
+      return msysSpawnArgs(commandString, usedSnapshotThisExecution || loginRunFailed(shellPath))
     },
 
     async getEnvironmentOverrides(_command: string): Promise<Record<string, string>> {

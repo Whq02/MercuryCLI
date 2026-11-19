@@ -60,10 +60,18 @@ export type ShellEngineResolution =
   | { engine: 'brush'; binaryPath: string; version: string; platform: string; source: 'vendored' | 'workspace'; arm: ShellEngineArm }
   | { engine: 'system'; requested: 'system' | 'brush'; arm: ShellEngineArm | 'default'; reason: string }
 
+function servingShellWords(): string {
+  const record = (require('./shellRecord.js') as typeof import('./shellRecord.js')).settledSystemShell()
+  if (record === null) return 'a bash'
+  if (record.origin === 'shipped') return 'the shipped bash'
+  if (record.origin === 'engine') return 'the bundled engine'
+  return process.platform === 'win32' ? 'an installed bash' : "the system's bash"
+}
+
 export function resolveShellEngine(setting?: 'system' | 'brush'): ShellEngineResolution {
   const request = shellEngineRequest(flagEnv('MERCURY_SHELL_ENGINE'), setting, windowsBashAbsent())
   if (request.requested !== 'brush') {
-    return { engine: 'system', requested: 'system', arm: request.arm, reason: `the system shell is selected (${shellEngineArmWords(request.arm)})` }
+    return { engine: 'system', requested: 'system', arm: request.arm, reason: `${servingShellWords()} is selected (${shellEngineArmWords(request.arm)})` }
   }
   const pack = resolvedPack()
   if (pack.state !== 'ok') {
@@ -74,7 +82,7 @@ export function resolveShellEngine(setting?: 'system' | 'brush'): ShellEngineRes
       reason:
         request.arm === 'no-bash'
           ? `the bundled shell engine is unavailable — ${pack.note}`
-          : `the shell engine is unavailable, so the system shell serves instead — ${pack.note}`,
+          : `the shell engine is unavailable, so ${servingShellWords()} serves instead — ${pack.note}`,
     }
   }
   return {

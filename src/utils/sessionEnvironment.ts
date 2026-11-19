@@ -73,7 +73,7 @@ async function readFragments(): Promise<string[]> {
   const fragments: string[] = []
   for (const entry of matched) {
     try {
-      const content = (await readFile(join(dir, entry.name), 'utf8')).trim()
+      const content = await readScript(join(dir, entry.name))
       if (content !== '') fragments.push(content)
     } catch (err) {
       if (!isENOENT(err)) logForDebugging(`sessionEnvironment: failed to read ${entry.name}: ${String(err)}`)
@@ -82,9 +82,16 @@ async function readFragments(): Promise<string[]> {
   return fragments
 }
 
-export async function getSessionEnvironmentScript(): Promise<string | null> {
-  if (process.platform === 'win32') {
-    logForDebugging('sessionEnvironment: not supported on Windows')
+async function readScript(path: string): Promise<string> {
+  if (process.platform !== 'win32') return (await readFile(path, 'utf8')).trim()
+  const bytes = await readFile(path)
+  const text = bytes[0] === 0xff && bytes[1] === 0xfe ? bytes.subarray(2).toString('utf16le') : bytes.toString('utf8').replace(/^\uFEFF/, '')
+  return text.replace(/\r\n?/g, '\n').trim()
+}
+
+export async function getSessionEnvironmentScript(windowsBash = false): Promise<string | null> {
+  if (process.platform === 'win32' && !windowsBash) {
+    logForDebugging('sessionEnvironment: read on Windows by the bash roads alone')
     return null
   }
   if (cache.state === 'absent') return null
@@ -93,7 +100,7 @@ export async function getSessionEnvironmentScript(): Promise<string | null> {
   const envFile = flagEnv('MERCURY_ENV_FILE')
   if (envFile) {
     try {
-      const content = (await readFile(envFile, 'utf8')).trim()
+      const content = await readScript(envFile)
       if (content !== '') parts.push(content)
     } catch (err) {
       if (!isENOENT(err)) logForDebugging(`sessionEnvironment: failed to read the env file: ${String(err)}`)

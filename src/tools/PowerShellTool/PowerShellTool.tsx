@@ -63,6 +63,7 @@ import { controlCharacterPathRefusal } from '../../utils/path.js'
 import { join } from 'node:path'
 import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
+import { pinnedGitBash } from '../../utils/windowsPaths.js'
 
 
 const SLEEP_THRESHOLD_SECONDS = 2
@@ -528,8 +529,7 @@ function isGitBashAvailable(): boolean {
 }
 
 function scanForGitBash(): boolean {
-  const override = flagEnv('MERCURY_GIT_BASH_PATH')
-  if (override && existsSync(override)) return true
+  if (pinnedGitBash() !== null) return true
   const dirs = (process.env.PATH ?? '').split(';').filter(Boolean)
   const candidates = [
     ...dirs.map(d => join(d, 'git.exe')),

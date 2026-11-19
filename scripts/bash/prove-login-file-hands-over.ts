@@ -830,5 +830,19 @@ try {
   rmSync(scratch, { recursive: true, force: true })
 }
 
+{
+  console.log('\nthe PATH a command gets from the launch PATH and the login shell\'s')
+  const { pathWithLoginEntries } = await import('../../src/utils/subprocessEnv.ts')
+  const terminal = '/Users/u/.local/bin:/Users/u/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin'
+  const merged = (launch: string, login: string, platform = 'darwin'): string => pathWithLoginEntries(launch, { PATH: login }, platform)
+  check('started bare (/usr/bin:/bin), a command gets the terminal\'s PATH in the terminal\'s order', merged('/usr/bin:/bin', terminal) === terminal, merged('/usr/bin:/bin', terminal))
+  const withVenv = `/w/venv/bin:${terminal}`
+  check('started from a terminal with a venv in front, PATH is untouched, whatever order the login shell gives it', merged(withVenv, `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/w/venv/bin:/Users/u/.local/bin:/Users/u/bin:/opt/homebrew/bin`) === withVenv && merged(withVenv, `/Users/u/.local/bin:/Users/u/bin:/opt/homebrew/bin:${withVenv}`) === withVenv)
+  check('started with the terminal\'s own PATH, nothing changes', merged(terminal, `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/u/.local/bin:/Users/u/bin:/opt/homebrew/bin`) === terminal)
+  check('a folder the launcher put in front stays in front of what the login files add, and the system\'s folders take the login shell\'s place', merged('/w/venv/bin:/usr/bin:/bin', '/Users/u/.local/bin:/opt/homebrew/bin:/w/venv/bin:/usr/bin:/bin') === '/w/venv/bin:/Users/u/.local/bin:/opt/homebrew/bin:/usr/bin:/bin', merged('/w/venv/bin:/usr/bin:/bin', '/Users/u/.local/bin:/opt/homebrew/bin:/w/venv/bin:/usr/bin:/bin'))
+  check('a launch folder the login shell drops is kept, in front', merged('/w/venv/bin:/usr/bin:/bin', '/usr/local/bin:/usr/bin:/bin') === '/w/venv/bin:/usr/local/bin:/usr/bin:/bin', merged('/w/venv/bin:/usr/bin:/bin', '/usr/local/bin:/usr/bin:/bin'))
+  check('on Windows the folders the login files add still follow the bash\'s own', merged('/usr/bin:/c/Windows', '/c/probe:/usr/bin:/c/Windows:/usr/local/bin', 'win32') === '/usr/bin:/c/Windows:/c/probe:/usr/local/bin', merged('/usr/bin:/c/Windows', '/c/probe:/usr/bin:/c/Windows:/usr/local/bin', 'win32'))
+}
+
 console.log(failures === 0 ? '\nprove-login-file-hands-over: ALL LAWS HOLD' : `\nprove-login-file-hands-over: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

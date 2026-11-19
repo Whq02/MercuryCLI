@@ -88,8 +88,13 @@ export const GIT_BASH_REMEDY =
   'set MERCURY_GIT_BASH_PATH=<path to bash.exe> ' +
   '(for example C:\\Program Files\\Git\\bin\\bash.exe) if one is already installed, or turn the shell engine on.'
 
+function namedGitBash(): string | undefined {
+  const named = flagEnv('MERCURY_GIT_BASH_PATH')?.trim().replace(/^"(.*)"$/, '$1').trim()
+  return named !== undefined && named !== '' && !pathExists(named) && pathExists(`${named}.exe`) ? `${named}.exe` : named
+}
+
 export const locateGitBash = memoize((): GitBashLocation => {
-  const override = flagEnv('MERCURY_GIT_BASH_PATH')
+  const override = namedGitBash()
   if (override !== undefined && override !== '') {
     if (pathExists(override)) return { path: override }
     releaseLauncherAltHoldNow()
@@ -106,7 +111,7 @@ export const locateGitBash = memoize((): GitBashLocation => {
 })
 
 export function pinnedGitBash(): string | null {
-  const override = flagEnv('MERCURY_GIT_BASH_PATH')
+  const override = namedGitBash()
   return override !== undefined && override !== '' && pathExists(override) ? override : null
 }
 
@@ -143,7 +148,7 @@ export function nativeCwdFromShellRecord(record: string): { path: string } | { r
   const posix = lines[0]
   if (posix === undefined) return { refused: 'the shell recorded no directory (the command may have died before writing it)' }
   const native = lines[1]
-  if (native !== undefined) return { path: stripExtendedLengthPrefix(posixPathToWindowsPath(native)) }
+  if (native !== undefined) return { path: asStoredOnDisk(stripExtendedLengthPrefix(posixPathToWindowsPath(native))) }
   const converted = stripExtendedLengthPrefix(posixPathToWindowsPath(posix))
   if (/^\\(?!\\)/.test(converted)) {
     return {
@@ -151,6 +156,25 @@ export function nativeCwdFromShellRecord(record: string): { path: string } | { r
     }
   }
   return { path: converted }
+}
+
+function msysStoredSpelling(path: string): string {
+  const from = /^[A-Za-z]:/.test(path) ? 2 : 0
+  return path.slice(0, from) + path.slice(from).replace(/["*:<>?|]/g, forbidden => String.fromCharCode(0xf000 | forbidden.charCodeAt(0)))
+}
+
+function asStoredOnDisk(path: string): string {
+  if (pathExists(path)) return path
+  const stored = msysStoredSpelling(path)
+  return stored !== path && pathExists(stored) ? stored : path
+}
+
+export const WINDOWS_STARTS_A_PROGRAM_IN = 258
+
+export function folderWindowsStartsIn(folder: string): string {
+  let above = folder
+  while (above.length > WINDOWS_STARTS_A_PROGRAM_IN && pathWin32.dirname(above) !== above) above = pathWin32.dirname(above)
+  return above
 }
 
 export function stripExtendedLengthPrefix(path: string): string {

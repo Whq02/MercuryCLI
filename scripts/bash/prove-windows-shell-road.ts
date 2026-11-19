@@ -41,7 +41,7 @@ function roadSubprocess(body: string, env: Record<string, string | undefined>): 
 const road = await import('../../src/utils/shell/windowsShellRoad.ts')
 const { composeWindowsBashRoad, WINDOWS_BASH_NOTICE, WINDOWS_BASH_NOTICE_NO_PACK } = road
 const { shellEngineArmWords, shellEngineRequest } = await import('../../src/utils/shell/shellEngineArm.ts')
-const { GIT_BASH_REMEDY, findGitBashPath, locateGitBash } = await import('../../src/utils/windowsPaths.ts')
+const { GIT_BASH_REMEDY, findGitBashPath, installedGitBashes, locateGitBash } = await import('../../src/utils/windowsPaths.ts')
 const { resolveBrushPackDir } = await import('../../src/utils/shell/brushPack.ts')
 const { resolveBashPackDir } = await import('../../src/utils/shell/bashPack.ts')
 const PACK_PRESENT = resolveBrushPackDir().state === 'ok'
@@ -223,7 +223,9 @@ console.log('── §4 a bash-lane hook follows the road ──')
     const hookOnPack = roadSubprocess(probeHook, { [SEAM]: 'pack' })
     check('with no bash installed the hook spawns under the bash Mercury ships', hookOnPack.status === 0 && hookOnPack.stdout === `RETURNED ${SHIPPED_BASH}`, hookOnPack.stdout.slice(0, 160) || hookOnPack.stderr.slice(0, 200))
     const hookNotBash = roadSubprocess(probeHook, { [SEAM]: 'locate', [PIN]: import.meta.path })
-    check('a pinned program that does not answer as a bash is not what a hook spawns under: the shipped bash is', hookNotBash.status === 0 && hookNotBash.stdout === `RETURNED ${SHIPPED_BASH}`, hookNotBash.stdout.slice(0, 160) || hookNotBash.stderr.slice(0, 200))
+    const served = hookNotBash.stdout.replace(/^RETURNED /, '')
+    const next = process.platform === 'win32' ? [...installedGitBashes(), SHIPPED_BASH] : [SHIPPED_BASH]
+    check('a pinned program that does not answer as a bash is not what a hook spawns under: an installed bash is where one stands, else the shipped bash', hookNotBash.status === 0 && hookNotBash.stdout.startsWith('RETURNED ') && next.includes(served), hookNotBash.stdout.slice(0, 160) || hookNotBash.stderr.slice(0, 200))
   }
 }
 

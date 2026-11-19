@@ -240,7 +240,9 @@ not added. Mercury removes provider keys, its own session stamps, session tokens
 variables and browser-secret variables, then adds
 `MERCURY_PROJECT_DIR`, `MERCURY_SESSION_ID` and `MERCURY_HOOK_EVENT`; on
 `session.start` and `file.changed` also `MERCURY_ENV_FILE`, a file where
-lines of `NAME=value` reach every later shell command of the session; an
+lines of `NAME=value` reach every later shell command of the session (on
+Windows the commands a bash runs: not the PowerShell tool, a batch file
+run through cmd.exe, or the bundled engine); an
 extension's hooks also get `MERCURY_EXTENSION_ROOT`, `MERCURY_EXTENSION_DATA`
 and `MERCURY_EXTENSION_OPTION_<KEY>`. stdout and stderr are each bounded at
 10 MB.

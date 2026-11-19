@@ -182,8 +182,8 @@ section('(5) what stands beside a bash')
 {
   const lock = JSON.parse(readFileSync(join(ROOT, 'vendor', 'bash.lock.json'), 'utf8')) as { msys2: { programs: string[] } }
   check(`the programs the detector asks for beside an installed bash are the ones the lock promises beside the shipped one: ${BASH_COMPANION_PROGRAMS.length}`, JSON.stringify([...BASH_COMPANION_PROGRAMS]) === JSON.stringify(lock.msys2.programs), `${BASH_COMPANION_PROGRAMS.join(' ')} · ${lock.msys2.programs.join(' ')}`)
-  const whole: Candidate = describeBashCandidate(GIT_BASH, file => gitFiles(GIT).includes(file))
-  const usrBin: Candidate = describeBashCandidate(`${GIT}/usr/bin/bash.exe`, file => gitFiles(GIT).includes(file))
+  const whole: Candidate = describeBashCandidate(GIT_BASH, held(new Set(gitFiles(GIT))))
+  const usrBin: Candidate = describeBashCandidate(`${GIT}/usr/bin/bash.exe`, held(new Set(gitFiles(GIT))))
   check("the launcher bin\\bash.exe is judged by the installation's usr\\bin, and usr\\bin\\bash.exe by its own folder", whole.runtimeBeside && whole.programsMissing.length === 0 && usrBin.runtimeBeside && usrBin.programsMissing.length === 0, JSON.stringify([whole, usrBin]))
 }
 

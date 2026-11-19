@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { appendFile, mkdtemp, rm, stat } from 'node:fs/promises'
+import { appendFile, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir, userInfo } from 'node:os'
 import { basename, join } from 'node:path'
 import memoize from 'lodash-es/memoize.js'
@@ -15,12 +15,14 @@ import { pathExists } from '../file.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
 import { getPlatform } from '../platform.js'
-import { birthAfter, birthMark, endProcessBornAfter, endProcessBornAt, strikeProcessGroupNow, type BirthMark } from '../processGroup.js'
+import { birthAfter, birthMark, endMsysGroupBeside, endProcessBornAfter, endProcessBornAt, endProcessTree, strikeProcessGroupNow, type BirthMark } from '../processGroup.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { sleep } from '../sleep.js'
 import { loginExportsCarried, pathWithLoginEntries, subprocessEnv } from '../subprocessEnv.js'
 import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
-import { windowsShellRoadActive, withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
+import { windowsShellRoadActive, withOwnPrograms, withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
+import { msysSourceLine } from '../shell/msysArgv.js'
+import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { quote } from './shellQuote.js'
 
 
@@ -81,6 +83,20 @@ function exportedBy(said: string, started: NodeJS.ProcessEnv): NodeJS.ProcessEnv
 
 const agentsOfTheSession = new Set<number>()
 
+const LOGIN_GROUP_MARK = '__MERCURY_LOGIN_GROUP__'
+const LOGIN_GROUP_LINE = new RegExp(`${LOGIN_GROUP_MARK}=(\\d+)\\n`)
+
+async function endGroupOfTheLoginRunOnWindows(shellPath: string, said: string): Promise<void> {
+  const group = Number(LOGIN_GROUP_LINE.exec(said)?.[1])
+  if (!Number.isSafeInteger(group) || group <= 1) return
+  try {
+    const ended = await endMsysGroupBeside(shellPath, group)
+    if (ended.length > 0) logForDebugging(`the login run ended ${ended.length} process(es) its files left in its group: ${ended.join(', ')}`)
+  } catch (error) {
+    logForDebugging(`the processes the login files left were not ended: ${errorMessage(error)}`)
+  }
+}
+
 async function settleAgentOfTheLoginFiles(exported: string | undefined, began: BirthMark | null, reached: boolean): Promise<void> {
   const pid = Number(exported)
   if (exported === undefined || agentsOfTheSession.has(pid)) return
@@ -123,12 +139,18 @@ function runBounded(
     let stdout = ''
     let stderr = ''
     const ownGroup = login && getPlatform() !== 'windows'
+    const windowsLogin = login && getPlatform() === 'windows'
     const askedAt = Date.now()
     const child = spawn(file, args, { windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'], detached: ownGroup })
     const began = ownGroup ? birthMark(child.pid, askedAt) : null
+    let treeEnded: Promise<unknown> = Promise.resolve()
     const end = (): void => {
       if (ownGroup) {
         strikeProcessGroupNow(child)
+        return
+      }
+      if (windowsLogin) {
+        if (child.exitCode === null && child.signalCode === null) treeEnded = endProcessTree(child, 'SIGKILL').catch(() => undefined)
         return
       }
       try {
@@ -155,7 +177,12 @@ function runBounded(
       process.removeListener('exit', end)
       process.removeListener('SIGQUIT', quit)
       if (ownGroup) end()
-      resolve(login ? { ...result, stdout: result.stdout.split('\0', 1)[0] ?? '', exported: exportedBy(stdout, env), began } : result)
+      const value = login ? { ...result, stdout: result.stdout.split('\0', 1)[0] ?? '', exported: exportedBy(stdout, env), began } : result
+      if (windowsLogin) {
+        void treeEnded.then(() => endGroupOfTheLoginRunOnWindows(file, stdout)).then(() => resolve(value))
+        return
+      }
+      resolve(value)
     }
     const read = (stream: NodeJS.ReadableStream, keep: (chunk: string) => void): void => {
       stream.setEncoding('utf8')
@@ -189,7 +216,7 @@ function runBounded(
 }
 
 const defaultSnapshotPathExecutor: SnapshotPathExecutor = (file, args, timeoutMs) =>
-  runBounded(file, args, { ...withShippedPrograms(subprocessEnv(), file) }, timeoutMs, false)
+  runBounded(file, args, { ...withOwnPrograms(withShippedPrograms(subprocessEnv(), file), file) }, timeoutMs, false)
 
 export async function resolveSnapshotPathValue(
   shellPath: string,
@@ -323,6 +350,7 @@ function buildCaptureScript(args: {
   const lines: string[] = []
 
   lines.push(`SNAPSHOT_FILE=${quote([snapshotFilePath])}`)
+  if (getPlatform() === 'windows') lines.push(`echo "${LOGIN_GROUP_MARK}=$$"`)
 
   if (configExists) {
     lines.push(`source ${quote([configFilePath])} < /dev/null`)
@@ -374,11 +402,16 @@ const THEN_RESTART = 'then restart Mercury'
 type LoginFilesRead = { files: string; only: string; asked: string; other: string }
 
 const BASH_READS: LoginFilesRead = { files: LOGIN_FILES, only: INTERACTIVE_ONLY, asked: '`bash -l -c true`', other: '`exec zsh -l`' }
-const ZSH_READS: LoginFilesRead = {
-  files: 'the files zsh reads at login (~/.zshenv, ~/.zprofile, ~/.zshrc and ~/.zlogin)',
-  only: 'only where a terminal is attached (inside `if [[ -t 0 ]]; then … fi`)',
-  asked: '`zsh -l -i -c true`',
-  other: '`exec fish -l`',
+
+function zshReads(dotDir: string | undefined = subprocessEnv().ZDOTDIR): LoginFilesRead {
+  const home = homedir()
+  const at = dotDir === undefined || dotDir === '' ? '~' : (dotDir === home || dotDir.startsWith(`${home}/`) ? `~${dotDir.slice(home.length)}` : dotDir).replace(/\/+$/, '')
+  return {
+    files: `the files zsh reads at login (${at}/.zshenv, ${at}/.zprofile, ${at}/.zshrc and ${at}/.zlogin)`,
+    only: 'only where a terminal is attached (inside `if [[ -t 0 ]]; then … fi`)',
+    asked: '`zsh -l -i -c true`',
+    other: '`exec fish -l`',
+  }
 }
 
 function loginRunLeftNothing(outcome: BoundedRun, read: LoginFilesRead = BASH_READS): LoginFilesAbsence {
@@ -441,6 +474,11 @@ function accountShell(): string | undefined {
 
 let carriedFromZsh: NodeJS.ProcessEnv | undefined
 const carriedFromBash = new Map<string, NodeJS.ProcessEnv>()
+const loginRunsThatFailed = new Set<string>()
+
+export function loginRunFailed(shellPath: string): boolean {
+  return loginRunsThatFailed.has(shellPath)
+}
 
 export function loginExports(shellPath: string): NodeJS.ProcessEnv | undefined {
   return carriedFromZsh ?? carriedFromBash.get(shellPath)
@@ -451,13 +489,13 @@ const exportsReadByZsh = memoize(async (zsh: string, session: boolean): Promise<
     const run = await runBounded(zsh, ['-l', '-i', '-c', ZSH_PRINTS_EXPORTS], { ...subprocessEnv(), GIT_EDITOR: 'true', MERCURY: '1', SHELL_SESSIONS_DISABLE: '1' }, SNAPSHOT_CAPTURE_BOUND_MS, true)
     const carried = await carriedBy(run, session)
     if (session) carriedFromZsh = carried
-    const absence = run.killed || run.exitCode !== 0 ? loginRunLeftNothing(run, ZSH_READS) : (run.exported ?? null) === null ? loginRunHandedOver(ZSH_READS) : null
+    const absence = run.killed || run.exitCode !== 0 ? loginRunLeftNothing(run, zshReads()) : (run.exported ?? null) === null ? loginRunHandedOver(zshReads()) : null
     noteLoginExports(absence)
     if (absence === null) return
     logForDebugging(`the zsh login files carry nothing: ${absence.why} (${zsh})${run.stderr.length > 0 ? `\n  stderr (${run.stderr.length} chars):\n${run.stderr}` : ''}`)
     logError(`the zsh login files were not read: ${absence.why} (${zsh})`)
   } catch (error) {
-    noteLoginExports(loginRunLeftNothing({ stdout: '', stderr: '', killed: false, overflowed: false, unstarted: errorMessage(error) }, ZSH_READS))
+    noteLoginExports(loginRunLeftNothing({ stdout: '', stderr: '', killed: false, overflowed: false, unstarted: errorMessage(error) }, zshReads()))
     logError(`the zsh login files were not read: ${errorMessage(error)} (${zsh})`)
   }
 }, (zsh: string, session: boolean) => `${session ? 'session' : 'asked'} ${zsh}`)
@@ -532,9 +570,13 @@ export async function createAndSaveSnapshot(
     const session = options?.keptNowhere !== true
     const zsh = zshOfTheUser()
     if (zsh !== null) readByZsh = exportsReadByZsh(zsh, session)
-    const outcome = await runBounded(shellPath, shell.origin === 'engine' ? ['-l', '-c', script] : ['-c', '-l', script], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
+    const scriptFile = getPlatform() === 'windows' && shell.origin !== 'engine' ? `${snapshotFilePath}.login-run` : undefined
+    if (scriptFile !== undefined) await writeFile(scriptFile, script)
+    const handed = scriptFile === undefined ? script : msysSourceLine(windowsPathToPosixPath(scriptFile))
+    const outcome = await runBounded(shellPath, shell.origin === 'engine' ? ['-l', '-c', handed] : ['-c', '-l', handed], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
+    if (scriptFile !== undefined) await rm(scriptFile, { force: true }).catch(() => {})
     await readByZsh
-    const carried = await carriedBy(outcome, session && zsh === null)
+    const carried = await carriedBy(outcome, session && zsh === null && !(shell.origin === 'engine' && getPlatform() === 'windows'))
     if (carried !== undefined) carriedFromBash.set(shellPath, carried)
 
     if (outcome.killed || outcome.exitCode !== 0) {
@@ -557,6 +599,7 @@ export async function createAndSaveSnapshot(
         ].join('\n'),
       )
       logError(`shell snapshot creation failed: ${absence.why} (${shellPath})`)
+      if (session && getPlatform() === 'windows') loginRunsThatFailed.add(shellPath)
       return nothing(absence)
     }
 
@@ -571,6 +614,7 @@ export async function createAndSaveSnapshot(
       } catch {
         logForDebugging(`snapshots directory ${snapshotsDir} no longer exists`)
       }
+      if (session && getPlatform() === 'windows') loginRunsThatFailed.add(shellPath)
       return nothing(LOGIN_RUN_HANDED_OVER)
     }
 

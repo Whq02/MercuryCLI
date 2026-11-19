@@ -4,7 +4,9 @@ export const SHELL_TYPES = ['bash', 'powershell'] as const
 
 export type ShellType = (typeof SHELL_TYPES)[number]
 
-type BuildExecCommandResult = { commandString: string; cwdFilePath: string; pipelineStatusPath?: string; frame?: { path: string; text: string } }
+export type FrameHandOver = { args: string[]; file?: { path: string; text: string }; startIn?: string }
+
+type BuildExecCommandResult = { commandString: string; cwdFilePath: string; pipelineStatusPath?: string; jobsPath?: string; handOver?: (env: NodeJS.ProcessEnv, cwd?: string) => FrameHandOver }
 
 export type BuildExecCommandOptions = {
   id: number | string

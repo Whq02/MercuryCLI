@@ -1,4 +1,5 @@
 import { spawnOwnedShell } from './shell/parentGuard.js'
+import { randomBytes } from 'node:crypto'
 import { closeSync, constants as fsConstants, existsSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
 import { memoize } from 'lodash-es'
@@ -20,11 +21,12 @@ import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
 import { fallbackEngineBinary, systemShellRecord } from './shell/shellRecord.js'
 import { wrapSpawn, createAbortedCommand, createFailedCommand, type ShellCommand } from './ShellCommand.js'
+import { noteMsysGroupLeftBehind, tellWhatProcessGroupEnds } from './processGroup.js'
 import { toolShellEnv, subprocessEnv, withLoginExports } from './subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../substrate/envStamps.js'
 import { getTaskOutputDir } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
-import { nativeCwdFromShellRecord, posixPathToWindowsPath } from './windowsPaths.js'
+import { WINDOWS_STARTS_A_PROGRAM_IN, nativeCwdFromShellRecord, posixPathToWindowsPath } from './windowsPaths.js'
 import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/windowsBatchInvocation.js'
 import { windowsShellRoadActive, withRoadPrograms } from './shell/windowsShellRoad.js'
 
@@ -106,20 +108,30 @@ export async function terminalShellInvocation(
   leftBehind: string[]
 }> {
   const road = await spawnRoad('bash')
-  const invocationId = Math.floor(Math.random() * 0x10000)
-    .toString(16)
-    .padStart(4, '0')
+  const invocationId = randomBytes(6).toString('hex')
   const built = await road.provider.buildExecCommand(command, { id: invocationId })
   const { env, scrubbed } = await commandEnvironment(road, 'bash', command, inheritSessionEnv)
   const native = (path: string): string => (getPlatform() === 'windows' ? posixPathToWindowsPath(path) : path)
-  if (built.frame !== undefined) writeFileSync(built.frame.path, built.frame.text)
+  const handed = built.handOver?.(env)
+  if (handed?.file !== undefined) writeFileSync(handed.file.path, handed.file.text)
   return {
     file: road.provider.shellPath,
-    args: road.provider.getSpawnArgs(built.commandString),
+    args: handed?.args ?? road.provider.getSpawnArgs(built.commandString),
     argsFor: line => road.provider.getSpawnArgs(line),
     env: road.provider.origin === undefined ? env : withRoadPrograms(env, road.provider.origin, road.provider.shellPath),
     scrubbed,
-    leftBehind: [...[built.cwdFilePath, ...(built.pipelineStatusPath === undefined ? [] : [built.pipelineStatusPath])].map(native), ...(built.frame === undefined ? [] : [built.frame.path])],
+    leftBehind: [...[built.cwdFilePath, ...(built.pipelineStatusPath === undefined ? [] : [built.pipelineStatusPath]), ...(built.jobsPath === undefined ? [] : [built.jobsPath])].map(native), ...(handed?.file === undefined ? [] : [handed.file.path])],
+  }
+}
+
+if (process.platform === 'win32') tellWhatProcessGroupEnds(line => logForDebugging(`shell jobs: ${line}`))
+
+async function noteJobsLeftBehind(shellPath: string, group: number): Promise<void> {
+  try {
+    const left = await noteMsysGroupLeftBehind(shellPath, group)
+    if (left.length > 0) logForDebugging(`shell jobs: a finished command left ${left.length} program(s) running (MSYS group ${group}, Windows pid ${left.join(', ')}); they end with this process`)
+  } catch (error) {
+    logForDebugging(`shell jobs: what a finished command left running was not read: ${errorMessage(error)}`)
   }
 }
 
@@ -188,6 +200,23 @@ export function resolveShellCwd(cwd?: string): string {
 function recordShellCwd(path: string, base: string): void {
   const resolved = isAbsolute(path) ? path : resolvePath(base, path)
   writeShellCwd(getFsImplementation().realpathSync(resolved).normalize('NFC'))
+}
+
+const NO_PROGRAM_STARTS_PAST = `Windows starts no program in a folder whose path is longer than ${WINDOWS_STARTS_A_PROGRAM_IN} characters`
+
+function shellDirectoryStays(before: string, why: string): string {
+  return `The shell's directory stays ${before}: ${why}.`
+}
+
+function startRefusal(folder: string, tracked: boolean, bashLeaves: boolean): string | null {
+  if (getPlatform() !== 'windows' || folder.length <= WINDOWS_STARTS_A_PROGRAM_IN) return null
+  return shellDirectoryStays(tracked ? folder : getShellCwd(), `${NO_PROGRAM_STARTS_PAST}, and ${tracked ? 'this one' : folder} has ${folder.length}, so the command was not started${tracked && bashLeaves ? '; cd to a shorter folder with the Bash tool' : ''}`)
+}
+
+function folderNoProgramStartsIn(path: string, base: string): string | null {
+  if (getPlatform() !== 'windows') return null
+  const physical = getFsImplementation().realpathSync(isAbsolute(path) ? path : resolvePath(base, path))
+  return physical.length > WINDOWS_STARTS_A_PROGRAM_IN ? shellDirectoryStays(base, `${NO_PROGRAM_STARTS_PAST}, and ${physical} has ${physical.length}; name such a folder by its path`) : null
 }
 
 function directoryResolves(path: string): boolean {
@@ -277,6 +306,8 @@ export async function exec(
     if (directoryResolves(shellDirectory)) {
       const invocation = await planWindowsBatchInvocation(command, { cwd: shellDirectory })
       if (invocation.kind === 'batch') {
+        const unstartable = startRefusal(shellDirectory, cwdOverride === undefined, true)
+        if (unstartable !== null) return createFailedCommand(unstartable)
         logForDebugging(`batch invocation through cmd.exe: ${invocation.batchPath}`)
         return await runWindowsBatchCommand(invocation, abortSignal, {
           timeout,
@@ -293,9 +324,7 @@ export async function exec(
   const road = await spawnRoad(shellType)
   const { provider, engineBinary } = road
 
-  const invocationId = Math.floor(Math.random() * 0x10000)
-    .toString(16)
-    .padStart(4, '0')
+  const invocationId = randomBytes(6).toString('hex')
 
   const built = await provider.buildExecCommand(command, { id: invocationId })
 
@@ -317,6 +346,9 @@ export async function exec(
     }
   }
 
+  const refusal = built.handOver === undefined ? startRefusal(cwd, cwdOverride === undefined, shellType !== 'bash') : null
+  if (refusal !== null) return createFailedCommand(refusal)
+
   if (abortSignal.aborted) {
     return createAbortedCommand()
   }
@@ -335,11 +367,12 @@ export async function exec(
   let outputFd: number | undefined
   let shellCommand: ShellCommand
   if (road.recordsBash) markFrameUnread(built.cwdFilePath)
+  const handed = built.handOver?.(childEnv, cwd)
   const dropFrame = (): void => {
-    if (built.frame !== undefined) void getFsImplementation().unlink(built.frame.path).catch(() => {})
+    if (handed?.file !== undefined) void getFsImplementation().unlink(handed.file.path).catch(() => {})
   }
   try {
-    if (built.frame !== undefined) writeFileSync(built.frame.path, built.frame.text)
+    if (handed?.file !== undefined) writeFileSync(handed.file.path, handed.file.text)
     let stdio: ('pipe' | 'ignore' | number)[]
     if (pipeMode) {
       stdio = ['pipe', 'pipe', 'pipe']
@@ -348,8 +381,8 @@ export async function exec(
       stdio = ['pipe', outputFd, outputFd]
     }
 
-    const child = await spawnOwnedShell(spawnFile, spawnArgs, {
-      cwd,
+    const child = await spawnOwnedShell(spawnFile, handed?.args ?? spawnArgs, {
+      cwd: handed?.startIn ?? cwd,
       env: provider.origin === undefined ? childEnv : withRoadPrograms(childEnv, provider.origin, provider.shellPath),
       stdio,
       detached: provider.detached,
@@ -408,6 +441,10 @@ export async function exec(
     const cwdFilePath =
       getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
 
+    const told = (line: string): void => {
+      result.stderr = result.stderr === '' ? line : `${result.stderr}\n${line}`
+    }
+    let named: string | undefined
     try {
       const record = readFileSync(cwdFilePath, 'utf8')
       if (road.recordsBash && record === FRAME_UNREAD) {
@@ -422,13 +459,22 @@ export async function exec(
           logForDebugging('bash cwd tracking: the shell directory stays put — the command left no directory')
         } else if ('refused' in recorded) {
           logForDebugging(`bash cwd tracking: the shell directory stays put — ${recorded.refused}`)
+          if (record.trim() !== '') told(shellDirectoryStays(cwdBefore, `${record.trim().split(/\r?\n/)[0]} is a folder of the bash's own with no Windows path`))
         } else if (recorded.path.normalize('NFC') !== cwdBefore.normalize('NFC')) {
-          recordShellCwd(recorded.path, cwdBefore)
-          invalidateSessionEnvCache()
+          named = recorded.path
+          const unstartable = built.handOver === undefined ? folderNoProgramStartsIn(recorded.path, cwdBefore) : null
+          if (unstartable !== null) {
+            told(unstartable)
+          } else {
+            recordShellCwd(recorded.path, cwdBefore)
+            invalidateSessionEnvCache()
+          }
+          named = undefined
         }
       }
     } catch (error) {
       logForDebugging(`bash cwd tracking: the shell directory stays put — ${errorMessage(error)}`)
+      if (named !== undefined && getPlatform() === 'windows') told(shellDirectoryStays(cwdBefore, `${named} does not resolve (${errorMessage(error)})`))
     }
 
     if (built.pipelineStatusPath !== undefined) {
@@ -438,6 +484,15 @@ export async function exec(
         if (/^\d+(?:\s+\d+)+$/.test(text)) result.pipelineStatus = text.split(/\s+/).map(Number)
       } catch {}
       void getFsImplementation().unlink(file).catch(() => {})
+    }
+    if (built.jobsPath !== undefined) {
+      const file = posixPathToWindowsPath(built.jobsPath)
+      let group = Number.NaN
+      try {
+        group = Number(readFileSync(file, 'utf8').trim())
+      } catch {}
+      void getFsImplementation().unlink(file).catch(() => {})
+      if (Number.isSafeInteger(group) && result.backgroundTaskId === undefined) void noteJobsLeftBehind(spawnFile, group)
     }
     dropFrame()
     void getFsImplementation()

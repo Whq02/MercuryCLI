@@ -51,7 +51,7 @@ export function startedBashVersion(path: string, limitMs: number = START_PROBE_T
     try {
       const ownGroup = process.platform !== 'win32'
       askedNow = path
-      const asked = spawn(path, ['--norc', '--noprofile', '-c', 'printf %s "$BASH_VERSION"'], { windowsHide: true, detached: ownGroup, stdio: ['ignore', 'pipe', 'ignore'], env: questionEnvironment() })
+      const asked = spawn(path, ['--norc', '--noprofile', '-c', process.platform === 'win32' ? 'printf %s $BASH_VERSION' : 'printf %s "$BASH_VERSION"'], { windowsHide: true, detached: ownGroup, stdio: ['ignore', 'pipe', 'ignore'], env: questionEnvironment() })
       let said = ''
       let open = true
       const end = (): void => {
@@ -365,6 +365,7 @@ function shellRowOf(record: ShellRecord | null, absent: LoginFilesAbsence | null
     const armed = armedEngine()
     const names = skipped !== null && !passed.includes(skipped) ? ` — this install carries no bash pack: ${skipped}` : ''
     const lastRoad = road.road === 'engine' && (armed === null || armed.arm === 'no-bash')
+    if (road.bare === true) return { status: 'warn', evidence: `${road.line}${names}${passed}`, ...(road.fix === undefined ? {} : { fix: road.fix }) }
     return { status: lastRoad ? 'warn' : 'ok', evidence: `${road.line}${names}${passed}`, ...(lastRoad ? fix : {}) }
   }
   if (record === null) return { status: 'warn', evidence: `${NO_SHELL_MESSAGE}${passedNow()}`, fix: skipped === null ? LAST_ROAD_FIX : `The bash pack is skipped in this install: ${skipped}` }

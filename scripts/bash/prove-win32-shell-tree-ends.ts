@@ -331,7 +331,8 @@ if (process.platform !== 'win32') {
     console.log(`  [SKIP] no ${realBash} on this host`)
   } else {
     const [a, b] = freshTags(2)
-    const child = spawn(realBash, ['-c', `eval "bash -c 'sleep ${a} & sleep ${b}'"`], { stdio: ['pipe', 'ignore', 'ignore'], windowsHide: true, detached: false })
+    const { withOwnPrograms } = (await import(join(ROOT, 'src/utils/shell/windowsShellRoad.ts'))) as { withOwnPrograms: (env: NodeJS.ProcessEnv, shellPath: string) => NodeJS.ProcessEnv }
+    const child = spawn(realBash, ['-c', `eval "bash -c 'sleep ${a} & sleep ${b}'"`], { stdio: ['pipe', 'ignore', 'ignore'], windowsHide: true, detached: false, env: withOwnPrograms(process.env, realBash) })
     child.stdin?.end()
     const handle = wrapSpawn(child, new AbortController().signal, 900_000, new TaskOutput(generateTaskId('local_bash'), null))
     const up = await treeUp([a!, b!], 2)
