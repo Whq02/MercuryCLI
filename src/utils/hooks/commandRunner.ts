@@ -1,4 +1,8 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { writeFileSync } from 'node:fs'
+import { unlink } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { flagEnv, stampFlagOnEnv } from '../../substrate/flagRegistry.js'
 import { getOriginalCwd, getProjectRoot, getSessionId } from '../../bootstrap/state.js'
 import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
@@ -17,7 +21,7 @@ import { endProcessTree } from '../processGroup.js'
 import { getHookEnvFilePath, hookEventWritesEnvFile } from '../sessionEnvironment.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
 import { buildPowerShellArgs } from '../shell/powershellProvider.js'
-import { protectBackslashRunsFromMsysArgv } from '../shell/msysArgv.js'
+import { msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } from '../shell/msysArgv.js'
 import { hookBashEnv, hookBashShell, windowsBashRoad } from '../shell/windowsShellRoad.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
@@ -126,8 +130,35 @@ async function spawnHook(run: CommandHookRun, prepared: { command: string; env: 
     return spawn(pwsh, buildPowerShellArgs(prepared.command), { env: prepared.env, cwd: prepared.cwd, windowsHide: true }) as ChildProcessWithoutNullStreams
   }
   const shell = isWindows ? await hookBashShell(run.command) : true
-  const command = isWindows && windowsBashRoad().kind !== 'engine' ? protectBackslashRunsFromMsysArgv(prepared.command) : prepared.command
-  return spawn(command, [], { env: isWindows ? hookBashEnv(prepared.env) : prepared.env, cwd: prepared.cwd, shell, windowsHide: true }) as ChildProcessWithoutNullStreams
+  if (typeof shell === 'string' && windowsBashRoad().kind !== 'engine') return spawnUnderWindowsBash(shell, prepared)
+  return spawn(prepared.command, [], { env: isWindows ? hookBashEnv(prepared.env) : prepared.env, cwd: prepared.cwd, shell, windowsHide: true }) as ChildProcessWithoutNullStreams
+}
+
+class HookNotHandedOver extends Error {}
+
+let hookFiles = 0
+
+function spawnUnderWindowsBash(shell: string, prepared: { command: string; env: NodeJS.ProcessEnv; cwd: string }): ChildProcessWithoutNullStreams {
+  const options = { env: hookBashEnv(prepared.env), cwd: prepared.cwd, shell, windowsHide: true }
+  if (msysArgvCarries(prepared.command, options.env)) return spawn(protectBackslashRunsFromMsysArgv(prepared.command), [], options) as ChildProcessWithoutNullStreams
+  const file = join(tmpdir(), `mercury-hook-${process.pid}-${hookFiles++}`)
+  try {
+    writeFileSync(file, prepared.command)
+  } catch (error) {
+    throw new HookNotHandedOver(`The hook did not run: on Windows a command this long, or any command while MSYS names glob, reaches bash through a file, and that file could not be written (${file}: ${errorMessage(error)}).`)
+  }
+  const drop = (): void => {
+    void unlink(file).catch(() => {})
+  }
+  try {
+    const child = spawn(msysSourceLine(windowsPathToPosixPath(file)), [], options) as ChildProcessWithoutNullStreams
+    child.once('close', drop)
+    child.once('error', drop)
+    return child
+  } catch (error) {
+    drop()
+    throw error
+  }
 }
 
 function endedEarly(run: CommandHookRun, ending: Extract<HookEnding, { status: 'failed' }>, startedAt: number): CommandHookProcess {
@@ -143,6 +174,7 @@ export async function startCommandHook(run: CommandHookRun): Promise<CommandHook
   try {
     child = await spawnHook(run, await prepareCommand(run))
   } catch (error) {
+    if (error instanceof HookNotHandedOver) return { pid: undefined, result: Promise.resolve({ kind: 'exited', code: 2, stdout: '', stderr: error.message, durationMs: Date.now() - startedAt }), kill: () => {} }
     return endedEarly(run, { status: 'failed', class: 'spawn', exit_code: 1, detail: errorMessage(error) }, startedAt)
   }
   let stdout = ''
