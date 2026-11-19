@@ -27,7 +27,7 @@ import {
   type ShellLaunchFacts,
 } from '../../tasks/LocalShellTask/LocalShellTask.js'
 import { registerShellRun } from './backgroundRequest.js'
-import { ShellError } from '../../utils/errors.js'
+import { ShellError, errorMessage } from '../../utils/errors.js'
 import { EndTruncatingAccumulator } from '../../utils/stringUtils.js'
 import { formatDuration } from '../../utils/format.js'
 import { recordBashAudit } from '../../utils/spawnLedger.js'
@@ -158,6 +158,7 @@ export type Out = {
   scrubbedSessionEnv?: readonly string[]
   sessionEnvNotice?: string
   outputBudgetNotice?: string
+  outputCopyNotice?: string
 }
 
 
@@ -661,6 +662,7 @@ async function postProcess(result: ExecResult, { input, creations, editorTermina
 
   let persistedOutputPath: string | undefined
   let persistedOutputSize: number | undefined
+  let outputCopyNotice: string | undefined
   if (result.outputFilePath && result.outputTaskId) {
     try {
       const stats = await stat(result.outputFilePath)
@@ -675,7 +677,8 @@ async function postProcess(result: ExecResult, { input, creations, editorTermina
       })
       persistedOutputSize += Buffer.byteLength(webNotice)
       persistedOutputPath = destination
-    } catch {
+    } catch (error) {
+      outputCopyNotice = `[the full output could not be kept for reading (${errorMessage(error)}); only the excerpt above is shown — send the output to a file to read all of it]`
     }
   }
 
@@ -707,6 +710,7 @@ async function postProcess(result: ExecResult, { input, creations, editorTermina
     ...(exitNote !== undefined ? { exitNote } : {}),
     ...(timeoutClampNotice !== undefined ? { timeoutClampNotice } : {}),
     ...(outputBudgetNotice !== undefined ? { outputBudgetNotice } : {}),
+    ...(outputCopyNotice !== undefined ? { outputCopyNotice } : {}),
     noOutputExpected,
     ...(persistedOutputPath ? { persistedOutputPath, persistedOutputSize } : {}),
     ...(shellCommand.scrubbedSessionEnv && shellCommand.scrubbedSessionEnv.length > 0
@@ -796,7 +800,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   }
   const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
   const scrubNotice = output.sessionEnvNotice ?? ''
-  const content = [stdout, errorText, output.exitNote ?? '', output.timeoutClampNotice ?? '', output.outputBudgetNotice ?? '', backgroundNotice, scrubNotice].filter(part => part !== '').join('\n')
+  const content = [stdout, errorText, output.exitNote ?? '', output.timeoutClampNotice ?? '', output.outputBudgetNotice ?? '', output.outputCopyNotice ?? '', backgroundNotice, scrubNotice].filter(part => part !== '').join('\n')
   return { tool_use_id: toolUseID, type: 'tool_result', content, is_error: output.interrupted }
 }
 

@@ -4,6 +4,7 @@ import * as path from 'node:path'
 import type { Browser as DriverBrowser, Page } from 'puppeteer-core'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { errorMessage, getErrnoCode } from '../../../utils/errors.js'
+import { logError } from '../../../utils/log.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { parseOwnerKey, type OwnerKey } from '../../run/ownerKey.js'
 import { driverNodeGate, resolveBrowser, type BrowserResolution } from '../browserResolver.js'
@@ -157,6 +158,21 @@ export function abortReason(signal: AbortSignal): unknown {
   return err
 }
 
+function profileDirRefusal(dir: string, chmodFailure: unknown): string | null {
+  const code = getErrnoCode(chmodFailure) ?? errorMessage(chmodFailure)
+  let ownerUid: number
+  try {
+    ownerUid = fs.statSync(dir).uid
+  } catch (statFailure) {
+    return `the browser profile folder ${dir} could not be made private to you (chmod 0700: ${code}; stat: ${getErrnoCode(statFailure) ?? errorMessage(statFailure)}) — nothing was opened; give the folder back to your user or remove it, then open again`
+  }
+  if (typeof process.getuid === 'function' && ownerUid !== process.getuid()) {
+    return `the browser profile folder ${dir} could not be made private to you (chmod 0700: ${code}) — nothing was opened; give the folder back to your user or remove it, then open again`
+  }
+  logError(new Error(`the browser profile folder ${dir} is yours but could not be made private (chmod 0700: ${code}): its filesystem takes no mode, so the browser opens on it as before`))
+  return null
+}
+
 function readyProfileDir(owner: OwnerKey, profileDir: string, opts: EnsureBrowserSessionOptions): void {
   const profilesRoot = path.dirname(profileDir)
   fs.mkdirSync(profilesRoot, { recursive: true, mode: 0o700 })
@@ -166,7 +182,8 @@ function readyProfileDir(owner: OwnerKey, profileDir: string, opts: EnsureBrowse
       try {
         fs.chmodSync(dir, 0o700)
       } catch (err) {
-        throw new Error(`the browser profile folder ${dir} could not be made private to you (chmod 0700: ${getErrnoCode(err) ?? errorMessage(err)}) — nothing was opened; give the folder back to your user or remove it, then open again`)
+        const refusal = profileDirRefusal(dir, err)
+        if (refusal !== null) throw new Error(refusal)
       }
     }
   }
