@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { appendFile, mkdtemp, rm, stat } from 'node:fs/promises'
+import { appendFile, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir, userInfo } from 'node:os'
 import { basename, join } from 'node:path'
 import memoize from 'lodash-es/memoize.js'
@@ -21,6 +21,8 @@ import { sleep } from '../sleep.js'
 import { loginExportsCarried, pathWithLoginEntries, subprocessEnv } from '../subprocessEnv.js'
 import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
 import { windowsShellRoadActive, withOwnPrograms, withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
+import { msysArgvCarries } from '../shell/msysArgv.js'
+import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { quote } from './shellQuote.js'
 
 
@@ -532,7 +534,11 @@ export async function createAndSaveSnapshot(
     const session = options?.keptNowhere !== true
     const zsh = zshOfTheUser()
     if (zsh !== null) readByZsh = exportsReadByZsh(zsh, session)
-    const outcome = await runBounded(shellPath, shell.origin === 'engine' ? ['-l', '-c', script] : ['-c', '-l', script], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
+    const scriptFile = getPlatform() === 'windows' && shell.origin !== 'engine' && !msysArgvCarries(script, captureEnv) ? `${snapshotFilePath}-capture` : undefined
+    if (scriptFile !== undefined) await writeFile(scriptFile, script)
+    const handed = scriptFile === undefined ? script : `source ${quote([windowsPathToPosixPath(scriptFile)])}`
+    const outcome = await runBounded(shellPath, shell.origin === 'engine' ? ['-l', '-c', handed] : ['-c', '-l', handed], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
+    if (scriptFile !== undefined) await rm(scriptFile, { force: true }).catch(() => {})
     await readByZsh
     const carried = await carriedBy(outcome, session && zsh === null)
     if (carried !== undefined) carriedFromBash.set(shellPath, carried)
