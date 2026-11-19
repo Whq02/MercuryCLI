@@ -266,6 +266,7 @@ export interface CapacityProbe {
 
 const AGENT_CLI_NAMES = new Set(['claude', 'mercury', 'codex', 'gemini'])
 const OTHER_AGENT_CLIS_HOLDING_A_SEAT = 2
+const PROCESS_LISTER_NOT_FOUND = 'Command failed with ENOENT:'
 const SCRIPT_HOSTS = new Set(['node', 'bun', 'deno'])
 
 function basenameOf(token: string): string {
@@ -308,6 +309,7 @@ async function countOtherAgentClis(): Promise<number> {
             useCwd: false,
             timeout: 3000,
           })
+    if (r.code !== 0 && r.error?.startsWith(PROCESS_LISTER_NOT_FOUND) === true) return 0
     if (r.code !== 0) return otherAgentClisUnread(r.error ?? (r.stderr.split('\n')[0] || `exit ${r.code}`))
     let n = 0
     for (const line of r.stdout.split('\n')) {
