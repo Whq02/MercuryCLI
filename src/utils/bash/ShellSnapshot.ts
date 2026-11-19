@@ -20,7 +20,7 @@ import { ripgrepCommand } from '../ripgrep.js'
 import { sleep } from '../sleep.js'
 import { loginExportsCarried, pathWithLoginEntries, subprocessEnv } from '../subprocessEnv.js'
 import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
-import { windowsShellRoadActive, withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
+import { windowsShellRoadActive, withOwnPrograms, withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
 import { quote } from './shellQuote.js'
 
 
@@ -189,7 +189,7 @@ function runBounded(
 }
 
 const defaultSnapshotPathExecutor: SnapshotPathExecutor = (file, args, timeoutMs) =>
-  runBounded(file, args, { ...withShippedPrograms(subprocessEnv(), file) }, timeoutMs, false)
+  runBounded(file, args, { ...withOwnPrograms(withShippedPrograms(subprocessEnv(), file), file) }, timeoutMs, false)
 
 export async function resolveSnapshotPathValue(
   shellPath: string,

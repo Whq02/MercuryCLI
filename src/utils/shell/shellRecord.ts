@@ -365,6 +365,7 @@ function shellRowOf(record: ShellRecord | null, absent: LoginFilesAbsence | null
     const armed = armedEngine()
     const names = skipped !== null && !passed.includes(skipped) ? ` — this install carries no bash pack: ${skipped}` : ''
     const lastRoad = road.road === 'engine' && (armed === null || armed.arm === 'no-bash')
+    if (road.bare === true) return { status: 'warn', evidence: `${road.line}${names}${passed}`, ...(road.fix === undefined ? {} : { fix: road.fix }) }
     return { status: lastRoad ? 'warn' : 'ok', evidence: `${road.line}${names}${passed}`, ...(lastRoad ? fix : {}) }
   }
   if (record === null) return { status: 'warn', evidence: `${NO_SHELL_MESSAGE}${passedNow()}`, fix: skipped === null ? LAST_ROAD_FIX : `The bash pack is skipped in this install: ${skipped}` }

@@ -218,13 +218,24 @@ export function withShippedPrograms(env: NodeJS.ProcessEnv, shellPath: string): 
   return shipped === null || shipped.programsDir === null || shipped.path !== shellPath ? env : withProgramsFirst(env, shipped.programsDir)
 }
 
+export function withOwnPrograms(env: NodeJS.ProcessEnv, shellPath: string): NodeJS.ProcessEnv {
+  if (!windowsShellRoadActive()) return env
+  const dir = dirname(shellPath)
+  return gitProgramsDir(shellPath) === dir && lsResolves(dir, process.platform) ? withProgramsFirst(env, dir) : env
+}
+
+function programsReach(bashPath: string): boolean {
+  const env = subprocessEnv()
+  return lsResolves(gitProgramsDir(bashPath), process.platform) || lsResolves(env[pathKeyOf(env, process.platform)] ?? '', process.platform)
+}
+
 export function withoutWhatTheEngineRefuses(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return withoutShellStartFiles(env, process.platform, ENGINE_REFUSES)
 }
 
 export function withRoadPrograms(env: NodeJS.ProcessEnv, origin: ShellOrigin, shellPath: string): NodeJS.ProcessEnv {
   if (origin === 'engine') return withoutWhatTheEngineRefuses(windowsShellRoadActive() ? withGitPrograms(env) : env)
-  return origin === 'system' ? env : withShippedPrograms(env, shellPath)
+  return origin === 'system' ? withOwnPrograms(env, shellPath) : withShippedPrograms(env, shellPath)
 }
 
 function resolvedShellEngine(): ShellEngineResolution {
@@ -288,8 +299,8 @@ function withShellOfThisProcess(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 export function hookBashEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const road = windowsBashRoad()
   const own = withShellOfThisProcess(env)
-  if (road.kind === 'absent' || road.kind === 'git-bash') return own
-  return withRoadPrograms(own, road.kind === 'engine' ? 'engine' : 'shipped', road.path)
+  if (road.kind === 'absent') return own
+  return withRoadPrograms(own, road.kind === 'engine' ? 'engine' : road.kind === 'git-bash' ? 'system' : 'shipped', road.path)
 }
 
 function engineRoadLine(road: { path: string; arm: RoadEngineArm }): string {
@@ -313,6 +324,7 @@ export function describeWindowsShellRoad(): {
   road: 'system' | 'git-bash' | 'shipped' | 'engine' | 'absent'
   absent: boolean
   unasked?: boolean
+  bare?: boolean
   line: string
   fix?: string
 } {
@@ -326,6 +338,9 @@ export function describeWindowsShellRoad(): {
     const pinned = pinnedGitBash() === road.path
     if (pinned && settled === null) {
       return { road: 'git-bash', absent: false, unasked: true, line: `${road.path} — named by MERCURY_GIT_BASH_PATH; whether it is a bash is asked when the Bash tool is first offered, and a program that does not answer as one is passed over` }
+    }
+    if (pinned && !programsReach(road.path)) {
+      return { road: 'git-bash', absent: false, bare: true, line: `${known} at ${road.path} — named by MERCURY_GIT_BASH_PATH; the Bash tool runs under it; no ls, grep or sed stands beside it or on PATH`, fix: PIN_WAYS_OUT }
     }
     return { road: 'git-bash', absent: false, line: `${known} at ${road.path} — ${pinned ? 'named by MERCURY_GIT_BASH_PATH' : 'found on this machine'}; the Bash tool runs under it` }
   }
