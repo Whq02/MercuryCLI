@@ -89,7 +89,7 @@ export async function createBashShellProvider(
       if (snapshot) {
         parts.push(`source ${quote([snapshot])} 2>/dev/null || true`)
       }
-      const sessionScript = await getSessionEnvironmentScript()
+      const sessionScript = await getSessionEnvironmentScript(record.origin !== 'engine')
       if (sessionScript) parts.push(sessionScript)
       const preamble = getGlobPreambleCommand(record.origin)
       if (preamble) parts.push(preamble)
