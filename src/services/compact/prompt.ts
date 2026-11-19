@@ -1,7 +1,7 @@
 import type { CompactMetadata } from '../../types/message.js'
 import { otherToolsLine, type TurnReceiptCounts } from '../../utils/cockpit/turnReceipt.js'
+import { shellDirectoryLeftByCd } from '../../utils/cwd.js'
 import { plural } from '../../utils/stringUtils.js'
-import { shellDirectoryLeftByCd } from '../../utils/Shell.js'
 
 const NO_TOOLS_PREAMBLE = `Reply with prose only — no tool calls of any kind. Do not invoke Read, Bash, Grep, Glob, Edit, Write, Crewmate, or any other tool: tool calls are refused, and with only one turn a refused call fails this summarisation. Everything needed is in the conversation below.`
 

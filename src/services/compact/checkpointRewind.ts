@@ -1,6 +1,6 @@
 import type { Message, UserMessage } from '../../types/message.js'
+import { shellDirectoryLeftByCd } from '../../utils/cwd.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
-import { shellDirectoryLeftByCd } from '../../utils/Shell.js'
 
 export const CHECKPOINT_TOOL_NAME = 'Checkpoint'
 export const REWIND_TOOL_NAME = 'Rewind'

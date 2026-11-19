@@ -6,7 +6,7 @@ import { memoize } from 'lodash-es'
 import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
 import { createAndSaveSnapshot, loginExports } from './bash/ShellSnapshot.js'
-import { contextShellCwd, getCwd, getStartingCwd, setContextShellCwd } from './cwd.js'
+import { contextShellCwd, getCwd, getStartingCwd, setContextShellCwd, tellWhereTheShellStands } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { diagnosticAsksFor, isReadOnlyDiagnostic } from './diagnosticReadOnly.js'
 import { errorMessage, isENOENT } from './errors.js'
@@ -203,6 +203,7 @@ subscribeCwdState(sessionCwd => {
   sessionCwdSeen = sessionCwd
   shellCwd = null
 })
+tellWhereTheShellStands(getShellCwd)
 
 function readShellCwd(): string | null {
   const own = contextShellCwd()
@@ -224,11 +225,6 @@ export function resolveShellCwd(cwd?: string): string {
   if (cwd === undefined) return getShellCwd()
   const absolute = isAbsolute(cwd) ? cwd : resolvePath(getStartingCwd(), cwd)
   return safeResolvePath(getFsImplementation(), absolute).resolvedPath
-}
-
-export function shellDirectoryLeftByCd(): string | null {
-  const directory = getShellCwd()
-  return directory === getCwd() ? null : `The shell's working directory is still where an earlier cd left it: ${directory}`
 }
 
 function recordShellCwd(path: string, base: string): void {
