@@ -359,13 +359,7 @@ export class Cursor {
     return endOfLineOf.call(this)
   }
 
-  firstNonBlankInLine(): Cursor {
-    const { line } = this.getPosition()
-    return new Cursor(
-      this.measuredText,
-      this.measuredText.getOffsetFromPosition({ line, column: 0 }),
-    )
-  }
+  firstNonBlankInLine(): Cursor { return firstNonBlankInLineOf.call(this) }
 
 
   logicalLineStart(offset: number): number {
@@ -386,13 +380,7 @@ export class Cursor {
     return new Cursor(this.measuredText, this.logicalLineEnd(this.offset))
   }
 
-  firstNonBlankInLogicalLine(): Cursor {
-    const start = this.logicalLineStart(this.offset)
-    const end = this.logicalLineEnd(this.offset)
-    const line = this.text.slice(start, end)
-    const m = /\S/.exec(line)
-    return new Cursor(this.measuredText, m ? start + m.index : end)
-  }
+  firstNonBlankInLogicalLine(): Cursor { return firstNonBlankInLogicalLineOf.call(this) }
 
   upLogicalLine(): Cursor {
     return upLogicalLineOf.call(this)
@@ -413,26 +401,14 @@ export class Cursor {
     return new Cursor(this.measuredText, idx + 1)
   }
 
-  goToLine(lineNumber: number): Cursor {
-    const lines = this.text.split('\n')
-    const target = Math.max(1, Math.min(lineNumber, lines.length))
-    let offset = 0
-    for (let i = 0; i < target - 1; i++) offset += lines[i]!.length + 1
-    return new Cursor(this.measuredText, offset)
-  }
+  goToLine(lineNumber: number): Cursor { return goToLineOf.call(this, lineNumber) }
 
 
   wordLikeBoundaries(): WordBoundary[] {
     return this.measuredText.getWordBoundaries().filter(b => b.isWordLike)
   }
 
-  nextWord(): Cursor {
-    if (this.isAtEnd()) return this.atSelf()
-    for (const w of this.wordLikeBoundaries()) {
-      if (w.start > this.offset) return new Cursor(this.measuredText, w.start)
-    }
-    return new Cursor(this.measuredText, this.text.length)
-  }
+  nextWord(): Cursor { return nextWordOf.call(this) }
 
   prevWord(): Cursor {
     return prevWordOf.call(this)
@@ -586,6 +562,38 @@ export class Cursor {
   ): string {
     return renderCaretLineOf.call(this, display, caretColumn, cursorChar, invert, ghostText, isDocumentLastLine, lineStart, selection)
   }
+}
+
+function firstNonBlankInLineOf(this: Cursor): Cursor {
+  const { line } = this.getPosition()
+  return new Cursor(
+    this.measuredText,
+    this.measuredText.getOffsetFromPosition({ line, column: 0 }),
+  )
+}
+
+function firstNonBlankInLogicalLineOf(this: Cursor): Cursor {
+  const start = this.logicalLineStart(this.offset)
+  const end = this.logicalLineEnd(this.offset)
+  const line = this.text.slice(start, end)
+  const m = /\S/.exec(line)
+  return new Cursor(this.measuredText, m ? start + m.index : end)
+}
+
+function goToLineOf(this: Cursor, lineNumber: number): Cursor {
+  const lines = this.text.split('\n')
+  const target = Math.max(1, Math.min(lineNumber, lines.length))
+  let offset = 0
+  for (let i = 0; i < target - 1; i++) offset += lines[i]!.length + 1
+  return new Cursor(this.measuredText, offset)
+}
+
+function nextWordOf(this: Cursor): Cursor {
+  if (this.isAtEnd()) return this.atSelf()
+  for (const w of this.wordLikeBoundaries()) {
+    if (w.start > this.offset) return new Cursor(this.measuredText, w.start)
+  }
+  return new Cursor(this.measuredText, this.text.length)
 }
 
 function getViewportCharEndOf(this: Cursor, maxVisibleLines?: number, previousStart?: number): number {
