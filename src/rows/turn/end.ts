@@ -74,6 +74,7 @@ export function turnEnder({ scope, turnId, sessionId, abortController, toolUseCo
         logError(error)
       }
     }
+    yield row
   }
   return turnEnding
 }
