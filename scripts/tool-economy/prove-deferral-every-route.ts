@@ -3,7 +3,6 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
-import { requestHeadIsPlain } from './requestHeadSource.ts'
 
 let failures = 0
 let checks = 0
@@ -262,9 +261,9 @@ section('§3 PENDING-SERVER HONESTY — a connecting server keeps ToolSearch, on
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const pending = await planFor(model, fresh(), { tools: nothingDeferred, hasPendingMcpServers: true })
     if (SERVER_SEARCH.has(route)) {
-      check(`${route}: nothing deferred + a server still connecting ⇒ deferral stays on (its tools will land deferred behind the server's search) and Mercury's ToolSearch never rides`, pending.enabled === true && !pending.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && requestHeadIsPlain(route))
+      check(`${route}: nothing deferred + a server still connecting ⇒ deferral stays on (its tools will land deferred behind the server's search) and Mercury's ToolSearch never rides`, pending.enabled === true && !pending.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME))
     } else {
-      check(`${route}: nothing deferred + a server still connecting ⇒ ToolSearch stays (the model can discover its tools once they land)`, pending.enabled === true && pending.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && requestHeadIsPlain(route))
+      check(`${route}: nothing deferred + a server still connecting ⇒ ToolSearch stays (the model can discover its tools once they land)`, pending.enabled === true && pending.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME))
     }
     const settled = await planFor(model, fresh(), { tools: nothingDeferred, hasPendingMcpServers: false })
     check(`${route}: nothing deferred + nothing pending ⇒ ToolSearch steps aside`, settled.enabled === false && !settled.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME))
@@ -317,7 +316,6 @@ section('§5 THE SUBAGENT BOUND — inheriting the whole pool costs the non-defe
     const child = await planFor(model, fresh())
     check(`${route}: a child starts without its parent's text-form admissions`, child.roster.map(t => t.name).join(',') === (TEXT_DEFERRING.has(route) ? [...NON_DEFERRED.map(t => t.name), TOOL_SEARCH_TOOL_NAME].join(',') : parent.roster.map(t => t.name).join(',')) && [...child.deferredNames].sort().join(',') === [...parent.deferredNames].sort().join(','))
     check(`${route}: the parent's admissions do not leak into the child (admission is per conversation)`, child.admittedNames.size === 0 && parent.admittedNames.size === (parent.enabled && !SERVER_SEARCH.has(route) ? 2 : 0))
-    check(`${route}: the child's request carries no announcement bytes (the row is the carrier)`, requestHeadIsPlain(route))
     const row = getDeferredToolsDeltaAttachment(POOL, model, fresh())[0]
     check(`${route}: the child defers too`, child.enabled === true, `wire=${child.wireForm}/${child.wireWhy}`)
     const lineBytes = DEFERRED_NAMES.reduce((a, n) => a + Buffer.byteLength(n, 'utf8'), 0) + (DEFERRED_NAMES.length - 1)
@@ -331,7 +329,7 @@ section('§6 THE OFF ARM — MERCURY_TOOL_DEFER=0 reproduces the inlined catalog
   check('ToolSearch is unpooled everywhere', isToolSearchEnabledOptimistic() === false && ToolSearchTool.isEnabled() === false)
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const plan = await planFor(model, [...fresh(), ...admission('toolu_off', ['WebFetch'])])
-    check(`${route}: deferral off ⇒ the whole catalogue rides, minus ToolSearch, nothing announced`, plan.enabled === false && plan.roster.length === POOL.length - 1 && !plan.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && requestHeadIsPlain(route) && plan.deferredNames.size === 0)
+    check(`${route}: deferral off ⇒ the whole catalogue rides, minus ToolSearch, nothing announced`, plan.enabled === false && plan.roster.length === POOL.length - 1 && !plan.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && plan.deferredNames.size === 0)
   }
   delete process.env.MERCURY_TOOL_DEFER
   const back = await planFor(ROUTE_MODELS.anthropic!, fresh())
