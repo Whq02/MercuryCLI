@@ -406,15 +406,18 @@ export type BirthMark = { pid: number; at: number }
 
 const BIRTH_READ_BOUND_MS = 800
 const LINUX_STAT_START_TIME = 19
+const BIRTH_UNREADABLE = new Set(['ENOENT', 'ESRCH', 'EACCES', 'EPERM'])
 
 function linuxBirth(pid: number): number | null {
+  let stat: string
   try {
-    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8')
-    const ticks = Number(stat.slice(stat.lastIndexOf(')') + 1).trim().split(/\s+/)[LINUX_STAT_START_TIME])
-    return Number.isSafeInteger(ticks) ? ticks : null
-  } catch {
-    return null
+    stat = readFileSync(`/proc/${pid}/stat`, 'utf8')
+  } catch (error) {
+    if (BIRTH_UNREADABLE.has((error as NodeJS.ErrnoException).code ?? '')) return null
+    throw error
   }
+  const ticks = Number(stat.slice(stat.lastIndexOf(')') + 1).trim().split(/\s+/)[LINUX_STAT_START_TIME])
+  return Number.isSafeInteger(ticks) ? ticks : null
 }
 
 function readBirth(pid: number): Promise<number | null> {
@@ -423,7 +426,7 @@ function readBirth(pid: number): Promise<number | null> {
     execFile(
       'ps',
       ['-o', 'lstart=', '-p', String(pid)],
-      { windowsHide: true, timeout: BIRTH_READ_BOUND_MS, env: { ...process.env, LC_ALL: 'C', TZ: 'UTC' } },
+      { windowsHide: true, timeout: BIRTH_READ_BOUND_MS, env: { LC_ALL: 'C', TZ: 'UTC', PATH: '/usr/bin:/bin' } },
       (error, stdout) => {
         const at = error || typeof stdout !== 'string' ? Number.NaN : Date.parse(`${stdout.trim()} UTC`)
         resolve(Number.isFinite(at) ? Math.floor(at / 1000) : null)
