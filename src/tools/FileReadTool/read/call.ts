@@ -1,12 +1,21 @@
 import { stat } from 'node:fs/promises'
 import { basename } from 'node:path'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import type { ToolUseContext, CanUseToolFn } from '../../../Tool.js'
+import { changeTransactionEnabled } from '../../../services/changeTransaction/contracts.js'
+import { fileGeneration } from '../../../services/changeTransaction/seenLines.js'
+import { mintFileAnchor } from '../../../services/changeTransaction/snapshotAnchor.js'
+import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import { ideReadTextAvailable } from '../../../services/acp/ideToolBridge.js'
 import type { RemoteRead } from '../../../services/remoteFiles/bridge.js'
-import { isRemotePath } from '../../../services/remoteFiles/target.js'
+import { isRemotePath, remoteReadGeneration } from '../../../services/remoteFiles/target.js'
+import { activateConditionalSkillsForPaths, addSkillDirectories, discoverSkillDirsForPaths } from '../../../skills/loadSkillsDir.js'
 import { hasBinaryExtension } from '../../../constants/files.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { isENOENT } from '../../../utils/errors.js'
+import { getCwd } from '../../../utils/cwd.js'
+import { logError } from '../../../utils/log.js'
 import { formatFileSize } from '../../../utils/format.js'
 import { createUserMessage } from '../../../utils/messages/factories.js'
 import { expandPath } from '../../../utils/path.js'
@@ -23,7 +32,7 @@ import { resultRoomFor } from '../../../services/run/resultRoom.js'
 import { isRichFormatReadable, parseRichFormatTarget, RICH_CONTAINER_MAX_BYTES } from '../readRichFormats.js'
 import { cacheKeys } from '../../../utils/fileStateCache.js'
 import { jsonQueryDiscovery, jsonQueryName, parseReadQueryTarget } from '../readQueryTarget.js'
-import { classifyReadTarget, readTargetsEnabled } from '../readTarget.js'
+import { classifyReadTarget, isDirectoryTarget, readTargetsEnabled, renderResourceTarget } from '../readTarget.js'
 import { MAX_RANGES_PER_READ, selectedPages, selectedCrop, type Input, type Output, type LaneResult } from './schema.js'
 import { resultResolvedNames, resultPreRenderedBody, resultWithoutProfileHint } from './results.js'
 import { cyberRiskReminderFor, takeReminder, cyberRiskReminderForCurrentModel } from './reminder.js'
@@ -35,7 +44,8 @@ import { readPdfLane } from './pdfLane.js'
 import { readMultiRangeTextLane } from './multiRangeLane.js'
 import { readRichFormatLane } from './richFormatLane.js'
 import { readTextLane } from './textLane.js'
-import { readNonFileTarget, readUnchanged, discoverSkillsFor } from './callParts.js'
+import { readRangeElsewhere } from './source.js'
+import { readRemoteListing, readUrlTarget, readDirectoryTarget } from './callParts.js'
 
 export async function readFileCall(input: Input, context: ToolUseContext, canUseTool: unknown, parentMessage: unknown, readToolItself: () => unknown) {
   const ownRead = parentMessage !== undefined
@@ -118,8 +128,33 @@ export async function readFileCall(input: Input, context: ToolUseContext, canUse
     return { data: lane.data, ...(newMessages.length > 0 ? { newMessages } : {}) }
   }
 
-  const listed = await readNonFileTarget(input, remote, fullFilePath, context, settle)
-  if (listed !== null) return listed
+  if (remote !== null && remote.kind !== 'file') return readRemoteListing(remote, settle)
+
+  if (remote === null && readTargetsEnabled()) {
+    const target = classifyReadTarget(input.file_path)
+    if (target.kind === 'resource') {
+      const rendered = await renderResourceTarget(input.file_path.trim(), {
+        owner: ownerFromToolUseContext(context),
+        cwd: getCwd(),
+        getAppState: context.getAppState,
+        engineModel: context.options?.engineModel,
+      })
+      return settle({
+        data: {
+          type: 'text',
+          file: {
+            filePath: input.file_path,
+            content: rendered.content,
+            numLines: rendered.numLines,
+            startLine: 1,
+            totalLines: rendered.numLines,
+          },
+        } satisfies Output,
+      })
+    }
+    if (target.kind === 'url') return readUrlTarget(input, settle)
+    if (isDirectoryTarget(fullFilePath)) return readDirectoryTarget(input, fullFilePath, context, settle)
+  }
 
   const notAFile = remote !== null ? null : await stat(fullFilePath).then(notAFileKind, () => null)
   if (notAFile !== null) {
@@ -127,10 +162,48 @@ export async function readFileCall(input: Input, context: ToolUseContext, canUse
     throw new Error(notAFileRefusal(effectiveRawPath, notAFile))
   }
 
-  const unchanged = await readUnchanged(remote, fullFilePath, effectiveInput, context)
-  if (unchanged !== null) return unchanged
+  const entry = context.readFileState.get(fullFilePath)
+  if (
+    (remote !== null || !ideReadTextAvailable()) &&
+    entry &&
+    entry.offset !== undefined &&
+    !entry.isPartialView &&
+    (effectiveInput.ranges === undefined || effectiveInput.ranges.length === 0) &&
+    (effectiveInput.offset === undefined || effectiveInput.offset >= 0) &&
+    entry.offset === (effectiveInput.offset ?? 0) &&
+    entry.limit === effectiveInput.limit &&
+    effectiveInput.line_anchors !== true &&
+    effectiveInput.outline !== true
+  ) {
+    try {
+      const before = remoteReadGeneration(entry)
+      const unchanged =
+        remote !== null
+          ? before !== undefined && (await readRangeElsewhere(fullFilePath, 0, 0, undefined, context.abortController.signal)) !== null && fileGeneration(fullFilePath) === before
+          : Math.floor((await stat(fullFilePath)).mtimeMs) === entry.timestamp
+      if (unchanged) {
+        const anchor = entry.offset === 0 && entry.limit === undefined && changeTransactionEnabled() ? mintFileAnchor(entry.content) : undefined
+        return {
+          data: { type: 'file_unchanged', file: { filePath: fullFilePath, ...(anchor !== undefined ? { anchor } : {}) } } satisfies Output,
+        }
+      }
+    } catch {
+    }
+  }
 
-  await discoverSkillsFor(remote, fullFilePath, context)
+  if (remote === null && !isEnvTruthy(flagEnv('MERCURY_BARE'))) {
+    try {
+      const dirs = await discoverSkillDirsForPaths([fullFilePath], getCwd())
+      const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))
+      for (const dir of fresh) context.dynamicSkillDirTriggers?.add(dir)
+      if (fresh.length > 0) {
+        void Promise.resolve(addSkillDirectories(fresh, { filePaths: [fullFilePath], cwd: getCwd() })).catch(() => undefined)
+      }
+      activateConditionalSkillsForPaths([fullFilePath], getCwd())
+    } catch (err) {
+      logError(err)
+    }
+  }
 
   const parsedRanges =
     effectiveInput.ranges !== undefined && effectiveInput.ranges.length > 0
