@@ -8,6 +8,7 @@ import type { AgentDocument } from '../../../services/agents/contracts.js'
 import { newAgentPath } from '../../../services/agents/store.js'
 import type { Tools } from '../../../Tool.js'
 import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
+import '../../../tools/AgentTool/scoutPolicy.js'
 import { type EffortValue, resolveEffortTruth } from '../../../utils/effort.js'
 import type { ModelName } from '../../../utils/model/model.js'
 import { offeredDefinitionModes } from '../../../tools/AgentTool/agentPermissionPosture.js'
@@ -22,6 +23,7 @@ import { ColorPicker } from '../ColorPicker.js'
 import { ToolSelector } from '../ToolSelector.js'
 import { ModelSelector } from '../ModelSelector.js'
 import type { AgentColorName } from '../../../tools/AgentTool/agentColorManager.js'
+import '../../../utils/model/agentModelPicker.js'
 import {
   computeStudioValidation,
   createStudioEditorMachine,

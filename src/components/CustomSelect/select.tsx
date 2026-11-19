@@ -15,6 +15,7 @@ import {
   type OptionWithDescription,
 } from './option-map.js'
 import { SelectInputOption } from './select-input-option.js'
+import './select-option.js'
 import { useSelectInput } from './use-select-input.js'
 import { useSelectState } from './use-select-state.js'
 import { PopupListViewport } from './popup-list.js'
