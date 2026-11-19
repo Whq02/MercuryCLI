@@ -12,7 +12,6 @@ import { updateConcourseWorkers, readSessionWorkers } from './store.js'
 import { buildConcourseWorkerSpec, stampSpawnPosture, spawnPostureOf } from './spec.js'
 import { pidFieldsOf, buildTreeFields } from './marks.js'
 import { type ConcourseWorkerRecordV1, turnCutStanding, stampParked, clearParkedFields } from './record.js'
-import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage, isENOENT } from '../../utils/errors.js'
 
 export function migrateTranscriptHomeToLaw(rec: {
@@ -31,7 +30,7 @@ export function migrateTranscriptHomeToLaw(rec: {
     }
   } catch (err) {
     if (!isENOENT(err)) {
-      logForDebugging(`[daemon] session ${rec.sessionId}: its transcript was not moved from the worktree's project folder to the workspace's, so a resume does not find its history: ${errorMessage(err)}`, { level: 'warn' })
+      console.error(`[daemon] session ${rec.sessionId}: its transcript was not moved from the worktree's project folder to the workspace's, so a resume does not find its history: ${errorMessage(err)}`)
     }
   }
 }
