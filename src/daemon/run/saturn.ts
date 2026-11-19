@@ -8,7 +8,7 @@ import { applyConcourseContractOp } from '../sessionContract.js'
 import { onSeatSpawned, pushScheduleRosterForSession } from '../sessionSeat.js'
 import { refreshSignInReads } from '../signInView.js'
 import { markHosted } from './owner.js'
-import type { DaemonRunState } from './state.js'
+import { atBootStep, type DaemonRunState } from './state.js'
 
 interface SaturnNeeds {
   concourseDispatchHandler: ReturnType<typeof makeConcourseDispatchHandler>
@@ -16,8 +16,7 @@ interface SaturnNeeds {
 }
 
 export function armSaturn(state: DaemonRunState, { concourseDispatchHandler, warmAdmitDoors }: SaturnNeeds): void {
-  state.bootStep = 'the Saturn ticker'
-  state.stopSaturnTicker = startSaturnTicker(
+  state.stopSaturnTicker = atBootStep(state, 'the Saturn ticker')(startSaturnTicker(
     {
       now: () => Date.now(),
       records: () => {
@@ -74,5 +73,5 @@ export function armSaturn(state: DaemonRunState, { concourseDispatchHandler, war
     r => {
       console.error(`[daemon] saturn tick: ${r.fired} fired, ${r.replayed} replayed, ${r.held} held, ${r.missed} missed${r.dropped > 0 ? `, ${r.dropped} self-paced wake${r.dropped === 1 ? '' : 's'} dropped (stopped)` : ''}`)
     },
-  )
+  ))
 }
