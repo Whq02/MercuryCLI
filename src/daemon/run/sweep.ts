@@ -25,8 +25,6 @@ interface ProcessSweepNeeds {
   bootStartInstant: string | null
 }
 
-const namedReconcileFailures = new Set<string>()
-
 export function armReconcile(state: DaemonRunState, { warmDeps, armPeriodic }: ReconcileNeeds): void {
   state.bootStep = 'the boot reconcile'
   const rosteredOrHeld = (): Set<string> =>
@@ -39,6 +37,7 @@ export function armReconcile(state: DaemonRunState, { warmDeps, armPeriodic }: R
   let reconcileRosterSig = [...liveShorts].sort().join(' ')
   let reconcileRecordsStamp = fileMoveStamp(concourseWorkersPath())
   let reconcileHadLive = bootReconcile.live.length > 0
+  const namedReconcileFailures = new Set<string>()
   const reconcileTick = (): void => {
     const roster = state.roster
     try {
