@@ -12,7 +12,4 @@ src/services/host/recipes.ts	unit	HOST_RECIPES	443
 src/services/samples/shell.ts	text	SCRIPT	398
 src/services/tips/tipRegistry.ts	table	GENERAL_TIPS	41
 src/substrate/stateLifecycle.ts	table	LIFECYCLE_MANIFEST	25
-src/tools/BashTool/denyRuleReach.ts	unit	reachOf	504
-src/utils/bash/ast.ts	file	-	1621
-src/utils/bash/ast.ts	unit	Walk	741
 src/utils/capability/declarations.ts	table	TOOL_CAPABILITY_DECLARATIONS	55
