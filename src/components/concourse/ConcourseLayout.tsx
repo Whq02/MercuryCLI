@@ -1,52 +1,29 @@
 import React from 'react'
-import { Box, Text, paletteCollapsed } from '../../ink.js'
+import { Box, Text } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { GLYPH, padStartTo, branchChip } from '../mercury-ui/glyphs.js'
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
-import { truncateToWidth } from '../../utils/truncate.js'
-import { caretLens } from './lineDraft.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
-import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { fitGroupedWindow, paneWindow, scrolledWindow, shedToFit } from '../mercury-ui/geometry.js'
-import { controlNoteOf, type ConcourseRowV1, type ConcourseSnapshotV1, type ControlNoteState } from './contracts.js'
-import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, helpKeyFiresFor, legendPriorityOf, managerPaneKeysFor, newSessionTabLabel, regionKeysFor, withoutManagerPaneKeys, withSplitViewTruth } from './controlManifest.js'
-import { effortLevelToSymbol } from '../EffortIndicator.js'
-import { EFFORT_HIGH } from '../../constants/figures.js'
-import { isEffortLevel } from '../../utils/effort.js'
+import type { ConcourseRowV1, ConcourseSnapshotV1, ControlNoteState } from './contracts.js'
+import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, helpKeyFiresFor, legendPriorityOf, regionKeysFor, withoutManagerPaneKeys, withSplitViewTruth } from './controlManifest.js'
 import { chatPresent, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js'
 import { landingInFlight } from '../../services/engine-connector/focusedConnector.js'
-import { PARK_REFUSED_NOW_LEAD } from '../../services/concourse/concourseSnapshot.js'
 import { listColumns } from './rowLine.js'
 import { useSyncExternalStore } from 'react'
-import { LiveNowCell } from './LiveNowCell.js'
 import { useLiveTilesDegraded } from './liveTiles.js'
-import { NeedsYouRail, RAIL_MAX_ROWS } from './NeedsYouRail.js'
+import { RAIL_MAX_ROWS } from './NeedsYouRail.js'
 import { ConcourseStatusRail } from './ConcourseStrips.js'
+import { type ConcourseProfile, NEW_SESSION_ROW_ID, type ConcourseRegion, type SwitchboardGeometry, type ConcourseLayoutWiring } from './layout/shared.js'
+import { listPaneOf } from './layout/listPane.js'
+import { livePaneOf } from './layout/livePane.js'
 
-
-type ConcourseProfile = 'stacked' | 'wide'
+export { NEW_SESSION_ROW_ID, NEW_SESSION_DOOR_WORDS, newSessionDoorWords, newSessionDoorTail, rowNeedsOperator, type ConcourseRegion, STATE_GLYPH, STATE_WORD, STATE_WORD_RESERVE, stateWordCell } from './layout/shared.js'
 
 export const ROW_PEEK_DESIRED_ROWS = 8
 
-export const NEW_SESSION_ROW_ID = 'new-session'
-export const NEW_SESSION_DOOR_WORDS = 'n starts a blank session in this project'
-
-export function newSessionDoorWords(opts: { region: string; filtering: boolean }): string {
-  return opts.region === 'list' && !opts.filtering ? NEW_SESSION_DOOR_WORDS : `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`
-}
-
-export function newSessionDoorTail(door: { modelLabel: string; effortLevel: string }): string {
-  return ` · ${door.modelLabel} · ${isEffortLevel(door.effortLevel) ? effortLevelToSymbol(door.effortLevel) : EFFORT_HIGH} ${door.effortLevel}`
-}
-
 export function newSessionLineShown(facts: { newSession: boolean; sessionRows: number; filterText: string }): boolean {
   return facts.newSession && facts.sessionRows > 0 && facts.filterText.trim().length === 0
-}
-
-export function rowNeedsOperator(row: { state: string; nowLabel?: string | null }, ask?: string): boolean {
-  const now = row.nowLabel ?? ''
-  return (ask !== undefined && ask.length > 0) || (row.state === 'needs-you' && now.length > 0) || now.startsWith(PARK_REFUSED_NOW_LEAD)
 }
 
 export const CONCOURSE_TWO_PANE_MIN_COLS = 100
@@ -57,33 +34,9 @@ const MANAGER_FLOOR_ROWS = 8
 const LIVE_FLOOR_ROWS = 6
 const MIRROR_FLOOR_ROWS = 2
 const MANAGER_CHROME_ROWS = 6
-const MORE_BEYOND_ROW = '⋮'
 
 export function resolveConcourseProfile(cols: number, _rows?: number): ConcourseProfile {
   return cols >= CONCOURSE_TWO_PANE_MIN_COLS ? 'wide' : 'stacked'
-}
-
-export type ConcourseRegion = 'rail' | 'list' | 'live' | 'chat'
-
-interface SwitchboardGeometry {
-  constrained?: boolean
-  profile: ConcourseProfile
-  interior: number
-  railRows: number
-  railWindowRows: number
-  mainBand: [number, number]
-  mainRows: number
-  liveComposerRows: number
-  liveComposerBand: [number, number]
-  statusTop: number
-  helpTop: number
-  liveCols: [number, number]
-  rightCols: [number, number]
-  listBand: [number, number]
-  mirrorBand: [number, number]
-  thirdBand: [number, number]
-  listContentRows: number
-  peekRows: number
 }
 
 function liveComposerRowsOf(paneInner: number, ask: number): number {
@@ -194,63 +147,6 @@ export function switchboardGeometry(
     listContentRows: split.listContentRows,
     peekRows: split.peekRows,
   }
-}
-
-export const STATE_GLYPH: Record<string, { glyph: string; color: 'success' | 'warning' | 'failure' | 'info' | 'textMuted' | 'infoText' }> = {
-  'ready-to-review': { glyph: GLYPH.ok, color: 'success' },
-  working: { glyph: GLYPH.pending, color: 'info' },
-  'needs-you': { glyph: GLYPH.mission, color: 'warning' },
-  attached: { glyph: '▣', color: 'infoText' },
-  stalled: { glyph: GLYPH.uptri, color: 'warning' },
-  failed: { glyph: GLYPH.fail, color: 'failure' },
-  queued: { glyph: GLYPH.squareOpen, color: 'textMuted' },
-  starting: { glyph: '◐', color: 'textMuted' },
-  paused: { glyph: '◌', color: 'textMuted' },
-  stopped: { glyph: '◇', color: 'textMuted' },
-  completed: { glyph: GLYPH.ok, color: 'textMuted' },
-  cancelled: { glyph: GLYPH.circledSlash, color: 'textMuted' },
-  draft: { glyph: GLYPH.typing, color: 'textMuted' },
-  parked: { glyph: GLYPH.sparkFaint, color: 'textMuted' },
-  elsewhere: { glyph: GLYPH.handoff, color: 'info' },
-}
-
-export const STATE_WORD: Record<string, string> = {
-  'ready-to-review': 'ready',
-  working: 'working',
-  'needs-you': 'NEEDS YOU',
-  attached: 'with you',
-  stalled: 'stalled',
-  failed: 'failed',
-  queued: 'queued',
-  starting: 'starting',
-  paused: 'paused',
-  stopped: 'stopped',
-  completed: 'done',
-  cancelled: 'cancelled',
-  draft: 'draft',
-  parked: 'parked',
-  elsewhere: 'a door',
-}
-
-export const STATE_WORD_RESERVE = Math.max(
-  ...Object.values(STATE_WORD).map(word => word.length),
-)
-
-export function stateWordCell(word: string | null): string {
-  return ` ${(word ?? '').slice(0, STATE_WORD_RESERVE).padEnd(STATE_WORD_RESERVE)}`
-}
-
-interface ConcourseLayoutWiring {
-  selectSession: (sessionId: string) => void
-  enterSession: (sessionId: string) => void
-  selectObligation: (index: number) => void
-  answerObligation: (obligationId: string) => void
-  openObligation: (obligationId: string) => void
-  focusList?: () => void
-  retrySnapshot?: () => void
-  withdrawObligation?: (obligationId: string) => void
-  openGroundPicker?: () => void
-  newSession?: () => void
 }
 
 export function ConcourseLayout({
@@ -395,376 +291,9 @@ export function ConcourseLayout({
             ? t.infoText
             : t.textMuted
 
-  const listPane = (
-    <Box
-      flexDirection="column"
-      width={wide ? rightWidth : undefined}
-      height={listRows}
-      overflow="hidden"
-      borderStyle={geo.constrained ? undefined : paletteCollapsed() && managerFocused ? 'bold' : 'round'}
-      borderColor={managerFocused ? t.info : t.borderSubtle}
-      flexShrink={0}
-    >
-      {geo.constrained ? (
-        <Box flexDirection="column">
-          {filtering ? <Text wrap="truncate-end">{(() => { const lens = caretLens({ text: filterText, caret: filterCaret }, interior); return `${lens.before}${lens.at || ' '}${lens.after}` })()}</Text> : null}
-          {sessionRows.length === 0 ? <Text wrap="truncate-end">no sessions · n starts one</Text> : sessionRows.slice(win.start, win.end).map(r => (
-            <Box key={r.sessionId} height={1}>
-              <InteractiveRow
-                id={`concourse:board:row:${r.sessionId}`}
-                selected={r.sessionId === boardSelectedId}
-                focused={region === 'list'}
-                onSelect={() => wiring.selectSession(r.sessionId)}
-                onActivate={() => wiring.enterSession(r.sessionId)}
-                flexGrow={1}
-              >
-                <Text bold={r.sessionId === boardSelectedId} color={r.sessionId === boardSelectedId ? t.info : t.textSecondary} wrap="truncate-end">{r.title}</Text>
-              </InteractiveRow>
-            </Box>
-          ))}
-        </Box>
-      ) : <>
-      <Box flexShrink={0} paddingX={1} flexDirection="row" overflow="hidden">
-        {}
-        <Box flexShrink={0} overflow="hidden">
-          <InteractiveRow id="concourse:board:focus" directActivate hoverStyle="chrome-ink" onActivate={() => wiring.focusList?.()}>
-            {hover => (
-              <Text color={region === 'list' || hover ? t.infoText : t.textMuted} bold>
-                SESSIONS
-              </Text>
-            )}
-          </InteractiveRow>
-        </Box>
-        <Box flexShrink={1} overflow="hidden">
-        <Text wrap="truncate-end">
-          {filtering ? (
-            (() => {
-              const lens = caretLens({ text: filterText, caret: filterCaret }, 40)
-              return (
-                <Text>
-                  <Text color={t.textMuted}> · / </Text>
-                  {lens.clippedLeft ? <Text color={t.textMuted}>…</Text> : null}
-                  <Text color={t.textPrimary}>{lens.before}</Text>
-                  {lens.at === '' ? (
-                    <Text color={t.info}>{GLYPH.caretBlock}</Text>
-                  ) : (
-                    <Text color={t.textPrimary} inverse>
-                      {lens.at}
-                    </Text>
-                  )}
-                  <Text color={t.textPrimary}>{lens.after}</Text>
-                  {lens.clippedRight ? <Text color={t.textMuted}>…</Text> : null}
-                </Text>
-              )
-            })()
-          ) : filterText.trim().length > 0 ? (
-            <Text color={t.textMuted}> · filter: {filterText}</Text>
-          ) : null}
-        </Text>
-        </Box>
-        {wiring.newSession !== undefined ? (
-          <>
-            <Box flexGrow={1} />
-            <Box flexShrink={0} marginLeft={1} overflow="hidden">
-              <InteractiveRow id="concourse:board:new-session" directActivate hoverStyle="chrome-ink" onActivate={() => wiring.newSession?.()}>
-                {hover => {
-                  const n = newSessionNote !== undefined ? controlNoteOf(newSessionNote) : undefined
-                  return n === undefined ? (
-                    <Text color={hover ? t.textPrimary : t.info} wrap="truncate-end">
-                      {newSessionTabLabel({ region, filtering })}
-                    </Text>
-                  ) : n.state === 'refused' || n.state === 'failed' ? (
-                    <Text color={t.failureText} wrap="truncate-end">
-                      {GLYPH.fail} {n.reason ?? 'refused'}
-                      {n.next !== undefined ? ` · ${n.next}` : ''}
-                    </Text>
-                  ) : n.state === 'applied' ? (
-                    <Text color={t.success} wrap="truncate-end">
-                      {GLYPH.ok} {n.reason ?? 'entering'}
-                    </Text>
-                  ) : (
-                    <Text color={t.textInstruction} wrap="truncate-end">
-                      {n.reason ?? 'starting…'}
-                    </Text>
-                  )
-                }}
-              </InteractiveRow>
-            </Box>
-          </>
-        ) : null}
-      </Box>
-      {(() => {
-        const columnHeaderRow = (
-          <Box key="columns" paddingX={1} flexShrink={0} height={1}>
-            <Box flexGrow={1}>
-              <Text color={t.textInstruction}>STATUS & TITLE</Text>
-            </Box>
-            <Box width={colProject} flexShrink={0} paddingRight={1}>
-              <Text color={t.textInstruction}>PROJECT</Text>
-            </Box>
-            {nowWidth > 0 ? (
-              <Box width={nowWidth} flexShrink={0} paddingRight={1}>
-                <Text color={t.textInstruction}>NOW</Text>
-              </Box>
-            ) : null}
-            <Box width={colAge} justifyContent="flex-end" flexShrink={0}>
-              <Text color={t.textInstruction}>LAST USED</Text>
-            </Box>
-          </Box>
-        )
-        if (sessionRows.length === 0 && filterText.trim().length === 0) {
-          return (
-            <>
-              <Box flexShrink={0} height={1} />
-              <Box flexShrink={0} paddingX={1}>
-                <Text wrap="truncate-end">
-                  <Text color={t.textSecondary} bold>
-                    no sessions yet
-                  </Text>
-                  <Text color={t.textMuted}> — this board fills as you start them</Text>
-                </Text>
-              </Box>
-              {wiring.newSession !== undefined ? (
-                <Box flexShrink={0} paddingX={1}>
-                  <InteractiveRow id="concourse:board:empty-new" directActivate hoverStyle="row-fill" onActivate={() => wiring.newSession?.()}>
-                    {hover => (
-                      <Text wrap="truncate-end">
-                        <Text color={hover ? t.textPrimary : t.info}>{'▸ '}</Text>
-                        <Text color={hover ? t.textPrimary : t.info}>{newSessionDoorWords({ region, filtering })}</Text>
-                        {door !== undefined ? (
-                          <Text color={hover ? t.textPrimary : t.info}>{newSessionDoorTail(door)}</Text>
-                        ) : null}
-                      </Text>
-                    )}
-                  </InteractiveRow>
-                </Box>
-              ) : null}
-            </>
-          )
-        }
-        if (sessionRows.length === 0) {
-          return (
-            <>
-              {columnHeaderRow}
-              <Box flexShrink={0} paddingX={1}>
-                {}
-                <Text color={t.textSecondary}>no sessions match "{truncateToWidth(filterText, Math.max(8, interior - 24))}"</Text>
-              </Box>
-              <Box flexShrink={0} paddingX={1}>
-                <Text color={t.textMuted}>esc clears the filter</Text>
-              </Box>
-            </>
-          )
-        }
-        const visible = new Set(sessionRows.slice(win.start, win.end).map(r => r.sessionId))
-        const out: React.ReactNode[] = [columnHeaderRow]
-        if (lineShown) {
-          out.push(
-            <Box key={NEW_SESSION_ROW_ID} flexShrink={0} paddingX={1}>
-              <InteractiveRow
-                id="concourse:board:empty-new"
-                selected={lineSelected}
-                focused={region === 'list'}
-                onSelect={() => wiring.selectSession(NEW_SESSION_ROW_ID)}
-                onActivate={() => wiring.newSession?.()}
-                flexGrow={1}
-              >
-                <Box flexGrow={1} overflow="hidden">
-                  <Text wrap="truncate-end">
-                    {lineSelected ? <Text color={region === 'list' ? t.info : t.textPrimary}>{'▸ '}</Text> : <Text>{'  '}</Text>}
-                    <Text color={t.info}>{newSessionDoorWords({ region, filtering })}</Text>
-                    {door !== undefined ? <Text color={t.info}>{newSessionDoorTail(door)}</Text> : null}
-                  </Text>
-                </Box>
-              </InteractiveRow>
-            </Box>,
-          )
-        }
-        for (const g of boardGroups) {
-          const inWindow = g.rows.filter(r => visible.has(r.sessionId))
-          if (inWindow.length === 0) continue
-          if (showHeadings)
-            out.push(
-              <Box key={`h:${g.id}`} flexShrink={0} paddingX={1}>
-                <Text>
-                  <Text color={groupRole(g.id)} bold>
-                    {GLYPH.ownHybrid} {g.label}
-                  </Text>
-                  <Text color={groupRole(g.id)}> · {g.rows.length}</Text>
-                </Text>
-              </Box>,
-            )
-          for (const r of inWindow) {
-            const isSel = r.sessionId === boardSelectedId
-            const base = STATE_GLYPH[r.state] ?? { glyph: GLYPH.read, color: 'textMuted' as const }
-            const sg = r.state === 'working' && isSel ? { glyph: GLYPH.ok, color: 'info' as const } : r.finishedUnseen === true ? { glyph: base.glyph, color: 'warning' as const } : base
-            const ageBlock = padStartTo(r.state === 'queued' ? 'waits' : (r.ageLabel ?? '—'), 5)
-            const ask = askBySession.get(r.sessionId)
-            const operatorCell = nowWidth === 0 && rowNeedsOperator(r, ask)
-            out.push(
-              <Box key={r.sessionId} flexShrink={0} paddingX={1}>
-                <InteractiveRow
-                  id={`concourse:board:row:${r.sessionId}`}
-                  selected={isSel}
-                  focused={region === 'list'}
-                  onSelect={() => wiring.selectSession(r.sessionId)}
-                  onActivate={() => wiring.enterSession(r.sessionId)}
-                  flexGrow={1}
-                >
-                  <Box flexGrow={1} overflow="hidden" paddingRight={1}>
-                    <Text wrap="truncate-end">
-                      {isSel ? <Text color={region === 'list' ? t.info : t.textPrimary}>{'▸ '}</Text> : <Text>{'  '}</Text>}
-                      {markedIds?.has(r.sessionId) === true ? (
-                        <Text color={t.info}>{GLYPH.check} </Text>
-                      ) : null}
-                      {r.state === 'working' ? (
-                        <WorkingGlyph color={t.info} active />
-                      ) : (
-                        <Text color={t[sg.color]}>{sg.glyph}</Text>
-                      )}
-                      {}
-                      {stateCellShown ? (
-                        <Text color={t[sg.color]}>
-                          {stateWordCell(
-                            isSel && !r.sessionId.startsWith('older:')
-                              ? (STATE_WORD[r.state] ?? r.state)
-                              : null,
-                          )}
-                        </Text>
-                      ) : null}
-                      <Text> </Text>
-                      {r.foreignProject !== undefined ? (
-                        <Text color={t.info}>{GLYPH.sparkBright} </Text>
-                      ) : null}
-                      <Text color={t.textPrimary} bold={isSel}>
-                        {r.title}
-                      </Text>
-                      {r.foreignProject !== undefined ? (
-                        <Text color={t.textMuted}> from {r.foreignProject}</Text>
-                      ) : null}
-                    </Text>
-                  </Box>
-                  {operatorCell ? (
-                    <Box width={colProject + colAge} flexShrink={0}>
-                      <LiveNowCell row={r} ask={ask} brief />
-                    </Box>
-                  ) : (
-                    <>
-                      <Box width={colProject} flexShrink={0} paddingRight={1}>
-                        {}
-                        <Text wrap="truncate-end">
-                          {r.worktreeBranch !== undefined ? <Text color={t.info}>{branchChip('')}</Text> : null}
-                          <Text color={t.textSecondary}>{r.projectLabel}</Text>
-                        </Text>
-                      </Box>
-                      {nowWidth > 0 ? (
-                        <Box width={nowWidth} flexShrink={0} paddingRight={1}>
-                          {}
-                          <LiveNowCell row={r} ask={ask} />
-                        </Box>
-                      ) : null}
-                      <Box width={colAge} justifyContent="flex-end" flexShrink={0}>
-                        <Text color={t.textInstruction}>{ageBlock}</Text>
-                      </Box>
-                    </>
-                  )}
-                </InteractiveRow>
-              </Box>,
-            )
-            if (isSel && geo.peekRows > 0 && rowPeekNode !== undefined) {
-              const paneW = rightWidth
-              out.push(
-                <Box
-                  key={`peek:${r.sessionId}`}
-                  flexShrink={0}
-                  height={geo.peekRows}
-                  paddingLeft={3}
-                  paddingRight={1}
-                  overflow="hidden"
-                >
-                  {rowPeekNode(geo.peekRows, Math.max(16, paneW - 7))}
-                </Box>,
-              )
-            }
-          }
-        }
-        if (win.above > 0 || win.below > 0) {
-          out.push(
-            <Box key="win" flexShrink={0} paddingX={1}>
-              <Text color={t.textMuted}>{MORE_BEYOND_ROW}</Text>
-            </Box>,
-          )
-        }
-        return out
-      })()}
-      <Box flexGrow={1} />
-      <Box flexDirection="column" flexShrink={0} paddingX={1} overflow="hidden">
-        <NeedsYouRail
-          bare
-          snapshot={snapshot}
-          focused={region === 'rail'}
-          selectedIndex={railIndex}
-          width={listInner}
-          maxRows={geo.railWindowRows}
-          onSelectRow={i => wiring.selectObligation(i)}
-          onAnswer={id => wiring.answerObligation(id)}
-          onOpen={id => wiring.openObligation(id)}
-          {...(wiring.withdrawObligation !== undefined
-            ? { onDismiss: (id: string) => wiring.withdrawObligation?.(id) }
-            : {})}
-        />
-      </Box>
-      <Box height={1} flexShrink={0} paddingX={1} overflow="hidden">
-        <Text color={t.textInstruction} wrap="truncate-end">
-          {shedToFit(
-            managerPaneKeysFor({
-              newSession: wiring.newSession !== undefined,
-              paused: boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId)) === 'paused',
-            }).map((k, i) => ({ text: `${keyHintLabel(k.keys)} ${k.label}`, priority: -i })),
-            listInner,
-            ' · ',
-          )
-            .map(p => p.text)
-            .join(' · ')}
-        </Text>
-      </Box>
-      </>}
-    </Box>
-  )
+  const listPane = listPaneOf({ wide, rightWidth, listRows, geo, managerFocused, t, filtering, filterText, filterCaret, interior, sessionRows, win, boardSelectedId, region, wiring, newSessionNote, colProject, colAge, nowWidth, door, lineShown, lineSelected, boardGroups, showHeadings, groupRole, askBySession, stateCellShown, markedIds, rowPeekNode, snapshot, railIndex, listInner })
 
-  const mirrorInner = Math.max(1, mirrorRows - 2 - geo.liveComposerRows)
-  const livePane = geo.constrained ? (
-    <>
-      <Box flexDirection="column" height={mirrorRows} overflow="hidden" flexShrink={0}>
-        {mirrorNode(mirrorRows, Math.max(0, interior))}
-      </Box>
-      {geo.liveComposerRows > 0 && liveComposerNode !== undefined ? (
-        <Box flexDirection="column" height={geo.liveComposerRows} overflow="hidden" flexShrink={0}>
-          {liveComposerNode(geo.liveComposerRows, interior)}
-        </Box>
-      ) : null}
-    </>
-  ) : (
-    <Box
-      flexDirection="column"
-      width={wide ? liveWidth : undefined}
-      height={mirrorRows}
-      overflow="hidden"
-      borderStyle={paletteCollapsed() && region === 'live' ? 'bold' : 'round'}
-      borderColor={region === 'live' ? t.info : t.borderSubtle}
-      paddingX={1}
-      flexShrink={0}
-    >
-      <Box flexDirection="column" height={mirrorInner} overflow="hidden" flexShrink={0}>
-        {mirrorNode(mirrorInner, Math.max(0, liveWidth - 4))}
-      </Box>
-      {geo.liveComposerRows > 0 && liveComposerNode !== undefined ? (
-        <Box flexDirection="column" height={geo.liveComposerRows} overflow="hidden" flexShrink={0}>
-          {liveComposerNode(Math.max(1, geo.liveComposerRows - 3), Math.max(0, liveWidth - 4))}
-        </Box>
-      ) : null}
-    </Box>
-  )
+  const livePane = livePaneOf({ wide, geo, t, interior, region, mirrorRows, mirrorNode, liveComposerNode, liveWidth })
 
   const thirdPane =
     thirdPaneRows > 0 && thirdRows > 0 ? (
