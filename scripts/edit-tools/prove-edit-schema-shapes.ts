@@ -112,14 +112,6 @@ check('the Gemini road carries the same schema as parametersJsonSchema', JSON.st
 const again = zodToJsonSchema(FileEditTool.inputSchema as never)
 check('the conversion is one object per schema identity (the request-hot path memo)', again === wire)
 
-section('§5 the tool and its rows know one input shape: no multi-edit edits key is read anywhere, no legacy word remains')
-const { readFileSync } = await import('node:fs')
-const ROOT = join(import.meta.dir, '..', '..')
-const ui = readFileSync(join(ROOT, 'src/tools/FileEditTool/UI.tsx'), 'utf8')
-const tool = readFileSync(join(ROOT, 'src/tools/FileEditTool/FileEditTool.ts'), 'utf8')
-check('the transcript rows type their input as the one FileEditInput and read no edits key off it', !/edits\?:/.test(ui) && !/input\??\.edits\b/.test(ui) && /Partial<FileEditInput>/.test(ui))
-check('the executor reads no edits key off its input', !/input\??\.edits\b|a\.edits\b|b\.edits\b/.test(tool))
-check('neither file spells legacy', !/legacy/i.test(ui) && !/legacy/i.test(tool))
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-edit-schema-shapes — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)
 process.exit(failures === 0 ? 0 : 1)

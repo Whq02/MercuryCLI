@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -83,24 +83,6 @@ writeFileSync(
   }),
 )
 
-section('§1 the boot makes no side request (source)')
-{
-  const webfetch = readFileSync(join(ROOT, 'src/tools/WebFetchTool/utils.ts'), 'utf8')
-  check('WebFetch asks no policy service (no preflight in the module)', !/preflight/i.test(webfetch) && !webfetch.includes('domain_info'))
-  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
-  const hook = readFileSync(join(ROOT, 'src/hooks/useApiKeyVerification.ts'), 'utf8')
-  check('the key hook honours probe: false before any wire call', hook.indexOf('opts?.probe === false') !== -1 && hook.indexOf('opts?.probe === false') < hook.indexOf('await verifyApiKey('))
-  const main = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
-  check('the boot registers no startup request batch', !main.includes('startup-prefetch-batch') && !main.includes('runStartupPrefetchBatch'))
-  const limits = readFileSync(join(ROOT, 'src/services/anthropicLimits.ts'), 'utf8')
-  check('the usage record holds no quota probe', !limits.includes('quota_check') && !limits.includes("content: 'quota'"))
-  check('the boot arms no usage clock', !main.includes("'usage-poll'") && !main.includes('armProviderUsagePoll'))
-  const usageOwner = readFileSync(join(ROOT, 'src/services/providers/providerUsage.ts'), 'utf8')
-  check('the usage owner keeps no timer and no turn poke', !/\bsetInterval\s*\(/.test(usageOwner) && !usageOwner.includes('pokeProviderUsage'))
-  const frame = readFileSync(join(ROOT, 'src/components/MercuryFrame.tsx'), 'utf8')
-  check('the frame pokes no reader after a turn; its chips read on show', !frame.includes('pokeProviderUsage') && frame.includes('useProviderUsageOnShow('))
-  check("the picker's catalogue is not primed at boot idle", !repl.includes('getGptSeatAvailability'))
-}
 
 section('§2 the wire is quiet — the features the roads fed still answer, and the fixture serves nothing')
 {

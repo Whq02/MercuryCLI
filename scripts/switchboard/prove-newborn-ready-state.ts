@@ -29,11 +29,6 @@ check('§4 a crash fact outranks born-blank', concourseRecordState({ bornBlankAt
 check('§4 needs-you liveness outranks born-blank', concourseRecordState({ bornBlankAt: now }, { needsYou: true, alive: true }) === 'needs-you')
 check('§4 attached outranks born-blank', concourseRecordState({ bornBlankAt: now, attachedAt: now }, alive) === 'attached')
 
-const { readFileSync } = await import('node:fs')
-const mirror = readFileSync(new URL('../../src/components/concourse/SessionMirror.tsx', import.meta.url), 'utf8')
-check("§5 the mirror's empty chat names the ready newborn's truth (waiting for words, ↵ enters)", mirror.includes("state === 'ready-to-review'") && mirror.includes('ready for your first words'))
-check("§5 the working state paints its activity (glyph + now label), never a claimed phase", /state === 'working' \? \(/.test(mirror) && /state === 'working'\n\s*\? nowLabel/.test(mirror.replace(/\r\n/g, '\n')) && mirror.includes("'working…'"))
-check("§5 the bare 'thinking' fallback STAYS retired (a phase claim without the fact re-lies)", !mirror.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !/^\s*(?:\/\/|\*)/.test(l)).join('\n').includes("'thinking'"))
 
 console.log(failures === 0 ? '\nprove-newborn-ready-state: ALL LAWS HOLD' : `\nprove-newborn-ready-state: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

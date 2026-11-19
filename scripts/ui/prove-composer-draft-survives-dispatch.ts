@@ -213,13 +213,6 @@ await history.flushHistoryNow()
 const afterTyped = (await history.loadHistoryCorpus()).map(record => record.display)
 check('the typed line is in history, once, and the draft still is not', afterTyped.filter(display => display === '/usage').length === 1 && !afterTyped.some(display => display.includes('the quick brown fox')), JSON.stringify(afterTyped))
 
-section('§7 the seam in source: the composer is taken only when it holds the submitted line (or nothing)')
-{
-  const { readFileSync } = await import('node:fs')
-  const repl = readFileSync(join(import.meta.dir, '..', '..', 'src', 'screens', 'Chat.tsx'), 'utf8')
-  const takeAt = repl.indexOf('const takeComposer = (): void => {')
-  const take = takeAt < 0 ? '' : repl.slice(takeAt, repl.indexOf('};', takeAt) + 2)
-}
 
 m.unmount()
 if (frameDir !== undefined) console.log(`\nframes: ${frames.join(', ')} under ${frameDir}`)

@@ -131,8 +131,6 @@ for (const event of EVENTS) {
   if (row.match !== undefined) check(`docs: ${event} names its match field ${row.match}`, line.includes(`| \`${row.match}\` |`), line.slice(0, 120))
   for (const field of row.answers.filter(f => f !== 'notice')) check(`docs: ${event} names the answer field ${field}`, line.includes(`\`${field}`), line.slice(0, 160))
 }
-const skillWords = readFileSync(join(import.meta.dir, '..', '..', 'src', 'skills', 'bundled', 'updateConfig.ts'), 'utf8')
-check('the bundled update-config skill lists no event by hand — it reads the table', /hookEventTable/.test(skillWords) && !/\| turn\.start \|/.test(skillWords))
 
 if (failures > 0) {
   console.error(`\nprove-hook-event-table: ${failures} FAILURE(S)`)

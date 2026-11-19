@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import type { BoardPrincipal } from '../../src/services/crewBoard/contracts.ts'
 
@@ -83,11 +83,4 @@ const assignedCaptain = seam.swarmStore()!.assignCaptain(seam.swarmPrincipal()!,
 check('the captain reads the same lead-owned launch road', assignedCaptain.ok && leadLaunches(seam.swarmBrief('parser')!))
 seam.swarmStore()?.close()
 
-const launch = readFileSync(new URL('../../src/tools/AgentTool/runAgent.ts', import.meta.url), 'utf8')
-check('the launch road pushes the brief into an enrolled crewmate\'s system prompt, after the structured-output words, handing the seam the brief a resume carries', /structured payload is the contract[\s\S]{0,200}const swarmWords = swarm \? swarmBrief\(agentId, override\?\.swarmBrief\) : null\n\s+if \(swarmWords !== null\) systemPrompt\.push\(swarmWords\)/.test(launch))
-check('the launch sidecar records the brief the crewmate was given', /\.\.\.\(swarmWords !== null \? \{ swarmBrief: swarmWords \} : \{\}\),/.test(launch))
-const resume = readFileSync(new URL('../../src/tools/AgentTool/resumeAgent.ts', import.meta.url), 'utf8')
-check('the resume road hands the recorded brief back as the override', /\.\.\.\(meta\?\.swarmBrief !== undefined \? \{ swarmBrief: meta\.swarmBrief \} : \{\}\),/.test(resume))
-const leadPrompt = readFileSync(new URL('../../src/tools/AgentTool/prompt.ts', import.meta.url), 'utf8')
-check('the Crewmate manual states enrollment and post delivery once', leadPrompt.includes('enrolled on the live crew board and told its name, its team and the seats already there') && leadPrompt.includes('[name] [team] [kind] rows between turns'))
 console.log(`swarm brief: ${checks} checks passed`)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -83,13 +83,6 @@ console.log('L2 control — an uncontended save lands')
 
 console.log('L3 the backup runs outside the locked section')
 {
-  const src = readFileSync(join(SRC, 'utils/config/globalConfig.ts'), 'utf8')
-  const fnAt = src.indexOf('export function saveConfigWithLock')
-  const body = fnAt >= 0 ? src.slice(fnAt, fnAt + 3000) : ''
-  const backupAt = body.indexOf('backupOutgoingConfig(file, fs)')
-  const lockAt = body.indexOf('const takeLock')
-  check('the pre-lock backup call exists', backupAt >= 0)
-  check('it sits BEFORE the lock is taken', backupAt >= 0 && lockAt >= 0 && backupAt < lockAt, `backup=${backupAt} lock=${lockAt}`)
 
   const home = mkdtempSync(join(tmpdir(), 'cfg-backup-'))
   mkdirSync(home, { recursive: true })

@@ -110,13 +110,6 @@ section('§2 the /logins slot road — the default sign-out keeps the siblings')
   check(`the MCP sessions, IDP sessions, extension secrets and device token all survive`, siblingsIntact(settled), JSON.stringify(settled))
 }
 
-section('§3 /logout keeps the whole-file delete (the global verb)')
-{
-  const logoutSrc = readFileSync(join(import.meta.dir, '../../src/commands/logout/logout.tsx'), 'utf8')
-  check('/logout deletes the whole store', logoutSrc.includes('getSecureStorage().delete()'))
-  const slotsSrc = readFileSync(join(import.meta.dir, '../../src/services/providers/accountSlots.ts'), 'utf8')
-  check('the per-slot sign-out never calls the whole-store delete', !slotsSrc.includes('getSecureStorage().delete()'))
-}
 
 rmSync(scratch, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-slot-signout-scope${failures ? ` (${failures} failure(s))` : ''}`)

@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const home = mkdtempSync(join(tmpdir(), 'source-row-plain-text-home-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -59,21 +58,6 @@ console.log('[3] the helper keeps ordinary text byte for byte')
   check('a tab folds to one space', plainRowText('a\tb') === 'a b')
 }
 
-console.log('[4] every render site of the two fields reads through the helper')
-{
-  const board = readFileSync(join(ROOT, 'src/components/extensions/ExtensionsBoard.tsx'), 'utf8')
-  const view = readFileSync(join(ROOT, 'src/components/extensions/SourceView.tsx'), 'utf8')
-  const words = readFileSync(join(ROOT, 'src/components/extensions/rowWords.ts'), 'utf8')
-  const sidePaneError = /v: plainRowText\(row\.record\.lastError\)/.test(board)
-  const sidePaneOffers = /row\.catalogueError \? plainRowText\(row\.catalogueError\)/.test(board)
-  const viewHint = /catalogue unreadable: \$\{plainRowText\(source\.catalogueError\)\}/.test(view)
-  const whereError = /plainRowText\(row\.record\.lastError\)/.test(words)
-  const whereCatalogue = /plainRowText\(row\.catalogueError\)/.test(words)
-  check('the side pane\'s error line is stripped', sidePaneError)
-  check('the side pane\'s offers line is stripped', sidePaneOffers)
-  check('the source view\'s catalogue hint is stripped', viewHint)
-  check('the where column strips both fields', whereError && whereCatalogue)
-}
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

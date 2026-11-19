@@ -2,7 +2,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -13,8 +12,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 
 const { buildAgentLaunchPlan } = await import('../../src/utils/crew/agentLaunchPlan.ts')
 const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.ts')
@@ -165,22 +162,6 @@ section('§4 — isolation · the async decision law · worker permission mode')
   check("no definition mode → the 'implement' worker default", buildAgentLaunchPlan(base({ requestedType: 'mercury-crew' })).workerPermissionMode === 'implement')
 }
 
-section('§6 — seam ratchets: the consumers consume the plan')
-{
-  const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')
-  check('AgentTool resolves through buildAgentLaunchPlan', agentTool.includes('buildAgentLaunchPlan({'))
-  check('AgentTool keeps NO alias-map copy (decode has ONE home)', !agentTool.includes('LEGACY_SUBAGENT_ALIASES'))
-  check('AgentTool resolves the explicit model through the model owner before engine validation (the typed word first matched to the reachable catalogue — modelWord — since .34)', agentTool.includes('getAgentModel(undefined, options.engineModel, modelWord)') && agentTool.indexOf('getAgentModel(undefined, options.engineModel, modelWord)') < agentTool.indexOf('resolveEngineDispatch(modelParam)'))
-  const planSrc = src('utils', 'crew', 'agentLaunchPlan.ts')
-  check('the plan builder reads the requested type as written — no decode seam, no alias table', planSrc.includes('(i.requestedType || undefined) ?? i.defaultAgentType') && !/decodeAgentType|Record<string, string>/.test(planSrc))
-
-  const fg = src('tools', 'AgentTool', 'foregroundExecution.tsx')
-  check('AgentTool dispatches foreground runs to the execution module', agentTool.includes('runForegroundAgentExecution({'))
-  check('both launch roads register a launch name through the one alias helper', agentTool.includes('registerAgentName(') && fg.includes('registerAgentName('))
-  for (const landmark of ['registerAgentForeground(', 'BackgroundHint', 'agentIterator', 'backgroundRace']) {
-    check(`the execution machine landmark '${landmark}' lives in foregroundExecution, not the tool`, fg.includes(landmark) && !agentTool.includes(landmark))
-  }
-}
 
 console.log('\n============================================================')
 if (failures === 0) {

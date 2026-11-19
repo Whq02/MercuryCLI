@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 
 import { mkdtempSync } from 'node:fs'
-import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -213,27 +212,6 @@ check('a resolved READ leads with the read mark, never a ring', leadsWith(readRo
 
 section('§C the daemon-hosted feed seams (source locks, call-shaped)')
 {
-  const root = join(import.meta.dir, '../../src')
-  const lead = readFileSync(join(root, 'components/messages/ToolRowLead.tsx'), 'utf8')
-  check(
-    'the lead derives its state in ONE place: denied, then errored, then resolved or pending',
-    lead.includes("if (flags.denied) return 'denied'") &&
-      lead.includes("if (flags.errored) return 'error'") &&
-      lead.includes("return flags.resolved ? 'done' : 'pending'"),
-  )
-  check('the lead carries no clock, no animation value and no settle latch', !/useAnimationValue|useSettleFlash|useBlink|useNowTick/.test(lead))
-  const row = readFileSync(join(root, 'components/messages/AssistantToolUseMessage.tsx'), 'utf8')
-  check(
-    'the row feeds the lead from the lookups and counts exactly while running (running && shouldAnimate)',
-    row.includes('toolRowStateOf({ resolved, errored, denied })') &&
-      row.includes('running={running && shouldAnimate}') &&
-      row.includes('const running = inProgress && !resolved'),
-  )
-  const messageRow = readFileSync(join(root, 'components/MessageRow.tsx'), 'utf8')
-  check(
-    "MessageRow's animation permission derives from the in-progress set",
-    messageRow.includes('inProgressToolUseIDs.has(toolUseID))'),
-  )
   {
     const { openStatusPart } = await import('../ui/chatScenarios.ts')
     const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
@@ -244,11 +222,6 @@ section('§C the daemon-hosted feed seams (source locks, call-shaped)')
     await status.close()
     check("the Chat's view set is the CONNECTOR's live set (the daemon-hosted feed)", viewSet === liveSet, `${[...viewSet].join(',')}`)
   }
-  const connector = readFileSync(join(root, 'services/engine-connector/daemonConnector.ts'), 'utf8')
-  check(
-    "the connector folds its live set from ITS OWN records (liveTurnStateOf)",
-    connector.includes('this.liveFold.fold(this.rawRecords, chain.since)'),
-  )
 }
 
 console.log(

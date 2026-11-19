@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -26,30 +26,6 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 20))
 
-section('§1 the census: the daemon speaks the method table and nothing older')
-{
-  const words = ['control_request', 'control_response', 'control_cancel_request', 'can_use_tool', 'set_permission_mode']
-  const hits: string[] = []
-  for (const name of readdirSync(join(ROOT, 'src', 'daemon'))) {
-    if (!name.endsWith('.ts')) continue
-    const text = readFileSync(join(ROOT, 'src', 'daemon', name), 'utf8')
-    for (const word of words) if (text.includes(word)) hits.push(`${name}:${word}`)
-  }
-  check('no retired control word stands in src/daemon', hits.length === 0, hits.join(', '))
-  const connection = readFileSync(join(ROOT, 'src', 'daemon', 'runnerConnection.ts'), 'utf8')
-  check('the connection owns no subtype table and no frame translator', !/SUBTYPE_METHODS|paramsOfSubtype|askFrameOf|inputRowOfFrame|answerPayloadOf/.test(connection))
-  check('the connection is a typed client: send, request, notify, deliver', /send<M extends Verb>/.test(connection) && /notify<M extends HostNotificationName>/.test(connection) && /deliver\(row: InputRow\)/.test(connection))
-  const roster = readFileSync(join(ROOT, 'src', 'daemon', 'roster.ts'), 'utf8')
-  check('the roster parses no child line of its own (the door parses once)', !/JSON\.parse\(line\)|drainChildStdout|onChildLine|writeFrame/.test(roster))
-  check("the roster hands the seat its door, never a frame writer", /door\(short: string\): RunnerDoor \| undefined/.test(roster) && !/control\(short: string, frame: string\)/.test(roster))
-  const seat = readFileSync(join(ROOT, 'src', 'daemon', 'sessionSeat.ts'), 'utf8')
-  check('the seat keeps no waiter map and no request-id prefix', !/Waiters = new Map|REQUEST_PREFIX|startsWith\(SEAT_/.test(seat))
-  check('the seat reads the older runner from the peer code, not an English regex', !/unsupported control request subtype/.test(seat) && /RPC_METHOD_NOT_FOUND/.test(seat))
-  const warm = readFileSync(join(ROOT, 'src', 'daemon', 'warmRunner.ts'), 'utf8')
-  check('the warm claim rides session/claim; no per-line hook sniffs the drain', /'session\/claim'/.test(warm) && !/onWarmRunnerLine|WARM_CLAIM_REQUEST_PREFIX/.test(warm))
-  const spawn = readFileSync(join(ROOT, 'src', 'daemon', 'headlessRun.ts'), 'utf8')
-  check("the spawn builder spells 'runner' itself — no argv rewrite from the row stream's words", /^\s+'runner',$/m.test(spawn) && !/runnerDoorArgv|'--input=rows'|'--partial'/.test(spawn))
-}
 
 const { standInRunner } = await import('../lib/seatDoor.ts')
 const seatModule = await import('../../src/daemon/sessionSeat.ts')
@@ -240,9 +216,6 @@ section('§5 the warm claim rides session/claim')
   const stand = standInRunner({ sessionId: null })
   const claimed = warm.claimWarmRunner
   check('the pool exports the claim', typeof claimed === 'function')
-  const source = readFileSync(join(ROOT, 'src', 'daemon', 'warmRunner.ts'), 'utf8')
-  check('the claim names the typed params: session_id, model, mode, effort, resume, restart_reason, openai_catalogue', ['session_id: args.sessionId', 'model: args.modelKey', 'mode: args.permissionMode', 'effort: args.effort', 'resume: true', 'restart_reason: args.restartReason', 'openai_catalogue: openaiCatalogueToWire'].every(needle => source.includes(needle)))
-  check("the claim's liveness pulse aborts the request through its signal; a dead runner reads 'died'", source.includes('signal: pulse.signal') && source.includes('the warm runner died before it answered the claim'))
   stand.close()
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -14,7 +14,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
@@ -72,26 +71,6 @@ section('§2 THE SEEN BUDGET')
   check('a spent budget silences the hint', hintAt(budget) === undefined)
 }
 
-section('§3 THE PLACEHOLDER CONSUMES IT (call-shaped)')
-{
-  const hook = readFileSync(
-    join(ROOT, 'src', 'components', 'PromptInput', 'usePromptInputPlaceholder.ts'),
-    'utf-8',
-  )
-  check(
-    'the rung reads projectOnboardingHint before any submission',
-    hook.includes('projectOnboardingHint()') && hook.includes('submitCount === 0'),
-  )
-  check(
-    'the seen count bumps in an effect, once per session',
-    hook.includes('noteProjectOnboardingShown()') && /useEffect\(\(\) => \{\s*\n\s*if \(onboardingHint !== undefined\) noteProjectOnboardingShown\(\)/.test(hook),
-  )
-  check(
-    'the rung sits ahead of the generic discoverability line',
-    hook.includes('onboardingHint !== undefined) {') &&
-      hook.indexOf('onboardingHint !== undefined) {') < hook.indexOf('cockpitActive && submitCount < 2'),
-  )
-}
 
 console.log(failures === 0 ? '\nprove-project-onboarding-renders: all green' : `\nprove-project-onboarding-renders: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

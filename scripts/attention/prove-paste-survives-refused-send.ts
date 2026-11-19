@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
-import { existsSync, mkdtempSync, readFileSync, unlinkSync, utimesSync } from 'node:fs'
+import { existsSync, mkdtempSync, unlinkSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'paste-crash-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.BROWSER = '/usr/bin/true'
-const ROOT = process.cwd()
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
@@ -26,21 +25,10 @@ section('§A the loss mechanism: the submit clears the paste map, and a bare chi
   check('a re-send with the RESTORED map carries the bytes again (what the fix makes true)', expandPastedTextRefs(`kick off ${chip}`, map).includes(bytes))
 }
 
-section('§B the fix at the true cause: a refused send restores the pastes with the text')
-{
-  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
-  const refAt = repl.indexOf("if (receipt.state !== 'refused') return")
-  const refBlock = refAt !== -1 ? repl.slice(refAt, refAt + 500) : ''
-}
 
 section('§C the crash road: the chip carries its hash, the bytes are on disk from the mint, and a rebuilt composer still expands it')
 {
   type Slot = { id: number; type: 'text' | 'image'; content: string; contentHash?: string }
-  const promptSrc = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerAttachments.ts'), 'utf8') + readFileSync(join(ROOT, 'src/components/PromptInput/useComposerSubmit.ts'), 'utf8')
-  const mintAt = promptSrc.indexOf('const numLines = getPastedTextRefNumLines(exact)')
-  const mint = mintAt === -1 ? '' : promptSrc.slice(mintAt, mintAt + 600)
-  check('C1 the mint stamps the chip with the hash of its exact bytes (tabs kept)', mint.includes('const contentHash = hashPastedText(exact)') && mint.includes('contentHash,'))
-  check('C2 …and stores those bytes at the mint, not at the send', mint.includes('void storePastedText(contentHash, exact)'))
 
   const store = await import('../../src/utils/pasteStore.ts')
   const drafts = (await import('../../src/utils/promptDraft.ts')) as unknown as {

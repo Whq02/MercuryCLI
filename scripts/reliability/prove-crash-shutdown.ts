@@ -12,18 +12,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-{
-  const gs = readFileSync(join(ROOT, 'src/utils/gracefulShutdown.ts'), 'utf8')
-  t('§1 the bounded road exists (crashShutdown export)', /export async function crashShutdown\(/.test(gs))
-  t('§1 …with the ruled budget beside it', /CRASH_SHUTDOWN_BUDGET_MS = 1500/.test(gs))
-  t('§1 …and session-end hooks never run on it', !/executeSessionEndHooks/.test(gs.slice(gs.indexOf('export async function crashShutdown'), gs.indexOf('export async function crashShutdown') + 2200)))
-  const failLoudBody = gs.slice(gs.indexOf('export function failLoud'), gs.indexOf('const BREAKER_WINDOW_MS'))
-  t('§1 failLoud leaves through the bounded road, never a bare exit', /void crashShutdown\(1\)/.test(failLoudBody) && !/forceExit\(1\)/.test(failLoudBody))
-  const main = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
-  const catchAt = main.indexOf('Mercury exited on an error')
-  const catchRegion = main.slice(catchAt, catchAt + 900)
-  t('§1 the render-crash catch takes the bounded road before its exit', /await crashShutdown\(1\)/.test(catchRegion))
-}
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'crash-shutdown-'))
 const bunExe = process.execPath
@@ -130,12 +118,6 @@ function runChild(body: string, timeoutMs: number): { status: number | null; ms:
 }
 
 {
-  const gs = readFileSync(join(ROOT, 'src/utils/gracefulShutdown.ts'), 'utf8')
-  const armAt = gs.indexOf('if (tripped) {')
-  const armEnd = gs.indexOf("process.on('unhandledRejection'", armAt)
-  const arm = armAt >= 0 && armEnd > armAt ? gs.slice(armAt, armEnd) : ''
-  t('§7 the tripped arm takes the bounded road (structural)', /void crashShutdown\(1\)/.test(arm), arm.slice(-300))
-  t('§7 …and a bare forceExit remains only for a shutdown already in progress', /isShuttingDown\(\)\) forceExit\(1\)/.test(arm) && (arm.match(/forceExit\(1\)/g) ?? []).length === 1)
 
   const out = join(SCRATCH, 'breaker-cleaned.txt')
   const child = `

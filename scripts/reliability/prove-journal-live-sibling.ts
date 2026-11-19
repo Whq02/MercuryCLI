@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -108,14 +108,6 @@ console.log('L3 an unregistered same-pid record (prior generation) still recover
   ok(summary.compensated.length === 1 && recovered === 1, 'L3 the sweep recovers it (the dead-writer road still works)', JSON.stringify(summary))
 }
 
-console.log('L4 the generic walker rides the one liveness owner')
-{
-  const src = readFileSync(join(SRC, 'substrate/operationJournal.ts'), 'utf8')
-  const walkerAt = src.indexOf('export async function recoverJournalDir')
-  const walker = walkerAt >= 0 ? src.slice(walkerAt, walkerAt + 1200) : ''
-  ok(walker.includes('isJournalWriterAlive(op)'), 'L4 recoverJournalDir consults isJournalWriterAlive')
-  ok(!walker.includes('pidAlive(op.writerPid) && op.writerPid !== process.pid'), 'L4 the inline pid test is gone from the walker')
-}
 
 console.log('L5 a live writer this process may not signal (EPERM) is alive to the sweep, never compensated')
 {

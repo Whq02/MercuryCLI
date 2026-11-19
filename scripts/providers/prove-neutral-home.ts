@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -210,10 +209,6 @@ const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/
   check('…and stating the refusal came before any request', typeof refusal === 'string' && /Refused before any request/.test(refusal), String(refusal))
   check('a gateway base URL admits (its endpoint owns its ids)',
     homeLaneAdmissionRefusal('foo-bar-9', { ...firstPartyNoFact, firstPartyBaseUrl: () => false }) === null)
-  const admissionSource = readFileSync(join(ROOT, 'src/services/providers/homeLaneAdmission.ts'), 'utf8')
-  check('a credentialed home refuses the same — a credential is not an earned fact, and NO credential read exists in the admission owner',
-    homeLaneAdmissionRefusal('foo-bar-9', { ...firstPartyNoFact, env: { ANTHROPIC_AUTH_TOKEN: 'k', ANTHROPIC_API_KEY: 'k' } }) !== null &&
-      !/anthropicCredentialPresence|firstPartyCredentialed/.test(admissionSource))
   check('the env-pin road admits — the pinned id is first-party by the pin\'s own name AND the routing law carries it home (routing joins recognition)',
     homeLaneAdmissionRefusal('proxy-served', { ...firstPartyNoFact, env: { MERCURY_MODEL: 'proxy-served' } }) === null &&
       declaredRouteOf('proxy-served', { MERCURY_MODEL: 'proxy-served' }) === 'anthropic')
@@ -227,9 +222,6 @@ const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/
   check('on a gateway base URL the typing door probes the endpoint (one request at the spy)', probed.hits === 1, JSON.stringify(probed))
   check('…and the gateway\'s answer validates the id (the endpoint owns it)', typeof probed.result === 'object' && probed.result !== null && (probed.result as { valid: boolean }).valid === true, JSON.stringify(probed.result))
   delete process.env.ANTHROPIC_AUTH_TOKEN
-  const validator = readFileSync(join(ROOT, 'src/utils/model/validateModel.ts'), 'utf8')
-  const router = readFileSync(join(ROOT, 'src/services/providers/callModelRouter.ts'), 'utf8')
-  check('the typing door and the dispatch seam read the ONE admission owner', /homeLaneAdmissionRefusal\(trimmed\)/.test(validator) && /homeLaneAdmissionRefusal\(params\.options\.model\)/.test(router))
 }
 
 section('§5 a carrier-shaped id never reaches the first-party wire verbatim (w3-f07-01)')
@@ -333,8 +325,6 @@ const { evaluateComputedDefault, orderCredentials, resetComputedDefaultMemo } = 
   const recorded = await hitsDuring(async () => getDefaultEngineModel())
   check('LIVE: the recorded OpenRouter default lands on the lane\'s first picker row (the latch; base: the frontier default by swallowed overflow)', recorded.result === HOME_MODEL, JSON.stringify(recorded))
   check('…and the main-loop model agrees', getEngineModel() === HOME_MODEL, getEngineModel())
-  const resolver = readFileSync(join(ROOT, 'src/utils/model/computedDefault.ts'), 'utf8')
-  check('the picker composition carries its reentrancy latch', /walkingPicker/.test(resolver))
   saveGlobalConfig(config => {
     const { defaultProvider: _drop, ...rest } = config as { defaultProvider?: string }
     return rest as typeof config

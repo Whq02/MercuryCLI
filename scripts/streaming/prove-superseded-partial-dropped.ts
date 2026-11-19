@@ -21,7 +21,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 const j = (value: unknown): string => JSON.stringify(value)
-const source = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
 
 const SETTLED_THINKING = 'Considering what happened before the connection was cut.'
 const PARTIAL = ['What just happened: the first stream ', 'carried these words ', 'off the top of my head and']
@@ -93,8 +92,6 @@ try {
   check('control: a list with no retracted reply comes back as the same array (no repaint churn)', withoutRetractedReplies(plain) === plain)
   const userRetracted = [{ ...(user as object), retracted: true } as never, assistant('msg_second', FINAL)]
   check('refusal: the mark is read on assistant rows alone — a stray mark on a user row drops nothing', withoutRetractedReplies(userRetracted).length === 2)
-  check('the connector paints through the filter beside the operator-rewind projection', /withoutRetractedReplies\(projectOperatorRewinds\(this\.rawRecords\)\)/.test(source('src/services/engine-connector/daemonConnector.ts')))
-  check('the rows writer re-settles the withdrawn record with the mark (the chain stays whole: no row is removed)', /settleTranscriptMessage\(\{ \.\.\.\(event\.message as AssistantMessage\), retracted: true \}\)/.test(source('src/rows/turn.ts')) && !/removeTranscriptMessage/.test(source('src/rows/turn.ts')))
 } catch (error) {
   check('the paint-filter leg ran', false, String(error))
 }

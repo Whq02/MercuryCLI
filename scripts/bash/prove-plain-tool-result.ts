@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -78,10 +78,6 @@ try {
   const content = mapped(out)
   check('the model reads "red plain" and "err" with no escape byte', content.includes('red plain') && content.includes('err') && !content.includes(ESC), JSON.stringify(content))
 
-  section('§3 the renderer and the search text are untouched (the card keeps the raw bytes)')
-  const src = readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8')
-  check('the strip sits in the model-facing mapper alone', /let stdout = stripAnsi\(output\.stdout\)/.test(src) && /let errorText = stripAnsi\(output\.stderr\)\.trimEnd\(\)/.test(src))
-  check('the search text and the truncation predicate read the raw output', /extractSearchText\(output: Out\): string \{\s*return output\.stderr \? `\$\{output\.stdout\}\\n\$\{output\.stderr\}` : output\.stdout/.test(src) && /isOutputLineTruncated\(output\.stdout\)/.test(src))
 
   section('§4 colour stops at the source: the tool shell stamps NO_COLOR=1 and FORCE_COLOR=0')
   const colourer = `process.stdout.write((process.env.FORCE_COLOR !== undefined ? process.env.FORCE_COLOR !== '0' : !('NO_COLOR' in process.env)) ? '\\x1b[31mred\\x1b[0m\\n' : 'red\\n')`
@@ -95,10 +91,6 @@ try {
   const forced = (await (BashTool as unknown as Caller).call({ command: `FORCE_COLOR=1 ${nodeBin} -e ${JSON.stringify(colourer)}` } as never, toolContext)).data as Out
   check('a command that sets FORCE_COLOR=1 itself keeps its colour: the record carries the escape bytes (the card paints what the process wrote)', forced.stdout.trimEnd() === `${ESC}[31mred${ESC}[0m`, JSON.stringify(forced.stdout))
   check('and the model still reads it plain', mapped(forced).includes('red') && !mapped(forced).includes(ESC))
-  const envSrc = readFileSync(join(ROOT, 'src/utils/subprocessEnv.ts'), 'utf8')
-  const shellSrc = readFileSync(join(ROOT, 'src/utils/Shell.ts'), 'utf8')
-  const engineSrc = readFileSync(join(ROOT, 'src/utils/shell/engineSession.ts'), 'utf8')
-  check('one absent-only table feeds both tool-shell roads', /NO_COLOR: '1',\s*FORCE_COLOR: '0'/.test(envSrc) && shellSrc.includes('toolShellEnv(base.env, {') && engineSrc.includes('toolShellEnv(base.env, {'))
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

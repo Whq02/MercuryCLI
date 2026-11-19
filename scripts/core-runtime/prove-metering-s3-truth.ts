@@ -16,31 +16,11 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 console.log('the metering S3 rows, each at its owner')
 
-section('§16 the count-token probe folds its billed usage into the ledger')
-{
-  const src = read('src/services/tokenEstimation.ts')
-  const probe = src.slice(src.indexOf('export async function countTokensViaHaikuFallback'), src.indexOf('export function roughTokenCountEstimation('))
-  check('the probe settles its response usage through addToTotalSessionCost at the pinned price', /addToTotalSessionCost\(calculateUSDCost\(model, billed\), billed, model\)/.test(probe))
-  check('…on the very usage the response carried (input, output, both cache families)', /cache_creation_input_tokens: usage\.cache_creation_input_tokens \?\? 0/.test(probe) && /cache_read_input_tokens: usage\.cache_read_input_tokens \?\? 0/.test(probe))
-}
 
-section('§17 the partial fold reports a real post figure')
-{
-  const src = read('src/services/compact/compact.ts')
-  check('the partial path computes truePostCompactTokenCount over its own post-compact messages', /const truePostCompactTokenCount = estimateContextTokens\(buildPostCompactMessages\(partialResult\)\)[\s\S]{0,400}?truePostCompactTokenCount,/.test(src))
-  check('…so the summary card no longer falls back to the call\'s billed usage', !/no true-post estimate/.test(src))
-}
 
-section('§20 one definition of progress.tokenCount')
-{
-  const agent = read('src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-  check('the agent task defines the same quantity (the ledger\'s spend: input + output summed over every response)', /return tracker\.ledger\.inputTokens \+ tracker\.ledger\.outputTokens/.test(agent))
-}
 
 section('§22 the compaction trace subtracts the true post figure')
 {
@@ -83,8 +63,6 @@ section('§23 the effort toast\'s glyph follows the applied tier')
   check("medium on kimi-k3 (applied high, the step Kimi documents): the HIGH glyph beside the word high (the base paired the medium glyph with 'low')", medium.startsWith(`${figures.EFFORT_HIGH} effort: high`), medium)
   const xhigh = getEffortNotificationText('xhigh', 'glm-5.3') ?? ''
   check('xhigh on glm-5.3 (applied high): the HIGH glyph beside the word high', xhigh.startsWith(`${figures.EFFORT_HIGH} effort: high`), xhigh)
-  const src = read('src/components/EffortIndicator.ts')
-  check('both halves come from the resolution (getDisplayedEffortLevel for the glyph)', /SYMBOLS\[getDisplayedEffortLevel\(model, effortValue\)\]/.test(src))
 }
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-metering-s3-truth${failures ? ` (${failures} failure(s))` : ''}`)

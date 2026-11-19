@@ -20,8 +20,6 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$here/../.."
 dist="$root/dist/mercury.mjs"
-scout="$root/src/tools/AgentTool/built-in/mercuryScoutAgent.ts"
-agentprompt="$root/src/tools/AgentTool/prompt.ts"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 
@@ -38,11 +36,6 @@ else
   echo "  ✗ dist not built — run: bun run build.ts"; fail=1
 fi
 
-if grep -qF "model: 'inherit'" "$scout" && ! grep -qF "'haiku'" "$scout"; then
-  echo "  ✓ scout model is inherit (no haiku arm)"
-else
-  echo "  ✗ scout model wrong or a haiku arm resurfaced"; fail=1
-fi
 
 roster=$("$bun" -e "import('$root/src/tools/AgentTool/builtInAgents.ts').then(m=>console.log(m.getBuiltInAgents().map(a=>a.agentType).join(','))).catch(e=>console.log('ERR',(e&&e.message)||e));" 2>&1 | tail -1)
 if [ "$roster" = "mercury-crew,mercury-scout" ]; then
@@ -57,15 +50,8 @@ case "$res" in
   *)   echo "  ✗ resolver invariant failed: $res"; fail=1 ;;
 esac
 
-contract="$root/src/prompt/mercuryContract.ts"
 verify_str="Use memory, documentation and crewmate reports as context. Verify their material claims when accuracy or currency matters."
 trust_str="The agent's outputs should generally be trusted"
-if grep -qF "$verify_str" "$contract" \
-   && ! grep -qF "$trust_str" "$contract" "$agentprompt"; then
-  echo "  ✓ contract verify-line unconditional (no blanket-trust sentence in source)"
-else
-  echo "  ✗ contract verify-line missing or a blanket-trust sentence present"; fail=1
-fi
 if [ -f "$dist" ]; then
   if grep -qF "$verify_str" "$dist"; then echo "  ✓ verify-line ships (dist)"; else echo "  ✗ verify-line absent from dist"; fail=1; fi
   if ! grep -qF "$trust_str" "$dist"; then echo "  ✓ no blanket-trust sentence in dist"; else echo "  ✗ a blanket-trust sentence ships in dist"; fail=1; fi

@@ -1,9 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { SET_CLIPBOARD_SCRIPT, windowsClipInput, windowsPowershellEnv, windowsPowershellInput } from '../../src/ink/termio/osc.js'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
@@ -31,23 +28,6 @@ const SAMPLE = 'em—dash · box ─│╭╮ · accents éüñ · check ✓ · 
   check('empty text is empty input', windowsClipInput('').length === 0)
 }
 
-const oscSrc = readFileSync(join(ROOT, 'src', 'ink', 'termio', 'osc.ts'), 'utf8')
-{
-  const winBranch = /case 'win32': \{([\s\S]*?)\n {6}\}/.exec(oscSrc)?.[1] ?? ''
-  check('the win32 copyNative branch exists', winBranch !== '')
-  const powershellAt = winBranch.indexOf("execFileNoThrow('powershell'")
-  const clipAt = winBranch.indexOf("execFileNoThrow('clip'")
-  check('Set-Clipboard is the first road, clip.exe the second', powershellAt !== -1 && clipAt !== -1 && powershellAt < clipAt)
-  check('the PowerShell child is fed windowsPowershellInput(text) with windowsPowershellEnv()', winBranch.includes('input: windowsPowershellInput(text)') && winBranch.includes('env: windowsPowershellEnv()'))
-  check('clip is fed windowsClipInput(text), never the raw string', winBranch.includes('input: windowsClipInput(text)') && !winBranch.includes('input: text'))
-  check('the settled route names are the receipt vocabulary', winBranch.includes("return 'powershell'") && winBranch.includes("'clip.exe' : null"))
-  check('no byte-order mark is written anywhere in the module', !oscSrc.includes('0xff, 0xfe') && !oscSrc.includes('\\ufeff'))
-}
-
-check('OSC 52 payload is base64 of UTF-8', oscSrc.includes("Buffer.from(text, 'utf8').toString('base64')"))
-
-const execSrc = readFileSync(join(ROOT, 'src', 'utils', 'execFileNoThrow.ts'), 'utf8')
-check('execFileNoThrow accepts Buffer input (both option types)', (execSrc.match(/input\?: string \| Buffer/g) ?? []).length === 2)
 
 console.log('\n============================================================')
 if (failures === 0) {

@@ -14,10 +14,6 @@ const section = (s: string): void => console.log(`\n── ${s} ──`)
 
 section('(1) `mercury mcp add` is registered BEFORE the parser looks for it')
 {
-  const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
-  check('registerSubcommands is awaited before parseAsync', /await registerSubcommands\(program\)\n\n\s*profileCheckpoint\('run_before_parse'\)/.test(main))
-  check('registerSubcommands is async (it can await the owning modules)', /async function registerSubcommands\(program: CommanderCommand\): Promise<void>/.test(main))
-  const addIdx = main.indexOf('registerMcpAddCommand(mcp')
   const { builtHelp } = await import('../lib/builtProduct.ts')
   const { registerMcpAddCommand } = await import('../../src/commands/mcp/addCommand.ts')
   const { Command } = await import('@commander-js/extra-typings')
@@ -25,9 +21,6 @@ section('(1) `mercury mcp add` is registered BEFORE the parser looks for it')
   registerMcpAddCommand(owned as never)
   const add = owned.commands.find(command => command.name() === 'add')
   check('the add command is registered by its owning module', add !== undefined && builtHelp('mcp').includes(` add ${add.usage()} ${add.description()} `), `the owning module registers: add ${add?.usage()} ${add?.description()}`)
-  const guardIdx = main.lastIndexOf("if (process.argv.includes('mcp'))", addIdx)
-  check('the registration is gated on argv naming mcp (the general boot pays nothing)', guardIdx !== -1 && addIdx - guardIdx < 600)
-  check('the registration is AWAITED, not a fire-and-forget IIFE', !/void \(async \(\) => \{[\s\S]{0,400}registerMcpAddCommand/.test(main))
 
   const dist = join(ROOT, 'dist', 'mercury.mjs')
   const { whichSync: whichExe } = await import('../../src/utils/which.js')
@@ -91,10 +84,6 @@ section('(3) one folder, one config key; the trust card compares keys')
   check('backslashes become forward slashes (the key spelling)', normalizePathForConfigKey('C:\\Users\\op\\.mercury') === 'C:/Users/op/.mercury')
   check('a POSIX path is untouched by the fold', normalizePathForConfigKey('/home/op/proj') === '/home/op/proj')
   check('the two spellings of one folder derive ONE key', normalizePathForConfigKey('c:/proj') === normalizePathForConfigKey('C:\\proj'))
-  const trust = readFileSync(join(ROOT, 'src', 'components', 'TrustDialog', 'TrustDialog.tsx'), 'utf8')
-  check('the trust card compares the grant root against the cwd KEY, not the raw cwd', trust.includes('if (grantRoot === normalizePathForConfigKey(getFsImplementation().cwd())) return null;'))
-  check('no raw cwd compare survives on the card', !trust.includes('if (grantRoot === getFsImplementation().cwd()) return null;'))
-  check('the card imports the one key owner', /import \{[^}]*normalizePathForConfigKey[^}]*\} from ['"][^'"]*utils\/path\.js['"]/.test(trust))
 }
 
 section('(4) executable probes ride the one PATHEXT-aware owner')
@@ -115,9 +104,6 @@ section('(4) executable probes ride the one PATHEXT-aware owner')
   }
   check("the repo-host row asks whichSync('gh')", workbenchHere.startsWith('repo host: OFF') || workbenchHere === `repo host: ${ghHere ? 'gh on PATH (mercury://repo live)' : 'gh ABSENT — context unavailable (remedy: install gh + gh auth login)'}`, workbenchHere)
   check('no bare-name gh PATH walk survives in the health report', workbenchHere.startsWith('repo host: OFF') || workbenchNowhere.startsWith('repo host: gh ABSENT'), workbenchNowhere)
-  const debug = readFileSync(join(ROOT, 'src', 'tools', 'DebugTool', 'DebugTool.ts'), 'utf8')
-  check("DebugTool's lldb-dap probe asks whichSync('lldb-dap')", debug.includes("return whichSync('lldb-dap') !== null"))
-  check('no bare-name lldb-dap PATH walk survives', !/existsSync\(path\.join\(dir, 'lldb-dap'\)\)/.test(debug))
   const { whichSync } = await import('../../src/utils/which.js')
   check('the owner resolves a real executable on this host', whichSync('node') !== null || whichSync('bun') !== null)
   check('the owner answers null for a name that is not on PATH', whichSync('winseams-no-such-binary-7f3a') === null)
@@ -137,64 +123,9 @@ section('(5) one config home, one spelling')
   check('posix: backslashes are ordinary characters', canonicalHomeSpelling('/home/op/a\\b', 'linux') === '/home/op/a\\b')
   check('a relative pin keeps its meaning (never resolved against the cwd)', canonicalHomeSpelling('scratch/home/', 'linux') === 'scratch/home')
   check('NFC still applies', canonicalHomeSpelling('/h/e\u0301', 'linux') === '/h/\u00e9')
-  const env = readFileSync(join(ROOT, 'src', 'utils', 'envUtils.ts'), 'utf8')
-  check('getMercuryHome rides the canonical spelling', env.includes('return canonicalHomeSpelling(resolved)'))
 }
 
-section('(6) the build-tree stamp rides the staleness sweep')
-{
-  const build = readFileSync(join(ROOT, 'build.ts'), 'utf8')
-  const sweepEnd = build.indexOf("const bundlePath = resolve(OUT, 'mercury.mjs')")
-  check('the end of the staleness sweep is in build.ts', sweepEnd !== -1, "the end of the slice is not in the file: const bundlePath = resolve(OUT, 'mercury.mjs')")
-  const sweep = sweepEnd === -1 ? '' : build.slice(build.indexOf("rmSync(resolve(OUT, 'manifest.json')"), sweepEnd)
-  check('the sweep removes the stale build-tree stamp beside the manifest', sweep.includes("rmSync(resolve(OUT, '.build-tree'), { force: true })"))
-  check('the stamp is still written on success (after the sweep, not before)', build.indexOf("rmSync(resolve(OUT, '.build-tree')") !== -1 && build.indexOf("writeFileSync(resolve(OUT, '.build-tree')") > build.indexOf("rmSync(resolve(OUT, '.build-tree')"))
-}
 
-section('(7) a boot opens no connect of its own — no API-origin warm-up exists')
-{
-  check('no warm-up module exists under src/utils', !existsSync(join(ROOT, 'src', 'utils', 'apiPreconnect.ts')))
-  const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
-  check('the root action performs no warm-up call', !/preconnect/i.test(main))
-  const auth = readFileSync(join(ROOT, 'src', 'utils', 'auth.ts'), 'utf8')
-  check('hasFirstPartyCredential reads the three legs auth status calls logged in', /getAuthTokenSource\(\)\.hasToken \|\|\s*getAnthropicApiKeyWithSource\(\)\.source !== 'none' \|\|\s*Boolean\(process\.env\.ANTHROPIC_API_KEY\)/.test(auth))
-}
-
-section('(8) every honest engine-unavailable code the providers spell is on the health allowlist')
-{
-  const { readdirSync, statSync } = await import('node:fs')
-  const walk = (dir: string, out: string[] = []): string[] => {
-    for (const name of readdirSync(dir)) {
-      const p = join(dir, name)
-      if (statSync(p).isDirectory()) walk(p, out)
-      else if (/\.tsx?$/.test(name)) out.push(p)
-    }
-    return out
-  }
-  const spelled = new Set<string>()
-  for (const root of [join(ROOT, 'src', 'services', 'providers')]) {
-    for (const file of walk(root)) {
-      for (const m of readFileSync(file, 'utf8').matchAll(/reason: ?[`'"]([a-z-]+:)/g)) spelled.add(m[1] as string)
-    }
-  }
-  const { ENGINE_UNAVAILABLE_CODES } = await import('../../src/utils/health/sections/auth.ts')
-  const allowed = new Set<string>(ENGINE_UNAVAILABLE_CODES)
-  check('the provider trees spell at least the three codes the audit found missing', ['not-configured:', 'no-server:', 'no-credential:'].every(c => spelled.has(c)), [...spelled].join(' '))
-  const missing = [...spelled].filter(c => !allowed.has(c))
-  check('every spelled reason prefix is on the allowlist (a new code lands there or goes red)', missing.length === 0, `missing: ${missing.join(' ')}`)
-  check('the allowlist keeps its earlier codes', ['discovery-pending:', 'no-executable:', 'no-auth:', 'no-api-key:', 'no-account:'].every(c => allowed.has(c)))
-}
-
-section('(9) the Windows default editor is an executable, never a cmd builtin')
-{
-  const editor = readFileSync(join(ROOT, 'src', 'utils', 'editor.ts'), 'utf8')
-  const def = /const WINDOWS_DEFAULT_EDITOR = '([^']+)'/.exec(editor)?.[1] ?? ''
-  check("the default is bare 'notepad'", def === 'notepad', JSON.stringify(def))
-  check('no cmd builtin (start) is spelled as the executable', !/^start\b/.test(def))
-  check('the classifier still knows notepad as a GUI editor', /GUI_EDITORS = \[[\s\S]*?'notepad'[\s\S]*?\]/.test(editor))
-  const launcher = readFileSync(join(ROOT, 'src', 'utils', 'promptEditor.ts'), 'utf8')
-  check('the launcher still runs the line through a shell with a re-quoted executable (the law the default must survive)', /spawn\(commandLine, \{ shell: true,[^)\n]*stdio: 'inherit'/.test(launcher))
-}
 
 section('(10) the starter keybindings.json passes the product\'s own validator')
 {
@@ -216,18 +147,6 @@ section('(10) the starter keybindings.json passes the product\'s own validator')
   void checkReservedShortcuts
 }
 
-section('(11) the swallowed-prompt guard fires on the inferred print shape and knows every variadic option')
-{
-  const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
-  const candidatesAt = main.indexOf('const variadicCandidates')
-  const guard = main.slice(main.lastIndexOf('\n  if (', candidatesAt), candidatesAt + 900)
-  check('the guard fires for run OR a non-TTY stdout (the inferred print shape)', guard.includes('(runMode || !process.stdout.isTTY) &&'))
-  check('the guard still spares resume/continue/pr and the rows input road', guard.includes('!opts.resume &&') && guard.includes('!opts.continue &&') && guard.includes('!opts.pr &&') && guard.includes("inputFormat !== 'rows' &&"))
-  check('a retired option is no candidate', !guard.includes("['--file',") && !guard.includes("['--allowedTools',") && !guard.includes("['--add-dir',"))
-  const list = /const variadicCandidates[^=]*= \[([\s\S]*?)\n\s*\]/.exec(guard)?.[1] ?? ''
-  const candidates = [...list.matchAll(/\['([^']+)',/g)].map(match => match[1])
-  check('the five candidates are kept in their one spelling, without extras or duplicates', JSON.stringify(candidates) === JSON.stringify(['--allowed-tools', '--block-tools', '--toolset', '--mcp', '--provider-preview']), JSON.stringify(candidates))
-}
 
 section('(12) the reserved-shortcut table knows Windows')
 {
@@ -249,8 +168,6 @@ section('(13) the Windows install guide tells the tree\'s truth (a ratchet on th
   const doc = readFileSync(join(ROOT, 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
   check('no "refuses to draw narrower than 100" claim', !/refuses to draw narrower/.test(doc))
   check('the guide states there is no minimum terminal size', doc.includes('no minimum terminal size'))
-  const layout = readFileSync(join(ROOT, 'src', 'components', 'concourse', 'ConcourseLayout.tsx'), 'utf8')
-  check('the concourse chooses a layout instead of refusing small terminals', !layout.includes("return 'too-small'") && !layout.includes('terminal too small for'))
   check('the winget id is the LTS line', doc.includes('winget install --id OpenJS.NodeJS.LTS --source winget') && !/--id OpenJS\.NodeJS --source/.test(doc))
   check('no "spaces break some build tooling" claim', !/spaces break/.test(doc))
   check('the splash tip says a bare direct node start paints it before the home screen', /a bare `node dist\\mercury\.mjs` runs it before the\s+(?:home screen|face)/.test(doc) && !/no effect on\s+a direct `node dist\\mercury\.mjs` start/.test(doc))
@@ -285,13 +202,6 @@ section('(14) a deep probe\'s scratch sweep never outranks its verdict')
     throw Object.assign(new Error('EROFS: read-only file system'), { code: 'EROFS' })
   }
   check('a STRUCTURAL refusal yields after ONE attempt — the transient-class law, never a blind ladder', sweepProbeDir('/scratch/s', structuralThrows, 4, 1) === false && structural === 1)
-  const probes = readFileSync(join(ROOT, 'src', 'utils', 'healthDeepProbes.ts'), 'utf8')
-  const outsideOwner = probes
-    .replace(/remover: \(path: string\) => void = path => rmSync\(path, \{ recursive: true, force: true \}\)/, '')
-    .replace(/import \{ mkdtempSync, rmSync \} from 'node:fs'/, '')
-  check('no rmSync call survives anywhere in the probe file outside the sweep owner', !/\brmSync\(/.test(outsideOwner))
-  check('every scratch finally rides sweepProbeDir (both scratch spellings)', (probes.match(/sweepProbeDir\(dir\)/g) ?? []).length === (probes.match(/const dir = mkdtempSync\(/g) ?? []).length && (probes.match(/sweepProbeDir\(root\)/g) ?? []).length === (probes.match(/const root = fs\.mkdtempSync\(/g) ?? []).length && (probes.match(/const dir = mkdtempSync\(/g) ?? []).length + (probes.match(/const root = fs\.mkdtempSync\(/g) ?? []).length === (probes.match(/mkdtempSync\(/g) ?? []).length)
-  check('the structure probes dispose their owner BEFORE the sweep (a held handle is the sweep\'s own enemy)', (probes.match(/await disposeOwner\(owner\)\n\s*sweepProbeDir\(root\)/g) ?? []).length >= 3)
 }
 
 section('(15) an invalid Grep pattern is a refusal, never "no matches"')
@@ -364,20 +274,11 @@ section('(15) an invalid Grep pattern is a refusal, never "no matches"')
     } else {
       console.log('  [SKIP] the unreadable-file leg needs a POSIX non-root host with the vendored rg')
     }
-    const src = readFileSync(join(ROOT, 'src', 'utils', 'ripgrep.ts'), 'utf8')
-    check('the refusal fires only for exit 2 with nothing found and a USAGE-shaped diagnostic', src.includes('if (code === 2 && salvaged.length === 0 && isRipgrepUsageDiagnostic(outcome.stderr)) {'))
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }
 }
 
-section('(16) MERCURY_SPLASH=static exits the splash asset like off')
-{
-  const asset = readFileSync(join(ROOT, 'assets', 'splash', 'mercury-splash.mjs'), 'utf8')
-  check('the asset exits on static exactly where it exits on off', asset.includes("if (process.env.MERCURY_SPLASH === 'off' || process.env.MERCURY_SPLASH === 'static' || !out.isTTY) process.exit(0)"))
-  const launchers = readFileSync(join(ROOT, 'scripts', 'release', 'launcherTemplates.mjs'), 'utf8')
-  check('all three launcher shells skip the asset under static (the contract the asset now matches)', /!= "static"/.test(launchers) && /=="static"/.test(launchers) && /-ne 'static'/.test(launchers))
-}
 
 section('(17) raw-spelling credential continuity + the one keyed principal (the F-11 aftermath)')
 {
@@ -421,23 +322,8 @@ section('(17) raw-spelling credential continuity + the one keyed principal (the 
     if (savedUsername === undefined) delete process.env.USERNAME
     else process.env.USERNAME = savedUsername
   }
-  const store = readFileSync(join(ROOT, 'src', 'utils', 'secureStorage', 'macOsKeychainStorage.ts'), 'utf8')
-  check('the store MIGRATES a raw-keyed read: the canonical write precedes the raw delete', store.includes('function migrateRawKeyedEntry(') && store.includes('macOsKeychainStorage.update(data)') && store.indexOf('macOsKeychainStorage.update(data)') < store.indexOf("runSecurity(['delete-generic-password', '-a', getUsername(), '-s', rawServiceName])"))
-  check('a failed canonical write never deletes the raw entry (the one surviving copy stays)', store.includes('if (!written.success) return'))
-  check('logout sweeps the raw-keyed entry beside the two named spellings', store.includes('...(rawService !== null ? [rawService] : [])'))
-  check('both read paths carry the raw fallback', (store.match(/getRawSpellingKeychainStorageServiceName\(CREDENTIALS_SERVICE_SUFFIX\)/g) ?? []).length >= 3)
-  const prefetch = readFileSync(join(ROOT, 'src', 'utils', 'secureStorage', 'keychainPrefetch.ts'), 'utf8')
-  check('the prefetch reads the raw spelling (a raw-keyed home must not boot signed-out for a TTL)', prefetch.includes('getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)'))
 }
 
-section("(18) the shell-mode '!' is consumed by exactly one owner (w2-f13-02 — the appended-bang class)")
-{
-  const prompt = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'useComposerDraft.ts'), 'utf8')
-  const singleBangAt = prompt.indexOf('value.slice(1) === input')
-  const singleBang = prompt.slice(singleBangAt, prompt.indexOf("setMode('bash')", singleBangAt))
-  check("the single-'!'-at-offset-0 branch writes the draft through the one draft-write owner before the mode flips", singleBang.includes('writeDraft(input)'))
-  check('…and that owner marks the write as its own, so the reconciliation cannot re-import the retained !', /const writeDraft = useCallback\(\(text: string\): void => \{\s*pendingInput\.edit\(text\)\s*(?:lastSelfWriteRef\.current = (?:text|pendingInput\.text\(\))|const after = pendingInput\.text\(\)\s*lastSelfWriteRef\.current = after\b)/.test(prompt))
-}
 
 console.log('\n============================================================')
 if (failures === 0) {

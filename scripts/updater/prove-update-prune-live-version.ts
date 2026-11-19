@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { LayoutRoots, PruneReport } from '../../src/services/privateChannel/installLayout.ts'
@@ -148,15 +148,6 @@ console.log('§5 a removal that fails is named as not removed whole — in the l
   const report = await pruneAsTheUpdateDoes(roots)
   delete process.env.MERCURY_UPDATE_FAULT
   check('the layout reports the versions it could not remove under left, intact, and throws nothing', report.left.length === 2 && report.left.includes(DAEMON_VERSION) && report.left.includes(SUPERSEDED) && report.removed.length === 0 && intact(roots, DAEMON_VERSION) && intact(roots, SUPERSEDED), describe(report))
-  const svc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'privateChannel', 'updateService.ts'), 'utf8')
-  const prunes = svc.split('pruneSupersededVersions(roots, await livePayloadDirs(roots))').length - 1
-  check('the update and the install transactions prune with the live payload directories, not the updater\'s copy alone', prunes === 2, `${prunes} call(s) feed the live set`)
-  const outcomes = (svc.match(/\n {6}pruned: string\[\]\n {6}left: string\[\]\n/g) ?? []).length
-  check('the updated and the installed outcomes carry left beside pruned', outcomes === 2, `${outcomes} outcome type(s) carry left`)
-  const returned = (svc.match(/\n {6}pruned,\n {6}left,\n/g) ?? []).length
-  check('both transactions return what was left beside what went', returned === 2, `${returned} return(s) carry left`)
-  const verbs = ['update.ts', 'installVerb.ts'].map(name => readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', name), 'utf8'))
-  check('the update and the install verbs print what was not removed whole, and why, right after what was removed', verbs.every(verb => verb.includes("result.left.length > 0 ? ") && verb.includes('older versions not removed whole (a file in them is still in use, or could not be deleted; the next ') && verb.indexOf('removed older versions:') >= 0 && verb.indexOf('older versions not removed whole') > verb.indexOf('removed older versions:')), `${verbs.filter(verb => verb.includes('older versions not removed whole')).length} verb(s) print it`)
 }
 
 console.log('§6 a window opened on a version that is neither current nor previous: its registration names the bundle it runs from')

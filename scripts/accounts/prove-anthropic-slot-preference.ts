@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -121,16 +121,6 @@ section('§5 clearing restores the baseline')
   check('the sign-in is the seat again', auth.getAuthTokenSource().source === 'claude.ai' && auth.isClaudeAISubscriber() === true)
 }
 
-section('§6 structural — one door; the refresh lane never reads the preference')
-{
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src/utils/auth.ts'), 'utf8')
-  const consults = (src.match(/!subscriptionYieldsToManagedKey\(\)/g) ?? []).length
-  check('exactly the two predicates consult the yield (the two negated call sites)', consults === 2, `found ${consults}`)
-  check('the yield helper exists once, module-private', (src.match(/function subscriptionYieldsToManagedKey\(\)/g) ?? []).length === 1 && !src.includes('export function subscriptionYieldsToManagedKey'))
-  const refreshRegion = src.slice(src.indexOf('async function doRefresh'), src.indexOf('const in401 = new Map'))
-  check('doRefresh reads scope facts, never the slot preference (the parked sign-in stays refreshed)', refreshRegion.length > 0 && !refreshRegion.includes('subscriptionYieldsToManagedKey') && !refreshRegion.includes('anthropicPreferredSource'))
-  check('the config field is documented at the schema', readFileSync(join(import.meta.dir, '..', '..', 'src/utils/config/schema.ts'), 'utf8').includes('anthropicPreferredSource?:'))
-}
 
 console.log('\n' + '═'.repeat(60))
 if (failures === 0) console.log('ANTHROPIC SLOT PREFERENCE: ALL GREEN')

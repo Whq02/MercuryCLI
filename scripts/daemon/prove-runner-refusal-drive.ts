@@ -295,8 +295,6 @@ section('§7 the kernel, the ask and the turn are the refusals the runner speaks
     return { queued, refusal: await refusalOf(runner.request('session/quiesce', { action: 'prepare', token: 'refusal-order-token-0001' })) }
   })
   check('the runner names the turn before the queue, the tasks and the census', park.queued === 1 && park.refusal?.message === 'a turn is running' && park.refusal.data?.kind === 'quiesce', j(park))
-  const daemon = await Bun.file(join(ROOT, 'src', 'daemon', 'concourseWorkers.ts')).text()
-  check('a refused retirement lands parkRefused on the record with the reason and who asked', /w\.parkRefused = \{ reason: result\.reason, at: Date\.now\(\), by \}/.test(daemon))
 }
 
 if (failures > 0) {

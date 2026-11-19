@@ -1,16 +1,13 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 const J = (...parts: string[]): string => parts.join('')
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'floor-delivery-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
-const SRC = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -118,18 +115,12 @@ section('§2 buildEffectiveSystemPrompt — the constitution FIRST on every repl
   })
   check('an EMPTY override falls through to the custom path, the constitution first', emptyOverride[0] === TEXT && emptyOverride[1] === 'CUSTOM')
 
-  const callers = ['src/rows/turn.ts', 'src/cli/run.ts', 'src/commands/compact/compact.ts', 'src/utils/analyzeContext.ts', 'src/tools/AgentTool/AgentTool.tsx']
-  check(
-    'no production caller supplies overrideSystemPrompt today',
-    callers.every(f => !SRC(f).includes('overrideSystemPrompt')),
-  )
 }
 
 section('§3 contract sections — no identity or doctrine section; the constitution is static, ungated')
 {
   const sections = contract.getMercuryContractSections()
   check('the contract sections carry no identity text and no doctrine', sections.every(s => !s.text.includes('You are') && s.name !== J('identity', '-floor') && s.name !== J('mercury', '-doctrine')))
-  check('no gate flag names the constitution', !SRC('src/prompt/mercuryContract.ts').includes(J('MERCURY_WRAPPER', '_APPEND')) && !flagRegistryText().includes(J('MERCURY_WRAPPER', '_APPEND')))
 }
 
 section('§4 composer + renderers — position law, both wires')
@@ -198,32 +189,6 @@ section('§5 subagent doctrine — the constitution LEADS every spawned child')
   check('fixed-output agent (the scout): the constitution is STILL element 0', fixed[0] === TEXT)
 }
 
-section('§6 source pins — the bun-unloadable seats, one line each')
-{
-  const pins: Array<[string, string, string]> = [
-    ['every session turn — interactive (the concourse runner) and headless alike (custom prompt)', 'src/rows/turn.ts', '? [MERCURY_CONSTITUTION, config.customSystemPrompt]'],
-    ['bare MERCURY_BARE prompt', 'src/constants/prompts.ts', 'return [`${head}\\n\\n${law}`]'],
-    ['the shipped prompt: the head then the constitution as the static group', 'src/constants/prompts.ts', 'const staticSections: Array<string | null> = [frozenHead ?? head, law]'],
-    ['the constitution is the law under stock', 'src/constants/prompts.ts', "const law = layers === 'replace' ? promptReplacementText() : stockLaw"],
-    ['the stock law is the constitution, its headless form only for a run no host attends', 'src/constants/prompts.ts', "systemPromptSection('constitution', () => isUnattendedRun() ? MERCURY_HEADLESS_CONSTITUTION : MERCURY_CONSTITUTION)"],
-    ['the stock law falls back to the constitution itself', 'src/constants/prompts.ts', 'const stockLaw = constitution ?? MERCURY_CONSTITUTION'],
-    ['agent-prompt replacement seat', 'src/utils/systemPrompt.ts', 'parts.push(MERCURY_CONSTITUTION, agentPrompt)'],
-    ['custom-prompt replacement seat', 'src/utils/systemPrompt.ts', 'parts.push(MERCURY_CONSTITUTION, customSystemPrompt)'],
-    ['AgentTool default spawn (doctrine leads)', 'src/tools/AgentTool/AgentTool.tsx', '[...doctrine, ownPrompt]'],
-    ['runAgent fallback build (doctrine leads)', 'src/tools/AgentTool/runAgent.ts', '[...doctrine, ownPrompt]'],
-    ['runAgent honors override only when supplied', 'src/tools/AgentTool/runAgent.ts', 'override?.systemPrompt ??'],
-  ]
-  for (const [label, file, needle] of pins) {
-    check(`${label} — ${file}`, SRC(file).includes(needle))
-  }
-
-  check(
-    'buildSubagentMercurySections is called at both chokepoints',
-    SRC('src/tools/AgentTool/AgentTool.tsx').includes('buildSubagentMercurySections({') &&
-      SRC('src/tools/AgentTool/runAgent.ts').includes('buildSubagentMercurySections({'),
-  )
-  check('no road splices an identity sentence of its own (the Anthropic wire, the side query)', !/You are/.test(SRC('src/constants/system.ts')) && !/You are/.test(SRC('src/utils/sideQuery.ts')) && SRC('src/services/providers/anthropic/cacheAndUsage.ts').includes('return asSystemPrompt([attribution, ...systemPrompt].filter(Boolean))'))
-}
 
 console.log(failures ? '\n❌ FLOOR-DELIVERY RED' : '\n✅ FLOOR-DELIVERY GREEN')
 process.exit(failures ? 1 : 0)

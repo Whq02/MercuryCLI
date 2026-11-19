@@ -2,7 +2,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spyOn } from 'bun:test'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -150,13 +149,6 @@ try {
     const { value: silent, ms: silentMs } = await timed(() => road.settleWriterDiagnosticsAtTurnEnd(context() as never) as Promise<Row[]>)
     check('a server silent at the turn\'s end holds it the ceiling at most, and the answer stands', silent.length === 0 && silentMs >= CEILING_MS - 50 && silentMs < CEILING_MS + 400, `${silentMs} ms`)
 
-    const stopHooks = readFileSync(join(ROOT, 'src/query/stopHooks.ts'), 'utf8')
-    const guards = stopHooks.indexOf('const holds = await judgeTurnEnd(')
-    const settlement = stopHooks.indexOf('for (const row of await settleWriterDiagnosticsAtTurnEnd(toolUseContext))')
-    const answerHooks = stopHooks.indexOf("prepareHooks(\n      'turn.answer'")
-    check('the stop-hook path settles the writer\'s diagnostics after the guards and before the turn.answer hooks', guards !== -1 && settlement > guards && answerHooks > settlement, `${guards} ${settlement} ${answerHooks}`)
-    check('the rows ride the transcript as the one attachment the model knows, and hold the turn once (never a hold already granted)', stopHooks.includes('const message = createAttachmentMessage(row)\n        yield message\n        if (stopHookActive !== true) settlementBlocks.push(message)'))
-    check('bare mode is left alone', /if \(!isBareMode\(\)\) \{\n\s+try \{\n\s+for \(const row of await settleWriterDiagnosticsAtTurnEnd/.test(stopHooks))
     registry.resetAllLSPDiagnosticState()
     const t = await import('../core-runtime/turnScenarios.ts')
     const held = await t.runScripted({

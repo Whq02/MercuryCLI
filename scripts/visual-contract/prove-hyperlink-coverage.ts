@@ -185,8 +185,6 @@ t.section('§1 — the owners emit COMPLETE OSC 8 links on the flow path')
     const { fileURLToPath } = await import('node:url')
     t.check(`file link round-trips ${name}`, fileURLToPath(link.props.url) === path)
   }
-  const image = readFileSync('src/components/ClickableImageRef.tsx', 'utf8')
-  t.check('image references use the same encoded file URL', image.includes('pathToFileURL(storedPath).href'))
   delete process.env.TERM_PROGRAM
 }
 

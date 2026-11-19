@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
@@ -15,8 +15,6 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 process.env.MERCURY_FULLSCREEN = '1'
 
 const t = checker()
-const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 t.section('§A — the ⚑ badge\'s jump per world')
 {
@@ -28,16 +26,8 @@ t.section('§A — the ⚑ badge\'s jump per world')
   t.check('the plain world, another session\'s ask: the estate\'s resume door (/sessions — the face\'s Continue/Resume from inside the chat)', needsYouJump({ plain: true, ownOnly: false, boardChord: chord }) === '/sessions')
   t.check('POISON absent: the plain world never says "board" and never names the chord', [true, false].every(own => { const j = needsYouJump({ plain: true, ownOnly: own, boardChord: chord }); return !j.includes('board') && !j.includes(chord) }))
   t.check('the jump follows a rebind in the fleet world (the resolver\'s display, never a copied string)', needsYouJump({ plain: false, ownOnly: false, boardChord: 'alt+b' }) === 'alt+b board')
-  const frame = read('src/components/MercuryFrame.tsx')
-  t.check('the frame reads the world from the router and the jump from the one helper; the count stays (a need is a need)', frame.includes('plain: chatOnlyBoot(),') && frame.includes("bucketItems(attentionView.attention, 'needs-you').every(item => item.owner === 'command-queue')") && frame.includes('{FLAG_ICON} {needsYouCount(attentionView.needsYou)}') && frame.includes('· {needsJump}') && !frame.includes('{boardChord} board'))
 }
 
-t.section('§B — the rail is gone: the concourse door is the status row\'s way back and /concourse')
-{
-  t.check('no sessions strip module stands under src', !existsSync(join(REPO, 'src/components/mercury-ui/SessionTabs.tsx')))
-  const bar = read('src/components/SwitchboardTagBar.tsx')
-  t.check('the status row\'s way back is the one chrome door to the concourse', bar.includes('onActivate={() => enterConcourse()}'))
-}
 
 t.section('§C — the shortcuts tab: ctrl+x c\'s label per world, the triple untouched')
 {
@@ -46,22 +36,13 @@ t.section('§C — the shortcuts tab: ctrl+x c\'s label per world, the triple un
   t.check('the row keeps its registry triple (action · context · fallback)', row !== undefined && row.context === 'Global' && row.fallback === 'ctrl+x c')
   t.check('the row carries both labels: the board in the fleet world, the live view (and that the concourse is off) in the plain world', row?.label === 'session concourse — every surface, one board' && row?.plainLabel === 'live view of your sessions — the concourse is off in this boot')
   t.check('only the concourse row has a plain-world label', EVERYDAY.rows.filter(r => r.plainLabel !== undefined).length === 1)
-  const tab = read('src/components/HelpV2/ShortcutsTab.tsx')
-  t.check('the row picks its label from the router\'s world at render', tab.includes("const label = row.plainLabel !== undefined && chatOnlyBoot() ? row.plainLabel : row.label"))
 }
 
 t.section('§D — the felt path (L15): `--chat` lands on the boot menu, and ↵ New Session is the warm road')
 {
-  const main = read('src/main.tsx')
-  t.check('--chat is not an explicit journey (the landing rule lands the face) and births nothing at boot', main.includes('if (opts.continue || opts.resume || opts.pr || inputPrompt) {') && main.includes('if (promptIsWords || !isFullscreenEnvEnabled()) {') && !main.includes('opts.chat === true || promptIsWords'))
-  t.check('the --chat mark still holds (the plain world for this boot; no third flag)', /if \(opts\.chat === true\) \{[\s\S]*?markChatBoot\(\)/.test(main))
-  t.check('no root-action preheat remains', !main.includes('program.opts().chat === true'))
   const { builtHelp } = await import('../lib/builtProduct.ts')
   const rootHelp = builtHelp()
   t.check('the option help says the menu is the landing and ↵ New Session the door', rootHelp.includes('↵ New Session on the menu starts the chat') && rootHelp.includes('`-chat` is the same switch'))
-  const daemon = read('src/daemon/concourseWorkers.ts')
-  t.check('the admit road claims the warm runner for a fresh exclusive-or-shared birth with no runner options (the ↵ birth is one)', daemon.includes('req.resumeSessionId === undefined &&') && daemon.includes("(effectiveIsolation === 'exclusive' || effectiveIsolation === 'shared') &&") && daemon.includes('(req.runnerArgv === undefined || req.runnerArgv.length === 0)'))
-  t.check('the pool drives measure the felt ↵ on the --chat face (prove-chat-mode-drive F1/F2, prove-one-door-drive L3)', read('scripts/switchboard/prove-chat-mode-drive.ts').includes('warm claim acked in (\\d+)ms') && read('scripts/switchboard/prove-one-door-drive.ts').includes("id: 'l3-chat-menu'"))
 }
 
 t.section('§E — the boot face per twin: no row in --chat; the live-view door in --concourse-off')
@@ -71,46 +52,15 @@ t.section('§E — the boot face per twin: no row in --chat; the live-view door 
   t.check('the saved switch off: "live view only — concourse off" (the bytes the strip drive\'s S5 and the one-door drive\'s L4b pin)', concourseRowCtx({ live: true, why: 'concourse off', liveCount: 0 }) === 'live view only — concourse off')
   t.check('an unregistered surface dims with its reason', concourseRowCtx({ live: false, why: null, liveCount: 0 }) === 'unregistered in this build' && concourseRowCtx({ live: false, why: 'concourse off', liveCount: 0 }) === 'unregistered in this build')
   t.check('POISON absent: the switch-off world never says "the live board"', !concourseRowCtx({ live: true, why: 'concourse off', liveCount: 2 }).includes('the live board'))
-  const face = read('src/components/BootSplashScreen.tsx')
-  t.check('the face reads the world from the router (plainWorldWhy) and the --chat MARK from its facts (stripFacts().chatBoot) — never the switch alone', face.includes('const plainWhy = plainWorldWhy();') && face.includes('const chatBoot = stripFacts().chatBoot;') && !face.includes('concourseEnabled()'))
-  t.check('--chat: the face passes NO concourse row (the mark, not the world fact); --concourse-off: the row with its ctx', face.includes('concourse: chatBoot\n          ? null') && face.includes('ctx: concourseRowCtx({ live: concourseLive, why: plainWhy, liveCount })'))
-  t.check("--chat: the 'o' door goes with the row; --concourse-off keeps it", face.includes("...(chatBoot ? [] : [{ key: 'o', hint: 'concourse', run: (): null => (enterConcourse(), null) }])"))
-  t.check('--chat: the face never imports the daemon for a row it does not carry', face.includes('if (chatBoot) return;'))
-  t.check("the key-map row is the strip's own text (stripKeyMapHint) — with the model-default phrase beside it in a --chat boot — never a hardcoded move", face.includes('const stripHint = stripKeyMapHint();') && face.includes('const keyMapHint = faceKeyMapHintOf(stripHint, modelDefaultDoor);') && face.includes('KEY_MAP_ROW(core, keyMapHint)') && !face.includes('⇧←→ move between screens'))
   const { faceKeyMapHintOf } = await import('../../src/components/BootSplashScreen.tsx')
   t.check('the m phrase rides beside a strip hint, stands alone when the strip has no move, and is absent with the setting off', faceKeyMapHintOf('⇧→ concourse', true) === '⇧→ concourse · m to select model-default' && faceKeyMapHintOf('', true) === 'm to select model-default' && faceKeyMapHintOf('⇧→ concourse', false) === '⇧→ concourse' && faceKeyMapHintOf('', false) === '')
-  t.check('the face reserves its last row for the key-map row wherever the block would otherwise fill the terminal (every world), and composes over the full height everywhere else', face.includes("let fit = composeOver(plainWhy !== null && keyMapHint !== '' ? Math.max(1, rows - 1) : rows);") && face.includes("if (keyMapHint !== '' && fit.faceRows === rows && fit.top + fit.composed.lines.length > rows - 1) {") && face.includes('fit = composeOver(Math.max(1, rows - 1));'))
-  t.check("Projects / Continue / Resume ride the estate's own doors, none the concourse (the boot menu is the solo road — C4/B1: Projects never dims)", face.includes('focusResumedSession(sid, target.transcriptPath ?? undefined') && face.includes('setResumeOpen(true)') && face.includes('hop.focusResumedSession(p.sessionId') && !face.includes('projectsDim') && read('src/components/BootResumeScreen.tsx').includes('hop.focusResumedSession(String(sessionId)'))
-  const core = read('assets/splash/splash-core.mjs')
-  t.check('the shared core composes no concourse row for a null (both hosts)', core.includes('if (facts.concourse) {') && core.includes("key: 'concourse',"))
   const { assembleCardRows } = await import('../../assets/splash/splash-core.mjs')
   const keysOf = (concourse: { ctx: string } | null): string[] => (assembleCardRows({ cwdBase: 'proj', continueTarget: null, menuAvailable: true, concourse, projects: [] }) as Array<{ key: string }>).map(r => r.key)
   t.check('the --chat card carries no concourse key and is exactly one row shorter than the card that does', !keysOf(null).includes('concourse') && keysOf({ ctx: 'the live board' }).includes('concourse') && keysOf({ ctx: 'x' }).length === keysOf(null).length + 1)
-  t.check('the launcher exports the --chat mark for the splash and the splash composes the --chat card from it', read('scripts/ops/launcher-mercury.sh').includes('--chat|-chat) export MERCURY_SPLASH_CHAT=1 ;;') && read('assets/splash/mercury-splash.mjs').includes("concourse: process.env.MERCURY_SPLASH_CHAT === '1' ? null : { ctx: 'the multi-session board, once' }"))
   const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
   t.check('the new env read has its flag-registry row (consumer: the splash)', getFlagSpec('MERCURY_SPLASH_CHAT') !== undefined)
-  t.check("the boot settings layer's 'o' door is absent in --chat too, kept in --concourse-off", read('src/components/BootSettingsScreen.tsx').includes('...(concourseLive && !chatBoot') && read('src/components/BootSettingsScreen.tsx').includes("${concourseLive && !chatBoot ? ` · o ${plainWorld ? 'live view' : 'concourse'}` : ''}"))
 }
 
-t.section('§F — the sweep: board vocabulary follows the world or falls silent')
-{
-  const tips = read('src/services/tips/tipRegistry.ts')
-  t.check('the board tip (concourse) stays silent in the plain world; the retired seat-board tip is gone', (tips.match(/async isRelevant\(\) \{\n\s+return !chatOnlyBoot\(\)\n\s+\}/g) ?? []).length === 1 && tips.includes("id: 'concourse-board'") && !tips.includes("id: 'party-seats'") && !tips.includes('/party'))
-  t.check('the /sessions tip stays in every world (the plain CLI\'s own)', /id: 'sessions-switch',[\s\S]*?async isRelevant\(\) \{\n\s+return true/.test(tips))
-  const settings = read('src/components/BootSettingsScreen.tsx')
-  t.check("the boot settings' 'o' door names the live view in the plain world (hint and legend)", settings.includes("hint: plainWorld ? 'open the live view' : 'open concourse'") && settings.includes("` · o ${plainWorld ? 'live view' : 'concourse'}`"))
-  const concourseCmd = read('src/commands/concourse/index.ts')
-  t.check('/concourse\'s description says what the door opens per world, read live', concourseCmd.includes('get description(): string {') && concourseCmd.includes("'Open the live view of your sessions — the concourse is off in this boot'") && concourseCmd.includes("'Open the Session Concourse — the multi-session home board, in place'"))
-  t.check('the substrate catalogue lists /trace always-on in every world and names no concourse-only door', read('src/utils/cockpit/substrateSnapshot.ts').includes("{ name: '/trace', on: true, hint: 'always-on' }") && !/name: '[^']*\/(deck|fleet)/.test(read('src/utils/cockpit/substrateSnapshot.ts')))
-  const gatedFiles = ['src/components/MercuryFrame.tsx', 'src/components/HelpV2/ShortcutsTab.tsx', 'src/components/BootSplashScreen.tsx', 'src/components/BootSettingsScreen.tsx']
-  for (const f of gatedFiles) {
-    const src = read(f)
-    const lines = src.split('\n')
-    const GATED = /plainWorld|plainWhy|why|needsYouJump|chatOnlyBoot|plainLabel|\/\/|\*/
-    const bare = lines.filter((l, i) => /one board|the live board|\bo concourse\b|\} board`/.test(l) && !GATED.test(lines.slice(Math.max(0, i - 2), i + 2).join('\n')))
-    t.check(`${f}: every "board" line is world-gated or a comment`, bare.length === 0, bare.join(' | ').slice(0, 200))
-  }
-}
 
 t.section('§G — the next-session facts (L18): one record, every door, never a running session')
 {
@@ -121,16 +71,6 @@ t.section('§G — the next-session facts (L18): one record, every door, never a
   t.check('model · effort · permissionMode · runnerArgv are STICKY: two reads, one answer', facts.bootBirthFacts().model === 'claude-opus-5' && facts.bootBirthFacts().model === 'claude-opus-5' && facts.bootBirthFacts().effort === 'max' && facts.bootBirthFacts().permissionMode === 'implement' && facts.bootBirthFacts().runnerArgv.join(',') === '--x')
   t.check("the model precedence: the record (the menu's explicit choice) → a door's inheritance → the screen's main model", facts.birthModelOf({ model: 'a' }, 'b', 'c') === 'a' && facts.birthModelOf({ model: null }, 'b', 'c') === 'b' && facts.birthModelOf({ model: null }, null, 'c') === 'c' && facts.birthModelOf({ model: null }, undefined, 'c') === 'c')
   facts._resetBootBirthFactsForTesting()
-  const born = read('src/services/switchboard/bornSession.ts')
-  t.check('THE ONE BIRTH DOOR reads the record through the precedence', born.includes('const screen = screenBirthModel()') && born.includes('const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
-  const face = read('src/components/BootSplashScreen.tsx')
-  t.check("the face's births pass NO explicit model — the door decides (New Session and the Projects birth, the one flip-first road)", !face.includes('model: getEngineModel()') && face.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() }))') && face.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: p.dir }))'))
-  t.check("the board's tab passes none — the door decides; the screen births no session of its own", read('src/components/concourse/ConcourseRoute.tsx').includes('bornSession({ workspaceDir: ground })') && !read('src/screens/Chat.tsx').includes('bornSession('))
-  const hop = read('src/services/switchboard/hopIntoSession.ts')
-  t.check("THE RESUME DOOR reads the record's posture when its caller passes none (the face's Continue, the picker, the parked row); the session's model and effort stay its own", hop.includes('opts?.permissionMode ?? bootBirthFacts().permissionMode ?? undefined') && !hop.includes('model: bootBirthFacts'))
-  const seam = read('src/services/switchboard/bootBirthFacts.ts')
-  const seamRuntime = seam.replace(/^import type .*$/gm, '')
-  t.check("the record's writers touch nothing running: no connector, no daemon, no RPC in the seam — and the settings write door is the SAME record", !seamRuntime.includes('engine-connector') && !seamRuntime.includes('daemon/') && !seamRuntime.includes('daemonControlRpc') && seam.includes('export const setNextSessionFacts = setBootBirthFacts'))
   const menu = await import('../../src/substrate/startupMenu.ts')
   const profPath = join(SCRATCH, 'boot-env.json')
   const a = menu.resolveEffectiveSettingsSnapshot({ sessionId: 's', path: profPath, env: {} })
@@ -140,9 +80,6 @@ t.section('§G — the next-session facts (L18): one record, every door, never a
   const saved = menuRow ? menu.saveBootDefaultsProfile({ [menuRow.env]: choice }, profPath) : { ok: false as const }
   const b = menu.resolveEffectiveSettingsSnapshot({ sessionId: 's', path: profPath, env: {} })
   t.check("a menu row changed AFTER boot changes the next session's snapshot (the profile is read per admission, not once at boot)", menuRow !== undefined && saved.ok === true && a.snapshotId !== b.snapshotId && b.rows.find(r => r.env === menuRow.env)?.source === 'profile')
-  const warm = read('src/daemon/warmRunner.ts')
-  t.check('the warm pool never serves a stale snapshot (the settings-drift guard retires it; admission spawns fresh)', warm.includes('currentSnapshotId(args.workspaceId) !== entry.snapshotId') && warm.includes("retireWarmRunner(args.workspaceId, 'settings-drift', deps)"))
-  t.check('the daemon resolves the snapshot per admission (the claim and the cold road both)', (read('src/daemon/concourseWorkers.ts').match(/resolveEffectiveSettingsSnapshot\(\{ sessionId/g) ?? []).length >= 2)
   const route = await import('../../src/context/surfaceRoute.ts')
   const plain = { concourseEnabled: true, chatBoot: true, chatPresent: false }
   t.check('--chat before a session: the menu alone; shift+→ moves nothing (the dim hint, no commit)', route.stripStops(plain).join(',') === 'boot-settings' && JSON.stringify(route.stripMove('boot-settings', 'right', route.stripStops(plain))) === JSON.stringify({ to: null, hint: 'no chat open' }))

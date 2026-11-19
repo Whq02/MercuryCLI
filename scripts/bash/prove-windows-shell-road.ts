@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -14,7 +14,6 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
 const SEAM = 'MERCURY_WINDOWS_SHELL_ROAD'
 const PIN = 'MERCURY_GIT_BASH_PATH'
 const ENGINE_PIN = 'MERCURY_SHELL_ENGINE'
@@ -328,14 +327,6 @@ console.log('── §5 the built bundle boots headless through the seam ──'
 
 console.log('── §6 the consumers are wired (source) ──')
 {
-  const bashTool = read('src/tools/BashTool/BashTool.tsx')
-  check('the Bash tool enables by the road', bashTool.includes('isEnabled: () => bashToolAvailable()'))
-  const bang = read('src/utils/processUserInput/processBashCommand.tsx')
-  check('the `!` road refuses by the road with the notice words', bang.includes('!usePowerShell && !bashToolAvailable()') && bang.includes('WINDOWS_BASH_NOTICE'))
-  const init = read('src/entrypoints/init.ts')
-  check('the boot step arms the road', init.includes('armWindowsShellRoad()') && !init.includes('setShellIfWindows'))
-  const readiness = read('src/utils/readiness.ts')
-  check('the readiness row exists', readiness.includes("id: 'tool:shell'") && readiness.includes('describeWindowsShellRoad()'))
   const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
   const { interfaceChecks } = await import('../../src/utils/health/sections/interface.ts')
   const shellRow = await runtimeChecks().find(row => row.id === 'shell')?.run()

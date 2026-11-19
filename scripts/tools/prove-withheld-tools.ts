@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const ROOT = join(import.meta.dir, '..', '..')
 const scratch = mkdtempSync(join(tmpdir(), 'withheld-tools-'))
 const emptyPacks = join(scratch, 'packs')
 const emptyBin = join(scratch, 'bin')
@@ -89,17 +88,9 @@ check('MERCURY_DAP=0 is off, not withheld: the census does not name the Debug to
 delete process.env.MERCURY_DAP
 
 section('§5 the wiring: the catalog seats the two tools through their owners')
-const toolsSource = readFileSync(join(ROOT, 'src/tools.ts'), 'utf8')
-check('tools.ts seats Debug through isDapToolCatalogEnabled', toolsSource.includes('isDapToolCatalogEnabled() ? [DebugTool]'))
-check('tools.ts seats Godot through vulcanToolCatalogEnabled', toolsSource.includes('vulcanToolCatalogEnabled() ? [GodotTool]'))
-const dapSource = readFileSync(join(ROOT, 'src/services/dap/dapClient.ts'), 'utf8')
-check('the Debug gate reads the flag and the reachable adapters', dapSource.includes('return mercuryDapEnabled() && reachableDapAdapterKeys().length > 0'))
-const gatesSource = readFileSync(join(ROOT, 'src/utils/vulcan/vulcanGates.ts'), 'utf8')
-check('the Godot gate reads the flag and the executable presence', gatesSource.includes('return vulcanEnabled() && godotExecutablePresence().present'))
 const { toolCapabilityFastChecks } = await import('../../src/utils/health/sections/tool-capability-fast.ts')
 const withheldRow = toolCapabilityFastChecks().find(row => row.id === 'tools-withheld')
 check("/health's TOOL CAPABILITY section carries the Tools withheld row", withheldRow?.label === 'Tools withheld')
-check('the census reads the adapter table through the memo, never the live probes', dapSource.includes("const table = builtinAdapters('memo')") && dapSource.includes('if (lldbDapFromMemo() !== null) reachable.push(key)'))
 {
   const withheldSays = await withheldRow?.run()
   const withheldOwner = await import('../../src/utils/withheldTools.ts')

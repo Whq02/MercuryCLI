@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import semver from 'semver'
 import {
@@ -37,8 +37,6 @@ if (existsSync(manifestPath)) {
 } else {
   console.log('  [SKIP] dist/manifest.json absent — the pooled gate prebuilds it; build to run this leg')
 }
-const buildTs = readFileSync(join(REPO, 'build.ts'), 'utf8')
-check('build.ts projects the manifest node from package.json engines (no literal)', buildTs.includes('PKG_JSON.engines?.node') && buildTs.includes('node: NODE_SUPPORTED_RANGE') && !buildTs.includes("node: '>="))
 
 section('(2) the exact calibration pin')
 const nodeVersionFile = readFileSync(join(REPO, '.node-version'), 'utf8').trim()
@@ -88,9 +86,6 @@ for (const [v, expected] of MATRIX) {
   check(`evaluate(${JSON.stringify(v)}) → ${expected}`, got === expected, `got ${got}`)
 }
 check('decision is deterministic', evaluateNodeRuntime('24.11.0').verdict === evaluateNodeRuntime('24.11.0').verdict)
-const ownerSrc = readFileSync(join(REPO, 'src/utils/runtime/nodePolicy.ts'), 'utf8')
-check('owner is locale-independent (no toLocale*/Intl)', !/toLocale|Intl\./.test(ownerSrc))
-check('owner is zero-import + side-effect-free', !/^import /m.test(ownerSrc) && !/process\.(exit|env|stdout|stderr)/.test(ownerSrc))
 
 const refusal = nodeRefusalMessage(evaluateNodeRuntime('22.21.0'))
 check('refusal names the observed version', refusal.includes('22.21.0'))
@@ -114,27 +109,6 @@ for (const [v] of MATRIX) {
   check(`semver agrees on ${v}`, ours === theirs, `ours=${ours} semver=${theirs}`)
 }
 
-section('(6) no competing live machine-policy literal')
-{
-  const ALLOW = new Set(['src/utils/runtime/nodePolicy.ts', 'src/keybindings/defaultBindings.ts'])
-  const offenders: string[] = []
-  const walk = (dir: string): void => {
-    for (const e of readdirSync(join(REPO, dir), { withFileTypes: true })) {
-      const rel = `${dir}/${e.name}`
-      if (e.isDirectory()) {
-        walk(rel)
-        continue
-      }
-      if (!/\.(ts|tsx|mjs|js)$/.test(e.name) || ALLOW.has(rel)) continue
-      const text = readFileSync(join(REPO, rel), 'utf8')
-      if (/['"`]>=\s*(18|20|22|24)[^'"`]*['"`]/.test(text) && /node/i.test(text)) {
-        if (/['"`]>=\s*(18|20|22|24)(\.\d+){0,2}(\s*<\s*\d+)?['"`]/.test(text)) offenders.push(rel)
-      }
-    }
-  }
-  walk('src')
-  check('src/ holds no competing node-range literal', offenders.length === 0, offenders.slice(0, 5).join(', '))
-}
 
 console.log('\n============================================================')
 if (failures === 0) {

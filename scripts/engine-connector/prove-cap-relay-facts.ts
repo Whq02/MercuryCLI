@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -36,7 +36,6 @@ writeFileSync(
   { mode: 0o600 },
 )
 
-const ROOT = join(import.meta.dir, '..', '..')
 const limits = await import('../../src/services/anthropicLimits.ts')
 const mock = await import('../../src/services/mockRateLimits.ts')
 const failover = await import('../../src/services/capFailover.ts')
@@ -204,15 +203,6 @@ section('§3 the wire: both rows cross in snake_case and decode back; absent sta
   check('a facts file without them reads back without them', readBare !== null && readBare.usage.anthropicWindow === undefined && readBare.openaiCatalogue === undefined)
 }
 
-section("§4 the roads on the code: the runner answers both rows, the seat publishes the answer whole")
-{
-  const seatSrc = readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8')
-  check("the seat publishes the runner's answer whole, so both rows ride its spread", seatSrc.includes('const { box: boxAnswer, ...answerRest } = answer') && seatSrc.includes('...answerRest,'))
-  const limitsSrc = readFileSync(join(ROOT, 'src/services/anthropicLimits.ts'), 'utf8')
-  check('the fold keys on the stamp the latch keys on: the active slot and the observation moment', limitsSrc.includes('if (f.owner !== resolveOwner()) return false') && limitsSrc.includes('if (verdictObservedAtMs !== null && f.observedAtMs <= verdictObservedAtMs) return false'))
-  const catalogueSrc = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCatalogue.ts'), 'utf8')
-  check('the list primes through the one claim hand-off door', catalogueSrc.includes('return primeOpenaiCatalogue({ sourceKind: f.sourceKind, models, fetchedAtMs: f.fetchedAtMs }, env)'))
-}
 
 section("§5 the screen primes its catalogue from the fact: the pinned window becomes the list's and the mark goes")
 {

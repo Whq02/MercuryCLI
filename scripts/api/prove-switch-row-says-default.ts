@@ -45,7 +45,6 @@ const CLOCK = String.raw`\d{2}:\d{2} \S+`
 const SAVED_ROW_STAMPED = new RegExp(`Model now: Sonnet 5\\.5 · ${CLOCK} · saved as your default for new sessions — /model ${FABLE} switches back to Fable 5\\.1`)
 const CHAT_ONLY_ROW_STAMPED = new RegExp(`Model now: Opus 5 · ${CLOCK} · for this chat only — /model ${SONNET} switches back to Sonnet 5\\.5`)
 const ROOT = join(import.meta.dir, '..', '..')
-const SRC = (path: string): string => readFileSync(join(ROOT, path), 'utf8')
 
 section('§1 the row\'s words, the restore of a refused save, and the cockpit writing the default before the door')
 {
@@ -81,19 +80,6 @@ section('§1 the row\'s words, the restore of a refused save, and the cockpit wr
   same.restore?.()
   check('a choice that changed nothing restores nothing', (JSON.parse(readFileSync(join(pureHome, 'settings.json'), 'utf8')) as { engine?: { model?: string } }).engine?.model === OPUS)
 
-  const roads: Array<[string, string]> = [
-    ['src/commands/model/mercuryModel.tsx', 'function applySelection'],
-    ['src/commands/model/model.tsx', 'const applyNow'],
-    ['src/components/PromptInput/useComposerModelDoors.tsx', 'const applyModelSelection'],
-  ]
-  for (const [path, road] of roads) {
-    const src = SRC(path)
-    const roadAt = src.indexOf(road)
-    const doorAt = src.indexOf('.setModel(', roadAt)
-    const persistAt = src.lastIndexOf('persistModelChoice(', doorAt)
-    check(`${path}: the daemon road writes the default BEFORE the door, so the runner's row can read it (RED on the base: after the receipt)`, roadAt !== -1 && doorAt !== -1 && persistAt > roadAt, j({ roadAt, doorAt, persistAt }))
-    check(`${path}: a refused switch restores the default`, src.indexOf('.restore()', doorAt) !== -1 && src.indexOf('.restore()', doorAt) < src.indexOf('no-op', doorAt), '')
-  }
 }
 
 const DIST = join(ROOT, 'dist', 'mercury.mjs')

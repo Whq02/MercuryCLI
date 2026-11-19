@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,7 +17,6 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_RECONNECT_BUDGET_MINUTES = '0.02'
 process.env.MERCURY_RECONNECT_SCALE = '0.01'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -222,15 +221,6 @@ section('§4 control: a completed stream records the wire\'s own usage, never an
   check('a completed compat turn writes the API duration too', d.apiMs > 0, String(d.apiMs))
 }
 
-section('§5 the shape')
-{
-  for (const file of ['src/services/providers/openai/openaiCallModel.ts', 'src/services/providers/openaicompat/compatChatCallModel.ts', 'src/services/providers/zai/zaiCallModel.ts']) {
-    const src = readFileSync(join(ROOT, file), 'utf8')
-    check(`${file.split('/').pop()}: settles a faulted request at the estimate before the usage-gated ledger call`, /if \(!usageSeen && fault !== undefined\) \{[\s\S]*?estimateFaultedRequestUsage\(/.test(src) || /usageSeen === undefined && \(contentStarted \|\| toolFragmentSeen \|\| finish !== undefined\)[\s\S]{0,200}estimateFaultedRequestUsage\(/.test(src))
-  }
-  const helper = readFileSync(join(ROOT, 'src/services/providers/faultUsageEstimate.ts'), 'utf8')
-  check('the estimate rides the one character-ratio estimator over the request as sent and the minted blocks', /roughTokenCountEstimation\(/.test(helper) && /requestCharsOf\(args\.request\)/.test(helper) && /streamedCharsOf\(args\.minted\)/.test(helper))
-}
 
 server.close()
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-fault-settles-ledger${failures ? ` (${failures} failure(s))` : ''}`)

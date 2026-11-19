@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
@@ -95,17 +95,6 @@ section('§3 THE ROW BOUNDARY')
   )
 }
 
-section('§4 THE SUCCESS-ROW SEAM')
-{
-  const row = readFileSync(
-    join(import.meta.dir, '../../src/components/messages/UserToolResultMessage/UserToolSuccessMessage.tsx'),
-    'utf8',
-  )
-  check(
-    'the rendered tree rides INSIDE the row boundary (call-shaped)',
-    /<RowErrorBoundary>\{rendered \?\? null\}<\/RowErrorBoundary>/.test(row),
-  )
-}
 
 rmSync(HOME, { recursive: true, force: true })
 if (failures > 0) {

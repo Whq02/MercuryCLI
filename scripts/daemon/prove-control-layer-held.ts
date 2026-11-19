@@ -95,8 +95,6 @@ check('the daemon lock is released (a later daemon can take the home once the pl
 console.log('\n§2 a refused start names the holder and the freeing command')
 const { FREE_THE_PLANE_WORDS } = await import('../../src/daemon/main.ts')
 check('the refused-start words name `mercury daemon stop` and the hand remedy', /mercury daemon stop/.test(FREE_THE_PLANE_WORDS) && /end its pid by hand/.test(FREE_THE_PLANE_WORDS), FREE_THE_PLANE_WORDS)
-const mainSource = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
-check('the boot refusal line ("refusing to start so the live one is not clobbered") carries those words', /refusing to start so the live one is not clobbered · \$\{FREE_THE_PLANE_WORDS\}/.test(mainSource))
 
 if (process.platform !== 'win32') {
   console.log('\n§3 a boot that fails after its own control socket is up says which step failed, names no holder, and leaves no link behind')

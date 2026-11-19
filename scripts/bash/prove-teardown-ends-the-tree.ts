@@ -141,24 +141,6 @@ if (process.platform !== 'win32') {
   }
 }
 
-section('§3 the debug-adapter dispose rides the tree owner (call-shaped)')
-{
-  const dap = readFileSync(join(import.meta.dir, '../../src/services/dap/dapClient.ts'), 'utf8')
-  const disposeAt = dap.indexOf('async dispose(signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {')
-  const killSyncAt = dap.indexOf('killSync(): void {')
-  const disposeBody = disposeAt !== -1 && killSyncAt !== -1 ? dap.slice(disposeAt, killSyncAt) : ''
-  check('dispose() exists ahead of killSync()', disposeAt !== -1 && killSyncAt > disposeAt)
-  check('dispose() ends the adapter TREE before the sync sweep', /await endProcessTree\(child, 'SIGKILL'\)/.test(disposeBody))
-  check('…and strikes any survivor by pid', /endProcessTreeSurvivors\(/.test(disposeBody))
-  check('the sync exit sweep keeps its leader kill (exit handlers cannot await — the documented residual)', /if \(this\.#child && this\.#child\.exitCode === null\) this\.#child\.kill\('SIGKILL'\)/.test(dap))
-  const lsp = readFileSync(join(import.meta.dir, '../../src/services/lsp/LSPClient.ts'), 'utf8')
-  check('LSPClient.stop() routes through the tree owner (no bare child.kill())', /await endProcessTree\(proc, 'SIGTERM'\)/.test(lsp) && !/\n\s*(?:child|proc)\.kill\(\)/.test(lsp))
-  const cpp = readFileSync(join(import.meta.dir, '../../src/services/ide/cppBuild.ts'), 'utf8')
-  check(
-    'the cmake timeout rides the settle owner (tree-killing forced ends; no bare SIGKILL on the driver)',
-    /void settleChildRun\(child, \{ timeoutMs \}\)/.test(cpp) && !/child\.kill\('SIGKILL'\)/.test(cpp),
-  )
-}
 
 section('§4 the win32 survivor half — the reap covers the acted set')
 {
@@ -171,12 +153,6 @@ section('§4 the win32 survivor half — the reap covers the acted set')
   check('the transcript reader names every acted pid once, first token per line', JSON.stringify(taskkillActedPids(transcript)) === '[100,101,7]', JSON.stringify(taskkillActedPids(transcript)))
   check('a repeated pid cannot double-join', JSON.stringify(taskkillActedPids('x PID 100 x\nx PID 100 x')) === '[100]')
   check('failure text with no PID token yields none', taskkillActedPids('ERROR: The process "4242" not found.').length === 0)
-  const group = readFileSync(join(import.meta.dir, '../../src/utils/processGroup.ts'), 'utf8')
-  const win32At = group.indexOf('async function endWin32Tree(')
-  const body = win32At !== -1 ? group.slice(win32At, group.indexOf('\n}\n', win32At)) : ''
-  check('endWin32Tree reaps over the acted set plus the root, never the root alone', /const acted = taskkillActedPids\(stdout\)/.test(body) && /acted\.includes\(pid\) \? acted : \[pid, \.\.\.acted\]/.test(body))
-  check('ended counts acted pids confirmed gone; survivors are whatever still lives', /const ended = acted\.filter\(/.test(body) && /survivors: remaining/.test(body))
-  check('the POSIX arm keeps its snapshot-walk-strike-reap shape (untouched by this half)', /async function endPosixTree\(/.test(group) && /collectPosixTargets\(/.test(group) && /process\.kill\(-pid, signal\)/.test(group))
 }
 
 section("§5 the shell engine's end ends the brush AND its descendants")

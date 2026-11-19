@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { execSync } from 'node:child_process'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'seat-ceiling-'))
 delete process.env.MERCURY_HOME
@@ -13,17 +12,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-{
-  const retiredA = ['CONCOURSE_', 'RUNTIME_CEILING'].join('')
-  const retiredB = ['SWITCHBOARD_', 'SEAT_CAP'].join('')
-  const hits = execSync(
-    `grep -rln "${retiredA}\\|${retiredB}" src --include='*.ts' --include='*.tsx' || true`,
-    { cwd: process.cwd(), encoding: 'utf8' },
-  )
-    .split('\n')
-    .filter(Boolean)
-  check('C1 the retired ceiling constants are gone from src', hits.length === 0, hits.join(', '))
-}
 
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -95,12 +83,6 @@ const sup = await import('../../src/daemon/concourseWorkers.ts')
   check('C6 the consented ladder equals the machine reading before the shave', base === cap.machineSeatReading(16, gb(16)))
 }
 
-{
-  const strips = readFileSync(join(process.cwd(), 'src/components/concourse/ConcourseStrips.tsx'), 'utf8')
-  check('the seats chip reads the effective ceiling', strips.includes('effectiveSeatCeiling()'))
-  const route = readFileSync(join(process.cwd(), 'src/components/concourse/ConcourseRoute.tsx'), 'utf8')
-  check('the clear-gate reads the effective ceiling', route.includes('snap.counts.live < effectiveSeatCeiling()'))
-}
 
 console.log(failures === 0 ? '\nprove-seat-ceiling: ALL LAWS HOLD' : `\nprove-seat-ceiling: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

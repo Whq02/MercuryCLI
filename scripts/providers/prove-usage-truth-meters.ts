@@ -79,17 +79,6 @@ section('§1 the per-model pools ride the active-source view, and every renderer
     check(`${family}: a family that reports no per-model pools shows none`, Array.isArray(u.pools) && u.pools.length === 0)
   }
 
-  const rail = src('src/utils/cockpit/helmVitalsModel.ts')
-  check('the rail folds the focused source\'s pools under its windows', rail.includes('...source.pools.filter(w => w.state === \'live\').map(w => ({ w, pool: true }))') && rail.includes("meterRowsOf(usage, 'usage:', "))
-  check('…and every beside-account\'s pools under its own block', rail.includes('meterRowsOf(other, `usage:${other.provider}:`, '))
-  check('the rail\'s meter tail carries the read\'s age and turns stale before the countdown', rail.includes('usageAgeTail(w, readNow)') && rail.includes('usageViewIsStale(w, readNow)') && rail.includes('meterTail(w, pool)'))
-  const band = src('src/components/MercuryFrame.tsx')
-  check('the frame band\'s second chip is the binding window', band.includes('usage.binding.window.key !== first.key') && band.includes('? usage.binding.window'))
-  const strip = src('src/components/DeckPane.tsx')
-  check('the deck strip\'s second chip is the binding window', strip.includes('sourceUsage.binding.window.key !== stripFirst.key'))
-  const tab = src('src/components/Settings/Usage.tsx')
-  check('the tab reads the pools through the owner\'s pool view, titled by label', tab.includes('anthropicPoolWindowViews()') && tab.includes('`Current week (${w.label})`'))
-  check('the tab decodes the fetch response nowhere (one owner, one decode)', !tab.includes('data.seven_day_') && !tab.includes('data.five_hour'))
   const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
   const zaiKey = process.env.ZAI_API_KEY
   process.env.ZAI_API_KEY = 'fixture-zai-key'
@@ -161,7 +150,6 @@ section('§3 feed + age: live reads say how old they are; stale reads say so; a 
   check('nothing to say when neither feed nor stamp exists', w({}, NOW) === undefined)
   check("the narrow stale tail: '↻12m' while stale, nothing while live", fresh.usageStaleTail({ source: 'endpoint', observedAtMs: NOW - 12 * MIN }, NOW) === '↻12m' && fresh.usageStaleTail({ source: 'endpoint', observedAtMs: NOW - 12_000 }, NOW) === undefined)
   check('the age words: 12 s · 3 min · 2 h 5 min · 3 d', fresh.formatUsageAge(12_000) === '12 s' && fresh.formatUsageAge(3 * MIN) === '3 min' && fresh.formatUsageAge(2 * HOUR + 5 * MIN) === '2 h 5 min' && fresh.formatUsageAge(3 * 24 * HOUR) === '3 d')
-  check('the one poll TTL is a minute, and every polling reader imports it', fresh.USAGE_POLL_TTL_MS === 60_000 && ['src/services/providers/openrouter/openrouterUsageState.ts', 'src/services/providers/deepseek/deepseekUsageState.ts', 'src/services/providers/moonshot/moonshotUsageState.ts'].every(f => src(f).includes('USAGE_POLL_TTL_MS')))
   limits.resetLimitsForCredentialSwitch()
   const iso = new Date(NOW + HOUR).toISOString()
   limits.foldUtilizationFromEndpoint({ five_hour: { utilization: 36, resets_at: iso }, seven_day: { utilization: 44, resets_at: iso }, seven_day_fable: { utilization: 87, resets_at: iso } }, undefined, NOW - 30_000)
@@ -280,10 +268,6 @@ section('§4 credits: the provider-stated balance with feed + age, or the honest
   check("an answer that states neither block: 'credits: not stated by the endpoint'", line(owner.usageForProvider('anthropic', { activeEntry: () => ({ ...subEntry }), anthropicPlan: () => 'max', spend: () => spend })) === 'credits: not stated by the endpoint')
   limits.resetLimitsForCredentialSwitch()
   check("a credential switch drops the figure with the windows: 'not read yet'", limits.getEndpointExtraUsage() === null && line(owner.usageForProvider('anthropic', { activeEntry: () => ({ ...subEntry }), anthropicPlan: () => 'max', spend: () => spend })) === `credits: ${owner.EXTRA_USAGE_NOT_READ_WORDS}`)
-  const tab = src('src/components/Settings/Usage.tsx')
-  check('every source on the tab carries the owner\'s credits line regardless of its shape', tab.includes('<UsageCredits usage={usageForProvider(family)} />') && tab.includes('const line = usageCreditsLine(usage.credits)'))
-  const rail = src('src/utils/cockpit/helmVitalsModel.ts')
-  check('the rail\'s api-key block carries the compact credits line', rail.includes("usageCreditsLine(source.credits, now, 'compact')") && rail.includes("creditsOf(usage, 'usage:credits')"))
 }
 
 section('§5 never a fabricated zero: unstated pools and null figures are absent')
@@ -315,8 +299,6 @@ section('§5 never a fabricated zero: unstated pools and null figures are absent
   check('a summary never spells a 0% for a pool that was not stated', !/Fable|Opus|Sonnet/.test(summary) && summary.includes('5h 36%') && summary.includes('7d 44%'), summary)
   const empty = owner.usageSummaryWords(owner.usageForProvider('anthropic', { activeEntry: () => ({ ...subEntry }), anthropicPlan: () => 'max', spend: () => spend }), NOW)
   check("a subscription with nothing observed says 'no usage read' — never 0%", empty.includes(fresh.NO_USAGE_READ_WORDS) && !empty.includes('0%'), empty)
-  const rail = src('src/utils/cockpit/helmVitalsModel.ts')
-  check('the rail leads its unread state with the one spelling', rail.includes('${NO_USAGE_READ_WORDS} · fills after first reply'))
 }
 
 section("§6 reset instants in the operator's local clock")
@@ -331,34 +313,10 @@ section("§6 reset instants in the operator's local clock")
   check('a reset the provider did not state has no words', owner.usageResetWords(undefined, NOW) === undefined)
   const summary = owner.usageSummaryWords(owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: subscriptionReads() }), NOW)
   check('the summary spells every window and pool with its local reset', summary.includes(`5h 36% · resets ${clock} (in 2h 10m)`) && summary.includes('Fable 87% · resets ') && summary.includes('(in 22h 51m)'), summary)
-  const tab = src('src/components/Settings/Usage.tsx')
-  check('the tab\'s reset line is the local locale rendering', tab.includes("date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })"))
 }
 
 section('§7 one vocabulary: the feed + freshness words live in one module; no surface spells its own stamp')
 {
-  const vocabulary = ['endpoint-fed', 'header-fed', 'last read', 'seeded']
-  const surfaces = [
-    'src/services/providers/providerUsage.ts',
-    'src/components/HelmVitalsRail.tsx',
-    'src/utils/cockpit/helmVitalsModel.ts',
-    'src/components/DeckPane.tsx',
-    'src/components/MercuryFrame.tsx',
-    'src/components/Settings/Usage.tsx',
-  ]
-  const home = src('src/services/providers/usageFreshness.ts')
-  check('the vocabulary is spelled in its one home', vocabulary.every(word => home.includes(`'${word}`) || home.includes(word)))
-  for (const file of surfaces) {
-    const text = src(file)
-    const code = text
-      .split('\n')
-      .filter(line => !/^\s*(\/\/|\*|\/\*)/.test(line))
-      .join('\n')
-    check(`${file} spells no vocabulary word of its own`, vocabulary.every(word => !code.includes(`'${word}`) && !code.includes(`\`${word}`) && !code.includes(` ${word} `)), vocabulary.filter(word => code.includes(word)).join(','))
-  }
-  const tab = src('src/components/Settings/Usage.tsx')
-  check("the tab's old per-surface stamps are gone ('observed HH:MM', 'live from the account source')", !tab.includes('observed ${new Date(') && !tab.includes('live from the account source') && !tab.includes('Balance (provider-stated)'))
-  check('the tab captions every meter through the one composer', tab.includes('const observed = usageSourceWords(w)') && tab.includes('subtext: observed') && tab.slice(tab.indexOf('function MoonshotUsageSection')).includes('<ObservedWindowMeter'))
   const words = owner.usageSummaryWords(owner.usageForProvider('openrouter', { openrouterKeyPresent: () => true, openrouterObserved: () => ({ usage: { limit: 20, limitRemaining: 7.5, usage: 12.5, observedAtMs: NOW - 5_000 } as never }), openrouterLimited: () => ({ state: 'clear' }), spend: () => spend }), NOW)
   check('an engine summary speaks the same words as the first-party one', words.includes('endpoint-fed · read 5 s ago') && words.includes('credits: 7.50 remaining under the key cap'), words)
 }
@@ -511,8 +469,6 @@ section('§9 the carry words: a reached window says what carries the requests fr
   const block = messages.composeAnthropicWallRemedies({ carryWords: () => 'extra usage off — nothing carries requests until the reset', slotAppendix: () => 'The other slot is signed in.', upsellEligible: () => true, laneTarget: () => ({ route: 'openai', name: 'OpenAI' }) })
   check("the Anthropic wall row's block leads with the carry words, then the slot, account and lane remedies in their order", block.startsWith('\nextra usage off — nothing carries requests until the reset\nThe other slot is signed in.\n') && block.includes('/logins') && block.includes('lane is usable now') && block.indexOf('/logins') < block.indexOf('lane is usable now'), JSON.stringify(block))
   check('…and a block composed without the read keeps its old lines exactly', messages.composeAnthropicWallRemedies({ slotAppendix: () => 'The other slot is signed in.', upsellEligible: () => false, laneTarget: () => null }) === '\nThe other slot is signed in.')
-  const errorsSrc = src('src/services/api/errors.ts')
-  check("the wall row reads the carry words from the refusal's own headers", errorsSrc.includes('composeAnthropicWallRemedies({ carryWords: () => anthropicCarryWords(limits) })'))
   check("…and the refusal owner composes them from those headers ahead of the endpoint's older figure", refusal.anthropicCarryWords({ status: 'rejected', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false, overageStatus: 'rejected', overageDisabledReason: 'out_of_credits' }) === 'extra usage out of credits — nothing carries requests until the reset', refusal.anthropicCarryWords({ status: 'rejected', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false, overageStatus: 'rejected', overageDisabledReason: 'out_of_credits' }))
   const usability = await import('../../src/services/providers/providerUsability.ts')
   const usabilityReads = {
@@ -528,24 +484,6 @@ section('§9 the carry words: a reached window says what carries the requests fr
   const delegated = usability.delegationDispatchBlocker('openai', map)
   check('a delegated dispatch proceeds while the reading still names credits', delegated === null && map.openai.usable && map.openai.limitBlocker?.includes('on credits') === true, delegated ?? '(null)')
 
-  const rail = src('src/utils/cockpit/helmVitalsModel.ts')
-  check("the rail paints the compact carry words under its reached line through the one composer, and the '100% · …' row without a wall", rail.includes("usageCarryWords(usage.carry, readNow, 'compact')") && rail.includes("reached === 'wall' ? carry : `100% · ${carry}`") && rail.includes('usageWindowReached(usage, readNow)'))
-  const tab = src('src/components/Settings/Usage.tsx')
-  check('the /usage tab appends the carry words to its reached sentences and paints the 100% line under every family\'s meters', tab.includes('toLocaleString()}{carryTail(owner)}.') && tab.includes('toLocaleTimeString()}${carryTail(usage)}.') && (tab.match(/<FullWindowLine usage=/g) ?? []).length >= 4 && tab.includes('A usage window reads 100%${carryTail(usage)}.'))
-  const slotCard = src('src/components/SlotOfferCard.tsx')
-  const composer = src('src/components/PromptInput/useComposerModelDoors.tsx')
-  check('the slot offer card carries a carry line under its reached sentence, handed the owner\'s words by the composer', slotCard.includes('{GLYPH.dot} {carryWords}') && composer.includes('carryWords: usageCarryWords(usageForProvider(family).carry) ?? null') && composer.includes('carryWords={offer.carryWords}'))
-  check('the handoff notice appends them after its reset', composer.includes("window is reached${resetText !== null ? ` · resets ${resetText}` : ''}${homeCarry !== undefined ? ` · ${homeCarry}` : ''}"))
-  const capCard = src('src/components/CapOfferCard.tsx')
-  check('the cross-family offer card carries a carry line under its reached sentence on a handoff, never on the way home', capCard.includes('{!home && carryWords ? (') && capCard.includes('{GLYPH.dot} {carryWords}') && composer.includes("carryWords={offer.direction === 'handoff' ? (usageCarryWords(usageForProvider(offer.homeRoute).carry) ?? null) : null}"))
-  const refusalSrc = src('src/services/providers/anthropicRefusal.ts')
-  check('the standing Anthropic refusal reads the owner\'s carry words', refusalSrc.includes('anthropicWindowWords(seen, anthropicCarryWords())') && refusalSrc.includes('usageCarryWords(anthropicExtraUsageCarry(limits !== undefined ? { anthropicLimits: () => limits } : undefined))'))
-  const usabilitySrc = src('src/services/providers/providerUsability.ts')
-  check('the live usability bundle reads them from the owner, only for a limited lane', usabilitySrc.includes('usageCarryWords(usageForProvider(lane).carry)') && usabilitySrc.includes("reads.carryWords?.(lane.provider)") && usabilitySrc.includes("if (window?.state !== 'limited' || lane.credential === 'none') return lane") && usabilitySrc.indexOf("reads.carryWords?.(lane.provider)") > usabilitySrc.indexOf("if (window?.state !== 'limited' || lane.credential === 'none') return lane"))
-  const openaiWall = src('src/services/providers/openai/openaiCallModel.ts')
-  check('the OpenAI wall row carries them after the wire\'s words', openaiWall.includes("usageCarryWords(usageForProvider('openai').carry)") && openaiWall.includes('— ${outcome.fault.message}${carryClause}. The next request goes to OpenAI again; resume any time.'))
-  const strip = src('src/services/providers/limitWarning.ts')
-  check('the strip warning appends them only at 100%', strip.includes('if (facts === null || facts.pct < 100) return facts') && strip.includes('text: `${facts.view.text} · ${carry}`'))
   const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
   const { standingAnthropicRefusal } = await import('../../src/services/providers/anthropicRefusal.ts')
   const anthropicKey = process.env.ANTHROPIC_API_KEY

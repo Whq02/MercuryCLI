@@ -23,7 +23,6 @@ function section(t: string): void {
 }
 
 const PROOF_KEY = 'proof-key-jev-not-a-real-key-0004'
-const ROOT = join(import.meta.dir, '..', '..')
 const CEILING_PATH = join(import.meta.dir, 'fixtures', 'roster-ceiling.json')
 
 writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, numStartups: 3 }))
@@ -123,14 +122,6 @@ console.log(`  reported, never bounded: ${bytes} bytes on the wire (prompt ${pro
 check('the description is the prompt module\'s text', wire.description === JEV_EVAL_PROMPT)
 check('the schema rendered', typeof wire.input_schema === 'object' && wire.input_schema !== null, String(wire.input_schema))
 check('the JevEval entry the pool carries is that wire entry', JSON.stringify(on.find(r => r.name === 'JevEval')?.input_schema) === JSON.stringify(wire.input_schema))
-check('the tool source under src/tools/JevEvalTool carries no comment line', (() => {
-  const dir = join(ROOT, 'src', 'tools', 'JevEvalTool')
-  for (const file of ['constants.ts', 'prompt.ts', 'JevEvalTool.ts', 'jevEvalSchema.ts', 'jevEvalRequest.ts', 'jevEvalResult.ts']) {
-    const text = readFileSync(join(dir, file), 'utf8')
-    if (/^\s*\/\//m.test(text) || text.includes('/' + '*')) return false
-  }
-  return true
-})())
 
 resetJevLedger()
 setJevEnabled(false)

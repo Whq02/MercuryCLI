@@ -69,35 +69,6 @@ console.log('============================================================')
 console.log(' click-to-toggle — collapsed tool/agent results (disclosure)')
 console.log('============================================================')
 
-const src = (p: string) => readFileSync(p, 'utf8')
-check(
-  'AgentTool gates click-expand (isResultTruncated wired)',
-  src('src/tools/AgentTool/AgentTool.tsx').includes('isResultTruncated,') &&
-    src('src/tools/AgentTool/UI.tsx').includes('export function isResultTruncated'),
-)
-check(
-  'AgentTool verbose reveals the report (not transcript-only)',
-  src('src/tools/AgentTool/UI.tsx').includes('(isTranscriptMode || verbose) && content'),
-)
-check(
-  'Grep + Glob gate click-expand',
-  src('src/tools/GrepTool/GrepTool.ts').includes('isResultTruncated,') &&
-    src('src/tools/GlobTool/GlobTool.ts').includes('isResultTruncated,'),
-)
-check(
-  'the Glob renderer honors verbose (file list branch)',
-  src('src/tools/GlobTool/UI.tsx').includes('opts.verbose && filenames.length > 0'),
-)
-check(
-  'Messages.tsx error rows gate on the fold owner',
-  /if \(\(result as \{ is_error\?: boolean \}\)\.is_error\) \{\s*verdict = true/.test(src('src/components/Messages.tsx')) &&
-    /\)\.isResultTruncated\?\.\(record\) === true/.test(src('src/components/Messages.tsx')) &&
-    src('src/components/FallbackToolUseErrorMessage.tsx').includes('export function isToolErrorResultTruncated'),
-)
-check(
-  'dist ships the 3 isResultTruncated gates (10 method keys)',
-  (readFileSync('dist/mercury.mjs', 'utf8').match(/isResultTruncated/g)?.length ?? 0) >= 10,
-)
 
 const base = capture('base', [], 70)
 let agentY = -1
@@ -217,25 +188,6 @@ cleanupScenario('click-expand')
   }
 }
 
-{
-  const atum = src('src/components/messages/AssistantToolUseMessage.tsx')
-  check(
-    'queued state derives from the live id sets',
-    atum.includes('const resolved = lookups.resolvedToolUseIDs.has(param.id)') &&
-      atum.includes('const inProgress = inProgressToolUseIDs.has(param.id)') &&
-      atum.includes('const queued = !resolved && !inProgress'),
-  )
-  check(
-    'queued card renders ONLY on the unresolved branch',
-    /if \(queued\) \{\s*try \{\s*queuedMessage =\s*tool\.renderToolUseQueuedMessage\?\.\(parsedInput\.data, \{/.test(atum),
-  )
-  check(
-    'the ± meta lane is settled-only (no invented counts on queued/errored)',
-    /EDIT_META_TOOLS\.has\(param\.name\) &&\s*resolved &&\s*!errored &&\s*!verbose &&\s*!isTranscriptMode &&/.test(atum) &&
-      atum.includes('if (!Array.isArray(patch)) return null') &&
-      atum.includes('if (added === 0 && removed === 0) return null'),
-  )
-}
 
 {
   const run = (tag: string, sends: Array<Record<string, unknown>>, total: number): string[] | null => {

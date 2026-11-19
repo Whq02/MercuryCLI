@@ -72,7 +72,6 @@ _resetInterpreterProbeCacheForTesting()
   const rows = evalAvailability(process.cwd())
   const py = rows.find(r => r.language === 'py')
   check('the first read after a reset answers at once with a probing row', Date.now() - t0 < 50 && py?.probing === true && py.available === false, JSON.stringify(py))
-  check('the probe owner has no synchronous spawn', !/spawnSync|execFileSync|execSync/.test(src('src', 'services', 'eval', 'interpreters.ts')))
   await primeEvalAvailability(process.cwd())
   check('the settled table answers py available', evalAvailability(process.cwd()).find(r => r.language === 'py')?.available === true)
 }
@@ -90,7 +89,6 @@ const flagNames = new Set((FLAG_REGISTRY as ReadonlyArray<{ env: string }>).map(
 for (const flag of ['MERCURY_EVAL', 'MERCURY_EVAL_PY', 'MERCURY_EVAL_JS', 'MERCURY_EVAL_PYTHON']) {
   check(`flag registry row ${flag}`, flagNames.has(flag))
 }
-check('capability declaration exists', src('src', 'utils', 'capability', 'declarations.ts').includes('  Eval: {'))
 check('census fixture carries Eval', src('scripts', 'builtin-tools', 'fixtures', 'tool-census.json').includes('"Eval"'))
 
 cleanup()

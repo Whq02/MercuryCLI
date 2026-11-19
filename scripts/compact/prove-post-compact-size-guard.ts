@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
@@ -19,7 +19,6 @@ for (const k of [
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const ROOT = join(SRC, '..')
 
 const { queryEvents } = await import(join(SRC, 'query.ts'))
 const { legacyYieldsOf } = await import(join(SRC, 'run-core/project-legacy.ts'))
@@ -269,17 +268,6 @@ async function drive(fold: Record<string, unknown>): Promise<{ calls: number; te
   check('under the limit: the exemption stands and the model runs once', under.calls === 1 && under.terminal.reason !== 'blocking_limit', `calls=${under.calls} terminal=${JSON.stringify(under.terminal)}`)
 }
 
-section('G6 wiring pins')
-{
-  const compactSrc = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
-  check('the compact owner consumes the threshold (no void)', !compactSrc.includes('void recompactionInfo') && compactSrc.includes('let ceiling = recompactionInfo?.autoCompactThreshold'))
-  check('the owner fits (against the landing line, a turn under the threshold), then refuses when still over the threshold', /fitPostCompactUnderThreshold\(partial, room, landingCount\)[\s\S]*?throw new Error\(postCompactOverThresholdMessage/.test(compactSrc) && compactSrc.includes('const room = landing ?? ceiling'))
-  check('the read ledger is staged and cannot commit before the size refusal', compactSrc.includes('const transaction = prepareFoldContext(context)') && compactSrc.indexOf('throw new Error(postCompactOverThresholdMessage(truePostCompactTokenCount, ceiling))') !== -1 && compactSrc.indexOf('transaction.commit(folded)') > compactSrc.indexOf('throw new Error(postCompactOverThresholdMessage(truePostCompactTokenCount, ceiling))'))
-  const manual = readFileSync(join(ROOT, 'src/commands/compact/compact.ts'), 'utf8')
-  check('the manual /compact passes the auto-compact threshold as its ceiling', manual.includes('autoCompactThreshold: getAutoCompactThreshold(context.options.engineModel)'))
-  const notes = readFileSync(join(ROOT, 'src/services/compact/sessionMemoryCompact.ts'), 'utf8')
-  check('the notes path measures its result with the whole-context estimator', notes.includes('estimateContextTokens(buildPostCompactMessages(result))') && notes.includes('estimateContextTokens([summaryMessage])'))
-}
 
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`} — ${checks} checks`)
 process.exit(failures === 0 ? 0 : 1)

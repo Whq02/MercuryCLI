@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -106,8 +106,6 @@ section("§1 the launch road: an id-shaped word the picker does not list reaches
   check('…and keeps a typed window on the word it passes', windowed.passedTo === 'grok-4.7[1m]', show(windowed))
   const loose = launchRoad('grok four point seven')
   check('a loose word that matches nothing still gets the nearest-rows refusal, never a pass-through', loose.refused !== undefined && loose.refused.includes("names no listed model"), show(loose))
-  const tool = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-  check("the Crewmate tool's launch calls the matcher with the pass policy, as the --model road does (RED on the base)", tool.includes("matchReachableModelName(typedModel, 'pass')"), tool.match(/matchReachableModelName\([^)]*\)/)?.[0] ?? '')
 }
 
 section("§2 the ladder for 'grok-4.7' with a signed-in xAI and an empty catalogue cache")

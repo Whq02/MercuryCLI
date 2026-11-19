@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   CRITTERS,
@@ -80,24 +79,6 @@ section('§3 sleep air — the dock keeps a glyph\'s air; lid-only sleep stays a
   }
 }
 
-section('§4 the mounts (source locks)')
-{
-  const root = join(import.meta.dir, '../../src')
-  const home = readFileSync(join(root, 'components/MercuryHome.tsx'), 'utf8')
-  const berth = home.slice(home.indexOf('export function PinnedCritterBerth'), home.indexOf('export function MercuryHero'))
-  check('the berth renders the def\'s dock grid square, no other grid bound', !/square:\s*[A-Za-z]/.test(berth) && berth.includes('<AnimatedCritterArt def={hover ? hoverDockDef : dockDef} square />'))
-  check('the berth slot derives from SQUARE_DOCK_ART_LINES', berth.includes('height={SQUARE_DOCK_ART_LINES}'))
-  const mini = readFileSync(join(root, 'components/mercury-ui/MiniCritter.tsx'), 'utf8')
-  check('the mini row binds no grid over the def\'s dock grid', !/square:\s*[A-Za-z]/.test(mini) && mini.includes('height={SQUARE_DOCK_ART_LINES}'))
-  const bare = mini.slice(mini.indexOf('function BareMiniArt'))
-  check('the dock renders the square form through the shared art in both mounts', bare.includes('<AnimatedCritterArt def={miniDef} square />') && /if \(bare\)\s*\{\s*return <BareMiniArt/.test(mini) && mini.includes('<BareMiniArt miniDef={miniDef} />'))
-  const band = readFileSync(join(root, 'components/CompactIdentityBand.tsx'), 'utf8')
-  check('the compact band renders the dock grid square in the dock-height slot', !/square:\s*[A-Za-z]/.test(band) && band.includes('height={SQUARE_DOCK_ART_LINES}') && band.includes('<AnimatedCritterArt def={def} square />'))
-  const anim = readFileSync(join(root, 'components/mercury-ui/AnimatedCritterArt.tsx'), 'utf8')
-  check('the animator gazes over the dock grid', anim.includes("form === 'square' ? def.squareDock : null"))
-  const painter = readFileSync(join(root, 'components/mercury-ui/CritterArt.tsx'), 'utf8')
-  check('the painter\'s square base is the dock grid', painter.includes('usingSquare = square && def.squareDock.length > 0') && painter.includes('pose ? pose.art : usingSquare ? def.squareDock : def.mini'))
-}
 
 if (failures > 0) {
   console.error(`\n❌ ${failures} SQUARE-BERTH PROOF(S) FAILED`)

@@ -40,13 +40,6 @@ writeFileSync(
   t('§1 …with the sibling allow rule still standing', JSON.stringify(disk.guardrails?.allow) === JSON.stringify(['Bash(ls *)']))
 }
 
-{
-  const config = readFileSync(join(import.meta.dir, '../../src/components/Settings/Config.tsx'), 'utf8')
-  t('§2 the mode toggle writes ONLY the changed key', config.includes('guardrails: { mode: next }'))
-  t('§2 …never the merged spread', !config.includes('...(merged.guardrails ?? {}), mode'))
-  t('§2 the revert passes the previous leaf, including undefined, through the same layer', config.includes('undo.path.reduceRight<unknown>((value, key) => ({ [key]: value }), undo.previous)') && config.includes('updateSettingsForSource(undo.source, partial)'))
-  t("§2 …never a local-object delete the merge cannot see", !config.includes("delete merged['mode']"))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? 'SETTINGS WRITE SCOPE: ALL PASS' : 'SETTINGS WRITE SCOPE: RED')

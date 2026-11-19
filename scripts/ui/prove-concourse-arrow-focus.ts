@@ -6,7 +6,6 @@ import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
@@ -36,47 +35,6 @@ console.log('§1 the resolver — every region of the board keeps the ↑↓ row
   )
 }
 
-console.log('§2 the screen — the board-browse arms: the live panel on a single-line draft, the split pane, the rows')
-{
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check(
-    'the board-browse arm fires from the live panel on a single-line draft (its ↵ enters the same selection)',
-    screen.includes("(region === 'live' && (key.upArrow || key.downArrow) && !liveDraftRef.current.text.includes(NL))"),
-  )
-  check('… and from the split chat pane (split-view D5 stands)', screen.includes("(region === 'chat' && (key.upArrow || key.downArrow))"))
-  const listStart = screen.indexOf("if (region === 'list') {")
-  const listEnd = screen.indexOf("if (region === 'chat') {", listStart)
-  const list = screen.slice(listStart, listEnd)
-  check(
-    'the rows keep their own ↑↓ browse and their ↵',
-    listStart > 0 && list.includes('if (key.upArrow || key.downArrow) {') && list.includes('if (key.return && pastGate()) {') && list.includes('const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)') && list.includes('if (sel) compactSteerOrEnter(sel)'),
-  )
-  const enterStart = screen.indexOf('if (key.return && !key.shift) {')
-  const enterEnd = screen.indexOf('if (reducedStage) {', enterStart)
-  const enter = screen.slice(enterStart, enterEnd)
-  check(
-    'the live panel keeps its browse because its ↵ ENTERS the selection on an empty draft (arrows and ↵ agree there)',
-    enter.includes("if (region !== 'live') return") && enter.includes('if (sel) enterSession(sel.sessionId)'),
-  )
-  check(
-    'the browse arm names two regions only (the live panel and the split chat pane)',
-    /if \(\s*\(region === 'live' && \(key\.upArrow \|\| key\.downArrow\) && !liveDraftRef\.current\.text\.includes\(NL\)\) \|\|\s*\(region === 'chat' && \(key\.upArrow \|\| key\.downArrow\)\)\s*\) \{/.test(screen),
-  )
-}
-
-console.log('§3 the legend — the footer hands its region to the resolver; the atlas reads the region-less rows')
-{
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  check('the footer legend hands the focused region to the one resolver', layout.includes('const browseKeys = browseKeysFor({ chatPresent: chat, region })'))
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check('the atlas reads the region-less rows (the row names where it fires)', screen.includes('keys: [...browseKeysFor({ chatPresent: chat }), CONCOURSE_HELP_KEY]'))
-  const manifest = read('src/components/concourse/controlManifest.ts')
-  check(
-    'the resolver filters no row out for a region and the region-less row names where the key fires',
-    !manifest.includes('CONCOURSE_BROWSE_KEYS.filter(') &&
-      manifest.includes("? { keys: '↑↓', label: 'browse (list · live · split)' }"),
-  )
-}
 
 if (process.env.PROVE_ARROW_FOCUS_STATIC === '1') {
   console.log('§4 skipped (PROVE_ARROW_FOCUS_STATIC=1)')

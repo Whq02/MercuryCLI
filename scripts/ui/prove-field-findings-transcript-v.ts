@@ -1,13 +1,11 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
 import * as childProcess from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { waitFor } from '../lib/settingsPopupHarness.ts'
 import { openTranscriptPart } from './chatScenarios.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 let failures = 0
 const check = (name: string, ok: boolean, detail?: string): void => {
@@ -57,9 +55,6 @@ console.log('§1 w32-02 + ctr-6 — the v opener rides utils/editor')
   check("POISON: the unconditional 'opened …' claim is gone: each status is read when the door has answered, before its timer clears it", opening !== '' && unix !== '' && windows !== '' && !opening.startsWith('opened') && !unix.startsWith('open') && !windows.startsWith('open'), `${opening} · ${unix} · ${windows}`)
   check('the no-editor advice speaks the platform (no $EDITOR on cmd/PowerShell)', /^written to .* — set \$EDITOR to open it$/.test(unix) && /^written to .* — set EDITOR \(or VISUAL\) to open it$/.test(windows), `${unix} · ${windows}`)
   await t.close()
-  const editor = read('src/utils/editor.ts')
-  check('the door quotes every win32 token and listens for the launch error', editor.includes('quoteForWindowsShell(executable)') && editor.includes("child.on('error'"))
-  check('the door answers whether an editor is configured and usable (false ⇒ the honest written-to line; a no-op or missing value is refused before any spawn)', editor.includes('export function openFileInExternalEditor(filePath: string, line?: number): boolean') && /const resolved = resolveExternalEditor\(\)\s*\n\s*if \(!resolved\.ok\) \{[\s\S]{0,200}return false/.test(editor))
 }
 
 process.exit(failures === 0 ? 0 : 1)

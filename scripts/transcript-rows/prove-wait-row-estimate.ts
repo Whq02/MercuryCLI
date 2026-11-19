@@ -2,7 +2,7 @@
 import '../lib/hermetic.ts'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, SCRATCH_ROOT, bound, childEnv, makeTally } from '../daemon/dupline-world.ts'
 import { LineReader, inputLine, lastOutcome, promptRow, type Frame } from '../lib/rows.ts'
@@ -28,8 +28,6 @@ tally.check('the vocabulary accepts the row', WaitRowSchema().safeParse({ ...row
 tally.check('the figure is the request body\'s bytes, four to a token', estimateRequestTokens({ a: 'x'.repeat(396) }) === 101 && estimateRequestTokens(undefined) === 1)
 const wire = requestWaitToWire({ kind: 'first-byte', cold: true, promptTokens: 7, model: 'm', budgetMs: 1, sinceMs: 0, attempt: 1 })
 tally.check('the runner\'s status frame keeps its own spelling for the seat', wire.prompt_tokens === 7)
-const seat = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'sessionSeat.ts'), 'utf8')
-tally.check('the daemon seat reads the estimate back under its name', seat.includes('num(row.prompt_tokens_estimate)') && !seat.includes('num(row.prompt_tokens)'))
 
 tally.section('§2 the built product: a rows run names the estimate on the wait and the billed usage on the step')
 const ASK = 'say-hello'

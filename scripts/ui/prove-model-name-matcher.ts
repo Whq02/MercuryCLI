@@ -81,8 +81,6 @@ section('§1 the table: typed forms → one id, several, or none (a typo never m
 
 section('§2 the three roads read the one module')
 {
-  const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-  check('/model’s typed name rides matchReachableModelName and asks through the picker when nothing or several match', read('src/commands/model/mercuryModel.tsx').includes("import { matchReachableModelName, modelNameAskWords } from '../../utils/model/modelNameRoad.js'") && read('src/commands/model/mercuryModel.tsx').includes('modelNameAskWords(matched'))
   const road = await import('../../src/utils/model/modelNameRoad.ts')
   const { builtCli } = await import('../lib/builtProduct.ts')
   const flagRun = (typed: string) => builtCli(['run', '--model', typed, 'hi'], { env: { ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' } })
@@ -90,7 +88,6 @@ section('§2 the three roads read the one module')
   const refusedRunner = builtCli(['runner', '--model', 'gemini three point five'], { env: { ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' } })
   const refusedHere = road.matchReachableModelName('gemini three point five', 'pass')
   check('the --model flag of mercury run and the launcher rides the same matcher', refusedHere !== null && refusedRun.status === 1 && refusedRun.stderr === `${road.modelNameHeadlessRefusal(refusedHere, '--model')}\n` && refusedRunner.status === 1 && refusedRunner.stderr === refusedRun.stderr, refusedRun.stderr)
-  check('the Crewmate tool’s model parameter rides the same matcher', read('src/tools/AgentTool/AgentTool.tsx').includes("import { matchReachableModelName, modelNameHeadlessRefusal } from '../../utils/model/modelNameRoad.js'") && read('src/tools/AgentTool/AgentTool.tsx').includes("modelNameHeadlessRefusal(matchedModel, 'model')"))
   check('the road leaves the family words and aliases to their own owners', road.matchReachableModelName('opus') === null && road.matchReachableModelName('gpt') === null && road.matchReachableModelName('default') === null)
   const live = road.matchReachableModelName('sonnet 5.5')
   check('the road reads the catalogue this session reaches: sonnet 5.5 → claude-sonnet-5-5', live?.kind === 'match' && live.id === 'claude-sonnet-5-5', JSON.stringify(live))

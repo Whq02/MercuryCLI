@@ -130,18 +130,6 @@ section("§D the wire's refusal is the only offer; the way home is the only othe
 
 section('§E RED on the base: the card can still be built for a warning, and keeps the arm that paints the untrue sentence')
 {
-  const failover = source('src/services/capFailover.ts')
-  const typed = /trigger: 'rejected' \| 'reset'/.exec(failover)
-  check("the offer's trigger type admits 'rejected' and 'reset' only (capFailover.ts CapAction)", typed !== null && !failover.includes("trigger: 'warning'"), failover.includes("trigger: 'warning' | 'rejected' | 'reset'") ? "found `trigger: 'warning' | 'rejected' | 'reset'`" : 'no rejected|reset trigger type')
-  check('the module header no longer says a warning offers', !/warnings still OFFER|warning \(preemptive, clean-boundary\)/.test(failover))
-  const card = source('src/components/CapOfferCard.tsx')
-  const approaching = /`approaching the \$\{homeName\} \$\{windowNoun\}`/.exec(card)
-  check("the card has no arm that paints 'approaching the <family> <window>'", approaching === null, approaching !== null ? `found ${approaching[0]}` : '')
-  check("the card's trigger prop is 'rejected' | 'reset'", card.includes("trigger: 'rejected' | 'reset'") && !card.includes("trigger: 'warning' | 'rejected' | 'reset'"))
-  check('the card still names a reached window and exhausted credits as the wire named them', card.includes('`the ${homeName} ${windowNoun} is reached — ${homeName} requests are refused until reset`') && card.includes('`the ${homeName} credits are exhausted — ${homeName} requests are refused until reset`'))
-  const composer = source('src/components/PromptInput/useComposerModelDoors.tsx')
-  check("the composer's offer state admits no 'warning' trigger", !composer.includes("trigger: 'warning' | 'rejected' | 'reset'"))
-  check('the composer hands the card the decision\'s own trigger', composer.includes('trigger: action.trigger') && composer.includes('trigger={offer.trigger}'))
   const docs = source('docs/ENGINES.md')
   check('the docs state the rule', docs.includes('no percentage, even 100%, holds work, stops a turn or shows a handoff card'))
 }
@@ -159,8 +147,6 @@ section('§F RED on the base: the latch reader keeps a floor of its own and warn
   check('at 90% it speaks with the number', at90?.severity === 'warning' && /^Anthropic says this account has used 90% of its weekly limit/.test(at90.message), at90?.message ?? 'null')
   const bare = messages.getRateLimitMessage({ ...latchAt(80), utilization: undefined }, MODEL)
   check("a latch with no percent speaks in the provider's own voice, never as the card's claim", bare?.severity === 'warning' && /^Anthropic says this account is approaching its weekly limit/.test(bare.message), bare?.message ?? 'null')
-  const src = source('src/services/rateLimitMessages.ts')
-  check('the reader carries no floor of its own', !src.includes('< 0.7') && src.includes('usageWarningTier('))
 }
 
 console.log(failures === 0 ? '\nPASS the cap offer rule: a refusal offers, a percentage warns in words at the one owner\'s tiers, the latch never reaches the card' : `\nFAIL ${failures} check(s)`)

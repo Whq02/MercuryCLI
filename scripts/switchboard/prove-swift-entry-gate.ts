@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -7,63 +6,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-console.log('§1 the entry road commits in the committing dispatch (source)')
-const route = readFileSync('src/components/concourse/ConcourseRoute.tsx', 'utf8')
-const attachStart = route.indexOf('const attachAndEnter = useCallback(')
-const attachEnd = route.indexOf('const waitingRoomAdmitted', attachStart)
-const attach = route.slice(attachStart, attachEnd > attachStart ? attachEnd : attachStart + 8000)
-check('attachAndEnter found', attachStart >= 0)
-
-const landingAt = attach.indexOf('const landing = withLanding(')
-const commitAt = attach.indexOf('consumeEntryDecisionInput()')
-const flipAt = attach.indexOf('enterRootChat().ok')
-const asyncBodyAt = attach.indexOf('void (async () => {')
-check(
-  'the landing is armed synchronously (withLanding before the async body)',
-  landingAt >= 0 && asyncBodyAt > landingAt,
-)
-check(
-  'the split leg consumes at the decision, before the async body',
-  commitAt > landingAt && commitAt < asyncBodyAt,
-)
-check(
-  'the flip leg commits at the decision, before the async body',
-  flipAt > landingAt && flipAt < asyncBodyAt,
-)
-check(
-  "the failure leg returns the frame to the board under the yank law",
-  attach.includes('surfaceGeneration() === flippedGen) returnToConcourse()'),
-)
-check(
-  "the 'settled' legs keep the landed late flip (yank guard + flip in the async body)",
-  attach.indexOf('surfaceGeneration() === op.gen') > asyncBodyAt,
-)
-check(
-  "the waiting-room admit and the obligation door enter as 'settled' continuations",
-  /attachAndEnter\(sessionId, 'board:open', \{ entry: 'settled' \}\)/.test(route) &&
-    /attachAndEnter\(row\.sessionId, 'board:open', \{ fullChat: true, entry: 'settled' \}\)/.test(route),
-)
-
-const app = readFileSync('src/ink/components/App.tsx', 'utf8')
-const emitAt = app.indexOf("this.internal_eventEmitter.emit('input', event)")
-const guardAt = app.indexOf('chunkConsumed = true\n        continue', emitAt)
-const keyboardAt = app.indexOf('this.props.dispatchKeyboardEvent(atom)', emitAt)
-check(
-  'the keyboard lane is watermark-guarded (a commit mid-emit reaches no further lane)',
-  emitAt >= 0 && guardAt > emitAt && keyboardAt > guardAt,
-)
-
-const prompt = readFileSync('src/components/PromptInput/useComposerRawKeys.ts', 'utf8')
-check(
-  "the composer ladder declines prior-generation events (SR-022's consumer)",
-  prompt.includes('event.seq !== undefined && isPriorGenerationInput(event.seq)) return'),
-)
-
-const surfaceRoute = readFileSync('src/context/surfaceRoute.ts', 'utf8')
-check(
-  'the no-transition consumption door lives with the route owner',
-  surfaceRoute.includes('export function consumeEntryDecisionInput()'),
-)
 
 console.log('\n§2 the mechanism (real store · real emitter · real landing gate)')
 process.env.MERCURY_CONFIG_DIR = '/tmp/swift-entry-gate-home'

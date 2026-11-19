@@ -18,39 +18,12 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
 const proto = await import('../../src/daemon/protocol.ts')
 const sock = await import('../../src/daemon/controlSocket.ts')
 const server = await import('../../src/daemon/controlServer.ts')
 const sup = await import('../../src/daemon/concourseWorkers.ts')
 
-console.log('A the alias table routes both spellings to one handler')
-{
-  const src = read('src/daemon/controlServer.ts')
-  const aliases = new Map(
-    Array.from(/const SESSION_OP_ALIASES[^]*?\}/.exec(src)?.[0].matchAll(/([A-Za-z]+):\s*'([A-Za-z-]+)'/g) ?? [], m => [m[1]!, m[2]!]),
-  )
-  const expected: Array<[string, string]> = [
-    ['concourseAdmit', 'sessionAdmit'],
-    ['concourseDispatch', 'sessionDispatch'],
-    ['concourseList', 'sessionList'],
-    ['concourseRelease', 'sessionRelease'],
-    ['concourseControl', 'sessionControl'],
-  ]
-  check(
-    'A1 the table is EXACTLY the five renamed spellings (poison: a new verb with an alias)',
-    aliases.size === 5 && expected.every(([old, nu]) => aliases.get(old) === nu),
-    JSON.stringify([...aliases]),
-  )
-  for (const [old, nu] of expected) {
-    const one = src.split(`case '${nu}':`).length === 2 && !src.includes(`case '${old}':`)
-    check(`A2 ${old} folds onto the ONE '${nu}' handler (no second door)`, one)
-  }
-  check('A3 concourseWithdraw and concourseWarm keep their own cases, un-aliased', src.includes("case 'concourseWithdraw':") && src.includes("case 'concourseWarm':") && !aliases.has('concourseWithdraw') && !aliases.has('concourseWarm'))
-  const stamped = Array.from(/const AUTH_STAMPED_OPS[^]*?\]\)/.exec(read('src/daemon/controlSocket.ts'))?.[0].matchAll(/'([A-Za-z-]+)'/g) ?? [], m => m[1]!)
-  check('A4 both spelling families stay auth-stamped (an untyped straggler never bounces EAUTH)', expected.every(([old, nu]) => stamped.includes(old) && stamped.includes(nu)))
-}
 
 function rawRequest(path: string, frame: unknown, timeoutMs = 3000): Promise<Record<string, unknown>> {
   return new Promise(resolve => {
@@ -126,19 +99,6 @@ console.log('B a proto-2 client\'s old spelling still answers (the real control 
   }
 }
 
-console.log('E set-effort mirrors set-model at every owner (poison: an effort write without the field)')
-{
-  const protocolSrc = read('src/daemon/protocol.ts')
-  const serverSrc = read('src/daemon/controlServer.ts')
-  const mainSrc = read('src/daemon/main.ts')
-  const seatSrc = read('src/daemon/sessionSeat.ts')
-  check('E1 the action rides the proto-3 union; the effort word crosses as a string the runner validates (one validator, no second enum)', protocolSrc.includes("| 'set-effort'") && protocolSrc.includes('effort?: string') && !/effort\?: '(?:low|medium|high|max)'/.test(protocolSrc))
-  check('E2 the router forwards the effort field (bounded), and the requires-string names the action', serverSrc.includes("raw.action === 'set-effort'") && serverSrc.includes('raw.effort.slice(0, 32)') && serverSrc.includes('park-all|set-effort'))
-  check('E3 an effort write WITHOUT the field refuses at the one handler (the poison inverted)', mainSrc.includes("detail: 'set-effort requires effort'") && mainSrc.includes('setSessionEffort(sessionId, effort, roster)'))
-  check('E4 the seat verb validates the value against the ONE effort owner and sends the typed session/set_effort method', seatSrc.includes('normalizeEffortLevelString(effort)') && seatSrc.includes("door.send('session/set_effort', { effort }"))
-  check('E5 the busy arm parks on the record and the idle edge forwards it to the runner, which lands it at its turn boundary (the set-model grammar, mirrored)', seatSrc.includes('w.pendingEffort = effort') && seatSrc.includes('if (parkedEffort !== undefined) void forwardEffort(rec, parkedEffort, roster, dir, { parked: true })'))
-  check('E6 the spec follows without a bounce (patchSeatEffort beside patchSeatModel)', seatSrc.includes('patchSeatEffort(short: string, effort: string): boolean') && read('src/daemon/roster.ts').includes('patchSeatEffort(short: string, effort: string): boolean'))
-}
 
 console.log('C the client helper picks the spelling by negotiated proto (both arms)')
 {

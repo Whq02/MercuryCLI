@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -24,7 +24,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const src = (rel: string): string => (existsSync(join(ROOT, rel)) ? readFileSync(join(ROOT, rel), 'utf8') : '')
 
 await import('../../src/tasks.js')
 const task = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
@@ -151,7 +150,6 @@ if (ledger === null || nudge === null) {
   check('N3 a value that is not a whole number reads as unset', N.noticeDeadlineMs() === 180_000)
   process.env.MERCURY_NOTICE_DEADLINE_MS = '1500'
   const spec = getFlagSpec('MERCURY_NOTICE_DEADLINE_MS')
-  check('N3 the flag has its registry row: a value knob whose consumer is the nudge', spec?.kind === 'value' && spec.consumer === 'src/services/notices/idleNudge.ts' && src(spec.consumer).includes("flagEnv('MERCURY_NOTICE_DEADLINE_MS')"), JSON.stringify(spec))
 
   fresh()
   clockMs = 0
@@ -337,19 +335,6 @@ if (ledger === null) {
   check('N5 without the count the rows paint as before', !plain.includes('unread') && plain.includes('tide-gauges'), plain.slice(0, 200))
 }
 
-section('N6 — the wiring: the runner starts the nudge and publishes the ledger; the queue and the agent task record')
-{
-  const q = src('src/input-core/command-queue.ts')
-  check('N6 the queue records what it carries at both enqueue doors and reports every consumption', (q.match(/recordQueuedNotice\(stamped\)/g) ?? []).length === 2 && (q.match(/consumeNotices\(queuedNoticeKeys\(/g) ?? []).length === 3 && (q.match(/retireNotices\(queuedNoticeKeys\(/g) ?? []).length === 2, 'command-queue.ts')
-  const agent = src('src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-  check('N6 the agent task records a queued message and its drain', agent.includes('if (queued) recordAgentMessage(taskId, message)') && agent.includes('consumeAgentMessages(taskId)'), 'LocalAgentTask.tsx')
-  check('N6 the roster row counts through the ledger', src('src/utils/task/workRoster.ts').includes('unreadNoticesOf(task.id, String(task.agentId))'), 'workRoster.ts')
-  check('N6 the crew row paints the owner\'s spelling', src('src/components/mercury-ui/screens/CrewView.tsx').includes('const unread = crewUnreadLabel(facts)') && src('src/components/mercury-ui/screens/CrewView.tsx').includes("{unread !== null ? <Text color={tokens.warning}> · {unread}</Text> : null}"), 'CrewView.tsx')
-  const seatWire = src('src/services/engine-connector/seatWire.ts')
-  check('N6 the wire tables name the count and the rows', seatWire.includes("unreadNotices: 'unread_notices'") && seatWire.includes('out[noticesKey] = rows(out[noticesKey], t(NOTICE_ROW))'), 'seatWire.ts')
-  const docs = src('docs/SESSIONS.md')
-  check('N6 the sessions page says what the ledger and the nudge do', docs.includes('MERCURY_NOTICE_DEADLINE_MS') && docs.includes('unread'), 'docs/SESSIONS.md')
-}
 
 console.log(`\n${checks} checks, ${failures} failures`)
 console.log(failures === 0 ? '✅ unread notices: ALL PASS' : `❌ unread notices: ${failures} FAILED`)

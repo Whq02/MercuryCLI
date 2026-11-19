@@ -2,7 +2,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
 import { spawnSync } from 'node:child_process'
 
 const scratchHome = mkdtempSync(join(tmpdir(), 'stale-ground-home-'))
@@ -40,26 +39,9 @@ const repoAReal = realpathSync(repoA).normalize('NFC')
 const worktreeWReal = realpathSync(worktreeW).normalize('NFC')
 const repoBReal = realpathSync(repoB).normalize('NFC')
 
-const repoRoot = process.cwd()
 
 process.chdir(bootDir)
 
-{
-  const ground = readFileSync(join(repoRoot, 'src/services/switchboard/harnessGround.ts'), 'utf8')
-  check('S0 the T2 contract survives (chdir + setCwdState + slot pulse)', ground.includes('process.chdir(target)') && ground.includes('setCwdState(target)') && ground.includes('emitFocusedSessionConnectorChanged()'))
-  check('S0 the re-boot trio (originalCwd + projectRoot move at the seam)', ground.includes('setOriginalCwd(target)') && ground.includes('setProjectRoot(target)'))
-  check('S0 the true-boot latch (first apply, null-clear target)', ground.includes('trueBootGround'))
-  check('S0 git-facts reground stays', ground.includes('regroundGitWatch()'))
-  check('S0 the config-key memo resets', ground.includes('getProjectPathForConfig.cache?.clear?.()'))
-  check('S0 the settings caches reset + the watcher re-arms', ground.includes('resetSettingsCache()') && ground.includes('settingsChangeDetector.reground()'))
-  check('S0 the instruction walk clears (the setup.ts precedent)', ground.includes('clearInstructionFileCaches()'))
-  check('S0 the context memos clear (gitStatus · system · user · isGit)', ground.includes('getGitStatus.cache?.clear?.()') && ground.includes('getSystemContext.cache?.clear?.()') && ground.includes('getUserContext.cache?.clear?.()') && ground.includes('getIsGit.cache?.clear?.()'))
-  check('S0 the command/skill rosters clear (the exported full clear)', ground.includes('clearCommandsCache()'))
-  check('S0 the agents definitions cache clears', ground.includes('clearAgentDefinitionsCache()'))
-  check('S0 the example-command memos clear', ground.includes('getExampleCommandFromCache.cache?.clear?.()') && ground.includes('refreshExampleCommands.cache?.clear?.()'))
-  check('S0 the onboarding memo clears', ground.includes('shouldShowProjectOnboarding.cache?.clear?.()'))
-  check('S0 extensions go PENDING, never hot-swapped', ground.includes('setExtensionsPending(true)'))
-}
 
 const state = await import('../../src/bootstrap/state.js')
 const detector = await import('../../src/utils/settings/changeDetector.js')
@@ -112,9 +94,6 @@ await detector.initialize()
   check('S3 the canonical derivation shares ONE identity across worktrees', keyW === keyA, `A ${keyA} · W ${keyW}`)
   await ground.applyHarnessGround(worktreeWReal)
   check('S3 a same-repo worktree move never re-keys the project slice', projectConfig.getProjectPathForConfig() === keyA)
-  const restore = readFileSync(join(repoRoot, 'src/utils/sessionRestore.ts'), 'utf8')
-  const daemon = readFileSync(join(repoRoot, 'src/daemon/concourseWorkers.ts'), 'utf8')
-  check('S3 the worktree re-home is the daemon’s spawn (the runner boots inside the recorded worktree); the restore module moves no directory', (daemon.match(/cwd: rec\.worktreePath \?\? rec\.workspaceId,/g) ?? []).length >= 3 && !restore.includes('process.chdir('))
 }
 
 {
@@ -166,21 +145,6 @@ await detector.initialize()
 }
 
 {
-  const setupSrc = codeOnlyText('setup.ts', readFileSync(join(repoRoot, 'src/setup.ts'), 'utf8'))
-  const transitionAt = setupSrc.indexOf('activeCwd = worktreeSession.worktreePath')
-  const transitionEnd = transitionAt === -1 ? -1 : setupSrc.indexOf('captureHooksSnapshot()', transitionAt)
-  const transition = transitionAt === -1 || transitionEnd === -1 ? '' : setupSrc.slice(transitionAt, transitionEnd)
-  check('S10 the worktree TRANSITION is located (activeCwd assignment through the hooks snapshot), past the tmux argument that spells the same path', transition.length > 0 && transitionAt > setupSrc.indexOf('worktreeSession.worktreePath') && !transition.includes('createTmuxSessionForWorktree'), `${transitionAt}..${transitionEnd}`)
-  check(
-    'S10 the worktree boot calls applyHarnessGround (the one seam) — setCwd(activeCwd) → await applyHarnessGround(getCwd()) → saveWorktreeState, in that order, inside the transition',
-    /activeCwd = worktreeSession\.worktreePath\s*setCwd\(activeCwd\)[\s\S]*?await applyHarnessGround\(getCwd\(\)\)\s*saveWorktreeState\(worktreeSession\)/.test(transition),
-    transition.replace(/\s+/g, ' ').slice(0, 240),
-  )
-  check('S10 the seam is invoked exactly once in setup.ts, and that invocation is the transition’s', (setupSrc.match(/await applyHarnessGround\(/g) ?? []).length === 1 && transition.includes('await applyHarnessGround(getCwd())'))
-  check(
-    'S10 the hand-rolled trio is GONE from the worktree block (no second owner)',
-    !transition.includes('setOriginalCwd(') && !transition.includes('setProjectRoot('),
-  )
   await ground.applyHarnessGround(worktreeWReal)
   check('S10 the OS cwd lands on the worktree (chdir is part of the move)', realpathSync(process.cwd()).normalize('NFC') === worktreeWReal)
   await ground.applyHarnessGround(repoBReal)

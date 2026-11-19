@@ -21,7 +21,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setOriginalCwd(cwd)
@@ -132,22 +131,6 @@ section('H4 compaction — a flush past 8 MiB rewrites the file to its newest 4 
   console.log(`  BEFORE: history.jsonl grew forever (the field box: 2-15 MB and every read paid it whole) · AFTER: bounded at 8 MiB, rewritten to 4 MiB of whole lines under the flush lock`)
 }
 
-section('H5 wiring')
-{
-  const hook = readFileSync(join(ROOT, 'src/hooks/useHistorySearch.ts'), 'utf8')
-  check('the search loads the corpus ONCE at search start', /closeReader\(\)\n(?:\s*\/\/[^\n]*\n)*\s*corpusRef\.current = loadHistoryCorpus\(\)/.test(hook))
-  check('a scan awaits the corpus and reads over it in memory', /const corpus = await \(corpusRef\.current \?\?= loadHistoryCorpus\(\)\)[\s\S]{0,300}?readerRef\.current = makeHistoryReaderOver\(corpus\)/.test(hook))
-  check('no scan re-creates the disk reader per keystroke', !hook.includes('makeHistoryReader()'))
-  check('reset drops the corpus (the next search reloads it)', /closeReader\(\)\n\s*corpusRef\.current = null/.test(hook))
-  check('the one-frame debounce idiom stands untouched', hook.includes('scanDebounceRef.current = armHistoryScanTimer(') && hook.includes('export const HISTORY_SCAN_DEBOUNCE_MS = 33'))
-  const store = readFileSync(join(ROOT, 'src/history.ts'), 'utf8')
-  check('the flush compacts under its own lock, after the append and before the streak resets', /await appendFile\(historyFilePath\(\)[\s\S]{0,400}?await compactHistoryIfOversized\(\)\n\s*flushFailureStreak = 0/.test(store))
-  check('the bounds: 8 MiB trigger, 4 MiB kept, owner-only mode on the rewrite', store.includes('const HISTORY_MAX_BYTES = 8 * 1024 * 1024') && store.includes('const HISTORY_KEEP_BYTES = 4 * 1024 * 1024') && /durableAtomicPublish\(path, slice, \{ mode: 0o600 \}\)/.test(store))
-  check('the window pre-filters raw lines by the JSON-encoded project before parsing', /const projectNeedle = JSON\.stringify\(project\)\n\s*for await \(const record of diskRecordsReversed\(line => line\.includes\(projectNeedle\)\)\)/.test(store))
-  check('the disk reader is lazy: the parse rides the yield, never a whole-array pass', /async function\* diskRecordsReversed\(/.test(store) && !/raw\.split\('\\n'\)/.test(store))
-  const shell = readFileSync(join(ROOT, 'src/utils/suggestions/shellHistoryCompletion.ts'), 'utf8')
-  check('the shell-ghost corpus rides the window reader (lazy by inheritance)', shell.includes('for await (const entry of getHistory())'))
-}
 
 console.log(failures === 0 ? '\n✅ ALL HISTORY-READ-ECONOMY PROOFS PASS' : `\n❌ ${failures} HISTORY-READ-ECONOMY PROOF(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

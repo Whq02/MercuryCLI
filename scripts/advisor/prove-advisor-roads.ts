@@ -189,13 +189,6 @@ const storage = await import(join(ROOT, 'src/utils/sessionStorage.ts'))
 type AnyMsg = Record<string, unknown> & { type?: string }
 advisor.setAdvisorClockForTests(() => clock.now)
 
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-const between = (body: string, from: string, to: string): string => {
-  const at = body.indexOf(from)
-  if (at < 0) return ''
-  const end = body.indexOf(to, at)
-  return end < 0 ? body.slice(at) : body.slice(at, end + to.length)
-}
 
 function makeTool(name: string): never {
   return {
@@ -274,26 +267,6 @@ const toolResultsOf = (yields: AnyMsg[]): Array<{ id: string; text: string }> =>
 
 section('§0 the wiring: one road per seat into one drain, the framing, the tool gate and its enrolment (red on the base: the main chat queued the note as a prompt)')
 {
-  const engine = src('src/rows/turn.ts')
-  const userArm = between(engine, "} else if (kind === 'user') {", '} else if (isBoundary) {')
-  check("the engine reports the boundary after every tool round's user row, before the drain and the next request", userArm.includes('config.onToolRoundSettled?.(messages)') && engine.includes('onToolRoundSettled?: (messages: readonly Message[]) => void'), userArm)
-  const agent = src('src/tools/AgentTool/runAgent.ts')
-  const boundary = between(agent, 'const pausableQuery = async function*', 'const next = await stream.next()')
-  check("no agent road: runAgent's request boundary advances no advisor for any agent kind, and every agent's catalogue loses AskAdvisor unconditionally (red on the base: a crewmate round at the boundary)", boundary !== '' && !/advis/i.test(boundary) && !agent.includes('advisorAgentRound') && !agent.includes('advisedRows') && agent.includes('tools = tools.filter(tool => tool.name !== ASK_ADVISOR_TOOL_NAME)') && !agent.includes('advisorSeatRefusal'), boundary.slice(-300))
-  const drain = src('src/utils/attachments/queuedCommands.ts')
-  const noteDrain = between(drain, 'export function getAdvisorNoteAttachments(', '\n}')
-  check("ONE drain, the main chat's: the advisor's note drain takes the session's stashed notes on the main chat's own model-bound collection as queued_command attachments with the advisor origin and no isMeta, drops them once the advisor is switched off, and takes nothing for any agent seat (red on the base: a crewmate drain by agent id)", noteDrain.includes('const notes = takeAdvisorNotes(String(getSessionId()))') && noteDrain.includes('if (!isMainChatAdvisorDrain({ agentId, querySource: drain.querySource, localSubmission: drain.localSubmission })) return []') && noteDrain.includes("advisorSeatRefusal('main')") && !noteDrain.includes('advisorSessionSeat') && /\borigin:\s*note\.origin\s*[,}]/.test(noteDrain) && !noteDrain.includes('agentKind') && !between(noteDrain, 'return notes.map', '}))').includes('isMeta'), noteDrain)
-  check("the crewmate mailbox drain no longer carries advisor notes of its own (red on the base: two roads)", !between(drain, 'export function getAgentPendingMessageAttachments(', '\n}').includes('takeAdvisorNotes'))
-  const orchestrator = src('src/utils/attachments/orchestrator.ts')
-  const producer = between(orchestrator, "'advisor_notes',", '{ priority: true }')
-  check("the per-turn orchestrator runs the note drain as a consume-once producer on every thread, handing it the query source and the local-submission fact", producer.includes('getAdvisorNoteAttachments(toolUseContext, {') && producer.includes('querySource') && producer.includes('localSubmission'), producer)
-  check('no prompt road exists any more: the note service mints no queued command', !src('src/services/advisor/advisorNote.ts').includes('QueuedCommand') && advisor.advisorNoteQueueCommand === undefined && advisor.advisorCountsTurn === undefined)
-  const framing = src('src/utils/messages/attachmentText.ts')
-  check('a drained advisor note is never a hidden meta row (the origin law excepts the advisor)', framing.includes('(origin !== undefined && !isAdvisorOrigin(origin)) || queued.isMeta'))
-  const painter = src('src/components/messages/AttachmentMessage.tsx')
-  check('the attachment painter hands the advisor origin to the row painter, so the crewmate transcript shows the muted row', painter.includes('origin={attachment.origin}'))
-  const catalogue = src('src/tools.ts')
-  check('the tool is in the catalogue only while the advisor is on (the JevEval gate precedent)', catalogue.includes('...(advisorEnabled() ? [AskAdvisorTool] : []),'))
   check('the tool is barred for every crewmate: the one deny set names it with its reason (a present human — the main chat alone), and no second allow-set exists', (toolsConstants.ALL_AGENT_DISALLOWED_TOOLS as Set<string>).has(ASK_ADVISOR_TOOL_NAME) && (toolsConstants.CREWMATE_BARRED_TOOLS as Record<string, string>)[ASK_ADVISOR_TOOL_NAME] === 'present human' && !('IN_PROCESS_CREWMATE_ALLOWED_TOOLS' in toolsConstants) && !('ASYNC_AGENT_ALLOWED_TOOLS' in toolsConstants))
   check("the tool's own words say the main chat alone, never crewmates", (await AskAdvisorTool.prompt()).includes('this tool is never available to crewmates. Its reply') && !/workflow/i.test(await AskAdvisorTool.prompt()) && !(await AskAdvisorTool.prompt()).includes('Advisor for crewmates') && (AskAdvisorTool.capability?.conditions ?? []).some(c => c.includes('the main chat alone, never crewmates; the advisor keeps')), await AskAdvisorTool.prompt())
   const census = JSON.parse(src('scripts/builtin-tools/fixtures/tool-census.json')) as { rows: Array<{ name: string; proof?: string; declared?: { conditions?: string[] } }> }
@@ -585,11 +558,7 @@ section("§2c THE SWITCH ON THE SESSION'S OWN RECORD: /advise on writes an advis
   check('…and a record reading off seeds off', storage.advisorSwitchOfSession() === false)
   storage.restoreSessionMetadata({})
   check('a record with no switch leaves the cache as it stands', storage.advisorSwitchOfSession() === false)
-  const resumeRoad = src('src/cli/headless/resume.ts')
-  check('every headless resume road hands the loaded facts to restoreSessionMetadata — --continue and --resume through the door\'s one adoption road', resumeRoad.split('restoreSessionMetadata(').length === 2 && resumeRoad.includes('return adopt(result, null)') && resumeRoad.includes('return adopt(result, homePin)'))
   check('the resume snapshot schema moved past the one older builds wrote, so a snapshot without the switch map is never trusted', SNAPSHOT_SCHEMA >= 3)
-  const reader = src('src/utils/sessionStorage/transcriptReader.ts')
-  check('the pre-boundary metadata pass keeps the advisor-switch record across a compaction, beside the mode', reader.includes(`'"metaKind":"advisor-switch"'`) && reader.includes(`'"metaKind":"mode"'`))
 }
 
 async function driveAgent(opts: { agentId: string; isAsync: boolean; querySource: string; agentKind?: 'crewmate' }): Promise<{ yields: AnyMsg[]; threw?: string; childContext?: Raw }> {

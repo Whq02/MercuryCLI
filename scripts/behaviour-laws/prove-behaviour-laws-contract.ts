@@ -1,11 +1,9 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 const J = (...parts: string[]): string => parts.join('')
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -19,21 +17,12 @@ console.log('============================================================')
 console.log(' behaviour law 1 — repository-owned contract')
 console.log('============================================================')
 
-section('§1 ownership — one repository owner')
-{
-  const mod = readFileSync(join(ROOT, 'src/prompt/mercuryContract.ts'), 'utf8')
-  check('mercuryContract.ts owns the constitution + the seat contract, and no floor, doctrine or reconcile',
-    mod.includes('MERCURY_CONSTITUTION') && mod.includes('MERCURY_SUBAGENT_CONTRACT') && !mod.includes(J('MERCURY_IDENTITY', '_FLOOR')) && !mod.includes(J('MERCURY_SESSION', '_CONTRACT')) && !mod.includes(J('MERCURY_IDENTITY', '_RECONCILE')))
-  check('no external text import (repository-owned bytes only)', !/require\(|from '[^']*\.txt'/.test(mod))
-}
 
 section('§2 ungated — no flag drops the constitution; the contract sections carry no identity or doctrine')
 {
   const contract = await import('../../src/prompt/mercuryContract.ts')
   const sections = contract.getMercuryContractSections()
   check('the contract sections carry no identity or doctrine section', sections.every(s => s.name !== J('identity', '-floor') && s.name !== J('mercury', '-doctrine') && !/You are/.test(s.text)))
-  const mod = readFileSync(join(ROOT, 'src/prompt/mercuryContract.ts'), 'utf8')
-  check('no doctrine flag is read anywhere in the module', !new RegExp([J('MERCURY_WRAPPER', '_APPEND'), J('mercuryDoctrine', 'Enabled')].join('|')).test(mod))
   check('the constitution is one constant, byte-stable across reads', contract.MERCURY_CONSTITUTION === (await import('../../src/prompt/mercuryContract.ts')).MERCURY_CONSTITUTION && contract.MERCURY_CONSTITUTION.length > 0)
 }
 

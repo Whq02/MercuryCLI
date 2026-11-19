@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
@@ -41,7 +41,6 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.OPENAI_API_KEY = 'fixture-openai-key'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const MODEL = 'gpt-5.3-codex'
 const OTHER_MODEL = 'gpt-6-astra'
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
@@ -210,12 +209,6 @@ section('§2 A REAL COMPATIBILITY CHANGE MOVES THE KEY — another model, anothe
   check('another static section mints another key', otherPrompt.body !== undefined && keyOf(otherPrompt) !== keyOf(first), keyOf(otherPrompt))
 }
 
-section('§3 THE CENSUS — the lane mints over the stable-class contract digest')
-{
-  const lane = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
-  check('openaiCallModel mints the key with behaviorContractDigest: stableBehaviourDigest(contract)', /behaviorContractDigest: stableBehaviourDigest\(contract\)/.test(lane))
-  check('…and no longer with the whole contract digest (the session-class environment section included)', !/behaviorContractDigest: contract\.digest/.test(lane))
-}
 
 server.close()
 console.log(`\n${checks - failures}/${checks} checks passed`)

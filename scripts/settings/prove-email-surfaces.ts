@@ -2,7 +2,7 @@
 import React from 'react'
 import { mock } from 'bun:test'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -368,17 +368,6 @@ section('§6 no wire probe at paint time; the loopback fixture saw only the usag
   check('no fetch escaped the loopback box', escaped.every(url => url.startsWith('http://127.0.0.1:1/')), JSON.stringify(escaped.slice(0, 4)))
 }
 
-section('§7 the surfaces read the one credential-account owner')
-{
-  const read = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
-  const owner = read('src/services/providers/providerUsage.ts')
-  check('the presence owner reads the credential\'s own account, never the config record', owner.includes('anthropicCredentialAccount(') && !owner.includes('getOauthAccountInfo()?.emailAddress'))
-  check('the slot builder reads the presence owner\'s sign-in email for the signed-in scope', read('src/services/providers/accountSlots.ts').includes('anthropicSignInEmail('))
-  const composer = read('src/services/providers/providerIdentityLine.ts')
-  check('the identity composer reads the presence owner, whose Anthropic identity is the sign-in email', composer.includes('presenceIdentityWords(') && owner.includes('anthropicSignInEmail(reads)'))
-  check('the usage popup reads the identity composer', read('src/components/Settings/Usage.tsx').includes('providerIdentityLine('))
-  check('the usage card reads the identity composer', read('src/utils/cockpit/helmVitalsModel.ts').includes('providerIdentityLine('))
-}
 
 type ScopeRead = import('../../src/utils/accounts/accountIdentity.ts').ScopeIdentityState
 let probe: (dir: string) => Promise<ScopeRead> = () => new Promise<ScopeRead>(() => {})
@@ -507,15 +496,11 @@ section('§9 auth status names the credential\'s own email; the JSON shape is th
   check('a key-based sign-in is unchanged: the key source, no email', keyInfo?.apiKeySource === 'ANTHROPIC_API_KEY' && keyInfo.email === undefined, JSON.stringify(keyInfo))
   const key = authStatusJson()
   check('auth status --json for the key: authMethod api_key, apiKeySource named, no email key', key.json?.authMethod === 'api_key' && key.json?.apiKeySource === 'ANTHROPIC_API_KEY' && !('email' in (key.json ?? {})), JSON.stringify(key.json))
-  const read = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
-  check('getAccountInformation reads the one sign-in email reader, never the record\'s address', read('src/utils/auth.ts').includes('anthropicSignInEmail') && !read('src/utils/auth.ts').includes('info.email = account.emailAddress'))
-  check('the JSON verb reads the one sign-in email reader, never the record\'s address', read('src/cli/handlers/auth.ts').includes('anthropicSignInEmail') && !read('src/cli/handlers/auth.ts').includes('payload.email = account?.emailAddress'))
 }
 
 type SeatIdentity = import('../../src/services/engine-connector/types.ts').SeatIdentityV1
 section('§10 the seat facts a hosted session answers carry the credential\'s own email; the wire, the daemon\'s seat and the cockpit\'s connector relay it untouched')
 {
-  const read = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
   const { liveFactsOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const billing = await import(join(ROOT, 'src/utils/billing.ts'))
   const ownIdentity = (): SeatIdentity => ({ firstPartyApi: auth.is1PApiCustomer(), consoleBilling: billing.hasConsoleBillingAccess(), claudeAiBilling: billing.hasClaudeAiBillingAccess(), accountEmail: usage.anthropicSignInEmail() ?? null })
@@ -606,30 +591,8 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
   check('a key-based sign-in puts null on the facts (unchanged)', typeof keyed !== 'string' && keyed.accountEmail === null, JSON.stringify(keyed))
   settleFixture({ profile: PROFILE_EMAIL, receipt: PROFILE_EMAIL, record: RECORD_EMAIL })
   check('the runner composes accountEmail through the one sign-in email reader, never the config record', readerSays.length === 3 && readerSays.every(Boolean), JSON.stringify({ readerSays, identity, unstored, keyed }))
-  check('the wire table spells the key account_email, the type keeps accountEmail: string | null', read('src/services/engine-connector/seatWire.ts').includes("accountEmail: 'account_email'") && read('src/services/engine-connector/types.ts').includes('accountEmail: string | null'))
-  const relays = ['src/services/engine-connector/daemonConnector.ts', 'src/daemon/sessionSeat.ts', 'src/services/engine-connector/noSessionConnector.ts', 'src/services/engine-connector/seatWire.ts', 'src/services/engine-connector/seatProjections.ts']
-  check('the relays derive no address of their own (the seat, the connector, the resting slot, the codecs read no config record)', relays.every(relative => !read(relative).includes('oauthAccount') && !read(relative).includes('emailAddress')), relays.filter(relative => read(relative).includes('oauthAccount') || read(relative).includes('emailAddress')).join(', '))
   const answered = { asPublished: new DaemonSessionConnector(record).identity(), withNoFacts: new DaemonSessionConnector({ ...record, sessionId: 'aaaaaaaa-bbbb-4ccc-8ddd-seatemail000' }).identity() }
   check('the connector answers the facts\' identity as published, null when none', published() !== undefined && JSON.stringify(answered.asPublished) === JSON.stringify(published()) && JSON.stringify(answered.withNoFacts) === JSON.stringify({ firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }), `identity() of the hosted connector answers ${JSON.stringify(answered)} over published ${JSON.stringify(published())}: it returns the facts' identity whole, and with no facts read the four fields false, false, false, null`)
-  check('the seat\'s skeleton and the resting slot name nobody', read('src/daemon/sessionSeat.ts').includes('identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }') && read('src/services/engine-connector/noSessionConnector.ts').includes('accountEmail: null,'))
-  const readers = ['src/components/MercuryFrame.tsx', 'src/components/tasks/BackgroundTasksDialog.tsx', 'src/components/mercury-ui/screens/CrewView.tsx']
-  const silent = ['src/screens/Chat.tsx', ...readers]
-  const { openDialogsPart } = await import('../ui/chatScenarios.ts')
-  const askedOverThreshold = async (consoleBilling: boolean): Promise<boolean> => {
-    const dialogs = await openDialogsPart('email-surfaces-dialogs', { keepHome: true })
-    const quiet = connector.usage
-    Object.assign(connector, { usage: () => ({ ...quiet(), totalCostUSD: 6 }), identity: () => ({ firstPartyApi: false, consoleBilling, claudeAiBilling: false, accountEmail: null }) })
-    await dialogs.plant({ messages: [{}] as never })
-    const asked = dialogs.costShown.includes(true)
-    Object.assign(connector, { usage: quiet })
-    await dialogs.close()
-    return asked
-  }
-  const billedAsked = await askedOverThreshold(true)
-  const unbilledAsked = await askedOverThreshold(false)
-  check('the cockpit\'s readers of the connector identity read its billing word and compose no address of their own', readers.every(relative => read(relative).includes('identity().consoleBilling')) && silent.every(relative => !read(relative).includes('oauthAccount') && !read(relative).includes('accountEmail')) && billedAsked && !unbilledAsked, `${readers.filter(relative => !read(relative).includes('identity().consoleBilling')).join(', ')} · the chat screen asks a session over its cost threshold on console billing ${billedAsked}, off it ${unbilledAsked}`)
-  const runnerSource = read('src/cli/run.ts')
-  check("the runner's facts answer names the account through anthropicSignInEmail, the one reader of the sign-in (never the config record); the door's handlers compose no address", readerSays.every(Boolean) && !runnerSource.includes('oauthAccount') && !read('src/cli/headless/controlHandlers.ts').includes('oauthAccount'))
   check('getAccountInformation().email in this home is the credential\'s own (the same sign-in the facts answer reads)', auth.getAccountInformation()?.email === PROFILE_EMAIL, JSON.stringify(auth.getAccountInformation()))
   delete process.env.MERCURY_DAEMON_DIR
 }

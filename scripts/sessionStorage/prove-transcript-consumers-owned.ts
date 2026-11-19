@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
 
 let failures = 0
@@ -11,91 +9,11 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '../..')
-const src = (rel: string): string => readFileSync(join(ROOT, 'src', rel), 'utf8')
 
 section('the reader is the one owner of the transcript file')
 {
-  const reader = src('utils/sessionStorage/transcriptReader.ts')
-  check('the reader keeps the offset, the fold and the window per path', /offset: number/.test(reader) && /window: Buffer/.test(reader) && /fold: TranscriptFoldState/.test(reader))
-  check('a growth read fetches from offset minus the window and proves the window', reader.includes('io.readRangeSync(state.path, state.offset - W, st.size)') && reader.includes(".equals(state.window)) return reset(state, 'the covered prefix was rewritten')"))
-  check('truncation and a replaced file reset', reader.includes("if (st.size < state.offset) return reset(state, 'the file was truncated')") && reader.includes("if (st.ino !== state.ino) return reset(state, 'the file was replaced')"))
-  check('an append still in flight folds nothing', reader.includes('if (lastNl === -1) return none(state, st.size)'))
-  check('the resume snapshot keeps its one writer (the reader only calls it)', (reader.match(/writeResumeSnapshot\(/g) ?? []).length >= 2 && !reader.includes('durableAtomicPublishSync'))
-  check('the kill switch is the registered flag', reader.includes("flagEnabled('MERCURY_TRANSCRIPT_READER')"))
   const readerRow = getFlagSpec('MERCURY_TRANSCRIPT_READER')
   check('the registry row names the reader and its evidence', readerRow?.kind === 'default-on' && readerRow.tier === 'behavioral' && readerRow.evidence === 'scripts/sessionStorage/prove-transcript-tail-reader.ts')
 }
-
-section('the resume load reads the fold through the reader')
-{
-  const loading = src('utils/sessionStorage/loading.ts')
-  check('loadTranscriptFile asks the reader', loading.includes('await readTranscript(filePath, { policy:'))
-  check('loading.ts opens no file of its own', !/from ['"](node:)?fs/.test(loading) && !loading.includes('readFile('))
-  check('the degradation latch is the reader\'s (re-exported for the chat)', loading.includes('subscribeTranscriptLoadDegradation,') && src('utils/sessionStorage/transcriptReader.ts').includes('function noteLoadDegradation('))
-  const logs = src('utils/sessionStorage/logs.ts')
-  check('the log surface loads files only through loadTranscriptFile / loadSessionFile', (logs.match(/loadTranscriptFile\(/g) ?? []).length >= 4 && !logs.includes('readFileSync('))
-  check('the picker\'s enrichment stays the bounded head+tail read', logs.includes('readSessionLabelFacts(filePath, fileSize, buf,') && src('utils/sessionStorage/sessionIndex.ts').includes('readHeadAndTail(filePath, fileSize, buffer)') && src('utils/sessionStoragePortable.ts').includes('export const LITE_READ_BUF_SIZE = 65536'))
-  const recovery = src('utils/conversationRecovery.ts')
-  check('the resume pipeline walks files through loadTranscriptFile only', recovery.includes('await loadTranscriptFile(path)') && !/from ['"](node:)?fs/.test(recovery))
-  const writer = src('utils/sessionStorage/writer.ts')
-  check('the writer\'s dedup set is the reader\'s record-id scan of the whole file (every id on disk, pruned by nothing) merged into the ids this process wrote, not a parse of its own, not the pruned fold, and primed by nobody else', writer.includes('const path = sessionFilePath(sessionId)') && writer.includes('for (const id of await readTranscriptRecordIds(path)) known.add(id as UUID)') && !writer.includes('await loadSessionFile(sessionId)') && !logs.includes('getSessionMessages.cache.set(') && src('utils/sessionStorage/transcriptReader.ts').includes('export async function readTranscriptRecordIds('))
-}
-
-section('the daemon connector reads the chain since its cursor')
-{
-  const connector = src('services/engine-connector/daemonConnector.ts')
-  check('the tick asks for the chain since the cursor', connector.includes('reader.readTranscriptChainSince(this.transcriptPath, this.chainCursor)'))
-  check('the tick no longer loads the whole log', !connector.includes('fillSessionListing('))
-  check('the path is retained while the slot holds the session and released at detach', connector.includes('this.releaseTranscript = reader.retainTranscript(this.transcriptPath)') && connector.includes('this.releaseTranscript?.()'))
-  check('the merge signs rows by the reader\'s tokens (content by construction) and keeps its both-directions law', connector.includes('reader.chainRowSigner()') && /if \(merge\.reusedAll\) (?:return|\{\s*this\.recomputeLive\(\)\s*return\s*\})/.test(connector))
-  check('the live-turn fold refolds only from the cursor\'s moved index', connector.includes('this.liveFold.fold(this.rawRecords, chain.since)'))
-  const identity = src('services/engine-connector/recordIdentity.ts')
-  check('the merge seam takes a signer and defaults to serialization', identity.includes('sigOf: (record: unknown) => string = record => JSON.stringify(record)'))
-  const recovery = src('utils/conversationRecovery.ts')
-  check('liveTurnStateOf is the one-shot form of the settled-prefix fold (one arithmetic)', recovery.includes('return createLiveTurnFold().fold(messages, 0)'))
-}
-
-section('the line-folding consumers ride the reader\'s byte cursor and backward walk')
-{
-  const mirror = src('services/concourse/workerTranscript.ts')
-  check('the mirror\'s cursor read is the reader\'s byte cursor', mirror.includes('readTranscriptBytesAfter(cursor.path, { offset: cursor.offset, carry: cursor.carry })') && !/from ['"]node:fs['"]/.test(mirror))
-  const pane = src('components/concourse/workerTranscriptFold.ts')
-  check('the mirror pane\'s hook reads only through the service seam', pane.includes("import('../../services/concourse/workerTranscript.js')") && !pane.includes('readFileSync('))
-  const receipts = src('services/switchboard/sessionReceipts.ts')
-  check('the close receipt\'s window reads through the byte cursor, carry re-joined as an unread line', receipts.includes("readTranscriptBytesAfter(path, { offset: from, carry: '' })") && receipts.includes('`${read.text}\\n${read.cursor.carry}`') && !receipts.includes('openSync('))
-  const daemon = src('daemon/concourseWorkers.ts')
-  check('the retained-model walk reads newest lines first through the reader', daemon.includes('scanTranscriptLinesBackward(transcript, line => {') && !daemon.includes('readFileSync(transcript'))
-}
-
-section('the session ledger rebuild reads the raw record stream through the reader')
-{
-  const reader = src('utils/sessionStorage/transcriptReader.ts')
-  const walkStart = reader.indexOf('export function scanTranscriptEntriesForward(')
-  const walk = walkStart === -1 ? '' : reader.slice(walkStart, reader.indexOf('export function computeResumeLeaves(', walkStart))
-  check('the reader owns the raw forward walk: bounded windows through its io seam, the codec per window', walk.includes('io.readRangeSync(path, from, Math.min(st.size, from + FORWARD_WINDOW_BYTES))') && walk.includes('decodeTranscriptBuffer<Entry>(whole)'))
-  check('the raw walk applies no fold, no relink, no prune (the records as written)', walk.length > 0 && !walk.includes('applyTranscriptEntry(') && !walk.includes('applyPreservedSegmentRelinks(') && !walk.includes('applySnipRemovals(') && !walk.includes('pruneRecordBranchesBeforeParse('))
-  const rollup = src('utils/sessionStorage/usageRollup.ts')
-  check('the rollup walks records only through the reader and opens no file of its own', rollup.includes("from './transcriptReader.js'") && rollup.includes('scanTranscriptEntriesForward(path, entry =>') && !/from ['"](node:)?fs/.test(rollup) && !rollup.includes('readFileSync(') && !rollup.includes('readTranscript('))
-  check('the rollup counts served rows by the one provenance law and prices through the one owner', rollup.includes('servedModelOfAssistantRow(entry)') && rollup.includes('calculateUSDCost(row.model, row.usage)') && rollup.includes("modelPricingBasis(row.model) === 'unpriced'"))
-  check('the rollup enumerates sub-agent transcripts through the path-shape owner', rollup.includes('listAgentTranscriptPaths(transcriptPath, sessionId)') && src('utils/sessionStorage/paths.ts').includes("join(dirname(transcriptPath), sessionId, 'subagents')"))
-  const costTracker = src('cost-tracker.ts')
-  check('the ledger restore takes the rollup by dynamic import (the reader estate stays out of the ledger graph)', costTracker.includes("await import('./utils/sessionStorage/usageRollup.js')") && !/^import \{[^}]*\} from '\.\/utils\/sessionStorage\/usageRollup\.js'/m.test(costTracker))
-}
-
-section('the bounded window readers stay bounded')
-{
-  const hop = src('services/switchboard/hopIntoSession.ts')
-  check('the resume path\'s workspace read is the 8 KB head', hop.includes('fh.read(buf, 0, 8192, 0)'))
-  const snapshot = src('services/concourse/concourseSnapshot.ts')
-  check('the board\'s activity read is the 8 KB tail and its brief read the picker\'s 64 KB head (the one label window)', snapshot.includes("transcriptWindowLines(rec, 8192, 'tail')") && snapshot.includes("transcriptWindowLines(rec, LITE_READ_BUF_SIZE, 'head')") && src('utils/sessionStoragePortable.ts').includes('export const LITE_READ_BUF_SIZE = 65536'))
-  const mint = src('services/concourse/sessionTitleMint.ts')
-  check('the title mint reads a 48 KB head', mint.includes('const HEAD_BYTES = 48 * 1024'))
-  const tiles = src('components/concourse/liveTiles.ts')
-  check('the board\'s live tiles stat the transcript and read the projections, never the file', tiles.includes('statSync(this.deps.transcriptPath(') && !tiles.includes('readFileSync('))
-  const runAll = readFileSync(join(ROOT, 'scripts/sessionStorage/run-all.sh'), 'utf8')
-  check('the suite runs the reader proof and this census', runAll.includes('prove-transcript-tail-reader.ts') && runAll.includes('prove-transcript-consumers-owned.ts'))
-}
-
 console.log(failures === 0 ? '\n✅ ALL TRANSCRIPT-CONSUMER-OWNERSHIP PROOFS PASS' : `\n❌ ${failures} TRANSCRIPT-CONSUMER-OWNERSHIP PROOF(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

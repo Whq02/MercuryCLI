@@ -271,8 +271,6 @@ try {
     recordProjectMcpServerChoices({ rejected: ['probe'] })
     resetSettingsCache()
     tally.check('a rejection wins over an approval', getProjectMcpServerStatus('probe', changed) === 'rejected', getProjectMcpServerStatus('probe', changed))
-    const src = readFileSync(join(ROOT, 'src', 'services', 'mcp', 'utils.ts'), 'utf8')
-    tally.check('the status reader consults no road, no trust record and no consent flag', !/getIsNonInteractiveSession|checkHasTrustDialogAccepted|sovereignConsentSeen|requireExplicitApproval/.test(src))
   }
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })

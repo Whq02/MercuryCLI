@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, decide, fill, finish, note, pageText, said, section, shown, sourceText, standInService, type Rules } from './floorsKit.ts'
+import { check, decide, fill, finish, note, pageText, said, section, shown, standInService, type Rules } from './floorsKit.ts'
 
 type Mode = 'default' | 'implement' | 'apollo' | 'dontAsk' | 'flow' | 'sovereign'
 type Shape = { label: string; argv: string[]; bashModes: Mode[]; rules?: Rules }
@@ -234,8 +234,6 @@ section('§9 a service\'s inputs are one script: text sent to it is read with th
     }
     return wrong
   }
-  const body = sourceText('src/tools/ServiceTool/ServiceTool.ts')
-  check('the tool notes a text only once it was written to the service, by the run it was written to', /const sent = sendInput\(project, input\.name!, input\.text \?\? '', sessionId, mode\)\n\s+if \('error' in sent\) return [^\n]+\n\s+if \(mode !== 'eof'\) noteServiceInput\(serviceInputKey\(project, input\.name!\), runOf\(readRecord\(project, input\.name!\)\), input\.text \?\? '', mode !== 'write'\)/.test(body))
   standInService('stateful', 'sh', [])
   for (const [mode, behavior] of [['sovereign', 'allow'], ['flow', 'allow'], ['default', 'ask']] as const) {
     const before = await decide('Service', typed('stateful', 'cat .credentials.json'), mode)

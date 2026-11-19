@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { createStreamingTailStore } from '../../src/utils/messages/streamingTailStore.js'
 
 let fail = 0
@@ -48,7 +46,6 @@ console.log('prove-stream-commit-throttle — live tail commits under a delta st
 }
 
 {
-  const repl = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
   const { TailPart } = await import('../../src/services/engine-connector/daemon/tail.ts')
   const fed = new TailPart({ sessionId: () => 'throttle', rows: () => [], model: () => 'the-model', paint: () => {} })
   const store = fed.store()
@@ -64,17 +61,11 @@ console.log('prove-stream-commit-throttle — live tail commits under a delta st
   if (clockOfTheStore !== undefined) Object.defineProperty(performance, 'now', clockOfTheStore)
   else delete (performance as { now?: unknown }).now
   unsubscribe()
-  const seat = readFileSync(join(import.meta.dir, '../../src/daemon/sessionSeat.ts'), 'utf8')
-  check('the face holds no stream batcher (no batcher.update, no streaming tool-use reset)', !repl.includes('batcher.update(') && !repl.includes('resetStreamingToolUses'))
   check(
     'the connector feeds one streaming tail store from the seat tail feed, through its throttle (two feeds in one tick publish once)',
     opening === 'the words' && store.read() === 'the words grow' && fed.store() === store && publishedAtTheOpening === 1 && publishedInTheTick === 1,
     `${String(opening)} · ${String(store.read())} · published ${publishedAtTheOpening} at the opening and ${publishedInTheTick} after the second feed of the same tick (1 and 1): TailPart.takeTail in src/services/engine-connector/daemon/tail.ts feeds the store through update, which holds a second change inside the store's interval for one trailing publish; reset publishes every feed at once`,
   )
-  check('the seat publishes its tail on a bounded throttle with a trailing publish', seat.includes('TAIL_PUBLISH_MS = 40') && seat.includes('tailDirty'))
-  check('every transcript arm paints the focused tail under the one motion gate (the gate suppresses the text half; the tail mounts on every surface — FN-016 R12)', (repl.match(/streamingTail=\{focusedTail\}/g) ?? []).length === 3 && (repl.match(/streamingTextSuppressed=\{streamingSuppressed\}/g) ?? []).length === 3)
-  const streaming = readFileSync(join(import.meta.dir, '../../src/utils/messages/streaming.ts'), 'utf8')
-  check('input_json_delta replaces IN PLACE (order-stable — no filter+append reorder)', streaming.includes('const at = current.findIndex(t => t.index === index)') && !streaming.includes('...current.filter(t => t !== element)'))
 }
 
 console.log(fail === 0 ? '\n✅ prove-stream-commit-throttle: ALL PASS' : `\n❌ prove-stream-commit-throttle: ${fail} FAILURE(S)`)

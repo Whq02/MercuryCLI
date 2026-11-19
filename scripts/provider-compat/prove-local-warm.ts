@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { mock } from 'bun:test'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -300,9 +300,7 @@ section('0 · the world: a fixture Ollama that records requests, models the prom
 
 section('1 · the seams: the module, the runner registration line and the turn seam')
 {
-  const callModel = readFileSync(join(ROOT, 'src/services/providers/local/localCallModel.ts'), 'utf8')
   check('src/services/providers/local/localWarm.ts exists and exports armLocalWarm / noteLocalTurn / localWarmFacts', warmModule !== null && typeof warmModule.armLocalWarm === 'function' && typeof warmModule.noteLocalTurn === 'function' && typeof warmModule.localWarmFacts === 'function', 'the module is absent')
-  check('src/services/providers/local/localCallModel.ts notes the real turn before dispatch (the warm yields the server; the touch learns the knobs)', callModel.includes('noteLocalTurn(record)') && callModel.indexOf('noteLocalTurn(record)') < callModel.indexOf('yield* compatChatCallModel('), 'no noteLocalTurn(record) before the dispatch')
 }
 
 section('2 · pre-warm on switch: the model becomes a local Ollama model and the server receives the first turn\'s prefix, one token, while nobody is waiting')

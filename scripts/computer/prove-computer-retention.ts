@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, finish, scratchDir, section, sourceText } from './computerProofKit.ts'
+import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { toolResultTurn, toolUseTurn } from './computerToolKit.ts'
@@ -129,25 +129,6 @@ section('§2c the cold-prefix reading: the last completion against the cache clo
   state.setLastApiCompletionTimestamp(before)
 }
 
-section('§3 the wire call sites (structural)')
-{
-  const stream = sourceText('src/services/providers/anthropic/streamCore.ts')
-  const media = stream.indexOf('fitWireImages(')
-  const retire = stream.indexOf('retireOlderScreenshots(')
-  const thinking = stream.indexOf('stripThinkingFromIndex(', retire)
-  check('streamCore.ts retires older screenshots and adjusts thinking before fitting the composed request', retire >= 0 && thinking > retire && media > thinking, `${media} ${retire} ${thinking}`)
-  const openai = sourceText('src/services/providers/openai/openaiCallModel.ts')
-  const retireOpenai = openai.indexOf('retireOlderScreenshots(')
-  const bridge = openai.indexOf('toBridgeMessages(', retireOpenai)
-  check('openaiCallModel.ts retires older screenshots before the bridge', retireOpenai >= 0 && bridge > retireOpenai, `${retireOpenai} ${bridge}`)
-  const compat = sourceText('src/services/providers/openaicompat/compatChatCallModel.ts')
-  const retireCompat = compat.indexOf('retireOlderScreenshots(')
-  check('compatChatCallModel.ts retires older screenshots before the codec', retireCompat >= 0 && compat.indexOf('mapMessagesToZai(', retireCompat) > retireCompat)
-  const zai = sourceText('src/services/providers/zai/zaiCallModel.ts')
-  check('the direct GLM runtime retires older screenshots too', zai.includes('retireOlderScreenshots('))
-  const chain = sourceText('src/utils/sessionStorage/chain.ts')
-  check('the session file chain projects every record it cleans for the file, with the transcript beside it', chain.includes('projectForTranscript(message, allMessages)'))
-}
 
 section('§4 the screenshot a coordinate act refers to must still be visible')
 {

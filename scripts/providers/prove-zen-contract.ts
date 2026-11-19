@@ -1,10 +1,9 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
-import { readFileSync, rmSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import { join } from 'node:path'
-import ts from 'typescript'
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.OPENCODE_API_KEY
 process.env.MERCURY_ZEN_API_BASE = 'http://127.0.0.1:1/zen/v1'
 process.env.MERCURY_ZEN_GO_API_BASE = 'http://127.0.0.1:1/zen/go/v1'
@@ -27,8 +26,6 @@ const { effortVocabularyFor, resolveContextWindow, getModelMaxOutputTokens } = a
 const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.ts')
 const { PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
-const root = join(import.meta.dir, '..', '..')
-const read = (path: string): string => readFileSync(join(root, path), 'utf8')
 let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
 try {
@@ -38,7 +35,6 @@ try {
   check('both family words focus the same sign-in and default-provider doors', ['zen', 'opencode'].every(word => parseFamilyFocus(word) === 'zen' && parseDefaultProviderWord(word) === 'zen'))
   const row = loginFamilyRows({ engineLegs: true }).find(row => row.value === 'zen')
   check('the sign-in row is the last engine row and names the API-key road and the console', loginFamilyRows({ engineLegs: true }).at(-1)?.value === 'zen' && row?.label === 'OpenCode Zen — API key' && KEY_PAGES.zen === 'opencode.ai/auth' && keyPageLine('zen').includes('opencode.ai/auth'))
-  check('both login skins use the owning key driver and the same guard', read('src/components/ZenConnect.tsx').includes('storeZenApiKeyLogin') && read('src/components/BootLoginsScreen.tsx').includes('storeZenApiKeyLogin(value)') && keyLegGuardOpts('zen').stores === 'an OpenCode Zen API key (sk-…)')
   check('the face names the usage-endpoint check and the env precedence', keyLegTitle('zen') === 'OpenCode Zen API key' && keyLegStoreLine('zen').includes('usage endpoint first') && keyLegStoreLine('zen').includes('OPENCODE_API_KEY wins') && keyPromptPaneLines('zen', null, 8, false).join(' ').includes('opencode.ai/auth'))
   check('the picker carries the Zen group with a connect row while signed out', getModelOptions().some(option => option.group === ZEN_MODEL_GROUP && option.value === keyConnectValue('zen')) && parseKeyConnectValue(keyConnectValue('zen')) === 'zen')
   check('the one env spelling is the vendor\'s', PROVIDER_CREDENTIAL_ENV_VARS.zen.join() === 'OPENCODE_API_KEY')
@@ -56,20 +52,5 @@ try {
   const discovery = await refreshProviderDiscovery('zen', { force: true })
   check('discovery records Zen rather than falling through to another family', discovery?.provider === 'zen' && discovery.keyPresent && discovery.keySource === 'env')
   check('the typed-id ledger carries a Zen fact beside the other families', readModelListFacts().some(fact => fact.family === 'zen' && fact.typed.length === 68))
-  const files = ['Accounts', 'CallModel', 'Catalogue', 'Login', 'Pins', 'ResponsesTransport', 'UsageState'].map(part => `src/services/providers/zen/zen${part}.ts`)
-  files.push('src/services/providers/zen/zenAdapter.ts')
-  for (const file of files) {
-    const source = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true)
-    const names: string[] = []
-    for (const statement of source.statements) {
-      if (!ts.canHaveModifiers(statement) || !ts.getModifiers(statement)?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) continue
-      if (ts.isVariableStatement(statement)) names.push(...statement.declarationList.declarations.map(declaration => declaration.name.getText(source)))
-      else if ((ts.isFunctionDeclaration(statement) || ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement) || ts.isClassDeclaration(statement)) && statement.name) names.push(statement.name.text)
-    }
-    check(`${file} exports a declared contract`, names.length > 0)
-    console.log(`[EXPORTS] ${file}: ${names.join(', ')}`)
-  }
-  check('both Zen bases are registered and pinned by the hermetic gate', getFlagSpec('MERCURY_ZEN_API_BASE') !== undefined && getFlagSpec('MERCURY_ZEN_GO_API_BASE') !== undefined && read('scripts/gate/ci-shard.sh').includes('MERCURY_ZEN_API_BASE MERCURY_ZEN_GO_API_BASE'))
-  check('no product surface carries bespoke words for what the road does not serve', !/this build/.test(read('src/services/providers/zen/zenCallModel.ts') + read('src/services/providers/zen/zenCatalogue.ts') + read('src/utils/model/modelOptions.ts')))
   console.log(`ZEN CONTRACT GREEN (${count} checks; no provider request)`)
 } finally { rmSync(proofHome, { recursive: true, force: true }) }

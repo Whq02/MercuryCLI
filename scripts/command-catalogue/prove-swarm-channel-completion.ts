@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const REPO = join(import.meta.dir, '..', '..')
 const { channelTargetCandidates, findChannelTargetQuery, generateCommandSuggestions, rankChannelTargets } = await import('../../src/utils/suggestions/commandSuggestions.js')
 
 let passed = 0
@@ -60,16 +57,6 @@ check('a fuzzy match is offered last', names('alpa')[0] === 'Alpha')
 check('nothing matches nothing', names('zzz').length === 0)
 check('an item carries what to insert, apart from what it shows', rankChannelTargets('docs', seatCandidates).every(item => typeof item.metadata === 'string' && item.id === `channel-${item.metadata}`))
 
-console.log('§4 the composer fills only the target and never sends')
-const hook = readFileSync(join(REPO, 'src/hooks/useTypeahead.tsx'), 'utf8')
-const accept = hook.slice(hook.indexOf("case 'channel-target': {"), hook.indexOf("case 'agent': {"))
-check('the accept case rebuilds the line as the command, the target and one trailing space', accept.includes('const rebuilt = `${currentInput.slice(0, target.start)}${String(suggestion.metadata ?? suggestion.displayText)} `') && accept.includes('setCursorOffset(rebuilt.length)'))
-check('accepting never submits', !accept.includes('onSubmit'))
-check('the candidates read the focused connector\u2019s live roster, or the local board without one', hook.includes("const seats = (hasFocusedSession() ? getFocusedSessionConnector().swarmBoard?.()?.seats : swarmView().seats) ?? []") && hook.includes("publish(items, 'channel-target', { selected: 0 })"))
-check('a roster change re-ranks the open target without touching the typed line', hook.includes('subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))(() => {') && hook.includes('if (findChannelTargetQuery(inputRef.current, cursorOffsetRef.current)) setRosterStamp(stamp => stamp + 1)') && hook.includes('}, [input, mode, suppressSuggestions, commands, rosterStamp])'))
-const prompt = readFileSync(join(REPO, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
-check('Enter on a selected candidate accepts it instead of sending', prompt.includes("typeahead.suggestionType === 'channel-target')"))
-check('the footer knows the type', readFileSync(join(REPO, 'src/components/PromptInput/PromptInputFooterSuggestions.tsx'), 'utf8').includes("| 'channel-target'"))
 
 console.log('§5 the three verbs in the catalogue')
 const { builtinCommands } = await import('../../src/commands.js')

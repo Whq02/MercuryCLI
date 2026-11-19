@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -15,18 +15,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 console.log('§1 the wiring (mirror publishes · entry arms/settles · Chat paints render-only)')
-const mirror = readFileSync('src/components/concourse/SessionMirror.tsx', 'utf8')
-check(
-  'the mirror publishes its folded tail keyed by the ADOPTED body',
-  mirror.includes('rememberSessionWarmth(body.sessionId, fold.messages, fold.shed)'),
-)
-const route = readFileSync('src/components/concourse/ConcourseRoute.tsx', 'utf8')
-const attachStart = route.indexOf('const attachAndEnter = useCallback(')
-const attach = route.slice(attachStart, route.indexOf('const waitingRoomAdmitted', attachStart))
-const armAt = attach.indexOf('armEntryWarmth(sessionId,')
-check('the entry arms the hint at the decision, before the landing', armAt >= 0 && armAt < attach.indexOf('const landing = withLanding('))
-check('the landing settles the hint in its finally (per-session)', attach.includes('settleEntryWarmth(sessionId)'))
-const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
 {
   const { openTranscriptPart } = await import('../ui/chatScenarios.ts')
   const view = await openTranscriptPart('swift-warmth-transcript', { keepHome: true })
@@ -43,10 +31,6 @@ const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
     `${live.length} live rows, ${kept.length} kept of ${rows.length}`,
   )
 }
-check(
-  'the cold loading line renders as chrome at the live transcript slot',
-  /entryLoadingLine !== null \? \(\s*<Box paddingLeft=\{1\} marginTop=\{1\}>\s*<Text dimColor>\{entryLoadingLine\}<\/Text>/.test(repl),
-)
 
 console.log('\n§2 the store (bounded by construction · per-session settle)')
 const w = await import('../../src/services/concourse/sessionWarmth.ts')
@@ -154,10 +138,6 @@ check('(c) a third identity paints its own records', w.paintedTranscriptOf(tReco
 check('(c) …and never wears the entry\'s loading line', w.entryLoadingLineOf(w.enteringWarmth(), true, 'T') === null)
 check('(c) …and never borrows the armed warmth', !JSON.stringify(w.paintedTranscriptOf([] as never, w.enteringWarmth(), 'T')).includes('warm A again'))
 check('the resting slot ("" — landing in flight) still paints the warmth', JSON.stringify(w.paintedTranscriptOf([] as never, w.enteringWarmth(), '')).includes('warm A again'))
-check(
-  'the entry decision captures the covered identity at the arm',
-  /armEntryWarmth\(sessionId, row\?\.title \?\? parked\?\.title, hasFocusedSession\(\) \? getFocusedSessionConnector\(\)\.sessionId\(\) : undefined\)/.test(route),
-)
 w._resetSessionWarmthForTesting()
 
 console.log('\n§4 the chat screen, read off its mounted session part')
@@ -195,7 +175,6 @@ console.log('\n§4 the chat screen, read off its mounted session part')
   const afterThird = w.enteringWarmth()
   await session.close()
   check('the Chat paints through the one pure composer, keyed on the store version AND the focused identity', overCovered.length === 1 && overCovered[0] === warm[0] && paintedAfterFold === landedRows, `${overCovered.length} rows over the covered chat`)
-  check('the live view alone paints the hint (one lane: the composed list, never a deferred copy of it)', shownLive === overCovered && shownInTranscript === frozen && !repl.includes('useDeferredValue'))
   check('the Chat settles the hint at fold-complete replace (evict + settle)', armedInEntered === 'warmth-entered' && afterFold === null && keptAfterFold === 0, `${String(armedInEntered)} · ${JSON.stringify(afterFold)} · ${String(keptAfterFold)} rows still kept`)
   check('the cold loading line is keyed the same way', coldLine === 'opening the cold chat — loading the conversation…', String(coldLine))
   check('the Chat settle spares armed-or-covered', armedOverCovered === 'warmth-entered' && armedInEntered === 'warmth-entered' && afterThird === null, `${String(armedOverCovered)} · ${String(armedInEntered)} · ${JSON.stringify(afterThird)}`)

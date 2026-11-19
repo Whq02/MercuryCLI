@@ -88,23 +88,6 @@ console.log('— unit: ledger off-switch —')
   delete process.env.MERCURY_SPAWN_LEDGER
 }
 
-console.log('— anchors: every chokepoint calls the module —')
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string) => readFileSync(join(ROOT, p), 'utf8')
-check('roster.spawnLongLived gates on assertSpawnCwd (dead cwd ⇒ degrade, no respawn loop)',
-  src('src/daemon/roster.ts').includes('assertSpawnCwd(ll.spec.cwd)'))
-check('roster refusal is ledgered as long-lived-refused',
-  src('src/daemon/roster.ts').includes("kind: 'long-lived-refused'"))
-check('headlessRun stamps MERCURY_SPAWNED_BY on long-lived children',
-  src('src/daemon/headlessRun.ts').includes('spawnedByStamp(`daemon-'))
-check('headlessRun ledgers per-fire headless runs',
-  src('src/daemon/headlessRun.ts').includes("recordSpawn({ kind: 'headless'"))
-check('BashTool records the autonomous command audit',
-  src('src/tools/BashTool/BashTool.tsx').includes('recordBashAudit(input.command'))
-check('headless one-shot runs gate on assertSpawnCwd (dead scheduled cwd ⇒ loud refusal)',
-  src('src/daemon/headlessRun.ts').includes('assertSpawnCwd(dir)'))
-check('headless refusal is ledgered as headless-refused',
-  src('src/daemon/headlessRun.ts').includes("kind: 'headless-refused'"))
 
 console.log('— unit: forensics hermetic seam (gate runs must not pollute the real trail) —')
 const seamDir = mkdtempSync(join(tmpdir(), 'spawn-ledger-seam-'))

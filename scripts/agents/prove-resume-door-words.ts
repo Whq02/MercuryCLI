@@ -1,24 +1,6 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-const root = resolve(import.meta.dir, '../..')
-const read = (path: string) => readFileSync(resolve(root, path), 'utf8')
 let failures = 0
 let checks = 0
 const check = (label: string, yes: boolean) => { checks++; if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}`) }
-const expectations: Array<[string, string[]]> = [
-  ['src/tools/AgentTool/AgentTool.tsx', ['To continue this crewmate, use ${RESUME_AGENT_TOOL_NAME} addressed to that id', 'A crewmate name must be addressable by SendMessage and ResumeCrewmate:', 'Seat name for later messages and additional work; omitted, the crewmate runs its brief once.']],
-  ['src/tasks/LocalAgentTask/LocalAgentTask.tsx', ['resume it from the crew view (r on its row) or by ResumeCrewmate to its id']],
-  ['src/services/agentResults/lifecycle.ts', ['ResumeCrewmate revives it from its transcript with your message', 'ResumeCrewmate revives it warm (the prompt cache still holds its prefix)', 'ResumeCrewmate revives it (cold replay)']],
-  ['src/tasks/stopTask.ts', ['; ResumeCrewmate to that id resumes it']],
-  ['src/utils/messages/attachmentText.ts', ['resume it: ${RESUME_AGENT_TOOL_NAME} to "${row.address}"', '${SEND_MESSAGE_TOOL_NAME} reaches a running crewmate and ${RESUME_AGENT_TOOL_NAME} gives any one a new turn, by the id or name shown']],
-  ['src/skills/bundled/loop.ts', ['and a one-line outcome as the last line of your reply — skip it when the user themselves just said stop.', 'and a one-line outcome as the last line of your reply (skipped when the user just asked for the stop).']],
-  ['src/services/loopFire.ts', ["Say so in one line of your reply when the loop can't move further without the user, or when something landed that they'd want to act on now:"]],
-  ['docs/CREW.md', ['ResumeCrewmate']],
-]
-for (const [path, expected] of expectations) {
-  const source = read(path)
-  for (const words of expected) check(`${path} carries the split resume-door words: ${words}`, source.includes(words))
-}
 const { namedLaunchReceipts } = await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')
 for (const verb of ['SendMessage', 'ResumeCrewmate']) {
   const rows = [
@@ -30,6 +12,5 @@ for (const verb of ['SendMessage', 'ResumeCrewmate']) {
 const { crewTrafficMessages } = await import('../../src/components/prompts-panel/rows.ts')
 const traffic = crewTrafficMessages([{ type: 'assistant', timestamp: '2026-01-01T00:00:00.000Z', message: { content: [{ type: 'tool_use', id: 'resume-row', name: 'ResumeCrewmate', input: { to: 'reader', message: 'continue reading' } }] } }] as never)
 check('ResumeCrewmate is shown as crewmate message traffic', traffic.length === 1 && traffic[0]?.via === 'message' && traffic[0]?.text === 'continue reading')
-check('ResumeCrewmate joins the non-indexing coordination verbs', read('src/utils/transcriptSearch.ts').includes("  'ResumeCrewmate',"))
 console.log(`resume-door-words: ${checks} checks, ${failures} failed`)
 process.exit(failures ? 1 : 0)

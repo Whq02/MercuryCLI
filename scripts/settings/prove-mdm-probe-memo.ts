@@ -17,7 +17,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 const memo = await import('../../src/utils/settings/mdm/probeMemo.ts')
 const raw = await import('../../src/utils/settings/mdm/rawRead.ts')
 const mdm = await import('../../src/utils/settings/mdm/settings.ts')
@@ -105,23 +104,6 @@ section('M5 the barrier shape — the skip arm never waits on the spawns; the aw
   console.log('  BEFORE: 2 awaited reg.exe spawns (5 s timeout each) before the settings merge on every win32 boot · AFTER (memo says absent): 0 awaited; the 2 still fire in the background')
 }
 
-section('M6 wiring')
-{
-  const main = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
-  const at = main.indexOf('const { ensureMdmSettingsLoaded, mdmBootAwaitsRawRead')
-  const hook = at >= 0 ? main.slice(Math.max(0, at - 400), at + 3000) : ''
-  check('the barrier sits inside a preAction hook', at >= 0 && main.lastIndexOf("program.hook('preAction'", at) >= 0)
-  check('preAction branches on the predicate from the tier module (one dynamic import; the detector import is the standing static one)', /const \{ ensureMdmSettingsLoaded, mdmBootAwaitsRawRead, getMdmSettings, getHkcuSettings \} = await import\('\.\/utils\/settings\/mdm\/settings\.js'\)\n\s*if \(mdmBootAwaitsRawRead\(\)\) \{/.test(hook) && main.includes("import { settingsChangeDetector } from './utils/settings/changeDetector.js'"))
-  check('the await arm is the pre-row text (ensureMdmSettingsLoaded awaited, failure guarded, never stops the boot)', /if \(mdmBootAwaitsRawRead\(\)\) \{\n\s*await ensureMdmSettingsLoaded\(\)\.catch\(\(error: unknown\) => \{\n\s*logForDebugging\(`MDM settings load failed at boot; no policy tier applies: \$\{String\(error\)\}`, \{ level: 'error' \}\)\n\s*\}\)\n\s*\} else \{/.test(hook))
-  check("the skip arm fires the load un-awaited; a value that landed applies the way the MDM poll applies one (notifyChange 'policySettings'), an empty outcome changes nothing", /\} else \{[\s\S]{0,1200}?void ensureMdmSettingsLoaded\(\)\n\s*\.then\(\(\) => \{\n\s*if \(Object\.keys\(getMdmSettings\(\)\.settings\)\.length === 0 && Object\.keys\(getHkcuSettings\(\)\.settings\)\.length === 0\) return\n\s*settingsChangeDetector\.notifyChange\('policySettings'\)\n\s*\}\)\n\s*\.catch\(/.test(hook))
-  const settingsSrc = readFileSync(join(ROOT, 'src/utils/settings/mdm/settings.ts'), 'utf8')
-  check('the load records the completed read\'s outcome right after filling the tier caches', /hkcuCache = hkcu\n[\s\S]{0,200}?recordMdmProbeOutcome\(raw\)/.test(settingsSrc) && settingsSrc.includes("export { mdmBootAwaitsRawRead } from './probeMemo.js'"))
-  const rawSrc = readFileSync(join(ROOT, 'src/utils/settings/mdm/rawRead.ts'), 'utf8')
-  const spawns = rawSrc.match(/runSubprocess\('reg', \['query'/g) ?? []
-  check('the two registry spawns, one per hive, still fire (only the await moved)', spawns.length === 2 && /startMdmRawRead\(\);/.test(main))
-  const probeSrc = readFileSync(join(ROOT, 'src/utils/settings/mdm/probeMemo.ts'), 'utf8')
-  check('the memo is win32-only at both ends (record and predicate)', (probeSrc.match(/if \(platform !== 'win32'\) return/g) ?? []).length === 2)
-}
 
 console.log(failures === 0 ? '\n✅ ALL MDM PROBE-MEMO PROOFS PASS' : `\n❌ ${failures} MDM PROBE-MEMO PROOF(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

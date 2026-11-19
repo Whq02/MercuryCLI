@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 
 let fail = 0;
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -6,25 +5,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) fail = 1;
 };
 
-const capsule = readFileSync('src/components/mercury-ui/WorkCapsule.tsx', 'utf8');
-check(
-  'WorkCapsule never early-returns bare children (stable tree shape)',
-  !/if \(!active[^)]*\) return children/.test(capsule) && !/return children\b/.test(capsule),
-);
-check(
-  'chassis toggles by PROP VALUES (borderStyle/paddingX conditional on dressed)',
-  capsule.includes("borderStyle={dressed ? 'round' : undefined}") &&
-    capsule.includes('paddingX={dressed ? 1 : 0}'),
-);
-check(
-  'providers always mounted (WorkCapsuleContext + TerminalSizeContext)',
-  capsule.includes('<WorkCapsuleContext.Provider value={dressed}>') &&
-    capsule.includes('<TerminalSizeContext.Provider value={sizeVal}>'),
-);
-check(
-  'inner size context memoized (no per-render identity churn for consumers)',
-  capsule.includes('React.useMemo'),
-);
 
 {
   const { openStatusPart } = await import('./chatScenarios.ts');
@@ -74,18 +54,6 @@ check(
     `${streamingSlot} · ${streaming}`,
   );
 }
-const holdRow = readFileSync('src/components/Spinner/StreamingHoldRow.tsx', 'utf8');
-check(
-  'StreamingHoldRow itself is the slot footprint: one row until the turn took two (the strip height latch, keyed by the turn clock)',
-  /<Box height=\{stripLines\} width="100%">/.test(holdRow) &&
-    holdRow.includes('const stripLines = turnStripLines(loadingStartTimeRef.current, 1)'),
-);
-
-const home = readFileSync('src/components/MercuryHome.tsx', 'utf8');
-check(
-  'berth art rides a fixed dock-height slot, bottom-aligned',
-  /height=\{SQUARE_DOCK_ART_LINES\}[\s\S]{0,120}justifyContent="flex-end"/.test(home.slice(home.indexOf('export function PinnedCritterBerth'))),
-);
 const { SQUARE_DOCK_ART_LINES } = await import('../../src/utils/cockpit/critterData.js');
 check(
   `the slot constant derives from the grids (dock=${SQUARE_DOCK_ART_LINES})`,

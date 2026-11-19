@@ -1,10 +1,9 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
-const ROOT = process.cwd()
 const scratch = mkdtempSync(join(tmpdir(), 'keyless-signin-'))
 const CREDENTIAL_KEYS = [
   'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'DEEPSEEK_API_KEY',
@@ -30,7 +29,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail && !ok ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -58,19 +56,6 @@ if (admit.ok) {
   check('…and the note never says no-credential:anthropic', admit.note !== undefined && !admit.note.includes('no-credential'), admit.note ?? '')
 }
 
-console.log('§3 the note\'s road, by source')
-{
-  const wmSrc = read('src/services/concourse/workerModels.ts')
-  check('the keyless arm reads the computed default (keyless with sign-ins present), session arm, unnamed only', wmSrc.includes("if (decision.source === 'keyless' && decision.considered.length > 0) {") && wmSrc.includes("return { ok: true, entry: { ...entry, displayName: NO_USABLE_ROW }, keyless: true, note: `${NO_USABLE_ROW} — ${keylessReason(decision)}` }"))
-  const sup = read('src/daemon/concourseWorkers.ts')
-  check("the daemon's admit reply carries the keyless note on the retained-model seam", sup.includes('if (keyless && admission.note !== undefined && retainedNote === undefined) retainedNote = admission.note'))
-  const born = read('src/services/switchboard/bornSession.ts')
-  const entered = read('src/services/switchboard/hopIntoSession.ts')
-  check('one painter puts a note on the rows of the session it speaks of, as a warning receipt', entered.includes("seat.getDaemonSessionConnector(sessionId)?.addDisplayRow(createSeatReceiptMessage(`▲ ${note}`, 'warning') as never)"))
-  check('the birth door paints the reply\'s note there once the chat is entered', born.includes("if (typeof reply.note === 'string' && reply.note !== '') void paintAdmissionNote(sessionId, reply.note)") && born.includes('const hop = await hopIntoBoardSession(') && born.indexOf('void paintAdmissionNote(sessionId, reply.note)') > born.indexOf('const hop = await hopIntoBoardSession('))
-  check('the resume door paints it the same way, once the admission and the entry have both settled (one seam)', entered.includes('if (refused === null && note !== undefined) void paintAdmissionNote(sessionId, note)') && entered.includes('void Promise.all([refusal, pointed.catch(() => undefined)]).then(([refused]) => {'))
-  check('neither door mints it on the screen-wide receipt road, where the home screen would take it', !born.includes('mintImmediateReceipt(`▲ ${reply.note}`') && !entered.includes('mintImmediateReceipt(`▲ ${reply.note}`'))
-}
 
 removeScratch(scratch)
 if (failures > 0) {

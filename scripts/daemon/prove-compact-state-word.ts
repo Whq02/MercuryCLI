@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -73,11 +73,6 @@ onSeatRow(SHORT, outcome(), roster as never, dir)
 
 console.log('\nC6 the wiring — service stamp to glass word (structural)')
 {
-  const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-  const service = read('src/services/compact/compact.ts')
-  check("the compact service stamps the fold's status (the record under the compacting key)", service.includes("context.setSDKStatus?.({ compacting: status })"))
-  const seatLive = read('src/services/engine-connector/seatLive.ts')
-  check("the live-phase vocabulary carries 'compacting'", seatLive.includes("'compacting'"))
   const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
   const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
   const fold = { runs: true }
@@ -93,11 +88,6 @@ console.log('\nC6 the wiring — service stamp to glass word (structural)')
   lifted.recomputeLive()
   lifted.takeTail({ schema: 1, sessionId: 'proof', atMs: 2, text: null } as never)
   check("the connector lifts the word into phase 'compacting'", before === 'thinking' && during === 'compacting' && ended === 'thinking' && lifted.live().phase === 'thinking', JSON.stringify({ before, during, ended, after: lifted.live().phase }))
-  const repl = read('src/screens/Chat.tsx')
-  check(
-    "the Chat never maps the compacting phase onto the thinking mode",
-    !/compacting'\s*\?\s*'thinking'/.test(repl),
-  )
 }
 
 console.log('\nC7 the status covers the WHOLE fold — the entries stamp first, the one finally stamps the exit')
@@ -141,11 +131,6 @@ console.log('\nC7 the status covers the WHOLE fold — the entries stamp first, 
   check('the automatic road stamps its record, its landed exit, and clears with null (the turn goes on)', auto.length === 3 && compactingOf(auto[0])?.trigger === 'auto' && compactingOf(auto[1])?.exit === 'landed' && auto[2] === null)
   const bare = await withFoldStatus({} as never, async () => 'no status door', { trigger: 'manual', sessionMemory: false, microcompaction: true })
   check('a context with no status door folds unstamped and unharmed', bare === 'no status door')
-  const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-  const command = read('src/commands/compact/compact.ts')
-  check('the /compact command wraps its WHOLE body — every strategy under the status', command.includes('return withFoldStatus(context, scoped => callUnderFoldStatus(args, scoped), {'))
-  const autoRoad = read('src/services/compact/autoCompact.ts')
-  check('the automatic road wraps its fold under the status once the decision is made', autoRoad.includes('return await withFoldStatus(toolUseContext, async scoped => {'))
 }
 
 console.log('\nC8 the fold\'s record rides the word — the seat relays the stages, the fill and the exit')

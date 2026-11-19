@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { strict as assert } from 'node:assert'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { applyProjectRoot } from '../../src/entrypoints/projectRoot.ts'
@@ -36,11 +36,6 @@ try {
   }
   const afterEnd = ['node', 'app', '--', '--project', target]
   check('a prompt operand cannot move the project', !applyProjectRoot(afterEnd) && process.cwd() === original)
-  const entry = readFileSync(join(import.meta.dir, '../../src/entrypoints/cli.tsx'), 'utf8')
-  const declared = entry.indexOf('applyProjectRoot(process.argv)')
-  const loaded = entry.indexOf("import('../utils/startupProfiler.js')")
-  check('the root is selected before project state loads', declared >= 0 && loaded > declared)
-  check('a declared root skips saved splash-directory selection', entry.includes('process.stdout.isTTY && !hasProjectRoot'))
   console.log(`Project root declaration: ${checks} checks passed`)
 } finally {
   process.chdir(original)

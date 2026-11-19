@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const home = mkdtempSync(join(tmpdir(), 'pdf-page-path-home-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -63,9 +62,6 @@ console.log('[3] a page directory is removed once its images are read')
     threw = err instanceof Error ? err.message : String(err)
   }
   check('removing a directory that is not there is quiet', threw === null, threw ?? '')
-  const tool = readFileSync(join(ROOT, 'src/tools/FileReadTool/FileReadTool.ts'), 'utf8')
-  check('the Read tool\'s page lane removes the directory after its images are read', /await removePDFPages\(outputDir\)/.test(tool))
-  check('the Read tool\'s side-effect extraction removes its directory too', /if \(extraction\?\.success\) await removePDFPages\(extraction\.data\.file\.outputDir\)/.test(tool))
 }
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)

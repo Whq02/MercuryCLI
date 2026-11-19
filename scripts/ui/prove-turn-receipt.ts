@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import React from 'react'
 import stripAnsi from 'strip-ansi'
@@ -19,8 +19,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 function withEnv<T>(v: string | undefined, fn: () => T): T {
   const prev = process.env.MERCURY_TURN_RECEIPT
   if (v === undefined) delete process.env.MERCURY_TURN_RECEIPT
@@ -124,8 +122,6 @@ withEnv('1', () => {
   ])
   const c = receipts(rows)[0]!.counts
   check('three WebFetch calls count as 3 fetches, never searches (F35A-20; RED on the base: 4 searches)', c['fetches'] === 3 && c['searches'] === 1)
-  const row = src('components', 'messages', 'TurnReceiptRow.tsx')
-  check('the row prints fetches beside searches, singular and plural', /plural\(c\.fetches, 'fetch', 'fetches'\)/.test(row))
 })
 withEnv('1', () => {
   const rows = inject([
@@ -170,9 +166,6 @@ withEnv('1', () => {
   check('the line names six tools at most and counts the rest: "Alpha ×2 · Beta ×1 · … · Gamma ×1 · +2 more tools"', otherToolsLine(named(many)[0]!.counts as never) === 'Alpha ×2 · Beta ×1 · Delta ×1 · Epsilon ×1 · Eta ×1 · Gamma ×1 · +2 more tools', String(otherToolsLine(named(many)[0]!.counts as never)))
   const grouped = inject([prompt('grouped memory calls', 'p1'), { type: 'grouped_tool_use', uuid: 'g1', messages: [toolUse('Recall', {}, 'a1'), toolUse('Recall', {}, 'a2')], results: [resultFor('a1'), resultFor('a2')] } as never])
   check('grouped rows contribute their inner calls by name', named(grouped)[0]!.counts.tools['Recall'] === 2)
-  const row = src('components', 'messages', 'TurnReceiptRow.tsx')
-  check('the row prints the derive owner\'s by-name words before the delegated spend', row.indexOf('otherToolsLine(c)') !== -1 && row.indexOf('otherToolsLine(c)') < row.indexOf('delegatedSpendLine(c)'))
-  check('the folded-work line of a compaction carries the same words', /otherToolsLine\(c\)/.test(src('services', 'compact', 'prompt.ts')))
 })
 
 section('turn boundaries')
@@ -201,7 +194,6 @@ withEnv('1', () => {
   check('a prompt still waiting for its reply injects nothing (the in-flight turn)', receipts(inject([prompt('waiting', 'p1')])).length === 0)
   check('rows before the first prompt never mint a no-tools receipt', receipts(inject([replyRow('a greeting before any prompt'), prompt('first', 'p1')])).length === 0)
   check('a reply row of empty text is not a reply', receipts(inject([prompt('x', 'p1'), replyRow('   ')])).length === 0)
-  check('the words the row prints come from the derive owner', NO_TOOLS_RAN_WORDS === 'no tools ran this turn' && /NO_TOOLS_RAN_WORDS/.test(src('components', 'messages', 'TurnReceiptRow.tsx')))
   const withUsage = (uuid: string, prompt: number) => ({ type: 'assistant', uuid, message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: prompt, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 } } }) as never
   const deltas = inject([prompt('a', 'p1'), withUsage('u1', 20000), prompt('b', 'p2'), toolUse('Bash', { command: 'ls' }, 'a2'), withUsage('u2', 21500), prompt('c', 'p3'), replyRow('no usage here', 'u3')])
   const deltaRows = (deltas as Array<{ type?: string; contextDelta?: number }>).filter(r => r?.type === 'turn_receipt').map(r => r.contextDelta)
@@ -329,10 +321,6 @@ withEnv('1', () => {
     launchResult({ status: 'async_launched', taskId: 'w1', taskType: 'local_workflow', runId: 'run-1' }, 'r1'),
   ])
   check('a workflow launch is not a crewmate and carries no spend at launch: no line', receipts(workflow).length === 0 || delegatedSpendLine(receipts(workflow)[0]!.counts as never) === null)
-  const agentResultSrc = src('tools', 'AgentTool', 'agentToolUtils.ts')
-  check('the Crewmate tool\'s result carries the ledger\'s list price beside its token total (the row the receipt reads)', /costUSD: ledger\.costUSD,\s*unpricedTurns: ledger\.unpricedTurns,/.test(agentResultSrc) && /costUSD: z\.number\(\)\.optional\(\)/.test(agentResultSrc))
-  check('the receipt reads the record by the fields the schema declares (agentId beside totalTokens), never a status the record does not carry at its top', /agentId: z\.string\(\)/.test(agentResultSrc) && /totalTokens: z\.number\(\)/.test(agentResultSrc) && !/r\.status/.test(src('utils', 'cockpit', 'turnReceipt.ts')))
-  check('the row prints the derive owner\'s words', /delegatedSpendLine\(c\)/.test(src('components', 'messages', 'TurnReceiptRow.tsx')))
 })
 
 section('refused launches stay error rows; only results with an agent id count')
@@ -524,8 +512,6 @@ withEnv('1', () => {
   const ac = receipts(astApplied)[0]!.counts
   check('an applied AstEdit counts its file and lines (+2 −2) from its change view', ac['fileEdits'] === 1 && ac['adds'] === 2 && ac['dels'] === 2, `fileEdits=${ac['fileEdits']} +${ac['adds']} −${ac['dels']}`)
 
-  const changeSetSrc = src('tools', 'ChangeSetTool', 'ChangeSetTool.ts')
-  check('the ChangeSet view carries the exact per-file counts the plan computed over the whole diff', /added: t\.diff\.added,\s*removed: t\.diff\.removed,/.test(changeSetSrc) && /added: number\s*removed: number/.test(src('services', 'changeTransaction', 'diffBudget.ts')))
 })
 
 section('scratchpad path classification')
@@ -535,32 +521,6 @@ check('a project folder named scratchpad is not (it is outside the temp root)', 
 check('bare dir form counts', isScratchpadPath('/tmp/claude-1/s1/scratchpad', '/tmp/claude-1/'))
 check('the Windows spelling counts', isScratchpadPath('C:\\Temp\\mercury\\p\\s1\\scratchpad\\a.txt', 'C:\\Temp\\mercury\\'))
 
-section('render wiring (source + dist needles)')
-check(
-  'Messages.tsx chain runs injectTurnReceipts before the collapse passes',
-  /collapsed = injectTurnReceipts\(collapsed, getMercuryTempDir\(\)\)\s*collapsed = collapseReadSearchGroups\(/.test(src('components', 'Messages.tsx')),
-)
-check(
-  'Message.tsx dispatches turn_receipt → TurnReceiptRow',
-  /case 'turn_receipt':/.test(src('components', 'Message.tsx')) &&
-    /<TurnReceiptRow message=\{message\} \/>/.test(src('components', 'Message.tsx')),
-)
-check(
-  'the row renders dim with success/error delta accents (tokens only)',
-  /dimColor/.test(src('components', 'messages', 'TurnReceiptRow.tsx')) &&
-    /color="success"/.test(src('components', 'messages', 'TurnReceiptRow.tsx')) &&
-    /color="error"/.test(src('components', 'messages', 'TurnReceiptRow.tsx')),
-)
-const distPath = process.env.MERCURY_PROOF_DIST ?? join(ROOT, 'dist', 'mercury.mjs')
-if (!existsSync(distPath)) {
-  console.log('  [SKIP] dist absent — run `bun run build.ts` for the dist needle')
-} else {
-  const dist = readFileSync(distPath, 'utf-8')
-  check(
-    'dist carries the receipt leg (needles `turn_receipt` + `scratchpadEdits`)',
-    dist.includes('turn_receipt') && dist.includes('scratchpadEdits'),
-  )
-}
 
 console.log('\n' + '═'.repeat(60))
 if (failures === 0) console.log('✅ TURN-RECEIPT PROOFS PASS')

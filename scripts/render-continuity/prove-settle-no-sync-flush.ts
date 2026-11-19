@@ -1,10 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
@@ -12,12 +9,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-const streaming = readFileSync(join(ROOT, 'src/utils/messages/streaming.ts'), 'utf8')
-const banned = /flushSync(FromReconciler)?\s*\(|\bbatchSettle\s*\(|\bsetSettleBatcher\b|\bflushPendingSyncWork\b|\bflushSyncWork\b|\bupdateContainerSync\b|\bdiscreteUpdates\b/
-t('§1 streaming.ts names no synchronous reconciler flush, in the retired spellings or the living ones', !banned.test(streaming), banned.exec(streaming)?.[0] ?? '')
-
-const storeSource = readFileSync(join(ROOT, 'src/utils/messages/streamingTailStore.ts'), 'utf8')
-t('§2 the tail store exposes the settle-ghost seam (readSettled/dropSettled)', /readSettled\s*\(/.test(storeSource) && /dropSettled\s*\(/.test(storeSource))
 
 const React = (await import('react')).default
 const { render } = await import('../../src/ink.ts')

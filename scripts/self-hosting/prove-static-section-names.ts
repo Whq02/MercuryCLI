@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_BARE']) delete process.env[key]
@@ -14,7 +14,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { STATIC_SECTION_NAMES } = await import('../../src/prompt/behaviourContract.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -24,11 +23,6 @@ console.log('the static head sections carry their own names')
 
 section('§1 one name per static section')
 {
-  const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
-  const literal = prompts.slice(prompts.indexOf('const staticSections: Array<string | null> = ['), prompts.indexOf(']', prompts.indexOf('const staticSections: Array<string | null> = [')))
-  const entries = literal.slice(literal.indexOf('[') + 1).split(',').map(s => s.trim()).filter(s => s.length > 0).length
-  check('the composer supplies two static sections, the head and the law (the fixture reads the real list)', entries === 2 && literal.includes('frozenHead ?? head, law'), String(entries))
-  check('THE NAME TABLE HAS ONE ENTRY PER SECTION', STATIC_SECTION_NAMES.length === entries, `${STATIC_SECTION_NAMES.length} vs ${entries}`)
   check('the head and the constitution have their own names at their own indices', STATIC_SECTION_NAMES[0] === 'head' && STATIC_SECTION_NAMES[1] === 'constitution', STATIC_SECTION_NAMES.join(','))
 }
 

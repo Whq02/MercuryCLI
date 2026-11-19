@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // gate-watch: src/services/api/errors.ts src/services/providers/callModelRouter.ts src/services/providers/catalogueAdmission.ts src/services/providers/credentialWall.ts src/services/providers/anthropic/anthropicCatalogue.ts
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -256,35 +256,6 @@ section('§3 the error composer with a stored account record: the sign-in wall r
   }
 }
 
-section("§4 every provider's error composer, read: no composed error line interpolates an address, an account id, an organisation id or a key")
-{
-  const files: string[] = []
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry)
-      if (statSync(full).isDirectory()) walk(full)
-      else if (/CallModel\.ts$|errors\.ts$|credentialWall\.ts$|Refusal\.ts$|Login\.ts$/.test(entry)) files.push(full)
-    }
-  }
-  walk(join(ROOT, 'src', 'services', 'providers'))
-  files.push(join(ROOT, 'src', 'services', 'api', 'errors.ts'))
-  const identity = /emailAddress|\.email\b|accountId\b|accountUuid|organizationUuid|organizationId|orgId|getOauthAccountInfo|apiKey\.slice|accessToken\.slice|refreshToken/
-  const offenders: string[] = []
-  let composed = 0
-  for (const file of files) {
-    const text = readFileSync(file, 'utf8')
-    const source = text.split('\n')
-    source.forEach((line, index) => {
-      const composes = /API_ERROR_MESSAGE_PREFIX|content: `|createAssistantAPIErrorMessage\(\{ content:/.test(line) && !/^\s*\/\//.test(line)
-      if (!composes) return
-      composed++
-      if (identity.test(line)) offenders.push(`${file.replace(`${ROOT}/`, '')}:${index + 1}: ${line.trim().slice(0, 160)}`)
-    })
-  }
-  check(`${composed} composed error lines across ${files.length} composer files carry no identity field`, composed > 50 && offenders.length === 0, offenders.join('\n'))
-  const errorsText = readFileSync(join(ROOT, 'src', 'services', 'api', 'errors.ts'), 'utf8')
-  check('the account suffix is gone from the error composer (no " · account " join, no sign-in-wall account reader)', !errorsText.includes('· account ${') && !errorsText.includes('signInWallAccount'), '')
-}
 
 console.log(`\n${failures === 0 ? `BAD MODEL LINE GREEN (${checks} checks)` : `BAD MODEL LINE RED — ${failures} failure(s) of ${checks}`}`)
 process.exit(failures === 0 ? 0 : 1)

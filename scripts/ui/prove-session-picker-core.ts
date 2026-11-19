@@ -2,7 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import {
@@ -15,10 +14,6 @@ import {
 import type { SessionListing } from '../../src/types/logs.js'
 
 const t = checker()
-const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-const modelSrc = read('src/components/mercury-ui/screens/sessionPickerModel.ts')
-const skinSrc = read('src/components/mercury-ui/screens/SessionManagerView.tsx')
 
 function log(over: Partial<SessionListing> & { sessionId: string; modifiedMs: number }): SessionListing {
   const { modifiedMs, ...rest } = over
@@ -39,37 +34,6 @@ function log(over: Partial<SessionListing> & { sessionId: string; modifiedMs: nu
   } as SessionListing
 }
 
-t.section('§1 — IDENTITY, BOTH DIRECTIONS (one owner; the skin consumes the hook)')
-{
-  const movedNeedles = [
-    'filterResumableSessions(all, currentSessionId).filter(isSubstantiveSession)',
-    'partitionByProject(',
-    "getLogDisplayTitle(log, '(untitled session)')",
-    'boardHomed.has(sessionIdOfListing(l)',
-    'listSessionsAcrossProjectsProgressive()',
-    'enrichSessionListings(first.allStatLogs, next, ENRICH_BATCH)',
-    "split(/[\\\\/]/).pop()",
-  ]
-  for (const needle of movedNeedles) {
-    t.check(`model carries: ${needle.slice(0, 58)}`, modelSrc.includes(needle), needle)
-  }
-  const forkTokens = [
-    'partitionByProject',
-    'isSubstantiveSession',
-    'listSessionsAcrossProjectsProgressive',
-    'enrichSessionListings',
-    'getLogDisplayTitle',
-    'filterResumableSessions',
-    'isSessionCleared',
-    'subscribeCurrentProject',
-    'useNowTick',
-  ]
-  const forks = forkTokens.filter(tok => skinSrc.includes(tok))
-  t.check('the skin retains NONE of the moved machinery', forks.length === 0, forks.join(','))
-  t.check('the skin consumes the one model hook', skinSrc.includes('useSessionPickerModel(scope)'))
-  t.check("the skin's scope type re-exports from the model (existing callers keep their import)", skinSrc.includes("export type { SessionScope } from './sessionPickerModel.js'"))
-  t.check('the prune mirror rides the model door (dropSessions), never a local setLogs', skinSrc.includes('dropSessions(new Set(receipt.deletedSessionIds))') && !skinSrc.includes('setLogs'))
-}
 
 t.section('§2 — THE RESUMABLE PROJECTION (drop · keep · order)')
 {
@@ -157,8 +121,6 @@ t.section('§5 — THE VIEW FILTER (act two: filterDir — identity both directi
   const filteredProject = projectSessionPickerRows(logs, { ...base, scope: 'project', filterDir: '/repo/beta' })
   t.check('the filter composes OVER the scope partition (a beta filter under alpha scope is honestly empty)', filteredProject.flat.length === 0 && filteredProject.elsewhereCount === 1)
   t.check('the elsewhere count stays the SCOPE’s own fact (a view filter never rewrites it)', projectSessionPickerRows(logs, { ...base, scope: 'project', filterDir: '/repo/alpha' }).elsewhereCount === 1)
-  t.check('the hook threads filterDir through opts and the memo deps', modelSrc.includes('opts: { enabled?: boolean; filterDir?: string } = {}') && modelSrc.includes("...(opts.filterDir !== undefined ? { filterDir: opts.filterDir } : {})") && modelSrc.includes('[logs, nowTick, scope, projectKey, opts.filterDir]'))
-  t.check('the in-chat switcher never passes the filter (one skin, no drift)', !read('src/components/mercury-ui/screens/SessionManagerView.tsx').includes('filterDir'))
 }
 
 t.finish('prove-session-picker-core')

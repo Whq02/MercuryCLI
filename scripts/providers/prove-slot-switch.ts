@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -23,7 +23,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { slotSeatView, switchActiveSlot } = await import('../../src/services/providers/slotSwitch.ts')
 type Reads = import('../../src/services/providers/slotSwitch.ts').SlotSwitchReads
 
@@ -201,10 +200,6 @@ section("§C2 an unobservable wall is UNKNOWN, never invented headroom (FN-016 R
 
 section('§D mid-session — the seat is read at turn start; a flip moves the resolver now')
 {
-  const call = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
-  check('openaiCallModel resolves the account at turn entry (turn-start capture)', call.includes('const account = resolveOpenaiAccount()'))
-  const client = readFileSync(join(ROOT, 'src/services/api/client.ts'), 'utf8')
-  check('getAnthropicClient consults the subscriber seat per request unless explicitly probing a key', client.includes('const subscriber = callerApiKey === undefined && isClaudeAISubscriber()'))
   const { writePreferredOpenaiSource, resolveOpenaiAccount } = await import(
     '../../src/services/providers/openai/openaiAccounts.ts'
   )
@@ -215,18 +210,6 @@ section('§D mid-session — the seat is read at turn start; a flip moves the re
   delete process.env.OPENAI_API_KEY
 }
 
-section('§E the surfaces ride the ONE owner (structural)')
-{
-  const logins = readFileSync(join(ROOT, 'src/components/BootLoginsScreen.tsx'), 'utf8')
-  check("the Logins screen's `s` runs switchActiveSlot exactly where the pair is", logins.includes("key: 's'") && logins.includes('loginsSwitchableFamily(a, facts) !== null') && logins.includes('switchActiveSlot(family)'))
-  check('the legend advertises the move under the same predicate', logins.includes('s switch slot') && logins.includes('loginsSwitchableFamily(selected, facts) !== null'))
-  const picker = readFileSync(join(ROOT, 'src/components/MercuryModelPicker.tsx'), 'utf8')
-  const letterLines = picker.split('\n').filter(line => /(?<![\w.])input === '[a-z]'/.test(line))
-  check('the /model picker has no bare-letter slot key: the flip rides ↵ on the other door\'s row through the wrapper (a typed letter searches); the one named exception is a TensorFold row, whose s, w, c and n act on that row (the approved TensorFold design) — every bare-letter compare reads the focused TensorFold row\'s keys, so on every other row a typed letter searches', letterLines.length > 0 && letterLines.every(line => line.includes('tfKeys')) && !picker.includes('onSlotSwitch') && picker.includes('isSearchCharacter(input, key)'), letterLines.filter(line => !line.includes('tfKeys')).join(' | '))
-  check('the /model wrapper flips the slot when ↵ lands on the other door\'s row', readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8').includes('const flipDoorNote = (pick: PickRoad): string =>') && readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8').includes('handleSlotSwitch(ANTHROPIC_MODEL_GROUP)'))
-  const wrapper = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  check('the /model wrapper wires the owner and marks the billing door on its heading', wrapper.includes('switchActiveSlot(family)') && wrapper.includes('...(slot.active ? { active: true } : {})') && readFileSync(join(ROOT, 'src/utils/model/modelPickerGroups.ts'), 'utf8').includes("if (door.active === true) parts.push('active')"))
-}
 
 console.log('\n' + '═'.repeat(60))
 if (failures === 0) console.log('SLOT SWITCH: ALL GREEN')

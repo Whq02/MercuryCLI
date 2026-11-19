@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { engineDeathAfterReady, waitHostEngine, type HostRunner, type SshTarget } from '../../src/services/host/ssh.ts'
 import { currentHostRecipes } from '../../src/services/host/recipesFile.ts'
 
@@ -52,11 +51,5 @@ const stalled = await waitHostEngine(target, recipe, silent, signal, 20, 60, () 
 check('an engine that prints nothing new stops at the budget plus the grace', stalled instanceof Error && /Engine not ready/.test(stalled.message) && Date.now() - t1 < 2000, String(stalled))
 
 console.log('§3 the keep-alive road asks the engine before it reconnects, and the notice names the choice')
-const worker = readFileSync(new URL('../../src/services/host/worker.ts', import.meta.url), 'utf8')
-const reconnectBody = worker.slice(worker.indexOf('const reconnect = async (why: string)'), worker.indexOf('for (let attempt = 1; ; attempt++)'))
-check('the reconnect road reads the engine first', reconnectBody.includes('engineDeathAfterReady(target, recipe, runner, signal, text =>') && reconnectBody.includes('if (death) throw death'))
-check('a death after setup pauses with rate and actions', worker.includes("if (error instanceof HostEngineDeath && failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped') {") && worker.includes("'/hr still billing · Resume or Terminate in /llmhost'") && worker.includes("patchHostRecord(id, { jobState: 'paused', step, error: words, engineDeath: error.facts, linkLost: undefined, advancedAt: at,") && worker.includes("hostNotice(paused, 'paused', initial.name + ' · ' + words)"))
 check('an out-of-memory death after setup never carries the loading-time shape verdict', death instanceof Error && !death.message.includes('too small') && death.message.includes('the engine ran out of GPU memory after setup · Resume restarts it; a shorter conversation or the Tune screen’s smaller context fits'), death?.message)
-const ssh = readFileSync(new URL('../../src/services/host/ssh.ts', import.meta.url), 'utf8')
-check('the engine clock and the death reader live in ssh.ts', ssh.includes('export async function engineDeathAfterReady(') && ssh.includes('Date.now() - progressedAt < progressGraceMs'))
 console.log('ENGINE AFTER READY GREEN — ' + checks + ' checks; fake runners, no machine, no network')

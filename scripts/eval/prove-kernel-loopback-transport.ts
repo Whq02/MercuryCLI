@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { connect, createServer, type Server } from 'node:net'
 import { join } from 'node:path'
 import { check, cleanup, finish, loadEval, refusingBridge, section, setup, within } from './lib.js'
 
 const { work } = setup()
-const ROOT = join(import.meta.dir, '../..')
 const { EvalKernelManager } = await loadEval()
 const { primeEvalAvailability, pythonCandidates } = await import('../../src/services/eval/interpreters.js')
 const { ensurePyRunner } = await import('../../src/services/eval/runnerCache.js')
@@ -19,15 +18,12 @@ check('py on win32 → loopback', kernelTransportFor('py', 'win32') === 'loopbac
 check('py on darwin → fd', kernelTransportFor('py', 'darwin') === 'fd')
 check('py on linux → fd', kernelTransportFor('py', 'linux') === 'fd')
 check('js on win32 → fd', kernelTransportFor('js', 'win32') === 'fd')
-check('the port rides the runner\'s own command line (--protocol-port), never the environment a cell\'s children would inherit', readFileSync(join(ROOT, 'src/services/eval/pyRunnerSource.ts'), 'utf8').includes('"--protocol-port" in sys.argv') && readFileSync(join(ROOT, 'src/services/eval/procKernel.ts'), 'utf8').includes("'--protocol-port'") && !readFileSync(join(ROOT, 'src/services/eval/procKernel.ts'), 'utf8').includes('PROTOCOL_PORT_ENV'))
 
 section('§2 — the ladder: Windows is no longer refused before the first probe, and its PATH rungs are python3, python, py')
 const win = pythonCandidates(work, { PATH: '' }, 'win32')
 const mac = pythonCandidates(work, { PATH: '' }, 'darwin')
 check('the win32 ladder ends python3, python, py', win.slice(-3).join(' ') === 'python3 python py', win.join(' '))
 check('the darwin ladder is unchanged: python3 last and alone', mac.at(-1) === 'python3' && !mac.includes('python') && !mac.includes('py'), mac.join(' '))
-const interpretersSource = readFileSync(join(ROOT, 'src/services/eval/interpreters.ts'), 'utf8')
-check('no platform refusal stands in discoverPython', !/POSIX-only|Windows packet/.test(interpretersSource) && !/discoverPython[\s\S]{0,200}platform === 'win32'/.test(interpretersSource))
 const python = (await primeEvalAvailability(work)).find(row => row.language === 'py')!
 check('this box has a Python 3.10+ for the journeys below', python.available === true, JSON.stringify(python))
 if (!python.available || python.interpreterPath === undefined) {

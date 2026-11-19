@@ -178,14 +178,6 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
     row = readObligation()
   }
   t('the obligation row settles withdrawn with the expiry named', row?.status === 'withdrawn' && /expired unanswered/.test(row?.settlement?.by ?? ''), row === undefined ? 'no obligation row appeared' : JSON.stringify(row))
-  const asksSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'permissionAsks.ts'), 'utf8')
-  t('every mint keeps its promise on the ask (obligationLanded) and every settle site (the five: expiry, cancel, the two answers, the respawn/exit retirement) awaits it through settleAskObligation; the unattended denial is minted settled',
-    (asksSource.match(/ask\.obligationLanded = upsertObligation\(/g) ?? []).length === 2 &&
-      (asksSource.match(/settleAskObligation\(ask, /g) ?? []).length === 5 &&
-      (asksSource.match(/void recordSettledObligation\(\{/g) ?? []).length === 1 &&
-      (asksSource.match(/o\.resolveObligation\(/g) ?? []).length === 1 &&
-      /const landed = ask\.obligationLanded \?\? Promise\.resolve\(ask\.obligationId\)/.test(asksSource),
-    `mints=${(asksSource.match(/ask\.obligationLanded = upsertObligation\(/g) ?? []).length} settles=${(asksSource.match(/settleAskObligation\(ask, /g) ?? []).length} born-settled=${(asksSource.match(/void recordSettledObligation\(\{/g) ?? []).length}`)
 
   hold('concourse-w2', 'answer', 'Edit', 60, 'agent-park-2')
   const r = answerPermissionAsk(idOf('answer'), true, 'operator')

@@ -1,10 +1,8 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-const ROOT = join(import.meta.dir, '../..')
 
 let passed = 0
 let failed = 0
@@ -51,13 +49,6 @@ const nonsense = receiptOf('banana_spawned')
 check('a crewmate_spawned status is as unknown as a nonsense status', spawned.replace('crewmate_spawned', '?') === nonsense.replace('banana_spawned', '?'), spawned)
 check('no spawned-crewmate receipt line exists', !/Crewmate spawned|mailbox/.test(spawned))
 
-console.log('── §3 the source: one spawn road ──')
-const source = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-for (const word of ['crew_name', 'isCrewmateSpawn', 'spawnCrewmate', 'crewmate_spawned', 'spawnMultiAgent']) {
-  check(`AgentTool.tsx does not spell ${word}`, !source.includes(word))
-}
-const promptSource = readFileSync(join(ROOT, 'src/tools/AgentTool/prompt.ts'), 'utf8')
-check('prompt.ts reads no crewmate identity', !/isInProcessCrewmate|isCrewmate\(/.test(promptSource))
 
 console.log(`agent-one-kind: ${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'openai-id-home-'))
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -94,13 +93,6 @@ section('O3 the slot derivation: email as identity, truthful label as the fallba
   )
 }
 
-section('O4 every board reads the ONE derivation')
-{
-  const view = readFileSync(join(ROOT, 'src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
-  const logins = readFileSync(join(ROOT, 'src/components/BootLoginsScreen.tsx'), 'utf8')
-  check('/accounts paints AccountSlot.identity', view.includes('.identity'))
-  check('the Boot Logins card paints AccountSlot.identity', logins.includes('.identity'))
-}
 
 console.log(
   failures === 0

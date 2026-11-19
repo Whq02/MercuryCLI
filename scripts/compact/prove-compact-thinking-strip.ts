@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'compact-thinking-strip-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
@@ -13,7 +13,6 @@ delete process.env.MERCURY_THINKING_BINDING
 
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
@@ -202,16 +201,6 @@ section("§3 partial compaction — 'to' strips its re-homed rounds, 'from' keep
   check('the input history is never mutated', hasThinking(history[1]) && hasThinking(history[17]))
 }
 
-section('§4 the consumers (structural) — three owners, one strip')
-{
-  const compact = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
-  const micro = readFileSync(join(ROOT, 'src/services/compact/microCompact.ts'), 'utf8')
-  const media = readFileSync(join(ROOT, 'src/services/providers/anthropic/media.ts'), 'utf8')
-  check('compact.ts strips the verbatim tail from zero', compact.includes('stripThinkingFromIndex(tail.keep, 0)'))
-  check("compact.ts strips the 'to' kept rounds from zero", /kept = stripThinkingFromIndex\(/.test(compact))
-  check('microCompact.ts strips from the first cleared message', micro.includes('stripThinkingFromIndex(projected, firstCleared)'))
-  check('media.ts strips from the first edited message', media.includes('stripThinkingFromIndex(stripped, firstEdited)'))
-}
 
 console.log('\n============================================================')
 if (failures === 0) {

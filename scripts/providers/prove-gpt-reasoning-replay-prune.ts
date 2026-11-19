@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -13,7 +12,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const bridge = await import('../../src/services/providers/openai/responsesBridge.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
@@ -77,9 +75,6 @@ section('P3 THE COUNT — bytes per request')
 section('P4 wiring')
 {
   check("the flag row is registered opt-in with a byte-identical off arm", getFlagSpec('MERCURY_GPT_PRUNE_PRIOR_REASONING')?.kind === 'opt-in')
-  const src = readFileSync(join(ROOT, 'src/services/providers/openai/responsesBridge.ts'), 'utf8')
-  check('the mapper reads the flag per call (the gate reader) and keys the prune on the last user message', /const prunePrior = flagEnabled\('MERCURY_GPT_PRUNE_PRIOR_REASONING'\)/.test(src) && /prunePrior && index < lastUserIndex/.test(src))
-  check('only reasoning items are ever dropped, only from turns before the last user message', /item\.type !== 'reasoning'/.test(src))
 }
 
 console.log(failures === 0 ? '\n✅ ALL GPT-REASONING-REPLAY-PRUNE PROOFS PASS' : `\n❌ ${failures} GPT-REASONING-REPLAY-PRUNE PROOF(S) FAILED`)

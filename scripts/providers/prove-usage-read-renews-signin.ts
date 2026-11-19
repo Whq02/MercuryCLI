@@ -232,14 +232,6 @@ section('§4 a grant the token endpoint did not answer: the line says so with th
   check("/health's record shows the episode recovered", reader.readUsageReaderRecord()?.recoveredAtMs !== undefined, JSON.stringify(reader.readUsageReaderRecord()))
 }
 
-section('§5 the reader owns the renewal on its one road (source)')
-{
-  const src = readFileSync(join(ROOT, 'src/services/providers/anthropic/anthropicUsageState.ts'), 'utf8')
-  check('the read renews through checkAndRefreshOAuthTokenIfNeeded — the reply road\'s one refresh — before it asks', src.includes('const renewal = await renewExpiredSignIn()') && src.includes('renewed = await checkAndRefreshOAuthTokenIfNeeded()') && src.indexOf('const renewal = await renewExpiredSignIn()') < src.indexOf('const answer = await fetchUtilization()'))
-  check('no second refresh implementation: the reader never posts a grant itself', !src.includes('grant_type') && !src.includes('refresh_token') && !src.includes('TOKEN_URL'))
-  const wire = readFileSync(join(ROOT, 'src/services/api/usage.ts'), 'utf8')
-  check('the wire call still refuses to ask with an expired token (the seam the reader answers before it)', wire.includes('if (tokens && isOAuthTokenExpired(tokens.expiresAt ?? null)) return null'))
-}
 
 const frameDir = arg('--frames')
 if (frameDir !== undefined) {

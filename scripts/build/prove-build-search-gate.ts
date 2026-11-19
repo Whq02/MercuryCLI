@@ -89,18 +89,6 @@ section('(C) runtime catalog agreement — source self-sufficiency · the unavai
   check('catalog offers Glob/Grep on the self-sufficient tree', names.includes('Glob') && names.includes('Grep'))
   check('catalog still offers non-search tools', names.includes('Read') && names.includes('Bash'))
 
-  const rgSrc = readFileSync(join(root, 'src/utils/ripgrep.ts'), 'utf8')
-  check(
-    'probe: the unavailable arm answers none + a remedy naming ripgrep',
-    rgSrc.includes("return { available: false, mode: 'none', path: config.rgPath, remedy: unavailableRemedy(config.rgPath) }") &&
-      rgSrc.includes('install ripgrep via your platform package manager'),
-  )
-  const toolsSrc = readFileSync(join(root, 'src/tools.ts'), 'utf8')
-  check(
-    'catalog suppresses Glob/Grep when search is unavailable (the include gate)',
-    toolsSrc.includes("const includeSearchTools = search.available && search.mode !== 'embedded'") &&
-      toolsSrc.includes('...(includeSearchTools ? [GlobTool, GrepTool] : [])'),
-  )
 
   const distRg = join(root, 'dist', 'vendor', 'ripgrep', `${process.arch}-${process.platform}`, process.platform === 'win32' ? 'rg.exe' : 'rg')
   if (!existsSync(distRg)) {

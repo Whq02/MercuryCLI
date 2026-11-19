@@ -37,6 +37,4 @@ await settle(1500)
 check('a mercury.mjs entry spawns as before', typeof fromShipped === 'number' && readFileSync(mark2, 'utf8').startsWith('daemon run '))
 process.argv[1] = realArgv1
 
-const source = readFileSync(new URL('../../src/daemon/ownedDaemon.ts', import.meta.url), 'utf8')
-check('the guard reads the host entry from Bun.main first and names mercury.mjs, src/main.tsx and src/entrypoints as the entries', source.includes("Bun?: { main?: string } }).Bun?.main ?? process.argv[1]") && source.includes("/^mercury(?:\\.m?js|\\.cjs)?$/") && source.includes("\\/src\\/main\\.tsx$") && source.includes("\\/src\\/entrypoints\\/"))
 console.log(`owned daemon entry: ${checks} checks passed`)

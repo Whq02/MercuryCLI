@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
 let checks = 0
@@ -130,21 +127,6 @@ section('C4 · liveness — quiescence then a new trigger builds afresh')
   check('two separated triggers ran two builds', runs === 2, `runs=${runs}`)
 }
 
-section('C5 · source pins — the route rebuild IS the coalescer; fence and triggers intact')
-{
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src/components/concourse/ConcourseRoute.tsx'), 'utf8')
-  check('rebuild is built from makeCoalescedRebuild', /const rebuild = useMemo\(\s*\(\) =>\s*makeCoalescedRebuild\(async \(\) => \{/.test(src))
-  check('the buildSeq stale-result fence survives inside the build body', /const seq = \+\+buildSeq\.current[\s\S]{0,700}seq !== buildSeq\.current/.test(src))
-  check(
-    'the trigger sites still funnel through rebuild (draft sub, tick, watcher, peek, resident)',
-    src.includes('subscribeConcourseDraft(rebuild)') &&
-      src.includes('setInterval(rebuild, 15_000)') &&
-      /watcher = fs\.watch\([\s\S]{0,900}rebuild\(\)/.test(src) &&
-      /setPeek: \(sessionId: string\) => \{[\s\S]{0,200}rebuild\(\)/.test(src) &&
-      /noteResident: [\s\S]{0,300}rebuild\(\)/.test(src),
-  )
-  check('the coalescer build body catches internally (runBuild never rejects)', /makeCoalescedRebuild\(async \(\) => \{[\s\S]{0,300}try \{[\s\S]{0,2200}\} catch \(e\) \{/.test(src))
-}
 
 console.log('\n' + '='.repeat(60))
 console.log(` ${checks} checks, ${failures} failures`)

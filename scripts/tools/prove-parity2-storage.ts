@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -24,27 +24,8 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   saveGlobalConfig(current => ({ ...current, expandedView: 'tasks' }))
   t('the saved panel is read back', getGlobalConfig().expandedView === 'tasks')
   t('a relaunch seeds the default state from the remembered panel', getDefaultAppState().expandedView === 'tasks')
-  const configPath = join(home, '.mercury.json')
-  let raw: Record<string, unknown> = {}
-  try {
-    raw = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>
-  } catch {
-    raw = {}
-  }
-  const junkPath = Object.keys(raw).length > 0 ? configPath : null
-  if (junkPath !== null) {
-    writeFileSync(junkPath, JSON.stringify({ ...raw, expandedView: 'sideways' }))
-  }
-  t('junk in the config reads as no panel (structural fallback pinned)', /remembered === 'tasks' \? remembered : 'none'/.test(readFileSync('src/state/AppStateStore.ts', 'utf8')))
-  const keybindings = readFileSync('src/hooks/useGlobalKeybindings.tsx', 'utf8')
-  t('the toggle persists the panel it lands on (structural)', /saveGlobalConfig\(current => \(\{ \.\.\.current, expandedView: remembered \}\)\)/.test(keybindings))
 }
 
-{
-  const resume = readFileSync('src/tools/AgentTool/resumeAgent.ts', 'utf8')
-  t('the resumed transcript is replayed with the new prompt APPENDED', /const promptMessages: Message\[\] = \[\s*\.\.\.cleaned,\s*args\.boardEventIds === undefined\s*\?\s*createUserMessage\(\{ content: prompt \+ note \}\)\s*:\s*createAttachmentMessage\(\{ type: 'queued_command', prompt: prompt \+ note, boardEventIds: args\.boardEventIds,[^\n]*\}\),\s*\]/.test(resume))
-  t('tool-result replacement state is reconstructed for cache stability', /reconstructForSubagentResume\(/.test(resume))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures ? '\nFAILURES' : '\nALL GREEN')

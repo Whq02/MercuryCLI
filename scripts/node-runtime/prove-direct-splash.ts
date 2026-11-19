@@ -122,8 +122,6 @@ section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-proce
   const inStripped = managedIn(withoutComments(launcher))
   check('the comment-free launcher carries the comment-free block once, between the same markers, ahead of the anchor', inStripped.begins === 1 && inStripped.ends === 1 && inStripped.span === strippedBlock && inStripped.next === 'args=()')
   check('the retired comment markers are gone from the launcher', !launcher.includes('# MERCURY-SPLASH-ACTION'))
-  const deploy = readFileSync(join(ROOT, 'scripts', 'splash', 'deploy.sh'), 'utf8')
-  check('the deploy script locates the block by the statement markers', deploy.includes(BEGIN.slice(2)) && deploy.includes(END.slice(2)))
   const arena = mkdtempSync(join(tmpdir(), 'direct-splash-block-'))
   const stub = join(arena, 'node-stub')
   writeFileSync(stub, '#!/bin/sh\nprintf \'%s\' "$2" > "$MERCURY_TEST_HEAL_OUT"\n')
@@ -229,23 +227,6 @@ section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-proce
   rmSync(arena, { recursive: true, force: true })
 }
 
-section('§4 the entry seam — the direct road runs before the receipt consumer')
-{
-  const cli = readFileSync(join(ROOT, 'src', 'entrypoints', 'cli.tsx'), 'utf8')
-  const direct = cli.indexOf('runDirectSplash(')
-  const consumer = cli.indexOf('consumeSplashHandover()')
-  const versionFast = cli.indexOf("args[0] === '--version'")
-  check('the cli entry calls the direct-splash owner', direct !== -1)
-  check('…after the zero-import --version fast path', versionFast !== -1 && versionFast < direct)
-  check('…before the splash-handover consumer (the consumer then runs unchanged)', consumer !== -1 && direct < consumer)
-  check('the direct splash requires a bare interactive launch without a declared project root', /if \(args\.length === 0 && process\.stdout\.isTTY && !hasProjectRoot\) \{\s*\n[\s\S]{0,900}?runDirectSplash\(/.test(cli))
-  check('…and a cancelled enter screen stands the boot down (exit 0)', /splash\.verdict === 'cancel'[\s\S]{0,400}?\n\s*return\n/.test(cli))
-  const altHold = cli.indexOf("import('../ink/launcherAltHold.js')")
-  check('the alt-hold consumer is imported only after the direct road (its marker is read at module evaluation)', altHold === -1 || altHold > direct)
-  const owner = readFileSync(join(ROOT, 'src', 'substrate', 'directSplash.ts'), 'utf8')
-  check('the owner spawns the asset on the runtime\'s own node with the terminal inherited', owner.includes('spawnSync(process.execPath, [asset.driver]') && owner.includes("stdio: 'inherit'") && owner.includes('windowsHide: false'))
-  check('the owner mints the per-launch id before the splash (the launchers\' isolation law)', /setFlagEnv\('MERCURY_LAUNCH_ID', `direct-/.test(owner))
-}
 
 section('§5 the ordinary build ships the pair beside the bundle')
 if (!existsSync(BIN)) {

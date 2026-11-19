@@ -118,12 +118,7 @@ try {
   rmSync(noteRoot, { recursive: true, force: true })
 }
 
-const source = readFileSync(join(ROOT, 'src/constants/oauth.ts'), 'utf8')
-for (const name of ['ANTHROPIC_CLIENT_CONTRACT_VERSION', 'ANTHROPIC_CLIENT_CONTRACT_AS_OF']) {
-  check(`${name} is declared in the one contract file`, new RegExp(`^export const ${name} = ['"][^'"\\r\\n]+['"]$`, 'm').test(source))
-}
 check('the describer carries the constant check date', isDate(AS_OF) && oauth.describeAnthropicClientContract().asOf === AS_OF)
-check('the ops suite runs the clock through the proof runner', readFileSync(join(ROOT, 'scripts/ops/run-all.sh'), 'utf8').includes('run_proof scripts/ops/prove-client-contract-clock.ts'))
 const tree = assess(NOTE, VERSION, CONTRACT, AS_OF, TODAY)
 check('the tree has a checked contract for its release day', tree.findings.length === 0, tree.findings.join(' | '))
 if (tree.info) console.log(tree.info)

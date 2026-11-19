@@ -27,7 +27,6 @@ if (!existsSync(DIST)) {
   console.error(`✗ ${DIST} missing — run \`bun run build.ts\` first`)
   process.exit(1)
 }
-const ROOT = process.cwd()
 
 const scratch = mkdtempSync(join(tmpdir(), 'acp-own-build-'))
 const configHome = join(scratch, 'config')
@@ -147,13 +146,6 @@ check("the child's script is not the pointer path", children.every(line => !line
 await new Promise(r => setTimeout(r, 1500))
 check('the other build never ran', !existsSync(marker), existsSync(marker) ? readFileSync(marker, 'utf8').trim() : '')
 
-section('(4) the source pins the law')
-{
-  const child = readFileSync(join(ROOT, 'src/services/acp/childSession.ts'), 'utf8')
-  const serverSrc = readFileSync(join(ROOT, 'src/services/acp/acpServer.ts'), 'utf8')
-  check('the child module resolves the script through the build resolver, not the raw argv', child.includes('selfScriptPath()') && !child.includes('process.argv[1]'))
-  check('the server pins its build when it starts and hands it to every child', serverSrc.includes("const entry = opts.entry ?? { node: process.execPath, script: selfScriptPath() }"))
-}
 
 conn.close()
 server.kill('SIGTERM')

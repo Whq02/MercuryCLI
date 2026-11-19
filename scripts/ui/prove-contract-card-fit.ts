@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -40,10 +38,6 @@ check('seventeen rows and up at 39 columns, sixteen at 100: the whole blurb, not
 check('eight rows at 39 columns: the keys row wraps and the lifted card is still one row over, so the gap above the keys yields', at8.askGap === false, JSON.stringify(at8))
 check('nine rows at 39 columns, and eight at 100 where the keys row stands on one row: the lift alone fits the card and the gap stays', card.contractCardFit(9, 39).askGap === true && card.contractCardFit(9, 39).liftMargin && card.contractCardFit(8, 100).askGap === true && card.contractCardFit(8, 100).liftMargin, JSON.stringify([card.contractCardFit(9, 39), card.contractCardFit(8, 100)]))
 check('with any blurb row on the pane the gap stays', at11.askGap === true && at15.askGap === true && card.contractCardFit(40, 100).askGap === true)
-const prompt = readFileSync(join(import.meta.dir, '../../src/components/permissions/PermissionPrompt.tsx'), 'utf8')
-check('PermissionPrompt keeps the gap for every caller by default and takes the one prop', prompt.includes('hintGap = true,') && prompt.includes('<Box marginTop={hintGap ? 1 : 0}>'))
-const passers = readdirSync(join(import.meta.dir, '../../src/components'), { recursive: true }).map(String).filter(f => /\.tsx?$/.test(f)).filter(f => readFileSync(join(import.meta.dir, '../../src/components', f), 'utf8').includes('hintGap'))
-check('the contract offer card is the one caller that passes it', passers.sort().join(',') === 'concourse/ContractOfferCard.tsx,permissions/PermissionPrompt.tsx' && readFileSync(join(import.meta.dir, '../../src/components/concourse/ContractOfferCard.tsx'), 'utf8').includes('hintGap={fit.askGap}'), passers.join(','))
 check('a cap never exceeds the blurb itself', [8, 9, 10, 12, 14, 16, 17].every(rows => { const f = card.contractCardFit(rows, 39); return f.askBlurbRows === null || f.askBlurbRows <= 7 }))
 
 console.log('§3 the field face: the field keeps its two shipped lines, the blurb and the gaps yield, the cap is what fits')

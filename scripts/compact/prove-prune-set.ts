@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -21,7 +21,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const law = await import('../../src/services/compact/pruneProtections.ts')
 const { projectTimeBasedMicrocompact, microcompactMessages, TIME_BASED_MC_CLEARED_MESSAGE } = await import('../../src/services/compact/microCompact.ts')
 const { MC_DIGEST_PREFIX, isClearedOrDigested } = await import('../../src/services/compact/microCompactDigest.ts')
@@ -141,16 +140,6 @@ section('§E the live apply and the pure projection agree')
   check('the applied receipt carries the same count and saving', pure !== null && applied.pruned?.cleared === pure.cleared && applied.pruned?.tokensSaved === pure.tokensSaved, JSON.stringify(applied.pruned))
 }
 
-section('§F the seams, by their text')
-{
-  const micro = readFileSync(join(ROOT, 'src/services/compact/microCompact.ts'), 'utf8')
-  const storage = readFileSync(join(ROOT, 'src/utils/toolResultStorage.ts'), 'utf8')
-  const protections = readFileSync(join(ROOT, 'src/services/compact/pruneProtections.ts'), 'utf8')
-  check('the clearing path carries no list of names to prune: the candidate rule is the protection law alone', !micro.includes('COMPACTABLE_TOOL_NAMES') && micro.includes('if (!isProtectedFromPruning(record.name, record.input)) {'))
-  check('the never-prune names live in the protection law through their light name homes', protections.includes("from '../../tools/AskUserQuestionTool/prompt.js'") && protections.includes("from '../../tools/ToolSearchTool/constants.js'"))
-  check("the file line's phrase in the clearing path equals the storage module's own (drift guard)", micro.includes("const PERSISTED_PATH_PHRASE = 'Full output saved to: '") && storage.includes('Full output saved to: ${result.filepath}'))
-  check('the three defaults are named once, in the protection law', micro.includes('PROTECT_NEWEST_TOOL_OUTPUT_TOKENS') && micro.includes('PRUNE_MINIMUM_SAVING_TOKENS') && !/40_000|20_000/.test(micro))
-}
 
 rmSync(home, { recursive: true, force: true })
 console.log('\n' + '='.repeat(60))

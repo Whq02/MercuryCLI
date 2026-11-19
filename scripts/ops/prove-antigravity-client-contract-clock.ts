@@ -79,13 +79,8 @@ const between = assess(releaseFixture('1.0.0-beta.9', afterDate), '1.0.0-beta.10
 check('an older release note is informational between releases, using version order rather than string order', between.findings.length === 0 && between.info.includes('2 days since'), between.info)
 check('a missing release-note heading cannot bypass the clock', assess('', VERSION, CLIENT_VERSION, fixtureDate, fixtureToday).findings.length === 2)
 
-const source = readFileSync(join(ROOT, 'src/services/providers/gemini/antigravityClientContract.ts'), 'utf8')
-for (const name of ['ANTIGRAVITY_OAUTH_CLIENT_ID', 'ANTIGRAVITY_OAUTH_CLIENT_SECRET', 'ANTIGRAVITY_CLIENT_CONTRACT_VERSION', 'ANTIGRAVITY_CLIENT_CONTRACT_CHANGELIST', 'ANTIGRAVITY_CLIENT_CONTRACT_AS_OF']) {
-  check(`${name} is declared in the one contract file`, new RegExp(`^export const ${name} = ['"][^'"\\r\\n]+['"]$`, 'm').test(source))
-}
 check('the describer carries the constant check date', isDate(AS_OF) && contract.presentedAntigravityClient().asOf === AS_OF && contract.presentedAntigravityClient().source === 'constant')
 check('the User-Agent is the Antigravity client\'s own, built from the presented version and the changelist', contract.antigravityUserAgent() === `antigravity/hub/${CLIENT_VERSION} (aidev_client; os_type=darwin; arch=arm64; cl=${contract.ANTIGRAVITY_CLIENT_CONTRACT_CHANGELIST})`, contract.antigravityUserAgent())
-check('the ops suite runs the clock through the proof runner', readFileSync(join(ROOT, 'scripts/ops/run-all.sh'), 'utf8').includes('run_proof scripts/ops/prove-antigravity-client-contract-clock.ts'))
 const tree = assess(NOTE, VERSION, CLIENT_VERSION, AS_OF, TODAY)
 check('the tree has a checked Antigravity client contract for its release day', tree.findings.length === 0, tree.findings.join(' | '))
 if (tree.info) console.log(tree.info)

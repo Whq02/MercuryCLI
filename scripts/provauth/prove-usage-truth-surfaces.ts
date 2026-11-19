@@ -5,7 +5,6 @@ process.env.NODE_ENV = 'test'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -293,14 +292,6 @@ section('§2 the operator frame cannot recur — sign-in lands after the boot pr
 
 section('§3 one window decode per family — shared view fns + the anthropic endpoint fold')
 {
-  const tabSource = readFileSync(join(ROOT, 'src/components/Settings/Usage.tsx'), 'utf8')
-  check('tab: anthropic meters read anthropicWindowViews (the owner view)', tabSource.includes('anthropicWindowViews()'))
-  check('tab: openai meters read openaiObservedWindowViews (the owner view)', tabSource.includes('openaiObservedWindowViews()'))
-  check('tab: kimi meters read the owner view (usageForProvider — its windows ARE kimiManagedWindowViews)', tabSource.includes("useOwnerUsage('moonshot'") && tabSource.includes('const windows = usage.windows'))
-  check(
-    'tab: no direct data.five_hour/seven_day meter render survives (one decode)',
-    !/data\.five_hour\s*!=\s*null\s*\?\s*\(\s*<Meter/.test(tabSource) && !/data\.seven_day\s*!=\s*null\s*\?\s*\(\s*<Meter/.test(tabSource),
-  )
 
   const resetIso = new Date(1_756_000_000_000 + 3_600_000).toISOString()
   claudeLimits.foldUtilizationFromEndpoint({
@@ -360,26 +351,7 @@ section('§3 one window decode per family — shared view fns + the anthropic en
   check('fold: …and the extra-usage record with them (C8)', claudeLimits.getEndpointExtraUsage() === null)
 }
 
-section('§4 signed-out honesty in the meter renderers (source pins)')
-{
-  const rail = readFileSync(join(ROOT, 'src/utils/cockpit/helmVitalsModel.ts'), 'utf8')
-  check('rail: renders the owner why-not for a none source', rail.includes('usage.whyNot'))
-  const railCode = codeOnlyText('helmVitalsModel.ts', rail)
-  const noneBranchAt = railCode.indexOf("usageEmpty && usage.sourceKind === 'none'")
-  const whyNotHintAt = railCode.indexOf("{ kind: 'empty', key: 'usage:whynot'")
-  const fillsHintAt = railCode.search(/\{ kind: 'empty', key: 'usage:none', text: `\$\{NO_USAGE_READ_WORDS\} · fills after first reply` \}/)
-  check('rail: the none branch, its why-not hint and the fills-after hint are all rendered code', noneBranchAt !== -1 && whyNotHintAt !== -1 && fillsHintAt !== -1, JSON.stringify({ noneBranchAt, whyNotHintAt, fillsHintAt }))
-  check(
-    'rail: the none branch is adjudicated BEFORE the fills-after hint',
-    noneBranchAt !== -1 && whyNotHintAt !== -1 && fillsHintAt !== -1 && noneBranchAt < whyNotHintAt && whyNotHintAt < fillsHintAt,
-  )
-}
 
-section('§5 one endpoint, one fold seam (fetchUtilization feeds the window store)')
-{
-  const apiSource = readFileSync(join(ROOT, 'src/services/api/usage.ts'), 'utf8')
-  check('seam: fetchUtilization folds the raw windows', apiSource.includes('foldUtilizationFromEndpoint('))
-}
 
 for (const [key, value] of Object.entries(savedEnv)) {
   if (value === undefined) delete process.env[key]

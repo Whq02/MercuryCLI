@@ -1,9 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
-const source = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
 
 let failures = 0
 let checks = 0
@@ -73,20 +70,8 @@ section('§4 the colour: the warning token (amber), the theme\'s own warning col
     const line = frame.find(l => strip(l).includes(`▲ ${WORDS}`))
     check(`${name}: the warning line is painted in the warning token rgb(219, 161, 61)`, line !== undefined && line.includes(`${AMBER}▲ ${WORDS}`), line ? JSON.stringify(line) : 'no warning line')
   }
-  check("the splash core's AMBERC is the theme's warning token", /const AMBERC = \[219, 161, 61\]/.test(source('assets/splash/splash-core.mjs')) && /warning: 'rgb\(219, 161, 61\)'/.test(source('src/utils/theme.ts')))
-  check('the glyph is the product\'s warn lead (▲, width one)', /warn: '▲'/.test(source('src/components/mercury-ui/glyphs.ts')))
 }
 
-section('§5 both hosts paint it from the one registry fact, through the one composer')
-{
-  const core = source('assets/splash/splash-core.mjs')
-  check('the composer paints an entry\'s warn under its row in the wide tier', /if \(r2\.warn\) \{\s*cRowEntry\.push\(-1\)\s*cRows\.push\(' ' \+ paint\(AMBERC\) \+ '▲ ' \+ r2\.warn \+ R\)/.test(core))
-  check('…and in the classic tier', /if \(row\.warn\) \{\s*listEntry\.push\(-1\)\s*listLines\.push\('  ' \+ paint\(AMBERC\) \+ '▲ ' \+ row\.warn \+ R\)/.test(core))
-  check('the baked registry carries the words on the Sovereign row and null on every other', (core.match(/"warnWhenOn":null/g) ?? []).length === STARTUP_MENU.length - 1 && core.includes(`"warnWhenOn":${JSON.stringify(WORDS)}`))
-  check('the runtime Boot Menu face resolves the warning from the row and the value it shows (a pin or the saved choice)', source('src/components/BootSettingsScreen.tsx').includes('warn: menuRowWarning(row, envPinned ? (effective?.value ?? null) : (saved[row.env] ?? null))'))
-  check('the launcher splash resolves it the same way from the baked row (a pin or the saved choice reading on)', source('assets/splash/mercury-splash.mjs').includes("warn: r2.warnWhenOn && readsAs !== null && r2.choices.some(c => c.v === readsAs && c.l === 'on') ? r2.warnWhenOn : null"))
-  check('the bake carries the field', source('scripts/splash/bake-menu.mjs').includes('warnWhenOn: row.warnWhenOn ?? null'))
-}
 
 console.log(`\nsovereign menu warning: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

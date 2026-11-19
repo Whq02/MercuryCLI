@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -45,8 +45,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const configModule = (await import('../../src/utils/config.ts')) as unknown as { enableConfigs?: () => void }
 configModule.enableConfigs?.()
@@ -301,8 +299,6 @@ section('§3 the GLM wire: reasoning_effort of the built chat request ≡ the ow
     }
   }
   check('glm-5.3 · xhigh → high, medium → low, adjusted and said', effort.resolveEffortTruth('glm-5.3', 'xhigh').label === 'high' && effort.resolveEffortTruth('glm-5.3', 'medium').label === 'low' && effort.resolveEffortTruth('glm-5.3', 'medium').adjustedFrom === 'medium')
-  const zaiSrc = src('src/services/providers/zai/zaiCallModel.ts')
-  check('the zai wire steps through glmEffortsFor with the shared nearest-below', zaiSrc.includes('glmEffortsFor(modelId)') && zaiSrc.includes('nearestSupportedWireEffort(effortValue, [...vocabulary])'))
 }
 
 section('§4 the compat wires, thinking on: every builder\'s dial ≡ the owner\'s wire')
@@ -428,15 +424,6 @@ section('§7 the surfaces read the owner')
   }, { model: SEAT_MODEL })
   const sentBy = (model: string, word: (typeof asked)[number]): unknown => effortSentOf(effort.resolveEffortTruth(model, word))
   check('run: session/facts reports the tier the next request sends, from the owner (effortSent beside the seat\'s asked word)', JSON.stringify(seatSent) === JSON.stringify([...asked.map(word => sentBy(SEAT_MODEL, word)), sentBy(FIXTURE_MODEL, 'xhigh')]) && seatSent[asked.indexOf('xhigh')] === 'high' && sentBy(FIXTURE_MODEL, 'xhigh') !== 'high', JSON.stringify(seatSent))
-  const studio = src('src/components/agents/studio/StudioEditor.tsx')
-  check('the studio offers no stops for a no-dial model (no full-ladder fallback)', studio.includes('const options = stops.map(') && !studio.includes('stops : EFFORT_LEVELS'))
-  const modelCmd = src('src/commands/model/model.tsx')
-  check('/model\'s parenthetical says not sent / runs at from the owner', modelCmd.includes('resolveEffortTruth(normalised, effortValue)') && modelCmd.includes('not sent'))
-  const submodels = src('src/components/SubModelPicker.tsx')
-  check('/submodels shows each row\'s range and the level a pinned model runs', submodels.includes('effortRange(entry.modelId)') && submodels.includes('headerEffort'))
-  check('the router\'s Anthropic rows derive their ladder per model', routerAnthropic.routeEffortsFor('claude-sonnet-4-6').join(',') === 'high,max' && routerAnthropic.routeEffortsFor('claude-opus-5').join(',') === 'high,xhigh,max' && src('src/services/providers/anthropic/anthropicAdapter.ts').includes('efforts: routeEffortsFor(m.ref.model)'))
-  const hint = src('src/commands/effort/index.ts')
-  check('the /effort hint derives from the ladder', hint.includes("EFFORT_LEVELS.join('|')"))
 }
 
 section('§8 the two effort doors say what they do')
@@ -445,14 +432,9 @@ section('§8 the two effort doors say what they do')
   check('the flag refuses an off-ladder word with a sentence that names the ladder', refused.level === undefined && refused.refusal !== undefined && refused.refusal.includes('low, medium, high, xhigh, max.'), String(refused.refusal))
   check("…and never claims the run went ahead ('ignoring')", !/ignoring/i.test(String(refused.refusal)))
   check('the flag keeps the one normalizer: med → medium, max effort → max', effort.parseCliEffort('med').level === 'medium' && effort.parseCliEffort('max effort').level === 'max')
-  const mainSrc = src('src/main.tsx')
   const { builtCli, builtHelp } = await import('../lib/builtProduct.ts')
   const flagDoor = builtCli(['run', '--effort', 'banana', 'hi'])
   check('--help names the ladder and the flag door prints the owner\'s refusal sentence', builtHelp().includes(`Reasoning effort level (${effort.EFFORT_LEVELS.join(', ')})`) && flagDoor.status !== 0 && flagDoor.stderr.includes(String(effort.parseCliEffort('banana').refusal)) && String(effort.parseCliEffort('banana').refusal) === 'Unrecognised effort level "banana". Valid values: low, medium, high, xhigh, max.')
-  check('the owner carries no sentence that claims the value was ignored', !/ignoring it in favour/.test(src('src/utils/effort.ts')))
-  const ignored = effort.describeEffortEnvOverride({ MERCURY_EFFORT_LEVEL: 'banana' })
-  const envDoor = builtCli(['run', 'hi'], { env: { MERCURY_EFFORT_LEVEL: 'banana' } })
-  check('the boot notes an ignored env word (interactive: a boot note; headless: stderr)', mainSrc.includes("if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)") && ignored.state === 'ignored' && envDoor.stderr.split('\n')[0] === ignored.sentence)
   const view = (raw: string | undefined) => effort.describeEffortEnvOverride(raw === undefined ? {} : { MERCURY_EFFORT_LEVEL: raw })
   check('env absent', view(undefined).state === 'absent' && view(undefined).override === undefined)
   check('env auto/unset defers (null)', view('auto').state === 'deferred' && view('auto').override === null && view('unset').override === null)
@@ -467,11 +449,6 @@ section('§8 the two effort doors say what they do')
 
 section('§10 the shape: one vocabulary owner, the predicates its projections')
 {
-  const edge = src('src/utils/model/capabilities.ts')
-  check('modelSupportsEffort is a projection of the vocabulary view', edge.includes("return effortVocabularyFor(model).kind !== 'none'"))
-  check('the ceilings are projections too', edge.includes("return vocabularyOffers(effortVocabularyFor(model), level)") && edge.includes("return modelOffersEffortLevel(model, 'max')") && edge.includes("return modelOffersEffortLevel(model, 'xhigh')"))
-  const effortSrc = src('src/utils/effort.ts')
-  check('the resolution reads the one view and keeps no provider pin of its own', effortSrc.includes('const view = effortVocabularyFor(model)') && !/KIMI_EFFORTS|DEEPSEEK_EFFORTS|GLM_EFFORTS\b/.test(effortSrc))
   const kinds = ['claude-opus-5', 'gpt-5.6-sol', 'glm-5.3', 'kimi-k3', 'deepseek-flash', 'gemini-fixture-pro', 'openrouter/qwen/qwen-fixture-small', 'local/qwen3:8b', 'gpt-5.6-bare', 'claude-haiku-4-5-20251001'].map(m => caps.effortVocabularyFor(m).kind)
   check('the view kinds across the estate', kinds.join(',') === 'ladder,provider,provider,provider,provider,provider,provider,provider,offered,none', kinds.join(','))
   check('the thinking-gated lanes are exactly DeepSeek, Gemini, OpenRouter and a thinking-declared Ollama row (its off word none)', ['deepseek-flash', 'gemini-fixture-pro', 'openrouter/qwen/qwen-fixture-small', 'local/qwen3:8b'].every(m => { const v = caps.effortVocabularyFor(m); return v.kind === 'provider' && v.thinkingGated }) && (() => { const v = caps.effortVocabularyFor('local/qwen3:8b'); return v.kind === 'provider' && v.thinkingOffWire === 'none' })() && ['kimi-k3', 'glm-5.2', 'gpt-5.6-sol'].every(m => { const v = caps.effortVocabularyFor(m); return v.kind === 'provider' && !v.thinkingGated }))

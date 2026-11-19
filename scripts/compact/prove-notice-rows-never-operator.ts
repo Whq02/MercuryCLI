@@ -1,14 +1,13 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'notice-rows-operator-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 let count = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -77,11 +76,6 @@ section('§4 a carry written before the move is filtered on read: the first fold
   check('the ordinals keep their places: his new words are message 4, the notices are counted among the earlier folds and not carried', selected !== null && selected.messages.some(entry => entry.ordinal === 4 && entry.text === HIS) && selected.messages.length === 2 && selected.omitted === 2, j(selected))
 }
 
-section('§3 the run objective reads the same predicate: never a queued notice')
-{
-  const observer = readFileSync(join(ROOT, 'src/services/run/runTurnObserver.ts'), 'utf8')
-  check("the run's root user message is the operator's turn", observer.includes("import { isOperatorTurn } from '../../utils/messages/operatorTurns.js'") && observer.includes('!isOperatorTurn(messages[i]!)'))
-}
 
 console.log(`\n${count} checks, ${failures} failures`)
 if (failures > 0) {

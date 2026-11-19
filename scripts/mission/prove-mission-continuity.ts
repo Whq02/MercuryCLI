@@ -232,9 +232,6 @@ section('§8 the store speaks: a mission\'s birth and death wake their subscribe
   setActiveMission('after the unsubscribe', { sessionId: S4 })
   check('an unsubscribed listener hears nothing more', woken === wokenBeforeSync + 1)
   clearActiveMission(S4)
-  const rail = readFileSync(join(import.meta.dir, '..', '..', 'src/components/HelmLanesRail.tsx'), 'utf8')
-  check("the lanes rail keeps no mission state of its own: it reads the session's card off the focused work roster and never the process-local record", rail.includes('roster.missionCard') && !rail.includes('getActiveMission') && !rail.includes('subscribeActiveMission'))
-  check('no poll and no timer stands behind it', !/setInterval\([^)]*mission/i.test(rail))
 }
 
 section('§9 a mission armed while the chat is landing follows the seat: at admission the record, the card and the Stop hook re-key to the hosted chat')

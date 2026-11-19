@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,7 +20,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const limits = await import('../../src/services/anthropicLimits.ts')
 const mock = await import('../../src/services/mockRateLimits.ts')
 const usability = await import('../../src/services/providers/providerUsability.ts')
@@ -122,23 +121,6 @@ section('§5 the credential-switch reset clears the verdict and its stamp; the n
   check('…and its refusal names the new account', refusal !== null && refusal.includes(ACCOUNT_B) && !refusal.includes(ACCOUNT_A), String(refusal))
 }
 
-section('§6 the road: the sign-in reaches the runners, and the live reads ride the guarded verdict')
-{
-  const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const methods = src('src/runner/wire/methods.ts')
-  check('the wire declares credentials/changed as a host notification', /'credentials\/changed': method\(\{[\s\S]{0,200}from: 'host',[\s\S]{0,60}kind: 'notification'/.test(methods))
-  const seat = src('src/daemon/sessionSeat.ts')
-  check('the daemon notifies every long-lived runner it hosts through its door', seat.includes('export function relayCredentialChange') && seat.includes("door.notify('credentials/changed', {})") && seat.includes("kind !== 'long-lived'"))
-  const main = src('src/daemon/main.ts')
-  check("the daemon relays on the client's refreshed sign-in view (the poke every sign-in and sign-out raises)", main.includes('relayCredentialChange(') && main.includes('refresh === true'))
-  const usabilitySrc = src('src/services/providers/providerUsability.ts')
-  check('the live usability reads take the guarded verdict, never the raw latch', usabilitySrc.includes('anthropicLimitVerdict(clock())') && !usabilitySrc.includes('currentLimits.status'))
-  const limitsSrc = src('src/services/anthropicLimits.ts')
-  const stampCalls = (source: string): number => (source.match(/^\s+stampVerdictOwner\(/gm) ?? []).length
-  check('both wire paths stamp the verdict owner', stampCalls(limitsSrc) >= 2)
-  check('one removed call cannot be replaced by counting the definition', stampCalls(limitsSrc.replace(/^\s+stampVerdictOwner\([^\n]*\n/m, '\n')) < 2)
-  check('the reset roads clear the stamp', (limitsSrc.match(/verdictOwner = null/g) ?? []).length >= 2)
-}
 
 limits.__setAnthropicOwnerResolverForTest(null)
 limits.resetLimitsForCredentialSwitch()

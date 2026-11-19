@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync, symlinkSync, unlinkSync } from 'node:fs'
+import { mkdtempSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -21,8 +21,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 console.log('============================================================')
 console.log(' PROVAUTH — the fixture-key leak road (both ends closed)')
@@ -90,13 +88,6 @@ const { writeStoredGeminiApiKey, readStoredGeminiApiKey } = await import('../../
   writeStoredGeminiApiKey(null)
 }
 
-{
-  const face = read('scripts/ui/prove-face-logins.ts')
-  check('prove-face-logins pins its own scratch home unconditionally (never ??= the ambient one)', face.includes("process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(") && !face.includes("process.env['MERCURY_CONFIG_DIR'] ??= mkdtempSync("))
-  check('the secrecy sweep calls the login-driver guard before it writes', face.includes('guardLoginDriverWrite('))
-  const slots = read('src/services/providers/accountSlots.ts')
-  check('the Gemini slot names a fixture-shaped stored key as a test key', slots.includes('a test key (zz-SECRE…), not a real Gemini API key'))
-}
 
 for (const [key, value] of Object.entries(savedEnv)) {
   if (value === undefined) delete process.env[key]

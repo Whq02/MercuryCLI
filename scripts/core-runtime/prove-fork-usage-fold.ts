@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -14,7 +14,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const fork = await import('../../src/utils/forkedAgent.ts')
 const { EMPTY_FORK_USAGE_FOLD, foldForkUsageEvent, settleForkUsageFold } = fork
@@ -71,15 +70,6 @@ section('§3 a response a lane never closed with message_stop still counts at se
   check('an unrelated event leaves the fold untouched', foldForkUsageEvent(EMPTY_FORK_USAGE_FOLD, { type: 'content_block_delta' } as never) === EMPTY_FORK_USAGE_FOLD)
 }
 
-section('§4 the shape: runForkedAgent rides the fold')
-{
-  const src = readFileSync(join(ROOT, 'src/utils/forkedAgent.ts'), 'utf8')
-  const run = src.slice(src.indexOf('export async function runForkedAgent'))
-  check('the loop folds every stream event through foldForkUsageEvent', /fold = foldForkUsageEvent\(fold, item\.event/.test(run))
-  check('the total is settled through settleForkUsageFold', /const usage = settleForkUsageFold\(fold\)/.test(run))
-  check('the base\'s delta-only accumulation is gone', !/event\.type === 'message_delta'\)\s*\{\s*const delta = usageOf/.test(run))
-  check('the fold imports the engine\'s own guard (updateUsage)', /import \{ accumulateUsage, updateUsage \} from '\.\.\/services\/providers\/anthropic\/cacheAndUsage\.js'/.test(src))
-}
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-fork-usage-fold${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

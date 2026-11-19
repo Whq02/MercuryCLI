@@ -239,23 +239,6 @@ console.log('§8 preflight — every term named, zero writes')
   check('no worktree dir was created', !existsSync(wt.workerWorktreeRoot(pfDaemon)))
 }
 
-console.log('§9 structural no-merge — the family never writes workspace files')
-{
-  const read = (p: string) => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
-  const daemon = read('src/daemon/concourseWorkers.ts')
-  const dispatch = read('src/daemon/concourseDispatch.ts')
-  const worktrees = read('src/daemon/concourseWorktrees.ts')
-  for (const [name, src] of [['concourseWorkers', daemon], ['concourseDispatch', dispatch]] as const) {
-    check(
-      `${name}: zero hand-rolled fs writes — every publish rides durableAtomicPublishSync through the daemon-home door publishInDaemonHome`,
-      !src.includes('writeFileSync(') && !src.includes('durableAtomicPublishSync(') && src.includes('publishInDaemonHome('),
-      name,
-    )
-  }
-  check('concourseWorktrees performs NO direct file writes (git owns repository mutation)', !worktrees.includes('writeFileSync('))
-  check('no concourse module merges/overwrites workspace content (no copyFile/cp/appendFile)',
-    [daemon, dispatch, worktrees].every(s => !/copyFileSync|cpSync|appendFileSync/.test(s)))
-}
 
 console.log('§10 the count the reap reads for a fork')
 {

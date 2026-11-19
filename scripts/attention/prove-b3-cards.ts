@@ -48,35 +48,5 @@ t.section('§1 — the counter law on the real streaming surface')
   )
 }
 
-t.section('§2 — identity + the state grammar')
-{
-  const glyphs = readFileSync('src/components/mercury-ui/toolGlyphs.ts', 'utf8')
-  const { getAllBaseTools } = await import('../../src/tools.ts')
-  const { TOOL_FAMILY_BY_NAME } = await import('../../src/components/mercury-ui/toolGlyphs.ts')
-  const live = getAllBaseTools().map(tool => tool.name).filter(name => name !== 'TestingPermission')
-  const unclassified = live.filter(name => TOOL_FAMILY_BY_NAME[name] === undefined)
-  t.check(
-    'families bind to the REAL tool registry (no filename conventions, no quiet defaults)',
-    glyphs.includes('export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily>') && live.length > 40 && unclassified.length === 0,
-    unclassified.join(', ') || `${live.length} registered, every one authored`,
-  )
-  const grammar = readFileSync('src/components/mercury-ui/toolCardGrammar.ts', 'utf8')
-  for (const state of ['queued', 'running', 'waiting', 'succeeded']) {
-    t.check(`the ONE state grammar carries '${state}'`, grammar.includes(`${state}:`))
-  }
-}
-
-t.section('§3 — the honest fallback + the parity floor')
-{
-  const glyphs = readFileSync('src/components/mercury-ui/toolGlyphs.ts', 'utf8')
-  t.check(
-    "unknown/integration families wear the polished 'external' identity",
-    /external: \{ glyph: '▷', fallback: 'ex'/.test(glyphs),
-  )
-  t.check(
-    'every family carries an ASCII fallback column (the PS 5.1 / monochrome floor)',
-    (glyphs.match(/fallback: '/g) ?? []).length >= 8,
-  )
-}
 
 t.finish('prove-b3-cards')

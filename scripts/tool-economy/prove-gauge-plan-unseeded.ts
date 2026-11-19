@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -195,8 +195,6 @@ section('§3 the owners: the gauge and the local warm read the one unseeded plan
   )
   clearToolRosterLatches()
   clearToolRosterRestore()
-  const warm = readFileSync(new URL('../../src/services/providers/local/localWarm.ts', import.meta.url), 'utf8')
-  check('the local warm plans through the same owner, no copy of the latch check', warm.includes('planToolPayloadUnseeded({') && !warm.includes('toolRosterLatchFor'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

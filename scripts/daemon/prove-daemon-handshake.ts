@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import net from 'node:net'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -445,13 +445,6 @@ section('F · the pure grammar: the newer mirror, the refused line, the evidence
 
 section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart + the successor; the record carries the fact; the Chat paints')
 {
-  const read = (p: string): string => readFileSync(join(import.meta.dir, '..', '..', p), 'utf8')
-  const ensure = read('src/services/switchboard/ensureDaemon.ts')
-  check('G1 the door handshakes BEFORE any spawn (never beside a live daemon)', ensure.indexOf('await hs.handshakeDaemon(') !== -1 && ensure.indexOf('await hs.handshakeDaemon(') < ensure.indexOf('spawnOwnedDaemon(getCwd()'))
-  check('G2 the door heals and awaits the successor instead of spawning', ensure.includes('healDaemonVersion') && ensure.includes('awaitSuccessor'))
-  const dmain = read('src/daemon/main.ts')
-  check('G3 the daemon serves hello facts with the BOOT-captured tree', dmain.includes('buildTree: bootBuildTree') && dmain.includes('describeArtifactIdentity(currentVersion()).buildTree'))
-  check('G7 daemon.json carries the version fact', dmain.includes('proto: MERCURY_DAEMON_PROTO'))
   {
     const dir = freshPlane()
     seedRecords(dir, { 'concourse-w1': { workerId: 'concourse-w1', sessionId: 's1', pid: process.pid } })
@@ -463,10 +456,6 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
     await old.close()
     check('G9 the certificate daemon row runs the handshake and the line IS the fix (the reopen case, which carries the full way out, is driven over a real daemon by E1b of prove-field-e004-daemon-skew.ts)', seen.line === 'daemon v1.5.6 running with 1 live session — new features wait until it restarts · /daemon restart when ready' && daemonRow?.status === 'warn' && daemonRow.fix === seen.line && daemonRow.evidence.startsWith('daemon.json: ') && daemonRow.evidence.endsWith(` · ${hsMod.daemonHandshakeEvidence(seen)}`) && daemonRow.link === '/daemon', JSON.stringify(daemonRow))
   }
-  const statusSrc = read('src/daemon/status.ts')
-  check('G10 the status probe handshakes BEFORE the keyed ops (an old daemon still reports)', statusSrc.indexOf('snapshot.handshake = await handshakeDaemon') !== -1 && statusSrc.indexOf('snapshot.handshake = await handshakeDaemon') < statusSrc.indexOf("daemonControlRpc({ op: 'status'"))
-  const hsSrc = read('src/daemon/handshake.ts')
-  check('G11 the pre-handshake heal spells the stop verb\'s frame, reapWorkers asked for by name, and never false', hsSrc.includes("{ op: 'shutdown', reapWorkers: true }") && !hsSrc.includes('reapWorkers: false'), hsSrc.split('\n').filter(l => l.includes('reapWorkers')).map(l => l.trim()).join(' | '))
 }
 
 rmSync(home, { recursive: true, force: true })

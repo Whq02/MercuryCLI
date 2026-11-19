@@ -95,8 +95,6 @@ console.log('§2 no sign-in, a local server answering with models: the refusal n
 console.log('§3 the words have one owner')
 {
   const { localRoadBesideSignIn, LOCAL_SETUP_WORDS } = await import('../../src/services/providers/local/localAccounts.ts')
-  const turnSource = await Bun.file(join(import.meta.dir, '../../src/rows/turn.ts')).text()
-  check('rows/turn.ts reads the clause from localAccounts, beside the pinned constants', turnSource.includes('if (message === INVALID_API_KEY_ERROR_MESSAGE || message === CHOOSE_A_MODEL_DOOR) message = `${message}, ${localRoadBesideSignIn()}`'))
   check('the clause without a server is the /localsetup words the sign-in wall\'s readiness row uses', localRoadBesideSignIn(undefined) === `or run a local model — ${LOCAL_SETUP_WORDS}`)
 }
 

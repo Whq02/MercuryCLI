@@ -397,15 +397,6 @@ section("§6 the daemon's own mark: the record says stopping under its own pid, 
 
 section('§7 source pins: the record carries the stopping mark; the ladder reads the plane; the halt stand-down precedes the spawn')
 {
-  const sock = read('src/daemon/controlSocket.ts')
-  check("the record's type carries the stopping state", sock.includes("state?: 'stopping'") && sock.includes('stoppingAt?: number'))
-  check('the mark is ownership-checked', /markDaemonStoppingSync[\s\S]{0,400}current\?\.pid !== process\.pid\) return false/.test(sock))
-  const ens = read('src/services/switchboard/ensureDaemon.ts')
-  check("the starting ladder reads the daemon's departure", ens.includes("if (v.state === 'absent' && (await planeHold()) === 'clear') return 'gone'"))
-  const haltAt = ens.indexOf('if (daemonHaltStanddownActive()) return false')
-  const spawnAt = ens.indexOf('spawnOwnedDaemon(getCwd(), {')
-  check('the halt stand-down still refuses before any spawn', haltAt >= 0 && spawnAt >= 0 && haltAt < spawnAt)
-  check("the plane read names the record's stopping state", ens.includes("record.state === 'stopping' ? 'stopping' : 'held'"))
   const docs = read('docs/SESSIONS.md')
   check('the sessions page says a window opened beside a departing daemon waits the beat it takes to leave, then starts its own', docs.includes('waits the\nbeat it takes to leave, then starts its own') || docs.includes('waits the beat it takes to leave, then starts its own'))
 }

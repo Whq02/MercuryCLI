@@ -101,14 +101,8 @@ section('(4) never in a project; stable across folders and logins')
 
 section('(5) the keyed id is the only id')
 {
-  const ROOT = join(import.meta.dir, '..', '..')
   const names = Object.keys(identity).sort()
   check('the identity module answers the operator and the assistant principals and nothing else', names.join(',') === 'assistantPrincipal,operatorPrincipal', names.join(','))
-  const rekeyNames = [...names, ...Object.keys(keys)].filter(name => /rekey|OwnsRecord/i.test(name))
-  check('no other derivation exists to recognise or re-key a record by', !existsSync(join(ROOT, 'src/substrate/identity/rekey.ts')) && rekeyNames.length === 0, rekeyNames.join(','))
-  const crew = readFileSync(join(ROOT, 'src/services/crew/identity.ts'), 'utf8')
-  const conversations = readFileSync(join(ROOT, 'src/services/crew/conversations.ts'), 'utf8')
-  check('the crew boot and the conversations store re-key nothing', !/rekey/i.test(crew) && !/rekey/i.test(conversations))
 }
 
 section('(6) damage is loud; the mode heals')

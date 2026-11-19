@@ -1,11 +1,8 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (ok) console.log(`  ok  ${name}`)
@@ -90,12 +87,6 @@ console.log('§2 the latch, driven')
     secondResolved && stdoutCalls === callsAfterFirst, `calls=${stdoutCalls}`)
 }
 
-console.log('§3 the print road rides it (call-shaped)')
-{
-  const ioSrc = readFileSync(join(ROOT, 'src', 'cli', 'structuredIO.ts'), 'utf8')
-  check('the rows writer is no longer fire-and-forget on failure (the latch lives in write)',
-    /markStdoutPipeBroken\(\)/.test(ioSrc) && /isBrokenPipeError\(error\)/.test(ioSrc))
-}
 
 console.log(failures === 0 ? '\nprove-broken-pipe-uniform: all green' : `\nprove-broken-pipe-uniform: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

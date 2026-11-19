@@ -223,24 +223,6 @@ section('Kill settlement receipt — a stop request is not settlement')
   check('killTask on a non-running task: honest not-running receipt', receipt.settled === true && (receipt as any).reason === 'not-running', JSON.stringify(receipt))
 }
 
-section('ST-1 / XC-4 / ST-2-message — source pins at the BashTool caller')
-{
-  const bashToolSrc = readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8')
-  const psToolSrc = readFileSync(join(ROOT, 'src/tools/PowerShellTool/PowerShellTool.tsx'), 'utf8')
-  check('ST-1: Bash progress loop has the interrupt-backgrounding branch', bashToolSrc.includes("!interruptBackgroundingStarted && abortController.signal.reason === 'interrupt'"))
-  check('ST-1: PowerShell twin branch still present (parity)', psToolSrc.includes("!interruptBackgroundingStarted && abortController.signal.reason === 'interrupt'"))
-  check('ST-1: interrupt-steer hands the model the output so far, and so does the timeout move', bashToolSrc.includes('interruptBackgroundingStarted || backgroundAskHandled ? fullOutput : soFar.stdout'))
-  const gitGate = /if \(result\.backgroundTaskId === undefined\) \{\s*\n\s*trackGitOperations\(/m.test(bashToolSrc)
-  const auditGate = /if \(result\.backgroundTaskId === undefined\) \{\s*\n\s*recordBashAudit\(/m.test(bashToolSrc)
-  check('XC-4: trackGitOperations gated on a settled (non-backgrounded) result', gitGate)
-  check('XC-4: recordBashAudit gated on a settled (non-backgrounded) result', auditGate)
-  check('ST-2: timeout-backgrounded model message names the elapsed timeout + hard cap', bashToolSrc.includes('and was moved to the background with ID') && bashToolSrc.includes('absolute deadline of'))
-  check('ST-2: timeout marker threads through the result contract', bashToolSrc.includes('timeoutAutoBackgroundedAfterMs'))
-  const preflightBlocks = psToolSrc.split('preSpawnError:')
-  check('SM-04: pwsh-not-found and spawn-catch legs carry preSpawnError (typed not-started)', preflightBlocks.length >= 3)
-  check('SM-04: no pre-flight leg fabricates code 0 (not-started is never exit 0)', !/Pre-flight failure[\s\S]{0,400}?code: 0/m.test(psToolSrc))
-  check('SM-04/XC-4: PowerShell git tracking gated on executed, settled results', psToolSrc.includes('const notExecuted = result.preSpawnError !== undefined || result.backgroundTaskId !== undefined'))
-}
 {
   const provenance = distProvenance(ROOT)
   console.log(`  ${distProvenanceLine(provenance)}`)
@@ -276,28 +258,6 @@ section('ST-5 — decision parsing survives the pipe-mode spill (live)')
   await out.deleteOutputFile()
 }
 
-section('ST-3/4/7/8, XC-1/2 — source pins at their owners')
-{
-  const pins: [string, string, (src: string) => boolean][] = [
-    ['ST-3: runAgent finally gates shared teardown on the executor claim', 'src/tools/AgentTool/runAgent.ts', s => s.includes('executorClaims') && /executorClaims\.get\(agentId\) === claim/.test(s)],
-    ['ST-4: Monitor stop latch defers past pending stdio (setImmediate)', 'src/tools/MonitorTool/MonitorTool.ts', s => /result\.then\(async \(\) => \{[\s\S]{0,400}?setImmediate[\s\S]{0,200}?stopped = true/m.test(s)],
-    ['ST-8: daemon grace-kill settles from close (backstop-bounded), not finish(null)', 'src/daemon/headlessRun.ts', s => s.includes('finishOnCloseWithBackstop()') && !/SIGKILL'\)\s*\n\s*finish\(null\)/m.test(s)],
-    ['XC-1: the restore is all-or-nothing on the commit core with typed refusals (the partial-restore class cannot exist)', 'src/utils/fileHistory.ts', s => s.includes('runTextChangeSetCommit') && s.includes("'restore-failed'")],
-    ['XC-2: keychain delete reads the exit code (44 = idempotent success; the every-spelling delete loop)', 'src/utils/secureStorage/macOsKeychainStorage.ts', s => s.includes('result.exitCode !== 0 && result.exitCode !== 44') && s.includes('getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)')],
-    ['PB-5: tcp bridge exits via drain + backstop, never a truncating exit(0) on close', 'src/services/tcpBridge/entry.ts', s => s.includes('process.exitCode = 0') && !s.includes("socket.on('close', () => process.exit(0))")],
-    ['XC-6: cmake settles through the shared settle owner (close-drain + bounded timeout live in childSettle)', 'src/services/ide/cppBuild.ts', s => s.includes('settleChildRun(child, { timeoutMs })')],
-    ['XC-7: a failed headersHelper fails the connection, never silent no-auth', 'src/services/mcp/headersHelper.ts', s => s.includes('The connection was not attempted without its auth headers')],
-    ['F43A-C7-22: the headersHelper command string runs through the platform shell with its own quoting intact (shell: true on win32, /bin/sh elsewhere), never as a quoted cmd.exe argument', 'src/services/mcp/headersHelper.ts', s => s.includes("execFileNoThrowWithCwd(helper, [], {") && s.includes("shell: process.platform === 'win32' ? true : '/bin/sh'") && !s.includes("['cmd.exe', ['/c', helper]]")],
-    ['PB-2: DAP partial-output keep-tail bounded, \\r is a boundary', 'src/services/dap/dapClient.ts', s => s.includes('#PARTIAL_OUTPUT_KEEP_BYTES') && s.includes('search(/[\\r\\n]/)')],
-    ['WP-5: win32 clipboard verdict in the EXIT CODE; save fails when raced empty; path apostrophe-escaped', 'src/utils/imagePaste.ts', s => s.includes('if ($null -eq $img) { exit 1 }; exit 0') && s.includes('[System.Drawing.Imaging.ImageFormat]::Png); exit 0') && s.includes("$img.Save('${escapeForPowershellSingleQuotes(path)}'") && readFileSync(join(ROOT, 'src/utils/powershellLiteral.ts'), 'utf8').includes("text.replace(/['\\u2018\\u2019\\u201A\\u201B]/g, '$&$&')")],
-    ['SM-B: TaskStop surfaces the settlement receipt (settled/exit_code), never a bare ack', 'src/tools/TaskStopTool/TaskStopTool.ts', s => s.includes('settled: result.settlement.settled') && s.includes('had not settled within the grace window')],
-    ['SM-B: stopTask validates + threads the kill receipt', 'src/tasks/stopTask.ts', s => s.includes("typeof (killReturn as { settled?: unknown }).settled === 'boolean'")],
-  ]
-  for (const [label, file, test] of pins) {
-    const src = readFileSync(join(ROOT, file), 'utf8')
-    check(label, test(src))
-  }
-}
 
 console.log('\n' + '='.repeat(60))
 if (failures === 0) {

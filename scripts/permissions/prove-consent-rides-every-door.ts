@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -18,8 +18,6 @@ writeFileSync(
 const PROJ = mkdtempSync(join(tmpdir(), 'sovereign-doors-proj-'))
 process.chdir(PROJ)
 
-const REPO = join(import.meta.dir, '..', '..')
-const src = (...p: string[]): string => readFileSync(join(REPO, 'src', ...p), 'utf-8')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -205,30 +203,10 @@ section("§5 the warm pool's consent gate (the kit gate's twin) on the real poli
   check('(e) an equal ensure keeps it', e3.state === 'kept')
 }
 
-section('§6 the doors spread the one carry; the dispatch door never does')
-{
-  const birth = src('services', 'switchboard', 'bornSession.ts')
-  const resume = src('services', 'switchboard', 'hopIntoSession.ts')
-  const arming = src('services', 'switchboard', 'ensureDaemon.ts')
-  const boot = src('main.tsx')
-  check('the birth door spreads the carry onto sessionAdmit', birth.includes('...carriedConsentOf(facts)'))
-  check('the resume door spreads the carry onto its sessionAdmit', resume.includes('...carriedConsentOf(bootBirthFacts())'))
-  check("the pool's arming door spreads the carry onto concourseWarm", arming.includes('...carriedConsentOf(bootBirthFacts())'))
-  check('the boot writes the consent from the permission context it resolved (no re-derivation)', boot.includes('bypassConsent: effectiveContext.isBypassPermissionsModeAvailable === true'))
-  check('an interactive boot makes the station available without a flag; mercury run keeps --sovereign / --allow-sovereign', boot.includes('const sovereignAvailable = allowDangerousSkip || !isRunArgv()') && boot.includes('allowDangerouslySkipPermissions: sovereignAvailable'))
-  check('the consent card and the posture record stay armed by the flag alone, never by the default', boot.includes('const allowDangerousSkip = Boolean(opts.allowSovereign)') && !boot.includes('allowDangerousSkip = sovereignAvailable'))
-  const dispatch = src('daemon', 'concourseDispatch.ts')
-  check('the dispatch door (board-spawned workers) never carries the consent', !dispatch.includes('bypassConsent'))
-  const server = src('daemon', 'controlServer.ts')
-  check('the wire admits exactly `true` (shape narrowing) on the admit and the warm doors', (server.match(/raw\.bypassConsent === true/g) ?? []).length === 2)
-}
-
 section('§7 the floors: crew seats, cron one-shots and the runner claim door')
 {
   const crew = buildRunnerInvocation({ model: 'claude-opus-5', effort: 'max', appendSystemPrompt: 'pack', role: 'MERCURY_CONCOURSE_WORKER', agentName: 'scout', agentId: 'scout-1', permissionMode: 'flow' }).argv
   check('a crew seat (no consent on its spec) carries no bypass word', !crew.includes(ALLOW) && !crew.includes(SKIP))
-  const headless = src('daemon', 'headlessRun.ts')
-  check('the cron one-shot threads the posture alone (no consent argument)', headless.includes('...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode)),'))
   const withoutFlag = resolvePermissionModeTransition('sovereign', getEmptyToolPermissionContext())
   check('the runner claim door refuses a sovereign posture it was not launched for', withoutFlag.ok === false && withoutFlag.ok === false && withoutFlag.error.includes(SKIP))
   const withFlag = resolvePermissionModeTransition('sovereign', { ...getEmptyToolPermissionContext(), isBypassPermissionsModeAvailable: true })

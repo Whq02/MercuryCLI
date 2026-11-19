@@ -184,13 +184,6 @@ const takenThird = await janitor(other, third.worktreePath)
 check('…and it settles too', leftThird.state === 'clean' && takenThird === 1 && !existsSync(third.worktreePath), JSON.stringify({ leftThird, takenThird }))
 delete process.env.MERCURY_WORKTREE_CLONE
 
-section('§4 the launch and the prompt')
-const source = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-check('the launch resolves cwd before any spawn', source.includes('resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true })'))
-check('one launch road: no second cwd resolver for a named launch', !source.includes('cwd applies to a sub-agent launch') && !source.includes('crewmateCwd'))
-check('the worktree preflight and the cut read the named directory', source.includes('preflightWorktreeCapability(cwdParam)') && source.includes('from: cwdParam'))
-check('the helper runs in the worktree when both are named', source.includes('worktreeInfo?.worktreePath ?? cwdParam'))
-check('the launch no longer carries a second folder-trust system', !source.includes('getSessionTrustAccepted() && pathInWorkingPath(dir, homedir())') && !source.includes('admittedAgentDirectories'))
 const model = 'claude-fable-5-1'
 const plainBlock = await computeEnvInfo(model)
 check('with no override the env block names the boot directory', plainBlock.includes(`Working directory: ${state.getOriginalCwd()}\n`), plainBlock.split('\n').slice(0, 4).join(' | '))

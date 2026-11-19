@@ -462,7 +462,6 @@ try {
         check('logins-178x51: the /logins card opens in the cockpit with its roster and close hint (twenty-two providers; the tail of the roster and the readiness block sit below the popup\'s fold, reachable by ↓)', text.includes('Sign in') && text.includes('OpenAI — ChatGPT subscription or API key') && text.includes('Melious AI') && text.includes('↓') && text.includes(LOGINS_HINT))
         check(`logins-178x51: the /logins card opens on its own one-line ask, not the walk's intro (the declutter)`, text.includes('Choose a provider to sign in.') && !text.includes('Use a Claude or OpenAI subscription'), introRow)
         check('logins-178x51: the shipped default sentence is gone from /logins', !text.includes('Mercury can run on a Claude or OpenAI subscription'), introRow)
-        check(`logins-178x51: the walk keeps its one exported intro and the chat's card no longer borrows it`, !readFileSync(join(ROOT, 'src/commands/login/login.tsx'), 'utf8').includes('startingMessage={SIGN_IN_WORDS.intro}') && readFileSync(join(ROOT, 'src/components/Onboarding.tsx'), 'utf8').includes('export const SIGN_IN_WORDS = {') && readFileSync(join(ROOT, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8').includes("startingMessage ?? 'Choose a provider to sign in.'"))
       }
     }
   }

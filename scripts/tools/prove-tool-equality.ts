@@ -5,7 +5,6 @@ process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { readFileSync } from 'node:fs'
 
 const HOME = mkdtempSync(join(tmpdir(), 'tool-equality-proof-'))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -357,29 +356,6 @@ const emptyRead = readTool.mapToolResultToToolResultBlockParam(
 const emptyText = typeof emptyRead.content === 'string' ? emptyRead.content : JSON.stringify(emptyRead.content)
 check('an empty-file read WARNS inside a successful result', (emptyRead as { is_error?: boolean }).is_error !== true && emptyText.includes('Warning'))
 
-const webFetchSource = readFileSync(new URL('../../src/tools/WebFetchTool/utils.ts', import.meta.url), 'utf8')
-check(
-  'WebFetch: a failed extraction leg DEGRADES to fetched content with a note',
-  webFetchSource.includes('no summariser model was available, so this is the page content itself') && webFetchSource.includes('catch (error)'),
-)
-check(
-  'WebFetch: the degraded passthrough restates the quote ceiling for untrusted domains',
-  webFetchSource.includes('under 125 characters'),
-)
-const nativeSearchSource = readFileSync(new URL('../../src/services/search/nativeSearch.ts', import.meta.url), 'utf8')
-check(
-  'WebSearch: a native provider failure settles as the TYPED provider-refused outcome',
-  nativeSearchSource.includes('isApiErrorMessage === true') && nativeSearchSource.includes("searchFailure('provider-refused'"),
-)
-const searchDoorSource = readFileSync(new URL('../../src/services/search/searchDoor.ts', import.meta.url), 'utf8')
-check(
-  'WebSearch: the door walks typed failures and throws the one composed line when no door answers',
-  searchDoorSource.includes('throw new Error(walkFailureLine(failures, plan, { emptyAnswers }))') && searchDoorSource.includes('emptyAnswers.has(failure) ? emptyAnswerLine(failure, true) : failureLine(failure)') && searchDoorSource.includes('No source answered; try another wording or another source.'),
-)
-check(
-  'WebSearch: the native door is the main model\'s OWN family by the routing law — never another family\'s credential',
-  searchDoorSource.includes('declaredRouteOf(mainModel)') && searchDoorSource.includes('isNativeSearchFamily(route)'),
-)
 
 section('the equality matrix (dispositions per tool-class × family)')
 

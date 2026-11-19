@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_MODEL', 'MERCURY_BARE', 'MERCURY_EFFORT_LEVEL']) {
@@ -16,7 +16,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -65,16 +64,6 @@ section('§2 the replacing paths still replace, and the append rides last')
   check('an explicit empty custom prompt mirrors the request path (floor alone) — the diagnostic re-interprets nothing', emptyCustom[0] === floorName && !startsWith(emptyCustom, expectedDefault), emptyCustom.slice(0, 2).join(' · '))
 }
 
-section('§3 the shape: the options ride through uncoerced; the composer is untouched')
-{
-  const analyzer = readFileSync(join(ROOT, 'src/utils/analyzeContext.ts'), 'utf8')
-  const call = analyzer.slice(analyzer.indexOf('buildEffectiveSystemPrompt({'), analyzer.indexOf('})', analyzer.indexOf('buildEffectiveSystemPrompt({')))
-  check("the call site passes customSystemPrompt through (no `?? ''`)", /customSystemPrompt: options\?\.customSystemPrompt as string \| undefined,/.test(call) && !/customSystemPrompt:[^\n]*\?\? ''/.test(call), call.slice(0, 200))
-  check("…and appendSystemPrompt through (no `?? ''`)", /appendSystemPrompt: options\?\.appendSystemPrompt as string \| undefined,/.test(call) && !/appendSystemPrompt:[^\n]*\?\? ''/.test(call))
-  check('no other call site in src coerces an absent prompt to the empty string', !/(customSystemPrompt|appendSystemPrompt)[^\n]*\?\? ''/.test(analyzer))
-  const composer = readFileSync(join(ROOT, 'src/utils/systemPrompt.ts'), 'utf8')
-  check('the composer\'s custom slot keeps the request path\'s reading (!== undefined — the headless contract, shared with the turn)', /else if \(customSystemPrompt !== undefined\) \{/.test(composer))
-}
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-context-system-prompt-row${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

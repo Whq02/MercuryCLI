@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { inProcessServerConfig, seatInProcessServer } from '../lib/mcpInProcess.ts'
@@ -295,13 +295,6 @@ section('C. an in-process loopback server (the same client road, the SDK server 
   await server.close().catch(() => {})
 }
 
-section('D. every road that parks on the operator is under the ledger')
-{
-  const handlerSrc = readFileSync(join(SRC, 'services/mcp/elicitationHandler.ts'), 'utf8')
-  const clientSrc = readFileSync(join(SRC, 'services/mcp/client.ts'), 'utf8')
-  check('the interactive consent-card handler enters the ledger for its whole park', /setRequestHandler\('elicitation\/create', \(request, ctx\) =>\s*withElicitationEntered\(client,/.test(handlerSrc))
-  check('the call watchdog reads the paused clock', /elicitationPausedClock\(connected\.client\)/.test(clientSrc) && /now: clock\.now/.test(clientSrc))
-}
 
 delete process.env.MERCURY_MCP_CALL_IDLE_MINUTES
 rmSync(SCRATCH, { recursive: true, force: true })

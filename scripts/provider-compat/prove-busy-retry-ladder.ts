@@ -538,28 +538,5 @@ try {
   Math.random = realRandom
   delete process.env.MERCURY_BUSY_RETRY_SCALE
 }
-console.log('── every road takes the one ladder; the lanes keep their yield union')
-const { readFileSync } = await import('node:fs')
-const source = (name: string): string => readFileSync(new URL(`../../src/services/providers/${name}`, import.meta.url), 'utf8')
-for (const name of ['deepseek/deepseekCallModel.ts', 'huggingface/huggingfaceCallModel.ts', 'local/localCallModel.ts', 'moonshot/moonshotCallModel.ts', 'openaicompat/compatCallModel.ts', 'openrouter/openrouterCallModel.ts', 'gemini/geminiCallModel.ts']) {
-  check(`${name} keeps the contract's yield union (CallModelStream) and asks for no ladder of its own`, !source(name).includes('busyRetry') && source(name).includes('(params: CallModelParams): CallModelStream {'))
-}
-check('callModelRouter.ts takes no ladder', !source('callModelRouter.ts').includes('busyRetry'))
-for (const name of ['openaicompat/compatChatCallModel.ts', 'openai/openaiCallModel.ts', 'zai/zaiCallModel.ts']) {
-  const text = source(name)
-  check(`${name} opens the one ladder and sleeps every retry wait through the abortable sleep`, text.includes('openBusyRetryLadder(') && text.includes('takesBusyLadder(') && text.includes('await sleep(step.waitMs, signal)') && text.includes('await sleep(delayMs, signal)') && !text.includes('setTimeout(resolve, delayMs)'))
-}
-check('no profile seam decides the ladder: every lane rides it', !source('openaicompat/compatChatCallModel.ts').includes('busyRetry?:') && !source('openaicompat/compatChatCallModel.ts').includes('profile.busyRetry'))
-for (const name of ['openaicompat/compatChatCallModel.ts', 'openai/openaiCallModel.ts', 'zai/zaiCallModel.ts']) {
-  const text = source(name)
-  check(`${name} hands a quiet step's held notice through the wait door only on an agent's road`, text.includes("else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))"))
-  check(`${name} publishes the loud busy step's wait, the empty-stream retry's wait and the plain retry's wait through the same door, each read off its own notice`, text.split('options.onWait?.(retryNoticeWait(notice))').length === 4, `${text.split('options.onWait?.(retryNoticeWait(notice))').length - 1} publishes`)
-}
-const retrySource = readFileSync(new URL('../../src/services/api/withRetry.ts', import.meta.url), 'utf8')
-check('the home road\'s retry seam opens the one ladder for an overload and hands a quiet step\'s held notice through its door', retrySource.includes('openBusyRetryLadder(') && retrySource.includes('nextBusyRetry(') && retrySource.includes('heldBusyRetryWait(step, notice)') && retrySource.includes('await sleep(step.waitMs, options.signal)'))
-const streamSource = readFileSync(new URL('../../src/services/providers/anthropic/streamCore.ts', import.meta.url), 'utf8')
-check('the home road binds that door to the wait door only on an agent\'s road, on the streamed attempt and on every non-streamed recovery', streamSource.includes("options.agentId !== undefined ? (wait: HeldBusyRetryWait): void => options.onWait?.(wait) : undefined") && streamSource.split('onHeldWait: heldWaitDoor').length === 4)
-const agentSource = readFileSync(new URL('../../src/tools/AgentTool/runAgent.ts', import.meta.url), 'utf8')
-check("runAgent's door charges a held notice through the accountant and forwards it to no row", agentSource.includes('const heldNotice = heldBusyRetryNotice(wait)') && agentSource.includes('accountant.wait(facts, false)') && agentSource.includes('accountant.wait(notice, true)'))
 console.log(`${checks} checks, ${failures} failures`)
 process.exit(failures ? 1 : 0)

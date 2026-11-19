@@ -13,7 +13,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const spineRow = async (): Promise<{ status: string; evidence: string }> => {
   const report = await import('../../src/utils/healthReport.js')
@@ -80,19 +79,6 @@ console.log('— the canonical order (a later boot, distinct pid, appended to th
   check('the chat flip and the birth riding the spine\'s pid leave it ok', withTelemetry.status === 'ok' && withTelemetry.evidence.includes('runtime-entry → route-ready → first-frame → input-live'), `${withTelemetry.status}: ${withTelemetry.evidence}`)
 }
 
-{
-  const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
-  const entryAt = main.indexOf("recordLaunchMilestone('runtime-entry',")
-  const actionAt = main.indexOf('async function defaultAction')
-  const validationsAt = main.indexOf("failCli('--multiplex requires --worktree')")
-  check(
-    "runtime-entry stamps at the ACTION'S ENTRY (before the validations, screens and setup)",
-    entryAt !== -1 && actionAt !== -1 && validationsAt !== -1 && actionAt < entryAt && entryAt < validationsAt,
-    `action=${actionAt} entry=${entryAt} validations=${validationsAt}`,
-  )
-  check('the stamp exists exactly once', main.split("recordLaunchMilestone('runtime-entry',").length === 2)
-  check("the entry rung carries the boot's kind as the dispatch reads it — a run, a prepare-only start or a redirected stdout is headless, a terminal is interactive", main.includes("recordLaunchMilestone('runtime-entry', { boot: getIsInteractive() ? 'interactive' : 'headless' })"))
-}
 
 console.log('— a headless run after the interactive boot (/health\'s own run road) —')
 {

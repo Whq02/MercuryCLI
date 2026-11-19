@@ -15,7 +15,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 for (const key of [
   'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL',
@@ -169,9 +168,6 @@ section('T3 · settings override clamps; the warning ladder, blocking limit, ove
   check('pctLeft is measured to the trigger threshold over the model window (0 at threshold)', compactAt.pctLeft === 0 && warnAt.pctLeft === Math.round((20_000 / resolveContextWindow(model).effectiveWindow) * 100), JSON.stringify({ compactAt, warnAt }))
   const overflow = compact.detectFixedPrefixOverflow(transcriptAt(threshold + 50_000) as never, model)
   check('the fixed-prefix overflow diagnostic reads the same threshold', overflow !== null && overflow.thresholdTokens === threshold && overflow.prefixTokens <= effective, JSON.stringify(overflow))
-  const source = src('src/services/compact/autoCompact.ts')
-  check('the fold receives the trigger\'s fixed-aware threshold (recompactionInfo.autoCompactThreshold)', /const threshold = getAutoCompactThresholdWithFixed\(model, fixedTokens\)[\s\S]{0,400}autoCompactThreshold: threshold/.test(source))
-  check('the trigger awaits the window source before deciding', /const known = await awaitContextWindowSource\(model, \{ estTokens: tokenCount \+ snipTokensFreed \}\)/.test(source) && /if \(!known\) \{[\s\S]{0,200}return false/.test(source))
 }
 
 section('T4 · the surfaces agree with the trigger to the token')

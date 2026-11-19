@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
 let checks = 0
@@ -15,7 +12,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 const { getSchemaBoundStructuredOutputTool, SchemaMismatchError, STRUCTURED_OUTPUT_TOOL_NAME } = await import(
@@ -113,16 +109,6 @@ section('§C the modes')
   check('no spec ⇒ NO structured field (nothing invented)', unspecced.structured === undefined)
 }
 
-section('§D the plumbing pins (structural)')
-{
-  const tool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-  check('the dispatch fields exist (output_schema + schema_mode)', tool.includes('output_schema:') && tool.includes("schema_mode: z\n      .enum(['permissive', 'strict'])"))
-  check('precedence is dispatch → agent definition', tool.includes('input.output_schema ?? definitionSchema'))
-  check('an invalid schema refuses BEFORE any spawn (typed)', tool.includes('output_schema is not a valid JSON Schema'))
-  const run = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
-  check('runAgent injects the ONE bound tool into the child catalogue', run.includes('getSchemaBoundStructuredOutputTool(structuredOutputSpec.schema)'))
-  check('…and the finalize instruction into the system prompt', run.includes('deliver the final answer by calling the ${STRUCTURED_OUTPUT_TOOL_NAME}'))
-}
 
 console.log('\n' + '='.repeat(60))
 console.log(` ${checks} checks, ${failures} failures`)

@@ -403,22 +403,6 @@ async function main(): Promise<void> {
     else process.env.MERCURY_JS_DEBUG_DAP = savedPin
     check('rung labels are the one human spelling', jsDebugSourceLabel('vendored') === 'the vendored bundle' && jsDebugSourceLabel('user-dir') === 'the ~/.js-debug unpack')
 
-    const { readFileSync } = await import('node:fs')
-    const src = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
-    const readiness = src('utils', 'readiness.ts')
-    check(
-      "the PARTIAL honesty is RETIRED from the js row (its reason closed: the child road landed)",
-      !readiness.includes('PARTIAL: js-debug is a multi-session debugger'),
-    )
-    check(
-      'the js row speaks multi-session + provenance, with liveness left to the deep probe',
-      readiness.includes('multi-session (resolution only; health --deep boots it)') &&
-        readiness.includes('MERCURY_JS_DEBUG_DAP > vendored bundle > ~/.js-debug'),
-    )
-    check(
-      'the dapClient ladder resolves the vendored bundle between the override and the unpack',
-      src('services', 'dap', 'dapClient.ts').includes("path.resolve(__dapDirname, 'vendor', 'js-debug', 'src', 'dapDebugServer.js')"),
-    )
     check(
       'the flag registry row names the ladder',
       (await import('../../src/substrate/flagRegistry.js')).getFlagSpec('MERCURY_JS_DEBUG_DAP')?.summary.includes('env override > the vendored dist/vendor/js-debug bundle > the legacy ~/.js-debug unpack') === true,

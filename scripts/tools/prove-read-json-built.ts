@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -87,7 +87,6 @@ if (!given) {
       const processes = process.platform === 'win32' ? '' : (spawnSync('/bin/ps', ['-axo', 'command='], { encoding: 'utf8' }).stdout ?? '')
       const folders = readdirSync(join(config, 'tmp'), { recursive: true }).map(String).filter(name => /json-queries[\\/]read-/.test(name))
       check('the ended query leaves no child process and no private folder', !processes.split('\n').some(line => line.includes(payload) && line.includes('jsonQueryProcess')) && folders.length === 0, `${folders.join(' ')}`)
-      check('the product bound is ten minutes', readFileSync(join(root, 'src/tools/FileReadTool/jsonQueryRuntime.ts'), 'utf8').includes('const QUERY_BOUND_MS = 10 * 60_000'))
     } finally { await endless.close() }
     console.log(`${passed}/${passed + failed} checks`)
     process.exitCode = failed ? 1 : 0

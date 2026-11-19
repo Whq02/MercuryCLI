@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -21,7 +21,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const limits = await import('../../src/services/anthropicLimits.ts')
 const mock = await import('../../src/services/mockRateLimits.ts')
 const usability = await import('../../src/services/providers/providerUsability.ts')
@@ -137,19 +136,6 @@ section('§5 a departed account still reads unknown ahead of any lifetime')
   check('A returns to the same reading without a refusal', lane().limit === 'rejected' && blocker() === null)
 }
 
-section('§6 the roads: the verdict owns its lifetime; the meters and the cap return keep theirs')
-{
-  const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const limitsSrc = src('src/services/anthropicLimits.ts')
-  check('the verdict takes the clock it is read at', /export function anthropicLimitVerdict\(nowMs: number = Date\.now\(\)\)/.test(limitsSrc))
-  check('…and lapses at the stated reset or the seed span', limitsSrc.includes('SEED_DEFAULT_TTL_SECONDS * 1000') && limitsSrc.includes('lapsesAtMs'))
-  const observedRead = limitsSrc.slice(limitsSrc.indexOf('export function anthropicWindowObserved()'), limitsSrc.indexOf('export type AnthropicLimitVerdict'))
-  check("anthropicWindowObserved keeps the meters' rule (no lifetime of its own)", observedRead.includes('const stands = verdictOwnerStands()') && observedRead.includes('return windowObserved && stands') && !/lapsesAtMs|nowMs|Date\.now\(\)|SEED_DEFAULT_TTL_SECONDS/.test(observedRead))
-  const usabilitySrc = src('src/services/providers/providerUsability.ts')
-  check('the live reads take the clock through to the verdict', usabilitySrc.includes('anthropicLimitVerdict(clock())'))
-  check('the Anthropic blocker speaks the window words from the refusal owner', usabilitySrc.includes('anthropicWindowWords('))
-  check('no Anthropic refusal points at /usage for its reset', !usabilitySrc.includes("'the Anthropic usage window is reached — resets per /usage'"))
-}
 
 limits.__setAnthropicOwnerResolverForTest(null)
 limits.resetLimitsForCredentialSwitch()

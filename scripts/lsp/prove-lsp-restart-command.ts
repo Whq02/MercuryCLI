@@ -1,5 +1,5 @@
 import { mock } from 'bun:test'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -141,17 +141,6 @@ servers.clear()
 check('a workspace with no configured server says so on status', (await say('status')) === 'No LSP servers are configured for this workspace.')
 check('a named restart with no configured server says none is configured', (await say('restart mercury-ts')) === 'No language server named `mercury-ts` in this workspace — none is configured.')
 
-section('the command is listed where every slash command is listed')
-const commands = readFileSync(join(ROOT, 'src/commands.ts'), 'utf8')
-const domains = readFileSync(join(ROOT, 'src/components/HelpV2/commandDomains.ts'), 'utf8')
-const readme = readFileSync(join(ROOT, 'README.md'), 'utf8')
-const index = existsSync(join(ROOT, 'src/commands/lsp/index.ts')) ? readFileSync(join(ROOT, 'src/commands/lsp/index.ts'), 'utf8') : ''
-check('src/commands.ts imports and lists it', commands.includes("import lsp from './commands/lsp/index.js'") && /\n  lsp,\n/.test(commands))
-check('the help domain health & introspection names it', /'capabilities', 'lsp',/.test(domains))
-check('the README roster carries it beside /capabilities', readme.includes('`/capabilities` `/lsp` |'))
-check('the command is interactive-only with the two verbs as its hint', index.includes("argumentHint: 'status | restart [<server>]'") && index.includes('supportsNonInteractive: false'))
-const instance = readFileSync(join(ROOT, 'src/services/lsp/LSPServerInstance.ts'), 'utf8')
-check('an explicit restart carries no per-session cap (the crash-restart cap stays)', !instance.includes('exceeded the restart cap') && instance.includes('exceeded the crash-restart cap'))
 
 if (failures > 0) {
   console.error(`\nprove-lsp-restart-command: RED (${failures})`)

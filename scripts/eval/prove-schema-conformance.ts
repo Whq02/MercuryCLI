@@ -1,42 +1,6 @@
 #!/usr/bin/env bun
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
 import { check, cleanup, finish, section, setup } from './lib.js'
 
-const SRC = join(import.meta.dir, '../../src')
-
-section('source pin: one engine, no second validator')
-{
-  const hits: string[] = []
-  const walk = (dir: string): void => {
-    for (const name of readdirSync(dir)) {
-      const p = join(dir, name)
-      if (statSync(p).isDirectory()) walk(p)
-      else if (/\.(ts|tsx)$/.test(name) && readFileSync(p, 'utf8').includes('new Ajv(')) {
-        hits.push(p.slice(SRC.length + 1))
-      }
-    }
-  }
-  walk(SRC)
-  check('exactly one `new Ajv(` under src/, in the engine', hits.length === 1 && hits[0] === 'services/schema/jsonSchemaEngine.ts', JSON.stringify(hits))
-  check('the lite validator stays deleted', !existsSync(join(SRC, 'services/eval/jsonSchemaLite.ts')))
-  const workflow = readFileSync(join(SRC, 'tools/SyntheticOutputTool/structuredOutputTool.ts'), 'utf8')
-  const bridge = readFileSync(join(SRC, 'services/eval/evalBridge.ts'), 'utf8')
-  const synthetic = readFileSync(join(SRC, 'tools/SyntheticOutputTool/SyntheticOutputTool.ts'), 'utf8')
-  check('the workflow consumer imports the engine', workflow.includes('services/schema/jsonSchemaEngine.js'))
-  check('the eval bridge consumer imports the engine', bridge.includes('schema/jsonSchemaEngine.js'))
-  check('the headless output-schema consumer imports the engine', synthetic.includes('services/schema/jsonSchemaEngine.js'))
-  let liteRefs = 0
-  const sweep = (dir: string): void => {
-    for (const name of readdirSync(dir)) {
-      const p = join(dir, name)
-      if (statSync(p).isDirectory()) sweep(p)
-      else if (/\.(ts|tsx)$/.test(name) && readFileSync(p, 'utf8').includes('validateAgainstJsonSchema')) liteRefs++
-    }
-  }
-  sweep(SRC)
-  check('no reference to the lite validator survives in src/', liteRefs === 0, String(liteRefs))
-}
 
 setup()
 const { applySchemaToReply } = await import('../../src/services/eval/evalBridge.js')

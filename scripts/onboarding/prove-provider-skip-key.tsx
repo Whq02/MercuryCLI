@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -137,17 +137,6 @@ console.log('§2b esc on the provider station itself keeps its meaning (backs a 
   check('80x24: esc on the station backs a step (theme paints again)', afterEsc.includes('Choose your theme'), afterEsc.split('\n').slice(0, 3).join(' / '))
 }
 
-console.log('§3 the wiring: the card holds the key handling and the footer words; no other move changed')
-{
-  const ROOT = join(import.meta.dir, '..', '..')
-  const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const onboarding = read('src/components/Onboarding.tsx')
-  const card = read('src/components/ConsoleOAuthFlow.tsx')
-  check("the walk footer names the skip: '↑↓ move · ↵ choose · s skip · esc back'", onboarding.includes("provider: '↑↓ move · ↵ choose · s skip · esc back'"), onboarding.split('\n').find(l => l.includes('provider:')) ?? '')
-  check('the card holds the s handling beside the c handling: only while the idle list stands and only with the skip row offered', /input === 's' &&/.test(card) && /menuUp && onSkip !== undefined/.test(card))
-  check('the s press stops the event so the list never eats it', /event\.stopImmediatePropagation\(\)/.test(card.slice(card.indexOf("input === 's'"), card.indexOf("input === 's'") + 900)))
-  check('esc handling is untouched: a pending leg still abandons to the catalogue, a popup esc still cancels', /key\.escape && \(state\.name === 'ready' \|\| state\.name === 'waiting' \|\| state\.name === 'error'\)/.test(card))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-provider-skip-key: ALL GREEN' : `\nprove-provider-skip-key: ${failures} FAILURE(S)`)

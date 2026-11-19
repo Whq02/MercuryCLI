@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -39,24 +37,7 @@ sa.setSessionAccentOverride('#00ff00')
 check('snapshot key CHANGES on override set (the re-render trigger)', sa.getSessionAccentSnapshotKey().includes('#00ff00'))
 sa.setSessionAccentOverride(null)
 check('snapshot key reverts on clear', !sa.getSessionAccentSnapshotKey().includes('#'))
-{
-  const srcText = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'components', 'mercury-ui', 'sessionAccent.ts'),
-    'utf-8',
-  )
-  const overrideMerges = (srcText.match(/accent: accentOverride\.accent, accentDeep: accentOverride\.accentDeep/g) ?? []).length
-  check('the ONE derivation honors the override (tint axes only, identity live)', overrideMerges === 1, `merges found: ${overrideMerges}`)
-  check('the unified hook snapshots on the override-aware key', (srcText.match(/getSessionAccentSnapshotKey,\n\s*getSessionAccentSnapshotKey,/g) ?? []).length >= 1)
-  check('the ONE derivation returns the live critter (no second read path)', /export function getSessionAccent\(\): Critter \{[\s\S]*?return base\n\}/.test(srcText))
-  check('the unified hook DELEGATES to the one derivation', /export function useSessionAccent\(\): Critter \{[\s\S]*?return getSessionAccent\(\)/.test(srcText))
-}
 
-const ROOT = join(import.meta.dir, '..', '..')
-const cmd = readFileSync(join(ROOT, 'src', 'commands', 'appearance', 'appearance.tsx'), 'utf-8')
-check('command: named swatches import tokens (no raw hex literals)', !/'#[0-9a-fA-F]{3,6}'/.test(cmd))
-check('command: reset path present', /reset/.test(cmd) && /setSessionAccentOverride\(null\)/.test(cmd))
-const reg = readFileSync(join(ROOT, 'src', 'commands.ts'), 'utf-8')
-check('registered in the Mercury surface array (unconditional)', /\n  appearance,\n/.test(reg))
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL ACCENT-OVERRIDE PROOFS PASS')

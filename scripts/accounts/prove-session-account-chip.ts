@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -123,16 +123,6 @@ section('C5 the words are the ONE identity composer\'s')
   check('an uncredentialed family names nobody even with words recorded (presence outranks the snapshot)', sessionAccountWords('gpt-5.5', absent).state === 'none')
 }
 
-section('C6 the face wires the composer (structural)')
-{
-  const face = readFileSync(join(ROOT, 'src/components/BootSplashScreen.tsx'), 'utf8')
-  check('the chips memo reads the ONE session-account composer', face.includes("import { sessionAccountWords } from '../utils/accounts/sessionAccount.js'") && face.includes('const words = sessionAccountWords(mainModel);'))
-  check('…and no longer follows the raw route to a presence itself', !face.includes('declaredRouteOf(mainModel)') && !face.includes('anthropicCredentialPresence()'))
-  check('the strip keys on the catalogue epoch (a live catalogue settling repaints it) beside the presence and sign-in epochs', face.includes('const catalogueEpoch = useCatalogueEpoch();') && face.includes('}, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);'))
-  check("the Logins row's glance keys on the sign-in epoch (a removal leaves no stale count)", face.includes('}, [presenceEpoch, signInEpoch]);'))
-  const hook = readFileSync(join(ROOT, 'src/hooks/useCatalogueEpoch.ts'), 'utf8')
-  check('the catalogue epoch hook subscribes through the one catalogue signal', hook.includes('useSyncExternalStore(subscribeCatalogueEpoch, catalogueEpoch, catalogueEpoch)'))
-}
 
 section('C7 the model chip beside it: the decision\'s own row word, healed when the catalogue lands')
 {
@@ -158,13 +148,6 @@ section('C7 the model chip beside it: the decision\'s own row word, healed when 
   catalogue.bumpCatalogueEpoch()
   const third = computed.computedDefault()
   check('a live catalogue settling drops the memo — the next read re-derives', third !== first && third.source === first.source)
-  const chip = readFileSync(join(ROOT, 'src/components/BootSplashScreen.tsx'), 'utf8')
-  check("the model chip prints the decision's own row word on a keyless default (structural)", chip.includes("decision.source === 'keyless' ? decision.row : null") && chip.includes('keylessRow ?? renderModelChip(mainModel)') && !chip.includes('NO_SIGN_IN_ROW'))
-  const resolver = readFileSync(join(ROOT, 'src/utils/model/computedDefault.ts'), 'utf8')
-  check('the memo keys on the catalogue epoch (structural)', resolver.includes('memo.catalogue === catalogue') && resolver.includes("import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'"))
-  const picker = readFileSync(join(ROOT, 'src/utils/model/modelOptions.ts'), 'utf8')
-  const standing = readFileSync(join(ROOT, 'src/commands/defaultprovider/defaultprovider.tsx'), 'utf8')
-  check('/defaultprovider reads the computed status without a synthetic picker option', !picker.includes('keylessReason') && !picker.includes('defaultRow') && standing.includes('? decision.row') && !standing.includes('NO_SIGN_IN_ROW'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

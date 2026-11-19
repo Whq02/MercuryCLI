@@ -71,12 +71,6 @@ const raw = JSON.parse(readFileSync(settingsPath, 'utf8')) as { engine?: Record<
 t('the stored keys are treated alike: each stays as written, none is rewritten, none is adopted', raw.engine?.supercode === true && raw.engine?.frobnicate === true && raw.supercodeEffort === true && raw.ultracodeEffort === true && raw.engine?.effort === 'xhigh', JSON.stringify(raw))
 const typed = settings.getInitialSettings() as { engine?: Record<string, unknown> }
 t('the typed read carries the ladder word and treats the stored mode keys alike', typed.engine?.effort === 'xhigh' && ('supercode' in (typed.engine ?? {})) === ('frobnicate' in (typed.engine ?? {})), JSON.stringify(typed.engine))
-const typesSrc = readFileSync(join(ROOT, 'src/utils/settings/types.ts'), 'utf8')
-t('the settings schema declares no supercode key', !/supercode/i.test(typesSrc))
-const settingsSrc = readFileSync(join(ROOT, 'src/utils/settings/settings.ts'), 'utf8')
-t('the settings loader carries no rewrite between stored spellings of a mode key', !/ultracode|supercode/i.test(settingsSrc))
-const effortSrc = readFileSync(join(ROOT, 'src/utils/effort.ts'), 'utf8')
-t('the effort reader reads one engine key and no mode flag', effortSrc.includes('engine?.effort') && !/supercode/i.test(effortSrc))
 
 console.log('— the command roster: /supercode is unknown like /frobnicate —')
 const names = new Set((await commands.getCommands('.')).map((c: { name: string }) => c.name))

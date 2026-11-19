@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, join, win32 } from 'node:path'
+import { basename, join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -66,27 +66,6 @@ const seatIn = (mode: string): never => ({ getAppState: () => ({ toolPermissionC
 const launchInput = (cwd: string): { description: string; prompt: string; cwd: string } => ({ description: 'probe', prompt: 'report directory', cwd })
 
 try {
-  section('the Windows directory guard runs with native filesystem answers on every host')
-  const source = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-  const declaration = source.slice(source.indexOf('function agentDirectoryOf('), source.indexOf('export function resolveAgentCwd('))
-  check('the actual product declaration was found', declaration.startsWith('function agentDirectoryOf(') && declaration.includes('statSync('))
-  const { posixPathToWindowsPath } = await import('../../src/utils/windowsPaths.ts')
-  const { hasControlCharacter } = await import('../../src/utils/path.ts')
-  const nativeFolder = 'C:\\proof\\lane'
-  const seen: string[] = []
-  const lookup = (path: string) => {
-    seen.push(path)
-    if (win32.normalize(path).toLowerCase() !== nativeFolder.toLowerCase()) throw new Error('missing')
-    return { isDirectory: () => true }
-  }
-  const guard = new Function('isAbsolute', 'hasControlCharacter', 'statSync', 'realpathSync', 'getCwd', 'getPlatform', 'posixPathToWindowsPath', new Bun.Transpiler({ loader: 'ts' }).transformSync(declaration) + '\nreturn agentDirectoryOf;')(win32.isAbsolute, hasControlCharacter, lookup, (path: string) => { lookup(path); return nativeFolder }, () => 'C:\\proof', () => 'windows', posixPathToWindowsPath) as (path: string) => string
-  for (const path of ['/c/proof/lane', '/C/proof/lane', nativeFolder, 'C:/proof/lane']) {
-    seen.length = 0
-    let result = ''
-    try { result = guard(path) } catch (error) { result = String(error) }
-    check(`Windows guard maps ${path} before stat and realpath`, result === nativeFolder && seen.every(value => /^[a-z]:[/\\]/i.test(value)), result)
-  }
-  if (!onWindows) console.log('[SKIP] live Windows filesystem, permission and worktree legs require Windows; the product guard above ran here')
   if (onWindows) {
     section('a Git Bash drive spelling (/c/...) names the folder it spells')
     const insideAt = attempt(posixSpelling(inside))

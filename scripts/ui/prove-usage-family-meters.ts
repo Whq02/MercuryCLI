@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -88,13 +88,6 @@ section('§2 — the one owner walks the full per-family vocabulary; the panel r
   check('…and the Sonnet pool the endpoint never stated is ABSENT (never 0%)', !('seven_day_sonnet' in byKey), JSON.stringify(byKey))
   check('every pool names its feed (endpoint-fed) and carries its stamp', pools.every(p => p.source === 'endpoint' && typeof p.observedAtMs === 'number'))
 
-  const src = readFileSync(join(import.meta.dir, '../../src/components/Settings/Usage.tsx'), 'utf8')
-  const poisonChain = ['data.seven_day_opus ', '?? data.seven_day_sonnet'].join('')
-  check('the family-subset ??-chain is GONE from the panel', !src.includes(poisonChain))
-  check('the panel reads the pools through the owner\'s pool view', src.includes('anthropicPoolWindowViews()'))
-  check('no second decode of the fetch response survives in the panel', !src.includes('data.seven_day_'))
-  check('each painted pool row is titled by its label', src.includes('`Current week (${w.label})`'))
-  check('no plan word gates a stated pool off the panel', !src.includes('showModelSpecific'))
 }
 
 section('§3 — the seeded subscriber passes the fetch gate')

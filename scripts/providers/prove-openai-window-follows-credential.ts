@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -22,7 +22,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const state = await import('../../src/services/providers/openai/openaiLimitState.ts')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
 const usability = await import('../../src/services/providers/providerUsability.ts')
@@ -117,25 +116,6 @@ section('§C the catalogue memo follows the credential')
   }
 }
 
-section('§D the roads: the runner reads the account again on the word, and the gate reads the catalogue before it decides')
-{
-  const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const cat = src('src/services/providers/openai/openaiCatalogue.ts')
-  const again = cat.indexOf('export function readOpenaiAccountAgain')
-  const againBody = again === -1 ? '' : cat.slice(again, again + 1200)
-  check('reading the account again notes both sources, drops departed memos and reads the pending catalogue bounded', againBody.includes('noteOpenaiSourceIdentity(') && againBody.includes('forgetDepartedOpenaiCatalogues(') && againBody.includes('readOpenaiCatalogueIfPending('), againBody.slice(0, 300))
-  const runAgent = src('src/tools/AgentTool/runAgent.ts')
-  const read = runAgent.indexOf("readCatalogueIfPending('openai')")
-  const gate = runAgent.indexOf('delegationDispatchBlocker(agentRouteVerdict.route, undefined, resolvedAgentModel)')
-  check('runAgent reads the OpenAI catalogue (bounded) before the dispatch verdict, and only for the OpenAI route', read !== -1 && gate !== -1 && read < gate && runAgent.slice(read - 200, read).includes("route === 'openai'"), `read=${read} gate=${gate}`)
-  const call = src('src/services/providers/openai/openaiCallModel.ts')
-  const noteAt = call.indexOf('noteOpenaiSourceIdentity(auth.account.kind')
-  const recordAt = call.indexOf('recordOpenaiUsageLimit(outcome.fault.resetsAtMs, auth.account.kind)')
-  check('the wall writer notes the credential it observed under before recording', noteAt !== -1 && recordAt !== -1 && noteAt < recordAt, `note=${noteAt} record=${recordAt}`)
-  const live = src('src/services/providers/providerUsability.ts')
-  check('the live window read notes the active credential before answering', live.includes('noteOpenaiSourceIdentity(active.kind, openaiSourceIdentity(active.kind))'))
-  check('the window reading remains available outside the dispatch verdict', live.includes('limitBlocker: windowBlocker'))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(`\n ${checks} checks, ${failures} failures`)

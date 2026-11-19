@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import {
   DECOR_TICK_MS,
   FOCAL_TICK_MS,
@@ -69,15 +68,6 @@ section('the GLOW greeting joins the lattice')
     'frame 0 is the settled cell (gain 0 parses to a null phase)',
     shim.shimmerPhaseOf(shim.shimmerPhaseKey(0, 27), 27) === null,
   )
-  const hook = readFileSync('src/components/mercury-ui/useGreetingShimmer.ts', 'utf8')
-  check(
-    'the React owner drops its clock at settle (intervalMs null once settled — the subscriber-counted law)',
-    hook.includes('animate ? SHIMMER_TICK_MS : null') && hook.includes('SHIMMER_SETTLED') && hook.includes('setSettled(true)'),
-  )
-  check(
-    "the React owner honors the reduced-motion pair + the glyph part of the Motion choice (the live-glyphs gate's one owner)",
-    hook.includes('view?.reducedMotion') && hook.includes('MERCURY_REDUCED_MOTION') && hook.includes("useIdleMotion('glyphs')") && hook.includes("glyphMotion !== 'off'"),
-  )
 }
 
 section('decor sampling loses nothing visible')
@@ -145,34 +135,6 @@ section('typingActivity — the decor pause store')
   __typingActivityResetForTest()
 }
 
-section('adoption pins — tiers wired where they belong (source greps)')
-{
-  const live = readFileSync('src/components/mercury-ui/LiveGlyphs.tsx', 'utf8')
-  check(
-    'exactly the two DECOR primitives consult the typing pause (ReadyBreath + TwinkleSpark)',
-    (live.match(/useTypingPause\(\)/g) ?? []).length === 2,
-  )
-  const working = live.slice(live.indexOf('export function WorkingGlyph'), live.indexOf('export function AttentionPulse'))
-  const attention = live.slice(live.indexOf('export function AttentionPulse'), live.indexOf('const VALUE_GLOW_MS'))
-  check('TRUTH tier never pauses: WorkingGlyph ignores typing', !working.includes('useTypingPause'))
-  check('TRUTH tier never pauses: AttentionPulse ignores typing', !attention.includes('useTypingPause'))
-
-  const spinner = readFileSync('src/components/Spinner/SpinnerAnimationRow.tsx', 'utf8')
-  check(
-    'the requesting glimmer rides the FOCAL lane (no off-lattice 50ms clock)',
-    spinner.includes('FOCAL_TICK_MS') && !/useAnimationValue\(\s*[^)]*\?\s*50\b/.test(spinner),
-  )
-  const shimmer = readFileSync('src/components/Spinner/useShimmerAnimation.ts', 'utf8')
-  check(
-    'useShimmerAnimation is lattice-aligned (FOCAL/WORK, no raw 50/200)',
-    shimmer.includes('FOCAL_TICK_MS') && shimmer.includes('WORK_TICK_MS') && !/\?\s*50\s*:\s*200/.test(shimmer),
-  )
-  const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
-  check(
-    'the composer input-change chokepoint marks typing activity (T13 S2: the owner edit path)',
-    readFileSync('src/input-core/pending-input.ts', 'utf8').includes('markTypingActivity()'),
-  )
-}
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {

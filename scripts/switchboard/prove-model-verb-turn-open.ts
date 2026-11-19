@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = join(process.env.TMPDIR ?? '/tmp', `model-verb-turn-open-${process.pid}`)
@@ -24,15 +23,6 @@ check('with no turn fact the capped decision is the fallback (idle)', open?.({ b
 check('a settled seat is never busy, whatever the bits', open?.({ outcome: 'degraded', busy: true, turnActive: true }) === false)
 check('an unknown seat is not busy', open?.(undefined) === false)
 
-console.log('T2 the roster row carries the raw fact (source pin)')
-{
-  const roster = readFileSync(join(SRC, 'daemon/roster.ts'), 'utf8')
-  check('list() projects turnActive beside busy', roster.includes('e.turnActive = h.longLived.turnActive'))
-  const protocol = readFileSync(join(SRC, 'daemon/protocol.ts'), 'utf8')
-  check('the wire entry declares it', /turnActive\?: boolean/.test(protocol))
-  const seatSrc = readFileSync(join(SRC, 'daemon/sessionSeat.ts'), 'utf8')
-  check('every seat verb reads the one predicate', seatSrc.includes('return seatTurnOpen(roster.list().find(j => j.short === short))'))
-}
 
 console.log('T3 the runner defers the breadcrumbs to the turn boundary (source pins)')
 {

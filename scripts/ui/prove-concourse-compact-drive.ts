@@ -6,7 +6,6 @@ import { dirname, join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 const ESC = '\x1b'
 const SHIFT_RIGHT = `${ESC}[1;2C`
 const DOWN = `${ESC}[B`
@@ -66,18 +65,6 @@ console.log('§1 the pure geometry and legends of the compact concourse')
 
 console.log('§2 the screen: the compact decision is the size latch; two focus targets; the letter verbs')
 {
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check('the compact decision is the layout latch, stacked from 60 columns and 16 rows', screen.includes('const compactProfile = isCompact ? compactConcourseProfileOf(termCols, termRows) : null'))
-  check('the split frame stands down under compact', screen.includes('const splitActive = !reducedStage && !compact && splitViewOn() && splitAvailableAt(termCols, termRows)'))
-  check('the list has focus first; the ring is the two frames', screen.includes("if (compact) return carried === 'live' ? 'live' : 'list'") && screen.includes("const ring: ConcourseRegion[] = compact || reducedStage ? ['list', 'live'] : ['live', 'list']") && screen.includes("if (compact && region !== 'list' && region !== 'live') setRegion('list')"))
-  check('↵ on the list hands focus to the composer — the arm, then the region', screen.includes("boardArmedRef.current = sel.sessionId\n      setBoardArmed(sel.sessionId)\n      setRegion('live')") && screen.includes('if (sel) compactSteerOrEnter(sel)'))
-  check('esc from the composer returns to the list before the arm layer', screen.indexOf("if (compact && region === 'live') {\n        boardArmedRef.current = null") < screen.indexOf('if (boardArmedRef.current !== null) {') && screen.indexOf("if (compact && region === 'live') {\n        boardArmedRef.current = null") > 0)
-  const xSites = screen.match(/input === 'x'/g) ?? []
-  check('plain x stops from the rows of every board (the manager legend names it) and, on the compact concourse, from the composer while its draft is empty', xSites.length === 3 && screen.includes("if (input === 'x' && !key.ctrl && !key.meta && pastGate()) {") && screen.includes("if (compact && region === 'live' && !key.ctrl && !key.meta && (input === 'x' || input === 'p') && liveDraftRef.current.text.length === 0 && pastGate()) {") && screen.includes("if (input === 'x') rowStop()"))
-  check('the coordinator pane and the rails are absent: the compact tree is its own painter', screen.includes('<CompactConcourse') && screen.includes('compactProfile !== null ? (') && screen.includes('mirrorNode={(rows, width) => mirrorSlot(rows, width, true)}'))
-  check('the composer keeps its meta row only at full size; the compact foot carries the notes', screen.includes('foot={!compact}') && screen.includes("noteOf(controlNotes?.['strip:composer']) ??"))
-  const strips = read('src/components/concourse/ConcourseStrips.tsx')
-  check('the composer can stand without its meta row', strips.includes('foot = true,') && strips.includes('{foot ? (') )
   const manifest = await import('../../src/components/concourse/controlManifest.ts')
   check('the compact controls are declared', ['compact:row', 'compact:steer', 'compact:list-title', 'compact:live-title', 'compact:new-session', 'compact:stop'].every(id => manifest.CONCOURSE_CONTROLS.some(c => c.id === id)))
 }

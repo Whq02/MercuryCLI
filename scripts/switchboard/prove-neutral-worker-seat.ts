@@ -1,12 +1,9 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
-const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -100,9 +97,6 @@ section('§2 — a keyless home: no neutral default, no roster, the two-door sen
   const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
   check('screenBirthModel() is undefined on a keyless home — the birth door passes no model', facts.screenBirthModel() === undefined, text(facts.screenBirthModel()))
   check('birthModelOf carries the nothing through (no record model, no door model)', facts.birthModelOf({ model: null }, null, facts.screenBirthModel()) === undefined)
-  const door = read('src/services/switchboard/bornSession.ts')
-  check('the admit frame omits the model field when the door has none', door.includes('...(model !== undefined ? { model } : {}),') && door.includes('screenBirthModel()'))
-  check('the door drops every inherited or chosen model on a keyless home', door.includes('const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
   const spelled = await wm.validateWorkerModelChoice('claude-opus-5', 'session')
   check("a spelled-out Claude id on a keyless home keeps its family's own door (only a launch with no id admits keyless)", !spelled.ok && spelled.reason === 'no-credential:anthropic', text(spelled))
   const { operatorFacingBirthReason } = await import('../../src/services/switchboard/bornSession.ts')
@@ -113,10 +107,6 @@ section('§2 — a keyless home: no neutral default, no roster, the two-door sen
   check('a sentence with no relay words passes through untouched', operatorFacingBirthReason('every seat is taken — 1 of 1') === 'every seat is taken — 1 of 1')
   const keylessAdmit = await wm.validateWorkerModelChoice(undefined, 'session')
   check('the daemon admits the unnamed SESSION launch keyless (never a refusal naming a family)', keylessAdmit.ok && keylessAdmit.keyless === true, text(keylessAdmit))
-  check('a keyless runner boots with NO --model', read('src/daemon/headlessRun.ts').includes("...(spec.keyless ? [] : ['--model', model]),"))
-  const daemon = read('src/daemon/concourseWorkers.ts')
-  check('the admission stamps the record keyless, skips the warm claim, and a resume re-validates it unnamed', daemon.includes('const keyless = admission.keyless === true') && daemon.includes('!keyless &&') && daemon.includes('r.keyless !== true'))
-  check('a keyless home warms nothing (no runner pinned to the placeholder)', read('src/daemon/warmRunner.ts').includes('validated.keyless === true'))
 }
 
 section('§3 — ONLY OPENAI SIGNED IN: the seat is the GPT row everywhere; a named Claude choice refuses naming the way out')

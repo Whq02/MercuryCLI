@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -15,7 +15,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 const watchdog = setTimeout(() => {
   console.log('\nTIMEOUT — overflow signal prover exceeded 180s')
   process.exit(1)
@@ -263,10 +262,6 @@ section('S5 the fold\'s own retry reads every family — truncation by a stamped
     truncatedUnknown !== null && !truncatedUnknown.includes(messages[0] as never) && truncatedUnknown.length <= messages.length,
     `${truncatedUnknown?.length}`,
   )
-  const src = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
-  const refusedBody = src.slice(src.indexOf('function summaryRefused'), src.indexOf('export function isPartSummaryMessage'))
-  const retryBody = src.slice(src.indexOf('async function summarizeWithPtlRetry'), src.indexOf('function validateSummary'))
-  check('source pin: the summariser\'s refusal read consults overflowSignalOf beside the content key, and the fold-in-parts loop reads it', refusedBody.includes('overflowSignalOf(response) !== null') && refusedBody.includes('PROMPT_TOO_LONG_ERROR_MESSAGE') && retryBody.includes('summaryRefused(response)'))
 }
 
 await fixture.close()

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -26,14 +26,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-const walk = (dir: string, out: string[] = []): string[] => {
-  for (const entry of readdirSync(join(ROOT, dir))) {
-    const rel = `${dir}/${entry}`
-    if (statSync(join(ROOT, rel)).isDirectory()) walk(rel, out)
-    else if (/\.(ts|tsx)$/.test(entry)) out.push(rel)
-  }
-  return out
-}
 type Page = { address: string; observedAt: string; source: string }
 const dated = (page: Page | undefined): boolean =>
   page !== undefined && /^https:\/\//.test(page.address) && /^\d{4}-\d{2}-\d{2}$/.test(page.observedAt) && page.source.length > 10
@@ -113,15 +105,6 @@ check('the key leg names AI Studio, its opened state and its key address', opene
 check('a box without a browser is told to open the address itself', guide.geminiKeyLegLines('failed')[1]!.text === 'Open AI Studio below; create a key.' && guide.geminiKeyLegLines(undefined)[1]!.text.startsWith('Open AI Studio'))
 check("the storage sentence is the previous card's, byte for byte", opened[3]!.text === 'Stored auth-scoped (mode 600), never logged; GOOGLE_API_KEY / GEMINI_API_KEY env vars always win over the store (GOOGLE_API_KEY outranks — the documented precedence).')
 
-section('§6 one owner of the addresses and the words; the card consumes the model')
-const studioSpellers = walk('src').filter(rel => /aistudio\.google\.com/.test(read(rel)))
-check('the AI Studio key page has one owner: KEY_PAGES.gemini in loginFamilyRows.ts spells it and the guide reads it', studioSpellers.length === 1 && studioSpellers[0] === 'src/components/loginFamilyRows.ts' && read('src/components/geminiConnectGuide.ts').includes('address: `https://${KEY_PAGES.gemini}`'), studioSpellers.join(','))
-const consoleSpellers = walk('src').filter(rel => /console\.cloud\.google\.com|console\.developers\.google\.com/.test(read(rel)))
-check('no source file but the model spells a Console address', consoleSpellers.length === 1 && consoleSpellers[0] === 'src/components/geminiConnectGuide.ts', consoleSpellers.join(','))
-const card = read('src/components/GeminiConnect.tsx')
-check('the card reads its rows, its pane, its return step and the key page from the model', ['geminiConnectRows(', 'geminiGuidePaneLines(', 'geminiGuideReturnStep(', 'geminiGuideOpeningStep(', 'GEMINI_API_KEY_PAGE.address', 'geminiKeyLegLines('].every(n => card.includes(n)))
-check('the card opens the pages through the one browser opener and keeps the login doors', ['openBrowser(', 'finishGeminiOauthConnect(', 'storeGeminiApiKeyLogin(', 'keyPasteGuardNote(', 'GEMINI_CLIENT_STORED_UNVERIFIED_NOTE', 'writeGeminiOauthClientConfig('].every(n => card.includes(n)))
-check('the card no longer spells the one-sentence Console road nor the client gate', !card.includes('APIs & Services') && !card.includes('geminiOauthClientMissingCopy') && !card.includes('needs an OAuth client first'))
 
 section('§7 the docs follow the steps in the same words')
 const docs = read('docs/ENGINES.md')

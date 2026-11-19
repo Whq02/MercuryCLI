@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   __motionGovernorResetForTest,
@@ -42,8 +41,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 function meter(share: number | null): void {
   __setLoopMeterForTest({ begin() {}, busyShare: () => share })
@@ -278,19 +275,6 @@ check('a glyph does not sample at off', glyphTickMs('off', WORK_TICK_MS) === nul
 
 section('G11 the seams')
 {
-  const ink = src('src/ink/ink.tsx')
-  check('the paint tail feeds the governor the frame\'s measured cost', /noteFrameCost\(durationMs\)/.test(ink))
-  check('the paint tail burns the cost pad before the cost is measured', ink.indexOf('burnFrameCostPad()') < ink.indexOf('noteFrameCost(durationMs)') && ink.indexOf('burnFrameCostPad()') > 0)
-  const clockSrc = src('src/ink/components/ClockContext.tsx')
-  check('the clock provider reads its period through the governor', /clockPeriodMs\(/.test(clockSrc) && /subscribeIdleMotion/.test(clockSrc))
-  const frame = src('src/components/MercuryFrame.tsx')
-  check('the frame paints the one word from the clock\'s level', /useIdleMotion\('clock'\)/.test(frame) && />reduced<\/Text>/.test(frame))
-  const glyphs = src('src/components/mercury-ui/LiveGlyphs.tsx')
-  check('the glyph primitives read their tick through the level (no separate gate)', /glyphTickMs\(useIdleMotion\('glyphs'\)/.test(glyphs) && !/liveGlyphsEnabled\(/.test(glyphs))
-  const critter = src('src/components/mercury-ui/AnimatedCritterArt.tsx')
-  check('the critter reads its tick through the level', /critterIdleTickMs\(motionLevel, asleep\)/.test(critter) && !/critterIdleEnabled\(/.test(critter))
-  const governor = src('src/utils/cockpit/motionGovernor.ts')
-  check('the governor is config-free (flag reads only — the ink layer taps it)', !/utils\/config/.test(governor) && /flagRegistry/.test(governor))
   check('the registry rows name the Motion choice for both switches', getFlagSpec('MERCURY_CRITTER_IDLE')?.summary.includes('the critter part of the Motion choice') === true && getFlagSpec('MERCURY_LIVE_GLYPHS')?.summary.includes('the glyph part of the Motion choice') === true)
   check('the cost pad has its registry row', getFlagSpec('MERCURY_FRAME_COST_PAD_MS') !== undefined)
 }

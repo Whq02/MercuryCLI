@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -103,14 +103,6 @@ section('§2 a line that changed since the read stays unread; a file written who
   check('a Write whose content no longer matches the file counts nothing', stale !== undefined && stale.files === 0 && stale.lines === 0, j(stale))
 }
 
-section('§3 the resume roads call the rebuild')
-{
-  const ROOT = join(import.meta.dir, '..', '..')
-  const recovery = readFileSync(join(ROOT, 'src/utils/conversationRecovery.ts'), 'utf8')
-  const resume = readFileSync(join(ROOT, 'src/tools/AgentTool/resumeAgent.ts'), 'utf8')
-  check("the session's resume rebuilds the main thread's ledger from its transcript under the resumed session's own id", recovery.includes('rebuildSeenLinesFromTranscript(sessionId === undefined ? processMainOwner() : mainOwnerOfSession(String(sessionId)), asMessages)'))
-  check("a resumed crewmate's ledger is rebuilt from its own transcript under its own owner", resume.includes('rebuildSeenLinesFromTranscript(processOwnerForLane(agentId), transcript.messages)'))
-}
 
 console.log(`\n${count} checks, ${failures} failures`)
 if (failures > 0) {

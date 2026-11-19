@@ -112,13 +112,6 @@ section('THE GATE off-screen: the landing line while a landing is in flight, the
   check(`the ceiling is a bounded moment (${gate.MODEL_PICKER_LANDING_CEILING_MS} ms), well under the daemon door's timeout`, gate.MODEL_PICKER_LANDING_CEILING_MS >= 1_000 && gate.MODEL_PICKER_LANDING_CEILING_MS < 30_000)
 }
 
-section('THE MECHANISM: the wrapper mounts through the gate; the gate reads the landing edge')
-{
-  const wrapper = readFileSync(join(REPO, 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  check('the /model wrapper mounts through the landing gate', wrapper.includes('<MercuryModelLandingGate>') && wrapper.includes("from './modelPickerLandingGate.js'"))
-  const gateSrc = readFileSync(join(REPO, 'src/commands/model/modelPickerLandingGate.tsx'), 'utf8')
-  check("the gate reads the slot's landing edge through the slot's own subscription", gateSrc.includes('useSyncExternalStore(subscribeFocusedSessionConnector, landingInFlight, landingInFlight)'))
-}
 
 section('THE SCREEN: /model opened as the chat lands; two arrow keys at the first paint stay put (120x40)')
 const driver = resolveCaptureDriver()

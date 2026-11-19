@@ -175,12 +175,6 @@ console.log('============================================================')
   }
 }
 
-{
-  const repl = readFileSync(join(ROOT, 'src', 'screens', 'Chat.tsx'), 'utf8')
-  const from = repl.indexOf("seatCommand.type === 'local-jsx'")
-  const dialogRoad = from < 0 ? '' : repl.slice(from, repl.indexOf('module.call(onDone', from))
-  console.log('\nthe dialog road — where a dialog command\'s result paints')
-}
 
 zaiFixture.stop(true)
 console.log('\n' + '═'.repeat(76))

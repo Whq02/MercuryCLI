@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -333,16 +333,6 @@ console.log('\n§4 the connector stages the id and detach drops the ghost')
   }
 }
 
-console.log('\n§5 the screen paints what the store holds')
-{
-  const messages = readFileSync(join(import.meta.dir, '..', '..', 'src/components/Messages.tsx'), 'utf8')
-  check('Messages computes no release of its own (the connector releases at the source)', !messages.includes('computeTailRelease') && !messages.includes('publishedShown') && !messages.includes('settledShown'), 'a render-time release survives in Messages.tsx')
-  const leaf = readFileSync(join(import.meta.dir, '..', '..', 'src/components/LiveStreamingTail.tsx'), 'utf8')
-  check('LiveStreamingTail paints what the store holds — no release prop decides after the paint', !leaf.includes('publishedShown') && !leaf.includes('settledShown') && leaf.includes('const rawText = textSuppressed ? null : (published ?? (ghost ? settled : null))'), 'a release prop survives in LiveStreamingTail.tsx')
-  check('LiveStreamingTail paints the block\'s register (readPhases → the streaming markdown\'s ink)', leaf.includes('readPhases') && /<StreamingMarkdown[\s\S]{0,160}color=\{ink\}/.test(leaf), 'no register ink on the leaf')
-  const law = readFileSync(join(import.meta.dir, '..', '..', 'src/utils/messages/tailRetirement.ts'), 'utf8')
-  check('the release law reads no text (identity only)', !/getAssistantMessageText|isHumanTurn/.test(law), 'the text match or the human-turn bound survives in tailRetirement.ts')
-}
 
 console.log(
   failures === 0

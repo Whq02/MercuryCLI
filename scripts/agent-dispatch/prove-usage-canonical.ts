@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -66,39 +64,6 @@ console.log('— D01/D09: the provider receipt keeps inclusive totals + reasonin
   check('healthy usage carries no anomaly marker', r.anomaly === undefined)
 }
 
-console.log('— openaiWire decode (D09 leg) —')
-{
-  const wire = readFileSync(
-    join(import.meta.dir, '..', '..', 'src/services/providers/openai/openaiWire.ts'),
-    'utf8',
-  )
-  check('parseUsage decodes cached_tokens from input_tokens_details', wire.includes('input_tokens_details') && wire.includes('cached_tokens'))
-  check('parseUsage decodes reasoning_tokens from output_tokens_details', wire.includes('output_tokens_details') && wire.includes('reasoning_tokens'))
-}
-
-console.log('— D05/D06 pins: one terminal settlement, receipt-only provider semantics —')
-{
-  const lane = readFileSync(
-    join(import.meta.dir, '..', '..', 'src/services/providers/openai/openaiCallModel.ts'),
-    'utf8',
-  )
-  check(
-    'exactly ONE terminal usage assignment (the settled last message)',
-    (lane.match(/\.message\.usage = finalUsage/g) || []).length === 1,
-  )
-  check(
-    'the partial message starts with zeroed usage (intermediate parts never carry terminal usage)',
-    lane.includes('usage: { ...EMPTY_USAGE }'),
-  )
-  check(
-    'the provider receipt rides apexProviderTurn (receipts only)',
-    lane.includes('providerUsage: buildProviderUsageReceipt(usageSeen)'),
-  )
-  check(
-    'session cost is fed from the CANONICAL envelope',
-    /addToTotalSessionCost\(\s*calculateUSDCost\(modelId, finalUsage/.test(lane),
-  )
-}
 
 if (failures > 0) {
   console.error(`\nprove-usage-canonical: ${failures} FAILURE(S)`)

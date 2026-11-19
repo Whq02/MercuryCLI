@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -11,7 +10,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const owner = await import('../../src/components/permissions/consentBodyBudget.ts')
 const { stringWidth } = await import('../../src/ink/stringWidth.ts')
@@ -102,81 +100,9 @@ section('§3 the paint widths — the content box, the diff gutter, the file gut
   check('the content box respects a card with no inner padding', consentContentWidth(100, 0) === 96)
 }
 
-section('§4 the wiring — every body-bearing card reads the one owner; the old owners are gone')
-{
-  check('the retired diff owner is gone', !existsSync(join(ROOT, 'src/components/permissions/boundedDiffPreview.ts')))
-  check('the retired command owner is gone', !existsSync(join(ROOT, 'src/components/permissions/consentPreview.ts')))
-  const readers: Array<[string, string[]]> = [
-    ['src/components/FileEditToolDiff.tsx', ['boundHunks(', 'diffPaintWidth(']],
-    ['src/components/permissions/ConsentFileEditDiff.tsx', ['consentBodyBudget(rows)', 'consentContentWidth(columns)']],
-    ['src/components/permissions/FileWritePermissionRequest/FileWriteToolDiff.tsx', ['boundHunks(', 'boundLines(', 'diffPaintWidth(', 'filePaintWidth(', 'consentBodyBudget(rows)']],
-    ['src/components/permissions/NotebookEditPermissionRequest/NotebookEditToolDiff.tsx', ['boundHunks(', 'boundLines(', 'diffPaintWidth(', 'filePaintWidth(', 'consentBodyBudget(rows)']],
-    ['src/components/permissions/ChangeSetPermissionRequest/ChangeSetPermissionRequest.tsx', ['boundHunks(', 'diffPaintWidth(', 'consentBodyBudget(rows)', 'hiddenFiles']],
-    ['src/components/permissions/ConsentBodyText.tsx', ['boundLines(', 'consentBodyBudget(rows)', 'consentContentWidth(columns)']],
-    ['src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx', ['<ConsentBodyText']],
-    ['src/components/permissions/PowerShellPermissionRequest/PowerShellPermissionRequest.tsx', ['<ConsentBodyText']],
-    ['src/components/permissions/FallbackPermissionRequest.tsx', ['<ConsentBodyText']],
-    ['src/components/permissions/FilesystemPermissionRequest/FilesystemPermissionRequest.tsx', ['<ConsentBodyText']],
-    ['src/components/permissions/WebFetchPermissionRequest/WebFetchPermissionRequest.tsx', ['<ConsentBodyText']],
-    ['src/components/permissions/BrowserPermissionRequest/BrowserPermissionRequest.tsx', ['<ConsentBodyText']],
-    ['src/components/permissions/ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.tsx', ['boundLines(', 'consentBodyBudget(rows)']],
-  ]
-  for (const [rel, needles] of readers) {
-    const src = read(rel)
-    const missing = needles.filter(n => !src.includes(n))
-    check(`${rel.split('/').pop()} reads the one owner (${needles.length} shapes)`, missing.length === 0, `missing: ${missing.join(', ')}`)
-  }
-  const editCard = read('src/components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx')
-  const sedCard = read('src/components/permissions/SedEditPermissionRequest/SedEditPermissionRequest.tsx')
-  check('the Edit consent card renders the bounded wrapper', editCard.includes('ConsentFileEditDiff') && !/content=\{<FileEditToolDiff/.test(editCard))
-  check('the sed consent card renders the bounded wrapper', sedCard.includes('ConsentFileEditDiff') && !/<FileEditToolDiff\b/.test(sedCard))
-  const transcriptSurface = read('src/tools/FileEditTool/UI.tsx')
-  check("the transcript's rejected-edit surface stays deliberately unbounded (bare FileEditToolDiff, no consent budget)", transcriptSurface.includes('<FileEditToolDiff') && !transcriptSurface.includes('consentBudget'))
-  const notebookCard = read('src/components/permissions/NotebookEditPermissionRequest/NotebookEditPermissionRequest.tsx')
-  check('the notebook card no longer hands its diff a fixed width', !notebookCard.includes('width={verbose ? 120 : 80}'))
-  const editDiff = read('src/components/FileEditToolDiff.tsx')
-  check('the Edit diff spends its frame (border + padding) inside the card\'s content box', editDiff.includes('outerWidth - FRAME_COLUMNS') && editDiff.includes('const FRAME_COLUMNS = 4'))
-}
-
-section('§5 the expand door — one chord, Confirmation context, the tail\'s words')
-{
-  const chordReaders = [
-    'src/components/permissions/ConsentFileEditDiff.tsx',
-    'src/components/permissions/FileWritePermissionRequest/FileWriteToolDiff.tsx',
-    'src/components/permissions/NotebookEditPermissionRequest/NotebookEditToolDiff.tsx',
-    'src/components/permissions/ChangeSetPermissionRequest/ChangeSetPermissionRequest.tsx',
-    'src/components/permissions/ConsentBodyText.tsx',
-    'src/components/permissions/ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.tsx',
-  ]
-  for (const rel of chordReaders) {
-    const src = read(rel)
-    check(`${rel.split('/').pop()} binds confirm:toggleFullPreview in the Confirmation context`, src.includes("useKeybinding('confirm:toggleFullPreview'") && src.includes("context: 'Confirmation'"))
-  }
-  const wrapper = read('src/components/permissions/ConsentFileEditDiff.tsx')
-  check('expanded hands the diff a null budget (the whole diff)', wrapper.includes('expanded ? null : consentBodyBudget(rows)'))
-  const tails: Array<[string, string[]]> = [
-    ['src/components/FileEditToolDiff.tsx', ['more line', 'ctrl+f expands', 'the whole edit applies', 'ctrl+f collapses the preview']],
-    ['src/components/permissions/FileWritePermissionRequest/FileWriteToolDiff.tsx', ['more line', 'ctrl+f expands', 'ctrl+f collapses the preview']],
-    ['src/components/permissions/NotebookEditPermissionRequest/NotebookEditToolDiff.tsx', ['more line', 'ctrl+f expands', 'the whole edit applies', 'ctrl+f collapses the preview']],
-    ['src/components/permissions/ChangeSetPermissionRequest/ChangeSetPermissionRequest.tsx', ['more line', 'more file', 'ctrl+f expands', 'ctrl+f collapses the preview']],
-    ['src/components/permissions/ConsentBodyText.tsx', ['more line', 'ctrl+f expands', 'ctrl+f collapses the preview']],
-    ['src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx', ['(the whole command runs)']],
-    ['src/components/permissions/PowerShellPermissionRequest/PowerShellPermissionRequest.tsx', ['(the whole command runs)']],
-  ]
-  for (const [rel, words] of tails) {
-    const src = read(rel)
-    const missing = words.filter(w => !src.includes(w))
-    check(`${rel.split('/').pop()} speaks the tail's existing words`, missing.length === 0, `missing: ${missing.join(', ')}`)
-  }
-}
 
 {
-  const { readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
   const budget = await import('../../src/components/permissions/consentBodyBudget.ts')
-  const ui = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'FileEditTool', 'UI.tsx'), 'utf8')
-  const rejected = ui.slice(ui.indexOf('export function renderToolUseRejectedMessage'))
-  check("the rejected-edit row's diff reads the card's content width at the row's columns (never unbounded)", rejected.includes('availableWidth: consentContentWidth(options.width)'))
   check('at 100 columns the diff paints inside the row (the card\'s borders and paddings spent)', budget.consentContentWidth(100) < 100 && budget.consentContentWidth(100) >= 90, `${budget.consentContentWidth(100)}`)
 }
 

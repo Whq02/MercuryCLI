@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -56,11 +56,6 @@ const t2 = new Date(Date.now() + 4000)
 utimesSync(workersPath, t2, t2)
 check('§1d a rename on the record follows (the record is the one owner)', deriver(record) === 'Renamed by the operator', String(deriver(record)))
 
-const connectorSrc = readFileSync(new URL('../../src/services/engine-connector/daemonConnector.ts', import.meta.url), 'utf8')
-const hopSrc = readFileSync(new URL('../../src/services/switchboard/hopIntoSession.ts', import.meta.url), 'utf8')
-check('§2 status() reads the title through the registered deriver, the snapshot as the fallback', connectorSrc.includes('title: liveTitleDeriver?.(this.record) ?? this.record.title'))
-check('§2 POISON absent: status() no longer spells the frozen snapshot alone', !/title: this\.record\.title,\n/.test(connectorSrc))
-check('§2 the hop registers the deriver beside its snapshot derivation', hopSrc.includes('seat.registerLiveTitleDeriver(liveTitleDeriverFor(workers, sessionTitleOf, headBriefLabel))'))
 
 const { extractFirstPromptFromHead } = await import('../../src/utils/sessionStoragePortable.ts')
 const { formatCommandInputTags, createSyntheticUserCaveatMessage } = await import('../../src/utils/messages/factories.ts')

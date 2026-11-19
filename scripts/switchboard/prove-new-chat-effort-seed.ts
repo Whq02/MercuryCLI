@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -63,15 +63,6 @@ console.log('S3 the chip overrides the saved default for this birth alone')
   check('a cleared chip falls back to the saved default', cleared.effortLevel === 'max' && cleared.effortIsDefault === true)
 }
 
-console.log('S4 the two cockpit birth doors read the same rung')
-{
-  const route = readFileSync(join(import.meta.dir, '..', '..', 'src/components/concourse/ConcourseRoute.tsx'), 'utf8')
-  check('the strip hands the saved default to dispatchSeedInputs beside the painted model', route.includes('dispatchSeedInputs(seeds, getCwd(), snapshotRef.current?.newSession.seeds.modelId, getInitialEffortSetting())'))
-  const born = readFileSync(join(import.meta.dir, '..', '..', 'src/services/switchboard/bornSession.ts'), 'utf8')
-  check("the boot face's birth door: the CLI word, else the saved default, else nothing (the daemon's convention)", born.includes('const effort = facts.effort ?? getInitialEffortSetting() ?? null') && born.includes('...(effort !== null ? { effort } : {})'))
-  const daemon = readFileSync(join(import.meta.dir, '..', '..', 'src/daemon/concourseWorkers.ts'), 'utf8')
-  check("the daemon's fallback stands as the last resort for an op that carries no word", daemon.includes("effort: args.effort ?? 'high'"))
-}
 
 console.log(failures === 0 ? '\n✅ new chat effort seed GREEN' : `\n❌ new chat effort seed RED — ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

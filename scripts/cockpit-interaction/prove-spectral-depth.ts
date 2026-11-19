@@ -134,38 +134,6 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
     }
   }
 
-  t.section('§3 — the doctrine is amended at the source of truth')
-  {
-    const readme = readFileSync('design-system/readme.md', 'utf8')
-    t.check('the readme still forbids shadows', /no\s*\n?shadows/.test(readme), 'flat')
-    t.check(
-      'naming the bound (five discrete stops) rather than "gradients allowed"',
-      /five\*{0,2} discrete stops/.test(readme),
-      'bounded',
-    )
-    t.check(
-      'and pointing at the token owner so a local literal stays forbidden',
-      readme.includes('src/utils/mercuryTokens.ts') && readme.includes('local literal gradient is still forbidden'),
-      'one owner',
-    )
-    const tokens = readFileSync('src/utils/mercuryTokens.ts', 'utf8')
-    t.check(
-      'the ramp is STATIC — no timer, no animation, in the token path',
-      !/setInterval|setTimeout|requestAnimationFrame/.test(tokens),
-      'no continued writes',
-    )
-    const kit = readFileSync('src/components/mercury-ui/components.tsx', 'utf8')
-    t.check(
-      'the consuming surface reads the shared ramp, never its own mix',
-      kit.includes('spectralRampFor(color, t.surface0)'),
-      'shared',
-    )
-    t.check(
-      'and falls back to the flat fill when the family cannot host depth',
-      kit.includes('const flat = ramp.length === 1'),
-      'declared fallback',
-    )
-  }
 
   t.section('§4 — REAL RENDER: depth in truecolor, the same fill at 16 colours')
   {

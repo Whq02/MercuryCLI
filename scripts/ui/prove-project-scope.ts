@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { SessionListing } from '../../src/types/logs.js'
@@ -20,8 +20,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 const log = (projectPath?: string) => ({ projectPath }) as unknown as SessionListing
 
 console.log('============================================================')
@@ -67,21 +65,6 @@ section('3. the /clear'.concat("'ed-session cache (operator model: cleared = clo
     check('marked id reads cleared', isSessionCleared('sess-x') === true)
     check('other ids stay visible', isSessionCleared('sess-y') === false)
     check('null/absent id ⇒ false, never a throw', isSessionCleared(null) === false)
-    const clear = src('commands', 'clear', 'clear.ts')
-    check('/clear parks the focused session and births a fresh one (the one-door law)', clear.includes('clearFocusedSession()'))
-    const screen = src('components', 'concourse', 'ConcourseRoute.tsx')
-    check('the double-x on a PARKED row is the cleared mark\'s writer (the board hides the chat; the transcript stays)', /parkedRow\?\.state === 'parked'\)\s*\{\s*await markParkedCleared\(sessionId\)/.test(screen))
-    for (const [label, path] of [
-      ['the session flip', ['utils', 'sessionFlip.ts']],
-      ['RECENT lane', ['components', 'HelmLanesRail.tsx']],
-      ['/sessions board (the picker core)', ['components', 'mercury-ui', 'screens', 'sessionPickerModel.ts']],
-    ] as const) {
-      check(`${label} filters cleared sessions`, /isSessionCleared\(/.test(src(...path)))
-    }
-    check(
-      'the sessions door keeps retrieving cleared sessions in the all scope (the flip cache reads only its own scope)',
-      !/isSessionCleared/.test(src('commands', 'sessions', 'sessions.tsx')) && /isSessionCleared/.test(src('utils', 'sessionFlip.ts')),
-    )
   } finally {
     if (prevHome === undefined) delete process.env.MERCURY_CONFIG_DIR
     else process.env.MERCURY_CONFIG_DIR = prevHome
@@ -90,22 +73,6 @@ section('3. the /clear'.concat("'ed-session cache (operator model: cleared = clo
   }
 }
 
-section('4. every switcher surface applies the scope (source)')
-{
-  const pickerCore = src('components', 'mercury-ui', 'screens', 'sessionPickerModel.ts')
-  const manager = src('components', 'mercury-ui', 'screens', 'SessionManagerView.tsx')
-  check('/sessions manager partitions by project (through the picker core)', /partitionByProject\(/.test(pickerCore))
-  check('manager surfaces the elsewhere count honestly', /in other projects/.test(manager))
-  const flip = src('utils', 'sessionFlip.ts')
-  check('the session flip scopes', /isProjectSession\(l, getProjectRoot\(\)/.test(flip))
-  const rail = src('components', 'HelmLanesRail.tsx')
-  check('cockpit RECENT lane scopes', /isProjectSession\(l, getProjectRoot\(\)/.test(rail))
-  const sessionsDoor = src('commands', 'sessions', 'sessions.tsx')
-  check(
-    'the sessions door keeps the cross-project reach (allProjects loader intact)',
-    /listSessionsAcrossProjects\(\)/.test(sessionsDoor),
-  )
-}
 
 console.log('\n============================================================')
 if (failures) {

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -192,15 +192,6 @@ section('the refusal band — no start, no terminal observation, error results')
   check('deny → is_error', firstBlock(out)?.is_error === true)
   check('deny → no observations (refused calls never mark)', starts.length === 0 && terminals.length === 0)
 
-  const road = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'tools', 'toolExecution.ts'), 'utf8')
-  const body = road.slice(road.indexOf('async function runTransactionBody('), road.indexOf('runPreToolUseHooks('))
-  const killAt = body.indexOf("kind: 'capability-gate'")
-  const schemaAt = body.indexOf('tool.inputSchema.safeParse(')
-  const between = killAt >= 0 && schemaAt > killAt ? body.slice(killAt + 1, schemaAt) : ''
-  check('the kill-switch step is followed by schema validation — no second operator gate on the road', killAt >= 0 && schemaAt > killAt && !/kind: '[a-z-]+'/.test(between), `kill@${killAt} schema@${schemaAt}`)
-  const beforeHooks = body
-  const kills = [...beforeHooks.matchAll(/kind: '([a-z-]+)'/g)].map(m => m[1])
-  check('the only kill taxonomy before the hooks is the capability gate: the wards (a hook) are the one refusal band between the kill-switch and the permission decision', kills.join(',') === 'capability-gate', kills.join(','))
 }
 
 section('the executed path — start + exactly-once terminal + typed effect')

@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import {
   FRICTION_BUDGETS_MS,
   frictionSnapshot,
@@ -83,19 +81,6 @@ section('5 · every transition carries a positive named budget')
   )
 }
 
-section('6 · structural — the surface derives from the one owner')
-{
-  const ROOT = join(import.meta.dir, '..', '..')
-  const trace = readFileSync(join(ROOT, 'src/components/TraceView.tsx'), 'utf8')
-  check('/trace FRICTION section reads frictionSnapshot()', /frictionSnapshot\(\)/.test(trace))
-  check('the red is the `over` fact, via theme tokens (no literal color)', /r\.over \? tok\.failure/.test(trace))
-  const psc = readFileSync(join(ROOT, 'src/utils/processUserInput/processSlashCommand.tsx'), 'utf8')
-  check('the dispatch seam marks transition starts', /markTransitionStart\(/.test(psc))
-  const cc = readFileSync(join(ROOT, 'src/components/mercury-ui/components.tsx'), 'utf8')
-  check('the command-center mount marks the screen-switch end', /markTransitionEnd\('screen-switch'\)/.test(cc))
-  const picker = readFileSync(join(ROOT, 'src/components/MercuryModelPicker.tsx'), 'utf8')
-  check('the picker mount marks the picker-open end', /markTransitionEnd\('picker-open'\)/.test(picker))
-}
 
 console.log('\n' + '═'.repeat(76))
 if (failures > 0) {

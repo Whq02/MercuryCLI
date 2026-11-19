@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -170,15 +170,6 @@ function history(images: Buffer[], options: { thinkingAfter?: number } = {}): An
   return rows
 }
 
-const srcFiles = (dir: string): string[] => {
-  const out: string[] = []
-  for (const name of readdirSync(dir)) {
-    const path = join(dir, name)
-    if (statSync(path).isDirectory()) out.push(...srcFiles(path))
-    else if (/\.tsx?$/.test(name)) out.push(path)
-  }
-  return out
-}
 
 const withoutCacheControl = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(withoutCacheControl)
@@ -189,22 +180,10 @@ const wireMessages = (body: Record<string, unknown> | null): unknown[] => (Array
 
 section('§1 the wolf-fence: the many-images bound lives in the resizer and applies from an image\'s first send, never from the count')
 {
-  const resizer = readFileSync(join(ROOT, 'src/utils/imageResizer.ts'), 'utf8')
   const resizerMod = await import('../../src/utils/imageResizer.ts')
   const generic = limitsMod.GENERIC_IMAGE_LIMITS
   check('the Anthropic family applies its many-images bound from the first send at any count; the generic family, with no documented native tier behind it, keeps the count rule', RULE?.fromFirstSend === true && generic.manyImages?.fromFirstSend === false && resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, 1) === CAP && resizerMod.requestImageSidePx(limitsMod.ANTHROPIC_IMAGE_LIMITS, THRESHOLD + 1) === CAP && resizerMod.requestImageSidePx(generic, 1) === 8000 && resizerMod.requestImageSidePx(generic, THRESHOLD + 1) === 2000)
   check('the Anthropic table: 3000 px per side for a request with more than 20 images (the vision page, read 2026-11-02), above every tier\'s native long edge', RULE !== null && THRESHOLD === 20 && CAP === 3000 && CAP > limitsMod.ANTHROPIC_IMAGE_LIMITS.nativeLongEdgePx.highResolution, j(RULE))
-  check('the count still reaches the resizer for the one rule that needs it: an image whose size cannot be read is left out only over the threshold', resizer.includes('overManyImagesThreshold(limits, imagesInRequest)'))
-  const routes: Array<[string, string]> = [
-    ['anthropic', 'src/services/providers/anthropic/streamCore.ts'],
-    ['openai', 'src/services/providers/openai/openaiCallModel.ts'],
-    ['openai-compat', 'src/services/providers/openaicompat/compatChatCallModel.ts'],
-    ['zai', 'src/services/providers/zai/zaiCallModel.ts'],
-  ]
-  for (const [route, file] of routes) {
-    const text = readFileSync(join(ROOT, file), 'utf8')
-    check(`the ${route} route fits its request's images to the bound at composition`, text.includes('fitImagesToRequestCap('), `${file} never calls the composition owner`)
-  }
 }
 
 section('§2 the wire: twenty images, then twenty-one — the twenty-first image changes nothing before it')

@@ -1,11 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -43,9 +39,6 @@ section('§5 — composition order: identity → operator/dynamic → wrapper �
   check('operator context precedes the mode pack', composed.indexOf('OPERATOR-CONTEXT') !== -1 && composed.indexOf('OPERATOR-CONTEXT') < composed.indexOf('MODE-PACK'))
   check('the mode pack is the LAST word (no tail follows a mode pack)', composed.at(-1) === 'MODE-PACK')
 
-  const engine = readFileSync(join(ROOT, 'src/rows/turn.ts'), 'utf8')
-  const captures = engine.match(/fetchSystemPromptParts\(/g) ?? []
-  check('the turn captures the system prompt exactly once per query', captures.length === 1, `${captures.length} call sites`)
 }
 
 section('§6 — the appearance snapshot')

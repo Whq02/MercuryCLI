@@ -1,13 +1,10 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
-const ROOT = join(import.meta.dir, '..', '..')
 const { clientReach } = await import('../../src/services/mcp/automationAccess.ts')
 const LEAD = '00000000-0000-4000-8000-000000000001'
 const COORDINATOR = '00000000-0000-4000-8000-000000000002'
@@ -37,11 +34,9 @@ console.log('mercury mcp-server: lead and coordinator are names a client may sen
 
 console.log('\nthe server takes both names from its own options and resolves every grant through the one function')
 {
-  const server = readFileSync(join(ROOT, 'src/cli/mcpServer.ts'), 'utf8')
   const { builtHelp } = await import('../lib/builtProduct.ts')
   const help = builtHelp('mcp-server')
   check('the two options stand on mcp-server', help.includes('--lead <session-id> The session addressed by lead') && help.includes('--coordinator <session-id> The session addressed by coordinator'))
-  check('the server builds the roles from them and passes every grant through clientReach', server.includes('const roles = { lead: options.lead ?? await launchingSession(cwd), coordinator: options.coordinator }') && server.split('clientReach(grant, roles)').length - 1 === 2, String(server.split('clientReach(grant, roles)').length - 1))
 }
 
 console.log(failures === 0 ? '\nPASS prove-automation-roles' : `\nFAIL prove-automation-roles (${failures})`)

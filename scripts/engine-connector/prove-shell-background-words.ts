@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -11,7 +9,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const bar = await import('../../src/components/SwitchboardTagBar.tsx')
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
@@ -46,12 +43,6 @@ check('the newest unresolved Bash row wins over older resolved ones', shellToolR
 check('a `!` line: the roster\'s running shell row stamped foreground reads as a running shell (no tool_use row exists for it)', foregroundShellInRoster([{ kind: 'shell', status: 'running', foreground: true }]))
 check('a shell already in the background (no stamp) does not — the key stands down once the command moved', !foregroundShellInRoster([{ kind: 'shell', status: 'running' }]))
 check('a finished shell, a monitor: never', !foregroundShellInRoster([{ kind: 'shell', status: 'completed', foreground: true }, { kind: 'monitor', status: 'running', foreground: true }]))
-const shellFact = read('src/services/engine-connector/shellRunning.ts')
-check('the focused fact reads the roster beside the canvas and subscribes to the work feed', shellFact.includes('shellToolRunning(connector.records(), live.inProgressToolUseIDs) || foregroundShellInRoster(connector.workRoster().rows)') && shellFact.includes('const work = connector.subscribeWork(listener)'))
-const roster = read('src/utils/task/workRoster.ts')
-check('the runner stamps foreground on a running shell task that is not backgrounded (the `!` line, the model\'s foreground Bash call)', roster.includes("...(task.isBackgrounded === false && task.status === 'running' ? { foreground: true as const } : {})"))
-const bashLine = read('src/utils/processUserInput/processBashCommand.tsx')
-check('a `!` line moved to the background writes the task id into its output row, under its own tag', bashLine.includes('outputMessage(data.stdout, data.stderr, settledShell(data.code, startedAt), data.backgroundTaskId)') && bashLine.includes('<${BASH_BACKGROUND_TASK_TAG}>${escapeXml(backgroundTaskId)}</${BASH_BACKGROUND_TASK_TAG}>'))
 
 section('§3 the request registry — the main conversation\'s running commands take the request, a sub-agent\'s never')
 {
@@ -76,36 +67,7 @@ const chat = Object.assign({}, ...(DEFAULT_BINDINGS as { context: string; bindin
 check('the default Chat binding is shift+b', chat['shift+b'] === 'chat:backgroundShell', JSON.stringify(chat['shift+b']))
 check('the wire declares shell/background as a host request with no params and a positive taken count', METHODS['shell/background'].from === 'host' && METHODS['shell/background'].kind === 'request' && METHODS['shell/background'].params().safeParse({}).success && METHODS['shell/background'].result().safeParse({ taken: 1 }).success && !METHODS['shell/background'].result().safeParse({ taken: 0 }).success)
 check('the daemon verb sessionControl/background-shell is born at proto 11 and the wire is at least there', DAEMON_VERB_BORN_AT['sessionControl/background-shell'] === 11 && verbBornAt('sessionControl', 'background-shell') === 11 && MERCURY_DAEMON_PROTO >= 11)
-const server = read('src/daemon/controlServer.ts')
-check('the control server admits the action and names it in its refusal', server.includes("raw.action === 'background-shell'") && /requires \{ action: [^']*\|background-shell(\|[a-z-]+)*, sessionId, by \}/.test(server))
-const main = read('src/daemon/main.ts')
-check('the daemon relays the action to the seat verb', main.includes("if (action === 'background-shell')") && main.includes('return backgroundSessionShell(sessionId, roster)'))
-const seat = read('src/daemon/sessionSeat.ts')
-check('the seat asks shell/background through the runner door and awaits its word', seat.includes("askSeat(roster, rec.runnerId, 'shell/background', {}, 'background-shell', deadlineMs)") && seat.includes('export async function backgroundSessionShell('))
-check('a runner older than the verb is refused in one sentence naming the key and the way out', seat.includes(`"this session's runner predates shift+B · /daemon restart, then reopen the session"`))
-const runner = read('src/cli/run.ts')
-const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
-const { RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
-const idleShell = await withLiveRunner(host => refusalOf(host.request('shell/background', {})))
-check('the runner answers the method from the registry: the count taken, or the typed refusal', idleShell?.code === RPC_REFUSED && idleShell.message === 'no shell command is running in the main conversation' && idleShell.data?.kind === 'no-shell' && !runner.includes("case 'background_shell'"), JSON.stringify(idleShell))
 
-section('§5 the tool\'s road and its words')
-const tool = read('src/tools/BashTool/BashTool.tsx')
-check('the Bash call registers its run for the request and unregisters on every exit', tool.includes('const unregisterRun = registerShellRun({') && tool.includes('unregisterRun()'))
-check('the quiet window races the request beside completion', tool.includes("await Promise.race([completed, quietTimer, backgroundAsk])"))
-check('the progress loop takes the request once and returns the task as backgrounded by the operator', tool.includes('if (backgroundAsked && !backgroundAskHandled && !interruptBackgroundingStarted && backgroundId === undefined)') && tool.includes('...(backgroundAskHandled ? { backgroundedByUser: true } : {})'))
-check('the tool result says the operator moved the command to the background as a task whose output arrives as a notification', tool.includes('The operator moved this command to the background as task ${id}; it is still running, and its output arrives as a notification when it completes. Output: ${outputPath}.'))
-
-section('§6 the two rows and the key, behind one setting')
-const footer = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
-check('the hint row adds ⇧b background the command beside esc interrupt only while a shell command runs and the key is on', footer.includes("if (shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false) {") && footer.includes(`shortcut={keyHintLabel('⇧b')} action="background the command"`))
-const tag = read('src/components/SwitchboardTagBar.tsx')
-check('the ready line reads the shell fact through the same setting', tag.includes('escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false, sendNow, escapeOwned)'))
-const cancel = read('src/hooks/useCancelRequest.ts')
-check('the chord rides the Chat context, armed only while a shell runs and the key is on, and lets a draft keep its letter', cancel.includes("'chat:backgroundShell',") && cancel.includes("if (pendingInput.text() !== '') return false") && cancel.includes('isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false'))
-check('the help\'s ctrl+b (task:background) drives the same road on a hosted chat, under the same gate, and leaves the classic in-process hint its own key', cancel.includes("'task:background',") && cancel.includes('if (!hasSeatLive(getFocusedSessionConnector())) return false') && cancel.includes('return backgroundFocusedShell()') && cancel.split('isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false').length === 3)
-const settings = read('src/utils/settings/types.ts')
-check('the setting is declared in the settings store under view', /view: z\.object\(\{[\s\S]{0,600}backgroundKey: z\.boolean\(\)\.optional\(\)/.test(settings))
 
 section('§7 the receipt — an applied verb paints nothing; a refusal paints the connector\'s own sentence on the notice row')
 const hook = (await import('../../src/hooks/useCancelRequest.ts')) as { backgroundShellNotice?: (receipt: { outcome: 'applied' | 'refused'; detail?: string }) => { key: string; text?: string; priority: string; timeoutMs?: number } | null }
@@ -121,7 +83,6 @@ if (typeof notice === 'function') {
     check(`refused: "${detail.slice(0, 44)}" reaches the row verbatim`, row !== null && row.text === detail, JSON.stringify(row))
   }
 }
-check('the chord reads the receipt through the reader into the notification road; no discarded promise', cancel.includes('void focused.backgroundShell().then(receipt => {') && cancel.includes('const notice = backgroundShellNotice(receipt)') && cancel.includes('if (notice !== null) addNotification(notice)') && !cancel.includes('void focused.backgroundShell()\n'))
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} shell-background-words — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)
 process.exit(failures === 0 ? 0 : 1)

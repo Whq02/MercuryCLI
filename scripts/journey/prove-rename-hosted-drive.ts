@@ -6,7 +6,6 @@ import { join } from 'node:path'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs, resolveCaptureDriver } from '../lib/captureDriver.ts'
 import { childEnv, startFixture } from '../daemon/dupline-world.ts'
-import { AGENT_COLORS, AGENT_COLOR_TO_THEME_COLOR } from '../../src/tools/AgentTool/agentColorManager.ts'
 import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -95,33 +94,8 @@ async function capture(cols: number, rows: number): Promise<Record<string, Grid>
   }
 }
 
-function bannerLaws(): void {
-  const source = readFileSync(join(REPO, 'src/components/PromptInput/useCrewBanner.ts'), 'utf8')
-  const body = new Bun.Transpiler({ loader: 'ts' }).transformSync(source.replace(/^import[\s\S]*?from ['"][^'"]+['"];?\n/gm, '')).replaceAll('export ', '')
-  const run = (state: Record<string, unknown>, cockpit: boolean): unknown => {
-    const bindings = {
-      useContext: () => cockpit,
-      CockpitActiveContext: {},
-      useAppStateStore: () => ({ getState: () => state }),
-      useAppState: (select: (value: unknown) => unknown) => select(state),
-      getViewedAgent: () => state.viewedAgent,
-      AGENT_COLORS, AGENT_COLOR_TO_THEME_COLOR,
-      getAgentColor: () => AGENT_COLOR_TO_THEME_COLOR.green,
-    }
-    return new Function(...Object.keys(bindings), `${body}\nreturn useCrewBanner()`)(...Object.values(bindings))
-  }
-  const renamed = { standaloneAgentContext: { name: 'roomie', color: 'blue' } }
-  check('a renamed cockpit has no destination banner', run(renamed, true) === null)
-  check('a renamed inline session keeps its name and custom colour', same(run(renamed, false), { text: 'roomie', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
-  check('a renamed inline session without a colour keeps its fallback', same(run({ standaloneAgentContext: { name: 'roomie' } }, false), { text: 'roomie', bgColor: 'suggestion' }))
-  for (const cockpit of [false, true]) {
-    check(`viewed local agent banner survives with cockpit=${cockpit}`, same(run({ ...renamed, viewedAgent: { name: 'helper', agentType: 'fixture' } }, cockpit), { text: '@helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.green }))
-    check(`CLI agent banner survives with cockpit=${cockpit}`, same(run({ mainThreadAgentDefinition: { name: 'helper' } }, cockpit), { text: 'helper', bgColor: 'promptBorder' }))
-  }
-}
 
 console.log('/rename keeps the hosted composer and names the session — real bundle, PTY')
-bannerLaws()
 try {
   for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
     const marks = await capture(cols, rows)

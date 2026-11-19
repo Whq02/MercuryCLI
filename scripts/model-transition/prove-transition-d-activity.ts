@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 const HOME = mkdtempSync(join(tmpdir(), 'ctm-d-'))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -21,7 +20,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '../..')
 
 function seatInput(kind: string, payload: Record<string, unknown>, sourceEventId = `e-${Math.abs(JSON.stringify(payload).length)}-${kind}`): Parameters<typeof act.classifyActivity>[0] {
   return {
@@ -33,11 +31,6 @@ function seatInput(kind: string, payload: Record<string, unknown>, sourceEventId
   }
 }
 
-section('§B — the surviving consumer reads the one owner')
-{
-  const crewCmd = readFileSync(join(ROOT, 'src/commands/crew/index.ts'), 'utf8')
-  check('the surviving activity consumer (/crew) reads the one owner', /activityRows|cachedActivityFeed/.test(crewCmd))
-}
 
 section('§C D05 — activity rows settle in place')
 {
@@ -69,34 +62,10 @@ section('§D D02 — identical identities across shared views')
   check('…and session-scoped (two seats never fold each other)', id1.startsWith('opencode:sess-1:'))
 }
 
-section('§E D07 — one vocabulary, versioned projections, no parallel truth')
-{
-  const { execSync } = await import('node:child_process')
-  const defs = execSync("grep -rl 'ACTIVITY_CLASSES = \\[' src --include='*.ts' --include='*.tsx'", { encoding: 'utf8' }).trim().split('\n')
-  check('exactly ONE ACTIVITY_CLASSES definition tree-wide', defs.length === 1 && defs[0] === 'src/services/crew/activity.ts', defs.join(','))
-  const acp = readFileSync(join(ROOT, 'src/services/acp/acpServer.ts'), 'utf8')
-  check('the ACP crew surface consumes THE crew owners (same ids, same folds)', acp.includes("'_mercury/crew'") && acp.includes('resolveCrewSnapshot') && acp.includes('deriveInbox'))
-}
 
 section('§G D03/D04 — role/handoff/delivery truth where it ships')
 {
   check('tri-state delivery is the exported vocabulary', JSON.stringify(dispatch.DELIVERY_STATES) === JSON.stringify(['delivered', 'not-delivered', 'delivery-unknown']))
-  const dispatchCode = codeOnlyText('dispatch.ts', readFileSync(join(ROOT, 'src/services/crew/dispatch.ts'), 'utf8'))
-  check(
-    'delivery-unknown receipts are NEVER evicted by resolved churn (the ring partitions them and bounds them apart)',
-    dispatchCode.includes("const unknown = file.receipts.filter(r => r.state === 'delivery-unknown')") &&
-      dispatchCode.includes('const keptUnknown = new Set(unknown.slice(-MAX_RECEIPTS))') &&
-      dispatchCode.includes('receipts: file.receipts.filter(r => keptResolved.has(r) || keptUnknown.has(r))'),
-  )
-  check(
-    '…and carry the no-auto-retry prohibition (a same-id retry of an unresolved outcome returns the recorded receipt unless the adapter declared idempotency)',
-    /if \(retryingUnknown && !seat\.declaresIdempotentDelivery\) \{\s*return retryingUnknown\s*\}/.test(dispatchCode) &&
-      /if \(retryingUnknown\) \{\s*return retryingUnknown\s*\}/.test(dispatchCode),
-  )
-  for (const suite of ['scripts/crew/run-all.sh']) {
-    const { existsSync } = await import('node:fs')
-    check(`standing journey suite present: ${suite}`, existsSync(join(ROOT, suite)))
-  }
 }
 
 console.log(

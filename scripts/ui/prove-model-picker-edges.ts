@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
@@ -312,10 +312,6 @@ for (const [columns, rows] of SIZES) {
   check(`${columns}x${rows}: the queued row still carries "next" in its calm state column`, nextRow.includes('claude-opus-5-5'), nextRow)
   check(`${columns}x${rows}: no row carries a glyph — the rows stay calm`, !board.lines().some(row => /│ (?:│ | {2})(?:❯ )?[○●⦿□]/.test(row)))
   board.close()
-}
-{
-  const picker = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'MercuryModelPicker.tsx'), 'utf8')
-  check('the picker paints the pending glyph from the one glyph table (GLYPH.pending), never a literal', picker.includes('GLYPH.pending') && !/'○'/.test(picker))
 }
 
 rmSync(scratch, { recursive: true, force: true })

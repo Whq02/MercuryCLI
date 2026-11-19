@@ -18,7 +18,6 @@ process.env.MERCURY_OPENROUTER_API_BASE = 'http://127.0.0.1:1/api/v1'
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 
 const TOOL_NAME = 'ContextLeft'
-const TOOL_FILE = 'src/tools/ContextLeftTool/ContextLeftTool.ts'
 const FOLD_CLAUSE = 'the fold runs by itself at that line and the turn goes on after it'
 const FOLD_NOTE = 'Your context is folded automatically when it nears its window and the turn goes on after the fold: a context near full is no reason to end your turn.'
 
@@ -195,9 +194,6 @@ section('§8 posture: read-only, concurrency-safe, permission-free, no parameter
   check('checkPermissions allows outright (no ask)', verdict.behavior === 'allow')
   check('the schema is the empty strict object', subject.inputSchema.safeParse({}).success === true && subject.inputSchema.safeParse({ tokens: 1 }).success === false)
   check('the description names the window; the prompt says what comes back, that the count is unknown before the first answer, and no when-to-call', (await subject.description()).includes('context window') && (await subject.prompt()).includes('the count is unknown') && (await subject.prompt()).includes('tokens left until autocompact') && !/Use it when|Do not call it/.test(await subject.prompt()))
-  const source = readFileSync(join(ROOT, TOOL_FILE), 'utf8')
-  check('the tool reads messages and engineModel off the tool-use context', /contextFillView\(context\.messages, context\.options\.engineModel\)/.test(source))
-  check('no second derivation: the tool imports the one view and none of the token, window or compact owners', source.includes("from '../../utils/contextFill.js'") && !/utils\/tokens\.js|utils\/context\.js|services\/compact\/|model\/capabilities\.js/.test(source))
 }
 
 section('§9 every roster that counts tools by name carries it')

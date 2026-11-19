@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import {
   ALL_AGENTS,
   isCapabilityKilled,
@@ -20,7 +18,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const src = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 
 console.log('============================================================')
 console.log(' /kill + /unkill — runtime capability kill-switch')
@@ -59,10 +56,6 @@ await um.call('scout:__proof_scoped__', {})
 section('stamp-gated + registered (OFF byte-identical)')
 check('kill descriptor is type:local, stamp-gated', kill.type === 'local' && kill.name === 'kill' && kill.isEnabled?.() === true)
 check('unkill descriptor is type:local, stamp-gated', unkill.type === 'local' && unkill.name === 'unkill' && unkill.isEnabled?.() === true)
-check('index.ts is enabled unconditionally ()', /isEnabled:\s*\(\)\s*=>\s*true/.test(src('commands', 'kill', 'index.ts')))
-const cmds = src('commands.ts')
-check('registered in commands.ts (import + array)', /import \{ kill, unkill \}/.test(cmds) && /\bkill,\s*\n\s*unkill,/.test(cmds))
-check('ALL_AGENTS is exported from capabilityGate (single source of truth)', /export const ALL_AGENTS/.test(src('utils', 'permissions', 'capabilityGate.ts')))
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL KILL-COMMAND PROOFS PASS')

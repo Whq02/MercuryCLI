@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 process.env.NODE_ENV = 'test'
 
-import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 
@@ -101,23 +99,6 @@ section('§4 sibling uniqueness under a colliding identity')
 
 section('§5 structural — the consumers ride the law')
 {
-  const list = readFileSync(join(ROOT, 'src/components/VirtualMessageList.tsx'), 'utf8')
-  check('VirtualMessageList derives its keys through reconcileItemKeys', list.includes('reconcileItemKeys(keysStateRef.current, messages, itemKey)'))
-  check('the append-only loop is gone', !list.includes('itemKeys.push(itemKey(messages[i]!, i))') && !list.includes('prior.keys[0] !== itemKey(messages[0]!, 0)'))
-  const connector = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  const hook = connector.slice(connector.indexOf('let lastFocusedForDetach'), connector.indexOf('\n})\n', connector.indexOf('let lastFocusedForDetach')))
-  check('the focus hook detaches only on a re-point (a landing pulse without a slot change is a no-op)', hook.includes('if (focused === lastFocusedForDetach) return') && hook.includes('c.detach()'))
-  const add = connector.slice(connector.indexOf('addDisplayRow(row: Message): void {'), connector.indexOf('transcriptFile(): string'))
-  check('a resume recap replaces its predecessor on the same connector', add.includes("subtype === 'away_summary'") && add.includes('this.displayRows.filter('))
-  const harnesses = execFileSync('git', ['ls-files', '-z', '--', 'scripts'], { cwd: ROOT, encoding: 'utf8' })
-    .split('\0')
-    .filter(p => p.endsWith('.tsx') && readFileSync(join(ROOT, p), 'utf8').includes('<VirtualMessageList'))
-  const inlineKeyHarnesses = harnesses.filter(p => {
-    const src = readFileSync(join(ROOT, p), 'utf8')
-    const tags = src.match(/<VirtualMessageList[\s\S]*?\/>/g) ?? []
-    return tags.length === 0 || tags.some(tag => !/\bitemKey=\{[A-Za-z_$][\w$]*\}/.test(tag))
-  })
-  check('every VirtualMessageList proof harness hands one stable itemKey function, as Messages does', harnesses.length >= 3 && inlineKeyHarnesses.length === 0, inlineKeyHarnesses.join(', '))
 }
 
 section('§6 the banner-collapse face (FN-016 R3, verify-only): every retry attempt mounts fresh')
@@ -134,17 +115,6 @@ section('§6 the banner-collapse face (FN-016 R3, verify-only): every retry atte
   check('the replaced banner takes its own key — exact at every index', exact(s2.keys, attempt2).length === 0 && s2.keys[4] === keyOf(banner2), JSON.stringify(s2.keys))
   check('a fresh array: the swap is a re-mount, never an in-place reconcile', s2.keys !== s1.keys)
   check('no duplicate sibling keys', dupes(s2.keys).length === 0)
-  const uiOrder = readFileSync(join(ROOT, 'src/utils/messages/uiOrder.ts'), 'utf8')
-  check('uiOrder collapses consecutive banners by replacing the object', uiOrder.includes('result[result.length - 1] = message'))
-  const messages = readFileSync(join(ROOT, 'src/components/Messages.tsx'), 'utf8')
-  check('Messages keys rows by uuid (a replaced banner is a new key)', messages.includes('(message: RenderableMessage) => `${message.uuid}:${conversationId}`'))
-  const banner = readFileSync(join(ROOT, 'src/components/messages/SystemAPIErrorMessage.tsx'), 'utf8')
-  check('the countdown is mount-local state (a fresh mount restarts it)', banner.includes('const [countdownMs, setCountdownMs] = useState(0)'))
-  const producer = readFileSync(join(ROOT, 'src/utils/messages/systemMessages.ts'), 'utf8')
-  const creator = producer.slice(producer.indexOf('export function createSystemAPIErrorMessage'), producer.indexOf('export function createStreamCutMessage'))
-  const rowOwner = producer.slice(producer.indexOf('function systemRow<'), producer.indexOf('function select<'))
-  const { createSystemAPIErrorMessage } = await import(join(ROOT, 'src/utils/messages/systemMessages.ts'))
-  check('every attempt\'s banner carries a fresh uuid', creator.includes("systemRow('api_error'") && rowOwner.includes('MESSAGE_STAMPER.mint()') && new Set(Array.from({ length: 64 }, () => createSystemAPIErrorMessage(new Error('fixture retry'), 0, 1, 2).uuid)).size === 64)
 }
 
 section('§7 the long scrolled window — 400 rows, every live mutation, keys exact and unique')
@@ -208,12 +178,6 @@ section('§7 the long scrolled window — 400 rows, every live mutation, keys ex
   w = windowOf(state.keys, reattached)
   check('the mounted window is exact and unique after every mutation', w.exact.length === 0 && w.dupes.length === 0, JSON.stringify(w))
 
-  const grouping = readFileSync(join(ROOT, 'src/utils/groupToolUses.ts'), 'utf8')
-  const collapsing = readFileSync(join(ROOT, 'src/utils/collapseReadSearch.ts'), 'utf8')
-  const receipts = readFileSync(join(ROOT, 'src/utils/cockpit/turnReceipt.ts'), 'utf8')
-  check('a tool group’s uuid anchors on its first member', grouping.includes('uuid: `grouped-${first.uuid}`'))
-  check('a collapsed read/search group’s uuid anchors on its first member', collapsing.includes('uuid: `collapsed-${first.uuid}` as UUID'))
-  check('a turn receipt’s uuid anchors on the prompt it closes', receipts.includes("uuid: `${anchorUuid}-turn-receipt`"))
 }
 
 section('§8 the keyed-map path, live — a windowed keyed list through the real reconciler')

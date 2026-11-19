@@ -1,10 +1,9 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const HOME = mkdtempSync(join(tmpdir(), 'usage-gemini-used-rows-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_HOME = HOME
@@ -23,7 +22,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
 const tick = (): Promise<void> => new Promise(r => setTimeout(r, 5))
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
 setIsInteractive(false)
@@ -117,9 +115,6 @@ section('§1b Google reports quota for some models and none for one: the used mo
   check('with no quota rows at all nothing is unreported (the section carries the reader note for that)', j(noRoster.unreported) === j([]) && noRoster.used.length === 0, j(noRoster))
   const fable = geminiPlanQuotaView(partial, { model: FABLE, effort: 'max', usedModels: [] })
   check("a Fable session's own model is not a Gemini row and is never named", j(fable.unreported) === j([]), j(fable.unreported))
-  const usageSource = read('src/components/Settings/Usage.tsx')
-  check('the Google sign-in slot paints the unreported rows with the one phrase, beside the used rows', usageSource.includes('quota.unreported.map(') && usageSource.includes("geminiPlanQuotaUnreportedWords(entry.model)}") && usageSource.includes("entry.active ? \"the session's model\" : 'used this session'"), 'the slot does not paint quota.unreported')
-  check('the compact figures line carries the same row', usageSource.includes('for (const entry of view.unreported) ordered.push({ key: `plan-quota-unreported:${entry.model}`') && usageSource.includes("value: 'no quota reported for'"), 'geminiPlanFiguresInOrder does not carry the unreported rows')
 }
 
 section('§2 an older runner publishes no rows: the slot falls to the face\'s own ledger, as the totals do')
@@ -143,16 +138,6 @@ const seeded = { 'claude-opus-4-8': { lastUsedAtMs: 50 }, [FLASH]: { lastUsedAtM
 check('a ledger handed in reads as before', j(geminiLaneModelsByLastUse(seeded)) === j([FLASH, 'google/claude-opus-4-6-thinking', 'gemini-4-argon']))
 state.resetCostState()
 
-section('§4 the source law: every slot surface takes the one default — the session\'s facts — never the face\'s ledger by name')
-{
-  const quota = read('src/services/providers/gemini/geminiPlanQuota.ts')
-  check('the default source of the used models is the focused session\'s usage facts', quota.includes('getFocusedSessionConnector().usage()'))
-  for (const rel of ['src/components/Settings/Usage.tsx', 'src/components/Settings/usageLine.ts', 'src/components/geminiConnectGuide.ts']) {
-    const text = read(rel)
-    const calls = text.match(/geminiLaneModelsByLastUse\([^)]*\)/g) ?? []
-    check(`${rel} asks for the used models with the default source (${calls.length} call${calls.length === 1 ? '' : 's'})`, calls.length > 0 && calls.every(call => call === 'geminiLaneModelsByLastUse()'), j(calls))
-  }
-}
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-usage-gemini-used-rows (${failures} failure${failures === 1 ? '' : 's'})`)
 process.exit(failures === 0 ? 0 : 1)

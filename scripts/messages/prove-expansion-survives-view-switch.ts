@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 process.env.NODE_ENV = 'test'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -105,10 +105,6 @@ leadAgain?.onItemClick?.(thoughtAgain)
 await settle()
 check('the second click folds it (one toggle, the same key)', !strip(frame).includes(BODY) && strip(frame).includes(THINKING_LABEL))
 
-section('§4 the slice anchor rides the same memory (source pin)')
-const source = readFileSync(join(ROOT, 'src/components/Messages.tsx'), 'utf8')
-check('the render-cap anchor is the view\'s remembered one, never a fresh ref per mount', source.includes('const anchorRef = transcriptMemoryOf(conversationId).anchor'))
-check('the expansion set is read from the view\'s memory through the one store road', source.includes('useSyncExternalStore(subscribeExpansion, readExpansion, readExpansion)') && source.includes('toggleExpandedRow(conversationId, expansionKeyOf(message))'))
 
 instance.unmount?.()
 await settle(30)

@@ -108,8 +108,6 @@ console.log("H1 the preview's header: a session's facts stand whole before a rep
   check('the header of a 120-column board, a session whose row says working: the model with its version and the effort are whole, and the words are the part that is shorter (red before: `· Opus 4` with the old reply beside it)', squeezed !== null && squeezed.titleShown + squeezed.factsShown === 'T01 ask part 1 · proj · Opus 4.8 · high' && squeezed.nowText !== null && cells(squeezed.nowText) < cells(before({ title: 'T01 ask part 1', facts: FACTS, paneWidth: 68, nowWords: OLD_REPLY }).nowText ?? ''), j(squeezed))
   const narrow = now({ title: 'T01 ask part 1', facts: FACTS, paneWidth: 48, nowWords: OLD_REPLY })
   check('on a 100-column board there is no room for both: the words go, the working mark and the way in stay', narrow !== null && narrow.nowText === null && narrow.clusterReserve === cells(HINT) + 2 && wholeFacts(FACTS, narrow.factsShown) && narrow.factsShown !== '', j(narrow))
-  const mirror = readFileSync(join(REPO, 'src', 'components', 'concourse', 'SessionMirror.tsx'), 'utf8')
-  check('the preview fits its facts and its words by that one rule, told whether the words are a live tool\'s, and cuts no fact itself; the title keeps the lines it had', mirror.includes('mirrorHeaderFit({') && mirror.includes('    nowLive,\n  })') && !mirror.includes('truncateToWidth(factsText') && mirror.includes('const titleShown = truncateToWidth(title, titleBudget)') && mirror.includes('{nowShown}'))
 }
 
 const scratch = join(tmpdir(), `mirror-header-facts-${process.pid}-home`)

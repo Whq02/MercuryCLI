@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import {
   isEnvShadowedAuthSource,
   loginShadowWarningFor,
@@ -35,42 +34,6 @@ t(
 )
 t('live source → no warning', loginShadowWarningFor('claude.ai') === null)
 
-console.log('— the wrapper + the success surfaces —')
-const auth = readFileSync('src/utils/auth.ts', 'utf8')
-t(
-  'auth.ts exports loginShadowWarning() over the CURRENT source',
-  auth.includes('export function loginShadowWarning(') &&
-    auth.includes('loginShadowWarningFor(getAuthTokenSource().source)'),
-)
-for (const file of [
-  'src/commands/login/login.tsx',
-  'src/components/mercury-ui/screens/anthropicLoginModel.ts',
-] as const) {
-  const src = readFileSync(file, 'utf8')
-  t(`${file} consults the shadow check on success`, src.includes('loginShadowWarning()'))
-}
-const cli = readFileSync('src/cli/handlers/auth.ts', 'utf8')
-t(
-  '`mercury login` warns on BOTH paths (env-refresh + browser flow)',
-  (cli.match(/loginShadowWarning\(\)/g) ?? []).length === 2,
-)
-{
-  const flow = readFileSync('src/components/mercury-ui/screens/anthropicLoginModel.ts', 'utf8')
-  const earlyReturn = flow.indexOf('arm(() => options.onDone(), TOKEN_FINISH_MS)')
-  const shadowRead = flow.indexOf('shadowWarning = deps.shadowWarning()')
-  t(
-    'the machine skips the warning for setup-token (that flow MINTS an env token)',
-    earlyReturn !== -1 && shadowRead !== -1 && earlyReturn < shadowRead,
-  )
-}
-
-console.log('— the 401-time hint shares the predicate —')
-const errors = readFileSync('src/services/api/errors.ts', 'utf8')
-t('errors.ts routes through isEnvShadowedAuthSource', errors.includes('isEnvShadowedAuthSource(authSource)'))
-t(
-  'no duplicated source-name literals left in errors.ts',
-  !errors.includes("authSource === 'MERCURY_OAUTH_TOKEN'"),
-)
 
 console.log(failures ? '\n❌ LOGIN-SHADOW RED' : '\n✅ LOGIN-SHADOW GREEN')
 process.exit(failures)

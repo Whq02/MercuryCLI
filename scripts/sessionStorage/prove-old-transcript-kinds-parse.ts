@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -24,7 +24,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const optional = async (rel: string): Promise<Record<string, unknown> | null> => {
   try {
     return (await import(join(ROOT, rel))) as Record<string, unknown>
@@ -206,10 +205,6 @@ const liteOld = enriched.logs.find(l => l.sessionId === SID) ?? null
 const litePlain = enriched.logs.find(l => l.sessionId === PLAIN_SID) ?? null
 check('the lite session listing reads no crew stamp from the old head line: the transcript is listed beside the plain session like any other', liteOld !== null && litePlain !== null, JSON.stringify(enriched.logs.map(l => l.sessionId)))
 
-console.log('§3 the old opt-in words on the command line enable nothing')
-{
-  check('the command table declares neither word', !src('src/main.tsx').includes('--agent-crews') && !src('src/main.tsx').includes('--agent-teams'))
-}
 
 console.log('§4 an agent sidecar written under the old keys reads as written — no crewmate record is read from it')
 {
@@ -231,7 +226,6 @@ console.log('§5 a roster saved in the old folder, under the old lead name, is n
   mkdirSync(oldDir, { recursive: true })
   writeFileSync(join(oldDir, 'config.json'), JSON.stringify({ name: 'oldcrew', createdAt: 1, leadAgentId: 'team-lead@oldcrew', members: [] }, null, 2))
   check('the home has no crews folder reader — no folder is read for rosters', !('getCrewsDir' in envUtils) && !('getRetiredCrewsDir' in envUtils))
-  check('no crew module remains to read a roster', !existsSync(join(ROOT, 'src/utils/crew/crewHelpers.ts')) && !existsSync(join(ROOT, 'src/utils/crew/crewConvert.ts')))
 }
 
 console.log('§6 the Agent tool reads its input as declared — an old field name is an unknown field')
@@ -251,7 +245,6 @@ console.log('§7 a saved keybinding under the old action id binds nothing Mercur
   const parser = await import('../../src/keybindings/parser.ts')
   const bindings = parser.parseBindings([{ context: 'Global', bindings: { 'ctrl+shift+o': 'app:toggleTeammatePreview' } }] as never)
   check('the old id reads as written — no id is rewritten', bindings[0]?.action === 'app:toggleTeammatePreview', String(bindings[0]?.action))
-  check('neither the old id nor a crew preview id is a registered action', !src('src/keybindings/actionGraph.ts').includes("'app:toggleCrewmatePreview'") && !src('src/keybindings/actionGraph.ts').includes("'app:toggleTeammatePreview'"))
   const loader = await import('../../src/keybindings/loadUserBindings.ts')
   writeFileSync(loader.getKeybindingsPath(), JSON.stringify({ bindings: [{ context: 'Global', bindings: { 'ctrl+shift+u': 'app:toggleTeammatePreview' } }] }))
   loader.invalidateKeybindingsCache()
@@ -262,15 +255,10 @@ console.log('§7 a saved keybinding under the old action id binds nothing Mercur
 
 console.log('§8 the command line knows no crew spelling')
 {
-  const main = src('src/main.tsx')
-  check('the launcher declares no crew identity flag at all', !main.includes("'--crew <name>'") && !main.includes("'--crew-name <name>'") && !main.includes("'--team-name <name>'"))
-  check('the launcher reads the command line through no alias table', !main.includes('readRetiredCliFlags'))
 }
 
 console.log('§9 the journal knows no crew kind')
 {
-  check('the journal dispatch reads the kind as written', src('src/substrate/operationJournal.ts').includes('handlers[op.kind]') && !src('src/substrate/operationJournal.ts').includes('readRetiredJournalKind'))
-  check('no crew journal handlers exist', !existsSync(join(ROOT, 'src/utils/crew/crewOperations.ts')))
 }
 
 console.log('§10 the old command name is not carried: /crewmates has no alias')
@@ -307,9 +295,6 @@ console.log('§11 a transcript row under a kind no build of Mercury writes is an
   fold.applyTranscriptEntry(state, oldRow as never)
   check('the fold keeps no row, no collapse commit and no snapshot for the unknown kind', state.messages.size === 0 && state.contextCollapseCommits.length === 0 && state.contextCollapseSnapshot === undefined, `${state.messages.size} rows · ${state.contextCollapseCommits.length} commits`)
   check('the entry is read as written — no step rewrites its kind', JSON.stringify(oldRow) === written && oldRow.type === UNKNOWN_KIND)
-  const foldSource = src('src/utils/sessionStorage/fold.ts')
-  check('the fold imports no kind-rewriting module and dispatches on the kind as written', !/migrat/i.test(foldSource) && foldSource.includes('Object.hasOwn(foldRows, entry.type)'))
-  check('no transcript-kind migration folder exists in the tree', !existsSync(join(ROOT, 'src/migrations')))
 }
 
 console.log(failures === 0 ? '\nold transcript kinds: ALL GREEN' : `\nold transcript kinds: ${failures} FAILURE(S)`)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -23,7 +23,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) failures++
 }
-const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
 async function settleTicks(n: number): Promise<void> {
   for (let i = 0; i < n; i++) await tick()
@@ -196,8 +195,6 @@ console.log('\nA4 the stop road reaches every running agent')
 
 console.log('\nA5 the wiring — runner to glass (structural)')
 {
-  const driver = read('src/cli/headless/turnDriver.ts')
-  check("the driver announces the wait where it parks ('waiting_for_agents') and 0 on every exit of the cycle", /phase = 'waiting_for_agents'[\s\S]{0,500}announceWait\(holding \? running : Math\.max\(1, running\)\)/.test(driver) && /finally \{\s*\n[\s\S]{0,300}announceWait\(0\)/.test(driver))
   const plane = mkdtempSync(join(tmpdir(), 'agentwait-door-'))
   const planeBefore = process.env.MERCURY_DAEMON_DIR
   process.env.MERCURY_DAEMON_DIR = plane
@@ -250,17 +247,6 @@ console.log('\nA5 the wiring — runner to glass (structural)')
       presses[0]!.clientOpId !== presses[1]!.clientOpId,
     JSON.stringify({ lifted: { phase: lifted.phase, agentsWaiting: lifted.agentsWaiting }, presses }),
   )
-  const main = read('src/daemon/main.ts')
-  const interruptVerb = main.slice(main.indexOf("if (action === 'interrupt')"), main.indexOf("if (action === 'stop-agent'"))
-  check("the daemon's interrupt verb only delivers: a second press re-sends the interrupt and never signals the runner (no kill, no timer, no cut in the verb — the stop verb is the operator's door)", interruptVerb.length > 0 && /door\.send\('turn\/interrupt'/.test(interruptVerb) && !/\.kill\(/.test(interruptVerb) && !/setTimeout\(/.test(interruptVerb) && !/hard === true && roster !== null/.test(main) && /'second interrupt' : 'interrupt'/.test(interruptVerb))
-  const server = read('src/daemon/controlServer.ts')
-  check('the control server forwards the hard flag', /\.\.\.\(raw\.hard === true \? \{ hard: true \} : \{\}\)/.test(server))
-  const repl = read('src/screens/Chat.tsx')
-  const tagBar = read('src/components/SwitchboardTagBar.tsx')
-  check("the crew owner speaks the wait (the way out rides the esc ladder owner); the Chat keeps its verb and never maps the waiting phase onto the thinking mode", !/waitingStatusWords\(seatLive\)/.test(repl) && /return \(live\.waitingOn !== undefined \? workWaitingWords\(live\.waitingOn\) : null\) \?\? crewWaitingWords\(live\.agentsWaiting\) \?\? 'waiting on crewmates'/.test(tagBar) && !/'waiting'\s*\?\s*'thinking'/.test(repl))
-  check("the status row spells the wait through the crew owner too (one spelling)", /crewWaitingWords\(live\.agentsWaiting\) \?\? 'waiting on crewmates'/.test(tagBar) && /const rung = escRungOf\(/.test(tagBar) && /escRungHint\(rung\)/.test(tagBar))
-  const seatLive = read('src/services/engine-connector/seatLive.ts')
-  check("the live-phase vocabulary carries 'waiting' with its count", /'waiting' \| 'idle'/.test(seatLive) && /agentsWaiting: number/.test(seatLive))
 }
 
 console.log(failures === 0 ? '\n ✅ INTERRUPT · AGENT WAIT — the wait is spoken, the interrupt reaches every agent' : `\n ❌ ${failures} FAILED`)

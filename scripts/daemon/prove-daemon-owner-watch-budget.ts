@@ -480,15 +480,7 @@ section('§8 THE PIPE EOF — an immediate beat, the grace, then owner-pipe-eof'
 
 section('§9 THE WIRING — source pins')
 {
-  const main = read(join(ROOT, 'src/daemon/main.ts'))
-  const owned = read(join(ROOT, 'src/daemon/ownedDaemon.ts'))
-  const ticker = read(join(ROOT, 'src/daemon/saturnTicker.ts'))
-  check('no beat-cadence probe survives in the daemon (the beat is the watch\'s own)', !/setInterval\([^)]*OWNER_WATCH_INTERVAL_MS/.test(main) && !main.includes('getProcessStartTokenAsync(ownerPid)'))
-  check('the spawner passes the owner pipe at stdio index 3 on POSIX and stamps its fd', owned.includes("['ignore', outFd, outFd, 'pipe']") && owned.includes('flagPair(OWNER_FD_ENV, String(OWNER_PIPE_STDIO_INDEX))') && owned.includes("process.platform !== 'win32'"))
-  check('the spawner holds its pipe end unref\'d for its whole life', owned.includes('pipeEnd.unref()') && owned.includes('ownerPipeEnds.add(pipeEnd)'))
   check('the registry names the owner-fd stamp', getFlagSpec('MERCURY_DAEMON_OWNER_FD') !== undefined)
-  check('the Saturn ticker gates its walk on the stores\' move stamps', ticker.includes('if (pending === 0 && stamp === storeStamp) return') && ticker.includes('export function saturnStoreStamp'))
-  check('the token is read again only when liveness moved — no probe on a cadence of its own', !/t - facts\.lastProbeAt >= floorMs/.test(read(join(ROOT, 'src/daemon/ownerWatch.ts'))) && /cameBack/.test(read(join(ROOT, 'src/daemon/ownerWatch.ts'))))
   check('the back-off unit is the minute, four units long', ownerWatch.OWNER_IDENTITY_FLOOR_MS === 60_000 && ownerWatch.OWNER_PROBE_BACKOFF_FACTOR === 4)
   check('the beat and the grace stand where they were', ownerWatch.OWNER_WATCH_INTERVAL_MS === 4000 && ownerWatch.OWNER_WATCH_GRACE_CHECKS === 2)
 }

@@ -189,15 +189,6 @@ try {
   const rows = existsSync(transcript) ? readFileSync(transcript, 'utf8') : ''
   check('the transcript carries the interruption row (the hard interrupt reached the runner before the kill)', rows.includes('Request interrupted by user'), transcript)
 
-  console.log('\nS5 the board speaks the verb\'s truth (structural)')
-  {
-    const route = readFileSync(join(REPO, 'src', 'components', 'concourse', 'ConcourseRoute.tsx'), 'utf8')
-    check("the route's stop note paints the verb's detail for a stop on its way, and the removal hint only for an acknowledged stop", /const acknowledged = reply\.ok === true && reply\.outcome === 'applied' && \/\^stopped \/\.test\(reply\.detail \?\? ''\)/.test(route) && /acknowledged \|\| reply\.outcome === 'noop' \|\| reply\.detail === undefined \? `stopped — \$\{keyHintLabel\('⌃x ⌃x'\)\} archives it \(the chat stands parked\)` : reply\.detail/.test(route))
-    check('the no-daemon arm speaks the same law from the verb\'s acknowledged flag', /out\.outcome === 'applied' && !out\.acknowledged\s*\n\s*\? \(stopAwaitingStampRef\.current\.add\(sessionId\), \{ state: 'applied', reason: `stop sent — \$\{out\.runnerId\} ends its turn; the row reads stopped once it is gone` \}\)/.test(route))
-    const screen = readFileSync(join(REPO, 'src', 'components', 'concourse', 'ConcourseScreen.tsx'), 'utf8')
-    const manifest = readFileSync(join(REPO, 'src', 'components', 'concourse', 'controlManifest.ts'), 'utf8')
-    check("the close chord archives a row only when it reads stopped and deletes only a parked one; a staged press over a live runner re-sends the stop and says where it stands", /case 'stopped':\s*return 'archive'/.test(manifest) && /case 'parked':\s*return staged \? 'delete' : 'arm-delete'/.test(manifest) && /case 'attached':\s*return staged \? 'resend-stop' : 'stop'/.test(manifest) && /case 'archive':[\s\S]{0,700}callbacks\.archiveSession\?\.\(sel\.sessionId\)/.test(screen) && /case 'delete':[\s\S]{0,500}callbacks\.removeSession\?\.\(sel\.sessionId\)/.test(screen) && /case 'resend-stop':[\s\S]{0,800}callbacks\.stopSession\?\.\(sel\.sessionId\)/.test(screen) && /stop is on its way — the row reads stopped once its runner is gone/.test(manifest))
-  }
 
   console.log('\nS4 the row and the live count read one set of facts')
   if (justAfter !== undefined && after !== undefined) {

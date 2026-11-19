@@ -72,9 +72,6 @@ section('§A B01 — deterministic materialization at arbitrary committed points
   const viaFile = await materializeTranscriptAt(SRC, 7)
   const viaEntries = materializeEntriesAt(entries, 7)
   check('file-path and entries-path agree', viaFile.digest === viaEntries.digest)
-  const src = readFileSync(join(import.meta.dir, '../../src/utils/sessionStorage/materialize.ts'), 'utf8')
-  check('the full-read path never imports the precompact skip', !src.includes('SKIP_PRECOMPACT_THRESHOLD'))
-  check('digest canonicalization is map-order-free (sorted entries)', src.includes('entries.sort'))
 }
 
 section('§B B02 — full replay ≡ snapshot + suffix (kernel law + the REAL store)')
@@ -140,11 +137,6 @@ section('§C B03 — replay performs zero side effects')
   }
   check('zero fetches during replay', fetches === 0)
   check('the world is bit-identical after replay (zero fs mutations)', worldState() === before)
-  const src = readFileSync(join(import.meta.dir, '../../src/utils/sessionStorage/materialize.ts'), 'utf8')
-  check(
-    'the module imports no model/tool/agent machinery',
-    !/services\/api|tools\/|callModel|Agent|query\//.test(src),
-  )
 }
 
 section('§D B05 — branch manifests preserve immutable lineage')

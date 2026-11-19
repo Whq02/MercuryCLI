@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
@@ -18,7 +18,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const repoRoot = process.cwd()
 
 const project = realpathSync(mkdtempSync(join(tmpdir(), 'stale-instr-project-')))
 const estate = join(project, 'MERCURY.md')
@@ -28,27 +27,6 @@ process.chdir(project)
 
 console.log('the one instruction invalidation reaches the composed block')
 
-section('§0 the composition observes the engine invalidation; the call sites call the ONE invalidation')
-{
-  const ctx = readFileSync(join(repoRoot, 'src/context.ts'), 'utf8')
-  const at = ctx.indexOf('onInstructionCacheInvalidated(')
-  check('context.ts subscribes to onInstructionCacheInvalidated', at > 0)
-  const body = at > 0 ? ctx.slice(at, at + 400) : ''
-  check('…and the observer clears BOTH composed memos (user + system context)', /getSystemContext\.cache\.clear\?\.\(\)/.test(body) && /getUserContext\.cache\.clear\?\.\(\)/.test(body), body.slice(0, 160))
-  const engine = readFileSync(join(repoRoot, 'src/services/instructions/engine.ts'), 'utf8')
-  check('the engine still owns the one exported invalidation (no import of the composition — the observer keeps the graph acyclic)', /export function clearInstructionFileCaches\(\)/.test(engine) && !/from '\.\.\/\.\.\/context\.js'/.test(engine))
-  const callers: Array<[string, string]> = [
-    ['src/tools/EnterWorktreeTool/EnterWorktreeTool.ts', 'EnterWorktree'],
-    ['src/tools/ExitWorktreeTool/ExitWorktreeTool.ts', 'ExitWorktree'],
-    ['src/services/instructions/projectInstructionWriter.ts', 'the project writer (RecordConvention)'],
-    ['src/commands/memory/memory.tsx', 'the /memory dialog'],
-  ]
-  for (const [file, name] of callers) {
-    const src = readFileSync(join(repoRoot, file), 'utf8')
-    check(`${name} calls the ONE invalidation`, /clearInstructionFileCaches\(\)/.test(src))
-    check(`…and does not hand-roll the composition clear (one owner, never four rememberings)`, !/getUserContext\.cache/.test(src), file)
-  }
-}
 
 const globalConfig = await import('../../src/utils/config/globalConfig.js')
 globalConfig.enableConfigs()

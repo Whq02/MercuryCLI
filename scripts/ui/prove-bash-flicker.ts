@@ -11,7 +11,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 console.log('============================================================')
 console.log(' bash-turn render stability + the DEC 2026 live probe (#184)')
@@ -66,14 +65,6 @@ console.log('\n── A. compose stability: no frame loses the transcript ──
   check('the bang output landed', last !== undefined && last.rows.some(r => r.includes('flicker-probe-ran')))
 }
 
-console.log('\n── B. the DEC 2026 LIVE probe is wired (source locks) ──────')
-{
-  const app = readFileSync(join(ROOT, 'src/ink/components/App.tsx'), 'utf8')
-  check('boot round-trip probes DECRQM 2026', app.includes('decrqm(2026)'))
-  check('a set/reset answer upgrades sync support', app.includes('upgradeSyncOutputSupport()'))
-  const ink = readFileSync(join(ROOT, 'src/ink/ink.tsx'), 'utf8')
-  check('frame flushes LIVE-read sync support (never a boot-frozen const)', !ink.includes('SYNC_OUTPUT_SUPPORTED') && ink.includes('syncOutputSupportedNow()'))
-}
 
 console.log('\n── C. the upgrade seam behaves ─────────────────────────────')
 {

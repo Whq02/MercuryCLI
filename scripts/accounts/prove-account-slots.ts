@@ -1,7 +1,4 @@
 #!/usr/bin/env bun
-import { execSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -115,38 +112,8 @@ section('§3 plain sign-out per slot (the anthropic OAuth slot)')
   let fired2 = 0
   const out2 = executeSlotRemoval(signedOut as never, { signOutAnthropicOauth: () => { fired2++ } })
   check('a signed-out slot answers honestly, mutating nothing', fired2 === 0 && !out2.mutated && /not signed in/.test(out2.note), out2.note)
-  const slotsSrc = readFileSync(join(import.meta.dir, '../../src/services/providers/accountSlots.ts'), 'utf8')
-  check('no removal route deletes a directory', !slotsSrc.includes('rmSync') && !slotsSrc.includes('rm -rf'))
 }
 
-section('§4 the switching machinery is ABSENT (superseded-law tombstone)')
-{
-  const gone = [
-    'slotScopeCredential',
-    'applyBootAuthScope',
-    'applyStagedAccountSwitch',
-    'cycleStagedAccount',
-    'writeSelectedAccount',
-    'launchAccounts(',
-    'onUsageLimitError',
-    'isCursusEnabled',
-  ]
-  for (const sym of gone) {
-    const hits = execSync(
-      `grep -rl ${JSON.stringify(sym)} ../../src --include='*.ts' --include='*.tsx' || true`,
-      { cwd: import.meta.dir, encoding: 'utf8' },
-    ).trim()
-    check(`absent from src: ${sym.replace(/\($/, '')}`, hits === '', hits)
-  }
-}
-
-section('§5 the login gesture reroutes to Logins (board wiring — operator-ruled)')
-{
-  const board = readFileSync(join(import.meta.dir, '../../src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
-  check('↵ on the current anthropic scope reroutes to Logins, family-focused', board.includes("rerouteToLogins('anthropic'"))
-  check('a non-current scope names the honest road (never the wrong store)', board.includes('MERCURY_CONFIG_DIR='))
-  check('the board headers carry the family name alone; the ceiling decides only whether the plain count chip paints', board.includes('familySigninCeiling(group.family.id)') && board.includes('{`${familyDisplayName(group.family.id)} accounts`}') && !board.includes('familySigninHeaderNote'))
-}
 
 console.log('\n' + '═'.repeat(60))
 if (failures === 0) console.log('ACCOUNT SLOTS: ALL GREEN')

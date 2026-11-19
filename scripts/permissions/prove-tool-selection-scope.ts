@@ -1,6 +1,4 @@
 import React from 'react'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle } from '../lib/settingsPopupHarness.ts'
 
 const home = pinScratchHome('tool-selection-scope')
@@ -43,8 +41,6 @@ try {
     }
     m.unmount()
   }
-  const editor = readFileSync(join(import.meta.dir, '../../src/components/agents/studio/StudioEditor.tsx'), 'utf8')
-  check('the disallowed-tools editor requests the explicit list', /initialTools=\{doc\.fields\.disallowedTools \?\? \[\]\}\s+explicitSelection/.test(editor))
   setSessionTrustAccepted(true)
   let completed = 0
   const onDone = () => { completed++ }

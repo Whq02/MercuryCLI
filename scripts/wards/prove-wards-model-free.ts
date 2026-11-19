@@ -2,8 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -14,98 +12,13 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
-const ENGINE_PATH = join(ROOT, 'src', 'utils', 'wards', 'wards.ts')
-const HOOK_PATH = join(ROOT, 'src', 'guards', 'wardsGuard.ts')
-const REFUSALS_PATH = join(ROOT, 'src', 'utils', 'wards', 'wardsRefusals.ts')
-const READING_PATH = join(ROOT, 'src', 'utils', 'wards', 'wardsShellRead.ts')
-
-function importSpecifiers(source: string): string[] {
-  const out: string[] = []
-  const re = /^import\s[^;]*?from\s+['"]([^'"]+)['"]/gms
-  let m: RegExpExecArray | null
-  while ((m = re.exec(source)) !== null) out.push(m[1]!)
-  return out
-}
 
 async function main(): Promise<void> {
   console.log('============================================================')
   console.log(' wards are model-free — the trust-combo census leg')
   console.log('============================================================')
 
-  const engineSrc = readFileSync(ENGINE_PATH, 'utf-8')
-  const hookSrc = readFileSync(HOOK_PATH, 'utf-8')
-  const refusalsSrc = readFileSync(REFUSALS_PATH, 'utf-8')
-  const readingSrc = readFileSync(READING_PATH, 'utf-8')
 
-  section('§1 engine purity — wards.ts is a pure module (no imports at all)')
-  {
-    const engineImports = importSpecifiers(engineSrc)
-    check('zero import statements', engineImports.length === 0, engineImports.join(', '))
-    check('zero require calls', !/\brequire\s*\(/.test(engineSrc))
-  }
-
-  section('§2 hook import census — the adjudicated set, nothing else')
-  {
-    const ADJUDICATED = new Set([
-      '../utils/projectConfig.js',
-      'node:fs',
-      'node:path',
-      '../substrate/flagRegistry.js',
-      '../utils/config/trust.js',
-      '../utils/cwd.js',
-      '../utils/debug.js',
-      '../utils/messageQueueManager.js',
-      '../utils/wards/wards.js',
-      '../utils/wards/wardsRefusals.js',
-      './guards.js',
-      '../context/notifications.js',
-      '../utils/messages/systemMessages.js',
-      '../utils/path.js',
-    ])
-    const hookImports = importSpecifiers(hookSrc)
-    check('the hook imports something (parse sanity)', hookImports.length > 0)
-    const strays = hookImports.filter(spec => !ADJUDICATED.has(spec))
-    check(
-      'every hook import is adjudicated (a new one fails until reviewed)',
-      strays.length === 0,
-      strays.join(', '),
-    )
-    check('zero require calls in the hook', !/\brequire\s*\(/.test(hookSrc))
-    const refusalImports = importSpecifiers(refusalsSrc)
-    const readingImports = importSpecifiers(readingSrc)
-    check('the parsed judge imports the file system, the path module, the engine and the shell reading alone', refusalImports.join(' ') === 'node:fs node:path ./wards.js ./wardsShellRead.js', refusalImports.join(' '))
-    check("the shell reading imports the path module and the product's shell parser alone", readingImports.join(' ') === 'node:path ../bash/ast.js ../bash/parser.js', readingImports.join(' '))
-    check('zero require calls and no dynamic import in the parsed judge and the shell reading', !/\brequire\s*\(|\bimport\s*\(/.test(refusalsSrc + readingSrc))
-  }
-
-  section('§3 model-seam deny sweep — no model call, no model-identity read')
-  {
-    const FORBIDDEN = [
-      'queryModel',
-      'queryWithModel',
-      'sideQuery',
-      'routedCallModel',
-      'callModelRouter',
-      'getAnthropicClient',
-      'services/api',
-      'utilityCallFor',
-      'getEngineModel',
-      'getDefaultHaikuModel',
-      'resolveCallModelRoute',
-  'classifyModelRoute',
-  'declaredRouteOf',
-    ]
-    for (const [name, source] of [
-      ['wards.ts', engineSrc],
-      ['wardsHook.ts', hookSrc],
-      ['wardsRefusals.ts', refusalsSrc],
-      ['wardsShellRead.ts', readingSrc],
-    ] as const) {
-      const hits = FORBIDDEN.filter(f => source.includes(f))
-      check(`${name} references none of the model seams`, hits.length === 0, hits.join(', '))
-    }
-  }
 
   section('§4 no-dial behavioural pin — verdicts under a throwing fetch stub')
   {

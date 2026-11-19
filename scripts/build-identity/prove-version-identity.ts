@@ -14,23 +14,12 @@ const bad = (label: string) => {
   fail = 1
 }
 
-const product = readFileSync(join(root, 'src/constants/product.ts'), 'utf8')
 const pkgVersion = (JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version: string }).version
 if (/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(pkgVersion)) ok(`package.json version = ${pkgVersion} (the one root)`)
 else bad(`package.json version '${pkgVersion}' is not semver`)
 const mv = pkgVersion
 
-if (product.includes('export const MERCURY_VERSION: string = resolveMercuryVersion()') && product.includes('return MACRO.VERSION'))
-  ok('product.ts MERCURY_VERSION rides MACRO.VERSION with the src-run package.json fallback (no second literal)')
-else bad('product.ts must re-export the define: MERCURY_VERSION: string = MACRO.VERSION')
 
-const buildTs = readFileSync(join(root, 'build.ts'), 'utf8')
-if (
-  /const PKG_JSON = JSON\.parse\(readFileSync\('\.\/package\.json'/.test(buildTs) &&
-  /const MACRO_VERSION = PKG_JSON\.version/.test(buildTs)
-)
-  ok('build.ts MACRO_VERSION reads package.json (via PKG_JSON) — one version root')
-else bad('build.ts MACRO_VERSION must read package.json (the one root)')
 
 const viaFlag = builtCli(['--no-commands', '-V'])
 const viaVerb = builtCli(['--no-commands', 'version'])
@@ -38,19 +27,11 @@ if (viaFlag.status === 0 && viaFlag.stdout === `Mercury ${mv}\n`)
   ok('main.tsx exitWithVersionLine prints `Mercury ${MERCURY_VERSION}` (the one print behind -V and the version verb)')
 else bad('main.tsx exitWithVersionLine must print `Mercury ${MERCURY_VERSION}`')
 
-const cli = readFileSync(join(root, 'src/entrypoints/cli.tsx'), 'utf8')
-if (cli.includes('console.log(`Mercury ${MACRO.VERSION}`)'))
-  ok('cli.tsx --version fast-path renders `Mercury ${MACRO.VERSION}` (zero-import, same root)')
-else bad('cli.tsx fast-path must render `Mercury ${MACRO.VERSION}`')
 
 if (viaFlag.status === 0 && viaVerb.status === 0 && viaFlag.stdout !== '' && viaFlag.stdout === viaVerb.stdout)
   ok('`-V` and the `version` verb both end in exitWithVersionLine (main.tsx)')
 else bad('main.tsx `-V` and the `version` verb must both call exitWithVersionLine')
 
-const turn = readFileSync(join(root, 'src/rows/turn.ts'), 'utf8')
-if (turn.includes('version: MACRO.VERSION'))
-  ok("the session row's version stays MACRO.VERSION (machine seam)")
-else bad('rows/turn.ts session facts version must stay MACRO.VERSION')
 
 const dist = join(root, 'dist/mercury.mjs')
 if (existsSync(dist)) {

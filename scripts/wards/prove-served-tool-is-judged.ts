@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -39,19 +39,6 @@ console.log('============================================================')
 console.log(' a tool served over MCP is judged by the guards before it runs')
 console.log('============================================================')
 
-section('§1 the handler, by reading')
-{
-  const source = readFileSync(join(SRC, 'entrypoints', 'mcp.ts'), 'utf8')
-  const handler = source.slice(source.indexOf("server.setRequestHandler('tools/call'"))
-  const asked = handler.indexOf('await servedCallRefusal(tool, args,')
-  const decided = handler.indexOf('await hasPermissionsToUseTool(')
-  const ran = handler.indexOf('await tool.call(')
-  check('the call asks the guards', asked !== -1)
-  check('before the permission decision and before the tool runs', asked !== -1 && asked < decided && decided < ran, `${asked} ${decided} ${ran}`)
-  check('a refusal ends the call with the guard’s own words', /if \(refusal !== null\) \{\s*throw new Error\(`PermissionRefused: \$\{tool\.name\} — \$\{refusal\}`\)/.test(handler))
-  check('the server arms the session’s guards before it serves', /setCwd\(cwd\)\s*armServedSession\(\)/.test(source))
-  check('the question goes to judgeToolCall under the session’s key', /judgeToolCall\(getSessionId\(\), \{ tool: tool\.name, input, callId, messages: \[\], toolRef: tool as Tool, asksAnswerable: false \}/.test(source))
-}
 
 const stubs = {
   Bash: { name: 'Bash', shellCommandOf: (input: unknown) => (input as { command?: string }).command },

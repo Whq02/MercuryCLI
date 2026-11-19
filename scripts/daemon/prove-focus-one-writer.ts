@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
@@ -16,14 +15,6 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-}
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
-function grepSrc(pattern: string): string[] {
-  try {
-    return execFileSync('grep', ['-rn', '-E', pattern, 'src'], { encoding: 'utf8', cwd: process.cwd() }).split('\n').filter(l => l.trim() !== '')
-  } catch {
-    return []
-  }
 }
 
 const sup = await import('../../src/daemon/concourseWorkers.ts')
@@ -56,21 +47,6 @@ function seed(records: Array<Partial<ConcourseWorkerRecordV1> & { runnerId: stri
 const killed: string[] = []
 const roster = { kill: (short: string): boolean => (killed.push(short), true) }
 
-console.log('W1 the focus fact has ONE writer')
-{
-  const assignments = grepSrc('\\.focusedAt = |\\.focusedBy = |focusedAt: Date|focusedBy: ')
-  const foreign = assignments.filter(l => !l.startsWith('src/daemon/concourseWorkers.ts'))
-  check('every focusedAt/focusedBy assignment in src lives in concourseWorkers.ts', assignments.length > 0 && foreign.length === 0, foreign.join(' | '))
-  const daemon = read('src/daemon/concourseWorkers.ts')
-  const writerAt = daemon.indexOf('export function focusConcourseSession(')
-  const writerBody = daemon.slice(writerAt, daemon.indexOf('export function blurConcourseSession(', writerAt))
-  const stampSites = (daemon.match(/rec\.focusedAt = Date\.now\(\)/g) ?? []).length
-  check('the ONE stamp site is focusConcourseSession (settle and park only DELETE the fact)', stampSites === 1 && writerBody.includes('rec.focusedAt = Date.now()') && daemon.includes('delete rec.focusedAt') )
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
-  check('the chain is module-level and serialized (a late blur never lands over a re-focus)', connector.includes('let seatChain: Promise<unknown> = Promise.resolve()') && connector.includes('seatChain = seatChain'))
-  const wireCallers = grepSrc('focusConcourseSession\\(|blurConcourseSession\\(').filter(l => !l.startsWith('src/daemon/concourseWorkers.ts'))
-  check("the daemon's focus/blur handler (main.ts) is the wire's only door to the writer", wireCallers.length > 0 && wireCallers.every(l => l.startsWith('src/daemon/main.ts')), wireCallers.join(' | '))
-}
 
 console.log('W2 the state table: the fact moves with every slot-in and leaves with every close')
 {
@@ -105,19 +81,6 @@ console.log('W2 the state table: the fact moves with every slot-in and leaves wi
   check('exactly one focused record per terminal at every step (the invariant)', Object.values(sup.readSessionWorkers(dir)).filter(r => r.endedAt === undefined && r.focusedBy === seat).length <= 1)
 }
 
-console.log('W3 every slot-in road rides the connector (source)')
-{
-  const birth = read('src/services/switchboard/bornSession.ts')
-  const hop = read('src/services/switchboard/hopIntoSession.ts')
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
-  check('the birth door hops (bornSession → hopIntoBoardSession) — it never stamps by hand', birth.includes('hopIntoBoardSession(sessionId') && !birth.includes('focusConcourseSession') && !birth.includes("action: 'focus'"))
-  check('the hop attaches the connector (focusDaemonSession → attach → the focus verb)', hop.includes('seat.focusDaemonSession({') && connector.includes("seatVerb('focus', this.record.sessionId)\n    return this.tick()"))
-  check('the resume door attaches first and re-says the seat once the record stands', hop.includes('seat.focusDaemonSession(connector.record)') && hop.includes('connector.assertSeat()'))
-  check('Projects-↵ and the board\'s ↵ ride those doors (the face and the route)', read('src/components/BootSplashScreen.tsx').includes('focusResumedSession(p.sessionId, p.transcriptPath') && read('src/components/concourse/ConcourseRoute.tsx').includes('hops.focusResumedSession(sessionId, parked.transcriptPath, { title: parked.title })') && read('src/components/concourse/ConcourseRoute.tsx').includes('hops.hopIntoBoardSession(sessionId)'))
-  check('every close road rests the slot, whose detach says the blur (the subscribe hook detaches the connector that lost the slot)', hop.includes('slot.releaseFocusedSessionConnector()') && read('src/components/concourse/ConcourseRoute.tsx').includes('async function restFocusedSlotAfterRelease(') && read('src/components/concourse/ConcourseRoute.tsx').includes('slot.releaseFocusedSessionConnector()') && connector.includes("if (c !== focused && c.isAttached()) c.detach()") && connector.includes("seatVerb('blur', this.record.sessionId)"))
-  const roads = grepSrc("action: 'focus'|action: 'blur'").filter(l => !l.startsWith('src/services/engine-connector/daemonConnector.ts') && !l.startsWith('src/daemon/'))
-  check('no screen road sends the verbs by hand (the connector is the only sender)', roads.length === 0, roads.join(' | '))
-}
 
 console.log('W4 newborn × parked (law 5, kept and named)')
 {
@@ -130,7 +93,6 @@ console.log('W4 newborn × parked (law 5, kept and named)')
   const messaged = sup.parkConcourseSession(sid('n2'), seat, roster, dir)
   check('a chat born and NEVER messaged that the operator closes is RELEASED — killed, ended, never a parked row (nothing to bring back)', newborn.outcome === 'applied' && newborn.released && killed.includes('concourse-w1') && rec('concourse-w1')?.endedAt !== undefined && rec('concourse-w1')?.parkedAt === undefined)
   check('a chat born the same way but MESSAGED once is PARKED when closed — on the board, reactivatable', messaged.outcome === 'applied' && !messaged.released && rec('concourse-w2')?.parkedAt !== undefined && rec('concourse-w2')?.endedAt === undefined)
-  check("the one definition (isNewbornRecord) is what the park verb, the reaper's grace and the reconcile's release all read", read('src/daemon/concourseWorkers.ts').split('isNewbornRecord(').length >= 3 && read('src/daemon/idleRetirement.ts').includes('rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined'))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

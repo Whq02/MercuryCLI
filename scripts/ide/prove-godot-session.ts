@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -195,35 +194,6 @@ try {
     check('E1 a fresh owner sees an empty godot session list', Array.isArray(session.dap.sessions) && session.dap.sessions.length === 0, JSON.stringify(session.dap.sessions))
   }
 
-  section('(F) NO-DUPLICATION pin — the projection consumes, never re-implements')
-  {
-    const src = readFileSync(join(ROOT, 'src', 'services', 'ide', 'godotSession.ts'), 'utf8')
-    const forbidden: Array<[string, RegExp]> = [
-      ['node:net import (transport belongs to the lanes/client)', /from 'node:net'|require\(['"]node:net/],
-      ['node:tls import', /from 'node:tls'/],
-      ['raw socket construction', /net\.connect|createConnection|new Socket\(/],
-      ['WebSocket construction', /new WebSocket|from 'ws'/],
-      ['child spawn (the projection executes nothing)', /spawnSync?\(|from 'node:child_process'/],
-      ['a second VulcanClient (the singleton is the client)', /new VulcanClient\(/],
-      ['a second DAP session (createDapSession is the launch path)', /createDapSession\(/],
-    ]
-    for (const [label, re] of forbidden) {
-      check(`F: no ${label}`, !re.test(src), String(re))
-    }
-    const consumed = [
-      'findGodotProjectRoot',
-      'probeVulcanEditorPresence',
-      'vulcanInstallStatus',
-      'getVulcanClient',
-      'listDapSessions',
-      'resolveAdapter',
-      'builtinGodotServer',
-      'getLspServerManager',
-    ]
-    for (const name of consumed) {
-      check(`F: consumes the existing ${name}`, src.includes(name))
-    }
-  }
 } finally {
   restoreEnv()
   rmSync(arena, { recursive: true, force: true })

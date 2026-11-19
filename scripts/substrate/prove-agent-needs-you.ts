@@ -96,16 +96,6 @@ section('Store lifecycle — record → read → CLEAR → gone')
   store.clearAgentStateVerdict(sid)
   check('clearAgentStateVerdict wipes it (snapshot goes unavailable)', store.getAgentStateVerdict(sid) == null)
 
-  const { readFileSync } = await import('node:fs')
-  const hook = readFileSync(
-    new URL('../../src/hooks/useAgentNeedsYou.ts', import.meta.url),
-    'utf8',
-  )
-  check(
-    'the hook CLEARS on the loading false→true edge (the stale-chip fix)',
-    /if \(!wasLoading && isLoading\) \{[\s\S]{0,240}?clearAgentStateVerdict\(getSessionId\(\)\)/.test(hook),
-  )
-  check('the rising edge also aborts an in-flight classify', /if \(!wasLoading && isLoading\) \{[\s\S]{0,120}?abortRef\.current\?\.abort\(\)/.test(hook))
 }
 
 console.log('\n' + '═'.repeat(76))

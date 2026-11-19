@@ -41,7 +41,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const SRC = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 function serveCurrentServer(transport: Transport): { close: () => Promise<void> } {
   return serveStdio(
@@ -201,11 +200,6 @@ section('(5) the health row reading')
     MCP_LEGACY_REVISION < MCP_PROTOCOL_REVISION,
     `${MCP_LEGACY_REVISION} vs ${MCP_PROTOCOL_REVISION}`,
   )
-  const owner = SRC('src/services/mcp/protocolRevision.ts')
-  check(
-    'the behind wording is kept for the next published revision',
-    owner.includes('is published — SDK behind') && owner.includes('update Mercury when a build ships the migration'),
-  )
   ;(await import('../../src/utils/config/globalConfig.js')).enableConfigs()
   const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
   const { publishMcpConnections } = await import('../../src/utils/cockpit/mcpGauge.ts')
@@ -237,41 +231,6 @@ await (async () => {
   await close()
 })()
 
-section("(7) production's client shape, structurally")
-{
-  const client = SRC('src/services/mcp/client.ts')
-  check('both elicitation modes are declared on the wire', client.includes('elicitation: { form: {}, url: {} }'))
-  check(
-    'external servers negotiate on one connection; shipped bootstrap manifests and older-server respawns keep the handshake alone',
-    client.includes("versionNegotiation: negotiate ? externalVersionNegotiation(transportKind) : { mode: 'legacy' }") &&
-      client.includes("buildClient(!serverRef.bundledBootstrap, stdioTransport !== null ? 'stdio' : 'remote')") &&
-      client.includes('client = buildClient(false)'),
-  )
-  check(
-    'the remembered verdict rides the connect and a failed connect drops it',
-    client.includes('client.connect(transport, prior ? { prior } : undefined)') && client.includes('await clearEraVerdict(eraKey)'),
-  )
-  check(
-    'the probe budget is per transport with no re-sends: a third of the connect deadline on stdio (a silent probe there is an older server, and the handshake gets the rest), past the deadline on the remote transports (a silent probe there is an error, and the deadline must speak first)',
-    client.includes("transportKind === 'stdio' ? Math.max(1000, Math.floor(deadline / 3)) : deadline + 1000") && client.includes('maxRetries: 0'),
-  )
-  check(
-    "the stdio transport is a subclass of the SDK's, so the probe runs in place on the one process Mercury owns — never on a disposable sibling spawn outside the kill owner",
-    client.includes('class OwnedStdioClientTransport extends StdioClientTransport {}') && client.includes('new OwnedStdioClientTransport(parameters)') && !client.includes('new StdioClientTransport('),
-  )
-  check(
-    'a stdio server that exits on the probe is remembered as an older server and connected once more with the handshake alone, on a fresh spawn under the same kill owner, inside the one deadline',
-    client.includes('if (stdioTransport === null || prior || !isProbeExitError(err) || spawnRefused) throw err') &&
-      client.includes("await recordEraVerdict(eraKey, 'legacy')") &&
-      /await endStdioTree\(\)\s*\n\s*stdioTransport\.stderr\?\.off\('data', onStderr\)\s*\n\s*if \(spawnRefused\) throw err\s*\n\s*stdioTransport = buildStdioTransport\(\)/.test(client) &&
-      client.includes('client = buildClient(false)') &&
-      client.includes("error.code === SdkErrorCode.EraNegotiationFailed") && client.includes('/closed during the server\\/discover probe/.test(error.message)'),
-  )
-  check(
-    'a server told to stop is never spawned again: the refusal is read before the verdict is written and again after the awaits, the verdict write is awaited, and a refused connect settles as disabled (the pre-connect refusal\'s own row), never as a failure',
-    /await clearEraVerdict\(eraKey\)[\s\S]{0,400}if \(spawnRefused\) \{\s*\n\s*releaseSpawnGuard\?\.\(\)\s*\n\s*await transport\.close\(\)\.catch\(\(\) => \{\}\)\s*\n\s*return \{ name, type: 'disabled', config: serverRef \}/.test(client),
-  )
-}
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()

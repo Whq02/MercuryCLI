@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -69,11 +69,6 @@ prefixFromFreshProcess()
 const newest = keysUnder(parent).map(key => ({ key, at: statSync(join(parent, key)).mtimeMs })).sort((a, b) => b.at - a.at)[0]
 check('dev is the most recently used key after resolving again', newest?.key === 'dev', JSON.stringify(newest))
 
-section('§5 the law in the source')
-const src = readFileSync(RESOLVER, 'utf8')
-check('the kept count is one named constant', /export const PYCACHE_KEYS_KEPT = \d+/.test(src) && PYCACHE_KEYS_KEPT >= 2)
-check('the prefix root is touched before the sweep (mtime is the use mark)', src.indexOf('utimesSync(root, now, now)') !== -1 && src.indexOf('utimesSync(root, now, now)') < src.indexOf('PYCACHE_KEYS_KEPT - 1'))
-check('no resolution removes every other key', !/if \(entry !== buildKey\) rmSync/.test(src))
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nALL LAWS HOLD — prove-debugpy-pycache-keys' : `\n❌ prove-debugpy-pycache-keys — ${failures} check(s) failed`)

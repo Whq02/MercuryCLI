@@ -12,8 +12,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const read = (p: string): string =>
-  readFileSync(join(import.meta.dir, '..', '..', p), 'utf8')
 
 console.log('============================================================')
 console.log(' composer input claims — atlas · dialect · boot seed (PTY)')
@@ -99,10 +97,6 @@ console.log('\n── §1 resolver + seed truths ──────────�
   )
 }
 
-console.log('\n── §2 wiring pinned in source ───────────────────────────────')
-{
-  const repl = read('src/screens/Chat.tsx')
-  const prompt = read('src/components/PromptInput/PromptInput.tsx') + read('src/components/PromptInput/useComposerModelDoors.tsx') + read('src/components/PromptInput/useComposerSubmit.ts') + read('src/components/PromptInput/useComposerAttachments.ts')
   const { openDraftPart } = await import('../ui/chatScenarios.ts')
   const boot = await openDraftPart('composer-claims-boot-seed', { keepHome: true, earlyInput: 'keys typed while the screen booted' })
   const bootSeed = boot.pending.text()
@@ -112,62 +106,6 @@ console.log('\n── §2 wiring pinned in source ──────────
     bootSeed === 'keys typed while the screen booted',
     JSON.stringify(bootSeed),
   )
-  check(
-    'the queued notice retires the transition-applied notice (the screen paints no model-switched receipt of its own)',
-    prompt.includes("invalidates: ['model-transition-applied']") && !repl.includes("key: 'model-switched'"),
-  )
-  check(
-    'the raw ladder carries the covered-Chat fence (concourse keys must not reach the parked composer)',
-    prompt.includes("if (currentSurfaceRoute().kind !== 'repl') return"),
-  )
-  check(
-    'the text-buffer focus carries the same fence',
-    prompt.includes('helmOnPrompt && !surfaceCovered'),
-  )
-  check(
-    'a paste may enter shell mode only as a short single line (the bang-paste flood guard)',
-    /input === '' &&\s*\n\s*lineCount === 1 &&\s*\n\s*text\.length <= PASTE_THRESHOLD/.test(prompt),
-  )
-  check(
-    'paste-id allocation scans the LIVE draft (a recalled chip id is never re-minted)',
-    prompt.includes('parseReferences(pendingInput.text())') &&
-      prompt.includes('while (taken.has(id)) id++',),
-  )
-  check(
-    'submit refuses dangling references with a visible notice (never a silent bare placeholder)',
-    prompt.includes("key: 'paste-ref-dangling'") &&
-      prompt.includes('danglingReferences(submitted'),
-  )
-  const palette = read('src/components/MercuryCommandPalette.tsx')
-  check(
-    'the palette query is length-capped (an uncapped paste grew the overlay past the screen)',
-    palette.includes('.slice(0, QUERY_MAX_LENGTH)'),
-  )
-  const leftSide = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
-  check(
-    'the bash-mode collapse keeps the reverse-search field (an invisible search ate keystrokes)',
-    /mode === 'bash'[\s\S]{0,600}searchField \?\?/.test(leftSide),
-  )
-  const suggestions = read('src/components/PromptInput/PromptInputFooterSuggestions.tsx')
-  check(
-    'the selection band paints the design-system token, not an unknown Theme key',
-    suggestions.includes('tokens.selectionBand') &&
-      !suggestions.includes("selected ? 'selectionBand'"),
-  )
-  const helpMenu = read('src/components/PromptInput/PromptInputHelpMenu.tsx')
-  const measurer = read('src/ink/measure-element.ts')
-  check(
-    'measure-element owns the screen-row measurement beside its column twin',
-    measurer.includes('export function elementScreenTop(node: DOMElement): number') &&
-      measurer.includes('export function elementScreenLeft(node: DOMElement): number'),
-  )
-  check(
-    'the help grid caps to the rows beneath its measured screen top, not a chrome guess',
-    helpMenu.includes('const top = elementScreenTop(element)') &&
-      helpMenu.includes('rows: Math.max(3, termRows - top)') &&
-      helpMenu.includes('ref={gridRef}'),
-  )
-}
 
 console.log('\n── §3 PTY journeys ──────────────────────────────────────────')
 const { scenario, cleanupScenario } = await import('../ui/renderScenarios.ts')

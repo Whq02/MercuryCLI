@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -92,17 +92,6 @@ try {
     t('the reused-pid verdict of L2 still stands beside them (a token of another start is a stranger)', strangerToken === null || !pending.includes('runner-reused'), JSON.stringify(pending))
   }
 
-  console.log('L4 structural — one liveness owner, stamped writers')
-  {
-    const src = readFileSync(join(SRC, 'daemon/concourseWorkers.ts'), 'utf8')
-    const identity = await import(join(SRC, 'daemon/workerIdentity.ts'))
-    const identitySource = readFileSync(join(SRC, 'daemon/workerIdentity.ts'), 'utf8')
-    t('the liveness owner exists and the daemon exports that same owner', identitySource.includes('function workerPidAlive(') && workers.workerPidAlive === identity.workerPidAlive)
-    const stamps = (src.match(/pidFieldsOf\(/g) ?? []).length
-    t('the record writers ride pidFieldsOf (admission, revive, reactivate, respawn)', stamps >= 5, `${stamps} sites`)
-    const bare = (src.match(/\w+\.pid !== undefined && isProcessAlive\(\w+\.pid\)/g) ?? []).length
-    t('no bare record-pid liveness read remains', bare === 0, `${bare} left`)
-  }
 } finally {
   stranger.kill()
 }

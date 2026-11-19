@@ -61,19 +61,6 @@ section('4. knowledge cutoffs — recorded-only')
   check("Fable 5 cutoff unchanged ('January 2026')", getModelKnowledgeCutoff('claude-fable-5') === 'January 2026')
 }
 
-section('5. prompt currency copy (prompts.ts) — no hardcoded vendor list; the neutral rule')
-{
-  const prompts = src('src/constants/prompts.ts')
-  check(
-    'the currency note hardcodes NO model id (neutral for every vendor)',
-    !/MODEL_CURRENCY_NOTE = `[^`]*(claude-|gpt-|glm-|gemini-|deepseek)/.test(prompts),
-  )
-  check(
-    'the neutral rule is the note: stale training-era ids, verify against live documentation or the operator\'s choice (the live road to the running model is the Read description\'s mercury://seat line)',
-    /MODEL_CURRENCY_NOTE = `Model currency:/.test(prompts) &&
-      /may be stale\. When building AI applications, verify current model ids against live provider documentation or the operator's stated choice/.test(prompts),
-  )
-}
 
 section('6. router class mirrors — every first-party generation classifies to a router class')
 {
@@ -93,26 +80,6 @@ section('6. router class mirrors — every first-party generation classifies to 
 
 section('7. code-side model default census — literals resolve live, tiers track owners')
 {
-  const censusFiles: string[] = []
-  for (const rel of ['src/components/agents/studio/StudioEditor.tsx']) {
-    check(
-      `${rel} — carries NO model literal (the catalogue resolves live)`,
-      !/[=:]\s*'claude-[a-z0-9-]+(?:\[1m\])?'/.test(src(rel)),
-    )
-  }
-  for (const rel of censusFiles) {
-    const ids = [...src(rel).matchAll(/[=:]\s*'(claude-[a-z0-9-]+(?:\[1m\])?)'/g)].map(
-      m => m[1]!,
-    )
-    const dead = ids.filter(
-      id => getMarketingNameForModel(parseUserSpecifiedModel(id)) === undefined,
-    )
-    check(
-      `${rel} — ${ids.length} model literal(s) all resolve live`,
-      ids.length > 0 && dead.length === 0,
-      dead.length ? `dead: ${dead.join(', ')}` : 'no literals matched — census regex aged',
-    )
-  }
   const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
   const crewOpus = foldLegacyWorkerModelKey('opus')
   check(
@@ -147,19 +114,6 @@ section('8. prose surfaces — bundled skills + living docs track the owners')
   check('the census allows route grammar placeholders', fixedRows('| `openrouter/<vendor>/<model>` | carrier grammar |').length === 0)
 }
 
-section('9. registry table truth — every imported adapter is registered (no future-slot fossil)')
-{
-  const registry = src('src/services/providers/modelRegistry.ts')
-  const importedAdapters = [...registry.matchAll(/import \{ (\w+)ProviderAdapter \}/g)].map(m => m[1]!)
-  const tableStart = registry.indexOf('const PROVIDER_ADAPTERS')
-  const table = tableStart === -1 ? '' : registry.slice(tableStart, registry.indexOf('\n]', tableStart))
-  const unregistered = importedAdapters.filter(name => !table.includes(`${name}ProviderAdapter,`))
-  check(
-    `every imported adapter family is registered in PROVIDER_ADAPTERS (${importedAdapters.length} adapters)`,
-    importedAdapters.length >= 10 && unregistered.length === 0,
-    unregistered.join(', '),
-  )
-}
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {

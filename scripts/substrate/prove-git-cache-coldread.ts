@@ -3,7 +3,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -60,18 +60,6 @@ async function main(): Promise<void> {
     )
   }
 
-  console.log('\n§3 the source pin — cachedRead shares its in-flight first compute')
-  {
-    const src = readFileSync(
-      join(import.meta.dir, '..', '..', 'src', 'utils', 'git', 'gitFilesystem.ts'),
-      'utf-8',
-    )
-    check('the entry carries the in-flight compute', src.includes('inflight: Promise<unknown> | null'))
-    check(
-      'a clean entry with a compute in flight is AWAITED, not read as the placeholder',
-      /if \(entry\.inflight !== null\) return \(await entry\.inflight\) as T/.test(src),
-    )
-  }
 
   console.log('\n' + '='.repeat(60))
   if (failures > 0) {

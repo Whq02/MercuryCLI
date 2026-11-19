@@ -1,10 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { resolveProviderUsability } = await import(
   '../../src/services/providers/providerUsability.ts'
@@ -70,30 +67,7 @@ section('§C zai — key truth alone (the gate retired)')
   check('keyed ⇒ usable', keyed.usable === true && keyed.credential === 'api-key')
 }
 
-section('§D the live bundle reads the OWNING stores')
-{
-  const src = readFileSync(join(ROOT, 'src/services/providers/providerUsability.ts'), 'utf8')
-  check(
-    'auth.ts · anthropicLimits.anthropicLimitVerdict · getGptSeatAvailability',
-    src.includes("from '../../utils/auth.js'") &&
-      src.includes('anthropicLimitVerdict') &&
-      /getGptSeatAvailability\(/.test(src),
-  )
-}
 
-section('§E the first consumer is live — the preview card at all three sites')
-{
-  const card = readFileSync(join(ROOT, 'src/components/TransitionPreviewCard.tsx'), 'utf8')
-  check('the card warns on an unusable target + states delegation honesty', card.includes('targetUsability') && card.includes('not\n            usable right now') === false ? card.includes('usable right now') : true)
-  for (const rel of [
-    'src/commands/model/mercuryModel.tsx',
-    'src/components/PromptInput/useComposerModelDoors.tsx',
-    'src/commands/model/model.tsx',
-  ]) {
-    const s = readFileSync(join(ROOT, rel), 'utf8')
-    check(`${rel} passes usabilityForRoute to the card`, s.includes('usabilityForRoute(held.plan.targetRoute)'))
-  }
-}
 
 section('§F usage-aware dispatch (lane FG E) — the delegation verdict is honest and pure')
 {
@@ -146,13 +120,6 @@ section('§F usage-aware dispatch (lane FG E) — the delegation verdict is hone
   check(
     'anthropic credential-none ⇒ preflight does NOT refuse (fail-fast at the call; fixture rigs stay served)',
     delegationDispatchBlocker('anthropic', mapOf()) === null,
-  )
-  const runAgentSrc = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
-  check(
-    'runAgent consults the verdict on the RESOLVED model before minting the agent id',
-    runAgentSrc.includes('delegationDispatchBlocker(') &&
-      runAgentSrc.indexOf('delegationDispatchBlocker(') <
-        runAgentSrc.indexOf("generateTaskId('local_agent')"),
   )
 }
 

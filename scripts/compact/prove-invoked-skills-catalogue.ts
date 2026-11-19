@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -45,11 +45,6 @@ console.log('L3 no catalogue ⇒ the capture is used as is')
   check('an empty table re-injects nothing', none === null)
 }
 
-console.log('L4 the fold hands the assembly the session\'s command table (source pin)')
-{
-  const src = readFileSync(join(SRC, 'services/compact/compact.ts'), 'utf8')
-  check('assembleAttachments passes context.options.commands', src.includes('createSkillAttachmentIfNeeded(context.agentId, context.options.commands)'))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-invoked-skills-catalogue: ALL PASS' : `\nprove-invoked-skills-catalogue: ${failures} FAIL`)

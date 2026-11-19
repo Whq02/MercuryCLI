@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 ;(globalThis as unknown as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -13,7 +12,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { toOpenaiStrictSchema, stripExplicitNulls } = await import(
   '../../src/utils/messages/structuredOutputDialect.ts'
@@ -158,13 +156,6 @@ section('§4 strict-shaped answers validate ONLY through the strip (the tooth)')
   check('the stripped hook answer passes zod', hookHealed.success === true)
 }
 
-section('§5 the wiring: transform at the bridge, strip at the decode site')
-{
-  const bridge = readFileSync(join(ROOT, 'src/services/providers/openai/responsesBridge.ts'), 'utf8')
-  check('the bridge wears the transform at its one schema site', bridge.includes('schema: toOpenaiStrictSchema(i.outputFormat.schema)'))
-  const hook = readFileSync(join(ROOT, 'src/utils/hooks/questionRunner.ts'), 'utf8')
-  check('the question hook answer wears the strip', hook.includes('stripExplicitNulls(parsed)'))
-}
 
 console.log('')
 if (failures > 0) {

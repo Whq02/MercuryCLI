@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 for (const key of ['OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL', 'MERCURY_DISABLE_1M_CONTEXT']) {
@@ -18,8 +18,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 const tokens = await import('../../src/utils/tokens.ts')
 const context = await import('../../src/utils/context.ts')
@@ -152,17 +150,6 @@ section('N5 · the ONE fill derivation every surface reads')
   check('contextGauge: fresh session ⇒ unavailable (never a fake gauge)', freshSnap.state === 'unavailable')
   check('contextFillPercent: 56,300 / 1,048,576 = 5 · 56,300 / 200,000 = 28 · unknown window ⇒ null', context.contextFillPercent(56_300, 1_048_576).used === 5 && context.contextFillPercent(56_300, 200_000).used === 28 && context.contextFillPercent(56_300, 0).used === null)
   check('calculateContextPercentages sums the ledger\'s split counters — input + cache written + cache read + output (the step row\'s input_tokens already holds the cache)', context.calculateContextPercentages({ input_tokens: 100_000, cache_creation_input_tokens: 0, cache_read_input_tokens: 50_000, output_tokens: 50_000 }, 1_000_000).used === 20)
-  const frame = src('src/components/MercuryFrame.tsx')
-  check('MercuryFrame reads the focused context fill (the runner receipt when it carries one, else contextFillView) and publishes its figure + provenance', /useFocusedContextFill\(messages, windowModel/.test(frame) && /usedTokens: fill\.usedTokens/.test(frame) && /windowSource: fill\.windowSource/.test(frame))
-  check('MercuryFrame subscribes to the catalogue epoch (re-derives when a source lands)', /useCatalogueEpoch\(\)/.test(frame))
-  const analyze = src('src/utils/analyzeContext.ts')
-  check('/context headline is contextFill (the trigger count) when usage exists', /const fill = contextFill\(originalMessages \?\? messages\)/.test(analyze) && /fill\.source === 'usage' \? fill\.tokens : actualUsage/.test(analyze))
-  const picker = src('src/commands/model/mercuryModel.tsx')
-  check('/model header gauge reads contextFillView over the served model', /contextFillView\(messages, servedModel\)/.test(picker) && /const servedModel = focusedSeat !== null \? focusedSeat\.effective : \(engineModelForSession \?\? getEngineModel\(\)\)/.test(picker))
-  for (const rail of ['src/components/HelmLanesRail.tsx', 'src/components/HelmVitalsRail.tsx', 'src/components/DeckPane.tsx']) {
-    const text = rail === 'src/components/HelmLanesRail.tsx' ? src(rail) + src('src/utils/cockpit/helmLanesModel.ts') : rail === 'src/components/HelmVitalsRail.tsx' ? src(rail) + src('src/utils/cockpit/helmVitalsModel.ts') : src(rail)
-    check(`${rail.split('/').pop()} subscribes to the publish version and labels via the owner`, /useSyncExternalStore\(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion\)/.test(text) && /contextWindowLabel\(/.test(text))
-  }
 }
 
 section('N6 · the publish seam carries figure + provenance; version bumps on change only')

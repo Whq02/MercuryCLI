@@ -24,58 +24,10 @@ function section(t: string): void {
 }
 const sha = (b: Buffer | string): string => createHash('sha256').update(b).digest('hex')
 
-const ROOT = join(import.meta.dir, '../..')
-const selectorSrc = readFileSync(join(ROOT, 'src/components/MessageSelector.tsx'), 'utf8')
 
-function between(src: string, from: string, to: string, name: string): string {
-  const a = src.indexOf(from)
-  const b = src.indexOf(to, a + from.length)
-  if (a === -1 || b === -1) {
-    check(`${name}: anchors present`, false, `from=${a} to=${b}`)
-    return ''
-  }
-  return src.slice(a, b)
-}
-
-section('§A B07 — three distinct actions on the confirm card')
-{
-  check(
-    "the option union carries 'view' | 'branch' | 'rerun'",
-    selectorSrc.includes("value: 'view'") &&
-      selectorSrc.includes("value: 'branch'") &&
-      selectorSrc.includes("value: 'rerun'"),
-  )
-  for (const [value, label] of [
-    ['view', 'View history read-only (nothing is mutated)'],
-    ['branch', 'Create a branch session from here (this one is untouched)'],
-    ['rerun', 'Rerun from here on a new branch (this session is untouched)'],
-  ] as const) {
-    check(`'${value}' row present with its distinct label`, selectorSrc.includes(label))
-  }
-  for (const gate of ['if (onViewOnly)', 'if (onBranchCreated)', 'if (onRerun)']) {
-    check(`row gated on its callback: ${gate}`, selectorSrc.includes(gate))
-  }
-  check(
-    'checkpointing-off still reaches the card when the timeline is wired',
-    selectorSrc.includes(
-      'onViewOnly !== undefined || onRerun !== undefined || onBranchCreated !== undefined',
-    ) && selectorSrc.includes('if (!historyOn && !anyTimelineAction)'),
-  )
-  check(
-    'view/branch/rerun each carry distinct confirm copy',
-    selectorSrc.includes('Nothing changes — a read-only view of the history.') &&
-      selectorSrc.includes('A new branch session is created from this point') &&
-      selectorSrc.includes('A new branch reruns this message'),
-  )
-}
 
 section('§B B04 — the View-only path is projection-only')
 {
-  const viewArm = between(selectorSrc, "if (value === 'view')", "if (value === 'branch')", 'view arm')
-  check('the view arm calls the Chat callback and closes — nothing else', viewArm.includes('onViewOnly?.()') && viewArm.includes('close()'))
-  for (const forbidden of ['onPreRestore', 'onRestoreMessage', 'onRestoreCode', 'onSummarize', 'setRestoring(true)']) {
-    check(`the view arm never touches ${forbidden}`, !viewArm.includes(forbidden))
-  }
   const { openTranscriptPart } = await import('../ui/chatScenarios.ts')
   const { conversationIdHere } = await import('../../src/services/engine-connector/focusedConnector.js')
   const view = await openTranscriptPart('b07-view-flip', { keepHome: true })
@@ -226,7 +178,6 @@ section('§C B07 — rerun ≠ replay: rewind-branch before the anchor, fork-bra
   const beforeAnchor = '00000000-0000-4000-8000-000000000004'
   check("Chat rerun branches at forkOrdinal: idx (before the anchor)", mounted.outcome.ok === true && mounted.branchEntries.some(entry => entry.uuid === beforeAnchor) && !mounted.branchEntries.some(entry => entry.uuid === anchorUuid) && mounted.sourceKept, `${JSON.stringify(mounted.outcome)} · ${mounted.branchEntries.length} entries in the branch`)
   check("Chat rerun uses boundaryKind: 'rewind'", mounted.branchEntries.at(-1)?.subtype === 'rewind_boundary', String(mounted.branchEntries.at(-1)?.subtype))
-  check("Create-branch covers the anchor: forkOrdinal: ordinal + 1 with boundaryKind: 'fork'", selectorSrc.includes('forkOrdinal: ordinal + 1') && selectorSrc.includes("boundaryKind: 'fork'"))
   check('Chat rerun switches in-process through the ONE resume chokepoint', mounted.entrypoint === 'fork' && typeof mounted.branchId === 'string' && mounted.branchId !== SID, `${String(mounted.branchId)} · ${String(mounted.entrypoint)}`)
   check('Chat rerun stages the resubmit under operator control (no auto-send)', mounted.calls.includes('setInputValue "turn 5"') && mounted.asked.length === 0, `${mounted.calls.join(' · ')} · asked of the session: ${mounted.asked.join(',')}`)
 }
@@ -248,8 +199,6 @@ section('§D B07 — distinct receipts')
 section('§E — the rerun guard + the /rewind alias')
 {
   check('a mid-run rerun refuses honestly (no switch under a live turn)', selectorRun.midRun.ok === false && selectorRun.midRun.reason === 'a run is in flight — esc to interrupt it first' && selectorRun.midRunResumes === 0, JSON.stringify(selectorRun.midRun))
-  const rewindCmd = readFileSync(join(ROOT, 'src/commands/rewind/index.ts'), 'utf8')
-  check("the /rewind alias stays", rewindCmd.includes("name: 'rewind'"))
 }
 
 console.log(

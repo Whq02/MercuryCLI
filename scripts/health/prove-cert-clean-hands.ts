@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -33,11 +33,6 @@ check('/health exhaust alone still reads CLEAN (FC-070)', await getIsClean())
 writeFileSync(join(REPO, 'real-work.txt'), 'untracked work\n')
 check('real untracked work still reads dirty', (await getIsClean()) === false)
 
-const report = readFileSync(join(import.meta.dir, '../../src/utils/healthReport.ts'), 'utf8')
-check(
-  'the state root rides the PROJECT root, not the bare cwd (call-shaped)',
-  /flagEnv\('MERCURY_HEALTH_STATE_DIR'\) \|\| getProjectRootSafe\(\)/.test(report),
-)
 
 rmSync(HOME, { recursive: true, force: true })
 rmSync(REPO, { recursive: true, force: true })

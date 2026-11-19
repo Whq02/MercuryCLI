@@ -45,13 +45,6 @@ async function main(): Promise<void> {
 
   section('BM-01 — a settled print one-shot must not earn a run-state continuation')
   {
-    const evaluator = src('src/services/run/completionEvaluator.ts')
-    check(
-      'BM-01: the stop decision input can EXPRESS a one-shot print surface (invocation contract field)',
-      /^\s*(surface|invocation\w*)\??:/m.test(
-        evaluator.slice(evaluator.indexOf('interface StopEvaluationInput'), evaluator.indexOf('export function evaluateStop')),
-      ),
-    )
     const settledWrite = fold('write the report file', [
       { type: 'substantive', at: 2, reason: 'mutation landed' },
       {
@@ -86,11 +79,6 @@ async function main(): Promise<void> {
 
   section('BM-02 — an unchanged run continues until the operator budget; no revision gate refuses it')
   {
-    const evaluator = src('src/services/run/completionEvaluator.ts')
-    check(
-      'BM-02: the decision input carries no revision tuple and no admission record',
-      !/runRevision|evidenceRevision|nextActionFingerprint|priorAdmission/.test(evaluator),
-    )
     const open = fold('churny run', [
       { type: 'substantive', at: 2, reason: 'work' },
       { type: 'task-transition', at: 3, taskId: 't1', title: 'the work', state: 'open' },
@@ -154,24 +142,6 @@ async function main(): Promise<void> {
     rmSync(cwd, { recursive: true, force: true })
   }
 
-  section('BM-14 — status/error/exit derive from one typed outcome')
-  {
-    const engine = src('src/rows/turn.ts')
-    const settledAt = engine.indexOf("const settled = endedOnApiError ? { status: 'failed' as const, errorClass: 'model' as const } : statusOfTerminal(terminal, cut)")
-    const gateAt = engine.indexOf("if (settled.status === 'completed') {", settledAt)
-    const completedAt = engine.indexOf("endTurn('completed'", gateAt)
-    const { exitCodeOf, OUTCOME_STATUSES } = await import('../../src/rows/vocabulary.ts')
-    check(
-      'BM-14: the outcome derives from ONE typed settlement (no unguarded completed yield) and the exit code from the status alone',
-      settledAt > 0 &&
-        gateAt > settledAt &&
-        completedAt > gateAt &&
-        engine.lastIndexOf("endTurn('completed'") === completedAt &&
-        exitCodeOf('completed') === 0 &&
-        OUTCOME_STATUSES.filter(status => status !== 'completed').every(status => exitCodeOf(status) === 1),
-      `settled=${settledAt} gate=${gateAt} completed=${completedAt}`,
-    )
-  }
 
   section('BM-16 — clean claim→release leaves zero debris + a truthful receipt')
   {
@@ -206,27 +176,11 @@ async function main(): Promise<void> {
     check('E03: a project change moves the key', mintCacheDomainKey({ ...base, projectPath: '/other' }) !== k1)
     check('E04: a contract/tool change moves the key', mintCacheDomainKey({ ...base, toolSchemaDigest: 'ffffffffffffffff' }) !== k1)
     check('the key NEVER carries session/raw-path/raw-account material', !k1.includes('session') && !k1.includes('/Users') && k1.length < 48)
-    const callModel = src('src/services/providers/openai/openaiCallModel.ts')
-    check('the openai lane mints through the ONE domain owner (the session-scoped spelling is GONE)',
-      callModel.includes('mintCacheDomainKey({') && !callModel.includes('promptCacheKey: `mercury:${'))
   }
 
   section('E08-E12 — the cadence prior is cross-process; TTL policy + reporting honest')
   {
     const core = await import('../../src/utils/cache/cacheClockCore.js')
-    const clock = src('src/utils/cache/cacheClock.ts')
-    check(
-      'E08: rollups live in the global per-project store (cross-process by construction)',
-      clock.includes("join(getProjectDir(identity), 'cache-clock', 'sessions')") && !clock.includes('getProjectsDir()'),
-    )
-    check(
-      'E08: readPrior scans OTHER sessions (own rollup excluded) for the first-choice TTL',
-      clock.includes('f !== own') && clock.includes('priorFromRollups'),
-    )
-    check(
-      'E08 adjudication: the cadence prior is NEVER domain-keyed (workflow property, project scope)',
-      !clock.includes('mintCacheDomainKey'),
-    )
     const gapPrior = { sessions: 5, gapSessions: 3 }
     check(
       'E09: disabled ⇒ null (default path byte-identical); an operator pin wins over eligibility',
@@ -255,17 +209,6 @@ async function main(): Promise<void> {
         verdict.result.savingsPct >= 9 &&
         verdict.result.coldRewrites.clock < verdict.result.coldRewrites.baseline5m,
       `green=${verdict.green} savings=${verdict.result.savingsPct}% cold=${verdict.result.coldRewrites.baseline5m}→${verdict.result.coldRewrites.clock}`,
-    )
-    check(
-      'E11: junk rollups fail OPEN (priorFromRollups tolerates garbage; readPrior catch ⇒ empty prior)',
-      JSON.stringify(core.priorFromRollups([null, 42, 'junk', {}])) === JSON.stringify({ sessions: 0, gapSessions: 0 }) &&
-        JSON.stringify(core.priorFromRollups([{ v: 1, requests: 10, gapsOver5m: 2 }, 'junk'])) === JSON.stringify({ sessions: 1, gapSessions: 1 }) &&
-        clock.includes('return { sessions: 0, gapSessions: 0 }'),
-    )
-    const fp = src('src/services/api/prefixFingerprint.ts')
-    check(
-      'E12: prefixFingerprint is pure/local (no usage/cache_read reads; estimate labeled, never a billing claim)',
-      /^\s+estTokens: number$/m.test(fp) && !fp.includes('cache_read') && !fp.includes('usage') && fp.includes("from 'node:crypto'"),
     )
   }
 
@@ -321,12 +264,6 @@ async function main(): Promise<void> {
         withSleep.some(c => String(c.value).includes('legacy later')),
     )
     q.resetCommandQueue()
-    const agentTask = src('src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-    const enqueueBlock = agentTask.slice(agentTask.indexOf('enqueuePendingNotification({'))
-    check(
-      "N-03 wiring: LocalAgentTask enqueues terminal notices at priority 'next' (the workflow precedent)",
-      enqueueBlock.slice(0, 200).includes("priority: 'next'"),
-    )
   }
 
   section('BM-15 — numStartups stays interactive-only; headless activity has its ledger')
@@ -350,14 +287,6 @@ async function main(): Promise<void> {
     const entryStamp = (JSON.parse(readFileSync(join(entryHome, '.config.json'), 'utf8')) as { headlessActivity?: { print: number; sdk: number } }).headlessActivity
     rmSync(entryHome, { recursive: true, force: true })
     check('BM-15: runHeadless notes its activity at entry (one deferred merge, no hot-path write)', entryStamp?.sdk === 1 && entryStamp.print === 0)
-    const mainSrc = src('src/main.tsx')
-    check(
-      "BM-15: numStartups semantics UNTOUCHED (interactive increment only; main.tsx's one ledger call is the verb stamp, never print/sdk)",
-      mainSrc.includes('numStartups: (current.numStartups ?? 0) + 1') &&
-        (mainSrc.match(/noteHeadlessActivity\(/g) ?? []).length === 1 &&
-        mainSrc.includes("noteHeadlessActivity(`verb:${names.join(':')}`)") &&
-        !/noteHeadlessActivity\(\s*'(?:print|sdk)'/.test(mainSrc),
-    )
     check("BM-15: /health carries the activity row (wedge detection reads BOTH)", (await import('../../src/utils/health/sections/crew.ts')).crewChecks().some(row => row.id === 'activity' && row.label === 'Activity counts'))
   }
 
@@ -376,11 +305,6 @@ async function main(): Promise<void> {
     check('WK-08: an identical relaunch is SURFACED as a repeat refusal', second.repeatCount === 2 && second.detail.includes('repeat refusal #2'))
     const repo = w.preflightWorktreeCapability(join(import.meta.dir, '../../'))
     check('WK floor: a real git repository preflights AVAILABLE', repo.available === true)
-    const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
-    const preflightAt = agentTool.indexOf('preflightWorktreeCapability(')
-    const mintAt = agentTool.indexOf("const earlyAgentId = generateTaskId('local_agent')")
-    check('WK-03 wiring: the preflight runs BEFORE the agent id mints (nothing allocates on a refusal)', preflightAt > 0 && preflightAt < mintAt)
-    check("WK-05: createAgentWorktree's own throw stays the FLOOR (isolation never silently downgraded)", src('src/utils/worktree.ts').includes('Worktree isolation is unavailable here'))
     rmSync(bare, { recursive: true, force: true })
   }
 

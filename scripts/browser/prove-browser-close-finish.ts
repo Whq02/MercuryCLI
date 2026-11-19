@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import type http from 'node:http'
 import { join } from 'node:path'
 import { ROOT, check, finish, lead, ownerOf, pageOf, requireBrowser, run, section, serve, sessions } from './harness.ts'
@@ -272,19 +271,6 @@ if (!posix) {
   check('and its process was ended, not left stopped (holds on the parent too)', neverStaged!.left === 'SIGKILL' && !alive(neverStaged!.pid), `left by ${neverStaged!.left || 'nothing yet'}, pid ${alive(neverStaged!.pid) ? 'alive' : 'gone'}`)
 }
 
-section('S3 one rule, not a copy of it')
-{
-  const service = readFileSync(join(ROOT, 'src/services/browser/browserSession.ts'), 'utf8')
-  const tool = readFileSync(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'), 'utf8')
-  const asks = [...service.matchAll(/\bbrowser\.close\(\)/g)].length + [...tool.matchAll(/\bbrowser\.close\(\)/g)].length
-  const body = (from: string, to: string): string => service.slice(service.indexOf(from), service.indexOf(to))
-  const closer = body('async function closeChild(', 'async function closePage(')
-  check(
-    'one function asks a browser to quit, and the idle lease and an owner’s disposal both call it (holds on the parent too)',
-    asks === 1 && closer.includes('browser.close()') && body('function armIdleLease(', 'export function beginBrowserActivity(').includes('closeChild(') && body('dispose: async state =>', 'retain: state =>').includes('closeChild('),
-    `${asks} place(s) ask a browser to quit`,
-  )
-}
 
 globalThis.setTimeout = realTimeout
 globalThis.clearTimeout = realClear

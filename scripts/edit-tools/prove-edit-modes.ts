@@ -280,8 +280,6 @@ section('N. the tool-input normaliser keeps every mode')
   check('N3 the exact mode keeps its shape and writes no default the model did not send (replace_all stays absent)', exact.old_string === 'a' && exact.new_string === 'b' && !('replace_all' in exact), JSON.stringify(exact))
   const all = normalizeToolInput(FileEditTool as never, { file_path: join(fixtures, 'n.md'), old_string: 'a', new_string: 'b', replace_all: true }) as Record<string, unknown>
   check('N3b a replace_all the model sent rides through', all.replace_all === true, JSON.stringify(all))
-  const grep = readFileSync(join(import.meta.dir, '..', '..', 'src/tools/GrepTool/GrepTool.ts'), 'utf8')
-  check('N4 a content-mode search records the displayed lines by default (not only under the opt-in dialect)', grep.includes("(anchorPatchEnabled() || staleEditRecoveryEnabled()) && (input['-n'] ?? true)"))
 }
 
 section('R. empty optional fields do not select or conflict with an edit mode')

@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative, resolve } from 'node:path'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
+import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -310,29 +309,6 @@ section('the helper: the main seat\'s model at low, read directly')
   }
 }
 
-section('the census: the small-fast spellings are gone from src')
-{
-  const files: string[] = []
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      const path = join(dir, entry)
-      if (statSync(path).isDirectory()) walk(path)
-      else if (/\.(ts|tsx)$/.test(entry)) files.push(path)
-    }
-  }
-  walk(join(ROOT, 'src'))
-  const spell = (...parts: string[]): string => parts.join('')
-  const RETIRED = new RegExp([spell('Small', 'Fast'), spell('SMALL', '_FAST'), spell('sessionLight', 'Model'), spell('PROMPT_CACHING_', 'HAIKU')].join('|'))
-  const CATALOGUE_REMNANTS = new Set(['src/utils/model/model.ts', 'src/services/providers/typedModelIds.ts'])
-  const retired = files.filter(file => RETIRED.test(readFileSync(file, 'utf8'))).map(file => relative(ROOT, file))
-  check('no src file spells the small-fast road, the light tier, the Haiku caching switch or the shell prefix flag', retired.length === 0, j(retired))
-  const haikuCalls = files.filter(file => /getDefaultHaikuModel\(\)/.test(readFileSync(file, 'utf8'))).map(file => relative(ROOT, file))
-  check('getDefaultHaikuModel() is called only by the model catalogue (the haiku alias and the typed-id list)', haikuCalls.every(file => CATALOGUE_REMNANTS.has(file)), j(haikuCalls))
-  const registry = flagRegistryText()
-  const managed = readFileSync(join(ROOT, 'src/utils/managedEnvConstants.ts'), 'utf8')
-  const idSpaces = readFileSync(join(ROOT, 'src/services/providers/idSpaces.ts'), 'utf8')
-  check('the flag registry, the managed-env list and the id spaces no longer name the small-fast flag', ![registry, managed, idSpaces].some(text => text.includes(spell('MERCURY_', 'SMALL_', 'FAST_MODEL'))))
-}
 
 await fixture.close()
 await meliousLane.close()

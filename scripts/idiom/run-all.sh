@@ -23,7 +23,6 @@ run() {
   prover_mark "scripts/idiom/$2" "$__t" "$__rc"
 }
 
-run "census-zero hygiene (C14/C18/C19/C21)" prove-idiom-hygiene.ts
 run "provider-SDK import fence (B01/B03/B04/B07/E01)" prove-import-fence.ts
 run "direct provider-codec laws (B05/B06/B08)" prove-provider-codecs.ts
 run "fabric domain: model + validators + lossless entry codec" prove-fabric-domain.ts

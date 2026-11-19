@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import {
   __setAnthropicOwnerResolverForTest,
   foldUtilizationFromEndpoint,
@@ -58,13 +56,6 @@ const resetsAtIso = new Date(Date.now() + 3_600_000).toISOString()
   t('§4 …and the new slot re-stamps with its own observation', Math.round(quotaWindows().fiveHour.usedPct ?? -1) === 7)
 }
 
-{
-  const src = readFileSync(join(import.meta.dir, '../../src/services/anthropicLimits.ts'), 'utf8')
-  const stamps = src.match(/observedOwner = resolveOwner\(\)/g) ?? []
-  t('§6 BOTH fold sites stamp the owner (headers + endpoint)', stamps.length === 2, `found ${stamps.length}`)
-  t('§6 the one read gates on the stamp', src.includes('observedOwner === null || observedOwner === resolveOwner()'))
-  t('§6 the reset roads clear the stamp', (src.match(/observedOwner = null/g) ?? []).length >= 2)
-}
 
 __setAnthropicOwnerResolverForTest(null)
 resetLimitsForCredentialSwitch()

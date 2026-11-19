@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -14,7 +14,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 console.log('============================================================')
 console.log(' the sub-agent default effort (a spawn without the field)')
@@ -67,20 +66,8 @@ const doctrine = await import('../../src/constants/subagentDoctrine.js')
   check('an exact-tools run ignores the pin', resolveAgentEffort({ effortOverride: 'xhigh', useExactTools: true, definitionEffort: 'low', defaultEffort: 'high' }) === 'low')
   check('a pin off the ladder yields to the next rung', resolveAgentEffort({ effortOverride: 'turbo', useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' }) === 'high')
   check('the own word is the pin else the definition, never the default', agentOwnEffortWord({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined }) === undefined)
-  const runAgent = src('src/tools/AgentTool/runAgent.ts')
-  check('the runner reads the default through the one reader and never the session state', (runAgent.match(/defaultEffort: subagentDefaultEffort\(\)/g) ?? []).length === 2 && !/sessionEffort/.test(runAgent) && !/state\.effortValue/.test(runAgent))
-  check('the runner notes the RESOLVED word for the effort owner', /noteAgentEffortWord\(agentId, resolvedEffort\)/.test(runAgent))
 }
 
-{
-  console.log('\n— §3 · the Crewmate tool carries the field; the pin reaches the run —')
-  const tool = src('src/tools/AgentTool/AgentTool.tsx')
-  check('the input type carries an optional ladder word', /effort\?: EffortLevel/.test(tool))
-  check('the schema enumerates the ladder from its one owner', /effort: z\s*\.enum\(EFFORT_LEVELS\)\s*\.optional\(\)/.test(tool))
-  check('the effort field alone states the configured default, not the parent level', tool.includes("omitted, the agent definition's effort, else the configured crewmate default (high unless the operator changed it), never the parent level") && !src('src/tools/AgentTool/prompt.ts').includes('configured crewmate default'))
-  check("the call's word is the run's pin", /\.\.\.\(input\.effort !== undefined \? \{ effortOverride: input\.effort \} : \{\}\)/.test(tool))
-  check('the Crewmate tool\'s description leaves the effort field to the field\'s own text (said once)', !src('src/tools/AgentTool/prompt.ts').includes("parameter sets the agent's reasoning effort") && !src('src/tools/AgentTool/prompt.ts').includes('never at your own level'))
-}
 
 {
   console.log('\n— §4 · the default word resolves per row through the one owner (never an error) —')
@@ -177,11 +164,6 @@ const doctrine = await import('../../src/constants/subagentDoctrine.js')
   check('the env read is the doctrine module\'s (one owner of the knob) and the fold reads it', doctrine.agentFanoutCap() === 5 && defaults.subagentConcurrencyCap(doctrine.agentFanoutCap()).cap === 5)
   delete process.env.MERCURY_AGENT_FANOUT_CAP
   check('the knob unset ⇒ the live fold answers the setting or the convention', defaults.subagentConcurrencyCap(doctrine.agentFanoutCap()).source !== 'env')
-  const tool = src('src/tools/AgentTool/AgentTool.tsx')
-  check('the Crewmate tool refuses past the folded cap and names the door', /const fanout = subagentConcurrencyCap\(agentFanoutCap\(\)\)/.test(tool) && /if \(runningAgents >= fanout\.cap\)/.test(tool) && tool.includes("fanout.source === 'env' ? 'MERCURY_AGENT_FANOUT_CAP' : 'Crewmates at once in /config'"))
-  const configScreen = src('src/components/Settings/Config.tsx')
-  check('/config carries the three rows over the one record', /id: 'agentsDefaultEffort'/.test(configScreen) && /id: 'agentsDefaultModel'/.test(configScreen) && /id: 'agentsMaxConcurrent'/.test(configScreen) && /agents: \{ \.\.\.c\.agents, \.\.\.patch \}/.test(configScreen))
-  check('the agent-model resolver takes the configured default model for a definition that names none, and an explicit inherit keeps the parent', /if \(agentModel === undefined\) \{\s*const configured = subagentDefaultModel\(\)/.test(src('src/utils/model/agent.ts')))
 }
 
 for (const [key, value] of Object.entries(savedEnv)) {

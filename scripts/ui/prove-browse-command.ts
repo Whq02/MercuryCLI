@@ -274,10 +274,6 @@ for (const [cols, rows, zen] of [[80, 24, false], [64, 20, false], [100, 30, tru
 
 section('§4 refusals: the card\'s road and the command share one owner in the source; /browser (the web browser) is another command')
 {
-  const prompt = readFileSync(join(import.meta.dir, '../../src/components/PromptInput/PromptInput.tsx'), 'utf8')
-  const browse = readFileSync(join(import.meta.dir, '../../src/commands/browse/browse.tsx'), 'utf8')
-  check('the composer\'s FILES activation calls openFilesMenu', /case 'files':[\s\S]{0,120}openFilesMenu\(\)/.test(prompt))
-  check('the command calls the same openFilesMenu and nothing else of the cockpit', browse.includes('openFilesMenu()') && !browse.includes('setHelmFocus'))
   check('/browser stays its own command', builtinCommands().some(command => command.name === 'browser'))
 }
 

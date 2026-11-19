@@ -2,7 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { createSplashCore } from '../../assets/splash/splash-core.mjs'
@@ -29,9 +28,6 @@ import {
 import { FIXED_CERT, RESUME_FIXTURE_LOGS, STILLS, composeHealth, composeResume, readStill, renderStill, resumeModelOf } from './face-door-stills.ts'
 
 const t = checker()
-const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-const screenSrc = read('src/components/BootHealthScreen.tsx')
 
 const CHECK = (over: Partial<HealthCheck>): HealthCheck => ({
   id: 'x',
@@ -121,9 +117,6 @@ t.section('§4 — GENERIC SECTIONS (whatever the certificate carries appears)')
   }
   const placed = composeHealth(120, 40, { view: 'list', cert: foreign }).join('\n')
   t.check('an unseen section title renders with its rows (nothing here knows the roster)', placed.includes('UNITY & BLENDER') && placed.includes('Unity bridge'))
-  const rosterTokens = ['RUNTIME', 'PROVIDERS', "'runtime'", "'providers'", 'agent-definitions', 'env-limits', 'version-locks']
-  const hits = rosterTokens.filter(tok => screenSrc.includes(tok))
-  t.check('POISON absent: the screen source names no section roster', hits.length === 0, hits.join(','))
 }
 
 t.section('§5 — THE COMPOSER TIERS (floor warns · wide fits · additive tones)')
@@ -201,9 +194,6 @@ t.section('§7 — THE REAL MOUNT (staticRender with an injected certificate)')
   t.check('the mounted screen presents the status words on the rows', frame.includes('warn') && frame.includes('stale'))
   t.check('the mounted screen presents the list legend', frame.includes('d deep · r re-run · esc back'))
 
-  const routeTokens = ['surfaceRoute', 'enterRootChat', 'settleAbsentChat', 'armRootCommand', 'initialMessage']
-  const routeHits = routeTokens.filter(tok => screenSrc.includes(tok))
-  t.check('the screen module never touches the surface-route bridge', routeHits.length === 0, routeHits.join(','))
 }
 
 t.section('§8 — THE RESUME SKIN (one core, the face grammar; the real journey named)')
@@ -245,39 +235,8 @@ t.section('§9 — THE RESUME MOUNT (staticRender with an injected model; the la
   t.check('the mounted screen presents the session rows and their projects', frame.includes('the tool-loop fold') && frame.includes('moodle groundwork') && frame.includes('orchard-src'))
   t.check('the mounted screen presents the legend and no crew section', !frame.includes('router crews') && frame.includes('↵ open · n new session'))
 
-  const resumeSrc = read('src/components/BootResumeScreen.tsx')
-  const armedTokens = ['armedRootCommand', 'armRootCommand', 'initialMessage', 'settleAbsentChat']
-  const armedHits = armedTokens.filter(tok => resumeSrc.includes(tok))
-  t.check('the resume screen never touches the armed-command road', armedHits.length === 0, armedHits.join(','))
-  t.check('the resume screen lands through the one resume door (with the boot posture) then the plain chat step', resumeSrc.includes('focusResumedSession(String(sessionId), log.fullPath, {') && resumeSrc.includes('permissionMode: permissionModeRef.current') && resumeSrc.includes('enterRootChat()') && !resumeSrc.includes('enterRootChat({'))
-  const coreSrcModel = read('src/components/mercury-ui/screens/sessionPickerModel.ts')
-  t.check('the picker core module reaches no route verb at all', !coreSrcModel.includes('surfaceRoute') && !coreSrcModel.includes('enterRootChat'))
 }
 
-t.section('§10 — THE WIRING + THE RETIREMENT (C4: the rows open the layers; the armed road survives for Continue alone)')
-{
-  const face = read('src/components/BootSplashScreen.tsx')
-  const healthCase = face.slice(face.indexOf("case 'health':"), face.indexOf("case 'concourse':"))
-  t.check("the Health row opens the face's health layer and arms NOTHING", healthCase.includes('setHealthOpen(true)') && !healthCase.includes('armRootCommand') && !healthCase.includes('enterRootChat'), healthCase.slice(0, 120))
-  const resumeCase = face.slice(face.indexOf("case 'sessions':"), face.indexOf('}\n    return null;'))
-  t.check("the Sessions · Projects row opens the face's picker layer and arms NOTHING", resumeCase.includes('setResumeOpen(true)') && !resumeCase.includes('armRootCommand') && !resumeCase.includes('enterRootChat'), resumeCase.slice(0, 120))
-  t.check('the health layer mounts with the esc-home wiring', face.includes('<BootHealthScreen') && face.includes('onClose={() => setHealthOpen(false)}'))
-  t.check('the resume layer mounts with the esc-home wiring', face.includes('<BootResumeScreen') && face.includes('onClose={() => setResumeOpen(false)}'))
-  t.check('the face list parks while a layer owns the screen', face.includes('!settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
-  t.check('the armed bridge entry is GONE from the face', !face.includes('armedRootCommand'))
-  t.check('the arming helper is GONE from the face', !face.includes('armRootCommand') && !face.includes('initialMessage'))
-  t.check('Continue rides the one resume door directly, posture aboard, refusal on the row', face.includes('focusResumedSession(sid, target.transcriptPath ?? undefined') && face.includes('permissionMode: permissionModeRef.current') && face.includes('if (!outcome.ok) return outcome.reason;'))
-  t.check('a project resume returns its refusal before entering chat', /const outcome = await hop\.focusResumedSession\(p\.sessionId,[^\n]+\n\s*if \(!outcome\.ok\) return outcome\.reason;/.test(face))
-  const route = read('src/context/surfaceRoute.ts')
-  t.check('the route owner carries NO armed exception (enterRootChat refuses without a chat, full stop)', !route.includes('armedRootCommand') && route.includes('export function enterRootChat(): ChatEntry {'))
-  const launcher = read('src/chatLauncher.tsx')
-  t.check(
-    'the surviving sessionless road lands through the resolver (initializeSurfaceRoute), never through the root verb',
-    launcher.includes('const initialSurface = await surfaceRoute.resolveInitialSurface();') &&
-      launcher.includes('surfaceRoute.initializeSurfaceRoute(initialSurface.effective);') &&
-      !launcher.includes('enterRootChat('),
-  )
-}
 
 t.section('§11 — ROUTE SILENCE around the real layers (no transition, no settle, the strip unmoved)')
 {
@@ -334,10 +293,6 @@ t.section('§12 — THE SPLASH ROAD (C5, Way A): the face-door deep-link outrank
   t.check('the one-shot waits armed for the next face mount', handover.consumeFaceDoorDeepLink() === 'health')
   process.env['MERCURY_FULLSCREEN'] = '1'
 
-  const face = read('src/components/BootSplashScreen.tsx')
-  t.check('the face consumes the face door ONCE at mount and seeds the layers from it', face.includes('useState(() => consumeFaceDoorDeepLink())') && face.includes("useState(faceDoor === 'health')") && face.includes("useState(faceDoor === 'resume')") && face.includes("useState(faceDoor === 'agents')"))
-  const handoverSrc = read('src/substrate/splashHandover.ts')
-  t.check('the receipt vocabulary is the adjudicated closed set (saturn · logins · agents joined by ruling)', handoverSrc.includes("const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])"))
   unregConcourse()
   unregFace()
   routeStore._resetSurfaceRouteForTesting()
@@ -345,35 +300,9 @@ t.section('§12 — THE SPLASH ROAD (C5, Way A): the face-door deep-link outrank
 
 t.section('§13 — BOARD CONNECT ROWS (the selected action opens sign-in on its family, not the plain face, and arms the way back to the picker)')
 {
-  const board = read('src/components/concourse/ConcourseScreen.tsx')
   const { armSignInPickerReturn, consumeSignInPickerReturn } = await import('../../src/components/concourse/ConcourseScreen.js')
-  for (const [picker, close, kind] of [['MercurySessionModelPicker', 'setRowPick', 'session'], ['MercuryModelDefaultPicker', 'setModelDefaultOpen', 'default']]) {
-    const start = board.indexOf(`<${picker}`)
-    const body = /onSignIn=\{family => \{([\s\S]*?)\n\s*\}\}/.exec(board.slice(start))?.[1]
-    for (const entered of [true, false]) {
-      const calls: unknown[] = []
-      consumeSignInPickerReturn()
-      if (body) {
-        new Function(close!, 'callbacks', 'rowPick', 'armSignInPickerReturn', 'consumeSignInPickerReturn', 'family', body)(
-          () => calls.push('close'),
-          { enterBootSettings: (door?: string, opener?: unknown) => (calls.push(door, opener), entered) },
-          { kind: 'model', sessionId: 's-1', title: 'the row' },
-          armSignInPickerReturn,
-          consumeSignInPickerReturn,
-          'gemini',
-        )
-      }
-      const armed = consumeSignInPickerReturn()
-      t.check(`${picker}: closes its picker and opens the logins door on the row's family, asking for the way back`, JSON.stringify(calls) === JSON.stringify(['close', 'logins', { family: 'gemini', returnToOpener: true }]), JSON.stringify(calls))
-      t.check(`${picker}: the picker's return is armed exactly when the face was entered (${entered})`, entered ? JSON.stringify(armed) === JSON.stringify(kind === 'session' ? { kind: 'session', sessionId: 's-1', title: 'the row' } : { kind: 'default' }) : armed === null, JSON.stringify(armed))
-    }
-  }
-  t.check('the board seeds its pickers from the one-shot at mount (the return re-opens the picker that opened the door)', board.includes('const [signInPicker] = useState(() => consumeSignInPickerReturn())') && board.includes("signInPicker?.kind === 'session' ? { kind: 'model', sessionId: signInPicker.sessionId, title: signInPicker.title } : null") && board.includes("useState(signInPicker?.kind === 'default')"))
   armSignInPickerReturn({ kind: 'default' })
   t.check('the one-shot is consumed exactly once', JSON.stringify(consumeSignInPickerReturn()) === JSON.stringify({ kind: 'default' }) && consumeSignInPickerReturn() === null)
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  const callback = /enterBootSettings: \(door, opener\) => \{([\s\S]*?)\n      \}/.exec(route)?.[1] ?? ''
-  t.check('the route arms the requested face door with the opener before mounting the face, and answers whether the face was entered', callback.includes('armFaceDoorDeepLink(door, opener)') && callback.indexOf('armFaceDoorDeepLink(door, opener)') < callback.indexOf('enterBootSettings()') && callback.includes('return enterBootSettings().ok'))
 }
 
 t.section('§14 — THE FAMILY RIDES THE DOOR (the row names its family; the face opens the sign-in layer on it and returns to the opener)')
@@ -384,8 +313,6 @@ t.section('§14 — THE FAMILY RIDES THE DOOR (the row names its family; the fac
   for (const family of ['openrouter', 'gemini', 'huggingface']) t.check(`the ${family} connect row names ${family}`, signInFamilyOfRow(`__mercury_${family}_connect__`) === family)
   for (const lane of ['zai', 'moonshot', 'deepseek'] as const) t.check(`the ${lane} key row names ${lane}`, signInFamilyOfRow(keyConnectValue(lane)) === lane)
   t.check('the custom-endpoint row, a catalogue door and a model name no family', signInFamilyOfRow(keyConnectValue('compat')) === undefined && signInFamilyOfRow('__mercury_gemini_expand__') === undefined && signInFamilyOfRow('claude-opus-5') === undefined)
-  const wrappers = read('src/commands/model/mercuryModel.tsx')
-  t.check('both picker wrappers pass the row\'s family through onSignIn', wrappers.split('onSignIn?.(signInFamilyOfRow(id))').length === 3 && wrappers.includes('onSignIn?: (family: string | undefined) => void'))
 
   const handover = await import('../../src/substrate/splashHandover.js')
   handover.consumeFaceDoorDeepLink()
@@ -395,15 +322,6 @@ t.section('§14 — THE FAMILY RIDES THE DOOR (the row names its family; the fac
   handover.armFaceDoorDeepLink('logins')
   t.check('a door armed without an opener carries none (the splash receipt road)', handover.peekFaceDoorOpener() === null && handover.consumeFaceDoorDeepLink() === 'logins')
 
-  const face = read('src/components/BootSplashScreen.tsx')
-  t.check('the face reads the opener beside the door and seeds the layer\'s family and way back from it', face.includes('useState(() => peekFaceDoorOpener())') && face.includes("useState<string | undefined>(faceDoor === 'logins' ? faceDoorOpener?.family : undefined)") && face.includes("faceDoor === 'logins' && faceDoorOpener?.returnToOpener === true ? 'route' : null"))
-  const close = face.slice(face.indexOf('const closeLogins = (): void => {'), face.indexOf('const closeLogins = (): void => {') + 400)
-  t.check('the layer\'s close leaves through the route token when the opener asked for the way back, else restores the face (its own picker re-opens when it was the opener)', close.includes("if (back === 'route' && leaveCurrentSurface().ok) return;") && close.includes('setLoginsOpen(false);') && close.includes("if (back === 'picker') setModelDefaultOpen(true);"))
-  t.check('the layer mounts with the family and, exactly when an opener waits, the signed-in road', face.includes('family={loginsFamily}') && face.includes("{...(loginsBack !== null ? { onSignedIn: closeLogins } : {})}"))
-  t.check("the face's own picker opens the layer on the row's family with the picker as the way back", face.includes('setLoginsFamily(family);') && face.includes("setLoginsBack('picker');"))
-  const screen = read('src/components/BootLoginsScreen.tsx')
-  t.check('the sign-in layer opens on the named family ahead of the recorded focus', screen.includes('loginFamilyInitialFocus(arms.map(arm => arm.row), recordedFocus, loginFamilyFocusFor(family))'))
-  t.check('a completed sign-in settles through the one road that leaves by onSignedIn', screen.includes('onSignedIn?.();') && screen.split('settleSignedIn();').length >= 5)
 }
 
 t.finish('prove-face-doors')

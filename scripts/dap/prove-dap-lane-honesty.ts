@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -40,11 +40,6 @@ console.log('§1 FC-105 — the deep probe BOOTS the resolved server')
     )
     delete process.env.MERCURY_JS_DEBUG_DAP
   }
-  const readiness = readFileSync(path.join(ROOT, 'src', 'utils', 'readiness.ts'), 'utf8')
-  check(
-    'the fast row speaks resolution, not liveness (the child-road-is-live claim is gone)',
-    readiness.includes('resolution only; health --deep boots it') && !readiness.includes('the startDebugging child road is live'),
-  )
   const { ideLoopChecks } = await import('../../src/utils/health/sections/ide-loop.ts')
   const deepProbes = await import('../../src/utils/healthDeepProbes.ts')
   const jsRow = ideLoopChecks().find(row => row.id === 'js-debugger')

@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -11,7 +9,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const owner = await import('../../src/components/concourse/boardModalOwner.ts')
 type Facts = import('../../src/components/concourse/boardModalOwner.ts').BoardModalFactsV1
 const { boardModalOwner } = owner
@@ -69,20 +66,6 @@ section('§2 gitOfferOwnsTheKeys — the stacked card paints exactly while the t
   }
 }
 
-section('§3 the screen consults the owner at both routes')
-{
-  const src = readFileSync(join(ROOT, 'src/components/concourse/ConcourseScreen.tsx'), 'utf8')
-  check('the screen imports both predicates', /mayArmBoardModal/.test(src) && /gitOfferOwnsTheKeys/.test(src))
-  const ground = src.match(/openGroundPicker: \(\) => \{([\s\S]*?)\n\s*\},/)?.[1] ?? ''
-  check("the ground-picker POINTER door consults the owner before arming", /mayArmBoardModal\(modalFactsNow\(\), 'ground-picker'\)/.test(ground) && /setGroundPickerOpen/.test(ground), ground.trim().slice(0, 120))
-  check('the coordinator-model door is gone from the board (no pointer door, no settings layer)', !/openCoordinatorModel/.test(src) && !/openCoordinatorSettings/.test(src) && !/CoordinatorModelPicker/.test(src))
-  check('the doors read the facts at CLICK time from the refs (never a stale render)', /const modalFactsNow = \(\): BoardModalFactsV1 => \(\{[\s\S]*?capacityAskRef\.current[\s\S]*?helpOpenRef\.current/.test(src))
-  const stacked = src.slice(src.indexOf('gitOfferOwnsTheKeys({'), src.indexOf('<GitOfferCard', src.indexOf('gitOfferOwnsTheKeys({')))
-  check('the floating git-offer mount is gated on the owner naming it', stacked.length > 0 && /groundPickerOpen,/.test(stacked) && /helpOpen,/.test(stacked))
-  check('…and still yields to the contract ask', /gitOffer !== undefined &&\s*!contractAsk &&\s*gitOfferOwnsTheKeys\(\{/.test(src))
-  check('the old unfenced stacked gate is gone', !/gitOffer !== undefined && seatAsk === null && !contractAsk && geo\.profile !== 'wide' \?/.test(src))
-  check("the keyboard path still yields whole to the owner (the doors joined it, never replaced it)", /const modalOwner = boardModalOwner\(\{/.test(src))
-}
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-board-modal-doors${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

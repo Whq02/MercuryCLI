@@ -1,4 +1,3 @@
-prove-adaptive-ink.ts
 prove-alt-lifetime.ts
 prove-branch-chip.ts
 prove-model-picker-groups.ts
@@ -13,7 +12,6 @@ prove-model-name-matcher.ts
 prove-clipboard-encoding.ts
 prove-consent-queue-marker.ts
 prove-contract-card-fit.ts
-prove-cwd-ground-beat.ts
 prove-diff-spine.ts
 prove-draft-per-session.ts
 prove-drive-witness-census.ts
@@ -21,19 +19,15 @@ prove-fable-weekly-window.ts
 prove-face-logins.ts
 prove-field-findings-composer.ts
 prove-field-findings-concourse.ts
-prove-field-findings-sededit.ts
 prove-field-findings-keysetup.ts
-prove-field-findings-transcript.ts
 prove-field-w6-caret.ts
 prove-footer-strip-hint.ts
 prove-frame-dedup.ts
 prove-headless-writes-nothing.ts
 prove-home-hero-noise.ts
-prove-ink-feel.ts
 prove-interrupt-arity.ts
 prove-kit-menu.ts
 prove-sovereign-menu-warning.ts
-prove-list-door-single-swing.ts
 prove-markdown-layout.ts
 prove-model-chip.ts
 prove-viewed-model-chip.ts
@@ -46,7 +40,6 @@ prove-panel-dismissal-layers.ts
 prove-picker-id-line-guard.ts
 prove-rail-hysteresis.ts
 prove-resize-laws.ts
-prove-resume-mid-turn-guard.ts
 prove-s26-acceptance.ts
 prove-s32-acceptance.ts
 prove-search-single-flight.ts

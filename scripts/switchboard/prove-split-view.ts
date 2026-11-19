@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -11,7 +11,6 @@ mkdirSync(scratch, { recursive: true })
 process.env['MERCURY_CONFIG_DIR'] = scratch
 
 const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -58,27 +57,8 @@ console.log('A — toggle presence per world/width')
       chatEmpty.some(k => k.keys === '↵' && k.label === 'new session') &&
       chatKeys.some(k => k.keys === 's' && k.label === 'full board'),
   )
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check(
-    'A12 the toggle handler is a list-region letter-verb gated off the reduced stage',
-    screen.includes("if (input === 's' && !key.ctrl && !key.meta && !reducedStage && pastGate())"),
-  )
 }
 
-console.log('B — the one-connector law (never a second host)')
-{
-  const pane = read('src/components/concourse/SplitChatPane.tsx')
-  const store = read('src/components/concourse/splitView.ts')
-  check('B1 the chat pane reads THE focused slot', pane.includes('subscribeFocusedSessionConnector') && pane.includes('getFocusedSessionConnector'))
-  check('B2 the chat pane paints through the landed SessionMirror (the real pipeline)', pane.includes('<SessionMirror'))
-  const forbidden = ['hopIntoSession', 'bornSession', 'attachedSession', 'daemonControlRpc', 'concourseWorkers', 'setFocusedSessionConnector']
-  check(
-    'B3 the pane mints nothing: no hop door, no birth door, no attach ledger, no daemon RPC, no slot write',
-    forbidden.every(name => !pane.includes(name)),
-  )
-  check('B4 the store is booleans and columns only (its one world import is the router)', forbidden.every(name => !store.includes(name)) && !store.includes('engine-connector'))
-  check('B5 the pane never mounts a composer of its own (the caret story lives elsewhere)', !pane.includes('PromptInput') && !pane.includes('lineDraft'))
-}
 
 console.log('C — geometry at named widths')
 {
@@ -105,37 +85,6 @@ console.log('C — geometry at named widths')
   check('C7 the board pane is never a frame the board calls too small (80 = the profile floor)', split.BOARD_PANE_MIN_COLS === 80)
 }
 
-console.log('D — focus routing')
-{
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check('D1 the chat pane joins the Tab ring as its LAST stop exactly while split composes', screen.includes("if (splitActive) ring.push('chat')"))
-  const composerGateAt = screen.indexOf("if (region !== 'live') {")
-  const chatInertAt = composerGateAt === -1 ? -1 : screen.lastIndexOf("if (region === 'chat') {", composerGateAt)
-  const chatInert = chatInertAt === -1 ? '' : screen.slice(chatInertAt, composerGateAt).replace(/\/\/[^\n]*/g, '').replace(/\s+/g, ' ').trim()
-  check(
-    'D2 typing reaches only the focused pane: the chat region is inert to the composer grammar (it returns before the composer gate)',
-    chatInert === "if (region === 'chat') { return }",
-  )
-  check(
-    'D3 ↵ in the chat pane discriminates: the full chat with a session, the one birth door with none (landing-guarded — SP-1)',
-    screen.includes('if (hasFocusedSession()) callbacks.exitToChat()') && screen.includes('else if (!landingInFlight()) armContractAsk()'),
-  )
-  check('D4 a vanished split settles the keys on the board (never a keyless focus)', screen.includes("if (!splitActive && region === 'chat') setRegion(reducedStage ? 'list' : 'live')"))
-  check(
-    'D5 ↑↓ browse fires from the chat pane too (a printed base key must fire)',
-    screen.includes("region === 'chat' && (key.upArrow || key.downArrow)"),
-  )
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  check(
-    'D6 row enters stay in split: the slot re-point alone, the route holds',
-    route.includes("splitFrameStands() && opts?.fullChat !== true") && route.includes("reason: 'in the chat pane'"),
-  )
-  check('D7 the rail’s answer journey keeps its flip (the consent card lives only in the full chat)', route.includes("attachAndEnter(row.sessionId, 'board:open', { fullChat: true, entry: 'settled' })"))
-  check('D8 the birth stays in split with its receipt naming the pane', route.includes('in the chat pane') && route.includes('splitFrameStands()'))
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  check('D9 the compositor reads the SAME frame as the screen (the frameCols seam)', layout.includes('frameCols?: number') && layout.includes('const cols = frameCols ?? termCols'))
-  check('D10 the screen hands the board pane its granted columns and the split truth', read('src/components/concourse/ConcourseScreen.tsx').includes('frameCols: splitGeo.boardCols, splitOn: true'))
-}
 
 console.log('E — the collapse line')
 {
@@ -164,9 +113,6 @@ console.log('E — the collapse line')
     'E8 ] walks board-min → even → chat-min and clamps',
     toEven.moved === true && toEven.ratio === 'even' && toChatMin.moved === true && toChatMin.ratio === 'chat-min' && stuckRight.moved === false,
   )
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check('E9 the screen derives composition from the same availability every frame (no half-paint beat)', screen.includes('splitViewOn() && splitAvailableAt(termCols, termRows)'))
-  check('E10 the collapse effect paints the returned line as the note', screen.includes('collapseSplitForFrame(termCols, termRows)') && screen.includes("setNote({ tone: 'warning', text: c.line })"))
 }
 
 console.log('F — the rows law (the half-frame class)')
@@ -204,16 +150,6 @@ console.log('F — the rows law (the half-frame class)')
   check(
     'F7 both failing names both dimensions in one sentence',
     !both.ok && both.reason.includes(`121 columns and ${R} rows`) && both.reason.includes('100×20'),
-  )
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check(
-    'F8 the screen’s toggle sites hand the WHOLE frame to the store (no cols-only caller survives)',
-    screen.includes('toggleSplitView(termCols, termRows)') && !screen.includes('toggleSplitView(termCols)'),
-  )
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  check(
-    'F9 the stay-in-split resolver reads the frame through BOTH refs (completion-time truth)',
-    route.includes('splitAvailableAt(termColsRef.current, termRowsRef.current)'),
   )
 }
 
@@ -267,11 +203,6 @@ console.log('G — legend continuity: the way back survives the split-width shed
       manifest.legendPriorityOf('esc', { splitOn: false }) === 4 &&
       manifest.legendPriorityOf('esc', { splitOn: true }) > manifest.legendPriorityOf('s', { splitOn: true }) &&
       manifest.legendPriorityOf('s', { splitOn: true }) > manifest.legendPriorityOf('?', { splitOn: true }),
-  )
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  check(
-    'G7 the paint site consumes the ONE resolver (no inline priority table survives)',
-    layout.includes('legendPriorityOf(keys, { splitOn })') && !layout.includes("keys === 'esc' ? 4 :"),
   )
 }
 

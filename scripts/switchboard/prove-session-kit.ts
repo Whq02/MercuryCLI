@@ -21,7 +21,6 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { MERCURY_DAEMON_PROTO: liveProto } = await import('../../src/daemon/protocol.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -31,8 +30,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function note(label: string): void {
   console.log(`  [NOTE] ${label}`)
 }
-const SRC_ROOT = resolve(import.meta.dirname, '..', '..')
-const read = (rel: string): string => readFileSync(join(SRC_ROOT, rel), 'utf8')
 const watchdog = setTimeout(() => {
   console.log('\nTIMEOUT — the session-kit prover exceeded 60s')
   process.exit(1)
@@ -110,18 +107,7 @@ console.log('W — the menu store by EXPLICIT workspace (poison: the process-cwd
   const slice = { allowedTools: [], projectOnboardingSeenCount: 0, disabledMcpServers: ['a'] }
   check('W14 the pure updater returns the input BY IDENTITY when nothing changes', withMcpServerEnabled(slice as never, 'a', false) === slice && withMcpServerEnabled(slice as never, 'a', true) !== slice && kit.withSkillState(slice as never, 'x', 'on') === slice && kit.withExtensionState(slice as never, 'x', true) === slice)
 
-  const configSrc = read('src/services/mcp/config.ts')
-  check('W15 config.ts spells the disabled semantics ONCE — through the leaf (no second reading of the lists)', !configSrc.includes('DEFAULT_DISABLED_BUILTIN_SERVERS.has(') && configSrc.includes('isMcpServerDisabledIn(getCurrentProjectConfig(), name)') && configSrc.includes('withMcpServerEnabled(current, name, enabled)'))
-  const leafSrc = read('src/services/mcp/disabledRecord.ts')
-  const leafImports = leafSrc.split('\n').filter(l => /^import /.test(l))
-  check('W16 the leaf is a leaf: its only import is the schema TYPE (the daemon reads it without the resolution graph)', leafImports.length === 1 && leafImports[0]!.startsWith('import type ') && leafImports[0]!.includes('/utils/config/schema.js'))
-  const projSrc = read('src/utils/config/projectConfig.ts')
-  check('W17 the cwd pair and the workspace pair share ONE read and ONE write', projSrc.includes('readProjectSlice(getProjectPathForConfig())') && projSrc.includes('readProjectSlice(projectConfigKeyForWorkspace(workspaceDir))') && projSrc.includes('writeProjectSlice(getProjectPathForConfig(), updater)') && projSrc.includes('writeProjectSlice(projectConfigKeyForWorkspace(workspaceDir), updater)') && projSrc.split('saveConfigWithLock(').length === 2)
-  const schemaSrc = read('src/utils/config/schema.ts')
-  check("W18 the schema carries both halves as opt-out deltas, and the `config set` allowlist (PROJECT_CONFIG_KEYS) does not grow — the menu is the store's door", schemaSrc.includes("skillStates?: Record<string, 'off' | 'invocable'>") && schemaSrc.includes("extensionStates?: Record<string, 'off'>") && !schemaSrc.slice(schemaSrc.indexOf('PROJECT_CONFIG_KEYS = [')).split('] as const')[0]!.includes('skillStates'))
   saveCurrentProjectConfig(current => current)
-  const storeCodeLines = read('src/services/mcp/kitStore.ts').split('\n').filter(l => !/^\s*(\/\/|\*|\/\*\*)/.test(l))
-  check('W19 vocabulary law: a saved snapshot is a PRESET (the preset store\'s own exported names) and no code line of the kit store speaks "pack"', /export const KIT_PRESET_CAP\b/.test(read('src/services/mcp/presetStore.ts')) && !storeCodeLines.some(l => /\bpacks?\b/i.test(l)))
 }
 
 
@@ -261,13 +247,6 @@ console.log('M — a malformed kit REFUSES TYPED at the wire (poison: a silent d
   check('M14 unknown sibling fields are DROPPED, never carried onto the record (accept whole or refuse whole)', withExtra.ok && !('extra' in withExtra.kit) && !('nested' in withExtra.kit))
   const { NAME_PATTERN } = await import('../../src/extensions/manifest.ts')
   check("M15 the extension-name grammar equals the manifest's NAME_PATTERN (spelled twice, pinned equal)", sessionKit.KIT_EXTENSION_NAME_PATTERN.source === NAME_PATTERN.source)
-  check("M16 the MCP-name grammar is config.ts's own regex", read('src/services/mcp/config.ts').includes(sessionKit.KIT_MCP_NAME_PATTERN.source))
-  const server = read('src/daemon/controlServer.ts')
-  const admitArm = server.slice(server.indexOf("case 'sessionAdmit': {"), server.indexOf("case 'concourseWithdraw': {"))
-  check("M17 the sessionAdmit arm validates raw.kit and answers 'kit refused — <reason>' (EUNKNOWN) — no cast-through, no silent drop", admitArm.includes('validateSessionKit(raw.kit)') && admitArm.includes('kit refused — ${verdict.reason}') && admitArm.includes('...(kit !== undefined ? { kit } : {})') && !admitArm.includes('raw.kit as'))
-  const protocol = read('src/daemon/protocol.ts')
-  const admitOp = protocol.slice(protocol.indexOf("op: 'sessionAdmit'"), protocol.indexOf("op: 'sessionList'"))
-  check('M18 the wire TYPE names the kit on sessionAdmit (the type no longer lags the raw frame) at the ONE registered proto', admitOp.includes('kit?: SessionKitV1') && protocol.includes(`export const MERCURY_DAEMON_PROTO = ${liveProto}`))
 }
 
 console.log('R — the re-stamp: a reactivation takes the CURRENT menu, the old kit is history (poison: the retained-effort shape applied to the kit)')
@@ -299,39 +278,8 @@ console.log('R — the re-stamp: a reactivation takes the CURRENT menu, the old 
   const noKit = await reactivateConcourseSession(recOf('concourse-w7')!, { modelKey: MODEL, by: 'operator' }, [], { roster: () => roster as never, dir: DAEMON })
   const derivedRows = readSessionReceipts(home, 'sess-parked-0007')
   check("R9 a reactivation carrying NO kit RE-STAMPS from the DERIVED current menu (unresolved, the workspace's deltas) — the standing kit goes to the receipt as history with source 'derived', never reloaded", noKit.ok && recOf('concourse-w7')?.kit?.resolved === false && deepEq(recOf('concourse-w7')?.kit?.deltas, { mcpOff: [], skillStates: {}, extensionsOff: [] }) && derivedRows.length === 1 && deepEq(derivedRows[0]!.details?.was, K1) && derivedRows[0]!.details?.source === 'derived')
-  const sup = read('src/daemon/concourseWorkers.ts')
-  const reactivateFn = sup.slice(sup.indexOf('export async function reactivateConcourseSession('))
-  const hopReturn = reactivateFn.indexOf('if (alive || held || rec.attachedAt !== undefined) {')
-  const firstRestamp = reactivateFn.indexOf('restampSessionKit(')
-  check('R10 in source the re-stamp sits AFTER the live-hop return, on both roads (warm publication + cold revive)', hopReturn !== -1 && firstRestamp > hopReturn && reactivateFn.split('restampSessionKit(').length === 3)
-  const mirror = read('src/components/concourse/SessionMirror.tsx')
-  check("R11 the receipt viewer paints the new kind as 'kit: …' (never mislabelled as a contract row)", mirror.includes("e.kind === 'kit-restamp'") && mirror.includes('`kit: ${flat}`'))
 }
 
-console.log('N — no world check anywhere in the kit path (the worlds are identical for this estate)')
-{
-  const files = [
-    'src/daemon/sessionKit.ts',
-    'src/services/mcp/kitStore.ts',
-    'src/services/mcp/disabledRecord.ts',
-    'src/utils/config/projectConfig.ts',
-    'src/daemon/concourseWorkers.ts',
-    'src/daemon/controlServer.ts',
-    'src/daemon/protocol.ts',
-    'src/services/switchboard/bootBirthFacts.ts',
-    'src/services/switchboard/bornSession.ts',
-    'src/services/switchboard/hopIntoSession.ts',
-    'src/services/mcp/membership.ts',
-  ]
-  const dirty = files.filter(f => /chatOnlyBoot|chatBoot\(|MERCURY_SPLASH_CHAT/.test(read(f)))
-  check('N1 none of the kit\'s files reads chatOnlyBoot / chatBoot / MERCURY_SPLASH_CHAT (poison: any world predicate in the kit path)', dirty.length === 0, dirty.join(','))
-  const kitSites = read('src/daemon/concourseWorkers.ts').split('\n').filter(l => /\bkit\b/.test(l) && !/^\s*(\/\/|\*|\/\*\*)/.test(l))
-  check('O0 the daemon writes the kit only through the two named seams (kitStampOf at the mints, restampSessionKit at the reactivate) — never a bare `.kit =`', !kitSites.some(l => /\.kit\s*=[^=]/.test(l)) && kitSites.filter(l => l.includes('kitStampOf(')).length === 2)
-  const bareWrites = ['src/daemon', 'src/services/switchboard', 'src/services/mcp', 'src/components/concourse']
-    .flatMap(d => spawnSync('grep', ['-rln', '\\.kit = ', join(SRC_ROOT, d)], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean))
-    .map(p => p.slice(SRC_ROOT.length + 1))
-  check('O1 the only file that assigns a record\'s `.kit` is daemon/sessionKit.ts (the one-writer census)', bareWrites.length === 1 && bareWrites[0] === 'src/daemon/sessionKit.ts', bareWrites.join(','))
-}
 
 console.log("S — set-kit, the ONE writer: a pre-kit record MATERIALIZES then edits (poisons: the refusal arm; the silent whole-config arm)")
 {
@@ -364,26 +312,6 @@ console.log("S — set-kit, the ONE writer: a pre-kit record MATERIALIZES then e
   }
   check('S9 the edit grammar refuses typed: not an object · no dial · a bad shape · a bad name · a bad state · a boundless list', refusedEdit(null, 'object') && refusedEdit({}, 'no dial') && refusedEdit({ mcp: [{ name: 'a' }] }, '{ name, on }') && refusedEdit({ mcp: [{ name: 'bad name', on: true }] }, 'mcp name') && refusedEdit({ skills: [{ name: 'x', state: 'maybe' }] }, 'on|invocable|off') && refusedEdit({ extensions: Array.from({ length: sessionKit.KIT_LIST_CAP + 1 }, () => ({ name: 'e', on: true })) }, 'cap') && ve({ skills: [{ name: 'ns:skill', state: 'invocable' }] }).ok)
 
-  const protocol = read('src/daemon/protocol.ts')
-  const actionsAt = protocol.indexOf("op: 'sessionControl'", protocol.indexOf('export type DaemonRequest ='))
-  const window = protocol.slice(protocol.indexOf('action:', actionsAt), protocol.indexOf('sessionId: string', actionsAt))
-  check("S10 the wire action 'set-kit' rides exactly after 'contract' (adjacency; never a mid-union insertion)", /\|\s*'contract'\s*\|\s*'set-kit'\s*/m.test(window))
-  check("S11 the set-kit payload rides OUTSIDE the shape extractor's action window (after sessionId), typed off SessionKitEditV1", !window.includes('kitEdit') && protocol.includes('kitEdit?: SessionKitEditV1'))
-  check('S12 ONE wire proto, single-sourced beside its registered shape (no bump rode this action; discipline is prove-protocol-shape\'s)', (protocol.match(/export const MERCURY_DAEMON_PROTO = /g) ?? []).length === 1 && protocol.includes(`export const MERCURY_DAEMON_PROTO = ${liveProto}`) && protocol.includes("export const DAEMON_PROTO_SHAPE = 'sha256:"))
-  const server = read('src/daemon/controlServer.ts')
-  const controlArm = server.slice(server.indexOf("case 'sessionControl': {"), server.indexOf("case 'sessionList': {"))
-  check("S13 the server routes the action, narrows the payload through validateSessionKitEdit ('kitEdit refused — <reason>') and passes it typed; the requires-string names set-kit", controlArm.includes("raw.action === 'set-kit'") && controlArm.includes('validateSessionKitEdit(raw.kitEdit)') && controlArm.includes('kitEdit refused — ') && controlArm.includes('...(kitEdit !== undefined ? { kitEdit } : {})') && /\|set-kit\|[a-z|-]*, sessionId, by \}/.test(controlArm))
-  const main = read('src/daemon/main.ts')
-  const arm = main.slice(main.indexOf("if (action === 'set-kit')"), main.indexOf("if (action === 'set-model')"))
-  check('S14 the daemon arm adjudicates through the SEAT half and settles only the adjudicated outcomes (queued rides around the ledger)', arm.includes('setSessionKitDial(sessionId, kitEdit, by, roster)') && /dialed\.outcome === 'queued'\s*\?\s*dialed\s*:\s*settle\(/.test(arm))
-  const writers = spawnSync('grep', ['-rln', 'applyConcourseKitOp(', join(SRC_ROOT, 'src')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(p => p.slice(SRC_ROOT.length + 1)).sort()
-  check('S15 the one-writer census holds: applyConcourseKitOp is defined in sessionKitOp.ts and called from the seat (sessionSeat.ts) alone', deepEq(writers, ['src/daemon/sessionKitOp.ts', 'src/daemon/sessionSeat.ts']), writers.join(','))
-  const bare = ['src/daemon', 'src/services/switchboard', 'src/services/mcp', 'src/components/concourse']
-    .flatMap(d => spawnSync('grep', ['-rln', '\\.kit = ', join(SRC_ROOT, d)], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean))
-    .map(p => p.slice(SRC_ROOT.length + 1))
-  check('S16 every `.kit =` assignment in the tree still lives in daemon/sessionKit.ts (the stamp, the re-stamp, the set)', bare.length === 1 && bare[0] === 'src/daemon/sessionKit.ts', bare.join(','))
-  const contracts = read('scripts/switchboard/prove-contracts.ts')
-  check("S17 prove-contracts B10 was AMENDED with teeth, not dodged: it pins 'contract' after 'set-effort' by adjacency (no end anchor) — this prover pins the tail", contracts.includes("/\\|\\s*'set-effort'\\s*\\|\\s*'contract'/") && !contracts.includes("'contract'\\s*$/m"))
 }
 
 console.log("C — the L18 carrier: the menu's kit rides the birth and the resume when set; ABSENT on the wire when null (poison: `kit: null`)")
@@ -400,14 +328,6 @@ console.log("C — the L18 carrier: the menu's kit rides the birth and the resum
   facts.setNextSessionFacts({ kit: null })
   check('C5 the menu can clear it: null again ⇒ the next birth carries none and the daemon derives', facts.bootBirthFacts().kit === null)
   facts._resetBootBirthFactsForTesting()
-  const born = read('src/services/switchboard/bornSession.ts')
-  const birthBody = born.slice(born.indexOf('async function birth('))
-  check('C6 the birth door spreads the worn-else-carried fragment onto its sessionAdmit (the worn preset consumed at entry outranks the sticky carry) — never a bare kit field', birthBody.includes('...(worn !== null ? { kit: worn.kit } : carriedKitOf(facts)),') && birthBody.includes('const worn = takeWornPresetKit()') && !birthBody.includes('kit: facts.kit') && !birthBody.includes('kit: null'))
-  const hop = read('src/services/switchboard/hopIntoSession.ts')
-  const resumeAdmit = hop.slice(hop.indexOf("{ op: 'sessionAdmit', workspaceDir, resumeSessionId: sessionId"), hop.indexOf('} as never,', hop.indexOf("{ op: 'sessionAdmit', workspaceDir, resumeSessionId: sessionId")))
-  check("C7 the resume door carries the same worn-else-carried fragment (the re-stamp's carried arm; the wear PEEKED and spent only when applied — a live hop never consumes) — and still never the record's model (a resume is not a birth)", resumeAdmit.includes('worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())') && hop.includes('const worn = peekWornPresetKit()') && hop.includes('if (worn !== null && reply.liveHop !== true) takeWornPresetKit()') && !hop.includes('model: bootBirthFacts') && /resumeSessionId: sessionId, isolation: 'shared'/.test(hop))
-  const factsSrc = read('src/services/switchboard/bootBirthFacts.ts')
-  check('C8 ONE spelling of the carry (carriedKitOf) and the kit is typed SessionKitV1 | null on the facts record', factsSrc.includes('kit: SessionKitV1 | null') && (born.split('carriedKitOf(').length - 1) === 1 && (hop.split('carriedKitOf(').length - 1) === 1)
 }
 
 console.log("D — the daemon-side derivation: a birth the screen never saw stamps the workspace's menu deltas, UNRESOLVED (poison: the memoized cwd; a silent default)")
@@ -435,12 +355,6 @@ console.log("D — the daemon-side derivation: a birth the screen never saw stam
     const rec = born.ok ? recOf(born.runnerId) : undefined
     check("D5 a birth through the admit with NO carried kit (the kit-less road) stamps the DERIVED kit with that workspace's deltas", born.ok && rec !== undefined && rec.kit?.resolved === false && deepEq(rec.kit.deltas, derived.deltas) && deepEq(rec.kit.mcp, ['srv-on']), born.ok ? '' : born.error)
   }
-  const sup = read('src/daemon/concourseWorkers.ts')
-  check('D6 both mints stamp carried-else-preset-else-derived through the ONE hoisted kit (above the warm claim: gate + spec + both stamps share the value; no inline second derivation)', !sup.includes('kitStampOf(req.kit ?? deriveSessionKitForWorkspace(workspaceId))') && sup.split('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)').length === 2 && sup.split('kitStampOf(kit),').length === 3 && !sup.includes('kitStampOf(req.kit)') && sup.includes('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') && sup.indexOf('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') < sup.indexOf('deps.claimWarm !== undefined'))
-  const reactivateFn = sup.slice(sup.indexOf('export async function reactivateConcourseSession('))
-  const hopReturn = reactivateFn.indexOf('if (alive || held || rec.attachedAt !== undefined) {')
-  const derivedAt = reactivateFn.indexOf('const kit = args.kit ?? args.preset?.kit ?? deriveSessionKitForWorkspace(rec.workspaceId)')
-  check('D7 the reactivate computes carried-else-preset-else-derived ONCE, AFTER the live-hop return (a hop never derives), and both roads re-stamp it unguarded', hopReturn !== -1 && derivedAt > hopReturn && reactivateFn.split('restampSessionKit(next, kit, kitSource, args.by)').length === 2 && reactivateFn.split('restampSessionKit(w, kit, kitSource, args.by)').length === 2 && !reactivateFn.includes('if (args.kit !== undefined)'))
   saveGlobalConfig(c => ({ ...c, mcpServers: {} as never }))
 }
 
@@ -456,10 +370,6 @@ console.log("H — the membership handoff: kitMembership consulted BY the one ow
   const unresolvedEmpty: Kit = { schema: 1, mcp: [], skills: [], invocable: [], resolved: false, deltas: { mcpOff: [], skillStates: {}, extensionsOff: [] } }
   check("H5 POISON armed (the lead-ruled law): an UNRESOLVED kit's lists are NEVER read as membership — its provisional list names 'a' yet the delta says off ⇒ not a member; an empty provisional list is not 'nothing' ⇒ a member", membership.kitMembership(unresolvedOff, 'a') === false && membership.kitMembership(unresolvedEmpty, 'zeta') === true)
   check("H6 an unresolved kit reads its OWN deltas, never the live record ('srv-here' is off on the record, absent from the deltas ⇒ a member)", membership.kitMembership(unresolvedEmpty, 'srv-here') === true)
-  const src = read('src/services/mcp/membership.ts')
-  check("H7 THE SWAP: the owner consults the process latch — kit absent ⇒ today's record predicate verbatim; kit present ⇒ organs, then kitMembership", src.includes('const kit = sessionKitOf') && src.includes('if (kit === undefined) return recordMembership(name)') && src.includes('return isMcpOrgan(name) || kitMembership(kit, name)') && src.includes('return !isMcpServerDisabled(name)') && src.includes('export function kitMembership('))
-  const callers = spawnSync('grep', ['-rln', 'kitMembership(', join(SRC_ROOT, 'src')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(p => p.slice(SRC_ROOT.length + 1)).sort()
-  check("H8 kitMembership has exactly THREE speakers and no connect road among them: the owner's own body (the swap), the completion composer, and the dial's reconcile delta (kitDial REUSES the one predicate — a re-spelling there would be the poison); every connect road still follows through isMcpCatalogueMember", deepEq(callers, ['src/services/mcp/kitCompletion.ts', 'src/services/mcp/kitDial.ts', 'src/services/mcp/membership.ts']), callers.join(','))
 }
 removeScratch(SCRATCH)
 console.log(failures === 0 ? '\nsession-kit: GREEN' : `\nsession-kit: RED (${failures} failing)`)

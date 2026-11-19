@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,7 +20,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const agentToolModule = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const utils = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 const { getPrompt } = await import('../../src/tools/AgentTool/prompt.ts')
@@ -215,10 +214,6 @@ section('8. background — the completion notice carries the block between the s
   check('one notification was queued', queued.length === 1)
   check('it carries </summary>, the block, then <result>', value.includes(`</summary>\n${VALID_BLOCK}\n<result>`), value.slice(0, 500))
   check('the result section still holds the prose', value.includes(`<result>${PROSE}</result>`))
-  const lifecycle = readFileSync(join(ROOT, 'src/tools/AgentTool/agentToolUtils.ts'), 'utf8')
-  const handover = readFileSync(join(ROOT, 'src/tools/AgentTool/foregroundExecution.tsx'), 'utf8')
-  check('the background lifecycle passes structuredBlock to the notification', lifecycle.includes('structuredBlock: structuredResultBlock(result.structured)'))
-  check('the foreground run handed to the background passes it too', handover.includes('structuredBlock: structuredResultBlock(finalized.structured)'))
 }
 
 section('9. the words — the two field descriptions and the usage note')

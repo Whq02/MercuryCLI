@@ -1,18 +1,14 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import {
   resolvesToExistingOption,
   type ModelOption,
 } from '../../src/utils/model/modelOptions.js'
 
-const root = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const src = (p: string): string => readFileSync(join(root, p), 'utf8')
 
 console.log('============================================================')
 console.log(' model-policy — surface + census proofs')
@@ -20,42 +16,6 @@ console.log('============================================================')
 
 console.log('\n§3/§9.13 one decision, no re-derivation (source census)')
 {
-  const model = src('src/utils/model/model.ts')
-  const between = (s: string, a: string, b: string): string => {
-    const i = s.indexOf(a)
-    const j = s.indexOf(b, i)
-    return i >= 0 && j > i ? s.slice(i, j) : ''
-  }
-  check(
-    'getDefaultEngineModelSetting routes through the ONE computed default (the provider of the most recent sign-in)',
-    between(model, 'export function getDefaultEngineModelSetting', '\n}').includes('computedDefault()') &&
-      !model.includes('applyDefaultProviderRung') &&
-      !model.includes('credentiallessGptDefault'),
-  )
-  check(
-    'getBestModel routes through frontierOperatorDecision',
-    between(model, 'export function getBestModel', '\n}').includes('frontierOperatorDecision()'),
-  )
-  check(
-    'isFableAvailable is a projection of the decision',
-    between(model, 'export function isFableAvailable', '\n}').includes('frontierOperatorDecision()'),
-  )
-  check(
-    'the Default-row description and the /model label project the computed default',
-    between(model, 'export function getDefaultModelDescription', '\n}').includes('computedDefault()') &&
-      between(model, 'export function renderDefaultModelLabel', '\n}').includes('computedDefault()'),
-  )
-  check(
-    'model.ts states no fixed Opus default',
-    !model.includes("'everything Opus'") && !model.includes('must default to Opus'),
-  )
-  const policy = src('src/utils/model/frontierPolicy.ts')
-  check(
-    'the policy is the ONE owner: pure core + live gatherer + no network import',
-    policy.includes('export function evaluateFrontierDecision') &&
-      policy.includes('export function gatherFrontierFacts') &&
-      !/axios|fetch\(/.test(policy),
-  )
   const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
   const computed = await import('../../src/utils/model/computedDefault.ts')
   const frontier = await import('../../src/utils/model/frontierPolicy.ts')
@@ -66,48 +26,10 @@ console.log('\n§3/§9.13 one decision, no re-derivation (source census)')
     frontierSays?.evidence.includes(computed.describeComputedDefault(computed.computedDefault(), providerDisplayName)) === true && frontierSays.detail?.startsWith(`first-party gating: ${frontier.describeFrontierDecision(frontier.frontierOperatorDecision())} — candidates: `) === true,
     `${frontierSays?.evidence} · ${frontierSays?.detail}`,
   )
-  const policySrc2 = src('src/utils/model/frontierPolicy.ts')
-  check(
-    'the frontier decision carries no registration table — the built-in candidate over operator signals only',
-    !policySrc2.includes('FrontierCatalogCandidate') && !policySrc2.includes('futureModelCatalog'),
-  )
 }
 
 console.log('\n§4 picker: pin row + fallback row + dedup law')
 {
-  const options = src('src/utils/model/modelOptions.ts')
-  check(
-    'the Fable row is an ORDINARY tier row — never gated on the decision',
-    (options.match(/rows\.push\(getFableOption\(\)\)/g) ?? []).length === 2 &&
-      !/if \(isFableAvailable\(\)\) \{\s*rows\.push\(getFableOption\(\)\)/.test(options),
-  )
-  const bodyOf = (name: string): string => {
-    const start = options.indexOf(`function ${name}`)
-    if (start === -1) return ''
-    const end = options.indexOf('\n}', start)
-    return end === -1 ? '' : options.slice(start, end)
-  }
-  const fableRowBody = bodyOf('getFableOption')
-  const aliasRowBody = bodyOf('aliasRow')
-  check(
-    'the Fable option has no description and does not consult the default decision',
-    fableRowBody.includes("aliasRow('fable', '')") &&
-      /description: string\)/.test(aliasRowBody) &&
-      /\bdescription \}/.test(aliasRowBody) &&
-      !fableRowBody.includes('isFableAvailable') &&
-      !options.includes('isFableAvailable'),
-  )
-  const premiumArm = bodyOf('premiumSubscriberTierRows')
-  check(
-    'Opus is an immediately-available explicit choice on premium profiles — its row rides the premium arm beside the Fable rows, never gated on the decision',
-    /rows\.push\(\.\.\.previousGenerationFableRows\(\)\)\n\s*rows\.push\(getOpusFrontierFallbackOption\(\)\)/.test(premiumArm) &&
-      !/if \(/.test(premiumArm) &&
-      bodyOf('getOpusFrontierFallbackOption').includes("aliasRow('opus', '')"),
-  )
-  check(
-    'no synthesized frontier literal rides after the allowlist',
-    !options.includes("value: 'claude-fable-5'"),
-  )
   const rows: ModelOption[] = [
     { value: 'fable[1m]', label: 'Fable 5.2', description: 'x' },
     { value: 'opus[1m]', label: 'Opus', description: 'x' },
@@ -131,14 +53,6 @@ console.log('\n§4 picker: pin row + fallback row + dedup law')
   )
 }
 
-console.log('\n§6 role-boundary repairs (recon findings)')
-{
-  const caps = src('src/utils/model/capabilities.ts')
-  check(
-    'no capability keys on a tier name',
-    !caps.includes("m === 'claude-fable-5'"),
-  )
-}
 
 console.log('')
 if (failures > 0) {

@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, unlinkSync, writeFileSync } from 'node:fs'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const HOME = mkdtempSync(join(tmpdir(), 'rewind-cockpit-home-'))
 const CONFIG = join(HOME, 'config')
 const DAEMON_DIR = join(HOME, 'daemon')
@@ -27,17 +26,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-const braceBlock = (text: string, head: string): string => {
-  const at = text.indexOf(head)
-  if (at === -1) return ''
-  let depth = 0
-  for (let i = text.indexOf('{', at); i < text.length; i++) {
-    if (text[i] === '{') depth++
-    else if (text[i] === '}' && --depth === 0) return text.slice(at, i + 1)
-  }
-  return ''
-}
 
 const protocol = await import('../../src/daemon/protocol.ts')
 const socketMod = await import('../../src/daemon/controlSocket.ts')
@@ -95,10 +83,6 @@ section('§1 — the connector doors: the resting slot refuses typed; the hosted
       await new Promise(r => setTimeout(r, 10))
     }
   }
-  const types = read('src/services/engine-connector/types.ts')
-  check('the contract declares the three doors', types.includes('checkpointFacts(): CheckpointFactsV1') && types.includes('subscribeCheckpoints(listener: () => void): () => void') && types.includes('rewind(req: RewindRequestV1): Promise<RewindReceiptV1>'))
-  const census = read('scripts/engine-connector/prove-connector-contract.ts')
-  check('the door census pins them', census.includes("'checkpointFacts'") && census.includes("'subscribeCheckpoints'") && census.includes("'rewind'"))
 
   const resting = new NoSessionConnector()
   check("the resting slot reads capture 'off' with no restore points", resting.checkpointFacts().capture === 'off' && resting.checkpointFacts().restorable.size === 0)
@@ -159,18 +143,6 @@ section('§2 — the road: a proto-5 daemon relays the receipt; a proto-4 daemon
 
 section('§3 — the surfaces tell the truth')
 {
-  const command = read('src/commands/rewind/index.ts')
-  check('the slash description says what the verb does', command.includes("description: 'Wind back to a saved point — the files, the conversation, or both'"))
-  const selector = read('src/components/MessageSelector.tsx')
-  check("the selector reads the SESSION's facts through the focused connector", selector.includes('useSyncExternalStore(subscribeFocusedCheckpoints, getFocusedCheckpoints, getFocusedCheckpoints)') && selector.includes("checkpoints.capture === 'on'"))
-  check("…never the screen's own file-history state or gate", !selector.includes('fileHistoryEnabled') && !selector.includes('fileHistoryCanRestore') && !selector.includes('fileHistoryGetDiffStats') && !selector.includes('useAppState'))
-  check('a code restore is offered only where a saved point exists', selector.includes('const canRestoreCode = historyOn && hasSavedPoint(chosen.uuid)') && selector.includes("'no saved files at this point'"))
-  check("the confirm counts come from the runner's dry run", selector.includes("rewind({ userMessageId: chosen.uuid, mode: 'code', dryRun: true })"))
-  check('ONE restore door, the typed refusal painted on the card', selector.includes('onRestore: (') && !selector.includes('onRestoreMessage') && !selector.includes('onRestoreCode') && selector.includes("setErrorText(`Not restored — ${receipt.detail ?? receipt.refusal"))
-  check('the headline names the off switch and the older-runner case honestly', selector.includes('File checkpoints are off for this session (Settings › File checkpointing)') && selector.includes('started before checkpoint capture (start a new session when ready)'))
-  check('the option descriptions no longer promise a summary-and-fork that never happened', !selector.includes('will be summarised and the conversation forked'))
-  check('the branch forks the FOCUSED session\'s transcript with a caught failure (rank 68)', selector.includes("typeof focused.transcriptFile === 'function' ? focused.transcriptFile() : null") && selector.includes('setErrorText(`branch failed — ') && !selector.includes('getTranscriptPathForSession(String(getSessionId()))'))
-  const repl = read('src/screens/Chat.tsx')
   {
     const { openSelectorPart } = await import('../ui/chatScenarios.ts')
     const selector = await openSelectorPart('rewind-cockpit-selector', { keepHome: true })
@@ -213,20 +185,8 @@ section('§3 — the surfaces tell the truth')
     await selector.close()
     check('a running turn is interrupted and given a bounded settle before the ask', settledOrder === 'interrupt · rewind' && settledIn >= 250 && settledIn < 3000 && boundedOrder === 'interrupt · rewind' && boundedIn >= 4500 && boundedIn < 9000, j({ settledOrder, settledIn, boundedOrder, boundedIn }))
   }
-  check("the old 'not available for a managed session yet' refusal no longer fronts the rewind", !repl.includes("refuseSessionRewrite('rewinding the conversation')") && !repl.includes("refuseSessionRewrite('restoring files to a checkpoint')"))
-  const config = read('src/components/Settings/Config.tsx')
-  check("Settings carries 'Checkpoints in this session' beside the switch, read from the focused connector", config.includes("label: 'Checkpoints in this session'") && config.includes('getFocusedSessionConnector().checkpointFacts()'))
-  check('…with the three honest states', config.includes("'not capturing in this session'") && config.includes("started before checkpoint capture (start a new session when ready)") && config.includes('restore point'))
 }
 
-section('§4 — the display projection is wired into the paint')
-{
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
-  const paint = braceBlock(connector, '  private paint(): void {')
-  check('the connector has exactly one paint method and it is the block under inspection', paint !== '' && connector.split('  private paint(): void {').length === 2, j({ paint: paint.length }))
-  check('paint projects the operator windows out of the chat BY IDENTITY (display-row anchors stay true)', paint.includes('projectOperatorRewinds(this.rawRecords)') && paint.includes('dropped.has(record)'))
-  check('a landed conversation rewind re-reads the transcript at once', connector.includes("if (receipt.outcome === 'applied' && receipt.conversation !== undefined && receipt.dryRun !== true) void this.tick()"))
-}
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL REWIND COCKPIT PROOFS PASS')

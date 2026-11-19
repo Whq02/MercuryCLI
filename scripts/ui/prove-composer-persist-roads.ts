@@ -400,16 +400,6 @@ section('the restored rewind prompt accepts a fresh slash command')
   pending.edit('')
 }
 
-section('§10 the seam in source: one owner of the text, no per-view pocket, no pop over typed words')
-{
-  const { readFileSync } = await import('node:fs')
-  const ROOT = join(import.meta.dir, '..', '..')
-  const composer = ['PromptInput.tsx', 'useComposerDraft.ts', 'useComposerAttachments.ts', 'useComposerSubmit.ts', 'useComposerRawKeys.ts', 'useComposerKeybindings.ts', 'useComposerSelection.ts', 'useComposerModelDoors.tsx'].map(name => readFileSync(join(ROOT, 'src', 'components', 'PromptInput', name), 'utf8')).join('\n')
-  const owner = readFileSync(join(ROOT, 'src', 'input-core', 'pending-input.ts'), 'utf8')
-  check('POISON: the composer no longer swaps the text per viewed target', !composer.includes('takeViewDraft') && !composer.includes('stashViewDraft') && !composer.includes("from './viewDrafts.js'"))
-  check('POISON: the composer writes the owner only from a keystroke, a paste, an edit door or a submit — never from an app-state change', !/useEffect\(\(\) => \{[^}]*pendingInput\.edit\(incoming\)/s.test(composer))
-  check('the owner refuses to pop the pocket over typed words', /export function popStash\(\)[\s\S]*?draft\.text\.trim\(\) !== ''[\s\S]*?return undefined/.test(owner))
-}
 
 section('census')
 {

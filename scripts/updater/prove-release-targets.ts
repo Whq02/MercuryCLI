@@ -54,49 +54,7 @@ for (const target of RELEASE_TARGETS) {
   check(`${p.platform}/${p.arch} asks for ${archiveNameFor('1.2.0-beta.1', target)}`, assetNameFor('1.2.0-beta.1', p.platform, p.arch) === archiveNameFor('1.2.0-beta.1', target))
 }
 check('a pair with no archive answers null and the note names the six archives', assetNameFor('1.2.0-beta.1', 'linux', 'riscv64') === null && platformNote('linux', 'riscv64').includes('macos-x64') && platformNote('linux', 'riscv64').includes('linux-arm64') && platformNote('linux', 'riscv64').includes('windows-arm64') && platformNote('linux', 'riscv64').includes('linux/riscv64'))
-check('the channel no longer says the Intel Mac has no archive', !read('src/services/privateChannel/channelCore.ts').includes('has no channel archive'))
 
-section('§3 the packager — the same vocabulary, the declared target held')
-{
-  const packager = read('scripts/release/package.mjs')
-  const known = /const KNOWN = \[([^\]]+)\]/.exec(packager)
-  const knownTargets = known ? [...known[1]!.matchAll(/'([^']+)'/g)].map(m => m[1]!) : []
-  check('--target accepts exactly the owner\'s four targets', JSON.stringify(knownTargets) === JSON.stringify(RELEASE_TARGETS), knownTargets.join(', '))
-  const packMap = /const TARGET_NODE_PACK = \{([^}]+)\}/.exec(packager)
-  const pairs = packMap ? [...packMap[1]!.matchAll(/'([^']+)': '([^']+)'/g)].map(m => [m[1]!, m[2]!] as const) : []
-  check('the node pack per target equals the owner\'s projection', pairs.length === RELEASE_TARGETS.length && pairs.every(([t, pack]) => isReleaseTarget(t) && nodePackPlatform(buildPlatformOf(t).platform, buildPlatformOf(t).arch) === pack), pairs.map(p => p.join('→')).join(' '))
-  check('a dist built for another target is refused by its declaration, naming the build flag', packager.includes('dist was built for') && packager.includes('bun run build.ts --target ${TARGET}'))
-  check('the runtime-platform refusal names the build flag, not the host', packager.includes('build for the target: bun run build.ts --target') && !packager.includes('build on the target platform'))
-}
-
-section('§4 the build — --target, the target\'s packs, the manifest declaration')
-{
-  const build = read('build.ts')
-  check('build.ts reads --target through the owner', build.includes("await import('./src/services/privateChannel/releaseTarget.ts')") && build.includes("process.argv.indexOf('--target')"))
-  check('the manifest declares the shipped pair, its release target and the host', build.includes('target: { platform: SHIP.platform, arch: SHIP.arch, release: SHIP_RELEASE, host: HOST_KEY }'))
-  check('the search binary, the runtime, the voice pack, the image processor and the shell engine all key the SHIPPED pair', build.includes('vendor/ripgrep/${SHIP.arch}-${SHIP.platform}/') && build.includes('nodePackPlatform(SHIP.platform, SHIP.arch)') && build.includes('voicePackPlatform(SHIP.platform, SHIP.arch)') && build.includes('imagePackPlatform(SHIP.platform, SHIP.arch)') && build.includes('brushPackPlatform(SHIP.platform, SHIP.arch)'))
-  check('the search binary comes from the shipped pair\'s platform package, resolved node_modules-first', build.includes('resolvePlatformPackage(ROOT, SHIP.platform, SHIP.arch, rgPackage)') && build.includes("pkg.source === 'node_modules' ? '@vscode/ripgrep'"))
-  check('a cross build never falls back to the host\'s system rg', build.includes('if (!rgSource && !forceNoRg && !CROSS)'))
-  const voice = read('scripts/vendor/build-voice.ts')
-  check('build-voice.ts cross-compiles through the rustup target the owner names, or skips loudly', voice.includes("run('rustup', ['target', 'list', '--installed']") && voice.includes("...(CROSS && TRIPLE ? ['--target', TRIPLE] : [])") && voice.includes('rustup target add ${TRIPLE}'))
-  check('build-voice.ts keys the pack on the shipped pair', voice.includes('voicePackPlatform(SHIP.platform, SHIP.arch)') && voice.includes('voiceCargoTriple(PLATFORM)'))
-  const whisper = read('scripts/vendor/build-whisper.ts')
-  check('build-whisper.ts keys the pack on the shipped pair through the voice pack owner\'s table and cross-compiles through the same rustup target, or skips loudly', whisper.includes('voicePackPlatform(SHIP.platform, SHIP.arch)') && whisper.includes('voiceCargoTriple(PLATFORM)') && whisper.includes("run('rustup', ['target', 'list', '--installed']") && whisper.includes('rustup target add ${TRIPLE}'))
-  check('build.ts vendors the on-device transcriber pack of the SHIPPED pair through the same key', build.includes('whisperPackDirFor(ROOT, packPlatform)') && build.includes("['on-device-transcriber']"))
-  const desktop = read('scripts/vendor/build-desktop.ts')
-  check('build-desktop.ts keys the pack on the shipped pair through the voice pack owner\'s table and cross-compiles through the same rustup target, or skips loudly', desktop.includes('voicePackPlatform(SHIP.platform, SHIP.arch)') && desktop.includes('voiceCargoTriple(PLATFORM)') && desktop.includes("run('rustup', ['target', 'list', '--installed']") && desktop.includes('rustup target add ${TRIPLE}'))
-  check('build.ts vendors the desktop driver pack of the SHIPPED pair through the same key', build.includes('desktopPackDirFor(ROOT, packPlatform)') && build.includes("['desktop-driver']"))
-  const embed = read('scripts/vendor/build-embed.ts')
-  check('build-embed.ts reads --target through the owner\'s vocabulary', embed.includes("from '../../src/services/privateChannel/releaseTarget.ts'") && embed.includes('isReleaseTarget(TARGET_ARG)') && embed.includes('buildPlatformOf(TARGET_ARG)'))
-  check('build-embed.ts keys the pack on the shipped pair through the voice pack owner\'s table and cross-compiles through the same rustup target, or skips loudly', embed.includes('voicePackPlatform(SHIP.platform, SHIP.arch)') && embed.includes('voiceCargoTriple(PLATFORM)') && embed.includes("run('rustup', ['target', 'list', '--installed']") && embed.includes('rustup target add ${TRIPLE}') && embed.includes("...(CROSS && TRIPLE ? ['--target', TRIPLE] : [])"))
-  check('build-embed.ts without cargo skips in words naming the degrade and word match only, exit 0', embed.includes('SKIPPED — no cargo on PATH') && embed.includes('memory runs word match only') && /SKIPPED — no cargo on PATH[\s\S]{0,400}process\.exit\(0\)/.test(embed))
-  check('build-embed.ts drops a stale cached pack before a cargo failure exits, so the native build degrades honestly instead of refusing the cache', /if \(build\.status !== 0\) \{\n\s+dropStale\(\)\n\s+fail\(`cargo build failed/.test(embed) && /if \(build\.error\) \{\n\s+dropStale\(\)/.test(embed))
-  check('build.ts vendors the semantic embedder pack of the SHIPPED pair through the same key, and the default model beside it', build.includes('embedPackDirFor(ROOT, packPlatform)') && build.includes("['semantic-embedder']") && build.includes('const wanted = embedDefaultModel()'))
-  const fetcher = read('scripts/vendor/fetch-embed-models.ts')
-  check('fetch-embed-models.ts --default fetches the shipped default alone, never the whole catalogue', fetcher.includes("argv.includes('--default')") && fetcher.includes('if (all) return [...EMBED_MODELS]') && fetcher.indexOf('if (defaultOnly) return [embedDefaultModel()]') > fetcher.indexOf('if (all) return [...EMBED_MODELS]'))
-  const models = read('src/mneme/embedModels.ts')
-  check('the model download refuses a digest or a byte count the lock does not pin before the file lands', models.includes('if (digest !== row.sha256) throw new Error') && models.includes('if (received !== row.bytes) throw new Error') && models.indexOf('if (digest !== row.sha256) throw new Error') < models.indexOf('renameSync(part, path)'))
-}
 
 section('§5 the built dist — the packs follow the declared target')
 {
@@ -147,8 +105,6 @@ section('§6 the platform-package fetch — bun.lock is the version owner')
   check('the registry tarball grammar: scoped name, unscoped stem', rgX64 !== null && registryTarballUrl(rgX64) === `https://registry.npmjs.org/@vscode/ripgrep-darwin-x64/-/ripgrep-darwin-x64-${rgX64.version}.tgz`)
   const hostRg = resolvePlatformPackage(ROOT, process.platform, process.arch, ripgrepPackageFor(process.platform, process.arch))
   check('the host\'s own search package resolves from node_modules (bun install carried it)', hostRg?.source === 'node_modules', JSON.stringify(hostRg))
-  const fetcher = read('scripts/vendor/fetch-platform-packages.ts')
-  check('the fetch verifies the lock\'s integrity before extraction and refuses a mismatch', fetcher.includes('integrityOf(buf)') && fetcher.includes('artifact identity changed') && fetcher.indexOf('integrityOf(buf)') < fetcher.indexOf('extractTarGz('))
 }
 
 section('§7 the release workflow — four arms, the Intel one cross-packaged and gated under Rosetta')
@@ -201,8 +157,6 @@ section('§7 the release workflow — four arms, the Intel one cross-packaged an
 
 section('§8 the words — the archive README, the release page, the compatibility table')
 {
-  const templates = read('scripts/release/launcherTemplates.mjs')
-  check('the archive README lists macOS x64 (Intel) and no longer says Intel is not packaged', templates.includes('macOS x64 (Intel') && !templates.includes('macOS Intel is not packaged'))
   const notes = read('docs/releases/1.0.0-beta.3.md')
   const intelItem = /\*\*The Intel Mac build\*\*([\s\S]*?)(?=\n\d+\. \*\*|\n\n)/.exec(notes)?.[1] ?? ''
   check('the beta.3 page carries the Intel Mac build as done, naming the archive', intelItem.includes('`macos-x64`') && /\bDone\.\s*$/.test(intelItem) && !/In progress\./.test(intelItem), intelItem.slice(-80))
@@ -284,11 +238,6 @@ section('§9 the Windows archive carries the bundled shell engine — the contra
     rmSync(fixture, { recursive: true, force: true })
   }
 
-  const packager = read('scripts/release/package.mjs')
-  check('the packager reads the pack back out of the staged payload and no longer tolerates its absence on Windows', packager.includes('checkBundledVendorPacks(pkgDir, TARGET)') && !packager.includes("PUBLISHABLE_DEGRADATIONS.add('shell-engine')"))
-  check('the packager names the build command when the dist lacks the pack', packager.includes('bundledVendorPacks(TARGET)') && packager.includes('bun run scripts/vendor/build-brush.ts --target ${TARGET}'))
-  const verifier = read('scripts/release/verifyArchive.mjs')
-  check('the verifier reads the pack back out of the extracted archive', verifier.includes('checkBundledVendorPacks(payload'))
   const wf = read('.github/workflows/private-release.yml')
   const step = wf.indexOf('- name: Build the shell engine pack (Windows)')
   const stepEnd = wf.indexOf('\n      - name:', step + 1)

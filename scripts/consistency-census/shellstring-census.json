@@ -122,13 +122,6 @@
       "why": "POSIX-scoped runtime path behind a platform gate (audited per site in the census review)"
     },
     {
-      "file": "scripts/accounts/prove-account-slots.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const hits = execSync(",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
       "file": "scripts/accounts/prove-auth-scope-isolation.ts",
       "mechanism": "execSync-string",
       "excerpt": "out = execSync(`grep -rnF ${JSON.stringify(symbolCall)} src --include='*.ts'`, {",
@@ -139,20 +132,6 @@
       "file": "scripts/accounts/prove-auth-scope-isolation.ts",
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/api/prove-client-contract-door.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const tracked = execSync('git ls-files -z -- src', { cwd: ROOT }).toString('utf8').split('\\0').filter(Boolean)",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/attention/prove-attach-return.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const consumers = execSync(\"grep -rl 'captureReturnState(' src --include='*.ts' --include='*.tsx' || true\", { encoding: 'utf8' })",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
@@ -288,20 +267,6 @@
       "excerpt": "const handle = await exec('staged.cmd', controller.signal, 'bash', { timeout: 60_000, shouldAutoBackground: false })",
       "cls": "test-fixture",
       "why": "drives Shell.exec at a PATH-found .cmd on purpose — whether the Windows system shell runs a batch by its bare name with every argument byte intact is the subject under test"
-    },
-    {
-      "file": "scripts/build-identity/prove-config-home.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const trackedFiles = execSync(`git ls-files -z -- ${SWEEP_SCOPES.join(' ')}`, { cwd: ROOT })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/build-identity/prove-jsx-shadow.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const files = execSync(`git -C '${REPO}' ls-files 'src/**/*.tsx'`, { encoding: 'utf8' })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
       "file": "scripts/builtin-tools/render-builtin-tools-cards.tsx",
@@ -477,13 +442,6 @@
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { env, timeout: vshotBudgetMs(180_000), stdio: 'pipe' })",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
-      "file": "scripts/core-runtime/prove-bootenv-attribution.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const files = execSync('git ls-files -z src', { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
       "file": "scripts/critters/prove-berth-sprite.ts",
@@ -692,13 +650,6 @@
       "file": "scripts/eval/prove-kernel-cancel.ts",
       "mechanism": "execSync-string",
       "excerpt": "const pids = execSync(`pgrep -P ${process.pid} || true`, { encoding: 'utf8' })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/extensions/prove-env-vocabulary.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const hits = execSync(",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
@@ -1375,27 +1326,6 @@
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
-      "file": "scripts/longrun-invariants/prove-progress-projection.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "return execSync(",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/longrun-invariants/prove-progress-projection.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "return execSync(",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/mcp/prove-mcp-failure-surfaces.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const files = execSync(\"git ls-files 'src/**/*.ts' 'src/**/*.tsx'\", { cwd: ROOT, encoding: 'utf8' }).split('\\n').filter(Boolean).filter(file",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
       "file": "scripts/mcp/prove-mcp-live-connect.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
@@ -1415,20 +1345,6 @@
       "excerpt": "const result = spawnSync('bash', ['-c', agentCmd], {",
       "cls": "intentional-shell",
       "why": "script-land shell program — the shell is named explicitly at the call"
-    },
-    {
-      "file": "scripts/model-transition/prove-transition-d-activity.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const defs = execSync(\"grep -rl 'ACTIVITY_CLASSES = \\\\[' src --include='*.ts' --include='*.tsx'\", { encoding: 'utf8' }).trim().split('\\n')",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/model-transition/prove-transition-e-reconnect.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const unreadNormalizers = execSync(",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
       "file": "scripts/motion/prove-splash-choreography.ts",
@@ -1963,13 +1879,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/substrate/prove-env-names.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "return execSync(`grep -rEl ${JSON.stringify(pattern)} ${JSON.stringify(SRC)} --include=*.ts --include=*.tsx`, { encoding: 'utf8', maxBuffer:",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
       "file": "scripts/substrate/prove-flag-registry.ts",
       "mechanism": "execSync-string",
       "excerpt": "return execSync(`grep -rEoh ${extraArgs} ${JSON.stringify(pattern)} src`, {",
@@ -2073,13 +1982,6 @@
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
-      "file": "scripts/switchboard/prove-seat-ceiling.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const hits = execSync(",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
       "file": "scripts/switchboard/prove-split-view-look.ts",
@@ -2425,27 +2327,6 @@
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
-      "file": "scripts/ui/prove-launchripple-deletion.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const launchTrueCallers = execSync(`grep -rn \"setLaunchRipple(true)\" \"${join(root, 'src')}\" || true`, {",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/ui/prove-launchripple-deletion.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const dangling = execSync(",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/ui/prove-launchripple-deletion.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const rippleRefs = execSync(`grep -rn \"${RIPPLE}\" \"${join(root, 'src')}\" || true`, {",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
       "file": "scripts/ui/prove-message-actions.ts",
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -c ${JSON.stringify(s)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
@@ -2544,13 +2425,6 @@
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
-      "file": "scripts/ui/prove-row-fills-its-pane.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const hits = execSync(`grep -rlE '<(MessageRow|Messages)\\\\b' src/components src/screens src/utils src/tools src/commands 2>/dev/null || true",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
       "file": "scripts/ui/prove-runs-board-name.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const result = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), config], {",
@@ -2619,13 +2493,6 @@
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
-    },
-    {
-      "file": "scripts/ui/prove-sup2-hardening.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "check('poison gone: no execSync command strings remain', !vs.includes('execSync('))",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
       "file": "scripts/ui/prove-view-reaches-status-row.ts",

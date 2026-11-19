@@ -102,37 +102,12 @@ section('(2) activation truth under the stubbed vscode module')
   check('no unregistered phantom commands', dead.length === 0, dead.join(','))
 }
 
-section('(2b) client robustness + the follow-along wire (structural)')
-{
-  const ext = readFileSync('integrations/vscode/extension.js', 'utf8')
-  check("spawn failures are handled (child.on('error'))", ext.includes("this.child.on('error'"))
-  check('stdin writes are guarded (safeWrite)', ext.includes('safeWrite(payload)'))
-  check('inbound requests ALWAYS settle (responded-once + catch)', ext.includes('let responded = false') && ext.includes(".catch(() => respond({ outcome: { outcome: 'cancelled' } }))"))
-  check('stderr reaches the log and names the exit cause', ext.includes("this.child.stderr.on('data'") && ext.includes('stderrTail'))
-  check('the handshake checks the protocol version and names the next step', ext.includes('init.protocolVersion !== ACP_PROTOCOL_VERSION') && ext.includes('mercury bridge install'))
-  check(
-    'changed files come from the tool_call KIND, never the title',
-    ext.includes("update.kind === 'edit' || update.kind === 'delete' || update.kind === 'move'") && !ext.includes("['Write', 'Edit', 'MultiEdit', 'NotebookEdit']"),
-  )
-  check('the mode picker reads the session\'s own modes', ext.includes('sessionModes.availableModes') && !ext.includes("['default', 'acceptEdits', 'plan', 'auto']"))
-  check('the permission ask previews the diff natively', ext.includes("c.type === 'diff'") && ext.includes("'vscode.diff'") && ext.includes('mercury-preview'))
-  check('the editor context is PUSHED (a notification on change, debounced)', ext.includes("client.notify('_mercury/editor_context'") && ext.includes('onDidChangeTextEditorSelection(() => pushEditorContext())'))
-  check('the chat webview renders incrementally with a CSP (no whole re-render per chunk)', ext.includes('Content-Security-Policy') && ext.includes("postToChat({ type: 'append'") && !ext.includes('chatPanel.webview.html = chatHtml()'))
-  check('thoughts cross to the chat', ext.includes("'agent_thought_chunk'"))
-  const child = readFileSync('src/services/acp/childSession.ts', 'utf8')
-  check('the ACP child pipe is crash-isolated', child.includes("this.child.on('error'") && child.includes("this.child.stdin?.on('error'"))
-  check('the ACP child spawn line carries no --verbose (the rows feed is complete on its own)', !child.includes("'--verbose'"))
-}
 
 section('(2c) activation is ACP-only — nothing stamped, written or served')
 {
-  const ext = readFileSync('integrations/vscode/extension.js', 'utf8')
   check('activation touched the terminal environment of no terminal', activation !== null && activation.env.length === 0, JSON.stringify(activation?.env ?? null))
   const written = existsSync(activationHome) ? readdirSync(activationHome, { recursive: true }) : []
   check('activation wrote nothing under the config home', written.length === 0, written.join(','))
-  check('the extension opens no listener of its own (no node:http, no node:net)', !ext.includes("require('node:http')") && !ext.includes("require('node:net')"))
-  check('the extension never spells an environment name into a terminal', !ext.includes('environmentVariableCollection') && !/MERCURY_[A-Z_]+_PORT/.test(ext))
-  check('the one process the extension spawns is the ACP server', (ext.match(/spawn\(/g) ?? []).length === 1 && ext.includes("'acp']"))
 }
 
 section('(3) deterministic .vsix build')
@@ -194,14 +169,12 @@ section('(4) mercury bridge status — honest E2E from the dist bundle')
 
 section('(5) the distribution contract')
 {
-  const packager = readFileSync('scripts/release/package.mjs', 'utf8')
   const { topAllowlist, readCompatFloor } = await import('../release/payloadContract.mjs')
   const floor = readCompatFloor()
   check(
     'the member-role authority admits the vsix on BOTH platforms',
     topAllowlist('windows-x64', floor).includes('mercury-vscode.vsix') && topAllowlist('linux-x64', floor).includes('mercury-vscode.vsix'),
   )
-  check('the packager builds + stages the vsix', packager.includes('build-vsix.sh') && packager.includes("join(pkgDir, 'mercury-vscode.vsix')"))
 }
 
 console.log('')

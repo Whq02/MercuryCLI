@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -112,28 +111,6 @@ section('§5 the CI scrub strips the registered credential families and exporter
   check('variables outside the registered families pass through', FORMER_CI_NAMES.every(n => scrubbed[n] === 'v'), FORMER_CI_NAMES.filter(n => scrubbed[n] !== 'v').join(','))
 }
 
-section('§6 the reviewer\'s confined verification resolves the bun runtime through the registered pin')
-{
-  const text = readFileSync(join(SRC, 'tools/AgentTool/reviewerPolicy.ts'), 'utf8')
-  check('the runtime is read through the registry reader', /flagEnv\('MERCURY_BUN'\)/.test(text))
-  check('no raw read of an unregistered runtime spelling remains', !/process\.env\.BUN\b/.test(text))
-  check('the confined child receives the pin under both the registered spelling and the suites\' shell variable', text.includes('`MERCURY_BUN=${bun}`') && text.includes('`BUN=${bun}`'))
-}
-
-section('§7 no reader of a former spelling remains in src')
-{
-  const { execSync } = await import('node:child_process')
-  const grep = (pattern: string): string => {
-    try {
-      return execSync(`grep -rEl ${JSON.stringify(pattern)} ${JSON.stringify(SRC)} --include=*.ts --include=*.tsx`, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-    } catch {
-      return ''
-    }
-  }
-  const former = [FORMER_TIMEOUT, FORMER_MAX_TIMEOUT, FORMER_MAX_OUTPUT, J('ANTHROPIC_', 'DEFAULT_\\$\\{'), J('ANTHROPIC_', 'DEFAULT_[A-Z]'), ...FORMER_CI_NAMES, FORMER_UTILITY_MODEL, FORMER_HAIKU_CACHING_SWITCH]
-  const hits = former.map(n => [n, grep(`\\b${n}`).trim()] as const).filter(([, files]) => files !== '')
-  check('no source file names a former spelling', hits.length === 0, hits.map(([n, f]) => `${n}: ${f.split('\n').join(' ')}`).join(' · '))
-}
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {

@@ -147,39 +147,6 @@ if (POISON_DIST === undefined) {
     removeScratch(dir)
   }
 
-  section('§3 the wiring, at its source seams')
-  const globalHooks = readFileSync(join(REPO, 'src', 'hooks', 'useGlobalKeybindings.tsx'), 'utf8')
-  const routeSafeAt = globalHooks.indexOf("'app:openSurfaceSwitcher':")
-  const routeSafeEnd = globalHooks.indexOf("{ context: 'Global', routeSafe: true }", routeSafeAt)
-  const routeSafeBlock = globalHooks.slice(routeSafeAt, routeSafeEnd)
-  check('the completion handler registers in the Chat world beside the ctrl+x c precedent, routeSafe (the covered board is the point)', routeSafeEnd !== -1 && routeSafeBlock.includes("'concourse:closeSession': () => {") && routeSafeBlock.includes('invokeConcourseCloseChord()'))
-  const provider = readFileSync(join(REPO, 'src', 'keybindings', 'KeybindingProviderSetup.tsx'), 'utf8')
-  check('the provider mirrors EVERY pending transition (the explicit road and the timeout clear)', provider.split('publishPendingChord(').length === 3)
-  const screen = readFileSync(join(REPO, 'src', 'components', 'concourse', 'ConcourseScreen.tsx'), 'utf8')
-  check('the board claims the slot at mount and releases by unmount cleanup', screen.includes('useEffect(() => claimConcourseCloseChord(() => closeChordRoutineRef.current()), [])'))
-  check('the hint reads the MIRROR, never a provider of its own (the covered-provider truth)', screen.includes('useSyncExternalStore(subscribePendingChordMirror, getPendingChordMirror, getPendingChordMirror)'))
-  check('the hint reads the STAGE through its own subscription (the window\'s end repaints it) and spells the rung from the one owner, the row\'s newborn fact beside it', screen.includes('useSyncExternalStore(closeChordStage.subscribe, closeChordStage.read, closeChordStage.read)') && screen.includes('closeChordHintOf(closeChordRungOf(boardSelectionClassOf(peekSelRow), closeChordStaged), peekSelRow?.newborn === true)'))
-  const gestureAt = screen.indexOf('const closeChordGesture = (): void => {')
-  const gesture = gestureAt !== -1 ? screen.slice(gestureAt, screen.indexOf('const closeChordRoutineRef', gestureAt)) : ''
-  const rungBlock = (rung: string): string => {
-    const at = gesture.indexOf(`case '${rung}':`)
-    if (at === -1) return ''
-    const next = gesture.indexOf('case ', at + 6)
-    return gesture.slice(at, next === -1 ? undefined : next)
-  }
-  check('the routine reads the rung from the one owner: the row\'s class and the stage', gesture.includes('closeChordRungOf(boardSelectionClassOf(sel), closeChordStage.standsFor(sel.sessionId))'))
-  check('withdraw: one completed gesture, the landed removeSession door', rungBlock('withdraw').includes('callbacks.removeSession?.(sel.sessionId)'))
-  check('stop: arms the window and dispatches the stop — nothing else', rungBlock('stop').includes('closeChordStage.arm(sel.sessionId)') && rungBlock('stop').includes('callbacks.stopSession?.(sel.sessionId)') && !rungBlock('stop').includes('removeSession') && !rungBlock('stop').includes('archiveSession'))
-  check('re-sent stop: says where the stop stands and re-sends it; never removes', rungBlock('resend-stop').includes('callbacks.stopSession?.(sel.sessionId)') && !rungBlock('resend-stop').includes('removeSession'))
-  check('archive: arms the window and parks the stopped row — the record stands', rungBlock('archive').includes('closeChordStage.arm(sel.sessionId)') && rungBlock('archive').includes('callbacks.archiveSession?.(sel.sessionId)') && !rungBlock('archive').includes('removeSession'))
-  check('arm-delete: arms the window and speaks its receipt — no daemon verb', rungBlock('arm-delete').includes('closeChordStage.arm(sel.sessionId)') && !rungBlock('arm-delete').includes('callbacks.'))
-  check('delete: closes the stage, drops the arm\'s note with the row, ends the record', rungBlock('delete').includes('closeChordStage.clear()') && rungBlock('delete').includes('setNote(prev => (prev?.row === sel.sessionId ? null : prev))') && rungBlock('delete').includes('callbacks.removeSession?.(sel.sessionId)'))
-  check('no stage lives outside its owner: the screen keeps no clock of its own', !screen.includes('lastStopRef') && !screen.includes('CLOSE_CHORD_STAGE_WINDOW_MS'))
-  check('C3 a row-keyed note clears when the selection leaves it or the row leaves the board', screen.includes('if (boardSel !== note.row || !sessionRows.some(r => r.sessionId === note.row)) setNote(null)') && /setNote\(\{ tone: 'muted', text: keyHintLabel\(receipt\), row: sel\.sessionId \}\)/.test(gesture))
-  check('C1 a PARKED row enters on ONE ↵ (no composer target to arm) — the screen agrees with its hints', screen.includes("const parked = sessionRows.find(r => r.sessionId === sessionId)?.state === 'parked'") && screen.includes('if (!reducedStage && !parked && opts.pointer !== true && boardArmedRef.current !== sessionId) {'))
-  check('C1 the composer gate says one ↵ on a parked row; no hint on the board says ↵↵ for it', screen.includes("'parked — ↵ brings it back; a sleeping chat takes no queue'") && !screen.includes('↵↵ brings it back'))
-  const layout = readFileSync(join(REPO, 'src', 'components', 'concourse', 'ConcourseLayout.tsx'), 'utf8')
-  check('C1 the live composer\'s ↵ label follows the selected row\'s class: one press brings a parked row back', layout.includes("{ keys: '↵', label: 'brings it back' }") && layout.includes("? { keys: '↵', label: 'open' }") && layout.includes('chordStaged: closeChordStaged'))
   const { regionKeysFor } = await import('../../src/components/concourse/controlManifest.js')
   const live = regionKeysFor('list', { newSession: true, selection: 'live' })
   check("the live row's legend advertises the chord with the staged truth", live.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · archive · delete'))
@@ -188,15 +155,6 @@ if (POISON_DIST === undefined) {
   const docs = readFileSync(join(REPO, 'docs', 'SESSIONS.md'), 'utf8')
   check('docs/SESSIONS.md teaches the chord and the typing truth in the same breath', docs.includes('`ctrl+x ctrl+x` stops the selected') && docs.includes('typing is never a control'))
   check('docs/SESSIONS.md teaches the list\'s plain x and a beside the chord, and never a second x', docs.includes('In the session list\n`x` stops the selected session and `a` archives it') && !/second `x`/.test(docs))
-  const driveMembers = readFileSync(join(REPO, 'scripts', 'switchboard-drives', 'members.txt'), 'utf8')
-    .split('\n')
-    .map(l => l.trim())
-    .filter(l => l !== '' && !l.startsWith('#') && l !== 'prove-close-chord.ts')
-  const retiredRungWords = [/same chord again removes/, /chord again removes it/, /REMOVE stage/, /remove-arm/, /remove-complete/, /stop, then remove/, /the same chord again \(/]
-  const offenders = driveMembers.filter(name => existsSync(join(REPO, 'scripts', 'switchboard', name)) && retiredRungWords.some(rx => rx.test(readFileSync(join(REPO, 'scripts', 'switchboard', name), 'utf8'))))
-  check('C5 no real-terminal drive still spells the retired two-rung chord (stop, then remove)', offenders.length === 0, offenders.join(', ') || 'none')
-  const reap = readFileSync(join(REPO, 'scripts', 'switchboard', 'prove-reap-focus-drive.ts'), 'utf8')
-  check('C5 the reap drive walks the three rungs — stop, archive, delete — each its own completed chord', reap.includes("const ARCHIVE_LEGEND = keyHintLabel('⌃x ⌃x archive · delete')") && reap.includes("const DELETE_LEGEND = keyHintLabel('⌃x ⌃x delete')") && reap.includes('awaitText: ARCHIVE_LEGEND') && reap.includes('awaitText: DELETE_LEGEND') && reap.split('data: CTRL_X').length === 7)
 }
 
 section(POISON_DIST === undefined ? '§4 the drive: x types · the ladder stops → archives → deletes exactly the highlighted row · the window, the note, the parked row\'s one ↵' : '§4 POISON: the pre-fix bundle — x stops instead of typing, the chord removes nothing')

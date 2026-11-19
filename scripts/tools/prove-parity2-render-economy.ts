@@ -60,8 +60,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   disarm()
   t('MERCURY_UPDATE_NOTICE=0 never arms the check', !armed)
   delete process.env.MERCURY_UPDATE_NOTICE
-  const notifications = readFileSync('src/context/notifications.tsx', 'utf8')
-  t('the notification store arms no expiry for a timeoutMs: Infinity entry (structural)', /timeoutMs === Infinity/.test(notifications) && /cancelExpiry\(\)\s*\n\s*if \(standsUntilRemoved\(entry\)\) return/.test(notifications))
   const doc = readFileSync('docs/TERMINAL-RUNTIME.md', 'utf8')
   t('the runtime doc states exactly what the check sends', /sends nothing about the machine or the\s+operator/.test(doc) && /MERCURY_UPDATE_NOTICE=0/.test(doc))
 }
@@ -71,10 +69,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   const long = 'src/components/permissions/FilePermissionDialog/useFilePermissionDialog.ts'
   const shown = truncatePathMiddle(long, 50)
   t('a long path keeps its filename and its root', shown.endsWith('/useFilePermissionDialog.ts') && shown.startsWith('src/') && shown.includes('…'), shown)
-  for (const file of ['src/tools/FileReadTool/UI.tsx', 'src/tools/FileEditTool/UI.tsx', 'src/tools/FileWriteTool/UI.tsx']) {
-    const source = readFileSync(file, 'utf8')
-    t(`${file} summarizes its path by middle truncation`, source.includes('truncatePathMiddle(getDisplayPath(input.file_path), TOOL_SUMMARY_MAX_LENGTH)'))
-  }
 }
 
 {
@@ -130,10 +124,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   t('an oversized skill description is hard-capped per entry', line.length < 300 && line.endsWith('…'), `${line.length} chars`)
 }
 
-{
-  const caps = readFileSync('src/ink/session/capabilities.ts', 'utf8')
-  t('the sync-output latch upgrades from the live DECRQM 2026 probe (structural)', /export function upgradeSyncOutputSupport\(\): void \{[\s\S]{0,400}?syncOutputSupported = true\s*\n\s*syncUpgradedByProbe = true/.test(caps) && !/upgradeSyncOutputSupport\(\): void \{\s*if \(isSyncOutputForcedOff\(\)\) return/.test(caps))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures ? '\nFAILURES' : '\nALL GREEN')

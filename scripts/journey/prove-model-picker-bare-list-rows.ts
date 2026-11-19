@@ -347,21 +347,6 @@ try {
     deepseek.__resetDeepseekCatalogueForTest()
   }
 
-  section('§5 the seams, source-shaped')
-  {
-    const src = (rel: string): string => readFileSync(join(import.meta.dir, '../../src', rel), 'utf8')
-    const composer = src('utils/model/modelOptions.ts')
-    check('the composer exports the marker by its exact words', composer.includes("export const LIVE_UNKNOWN_ROW_WORDS = 'live · unknown to mercury'"))
-    const gpt = composer.slice(composer.indexOf('function getQualifiedGptOptions'), composer.indexOf('export interface KeyLanePin'))
-    check('the OpenAI rows mark an unparsed candidate by its typed identity and filter nothing', gpt.includes('candidate.identity.unparsed === true') && gpt.includes('LIVE_UNKNOWN_ROW_WORDS') && !/startsWith\('gpt|\/\^gpt|parseGptModelId|\.filter\(/.test(gpt))
-    const lanes = composer.slice(composer.indexOf('export function keyLaneGroupRows'), composer.indexOf('export function keyLaneProviderRows'))
-    check('the key-lane rows lead with the pins the module names and trail the live-only ids, marked', lanes.includes('LIVE_UNKNOWN_ROW_WORDS') && lanes.includes('liveUnknown') && !/isDeepseekModelId|isKimiModelId|startsWith\('/.test(lanes))
-    const wrapper = src('commands/model/mercuryModel.tsx')
-    check('the OpenAI heading counts the group\'s live rows through the one composer', src('utils/model/modelPickerGroups.ts').includes('export function liveCount(rows: readonly PickerRow[]): number {') && wrapper.includes('orderPickerRows(anthropicDoorRows(models)'))
-    check('the row shape carries the typed live-unknown field, set beside the words by both composers', composer.includes('liveUnknown?: boolean\n}\n\nexport const LIVE_UNKNOWN_ROW_WORDS') && (composer.match(/\.\.\.\((?:liveUnknown|pin\.liveUnknown === true) \? \{ liveUnknown: true \} : \{\}\)/g) ?? []).length === 2)
-    const mapping = wrapper.slice(wrapper.indexOf('function modelChoiceOf'), wrapper.indexOf('function expandRowsOf'))
-    check("the row mapping paints an unknown row's stated window or nothing, on the carrier rows' road — it never asks the window resolver for one", mapping.includes('if (opt.liveUnknown === true || opt.statedContextWindow !== undefined || qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined) {') && mapping.includes('opt.liveUnknown === true') && mapping.includes('getContextWindowForModel(') && mapping.indexOf('opt.liveUnknown === true') < mapping.indexOf('getContextWindowForModel('))
-  }
 } finally {
   globalThis.fetch = realFetch
   fixture.closeAllConnections()

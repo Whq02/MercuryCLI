@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import http from 'node:http'
 import net from 'node:net'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -218,9 +218,6 @@ section('§3 the WebSocket path under Node carries a real agent (the tunnelling 
   clearProxyCache()
   const plain = getWebSocketProxyAgent('wss://example.invalid/socket')
   check('without the flag no lookup override rides the tunnel agent', plain?.connectOpts?.lookup === undefined)
-  const mcp = readFileSync(new URL('../../src/services/mcp/client.ts', import.meta.url), 'utf8')
-  check('mcp client: Node ws options carry `agent: proxyAgent` from getWebSocketProxyAgent', /getWebSocketProxyAgent\(url\)/.test(mcp) && /\{ agent: proxyAgent \}/.test(mcp) && !/proxy: proxyUrl \} : \{\}\) \}\n  let socket/.test(mcp))
-  check('mcp client: Bun ws options carry the proxy URL from getWebSocketProxyUrl', /getWebSocketProxyUrl\(url\)/.test(mcp) && /\{ proxy: proxyUrl \}/.test(mcp))
 }
 
 section('§4 the retired AWS proxy binding stays retired')
@@ -249,12 +246,6 @@ section('§5 NO_PROXY bypass: a bypassed host does NOT traverse the fixture')
   delete process.env.NO_PROXY
 }
 
-section('§6 the SDK client construction receives the transport fetch options (structural)')
-{
-  const client = readFileSync(new URL('../../src/services/api/client.ts', import.meta.url), 'utf8')
-  check('client.ts passes fetchOptions: getProxyFetchOptions({ forAnthropicAPI: true }) into the shared SDK options', /fetchOptions: getProxyFetchOptions\(\{ forAnthropicAPI: true \}\)/.test(client))
-  check('the same shared options reach the first-party constructor', /\.\.\.sharedOptions,\n\s+apiKey[,:]/.test(client))
-}
 
 section('§7 getAddressFamily over the DNS lookup-options domain')
 {

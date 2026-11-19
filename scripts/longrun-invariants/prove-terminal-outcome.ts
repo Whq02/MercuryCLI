@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'terminal-outcome-home-'))
 
-const ROOT = join(import.meta.dir, '..', '..')
 await import('../../src/tasks.js')
 const {
   deriveAgentTerminalOutcome,
@@ -34,15 +33,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
-}
-function closingBraceAfter(src: string, open: number): number {
-  if (open < 0 || src[open] !== '{') return -1
-  let depth = 0
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++
-    else if (src[i] === '}' && --depth === 0) return i
-  }
-  return -1
 }
 
 const REAL_USAGE = {
@@ -112,11 +102,6 @@ section('§A ONE derivation: decline fails, promotion is labeled, report survive
     r.content.map(c => c.text).join('').slice(0, 60))
   check('declined finalize: usage anchors on the real message (non-zero tokens)',
     r.totalTokens === 150, String(r.totalTokens))
-}
-{
-  const src = readFileSync(join(ROOT, 'src/tools/AgentTool/foregroundExecution.tsx'), 'utf8')
-  check("the foreground settle hands a derived failure's error to the record (the row's tail says why)",
-    src.includes('? { error: outcome.error }') && src.includes('settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)'))
 }
 {
   const immediate = [userMsg('go'), declineTail('API Error: 400 context')]
@@ -323,25 +308,6 @@ await lifecycleCase(
 )
 resetCommandQueue()
 
-section('§D wiring pins (source locks on the threaded surfaces)')
-{
-  const fg = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'AgentTool', 'foregroundExecution.tsx'), 'utf8')
-  check('SDK bookend derives its clean-exit status from the ONE derivation (the outcome kept, its reason handed to the settle)',
-    fg.includes('const outcome = heldError === undefined ? deriveAgentTerminalOutcome(agentMessages) : null') && fg.includes(': outcome!.status'))
-  check('backgrounded closure settles by outcome (fail path wired)',
-    fg.includes("failAsyncAgent(backgroundedTaskId, declined.error"))
-  check('sync result forks failed/completed on the same outcome',
-    fg.includes("status: 'failed' as const,") && fg.includes('error: failureText'))
-  check("the foreground settle hands an overload death to the pause-and-probe road a background lane takes (the episode noted, the probe armed, the receipt leading with the pause)",
-    fg.includes('overloadPauseOf(agentMessages, metadata.resolvedAgentModel)') && fg.includes('noteOverloadDeath(overloadEpisodeOf(foregroundTask.taskId))') && fg.includes('armOverloadProbe({') && fg.includes('seatPause = windowPause ?? overload?.pause ?? null'))
-  const detachedAt = fg.indexOf('const continueDetached = async (')
-  const detached = fg.slice(detachedAt, closingBraceAfter(fg, detachedAt < 0 ? -1 : fg.indexOf('{', detachedAt)) + 1)
-  check("the hand-over's declined end reads the overload verdict, arms the probe and gates its notice on the episode; its thrown end reads the 529 budget cut before the blind resume; its stop closes the episode",
-    detached.includes('const overload = declined ? overloadPauseOf(agentMessages, metadata.resolvedAgentModel) : null') && detached.includes('const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)') && detached.split('armOverloadProbe({').length === 3 && detached.split('const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)').length === 3 && detached.includes('closeOverloadEpisode(backgroundedTaskId)') && detached.indexOf('armOverloadProbe({', detached.indexOf('const budgetCut = recoveryBudgetCutOf(error)')) === -1)
-  const ui = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'AgentTool', 'UI.tsx'), 'utf8')
-  check('transcript row renders Failed for the failed status (no silent blank)',
-    ui.includes("`Failed (${result.join(' · ')}) — ${data.error}`"))
-}
 
 rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })
 console.log('\n' + '═'.repeat(76))

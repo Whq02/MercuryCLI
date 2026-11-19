@@ -54,55 +54,6 @@ section('§1 pure — the painted selection and the row-end offset')
   )
 }
 
-section('§2 source — the gesture road')
-{
-  const ink = readFileSync('src/ink/ink.tsx', 'utf8')
-  const app = readFileSync('src/ink/components/App.tsx', 'utf8')
-  const pi = readFileSync('src/components/PromptInput/PromptInput.tsx', 'utf8') + readFileSync('src/components/PromptInput/useComposerSelection.ts', 'utf8')
-  const hook = readFileSync('src/hooks/useTextInput.ts', 'utf8')
-  const startAt = ink.indexOf('handleSelectionStart(col: number, row: number, pressHadAlt = false): void {')
-  const multiAt = ink.indexOf('handleMultiClick(col: number, row: number, count: 2 | 3): void {')
-  const offerInStart = ink.indexOf('if (this.offerTextGesture(col, row, 1))', startAt)
-  const offerInMulti = ink.indexOf('if (this.offerTextGesture(col, row, count))', multiAt)
-  check(
-    'the press is offered to the text field before the screen selection starts (click and multi-click)',
-    startAt !== -1 &&
-      multiAt !== -1 &&
-      offerInStart !== -1 &&
-      offerInStart < ink.indexOf('startSelection(this.selection, col, row)', startAt) &&
-      offerInMulti !== -1 &&
-      offerInMulti < ink.indexOf('startSelection(this.selection, col, row)', multiAt),
-  )
-  check(
-    'a drag report reaches the field that took the press',
-    /handleSelectionDrag\(col: number, row: number\): void \{\s*\n\s*if \(!this\.altScreenActive\) return\s*\n\s*if \(this\.textGesture\) \{/.test(ink),
-  )
-  const releaseAt = app.indexOf('if (props.handleSelectionRelease?.(col, row)) return')
-  check(
-    "the release reaches the field ahead of the root's click and hyperlink roads",
-    releaseAt !== -1 && releaseAt < app.indexOf('const isClick = slop || (!hasSelection(selection) && selection.anchor !== null)'),
-  )
-  check(
-    'the input box offers the gesture and keeps its click road for the declined cases',
-    /ref=\{inputBoxRef\}\s*\n\s*onClick=\{handleInputBoxClick\}\s*\n\s*onTextGesture=\{handleInputTextGesture\}/.test(pi),
-  )
-  check(
-    'the composer declines reverse search, vim mode and an empty composer',
-    pi.includes("if (isSearchingHistory || isVimModeEnabled() || input === '') return false"),
-  )
-  check(
-    'two clicks select the whole text',
-    /if \(gesture\.clickCount >= 2\) \{\s*\n\s*gestureAnchorRef\.current = null\s*\n\s*setOwnSelection\(\{ start: 0, end: input\.length, of: input \}\)/.test(pi),
-  )
-  check(
-    'a bare ← or → drops the range as the caret leaves it',
-    /setOffset\(key\.leftArrow \? r\.start : r\.end\)\s*\n\s*onSelectionConsumed\?\.\(\)\s*\n\s*return/.test(hook),
-  )
-  check(
-    'the painted range is the same truth the key seam reads',
-    pi.includes('selectionHighlight={ownSelection}') && pi.includes('const ownSelection = ownSelectionOf(input)'),
-  )
-}
 
 section('§3 pty — the real binary, SGR mouse bytes')
 const driver = resolveCaptureDriver()

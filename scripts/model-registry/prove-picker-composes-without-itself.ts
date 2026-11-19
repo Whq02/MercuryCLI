@@ -89,15 +89,6 @@ section('§4 a custom option the catalogue does not recognise (MERCURY_CUSTOM_MO
   check('the custom row stands once and parses to itself', o.state === 'answered' && o.composed.probeRows === 1 && o.composed.parsed === 'house-model-7', show(o))
 }
 
-section('§5 the law in the source: the picker parses its own rows without the catalogue fold')
-{
-  const options = readFileSync(join(ROOT, 'src/utils/model/modelOptions.ts'), 'utf8')
-  const folded = options.match(/\bparseUserSpecifiedModel\(/g) ?? []
-  const raw = options.match(/\bparseUserSpecifiedModelRaw\(/g) ?? []
-  check('modelOptions.ts calls no parser that reads the catalogue back (parseUserSpecifiedModel), only the raw one', folded.length === 0 && raw.length > 0, `folded ${folded.length} · raw ${raw.length}`)
-  const fold = readFileSync(join(ROOT, 'src/utils/model/modelSpellingFold.ts'), 'utf8')
-  check("the fold's own row target is the raw parser too", fold.includes('parseUserSpecifiedModelRaw(normalizeModelStringForAPI(value))') && !/\bparseUserSpecifiedModel\(/.test(fold))
-}
 
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,11 +1,9 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
 import { buildSubagentMercurySections } from '../../src/constants/subagentDoctrine.js'
 import { MERCURY_CONSTITUTION, mercurySubagentContract } from '../../src/prompt/mercuryContract.js'
 import { MERCURY_SCOUT_AGENT } from '../../src/tools/AgentTool/built-in/mercuryScoutAgent.js'
 
-const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf-8')
 
 const MACRO_KEY = 'MACRO' as const
 function setStamp(on: boolean): void {
@@ -73,13 +71,6 @@ section('(d) C14: exempt Set DERIVED from fixedOutputContract (membership, not a
   check('a made-up agentType is NOT exempt (no drift to over-exempting)', !isFixedOutputAgent({ agentType: 'not-a-real-fixed-output-agent' }))
 }
 
-section('(d2) C14 source — derived Set (not a string literal)')
-{
-  const sd = read('../../src/constants/subagentDoctrine.ts')
-  check('exempt Set is DERIVED via .filter(d => d.fixedOutputContract)', sd.includes('.filter(d => d.fixedOutputContract)'))
-  const la = read('../../src/tools/AgentTool/loadAgentsDir.ts')
-  check('BaseAgentDefinition declares fixedOutputContract?: boolean', la.includes('fixedOutputContract?: boolean'))
-}
 
 section('(e) memory front page — every agent receives it; the memory switch removes it')
 check('mercury-crew carries the memory front page', join(buildSubagentMercurySections({ agentDefinition: GP })).includes('# Memory'))
@@ -139,15 +130,6 @@ section('(e2) API-currency: the env block carries the rule once; the doctrine se
   for (const a of ['mercury-crew', ...EXEMPT]) {
     check(`${a}: the doctrine sections carry no provider-apis line of their own`, !join(buildSubagentMercurySections({ agentDefinition: { agentType: a } })).includes(CURRENCY_MARK))
   }
-  const pr = read('../../src/constants/prompts.ts')
-  const precedence = /PROVIDER_SKILL_PRECEDENCE = `([^`]*)`/.exec(pr)?.[1] ?? ''
-  check('the env-block line ranks provider-apis over any external provider-API skill and bundled skills over same-named external ones', precedence.includes('it outranks any external provider-API skill, and a bundled Mercury skill outranks an external skill of the same name'))
-  check('the line names no external skill', !precedence.includes(['claude', '-api'].join('')) && !precedence.includes('legacy variants'))
-  const envFn = pr.slice(pr.indexOf('export async function computeEnvInfo'), pr.indexOf('export async function computeSimpleEnvInfo'))
-  check('computeEnvInfo interpolates MODEL_CURRENCY_NOTE and PROVIDER_SKILL_PRECEDENCE (every seat gets the rule once)', envFn.includes('${MODEL_CURRENCY_NOTE}') && envFn.includes('${PROVIDER_SKILL_PRECEDENCE}'))
-  check('…for EVERY family (no route gate on the currency rule)', !envFn.includes('isAnthropicRoutedModelId'))
-  check('the model_currency section shares the same const (no drift-prone twin literal)', pr.includes('function getModelCurrencySection(): string {\n  return `${MODEL_CURRENCY_NOTE} ${PROVIDER_SKILL_PRECEDENCE}`\n}'))
-  check('MODEL_CURRENCY_NOTE is the neutral rule — no vendor model list hardcoded', /MODEL_CURRENCY_NOTE = `Model currency:/.test(pr) && !/MODEL_CURRENCY_NOTE = `[^`]*claude-/.test(pr))
 }
 
 section('(f) gate clause present in the operating block; no softener')

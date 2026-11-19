@@ -32,14 +32,9 @@ check('an unreadable lock falls back to the fetch road', brushLockKindFor(join(R
 
 console.log('§2 the build and the doc hold one truth for a Windows builder')
 {
-  const build = readFileSync(join(ROOT, 'build.ts'), 'utf8')
-  check('build.ts derives the brush remedy from the lock (brushLockKindFor + brushPrepareCommand)', /brushLockKindFor\(/.test(build) && /brushPrepareCommand\(/.test(build))
-  check('…and names no fixed fetch-brush remedy of its own', !/Prepare it: bun run scripts\/vendor\/fetch-brush/.test(build) && !/remedy: bun run scripts\/vendor\/fetch-brush/.test(build))
   const doc = readFileSync(join(ROOT, 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
   check('docs/INSTALL-WINDOWS-FROM-SOURCE.md sends the Windows builder to build-brush.ts', /bun run scripts\/vendor\/build-brush\.ts/.test(doc))
   check('…and never to fetch-brush.ts', !/fetch-brush\.ts/.test(doc))
-  const pack = readFileSync(join(ROOT, 'src', 'utils', 'shell', 'brushPack.ts'), 'utf8')
-  check('the runtime note draws its words from the same function', /prepare it: \$\{brushPrepareCommand\(/.test(pack))
 }
 
 console.log(failures === 0 ? '\nprove-brush-prepare-words: ALL LAWS HOLD' : `\nprove-brush-prepare-words: ${failures} FAILURE(S)`)

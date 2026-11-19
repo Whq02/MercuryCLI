@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync } from 'node:fs'
 import { createServer as createNetServer, type Server as NetServer, type Socket } from 'node:net'
 import { createServer as createHttpServer, type Server as HttpServer } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -75,11 +75,6 @@ section('§1 — stale-socket classifier · recovery binding · real pool reset'
     ),
   )
 
-  const retrySource = readFileSync(join(ROOT, 'src/services/api/withRetry.ts'), 'utf8')
-  check(
-    'stale connections disable keepalive before rebuilding the client',
-    retrySource.includes('if (isStaleConnectionError(previousError)) {\n        disableKeepAlive()\n      }\n      client = await getClient()'),
-  )
 
   const proxy = await import('../../src/utils/proxy.ts')
   proxy._resetKeepAliveForTesting()

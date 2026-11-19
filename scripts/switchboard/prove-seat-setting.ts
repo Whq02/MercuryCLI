@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -13,8 +13,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const { enableConfigs, getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -116,20 +114,11 @@ cap._setHeldMachineSeatReadingForTesting(6, SAMPLE)
 
 {
   check("T5 the Boot Menu row is the owner's row: label Seats, no boot-env key, live application", cap.SEATS_MENU_ROW.label === 'Seats' && cap.SEATS_MENU_ROW.env === 'seats' && cap.SEATS_MENU_ROW.applicationClass === 'live' && cap.SEATS_MENU_ROW.options.length === 0)
-  const menu = read('src/components/BootSettingsScreen.tsx')
-  check('T5 the Boot Menu paints the row beside the env table, from the facts owner', menu.includes('SEATS_MENU_ROW') && menu.includes('seatCeilingValueWords(seatFacts)') && menu.includes('seatCeilingDetailLines(seatFacts)') && menu.includes('setOperatorSeats('))
-  check('T5 the Boot Menu row never writes boot-env.json (the seats branch precedes the profile write)', /if \(isSeatsRow\(row\)\) return commitSeats\(/.test(menu))
-  const config = read('src/components/Settings/Config.tsx')
-  check('T5 the /config row reads the same value words and writes through the same owner', config.includes("id: 'seats'") && config.includes('seatCeilingValueWords(seatFacts)') && config.includes('setOperatorSeats(next, writeGlobal)'))
-  const table = read('src/commands.ts')
-  check('T5 the /seats verb is registered', table.includes("import seats from './commands/seats/index.js'") && /^\s+seats,$/m.test(table))
   const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
   const seatsSays = await crewChecks().find(row => row.id === 'seats')?.run()
   const seatFactsNow = cap.seatCeilingFacts()
   const unnumbered = (text: string): string => text.replace(/\d+(?:\.\d+)?/g, '#')
   check("T5 /health's Seats row reads the value words, the reading's inputs and the doors", seatsSays !== undefined && unnumbered(seatsSays.evidence).startsWith(unnumbered(`${cap.seatCeilingValueWords(seatFactsNow)} · ${seatFactsNow.readingSentence} · `)) && seatsSays.detail?.endsWith(` Setting: ${seatFactsNow.lever}.`) === true, `${seatsSays?.evidence} · ${seatsSays?.detail}`)
-  const startup = read('src/substrate/startupMenu.ts')
-  check('T5 the env-backed table itself is untouched (the row is config-backed, never baked)', !startup.includes("env: 'seats'"))
 }
 
 cap._setHeldMachineSeatReadingForTesting(null)

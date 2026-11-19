@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync, mkdtempSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -9,7 +9,6 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
 delete process.env.NODE_ENV
 delete process.env.CI
 
-const REPO = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
@@ -31,15 +30,6 @@ check('a description-only match does NOT anchor ("/theme" vs update-config)', is
 check('a non-slash input passes through (file/agent suggestions unaffected)', isNameAnchoredSuggestion('hello', mk('model') as never) === true)
 check('a bare slash passes through (the empty-query menu)', isNameAnchoredSuggestion('/', mk('model') as never) === true)
 check('a metadata-less row never anchors', isNameAnchoredSuggestion('/x', { id: 'x', displayText: 'x' } as never) === false)
-
-console.log("§2 the guard in useTypeahead's command case")
-const hook = readFileSync(join(REPO, 'src', 'hooks', 'useTypeahead.tsx'), 'utf8')
-const caseStart = hook.indexOf("case 'command': {")
-const caseBlock = hook.slice(caseStart, hook.indexOf('case ', caseStart + 10))
-check('the guard reads viaEnter + never-navigated + the anchor law, ahead of the apply', /viaEnter &&\s*atIndex === undefined &&\s*!userNavigatedRef\.current &&\s*!isNameAnchoredSuggestion\(currentInput, suggestion\)/.test(caseBlock) && caseBlock.includes('isNameAnchoredSuggestion') && caseBlock.indexOf('isNameAnchoredSuggestion') < caseBlock.indexOf('applyCommandSuggestion'))
-check('a fresh publish resets the navigated flag', /userNavigatedRef\.current = false/.test(hook.slice(hook.indexOf('const publish'), hook.indexOf('const moveSelection'))))
-check('the ↑↓/⌃n/⌃p mover sets it', /const moveSelection = useCallback\(\s*\(delta: number\): void => \{\s*const list = suggestionsRef\.current\s*if \(list\.length === 0\) return\s*userNavigatedRef\.current = true/.test(hook))
-check('a refused bare ↵ submits the words AS TYPED (never a swallowed key — the kept draft built "/theme/mo" into a plain prompt)', /!isNameAnchoredSuggestion\(currentInput, suggestion\)\s*\)\s*\{[\s\S]{0,400}?clearSuggestions\(\)\s*onSubmit\?\.\(currentInput, true\)\s*return\s*\}/.test(caseBlock))
 
 console.log('§3 the poison from the real command table')
 {

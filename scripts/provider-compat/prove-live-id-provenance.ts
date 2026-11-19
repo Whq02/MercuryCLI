@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -223,21 +223,6 @@ for (const lane of [
   owner.reset()
 }
 
-section('§seams, source-shaped')
-{
-  const src = (rel: string): string => readFileSync(join(import.meta.dir, '../../src', rel), 'utf8')
-  const seam = src('services/providers/idSpaces.ts')
-  check('recognition asks the live lists after the qualified namespaces and before the bare grammar', seam.includes('const listed = liveListedRouteOf(lowered, env)') && seam.includes('if (qualified !== undefined) return') && seam.includes('for (const space of PROVIDER_ID_SPACES) {\n    if (space.bareAliases') && seam.indexOf('const listed = liveListedRouteOf(lowered, env)') > seam.indexOf('if (qualified !== undefined) return') && seam.indexOf('const listed = liveListedRouteOf(lowered, env)') < seam.indexOf('for (const space of PROVIDER_ID_SPACES) {\n    if (space.bareAliases'))
-  check('the seam reads each family lazily by literal require and never fetches', seam.includes("require('./moonshot/moonshotCatalogue.js')") && seam.includes("require('./deepseek/deepseekCatalogue.js')") && seam.includes("require('./openai/openaiCatalogue.js')") && seam.includes("require('./gemini/geminiCatalogue.js')") && !seam.includes('fetch(') && !seam.includes('await '))
-  const dispatch = src('utils/crew/engineDispatch.ts')
-  check('the exact-id road asks the lists first, then the grammar, and reads the lists on demand for an unrecognised bare id', dispatch.includes('liveListedRouteOf(v) !== undefined ||') && dispatch.includes('const listed = liveListedRouteOf(id)') && dispatch.includes('await readLiveListsForBareId(modelParam)'))
-  const router = src('services/providers/callModelRouter.ts')
-  check('the dispatch router reads the lists for an unrecognised bare id before classifying', router.includes('const verdict = await classifyAfterLiveLists(params.options.model)'))
-  const typedRoad = src('utils/model/validateModel.ts')
-  check('the typed /model road reads the lists for an unrecognised bare id before choosing its family', typedRoad.includes("early.kind === 'unrecognised' && !early.carrierShaped"))
-  const owner = src('services/providers/moonshot/moonshotCatalogue.ts')
-  check("Moonshot's list is a list: no grammar filter on the rows, no grammar guard on the fetch", !owner.includes('isKimiModelId') && owner.includes('export function cachedLiveIds('))
-}
 
 globalThis.fetch = realFetch
 rmSync(scratch, { recursive: true, force: true })

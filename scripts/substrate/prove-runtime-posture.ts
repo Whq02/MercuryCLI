@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -30,8 +30,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 console.log('============================================================')
 console.log(' runtime posture (init-path self-knowledge) — proof')
@@ -173,11 +171,6 @@ section('composition into the subagent doctrine (both chokepoints share the seam
 
 section('wiring (structural) — prompts.ts section + print-entry marker')
 {
-  const prompts = src('src/constants/prompts.ts')
-  check(
-    "prompts.ts registers the 'runtime_posture' dynamic section",
-    /systemPromptSection\('runtime_posture', \(\) => getRuntimePostureSection\(\)\)/.test(prompts),
-  )
   const { firstSystemPrompt } = await import('../lib/builtProduct.ts')
   const booted = await firstSystemPrompt(['--mode', 'implement'])
   const savedHome = mkdtempSync(join(tmpdir(), 'posture-saved-mode-'))

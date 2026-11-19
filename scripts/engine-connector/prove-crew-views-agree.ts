@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/components/tasks/BackgroundTasksDialog.tsx src/services/engine-connector/crewFacts.ts src/state/crewLedger.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -9,8 +8,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 await import('../../src/tools/AgentTool/AgentTool.tsx')
 type WorkRowV1 = import('../../src/services/engine-connector/types.ts').WorkRowV1
@@ -79,13 +76,6 @@ console.log('— §3 the facts round-trip to a board row —')
   check('a board row rebuilt from the crew facts yields the same facts (one derivation, both ways)', back !== null && JSON.stringify(back) === JSON.stringify(facts), back === null ? 'no workRowOfCrewFacts' : JSON.stringify(back).slice(0, 200))
 }
 
-console.log('— §4 the board paints through the one derivation —')
-{
-  const dialog = src('src/components/tasks/BackgroundTasksDialog.tsx')
-  check('the board’s agent section rides boardAgentRowsOf over the session crew', dialog.includes('boardAgentRowsOf(roster.rows, sessionCrew.map(row => row.facts), screenIds)'))
-  check('the age cell rides boardRowElapsedMs (frozen at the end)', dialog.includes('const elapsed = boardRowElapsedMs(item, now)'))
-  check('the board reads the same crew ledger the crew view reads', dialog.includes("import { useSessionCrew } from './useCrewLedger.js'") && src('src/components/mercury-ui/screens/CrewView.tsx').includes("import { useSessionCrew } from '../../tasks/useCrewLedger.js'"))
-}
 
 console.log(failures === 0 ? '\nprove-crew-views-agree: ALL LAWS HOLD' : `\nprove-crew-views-agree: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

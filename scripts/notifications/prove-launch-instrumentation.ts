@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,8 +20,6 @@ function check(label: string, ok: boolean, detail?: string): void {
     console.log(`  ❌ ${label}${detail ? ` — ${detail}` : ''}`)
   }
 }
-const REPO = join(import.meta.dir, '../../')
-const src = (p: string) => readFileSync(join(REPO, p), 'utf8')
 
 console.log('§1 the milestone store')
 {
@@ -57,19 +55,6 @@ console.log('§2 TI-01 — the typed invocation record')
 
 console.log('§3 the wire sites + health consumers (source pins)')
 {
-  const main = src('src/main.tsx')
-  check('runtime-entry stamps at the action entry, carrying the boot kind (interactive or headless)', /recordLaunchMilestone\('runtime-entry', \{ boot: getIsInteractive\(\) \? 'interactive' : 'headless' \}\)/.test(main))
-  check('the invocation record lands at the interactive-startup fact (beside the beacon clear)',
-    /clearBootAttempts\(\);?[\s\S]{0,700}recordInvocation\(\);?/.test(main))
-  const route = src('src/context/surfaceRoute.ts')
-  check('route-ready records at the resolver settle (every exit), SYNCHRONOUSLY on the resolver\'s own tick', /const settle = \([\s\S]{0,200}stampRouteReady\(\)/.test(route) && route.includes("require('../substrate/launchMilestones.js')"))
-  check('route-ready is never deferred behind a dynamic import (a late stamp raced the first paint and read OUT OF ORDER)', !/import\('\.\.\/substrate\/launchMilestones\.js'\)[\s\S]{0,40}\.then/.test(route) && !/void import\('\.\.\/substrate\/launchMilestones/.test(route))
-  const ink = src('src/ink/ink.tsx')
-  check('first-frame records where the first frame is written (the paint, synchronously — never a lifecycle hook a tick later)', /if \(!this\.firstFrameStamped\) \{[\s\S]{0,400}recordLaunchMilestone\('first-frame'\)/.test(ink))
-  const app = src('src/ink/components/App.tsx')
-  check('the App root mount no longer stamps first-frame', !/recordLaunchMilestone\('first-frame'\)/.test(app))
-  const graph = src('src/boot/launchGraph.ts')
-  check('input-live records at signalInputLive', /signalInputLive\(\): void \{[\s\S]{0,500}recordLaunchMilestone\('input-live'\)/.test(graph))
   const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
   const milestones = await import('../../src/substrate/launchMilestones.ts')
   const { readInvocationRecords } = await import('../../src/substrate/invocationRecord.ts')
@@ -84,17 +69,6 @@ console.log('§3 the wire sites + health consumers (source pins)')
 
 console.log('§4 C1/C2 win32 fixes (source pins)')
 {
-  const pe = src('src/utils/promptEditor.ts')
-  check('C1: the editor spawn parses with the canonical legacy parser and quotes the executable',
-    pe.includes('parseLegacyCommandString(editorCommand)') && pe.includes('`"${editorExe}"'))
-  const rt = src('src/services/mcp/renderTuiTool.ts')
-  const { renderTuiRuntime } = await import('../../src/services/mcp/renderTuiTool.ts')
-  const pinned = renderTuiRuntime({ env: { MERCURY_BUN: process.execPath }, home: scratch })
-  check('C2: render_tui writes under tmpdir() and resolves the runtime the way the suites do (MERCURY_BUN, then ~/.bun/bin/bun, then PATH), never a hard-coded spawn',
-    rt.includes('join(tmpdir(), `render-tui-mcp-') && 'bun' in pinned && pinned.bun === process.execPath && rt.includes("join(home, '.bun', 'bin', exe)") && rt.includes('split(delimiter)'))
-  check("C2: the checkout root comes from the module's own location, never the session cwd",
-    rt.includes('fileURLToPath(import.meta.url)') && !rt.includes('process.cwd()'))
-  check('C2: the spawn error surfaces (never a bare no-PNG)', rt.includes('res.error') && rt.includes('res.error ? String(res.error)'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

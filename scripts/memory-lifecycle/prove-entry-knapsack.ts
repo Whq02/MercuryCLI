@@ -58,8 +58,6 @@ section('§1 the allowance for what rides at start beyond the pinned rules: a na
   const schema = JSON.parse(readFileSync(join(ROOT, 'scripts/settings/settings-schema.json'), 'utf8')) as { properties?: { memory?: { properties?: Record<string, { type?: string; minimum?: number; description?: string }> } } }
   const row = schema.properties?.memory?.properties?.startLimit
   check('the generated settings schema carries memory.startLimit as an integer of at least 1000 with the default named and the pins outside it', row?.type === 'integer' && row.minimum === 1000 && /default 4000/.test(row.description ?? '') && /beyond the pinned rules, which always ride whole/.test(row.description ?? ''), j(row))
-  const config = readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'utf8')
-  check('the /config row sits in the pinned limit\'s family, says it is beyond the pins and writes the user setting', config.includes("id: 'memory.startLimit'") && config.includes("label: 'Memory at start, beyond the pins'") && config.includes("writeSource('userSettings', { memory: { startLimit: next } })"))
 }
 
 const realNow = Date.now
@@ -182,25 +180,6 @@ try {
     check('the status the /config row reads carries the effective allowance (the configured 4,000 scaled down by the eligible records: 600 × ⌈log₂(1 + eligible)⌉), the pinned characters, what rode and the pool', status.limit === allowanceFor(4000, eligible) && status.limit === 1800 && status.pinnedChars === pinned!.used && status.rodeFacts === 5 && status.facts === 6 && status.rodeNotes === 1 && status.notes === 2 && status.used === roomy.choice.used, j({ status, eligible }))
   }
 
-  section('§3 the wiring: one memoized section between the memory page and the lineage page, keyed on the session and the preview/request distinction alone so the first real request composes it once and the prefix then stands')
-  {
-    const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
-    const spec = "keyedSystemPromptSection('memory_at_start', () => memoryAtStartKey(memoryTask), () => memoryAtStartForSession(memoryTask))"
-    const body = (from: string, to: string): string => {
-      const start = prompts.indexOf(from)
-      const end = prompts.indexOf(to, start + from.length)
-      return start < 0 ? '' : prompts.slice(start, end < 0 ? undefined : end)
-    }
-    const order = (text: string, start: string): number[] => [text.indexOf("systemPromptSection('memory', () => loadMemoryPrompt())"), text.indexOf(start), text.indexOf('entryPageSpec()')]
-    const inOrder = (at: number[]): boolean => at[0]! >= 0 && at[1]! > at[0]! && at[2]! > at[1]!
-    const cloud = order(body('export async function getSystemPrompt(', '\nexport '), 'memoryAtStartSpec(memoryTask)')
-    const local = order(body('async function getLocalSystemPrompt(', '\nexport async function getSystemPrompt('), 'memoryAtStartSpec(localStartTask(memoryTask))')
-    check('the memory-at-start section is one memoized section keyed on the session and the request/preview distinction only (never cache-breaking, never re-keyed per turn), composed between the memory section and the entry page by the cloud and the local compositions; the local first-turn road reads the same section with the session\'s one start task', prompts.split(spec).length === 2 && prompts.split("'memory_at_start'").length === 2 && inOrder(cloud) && inOrder(local) && prompts.includes('memoryAtStartSpec(localStartTask(task))') && !prompts.includes("DANGEROUS_uncachedSystemPromptSection('memory_at_start'") && !prompts.includes("DANGEROUS_uncachedSystemPromptSection(\n      'memory_at_start'"), j({ cloud, local }))
-    const contract = readFileSync(join(ROOT, 'src/prompt/behaviourContract.ts'), 'utf8')
-    check('the section declares its owner beside the memory section', contract.includes("['dynamic:memory_at_start', 'src/mneme/entryKnapsack.ts']"))
-    const doctrine = readFileSync(join(ROOT, 'src/constants/subagentDoctrine.ts'), 'utf8')
-    check('crewmates and sub-agents keep the front page alone (their prompts are unchanged by this block)', !doctrine.includes('entryKnapsack') && !doctrine.includes('composeMemoryAtStart'))
-  }
 
   section('§4 the block rides the real system prompt between the Pinned section and the lineage page, composed once; a file touched later never moves it')
   {

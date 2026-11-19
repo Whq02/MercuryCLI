@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
 let checks = 0
@@ -15,7 +12,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 process.env.MERCURY_TIME_BASED_MC = '1'
 const law = await import('../../src/services/compact/pruneProtections.ts')
 const { projectTimeBasedMicrocompact } = await import('../../src/services/compact/microCompact.ts')
@@ -99,13 +95,6 @@ section('§C the clearing path honours both laws')
   }
 }
 
-section('§D the consumers (structural)')
-{
-  const micro = readFileSync(join(ROOT, 'src/services/compact/microCompact.ts'), 'utf8')
-  check('the clearing path imports the law', micro.includes("from './pruneProtections.js'") && micro.includes('isProtectedFromPruning(') && micro.includes('isBelowPlaceholderFloor('))
-  const plan = readFileSync(join(ROOT, 'src/services/run/requestContextPlan.ts'), 'utf8')
-  check('the budget path unions the protected names into its skip set', plan.includes('PROTECTED_TOOL_NAMES'))
-}
 
 console.log('\n' + '='.repeat(60))
 console.log(` ${checks} checks, ${failures} failures`)

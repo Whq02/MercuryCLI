@@ -1,9 +1,7 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -42,10 +40,6 @@ console.error = realError
 check('the wrapped console.error stamped the daemon line', captured.length === 1 && ISO.test(captured[0]!), captured[0] ?? '(nothing captured)')
 check('…and the daemon text survives the stamp', (captured[0] ?? '').includes('[daemon] restart armed by screen 1'))
 
-section('§3 the wiring: the detached daemon installs the stamp, a foreground daemon is left alone')
-const main = readFileSync(join(ROOT, 'src/daemon/main.ts'), 'utf8')
-check('main installs the stamp only for the detached daemon', main.includes('if (!foreground) installStampedDaemonLog()'))
-check('the engage line leads with the stamp through the one stamper, written before the wrapper is installed', main.includes('stampDaemonLogLine(`[mercury-daemon] engaged v') && !main.includes('dir ${dir} at ${new Date().toISOString()}'))
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

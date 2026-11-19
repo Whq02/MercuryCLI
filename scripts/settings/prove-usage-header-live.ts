@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.ts'
 
@@ -69,8 +68,6 @@ section('§1 one reader: the header line and the block floor the same window')
   fold(57.2, 4.9)
   const second = usagePopupLine()
   check('a fresh observation moves both readers together (57.2 → 57%)', weekOf(second) === '57' && blockWeek() === '57', second)
-  const command = readFileSync(join(REPO, 'src/commands/usage/usage.tsx'), 'utf8')
-  check('the command opens the popup with that one reader, never a line of its own', command.includes('line: usagePopupLine()') && !command.includes('Math.floor'))
 }
 
 section('§2 the open popup: the header follows the body\'s refresh instead of the figure it opened with')

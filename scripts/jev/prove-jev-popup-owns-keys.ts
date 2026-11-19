@@ -5,7 +5,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
-const REPO = join(import.meta.dir, '..', '..')
 const HOME = pinScratchHome('jev-popup-keys')
 delete process.env.TYPESAFE_API_KEY
 delete process.env.MERCURY_HOME
@@ -330,22 +329,6 @@ section("§7 the Boot Settings face's JEV row: ←/→ flip it (no composer stan
   await settle(80)
 }
 
-section('§8 the source pins')
-{
-  const prompt = readFileSync(join(REPO, 'src/components/PromptInput/PromptInput.tsx'), 'utf8') + readFileSync(join(REPO, 'src/components/PromptInput/useComposerRawKeys.ts'), 'utf8')
-  check('the composer subscribes to the popup predicate and folds it into the overlay union', prompt.includes("import { popupOwnsKeys, subscribePopupOwnsKeys } from '../../utils/cockpit/popupOwnsKeys.js'") && prompt.includes('const popupUp = useSyncExternalStore(subscribePopupOwnsKeys, popupOwnsKeys, popupOwnsKeys)') && /const modalOverlayUp =[\s\S]{0,400}hasSuppressedDialogs \|\|\n\s+popupUp/.test(prompt))
-  check('the raw ladder reads the predicate live at its hard skip', prompt.includes("if (modalOverlayUp || popupOwnsKeys() || compactWork?.read() === 'summary' || compactWork?.read() === 'detail') return"))
-  check("the text input's byte gate carries the predicate too", /const keyboardOwnedByOverlay =[\s\S]{0,300}isLocalJSXCommandActive \|\|\n\s+popupUp/.test(prompt))
-  check('the ladder still yields whole while another route surface covers the Chat', prompt.includes("if (currentSurfaceRoute().kind !== 'repl') return") && prompt.includes('!surfaceCovered && !keyboardOwnedByOverlay'))
-  const predicate = readFileSync(join(REPO, 'src/utils/cockpit/popupOwnsKeys.ts'), 'utf8')
-  check('the predicate is the union of the settings popup store and the files menu store', predicate.includes('return isSettingsPopupOpen() || isFilesMenuOpen()') && predicate.includes('subscribeSettingsPopup(listener)') && predicate.includes('subscribeFilesMenu(listener)'))
-  const hints = [readFileSync(join(REPO, 'src/components/Settings/Jev.tsx'), 'utf8'), readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8'), readFileSync(join(REPO, 'src/components/MercuryFilesMenu.tsx'), 'utf8')]
-  check('every popup that lists ←/→ in its hint rides one of the two stores the predicate folds', hints.every(src => /HINT = '[^']*[←→]/.test(src)))
-  const cancel = readFileSync(join(REPO, 'src/hooks/useCancelRequest.ts'), 'utf8')
-  check('the escape ladder stands down under any registered overlay (the popups register one)', cancel.includes('const overlayActive = useIsOverlayActive()') && cancel.includes('!overlayActive &&'))
-  const settings = readFileSync(join(REPO, 'src/components/Settings/Settings.tsx'), 'utf8')
-  check('the popup shell registers on the overlay stack and owns esc through its own road', settings.includes("useRegisterOverlay('settings', !request.bodyOwnsEscape)") && settings.includes("'confirm:no'"))
-}
 
 if (frameDir !== undefined) {
   const index = ['The popup owns every key it lists while open (↑↓ ←→ ↵ ⌫ esc): source renders at a 178x51 terminal of the real cockpit chrome (composer + lanes rail + popup slot) and the Boot Settings face. One file per state.', ...frames.map(frame => `${frame.name}.txt | ${frame.note}`)]

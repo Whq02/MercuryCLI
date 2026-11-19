@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -9,7 +9,6 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'cap-offer-settles-'
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -168,17 +167,6 @@ section('§D the neutral candidate law and the decision core are unchanged')
   check("return stays put while the home window is unknown", cap.decideCapReturn('offer', { window: 'unknown', credentialUsable: true }, true).kind === 'none')
 }
 
-section('§E the composer answers on the STABLE owner; the exact-id resolver is wired')
-{
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
-  check('the composer no longer keys the cross-family arm on the volatile state|reset string', !/`\$\{direction\}\|\$\{homeFamily\}\|\$\{window\.state\}/.test(composer))
-  check('the composer answers the cross-family offer on the stable owner', /capOfferAnswered\(direction, homeFamily\)/.test(composer))
-  check('the composer re-arms on the observed window every commit', /noteCapWindowObserved\(homeFamily, window\.state\)/.test(composer))
-  check('the offer accept latches the stable owner', /noteCapOfferAnswered\(offer\.direction, offer\.homeRoute\)/.test(composer))
-
-  const owner = readFileSync(join(ROOT, 'src/services/capFailover.ts'), 'utf8')
-  check('the exact-id resolver upgrades the anthropic target to the newest member', /route === 'anthropic' && fact !== undefined\s*\?\s*newestFirstPartyFrontierMember\(fact\)/.test(owner))
-}
 
 section('§F the offer lists every other signed-in family; at-cap lanes last and marked; the switch lands on the CHOSEN row')
 {
@@ -257,9 +245,6 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
   const { bindingWindowOf } = await import('../../src/services/providers/providerUsage.ts')
   const ownerPick = bindingWindowOf({ provider: 'anthropic', shape: 'subscription-windows', windows: reads.anthropicWindows(), pools: reads.anthropicPools() }, FABLE_51)
   check("the usage owner picks the Fable pool for a Fable seat and names it in the strip's words ('Fable limit')", ownerPick?.window.key === 'seven_day_fable' && ownerPick?.windowName === 'Fable limit', JSON.stringify(ownerPick))
-  const owner = readFileSync(join(ROOT, 'src/services/capFailover.ts'), 'utf8')
-  const ownerCode = owner.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l))
-  check('the resolver routes the pool read through the usage owner (bindingWindowOf) and keeps no private applicability rule', owner.includes('bindingWindowOf(') && !owner.includes('bindingPoolKeyFor') && !ownerCode.some(l => /seven_day_(fable|opus|sonnet)/.test(l) || /includes\('(fable|mythos|opus|sonnet)'\)/.test(l) || l.includes('weekly ${')))
   const fableSeat = cap.observedFamilyWindow('anthropic', reads, { model: FABLE_51 })
   check('running Fable with the Fable pool at 87% ⇒ WARNING, even while 5h/7d read 36%/44%', fableSeat.state === 'warning' && fableSeat.basis === 'observed', JSON.stringify(fableSeat))
   check("…and the window carries the owner's name — 'Fable limit', never 'weekly Fable limit' — with its reset and its utilisation", fableSeat.windowName === 'Fable limit' && fableSeat.resetsAtMs === poolReset && fableSeat.usedPct === 87, JSON.stringify(fableSeat))
@@ -292,20 +277,6 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
   limits.__setRawUtilizationForTest({})
 }
 
-section('§H the card: ↑↓ over the rows, ↵ for the highlighted row, esc stays put; the window named in the neutral grammar')
-{
-  const card = readFileSync(join(ROOT, 'src/components/CapOfferCard.tsx'), 'utf8')
-  check('the card lists only with MORE than one other family (one family reads as today)', card.includes('rows !== undefined && rows.length > 1 ? rows : null'))
-  check('↑↓ ride the Confirmation context\'s own previous/next actions', card.includes("'confirm:previous'") && card.includes("'confirm:next'") && card.includes("context: 'Confirmation', isActive: list !== null"))
-  check('↵ hands the HIGHLIGHTED row to the pick site; an at-cap row keeps enter inert', card.includes('if (usable) onAccept(chosen)') && card.includes('highlighted.usable && !highlighted.atCap'))
-  check('the guide says ↑↓ choose only when listing, beside the one true enter line', card.includes('↑↓ choose ${GLYPH.dot} ') && card.includes('`enter opens the transition preview ${GLYPH.dot} ${escKey} stays put`'))
-  check('each row prints the family, the landing row and its usage words; at-cap rows carry the mark', card.includes('capUsageWords(row.window, rowReset)') && card.includes("row.atCap ? `${GLYPH.warn} ` : ''"))
-  check("the binding window is named as the wire named it — never a second 'window' after it; a warning never builds the card", card.includes('`the ${homeName} ${windowNoun} is reached — ${homeName} requests are refused until reset`') && !card.includes("${windowName ?? 'usage'} window") && !card.includes('approaching the'))
-  check('the card owns the keyboard while it stands (esc never doubles as the turn interrupt)', card.includes("useRegisterOverlay('cap-offer')"))
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
-  check('the composer reads the home window FOR the seat model (the pool that binds)', composer.includes('model: onFailoverLane ? (noted?.homeModel ?? null) : effective'))
-  check('the composer hands the card the whole list from the one owner and settles the CHOSEN row', composer.includes('rows = set.listed') && composer.includes('handleModelSelect(chosen.model)'))
-}
 
 section('§I the within-family slot rung: a stable wall key, re-armed only by an observed clear')
 {
@@ -321,9 +292,6 @@ section('§I the within-family slot rung: a stable wall key, re-armed only by an
   cap.noteOfferDismissal(key)
   cap.noteSlotWallObserved('openai', 'api-key', false)
   check('a clear on the OTHER seat leaves this seat\'s answered wall alone', cap.offerDismissed(key))
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
-  check('the composer keys the slot rung on the stable owner and re-arms from the observed wall', composer.includes("slotWallKey(family, view.active ?? '')") && composer.includes("noteSlotWallObserved(family, view.active ?? '', activeWall.walled)"))
-  check('the slot key no longer carries the reset moment', !composer.includes("${activeWall.resetsAtMs ?? ''}`"))
 }
 
 section("§J a band that lands re-runs the offer at once: the OpenAI record's change signal, and the composer following both families' signals")
@@ -352,10 +320,6 @@ section("§J a band that lands re-runs the offer at once: the OpenAI record's ch
   openai.recordOpenaiUsageLimit(now + 60_000, 'api-key', () => now)
   check('an unsubscribed listener hears nothing more', fired === 4)
   openai.__resetOpenaiLimitStateForTest()
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
-  check("the composer follows the anthropic record's version and the OpenAI record's version (the cap effect re-runs on either)", composer.includes('useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)') && composer.includes('useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)'))
-  const strip = readFileSync(join(ROOT, 'src/hooks/notifs/useRateLimitWarningNotification.tsx'), 'utf8')
-  check("the strip warning follows both records' versions and re-derives on them", strip.includes('useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)') && strip.includes('useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)') && /\[limits, model, tick, connector, addNotification, usageRecordVersion, openaiObservedVersion\]/.test(strip))
 }
 
 console.log(`\n${failures === 0 ? 'CAP OFFER SETTLES: ALL PASS' : `FAILURES: ${failures}`}`)

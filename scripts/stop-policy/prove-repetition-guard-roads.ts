@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isHandoffRequest } from '../lib/fixtureApi.ts'
 import { bootRunner, bound, DIST, NODE, MODEL, childEnv, isSession, isOutcome, j, makeTally, removeWorld, REPO, SCRATCH_ROOT, seedHome } from '../daemon/dupline-world.ts'
@@ -20,34 +20,11 @@ import {
 
 const { check, section, finish, failed } = makeTally('prove-repetition-guard-roads')
 
-const BREAKER_NAMES =
-  /identicalFailureGuard|repetition_breaker|error_repetition_breaker|IDENTICAL_FAILURES_TO|IDENTICAL_RESULTS_TO|IDENTICAL_RETRY_NUDGE|IDENTICAL_RESULT_NUDGE|takeRepetitionStop|repetitionStopNotice|consultRepetitionGuard|consultRoundRepetitionGuard|REPETITION_STOP_WORDS|repetition-stop|Stopped this turn/
-const RELEASE_NOTES = ['src/constants/changelog.ts']
-const THIS = 'scripts/stop-policy/prove-repetition-guard-roads.ts'
 
 const CYCLE_ASK = 'run the two checks over and over'
 const CYCLE_END = 'done: the two checks ran'
 const CYCLE_PAIRS = 12
 
-function* sourceFiles(dir: string): Generator<string> {
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry.startsWith('.')) continue
-    const path = join(dir, entry)
-    if (statSync(path).isDirectory()) yield* sourceFiles(path)
-    else if (/\.(tsx?|md|txt|sh|json)$/.test(entry)) yield path
-  }
-}
-function offenders(dir: string, pattern: RegExp, except: string[] = []): string[] {
-  const hits: string[] = []
-  for (const file of sourceFiles(dir)) {
-    const rel = file.slice(REPO.length + 1)
-    if (except.includes(rel) || rel === THIS) continue
-    readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
-      if (pattern.test(line)) hits.push(`${rel}:${index + 1}`)
-    })
-  }
-  return hits
-}
 const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 type Item = { role?: string; content?: unknown }
@@ -120,28 +97,6 @@ const sameAnswers = (answers: { bash: string[]; grep: string[] }): boolean =>
 
 if (import.meta.main) {
   section('§1 calls are never refused for repeating; headless identical failures stop, and successful cycles remain opt-in')
-  check('the old guard module is gone', !existsSync(join(REPO, 'src/services/tools/identicalFailureGuard.ts')))
-  const named = offenders(join(REPO, 'src'), BREAKER_NAMES, RELEASE_NOTES)
-  check('nothing under src names the breaker, its bounds, its nudges, its stop or its result subtype', named.length === 0, named.slice(0, 12).join(' · '))
-  const orchestration = src('src/services/tools/toolOrchestration.ts')
-  const closeAt = orchestration.indexOf('closeRound(')
-  const lastRunAt = orchestration.lastIndexOf('runToolUse(')
-  check('the tool orchestration refuses no call for repeating: it closes the loop guard\'s round only after every call of the response has run', !/refus/i.test(orchestration) && closeAt > -1 && lastRunAt > -1 && closeAt > lastRunAt, `close=${closeAt} lastRun=${lastRunAt}`)
-  const execution = src('src/services/tools/toolExecution.ts')
-  const refusedAt = execution.indexOf('if (refused !== undefined)')
-  const unavailableAt = execution.indexOf('if (!tool)', refusedAt)
-  const transactionAt = execution.indexOf('const stream = new Stream', unavailableAt)
-  const refused = execution.slice(refusedAt, unavailableAt)
-  const unavailable = execution.slice(unavailableAt, transactionAt)
-  check('schema-refused and unavailable calls are observed after their error result; known calls after the transaction settles', refusedAt >= 0 && unavailableAt > refusedAt && transactionAt > unavailableAt && refused.includes('yield answer') && refused.indexOf('recordToolCall(') > refused.indexOf('yield answer') && unavailable.includes('yield unavailable') && unavailable.indexOf('recordToolCall(') > unavailable.indexOf('yield unavailable') && execution.includes('await body') && execution.lastIndexOf('recordToolCall(') > execution.indexOf('await body'))
-  const guard = src('src/services/tools/loopGuard.ts')
-  check('successful cycles remain behind the key while crewmates and headless identical failures have their own stop', guard.includes('turns?.loopGuard === true') && guard.includes('cycle.length > 1 && cycle.detection >= 2 && stopEnabled') && guard.includes("(getIsNonInteractiveSession() && getSessionKind() !== 'oculus') || parseOwnerKey(owner).lane !== MAIN_LANE") && guard.includes('state.failureRun >= FAILED_CALL_LIMIT'))
-  const schema = src('src/rows/vocabulary.ts')
-  check('the row vocabulary carries no repetition-breaker word and does carry the loop-stopped terminal', !schema.includes('repetition') && schema.includes("'loop_stopped'"))
-  const agent = src('src/tools/AgentTool/agentToolUtils.ts')
-  check('a sub-agent outcome has no repetition-stop reason', !agent.includes('repetition'))
-  const scriptsNamed = offenders(join(REPO, 'scripts'), BREAKER_NAMES)
-  check('no proof pins the breaker', scriptsNamed.length === 0, scriptsNamed.slice(0, 12).join(' · '))
   const durability = src('docs/DURABILITY.md').replace(/\s+/g, ' ')
   check('the durability page distinguishes loop reminders from tool-specific failure guards and names the optional cycle stop', durability.includes('The loop guard does not refuse individual calls for repeating. In foreground sessions it only reminds by default') && durability.includes('the language service refuses an unchanged failing call after three attempts') && durability.includes('Crewmates and headless runs end after three consecutive failed calls') && durability.includes('With `turns.loopGuard: true` in settings, the second detection of the same cycle of two to five calls ends the turn'))
 

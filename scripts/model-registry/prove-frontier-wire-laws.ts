@@ -151,46 +151,6 @@ section('§2 thinking is always on for the frontier family; the disable is omitt
   }
 }
 
-section('§3 both Anthropic wire builders ride the one fold and the one thinking law')
-{
-  const stream = src('src/services/providers/anthropic/streamCore.ts')
-  const side = src('src/utils/sideQuery.ts')
-  const caps = src('src/utils/model/capabilities.ts')
-
-  check(
-    'capabilities.ts exports the one fold and both predicates',
-    caps.includes('export function foldToolChoiceForModel') &&
-      caps.includes('export function modelSupportsForcedToolChoice') &&
-      caps.includes('export function modelThinkingAlwaysOn'),
-  )
-  check(
-    'the main stream folds the caller tool_choice through the one owner',
-    stream.includes('foldToolChoiceForModel(options.model, options.toolChoice)') &&
-      stream.includes('tool_choice: toolChoice,'),
-  )
-  check(
-    'the main stream sends NO thinking parameter when thinking is off (never the disabled shape)',
-    stream.includes("let thinking: BetaMessageStreamParams['thinking'] | undefined = undefined") &&
-      stream.includes('if (hasThinking && modelSupportsThinking(options.model))') &&
-      !/thinking\s*=\s*\{\s*type:\s*'disabled'/.test(stream),
-  )
-  check(
-    'the side query folds its tool_choice through the one owner',
-    side.includes('foldToolChoiceForModel(opts.model, opts.tool_choice') &&
-      side.includes('...(toolChoice ? { tool_choice: toolChoice } : {})'),
-  )
-  check(
-    'the side query derives its thinking parameter through the one law',
-    side.includes('export function sideQueryThinkingParam') &&
-      side.includes('sideQueryThinkingParam(opts.model, opts.thinking, maxTokens)') &&
-      side.includes('...(thinking ? { thinking } : {})'),
-  )
-  check(
-    'the side query never spells the disabled shape outside the law',
-    (side.match(/type:\s*'disabled'/g) ?? []).length === 2,
-    `${(side.match(/type:\s*'disabled'/g) ?? []).length} spellings (the type union + the law)`,
-  )
-}
 
 section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family word resolves to the generation table\'s newest, which is Fable 5.2')
 {

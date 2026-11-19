@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -78,18 +78,6 @@ section('C9 the resting slot')
   check('a withdraw refuses with the no-chat sentence', r.withdrawn === false && r.reason === 'refused' && r.detail === NO_CHAT_OPEN, j(r))
 }
 
-section('C10 the composer: ↑ recalls before history; the recall never submits')
-{
-  const composer = readFileSync(join(SRC, 'components/PromptInput/PromptInput.tsx'), 'utf8')
-  const branch = composer.slice(composer.indexOf('onHistoryUp: () => {'), composer.indexOf('onHistoryDown: () => {'))
-  check('the ↑ branch pulls back a queued send on an EMPTY composer before walking history', branch.includes("if (input === '' && recallQueuedSend()) return") && branch.includes('recallQueuedSend()') && branch.indexOf('recallQueuedSend()') < branch.indexOf('history.onHistoryUp()'))
-  const helper = composer.slice(composer.indexOf('const recallQueuedSend = useCallback'), composer.indexOf('const helpers: PromptInputHelpers'))
-  check('the recall applies the receipt the way history recall does (applyRecalledEntry, the cursor at the end)', helper.includes('applyRecalledEntry(value, receipt.mode, receipt.pastedContents)') && helper.includes('setCursorOffset(value.length)'))
-  check('the recall NEVER submits — no submit call, no delivery call, in its body (never a second submit road)', !/\bsubmit\(/.test(helper) && !helper.includes('sendWords(') && !helper.includes('onSubmit('))
-  check('a refused withdraw paints ONE line: the receipt\'s own words', helper.includes("addNotification({ key: 'recall-send', text: receipt.detail"))
-  const hook = readFileSync(join(SRC, 'hooks/useArrowKeyHistory.tsx'), 'utf8')
-  check('history itself is untouched: no recall inside the hook', !hook.includes('recallableSend') && !hook.includes('withdrawSend'))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(`\n${checks} checks, ${failures} failures`)

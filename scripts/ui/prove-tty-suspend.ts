@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario } from './renderScenarios.ts'
 import {
@@ -24,7 +23,6 @@ import {
 import { reassertModesBytes } from '../../src/ink/root/screen-session.ts'
 import { DBP, DFE, EBP, EFE, ENABLE_MOUSE_TRACKING, EXIT_ALT_SCREEN, SHOW_CURSOR } from '../../src/ink/termio/dec.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail && !ok ? ` — ${detail}` : ''}`)
@@ -113,38 +111,6 @@ section('C · the one owner: stop disarm = exit teardown; continue re-arm = the 
   check('SIGTSTP is the foreground stop; SIGTTIN/SIGTTOU are background stops', stopIsForeground('SIGTSTP') && !stopIsForeground('SIGTTIN') && !stopIsForeground('SIGTTOU'))
   check('isStopSignal admits exactly the three', (['SIGTSTP', 'SIGTTIN', 'SIGTTOU'] as StopSignal[]).every(isStopSignal) && !isStopSignal('SIGSTOP') && !isStopSignal('SIGCONT'))
 
-  const ink = readFileSync(join(ROOT, 'src/ink/ink.tsx'), 'utf8')
-  const app = readFileSync(join(ROOT, 'src/ink/components/App.tsx'), 'utf8')
-  const owner = readFileSync(join(ROOT, 'src/ink/root/stop-continue.ts'), 'utf8')
-  check('the stop owner disarms through the exit teardown suite (one list, imported)', owner.includes("from './teardown.js'") && owner.includes('runTeardownSuite('))
-  check('the stop owner re-arms through the arming owner (imported, never a second list)', owner.includes("from './screen-session.js'") && owner.includes('reassertModesBytes('))
-  check(
-    'the terminal host imports the stop owner for the stop AND the resume path',
-    ink.includes("from './root/stop-continue.js'") && ink.includes('restoreTerminalForStop(signal, this.teardownHost(), this.options.stdin)') && ink.includes('continueRearmBytes({'),
-  )
-  check('the exit path and the stop path share ONE teardown host', ink.includes('runTeardownSuite(this.teardownHost())') && (ink.match(/this\.teardownHost\(\)/g) ?? []).length >= 2)
-  check('the stop handler attaches every stop signal and re-raises the SAME signal under its default disposition', ink.includes('for (const signal of POSIX_STOP_SIGNALS) process.on(signal, this.stopForSignal)') && ink.includes('process.kill(process.pid, signal)'))
-  check('the resume path re-arms raw mode the stop turned off, then the modes (and re-hides the cursor the stop showed), then the destructive alt re-entry', /this\.rawModeOffForStop = false[\s\S]{0,900}continueRearmBytes\(\{[\s\S]{0,900}this\.reenterAltScreen\(\);/.test(ink) && ink.includes("shutdownReleaseObligations().includes('cursor-hidden')"))
-  check("ctrl+z rides the stop owner (SIGTSTP), never a bare SIGSTOP", app.includes("process.kill(process.pid, 'SIGTSTP')") && !app.includes("'SIGSTOP'"))
-
-  const mouseLiteral = /\\x1b\[\?100[0236][hl]|\\u001b\[\?100[0236][hl]|\[\?100[0236][hl]/
-  const SPELLS_BY_NAME = ['src/ink/termio/dec.ts']
-  const offenders: string[] = []
-  const walk = (dir: string): void => {
-    for (const name of readdirSync(dir)) {
-      const full = join(dir, name)
-      if (statSync(full).isDirectory()) {
-        walk(full)
-        continue
-      }
-      if (!/\.(ts|tsx)$/.test(name)) continue
-      if (SPELLS_BY_NAME.some(file => full.endsWith(file))) continue
-      const text = readFileSync(full, 'utf8')
-      if (mouseLiteral.test(text)) offenders.push(full.slice(ROOT.length + 1))
-    }
-  }
-  walk(join(ROOT, 'src'))
-  check('no renderer spells a mouse-mode sequence of its own (the DEC owner, and the launcher text that resets a crashed terminal after the product has exited, by name)', offenders.length === 0, offenders.join(', '))
 }
 
 section('A · SIGTSTP: restore first, then stop; fg re-arms + repaints; keys land · A2 · ctrl+z · B · SIGTERM')

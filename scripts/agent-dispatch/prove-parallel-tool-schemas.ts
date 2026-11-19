@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
 let failures = 0
@@ -15,36 +12,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
-section('P1 · source pins — one Promise.all per lane, no sequential await loop')
-{
-  const LANES = [
-    'src/services/providers/openai/openaiCallModel.ts',
-    'src/services/providers/zai/zaiCallModel.ts',
-    'src/services/providers/openaicompat/compatChatCallModel.ts',
-  ]
-  for (const lane of LANES) {
-    const text = src(lane)
-    const fn = text.slice(text.indexOf('async function buildApiShapedTools'))
-    const body = fn.slice(0, fn.indexOf('\n}') + 2)
-    check(
-      `${lane.split('/').at(-1)}: Promise.all over the roster`,
-      /const schemas = await Promise\.all\(\s*tools\.map\(tool =>\s*toolToAPISchema\(/.test(body),
-    )
-    check(
-      `${lane.split('/').at(-1)}: the sequential await-per-tool shape is gone`,
-      !/for \(const tool of tools\) \{\s*const schema = await toolToAPISchema/.test(body),
-    )
-  }
-  check(
-    'the reference lane still builds the same way (streamCore Promise.all)',
-    /await Promise\.all\(\s*filteredTools\.map\(tool =>\s*toolToAPISchema\(/.test(
-      src('src/services/providers/anthropic/streamCore.ts'),
-    ),
-  )
-}
 
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
 const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')

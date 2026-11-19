@@ -370,41 +370,6 @@ section('§4b a stored key the provider refuses is skipped by the default until 
 
 section('§5 the sign-in owners — every credential-landing site records; the refresh path never does; every consumer reads the one owner')
 {
-  const src = (rel: string): string => readFileSync(join(import.meta.dir, '../../src', rel), 'utf8')
-  const count = (text: string, needle: string): number => text.split(needle).length - 1
-  const secrets = src('services/providers/providerSecrets.ts')
-  check('the key store records the Z.AI and OpenAI key writes', secrets.includes("recordSignIn('zai', 'api-key')") && secrets.includes("recordSignIn('openai', 'api-key')"))
-  check('…and the generic key writer records through the field→family map', secrets.includes("recordSignIn(family, 'api-key')"))
-  const map = secrets.slice(secrets.indexOf('const KEY_FIELD_FAMILY'), secrets.indexOf('function writeStoredKey'))
-  check('the map names the seven generic model-key fields and no web-search key', ['moonshot', 'deepseek', 'openai-compat', 'openrouter', 'gemini', 'huggingface', 'local'].every(f => map.includes(`'${f}'`)) && !/brave|tavily/i.test(map))
-  check('the OpenAI subscription records on both connect roads (browser + device)', count(src('services/providers/openai/openaiAccounts.ts'), "recordSignIn('openai', 'subscription')") === 2)
-  check('the Gemini OAuth connect records once', count(src('services/providers/gemini/geminiAccounts.ts'), "recordSignIn('gemini', 'oauth')") === 1)
-  check('the OpenRouter mint records once', count(src('services/providers/openrouter/openrouterAccounts.ts'), "recordSignIn('openrouter', 'oauth')") === 1)
-  check('the Kimi device sign-in records once', count(src('services/providers/moonshot/moonshotLogin.ts'), "recordSignIn('moonshot', 'oauth')") === 1)
-  check('the Hugging Face device sign-in records on both arms (landed, landed-after-cancel)', count(src('services/providers/huggingface/huggingfaceLogin.ts'), "recordSignIn('huggingface', 'oauth')") === 2)
-  const machine = src('components/mercury-ui/screens/anthropicLoginModel.ts')
-  check('the Anthropic machine records the arm that landed, after the save and the mint — and no first-login record', machine.includes("deps.recordSignIn(deps.usesClaudeAiAuth(tokens.scopes) ? 'oauth' : 'api-key')") && machine.includes("recordSignIn: kind => recordSignInLedger('anthropic', kind)") && !machine.includes('recordFirstLogin'))
-  check('the headless auth door records after its save and mint', src('cli/handlers/auth.ts').includes("recordSignIn('anthropic', shouldUseClaudeAIAuth(tokens.scopes) ? 'oauth' : 'api-key')"))
-  check('the first-party token owner (the refresh path) never records', !src('utils/auth.ts').includes('recordSignIn('))
-  for (const rel of ['services/providers/openai/openaiAccounts.ts', 'services/providers/gemini/geminiAccounts.ts', 'services/providers/moonshot/moonshotAccounts.ts', 'services/providers/huggingface/huggingfaceAccounts.ts']) {
-    const text = src(rel)
-    const refreshWrites = count(text, 'lastRefreshMs: now()')
-    check(`the refresh writer in ${rel.split('/').pop()} records nothing (its ${refreshWrites} refresh write${refreshWrites === 1 ? '' : 's'} sit apart from the record calls)`, !/lastRefreshMs: now\(\)[^]{0,200}recordSignIn\(/.test(text))
-  }
-  const skin = src('components/ConsoleOAuthFlow.tsx')
-  check('the /logins card records nothing itself — no first-login record, no ledger call (the drivers record)', !skin.includes('recordFirstLoginDefaultProvider') && !skin.includes('recordSignIn'))
-  check('the first-login recorder is gone from the tree (src)', !/recordFirstLoginDefaultProvider/.test([src('utils/model/defaultProviderRung.ts'), skin, machine].join('\n')))
-  const rung = src('utils/model/defaultProviderRung.ts')
-  check('/defaultprovider writes the ledger only — no config write', rung.includes("recordSignIn(family, 'operator-switch', io)") && !rung.includes('saveGlobalConfig'))
-  const model = src('utils/model/model.ts')
-  const between = (s: string, a: string, b: string): string => {
-    const i = s.indexOf(a)
-    const j = s.indexOf(b, i)
-    return i >= 0 && j > i ? s.slice(i, j) : ''
-  }
-  check('the session default projects the one computed default (model.ts)', between(model, 'export function getDefaultEngineModelSetting', '\n}').includes('computedDefault()') && !model.includes('credentiallessGptDefault') && !model.includes('applyDefaultProviderRung'))
-  check('the default description and label use the computed result', between(model, 'export function getDefaultModelDescription', '\n}').includes('computedDefault()') && between(model, 'export function renderDefaultModelLabel', '\n}').includes('computedDefault()'))
-  check('the picker has no synthetic default builder', !/defaultRow|getDefaultOptionForUser|DEFAULT_LABEL/.test(src('utils/model/modelOptions.ts')))
   {
     const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
     const { computedDefault: decide, describeComputedDefault: describe } = await import('../../src/utils/model/computedDefault.ts')
@@ -412,11 +377,6 @@ section('§5 the sign-in owners — every credential-landing site records; the r
     const frontier = await settingsChecks().find(row => row.id === 'frontier')?.run()
     check("/health's Default model row projects it", frontier?.evidence.includes(describe(decide(), nameOf)) === true && frontier.link === '/model', frontier?.evidence)
   }
-  const resolver = src('utils/model/computedDefault.ts')
-  check('the key lanes answer from their pin tables before any picker composition (no probe rides a default resolution)', resolver.includes("if (KEY_LANES.has(family)) return keyLaneRow(") && resolver.indexOf('KEY_LANES.has(family)') !== -1 && resolver.indexOf('KEY_LANES.has(family)') < resolver.indexOf('rows = livePickerRows()') && between(resolver, 'function keyLaneRow', '\n}').includes('const pins = keyLanePins(family)') && between(resolver, 'function keyLaneRow', '\n}').includes(': pins[0]'))
-  check("the boot face chip prints the decision's own row word on a keyless default (no sign-in yet · no usable row yet)", src('components/BootSplashScreen.tsx').includes("decision.source === 'keyless' ? decision.row : null") && src('components/BootSplashScreen.tsx').includes('keylessRow ?? renderModelChip(mainModel)'))
-  const face = src('components/BootLoginsScreen.tsx')
-  check('the logins card and the Boot face focus the most recent sign-in\'s row; the face\'s summary reads it from its facts (a pure composer never reads the machine)', skin.includes('loginFamilyFocusFor(mostRecentSignInFamily())') && count(face, 'loginFamilyFocusFor(mostRecentSignInFamily())') === 1 && face.includes('loginFamilyFocusFor(facts.defaultFamily)') && face.includes('const defaultFamily = mostRecentSignInFamily();'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

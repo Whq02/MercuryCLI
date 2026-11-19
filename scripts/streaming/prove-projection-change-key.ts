@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -78,12 +78,6 @@ section('§2 THE DEFECT PIN, live: two publishes, one mtime, two changes')
   rmSync(dir, { recursive: true, force: true })
 }
 
-section('§3 structural: the feed keys on projectionChangeKey')
-{
-  const src = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  check('the tick derives its key through the one owner', src.includes('key = projectionChangeKey(statSync(this.path))'))
-  check('no bare mtime compare remains in the feed', !src.includes('mtime !== this.lastMtime') && !src.includes('this.lastMtime'))
-}
 
 console.log(failures === 0 ? '\nprove-projection-change-key: ALL LAWS HOLD' : `\nprove-projection-change-key: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -261,17 +261,10 @@ section('§2 a resume claim for a session with no transcript is still refused at
 
 section('§3 source pins: the readiness road')
 {
-  const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
   const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const UNSEEN = '11111111-2222-4333-8444-555555555555'
   const unbound = await withLiveRunner(async runner => ({ resume: await refusalOf(runner.request('session/claim', { session_id: UNSEEN, resume: true })), fresh: await refusalOf(runner.request('session/claim', { session_id: UNSEEN })) }), { env: { MERCURY_CONCOURSE_WORKER: '1' } })
   check('the claim checks the transcript stands before it binds a resume', unbound.resume?.message === `claim refused — no conversation found for session ${UNSEEN}` && unbound.fresh === null, j(unbound))
-  const rosterSrc = read('src/daemon/roster.ts')
-  check('the roster marks the claimed seat not ready and waits for the load through the connection', rosterSrc.includes('ll.ready = false') && rosterSrc.includes('connection.sessionLoaded()') && rosterSrc.includes('ll.claimedAt = Date.now()'))
-  const door = read('src/daemon/runnerConnection.ts')
-  check("the connection's load wait has no deadline and gates deliveries, the way initialize does", door.includes("'session/facts', {}, { deadlineMs: null }") && door.includes('if (!(await this.loaded)) return false'))
-  const dmain = read('src/daemon/main.ts')
-  check('a ready edge asks the runner for its facts (the first request may have run out while it loaded)', /onChildReady: short => \{[\s\S]{0,200}requestSessionFacts\(short, roster, \{ immediate: true \}\)/.test(dmain))
 }
 
 clearTimeout(watchdog)

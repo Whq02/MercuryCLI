@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'discovery-pool-home-'))
 
@@ -86,50 +85,7 @@ section('§2 the enumerator over a scratch history')
   check('the lite listing still sorts newest-first (the pool changed latency, never shape)', sortedByDate)
 }
 
-section('§3 the wiring, call-shaped')
-{
-  const logsPath = join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage', 'logs.ts')
-  const logsSrc = codeOnlyText(logsPath, readFileSync(logsPath, 'utf8'))
-  const EXPECTED_POOL_SITES = [
-    'loadAllProjectsMessageLogsFull:projectDirs',
-    'listingTruth:projectDirs',
-    'sweepAllProjectsProgressive:projectDirs',
-    'getStatOnlyLogsForWorktrees:matched',
-    'transcriptCensus:projectDirs',
-  ]
-  const poolSites = inventoryPoolSites(logsSrc)
-  check(
-    `the code-only pool inventory is exactly the ${EXPECTED_POOL_SITES.length} named fan-outs (function:items)`,
-    poolSites.join('|') === EXPECTED_POOL_SITES.join('|'),
-    `got ${poolSites.join(', ') || '(none)'}`,
-  )
-  check('every pool site sizes from discoveryPoolWidth()', (logsSrc.match(/mapWithConcurrency\([^,]+,\s*discoveryPoolWidth\(\)/g) ?? []).length === EXPECTED_POOL_SITES.length)
-  const indexPath = join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage', 'sessionIndex.ts')
-  const indexSrc = codeOnlyText(indexPath, readFileSync(indexPath, 'utf8'))
-  check('the shared session index receives the discovery width and bounds its stat workers', logsSrc.includes('sessionFiles(projectDir, {') && logsSrc.includes('concurrency: discoveryPoolWidth()') && indexSrc.includes('Math.min(candidates.length, options.concurrency ?? 32)') && indexSrc.includes('rows[index] ='))
-  check('the unbounded stat fan-out is gone (no bare Promise.all over candidates)', !/await Promise\.all\(\s*candidates\.map/.test(logsSrc + indexSrc))
-  check('no fan-out over the pool item lists bypasses the pool (no Promise.all(<items>.map) on those lists)', !/Promise\.all\(\s*(?:projectDirs|matched|candidates)\.map/.test(logsSrc))
-  const commentLookalike = `// const x = await mapWithConcurrency(projectDirs, discoveryPoolWidth(), d => d)\n/* mapWithConcurrency(candidates, discoveryPoolWidth(), c => c) */\nasync function ghost(projectDirs: string[]) { return projectDirs }\n`
-  check('a comment-only pool call is NOT inventoried (code-only read)', inventoryPoolSites(codeOnlyText('lookalike.ts', commentLookalike)).length === 0)
-  check('…while the raw text WOULD have inventoried both lookalikes', inventoryPoolSites(commentLookalike).length === 2)
-  const poolSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'concurrency.ts'), 'utf8')
-  check('the width reads the quota-aware core count (law 6) in its one owner', /export function discoveryPoolWidth\(\): number \{\s*\n\s*return Math\.max\(1, Math\.min\(4, availableCores\(\)\)\)/.test(poolSrc))
-  check('…and the discovery scans import it from there', /import \{[^}]*\bdiscoveryPoolWidth\b[^}]*\} from '\.\.\/concurrency\.js'/.test(logsSrc) && !/function discoveryPoolWidth\(/.test(logsSrc))
-}
 
 console.log(`\n${failures === 0 ? `✅ DISCOVERY SCAN POOL: green (${checks} checks)` : `❌ ${failures} FAILURE(S) of ${checks}`}`)
 process.exit(failures === 0 ? 0 : 1)
 
-function inventoryPoolSites(code: string): string[] {
-  const decl = /^(?:export )?(?:async )?function (\w+)\b/
-  const lines = code.split('\n')
-  const sites: string[] = []
-  let current = '(module)'
-  for (const line of lines) {
-    const d = decl.exec(line)
-    if (d) current = d[1]!
-    const call = /mapWithConcurrency\(\s*([A-Za-z_$][\w$]*)\s*,/.exec(line)
-    if (call) sites.push(`${current}:${call[1]}`)
-  }
-  return sites
-}

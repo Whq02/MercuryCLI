@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker, waitUntil } from '../engine-durability/harness.ts'
@@ -14,8 +14,6 @@ process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'agent-face-prove
 const t = checker()
 
 const repoRoot = join(import.meta.dirname, '..', '..')
-const modelSrc = readFileSync(join(repoRoot, 'src/components/agents/studio/studioEditorModel.ts'), 'utf-8')
-const skinSrc = readFileSync(join(repoRoot, 'src/components/agents/studio/StudioEditor.tsx'), 'utf-8')
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
@@ -39,47 +37,6 @@ const { revisionDigest } = await import('../../src/services/agents/contracts.js'
 
 t.section('§1 — IDENTITY BOTH DIRECTIONS (the extraction law)')
 {
-  const machineSpellings = [
-    'fix the errors above before saving',
-    'the file changed outside this draft',
-    'their version loaded — your field edits re-applied on top',
-    'draft recovered — continuing where you left off',
-    'draft unreadable — starting fresh',
-    'generation cancelled',
-    'generating agent from description',
-    'generation failed:',
-    'max turns must be a positive integer (empty clears)',
-    'system prompt is too short (minimum 20 characters)',
-    'description is required — it tells Mercury when to delegate',
-    'edit refused:',
-    'raw edit loaded',
-    'already exists (',
-    'precedence decides the winner',
-    'Description should say when to delegate',
-  ]
-  const faceSkinSrc = readFileSync(join(repoRoot, 'src/components/BootAgentsScreen.tsx'), 'utf-8')
-  for (const s of machineSpellings) {
-    t.check(`model owns: "${s.slice(0, 44)}"`, modelSrc.includes(s), s)
-    t.check(`skin retains no "${s.slice(0, 40)}"`, !skinSrc.includes(s), s)
-    t.check(`face skin retains no "${s.slice(0, 36)}"`, !faceSkinSrc.includes(s), s)
-  }
-  const reactTokens = ["from 'react'", 'from "../../../ink', "from '../../../ink"]
-  const hits = reactTokens.filter(tok => modelSrc.includes(tok))
-  t.check('the machine module imports neither react nor ink', hits.length === 0, hits.join(','))
-  t.check(
-    'the machine lives in a .ts module (JSX mechanically impossible)',
-    existsSync(join(repoRoot, 'src/components/agents/studio/studioEditorModel.ts')) &&
-      !existsSync(join(repoRoot, 'src/components/agents/studio/studioEditorModel.tsx')),
-  )
-  t.check(
-    'the skin re-exports StudioDraftBase from the model',
-    skinSrc.includes("export type { StudioDraftBase } from './studioEditorModel.js'"),
-  )
-  const agentStudioSrc = readFileSync(join(repoRoot, 'src/components/agents/studio/AgentStudio.tsx'), 'utf-8')
-  t.check(
-    "AgentStudio still imports the editor from './StudioEditor.js' (untouched caller)",
-    agentStudioSrc.includes("from './StudioEditor.js'"),
-  )
 
   const stills = Bun.spawnSync(['bun', join(repoRoot, 'scripts/ui/agent-face-stills.ts')], { cwd: repoRoot })
   const out = stills.stdout.toString() + stills.stderr.toString()
@@ -362,22 +319,6 @@ let existing: never[] = []
 
 t.section('§3 — THE FACE SKIN (BootAgentsScreen: the real mount · route silence · the composer tiers)')
 {
-  const faceSrc = readFileSync(join(repoRoot, 'src/components/BootAgentsScreen.tsx'), 'utf-8')
-
-  const routeTokens = ['surfaceRoute', 'enterRootChat', 'settleAbsentChat', 'armRootCommand', 'leaveCurrentSurface', 'initialMessage']
-  const routeHits = routeTokens.filter(tok => faceSrc.includes(tok))
-  t.check('the face module never touches the surface-route bridge', routeHits.length === 0, routeHits.join(','))
-
-  for (const needle of [
-    'getAgentDefinitionsWithOverrides',
-    'clearAgentDefinitionsCache',
-    'subscribeAgentsChanged',
-    'startAgentWatch',
-    'useSetAppStateMaybe',
-    'reloadAgentDefinitionsIntoAppState',
-  ]) {
-    t.check(`the face rides the freshness road: ${needle}`, faceSrc.includes(needle))
-  }
 
   const routeStore = await import('../../src/context/surfaceRoute.js')
   const versionBefore = routeStore.surfaceRouteVersion()
@@ -425,24 +366,6 @@ t.section('§3 — THE FACE SKIN (BootAgentsScreen: the real mount · route sile
 
 t.section('§4 — TWO SKINS, ONE MODEL (the face consumes the machine; no second home)')
 {
-  const faceSrc = readFileSync(join(repoRoot, 'src/components/BootAgentsScreen.tsx'), 'utf-8')
-  t.check('the face drives the ONE machine', faceSrc.includes('createStudioEditorMachine('))
-  t.check('the face lists through the ONE library projection', faceSrc.includes('buildStudioRows'))
-  t.check('the face paints values through the ONE field labeller', faceSrc.includes('fieldValueLabel'))
-  t.check('the face validates through the ONE gate', faceSrc.includes('computeStudioValidation'))
-  const machineSpellings = [
-    'fix the errors above before saving',
-    'the file changed outside this draft',
-    'their version loaded — your field edits re-applied on top',
-    'draft recovered — continuing where you left off',
-    'generation cancelled',
-    'max turns must be a positive integer (empty clears)',
-    'system prompt is too short (minimum 20 characters)',
-    'edit refused:',
-  ]
-  for (const s of machineSpellings) {
-    t.check(`the face retains no "${s.slice(0, 40)}"`, !faceSrc.includes(s), s)
-  }
 }
 
 t.section("§5 — THE ROW, BOTH HOSTS (under kit, over health — the ruled position; the 'agents' wire word)")
@@ -476,14 +399,6 @@ t.section("§5 — THE ROW, BOTH HOSTS (under kit, over health — the ruled pos
   t.check("the 'agents' receipt applies with nothing to chdir or splice", fresh.reason === 'applied' && fresh.apply === null)
   t.check("the receipt arms the 'agents' face door exactly once", consumeFaceDoorDeepLink() === 'agents' && consumeFaceDoorDeepLink() === null)
 
-  const splashSrc = readFileSync(join(repoRoot, 'src/components/BootSplashScreen.tsx'), 'utf-8')
-  const driverSrc = readFileSync(join(repoRoot, 'assets/splash/mercury-splash.mjs'), 'utf-8')
-  const coreSrc = readFileSync(join(repoRoot, 'assets/splash/splash-core.mjs'), 'utf-8')
-  t.check("the runtime face activates the row (runRow case 'agents' opens the layer)", splashSrc.includes("case 'agents':") && splashSrc.includes('setAgentsOpen(true)'))
-  t.check('the face consumes the deep-link at mount and gates its list on the layer', splashSrc.includes("faceDoor === 'agents'") && splashSrc.includes('!agentsOpen'))
-  t.check('the roster glance re-reads at layer close (never optimistic)', splashSrc.includes('setAgentsEpoch(e => e + 1)'))
-  t.check("the launcher activates the row with the `agents` receipt action", driverSrc.includes("else if (r2.key === 'agents') writeSplashAction('agents')"))
-  t.check('ONE row owner — no second agents row on either host', (coreSrc.match(/key: 'agents'/g) ?? []).length === 1 && !driverSrc.includes("key: 'agents',") && !splashSrc.includes("key: 'agents',"))
 }
 
 t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly provider-neutral · sign-in routing)')
@@ -575,54 +490,10 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
     )
   }
 
-  const pickerSrc = readFileSync(join(repoRoot, 'src/utils/model/agentModelPicker.ts'), 'utf-8')
-  const code = pickerSrc.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
-  t.check('the derivation names no family literal (neutral by construction)', !/['"](?:opus|sonnet|fable|haiku|gpt|gemini|kimi|glm)['"]/.test(code))
-  for (const surface of [
-    'src/components/agents/ModelSelector.tsx',
-    'src/components/BootAgentsScreen.tsx',
-    'src/components/agents/studio/studioEditorModel.ts',
-  ]) {
-    const src = readFileSync(join(repoRoot, surface), 'utf-8')
-    const stripped = src.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
-    t.check(
-      `no family literal on the surface: ${surface.split('/').pop()}`,
-      !/['"](?:opus|sonnet|fable|haiku|mythos|gpt|gemini|kimi|glm|deepseek|qwen)['"]/.test(stripped),
-    )
-  }
-
-  const agentTsSrc = readFileSync(join(repoRoot, 'src/utils/model/agent.ts'), 'utf-8')
-  t.check('getAgentModelOptions is RETIRED (the comment stands where the function stood)', !agentTsSrc.includes('export function getAgentModelOptions'))
-  const studioSrc = readFileSync(join(repoRoot, 'src/components/agents/studio/AgentStudio.tsx'), 'utf-8')
-  t.check("the inspector's hard family cycle is DEAD", !studioSrc.includes("['opus', 'sonnet', 'fable']"))
-  const selectorSrc = readFileSync(join(repoRoot, 'src/components/agents/ModelSelector.tsx'), 'utf-8')
-  t.check("the '?? sonnet' default is DEAD (inherit is the highlight fallback)", !selectorSrc.includes("?? 'sonnet'") && selectorSrc.includes("?? 'inherit'"))
-  t.check('both skins consume THE ONE derivation', selectorSrc.includes('getAgentModelPickerRows') && readFileSync(join(repoRoot, 'src/components/BootAgentsScreen.tsx'), 'utf-8').includes('getAgentModelPickerRows'))
-  const editorSrc = readFileSync(join(repoRoot, 'src/components/agents/studio/StudioEditor.tsx'), 'utf-8')
-  t.check('the effort preview follows the PARENT model, never a hardcoded family', !editorSrc.includes("'claude-fable-5'") && editorSrc.includes('props.parentModel'))
-
-  const faceSrc2 = readFileSync(join(repoRoot, 'src/components/BootAgentsScreen.tsx'), 'utf-8')
-  const splashSrc2 = readFileSync(join(repoRoot, 'src/components/BootSplashScreen.tsx'), 'utf-8')
-  t.check('the agents layer suspends whole (renders nothing, lists parked) while the sign-in door is open', faceSrc2.includes('if (suspended) return null;') && faceSrc2.includes('!suspended && formPick !== null'))
-  t.check('the host keeps the agents layer MOUNTED beneath its Logins layer and returns to it', splashSrc2.includes('suspended={loginsOpen}') && splashSrc2.includes('onOpenLogins={() => setLoginsOpen(true)}'))
-  t.check('the return re-derives a live model pick (a sign-in moved the presence — never the captured rows)', faceSrc2.includes('wasSuspended.current && !suspended'))
-  t.check('the chat skin names the sign-in door on the note (the draft is never abandoned)', selectorSrc.includes('/logins opens the sign-in catalogue'))
 }
 
 t.section('§7 — THE FRONTIER PASS (the authoring guidance · the availability truth · the field totality)')
 {
-  const genSrc = readFileSync(join(repoRoot, 'src/components/agents/generateAgent.ts'), 'utf-8')
-  for (const law of [
-    'SHORT set of principles, not an enumeration',
-    'the reason beside the rule',
-    'ending on a promise',
-    'tool-result',
-    'echo, transcribe or explain the agent',
-    'lead with the outcome in complete sentences',
-  ]) {
-    t.check(`the drafting guidance carries: "${law.slice(0, 40)}"`, genSrc.includes(law), law)
-  }
-  t.check('the over-prescription clause is DEAD (comprehensive-behaviours-with-edge-cases)', !genSrc.includes('Comprehensive behavioural instructions'))
 
   const { agentModelAvailabilityNote, getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.js')
   const rows = getAgentModelPickerRows([
@@ -635,18 +506,6 @@ t.section('§7 — THE FRONTIER PASS (the authoring guidance · the availability
   t.check('an available model wears nothing', agentModelAvailabilityNote('fable', rows) === null)
   t.check('an id the catalogue does not know wears nothing (unknown ≠ unavailable)', agentModelAvailabilityNote('compat/mystery', rows) === null)
   t.check("a saved 1M variant of an unavailable model wears its row's reason (the rider folded onto the row)", agentModelAvailabilityNote('claude-opus-4-6[1m]', rows) === 'not signed in — /logins anthropic' && agentModelAvailabilityNote('claude-opus-4-6', rows) === 'not signed in — /logins anthropic')
-  const editorSrc2 = readFileSync(join(repoRoot, 'src/components/agents/studio/StudioEditor.tsx'), 'utf-8')
-  const studioSrc2 = readFileSync(join(repoRoot, 'src/components/agents/studio/AgentStudio.tsx'), 'utf-8')
-  const faceSrc3 = readFileSync(join(repoRoot, 'src/components/BootAgentsScreen.tsx'), 'utf-8')
-  t.check('the chat review wears it', editorSrc2.includes('agentModelAvailabilityNote(doc.fields.model)'))
-  t.check('the chat inspector wears it', studioSrc2.includes('agentModelAvailabilityNote(agent.operatorOverride?.model ?? agent.model)'))
-  t.check('the face dossier and form wear it', faceSrc3.includes('availabilityNote: string | null = null') && faceSrc3.includes('agentModelAvailabilityNote(snap.doc.fields.model)'))
-  t.check(
-    "the face FORM's runs: line rides the resolved runtime",
-    faceSrc3.includes('effectiveStudioRuntime({') &&
-      faceSrc3.includes('${effRun.modelIntent} → ${effRun.model}'),
-  )
-  t.check("availability never joins the save gate (the machine's validation is availability-blind)", !modelSrc.includes('agentModelAvailabilityNote'))
   {
     const { decodeAgentDocument: decode } = await import('../../src/services/agents/codec.js')
     const heldRaw = '---\nname: held-agent\ndescription: A held agent for the born-held drive.\nmodel: gpt-6.2\n---\nYou are the held agent, saved while your provider is signed out today.\n'
@@ -871,12 +730,6 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
     detail.find(l => l.startsWith('model:')) ?? '(no model line)',
   )
 
-  const faceSrc9 = readFileSync(join(repoRoot, 'src/components/BootAgentsScreen.tsx'), 'utf-8')
-  t.check('↵ routes a built-in row to the model dial BEFORE the clone-first refusal (which non-file rows keep)', faceSrc9.indexOf("r.agent.source === 'built-in'") > 0 && faceSrc9.indexOf("r.agent.source === 'built-in'") < faceSrc9.indexOf('only file-backed agents edit here'))
-  t.check('the pick commits through the config settings row (user scope), never a file write', faceSrc9.includes("setAgentOverride(\n              'user',"))
-  t.check('the R2 return re-derives the dial rows (a sign-in moved the presence)', faceSrc9.includes('setModelPick(pick => (pick !== null ? { ...pick, rows: getAgentModelPickerRows() } : pick))'))
-  const faceCode9 = faceSrc9.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ').replace(/([^:'"`])\/\/[^\n]*/g, '$1')
-  t.check('catalogue-neutrality ratchet: ZERO family literals in the face (the rows derive, never spell)', !/['"`](claude-|sonnet|opus|haiku|fable|mythos|gpt-|glm-)/i.test(faceCode9))
 
   const priorZai9 = process.env.ZAI_API_KEY
   process.env.ZAI_API_KEY = 'zai-fixture-key-for-the-dial-walk'

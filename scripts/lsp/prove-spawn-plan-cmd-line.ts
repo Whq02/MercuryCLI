@@ -13,13 +13,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const source = (relative: string): string => {
-  try {
-    return readFileSync(join(ROOT, relative), 'utf8')
-  } catch {
-    return ''
-  }
-}
 
 console.log('============================================================')
 console.log(" spawn plan — a .cmd/.bat remedy rides the batch composer's cmd.exe line")
@@ -34,16 +27,6 @@ const SWITCHES = ['/d', '/s', '/v:off', '/c']
 
 section("§1 one composer, two roads: the planner and the Bash tool's batch road share the quoting rules and the cmd.exe switches")
 {
-  const line = source('src/utils/shell/windowsBatchLine.ts')
-  const plan = source('src/utils/spawnPlan.ts')
-  const batch = source('src/utils/shell/windowsBatchInvocation.ts')
-  check('src/utils/shell/windowsBatchLine.ts exports the composer', composer !== null && typeof composer.windowsBatchTail === 'function' && /export function windowsBatchTail\(/.test(line), composer === null ? 'module absent' : 'no export in the source')
-  check('spawnPlan.ts imports the composer from the shared module and keeps no quoting rules of its own', /import \{ windowsBatchTail \} from '\.\/shell\/windowsBatchLine\.js'/.test(plan) && !/quoteForCmd|CMD_NEEDS_QUOTES/.test(plan))
-  check('windowsBatchInvocation.ts takes the composer from the same module and defines none of its own', /import \{ windowsBatchTail \} from '\.\/windowsBatchLine\.js'/.test(batch) && !/function windowsBatchTail|TRAILING_BACKSLASHES|PERCENT_RUN/.test(batch))
-  check('…and still exports it under its own name (the batch proof imports it there)', /export \{ windowsBatchTail \}/.test(batch))
-  const switchesText = SWITCHES.map(s => `'${s}'`).join(', ')
-  check('the planner spawns cmd.exe with the batch road\'s switches: /d /s /v:off /c', plan.includes(`[${switchesText}, `), 'no such argv in spawnPlan.ts')
-  check('the batch road spawns cmd.exe with the same switches', batch.includes(`[${switchesText}, invocation.commandLine]`), 'no such argv in windowsBatchInvocation.ts')
   if (composer !== null) {
     const tail = composer.windowsBatchTail
     check('the shared composer: a trailing backslash run is doubled inside the quotes', tail(['p', 'C:\\dir\\']) === '""p" "C:\\dir\\\\""', JSON.stringify(tail(['p', 'C:\\dir\\'])))

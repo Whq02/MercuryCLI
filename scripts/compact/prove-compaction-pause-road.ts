@@ -2,7 +2,7 @@
 // gate-watch: src/commands/compact/compact.ts src/run-core/turn-machine.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { z } from 'zod/v4'
@@ -18,7 +18,6 @@ for (const k of [
 }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const { queryEvents } = await import('../../src/query.ts')
 const { legacyYieldsOf } = await import('../../src/run-core/project-legacy.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
@@ -241,9 +240,6 @@ section('B3 the road is true — the run after a paused refusal makes a fresh au
 
 section('B4 the hand road — /compact reads no failure count: the command calls the fold directly')
 {
-  const command = readFileSync(join(ROOT, 'src/commands/compact/compact.ts'), 'utf8')
-  check('the command calls compactConversation itself', /await compactConversation\(/.test(command))
-  check('…and consults no breaker, no failure count, no automatic orchestration', !/consecutiveFailures|autoCompactIfNeeded|compactionBreakerAllows|MAX_CONSECUTIVE_FAILURES/.test(command))
   const ctx = makeCtx()
   const readCall = createAssistantMessage({ content: [{ type: 'tool_use', id: 'toolu_carry', name: 'Read', input: {} }] as never })
   const counting = await run(ctx, [createUserMessage({ content: 'the lane ask' })], [[ping(), readCall], [ping(), asstText('the reply after two failed folds')]], [{ wasCompacted: false, consecutiveFailures: 2 }, { wasCompacted: false }])

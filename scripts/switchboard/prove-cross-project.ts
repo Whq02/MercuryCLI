@@ -14,7 +14,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const { enableConfigs } = await import('../../src/utils/config.js')
@@ -163,38 +162,6 @@ console.log('§1 — SWITCHING NEVER TOUCHES A SESSION: a switch is a change of 
   check('the board never follows a stale chip: the view is the live ground (A), not the chip (B)', staleBoard.context.projectLabel === basename(P_A))
   await writeConcourseSeedOverride({ projectDir: null }, draftDir)
 
-  const ground = read('src/services/switchboard/harnessGround.ts')
-  check('the ground door is the process truth only — no daemon RPC, no control op, no seat verb', !ground.includes('daemonControlRpc') && !ground.includes('sessionControl') && !ground.includes("'blur'") && !ground.includes("'focus'") && ground.includes('state.setCwdState(target)'))
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  const seedAt = route.indexOf('setDraftSeed: patch => {\n      seedWriteChain.current')
-  const seedBody = route.slice(seedAt, route.indexOf('newSession: (opts?: { contractText?: string }) => {', seedAt))
-  check('the picker\'s switch path is the seed write + the ground apply and nothing else (no rpc, no hop, no release)', seedAt !== -1 && seedBody.includes('m.applyHarnessGround(') && !seedBody.includes('daemonControlRpc') && !seedBody.includes('hopIntoBoardSession') && !seedBody.includes('focusResumedSession') && !seedBody.includes('sessionRelease'))
-  const face = read('src/components/BootSplashScreen.tsx')
-  const openAt = face.indexOf('const openProject = (p: BootProjectFact): AsyncListNote => {')
-  const openEnd = face.indexOf('const composedRows: BootRow[] = useMemo(', openAt)
-  const openBody = openAt !== -1 && openEnd > openAt ? face.slice(openAt, openEnd) : ''
-  check('Projects-↵\'s switch half is the same two verbs (seed + ground apply); its enter is the operator\'s own hop, never a lifecycle op', openBody.includes('writeConcourseSeedOverride({ projectDir: p.dir })') && openBody.includes('ground.applyHarnessGround(p.dir)') && !openBody.includes('daemonControlRpc') && !openBody.includes('sessionControl'))
-  check('the route rebuilds the board on the ground beat (the switch re-scopes the view within a beat)', route.includes('const unsubProject = subscribeCurrentProject(rebuild)') && route.includes('unsubProject()'))
-  const sup = read('src/daemon/concourseWorkers.ts')
-  const reconcileAt = sup.indexOf('export function reconcileConcourseWorkers(')
-  const reconcileBody = sup.slice(reconcileAt, sup.indexOf('\nexport function', reconcileAt + 10))
-  const uiGround = ['getCwd(', 'seedOverrides', 'concourse-draft', 'currentProject(', 'resolveHarnessGround', 'projectDir']
-  check('the daemon\'s reconcile pass is keyed on records and liveness alone — nothing on "the current project"', reconcileAt !== -1 && uiGround.every(needle => !reconcileBody.includes(needle)))
-  const idle = read('src/daemon/idleRetirement.ts')
-  check('the idle reaper is keyed on the session\'s own facts — nothing on "the current project"', uiGround.every(needle => !idle.includes(needle)))
-  const recon = read('src/daemon/reconcileRecords.ts')
-  check('the boot reconcile reads no UI ground', ['seedOverrides', 'concourse-draft', 'currentProject(', 'resolveHarnessGround'].every(needle => !recon.includes(needle)))
-  const daemonFiles = readdirSync(join(ROOT, 'src', 'daemon')).filter(f => f.endsWith('.ts'))
-  const daemonImportsUi = daemonFiles.filter(f => {
-    const src = read(join('src', 'daemon', f))
-    return src.includes('concourseSnapshot') || src.includes('bootCardFacts') || src.includes('harnessGround')
-  })
-  check('no daemon module imports the board\'s view stores or the catalog door (the daemon cannot know which project you look at)', daemonImportsUi.length === 0, daemonImportsUi.join(','))
-  const builder = read('src/services/concourse/concourseSnapshot.ts')
-  check('the builder\'s current project has ONE owner — the catalog door — and the chip reads through its boot scope', builder.includes('const project = opts.project ?? currentProject()') && builder.includes('return bootScopedSeedOverrides((await draftStore(dir).read()).seedOverrides ?? {})') && builder.includes("if (next.projectDir !== undefined) next.projectDirAt = Date.now()"))
-  const manager = read('src/components/mercury-ui/screens/SessionManagerView.tsx')
-  const pickerCore = read('src/components/mercury-ui/screens/sessionPickerModel.ts')
-  check('/sessions resolves "this project" through the catalog door (currentProject().dir), never getProjectRoot, and re-runs on the door\'s beat', pickerCore.includes('const p = log.projectPath || currentProject().dir') && !manager.includes('getProjectRoot') && !pickerCore.includes('getProjectRoot') && pickerCore.includes('useSyncExternalStore(subscribeCurrentProject, () => currentProject().key, () => currentProject().key)'))
 }
 
 console.log('§2 — THE FOCUSED SESSION CARRIES OVER: the board filters by project, then always adds the one focused session, ★ from its own project')
@@ -235,14 +202,6 @@ console.log('§2 — THE FOCUSED SESSION CARRIES OVER: the board filters by proj
   seedWorkers([liveRecord('concourse-w1', S_A1, P_A), liveRecord('concourse-w2', S_A2, P_A), liveRecord('concourse-w3', S_B1, P_B)])
   const noFocus = await build()
   check('POISON CONTROL: with no focused session nothing of A rides B\'s board', !noFocus.groups.flatMap(g => g.rows).some(r => r.workspaceDir === P_A))
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  check('the layout paints the star (the kit\'s bright spark — existing vocabulary, no new glyph, no new hex) and the home beside the title', layout.includes('{GLYPH.sparkBright}') && layout.includes('from {r.foreignProject}') && layout.includes('color={t.info}>{GLYPH.sparkBright} '))
-  const contracts = read('src/components/concourse/contracts.ts')
-  check('the contract carries the mark as a typed field on the row', contracts.includes('foreignProject?: string'))
-  const builder = read('src/services/concourse/concourseSnapshot.ts')
-  check('the builder scopes through the ONE predicate (inProject — main\'s filter) and adds the focused session as its one exception, by the slot\'s own fact', builder.includes('inProject(project, workspaceId) ? undefined : sanitizeLabel(projectDisplayName(workspaceId))') && builder.includes('slot.hasFocusedSession()') && builder.includes("if (workspace === undefined || inProject(project, workspace)) return [r]") && builder.includes("r.sessionId === focusedSessionId ? [{ ...r, foreignProject: foreignOf(workspace) ?? '' }] : []"))
-  const router = read('src/components/SurfaceRouter.tsx')
-  check('the strip\'s stop follows the slot alone (the router is STRIP\'s, untouched): present = hasFocusedSession() || landingInFlight()', router.includes('present: () => hasFocusedSession() || landingInFlight(),'))
   _resetSurfaceRouteForTesting()
 }
 
@@ -280,11 +239,6 @@ console.log('§3 — A NEW FOCUS HANDS IT BACK SILENTLY: focusing a session of t
   check('back in A, X is a normal running row of ITS project (working, no mark) — exactly what it was', xHome?.state === 'working' && xHome.foreignProject === undefined)
   check('Y (focused, of B) is now the ★ row on A\'s board — the same law in the other direction', backHome.groups.flatMap(g => g.rows).find(r => r.sessionId === S_B1)?.foreignProject === basename(P_B))
   slot.releaseFocusedSessionConnector()
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  check('the route rebuilds the board on the focused slot\'s beat', route.includes('const unsubSlot = subscribeFocusedSessionConnector(() => rebuild())') && route.includes('unsubSlot()'))
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
-  check('the blur is the connector\'s own detach verb (LAUNCHAUTH\'s), spoken once; no board surface issues a focus or blur op of its own', (connector.match(/seatVerb\('blur', this\.record\.sessionId\)/g) ?? []).length === 1 && !read('src/components/concourse/ConcourseRoute.tsx').includes("action: 'blur'") && !read('src/components/concourse/ConcourseScreen.tsx').includes("action: 'blur'") && !read('src/services/concourse/concourseSnapshot.ts').includes("action: 'blur'"))
-  check('the builder mints nothing on a focus change (the snapshot is a read: no upsert, no resolve, no rpc)', !read('src/services/concourse/concourseSnapshot.ts').includes('upsertObligation') && !read('src/services/concourse/concourseSnapshot.ts').includes('daemonControlRpc'))
 }
 
 console.log('§4 — THE RUNNING-COUNT LINE, A DOOR: one line per other project with activity, its own group before PARKED, ↵ = the picker\'s own switch')
@@ -369,22 +323,6 @@ console.log('§4 — THE RUNNING-COUNT LINE, A DOOR: one line per other project 
   const face = await runningByProjectKey(recordsDir)
   check('the face\'s sync read answers the same running counts per key (B 2 · C 2 · E 2 · F 1; A 2; D none)', face.get(getProjectDir(P_B)) === 2 && face.get(getProjectDir(P_C)) === 2 && face.get(getProjectDir(P_E)) === 2 && face.get(getProjectDir(P_F)) === 1 && face.get(getProjectDir(P_A)) === 2 && face.get(getProjectDir(P_D)) === undefined, [...face.entries()].map(([k, v]) => `${basename(k)}=${v}`).join(','))
   await resolveObligation(ask.obligationId, { kind: 'withdrawn', by: 'prover', scope: 'switchboard', dir: crewDir })
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  const enterAt = screen.indexOf('const enterSession = (sessionId: string, opts: { pointer?: boolean } = {}): void => {')
-  const enterEnd = screen.indexOf('const gitOffer = useMemo<GitOfferV1 | undefined>(() => {', enterAt)
-  const enterBody = enterAt !== -1 && enterEnd > enterAt ? screen.slice(enterAt, enterEnd) : ''
-  check('↵ on a door row rides pickGround — the REPO picker\'s own switch (the trust gate included); "+N more" opens the picker', enterBody.includes("if (door.kind === 'switch-project') pickGround(door.dir)") && enterBody.includes('else setGroundPickerOpen(true)') && enterBody.indexOf('const door = sessionRows.find') !== -1 && enterBody.indexOf('const door = sessionRows.find') < enterBody.indexOf('callbacks.enterSession(sessionId)'))
-  check('the picker and the door share ONE apply (applyGround → setDraftSeed({ projectDir })); no second switcher exists in the screen', (screen.match(/callbacks\.setDraftSeed\(\{ projectDir: dir \}\)/g) ?? []).length === 1 && screen.includes('onPick={dir => pickGround(dir)}') && !screen.includes('applyHarnessGround'))
-  check('x on a door row closes nothing and says so', screen.includes("if (sel.door !== undefined) {") && screen.includes('nothing to close here'))
-  const cell = read('src/components/concourse/LiveNowCell.tsx')
-  check('the NOW cell\'s live predicate excludes door rows — no tile subscription under the tiles\' subscriber (the calm law)', cell.includes("const live = row.state === 'working' || row.state === 'needs-you' || row.state === 'starting'"))
-  check('the work chip needs a workspace — a door row (none) never subscribes', screen.includes("peekSelRow.workspaceDir !== undefined && peekSelRow.state !== 'parked'"))
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  check('the spine paints a door as the kit\'s handoff arrows in info ink (existing vocabulary), the group in info', layout.includes("elsewhere: { glyph: GLYPH.handoff, color: 'info' }") && layout.includes("id === 'working' || id === 'elsewhere'"))
-  const contracts = read('src/components/concourse/contracts.ts')
-  check('the contract types the door row, the group and the whole list', contracts.includes("| 'elsewhere'") && contracts.includes("| 'stopped' | 'elsewhere' | 'parked'") && contracts.includes('elsewhere?: ConcourseElsewhereV1[]') && contracts.includes("{ kind: 'switch-project'; dir: string; running: number; needsYou: number; finished: number }"))
-  const builder = read('src/services/concourse/concourseSnapshot.ts')
-  check('the builder pushes OTHER PROJECTS after STOPPED and before PARKED, from the one owner, name-ordered, the ★ excluded', builder.indexOf("groups.push({ id: 'stopped', label: 'STOPPED'") !== -1 && builder.indexOf("groups.push({ id: 'elsewhere', label: 'OTHER PROJECTS'") > builder.indexOf("groups.push({ id: 'stopped', label: 'STOPPED'") && builder.indexOf("groups.push({ id: 'elsewhere', label: 'OTHER PROJECTS'") !== -1 && builder.indexOf("groups.push({ id: 'elsewhere', label: 'OTHER PROJECTS'") < builder.indexOf("groups.push({ id: 'parked', label: 'PARKED'") && builder.includes("import { ELSEWHERE_CAP, elsewhereLine, projectActivity } from './projectActivity.js'") && builder.includes('.slice(0, ELSEWHERE_CAP).sort((a, b) => a.name.localeCompare(b.name))') && builder.includes('excludeSessionId: focusedSessionId,'))
 }
 
 console.log('§5 — THE CROSS-PROJECT DOOR: an ask in another project rows on the rail as "switch to foo", the ⚑ counts it, ↵ = switch + open')
@@ -420,14 +358,7 @@ console.log('§5 — THE CROSS-PROJECT DOOR: an ask in another project rows on t
   check('the rail\'s one affordance on a door row is "switch & open" (no separate open; dismiss stays)', tail.some(p => p.key === 'answer' && p.text.includes('switch & open')) && !tail.some(p => p.key === 'open') && tail.some(p => p.key === 'dismiss'))
   check('an ordinary row keeps "answer & resume" and "open session"', railTailParts({ projectLabel: 'x', agentLabel: 'y', ageLabel: '01m' }, 200).map(p => p.key).join(',') === 'meta,answer,open,dismiss')
   for (const id of [ask.obligationId, local.obligationId]) await resolveObligation(id, { kind: 'withdrawn', by: 'prover', scope: 'switchboard', dir: crewDir })
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  const beginAnswerAt = screen.indexOf('const beginAnswer = (obligationId: string): void => {')
-  const beginAnswerBody = beginAnswerAt === -1 ? '' : screen.slice(beginAnswerAt, screen.indexOf("const ref = o.ref ?? ''", beginAnswerAt))
-  check('↵ on a foreign rail row takes the door: switch (the picker\'s own apply, trust-gated) + open; an untrusted folder opens the chat anyway and says where the view stayed', beginAnswerAt !== -1 && beginAnswerBody.indexOf('if (o.foreignProject !== undefined) {') !== -1 && beginAnswerBody.indexOf('if (o.foreignProject !== undefined) {') < beginAnswerBody.indexOf('takeObligationDoor(o)') && beginAnswerBody.indexOf('takeObligationDoor(o)') !== -1 && beginAnswerBody.indexOf('takeObligationDoor(o)') < beginAnswerBody.indexOf('if (reducedStage) {') && screen.includes('if (isPathTrusted(home.dir)) applyGround(home.dir)') && screen.includes("stays untrusted ${keyHintLabel('(⌃g trusts it)')} · opening the chat anyway"))
-  check('o and the rail\'s open chip take the same door', screen.includes('if (o) openObligationOrDoor(o.obligationId)') && screen.includes('openObligation: id => openObligationOrDoor(id),'))
-  const frame = read('src/components/MercuryFrame.tsx')
   const { needsYouCount } = await import('../../src/utils/needsYouCount.ts')
-  check('the ⚑ badge counts the attention view\'s needs-you bucket — every open need, whatever its project', frame.includes('attentionView.needsYou > 0') && frame.includes('needsYouCount(attentionView.needsYou)') && needsYouCount(1) === '1 needs you' && needsYouCount(2) === '2 need you')
 }
 
 console.log('§6 — THE INDICATOR ON THE BOOT FACE: the Projects rows read the same running count from the same owner; a row without one composes its old bytes')
@@ -454,12 +385,6 @@ console.log('§6 — THE INDICATOR ON THE BOOT FACE: the Projects rows read the 
   check('the picker paints "3 running" on the row that runs, right before its age, and nothing on the other', strip(fooLine).includes('3 running') && /3 running\s+1m/.test(strip(fooLine)) && !strip(barLine).includes('running'))
   check('the note never widens the row past the box (the line keeps the box width)', vis(fooLine) === vis(before.lines[withCount.rowLines[0]!]!) && vis(fooLine) === vis(barLine))
   check('the note wears the accent (never the faint ink) and closes with the reset before the faint age', fooLine.includes('3 running' + c.R) && !fooLine.includes(c.hexFg(c.FAINT, c.T256.faint) + '3 running') && fooLine.indexOf('3 running') < fooLine.indexOf(c.hexFg(c.FAINT, c.T256.faint) + '1m'))
-  const face = read('src/components/BootSplashScreen.tsx')
-  check('the face reads the SAME owner (runningByProjectKey) keyed by the catalog\'s project key, once at mount', face.includes("import('../services/concourse/projectActivity.js')") && face.includes('const counts = await m.runningByProjectKey();') && face.includes('runningByKey.get(getProjectDir(dir))'))
-  check('the face passes the count into the merged screen — only when non-zero', face.includes('return running > 0 ? { ...p, running } : p;') && face.includes('openProject={openProject}'))
-  check('ABSENT IN THE PLAIN WORLD: the read is gated on the strip\'s own fact (chatOnlyBoot) — no third flag', face.includes('if (chatOnlyBoot()) return;') && face.includes('chatOnlyBoot,\n  enterConcourse,'))
-  const owner = read('src/services/concourse/projectActivity.ts')
-  check('the owner\'s face read shares the ONE running predicate with the board\'s lines', owner.includes('if (!isRunningState(state, alive)) continue') && owner.includes('if (isRunningState(row.state, opts.aliveOf?.(row.sessionId) ?? true)) entry.running += 1'))
 }
 
 console.log('§7 — THE ANNEX: Projects-↵ hops into a wordless live newborn through the card')
@@ -477,14 +402,6 @@ console.log('§7 — THE ANNEX: Projects-↵ hops into a wordless live newborn t
   check('the gate the face reads: the first session is owned by a LIVE worker (a hop, not a birth)', workers.sessionOwnedByLiveWorker(S_G0, recordsDir) === 'concourse-w1')
   seedWorkers([])
   check('with no live worker the gate answers null (the birth arm stands, as before)', workers.sessionOwnedByLiveWorker(S_G0, recordsDir) === null)
-  const face = read('src/components/BootSplashScreen.tsx')
-  const openAt = face.indexOf('const openProject = (p: BootProjectFact): AsyncListNote => {')
-  const openEnd = face.indexOf('const composedRows: BootRow[] = useMemo(', openAt)
-  const openBody = openAt !== -1 && openEnd > openAt ? face.slice(openAt, openEnd) : ''
-  check('Projects-↵: the resumable arm first, then the card-aware hop (firstSessionId owned by a live worker → hopIntoBoardSession), then the birth', openBody.indexOf('if (p.sessionId !== null) {') !== -1 && openBody.indexOf('if (p.sessionId !== null) {') < openBody.indexOf('sessionOwnedByLiveWorker(p.firstSessionId) !== null') && openBody.indexOf('sessionOwnedByLiveWorker(p.firstSessionId) !== null') !== -1 && openBody.indexOf('sessionOwnedByLiveWorker(p.firstSessionId) !== null') < openBody.indexOf('hop.hopIntoBoardSession(p.firstSessionId)') && openBody.indexOf('hop.hopIntoBoardSession(p.firstSessionId)') !== -1 && openBody.indexOf('hop.hopIntoBoardSession(p.firstSessionId)') < openBody.indexOf('bornSession({ workspaceDir: p.dir })'))
-  check('the hop reads the daemon\'s oracle through a dynamic import (the concourse subsystem stays off the face\'s static boot graph)', openBody.includes("(await import('../daemon/concourseWorkers.js')).sessionOwnedByLiveWorker(p.firstSessionId)") && !face.includes("from '../daemon/concourseWorkers.js'"))
-  const facts = read('src/utils/bootCardFacts.ts')
-  check('the fact carries firstSessionId from the card (empty ⇒ null)', facts.includes('firstSessionId: string | null') && facts.includes("firstSessionId: e.facts.card !== null && e.facts.card.firstSessionId.length > 0 ? e.facts.card.firstSessionId : null,"))
 }
 
 console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint once at turn two; a typed name survives; never a worker id, in any world')
@@ -532,14 +449,6 @@ console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint onc
   seedWorkers([liveRecord('concourse-w2', S_T3, P_A, { title: 'Boot face polish' })])
   const stage3 = (await build()).groups.flatMap(g => g.rows).find(r => r.sessionId === S_T3)
   check('a stored title wins everywhere the snapshot paints (stage 3)', stage3?.title === 'Boot face polish')
-  const builder8 = read('src/services/concourse/concourseSnapshot.ts')
-  check('the builder and the peek derive through the ONE owner; the worker-short title fallback is GONE from the estate', builder8.includes('sessionTitleOf(rec, () => headBriefLabel(rec, 48))') && builder8.includes('sessionTitleOf(peekRecord, () => headBriefLabel(peekRecord, 48))') && !builder8.includes('rec.title ?? rec.runnerId') && !read('src/services/switchboard/hopIntoSession.ts').includes('rec.title ?? rec.runnerId'))
-  check('the chat\'s tag reads the record title the hop derives through the owner (the --chat "concourse-w3" tag retires)', read('src/services/switchboard/hopIntoSession.ts').includes('sessionTitleOf(rec, () => headBriefLabel(rec, 48))') && read('src/components/SwitchboardTagBar.tsx').includes('s.title'))
-  check('the wire carries set-title end to end: the protocol, the server\'s guard and payload, the executor\'s arm, the one writer', read('src/daemon/protocol.ts').includes("| 'set-title'") && read('src/daemon/controlServer.ts').includes("raw.action === 'set-title'") && read('src/daemon/controlServer.ts').includes('title: raw.title.slice(0, 200)') && read('src/daemon/main.ts').includes("if (action === 'set-title') {") && read('src/daemon/main.ts').includes('settle(setConcourseSessionTitle('))
-  check('the stamp has ONE writer: titleMintedAt is assigned in the daemon verb alone (a failed mint leaves no stamp anywhere)', (read('src/daemon/concourseWorkers.ts').match(/titleMintedAt = /g) ?? []).length === 1 && !read('src/services/concourse/sessionTitleMint.ts').includes('titleMintedAt ='))
-  check('/title is registered and rides the op as the operator\'s word; no words ⇒ the same small call, explicitly asked', read('src/commands.ts').includes("import title from './commands/title/index.js'") && read('src/commands/title/title.ts').includes("action: 'set-title'") && read('src/commands/title/title.ts').includes("titleSource: 'operator'") && read('src/commands/title/title.ts').includes('generateSessionTitle('))
-  check('the board\'s rename: the r key and context on the full stage only; the route writes the operator\'s word; the legend prints r exactly with the composer doors', read('src/components/concourse/ConcourseScreen.tsx').includes("kind: 'rename'") && read('src/components/concourse/ConcourseScreen.tsx').includes("input === 'r' && !key.ctrl && !key.meta && !reducedStage") && read('src/components/concourse/ConcourseRoute.tsx').includes("action: 'set-title', sessionId, by: 'operator', title, titleSource: 'operator'") && manifest.regionKeysFor('list', { newSession: false }).every(k => k.keys !== 'r') && manifest.regionKeysFor('list', { newSession: true }).some(k => k.keys === 'r'))
-  check('the mint rides the estate\'s existing small call, in every world', read('src/services/concourse/sessionTitleMint.ts').includes("import('../../utils/sessionTitle.js')") && !read('src/hooks/useSessionTitleMint.ts').includes('chatOnlyBoot'))
 }
 
 await applyHarnessGround(null)

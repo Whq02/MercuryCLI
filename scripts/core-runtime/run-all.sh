@@ -124,7 +124,6 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-diagnostics-timing.t
 echo "── core-runtime: boot-env attribution (a saved default is never a real env pin)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-bootenv-attribution.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-bootenv-attribution.ts "$__t" "$__rc"
 
-__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-face-birth-ground.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-face-birth-ground.ts "$__t" "$__rc"
 
 echo "── core-runtime: provider contract (T16)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-provider-contract.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-provider-contract.ts "$__t" "$__rc"

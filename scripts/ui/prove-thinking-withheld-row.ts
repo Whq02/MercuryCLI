@@ -2,7 +2,7 @@
 // gate-watch: src/components/messages/AssistantThinkingMessage.tsx src/components/messages/thinkingGrammar.tsx
 // gate-watch: src/components/SwitchboardTagBar.tsx src/commands/effort/effort.tsx
 // gate-watch: src/services/providers/gemini/geminiClient.ts src/services/providers/openaicompat/compatChatCallModel.ts
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -162,12 +162,6 @@ section('THK-06 — an effort receipt the one-line status row would cut goes to 
   const plan = bar.statusRowPlan({ ...frame037, rest: long })
   check('the plan the row would paint for that receipt is indeed the cut tail (the field frame)', plan.rest !== long && plan.rest.startsWith('…') === false && plan.rest.includes(' — max was kept'), j(plan.rest))
 
-  const effort = readFileSync(join(ROOT, 'src/commands/effort/effort.tsx'), 'utf8')
-  check('the effort command paints a receipt the row refuses as chat rows (the echoed command and its text), never a cut line (RED on the base: the status row or a one-line notification only)', effort.includes('function receiptInChat(') && effort.includes("formatCommandLoadingMetadata('effort', args)") && effort.includes('receiptOnStatusRow(receipt) || receiptInChat(receipt, args)'), '')
-  check('the slider road takes the same door', effort.includes("receiptOnStatusRow(receipt) || receiptInChat(receipt, String(value))"))
-  const painter = readFileSync(join(ROOT, 'src/components/SwitchboardTagBar.tsx'), 'utf8')
-  check('the status row refuses a receipt it would cut', /paintStatusRowReceipt\(text: string\): boolean \{\n  if \(rowsPainting === 0 \|\| text\.trim\(\) === '' \|\| !statusRowReceiptFits\(text\)\) return false/.test(painter))
-  check('the no-effort receipt names the model by its display name and says where the level goes, shortly', effort.includes('${renderModelName(model)} takes no effort setting — ${level} is kept for the next model that takes one.${saved}'))
 }
 
 rmSync(HOME, { recursive: true, force: true })

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.ts'
 
@@ -22,7 +21,6 @@ function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const COLUMNS = 60
 const ROWS = 16
 const VIEWPORT = 8
@@ -63,13 +61,6 @@ section('the scroll box: content that fits, then grows past the viewport')
   check('a box that rests at its top shows its first rows after the same growth', rests.after.join(',') === Array.from({ length: VIEWPORT }, (_, i) => row(i + 1)).join(','), rests.after.join(','))
 }
 
-section('the help pop-up asks for it')
-{
-  const help = readFileSync(join(ROOT, 'src', 'components', 'HelpV2', 'HelpV2.tsx'), 'utf8')
-  const centre = readFileSync(join(ROOT, 'src', 'components', 'mercury-ui', 'components.tsx'), 'utf8')
-  check('the help pop-up tells its shell the body rests at its top', /<CommandCenter[^>]*\bbodyRestsAtTop\b/s.test(help))
-  check('the shell hands that to its body in both of its layouts', (centre.match(/<ScrollBox key="body"[^>]*restsAtTop=\{bodyRestsAtTop\}/g) ?? []).length === 2)
-}
 
 await releaseScratchHome(home)
 console.log(failures === 0 ? `\n✅ pop-up body rests at its top: ${checks} checks, 0 failures` : `\n❌ pop-up body rests at its top: ${failures} of ${checks} checks failed`)

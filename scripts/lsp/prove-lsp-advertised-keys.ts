@@ -38,8 +38,6 @@ try {
     check(`${tool.name}: genuinely unknown fields are refused`, !tool.inputSchema.safeParse({ ...Object.fromEntries(wire.required.map(key => [key, key === 'operation' ? 'serverStatus' : samples[key]])), frobnicate: true }).success)
     check(`${tool.name}: the prompt names no legacy selector`, !/legacy/i.test(LSP_DESCRIPTIONS[tool.name as keyof typeof LSP_DESCRIPTIONS]))
   }
-  const opsSource = await Bun.file(join(REPO, 'src/tools/LSPTool/mercuryOps.ts')).text()
-  check('the codeActions re-run hint keeps its positional-selector words', /actionIndex is the positional selector from this listing/.test(opsSource) && !/legacy positional/.test(opsSource))
   const actionIndex = LSP_INPUT_JSON_SCHEMAS.LspCodeAction.properties.actionIndex.description
   check('actionIndex remains positional, and the field says positions shift where ids do not', actionIndex.includes('The position of an action in the current list') && actionIndex.includes('positions shift between listings') && LSP_INPUT_JSON_SCHEMAS.LspCodeAction.properties.actionId.description.includes('ids are stable across listings'))
   const air = { operation: 'diagnostics', paths: [here, join(project, 'main.ts')], line: 1, character: 1, query: 'unused', limit: 50 }

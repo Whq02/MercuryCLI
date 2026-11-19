@@ -38,7 +38,7 @@ try {
   if (health >= 0) {
     const baseline = process.argv[health + 1]
     assert.ok(baseline, 'supply the unmodified run-suite.sh')
-    const proofs = ['prove-activity-verbs-producer.ts', 'prove-advice-names-this-mercury.ts', 'prove-auth-routed-verdict.ts', 'prove-baseline-row-substance.ts', 'prove-boot-spine-order.ts', 'prove-boot-spine-setup-boundary.ts', 'prove-boot-spine-setup-screens.ts', 'prove-browser-row.ts', 'prove-cert-clean-hands.ts', 'prove-cert-core.ts']
+    const proofs = ['prove-activity-verbs-producer.ts', 'prove-advice-names-this-mercury.ts', 'prove-auth-routed-verdict.ts', 'prove-baseline-row-substance.ts', 'prove-boot-spine-order.ts', 'prove-boot-spine-setup-screens.ts', 'prove-browser-row.ts', 'prove-cert-clean-hands.ts', 'prove-cert-core.ts']
     const body = `set -e\n${proofs.map(path => `echo ${shell(path)}\n${shell(bun)} run ${shell(join(root, 'scripts/health', path))}`).join('\n')}\n`
     const before = await run('health-before', body, resolve(baseline))
     const after = await run('health-after', body, helper)

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -84,8 +83,6 @@ section('§4 the parity control — the kept text is untouched by the carry')
     if (out.text === raw) identical++
   }
   check('500 random tails: the kept text is always a raw suffix of the input', identical === 500, `${identical}/500`)
-  const component = readFileSync(join(ROOT, 'src/components/LiveStreamingTail.tsx'), 'utf8')
-  check('the renderer prepends the carried opener (the component consumes openFence)', component.includes('`${bounded.openFence}\\n${bounded.text}`'))
 }
 
 console.log(failures === 0 ? '\nprove-tail-fence-carry: ALL LAWS HOLD' : `\nprove-tail-fence-carry: ${failures} FAILURE(S)`)

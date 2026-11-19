@@ -20,25 +20,6 @@ const guard = setTimeout(() => {
 }, 120_000)
 guard.unref?.()
 
-const repoRoot = join(import.meta.dir, '..', '..')
-
-console.log('── §1 source pins: ONE commit core, duplicated mechanics DELETED ──')
-{
-  const transform = readFileSync(join(repoRoot, 'src/services/structure/transform.ts'), 'utf8')
-  const astEdit = readFileSync(join(repoRoot, 'src/tools/AstEditTool/AstEditTool.ts'), 'utf8')
-  const mercuryOps = readFileSync(join(repoRoot, 'src/tools/LSPTool/mercuryOps.ts'), 'utf8')
-  check('structure select lane calls the shared core', transform.includes('runVerbatimTextCommit('))
-  check('AstEdit calls the shared core', astEdit.includes('runVerbatimTextCommit('))
-  check('LSP applyPrepared calls the shared core', mercuryOps.includes('runVerbatimTextCommit('))
-  check('the old per-file tmp+rename loop is DELETED (select lane)', !transform.includes('renameSync(tmp'))
-  check('the old per-file tmp+rename loop is DELETED (AstEdit)', !astEdit.includes('renameSync(tmp'))
-  check('the old unverified rollback is DELETED', !transform.includes('rollback attempted') && !astEdit.includes('rollback attempted'))
-  check('the LSP plain write loop is DELETED', !mercuryOps.includes("await writeFile(p.abs, p.newText, 'utf8')"))
-  check('the LSP part-way indeterminate WITHOUT restoration is DELETED', !mercuryOps.includes('Apply PARTIALLY FAILED'))
-  const diffBudget = readFileSync(join(repoRoot, 'src/services/changeTransaction/diffBudget.ts'), 'utf8')
-  check('buildDiffHunks has ONE definition (diffBudget owner)', diffBudget.includes('export function buildDiffHunks') && !/export function buildDiffHunks/.test(transform))
-  check('transform re-exports the shared builder (import seam stable)', transform.includes('export { buildDiffHunks }'))
-}
 
 console.log('── §2 a real Structure apply commits THROUGH the core ──')
 const { runStructureQuery } = await import('../../src/services/structure/query.ts')

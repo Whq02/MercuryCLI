@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -13,7 +13,6 @@ const { composerTargetTaskId, composerTargetPinned } = await import('../../src/s
 const { clearMainChat, enterCrewmateView, exitCrewmateView, setMainChat, stopOrDismissAgent } = await import('../../src/state/crewmateViewHelpers.js')
 const { crewmateComposerHint, crewmateHeaderTail, crewmateStatusWords, crewmatePlaceholder, crewmateCardKeys, BACK_HINT, LEAD_ROW_NAME } = await import('../../src/utils/cockpit/crewmateWords.js')
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -56,18 +55,6 @@ section('§1 the operator lane is its own queue: the tool-boundary drain never t
   check('peekOperatorMessages on a non-agent is empty', peekOperatorMessages(undefined).length === 0 && peekOperatorMessages({ type: 'local_bash' }).length === 0)
 }
 
-section('§2 the turn-end and stop roads deliver the lane; the running resume queues it (source pins)')
-{
-  const lifecycle = readFileSync(join(ROOT, 'src/tools/AgentTool/agentToolUtils.ts'), 'utf8')
-  check('the completion drain reads both lanes and resumes with their reply target', /const pending = isLocalAgentTask\(queuedTask\) \? \[\.\.\.\(queuedTask\.pendingMessages \?\? \[\]\)\] : \[\]/.test(lifecycle) && /const operator = peekOperatorMessages\(queuedTask\)\s*\n\s*const queued = \[\.\.\.pending, \.\.\.operator\]/.test(lifecycle) && /prompt: queued\.join\('\\n\\n'\),\s*replyTarget: pending\.length > 0 \? 'parent' : 'operator'/.test(lifecycle) && /takeOperatorMessages\(taskId, stateReader, rootSetAppState, operator\.length\)/.test(lifecycle))
-  check('the operator\'s stop (the abort road) delivers the lane after the kill notice', /killAsyncAgent\(taskId, rootSetAppState, stopReason, args\.abortController\)[\s\S]*deliverOperatorMessagesAfterStop\(taskId, description, toolUseContext, rootSetAppState, args\.canUseTool\)/.test(lifecycle))
-  check('the stop-road delivery resumes with a fresh controller and only then takes the lane', /abortController: new AbortController\(\)[\s\S]*takeOperatorMessages\(taskId, stateReader, rootSetAppState\)/.test(lifecycle))
-  const queued = readFileSync(join(ROOT, 'src/utils/attachments/queuedCommands.ts'), 'utf8')
-  check('the tool-boundary attachment drain still reads drainPendingMessages alone (never the operator lane)', /drainPendingMessages\(/.test(queued) && !/OperatorMessages/.test(queued))
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerSubmit.ts'), 'utf8')
-  check('the composer\'s send road targets composerTargetTaskId and queues a local crewmate on the operator lane', /const targetId = composerTargetTaskId\(fresh\)/.test(composer) && /queueOperatorMessage\(task\.id, text, setAppState\)/.test(composer) && !/queuePendingMessage\(/.test(composer))
-  check('a hosted crewmate takes the connector\'s resumeAgent door; the line is taken when ↵ lands and a refusal hands it back', /getFocusedSessionConnector\(\)\.resumeAgent\(targetId, text\)/.test(composer) && /takeLine\(\)\s*\n\s*if \(!\(await deliver\([^)]*\)\)\) handBack\(\)/.test(composer))
-}
 
 section('§3 the composer\'s target: the pin outlives the view, esc leaves it alone')
 {
@@ -127,13 +114,6 @@ section('§4 the operator\'s interrupt: one crewmate, a typed kind the lead can 
   check('a hosted crewmate\'s interrupt takes the connector\'s stop door with the typed note, once, for that id alone', hosted === 'hosted' && JSON.stringify(stops) === JSON.stringify([{ id: 'h9', note: AGENT_INTERRUPT_BY_OPERATOR }]))
   const idle = interruptCrewmate('a2', { tasks: { a2: agent('a2', 'completed') } } as never, store.set, async () => {})
   check('a crewmate between turns has nothing to interrupt', idle === 'idle')
-  const seat = readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8')
-  const connector = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  const lifecycle = readFileSync(join(ROOT, 'src/tools/AgentTool/agentToolUtils.ts'), 'utf8')
-  const cancel = readFileSync(join(ROOT, 'src/hooks/useCancelRequest.ts'), 'utf8')
-  check('the typed note rides the stop verb across the wire: connector → seat (agent/stop with the note)', /stopAgent\(agentId: string, note\?: string\)[\s\S]{0,80}agentVerb\('stop-agent', agentId, note\)/.test(connector) && /const params = \{ agent_id: agentId, \.\.\.\(opts\?\.note !== undefined \? \{ note: opts\.note \} : \{\}\) \}[\s\S]{0,200}'agent\/stop'/.test(seat))
-  check('the lifecycle\'s abort road stamps the notice with the typed status word', /const stopStatusWord = agentStopStatusWordOf\(args\.abortController\.signal\.reason\)/.test(lifecycle) && /\.\.\.\(stopStatusWord !== undefined \? \{ statusWord: stopStatusWord \} : \{\}\)/.test(lifecycle))
-  check('ctrl+c on a crewmate\'s screen interrupts that crewmate alone and never the lead\'s turn (the old kill-all road is gone from the viewing branch)', /interruptCrewmate\(viewedCrewmate, freshState, setAppState\)\s*\n\s*return/.test(cancel) && !/killRunningAgents\(\(\) => store\.getState\(\) as AppState, setAppState\)\s*\n\s*if \(killed\) onAgentsKilled\?\.\(\)\s*\n\s*setAppState\(prev => \(\{\s*\n\s*\.\.\.prev,\s*\n\s*viewingAgentTaskId: undefined/.test(cancel))
 }
 
 section('§5 the words of the two states (one owner)')

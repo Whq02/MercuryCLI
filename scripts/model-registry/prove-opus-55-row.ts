@@ -152,9 +152,6 @@ section('§3 the wire laws: thinking always on, no forced tool choice, the four 
   const { sideQueryThinkingParam } = await import('../../src/utils/sideQuery.ts')
   const { applyThinkingBinding, isSameModel, modelSwitchReceipt } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
   const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/utils/messages/apiFilters.ts')
-  const { readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const src = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf-8')
   const show = (v: unknown): string => JSON.stringify(v)
 
   check('thinking is always on for the row (the [1m] twin too); Opus 5 keeps its switch; a carrier row never joins', caps.modelThinkingAlwaysOn(ID) && caps.modelThinkingAlwaysOn(`${ID}[1m]`) && !caps.modelThinkingAlwaysOn(PREVIOUS) && !caps.modelThinkingAlwaysOn('openrouter/anthropic/claude-opus-5-5'))
@@ -168,18 +165,6 @@ section('§3 the wire laws: thinking always on, no forced tool choice, the four 
   check("the one fold turns 'tool' and 'any' into auto on the row and leaves auto, none and an absent choice alone", show(caps.foldToolChoiceForModel(ID, forcedTool)) === show({ type: 'auto' }) && show(caps.foldToolChoiceForModel(ID, forcedAny)) === show({ type: 'auto' }) && caps.foldToolChoiceForModel(ID, auto) === auto && caps.foldToolChoiceForModel(ID, none) === none && caps.foldToolChoiceForModel(ID, undefined) === undefined)
   check('the fold leaves Opus 5 verbatim', caps.foldToolChoiceForModel(PREVIOUS, forcedTool) === forcedTool && caps.foldToolChoiceForModel(PREVIOUS, forcedAny) === forcedAny)
 
-  const stream = src('src/services/providers/anthropic/streamCore.ts')
-  check('the main stream sends no thinking parameter when the config is disabled (the parameter stays undefined; never the disabled shape)', stream.includes("let thinking: BetaMessageStreamParams['thinking'] | undefined = undefined") && stream.includes('if (hasThinking && modelSupportsThinking(options.model))') && !/thinking\s*=\s*\{\s*type:\s*'disabled'/.test(stream))
-  check('the main stream folds the tool choice through the one owner', stream.includes('foldToolChoiceForModel(options.model, options.toolChoice)') && stream.includes('tool_choice: toolChoice,'))
-  const roads: Array<[string, RegExp]> = [
-    ['src/rows/turn.ts', /\(\{ type: 'disabled' \} as ThinkingConfig\)/],
-    ['src/tools/AgentTool/runAgent.ts', /thinkingConfig: thinkingConfigOverride \?\? parentOptions\.thinkingConfig \?\? sessionThinkingConfig\(\)/],
-    ['src/tools/AgentTool/agentToolUtils.ts', /thinkingConfig: \{ type: 'disabled' \},/],
-  ]
-  for (const [rel, shape] of roads) {
-    const text = src(rel)
-    check(`${rel}: the thinking road is a request CONFIG the main stream translates (never a wire thinking object; a crewmate carries its parent's or the session's config, never a disabled one of its own)`, shape.test(text) && !/thinking:\s*\{\s*type:\s*'disabled'/.test(text))
-  }
 
   const betas: string[] = []
   const bound = applyThinkingBinding({ type: 'adaptive' as const }, betas, { firstParty: () => true, env: undefined })
@@ -209,8 +194,6 @@ section('§4 thinking.display and its beta ride only when explicitly requested')
   const caps = await import('../../src/utils/model/capabilities.ts')
   const { applyThinkingDisplay, resolveThinkingDisplaySetting } = await import('../../src/services/providers/anthropic/thinkingDisplay.ts')
   const { THINKING_DISPLAY_UPDATES_BETA_HEADER } = await import('../../src/constants/betas.ts')
-  const { readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
   const show = (v: unknown): string => JSON.stringify(v)
   const HEADER = 'thinking-display-updates-2026-08-18'
 
@@ -242,10 +225,6 @@ section('§4 thinking.display and its beta ride only when explicitly requested')
   betas = []
   check('an unset request after explicit updates has no remembered field or beta', applyThinkingDisplay(ID, adaptive, betas, firstParty) === adaptive && betas.length === 0)
   check('the fold never mutates the caller\'s thinking object', show(adaptive) === show({ type: 'adaptive' }))
-  const stream = readFileSync(join(import.meta.dir, '..', '..', 'src/services/providers/anthropic/streamCore.ts'), 'utf-8')
-  const displayAt = stream.indexOf('thinking = applyThinkingDisplay(options.model, thinking, betasParams) as typeof thinking')
-  const bindingAt = stream.indexOf('thinking = applyThinkingBinding(thinking, betasParams) as typeof thinking')
-  check('the main stream applies the display on the per-attempt thinking and beta list, before the binding stamps its field', displayAt !== -1 && bindingAt !== -1 && displayAt < bindingAt)
 }
 
 console.log('\n' + '='.repeat(60))

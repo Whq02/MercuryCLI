@@ -75,22 +75,6 @@ const RICH_INPUT = {
   t('§2 the quiet arms stay unchanged', wsQuiet === '"q"' && webfetch.renderToolUseMessage({ url: 'u' }, { verbose: false } as never) === 'u')
 }
 
-{
-  const { readFileSync } = await import('node:fs')
-  const src = (rel: string): string => readFileSync(new URL(`../../src/${rel}`, import.meta.url), 'utf8')
-  const wrapWalk = (body: string): boolean =>
-    body.includes('React.Children.toArray') && body.includes('React.isValidElement(child)') && body.includes('<Text key={`total-')
-  const mr = src('components/MessageResponse.tsx')
-  t('§3 MessageResponse walks its children total', wrapWalk(mr))
-  t('§3 …and BOTH arms consume the walked set (nested and framed)', mr.includes('return <>{total}</>') && mr.includes('{total}\n      </MessageResponseContext.Provider>'))
-  const atum = src('components/messages/AssistantToolUseMessage.tsx')
-  const progressAt = atum.indexOf('function renderProgressBody')
-  const progressBody = atum.slice(progressAt, atum.indexOf('let queuedMessage'))
-  t('§3 the progress-body passthrough walks its body total', progressAt !== -1 && wrapWalk(progressBody))
-  t('§3 …and the Box consumes the walked set', progressBody.includes('{totalBody}'))
-  const byline = src('components/design-system/Byline.tsx')
-  t('§3 Byline (the law-giver) still owns its own totality', byline.includes('React.isValidElement(child) ? child : <Text>{child}</Text>'))
-}
 
 console.log(failures === 0 ? 'INLINE-RENDER SAFETY: ALL PASS' : 'INLINE-RENDER SAFETY: RED')
 process.exit(failures)

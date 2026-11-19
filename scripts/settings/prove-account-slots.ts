@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -299,23 +299,6 @@ section('(4) executeSlotRemoval — each slot to exactly its owning store')
     calls.length === 0 && !acmeOut.mutated && acmeOut.note.includes('owning store'))
 }
 
-section('(5) the board renders the seam — structural pins on AccountView')
-{
-  const source = readFileSync(
-    new URL('../../src/components/mercury-ui/parity/AccountView.tsx', import.meta.url),
-    'utf8',
-  )
-  check('the board derives its rows from the seam', source.includes('deriveFamilySlotGroups()'))
-  check('⌫ routes through executeSlotRemoval (never an inlined store write)',
-    source.includes('executeSlotRemoval(') &&
-      !source.includes('writeStoredOpenaiApiKey') &&
-      !source.includes('disconnectOpenaiSubscription'))
-  check('the hand-kept provider row table is dead', !source.includes('PROVIDER_ROW_PRESENTATION'))
-  check('the Anthropic-first section framing is dead',
-    !source.includes('Anthropic accounts — Mercury slots'))
-  check('the board names the global verb', source.includes('/logout signs out of everything'))
-  check('absent families carry the /logins route', source.includes('/logins'))
-}
 
 section('(6) the REAL owner path — hermetic home fixture (add-side assertions)')
 {

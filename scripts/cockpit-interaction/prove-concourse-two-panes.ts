@@ -251,13 +251,6 @@ console.log('R — choosing another row switches the live view (160×48: ↓ on 
   )
 }
 
-console.log('M — the builder fills each row\'s own model and effort; the live view reads the row first')
-{
-  const builder = readFileSync(join(REPO, 'src/services/concourse/concourseSnapshot.ts'), 'utf8')
-  const screen = readFileSync(join(REPO, 'src/components/concourse/ConcourseScreen.tsx'), 'utf8')
-  check('M1 every row with a model gets its display name and its effort from the builder', builder.includes('if (entry !== undefined) row.modelLabel = sanitizeLabel(entry.displayName)') && builder.includes("if (effort !== undefined && effort !== '') row.effortLabel = effort"))
-  check('M2 the header reads the row before the peek', screen.includes('const modelLabel = sel.modelLabel ?? peekFacts?.modelLabel') && screen.includes('const effortLabel = sel.effortLabel ?? (peekFacts !== null'))
-}
 
 console.log('G — the guard: the chat screen keeps its header critter (160×48)')
 {

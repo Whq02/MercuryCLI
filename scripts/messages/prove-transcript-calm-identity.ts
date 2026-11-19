@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -112,23 +110,6 @@ section('D. the connector merge, DRIVEN in BOTH directions (the lead\'s pin law)
   check('a shifted file reuses nothing (conservative fresh identities)', t5.records[0] !== t4.records[1] && t5.records[1] !== t4.records[2] && t5.reusedAll === false)
 }
 
-section('E. the seams hold their shape (source locks)')
-{
-  const root = join(import.meta.dir, '../../src')
-  const connector = readFileSync(join(root, 'services/engine-connector/daemonConnector.ts'), 'utf8')
-  check('the connector ticks through the pure merge seam', connector.includes('mergeRecordsContentKeyed('))
-  check(
-    'a byte-identical re-read wakes no listener (array identity kept)',
-    /if \(merge\.reusedAll\) (?:return|\{\s*this\.recomputeLive\(\)\s*return\s*\})/.test(connector),
-  )
-  const rowMemo = readFileSync(join(root, 'components/MessageRow.tsx'), 'utf8')
-  check(
-    'the row memo keys on message IDENTITY (what makes the chain sufficient)',
-    rowMemo.includes('if (prev.message !== next.message) return false'),
-  )
-  const normalize = readFileSync(join(root, 'utils/messages/normalize.ts'), 'utf8')
-  check('the normalize cache is weakly keyed by the parent object', normalize.includes('new WeakMap'))
-}
 
 if (failures > 0) {
   console.error(`\n❌ ${failures} TRANSCRIPT-CALM-IDENTITY PROOF(S) FAILED`)

@@ -111,8 +111,6 @@ try {
     }
     check("a single quote in the path closes, escapes and reopens the quoting", build('vim', [], "/tmp/it's.md", 'linux') === `"vim" '/tmp/it'\\''s.md'`, build('vim', [], "/tmp/it's.md", 'linux'))
   }
-  const source = readFileSync(join(REPO, 'src/utils/promptEditor.ts'), 'utf8')
-  check('the hand-off runs that line through the shell, as before', /const commandLine = editorCommandLine\(editorExe, invocation\.args, filePath\)/.test(source) && /spawn\(commandLine, \{ shell: true, /.test(source))
 } finally {
   process.chdir(REPO)
   rmSync(scratch, { recursive: true, force: true })

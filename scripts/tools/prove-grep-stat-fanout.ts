@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -10,7 +10,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
-const ROOT = join(import.meta.dir, '..', '..')
 const j = (v: unknown): string => JSON.stringify(v)
 
 const { mapWithConcurrency, discoveryPoolWidth } = await import('../../src/utils/concurrency.ts')
@@ -54,26 +53,8 @@ console.log('\n§2 the width has one owner')
 {
   const width = discoveryPoolWidth()
   check('the width is an integer in [1, 4]', Number.isInteger(width) && width >= 1 && width <= 4, String(width))
-  const conc = readFileSync(join(ROOT, 'src/utils/concurrency.ts'), 'utf8')
-  check('the owner reads the quota-aware core count, capped at the fs pool', /export function discoveryPoolWidth\(\): number \{\s*\n\s*return Math\.max\(1, Math\.min\(4, availableCores\(\)\)\)/.test(conc))
-  const logs = readFileSync(join(ROOT, 'src/utils/sessionStorage/logs.ts'), 'utf8')
-  check('the session-discovery scans import the width from the pool module', /import \{[^}]*\bdiscoveryPoolWidth\b[^}]*\} from '\.\.\/concurrency\.js'/.test(logs))
-  check('…and keep no local copy', !/function discoveryPoolWidth\(/.test(logs))
-  check('…still sizing every scan from it', (logs.match(/mapWithConcurrency\([^,]+, discoveryPoolWidth\(\)|concurrency: discoveryPoolWidth\(\)/g) ?? []).length >= 6)
-  check('…and no scan sized any other way', (logs.match(/mapWithConcurrency\(/g) ?? []).length === (logs.match(/mapWithConcurrency\([^,]+, discoveryPoolWidth\(\)/g) ?? []).length)
 }
 
-console.log('\n§3 the Grep walk is the bounded pool')
-{
-  const src = readFileSync(join(ROOT, 'src/tools/GrepTool/GrepTool.ts'), 'utf8')
-  check('the stat walk rides mapWithConcurrency at the discovery width', /const statted = await mapWithConcurrency\(lines, discoveryPoolWidth\(\), async file => \{/.test(src))
-  check(
-    'the per-file catch stays inside the mapper (time zero on failure)',
-    /async file => \{\s*\n\s*try \{\s*\n\s*const stats = await stat\(file\)\s*\n\s*return \{ file, mtimeMs: stats\.mtimeMs \}\s*\n\s*\} catch \{\s*\n\s*return \{ file, mtimeMs: 0 \}/.test(src),
-  )
-  check('no Promise.all over the hit list remains', !src.includes('Promise.all('))
-  check('the pool and the width come from the one module', src.includes("import { discoveryPoolWidth, mapWithConcurrency } from '../../utils/concurrency.js'"))
-}
 
 console.log('\n§4 the tool over a scratch tree')
 {

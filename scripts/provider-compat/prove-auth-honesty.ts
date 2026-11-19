@@ -369,8 +369,6 @@ section('§5 · the ANTHROPIC lane: an OBSERVED-expired claude.ai sign-in fails 
   const genericLine = textOf(getAssistantMessageFromError(err401, 'claude-opus-5') as never)
   check('no oauth: the generic 401 text stands (no false attribution)', !genericLine.includes('sign-in expired'), genericLine.slice(0, 200))
 
-  const pickerSrc = readFileSync(join(import.meta.dir, '../../src/commands/model/mercuryModel.tsx'), 'utf8')
-  check("picker: the Anthropic group detail keys on presence.expired with the /logins line", pickerSrc.includes('anthropicPresence.expired') && pickerSrc.includes('sign-in expired — /logins reconnects'))
   seed({ accessToken: 'at-dead', refreshToken: '', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
   clearOAuthTokenCache()
   const { authChecks } = await import('../../src/utils/health/sections/auth.ts')

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, truncateSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, truncateSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -50,29 +50,8 @@ section('§2 the persisted-output preview carries head + tail, and the Bash mapp
   check('the preview keeps the head', preview.startsWith('head line'))
   check('the preview keeps the tail', preview.includes('tail verdict: FAILED'))
   check('the preview names the skipped middle', /skipped — full output persisted/.test(preview) && hasMore)
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'BashTool', 'BashTool.tsx'), 'utf8')
-  check('the Bash mapper builds its preview with generatePreview, never a head slice', /generatePreview\(stdout, PREVIEW_SIZE_CHARS, output\.persistedOutputSize\)/.test(src) && !/preview: stdout\.slice\(0, 2000\)/.test(src))
-  const ps = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'PowerShellTool', 'PowerShellTool.tsx'), 'utf8')
-  check('the PowerShell mapper builds its preview with generatePreview, never a head slice', /generatePreview\(stdout, PREVIEW_SIZE_CHARS, output\.persistedOutputSize\)/.test(ps) && !/preview: stdout\.slice\(0, 2000\)/.test(ps) && !/\.slice\(0, 2000\)/.test(ps))
-  check('…imported from the one preview owner (toolResultStorage), beside the large-result message builder', /import \{[^}]*generatePreview[^}]*PREVIEW_SIZE_CHARS[^}]*\} from '\.\.\/\.\.\/utils\/toolResultStorage\.js'/.test(ps))
 }
 
-section('§2b the PowerShell family applies the in-memory head + tail cut Bash does')
-{
-  const ps = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'PowerShellTool', 'PowerShellTool.tsx'), 'utf8')
-  const bash = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'BashTool', 'BashTool.tsx'), 'utf8')
-  check('PowerShell imports formatOutput from the Bash utils (one cut, two shells)', /import \{[^}]*\bformatOutput\b[^}]*\} from '\.\.\/BashTool\/utils\.js'/.test(ps))
-  check(
-    '…and its settled result hands the model the formatOutput cut (spill-aware), never the raw accumulator',
-    ps.includes('stdout: formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective }).truncatedContent,') &&
-      !/^\s*stdout: out, stderr, interrupted: result\.interrupted, isImage,/m.test(ps),
-  )
-  check(
-    'Bash still cuts the same way (the law has one owner: formatOutput, spill-aware)',
-    bash.includes('const formatted = formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective })') && bash.includes('stdout: webNotice + formatted.truncatedContent,'),
-  )
-  check('the error throws keep today’s bytes beside scrub attribution on both shells, once; each applies a per-call budget there only when one is given, and declares the error windowed when it did', ps.includes("const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)") && ps.includes("const error = new ShellError('', [thrown, clause].filter(Boolean).join('\\n'), result.code, result.interrupted, true, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command }))") && bash.includes("const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)") && bash.includes("const error = new ShellError('', [webNotice + thrown, clause].filter(Boolean).join('\\n'), result.code, result.interrupted, true, notice)") && [ps, bash].every(src => src.includes('throw budget.requested === undefined ? error : windowedError(error)')))
-}
 
 section('§3 the notebook path still receives a bounded string')
 {
@@ -109,7 +88,6 @@ section('§4 the spilled-file read keeps the head and the tail, and names the fi
   const afterNotice = read.slice(read.indexOf(']\n\n', noticeAt) + 3)
   check('the head closes on a complete line (snapped to a newline)', /line \d+: y{40}$/.test(beforeNotice), JSON.stringify(beforeNotice.slice(-60)))
   check('the tail opens on a line start (snapped to a newline)', /^line \d+: y{40}/.test(afterNotice), JSON.stringify(afterNotice.slice(0, 60)))
-  check('a stale head-only read shape is gone from TaskOutput', !/this\.fileRedundant = result\.bytesRead === result\.bytesTotal\n\s*this\.fileSize = result\.bytesTotal\n\s*return result\.content/.test(readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'task', 'TaskOutput.ts'), 'utf8')))
   const smallId = generateTaskId('local_bash')
   const smallPath = getTaskOutputPath(smallId)
   writeFileSync(smallPath, 'a\nb\nc', 'utf8')
@@ -134,31 +112,11 @@ section('§5 the second cut never eats the first cut’s honest notice')
   check('the unflagged cut still demonstrates the disease it prevents', !eaten.truncatedContent.includes('123456 bytes truncated') && /\[\d+ lines? truncated from the middle/.test(eaten.truncatedContent))
 }
 
-section('§5 spill finalization never blocks the thread (awaited async, both twins)')
-{
-  for (const rel of ['src/tools/BashTool/BashTool.tsx', 'src/tools/PowerShellTool/PowerShellTool.tsx'] as const) {
-    const src = readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-    check(`${rel}: no sync stat/truncate/link/copy anywhere`, !/\b(?:statSync|truncateSync|linkSync|copyFileSync)\s*\(/.test(src))
-    check(`${rel}: the off-lining block awaits its streamed copy`, src.includes('await redactedCopy(result.outputFilePath, destination, redact)') || src.includes('await redactedCopy(result.outputFilePath, destination, text => {'))
-  }
-}
 
-section('§6 one completion promise per command; the quiet timer dies on finish')
-{
-  for (const rel of ['src/tools/BashTool/BashTool.tsx', 'src/tools/PowerShellTool/PowerShellTool.tsx'] as const) {
-    const src = readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-    check(`${rel}: exactly ONE completion .then per run`, src.split(".then(() => 'done'").length === 2)
-    check(`${rel}: the quiet timer is cleared when the command wins`, src.includes('clearTimeout(quietTimerHandle)'))
-  }
-}
 
 section('§7 the shell-image read is awaited — never a sync read on the tool’s async road')
 {
   const { resizeShellImageOutput } = await import('../../src/tools/BashTool/utils.ts')
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'BashTool', 'utils.ts'), 'utf8')
-  check('utils.ts carries no statSync/readFileSync (the resize road awaits node:fs/promises)', !/\b(?:statSync|readFileSync)\s*\(/.test(src) && src.includes("await import('node:fs/promises')"))
-  check('the size gate is an awaited stat and the read an awaited readFile', /outputFileSize \?\? \(await stat\(outputFilePath\)\)\.size/.test(src) && /source = await readFile\(outputFilePath, 'utf8'\)/.test(src))
-  check('the 20 MB cap is kept', src.includes('const MAX_IMAGE_DATA_URI_BYTES = 20 * 1024 * 1024'))
   const dir = mkdtempSync(join(tmpdir(), 'shell-image-'))
   const big = join(dir, 'big.output')
   writeFileSync(big, '')

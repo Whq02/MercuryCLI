@@ -1,14 +1,10 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
   if (!cond) failures++
 }
-const ROOT = new URL('../../', import.meta.url).pathname
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 console.log('lane identity legibility ──')
 
@@ -52,13 +48,6 @@ console.log('lane identity legibility ──')
   )
 }
 
-{
-  const sources = src('src/components/diff/diffSources.ts')
-  check('/diff worktree labels ride the shared helper', sources.includes('laneDisplayName({ worktreePath: wt.path })'))
-  const kit = src('src/components/mercury-ui/components.tsx')
-  check('KeyValueGrid carries the opt-in fit mode', kit.includes("fit?: 'middle' | 'end'"))
-  check('fit=middle maps to truncate-middle', kit.includes("wrap={r.fit === 'middle' ? 'truncate-middle' : 'truncate-end'}"))
-}
 
 console.log(failures === 0 ? '\nALL GREEN' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

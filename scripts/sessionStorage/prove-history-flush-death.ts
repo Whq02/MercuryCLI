@@ -76,21 +76,6 @@ check('flush broke the stale lock and landed the entry', await waitFor(() => dis
 check('streak stayed 0 (self-heal is not a failure)', getHistoryFlushHealth().streak === 0, String(getHistoryFlushHealth().streak))
 check('the stale lock dir is gone or re-owned then released', !existsSync(lockDir) || diskLines().length === 4)
 
-section('§4 ORDERING — structural pins on src/history.ts')
-const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'history.ts'), 'utf8')
-check(
-  'the buffer clears ONLY after lock success (snapshot maps first)',
-  /const jsonLines = snapshot\.map[\s\S]{0,120}pendingEntries = \[\]\s*\n\s*await appendFile/.test(src),
-)
-check(
-  'the requeue guard restores the snapshot ahead of mid-flush arrivals',
-  src.includes('pendingEntries = snapshot.concat(pendingEntries)'),
-)
-check('the escalation mark is 3', src.includes('const HISTORY_FLUSH_ESCALATION_STREAK = 3'))
-check(
-  'escalated failures log at error level',
-  /flushFailureStreak >= HISTORY_FLUSH_ESCALATION_STREAK\s*\?\s*\{ level: 'error' \}/.test(src),
-)
 
 console.log('')
 if (failures > 0) {

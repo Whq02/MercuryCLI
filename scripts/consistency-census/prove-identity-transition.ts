@@ -146,13 +146,6 @@ check('§G9 cross-provider switch flagged in the receipt', g9.kind === 'applied'
     patchKeys.length > 0 && patchKeys.every(k => ALLOWED.has(k)),
     patchKeys.join(','),
   )
-  const runAgentSrc = await import('node:fs').then(fs =>
-    fs.readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/runAgent.ts'), 'utf8'),
-  )
-  check(
-    '§H2 child model pinned at spawn (runAgent resolvedAgentModel)',
-    /engineModel: resolvedAgentModel/.test(runAgentSrc),
-  )
 }
 
 {

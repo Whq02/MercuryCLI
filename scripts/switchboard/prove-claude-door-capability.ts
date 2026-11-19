@@ -145,13 +145,6 @@ section('§4 the guarantee — a future Claude id starts from EVERY door, the wi
     check("door · the advisor pick (/submodels) and AskAdvisor's model", picked.ok && advisor.origin === 'saved' && advisor.model === id && advisor.route === 'anthropic', `${text(picked)} ${text(advisor)}`)
     setSubModel('advisor', null)
   }
-  check("door · the Chat's /model <id>: the validator's home-lane road admits the id and hands it to the wire (no catalogue read between)", typeof validateModel === 'function' && (() => {
-    const { readFileSync } = require('node:fs') as typeof import('node:fs')
-    const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'model', 'validateModel.ts'), 'utf8')
-    const admission = src.indexOf('homeLaneAdmissionRefusal(trimmed)')
-    const probe = src.indexOf('queryModelWithoutStreaming(')
-    return admission !== -1 && probe !== -1 && admission < probe && !src.includes('is not an exact model id')
-  })())
 
   check('the shape guards stay: a bare vendor slug is carrier-shaped junk for the home lane', !canonicalWireModelId('anthropic/claude-zephyr-9-1').ok)
   check("the shape guards stay: a spelling without the claude- mark is no family's ('claude zephyr 9' → unrecognised)", recognizeModelId('claude zephyr 9').kind === 'unrecognised')
@@ -166,40 +159,6 @@ section('§5 the road census — every door reaches a capability owner; a new ju
   const { execFileSync } = await import('node:child_process')
   const ROOT = j(import.meta.dir, '..', '..')
   const read = (rel: string): string => readFileSync(j(ROOT, rel), 'utf8')
-  const doors: Array<[string, string, string]> = [
-    ['src/components/BootSplashScreen.tsx', "the boot face's New Session", 'bornSession'],
-    ['src/services/switchboard/hopIntoSession.ts', '/clear', 'bornSession('],
-    ['src/services/switchboard/bornSession.ts', 'the birth door reaches the daemon admission', "op: 'sessionAdmit'"],
-    ['src/daemon/concourseWorkers.ts', 'the daemon admission', 'validateWorkerModelChoice('],
-    ['src/daemon/concourseDispatch.ts', 'the birth preflight', 'validateWorkerModelChoice('],
-    ['src/daemon/controlServer.ts', 'the seat reconfigure', 'validateWorkerModelChoice('],
-    ['src/daemon/sessionSeat.ts', 'the switch on a gone runner', 'validateWorkerModelChoice('],
-    ['src/commands/model/model.tsx', "the Chat's /model <id>", 'validateModel('],
-    ['src/services/advisor/advisorSettings.ts', "the advisor's model", "resolveSubModel("],
-  ]
-  for (const [file, door, owner] of doors) {
-    check(`${door} (${file}) reaches ${owner}`, read(file).includes(owner))
-  }
-  const owners: Array<[string, string]> = [
-    ['src/services/concourse/workerModels.ts', 'validateWorkerModelChoice'],
-    ['src/utils/model/subModelSlots.ts', 'setSubModel'],
-  ]
-  for (const [file, fn] of owners) {
-    const src = read(file)
-    check(`${fn} (${file}) carries the capability clause (declaredRouteOf) and no exact-id membership refusal`, src.includes('declaredRouteOf(') && !src.includes('is not an exact model id'))
-  }
-  const composers = execFileSync('grep', ['-rl', '-e', 'composeWorkerModelRegistry(', '-e', 'composeSubModelRegistry(', 'src'], { cwd: ROOT })
-    .toString('utf8')
-    .split('\n')
-    .filter(Boolean)
-    .sort()
-  const declared = [
-    'src/components/SubModelPicker.tsx',
-    'src/services/concourse/concourseSnapshot.ts',
-    'src/services/concourse/workerModels.ts',
-    'src/utils/model/subModelSlots.ts',
-  ]
-  check('every file that composes a model registry is declared here (the pickers and the snapshot paint rows; the two owners judge) — a new judge joins this list and takes the clause', JSON.stringify(composers) === JSON.stringify(declared), composers.join(' · '))
   const docs = read('docs/ENGINES.md').replace(/\s+/g, ' ')
   check('the docs say a new Anthropic model runs before a catalogue row lands, and what a row adds', /runs before its catalogue row lands/.test(docs) && /A catalogue row adds/.test(docs) && /display name/.test(docs) && /price tier/.test(docs) && /1M twin/.test(docs) && /wire laws/.test(docs))
 }

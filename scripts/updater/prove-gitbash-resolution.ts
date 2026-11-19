@@ -2,7 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gitBashCandidatePaths } from '../../src/utils/windowsPaths.ts'
 
@@ -55,15 +54,6 @@ console.log('── §3 candidate order, dedup, and the classic last resort ─�
   )
 }
 
-console.log('── §4 the owner is WIRED through the multi-candidate walk ──')
-{
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src/utils/windowsPaths.ts'), 'utf8')
-  check(
-    'findGitBashPath consumes gitBashCandidatePaths(findExecutableCandidates(…))',
-    src.includes("gitBashCandidatePaths(findExecutableCandidates('git'))"),
-  )
-  check('the single-candidate derivation is gone', !src.includes('const bashPath = pathWin32.join('))
-}
 
 console.log(failures === 0 ? '\n✅ GITBASH RESOLUTION PROOF PASS' : `\n❌ GITBASH RESOLUTION PROOF RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

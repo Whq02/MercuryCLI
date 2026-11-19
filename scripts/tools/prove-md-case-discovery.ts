@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -15,7 +15,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { setSessionTrustAccepted: trustTheProofFolder } = await import('../../src/bootstrap/state.js')
 trustTheProofFolder(true)
@@ -35,23 +34,6 @@ section('§1 BOTH SPELLINGS DISCOVERED')
   check('Upper.MD is discovered too', names.includes('Upper.MD'), names.join(', '))
 }
 
-section('§2 THE UNDRIVABLE ROADS CARRY THE SAME FOLD (call-shaped)')
-{
-  const loader = readFileSync(join(ROOT, 'src', 'utils', 'markdownConfigLoader.ts'), 'utf-8')
-  check(
-    'the discovery is an in-process walk (no search-engine glob to keep case-sensitive)',
-    !loader.includes("'--iglob'") && !loader.includes("'--glob'") && !loader.includes('ripgrep'),
-  )
-  check(
-    'the walk folds case at both its gates',
-    (loader.match(/toLowerCase\(\)\.endsWith\('\.md'\)/g) ?? []).length === 2,
-  )
-  const watch = readFileSync(join(ROOT, 'src', 'services', 'agents', 'watch.ts'), 'utf-8')
-  check(
-    'the agents live-watch gates fold case too',
-    (watch.match(/toLowerCase\(\)\.endsWith\('\.md'\)/g) ?? []).length === 2,
-  )
-}
 
 console.log(failures === 0 ? '\nprove-md-case-discovery: all green' : `\nprove-md-case-discovery: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

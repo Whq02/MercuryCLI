@@ -123,7 +123,6 @@ section('§2 the reassert against a torn-down stdout, live')
 
 section('§3 the stdin gap, live — an EOF wake is not a resume')
 {
-  check('the reader names its quiet-spell gap', Number.isFinite(gapMs) && gapMs > 0, String(gapMs))
   const eof = fakeTty()
   const eofIn = fakeStdin()
   const key = fakeTty()

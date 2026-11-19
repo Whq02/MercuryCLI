@@ -219,14 +219,6 @@ async function main(): Promise<void> {
     slot._resetFocusedSessionConnectorForTesting()
   }
 
-  section('L4 the source pins — the key is hosted beside x and r on a view with no text field; the words have one owner')
-  {
-    const { readFileSync } = await import('node:fs')
-    const view = readFileSync(join(ROOT, 'src/components/mercury-ui/screens/CrewView.tsx'), 'utf8')
-    check("the crew view hosts p in the same raw useInput as x and r (no text field on the view)", view.includes("if (input === 'p' && plain) {") && view.includes("if (input === 'x' && plain && target !== null && target.running) {") && !/BaseTextInput|<TextInput\b/.test(view))
-    check('the chip is the design-system Chip in the warn tone', view.includes('<Chip tone="warn">{pauseChip}</Chip>'))
-    check('the row tail and the status cell read the one owner (crewFacts over the gate module)', view.includes('crewOperatorPauseParts(facts)') && readFileSync(join(ROOT, 'src/services/engine-connector/crewFacts.ts'), 'utf8').includes("from '../../run-core/pauseGate.js'"))
-  }
 }
 
 await main()

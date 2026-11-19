@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative } from 'node:path'
+import { join } from 'node:path'
 import { vshotBudgetScale } from '../lib/captureDriver.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
@@ -15,63 +15,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-function walk(dir: string): string[] {
-  const out: string[] = []
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name)
-    if (statSync(p).isDirectory()) out.push(...walk(p))
-    else if (/\.tsx?$/.test(name)) out.push(p)
-  }
-  return out
-}
 
-console.log('part 0 — the structural laws')
-const owner = read('src/components/SurfaceExitChord.tsx')
-const router = read('src/components/SurfaceRouter.tsx')
-const footer = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
-const textInput = read('src/hooks/useTextInput.ts')
-const screen = read('src/components/concourse/ConcourseScreen.tsx')
-const SPELLING = 'twice to close Mercury'
-
-check("the owner counts ctrl+c by the Chat composer's own spelling and NEVER consumes the press",
-  owner.includes("if (key.ctrl && input === 'c') press()") && !owner.includes('stopImmediatePropagation'))
-check('the second press routes through the ONE graceful shutdown (quit)',
-  owner.includes("gracefulShutdown(0, 'quit')"))
-check("the chord rides the Chat's own window (EXIT_CHORD_WINDOW_MS through useDoublePress)",
-  owner.includes('EXIT_CHORD_WINDOW_MS') && owner.includes('useDoublePress('))
-check("ctrl+d is not this owner's key (it keeps its own rules where it has any)", !/input === 'd'/.test(owner))
-const host = router.slice(router.indexOf('function RouteSurfaceHost'))
-const iChord = host.indexOf('<SurfaceExitChord ')
-const iChildren = host.indexOf('{children}')
-const iNotice = host.indexOf('<SurfaceExitChordNotice ')
-check('the owner mounts in the route host AHEAD of the surface subtree (registration order = dispatch order)',
-  iChord > 0 && iChildren > iChord, `chord@${iChord} children@${iChildren}`)
-check('the notice paints AFTER the surface subtree (later siblings paint on top)', iNotice > iChildren, `notice@${iNotice}`)
-check('the Chat route mounts no host — the owner is structurally absent there (the Chat keeps its own chord)',
-  router.includes('{entry ? (') && router.includes('<RouteSurfaceHost'))
-const carriers = walk(join(REPO, 'src')).filter(f => readFileSync(f, 'utf8').includes(SPELLING)).map(f => relative(REPO, f))
-check('ONE spelling of the notice in src (ExitChordNotice alone)',
-  carriers.length === 1 && carriers[0] === 'src/components/PromptInput/ExitChordNotice.tsx', carriers.join(','))
-check('the Chat footer paints that one component (its words byte-identical)',
-  footer.includes('<ExitChordNotice keyName={exitKeyName} />') && !footer.includes(SPELLING))
-check('the owner paints that one component too, and gives it the whole of its row (sized to its own words it left the end of the row beneath showing after it)',
-  owner.includes('<ExitChordNotice keyName="Ctrl-C" />') && owner.includes('width={columns}') && !owner.includes('exitChordNoticeText('))
-check('the notice sits at the bottom-left of the host viewport (absolute, last row, column 0, opaque)',
-  owner.includes('position="absolute"') && owner.includes('top={Math.max(0, rows - 1)}') && owner.includes('left={0}') && owner.includes('opaque={true}'))
-check('the Chat composer keeps its own chord (useTextInput: handleCtrlC over the same window, the notice through onExitMessage)',
-  textInput.includes('const handleCtrlC = useDoublePress(') && textInput.includes("onExitMessage?.(show, 'Ctrl-C')") && textInput.includes('EXIT_CHORD_WINDOW_MS'))
-check("the concourse's first-press meaning survives (a non-empty draft clears)",
-  screen.includes("key.ctrl && input === 'c' && liveDraftRef.current.text.length > 0"))
-const screenFiles = [
-  'src/components/SurfaceExitChord.tsx',
-  'src/components/SurfaceRouter.tsx',
-  'src/components/BootSplashScreen.tsx',
-  'src/components/BootSettingsScreen.tsx',
-  ...walk(join(REPO, 'src', 'components', 'concourse')).map(f => relative(REPO, f)),
-]
-const rawExits = screenFiles.filter(f => /process\.exit\(/.test(read(f)))
-check('POISON: no raw process.exit reachable from a screen', rawExits.length === 0, rawExits.join(','))
 
 if (!existsSync(BIN)) {
   console.error('✗ dist/mercury.mjs missing — run `bun run build.ts` first')

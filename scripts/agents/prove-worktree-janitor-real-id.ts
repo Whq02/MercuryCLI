@@ -124,11 +124,6 @@ try {
   const isAgentLane = (worktree as unknown as { isAgentLane?: (slug: string, path: string) => Promise<boolean> }).isAgentLane
   const answers = isAgentLane === undefined ? null : await Promise.all([isAgentLane(dirtySlug, dirty.worktreePath), isAgentLane(diedSlug, died.worktreePath), isAgentLane('agent-analysis', session.worktreePath), isAgentLane('agent-a0000001', join(repo, 'nowhere')), isAgentLane('agent-review', dirty.worktreePath), isAgentLane('agent-AE8QC602', dirty.worktreePath), isAgentLane(`${dirtySlug}9`, dirty.worktreePath)])
   check('one predicate: a real id with the marker yes; without it no; a person\'s name no; a hex name yes with no folder at all; any other name no', JSON.stringify(answers) === JSON.stringify([true, false, false, true, false, false, false]), JSON.stringify(answers))
-  const source = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
-  const reminderSource = readFileSync(join(ROOT, 'src/utils/crew/crewWorktreeReminder.ts'), 'utf8')
-  check('the janitor and the leftover list both ask it', source.includes('const agentLane = await isAgentLane(slug, candidatePath)') && reminderSource.includes('if (!(await isAgentLane(slug, path))) continue') && !reminderSource.includes('AGENT_LANE_SLUG'))
-  check('the marker is written first, as soon as git has made the lane', source.includes('  if (!created.existed) {\n    await markAgentLane(created.worktreePath, slug)\n'))
-  check('the hex pattern is the one the base had', source.includes('const AGENT_LANE_SLUG = /^agent-a[0-9a-f]{7,32}$/'))
 } finally {
   delete process.env.MERCURY_WORKTREE_CLONE
   process.chdir(ROOT)

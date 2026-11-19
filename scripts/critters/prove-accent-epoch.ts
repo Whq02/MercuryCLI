@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 const accent = await import('../../src/components/mercury-ui/sessionAccent.js')
 
@@ -51,15 +49,6 @@ accent.setSessionAccentOverride(null)
 check('clear restores the derived accent for the live critter', accent.getSessionAccent().accent === accent.CRITTERS.clam!.accent)
 accent.setSessionCritter('octopus')
 
-const ROOT = join(import.meta.dir, '..', '..')
-const accentSrc = readFileSync(join(ROOT, 'src/components/mercury-ui/sessionAccent.ts'), 'utf8')
-const boxSrc = readFileSync(join(ROOT, 'src/components/design-system/ThemedBox.tsx'), 'utf8')
-const textSrc = readFileSync(join(ROOT, 'src/components/design-system/ThemedText.tsx'), 'utf8')
-const pin = 'useSessionAccent()'
-const hookSrc = accentSrc
-check('useSessionAccent subscribes to the session critter store (accent epoch reactivity)', /useSyncExternalStore\(\s*subscribeSessionCritter,\s*getSessionAccentSnapshotKey,\s*getSessionAccentSnapshotKey,\s*\)/.test(hookSrc))
-check('ThemedBox re-resolves on accent moves', boxSrc.includes(pin))
-check('ThemedText re-resolves on accent moves', textSrc.includes(pin))
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {

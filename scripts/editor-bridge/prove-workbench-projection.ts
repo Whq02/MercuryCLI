@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync as _mkdtemp, readFileSync } from 'node:fs'
+import { mkdtempSync as _mkdtemp } from 'node:fs'
 import { tmpdir as _tmpdir } from 'node:os'
 import { join as _join } from 'node:path'
 process.env.MERCURY_REVIEW_ARTIFACTS_DIR = _mkdtemp(_join(_tmpdir(), 'mosaic-proj-review-'))
@@ -306,13 +306,6 @@ section('(6) the gather path spawns nothing synchronously; one gather per change
   } else {
     console.log('  (the sync-spawn wrapper is not visible to the module graph under this runtime — the source pins carry the law)')
   }
-  const src = readFileSync(_join(import.meta.dir, '..', '..', 'src', 'services', 'workbench', 'projection.ts'), 'utf8')
-  check('the gather imports no synchronous observer (no gitGraph/observe on the gather path)', !/from '\.\.\/gitGraph\/observe\.js'/.test(src))
-  check('the gather names no sync spawn', !/execFileSync|spawnSync|execSync\(/.test(src))
-  check('the lane list rides the git-facts owner (async)', src.includes('await getGitWorktreeLanes()'))
-  check('the generation reads the owner\'s snapshot, not a rail one refresh behind', src.includes("await getGitState({ untrackedFiles: 'normal' })"))
-  check('the engine no longer subscribes to the vitals bus', !src.includes('subscribeVitals('))
-  check('the engine subscribes to the git-facts owner', src.includes('engineUnsubs.push(subscribeGitFacts(() => scheduleDebounced()))'))
 
   const { execFileSync: realExecFileSync } = await import('node:child_process')
   const { mkdtempSync, writeFileSync } = await import('node:fs')

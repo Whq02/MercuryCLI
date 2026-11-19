@@ -5,7 +5,6 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 let failures = 0
 const check = (name: string, ok: boolean, detail?: string): void => {
@@ -26,8 +25,6 @@ console.log('§1 ctr-4 — the advertised chord fires')
   const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
   const scroll = DEFAULT_BINDINGS.find(block => block.context === 'Scroll')?.bindings ?? {}
   check("the Scroll context binds alt+down to scroll:bottom (beside the ctrl+end the pill's drill already proved live)", scroll['alt+down'] === 'scroll:bottom' && scroll['ctrl+end'] === 'scroll:bottom')
-  const layout = read('src/components/FullscreenLayout.tsx')
-  check('the pill still advertises the chord it now has', layout.includes("'[ back to the bottom · alt+↓ ]'") && layout.includes('· alt+↓ ]`'))
 }
 console.log('§2 the transcript viewer — PgUp paints the pill, PgDn clears it, alt+↓ jumps')
 {

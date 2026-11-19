@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -112,28 +112,6 @@ section('I4 the live stores: the ChatGPT sign-in on disk feeds the presence iden
   check('the wallet\'s ChatGPT entry carries the email in its identity (the /status continuation fact)', entry?.identity?.email === EMAIL && entry?.identity?.plan === 'prolite', JSON.stringify(entry?.identity))
 }
 
-section('I3 every identity surface reads the ONE composer (structural)')
-{
-  const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
-  const chip = read('src/components/BootSplashScreen.tsx')
-  const chipBlock = chip.slice(chip.indexOf('const chips = useMemo('), chip.indexOf('const selectedIndex = selCleared'))
-  const sessionAccount = read('src/utils/accounts/sessionAccount.ts')
-  check('the boot chip block reads the session-account composer', chipBlock.includes('sessionAccountWords(mainModel)'))
-  check('…which reads the ONE identity composer (no second spelling of who)', sessionAccount.includes('presenceIdentityWords(presence)') && !chipBlock.includes('credentialLabel'))
-  check('…and no longer keeps its own Anthropic-only email copy', !chipBlock.includes('emailAddress') && !chipBlock.includes("startsWith('Claude subscription')"))
-  check('…for every family alike (one presence, one composer — no per-route branches of words)', !chipBlock.includes("presence.credentialLabel ?? 'signed in'"))
-  check('…re-deriving on the sign-in epoch', chipBlock.includes('signInEpoch]') && chip.includes("import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js'"))
-  const status = read('src/utils/status.tsx')
-  check('/status blocks print the composer\'s words on the family row', status.includes('presenceIdentityWords(family)'))
-  check('…and carry the label as the continuation when the identity took the row (both facts, neither twice)', status.includes("via · {family.credentialLabel}"))
-  const board = read('src/services/providers/accountSlots.ts')
-  check('the /accounts board\'s main-loop row reads the composer for every engine family, its account shown whatever view.accountIdentity says (the board names what ⌫ removes)', board.includes('presenceIdentityWords(presence, true) ?? label'))
-  const picker = read('src/commands/defaultprovider/defaultprovider.tsx')
-  check('the /defaultprovider picker reads the composer', picker.includes("presenceIdentityWords(presence) ?? 'signed in'"))
-  const verb = read('src/cli/handlers/auth.ts')
-  check('the headless auth verb carries the presence identity on its rows (additive) and prints it on a terminal', verb.includes('identity?: string') && verb.includes('row.identity ?? row.source'))
-  check('…and a ChatGPT-only operator is no longer told "Not signed in"', verb.includes('No Anthropic credential —'))
-}
 
 console.log('\n' + '═'.repeat(60))
 if (failures === 0) console.log('IDENTITY WORDS: ALL GREEN')

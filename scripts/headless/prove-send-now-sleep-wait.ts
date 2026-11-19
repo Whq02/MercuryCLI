@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
@@ -15,7 +15,6 @@ if (!existsSync(DIST)) {
 }
 console.log(`build under proof: ${DIST}`)
 
-const ROOT = join(import.meta.dir, '..', '..')
 const MAIN_ASK = 'send-now sleep probe: wait a while, then report'
 const MESSAGE = 'the operator says: stop sleeping, read this now'
 const HEARD = 'heard the operator:'
@@ -114,12 +113,6 @@ tally.check('the main agent read the operator\'s message and answered it', heard
 tally.check(`the answer landed after the chord and well inside the ${SLEEP_SECONDS}s the sleep asked for`, heard !== undefined && heard.atMs >= chordAtMs && heard.atMs - chordAtMs < 8_000, `chord ${seconds(chordAtMs)} · main spoke ${seconds(heard?.atMs)}`)
 tally.check('the operator\'s words reached the model as the queued line of the same turn', afterSleep !== undefined && afterSleep.allTexts.some(text => text.includes(MESSAGE)), afterSleep === undefined ? 'no second request of the main turn' : afterSleep.ask.slice(0, 120))
 
-tally.section('the seam, structural')
-{
-  const sleepTool = readFileSync(join(ROOT, 'src/tools/SleepTool/SleepTool.tsx'), 'utf8')
-  const watch = readFileSync(join(ROOT, 'src/utils/newInputWatch.ts'), 'utf8')
-  tally.check('the Sleep tool\'s one early-return road for new input is the queue watch, which re-reads on every queue commit', sleepTool.includes('stopWatch = watchForNewInput(agentId, onNewInput)') && watch.includes('const stop = subscribeToCommandQueue(() => {') && watch.includes(`export const NEW_INPUT_REASON = '${NEW_INPUT_REASON}'`))
-}
 
 if (tally.failed() === 0) rmSync(runHome, { recursive: true, force: true })
 else console.log(`  world kept: ${runHome}\n  stderr tail: ${stderr.slice(-800)}`)

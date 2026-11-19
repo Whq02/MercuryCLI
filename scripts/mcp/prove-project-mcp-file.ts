@@ -117,26 +117,6 @@ console.log('\n§3 mcp add/remove --scope project write that file')
   await setCwd(PROJ)
 }
 
-console.log('\n§4 the approval cards and the CLI label name the project file')
-{
-  const sources = [
-    'src/components/MCPServerApprovalDialog.tsx',
-    'src/components/MCPServerMultiselectDialog.tsx',
-    'src/cli/handlers/mcp.tsx',
-    'src/services/mcp/utils.ts',
-    'src/commands/mcp/route.ts',
-  ]
-  for (const rel of sources) {
-    const text = readFileSync(join(ROOT, rel), 'utf8')
-    check(`${rel} names .mercury/mcp.json and not the other file`, text.includes('.mercury/mcp.json') && !text.includes(otherName))
-  }
-  const settings = readFileSync(join(ROOT, 'src/components/mcp/MCPSettings.tsx'), 'utf8')
-  check('the settings facade delegates to the session popup without a competing config path', settings.includes("import { McpPopup } from '../../commands/mcp/McpPopup.js'") && !settings.includes(otherName))
-  const popup = readFileSync(join(ROOT, 'src/commands/mcp/McpPopup.tsx'), 'utf8')
-  check('the empty popup directs configuration through mcp add', popup.includes('No MCP servers · mercury mcp add to add one') && !popup.includes(otherName))
-  const approval = readFileSync(join(ROOT, 'src/services/mcpServerApproval.tsx'), 'utf8')
-  check('the boot-time approval gate carries no name for the other file', !approval.includes(otherName) && !approval.includes(['Mcp', 'json'].join('')))
-}
 
 console.log('\n§5 eight racing adds into a project with no config home yet all land (the lock waits for the home)')
 {

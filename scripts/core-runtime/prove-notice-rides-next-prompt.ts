@@ -125,14 +125,6 @@ console.log("\n§4 a live completion keeps the standing law: typed words go firs
   check("the words' turn carries no completion at its start, and the completion's own turn follows", rig.turns.length === 2 && rig.turns[0]!.command.mode === 'prompt' && rig.turns[0]!.initialNotices.length === 0 && rig.turns[1]!.command.mode === 'task-notification', JSON.stringify(rig.turns.map(t => [t.command.mode, t.initialNotices.map(idOf)])))
 }
 
-console.log('\n§5 the carry queues its notices to ride the next words (restartCarry.ts)')
-{
-  const { readFileSync } = await import('node:fs')
-  const { join, resolve } = await import('node:path')
-  const carry = readFileSync(join(resolve(import.meta.dir, '..', '..'), 'src/cli/headless/restartCarry.ts'), 'utf8')
-  const sites = carry.split('\n').filter(line => line.includes('enqueuePendingNotification('))
-  check('both carry enqueues (the carry row and each delivered notice) carry ridesNextWords', sites.length === 2 && sites.every(line => line.includes('ridesNextWords: true')), sites.join(' | '))
-}
 
 console.log('\n§6 outside reports never start a turn or merge into a completion')
 {

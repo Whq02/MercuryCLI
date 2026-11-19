@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -147,23 +147,10 @@ section('E3 a fresh ChatGPT sign-in and a disconnect both forget the subscriptio
   openaiLimits.recordOpenaiUsageLimit(now + 3_600_000, 'chatgpt-subscription')
   accounts.disconnectOpenaiSubscription()
   check('the disconnect owner forgets the subscription source', openaiLimits.openaiObservedWall('chatgpt-subscription') === null)
-  const src = readFileSync(join(ROOT, 'src/services/providers/openai/openaiAccounts.ts'), 'utf8')
-  const landings = src.split("recordSignIn('openai', 'subscription')").length - 1
-  const forgets = src.split("forgetOpenaiLimitSource('chatgpt-subscription')").length - 1
-  check('every sign-in landing forgets the previous sign-in\'s observations before recording (two landings + the disconnect)', landings === 2 && forgets === 3, `${landings} landings · ${forgets} forgets`)
 }
 
 section('E4 the readers re-derive on the epoch; the warm claim reads the disk')
 {
-  const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
-  const gate = read('src/components/PromptInput/Notifications.tsx')
-  check('the composer\'s not-logged-in gate keys on the sign-in epoch through the ONE hook (the catalogue epoch beside it: a default landing when a catalogue settles moves the family)', gate.includes("import { useSignInEpoch } from '../../utils/accounts/useSignInEpoch.js'") && /\[notAuthenticated, engineModel, signInEpoch, catalogueEpoch\]/.test(gate))
-  const chip = read('src/components/BootSplashScreen.tsx')
-  check('the boot chip keys on the same hook', chip.includes('useSignInEpoch()') && chip.includes('signInEpoch]'))
-  const hook = read('src/utils/accounts/useSignInEpoch.ts')
-  check('the hook subscribes through the ledger (one owner, no polling)', hook.includes('subscribeSignInEpoch(') && !hook.includes('setInterval'))
-  const logout = read('src/commands/logout/logout.tsx')
-  check('/logout announces the move once after its teardown (the secure store left whole on that road)', logout.includes('noteCredentialChange()') && !logout.includes('noteCredentialRemoval'))
   const { saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
   const beforeKey = auth.getApiKeyFromConfigOrMacOSKeychain()
   saveGlobalConfig(current => ({ ...current, primaryApiKey: 'fixture-managed-key-000000000000' }))

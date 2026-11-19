@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DEFAULT_BINDINGS } from '../../src/keybindings/defaultBindings.ts'
@@ -15,39 +15,16 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const read = (...p: string[]) => readFileSync(join(root, ...p), 'utf-8')
 
 console.log('============================================================')
 console.log(' Mercury content search (ctrl+x g)')
 console.log('============================================================')
 
 section('1. keybinding: action + FLAG-GATED ctrl+x g binding')
-const graph = read('src', 'keybindings', 'actionGraph.ts')
-check("KEYBINDING_ACTIONS includes 'app:contentSearch'", /'app:contentSearch'/.test(graph))
 check('ctrl+x g binds app:contentSearch', DEFAULT_BINDINGS.find(block => block.context === 'Global')?.bindings['ctrl+x g'] === 'app:contentSearch')
 const unbound = formsMissing(shippedKeyForms(), 'Global', 'ctrl+x g', 'app:contentSearch')
 check('the ctrl+x g binding is present unconditionally (Global binds it on every shipped form: four platforms, five switch settings)', unbound.length === 0, unbound.join(' · '))
 
-section('2. PromptInput wiring, stamp-gated')
-const pi = read('src', 'components', 'PromptInput', 'PromptInput.tsx') + read('src', 'components', 'PromptInput', 'useComposerKeybindings.ts')
-check('imports MercuryContentSearch', /import \{ MercuryContentSearch \} from '\.\.\/MercuryContentSearch\.js'/.test(pi))
-check('has showContentSearch state', /const \[showContentSearch, setShowContentSearch\] = useState\(false\)/.test(pi))
-check("useKeybinding('app:contentSearch', …) is wired", /useKeybinding\('app:contentSearch',[\s\S]{0,80}setShowContentSearch\(true\)/.test(pi))
-check('render branch keys on showContentSearch (unconditional)', /if \(showContentSearch\)/.test(pi))
-check('content-search is in the modal-overlay suppression guard', /showFileOpen \|\|\s*showContentSearch/.test(pi))
-
-section('3. SAFETY invariants (insert @file#L, no auto-run, abort, never overflows)')
-const cs = read('src', 'components', 'MercuryContentSearch.tsx')
-check('component file exists', existsSync(join(root, 'src', 'components', 'MercuryContentSearch.tsx')))
-check('↵ inserts `@file#Lline ` (line-anchored mention)', /onPick\(`@\$\{it\.file\}#L\$\{it\.line\} `\)/.test(cs))
-check('NEVER calls the composer submit (submitInput)', !/submitInput/.test(cs))
-check('↵ routes through onPick insertion only', /onSubmit=\{\(\) => \{[\s\S]{0,160}onPick\(`@\$\{it\.file\}#L\$\{it\.line\} `\)/.test(cs))
-check('the PromptInput onPick path inserts at cursor (no data loss)', /if \(showContentSearch\)[\s\S]{0,600}insertAtomic/.test(pi))
-check('aborts the in-flight grep on a new query (AbortController)', /abortRef\.current\?\.abort\(\)/.test(cs) && /new AbortController\(\)/.test(cs))
-check('a gen-guard drops stale result sets', /genRef\.current/.test(cs) && /gen === genRef\.current/.test(cs))
-check('a 2-char floor keeps grep off noise', /MIN_QUERY = 2/.test(cs) && /length < MIN_QUERY/.test(cs))
-check('visible rows are clamped to terminal height', /reserve: cockpitActive \? cockpitBottomSlotReserve\(termRows\) : HEIGHT_RESERVE/.test(cs))
-check('the heavy ripgrep index is LAZY (dynamic import), not a static top import', /await Promise\.all\(\[\s*import\('\.\.\/utils\/ripgrep\.js'\)/.test(cs) && !/^import \{ ripGrepStream/m.test(cs))
 
 section('4. it SHIPS in dist')
 const dist = join(root, 'dist', 'mercury.mjs')

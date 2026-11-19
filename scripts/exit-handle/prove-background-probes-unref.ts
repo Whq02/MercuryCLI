@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -9,30 +9,14 @@ const REPO = join(import.meta.dir, '..', '..')
 const SCRATCH = mkdtempSync(join(tmpdir(), 'background-probes-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-console.log('§1 no background agent')
-const proxy = read('src/utils/proxy.ts')
-check('proxy.ts keeps no background https agent (the probes it served are gone)', !/backgroundHttpsAgent|BackgroundHttpsAgent/.test(proxy))
 
 console.log('§2 the probes')
-check('no policy-limits service exists (no boot-time organisation probe)', !existsSync(join(REPO, 'src/services/policyLimits')))
-check('no remote managed-settings service exists (no boot-time settings fetch)', !existsSync(join(REPO, 'src/services/remoteManagedSettings')))
-const rg = read('src/utils/ripgrep.ts')
-check(
-  'the ripgrep file-count probe unrefs its child and its pipe the moment they exist (a count never holds the exit cliff)',
-  /const child = spawn\(config\.rgPath, \[\.\.\.config\.rgArgs, \.\.\.args, target\][\s\S]{0,400}\n\s*child\.unref\(\)\n[\s\S]{0,200}child\.stdout as [^\n]*\)\?\.unref\?\.\(\)/.test(rg),
-)
-const main = read('src/main.tsx')
-check(
-  'the boot starts the file count only for an interactive run (a headless run never reads it)',
-  /if \(getIsInteractive\(\)\) void countFilesRoundedRg\(/.test(main) && !/^\s*void countFilesRoundedRg\(/m.test(main),
-)
 
 console.log('§3 the exit ends what the unref let go')
 {

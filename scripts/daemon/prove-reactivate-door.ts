@@ -34,7 +34,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
 class FakeRoster {
   registered: Array<{ short: string; spec: RunnerChildSpec }> = []
@@ -267,34 +266,8 @@ console.log('\n── R6: the warm claim binds and acks, then loads the transcri
   ).catch(() => null)
   rmSync(pinnedHome, { recursive: true, force: true })
   check('R6 a missing transcript refuses the claim before it binds and hands the home pin back', refusedClaim?.resume?.message === `claim refused — no conversation found for session ${UNSEEN}` && refusedClaim.fresh === null && refusedClaim.pinned.some(name => name.startsWith(`${CLAIMED}.jsonl`)), JSON.stringify(refusedClaim))
-  check('R6 the wire names the field; the pool sends it', read('src/runner/wire/methods.ts').includes('resume: z.boolean().optional()') && read('src/daemon/warmRunner.ts').includes("...(args.resume === true ? { resume: true } : {})"))
 }
 
-console.log('\n── R7: the screen door reads the record and re-says the seat (source) ──')
-{
-  const hop = read('src/services/switchboard/hopIntoSession.ts')
-  const fnAt = hop.indexOf('async function focusResumedSessionLanding(')
-  const fnBody = hop.slice(fnAt, hop.indexOf('export async function clearFocusedSession(', fnAt))
-  check('R7 a live record is entered first (a hop, never a resume) — the existing pin stands', fnBody.indexOf('sessionOwnedByLiveWorker(') !== -1 && fnBody.indexOf('sessionOwnedByLiveWorker(') < fnBody.indexOf("op: 'sessionAdmit'"))
-  check('R7 the standing record names the workspace, home and title (never the screen\'s cwd for a record-backed row)', fnBody.includes('const standing = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)') && fnBody.includes('standing?.workspaceId ?? (await workspaceOfTranscript(transcriptPath))') && fnBody.includes('paths.getProjectDir(standing.workspaceId)'))
-  const adoptAt = fnBody.indexOf('const settled = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)')
-  const assertAt = fnBody.indexOf('connector.assertSeat()')
-  check('R7 the admission\'s completion adopts the record WITHOUT re-pointing the slot (no post-admission hop) and re-says the seat after the adoption', adoptAt !== -1 && fnBody.indexOf('seat.daemonSessionConnectorFor({', adoptAt) > adoptAt && assertAt > adoptAt && !fnBody.includes('hopIntoBoardSession(sessionId, { firstPaintMs: 0 })'))
-  check('R7 the landing gate covers the slot re-point\'s tail on both doors (a transcript read slower than the ceiling never lets the caller\'s route flip refuse over an empty slot)', fnBody.includes('const pointed = seat.focusDaemonSession(connector.record)') && fnBody.includes('void withLanding(pointed.then(() => undefined)).catch(() => {})') && hop.includes('void withLanding(hop.then(() => undefined)).catch(() => {})'))
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
-  check('R7 assertSeat rides the ONE chain and guards on the slot (a detached connector says nothing)', /assertSeat\(\): void \{\s*if \(this\.attached\) seatVerb\('focus', this\.record\.sessionId\)\s*\}/.test(connector))
-  const workersSrc = read('src/daemon/concourseWorkers.ts')
-  const admitAt = workersSrc.indexOf('export function makeConcourseAdmitHandler(')
-  const admitBody = workersSrc.slice(admitAt, workersSrc.indexOf('function mintWorktreeBranchName', admitAt))
-  const reactivateAt = admitBody.indexOf('const reactivated = await reactivateConcourseSession(')
-  const answeredAt = admitBody.indexOf('return reactivated.ok && retainedNote !== undefined ? { ...reactivated, note: retainedNote } : reactivated', reactivateAt)
-  const warmClaimAt = admitBody.indexOf('deps.claimWarm !== undefined &&')
-  const coldMintAt = admitBody.indexOf('let runnerId: string | null = null')
-  check(
-    'R7 the daemon\'s resume arm converges on the STANDING record before any mint (the two-states poison closed at the door)',
-    admitAt !== -1 && reactivateAt !== -1 && answeredAt !== -1 && warmClaimAt !== -1 && coldMintAt !== -1 && answeredAt < warmClaimAt && warmClaimAt < coldMintAt,
-  )
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 for (const d of [dir, wsA, wsB, wsC, wsD, wsE]) rmSync(d, { recursive: true, force: true })

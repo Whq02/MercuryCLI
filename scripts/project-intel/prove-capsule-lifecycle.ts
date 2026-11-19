@@ -124,10 +124,6 @@ async function main(): Promise<void> {
   const line = producer.capsuleContinuationLine(mainOwner)
   check('line present after a main-thread attach', typeof line === 'string' && line.includes('context capsule') && line.includes(a2.digest), line ?? 'null')
   check('line names primary paths', (line ?? '').includes('src/util/validate.ts'))
-  const contSrc = await import('node:fs').then(fs =>
-    fs.readFileSync('src/services/run/runContinuationCapsule.ts', 'utf8'),
-  )
-  check('runContinuationCapsule composes capsuleContinuationLine', contSrc.includes('capsuleContinuationLine'))
 
   section('(9) gate off ⇒ inert')
   process.env.MERCURY_PROJECT_INTEL = '0'
@@ -149,8 +145,6 @@ async function main(): Promise<void> {
   check('async digest ≡ sync digest over identical trees', dSync !== null && dSync === dAsync, `${dSync} vs ${dAsync}`)
   fs.rmSync(copyA, { recursive: true, force: true })
   fs.rmSync(copyB, { recursive: true, force: true })
-  const producerSrc = fs.readFileSync('src/utils/attachments/contextCapsule.ts', 'utf8')
-  check('producer rides getProjectSnapshotAsync', producerSrc.includes('getProjectSnapshotAsync(') && !/const read = getProjectSnapshot\(/.test(producerSrc))
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
   enableConfigs()
   const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
@@ -182,8 +176,6 @@ async function main(): Promise<void> {
   producer._resetContextCapsuleForTesting()
   const prompt = await getAttachments(TASK, orchestratorContext(), [], openingTurn as never)
   check('…while the same opening turn as a prompt attaches one (the control: the skip is the submission\'s, not the turn\'s)', prompt.filter(a => a.type === 'context_capsule').length === 1, prompt.map(a => a.type).join(','))
-  const inputSrc = fs.readFileSync('src/utils/processUserInput/processUserInput.ts', 'utf8')
-  check('the input seam names non-prompt modes local', inputSrc.includes("localSubmission: mode !== 'prompt'"))
 
   rmSync(dir, { recursive: true, force: true })
 

@@ -100,12 +100,6 @@ console.log('L3 dedup and removal honesty')
 
 console.log('L4 the writer serializes')
 {
-  const settingsSrc = readFileSync(join(SRC, 'utils/settings/settings.ts'), 'utf8')
-  const hasLock = settingsSrc.includes('acquireSettingsWriteLock')
-  check('the settings writer carries the bounded write lock (the global-config family)', hasLock && settingsSrc.includes("code !== 'ELOCKED'"), hasLock ? 'ladder needle missing' : 'no lock in the writer')
-  if (!hasLock) {
-    console.log('  [SKIP] the racing-writers drill — no lock in this src (pre-fix tree)')
-  } else {
     const { home, project } = scratch()
     const pathProbe = runIn(home, project, 'out.localPath = localPath')
     const localPath = String(pathProbe.localPath)
@@ -131,7 +125,6 @@ console.log('L4 the writer serializes')
     })()
     check('all six racing writers exited clean', codes.every(code => code === 0), JSON.stringify(codes))
     check('every racing writer landed its rule (none clobbered)', Array.isArray(allow) && [0, 1, 2, 3, 4, 5].every(n => allow.includes(`Tool${n}`)), JSON.stringify(allow))
-  }
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

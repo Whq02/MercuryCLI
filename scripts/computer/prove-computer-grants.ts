@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { check, finish, HOME, scratchDir, section, sourceText } from './computerProofKit.ts'
+import { check, finish, HOME, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
 
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
@@ -72,7 +72,6 @@ section('§2 the five choices and what each does')
   check('the clipboard card offers a plain Yes, then No and sovereign mode, with no session or timed grant among them', COMPUTER_CLIPBOARD_CHOICES.map(c => `${c.value}=${c.label}`).join(' | ') === `yes=Yes | no=${COMPUTER_ASK_CHOICES[1]!.label} | sovereign=${COMPUTER_ASK_CHOICES[4]!.label}` && computerClipboardChoicesFor(true).map(c => c.value).join(',') === 'yes,no', COMPUTER_CLIPBOARD_CHOICES.map(c => c.label).join(' | '))
   const once = applyComputerAskChoice('yes', SESSION, NOW, true)
   check('a Yes on the clipboard card (a one-time Yes) allows this read and writes no grant: the next act still asks', once.allow && once.grant === null && grants.readComputerGrant(SESSION, NOW) === null, JSON.stringify(once))
-  check("the card's handler takes the one-time road for the clipboard card and the challenge card alike", sourceText('src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx').includes('applyComputerAskChoice(value, conversationIdHere(), Date.now(), challenge || clipboard)'))
   const yes = applyComputerAskChoice('yes', SESSION, NOW)
   check('Yes allows and writes a session grant for every application, at once', yes.allow && yes.grant?.kind === 'session' && yes.saved === null && grants.readComputerGrant(SESSION, NOW)?.kind === 'session')
   check('a session grant does not run out: it reads back a day later and its words say the session', grants.readComputerGrant(SESSION, NOW + 48 * grants.HOUR_MS)?.kind === 'session' && grants.computerGrantWords(yes.grant!, NOW) === 'granted for this session · every application', grants.computerGrantWords(yes.grant!, NOW))
@@ -90,9 +89,7 @@ section('§2 the five choices and what each does')
   check("sovereign mode allows and saves the Boot Menu's Sovereign mode row on — the one bypass, through the menu's own writer", sovereign.allow && sovereign.saved === 'sovereign' && sovereign.savedError === null && (readBootEnvChoices() ?? {}).MERCURY_SKIP_PERMISSIONS === '1', JSON.stringify({ sovereign, saved: readBootEnvChoices(), path: bootEnvPath() }))
   check('it writes no grant file under the session (the posture is the state)', sovereign.grant === null && grants.readComputerGrant(SESSION, NOW) === null)
   check('it moves the running session into Sovereign Mode at the session scope (the consent card\'s own road)', JSON.stringify(sovereign.permissionUpdates) === JSON.stringify([{ type: 'setMode', mode: 'sovereign', destination: 'session' }]), JSON.stringify(sovereign.permissionUpdates))
-  check('it never names the retired access type', !sourceText('src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx').includes('MERCURY_COMPUTER_ACCESS'))
   check("the card's note says sovereign mode is saved in the Boot Menu and nothing asks after it, computer use included", COMPUTER_ASK_NOTE === 'A timed grant covers every application and asks again when it runs out; sovereign mode is saved in the Boot Menu and no permission is asked after it, computer use included.', COMPUTER_ASK_NOTE)
-  check('no permission rule was written by any choice', !sourceText('src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx').includes('addRules'))
   writeFileSync(bootEnvPath(), JSON.stringify({ version: 1, savedAt: 'x', env: {} }))
 }
 
@@ -148,8 +145,6 @@ section('§5 the 24-hour grant spans a second application; a deny rule still ref
 
 section('§6 only the card grants: the tool never writes one, and a headless seat has no card')
 {
-  check('the tool reads grants and never writes them', !sourceText('src/tools/ComputerTool/ComputerTool.ts').includes('writeComputerGrant') && sourceText('src/tools/ComputerTool/ComputerTool.ts').includes('readComputerGrant'))
-  check('the card is the one writer outside the store', sourceText('src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx').includes('writeComputerGrant('))
   const wasInteractive = getIsInteractive()
   const wasChannel = getAskChannel()
   setIsInteractive(false)

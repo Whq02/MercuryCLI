@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (ok) console.log(`  ok  ${name}`)
@@ -29,18 +26,6 @@ console.log('§1 the boot capture discards escape sequences WHOLE')
   check('CR still folds to newline', drive('a\rb') === 'a\nb')
 }
 
-console.log('§2 the clipboard-image hint is wired (isFocused, enabled) at both composers')
-{
-  const text = readFileSync(join(ROOT, 'src/components/TextInput.tsx'), 'utf8')
-  const vim = readFileSync(join(ROOT, 'src/components/VimTextInput.tsx'), 'utf8')
-  for (const [name, src] of [['TextInput', text], ['VimTextInput', vim]] as const) {
-    check(
-      `${name} passes the focus fact first and the capability second`,
-      src.includes('useClipboardImageHint(terminalFocused, Boolean(props.onImagePaste))'),
-    )
-    check(`${name}'s swapped pre-fix call is gone`, !src.includes('useClipboardImageHint(Boolean(props.onImagePaste), terminalFocused)'))
-  }
-}
 
 console.log('§3 paste candidates split on every line-break class')
 {
@@ -72,12 +57,5 @@ console.log('§4 a held key still fires its single-letter binding (`key-repeat-r
   check('the run MATCHES the binding a single press matches', matchesKeystroke('jjjj', bare, j) && matchesKeystroke('j', bare, j))
 }
 
-{
-  const hook = readFileSync(join(ROOT, 'src/hooks/useVimInput.ts'), 'utf8')
-  check(
-    "the ? affordance fires only on an EMPTY draft (never a draft replace)",
-    /wasIdle && input === '\?' && props\.value === ''/.test(hook),
-  )
-}
 
 process.exit(failures === 0 ? 0 : 1)

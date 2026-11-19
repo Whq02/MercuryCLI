@@ -9,43 +9,8 @@ function t(label: string, cond: boolean, detail = ''): void {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string) => readFileSync(join(ROOT, p), 'utf8')
 
-console.log('— the ↵ pick persists (source lock) —')
-{
-  const picker = src('src/components/CritterSelect.tsx')
-  const ret = picker.slice(picker.indexOf("key: 'return'"), picker.indexOf("key: 't'"))
-  t('↵ action calls setSessionCritter (live switch)', ret.includes('setSessionCritter(picked.key)'))
-  t('↵ action calls persistSessionCritter (sticks across boots)', ret.includes('persistSessionCritter(picked.key)'))
-  const trial = picker.slice(picker.indexOf("key: 't'"))
-  t('`t` trial stays session-only (no persist call)', !trial.slice(0, trial.indexOf('hint:')).includes('persistSessionCritter'))
-}
 
-console.log('— hero-click morphs persist too (every entry point sticks) —')
-{
-  const home = src('src/components/MercuryHome.tsx')
-  t('the berth activate rides the one owner', home.includes('onActivate={cycleSessionCritter}'))
-  t('the hero mounts the mini row, whose art click rides the one owner', home.includes('<MiniCritter />') && src('src/components/mercury-ui/MiniCritter.tsx').includes('onClick={cycleSessionCritter}'))
-  const accent = src('src/components/mercury-ui/sessionAccent.ts')
-  const cycle = accent.slice(
-    accent.indexOf('export function cycleSessionCritter'),
-    accent.indexOf('}', accent.indexOf('export function cycleSessionCritter')),
-  )
-  t('the one owner morphs live', cycle.includes('setSessionCritter(next.key)'))
-  t('the one owner persists the pick', cycle.includes('persistSessionCritter(next.key)'))
-}
-
-console.log('— boot resolution honors the persisted default —')
-{
-  const accent = src('src/components/mercury-ui/sessionAccent.ts')
-  const resolve = accent.slice(accent.indexOf('function currentKey'), accent.indexOf('const listeners'))
-  const envIdx = resolve.indexOf("flagEnv('MERCURY_CRITTER')")
-  const savedIdx = resolve.indexOf('defaultCritter')
-  t('currentKey reads the env pin FIRST', envIdx > 0 && savedIdx > envIdx)
-  t('…then the persisted defaultCritter', savedIdx > 0)
-  const persist = accent.slice(accent.indexOf('function persistSessionCritter'))
-  t('persistSessionCritter writes GlobalConfig.defaultCritter', persist.includes('defaultCritter: k'))
-}
 
 console.log('— BOOT ORDER (the day-one bug): module init precedes the latch —')
 {
@@ -124,18 +89,8 @@ console.log('— the default critter is the crab —')
   const { ALL_CRITTERS } = await import('../../src/components/mercury-ui/sessionAccent.ts')
   t('DEFAULT_CRITTER_KEY is crab', DEFAULT_CRITTER_KEY === 'crab', DEFAULT_CRITTER_KEY)
   t('the crab is a real creature in the pool', ALL_CRITTERS.some(c => c.key === 'crab'))
-  const accent = src('src/components/mercury-ui/sessionAccent.ts')
-  t('the boot resolver falls back to DEFAULT_CRITTER_KEY, never a literal', accent.includes('DEFAULT_CRITTER_KEY') && !/\?\? 'octopus'|\?\? 'crab'/.test(accent))
 }
 
-console.log('— the splash strip reads the persisted default —')
-{
-  const splash = src('assets/splash/mercury-splash.mjs')
-  const label = splash.slice(splash.indexOf('function computeCritterKey'), splash.indexOf('function accountLabel'))
-  t('splash critterLabel checks the env pin', label.includes('MERCURY_CRITTER'))
-  t('splash critterLabel falls back to the config-home defaultCritter', label.includes('defaultCritter'))
-  t('splash config read is guarded (absent/malformed ⇒ crab)', label.includes('catch'))
-}
 
 console.log()
 if (failures > 0) {

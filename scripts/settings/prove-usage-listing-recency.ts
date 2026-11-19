@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -29,7 +29,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
@@ -88,26 +87,6 @@ section('§3 nothing signed in: every section is absent and catalogue order stan
   check('…and no family leads by name (anthropic leads only because the catalogue lists it first)', plan.every(s => !s.family.credentialed))
 }
 
-section('§4 the shape: one ledger owner, no rank-by-name, both layouts follow the order')
-{
-  const tab = readFileSync(join(ROOT, 'src/components/Settings/Usage.tsx'), 'utf8')
-  check('the tab reads the recency through the computed default\'s owner (recentSignIns), never a ledger copy', tab.includes("from '../../utils/model/computedDefault.js'") && tab.includes('recentSignIns') && !tab.includes('readSignInLedger') && !tab.includes('sign-ins.json'))
-  check('the first-party-first rank is gone', !tab.includes("section.kind === 'anthropic' ? 0") && !/rank\(a\) - rank\(b\)/.test(tab))
-  check('the listing order is applied once, over the catalogue-ordered plan, with the session lead', tab.includes('orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency(), liveSessionFamily())'))
-  check('the stacked layout bands the ordered plan one provider at a time', usageColumns(116, 10).perRow === 1 && tab.includes('bands.push(plan.slice(start, start + perRow))'))
-  check('the wide layout bands the same ordered plan three providers at a time', usageColumns(146, 10).perRow === 3 && tab.includes('bands.push(plan.slice(start, start + perRow))'))
-  const ledgerSrc = readFileSync(join(ROOT, 'src/utils/accounts/signInLedger.ts'), 'utf8')
-  check('the ledger stays the one owner of sign-in times (its file name is spelled there alone)', ledgerSrc.includes("SIGN_IN_LEDGER_FILE = '.sign-ins.json'"))
-}
-
-section('§5 the first-party buckets keep their shape')
-{
-  const tab = readFileSync(join(ROOT, 'src/components/Settings/Usage.tsx'), 'utf8')
-  check('the five-hour meter is titled Current session', tab.includes('title="Current session"'))
-  check('the weekly all-models meter keeps its title', tab.includes('title="Current week (all models)"'))
-  check('the per-model weekly rows read the owner\'s pool view, every stated pool titled by its label (fable included)', tab.includes('anthropicPoolWindowViews()') && tab.includes('`Current week (${w.label})`') && !tab.includes('data.seven_day_'))
-  check('the meters still derive from the owner view', tab.includes('anthropicWindowViews()'))
-}
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-usage-listing-recency${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

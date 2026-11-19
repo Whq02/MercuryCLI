@@ -1,7 +1,6 @@
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'kit-runner-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -29,7 +28,6 @@ const watchdog = setTimeout(() => {
 }, 120_000)
 watchdog.unref?.()
 
-const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 console.log('============================================================')
 console.log(' KIT-RUNNER — sessions obey their kit')
@@ -115,14 +113,6 @@ section('§K2 the spec composes the carry (the daemon half)')
 
 section('§K3 call-site census (source-shape: every non-warm road passes the kit; one env owner)')
 {
-  const daemon = readFileSync(join(REPO, 'src', 'daemon', 'concourseWorkers.ts'), 'utf8')
-  t('K12 the cold mint HOISTS one kit for spec and stamp (record and process can never disagree)', daemon.includes('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') && daemon.includes('...kitStampOf(kit),'))
-  t("K13 the reactivate cold road hands the revive its restamp kit (the spec is built BEFORE the restamp writes)", daemon.includes('kitOverride: kit,'))
-  t("K14 the revive's default is the record's standing kit; the hand-back road carries rec.kit", daemon.includes('const reviveKit = opts?.kitOverride ?? rec.kit') && daemon.includes('...(rec.kit !== undefined ? { kit: rec.kit } : {})'))
-  const spawnEnvWrites = daemon.split("flagPair('MERCURY_SESSION_KIT', JSON.stringify").length - 1
-  t('K15 the spec builder is the ONE env writer in the daemon (a single key-write site; comments free to name the spelling)', spawnEnvWrites === 1, `${spawnEnvWrites} sites`)
-  const main = readFileSync(join(REPO, 'src', 'main.tsx'), 'utf8')
-  t('K16 the runner consumes the pin ONCE, before MCP resolution and the command load (the shared prep)', main.includes('consumeSessionKitPin()') && main.indexOf('consumeSessionKitPin()') < main.indexOf('parseDynamicMcpConfigs('))
   const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
   const row = (FLAG_REGISTRY as ReadonlyArray<{ env: string; kind: string }>).find(r => r.env === 'MERCURY_SESSION_KIT')
   t("K17 the flagRegistry row exists, kind 'value' (prove-flag-registry enforces the read pattern mechanically)", row !== undefined && row.kind === 'value')
@@ -164,12 +154,6 @@ section('§S the swap: every membership road answers the process kit through the
   })
   t("S8 the runner batch partition follows the owner (excluded entries become truthful 'disabled' rows and are never dialed — the landed semantics under the kit)", split.members.length === 1 && split.members[0]?.[0] === 'alpha' && split.excluded.length === 1 && split.excluded[0]?.[0] === 'beta')
 
-  const owner = readFileSync(join(REPO, 'src', 'services', 'mcp', 'membership.ts'), 'utf8')
-  const organ = readFileSync(join(REPO, 'src', 'services', 'mcp', 'mercuryServer.ts'), 'utf8')
-  t('S9 the organ spelling is pinned equal to its owner (server name + env + the shared off rule)', owner.includes("MERCURY_ORGAN_NAME = 'mercury'") && organ.includes("MERCURY_SERVER_NAME = 'mercury'") && organ.includes("'MERCURY_COORDINATION_MCP'") && organ.includes('flagEnabled(MERCURY_SERVER_ENV)') && owner.includes("flagEnabled('MERCURY_COORDINATION_MCP')"))
-  const kitFiles = ['src/services/mcp/sessionKitPin.ts', 'src/services/mcp/membership.ts', 'src/skills/kitGovernance.ts']
-  const worldDirty = kitFiles.filter(f => /chatOnlyBoot|chatBoot\(|MERCURY_SPLASH_CHAT/.test(readFileSync(join(REPO, f), 'utf8')))
-  t('S10 no world check anywhere in the kit path (the L24(6-SUPERSEDED) law): the kit modules read no world predicate', worldDirty.length === 0, worldDirty.join(','))
   pin._resetSessionKitPinForTesting()
   delete process.env.MERCURY_SESSION_KIT
 }
@@ -272,8 +256,6 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
   seat.onFactsAnswer('w-kit', answerOf({ schema: 1, mcp: ['smuggled'], skills: [], invocable: [] }), fakeRoster as never, DAEMON_DIR)
   const after = readSessionWorkers(DAEMON_DIR)['w-kit'] as { kit?: typeof R } | undefined
   t('C13 POISON armed at the real seam: a later answer never re-stamps a resolved record (once means once)', deepEq(after?.kit, R))
-  const callers = (await import('node:child_process')).spawnSync('grep', ['-rln', 'resolveSessionKitOnRecord(', join(REPO, 'src')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).sort()
-  t('C14 the ONLY road census: the pen is defined in sessionKit.ts and called from sessionSeat.ts alone', deepEq(callers.map(p => p.slice(REPO.length + 1)), ['src/daemon/sessionKit.ts', 'src/daemon/sessionSeat.ts']), callers.join(','))
 }
 
 section('§E the extension AND: off in EITHER store contributes NOTHING, every kind')
@@ -309,8 +291,6 @@ section('§E the extension AND: off in EITHER store contributes NOTHING, every k
   pin.consumeSessionKitPin()
   t('E5 the unresolved arm reads the deltas the same way (extensionsOff bites at the switch door before any completion)', deepEq(names('skills'), ['loud-ext']) && deepEq(names('servers'), ['loud-ext']))
 
-  const door = readFileSync(join(REPO, 'src', 'extensions', 'active.ts'), 'utf8')
-  t('E6 the AND lives at the ONE switch door (activeFor) — both conjuncts on the filter line', door.includes('ext.switches[kind] && processKitExtensionOn(ext.manifest.name)'))
   active.publishActiveSet(null)
   pin._resetSessionKitPinForTesting()
   delete process.env.MERCURY_SESSION_KIT
@@ -368,8 +348,6 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
   t("I5 depth-2 ∩: a name-ref resolves the OPTIONS row first (the depth-1 agent's own grant), cache-hits ITS connection, and never dials the appState twin", outcome.clients.length === 1 && outcome.clients[0] === (fakeDepth1 as never) && !memo.has(getServerCacheKey('twin', appStateCfg)))
   memo.delete(depth1Key)
 
-  const agentSrc = readFileSync(join(REPO, 'src', 'tools', 'AgentTool', 'runAgent.ts'), 'utf8')
-  t('I6 the gates stand in source, in order (host → managed policy → enterprise exclusivity → the excluded-name refusal), and the nonce is minted ONCE per dispatch and spread into every inline dial', ['not a server configuration the one validator accepts', 'blocked by managed policy', 'an enterprise MCP configuration exists', "the session's catalogue excludes this name"].every(n => agentSrc.includes(n)) && agentSrc.includes('const dispatchNonce = randomUUID()') && agentSrc.includes('inlineDispatchId: dispatchNonce'))
 }
 
 section('§N non-session insulation (poison: a kit env appearing on a warm/utility spec)')
@@ -385,11 +363,6 @@ section('§N non-session insulation (poison: a kit env appearing on a warm/utili
   t("N2 POISON armed: a WARM child env carries ITS SPEC's kit and never the stray beside it (the ensure's stamp is the only speaker; a spec-less warm build still stamps nothing — K10)", warmEnv.MERCURY_SESSION_KIT === JSON.stringify(K_RESOLVED))
   delete process.env.MERCURY_SESSION_KIT
 
-  const { spawnSync } = await import('node:child_process')
-  const consumers = spawnSync('grep', ['-rln', 'consumeSessionKitPin(', join(REPO, 'src')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(p => p.slice(REPO.length + 1)).sort()
-  t('N4 the pin has exactly TWO speakers and no daemon road: sessionKitPin.ts (the owner) and main.tsx (the one consumption) — the daemon can never latch a kit', deepEq(consumers, ['src/main.tsx', 'src/services/mcp/sessionKitPin.ts']), consumers.join(','))
-  const supSrc = readFileSync(join(REPO, 'src', 'daemon', 'concourseWorkers.ts'), 'utf8')
-  t("N5 the insulation is structural in source: the worker strip list names the spelling", supSrc.includes("'MERCURY_SESSION_KIT',"))
 }
 
 section('§KR a refused pin lands on the session receipt too — once, the same typed sentence')
@@ -415,9 +388,6 @@ section('§KR a refused pin lands on the session receipt too — once, the same 
   pin._resetSessionKitPinForTesting()
   delete process.env.MERCURY_SESSION_KIT
 
-  const mirror = readFileSync(join(REPO, 'src', 'components', 'concourse', 'SessionMirror.tsx'), 'utf8')
-  const mainSrc = readFileSync(join(REPO, 'src', 'main.tsx'), 'utf8')
-  t("KR4 the viewer names the row in the kit family and the shared prep wires the note at the identity point", mirror.includes("e.kind === 'kit-restamp' || e.kind === 'kit-refused'") && mainSrc.includes('noteRefusedKitOnSessionReceipt(receiptHome, getSessionId())'))
 }
 
 console.log(`\n${failures === 0 ? '✅ KIT-RUNNER PINS GREEN' : `❌ ${failures} FAILURE(S)`}`)

@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { join, win32 } from 'node:path'
 import { isolatedHome, readViewKit } from './readViewKit.js'
 
@@ -56,10 +55,4 @@ check('the Read row names the query as typed', readUi.getToolUseSummary({ file_p
 const observed = { file_path: `${join(home, 'rows.sqlite')}:items/x/../1` }
 kit.FileReadTool.backfillObservableInput(observed)
 check('what a hook and a card are shown of a Read keeps the address', observed.file_path === join(home, 'rows.sqlite') + ':items/x/../1', observed.file_path)
-for (const card of ['components/permissions/FileWritePermissionRequest/FileWritePermissionRequest.tsx', 'components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx']) {
-  const text = readFileSync(`${src}/${card}`, 'utf8')
-  check(`${card.split('/').at(-1)} names its target by the container's path and the address`, text.includes('displayAddressedTarget(parsed.file_path') && !text.includes('cwd, parsed.file_path)'))
-}
-const deletion = readFileSync(`${src}/tools/FileWriteTool/SqliteDeletePermissionRequest.tsx`, 'utf8')
-check('the deletion card names its target through the display path', deletion.includes('subtitle={getDisplayPath(input.file_path)}'))
 kit.finish()

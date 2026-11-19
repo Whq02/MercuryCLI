@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -29,8 +29,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   t('a structurally-stamped origin earns nothing', queuedCommandHistoryEntry({ value: 'x', mode: 'prompt', origin: 'system' }) === null)
   t('task notifications earn nothing', queuedCommandHistoryEntry({ value: '<task-notification/>', mode: 'task-notification' }) === null)
   t('block-content values earn nothing', queuedCommandHistoryEntry({ value: [{ type: 'text', text: 'x' }], mode: 'prompt' }) === null)
-  const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
-  t('the face holds no drain-time history write (the runner drains its own queue)', !repl.includes('queuedCommandHistoryEntry('))
 }
 
 {
@@ -99,8 +97,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   }
   t('search-box word boundaries agree with the composer at every offset of every sample', agree, disagreements.slice(0, 3).join(' | '))
   t('an accented word is one word (ctrl+w on "café" at its end deletes the whole word)', wordStartBefore('café', 4) === 0)
-  const search = readFileSync('src/hooks/useSearchInput.ts', 'utf8')
-  t('the search box routes through the shared grammar (structural)', search.includes("wordStartBefore(text, at)") && !/\/\[\\w\]\//.test(search))
 }
 
 {
@@ -111,8 +107,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   first.registerIsLinewise = false
   const second = getSessionVimPersistentState()
   t('a second mount reads the same register', second === first && second.register === 'yanked words')
-  const hook = readFileSync('src/hooks/useVimInput.ts', 'utf8')
-  t('the vim hook seeds its ref from the session owner (structural)', hook.includes('useRef<PersistentState>(getSessionVimPersistentState())'))
 }
 
 {

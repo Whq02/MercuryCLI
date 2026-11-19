@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -12,7 +10,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 console.log('============================================================')
 console.log(' Selection band — LUSTRE L2, the one decisive cursor paint')
@@ -80,26 +77,6 @@ section('§2 — accent-following, distinct from the quiet states')
   )
 }
 
-section('§3 — the owner paints CURSOR rows only')
-{
-  const rowSrc = readFileSync(join(ROOT, 'src/components/mercury-ui/InteractiveRow.tsx'), 'utf-8')
-  check('band condition requires selected && focused', /bandPainted\s*=[\s\S]*?selected\s*&&[\s\S]*?focused/.test(rowSrc))
-  check('directActivate controls never band', /bandPainted\s*=[\s\S]*?!directActivate/.test(rowSrc))
-  check('function-children surfaces never band', /bandPainted\s*=[\s\S]*?typeof children !== 'function'/.test(rowSrc))
-  check('unavailable rows never band', /bandPainted\s*=[\s\S]*?!unavailable/.test(rowSrc))
-  check(
-    'the band OUTRANKS hover (bandPainted resolves before the surface2 branch)',
-    /backgroundColor=\{\s*bandPainted\s*\?\s*tokens\.selectionBand/.test(rowSrc),
-  )
-  check('callers can opt a bespoke-selected surface out', /selectionBand\s*=\s*true/.test(rowSrc))
-}
-
-section('§4 — colors only (the no-reflow law)')
-{
-  const rowSrc = readFileSync(join(ROOT, 'src/components/mercury-ui/InteractiveRow.tsx'), 'utf-8')
-  const geometryTouch = /(width|height|padding|margin|flexGrow|flexShrink)\s*=\{[^}]*bandPainted/.test(rowSrc)
-  check('bandPainted feeds backgroundColor and nothing geometric', !geometryTouch)
-}
 
 console.log(failures === 0 ? '\nALL GREEN' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

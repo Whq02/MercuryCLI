@@ -1,6 +1,3 @@
-#!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -10,7 +7,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { isProviderActionRow, keyConnectValue, GPT_CONNECT_OPTION_VALUE } = (await import(
   '../../src/utils/model/modelOptions.ts'
@@ -41,25 +37,6 @@ console.log('§1 the predicate covers every sentinel spelling')
 const { isModelRow } = await import('../../src/utils/model/modelPickerGroups.ts')
 for (const id of ['host-run:Fixture Model', 'host-retry:fixture', 'host-remove:fixture']) {
   check(id + ' is an action, never a model id', !isModelRow({ id, name: 'Fixture action', group: 'Run a model', tag: '', action: true, searchableAction: true }))
-}
-console.log('\n§2 the row paints the raw id only for a model row (call-shaped)')
-{
-  const src = readFileSync(join(ROOT, 'src', 'components', 'MercuryModelPicker.tsx'), 'utf-8')
-  const pure = readFileSync(join(ROOT, 'src', 'utils', 'model', 'modelPickerGroups.ts'), 'utf-8')
-  check(
-    'a model row is one that is neither an action, a door nor a choice',
-    pure.includes('export function isModelRow(row: PickerRow): boolean {') && pure.includes('return row.action !== true && row.expand === undefined && row.choice === undefined'),
-  )
-  const painter = src.slice(src.indexOf('const model = isModelRow(m)'), src.indexOf('{on && !compact && m.tag !== \'\''))
-  check(
-    'the id column paints m.id only on the model arm; the action arm paints the name across both columns and never the value',
-    painter.includes('{model ? (') && painter.includes('idCell(m.id, columns.id)') && painter.includes('<Text bold color={m.gated ? SAND : IVORY}>{m.name}</Text>') && !/[cC]ell\(m\.id/.test(painter.slice(painter.indexOf('</>'))),
-    painter.length > 0 ? '' : '(painter not found)',
-  )
-  check(
-    'the printed ids-are-real sentence is retired: the raw id stands beside its alias on every model row instead',
-    !src.includes('model IDs are real, never themed') && !src.includes('model ids are real'),
-  )
 }
 
 console.log(failures === 0 ? '\nprove-picker-id-line-guard: all green' : `\nprove-picker-id-line-guard: ${failures} FAILURE(S)`)

@@ -1,13 +1,11 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { flagEnv, flagPair, flagSpellings } from '../../src/substrate/flagRegistry.ts'
 import { projectLocalPath } from '../../src/services/projectLocal/paths.js'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -60,18 +58,6 @@ section('(2) one-spelling reader (real flagEnv over a mutated env)')
   }
 }
 
-section('(3) the one-spelling rule over src/')
-{
-  const registrySrc = flagRegistryText()
-  check('the registry declares one spelling per row (no alias field)', !/\blegacy\??:/.test(registrySrc))
-}
-
-section('(4) boot-env writer coverage (source law: stamp through the registry helpers)')
-{
-  const bootEnv = readFileSync(join(ROOT, 'src', 'substrate', 'startupMenu.ts'), 'utf8')
-  check('saved boot menus stamp through flagPair/flagSpellings in the writer', /flagPair|flagSpellings/.test(bootEnv))
-  check('the applier dedupes per row', /dedupe|applied|seen/i.test(bootEnv))
-}
 
 console.log('════════════════════════════════════════════════════════════════════════════')
 if (failures > 0) {

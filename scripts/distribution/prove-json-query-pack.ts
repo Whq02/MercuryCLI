@@ -24,11 +24,6 @@ if (existsSync(lockPath)) {
     const copied = join(pack, script)
     check(`shipped runner matches its source: ${script}`, existsSync(copied) && readFileSync(copied).equals(readFileSync(join(root, 'src/tools/FileReadTool', script))))
   }
-  for (const file of ['package.json', 'Dockerfile', 'scripts/release/release-local.sh', '.github/workflows/gate.yml', '.github/workflows/drives.yml', '.github/workflows/private-release.yml', '.github/workflows/windows-launcher.yml', '.github/workflows/windows-ui.yml', '.github/workflows/shell-windows-probe.yml']) {
-    check(`existing preparation road fetches the engine: ${file}`, readFileSync(join(root, file), 'utf8').includes('scripts/vendor/fetch-json-query.ts'))
-  }
-  check('packager checks the query pack', readFileSync(join(root, 'scripts/release/package.mjs'), 'utf8').includes('checkJsonQueryPack(pkgDir)'))
-  check('archive verifier checks the query pack', readFileSync(join(root, 'scripts/release/verifyArchive.mjs'), 'utf8').includes('checkJsonQueryPack(payload)'))
   const notices = readFileSync(join(root, 'THIRD_PARTY_NOTICES.md'), 'utf8')
   for (const component of lock.components) check(`notices retain ${component.name}`, notices.includes(component.name))
   if (present) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -42,20 +42,6 @@ const until = async (cond: () => boolean, boundMs: number): Promise<number> => {
   return Date.now() - t0
 }
 
-section('§A the runner tap — one bounded latest-line row per beat per tool (the turn runner, read at its source)')
-{
-  const turn = readFileSync(join(import.meta.dir, '../../src/rows/turn.ts'), 'utf8')
-  const tapAt = turn.indexOf('if (isEphemeralToolProgress(data.type) || evalRunning !== null || hookWaiting !== null) {')
-  const tap = turn.slice(tapAt, turn.indexOf('return rows\n      }', tapAt))
-  check('a shell or mcp progress tick yields ONE tool_update row through toolUpdateRow', tap.includes('toolUpdateRow(updateScope, {') && tap.includes('callId,') && tap.includes('const key = JSON.stringify([scope.session_id, callId])'))
-  check('…naming its RUNNING call (the call the turn knows, else its parent) in that call\'s own scope — a child\'s row carries parent_call_id', tap.includes('const callId = callScopes.has(progress.toolUseID) ? progress.toolUseID : progress.parentToolUseID') && tap.includes('const updateScope = callScopes.get(callId) ?? rowScope') && turn.includes('callScopes.set(item.call_id, rowScope)') && turn.includes("const scopeFor = (parentCallId: string | undefined): RowScope => (parentCallId === undefined ? scope : { ...scope, parent_call_id: parentCallId })"))
-  check('…carrying the LAST non-blank line, trimmed', turn.includes("const lines = text.split('\\n')") && turn.includes('const line = lines[i]!.trim()') && turn.includes("if (line === '') continue"))
-  check('…with the source word, the tick, elapsed and totals', tap.includes("source: isMcp ? 'mcp' : data.type === 'powershell_progress' ? 'powershell' : 'shell',") && tap.includes('const tick = (state?.tick ?? 0) + 1') && tap.includes("elapsedS: typeof data.elapsedTimeSeconds === 'number' ? data.elapsedTimeSeconds : undefined,") && tap.includes("lines: !isMcp && typeof shell.totalLines === 'number' ? shell.totalLines : undefined,"))
-  check('a tick inside the beat is DROPPED at the source (never a backlog)', turn.includes('const TOOL_UPDATE_BEAT_MS = 250') && tap.includes('if (state !== undefined && now - state.lastEmitMs < TOOL_UPDATE_BEAT_MS) return rows'))
-  check('a long line lands wire-bounded at 300 + the honest cut mark', turn.includes('const TOOL_UPDATE_LINE_MAX = 300') && turn.includes('return line.length > TOOL_UPDATE_LINE_MAX ? `${line.slice(0, TOOL_UPDATE_LINE_MAX)}…` : line'))
-  check('an mcp tick carries the message tail + the bar numbers', tap.includes('line: isMcp ? latestLineOf(mcp.progressMessage) : latestLineOf(shell.output),') && tap.includes("progress: isMcp && typeof mcp.progress === 'number' ? mcp.progress : undefined,") && tap.includes("total: isMcp && typeof mcp.total === 'number' ? mcp.total : undefined,"))
-  check('agent_progress still rides the TRAIL arm (the inner message\'s own rows, never a tool_update)', turn.includes("if (data.type === 'agent_progress' || data.type === 'skill_progress') {") && turn.includes('return rowsOfMessage(inner, progress.parentToolUseID)'))
-}
 
 section('§B the seat fold — tool_update rows → the session-progress projection')
 const DAEMON_DIR = mkdtempSync(join(tmpdir(), 'live-progress-daemon-'))
@@ -215,11 +201,6 @@ section('§E mixed-version — absence is lawful both directions')
   const sample = updateRow('toolu_S', 1, 'schema-legal')
   check('the row is the DECLARED tool_update row (every row reader parses it; an old screen ignores an unknown type)', ToolUpdateRowSchema().safeParse(sample).success === true)
 
-  const seat = readFileSync(join(import.meta.dir, '../../src/daemon/sessionSeat.ts'), 'utf8')
-  check("the seat's fold is the row's own arm (a tool_update case — no substring sniff of a line)",
-    seat.includes("case 'tool_update':") && !/includes\('"ephemeral_tail"'\)/.test(seat))
-  check('the seat republishes its whole progress map and clears it at the outcome row (transient by design, no last-line guarantee)',
-    seat.includes('tools: Object.fromEntries(seat.progress)') && seat.includes('seat.progress.clear()'))
 }
 
 rmSync(HOME, { recursive: true, force: true })

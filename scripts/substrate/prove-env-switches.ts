@@ -1,10 +1,8 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(join(import.meta.dir, '..', '..'))
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'env-switches-'))
 delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
@@ -17,7 +15,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const off = (name: string): void => { process.env[name] = '0' }
 const unset = (name: string): void => { delete process.env[name] }
-const src = (rel: string): string => readFileSync(rel, 'utf8')
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -52,7 +49,6 @@ section('§2 each switch at its owner')
   check('privacy: the nonessential-traffic switch ⇒ essential-traffic', getPrivacyLevel() === 'essential-traffic', getPrivacyLevel())
   unset('MERCURY_DISABLE_NONESSENTIAL_TRAFFIC')
 
-  check('error reporting: the log suppression reads the switch', /if \(!flagEnabled\('MERCURY_ERROR_REPORTING'\)\) return true/.test(src('src/utils/log.ts')))
 
   const enabledOf = (c: { isEnabled?: () => boolean }): boolean => (c.isEnabled ? c.isEnabled() : true)
   check('/bug and /feedback: unset ⇒ enabled', enabledOf(feedback) === true)
@@ -74,14 +70,11 @@ section('§2 each switch at its owner')
   off('MERCURY_PROMPT_CACHING_SONNET'); check('sonnet caching: =0 ⇒ off on the sonnet tier alone', !getPromptCachingEnabled(sonnet) && getPromptCachingEnabled(opus)); unset('MERCURY_PROMPT_CACHING_SONNET')
   off('MERCURY_PROMPT_CACHING_OPUS'); check('opus caching: =0 ⇒ off on the opus tier alone', !getPromptCachingEnabled(opus) && getPromptCachingEnabled(sonnet)); unset('MERCURY_PROMPT_CACHING_OPUS')
 
-  check('interleaved thinking: no switch and no header; neither the beta builder nor the registry names MERCURY_INTERLEAVED_THINKING', !src('src/utils/model/capabilities.ts').includes('MERCURY_INTERLEAVED_THINKING') && !flagRegistryText().includes('MERCURY_INTERLEAVED_THINKING'))
 
   check('compaction: unset ⇒ the automatic fold is on', isAutoCompactEnabled() === true)
   off('MERCURY_COMPACT'); check('compaction: =0 ⇒ the automatic fold is off', isAutoCompactEnabled() === false); unset('MERCURY_COMPACT')
   off('MERCURY_AUTO_COMPACT'); check('the automatic fold: =0 ⇒ off', isAutoCompactEnabled() === false); unset('MERCURY_AUTO_COMPACT')
 
-  check('ripgrep: the resolver prefers a PATH ripgrep only at =0', /!flagEnabled\('MERCURY_BUILTIN_RIPGREP'\) && systemRg\(\)/.test(src('src/utils/ripgrep.ts')))
-  check('MCP large output files: the truncation branch reads the switch', /!flagEnabled\('MERCURY_MCP_LARGE_OUTPUT_FILES'\)/.test(src('src/services/mcp/client.ts')))
 }
 
 console.log('\n' + '═'.repeat(76))

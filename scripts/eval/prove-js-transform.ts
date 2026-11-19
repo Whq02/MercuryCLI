@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { splitTopLevelSegments, transformJsCell } from '../../src/services/eval/jsCellTransform.js'
 import { check, finish, section } from './lib.js'
@@ -83,10 +82,6 @@ for (const [label, source, expected] of lexicalCells) {
   } catch (error) {
     check(`${label}: transformed cell executes`, false, String(error))
   }
-}
-{
-  const scanner = readFileSync(new URL('../../src/services/eval/jsCellTransform.ts', import.meta.url), 'utf8')
-  check('the regex-start decision reads back from the slash (a postfix ++/-- is division) instead of re-scanning the whole prefix at every slash', scanner.includes("if (c === '/' && regexCanStart(source, i))") && !scanner.includes('source.slice(0, i)'))
 }
 
 section('dynamic import(): rewritten to __mercuryImport at any depth, never inside a string, a comment or an identifier')

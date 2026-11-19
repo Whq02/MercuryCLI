@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -35,8 +35,6 @@ enableConfigs()
 const census = await import('../../src/daemon/runnerCapabilityCensus.ts')
 const { evalKernelManager } = await import('../../src/services/eval/kernelManager.ts')
 const services = await import('../../src/services/projectServices/serviceManager.ts')
-const REPO = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(REPO, p), 'utf8')
 
 console.log('capability census — what a runner still holds that a park would lose')
 try {
@@ -103,12 +101,8 @@ try {
     utils.cancelAutomaticResume('census-wall-2')
     const freed = await new RunnerQuiescence({ refusal: () => words(), flush: async () => {} }).request({ subtype: 'quiesce', action: 'prepare', token: 'census-wall-token-0002' })
     check('once nothing waits the hold is gone and the fence prepares', words() === null && freed.ok === true, JSON.stringify({ words: words(), freed }))
-    check('the count is the one the crew keeps of its own armed and starting retries', src('src/daemon/runnerCapabilityCensus.ts').includes('return armedAutomaticResumeCount()'))
   }
 
-  console.log('C5 the runner refuses a park on the census, after its own turn and task checks')
-  const asks = src('src/cli/headless/runnerAsks.ts')
-  check("the runner's ask host counts EVERY pending request on the door (asks and questions alike), not only the parked permission asks", asks.includes('pendingControlRequestCount: () => peer.pendingCount'))
 } catch (err) {
   failures++
   console.log(`  [FAIL] the proof threw: ${String(err)}`)

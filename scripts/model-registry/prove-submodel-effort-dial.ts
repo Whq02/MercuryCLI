@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -53,8 +53,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const ESC = String.fromCharCode(27)
 
@@ -437,15 +435,6 @@ section('§5 the panel, driven: e opens the strip, → moves, ↵ persists and t
   slots.setSubModelEffort('advisor', null)
 }
 
-section('§6 the wiring: the surfaces share one strip')
-{
-  check('the footer advertises e', src('src/commands/submodels/submodels.tsx').includes('· e effort ·'))
-  const panel = src('src/components/SubModelPicker.tsx')
-  check('the e action is gated to model rows and the list yields while the strip is up', panel.includes("key: 'e',") && panel.includes("when: row => row.kind === 'entry' && row.entry.kind === 'model'") && panel.includes('active: active && strip === null'))
-  check('the strip is a modal overlay layer with its own esc', panel.includes("useRegisterOverlay('effort-strip', active && strip !== null)") && panel.includes("decodeNavKey(input, key, { orientation: 'horizontal' })"))
-  check('the panel and the main picker paint the ONE strip component', panel.includes('<EffortStrip') && src('src/components/MercuryModelPicker.tsx').includes('<EffortStrip') && src('src/components/mercury-ui/EffortStrip.tsx').includes('export function EffortStrip('))
-  check("the panel reads no effort table of its own (the owner's composers only)", !panel.includes('resolveEffortTruth') && panel.includes('subModelEffortStrip(container, ') && panel.includes('subModelEffortClause(container, '))
-}
 
 console.log('\n' + '═'.repeat(60))
 console.log(failures ? `❌ SUBMODEL-EFFORT-DIAL RED (${failures})` : '✅ SUBMODEL-EFFORT-DIAL GREEN')

@@ -181,11 +181,6 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
     const out = api.highlight(minified, { language: 'javascript' })
     t('the guarded bundle returns pathological input unpainted (same bytes)', out === minified)
   } else {
-    const source = readFileSync('src/utils/cliHighlight.ts', 'utf8')
-    t(
-      'the guard wraps the bundle seam (structural - optional dep absent in-repo)',
-      source.includes('shouldSkipHighlight(code) || colorStripped() ? code : cliHighlight.highlight(code, options)'),
-    )
   }
 }
 

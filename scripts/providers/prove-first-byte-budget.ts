@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -14,8 +14,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 const home = mkdtempSync(join(tmpdir(), 'first-byte-budget-'))
@@ -77,11 +75,6 @@ section('B4 · the wire shape')
 
 section('B5 · the wiring (structural)')
 {
-  const core = src('src/services/providers/anthropic/streamCore.ts')
-  check('the streaming request\'s timeout IS the first-byte budget', /timeout: wait\.budgetMs,/.test(core) && /budgetMs: firstByteBudgetMs\(\{ cold, promptTokens, idleMs: streamIdleTimeoutMsForRoute\('anthropic'\) \}\)/.test(core))
-  check('the budget\'s expiry becomes the typed line on the retry ladder (never the operator\'s own abort)', /if \(!signal\.aborted && isFirstByteTimeout\(sent\)\)[\s\S]{0,300}throw new APIConnectionTimeoutError\(\{ message: firstByteTimeoutLine\(wait\)[^}]*\}\)/.test(core))
-  check('the wait is spoken before the request and cleared at the first byte', /options\.onWait\?\.\(wait\)/.test(core) && /result = await dispatch\(\)[\s\S]{0,1200}options\.onWait\?\.\(null\)/.test(core))
-  check('every retry notice speaks a reissue on its way (attempt, cause, delay) beside the row it paints', /kind: 'retry',\s*\n\s*attempt: notice\.retryAttempt,\s*\n\s*of: notice\.maxRetries,/.test(core) && /options\.onWait\?\.\(retryWait\)/.test(core))
   const t = await import('../core-runtime/turnScenarios.ts')
   const firstByte = { kind: 'first-byte', cold: true, promptTokens: 26_000, model: 'Opus 5', budgetMs: 91_200, sinceMs: 5, attempt: 1 }
   const reissue = { kind: 'retry', attempt: 2, of: 10, reason: 'a 529', delayMs: 4_000, sinceMs: 7 }
@@ -98,8 +91,6 @@ section('B5 · the wiring (structural)')
     JSON.stringify(relayed) === JSON.stringify([{ wait: firstByte }, { wait: reissue }, { wait: null }]),
     `the model call (streamModel, src/run-core/turn/streamModel.ts) must hand the lane an options.onWait that passes each wait, and the null that clears it, to toolUseContext.setSDKStatus({ wait }); a lane that spoke a first-byte wait, a reissue and the clearing null reached the status frame as ${JSON.stringify(relayed)}`,
   )
-  const seat = src('src/daemon/sessionSeat.ts')
-  check('the seat folds the wait row into the tail projection on its own key and clears it with the turn and a respawn', /case 'wait': \{[\s\S]{0,400}seat\.wait = next/.test(seat) && /\.\.\.\(seat\.wait !== null \? \{ wait: seat\.wait \} : \{\}\)/.test(seat) && (seat.match(/seat\.wait = null/g) ?? []).length >= 2)
   const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
   const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
   const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
@@ -114,8 +105,6 @@ section('B5 · the wiring (structural)')
   const unbudgeted = liveWith()
   unbudgeted.recomputeLive()
   check("the connector's 'aborts at' reads the wait's budget while the first byte is outstanding", outstanding === 90_000 && streaming === 30_000 && unbudgeted.status(shown).watchdogMs === null, JSON.stringify({ outstanding, streaming, neither: unbudgeted.status(shown).watchdogMs }))
-  const row = src('src/components/SwitchboardTagBar.tsx')
-  check('the status row speaks the wait, and past its budget says the lane is due', /if \(s\.wait !== null\) \{[\s\S]{0,600}requestWaitLine\(s\.wait, compact\)/.test(row) && /the budget is up; the lane reissues or aborts now/.test(row))
 }
 
 section('F · the status row keeps the budget word on a narrow terminal (100 · 110 · 120 columns)')

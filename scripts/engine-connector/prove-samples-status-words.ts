@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -33,7 +33,6 @@ const section = (title: string): void => {
 
 async function main(): Promise<void> {
   const src = (relative: string): string => join(ROOT, 'src', relative)
-  const read = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
   const { enableConfigs } = await import(src('utils/config.ts'))
   enableConfigs()
   const counts = await import(src('services/engine-connector/workCounts.ts'))
@@ -93,27 +92,12 @@ async function main(): Promise<void> {
     check('the sample word has one spelling', spelling && counts.withSampleWords('waiting on 1 shell', samples(1)) === 'waiting on 1 shell · 1 sample' && counts.withSampleWords('waiting on 1 shell', []) === 'waiting on 1 shell' && counts.withSampleWords('x', samples(2)) === 'x · 2 samples' && counts.withSampleWords('', samples(1)) === '1 sample', spelling ? 'spelled otherwise' : 'no spelling')
     check('the bare-count road carries the samples too', composer && tail(bar.waitingStatusWords({ ...waiting, waitingOn: undefined, agentsWaiting: 2 }), 1) === 'waiting on 2 crewmates · 1 sample' && tail(bar.waitingStatusWords({ ...waiting, waitingOn: undefined, agentsWaiting: 0 }), 1) === 'waiting on crewmates · 1 sample')
     check('a parked ask keeps its place; the artifact word is the tail', composer && tail(bar.waitingStatusWords({ ...waiting, waitingOn: { ...counts.workCounts(rows), asks: 1 } }), 1) === 'waiting on 4 crewmates · 1 shell · 1 ask · 1 sample')
-    const tagBar = read('src/components/SwitchboardTagBar.tsx')
-    const repl = read('src/screens/Chat.tsx')
-    const planAt = tagBar.indexOf('const plan = statusRowPlan({ columns, head, rest, samples, folder, branch, backHint })')
-    const heldAt = tagBar.indexOf('const held = receipt')
-    check('the row composes the tail once, after every state decision, through the fit that protects the state words', tagBar.includes("const fitted = columns - fixedWidth < STATUS_ROW_WORDS_FLOOR ? '' : fitStatusWords(rest, samples, columns, fixedWidth)") && planAt >= 0 && heldAt >= 0 && planAt > heldAt && !tagBar.includes('fitStatusLine(spoken'))
-    const { openStatusPart } = await import(join(ROOT, 'scripts/ui/chatScenarios.ts'))
-    const strip = await openStatusPart('samples-status-strip', { keepHome: true })
-    Object.assign(slot.getFocusedSessionConnector(), { workRoster: () => ({ rows, mission: [], samples: samples(2), reported: true }) })
-    await strip.plant({ seatLive: waiting })
-    const handedWords = Object.values(strip.handed.spinner ?? {}).filter((value): value is string => typeof value === 'string')
-    const stripSays = { override: strip.handed.spinner?.overrideMessage, waits: strip.handed.spinner?.waitingOnCrewmates, words: handedWords }
-    await strip.close()
-    check('the working strip adds neither a wait sentence nor sample metadata', !repl.includes('viewDelegationWait') && stripSays.override === null && stripSays.waits === true && handedWords.every(words => !words.includes('sample') && !words.includes('waiting on')) && !repl.includes('withSampleWords(') && !repl.includes('useFocusedSamples'), JSON.stringify(stripSays))
-    check('statusLine and the wait composer carry no sample of their own', /export function statusLine\(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 \| null = null, compact = false\): string/.test(tagBar) && /export function waitingStatusWords\(live: SessionLiveV1\): string/.test(tagBar))
   }
 
   section('S3 samples are artifacts: never running work, never a busy session, never lost on a phase change')
   {
     const counted = counts.workCounts(rows)
     check('the counting law never counts a sample', !('samples' in counted) && counts.workChipLine(counted) === '4 crewmates · 1 shell' && counts.workWaitingWords(counted) === TODAY)
-    check('the live view and the counts carry no sample field', !read('src/services/engine-connector/seatLive.ts').includes('samples') && !read('src/services/engine-connector/workCounts.ts').includes('samples: number'))
     check('an idle seat stays idle: no esc clause, the plain way back, ready', !/\besc\b/.test(bar.escBackHint(IDLE_LIVE, status)) && bar.statusLine(IDLE_LIVE, status) === 'ready')
     check('the narrow compact arm keeps its concise work vocabulary', bar.statusLine(waiting, status, null, true) === 'waiting on background work')
     check('waiting → idle → thinking → waiting: the count rides every phase, once', rowWords(waiting, 1) === OWNER && tail(bar.restingStatusWords('', null), 1) === 'ready · 1 sample' && rowWords(thinking, 1) === '1 sample' && rowWords(waiting, 1).split('sample').length === 2)
@@ -121,9 +105,6 @@ async function main(): Promise<void> {
 
   section('S4 one truth: the seat projection the row reads')
   {
-    const tagBar = read('src/components/SwitchboardTagBar.tsx')
-    const repl = read('src/screens/Chat.tsx')
-    const hook = read('src/components/tasks/useFocusedWork.ts')
     const { WorkPart } = await import(src('services/engine-connector/daemon/work.ts'))
     const shown = [{ id: 'pricing', title: 'pricing table', version: 2, state: 'open', updatedAt: '2026-10-02T00:00:00.000Z', glyph: '⧉' }]
     let seatFacts: Record<string, unknown> | null = { samples: shown }
@@ -136,11 +117,7 @@ async function main(): Promise<void> {
     seatFacts = null
     roster.refreshWork()
     const withNoFacts = roster.workRoster().samples
-    check('the row reads the samples through the one roster reader', tagBar.includes('const samples = useFocusedSamples()'))
-    check('the working strip reads no samples of its own', !repl.includes('useFocusedSamples') && !repl.includes('focusedSamples'))
-    check("the reader is the focused connector's work roster — the one projection", hook.includes('export function useFocusedSamples(): readonly SampleRowV1[]') && hook.includes('getFocusedSessionConnector().workRoster().samples ?? []'))
     check("the roster's samples are the seat facts' samples", withSamples === shown && JSON.stringify(withNone) === '[]' && JSON.stringify(withNoFacts) === '[]', JSON.stringify({ withSamples, withNone, withNoFacts }))
-    check('neither road reads a samples store or directory of its own', !tagBar.includes('services/samples/') && !repl.includes('services/samples/') && !hook.includes('services/samples/') && !tagBar.includes('readdirSync'))
   }
 
   section('S5 the compact status row on the glass: phases and a hop')

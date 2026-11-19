@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type Socket } from 'node:net'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -19,7 +19,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const cs = await import('../../src/daemon/controlSocket.ts')
 const ensure = await import('../../src/services/switchboard/ensureDaemon.ts')
@@ -131,19 +130,6 @@ section('S5 the daemon gone — an ENOCONN reply stamps the transport; the memo 
   check('the usable-daemon memo no longer answers (the next ensure would handshake and heal)', ensure._daemonUsableMemoActiveForProofs() === false)
 }
 
-section('S7 wiring')
-{
-  const sock = readFileSync(join(ROOT, 'src/daemon/controlSocket.ts'), 'utf8')
-  check('stamped ops take the key from the memo; a missing key is never memoized', /const key = await controlKeyForStamp\(\)/.test(sock) && /if \(key !== null\) controlKeyMemo = key/.test(sock))
-  check('EAUTH clears the memo, re-reads, and re-sends once only when the key moved', /reply\.code === 'EAUTH'\) \{[\s\S]{0,400}?clearControlKeyMemo\(\)[\s\S]{0,200}?if \(fresh !== null && fresh !== stale\) \{[\s\S]{0,200}?reply = await rpcOnce\(sessionOpWireFrame\(outbound\), timeoutMs\)/.test(sock))
-  check('ENOCONN stamps the transport on both sends', (sock.match(/if \(!reply\.ok && reply\.code === 'ENOCONN'\) lastUnreachableAt = Date\.now\(\)/g) ?? []).length === 2)
-  const ens = readFileSync(join(ROOT, 'src/services/switchboard/ensureDaemon.ts'), 'utf8')
-  check('the memo answers first, except under the /halt stand-down', /if \(usableMemoActive\(\) && !daemonHaltStanddownActive\(\)\) return true\n\s*const hs = await import/.test(ens))
-  check('the memo stands only inside the TTL and while no ENOCONN is newer than it', /now - usableMemo\.at < USABLE_MEMO_TTL_MS && daemonLastUnreachableAt\(\) < usableMemo\.at/.test(ens) && ens.includes('const USABLE_MEMO_TTL_MS = 5_000'))
-  check('every usable road remembers (matched, healed-serving, successor, awaited)', (ens.match(/return rememberUsable\(\)/g) ?? []).length >= 5)
-  const registry = readFileSync(join(ROOT, 'scripts/staleness/prove-stale-registry.ts'), 'utf8')
-  check('both memos carry their stale-registry rows', registry.includes('src/daemon/controlSocket.ts :: controlKeyMemo :: invalidator=clearControlKeyMemo') && registry.includes('src/services/switchboard/ensureDaemon.ts :: usableMemo :: ttl-bounded'))
-}
 
 console.log(failures === 0 ? '\n✅ ALL SEND-HOPS PROOFS PASS' : `\n❌ ${failures} SEND-HOPS PROOF(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

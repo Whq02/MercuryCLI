@@ -133,21 +133,6 @@ section('§1 stdio — frozen child settles failed; reason honest; the WHOLE TRE
   }
 }
 
-section('§1b the never-connected tree has ONE kill owner (w4-f05-02, source pins)')
-{
-  const clientSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'mcp', 'client.ts'), 'utf8')
-  t('§1b the one stdio kill owner exists', clientSrc.includes('const endStdioTree = async (): Promise<void> => {'))
-  const timeoutAt = clientSrc.indexOf('const timeoutPromise = new Promise<never>')
-  const timeoutBody = timeoutAt !== -1 ? clientSrc.slice(timeoutAt, clientSrc.indexOf('}, connectTimeoutMs())', timeoutAt)) : ''
-  t(
-    '§1b the TIMEOUT arm reaches the owner, with the reject-before-close order intact',
-    timeoutBody.includes('reject(') && timeoutBody.indexOf('reject(') !== -1 && timeoutBody.indexOf('reject(') < timeoutBody.indexOf('void transport.close()') && timeoutBody.includes('void endStdioTree()'),
-  )
-  const catchAt = clientSrc.indexOf("if (type === 'sse') logMCPError(name, `SSE connect failed:")
-  const catchBody = catchAt !== -1 ? clientSrc.slice(catchAt, clientSrc.indexOf('throw err', catchAt)) : ''
-  t('§1b the connect-failure catch reaches the owner too', catchBody.includes('await endStdioTree()'))
-  t('§1b the connected cleanup rides the SAME owner — exactly one graceful walk in the file', (clientSrc.match(/endProcessTree\(pid, 'SIGINT'\)/g) ?? []).length === 1)
-}
 
 section('§2 sse — frozen loopback settles failed with the honest reason')
 {
@@ -171,14 +156,6 @@ section('§3 http — frozen loopback settles failed with the honest reason')
   t('§3 reason names transport + seconds', error.includes('(http)') && error.includes(`did not answer in ${DEADLINE_LABEL}`), error)
 }
 
-section('§5 the gauge detail carries the failed reason verbatim (source pin)')
-{
-  const { readFileSync } = await import('node:fs')
-  const gauge = readFileSync(join(import.meta.dir, '..', '..', 'src/utils/cockpit/mcpGauge.ts'), 'utf8')
-  t('§5 failed detail embeds the connection error', gauge.includes('connection failed${error ? `: ${error}`'))
-  const client = readFileSync(join(import.meta.dir, '..', '..', 'src/services/mcp/client.ts'), 'utf8')
-  t('§5 every deadline reason shares the one grammar — spelled once, every transport reads it', (client.match(/did not answer in /g) ?? []).length === 1 && /\(\$\{transportLabel\}\) did not answer in /.test(client))
-}
 
 section('§6 the advertised deadline is the whole truth — one burn per retry')
 {

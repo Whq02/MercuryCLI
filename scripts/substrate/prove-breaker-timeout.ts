@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { writeFileSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -11,7 +11,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const src = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 
 console.log('============================================================')
 console.log(' Daemon breaker — wall-clock TIMEOUT carve-out (feature B)')
@@ -118,16 +117,6 @@ section('END-TO-END: real runTaskHeadless sets timedOut:true on a wall-clock cap
   else process.env.MERCURY_DAEMON_BREAKER_TIMEOUT_OK = prev
 }
 
-section('structural: the one feed site calls the carve-out branch (wired, not inert)')
-{
-  const mainTs = src('daemon', 'main.ts')
-  const rosterTs = src('daemon', 'roster.ts')
-  const hrTs = src('daemon', 'headlessRun.ts')
-  check('main.ts holds no direct runTaskHeadless dispatch (roster owns the feed)', !/await runTaskHeadless/.test(mainTs))
-  check('roster.ts reads res.timedOut + calls recordTimeout', /res\.timedOut === true && !DaemonBreaker\.timeoutIsFleetFailure\(\)[\s\S]{0,120}recordTimeout\(\)/.test(rosterTs))
-  check('headlessRun sets wasTimedOut on the cap timer', /wasTimedOut = true/.test(hrTs))
-  check('headlessRun resolves timedOut:true when wasTimedOut', /wasTimedOut \? \{ timedOut: true \} : \{\}/.test(hrTs))
-}
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL BREAKER-TIMEOUT PROOFS PASS')

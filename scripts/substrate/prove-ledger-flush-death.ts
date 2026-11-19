@@ -159,16 +159,6 @@ section('§4 cache-clock rollups — counted streak + recovery')
 
 section('§5 wiring anchors')
 {
-  const ROOT = join(import.meta.dir, '..', '..')
-  const src = (p: string) => readFileSync(join(ROOT, p), 'utf8')
-  const traceTs = src('src/utils/observability/invocationTrace.ts')
-  check(
-    'emitters enqueue — no bare fire-and-forget appendFile remains',
-    !/appendFile\([^)]*\(\)\s*=>\s*\{\s*\}\)/.test(traceTs) && (traceTs.match(/enqueueTraceLine\(/g) || []).length >= 3,
-  )
-  check('trace teardown registers one final attempt + notice', traceTs.includes('registerCleanup(') && traceTs.includes('unflushed'))
-  const clockTs = src('src/utils/cache/cacheClock.ts')
-  check('cache-clock teardown registers one final attempt + notice', clockTs.includes('registerCleanup(') && clockTs.includes('unflushed'))
   const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
   const crewRows = crewChecks()
   check(

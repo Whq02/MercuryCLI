@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
 
-import { mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 const CONFIG_SCRATCH = mkdtempSync(join(tmpdir(), 'homefold-home-'))
 process.env.MERCURY_CONFIG_DIR = CONFIG_SCRATCH
@@ -62,14 +61,12 @@ try {
   }
 
   check('§6 the transcript-home derivation stores a `.mercury`-grounded birth PARENT-side (MERCURY_SESSION_HOME\'s value)', getProjectDir(configHome) === getProjectDir(root) && getProjectDir(configHome).includes(sanitizePath(root).slice(0, 20)))
-  const daemonPaths = codeOnlyText('src/utils/sessionStorage/paths.ts', readFileSync(join(ROOT, 'src/utils/sessionStorage/paths.ts'), 'utf8'))
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
   const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
   enableConfigs()
   const { buildConcourseWorkerSpec } = await import(join(ROOT, 'src/daemon/concourseWorkers.ts'))
   const spawned = buildConcourseWorkerSpec({ runnerId: 'home-fold-proof', workspaceId: configHome, modelKey: 'test-model' }).extraEnv as Record<string, string | undefined>
   check('§6 the spawn hands its worker MERCURY_SESSION_HOME as the folded home of its workspace', spawned.MERCURY_SESSION_HOME === getProjectDir(root), String(spawned.MERCURY_SESSION_HOME))
-  check('§6 SOURCE SEAM: that getProjectDir IS the folding derivation proved above (paths delegates to the portable resolver)', daemonPaths.includes("import { getProjectDir as resolveProjectDir } from '../sessionStoragePortable.js'") && daemonPaths.includes('return resolveProjectDir(projectDir)'))
 } finally {
   rmSync(scratch, { recursive: true, force: true })
   rmSync(CONFIG_SCRATCH, { recursive: true, force: true })

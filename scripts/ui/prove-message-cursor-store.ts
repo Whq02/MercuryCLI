@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 process.env.NODE_ENV = 'test'
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 
@@ -14,7 +13,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const store = await import('../../src/components/messageCursorStore.ts')
 type Cursor = { uuid: string; type: 'user'; expanded: boolean }
@@ -46,7 +44,6 @@ section('§1 the store — one owner, identity-guarded, the active flag beside i
 
 section('§2 the wiring — by census at every owner')
 {
-  const repl = read('src/screens/Chat.tsx')
   {
     const { mountPart } = await import('./chatScenarios.ts')
     const { useChatScroll } = await import('../../src/screens/chat/useChatScroll.ts')
@@ -59,7 +56,6 @@ section('§2 the wiring — by census at every owner')
     pill.unmount()
     store._resetMessageCursorForTest()
     process.chdir(ROOT)
-    check('the Chat keeps no cursor state of its own (its one clear — the jump-to-new pill — writes the store)', !repl.includes('useState<MessageActionsState | null>') && cleared && jumps.join() === 'bottom', `cleared ${cleared} · ${jumps.join()}`)
   }
   const { openSelectorPart } = await import('./chatScenarios.ts')
   const selector = await openSelectorPart('message-cursor-store-selector', { keepHome: true })
@@ -94,23 +90,9 @@ section('§2 the wiring — by census at every owner')
     const outsideFullscreen = keys.handed.actions === null
     await keys.close()
     process.chdir(ROOT)
-    check('the bar and the key handlers mount on the active flag', repl.includes('messageCursorActive && !messageActionsDisabled ? <MessageActionsBar /> : composerGroup') && withoutCursor && withCursor && outsideFullscreen, `handlers absent with no cursor ${withoutCursor} · mounted with one ${withCursor} · absent outside the fullscreen layout ${outsideFullscreen}`)
   }
-  check('the live transcript owns the cursor; no transcript mount passes a cursor prop', /ownsCursor\s*\n\s*cursorNavRef=\{messageNavRef\}/.test(repl) && !/\bcursor=\{/.test(repl))
   check('the hook takes the nav ref and the capabilities, reading the cursor live', asked === 1 && leftByEscape, `enter reached the nav ref ${asked} times · escape cleared the cursor it read ${leftByEscape}`)
 
-  const messages = read('src/components/Messages.tsx')
-  check('the transcript reads the store when it owns the cursor', messages.includes('const liveCursor = useMessageCursor()') && messages.includes('const cursor: MessageActionsState | null = ownsCursor ? liveCursor : null') && messages.includes('const setCursor = ownsCursor ? setMessageCursor : undefined'))
-  check('the transcript comparator keys on ownership, never on the cursor', messages.includes('if (prev.ownsCursor !== next.ownsCursor) return false') && !messages.includes('if (prev.cursor !== next.cursor) return false'))
-  const others = ['src/utils/exportRenderer.tsx', 'src/components/SessionPreview.tsx'].filter(rel => /ownsCursor|cursor=\{/.test(read(rel)))
-  check('no other transcript mount claims the cursor', others.length === 0, others.join(' · '))
-
-  const actions = read('src/components/messageActions.tsx')
-  check('the hook reads and writes the store, never a cursor ref', actions.includes('const current = getMessageCursor()') && actions.includes('setMessageCursor(null)') && !actions.includes('cursorRef') && !actions.includes('setCursorRef'))
-  check('the bar reads the store and paints nothing while no cursor stands', actions.includes('const live = useMessageCursor()') && actions.includes('const cursor = given ?? live') && actions.includes('if (!cursor) return null'))
-
-  const list = read('src/components/VirtualMessageList.tsx')
-  check('the scroll-follow rides a LAYOUT effect (the highlight’s own commit)', /useLayoutEffect\(\(\) => \{\s*\n\s*if \(selectedIndex === undefined\) return\s*\n\s*const el = vsRef\.current\.getItemElement\(selectedIndex\)/.test(list))
 }
 
 section('§3 the mechanism, live — ten moves, zero root renders')

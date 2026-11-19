@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,7 +20,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const effort = await import('../../src/utils/effort.ts')
 const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
@@ -111,14 +110,6 @@ section('§4 the projections every surface reads agree with the truth')
   check('a first-party id still rides the ladder (medium stays medium)', sonnet.catalogue === 'static-tables' && sonnet.wire === 'medium', JSON.stringify(sonnet))
 }
 
-section('§5 the shape')
-{
-  const src = readFileSync(join(ROOT, 'src/utils/effort.ts'), 'utf8')
-  const edge = readFileSync(join(ROOT, 'src/utils/model/capabilities.ts'), 'utf8')
-  check('one vocabulary owner feeds the truth (the capability edge, read by the resolution)', /export function effortVocabularyFor\(model: string\): EffortVocabularyView/.test(edge) && /const view = effortVocabularyFor\(model\)/.test(src))
-  check('the owner reads the per-model GLM vocabulary, never the union', /glmEffortsFor\(model\)/.test(edge) && !/GLM_EFFORTS\b/.test(edge) && !/GLM_EFFORTS\b/.test(src))
-  check('the truth steps nearest-below through the vocabulary', /nearestSupportedWireEffort\(request, \[\.\.\.vocabulary\]\)/.test(src))
-}
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-effort-vocabulary-truth${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

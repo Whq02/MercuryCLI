@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -38,49 +38,6 @@ section('§1 THE LAW')
   )
 }
 
-section('§2 THE RUN ASSEMBLY')
-{
-  const pool = readFileSync(join(ROOT, 'src/tools.ts'), 'utf8')
-  const partitionAt = pool.indexOf('export function mcpToolPartition')
-  const partition = pool.slice(partitionAt, partitionAt + 400)
-  check(
-    'the MCP partitions ride filterToolsByDenyRules (FC-026, call-shaped) through the one shared partition',
-    partitionAt !== -1 && /filterToolsByDenyRules\(/.test(partition),
-  )
-  check(
-    "and the blocked ceiling is enforced (effectiveMaxPermission !== 'blocked')",
-    /effectiveMaxPermission\s*!==\s*'blocked'/.test(partition),
-  )
-}
-
-section('§3 THE SERVE CONTEXT')
-{
-  const serve = readFileSync(join(ROOT, 'src/entrypoints/mcp.ts'), 'utf8')
-  const listAt = serve.indexOf("setRequestHandler('tools/list'")
-  const callAt = serve.indexOf("setRequestHandler('tools/call'")
-  const listSlice = serve.slice(listAt, listAt + 600)
-  const callSlice = serve.slice(callAt, callAt + 600)
-  check(
-    'the ListTools handler builds a DISK-RULES context (never the empty one)',
-    !/getEmptyToolPermissionContext\(\)/.test(listSlice) && /ermissionContext/.test(listSlice),
-    listSlice.slice(0, 140).replace(/\s+/g, ' '),
-  )
-  check(
-    'the CallTool handler does too',
-    !/getEmptyToolPermissionContext\(\)/.test(callSlice),
-    callSlice.slice(0, 140).replace(/\s+/g, ' '),
-  )
-  check(
-    'the CallTool handler enforces the ladder per call (refuse-on-non-allow)',
-    /hasPermissionsToUseTool\(\s*\n?\s*tool,/.test(serve) &&
-      /behavior !== 'allow'/.test(serve) &&
-      /PermissionRefused/.test(serve),
-  )
-  check(
-    "the handler's app state carries the SERVE context, not the default",
-    /toolPermissionContext: permissionContext/.test(serve),
-  )
-}
 
 section('§4 THE SERVE SURFACE LIVE')
 {

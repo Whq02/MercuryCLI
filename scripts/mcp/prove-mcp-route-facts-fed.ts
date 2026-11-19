@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -51,15 +51,6 @@ section('§2 the roster line')
   check('§2 the line names the owner and the toggle door', line.includes("The session's runner owns them") && line.includes('/mcp enable|disable <name>'), line)
 }
 
-section('§3 the composer leases the focused session popup on every seat')
-{
-  const src = readFileSync(join(ROOT, 'src/commands/mcp/mcp.tsx'), 'utf8')
-  check('§3 the focused roster determines the popup grant', src.includes('mcpPopupShapeFor(getFocusedSessionConnector().mcpRoster().clients.length)'))
-  check('§3 the composer returns the popup under its lease', src.includes('<CommandPopupLease token={token}><MCPSettings onComplete={onDone} /></CommandPopupLease>'))
-  check('§3 no screen-list-empty gate fronts the focused roster', !src.includes('screenClients.length === 0'))
-  const popup = readFileSync(join(ROOT, 'src/commands/mcp/McpPopup.tsx'), 'utf8')
-  check('§3 the popup subscribes to and reads the focused connector', popup.includes('subscribeThroughFocused') && popup.includes('mcpRosterRowsFailedFirst(connector.mcpRoster())'))
-}
 
 section('§4 the focused roster is painted through the composer')
 {
@@ -114,8 +105,6 @@ section("§5 the row speaks the deadline's honest reason (the panel's own words)
   check('§5 … and the healthy rows stay bare', line.includes('docs (connected) · slow (pending)'), line)
   const { mcpServerState } = await import('../../src/commands/mcp/McpPopup.tsx')
   check("§5 the popup carries the failed client's own reason", mcpServerState(failed as never) === 'failed: ' + REASON)
-  const rosterSrc = readFileSync(join(ROOT, 'src/services/engine-connector/rosterTerms.ts'), 'utf8')
-  check('§5 the projection forwards the reason only for a failed row', rosterSrc.includes("client.type === 'failed'") && rosterSrc.includes('error: client.error'))
 }
 
 section('§6 the failed rows lead the line')

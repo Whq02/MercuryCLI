@@ -88,7 +88,6 @@ try {
     const face = await import('../../src/components/BootLoginsScreen.tsx')
     const pane = face.keyPromptPaneLines('xai-management', null, 0, false).join(' ')
     check('the optional face key step names the console settings and leaves an explicit skip road', pane.includes('settings page') && pane.includes('usage meter') && pane.includes('API key stays'))
-    check('face and modal call the same management-key driver', readFileSync(new URL('../../src/components/BootLoginsScreen.tsx', import.meta.url), 'utf8').includes('storeXaiManagementKeyLogin(value)') && readFileSync(new URL('../../src/components/XaiConnect.tsx', import.meta.url), 'utf8').includes('storeXaiManagementKeyLogin(key)'))
   } finally { fixture.stop(); writeStoredXaiManagementApiKey(null) }
   check('at-rest store contains the key only under its own slot', JSON.parse(readFileSync(providerSecretsPathForDisplay(), 'utf8')).xaiApiKey === key)
   const auth = await import('../../src/services/providers/xai/xaiOauth.ts')

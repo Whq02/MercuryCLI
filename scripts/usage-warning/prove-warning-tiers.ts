@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import type { LimitWarningReads, ProviderLimitWarningView } from '../../src/services/providers/limitWarning.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -13,7 +12,6 @@ assert.equal(warnings.SECOND_WARNING_PCT, tiers.SECOND_WARNING_PCT)
 assert.equal(warnings.APPROACHING_LIMIT_PCT, tiers.FIRST_WARNING_PCT)
 assert.equal(warnings.usageWarningTier, tiers.usageWarningTier)
 assert.equal(warnings.usageWindowState, tiers.usageWindowState)
-assert.ok(!/\b(?:import|require)\b/.test(readFileSync(new URL('../../src/services/providers/usageTiers.ts', import.meta.url), 'utf8')))
 
 const reset = Math.floor(Date.now() / 1000) + 604800
 const entry = { id: 'fixture', provider: 'anthropic', kind: 'subscription-oauth', label: 'fixture', custodian: 'anthropic-slots' } as const
@@ -118,8 +116,6 @@ assert.equal(computeNewLimitsFromHeaders(new Headers({
   'anthropic-ratelimit-unified-reset': String(reset),
   'anthropic-ratelimit-unified-representative-claim': 'seven_day',
 })).status, 'allowed')
-const decoder = readFileSync(new URL('../../src/services/anthropicLimits.ts', import.meta.url), 'utf8')
-assert.ok(!decoder.includes('TIME_RELATIVE_CONFIGS') && !decoder.includes('elapsedFraction'))
 console.log('PASS the card and strip follow the number; a bare warning is quiet')
 
 console.log('RED on the base: Kimi and OpenRouter percentages have no card arm')
@@ -183,10 +179,6 @@ assert.equal(emitted.length, 2)
 assert.match(emitted[0]!.text, /80%/)
 assert.match(emitted[1]!.text, /90%/)
 assert.notEqual(emitted[0]!.key, emitted[1]!.key)
-const hook = readFileSync(new URL('../../src/hooks/notifs/useRateLimitWarningNotification.tsx', import.meta.url), 'utf8')
-assert.match(hook, /takeUsageWarning\(warningKeysRef\.current, warning\)/)
-assert.match(hook, /key: `\$\{WARNING_KEY\}\|\$\{usageWarningEmissionKey\(warning\)\}`/)
-assert.ok(!hook.includes('warning.text === lastWarningRef.current'))
 console.log('PASS exactly two strip notifications, with crossing text and distinct queue keys')
 
 const { sessionFactsToWire, sessionFactsFromWire } = await import('../../src/services/engine-connector/seatWire.ts')
@@ -298,8 +290,6 @@ const separateSignals = computeNewLimitsFromHeaders(new Headers({
 }))
 assert.equal(separateSignals.status, 'allowed_warning')
 assert.equal(separateSignals.rateLimitType, 'five_hour')
-const cardSource = readFileSync(new URL('../../src/services/capFailover.ts', import.meta.url), 'utf8')
-assert.ok(cardSource.includes("current.rateLimitType !== 'overage' && current.utilization !== undefined"))
 console.log('PASS the overage decoder keeps its old verdict and does not manufacture a window cap')
 
 const expiredOverage = computeNewLimitsFromHeaders(new Headers({

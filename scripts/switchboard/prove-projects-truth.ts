@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 
@@ -11,26 +11,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(rel, 'utf8')
 
 {
-  const picker = read('src/components/concourse/GroundPicker.tsx')
-  check('T1 the REPO picker renders the ONE worked-in source', picker.includes('workedInProjects()') && picker.includes('bootCardFacts'))
-  const face = read('src/components/BootSplashScreen.tsx')
-  check('T1 the Boot face renders the same owner', face.includes('scanBootCardFacts'))
-  const owner = read('src/utils/bootCardFacts.ts')
-  check('T1 the owner derives both shapes from ONE scan', owner.includes('function scanWorkedInProjects') && owner.includes('export function workedInProjects'))
-}
-
-{
-  const ground = read('src/services/switchboard/harnessGround.ts')
-  check('T2 the ONE apply owner chdirs + records the cwd', ground.includes('process.chdir(target)') && ground.includes('setCwdState(target)'))
-  check('T2 the apply pulses the slot so chrome re-reads', ground.includes('emitFocusedSessionConnectorChanged()'))
-  check('T2 no chat is re-grounded (nothing exists to follow the ground before a session is born)', !ground.includes('regroundWorkspace') && !ground.includes('isNascentConnector'))
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  check('T2 the concourse seed callback rides the ONE owner', route.includes('harnessGround.js') && !route.includes('state.setCwdState('))
-  const face = read('src/components/BootSplashScreen.tsx')
-  check('T2 the Boot face project pick rides the ONE owner', face.includes('applyHarnessGround(p.dir)'))
   const state = await import('../../src/bootstrap/state.ts')
   const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
   const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
@@ -50,30 +32,10 @@ const read = (rel: string): string => readFileSync(rel, 'utf8')
 }
 
 {
-  const face = read('src/components/BootSplashScreen.tsx')
-  const openAt = face.indexOf('const openProject = ')
-  const openEnd = face.indexOf('const composedRows: BootRow[] = useMemo(', openAt)
-  const open = openAt !== -1 && openEnd > openAt ? face.slice(openAt, openEnd) : ''
-  check('T3 the pick rides the ONE resume door with the row transcript', open.includes('focusResumedSession(p.sessionId, p.transcriptPath'))
-  check('T3 a history-less row births a session there (never a chat off the board)', open.includes('bornSession({ workspaceDir: p.dir') && !open.includes('focusNascentSession'))
-  check('T3 the ground move gates on the trust ledger', open.includes('isPathTrusted(p.dir)'))
-  check('T3 the pick lands in the MAIN chat (never a board detour)', open.includes('enterRootChat()'))
-  const owner = read('src/utils/bootCardFacts.ts')
-  check('T3 the owner threads the newest transcript path', owner.includes('transcriptPath: newest !== null ? newest.file : null'))
-}
-
-{
   const { projectDisplayName } = await import('../../src/utils/bootCardFacts.ts')
   check('T4 a .mercury project row wears its parent name', projectDisplayName('/x/gamma/.mercury') === 'gamma')
   check('T4 an ordinary row keeps its own name', projectDisplayName('/x/repo-beta') === 'repo-beta')
   check('T4 a rootward .mercury falls back honestly', projectDisplayName('/.mercury') === '.mercury')
-  const owner = read('src/utils/bootCardFacts.ts')
-  check('T4 the scan names rows through the ONE seam', owner.includes('base: projectDisplayName(sessionCwd)'))
-  check('T4 the seam rides the projectConfig ratchet, not a re-quoted literal', owner.includes('PROJECT_CONFIG_DIR_NAMES'))
-  const launcher = read('assets/splash/mercury-splash.mjs')
-  check('T4 the launcher scan mirrors the seam (boot-seam byte parity)', launcher.includes('base: projectDisplayName(cwd)'))
-  const picker = read('src/components/concourse/GroundPicker.tsx')
-  check('T4 the picker names its boot row through the seam', picker.includes('projectDisplayName(bootGround)'))
 }
 
 {

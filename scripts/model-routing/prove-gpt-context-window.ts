@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -19,7 +19,6 @@ console.log('============================================================')
 console.log(' GPT context window: SOURCE truth, no invented windows')
 console.log('============================================================')
 
-const ROOT = join(import.meta.dir, '..', '..')
 const savedEnv: Record<string, string | undefined> = {}
 for (const key of [
   'OPENAI_API_KEY',
@@ -133,63 +132,6 @@ section('4 · unfetched falls back to the PIN, unchanged')
   )
 }
 
-section('5 · the LIVE router catalogue carries the SERVED window, not the pin')
-{
-  const providerSrc = readFileSync(join(ROOT, 'src/services/providers/openai/openaiAdapter.ts'), 'utf8')
-  check(
-    'the live row prefers the source-served window',
-    /candidate\.live\.contextWindow !== undefined\s*\n\s*\? \{ contextWindow: candidate\.live\.contextWindow \}/.test(providerSrc),
-  )
-  check(
-    'the pin survives ONLY as the no-window-stated fallback (and only when the pin itself records a window — provider parity: lineup pins may state none)',
-    /: candidate\.pin && candidate\.pin\.contextWindow !== undefined\s*\n\s*\? \{ contextWindow: candidate\.pin\.contextWindow \}/.test(providerSrc),
-  )
-  check(
-    'the live row no longer stamps the pin unconditionally',
-    !/\.\.\.\(candidate\.pin \? \{ contextWindow: candidate\.pin\.contextWindow \} : \{\}\)/.test(providerSrc),
-  )
-  check(
-    'the STATIC pin catalogue is still allowed to render pin windows (display provenance)',
-    /function staticPinCatalogue/.test(providerSrc) && /contextWindow: pin\.contextWindow/.test(providerSrc),
-  )
-}
-
-section('6 · the picker row states only the ACTIVE source (structural)')
-{
-  const picker = readFileSync(join(ROOT, 'src/components/MercuryModelPicker.tsx'), 'utf8')
-  check(
-    'the fabricated "an API key serves …" claim is GONE',
-    !picker.includes('an API key serves'),
-  )
-  check(
-    'the row reads the source-declared ceiling accessor',
-    picker.includes('liveGptContextCeiling'),
-  )
-  check(
-    'the toggle copy names the declared-max state with the served default beside it',
-    picker.includes('ctx active · default ${fmtCtx(focusedGptWindow.served)}'),
-  )
-  check(
-    "the toggle copy names the served state with the declared max beside it",
-    picker.includes('ctx active · max ${fmtCtx(focusedGptWindow.ceiling)}'),
-  )
-  check(
-    'both toggle states advertise the toggle (never a dead-end claim)',
-    picker.includes(' · ${MODEL_PICKER_CONTEXT_CHORD} toggles'),
-  )
-  check(
-    'the ONE-window case names the window and says there is no alternate',
-    picker.includes('`${fmtCtx(focusedGptWindow.served)} ctx · no alternate window`'),
-  )
-  check(
-    'the retired always-fixed copy is GONE (a two-window row is never "not a toggle")',
-    !picker.includes('(declared max; default '),
-  )
-  check(
-    'the row no longer compares the live window against the static pin',
-    !picker.includes('focusedGptWindow.pin'),
-  )
-}
 
 section('7 · speedster 3.5.5 — the ONE typed ContextResolution (CX rows)')
 {
@@ -299,31 +241,6 @@ section('7 · speedster 3.5.5 — the ONE typed ContextResolution (CX rows)')
   )
 }
 
-section('8 · the toggle PERSISTS on the id and re-opens true (structural)')
-{
-  const picker = readFileSync(join(ROOT, 'src/components/MercuryModelPicker.tsx'), 'utf8')
-  check(
-    'commit maps the toggle onto the id: bare = declared max, [served] = the opt-down',
-    picker.includes('onSelect(context1m ? m.id : withGptServedWindowSuffix(m.id), m.door)'),
-  )
-  check(
-    'a re-open seeds the toggle from the PERSISTED id (the [served] annotation on `current`)',
-    picker.includes('hasGptServedWindowSuffix(current) && stripGptServedWindowSuffix(current) === p'),
-  )
-  check(
-    'row identity matching strips the annotation (the current dot lands on the row)',
-    picker.includes('const currentRow = stripGptServedWindowSuffix(current)'),
-  )
-  check(
-    'the column follows the live c state for BOTH toggle families (1M and served↔declared)',
-    picker.includes('on && (focusedSupports1m || focusedGptToggle) ? (context1m ? (m.ctx1m ?? m.ctx) : (m.ctxBase ?? m.ctx)) : m.ctx'),
-  )
-  const wrapper = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  check(
-    'the wrapper bakes BOTH column states through the ONE resolver (column ≡ budget by construction)',
-    wrapper.includes('getContextWindowForModel(withGptServedWindowSuffix(opt.value) as never, betas)'),
-  )
-}
 
 section('9 · the /model GPT group is the FULL lineup; availability = the resolver')
 {

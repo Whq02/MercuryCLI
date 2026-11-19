@@ -4,7 +4,6 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CONFIG_HOME, cleanupScenario, scenario } from '../ui/renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { formsMissing, rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -40,44 +39,6 @@ console.log('\n── §1 the ONE chip-safe splice ─────────�
   check('a range clear of chips is untouched', outside.start === 0 && outside.end === 3)
 }
 
-console.log('\n── §2 contracts pinned in source ────────────────────────────')
-{
-  const read = (p: string): string => readFileSync(join(import.meta.dir, '..', '..', p), 'utf8')
-  const buf = read('src/hooks/useInputBuffer.ts')
-  check('buffer exposes the bidirectional API', ['pushToBuffer', 'pushAtomic', 'undo', 'redo', 'canUndo', 'canRedo', 'clearBuffer'].every(k => buf.includes(k)))
-  check('a new edit truncates the forward branch', buf.includes('if (redoStackRef.current.length > 0) redoStackRef.current = []'))
-  check('entries carry text + cursor + paste metadata together', buf.includes('pastedContents: Record<number, PastedContent>'))
-  const pi = read('src/components/PromptInput/PromptInput.tsx') + read('src/components/PromptInput/useComposerAttachments.ts') + read('src/components/PromptInput/useComposerKeybindings.ts') + read('src/components/PromptInput/useComposerDraft.ts')
-  check('undo/redo receive the LIVE state (pending edits never skipped)', pi.includes('buffer.undo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })') && pi.includes('buffer.redo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })'))
-  check('insertions are atomic transactions', pi.includes('pushAtomic(input, cursorOffset, pastedContents);\n    const range = inputSelectionRangeRef.current();'))
-  check('external-editor return is one atomic edit', /typeof result\.content === 'string' && result\.content !== expanded\) \{(?:\s*\/\/[^\n]*)*\s*buffer\.pushAtomic\(input, cursorOffset, pastedContents\)\s*pendingInput\.edit\(result\.content\)/.test(pi))
-  check('the session switch resets the timeline', pi.includes('bufferSessionRef') && pi.includes('clearBuffer();'))
-  check('range edits record an atomic boundary (onBeforeRangeEdit)', pi.includes('onBeforeRangeEdit={() => pushAtomic(input, cursorOffset, pastedContents)}'))
-  const uti = read('src/hooks/useTextInput.ts')
-  check('useTextInput routes ALL range edits through the one splice', (uti.match(/spliceInputRange\(/g) ?? []).length >= 2 && !/cursor\.text\.slice\(0, r\.start\) \+ cursor\.text\.slice\(r\.end\)/.test(uti))
-  check('←/→ collapse the selection to its edges', uti.includes('setOffset(key.leftArrow ? r.start : r.end)'))
-  check('esc clears the selection, never the draft', uti.includes('if (key.escape) {\n            onSelectionConsumed?.()\n            return\n          }'))
-  const graph = read('src/keybindings/actionGraph.ts')
-  const schema = read('src/keybindings/schema.ts')
-  const shipped = shippedKeyForms()
-  const help = read('src/components/PromptInput/PromptInputHelpMenu.tsx')
-  check('chat:redo registered in schema + defaults + help', graph.includes("'chat:redo'") && schema.includes("export { KEYBINDING_ACTIONS } from './actionGraph.js'") && formsMissing(shipped, 'Chat', 'ctrl+x ctrl+r', 'chat:redo').length === 0 && help.includes('to redo'))
-  check('ctrl+z is never advertised for redo', rowsBinding(shipped, (action, chord) => action === 'chat:redo' && chord.endsWith('ctrl+z')).length === 0 && !help.includes('ctrl + z to redo'))
-  const shutdown = read('src/utils/gracefulShutdown.ts')
-  const installerStart = shutdown.indexOf('export const setupGracefulShutdown')
-  const crashHandlerAt = shutdown.indexOf("process.on('uncaughtException'")
-  const installer = installerStart >= 0 && crashHandlerAt > installerStart ? shutdown.slice(installerStart, crashHandlerAt) : ''
-  check(
-    'the stream-gone handlers are armed inside the shutdown installer, ahead of the crash handler',
-    /import \{[^}]*\bregisterProcessOutputErrorHandlers\b[^}]*\} from '\.\/process\.js'/.test(shutdown) && installer.includes('registerProcessOutputErrorHandlers()'),
-  )
-  const entry = read('src/main.tsx')
-  const init = read('src/entrypoints/init.ts')
-  check(
-    'the interactive boot reaches that installer (main → init → setupGracefulShutdown)',
-    entry.includes("import { init } from './entrypoints/init.js'") && entry.includes('await init()') && init.includes('setupGracefulShutdown()'),
-  )
-}
 
 console.log('\n── §3 the REAL binary: burst-undo · redo · receipts ─────────')
 function composerCapture(

@@ -66,18 +66,6 @@ section('§1 the key: the composed instruction files ride under one key, rendere
   check('the composed block sits directly under its heading', body.includes(`\n# ${INSTRUCTIONS_CONTEXT_KEY}\n${ctx[INSTRUCTIONS_CONTEXT_KEY]}\n`))
 }
 
-section('§2 the helper-agent filter keys on the same constant (one owner of the spelling)')
-{
-  const runAgent = readFileSync(join(REPO, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
-  const start = runAgent.indexOf('function withoutInstructionBlob(')
-  const fn = start >= 0 ? runAgent.slice(start, runAgent.indexOf('\n}\n', start)) : ''
-  check('withoutInstructionBlob exists', start >= 0)
-  check('…and drops the entry by the exported key, not by a spelling of its own', /key === INSTRUCTIONS_CONTEXT_KEY/.test(fn) && !/\.test\(key\)/.test(fn), fn.slice(0, 300))
-  check('the per-profile slice writes the same key', /userContext\[INSTRUCTIONS_CONTEXT_KEY\] = slice\.instructionPrompt/.test(runAgent))
-  check('the constant is imported from the one home', /import \{ INSTRUCTIONS_CONTEXT_KEY \} from '\.\.\/\.\.\/utils\/userContextReminder\.js'/.test(runAgent))
-  const contextSrc = readFileSync(join(REPO, 'src/context.ts'), 'utf8')
-  check('context.ts writes the entry through the constant', /\[INSTRUCTIONS_CONTEXT_KEY\]: instructionPrompt/.test(contextSrc))
-}
 
 section('§3 resume: an old saved session whose stored context row was rendered under another heading opens; its rows stay byte-identical; one fresh row is appended')
 {

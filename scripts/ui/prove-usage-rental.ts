@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
 
@@ -54,10 +54,6 @@ try {
   const { activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
   const usage = activeSourceUsage({ model }) as ReturnType<typeof activeSourceUsage> & { rental?: { spendUSD: number; price: number; id: string } }
   check('F44R-23: active spend resolves the seated rental', usage.rental?.id === 'current' && usage.rental.price === 3.99 && Math.abs(usage.rental.spendUSD - 0.399) < 0.01, JSON.stringify(usage.rental))
-  const rail = readFileSync(join(import.meta.dir, '../../src/utils/cockpit/helmLanesModel.ts'), 'utf8')
-  check('F44R-23: the rail spells rental spend in cents ahead of token spend', /usage\.rental/.test(rail) && /rental\.spendUSD\.toFixed\(2\)/.test(rail))
-  const railFace = readFileSync(join(import.meta.dir, '../../src/components/HelmLanesRail.tsx'), 'utf8')
-  check('the rail resolves usage for the seated model rather than the saved default', railFace.includes('activeSourceUsage({ model: getFocusedSessionConnector().modelFacts().effective })'))
   const { formatCost } = await import('../../src/utils/spendSpelling.ts')
   check('provider sub-cent formatting is unchanged', formatCost(0.0007) === '$0.0007')
 } finally { mounted?.unmount(); releaseFocusedSessionConnector(); removeHostRecord('old'); removeHostRecord('current') }

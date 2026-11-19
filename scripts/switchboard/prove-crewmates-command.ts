@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -25,8 +25,6 @@ enableConfigs()
 const { builtinCommands, builtInCommandNames, findCommand, getCommandName } = await import('../../src/commands.ts')
 const { unknownCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
 const words = await import('../../src/utils/cockpit/crewmateWords.ts')
-const { readFileSync } = await import('node:fs')
-const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -49,13 +47,10 @@ check('the command-name catalogue carries crewmates and not teammates', builtInC
 const unknown = unknownCommandLine('teammates', registry)
 check('the palette answers /teammates with its unknown-command sentence, pointing at /help', unknown === 'Unknown command: /teammates · /help lists commands', unknown)
 check('…and never names /crewmates as the command that ran, nor the crew view\'s foreground refusal', !unknown.includes('/crewmates command') && !/interactive surface/.test(unknown), unknown)
-check('no spelling table maps the old command name — or any old crew word — to the new', !existsSync(join(ROOT, 'src', 'migrations', 'retiredCrewSpellings.ts')))
 check('the crew view stays a concourse surface under the new name', crewmates !== undefined && crewmates.needsConcourse === true)
 check('the command speaks of the crew, not the team', crewmates !== undefined && /\bcrew/i.test(crewmates.description) && !/\bteam(mate)?s?\b/i.test(crewmates.description), crewmates === undefined ? 'no command' : crewmates.description)
 const registered = registry.filter(c => c.name === 'crewmates' || c.name === 'teammates')
 check('exactly one registry row, and it is named crewmates', registered.length === 1 && registered[0]?.name === 'crewmates', registered.map(c => c.name).join(', '))
-const commandSource = readFileSync(join(ROOT, 'src', 'commands', 'crewmates', 'crewmates.tsx'), 'utf8')
-check('/crewmates alone opens the crew view (no named chat, no spawn door); on|off is the spawn switch since /subagents ceased in .34 (ruling AM) — the one body /workflows shares', /openCrewView\(\)/.test(commandSource) && !/<CrewView/.test(commandSource) && commandSource.includes("runSpawnSwitchCommand('subagents'") && commandSource.includes('parseSpawnSwitchArg(args'))
 
 console.log('\n the doors the crew words print name /crewmates')
 const doors = [

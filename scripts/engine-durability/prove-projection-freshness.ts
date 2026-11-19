@@ -2,7 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { checker, scratchRoot, waitUntil } from './harness.ts'
 
 scratchRoot('freshness')
@@ -125,23 +124,5 @@ t.section('§4 — pokeWorkbench (the template) honours a mid-refresh trigger')
   projection._resetWorkbenchForTesting()
 }
 
-t.section('§5 — the audited async projections use the coalescing owner')
-{
-  const consumers = [
-    'src/services/workbench/projection.ts',
-  ]
-  for (const file of consumers) {
-    let src = ''
-    try {
-      src = readFileSync(file, 'utf8')
-    } catch {
-    }
-    t.check(
-      `${file} routes its refresh through serialCoalescer`,
-      src.includes('serialCoalescer'),
-      src === '' ? 'unreadable' : 'no import of the coalescing owner',
-    )
-  }
-}
 
 t.finish('prove-projection-freshness')

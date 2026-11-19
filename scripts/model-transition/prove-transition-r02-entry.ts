@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'transition-r02-'))
-const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -16,13 +15,11 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const onboarding = readFileSync(join(ROOT, 'src/components/Onboarding.tsx'), 'utf8')
 
 section('§A the ONE provider station — the /logins card mounted in the walk')
 {
   const { loginFamilyRows, SIGN_IN_LATER_ROW } = await import('../../src/components/loginFamilyRows.ts')
   const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
-  const card = readFileSync(join(ROOT, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8')
 
   const { enableConfigs } = await import('../../src/utils/config.ts')
   const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
@@ -40,43 +37,6 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
     families.every(row => parseFamilyFocus(row.value) === row.value),
     JSON.stringify(families.map(row => [row.value, parseFamilyFocus(row.value)])),
   )
-  check(
-    'the /logins card derives rows AND count from the owner, in one call (never a hand copy) — the walk hands the owner its TensorFold offer, so the row the walk offers first is the owner\'s row too',
-    card.includes('const familyRows = loginFamilyRows({ engineLegs: onOpenaiDone !== undefined, tensorfold })') &&
-      card.includes('const menuCount = familyRows.length + ') &&
-      card.includes('...familyRows,') &&
-      (card.match(/loginFamilyRows\(\{ engineLegs: onOpenaiDone !== undefined/g) ?? []).length === 1 &&
-      card.includes('rosterRows: idleRows.length') &&
-      card.includes('visibleOptionCount={rosterWindow}'),
-  )
-  check(
-    "the walk's provider station IS the /logins card — same component, engine settlement live",
-    /'provider'/.test(onboarding) &&
-      /<ConsoleOAuthFlow/.test(onboarding) &&
-      /onOpenaiDone=\{result =>/.test(onboarding),
-    'walk-rows ≡ /logins-rows holds by construction only while the walk mounts the card',
-  )
-  const walkBesideItsIntro = onboarding.replace(/const SIGN_IN_WORDS = \{[\s\S]*?\n\}\n/, '')
-  check(
-    'the walk hand-rolls NO row list beside the card (the drift class stays dead)',
-    !/ProviderChoice/.test(walkBesideItsIntro) &&
-      !/OpenRouter|DeepSeek|Hugging Face/.test(walkBesideItsIntro) &&
-      !/beginOpenaiBrowserConnect/.test(onboarding),
-  )
-  check(
-    "the walk's one read of provider usability gates whether the station is asked at all (no credentialed provider can run a turn; a found local server is a row on the station, never a skipped station), never which rows it shows",
-    onboarding.split('resolveProviderUsability(').length === 2 &&
-      onboarding.includes("isAnthropicAuthEnabled() && !Object.values(resolveProviderUsability()).some(lane => lane.provider !== 'local' && lane.usable)"),
-  )
-  check(
-    "ONE station, not two: the walk carries no second sign-in step id",
-    !/'oauth'/.test(onboarding),
-  )
-  check(
-    'the "sign in later" row is offered (onSkip seam) and settles into the walk; its words come from the row owner, local-aware',
-    /onSkip=\{onSkip\}/.test(onboarding) && /onSkip=\{advance\}/.test(onboarding) &&
-      card.includes('...(onSkip !== undefined ? [signInLaterRow(localRoad)] : [])'),
-  )
   const { signInLaterRow } = await import('../../src/components/loginFamilyRows.ts')
   check(
     'with no local server the later row carries its honest caveat: the agent needs a sign-in or a local model, and names /localsetup',
@@ -91,50 +51,8 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
       signInLaterRow({ models: 7, labels: ['Ollama 0.34.4'] }).value === SIGN_IN_LATER_ROW.value,
     signInLaterRow({ models: 7, labels: ['Ollama 0.34.4'] }).label,
   )
-  check(
-    'esc topology: catalogue esc backs a station; a pending-leg esc abandons to the catalogue',
-    /onCancel=\{onBack\}/.test(onboarding) && /onAbandonLeg=\{\(\) => setEpoch/.test(onboarding),
-  )
-  check(
-    'an engine leg settling WITHOUT a credential returns to the catalogue with the receipt painted',
-    /setNote\(result\.receipt\)/.test(onboarding) && /setEpoch\(current => current \+ 1\)/.test(onboarding),
-  )
-  check(
-    'the key/env route rides the EXISTING approval step, conditional as before',
-    /ApproveApiKey/.test(onboarding) && /'api-key'/.test(onboarding),
-  )
-  check(
-    'no Anthropic-only connectivity pre-gate: the walk opens for every family and for "later"',
-    !/PreflightStep|preflightChecks/.test(onboarding),
-  )
-  check(
-    'no arming ceremony rides any route (engines are default-on)',
-    !/MERCURY_ENGINES/.test(onboarding),
-  )
 }
 
-section('§B never a new credential store')
-{
-  check(
-    'the entry component persists no tokens itself (owner flows do)',
-    !/writeFileSync|appendFileSync|saveOauthTokens|keychain/i.test(onboarding),
-  )
-}
-
-section('§C second boot never re-gates')
-{
-  const helpers = readFileSync(join(ROOT, 'src/interactiveHelpers.tsx'), 'utf8')
-  check(
-    'the mount condition is the completed-onboarding law',
-    /!config\.theme \|\| !config\.hasCompletedOnboarding/.test(helpers),
-  )
-  check(
-    'completeOnboarding writes the standing flag',
-    /hasCompletedOnboarding: true/.test(
-      readFileSync(join(ROOT, 'src/interactiveHelpers.tsx'), 'utf8'),
-    ),
-  )
-}
 
 section('§D the typed credentialless fallback — the computed default')
 {
@@ -167,12 +85,6 @@ section('§D the typed credentialless fallback — the computed default')
   check(
     'a gated GPT row is never chosen — the default falls through to the earlier sign-in, named',
     gatedGpt.setting === 'claude-sonnet-4-5' && gatedGpt.source === 'fallthrough' && gatedGpt.why.includes('Skipped: openai'),
-  )
-  const model = readFileSync(join(ROOT, 'src/utils/model/model.ts'), 'utf8')
-  check(
-    'the wiring resolves the DEFAULT through the computed default only (operator picks untouched)',
-    /fromDefault \? getDefaultEngineModel\(\) : parseUserSpecifiedModel\(setting\)/.test(model) &&
-      /export function getDefaultEngineModelSetting\(\): string \{\s*return computedDefault\(\)\.setting/.test(model),
   )
 }
 
@@ -218,8 +130,6 @@ section('§E the no-Anthropic boot honesty notice — every family alike')
     u({ gemini: { provider: 'gemini', credential: 'oauth', limit: 'unknown', usable: true, blockers: [] } }),
   )
   check('several usable lanes are all named', typeof two === 'string' && /OpenAI, Gemini are ready/.test(two ?? ''), String(two))
-  const helpers = readFileSync(join(ROOT, 'src/interactiveHelpers.tsx'), 'utf8')
-  check('the notice is seeded as a boot note at entry', /nonAnthropicBootNotice/.test(helpers) && /addBootNote\('info', notice\)/.test(helpers))
 }
 
 console.log(

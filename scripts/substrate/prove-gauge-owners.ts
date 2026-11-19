@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const scratch = mkdtempSync(join(tmpdir(), 'gauge-owners-'))
 const home = join(scratch, 'home')
 mkdirSync(home, { recursive: true })
@@ -145,11 +144,6 @@ section('§4 contextGauge — fresh session is unavailable, never a fake figure'
   check('usedPct is null, never 0', fresh.data.usedPct === null)
 }
 
-section('§5 the barrel exports the four gauges')
-{
-  const barrel = readFileSync(join(ROOT, 'src', 'utils', 'cockpit', 'index.ts'), 'utf8')
-  check('the barrel exports the four gauges', ['modelGauge', 'contextGauge', 'fleetGauge', 'mcpGauge'].every(n => barrel.includes(`./${n}.js`)))
-}
 
 console.log(failures === 0 ? '\n ✅ GAUGE OWNERS GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

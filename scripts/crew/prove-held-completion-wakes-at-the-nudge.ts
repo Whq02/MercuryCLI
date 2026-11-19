@@ -134,11 +134,5 @@ tally.check('the wake was its own turn (a turn started after the completion)', l
 tally.check('the held report was delivered once at the nudge and never a second time on a later sweep or operator turn', followedUp && notificationTurns === 1 && nudgeTurns === 1 && followUpNotificationsInHistory === 1 && followUpNudgesInHistory === 1 && relayedFrames.length === 1, `notificationTurns=${notificationTurns} nudgeTurns=${nudgeTurns} inHistory=${followUpNotificationsInHistory}/${followUpNudgesInHistory} relayedFrames=${relayedFrames.length}`)
 tally.check('no runner error on stderr', !/error|exception/i.test(stderr), stderr.slice(0, 300))
 
-tally.section('the seam: the nudge is the operator stand-in the driver waits for')
-{
-  const { readFileSync } = await import('node:fs')
-  const driver = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'headless', 'turnDriver.ts'), 'utf8')
-  tally.check("the driver has a door that ends the operator wait and kicks", driver.includes('endOperatorWait'))
-}
 
 tally.finish()

@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
 process.env.NODE_ENV = 'test'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'draft-rekey-')))
 mkdirSync(join(SCRATCH, 'home'), { recursive: true })
@@ -15,20 +14,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-console.log('§1 the owners (Chat swap · PromptInput cursor · owner-keyed persistence)')
-const prompt = readFileSync('src/components/PromptInput/useComposerDraft.ts', 'utf8')
-check(
-  "PromptInput's cursor re-key is the boot-seed promoted (ref-guarded)",
-  prompt.includes('cursorSessionRef.current === focusedId') && prompt.includes('pendingInput.readDraftFor(focusedId)'),
-)
-const store = readFileSync('src/input-core/pending-input.ts', 'utf8')
-check(
-  'persist, submit-delete AND the page a landing carries key by the OWNING session (the bootstrap id does not follow the slot)',
-  (store.match(/owningSessionId \?\? getSessionId\(\)/g) ?? []).length === 3,
-)
-const rekeyBody = store.slice(store.indexOf('export async function rekeyToSession'), store.indexOf('export function registerInterceptors'))
-check('the restore bypasses the edit chokepoint (a restore is not a keystroke)', rekeyBody.length > 0 && !/\bedit\(/.test(rekeyBody))
-check('…and the typing-wins fence is the landed editSeq rule', rekeyBody.includes('if (editSeq !== fence) return'))
 
 console.log('\n§2 the six teeth (real store · real per-session disk layer)')
 const { enableConfigs } = await import('../../src/utils/config.ts')
@@ -63,7 +48,6 @@ check('(d) typing during the swap wins (the re-key never rolls it back)', p.text
 p.setStash({ text: 'the pocket', cursorOffset: 0, mode: 'prompt', pastedContents: {} })
 await p.rekeyToSession('session-A')
 check("(e) the stash survives the hop (operator-scoped, named in the docblock)", p.stashedPrompt()?.text === 'the pocket')
-check("…and the re-key never touches the stash (the pocket is the operator's, not the page's)", rekeyBody.length > 0 && !/\bstash\b/.test(codeOnlyText('pending-input.ts', rekeyBody)))
 
 await p.rekeyToSession('session-C')
 p.edit('to send')

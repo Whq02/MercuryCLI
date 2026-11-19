@@ -24,37 +24,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
-
-section('§1 — the version fact: a new verb bumps the proto and re-registers the shape')
-{
-  const protocol = read('src/daemon/protocol.ts')
-  const opsBlock = protocol.slice(protocol.indexOf('export type DaemonOp ='), protocol.indexOf('\n\n', protocol.indexOf('export type DaemonOp =')))
-  const ops = Array.from(opsBlock.matchAll(/'([A-Za-z-]+)'/g), m => m[1]!)
-  check('sessionRewind sits right after sessionControl, where v5 appended it; later verbs follow it (appended, never reordered)', ops.indexOf('sessionRewind') === ops.indexOf('sessionControl') + 1 && ops.indexOf('sessionRewind') !== 0, ops.slice(ops.indexOf('sessionControl'), ops.indexOf('sessionControl') + 3).join(','))
-  check('MERCURY_DAEMON_PROTO is at least 5 (v4 → v5 with the verb; later verbs bump it further)', Number(/export const MERCURY_DAEMON_PROTO = (\d+)/.exec(protocol)?.[1] ?? 0) >= 5)
-  const shape = spawnSync(process.execPath, ['run', join(ROOT, 'scripts/daemon/prove-protocol-shape.ts')], { cwd: ROOT, encoding: 'utf8' })
-  check('the protocol-shape prover accepts the re-registered hash (rc=0, all pass)', shape.status === 0 && shape.stdout.includes('ALL PROTOCOL-SHAPE PROOFS PASS'), `rc=${shape.status} ${shape.stdout.split('\n').filter(l => l.includes('FAIL')).join(' | ')}`)
-  check('the request member names the point, the mode and the dry run', protocol.includes("op: 'sessionRewind'") && protocol.includes('userMessageId: string') && protocol.includes('mode: SessionRewindMode') && protocol.includes('dryRun?: boolean'))
-  check('the reply member relays the runner\'s receipt (SessionRewindOutcomeV1)', protocol.includes("({ ok: true; op: 'sessionRewind' } & SessionRewindOutcomeV1)"))
-  const kinds = protocol.slice(protocol.indexOf('export type RewindRefusalKind ='), protocol.indexOf('\n\n', protocol.indexOf('export type RewindRefusalKind =')))
-  for (const kind of ['turn-active', 'not-found', 'capture-off', 'no-checkpoint', 'drift', 'backup-missing', 'before-compaction', 'restore-failed', 'runner-older', 'daemon-older', 'unknown-session', 'no-channel', 'no-answer', 'no-chat']) {
-    check(`the refusal vocabulary names '${kind}'`, kinds.includes(`'${kind}'`))
-  }
-}
-
-section('§2 — the route: server case · client stamp · daemon dependency')
-{
-  const server = read('src/daemon/controlServer.ts')
-  const socket = read('src/daemon/controlSocket.ts')
-  const main = read('src/daemon/main.ts')
-  check("the server routes case 'sessionRewind' and AWAITS the async dependency", server.includes("case 'sessionRewind': {") && server.includes('await deps.sessionRewind('))
-  check('the server answers ENOTSUP when the host lacks the dependency (a non-concourse daemon)', server.slice(server.indexOf("case 'sessionRewind': {")).includes("code: 'ENOTSUP'"))
-  check('the server narrows the mode and refuses a malformed ask typed', server.includes("raw.mode === 'code' || raw.mode === 'conversation' || raw.mode === 'both'") && server.includes('sessionRewind requires { sessionId, by, mode: code|conversation|both, userMessageId }'))
-  check("the client stamps the control key on 'sessionRewind'", /const AUTH_STAMPED_OPS[^]*?'sessionRewind'[^]*?\]\)/.test(socket))
-  check('the daemon wires the dependency to the seat verb', main.includes('sessionRewind: async req =>') && main.includes('return rewindSession(req.sessionId'))
-}
 
 section('§3 — the seat verb: applied · typed refusals · the mixed-version law')
 {

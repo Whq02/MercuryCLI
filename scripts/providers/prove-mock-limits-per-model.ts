@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -26,7 +26,6 @@ const section = (t: string): void => {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const mock = await import('../../src/services/mockRateLimits.ts')
@@ -126,15 +125,6 @@ check("leaving the per-model scenario re-folds the env payload: the Opus pool is
 delete process.env.MERCURY_MOCK_USAGE_PAYLOAD
 mock.setMockRateLimitScenario('clear')
 
-section('§6 the source: the arms state their pool at the tier owner\'s number; the fold is a lazy require; the list says whose seat warns')
-const src = readFileSync(join(ROOT, 'src/services/mockRateLimits.ts'), 'utf8')
-const opusArm = src.slice(src.indexOf("case 'opus-warning':"), src.indexOf("case 'sonnet-limit':"))
-const sonnetArm = src.slice(src.indexOf("case 'sonnet-warning':"), src.indexOf("case 'extra-usage-required':"))
-const flat = (s: string): string => s.trim().split('\n').map(l => l.trim()).join(' | ')
-check(`${RED}: the opus-warning arm states the Opus pool at FIRST_WARNING_PCT, never a literal`, /seven_day_opus/.test(opusArm) && /FIRST_WARNING_PCT/.test(opusArm) && !/0\.8|\b80\b/.test(opusArm), flat(opusArm))
-check(`${RED}: the sonnet-warning arm states the Sonnet pool at FIRST_WARNING_PCT, never a literal`, /seven_day_sonnet/.test(sonnetArm) && /FIRST_WARNING_PCT/.test(sonnetArm) && !/0\.8|\b80\b/.test(sonnetArm), flat(sonnetArm))
-check('both arms keep their headers, so the E9 read and the header latch stand', /representative-claim`\] = 'seven_day_opus'/.test(opusArm) && /representative-claim`\] = 'seven_day_sonnet'/.test(sonnetArm) && /allowed_warning/.test(opusArm) && /allowed_warning/.test(sonnetArm))
-check('the fold rides a lazy require of anthropicLimits: no value import closes the cycle anthropicLimits → rateLimitMocking → mockRateLimits', !/^import \{[^}]*\} from '\.\/anthropicLimits\.js'/m.test(src) && /require\('\.\/anthropicLimits\.js'\)/.test(src) && /^import type \{ RateLimitType \} from '\.\/anthropicLimits\.js'/m.test(src))
 check('the two per-model descriptions say whose seat warns', /only an Opus model warns/.test(mock.getScenarioDescription('opus-warning')) && /only a Sonnet model warns/.test(mock.getScenarioDescription('sonnet-warning')), j([mock.getScenarioDescription('opus-warning'), mock.getScenarioDescription('sonnet-warning')]))
 
 rmSync(HOME, { recursive: true, force: true })

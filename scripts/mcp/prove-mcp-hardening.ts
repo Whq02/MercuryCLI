@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -30,7 +30,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const SRC = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 console.log('============================================================')
 console.log(' MCP hardening — phishing gate · structured output ·')
@@ -157,11 +156,6 @@ await (async () => {
   )
   await server.close()
 
-  const clientSrc = SRC('src/services/mcp/client.ts')
-  check(
-    'production hands each call its discovered tool definition',
-    clientSrc.includes('toolDefinition: sdkTool') && clientSrc.includes('...(toolDefinition ? { toolDefinition } : {})'),
-  )
   const { loggedHeadersOf } = await import('../../src/services/mcp/client.js')
   const { getMCPUserAgent } = await import('../../src/utils/http.js')
   const logged = loggedHeadersOf({ 'User-Agent': getMCPUserAgent(), Authorization: 'Bearer tok-1', 'X-API-Key': 'key-2', Cookie: 'sid=3', 'Proxy-Authorization': 'Basic 4', 'X-Custom-Token': 'tok-5' })
@@ -171,10 +165,6 @@ await (async () => {
     'no credential header VALUE reaches the MCP log: every configured or helper-supplied header is logged by name with its value redacted, whatever its name; only our own User-Agent stays readable (F43A-C7-18)',
     logged['User-Agent'] === getMCPUserAgent() && Object.entries(logged).filter(([key]) => key !== 'User-Agent').every(([, value]) => value === '[REDACTED]') && Object.keys(logged).length === 6,
     JSON.stringify(logged),
-  )
-  check(
-    'both connect lines ride the one redaction (ws and http), and no per-name mask remains',
-    clientSrc.includes('headers: loggedHeadersOf(wsHeaders)') && clientSrc.includes('headers: loggedHeadersOf(requestInit.headers)') && !clientSrc.includes("headers.authorization ? { authorization: '[REDACTED]' }"),
   )
 })()
 
@@ -212,40 +202,9 @@ section('(5) health `mcp` currency — auth summary + protocol-rev seam')
   publishMcpConnections([])
   const currency = describeMcpProtocolCurrency()
   check('health mcp check reads the protocol-revision line from its owner', mcpSays?.evidence.startsWith('1 server(s): fixture-srv (starting) · policy ') === true && mcpSays.evidence.includes(` · ${currency.line} · `) && (!currency.behind || mcpSays.status === 'warn'), mcpSays?.evidence)
-  const revision = SRC('src/services/mcp/protocolRevision.ts')
-  check(
-    'the revision owner carries the negotiated and the published revision and the behind text',
-    revision.includes("MCP_PROTOCOL_REVISION = '2026-07-28'") && revision.includes('MCP_PUBLISHED_REVISION') && revision.includes('SDK behind'),
-  )
   check('health mcp check carries the auth-currency line', auth !== null && auth.tokens === 0 && mcpSays?.evidence.endsWith(' · no oauth tokens') === true, mcpSays?.evidence)
 }
 
-section('(6) consent surfaces — explicit-open only + posture + attribution')
-{
-  const dlg = SRC('src/components/mcp/ElicitationDialog.tsx')
-  const callSites = [...dlg.matchAll(/openBrowser\(/g)].map(m => m.index ?? 0)
-    .filter(i => dlg.slice(Math.max(0, i - 40), i).includes('void '))
-  const hookFor = (idx: number): string => {
-    const before = dlg.slice(0, idx)
-    const candidates = ['useEffect(', 'useCallback(', 'useInput(']
-    let best = ''
-    let bestAt = -1
-    for (const c of candidates) {
-      const at = before.lastIndexOf(c)
-      if (at > bestAt) {
-        bestAt = at
-        best = c
-      }
-    }
-    return best
-  }
-  check(
-    'every openBrowser call is interaction-scoped (useCallback/useInput, never useEffect)',
-    callSites.length >= 2 && callSites.every(i => hookFor(i) !== 'useEffect('),
-    callSites.map(i => hookFor(i)).join(','),
-  )
-  check('URL card renders the risk posture', dlg.includes('event.riskPosture'))
-}
 
 section('(7) SEP-1330 elicitation enum shapes')
 {

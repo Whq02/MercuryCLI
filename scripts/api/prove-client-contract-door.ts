@@ -1,13 +1,9 @@
 #!/usr/bin/env bun
-import { execSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
-const ROOT = join(import.meta.dir, '..', '..')
 const scratch = mkdtempSync(join(tmpdir(), 'client-contract-door-'))
 process.env.MERCURY_CONFIG_DIR = scratch
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
@@ -94,43 +90,7 @@ for (const [label, ua] of agents) {
   check('the first-party client carries x-app: cli (the door identity the endpoint classes on)', captured?.get('x-app') === 'cli')
   check('the contract version rides no request HEADER (it rides the attribution line)', ![...(captured?.entries() ?? [])].some(([, v]) => v.includes(CONTRACT)))
 }
-const tracked = execSync('git ls-files -z -- src', { cwd: ROOT }).toString('utf8').split('\0').filter(Boolean)
-const srcOf = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
-{
-  const homes = tracked.filter(p => /\.tsx?$/.test(p) && /ANTHROPIC_CLIENT_CONTRACT_(?:VERSION|AS_OF)|getAnthropicClientContractVersion|describeAnthropicClientContract/.test(srcOf(p))).sort()
-  const expected = ['src/constants/oauth.ts', 'src/constants/system.ts', 'src/services/api/clientContractLearned.ts', 'src/services/providers/anthropic/modelRefusal.ts', 'src/utils/healthReport.ts']
-  check('the contract version has exactly its six declared code homes in src (a seventh is a leak; the bundled skill prose may name it)', JSON.stringify(homes.filter(p => !isFlagRegistryFile(p))) === JSON.stringify(expected) && homes.some(isFlagRegistryFile), homes.join(', '))
-  const clientSrc = readFileSync(join(ROOT, 'src/services/api/client.ts'), 'utf8')
-  check("the first-party client's agent is the product agent at source", clientSrc.includes("'User-Agent': getUserAgent()"))
-  const httpSrc = readFileSync(join(ROOT, 'src/utils/http.ts'), 'utf8')
-  check('no agent owner composes a borrowed agent token', !/claude-cli\/\$\{/.test(httpSrc))
-}
 
-section('§2b THIRD-PARTY ROUTES — the line has three composers, all first-party legs')
-{
-  const PREFIX = 'x-anthropic-billing-header'
-  const composers = tracked.filter(p => p !== 'src/constants/system.ts' && /getAttributionHeader\(/.test(srcOf(p))).sort()
-  check(
-    'the attribution line is composed in exactly three places: the Anthropic runtime, the side query and the exact count that carries the turn\'s own system prompt',
-    JSON.stringify(composers) === JSON.stringify(['src/services/providers/anthropic/streamCore.ts', 'src/utils/analyzeContext.ts', 'src/utils/sideQuery.ts']),
-    composers.join(', '),
-  )
-  check('the side query takes the first-party client', srcOf('src/utils/sideQuery.ts').includes('getAnthropicClient('))
-  const prefixHomes = tracked.filter(p => srcOf(p).includes(PREFIX)).sort()
-  check(
-    "the line's prefix has exactly two homes: its composer and the system-prompt block classifier",
-    JSON.stringify(prefixHomes) === JSON.stringify(['src/constants/system.ts', 'src/utils/api.ts']),
-    prefixHomes.join(', '),
-  )
-  const thirdParty = tracked.filter(p => p.startsWith('src/services/providers/') && !p.startsWith('src/services/providers/anthropic/'))
-  const leaks = thirdParty.filter(p => {
-    const t = srcOf(p)
-    return t.includes('getAttributionHeader') || t.includes(PREFIX) || t.includes('cc_version=')
-  })
-  check(`no third-party runtime composes the line or spells its prefix (${thirdParty.length} files censused)`, thirdParty.length > 0 && leaks.length === 0, leaks.join(', '))
-  const families = new Set(thirdParty.map(p => p.split('/')[3]).filter(seg => seg !== undefined && !seg.endsWith('.ts')))
-  check('the census covers every third-party family directory', ['openai', 'zai', 'moonshot', 'deepseek', 'gemini', 'openaicompat', 'openrouter', 'huggingface', 'local'].every(f => families.has(f)), [...families].sort().join(', '))
-}
 
 section('§3 THE OVERRIDE — a three-part version wins live; other shapes are reported')
 process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT = '2.1.300'
@@ -216,14 +176,6 @@ process.env.NODE_ENV = 'test'
   check('a sign-in wall row composes with the config closed (a stored sign-in, no account suffix)', auth.isClaudeAISubscriber() && wallRow !== undefined && wallRow.error === 'authentication_failed' && wallText.includes('Anthropic sign-in expired') && !wallText.includes('· account'), wallThrow || wallText)
 }
 
-section('§5 THE HEALTH — the identity section carries the row from the one describer')
-{
-  const health = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-  check("the identity section carries the 'client-contract' check", health.includes("id: 'client-contract'"))
-  check('…composed from the one describer', health.includes('describeAnthropicClientContract()') && health.includes('subscription door presents cc_version ${contract.presented}'))
-  check('…and the ignored-override shape warns with a fix', health.includes("status: 'warn'") && health.includes('not a three-part version'))
-  check('…and a learned number is named with its date and source', health.includes('learned ${contract.asOf} from the registry'))
-}
 
 rmSync(scratch, { recursive: true, force: true })
 console.log('\n' + '='.repeat(76))

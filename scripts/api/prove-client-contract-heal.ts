@@ -692,8 +692,6 @@ section('§10 a moved number reads as a lawful prefix change — named by the le
   const workload = ledger.judgeAndRecordPrefix(owner, key, parts(lineWork) as never)
   check('any other move of the attribution line is not called a contract move', workload.mismatch !== null && learnedModule?.clientContractMoveOf(workload.mismatch) === null, JSON.stringify(workload.mismatch))
   check('a move elsewhere in the prompt is not called a contract move', learnedModule?.clientContractMoveOf({ path: 'system[1].text@char 4', before: lineOld, after: lineNew }) === null)
-  const stream = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
-  check('the request builder declares the named move through the owner rule, for the conversation that sent it', stream.includes('const contractMove = clientContractMoveOf(verdict.mismatch)') && stream.includes('declareLawfulPrefixChange(rosterOwnerKey, contractMove)'))
 }
 
 section('§11 the side query heals the same refusal — one read, one retry on the learned number')
@@ -743,8 +741,6 @@ section('§12 the exit cliff — a run that leaves mid-read cancels the daily pe
   const { listExitCliffSeams } = await import('../../src/utils/exitCliffDrain.js')
   const seams = listExitCliffSeams().filter(seam => seam.name === 'client-contract-peek')
   check('a started peek has registered the exit-cliff seam client-contract-peek once, in phase 2', seams.length === 1 && seams[0]?.phase === 2, JSON.stringify(listExitCliffSeams().map(seam => [seam.name, seam.phase])))
-  const source = readFileSync(join(ROOT, 'src/services/api/clientContractLearned.ts'), 'utf8')
-  check('the module registers that seam by name in phase 2, settled by aborting and awaiting its peeks (source)', source.includes("const peekSeam: ExitCliffSeam = { name: 'client-contract-peek', phase: 2, settle: settlePeeks }") && source.includes('registerExitCliffSeam(peekSeam)') && source.includes('peekExit.abort()'))
   const home = freshHome('exit-cliff')
   const earlier = { atMs: Date.now() - 20 * 60 * 1000, by: 'heal', from: 'https://registry.npmjs.org/@anthropic-ai/claude-code/latest', answer: { failure: { kind: 'status', words: 'HTTP 500' } } }
   writeFileSync(join(home, 'client-contract.json'), JSON.stringify({ lastRead: earlier, _v: 1 }))

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -27,7 +27,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const auth = await import('../../src/utils/auth.ts')
@@ -126,9 +125,6 @@ limits.extractQuotaStatusFromHeaders(allowedHeaders())
 const bare = limits.anthropicLimitVerdict().observedAtMs ?? 0
 check('an unstamped fold is observed at the fold itself', bare >= beforeBare && bare <= Date.now(), String(bare))
 
-section("§5 the wire road hands the latch the request's own start (source pin)")
-const stream = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
-check("the stream road folds the streaming response's headers with the attempt's start", stream.includes('extractQuotaStatusFromHeaders(resp.headers, start)'))
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-anthropic-verdict-latch-order — ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

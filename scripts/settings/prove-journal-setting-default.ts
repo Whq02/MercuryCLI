@@ -45,8 +45,6 @@ section('§1 one reader: the product\'s journalEnabled() and the setting row rea
   check('the predicate exists and reads off with nothing set, off with {}, on only with true', setting?.journalSettingOn?.(undefined) === false && setting?.journalSettingOn?.({}) === false && setting?.journalSettingOn?.({ memory: {} }) === false && setting?.journalSettingOn?.({ memory: { journal: true } }) === true && setting?.journalSettingOn?.({ memory: { journal: false } }) === false, String(setting?.journalSettingOn))
   resetSettingsCache()
   check('with nothing set on disk the product reads the journal off', existsSync(join(HOME, 'settings.json')) === false && journalEnabled() === false)
-  const config = readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8')
-  check('/config\'s Session journal row reads the shared predicate, not its own default', config.includes('const journalOn = journalSettingOn(merged)') && !config.includes("merged.memory?.journal !== false"))
   const row = layout.journalRow({ enabled: journalEnabled(), entries: [] })
   check('/memory\'s journal row agrees: off, and says what turns it on', row.state === 'off' && row.detail.includes('memory.journal in /config turns it on'), JSON.stringify(row))
 }

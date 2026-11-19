@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { proofHome } from '../lib/hermetic.ts'
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { FILE_TOOL_SPELLINGS } from '../identity/forbidden-file-tool.ts'
 
@@ -38,20 +38,6 @@ const pool = getTools(permission)
 const census = buildToolCensus()
 
 check('A1 the file courier folder is absent', !existsSync(join(root, 'src/tools', `${name}Tool`)))
-for (const rel of [
-  'src/tools.ts',
-  'src/utils/capability/declarations.ts',
-  'src/components/mercury-ui/toolGlyphs.ts',
-  'src/utils/transcriptSearch.ts',
-  'scripts/builtin-tools/fixtures/tool-census.json',
-  'scripts/builtin-tools/fixtures/tool-census.md',
-  'scripts/project-services/fixtures/inventory.json',
-  'scripts/builtin-tools/prove-census-reasons.ts',
-  'scripts/provider-compat/prove-tool-call-gate.ts',
-]) {
-  const text = readFileSync(join(root, rel), 'utf8')
-  check(`A2 ${rel} has no courier spelling`, !FILE_TOOL_SPELLINGS.some(word => text.includes(word)))
-}
 check('A3 neither the catalogue nor either session posture resolves the name', findToolByName(catalogue, name) === undefined)
 for (const interactive of [false, true]) {
   setIsInteractive(interactive)

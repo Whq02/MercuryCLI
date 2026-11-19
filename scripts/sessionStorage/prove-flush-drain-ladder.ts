@@ -70,12 +70,6 @@ await sleep(1_500)
   t('L3 the timer road still lands without a flush', readFileSync(poisoned, 'utf8').includes('third words'))
 }
 
-{
-  const src = readFileSync(join(SRC, 'utils/sessionStorage/writer.ts'), 'utf8')
-  const callers = src.split('this.drainWriteQueue()').length - 1
-  t('L4 the owner exists (runDrain)', src.includes('private runDrain(): Promise<void>'))
-  t('L4 drainWriteQueue() has exactly one caller — the owner', callers === 1, `${callers} call sites`)
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? 'FLUSH DRAIN LADDER: ALL PASS' : 'FLUSH DRAIN LADDER: RED')

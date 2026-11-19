@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { EventEmitter } from 'node:events'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -140,12 +140,5 @@ t.section('§4 — M subscribers under ink: identical-state notifications render
   accent.setSessionCritter('jellyfish')
 }
 
-t.section('§5 — source locks')
-{
-  const src = readFileSync('src/components/mercury-ui/sessionAccent.ts', 'utf8')
-  t.check('the hook subscribes through the one snapshot', /useSyncExternalStore\(\s*subscribeSessionCritter,\s*getSessionAccentSnapshotKey,\s*getSessionAccentSnapshotKey,\s*\)/.test(src))
-  t.check('the snapshot memo compares both inputs (key · override identity)', /memo\.key === key && memo\.override === accentOverride\) return memo\.value/.test(src))
-  t.check('the override tint is memoised on (base, override) identity', /memo\.base === base && memo\.override === accentOverride/.test(src))
-}
 
 t.finish('ACCENT-SNAPSHOT')

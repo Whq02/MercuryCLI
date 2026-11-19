@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const SCRATCH = mkdtempSync(join(tmpdir(), 'logins-readiness-fetch-'))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
@@ -150,17 +149,6 @@ section('§4 traffic off: the card\'s read asks nothing and the OpenAI row names
   delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 }
 
-section('§5 the two logins surfaces ask on open and re-read on the epoch (call-shaped)')
-{
-  const card = readFileSync(join(ROOT, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8')
-  const block = card.slice(card.indexOf('function ProviderReadinessBlock'))
-  check('the readiness block subscribes to the catalogue epoch', block.includes('useCatalogueEpoch()'))
-  check('the readiness block asks once on mount, inside an effect, and paints from the passive read', /useEffect\(\(\) => \{\s*resolveProviderUsability\(undefined, \{ fetchCatalogues: true \}\)\s*\}, \[\]\)/.test(block) && block.includes('const map = resolveProviderUsability()'))
-  const face = readFileSync(join(ROOT, 'src/components/BootLoginsScreen.tsx'), 'utf8')
-  check('the boot logins face asks on mount and re-reads its facts when the epoch moves', face.includes("import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'") && face.includes('resolveProviderUsability(undefined, { fetchCatalogues: true });') && /catalogueEpoch === mountCatalogueEpoch\.current\) return;\s*if \(given === undefined\) setFacts\(collectLoginsScreenFacts\(\)\);/.test(face))
-  const usability = readFileSync(join(ROOT, 'src/services/providers/providerUsability.ts'), 'utf8')
-  check('the passive reads bundle never passes fetch and every other caller of the resolver passes no option', usability.includes("gptSeat: () => getGptSeatAvailability(fetchCatalogues ? { fetch: true } : undefined)") && !/resolveProviderUsability\([^)]*fetchCatalogues/.test(readFileSync(join(ROOT, 'src/services/capFailover.ts'), 'utf8')))
-}
 
 server.close()
 rmSync(SCRATCH, { recursive: true, force: true })

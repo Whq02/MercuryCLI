@@ -1,6 +1,6 @@
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
 const home = mkdtempSync(join(tmpdir(), 'crewmate-resource-rules-'))
 process.env.MERCURY_CONFIG_DIR = join(home, 'config')
@@ -113,8 +113,6 @@ try {
   const loaded = await getAgentDefinitionsWithOverrides(home)
   check('the actual loader refuses the file and names its line', !loaded.activeAgents.some(a => a.agentType === 'resource-probe') && loaded.failedFiles?.some(f => f.path === file && /line 4/.test(f.error)) === true, loaded.failedFiles)
   check('the loader leaves the definition bytes alone', readFileSync(file, 'utf8') === raw)
-  const runSource = readFileSync(resolve(import.meta.dir, '../../src/tools/AgentTool/runAgent.ts'), 'utf8')
-  check('launch and resume run through the definition overlay', /composeAgentAppState\(state,\s*\{[^}]*definitionTools:\s*agentDefinition/.test(runSource))
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

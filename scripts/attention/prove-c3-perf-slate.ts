@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -126,14 +125,6 @@ t.section('§2 the relationship graph at 1,000 edges (fold · spawned-by depth w
   t.check('structural counter: the walk visited every node', visited === 1100, String(visited))
 }
 
-t.section('§3 the render window is structural (any item count renders O(window))')
-{
-  const src = readFileSync('src/components/mercury-ui/NavigablePanes.tsx', 'utf8')
-  t.check(
-    'NavigablePanes carries the React-level render window around the selection',
-    src.includes('const ROW_OVERSCAN = 12') && src.includes('listHeight + 2 * ROW_OVERSCAN'),
-  )
-}
 
 t.section('§4 the intent layer adds no weight to the delivery door (steer-removal re-cut)')
 {

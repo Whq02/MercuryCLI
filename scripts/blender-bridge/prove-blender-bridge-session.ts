@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync } from 'node:fs'
 import * as net from 'node:net'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -143,15 +143,6 @@ section('5. reachable — editor truth through the client; the NO-scope-guard la
   resetBlenderBridgeClientForTest()
 }
 
-section('6. the wiring — resource row + readiness push, pinned structurally')
-{
-  const repo = path.join(path.dirname(new URL(import.meta.url).pathname), '..', '..')
-  const ide = readFileSync(path.join(repo, 'src', 'services', 'resources', 'adapters', 'ide.ts'), 'utf8')
-  check('the roster carries mercury://ide/blender/session', ide.includes("ref: 'mercury://ide/blender/session'"))
-  check('the fetch branch builds the session', ide.includes("ref.id === 'blender/session'") && ide.includes('buildBlenderBridgeIdeSession(ctx.cwd)'))
-  const readiness = readFileSync(path.join(repo, 'src', 'utils', 'readiness.ts'), 'utf8')
-  check('readiness pushes the bridge rows beside the lane rows', readiness.includes('blenderBridgeReadinessRecords()'))
-}
 
 resetEnv()
 console.log('\n' + (failures === 0 ? '✅ blender-bridge session proof PASS' : `❌ ${failures} FAILURES`))

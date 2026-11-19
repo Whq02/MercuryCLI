@@ -197,8 +197,6 @@ section('§E — the non-record format refusal; torn record tails recover')
 section('§F — the format is unconditional: the format owner reads no environment')
 {
   resetProjectForTesting()
-  const vnextSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage', 'vnext.ts'), 'utf8')
-  check('the format owner reads no env and no flag', !vnextSrc.includes('process.env') && !vnextSrc.includes('flagEnv(') && !vnextSrc.includes('flagEnabled('))
   const fileF = join(HOME, 'unconditional-f.jsonl')
   setSessionFileForTesting(fileF)
   const m = createUserMessage({ content: 'one format' })

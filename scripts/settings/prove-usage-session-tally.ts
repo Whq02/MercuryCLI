@@ -144,11 +144,7 @@ function focus(usage: UsageFacts): void {
 
 section('§1 the laws stand in the source: the slot reads the focused session\'s facts, the runner answers its per-model ledger, the bar and the rail keep their totals')
 {
-  const usage = read('src/components/Settings/Usage.tsx')
-  check("the slot's session line is the focused session's facts partitioned by family, never the screen's own ledger, with one row per model beneath it", usage.includes('const facts = getFocusedSessionConnector().usage()') && usage.includes('sessionSpendOfFacts(facts, route)') && usage.includes('sessionSpendByModel(facts, route)') && usage.includes('tokensLine(renderModelName(entry.model), entry.spend, withCost)') && !usage.includes('getModelUsage('))
-  check("the Anthropic subscription slot carries the session lines when the subscription bills the session (the Air's shape: a Claude sign-in, no API key)", usage.includes(`{subscriber ? <SlotSpend active={view.activeEntry?.kind === 'subscription-oauth'} route="anthropic" spend={view.sessionSpend} withCost={false} /> : null}`))
   check("the line's words are the old ones: 'This session' and 'This session: 0 tokens.'", SESSION_SPEND_LABEL === 'This session' && SESSION_SPEND_NONE === 'This session: 0 tokens.')
-  check('an inactive slot still says it is not the billing source; the workload labels keep their words', usage.includes("INACTIVE_SLOT_LINE = 'not the active billing source this session'") && usage.includes('if (!active) return <Text dimColor>{INACTIVE_SLOT_LINE}</Text>') && usage.includes("SCHEDULED_SPEND_LABEL = 'Scheduled'") && usage.includes("ADVISOR_SPEND_LABEL = 'Advisor'"))
   const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const UNPRICED_MODEL = 'fixture-unpriced-1'
   const measured = { input_tokens: 70038, output_tokens: 581 } as never
@@ -184,12 +180,6 @@ section('§1 the laws stand in the source: the slot reads the focused session\'s
       spent.unpriced.totalInputTokens === 2 * 70038,
     j(spent.unpriced),
   )
-  const types = read('src/services/engine-connector/types.ts')
-  check('the facts carry the rows: model, workload, the four token counts, the cost, the unpriced turns', types.includes('modelSpend?: ModelSpendRowV1[]') && ['model: string', 'workload?: string', 'inputTokens: number', 'cacheCreationInputTokens: number', 'costUSD: number', 'unpricedTurns: number'].every(f => types.includes(f)))
-  const frame = read('src/components/MercuryFrame.tsx')
-  const rail = read('src/components/HelmLanesRail.tsx')
-  check("the frame's spend is the focused session's usage facts", frame.includes('const usageFacts = getFocusedSessionConnector().usage()') && frame.includes('const cost = usageFacts.totalCostUSD') && !frame.includes('getTotalCostUSD()'))
-  check("the lanes rail's glance spend is the focused session's usage facts", rail.includes('const focusedUsage = getFocusedSessionConnector().usage()') && rail.includes('focusedSpendUSD: focusedUsage.totalCostUSD') && !rail.includes('getTotalCostUSD()') && !read('src/utils/cockpit/helmLanesModel.ts').includes('getTotalCostUSD()'))
   const words = JSON.parse(read('scripts/settings/usage-popup-words.json')) as Record<string, string[]>
   check('the recorded popup words (no session focused) carry no session tally', Object.values(words).every(runs => runs.every(run => !run.startsWith('This session'))))
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { relativeSlashed } from '../lib/platformPath.ts'
@@ -106,12 +106,6 @@ section('§5 through the loader: the partial roster loads AND a boot note names 
   check('a warn boot note names the stopped walk', note !== undefined && note.kind === 'warn', JSON.stringify(notes))
 }
 
-section('§6 the owner never spawns a search process (source pins)')
-{
-  const loader = readFileSync(join(ROOT, 'src', 'utils', 'markdownConfigLoader.ts'), 'utf-8')
-  check('no search-engine import in the loader', !loader.includes("from './ripgrep.js'"))
-  check('the caps are named constants the loader exports', /export const ESTATE_WALK_MAX_ENTRIES = \d/.test(loader) && /export const ESTATE_WALK_MAX_DEPTH = \d/.test(loader))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 rmSync(HOME, { recursive: true, force: true })

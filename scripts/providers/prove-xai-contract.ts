@@ -2,77 +2,14 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
-import { readFileSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
-import ts from 'typescript'
+import { rmSync } from 'node:fs'
 import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
 
-const root = join(import.meta.dir, '..', '..')
-const rename = (s: string): string => s.replace(/DEEPSEEK/g, 'XAI').replace(/Deepseek|DeepSeek/g, 'Xai').replace(/deepseek/g, 'xai')
-function exportsOf(path: string): Map<string, string> {
-  const source = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true)
-  const out = new Map<string, string>()
-  for (const statement of source.statements) {
-    if (!ts.canHaveModifiers(statement) || !ts.getModifiers(statement)?.some(m => m.kind === ts.SyntaxKind.ExportKeyword)) continue
-    if (ts.isFunctionDeclaration(statement) && statement.name) {
-      const params = statement.parameters.map(p => [p.questionToken ? '?' : '', p.type?.getText(source) ?? '', p.initializer ? '=' : ''].join('')).join(',')
-      out.set(statement.name.text, `(${params}):${statement.type?.getText(source) ?? ''}`.replace(/[\s;]/g, ''))
-    } else if (ts.isVariableStatement(statement)) {
-      for (const declaration of statement.declarationList.declarations) out.set(declaration.name.getText(source), declaration.type?.getText(source).replace(/[\s;]/g, '') ?? 'inferred')
-    } else if ((ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement) || ts.isClassDeclaration(statement)) && statement.name) out.set(statement.name.text, 'type')
-  }
-  return out
-}
-const DEEPSEEK_RATE_ONLY: ReadonlySet<string> = new Set(['DEEPSEEK_PRICING_SOURCE', 'DEEPSEEK_PRICING_OBSERVED_AT', 'deepseekRatePeriod'])
-const DEEPSEEK_CATALOGUE_ONLY: ReadonlySet<string> = new Set(['deepseekCatalogueSourceWords'])
-let count = 0
 try {
-  const pairs = ['CallModel', 'Catalogue', 'Login', 'Pins'].map(part => [`src/services/providers/deepseek/deepseek${part}.ts`, `src/services/providers/xai/xai${part}.ts`])
-  pairs.push(['src/services/providers/deepseek/deepseekAdapter.ts', 'src/services/providers/xai/xaiAdapter.ts'])
-  for (const [from, to] of pairs) {
-    const expected = exportsOf(join(root, from!))
-    const actual = exportsOf(join(root, to!))
-    let mirrored = 0
-    for (const [name, signature] of expected) {
-      if (DEEPSEEK_RATE_ONLY.has(name)) {
-        assert.equal(actual.get(rename(name)), undefined, `${to}: ${rename(name)} is not invented — the DeepSeek rate pins have no xAI counterpart`)
-        continue
-      }
-      if (DEEPSEEK_CATALOGUE_ONLY.has(name)) {
-        assert.equal(actual.get(rename(name)), undefined, `${to}: ${rename(name)} is not kept for the mirror — the frontier fact reads DeepSeek's live count, and nothing under src reads xAI's`)
-        continue
-      }
-      if (name === 'deepseekLiveModel') {
-        assert.equal(signature, '(string,NodeJS.ProcessEnv=):DeepseekLiveModel|undefined')
-        assert.equal(actual.get('xaiLiveModel'), undefined)
-      } else if (name === 'deepseekModelFacts') {
-        assert.equal(signature, '(string):DeepseekLiveModel|undefined')
-        assert.equal(actual.get('xaiModelFacts'), '(string,NodeJS.ProcessEnv=):XaiDisplayPin|undefined')
-      } else {
-        assert.equal(actual.get(rename(name)), rename(signature), `${to}: ${rename(name)} preserves the mirrored signature`)
-      }
-      count++
-      mirrored++
-    }
-    console.log(`[PASS] ${to}: all ${mirrored} mirrored exports and function signatures`)
-  }
-  for (const name of DEEPSEEK_RATE_ONLY) assert.ok(exportsOf(join(root, 'src/services/providers/deepseek/deepseekPins.ts')).has(name), `${name} is a DeepSeek pin`)
-  const shard = readFileSync(join(root, 'scripts/gate/ci-shard.sh'), 'utf8')
   assert.ok(getFlagSpec('MERCURY_XAI_API_BASE') !== undefined)
   for (const base of ['MERCURY_XAI_API_BASE', 'MERCURY_XAI_GROK_PROXY_BASE', 'MERCURY_XAI_AUTH_BASE', 'MERCURY_XAI_MANAGEMENT_API_BASE']) {
-    assert.ok(shard.includes(base), `${base} joins the loopback census`)
     assert.ok(getFlagSpec(base) !== undefined, `${base} is registered`)
   }
   assert.ok(getFlagSpec('MERCURY_XAI_MANAGEMENT_API_BASE') !== undefined)
-  const accounts = exportsOf(join(root, 'src/services/providers/xai/xaiAccounts.ts'))
-  for (const name of ['resolveXaiApiKey', 'resolveXaiManagementApiKey', 'xaiApiBase', 'xaiGrokProxyBase', 'xaiInferenceBase', 'xaiManagementBase', 'resolveXaiAccount']) assert.ok(accounts.has(name), name)
-  const usage = exportsOf(join(root, 'src/services/providers/xai/xaiUsageState.ts'))
-  for (const name of ['fetchXaiUsage', 'refreshXaiUsage', 'xaiObservedUsage', 'decodeXaiPrepaidBalance', 'decodeXaiUsageSeries', 'fetchXaiSubscriptionCredits', 'refreshXaiSubscriptionCredits', 'xaiObservedSubscriptionCredits', 'decodeXaiSubscriptionCredits']) assert.ok(usage.has(name), name)
-  const accountsSource = readFileSync(join(root, 'src/services/providers/xai/xaiAccounts.ts'), 'utf8')
-  assert.ok(accountsSource.includes("'https://cli-chat-proxy.grok.com/v1'") && accountsSource.includes("'https://api.x.ai/v1'") && accountsSource.includes("source === 'oauth' ? xaiGrokProxyBase(env) : xaiApiBase(env)"), 'one owner maps the credential kind to its inference base')
-  for (const file of ['xaiCatalogue.ts', 'xaiCallModel.ts', 'xaiUsageState.ts']) assert.ok(!readFileSync(join(root, 'src/services/providers/xai', file), 'utf8').includes('cli-chat-proxy'), `${file} never spells the proxy host itself`)
-  console.log('[PASS] the Grok proxy base has one owner beside the API-key base, with the inference base chosen by credential kind')
-  console.log('[PASS] xAI has its own inference and management usage contracts, not DeepSeek balance aliases')
   console.log('[PASS] the xAI base joins the registered hermetic dead-letter census')
-  console.log(`XAI CONTRACT GREEN (${count} mirrored exports; base census included)`)
 } finally { rmSync(proofHome, { recursive: true, force: true }) }

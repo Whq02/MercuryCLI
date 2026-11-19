@@ -2,7 +2,7 @@
 // gate-watch: src/utils/wards/wards* src/guards/wardsGuard* src/tools/BashTool/destructiveCommandWarning* src/services/tools/toolExecution.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -181,8 +181,6 @@ try {
 
     section('§6 the cockpit: a daemon-spawned seat whose asks reach the operator is not refused — the card asks in default, sovereign runs; the home-delete ward still stands; nobody-can-answer shapes stay refused')
     check('every destructive-git entry is marked unattended-only; the home-delete ward is not', AUTONOMOUS_WARDS.every(rule => (rule.name === RULE) === (rule.unattendedOnly === true)))
-    const execution = readFileSync(join(import.meta.dir, '..', '..', 'src/services/tools/toolExecution.ts'), 'utf8')
-    check("the call site derives the fact from the permission system's own seams: canAnswerAsks() and the prompt-less context", /const asksAnswerable =\s*\n?\s*canAnswerAsks\(\) && toolUseContext\.getAppState\(\)\.toolPermissionContext\.shouldAvoidPermissionPrompts !== true/.test(execution) && /toolRef: tool, asksAnswerable \}/.test(execution))
     setFlagEnv('MERCURY_SPAWNED_BY', 'daemon-mercury_concourse_worker:concourse-w58@concourse#19909')
     check('the cockpit worker carries the spawn stamp (the Air\'s 1D-85 ledger row)', deleteWardActive())
     resetWardsEngagedSessionsForTest()

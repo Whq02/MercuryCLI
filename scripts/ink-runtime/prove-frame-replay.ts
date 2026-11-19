@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import type { Frame } from '../../src/ink/frame.js'
 import { FrameWriter } from '../../src/ink/frame-writer.js'
 import { optimizePatches as optimize } from '../../src/ink/patch-stream.js'
@@ -232,19 +230,6 @@ for (const pair of PAIRS.slice(0, 3)) {
   }
 }
 
-{
-  const src = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'ink', 'compose-walk.ts'),
-    'utf8',
-  )
-  check(
-    'composer full-width guard present (spansFullWidth gates the DECSTBM hint)',
-    src.includes('spansFullWidth') &&
-      src.includes('Math.floor(x) <= 0 && Math.ceil(x + width) >= buffer.width') &&
-      src.includes('stableForShift && spansFullWidth'),
-    'the §STALE-PAINT guard moved or was renamed — update this pin deliberately',
-  )
-}
 
 if (failures > 0) {
   console.log(`\nbedrock frame replay: RED (${failures} failure${failures === 1 ? '' : 's'})`)

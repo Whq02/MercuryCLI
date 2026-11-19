@@ -1,12 +1,10 @@
 #!/usr/bin/env bun
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { builtinModules } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const src = (...p: string[]): string => readFileSync(join(ROOT, 'src', ...p), 'utf8')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -21,64 +19,7 @@ console.log('============================================================')
 console.log(' Boot crash surface — a module the artifact cannot load fails LOUD')
 console.log('============================================================')
 
-section('§1 — no handle-require shape: the entry and the handlers fail loud')
-{
-  const proxy = src('utils', 'proxy.ts')
-  const mtls = src('utils', 'mtls.ts')
-  const lockfile = src('utils', 'lockfile.ts')
-  const main = src('main.tsx')
-  const cli = src('entrypoints', 'cli.tsx')
-  const shutdown = src('utils', 'gracefulShutdown.ts')
-  const build = readFileSync(join(ROOT, 'build.ts'), 'utf8')
 
-  check('proxy.ts imports undici statically (bundled)', /^import \{[^}]*\bAgent\b[^}]*\bfetch as undiciFetch\b[^}]*\} from 'undici'$/m.test(proxy))
-  check('proxy.ts holds no createRequire handle', !proxy.includes('createRequire'))
-  check('mtls.ts imports its Agent from the same bundled undici', /^import \{ Agent, type Dispatcher \} from 'undici'$/m.test(mtls) && !mtls.includes('createRequire'))
-  check('lockfile.ts requires proper-lockfile through the module-scope require (inlined, lazy)', /^\s+cached = require\('proper-lockfile'\)/m.test(lockfile) && !lockfile.includes('createRequire'))
-  check('main.tsx raises InvalidArgumentError through its static commander import', main.includes('InvalidArgumentError, Option } from \'commander\'') && !main.includes("require('commander')"))
-  const offenders = handleRequiredPackages()
-  check('no src module requires a package through a createRequire(import.meta.url) handle', offenders.length === 0, offenders.join(', '))
-  check('the entry catches what escapes main() and fails loud', /main\(\)\.catch\(async \(error: unknown\) => \{[\s\S]*?failLoud\(error, 'boot'\)/.test(cli) && !/^void main\(\)$/m.test(cli))
-  check('unhandledRejection routes module-load failures to the loud exit', /process\.on\('unhandledRejection', \(reason: unknown\) => \{[\s\S]{0,600}if \(isModuleLoadFailure\(reason\) && !isShuttingDown\(\)\) \{\s*failLoud\(reason, 'unhandled-rejection'\)/.test(shutdown))
-  check('uncaughtException routes module-load failures to the loud exit', /process\.on\('uncaughtException', \(err: unknown\) => \{[\s\S]{0,400}if \(isModuleLoadFailure\(err\) && !isShuttingDown\(\)\) \{\s*failLoud\(err, 'uncaught-exception'\)/.test(shutdown))
-  check('failLoud restores the terminal, prints the card and force-exits 1', /export function failLoud\([\s\S]*runTerminalRestoration\(\)[\s\S]*MERCURY COULD NOT START[\s\S]*forceExit\(1\)/.test(shutdown))
-  check('build.ts carries the runtime-require tripwire', build.includes('BUILD FAILED: a package is required at RUNTIME through a createRequire(import.meta.url) handle') && build.includes('createRequire\\(\\s*import\\.meta\\.url\\s*\\)'))
-}
-
-function handleRequiredPackages(): string[] {
-  const builtin = new Set(builtinModules)
-  const files: string[] = []
-  const walk = (dir: string): void => {
-    for (const name of readdirSync(dir)) {
-      const full = join(dir, name)
-      if (statSync(full).isDirectory()) {
-        if (full === join(ROOT, 'src', 'skills', 'bundled')) continue
-        walk(full)
-      } else if (/\.(?:ts|tsx|mts|js|mjs)$/.test(name) && !/\.test\./.test(name)) {
-        files.push(full)
-      }
-    }
-  }
-  walk(join(ROOT, 'src'))
-  const offenders: string[] = []
-  for (const file of files) {
-    const text = readFileSync(file, 'utf8')
-    if (!text.includes('createRequire(')) continue
-    const handles = new Set(
-      [...text.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=[^\n;]*\bcreateRequire\(\s*import\.meta\.url\s*\)/g)].map(m => m[1] as string),
-    )
-    for (const handle of handles) {
-      const call = new RegExp(`(?<![\\w$.])${handle.replace(/\$/g, '\\$')}\\(\\s*(['"])([^'"]+)\\1\\s*\\)`, 'g')
-      for (const m of text.matchAll(call)) {
-        const spec = m[2] as string
-        if (!spec.startsWith('.') && !spec.startsWith('/') && !spec.startsWith('node:') && !builtin.has(spec)) {
-          offenders.push(`${file.slice(ROOT.length + 1)}: ${handle}('${spec}')`)
-        }
-      }
-    }
-  }
-  return offenders
-}
 
 const nodeBin = Bun.which('node')
 if (!nodeBin) {

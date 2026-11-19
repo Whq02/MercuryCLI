@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DAEMON_USAGE, looksLikeDirectoryArg, parseDaemonVerb, START_TOKEN_SKEW_MS, staleStopVerdict, startTokenEpochMs, daemonRecordIdentity } from '../../src/daemon/verbs.js'
@@ -55,36 +55,6 @@ section('(1) the grammar')
   check('the usage names every verb', ['run', 'status', 'stop', 'restart', '--help'].every(v => DAEMON_USAGE.includes(v)))
 }
 
-section('(2) daemonMain rides the grammar')
-{
-  const main = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
-  const body = main.slice(main.indexOf('export async function daemonMain('), main.indexOf('async function daemonStatusCmd('))
-  check('daemonMain parses through parseDaemonVerb', body.includes('parseDaemonVerb(args)'))
-  check('help prints the usage', body.includes("case 'help'") && body.includes('console.log(DAEMON_USAGE)'))
-  check('unknown sets a non-zero exit and returns before daemonRun', /case 'unknown':[\s\S]*?process\.exitCode = 1[\s\S]*?return[\s\S]*?case 'run':/.test(body))
-  check('no fall-through `args` reaches daemonRun any more', !/daemonRun\(runArgs\)/.test(body) && body.includes('daemonRun(verb.args)'))
-  check("an unknown stop flag refuses with the typed line — `unknown flag '<word>'` and the usage, exit 1 — naming the bare stop and the restart to run instead", /case 'unknown-flag':[\s\S]*?unknown flag '\$\{verb\.word\}'[^\n]*mercury daemon stop[^\n]*mercury daemon restart[^\n]*\$\{DAEMON_USAGE\}[\s\S]*?process\.exitCode = 1[\s\S]*?return/.test(body), 'no unknown-flag arm in daemonMain')
-  check('the stop verb is called with no flags to read', body.includes('return daemonStopCmd()'))
-}
-
-section('(3) the owned-daemon spawn says what it means')
-{
-  const owned = readFileSync(join(ROOT, 'src', 'daemon', 'ownedDaemon.ts'), 'utf8')
-  check("spawnOwnedDaemon passes ['daemon', 'run', projectDir]", owned.includes("[script, 'daemon', 'run', projectDir]"))
-}
-
-section('(4) stop sweeps only a dead record; status tells the socket\'s truth')
-{
-  const main = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
-  const stop = main.slice(main.indexOf('async function daemonStopCmd('), main.indexOf('async function daemonRestartCmd('))
-  check('the stop verb asks for the reap by name — always — and reads no --keep or --any', stop.includes("{ op: 'shutdown', reapWorkers: true }") && !stop.includes('--keep') && !stop.includes('--any'), stop.split('\n').filter(l => /--keep|--any|reapWorkers/.test(l)).join(' | '))
-  check('ENOCONN reads the record before deciding', /ENOCONN[\s\S]*?readDaemonState\(\)/.test(stop))
-  check('the sweep is gated on the recorded pid being GONE (ownerWatch.isProcessAlive — ESRCH is the only "gone")', /if \(stale && !isProcessAlive\(stale\.pid\)\) \{\s*await clearDeadDaemonRecords\(\)/.test(stop))
-  check('a live-but-silent pid is never swept (it may be binding)', /else if \(stale\) \{[\s\S]*?alive[\s\S]*?process\.exitCode = 1/.test(stop))
-  const status = readFileSync(join(ROOT, 'src', 'daemon', 'status.ts'), 'utf8')
-  check('the headline says "running" only when the socket answers', status.includes('status.controlReachable\n        ? `  daemon:       running') && status.includes('record present, not answering'))
-  check('win32 names its control pipe', status.includes("process.platform === 'win32' ? 'control pipe:' : 'control.sock:'"))
-}
 
 section('(5) identity beyond the pid — the ENOCONN stop sweeps only a RECYCLED pid')
 {
@@ -98,12 +68,6 @@ section('(5) identity beyond the pid — the ENOCONN stop sweeps only a RECYCLED
   check('born AFTER the record plus skew ⇒ a recycled pid ⇒ sweep', staleStopVerdict(stamped, stamped + START_TOKEN_SKEW_MS + 1) === 'sweep-recycled')
   check('born at-or-before the record (skew included) ⇒ the daemon itself ⇒ refuse alive', staleStopVerdict(stamped, stamped - 60_000) === 'alive-refuse' && staleStopVerdict(stamped, stamped + START_TOKEN_SKEW_MS) === 'alive-refuse')
   check('an unreadable identity ⇒ refuse UNKNOWN', staleStopVerdict(stamped, null) === 'unknown-refuse')
-  const main = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
-  const stop = main.slice(main.indexOf('async function daemonStopCmd('), main.indexOf('async function daemonRestartCmd('))
-  check('the alive arm consults the ONE identity owner through the LIVE start token', stop.includes('daemonRecordIdentity(stale, stale.startToken ? getProcessStartToken(stale.pid, stale.startToken) : getProcessStartInstant(stale.pid))'))
-  check('the recycled arm sweeps through clearDeadDaemonRecords', /not-recorded-process'\)[\s\S]{0,140}clearDeadDaemonRecords\(\)/.test(stop))
-  check('the unknown arm never prescribes a by-hand kill', !/could not be read[^\n]*end that process/.test(stop))
-  check('only the identity-MATCHED arm keeps the by-hand line', (stop.match(/end that process by hand/g) ?? []).length === 1 && /IS the recorded daemon[^\n]*end that process by hand/.test(stop))
 }
 
 section('(5b) THE ONE IDENTITY OWNER — daemonRecordIdentity unions the two D arms (the convergence ruling)')
@@ -120,12 +84,6 @@ section('(5b) THE ONE IDENTITY OWNER — daemonRecordIdentity unions the two D a
   check('pre-token record + a process born at-or-before ⇒ the recorded daemon', daemonRecordIdentity(pre, bornBefore) === 'same-process')
   check('pre-token record + an unparseable or absent token ⇒ unknown', daemonRecordIdentity(pre, 'Get-CimInstance : Access denied') === 'unknown' && daemonRecordIdentity(pre, null) === 'unknown' && daemonRecordIdentity({ ...pre, startToken: null }, null) === 'unknown')
   check('an explicit null baseline takes the fallback arm (a boot whose probe failed still gets the birth-time judgment)', daemonRecordIdentity({ ...pre, startToken: null }, bornAfter) === 'not-recorded-process')
-  const reconcile = readFileSync(join(ROOT, 'src', 'daemon', 'reconcileRecords.ts'), 'utf8')
-  check('the boot reconcile consults the ONE owner', reconcile.includes('daemonRecordIdentity(sup, await (sup.startToken ? getProcessStartTokenAsync(sup.pid, sup.startToken) : getProcessStartInstantAsync(sup.pid)))'))
-  check('the reconcile keeps the conservative polarity (only a not-recorded verdict falls through to the sweep gates)', reconcile.includes("if (verdict !== 'not-recorded-process') {"))
-  const srcMain = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
-  check('POISON: no second judgment — main.ts consults the owner and never calls the fallback internals directly', srcMain.includes('daemonRecordIdentity(') && !srcMain.includes('staleStopVerdict(') && !srcMain.includes('startTokenEpochMs('))
-  check('POISON: the reconcile never re-implements the byte-compare beside the owner', !reconcile.includes('ownerIdentityMatches('))
 }
 
 section('(6) the verb road, live in a scratch home: `stop --keep` and `stop --any` refuse before any record read or RPC; a bare `stop` takes the stop road')

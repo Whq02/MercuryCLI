@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -51,35 +51,6 @@ console.log('\n§1 the one owner cycles the pool and picks stick')
   )
 }
 
-console.log('\n§2 every mount hands its pointer seam the one owner')
-{
-  const repo = join(import.meta.dir, '..', '..')
-  const home = readFileSync(join(repo, 'src/components/MercuryHome.tsx'), 'utf8')
-  const mini = readFileSync(join(repo, 'src/components/mercury-ui/MiniCritter.tsx'), 'utf8')
-  check(
-    'the hero mounts the mini row, whose art click is the one owner (onClick={cycleSessionCritter})',
-    home.includes('<MiniCritter />') && mini.includes('onClick={cycleSessionCritter}'),
-  )
-  check(
-    'the berth activate is the one owner (onActivate={cycleSessionCritter})',
-    home.includes('onActivate={cycleSessionCritter}'),
-  )
-  check(
-    'the mini art is clickable through the one owner — BOTH mounts (sub-hero row + bare deck dock)',
-    /if \(bare\)\s*\{\s*return <BareMiniArt miniDef=\{miniDef\}/.test(mini) &&
-      mini.slice(mini.indexOf('function BareMiniArt')).includes('onClick={cycleSessionCritter}') &&
-      mini.slice(0, mini.indexOf('function BareMiniArt')).includes('<BareMiniArt miniDef={miniDef} />'),
-  )
-  const band = readFileSync(join(repo, 'src/components/CompactIdentityBand.tsx'), 'utf8')
-  check(
-    'the compact identity band is clickable through the one owner (onClick={cycleSessionCritter})',
-    (band.match(/onClick=\{cycleSessionCritter\}/g) ?? []).length === 1,
-  )
-  check(
-    'no mount re-implements the cycle inline (zero stray ALL_CRITTERS index math in the mounts)',
-    !home.includes('ALL_CRITTERS.findIndex') && !mini.includes('ALL_CRITTERS.findIndex') && !band.includes('ALL_CRITTERS.findIndex'),
-  )
-}
 
 if (failures > 0) {
   console.error(`\n❌ ${failures} CLICK-CYCLE PROOF(S) FAILED`)

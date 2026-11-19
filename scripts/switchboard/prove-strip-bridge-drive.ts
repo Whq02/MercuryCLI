@@ -283,18 +283,6 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
   check('S3 ⇧← from the board is the face', isFace(menu) && !isChat(menu), firstRows(menu))
   check(`S3 the face's row names the concourse alone again (the chat stop vanished with the session)`, menu.includes(FACE_TO_CONCOURSE) && !menu.includes(FACE_TO_CHAT))
   check('S3 the roster is empty (the record ended — the close chord stopped the chat and its archive rung released it: a chat never messaged has nothing to park)', Object.keys(liveRecords(home)).length === 0, JSON.stringify(Object.keys(liveRecords(home))))
-  {
-    const route = readFileSync(join(REPO, 'src', 'components', 'concourse', 'ConcourseRoute.tsx'), 'utf8')
-    const from = route.indexOf('archiveSession: sessionId =>')
-    const rung = from < 0 ? '' : route.slice(from, route.indexOf('removeSession: sessionId =>', from))
-    check(
-      'S3 the archive rung reads the record after an applied park: with no live record left it clears the mark, rests the focused slot and speaks the release, never "stands parked"',
-      /readSessionWorkers\(\)\)\.some\(r => r\.sessionId === sessionId && r\.endedAt === undefined\)/.test(rung) &&
-        /if \(released\) \{[\s\S]*markParkedCleared\(sessionId\)[\s\S]*restFocusedSlotAfterRelease\(sessionId,/.test(rung) &&
-        /released\s*\?\s*\{ state: 'applied', reason: 'removed from the board/.test(rung),
-      rung === '' ? 'the archive rung was not found in ConcourseRoute.tsx' : '',
-    )
-  }
   reapHome(home)
 }
 

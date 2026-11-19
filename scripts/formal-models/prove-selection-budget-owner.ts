@@ -3,8 +3,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
 
 scratchRoot('cairn-budget')
@@ -12,7 +10,6 @@ delete process.env.MERCURY_SELECTION_BUDGET
 delete process.env.MERCURY_SELECTION_BUDGET
 
 const t = checker()
-const ROOT = join(import.meta.dir, '..', '..')
 const { resolveSelectionBudget } = await import('../../src/services/run/contextSelection.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
@@ -62,9 +59,6 @@ t.section('§3 — malformed is honest: caller passthrough + a note, never silen
 
 t.section('§4 — the ONE builder threads it; the registry row exists and the doc is in sync')
 {
-  const builder = readFileSync(join(ROOT, 'src/services/run/requestContextPlan.ts'), 'utf8')
-  t.check('requestContextPlan resolves through resolveSelectionBudget', builder.includes('resolveSelectionBudget(input.selectionBudget)'))
-  t.check('no direct input-only budget path survives', !builder.includes('input.selectionBudget ?? null'))
   t.check('the registry row exists', getFlagSpec('MERCURY_SELECTION_BUDGET') !== undefined)
 }
 

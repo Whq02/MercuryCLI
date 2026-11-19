@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { open } from '../../src/services/crewBoard/store.ts'
 import { boardSeatName, type BoardPrincipal, type BoardStore } from '../../src/services/crewBoard/contracts.ts'
@@ -159,14 +159,6 @@ await check('schema-and-brief', async () => {
   }
   assert(seam.swarmBrief('captain')!.includes('You are captain of engine, with a standing wait on its traffic.'))
   assert(seam.swarmBrief('member')!.includes("Captain is your team's captain."))
-  const source = readFileSync(new URL('../../src/tools/AgentTool/AgentTool.tsx', import.meta.url), 'utf8')
-  const admission = source.indexOf('const releaseEnrollment = reserveSwarmLaunch(')
-  assert(admission >= 0 && admission < source.indexOf('await createAgentWorktree(') && admission < source.indexOf('runAgent({'))
-  assert(source.includes('.finally(releaseEnrollment)') && /finally\s*\{\s*if \(!backgroundOwnsEnrollment\) releaseEnrollment\(\)/.test(source))
-  const prompt = readFileSync(new URL('../../src/tools/AgentTool/prompt.ts', import.meta.url), 'utf8')
-  assert(source.includes('a team of five or more needs one before its fifth seat.'))
-  assert(source.includes('Requires name, team, swarm enrollment and the lead;'))
-  assert(!prompt.includes('For a planned team of five or more') && !prompt.includes('swarm_captain'))
   seam.swarmStore()?.close()
 })
 

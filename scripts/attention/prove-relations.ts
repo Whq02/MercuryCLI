@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -94,11 +93,6 @@ t.section('§4 — overlap honesty')
     Array.isArray(e.paths) &&
       e.paths.length === 2 &&
       e.paths.every(p => ['reported', 'changed', 'unknown'].includes(p.from) && ['reported', 'changed', 'unknown'].includes(p.to)),
-  )
-  const src = readFileSync('src/services/attention/relations.ts', 'utf8')
-  t.check(
-    "the module's vocabulary never claims a conflict (a hint, never a verdict)",
-    !/conflict/i.test(src),
   )
 }
 

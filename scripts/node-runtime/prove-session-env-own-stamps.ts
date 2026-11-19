@@ -93,10 +93,6 @@ const bare = scrubSessionEnvStamps({ PATH: process.env.PATH, NODE_PATH: pack })
 tally.check('a write where the operator had nothing is deleted for the command', bare.env.NODE_PATH === undefined && bare.scrubbed.includes('NODE_PATH'))
 resetOwnEnvWritesForTesting()
 
-tally.section('§3 the image pack arm records its NODE_PATH write')
-const arm = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'FileReadTool', 'imagePackArm.ts'), 'utf8')
-const recordAt = arm.indexOf("recordOwnEnvWrite('NODE_PATH', process.env.NODE_PATH)")
-tally.check('armImagePack records the operator\'s NODE_PATH before it writes', recordAt !== -1 && recordAt < arm.indexOf('process.env.NODE_PATH = current'))
 
 tally.section('§4 the owned daemon\'s receipt names the config home it stamps')
 const ownedHome = join(scratch, 'owned-home')

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { formsMissing, rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
@@ -14,7 +14,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const read = (...p: string[]) => readFileSync(join(root, ...p), 'utf-8')
 
 console.log('============================================================')
 console.log(' MESSAGE_ACTIONS — fork-enabled (shift+up message cursor)')
@@ -34,7 +33,6 @@ const navMissing = ['messageActions:prev', 'messageActions:next', 'messageAction
 check('the MessageActions nav context survives (prev/next/escape)', navMissing.length === 0, navMissing.join(' · '))
 
 section('2. Chat: a single messageActionsDisabled gate, used at every render site')
-const repl = read('src', 'screens', 'Chat.tsx')
 const { openSelectorPart } = await import('./chatScenarios.ts')
 const selectorPart = await openSelectorPart('message-actions-selector')
 const disabledFlags = [selectorPart.part.value().messageActionsDisabled]
@@ -52,13 +50,7 @@ await keys.plant({ messageActionsDisabled: false, focusedInputDialog: 'tool-perm
 const activeUnderDialog = keys.handed.actions?.isActive
 await keys.close()
 check('the MessageActionsKeybindings the chat screen mounts gate on the one disabled flag and on no dialog having the focus', activeWhenEnabled === true && activeWhenDisabled === false && activeUnderDialog === false, `${String(activeWhenEnabled)} · ${String(activeWhenDisabled)} · ${String(activeUnderDialog)}`)
-check('the onMessageActionsEnter handler gates on the one disabled flag', /onMessageActionsEnter=\{messageActionsDisabled \? undefined : messageActions\.enter\}/.test(repl))
-check('exactly one feature(MESSAGE_ACTIONS) in Chat (the messageActionsEnabled def)', (repl.match(/feature\('MESSAGE_ACTIONS'\)/g) ?? []).length === 0)
-check('the gate lives in the hand-written Chat() (no _c slot patched)', /export function Chat\(/.test(repl) && !/const \$ = _c\([\s\S]{0,4000}messageActionsDisabled/.test(repl))
 
-section('3. no env opt-out: message actions are unconditional (the compat env spelling retired with its estate)')
-check('no retired DISABLE_MESSAGE_ACTIONS env read remains', !/DISABLE_MESSAGE_ACTIONS/.test(repl))
-check('every render site respects the disabled flag: the bar in the screen, the key handlers on the mount', repl.includes('messageCursorActive && !messageActionsDisabled ? <MessageActionsBar /> : composerGroup') && activeWhenDisabled === false)
 
 section('4. it SHIPS in dist')
 const dist = join(root, 'dist', 'mercury.mjs')

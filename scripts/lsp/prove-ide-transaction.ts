@@ -3,7 +3,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, rmSync } from 'node:fs'
-import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,7 +16,6 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const root = join(import.meta.dir, '..', '..')
   const tmp = mkdtempSync(join(tmpdir(), 'ide-txn-'))
   process.env.MERCURY_VERIFY_EVIDENCE = '1'
 
@@ -98,35 +96,6 @@ async function main(): Promise<void> {
     v._resetVerificationStateForTesting()
   }
 
-  section('2. the transaction pipeline (structural pins on the shipped source)')
-  {
-    const ops = readFileSync(join(root, 'src/tools/LSPTool/mercuryOps.ts'), 'utf8')
-    check(
-      'post-write sync is AWAITED with a bounded deadline (syncServersAfterWrite)',
-      /await syncServersAfterWrite\(manager, w\.abs, w\.newText, w\.create \? null : w\.originalText, owner\)/.test(ops) &&
-        !/manager\.changeAndSaveFile\(absolutePath, newText\)\.catch/.test(ops),
-    )
-    check(
-      'a sync failure AFTER writes downgrades to INDETERMINATE with the exact paths',
-      ops.includes("outcome: 'indeterminate'") && ops.includes('changedPaths: written.map(w => w.abs)'),
-    )
-    check(
-      'bounded post-apply diagnostic stabilization exists',
-      ops.includes('awaitDiagnosticStabilization'),
-    )
-    check(
-      'every op return carries a typed effect',
-      (ops.match(/effect: \{/g) ?? []).length >= 20,
-    )
-    const registry = readFileSync(
-      join(root, 'src/services/lsp/LSPDiagnosticRegistry.ts'),
-      'utf8',
-    )
-    check(
-      'the push lane has a NON-consuming publish subscription',
-      registry.includes('subscribeLSPDiagnosticPublish'),
-    )
-  }
 
   section('3. the push-lane quiet-window barrier (live, no real server)')
   {

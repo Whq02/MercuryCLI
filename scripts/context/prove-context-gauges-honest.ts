@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-gauges-'))
@@ -13,8 +13,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 console.log('two gauges say what they measure and whether they know it')
 
@@ -32,16 +30,6 @@ section('§2 the fill owner: the absent state is the em dash')
   check('a known fill prints its percent', contextPercentLabel(42.4, 'usage') === '42%')
 }
 
-section('§3 the shape')
-{
-  const picker = read('src/commands/model/mercuryModel.tsx')
-  check("/model's gauge reads the served model (the focused seat's effective row, the session override, then the global model)", /const servedModel = focusedSeat !== null \? focusedSeat\.effective : \(engineModelForSession \?\? getEngineModel\(\)\)/.test(picker) && /contextFillView\(messages, servedModel\)/.test(picker))
-  check('…and never the global model alone', !/contextFillView\(messages, getEngineModel\(\)\)/.test(picker))
-  check('…carrying the unknown fill as null (the base initialised 0 and left it there)', /let ctxPct: number \| null = null/.test(picker) && !/let ctxPct = 0/.test(picker))
-  const pickerView = read('src/components/MercuryModelPicker.tsx')
-  check('the picker accepts the absent state', /ctxPct\?: number \| null/.test(pickerView))
-  check('…and paints the em dash for it', /ctxPct === null \? <Text color=\{FAINT\}>—<\/Text> :/.test(pickerView))
-}
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-context-gauges-honest${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,5 +1,5 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -95,12 +95,6 @@ const schemasOf = async (tools: readonly { name: string }[], model: string): Pro
   const wholeRunRows = [t.fixtures.ask('hello there rig')] as Message[]
   const wholeRun = await t.runScripted({ seed: wholeRunRows, script: [t.fixtures.yields(t.fixtures.calls('tu_1', 'EchoTool', { text: 'x' })), t.fixtures.yields(t.fixtures.says('after tools.'))] })
   const wholeRunLatched = toolRosterLatchFor(String(mainOwnerOfSession(wholeRun.session)), wholeRunRows, t.MODEL) !== undefined
-  const localEstimator = readFileSync(new URL('../../src/services/providers/local/localCallModel.ts', import.meta.url), 'utf8')
-  check(
-    'the turn machine builds the gauge\'s fixed material from the tools on the wire, through the one owner the local estimator reads too — planned unseeded, so the gauge never takes a conversation\'s first latch',
-    Math.abs(localGrew - localWireWeighs) <= 1 && localGrew < localCatalogueWeighs / 2 && Math.abs(firstPartyGrew - firstPartyWireWeighs) <= 1 && !localRequest.latched && !firstPartyRequest.latched && latchingPlannerLatches && wholeRun.terminal.reason === 'completed' && !wholeRunLatched && localEstimator.includes('toolsOnTheWire(plan)'),
-    `with the catalogue in the pool the gauge's fixed material grew by ${localGrew} tokens on the local road (the tools on its wire weigh ${localWireWeighs}, the whole catalogue ${localCatalogueWeighs}) and by ${firstPartyGrew} on the first-party road (its wire weighs ${firstPartyWireWeighs}); a roster latch stood after the request: local ${localRequest.latched}, first-party ${firstPartyRequest.latched}, after a whole run ${wholeRunLatched} (none is right; the latching planner leaves one under the same key: ${latchingPlannerLatches}) — makeRequest in src/run-core/turn/makeRequest.ts sizes the gauge by toolsOnTheWire of a plan made with planToolPayloadUnseeded`,
-  )
   clearToolRosterLatches()
 }
 

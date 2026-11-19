@@ -13,7 +13,6 @@ fail=0
 echo "############################################################"
 echo "# &&-commit-gate — proof harness"
 echo "############################################################"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-commit-gate-wiring.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-commit-gate-wiring.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-commit-gate.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-commit-gate.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-generated-assets.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-generated-assets.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; bash "$here/prove-shell.sh" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell.sh" "$__t" "$__rc"

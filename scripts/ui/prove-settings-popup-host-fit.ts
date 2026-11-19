@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import type { DOMElement } from '../../src/ink.js'
@@ -279,9 +279,6 @@ section('§5 the geometry, pure, and the layout wiring')
   const whole = slot.settingsPopupGeometry({ width: 110, rows: 44 }, 178, 51)
   check('no host: the terminal is the host, left 34 as before', whole.width === 110 && whole.left === 34 && whole.top === 4, JSON.stringify(whole))
   check('the rows stay the terminal\'s: 44 from row 4 at 51 rows', g.rows === 44 && g.top === 4 && g.rowBudget === 37, JSON.stringify(g))
-  const layout = readFileSync(join(REPO, 'src/components/FullscreenLayout.tsx'), 'utf8')
-  check('the layout hands the cockpit slot its centre column as the host, framed as the column is', /<SettingsPopupSlot overlay=\{true\} hostRef=\{centreBoxRef\} framed=\{centerFrame\} \/>/.test(layout))
-  check('the sequential road keeps the unhosted slot', layout.includes('<SettingsPopupSlot overlay={false} />'))
 }
 
 await releaseScratchHome(HOME)

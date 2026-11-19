@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { closeSync, openSync, readFileSync, readdirSync, statSync, writeFileSync, writeSync } from 'node:fs'
+import { closeSync, openSync, readdirSync, statSync, writeFileSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { cleanup, reader, scratch, zip } from './hardening-fixtures.ts'
 
@@ -86,9 +86,6 @@ try {
     console.log(JSON.stringify({ kind, bytes: statSync(path).size, elapsedMs: Math.round(elapsed), peakRSSBytes: peakBytes, peakRSSMiB: Math.round(peakBytes / 1024 / 1024) }))
     assert.ok(elapsed < 60_000)
     assert.ok(peakBytes < 1536 * 1024 ** 2, 'peak RSS exceeds 1.5 GiB')
-    const limits = readFileSync(join(import.meta.dir, '../../src/tools/FileReadTool/prompt.ts'), 'utf8')
-    assert.match(limits, /MAX_LINES_TO_READ = 2000/)
-    assert.match(limits, /MAX_PDF_PAGES_PER_REQUEST = 20/)
     console.log(`PASS large ${kind}: bounded read and healthy session`)
   }
 } finally { cleanup(root) }

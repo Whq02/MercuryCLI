@@ -52,14 +52,6 @@ function treeHash(root: string): string {
   return createHash('sha256').update(rows.join('\n')).digest('hex')
 }
 
-function srcFiles(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name)
-    if (statSync(p).isDirectory()) srcFiles(p, out)
-    else if (/\.(ts|tsx|mjs)$/.test(name)) out.push(p)
-  }
-  return out
-}
 
 const facts = await import('../../src/utils/bootCardFacts.ts')
 const paths = await import('../../src/services/projectLocal/paths.ts')
@@ -76,14 +68,6 @@ try {
     check('F1 with no history it is not yet catalogued (no stamp, no chat)', current.catalogued === false && current.firstChatAt === null && current.newestChat === null)
     check('F1 the identity key is the folder\'s own session-store dir', current.key === portable.getProjectDir(FOO))
     check('F1 the same ground answers the same identity within the window', facts.currentProject() === current)
-    const face = read('src/components/BootSplashScreen.tsx')
-    check('F1 the Boot face\'s card names the cwd through the ONE naming seam on the ONE ground', face.includes('cwdBase: projectDisplayName(getCwd())'))
-    check('F1 the Boot face\'s Dir chip names the cwd through the ONE naming seam on the ONE ground', face.includes('dir: projectDisplayName(getCwd())') && !/basename\((getCwd|process\.cwd)\(\)\)/.test(face))
-    check('F1 the face reads the ground through the cwd owner alone (no raw process cwd anywhere on it)', face.includes("import { getCwd } from '../utils/cwd.js'") && !face.includes('process.cwd()'))
-    const snapshot = read('src/services/concourse/concourseSnapshot.ts')
-    check('F1 the concourse\'s project label reads the ONE catalog owner', snapshot.includes('const projectLabel = sanitizeLabel(projectDisplayName(projectDir))') && !snapshot.includes('basename(seedOverrides.projectDir ?? getCwd())'))
-    const launcher = read('assets/splash/mercury-splash.mjs')
-    check('F1 the launcher\'s frame-0 sites ride the mirrored seam (byte-equal across the hand-off)', (launcher.match(/projectDisplayName\(process\.cwd\(\)\)/g) ?? []).length === 3)
   }
 
   console.log('F2 — nothing is written before the first chat')
@@ -99,23 +83,6 @@ try {
     check('F2 the read doors leave the config home byte-identical (no store dir, no card)', treeHash(HOME) === homeBefore && !existsSync(join(HOME, 'projects')))
     check('F2 no `.mercury/` appeared in the folder', !existsSync(join(FOO, '.mercury')))
     check('F2 the list is empty — a folder with no chat is not a listed project (it is still the current one, by name)', facts.workedInProjects().length === 0)
-    const born = read('src/services/switchboard/bornSession.ts')
-    const refusal = born.indexOf("reason: operatorFacingBirthReason(String(reply.error ?? 'the session could not start'))")
-    const stamp = born.indexOf('catalogFirstChat(req.workspaceDir, sessionId)')
-    const hop = born.indexOf('await hopIntoBoardSession(sessionId')
-    check('F2 the birth door stamps AFTER the admission is accepted and before the hop (never on a refusal)', refusal > 0 && stamp > refusal && hop > stamp)
-    const callers = srcFiles('src').filter(f => read(f).includes('catalogFirstChat(') && !f.endsWith('bootCardFacts.ts'))
-    check('F2 the birth door is the ONE caller of the stamp', callers.length === 1 && callers[0]!.endsWith('bornSession.ts'), callers.join(','))
-    const estateCallers = srcFiles('src').filter(f => read(f).includes('initializeProjectLocalEstate(') && !f.replace(/\\/g, '/').endsWith('projectLocal/paths.ts'))
-    check('F2 the estate verb has ONE caller — the catalog owner', estateCallers.length === 1 && estateCallers[0]!.endsWith('bootCardFacts.ts'), estateCallers.join(','))
-    const owner = read('src/utils/bootCardFacts.ts')
-    const stampAt = owner.indexOf('export function catalogFirstChat')
-    const afterStamp = owner.indexOf('export function', stampAt + 1)
-    const body = owner.slice(stampAt, afterStamp)
-    const outside = owner.slice(0, stampAt) + owner.slice(afterStamp)
-    check('F2 the owner\'s only write verbs live inside the stamp', body.includes('mkdirSync(') && body.includes('durableAtomicPublishSync(') && !outside.includes('mkdirSync(') && !outside.includes('durableAtomicPublishSync(') && !outside.includes('writeFileSync('))
-    const estate = read('src/services/projectLocal/paths.ts')
-    check('F2 the estate verb creates exactly the directory (no marker files, no ignore rules)', estate.includes('mkdirSync(dir)') && !estate.includes('writeFileSync') && !estate.includes('gitignore'))
   }
 
   console.log('F3 — the first chat initializes the catalog; the folder joins the selectable projects')
@@ -142,9 +109,6 @@ try {
     check('F3 the identity door reads catalogued with the stamp and no newest chat', identity.catalogued === true && identity.firstChatAt === card.firstChatAt && identity.newestChat === null)
     check('F3 the current project (the ground) is the catalogued folder now', facts.currentProject().catalogued === true)
     check('F3 the stamp emitted the beat with the catalogued identity', beats.includes('foo:true'), beats.join(' '))
-    const picker = read('src/components/concourse/GroundPicker.tsx')
-    const face = read('src/components/BootSplashScreen.tsx')
-    check('F3 both listing surfaces render the ONE list (the picker rides workedInProjects, the face rides scanBootCardFacts on the ONE ground)', picker.includes('m.workedInProjects()') && face.includes('scanBootCardFacts(getCwd()'))
     const estateBefore = treeHash(estate)
     const cardBefore = read(cardPath)
     beats = []

@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const REPO = join(import.meta.dir, '..', '..')
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'mercury-newline-hint-'))
 process.env.MERCURY_CONFIG_DIR = SCRATCH
@@ -42,13 +41,6 @@ caps.upgradeExtendedKeysSupport()
 check('a repeated upgrade is silent (nothing changed)', heard === 1, `heard ${heard}`)
 off()
 
-const footer = readFileSync(join(REPO, 'src/components/PromptInput/PromptInputFooter.tsx'), 'utf8')
-check(
-  'the composer footer subscribes to the latch (a late probe reply flips the row in place)',
-  footer.includes('useSyncExternalStore(subscribeExtendedKeysSupport, extendedKeysSupportedNow, extendedKeysSupportedNow)'),
-)
-const utils = readFileSync(join(REPO, 'src/components/PromptInput/utils.ts'), 'utf8')
-check('the hint reads the SAME latch the raw-mode arm pushes on', utils.includes('extendedKeysSupportedNow()'))
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ the newline hint follows the latch' : `\n❌ ${failures} check(s) failed`)

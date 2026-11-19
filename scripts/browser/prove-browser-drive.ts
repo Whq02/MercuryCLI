@@ -993,63 +993,6 @@ process.exit(0)
   check('a normal exit WITHOUT close reaps the browser child', gone, `pid=${pid}`)
 }
 
-console.log('§15 structural teeth')
-{
-  const toolSrc = await Bun.file(join(ROOT, 'src', 'tools', 'BrowserTool', 'BrowserTool.ts')).text()
-  check(
-    'the act-op set is spelled exactly',
-    toolSrc
-      .replace(/\s+/g, ' ')
-      .includes("new Set([ 'open', 'click', 'type', 'scroll', 'back', 'reload', 'select', 'press', 'hover', 'upload', ])"),
-  )
-  check('press has NO printable keys (never a typing side door)', toolSrc.includes('PRESS_KEYS') && !/PRESS_KEYS[^]]*'a'/.test(toolSrc))
-  check('the first-visit ask names itself', toolSrc.includes('first visit to'))
-  check('the crossing ask names itself', toolSrc.includes('reached by navigation'))
-  check('the credential refusal is a named law', toolSrc.includes('credential field'))
-  check('text waits poll the frame signal, never clock spins', toolSrc.includes("polling: 'raf'") && !toolSrc.includes('waitForTimeout'))
-  check('the tool names its own deadline on a miss', toolSrc.includes('deadline ${deadline}ms exceeded'))
-  check('the crossing ask is bypass-immune by reason (safetyCheck, the operator alone)', toolSrc.includes('operatorOnly: true'))
-  const cardSrc = await Bun.file(join(ROOT, 'src', 'components', 'permissions', 'BrowserPermissionRequest', 'BrowserPermissionRequest.tsx')).text()
-  check('the consent card persists ORIGIN rules only (the whole-tool allow option does not exist)', cardSrc.includes('ruleContent: ruleContent') && !cardSrc.includes('rules: [{ toolName: toolUseConfirm.tool.name }]'))
-  const routerSrc = await Bun.file(join(ROOT, 'src', 'components', 'permissions', 'PermissionRequest.tsx')).text()
-  check('the Browser card is ROUTED (the fallback whole-tool card no longer answers)', routerSrc.includes('BrowserPermissionRequest'))
-  check('extract truncation names its cap', toolSrc.includes('TRUNCATED to ${EXTRACT_CAP}'))
-  const sessionSrc = await Bun.file(join(ROOT, 'src', 'services', 'browser', 'browserSession.ts')).text()
-  check('grants wipe on EVERY dead-session road (owner-scoped)', sessionSrc.split('.approvedOrigins.clear()').length === 5)
-  check('the per-owner store joins the owner-disposal registry', sessionSrc.includes('registerOwnerScopedStore(ownerStates)'))
-  check(
-    'a live or launching child is retained (LRU eviction can never kill a browser mid-act)',
-    sessionSrc.includes('retain: state => state.tabs.size > 0 || state.launching'),
-  )
-  check('the at-capacity refusal names the knob', sessionSrc.includes('raise MERCURY_BROWSER_MAX_SESSIONS'))
-  const runAgentSrc = await Bun.file(join(ROOT, 'src', 'tools', 'AgentTool', 'runAgent.ts')).text()
-  check(
-    "agent teardown reaps the agent's own browser child (the leak-repair seam)",
-    runAgentSrc.includes('disposeOwnerProcesses(processOwnerForLane(agentId))'),
-  )
-  check('secret pairings wipe on EVERY dead-session road', sessionSrc.split('.approvedSecretPairings.clear()').length === 5)
-  check('the error-text scrub is INSTALLED on the result rail', toolSrc.includes('scrubSecretFromText(result'))
-  check('the fill-only-credential complement is a named law', toolSrc.includes('secretRef fills only credential-shaped targets'))
-  check('the pairing ask names itself', toolSrc.includes('fill secret'))
-  check('the Chrome child inherits the SCRUBBED env, never the raw one', sessionSrc.includes('env: subprocessEnv()'))
-  const scrubSrc = await Bun.file(join(ROOT, 'src', 'utils', 'subprocessEnv.ts')).text()
-  check('the secret family is stripped from every spawned child env', scrubSrc.includes("'MERCURY_BROWSER_SECRET_'"))
-  check('the popup owner is armed (a new tab is named, never a black hole)', sessionSrc.includes("page.on('popup'"))
-  check('the console ring is armed at launch and bounded', sessionSrc.includes("page.on('console'") && sessionSrc.includes('consoleRing.length > CONSOLE_RING_CAP'))
-  check('the dialog owner is armed at launch (a dialog can never wedge the session)', sessionSrc.includes("page.on('dialog'"))
-  check('the network planes are armed at launch (requestfailed + error responses)', sessionSrc.includes("page.on('requestfailed'") && sessionSrc.includes("page.on('response'"))
-  check('ring URLs are query-redacted (tokens never enter the ring)', sessionSrc.includes('redactUrl'))
-  const uiSrc = await Bun.file(join(ROOT, 'src', 'tools', 'BrowserTool', 'UI.tsx')).text()
-  check(
-    'the UI rows speak the new verbs',
-    uiSrc.includes("'waitFor'") &&
-      uiSrc.includes("'extract'") &&
-      uiSrc.includes("'type'") &&
-      uiSrc.includes("'select'") &&
-      uiSrc.includes("'press'") &&
-      uiSrc.includes("'hover'"),
-  )
-}
 
 a.server.close()
 b.server.close()

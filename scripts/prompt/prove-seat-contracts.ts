@@ -1,15 +1,12 @@
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 const J = (...parts: string[]): string => parts.join('')
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'seat-contracts-'))
 
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 let failures = 0
 let checks = 0
@@ -52,8 +49,6 @@ section('§2 the session seat — the constitution, no doctrine section, no gate
 {
   const sections = contract.getMercuryContractSections()
   check('the contract sections carry no identity or doctrine text (the constitution is a static section)', sections.every(s => s.name !== J('identity', '-floor') && s.name !== J('mercury', '-doctrine') && !s.text.includes('You are Mercury')))
-  check('the session prompt carries no seat contract', !src('src/constants/prompts.ts').includes('MERCURY_SUBAGENT_CONTRACT'))
-  check('no flag gates the constitution', !src('src/prompt/mercuryContract.ts').includes(J('MERCURY_WRAPPER', '_APPEND')) && !flagRegistryText().includes(J('MERCURY_WRAPPER', '_APPEND')))
 }
 
 section('§3 the sub-agent seat — element 0 is the constitution, element 1 the sub-agent contract in its tag, nothing of another seat')

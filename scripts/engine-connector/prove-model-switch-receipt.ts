@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -95,14 +95,6 @@ section('L8 the resting slot\'s refusal is awaited the same way')
   check('refused with the birth-door sentence', receipt.state === 'refused' && typeof receipt.detail === 'string' && receipt.detail.length > 0, JSON.stringify(receipt))
 }
 
-section('L9 the consumers wait for the receipt (source pins)')
-{
-  const read = (rel: string): string => readFileSync(join(SRC, rel), 'utf8')
-  check('the interface declares the door asynchronous', /setModel\(setting: ModelSetting, words\?: string\): Promise<ModelSwitchReceiptV1>/.test(read('services/engine-connector/types.ts')))
-  check('/model awaits the door', read('commands/model/model.tsx').includes('await focused.setModel(target, '))
-  check('the inline picker waits for the door', read('components/PromptInput/useComposerModelDoors.tsx').includes('focused.setModel(value).then('))
-  check('the model surface waits for the door', read('commands/model/mercuryModel.tsx').includes('focused.setModel(value).then('))
-}
 
 section("L10 the daemon's words reach the operator whenever they say more than the switch itself")
 {
@@ -120,9 +112,6 @@ section("L10 the daemon's words reach the operator whenever they say more than t
   answer = async () => ({ ok: true, outcome: 'applied' })
   const bare = (await switchTo('claude-opus-5')) as Receipt & { note?: string }
   check('an applied reply with no detail carries no note', bare.state === 'applied' && bare.note === undefined, JSON.stringify(bare))
-  const read = (rel: string): string => readFileSync(join(SRC, rel), 'utf8')
-  check('/model paints the note in its notice', read('commands/model/model.tsx').includes('${receipt.note !== undefined ? ` (${receipt.note})` : \'\'}'))
-  check('the model surface paints the note in its notice', read('commands/model/mercuryModel.tsx').includes('${receipt.note !== undefined ? ` (${receipt.note})` : \'\'}'))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

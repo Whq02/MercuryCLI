@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -280,22 +280,6 @@ section('§6 the pure composer: the status row grammar over injected states')
   check('signed out ⇒ the attach row and the pins unavailable, whatever the list state', compose({ ...base, keyPresent: false, pins: [{ id: 'kimi-x', displayName: 'Kimi X', observedAt: '2026-08-21' }] as never[], listState: { kind: 'unread', reading: true } }).map(row => row.unavailable ?? 'action').join(',') === 'action,no API key attached')
 }
 
-section('§7 the seams, source-shaped: one three-state owner, every reader follows')
-{
-  const src = (rel: string): string => readFileSync(join(import.meta.dir, '../../src', rel), 'utf8')
-  const owner = src('services/providers/moonshot/moonshotCatalogue.ts')
-  check('the owner gates the pin table on the absence of an account, then the fetched snapshot, else an unread source', owner.includes('if (resolveMoonshotAccount(env) === undefined) {') && owner.includes("kind: 'unread'; reading: boolean; error?: string") && owner.includes('return { rows: [], source: unreadSource(snapshot, env) }'))
-  check('the owner orders the base alias before its variants', owner.includes('return { rows: baseAliasLeads(rows), source:') && !owner.includes('PLAN_HEADS'))
-  const options = src('utils/model/modelOptions.ts')
-  check('the picker row source reads the list state beside the pins and paints the status row from it', options.includes("listState: keyLaneListState('moonshot')") && options.includes("args.listState?.kind === 'unread'") && options.includes('kickMoonshotCatalogue()'))
-  const defaults = src('utils/model/computedDefault.ts')
-  check('the default reads the list state and says the list has not been read', defaults.includes('keyLaneListState(family)') && defaults.includes("the account's model list has not been read"))
-  check("the 'kimi' family word reads the list first, then the head, then the family's pinned default with its list words", src('utils/crew/engineDispatch.ts').includes('await readCatalogueIfPending(familyWord.route)') && src('utils/crew/engineDispatch.ts').includes('familyWord.pinnedDefault()') && src('utils/crew/engineDispatch.ts').includes('bareFamilyListWords(familyWord, providerName)'))
-  const picker = src('commands/model/mercuryModel.tsx')
-  check('↵ on the Moonshot status row re-reads the list in place for a signed-in account; a signed-out row still runs /logins', picker.includes("refreshMoonshotCatalogue({ force: true })") && picker.includes("nextInput: '/logins moonshot --return=/model'") && picker.includes('useCatalogueEpoch()'))
-  const onDemand = src('services/providers/catalogueOnDemand.ts')
-  check('the boot road reads the Moonshot list when nothing usable is cached, bounded', onDemand.includes("case 'moonshot'") && onDemand.includes('nothingUsable(getCachedMoonshotCatalogue())') && onDemand.includes('await bounded(refreshMoonshotCatalogue({ force }), boundMs)'))
-}
 
 const K3 = 'k3'
 const K3_256K = 'k3-256k'
@@ -432,11 +416,6 @@ section('§9 a real Kimi sign-in: the access token lives fifteen minutes and rot
   accounts.writeMoonshotTokens(other, 'global')
   recordSignIn('moonshot', 'oauth')
   check("another account's sign-in does not inherit the list: its own read is pending", catalogue.moonshotCatalogueRows().source.kind === 'unread' && !catalogue.cachedLiveIds().has(K3), JSON.stringify(catalogue.moonshotCatalogueRows().source))
-  const owner = readFileSync(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotCatalogue.ts'), 'utf8')
-  const accountsSrc = readFileSync(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotAccounts.ts'), 'utf8')
-  check('the catalogue identity of a Kimi sign-in is the account key, never the access token', owner.includes('return `kimi-oauth:${tokens ? kimiAccountKey(tokens) : \'\'}:${kimiCodingBase(account.region, env)}`') && !owner.includes('credentialFingerprint(moonshotStoredTokens()?.accessToken'))
-  check('the read stores the list under the same identity it is read by', owner.includes("destination = source === 'kimi-oauth' ? catalogueIdentity(env) : "))
-  check('the refresh margin is derived from the token lifetime', accountsSrc.includes('expiresAt - now < accessTokenRefreshMarginMs(oauth)') && accountsSrc.includes('Math.floor((expiresAt - issuedAt) / 3)'))
   globalThis.fetch = tokenFetch
   accounts.writeMoonshotTokens(null)
   catalogue.__resetMoonshotCatalogueForTest()

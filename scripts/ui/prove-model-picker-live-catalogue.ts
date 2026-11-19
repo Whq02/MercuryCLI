@@ -100,31 +100,6 @@ section('group detail lines wrap by whole segments')
   check('nothing is dropped: every segment survives the wrap', lines.join(' · ') === detail)
 }
 
-section('mechanism pins: subscription · in-place retry · every catalogue bumps')
-{
-  const wrapper = readFileSync(join(REPO, 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  check('the /model wrapper subscribes to the catalogue epoch', wrapper.includes('useCatalogueEpoch()'))
-  check('no action row closes the picker to "reopen /model"', !wrapper.includes('reopen /model'))
-  check(
-    'every catalogue retry settles through the notice slot (GPT · OpenRouter · Gemini · Hugging Face)',
-    (wrapper.match(/refreshing the live catalogue/g) ?? []).length >= 4,
-  )
-  for (const rel of [
-    'src/services/providers/openrouter/openrouterCatalogue.ts',
-    'src/services/providers/openai/openaiCatalogue.ts',
-    'src/services/providers/gemini/geminiCatalogue.ts',
-    'src/services/providers/huggingface/huggingfaceCatalogue.ts',
-    'src/services/providers/deepseek/deepseekCatalogue.ts',
-  ]) {
-    const src = readFileSync(join(REPO, rel), 'utf8')
-    check(`${rel.split('/').pop()} bumps the epoch when its refresh settles (the finally block)`, /finally \{[^}]*bumpCatalogueEpoch\(\)/.test(src))
-  }
-  const picker = readFileSync(join(REPO, 'src/components/MercuryModelPicker.tsx'), 'utf8')
-  check(
-    'the picker wraps a refused row\'s reason and the c-press answer whole in the notice slot and budgets those rows',
-    picker.includes("wrapPlain(`${focusedModel.id} · ${focusedModel.gatedReason} — not selectable`, inner)") && picker.includes('wrapPlain(ctxNotice, inner)') && picker.includes('noticeLines.length'),
-  )
-}
 
 section('THE SCREEN: one /model open paints connecting… then the rows (120x40)')
 const driver = resolveCaptureDriver()

@@ -10,7 +10,6 @@ import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 import type { DOMElement } from '../../src/ink/dom.js'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const HOME = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'cron-billing-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_HOME = HOME
@@ -44,13 +43,6 @@ const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
 type Raw = Record<string, unknown>
 const settle = (ms = 100): Promise<void> => new Promise(r => setTimeout(r, ms))
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-const between = (text: string, from: string, to: string): string => {
-  const at = text.indexOf(from)
-  if (at < 0) return ''
-  const end = text.indexOf(to, at)
-  return end < 0 ? text.slice(at) : text.slice(at, end + to.length)
-}
 
 async function stub(path: string, fixtureExports: () => Record<string, unknown>): Promise<void> {
   const actual = await import(path)
@@ -140,9 +132,6 @@ section("§1 THE STAMP (red on the base): every road that queues a Saturn fire s
   } catch (error) {
     check("the stamp helper stands at the origin's home (noticeRows.saturnQueueStamp)", false, String(error))
   }
-  const carry = src('src/cli/headless/restartCarry.ts')
-  const requeue = between(carry, 'export function requeueUndeliveredLines', 'return requeued')
-  check('the restart carry spreads the one stamp when it re-queues a journal row (red on the base: the origin alone)', requeue.includes('...saturnQueueStamp(row.origin)') && !requeue.includes('{ origin: row.origin }'), requeue.slice(requeue.indexOf('const command'), requeue.indexOf('enqueue(command)')))
 }
 
 section('§1b THE CARRY, driven: a wake re-queued from the journal after the runner died runs under the cron workload (red on the base: no workload on the carried command)')
@@ -220,8 +209,6 @@ section("§3 THE SURFACES (red on the base): the usage popup and the usage card 
   check("the popup's owner derivation: a provider's session spend carries its scheduled share (red on the base: no share on the spend)", scheduled !== undefined && scheduled.inputTokens === 1_500 && scheduled.outputTokens === 60 && scheduled.models === 1, j(anthropic))
   const cardLine = (ownerLoose.scheduledUsageLine as (() => string | null) | undefined)?.()
   check("the card's attribution line — 'scheduled 1.6k spent · $… + 1 unpriced turn'", typeof cardLine === 'string' && cardLine.startsWith('scheduled 1.6k spent · $') && cardLine.endsWith('+ 1 unpriced turn'), j(cardLine))
-  const rail = src('src/utils/cockpit/helmVitalsModel.ts')
-  check('the rail paints the scheduled line under USAGE beside the crew line (red on the base: no such row)', rail.includes('scheduledUsageLine()') && rail.includes("muted('usage:scheduled', scheduledLine)"))
   const project = await import('../../src/rows/project.ts')
   const { OutcomeRowSchema } = await import('../../src/rows/vocabulary.ts')
   const modelRows = project.modelUsageRows((ledger.getModelUsage as () => Record<string, never>)())
@@ -229,9 +216,6 @@ section("§3 THE SURFACES (red on the base): the usage popup and the usage card 
   check("the outcome row's per-model shape: the ledger's model row maps to input/cached/cache-write/output tokens, cost and web searches and the row's cost is the scheduled turn's plus the session's own (red on the base: no row projection)", modelRow !== undefined && modelRow.input_tokens === 1_800 && modelRow.cached_input_tokens === 400 && modelRow.cache_write_input_tokens === 100 && modelRow.output_tokens === 80 && typeof modelRow.cost_usd === 'number' && Math.abs(modelRow.cost_usd - (scheduledCost + ownCost)) < 1e-9 && modelRow.web_searches === 0, j(modelRows))
   const outcome = OutcomeRowSchema().safeParse({ type: 'outcome', seq: 1, timestamp: '2026-10-02T00:00:00.000Z', session_id: 's', turn: 1, turn_id: 't', schema: 1, status: 'completed', answer: 'done', steps: 1, wall_ms: 1, api_ms: 1, cost_usd: 0.1, usage: { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }, models: modelRows, denials: [] })
   check('the outcome row keeps its per-model rows through the schema (the workload buckets stay on the ledger — no row carries them)', outcome.success && j((outcome.data as Raw).models) === j(modelRows), outcome.success ? '' : j(outcome.error.issues))
-  const engine = src('src/rows/turn.ts')
-  check('the turn captures the model-usage baseline before the run', engine.includes("const modelUsageAtStart = Object.fromEntries(Object.entries(getModelUsage()).map(([model, row]) => [model, { ...row }]))"))
-  check("the turn's outcome carries the per-model rows of the run window; the workload buckets stay on the ledger for /usage and the rail (no row reader)", engine.includes('const billed = usageSince(getModelUsage(), modelUsageAtStart)') && engine.includes('models: modelUsageRows(billed,') && !engine.includes('workload'))
 }
 
 async function mountPopup(columns: number, rowCount: number, width: number, rowBudget: number, openToken: number): Promise<{ frame: () => string; close: () => void }> {

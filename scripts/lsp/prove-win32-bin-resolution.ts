@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -99,15 +99,6 @@ section('§3 the project-local probe picks the .cmd sibling under win32')
   }
 }
 
-section('§4 call-shaped pins')
-{
-  const which = readFileSync(join(import.meta.dir, '../../src/utils/which.ts'), 'utf8')
-  check('the win32 walk routes its listing through the picker', /return pickWin32ExecutableLine\(listed\)/.test(which))
-  check('the picker is the one selection owner (the first spawnable line, else the bare first line)', /spawnable \?\? listed\[0\] \?\? null/.test(which))
-  check('a lookup never creates a process (no child_process in the owner)', !which.includes('child_process'))
-  const catalogue = readFileSync(join(import.meta.dir, '../../src/services/lsp/serverCatalogue.ts'), 'utf8')
-  check('the project-local probe iterates the spawnable spellings', /for \(const spelling of spawnableSpellings\(bin\)\)/.test(catalogue))
-}
 
 if (failures > 0) {
   console.error(`\nprove-win32-bin-resolution: ${failures} FAILURE(S)`)

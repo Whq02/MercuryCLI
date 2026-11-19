@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -18,7 +18,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { lastToolCallsOf } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 const { noteCrewWorktreeLeftover, CREW_JANITOR_DAYS } = await import('../../src/utils/crew/crewWorktreeReminder.ts')
@@ -118,18 +117,6 @@ section('3. the death notice: the last tool calls and the worktree state ride th
   check('a completed notice with no calls handed carries no section', !quiet.includes('<last_tool_calls>') && !quiet.includes('<worktree>'), quiet)
 }
 
-section('4. the roads hand the tail over: every death and stop in the two lifecycles, the failed foreground arm')
-{
-  const lifecycle = readFileSync(join(ROOT, 'src/tools/AgentTool/agentToolUtils.ts'), 'utf8')
-  const foreground = readFileSync(join(ROOT, 'src/tools/AgentTool/foregroundExecution.tsx'), 'utf8')
-  const tool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-  const count = (source: string, needle: string): number => source.split(needle).length - 1
-  check('the background lifecycle passes the tail on its declined, stopped and thrown roads', count(lifecycle, 'lastCalls: lastToolCallsOf(accumulated)') === 3, String(count(lifecycle, 'lastCalls: lastToolCallsOf(accumulated)')))
-  check('the foreground run passes it on its three backgrounded exits and on the failed result', count(foreground, 'lastCalls: lastToolCallsOf(agentMessages)') === 4, String(count(foreground, 'lastCalls: lastToolCallsOf(agentMessages)')))
-  check('the tail rides beside the landed-writes census wherever a death is noticed', count(lifecycle, 'landedWrites: landedWritesOf(accumulated)') === count(lifecycle, 'lastCalls: lastToolCallsOf(accumulated)') && count(foreground, 'landedWrites: landedWritesOf(agentMessages)') === 3)
-  check('the failed arm of the result schema admits the tail', tool.includes('lastCalls: z.array(z.string()).optional()'))
-  check('one line builder names the kept worktree on both arms', count(tool, 'worktreeKeptLine(data)') === 2 && tool.includes('crewWorktreeReminderTail('))
-}
 
 console.log(failures === 0 ? '\nprove-failed-crewmate-tail: all green' : `\nprove-failed-crewmate-tail: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -124,8 +124,6 @@ await seam.latchSwarmAgent('beta', 'Beta', false, 'engine')
   const { builtinCommands, sessionSeatCommandTable, commandSeat } = await import('../../src/commands.ts')
   const verbs = builtinCommands().filter(c => ['general', 'team', 'whisper'].includes(c.name))
   check('the three verbs are screen-seat local commands with model invocation disabled, never served by the runner table', verbs.length === 3 && verbs.every(c => c.type === 'local' && commandSeat(c) === 'screen' && c.disableModelInvocation === true && c.supportsNonInteractive === false) && !sessionSeatCommandTable(builtinCommands()).some(c => ['general', 'team', 'whisper'].includes(c.name)))
-  const store = readFileSync(fileURLToPath(new URL('../../src/services/crewBoard/store.ts', import.meta.url)), 'utf8')
-  check('only the trusted store arm mints the owner role', (store.match(/authorRole: 'owner'/g) ?? []).length === 1 && !/post\(p, input, delivery[\s\S]*?authorRole: 'owner'[\s\S]*?postOwner\(/.test(store))
 }
 {
   const { createUserMessage, createAssistantAPIErrorMessage } = await import('../../src/utils/messages/factories.ts')

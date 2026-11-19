@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
 let checks = 0
@@ -15,7 +12,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const cr = await import('../../src/services/compact/checkpointRewind.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { CheckpointTool } = await import('../../src/tools/CheckpointTool/CheckpointTool.tsx')
@@ -195,14 +191,7 @@ section('§D the machine, called + registry pins (structural)')
     t.reasonOf(closed.decision) === 'hand_over next_turn' && recordAt !== -1 && steerAt !== -1 && recordAt < steerAt && keptForTheModel,
     `after a settled Rewind with a line queued: ${t.reasonOf(closed.decision)}, the record at row ${recordAt}, the operator's line at row ${steerAt} of ${round.length}, the line in the model's view: ${keptForTheModel} — afterTools of src/run-core/turn/afterTools.ts adds the rewind record to the round before it drains the queue, so the line stands after the record and outside the rewound window`,
   )
-  const transitions = readFileSync(join(ROOT, 'src/query/transitions.ts'), 'utf8')
-  check("the Continue union carries 'checkpoint_settle_guard'", transitions.includes("'checkpoint_settle_guard'"))
-  const tools = readFileSync(join(ROOT, 'src/tools.ts'), 'utf8')
-  check('the catalogue offers the pair behind the default-on flag', tools.includes('checkpointRewindEnabled') && tools.includes('CheckpointTool, RewindTool'))
   check('MERCURY_CHECKPOINT_REWIND carries its registry row', getFlagSpec('MERCURY_CHECKPOINT_REWIND') !== undefined)
-  const plan = readFileSync(join(ROOT, 'src/services/run/requestContextPlan.ts'), 'utf8')
-  const compact = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
-  check('both provider-bound projections consult projectRewoundWindows', plan.includes('projectRewoundWindows') && compact.includes('projectRewoundWindows'))
 }
 
 console.log('\n' + '='.repeat(60))

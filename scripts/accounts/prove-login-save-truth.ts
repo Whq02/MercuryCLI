@@ -108,12 +108,6 @@ async function drive(save: () => SaveResult): Promise<{
   t('§3 …storing the account the sign-in landed once and naming it on the pane', r.stored === 1 && r.label === 'operator@example.test', `stored ${r.stored}, label ${String(r.label)}`)
 }
 
-{
-  const authSrc = await import('node:fs').then(m =>
-    m.readFileSync(join(import.meta.dir, '../../src/cli/handlers/auth.ts'), 'utf8'),
-  )
-  t('§4 installOAuthTokens gates its save on the result', /const saved = saveOAuthTokensIfNeeded\(tokens\)/.test(authSrc) && /if \(!saved\.success\)/.test(authSrc))
-}
 
 console.log(failures === 0 ? 'LOGIN SAVE TRUTH: ALL PASS' : 'LOGIN SAVE TRUTH: RED')
 process.exit(failures)

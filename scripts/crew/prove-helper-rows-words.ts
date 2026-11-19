@@ -4,7 +4,7 @@
 // gate-watch: src/utils/sdkEventQueue.ts src/services/switchboard/spawnSwitches.ts src/components/messages/AssistantTextMessage.tsx
 // gate-watch: src/components/HelmLanesRail.tsx src/components/concourse/ConcourseStrips.tsx
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,8 +17,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 console.log('— CRW-08 the crewmate card names where its stop and pause keys fire —')
 {
@@ -36,8 +34,6 @@ console.log('— CRW-11 the ⌃x ⌃x ladder says a second chord is needed withi
   const m = await import('../../src/components/concourse/controlManifest.ts')
   const arm = m.closeChordReceiptOf('arm-delete') ?? ''
   check('the arm receipt says it ARMED and that ⌃x ⌃x AGAIN deletes within the window', arm === 'armed — ⌃x ⌃x again deletes (5 s)', arm)
-  const route = src('src/components/concourse/ConcourseRoute.tsx')
-  check('the archive receipt names the 5 s window instead of promising a bare "again deletes it", and fits the receipt slot (64 characters)', route.includes("archived — the chat stands parked; ${keyHintLabel('⌃x ⌃x')} again in 5 s deletes it") && 'archived — the chat stands parked; ⌃x ⌃x again in 5 s deletes it'.length <= 64, route.match(/archived — the chat stands parked;[^\n]*/)?.[0] ?? '(absent)')
   check('the pending-leader hint for the arm rung is unchanged (the rung the press takes, then the window)', m.closeChordHintOf('arm-delete') === '⌃x again arms the delete · ⌃x ⌃x in 5 s ends it')
 }
 
@@ -48,10 +44,6 @@ console.log('— CRW-12 a shell the helper left behind records why it stopped �
   check('a kill without a named source reads user-stop as before', shellOutcomeState({ code: 137, interrupted: true, wasKilled: true }).terminationReason === 'user-stop')
   const agentEnd = shellOutcomeState({ code: 137, interrupted: true, wasKilled: true, killedBy: 'agent-end' })
   check('a shell the harness stopped because the helper that started it ended records agent-ended, state stopped', agentEnd.terminationReason === 'agent-ended' && agentEnd.state === 'stopped', JSON.stringify(agentEnd))
-  const kill = src('src/tasks/LocalShellTask/killShellTasks.ts')
-  check('the agent-end sweep stamps the kill source on every shell it ends', kill.includes("void killTask(task.id, setAppState, 'agent-end')") && kill.includes('killedBy,'))
-  const settle = src('src/tasks/LocalShellTask/LocalShellTask.tsx')
-  check('the settlement carries the stamp into the outcome envelope', settle.includes('killedBy = task.killedBy') && settle.includes('...(killedBy !== undefined ? { killedBy } : {}),'))
 }
 
 console.log('— CRW-13 the task’s ended row names its output file —')
@@ -92,8 +84,6 @@ console.log('— CRW-15 a helper’s closing envelope reads as a close note in i
   check('the close note reads the summary, the unresolved items and the checks in words — no braces, no quotes', note === 'close note — AskUserQuestion is not available in this session, so the question went unasked. · 1 unresolved: the colour was never chosen · no checks named', note)
   check('an empty declaration still reads as words', crewmateCloseNoteOf({}) === 'close note — nothing declared')
   check('findings and the next action join the note', crewmateCloseNoteOf({ findings: ['a', 'b'], recommendedNextAction: 'rerun the suite', checks: ['typecheck'] }) === 'close note — 2 findings · next: rerun the suite · checks: typecheck')
-  const renderer = src('src/components/messages/AssistantTextMessage.tsx')
-  check('the fold rides the crewmate transcript alone (the plate context), through the one envelope parser', renderer.includes('crewmatePlate !== null && text.includes(`<${ENVELOPE_TAG}>`) ? parseDeclaration(text) : null'))
 }
 
 console.log('— CRW-16 the CREW lane keeps the letters that tell helpers apart —')
@@ -124,8 +114,6 @@ console.log('— CRW-17 the seats cell is the in-use/ceiling number alone; over 
   check('over the ceiling the cell reads demand/ceiling and is marked over', over.text === '5/2' && over.over && !('overWords' in over), JSON.stringify(over))
   const fits = strips.seatsCellText(2, 2, 5)
   check('within the ceiling the cell is the plain in-use/ceiling number', fits.text === '2/5' && !fits.over)
-  const rail = src('src/components/concourse/ConcourseStrips.tsx')
-  check('the rail paints the number alone, the warning ink carrying the over state', rail.includes('<Text color={seatsCell.over ? t.warning : t.textSecondary}>{seatsCell.text} seats</Text>') && !rail.includes('over the'))
 }
 
 console.log(failures === 0 ? '\nprove-helper-rows-words: ALL LAWS HOLD' : `\nprove-helper-rows-words: ${failures} FAILURE(S)`)

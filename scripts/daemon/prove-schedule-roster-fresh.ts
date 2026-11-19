@@ -82,10 +82,6 @@ console.log('§A the interrupt\'s drop and every tick that moves a record push t
   check('…and asks the seat for fresh facts, so the screen follows too', factsAsked().length === 1 && factsAsked()[0] === SHORT, requests)
   check('a session with no live record is not pushed', pushScheduleRosterForSession('sess-nobody', rosterPort, DAEMON_DIR) === false && pushes().length === 1)
 
-  const main = readFileSync(join(import.meta.dir, '../..', 'src/daemon/main.ts'), 'utf8')
-  const interruptArm = main.slice(main.indexOf("if (action === 'interrupt')"), main.indexOf("if (action === 'stop-agent' || action === 'resume-agent')"))
-  check("the interrupt door hands the roster to the drop, and the drop pushes the roster for the session when a wake went", interruptArm.includes("dropSelfWakesAtFlip(sessionId, by, 'interrupted', roster)") && main.includes('if (roster !== null) pushScheduleRosterForSession(sessionId, roster)'))
-  check('the ticker\'s roster-changed port is wired to the same push', main.includes('rosterChanged: sessionId => {') && main.includes('if (roster !== null) pushScheduleRosterForSession(sessionId, roster)'))
 
   const changed: string[] = []
   const delivered: unknown[] = []

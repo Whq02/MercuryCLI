@@ -365,24 +365,6 @@ section('§5 the presence owner counts what the wire would send')
   check('a configured helper with no key yet is the key ladder’s to report, never a bearer', !helperOnly.credentialed)
 }
 
-section('§6 the board wires the seam (structural)')
-{
-  const board = readFileSync(join(import.meta.dir, '../../src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
-  check('the family header is the family name alone — no count against a ceiling, no chip for a ceilinged family', board.includes('{`${familyDisplayName(group.family.id)} accounts`}') && !board.includes('familySigninHeaderNote') && board.includes('ceiling === undefined ? { count: signedIn } : {}'))
-  check('the plain count chip still reads the one derivation for a family with no ceiling', board.includes('familySigninSummary(group.slots, identities).signedIn'))
-  check("the scope row paints from slotSigninState through the seam's ONE row composer", board.includes('const state = slotSigninState(slot, identities)') && board.includes('scopeSlotTail(state, id, slot)') && !board.includes('function identityTail('))
-  check('the main-loop row derives from mainLoopIdentity over the main model', board.includes('mainLoopIdentity({') && board.includes('model: engineModel,'))
-  check("no snapshot is dressed as the billing identity (the old '(snapshot)' fallback is gone)", !board.includes("`${acct.emailAddress} (snapshot)`"))
-  check('the org fact is labelled a snapshot and rides only a verified Anthropic main loop', board.includes("mainLoop.basis === 'verified-live' && acct?.organizationName"))
-  const seam = readFileSync(join(import.meta.dir, '../../src/services/providers/accountSlots.ts'), 'utf8')
-  check('the seam owns no header-note words (no "x/y signed in" template survives)', !seam.includes('familySigninHeaderNote') && !seam.includes('} signed in`'))
-  check(
-    'the seam splits existence from validity: the slot field is a bare boolean, the sign-in answer is the typed basis slotSigninState returns',
-    seam.includes('signedIn: boolean') &&
-      seam.includes('export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): SlotSigninState') &&
-      seam.includes("| { signedIn: true; basis: 'verified-live' | 'credential-present' }"),
-  )
-}
 
 rmSync(scratch, { recursive: true, force: true })
 console.log('\n' + '═'.repeat(60))

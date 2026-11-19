@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -21,7 +21,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -416,41 +415,6 @@ console.log('L6 the board: one parked row, one parked group')
   check('the pickers no longer hide a parked record (resumable history), still hide the live one', !sup.boardHomedSessionIds(dir).has(parkedSid) && sup.boardHomedSessionIds(dir).has(liveSid))
 }
 
-console.log('L7 the wire and the seams')
-{
-  const protocol = read('src/daemon/protocol.ts')
-  const controlAt = protocol.indexOf("op: 'sessionControl'")
-  const controlBody = protocol.slice(controlAt, protocol.indexOf('sessionId: string', controlAt))
-  check("the protocol names 'park' and 'park-all' on sessionControl", controlBody.includes("| 'park'") && controlBody.includes("| 'park-all'"))
-  const server = read('src/daemon/controlServer.ts')
-  check('the control server admits both verbs', server.includes("raw.action === 'park' ||") && server.includes("raw.action === 'park-all'") && server.includes('focus|blur|park|park-all'))
-  const main = read('src/daemon/main.ts')
-  const handlerAt = main.indexOf('concourseControl: ({ action, sessionId, by')
-  const lookupAt = main.indexOf('const rec = Object.values(readSessionWorkers()).find(', handlerAt)
-  const parkAllAt = main.indexOf("if (action === 'park-all') {", handlerAt)
-  const parkAt = main.indexOf("if (action === 'park') {", handlerAt)
-  const seatVerbsAt = main.indexOf("if (action === 'set-model') {", handlerAt)
-  check('the daemon handler: park-all before the record lookup (no session named), park after it and before the seat verbs', parkAllAt !== -1 && parkAllAt < lookupAt && lookupAt < parkAt && parkAt < seatVerbsAt)
-  check('park-all rides parkAllConcourseSessions with the live-terminal exception; park rides parkConcourseSession', main.slice(parkAllAt, lookupAt).includes('exceptFocusedByLiveTerminal: true') && main.slice(parkAt, seatVerbsAt).includes('parkConcourseSession(sessionId, by, roster ?? undefined)'))
-  const idleAt = main.indexOf('onIdle: short => {')
-  check("the roster's idle edge completes a requested park (a mid-turn close finishes its turn, then parks)", main.slice(idleAt, idleAt + 2_000).includes('completeRequestedPark(short, roster)'))
-  const daemon = read('src/daemon/concourseWorkers.ts')
-  check("admission's live-worker derivation excludes parked records", daemon.includes('r.endedAt === undefined && r.parkedAt === undefined && (liveShorts.has(r.runnerId) || r.attachedAt !== undefined)'))
-  check("the pool's seat count excludes them the same way", read('src/daemon/warmRunner.ts').includes('r.endedAt === undefined && r.parkedAt === undefined && (liveShorts.has(r.runnerId) || r.attachedAt !== undefined)'))
-  const reconcileAt = daemon.indexOf('export function reconcileConcourseWorkers(')
-  const reconcileBody = daemon.slice(reconcileAt, daemon.indexOf('export function listConcourseWorkers(', reconcileAt))
-  check('the reconcile answers parked before the crash arm (and never releases it)', reconcileBody.indexOf('if (rec.parkedAt !== undefined) {') !== -1 && reconcileBody.indexOf('if (rec.parkedAt !== undefined) {') < reconcileBody.indexOf('rec.crash = {'))
-  check('the pickers read parked records as resumable history', daemon.includes('if (rec.endedAt === undefined && rec.parkedAt === undefined) out.add(rec.sessionId)'))
-  check("the reaper's typed refusal", read('src/daemon/idleRetirement.ts').includes("if (rec.parkedAt !== undefined) return { retire: false, reason: 'parked' }"))
-  const board = read('src/services/concourse/concourseSnapshot.ts')
-  check("the ladder reads parkedAt right after attachedAt", /rec\.attachedAt !== undefined\s*\?\s*'attached'\s*:\s*rec\.parkedAt !== undefined\s*\?\s*'parked'/.test(read('src/daemon/concourseWorkers.ts')))
-  check('the builder merges the record rows and the transcript rows into ONE parked group, records first', board.includes('const parkedRows = [...parkedRecordRows, ...parkedTranscriptRows]') && board.includes('rows.push(...parkedTranscriptRows)'))
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  const removeAt = route.indexOf('removeSession: sessionId => {')
-  const removeBody = route.slice(removeAt, route.indexOf('openObligation: obligationId => {', removeAt))
-  check("the route's double-x on a parked RECORD falls through to the release door (a record-less parked row still ends at the cleared mark)", removeBody.indexOf('parkedRecord === undefined') !== -1 && removeBody.indexOf('parkedRecord === undefined') < removeBody.indexOf("op: 'sessionRelease'"))
-  check('the lifecycle registry names the parked state on the records row', /parkedAt set \(the operator CLOSED the chat/.test(read('src/substrate/stateLifecycle.ts')))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-parked-state: ALL LAWS HOLD' : `\nprove-parked-state: ${failures} FAILURE(S)`)

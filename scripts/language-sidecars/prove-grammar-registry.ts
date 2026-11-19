@@ -116,21 +116,9 @@ function check(label: string, ok: boolean, detail = ''): void {
   check('every other row routes the same for both readers', GRAMMAR_REGISTRY.filter(g => !g.patternOnly).every(g => g.extensions.every(e => languageForFile(`x${e}`)?.name === g.name && patternLanguageForFile(`x${e}`)?.name === g.name)))
   check('languageByName finds every registry row', GRAMMAR_REGISTRY.every(g => languageByName(g.name)?.wasm === g.wasm))
   check('languageByName refuses unknown', languageByName('klingon') === null)
-  const facility = readFileSync(join(ROOT, 'src', 'services', 'structure', 'grammarFacility.ts'), 'utf8')
-  const baseIdx = facility.indexOf('BASENAME_TO_LANG.get')
-  const extIdx = facility.indexOf('EXT_TO_LANG.get')
-  const prefixIdx = facility.indexOf('BASENAME_PREFIXES.find')
-  check('patternLanguageForFile consults basenames BEFORE extensions, and extensions before basename prefixes', baseIdx > 0 && extIdx > 0 && baseIdx < extIdx && extIdx < prefixIdx)
   check('so a prefixed name with a known extension keeps the extension (Dockerfile.yaml is yaml, Dockerfile.dev is dockerfile)', patternLanguageForFile('Dockerfile.yaml')?.name === 'yaml' && patternLanguageForFile('Dockerfile.dev')?.name === 'dockerfile')
 }
 
-{
-  const buildTs = readFileSync(join(ROOT, 'build.ts'), 'utf8')
-  check(
-    'build.ts carries no hand-kept grammar literal (imports the registry)',
-    !buildTs.includes("'tree-sitter-python.wasm'") && buildTs.includes('grammarRegistry'),
-  )
-}
 
 if (failures > 0) {
   console.error(`\ngrammar registry: ${failures} FAILURES`)

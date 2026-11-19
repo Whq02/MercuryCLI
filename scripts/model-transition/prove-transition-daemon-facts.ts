@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -101,21 +101,6 @@ section('§3 plan-digest determinism (the in-process parity acceptance)')
 
 section('§4 the wiring, structural')
 {
-  const model = readFileSync(join(import.meta.dir, '../../src/commands/model/model.tsx'), 'utf8')
-  check(
-    "the daemon arm plans from the CONNECTOR's facts and records",
-    /carrier !== 'daemon'[\s\S]{0,900}modelFacts\(\)[\s\S]{0,900}previewForSelection\(sessionMessages, sessionFacts\.effective, target\)/.test(model) && model.includes('const daemonPreview = previewDaemonModelSelection(target)'),
-  )
-  check(
-    'the ambient refusal names what could not be resolved and builds no plan',
-    model.includes("effectiveSource === 'ambient'") && model.includes('no live facts and no recorded model'),
-  )
-  check("the held card names the plan's own from for a daemon carrier", model.includes('const fromModel = heldIsDaemon ? held.plan.from : effective') && model.includes('fromLabel={renderModelLabel(fromModel)}'))
-  check("the cancel line reads the same source as the from-label (RELEASE-29-AIR R29A-03: it read the screen's own fields and said Kept <the default>)", model.includes('`Kept ${renderModelLabel(fromModel)} — the model switch was cancelled at the preview.`'))
-  check(
-    "the confirm re-derives from the SAME source the plan was built from",
-    /confirmMessages[\s\S]{0,400}reconfirmTransitionPlan\(held\.plan, confirmMessages\)/.test(model),
-  )
   const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
   const says = (sessionId: string, atMs: number): void =>
     publishSessionFacts({

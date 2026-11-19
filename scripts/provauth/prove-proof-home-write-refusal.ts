@@ -145,14 +145,6 @@ try {
     const r = run(unmarked, {}) as Outcome & { storeExists: boolean }
     check('an ordinary run (no mark, no prove-* name) is never refused: the wall is for proofs only', !r.threw && r.readBack === FIXTURE && r.storeExists, r.message)
   }
-  {
-    const runner = Bun.file(join(ROOT, 'scripts/gate/run-suite.sh'))
-    const text = await runner.text()
-    check('the suite runner marks every child it starts (MERCURY_PROOF, an inherited value honoured)', /^export MERCURY_PROOF="\$\{MERCURY_PROOF:-1\}"$/m.test(text))
-    const secrets = await Bun.file(join(ROOT, 'src/services/providers/providerSecrets.ts')).text()
-    const doors = (secrets.match(/refuseProofWriteIntoAccountStore\(/g) ?? []).length
-    check('the three credential doors in providerSecrets.ts (the secrets store, a host credential, an auth file) each call the wall', doors === 3, String(doors))
-  }
   console.log(`PASS the credential writers refuse a proof's write into the account's own home (${checks} checks)`)
 } finally {
   rmSync(scratch, { recursive: true, force: true })

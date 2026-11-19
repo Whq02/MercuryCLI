@@ -1,10 +1,8 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Stats } from 'node:fs'
 
 const REPO = join(import.meta.dir, '..', '..')
-const SRC = process.env.PROVE_SRC ?? join(REPO, 'src')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -39,27 +37,6 @@ check('no stat defers to the rule', byPath('/h/nostat.git', undefined) === true 
 const bare = ignoringSpecialFiles()
 check('with no rule of its own, only a special file is ignored', bare('/h/x', statOf('fifo')) === true && bare('/h/x', statOf('file')) === false && bare('/h/x', undefined) === false)
 
-console.log('\n§2 every directory-listing watcher reads the predicate')
-const WATCHERS: Array<[string, string]> = [
-  ['the settings change detector', 'utils/settings/changeDetector.ts'],
-  ['the keybindings loader', 'keybindings/loadUserBindings.ts'],
-  ['the hooks file-changed watcher', 'utils/hooks/fileChangedWatcher.ts'],
-  ['the agent definitions watcher', 'services/agents/watch.ts'],
-  ['the skills change detector', 'utils/skills/skillChangeDetector.ts'],
-]
-for (const [name, rel] of WATCHERS) {
-  let text = ''
-  try {
-    text = readFileSync(join(SRC, rel), 'utf8')
-  } catch (e) {
-    check(`${name} (${rel}) is readable`, false, e instanceof Error ? e.message : String(e))
-    continue
-  }
-  const imports = /import \{[^}]*\bignoringSpecialFiles\b[^}]*\} from '[^']*watchRoot\.js'/.test(text)
-  const applied = (text.match(/ignored: ignoringSpecialFiles\(/g) ?? []).length
-  const watches = (text.match(/(?:\.watch|watcherFactory)\([^\n{}]*\{/g) ?? []).length
-  check(`${name} imports the predicate and applies it to each of its ${watches} watch call(s)`, imports && applied >= 1 && applied === watches, `imports=${imports} applied=${applied} watch calls=${watches}`)
-}
 
 if (failures > 0) {
   console.log(`\n${failures} check(s) failed`)

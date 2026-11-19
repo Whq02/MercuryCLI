@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync, readdirSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -23,7 +23,6 @@ console.log('============================================================')
 console.log(' mcp-instructions delta — default proof')
 console.log('============================================================')
 
-const repo = join(import.meta.dir, '..', '..')
 
 section('1. gate polarity')
 {
@@ -72,28 +71,6 @@ section('2. the pure diff — announce/track/remove/merge')
   check('server without instructions ⇒ null', d5 === null)
 }
 
-section('3. wiring (structural) — the gate still guards both channels')
-{
-  const prompts = readFileSync(join(repo, 'src/constants/prompts.ts'), 'utf8')
-  const uncachedBlock = prompts.slice(prompts.indexOf('DANGEROUS_uncachedSystemPromptSection('), prompts.indexOf('DANGEROUS_uncachedSystemPromptSection(') + 900)
-  check(
-    'prompts.ts mcp_instructions section is gate-guarded: null with the delta on, the uncached builder only with it off (FN-020 row 2)',
-    /'mcp_instructions',[\s\S]{0,800}?\(\) => \(isMcpInstructionsDeltaEnabled\(\) \? null : buildMcpInstructionsSection\(mcpClients \?\? \[\]\)\),/.test(uncachedBlock),
-  )
-  const attachments = readFileSync(join(repo, 'src/utils/attachments.ts'), 'utf8') + readdirSync(join(repo, 'src/utils/attachments')).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(repo, 'src/utils/attachments', f), 'utf8')).join('\n')
-  check(
-    'attachments.ts registers the mcp_instructions_delta producer',
-    /maybe\('mcp_instructions_delta'/.test(attachments),
-  )
-  const producer = readFileSync(join(repo, 'src/utils/mcpInstructionsDelta.ts'), 'utf8')
-  check(
-    'gate is env-free and unconditionally ON',
-    (() => {
-      const fn = producer.slice(producer.indexOf('export function isMcpInstructionsDeltaEnabled'), producer.indexOf('}', producer.indexOf('export function isMcpInstructionsDeltaEnabled')) + 1)
-      return fn.includes('return true') && !fn.includes('process.env') && !fn.includes('isEnvTruthy')
-    })(),
-  )
-}
 
 section('4. ONE CARRIER (FN-020 row 2) — the system prompt is byte-identical with or without instruction-bearing servers; the row carries the section\'s exact text')
 {

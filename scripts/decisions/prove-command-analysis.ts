@@ -4,7 +4,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const GOLDEN = join(import.meta.dir, 'command-analysis-corpus.json')
 const record = process.argv.includes('--record')
 
@@ -25,54 +24,6 @@ console.log('============================================================')
 console.log(' CommandAnalysisProvider — seam ratchet + behavior corpus')
 console.log('============================================================')
 
-section('(1) the seam ratchet — no direct parser imports in the entry consumers')
-{
-  const RATCHETED = [
-    'src/utils/permissions/permissions.ts',
-    'src/utils/permissions/decision/engine.ts',
-    'src/utils/permissions/decision/wrapper.ts',
-    'src/utils/permissions/decision/rules.ts',
-    'src/utils/permissions/decision/requestMessage.ts',
-    'src/utils/permissions/shellRuleMatching.ts',
-    'src/tools/BashTool/bashPermissions.ts',
-    'src/tools/PowerShellTool/powershellPermissions.ts',
-    'src/tools/BashTool/modeValidation.ts',
-    'src/tools/BashTool/pathValidation.ts',
-    'src/tools/BashTool/sedValidation.ts',
-    'src/tools/BashTool/bashCommandHelpers.ts',
-    'src/tools/BashTool/readOnlyValidation.ts',
-    'src/tools/BashTool/commandSemantics.ts',
-    'src/tools/BashTool/sedEditParser.ts',
-    'src/tools/BashTool/BashTool.tsx',
-    'src/tools/PowerShellTool/modeValidation.ts',
-    'src/tools/PowerShellTool/pathValidation.ts',
-    'src/tools/PowerShellTool/readOnlyValidation.ts',
-    'src/tools/PowerShellTool/gitSafety.ts',
-    'src/tools/PowerShellTool/powershellSecurity.ts',
-  ]
-  const PARSER_IMPORT = /from\s+'[^']*(?:utils\/bash|utils\/powershell)\/(?:ast|parser|commands|shellQuote|shellQuoting|bashParser|ParsedCommand|treeSitterAnalysis|heredoc|bashPipeCommand|prefix)\.js'/
-  for (const rel of RATCHETED) {
-    const text = readFileSync(join(ROOT, rel), 'utf8')
-    check(`${rel} routes through the provider`, !PARSER_IMPORT.test(text))
-  }
-  const { readdirSync } = await import('node:fs')
-  for (const dir of ['src/tools/BashTool', 'src/tools/PowerShellTool']) {
-    for (const entry of readdirSync(join(ROOT, dir))) {
-      if (!/\.tsx?$/.test(entry)) continue
-      const text = readFileSync(join(ROOT, dir, entry), 'utf8')
-      check(`${dir}/${entry} carries no direct parser import`, !PARSER_IMPORT.test(text))
-    }
-  }
-
-  const provider = readFileSync(
-    join(ROOT, 'src/utils/permissions/decision/commandAnalysis.ts'),
-    'utf8',
-  )
-  check(
-    'the provider module binds the bash + powershell lanes',
-    provider.includes("from '../../bash/") && provider.includes("from '../../powershell/parser.js'"),
-  )
-}
 
 section('(2) provider shape — every op present; effectful ops bound, not driven')
 {

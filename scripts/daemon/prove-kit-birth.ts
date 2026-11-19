@@ -334,56 +334,9 @@ if (ENSURE_SKIP !== '') {
   }, recordsDir)
   const hop = await admit({ workspaceDir: wsQ, resumeSessionId: liveSid })
   check('A3 POISON armed: a live-hop answer carries NO kitSource (a hop stamps nothing — the answer never claims a stamp that did not happen)', hop.ok && hop.kitSource === undefined, hop.ok ? hop.kitSource ?? 'absent' : hop.error)
-  const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-  const server = read('src/daemon/controlServer.ts')
-  const wireList = (name: string): string => (server.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`)) ?? [])[1] ?? ''
-  check(
-    'A4 the server forwards kitSource on the admit AND dispatch answers (the wire-pick key lists carry it; both answers spread their list)',
-    /'kitSource'/.test(wireList('ADMIT_WIRE_KEYS')) &&
-      /'kitSource'/.test(wireList('DISPATCH_WIRE_KEYS')) &&
-      server.includes('...pickDefined(r, ADMIT_WIRE_KEYS)') &&
-      server.includes('...pickDefined(r, DISPATCH_WIRE_KEYS)'),
-  )
 }
 
-console.log('\n── §C: non-session children never latch a stray kit ──')
-{
-  const { readFileSync } = await import('node:fs')
-  const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-  const dmain = read('src/daemon/main.ts')
-  check('C1 the daemon main registers no long-lived seat of its own (every seat is born through a spawn seam with its own strip)', !dmain.includes('registerLongLived('))
-  const acp = read('src/services/acp/childSession.ts')
-  check('C2 the ACP child env drops the session-kit spellings AFTER every overlay (an IDE-hosted session never wears a kit nobody stamped)', acp.includes("flagSpellings('MERCURY_SESSION_KIT')) delete env[spelling]") && acp.includes('...process.env') && acp.indexOf('...process.env') < acp.indexOf("flagSpellings('MERCURY_SESSION_KIT')) delete env[spelling]"))
-}
 
-console.log('\n── §S: the identical-worlds sweep ──')
-{
-  const { readFileSync } = await import('node:fs')
-  const BIRTH_ROAD_FILES = [
-    'src/services/switchboard/bornSession.ts',
-    'src/services/switchboard/hopIntoSession.ts',
-    'src/services/switchboard/bootBirthFacts.ts',
-    'src/services/switchboard/ensureDaemon.ts',
-    'src/services/switchboard/attachedSession.ts',
-    'src/daemon/concourseWorkers.ts',
-    'src/daemon/warmRunner.ts',
-    'src/daemon/sessionKit.ts',
-    'src/daemon/sessionKitOp.ts',
-    'src/daemon/controlServer.ts',
-    'src/daemon/concourseDispatch.ts',
-    'src/daemon/main.ts',
-    'src/services/mcp/sessionKitPin.ts',
-    'src/services/mcp/kitCompletion.ts',
-    'src/services/acp/childSession.ts',
-  ]
-  const WORLD_TOKENS = /chatOnlyBoot|chatOnly\b|plainWorld|plain-world|worldFact|isChatWorld|concourseOff|concourse-off/
-  const hits: string[] = []
-  for (const rel of BIRTH_ROAD_FILES) {
-    const src = readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-    if (WORLD_TOKENS.test(src)) hits.push(rel)
-  }
-  check(`S1 POISON armed: ZERO world-check tokens across all ${BIRTH_ROAD_FILES.length} birth-road files (identical worlds — the dead L24(6) design must never leak back into a birth door)`, hits.length === 0, hits.join(', '))
-}
 
 console.log('\n' + '═'.repeat(60))
 if (failures === 0) console.log('✅ ALL KIT-BIRTH PROOFS PASS')

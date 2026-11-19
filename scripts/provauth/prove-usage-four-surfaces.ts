@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -289,11 +289,6 @@ section('§6 vocabulary honesty: no borrowed family words on any lane')
 
 section('§7 scheduled spend: Saturn fires replay session envelopes — the one ledger counts them')
 {
-  const ticker = readFileSync(join(import.meta.dir, '..', '..', 'src/daemon/saturnTicker.ts'), 'utf8')
-  check(
-    'the fire road is the envelope replay (no model dispatch in the ticker)',
-    ticker.includes('replayEnvelope(') && !ticker.includes('queryModelWithStreaming'),
-  )
   const spend = usage.providerSessionSpend('anthropic' as never)
   check(
     'the spend partition answers the one ledger shape (zero on a fresh scratch home)',

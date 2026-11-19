@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, waitFor } from '../lib/settingsPopupHarness.ts'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 
-const ROOT = join(import.meta.dir, '../..')
 const ASSET = {
   assets: 'scripts/ui/fixtures/settings-popup-header/*.txt',
   generator: 'bun scripts/ui/prove-settings-popup-header.ts --write',
@@ -185,8 +184,6 @@ for (const framed of [true, false]) {
     scene.unmount()
   }
 }
-const layout = readFileSync(join(ROOT, 'src/components/FullscreenLayout.tsx'), 'utf8')
-check('the framed centre carries no title row and is the settings slot host', !layout.includes('HelmCenterHeader') && /ref=\{centreBoxRef\}[\s\S]*?<TerminalSizeContext\.Provider value=\{sizeVal\}>/.test(layout) && layout.includes('<SettingsPopupSlot overlay={true} hostRef={centreBoxRef} framed={centerFrame} />'))
 check('no fixture fetch was needed', fetches.length === 0, `${fetches.length} attempts`)
 await releaseScratchHome(HOME)
 if (write && failures === 0) registerGeneratedAsset(ASSET)

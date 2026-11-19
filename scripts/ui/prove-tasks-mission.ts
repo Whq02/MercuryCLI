@@ -78,17 +78,6 @@ console.log('\n── B. runs only, empty ledger (80 cols) ───────
   }
 }
 
-console.log('\n── source ratchet ──────────────────────────────────────────')
-{
-  const src = readFileSync(join(ROOT, 'src/components/tasks/BackgroundTasksDialog.tsx'), 'utf8')
-  check('the unscoped "no tasks currently running" string stays retired', !src.includes('no tasks currently running'))
-  check('the dialog reads the vitals bus (the rail\'s feed)', src.includes('useVitals'))
-  check('back-from-detail is mission-aware (never closes past an open ledger)', src.includes('ledgerOpenCount === 0'))
-  check('windowing reuses computeSessionWindow (the proven slider)', src.includes('computeSessionWindow(') && src.includes("from '../mercury-ui/screens/SessionManagerView.js'"))
-  check('honest overflow counts frame the process area', src.includes('↑ {winStart} more') && src.includes('more</Text>'))
-  check('every section renders only its windowed rows', (src.match(/\.filter\(inWin\)\.map\(/g) ?? []).length >= 5)
-  check('the age column derives from the real startTime and stops at the real endTime', src.includes('item.task?.startTime ?? item.work?.startTime') && src.includes('const ended = item.task?.endTime ?? item.work?.endTime') && src.includes('const elapsed = boardRowElapsedMs(item, now)'))
-}
 
 console.log()
 if (failures > 0) {

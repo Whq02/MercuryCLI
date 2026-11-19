@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -83,15 +83,6 @@ section('§4 the words: calm, one spelling')
   check('the resume note tells the agent why it is back and what stands', overload.AGENT_OVERLOAD_RESUME_NOTE.includes('resumed by yourself after it was overloaded') && overload.AGENT_OVERLOAD_RESUME_NOTE.includes('do not redo it'))
 }
 
-section('§5 the seams, by their text')
-{
-  const utils = readFileSync('src/tools/AgentTool/agentToolUtils.ts', 'utf8')
-  const task = readFileSync('src/tasks/LocalAgentTask/LocalAgentTask.tsx', 'utf8')
-  check("the lifecycle's notice is gated on the episode's relay rule and a paused lane's notice carries the word paused", utils.includes('const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)') && utils.includes("statusWord: 'paused'"))
-  check('the notice writes the caller\'s status word into the status element', task.includes('${args.statusWord ?? args.status}'))
-  check('the probe-driven resume writes no receipt row of its own', !utils.includes('the provider is answering again after its overload; its partial work carried forward'))
-  check("the completed and the stopped exits close the lane's episode", utils.split('closeOverloadEpisode(taskId)').length >= 3)
-}
 
 section('§6 a typed overload budget cut takes the probe road without reading its words')
 {

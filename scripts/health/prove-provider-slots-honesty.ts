@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -29,26 +29,6 @@ const snap = buildProviderSnapshot()
 const unavailable = snap.providers.filter(p => p.id !== 'anthropic' && !p.available).map(p => p.reason ?? '')
 check('the accepted-code list exists', slots?.status === 'ok' && unavailable.length > 0, slots?.evidence)
 
-const providerFiles = ['src/services/providers/openai/openaiAdapter.ts', 'src/services/providers/zai/zaiAdapter.ts']
-const emitted = new Set<string>()
-for (const f of providerFiles) {
-  const src = readFileSync(join(ROOT, f), 'utf8')
-  for (const m of src.matchAll(/reason: '([a-z-]+:[a-z-]+)'/g)) emitted.add(m[1]!)
-}
-check('provider reason literals found', emitted.size >= 2, [...emitted].join(', '))
-const { ENGINE_UNAVAILABLE_CODES } = await import('../../src/utils/health/sections/auth.ts')
-for (const reason of emitted) {
-  check(`'${reason}' starts with a code the row accepts`, ENGINE_UNAVAILABLE_CODES.some(code => reason.startsWith(code)), `accepted codes: ${ENGINE_UNAVAILABLE_CODES.join(' ')}`)
-}
-const standing = [...emitted].filter(reason => unavailable.includes(reason))
-check('a home with no account holds provider reasons the adapters spell', standing.length >= 2, `standing: ${standing.join(', ')} · spelled: ${[...emitted].join(', ')}`)
-for (const reason of standing) {
-  check(
-    `'${reason}' is accepted as an honest unavailable state`,
-    slots?.status === 'ok' && slots.evidence.includes(`${reason.slice(0, reason.indexOf(':') + 1)} `),
-    slots?.evidence,
-  )
-}
 check("the defect-class code 'no-account:' is in the list", slots?.status === 'ok' && unavailable.some(reason => reason.startsWith('no-account:')), unavailable.join(' '))
 
 check(

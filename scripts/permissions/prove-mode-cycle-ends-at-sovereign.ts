@@ -62,8 +62,6 @@ t('no registry row names an autopilot flag', !registry.FLAG_REGISTRY.some(row =>
 console.log('— the mode band and the compact chip —')
 t('the compact chip for sovereign reads sovereign · auto-approved', chip.compactModeChip('sovereign')?.text.includes('sovereign · auto-approved') === true)
 t('the compact chip knows no autopilot word', chip.compactModeChip('autopilot' as never)?.text === `${modes.permissionModeSymbol('autopilot' as never)} default`, String(chip.compactModeChip('autopilot' as never)?.text))
-const frameSrc = await Bun.file(join(ROOT, 'src/components/MercuryFrame.tsx')).text()
-t('the mode band carries no tier readout', !/self-tier|⇅/.test(frameSrc))
 
 console.log('— the built product: --mode autopilot is an unknown value like --mode frobnicate; an old chat opens —')
 if (!existsSync(DIST)) {

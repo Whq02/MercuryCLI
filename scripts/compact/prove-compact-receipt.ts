@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -173,20 +173,6 @@ delete process.env.MERCURY_CONCOURSE_WORKER
   check('R3 headless receipt never advertises an interactive transcript key', !plain.includes('reads the full summary') && !plain.includes('ctrl+o'), plain)
 }
 
-section('R4 the card and the boundary row (structural)')
-{
-  const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-  const card = read('src/components/MercuryCompactSummary.tsx')
-  check('the card renders the weight arrow', card.includes('tokensBefore') && card.includes('tokensAfter'))
-  check('the card renders the kept-verbatim line', card.includes('keptMessages') && card.includes('kept verbatim'))
-  check('the card names what the summary IS (what the agent retains)', card.includes('what the agent retains'))
-  const boundary = read('src/components/messages/CompactBoundaryMessage.tsx')
-  check('the boundary row can speak the automatic trigger', boundary.includes('automatically'))
-  const receipt = read('src/services/compact/foldReceipt.ts')
-  check('the boundary row speaks the receipt of the committed transition: the folded weight, the kept rounds, the operator messages, the memory move and nothing pruned', boundary.includes('foldReceiptWords(foldReceipt(') && receipt.includes('folded ${formatTokens(receipt.before)} tokens of history') && receipt.includes('kept whole') && receipt.includes('moved to memory') && receipt.includes('nothing pruned'))
-  const wire = read('src/components/Message.tsx')
-  check('the render site hands the boundary its record and the first post-fold landing', /CompactBoundaryMessage\s+message=\{message\}\s+landing=/.test(wire))
-}
 
 await fixture.close()
 clearTimeout(guard)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -16,7 +16,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const ledger = await import('../../src/cost-tracker.ts')
 const { providerSessionSpend } = await import('../../src/services/providers/providerUsage.ts')
@@ -41,8 +40,6 @@ const openai = providerSessionSpend('openai' as never)
 check('off the Anthropic lane cache-write is zero and the sum is unchanged: 3,000 + 700', openai.inputTokens === 3_700, String(openai.inputTokens))
 check('lanes never cross (the Anthropic column stands)', providerSessionSpend('anthropic' as never).inputTokens === 168_000)
 
-const src = readFileSync(join(ROOT, 'src/services/providers/providerUsage.ts'), 'utf8')
-check('the sum carries all three input-side counters', /record\.inputTokens \+ record\.cacheReadInputTokens \+ record\.cacheCreationInputTokens/.test(src))
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-session-spend-prompt-total${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

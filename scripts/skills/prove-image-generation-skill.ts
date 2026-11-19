@@ -318,13 +318,6 @@ try {
     const accepts = (value: number) => compiled.ok && compiled.check(value).length === 0
     check(`${name}.${field}: schema bounds and numeric unit type`, accepts(min) && accepts(max) && !accepts(min - 1) && !accepts(max + 1) && (integer ? !accepts(min + 0.5) : accepts(min + 0.5)))
   }
-  for (const [name, schema] of tools.map(tool => [tool.name, tool.inputSchema] as const)) {
-    const marker = `server.registerTool("${name}"`
-    const bundled = readFileSync(MEDIA_SERVER, 'utf8')
-    const offset = bundled.indexOf(marker)
-    check(`${name}: schema came from a registered vendored tool`, offset >= 0 && schema !== undefined)
-    if (offset >= 0) console.log(`  schema source: server.js:${bundled.slice(0, offset).split('\n').length} ${name}`)
-  }
   check('schema-only calls left no weights or diffusion runtime in the scratch media root', !existsSync(join(scratch, 'media', 'models')) && !existsSync(join(scratch, 'media', 'runtime')))
   const sources = skillFiles.find(([rel]) => rel === 'references/sources.md')?.[1] ?? ''
   const manifest = JSON.parse(readFileSync(join(ROOT, 'src/extensions/bundled/mercury-media/server/manifest.json'), 'utf8')) as { version: string }

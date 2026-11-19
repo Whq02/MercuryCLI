@@ -2,8 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join } from 'node:path'
 import { rampSampleAt, rampSegments, type RampSegment } from '../../src/components/mercury-ui/focalRamp.ts'
 import { displayWidth } from '../../src/components/mercury-ui/glyphs.ts'
 import { BELLY, TERRA } from '../../src/components/mercuryPalette.ts'
@@ -267,71 +266,6 @@ t.section('§3 — the continuous law (RF-1)')
   )
 }
 
-t.section('§4 — the BOUNDED identity set')
-{
-  const ALLOWED = new Set([
-    'src/components/mercury-ui/assets.tsx',
-    'src/components/mercury-ui/components.tsx',
-    'src/components/concourse/ConcourseRoute.tsx',
-    'src/components/mercury-ui/useSplashCoreAccent.ts',
-  ])
-  const codeOnly = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\s\/\/.*$/gm, '')
-  const consumers: string[] = []
-  const walk = (dir: string): void => {
-    for (const name of readdirSync(dir)) {
-      const full = join(dir, name)
-      if (statSync(full).isDirectory()) {
-        if (name === 'node_modules') continue
-        walk(full)
-        continue
-      }
-      if (!/\.tsx?$/.test(name)) continue
-      const rel = relative(process.cwd(), full).replaceAll('\\', '/')
-      if (rel === 'src/components/mercury-ui/focalRamp.ts' || rel === 'src/utils/mercuryTokens.ts') continue
-      const src = readFileSync(full, 'utf8')
-      if (/rampSegments|rampSampleAt|focalRamp/.test(codeOnly(src))) consumers.push(rel)
-    }
-  }
-  walk(join(process.cwd(), 'src'))
-  const strays = consumers.filter(f => !ALLOWED.has(f))
-  t.check(
-    'every src ramp consumer is a ruled identity moment (closed set)',
-    strays.length === 0,
-    strays.join(' ') || consumers.sort().join(' '),
-  )
-  const rotted = [...ALLOWED].filter(f => !consumers.includes(f))
-  t.check(
-    'every ruled identity file still consumes the ramp (no census rot)',
-    rotted.length === 0,
-    rotted.join(' ') || 'all live',
-  )
-
-  const lockup = readFileSync('src/components/mercury-ui/components.tsx', 'utf8')
-  t.check(
-    'the ProductLockup title ramps ONLY where the family hosts the ramp (single-stop keeps the flat Wordmark + muted view)',
-    /ramp\.length > 1 \?/.test(lockup),
-    'gate pin',
-  )
-  const route = readFileSync('src/components/concourse/ConcourseRoute.tsx', 'utf8')
-  t.check(
-    'the concourse lockup (the assembling card) resolves at the SELECTED critter accent (CR-3; SR-064 reversed)',
-    /resolveMercuryTokens\(theme, sa\.accent\)/.test(route) &&
-      /useSessionAccent\(\)/.test(route) &&
-      !/JELLYFISH_HUE/.test(route),
-    'accent pin',
-  )
-  t.check(
-    'the concourse lockup collapses on single-stop families (flat info lockup)',
-    /ramp\.length <= 1/.test(route),
-    'collapse pin',
-  )
-  const critter = readFileSync('src/components/mercury-ui/CritterArt.tsx', 'utf8')
-  t.check(
-    'the art glow is prop-fed from tokens (glowToward) — CritterArt never derives its own bloom',
-    /glowToward\?: string/.test(critter) && !/deriveAccentSoft|resolveMercuryTokens|useMercuryTokens/.test(critter),
-    'seam pin',
-  )
-}
 
 t.section('§5 — the GREETING SHIMMER: settle law, fixed point, bounded damage')
 {

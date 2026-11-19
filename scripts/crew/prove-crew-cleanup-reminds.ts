@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIST, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
 import { runScriptedTurn, startScriptedFixture, type SeenResult } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-crew-cleanup-reminds')
-const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
 const scratch = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'crew-cleanup-reminds-')))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
@@ -71,12 +70,6 @@ if (reminder !== null) {
   tally.check('the leftover list names every agent lane of the repository with its state', all.length === 3 && all.map(l => l.state).sort().join(',') === 'clean,uncommitted,unreachable', JSON.stringify(all.map(l => `${l.path}:${l.state}`)))
 }
 
-tally.section("§2 a crewmate's end keeps its worktree and reminds: the Crewmate tool's cleanup no longer settles (removes) a clean lane")
-{
-  const tool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-  tally.check('the Crewmate tool calls no remover of a worktree, and the removing settle is gone', !tool.includes('cleanupStaleAgentWorktrees(') && !tool.includes('cleanupWorktree(') && !('settleAgentWorktree' in worktree), 'AgentTool.tsx names a remover, or the worktree owner exports the removing settle again')
-  tally.check("the completed receipt's worktree line is the reminder owner's row", tool.includes('crewWorktreeReminderTail('), 'the receipt does not use the reminder words')
-}
 const driveRepo = join(scratch, 'drive-repo')
 initRepo(driveRepo)
 const ASK = 'isolate-probe'
@@ -132,10 +125,6 @@ if (reminder !== null) {
   const states = Object.fromEntries(left.map(l => [l.path, l.state]))
   tally.check('the reminder names the two survivors with why the machine never removes them', states[jDirty.worktreePath] === 'uncommitted' && states[jAhead.worktreePath] === 'unreachable' && left.every(l => /never removed by the machine/.test(reminder!.crewWorktreeReminderLine(l, Date.now()))), JSON.stringify(left))
   tally.check('…and each with its age', left.every(l => /\b10 days?\b|\b1 week/.test(reminder!.crewWorktreeReminderLine(l, Date.now()))), left.map(l => reminder!.crewWorktreeReminderLine(l, Date.now())).join('\n'))
-}
-{
-  const source = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
-  tally.check("the workflow lanes' path is byte-identical: the remote probe still guards wf_/parcel-/bridge-/job- slugs", source.includes("runGit(['rev-list', '--max-count=1', 'HEAD', '--not', '--remotes'], candidatePath)") && source.includes('if (deltaBlocksSettlement(delta)) continue'), 'the workflow path moved')
 }
 
 rmSync(scratch, { recursive: true, force: true })

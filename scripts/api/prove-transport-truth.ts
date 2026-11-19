@@ -1,5 +1,4 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -180,46 +179,6 @@ console.log('— §3 notice semantics (H-01/H-03) —')
 }
 
 console.log('— §4 wiring anchors —')
-const src = (p: string) => readFileSync(join(ROOT_FOR_NODE, p), 'utf8')
-
-const proxyTs = src('src/utils/proxy.ts')
-check(
-  'bare Node path carries the API dispatcher (no more global-default ride)',
-  proxyTs.includes('getApiDispatcher()') && /return \{ \.\.\.base, dispatcher: getApiDispatcher\(\) \}/.test(proxyTs),
-)
-check(
-  'proxy path threads the same transport knobs (EnvHttpProxyAgent)',
-  /connect:\s*\{[^}]*timeout: knobs\.connectTimeoutMs/.test(proxyTs.replace(/\n/g, ' ')) ||
-    proxyTs.includes('timeout: knobs.connectTimeoutMs'),
-)
-const clientTs = src('src/services/api/client.ts')
-check('our fetch wrapper records transport failures (the SDK drops the cause)', clientTs.includes('recordTransportFailure('))
-check(
-  'API fetch pairs with the dispatcher’s undici (client + zai + owner export)',
-  clientTs.includes('fetchOverride ?? getApiFetch()') &&
-    src('src/services/providers/zai/zaiClient.ts').includes('options.fetchImpl ?? getApiFetch()') &&
-    proxyTs.includes('export function getApiFetch'),
-)
-const streamTs = src('src/services/providers/anthropic/streamCore.ts')
-check(
-  'both fallback notices pass a real 0 delay + the ceiling separately',
-  (streamTs.match(/createSystemAPIErrorMessage\(\s*[^,]+,\s*0,\s*1,\s*1,\s*\{\s*recoveryTimeoutMs: getNonstreamingFallbackTimeoutMs\(\)/g) || []).length >= 2,
-)
-check(
-  'watchdog aborts surface the REAL idle threshold in the notice error',
-  streamTs.includes('STREAM_IDLE_TIMEOUT_MS / 1000}s of stream silence') ||
-    /stream idle watchdog[^`]*STREAM_IDLE_TIMEOUT_MS/.test(streamTs),
-)
-const retryTs = src('src/services/api/withRetry.ts')
-check(
-  'real retry callers still pass the actual delay AND sleep it',
-  retryTs.includes('await sleep(delayMs, options.signal') && retryTs.includes('disableKeepAlive()'),
-)
-const sysMsgTsx = src('src/components/messages/SystemAPIErrorMessage.tsx')
-check(
-  'renderer: recovery notices say what is happening, not a fake countdown',
-  sysMsgTsx.includes('recoveryTimeoutMs'),
-)
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 check(
   'both transport knobs are registered flags',

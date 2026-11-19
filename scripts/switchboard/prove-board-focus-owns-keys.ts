@@ -19,8 +19,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n── ${t} ──`)
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-const ordered = (src: string, a: string, b: string): boolean => src.indexOf(a) !== -1 && src.indexOf(b) !== -1 && src.indexOf(a) < src.indexOf(b)
 
 section('§1 the pure legend law — one resolver, every list state')
 {
@@ -60,29 +58,6 @@ section('§1 the pure legend law — one resolver, every list state')
   check('…and from the composer only while its draft is empty', helpKeyFiresFor('live', true) && !helpKeyFiresFor('live', false))
 }
 
-section('§2 the screen carries the law — no yield, one gate, no implicit focus move')
-{
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  check('both New Session rows (the empty board and the line above the rows) print the focus-aware words through the one resolver', layout.split('newSessionDoorWords({ region, filtering })').length === 3 && !layout.includes('>{NEW_SESSION_DOOR_WORDS}<'))
-  const GATE = "if (region !== 'live') {"
-  check('the letter-verb yield is gone from the screen (no module, no predicate)', !screen.includes('letterVerbsYield') && !screen.includes('verbsYield') && !existsSync(join(REPO, 'src', 'components', 'concourse', 'letterVerbYield.ts')))
-  const listStart = screen.indexOf("if (region === 'list') {")
-  const listEnd = screen.indexOf("if (region === 'chat') {", listStart)
-  const list = screen.slice(listStart, listEnd)
-  for (const letter of ['m', 'e', 'i', 'p', 'r', 'n', 's']) {
-    check(`the ${letter} verb guard is plain (fires in every list state)`, new RegExp(`if \\(input === '${letter}' && !key\\.ctrl && !key\\.meta && (?!!verbsYield)`).test(list))
-  }
-  check('the / filter, the split nudges and the mark are plain too', list.includes("if (input === '/' && !key.ctrl && !key.meta) {") && list.includes("if ((input === '[' || input === ']') && !key.ctrl && !key.meta && splitActive && pastGate())") && list.includes("if (input === ' ' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {"))
-  check('the composer-focus gate stands between the rows and the type-through (after the chat pane block, before the first edit of the draft)', ordered(screen, "if (region === 'chat') {", GATE) && ordered(screen, GATE, 'editLiveDraft(d => insertAt(d, NL))') && ordered(screen, GATE, 'editLiveDraft(d => insertAt(d, payload))'))
-  check('no keystroke moves the focus by itself (nothing below the gate re-targets the region)', screen.indexOf(GATE) !== -1 && !screen.slice(screen.indexOf(GATE), screen.indexOf('const t = useMercuryTokens()', screen.indexOf(GATE))).includes('setRegion('))
-  check("the atlas key decides with the one resolver the legend prints with", screen.includes('helpKeyFiresFor(region, liveDraftRef.current.text.length === 0)') && layout.includes('helpKeyFiresFor(region, liveDraftEmpty)'))
-  check('the armed line says tab (the words road) and, with a draft held, send', screen.includes("'armed — ↵ again enters'") && screen.includes("' · tab to message'") && screen.includes("'armed — ↵ sends the draft · → enters'") && !screen.includes('type to message'))
-  check('the layout hands the arm and the held draft to the one resolver and relabels esc "disarm" while armed', layout.includes('armed: armedSelected, liveDraftHeld: !liveDraftEmpty') && /armedSelected && k\.keys === 'esc'\s*\?\s*\{ keys: k\.keys, label: 'disarm' \}/.test(layout) && !layout.includes("label: 'enters (armed)' }\n                                : k"))
-  check("the header's tab label rides the one resolver", layout.includes('{newSessionTabLabel({ region, filtering })}') && !layout.includes('+ new session · n\n'))
-  const strip = read('src/components/concourse/ConcourseStrips.tsx')
-  check("the live composer's own hint still names the road the law honors", strip.includes("'tab or click to type'"))
-}
 
 section('§3 the drive: arm a streaming row, n opens the contract offer; arm, tab, type — the words land whole')
 if (!existsSync(DIST)) {

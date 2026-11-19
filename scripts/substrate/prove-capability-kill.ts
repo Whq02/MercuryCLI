@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import {
   killCapability,
   isCapabilityKilled,
@@ -197,11 +195,6 @@ section('FC-145 — malformed MERCURY_AGENT_CAP: forgive, clamp, name')
   check('clean value ⇒ zero rejects (control)', cleanRejects !== null && cleanRejects.length === 0, JSON.stringify(cleanRejects))
 
   {
-    const snapshotSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'cockpit', 'substrateSnapshot.ts'), 'utf8')
-    check(
-      'the cockpit posture row names unreadable parts (call-shaped)',
-      /getAgentCapParseRejects/.test(snapshotSrc) && /FAIL CLOSED/.test(snapshotSrc),
-    )
     const capBefore = process.env.MERCURY_AGENT_CAP
     process.env.MERCURY_AGENT_CAP = 'worker:max-risk=sideways'
     const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')

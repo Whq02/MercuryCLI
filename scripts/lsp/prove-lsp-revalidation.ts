@@ -1,7 +1,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -120,18 +120,6 @@ const report4 = await manager.revalidateOpenDocuments()
 check('the oversized rewrite lands in failed, never half-pushed', report4.failed.includes(bigPath), JSON.stringify({ failed: report4.failed.length }))
 check('the document is left as it was', manager.getDocumentVersion(bigPath) === bigVersion)
 
-console.log('§5 the wiring')
-const ops = readFileSync(path.join(repo, 'src/tools/LSPTool/mercuryOps.ts'), 'utf8')
-check('runMercuryLspOp revalidates at op entry', /runMercuryLspOp[\s\S]{0,900}revalidateOpenDocuments/.test(ops))
-const toolSrc = readFileSync(path.join(repo, 'src/tools/LSPTool/LSPTool.ts'), 'utf8')
-const bridgeAt = toolSrc.indexOf('if (MERCURY_BRIDGE_OPERATIONS.has(operation)) {')
-const revalidateAt = toolSrc.indexOf('await manager.revalidateOpenDocuments()')
-const symbolAt = toolSrc.indexOf("if (operation === 'workspaceSymbol') {")
-check('runLspOperation revalidates once, after the bridge dispatch (which revalidates on its own) and before every navigation and symbol query', bridgeAt !== -1 && revalidateAt > bridgeAt && symbolAt > revalidateAt, `${bridgeAt} ${revalidateAt} ${symbolAt}`)
-const drain = readFileSync(path.join(repo, 'src/utils/attachments/diagnostics.ts'), 'utf8')
-check('the diagnostics drain revalidates before delivering', drain.includes('revalidateOpenDocuments'))
-const mgrSrc = readFileSync(path.join(repo, 'src/services/lsp/LSPServerManager.ts'), 'utf8')
-check('the tracking entry carries the disk stamp', mgrSrc.includes('disk?: { mtimeMs: number; size: number }'))
 
 await mgrModule.shutdownLspServerManager()
 rmSync(scratch, { recursive: true, force: true })

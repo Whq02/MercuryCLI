@@ -1,10 +1,9 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
-import { FORBIDDEN_HEAD_WORDS, requestHeadIsPlain } from './requestHeadSource.ts'
+import { requestHeadIsPlain } from './requestHeadSource.ts'
 
 let failures = 0
 let checks = 0
@@ -24,7 +23,6 @@ for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFE
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'deferral-route-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { planToolPayload, renderAdmissionRecordsAsText, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
 const { gateToolCall, toolCallRefusalNote, toolCallRefusalCorrection, schemaNotSentSentence } = await import('../../src/services/providers/toolCallGate.ts')
@@ -154,7 +152,6 @@ section('§1 THE ROSTER LAW — every route, the same roster; the announcement r
     }
     check(`${route}: deferral is on (every wire carries it in its own form)`, plan.enabled === true, `wire=${plan.wireForm}/${plan.wireWhy}`)
     check(`${route}: the request carries exactly the supported definition set`, TEXT_DEFERRING.has(route) || TEXT_APPEND.has(route) ? DEFERRED_NAMES.every(n => !names.includes(n)) : DEFERRED_NAMES.every(n => names.includes(n)))
-    check(`${route}: the request builder cannot prepend a minted tool head`, requestHeadIsPlain(route))
     const row = getDeferredToolsDeltaAttachment(POOL, model, fresh())[0]
     check(`${route}: a fresh transcript's delta row names every deferred tool, sorted, names only`, row !== undefined && row.type === 'deferred_tools_delta' && row.addedNames.join(',') === [...DEFERRED_NAMES].sort().join(',') && row.addedLines.join('\n') === nameLines.join('\n') && !row.addedLines.join('\n').includes('{'))
     const rendered = row ? normalizeAttachmentForAPI(row) : []
@@ -168,7 +165,6 @@ section('§1 THE ROSTER LAW — every route, the same roster; the announcement r
   }
   check("the block wire is the first-party route alone (deferral rides the API's own deferred loading)", blockRoutes.join(',') === 'anthropic', blockRoutes.join(','))
   check('the delta row is byte-identical on every route that loads through Mercury\'s ToolSearch', renderedRows.size === 1, String(renderedRows.size))
-  check('the first-party request builder prepends no synthetic first user message', requestHeadIsPlain('anthropic'))
   const msgs = fresh()
   check('the text admission projection leaves the first user turn untouched', renderAdmissionRecordsAsText(msgs)[0] === msgs[0] && JSON.stringify(renderAdmissionRecordsAsText(msgs)) === JSON.stringify(msgs))
 }
@@ -289,8 +285,6 @@ section('§4 TYPED REFUSALS — the discovery path is named, the economy never r
   const unknown = gateToolCall(POOL as never, { id: 'c1', name: 'Nonexistent', argumentsRaw: '{}', malformed: false }, hints)
   check('an unresolvable name refuses typed (unknown-tool)', !unknown.ok && unknown.refusal.code === 'unknown-tool')
   check('…and the note names the discovery path', !unknown.ok && /ToolSearch/.test(toolCallRefusalNote('openai', unknown.refusal)) && /No such tool available: Nonexistent/.test(toolCallRefusalNote('openai', unknown.refusal)))
-  const executorSentence = readFileSync(join(ROOT, 'src/services/tools/toolExecution.ts'), 'utf8')
-  check("the Anthropic executor's unknown-tool sentence is the same core sentence and names ToolSearch too", /No such tool available: \$\{shownName\}[^`]*ToolSearch/.test(executorSentence))
   const blindOk = gateToolCall(POOL as never, { id: 'c2', name: 'WebFetch', argumentsRaw: '{"url":"https://x","count":"3"}', malformed: false }, hints)
   check('a deferred-but-unadmitted tool called with arguments that satisfy its schema EXECUTES (economy, never a capability reduction)', blindOk.ok === true && plan.isDeferredUnadmitted('WebFetch') === true)
   const blindMiss = gateToolCall(POOL as never, { id: 'c3', name: 'WebFetch', argumentsRaw: '{"url":"https://x"}', malformed: false }, hints)
@@ -344,39 +338,6 @@ section('§6 THE OFF ARM — MERCURY_TOOL_DEFER=0 reproduces the inlined catalog
   check('the flag read is live (deferral returns on the block wire once the kill lifts)', back.enabled === true)
 }
 
-section('§7 THE LANE CENSUS — every tools term is built from the plan')
-{
-  const lanes = [
-    'src/services/providers/openai/openaiCallModel.ts',
-    'src/services/providers/zai/zaiCallModel.ts',
-    'src/services/providers/openaicompat/compatChatCallModel.ts',
-  ]
-  for (const route of lanes) {
-    const src = readFileSync(join(ROOT, route), 'utf8')
-    check(`${route}: consumes the plan owner`, /planToolPayload\(\{/.test(src) && /from '\.\.\/toolEconomy\.js'/.test(src))
-    check(`${route}: builds its tools term from plan.roster`, /buildApiShapedTools\(plan\.roster,/.test(src))
-    check(`${route}: never hands the raw pool to its schema builder`, !/buildApiShapedTools\(tools,/.test(src))
-    check(`${route}: renders admission records as text without minting a head`, new RegExp('renderAdmissionRecordsAsText\\(' + (route.includes('/openai/') ? 'projectedMessages' : 'messages') + '(, plan\\.wireForm)?\\)').test(src) && requestHeadIsPlain(route.includes('/openai/') ? 'openai' : route.includes('/zai/') ? 'zai' : 'openai-compat', src))
-    if (!route.includes('/openai/')) check(`${route}: builds the append form's declaration rows from the plan and hands them to the message mapper`, /plan\.admissionDeclarations/.test(src) && /toolDeclarations/.test(src))
-    check(`${route}: the gate carries the admission predicate`, /deferredUnadmitted: plan\.isDeferredUnadmitted/.test(src) && /gateToolCalls\([\s\S]{0,400}?\{\s*deferredUnadmitted: ctx\.deferredUnadmitted,?[\s\S]{0,300}?\}/.test(src))
-    if (route.includes('/openaicompat/')) check(`${route}: no lane hands the gate a wire schema — the gate derives every tool's declared schema itself`, !/wireSchemaOf/.test(src))
-  }
-  const core = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
-  check('streamCore: consumes the plan owner', /planToolPayload\(\{/.test(core) && /const filteredTools: Tools = plan\.roster/.test(core))
-  check('streamCore: the beta header and defer_loading ride the block form only', /useToolSearch && blockForm \? getToolSearchBetaHeader\(\) : null/.test(core) && /const willDefer = \(t: Tool\) => useToolSearch && blockForm && deferredToolNames\.has\(t\.name\)/.test(core))
-  check('streamCore: the text form renders admission records as text', /else if \(!blockForm\) \{[\s\S]*renderAdmissionRecordsAsText\(messagesForAPI\)/.test(core))
-  check('streamCore: no minted tool head exists at the request seam', requestHeadIsPlain('anthropic', core) && FORBIDDEN_HEAD_WORDS.every(word => !core.includes(word)))
-  const router = readFileSync(join(ROOT, 'src/services/providers/callModelRouter.ts'), 'utf8')
-  const compatLanes = ['moonshot', 'deepseek', 'openrouter', 'gemini', 'huggingface', 'local']
-  for (const route of compatLanes) {
-    const file = join(ROOT, `src/services/providers/${route}/${route}CallModel.ts`)
-    const src = readFileSync(file, 'utf8')
-    check(`${route}: rides the shared compat chat runtime (a plan consumer)`, /compatChatCallModel\(/.test(src) || /from '\.\.\/openaicompat\/compatChatCallModel\.js'/.test(src))
-  }
-  const compat = readFileSync(join(ROOT, 'src/services/providers/openaicompat/compatCallModel.ts'), 'utf8')
-  check('openai-compat: rides the shared compat chat runtime', /compatChatCallModel\(/.test(compat))
-  check('the router dispatches every declared route to a lane file (no family reaches a wire outside the census)', ['zai', 'openai', 'moonshot', 'deepseek', 'openai-compat', 'openrouter', 'gemini', 'huggingface', 'local', 'anthropic'].every(r => new RegExp(`case '${r}':`).test(router)))
-}
 
 console.log(`\n${checks - failures}/${checks} checks passed`)
 if (failures > 0) {

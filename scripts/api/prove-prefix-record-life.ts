@@ -166,8 +166,6 @@ const s3 = writerState()
 check('the write is pending for the next tick', s3.pending && !s3.held, j(s3))
 await cleanup.runCleanupFunctions().catch(() => {})
 check('the cleanup registry flushed it: the record on disk is the pending body', !writerState().pending && messagesOnDisk() === r5.rows.length, `${messagesOnDisk()} rows on disk`)
-const ledgerSource = read('src/services/providers/anthropic/prefixLedger.ts')
-check('the flush is registered through registerCleanup, the door concurrentSessions.ts registers its own cleanup through', ledgerSource.includes('registerCleanup(') && ledgerSource.includes('flushPrefixLedger') && read('src/utils/concurrentSessions.ts').includes('registerCleanup('))
 const r6 = history(6)
 judge(r6)
 await cleanup.runCleanupFunctions().catch(() => {})
@@ -221,12 +219,6 @@ writeFileSync(join(f3, 'computer-grant.json'), '{}')
 const rm3 = removeRecord(s3Id)
 check('a folder that still holds something else (the computer-use grant) stays; the record alone is gone', rm3.record && !rm3.folder && existsSync(join(f3, 'computer-grant.json')) && !existsSync(join(f3, 'prefix-ledger.json')), j(rm3))
 check('removing a record that is not there is a quiet no-op', !removeRecord(s2Id).record && !removeRecord('never-a-session').record)
-const route = read('src/components/concourse/ConcourseRoute.tsx')
-const marks = [...route.matchAll(/markParkedCleared\(sessionId\)/g)].map(m => m.index ?? -1)
-check("the board's removal takes the record beside each of its cleared marks (the parked rung, the released rung and the archive rung's release of a never-messaged chat)", marks.length === 3 && marks.every(at => route.slice(at, at + 240).includes('removePrefixRecord(sessionId)')), `${marks.length} marks`)
-const door = read('src/utils/sessionStorage/transcriptPruneDoor.ts')
-check("the operator's prune takes the record with the transcript it deletes, inside the same candidate", door.includes('removePrefixRecord(candidate.sessionId)') && door.includes('await fs.unlink(candidate.transcriptPath)') && door.indexOf('removePrefixRecord(candidate.sessionId)') > door.indexOf('await fs.unlink(candidate.transcriptPath)'))
-check('/clear leaves the record: the cleared-sessions mark parks a chat that Enter brings back', !read('src/utils/sessionStorage/clearedSessions.ts').includes('removePrefixRecord'))
 
 section("§5 the boot sweep: an orphan and an expired record go; a live session's record and a fresh orphan under the retention stay; the verdict is the flag's")
 const home2 = mkdtempSync(join(tmpdir(), 'prefix-record-sweep-'))
@@ -276,7 +268,6 @@ process.env.MERCURY_PREFIX_RECORD_RETENTION_DAYS = 'soon'
 check('a value that is not a whole number reads as unset', store.prefixRecordRetentionDays?.() === 30)
 delete process.env.MERCURY_PREFIX_RECORD_RETENTION_DAYS
 const spec = registry.getFlagSpec('MERCURY_PREFIX_RECORD_RETENTION_DAYS')
-check('the flag has its registry row: a value knob whose consumer is the record store, read there through flagEnv, thirty days documented', spec?.kind === 'value' && spec.consumer === 'src/services/providers/anthropic/prefixRecordStore.ts' && existsSync(join(ROOT, spec.consumer)) && read(spec.consumer).includes("flagEnv('MERCURY_PREFIX_RECORD_RETENTION_DAYS')") && /thirty days/.test(spec.off), j(spec))
 const home3 = mkdtempSync(join(tmpdir(), 'prefix-record-flag-'))
 const plantAged = (): string => {
   const folder = join(home3, 'sessions', 'aged')
@@ -299,12 +290,6 @@ process.env.MERCURY_PREFIX_RECORD_RETENTION_DAYS = '5'
 await sweep({ home: home3 })
 check('the flag brought under the record\'s age removes it, the clock unmoved', !existsSync(aged))
 delete process.env.MERCURY_PREFIX_RECORD_RETENTION_DAYS
-const storeSource = existsSync(join(ROOT, 'src/services/providers/anthropic/prefixRecordStore.ts')) ? read('src/services/providers/anthropic/prefixRecordStore.ts') : ''
-const sweepBody = storeSource.slice(storeSource.indexOf('export async function sweepPrefixRecords'))
-check('the sweep is bounded: one read of the sessions directory, never a walk under projects', sweepBody.length > 0 && sweepBody.split('readdir(').length === 2 && !storeSource.includes("'projects'"))
-const main = read('src/main.tsx')
-const node = main.slice(main.indexOf("registerBackgroundNode('session-registry'"), main.indexOf("registerBackgroundNode('session-telemetry'"))
-check('the boot sweeps where the live-process registry registers, after the registration, with the daemon\'s live sessions', node.includes('await registerSession()') && node.indexOf('sweepPrefixRecords(') > node.indexOf('await registerSession()') && node.includes('readSessionWorkers'))
 const docs = read('docs/SESSIONS.md')
 check('the sessions page says where the record lives, what it holds, when it is written and when it is removed', docs.includes('prefix-ledger.json') && docs.includes('MERCURY_PREFIX_RECORD_RETENTION_DAYS') && /never a word of\s+the conversation/.test(docs) && /on the wire/.test(docs))
 

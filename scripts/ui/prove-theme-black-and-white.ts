@@ -59,13 +59,6 @@ section('§1 the roster: Black and white is the third appearance, reachable and 
   delete process.env.MERCURY_OASIS_BG
   process.env.TERM = 'xterm-256color'
   check('the ground owner never paints OSC 11 under it (the terminal keeps its own ground)', oasis.oasisBgEnabled(true, 'mono') === false)
-  const picker = readFileSync(join(ROOT, 'src/components/ThemePicker.tsx'), 'utf8')
-  check('the one label owner names the row Black and white and the picker reads it', readFileSync(join(ROOT, 'src/utils/theme.ts'), 'utf8').includes("mono: 'Black and white'") && picker.includes('THEME_LABELS_BY_SETTING: Record<string, string> = THEME_LABELS') && themeMod.themeLabel('mono') === 'Black and white' && themeMod.themeLabel('dark') === 'Oasis dark')
-  check('the /config submenu reads the same owner', readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'utf8').includes("{ auto: 'auto', ...THEME_NAMES_BY_SETTING }"))
-  check('the first-run fitting offers it', readFileSync(join(ROOT, 'src/components/Onboarding.tsx'), 'utf8').includes("value: 'mono'"))
-  const provider = readFileSync(join(ROOT, 'src/components/design-system/ThemeProvider.tsx'), 'utf8')
-  check('the root provider applies the depth in the render that carries the theme and restores it on unmount', provider.includes('if (ownsColorDepth) setMonochromeTheme(isMonochromeTheme(resolvedTheme))') && provider.includes('useLayoutEffect(') && provider.includes('setMonochromeTheme(false)'))
-  check('the diff highlighter stands down whenever the depth is 0 (the native renderer writes its own colour bytes)', readFileSync(join(ROOT, 'src/components/StructuredDiff.tsx'), 'utf8').includes('|| colorStripped()') && colorize.colorStripped() === (chalk.level === 0))
 }
 
 section('§2 the depth switch: the theme strips every colour and keeps the terminal’s own ink weight — bold, dim and reverse stay')

@@ -118,15 +118,6 @@ section('§E02 — one message id across the text row and the durable record')
   check('the reply content is the settled one', transcript.includes('IDENTITY-REPLY-E02'))
 }
 
-section('§E02 — the renderer/lifecycle seams key on the same uuid (source-pinned)')
-{
-  const messageTsx = readFileSync(join(ROOT, 'src/components/Message.tsx'), 'utf8')
-  check('the renderer memo compares message identity by uuid', messageTsx.includes('prev.message.uuid !== next.message.uuid'))
-  const writer = readFileSync(join(ROOT, 'src/utils/sessionStorage/writer.ts'), 'utf8')
-  check('the lifecycle verbs key on uuid (settle by uuid · remove by uuid)', writer.includes('settleState.set(entry.uuid') && writer.includes('removeMessageByUuid'))
-  const project = readFileSync(join(ROOT, 'src/rows/project.ts'), 'utf8')
-  check("the row projection carries the provider message id on every item row (text, reasoning, tool_call)", /type: 'text' as const, message_id: messageId/.test(project) && /type: 'tool_call' as const,\s*message_id: messageId/.test(project))
-}
 
 console.log(failures === 0 ? '\n ✅ IDENTITY + HEADLESS POLICY PROVEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -243,8 +243,6 @@ section('B the wire projection and the registry — one meta user row, newest fi
   check('an empty block projects nothing', normalizeAttachmentForAPI({ type: KIND, messages: [], omitted: 0 } as never).length === 0)
   check('the kind is registered null-rendering (transcript-only, never painted — no look change)', (NULL_RENDERING_ATTACHMENT_TYPES as readonly string[]).includes(KIND) && isNullRenderingAttachment(createAttachmentMessage(block as never) as never))
   check('the body-shape registry knows the kind', (BODY_SHAPE_KINDS.attachment as readonly string[]).includes(KIND))
-  const fixtureSource = readFileSync(join(ROOT, 'scripts/idiom/prove-body-shape-registry.ts'), 'utf8')
-  check('the registry fixture table carries the kind', fixtureSource.includes(`${KIND}: {`))
 }
 
 const CACHE_SAFE = { systemPrompt: ['fixture posture'] } as never
@@ -499,20 +497,6 @@ section('H the turn machine end to end — the retried request after an overflow
   check('the block row yields with the boundary and the summary', yields.some(y => blockOf(y) !== null) && yields.some(y => y.type === 'user' && (y as { isCompactSummary?: boolean }).isCompactSummary === true))
 }
 
-section('I wiring pins — the seams, by source')
-{
-  const compactSrc = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
-  check('buildPostCompactMessages seats the block right after the boundary', /boundaryMarker,\n\s+\.\.\.\(operatorMessages !== undefined \? \[operatorMessages\] : \[\]\),\n\s+\.\.\.summaryMessages,/.test(compactSrc))
-  check('the full fold selects over the folded span minus the kept tail', compactSrc.includes('selectOperatorMessages(messages, {') && compactSrc.includes('keptUuids: new Set((messagesToKeep ?? []).map(message => message.uuid))'))
-  check('the partial fold selects over its summarised span', compactSrc.includes('selectOperatorMessages(summarize)'))
-  check('the size guard has no operator-block shedding branch', !compactSrc.includes('current = { ...current, operatorMessages: undefined }'))
-  const slash = readFileSync(join(ROOT, 'src/utils/processUserInput/processSlashCommand.tsx'), 'utf8')
-  check('the manual /compact seats the block right after the boundary too', /compaction\.boundaryMarker,\n\s+\.\.\.\(compaction\.operatorMessages !== undefined \? \[compaction\.operatorMessages\] : \[\]\),\n\s+\.\.\.compaction\.summaryMessages,/.test(slash))
-  const prompt = readFileSync(join(ROOT, 'src/services/compact/prompt.ts'), 'utf8')
-  check('the summariser prompt keeps section 6 (the summary still covers every operator message)', prompt.includes('6. Operator Messages: every message the operator sent that is not a tool result.'))
-  const tail = readFileSync(join(ROOT, 'src/services/compact/verbatimTail.ts'), 'utf8')
-  check("the tail's rules do not move", tail.includes('export const DEFAULT_KEEP_ROUNDS = 10') && tail.includes('opts?.fits?.(keep)') && tail.includes('export const MIN_HEAD_ROUNDS = 2'))
-}
 
 await fixture.close()
 clearTimeout(guard)

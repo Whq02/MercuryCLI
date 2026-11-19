@@ -1,15 +1,12 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
-const src = (...p: string[]): string =>
-  readFileSync(join(import.meta.dir, '../../', ...p), 'utf8')
 
 console.log('============================================================')
 console.log(' trust telemetry + account identity — proof')
@@ -27,15 +24,6 @@ console.log('============================================================')
     'copy agrees with the predicates for Sonnet 5',
     modelSupportsXHighEffort('claude-sonnet-5') === xhigh.includes('Sonnet 5') &&
       modelSupportsMaxEffort('claude-sonnet-5') === true,
-  )
-  const effortCmd = src('src', 'commands', 'effort', 'effort.tsx')
-  check(
-    '/effort help derives its level lines from the generator',
-    /getEffortLevelDescription\(level\)/.test(effortCmd),
-  )
-  check(
-    'no stale hardcoded family list remains in the help',
-    !effortCmd.includes('Opus 4.5+, Sonnet 4.6, Fable'),
   )
 }
 

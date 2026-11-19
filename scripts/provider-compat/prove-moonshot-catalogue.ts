@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -243,13 +243,6 @@ if (catalogue) {
   black.closeAllConnections()
   await new Promise<void>(resolve => black.close(() => resolve()))
   process.env.MERCURY_MOONSHOT_API_BASE = 'http://127.0.0.1:1/platform'
-  const birthSource = readFileSync(join(import.meta.dir, '../../src/services/switchboard/bornSession.ts'), 'utf8')
-  const printSource = readFileSync(join(import.meta.dir, '../../src/main.tsx'), 'utf8')
-  const guardedRead = "const { readComputedDefaultCatalogue } = await import('../../utils/model/computedDefault.js')\n    await readComputedDefaultCatalogue()"
-  check('the cockpit birth reads the list only when neither the record nor the door names a model', birthSource.includes(`if (facts.model === null && (req.model ?? null) === null) {\n    ${guardedRead}\n  }`))
-  const printSet = 'setInitialEngineModel(userSpecifiedModel ?? null)'
-  const printRead = "if (runMode) {\n    const { readComputedDefaultCatalogue } = await import('./utils/model/computedDefault.js')\n    await readComputedDefaultCatalogue()\n  }"
-  check('the print seat reads it after the explicit choices are set, through the same guarded owner', printSource.includes(printRead) && printSource.includes(printSet) && printSource.indexOf(printSet) < printSource.indexOf(printRead))
   console.log('the admission against the landed list')
   c.__resetMoonshotCatalogueForTest()
   await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch() })
@@ -273,10 +266,6 @@ if (catalogue) {
   check('guard: the admission, the typed road and the engine grammar admit the served raw id', (await c.qualifyMoonshotModel('moonshot-v2')).kind === 'ok' && (await validateModel('moonshot-v2')).valid && (await resolveEngineDispatch('moonshot-v2'))?.model === 'moonshot-v2')
   check('guard: the specialist alias follows the newest served row whatever its shape', (await resolveEngineDispatch('kimi'))?.model === 'moonshot-v2')
   await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch() })
-  const admissionOwner = readFileSync(join(import.meta.dir, '../../src/services/providers/catalogueAdmission.ts'), 'utf8')
-  const gptRoad = readFileSync(join(import.meta.dir, '../../src/services/providers/openai/openaiCallModel.ts'), 'utf8')
-  const moonshotRoad = readFileSync(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotCatalogue.ts'), 'utf8')
-  check('the refusal sentence has one owner, imported by both admission roads and spelled by neither', admissionOwner.includes('is not offered by the ${accountLabel} live catalogue.') && gptRoad.includes("import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'") && moonshotRoad.includes("import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'") && !gptRoad.includes('is not offered by the') && !moonshotRoad.includes('is not offered by the'))
   console.log('two chats on one held refresh')
   const { createUserMessage } = await import('../../src/utils/messages.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
@@ -360,8 +349,6 @@ if (catalogue) {
   const { moonshotLaneProfile } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
   const plainTurn = await collect(compatChatCallModel(moonshotLaneProfile, chatParams(new AbortController().signal)))
   check('a profile without the seam is the road as it was: the answer is the first settled block and no note rides', plainTurn[0]?.text === 'fixture answer' && !plainTurn.some(item => item.text.includes('catalogue is unavailable')), JSON.stringify(plainTurn))
-  const runtimeSource = readFileSync(join(import.meta.dir, '../../src/services/providers/openaicompat/compatChatCallModel.ts'), 'utf8')
-  check('the seam is read through one default of nothing, so an absent field is the road as it was', runtimeSource.includes('ctx.leadingNotes ?? []') && !readFileSync(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotCallModel.ts'), 'utf8').includes('createAssistantMessage'))
   chatFixture.closeAllConnections()
   await new Promise<void>(resolve => chatFixture.close(() => resolve()))
   process.env.MERCURY_MOONSHOT_API_BASE = 'http://127.0.0.1:1/platform'

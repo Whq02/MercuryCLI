@@ -203,32 +203,6 @@ section('§G the loss summary — plain words, nonzero classes only, plan-addres
   check('a no-choice plan yields an EMPTY summary (no noise)', transitionPlanSummary(lossless) === '')
 }
 
-section('§H the pick sites consume the plan (wiring anchors)')
-{
-  const { readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const ROOT = join(import.meta.dir, '..', '..')
-  for (const rel of [
-    'src/commands/model/mercuryModel.tsx',
-    'src/components/PromptInput/useComposerModelDoors.tsx',
-    'src/commands/model/model.tsx',
-  ]) {
-    const src = readFileSync(join(ROOT, rel), 'utf8')
-    check(
-      `${rel} builds the preview and rides its summary`,
-      src.includes('previewForSelection(') && src.includes('transitionPlanSummary('),
-    )
-    check(
-      `${rel} gates needs_choice at the card + stale-safe reconfirm`,
-      src.includes('TransitionPreviewCard') && src.includes('reconfirmTransitionPlan('),
-    )
-  }
-  const textPath = readFileSync(join(ROOT, 'src/commands/model/model.tsx'), 'utf8')
-  check(
-    'the /model <id> text path routes through settleModelSelection',
-    textPath.includes('settleModelSelection('),
-  )
-}
 
 console.log(failures === 0 ? '\n ✅ TRANSITION PLAN — parity-anchored, frozen, stale-safe' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

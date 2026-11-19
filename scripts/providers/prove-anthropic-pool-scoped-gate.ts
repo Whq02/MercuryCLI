@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,7 +20,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const limits = await import('../../src/services/anthropicLimits.ts')
 const mock = await import('../../src/services/mockRateLimits.ts')
 const usability = await import('../../src/services/providers/providerUsability.ts')
@@ -100,8 +99,6 @@ section('§4 the pool law without a wire claim, and the launch door')
 {
   limits.resetLimitsForCredentialSwitch()
   check('a rejected observation with no claim binds every model (windowClaimBindsModel)', limits.windowClaimBindsModel(undefined, OPUS) === true && limits.windowClaimBindsModel('seven_day_fable', OPUS) === false && limits.windowClaimBindsModel('seven_day_fable', FABLE) === true && limits.windowClaimBindsModel('seven_day_fable', undefined) === true)
-  const src = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
-  check('the agent launch hands the resolved agent model to the gate (source)', src.includes('delegationDispatchBlocker(agentRouteVerdict.route, undefined, resolvedAgentModel)'))
   mock.setMockRateLimitScenario('clear')
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0-proof' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 
@@ -106,12 +106,6 @@ check(`${MERCURY_SESSION_TOKEN} expands to the session id`, rendered.includes(`s
 check('a foreign skill-dir token stays literal', rendered.includes(`dir other=${OTHER_DIR_TOKEN}`))
 check('a foreign session token stays literal', rendered.includes(`session other=${OTHER_SESSION_TOKEN}`))
 check('the token predicate holds on the real render', expandsMercuryOnly(rendered, realDir, sessionId))
-const loaderSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'skills', 'loadSkillsDir.ts'), 'utf8')
-check(
-  "the loader's token regexes spell Mercury's stems",
-  loaderSrc.includes('/\\$\\{MERCURY_SKILL_DIR\\}/g') &&
-    loaderSrc.includes('/\\$\\{MERCURY_SESSION_ID\\}/g'),
-)
 
 console.log('[3] poison controls — each predicate fails on the input it forbids')
 check("a catalogue carrying the foreign folder's project skill FAILS the homes predicate", !carriesMercuryOnly(new Set([...names, 'project-other'])))

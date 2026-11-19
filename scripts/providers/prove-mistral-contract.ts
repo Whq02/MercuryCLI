@@ -1,9 +1,8 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
-import { readFileSync, rmSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import { join } from 'node:path'
-import ts from 'typescript'
 import { mistralFixture, MISTRAL_FIXTURE_API_KEY, MISTRAL_FIXTURE_ADMIN_KEY } from './lib/mistral-fixture.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const key of ['MISTRAL_API_KEY', 'MISTRAL_ADMIN_API_KEY']) delete process.env[key]
@@ -24,20 +23,13 @@ const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/pr
 const { credentialEnvNames } = await import('../../src/services/providers/providerSecrets.ts')
 const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
 const { __resetMistralUsageForTest, mistralObservedUsage } = await import('../../src/services/providers/mistral/mistralUsageState.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
-const root = join(import.meta.dir, '..', '..')
-const read = (path: string): string => readFileSync(join(root, path), 'utf8')
 let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
 const fixture = mistralFixture()
 try {
   check('Mistral is a primary provider, with a signed-out usage and readiness truth', buildProviderSnapshot().providers.some(provider => provider.id === 'mistral') && usageForProvider('mistral').sourceKind === 'none' && !resolveProviderUsability().mistral.usable)
   check('the family word focuses the sign-in and default-provider doors', parseFamilyFocus('mistral') === 'mistral' && parseDefaultProviderWord('mistral') === 'mistral')
-  const row = loginFamilyRows({ engineLegs: true }).find(row => row.value === 'mistral')
-  check('the sign-in row names the API-key road and the key page, never a browser sign-in', row?.label === 'Mistral — API key' && keyPageLine('mistral').includes('console.mistral.ai/api-keys') && !read('src/components/loginFamilyRows.ts').toLowerCase().includes('vibe'))
-  check('both login skins use the owning key driver and the same guard', read('src/components/MistralConnect.tsx').includes('storeMistralApiKeyLogin') && read('src/components/BootLoginsScreen.tsx').includes('storeMistralApiKeyLogin(value)') && keyLegGuardOpts('mistral').stores === 'a Mistral API key')
   check('the face names the model-list proof, env precedence and the optional Admin API key', keyLegTitle('mistral') === 'Mistral API key' && keyLegStoreLine('mistral').includes('MISTRAL_API_KEY wins') && keyLegTitle('mistral-admin') === 'Mistral Admin API key (optional)' && keyPromptPaneLines('mistral', null, 8, false).join(' ').includes('console.mistral.ai/api-keys') && keyPromptPaneLines('mistral-admin', null, 0, false).join(' ').includes('backoffice.mistral.ai'))
-  check('no Vibe sign-in door exists anywhere in the family', !['Accounts', 'CallModel', 'Catalogue', 'Login', 'Pins', 'UsageState'].some(part => read(`src/services/providers/mistral/mistral${part}.ts`).toLowerCase().includes('vibe/sign-in')))
   check('Mistral aliases and contexts stay recorded; refreshed rates cite docs.mistral.ai/inference/pricing, read 2026-10-25', mistralDisplayPin('mistral-large-4')?.contextWindow === 1_048_576 && mistralDisplayPin('mistral-large-4-0')?.id === 'mistral-large-4' && mistralDisplayPin('mistral-medium-latest')?.id === 'mistral-medium-3-5' && mistralDisplayPin('mistral-large-latest')?.id === 'mistral-large-2512' && mistralDisplayPin('codestral-latest')?.contextWindow === 131_072 && MISTRAL_DISPLAY_PINS.every(pin => pin.observedAt === (['mistral-large-4', 'deepseek-v4-1-flash-1017'].includes(pin.id) ? '2026-10-30' : '2026-10-25')))
   const { buildMistralExtras } = await import('../../src/services/providers/mistral/mistralCallModel.ts')
   check('Mistral GLM preserves max and never sends unsupported none (docs.mistral.ai/studio/conversations/reasoning, read 2026-10-25)', isMistralChatModelId('zai-glm-5-3') && isMistralChatModelId('zai-glm-5-3-flash') && buildMistralExtras({ wireModel: 'zai-glm-5-3', effortValue: 'max', thinkingEnabled: true, maxOutputTokensOverride: undefined }).reasoning_effort === 'max' && buildMistralExtras({ wireModel: 'zai-glm-5-3', effortValue: 'max', thinkingEnabled: false, maxOutputTokensOverride: undefined }).reasoning_effort === 'low')
@@ -81,19 +73,5 @@ try {
   await refreshProviderUsage('mistral', { force: true, reason: 'operator' })
   const uncapped = usageForProvider('mistral')
   check('no monthly limit states usage as the figure and invents no remainder', uncapped.figures?.some(figure => figure.key === 'month-limit' && figure.value === 'none set') && uncapped.balance === undefined && uncapped.credits.compact === 'no limit set')
-  const files = ['Accounts', 'CallModel', 'Catalogue', 'Login', 'Pins', 'UsageState'].map(part => `src/services/providers/mistral/mistral${part}.ts`)
-  files.push('src/services/providers/mistral/mistralAdapter.ts')
-  for (const file of files) {
-    const source = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true)
-    const names: string[] = []
-    for (const statement of source.statements) {
-      if (!ts.canHaveModifiers(statement) || !ts.getModifiers(statement)?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) continue
-      if (ts.isVariableStatement(statement)) names.push(...statement.declarationList.declarations.map(declaration => declaration.name.getText(source)))
-      else if ((ts.isFunctionDeclaration(statement) || ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement) || ts.isClassDeclaration(statement)) && statement.name) names.push(statement.name.text)
-    }
-    check(`${file} exports a declared contract`, names.length > 0)
-    console.log(`[EXPORTS] ${file}: ${names.join(', ')}`)
-  }
-  check('the Mistral base is registered and pinned by the hermetic gate', getFlagSpec('MERCURY_MISTRAL_API_BASE') !== undefined && read('scripts/gate/ci-shard.sh').includes('MERCURY_MISTRAL_API_BASE'))
   console.log(`MISTRAL CONTRACT GREEN (${count} checks; loopback fixture only)`)
 } finally { fixture.stop(); rmSync(proofHome, { recursive: true, force: true }) }

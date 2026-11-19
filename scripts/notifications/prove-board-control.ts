@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
 
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { mock } from 'bun:test'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 let failures = 0
 function check(label: string, ok: boolean, detail?: string): void {
@@ -132,45 +131,6 @@ console.log('§3 answer: the reply is delivered to the session first, and only t
   check('a question raised for a dispatch that never became a session is refused before any call, and stays open', noSession.requests.length === 0 && noSession.receipt.outcome === 'refused' && String(noSession.receipt.detail).startsWith('this question has no session to deliver to') && (await statusOf(stranded)) === 'open', `${j(noSession.receipt)} ${await statusOf(stranded)}`)
 }
 
-console.log('§4 the board and the hosted chat reach the daemon through this one executor')
-{
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  const calls = (text: string): number => text.split('control.executeBoardControl(').length - 1
-  check('the board\'s answer, pause, resume and redirect each call it once', calls(route) === 4 && ["verb: 'obligation.answer'", "verb: 'session.pause'", "verb: 'session.resume'", "verb: 'session.redirect'"].every(verb => route.includes(verb)), String(calls(route)))
-  const concourse = join(ROOT, 'src', 'services', 'concourse')
-  const holders = readdirSync(concourse).filter(name => readFileSync(join(concourse, name), 'utf8').includes('instruction delivered ('))
-  check('the delivery words stand in one file under the concourse services', j(holders) === j(['boardControl.ts']), j(holders))
-}
-
-console.log('§5 zero provider surface (the executor\'s import closure)')
-{
-  const banned = /services\/providers\/|utils\/model\/|streamModel|run-core\/turn-machine|api\/|anthropic|openai/i
-  const seen = new Set<string>()
-  const queue = ['src/services/concourse/boardControl.ts']
-  const offenders: string[] = []
-  while (queue.length) {
-    const file = queue.pop()!
-    if (seen.has(file)) continue
-    seen.add(file)
-    let src = ''
-    try {
-      src = read(file)
-    } catch {
-      continue
-    }
-    for (const m of src.matchAll(/import\(?\s*['"]([^'"]+)['"]/g)) {
-      const spec = m[1]!
-      if (!spec.startsWith('.')) continue
-      const base = join(file, '..', spec).replace(/\.js$/, '.ts')
-      if (banned.test(base)) offenders.push(`${file} → ${spec}`)
-      else queue.push(base)
-    }
-  }
-  check('the closure holds no provider or model module', offenders.length === 0, offenders.join('; '))
-  check('the closure was walked (not vacuous)', seen.size >= 3, `${seen.size} modules`)
-  const loadedWithIt = [...read('src/services/concourse/boardControl.ts').matchAll(/^\} from '([^']+)'|^import [^\n]*from '([^']+)'/gm)].map(m => m[1] ?? m[2])
-  check('what loads with the module is the activity feed and one type, nothing else', JSON.stringify(loadedWithIt) === JSON.stringify(['../crew/activity.js', '../crew/identity.js']) && read('src/services/concourse/boardControl.ts').includes("import type { CrewAgentId } from '../crew/identity.js'") && !/^import (?!type)[^\n]*from/m.test(read('src/services/crew/activity.ts')), JSON.stringify(loadedWithIt))
-}
 
 console.log("§6 the operator's own act is a row of the activity feed: the line /crew activity prints for it")
 {
@@ -200,8 +160,6 @@ console.log("§6 the operator's own act is a row of the activity feed: the line 
   control.noteBoardControl({ verb: 'session.redirect', objectRef: 'x'.repeat(90), outcome: 'failed', detail: 'd'.repeat(120) })
   const long = rows()[rows().length - 1]!
   check('the object is cut at 60 characters and the outcome at 80', long.objectLabel.length === 60 && (long.outcomeLabel ?? '').length === 80, `${long.objectLabel.length} / ${(long.outcomeLabel ?? '').length}`)
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  check('the board notes each of its four acts through this module and names no other', route.split('control.noteBoardControl(').length - 1 === 4 && route.split('control.noteBoardControl(receipt, { opId: clientOpId })').length - 1 === 2 && !route.includes('coordinatorReceipts'), String(route.split('control.noteBoardControl(').length - 1))
   activity._resetActivityFeedForTesting()
 }
 

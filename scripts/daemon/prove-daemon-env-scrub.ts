@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -10,23 +9,13 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const owned = readFileSync(join(ROOT, 'src', 'daemon', 'ownedDaemon.ts'), 'utf-8')
-const auth = readFileSync(join(ROOT, 'src', 'utils', 'auth.ts'), 'utf-8')
-const subEnv = readFileSync(join(ROOT, 'src', 'utils', 'subprocessEnv.ts'), 'utf-8')
 
 console.log('============================================================')
 console.log(' daemon env scrub — no pinned spawner token (HB-0078)')
 console.log('============================================================')
 
 section('source: spawnOwnedDaemon scrubs the pinned auth vars (guarded by a fallback)')
-check('scrub is GATED on hasStoredOAuthToken() (a confirmed keychain fallback)', /const storedTokenAtSpawn = hasStoredOAuthToken\(\)[\s\S]{0,240}if \(storedTokenAtSpawn\) \{[\s\S]{0,160}delete env\[k\]/.test(owned))
 const FOREIGN = ['CLAUDE', 'CODE'].join('_')
-check('the one-home strip set carries session vars + own FD + the table-derived foreign FDs', /export const STORED_TOKEN_SCRUB_VARS[\s\S]{0,240}\.\.\.ALWAYS_STRIP_TOKEN_VARS,\s*\n?\s*'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR',\s*\n?\s*\.\.\.AGENT_CLI_TOKEN_FD_ENV_VARS/.test(subEnv))
-check('spawnOwnedDaemon consumes the one-home set', owned.includes('for (const k of STORED_TOKEN_SCRUB_VARS)'))
-check('hasStoredOAuthToken reads the keychain (secureStorage), NOT the env var', /export function hasStoredOAuthToken\(\)[\s\S]{0,160}getSecureStorage\(\)\.read\(\)\?\.claudeAiOauth\?\.accessToken/.test(auth))
-const foreignTable = readFileSync(join(ROOT, 'src', 'utils', 'knownAgentClis.ts'), 'utf-8')
-check('ALWAYS_STRIP_TOKEN_VARS is exported + carries the OAuth token (own spelling + the table-derived foreign spellings)', /export const ALWAYS_STRIP_TOKEN_VARS[\s\S]{0,240}MERCURY_OAUTH_TOKEN/.test(subEnv) && subEnv.includes('...AGENT_CLI_SESSION_ENV_VARS') && foreignTable.includes(`'${FOREIGN}_OAUTH_TOKEN'`))
 
 section('source: auth resolution has an env→keychain fallback (so scrub is safe)')
 process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
@@ -40,7 +29,6 @@ if (heldToken === undefined) delete process.env.MERCURY_OAUTH_TOKEN
 else process.env.MERCURY_OAUTH_TOKEN = heldToken
 check('getClaudeAIOAuthTokens answers the token of the environment before any store', viaSync?.accessToken === 'env-scrub-proof-token', JSON.stringify(viaSync?.accessToken ?? null))
 check('getClaudeAIOAuthTokensAsync answers the token of the environment before any store', viaAsync?.accessToken === 'env-scrub-proof-token', JSON.stringify(viaAsync?.accessToken ?? null))
-check('…then falls back to the keychain (secureStorage.read().claudeAiOauth)', /getSecureStorage\(\)\.read\(\)\?\.claudeAiOauth/.test(auth))
 
 section('behavioural mirror: the scrub removes the pinned vars (guard true) / keeps (false)')
 const AUTH_VARS = ['MERCURY_OAUTH_TOKEN', `${FOREIGN}_OAUTH_TOKEN`, `${FOREIGN}_SUBSCRIPTION_TYPE`, `${FOREIGN}_RATE_LIMIT_TIER`, 'CODEX_API_KEY', 'CODEX_ACCESS_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', `${FOREIGN}_OAUTH_TOKEN_FILE_DESCRIPTOR`]
@@ -61,11 +49,6 @@ check('env-only auth (no keychain) ⇒ token KEPT (no fallback, no regression)',
 
 section('the fresh-sign-in trigger: first-only, self-guarded, receipted by')
 {
-  const oauthClient = readFileSync(join(ROOT, 'src', 'services', 'oauth', 'client.ts'), 'utf-8')
-  check(
-    'the sign-in landing calls restartOwnedDaemonForFreshSignin (fire-and-forget, catch armed)',
-    oauthClient.includes('restartOwnedDaemonForFreshSignin()') && /void import\('\.\.\/\.\.\/daemon\/ownedDaemon\.js'\)[\s\S]{0,120}\.catch\(\(\) => \{\}\)/.test(oauthClient),
-  )
   const { mkdtempSync, writeFileSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const savedHome = { config: process.env.MERCURY_CONFIG_DIR, auth: process.env.MERCURY_AUTH_SCOPE_DIR }

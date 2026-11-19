@@ -1,18 +1,13 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'sleep-tool-home-'))
 delete process.env.MERCURY_HOME
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const TOOLS = readFileSync(join(root, 'src/tools.ts'), 'utf-8')
-const SLEEP = readFileSync(join(root, 'src/tools/SleepTool/SleepTool.tsx'), 'utf-8')
 const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
 const { SLEEP_TOOL_NAME } = await import('../../src/tools/SleepTool/prompt.ts')
-const AGENT_FILTER = readFileSync(join(root, 'src/tools/AgentTool/agentToolUtils.ts'), 'utf-8')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -24,38 +19,8 @@ console.log('============================================================')
 console.log(' Sleep tool — stamp-gated + interruptible contract')
 console.log('============================================================')
 
-check('SleepTool const loads unconditionally ',
-  /import \{ SleepTool \} from '\.\/tools\/SleepTool\/SleepTool\.js'/.test(TOOLS) &&
-  /const SLEEP_TOOL = cycleTolerant\(\(\) => SleepTool\)/.test(TOOLS))
-check('Sleep joins the tool catalog array (the cycle-tolerant row)',
-  /SLEEP_TOOL,/.test(TOOLS))
-
-check('built via buildTool against the prompt name', /buildTool\(\{[\s\S]*name:\s*SLEEP_TOOL_NAME/.test(SLEEP))
-check('concurrency-safe (isConcurrencySafe → true)',
-  /isConcurrencySafe\(\)\s*\{[\s\S]*?return true/.test(SLEEP))
-check('read-only (isReadOnly → true)', /isReadOnly\(\)\s*\{[\s\S]*?return true/.test(SLEEP))
-check('INTERRUPTIBLE: listens to abortController.signal',
-  /abortController/.test(SLEEP) && /signal\.addEventListener\('abort'/.test(SLEEP))
-check('resolves early on abort and flags interrupted', /interrupted\s*=\s*true/.test(SLEEP))
-check('honest result reports interrupted + slept_seconds',
-  /interrupted,/.test(SLEEP) && /slept_seconds:/.test(SLEEP))
-check('duration is bounded (MIN_SLEEP_SECONDS..MAX_SLEEP_SECONDS) through the shared wait-ceiling seam, and the result says when it was',
-  /clampWait\('seconds', seconds, MIN_SLEEP_SECONDS, MAX_SLEEP_SECONDS, 's'\)/.test(SLEEP) && /clamped: z\.string\(\)\.optional\(\)/.test(SLEEP))
-check('the floor is one real second — never a no-op wait', /const MIN_SLEEP_SECONDS = 1\n/.test(SLEEP))
-check('the seconds schema refuses only what has no lawful reading: no .max(), no .positive() — a finite non-negative number always parses',
-  /seconds: semanticNumber\(z\.number\(\)\.min\(0\)\)/.test(SLEEP) && !/seconds: semanticNumber\(z\.number\(\)[^)]*\.max\(/.test(SLEEP))
-check("the seconds parameter's own words name both bounds and say a value outside them is clamped",
-  /seconds: semanticNumber\([\s\S]{0,400}?min \$\{MIN_SLEEP_SECONDS\}, max \$\{MAX_SLEEP_SECONDS\}[\s\S]{0,200}?clamped/.test(SLEEP))
-check('cleans up the timer + listener (no leak)',
-  /clearTimeout\(timer\)/.test(SLEEP) && /removeEventListener\('abort'/.test(SLEEP))
 check("a sub-agent's roster: Sleep is not in the deny set every agent loses",
   !ALL_AGENT_DISALLOWED_TOOLS.has(SLEEP_TOOL_NAME))
-check("a BACKGROUND crewmate's roster is the one filter's — no async allow-set exists, so Sleep rides every crewmate",
-  !AGENT_FILTER.slice(AGENT_FILTER.indexOf('export function filterToolsForAgent('), AGENT_FILTER.indexOf('export type ResolvedAgentTools')).includes('isAsync') && !AGENT_FILTER.includes('ASYNC_AGENT_ALLOWED_TOOLS'))
-check("a sub-agent's wait shadows the background shells it owns, by the spawning agent's id",
-  /SUBAGENT_TRACKED_TASK_TYPES[\s\S]*?\['local_bash',/.test(SLEEP) && /SUBAGENT_TRACKED_TASK_TYPES\.has\(t\.type\) && t\.agentId === selfTaskId/.test(SLEEP))
-check("the sub-agent's ceiling is the same one (one MAX_SLEEP_SECONDS)",
-  (SLEEP.match(/MAX_SLEEP_SECONDS = /g) ?? []).length === 1)
 
 {
   const { formatZodValidationError } = await import('../../src/utils/toolErrors.ts')

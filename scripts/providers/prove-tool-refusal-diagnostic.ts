@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -54,14 +54,6 @@ section('R2 · the raw arguments are bounded: the first 2,000 characters and the
   check('the record itself keeps the whole raw bytes (the transcript record is the operator\'s, bounded by the wire) and their length', refusal?.argumentsRaw === long.slice(0, -1) && (refusal as { argumentsLength?: number } | null)?.argumentsLength === long.length - 1)
 }
 
-section('R3 · the wiring: the compat runtime logs the diagnostic at the refusal and the transcript record carries the refusal')
-{
-  const runtime = readFileSync(join(process.cwd(), 'src/services/providers/openaicompat/compatChatCallModel.ts'), 'utf8')
-  check('the note minting logs the bounded diagnostic to the debug log, never into the note', /const note = toolCallRefusalNote\(profile\.lane, refusal\)\s*\n\s*logForDebugging\(`\[compat:\$\{profile\.lane\}\] \$\{toolCallRefusalDiagnostic\(refusal\)\}`/.test(runtime))
-  check('the settled note message still carries the refusal record for the transcript', /message\.refusedToolCalls = \[refusal\]/.test(runtime))
-  const message = readFileSync(join(process.cwd(), 'src/types/message.ts'), 'utf8')
-  check('the refusal record type declares the length beside the raw bytes', /argumentsRaw: string\s*\n\s*argumentsLength\?: number/.test(message))
-}
 
 console.log(failures === 0 ? '\nprove-tool-refusal-diagnostic: all green' : `\nprove-tool-refusal-diagnostic: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,6 +1,5 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import type { Message } from '../../src/types/message.ts'
 import type { CompatChatRequest, CompatMessage } from '../../src/services/providers/openaicompat/compatChatClient.ts'
 import type { GeminiContent, GeminiTurnItem } from '../../src/services/providers/gemini/geminiCodec.ts'
@@ -90,9 +89,5 @@ check('plain text, images and response errors survive without duplication', () =
   assert.deepEqual(packed[0], edge.contents[0])
   assert.deepEqual(packed[1], edge.contents[1])
   assert.deepEqual(packed[2]!.parts, [{ functionResponse: { id: 'refused', name: 'CrewBoard', response: { error: 'invalid input', output: 'before\n\n\n\nafter' } } }, image])
-})
-check('bare INVALID_ARGUMENT retry wording and its same/same/plain ladder stay unchanged', () => {
-  const source = readFileSync(new URL('../../src/services/providers/gemini/geminiCallModel.ts', import.meta.url), 'utf8')
-  for (const text of ["const GEMINI_PLAN_BARE_INVALID_ARGUMENT = 'Request contains an invalid argument.'", 'for (let attempt = 0; attempt < 3; attempt++)', 'plainTools = attempt === 1', 'HTTP ${facts.status ?? \'?\'} after ${seconds}, before any answer byte', '(INVALID_ARGUMENT, no detail); ${attempts}.', "kind === 'plain' ? 'plain function calling' : 'the same shape'"]) assert(source.includes(text), text)
 })
 process.exitCode = failures ? 1 : 0

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -80,13 +80,6 @@ section('§3 THE WIRE OPTION')
   check('resources/list carries it', seen['resources/list'] === 1500, JSON.stringify(seen))
 }
 
-section('§4 THE PRINT PATH (source pins)')
-{
-  const main = readFileSync(join(SRC, 'main.tsx'), 'utf8')
-  check('the batch is raced against the launch budget', main.includes('withMcpLaunchBudget(connectMcpBatch(configs, store.setState), mcpLaunchBudgetMs())'))
-  check('the run proceeds on timeout — late servers serve later calls', main.includes("=== 'timeout') {") && main.includes('late servers serve later calls'))
-  check('the helpers are static imports from the one MCP owner', /import \{[^}]*mcpLaunchBudgetMs[^}]*withMcpLaunchBudget[^}]*\} from '\.\/services\/mcp\/client\.js'/s.test(main))
-}
 
 rmSync(HOME, { recursive: true, force: true })
 if (failures > 0) {

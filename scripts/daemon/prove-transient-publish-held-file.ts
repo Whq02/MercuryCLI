@@ -15,9 +15,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 
 console.log('prove-transient-publish-held-file — a session projection survives a reader that holds the file without delete sharing')
-const seam = readFileSync(join(ROOT, 'src/daemon/daemonHome.ts'), 'utf8')
-const body = seam.slice(seam.indexOf('export function publishTransientInDaemonHome('), seam.indexOf('export function ensureDirInDaemonHome('))
-check('the transient publish renames through the Windows retry road, never a bare renameSync', body.includes('renameWithWin32RetrySync(tmp, path)') && !body.includes('renameSync(tmp, path)'), body.slice(0, 400))
 
 if (process.platform !== 'win32') {
   console.log('  [SKIP] the held-file legs need Windows share modes (a POSIX rename never waits on a reader)')

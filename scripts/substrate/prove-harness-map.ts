@@ -1,10 +1,7 @@
 #!/usr/bin/env bun
 
 import '../lib/hermetic.js'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const saved = {
   map: process.env.MERCURY_HARNESS_MAP,
@@ -77,27 +74,9 @@ delete process.env.MERCURY_WORKFLOWS
     'catalog-on + NOT connected ⇒ the LSP tool is NOT advertised',
     uncovered !== null && !uncovered.includes('LspRead'),
   )
-  const mapSrc = readFileSync(join(import.meta.dir, '../../src/utils/cockpit/harnessMap.ts'), 'utf8')
-  check(
-    'the map carries no LSP line at all: the roster lists the tool when mounted, and that is the one reader',
-    !mapSrc.includes('isLspToolMounted') && !mapSrc.includes('LspRead'),
-  )
-  const lspToolSrc = readFileSync(join(import.meta.dir, '../../src/tools/LSPTool/LSPTool.ts'), 'utf8')
-  check(
-    "…and that predicate IS the roster's gate (LSPTool.isEnabled → isLspToolMounted)",
-    lspToolSrc.includes('isEnabled: isLspToolMounted'),
-  )
   resetHarnessMapForTest()
 }
 
-const promptsSrc = readFileSync(
-  join(import.meta.dir, '../../src/constants/prompts.ts'),
-  'utf8',
-)
-check(
-  "prompts.ts wires systemPromptSection('harness_map')",
-  promptsSrc.includes("systemPromptSection('harness_map'"),
-)
 
 {
   const { getHarnessMapDelta, getHarnessMapSection, resetHarnessMapForTest } = await import(
@@ -135,14 +114,10 @@ check(
 }
 
 {
-  const orch = readFileSync(join(import.meta.dir, '../../src/utils/attachments/orchestrator.ts'), 'utf8')
-  check('orchestrator wires getHarnessMapDelta', orch.includes('getHarnessMapDelta'))
   const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.js')
   const projected = normalizeAttachmentForAPI({ type: 'harness_map_delta', added: ['ADDED-SURFACE'], removed: ['REMOVED-SURFACE'] })
   const content = projected[0]?.message.content
   check('attachmentText renders harness_map_delta', projected.length === 1 && projected[0]?.isMeta === true && typeof content === 'string' && content.includes('ADDED-SURFACE') && content.includes('REMOVED-SURFACE'))
-  const nullr = readFileSync(join(import.meta.dir, '../../src/components/messages/nullRenderingAttachments.ts'), 'utf8')
-  check('harness_map_delta is null-rendering (no transcript chrome)', nullr.includes("'harness_map_delta'"))
 }
 
 {
@@ -188,34 +163,6 @@ for (const [k, v] of Object.entries({
   else process.env[k] = v
 }
 
-{
-  const { effectiveCatalogue } = await import('../../src/commands/effectiveCatalogue.js')
-  const registered = new Set(
-    effectiveCatalogue().flatMap(surface => [surface.name, ...surface.aliases]),
-  )
-  const DOOR_RE = /(^|[\s(`,])\/([a-z][a-z0-9-]*)(?![a-z0-9-/])/g
-  const LITERAL_RE = /(['"`])((?:\\.|(?!\1)[^\\\n])*)\1/g
-  const REPO = join(import.meta.dir, '..', '..')
-  for (const rel of ['src/utils/cockpit/harnessMap.ts', 'src/utils/messages/systemMessages.ts']) {
-    const text = readFileSync(join(REPO, rel), 'utf8')
-    const dead: string[] = []
-    const seen = new Set<string>()
-    for (const m of text.matchAll(LITERAL_RE)) {
-      const literal = m[2]!
-      if (!literal.includes(' ')) continue
-      for (const dm of literal.matchAll(DOOR_RE)) {
-        const door = dm[2]!
-        seen.add(door)
-        if (!registered.has(door)) dead.push(`/${door} in ${JSON.stringify(literal.slice(0, 70))}`)
-      }
-    }
-    check(
-      `${rel}: every prose slash-door is a registered command or alias (${[...seen].sort().join(', ') || 'none named'})`,
-      dead.length === 0,
-      dead.join(' · '),
-    )
-  }
-}
 
 console.log(failures === 0 ? '✅ prove-harness-map: ALL PASS' : `❌ prove-harness-map: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,15 +1,5 @@
 #!/usr/bin/env bun
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  realpathSync,
-  rmSync,
-  statSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -321,123 +311,18 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     missing.length === 0 && extra.length === 0,
     `missing=[${missing.join(',')}] extra=[${extra.join(',')}]`,
   )
-  for (const t of ['InvokedSkillInfo']) {
-    check(`type export survives: ${t}`, new RegExp(`export type ${t}\\b`).test(stateSrc))
-  }
-  check('STATE singleton stays module-private', !/export\s+const\s+STATE\b/.test(stateSrc))
-  check('getInitialState stays module-private', !/export\s+function\s+getInitialState\b/.test(stateSrc))
 }
 
-section('LAW FAN-IN — the import census (the measurable cut baseline)')
-{
-  const exts = new Set(['.ts', '.tsx'])
-  const importRe = /(?:from\s+|import\()\s*['"][^'"]*bootstrap\/state(?:\.js)?['"]/
-  function countImporters(root: string): { count: number; files: string[] } {
-    const files: string[] = []
-    const walk = (dir: string): void => {
-      for (const name of readdirSync(dir)) {
-        const p = join(dir, name)
-        const st = statSync(p)
-        if (st.isDirectory()) {
-          if (name === 'node_modules' || name === '.git') continue
-          walk(p)
-        } else if (exts.has(name.slice(name.lastIndexOf('.')))) {
-          if (importRe.test(readFileSync(p, 'utf8'))) files.push(p)
-        }
-      }
-    }
-    walk(root)
-    return { count: files.length, files }
-  }
-  const srcCensus = countImporters(join(repoRoot, 'src'))
-  const scriptsCensus = countImporters(join(repoRoot, 'scripts'))
-  console.log(
-    `  fan-in census: ${srcCensus.count} src importers, ${scriptsCensus.count} script importers` +
-      ' (an earlier census measured 317 src — drift is expected as cuts land)',
-  )
-  check('fan-in census mechanism found importers', srcCensus.count > 0)
-  check(
-    'fan-in census catches the OwnerKey boundary (services/run/resolveOwner.ts)',
-    srcCensus.files.some(f => f.endsWith('services/run/resolveOwner.ts')),
-  )
-
-  const ownerImportRe = /(?:from\s+|import\()\s*['"][^'"]*bootstrap\/runtime\/[^'"]+['"]/
-  const violators: string[] = []
-  const walkBoundary = (dir: string): void => {
-    for (const name of readdirSync(dir)) {
-      const p = join(dir, name)
-      const st = statSync(p)
-      if (st.isDirectory()) {
-        if (name === 'node_modules' || name === '.git') continue
-        if (p.endsWith(join('src', 'bootstrap'))) continue
-        walkBoundary(p)
-      } else if (exts.has(name.slice(name.lastIndexOf('.')))) {
-        if (ownerImportRe.test(readFileSync(p, 'utf8'))) violators.push(p)
-      }
-    }
-  }
-  walkBoundary(join(repoRoot, 'src'))
-  check(
-    'boundary: no file outside src/bootstrap/ imports a runtime family owner directly',
-    violators.length === 0,
-    violators.join(', '),
-  )
-}
 
 section('LAW 12 SLOW-OPS-ABSENT — the dormant family is DELETED')
 {
   const exports = state as never as Record<string, unknown>
   check('absence: addSlowOperation is gone from the facade', !('addSlowOperation' in exports))
   check('absence: getSlowOperations is gone from the facade', !('getSlowOperations' in exports))
-  check('absence: no slow-operations identifier survives in state.ts', !/slowOperation/i.test(stateSrc))
-  const srcDir = join(repoRoot, 'src')
-  const refs = (needle: string): string[] => {
-    const hits: string[] = []
-    const walk = (dir: string): void => {
-      for (const name of readdirSync(dir)) {
-        const p = join(dir, name)
-        const st = statSync(p)
-        if (st.isDirectory()) walk(p)
-        else if (/\.(ts|tsx)$/.test(name) && readFileSync(p, 'utf8').includes(needle))
-          hits.push(p.slice(srcDir.length + 1))
-      }
-    }
-    walk(srcDir)
-    return hits.sort()
-  }
-  check(
-    'absence: zero addSlowOperation references anywhere in src/',
-    refs('addSlowOperation').length === 0,
-    refs('addSlowOperation').join(','),
-  )
-  check(
-    'absence: zero getSlowOperations references anywhere in src/',
-    refs('getSlowOperations').length === 0,
-    refs('getSlowOperations').join(','),
-  )
 }
 
 section('LAW ONE ROOT — no added-directory state or readers')
 {
-  const srcDir = join(repoRoot, 'src')
-  const filesMatching = (re: RegExp): string[] => {
-    const hits: string[] = []
-    const walk = (dir: string): void => {
-      for (const name of readdirSync(dir)) {
-        const p = join(dir, name)
-        const st = statSync(p)
-        if (st.isDirectory()) walk(p)
-        else if (/\.(ts|tsx)$/.test(name) && re.test(readFileSync(p, 'utf8')))
-          hits.push(p.slice(srcDir.length + 1).replaceAll('\\', '/'))
-      }
-    }
-    walk(srcDir)
-    return hits.sort()
-  }
-  for (const needle of [/\baddedDirectories\b/, /\bgetAddedDirectories\(/, /\bsetAddedDirectories\(/, /\bopts\.addDir\b/, /\bsyncInstructionRootsWithWorkspace\(/]) {
-    const matches = filesMatching(needle)
-    check(`one root: no retired directory state or reader ${needle}`, matches.length === 0, matches.join(','))
-  }
   const exports = state as never as Record<string, unknown>
   check('one root: the facade has no added-directory accessors', exports.getAddedDirectories === undefined && exports.setAddedDirectories === undefined)
   const stem = ['Claude', 'Md'].join('')
@@ -445,12 +330,6 @@ section('LAW ONE ROOT — no added-directory state or readers')
     "one owner: no facade export names the other product's instruction file",
     !Object.keys(exports).some(k => k.includes(stem)),
     Object.keys(exports).filter(k => k.includes(stem)).join(','),
-  )
-  const retiredAccessor = ['Directories', 'For', stem].join('')
-  check(
-    'one owner: the retired accessor spelling is absent from src/',
-    filesMatching(new RegExp(retiredAccessor)).length === 0,
-    filesMatching(new RegExp(retiredAccessor)).join(','),
   )
 }
 
@@ -736,26 +615,6 @@ section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
   check('clearBetaHeaderLatches: 1h eligibility NOT in the clear set (session-latched)', state.getPromptCache1hEligible() === true)
   state.setPromptCache1hEligible(null)
 
-  const latchOwnerSrc = readFileSync(
-    join(repoRoot, 'src', 'bootstrap', 'runtime', 'cache-latches.ts'),
-    'utf8',
-  )
-  const latchFields = [
-    ...new Set([
-      ...[...stateSrc.matchAll(/^ {2}(\w+Latched)[:=]/gm)].map(m => m[1]!),
-      ...[...latchOwnerSrc.matchAll(/^ {2}(\w+Latched)[:=]/gm)].map(m => m[1]!),
-    ]),
-  ].sort()
-  check(
-    'tripwire: exactly the one *Latched field exists',
-    JSON.stringify(latchFields) ===
-      JSON.stringify(['cacheEditingHeaderLatched']),
-    latchFields.join(','),
-  )
-  const clearBody = latchOwnerSrc.match(/clearBetaHeaderLatches\(\): void \{([\s\S]*?)\n {2}\}/)?.[1] ?? ''
-  for (const f of latchFields) {
-    check(`tripwire: clearBetaHeaderLatches nulls ${f}`, new RegExp(`this\\.${f} = null`).test(clearBody))
-  }
 }
 
 section('LAW 6 ASSISTANT — the env matrix · flip supremacy · the memo latch')

@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -33,8 +32,6 @@ check('quoted EMPTY arg is preserved', eq('ed "" -n', 'ed', ['', '-n']))
 check('no shell semantics: $() stays literal', eq('ed $(rm -rf /) --x', 'ed', ['$(rm', '-rf', '/)', '--x']))
 check('cwd rides the invocation when given', parseLegacyCommandString('ed', '/w').cwd === '/w' && parseLegacyCommandString('ed').cwd === undefined)
 
-const editorSrc = readFileSync(join(ROOT, 'src/utils/editor.ts'), 'utf8')
-check('editor.ts derives base/args through the canonical parser', editorSrc.includes('parseLegacyCommandString(editor)') && !editorSrc.includes("const parts = editor.split(' ')"))
 
 console.log(failures === 0 ? '\n ✅ ALL RESOLVED-INVOCATION PROOFS PASS' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

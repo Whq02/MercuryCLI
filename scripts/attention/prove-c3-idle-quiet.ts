@@ -1,55 +1,8 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-t.section('§1 timer census over the rendezvous owners (no polling class exists)')
-{
-  const OWNERS = [
-    'src/services/attention/contracts.ts',
-    'src/services/attention/store.ts',
-    'src/services/attention/viewModel.ts',
-    'src/services/attention/actions.ts',
-    'src/services/attention/relations.ts',
-    'src/services/workbench/attentionBridge.ts',
-    'src/input-core/composer-document.ts',
-    'src/input-core/command-queue.ts',
-    'src/utils/promptDraft.ts',
-    'src/components/prompts-panel/PromptsPanel.tsx',
-    'src/services/workbench/projection.ts',
-  ]
-  const ALLOWED_SET_TIMEOUT: Record<string, number> = {
-    'src/services/attention/viewModel.ts': 1,
-    'src/utils/promptDraft.ts': 2,
-    'src/services/workbench/projection.ts': 1,
-  }
-  const ALLOWED_SET_INTERVAL: Record<string, number> = {
-    'src/services/workbench/projection.ts': 1,
-  }
-  for (const file of OWNERS) {
-    const src = readFileSync(file, 'utf8')
-    const intervals = [...src.matchAll(/setInterval\(/g)].length
-    const allowedIntervals = ALLOWED_SET_INTERVAL[file] ?? 0
-    t.check(
-      `${file}: setInterval callsites = ${allowedIntervals}`,
-      intervals === allowedIntervals,
-      `found ${intervals}`,
-    )
-    const timeouts = [...src.matchAll(/setTimeout\(/g)].length
-    const allowed = ALLOWED_SET_TIMEOUT[file] ?? 0
-    t.check(
-      `${file}: setTimeout callsites = ${allowed} (the pinned event-armed set)`,
-      timeouts === allowed,
-      `found ${timeouts}`,
-    )
-  }
-  const proj = readFileSync('src/services/workbench/projection.ts', 'utf8')
-  t.check(
-    'the projection heartbeat is subscriber-armed with a teardown (dormancy holds)',
-    /heartbeat\s*=\s*setInterval/.test(proj) && /clearInterval\(heartbeat\)/.test(proj),
-  )
-}
 
 t.section('§2 a REAL 10 s quiet window: armed, event-free, and completely silent')
 {

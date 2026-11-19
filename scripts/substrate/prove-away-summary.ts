@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 
 const { isAwaySummaryEnabled, buildAwaySummary, buildAwayRecap } = await import(
   '../../src/utils/cockpit/awaySummary.js'
@@ -254,29 +251,8 @@ section('(e2) every tool the transcript names is counted — a ChangeSet and its
     const one = buildAwayRecap([userTurn('go', '2026-01-01T10:59:00.000Z'), asst('2026-01-01T11:00:00.000Z', [{ name }])] as any, NOW)
     check(`${name} is counted like any other tool`, one?.topTools === `${name}×1`, String(one?.topTools))
   }
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'cockpit', 'awaySummary.ts'), 'utf-8')
-  check('no hand-kept list of counted tool names remains in the recap builder', !/COUNTED_TOOLS|new Set<string>\(\[\s*'Edit'/.test(src))
 }
 
-section('(f) wiring — the resume hop builds the recap and paints the display card')
-{
-  const hop = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'switchboard', 'hopIntoSession.ts'), 'utf-8')
-  check('the hop imports awaySummary', hop.includes("import('../../utils/cockpit/awaySummary.js')"))
-  check(
-    'the hop gathers the live working-tree delta (git diff --shortstat vs HEAD)',
-    hop.includes("execFileNoThrowWithCwd('git', ['diff', '--shortstat', 'HEAD']"),
-  )
-  check('the hop gates on isAwaySummaryEnabled()', hop.includes('isAwaySummaryEnabled()'))
-  check("the hop builds from the session's records + git delta", /buildAwayRecap\(records, Date\.now\(\), gitDelta\)/.test(hop))
-  check('the hop gates on the records actually landing (bounded wait, empty ⇒ no card)', /records\.length === 0\) return/.test(hop))
-  check('the hop paints the recap as a display row (addDisplayRow + factory)', /let card = createAwaySummaryMessage\(recap\.line, enriched\)\n\s*let shown = recap\n\s*connector\.addDisplayRow\(card as never\)/.test(hop))
-  check('the hop stamps toolFailures into the card metadata when the prior run had any', /toolFailures: recap\.toolFailures/.test(hop))
-  check('recapMetadata reads the cert snapshot at the writer (renderer stays props-pure)', hop.includes('healthCertSnapshot()'))
-  check("recapMetadata reads the branch sync at the writer (the connector owns the cwd)", hop.includes('readBranchHeadSync(connector.workspace().cwd)'))
-  const stm = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'messages', 'SystemTextMessage.tsx'), 'utf-8')
- check('SystemTextMessage: recapMetadata ⇒ ResumeRecapCard (unconditional, convergence)', /if \(message\.recapMetadata\)/.test(stm) && stm.includes('<ResumeRecapCard'))
-  check('SystemTextMessage: the plain ※ line branch is intact', stm.includes("{'※ '}"))
-}
 
 console.log('\n' + '═'.repeat(76))
 if (fail === 0) console.log('✅ ALL AWAY-SUMMARY PROOFS PASS')

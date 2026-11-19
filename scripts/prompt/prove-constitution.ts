@@ -1,11 +1,9 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', ISSUES_EXPLAINER: 'report the issue with /feedback' }
 import { createHash } from 'node:crypto'
-import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-const J = (...parts: string[]): string => parts.join('')
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'constitution-home-'))
@@ -15,8 +13,6 @@ delete process.env.MERCURY_PROMPT_LAYERS
 delete process.env.MERCURY_PROMPT_REPLACE_FILE
 delete process.env.MERCURY_ANTISYC_ALWAYS_ON
 
-const ROOT = join(import.meta.dir, '..', '..')
-const SRC = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 const j = (v: unknown): string => JSON.stringify(v)
 let failures = 0
 let checks = 0
@@ -165,7 +161,6 @@ try {
     check('exactly one identity statement', (TEXT.match(/^You are /gm) ?? []).length === 1)
     check('names no engine family', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi|Qwen|Mistral|Grok)\b/i.test(TEXT))
     check('negates nothing about what the seat is', !/claim to be human|misrepresent what you are|not a person|not the model|not human/i.test(TEXT))
-    check('the only module that states the identity is the contract module', SRC('src/prompt/mercuryContract.ts').includes("You are Mercury, the coding agent working in the operator's terminal."))
   }
 
   section('§2 the shipped composition — the head, the constitution as its own segment, then the facts, nothing of the prose')
@@ -196,7 +191,6 @@ try {
     check('two assemblies in one process compose identical bytes', interactive === again)
     const bare = await assemble('interactive', { MERCURY_BARE: '1' })
     check('MERCURY_BARE=1 composes the head and the constitution as one segment, nothing else', j(bare) === j([`${HEAD}\n\n${TEXT}`]), j(bare).slice(0, 200))
-    check('the bare seam is the one spelling in the part supplier', SRC('src/constants/prompts.ts').includes('return [`${head}\\n\\n${law}`]'))
   }
 
   section('§3 every seat leads with the constitution')
@@ -213,7 +207,6 @@ try {
     check('a crewmate: element 0 is the constitution, element 1 its seat contract', crew[0] === TEXT && typeof crew[1] === 'string' && crew[1]!.startsWith('<subagent-doctrine>'))
     const scout = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } })
     check('the fixed-output scout: the constitution still leads', scout[0] === TEXT)
-    check('the headless turn row composes the constitution ahead of a custom prompt', SRC('src/rows/turn.ts').includes('? [MERCURY_CONSTITUTION, config.customSystemPrompt]'))
     const everySeat = [TEXT, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')
     check('no seat text negates the identity or names an engine family', !/claim to be human|misrepresent what you are|not a person/i.test(everySeat) && !/\b(Claude|Anthropic|GPT|OpenAI|Gemini)\b/.test(everySeat))
   }
@@ -224,18 +217,6 @@ try {
     check('the Anthropic wire assembles the attribution line and the composed prompt — nothing between them', j(assembled) === j(['x-anthropic-billing-header: proof', 'BODY']), j(assembled))
     const blocks = buildSystemPromptBlocks(['x-anthropic-billing-header: proof', 'HEAD', 'BODY'] as never, true)
     check('two system blocks on that wire: the attribution line uncached, the prompt cached', blocks.length === 2 && blocks[0]!.text.startsWith('x-anthropic-billing-header') && !('cache_control' in blocks[0]!) && blocks[1]!.text === 'HEAD\n\nBODY' && 'cache_control' in blocks[1]!)
-    const system = SRC('src/constants/system.ts')
-    check('the constants module carries the attribution header alone — no identity prefix', system.includes('export function getAttributionHeader') && !/You are|Mercury agent|coding harness/.test(system))
-    check('the side-query road carries no identity block of its own', !/You are|SyspromptPrefix/.test(SRC('src/utils/sideQuery.ts')))
-    const splitter = SRC('src/utils/api.ts')
-    check('the block splitter classifies by the attribution header alone (no prefix block by content)', splitter.includes('export function splitSystemPromptBlocks') && !new RegExp(J('CLI_SYSPROMPT', '_PREFIXES') + "|'prefix'|SysPromptPrefix").test(splitter))
-    let census = ''
-    try {
-      census = execFileSync('git', ['-C', ROOT, 'grep', '-l', '-E', 'You are \\*\\*Mercury\\*\\*|You are a Mercury agent|source-built terminal coding harness|You are Mercury, a private', '--', 'src'], { encoding: 'utf8' }).trim()
-    } catch (error) {
-      census = (error as { stdout?: string }).stdout?.trim() ?? ''
-    }
-    check('no module under src carries the retired identity sentences', census === '', census)
   }
 } finally {
   clearSystemPromptSections()

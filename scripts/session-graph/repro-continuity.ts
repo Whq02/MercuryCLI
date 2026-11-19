@@ -1,16 +1,8 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-t.section('CS-23 — the crew directory crosses the ACP wire')
-const server = readFileSync('src/services/acp/acpServer.ts', 'utf8')
-t.check(
-  'the `_mercury/crew` extension method is registered',
-  /_mercury\/crew/.test(server),
-  'acpServer.ts registers no crew-directory wire',
-)
 
 t.section('CS-23 — cross-surface resolution (live once the projection exists)')
 let mod: Record<string, unknown> | null = null

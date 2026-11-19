@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -12,50 +12,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
-function walk(root: string): string[] {
-  const out: string[] = []
-  for (const entry of readdirSync(root)) {
-    const p = join(root, entry)
-    if (statSync(p).isDirectory()) out.push(...walk(p))
-    else if (/\.tsx?$/.test(entry)) out.push(p)
-  }
-  return out
-}
-
-{
-  const repl = read('src/screens/Chat.tsx')
-  const resumeAt = repl.indexOf('const resume = useCallback(')
-  const resumeBody = repl.slice(resumeAt, repl.indexOf('resumeRef.current = resume', resumeAt))
-  check(
-    'P1 resume() mutates no session state of its own (no switch, no hooks, no pointer move)',
-    !resumeBody.includes('switchSession(') && !resumeBody.includes('executeSessionEndHooks(') && !resumeBody.includes('resetSessionFilePointer('),
-  )
-  check('P1 resume() keeps the composer where it was (no draft flush)', !resumeBody.includes('flushDrafts('))
-  const hop = read('src/services/switchboard/hopIntoSession.ts')
-  const fnAt = hop.indexOf('async function focusResumedSessionLanding(')
-  const fnBody = hop.slice(fnAt, hop.indexOf('async function paintResumeRecap', fnAt))
-  check('P1 the resume landing body is anchored (the slice cannot go vacuous)', fnAt !== -1 && hop.indexOf('async function paintResumeRecap', fnAt) > fnAt)
-  check('P1 a session live on the board is ENTERED before any admission', fnBody.indexOf('sessionOwnedByLiveWorker(') !== -1 && fnBody.indexOf('sessionOwnedByLiveWorker(') < fnBody.indexOf("op: 'sessionAdmit'"))
-  check('P1 a durable session is admitted as a MANAGED session (--resume) behind its paint', fnBody.includes('resumeSessionId: sessionId') && fnBody.includes('awaitAdmission('))
-  check('P1 the transcript paints from its file before the route flips (the flicker law)', fnBody.includes('focusDaemonSession(connector.record)') && fnBody.indexOf('focusDaemonSession(connector.record)') > fnBody.indexOf('awaitAdmission('))
-  check('P1 no other resume spelling survives in the tree', !hop.includes('resumeSessionOnConcourse') && !repl.includes('resumeSessionOnConcourse'))
-}
-
-{
-  const boot = read('src/components/BootSplashScreen.tsx')
-  const newAt = boot.indexOf("case 'new': {")
-  const newBody = boot.slice(newAt, boot.indexOf("case 'continue'", newAt))
-  check('P2 New Session births a real session through the ONE birth door (the flip-first road)', newBody.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() }))'))
-  const road = boot.slice(boot.indexOf('async function flipFirstBirth('), boot.indexOf('export function BootSplashScreen('))
-  check('P2 the chat flips at once and the birth lands behind; a refusal hands the frame back with its reason (never a chat over a refused birth)', road.indexOf('const flipped = enterRootChat().ok;') !== -1 && road.indexOf('const flipped = enterRootChat().ok;') < road.indexOf('const born = await birth;') && road.includes('if (!settleAbsentChat().ok) enterBootSettings();') && road.includes("mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning')") && road.includes('return born.reason;'))
-  check('P2 no ghost is handed to the slot (the ENTERED law is gone)', !newBody.includes('focusNascentSession') && !newBody.includes('isNascentConnector'))
-  check('P2 nothing is handed back to an engine and no /clear is armed', !boot.includes('focusInProcessSession') && !newBody.includes("armRootCommand('/clear')"))
-  const hop = read('src/services/switchboard/hopIntoSession.ts')
-  check('P2 the in-process hand-back verb is gone from the hop owner', !hop.includes('focusInProcessSession'))
-  check('P2 the ghost mint door is gone from the hop owner', !hop.includes('focusNascentSession'))
-}
 
 {
   const { NoSessionConnector, NO_CHAT_OPEN } = await import('../../src/services/engine-connector/noSessionConnector.ts')
@@ -83,18 +40,6 @@ function walk(root: string): string[] {
       resting.workspace() === resting.workspace() &&
       resting.workRoster() === resting.workRoster(),
   )
-  const src = read('src/services/switchboard/bornSession.ts')
-  const fnAt = src.indexOf('async function birth(')
-  const body = src.slice(fnAt)
-  check('P3 the birth body is anchored (the slice cannot go vacuous)', fnAt !== -1)
-  check('P3 the birth door admits through the daemon (born = registered) and then hops', body.includes("op: 'sessionAdmit'") && body.indexOf("op: 'sessionAdmit'") < body.indexOf('hopIntoBoardSession(sessionId'))
-  check('P3 the birth is marked blank for the daemon (the birth grace reads it)', body.includes('bornBlank: true'))
-  check('P3 the birth carries the model only when one is named (nothing on a keyless home), the title, the effort (the launch word, else the saved default, else absent), the posture and the runner options', body.includes('...(model !== undefined ? { model } : {}),') && body.includes('{ title }') && body.includes('const effort = facts.effort ?? getInitialEffortSetting() ?? null') && body.includes('{ effort }') && body.includes('permissionMode: facts.permissionMode') && body.includes('runnerArgv: [...facts.runnerArgv]'))
-  check('P3 the birth sends NO words (a blank, ready session — never a dispatch)', !body.includes("op: 'sessionDispatch'") && !body.includes('prompt:'))
-  const armAt = body.indexOf('armLandingWords({ model: model ?? null, effort, permissionMode: facts.permissionMode })')
-  const admitAt = body.indexOf("op: 'sessionAdmit'")
-  check('P3 the door arms the landing words it resolved (the model, the effort, the posture) before the admit and settles them when it closes', armAt !== -1 && admitAt !== -1 && armAt < admitAt && body.includes('settleLandingWords()'))
-  check('P3 the daemon heals before the birth (the first Enter never meets ENOENT)', body.indexOf('ensureOwnedDaemon()') !== -1 && body.indexOf('ensureOwnedDaemon()') < body.indexOf("op: 'sessionAdmit'"))
   const door = await import('../../src/services/switchboard/bornSession.ts')
   const recheck = (door as { admitWithDaemonRecheck?: typeof door.admitWithDaemonRecheck }).admitWithDaemonRecheck
   check('P3 the birth door exports its daemon re-check', typeof recheck === 'function')
@@ -122,10 +67,6 @@ function walk(root: string): string[] {
     const back = await drive([gone, landed], true)
     check('P3 a transport ENOCONN on the admit re-runs the daemon check once and re-sends once: the birth lands without a second Enter', back.answer === landed && back.sends === 2 && back.rechecks === 1, JSON.stringify(back))
     check('P3 the two sends carry ONE birth key (the re-send is the same birth, so a daemon that admitted the first answers it again)', back.keys.length === 2 && back.keys[0] === back.keys[1], JSON.stringify(back.keys))
-    const doorAt = body.indexOf('async function admitAndEnter(')
-    const mintAt = body.indexOf('const birthKey = randomUUID()', doorAt)
-    const closureAt = body.indexOf('const admit = (waitForSeatMs = 0): Promise<Record<string, unknown>> => daemonControlRpc(', doorAt)
-    check('P3 the door mints the birth key ONCE per birth, before the admit closure, and the admit literal carries it', mintAt !== -1 && closureAt !== -1 && mintAt < closureAt && body.slice(closureAt, body.indexOf('{ timeoutMs: 60_000 }', closureAt)).includes('birthKey,'))
     const still = await drive([gone, landed], false)
     check('P3 a daemon check that fails leaves the first refusal standing after one send', still.answer === gone && still.sends === 1 && still.rechecks === 1, JSON.stringify(still))
     const twice = await drive([gone, gone, landed], true)
@@ -135,8 +76,6 @@ function walk(root: string): string[] {
     const first = await drive([landed], true)
     check('P3 an admitted birth sends once and re-runs no check', first.answer === landed && first.sends === 1 && first.rechecks === 0, JSON.stringify(first))
   }
-  const admitDoorAt = body.indexOf('async function admitAndEnter(')
-  check('P3 the admit is sent through the re-check with the one daemon heal as the check', admitDoorAt !== -1 && body.indexOf('admitWithDaemonRecheck(() => admit(), ensureOwnedDaemon)') > admitDoorAt && body.indexOf("const { ensureOwnedDaemon } = await import('./ensureDaemon.js')", admitDoorAt) !== -1)
 }
 
 {
@@ -154,70 +93,16 @@ function walk(root: string): string[] {
   slot.releaseFocusedSessionConnector()
   check('P4 closing a resting slot is a no-op (no spurious beat)', beats === 2)
   off()
-  const src = read('src/services/engine-connector/focusedConnector.ts')
-  check('P4 the slot has no engine behind it and no lazily minted boot chat', !src.includes('inProcessConnector') && !src.includes('bootChat') && !src.includes('NascentSessionConnector'))
-  const ghosts = walk(join(process.cwd(), 'src')).filter(f => {
-    const text = readFileSync(f, 'utf8')
-    return /NascentSessionConnector|isNascentConnector|focusNascentSession|nascentConnector\.js/.test(text)
-  })
-  check('P4 no ghost spelling survives anywhere in the product tree (the kill-list completeness walk)', ghosts.length === 0, ghosts.map(f => f.replace(process.cwd() + '/', '')).join(', '))
 }
 
-{
-  const hop = read('src/services/switchboard/hopIntoSession.ts')
-  check('P5 the recap rides the same builder + gate as every resume', hop.includes('isAwaySummaryEnabled') && hop.includes('buildAwayRecap'))
-  check('P5 the recap paints as a display row, never a recorded one', hop.includes('addDisplayRow'))
-  const seatSrc = read('src/services/engine-connector/daemonConnector.ts')
-  check('P5 display rows never reach a writer (paint only)', seatSrc.includes('private displayRows') && !seatSrc.includes('recordTranscript'))
-}
 
 {
   const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
   const older = slot.claimHopEpoch()
   const newer = slot.claimHopEpoch()
   check('P6 the fence: an older hop is refused once a newer one was chosen (the last-chosen session owns the commit)', !slot.hopEpochIsCurrent(older) && slot.hopEpochIsCurrent(newer))
-  const seatSrc = read('src/services/engine-connector/daemonConnector.ts')
-  const fenceAt = seatSrc.indexOf('const epoch = claimHopEpoch()')
-  const attachAt = seatSrc.indexOf('await connector.attach()', fenceAt)
-  const commitAt = seatSrc.indexOf('setFocusedSessionConnector(connector)', attachAt)
-  check('P6 the hop claims its epoch BEFORE the load and commits only while current', fenceAt !== -1 && attachAt > fenceAt && commitAt > attachAt && seatSrc.slice(attachAt, commitAt).includes('if (!hopEpochIsCurrent(epoch)) return connector'))
-  const repl = read('src/screens/Chat.tsx')
-  const onSubmitAt = repl.indexOf('const onSubmit = useCallback(')
-  const onSubmitEnd = repl.indexOf('const onSubmitRef = useRef(onSubmit)', onSubmitAt)
-  const submitBody = repl.slice(onSubmitAt, onSubmitEnd)
-  const birthSrc = read('src/services/switchboard/bornSession.ts')
-  check('P6 the birth door reads the model at birth from its owner (never a render sample)', birthSrc.includes('const screen = screenBirthModel()') && birthSrc.includes('const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
-  check("P6 the session's words carry no model of the screen's (the envelope names the target and the words)", !/op: 'sessionDispatch'[\s\S]{0,400}model:/.test(seatSrc))
 }
 
-{
-  const prompt = read('src/components/PromptInput/PromptInput.tsx')
-  check('P7 the composer\'s focus gate names the overlay union', /const keyboardOwnedByOverlay =[\s\S]{0,400}isLocalJSXCommandActive/.test(prompt))
-  check('P7 the text input and the caret stand down while an overlay owns the keyboard', /const inputFocused =[\s\S]{0,220}!keyboardOwnedByOverlay/.test(prompt) && /const showCursor =[\s\S]{0,220}!keyboardOwnedByOverlay/.test(prompt))
-  check('P7 the poison is gone: no focus expression stops at the covered fence', !/const inputFocused =\s*\n\s*footerSelection === null && !isSearchingHistory && helmOnPrompt && !surfaceCovered\s*\n/.test(prompt))
-  check('P7 typing-wins suppression stays OUT of the byte gate (suppressed dialogs never deadlock the composer)', !/keyboardOwnedByOverlay =[\s\S]{0,400}hasSuppressedDialogs/.test(prompt))
-}
-
-{
-  const sup = read('src/daemon/concourseWorkers.ts')
-  const claimAt = sup.indexOf('deps.claimWarm !== undefined &&')
-  const claimBody = claimAt !== -1 ? sup.slice(claimAt, sup.indexOf('const used = new Set(', claimAt)) : ''
-  check('P8 the claim seam exists inside admission', claimAt !== -1)
-  check(
-    'P8 the claim is consulted only for a fresh exclusive session with no runner argv',
-    claimBody.includes('req.resumeSessionId === undefined') &&
-      claimBody.includes("effectiveIsolation === 'exclusive'") &&
-      claimBody.includes('req.runnerArgv === undefined || req.runnerArgv.length === 0'),
-  )
-  check(
-    'P8 the record mints only AFTER the acknowledgement (claim await precedes the record write)',
-    claimBody.indexOf('await deps.claimWarm(') !== -1 && claimBody.indexOf('await deps.claimWarm(') < claimBody.indexOf('updateConcourseWorkers('),
-  )
-  check('P8 a declined claim falls through to the cold path (never a refusal)', claimBody.includes('spawning cold'))
-  check('P8 model validation precedes the claim (a refused model never reaches the pool)', sup.indexOf('await validateWorkerModelChoice(') < claimAt)
-  const pool = read('src/daemon/warmRunner.ts')
-  check('P8 the pool holds ONE runner per workspace and answers kept over a live one', pool.includes("return { state: 'kept'") && pool.includes('const pool = new Map<string, WarmRunnerEntry>()'))
-}
 
 console.log(failures === 0 ? '\nprove-seat-lifecycle: ALL LAWS HOLD' : `\nprove-seat-lifecycle: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

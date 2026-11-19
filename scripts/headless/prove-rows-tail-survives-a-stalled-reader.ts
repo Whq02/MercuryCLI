@@ -242,10 +242,6 @@ tally.section('the seam: the exit drain waits while the reader is alive, the gua
   for (const listener of listeners.error ?? []) listener(Object.assign(new Error('write EPIPE'), { code: 'EPIPE' }))
   const erroredResult = await Promise.race([erroredWait, sleep(2_000).then(() => 'stuck' as const)])
   tally.check("the stream's own error (EPIPE) ends the wait at once and the pipe counts as not drained — no clock involved", erroredResult !== 'stuck' && !erroredResult.drained, erroredResult === 'stuck' ? 'the drain never returned after the error' : JSON.stringify(erroredResult))
-  const guard = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'wireStdoutGuard.ts'), 'utf8')
-  tally.check('the guard hands the caller\'s callback to the real write of the last forwarded line', /realWrite\(`\$\{line\}\\n`, [a-zA-Z]+\)/.test(guard) || guard.includes('realWrite(`${line}\\n`, callback'))
-  const shutdownSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'gracefulShutdown.ts'), 'utf8')
-  tally.check('gracefulShutdown disarms its failsafe clock before drainPipedStdoutForExit and promotes an undrained pipe to exit 1', /clearTimeout\(failsafeTimer\)[\s\S]{0,120}const stdoutDrain = await drainPipedStdoutForExit\(\)[\s\S]{0,120}!stdoutDrain\.drained/.test(shutdownSrc))
 }
 
 tally.finish()

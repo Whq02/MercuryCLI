@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -67,17 +67,6 @@ section('arm 2: node (bundle-and-run — the shipped wrap engine)')
   }
 }
 
-section('§5 the structured cut is the one owner')
-{
-  const wrap = readFileSync(join(ROOT, 'src/ink/wrap-text.ts'), 'utf8')
-  check('wrapText’s truncate arm rides truncateParts', wrap.includes('const parts = truncateParts(text, maxWidth, wrapType)'))
-  check('the owner leaves every non-truncate mode untouched (the inert members never cut)', wrap.includes("if (!wrapType.startsWith('truncate')) return null"))
-  const walk = readFileSync(join(ROOT, 'src/ink/compose-walk.ts'), 'utf8')
-  check('the compositor styles truncate output through the cut boundaries', walk.includes('styleTruncatedLines(plainText, segments, buildCharToSegmentMap(segments), maxWidth, textWrap)'))
-  check('and only for the truncate modes', walk.includes("} else if (needsWrapping && textWrap.startsWith('truncate')) {"))
-  check('plain wrap hands the soft-break record to the map (the indent compensation)', walk.includes("textWrap === 'wrap' ? softWrap : undefined,"))
-  check('the wrap modes map over the wrapper\'s own input form (one string on both sides)', walk.includes('? wrapperNormalForm(segments, plainText)'))
-}
 
 console.log(failures === 0 ? '\nprove-style-map-transforms: ALL LAWS HOLD (bun + node)' : `\nprove-style-map-transforms: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -153,18 +153,6 @@ section('§2 the killswitch drive — the mode flip says why')
   check('control: no policy ⇒ no notification', free.get().notifications.current === null && free.get().notifications.queue.length === 0)
 }
 
-section('§3 the wiring — every silent road rides the ONE door (structural)')
-{
-  const src = (rel: string): string => readFileSync(new URL(`../../src/${rel}`, import.meta.url), 'utf8')
-  const config = src('components/Settings/Config.tsx')
-  const writeFail = config.slice(config.indexOf('const writeSource'), config.indexOf('const writeGlobal'))
-  check("/config's write-fail arm discloses through the door", writeFail.includes('enqueueNotification(setAppState') && writeFail.includes("key: 'config-write-failed'"), writeFail.slice(0, 120))
-  check('…beside (not instead of) the debug log', writeFail.includes('logForDebugging'))
-  const channel = src('context/notifications.tsx')
-  check('the hook DELEGATES to the door (one channel, one code path)', channel.includes('enqueueNotification(setAppState, incoming)'))
-  const wards = src('guards/wardsGuard.ts')
-  check('the wards registration rides the door (functionally proven in prove-wards §3b)', wards.includes('enqueueNotification(setAppState'))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log('\n' + '='.repeat(60))

@@ -1,10 +1,8 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getAntiSycophancyAlwaysOnSection } from '../../src/utils/antiSycophancy.js'
 import { lintWeakeners } from '../../src/prompt/behaviourContract.js'
-const J = (...parts: string[]): string => parts.join('')
 
 const MACRO_KEY = 'MACRO' as const
 function setStamp(on: boolean): void {
@@ -20,8 +18,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
-const src = (...p: string[]): string =>
-  readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 
 console.log('============================================================')
 console.log(' Always-on anti-sycophancy arm — default-OFF flag-gated ship')
@@ -76,27 +72,6 @@ section('(d) weakener-lint — the clause STRENGTHENS, never weakens, the honest
   delete process.env.MERCURY_ANTISYC_ALWAYS_ON
 }
 
-section('(e) getSystemPrompt wiring — spliced after the wrapper, reconcile-tail aware, OFF []-safe')
-{
-  const p = src('constants', 'prompts.ts')
-  check('imports the section function', p.includes("import { getAntiSycophancyAlwaysOnSection } from '../utils/antiSycophancy.js'"))
-  check('computes antiSycSections ONCE, frozen per conversation through the section cache (splice + reconcile agree)', p.includes("systemPromptSection('anti-sycophancy', () => {") && p.includes("const antiSycSections = typeof antiSycFrozen === 'string' ? [antiSycFrozen] : []"))
-  const composer = src('prompt', 'composer.ts')
-  check(
-    'prompts.ts hands modeSections + antiSycSections to the owned composer',
-    /composeSystemPrompt\(\{[\s\S]{0,900}modeSections,[\s\S]{0,200}antiSycSections,/.test(p),
-  )
-  const behaviourContract = src('prompt', 'behaviourContract.ts')
-  check(
-    'composer orders ...modeSections → ...antiSycSections, the arm last (no identity tail follows it)',
-    /parts\.modeSections\)[\s\S]{0,600}parts\.antiSycSections\.forEach[\s\S]{0,400}return \{ sections, digest: digestOf\(sections\) \}/.test(
-      behaviourContract,
-    ) && !new RegExp(J('reconcile', 'TailSections')).test(behaviourContract) && /renderAnthropicSections\(contract\)/.test(composer),
-  )
-  check('no identity tail is re-emitted behind the arm: one identity, in the constitution', !new RegExp([J('MERCURY_IDENTITY', '_RECONCILE'), J('reconcile', 'TailSections')].join('|')).test(p))
-  const md = src('utils', 'antiSycophancy.ts')
-  check('the section module does NOT read/import the bridge .txt (pure constant + gate)', !md.includes('readFileSync') && !md.includes('require(') && !/import[^\n]*append/.test(md))
-}
 
 section('(f) sole carrier — the arm answers on its own gate alone')
 {

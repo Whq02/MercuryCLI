@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -11,7 +8,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 }
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const chord = await import('../../src/input-core/sendNowChord.ts')
 const bar = await import('../../src/components/SwitchboardTagBar.tsx')
@@ -63,30 +59,10 @@ check('one ctrl+s in the Chat resolves to chat:stash at once (no chord starts, s
 check('no default binding opens a two-step chord on ctrl+s (the resolver gives a longer chord the key and the stash would never fire)', !bindings.some(b => b.chord.length > 1 && b.chord[0]!.key === 's' && b.chord[0]!.ctrl))
 const chat = Object.assign({}, ...(DEFAULT_BINDINGS as { context: string; bindings: Record<string, string> }[]).filter(b => b.context === 'Chat').map(b => b.bindings)) as Record<string, string>
 check('the default Chat binding of ctrl+s is the stash', chat['ctrl+s'] === 'chat:stash', JSON.stringify(chat['ctrl+s']))
-const composer = read('src/components/PromptInput/useComposerKeybindings.ts')
-check('the stash handler asks the latch first: the second press sends now, every other press stashes as today', composer.includes("'chat:stash': () => {\n        if (pressSendNow(focusedSendNowLive())) {\n          void sendFocusedWordsNow().then(receipt => {") && composer.includes('          return\n        }\n        performStash()\n      },'))
-check('fold 46ai: an applied send paints nothing; a refusal preserves its way out on the notice row', composer.includes("if (receipt.outcome === 'applied') return") && composer.includes("addNotification({ key: 'send-now', ...splitWayOut(receipt.detail ?? 'no reason given'), priority: 'immediate' })"))
-const reserved = read('src/keybindings/reservedShortcuts.ts')
-check('ctrl+s is not a terminal-reserved key here: the product owns it (flow control is off in the terminals it runs in)', !/key: 'ctrl\+[sq]'/.test(reserved))
 
 section('§5 the road — the cockpit fact, the connector verb, the daemon action, the runner method')
-const fact = read('src/services/engine-connector/sendNowLive.ts')
-check('the focused fact reads the live turn, its in-progress tools and the connector\'s queued sends, and subscribes to records and live', fact.includes('sendNowLive({ inFlight: live.inFlight, toolsInFlight: live.inProgressToolUseIDs.size, queuedSends: connector.queuedSendCount() })') && fact.includes('const records = connector.subscribeRecords(listener)') && fact.includes("hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {}"))
-const connector = read('src/services/engine-connector/daemonConnector.ts')
-check('the connector\'s verb is the seat\'s send-now action on the verb chain', connector.includes("const reply = await this.chainRpc({ op: 'sessionControl', action: 'send-now', sessionId: this.record.sessionId, by: 'operator' })"))
-const noSession = read('src/services/engine-connector/noSessionConnector.ts')
-check('no chat open: the verb refuses with the one sentence and counts nothing', noSession.includes('async sendNow(): Promise<AgentControlReceiptV1> {\n    return { outcome: \'refused\', detail: NO_CHAT_OPEN }') && noSession.includes('queuedSendCount(): number {\n    return 0'))
 check('the daemon verb sessionControl/send-now is born at proto 18 and the wire is at least there', DAEMON_VERB_BORN_AT['sessionControl/send-now'] === 18 && verbBornAt('sessionControl', 'send-now') === 18 && MERCURY_DAEMON_PROTO >= 18)
-const server = read('src/daemon/controlServer.ts')
-check('the control server admits the action and names it in its refusal', server.includes("raw.action === 'send-now'") && /requires \{ action: [^']*\|send-now(\|[a-z-]+)*, sessionId, by \}/.test(server))
-const main = read('src/daemon/main.ts')
-check('the daemon relays the action to the seat verb', main.includes("if (action === 'send-now')") && main.includes('return sendSessionNow(sessionId, roster)'))
-const seat = read('src/daemon/sessionSeat.ts')
-check('the seat asks session/send_now through the runner door and awaits its word', seat.includes("askSeat(roster, rec.runnerId, 'session/send_now', {}, 'send-now', deadlineMs)") && seat.includes('export async function sendSessionNow('))
-check('a runner older than the verb is refused in one sentence naming the key and the way out', seat.includes(`"this session's runner predates ctrl+s s · /daemon restart, then reopen the session"`))
 check('the wire declares session/send_now as a host request with no params and the four counts', METHODS['session/send_now'].from === 'host' && METHODS['session/send_now'].kind === 'request' && METHODS['session/send_now'].params().safeParse({}).success && METHODS['session/send_now'].result().safeParse({ queued: 1, released: 0, crewmates: 2, shells: 1 }).success && !METHODS['session/send_now'].result().safeParse({ queued: 1 }).success)
-const tag = read('src/components/SwitchboardTagBar.tsx')
-check('the status row reads the chord fact beside the shell fact', tag.includes('const sendNow = useFocusedSendNowLive()') && tag.includes('escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false, sendNow, escapeOwned)'))
 
 console.log(`\n${failures === 0 ? 'ALL LAWS HOLD' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

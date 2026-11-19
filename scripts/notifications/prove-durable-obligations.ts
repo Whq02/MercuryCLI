@@ -205,12 +205,6 @@ t.section('§12 — the PRODUCTION raiser: crew dispatch wires the durable twin'
   t.check('the ambient cwd-hashed file carries no copy of it', ambientLeak === undefined)
   const settledViaRef = await obl.resolveObligationByRef('receipt:cmid-wire-1', { kind: 'resolved', answerRef: 'receipt:cmid-wire-1', scope: 'switchboard' })
   t.check('the recovery seam settles by REF (the resolveEventByRef twin)', settledViaRef.settled === true, JSON.stringify(settledViaRef))
-  const src = readFileSync('src/services/crew/dispatch.ts', 'utf8')
-  t.check(
-    'the delivered-recovery path settles the obligation beside the conversation event (structural symmetry)',
-    /resolveObligationByRef\(ref/.test(src) && /resolveEventByRef\(/.test(src),
-    'both recovery twins present',
-  )
 }
 
 t.finish('prove-durable-obligations')

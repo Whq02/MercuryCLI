@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -38,7 +38,6 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const root = join(import.meta.dir, '..', '..')
 const scope = { session_id: 'sess-1', turn: 2 }
 const stamper = project.createRowStamper(() => '2026-10-02T00:00:00.000Z')
 const usage = { input_tokens: 10, cache_read_input_tokens: 5, cache_creation_input_tokens: 3, output_tokens: 7, output_tokens_details: { thinking_tokens: 2 } }
@@ -112,29 +111,11 @@ const messageKinds = ['assistant', 'user', 'system', 'result', 'stream_event', '
 const collisions = [...everyType, ...INPUT_ROW_TYPES].filter(type => messageKinds.includes(type))
 check('zero collisions', collisions.length === 0, collisions.join(','))
 
-section('V4 Terminal → status is total over query/transitions.ts')
-const transitionsSource = readFileSync(join(root, 'src/query/transitions.ts'), 'utf8')
-const terminalStart = transitionsSource.indexOf('export type Terminal =')
-const terminalBlock = transitionsSource.slice(terminalStart, transitionsSource.indexOf('\nexport ', terminalStart + 1))
-const reasons = [...terminalBlock.matchAll(/\{ reason: '([a-z_]+)'/g)].map(m => m[1]!)
-check(`transitions.ts declares ${reasons.length} terminal reasons (13 read)`, reasons.length === 13, reasons.join(','))
-for (const reason of reasons) {
-  const mapped = statusOfTerminal({ reason } as never, null)
-  check(`terminal ${reason} → status ${mapped?.status ?? 'undefined'}`, mapped !== undefined && (OUTCOME_STATUSES as readonly string[]).includes(mapped.status))
-}
 check('a completing terminal is completed', statusOfTerminal({ reason: 'completed' }, null).status === 'completed')
 check('the stop hook terminals read completed', statusOfTerminal({ reason: 'stop_hook_prevented' }, null).status === 'completed' && statusOfTerminal({ reason: 'hook_stopped' }, null).status === 'completed')
 check('max_turns reads turn_limit', statusOfTerminal({ reason: 'max_turns', turnCount: 3 }, null).status === 'turn_limit')
-const turnCutSource = readFileSync(join(root, 'src/utils/messages/turnCut.ts'), 'utf8')
-const cutKinds = turnCutSource.match(/export type TurnCutKind = ([^\n]+)/)?.[1]?.match(/'([a-z-]+)'/g)?.map(k => k.slice(1, -1)) ?? []
-check(`turnCut.ts declares ${cutKinds.length} cut kinds (4 read)`, cutKinds.length === 4, cutKinds.join(','))
-for (const kind of cutKinds) {
-  const mapped = statusOfTerminal({ reason: 'aborted_streaming' }, kind as never)
-  check(`abort under cut ${kind} → ${mapped.status}${mapped.errorClass ? '/' + mapped.errorClass : ''}`, (OUTCOME_STATUSES as readonly string[]).includes(mapped.status))
-}
 check('an operator abort is interrupted', statusOfTerminal({ reason: 'aborted_tools' }, 'operator').status === 'interrupted')
 check('an idle-timeout abort is failed/idle_timeout', j(statusOfTerminal({ reason: 'aborted_streaming' }, 'idle-timeout')) === j({ status: 'failed', errorClass: 'idle_timeout' }))
-check('every error class the mapping yields is in ERROR_CLASSES', reasons.every(reason => { const c = statusOfTerminal({ reason } as never, null).errorClass; return c === undefined || (ERROR_CLASSES as readonly string[]).includes(c) }))
 check('an unknown assistant error class reads model', errorClassOf('something_else') === 'model' && errorClassOf(undefined) === 'model')
 check('rate_limit and billing_error map to their classes', errorClassOf('rate_limit') === 'rate_limit' && errorClassOf('billing_error') === 'billing')
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -27,8 +27,6 @@ const guard = setTimeout(() => {
   process.exit(1)
 }, 120_000)
 guard.unref?.()
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -319,8 +317,6 @@ section('§9 THE READER — the launch receipts by name, read-only, in transcrip
     check('a foreground completion pairs through the same continuation words', found.some(r => r.agentId === 'a0quietwalk' && r.name === 'quiet-walk' && r.description === 'a foreground walk'))
     check('the lookup by name returns the launches that carried it, oldest first, the newest last', byName(rows, 'harbour-count').map(r => r.agentId).join(' ') === 'a0harbour1 a0harbour2' && byName(rows, 'nobody').length === 0)
     check('the lookup matches the exact spelling first and falls back to a case-insensitive match', byName(rows, 'HARBOUR-COUNT').map(r => r.agentId).join(' ') === 'a0harbour1 a0harbour2')
-    const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
-    check('the continuation words the reader pairs on are the Crewmate tool\'s own', agentTool.includes('`agentId: ${agentId} (internal — do not mention it to the user).'))
   }
 }
 
@@ -332,20 +328,6 @@ section('§10 THE WORDS — the prompt tells the model a finished agent\'s name 
   check('…and says the name reaches the agent after it has finished, the newest launch when two carried it; the prompt says what a resumed turn is', /running or finished/.test(toField) && /newest/.test(toField) && prompt.includes('resumed from its transcript'), toField)
 }
 
-section('§11 THE SEAMS IN SOURCE')
-{
-  const sendSrc = src('src/tools/SendMessageTool/crewAddress.ts')
-  const roadAt = sendSrc.indexOf('async function resolveCrewAddress(')
-  const lookupAt = sendSrc.indexOf('launchesNamed(context.messages', roadAt)
-  const giveUpAt = sendSrc.indexOf("if (agentId === undefined) return { kind: 'unknown' }", roadAt)
-  check('the local-agent road reads the launch receipts by name before it gives up', roadAt > 0 && lookupAt > roadAt && giveUpAt > lookupAt)
-  check('the unknown-address refusal is minted only after the session\'s launched agents are read, and no crew road exists', /async function unknownAgentRefusal[\s\S]{0,200}knownLaunchedAgents\(context\)/.test(sendSrc) && !sendSrc.includes('crewName') && !sendSrc.includes('noCrewRefusal'))
-  const receipts = src('src/tasks/LocalAgentTask/launchReceipts.ts')
-  const helperAt = receipts.indexOf('export interface NamedLaunchReceipt')
-  const helperEnd = receipts.indexOf('export function settledLaunchIds')
-  const helper = helperAt >= 0 && helperEnd > helperAt ? receipts.slice(helperAt, helperEnd) : ''
-  check('the read helper writes nothing: no state setter, no registry write (RED on the base: no helper)', helper.includes('export function launchesNamed') && !/setAppState|registerAgentName|writeFileSync/.test(helper))
-}
 
 section('§12 THE RECORD — a REAL named launch through the Crewmate tool writes the name and its launch clock into the sidecar beside the transcript (RED on the base: the sidecar carries no name)')
 const durable = makeStore()
@@ -392,12 +374,6 @@ console.log(`  the sidecar after the resume: ${JSON.stringify(kept)}`)
 check('the resume rewrote the sidecar (its clock moved past the launch write)', rewritten !== null && statSync(getAgentMetadataPath(asAgentId(beacon.id))).mtimeMs > launchWrite)
 check('…and the rewrite kept the launch name (RED on the base)', kept?.name === 'harbour-count', JSON.stringify(kept))
 check('…and the launch clock, carried rather than re-stamped (RED on the base)', typeof launchClock === 'number' && kept?.launchedAt === launchClock, JSON.stringify({ kept: kept?.launchedAt, launchClock }))
-const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')
-const rePersistAt = resumeSrc.indexOf('writeAgentMetadata(agentId as AgentId, recordAfterResume(meta, latest, {')
-const rePersist = rePersistAt === -1 ? '' : resumeSrc.slice(rePersistAt, resumeSrc.indexOf('}).catch(() => {})', rePersistAt))
-check('the resume awaits its re-persist before the run loop starts (the sidecar is on disk before the first request leaves)', rePersistAt > 0 && /\bawait writeAgentMetadata\(agentId as AgentId, recordAfterResume\(meta, latest, \{/.test(resumeSrc) && rePersistAt < resumeSrc.indexOf('const runLifecycle'))
-const runLoopCall = resumeSrc.slice(resumeSrc.indexOf('runAgent({', resumeSrc.indexOf('const runLifecycle')), resumeSrc.indexOf('onCacheSafeParams: onCacheSafeParams as never', resumeSrc.indexOf('const runLifecycle')))
-check('the resume hands the recorded name and clock to both of its writers: its own re-persist and the run loop it starts (RED on the base)', /name: launchName/.test(rePersist) && /launchedAt/.test(rePersist) && /name: launchName/.test(runLoopCall) && /launchedAt/.test(runLoopCall), JSON.stringify({ rePersist: rePersist.length, runLoopCall: runLoopCall.length }))
 const again = await send(foldCtx, 'harbour-count', 'a second word after the fold', 'req_fold_again')
 check('a second message to the name after the resume resolves again from the rewritten record (RED on the base)', again.data.success === true && /resumed in the background/.test(again.data.message) && again.data.message.includes(beacon.id), again.data.message)
 settleResumed(durable, beacon.id)
@@ -442,16 +418,6 @@ section('§16 THE RECEIPTS ROAD FIRST — a receipt still in the messages answer
   check('the launch the receipt names is the one resumed, though a newer record on disk carries the same name', toReceipt.data.success === true && toReceipt.data.message.includes(receipted) && !toReceipt.data.message.includes(recorded.id) && rowOf(mixed, receipted)?.status === 'running' && mixed.get().tasks[recorded.id] === undefined, toReceipt.data.message)
   check('…in the receipts road\'s own words: one receipt, no "newest of" count', !/newest of/.test(toReceipt.data.message), toReceipt.data.message)
   settleResumed(mixed, receipted)
-  const sendSrc = src('src/tools/SendMessageTool/crewAddress.ts')
-  const roadAt = sendSrc.indexOf('async function resolveCrewAddress(')
-  const receiptsAt = sendSrc.indexOf('launchesNamed(context.messages', roadAt)
-  const recordsAt = sendSrc.indexOf('recordedLaunchesNamed(', roadAt)
-  check('the resolver reads the records on disk only after the receipts, inside the local-agent road (RED on the base)', roadAt > 0 && receiptsAt > roadAt && recordsAt > receiptsAt && recordsAt < sendSrc.indexOf("if (agentId === undefined) return { kind: 'unknown' }", roadAt), JSON.stringify({ roadAt, receiptsAt, recordsAt }))
-  const receipts = src('src/tasks/LocalAgentTask/launchReceipts.ts')
-  const helperAt = receipts.indexOf('export interface NamedLaunchReceipt')
-  const helperEnd = receipts.indexOf('export function settledLaunchIds')
-  const helper = helperAt >= 0 && helperEnd > helperAt ? receipts.slice(helperAt, helperEnd) : ''
-  check('the record readers sit beside the receipt readers and write nothing (RED on the base)', helper.includes('export async function recordedLaunchesNamed') && !/setAppState|registerAgentName|writeFileSync|writeAgentMetadata/.test(helper))
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)

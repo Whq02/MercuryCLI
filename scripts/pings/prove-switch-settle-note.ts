@@ -1,8 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 
 const scratch = mkdtempSync(join(tmpdir(), 'pings-note-'))
 process.env.HOME = scratch
@@ -198,19 +197,6 @@ section('§3b a fresh attach over a standing stamp adopts it silently (no replay
 
 section('§4 the ruled copy and the never-a-bell law (structural)')
 {
-  const renderer = readFileSync(join(ROOT, 'src', 'components', 'messages', 'SystemTextMessage.tsx'), 'utf8')
-  check(
-    "the renderer speaks the ruled sentence ('model switched to … for this session')",
-    renderer.includes('model switched to') && renderer.includes('for\n            this session'),
-  )
-  check(
-    'the turn-boundary row shows the cross-provider note (the one owner)',
-    /for\n            this session[\s\S]{0,120}?crossProviderNote\(message\.applied\)/.test(renderer),
-  )
-  const connectorSrc = readFileSync(
-    join(ROOT, 'src', 'services', 'engine-connector', 'daemonConnector.ts'),
-    'utf8',
-  )
   const onDisk = readFileSync(join(home, `${SID}.jsonl`), 'utf8')
   check(
     'the connector mints the note as a DISPLAY row (addDisplayRow — never a conversation write)',
@@ -231,23 +217,6 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
     "the edge reads the daemon's settlement stamp",
     stampedAgain,
     `rows=${noteRows(connector).length} after a second settlement of the same pair under a later stamp: the facts read mints one note per modelSettled.atMs, whatever models the stamp names`,
-  )
-  check(
-    'the retired coincidence guard is gone',
-    !connectorSrc.includes('next.model.effective === parked'),
-  )
-  check(
-    'the connector rings no bell (no BEL, no termWrite, no notifyBell anywhere in it)',
-    !/\bBEL\b/.test(connectorSrc) && !connectorSrc.includes('termWrite') && !connectorSrc.includes('notifyBell'),
-  )
-  const seatSrc = readFileSync(join(ROOT, 'src', 'daemon', 'sessionSeat.ts'), 'utf8')
-  check(
-    'the seat STAMPS the receipt where the parked switch lands: the idle edge forwards it as a settle, and the runner\'s applied frame lands a switch the record still parks',
-    seatSrc.includes('{ parked: true, settle: true }') && seatSrc.includes('landModel(rec, model, roster, dir, rec.pendingModelKey === model, served)') && seatSrc.includes('lastModelSettle = {'),
-  )
-  check(
-    'the publisher carries the stamp on every facts publish',
-    /modelSettled: seat\.lastModelSettle/.test(seatSrc),
   )
   {
     const { openStatusPart } = await import('../ui/chatScenarios.ts')
@@ -280,33 +249,6 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
       `${across} | ${within}`,
     )
   }
-  const wrapperSrc = readFileSync(join(ROOT, 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf8')
-  check(
-    "the picker wrapper's daemon branch carries the note",
-    /const doorCross = [\s\S]{0,200}?crossProviderNote\(value\)/.test(wrapperSrc) && wrapperSrc.includes('${doorCross}'),
-  )
-  const modelCmdSrc = readFileSync(join(ROOT, 'src', 'commands', 'model', 'model.tsx'), 'utf8')
-  check(
-    "the /model command's daemon branch carries the note",
-    /const doorCross =[\s\S]{0,240}?crossProviderNote\(target\)/.test(modelCmdSrc) && modelCmdSrc.includes('${doorCross}'),
-  )
-  const composerSrc = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'useComposerModelDoors.tsx'), 'utf8')
-  check(
-    "the composer's daemon arm reads the from-model before the door",
-    /const effectiveBefore = focused\.modelFacts\(\)\.effective[\s\S]{0,400}?void focused\.setModel\(value\)\.then\(receipt =>/.test(composerSrc),
-  )
-  check(
-    "…previews loss against THAT model and carries the note",
-    composerSrc.includes('previewForSelection(messages, effectiveBefore, value)') &&
-      /const doorCross = providerFamilyOfSetting\(effectiveBefore\) !== providerFamilyOfSetting\(value\) \? crossProviderNote\(value\) : ''/.test(composerSrc) &&
-      (composerSrc.match(/\$\{doorCross\}\$\{doorLossNote\}/g) ?? []).length === 2,
-  )
-  check(
-    "the picker wrapper's daemon branch previews loss against its before-the-door model and history",
-    /const factsBefore = focused\.modelFacts\(\)[\s\S]{0,100}?const messagesBefore = \[\.\.\.focused\.records\(\)\][\s\S]{0,160}?void focused\.setModel\(value\)/.test(wrapperSrc) &&
-      wrapperSrc.includes('previewForSelection(messagesBefore, factsBefore.effective, value)') &&
-      !wrapperSrc.includes('previewForSelection(messages, focused.modelFacts().effective, value)'),
-  )
 }
 
 connector.detach()

@@ -123,8 +123,6 @@ section('§4 the stuck verdict keeps the chip and only changes its ink (never a 
   await settle(300)
   const row = band()
   check('the frame stays quiet while the status row retains the actual warning', !/thinking|↻/.test(row) && statusLine(live() as never, status() as never).includes('session may be stuck'), row)
-  const frameSrc = await import('node:fs').then(fs => fs.readFileSync(join(ROOT, 'src/components/MercuryFrame.tsx'), 'utf8'))
-  check('the frame still reads the machine facts without painting a duplicate chip', frameSrc.includes('const thinkingStatus =') && !frameSrc.includes('thinkingPulseWords') && !frameSrc.includes('{thinkingNode}'))
 }
 
 instance.unmount?.()

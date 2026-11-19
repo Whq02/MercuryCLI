@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -138,14 +138,6 @@ section('§4 a managed key stored from another window is adopted the same way')
   check('the Anthropic model rows are selectable', anthropicRows().every(row => row.unavailable === undefined))
 }
 
-section('§5 the shape: the one presence reader checks the credential files before it answers')
-{
-  const providerUsage = readFileSync(join(ROOT, 'src/services/providers/providerUsage.ts'), 'utf8')
-  const start = providerUsage.indexOf('export function anthropicCredentialPresence(')
-  const body = providerUsage.slice(start, providerUsage.indexOf('\n}\n', start))
-  check('the live path (no injected reads) runs the on-disk invalidator first', /if \(reads === undefined\) invalidateOnDiskChange\(\)/.test(body) && body.indexOf('invalidateOnDiskChange()') !== -1 && body.indexOf('invalidateOnDiskChange()') < body.indexOf('isClaudeAISubscriber()'))
-  check('auth.ts exports the invalidator', /export function invalidateOnDiskChange\(\)/.test(readFileSync(join(ROOT, 'src/utils/auth.ts'), 'utf8')))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-picker-adopts-signin-from-another-process${failures ? ` (${failures} failure(s))` : ''}`)

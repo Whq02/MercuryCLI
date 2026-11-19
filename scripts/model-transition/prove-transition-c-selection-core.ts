@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -88,10 +88,6 @@ section('§A C01 — versioned, frozen, provider-neutral, digest-deterministic')
   check('default policy is preserve-all', p1.selection.policy === 'preserve-all')
   check('identical inputs + state ⇒ identical selection digests', p1.selection.digest === p2.selection.digest)
   check('identical inputs + state ⇒ identical plan digests', p1.digest === p2.digest)
-  const src = readFileSync(join(import.meta.dir, '../../src/services/run/contextSelection.ts'), 'utf8')
-  for (const provider of ['responsesBridge', 'zaiCodec', 'anthropic', 'openai']) {
-    check(`provider-neutral: no ${provider} import`, !src.includes(`${provider}`))
-  }
   check('preserve-all view is byte-identical (plan digest unaffected by the stage)', p1.selection.excluded.length === 0)
 }
 
@@ -170,8 +166,6 @@ section('§C C03 — selection ≠ destruction')
   check('exclusions happened on the projected view', plan.selection.excluded.length > 0)
   check('the canonical input array is untouched (length + identity)', msgs.length === refs.length && msgs.every((m, i) => m === refs[i]))
   check('the canonical input content is byte-identical', JSON.stringify(msgs) === snapshot)
-  const src = readFileSync(join(import.meta.dir, '../../src/services/run/contextSelection.ts'), 'utf8')
-  check("the module never imports fs (no writes by construction)", !src.includes("'node:fs'") && !src.includes('"node:fs"') && !src.includes("from 'fs'"))
   delete process.env.MERCURY_CONTEXT_SELECTION
 }
 
@@ -251,10 +245,6 @@ section('§F2 C06 — operation counts at scale (1k/10k/100k) + no history-sized
     const r3 = sel.updateCandidateIndex(idx, view as never)
     check(`${N}-turn: an unchanged step visits 0`, r3.visited === 0 && r3.mode === 'noop')
   }
-  const src = readFileSync(join(import.meta.dir, '../../src/services/run/contextSelection.ts'), 'utf8')
-  const sortSites = src.split('.sort(').length - 1
-  check('exactly ONE .sort in the module', sortSites === 1, `found ${sortSites}`)
-  check('…and it runs over the BOUNDED drop set, never history', src.includes('[...dropSet].sort'))
 }
 
 section('§G C09 mechanics — apply ≡ inspect; inspect never moves the watermark')

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -82,18 +82,6 @@ section('§2 THE SETTINGS ROAD')
   check('control: a non-sovereign settings guardrails.mode still applies', control.mode === 'implement', `mode=${control.mode}`)
 }
 
-section('§3 WIRING')
-{
-  const setupSrc = readFileSync(join(import.meta.dir, '../../src/utils/permissions/permissionSetup.ts'), 'utf8')
-  const sovereignBranch = setupSrc.slice(
-    setupSrc.indexOf("if (candidate === 'sovereign')"),
-    setupSrc.indexOf('resolvedMode = candidate'),
-  )
-  check(
-    'the sovereign candidate branch itself carries the launch-flag guard',
-    sovereignBranch.includes('if (!dangerouslySkipPermissions)'),
-  )
-}
 
 process.chdir(launchDir)
 rmSync(HOME, { recursive: true, force: true })

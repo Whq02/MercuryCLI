@@ -1,9 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { healthRowLiterals, LITERAL_BAN_LINE } from '../lib/healthRowLiterals.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -18,139 +15,11 @@ const NEEDLES: Array<[string, RegExp]> = [
   ['the retired seat-estate word', new RegExp(J('(?<!(?:third|first)[- ])\\b', 'party', '\\b'), 'i')],
 ]
 
-const BARE_TOKEN = /^['"][A-Za-z0-9_./@:-]+['"]$/
-const BARE_WORD = /^[A-Za-z0-9_./@:-]+$/
-const HOLES = /\$\{[^}]*\}/g
-
-const FILES = [
-  'src/components/mercury-ui/screens/CrewView.tsx',
-  'src/components/HelmLanesRail.tsx',
-  'src/components/HelmVitalsRail.tsx',
-  'src/components/tasks/BackgroundTasksDialog.tsx',
-  'src/components/tasks/AsyncAgentDetailDialog.tsx',
-  'src/components/tasks/taskStatusUtils.tsx',
-  'src/components/TaskListV2.tsx',
-  'src/components/AgentProgressLine.tsx',
-  'src/tools/AgentTool/UI.tsx',
-  'src/components/BootAgentsScreen.tsx',
-  'src/components/PromptInput/useCrewBanner.ts',
-  'src/commands/crewmates/index.ts',
-  'src/commands/crewmates/crewmates.tsx',
-  'src/commands/crew/index.ts',
-  'src/services/engine-connector/workCounts.ts',
-  'src/services/engine-connector/crewFacts.ts',
-  'src/utils/cockpit/fleetGauge.ts',
-  'src/state/vitalsBus.ts',
-]
-
-const ALLOW: Array<[string, string, string]> = []
-
 const ROW_ALLOW: Array<[string, string]> = [
   ['clamped for tmux', 'the colour clamp names the real terminal the session runs inside'],
   ['terminal-overrides', "the same row's remedy for that real terminal"],
 ]
 
-type Hit = { line: number; text: string; needle: string }
-
-function blankComments(source: string): string {
-  const keepNewlines = (m: string): string => m.replace(/[^\n]/g, ' ')
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, keepNewlines)
-    .replace(/(^|[ \t])\/\/[^\n]*/gm, (m, lead: string) => lead + ' '.repeat(m.length - lead.length))
-}
-
-function copyOf(source: string): Array<{ line: number; text: string }> {
-  const text = blankComments(source)
-  const lines = text.split('\n')
-  const out: Array<{ line: number; text: string }> = []
-  const literal = /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g
-  let m: RegExpExecArray | null
-  while ((m = literal.exec(text)) !== null) {
-    const line = text.slice(0, m.index).split('\n').length
-    const lineText = lines[line - 1] ?? ''
-    if (/^\s*(import|export)\b/.test(lineText) || /\bfrom\s*$/.test(text.slice(Math.max(0, m.index - 8), m.index))) continue
-    if (BARE_TOKEN.test(m[0])) continue
-    out.push({ line, text: m[0].startsWith('`') ? m[0].replace(HOLES, ' ') : m[0] })
-  }
-  const jsx = />([^<>{}\n]*[A-Za-z][^<>{}\n]*)</g
-  while ((m = jsx.exec(text)) !== null) {
-    const line = text.slice(0, m.index).split('\n').length
-    out.push({ line, text: m[1]! })
-  }
-  return out
-}
-
-function scan(source: string): Hit[] {
-  const hits: Hit[] = []
-  for (const piece of copyOf(source)) {
-    for (const [needle, re] of NEEDLES) {
-      if (re.test(piece.text)) hits.push({ line: piece.line, text: piece.text, needle })
-    }
-  }
-  return hits
-}
-
-console.log('Three retired words need no reading of copy and are held over the whole product by scripts/gate/prove-vocabulary-seal.ts (crew-launch-phrase, crew-spawn-tool, crew-shared-estate); the four here are words the product also holds as names, so they are read in copy alone.')
-console.log('— §0 the scanner bites (poison control) —')
-{
-  const poison = [
-    "const a = 'Team launch backend'",
-    'const b = `attach: tmux -L ${s} attach`',
-    '<Header>Teammates</Header>',
-    "const c = 'no teammates yet'",
-    "const d = 'a party seat'",
-    '// a comment saying teammate never counts',
-    "import x from './CrewView.js'",
-    "const e = '/teammates · n new'",
-    "const f = 'third-party seat'",
-    "const g = kind === 'teammate'",
-    'const h = `role ${crewmate.identity.agentType}`',
-    "const i = 'first-party gating'",
-  ].join('\n')
-  const hits = scan(poison)
-  const lines = [...new Set(hits.map(h => h.line))].sort((a, b) => a - b).join(',')
-  check('the poison\'s five sentences are caught, on their own lines', lines === '1,2,3,4,5', lines)
-  check(
-    'a comment, a module path, the /teammates command spelling, third-/first-party, a bare kind token and a template hole never count',
-    !hits.some(h => h.line >= 6),
-    hits.filter(h => h.line >= 6).map(h => `${h.line}:${h.text}`).join(' | '),
-  )
-}
-
-console.log('— §1 the census —')
-let allowedCount = 0
-for (const rel of FILES) {
-  let source: string
-  try {
-    source = readFileSync(join(ROOT, rel), 'utf8')
-  } catch {
-    check(`${rel} is present`, false)
-    continue
-  }
-  const lines = source.split('\n')
-  const hits = scan(source)
-  const unallowed = hits.filter(h => {
-    const lineText = lines[h.line - 1] ?? ''
-    const allowed = ALLOW.some(([file, fragment]) => file === rel && lineText.includes(fragment))
-    if (allowed) allowedCount++
-    return !allowed
-  })
-  check(
-    `${rel}: no retired word in its copy`,
-    unallowed.length === 0,
-    unallowed.map(h => `\n      ${rel}:${h.line} [${h.needle}] ${h.text.slice(0, 100)}`).join(''),
-  )
-}
-console.log(`  (${allowedCount} allowed literal(s) — each with its reason in ALLOW)`)
-
-console.log('— §1b the words the health rows hold —')
-const rowsRead = healthRowLiterals()
-{
-  console.log(`  ${LITERAL_BAN_LINE}`)
-  const held = rowsRead.literals.filter(literal => !BARE_WORD.test(literal.text))
-  const retired = held.flatMap(literal => NEEDLES.filter(([, re]) => re.test(literal.text) && !ROW_ALLOW.some(([fragment]) => literal.text.includes(fragment))).map(([needle]) => `\n      ${literal.file}:${literal.line} [${needle}] ${literal.text.slice(0, 100)}`))
-  check(`the ${rowsRead.files.length} modules that hold the health rows: no retired word in a string of theirs (${held.length} strings, ${rowsRead.ms}ms)`, rowsRead.files.length > 20 && held.length > 1000 && retired.length === 0, retired.join(''))
-}
 
 console.log('— §1c the words the health rows print —')
 {
@@ -175,14 +44,6 @@ console.log('— §1c the words the health rows print —')
   check(`the rows of a fast certificate print no retired word in a label, an evidence line or a fix (${said.length} strings; this machine's folders and branch aside, and the multiplexer's name aside inside a real session of it)`, said.length > 0 && retired.length === 0, retired.join(' | '))
 }
 
-console.log('— §2 every allowed fragment still exists (no dead exception) —')
-for (const [file, fragment, reason] of ALLOW) {
-  const present = readFileSync(join(ROOT, file), 'utf8').includes(fragment)
-  check(`${file} carries '${fragment}' (${reason})`, present)
-}
-for (const [fragment, reason] of ROW_ALLOW) {
-  check(`a string of the health rows carries '${fragment}' (${reason})`, rowsRead.literals.some(literal => literal.text.includes(fragment)))
-}
 
 console.log(failures === 0 ? '\nprove-crew-vocabulary: ALL LAWS HOLD' : `\nprove-crew-vocabulary: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

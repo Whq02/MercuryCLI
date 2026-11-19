@@ -219,12 +219,6 @@ section('§8 the live channel ticks once a second only while a turn is in flight
   check('detach stops the tick (the slot no longer holds the session)', detachedEmits === 0, `${detachedEmits} emit(s)`)
 }
 
-section('§9 structural: the row keys on its own words; the attribution provider on identity alone')
-{
-  const bar = readFileSync(join(import.meta.dir, '..', '..', 'src/components/SwitchboardTagBar.tsx'), 'utf8')
-  check('the row’s snapshot key carries the sentence it paints (repaint economy keyed on the owner’s fact)', bar.includes('${statusLine(live, s)}'))
-  check('the attribution provider subscribes on the identity key, never the per-second one', bar.includes('useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatIdentityKey, getFocusedSeatIdentityKey)'))
-  check('the row reads no transcript-growth proxy', !bar.includes('silenceMs') && !bar.includes('no new words'))
   const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
   const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
   const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)

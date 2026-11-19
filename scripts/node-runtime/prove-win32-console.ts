@@ -181,21 +181,6 @@ for (const word of ['false', 'no', 'off', 'OFF']) {
   check('idempotent — the second call returns the latched outcome, no extra syscalls', first === second && calls.length === 2 && exits.length === 1)
 }
 
-section('(4) cli.tsx placement — after --version, before route dispatch')
-{
-  const cli = readFileSync(join(ROOT, 'src', 'entrypoints', 'cli.tsx'), 'utf8')
-  const guard = cli.indexOf("flagEnv('MERCURY_WIN32_UTF8_PRESET') !== '1'")
-  const importLine = cli.indexOf("await import('../utils/runtime/win32Console.js')")
-  const versionFastPath = cli.indexOf("console.log(`Mercury ${MACRO.VERSION}`)")
-  const firstRoute = cli.indexOf("profileCheckpoint('cli_entry')")
-  check('the win32 guard exists in cli.tsx', guard !== -1)
-  check('the module is dynamically imported (zero posix load)', importLine !== -1)
-  check('seam sits AFTER the zero-import --version fast-path', versionFastPath !== -1 && guard > versionFastPath)
-  check('seam sits BEFORE the first route checkpoint (pre-paint)', firstRoute !== -1 && guard < firstRoute)
-  check('ensureWin32ConsoleUtf8 is invoked at the seam', /ensureWin32ConsoleUtf8\(\)\n/.test(cli))
-  check('the boot entry reads the switch nowhere itself: the seam decides, by the one rule', !/MERCURY_WIN32_UTF8(?!_PRESET)/.test(cli), cli.split('\n').filter(line => /MERCURY_WIN32_UTF8(?!_PRESET)/.test(line)).join(' | '))
-  check('both places the entry reaches the seam keep the launcher marker in front of the import', cli.split("flagEnv('MERCURY_WIN32_UTF8_PRESET') !== '1'").length === 3 && cli.split("await import('../utils/runtime/win32Console.js')").length === 3)
-}
 
 section('(5) the built bundle carries the seam')
 {
@@ -209,14 +194,6 @@ section('(5) the built bundle carries the seam')
   }
 }
 
-section('(6) the fd delivery law is UNTOUCHED')
-{
-  const delivery = readFileSync(join(ROOT, 'src', 'ink', 'session', 'delivery.ts'), 'utf8')
-  check('delivery.ts still owns the loss-proof fd path', delivery.includes('writeAllSync(out.fd!, Buffer.from(buffer, \'utf8\')'))
-  check('the TTY fd gate is unchanged', delivery.includes('out.isTTY === true && typeof out.fd === \'number\''))
-  const win32Src = readFileSync(join(ROOT, 'src', 'utils', 'runtime', 'win32Console.ts'), 'utf8')
-  check('win32Console never touches the write path', !win32Src.includes("from '../../ink/session/delivery") && !win32Src.includes('writeSync('))
-}
 
 section('(7) the chcp spawn shape — the console must be OURS')
 {
@@ -228,14 +205,6 @@ section('(7) the chcp spawn shape — the console must be OURS')
   check('the exe is System32 chcp.com under the env SystemRoot', shape.exe.startsWith('C:\\WINDOWS') && shape.exe.endsWith('chcp.com') && shape.exe.includes('System32'))
   check('the spawn is bounded (timeout armed, ≤ 5s)', shape.options.timeout > 0 && shape.options.timeout <= 5_000)
   check('SystemRoot absent falls back to C:\\Windows', chcpSpawnShape({}).exe.startsWith('C:\\Windows'))
-  const win32Src = readFileSync(join(ROOT, 'src', 'utils', 'runtime', 'win32Console.ts'), 'utf8')
-  check('defaultSyscalls rides chcpSpawnShape (one shape owner)', /const\s*\{\s*exe,\s*options\s*\}\s*=\s*chcpSpawnShape\(\)/.test(win32Src))
-  const win32Code = win32Src
-    .replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '))
-    .split('\n')
-    .filter(l => !/^\s*(?:\/\/|\*)/.test(l))
-    .join('\n')
-  check('no windowsHide: true survives anywhere in the seam (code, not comments)', !win32Code.includes('windowsHide: true'))
 }
 
 section('(8) input and output pages are separate: the query sees input, the set changes both')

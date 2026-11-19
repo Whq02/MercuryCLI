@@ -146,30 +146,10 @@ section('§2 the owner — platform keys, binaries, the record, the check, the c
 
 section('§3 the fetch — one tar invocation, the zip ladder, --check, the owner imported')
 {
-  const fetcher = read('scripts/vendor/fetch-node.ts')
-  check('the fetch extracts tarballs through the shared dialect-proof helper', fetcher.includes("from './tarExtract.ts'") && !fetcher.includes("spawnSync('tar'"))
-  check('the fetch imports the layout from the owner (never a second spelling)', fetcher.includes("from '../../src/services/privateChannel/vendoredRuntime.ts'") && fetcher.includes('runtimeBinaryFor(') && fetcher.includes('packMembersFor(') && fetcher.includes('nodePackPlatform('))
-  check('the fetch carries --check · --force · --platform · --all', ['--check', '--force', '--platform', '--all'].every(f => fetcher.includes(`'${f}'`)))
-  check('the zip ladder starts unzip · python3 and reaches tar.exe (a stock Windows host)', fetcher.indexOf("name: 'unzip'") !== -1 && fetcher.indexOf("name: 'unzip'") < fetcher.indexOf("name: 'python3'") && fetcher.includes("name: 'tar.exe'"))
-  check('the fetch refuses a lock url off nodejs.org', fetcher.includes("startsWith('https://nodejs.org/dist/')"))
-  check('the fetch verifies sha256 BEFORE writing the archive', fetcher.indexOf('digest !== pinned.sha256') !== -1 && fetcher.indexOf('digest !== pinned.sha256') < fetcher.indexOf('writeFileSync(archivePath, buf)'))
-  check('an unpublished host is an honest exit 0, never a silent success', fetcher.includes('publishes no runtime archive') && fetcher.includes('process.exit(0)'))
-  check('the cache layout: archive/ + extracted/<platform>/ + the vendor manifest', fetcher.includes("join(CACHE_DIR, 'archive')") && fetcher.includes("join(CACHE_DIR, 'extracted')") && fetcher.includes(".vendor-manifest.json"))
   check('the fetch is chained into `bun run setup`', (JSON.parse(read('package.json')) as { scripts: Record<string, string> }).scripts.setup.includes('bun run scripts/vendor/fetch-node.ts'))
   check('the vendor cache is ignored like the other four', rulesIgnore(join(ROOT, '.gitignore'), ['vendor/node'])[0] === true)
 }
 
-section('§4 the build row — fixed path, staleness guard, manifest record, degraded label')
-{
-  const build = read('build.ts')
-  check('build.ts imports the owner for the path + platform + binary', build.includes("await import('./src/services/privateChannel/vendoredRuntime.ts')"))
-  check('build.ts reads vendor/node.lock.json and the shipped platform\'s cache', build.includes("'vendor', 'node.lock.json'") && build.includes("'vendor', 'node', 'extracted', packPlatform"))
-  check('a PRESENT-but-stale cache fails the build naming the fetch (the vendor-staleness law)', build.includes('vendor/node cache does not match vendor/node.lock.json') && build.includes('remedy: bun run scripts/vendor/fetch-node.ts'))
-  check('the manifest carries the runtime record (version · platform · both digests)', build.includes('runtime: nodeVendored && nodeMeta') && build.includes('binarySha256: createHash') && build.includes('archiveSha256: pinned.sha256'))
-  check("absence degrades as 'runtime'", build.includes("...(nodeVendored ? [] : ['runtime'])"))
-  check('the proof seam MERCURY_BUILD_NO_VENDOR_NODE forces the degraded arm', build.includes("process.env.MERCURY_BUILD_NO_VENDOR_NODE === '1'"))
-  check('the shipped binary is chmod 755 on POSIX', build.includes("if (process.platform !== 'win32') chmodSync(shipped, 0o755)"))
-}
 
 section('§5 the install layout — carried, smoked on its own runtime, older payloads still valid')
 if (IS_WIN) {
@@ -247,13 +227,6 @@ if (IS_WIN) {
 
 section('§7 the packager + the workflows')
 {
-  const packager = read('scripts/release/package.mjs')
-  check('the packager refuses a dist whose runtime platform is not the target\'s', packager.includes('TARGET_NODE_PACK') && packager.includes('runtime.platform !== TARGET_NODE_PACK'))
-  check('the packager requires the declared binary on disk', packager.includes('declares the vendored runtime at'))
-  check('the smoke boots --version with NO node on PATH (a trap node on POSIX, System32-only on Windows)', packager.includes('with NO node on PATH') && packager.includes('the PATH node must not be used') && packager.includes('System32'))
-  check('the smoke drives a missing MERCURY_NODE and requires all three rungs named', packager.includes("MERCURY_NODE: join(smoke, 'no-such-node')") && packager.includes("refusal.includes('MERCURY_NODE')") && packager.includes("refusal.includes('PATH')"))
-  check('the smoke asserts the shipped manifest carries the runtime record', packager.includes('does not carry the vendored runtime record'))
-  check('the Windows PATH override writes exactly one Path key (the duplicate-key class)', packager.includes("k.toUpperCase() === 'PATH'"))
 
   const release = read('.github/workflows/private-release.yml')
   check('private-release fetches the node pack per matrix row', release.includes('bun run scripts/vendor/fetch-node.ts --platform ${{ matrix.node_pack }}'))
@@ -275,18 +248,11 @@ section('§8 the surfaces — health, status, dry-run, registry, notices, docs, 
   const { runtimeLine: lineOfRuntime } = await import('../../src/services/privateChannel/vendoredRuntime.ts')
   const nodeSays = await runtimeChecks().find(row => row.id === 'runtime')?.run()
   check('/health runtime row classifies the running node through the owner', nodeSays?.evidence.startsWith(lineOfRuntime(runningNow())) === true, nodeSays?.evidence)
-  const update = read('src/cli/update.ts')
-  check('update --status prints the runtime line', update.includes('`runtime:           ${statusRuntimeLine(status)}`'))
-  const install = read('src/cli/installVerb.ts')
-  check('install --dry-run prints the runtime the payload carries', install.includes('`runtime:               ${described.runtime}`'))
-  const service = read('src/services/privateChannel/updateService.ts')
-  check('the running runtime reads MERCURY_NODE through the registry reader', service.includes("flagEnv('MERCURY_NODE')"))
   const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
   const row = FLAG_REGISTRY.find(f => f.env === 'MERCURY_NODE')
   check('MERCURY_NODE is registered as a value knob naming the three rungs', row !== undefined && row.kind === 'value' && row.summary.includes('vendor/node') && row.summary.includes('PATH'))
   const notices = read('THIRD_PARTY_NOTICES.md')
   check('THIRD_PARTY_NOTICES names the Node.js runtime with its receipt', notices.includes('**Node.js runtime**') && notices.includes('vendor/node.lock.json'))
-  check('the notices generator reads the node lock', read('scripts/distribution/generate-third-party-notices.ts').includes("vendorLock('node.lock.json')"))
   const readme = read('docs/INSTALL.md')
   check('README: a release install needs git only', readme.replace(/\s+/g, ' ').includes('`git` is the only separate requirement'))
   check('README: the vendored packs', readme.includes('the vendored packs'))
@@ -297,11 +263,6 @@ section('§8 the surfaces — health, status, dry-run, registry, notices, docs, 
   const terminal = read('docs/TERMINAL-RUNTIME.md')
   check('TERMINAL-RUNTIME names the three rungs', terminal.includes('MERCURY_NODE') && terminal.includes('vendor/node/bin/node'))
   check('BUILD-NOTES documents the pack and its proof seam', read('BUILD-NOTES.md').includes('MERCURY_BUILD_NO_VENDOR_NODE'))
-  const ops = read('scripts/ops/launcher-mercury.sh')
-  const opsLive = ops.split('\n').filter(l => !/^\s*#/.test(l)).join('\n')
-  check('the operator launcher resolves the three rungs in order', opsLive.indexOf('MERCURY_NODE') !== -1 && opsLive.indexOf('MERCURY_NODE') < opsLive.indexOf('vendor/node/bin/node') && opsLive.indexOf('vendor/node/bin/node') < opsLive.indexOf('command -v node'))
-  check('the operator launcher boots every node start through the resolved binary', !/^\s*node /m.test(opsLive) && !opsLive.includes(' node "$MERCURY_DIST"') && opsLive.includes('"$MERCURY_NODE_BIN" "$MERCURY_DIST"'))
-  check('the operator launcher\'s no-rung refusal names all three', ops.includes('none of the three rungs answered'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

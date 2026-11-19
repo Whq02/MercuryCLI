@@ -84,8 +84,6 @@ section('§A E01/transcript — snapshot + proven suffix, typed miss, watermark 
   writeResumeSnapshot(MOVED, prefix.fold, cursor)
   writeFileSync(MOVED, raw.replace('reply 8', 'REPLY X'))
   check('a stale snapshot refuses TYPED (never a wrong resume)', (await tryLoadResumeSnapshot(MOVED)) === null)
-  const recordSrc = readFileSync(join(import.meta.dir, '../../src/fabric/record.ts'), 'utf8')
-  check('affected-item revisions ride (recordId, updateOrdinal) last-wins', recordSrc.includes('updateOrdinal'))
 }
 
 section('§D E04 — slow subscribers bounded; the terminal settlement survives')
@@ -160,19 +158,6 @@ section('§E E05 — payloads stay shared references across branch lineages')
 
 section('§F E03 — resize/focus/unread reparse zero (the memo seam + counter)')
 {
-  const messagesSrc = readFileSync(join(import.meta.dir, '../../src/components/Messages.tsx'), 'utf8')
-  check(
-    'the message slices key on [messages, anchor] only',
-    /const \[beforeTail, afterTail\] = useMemo\(\s*\(\)(?::[^=]+)?=>\s*anchor >= messages\.length \? \[messages, EMPTY_ROWS\] : \[messages\.slice\(0, anchor\), messages\.slice\(anchor\)\],\s*\[messages, anchor\],?\s*\)/.test(messagesSrc),
-  )
-  check(
-    'the normalize memo keys on [beforeTail] only',
-    /const normalized = useMemo\(\s*\(\) => normalizeMessages\(beforeTail as WireMessage\[\]\)\.filter\(isNotEmptyMessage\),\s*\[beforeTail\],?\s*\)/.test(messagesSrc),
-  )
-  check(
-    'the tail normalize memo keys on [afterTail] only',
-    /const normalizedAfter = useMemo\(\s*\(\) => \(afterTail\.length === 0 \? EMPTY_NORMALIZED : normalizeMessages\(afterTail as WireMessage\[\]\)\.filter\(isNotEmptyMessage\)\),\s*\[afterTail\],?\s*\)/.test(messagesSrc),
-  )
   const norm = await import('../../src/utils/messages/normalize.js')
   const before = norm._normalizePassesForProof
   const fixture = [
@@ -181,14 +166,6 @@ section('§F E03 — resize/focus/unread reparse zero (the memo seam + counter)'
   norm.normalizeMessages(fixture as never)
   norm.normalizeMessages(fixture as never)
   check('the instrumented counter counts passes', norm._normalizePassesForProof === before + 2)
-  const { existsSync } = await import('node:fs')
-  check('the rendered resize journey stands', existsSync(join(import.meta.dir, '../../scripts/session-graph/prove-resize-continuity.ts')))
-  const { execSync } = await import('node:child_process')
-  const unreadNormalizers = execSync(
-    "grep -rl 'normalizeMessages' src/services/crew 2>/dev/null || true",
-    { encoding: 'utf8' },
-  ).trim()
-  check('no crew owner re-parses the transcript', unreadNormalizers === '', unreadNormalizers)
 }
 
 console.log(

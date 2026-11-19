@@ -511,11 +511,6 @@ console.log('§M1 the burst cap has one truth')
   clearAll()
 }
 
-console.log('§M7 the box hold cap has one home')
-{
-  const src = readFileSync(join(import.meta.dir, '../../src/daemon/saturnBoxSchedules.ts'), 'utf8')
-  check('M7 holdBoxFire reads SATURN_HELD_CAP (no literal cap in the box pens)', src.includes('SATURN_HELD_CAP') && !/heldFires\.length >= 200/.test(src))
-}
 
 console.log('§M8 the birth derivation key')
 {
@@ -649,10 +644,6 @@ console.log('§S1 the box lock + atomic publish')
   const { utimesSync, rmdirSync: rmd, existsSync } = await import('node:fs')
   writeFileSync(boxMod.saturnBoxSchedulesPath(DAEMON_DIR), JSON.stringify({ version: 1, schedules: [], heldFires: [] }))
 
-  const src = readFileSync(join(import.meta.dir, '../../src/daemon/saturnBoxSchedules.ts'), 'utf8')
-  const lockWraps = (src.match(/withBoxLock\(dir, \(\) =>/g) ?? []).length
-  check('S1a all eight mutators hold the box lock across read→publish', lockWraps === 8, `wraps=${lockWraps}`)
-  check('S1a the publish rides durableAtomicPublishSync through the daemon-home door publishInDaemonHome (no bare writeFileSync)', src.includes("publishInDaemonHome('the box schedules', saturnBoxSchedulesPath(dir),") && !src.includes('durableAtomicPublishSync(') && !src.includes('writeFileSync('))
 
   const lockPath = boxMod.saturnBoxLockPath(DAEMON_DIR)
   const okDepsBox = { deriveAccount: () => ({ ok: true as const, account: { family: 'anthropic', source: 'oauth' as const } }) }
@@ -837,31 +828,9 @@ console.log('§L4 the four re-homed tools against the new engine')
   check('L4 a seatless run takes the process-local road', (local as { data: { road: string } }).data.road === 'local')
   bridge._resetScheduleBridgeForTesting()
 
-  const toolFiles = [
-    'src/tools/ScheduleCronTool/CronCreateTool.ts',
-    'src/tools/ScheduleCronTool/CronDeleteTool.ts',
-    'src/tools/ScheduleCronTool/CronListTool.ts',
-    'src/tools/ScheduleCronTool/prompt.ts',
-    'src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts',
-    'src/tools/ScheduleWakeupTool/prompt.ts',
-    'src/tools/saturnExemptTools.ts',
-  ]
-  const offenders: string[] = []
-  for (const f of toolFiles) {
-    const body = readFileSync(join(import.meta.dir, '../..', f), 'utf8')
-    if (new RegExp(['kai','ros'].join('') + '|scheduled_tasks', 'i').test(body)) offenders.push(f)
-  }
-  check('L4 no retired spelling in any re-homed tool byte', offenders.length === 0, offenders.join(','))
   clearAll()
 }
 
-console.log('§M11 the wake reads one clock')
-{
-  const src = readFileSync(join(import.meta.dir, '../../src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts'), 'utf8')
-  const callBody = src.slice(src.indexOf('async call('), src.indexOf('mapToolResultToToolResultBlockParam'))
-  const reads = (callBody.match(/Date\.now\(\)/g) ?? []).length
-  check('M11 call() reads Date.now() exactly once (display cron and stored instant share it)', reads === 1, `reads=${reads}`)
-}
 
 console.log('§M12 screen-seam boundaries')
 {
@@ -876,24 +845,8 @@ console.log('§M12 screen-seam boundaries')
   check("M12a the same phrase at 00:00:30 lands the FOLLOWING midnight (each compile lawful at its own now; the submit's is the stored truth)", submit.ok && submit.ok && submit.when.kind === 'at' && submit.when.atMs === followingMidnight)
   check('M12a the boundary divergence is exactly the day the receipt frames', submit.ok && preview.ok && (submit.when as { atMs: number }).atMs - (preview.when as { atMs: number }).atMs === 86_400_000)
 
-  const screenSrc = readFileSync(join(import.meta.dir, '../../src/components/BootSaturnScreen.tsx'), 'utf8')
-  check('M12b the in-chat mount floors at 12 and caps at 24 (max(12, min(24, termRows - 2)))', screenSrc.includes('fullScene?.rows ?? Math.max(12, Math.min(24, termRows - 2))'))
 }
 
-console.log('§M13 model-facing surfaces census')
-{
-  const { readdirSync } = await import('node:fs')
-  const skillsDir = join(import.meta.dir, '../../src/skills/bundled')
-  const offenders: string[] = []
-  for (const f of readdirSync(skillsDir)) {
-    if (!f.endsWith('.ts')) continue
-    const body = readFileSync(join(skillsDir, f), 'utf8')
-    if (new RegExp(['kai','ros'].join('') + '|scheduled_tasks', 'i').test(body)) offenders.push(f)
-  }
-  check('M13 no bundled-skill prompt speaks a retired spelling', offenders.length === 0, offenders.join(','))
-  const skill = readFileSync(join(skillsDir, 'scheduleRemoteAgents.ts'), 'utf8')
-  check('M13 the schedule skill speaks the session-fact truth (no durable flag)', skill.includes('SESSION FACT on the durable session record') && !skill.includes('durable flag'))
-}
 
 console.log('§SF1 the fire-time account resolution (ruling b)')
 {

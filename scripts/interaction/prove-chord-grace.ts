@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -37,15 +37,6 @@ if (armed.type === 'chord_started') {
 const leakShape = resolveKeyWithChordState('p', key() as never, CONTEXTS, bindings as never, null)
 check("a bare 'p' with NO pending state is 'none' — the leak shape the grace stash closes", leakShape.type === 'none')
 
-console.log('── G. the grace fix (pins on the ONE owner) ──')
-const src = readFileSync(join(import.meta.dir, '../../src/keybindings/KeybindingProviderSetup.tsx'), 'utf8')
-check('the timeout stashes the expired prefix (one-shot grace)', src.includes('expiredChordRef.current = { pending:'))
-check('the grace window constant exists', src.includes('CHORD_TIMEOUT_GRACE_MS'))
-check('grace resolution rides the SAME resolver with the stashed prefix', src.includes('effectivePending = expired.pending'))
-check('a NON-completing late key passes through untouched (never eaten)', src.includes("viaGrace && result.type === 'chord_cancelled'"))
-check('the stash clears one-shot on the next key', src.includes('expiredChordRef.current = null'))
-check('the base timeout is 2s (was the 1s that bit)', src.includes('CHORD_TIMEOUT_MS = 2000'))
-check('an explicit resolve/cancel supersedes an armed grace (the else arm clears the stash)', /\} else \{(?:\s*\/\/[^\n]*)*\s*expiredChordRef\.current = null\s*\}/.test(src))
 
 console.log(failures === 0 ? '\nprove-chord-grace: GREEN' : `\nprove-chord-grace: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

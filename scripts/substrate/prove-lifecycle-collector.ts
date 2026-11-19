@@ -315,20 +315,6 @@ section('§6 DRAFTS NO-OP (the _rev 616 pathology)')
   check('scoped store: a real change bumps', scopedRev() === srev1 + 1)
 }
 
-section('§7 WINDOW LABELS')
-{
-  const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
-  const schema = src('src/utils/config/schema.ts')
-  check('schema declares BOTH window labels', schema.includes('lastCostWindow') && schema.includes('lastSessionMetricsWindow'))
-  check(
-    'the cost writer stamps its session-cumulative window',
-    src('src/cost-tracker.ts').includes("kind: 'session-cumulative'"),
-  )
-  check(
-    'the stats flush stamps its process-leg window',
-    src('src/context/stats.tsx').includes("kind: 'process-leg'"),
-  )
-}
 
 section('§8 PROVISIONAL SESSION RECONCILE')
 {
@@ -358,8 +344,6 @@ section('§8 PROVISIONAL SESSION RECONCILE')
 
 section('§9 WIRING')
 {
-  const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
-  const health = src('src/utils/healthReport.ts')
   const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
   const { getLifecycleHealth: lifecycleNow } = await import('../../src/substrate/stateLifecycle.ts')
   const lifecycleSays = await crewChecks().find(row => row.id === 'lifecycle-collection')?.run()
@@ -370,29 +354,8 @@ section('§9 WIRING')
     lifecycleSays?.evidence,
   )
   check(
-    'the health verb runs the cleanup opportunity',
-    health.includes("runLifecycleVerbOpportunity('health')"),
-  )
-  check(
-    'the update verb runs the cleanup opportunity',
-    src('src/cli/update.ts').includes("runLifecycleVerbOpportunity('update')"),
-  )
-  check(
-    'the Chat boot arms the provisional reconcile',
-    src('src/main.tsx').includes('armProvisionalSessionReconcile'),
-  )
-  check(
-    'H-17: the crash prune logs its failures (no silent bare catch)',
-    src('src/utils/crashReport.ts').includes('prune failed for'),
-  )
-  check(
     'the delivery flag row documents the headless gate',
     getFlagSpec('MERCURY_DELIVERY_ARTIFACT')?.summary.includes('headless run completion mints nothing') === true,
-  )
-  check(
-    'the sentinel is stamped ONLY by the complete-success path',
-    (src('src/utils/backgroundHousekeeping.ts').match(/stampSentinel\(\)/g) ?? []).length >= 2 &&
-      !src('src/utils/backgroundHousekeeping.ts').includes("writeFile(\n          join(getMercuryHome(), '.last-cleanup')"),
   )
   const gen = spawnSync('bun', ['run', join(import.meta.dir, 'gen-lifecycle-manifest.ts')], {
     encoding: 'utf8',

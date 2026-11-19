@@ -36,8 +36,6 @@ const { SPECIALIST_ROLES, SPECIALIST_ROLE_ACCESS } = await import(
   '../../src/services/providers/providerAdapter.js'
 )
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { readFileSync } = await import('node:fs')
-const { join } = await import('node:path')
 
 section('1 · the callModel routing law')
 {
@@ -56,12 +54,6 @@ section('1 · the callModel routing law')
   check("'' is ABSENCE — never a lane", classifyModelRoute('').kind === 'absence')
   check('undefined is ABSENCE — never a lane', classifyModelRoute(undefined).kind === 'absence')
 
-  const depsSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'query', 'deps.ts'), 'utf-8')
-  check('productionDeps binds callModel: scripted ?? routedCallModel', depsSrc.includes('callModel: scripted ?? routedCallModel'))
-  check(
-    'deps imports the router seam',
-    depsSrc.includes("from '../services/providers/callModelRouter.js'"),
-  )
 }
 
 section('1b · the home-lane admission at the dispatch seam (the neutrality ruling)')

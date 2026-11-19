@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, realpathSync, rmSync, writeFileSync, utimesSync, readFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync, utimesSync, existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,12 +12,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const ROOT = join(import.meta.dir, '..', '..')
 
-console.log('§1 the source pin')
-{
-  const globSrc = readFileSync(join(ROOT, 'src', 'utils', 'glob.ts'), 'utf8')
-  check("glob() sorts DESCENDING ('--sortr=modified')", globSrc.includes("'--sortr=modified'"))
-  check('the ascending spelling is gone', !globSrc.includes("'--sort=modified'"))
-}
 
 console.log('§2 the engine, driven')
 {

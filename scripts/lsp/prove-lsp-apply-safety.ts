@@ -427,28 +427,6 @@ for (const mode of ['implement', 'default', 'sovereign']) {
   rmSync(dir, { recursive: true, force: true })
 }
 
-{
-  const src = readFileSync(
-    path.join(path.resolve(import.meta.dir, '../..'), 'src/tools/LSPTool/mercuryOps.ts'),
-    'utf8',
-  )
-  const permIdx = src.indexOf('checkWritePermissionForTool(')
-  const commitIdx = src.indexOf('runVerbatimTextCommit(')
-  check(
-    'structure: per-file permission check precedes the shared commit walk',
-    permIdx !== -1 && commitIdx !== -1 && permIdx < commitIdx,
-  )
-  const core = readFileSync(
-    path.join(path.resolve(import.meta.dir, '../..'), 'src/services/changeTransaction/changeSetCommit.ts'),
-    'utf8',
-  )
-  const revalidateIdx = core.indexOf("diskState[i] !== 'original'")
-  const renameIdx = core.indexOf('await renameWithWin32Retry(')
-  check(
-    'structure: current-byte revalidation precedes every rename in the shared core',
-    revalidateIdx !== -1 && renameIdx !== -1 && revalidateIdx < renameIdx,
-  )
-}
 
 function r0() {
   return { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }

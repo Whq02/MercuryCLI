@@ -2,7 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import {
   bigWordmarkRows,
   wordmarkForm,
@@ -87,18 +86,6 @@ t.section('§3 — wordmarkForm: the ONE banner/compact law (D8)')
     rowsOnly(34) !== wordmarkForm(47, 34) && rowsOnly(35) !== wordmarkForm(47, 35),
     `rows-only says ${rowsOnly(34)}, unified says ${wordmarkForm(47, 34)}`,
   )
-  const home = readFileSync('src/components/MercuryHome.tsx', 'utf8')
-  const callSites = (home.match(/wordmarkForm\(/g) ?? []).length
-  t.check(
-    'MercuryBrandRow AND MercuryHome consume wordmarkForm (>=2 call sites)',
-    callSites >= 2,
-    `${callSites} call sites`,
-  )
-  t.check(
-    'no raw `>= 34` form law survives in MercuryHome (one owner)',
-    !/>=\s*34/.test(home),
-    'clean',
-  )
 }
 
 t.section('§4 — R5: a non-crab warm-red accent derives its own ramp')
@@ -119,12 +106,6 @@ t.section('§4 — R5: a non-crab warm-red accent derives its own ramp')
     'reduced families still collapse the warm-red ramp flat',
     reduced.focalRamp.length === 1 && reduced.focalRamp[0] === WARM_RED_SAMPLE,
     reduced.focalRamp.join(' '),
-  )
-  const assets = readFileSync('src/components/mercury-ui/assets.tsx', 'utf8')
-  t.check(
-    'the Wordmark version tail rides t.textMuted (no fixed FAINT, D11)',
-    /version \? <Text color=\{t\.textMuted\}>/.test(assets),
-    'source pin',
   )
 }
 

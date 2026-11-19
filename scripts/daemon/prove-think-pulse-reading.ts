@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const HOME = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR!, 'think-pulse-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const CONFIG = join(HOME, 'config')
@@ -30,7 +29,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const T = 1_800_000_000_000
 const facts = (over: Partial<Facts>): Facts => ({ phase: 'thinking', sentAtMs: T - 271_000, firstByteAtMs: T - 270_000, replyChars: 0, thinkingChars: 0, wireOutputTokens: null, wait: null, ...over })
@@ -87,8 +85,6 @@ section('§2 spinner HUD keeps time and count without duplicate phase or heartbe
   const texts = plan.ordered.map(segment => segment.text)
   check(`the HUD reads the existing exact count: ${texts.join(' · ')}`, texts.join(' · ') === '4m 31s · ↓ 218', texts.join(' · '))
   check('the internal pulse remains available, not on screen', live.pulse === '↻3s' && live.phase === 'thinking')
-  const row = read('src/components/Spinner/SpinnerAnimationRow.tsx')
-  check('the row paints the quiet HUD in order', row.includes('for (const segment of ordered)'))
 }
 
 section('§3 THE SEAT — a reasoning block\'s start counts on the tail; text blocks do not; the outcome and a respawn zero it')

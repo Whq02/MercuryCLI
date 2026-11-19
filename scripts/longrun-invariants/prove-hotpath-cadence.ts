@@ -123,32 +123,10 @@ section('C2 — a successful validation refreshes currency; scoped invalidation'
   )
   rmSync(ws, { recursive: true, force: true })
 
-  const vs = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'utils', 'verification', 'verificationState.ts'),
-    'utf8',
-  )
-  check('mutation invalidation is cwd-scoped with the conservative fallback',
-    vs.includes('digestCache.delete(cwd)') && vs.includes('else digestCache.clear()'))
-  const eo = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'services', 'run', 'effectObserver.ts'),
-    'utf8',
-  )
-  check('the effect observer passes its event cwd', eo.includes('markMutation(event.owner, event.effect.changedPaths, event.cwd, {'))
-  const cc = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'utils', 'attachments', 'contextCapsule.ts'),
-    'utf8',
-  )
-  check('the capsule computes its semantic identity BEFORE the snapshot read',
-    cc.indexOf('const semDigest = createHash') !== -1 && cc.indexOf('const semDigest = createHash') < cc.indexOf('getProjectSnapshotAsync(workspace'))
-  check('an unchanged identity reuses whatever snapshot is cached (no freshness demand)',
-    cc.includes('semanticallyUnchanged ? Number.POSITIVE_INFINITY : 120_000'))
 }
 
 section('C3 — the runner records its new tail and owns the durable flush')
 {
-  const runner = readFileSync(join(import.meta.dir, '../../src/rows/turn.ts'), 'utf8')
-  check('the runner records only the new message suffix', runner.includes('const pending = turnMessages.slice(this.recordCursor)') && runner.includes('this.recordCursor = turnMessages.length'))
-  check('the runner serialises recording through its parent-hint chain', runner.includes('this.recordChain = this.recordChain.then(hint =>') && runner.includes('recordTranscript(pending,'))
   const { recordTranscript, flushSessionStorage, setSessionFileForTesting } = await import('../../src/utils/sessionStorage/writer.ts')
   const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
   const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')

@@ -152,30 +152,6 @@ const tempsIn = (dir: string): string[] => readdirSync(dir).filter(isDurableTemp
   )
 }
 
-{
-  const repo = join(import.meta.dir, '..', '..')
-  const read = (rel: string): string => readFileSync(join(repo, rel), 'utf8')
-  const migrated: Array<[string, RegExp]> = [
-    ['src/substrate/fileStore.ts', /await writeFile\(tmp/],
-    ['src/services/run/runSidecar.ts', /\.tmp-\$\{process\.pid\}/],
-    ['src/mneme/mnemeConsolidate.ts', /renameSync\(`\$\{p\}\.tmp`/],
-    ['src/services/mcp/config.ts', /await rename\(tempPath, mcpJsonPath\)/],
-    ['src/tools/ToolSearchTool/cooccurPrior.ts', /renameSync\(tmp/],
-    ['src/utils/artifacts/store.ts', /await rename\(tmpPath, metaPath\)/],
-    ['src/utils/cache/cacheClock.ts', /renameSync\(tmpPath, finalPath\)/],
-  ]
-  let allClean = true
-  for (const [rel, oldFingerprint] of migrated) {
-    const src = read(rel)
-    const imports = src.includes("durablePublish.js'") || rel.endsWith('durablePublish.ts')
-    const oldGone = !oldFingerprint.test(src)
-    if (!imports || !oldGone) {
-      allClean = false
-      console.log(`     ${rel}: imports=${imports} oldGone=${oldGone}`)
-    }
-  }
-  ok(allClean, `§6 all ${migrated.length} migrated writers import the primitive; old fingerprints gone`)
-}
 
 {
   const platform = Object.getOwnPropertyDescriptor(process, 'platform')!

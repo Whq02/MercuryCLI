@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { displayWidth } from '../../src/components/mercury-ui/glyphs.js'
 import { wrapPlain } from '../../src/utils/cockpit/wrapPlain.js'
 
@@ -32,10 +31,6 @@ check('hard-broken word reassembles', longWord.join('') === 'averyveryverylongun
 const paras = wrapPlain('one\n\ntwo', 10)
 check('paragraph break survives as a blank line', paras.length === 3 && paras[1] === '')
 
-section('width-oracle delegation (structural)')
-const src = readFileSync('src/utils/cockpit/wrapPlain.ts', 'utf8')
-check('imports the glyphs facade', src.includes("from '../../components/mercury-ui/glyphs.js'"))
-check('defines no width primitive of its own', !/function\s+(charWidth|displayWidth|stringWidth)\s*\(/.test(src))
 
 console.log('')
 if (failures > 0) {

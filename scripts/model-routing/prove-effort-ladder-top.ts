@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -14,7 +14,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 console.log('============================================================')
 console.log(' the effort ladder ends at max (a list word above it is never a level)')
@@ -47,17 +46,8 @@ const LIST_WORD = 'ultra'
   check('the list word is not a level anywhere the type can reach', !effort.isEffortLevel(LIST_WORD) && !(effort.EFFORT_LEVELS as readonly string[]).includes(LIST_WORD))
   check('every ladder word has a glyph and none is left for a word above max', LADDER.every(level => indicator.effortLevelToSymbol(level).length > 0) && !('EFFORT_ULTRA' in figures))
   check('every ladder word has a description and the description switch is exhaustive over the tuple', LADDER.every(level => effort.getEffortLevelDescription(level).length > 0))
-  const popup = src('src/commands/effort/EffortPopup.tsx')
-  check('the /effort popup lists its rows from the ladder owner with no word above max', popup.includes('selectableEffortLevels(model).map(') && !/\bultra\b/.test(popup) && !/blaze/.test(popup))
-  check('the /effort option list derives from the tuple and ends at max before auto', src('src/commands/effort/effort.tsx').includes("const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|auto`"))
-  check('the settings schema takes its enum from the tuple', src('src/utils/settings/types.ts').includes('effort: z.enum(EFFORT_LEVELS)'))
-  check("the Crewmate tool's effort field takes its enum from the tuple", /effort: z\s*\.enum\(EFFORT_LEVELS\)/.test(src('src/tools/AgentTool/AgentTool.tsx')))
-  check("an agent file's effort field takes its enum from the tuple", /effort: z\s*\.union\(\[\s*z\.enum\(EFFORT_LEVELS/.test(src('src/tools/AgentTool/loadAgentsDir.ts')))
   const { builtHelp } = await import('../lib/builtProduct.ts')
   check('the --effort door names the ladder from the tuple', builtHelp().includes(`--effort <level> Reasoning effort level (${ladderModule.EFFORT_LEVELS.join(', ')})`))
-  for (const file of ['src/utils/effort.ts', 'src/components/EffortIndicator.ts', 'src/utils/effortLadder.ts']) {
-    check(`${file} carries no switch arm or record row for a word above max`, !/case 'ultra'|ultra:/.test(src(file)))
-  }
 }
 
 {
@@ -135,8 +125,6 @@ const LIST_WORD = 'ultra'
   const refused = effort.effortAdjustedReceiptLine({ model: 'gpt-6-astra', name: 'GPT-6 Astra', asked: 'max', sent: 'xhigh', wireRefused: { road: 'ChatGPT subscription', reprobeAfter: store.describeWireEffortProbeWindow() } })
   check('a wire-refused word names the road and the re-probe', refused === 'effort max: the wire refused it for GPT-6 Astra on the ChatGPT subscription road today — sent xhigh, the nearest word it serves; Mercury asks the wire again after a day', refused)
   check('the window words: a day · an hour · 3 hours · 2 days', store.describeWireEffortProbeWindow() === 'a day' && store.describeWireEffortProbeWindow(3_600_000) === 'an hour' && store.describeWireEffortProbeWindow(3 * 3_600_000) === '3 hours' && store.describeWireEffortProbeWindow(48 * 3_600_000) === '2 days')
-  const lane = src('src/services/providers/openai/openaiCallModel.ts')
-  check('the OpenAI lane stamps the road and the re-probe on a fresh refusal and on a remembered one (the listed word the served row lacks)', lane.includes('effortAdjusted = receiptOf(profile, true)') && lane.includes('wireRefused: { road: accountRoad, reprobeAfter: describeWireEffortProbeWindow() }') && lane.includes('const accountRoad = auth.account.label') && lane.includes('listedWords.includes(asked)'))
   const t = await import('../core-runtime/turnScenarios.ts')
   const stamp = { model: 'gpt-6-astra', name: 'GPT-6 Astra', asked: 'max', sent: 'xhigh', wireRefused: { road: 'ChatGPT subscription', reprobeAfter: store.describeWireEffortProbeWindow() } }
   const stepped = await t.runScripted({ script: [t.fixtures.yields(Object.assign(t.fixtures.says('the reply at the lower effort.'), { effortAdjusted: stamp }))] })

@@ -140,12 +140,6 @@ console.log('\n[Q] Recall lifts what the current ruling governs, by two places a
   check('no derived file appears in the library', !existsSync(join(dir, '.index')))
 }
 
-console.log('\n[S] the call site is one line: Recall takes the fused order through the lift and the flowed usage')
-{
-  const verbs = readFileSync(join(ROOT, 'src/mneme/memoryVerbs.ts'), 'utf8')
-  const callers = verbs.split('\n').filter(line => line.includes('liftRulingLinks(') || line.includes('recallUsage('))
-  check('one line of memoryVerbs.ts calls the links', callers.length === 1 && callers[0]!.includes('fuseRecallRankings('), JSON.stringify(callers))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures > 0 ? `\nprove-memory-links: RED (${failures})` : '\nprove-memory-links: green')

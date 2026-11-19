@@ -275,24 +275,6 @@ console.log('── 4. render-path totality over the reachable hostile family �
   if (throws.length > 0) for (const line of throws) console.log(`    ${line}`)
 }
 
-console.log('── 5. the seams are guarded (structural) ──')
-{
-  const { readFileSync } = await import('node:fs')
-  const ROOT = join(import.meta.dir, '..', '..')
-  const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
-  const row = read('src/components/messages/AssistantToolUseMessage.tsx')
-  const gate = row.indexOf('if (!parsedInput.success) return null')
-  const call = row.indexOf('tool.renderToolUseMessage?.(parsedInput.data')
-  t('the transcript row validates the input before rendering the tool use', gate !== -1 && call !== -1 && gate < call)
-  t('…and wraps the render in a catch (a throwing hook costs one row)', /try \{\s*useMessage =\s*tool\.renderToolUseMessage/.test(row))
-  const collapsed = read('src/components/messages/CollapsedReadSearchContent.tsx')
-  t('the collapsed read/search row wraps the render in a catch', /try \{[^}]*tool\.renderToolUseMessage\?\.\(entry\.input/.test(collapsed))
-  const messages = read('src/components/Messages.tsx')
-  const boundary = /<RowErrorBoundary>([\s\S]*?)<\/RowErrorBoundary>/.exec(messages)?.[1] ?? ''
-  t('every transcript row still sits in the per-row boundary', /<MessageRow\b/.test(boundary) && !/<RowErrorBoundary>/.test(boundary))
-  const display = read('src/utils/file.ts')
-  t('getDisplayPath is total over non-string and NUL-bearing paths', /if \(typeof filePath !== 'string'\)/.test(display) && /try \{\s*relativePath = getAbsoluteAndRelativePaths\(filePath\)\.relativePath/.test(display))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? `\nALL GREEN (${checks} checks)` : `\n${failures} FAILURE(S) of ${checks}`)

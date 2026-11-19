@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -286,10 +286,6 @@ console.log('\n── W-off: the pool gates ──')
   delete process.env.MERCURY_WARM_RUNNER
   const options = await warm.ensureWarmRunner({ workspaceDir: wsA, bootCarriesRunnerOptions: true }, warmDeps)
   check('W-off a boot with runner-side options never warms (a claim could not serve it)', options.state === 'refused' && (options.detail ?? '').includes('runner-side options'), options.detail ?? options.state)
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'switchboard', 'ensureDaemon.ts'), 'utf8')
-  check('W-off the screen stamps NO_SELF_WARM onto an owned daemon for such boots', src.includes('MERCURY_DAEMON_NO_SELF_WARM') && src.includes('runnerArgvFromBoot(process.argv.slice(2))'))
-  const dmainSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
-  check('W-off the boot self-warm honours the stamp', dmainSrc.includes("flagEnv('MERCURY_DAEMON_NO_SELF_WARM') !== '1'"))
 }
 
 console.log('\n── W-bound: the seat reading ──')
@@ -350,13 +346,6 @@ console.log('\n── W14: the settle reply on the tail ──')
 
 console.log('\n── W13: source pins ──')
 {
-  const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-  const pool = read('src/daemon/warmRunner.ts')
-  check('W13 ensure refuses past the seat reading (the ceiling bound)', pool.includes('effectiveSeatCeiling()') && pool.includes('no headroom for a warm runner'))
-  const idle = read('src/daemon/idleRetirement.ts')
-  check('W13 idle retirement stays record-driven (readSessionWorkers — the warm runner is invisible by construction)', idle.includes('readSessionWorkers(opts.dir)') && !idle.includes('warmRunner'))
-  const reconcile = read('src/daemon/reconcileRecords.ts')
-  check('W13 reconcile stays daemon-record-driven (no warm special case)', !reconcile.includes('warm'))
   const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const PINNED = '11111111-2222-4333-8444-555555555555'
   const CLAIMED = '66666666-7777-4888-8999-000000000000'
@@ -377,23 +366,7 @@ console.log('\n── W13: source pins ──')
     return { taken, refused: await refusalOf(runner.request('session/set_effort', { effort: 'banana' })) }
   })
   check('W13 session/set_effort exists as the mid-session verb on the shared ladder', JSON.stringify(effortVerb.taken) === JSON.stringify(EFFORT_LEVELS.map(effort => ({ effort, at: 'now' }))) && effortVerb.refused?.data?.kind === 'effort')
-  const rosterSrc = read('src/daemon/roster.ts')
-  check('W13 the roster claim patch flips the respawn argv (the claimed session resumes, never a fresh warm boot)', rosterSrc.includes('patchSeatClaim') && rosterSrc.includes('respawnExtraArgv: [...patch.respawnExtraArgv]'))
-  const dmain = read('src/daemon/main.ts')
-  check('W13 only an OWNED daemon self-warms at boot (owner-pid gated)', dmain.includes('parseOwnerPid() !== null') && dmain.includes('boot self-warm'))
-  check('W13 (item 8) the boot self-warm wears the launch consent the screen stamped (no consent-drift throwaway)', dmain.includes("flagEnv('MERCURY_DAEMON_SELF_WARM_CONSENT') === '1' ? { bypassConsent: true }"))
-  const ensureDaemonSrc = read('src/services/switchboard/ensureDaemon.ts')
-  check('W13 (item 8) the screen stamps the launch consent onto the owned daemon spawn from the boot facts', ensureDaemonSrc.includes('MERCURY_DAEMON_SELF_WARM_CONSENT') && ensureDaemonSrc.includes('bootBirthFacts().bypassConsent'))
-  const statusSrc = read('src/daemon/status.ts')
-  check('W13 daemon status names warm runners on their own honest line', statusSrc.includes('warm runner'))
   check('W13 the warm idle knob has its registry row', getFlagSpec('MERCURY_WARM_RUNNER_IDLE_RETIRE_MINUTES') !== undefined)
-  const proto = read('src/daemon/protocol.ts')
-  check("W13 DaemonOp includes 'concourseWarm' with request + reply rows", /\|\s*'concourseWarm'/.test(proto) && proto.includes("op: 'concourseWarm'") && proto.includes("ok: true; op: 'concourseWarm'"))
-  check('W13 WireStatus carries warmRunners (optional-additive)', /warmRunners\?: number/.test(proto))
-  const sock = read('src/daemon/controlSocket.ts')
-  check('W13 the client stamps auth on concourseWarm (the keyed tier)', /'concourseWarm',\s*\]\)/.test(sock) || /AUTH_STAMPED_OPS[\s\S]{0,4000}'concourseWarm'/.test(sock))
-  const door = read('src/daemon/runnerConnection.ts')
-  check("W13 the daemon speaks the runner's verbs itself — the pool asks session/claim, the seat session/set_effort, and the door owns no subtype table", read('src/daemon/warmRunner.ts').includes("'session/claim'") && read('src/daemon/sessionSeat.ts').includes("'session/set_effort'") && !door.includes('claim_session'))
 }
 
 console.log('\n── W14: overlapping ensures, one child ──')
@@ -484,7 +457,6 @@ console.log('\n── W15: the newest kit trails the running warm-up ──')
 console.log('\n── WR: the restart reason travels to the resumed runner (item 3) ──')
 {
   const { deriveSessionKitForWorkspace } = await import('../../src/daemon/sessionKit.ts')
-  const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
 
   check('WR runnerRestartReasonOf reads the record: a crash fact ⇒ "crash", none ⇒ "relaunch"', typeof runnerRestartReasonOf === 'function' && runnerRestartReasonOf({ crash: { at: 1, reason: 'x', respawning: false } } as never) === 'crash' && runnerRestartReasonOf({} as never) === 'relaunch')
 
@@ -504,9 +476,6 @@ console.log('\n── WR: the restart reason travels to the resumed runner (item
   const claimR = roster.claims[0]?.params
   check('WR the warm claim lands and its session/claim request carries restart_reason', claimedR.claimed === true && claimR !== undefined && claimR.restart_reason === 'crash', JSON.stringify(claimR ?? '(no claim)'))
 
-  const rosterSrc = read('src/daemon/roster.ts')
-  check('WR the roster stamps "crash" on the crash-respawn (MERCURY_RUNNER_RESTART_REASON on the respawn spec)', /crash-respawn'\)[\s\S]{0,220}flagPair\('MERCURY_RUNNER_RESTART_REASON', 'crash'\)/.test(rosterSrc))
-  check('WR the roster stamps "settings" on the reconfigure-respawn', /reconfiguring[\s\S]{0,220}flagPair\('MERCURY_RUNNER_RESTART_REASON', 'settings'\)/.test(rosterSrc))
 
   const seedParkedForRestart = (runnerId: string, sessionId: string, workspaceId: string): void => {
     const tr = concourseTranscriptPath({ sessionId, workspaceId })

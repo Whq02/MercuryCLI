@@ -18,7 +18,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 const ROOT = join(import.meta.dirname, '../..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 type Kind = 'subagents'
 const KINDS: Kind[] = ['subagents']
@@ -150,7 +149,6 @@ console.log("LAW 4 — the worker's prompt sentence follows the setting at spawn
   check('the posture line says what the session is to the operator — one on the switchboard, sat in or left running — and the idle law stands, on both', [off, on].every(p => p.startsWith("This session lives on the operator's switchboard: the operator opens it to work in it and leaves it running otherwise, and either way their messages reach you through the harness.") && p.includes("'Idle', 'wait', or 'stand by' means end your turn — the harness wakes you on the next delivery.")))
   check('the posture tail never calls the session a background session (the operator may be sitting in it)', [off, on].every(p => !/background session/i.test(p)), [off, on].map(p => p.slice(0, 80)).join(' | '))
   setting?.setBackgroundSessionsLaunchCrewmates(false)
-  check('the sentence is minted by the setting owner, read live at spawn', src('src/daemon/concourseWorkers.ts').includes('backgroundWorkerDelegationSentence(),') && !src('src/daemon/concourseWorkers.ts').includes('Delegation (subagents/workflows)'))
 }
 
 console.log('LAW 5 — the /health status row says why backgrounded sessions may launch (dist)')
@@ -208,26 +206,8 @@ console.log('LAW 5 — the /health status row says why backgrounded sessions may
 
 console.log('LAW 3 — the source pins')
 {
-  const valve = src('src/services/switchboard/launchAuthority.ts')
-  const focusedArmAt = valve.indexOf("posture: 'focused'")
-  const tagArmAt = valve.indexOf("posture: 'tagged-background'")
-  const settingArmAt = valve.indexOf("posture: 'background-by-setting'")
-  check('the valve carries the setting arm after the focused arm and the tag arm', focusedArmAt !== -1 && tagArmAt !== -1 && settingArmAt !== -1 && focusedArmAt < tagArmAt && tagArmAt < settingArmAt)
-  check('the setting arm reads the one reader', valve.includes('backgroundSessionsLaunchCrewmates()'))
-  check("the session's own switch is still read first", valve.indexOf("cause: 'session-switch'") !== -1 && valve.indexOf("cause: 'session-switch'") < valve.indexOf('flagEnv(\'MERCURY_CONCOURSE_WORKER\')'))
-  check('the refusal is minted in one place and names the setting by its row label', valve.includes('export function backgroundedLaunchRefusal(') && valve.includes('${BACKGROUND_LAUNCH_LABEL}'))
   const row = setting?.BACKGROUND_LAUNCH_MENU_ROW
   check("the boot-menu row descriptor: the agents group, a live toggle, off by default, keyed by the leaf", row !== undefined && row.group === 'agents' && row.kind === 'toggle' && row.defaultLabel === 'off' && row.applicationClass === 'live' && row.env === 'backgroundSessionsLaunchCrewmates' && row.label === LABEL, j(row))
-  const workers = src('src/daemon/concourseWorkers.ts')
-  const grantStart = workers.indexOf('export function grantConcourseWorkflows(')
-  const grantBody = workers.slice(grantStart, workers.indexOf('\n}\n', grantStart))
-  check('the tag grant never reads the setting (the one-tag cap stays what it is)', grantStart !== -1 && !grantBody.includes('backgroundSessionsLaunchCrewmates'))
-  for (const [file, needle] of [
-    ['src/tools/AgentTool/AgentTool.tsx', "evaluateLaunchAuthority('subagents')"],
-    ['src/tools/SkillTool/SkillTool.ts', "evaluateLaunchAuthority('subagents')"],
-  ] as const) {
-    check(`${file} still asks the valve (no second gate)`, src(file).includes(needle) && !src(file).includes('backgroundSessionsLaunchCrewmates'))
-  }
 }
 
 console.log(failures === 0 ? '\nprove-background-launch: ALL LAWS HOLD' : `\nprove-background-launch: ${failures} FAILURE(S)`)

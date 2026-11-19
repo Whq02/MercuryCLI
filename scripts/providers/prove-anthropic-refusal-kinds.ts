@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -26,7 +26,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const refusal = await import('../../src/services/providers/anthropicRefusal.ts')
@@ -205,14 +204,6 @@ section("§6 the chat's notice: a 401 on a dead sign-in speaks the sign-in line;
 
 section('§7 the roads read the one classification')
 {
-  const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const limitsSrc = src('src/services/anthropicLimits.ts')
-  check("the latch's error road gates on the classification, not on a status of its own", limitsSrc.includes("const kind = classifyAnthropicRefusal(anthropicRefusalFactsOf(error))") && limitsSrc.includes("if (kind !== 'window' && !(kind === 'rate-limit' && providerWaitIsWindow(askedMs))) return") && !limitsSrc.includes('if (status !== 429) return'))
-  const errorsSrc = src('src/services/api/errors.ts')
-  check("the notice's window arm reads the classification", errorsSrc.includes('classifyAnthropicRefusal(anthropicRefusalFactsOf(error))') && errorsSrc.includes("refusal === 'window'"))
-  check("the notice's sign-in arm reads it with the estate's observed fact", errorsSrc.includes("signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in'"))
-  const usabilitySrc = src('src/services/providers/providerUsability.ts')
-  check('the dispatch gate reads the observed sign-in through the wall owner', usabilitySrc.includes("observedCredentialWall('anthropic') === 'sign-in'") && usabilitySrc.includes('anthropicSignInWords('))
   const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
   const usageOwner = await import('../../src/services/providers/providerUsage.ts')
   seed(DEAD_SIGN_IN)

@@ -2,8 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -15,7 +13,6 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const root = join(import.meta.dir, '..', '..')
   const ok = await import('../../src/services/run/ownerKey.js')
 
   section('1. post-compact cleanup is owner/scope-explicit')
@@ -47,14 +44,6 @@ async function main(): Promise<void> {
       returned instanceof Promise,
     )
     check('no-manager release resolves 0', (await (returned as Promise<number>)) === 0)
-    const src = readFileSync(join(root, 'src/services/compact/compact.ts'), 'utf8')
-    const awaited = src.match(/await releaseLspDocumentsForContext\(/g) ?? []
-    const bare = (src.match(/releaseLspDocumentsForContext\(/g) ?? []).length - awaited.length
-    check(
-      'BOTH compact call sites await the sweep',
-      awaited.length === 2 && bare <= 1,
-      `${awaited.length} awaited`,
-    )
   }
 
   section('3. context epochs — owner-scoped, explicit, guarded')

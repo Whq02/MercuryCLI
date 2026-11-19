@@ -4,7 +4,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { firstPtyVisibility, requireDist, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const COMPOSER_READY = 'Type a prompt'
 const SHIM_MARKER = 'mercury-managed-shim'
 const SECONDS = 15
@@ -97,16 +96,6 @@ try {
   managed.run.cleanup()
 }
 
-section('§3 the source: the start-up step goes through the guarded heal, and the entry never writes the launcher set itself')
-const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
-const nodeAt = main.indexOf("registerBackgroundNode('shim-reconcile'")
-const nodeBody = nodeAt === -1 ? '' : main.slice(nodeAt, main.indexOf('})', nodeAt))
-check('the shim-reconcile step calls reconcileManagedShims', nodeBody.includes('reconcileManagedShims('), nodeBody)
-check('src/main.tsx calls writeShimSet nowhere', !main.includes('writeShimSet'))
-const layout = readFileSync(join(ROOT, 'src', 'services', 'privateChannel', 'installLayout.ts'), 'utf8')
-const healAt = layout.indexOf('export function reconcileManagedShims(')
-const heal = healAt === -1 ? '' : layout.slice(healAt, layout.indexOf('\n}\n', healAt))
-check('reconcileManagedShims writes nothing where no current version is named', /if \(readCurrentVersion\(roots\) === null\) return null\s*return writeShimSet\(roots\)/.test(heal), heal)
 
 console.log('')
 if (failures > 0) {

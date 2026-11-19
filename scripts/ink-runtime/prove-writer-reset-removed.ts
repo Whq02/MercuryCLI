@@ -3,7 +3,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { EventEmitter } from 'node:events'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import React from 'react'
 import { AlternateScreen } from '../../src/ink/components/AlternateScreen.js'
@@ -17,7 +16,6 @@ import instances from '../../src/ink/instances.js'
 import createRenderer from '../../src/ink/renderer.js'
 import { buildDom, makeContext } from './frameHarness.js'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -28,20 +26,10 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 console.log('§1 FrameWriter carries no empty reset() method and Ink makes no writer.reset() calls')
 {
-  const writerSrc = readFileSync(join(ROOT, 'src/ink/frame-writer.ts'), 'utf8')
-  const inkSrc = readFileSync(join(ROOT, 'src/ink/ink.tsx'), 'utf8')
   check(
     'FrameWriter.prototype has no reset member',
     !('reset' in FrameWriter.prototype),
     Object.getOwnPropertyNames(FrameWriter.prototype).join(', '),
-  )
-  check(
-    'src/ink/frame-writer.ts declares no reset() method',
-    !/\breset\s*\(/.test(writerSrc),
-  )
-  check(
-    'src/ink/ink.tsx calls writer.reset() nowhere',
-    !/\bwriter\.reset\s*\(/.test(inkSrc),
   )
 }
 

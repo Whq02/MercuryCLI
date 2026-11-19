@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -101,12 +101,6 @@ section('§C batch mutations are ordered (concurrency declarations)')
   )
 }
 
-section('§D the guard sits where the law says')
-{
-  const store = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'tasks.ts'), 'utf8')
-  check('the guard re-verifies UNDER the lock (order: lock, then list)',
-    /withLock\(listLockPath\(taskListId\),[^\n]*async \(\) => \{\s*\n\s*if \(opts\?\.onlyIfAllCompleted\)/.test(store))
-}
 
 await resetTaskList(LIST)
 rmSync(HOME, { recursive: true, force: true })

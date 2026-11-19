@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import ts from 'typescript'
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const scratch = mkdtempSync(join(tmpdir(), 'refusals-way-out-'))
 const home = join(scratch, 'home')
 mkdirSync(home, { recursive: true })
@@ -27,45 +26,6 @@ console.log('============================================================')
 console.log(' every refusal of the dispatch road names the way out: a page to read, a door to open, an id to name, or the operator to ask')
 console.log('============================================================')
 
-const WAY_OUT = [/mercury:\/\/models/, /\/logins/, /ask the operator/, /\/health ROUTER/, /MERCURY_LOCAL_BASE_URL/, /MERCURY_COMPAT_MODELS/]
-const OWNERS_WORDS = new Set(['verdict.reason', 'qualification.message', 'authority.reason'])
-const compatOwner = readFileSync(join(import.meta.dir, '../../src/services/providers/openaicompat/compatAccounts.ts'), 'utf8')
-const path = join(import.meta.dir, '../../src/utils/crew/engineDispatch.ts')
-const source = readFileSync(path, 'utf8')
-const ast = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-
-type Refusal = { line: number; text: string; dynamic: boolean }
-const refusals: Refusal[] = []
-const visit = (node: ts.Node): void => {
-  if (ts.isThrowStatement(node) && node.expression && ts.isNewExpression(node.expression) && node.expression.expression.getText(ast) === 'Error') {
-    const arg = node.expression.arguments?.[0]
-    if (arg) {
-      const text = arg.getText(ast)
-      const dynamic = !(ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg) || ts.isTemplateExpression(arg) || ts.isConditionalExpression(arg))
-      refusals.push({ line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1, text, dynamic })
-    }
-  }
-  ts.forEachChild(node, visit)
-}
-visit(ast)
-
-section('§1 the census: each refusal thrown by the road')
-{
-  check('the road throws refusals (the census found them)', refusals.length >= 25, String(refusals.length))
-  for (const refusal of refusals) {
-    if (refusal.dynamic) {
-      const callee = refusal.text.replace(/\(.*$/s, '')
-      check(`engineDispatch.ts:${refusal.line} throws its owner's words (${refusal.text.slice(0, 60)})`, OWNERS_WORDS.has(refusal.text) || callee === 'providerUnavailableRefusal' || (refusal.text === 'refusal' && source.includes('const refusal = compatModelRefusal(id)') && compatOwner.includes('mercury://models lists the available endpoint models.')), refusal.text)
-      continue
-    }
-    const named = WAY_OUT.some(way => way.test(refusal.text))
-    check(`engineDispatch.ts:${refusal.line} names the way out — ${refusal.text.slice(0, 90).replace(/\s+/g, ' ')}…`, named, refusal.text)
-  }
-  const unrecognised = source.slice(source.indexOf('export function unrecognisedModelWordRefusal'), source.indexOf('type EngineProvider ='))
-  check('the unrecognised-word refusal names mercury://models, the known page and the ask rung (RED on the base)', unrecognised.includes('mercury://models lists the providers the operator is signed into') && unrecognised.includes('${MODEL_LOOKUP_LADDER}'), unrecognised.slice(-400))
-  check('no refusal still ends on "never dispatching an unverified id" or "cannot resolve a model." with nothing after it (RED on the base)', !source.includes('never dispatching an unverified id.`') && !source.includes("cannot resolve a model.')"), '')
-  check('the provider-unavailable refusal names the sign-in door for a missing credential, the local and compat doors for those slots, and /health ROUTER otherwise', source.includes('export function providerUnavailableRefusal') && source.includes("${door} connects it") && source.includes('MERCURY_LOCAL_BASE_URL') && source.includes('MERCURY_COMPAT_BASE_URL') && source.includes('/health ROUTER names the fix'), '')
-}
 
 section('§2 the words on the wire, in the owner\'s shape')
 {

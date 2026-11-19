@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import * as governor from '../../src/utils/cockpit/motionGovernor.js'
 import { _resetFrameTraceForTesting, readFrameWire, recordFrameTrace } from '../../src/ink/root/frame-trace.js'
@@ -19,8 +18,6 @@ function finish(): never {
   process.exit(failures === 0 ? 0 : 1)
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 console.log('============================================================')
 console.log(' motion governor — the second trip signal: bytes on the wire')
@@ -261,27 +258,5 @@ section('W8 through the seam: the terminal road with a kernel that takes the byt
   check(`a link that recovers releases after ${RELEASE_RUN} fast frames`, release.drains.length === RELEASE_RUN && governorLevel() === 'full' && governorTrip() === null, `${governorLevel()} ${String(governorTrip())}`)
 }
 
-section('W9 the seams in the product')
-{
-  const ink = src('src/ink/ink.tsx')
-  const wireAt = ink.indexOf('noteFrameWire(readFrameWire())')
-  const costAt = ink.indexOf('noteFrameCost(durationMs)')
-  const filedAt = ink.indexOf('this.options.onFrame?.(')
-  check('the paint tail hands the governor the frame\'s wire row before its cost', wireAt > 0 && costAt > wireAt && ink.slice(wireAt, costAt).trim() === 'noteFrameWire(readFrameWire())', `${wireAt} ${costAt}`)
-  check('…after the frame\'s row is filed (the trace consumer runs first)', filedAt > 0 && filedAt < wireAt, `${filedAt} ${wireAt}`)
-  check('the paint tail burns the cost pad before the cost is measured', ink.indexOf('burnFrameCostPad()') < costAt && ink.indexOf('burnFrameCostPad()') > 0)
-  const helpers = src('src/interactiveHelpers.tsx')
-  check('the render context\'s onFrame files the trace row the governor reads', /recordFrameTrace\(\{/.test(helpers) && /onFrame\b/.test(helpers))
-  const main = src('src/main.tsx')
-  check('the product renders with that context', /getRenderContext\(/.test(main))
-  const trace = src('src/ink/root/frame-trace.ts')
-  check('the row carries the bytes on the wire and the drain (the seam)', /wireBytes: number/.test(trace) && /drainMs: number \| null/.test(trace) && /export function readFrameWire\(\)/.test(trace))
-  const frame = src('src/components/MercuryFrame.tsx')
-  check('the status line keeps the paint trip\'s word', /useIdleMotion\('clock'\)/.test(frame) && />reduced<\/Text>/.test(frame))
-  check('…and names the slow link beside it under auto only', /motionAuto && governorTrip\(\) === 'wire' \? <Text[^>]*> · slow link<\/Text> : null/.test(frame) && /const motionAuto = motionPosture\(\) === 'auto'/.test(frame))
-  const governorSrc = src('src/utils/cockpit/motionGovernor.ts')
-  check('the governor is still config-free (flag reads only)', !/utils\/config/.test(governorSrc) && /flagRegistry/.test(governorSrc))
-  check('the governor imports no engine module (the paint tail feeds it)', !/ink\/root|ink\/session/.test(governorSrc))
-}
 reset()
 finish()

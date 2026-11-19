@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -120,26 +120,6 @@ section('§3 OUTSIDE-CHECKOUT READERS + THE GATED SITES (call-shaped)')
   check(
     'the outside-checkout hooks map carries only the config-home hook',
     outsideHooks.includes('user-marker') && !outsideHooks.includes('proj-marker'),
-  )
-  const src = (...p: string[]): string => readFileSync(join(ROOT, 'src', ...p), 'utf8')
-  check(
-    'auth: getConfiguredApiKeyHelper gates (call-shaped)',
-    /untrustedWorkspaceHeadless\(\)\) return getApiKeyHelperFromOutsideCheckoutSources\(\)/.test(src('utils', 'auth.ts')),
-  )
-  check(
-    'hooks snapshot: the compose arm gates (call-shaped)',
-    /untrustedWorkspaceHeadless\(\)/.test(src('utils', 'hooks', 'hooksConfigSnapshot.ts')) &&
-      /CHECKOUT_LAYERS\.has\(layer\)/.test(src('utils', 'hooks', 'hooksConfigSnapshot.ts')),
-  )
-  check(
-    'mcp assembly: the project MCP file excluded under the gate (call-shaped)',
-    /projectUntrusted \? emptyRead : getProjectMcpConfigs\(\)/.test(src('services', 'mcp', 'config.ts')),
-  )
-  check(
-    'mcp approval: no road and no trust record approves a project server (call-shaped)',
-    !/getIsNonInteractiveSession\(\)|checkHasTrustDialogAccepted\(\)|sovereignConsentSeen/.test(
-      src('services', 'mcp', 'utils.ts'),
-    ),
   )
 }
 

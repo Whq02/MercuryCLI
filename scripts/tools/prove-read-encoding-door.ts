@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, realpathSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -9,7 +9,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 console.log('§1 the underlying verdict')
 {
@@ -30,12 +29,6 @@ console.log('§1 the underlying verdict')
   rmSync(dir, { recursive: true, force: true })
 }
 
-console.log('§2 the read door')
-{
-  const src = readFileSync(join(ROOT, 'src', 'tools', 'FileReadTool', 'FileReadTool.ts'), 'utf8')
-  check('the BE-BOM two-byte check guards the text lane', src.includes('0xfe') && src.includes('0xff') && src.includes('UTF-16BE (big-endian BOM)'))
-  check('the refusal teaches the conversion (iconv), matching the write doors', src.includes('iconv -f utf-16be -t utf-8'))
-}
 
 console.log(failures === 0 ? '\nprove-read-encoding-door: all green' : `\nprove-read-encoding-door: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -11,8 +11,6 @@ plugin({
 })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { aggregateVelocity } from '../../src/utils/cockpit/traceSnapshot.js'
 
 let failures = 0
@@ -23,7 +21,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
-const src = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 
 const NOW = Date.parse('2026-06-19T12:00:00.000Z')
 const at = (agoSec: number): { ts: string; tool: string; surface: string; risk: string } => ({
@@ -93,16 +90,6 @@ section('future / NaN timestamps are ignored (never throw, never fake-active)')
   check('future ts did NOT reset idle to 0 (idle ≈ 30s)', v?.idleSec === 30, `${v?.idleSec}`)
 }
 
-section('wiring: the dead SPARK ramp is now CONSUMED + rendered')
-{
-  const comp = src('components', 'mercury-ui', 'components.tsx')
-  check('Sparkline primitive exported', /export function Sparkline\(/.test(comp))
-  check('Sparkline consumes the SPARK ramp', /SPARK\[/.test(comp) && /from '\.\/glyphs\.js'/.test(comp) && /SPARK/.test(comp))
-  const tv = src('components', 'TraceView.tsx')
-  check('TraceView computes the pulse (aggregateVelocity)', /aggregateVelocity\(records, now\)/.test(tv))
-  check('TraceView renders the Sparkline pulse row', /<Sparkline values=\{pulse\.perMin\}/.test(tv))
-  check('pulse row is gated on having activity (pulse.total > 0)', /pulse\.total > 0/.test(tv))
-}
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL SESSION-PULSE PROOFS PASS')

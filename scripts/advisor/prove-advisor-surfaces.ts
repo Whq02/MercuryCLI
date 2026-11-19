@@ -3,14 +3,13 @@
 import React from 'react'
 import { mock } from 'bun:test'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 import type { DOMElement } from '../../src/ink/dom.js'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const HOME = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'advisor-surfaces-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_HOME = HOME
@@ -237,8 +236,6 @@ const pickerFrames = new Map<string, string>()
   }
   const command = (await import('../../src/commands/submodels/index.ts')).default as { description: string }
   check("the command's description says the surface picks the Advisor's model", command.description === "The Advisor's model — the second model that advises the working model", command.description)
-  const surface = readFileSync(join(ROOT, 'src/commands/submodels/submodels.tsx'), 'utf8')
-  check("the surface's subtitle names the Advisor's model and its footer names no tab", surface.includes(`subtitle="the Advisor's model"`) && !surface.includes('tab container'))
 }
 
 if (frameDir !== null) {

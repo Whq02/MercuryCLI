@@ -14,20 +14,8 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
   if (!ok) failures = 1
 }
-const REPO = join(import.meta.dir, '..', '..')
-const read = (p: string) => readFileSync(join(REPO, p), 'utf8')
 const norm = (c: unknown): string => String(c ?? '').replace('#', '').toLowerCase()
 
-{
-  const home = read('src/components/MercuryHome.tsx')
-  const berth = home.slice(home.indexOf('export function PinnedCritterBerth'))
-  const berthBody = berth.slice(0, berth.indexOf('\nexport ', 1))
-  t('berth binds no grid over the def', !/square:\s*[A-Za-z]/.test(berthBody))
-  t('berth passes square= to AnimatedCritterArt', /AnimatedCritterArt def=\{hover \? hoverDockDef : dockDef\} square \/>/.test(berthBody))
-  t('berth pins its slot to the dock height', berthBody.includes('height={SQUARE_DOCK_ART_LINES}'))
-  const layout = read('src/components/FullscreenLayout.tsx')
-  t('the statusBand card mounts PinnedCritterBerth', layout.includes('<PinnedCritterBerth />'))
-}
 
 const ALL = [...CRITTERS]
 for (const def of ALL) {

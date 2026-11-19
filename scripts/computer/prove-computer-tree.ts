@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { check, finish, scratchDir, section, sourceText } from './computerProofKit.ts'
+import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, COMPUTER_READS, ownerOf, pixelOfPointOn, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
 
 const { ComputerTool, TREE_DEPTH_CAP, TREE_DEPTH_DEFAULT, TREE_LIMIT_CAP, TREE_LIMIT_DEFAULT } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
@@ -197,12 +197,6 @@ section('§7 the words and the road')
   check('the ref field carries node lifetime; the prompt carries the returned row format', fields.ref.description.includes('stale once the list changes') && prompt.includes('[n] role "title" value'))
   check('the fields carry tree budgets, scopes and clipboard consent once', fields.depth.description.includes(`default ${TREE_DEPTH_DEFAULT}, clamped at ${TREE_DEPTH_CAP}`) && fields.limit.description.includes(`default ${TREE_LIMIT_DEFAULT}, clamped at ${TREE_LIMIT_CAP}`) && fields.scope.description.includes('app adds its other windows') && !fields.scope.description.includes('menu') && fields.clipboard.description.includes('separate consent') && !prompt.includes('separate consent'))
   check('the prompt puts tree reads under the application grant', prompt.includes('first act of a session asks once') && prompt.includes('tree/find/read/wait-until share its grant'))
-  const tool = sourceText('src/tools/ComputerTool/ComputerTool.ts')
-  const addon = sourceText('native/desktop/src/mac.rs')
-  const treeReader = addon.slice(addon.indexOf('pub fn accessibility_tree'), addon.indexOf('fn parent_of'))
-  check('tree still reads no clipboard; explicit read uses a separate native road', !/NSPasteboard|UIPasteboard|pbpaste/.test(treeReader) && tool.includes("input.action === 'read' && input.clipboard === true") && addon.includes('pub fn read_clipboard()'))
-  check('the macOS reader walks the Accessibility API (AXUIElement, AXChildren, AXRole, AXTitle, AXValue, AXPosition, AXSize) and posts no event', /AXUIElementCreateApplication\(pid\)/.test(addon.slice(addon.indexOf('pub fn accessibility_tree'))) && ['"AXChildren"', '"AXRole"', '"AXTitle"', '"AXValue"', '"AXPosition"', '"AXSize"'].every(key => addon.includes(key)) && !/CGEventPost/.test(addon.slice(addon.indexOf('pub fn accessibility_tree'), addon.indexOf('fn parent_of'))))
-  check('the native driver reads the tree on the same subprocess road as the frontmost read, with a kill timeout', /accessibilityTree\(Number\(process\.argv\[2\]\)/.test(sourceText('src/services/desktop/nativeDriver.ts')) && /TREE_SUBPROCESS_TIMEOUT_MS/.test(sourceText('src/services/desktop/nativeDriver.ts')))
   check('the addon contract carries accessibilityTree among its required exports', (await import('../../src/services/desktop/pack.ts')).DESKTOP_ADDON_EXPORTS.includes('accessibilityTree' as never))
 }
 

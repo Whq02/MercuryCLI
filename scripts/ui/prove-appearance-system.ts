@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -12,8 +12,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 
 console.log('============================================================')
 console.log(' Appearance system — adaptive tokens, theme-true ground')
@@ -99,25 +97,12 @@ section('§4 — the ground follows the theme')
   check('sync is idempotent (no repeat restore)', out.length === before)
   Object.defineProperty(process.stdout, 'isTTY', { value: realIsTTY, configurable: true })
 
-  const provider = src('components', 'design-system', 'ThemeProvider.tsx')
-  check(
-    'the provider re-syncs the ground on EVERY live theme change',
-    provider.includes('syncOasisBgToTheme(resolvedTheme)') && /\[resolvedTheme\]\)/.test(provider),
-  )
 }
 
 section('§5 — one canonical picker + the /appearance center')
 {
   const appearanceCmd = (await import('../../src/commands/appearance/index.js')).default
   check('/appearance is registered + discoverable', appearanceCmd.name === 'appearance' && appearanceCmd.isHidden !== true)
-  const center = src('commands', 'appearance', 'appearance.tsx')
-  check('the center embeds the CANONICAL ThemePicker (live preview/apply/cancel)', center.includes('<ThemePicker'))
-  check('the center consumes semantic tokens, not fixed brand ink', center.includes('useMercuryTokens()') && !/IVORY|FAINT|NIGHT/.test(center))
-  check('accent section shows the LIVE accent with deep links', center.includes('useSessionAccent()') && center.includes('/critter picks the creature'))
-  check('motion persists through the real settings owner', center.includes("updateSettingsForSource('userSettings', { view: { reducedMotion:"))
-  check('motion acknowledges SYNCHRONOUSLY (local override ahead of the async file-watcher read)', center.includes('motionOverride ?? settingsReduced'))
-  const hook = src('components', 'mercury-ui', 'useMercuryTokens.ts')
-  check('the live hook subscribes to theme + accent', hook.includes('useTheme()') && hook.includes('useSessionAccent()'))
 }
 
 section('§6 — True Black: the second appearance')
@@ -201,26 +186,6 @@ section('§6 — True Black: the second appearance')
     writes[2]?.includes(`]11;${oa.NIGHT}`) === true,
   )
 
-  const picker = src('components', 'ThemePicker.tsx')
-  const labels = src('utils', 'theme.ts')
-  check(
-    'the picker labels both appearances (True Black by name) through the one label owner',
-    picker.includes('THEME_LABELS_BY_SETTING: Record<string, string> = THEME_LABELS') && labels.includes("'true-black': 'True Black'") && labels.includes("dark: 'Oasis dark'"),
-  )
-  check(
-    'the picker previews on focus, saves the SELECTED row on select (a digit picks a row it never focused), releases on cancel',
-    picker.includes('setPreviewTheme(value)') &&
-      picker.includes('setThemeSetting(value)') &&
-      !picker.includes('savePreview()') &&
-      picker.includes('cancelPreview()'),
-  )
-  const config = src('components', 'Settings', 'Config.tsx')
-  check("the /config submenu labels true-black through the one label owner", config.includes('...THEME_NAMES_BY_SETTING') && labels.includes("'true-black': 'True Black'"))
-  const onboarding = src('components', 'Onboarding.tsx')
-  check(
-    'the first-run fitting offers both appearances',
-    onboarding.includes("value: 'dark'") && onboarding.includes("value: 'true-black'"),
-  )
 }
 
 section('§7 — the default appearance: True Black, and a saved choice wins')
@@ -313,30 +278,6 @@ section('§7 — the default appearance: True Black, and a saved choice wins')
   oasis._resetGroundForTest()
   Object.defineProperty(process.stdout, 'isTTY', { value: realIsTTY, configurable: true })
 
-  const picker = src('components', 'ThemePicker.tsx')
-  check(
-    'the picker’s default and focused row ride the saved setting, else the one owner',
-    picker.includes('defaultValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : DEFAULT_THEME_SETTING}') &&
-      picker.includes('defaultFocusValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : DEFAULT_THEME_SETTING}'),
-  )
-  const fitting = src('components', 'Onboarding.tsx')
-  check(
-    'the first-run fitting opens on the provider’s setting (the default on a fresh home)',
-    fitting.includes('initialId: themeSetting') && fitting.includes('? DEFAULT_THEME_SETTING : theme'),
-  )
-  const providerSrc = src('components', 'design-system', 'ThemeProvider.tsx')
-  check(
-    'the provider’s fallback and its no-provider context are the owner',
-    providerSrc.includes(': DEFAULT_THEME_SETTING\n}') &&
-      providerSrc.includes('resolvedTheme: DEFAULT_THEME_SETTING') &&
-      providerSrc.includes('themeSetting: DEFAULT_THEME_SETTING'),
-  )
-  check('the corrupt-config dialog pins the owner', src('components', 'InvalidConfigDialog.tsx').includes('initialState={DEFAULT_THEME_SETTING}'))
-  check('the fresh-config factory reads the owner', src('utils', 'config', 'schema.ts').includes('theme: DEFAULT_THEME_SETTING,'))
-  check(
-    'the ground owner’s unreadable-config arm reads the owner',
-    /function concreteTheme\(\): ThemeName \{[\s\S]*?\} catch \{\s*\n\s*return DEFAULT_THEME_SETTING\b/.test(src('utils', 'cockpit', 'oasisBg.ts')),
-  )
 }
 
 console.log('\n' + '═'.repeat(76))

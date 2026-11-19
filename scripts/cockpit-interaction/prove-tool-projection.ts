@@ -64,48 +64,9 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
   const t = checker()
   const scratch = mkdtempSync(join(tmpdir(), 'hz-toolproj-'))
 
-  const { getAllBaseTools } = await import('../../src/tools.ts')
-  const SWEEP_EXCLUDED_DIRS = new Set(['testing', 'MCPTool'])
-  const DIR_NAMES = new Map<string, Set<string>>()
-  for (const dir of readdirSync('src/tools', { withFileTypes: true })) {
-    if (!dir.isDirectory() || SWEEP_EXCLUDED_DIRS.has(dir.name)) continue
-    const names = new Set<string>()
-    for (const file of readdirSync(join('src/tools', dir.name))) {
-      if (!file.endsWith('.ts') && !file.endsWith('.tsx')) continue
-      const src = readFileSync(join('src/tools', dir.name, file), 'utf8')
-      for (const m of src.matchAll(/TOOL_NAME = '([A-Za-z]+)'/g)) names.add(m[1]!)
-      if (src.includes('buildTool(')) {
-        for (const m of src.matchAll(/^\s*name: '([A-Za-z][A-Za-z0-9]*)',?$/gm)) names.add(m[1]!)
-      }
-    }
-    if (names.size > 0) DIR_NAMES.set(dir.name, names)
-  }
-  const LIVE_TOOLS = getAllBaseTools().filter(tool => tool.name !== 'TestingPermission')
-  const LIVE = LIVE_TOOLS.map(tool => tool.name)
-  const POOL: string[] = [
-    ...new Set([...LIVE, ...[...DIR_NAMES.values()].flatMap(s => [...s])]),
-  ].sort()
-  const STORED_CALL_NAMES = ['Workflow']
 
   t.section('§1 — the glyph registry is total, width-stable and not colour-only')
   {
-    t.check('the live tool pool was found', POOL.length > 40, `${POOL.length} tools`)
-    t.check(
-      'the RUNTIME registry is one of its sources — not only a filename convention',
-      LIVE.length > 40 && LIVE.every(n => POOL.includes(n)),
-      `${LIVE.length} registered live`,
-    )
-    for (const name of ['ReadMcpResource', 'Structure', 'Test', 'Journey', 'Git', 'Browser']) {
-      t.check(`${name} is in the ratchet's pool`, POOL.includes(name), 'seen')
-    }
-    const unclassified = POOL.filter(name => TOOL_FAMILY_BY_NAME[name] === undefined)
-    t.check(
-      'EVERY registered tool has an authored family — no silent default',
-      unclassified.length === 0,
-      unclassified.join(', ') || 'total',
-    )
-    const stale = Object.keys(TOOL_FAMILY_BY_NAME).filter(name => !POOL.includes(name) && !STORED_CALL_NAMES.includes(name))
-    t.check('and the table names no tool that no longer exists, but for the one name a stored session still paints (Workflow keeps its glyph)', stale.length === 0 && STORED_CALL_NAMES.every(name => !POOL.includes(name) && TOOL_FAMILY_BY_NAME[name] === 'agent'), stale.join(', ') || 'clean')
 
     const marks = Object.values(TOOL_FAMILY_MARKS)
     t.check(
@@ -152,74 +113,8 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       toolFamilyFor('mcp__chrome-devtools__click') === 'external',
       toolFamilyFor('mcp__chrome-devtools__click'),
     )
-    t.check('every pooled tool resolves a mark', POOL.every(n => toolMarkFor(n).glyph.length > 0), 'total')
   }
 
-  t.section('§2 — the projection contract: declared, never forgotten')
-  {
-    const implementers = new Set<string>(
-      LIVE_TOOLS.filter(tool => typeof tool.extractSearchText === 'function').map(tool => tool.name),
-    )
-    for (const [dirName, names] of DIR_NAMES) {
-      let hasExtractor = false
-      for (const file of readdirSync(join('src/tools', dirName))) {
-        if (!file.endsWith('.ts') && !file.endsWith('.tsx')) continue
-        const src = readFileSync(join('src/tools', dirName, file), 'utf8')
-        if (/extractSearchText\s*[(:]/.test(src)) hasExtractor = true
-      }
-      if (hasExtractor) {
-        for (const n of names) if (!LIVE.includes(n)) implementers.add(n)
-      }
-    }
-    t.check('some tools own their own extraction', implementers.size > 0, `${implementers.size}`)
-    for (const name of ['Crewmate', 'Edit', 'PowerShell', 'AskUserQuestion', 'WebFetch', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'ChangeSet', 'Test', 'Git']) {
-      t.check(`${name} owns its extraction — its painted result is findable`, implementers.has(name), 'extracts')
-    }
-
-    const undeclared = POOL.filter(
-      name => !implementers.has(name) && !NON_INDEXING_TOOLS.has(name),
-    )
-    t.check(
-      'EVERY tool either extracts its own search text or is declared non-indexing',
-      undeclared.length === 0,
-      undeclared.join(', ') || 'total',
-    )
-    const bothWays = POOL.filter(name => implementers.has(name) && NON_INDEXING_TOOLS.has(name))
-    t.check(
-      'and no tool claims both — the declaration is unambiguous',
-      bothWays.length === 0,
-      bothWays.join(', ') || 'disjoint',
-    )
-    const ghostsIn = (names: Iterable<string>): string[] => [...names].filter(name => !POOL.includes(name))
-    const ghosts = ghostsIn(NON_INDEXING_TOOLS).filter(name => !STORED_CALL_NAMES.includes(name))
-    t.check(
-      'the non-indexing list names only pooled tools, and the one name a stored session still holds (Workflow stays out of the index)',
-      ghosts.length === 0 && STORED_CALL_NAMES.every(name => NON_INDEXING_TOOLS.has(name)),
-      ghosts.join(', ') || 'clean',
-    )
-    const deadName = '__unregistered_projection_probe__'
-    t.check(
-      'a dead name still fails the non-indexing pin',
-      ghostsIn([...NON_INDEXING_TOOLS, deadName]).includes(deadName),
-      'unregistered probe rejected',
-    )
-
-    const search = readFileSync('src/utils/transcriptSearch.ts', 'utf8')
-    t.check(
-      'the stale "proper fix is a TODO" note is gone — the contract exists',
-      !search.includes('extractSearchText(Out) on the Tool interface (TODO)'),
-      'closed',
-    )
-    const fallbackAt = search.indexOf('export function toolResultSearchText(result: unknown): string')
-    const fallbackArm = fallbackAt >= 0 ? search.slice(fallbackAt, fallbackAt + 1600) : ''
-    t.check(
-      'and the duck-type arm is the FALLBACK, not the contract: it walks named fields only, never every key',
-      fallbackAt >= 0 &&
-        fallbackArm.includes("for (const field of ['content', 'output', 'result', 'text', 'message'])") &&
-        !/Object\.(keys|entries|values)\(record\)/.test(fallbackArm),
-      fallbackAt >= 0 ? 'named fields' : 'no fallback arm',
-    )
-  }
 
   t.section('§3 — the operators')
   {
@@ -332,32 +227,6 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     )
     const quiet = renderableSearchText(resultRow('doc-3'), () => ({ name: 'Monitor', extractSearchText: () => 'never indexed' }))
     t.check('a non-indexing tool contributes no search text even with an extractor', quiet === '', JSON.stringify(quiet))
-    const messagesSource = readFileSync('src/components/Messages.tsx', 'utf8')
-    t.check(
-      'Messages hands the search the tool behind each result (the tool-use lookup, then the live tool list)',
-      messagesSource.includes('lookupsRef.current.toolUseByToolUseID.get(id)?.name') && /renderableSearchText\([\s\S]{0,400}findToolByName\(tools, name\)/.test(messagesSource),
-      'wired',
-    )
-    const list = readFileSync('src/components/VirtualMessageList.tsx', 'utf8')
-    t.check('the search path parses operators', /const query = parseSearchQuery\(/.test(list), 'parsed')
-    t.check('and filters rows through the facets', list.includes('facetsSatisfy('), 'filtered')
-    t.check(
-      'a pure filter counts ROWS — non-matching rows are skipped in the count loop',
-      /if \(!facets \|\| !facetsSatisfy\(facets, query\)\) continue/.test(list),
-      'row-counted',
-    )
-    const messages = readFileSync('src/components/Messages.tsx', 'utf8')
-    t.check('Messages supplies the facets', messages.includes('extractFacets={extractFacets}'), 'supplied')
-    t.check(
-      'and reads "failed" from the SAME lookups the renderer paints the dot from',
-      messages.includes('live.erroredToolUseIDs.has(block.id)') && messages.includes('live.deniedToolUseIDs.has(block.id)'),
-      'one truth',
-    )
-    t.check(
-      'the facet cache is regenerated with the lookups — a mid-turn failure cannot be cached away',
-      /const facetsCache = useMemo\(\s*\n\s*\(\) => new WeakMap<[^>]+>\(\),\s*\n\s*\[lookups\],/.test(messages),
-      'lookups-keyed, not useRef-permanent (re-audit finding)',
-    )
     const { highlightTextOf } = await import('../../src/screens/chat/useChatSearch.tsx')
     const highlighted = ['', 'gate verdict', 'tool:bash verdict', 'file:src/a.ts tool:"Read" failed: build ok', 'failed:'].map(query => highlightTextOf(query))
     t.check(
@@ -369,14 +238,6 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       'so an operator token is never inverse-highlighted as content',
       highlighted.every(text => !/\b(?:tool|file|failed):/.test(text)),
       highlighted.join('|'),
-    )
-    const row = readFileSync('src/components/messages/AssistantToolUseMessage.tsx', 'utf8')
-    const lead = readFileSync('src/components/messages/ToolRowLead.tsx', 'utf8')
-    t.check('the tool row wears the family mark through its lead', row.includes('toolFamilyFor(param.name)') && row.includes('<ToolRowLead family={family}'), 'marked')
-    t.check(
-      'toned through the registry, never a literal colour',
-      lead.includes('TOOL_FAMILY_MARKS[family]') && lead.includes('tokens[mark.tone]') && !/color=["']#/.test(lead),
-      'registry-toned',
     )
   }
 

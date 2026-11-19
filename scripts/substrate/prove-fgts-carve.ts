@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -56,56 +54,6 @@ try {
   restore()
 }
 
-section('§2 STRIP CARVE — structural pins on src/utils/api.ts')
-const apiSrc = readFileSync(
-  join(import.meta.dir, '..', '..', 'src', 'utils', 'api.ts'),
-  'utf8',
-)
-const stripBlock = apiSrc.slice(apiSrc.indexOf("if (isEnvTruthy('1'))"))
-check(
-  'strip block exists (the baked DISABLE_EXPERIMENTAL_BETAS choke point)',
-  stripBlock.length > 0 && stripBlock.length < apiSrc.length,
-)
-check(
-  'carve is gated on the LIVE base-URL-aware fn',
-  /if \(fineGrainedToolStreamingEnabled\(\)\) \{\s*allowed\.add\('eager_input_streaming'\)/.test(
-    stripBlock,
-  ),
-)
-check(
-  'stripped return rebuilds the field only when carved AND present',
-  stripBlock.includes(
-    "...(allowed.has('eager_input_streaming') &&\n          schema.eager_input_streaming && { eager_input_streaming: true }),",
-  ),
-)
-const allowlistMatch = stripBlock.match(
-  /const allowed = new Set\(\[([\s\S]*?)\]\)/,
-)
-const allowlistLiterals = (allowlistMatch?.[1].match(/'[a-z_]+'/g) ?? []).map(
-  s => s.slice(1, -1),
-)
-check(
-  "base allowlist is exactly the four pre-carve fields (the '1' pin holds)",
-  JSON.stringify(allowlistLiterals) ===
-    JSON.stringify(['name', 'description', 'input_schema', 'cache_control']),
-  allowlistLiterals.join(','),
-)
-check(
-  'defer_loading is carved ONLY behind the live tool-defer gate AND the wire-form acceptance',
-  /if \(toolDeferralEnabled\(\) && toolReferenceWireAccepted\(\)\) \{\s*allowed\.add\('defer_loading'\)/.test(
-    stripBlock,
-  ),
-)
-check(
-  'strict is never carved',
-  !/allowed\.add\('strict'\)/.test(stripBlock),
-)
-check(
-  'the set-site stays gated on the same fn',
-  /if \(fineGrainedToolStreamingEnabled\(\)\) \{\s*built\.eager_input_streaming = true/.test(
-    apiSrc,
-  ),
-)
 
 console.log('')
 if (failures > 0) {

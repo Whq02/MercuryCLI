@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -90,13 +90,6 @@ section("§2 a twin reported ahead of the file's landing: the feed re-checks wit
   rmSync(resolve(w.watched, '..'), { recursive: true, force: true })
 }
 
-section('§3 structural: every report of the directory watch reaches the tick; the file-name filter is gone')
-{
-  const src = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  const feedSrc = src.slice(src.indexOf('export class ProjectionFeed'), src.indexOf('export class DaemonSessionConnector'))
-  check('the projection feed no longer keeps a report only when it names the file', !feedSrc.includes('join(this.dir, String(filename)) === this.path'))
-  check('a report that found the key unmoved arms one re-check a heartbeat later', /setTimeout\(\(\) => \{[\s\S]*?\}, HEARTBEAT_MS\)/.test(feedSrc))
-}
 
 rmSync(process.env.MERCURY_CONFIG_DIR, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-projection-twin-event: ALL LAWS HOLD' : `\nprove-projection-twin-event: ${failures} FAILURE(S)`)

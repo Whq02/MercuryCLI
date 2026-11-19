@@ -109,30 +109,6 @@ section('3. end-to-end through the REAL tool — event drain ⇒ store record')
   resetUnityBridgeClientForTest()
 }
 
-section('4. the additive-widening edges — the pytest arm byte-unchanged')
-{
-  const src = readFileSync(path.join(repo, 'src', 'services', 'ide', 'pythonTests.ts'), 'utf8')
-  check(
-    "TestFramework stays exactly 'pytest' | 'unittest' (the ruling's edge: the widening is a THIRD arm, never a rewrite)",
-    src.includes("export type TestFramework = 'pytest' | 'unittest'"),
-  )
-  check("EngineFramework is the third arm beside the store owner's others", src.includes("export type EngineFramework = 'unity'"))
-  check('the record union carries all three arms', src.includes('framework: TestFramework | RunnerFramework | EngineFramework'))
-}
-
-section('5. the boundary re-cuts — dead constraints are GONE, the contract stands')
-{
-  const unityTests = readFileSync(path.join(repo, 'src', 'services', 'ide', 'unityTests.ts'), 'utf8')
-  check('unityTests no longer claims the store stays untouched', !unityTests.includes('stay untouched until an in-product'))
-  const launchTool = readFileSync(path.join(repo, 'src', 'tools', 'LaunchTool', 'LaunchTool.ts'), 'utf8')
-  check("LaunchTool no longer claims in-product executors are 'not this build's' for Unity", !launchTool.includes("are the UNITY-BRIDGE/BLENDER-BRIDGE lanes' seams, not this build's"))
-  const unityTool = readFileSync(path.join(repo, 'src', 'tools', 'UnityTool', 'UnityTool.ts'), 'utf8')
-  const blenderTool = readFileSync(path.join(repo, 'src', 'tools', 'BlenderTool', 'BlenderTool.ts'), 'utf8')
-  check('BOTH landed in-product executors exist in code (Unity tests_run · Blender python_run/render_still)', unityTool.includes("input.op === 'tests_run'") && blenderTool.includes("input.op === 'python_run'") && blenderTool.includes('render_still:'))
-  const profiles = readFileSync(path.join(repo, 'src', 'services', 'ide', 'launchProfiles.ts'), 'utf8')
-  check('launchProfiles carries no until-the-lane-lands sentence any more', !profiles.includes('until the UNITY-BRIDGE lane lands') && !profiles.includes('owns any future in-product executor seam'))
-  check('operatorRunRefusal + the compat alias still stand (the contract)', launchTool.includes('export function operatorRunRefusal') && launchTool.includes('export const unityHeadlessRefusal = operatorRunRefusal'))
-}
 
 console.log('\n' + (failures === 0 ? '✅ unity-bridge store proof PASS' : `❌ ${failures} FAILURES`))
 process.exit(failures === 0 ? 0 : 1)

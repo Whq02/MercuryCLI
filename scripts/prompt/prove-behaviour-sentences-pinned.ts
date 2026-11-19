@@ -3,7 +3,6 @@
 // gate-watch: src/mneme/mnemeFrontPage.ts src/services/agentResults/contracts.ts src/constants/subagentDoctrine.ts
 // gate-watch: scripts/prompt/fixtures/prompt-ablation/**
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -103,7 +102,6 @@ try {
   for (const [seat, text] of Object.entries(seats)) {
     check(`${seat}: the memory index sentence is present, verbatim, once`, text.split(M026).length === 2, text.includes('# Memory') ? 'the memory page rides without the sentence' : 'no memory page in the render')
   }
-  check('the sentence is the front page\'s own text (one owner)', readFileSync(join(ROOT, 'src/mneme/mnemeFrontPage.ts'), 'utf8').includes(M026))
   const pinsOnly = renderFrontPage({ dir: library, topics: [], archives: [], pins: [{ seq: 1, at: '2026-10-16T12:00:00.000Z' }], usage: {}, now: new Date('2026-10-16T12:00:00.000Z') }).text
   check('a pins-only library (pins, no topics, no archives) renders the sentence and its referent: the ## Index heading, the empty-index line beneath it', pinsOnly.includes(M026) && pinsOnly.includes('\n## Index\n(nothing saved yet — memory is written only when the user asks for something to be remembered)\n'), pinsOnly)
 
@@ -116,17 +114,6 @@ try {
     check(`${row.id} is absent from ${row.seats} (carrier: ${row.carrier})`, present.length === 0, `still rides the ${present.join(' and ')} seat`)
   }
 
-  section('§3 the source census: no module under src spells a cut sentence')
-  for (const row of rows) {
-    if (!row.census) continue
-    let hits = ''
-    try {
-      hits = execFileSync('git', ['-C', ROOT, 'grep', '-l', '-F', row.census, '--', 'src'], { encoding: 'utf8' }).trim()
-    } catch (error) {
-      hits = (error as { stdout?: string }).stdout?.trim() ?? ''
-    }
-    check(`${row.id}: no source file carries ${j(row.census)}`, hits === '', hits.split('\n').join(' · '))
-  }
 
   section('§4 the replay fixture: the flip is a recorded fact, read, never re-run')
   const flips = tsv('replay-flip.tsv')

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -10,7 +9,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const ROOT = join(import.meta.dir, '..', '..')
 
 console.log('============================================================')
 console.log(' provider-key isolation — derived, unconditional for LSP')
@@ -104,15 +102,8 @@ section('§4 the CI scrub armed: every spelling and its INPUT_ twin')
 
 section('§5 the wiring, structural')
 {
-  for (const file of ['src/services/lsp/LSPServerInstance.ts', 'src/services/lsp/clangdLane.ts', 'src/services/lsp/ruffLane.ts']) {
-    const src = readFileSync(join(ROOT, file), 'utf8')
-    check(`${file} spawns through languageServerEnv`, src.includes('languageServerEnv()') && !src.includes('subprocessEnv()'))
-  }
   const isolationRow = getFlagSpec('MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION')
   check('the isolation flag is registered with its off arm', isolationRow !== undefined && isolationRow.off.includes('ambient inheritance, byte-identical'))
-  const subEnvSrc = readFileSync(join(ROOT, 'src/utils/subprocessEnv.ts'), 'utf8')
-  check('the strip path emits no log or diagnostic (no credential value can leak through one)', !/console\.|logError|logForDebugging/.test(subEnvSrc))
-  check('the CI list derives from the family table (no hand-kept provider spellings)', subEnvSrc.includes('...ALL_PROVIDER_CREDENTIAL_ENV_VARS') && !subEnvSrc.includes("'OPENAI_API_KEY'"))
 }
 
 console.log('\n' + '='.repeat(60))

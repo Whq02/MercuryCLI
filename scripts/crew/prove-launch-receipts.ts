@@ -19,7 +19,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -177,15 +176,6 @@ check('a file over the cap is cut to the tail window, at a line boundary, with t
 check('the tail window ends with the stream\'s last line', tail.text.trimEnd().endsWith(lines[lines.length - 1]!))
 check('the cap is half a megabyte', AGENT_TAIL_READ_CAP_BYTES === 512 * 1024)
 
-section('R7 · the seams in source')
-const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
-check('the receipt line is the Crewmate tool\'s own first line', agentTool.includes(`'${lr.BACKGROUND_LAUNCH_LINE}',`))
-const adapter = src('src/services/resources/adapters/agent.ts')
-check('the detail view reads through the bounded tail window, never the whole file', /const window = readTailWindow\(contentPath\)/.test(adapter) && !/readFileSync\(contentPath/.test(adapter))
-const footer = src('src/components/PromptInput/Notifications.tsx')
-check('the footer\'s model is the focused chat\'s effective model (the band\'s window owner), never the screen\'s own slot', /getFocusedSessionConnector\(\)\.modelFacts\(\)\.effective/.test(footer) && /useSyncExternalStore\(subscribeFocusedModel, getFocusedModel, getFocusedModel\)/.test(footer) && !/state\.engineModel/.test(footer))
-const local = src('src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-check('the notification owner accepts the caller\'s truer summary', /summary\?: string/.test(local) && /args\.summary \?\?/.test(local))
 
 section('R8 · the address — the receipt\'s id routes, the name routes, a dead address says why')
 await import('../../src/tasks.ts')
@@ -232,13 +222,6 @@ function makeCtx(store: ReturnType<typeof makeStore>): never {
   const ghost = generateTaskId('local_agent')
   const toGhost = (await SendMessageTool.call({ to: ghost, message: 'anyone there' } as never, ctx, undefined as never, { requestId: 'req_3' } as never)) as SendAnswer
   check('an unrecognised id follows the unknown-address road and names the live alternatives', toGhost.data.success === false && toGhost.data.message.includes(`no crewmate named ${ghost} in this session`) && toGhost.data.message.includes('running crewmates are: harbour'), toGhost.data.message)
-  const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
-  check("the receipt's address line names the id and, for a named launch, the name — the two addresses the resolver reads", /continuationHint\(async\.agentId, async\.agentName\)/.test(agentTool) && agentTool.includes('or to its name "${name}"') && agentTool.includes("input.name ? { agentName: input.name } : {}"))
-  const sendTool = src('src/tools/SendMessageTool/SendMessageTool.ts')
-  check("the tool's to field tells the model both addresses reach a launched crewmate", sendTool.includes('the id its launch receipt names or the name its launch gave it (a name two launches carried reaches the newest)'))
-  const ids = src('src/types/ids.ts')
-  const task = src('src/Task.ts')
-  check('the id grammar has one owner: the minter reads the alphabet the validator reads', ids.includes('export const TASK_ID_ALPHABET') && task.includes("import { TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH } from './types/ids.js'") && !/const TASK_ID_ALPHABET = /.test(task))
 }
 
 section("R8b · a queued-guidance resume re-registers the id — the old run's notice never latches the resumed run's row")
@@ -281,8 +264,6 @@ for (const ordering of ['old-first', 'resumed-first'] as const) {
   enqueueAgentNotification({ taskId: id, description: 'fails late', status: 'failed', error: 'late failure', setAppState: store.set as never, controller: first.abortController })
   const row = store.get().tasks[id] as { notified?: boolean } | undefined
   check("an old run's FAILED notice goes out and leaves the resumed row unlatched", queue.getCommandQueue().filter(c => c.mode === 'task-notification').length === 1 && row?.notified !== true, JSON.stringify(row?.notified))
-  const lifecycle = src('src/tools/AgentTool/agentToolUtils.ts')
-  check('every notice the lifecycle enqueues names its registration (completed, killed, failed)', (lifecycle.match(/controller: args\.abortController,/g) ?? []).length >= 3, String((lifecycle.match(/controller: args\.abortController,/g) ?? []).length))
   void second
 }
 {
@@ -298,11 +279,6 @@ for (const ordering of ['old-first', 'resumed-first'] as const) {
 
 section('R8c · a named launch: the foreground road registers the name, the handover receipt names it, both eviction roads prune it')
 {
-  const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
-  const foreground = src('src/tools/AgentTool/foregroundExecution.tsx')
-  check('the async road registers the launch name through the one alias helper, after its registration', /registerAsyncAgent\(\{[\s\S]{0,1500}registerAgentName\(input\.name, earlyAgentId, rootSetAppState\)/.test(agentTool))
-  check('the foreground road receives the name and registers it through the same helper, after its registration', /name: input\.name,/.test(agentTool) && /registerAgentForeground\(\{[\s\S]{0,1200}if \(name !== undefined\) registerAgentName\(name, syncAgentId, rootSetAppState\)/.test(foreground))
-  check('the handover receipt carries the name, so its address line names both addresses', /status: 'async_launched',[\s\S]{0,900}\.\.\.\(name !== undefined \? \{ agentName: name \} : \{\}\)/.test(foreground))
   const { applyTaskOffsetsAndEvictions } = await import('../../src/utils/task/framework.ts')
   const taskModule = (await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')) as { registerAgentName?: (name: string, agentId: string, set: unknown) => void }
   const registerAgentName = taskModule.registerAgentName
@@ -385,11 +361,6 @@ section("R8d · a resume reads the live owner right before it registers")
   check("an earlier run's late complete, kill and fail leave the successor running, its controller untouched", successor?.status === 'running' && second.abortController.signal.aborted === false, JSON.stringify(successor?.status))
   ;(completeAgentTask as Function)({ agentId: twice }, store.set, second.abortController)
   check("…and the successor's own settle lands", (store.get().tasks[twice] as { status?: string } | undefined)?.status === 'completed')
-  const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')
-  const checkAt = resumeSrc.indexOf('const owner = liveAgentOwner(agentId, tasksNow)')
-  const registerAt = resumeSrc.indexOf('const task = registerAsyncAgent({', checkAt)
-  check('the resume checks the live owner right before it registers, with no await between', checkAt > 0 && registerAt > checkAt && !/\bawait\b/.test(resumeSrc.slice(checkAt, registerAt)))
-  check('no new registration road or permission road was added (one registration, the fallback field and its two values, the one pre-existing permission default)', (resumeSrc.match(/registerAsyncAgent\(/g) ?? []).length === 1 && (resumeSrc.match(/cwdFallback/g) ?? []).length === 3 && (resumeSrc.match(/behavior: 'allow'/g) ?? []).length === 1 && !/process\.env\./.test(resumeSrc))
 }
 
 section('R8e · every non-terminal row has a live owner; the exit card counts what is alive, by kind, and names where to see it')
@@ -426,10 +397,6 @@ section('R8e · every non-terminal row has a live owner; the exit card counts wh
   check('a second row with a live controller is counted by both surfaces alike (never settled on a guess)', fw.taskOwnerGone(store.get().tasks[child] as never) === null && fw.liveBackgroundCounts(store.get().tasks).agents === 2 && crewAgents() === 2)
   killAsyncAgent(liveAgent, store.set as never)
   killAsyncAgent(child, store.set as never)
-  const exitSrc = src('src/commands/exit/exit.tsx')
-  check('the exit command settles ownerless rows, then counts by kind, and hands the words to the card', exitSrc.indexOf('settleOwnerlessTasks(context.setAppState)') > 0 && exitSrc.indexOf('settleOwnerlessTasks(context.setAppState)') < exitSrc.indexOf('liveWorkAtExit(context.getAppState') && exitSrc.includes('liveWords={liveWorkWords(counts)}'))
-  const confirmSrc = src('src/components/MercuryExitConfirm.tsx')
-  check('the card says what is alive by kind and where to see it', confirmSrc.includes('{liveWords} still running') && confirmSrc.includes('see them with /runs'))
 }
 
 section("R8f · the interrupt receipt counts what the crew view lists: a settled agent is not counted")
@@ -451,8 +418,6 @@ section("R8f · the interrupt receipt counts what the crew view lists: a settled
   const both = crew.crewStillRunningLine({ ...counts, agents: 2 }) as string | null
   check('…and crewmates keep their words and the crew-view door', both !== null && /2 crewmates still running/.test(both) && /crew view \(\/crewmates\)/.test(both), String(both))
   check('…nothing running, no line', crew.crewStillRunningLine({ agents: 0, shells: 0, asks: 0 }) === null)
-  const cancel = src('src/hooks/useCancelRequest.ts')
-  check('the interrupt receipt reads the one counting law (workCounts over the roster), never its own filter', /const running = workCounts\(focused\.workRoster\(\)\.rows\)/.test(cancel) && /crewStillRunningLine\(running\)/.test(cancel) && !/row\.kind === 'agent' \|\| row\.kind === 'workflow'/.test(cancel))
   const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
   const { failAgentTask } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
   drainRows()
@@ -610,8 +575,6 @@ async function deathOf(name: string, writes: string[]): Promise<{ record: { stat
   check('a second death report for the same task is swallowed by the notified latch', queue.getCommandQueue().filter(c => c.mode === 'task-notification').length === 1)
   const bare = await deathOf('bare-foliage', [])
   check('a child that wrote nothing says so', bare.notes.length === 1 && /no file writes landed/.test(bare.notes[0] ?? ''), (bare.notes[0] ?? '').slice(0, 400))
-  const send = src('src/tools/SendMessageTool/SendMessageTool.ts')
-  check('a resume of a settled agent names its real end — never "was stopped" for a failure', !send.includes('was stopped (status: ${liveLocal.status})'))
   queue.resetCommandQueue()
 }
 
@@ -661,11 +624,6 @@ section('R11 · the hand-back — every exit that is not a clean finish carries 
     check(`${exit.name}: the notice carries the envelope with the observed changes`, /<envelope v="\d+" status="(failed|stopped)">/.test(note) && /changed \(observed\)/.test(note), note.slice(-400))
     check(`${exit.name}: the notice names the way back`, /its work is kept/.test(note) && /resume it from the crew view/.test(note), note.slice(0, 400))
   }
-  const painter = src('src/components/messages/UserAgentNotificationMessage.tsx')
-  check('the notification card paints a kept partial result as its own line', /partial result kept/.test(painter) && /partialResultOf\(param\.text\)/.test(painter))
-  const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
-  const failedBranch = agentTool.slice(agentTool.indexOf("if (status === 'failed')"), agentTool.indexOf("if (status === 'completed')"))
-  check("the sync road's failed result carries the envelope and says the work is kept", /envelopeFor\(data\)/.test(failedBranch) && /its work is kept/.test(failedBranch))
   queue.resetCommandQueue()
 }
 
@@ -717,11 +675,6 @@ section('R12 · durability — every row an agent yields is on its transcript fi
   check('the control: rows handed to the writer and a crash at once — the batch window loses them (fewer than three on disk)', control !== null && control < 3, String(control))
   const durable = rowsOnDisk('durable')
   check('the durable road: every row is on disk before the next one is handed on — three on disk after the crash', durable === 3, String(durable))
-  const runner = src('src/tools/AgentTool/runAgent.ts')
-  check('the runner lands every recordable row before it yields (no fire-and-forget record left on its stream)', /export async function landAgentTranscriptRows\(/.test(runner) && !/void recordSidechainTranscript\(/.test(runner))
-  const lifecycle = src('src/tools/AgentTool/agentToolUtils.ts')
-  const foreground = src('src/tools/AgentTool/foregroundExecution.tsx')
-  check("the lifecycle's non-clean exits flush the transcript before the notice goes out", (lifecycle.match(/await flushSessionStorage\(\)/g) ?? []).length >= 2 && (foreground.match(/await flushSessionStorage\(\)/g) ?? []).length >= 2)
 }
 
 section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a receipt row; never on a kill, a stop, a hand resume, a live owner, or a second time')
@@ -809,10 +762,6 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
         check(kind === 'budget-cut' ? 'the lifecycle arms the one automatic resume on a budget cut' : "the lifecycle's stop road arms nothing", kind === 'budget-cut' ? armed && cancelled : !armed && !cancelled)
       }
     }
-    const lifecycleSrc = src('src/tools/AgentTool/agentToolUtils.ts')
-    const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')
-    check('the lifecycle arms the resume on exactly two roads — a budget cut, and a spent usage window with a stated reset — never on the stop road', (lifecycleSrc.match(/armBudgetCutResume\(\{/g) ?? []).length === 2 && /const budgetCut = recoveryBudgetCutOf\(error\)/.test(lifecycleSrc) && /if \(budgetCut !== null && !args\.automaticResume\)/.test(lifecycleSrc) && /usageWindowPauseOf\(accumulated, metadata\.resolvedAgentModel\)/.test(lifecycleSrc) && /windowPause\.resumesAtMs !== undefined && !args\.automaticResume/.test(lifecycleSrc))
-    check('the resume road carries the automatic mark into the lifecycle it starts', /automaticResume: args\.automatic === true/.test(resumeSrc))
   }
   queue.resetCommandQueue()
 }

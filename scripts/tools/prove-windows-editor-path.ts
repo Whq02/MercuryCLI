@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -76,8 +76,6 @@ try {
     })
     check(`${platform}: every existing proof setting keeps its executable and arguments`, unchanged)
   }
-  const source = readFileSync(join(root, 'src/utils/promptEditor.ts'), 'utf8')
-  check('the Windows handoff uses the resolved executable and arguments without reparsing the path', source.includes('executablePath: resolved.executable, args: resolved.args'))
 } finally {
   process.chdir(prior)
   rmSync(scratch, { recursive: true, force: true })

@@ -56,15 +56,12 @@ try {
   const rel3 = releaseScratchLease(l3.leaseId)
   check("'preserve' policy keeps the root on release", rel3.released && !rel3.cleaned && existsSync(root3))
 
-  const { readFileSync } = await import('node:fs')
   const { buildSubagentMercurySections } = await import(join(ROOT, 'src/constants/subagentDoctrine.ts'))
   const doctrine = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } }).join('\n')
   check('subagent doctrine briefs scratch discipline (the ONE seam)',
     doctrine.includes('under your session scratchpad') &&
     doctrine.includes('never bare /tmp or the project tree') &&
     /delet\w* what your run created/i.test(doctrine))
-  const worktreeSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
-  check('a session worktree registers its lease (the one production registrar)', worktreeSrc.includes("registerScratchLease({ kind: 'session'"))
   const { crewChecks } = await import(join(ROOT, 'src/utils/health/sections/crew.ts'))
   const leasesRow = crewChecks().find((row: { id: string }) => row.id === 'scratch-leases')
   const rootH = join(projTemp, 'health-row-scratch')

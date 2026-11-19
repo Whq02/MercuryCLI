@@ -93,10 +93,6 @@ t.section('§4 — the agent route: the addressed form of the same door')
 t.section('§5 — the pen census')
 {
   t.check('submitReplaceNext is GONE (no replaceable window under instant delivery)', !('submitReplaceNext' in A))
-  const { readFileSync } = await import('node:fs')
-  const src = readFileSync(new URL('../../src/services/attention/actions.ts', import.meta.url), 'utf8')
-  t.check('actions.ts never imports the command-queue store (poison)', !src.includes("input-core/command-queue"))
-  t.check('actions.ts never speaks drainUnderUI (the marker died with its reader)', !src.includes('drainUnderUI'))
 }
 
 t.section('§6 — the addressed row rides the ONE door whole (cpu-pure)')

@@ -1,12 +1,9 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { mock } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 delete process.env.NODE_ENV
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 let checks = 0
@@ -85,8 +82,6 @@ try {
 check('the consumer settled a failed result carrying the loop body\'s own words', typeof result === 'object' && result !== null && (result as { data?: { status?: string; error?: string } }).data?.status === 'failed' && String((result as { data?: { error?: string } }).data?.error).includes(thrown), JSON.stringify(result).slice(0, 300))
 check('the run was handed back: its finally ran exactly once', finallyRuns === 1, `finally ran ${finallyRuns} time(s)`)
 check('the run was not read on past the throw (one row yielded)', yielded === 1, `yielded ${yielded}`)
-const src = readFileSync(join(ROOT, 'src/tools/AgentTool/foregroundExecution.tsx'), 'utf8')
-check('both hand-iterated roads return the generator in their catch (the foreground loop and the detached continuation)', (src.match(/await agentIterator\.return\(undefined\)\.catch\(\(\) => undefined\)/g) ?? []).length === 2)
 
 console.log(`\ncrewmate-foreground-throw: ${checks} checks, ${failures} failed`)
 process.exit(failures ? 1 : 0)

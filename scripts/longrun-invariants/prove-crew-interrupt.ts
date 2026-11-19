@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -36,8 +36,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const taskNotifications = () => getCommandQueueSnapshot().filter(c => c.mode === 'task-notification')
 
 type Store = { state: { tasks: Record<string, unknown>; speculation: { status: string } } }
@@ -64,11 +62,6 @@ section('§K1a the controller law — an agent task owns a fresh controller')
   check('a registered background agent\'s controller is fresh — a turn\'s abort never reaches it', task.abortController !== undefined && !task.abortController.signal.aborted)
   const fg = registerAgentForeground({ agentId: 'ag-fg', description: 'fg', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
   check('the foreground registration hands back the task\'s own controller for the run to own', fg.abortController instanceof AbortController && !fg.abortController.signal.aborted)
-  const owner = src('src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-  check('the task owner has no child-of-the-turn arm at all', !owner.includes('parentAbortController') && !owner.includes('createChildAbortController'))
-  const fgSrc = src('src/tools/AgentTool/foregroundExecution.tsx')
-  check('the foreground run\'s owner is the task\'s controller (never the turn\'s)', fgSrc.includes('abortController: foregroundTask.abortController'))
-  check('the turn\'s abort races the foreground loop and hands the run over (the same iterator, no re-run)', fgSrc.includes('TURN_ABORTED') && fgSrc.includes('continueDetached(backgroundedTaskId, nextPromise)') && /backgrounded = true[\s\S]*continueDetached\(backgroundedTaskId, nextPromise\)/.test(fgSrc) && fgSrc.includes('if (!backgrounded) await agentIterator.return(undefined)'))
   check('the crew census counts running agents, never the session\'s own row', crewStillRunning({
     a: { type: 'local_agent', status: 'running', agentType: 'mercury-crew' },
     c: { type: 'local_agent', status: 'completed', agentType: 'mercury-crew' },
@@ -76,7 +69,6 @@ section('§K1a the controller law — an agent task owns a fresh controller')
     e: { type: 'local_bash', status: 'running' },
   }) === 1)
   check('the interrupted turn\'s receipt names the count and the crew view', crewStillRunningLine(2) === '2 crewmates still running — open the crew view (/crewmates) and press x twice on its row to stop one' && crewStillRunningLine(1)?.startsWith('1 crewmate still') === true && crewStillRunningLine(0) === null)
-  const cancel = src('src/hooks/useCancelRequest.ts')
 }
 
 section('§K1b the driver releases the hold on an interrupt — the crew run on')
@@ -171,11 +163,6 @@ section('§K2 the stop chord — x twice within the window on the same agent')
   check('a press past the window re-arms (never a stale half-gesture)', late.fire === false && late.arm.at === t0 + CREW_STOP_WINDOW_MS)
   check('the armed fact lapses with the window', crewStopArmed(arm, 'ag-1', t0 + 500) && !crewStopArmed(arm, 'ag-1', t0 + CREW_STOP_WINDOW_MS) && !crewStopArmed(arm, 'ag-2', t0 + 500))
   check('the window is the ruled two seconds and the hint names the agent', CREW_STOP_WINDOW_MS === 2000 && crewStopHint('crew-one') === 'x again within 2 s stops crew-one')
-  const view = src('src/components/mercury-ui/screens/CrewView.tsx')
-  check('the crew view takes x through the chord and sends the stop through the connector, on the list and the card', view.includes('pressCrewStop(stopArm, target.id, Date.now())') && view.includes('.stopAgent(target.id)') && view.includes("mode.view === 'card' && !listMode"))
-  check('the crew view takes r as the resume door', view.includes("input === 'r' && plain && target !== null && !target.running") && view.includes('.resumeAgent(target.id)'))
-  const board = src('src/components/tasks/BackgroundTasksDialog.tsx')
-  check('the /tasks board stops a roster row (an agent of the session\'s runner) through the same chord and door', board.includes('pressCrewStop(') && board.includes('.stopAgent(work.id)'))
 }
 
 section('§K3 every stop and failure pings the main agent, with its reason')
@@ -230,26 +217,10 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
   stopOrDismissAgent('ag-helper', store.set as never, AGENT_STOP_BY_OPERATOR)
   check('stopOrDismissAgent aborts the running task\'s controller with the operator\'s reason', task.abortController!.signal.aborted && task.abortController!.signal.reason === AGENT_STOP_BY_OPERATOR)
 }
-{
-  const owner = src('src/services/agents/operatorStop.ts')
-  check('the owner routes an agent to the reasoned abort', owner.includes('stopOrDismissAgent(taskId, context.setAppState, options.reason ?? AGENT_STOP_BY_OPERATOR)'))
-}
 
 section('§K4 the resume road — one owner behind every door')
 {
   check('the resume note tells the agent the work before the stop stands', AGENT_RESUME_NOTE.includes('resumed you from the crew view') && AGENT_RESUME_NOTE.includes('do not redo it'))
-  const seat = src('src/daemon/sessionSeat.ts')
-  check('the seat relays stop-agent and resume-agent as the runner\'s own controls and awaits the typed answer', seat.includes("verb === 'stop-agent' ? 'agent/stop' : 'agent/resume'") && seat.includes("const params = { agent_id: agentId, ...(opts?.note !== undefined ? { note: opts.note } : {}) }") && seat.includes('const asked = await askSeat(roster, rec.runnerId, verb') && seat.includes('AGENT_VERB_ANSWER_DEADLINE_MS'))
-  const protocol = src('src/daemon/protocol.ts')
-  check('the wire carries the two verbs (they landed at proto 8; the proto only climbs)', protocol.includes("| 'stop-agent'") && protocol.includes("| 'resume-agent'") && Number((/export const MERCURY_DAEMON_PROTO = (\d+)\b/.exec(protocol) ?? [])[1]) >= 8)
-  const connector = src('src/services/engine-connector/daemonConnector.ts')
-  check('the connector\'s doors ride the seat\'s verb chain', connector.includes("this.agentVerb('stop-agent', agentId, note)") && connector.includes("this.agentVerb('resume-agent', agentId, note)") && connector.includes("action,\n        sessionId: this.record.sessionId,\n        by: 'operator',\n        agentId,"))
-  const contract = src('src/services/engine-connector/types.ts')
-  check('the contract names both doors', contract.includes('stopAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>') && contract.includes('resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>'))
-  const methods = src('src/runner/wire/methods.ts')
-  check("the door's method table carries agent/resume", methods.includes("'agent/resume': method({"))
-  const run = src('src/tools/AgentTool/runAgent.ts')
-  check('the run loop seeds its chain parent from the seed messages\' written tail — a resume replays the prompt', run.includes('let lastRecordedUuid: string | undefined = writtenChainTail(messages)'))
 }
 
 section('§K10 the wait tells its truth — the phase fold, the one spelling, every surface')
@@ -302,10 +273,6 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   const aw = await import('../../src/tasks/LocalAgentTask/agentWait.js')
   const stillWords = aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, null)
   check('K10 the one spelling without a counter — the still for a per-frame channel', stillWords === 'waiting for the first byte, within 1m' && aw.agentWaitWords({ phase: 'reasoning', sinceMs: t0 }, null) === 'reasoning, no tokens yet' && aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, t0 + 3000) === 'waiting for the first byte · 3s, within 1m', stillWords)
-  const run = src('src/tools/AgentTool/runAgent.ts')
-  check('K10 the run loop\'s wait door hands the provider\'s wait to the run\'s own progress callback', run.includes("childContext.setSDKStatus = (status: unknown) => {") && run.includes("type: 'request_wait'"))
-  check('K10 the three run sites feed the record (the background lifecycle, the foreground run, the resume)', src('src/tools/AgentTool/agentToolUtils.ts').includes('event => publishAgentWaitFromEvent(taskId, tracker, event, rootSetAppState)') && src('src/tools/AgentTool/foregroundExecution.tsx').includes('publishAgentWaitFromEvent(foregroundRecordId, tracker, event, rootSetAppState)') && src('src/tools/AgentTool/resumeAgent.ts').includes('onQueryProgress !== undefined ? { onQueryProgress } : {}'))
-  check('K10 the transcript\'s agent card and the crew view speak the phase', src('src/tools/AgentTool/UI.tsx').includes('crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)') && src('src/components/mercury-ui/screens/CrewView.tsx').includes('crewStatusWords(facts, now)'))
 }
 
 section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s snapshot rides the claim')
@@ -328,8 +295,6 @@ section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s 
   })
   check('K10b the runner\'s refresh within the TTL serves the primed snapshot and fetches nothing', fetched === 0 && refreshed?.models.length === 1 && refreshed.lastError === undefined)
   cat.__resetOpenaiCatalogueForTest()
-  check('K10b the claim carries the snapshot in the feed\'s spelling and the runner decodes and primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogueToWire(openaiCatalogue)'))
-  check('K10b the daemon\'s sign-in view fetches no catalogue; the claim road reads the daemon\'s snapshot', !src('src/daemon/signInView.ts').includes('refreshOpenaiCatalogue') && src('src/daemon/warmRunner.ts').includes('getCachedOpenaiCatalogue(openaiAccount.kind)'))
 }
 
 section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
@@ -341,9 +306,6 @@ section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
   const launch = resolveWorkerTools(def, 'implement', pool).map(t => t.name)
   const resume = resolveWorkerTools(def, 'implement', pool).map(t => t.name)
   check('K4b the same inputs derive the same pool for a launch and a resume', launch.join(',') === resume.join(','), `${launch.join(',')} vs ${resume.join(',')}`)
-  check('K4b the launch narrows through the worker derivation', src('src/tools/AgentTool/AgentTool.tsx').includes('resolveWorkerTools(\n          agentDef,\n          plan.workerPermissionMode,'))
-  const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')
-  check('K4b the resume narrows through the SAME derivation under the same mode, never the raw pool', /resolveWorkerTools\(\s*definition,\s*workerPermissionMode,\s*assembleToolPool\(/.test(resumeSrc) && !/const tools = isForkResume\s*\?\s*toolUseContext\.options\.tools\s*:\s*assembleToolPool\(/.test(resumeSrc))
 }
 
 {

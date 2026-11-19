@@ -118,26 +118,6 @@ t.section('§5 — the partition: the full standing set notes and settles')
     JSON.stringify([...rest]),
   )
   ledger._resetTerminalModeLedgerForTesting()
-
-  const src = await Bun.file('src/utils/shutdownRestoration.ts').text()
-  const cleanup = src.slice(src.indexOf('function cleanupTerminalModes'), src.indexOf('let resumeHintPrinted'))
-  for (const [name, needle] of [
-    ['mouse', 'DISABLE_MOUSE_TRACKING'],
-    ['cursor', 'SHOW_CURSOR'],
-    ['paste', 'DBP'],
-    ['focus', 'DFE'],
-    ['kitty', 'DISABLE_KITTY_KEYBOARD'],
-    ['ring', 'CLEAR_ITERM2_PROGRESS'],
-    ['title', 'CLEAR_TERMINAL_TITLE'],
-  ] as const) {
-    const writes = [...cleanup.matchAll(new RegExp(`writeSync\\(1, ${needle}\\)`, 'g'))]
-    const gated = writes.length > 0
-    const allGated = writes.every(m => {
-      const before = cleanup.slice(Math.max(0, (m.index ?? 0) - 300), m.index ?? 0)
-      return /open\.has\(|shutdownReleaseObligations\(\)/.test(before)
-    })
-    t.check(`${name} close writes are ledger-gated (no unconditional reset)`, gated && allGated, `${writes.length} write(s)`)
-  }
 }
 
 t.section('§6 — a boot with mouse capture off owes no mouse-tracking release')

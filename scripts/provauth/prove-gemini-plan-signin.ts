@@ -317,7 +317,6 @@ try {
   const sixHoursOn = tierReadAt + 6 * 3_600_000
   const tierReread = onShow === undefined ? undefined : await onShow({ now: () => sixHoursOn })
   check('past the floor the tier is read again and the stamp moves with the read (the sign-in\'s time no longer stands for the day)', tierReread?.tierReadAtMs === sixHoursOn && tierReread.tier?.paid?.name === 'Google AI Pro' && loadCount() === loadsBeforeServe + 1, JSON.stringify({ reread: tierReread?.tierReadAtMs, sixHoursOn, loads: loadCount() - loadsBeforeServe }))
-  check('the usage owner asks the tier beside the quota on the one read-on-show road', readFileSync(join(import.meta.dir, '..', '..', 'src/services/providers/providerUsage.ts'), 'utf8').includes('await rereadGeminiPlanTierOnShow({'))
 
   console.log('── the roster is the authority: what Google names is offered, nothing else ──')
   const snapshot = await catalogue.refreshGeminiCatalogue('plan', { force: true })

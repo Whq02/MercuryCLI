@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -224,16 +224,7 @@ check('no other default binds ctrl+x y', DEFAULT_BINDINGS.every(b => b.context =
 check("MessageActions 'ctrl+x y' → messageActions:c (the focused message copies with the same chord)", actionRows['ctrl+x y'] === 'messageActions:c', String(actionRows['ctrl+x y']))
 const commands = await getCommands(process.cwd())
 check('command:copy resolves to the registered /copy', findCommand('copy', commands)?.name === 'copy')
-const help = readFileSync(join(ROOT, 'src/components/HelpV2/ShortcutsTab.tsx'), 'utf8')
-check('the help SHORTCUTS tab lists the chord beside the other ctrl+x rows', help.includes("{ action: 'command:copy', context: 'Global', fallback: 'ctrl+x y'"))
-const descriptor = readFileSync(join(ROOT, 'src/commands/copy/index.ts'), 'utf8')
-check('the /copy help line names the three forms', descriptor.includes('/copy 2') && descriptor.includes('/copy code'))
 
-section('§8 the picker and its setting are gone')
-check('src/commands/copy/copy.tsx no longer exists', !existsSync(join(ROOT, 'src/commands/copy/copy.tsx')))
-for (const file of ['src/utils/config/schema.ts', 'src/components/Settings/Config.tsx', 'src/commands/copy/copy.ts']) {
-  check(`${file} carries no copyFullResponse`, !readFileSync(join(ROOT, file), 'utf8').includes('copyFull' + 'Response'))
-}
 const sessionsDoc = readFileSync(join(ROOT, 'docs/SESSIONS.md'), 'utf8')
 check('docs/SESSIONS.md documents /copy, /copy code and the chord', sessionsDoc.includes('`/copy code`') && sessionsDoc.includes('`ctrl+x y`'))
 

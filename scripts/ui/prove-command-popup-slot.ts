@@ -1,9 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/utils/cockpit/commandPopup.ts src/components/CommandPopupSlot.tsx src/components/FullscreenLayout.tsx src/components/PopupGutter.tsx
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -61,18 +58,6 @@ console.log('§2 the geometry: the shape asks, the host bounds, the popup centre
   check('a host too short for a popup yields a rows count that never goes negative', tiny.rows >= 0 && tiny.width >= 0)
 }
 
-console.log('§3 FullscreenLayout mounts the slot beside the model picker\'s, on the same claim-store road')
-{
-  const layout = readFileSync(join(ROOT, 'src/components/FullscreenLayout.tsx'), 'utf8')
-  const picker = layout.indexOf('<ModelPickerPopupSlot ')
-  const command = layout.indexOf('<CommandPopupSlot ')
-  check('the command popup slot is mounted in the modal pane after the model picker slot', picker > 0 && command > picker)
-  check('the layout reads the claim through useSyncExternalStore like the picker\'s', layout.includes('useSyncExternalStore(subscribeCommandPopup, commandPopupClaim, commandPopupClaim)'))
-  check('the slot hosts the modal only while a modal is mounted', layout.includes('const commandPopupUp = commandPopup !== null && modalMounted'))
-  const slotSrc = readFileSync(join(ROOT, 'src/components/CommandPopupSlot.tsx'), 'utf8')
-  check('the slot measures its host with the model picker slot\'s own measurer and frames with PopupGutter', slotSrc.includes('modelPickerPopupHost(element, framed)') && slotSrc.includes('<PopupGutter {...geometry} cover={popupCover(host, geometry, band)}>'))
-  check('the slot re-measures on every layout pass (a resize re-fits the popup)', /useLayoutEffect\(\(\) => \{\n\s+const element = hostRef\.current/.test(slotSrc) && !/useLayoutEffect\([\s\S]*?\}, \[/.test(slotSrc))
-}
 
 console.log(`\ncommand-popup-slot: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

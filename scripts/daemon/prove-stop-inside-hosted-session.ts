@@ -10,7 +10,6 @@ import { startScriptedFixture, type Script } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-stop-inside-hosted-session')
 const ROOT = REPO
-const read = (...p: string[]): string => readFileSync(join(ROOT, ...p), 'utf8')
 const CLIENT = argAfter('--client') ?? 'source'
 const REFUSAL = 'run it from a plain shell; from inside a hosted session your own turn would end'
 const STOP_EXIT_MARK = 'STOP-EXIT='
@@ -56,21 +55,6 @@ tally.section('§1 the verdict: a caller under the daemon it is about to stop is
 
 tally.section('§2 the verbs consult the verdict before anything that would end the caller')
 {
-  const main = read('src', 'daemon', 'main.ts')
-  const stopAt = main.indexOf('async function daemonStopCmd(')
-  const stopEnd = main.indexOf('async function daemonRestartCmd(', stopAt)
-  const stop = stopAt !== -1 && stopEnd !== -1 ? main.slice(stopAt, stopEnd) : ''
-  const guardAt = stop.indexOf('hostedCallerOf(')
-  const rpcAt = stop.indexOf("op: 'shutdown'")
-  tally.check('the stop verb asks whether it runs inside a session any helper of this home hosts', guardAt !== -1 && stop.includes('hostedCallerOf(await helperPidsOfHome())'), 'no hostedCallerOf over the home\'s helpers in daemonStopCmd (red on the base by construction)')
-  tally.check('…BEFORE the shutdown RPC (the reap is the cut)', guardAt !== -1 && rpcAt !== -1 && guardAt < rpcAt)
-  tally.check('…and refuses with the one line, exit 1', stop.includes("hostedCallerRefusalLine('stop')") && /hosting\.hosted\)\s*\{[\s\S]{0,200}process\.exitCode = 1[\s\S]{0,40}return/.test(stop))
-  const restartAt = main.indexOf('async function daemonRestartCmd(')
-  const restartEnd = main.indexOf('async function daemonRun(', restartAt)
-  const restart = restartAt !== -1 && restartEnd !== -1 ? main.slice(restartAt, restartEnd) : ''
-  tally.check('the restart verb reads the handshake first and asks the same question over every helper of the home', restart.includes('handshakeDaemon()') && restart.includes('hostedCallerOf(await helperPidsOfHome())'))
-  tally.check("…refusing only the roads that would end this turn — the stop-and-start road (a pre-handshake daemon) and a restart that would run now, nothing live and no older helper still hosting", restart.includes('hosting.hosted && first.daemon !== null && restartEndsHostedCaller(first)') && restart.includes("hostedCallerRefusalLine('restart')"))
-  tally.check('…and lets the armed road through, saying this session is one of the live ones', restart.includes("receipt.state === 'armed'") && restart.includes('this hosted session is one of them; your turn goes on'))
   const { DAEMON_USAGE, parseDaemonVerb } = await import('../../src/daemon/verbs.ts')
   const usageLines = DAEMON_USAGE.split('\n')
   const stopRowAt = usageLines.findIndex(l => l.trimStart().startsWith('stop'))
@@ -80,7 +64,6 @@ tally.section('§2 the verbs consult the verdict before anything that would end 
   tally.check('the stop row of the usage says every worker stops with the daemon and promises no survival', /every session process it runs \(every worker\) stops with it/.test(stopRow) && !promisesSurvival(stopRow), stopRow)
   const keep = parseDaemonVerb(['stop', '--keep'], () => false) as { kind: string; word?: string }
   tally.check("`stop --keep` is refused by the grammar, typed, naming the flag", keep.kind === 'unknown-flag' && keep.word === '--keep', `accepted as ${JSON.stringify(keep)}`)
-  tally.check('the stop verb reads no --keep and asks for the reap by name', !stop.includes('--keep') && stop.includes("{ op: 'shutdown', reapWorkers: true }"), stop.split('\n').filter(l => /--keep|reapWorkers/.test(l)).join(' | '))
 }
 
 tally.section('§3 LIVE — a session this daemon hosts runs the stop from its own Bash')

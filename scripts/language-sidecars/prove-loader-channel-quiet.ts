@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { copyFileSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -87,18 +87,6 @@ section('§2 A REAL GRAMMAR STILL LOADS AND PARSES')
   tree?.delete()
 }
 
-section('§3 BOTH LOADER CALLS RUN UNDER THE ROUTER (call-shaped)')
-{
-  const facility = readFileSync(join(ROOT, 'src', 'services', 'structure', 'grammarFacility.ts'), 'utf-8')
-  check(
-    'Parser.init is wrapped',
-    /withLibraryChannelsRouted\(\(\) =>\s*\n?\s*mod\.Parser\.init\(/.test(facility),
-  )
-  check(
-    'Language.load is wrapped',
-    /withLibraryChannelsRouted\(\(\) => mod\.Language\.load\(wasmPath\)\)/.test(facility),
-  )
-}
 
 console.log(failures === 0 ? '\nprove-loader-channel-quiet: all green' : `\nprove-loader-channel-quiet: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

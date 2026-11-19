@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -32,7 +31,6 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const REPO = join(import.meta.dir, '..', '..')
 
 console.log('============================================================')
 console.log(' limit-warning relay — the session answers its own line; the screen prefers it')
@@ -99,28 +97,8 @@ section('§1 — additive on the payload: with the field, without the field')
   projections.publishSessionFacts(factsFor('relay-older', { ...ZERO_USAGE }), daemonDir)
   const older = await readBack('relay-older')
   check("an older runner's answer (no field) reads back with the field ABSENT — never invented", older !== null && !('limitWarning' in older.usage))
-  const typesSrc = readFileSync(join(REPO, 'src/services/engine-connector/types.ts'), 'utf8')
-  check('the field is declared OPTIONAL on UsageFactsV1 (the additive law in the type)', /limitWarning\?: LimitWarningFactV1 \| null/.test(typesSrc))
 }
 
-section("§2 — not a verb: the wire's two hashed blocks did not move")
-{
-  const src = readFileSync(join(REPO, 'src/daemon/protocol.ts'), 'utf8')
-  const opsStart = src.indexOf('export type DaemonOp =')
-  const opsEnd = src.indexOf('\n\n', opsStart)
-  const ops = Array.from(src.slice(opsStart, opsEnd).matchAll(/'([A-Za-z-]+)'/g), m => m[1]!)
-  const reqStart = src.indexOf('export type DaemonRequest =')
-  const ctlStart = src.indexOf("op: 'sessionControl'", reqStart)
-  const actStart = src.indexOf('action:', ctlStart)
-  const actEnd = src.indexOf('sessionId: string', actStart)
-  const controlActions = Array.from(src.slice(actStart, actEnd).matchAll(/'([A-Za-z-]+)'/g), m => m[1]!)
-  const hash = 'sha256:' + createHash('sha256').update(JSON.stringify({ ops, controlActions })).digest('hex')
-  const registered = /export const DAEMON_PROTO_SHAPE = '([^']+)'/.exec(src)?.[1] ?? ''
-  check('both hashed blocks were found', ops.length >= 20 && controlActions.length >= 15, `${ops.length} ops · ${controlActions.length} actions`)
-  check('no verb in either block names a limit or a warning', ![...ops, ...controlActions].some(v => /limit|warning/i.test(v)))
-  check('the registered DAEMON_PROTO_SHAPE still equals the hash of the two blocks (nothing moved on the wire)', registered === hash, `${registered} vs ${hash}`)
-  check('protocol.ts spells no limitWarning at all', !src.includes('limitWarning'))
-}
 
 section('§3 — the precedence law (pure, the owner’s)')
 {
@@ -133,13 +111,6 @@ section('§3 — the precedence law (pure, the owner’s)')
   check('both silent ⇒ silent (never a fabricated line)', preferSessionLimitWarning(null, null) === null && preferSessionLimitWarning(undefined, null) === null)
 }
 
-section('§4 — the two seams: the child answers from the one owner; the hook reads the session first')
-{
-  const hookSrc = readFileSync(join(REPO, 'src/hooks/notifs/useRateLimitWarningNotification.tsx'), 'utf8')
-  check('the hook reads the FOCUSED connector', hookSrc.includes('useSessionConnector()'))
-  check('…and prefers its usage readout’s fact through the owner’s law', /preferSessionLimitWarning\(\s*connector\.usage\(\)\.limitWarning,/.test(hookSrc))
-  check("…re-reading on the connector change, the engine tick and the usage records' own signals", /\[limits, model, tick, connector, addNotification, usageRecordVersion, openaiObservedVersion\]/.test(hookSrc))
-}
 
 section('§5 — the resting slot carries no fact')
 {

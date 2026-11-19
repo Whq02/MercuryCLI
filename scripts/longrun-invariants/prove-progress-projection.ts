@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-import { execSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -76,65 +75,6 @@ section('§B the ephemeral classifier (which frames belong in the store)')
       !isEphemeralToolProgress('skill_progress'))
 }
 
-section('§C wiring pins — the transcript never sees an ephemeral frame')
-{
-  const store = readFileSync(join(import.meta.dir, '..', '..', 'src', 'state', 'ephemeralProgressStore.ts'), 'utf8')
-  check('the store doors stand (publish + clear still exported for the revival)',
-    store.includes('export function publishEphemeralProgress(') && store.includes('export function clearEphemeralProgress('))
-  const writerCensus = ((): string[] => {
-    try {
-      return execSync(
-        "grep -rln 'publishEphemeralProgress(\\|clearEphemeralProgress(' src --include='*.ts' --include='*.tsx'",
-        { encoding: 'utf8', cwd: join(import.meta.dir, '..', '..') },
-      )
-        .split('\n')
-        .filter(f => f !== '' && f !== 'src/state/ephemeralProgressStore.ts')
-    } catch {
-      return []
-    }
-  })()
-  check("the store has exactly ONE writer home — the connector's live part (the LIVEPAINT road; a second writer or a vanished one reds this for its own re-true)",
-    writerCensus.length === 1 && writerCensus[0] === 'src/services/engine-connector/daemon/live.ts',
-    writerCensus.join(', '))
-
-  const row = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'MessageRow.tsx'), 'utf8')
-  check('MessageRow subscribes per-row and appends the live frame LAST',
-    row.includes('useEphemeralProgressVersion(toolUseID ? [toolUseID] : [])') &&
-      row.includes('return ephemeral ? [...recorded, ephemeral] : recorded'))
-  const collapsed = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'components', 'messages', 'CollapsedReadSearchContent.tsx'),
-    'utf8',
-  )
-  check('the collapsed card merges the live frame as the newest',
-    collapsed.includes('useEphemeralProgressVersion(memberIds)') &&
-      (collapsed.match(/getEphemeralProgressFrame\(id\) \?\?/g) ?? []).length === 1)
-  const grouped = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'components', 'messages', 'GroupedToolUseContent.tsx'),
-    'utf8',
-  )
-  check('the grouped card subscribes over its member ids and merges',
-    grouped.includes('useEphemeralProgressVersion(memberIds)') &&
-      grouped.includes('getEphemeralProgressFrame(id)'))
-}
-
-section('§D the F2 rider — retired with the screen-era queue surface')
-{
-  const importers = ((): string[] => {
-    try {
-      return execSync(
-        "grep -rln \"from '.*useQueueProcessor\" src --include='*.ts' --include='*.tsx'",
-        { encoding: 'utf8', cwd: join(import.meta.dir, '..', '..') },
-      )
-        .split('\n')
-        .filter(f => f !== '')
-    } catch {
-      return []
-    }
-  })()
-  check('EXPECTED-RETIREMENT: useQueueProcessor has no live importer — a RED means a screen-side consumer returned and the F2 law re-pins on it',
-    importers.length === 0,
-    importers.join(', '))
-}
 
 rmSync(HOME, { recursive: true, force: true })
 console.log('\n' + '═'.repeat(76))

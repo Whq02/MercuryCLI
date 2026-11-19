@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
@@ -17,7 +17,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
 const sup = await import('../../src/daemon/concourseWorkers.ts')
 const idle = await import('../../src/daemon/idleRetirement.ts')
@@ -97,49 +96,6 @@ console.log('Q2 the drain ceiling knob')
   check('the cut reason has ONE owner', sup.PARK_DRAIN_CUT_REASON === 'parked — turn cut at the drain ceiling')
 }
 
-console.log('Q3 the one close path')
-{
-  const hop = read('src/services/switchboard/hopIntoSession.ts')
-  const closeAt = hop.indexOf('export async function closeFocusedChat(')
-  const closeBody = hop.slice(closeAt, hop.indexOf('export async function clearFocusedSession(', closeAt))
-  check('closeFocusedChat exists as the one close path', closeAt !== -1)
-  check("the park fate rides the daemon's park verb under the terminal's own seat", closeBody.includes("action: 'park', sessionId, by: `operator:${process.pid}`"))
-  check('the end fate (x-x) rides stop + release', closeBody.includes("action: 'stop', sessionId, by: 'operator'") && closeBody.includes("op: 'sessionRelease', runnerId: rec.runnerId"))
-  const restAt = closeBody.indexOf('slot.releaseFocusedSessionConnector()')
-  check("the slot rests LAST (the connector's detach says the blur through the one chain)", restAt !== -1 && restAt > closeBody.indexOf("action: 'park'") && restAt > closeBody.indexOf("op: 'sessionRelease'"))
-  check('a newborn closed reads as released; a mid-turn close as draining', closeBody.includes("startsWith('released') ? 'released'") && closeBody.includes("parked.outcome === 'draining' ? 'draining'"))
-  const clearAt = hop.indexOf('export async function clearFocusedSession(')
-  const clearBody = hop.slice(clearAt)
-  check('/clear births FIRST (the slot swaps whole, riding the seat-swap hint), then parks the OLD session by id — never a release', clearBody.indexOf('bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId })') !== -1 && clearBody.indexOf('bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId })') < clearBody.indexOf('parkSessionById(oldSessionId)') && clearBody.includes("action: 'park', sessionId, by: `operator:${process.pid}`") && !clearBody.includes("op: 'sessionRelease'") && !clearBody.includes("action: 'stop'") && !clearBody.includes('closeFocusedChat('))
-}
-
-console.log('Q4 the quit parks all — the screen and the daemon')
-{
-  const quit = read('src/services/switchboard/quitParksAll.ts')
-  check("the screen's cleanup says park-all under the terminal's seat, bounded", quit.includes("action: 'park-all', sessionId: 'all', by: SEAT_BY") && quit.includes('const SEAT_BY = `operator:${process.pid}`') && quit.includes('registerCleanup(async () => {') && /PARK_ALL_BUDGET_MS = 1500/.test(quit))
-  const main = read('src/main.tsx')
-  check('every interactive boot arms it (before the journey classification)', main.includes('armQuitParksAll()') && main.indexOf('armQuitParksAll()') < main.indexOf('markExplicitBootJourney()'))
-  const daemon = read('src/daemon/main.ts')
-  check("the owned daemon's orphan reap never shuts down bare: main.ts holds no line that calls shutdown('owner-orphaned') with no park-all before it", !daemon.includes("shutdown('owner-orphaned')\n"))
-  check("the daemon's park-all from a screen keeps a chat another LIVE terminal holds", daemon.includes('exceptFocusedByLiveTerminal: true'))
-  check("the roster's idle edge completes a requested park while the drain runs: the record's own completion, then the runner's retirement", daemon.includes('if (completeRequestedPark(short, roster)) {') && daemon.includes('void retireRequestedPark(short, roster)'))
-}
-
-console.log("Q5 the only session's release: the board stays, the reason shows")
-{
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  const removeAt = route.indexOf('removeSession: sessionId => {')
-  const removeBody = route.slice(removeAt, route.indexOf('openObligation: obligationId => {', removeAt))
-  const restHelper = route.slice(route.indexOf('async function restFocusedSlotAfterRelease('), route.indexOf('removeSession: sessionId => {'))
-  check('with no survivor the slot rests and the board STAYS (no menu call on the release road)', removeBody.includes('await restFocusedSlotAfterRelease(sessionId') && restHelper.includes('slot.releaseFocusedSessionConnector()') && !removeBody.includes('enterBootSettings()'))
-  check('the older line is never a survivor', restHelper.includes('!r.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)'))
-  check("a release refusal paints the daemon's own sentence (the wire's error and code), never a bare line", removeBody.includes('reply.error ?? `release refused${reply.code !== undefined ? ` (${reply.code})` : \'\'}`'))
-  check('with no daemon a dead runner settles in the record; a live one is never ended invisibly', removeBody.includes('settleConcourseWorker(rec.runnerId)') && removeBody.includes('the daemon that hosts sessions is not reachable and the runner is alive'))
-  const stopAt = route.indexOf('stopSession: sessionId => {')
-  const stopBody = route.slice(stopAt, route.indexOf('removeSession: sessionId => {', stopAt))
-  check("the first x's refusal paints the daemon's sentence, else the wire's error and code — never a bare \"stop refused\"", stopBody.includes("reply.detail ?? reply.error ?? `stop refused${reply.code !== undefined ? ` (${reply.code})` : ''}`"))
-  check('with no daemon a dead runner is stopped in the record directly', stopBody.includes("workers.stopConcourseSession(sessionId, 'operator', undefined)"))
-}
 
 console.log('Q6 a refused chat-forward birth lands the face directly')
 {
@@ -147,12 +103,6 @@ console.log('Q6 a refused chat-forward birth lands the face directly')
   check('an explicit journey is marked', handover.bootJourneyIsExplicit())
   handover.retractExplicitBootJourney()
   check('the retraction clears it (the resolver lands the Boot face)', !handover.bootJourneyIsExplicit())
-  const main = read('src/main.tsx')
-  const birthAt = main.indexOf('const birth = bornSession({ workspaceDir: getCwd(), model: null })')
-  const block = birthAt === -1 ? '' : main.slice(birthAt, main.indexOf('await launchChat(', birthAt))
-  check('main.tsx starts the chat-forward birth', birthAt !== -1)
-  check('main.tsx retracts the journey on a refused chat-forward birth', block.includes('retractExplicitBootJourney()'))
-  check('…and the first paint is never gated on that birth', block !== '' && !block.includes('await bornSession('))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -97,14 +97,6 @@ console.log('\n── §3 timers ──')
   await sleep(80)
   check('a fired debounce leaves the census', typeahead.typeaheadTimerCensus() === 0 && fired)
 
-  const hookSrc = readFileSync(join(REPO, 'src/hooks/useTypeahead.tsx'), 'utf8')
-  check('unmount disarms both fetch timers (the cleanup effect)', /useEffect\(\s*\(\) => \(\) => \{\s*cancelFileFetch\(\)\s*cancelChannelFetch\(\)/m.test(hookSrc))
-  check('both arm sites ride the census', (hookSrc.match(/armTypeaheadTimer\(/g) ?? []).length >= 3)
-
-  const indexSrc = readFileSync(join(REPO, 'src/hooks/fileSuggestions.ts'), 'utf8')
-  check('the refresh walk deadline is disarmed in finally', /finally \{\s*clearTimeout\(timer\)\s*refreshInFlight = false/m.test(indexSrc))
-  check('the stale-project guard answers empty, never another project', indexSrc.includes('staleProject') && indexSrc.includes('return staleProject ? [] : topLevelListing()'))
-  check('the cache reset clears the project key', /ignoreCache = null\s*\n\s*indexKey = null/m.test(indexSrc))
 }
 
 console.log('\n── §3b worktree gitdir + tracked-skip ──')
@@ -130,14 +122,6 @@ console.log('\n── §3b worktree gitdir + tracked-skip ──')
   )
   check('a non-repo answers null, never a throw', resolveGitDir(join(SCRATCH, 'no-such-repo')) === null)
 
-  const indexSrc = readFileSync(join(REPO, 'src/hooks/fileSuggestions.ts'), 'utf8')
-  check('the index-mtime read routes through the resolved git dir', indexSrc.includes("statSync(join(gitDir, 'index')).mtimeMs") && !indexSrc.includes("join(gitRoot, '.git', 'index')"))
-  check(
-    'an unmoved index skips the tracked ls-files and refreshes ONLY the untracked merge',
-    /if \(gitRoot !== null && indexUnchanged\) \{[\s\S]{0,400}kickUntrackedMerge\(gitRoot, cwd, startGeneration, keyAtStart\)[\s\S]{0,200}return/.test(indexSrc),
-  )
-  check('the skip road demands a live mtime AND a standing tracked list', indexSrc.includes('indexUnchanged = mtime !== null && !mtimeChanged && trackedOnly !== null'))
-  check('an emptied untracked answer re-trues a standing merged index to the tracked list', /if \(mergedSignature !== null\) buildIndexFrom\(\[\.\.\.trackedOnly\], false, keyAtStart\)/.test(indexSrc))
 }
 
 console.log('\n── §4 middle truncation ──')

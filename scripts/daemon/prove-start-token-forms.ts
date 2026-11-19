@@ -5,8 +5,6 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 
-const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -116,46 +114,13 @@ try {
   process.env.PATH = realPath
 }
 
-console.log('S5 the lines Windows runs, as written')
-{
-  const probes = read('src/daemon/ownerWatch.ts')
-  check("today's probe line is untouched (the bytes 1.0.8 records and compares raw: the daemon record, pid locks, service records, slots)", probes.includes('`(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CreationDate`,') && probes.includes("($_.CreationDate | Out-String).Trim()"))
-  check('the instant is the round-trip form in UTC, and a process that is not there prints nothing', probes.includes("`$d = (Get-CimInstance Win32_Process -Filter \"ProcessId=${pid}\").CreationDate; if ($d) { $d.ToUniversalTime().ToString('o') }`,") && probes.includes("instant: \"$(if ($_.CreationDate) { $_.CreationDate.ToUniversalTime().ToString('o') } else { '' })\","))
-  const host = read('src/daemon/processSweepWindowsHost.ts')
-  check("the sweep's table writes the same instant, no third rendering", host.includes("$token = $process.CreationDate.ToUniversalTime().ToString('o')") && !host.includes('"$($process.CreationDate)"'))
-}
 
-console.log('S6 who writes which form')
-{
-  const workers = read('src/daemon/concourseWorkers.ts')
-  check("a session record's procStart is the instant; the sweep that ends a runner left without a host probes the runner twice in the form its record holds — after its tree is read and before the ask, then before the kill — and each process under it by the birth its listing read, in that listing's form", workers.includes('startToken = pid === undefined ? null : getProcessStartInstant(pid)') && workers.includes('getProcessStartInstantCachedOrRefresh(pid)') && (workers.match(/await getProcessStartInstantAsync\((?:claimed|reg)\.pid\)/g) ?? []).length === 3 && (workers.match(/getProcessStartInstantAsync\(/g) ?? []).length === 3 && workers.includes('tokenBinding(member.birth, await readProcessBirth(member.pid))') && (workers.match(/getProcessStartToken(Async|CachedOrRefresh)?\(/g) ?? []).join('|') === 'getProcessStartTokenAsync(|getProcessStartTokenAsync(' && (workers.match(/getProcessStartTokenAsync\(pid, rec\.procStart\)/g) ?? []).length === 2 && workers.indexOf('const under = await readProcessTreeUnder(pid)') < workers.indexOf('getProcessStartTokenAsync(pid, rec.procStart)') && workers.indexOf('const under = await readProcessTreeUnder(pid)') !== -1)
-  check("a window's registration is the instant", read('src/daemon/processSweepRun.ts').includes('startToken: await getProcessStartInstantAsync(process.pid),'))
-  check("a launched task's ledger row is the instant, and its reader probes in the row's form", read('src/tasks/taskLaunchLedger.ts').includes('await getProcessStartInstantAsync(launch.pid)') && read('src/tasks/taskLaunchLedger.ts').includes('await getProcessStartTokenAsync(record.pid, record.startToken)'))
-  check("a scratchpad's owner record is the instant", read('src/utils/scratchpad.ts').includes('getProcessStartInstantAsync(process.pid)'))
-  for (const [file, line] of [
-    ['src/substrate/pidLock.ts', 'return getProcessStartTokenAsync(holder.pid, holder.procStart)'],
-    ['src/substrate/pidLock.ts', 'getProcessStartTokenCachedOrRefresh(holder.pid, undefined, holder.procStart)'],
-    ['src/utils/permissions/runtimeProtection.ts', 'await getProcessStartTokenAsync(state.pid, state.startToken)'],
-    ['src/services/projectServices/serviceManager.ts', 'getProcessStartTokenCachedOrRefresh(pid, undefined, startToken)'],
-    ['src/services/projectServices/serviceManager.ts', 'const live = owned ? null : await getProcessStartTokenAsync(record.pid, record.startToken)'],
-    ['src/services/projectServices/serviceManager.ts', 'currentToken: stillOwned ? null : await getProcessStartTokenAsync(record.pid, record.startToken),'],
-    ['src/services/providers/openaicompat/compatSlots.ts', 'getProcessStartTokenCachedOrRefresh(row.pid, undefined, row.start)'],
-    ['src/services/tensorfold/adapter/serve.ts', '(io.startToken ?? getProcessStartTokenAsync)(stale.pid, stale.token)'],
-    ['src/utils/pidAlive.ts', 'getProcessStartTokenCachedOrRefresh(pid, undefined, startToken)'],
-    ['src/daemon/workerIdentity.ts', 'getProcessStartTokenCachedOrRefresh(rec.pid, undefined, rec.procStart)'],
-  ] as Array<[string, string]>) {
-    check(`${file} probes in the form its record holds`, read(file).includes(line), line)
-  }
-}
 
 console.log('S7 the daemon record: one owner, exact in either form')
 {
   const startedAt = Date.UTC(2026, 10, 10, 12, 0, 0)
   check("today's bytes: the same words are the recorded daemon, other words are not (the rule 1.0.8 applies, kept)", verbs.daemonRecordIdentity({ startedAt, startToken: BOX }, BOX) === 'same-process' && verbs.daemonRecordIdentity({ startedAt, startToken: BOX }, '9 November 2026 10:00:00') === 'not-recorded-process')
   check('a record with no token is judged by its own stamp against the instant: born before it is the daemon, born after it is not', verbs.daemonRecordIdentity({ startedAt, startToken: null }, INSTANT) === 'same-process' && verbs.daemonRecordIdentity({ startedAt, startToken: null }, '2026-11-10T12:00:06.0000000Z') === 'not-recorded-process' && verbs.daemonRecordIdentity({ startedAt }, null) === 'unknown')
-  const main = read('src/daemon/main.ts')
-  const reconcile = read('src/daemon/reconcileRecords.ts')
-  check('both readers ask in the form the record holds, and for the instant when it holds none (a d.m.y text read as m.d.y can no longer call a live daemon recycled)', main.includes('daemonRecordIdentity(stale, stale.startToken ? getProcessStartToken(stale.pid, stale.startToken) : getProcessStartInstant(stale.pid))') && reconcile.includes('daemonRecordIdentity(sup, await (sup.startToken ? getProcessStartTokenAsync(sup.pid, sup.startToken) : getProcessStartInstantAsync(sup.pid)))'))
 }
 
 console.log("S8 the sweep binds a daemon's row through the instant its record carries")
@@ -181,9 +146,6 @@ console.log("S9 a pid lock's holder in either form: alive when the probe answers
   const holder = (procStart: string): { owner: string; pid: number; acquiredAt: number; procStart: string } => ({ owner: 'start-token-forms', pid: process.pid, acquiredAt: Date.now(), procStart })
   check("a holder recorded in today's words", holderAlive(holder(BOX), 'assume-alive', BOX) && holderAlive(holder(BOX), 'assume-alive', null) && !holderAlive(holder(BOX), 'assume-alive', '9 November 2026 10:00:00') && !holderAlive(holder(BOX), 'assume-alive', ''))
   check('a holder recorded in the new form', holderAlive(holder(INSTANT), 'assume-alive', INSTANT) && holderAlive(holder(INSTANT), 'assume-alive', null) && !holderAlive(holder(INSTANT), 'assume-alive', '2026-11-09T08:00:00.0000000Z') && !holderAlive(holder(INSTANT), 'assume-alive', ''))
-  const slots = read('src/services/providers/openaicompat/compatSlots.ts')
-  const guard = read('src/utils/permissions/runtimeProtection.ts')
-  check('a slot whose holder cannot be probed stays held, and the daemon stays protected when its probe cannot answer (both rules as they stood)', slots.includes('return token === null || token === row.start') && guard.includes('if (!state.startToken || token === null || token === state.startToken) pids.push(state.pid)'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

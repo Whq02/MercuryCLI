@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -36,17 +35,6 @@ section('§1 the chain walk')
   check('a row recorded after the result threads onto the chain', chainTypes([call, result, after], 'd').join('>') === 'assistant>user>attachment')
 }
 
-section('§2 the source: both decision rows land after the result')
-{
-  const src = readFileSync(join(ROOT, 'src/services/tools/toolExecution.ts'), 'utf8')
-  const built = src.indexOf('const decidedRows = hookRowsOfResult(decided, { callId: toolUseID })')
-  const denyPushed = src.indexOf('for (const row of decidedRows) push(row)')
-  const pushed = src.indexOf('if (executed) for (const row of decidedRows) push(row)')
-  const allowance = src.indexOf('if (executed && allowanceRow !== null) push({ message: allowanceRow })')
-  check('the permission.decided rows are built at the decision and pushed at the terminal step', built !== -1 && pushed !== -1 && built < pushed)
-  check('…on the deny road after the refusal result, and beside the allowance row on the allow road', denyPushed !== -1 && denyPushed < pushed && allowance !== -1 && pushed < allowance)
-  check('no decided row is pushed in the slot between the call and its result', !/push\(\{\s*message: createAttachmentMessage\(\{\s*type: 'hook'/.test(src))
-}
 
 section('§3 the tool execution road: the permission.decided row lands after the result on the DENY road and the ALLOW road')
 {

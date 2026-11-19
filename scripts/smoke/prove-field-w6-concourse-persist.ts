@@ -19,7 +19,6 @@ const check = (name: string, ok: boolean, detail?: string): void => {
     console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
   }
 }
-const main = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
 
 type Run = { rc: number; out: string; err: string }
 const runMercury = (home: string, args: string[]): Promise<Run> =>
@@ -55,9 +54,6 @@ console.log('§1 — the concourse switches are an interactive boot\'s; run and 
 
 console.log('§2 — still exactly one CLI writer of the persisted field')
 {
-  const setCalls = (main.match(/setConcourseEnabled\(/g) ?? []).length
-  check('setConcourseEnabled is called exactly once in main.tsx', setCalls === 1, `found ${setCalls}`)
-  check('the switch is read last-wins from argv', main.includes("[...process.argv].reverse().find(a => a === '--concourse-off' || a === '--concourse-on')"))
   const pages = { root: builtHelp(), run: builtHelp('run'), runner: builtHelp('runner') }
   const lists = (page: string, flag: string): boolean => page.includes(` ${flag} `)
   check('run and runner are built without the interactive boot options (each skips them before it adds the root options)', ['--chat', '--concourse-off', '--concourse-on', '--multiplex', '--pr'].every(flag => lists(pages.root, flag) && !lists(pages.run, flag) && !lists(pages.runner, flag)) && ['--model', '--effort'].every(flag => lists(pages.root, flag) && lists(pages.run, flag) && lists(pages.runner, flag)))

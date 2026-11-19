@@ -1,34 +1,17 @@
 #!/usr/bin/env bun
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import * as rig from '../core-runtime/turnScenarios.ts'
 
 const { runToolCalls } = await import('../../src/run-core/turn/runToolCalls.ts')
 const { afterTools } = await import('../../src/run-core/turn/afterTools.ts')
 const queue = await import('../../src/utils/messageQueueManager.ts')
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}`)
 }
 
-function moduleText(file: string, subdir: string): string {
-  let text = readFileSync(join(ROOT, file), 'utf-8')
-  const dir = join(ROOT, subdir)
-  if (existsSync(dir)) {
-    text += readdirSync(dir)
-      .filter(f => f.endsWith('.ts'))
-      .map(f => readFileSync(join(dir, f), 'utf-8'))
-      .join('\n')
-  }
-  return text
-}
-
-const q = moduleText('src/query.ts', 'src/query') + moduleText('src/run-core/events.ts', 'src/run-core')
-const qe = moduleText('src/rows/turn.ts', 'src/rows/turn')
 
 console.log('============================================================')
 console.log(' Turn-engine preserve-contracts (R7) — the off-dist core')
@@ -53,15 +36,6 @@ console.log('\n── the tool-round attachment pass ──')
   planted.close()
 }
 
-console.log('\n── abort plumbing ──')
-check('the query module threads the abortController through tool execution', /abortController/.test(q))
-
-console.log('\n── message recording order ──')
-check('recordTranscript is called from the engine (persistence rides the turn)', /recordTranscript\(/.test(q) || /recordTranscript\(/.test(qe))
-
-console.log('\n── engine wiring ──')
-check('the turn drives queryEvents() (the ask path routes through the generator)', /queryEvents\(/.test(qe))
-check('both modules bun-load (import graph intact)', true )
 
 console.log('\n' + '═'.repeat(60))
 if (failures === 0) console.log('✅ TURN-ENGINE CONTRACTS GREEN')

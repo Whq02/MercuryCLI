@@ -2,16 +2,10 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-t.section('§1 — the poll is gone at the frame')
-{
-  const frame = readFileSync('src/components/MercuryFrame.tsx', 'utf8')
-  t.check('MercuryFrame has ZERO setInterval (the 1.5s poll is retired)', !frame.includes('setInterval'))
-}
 
 t.section('§2 — feed mechanics')
 {

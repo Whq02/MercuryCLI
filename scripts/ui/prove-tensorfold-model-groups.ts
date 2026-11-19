@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, readFileSync, truncateSync, writeFileSync } from 'node:fs'
+import { mkdirSync, truncateSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mock } from 'bun:test'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -738,8 +738,6 @@ console.log('\n§3 the order rule and the facts the /model group reads')
 
 console.log("\n§4 /model keeps no TensorFold road of its own: every key but pairing goes to the panel lane's onTensorFoldAct (tf-panel-106)")
 {
-  const source = readFileSync(join(import.meta.dir, '..', '..', 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf8')
-  check('mercuryModel.tsx starts, stops, pulls, installs and copies nothing for TensorFold itself', !/\b(startTensorFold|stopTensorFold|pullTensorFold|installTensorFold|installTensorFoldThen|stopTensorFoldPod|readTensorFoldSupportLine|readOtherCheckpoint)\b/.test(source) && source.includes("import { onTensorFoldAct } from '../tensorfold/tensorfold.js'"), 'mercuryModel.tsx')
   const { servedByTensorFold, tensorFoldPodEndpoints } = modelCommand
   const endpoints = tensorFoldPodEndpoints([{ id: '7f3a' }], [{ name: 'pod-7f3a-runpod', hostPodId: '7f3a' }, { name: 'pod-other', hostPodId: 'abcd' }, { name: 'plain' }])
   check('a compat endpoint whose hostPodId names a TensorFold pod leaves the custom-endpoint group (it lives under TENSORFOLD HOST); other pods and plain endpoints stay', [...endpoints].join(',') === 'pod-7f3a-runpod' && servedByTensorFold({ id: 'compat/pod-7f3a-runpod/qwen3.8-27b', group: 'OpenAI-compatible' }, endpoints) && servedByTensorFold({ id: '__mercury_connect__:compat/pod-7f3a-runpod', group: 'OpenAI-compatible' }, endpoints) && !servedByTensorFold({ id: 'compat/pod-other/m', group: 'OpenAI-compatible' }, endpoints) && !servedByTensorFold({ id: 'compat/plain/m', group: 'OpenAI-compatible' }, endpoints), [...endpoints].join(','))

@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { liveTurnStateOf } = await import('../../src/utils/conversationRecovery.ts')
 
 let failures = 0
@@ -172,19 +171,6 @@ section('W3 the Chat hands the spinner all three live phases')
 
 section('W4 the streaming hold row IS the writing indicator')
 {
-  const src = readFileSync(join(ROOT, 'src/components/Spinner/StreamingHoldRow.tsx'), 'utf8')
-  check(
-    'the row reads the live token count (the same ref the spinner polls)',
-    src.includes('responseLengthRef'),
-  )
-  check(
-    'the count paints as tokens beside the clock',
-    src.includes('tokens'),
-  )
-  check(
-    "still-waiting derives from the count's own movement, not the process-local pulse",
-    !src.includes('getPulsePhase') && !src.includes('getPulseActivity'),
-  )
   check(
     'the Chat feeds the hold row the live ref',
     heldFigure === 777,

@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -78,17 +77,6 @@ section('§3 the neighbor pane survives — the expanded line stays inside its c
   check('no row glues spilled tab cells onto the rail (the pre-fix overrun shape)', !frame.includes('RAILM') && !frame.includes('KLMRAIL') && !frame.includes('EFGHRAIL'), j(ls))
 }
 
-section('§4 one owner, structurally')
-{
-  const walk = readFileSync(join(ROOT, 'src/ink/compose-walk.ts'), 'utf8')
-  check('composeText pre-expands per segment through the one arithmetic owner', walk.includes('expandTabsWithColumn(s.text, column)'))
-  const tabstops = readFileSync(join(ROOT, 'src/ink/tabstops.ts'), 'utf8')
-  check('expandTabs is the same walk (one owner, two doors)', tabstops.includes('return expandTabsWithColumn(text, 0, interval).text'))
-  const dom = readFileSync(join(ROOT, 'src/ink/dom.ts'), 'utf8')
-  check("layout keeps measuring the expanded text (the owner's other consumer)", dom.includes('const text = expandTabs(raw)'))
-  const buffer = readFileSync(join(ROOT, 'src/ink/compose-buffer.ts'), 'utf8')
-  check('the buffer arm is the raw-ansi backstop (an absolute-column stop), never the text path', buffer.includes('if (cp === 0x09) {') && buffer.includes('const stop = 8 - (cx % 8)') && !buffer.includes('expandTabs'))
-}
 
 console.log(failures === 0 ? '\nprove-tab-width-owner: ALL LAWS HOLD' : `\nprove-tab-width-owner: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

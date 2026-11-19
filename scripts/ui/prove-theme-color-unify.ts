@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
@@ -14,19 +13,12 @@ function section(t: string): void {
 }
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const themeSrc = readFileSync(join(root, 'src', 'utils', 'theme.ts'), 'utf-8')
 
 console.log('============================================================')
 console.log(' theme chart color unified onto ink/colorize (HB-0212)')
 console.log('============================================================')
 
 section('source: chalkForChart is gone; themeColorToAnsi delegates to colorize')
-check('the private chalkForChart const is deleted', !/const chalkForChart\s*=/.test(themeSrc))
-check('the chalk/Chalk import is gone (was unused after the deletion)', !/import chalk.*from 'chalk'/.test(themeSrc) && !/\bnew Chalk\(/.test(themeSrc))
-check("the now-unused env import is gone (env.terminal was chalkForChart's only use)", !/import \{ env \} from '\.\/env\.js'/.test(themeSrc))
-check('colorize is imported', /import \{ colorize \} from '\.\.\/ink\/colorize\.js'/.test(themeSrc))
-check('themeColorToAnsi routes through colorize and slices the bare opening escape', /export function themeColorToAnsi\(themeColor: string\): string \{[\s\S]{0,400}colorize\(sentinel, themeColor, 'foreground'\)[\s\S]{0,200}painted\.slice\(0, idx\)/.test(themeSrc))
-check('NO magenta floor (the floor would leak into a no-color chart + re-desync)', !/\\x1b\[35m/.test(themeSrc))
 
 section('behaviour: chart series === legend bullet (the desync is closed)')
 

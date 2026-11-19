@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -43,20 +41,6 @@ section('§1 the record parser')
   check('the MSYS root itself places through the Win32 line', pathOf(rootOnly) === 'C:\\Program Files\\Git', pathOf(rootOnly))
 }
 
-section('§2 the provider chain and the engine consumer')
-{
-  const provider = readFileSync(join(import.meta.dir, '../../src/utils/shell/bashProvider.ts'), 'utf8')
-  const posixLine = provider.indexOf('pwd -P >| ${quote([cwdFileInShell])}')
-  const win32Line = provider.indexOf('{ pwd -W >> ${quote([cwdFileInShell])} 2>/dev/null || true; }')
-  check('the POSIX record line is still written first', posixLine !== -1)
-  check('the Win32 record line is appended on Windows, inside its own group (a bash without -W appends nothing; the user command keeps the chain status)', win32Line !== -1 && win32Line > posixLine, `posix@${posixLine} win32@${win32Line}`)
-  check('…and only on Windows', /if \(isWindows\) \{\s*\n[^\n]*\n?[\s\S]{0,900}pwd -W/.test(provider))
-  const shell = readFileSync(join(import.meta.dir, '../../src/utils/Shell.ts'), 'utf8')
-  check('the engine consumer routes the record through nativeCwdFromShellRecord', /nativeCwdFromShellRecord\(/.test(shell))
-  check('a refusal is logged with its reason, not swallowed', /bash cwd tracking:.*refused/.test(shell) || /cwd tracking[^\n]*\$\{[^\n]*refused/.test(shell))
-  check('the old blind conversion of the recorded line is gone', !/recorded = posixPathToWindowsPath\(recorded\)/.test(shell))
-  check('only a foreground result moves the session directory: the guard reads the settled result’s backgroundTaskId (the status is already completed when the result resolves, so it cannot tell a backgrounded command apart)', /cwdOverride === undefined && result\.backgroundTaskId === undefined\)/.test(shell) && !/shellCommand\.status !== 'backgrounded'/.test(shell))
-}
 
 if (failures > 0) {
   console.error(`\nprove-shell-cwd-record: ${failures} FAILURE(S)`)

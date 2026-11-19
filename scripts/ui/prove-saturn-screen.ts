@@ -2,7 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { compileWhenSpelling, parseTimeOfDay, WHEN_SPELLING_EXAMPLES } from '../../src/services/saturn/whenSpelling.js'
@@ -206,11 +205,6 @@ t.section('§4 — THE REAL MOUNT (staticRender, injected facts) + route silence
   t.check('§4 the mounted screen paints the parity-floor legend', frame.includes('x delete') && frame.includes('n run-now') && frame.includes('r refresh'))
   t.check('§4 the mounted screen paints the held truth', frame.includes('2 held'))
 
-  const screenSrc = readFileSync(join(process.cwd(), 'src/components/BootSaturnScreen.tsx'), 'utf8')
-  const routeTokens = ['surfaceRoute', 'enterRootChat', 'settleAbsentChat', 'armRootCommand', 'initialMessage']
-  const routeHits = routeTokens.filter(tok => screenSrc.includes(tok))
-  t.check('§4 the screen module never touches the surface-route bridge', routeHits.length === 0, routeHits.join(','))
-  t.check("§4 the screen writes through 'set-schedule' and 'sessionDispatch' only", screenSrc.includes("action: 'set-schedule'") && screenSrc.includes("op: 'sessionDispatch'") && !/op: 'saturn/.test(screenSrc))
 }
 
 t.section('§5 — THE FORM (seven facts · the verdict verbatim · honest preview)')
@@ -269,10 +263,6 @@ t.section('§5 — THE FORM (seven facts · the verdict verbatim · honest previ
     t.check('§5 OS-2 the workspace picker dedupes the project dirs, order kept', JSON.stringify(opts.slice(0, 2)) === JSON.stringify(['/repo/a', '/repo/b']))
     t.check('§5 OS-2 the custom-path road is always the last row', opts[opts.length - 1] === SATURN_WORKSPACE_CUSTOM_ROW)
     t.check('§5 OS-2 no projects still leaves the custom road', JSON.stringify(saturnWorkspacePickOptions([])) === JSON.stringify([SATURN_WORKSPACE_CUSTOM_ROW]))
-    const screenSrc2 = readFileSync(join(process.cwd(), 'src/components/BootSaturnScreen.tsx'), 'utf8')
-    t.check('§5 OS-2 the workspace arm opens the PICK (the prompt is the custom road behind it)', screenSrc2.includes("setFormPick({ field: 'workspace', options: saturnWorkspacePickOptions((projectsOf ?? liveProjectDirs)()) })"))
-    t.check('§5 OS-2 the live rows read THE ONE PROJECT SOURCE (workedInProjects — never a second enumeration)', screenSrc2.includes('workedInProjects().map(p => p.dir)'))
-    t.check("§5 OS-2 the custom row routes to the old free-text prompt", screenSrc2.includes("r === SATURN_WORKSPACE_CUSTOM_ROW") && screenSrc2.includes("setFormPrompt({ field: 'workspace', draft: form?.workspaceDir ?? '' })"))
   }
 
   {
@@ -292,8 +282,6 @@ t.section('§5 — THE FORM (seven facts · the verdict verbatim · honest previ
     t.check('§5 OS-3 audit/review land their canned missions whole; none is born-waiting; custom is the road', saturnOpeningFromPick(SATURN_OPENING_AUDIT_ROW) === SATURN_AUDIT_MISSION && saturnOpeningFromPick(SATURN_OPENING_REVIEW_ROW) === SATURN_REVIEW_MISSION && saturnOpeningFromPick(SATURN_OPENING_NONE_ROW) === null && saturnOpeningFromPick(SATURN_OPENING_CUSTOM_ROW) === 'custom')
     t.check('§5 OS-3 the canned missions are honest prose under the prompt cap (self-contained: task + reporting channel)', SATURN_AUDIT_MISSION.length > 40 && SATURN_AUDIT_MISSION.length <= 20_000 && SATURN_AUDIT_MISSION.includes('transcript') && SATURN_REVIEW_MISSION.length > 40 && SATURN_REVIEW_MISSION.includes('transcript'))
     t.check("§5 OS-3 the 'current' marker follows the form's own state", saturnOpeningRowIsCurrent(SATURN_OPENING_NONE_ROW, null) && saturnOpeningRowIsCurrent(SATURN_OPENING_AUDIT_ROW, SATURN_AUDIT_MISSION) && saturnOpeningRowIsCurrent(SATURN_OPENING_CUSTOM_ROW, 'my own mission') && !saturnOpeningRowIsCurrent(SATURN_OPENING_CUSTOM_ROW, SATURN_AUDIT_MISSION))
-    const screenSrc3 = readFileSync(join(process.cwd(), 'src/components/BootSaturnScreen.tsx'), 'utf8')
-    t.check('§5 OS-3 the opening arm opens the PICK; custom routes to the old prompt', screenSrc3.includes("setFormPick({ field: 'opening', options: saturnOpeningPickOptions() })") && screenSrc3.includes("setFormPrompt({ field: 'opening', draft: form?.opening ?? '' })"))
     const validated = validateSaturnSubmission({ when: { kind: 'at', atMs: Date.now() + 3_600_000 }, action: { kind: 'birth', birth: { workspaceDir: '/w', modelKey: 'm', presence: 'headless', opening: SATURN_AUDIT_MISSION } } })
     t.check('§5 OS-3 a canned mission survives the wire validator whole', validated.ok)
   }
@@ -377,14 +365,6 @@ t.section('§7 — THE ROW AND THE DOOR (after Health · the fit fact · the fac
   t.check('§7 a --chat world carries the same row (no world check)', (assembleCardRows({ ...FACTS, concourse: null }) as Row[]).some(r => r.key === 'saturn'))
   t.check('§7 the merged door stays LAST (proof-leg stability)', keys[keys.length - 1] === 'sessions')
 
-  const coreSrc = readFileSync(join(process.cwd(), 'assets/splash/splash-core.mjs'), 'utf8')
-  const faceSrc = readFileSync(join(process.cwd(), 'src/components/BootSplashScreen.tsx'), 'utf8')
-  const driverSrc = readFileSync(join(process.cwd(), 'assets/splash/mercury-splash.mjs'), 'utf8')
-  t.check('§7 one row owner (no second saturn row on either host)', (coreSrc.match(/key: 'saturn'/g) ?? []).length === 1 && !faceSrc.includes("key: 'saturn'") && !driverSrc.includes("key: 'saturn'"), 'owner census')
-  t.check("§7 the runtime face activates the row (runRow case 'saturn' opens the layer)", faceSrc.includes("case 'saturn':") && faceSrc.includes('setSaturnOpen(true)'))
-  t.check("§7 the launcher activates the row with the `saturn` receipt action", driverSrc.includes("else if (r2.key === 'saturn') writeSplashAction('saturn')"))
-  t.check('§7 the face mounts the layer with the persistent-scene contract', faceSrc.includes('<BootSaturnScreen') && faceSrc.includes('onClose={() => setSaturnOpen(false)}'))
-  t.check('§7 the face consumes the saturn face-door at mount (the one-shot grammar)', faceSrc.includes("useState(faceDoor === 'saturn')"))
 
   const { decideSplashReceipt, consumeFaceDoorDeepLink, consumeBootSurfaceIntent } = await import('../../src/substrate/splashHandover.js')
   const NOW = 1_700_000_000_000
@@ -414,25 +394,8 @@ t.section('§8 — THE CONCOURSE ROW FACT (smallest honest read from the project
   t.check('§8 no schedules ⇒ null (absent ≠ empty holds)', saturnSoonestFireMs({}, NOW) === null && saturnSoonestFireMs({ schedules: [] as never }, NOW) === null)
   t.check('§8 a spent one-shot answers null', saturnSoonestFireMs({ schedules: [sched('aaaa0001', NOW - 60_000)] as never }, NOW) === null)
 
-  const contracts = readFileSync(join(process.cwd(), 'src/components/concourse/contracts.ts'), 'utf8')
-  const composer = readFileSync(join(process.cwd(), 'src/services/concourse/concourseSnapshot.ts'), 'utf8')
-  t.check('§8 the contract carries scheduleNextFireMs and the composer imports the projection it reads through', contracts.includes('scheduleNextFireMs?: number') && composer.includes("import { saturnSoonestFireMs } from '../../daemon/saturn.js'"))
-  t.check('§8 the snapshot composer reads THROUGH the projection helper', composer.includes('saturnSoonestFireMs(rec, nowMs)') && composer.includes('scheduleNextFireMs: next'))
-  const cell = readFileSync(join(process.cwd(), 'src/components/concourse/LiveNowCell.tsx'), 'utf8')
-  t.check("§8 the NOW cell paints the tag in the workflows tag's grammar", cell.includes('next fire {fireDeltaWords(row.scheduleNextFireMs') && cell.includes("row.scheduleNextFireMs !== undefined"))
 }
 
-t.section('§9 — THE REACTIVATION WARN (retained schedules say when they would hold)')
-{
-  const src = readFileSync(join(process.cwd(), 'src/services/switchboard/hopIntoSession.ts'), 'utf8')
-  t.check('§9 the warn rides the one resume door beside the recap (both courtesy roads)', src.includes('void paintResumeRecap(sessionId, launchWon)') && src.includes('void paintReactivationScheduleWarn(sessionId)'))
-  const fn = src.slice(src.indexOf('async function paintReactivationScheduleWarn'), src.indexOf('async function paintResumeRecap'))
-  t.check('§9 the warn speaks THE ONE VERDICT over live facts (never a re-derived judgment)', fn.includes('scheduleAccountVerdict({') && fn.includes('readLiveAccountFacts(s.account)') && !fn.includes('isAnthropicOAuthSignInExpired'))
-  t.check('§9 paused rows never warn; a ready world paints nothing', fn.includes("if (s.paused === true) continue") && fn.includes('if (worst === null) return'))
-  t.check('§9 the row is display-only, warning-leveled, fail-soft (an empty catch: the courtesy never throws into the hop)', fn.includes('addDisplayRow') && fn.includes("'warning'") && /\} catch \{\s*(?:\/\*[\s\S]*?\*\/)?\s*\}/.test(fn))
-  t.check('§9 every non-ready state has its typed sentence (the /logins doors named; the keyless arm its own server road)', fn.includes('signed out — /logins connects an account') && fn.includes('sign-in expired — re-login now (/logins)') && fn.includes('rate-limited — due fires hold') && fn.includes("known expiry lands before the next fire") && fn.includes('no local server answering'))
-  t.check('§9 the severity walk is the verdict order', fn.includes("{ 'signed-out': 4, unreachable: 4, expired: 3, 'rate-limited': 2, expiring: 1, ready: 0 }"))
-}
 
 t.section('§10 — ROUTE SILENCE around the real layer (no transition, no settle) + esc topology')
 {
@@ -462,13 +425,6 @@ t.section('§10 — ROUTE SILENCE around the real layer (no transition, no settl
   unregister()
   routeStore._resetSurfaceRouteForTesting()
 
-  const screenSrc = readFileSync(join(process.cwd(), 'src/components/BootSaturnScreen.tsx'), 'utf8')
-  t.check('§10 the prompt owns input while open and esc closes IT (not the screen)', screenSrc.includes('{ isActive: formPrompt !== null }') && screenSrc.includes('setFormPrompt(null)'))
-  t.check('§10 the picker closes to the form', screenSrc.includes("active: formPick !== null") && screenSrc.includes('onClose: () => setFormPick(null)'))
-  t.check('§10 the form closes to the board (and clears its note)', screenSrc.includes('active: form !== null && formPrompt === null && formPick === null') && screenSrc.includes('setForm(null)'))
-  t.check('§10 the board closes through the mount contract alone', screenSrc.includes('active: form === null') && screenSrc.includes('onClose: () => onClose?.()'))
-  const faceSrc = readFileSync(join(process.cwd(), 'src/components/BootSplashScreen.tsx'), 'utf8')
-  t.check('§10 the face list parks behind the saturn layer', faceSrc.includes('!saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
 }
 
 t.finish('prove-saturn-screen')

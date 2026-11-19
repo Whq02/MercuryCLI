@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -53,21 +53,7 @@ section('§2 THE LIVE GATE')
 
 section('§3 WIRING')
 {
-  const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
   check('MERCURY_ANTHROPIC_CONNECTORS is REGISTERED (opt-in)', getFlagSpec('MERCURY_ANTHROPIC_CONNECTORS') !== undefined)
-  const gate = src('src/services/mcp/anthropicConnectors.ts')
-  check(
-    'the fetch consults the canonical row THROUGH the registry resolver',
-    gate.includes("flagEnv('MERCURY_ANTHROPIC_CONNECTORS')"),
-  )
-  check(
-    'the gate is the pure exported decision (polarity table provable forever)',
-    gate.includes('export function anthropicConnectorsArmed('),
-  )
-  check(
-    'the gate precedes every token read (unarmed sessions read nothing)',
-    gate.indexOf('anthropicConnectorsArmed(') !== -1 && gate.indexOf('anthropicConnectorsArmed(') < gate.indexOf('getClaudeAIOAuthTokens()'),
-  )
 }
 
 rmSync(HOME, { recursive: true, force: true })

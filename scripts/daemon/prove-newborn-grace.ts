@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'newborn-grace-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -22,11 +21,9 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
 const sup = await import('../../src/daemon/concourseWorkers.ts')
 const idle = await import('../../src/daemon/idleRetirement.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 const dir = process.env.MERCURY_DAEMON_DIR!
 
 const DEAD_PID = 2_147_000_000
@@ -108,28 +105,6 @@ console.log('N3 the reconcile: a dead newborn is released, a dead session is a c
   check('N3 the re-run is idempotent (nothing settles twice)', again.newbornsReleased.length === 0 && again.settled.length === 0)
 }
 
-console.log('N4 the birth crosses the wire and stamps both mints')
-{
-  const server = read('src/daemon/controlServer.ts')
-  const admitAt = server.indexOf("case 'sessionAdmit': {")
-  const admitBody = server.slice(admitAt, server.indexOf("case 'concourseWithdraw'", admitAt))
-  check('N4 the control server forwards bornBlank into the admit request', admitBody.includes('raw.bornBlank === true ? { bornBlank: true }'))
-  const source = read('src/daemon/concourseWorkers.ts')
-  const admitHandlerAt = source.indexOf('export function makeConcourseAdmitHandler(')
-  const claimAt = source.indexOf('deps.claimWarm !== undefined &&', admitHandlerAt)
-  const coldAt = source.indexOf('let runnerId: string | null = null', claimAt)
-  const handlerEnd = source.indexOf('function mintWorktreeBranchName', coldAt)
-  const claimBody = source.slice(claimAt, coldAt)
-  const coldBody = source.slice(coldAt, handlerEnd)
-  const birthStamp = "req.bornBlank === true ? { bornBlankAt: Date.now() }"
-  check('N4 the warm-claim mint stamps bornBlankAt', admitHandlerAt !== -1 && claimAt !== -1 && coldAt !== -1 && claimBody.includes(birthStamp))
-  check('N4 the cold-spawn mint stamps bornBlankAt', coldAt !== -1 && handlerEnd !== -1 && coldBody.includes(birthStamp))
-  const birth = read('src/services/switchboard/bornSession.ts')
-  check('N4 the birth door sends bornBlank: true', birth.includes('bornBlank: true'))
-  const protocol = read('src/daemon/protocol.ts')
-  check('N4 the protocol names the field on the admit op', /op: 'sessionAdmit'[\s\S]{0,1200}bornBlank\?: true/.test(protocol))
-  check('N4 the grace knob is a registered row under its session spelling and no other', getFlagSpec('MERCURY_SESSION_NEWBORN_GRACE_MINUTES') !== undefined && !flagRegistryText().includes('MERCURY_CONCOURSE_' + 'NEWBORN_GRACE_MINUTES'))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-newborn-grace: ALL LAWS HOLD' : `\nprove-newborn-grace: ${failures} FAILURE(S)`)

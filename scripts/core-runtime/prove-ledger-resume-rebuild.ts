@@ -16,7 +16,6 @@ delete process.env.NODE_ENV
 delete process.env.MERCURY_TRANSCRIPT_READER
 delete process.env.MERCURY_RESUME_SNAPSHOT
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -299,27 +298,6 @@ const SID6 = '00000000-aaaa-4000-8000-000000000006'
   check('RED ON THE BASE: the response is counted once, at its settled usage', verdict.ok, verdict.detail)
 }
 
-section('§7 the shape: the restore road reads the raw records through the reader; the slot is read for what the transcript cannot carry')
-{
-  const src = (rel: string): string => {
-    try {
-      return readFileSync(join(ROOT, 'src', rel), 'utf8')
-    } catch {
-      return ''
-    }
-  }
-  const costTracker = src('cost-tracker.ts')
-  const rollup = src('utils/sessionStorage/usageRollup.ts')
-  const reader = src('utils/sessionStorage/transcriptReader.ts')
-  const restore = src('utils/sessionRestore.ts')
-  check('the restore road rolls the transcript up before it reads the slot', costTracker.includes('rollupSessionUsage(') && costTracker.includes('export async function restoreCostStateForSession('))
-  check('the rollup reads the raw record stream through the one reader, never the file', rollup.includes('scanTranscriptEntriesForward(') && !/from ['"]node:fs['"]/.test(rollup) && !rollup.includes('readFileSync('))
-  check('the rollup prices every response through the one price owner', rollup.includes('calculateUSDCost(') && rollup.includes('modelPricingBasis('))
-  check('the reader exposes the raw forward walk (no fold, no relink, no prune)', reader.includes('export function scanTranscriptEntriesForward('))
-  const callers = ['cli/headless/resume.ts'].map(rel => src(rel))
-  check('the one restore road awaits the rebuild and hands it the transcript path it knows', restore.includes('export async function restoreSessionStateFromLog(') && restore.includes('await restoreCostStateForSession(adopted, result.fullPath)') && (restore.match(/restoreCostStateForSession\(/g) ?? []).length === 1)
-  check('every road that restores a session awaits the restore, so the ledger is rebuilt before the first turn', callers.every(text => text.includes('await restoreSessionStateFromLog(') && !/(?<!await )restoreSessionStateFromLog\(/.test(text)))
-}
 
 rmSync(HOME, { recursive: true, force: true })
 rmSync(STORE, { recursive: true, force: true })

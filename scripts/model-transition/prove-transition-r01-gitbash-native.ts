@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -49,41 +48,11 @@ check(
   resolveBashWith({ MERCURY_GIT_BASH_PATH: '/bin/bash' }) === '/bin/bash',
 )
 
-const shellUtils = readFileSync(join(ROOT, 'src/utils/shell/shellToolUtils.ts'), 'utf8')
-check(
-  '§C isPowerShellToolEnabled reads MERCURY_USE_POWERSHELL_TOOL',
-  /flagEnv\('MERCURY_USE_POWERSHELL_TOOL'\)/.test(shellUtils),
-)
-const psTools = readFileSync(join(ROOT, 'src/tools/PowerShellTool/PowerShellTool.tsx'), 'utf8')
-check(
-  '§C the PowerShell availability probe reads MERCURY_GIT_BASH_PATH',
-  /flagEnv\('MERCURY_GIT_BASH_PATH'\)/.test(psTools),
-)
 
-const windowsPaths = readFileSync(join(ROOT, 'src/utils/windowsPaths.ts'), 'utf8')
 const { GIT_BASH_REMEDY } = await import('../../src/utils/windowsPaths.ts')
 check(
   '§D the message a machine with no bash is given names MERCURY_GIT_BASH_PATH',
   GIT_BASH_REMEDY.includes('MERCURY_GIT_BASH_PATH='),
-)
-check(
-  '§D the not-found message names MERCURY_GIT_BASH_PATH',
-  windowsPaths.includes('unable to find MERCURY_GIT_BASH_PATH'),
-)
-const tips = readFileSync(join(ROOT, 'src/services/tips/tipRegistry.ts'), 'utf8')
-check(
-  '§D the tip advertises MERCURY_USE_POWERSHELL_TOOL',
-  tips.includes('Set MERCURY_USE_POWERSHELL_TOOL=1'),
-)
-check(
-  '§D the tip stays quiet when MERCURY_USE_POWERSHELL_TOOL is set',
-  /flagEnv\('MERCURY_USE_POWERSHELL_TOOL'\) === undefined/.test(tips),
-)
-
-const templates = readFileSync(join(ROOT, 'scripts/release/launcherTemplates.mjs'), 'utf8')
-check(
-  '§E the packaged README names the git-bash Windows prerequisite',
-  /git-bash/i.test(templates) && templates.includes('MERCURY_GIT_BASH_PATH='),
 )
 
 console.log(

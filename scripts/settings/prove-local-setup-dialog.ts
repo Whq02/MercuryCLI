@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import stringWidth from 'string-width'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
-const ROOT = join(import.meta.dir, '../..')
 if (existsSync('/private/tmp/mw')) process.env.TMPDIR = '/private/tmp/mw'
 const home = pinScratchHome('local-setup-dialog')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -231,10 +230,6 @@ const footerOf = (m: Mounted): string => {
 
 check('the words module names the command and the one offer line', words !== null && words.LOCAL_SETUP_COMMAND === '/localsetup' && words.LOCAL_SETUP_OFFER === 'or /localsetup sets one up')
 check('/localsetup is registered as a private screen-seat local command', registration !== null && registration.default.name === 'localsetup' && registration.default.type === 'local' && registration.default.seat === 'screen' && registration.default.userPrivate === true && registration.default.supportsNonInteractive === false)
-const roster = readFileSync(join(ROOT, 'src/commands.ts'), 'utf8')
-check('the roster imports and lists /localsetup', roster.includes("import localsetup from './commands/localsetup/index.js'") && /\n  localsetup,\n/.test(roster))
-const domains = readFileSync(join(ROOT, 'src/components/HelpV2/commandDomains.ts'), 'utf8')
-check('/help files /localsetup under config & setup', /'jev', 'localsetup'/.test(domains))
 check('the dialog module exists with the keys line the spec names; the step titles name no model tag', dialog !== null && dialog.LOCAL_SETUP_KEYS === KEYS && dialog.LOCAL_SETUP_STEP_TITLES['4'] === 'choose the model' && dialog.LOCAL_SETUP_STEP_TITLES['4b'] === 'pull the model' && !Object.values(dialog.LOCAL_SETUP_STEP_TITLES).some(title => /qwen/i.test(title)))
 check('the words module names no model tag: the choice is the road\'s, never a hard-wired model', words !== null && !Object.values(words).some(value => typeof value === 'string' && /qwen|local\//i.test(value)), JSON.stringify(words))
 

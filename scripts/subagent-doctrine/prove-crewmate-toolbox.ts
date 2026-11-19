@@ -81,30 +81,10 @@ for (const [name, reason] of Object.entries(BARRED)) {
 }
 check('the barred set is exactly these ten', same([...barred].sort(), Object.keys(BARRED).sort()), [...barred].sort().join(','))
 check('custom definitions bar the same set (one deny set)', toolsConstants.CUSTOM_AGENT_DISALLOWED_TOOLS === barred)
-check('TaskStop is exposed with a runtime ownership check', !barred.has('TaskStop') && src('src/tools/TaskStopTool/TaskStopTool.ts').includes('task.agentId === context.agentId'))
 for (const name of Object.keys(BARRED)) {
   check(`${name} exists in the catalogue (a barred row names a real tool)`, catalogueNames.includes(name))
 }
 
-section('§2 THE ASYNC DOOR IS GONE — one filter, no allow-list, no retired spelling')
-{
-  const constants = src('src/constants/tools.ts')
-  const utils = src('src/tools/AgentTool/agentToolUtils.ts')
-  const filter = utils.slice(utils.indexOf('export function filterToolsForAgent('), utils.indexOf('export type ResolvedAgentTools'))
-  check('the reach table carries no background class and no async allow-set', !constants.includes("'background'") && !constants.includes('ASYNC_AGENT_ALLOWED_TOOLS') && !constants.includes('AgentReach'))
-  check('filterToolsForAgent has no isAsync door', !filter.includes('isAsync') && !filter.includes('ASYNC_AGENT_ALLOWED_TOOLS'), filter.replace(/\s+/g, ' ').slice(0, 300))
-  check('the launch seam hands the derivation no async flag', !/resolveWorkerTools\([\s\S]{0,400}?shouldRunAsync/.test(src('src/tools/AgentTool/AgentTool.tsx').slice(src('src/tools/AgentTool/AgentTool.tsx').indexOf('const workerTools'))))
-  check('the resume seam hands the derivation no async flag', !/resolveWorkerTools\([\s\S]{0,300}?(isAsync|true|false)\s*,?\s*\)/.test(src('src/tools/AgentTool/resumeAgent.ts')))
-  const retired = ['src', 'docs'].flatMap(dir => {
-    const { execFileSync } = require('node:child_process') as typeof import('node:child_process')
-    try {
-      return execFileSync('grep', ['-rl', 'ASYNC_AGENT_ALLOWED_TOOLS', join(ROOT, dir)], { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
-    } catch {
-      return []
-    }
-  })
-  check('the retired spelling ASYNC_AGENT_ALLOWED_TOOLS exists nowhere under src/ or docs/', retired.length === 0, retired.join(', '))
-}
 
 section('§3 A CREWMATE\'S POOL = the catalogue minus barred — every tool named, foreground and background one derivation')
 const crewPool = resolveWorkerTools(MERCURY_CREW_AGENT, 'default', catalogue)

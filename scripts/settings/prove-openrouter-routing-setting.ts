@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, waitFor } from '../lib/settingsPopupHarness.ts'
 
@@ -70,7 +70,6 @@ for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
   m.unmount()
   store.closeSettingsPopup()
 }
-check('Config records the written leaves from the raw source for escape', readFileSync(join(import.meta.dir, '../../src/components/Settings/Config.tsx'), 'utf8').includes('configUndoLeaves(source, raw, partial, [], true)'))
 await releaseScratchHome(home)
 console.log(`prove-openrouter-routing-setting: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

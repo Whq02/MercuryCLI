@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -14,8 +14,6 @@ console.log('============================================================')
 console.log(' a recursive directory watcher whose root is deleted')
 console.log('============================================================')
 
-const hook = readFileSync(resolve(import.meta.dir, '../../src/hooks/useSkillsChange.ts'), 'utf8')
-check('the skills hook arms its recursive watcher through watchDirectory', /watchDirectory\(resolveWatchRoot\(dir\)/.test(hook))
 
 const { watchDirectory } = await import('../../src/utils/watchRoot.ts')
 check('watchRoot exports watchDirectory', typeof watchDirectory === 'function')

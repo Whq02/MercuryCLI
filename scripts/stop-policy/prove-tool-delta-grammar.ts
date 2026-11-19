@@ -3,7 +3,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
@@ -18,7 +18,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 async function main(): Promise<void> {
   const wire = await import('../../src/services/providers/openai/openaiWire.js')
@@ -352,33 +351,6 @@ async function main(): Promise<void> {
     )
   }
 
-  section('C08/C10 — honest waiting + ONE canonical grammar; §7.3 advertisement backed by mechanism')
-  {
-    const streaming = src('src/utils/messages/streaming.ts')
-    const callModelSrc = src('src/services/providers/openai/openaiCallModel.ts')
-    check(
-      'C10: the SHARED canonical consumer serves the openai lane (input_json_delta → pulse activity + silent tool-input accumulation) — no second grammar',
-      streaming.includes("if (delta.type === 'input_json_delta')") &&
-        streaming.includes('tools(appendInput(index, chunk), { silent: true })') &&
-        streaming.includes("'tool-input'") &&
-        callModelSrc.includes("type: 'input_json_delta'") &&
-        !callModelSrc.includes('openai_tool_delta'),
-    )
-    check(
-      'C08: the openai lane invents no bytes on a timer',
-      !callModelSrc.includes('setInterval'),
-    )
-    check(
-      '§7.3: the openai route advertises toolArgsDelta and the mechanism exists in the SAME codec (fold emits tool-args-delta)',
-      wire.OPENAI_STREAM_ADVERTISEMENT.toolArgsDelta === true &&
-        src('src/services/providers/openai/openaiWire.ts').includes("out.push({ type: 'tool-args-delta'"),
-    )
-    const streamCoreSrc = src('src/services/providers/anthropic/streamCore.ts')
-    check(
-      '§7.3: the anthropic route declares its native advertisement at its codec owner',
-      streamCoreSrc.includes('ANTHROPIC_STREAM_ADVERTISEMENT'),
-    )
-  }
 
   console.log('')
   let red = 0

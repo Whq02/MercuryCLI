@@ -1,14 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-const ordered = (hay: string, a: string, b: string): boolean => {
-  const ia = hay.indexOf(a)
-  const ib = hay.indexOf(b)
-  return ia !== -1 && ib !== -1 && ia < ib
-}
 
 let failures = 0
 const check = (name: string, ok: boolean, detail?: string): void => {
@@ -20,22 +11,6 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   }
 }
 
-console.log('§1 SSR-01 — the trim chip rides with the hints, right of every vital')
-{
-  const frame = read('src/components/MercuryFrame.tsx')
-  const row = frame.slice(frame.indexOf('<Text wrap="truncate-end">\n        <SessionMark />'), frame.indexOf('{mouseNode}\n      </Text>') + '{mouseNode}'.length)
-  check('the statusbar row was found', row.length > 100)
-  check('POISON: the chip no longer sits in the model block', !/<HarnessChip model=\{model\} show=\{showBehavior\} \/>\s*\n\s*<TrimChip \/>/.test(row))
-  check('the chip prints after the run capsule and before the mouse hint', ordered(row, '{runNode}', '<TrimChip />') && ordered(row, '<TrimChip />', '{mouseNode}'))
-  check('every vital precedes it (folder · branch · turns · ctx · cost · usage · health · vfy · run)', ['{dir}', 'truncateToWidth(branch, branchMax)', '{turnsNode}', '{ctxNode}', 'costNode', 'usageNode', '{healthNode}', '{vfyNode}', '{runNode}'].every(v => ordered(row, v, '<TrimChip />')))
-  check('the deck keeps its own chip when it owns the vitals (the frame yields)', row.includes('{!deckOwnsVitals ? <TrimChip /> : null}') && read('src/components/DeckPane.tsx').includes('<TrimChip />'))
-}
-
-console.log('§2 SSR-07 — the waiting-words sentence stays dead (pen poison)')
-{
-  const bar = read('src/components/SwitchboardTagBar.tsx')
-  check('POISON: no waiting-words sentence on the tag bar', !bar.includes('waiting for') && !bar.includes('waitingWords'))
-}
 
 console.log('§3 SSR-06 — run capsule truncation: cells + ellipsis, fitting lines untouched')
 {

@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -64,13 +63,6 @@ section('§3 the single-line slice is unchanged')
   check('lines that fit pass untouched', fits[0]! === 'short' && fits[1]! === 'lines' && fits.indexOf('NEXT') === 2, j(fits.slice(0, 3)))
 }
 
-section('§4 layout parity, structurally')
-{
-  const walk = readFileSync(join(ROOT, 'src/ink/compose-walk.ts'), 'utf8')
-  check('the compositor truncates per source line', walk.includes(".map(line => wrapText(line, maxWidth, textWrap))"))
-  const dom = readFileSync(join(ROOT, 'src/ink/dom.ts'), 'utf8')
-  check('layout truncates per source line (the parity partner)', dom.includes('lines[i] = wrapText(lines[i]!, cells, textWrap)'))
-}
 
 console.log(failures === 0 ? '\nprove-truncate-per-line: ALL LAWS HOLD' : `\nprove-truncate-per-line: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

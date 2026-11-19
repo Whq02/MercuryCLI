@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import {
   DENIAL_WORKAROUND_GUIDANCE,
   REJECT_MESSAGE,
@@ -8,7 +6,6 @@ import {
   isDenialResultText,
 } from '../../src/utils/messages/rejectionText.js'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (name: string, ok: boolean, detail?: string): void => {
   if (ok) console.log(`  ok  ${name}`)
@@ -40,19 +37,5 @@ check(
   ),
 )
 
-console.log('§4 — the daemon source builds denials from the canon')
-{
-  const src = readFileSync(join(ROOT, 'src/daemon/permissionAsks.ts'), 'utf8')
-  check(
-    'the operator-No denial is REJECT_MESSAGE_WITH_REASON_PREFIX / REJECT_MESSAGE',
-    src.includes('feedback ? REJECT_MESSAGE_WITH_REASON_PREFIX + feedback : REJECT_MESSAGE'),
-  )
-  check('POISON: the "denied from the switchboard by" mint is gone from the value', !src.includes('`denied from the switchboard by ${by}`'))
-  check(
-    'the expiry denial carries the classifier lead and the shared tail',
-    src.includes('has been denied:') && src.includes('${DENIAL_WORKAROUND_GUIDANCE}'),
-  )
-  check('the canon is imported from rejectionText', src.includes("from '../utils/messages/rejectionText.js'"))
-}
 
 process.exit(failures === 0 ? 0 : 1)

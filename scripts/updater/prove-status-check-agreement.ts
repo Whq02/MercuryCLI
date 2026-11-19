@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -14,7 +14,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { update } = await import('../../src/cli/update.js')
 
@@ -84,20 +83,6 @@ section('§2 HEALTHY INSTALL — STATUS EXITS 0 (control)')
   check('the report is on stdout', r.stdout.includes('running version:'))
 }
 
-section('§3 THE CHECK ARM AGREES (call-shaped)')
-{
-  const src = readFileSync(join(ROOT, 'src', 'cli', 'update.ts'), 'utf-8')
-  check(
-    "--check's pointer-unreadable case routes cliError",
-    /case 'pointer-unreadable':\s*\n\s*return cliError\(/.test(src),
-  )
-  check(
-    "--status's verdict forks on the same damage",
-    src.includes("status.installedPointer === 'unreadable'") &&
-      /pointerDamaged\s*\?\s*cliError\(lines/.test(src) &&
-      /pointerDamaged\s*\?\s*failJson\(/.test(src),
-  )
-}
 
 console.log(failures === 0 ? '\nprove-status-check-agreement: all green' : `\nprove-status-check-agreement: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

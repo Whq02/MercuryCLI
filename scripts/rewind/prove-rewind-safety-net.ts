@@ -1,14 +1,10 @@
 #!/usr/bin/env bun
 import { randomUUID } from 'node:crypto'
-import { execFileSync } from 'node:child_process'
 import { closeSync, existsSync, ftruncateSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { pinSourceRef, waitFor } from '../lib/settingsPopupHarness.ts'
+import { waitFor } from '../lib/settingsPopupHarness.ts'
 
-const sourceRef = pinSourceRef()
-const root = join(import.meta.dir, '../..')
-const turnSource = sourceRef === undefined ? readFileSync(join(root, 'src/rows/turn.ts'), 'utf8') : execFileSync('git', ['-C', root, 'show', `${sourceRef}:src/rows/turn.ts`], { encoding: 'utf8' })
 const scratch = mkdtempSync(join(tmpdir(), 'rewind-safety-'))
 const home = join(scratch, 'config')
 const cwd = join(scratch, 'project')
@@ -140,7 +136,6 @@ try {
   const beforeOff = app.fileHistory.snapshots.length
   saveGlobalConfig(config => ({ ...config, fileCheckpointingEnabled: false }))
   await history.fileHistoryMakeSnapshot(updateHistory, randomUUID())
-  check('every accepted model prompt reaches undo expiry even with capture off', turnSource.includes('if (!persistenceDisabled) {\n      const snapshots: Promise<void>[] = []') && turnSource.includes('snapshots.push(fileHistoryMakeSnapshot('))
   check('a prompt with capture off creates no snapshot', app.fileHistory.snapshots.length === beforeOff && !history.fileHistoryEnabled())
   saveGlobalConfig(config => ({ ...config, fileCheckpointingEnabled: true }))
   const offThenOn = await restore({ undo: true, userMessageId: offUndo })

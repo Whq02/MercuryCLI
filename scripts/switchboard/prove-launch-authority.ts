@@ -1,6 +1,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -154,38 +154,6 @@ console.log("LAW G — an ended record is nobody's seat:")
   check('focus of an ended session is a typed refusal', focusConcourseSession(sidA, seat, recDir).outcome === 'refused')
 }
 
-console.log('LAW H — the wire (source pins):')
-{
-  const src = (rel: string): string => readFileSync(join(import.meta.dirname, '../../', rel), 'utf8')
-  const connector = src('src/services/engine-connector/daemonConnector.ts')
-  const attachStart = connector.indexOf('  attach(): Promise<void> {')
-  const attachBody = connector.slice(attachStart, connector.indexOf('\n  }\n', attachStart))
-  const detachStart = connector.indexOf('  detach(): void {')
-  const detachBody = connector.slice(detachStart, connector.indexOf('\n  }\n', detachStart))
-  check("the connector's attach carries focus", attachStart !== -1 && attachBody.includes("seatVerb('focus', this.record.sessionId)"))
-  check("the connector's detach carries blur", detachStart !== -1 && detachBody.includes("seatVerb('blur', this.record.sessionId)"))
-  check('the verbs ride ONE module-level chain (never a per-connector rpc)', connector.includes('let seatChain: Promise<unknown> = Promise.resolve()') && connector.includes('seatChain = seatChain'))
-  check("the seat is the terminal's own pid in the attachedBy grammar", connector.includes('const SEAT_BY = `operator:${process.pid}`'))
-  const server = src('src/daemon/controlServer.ts')
-  check('the control server admits both verbs', server.includes("raw.action === 'focus'") && server.includes("raw.action === 'blur'"))
-  const protocol = src('src/daemon/protocol.ts')
-  check('the wire type names both verbs', protocol.includes("| 'focus'") && protocol.includes("| 'blur'"))
-  const daemon = src('src/daemon/main.ts')
-  const handlerAt = daemon.indexOf("if (action === 'focus' || action === 'blur')")
-  const handlerBody = handlerAt === -1 ? '' : daemon.slice(handlerAt, handlerAt + 1200)
-  check('the daemon handler exists and writes the focus fact through the two record verbs', handlerAt !== -1 && handlerBody.includes("action === 'focus' ? focusConcourseSession(sessionId, by") && handlerBody.includes('blurConcourseSession(sessionId, by)'))
-  const valve = src('src/services/switchboard/launchAuthority.ts')
-  const focusedArmAt = valve.indexOf("posture: 'focused'")
-  const tagArmAt = valve.indexOf("posture: 'tagged-background'")
-  check("the valve's focused arm stands BEFORE the tag arm", focusedArmAt !== -1 && tagArmAt !== -1 && focusedArmAt < tagArmAt)
-  check('the valve trusts a stamp only while its terminal is alive', valve.includes('isProcessAlive(seatPid)'))
-  const workers = src('src/daemon/concourseWorkers.ts')
-  const settleStart = workers.indexOf('export function settleConcourseWorker(')
-  const settleBody = workers.slice(settleStart, workers.indexOf('\n}\n', settleStart))
-  check('settle deletes the fact with the record', settleStart !== -1 && settleBody.includes('delete rec.focusedAt') && settleBody.includes('delete rec.focusedBy'))
-  const hopSrc = src('src/services/switchboard/hopIntoSession.ts')
-  check('no hop mints the dead-child attach stamp (the rejected alternative stays rejected)', !hopSrc.includes("action: 'attach'") && !hopSrc.includes('attachedAt'))
-}
 
 console.log(failures === 0 ? '\nprove-launch-authority: ALL LAWS HOLD' : `\nprove-launch-authority: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

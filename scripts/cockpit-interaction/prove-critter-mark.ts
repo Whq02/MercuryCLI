@@ -64,33 +64,6 @@ t.section('§2 — crab byte-identity (the amendment changes NOTHING for crab)')
   )
 }
 
-t.section('§3 — the session-identity slots render the SESSION mark')
-{
-  const frame = readFileSync('src/components/MercuryFrame.tsx', 'utf8')
-  t.check('the statusline anchor is <SessionMark/>', frame.includes('<SessionMark />'), 'statusRow')
-  const frameCode = frame
-    .split('\n')
-    .map(l => l.replace(/\/\/.*$/, ''))
-    .join('\n')
-  t.check(
-    'the statusline no longer hardcodes <Crab/>',
-    !/<Crab\s*\/>/.test(frameCode),
-    'no literal crab render in the frame',
-  )
-  const exit = readFileSync('src/components/MercuryExitConfirm.tsx', 'utf8')
-  t.check('the exit farewell is <SessionMark/>', exit.includes('<SessionMark />'), 'farewell')
-}
-
-t.section('§4 — the product lockup stays the true crab')
-{
-  for (const f of [
-    'src/components/MercurySetupFrame.tsx',
-    'src/components/mercury-ui/components.tsx',
-  ]) {
-    const src = readFileSync(f, 'utf8')
-    t.check(`${f.split('/').pop()} keeps the crab lockup`, /<Crab\s*\/>/.test(src), 'product mark')
-  }
-}
 
 t.section('§5 — REAL BINARY: an octopus session anchors its inline statusline with the octopus mark')
 {

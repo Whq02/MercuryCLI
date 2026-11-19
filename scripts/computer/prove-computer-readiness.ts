@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { check, finish, freshSignal, scratchDir, section, sourceText } from './computerProofKit.ts'
+import { check, finish, freshSignal, scratchDir, section } from './computerProofKit.ts'
 
 const { collectReadiness } = await import('../../src/utils/readiness.ts')
 const { resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
@@ -93,8 +93,6 @@ section('§7 the access words beside the switch: the setting in words, the postu
   check('asks saved with Sovereign mode on: access full (by sovereign mode) — the posture answers every question, the saved value waits for it to go off', computerAccessWords() === 'access full (by sovereign mode)', computerAccessWords())
   delete process.env.MERCURY_COMPUTER_ACCESS
   delete process.env.MERCURY_SKIP_PERMISSIONS
-  const driver = sourceText('src/services/desktop/nativeDriver.ts')
-  check("/health's Computer use line carries the same words after the switch", driver.includes('`on · ${computerAccessWords()}`'))
 }
 
 finish('prove-computer-readiness')

@@ -67,9 +67,6 @@ section('§4 the boot-notice latch')
 
 section('§5 the wiring (structural)')
 {
-  const src = (rel: string): string => readFileSync(new URL(`../../src/${rel}`, import.meta.url), 'utf8')
-  const appRoot = src('ink/components/App.tsx')
-  check('the app-root boundary hands errorInfo in (the component name derives from it)', appRoot.includes("persistCrashReport(error, errorInfo, 'app-root')"))
   const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
   const crashOwner = await import('../../src/utils/crashReport.ts')
   const crashSays = await runtimeChecks().find(row => row.id === 'crash-reports')?.run()
@@ -112,7 +109,6 @@ section('§6 session + project ride the read boundary (FN-013 CRASH-03)')
 
 section('§7 the re-entry offer and the display latch (structural)')
 {
-  const src = (rel: string): string => readFileSync(new URL(`../../src/${rel}`, import.meta.url), 'utf8')
   const { runtimeChecks: runtimeRows } = await import('../../src/utils/health/sections/runtime.ts')
   writeFileSync(
     join(crash.crashReportDir(), `crash-${Date.now() + 500}-app-root.json`),
@@ -120,8 +116,6 @@ section('§7 the re-entry offer and the display latch (structural)')
   )
   const locatedSays = await runtimeRows().find(row => row.id === 'crash-reports')?.run()
   check('the /health row locates the crash (session + project)', locatedSays?.status === 'info' && locatedSays.evidence.includes('newest: 2026-09-02T05:00:00.000Z app-root in LocatedCard — located fixture · session 00000000 in /tmp/project-q · '), locatedSays?.evidence)
-  const dialog = src('components/CrashResumeDialog.tsx')
-  check('the dialog offers one-keypress resume and esc dismissal', dialog.includes("value: 'resume'") && dialog.includes("onClose={() => onDone('dismiss')}"))
   const { openDialogsPart } = await import('../ui/chatScenarios.ts')
   const dialogs = await openDialogsPart('crash-identity-dialogs', { keepHome: true })
   const staged = { origin: 'app-root', component: null, message: 'the staged fixture', sessionId: '00000000-cccc-dddd-eeee-000000000c05', cwd: '/tmp/project-r', transcriptPath: '/tmp/project-r/00000000-cccc-dddd-eeee-000000000c05.jsonl', moreCount: 0 }

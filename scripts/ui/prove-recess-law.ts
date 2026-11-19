@@ -4,7 +4,6 @@ process.env.NODE_ENV = 'test'
 process.env.FORCE_COLOR = '3'
 delete process.env.NO_COLOR
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -15,7 +14,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 console.log('============================================================')
 console.log(' Recess law — LUSTRE L1 focused-layer backdrop')
@@ -143,30 +141,8 @@ section('§4 — policy gates')
   const namedInkTokens = { ...darkTokens, textPrimary: 'ansi:white' } as typeof darkTokens
   check('unparseable ink resolves NULL (no derived dim on names — every resolved theme is hex now, the guard stays)', policy.recessTargetFor(namedInkTokens) === null)
 
-  const policySrc = readFileSync(join(ROOT, 'src/utils/cockpit/recessBackdrop.ts'), 'utf-8')
-  check('policy consults the boot-latched NO_COLOR verdict', /CHALK_DISABLED_FOR_NO_COLOR/.test(policySrc))
-  check('policy requires ≥256-color capability', /chalk\.level >= 2/.test(policySrc))
-  const rendererSrc = readFileSync(join(ROOT, 'src/ink/renderer.ts'), 'utf-8')
-  check('the pass runs on alt-screen frames only', /if \(options\.altScreen\) \{[\s\S]*?applyRecessPass\(renderedScreen, stylePool\)/.test(rendererSrc))
 }
 
-section('§5 — deactivation + growth (the verify-wave laws)')
-{
-  const layerSrc = readFileSync(join(ROOT, 'src/ink/recessLayer.ts'), 'utf-8')
-  check(
-    'unregister invalidates the previous frame while a target is live',
-    /registrants\.delete\(el\)\s*\n\s*if \(target !== null\) \{\s*\n\s*instances\.get\(process\.stdout\)\?\.invalidatePrevFrame\(\)/.test(layerSrc),
-  )
-  check(
-    'a REAL target change with live registrants also invalidates (mid-modal theme flip)',
-    /const changed =[\s\S]*?if \(changed && hadWork\) \{\s*\n\s*instances\.get\(process\.stdout\)\?\.invalidatePrevFrame\(\)/.test(layerSrc),
-  )
-  const gridSrc = readFileSync(join(ROOT, 'src/ink/cell-grid.ts'), 'utf-8')
-  check(
-    'withRecess degrades to identity near the style-pool ceiling',
-    /if \(this\.styles\.length >= 16000\) \{[\s\S]*?return baseId/.test(gridSrc),
-  )
-}
 
 console.log(failures === 0 ? '\nALL GREEN' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

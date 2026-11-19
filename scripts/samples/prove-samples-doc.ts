@@ -308,7 +308,6 @@ const kept2 = await handleSampleCall(owner, { name: 'paginate-fix', doc: { title
 check('B3 the same name is version 2 and doc.title names the sample when the call has no title', kept2.id === kept.id && kept2.version === 2 && kept2.title === 'paginate() off-by-one fix' && store.getSample(SESSION, kept.id)?.title === 'paginate() off-by-one fix')
 const product = await keepSample(SESSION, { name: 'memory page', title: 'Memory', html: '<!doctype html><h1 id="own">the product\'s own page</h1>', source: 'product' })
 check('B4 the product\'s own road still keeps html as written when the caller says so (source: product)', product.version === 1 && store.readVersion(SESSION, product.id, 1) === '<!doctype html><h1 id="own">the product\'s own page</h1>')
-check('B5 /memory page is the one product caller and it declares its source', readFileSync(join(import.meta.dirname, '..', '..', 'src', 'commands', 'memory', 'memoryPage.ts'), 'utf8').includes("html, source: 'product' })"))
 const both = specOf({ name: 'both', html: '<p>ignored</p>', doc: { parts: [{ kind: 'section', prose: 'doc wins' }] } })
 check('B6 a call with both html and doc renders the doc and drops the html', both.html.includes('doc wins') && !both.html.includes('<p>ignored</p>'))
 

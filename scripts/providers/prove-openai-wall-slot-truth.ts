@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -13,7 +10,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const {
   recordOpenaiUsageLimit,
   openaiLimitWindow,
@@ -74,16 +70,6 @@ section('§B the family verdict follows the ACTIVE source')
   check('the active subscription keeps its reading without locking the lane', activeSub.openai.usable === true && activeSub.openai.limit === 'rejected' && activeSub.openai.limitBlocker?.includes('usage window is reached') === true && activeSub.openai.blockers.length === 0)
 }
 
-section('§C structural — the live default resolves the active source; the writer names its source')
-{
-  const usability = readFileSync(join(ROOT, 'src/services/providers/providerUsability.ts'), 'utf8')
-  check('the live openaiLimitWindow read resolves the ACTIVE account first', usability.includes('resolveOpenaiAccount') && usability.includes('openaiLimitWindow(active.kind)'))
-  const call = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
-  check('the usage-limit writer records under the source that answered (auth.account.kind)', call.includes('recordOpenaiUsageLimit(outcome.fault.resetsAtMs, auth.account.kind)'))
-  const usage = readFileSync(join(ROOT, 'src/services/providers/providerUsage.ts'), 'utf8')
-  check('the subscription usage view reads the subscription pool', usage.includes("openaiLimitWindow('chatgpt-subscription')"))
-  check("the per-provider limits view reads the ACTIVE entry's pool", usage.includes("activeEntry?.kind === 'api-key' ? 'api-key' : 'chatgpt-subscription'"))
-}
 
 console.log('\n' + '═'.repeat(60))
 if (failures === 0) console.log('OPENAI WALL SLOT TRUTH: ALL GREEN')

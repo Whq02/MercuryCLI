@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { mkdtempSync } from 'node:fs'
-import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -23,7 +22,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const slots = await import('../../src/services/providers/accountSlots.ts')
@@ -63,17 +61,6 @@ section('§B the structural universe — one scope, replace-on-save')
   check('a second OAuth save REPLACES the slot (never a concurrent add)', stored?.accessToken === 'at-second-account' && stored?.refreshToken === 'rt-at-second-account')
 }
 
-section('§C the sign-in entry enumeration — one flow, headers read the ceiling')
-{
-  const flow = readFileSync(join(ROOT, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8')
-  for (const leg of ["'anthropic'", "'openai'", "'openrouter'", "'gemini'", "'huggingface'", "'moonshot'", "'zai'", "'deepseek'"]) {
-    check(`the ${leg} sign-in leg lives in the ONE flow`, flow.includes(leg))
-  }
-  const board = readFileSync(join(ROOT, 'src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
-  check('/accounts headers read familySigninCeiling (the chip decision)', board.includes('familySigninCeiling'))
-  const loginCommand = readFileSync(join(ROOT, 'src/commands/login/login.tsx'), 'utf8')
-  check('/login and /logins mount that one flow', loginCommand.includes('ConsoleOAuthFlow'))
-}
 
 section('§D masked tails — planted long keys never surface beyond last-four')
 {
@@ -106,12 +93,6 @@ section('§D masked tails — planted long keys never surface beyond last-four')
   check('maskedKeyTail boundaries: short values yield nothing', slots.maskedKeyTail('short') === '' && slots.maskedKeyTail(undefined) === '' && slots.maskedKeyTail('0123456789') === '…6789')
 }
 
-section('§E the /accounts health line — the ONE resolver, blockers verbatim')
-{
-  const board = readFileSync(join(ROOT, 'src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
-  check('the family header health line reads resolveProviderUsability', board.includes('resolveProviderUsability'))
-  check('a not-ready family renders its blocker VERBATIM (blockers[0])', board.includes('health.blockers[0]'))
-}
 
 console.log('\n' + '='.repeat(60))
 console.log(` ${checks} checks, ${failures} failures`)

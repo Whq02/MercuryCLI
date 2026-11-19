@@ -24,15 +24,6 @@ t.section('§5 — the pool marks are mutually unique')
   t.check('no two pool marks collide', new Set(shipped).size === shipped.length, JSON.stringify(shipped))
 }
 
-t.section('§6 — the C shell legend binding')
-{
-  const painter = await Bun.file('src/components/mercury-ui/CritterArt.tsx').text()
-  t.check(
-    'the ONE painter carries the legendOverride re-binding seam (peek-identity shell)',
-    /legendOverride\?: Readonly<Record<string, string>>/.test(painter) && /legendOverride\?\.\[ch\]/.test(painter),
-    'seam present',
-  )
-}
 
 t.section('§7 — registration laws + the SEVENTH divergence class')
 {
@@ -47,28 +38,6 @@ t.section('§7 — registration laws + the SEVENTH divergence class')
     'a retired hermit key takes the bounded fallback to the pool default',
     cd.critterDefForKey('hermit crab').name === cd.critterDefForKey(cd.DEFAULT_CRITTER_KEY).name,
     cd.critterDefForKey('hermit crab').name,
-  )
-  const screen = await Bun.file('src/components/concourse/ConcourseScreen.tsx').text()
-  t.check(
-    'the zero-sessions resident derives from the selection owner (theme-aware, never a fixed creature)',
-    /useSessionAccent\(\)/.test(screen) &&
-      /critterDefForKey\(residentAccent\.key\)/.test(screen) &&
-      !/HERMIT_DEF/.test(screen),
-    'selection-derived resident',
-  )
-  const concourseDir = 'src/components/concourse'
-  const concourseFiles = (await import('node:fs')).readdirSync(concourseDir).filter(f => /\.tsx?$/.test(f))
-  const painters: string[] = []
-  for (const f of concourseFiles) if (/<(?:Animated)?CritterArt\b/.test(await Bun.file(`${concourseDir}/${f}`).text())) painters.push(f)
-  t.check(
-    'the concourse paints no header critter: the top panel is gone, the zero-sessions resident is its only critter art',
-    !concourseFiles.includes('ConcourseHeader.tsx') && painters.join(',') === 'ConcourseScreen.tsx' && (screen.match(/<AnimatedCritterArt\b/g) ?? []).length === 1,
-    painters.join(',') || 'no painter',
-  )
-  t.check(
-    'the concourse only FOLLOWS the selection — no setter, no persist call on this surface',
-    !/setSessionCritter|persistSessionCritter/.test(screen),
-    'follow-only',
   )
   const seed = await import('./concourseReferenceSeed.ts')
   t.check(

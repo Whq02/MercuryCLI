@@ -24,26 +24,10 @@ t.section('§1 — the focus graph nodes')
   for (const id of ['board:dispatch', 'board:peek', 'board:change-next', 'board:side-question', 'board:attach', 'board:graph', 'composer:shelf']) {
     t.check(`the graph no longer names ${id} (retired with the WORK panel)`, !keys.includes(id))
   }
-  const hook = readFileSync('src/components/mercury-ui/useNavigablePanes.ts', 'utf8')
-  const panesC = readFileSync('src/components/mercury-ui/NavigablePanes.tsx', 'utf8')
-  t.check('focus restores BY KEY (Wave A law still holds)', panesC.includes('rowKey(r) === selKeyRef.current'))
-  t.check('identity-first sections still hold', hook.includes('sectionMemoKey'))
-  t.check('the nearest-neighbour fallback still holds', panesC.includes('selKeyRef.current !== null && sectionRows.length > 0') && panesC.includes('rowKey(under) !== selKeyRef.current'))
 }
 
 t.section('§2 — keyboard/pointer equivalence at the grammar')
 {
-  const panes = readFileSync('src/components/mercury-ui/NavigablePanes.tsx', 'utf8')
-  t.check(
-    'footer action hints are InteractiveRows firing run(selectedRow) — every board action gains its pointer route at ONE seam',
-    panes.includes(':hint:') && panes.includes('onActivate={() => a.run(selectedRow!)}') && panes.includes('headText.length + 3 + hintsWidth + footerTailText.length <= budget'),
-  )
-  const panel = readFileSync('src/components/prompts-panel/PromptsPanel.tsx', 'utf8')
-  t.check('the prompts panel rides the shared panes shell (rows are InteractiveRows by construction)', panel.includes('<NavigablePanes<Row>'))
-  t.check(
-    'wheel rides the pane ScrollBox (hover-scoped — the panes list scrolls in its own box)',
-    panes.includes('ScrollBox'),
-  )
 }
 
 t.section('§3 — the resize journey on the REAL binary')

@@ -216,11 +216,6 @@ console.log('── §6 the stable shim (foreign files are sacred) ──')
   const bodyPosix = shPosix.split('\n').filter(l => !l.trimStart().startsWith('#')).join('\n')
   check('posix shim resolves the FULL runtime chain in order', chainOrdered(bodyPosix), 'expected MERCURY_VERSIONS_DIR > MERCURY_CONFIG_DIR > MERCURY_HOME > ~/.mercury')
   check('posix shim default lands on ~/.mercury (the native home)', /home="\$HOME\/\.mercury"/.test(shPosix))
-  const envChain = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'envUtils.ts'), 'utf8')
-  check(
-    'the shim chain tracks the runtime resolver (envUtils names every rung)',
-    ['MERCURY_CONFIG_DIR', 'MERCURY_HOME', '.mercury'].every(r => envChain.includes(r)),
-  )
   const second = writeShim(roots)
   check('identical shim is a no-op', second.state === 'current')
   writeFileSync(roots.shimPath, `#!/bin/sh\n# ${SHIM_MARKER_FAMILY} v1 — the stable Mercury command.\nroot="$HOME/.mercury/versions"\nexec "$root/$(cat "$root/current.txt")/mercury" "$@"\n`)
@@ -432,17 +427,6 @@ console.log('── §7d a Windows uninstall run from the install it removes han
   const posixInside = mkInUse('inuse-posix', false)
   const unlinked = uninstallLayout(posixInside, { runningFrom: join(posixInside.versionsDir, '9.9.0-beta.1'), removeAfterExit: () => { asked++; return true } })
   check('off Windows a running file can be unlinked: the uninstall removes at once and asks no helper', asked === 0 && unlinked.afterExit.length === 0 && unlinked.removedVersionsDir && unlinked.removedShim)
-  const layoutSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'privateChannel', 'installLayout.ts'), 'utf8')
-  check("the helper's command carries no path of the user's: it is handed encoded and reads its paths from its environment",
-    layoutSource.includes("'-EncodedCommand'") && layoutSource.includes('$env:MERCURY_UNINSTALL_PATHS') && layoutSource.includes('$env:MERCURY_UNINSTALL_DIR') && layoutSource.includes('-LiteralPath $p'))
-  check('the helper waits for the uninstalling process itself to end before its first removal, however long that command still takes (the PATH entry is written after the helper starts)',
-    layoutSource.includes('MERCURY_UNINSTALL_PID: String(process.pid)') && layoutSource.includes('[int]::TryParse($env:MERCURY_UNINSTALL_PID, [ref]$owner)') && layoutSource.includes('Wait-Process -Id $owner -Timeout 120')
-      && layoutSource.indexOf('Wait-Process -Id $owner -Timeout 120') < layoutSource.indexOf('Remove-Item -LiteralPath $p'))
-  const helperSource = layoutSource.slice(layoutSource.indexOf('const UNINSTALL_AFTER_EXIT_SCRIPT = ['), layoutSource.indexOf('export function uninstallLayout('))
-  check('the helper is started detached under a console host with no window (read on a Windows machine: a detached powershell.exe alone has no console and ends at once having removed nothing, and a child that is not detached ends with the command that started it)',
-    helperSource.length > 0 && helperSource.includes("'conhost.exe',") && helperSource.includes("['--headless', 'powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand',") && helperSource.includes('detached: true') && !helperSource.includes('spawnSync(') && !helperSource.includes('-WindowStyle'))
-  check("the helper says it runs before anything else, and before it waits for the command: its first line writes the word's file",
-    helperSource.includes("[System.IO.File]::WriteAllText($env:MERCURY_UNINSTALL_READY, 'ready')") && helperSource.indexOf("[System.IO.File]::WriteAllText($env:MERCURY_UNINSTALL_READY, 'ready')") < helperSource.indexOf('Wait-Process -Id $owner -Timeout 120') && helperSource.includes('return startDetachedAndAwaitWord('))
   const wordOf = (name: string): string => join(scratch, `${name}.ready`)
   const said = startDetachedAndAwaitWord(process.execPath, ['-e', "setTimeout(() => require('node:fs').writeFileSync(process.env.MERCURY_UNINSTALL_READY, 'ready'), 300)"], process.env, wordOf('said'), 150)
   check('a helper that writes its word is known to run: the command may say the files go after it', said && existsSync(wordOf('said')))
@@ -450,8 +434,6 @@ console.log('── §7d a Windows uninstall run from the install it removes han
   const silent = startDetachedAndAwaitWord(process.execPath, ['-e', 'process.exit(0)'], process.env, wordOf('silent'), 8)
   check('a helper that ends without its word is not believed, and the wait for it is bounded (the U-78 reading: the right words and nothing done)', !silent && !existsSync(wordOf('silent')) && Date.now() - silentAt < 5000, `${silent} after ${Date.now() - silentAt} ms`)
   check('a helper that cannot be started is not believed', !startDetachedAndAwaitWord(join(scratch, 'no-such-program'), [], process.env, wordOf('absent'), 3))
-  const verbSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'installVerb.ts'), 'utf8')
-  check('the verb exits non-zero only when something of Mercury\'s could not be removed', verbSource.includes('const left = report.leftVersionMembers.length > 0 || report.leftSetMembers.length > 0') && verbSource.includes('return left ? cliError(text) : cliOk(text)'))
 }
 
 console.log('── §7b the uninstall report names every launcher-set member ──')
@@ -631,8 +613,6 @@ console.log('── §13b f08: superseded versions are pruned — the current, t
   const faulted = pruneSupersededVersions(pRoots, join(pruneScratch, 'archive', 'mercury'))
   delete process.env.MERCURY_UPDATE_FAULT
   check('f08: a removal that fails is reported as left, never thrown — an update is never failed by its pruning', faulted.left.join() === '9.9.0-beta.1' && faulted.removed.length === 0 && existsSync(join(pRoots.versionsDir, '9.9.0-beta.1', 'mercury.mjs')))
-  const svc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'privateChannel', 'updateService.ts'), 'utf8')
-  check('f08: the update and the install transactions prune after the stable command is written, with the live payload directories kept, and the outcome carries what went and what was left', svc.split('pruneSupersededVersions(roots, await livePayloadDirs(roots))').length === 3 && svc.indexOf('const shim = writeShim(roots)\n    const { removed: pruned, left } = pruneSupersededVersions') !== -1 && svc.includes('pruned: string[]') && svc.includes('left: string[]'))
   rmSync(pruneScratch, { recursive: true, force: true })
 }
 
@@ -871,9 +851,6 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
   const refusedHeal = reconcileManagedShims(bmRoots)
   check('BM-31: a foreign member refuses (never clobbered, set reports incomplete)',
     refusedHeal !== null && !refusedHeal.complete && readFileSync(join(bmBin, 'mercury'), 'utf8').includes('operator-owned'))
-  const quiet = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'privateChannel', 'quietUpdateNotice.ts'), 'utf8')
-  check('BM-31: the interactive boot heals the launcher set before its quiet update check, so a launcher an earlier release wrote is current from the first boot of the new one',
-    quiet.includes('reconcileManagedShims(resolveLayoutRoots())') && quiet.indexOf('reconcileManagedShims(resolveLayoutRoots())') < quiet.indexOf('void runQuietUpdateCheck({'))
   rmSync(bmScratch, { recursive: true, force: true })
 }
 

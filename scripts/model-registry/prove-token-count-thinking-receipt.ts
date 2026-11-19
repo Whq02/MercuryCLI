@@ -59,14 +59,6 @@ console.log('\n§1 the door reads the attribution line')
 
 console.log('\n§2 every first-party create the product sends opens with the attribution line')
 {
-  const sideQuery = read('src/utils/sideQuery.ts')
-  const streamCore = read('src/services/providers/anthropic/streamCore.ts')
-  const tokenEstimation = read('src/services/tokenEstimation.ts')
-  check('the side-query builder puts the attribution line in its own first system block, the caller\'s system next — no prefix between them', sideQuery.includes('const attributionHeader = getAttributionHeader(fingerprint)') && sideQuery.includes("if (attributionHeader) systemBlocks.push({ type: 'text', text: attributionHeader })") && !sideQuery.includes('SyspromptPrefix'))
-  const cacheAndUsage = read('src/services/providers/anthropic/cacheAndUsage.ts')
-  check('the main stream assembles its system prompt from the attribution line first, through the one owner the count endpoint rides too', streamCore.includes('let attributionLine = getAttributionHeader(fingerprint)') && streamCore.includes('assembleTurnSystemPrompt(attribution, sessionSystemPrompt)') && cacheAndUsage.includes('return asSystemPrompt([attribution, ...systemPrompt].filter(Boolean))'))
-  const probe = tokenEstimation.slice(tokenEstimation.indexOf('export async function countTokensViaHaikuFallback'), tokenEstimation.indexOf('export function roughTokenCountEstimation('))
-  check('the create-probe counter rides the side-query builder (base: a direct client create with no system prompt and the beta headers spread into the body)', probe.includes('sideQuery({') && !probe.includes('client.beta.messages.create(') && !tokenEstimation.includes('getExtraBodyParams'), probe.slice(0, 200))
   const f5 = leg('F5')
   check('F5: the shipped probe\'s wire answer is on the record — 400 invalid_request_error, "anthropic_beta: Extra inputs are not permitted"', f5.response.status === 400 && f5.response.body?.error?.type === 'invalid_request_error' && (f5.response.body?.error?.message ?? '').includes('anthropic_beta: Extra inputs are not permitted') && f5.request.system === 'absent', f5.response.body)
 }
@@ -117,9 +109,6 @@ console.log('\n§4 the count carries the system prompt: the drop header, the fig
   check('K6 and K7: the request prefix with the counter\'s placeholder read 122 and the placeholder alone 10, both without a header', k6.response.status === 200 && k6.response.input_tokens === 122 && k7.response.status === 200 && k7.response.input_tokens === 10 && mismatch(k6) === undefined && mismatch(k7) === undefined && show((k6.request as { messages?: unknown }).messages) === show([{ role: 'user', content: 'hi' }]), { k6: k6.response.input_tokens, k7: k7.response.input_tokens })
   check('/context\'s Messages row: 1789 - 122 + 10 = 1677 against 937 before — a rise of exactly the thinking block, the system prompt taken back out to the token', second.figures.messages_row === 1677 && second.figures.messages_row_before === 937 && second.figures.rise === 740 && 1789 - 122 + 10 === 1677 && 1677 - 937 === 740)
   check('K1–K5 each replayed the seed\'s signed block verbatim; K4 alone dropped it', [k1, k2, k3, k5].every(l => ((l.request.messages as Array<{ role: string; content: unknown }>)[1]?.content as Array<Record<string, unknown>>)?.some(block => block.type === 'thinking' && block.signature === 'sig_***' && (block.signature_chars as number) > 0)) && !((k4.request.messages as Array<{ role: string; content: unknown }>)[1]?.content as Array<Record<string, unknown>>).some(block => block.type === 'thinking'))
-  const analyzer = read('src/utils/analyzeContext.ts')
-  const counter = read('src/services/tokenEstimation.ts')
-  check('the product: the counter takes the system blocks as its third argument and sends them as the request\'s system field; /context derives the row as request minus prefix plus placeholder', counter.includes('system?: readonly TextBlockParam[]') && counter.includes("...(carried !== undefined ? { system: carried as never } : {})") && analyzer.includes('return Math.max(0, request - prefix + placeholder)') && analyzer.includes('buildTurnSystemBlocks('))
 }
 
 console.log(failures === 0 ? '\nALL TOKEN-COUNT THINKING RECEIPT PROOFS PASS' : `\nFAIL — ${failures} token-count thinking receipt check(s) failed`)

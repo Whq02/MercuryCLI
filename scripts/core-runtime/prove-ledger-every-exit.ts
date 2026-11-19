@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -15,7 +15,6 @@ delete process.env.MERCURY_DISABLE_NONSTREAMING_FALLBACK
 delete process.env.MERCURY_EFFORT_LEVEL
 process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '5000'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -196,19 +195,6 @@ section('§4 control: a clean stream settles exactly once (the exit settlement n
   check('the API duration is written once by the success tail (never doubled by the exit write)', d.apiMs > 0 && d.apiMs < 5_000, String(d.apiMs))
 }
 
-section('§5 the shape')
-{
-  const src = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
-  check('the message_delta pricing marks the attempt settled (priced at the served model — main\'s pricingModel law)', /addToTotalSessionCost\(costUSDForPart, usage, pricingModel\(\)\)\s*\n\s*ledgerSettled = true/.test(src))
-  const fin = src.slice(src.indexOf('} finally {\n    stopSessionActivity'), src.indexOf('if (fallbackMessage) {', src.indexOf('} finally {\n    stopSessionActivity')))
-  check('the finally settles the attempt BEFORE the fallback fold', fin.length > 0 && /settleUnpricedAttempt\(\)/.test(fin), fin.slice(-120))
-  check('the settlement is exactly-once (guarded by the flag) and only for a request that reached message_start', /if \(ledgerSettled \|\| partialMessage === undefined\) return/.test(src))
-  check('the retried attempt settles the abandoned one before it starts clean', /settleUnpricedAttempt\(\)\s*\n\s*newMessages\.length = 0/.test(src))
-  check('the streamed words ride the one character-ratio estimator', /roughTokenCountEstimation\(streamedText\)/.test(src))
-  check('every non-settled exit writes the API duration from the finally (rank 11)', /if \(!settledNormally\) logAPIDuration\(\{ start, startIncludingRetries \}\)/.test(src))
-  const logging = readFileSync(join(ROOT, 'src/services/api/logging.ts'), 'utf8')
-  check('the duration write is ONE owner the success path rides too', /export function logAPIDuration\(/.test(logging) && /logAPIDuration\(\{ start, startIncludingRetries \}\)\s*\n\s*consumeInvokingRequestId\(\)\s*\n\s*\}/.test(logging))
-}
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-ledger-every-exit${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

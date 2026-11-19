@@ -134,8 +134,6 @@ if (readTool && writeTool) {
 console.log('[4] an approved hook runs without a per-event ask; never before trust')
 const ext = { extensionRoot: installed.ok ? installed.root : '', extensionId: 'kitchen-sink@fixture-source', extensionName: 'kitchen-sink' }
 {
-  const fireSrc = await import('node:fs').then(fs => fs.readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'hooks', 'fire.ts'), 'utf8'))
-  check('the fire consults NO permission mode (structural: approval is the standing consent; the mode is read once, into the payload)', fireSrc.split('toolPermissionContext.mode').length === 2 && fireSrc.includes('permission_mode: permissionMode') && !fireSrc.includes('hasPermissionsToUseTool'), 'fire.ts decides on the mode')
   const outDir = join(scratch, 'hook-out')
   mkdirSync(outDir, { recursive: true })
   const marker = join(outDir, 'ran.txt')

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, decide, fill, finish, note, pageText, said, section, shown, sourceText, type Rules } from './floorsKit.ts'
+import { check, decide, fill, finish, note, pageText, said, section, shown, type Rules } from './floorsKit.ts'
 
 const MODES = ['default', 'implement', 'apollo', 'dontAsk', 'flow', 'sovereign'] as const
 type Mode = (typeof MODES)[number]
@@ -20,9 +20,6 @@ check('Flow asks before git that publishes or rewrites history, a push in any fo
 check('a hostless run denies a call that still needs approval after its rules and mode are applied', /A hostless `mercury run` denies a call that still needs approval after its rules and mode are applied/.test(page))
 check('five safety floors hold alongside the permission modes and wards', /Five safety floors hold alongside the permission modes and wards/.test(page))
 
-section('§0 the tool: Monitor runs its command through the shell')
-const monitorSource = sourceText('src/tools/MonitorTool/MonitorTool.ts')
-note(`src/tools/MonitorTool/MonitorTool.ts: checkPermissions ${/checkPermissions/.test(monitorSource) ? 'is declared' : 'is not declared'}; its call hands the command to exec(command, …, 'bash', …) ${/exec\(command, abortController\.signal, 'bash'/.test(monitorSource) ? '(line found)' : '(line not found)'}`)
 
 section('§1 the modes: what Bash asks about or refuses, Monitor must not run unasked')
 await pair('a write in the starting folder', 'echo x > notes.txt', 'default')

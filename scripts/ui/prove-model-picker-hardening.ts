@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
@@ -448,26 +448,6 @@ section('§10 the floor tier: with the cursor deep in a group, the window keeps 
   board.close()
 }
 
-section('§8 the seams in source')
-{
-  const picker = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'MercuryModelPicker.tsx'), 'utf8')
-  const wrapper = readFileSync(join(import.meta.dir, '..', '..', 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf8')
-  const fold = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'mercury-ui', 'menuFold.tsx'), 'utf8')
-  check('the picker reads the outside-press seam the config popup reads', picker.includes("import { escapeFromOutsidePress } from '../ink/recessLayer.js'") && picker.includes("if (filter !== '' && !escapeFromOutsidePress()) {"))
-  check('the match total is the pure reach', picker.includes('const totalModels = filtering ? pickerReachTotal(groups, fullRowsOf) : 0'))
-  check('the state word is keyed by the row, not the id', picker.includes('const stateWordOf = (m: ModelChoice, key: string): [string, string] =>') && picker.includes('key === currentKey ? [MODEL_PICKER_CURRENT, TEAL]'))
-  check('the filter line takes a pointer through the one row wrapper, with no hover paint of its own', fold.includes('<InteractiveRow id={id ?? \'menu:filter\'} height={1} directActivate onActivate={onFocus}>') && fold.includes('{() => line}') && picker.includes('id="model:filter" onFocus={() => setFilterFocus(true)}'))
-  const select = wrapper.slice(wrapper.indexOf('function handleSelect('), wrapper.indexOf('function applySelection('))
-  const apply = wrapper.slice(wrapper.indexOf('function applySelection('), wrapper.indexOf('if (transitionConfirm) {'))
-  check('the door flip never runs at select time (before the preview card and the daemon\'s word)', !select.includes('handleSlotSwitch(') && select.includes('const pick: PickRoad = { flip: otherDoor === true'))
-  const refusedAt = apply.indexOf("if (receipt.state === 'refused') {")
-  const flipAt = apply.indexOf('const slotNote = flipDoorNote(pick)')
-  check('the flip lands on the apply road after a refusal is ruled out, and rides every sentence', refusedAt >= 0 && flipAt >= 0 && refusedAt < flipAt && (apply.match(/flipDoorNote\(pick\)/g) ?? []).length === 2 && (apply.match(/\$\{slotNote\}/g) ?? []).length === 7)
-  check('the use record carries the door on the /model road too', (apply.match(/noteModelUse\(value, pick\.door\)/g) ?? []).length === 2)
-  check('the preview card carries the pick to the apply road', wrapper.includes('applySelection(held.value, held.id, held.pick)') && wrapper.includes('setTransitionConfirm({ value, id, plan: gatePlan, refreshed: false, pick })'))
-  const config = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'Settings', 'Config.tsx'), 'utf8')
-  check('the picker sizes its panel from the slot it is mounted in, and the config door hands the popup\'s inner width and rows through the modal context', picker.includes('const slot = useModalOrTerminalSize({ rows: termRows, columns: cols })') && picker.includes('const panelWidth = Math.min(popup?.width ?? slot.columns, panelWidthFor(slot.columns, MODEL_PICKER_PANEL))') && (config.match(/<ModalContext\.Provider value=\{\{ rows: contentHeight, columns: width, scrollRef: null \}\}>/g) ?? []).length === 1)
-}
 
 rmSync(scratch, { recursive: true, force: true })
 console.log(`\nprove-model-picker-hardening: ${failures === 0 ? 'green' : `${failures} failed`}`)

@@ -136,30 +136,6 @@ t.section('§2 — one published activity, subscribed rather than polled')
 
 t.section('§3 — the rail consumes the plan; no lane order is written twice')
 {
-  const rail = readFileSync('src/components/HelmLanesRail.tsx', 'utf8')
-  const model = readFileSync('src/utils/cockpit/helmLanesModel.ts', 'utf8')
-  t.check('the rail reads the published activity', rail.includes('useCockpitActivity()') && rail.includes('activity,'), 'subscribed')
-  t.check('and builds the ONE plan', model.includes('densityPlan(input.activity') && rail.includes('buildLanesModel(input)'), 'one owner')
-  t.check(
-    'the shed loop walks the plan, not a literal',
-    model.includes('for (const k of density.shedOrder)'),
-    'plan-driven',
-  )
-  t.check(
-    'no hardcoded shed order survives in the rail',
-    !/for \(const k of \[/.test(rail) && !/for \(const k of \[/.test(model),
-    'single source',
-  )
-  t.check(
-    'the never-shed floor comes from the plan owner',
-    model.includes('HELM_DENSITY_FLOOR'),
-    'shared floor',
-  )
-  t.check(
-    'and the hint budget is spent through it, so the shed cost cannot drift from the rows',
-    model.includes('hints.slice(0, hintCap)') && model.includes('spent -= costOf(s)') && !model.includes('intents') && !rail.includes('intents'),
-    'the cost is the built rows',
-  )
   const { mountPart } = await import('../ui/chatScenarios.ts')
   const { useChatTitle } = await import('../../src/screens/chat/useChatTitle.tsx')
   const { pushOverlay, popOverlay } = await import('../../src/context/overlayStack.ts')

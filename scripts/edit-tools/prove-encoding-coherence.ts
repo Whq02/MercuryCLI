@@ -89,8 +89,6 @@ section('§3 the text writer keeps a byte-order mark it was told about')
   writeTextContent(outTwice, '\uFEFFalready', 'utf8', 'LF', { keepBom: true })
   const twice = readFileSync(outTwice)
   check('a content that already opens with the mark gets exactly one', twice[0] === 0xef && twice.subarray(3).toString('utf8') === 'already')
-  const writeSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'FileWriteTool', 'FileWriteTool.ts'), 'utf8')
-  check('the Write tool tells the writer whether the file opened with a mark', /keepBom: rawContent\.startsWith\('\\uFEFF'\)/.test(writeSrc) || /keepBom: hadBom/.test(writeSrc))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

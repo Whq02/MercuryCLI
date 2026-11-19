@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { InputEvent } from '../../src/ink/events/input-event.ts'
 import { INITIAL_STATE, parseMultipleKeypresses, type KeyParseState, type ParsedInput } from '../../src/ink/input/input-decoder.ts'
@@ -203,14 +202,6 @@ console.log('\n the product mark: the querier owes a string reply from the write
   check('the probe batches reached the wire', writes.length === 4, `${writes.length} writes`)
 }
 
-console.log('\n the seam: the app seeds the mark and the decoder hands it to the scanner')
-{
-  const root = join(import.meta.dir, '..', '..')
-  const app = readFileSync(join(root, 'src/ink/components/App.tsx'), 'utf8')
-  const decoder = readFileSync(join(root, 'src/ink/input/input-decoder.ts'), 'utf8')
-  check('App seeds the parse state with the querier\'s mark', app.includes('stringReplyOwed: () => this.querier.stringReplyOwed()'))
-  check('the decoder creates its scanner with the mark', decoder.includes('stringReplyOwed: prevState.stringReplyOwed'))
-}
 
 console.log(`\n${checks} checks, ${failures} failed`)
 console.log(failures === 0 ? 'GREEN: a terminal reply never types into the composer' : `RED: ${failures} check(s) let a reply reach the composer`)

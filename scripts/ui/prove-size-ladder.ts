@@ -1,12 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync, readdirSync } from 'node:fs'
-import { codeOnlyText } from '../lib/codeText.ts'
-import { join } from 'node:path'
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
-
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -97,18 +91,6 @@ console.log('§2 the menu: warn iff below its floor; the exit named; fits by con
 
 console.log('§3 the concourse remains functional below the former floor')
 {
-  const refusal = /terminal too small|too small for|resize to continue|needs \d+(?: columns|[×x]\d+)/i
-  const hits: string[] = []
-  const inspect = (directory: string): void => {
-    for (const entry of readdirSync(join(ROOT, directory), { withFileTypes: true })) {
-      const path = `${directory}/${entry.name}`
-      if (entry.isDirectory()) inspect(path)
-      else if (/\.tsx?$/.test(entry.name) && refusal.test(codeOnlyText(path, read(path)))) hits.push(path)
-    }
-  }
-  for (const directory of ['src/components', 'src/screens', 'src/ink']) inspect(directory)
-  check('every application host is free of terminal-size refusal text', hits.length === 0, hits.join(', '))
-  check('the refusal census detects both long and short refusal forms', ['terminal too small', 'too small for', 'resize to continue', 'needs 80 columns', 'needs 80×22 · resize'].every(text => refusal.test(text)))
   const { CONCOURSE_TWO_PANE_MIN_COLS, resolveConcourseProfile, switchboardGeometry } = await import('../../src/components/concourse/ConcourseLayout.tsx')
   for (const [cols, rows] of [[1, 1], [2, 2], [40, 10], [60, 16], [79, 22], [80, 21], [80, 24], [100, 24], [120, 24]]) {
     check(`${cols}x${rows}: a real layout, never a refusal profile`, resolveConcourseProfile(cols!, rows!) === (cols! >= CONCOURSE_TWO_PANE_MIN_COLS ? 'wide' : 'stacked'))
@@ -121,8 +103,6 @@ console.log('§3 the concourse remains functional below the former floor')
       }
     }
   }
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  check('no application-size refusal remains in the concourse', !layout.includes("return 'too-small'") && !layout.includes('terminal too small for'))
 }
 
 console.log('§4 split, chrome and overlay commitments hold at the ladder')

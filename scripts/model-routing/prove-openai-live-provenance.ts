@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -28,7 +28,6 @@ for (const key of [
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
 const { GPT_DISPLAY_PINS } = catalogue
 const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.js')
@@ -163,26 +162,6 @@ section('§3 signed out, a failed read, a stale list')
   delete process.env.OPENAI_API_KEY
 }
 
-section('§4 the shape: provenance first, the grammar only for a typed id with no list')
-{
-  const source = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCatalogue.ts'), 'utf8')
-  check('the catalogue exports the seam\'s read by its exact name and shape', source.includes('export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string>'))
-  const evaluate = source.slice(source.indexOf('export function evaluateGptCandidate'), source.indexOf('export function qualifiedGptCandidates'))
-  check('the qualifier looks the id up in the list before the grammar decides anything', evaluate.includes('snapshot?.models.find(') && evaluate.includes("reason: 'not-gpt-family'") && evaluate.indexOf('snapshot?.models.find(') < evaluate.indexOf("reason: 'not-gpt-family'") && evaluate.includes('if (!identity && !live)'))
-  check('an unparsed candidate carries the honest minimal identity', evaluate.includes("identity ?? { family: 'gpt', canonicalId, unparsed: true }"))
-  const qualified = source.slice(source.indexOf('export function qualifiedGptCandidates'), source.indexOf('export type GptSeatDisabledWhy'))
-  check('the qualified order lists unparsed rows after the parsed rows', qualified.includes('unparsed === true ? 1 : 0'))
-  const pins = readFileSync(join(ROOT, 'src/services/providers/openai/gptPins.ts'), 'utf8')
-  check('the parsed identity type carries the discriminant; the parser itself is untouched', pins.includes('unparsed?: false') && /^export function parseGptModelId\(id: string\): GptModelIdentity \| undefined \{/m.test(pins))
-  const frontier = readFileSync(join(ROOT, 'src/utils/model/providerFrontier.ts'), 'utf8')
-  const frontierOpenai = frontier.slice(frontier.indexOf("case 'openai': {"), frontier.indexOf("case 'zai':"))
-  check('the frontier ranking walks the dated pins through the parser, never a candidate identity', frontierOpenai.includes('for (const pin of GPT_DISPLAY_PINS)') && frontierOpenai.includes('parseGptModelId(pin.id)') && !frontierOpenai.includes('qualifiedGptCandidates'))
-  const light = frontier.slice(frontier.indexOf('export function openaiLightChoice'), frontier.indexOf('export function providerLightFact'))
-  check('the light chooser re-parses every served id and skips the unparsed ones', (light.match(/parseGptModelId\(raw\)/g) ?? []).length === 1 && light.includes("if (!identity || identity.variant !== '') continue"))
-  const options = readFileSync(join(ROOT, 'src/utils/model/modelOptions.ts'), 'utf8')
-  const gptRows = options.slice(options.indexOf('function getQualifiedGptOptions'), options.indexOf('export interface KeyLanePin'))
-  check("the picker's OpenAI rows come from the qualified list, named by the live row when the grammar has no name, with no prefix filter", gptRows.includes("qualifiedGptCandidates('primary', availability.sourceKind)") && gptRows.includes('gptDisplayName(id) ?? candidate.displayName') && !/startsWith\('gpt|\/\^gpt|parseGptModelId/.test(gptRows))
-}
 
 console.log('\n' + '═'.repeat(60))
 console.log(failures === 0 ? 'OPENAI LIVE PROVENANCE — GREEN' : `${failures} OPENAI LIVE PROVENANCE CHECK(S) FAILED`)

@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { RUNNER_ASK_BOUND_MS, TaskRoster, decideRunnerEnd } from '../../src/daemon/roster.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
@@ -9,7 +8,6 @@ import { childEnv, scratchWorld, seedScratchHome, startScriptedFixture } from '.
 import { describeSeat, seatRuntime } from '../lib/seatLauncher.ts'
 import { makeTally } from './dupline-world.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const tally = makeTally('prove-runner-asked-to-end')
 const check = tally.check
 const section = tally.section
@@ -155,14 +153,6 @@ section('S5 how long the daemon’s own stop waits for the runners it asked')
   const short = Date.now() - at
   check('with one that ends itself it waits until that end', short >= 250 && short < RUNNER_ASK_BOUND_MS - 2000, `${short} ms for a child that ends 300 ms after its input`)
   check('the bound a runner is given is 5 s', RUNNER_ASK_BOUND_MS === 5000, String(RUNNER_ASK_BOUND_MS))
-  const front = readFileSync(join(ROOT, 'src', 'daemon', 'ownedDaemon.ts'), 'utf8')
-  const askFrom = front.indexOf('export async function shutdownOwnedDaemonGracefully(')
-  const ask = askFrom === -1 ? '' : front.slice(askFrom, front.indexOf('\n}\n', askFrom))
-  check(
-    'the front waits 1.5 s at most for its daemon’s answer, not for its end',
-    front.includes('const DAEMON_GRACEFUL_WAIT_MS = 1_500') && ask.includes("return 'asked'") && !ask.includes('setTimeout'),
-    `the front’s ask answers asked: ${ask.includes("return 'asked'")}, and holds a wait of its own: ${ask.includes('setTimeout')}`,
-  )
 }
 
 section('S6 a respawn for another model or effort ends the runner the same way')

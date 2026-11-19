@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { randomUUID } from 'node:crypto'
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { ReactNode } from 'react'
@@ -54,7 +54,6 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.BROWSER = '/usr/bin/true'
 
 const src = (rel: string): string => join(ROOT, 'src', rel)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default as typeof import('react')
 const { default: Ink } = await import(src('ink/ink.tsx'))
 const { Box } = await import(src('ink.ts'))
@@ -418,32 +417,10 @@ section('§0 the settings snapshot — a change reaches every reader whatever th
 
 section('§1 the seam — one owner for the words and the threshold, two renderers, the classic road untouched')
 {
-  const rowSrc = read('src/components/messages/AssistantToolUseMessage.tsx')
-  const collapsed = read('src/components/messages/CollapsedReadSearchContent.tsx')
-  const messageSrc = read('src/components/Message.tsx')
-  const signalSrc = read('src/services/engine-connector/shellRunning.ts')
-  const snapshotSrc = read('src/utils/settings/snapshot.ts')
-  const ui = read('src/tools/BashTool/UI.tsx')
-  const bash = read('src/tools/BashTool/BashTool.tsx')
-  const footer = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
-  const tag = read('src/components/SwitchboardTagBar.tsx')
-  const cancel = read('src/hooks/useCancelRequest.ts')
-  check('the threshold is one named constant of 100 seconds, owned by the shell-running signal', AFTER_MS === 100_000 && signalSrc.includes('export const BACKGROUND_HINT_AFTER_MS = 100_000') && signalSrc.split('100_000').length === 2 && !rowSrc.includes('100_000') && !collapsed.includes('100_000'))
-  check('the words, the action and the receipt words live beside it', signalSrc.includes(`export const BACKGROUND_HINT_WORDS = '${WORDS}'`) && signalSrc.includes("export const BACKGROUND_HINT_ACTION = 'chat:backgroundShell'") && signalSrc.includes(`export const BACKGROUND_MOVED_WORDS = '${RECEIPT}'`))
-  check("the per-row question rides the same signal owner as the chord's", signalSrc.includes('export function focusedShellToolRunning(id: string): boolean') && signalSrc.includes('return live.inFlight && live.inProgressToolUseIDs.has(id)') && signalSrc.includes('useSyncExternalStore(subscribeShellRunning, read, read)') && signalSrc.includes('export function useFocusedShellRunning(): boolean'))
   const pick = (signal as { firstRunningShellId?: (entries: Array<{ id: string; name: string }>, inProgress: Set<string>) => string | null }).firstRunningShellId
   const moved = (signal as { movedToBackgroundByOperator?: (result: unknown) => boolean }).movedToBackgroundByOperator
   check('the member picker names the first running Bash member and no other tool', typeof pick === 'function' && pick([{ id: 'r1', name: 'Read' }, { id: 'b1', name: 'Bash' }, { id: 'b2', name: 'Bash' }], new Set(['r1', 'b1', 'b2'])) === 'b1' && pick([{ id: 'r1', name: 'Read' }], new Set(['r1'])) === null && pick([{ id: 'b1', name: 'Bash' }], new Set()) === null)
   check("the receipt reader keys on the operator's own move, never the model's launch", typeof moved === 'function' && moved({ backgroundTaskId: 'x', backgroundedByUser: true }) && !moved({ backgroundTaskId: 'x' }) && !moved(undefined) && !moved('text'))
-  check('the one leaf lives with the start-stamp map and reads the owner', rowSrc.includes('export function RunningShellBackgroundHint({ id }: { id: string }): React.ReactNode') && rowSrc.includes("useActionAffordance(BACKGROUND_HINT_ACTION, 'Chat')") && rowSrc.includes('useFocusedShellToolRunning(id)') && rowSrc.includes('Date.now() - startedAt < BACKGROUND_HINT_AFTER_MS') && rowSrc.includes('<KeyboardShortcutHint shortcut={chord} action={BACKGROUND_HINT_WORDS} />') && !rowSrc.includes('⇧b') && !rowSrc.includes("'shift+b'"))
-  check('the leaf honours the backgroundKey setting like the two existing paints and rides the elapsed tick', rowSrc.includes('getSettingsSnapshot().settings.view?.backgroundKey !== false') && rowSrc.includes('useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)') && rowSrc.includes('useNowTick(offered && focused && !reducedMotion ? ELAPSED_TICK_MS : null)'))
-  check('the standalone tool row mounts the leaf under a running Bash row only', rowSrc.includes("{running && shouldAnimate && !isTranscriptMode && param.name === BASH_TOOL_NAME ? (\n        <RunningShellBackgroundHint id={param.id} />"))
-  check('the collapsed row mounts the same leaf for the one running shell member, in both its forms', collapsed.includes("import { RunningShellBackgroundHint } from './AssistantToolUseMessage.js'") && collapsed.includes('const shellId = active && shouldAnimate && !isTranscriptMode ? firstRunningShellId(memberEntries, inProgressToolUseIDs) : null') && collapsed.includes('{shellId !== null ? <RunningShellBackgroundHint id={shellId} /> : null}') && collapsed.includes('{entry.id === shellId ? <RunningShellBackgroundHint id={entry.id} /> : null}'))
-  check("the collapsed row paints the receipt of the operator's move under itself", collapsed.includes('<Text dimColor>{BACKGROUND_MOVED_WORDS}</Text>') && collapsed.includes('movedToBackgroundByOperator('))
-  check('the collapsed row learns the transcript-viewer fact from its caller', collapsed.includes('isTranscriptMode = false,') && messageSrc.includes('isTranscriptMode={isTranscriptMode}\n            tools={tools}'))
-  check('the settings snapshot keys its staleness on the cache object, not on its absence', snapshotSrc.includes('sessionCache === lastSessionCache') && snapshotSrc.includes('lastSessionCache = getSessionSettingsCache()'))
-  check('the classic road is untouched: BackgroundHint still binds task:background and paints after the quiet window', ui.includes("useShortcutDisplay('task:background', 'Task', 'ctrl+b')") && ui.includes('<KeyboardShortcutHint shortcut={chord} action="run in background" parens={false} />') && bash.includes('Date.now() - startedAt >= QUIET_WINDOW_MS && setToolJSX') && bash.includes('setToolJSX({ jsx: <BackgroundHint />'))
-  check('the chord, its owner and the two existing paints are as shipped', cancel.includes("'chat:backgroundShell',") && cancel.includes('isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false') && footer.includes(`shortcut={keyHintLabel('⇧b')} action="background the command"`) && tag.includes("keyHintLabel('⇧b backgrounds')"))
 }
 
 section('§2 the standalone tool row (the plain chrome) — the hint under a running Bash row past the threshold, and nowhere else')

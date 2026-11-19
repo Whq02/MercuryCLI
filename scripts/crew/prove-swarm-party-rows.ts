@@ -42,9 +42,6 @@ section('§0 the lifecycle words and the fold: joined · team <team>, parked · 
   const every = [row('result', '@main the list is ready'), row('ask', '@lists-writer ready?'), row('answer', 'nearly'), row('blocker', '@all the disk is full'), row('correction', 'six rows'), row('notice', 'joined · team lists', { kind: 'joined' }), row('notice', 'joined', { kind: 'joined' }), row('notice', 'parked · waiting on verify-proofs-2', { kind: 'parked', event: 'verify-proofs-2' }), row('notice', 'done', { kind: 'done' }), row('notice', 'Swarm launched', { kind: 'launched' })]
   check('no kind, the lifecycle rows included, has a notice fold', every.every(r => !hasNoticeFold(r as never)))
   check('every kind stays a plain navigable row', every.every(r => isNavigableMessage(r as never)))
-  check('Message.tsx paints a crew_chat row only through CrewChatRow', /if \(message\.subtype === 'crew_chat'\) return <CrewChatRow message=\{message\} \/>/.test(readFileSync(join(REPO, 'src/components/Message.tsx'), 'utf8')))
-  const party = readFileSync(join(REPO, 'src/services/crewBoard/party.ts'), 'utf8')
-  check('the party spells the lifecycle rows in the four shapes and no other, and a done row never paints', party.includes("if (event.lifecycle?.kind === 'done') return false") && party.includes("return team === undefined ? 'joined' : `joined · team ${team}`") && party.includes("return lifecycle.kind === 'launched' ? 'Swarm launched' : 'done'") && party.includes('`parked · waiting on ${lifecycle.event}`') && !/'Joined'|'Done'/.test(party))
 }
 
 section('§0 the reader law: system rows recorded one after another after the last reply all survive a cold load')

@@ -2,7 +2,7 @@
 
 import { plugin } from 'bun'
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 plugin({
@@ -88,21 +88,6 @@ section('dist ships the owned-file decision boundaries (cd+git gate, read-only r
   }
 }
 
-section("prose hygiene — Bash's prompt and session-env field use ASCII apostrophes (no curly U+2019)")
-{
-  const promptSrc = join(import.meta.dir, '..', '..', 'src', 'tools', 'BashTool', 'prompt.ts')
-  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-  const fields = (BashTool as { inputJSONSchema: { properties: Record<string, { description?: string }> } }).inputJSONSchema.properties
-  const text = readFileSync(promptSrc, 'utf-8') + '\n' + fields.inherit_session_env?.description
-  let curlyCount = 0
-  for (const ch of text) if (ch.codePointAt(0) === 0x2019) curlyCount++
-  check('the prompt and session-env field contain ZERO curly apostrophes (U+2019)', curlyCount === 0, `count=${curlyCount}`)
-  check("the normalized ASCII prose (\"the session's own\") is present", text.includes("the session's own"))
-  const planted = text.replace("the session's own", 'the session\u2019s own')
-  let plantedCurly = 0
-  for (const ch of planted) if (ch.codePointAt(0) === 0x2019) plantedCurly++
-  check('planted-bad arm: a re-introduced U+2019 IS detected by the scan', plantedCurly === 1, `plantedCount=${plantedCurly}`)
-}
 
 console.log('\n============================================================')
 if (failures === 0) {

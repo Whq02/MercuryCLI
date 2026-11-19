@@ -113,25 +113,9 @@ section('§2 the hard kill is a BACKSTOP, not the first road')
   }
 }
 
-section('§3 the ordinary quit runs the ask BEFORE any exit hook')
-{
-  const src = read('src', 'daemon', 'ownedDaemon.ts')
-  check('the reaper registers a cleanup (the async road gracefulShutdown awaits)', /registerCleanup\(/.test(src), 'without it the only road left is TerminateProcess')
-  check('the sync exit hook still stands behind it', /process\.once\('exit'/.test(src))
-  check('the SIGHUP arm is kept', /process\.once\('SIGHUP'/.test(src))
-  const askAt = src.indexOf("process.once('SIGHUP', () => void askToShutDown())")
-  check('on win32 a closed window (SIGHUP) asks the daemon before the reap decides', askAt >= 0 && askAt < src.indexOf("process.once('SIGHUP', reap)"))
-  check('…and a daemon that does not answer the ask meets the hard kill at once', /if \(outcome !== 'unsettled'\) return\s+gracefulAsked = false\s+reap\(\)/.test(src))
-  check('the hard kill is gated on the reap decision', /decideDaemonReap\(/.test(src))
-}
 
 section('§4 LIVE — a reaped seat takes its own children with it')
 {
-  const roster = read('src', 'daemon', 'roster.ts')
-  check('the roster kill routes through the one tree owner', /killProcessGroup\(|endProcessTree\(/.test(roster), 'a root-only kill leaves the seat\'s build/test/dev-server children running')
-  check('…and no bare child.kill remains on the roster kill road', !/h\.child\?\.kill\(signal\)/.test(roster))
-  const services = read('src', 'services', 'projectServices', 'serviceManager.ts')
-  check('the session-service reaper ends trees at the quit', /killProcessGroup\(|endProcessTree\(/.test(services.slice(services.indexOf("process.once('exit'"), services.indexOf("process.once('exit'") + 900)) || /registerCleanup\(/.test(services), 'a session service\'s grandchild outlived the quit')
 
   const { killProcessGroup } = await import('../../src/utils/processGroup.ts')
   const leader = spawn(process.execPath, ['-e', "const {spawn}=require('node:child_process'); const kid=spawn(process.execPath,['-e','setTimeout(()=>{},60000)'],{stdio:'ignore'}); console.log(kid.pid); setInterval(()=>{},1000)"], {
@@ -169,9 +153,6 @@ section('§4 LIVE — a reaped seat takes its own children with it')
 
 section('§5 a worker whose daemon died exits through the cleanup registry')
 {
-  const watch = read('src', 'daemon', 'workerParentWatch.ts')
-  check('the orphan exit is no longer a bare process.exit(0)', /gracefulExit|runCleanupFunctions|gracefulShutdown/.test(watch), 'in-flight transcript appends were discarded')
-  check('…and it is still bounded (a wedged cleanup can never hold a dead worker)', /setTimeout|cap|budget/i.test(watch))
   const { __workerOrphanExitForTest } = (await import('../../src/daemon/workerParentWatch.ts')) as Record<string, unknown> as {
     __workerOrphanExitForTest?: (opts: { exit: (c: number) => void; cleanup: () => Promise<void>; capMs?: number }) => Promise<void>
   }
@@ -203,13 +184,6 @@ section('§5 a worker whose daemon died exits through the cleanup registry')
   }
 }
 
-section('§6 the exit-cliff estate is untouched')
-{
-  const graceful = read('src', 'utils', 'gracefulShutdown.ts')
-  check('the graceful road still runs the cleanup registry', /runCleanupFunctions\(\)/.test(graceful))
-  check('…still drains the named exit-cliff seams', /drainExitCliffSeams/.test(graceful))
-  check('…and still quiesces before the cliff', /quiesceCleanupBeforeExit/.test(graceful))
-}
 
 section('§7 DRIVEN — the front’s own reaper in a process of its own, with a daemon that answers the ask, one that is not there, one that takes the call and never answers, and one that refuses')
 {

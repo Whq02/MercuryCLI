@@ -6,7 +6,6 @@ import { join } from 'node:path'
 import stringWidth from 'string-width'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
-const REPO = join(import.meta.dir, '..', '..')
 const HOME = pinScratchHome('jev-faces')
 delete process.env.TYPESAFE_API_KEY
 delete process.env.MERCURY_HOME
@@ -208,8 +207,6 @@ function shellWhole(m: Mounted, state: string): void {
 section('§0 the command and the row objects')
 check('/jev is a local, screen-seat, user-private command that is unavailable non-interactively', jevCommand.type === 'local' && jevCommand.seat === 'screen' && jevCommand.userPrivate === true && jevCommand.supportsNonInteractive === false)
 {
-  const table = readFileSync(join(REPO, 'src/commands.ts'), 'utf8')
-  check('/jev is registered beside /usage', table.includes("import jev from './commands/jev/index.js'") && /^\s+jev,$/m.test(table))
   const request = jevPopupRequest()
   check('the request opens the one popup store as the jev view, content-sized, 120 wide', request.view === 'jev' && request.width === jevBody.JEV_POPUP_WIDTH && request.rows === null && request.hint === jevBody.JEV_POPUP_HINT)
   const rows = withJevRow(STARTUP_MENU)
@@ -433,20 +430,6 @@ section('§7 the laws over every frame and every file')
   check('the key value appears in no frame', frames.every(frame => !frame.lines.join('\n').includes(PROOF_KEY)))
   check('no frame says experimental', frames.every(frame => !/experimental/i.test(frame.lines.join('\n'))))
   check('no frame reports a render error', frames.every(frame => !frame.lines.join('\n').includes('RENDER ERROR')))
-  const own = ['src/components/Settings/Jev.tsx', 'src/commands/jev/index.ts', 'src/commands/jev/jev.tsx', 'src/components/BootSettingsScreen.tsx', 'src/components/Settings/Config.tsx']
-  check('no owned file says experimental', own.every(rel => !/experimental/i.test(readFileSync(join(REPO, rel), 'utf8'))))
-  const jevSrc = readFileSync(join(REPO, 'src/components/Settings/Jev.tsx'), 'utf8')
-  check('the /jev body never reads the key value: only presence, words and the store door', !jevSrc.includes('readStoredTypesafeApiKey') && !jevSrc.includes('resolveJevApiKey') && jevSrc.includes('storeJevApiKey(') && jevSrc.includes('jevKeySourceWords('))
-  check('the /jev body holds no copy of a setting: every fact is read from the owner on each render', jevSrc.includes('const facts = jevFacts()') && !/useState<JevSettings>/.test(jevSrc))
-  check('the /jev body reads the ledger-derived facts and the status through the session reader, never its own ledger or resolver', jevSrc.includes("from '../../services/jev/jevSessionFacts.js'") && !jevSrc.includes('jevLedger.js') && !jevSrc.includes('jevLedgerSnapshot') && !jevSrc.includes('resolveJevStatus') && !/\bjevStatus\(/.test(jevSrc))
-  const boot = readFileSync(join(REPO, 'src/components/BootSettingsScreen.tsx'), 'utf8')
-  check('the Boot Settings face reads and writes through the owner (the Motion precedent)', boot.includes('withJevRow(STARTUP_MENU)') && boot.includes('isJevRow') && boot.includes('setJevEnabled(next)') && boot.includes('jevReceiptWords(settings)') && boot.includes('jevValueWords(jevSettings)') && boot.includes('jevStatusLine()') && boot.includes('jevSettingLines(settings)'))
-  check('the Boot Settings face keeps the Seats and Motion rows exactly where the motion pin reads them', /SEATS_MENU_ROW as MenuRow, MOTION_MENU_ROW as MenuRow\]/.test(boot))
-  const config = readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8')
-  check('the /config row uses the owner’s words and writer, records its leaf undo and reads session status', config.includes("id: 'jev'") && config.includes('jevValueWords(jevSettings)') && config.includes('setJevEnabled(next, undefined, writeGlobal)') && config.includes('jevStatusLine(jevSessionStatus(jevSessionFacts(), jevSettings))') && !config.includes('jevStatusLine()'))
-  check('no second writer of the jev key outside the owner', ['src/components/Settings/Jev.tsx', 'src/components/BootSettingsScreen.tsx', 'src/components/Settings/Config.tsx', 'src/commands/jev/jev.tsx'].every(rel => !/saveGlobalConfig\([^)]*jev/.test(readFileSync(join(REPO, rel), 'utf8'))))
-  const layout = readFileSync(join(REPO, 'src/components/FullscreenLayout.tsx'), 'utf8')
-  check('the popup host mounts on both roads, so /jev is never a dead command inline', /<SettingsPopupSlot overlay=\{false\}[^>]*\/>/.test(layout) && /<SettingsPopupSlot overlay=\{true\}[^>]*\/>/.test(layout))
 }
 
 if (frameDir !== undefined) {

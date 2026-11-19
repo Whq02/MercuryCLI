@@ -135,7 +135,6 @@ if (child) {
   const holdProps = props(frozen)
   const compact = Number(process.stdout.columns) === 80
   const spin = (f: Facts, over: Partial<Props> = {}) => h(SpinnerWithVerb, props(f, { compact, ...over }))
-  const beforeWait = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8').includes('const viewDelegationWait =')
   const content = child === 'thinking' ? spin(thinking)
     : child === 'thinking-frame' ? h(Box, { flexDirection: 'column' }, spin(thinking), h(MercuryFrame, { model: 'fixture' }))
     : child === 'reply-streaming' ? spin(streaming, { overrideMessage: 'Hashing the oasis' })

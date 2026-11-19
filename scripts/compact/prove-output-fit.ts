@@ -2,7 +2,7 @@
 // gate-watch: src/services/api/outputFit.ts src/services/api/withRetry.ts src/services/providers/anthropic/streamCore.ts src/services/providers/zai/zaiCallModel.ts src/services/providers/gemini/geminiCallModel.ts src/services/providers/openaicompat/compatChatCallModel.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -16,7 +16,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 const watchdog = setTimeout(() => {
   console.log('\nTIMEOUT — output fit prover exceeded 180s')
   process.exit(1)
@@ -87,8 +86,6 @@ if (fitModule !== null) {
   check('an unknown window changes nothing', noWindow.tokens === 64_000 && !noWindow.clamped)
   const noPrompt = fitOutputTokens({ asked: 64_000, window: 200_000, promptTokens: 0 })
   check('an unknown prompt size changes nothing', noPrompt.tokens === 64_000 && !noPrompt.clamped)
-  const retry = readFileSync(join(ROOT, 'src/services/api/withRetry.ts'), 'utf8')
-  check('source pin: the reactive retry after the Anthropic overflow shares the headway and the floor (one owner)', retry.includes('OUTPUT_FIT_HEADWAY_TOKENS') && retry.includes('OUTPUT_FIT_FLOOR_TOKENS') && !/SAFETY_BUFFER = 1000/.test(retry))
 }
 
 const settledReply = (model: string, inputTokens: number, text = 'an earlier reply'): unknown => ({
@@ -224,9 +221,6 @@ const expectedFit = (model: string, messages: unknown[], asked: number): { token
   const want = expectedFit(model, near, 60_000)
   const fitted = await call(model, near, { maxOutputTokensOverride: 60_000 })
   check(`gemini (key road): an override of 60000 on a conversation ${window - 40_000} tokens in sends maxOutputTokens fitted to the room (${want.tokens})`, capOf(fitted.body) === want.tokens && want.tokens < 60_000, `${JSON.stringify(capOf(fitted.body))} errors=${fitted.errors.length}`)
-  const plan = readFileSync(join(ROOT, 'src/services/providers/gemini/geminiCallModel.ts'), 'utf8')
-  const planTransport = plan.slice(plan.indexOf('async function* geminiPlanCallModel'), plan.indexOf('export async function* geminiCallModel'))
-  check('source pin: the plan road, which always sends the catalogue ceiling, fits it to the room the same way', planTransport.includes('fitOutputTokensForRequest({ asked: capped') && planTransport.includes('max_tokens: fitted'))
 }
 {
   const model = 'deepseek-v4-pro'

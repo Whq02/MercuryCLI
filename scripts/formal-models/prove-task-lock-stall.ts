@@ -3,7 +3,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker, scratchRoot, guardWrite, waitUntil } from '../engine-durability/harness.ts'
 
@@ -121,11 +121,6 @@ t.section('§4 — the migrated task operations work end-to-end')
 
 t.section('§5 — same-process contenders mutually exclude (the close review\'s material find)')
 {
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src/utils/tasks.ts'), 'utf8')
-  t.check(
-    'tasks mints a per-acquisition owner (never a process-scoped one)',
-    src.includes('tasks-${process.pid}-${++taskLockSeq}'),
-  )
   const lockPath2 = join(root, 'locks', 'same-process.lock')
   const a = await acquirePidLockWithRetry(lockPath2, 'proc-acq-1', {
     liveness: 'assume-alive',

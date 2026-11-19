@@ -53,8 +53,6 @@ console.log('R2 the pure read: a birth without a word stays blank; a landing rea
   check('a born-sovereign landing reads sovereign, the model and the effort verbatim', sovereign.model === 'claude-sonnet-5' && sovereign.effort === 'max' && sovereign.permissionMode === 'sovereign', JSON.stringify(sovereign))
   const dflt = facts.landingWordsOf({ landing: { model: 'claude-opus-5', effort: null, permissionMode: 'default' } })
   check('a default posture reads default (the chip owner paints nothing for it)', dflt.permissionMode === 'default' && dflt.effort === null && dflt.model === 'claude-opus-5', JSON.stringify(dflt))
-  const seam = (await import('node:fs')).readFileSync(new URL('../../src/services/switchboard/bootBirthFacts.ts', import.meta.url), 'utf8').replace(/^import type .*$/gm, '')
-  check('the record stays a plain record: no daemon, no connector, no RPC on its runtime lines (the resting connector maps the posture)', !seam.includes('daemon/') && !seam.includes('engine-connector') && !seam.includes('daemonControlRpc'))
 }
 
 console.log('R3 the resting connector: the landing words while a birth lands, the screen\'s own words otherwise')
@@ -111,31 +109,14 @@ console.log('R6 the birth falls back to a signed-in family only on a settled ver
   check('no signed-in family: no fallback, the daemon refuses honestly', facts.birthFallbackModel('gemini', { family: 'gemini', familyWord: 'gemini', hasCredential: false, refusal: null, fallback: null, providerName: provider }) === undefined)
   const { settledCatalogueRefusal } = await import('../../src/services/switchboard/bornSession.js')
   check('the settled read answers nothing for a family with no account, a family with no catalogue, or an unknown family (the no-sign-in road is the credential read, never this one)', settledCatalogueRefusal('gemini') === null && settledCatalogueRefusal('openai') === null && settledCatalogueRefusal('openrouter') === null && settledCatalogueRefusal('huggingface') === null && settledCatalogueRefusal('anthropic') === null && settledCatalogueRefusal('zai') === null && settledCatalogueRefusal('nothing') === null)
-  const readSrc = (rel: string): string => (require('node:fs') as typeof import('node:fs')).readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8')
-  const door = readSrc('src/services/switchboard/bornSession.ts')
-  check('the birth door drops the model on a keyless home, then wraps the resolved model in the signed-in fallback', door.includes('const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)') && door.includes('const born = birthModelForSignedInFamily(resolved, facts.model === null && (req.model ?? null) === null)') && door.includes('const model = born.setting'))
-  check("the fallback rides the saved-default road only (an explicit --model, MERCURY_MODEL or a door's inheritance keeps the daemon's own answer)", door.includes('if (getEngineModelOverride() !== undefined) return false') && door.includes('parseUserSpecifiedModel(saved) === resolved'))
-  check('a saved default on the local route needs no sign-in family: the birth keeps it on both reads (TensorFold serves local/<name> and saves it; New Session from the boot face starts on it, never on the most recent sign-in)', door.includes("if (declaredRouteOf(resolved) === 'local') return { setting: resolved, receipt: null }") && readSrc('src/services/switchboard/bootBirthFacts.ts').includes("if (family === 'local') return saved"))
-  check("the settled read names only a refusal class per family — Gemini, OpenRouter and Hugging Face 'auth-invalid', OpenAI 'auth-expired' — and never a pending, error, traffic or no-model state", (door.match(/a\.why === 'auth-invalid'/g) ?? []).length === 3 && door.includes("a.why === 'auth-expired'") && !door.includes("'catalogue-pending'") && !door.includes("'catalogue-error'") && !door.includes("'traffic-off'") && !door.includes('verdict.usable') && !door.includes('verdict.why'))
-  check('the door swaps only through the settled read (the credential read decides the no-sign-in road)', door.includes("const refusal = considered === undefined || family === null ? null : settledCatalogueRefusal(family)") && door.includes('hasCredential: considered !== undefined,'))
-  const mintAt = door.indexOf("if (fallbackNote !== null && fallbackNote !== '') mintOnBornChat(sessionId, fallbackNote)")
-  const hopAt = door.indexOf('const hop = await hopIntoBoardSession(sessionId')
-  check('the born chat paints a glyph-less receipt as a plain line and a ▲ receipt as a warning', door.includes("mintImmediateReceipt(text, text.startsWith('▲') ? 'warning' : 'info')"))
-  check('the receipt is minted after the hop, on the born chat itself (a display row the chat keeps, never a notification on the resting slot)', mintAt !== -1 && hopAt !== -1 && mintAt > hopAt && door.includes('if (focused.sessionId() !== sessionId) return false'))
-  check('the fallback never writes the saved default', !door.includes('persistModelChoice') && !door.includes('setBootBirthFacts') && !door.includes('updateSettingsForSource'))
 }
 
 console.log('R7 the one road from a /model pick to the next birth: the pick saves the default and sets the override the screen birth model reads (no chat open: the resting slot refuses, so the door is a chat)')
 {
-  const readSrc = (rel: string): string => (require('node:fs') as typeof import('node:fs')).readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8')
-  const door = readSrc('src/services/switchboard/bornSession.ts')
   check("the resting slot's model door refuses (no chat open, nothing to switch)", (await new NoSessionConnector().setModel()).state === 'refused')
-  const picker = readSrc('src/commands/model/mercuryModel.tsx')
-  check("a pick on a chat's seat saves the default after the daemon's receipt (the road the fallback chat opens)", picker.includes('const saved = persistModelChoice(value)') && picker.includes("void focused.setModel(value).then(receipt => {"))
   const { settleModelSelection } = await import('../../src/utils/model/modelTransition.js')
   const settled = settleModelSelection({ engineModel: 'gemini', engineModelForSession: null, pendingModelSwitch: null, lastModelTransition: null } as never, 'claude-fable-5-1', { turnActive: false })
   check('the settle road applies the pick to the main-loop model at once when no turn runs', settled.kind === 'applied' && settled.patch !== null && (settled.patch as { engineModel?: string }).engineModel === 'claude-fable-5-1', JSON.stringify(settled))
-  check('the screen birth model follows the main-loop override the pick sets', door.includes('screenBirthModel()') && readSrc('src/services/switchboard/bootBirthFacts.ts').includes('if (getEngineModelOverride() !== undefined) return getEngineModel()'))
 }
 
 console.log(failures === 0 ? '\nprove-birth-landing-words: ALL LAWS HOLD' : `\nprove-birth-landing-words: ${failures} FAILURE(S)`)

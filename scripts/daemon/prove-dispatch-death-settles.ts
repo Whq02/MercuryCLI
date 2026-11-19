@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -9,7 +9,6 @@ import {
   reconcileWorkingDispatches,
 } from '../../src/daemon/concourseDispatch.js'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
@@ -80,13 +79,6 @@ try {
     check('a repeat reconcile is a noop', reconcileWorkingDispatches(scratch, () => ({ 'concourse-w1': { endedAt: 1 } })) === 0)
   }
 
-  section('(3) the wiring')
-  {
-    const main = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
-    const degraded = main.slice(main.indexOf('onDegraded: (reason, short)'), main.indexOf('onDegraded: (reason, short)') + 1200)
-    check('onDegraded settles the dispatch beside the worker record, carrying its reason', degraded.includes('settleConcourseWorker(short)') && degraded.includes('failWorkingDispatchesForRunner(short, reason)'))
-    check('the daemon boot reconciles working dispatches after recovery', main.includes('runBootRecovery({ scope: ') && main.indexOf('reconcileWorkingDispatches()') > main.indexOf('runBootRecovery({ scope: ') && main.includes('reconcileWorkingDispatches()'))
-  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

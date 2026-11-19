@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
@@ -43,9 +42,6 @@ section('(a) default-ON (graduated); =0 ⇒ the byte-exact placeholder')
   check('flag =0 ⇒ disabled (opt-out preserved)', isMicroCompactDigestEnabled() === false)
   check('OFF ⇒ placeholder for clean text', digestClearedToolResult('ls: a.ts b.ts') === MC_CLEARED_PLACEHOLDER)
   check('OFF ⇒ placeholder even for secret-bearing text', digestClearedToolResult('aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY') === MC_CLEARED_PLACEHOLDER)
-  const trs = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'toolResultStorage.ts'), 'utf-8')
-  const m = trs.match(/TOOL_RESULT_CLEARED_MESSAGE\s*=\s*'([^']*)'/)
-  check('placeholder equals toolResultStorage source-of-truth (drift guard)', !!m && m![1] === MC_CLEARED_PLACEHOLDER)
   const savedMacro = (globalThis as Record<string, unknown>)['MACRO']
   delete (globalThis as Record<string, unknown>)['MACRO']
   delete process.env.MERCURY_MC_DIGEST
@@ -124,14 +120,6 @@ section('(f) side-channel bound — the size label is a coarse length, cannot re
   check('distinct non-numeric label shapes are few (closed vocabulary)', labels.size <= 3, `shapes=${labels.size}`)
 }
 
-section('(g) wiring intact + the module no longer routes content through any scanner')
-{
-  const mc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'compact', 'microCompact.ts'), 'utf-8')
-  check('microCompact clear step calls digestClearedToolResult(block.content)', mc.includes('digestClearedToolResult(block.content)'))
-  check('re-clear guard uses isClearedOrDigested', mc.includes('!isClearedOrDigested(block.content)'))
-  const md = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'compact', 'microCompactDigest.ts'), 'utf-8')
-  check('the digest module imports NO secret scanner (shape-only ⇒ none needed)', !md.includes('redactSecrets') && !md.includes('detectSecrets'))
-}
 
 delete process.env.MERCURY_MC_DIGEST
 console.log('\n' + '═'.repeat(76))

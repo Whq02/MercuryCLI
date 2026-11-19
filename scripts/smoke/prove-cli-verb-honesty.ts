@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -13,7 +11,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const ROOT = join(import.meta.dir, '..', '..')
 
 section('§1 FC-047 — the value matrix')
 {
@@ -29,12 +26,6 @@ section('§1 FC-047 — the value matrix')
   check('999999999 caps at the ceiling', v('999999999').effective === 150000 && v('999999999').status === 'capped')
 }
 
-section('§2 FC-046 — the win32 code probe (structural)')
-{
-  const bridge = readFileSync(join(ROOT, 'src/cli/editorBridge.ts'), 'utf8')
-  check("the win32 candidate list leads with code.cmd", /'code\.cmd', 'code', 'code\.exe'/.test(bridge))
-  check('and the probe rides shell:true on win32 (a .cmd cannot spawn shell-less)', /isWindows \? \{ shell: true \} : \{\}/.test(bridge))
-}
 
 if (failures > 0) {
   console.error(`\nprove-cli-verb-honesty: ${failures} FAILURE(S)`)

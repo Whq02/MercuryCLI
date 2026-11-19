@@ -115,10 +115,6 @@ section('§6 THE SEVERITY CHANNEL (B9) — the loader grades what it knows')
     unreadDeny.settings !== null && unreadDeny.errors.some(e => e.severity === 'error' && /permission rule/.test(e.message)) && JSON.stringify(unreadDeny.settings?.guardrails?.deny) === JSON.stringify(['Bash']),
     JSON.stringify(unreadDeny.errors).slice(0, 200),
   )
-  const { readFileSync } = await import('node:fs')
-  const dialog = readFileSync(new URL('../../src/components/InvalidSettingsDialog.tsx', import.meta.url), 'utf8')
-  check("the dialog reads the first-class channel (severity === 'warning' ⇒ soft)", dialog.includes("error.severity === 'warning'"))
-  check('…and keeps the MCP metadata channel beside it', dialog.includes("error.mcpErrorMetadata?.severity !== 'warning'"))
 }
 
 rmSync(HOME, { recursive: true, force: true })

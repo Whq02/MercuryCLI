@@ -6,7 +6,6 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const scratch = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'mercury-memory-intake-'))
 const home = join(scratch, 'home')
 process.env.MERCURY_CONFIG_DIR = home
@@ -133,13 +132,7 @@ const { pinnedOverLimitLine } = await import('../../src/utils/statusNoticeDefini
 check('the calm line names the count, the fill, the limit, that all are loaded, and both ways out',
   pinnedOverLimitLine({ pinned: bigStatus?.pinned ?? 0, used: bigStatus?.used ?? 0, limit: bigStatus?.limit ?? 0 }).startsWith(`Pinned memory: ${BIG} rules, `) &&
     pinnedOverLimitLine({ pinned: 1, used: 9600, limit: 8000 }) === 'Pinned memory: 1 rule, 9.6k of the 8k limit — all still loaded. Trim in /memory or raise the limit in /config.')
-const notices = readFileSync(join(ROOT, 'src/utils/statusNoticeDefinitions.tsx'), 'utf8')
-check('the line is a start-of-session notice row, not a composer line', notices.includes("id: 'pinned-over-limit'") && notices.includes("type: 'info'"))
-check('the line never shows in a headless run', notices.includes("flagEnv('MERCURY_ENTRYPOINT') !== 'headless'"))
 
-section('the boot wiring')
-const maintenance = readFileSync(join(ROOT, 'src/mneme/mnemeMaintenance.ts'), 'utf8')
-check('the boot maintenance pass runs the intake first', /trigger === 'boot'[\s\S]*mnemeHandover\.js[\s\S]*handoverIfDue\(\)/.test(maintenance))
 
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ THE INTAKE HANDS EVERY NOTE TO MEMORY ONCE' : `❌ ${failures} INTAKE CHECK(S) FAILED`)

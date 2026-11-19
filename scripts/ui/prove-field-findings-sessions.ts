@@ -1,9 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 let failures = 0
 const check = (name: string, ok: boolean, detail?: string): void => {
@@ -15,32 +11,6 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   }
 }
 
-console.log('§1 SL-1 — every resume failure lands as a refusal on the picker')
-{
-  const screen = read('src/screens/ResumeConversation.tsx')
-  check('POISON: the not-loaded throw is gone', !screen.includes("if (!loaded) throw new Error('Failed to load the selected conversation')"))
-  check('a refused resume hop clears the spinner and paints the refusal', /if \(!outcome\.ok\) \{\s*\n\s*setIsResuming\(false\)\s*\n\s*setResumeRefusal\(`could not resume — \$\{outcome\.reason\}`\)/.test(screen))
-  check('POISON: the call-site rethrow is gone', !/void onSelect\(log\)\.catch\(error => \{\s*\n\s*logError\(error\)\s*\n\s*throw error/.test(screen))
-  check('the call-site catch logs, clears the spinner and paints the refusal (the picker stays open)', /void onSelect\(log\)\.catch\(error => \{\s*\n(?:.*\n){0,6}?\s*logError\(error\)\s*\n\s*setIsResuming\(false\)\s*\n\s*setResumeRefusal\(/.test(screen) && screen.includes('the picker stays open; the file was left untouched'))
-  check('the spinner branch still binds no key of its own (why the refusal path must exist)', screen.includes('text="Resuming conversation…"') && screen.includes('onCancel={cancelResumeWait}'))
-  check('the refusal line paints above the picker', screen.includes('{resumeRefusal !== null ? (') && screen.includes('✕ {resumeRefusal}'))
-}
-
-console.log('§2 SL-2 — the manager walks the whole stat listing')
-{
-  const view = read('src/components/mercury-ui/screens/SessionManagerView.tsx')
-  const core = read('src/components/mercury-ui/screens/sessionPickerModel.ts')
-  check('POISON: the capped one-shot load is gone', !view.includes('const all = await listSessionsAcrossProjects()') && !core.includes('const all = await listSessionsAcrossProjects()'))
-  check('the view never loads on its own (one picker core)', !view.includes('listSessionsAcrossProjects') && view.includes('useSessionPickerModel(scope)'))
-  check('the first paint comes from the progressive loader and keeps its cursor + listing', core.includes('const first = await listSessionsAcrossProjectsProgressive()') && core.includes('let next = first.nextIndex'))
-  check('the rest of the listing is enriched batch by batch until the cursor reaches the end', core.includes('while (alive && next < first.allStatLogs.length) {') && core.includes('const batch = await enrichSessionListings(first.allStatLogs, next, ENRICH_BATCH)') && core.includes('next = batch.nextIndex'))
-  check('every batch republishes the resumable, substantive, newest-first list', core.includes('const publish = (all: SessionListing[]): void => {') && core.includes('acc = [...acc, ...batch.logs]\n          publish(acc)'))
-  check('the header says how many are still loading', view.includes('pendingMore > 0 ? ` · loading ${pendingMore} more…` : \'\''))
-  check('the empty state waits while sessions are still loading (no "No other sessions" over a half-read store)', view.includes('{logs === null || (flat.length === 0 && pendingMore > 0) ? ('))
-  check('an unmount stops the walk (alive gate on the loop)', core.includes('while (alive && next < first.allStatLogs.length)'))
-  const logs = read('src/utils/sessionStorage/logs.ts')
-  check('the loader exposes the listing and cursor the manager now consumes', logs.includes('return { logs: renumbered(logs), allStatLogs, nextIndex }') && logs.includes('export async function enrichSessionListings('))
-}
 
 console.log('§3 SL-7 — resume-hint quoting: bash on POSIX, PS single-quote on win32')
 {

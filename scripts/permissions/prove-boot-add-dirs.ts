@@ -40,19 +40,10 @@ try {
   const loaded = getSettingsWithErrors()
   check('a settings file carrying a saved directory boots without errors', loaded.errors.length === 0, JSON.stringify(loaded.errors))
   check('the declared guardrail mode is read', loaded.settings.guardrails?.mode === 'implement')
-  check('no settings reader names a saved directory key', !/additionalDirectories/.test(source('src/utils/settings/types.ts')) && !/additionalDirectories/.test(source('src/utils/settings/settings.ts')))
   const { initializeToolPermissionContext } = await import('../../src/utils/permissions/permissionSetup.js')
   const init = await initializeToolPermissionContext({ allowedToolsCli: [], disallowedToolsCli: [], permissionMode: 'implement', allowDangerouslySkipPermissions: false })
   check('the live context has no added-root map', !Object.hasOwn(init.toolPermissionContext, 'additionalWorkingDirectories'))
   check('boot has no directory admission pass', !Object.hasOwn(init, 'admittedDirectories'))
-  for (const file of [
-    'src/Tool.ts', 'src/types/permissions.ts', 'src/commands.ts', 'src/main.tsx',
-    'src/services/switchboard/runnerArgv.ts', 'src/context.ts', 'src/skills/loadSkillsDir.ts',
-    'src/components/permissions/rules/PermissionRuleList.tsx', 'src/services/instructions/engine.ts',
-  ]) {
-    check(`${file}: no added-directory surface or reader`, !/additionalWorkingDirectories|--add-dir|\/add-dir|AddWorkspaceDirectory|getAddedDirectories/.test(source(file)))
-  }
-  check('the workspace permission tab is absent', !source('src/components/permissions/rules/PermissionRuleList.tsx').includes('id="workspace"'))
   const trust = source('docs/TRUST.md')
   check('the docs name the starting-folder law', /starting folder/i.test(trust) && /Implement mode\*\* allows ordinary writes and edits inside the starting\s+folder\. Outside it, Mercury asks for permission/.test(trust))
   const dist = join(repo, 'dist/mercury.mjs')

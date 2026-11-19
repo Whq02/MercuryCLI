@@ -312,13 +312,6 @@ section('§4 the run that ended on the error stays resumable by message: the nex
   check('the transcript on disk ends on the resumed reply, the error rows standing before it', last !== undefined && last.type === 'assistant' && !isApiError(last) && (transcript?.messages ?? []).filter(isApiError).length === 2, textOf(last))
 }
 
-section('§5 the source: the retry lives in the run loop, once per class, never on a stopped or cut run')
-{
-  const runAgentSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'AgentTool', 'runAgent.ts'), 'utf8')
-  check('the run re-reads its rows for the retry and lands the retry row on its transcript', runAgentSrc.includes("import { refusalRetryRowOf } from './refusalRetry.js'") && runAgentSrc.includes('retriedRefusals.add(refusalRetry.refusalClass)') && runAgentSrc.includes('[refusalRetry.row],'))
-  check('a run stopped by its max-turns, the loop guard, the watchdog, the budget or an abort never retries', runAgentSrc.includes('stoppedEarly || watchdog.fired || throttled !== null || abortController.signal.aborted'))
-  check('the re-run carries the rows from the last compaction boundary on', runAgentSrc.includes('carried.findLastIndex(row => isCompactBoundaryMessage(row))'))
-}
 
 server.close()
 console.log(`\nprove-agent-image-refusal-retry: ${checks} checks, ${failures} failed`)

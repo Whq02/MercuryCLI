@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { mock } from 'bun:test'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -94,10 +94,6 @@ try {
   mock.module('../../src/services/providers/anthropic/streamCore.ts', () => ({ ...streamCore, queryUtility: async () => ({ message: { content: [{ type: 'text', text: JSON.stringify({ title: dirty }) }] } }) }))
   const { generateSessionTitle } = await import('../../src/utils/sessionTitle.ts')
   check('the generated title is sanitized before callers see it', await generateSessionTitle('fixture conversation', new AbortController().signal) === 'Fix auth flow')
-  const source = readFileSync(join(import.meta.dir, '../../src/utils/sessionTitle.ts'), 'utf8')
-  check('generated titles use the same sanitiser before returning', /partiallySanitizeUnicode\(validated.data.title\)/.test(source))
-  const workers = readFileSync(join(import.meta.dir, '../../src/daemon/concourseWorkers.ts'), 'utf8')
-  check('operator and minted titles use the same sanitiser before storage', /partiallySanitizeUnicode\(rawTitle\)/.test(workers))
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

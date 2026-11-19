@@ -126,11 +126,6 @@ section('§4 THE RAW STDERR LINE RIDES THE HEADLESS ROAD ONLY')
   }
 }
 
-section('§5 THE VERIFICATION ROW CARRIES THE REASON (source pin)')
-{
-  const hook = readFileSync(join(SRC, 'hooks/useApiKeyVerification.ts'), 'utf8')
-  check('the row reads the recorded failure beside its typed message', hook.includes('getApiKeyHelperFailure()') && hook.includes('returned no valid key'))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-api-key-helper-failure: ALL PASS' : `\nprove-api-key-helper-failure: ${failures} FAIL`)

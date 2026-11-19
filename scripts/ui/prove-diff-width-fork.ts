@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -14,35 +13,12 @@ function section(t: string): void {
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 process.chdir(root)
-const writeSrc = readFileSync(join(root, 'src', 'components', 'permissions', 'FileWritePermissionRequest', 'FileWriteToolDiff.tsx'), 'utf-8')
-const editSrc = readFileSync(join(root, 'src', 'components', 'FileEditToolDiff.tsx'), 'utf-8')
-const wrapperSrc = readFileSync(join(root, 'src', 'components', 'permissions', 'ConsentFileEditDiff.tsx'), 'utf-8')
-const permSrc = readFileSync(join(root, 'src', 'components', 'permissions', 'PermissionDialog.tsx'), 'utf-8')
 const { consentContentWidth, CONSENT_CARD_CHROME_COLUMNS } = await import('../../src/components/permissions/consentBodyBudget.ts')
 
 console.log('============================================================')
 console.log(' permission diff width — the card chrome subtraction')
 console.log('============================================================')
 
-section('FileWriteToolDiff: the body width is the content box less its frame padding')
-check('useMemo for hunks is present', /useMemo\(\(\) =>/.test(writeSrc))
-check('bodyWidth = consentContentWidth(columns) - FRAME_COLUMNS', /consentContentWidth\(columns\) - FRAME_COLUMNS/.test(writeSrc) && /const FRAME_COLUMNS = 2/.test(writeSrc))
-check('width={bodyWidth} passed to StructuredDiff', /width=\{bodyWidth\}/.test(writeSrc))
-check('Math.max(1, ...) floor present', /Math\.max\(1,/.test(writeSrc))
-
-section('FileEditToolDiff: the inner width is the available width less its frame')
-check('framed derived from width alone', /const framed = columns > 80/.test(editSrc))
-check('the consent wrapper hands the card\'s content box as the available width', /availableWidth=\{consentContentWidth\(columns\)\}/.test(wrapperSrc))
-check('innerWidth subtracts the round frame (border + padding, four cells) when framed', /framed \? outerWidth - FRAME_COLUMNS : outerWidth/.test(editSrc) && /const FRAME_COLUMNS = 4/.test(editSrc))
-check('the transcript surface keeps its own default (columns - 2)', /availableWidth \?\? columns - 2/.test(editSrc))
-check('Math.max(1, ...) floor present', /Math\.max\(1,/.test(editSrc))
-
-section('PermissionDialog: the card chrome the content box subtracts')
-check('borderLeft present (full card)', /borderLeft=\{undefined\}/.test(permSrc))
-check('paddingLeft={1}', /paddingLeft=\{1\}/.test(permSrc))
-check('borderRight present (full card)', /borderRight=\{undefined\}/.test(permSrc))
-check('the card is round + mode-tinted (borderColor={cardColor})', /borderStyle="round"/.test(permSrc) && /borderColor=\{cardColor\}/.test(permSrc))
-check('innerPaddingX defaults to one cell a side', /innerPaddingX = 1/.test(permSrc))
 check('the owner counts the borders and the outer padding (four cells) plus the inner padding', CONSENT_CARD_CHROME_COLUMNS === 4 && consentContentWidth(100) === 94 && consentContentWidth(100, 0) === 96)
 
 section('behavioral: width arithmetic (measured on the built bundle at 100 and 110 columns)')

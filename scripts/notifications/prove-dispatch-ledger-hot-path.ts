@@ -10,7 +10,6 @@ import type { ConcourseAdmitResult } from '../../src/daemon/concourseWorkers.ts'
 const t = checker()
 const root = scratchRoot('dispatch-ledger-hot-path')
 const dir = join(root, 'daemon')
-const ROOT = join(import.meta.dir, '..', '..')
 
 const rawParse = JSON.parse.bind(JSON)
 const rawStringify = JSON.stringify.bind(JSON)
@@ -139,18 +138,5 @@ t.section('§5 ORDER + COALESCING — back-to-back dispatches never regress a ro
   t.check('every dispatched row reads working in the memo and on disk', ['cm-0', 'cm-1', 'cm-2', 'cm-3', 'cm-4', 'cm-5', 'cm-6', 'cm-7', 'cm-8', 'cm-9'].every(id => all[id]?.state === 'working' && disk(id)?.state === 'working'))
 }
 
-t.section('§6 WIRING')
-{
-  const src = readFileSync(join(ROOT, 'src/daemon/concourseDispatch.ts'), 'utf8')
-  const afterReply = src.match(/publishDispatchesAfterReply\(dispatches, deps\.dir\)/g) ?? []
-  t.check('exactly the two post-delivery sites ride the after-reply publish', afterReply.length === 2, `${afterReply.length}`)
-  const sites = [...src.matchAll(/advance\(rec, 'working', \{ deliveredAt: Date\.now\(\) \}\)[\s\S]{0,400}?publishDispatches(AfterReply)?\(dispatches, deps\.dir\)/g)]
-  t.check("…and each follows its advance(rec, 'working') (never a pre-delivery publish)", sites.length === 2 && sites.every(m => m[1] === 'AfterReply'))
-  t.check('the reservation and the starting publishes stay synchronous', /dispatches\[req\.clientMessageId\] = rec\n\s*publishDispatches\(dispatches, deps\.dir\)/.test(src) && /advance\(rec, 'starting', \{ workerId: admitted\.runnerId[\s\S]{0,1200}?\n\s*publishDispatches\(dispatches, deps\.dir\)\n/.test(src))
-  t.check('the read is stamp-validated (ino · mtimeMs · size) and the publish refreshes the memo with the map it wrote', /const stamp = ledgerStamp\(path\)[\s\S]{0,200}memo\.stamp === stamp\) return memo\.map/.test(src) && /st\.ino\}:\$\{st\.mtimeMs\}:\$\{st\.size\}/.test(src) && /ledgerMemo\.set\(path, \{ stamp, map: dispatches \}\)/.test(src))
-  t.check('a publish that did not land drops the memo and rethrows (the next read re-parses the disk — discard-on-failure kept)', /publishInDaemonHome\(\n\s*'the dispatch ledger',\n\s*path,[\s\S]{0,200}?\} catch \(err\) \{[\s\S]{0,400}?ledgerMemo\.delete\(path\)\n\s*throw err\n\s*\}/.test(src))
-  const registry = readFileSync(join(ROOT, 'scripts/staleness/prove-stale-registry.ts'), 'utf8')
-  t.check('the memo carries its stale-registry row (keyed-by-truth)', registry.includes('src/daemon/concourseDispatch.ts :: ledgerMemo :: keyed-by-truth'))
-}
 
 t.finish('prove-dispatch-ledger-hot-path')

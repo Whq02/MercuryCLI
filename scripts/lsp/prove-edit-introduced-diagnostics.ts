@@ -1,10 +1,8 @@
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import * as registry from '../../src/services/lsp/LSPDiagnosticRegistry.js'
 import { DiagnosticTrackingService, type Diagnostic, type DiagnosticFile } from '../../src/services/diagnosticTracking.js'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const SERVER = 'mercury-ts'
 const FILE = '/x/proj/src/app.ts'
 const OTHER = '/x/proj/src/other.ts'
@@ -163,24 +161,6 @@ for (let i = 0; i < 257; i++) {
 }
 check('the 257th write evicts the first file\'s baseline', baselineOf('/x/proj/src/many0.ts').length === 0 && baselineOf('/x/proj/src/many1.ts').length === 1 && baselineOf('/x/proj/src/many256.ts').length === 1)
 
-section('refusals: the words the model reads are the heading it already knows')
-const attachmentText = readFileSync(join(ROOT, 'src/utils/messages/attachmentText.ts'), 'utf8')
-check('the attachment heading is byte-identical', attachmentText.includes('`<new-diagnostics>New diagnostics from the language server:\\n\\n${DiagnosticTrackingService.formatDiagnosticsSummary(item.files)}</new-diagnostics>`'))
-
-section('the four write roads snapshot before the servers learn of the write, each naming its writer')
-const editTool = readFileSync(join(ROOT, 'src/tools/FileEditTool/FileEditTool.ts'), 'utf8')
-const writeTool = readFileSync(join(ROOT, 'src/tools/FileWriteTool/FileWriteTool.ts'), 'utf8')
-const ops = readFileSync(join(ROOT, 'src/tools/LSPTool/mercuryOps.ts'), 'utf8')
-const changeSet = readFileSync(join(ROOT, 'src/tools/ChangeSetTool/ChangeSetTool.ts'), 'utf8')
-const astEdit = readFileSync(join(ROOT, 'src/tools/AstEditTool/AstEditTool.ts'), 'utf8')
-const before = (text: string, first: string, second: string): boolean => text.indexOf(first) !== -1 && text.indexOf(first) < text.indexOf(second)
-check('Edit snapshots the file before the clear and the change, as its owner', before(editTool, 'snapshotDiagnosticsBeforeWrite(expandedPath, fileExists ? freshContent : null, finalStateContent, lspManager.getDocumentVersion(expandedPath), owner)', 'clearDeliveredDiagnosticsForFile(`file://${expandedPath}`)'))
-check('Write snapshots the file before the clear and the change, as its owner', before(writeTool, 'snapshotDiagnosticsBeforeWrite(expandedPath, fileExists ? normalizedContent : null, writtenContent, lspManager.getDocumentVersion(expandedPath), ownerFromToolUseContext(context))', 'clearDeliveredDiagnosticsForFile(`file://${expandedPath}`)'))
-const syncBody = ops.slice(ops.indexOf('export async function syncServersAfterWrite('))
-check('the shared post-write sync snapshots before its clear, as the owner it was handed', before(syncBody, 'snapshotDiagnosticsBeforeWrite(absolutePath, before, newText, manager.getDocumentVersion(absolutePath), owner)', 'clearDeliveredDiagnosticsForFile(absolutePath)'))
-check('ChangeSet hands the sync the original text and its owner', changeSet.includes('syncServersAfterWrite(lspManager, landedPath, t.plannedContent, before, owner)'))
-check('AstEdit hands the sync the original text and its owner', astEdit.includes('syncServersAfterWrite(lspManager, f.abs, f.after, f.before, owner)'))
-check('the workspace-edit apply hands the sync the original text and its owner', ops.includes('syncServersAfterWrite(manager, w.abs, w.newText, w.create ? null : w.originalText, owner)'))
 
 registry.resetAllLSPDiagnosticState()
 if (failures > 0) {

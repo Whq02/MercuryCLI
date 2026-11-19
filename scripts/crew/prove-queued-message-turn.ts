@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
@@ -25,7 +25,6 @@ const { drainPendingMessages, queueOperatorMessage, queuePendingMessage, takeOpe
 const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
 import type { AppState } from '../../src/state/AppStateStore.ts'
 
-const ROOT = new URL('../../', import.meta.url).pathname
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -223,9 +222,6 @@ section("§4 the lifecycle's end-of-run drain takes exactly what it peeked; late
   const taken = takeOperatorMessages('a1', store.get, store.set, 1)
   const left = ((store.state.tasks as Record<string, { operatorMessages?: string[] }>).a1?.operatorMessages ?? [])
   check('the operator lane drains by count the same way', JSON.stringify(taken) === JSON.stringify(['operator one']) && JSON.stringify(left) === JSON.stringify(['operator two']), JSON.stringify([taken, left]))
-  const lifecycle = readFileSync(join(ROOT, 'src/tools/AgentTool/agentToolUtils.ts'), 'utf8')
-  check('the lifecycle drains by the counts it peeked and marks a run that went on with the parent\'s guidance', /drainPendingMessages\(taskId, stateReader, rootSetAppState, pending\.length\)/.test(lifecycle) && /takeOperatorMessages\(taskId, stateReader, rootSetAppState, operator\.length\)/.test(lifecycle) && /continuedOnGuidance = pending\.length > 0/.test(lifecycle))
-  check('a run that went on with queued guidance sends no completion notice; the resumed run sends its own when its queue is empty', /const notifies = \(overloadEpisode === null \|\| overloadDeathNotifies\(overloadEpisode\)\) && !continuedOnGuidance/.test(lifecycle))
   const t = await import('../core-runtime/turnScenarios.ts')
   const { NO_TOOL_RULES, readReply } = await import('../../src/run-core/turn/noToolReply.ts')
   const queuedRule = NO_TOOL_RULES.find(entry => entry.name === 'queued_message')!

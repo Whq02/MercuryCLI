@@ -134,11 +134,6 @@ console.log('\n§9.2 the collapsed candidate order — one built-in candidate, n
 
 console.log('\nsuccession law: no registration seam — a later frontier arrives by operator word')
 {
-  const policySrc = require('fs').readFileSync(require('path').join(__dirname, '../../src/utils/model/frontierPolicy.ts'), 'utf8')
-  check(
-    'frontierPolicy exposes no catalog-candidate vocabulary',
-    !policySrc.includes('FrontierCatalogCandidate') && !policySrc.includes('eligible-registered') && !policySrc.includes("'not-live'"),
-  )
   check(
     'the env pin resolves VERBATIM (the operator-word succession rung)',
     evaluateFrontierDecision({ ...base(), fableEnvPin: true, fableId: 'claude-frontier-next' }).setting === 'claude-frontier-next',

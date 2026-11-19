@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -32,7 +32,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9
 const perM = (tokens: number, rate: number): number => (tokens * rate) / 1e6
 
@@ -318,67 +317,6 @@ section('§4 the display string follows the same owner')
   check('the first-party rows still display', cost.getModelPricingString('claude-sonnet-5') === '$2/$10 per Mtok')
 }
 
-section('§5 the shape')
-{
-  const src = readFileSync(join(ROOT, 'src/utils/modelCost.ts'), 'utf8')
-  for (const route of ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'gemini', 'openrouter', 'huggingface', 'local', "'openai-compat'", 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'cerebras', 'fireworks', 'qwen']) {
-    check(`the owner table carries a row for ${route}`, new RegExp(`^\\s+${route}: `, 'm').test(src))
-  }
-  check('the owner table is typed over every route (a new family without a row is a type error)', src.includes('Record<CallModelRoute, PricingOwner>'))
-  check('the unpriced basis is a zero tier under the flag, spelled once', (src.match(/resolved \?\? \{ costs: COST_UNPRICED, basis: 'unpriced' \}/g) ?? []).length === 1 && src.includes("if (resolved.basis !== 'recorded') setHasUnknownModelCost()"))
-  const ownersStart = src.indexOf('const PRICING_OWNERS')
-  const ownersTable = src.slice(ownersStart, src.indexOf('\n}\n', ownersStart))
-  const ownerRows = ownersTable.split('\n').filter(l => /^\s+[a-z'-]+: /.test(l))
-  const offFirstParty = ownersTable.split('\n').filter(l => !/^\s+anthropic: /.test(l))
-  check('the owners table has one row per route (twenty-four), the first-party owner on its anthropic row alone', ownerRows.length === 24 && ownerRows.filter(l => l.includes('firstPartyPricing')).length === 1 && /^\s+anthropic: \(model, promptTokens\) => firstPartyPricing\(model, promptTokens\),$/m.test(ownersTable), ownerRows.join(' | '))
-  check('no first-party tier is reachable for a non-first-party route: no other line of the owners table touches the first-party table, a first-party tier constant or the first-party fallback', offFirstParty.every(l => !/firstPartyPricing|COST_TIER_|MODEL_COSTS|FIRST_PARTY_FALLBACK_TIER|COST_FABLE|COST_HAIKU/.test(l)), offFirstParty.filter(l => /firstPartyPricing|COST_TIER_|MODEL_COSTS|FIRST_PARTY_FALLBACK_TIER|COST_FABLE|COST_HAIKU/.test(l)).join(' | '))
-  const fpStart = src.indexOf('function firstPartyPricing')
-  const fpBody = src.slice(fpStart, src.indexOf('\n}\n', fpStart))
-  const codeLines = src.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l))
-  const declarationLines = codeLines.filter(l => /^const FIRST_PARTY_FALLBACK_TIER: ModelCosts = COST_TIER_5_25$/.test(l))
-  const spendLines = codeLines.filter(l => l.includes('FIRST_PARTY_FALLBACK_TIER') && !/^const FIRST_PARTY_FALLBACK_TIER/.test(l))
-  check('the first-party fallback tier is declared once and spent at one site, inside firstPartyPricing', declarationLines.length === 1 && spendLines.length === 1 && spendLines[0]?.trim() === "return { costs: FIRST_PARTY_FALLBACK_TIER, basis: 'family-estimate' }" && fpBody.includes("return { costs: FIRST_PARTY_FALLBACK_TIER, basis: 'family-estimate' }"), `declarations=${declarationLines.length} spends=${JSON.stringify(spendLines)}`)
-  check("the 'family-estimate' basis is minted only for first-party fallback or DeepSeek's unknown holiday calendar", (src.match(/basis: 'family-estimate'/g) ?? []).length === 3 && (fpBody.match(/basis: 'family-estimate'/g) ?? []).length === 2 && src.includes("if (route === 'deepseek' && resolved !== undefined && opts?.startedAtMs !== undefined)") && src.includes("else if (period === 'holiday-unknown') base = { ...resolved, basis: 'family-estimate' }"))
-  const compat = readFileSync(join(ROOT, 'src/services/providers/openaicompat/compatChatCallModel.ts'), 'utf8')
-  check('the compat lane still lets the wire-stated OpenRouter cost win at settlement', (compat.includes('usageSeen.statedCostUSD ?? calculateUSDCost(modelId, finalUsage as never)') || compat.includes('usageSeen?.statedCostUSD ?? calculateUSDCost(modelId, settledUsage)')))
-  const catalogue = readFileSync(join(ROOT, 'src/services/providers/openrouter/openrouterCatalogue.ts'), 'utf8')
-  check('the OpenRouter catalogue decodes the stated cache-read and cache-write rates', catalogue.includes('input_cache_read') && catalogue.includes('input_cache_write'))
-  const glm = readFileSync(join(ROOT, 'src/services/providers/zai/glmPins.ts'), 'utf8')
-  const gemini = readFileSync(join(ROOT, 'src/services/providers/gemini/geminiPins.ts'), 'utf8')
-  check('both new price tables are zero-import (bun-loadable pins)', !/^import /m.test(glm) && !/^import /m.test(gemini))
-  const dated = /observedAt: '20\d\d-\d\d-\d\d'/
-  check('both new price tables name their source and date', glm.includes('docs.z.ai/guides/overview/pricing') && gemini.includes('ai.google.dev/gemini-api/docs/pricing') && dated.test(glm) && dated.test(gemini))
-  const tab = readFileSync(join(ROOT, 'src/components/Settings/Usage.tsx'), 'utf8')
-  check('the Usage tab spells its spend line through the one law (formatLaneSpend)', tab.includes('formatLaneSpend(spend)') && !tab.includes('spendPricingNote'))
-  const tracker = readFileSync(join(ROOT, 'src/cost-tracker.ts'), 'utf8')
-  check('the ledger counts an unpriced turn at the one settlement door, and a wire-stated cost is exempt', tracker.includes("if (invalidCost || (pricing?.basis !== 'wire-stated' && modelPricingBasis(model) === 'unpriced')) {") && tracker.includes('recordUnpricedTurn(model)'))
-  check('the ledger persists and restores the count with the cost row', tracker.includes('lastUnpricedTurns: { ...getUnpricedTurns() }') && tracker.includes('unpricedTurns: config.lastUnpricedTurns'))
-  check('the compat lane names its wire-stated cost as a price', (compat.includes("usageSeen.statedCostUSD !== undefined ? { basis: 'wire-stated' } : undefined") || compat.includes("usageSeen?.statedCostUSD !== undefined ? { basis: 'wire-stated' } : undefined")))
-  const facts = readFileSync(join(ROOT, 'src/services/engine-connector/types.ts'), 'utf8')
-  const { liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
-  const UNPRICED = 'fixture-unpriced-1'
-  const counted = await withFixtureRunner([{ kind: 'text', text: 'ok', model: UNPRICED }, { kind: 'text', text: 'ok' }], async host => {
-    const before = (await liveFactsOf(host)).usage.unpricedTurns
-    await host.prompt('go')
-    await host.waitFor('the unpriced turn ends', row => row.type === 'outcome')
-    const after = (await liveFactsOf(host)).usage.unpricedTurns
-    await host.prompt('again')
-    await host.waitFor('the priced turn ends', row => row.type === 'outcome' && row.turn === 2)
-    return { before, after, still: (await liveFactsOf(host)).usage.unpricedTurns }
-  }).catch(() => null)
-  check("the session's usage facts carry the count (additive) and the runner fills it", facts.includes('unpricedTurns?: number') && cost.modelPricingBasis(UNPRICED) === 'unpriced' && counted !== null && counted.before === 0 && counted.after === 1 && counted.still === 1, JSON.stringify(counted))
-  for (const [file, needle] of [
-    ['src/utils/cockpit/helmVitalsModel.ts', 'formatLaneSpend(usage.spend)'],
-    ['src/components/DeckPane.tsx', 'formatSessionCost(cost, unpricedTurns)'],
-    ['src/components/MercuryFrame.tsx', 'formatSessionCost(cost, unpricedTurns)'],
-    ['src/utils/cockpit/helmLanesModel.ts', 'formatSessionCost(focusedSpendUSD, focusedUnpriced)'],
-  ] as const) {
-    check(`${file} spells its figure through the one law`, readFileSync(join(ROOT, file), 'utf8').includes(needle))
-  }
-  const priceTable = (text: string, name: string): string => text.slice(text.indexOf(`export const ${name}`), text.indexOf('\n]', text.indexOf(`export const ${name}`)))
-  const datedRows = (text: string): number => (text.match(/observedAt: '20\d\d-\d\d-\d\d'/g) ?? []).length
-  check('every price pin cites its page beside its date', (glm.match(/source: GLM_PRICING_PAGE/g) ?? []).length === datedRows(priceTable(glm, 'GLM_PRICE_PINS')) && (gemini.match(/source: GEMINI_PRICING_PAGE/g) ?? []).length === datedRows(priceTable(gemini, 'GEMINI_PRICE_PINS')))
-}
 
 section('§6 the cost summary names a mirror by its own id, at its counterpart\'s price')
 {

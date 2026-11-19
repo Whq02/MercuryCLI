@@ -66,8 +66,6 @@ if (!JS_ROAD) {
   const X = limitsMod.GENERIC_IMAGE_LIMITS
   check('generic: the strictest figures, unchanged for the routes without documented tiers (8000 px · 2000 px above 20, count rule · 5 MB partner cap)', X.maxSidePx === 8000 && X.manyImages?.maxSidePx === 2000 && X.manyImages.fromFirstSend === false && X.maxBase64Bytes === 5 * MiB)
   check('the strictest base64 ceiling is the generic family\'s', limitsMod.STRICTEST_IMAGE_MAX_BASE64_BYTES === 5 * MiB)
-  const source = await import('node:fs').then(fs => fs.readFileSync(join(ROOT, 'src', 'constants', 'apiLimits.ts'), 'utf8'))
-  check('no harness-invented width survives (no IMAGE_MAX_WIDTH owner)', !/IMAGE_MAX_WIDTH|IMAGE_MAX_HEIGHT/.test(source))
 
   section('§2 a model id resolves to its family and tier')
   check('claude-sonnet-5 → anthropic', resizer.imageLimitsForModel('claude-sonnet-5').family === 'anthropic')
@@ -371,8 +369,6 @@ section('§8 the paste chord per platform')
   check('Windows binds alt+v to the image paste', chordOn('win32') === 'alt+v', chordOn('win32'))
   check('macOS binds ctrl+v', chordOn('darwin') === 'ctrl+v', chordOn('darwin'))
   check('Linux binds ctrl+v', chordOn('linux') === 'ctrl+v', chordOn('linux'))
-  const hint = await import('node:fs').then(fs => fs.readFileSync(join(ROOT, 'src', 'hooks', 'useClipboardImageHint.ts'), 'utf8'))
-  check('the focus-regain hint says the clipboard holds an image and which chord attaches it', /clipboard holds an image — \$\{chordRef\.current\} attaches it/.test(hint))
   const docs = await import('node:fs').then(fs => fs.readFileSync(join(ROOT, 'docs', 'SESSIONS.md'), 'utf8'))
   check('the docs say the key per platform', /ctrl\+v on macOS and Linux/.test(docs) && /alt\+v on Windows/.test(docs))
 }

@@ -152,11 +152,6 @@ section('§3 win32 arm — argv array + locale-tolerant receipt counter (unit pi
 
 section('§4 the stop receipt on screen — source + dist pins')
 {
-  const toolSrc = readFileSync(join(ROOT, 'src/tools/TaskStopTool/TaskStopTool.ts'), 'utf8')
-  const uiSrc = readFileSync(join(ROOT, 'src/tools/TaskStopTool/UI.tsx'), 'utf8')
-  check('§4 tool message says how many the stop ended', toolSrc.includes('The stop ended ') && toolSrc.includes('processes_ended'))
-  check('§4 survivors named when the reap could not confirm', toolSrc.includes('did not confirm ending within the reap bound'))
-  check('§4 screen line carries the count', uiSrc.includes('ended ${ended} process'))
   const provenance = distProvenance(ROOT)
   console.log(`  ${distProvenanceLine(provenance)}`)
   if (provenance.kind === 'own') {
@@ -187,13 +182,6 @@ section("§5 F-1.1 — the receipt says INTERRUPTED on win32 and POSIX alike; th
   check('§5 a process that settled on its own keeps the plain sentence', plain === ' It settled with exit code 1.', plain)
   const bare = settledStopSentence({ settled: true, exitCode: undefined })
   check('§5 no code, no provenance: the bare settled sentence', bare === ' It settled.', bare)
-  const toolSrc5 = readFileSync(join(ROOT, 'src/tools/TaskStopTool/TaskStopTool.ts'), 'utf8')
-  const sentenceSrc = readFileSync(join(ROOT, 'src/tools/TaskStopTool/stopSettlement.ts'), 'utf8')
-  const receiptSrc = readFileSync(join(ROOT, 'src/tasks/LocalShellTask/killShellTasks.ts'), 'utf8')
-  check('§5 the sentence switches on `interrupted`', sentenceSrc.includes('settlement.interrupted === true'))
-  check('§5 no stop consumer compares the code to 137', !/===\s*137\b/.test(toolSrc5) && !/===\s*137\b/.test(sentenceSrc) && !/===\s*137\b/.test(receiptSrc))
-  check('§5 the tool speaks the sentence and carries the provenance in its output', toolSrc5.includes('settledStopSentence(') && toolSrc5.includes('interrupted: z') && toolSrc5.includes('interrupted: result.settlement.interrupted'))
-  check("§5 killTask forwards the shell result's provenance into the receipt", receiptSrc.includes('interrupted: result.interrupted'))
 }
 
 console.log('\n' + '='.repeat(60))

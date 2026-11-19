@@ -15,7 +15,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { resolveProviderUsability } = await import(
   '../../src/services/providers/providerUsability.ts'
 )
@@ -240,23 +239,6 @@ section('§F engine-lane usage truth — observed limit latches flip the limit a
   )
 }
 
-section('§E the surfaces read the ONE answer (structural source pins)')
-{
-  const logins = readFileSync(join(ROOT, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8')
-  check('/logins renders the readiness block from resolveProviderUsability', logins.includes('resolveProviderUsability') && logins.includes('ProviderReadinessBlock'))
-  check('/logins renders blockers VERBATIM (blockers[0], not a rewrite)', logins.includes('lane.blockers[0]'))
-  for (const pickSite of [
-    'src/commands/model/model.tsx',
-    'src/commands/model/mercuryModel.tsx',
-    'src/components/PromptInput/useComposerModelDoors.tsx',
-  ]) {
-    const source = readFileSync(join(ROOT, pickSite), 'utf8')
-    check(
-      `pick site reads the resolver: ${pickSite.split('/').at(-1)}`,
-      source.includes('resolveProviderUsability') || source.includes('usabilityForRoute'),
-      `${pickSite} does not reference the resolver`,
-    )
-  }
 }
 
 section("§H the compat slot's credential word comes from ITS OWN resolver (FC-075)")

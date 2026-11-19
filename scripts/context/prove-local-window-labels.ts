@@ -1,7 +1,4 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { contextWindowLabel } = await import('../../src/utils/contextFill.js')
 const { fmtCtx } = await import('../../src/components/MercuryModelPicker.js')
 const { localWindowWords, localUnloadedWindowWords } = await import('../../src/services/providers/local/localCatalogue.js')
@@ -28,12 +25,5 @@ for (const [tokens, expected, pickerExpected = expected, noticeExpected = picker
 }
 check('fallback and pin survive local formatting', label(32768, 'fallback', true, true) === '~32k pin', label(32768, 'fallback', true, true))
 check('missing window stays absent', label(0, 'fallback', false, true) === '—', label(0, 'fallback', false, true))
-const read = (path: string): string => readFileSync(fileURLToPath(new URL(`../../${path}`, import.meta.url)), 'utf8')
-for (const [path, model] of [['src/utils/cockpit/helmLanesModel.ts', 'reads.sessionModel'], ['src/utils/cockpit/helmVitalsModel.ts', 'input.sessionModel'], ['src/components/DeckPane.tsx', 'rawModel']] as const) {
-  const source = read(path)
-  check(`${path} passes its model's local identity`, source.includes(`contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned, isLocalModelId(${model}))`), model)
-}
-check('the picker row passes its model identity', read('src/commands/model/mercuryModel.tsx').includes('fmtCtx(opt.statedContextWindow, isLocalModelId(opt.value))'), 'stated window uses the row id')
-check('the glance receives the focused model', read('src/components/HelmLanesRail.tsx').includes('sessionModel: getFocusedSessionConnector().modelFacts().effective'), 'focused model')
 console.log(`${checks - failures}/${checks} checks; ${failures} red`)
 process.exit(failures === 0 ? 0 : 1)

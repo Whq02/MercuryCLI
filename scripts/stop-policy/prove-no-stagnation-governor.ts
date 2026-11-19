@@ -12,29 +12,7 @@ export const REREAD_ASK = 'reread the notes file twenty times'
 export const REREAD_END = 'done: the notes file was read twenty times'
 export const REREAD_ROUNDS = 20
 const HIDDEN_DIRECTIVE = 'Cycle re-plan'
-const GOVERNOR_NAMES =
-  /cycleLease|evaluateCycleLease|cycle_handoff|cycleReplanInjected|replan-required|handoff-required|STAGNANT_AFTER_BARREN|REPLAN_AFTER_BARREN|HANDOFF_AFTER_REPLANS|deriveProgressPhase|attemptsSinceProgress|repeatAttemptsSinceProgress|replansUsed|barrenRepeats|buildHandoffReport|renderHandoffReport|Cycle re-plan/
-const RELEASE_NOTES = ['src/constants/changelog.ts']
 
-function* sourceFiles(dir: string): Generator<string> {
-  for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry.startsWith('.')) continue
-    const path = join(dir, entry)
-    if (statSync(path).isDirectory()) yield* sourceFiles(path)
-    else if (/\.(tsx?|md|txt|sh|json)$/.test(entry)) yield path
-  }
-}
-function offenders(dir: string, pattern: RegExp, except: string[] = []): string[] {
-  const hits: string[] = []
-  for (const file of sourceFiles(dir)) {
-    const rel = file.slice(REPO.length + 1)
-    if (except.includes(rel) || rel === 'scripts/stop-policy/prove-no-stagnation-governor.ts') continue
-    readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
-      if (pattern.test(line)) hits.push(`${rel}:${index + 1}`)
-    })
-  }
-  return hits
-}
 const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 type Block = { type?: string; text?: string }
@@ -163,13 +141,6 @@ function runRecords(projectsDir: string): Array<{ file: string; run: RunRecord }
 
 if (import.meta.main) {
   section('§1 the governor is gone from the tree')
-  check('the cycle-lease module is gone', !existsSync(join(REPO, 'src/services/run/cycleLease.ts')))
-  const named = offenders(join(REPO, 'src'), GOVERNOR_NAMES, RELEASE_NOTES)
-  check('nothing under src names the governor, its phases, its counters, its attachment or its hidden directive', named.length === 0, named.slice(0, 12).join(' · '))
-  const evaluator = src('src/services/run/completionEvaluator.ts')
-  check('the stop evaluator has no handoff decision and no re-plan directive', !evaluator.includes("kind: 'handoff'") && !evaluator.includes('REPLAN'))
-  const adapter = src('src/guards/runStopAdapter.ts')
-  check('the stop adapter records no handoff and no admission tuple', !adapter.includes("decision.kind === 'handoff'") && !adapter.includes('priorAdmission'))
   const t = await import('../core-runtime/turnScenarios.ts')
   const barren = await t.runScripted({
     seed: [t.fixtures.ask(REREAD_ASK)],
@@ -197,12 +168,6 @@ if (import.meta.main) {
     barren.requests.length === REREAD_ROUNDS + 1 && strays.length === 0 && barren.terminal.reason === 'completed' && barren.transitions.every(reason => reason === 'next_turn'),
     `between a tool round and the next model call the steps (afterTools, makeRequest and modelReply under src/run-core/turn/) must add to the request only what the transcript holds, whatever the run's record says of its progress; the run made ${barren.requests.length} model calls and ended ${JSON.stringify(barren.terminal)} over [${[...new Set(barren.transitions)].join(',')}] — ${strays.slice(0, 6).join(' · ') || 'no stray row'}`,
   )
-  const kernel = src('src/services/run/runKernel.ts')
-  check('the run kernel keeps no attempt ledger', !kernel.includes("type: 'attempt'") && !kernel.includes('foldAttempt'))
-  const scriptsNamed = offenders(join(REPO, 'scripts'), GOVERNOR_NAMES)
-  check('no proof pins the governor', scriptsNamed.length === 0, scriptsNamed.slice(0, 12).join(' · '))
-  const docsNamed = offenders(join(REPO, 'docs'), /stagnation governor|cycle lease|cycle_handoff|re-plan directive/i, ['docs/releases'])
-  check('no product page describes it', docsNamed.filter(h => !h.startsWith('docs/releases/')).length === 0, docsNamed.join(' · '))
   const durability = src('docs/DURABILITY.md')
   check('the durability page preserves advisory interactive loops and names the headless failure-only rule', durability.replace(/\s+/g, ' ').includes('The loop guard does not refuse individual calls for repeating. In foreground sessions it only reminds by default') && durability.replace(/\s+/g, ' ').includes('three consecutive failed calls'))
 

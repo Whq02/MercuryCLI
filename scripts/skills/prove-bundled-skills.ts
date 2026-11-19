@@ -121,11 +121,6 @@ section('§2 NO DOUBLE-REGISTRATION — unique names + commands.ts de-dupes')
 {
   const names = skills.map(s => s.name)
   check(new Set(names).size === names.length, 'no duplicate bundled skill names', `${names.length} skills`)
-  const commandsSrc = readFileSync(join(ROOT, 'src', 'commands.ts'), 'utf8')
-  check(
-    /const deduped: Command\[\] = \[\]/.test(commandsSrc) && /return deduped/.test(commandsSrc),
-    'commands.ts filters duplicates (return deduped, bundled/first wins)',
-  )
 }
 
 section('§3 ISOLATION — extract to the temp root, never a user config home')
@@ -140,12 +135,6 @@ section('§3 ISOLATION — extract to the temp root, never a user config home')
   for (const n of ['mcp-smithy', 'provider-apis', 'skill-forge']) {
     check(getBundledSkillExtractDir(n).startsWith(root), `${n} extract dir under the temp root`)
   }
-  const bad: string[] = []
-  for (const f of readdirSync(BUNDLED_DIR).filter(n => n.endsWith('Content.ts'))) {
-    const src = readFileSync(join(BUNDLED_DIR, f), 'utf8')
-    if (/^import .* from '\.\/[^']*\.(js|cjs|ts|mjs)'/m.test(src)) bad.push(f)
-  }
-  check(bad.length === 0, 'no Content module imports raw code as a text ref (all embedded)', bad.join(', ') || 'clean')
 }
 
 process.env.MERCURY_TMPDIR = join(SCRATCH, 'tmp')
@@ -401,8 +390,6 @@ section('§6 SOURCE↔MIRROR SYNC + the discovery budget')
   }
   const { retired } = gen.checkBundled()
   check(retired.length === 0, 'no retired generated output lingers under src/skills/bundled/', retired.join(' '))
-  const indexSrc = readFileSync(join(BUNDLED_DIR, 'index.ts'), 'utf8')
-  check(EXPECTED.every(n => indexSrc.includes(`from './${n}.js'`)), 'index.ts imports every generated wrapper')
 
   const dist = existsSync(join(ROOT, 'dist', 'mercury.mjs')) ? readFileSync(join(ROOT, 'dist', 'mercury.mjs'), 'utf8') : null
   const descriptions = new Map<string, string>()

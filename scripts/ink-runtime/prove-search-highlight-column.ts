@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -87,13 +86,6 @@ section('§2 the defect pin: the styled cells land ON the words — never in the
   check('CONTROL (the disease): a zero col-offset lands the block in the rail, left of the words', changed2.length > 0 && changed2[0] === positions[0]!.col && changed2[0]! < 10, j({ changed2 }))
 }
 
-section('§3 the seek path populates the column offset')
-{
-  const vml = readFileSync(join(ROOT, 'src/components/VirtualMessageList.tsx'), 'utf8')
-  check('VirtualMessageList hands the overlay the scanned element’s screen-left', vml.includes('colOffset: elementScreenLeft(el)'))
-  const overlay = readFileSync(join(ROOT, 'src/ink/root/overlay-pass.ts'), 'utf8')
-  check('the overlay pass carries colOffset into the apply', overlay.includes('sp.rowOffset, sp.colOffset, sp.currentIdx'))
-}
 
 console.log(failures === 0 ? '\nprove-search-highlight-column: ALL LAWS HOLD' : `\nprove-search-highlight-column: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

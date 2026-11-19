@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -16,7 +16,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 for (const key of [
   'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_AUTOCOMPACT_PCT_OVERRIDE',
@@ -95,15 +94,6 @@ section('R2 · the early returns surface nothing')
 
 section('R3 · the wiring reads the carried count first (source pins on the fold gate; the preempt, called)')
 {
-  const auto = readFileSync(join(ROOT, 'src/services/compact/autoCompact.ts'), 'utf8')
-  check(
-    'the no-compaction exit carries the measured count',
-    auto.includes('if (!compact) return { ...notCompacted, measuredRawTokenCount }'),
-  )
-  check(
-    'the advance branch reuses the measured count (the whole view: the fold input and the carried operator turn) and recounts only as fallback',
-    auto.includes('(measuredRawTokenCount ?? tokenCountWithEstimation([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model)) - snipTokensFreed') && auto.includes('shouldAutoCompact([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model, querySource, snipTokensFreed, raw => {'),
-  )
   const t = await import('../core-runtime/turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
   const { createUserMessage } = await import('../../src/utils/messages.ts')

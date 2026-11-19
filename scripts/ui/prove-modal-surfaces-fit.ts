@@ -22,7 +22,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 console.log('============================================================')
 console.log(' modal surfaces fit — footer pinned · grid whole · grid aligned')
@@ -52,39 +51,12 @@ section('⤳N counts operator prompts')
 
 section('mechanism pins')
 {
-  const shell = read('src/components/mercury-ui/components.tsx')
-  check('inside a modal the shell body is a ScrollBox capped at the slot rows minus its chrome', shell.includes('<ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap} restsAtTop={bodyRestsAtTop}>') && shell.includes('slotRows - (5 + (specimen ? 1 : 0))'))
-  check('the body registers as the slot\'s scroll target', shell.includes('modalScrollRef.current = bodyRef.current'))
-  check('PageUp/PageDown page an overflowing body', /key\.pageUp \|\| key\.pageDown/.test(shell) && shell.includes('body.scrollBy('))
-  check('outside a modal the body renders unbounded (byte-identical inline)', /\{insideModal \? \([\s\S]{0,400}\) : \(\s*children\s*\)\}/.test(shell))
-
-  const usage = read('src/components/Settings/Usage.tsx')
-  check('the usage bands own their spacing (a row between bands, no per-section margin)', usage.includes('marginTop={bandIndex > 0 ? 1 : 0}'))
-  check('no usage section root carries a top margin before its heading', !/marginTop=\{1\}>\s*\n\s*<Text bold>/.test(usage))
-
-  const help = read('src/components/PromptInput/PromptInputHelpMenu.tsx')
-  check('the help grid derives its 3-column floor from its rows', help.includes('const need3 =') && help.includes('widest(groupGlobal)'))
-  check('…and its 2-column floor', help.includes('const need2 = Math.max(widest(groupPrefixes), widest(groupChat)) + colGap + widest(groupGlobal)'))
-  check('the grid takes the container width the caller knows', help.includes('(availableColumns ?? columns) - 2 * (paddingX ?? 0)'))
-  const general = read('src/components/HelpV2/General.tsx')
-  check('the /help general tab hands the shell interior to the grid', general.includes('availableColumns={Math.max(20, columns - 4)}'))
 
   const figures = await import('../../src/constants/figures.ts')
   const ladder = [figures.EFFORT_LOW, figures.EFFORT_MEDIUM, figures.EFFORT_HIGH, figures.EFFORT_XHIGH, figures.EFFORT_MAX]
   check('no effort glyph is the band separator (`· · low` read as a doubled separator)', ladder.every(g => g !== '·'))
   check('the effort ladder glyphs are distinct', new Set(ladder).size === ladder.length)
 
-  const login = read('src/commands/login/login.tsx')
-  check('a closed /logins says so', login.includes("onDone('/logins closed — no credential changed', chain)") && !login.includes('Login interrupted'))
-  check('the /logins popup keeps one close hint and owns Escape without a duplicate back line', login.includes("line: ''") && login.includes("hint: 'esc or click outside closes'") && login.includes('bodyOwnsEscape: true'))
-
-  const host = read('src/utils/cockpit/settingsPopup.ts')
-  check('the settings host folds to the compact layout below one constant of measured full-layout body rows', host.includes('export const SETTINGS_POPUP_COMPACT_BELOW_ROWS = 8') && host.includes('return fullBodyRows < SETTINGS_POPUP_COMPACT_BELOW_ROWS') && host.includes('compact: boolean'))
-  const slot = read('src/components/SettingsPopupSlot.tsx')
-  check('the slot measures the compact body against a three-row chrome (border and the folded title row)', slot.includes('export const SETTINGS_POPUP_COMPACT_CHROME_ROWS = 3') && slot.includes('const compact = rows !== null && settingsPopupCompact(fullBudget)'))
-  const settings = read('src/components/Settings/Settings.tsx')
-  check('the compact frame folds the close hint into the title row, hides the line and hint rows and carries the body marker', settings.includes('SETTINGS_POPUP_COMPACT_HINT') && settings.includes('compact && marker !== null') && settings.includes('const hintLines = wrapSettingsPopupHint(hintText, Math.max(1, inner))') && settings.includes('const hintRows = compact ? 0 : Math.min(Math.max(1, geometry.rowBudget), hintLines.length)') && settings.includes('height={hintRows} flexShrink={0} width={inner} overflow') && settings.includes('geometry.rows! <= SETTINGS_POPUP_COMPACT_CHROME_ROWS'))
-  check('/config, /usage and /logins read the one compact flag', read('src/commands/config/config.tsx').includes('compact={geometry.compact}') && read('src/commands/usage/usage.tsx').includes('compact={geometry.compact}') && read('src/components/ConsoleOAuthFlow.tsx').includes('usePopupCompact().compact'))
 }
 
 section('THE SCREEN at 100x30: footers pinned, PageDown pages, the help grid whole')

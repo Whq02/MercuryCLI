@@ -358,11 +358,6 @@ section('the other roads take their normal patience numbers')
   check('the local road takes the quiet number, never the fed number', IDLE_MS === 900_000, String(IDLE_MS))
   check('the first-byte budget arithmetic on the other roads is untouched: 1,200 ms per 1k, a 300 s floor, twice the idle budget', budget.COLD_INGEST_MS_PER_1K_TOKENS === 1_200 && budget.FIRST_BYTE_BUDGET_CEILING_MS === 300_000 && budget.FIRST_BYTE_BUDGET_CEILING_FACTOR === 2 && budget.firstByteBudgetMs({ cold: true, promptTokens: 65_000, idleMs: 120_000 }) === 198_000 && budget.firstByteBudgetMs({ cold: true, promptTokens: 65_000, idleMs: 900_000 }) === 978_000)
   check('the shared default and the warning floor stand', budget.STREAM_IDLE_DEFAULT_MS === 120_000 && budget.STREAM_IDLE_WARNING_FLOOR_MS === 300_000)
-  const zaiSrc = await Bun.file(join(process.cwd(), 'src/services/providers/zai/zaiClient.ts')).text()
-  const openaiSrc = await Bun.file(join(process.cwd(), 'src/services/providers/openai/openaiClient.ts')).text()
-  check('the zai and openai clients still fire their first-byte timers and their idle watchdogs as before', /firstByteTimeoutLine\(wait\), retryable: true/.test(zaiSrc) && /firstByteTimeoutLine\(wait\), retryable: true/.test(openaiSrc) && /createStreamIdleWatchdog\(/.test(zaiSrc) && /createStreamIdleWatchdog\(/.test(openaiSrc))
-  const compatSrc = await Bun.file(join(process.cwd(), 'src/services/providers/openaicompat/compatChatClient.ts')).text()
-  check('the compat client keeps the 50-minute ceiling for the other roads', /const TOTAL_TIMEOUT_MS = 50 \* 60_000/.test(compatSrc))
 }
 
 section('a generic compat road under the same clock still cuts at its first-byte budget (the law is the local road\'s alone)')

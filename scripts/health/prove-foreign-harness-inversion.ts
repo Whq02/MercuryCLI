@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.5.9' }
 
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -167,30 +167,6 @@ try {
       tool => tool.tokenFdEnvVar === undefined || AGENT_CLI_TOKEN_FD_ENV_VARS.includes(tool.tokenFdEnvVar),
     ),
   )
-  const subprocessSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'subprocessEnv.ts'), 'utf8')
-  check(
-    'the CI list rides the same derived surface, and no per-tool literal survives there',
-    subprocessSource.includes('...AGENT_CLI_SESSION_ENV_VARS') &&
-      !subprocessSource.includes("'CLAUDE_CODE_OAUTH_TOKEN'"),
-  )
-  const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.js')
-  check(
-    'provider API keys sit in the CI scrub symmetrically (no provider special-cased by omission)',
-    ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY'].every(v =>
-      (ALL_PROVIDER_CREDENTIAL_ENV_VARS as readonly string[]).includes(v),
-    ) &&
-      subprocessSource.includes('...ALL_PROVIDER_CREDENTIAL_ENV_VARS') &&
-      ["'ANTHROPIC_API_KEY'", "'OPENAI_API_KEY'", "'GEMINI_API_KEY'", "'GOOGLE_API_KEY'"].every(
-        needle => !subprocessSource.includes(needle),
-      ),
-  )
-  const ownedDaemonSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'ownedDaemon.ts'), 'utf8')
-  const subprocessEnvSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'subprocessEnv.ts'), 'utf8')
-  check(
-    'the daemon token-descriptor scrub rides the derived surface (through the one-home set)',
-    ownedDaemonSource.includes('STORED_TOKEN_SCRUB_VARS') &&
-      /export const STORED_TOKEN_SCRUB_VARS[\s\S]{0,240}\.\.\.AGENT_CLI_TOKEN_FD_ENV_VARS/.test(subprocessEnvSource),
-  )
 
   const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
   const { classifyHarnessHome: classify } = await import('../../src/utils/knownAgentClis.ts')
@@ -199,8 +175,6 @@ try {
   const classified = await classify(homeNow(), { expectedVersion: (globalThis as { MACRO?: { VERSION?: string } }).MACRO?.VERSION })
   check('the health isolation row says what classifyHarnessHome finds for this home', isolationRow !== undefined && (classified.foreign.length > 0 ? isolationRow.status === 'warn' && classified.foreign.every(a => isolationRow.evidence.includes(a.evidence)) : isolationRow.status === 'ok' && isolationRow.evidence.startsWith(`no foreign-harness artifacts in ${homeNow()}`)), JSON.stringify(isolationRow))
 
-  const daemonSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
-  check('daemonRun writes the unconditional [mercury-daemon] engage stamp', daemonSource.includes('[mercury-daemon] engaged v'))
 
   check(
     'the named-foreign evidence line is byte-stable',

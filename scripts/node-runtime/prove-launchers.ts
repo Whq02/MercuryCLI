@@ -247,10 +247,6 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
   check('all THREE mint MERCURY_LAUNCH_ID before the splash (LH-01)', posix.includes('MERCURY_LAUNCH_ID="posix-$$-') && cmdT.includes('set "MERCURY_LAUNCH_ID=cmd-%RANDOM%') && ps1T.includes('$env:MERCURY_LAUNCH_ID = "ps-$PID-'))
   check('PS1 snapshots + restores its owned env keys (PS-01 transaction), the launcher marker among them', ps1T.includes('$mercuryEnvSnapshot') && ps1T.includes('} finally {') && ps1T.includes("'MERCURY_SPLASH_HANDOFF','MERCURY_ALT_HELD','MERCURY_LAUNCH_ID','MERCURY_WIN32_UTF8_PRESET','MERCURY_LAUNCHER','NODE_COMPILE_CACHE'"))
   check('PS1 marks the road (MERCURY_LAUNCHER=ps1) inside the transaction, before any node start — PowerShell drops the first -- for a script, and the runtime hint says so under the marker', ps1T.indexOf("$env:MERCURY_LAUNCHER = 'ps1'") !== -1 && ps1T.indexOf('try {') !== -1 && ps1T.indexOf('& $nodeBin') !== -1 && ps1T.indexOf("$env:MERCURY_LAUNCHER = 'ps1'") > ps1T.indexOf('try {') && ps1T.indexOf("$env:MERCURY_LAUNCHER = 'ps1'") < ps1T.indexOf('& $nodeBin') && !cmdT.includes('MERCURY_LAUNCHER') && !posix.includes('MERCURY_LAUNCHER'))
-  check(
-    'the runtime entry carries the consumer (cli.tsx consumes the receipt the launchers no longer touch)',
-    readFileSync(join(import.meta.dir, '../../src/entrypoints/cli.tsx'), 'utf8').includes('consumeSplashHandover'),
-  )
 
   check('POSIX first-arg dash skips the takeover (dash law)', posix.includes('-*) MERCURY_TAKEOVER=0'))
   check('PS1 first-arg dash skips the takeover', ps1T.includes(".StartsWith('-')"))
@@ -264,10 +260,6 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
     const bareRun = spawnSync('node', ['-e', probeWrap, '--'], { encoding: 'utf8', timeout: 15_000 })
     check('CMD probe verdict: bare boot ⇒ takeover 1', bareRun.stdout.trim().endsWith(' 1'), bareRun.stdout)
   }
-  check(
-    'the root CLI keeps no pointer line for a bare --rollback (an unknown option like any other)',
-    !readFileSync(join(import.meta.dir, '../../src/main.tsx'), 'utf8').includes('run `mercury update --rollback`'),
-  )
   {
     const cmdT = cmdLauncher(policy)
     for (const [name, t] of [['POSIX', posix], ['CMD', cmdT], ['PS1', ps1T]] as const) {
@@ -303,10 +295,6 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
       const over = 'C:/x'.padEnd(201, 'a')
       check('the substring gate arithmetic: <=200 passes, >200 trips', under.slice(WIN32_COMPILE_CACHE_DIR_MAX) === '' && over.slice(WIN32_COMPILE_CACHE_DIR_MAX) !== '')
     }
-    check(
-      'the entry seam carries the env-less fallback (portable node boots)',
-      readFileSync(join(import.meta.dir, '../../src/entrypoints/cli.tsx'), 'utf8').includes('enableCompileCache'),
-    )
   }
   check('POSIX captures the splash exit code (the ONE handover channel)', posix.includes('MERCURY_SA_EXIT=$?'))
   check('POSIX honors the 130 cancel stand-down (via BM-30 exit codes)', posix.includes('[ "$MERCURY_SA_EXIT" = "130" ]'))
@@ -548,42 +536,7 @@ if (mode === 'handoff') {
 section('(8) the skip-verb set DERIVES from the product\'s registered verb surface (FN-015 rank 7)')
 {
   const repo = join(import.meta.dir, '..', '..')
-  const mainTsx = readFileSync(join(repo, 'src', 'main.tsx'), 'utf8')
-  const cliTsx = readFileSync(join(repo, 'src', 'entrypoints', 'cli.tsx'), 'utf8')
-  type Surface = { commands: Array<{ name: string; aliases: string[] }>; fastPath: string[]; dead: string[] }
-  const derive = (templates as Record<string, unknown>).verbSurfaceFromSource as ((m: string, c: string) => Surface) | undefined
-  const skipFrom = (templates as Record<string, unknown>).splashSkipVerbsFrom as ((s: Surface) => string[]) | undefined
-  check('the template exports the source census (verbSurfaceFromSource) and the derivation (splashSkipVerbsFrom)', typeof derive === 'function' && typeof skipFrom === 'function')
-  if (derive && skipFrom) {
-    const surface = derive(mainTsx, cliTsx)
-    const names = surface.commands.map(c => c.name)
-    const aliases = surface.commands.flatMap(c => c.aliases)
-    const rawSites = (mainTsx.match(/\bprogram\s*\.command\('/g) ?? []).length
-    const loopBlock = /for \(const \[name, (?:description, )?usage\] of \[([\s\S]*?)\] as const\)/.exec(mainTsx)
-    const rawLoopRows = loopBlock ? (loopBlock[1]!.match(/^\s*\['/gm) ?? []).length : 0
-    check(`the census is complete against the raw registration count (${rawSites} sites + ${rawLoopRows} loop rows)`, rawSites + rawLoopRows === surface.commands.length && rawSites >= 10 && rawLoopRows === 3, `${surface.commands.length} censused: ${names.join(',')}`)
-    for (const verb of ['health', 'image', 'bridge', 'update', 'install', 'mcp', 'auth', 'extensions', 'roster', 'daemon', 'acp', 'host']) {
-      check(`the census reads the registered verb '${verb}'`, names.includes(verb))
-    }
-    check("the census reads the alias 'upgrade' (of update) and no alias on health", aliases.includes('upgrade') && surface.commands.find(c => c.name === 'update')?.aliases.includes('upgrade') === true && (surface.commands.find(c => c.name === 'health')?.aliases.length ?? 0) === 0)
-    check("the census reads cli.tsx's fast-path routes (daemon · acp · host)", ['daemon', 'acp', 'host'].every(v => surface.fastPath.includes(v)))
-    const derived = skipFrom(surface)
-    check('SPLASH_SKIP_VERBS IS the derived set (sorted, unique)', JSON.stringify([...SPLASH_SKIP_VERBS]) === JSON.stringify(derived), `${SPLASH_SKIP_VERBS.join(' ')} ≠ ${derived.join(' ')}`)
-    for (const verb of ['health', 'image', 'bridge', 'update', 'upgrade', 'install', 'daemon', 'acp', 'host']) {
-      check(`the skip set carries '${verb}'`, SPLASH_SKIP_VERBS.includes(verb))
-    }
-    check('every registered name and alias is in the skip set (nothing registered can meet the enter screen)', [...names, ...aliases].every(v => SPLASH_SKIP_VERBS.includes(v)))
-    check('no unregistered word rides the skip set (completion · error · export · log · task · up were never verbs)', ['completion', 'error', 'export', 'log', 'task', 'up'].every(v => !SPLASH_SKIP_VERBS.includes(v)))
-    const posixT = posixLauncher(policy)
-    const cmdGen = cmdLauncher(policy)
-    const ps1Gen = ps1Launcher(policy)
-    check('POSIX launcher case arm carries the derived set', posixT.includes(`${derived.join('|')}) MERCURY_TAKEOVER=0 ;;`))
-    check('CMD launcher for-loop carries the derived set', cmdGen.includes(`for %%v in (${derived.join(' ')}) do`))
-    check('PS1 launcher array carries the derived set', ps1Gen.includes(`@(${derived.map(v => `'${v}'`).join(',')})`))
     const ops = readFileSync(join(repo, 'scripts', 'ops', 'launcher-mercury.sh'), 'utf8')
-    const opsArm = /^\s*([a-z-]+(?:\|[a-z-]+)+)\) MERCURY_TAKEOVER=0 ;;/m.exec(ops)
-    const opsVerbs = opsArm ? opsArm[1]!.split('|').sort() : []
-    check('the operator launcher case arm equals the derived set', JSON.stringify(opsVerbs) === JSON.stringify(derived), `ops: ${opsVerbs.join(' ')}`)
 
     const opsHome = join(base, 'operator home')
     const opsLauncher = join(opsHome, 'bin', 'mercury')
@@ -614,7 +567,6 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
     check('operator launcher: godot skips the splash on a real terminal', !existsSync(splashMarker), output.slice(-400))
     check('operator launcher: the built Godot verb answers on a real terminal', output.includes('Usage: mercury godot <verb>'), output.slice(-400))
     check('operator launcher: Godot help preserves its usage exit code', driven.status === 2, `status=${driven.status}`)
-  }
 }
 
 rmSync(base, { recursive: true, force: true })

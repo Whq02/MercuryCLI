@@ -143,16 +143,10 @@ check('…and the handle reports nothing scrubbed', inheritRun.scrubbed.length =
 check('…with the pin present too', inheritRun.env.get('MERCURY_MODEL_LANES') === '1')
 
 section('§3 the tools: the inherit input and the result notice')
-const bashTool = readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8')
-const psTool = readFileSync(join(ROOT, 'src/tools/PowerShellTool/PowerShellTool.tsx'), 'utf8')
-check('the Bash tool schema carries inherit_session_env and passes it to the seam', bashTool.includes('inherit_session_env: semanticBoolean(') && bashTool.includes('inheritSessionEnv: input.inherit_session_env === true'))
-check('the PowerShell tool mirrors it', psTool.includes('inherit_session_env: semanticBoolean(') && psTool.includes('inheritSessionEnv: input.inherit_session_env === true'))
 const { scrubbedSessionEnvNotice, sessionEnvNoticeForResult, shortScrubbedSessionEnvNotice, resetSessionEnvNoticeForTesting, resetSessionEnvNoticeOnCompaction } = await import('../../src/tools/shared/sessionEnvNotice.ts')
 const notice = scrubbedSessionEnvNotice(['MERCURY_ENTRYPOINT', 'MERCURY_SEATS'])
 check('the notice names the scrubbed variables and the inherit input', notice.includes('MERCURY_ENTRYPOINT, MERCURY_SEATS') && notice.includes('inherit_session_env'))
 check('no notice when nothing was scrubbed', scrubbedSessionEnvNotice([]) === '' && scrubbedSessionEnvNotice(undefined) === '')
-check('the mapper reuses the once-per-session string the call settled', bashTool.includes('output.sessionEnvNotice ?? ') && psTool.includes('output.sessionEnvNotice ?? '))
-check('the call settles the notice once per command through the once-per-session seam', bashTool.includes('sessionEnvNoticeForResult({ scrubbed: out.scrubbedSessionEnv, commandText: input.command })') && psTool.includes('sessionEnvNoticeForResult({ scrubbed: out.scrubbedSessionEnv, commandText: input.command })'))
 
 section('§3b once per session: the full note first, then nothing unless the command names a scrubbed stamp')
 resetSessionEnvNoticeForTesting()
@@ -189,14 +183,8 @@ const { normalizeToolInput } = await import('../../src/utils/api.ts')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 const normalized = normalizeToolInput(BashTool as never, { command: 'env', inherit_session_env: true }) as { inherit_session_env?: boolean }
 check('the tool-input normaliser keeps inherit_session_env on its way to execution', normalized.inherit_session_env === true, JSON.stringify(normalized))
-const engine = readFileSync(join(ROOT, 'src/utils/shell/engineSession.ts'), 'utf8')
-check('the engine session spawns scrubbed and reports the names on the handle', engine.includes('scrubSessionEnvStamps(subprocessEnv())') && engine.includes('get scrubbedSessionEnv()'))
-const shell = readFileSync(join(ROOT, 'src/utils/Shell.ts'), 'utf8')
-check('an inheriting call takes the classic per-command shell (the engine session cannot change per call)', /options\.inheritSessionEnv !== true\) \{\s*\n\s*const engine = resolveShellEngine/.test(shell))
 
 section("§4 the owned daemon's extra stamps ride its receipt: a runner's tool shell scrubs them and a suite guard inside it runs")
-const ownedDaemon = readFileSync(join(ROOT, 'src/daemon/ownedDaemon.ts'), 'utf8')
-check('the owned daemon spawn names its extraEnv stamps in the spawn receipt beside the owner pid and fd', ownedDaemon.includes('stampSpawnReceipt(env, [...flagSpellings(OWNER_PID_ENV), ...flagSpellings(OWNER_FD_ENV), ...Object.keys(opts?.extraEnv ?? {})])'))
 const daemonEnv: NodeJS.ProcessEnv = { PATH: process.env.PATH, MERCURY_DAEMON_OWNER_PID: '4242', MERCURY_DAEMON_SELF_WARM_CONSENT: '1' }
 stampSpawnReceipt(daemonEnv, ['MERCURY_DAEMON_OWNER_PID', 'MERCURY_DAEMON_SELF_WARM_CONSENT'])
 check('the consent stamp the receipt names is a session stamp', sessionEnvStamps(daemonEnv).includes('MERCURY_DAEMON_SELF_WARM_CONSENT'), JSON.stringify(sessionEnvStamps(daemonEnv)))

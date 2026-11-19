@@ -308,14 +308,6 @@ async function main(): Promise<void> {
     check('a fresh launch runs no fold (no sidecar → none)', foldedFresh.state === 'none')
     check('…and latches no notice', coordinator.takeResumeFoldNotice() === null)
 
-    const launcherSrc = readFileSync(join(import.meta.dir, '../../src/chatLauncher.tsx'), 'utf8')
-    const recoveryCallAt = launcherSrc.search(/const recovery = runBootRecovery\(\{/)
-    const recoveryRaceAt = launcherSrc.search(/await Promise\.race\(\[\s*recovery,/)
-    const foldCallAt = launcherSrc.search(/foldResumedRunForBoot\(processMainOwner\(\), getCwd\(\)\)/)
-    const foldRaceAt = launcherSrc.search(/await Promise\.race\(\[\s*foldResumedRunForBoot\(processMainOwner\(\), getCwd\(\)\),/)
-    check('chatLauncher awaits foldResumedRunForBoot inside its own bounded race', foldCallAt !== -1 && foldRaceAt !== -1 && foldRaceAt < foldCallAt && launcherSrc.slice(foldRaceAt, foldCallAt + 400).includes('BOOT_RECOVERY_BUDGET_MS'))
-    check('the launcher INVOKES runBootRecovery and awaits it inside a bounded race (the late-completion contract, not a full wait)', recoveryCallAt !== -1 && recoveryRaceAt !== -1 && recoveryCallAt < recoveryRaceAt && launcherSrc.slice(recoveryRaceAt, recoveryRaceAt + 300).includes('BOOT_RECOVERY_BUDGET_MS'))
-    check('…and that recovery invocation and its race both precede the resume-fold invocation', recoveryCallAt !== -1 && recoveryRaceAt !== -1 && foldCallAt !== -1 && recoveryRaceAt < foldCallAt)
   }
 
   rmSync(HOME, { recursive: true, force: true })

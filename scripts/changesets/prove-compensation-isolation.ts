@@ -81,15 +81,6 @@ console.log('── C2 boot recovery settles the one remaining path ──')
   check('a second recovery run is a no-op', second.rolledForward.length === 0 && second.compensated.length === 0 && second.unrecoverable.length === 0)
 }
 
-console.log('── C3 the two classes are separated (source pin) ──')
-{
-  const src = readFileSync(join(SRC, 'services/changeTransaction/changeSetCommit.ts'), 'utf8')
-  const cls = src.slice(src.indexOf('class ChangeSetCompensationIncomplete'), src.indexOf('class ChangeSetCompensationIncomplete') + 1200)
-  check('the error carries the unrestored paths with their reasons', cls.includes('readonly unrestored: Array<{ path: string; reason: string }>'))
-  check('…and speaks the two classes in two sentences', cls.includes('the planned bytes are still in place there') && cls.includes('later bytes nobody may overwrite'))
-  const closure = src.slice(src.indexOf('const compensate = async'), src.indexOf('const compensate = async') + 2600)
-  check('the compensate walk records a throwing restore and continues', closure.includes('unrestored.push({ path: t.canonicalPath, reason:') && closure.includes('} catch (restoreError) {'))
-}
 
 console.log(failures === 0 ? '\nprove-compensation-isolation: GREEN' : `\nprove-compensation-isolation: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

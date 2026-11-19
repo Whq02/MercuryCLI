@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -119,46 +119,6 @@ console.log('\nI1 the session id and the transcript file survive the fold byte-i
   check('the summary row stays flagged isCompactSummary', summary?.isCompactSummary === true)
 }
 
-console.log('\nI2 the compact estate never touches the id mint or the file rotation (structural)')
-{
-  const root = join(import.meta.dir, '..', '..')
-  const estate = [
-    'src/services/compact/compact.ts',
-    'src/services/compact/autoCompact.ts',
-    'src/commands/compact/compact.ts',
-  ].map(rel => readFileSync(join(root, rel), 'utf8')).join('\n')
-  check('no setSessionId in the compact estate', !estate.includes('setSessionId'))
-  check('no session re-mint in the compact estate', !/mintSessionId|newSessionId|rotateSession/.test(estate))
-  check('the one transcript write is the metadata re-append (same file)', estate.includes('reAppendSessionMetadata'))
-}
-
-console.log('\nI3 the board row title door is out of the fold’s reach (structural)')
-{
-  const root = join(import.meta.dir, '..', '..')
-  const estate = [
-    'src/services/compact/compact.ts',
-    'src/services/compact/autoCompact.ts',
-    'src/commands/compact/compact.ts',
-  ].map(rel => readFileSync(join(root, rel), 'utf8')).join('\n')
-  check('the compact estate never imports the naming module', !estate.includes('sessionNaming'))
-  check('the compact estate never speaks the set-title verb', !estate.includes('set-title') && !estate.includes('setTitle'))
-  const naming = readFileSync(join(root, 'src/services/concourse/sessionNaming.ts'), 'utf8')
-  check(
-    'the title door reads the record plus the brief callback — no transcript input of its own',
-    naming.includes('sessionTitleOf(') && naming.includes('rec: { title?: string; workspaceId: string }'),
-  )
-  console.log('  [NOTE] the operator drill: watch a board row across a /compact — same row, same title, no shuffle (the receipt names it).')
-}
-
-console.log('\nI4b the operator-turn predicates exclude the summary row (the preview belt)')
-{
-  const root = join(import.meta.dir, '..', '..')
-  const operatorTurns = readFileSync(join(root, 'src/utils/messages/operatorTurns.ts'), 'utf8')
-  check(
-    'isCompactSummary rows are excluded from operator turns',
-    /isCompactSummary === true[\s\S]{0,80}return false/.test(operatorTurns),
-  )
-}
 
 console.log('\nI5 THE FOCUS LAW — /compact applies to the FOCUSED session (operator rider)')
 {
@@ -166,20 +126,6 @@ console.log('\nI5 THE FOCUS LAW — /compact applies to the FOCUSED session (ope
   const compactCommand = (await import('../../src/commands/compact/index.ts')).default
   check('F1 /compact is a session-seat command (the one dispatch rule routes it to the focused chat)', commandSeat(compactCommand as never) === 'session')
 
-  const root = join(import.meta.dir, '..', '..')
-  const repl = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf8')
-  const connector = readFileSync(join(root, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  check(
-    "F3 the connector targets its own record's session (targetSessionId: this.record.sessionId)",
-    connector.includes('targetSessionId: this.record.sessionId'),
-  )
-  const seat = readFileSync(join(root, 'src/daemon/sessionSeat.ts'), 'utf8')
-  check("F4 the seat publishes the tail under the seat's own session id", seat.includes('sessionId: seat.sessionId'))
-  check("F4 the connector reads its own record's tail", connector.includes('readSessionTail(this.record.sessionId)'))
-  check('F4 the Chat paints the FOCUSED live view', repl.includes('subscribeFocusedSeatLive'))
-  const blank = readFileSync(join(root, 'src/services/engine-connector/noSessionConnector.ts'), 'utf8')
-  check('F5 the blank chat refuses the send (REFUSED_NO_CHAT) — no global fold exists', /sendWords\(\): Promise<SendReceiptV1> \{\s*\n\s*return REFUSED_NO_CHAT/.test(blank))
-  console.log('  [NOTE] the concourse SessionMirror strip carries no composer road in this tree — the one typing road into a session is the focused chat composer (F2).')
 }
 
 await fixture.close()

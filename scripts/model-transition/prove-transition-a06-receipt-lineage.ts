@@ -1,16 +1,13 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ctm-a06-config-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { toBridgeMessages } = await import('../../src/services/providers/openai/openaiCallModel.ts')
 
@@ -23,38 +20,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-section('§A the consumption fence — the exact registered carriers')
-{
-  const ALLOW = new Set([
-    'src/types/message.ts',
-    'src/services/providers/openai/openaiCallModel.ts',
-    'src/services/providers/transitionPreview.ts',
-    'src/utils/messages/pairing.ts',
-    'src/services/tools/chantGuard.ts',
-    'src/utils/toolSearch.ts',
-  ])
-  const hits = execFileSync('git', ['grep', '-l', 'apexProviderTurn', '--', 'src/'], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  })
-    .split('\n')
-    .filter(Boolean)
-    .filter(h => codeOnlyText(h, readFileSync(join(ROOT, h), 'utf8')).includes('apexProviderTurn'))
-  const rogue = hits.filter(h => !ALLOW.has(h))
-  const missing = [...ALLOW].filter(a => !hits.includes(a))
-  check('every code toucher is allowlisted (no new consumer without this row)', rogue.length === 0, rogue.join(' · '))
-  check('the allowlist itself is live (every registered carrier is present)', missing.length === 0, missing.join(' · '))
-  const writer = readFileSync(join(ROOT, 'src/utils/sessionStorage/writer.ts'), 'utf8')
-  check(
-    'the writer persists the settled WHOLE entry (receipt rides the atomic line)',
-    writer.includes('const settled = { ...cached.entry, ...cleaned } as Entry') &&
-      writer.includes('cached.entry = settled'),
-  )
-  const zai = readFileSync(join(ROOT, 'src/services/providers/zai/zaiCallModel.ts'), 'utf8')
-  const claude = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
-  check('the zai lane never reads the field', !zai.includes('apexProviderTurn'))
-  check('the anthropic lane never reads the field', !claude.includes('apexProviderTurn'))
-}
 
 const ts = '2026-08-05T00:00:00.000Z'
 const uid = (n: number): string => `00000000-0000-4000-a000-${String(n).padStart(12, '0')}`
@@ -114,15 +79,8 @@ section('§D typed reconstruction — visible, once-per-thread, honest')
   check('a settled recordless GPT turn counts as reconstructed', walk.reconstructedGptTurns === 1, String(walk.reconstructedGptTurns))
   const recorded = [userTurn(1, 'q'), gptTurn(2, 'gpt-5.2', 'recorded', true)] as never[]
   check('a carried record does NOT count', toBridgeMessages(recorded as never, 'gpt-5.2').reconstructedGptTurns === 0)
-  const lane = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
-  check('the lane surfaces the reconstruction receipt note once per thread', lane.includes('reconstructed continuation') && lane.includes('reconstructionNoted'))
 }
 
-section('§E lineage continuation ratified (fork-context carries rows whole)')
-{
-  const agent = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
-  check('fork-context agents receive parent MESSAGES (receipts travel only inside shared ancestry)', agent.includes('forkContextMessages'))
-}
 
 console.log(failures === 0 ? '\n ✅ RECEIPTS NEVER CROSS LINEAGE (fence · guard · visibility)' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

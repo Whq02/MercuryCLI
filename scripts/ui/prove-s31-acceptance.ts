@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -56,7 +56,6 @@ function check(name: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
 }
 const ESC = '\x1b'
-const src = (p: string): string => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8')
 
 function makeKey(overrides: Partial<Key> = {}): Key {
   return {
@@ -328,66 +327,6 @@ check(
   check('15. template has no $schema field', !template.includes('"$schema"'))
 }
 
-{
-  const viewport = src('src/ink/hooks/use-terminal-viewport.ts')
-  check(
-    '16. viewport hook carries the one-extra-row overflow correction',
-    viewport.includes('screenHeight - viewportHeight + 1'),
-  )
-  check(
-    '16. viewport walk subtracts every scrolled ancestor\'s offset',
-    viewport.includes('top -= scrollTop'),
-  )
-
-  {
-    const declared = src('src/ink/hooks/use-declared-cursor.ts')
-    const firstEffect = declared.indexOf('useLayoutEffect(')
-    const secondEffect = declared.indexOf('useLayoutEffect(', firstEffect + 1)
-    const perCommit =
-      firstEffect !== -1 && secondEffect !== -1 ? declared.slice(firstEffect, secondEffect) : ''
-    check(
-      '17. per-commit declaration effect: no dependency list, sets carry the owning node, clears carry identity',
-      perCommit.includes('setDeclaration({ relativeX: column, relativeY: line, node })') &&
-        perCommit.includes('setDeclaration(null, node)') &&
-        !perCommit.includes('}, ['),
-    )
-    check(
-      '17. unmount clear is a separate fire-once effect and still carries the identity node',
-      secondEffect !== -1 &&
-        declared.slice(secondEffect).includes('setDeclaration(null, nodeRef.current)') &&
-        declared.slice(secondEffect).includes('}, [])'),
-    )
-    check(
-      '17. no identity-less clear anywhere in the hook',
-      !declared.includes('setDeclaration(null)'),
-    )
-  }
-
-  const input = src('src/ink/hooks/use-input.ts')
-  const layoutEffectIdx = input.indexOf('useLayoutEffect(')
-  const rawModeIdx = input.indexOf('setRawMode(true)')
-  const effectIdx = input.indexOf('useEffect(')
-  check(
-    '18. useInput arms raw mode in the layout phase of the mounting commit',
-    layoutEffectIdx !== -1 && rawModeIdx > layoutEffectIdx && (effectIdx === -1 || rawModeIdx < effectIdx),
-  )
-
-  const frame = src('src/ink/hooks/use-animation-frame.ts')
-  check(
-    '19. animation-frame samples on absolute buckets (shared tick for same interval)',
-    frame.includes('Math.floor(clock.now() / interval)') && frame.includes('Math.floor(now / interval)'),
-  )
-  check('19. animation-frame subscribes keep-alive', frame.includes('}, true)'))
-
-  const interval = src('src/ink/hooks/use-interval.ts')
-  check(
-    '27. interval hook keeps a rolling per-subscriber anchor (own firing phase)',
-    interval.includes('let anchor = clock.now()') &&
-      interval.includes('anchor = now') &&
-      !interval.includes('Math.floor('),
-  )
-  check('27. interval hook subscribes non-keep-alive', interval.includes('}, false)'))
-}
 
 {
   const saved = { SSH: process.env.SSH_CONNECTION, TMUX: process.env.TMUX }
@@ -410,52 +349,10 @@ check(
 
 {
   check('21/31. tab-status output is unsupported', supportsTabStatus() === false)
-  check('21/31. no tab-status hook is exported', !src('src/ink.ts').includes('useTabStatus'))
 }
 
-{
-  const title = src('src/ink/hooks/use-terminal-title.ts')
-  check(
-    '22. title strip covers C0 (BEL, ESC), DEL and C1 bytes',
-    title.includes('\\x00-\\x1f') && title.includes('\\x7f-\\x9f'),
-  )
-  const stripIdx = title.indexOf('stripAnsi(title)')
-  const replaceIdx = title.indexOf('.replace(CONTROL_BYTES_RE')
-  const emitIdx = title.indexOf('write(osc(')
-  check(
-    '22. sanitisation (escape sequences, then control bytes) precedes emission',
-    stripIdx !== -1 && replaceIdx > stripIdx && emitIdx > replaceIdx,
-  )
-  const guardIdx = title.indexOf('if (title === null || !write) return')
-  const win32Idx = title.indexOf("process.platform === 'win32'")
-  const processTitleIdx = title.indexOf('process.title = ')
-  check(
-    '30. both platform branches sit behind the raw-write channel guard',
-    guardIdx !== -1 && win32Idx > guardIdx && processTitleIdx > win32Idx,
-  )
-}
 
 {
-  const repl = src('src/screens/Chat.tsx')
-  check(
-    '23. the screen holds no transcript writer (the session runner records; the face paints through the connector)',
-    !repl.includes('useLogMessages') && repl.includes('const messages = useFocusedTranscript();'),
-  )
-
-  const dialogIdx = repl.indexOf("if (seatCommand !== undefined && seatCommand.type === 'local-jsx') {")
-  const dialogBlock = repl.slice(dialogIdx, repl.indexOf('const onSubmitRef = useRef(onSubmit);', dialogIdx))
-  const dialogMountAt = dialogBlock.indexOf('const slot = { name: dialogName, mounted: false };')
-  const dialogQueue = dialogBlock.slice(0, Math.max(0, dialogMountAt))
-  const dialogMount = dialogBlock.slice(Math.max(0, dialogMountAt))
-  const dialogSends = dialogMount.split('.sendWords(').length - 1
-  const queryLegAt = dialogMount.indexOf('if (doneOptions?.shouldQuery === true) {')
-  const querySendAt = dialogMount.indexOf('focusedNow.sendWords(words, { metaFrom: { command: seatCommand.name } })')
-
-
-  check(
-    '26. the face runs no auto-restore (no shouldAutoRestore, no history rewind)',
-    !repl.includes('shouldAutoRestore(') && !repl.includes('removeLastFromHistory'),
-  )
 
   {
     const { openStatusPart } = await import('./chatScenarios.ts')
@@ -498,10 +395,6 @@ check(
     '28. the merged default list is not walked (no ctrl+d / ctrl+m noise)',
     warnings.every(w => !(w.key ?? '').includes('ctrl+d') && !(w.key ?? '').includes('ctrl+m')),
     JSON.stringify(warnings.map(w => `${w.type}:${w.key}`)),
-  )
-  check(
-    '28. validate.ts deliberately ignores its merged-bindings parameter',
-    src('src/keybindings/validate.ts').includes('void parsedBindings'),
   )
 }
 

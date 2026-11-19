@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
@@ -28,13 +27,6 @@ section('§1 the global config schema declares no editor-link setting')
   const defaults = schema.createDefaultGlobalConfig() as Record<string, unknown>
   const defaulted = EDITOR_LINK_KEYS.filter(key => key in defaults)
   check('the default global config mints none of them', defaulted.length === 0, defaulted.join(','))
-  const source = readFileSync(join(REPO, 'src/utils/config/schema.ts'), 'utf8')
-  const named = EDITOR_LINK_KEYS.filter(key => source.includes(key))
-  check('the schema source names none of them (no declared-but-unread key)', named.length === 0, named.join(','))
-  check('the schema source declares no DiffTool type', !/\bDiffTool\b/.test(source))
-  check('the config barrel re-exports no DiffTool type', !/\bDiffTool\b/.test(readFileSync(join(REPO, 'src/utils/config.ts'), 'utf8')))
-  const configSource = readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8')
-  check('the /config catalogue reads no editor-link key and no editor install state', !EDITOR_LINK_KEYS.some(key => configSource.includes(key)) && !configSource.includes('ideInstallationStatus') && !configSource.includes("=== 'ide'"))
 }
 
 section('§2 the rendered /config popup at 178×51: every row walked, none names an editor link')

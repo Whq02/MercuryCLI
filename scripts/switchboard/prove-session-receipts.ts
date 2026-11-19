@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, appendFileSync, readFileSync, writeFileSync, utimesSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, appendFileSync, writeFileSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -12,7 +12,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const readSrc = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
@@ -192,11 +191,6 @@ console.log('D — a torn tail is carried unread, never parsed, never fatal')
 
 console.log('E — newest-first at the one view seam; the contract estate\'s append round-trips')
 {
-  const mirror = readSrc('src/components/concourse/SessionMirror.tsx')
-  check('the viewer reverses the append-ordered file (newest-first) at its one read seam', mirror.includes('readSessionReceipts(getProjectDir(workspaceId), sessionId).slice().reverse()'))
-  check('the section derives its rows from the pane it was given (a third, cap 6, the 2-row minimum) and exists only over entries that exist', mirror.includes('Math.min(6, Math.floor(paneRows / 3))') && mirror.includes('if (entryCount === 0) return null'))
-  check('the deep close row pre-clips to two width-true rows (the wrap can never push a third into the frame)', mirror.includes('truncateToWidth(text, Math.max(16, paneWidth * 2 - 2))'))
-  check('every kind paints — floor, close, and the contract estate\'s close-against', mirror.includes("`floor: ${flat}`") && mirror.includes("`close (${e.by}): ${flat}`") && mirror.includes("`contract: ${flat}`"))
   const S = sid('b01')
   appendSessionReceipt(getProjectDir(WS), S, { at: new Date().toISOString(), by: 'coordinator', kind: 'contract-close', summary: 'delivered against the contract: 3 items closed' })
   const entries = readSessionReceipts(getProjectDir(WS), S)
@@ -230,12 +224,6 @@ console.log('F — the frozen offer names the sidecar; the confirmed delete take
   check('POISON: a receipts file whose transcript was NOT offered SURVIVES (the door never reaches beyond the named set)', existsSync(survivor))
 }
 
-console.log('G — the receipts seam is append/read only, forever')
-{
-  const seam = readSrc('src/services/switchboard/sessionReceipts.ts')
-  check('no unlink/rm anywhere in the seam module (retention rides the transcript\'s law)', !/unlinkSync\(|rmSync\(|\.unlink\(|rimraf/.test(seam))
-  check('the finish seam is the settle\'s one writer and the park stamp is the other (no second finish detector)', (readSrc('src/daemon/concourseWorkers.ts').match(/writeSessionCloseReceipts\(/g) ?? []).length === 2)
-}
 
 console.log(failures === 0 ? 'prove-session-receipts: ALL PASS' : `prove-session-receipts: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

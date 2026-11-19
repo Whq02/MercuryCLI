@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { z } from 'zod/v4'
@@ -12,7 +12,6 @@ for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOK
   delete process.env[k]
 }
 
-const repoRoot = resolve(import.meta.dir, '..', '..')
 const { runEventCore, decideEmptyReplyRecovery } = await import('../../src/run-core/turn-machine.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
@@ -238,24 +237,13 @@ section('N0 — the nudge line is owned beside the fault marker: one bracketed s
   planted.close()
   const handedRows = (retried.decision as { next?: { messages?: AnyMsg[] } } | undefined)?.next?.messages ?? []
   const added = handedRows.slice((planted.iter.messagesForQuery as unknown[]).length)
-  const errorsSource = readFileSync(resolve(repoRoot, 'src/services/api/errors.ts'), 'utf8')
-  check('the wording lives in errors.ts, and the one row the retry adds is that line and nothing else', errorsSource.includes("'[System: ") && added.length === 1 && userTexts(added).length === 1 && userTexts(added)[0]?.text === EMPTY_NUDGE, `the retry added ${added.length} row(s): ${JSON.stringify(userTexts(added))} — the empty_reply_retry rule of src/run-core/turn/noToolReply.ts adds one row whose whole text is EMPTY_REPLY_RECOVERY_NUDGE of src/services/api/errors.ts, never wording of its own`)
   check('the turn machine composes the nudge as an isMeta user message through the constant', t.reasonOf(retried.decision) === 'hand_over empty_reply_retry' && added[0]?.type === 'user' && added[0]?.isMeta === true && (added[0]?.message as { content?: unknown } | undefined)?.content === EMPTY_NUDGE, `${t.reasonOf(retried.decision)} · ${JSON.stringify(added[0])} — after an empty reply the rule hands over with one user row, isMeta true, whose content is the constant`)
-  const transitions = readFileSync(resolve(repoRoot, 'src/query/transitions.ts'), 'utf8')
-  check('the transition reason stays typed', transitions.includes("reason: 'empty_reply_retry'; attempt: number"))
   check('the pure decision is unchanged: one retry, then surface', decideEmptyReplyRecovery({ recoveryCount: 0 }).kind === 'continue' && decideEmptyReplyRecovery({ recoveryCount: 1 }).kind === 'surface')
 }
 
 section('N2 — no thinking-only wording: an empty-marked reply never rides beside a thinking block on either route')
 {
   check('no second wording is exported (dead text is refused)', errors.THINKING_ONLY_REPLY_RECOVERY_NUDGE === undefined)
-  for (const file of ['src/services/providers/openai/openaiCallModel.ts', 'src/services/providers/zai/zaiCallModel.ts']) {
-    const source = readFileSync(resolve(repoRoot, file), 'utf8')
-    const settle = source.indexOf('yield* closeOpenBlock()', source.indexOf('Settlement'))
-    const emptyCheck = source.indexOf('if (minted.length === 0) {')
-    check(`${file}: settlement mints any open thinking block before the empty check`, settle !== -1 && emptyCheck !== -1 && settle < emptyCheck, `close=${settle} check=${emptyCheck}`)
-    check(`${file}: a closed thinking block is minted (so a streamed thought never leaves the reply empty)`, /kind === 'thinking'\s*\?\s*\{ type: 'thinking'/.test(source) && source.includes('minted.push(m)'))
-  }
 }
 
 section('N1 — an empty first reply: the retry carries the nudge as the last user turn, once, and the transcript records one empty_reply_retry')

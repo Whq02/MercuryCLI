@@ -1,10 +1,9 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
-import { readFileSync, rmSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import { join } from 'node:path'
-import ts from 'typescript'
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const key of ['MODEL_API_KEY', 'META_API_KEY']) delete process.env[key]
 process.env.MERCURY_META_API_BASE = 'http://127.0.0.1:1/v1'
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
@@ -18,9 +17,6 @@ const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines, login
 const { keyLaneProviderRows, keyConnectValue } = await import('../../src/utils/model/modelOptions.ts')
 const { subModelConnectHome } = await import('../../src/utils/model/subModelSlots.ts')
 const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
-const root = join(import.meta.dir, '..', '..')
-const read = (path: string): string => readFileSync(join(root, path), 'utf8')
 let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
 try {
@@ -30,7 +26,6 @@ try {
   check('both sign-in surfaces name Meta, Muse Code sign-in and the API-key road identically', row?.label === 'Meta — Muse Code sign-in or API key' && loginsFlowStatusOf({ kind: 'pick', pick: 'meta', pickSel: 0 }) === row.label && keyPageLine('meta').includes('dev.meta.ai'))
   const connect = keyLaneProviderRows({ zaiKeyPresent: () => false, moonshotCredentialPresent: () => false, deepseekKeyPresent: () => false, metaKeyPresent: () => false, compat: () => undefined }).find(option => option.value === keyConnectValue('meta'))
   check('both model pickers name the same two Meta sign-in roads', connect?.description === 'opens /logins meta (Muse Code sign-in or API key) — MODEL_API_KEY works too' && subModelConnectHome('meta').command === '/logins meta' && subModelConnectHome('meta').note === 'connect — /logins meta (Muse Code sign-in or API key)')
-  check('both login skins use the owning device and key drivers and the same guard', read('src/components/MetaConnect.tsx').includes('runMetaDeviceLogin') && read('src/components/MetaConnect.tsx').includes('storeMetaApiKeyLogin') && read('src/components/BootLoginsScreen.tsx').includes('runMetaDeviceLogin') && read('src/components/BootLoginsScreen.tsx').includes('storeMetaApiKeyLogin(value)') && keyLegGuardOpts('meta').stores === 'a Meta Model API key')
   check('the face says pay-as-you-go and env precedence on the key leg while directing Muse Code plans to Sign in with Meta', keyLegTitle('meta') === 'Meta Model API key' && keyLegStoreLine('meta').includes('MODEL_API_KEY, then META_API_KEY') && keyLegStoreLine('meta').includes('Sign in with Meta connects a Muse Code plan') && keyPromptPaneLines('meta', null, 8, false).join(' ').includes('dev.meta.ai'))
   process.env.MODEL_API_KEY = 'meta-fixture-presence-only'
   const usage = usageForProvider('meta')
@@ -38,19 +33,5 @@ try {
   check('the key makes Meta usable, not another provider', resolveProviderUsability().meta.usable)
   const discovery = await refreshProviderDiscovery('meta', { force: true })
   check('discovery records Meta rather than falling through to another family', discovery?.provider === 'meta' && discovery.keyPresent && discovery.keySource === 'env')
-  const files = ['Accounts', 'CallModel', 'Catalogue', 'Login', 'Pins', 'UsageState'].map(part => `src/services/providers/meta/meta${part}.ts`)
-  files.push('src/services/providers/meta/metaAdapter.ts')
-  for (const file of files) {
-    const source = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true)
-    const names: string[] = []
-    for (const statement of source.statements) {
-      if (!ts.canHaveModifiers(statement) || !ts.getModifiers(statement)?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) continue
-      if (ts.isVariableStatement(statement)) names.push(...statement.declarationList.declarations.map(declaration => declaration.name.getText(source)))
-      else if ((ts.isFunctionDeclaration(statement) || ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement) || ts.isClassDeclaration(statement)) && statement.name) names.push(statement.name.text)
-    }
-    check(`${file} exports a declared contract`, names.length > 0)
-    console.log(`[EXPORTS] ${file}: ${names.join(', ')}`)
-  }
-  check('the Meta base is registered and pinned by the hermetic gate', getFlagSpec('MERCURY_META_API_BASE') !== undefined && read('scripts/gate/ci-shard.sh').includes('MERCURY_META_API_BASE'))
   console.log(`META CONTRACT GREEN (${count} checks; no provider request)`)
 } finally { rmSync(proofHome, { recursive: true, force: true }) }

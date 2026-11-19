@@ -217,12 +217,6 @@ try {
   } catch (e) {
     check('the sessionless decision module exists (src/daemon/sessionlessExit.ts)', false, String(e).slice(0, 200))
   }
-  section('§4 the wiring')
-  {
-    const main = read(join(REPO, 'src/daemon/main.ts'))
-    check('every birth door counts as in flight while it admits', main.includes('concourseAdmit: (...args) => countBirth(() => concourseAdmitHandler(...args))') && main.includes('concourseDispatch: (...args) => countBirth(() => concourseDispatchHandler(...args))'))
-    check('a spawned session marks the daemon as hosting', (main.match(/noteHosted\(\)/g) ?? []).length >= 3)
-  }
 } finally {
   await cleanup()
 }

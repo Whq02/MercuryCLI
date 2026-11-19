@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,7 +20,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const SRC = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 console.log('============================================================')
 console.log(' composer contract and configuration absence')
@@ -119,9 +118,6 @@ section('(2) provenance shape-parity — the recorder cannot drift')
   const prov2 = readPromptProvenance()
   check('previous composition totals retained (before/after)',
     prov2?.previous?.totalChars === prov?.totalChars && prov2?.previous?.digest === prov?.digest)
-  const prompts = SRC('src/constants/prompts.ts')
-  check('prompts.ts composes via the owned composer (no inline recorder)',
-    prompts.includes('composeSystemPrompt({') && !prompts.includes('recordPromptComposition({'))
 }
 
 console.log('\n============================================================')

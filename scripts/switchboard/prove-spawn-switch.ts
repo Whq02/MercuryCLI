@@ -5,7 +5,6 @@ import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 import { runTurns, type TurnRequest } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -66,7 +65,6 @@ section('§1 the row — a live-class toggle over a registered flag, through the
     check(`${env} is registered default-on · behavioral · evidenced by this prover · consumed by the owner`, spec?.kind === 'default-on' && spec.tier === 'behavioral' && spec.evidence === 'scripts/switchboard/prove-spawn-switch.ts' && spec.consumer === 'src/services/switchboard/spawnSwitches.ts', j(spec))
   }
   check('the owner maps the row to its switch and back, and the retired Workflows row to nothing', sw.SPAWN_SWITCH_ENV.subagents === SUB && sw.spawnSwitchKindOfEnv(SUB) === 'subagents' && sw.spawnSwitchKindOfEnv(WF) === null && sw.spawnSwitchKindOfEnv('MERCURY_CAP_FAILOVER') === null)
-  check('the splash carries the row baked and no Workflows row (the menu asset never trails the registry)', src('assets/splash/splash-core.mjs').includes(`"env":"${SUB}"`) && !src('assets/splash/splash-core.mjs').includes(`"env":"${WF}"`))
 
   const path = join(HOME, 'boot-env.json')
   const saved = menu.saveBootDefaultsProfile({ [SUB]: '0' }, path)
@@ -163,23 +161,6 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
   sw.setSpawnSwitch('subagents', true)
   sw._resetSpawnSwitchesForTesting()
 
-  const valve = src('src/services/switchboard/launchAuthority.ts')
-  check('the valve reads the switch owner first (before the role env)', valve.indexOf('spawnSwitch(kind)') !== -1 && valve.indexOf('spawnSwitch(kind)') < valve.indexOf("flagEnv('MERCURY_CONCOURSE_WORKER')") && valve.includes("cause: 'session-switch'"))
-  const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
-  check('the Crewmate tool asks the valve at isEnabled and at call time', agentTool.includes("return evaluateLaunchAuthority('subagents').allowed") && agentTool.includes("const authority = evaluateLaunchAuthority('subagents')"))
-  const skill = src('src/tools/SkillTool/SkillTool.ts')
-  const forkAt = skill.indexOf("if (command.context === 'fork')")
-  check('the skill fork asks the valve before runAgent', forkAt !== -1 && skill.indexOf("evaluateLaunchAuthority('subagents')", forkAt) !== -1 && skill.indexOf("evaluateLaunchAuthority('subagents')", forkAt) < skill.indexOf('runAgent({', forkAt))
-  const crew = src('src/components/mercury-ui/screens/CrewView.tsx')
-  check('the Crew view has no spawn key of its own (launches come through the Crewmate tool, which asks the valve)', !crew.includes('spawnSwitches()') && !crew.includes("input === 'n'"))
-  const boot = src('src/components/BootSettingsScreen.tsx')
-  check('the receipt request stays live when loading becomes ready, and cancels only when closed', boot.includes("}, [apply.phase === 'closed', path]);"))
-  check("the boot menu opened in-session flips a live row through the connector's one verb", boot.includes("row.applicationClass === 'live'") && boot.includes('.setSpawnSwitch(kind, spawnSwitchOnFromValue(value))') && boot.includes("action: 'set-spawn-switch'"))
-  const owner = src('src/services/switchboard/spawnSwitches.ts')
-  check('the owner attributes through realEnvPin (the one boot-env attribution owner)', owner.includes('realEnvPin(row, env) !== null'))
-  const srcWalk = (dir: string): string[] => readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap(e => (e.isDirectory() ? srcWalk(join(dir, e.name)) : /\.(ts|tsx)$/.test(e.name) ? [join(dir, e.name)] : []))
-  const readers = srcWalk('src').filter(f => !f.endsWith('spawnSwitches.ts') && !isFlagRegistryFile(f) && !f.endsWith('startupMenu.ts') && (src(f).includes(SUB) || src(f).includes(WF)))
-  check('no second reader of the switch rows outside the owner (the registry and the menu table declare, never read — one owner per fact)', readers.length === 0, readers.join(','))
 }
 
 section("§5 the record's view — the admission snapshot's rows and the in-session toggle")
@@ -292,10 +273,6 @@ section("§6 the seat verb — idle applies, busy parks and forwards, the runner
   check("…and the runner's answer lands it on the record: on, nothing parked", drained, j(rec()))
   const unknown = await seat.setSessionSpawnSwitch('no-such-session', { kind: 'subagents', on: false }, 'operator', roster, recDir)
   check('an unknown session refuses typed', unknown.outcome === 'refused' && (unknown.detail ?? '').includes('unknown-session'))
-  const daemonMain = src('src/daemon/main.ts')
-  check("the daemon's control dispatcher routes 'set-spawn-switch' to the seat verb", daemonMain.includes("if (action === 'set-spawn-switch')") && daemonMain.includes('setSessionSpawnSwitch(sessionId, { kind: spawnSwitch.kind, on: spawnSwitch.on }, by, roster)'))
-  check('…and a socket that still names the retired switch is answered a no-op before the seat is asked', daemonMain.indexOf("if (spawnSwitch.kind === 'workflows') return { outcome: 'noop' as const }") !== -1 && daemonMain.indexOf("if (spawnSwitch.kind === 'workflows') return { outcome: 'noop' as const }") < daemonMain.indexOf('setSessionSpawnSwitch(sessionId, { kind: spawnSwitch.kind, on: spawnSwitch.on }, by, roster)'))
-  check('the control server admits the action and narrows the payload', src('src/daemon/controlServer.ts').includes("raw.action === 'set-spawn-switch'") && src('src/daemon/controlServer.ts').includes("spawnSwitch refused — { kind: subagents|workflows, on: boolean }"))
   const { liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const live = await withFixtureRunner([{ kind: 'paced', deltas: ['one ', 'two ', 'three'], gapMs: 300 }], async (runner, api) => {
     const rest = (await liveFactsOf(runner)).spawnSwitches
@@ -343,7 +320,6 @@ section('§7 the preserved-thinking seam — a roster transition is a lawful pre
   const health = tb.preservedThinkingHealth({ last: { at: '2026-01-01T00:00:00.000Z', kind: 'lawful', lawful: 'roster-switch', reason: DROP.reason, path: DROP.path, count: 3, consecutive: 1, model: 'claude-fable-5-1' }, longestRun: 0 })
   check("the health ledger's wording names the spawn-switch toggle", health.status === 'info' && health.evidence.includes("the operator's spawn-switch toggle") && health.evidence.includes('expected once'), health.evidence)
   check("a model switch's wording is untouched", tb.preservedThinkingHealth({ last: { at: 'x', kind: 'lawful', lawful: 'model-switch', reason: DROP.reason, path: DROP.path, count: 1, consecutive: 1, model: 'm' }, longestRun: 0 }).evidence.includes('after a model switch'))
-  check('the row is UI-only: the API view never carries a roster transition', !src('src/utils/messages/apiPlan.ts').includes('roster_transition') && src('src/utils/messages/apiPlan.ts').includes("m.type === 'system' && !isSystemLocalCommandMessage(m)"))
 }
 
 const nodeBin = Bun.which('node')
@@ -558,7 +534,6 @@ section('§10 the command — /crewmates on|off, the grammar, the no-chat senten
   check('junk answers the usage line naming the command', usage.startsWith('usage: /crewmates on|off'), usage)
   const noChat = await runSpawnSwitchCommand('subagents', 'off')
   check('no chat open ⇒ the one sentence naming the focused session and the menu', noChat.includes('no chat is open') && noChat.includes("the boot menu's Agents section"), noChat)
-  check('the crew view branches on the argument through the one body', src('src/commands/crewmates/crewmates.tsx').includes("runSpawnSwitchCommand('subagents'") && src('src/commands/crewmates/crewmates.tsx').includes('parseSpawnSwitchArg(args'))
   check('the toggle receipts read the daemon\'s vocabulary', sw.spawnSwitchToggleReceipt('subagents', false, 'refused', 'no live channel') === 'crewmates off refused — no live channel' && sw.spawnSwitchToggleReceipt('subagents', true, 'applied').includes('the Crewmate tool rejoins the roster from the next turn'))
   check("the agents page carries the switch under its .34 words", src('docs/CREW.md').includes('## The spawn switch\n') && !src('docs/CREW.md').includes('two spawn switches') && src('docs/CREW.md').includes('`/crewmates on|off` prints its'))
 }

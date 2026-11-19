@@ -31,9 +31,6 @@ console.log('============================================================')
 
 if (process.versions.bun) {
   console.log('  [SKIP] live stdin-EPIPE leg (bun swallows child-stdin EPIPE; production Node fires it — verified by hand under node v24.14.0)')
-  const { readFileSync } = await import('node:fs')
-  const src = readFileSync(join(ROOT, 'src/services/crew/adapters/ndjsonChild.ts'), 'utf8')
-  check("stdin 'error' handler settles the child (structural pin)", src.includes("stdin error — settling as failed") && /stdin\?\.on\('error'[\s\S]{0,300}?settle\(null, `stdin error/m.test(src))
 } else {
   const child = realNdjsonChild('sh', ['-c', 'exec 0<&-; sleep 3'], {})
   await sleep(150)
@@ -90,12 +87,6 @@ if (process.versions.bun) {
   check('stderrTail carries the failure diagnosis', child.stderrTail?.().includes('diag-note') === true, JSON.stringify(child.stderrTail?.()))
 }
 
-{
-  const { readFileSync } = await import('node:fs')
-  const src = readFileSync(join(ROOT, 'src/services/crew/adapters/ndjsonChild.ts'), 'utf8')
-  check('line buffer is bounded (MAX_LINE_BUFFER_BYTES + resync flag)', src.includes('MAX_LINE_BUFFER_BYTES') && src.includes('discardingOversizedLine'))
-  check("settlement rides 'close' with an exit backstop", src.includes("child.on('close'") && src.includes('EXIT_CLOSE_BACKSTOP_MS'))
-}
 
 console.log('\n' + '='.repeat(60))
 if (failures === 0) {

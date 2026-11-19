@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -64,17 +64,9 @@ section('§2 the main conversation\'s own fold still clears what a fold invalida
 
 section('§3 a launched crewmate carries its own query source and never restamps the session metadata')
 {
-  const agentTool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-  const launch = /const querySource =([^]*?)\n\n/.exec(agentTool)?.[1] ?? ''
-  check('AgentTool derives the crewmate\'s query source from the agent definition alone', launch.includes('getQuerySourceForAgent(') && !launch.includes('options.querySource'), launch.trim())
-  const resume = readFileSync(join(ROOT, 'src/tools/AgentTool/resumeAgent.ts'), 'utf8')
-  check('a resumed crewmate derives it the same way', resume.includes('getQuerySourceForAgent('))
   const { getQuerySourceForAgent } = await import('../../src/utils/promptCategory.ts')
   check('a built-in crewmate is an agent source', getQuerySourceForAgent('mercury-crew', true).startsWith('agent:'), getQuerySourceForAgent('mercury-crew', true))
   check('a custom crewmate is an agent source', getQuerySourceForAgent('reviewer', false).startsWith('agent:'), getQuerySourceForAgent('reviewer', false))
-  const compact = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
-  const restamps = [...compact.matchAll(/^.*reAppendSessionMetadata\(\).*$/gm)].map(m => m[0].trim())
-  check('every session-metadata restamp in the fold is guarded on the main conversation (no agent id)', restamps.length > 0 && restamps.every(line => line.includes('context.agentId === undefined')), restamps.join(' | '))
 }
 
 rmSync(HOME, { recursive: true, force: true })

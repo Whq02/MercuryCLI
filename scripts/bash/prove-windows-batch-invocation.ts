@@ -46,12 +46,6 @@ try {
 section('§1 the module exists and its wiring is in the exec path')
 {
   check('src/utils/shell/windowsBatchInvocation.ts exports the planner and the composer', batch !== null && typeof batch.planWindowsBatchInvocation === 'function' && typeof batch.windowsBatchTail === 'function')
-  const shellSrc = readFileSync(join(ROOT, 'src/utils/Shell.ts'), 'utf8')
-  check('Shell.ts consults the batch planner on the Windows system shell before spawning bash', /planWindowsBatchInvocation/.test(shellSrc), 'no reference in src/utils/Shell.ts')
-  const moduleSrc = existsSync(join(ROOT, 'src/utils/shell/windowsBatchInvocation.ts'))
-    ? readFileSync(join(ROOT, 'src/utils/shell/windowsBatchInvocation.ts'), 'utf8')
-    : ''
-  check('the batch plan runs through cmd.exe with verbatim arguments', /windowsVerbatimArguments:\s*true/.test(moduleSrc), 'no verbatim spawn in the batch module')
 }
 
 const CRLF = '\r\n'
@@ -316,11 +310,6 @@ if (process.platform !== 'win32') {
   process.env.PATH = was
 }
 
-section('§5 the brush engine is not on this code path')
-{
-  const src = readFileSync(join(ROOT, 'src/utils/Shell.ts'), 'utf8')
-  check('the batch branch requires the resolved engine to be the system shell', /engine\.engine === 'system'/.test(src) || /resolveShellEngine[^\n]*\)\.engine === 'system'/.test(src), 'the guard is absent')
-}
 
 console.log('\n============================================================')
 if (failures === 0) console.log(' ✅ ALL WINDOWS BATCH INVOCATION PROOFS PASS')

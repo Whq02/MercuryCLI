@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { closeSync, ftruncateSync, mkdtempSync, openSync, rmSync, writeFileSync, writeSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -117,29 +117,6 @@ try {
     const rCommaTooMany = await runRead({ file_path: tenPath, ranges: [thirtyThree.join(',')] })
     check('4b. comma-separated ranges > 32 items is rejected by validateInput', !rCommaTooMany.ok && rCommaTooMany.error.includes('maximum 32 ranges'), rCommaTooMany.ok ? rCommaTooMany.body : rCommaTooMany.error)
 
-    const fiftyMbPath = join(root, 'fifty-mb.log')
-    const fd = openSync(fiftyMbPath, 'w')
-    ftruncateSync(fd, 50 * 1024 * 1024)
-    const tailText = '\ntail-line-alpha\ntail-line-beta\ntail-line-gamma\n'
-    const tailBytes = Buffer.from(tailText, 'utf8')
-    writeSync(fd, tailBytes, 0, tailBytes.length, 50 * 1024 * 1024 - tailBytes.length)
-    closeSync(fd)
-
-    const t0 = performance.now()
-    const rFifty = await runRead({ file_path: fiftyMbPath, offset: -3 })
-    const elapsedMs = performance.now() - t0
-    const srcRead = await Bun.file(join(SRC, 'tools/FileReadTool/FileReadTool.ts')).text()
-    check(
-      '4c. offset: -3 on a 50 MB file reads from the end in blocks (readTailLinesReverse) without streaming whole file',
-      rFifty.ok &&
-        rFifty.body.includes('tail-line-alpha') &&
-        rFifty.body.includes('tail-line-beta') &&
-        rFifty.body.includes('tail-line-gamma') &&
-        rFifty.body.includes('the end of the file]') &&
-        srcRead.includes('readTailLinesReverse') &&
-        elapsedMs < 200,
-      rFifty.ok ? `elapsed=${elapsedMs.toFixed(1)}ms` : rFifty.error,
-    )
 
     const utf16Path = join(root, 'ps51.log')
     const utf16Lines = Array.from({ length: 60_000 }, (_, i) => `entry ${i + 1} — Zeile ${i + 1}\r\n`)

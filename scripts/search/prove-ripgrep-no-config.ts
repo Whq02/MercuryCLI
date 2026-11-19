@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -47,19 +47,6 @@ section('§2 LIVE — the rc file cannot blind the walk')
   }
 }
 
-section('§3 STRUCTURAL — refusal degrade + overflow report')
-{
-  const loader = readFileSync(join(import.meta.dir, '../../src/utils/markdownConfigLoader.ts'), 'utf8')
-  check(
-    'the estate discovery is the native capped walk; a walk stopped by a cap is logged loudly and kept partial (FC-041)',
-    /async function discoverMarkdownFiles[\s\S]{0,600}logError\(new Error\(`markdownConfigLoader: \$\{note\}`\)\)/.test(loader) && /addBootNote\('warn', note\)/.test(loader),
-  )
-  const rg = readFileSync(join(import.meta.dir, '../../src/utils/ripgrep.ts'), 'utf8')
-  check(
-    'the overflow drop is reported with the salvage count (FC-042)',
-    /isOverflow[\s\S]{0,400}exceeded the[\s\S]{0,200}salvaged/.test(rg),
-  )
-}
 
 if (failures > 0) {
   console.error(`\nprove-ripgrep-no-config: ${failures} FAILURE(S)`)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { mkdtempSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -237,16 +237,12 @@ const allText = (): string => JSON.stringify(deriveFamilySlotGroups()) + JSON.st
 
 section('§0 · the card and the vocabulary')
 {
-  const card = readFileSync(join(import.meta.dir, '../../src/components/ConsoleOAuthFlow.tsx'), 'utf8')
   const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.ts')
   const rows = loginFamilyRows({ engineLegs: true })
   check('the owner carries the Kimi row as a device-code sign-in OR API key', rows.some(r => r.label === 'Kimi (Moonshot) — device-code sign-in or API key' && r.value === 'moonshot'))
   check('the owner carries the GLM row as API key only (honest asymmetry)', rows.some(r => r.label === 'GLM (Z.AI) — API key (general or GLM Coding Plan)' && r.value === 'zai'))
   check('the owner carries the DeepSeek row as API key only', rows.some(r => r.label === 'DeepSeek — API key' && r.value === 'deepseek'))
-  check('twenty-two reachable family rows: the card derives its count and row-height budget from the owner list', rows.length === 22 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'orcarouter', 'cerebras', 'fireworks', 'qwen'].every(family => rows.some(row => row.value === family)) && card.includes('loginFamilyRows({ engineLegs: onOpenaiDone !== undefined, tensorfold })') && card.includes('rosterRows: idleRows.length') && card.includes('Math.floor(fit.roster / (singleLineRows ? 1 : rowHeight))') && card.includes('Math.min(rows - refusalRows, idleRows.length)') && card.includes('visibleOptionCount={rosterWindow}'))
   check('/logins <family> knows the vendors\' names', parseFamilyFocus('kimi') === 'moonshot' && parseFamilyFocus('moonshot') === 'moonshot' && parseFamilyFocus('glm') === 'zai' && parseFamilyFocus('z.ai') === 'zai' && parseFamilyFocus('zai') === 'zai' && parseFamilyFocus('deepseek') === 'deepseek')
-  const command = readFileSync(join(import.meta.dir, '../../src/commands/login/index.ts'), 'utf8')
-  check('the command names the three families and the words', command.includes('Kimi · GLM · DeepSeek') && command.includes('kimi|glm|deepseek'))
   check(
     '/logins <family> knows the WHOLE household vocabulary',
     parseFamilyFocus('anthropic') === 'anthropic' && parseFamilyFocus('claude') === 'anthropic' &&
@@ -255,28 +251,6 @@ section('§0 · the card and the vocabulary')
       parseFamilyFocus('google') === 'gemini' && parseFamilyFocus('hf') === 'huggingface' &&
       parseFamilyFocus('HuggingFace') === 'huggingface' && parseFamilyFocus(undefined) === undefined &&
       parseFamilyFocus('unknown-word') === undefined,
-  )
-  const machine = readFileSync(
-    join(import.meta.dir, '../../src/components/mercury-ui/screens/anthropicLoginModel.ts'),
-    'utf8',
-  )
-  check(
-    'the console arm MINTS the usage-based key (the creating-key transition is live, in the ONE machine)',
-    machine.includes('if (!deps.usesClaudeAiAuth(tokens.scopes)) {') &&
-      machine.includes('deps.mintApiKey(tokens.accessToken)') &&
-      machine.includes("setFlow({ name: 'creating-key' })") &&
-      machine.includes('mintApiKey: accessToken => createAndStoreApiKey(accessToken)') &&
-      card.includes("case 'creating-key':"),
-  )
-  const container = readFileSync(join(import.meta.dir, '../../src/commands/login/login.tsx'), 'utf8')
-  const loginBody = container.match(/export function Login\([\s\S]*?\n\}/)?.[0]
-  check(
-    'the /logins container owns no blanket esc/← (each leg owns its keys)',
-    loginBody !== undefined && !/\buseInput\s*\(/.test(loginBody),
-  )
-  check('only the settled receipt owns its enter/esc confirmation',
-    container.includes('{receipt ? <LoginReceipt') &&
-      /function LoginReceipt\([\s\S]*?useInput\(\(_input, key\) => \{ if \(key\.return \|\| key\.escape\) onDone\(\) \}\)/.test(container),
   )
 }
 

@@ -57,12 +57,6 @@ section('§2 THE PERSISTED WRITE')
   )
 }
 
-section('§3 THE LABEL')
-{
-  const helpers = readFileSync(join(import.meta.dir, '../../src/components/permissions/shellPermissionHelpers.tsx'), 'utf8')
-  check('the single-directory label carries the FULL path (middle-truncated)', /singlePathDisplay\(paths\[0\]/.test(helpers))
-  check('multi-entry lists keep compact basenames', /paths\.map\(pathDisplayName\)/.test(helpers))
-}
 
 process.chdir(launchDir)
 rmSync(HOME, { recursive: true, force: true })

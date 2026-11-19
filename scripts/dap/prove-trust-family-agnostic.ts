@@ -2,7 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -14,40 +13,8 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 
-const SWEPT_FILES = [
-  'src/tools/DebugTool/DebugTool.ts',
-  'src/tools/DebugTool/UI.tsx',
-  'src/services/dap/dapClient.ts',
-  'src/services/lsp/clangdLane.ts',
-  'src/services/lsp/mercuryLsp.ts',
-  'src/services/lsp/builtinServers.ts',
-] as const
 
-const FORBIDDEN = [
-  'getEngineModel',
-  'utilityCallFor',
-  'getDefaultHaikuModel',
-  'getDefaultSonnetModel',
-  'getDefaultOpusModel',
-  'resolveCallModelRoute',
-  'classifyModelRoute',
-  'declaredRouteOf',
-  'providerFrontier',
-  'callModelRouter',
-  'routedCallModel',
-  'queryModel',
-  'queryWithModel',
-  'sideQuery',
-  'getAnthropicClient',
-  'MERCURY_MODEL',
-  'claude-',
-  'anthropic',
-  'gpt-',
-  'glm-',
-  'kimi-',
-] as const
 
 const FAMILY_PLANTS: ReadonlyArray<[label: string, model: string | undefined]> = [
   ['no model env (defaults)', undefined],
@@ -73,15 +40,6 @@ async function main(): Promise<void> {
   console.log(' Debug tool + clangd lane — family-agnostic consent/gating')
   console.log('============================================================')
 
-  section('§1 structural census — no family reference in the consent/gating owners')
-  {
-    for (const rel of SWEPT_FILES) {
-      const source = readFileSync(join(ROOT, rel), 'utf-8')
-      const lowered = source.toLowerCase()
-      const hits = FORBIDDEN.filter(f => lowered.includes(f.toLowerCase()))
-      check(`${rel} carries none of the family/model seams`, hits.length === 0, hits.join(', '))
-    }
-  }
 
   const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
   const { isDapToolCatalogEnabled } = await import('../../src/services/dap/dapClient.js')

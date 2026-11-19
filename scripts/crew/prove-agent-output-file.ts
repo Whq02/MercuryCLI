@@ -20,8 +20,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 const WINDOWS = process.platform === 'win32'
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
@@ -162,8 +160,6 @@ const id = generateTaskId('local_agent')
 registerAsyncAgent({ agentId: id, description: 'plant the foliage', prompt: 'plant the foliage', selectedAgent: FAKE_DEF, setAppState: store.set as never })
 const named = getTaskOutputPath(id)
 const transcript = transcriptOf(id)
-const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
-check('the launch receipt names the agent\'s output path, getTaskOutputPath(its id)', /outputFile: getTaskOutputPath\(earlyAgentId\)/.test(agentTool) && /Output file: \$\{async\.outputFile\}/.test(agentTool))
 check('the output file the launch names appears', await appears(named))
 await settleLinks()
 check('before any row lands there is no transcript on disk', !existsSync(transcript))

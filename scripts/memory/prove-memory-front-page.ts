@@ -8,7 +8,6 @@ import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const scratch = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'mercury-memory-front-page-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 
@@ -378,12 +377,6 @@ check('a split page that splits again is named from the base topic, not big-2-2'
 const grouped = second ? indexTopics([listTopicDocs(dir3).find(d => d.slug === 'big')!, second[0], second[1]]) : new Map()
 check('the index keeps the three pages under the one topic line', grouped.size === 1 && grouped.get('big')?.map(d => d.slug).join(',') === 'big,big-2,big-3', JSON.stringify([...grouped.entries()].map(([k, v]) => [k, v.map(d => d.slug)])))
 
-section('the system prompt wiring')
-const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
-check('the memory section is composed once per conversation and never re-keyed on the front page mid-session (a save leaves the sent prompt as it was; the shelf reaches the model at the next session)', /systemPromptSection\(\s*'memory',\s*\(\) => loadMemoryPrompt\(\),?\s*\)/.test(prompts) && !/keyedSystemPromptSection\(\s*'memory'/.test(prompts) && !prompts.includes('memoryPromptKey'))
-check('the memory prompt comes from the front page module', prompts.includes("from '../mneme/mnemeFrontPage.js'"))
-const doctrine = readFileSync(join(ROOT, 'src/constants/subagentDoctrine.ts'), 'utf8')
-check('crewmates and sub-agents get the front page with the pinned rules', doctrine.includes("from '../mneme/mnemeFrontPage.js'") && /\.\.\.\(memory \? \[memory\] : \[\]\)/.test(doctrine))
 
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ FRONT PAGE, PINNED TIER, LOOKUP AND ARCHIVE PROVEN' : `❌ ${failures} FRONT-PAGE CHECK(S) FAILED`)

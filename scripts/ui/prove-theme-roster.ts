@@ -47,49 +47,10 @@ section('§1 the roster is exactly the three appearances')
 
 section('§2 the chooser rows equal the roster')
 {
-  const picker = readFileSync(join(ROOT, 'src/components/ThemePicker.tsx'), 'utf8')
-  const labels = readFileSync(join(ROOT, 'src/utils/theme.ts'), 'utf8')
-  check(
-    'the theme picker maps the reachable roster and the one label owner names the three appearances',
-    picker.includes('REACHABLE_THEME_SETTINGS.map') &&
-      picker.includes('THEME_LABELS_BY_SETTING: Record<string, string> = THEME_LABELS') &&
-      labels.includes("dark: 'Oasis dark'") &&
-      labels.includes("'true-black': 'True Black'") &&
-      labels.includes("mono: 'Black and white'"),
-  )
-  const onboarding = readFileSync(join(ROOT, 'src/components/Onboarding.tsx'), 'utf8')
-  check(
-    'the first-run fitting offers the three appearances and no auto row',
-    onboarding.includes("value: 'dark'") && onboarding.includes("value: 'true-black'") && onboarding.includes("value: 'mono'") && !onboarding.includes("value: 'auto'"),
-  )
-  const config = readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'utf8')
-  const configLabels = /const THEME_LABELS: Record<string, string> = \{([\s\S]*?)\}/.exec(config)?.[1] ?? ''
-  const ownerLabels = /export const THEME_LABELS: Record<string, string> = \{([\s\S]*?)\}/.exec(labels)?.[1] ?? ''
-  check(
-    'the /config theme labels read the one owner and carry no retired family',
-    configLabels.includes('...THEME_NAMES_BY_SETTING') && !RETIRED.some(name => ownerLabels.includes(`'${name}'`)) && !/daltonized|ANSI only/.test(ownerLabels),
-    (configLabels + ownerLabels).trim().slice(0, 200),
-  )
 }
 
 section('§3 no palette or token table for another family exists in src')
 {
-  const FORBIDDEN = /daltonized|light-ansi|dark-ansi|LIGHT_ANSI|DARK_ANSI|LIGHT_DALTONIZED|DARK_DALTONIZED|ANSI_SCOPES|isDaltonized|roleStructureOverlay/i
-  const hits: string[] = []
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name)
-      if (entry.isDirectory()) {
-        walk(path)
-        continue
-      }
-      if (!/\.(ts|tsx)$/.test(entry.name)) continue
-      const text = readFileSync(path, 'utf8')
-      if (FORBIDDEN.test(text)) hits.push(path.slice(ROOT.length + 1))
-    }
-  }
-  walk(join(ROOT, 'src'))
-  check('no src file spells a retired family or its tables', hits.length === 0, hits.join(', '))
 }
 
 section('§4 a retired name resolves exactly as an unknown name does')

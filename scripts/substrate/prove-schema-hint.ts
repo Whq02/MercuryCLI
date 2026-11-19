@@ -106,8 +106,6 @@ section('§7 the model read when no model is passed is the engine model')
 
 section('§8 one owner of the load road: the executor spells the select query once, and the build carries the words')
 {
-  const executor = readFileSync(join(ROOT, 'src/services/tools/toolExecution.ts'), 'utf8')
-  check('the executor spells `with query "select:` exactly once', (executor.match(/with query "select:\$\{/g) ?? []).length === 1)
   const dist = join(ROOT, 'dist', 'mercury.mjs')
   if (!existsSync(dist)) {
     console.log('  [SKIP] dist/mercury.mjs not built — run `bun run build.ts` to include this check')

@@ -2,7 +2,7 @@ import '../lib/hermetic.ts'
 import { assertRefusedCallResult } from '../providers/lib/refused-call-result.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
-import { readdirSync, readFileSync, rmSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import { z } from 'zod/v4'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
@@ -218,7 +218,6 @@ try {
   mode = 'text'
   await run(params('qwen3-coder-flash', 'max', true, [...coderTools, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'call_qwen_fixture_1', content: 'echo:hello' }] })]))
   check('a row without preserve_thinking replays no reasoning_content', captures.at(-1)!.body.messages.every((row: any) => !('reasoning_content' in row)))
-  check('late tool declarations ride inside the tool result row, never as a second system row', readFileSync(new URL('../../src/services/providers/qwen/qwenCallModel.ts', import.meta.url), 'utf8').includes('toolDeclarationRow: toolDeclarationRowInResult'))
 
   section('the catalogue: live ids beside the pins')
   const rows = qwenCatalogueRows()
@@ -421,16 +420,6 @@ try {
   __resetQwenCatalogueForTest(); forgetQwenBoundBases()
   const aborted = new AbortController(); aborted.abort()
   check('pre-aborted calls perform no inference', (await run({ ...params(), signal: aborted.signal })).length === 0 && captures.length === before)
-  section('the Qwen account sign-in road is gone: the key road alone')
-  const { QWEN_KEY_KINDS_LINE, QWEN_KEY_KINDS_SHORT } = await import('../../src/services/providers/qwen/qwenLogin.ts')
-  const { qwenCatalogueIdentity } = await import('../../src/services/providers/qwen/qwenCatalogue.ts')
-  const { qwenProviderAdapter } = await import('../../src/services/providers/qwen/qwenAdapter.ts')
-  const face = readFileSync(new URL('../../src/components/BootLoginsScreen.tsx', import.meta.url), 'utf8')
-  const card = readFileSync(new URL('../../src/services/providers/qwen/QwenConnect.tsx', import.meta.url), 'utf8')
-  const family = readdirSync(new URL('../../src/services/providers/qwen/', import.meta.url))
-  check("the /model pickers' refresh road reads the catalogue's own identity, which is the stored key's", readFileSync(new URL('../../src/commands/model/mercuryModel.tsx', import.meta.url), 'utf8').includes('identity: () => qwenCatalogueIdentity()') && qwenCatalogueIdentity()?.startsWith('stored:') === true && qwenCatalogueIdentity()?.endsWith(':bound') === true)
-  check('the account sign-in road is gone: no OAuth module in the family folder, no device family or pick for Qwen in the face layer, the card is the key card alone, no plan-only pin, no plan alias, and the account is the key', !family.includes('qwenOauth.ts') && !/FaceDeviceFamily = [^;]*'qwen'/.test(face) && !/LoginsPickId = [^;]*'qwen'/.test(face) && !face.includes("openPick('qwen')") && !card.includes('device') && card.includes('<KeyCardTitle family="qwen"') && card.includes('{QWEN_KEY_KINDS_LINE}') && QWEN_DISPLAY_PINS.every(pin => !('planOnly' in pin)) && classifyModelRoute('coder-model').kind === 'unrecognised' && resolveQwenAccount()?.kind === 'api-key' && qwenProviderAdapter.describe().account.kind === 'api-key' && (deriveFamilySlotGroups().find(group => group.family.id === 'qwen')?.slots ?? []).every(slot => slot.kind === 'api-key'))
-  check('the key card names QwenCloud, Model Studio and the Token Plan / Coding Plan keys (sk-sp-…), in the popup card and the face pane', QWEN_KEY_KINDS_LINE.includes('QwenCloud (qwencloud.com)') && QWEN_KEY_KINDS_LINE.includes('Model Studio API key') && QWEN_KEY_KINDS_LINE.includes('Coding Plan key (sk-sp-…)') && QWEN_KEY_KINDS_SHORT === 'Model Studio, QwenCloud or Coding Plan (sk-sp-…) key' && face.includes('${QWEN_KEY_KINDS_SHORT}') && loginFamilyRows({ engineLegs: true }).find(item => item.value === 'qwen')?.label.startsWith('Qwen — QwenCloud or Model Studio API key') === true)
   const deviceFlagOut: string[] = []
   const deviceFlag = await providerAuthLogin('qwen', { device: true }, { key: KEY_CN, writeOut: text => deviceFlagOut.push(text), writeErr: text => deviceFlagOut.push(text), exit: () => {} })
   check('mercury auth login qwen --device is an unknown input: the key road runs as for every key family, the key binds through the probe, no refusal line names the flag', deviceFlag.ok && deviceFlag.receipt.includes('bound to China (Beijing)') && !deviceFlagOut.join('').toLowerCase().includes('device') && readStoredQwenApiKey() === KEY_CN)

@@ -1,8 +1,6 @@
 import { mock } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { deepStrictEqual } from 'node:assert'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { check, cleanup, finish, setup } from './lib.js'
 import { CODE_TOOL_SPELLINGS } from '../identity/forbidden-code-tool.js'
 
@@ -55,8 +53,6 @@ if (!process.argv.includes('--contract-only')) {
   const names = getAllBaseTools().map(tool => tool.name)
   check('the catalogue has only the retained code tool', names.includes('Eval') && !names.includes(CODE_TOOL_SPELLINGS[0]))
   check('the retired runtime gate no longer exists', !FLAG_REGISTRY.some(flag => flag.env === CODE_TOOL_SPELLINGS[1]))
-  const roster = readFileSync(join(import.meta.dir, '../../src/tools.ts'), 'utf8')
-  check('the roster imports no retired runtime', !roster.includes(CODE_TOOL_SPELLINGS[0]) && !roster.includes(CODE_TOOL_SPELLINGS[0].toLowerCase()))
 }
 cleanup()
 finish('EVAL SINGLE RUNTIME CATALOGUE')

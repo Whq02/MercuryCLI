@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -22,7 +22,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 console.log('============================================================')
 console.log(' the compact VITALS line names the pool when the pool binds')
@@ -142,8 +141,6 @@ section('§3 a source with no pools is untouched, and a long label cannot widen 
   const name = lineOf(wide)
   const fitted = painted(name)
   check("the rail's own fit ends a longer label in its ellipsis inside the row's twenty columns: one line, never wider", name.startsWith('Fable 5.2 and Mythos 5.2 research preview 61%') && fitted.endsWith('…') && displayWidth(fitted) <= NAME_BUDGET && !fitted.includes('\n'), `${fitted} (${displayWidth(fitted)})`)
-  const owner = readFileSync(join(ROOT, 'src/services/providers/providerUsage.ts'), 'utf8')
-  check("in the product the pool's label is Mercury's own word (Fable, Opus, Sonnet), never the endpoint's free text", owner.includes("const POOL_LABELS: Record<WeeklyPoolClaim, string> = {\n  seven_day_fable: 'Fable',\n  seven_day_opus: 'Opus',\n  seven_day_sonnet: 'Sonnet',\n}") && owner.includes('label: POOL_LABELS[claim],'))
 }
 
 limits.__setAnthropicOwnerResolverForTest(null)

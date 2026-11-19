@@ -237,24 +237,6 @@ section('§1 the capable road: the hint mints and the region scroll replays cell
   check('no text token stands twice on the glass', doubles.length === 0, doubles.join(' '))
 }
 
-section('§2 ink.tsx hands ONE region-scroll truth to compose and writer alike')
-{
-  const src = await import('node:fs').then(fs =>
-    fs.readFileSync(new URL('../../src/ink/ink.tsx', import.meta.url), 'utf8'),
-  )
-  check(
-    'the renderer call carries regionScrollUsable',
-    /this\.renderer\(\{[^}]*regionScrollUsable/s.test(src),
-  )
-  check(
-    'the writer render rides the SAME predicate (no second capability read)',
-    /this\.writer\.render\(baseFrame, frame, this\.altScreenActive, regionScrollUsable\)/.test(src),
-  )
-  check(
-    'no stray decstbmSafe derivation remains beside the one truth',
-    !/const decstbmSafe = syncOutputSupportedNow\(\)/.test(src),
-  )
-}
 
 section('§3 the incapable road (Apple Terminal shape): no hint, plain replay cell-exact')
 {

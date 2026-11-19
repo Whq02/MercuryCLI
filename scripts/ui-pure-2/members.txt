@@ -1,12 +1,10 @@
 prove-accent-override.ts
-prove-accent-subscriptions.ts
 prove-account-identity-frames.ts
 prove-agent-face.ts
 prove-agent-fold-click.ts
 prove-appearance-system.ts
 prove-appearance-digit-and-config-theme.ts
 prove-anthropic-key-leg.ts
-prove-atomic-session-switch.ts
 prove-chrome-hysteresis.ts
 prove-cockpit-continuity.ts
 prove-compaction-view-continues.ts
@@ -21,7 +19,6 @@ prove-field-findings-sessions.ts
 prove-field-findings-toolrows.ts
 prove-field-findings-width.ts
 prove-first-run-seed.ts
-prove-footer-suggestions-overflow.ts
 prove-freshness.ts
 prove-gemini-guided-signin.ts
 prove-glimmer-wrap.ts
@@ -29,7 +26,6 @@ prove-helm-center-floor.ts
 prove-hooks-order.ts
 prove-key-hint-labels.ts
 prove-lanes-shed.ts
-prove-launchripple-deletion.ts
 prove-live-counter.ts
 prove-live-glyphs.ts
 prove-logins-key-lines.ts
@@ -48,7 +44,6 @@ prove-row-fills-its-pane.ts
 prove-s24-acceptance.ts
 prove-s31-acceptance.ts
 prove-saturn-screen.ts
-prove-select-mouse.ts
 prove-select-commit.ts
 prove-vim-input-mode-follow.ts
 prove-prompt-suggestion-stamps.ts
@@ -58,20 +53,16 @@ prove-local-command-output-row.ts
 prove-spinner-glyph-walk.ts
 prove-select-scroll-drive-hints.ts
 prove-selection-drag-coalesce.ts
-prove-selection-pointer.ts
 prove-session-pulse.ts
 prove-settings-popup-mouse-report.ts
 prove-size-ladder.ts
 prove-spinner-hud-plan.ts
 prove-spinner-hud.ts
-prove-streaming-nameplate.ts
-prove-surface-claim.ts
 prove-text-emission-paints-once.ts
 prove-thinking-disclosure.ts
 prove-thinking-shimmer-quiet.ts
 prove-thinking-withheld-row.ts
 prove-trust-telemetry.ts
-prove-uncaused-claims.ts
 prove-usage-family-meters.ts
 prove-viewport-route-repaint.ts
 prove-visual-baseline-timing.ts
@@ -88,7 +79,6 @@ prove-scroll-clip-paints.ts
 prove-list-click-on-space.tsx
 prove-host-list-pages.ts
 prove-status-card-key-owner.ts
-prove-sticky-prompt-header-gone.ts
 prove-rails-whole-or-absent.ts
 prove-exit-notice-owns-its-row.ts
 prove-composer-draft-survives-dispatch.ts

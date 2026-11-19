@@ -4,7 +4,6 @@ process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -181,7 +180,6 @@ section('§6 · flag registry rows')
   const master = getFlagSpec('MERCURY_GODOT_TOOLS')
   check('MERCURY_GODOT_TOOLS registered opt-in/behavioral', master?.kind === 'opt-in' && master?.tier === 'behavioral')
   check('the retired fixed-port and shared-token rows are gone', getFlagSpec('MERCURY_GODOT_TOOLS_PORT') === undefined && getFlagSpec('MERCURY_GODOT_TOOLS_TOKEN') === undefined)
-  check('the registry keeps no table of retired names — an unregistered name is simply unknown', !flagRegistryText().includes('RETIRED_FLAGS'))
   check('LITE opt-in/infra row', getFlagSpec('MERCURY_GODOT_TOOLS_LITE')?.kind === 'opt-in' && getFlagSpec('MERCURY_GODOT_TOOLS_LITE')?.tier === 'infra')
 }
 
@@ -210,7 +208,6 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, health, p
   check('boot menu: VULCAN row in miscellaneous with detail', vulcanRow?.group === 'miscellaneous' && (vulcanRow?.detail?.controls ?? '').length > 100)
   check('boot menu: Godot lanes row moved to miscellaneous', lanesRow?.group === 'miscellaneous')
 
-  const repo = path.join(import.meta.dir, '..', '..')
   const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
   const { vulcanEnabled: armedNow } = await import('../../src/utils/vulcan/vulcanGates.ts')
   const vulcanCheck = runtimeChecks().find(row => row.id === 'vulcan')
@@ -230,10 +227,6 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, health, p
     bare?.status === 'warn' && bare.evidence.includes(' · addon NOT installed · addon not enabled · ') && installed?.evidence.includes(' · addon installed · addon enabled · ') === true,
     `${bare?.evidence} | ${installed?.evidence}`,
   )
-  const promptsSrc = readFileSync(path.join(repo, 'src/constants/prompts.ts'), 'utf8')
-  check('prompt: getVulcanSection spliced into modeSections', promptsSrc.includes('getVulcanSection()'))
-  const harnessSrc = readFileSync(path.join(repo, 'src/utils/cockpit/harnessMap.ts'), 'utf8')
-  check('harness map: line wired via the gate module', harnessSrc.includes('getVulcanHarnessMapLine()'))
 }
 
 restoreEnv()

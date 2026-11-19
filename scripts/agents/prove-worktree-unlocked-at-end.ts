@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { DIST, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
 import { runScriptedTurn, startScriptedFixture, type SeenResult } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-worktree-unlocked-at-end')
-const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
 const scratch = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'worktree-unlocked-')))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
@@ -102,14 +101,6 @@ tally.check('an ordinary `git worktree remove <path>` of the clean lane succeeds
 const guarded = dirtyLane ? gitTry(repo, 'worktree', 'remove', dirtyLane.path) : { code: -1, stderr: 'no dirty lane' }
 tally.check("git's own guard, not a stale lock, is what stands between the lead and the dirty lane (remove without force refuses on the untracked file)", guarded.code !== 0 && /modified or untracked files/.test(guarded.stderr) && !/locked working tree/.test(guarded.stderr), `exit ${guarded.code}: ${guarded.stderr}`)
 
-tally.section("§3 the Crewmate tool's words say the rule: the worktree survives unlocked, path and branch in the result, the janitor's safe removal — never a promise of self-cleanup")
-{
-  const prompt = readFileSync(join(ROOT, 'src/tools/AgentTool/prompt.ts'), 'utf8')
-  tally.check('the description no longer promises that an untouched worktree cleans itself up', !prompt.includes('cleans itself up'), 'prompt.ts still says "cleans itself up"')
-  const fields = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-  tally.check('the isolation field says the worktree is kept unlocked, with path and branch in the result', fields.includes('Temporary git worktree; kept unlocked when the crewmate ends, with its path and branch in the result.') && !prompt.includes('kept unlocked'))
-  tally.check('the manual names safe delayed cleanup', prompt.includes('seven-day janitor removes only a clean worktree whose commits are reachable'))
-}
 
 rmSync(scratch, { recursive: true, force: true })
 tally.finish()

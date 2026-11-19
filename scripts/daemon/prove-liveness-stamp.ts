@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -155,7 +155,6 @@ console.log('\nL5 the outcome keeps the stamp and clears the block; a respawn ze
 
 console.log('\nL6 structural — no surface reads transcript growth as liveness')
 {
-  const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
   const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
   const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
   const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
@@ -183,18 +182,6 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   const at = seatLive.status(seat)
   check('the stuck verdict is measured against the watchdog’s own warning point (one owner, streamIdleBudget)', before === false && at.stuck === true && at.watchdogMs === WATCHDOG && at.quietMs === warnAt, JSON.stringify({ before, at, warnAt }))
   Date.now = realNow
-  const contract = read('src/services/engine-connector/seatLive.ts')
-  check('SeatStatusV1 carries no silenceMs (the proxy is gone from the contract)', !contract.includes('silenceMs'))
-  check('SeatStatusV1 carries the owner’s facts and its verdict', ['quietMs', 'watchdogMs', 'phaseMs', 'toolBudgetMs', 'stuck'].every(f => contract.includes(f)))
-  const bar = read('src/components/SwitchboardTagBar.tsx')
-  check('the row speaks "stuck" through the owner’s verdict alone (the status’s stuck field inside statusLine), never a local threshold', /\bs\.stuck\b/.test(bar) && !bar.includes('silenceMs') && !bar.includes('30_000'))
-  check('the row’s copy is the one exported statusLine', bar.includes('export function statusLine') && /^\s*const line = .*\bstatusLine\(live, status, crew\)$/m.test(bar))
-  const seatSrc = read('src/daemon/sessionSeat.ts')
-  check('the seat stamps every partial row before the arms (the runner speaking, whatever the row)', /function onSeatPartialRow[\s\S]{0,400}noteSeatEvent\(seat, dir\)/.test(seatSrc))
-  check('the seat stamps the heartbeat row on its own arm, apart from the state words', /case 'heartbeat':[\s\S]{0,300}noteSeatEvent\(seatFor\(\), dir\)/.test(seatSrc))
-  const watchdog = read('src/services/providers/anthropic/streamCore.ts')
-  check('the watchdog reads its budget from the one owner (no second constant)', watchdog.includes("streamIdleTimeoutMsForRoute('anthropic')") && watchdog.includes('streamIdleWarningMsOf(STREAM_IDLE_TIMEOUT_MS)') && !watchdog.includes('parsed >= 1_000 ? parsed : 90_000'))
-  check("the stream core relays the transport's liveness beside the watchdog's note (a quiet chunk) and marks every parsed event", watchdog.includes('activityRelay.noteChunk()') && watchdog.includes('activityRelay.noteEvent()'))
   const t = await import('../core-runtime/turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
   const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')

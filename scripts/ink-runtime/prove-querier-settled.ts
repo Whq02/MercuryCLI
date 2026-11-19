@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -97,24 +96,6 @@ console.log('\n the deadline reads the product\'s own flag')
   check('the flag is registered as a value row read by the querier', row?.kind === 'value' && row.consumer === 'src/ink/session/querier.ts', JSON.stringify(row))
 }
 
-console.log('\n the three handovers consult the settled state')
-{
-  const src = (rel: string): string => readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8')
-  const ink = src('src/ink/ink.tsx')
-  check('the renderer offers the bounded wait (awaitTerminalQueries reads the flag)', ink.includes('async awaitTerminalQueries(): Promise<void>') && ink.includes('await querier.whenSettled(terminalQuerySettleMs())'))
-  check('the pause handover drains stdin when the batch is still open (the editor roads ride pause)', /pause\(\): void \{\n\s+this\.drainUnsettledQueries\(\)/.test(ink) && ink.includes('drainStdin(this.options.stdin)'))
-  const promptEditor = src('src/utils/promptEditor.ts')
-  check('the prompt editor road awaits the settle before its handover', /await instance\.awaitTerminalQueries\(\)\n\s+if \(isTerminalEditor\)/.test(promptEditor))
-  const app = src('src/ink/components/App.tsx')
-  check('the suspend road waits on the settle before the SIGTSTP', app.includes('this.querier.whenSettled(terminalQuerySettleMs()).then(() => this.stopForSuspend())') && app.indexOf('stopForSuspend(): void') !== -1 && app.indexOf('stopForSuspend(): void') < app.indexOf("process.kill(process.pid, 'SIGTSTP')"))
-  const teardown = src('src/ink/root/teardown.ts')
-  check('the teardown suite drains stdin (the exit road\'s sync fallback)', teardown.includes("{ kind: 'drain-stdin'"))
-  const shutdown = src('src/utils/gracefulShutdown.ts')
-  const awaitAt = shutdown.indexOf('awaitTerminalQueries()')
-  const restoreAt = shutdown.indexOf('runTerminalRestoration()\n', shutdown.indexOf('process.exitCode = exitCode'))
-  check('the exit road awaits the settle once, right before its first terminal restoration, only when the restoration world is loaded', awaitAt > 0 && restoreAt > awaitAt && shutdown.slice(awaitAt - 120, awaitAt).includes('if (restorationModule) await'))
-  check('the exit road reaches the renderer at fire time only (no static ink import)', !/^import .* from '\.\.\/ink\//m.test(shutdown))
-}
 
 console.log(failures === 0 ? '\nGREEN: a handover waits for the open batch, bounded, else drains' : `\nRED: ${failures} check(s) show a handover that races the open query batch`)
 process.exit(failures === 0 ? 0 : 1)

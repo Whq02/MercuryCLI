@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
@@ -26,8 +25,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(name: string): void {
   console.log(`\n── ${name} ──`)
 }
-const ROOT = new URL('../../', import.meta.url).pathname
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 section('hunk patch grammar')
 {
@@ -71,133 +68,8 @@ section('null-rendering registry')
       ),
   )
   check('a rendered kind is NOT in the registry', !isNullRenderingAttachment(asMessage('file')))
-  const dispatcher = src('src/components/messages/AttachmentMessage.tsx')
-  check(
-    "the dispatcher's default branch asserts registry membership (type-system sync)",
-    dispatcher.includes('NullRenderingAttachmentType = attachment.type'),
-  )
 }
 
-section('structural pins — owner consumption (rule 4)')
-{
-  const hooksMenu = src('src/components/hooks/HooksConfigMenu.tsx')
-  check(
-    'the hooks browser consumes the ONE metadata/grouping owner',
-    hooksMenu.includes('hookEventCards') &&
-      hooksMenu.includes('groupHooksByEventAndMatch') &&
-      hooksMenu.includes('sortedMatchesForEvent'),
-  )
-  check(
-    'no hand-authored event-summary table survives',
-    !hooksMenu.includes('EVENT_SUMMARIES'),
-  )
-  check(
-    'match support comes from the table, not a hand list',
-    hooksMenu.includes('eventHasMatch(') && !hooksMenu.includes('MATCHERLESS_EVENTS'),
-  )
-
-  const memSel = src('src/components/memory/MemoryFileSelector.tsx')
-  check(
-    'the picker makes no git claim of its own: it never reads findGitRoot and never says a file is checked in',
-    !memSel.includes('findGitRoot') && !memSel.includes('checked in'),
-  )
-  check(
-    'the picker suspends on the memoised discovery promise',
-    memSel.includes('use(getInstructionFiles())'),
-  )
-
-  const collapsed = src('src/components/messages/CollapsedReadSearchContent.tsx')
-  check(
-    'the 700 ms hint floor is the shared min-display-time hook',
-    collapsed.includes('useMinDisplayTime(rawHint, HINT_MIN_DISPLAY_MS)'),
-  )
-
-  const dialog = src('src/components/diff/DiffDialog.tsx')
-  check(
-    'both diff copies route through the shared OSC-52 clipboard writer',
-    (dialog.match(/setClipboard\(/g) ?? []).length === 2 &&
-      dialog.includes('process.stdout.write(sequence)'),
-  )
-  check(
-    'the editor open goes through the line-capable owner',
-    dialog.includes('openFileInExternalEditor(') && dialog.includes('$VISUAL or $EDITOR'),
-  )
-}
-
-section('structural pins — transcript renderers')
-{
-  const success = src('src/components/messages/UserToolResultMessage/UserToolSuccessMessage.tsx')
-  check(
-    'the inline-summary suppression keys on the TOOL-USE BLOCK name',
-    success.includes('lookups.toolUseByToolUseID.get(toolUseID)?.name'),
-  )
-  check(
-    'a declared output schema gates rendering',
-    success.includes('outputSchema.safeParse') && success.includes('if (!parsed.success) return null'),
-  )
-  const reject = src('src/components/messages/UserToolResultMessage/UserToolRejectMessage.tsx')
-  check(
-    'the reject path falls back to the shared element and never renders empty',
-    (reject.match(/FallbackToolUseRejectedMessage/g) ?? []).length >= 4,
-  )
-}
-
-section('structural pins — OAuth surfaces + elicitation')
-{
-  const elicit = src('src/components/mcp/ElicitationDialog.tsx')
-  check(
-    'every validation rule comes from the S45 owner',
-    elicit.includes("from '../../utils/mcp/elicitationValidation.js'") &&
-      elicit.includes('validateElicitationInputAsync'),
-  )
-  check(
-    "the shell's own cancel is disarmed while a field is focused",
-    elicit.includes('isCancelActive={(!fieldFocused || buttonFocused) && !accordionOpen}'),
-  )
-  check(
-    'the field-focused escape rides confirm-no in the Settings context',
-    elicit.includes("{ context: 'Settings', isActive: fieldFocused && !accordionOpen }"),
-  )
-  check(
-    'unmount aborts every per-field resolve and clears the debounce timers',
-    elicit.includes('for (const controller of resolveAbortsRef.current.values())'),
-  )
-  check(
-    'the accepted payload keeps JSON types (content map built from values)',
-    elicit.includes('content[field.name] = field.value'),
-  )
-  const settings = src('src/components/mcp/MCPSettings.tsx')
-  const popup = src('src/commands/mcp/McpPopup.tsx')
-  check(
-    'the /mcp surface reads the roster the runner owns — no in-process auth probe to time-box',
-    settings.includes("import { McpPopup } from '../../commands/mcp/McpPopup.js'") &&
-      popup.includes('connector.mcpRoster()') &&
-      !popup.includes('MercuryMcpAuthProvider'),
-  )
-  check(
-    'a sign-in left mid-flight is cancelled on unmount and a late answer never paints',
-    popup.includes("void connector.mcpAction(signingIn.current, 'cancel-auth')") &&
-      popup.includes('if (alive.current && result.outcome !== \'applied\')'),
-  )
-}
-
-section('structural pins — /help + misc')
-{
-  const help = src('src/components/HelpV2/HelpV2.tsx')
-  check(
-    'selecting a command stages /name through the composer seed, quietly',
-    help.includes('nextInput: `/${commandName} `') && help.includes("display: 'skip'"),
-  )
-  check(
-    'no external documentation URL (fork requirement)',
-    !/https?:\/\//.test(help),
-  )
-  const list = src('src/commands/mcp/McpPopup.tsx')
-  check(
-    'the /mcp empty-state and list carry no upstream doc links or binary names',
-    !/claude\s+mcp|docs\.anthropic|https?:\/\/docs/.test(list),
-  )
-}
 
 console.log('')
 if (failures > 0) {

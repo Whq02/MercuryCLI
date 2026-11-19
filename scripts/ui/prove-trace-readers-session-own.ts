@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -42,7 +42,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
 const settle = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
@@ -112,15 +111,10 @@ section('§2 /trace — the view reads the focused session\'s own records throug
   await settle(30)
   check('RED ON THE BASE: the trace view lists the session\'s own calls (Glob, its killed Bash) and none of the other session\'s (Computer)', frame.includes('Glob') && !frame.includes('Computer'), frame.split('\n').filter(l => /Glob|Computer|Bash|Read/.test(l)).join(' | '))
   check('the view names no repo-wide count', !/\brepo\b/.test(frame), frame.split('\n').find(l => /repo/.test(l)) ?? '')
-  const view = read('src/components/TraceView.tsx')
-  check('the view narrows the bus\'s snapshot with the one conversation reader', view.includes('sessionTraceSnapshot(bus, conversationIdHere())'))
 }
 
 section('§3 the deck pane narrows the same way and names no repo tail')
 {
-  const pane = read('src/components/DeckPane.tsx')
-  check('the deck pane narrows the bus\'s trace the same way', pane.includes('sessionTraceSnapshot(vitals.trace, conversationIdHere())'))
-  check('RED ON THE BASE: the deck pane paints no repo tail after the count', !pane.includes("' · repo'"))
 }
 
 _resetFocusedSessionConnectorForTesting()

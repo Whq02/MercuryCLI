@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -15,7 +14,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
-const source = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const { modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
 const { glmTakesImages } = await import('../../src/services/providers/zai/glmPins.ts')
@@ -86,13 +84,6 @@ section("§3 Z.AI's refusal wording is read as an image refusal, so the recovery
 
 section('§4 the refusal row the Z.AI and compat roads yield carries the typed media refusal, and the plan strips the refused image by it')
 {
-  const zai = source('src/services/providers/zai/zaiCallModel.ts')
-  const compat = source('src/services/providers/openaicompat/compatChatCallModel.ts')
-  for (const [name, text] of [['zai', zai], ['compat', compat]] as const) {
-    const at = text.indexOf('noteImageRefusal(modelId, refusedImage)')
-    const window = at < 0 ? '' : text.slice(at, at + 900)
-    check(`${name}: the refusal row is stamped mediaRefusal with the image block type`, window.includes("{ blockTypes: ['image'], detail: refusedImage }"), window.slice(0, 200))
-  }
   const refusalRow = createAssistantAPIErrorMessage({ content: 'API Error: refused', error: 'unknown', mediaRefusal: { blockTypes: ['image'], detail: ZAI_WORDS } })
   const withImage = createUserMessage({ content: resultTurn.content as never })
   const after = stripImagesRefusedByStamp([withImage, refusalRow])

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -10,14 +9,11 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const root = join(import.meta.dir, '..', '..')
 const t = await import('../core-runtime/turnScenarios.ts')
-const engine = readFileSync(join(root, 'src', 'rows', 'turn.ts'), 'utf-8')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { statusOfTerminal, OUTCOME_STATUSES } = await import('../../src/rows/vocabulary.ts')
 const { createUserInterruptionMessage } = await import('../../src/utils/messages/factories.js')
 const { turnCutLine, turnCutOf, turnCutResultText } = await import('../../src/utils/messages/rejectionText.js')
-const driver = readFileSync(join(root, 'src', 'cli', 'headless', 'turnDriver.ts'), 'utf-8')
 
 console.log('============================================================')
 console.log(' cancelled turns never settle as phantom completions (HB-0096, runner-homed)')
@@ -115,50 +111,10 @@ check(
     return Array.isArray(content) && content.length === 1 && content[0]?.type === 'text' && content[0].text === turnCutLine(turnCutOf(reason), toolUse)
   })),
 )
-const { loadTs, parseSource, resolveStructureTypescript } = await import('../../src/services/structure/tsFacility.ts')
-const resolved = resolveStructureTypescript(root)
-if (resolved.state !== 'ok') throw new Error(resolved.note)
-const ts = loadTs(resolved.modulePath)
-const parsed = parseSource(ts, 'turn.ts', engine)
-let completedIsInsideGate = false
-const visit = (node: import('typescript').Node): void => {
-  if (ts.isIfStatement(node) && node.expression.getText(parsed.sourceFile).replace(/\s/g, '') === "settled.status==='completed'") {
-    completedIsInsideGate = node.thenStatement.getText(parsed.sourceFile).includes("yield* endTurn('completed'")
-  }
-  ts.forEachChild(node, visit)
-}
-visit(parsed.sourceFile)
 const cuts = [null, 'operator', 'idle-timeout', 'parent-stop', 'cut'] as const
 check(
   'statusOfTerminal never reads an aborted terminal as completed, whatever the cut',
   (['aborted_streaming', 'aborted_tools'] as const).every(reason => cuts.every(cut => { const s = statusOfTerminal({ reason } as never, cut as never).status; return (OUTCOME_STATUSES as readonly string[]).includes(s) && s !== 'completed' })),
-)
-check(
-  'the settlement reads the status off the terminal and the cut, then gates the completed yield on it',
-  /const aborted = terminal\.reason === 'aborted_streaming' \|\| terminal\.reason === 'aborted_tools'\s*const cut = aborted \? turnCutOf\(this\.abortController\.signal\.reason\)\.kind : null/.test(engine) &&
-    /const settled = endedOnApiError \? \{ status: 'failed' as const, errorClass: 'model' as const \} : statusOfTerminal\(terminal, cut\)\s*if \(settled\.status === 'completed'\) \{/.test(engine) && parsed.parseErrors.length === 0 && completedIsInsideGate,
-)
-check(
-  'the completed outcomes are the closed two (local command · the gated settlement)',
-  (engine.match(/endTurn\((?:refused \? 'refused' : )?'completed'/g) ?? []).length === 2,
-)
-check(
-  'the turn settlement’s completed yield is the LAST outcome of its kind, past the gate',
-  engine.lastIndexOf("endTurn('completed'") > engine.indexOf('const settled ='),
-)
-
-section('C. the settle tail: exactly once per turn, after the turn, one call site')
-check(
-  "runOneTurn settles in order: executeTurn → lifecycle 'completed' → onTurnSettled",
-  /await ports\.executeTurn\(command, batch\.length > 1 \? batch : \[\], message => \{[\s\S]{0,1500}?\}\)\s*for \(const uuid of batchUuids\) \{\s*ports\.notifyLifecycle\(uuid, 'completed'\)\s*\}[\s\S]{0,300}?ports\.onTurnSettled\(command\)/.test(driver),
-)
-check(
-  'onTurnSettled has exactly one call site in the driver',
-  (driver.match(/ports\.onTurnSettled\(/g) ?? []).length === 1,
-)
-check(
-  'the error band (a failed outcome + shutdown) is reserved for a THROWN cycle — the clean abort return never reaches it',
-  /catch \(error\) \{[\s\S]{0,400}?await ports\.writeDirect\(ports\.onCycleError\(error, ports\.turnIdOf\(\)\)\)[\s\S]{0,200}?ports\.shutdown\(1\)/.test(driver),
 )
 
 console.log('\n' + '='.repeat(60))

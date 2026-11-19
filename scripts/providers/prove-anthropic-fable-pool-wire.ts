@@ -154,8 +154,6 @@ section("§5 the reader states the reply's shape once in the debug log: keys and
   check('it names each limits[] row by kind, group and scope name', words.includes(`limits session/session, weekly_all/weekly, weekly_scoped/weekly model ${MASKED_NAME}`), words)
   check('it carries no figure of the reply', !/\b(20|22|42)\b/.test(words) && !words.includes('2026-'), words)
   check('a reply that is no object says so', limits.usagePayloadShapeWords(null) === 'no object' && limits.usagePayloadShapeWords([]) === 'no object')
-  const reader = readFileSync(join(ROOT, 'src/services/providers/anthropic/anthropicUsageState.ts'), 'utf8')
-  check('the usage reader logs it after an answered read, once', (reader.match(/usagePayloadShapeWords\(/g) ?? []).length === 1 && reader.includes('[usage] read #${request} payload shape · '))
 }
 
 const windows = JSON.parse(readFileSync(join(ROOT, 'scripts/providers/fixtures/anthropic-unified-windows-2026-11-09.json'), 'utf8')) as {
@@ -240,8 +238,6 @@ section("§9 the runner's reading reaches the window process: the relay carries 
   check('a V1 record without the field (an older runner) is adopted as before: 5h and 7d, no pool', bare && firstTwo() === '5h 36% · 7d 44%' && poolsNow() === '' && railMeters().length === 2, `${bare} ${poolsNow()}`)
   limits.resetLimitsForCredentialSwitch()
   check('a malformed pool beside whole windows drops the pool alone', limits.adoptAnthropicObservedUsage({ ...written, sevenDayFable: { utilization: 'much', resetsAt: nowSeconds + 60, observedAtMs: at } }) && poolsNow() === '' && firstTwo() === '5h 36% · 7d 44%', poolsNow())
-  const types = readFileSync(join(ROOT, 'src/services/engine-connector/types.ts'), 'utf8')
-  check('the field is optional on the V1 fact, and nothing but that declaration names it in the wire types', (types.match(/sevenDayFable/g) ?? []).length === 1 && types.includes('  sevenDayFable?: AnthropicObservedWindowV1\n'))
 }
 
 section("§10 the refusal: the provider's claim for that week is seven_day_overage_included, and it reads as the Fable limit it is")

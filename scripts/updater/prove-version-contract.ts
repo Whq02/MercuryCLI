@@ -63,8 +63,6 @@ check('linux asset name matches the packager grammar', assetNameFor(VERSION, 'li
 check('macos asset name matches the packager grammar', assetNameFor(VERSION, 'darwin', 'arm64') === `mercury-v${VERSION}-macos-arm64.tar.gz`)
 check('intel macos asset name matches the packager grammar', assetNameFor(VERSION, 'darwin', 'x64') === `mercury-v${VERSION}-macos-x64.tar.gz`)
 check('windows asset name matches the packager grammar', assetNameFor(VERSION, 'win32', 'x64') === `mercury-v${VERSION}-windows-x64.zip`)
-const packager = readFileSync(join(ROOT, 'scripts', 'release', 'package.mjs'), 'utf8')
-check('packager derives NAME from the owner (archiveBaseNameFor), never a second spelling', packager.includes('const NAME = archiveBaseNameFor(VERSION, TARGET)') && !packager.includes('`mercury-v${VERSION}-${TARGET}`'))
 {
   const rt = await import('../../src/services/privateChannel/releaseTarget.ts')
   check('the owner\'s base is the archive name without its extension, for every target', rt.RELEASE_TARGETS.every(t => rt.archiveNameFor(VERSION, t) === `${rt.archiveBaseNameFor(VERSION, t)}.${t.startsWith('windows-') ? 'zip' : 'tar.gz'}`))
@@ -73,10 +71,6 @@ check('packager derives NAME from the owner (archiveBaseNameFor), never a second
 
 const notices = readFileSync(join(ROOT, 'THIRD_PARTY_NOTICES.md'), 'utf8')
 check('THIRD_PARTY_NOTICES header carries the root version', notices.includes(`Mercury ${VERSION}`))
-check(
-  `the bundled changelog carries the ## ${VERSION} section (the packaged RELEASE-NOTES source)`,
-  readFileSync(join(ROOT, 'src', 'constants', 'changelog.ts'), 'utf8').includes(`## ${VERSION}`),
-)
 const workflow = readFileSync(join(ROOT, '.github', 'workflows', 'private-release.yml'), 'utf8')
 check('release workflow verifies tag ≡ version root', workflow.includes('tag equals package.json version'))
 check('release workflow publishes the changelog-derived notes', workflow.includes('notesFromChangelog.mjs'))

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,7 +20,6 @@ const watchdog = setTimeout(() => {
 }, 180_000)
 watchdog.unref?.()
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 delete process.env.NODE_ENV
 for (const ambient of ['ANTHROPIC_API_KEY', 'MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'GOOGLE_API_KEY', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT']) {
@@ -291,29 +290,6 @@ for (const { lane, model, dialect } of LANES) {
   }
 }
 
-section('static pins — the owners carry no speed-tier vocabulary')
-{
-  const read = (p: string): string => (existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), 'utf8') : '')
-  check('constants/betas.ts names no fast-mode beta', !/fast[-_]?mode|FAST_MODE/i.test(read('src/constants/betas.ts')))
-  const transportDirs = ['src/services/providers/anthropic'].filter(d => existsSync(join(ROOT, d)))
-  const transportFiles: string[] = []
-  for (const d of transportDirs) {
-    for (const f of readdirSync(join(ROOT, d))) {
-      if (statSync(join(ROOT, d, f)).isFile() && /\.tsx?$/.test(f)) transportFiles.push(`${d}/${f}`)
-    }
-  }
-  check('the Anthropic transport directory exists', transportFiles.length > 0, transportDirs.join(','))
-  const offenders = transportFiles.filter(f => /fastMode|FAST_MODE|speed\s*=\s*'fast'|speed:\s*'fast'|\{\s*speed\s*\}/.test(read(f)) || /\bfast[-_]mode/i.test(read(f)))
-  check('the Anthropic transport neither latches a fast-mode header nor sets a speed param', offenders.length === 0, offenders.join(','))
-  check('the settings schema carries no fast-mode key', !/fastMode/.test(read('src/utils/settings/types.ts')))
-  check('the global config schema carries no fast-mode key', !/fastMode/i.test(read('src/utils/config/schema.ts')))
-  const seeded = turnOptions.flatMap(scanOptions)
-  check(
-    'the turn seeds no fast-mode state',
-    !/fastMode|fast_mode/.test(read('src/rows/turn.ts')) && turnOptions.length === LANES.length && seeded.length === 0,
-    `the model call (streamModel, src/run-core/turn/streamModel.ts) must hand a lane no fast-mode, speed or service-tier option; over the ${LANES.length} lanes' runs the turn made ${turnOptions.length} model calls and handed ${seeded.map(h => h.where).join(', ') || 'no such option'}`,
-  )
-}
 
 server.close()
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)

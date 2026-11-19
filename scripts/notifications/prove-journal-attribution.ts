@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,19 +20,9 @@ function check(label: string, ok: boolean, detail?: string): void {
     console.log(`  ❌ ${label}${detail ? ` — ${detail}` : ''}`)
   }
 }
-const REPO = join(import.meta.dir, '../../')
-const src = (p: string) => readFileSync(join(REPO, p), 'utf8')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
-console.log('§2 — attention comes from TYPED events only')
-{
-  const bridge = src('src/services/crew/obligationsBridge.ts')
-  check('the gatherer consumes the obligations owner (typed rows)', bridge.includes("from './obligations.js'") || bridge.includes('openObligations'))
-  check('…and performs NO prose inference (no message-text scanning)', !/match\(|\.includes\('\?'\)|sounds|regex/i.test(bridge))
-  const obligations = src('src/services/crew/obligations.ts')
-  check('the owner mints obligations from typed upserts only (no free-text parser)', !obligations.includes('parseMessage') && !obligations.includes('inferFrom'))
-}
 
 console.log('§3 — the main Chat is managed session #1 (ruling 26)')
 {

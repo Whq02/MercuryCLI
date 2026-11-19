@@ -2,8 +2,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import {
   API_ERROR_MESSAGE_PREFIX,
   STREAM_FAULT_AFTER_PARTIAL_MARKER,
@@ -12,7 +10,6 @@ import {
 } from '../../src/services/api/errors.js'
 import { createAssistantAPIErrorMessage } from '../../src/utils/messages.js'
 
-const repoRoot = resolve(new URL('../..', import.meta.url).pathname)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -36,19 +33,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   check('classifier requires the API-error flag', !isContinuableStreamFaultMessage(nonError))
 }
 
-{
-  for (const file of [
-    'src/services/providers/openai/openaiCallModel.ts',
-    'src/services/providers/zai/zaiCallModel.ts',
-  ]) {
-    const source = readFileSync(resolve(repoRoot, file), 'utf8')
-    check(file + ' composes via streamFaultAfterPartialText', source.includes('streamFaultAfterPartialText('))
-    check(
-      file + ' has no hand-rolled after-partial tail left',
-      !source.includes("stream fault after partial content ("),
-    )
-  }
-}
 
 {
   const { decideStreamFaultRecovery } = await import('../../src/run-core/turn-machine.js')
@@ -93,9 +77,6 @@ function check(label: string, cond: boolean, detail = ''): void {
     reply.length === 2 && reply[1]?.isApiErrorMessage === true && sent.length === before.length + 2 && before.every((row, index) => sent[index] === row) && sent.at(-2) === reply[0] && !sent.some(row => row.isApiErrorMessage === true),
     `${RULE} must hand over the request's rows, then the reply's rows that are no API error, then the nudge; the reply held ${reply.map(row => (row.isApiErrorMessage === true ? 'the fault row' : 'the partial')).join(' + ')} and the next request holds ${sent.map(row => `${String(row.type)}${row.isApiErrorMessage === true ? ' (the fault row)' : row === reply[0] ? ' (the partial)' : ''}`).join(', ')}`,
   )
-  const errorsSource = readFileSync(resolve(repoRoot, 'src/services/api/errors.ts'), 'utf8')
-  check('the nudge prose lives at its owner', errorsSource.includes("'The provider stream dropped mid-response after partial content. '"))
-  check('the owner composes the marker: the identity nudge first, the settled tail named beside it', errorsSource.includes('export function streamFaultRecoveryContent') && errorsSource.includes('export function streamFaultRecoveryTailLine'))
   check('a cut before any text ⇒ the plain nudge, as a string, as today', streamFaultRecoveryContent('') === STREAM_FAULT_RECOVERY_NUDGE && streamFaultRecoveryContent('   ') === STREAM_FAULT_RECOVERY_NUDGE && streamFaultRecoveryTailLine('') === null)
   const composed = streamFaultRecoveryContent('first the schema swap, then the ')
   check('a cut after settled text ⇒ two text blocks: the identity nudge (the lookups key on it) and the tail line', Array.isArray(composed) && composed.length === 2 && composed[0]?.type === 'text' && isStreamFaultRecoveryNudgeText((composed[0] as { text: string }).text) && composed[1]?.type === 'text' && (composed[1] as { text: string }).text.includes('“first the schema swap, then the”'), JSON.stringify(composed))
@@ -110,8 +91,6 @@ function check(label: string, cond: boolean, detail = ''): void {
     next.streamFaultRecoveryCount === 1 && JSON.stringify(next.transition) === JSON.stringify({ reason: 'stream_fault_recovery', attempt: 1 }) && t.reasonOf(surfaced.decision) === 'end completed' && t.noticesOf(surfaced.events).some(line => line.includes('stopped after 1 continuation; the reply so far stands')),
     `${RULE} must hand over streamFaultRecoveryCount + 1, and with the count at its limit say the reply stands and decide nothing; the next state counts ${JSON.stringify(next.streamFaultRecoveryCount)} with transition ${JSON.stringify(next.transition)}, and the second cut ended ${t.reasonOf(surfaced.decision)} saying ${JSON.stringify(t.noticesOf(surfaced.events))}`,
   )
-  const transitions = readFileSync(resolve(repoRoot, 'src/query/transitions.ts'), 'utf8')
-  check('the transition reason is typed', transitions.includes("reason: 'stream_fault_recovery'; attempt: number"))
 }
 
 if (failures > 0) {

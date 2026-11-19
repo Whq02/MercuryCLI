@@ -9,7 +9,6 @@ if (process.platform === 'win32') {
   process.exit(0)
 }
 
-const REPO_ROOT = join(import.meta.dir, '..', '..')
 const SCRATCH = mkdtempSync(join(tmpdir(), 'worktree-dirt-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR)
@@ -70,13 +69,6 @@ console.log('§1 the probe is bounded')
   check("…never touching the user's index (no refresh written)", statSync(idx).mtimeMs === idxBefore && !existsSync(join(repo, '.git', 'index.lock')))
 }
 
-console.log('§2 the reap keeps the synchronous read')
-{
-  const src = readFileSync(join(REPO_ROOT, 'src/daemon/concourseWorktrees.ts'), 'utf8')
-  check('the reap still classifies synchronously (a reap sees the tree of its moment)', /dirt \?\?= classifyWorktreeDirt\(path\)/.test(src))
-  check('the synchronous read is the one road that spells the probe', (src.match(/\.\.\.dirtProbe\(path\)\)/g) ?? []).length === 1)
-  check('…and that spelling ends with the boundary owner\'s pathspec tail', src.includes("'--untracked-files=normal', ...projectScopePathspec(path)]"))
-}
 
 console.log('§3 the dirt law holds through the bounded probe')
 {

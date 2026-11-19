@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'project-recognition-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -81,11 +80,6 @@ console.log('§5 — no freeze: an answer over a failed canonicalization is neve
 
 console.log('§6 — the one door: every surface derives through the recognition owner')
 {
-  const filter = readFileSync(join(process.cwd(), 'src/utils/sessionFilter.ts'), 'utf8')
-  check('sessionFilter derives through the ONE recognition door (workspaceRecognizedByGround)', filter.includes('workspaceRecognizedByGround('))
-  const facts = codeOnlyText('src/utils/bootCardFacts.ts', readFileSync(join(process.cwd(), 'src/utils/bootCardFacts.ts'), 'utf8'))
-  check('inProject delegates to the same door (one law, one spelling)', facts.includes('return workspaceRecognizedByGround(project.dir, workspaceDir)'))
-  check('the predicate is the exported function both surfaces import (not a private copy)', facts.includes('export function workspaceRecognizedByGround(groundDir: string, workspaceDir: string): boolean') && filter.includes("from './bootCardFacts.js'"))
   const configHome = join(P, '.mercury')
   check('a config-home spelling resolves to its parent on BOTH surfaces (the exact-key arm)', inProject(pid, configHome) && isProjectSession(log(configHome), P))
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -101,12 +101,6 @@ check('a transcript with no record yields no override', recordedRequestContexts(
 
 section('§4 the resume and the launch wire the record end to end')
 {
-  const resume = readFileSync(join(ROOT, 'src/tools/AgentTool/resumeAgent.ts'), 'utf8')
-  check('a resume reads the recorded contexts for the restored key', resume.includes('recordedRequestContexts(transcript.messages, restoredKey)'))
-  check('a resume hands the recorded user and system contexts to the run as its override', resume.includes('userContext: recordedContexts.userContext') && resume.includes('systemContext: recordedContexts.systemContext'))
-  const run = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
-  check('the run takes the override before composing live', run.includes('override?.userContext ?? (await getUserContext())') && run.includes('override?.systemContext ?? (await getSystemContext())'))
-  check('an instruction-profile slice never reshapes a recorded user context', run.includes("if (override?.userContext === undefined) {\n            userContext = { ...userContext }"))
   const t = await import('../core-runtime/turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
   const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')

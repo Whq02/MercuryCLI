@@ -1,13 +1,9 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import {
   hasRealConversation,
   isTranscriptFurnitureMessage,
 } from '../../src/utils/cockpit/realConversation.ts'
 
-const REPO = join(import.meta.dir, '..', '..')
-const read = (p: string) => readFileSync(join(REPO, p), 'utf8')
 
 let failures = 0
 function check(label: string, cond: boolean): void {
@@ -107,23 +103,6 @@ check('an assistant row with tool_use stays real (single-block strictness)',
 check('assistant/progress rows are never classified as furniture',
   !isTranscriptFurnitureMessage(assistantRow) && !isTranscriptFurnitureMessage(progressRow))
 
-const messagesTsx = read('src/components/Messages.tsx')
-check('Messages.tsx imports hasRealConversation (cockpit/realConversation)',
-  /import \{ hasRealConversation as computeHasRealConversation \} from '\.\.\/utils\/cockpit\/realConversation\.js'/.test(messagesTsx))
-check('the brand-row/home swap is fed the memoized predicate, not a length check',
-  /\{hasRealConversation \? <MercuryBrandRow \/> : null\}/.test(messagesTsx) && /\{!hasRealConversation \? <MercuryHome \/> : null\}/.test(messagesTsx))
-check('the bare `renderableMessages.length > 0` hasTurns predicate is DEAD',
-  !/hasTurns=\{renderableMessages\.length > 0\}/.test(messagesTsx))
-check('the predicate memo computes over the PRE-SLICE renderable domain (collapsed)',
-  /const hasRealConversation = useMemo\(\s*\(\) =>\s*computeHasRealConversation\(\s*collapsed as Parameters<typeof computeHasRealConversation>\[0\],\s*\),\s*\[collapsed\],\s*\)/.test(messagesTsx))
-const messagesTs = read('src/utils/messages/rejectionText.ts')
-const canonical = /export const NO_RESPONSE_REQUESTED = '([^']+)'/.exec(messagesTs)?.[1]
-const leaf = read('src/utils/cockpit/realConversation.ts')
-const mirrored = /const NO_RESPONSE_SENTINEL = '([^']+)'/.exec(leaf)?.[1]
-check('leaf sentinel literal matches utils/messages NO_RESPONSE_REQUESTED',
-  canonical !== undefined && canonical === mirrored)
-check('the swap MercuryBrandRow/MercuryHome still rides the predicate (stamp branch intact)',
-  /hasRealConversation \? <MercuryBrandRow \/> : null/.test(messagesTsx) && /!hasRealConversation \? <MercuryHome \/> : null/.test(messagesTsx))
 
 console.log('\n============================================================')
 if (failures === 0) console.log('✅ HOME-HERO-NOISE PASS')

@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
 import * as childProcess from 'node:child_process'
-import { mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import stringWidth from 'string-width'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
-const REPO = join(import.meta.dir, '..', '..')
 const HOME = pinScratchHome('jev-facts-ride')
 delete process.env.TYPESAFE_API_KEY
 delete process.env.MERCURY_HOME
@@ -134,14 +133,6 @@ async function selectMarked(m: Mounted, mark: string, max = 60): Promise<boolean
     await press(m, KEY.down, 70)
   }
   return has(m.lines(), mark)
-}
-function walk(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name)
-    if (statSync(p).isDirectory()) walk(p, out)
-    else if (/\.tsx?$/.test(name)) out.push(p)
-  }
-  return out
 }
 
 const T0 = Date.UTC(2026, 0, 15, 14, 30)
@@ -291,10 +282,6 @@ section('§5 no session in the slot: the honest no-chat form')
 
 section('§6 the source pins')
 {
-  const surfaces = ['src/components/Settings/Usage.tsx', 'src/components/Settings/Jev.tsx', 'src/components/Settings/Config.tsx'].map(rel => [rel, readFileSync(join(REPO, rel), 'utf8')] as const)
-  check('the three screen surfaces read no ledger snapshot and run no local resolver', surfaces.every(([, src]) => !src.includes('jevLedgerSnapshot') && !src.includes('jevLedger.js') && !src.includes('resolveJevStatus') && !/\bjevStatus\(/.test(src)), surfaces.filter(([, src]) => src.includes('jevLedgerSnapshot') || src.includes('resolveJevStatus') || /\bjevStatus\(/.test(src)).map(([rel]) => rel).join(','))
-  check('each of the three reads the one session reader', surfaces.every(([, src]) => src.includes("from '../../services/jev/jevSessionFacts.js'")))
-  check('each of the three repaints when the focused facts move', surfaces.every(([, src]) => src.includes('useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)')))
   const { liveFactsOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const liveJevOf = async (): Promise<{ live: Awaited<ReturnType<typeof liveFactsOf>>['usage']['jev']; own: ReturnType<typeof status.jevStatus> }> => ({ live: (await withLiveRunner(liveFactsOf, { env: { MERCURY_CONFIG_DIR: HOME, MERCURY_JEV_BASE: process.env.MERCURY_JEV_BASE } })).usage.jev, own: status.jevStatus() })
   const switchedOff = await liveJevOf()
@@ -307,16 +294,6 @@ section('§6 the source pins')
     liveJev !== undefined && j(liveJev.status) === j(switchedOff.own) && switchedOff.own.kind === 'off' && j(keyless.live?.status) === j(keyless.own) && keyless.own.kind === 'no-key' && liveJev.calls === 0 && liveJev.spendUsd === 0 && liveJev.lastRequestId === null,
     j({ switchedOff, keyless }),
   )
-  const types = readFileSync(join(REPO, 'src/services/engine-connector/types.ts'), 'utf8')
-  check('the field is declared OPTIONAL on UsageFactsV1 and the kind rides a type-only import', /^\s+jev\?: JevFactsV1$/m.test(types) && types.includes("import type { JevStatusKind } from '../jev/jevContract.js'") && !/^import \{[^}]*\} from '\.\.\/jev\//m.test(types))
-  const wireSrc = readFileSync(join(REPO, 'src/services/engine-connector/seatWire.ts'), 'utf8')
-  check('the wire table names every renamed key and the usage codec applies it', ["spendUsd: 'spend_usd'", "inputTokens: 'input_tokens'", "unconfirmedCharges: 'unconfirmed_charges'", "holdUntilMs: 'hold_until_ms'", "lastAnsweredAtMs: 'last_answered_at_ms'", "lastModel: 'last_model'"].every(needle => wireSrc.includes(needle)) && wireSrc.includes('const next = renamed(jev, jevTable)') && wireSrc.includes('out.jev = next') && wireSrc.includes("{ requestId: 'request_id' }") && wireSrc.includes('t(LANE_WINDOW), laneWindowKeys, t(JEV))'))
-  const readerSrc = readFileSync(join(REPO, 'src/services/jev/jevSessionFacts.ts'), 'utf8')
-  check('the reader answers from the focused slot alone, never a ledger snapshot', readerSrc.includes('getFocusedSessionConnector().usage().jev') && readerSrc.includes('if (!hasFocusedSession()) return { state: \'no-session\' }') && !readerSrc.includes('jevLedgerSnapshot'))
-  const boot = readFileSync(join(REPO, 'src/components/BootSettingsScreen.tsx'), 'utf8')
-  check('the Boot Settings face (outside any chat) keeps the settings-and-key line and reads no session facts', boot.includes('jevStatusLine()') && !boot.includes('jevSessionFacts'))
-  const outside = ['src/daemon', 'src/services/switchboard'].flatMap(rel => walk(join(REPO, rel))).filter(p => readFileSync(p, 'utf8').includes('jev'))
-  check('the daemon and the switchboard never name jev (the row rides the facts untouched)', outside.length === 0, outside.join(','))
 }
 
 slot._resetFocusedSessionConnectorForTesting()

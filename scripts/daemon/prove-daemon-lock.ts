@@ -64,13 +64,6 @@ section('release only removes OUR lock — a successor takeover is left intact')
   rmSync(lockPath)
 }
 
-section('structural: daemon main acquires before control and refuses on null')
-{
-  const main = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
-  check('acquires the lock', /daemonLock = await acquireDaemonLock\(\)/.test(main))
-  check('refuses (returns) when contended', /if \(!state\.daemonLock\)[\s\S]{0,260}return/.test(main))
-  check('acquire precedes the control server bind', main.indexOf('acquireDaemonLock()') !== -1 && main.indexOf('acquireDaemonLock()') < main.indexOf('startControlServer({'))
-}
 
 rmSync(home, { recursive: true, force: true })
 

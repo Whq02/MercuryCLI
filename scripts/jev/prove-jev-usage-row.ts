@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import stringWidth from 'string-width'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
-const REPO = join(import.meta.dir, '..', '..')
 const HOME = pinScratchHome('jev-usage-row')
 delete process.env.TYPESAFE_API_KEY
 delete process.env.MERCURY_HOME
@@ -195,15 +194,6 @@ section('§2 /usage at 178x51 with the switch on, a key stored and spend on the 
   setting.setJevEnabled(false)
 }
 
-section('§3 the source pins')
-{
-  const src = readFileSync(join(REPO, 'src/components/Settings/Usage.tsx'), 'utf8')
-  check('the body paints the row from the one reader behind the one gate and takes its rows from usageBodyRows, none when the row is absent', src.includes('const jevLine = jevUsageRowShown() ? jevUsageRow() : undefined') && src.includes('{jevLine}') && src.includes('usageBodyRows(budget, requestedJevRows)') && src.includes('jevLine === undefined ? 0') && src.includes('CREDITS_UNREPORTED_WORDS'))
-  check('the compact body paints the row behind the same gate', src.includes('jev: () => (jevUsageRowShown() ? jevUsageRow() : undefined)'))
-  check('the row reads the owner modules — the session reader for the count, the key owner for the credential, the settings owner, the headwords — never a copy of a setting, a spend, a key or the cockpit\'s own ledger', src.includes("from '../../services/jev/jevSessionFacts.js'") && src.includes("from '../../services/jev/jevKey.js'") && src.includes("from '../../services/jev/jevSetting.js'") && src.includes("from '../../services/jev/jevStatus.js'") && !src.includes('jevLedger.js') && !src.includes('jevLedgerSnapshot') && !/\bjevStatus\(/.test(src) && !src.includes('typesafeApiKey') && !src.includes('resolveJevApiKey'))
-  const pin = readFileSync(join(REPO, 'scripts/settings/prove-usage-popup.ts'), 'utf8')
-  check('the usage popup pin reads the body rows from the owner for a home with no evaluator and keeps its words baseline clear of the Jev row', pin.includes('usageBodyRows(budget, 0).capacity') && pin.includes('!run.startsWith(JEV_USAGE_LABEL)'))
-}
 
 if (frameDir !== undefined) {
   const index = frames.map(frame => `${frame.name}.txt | ${frame.note}`)

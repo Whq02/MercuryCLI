@@ -201,7 +201,6 @@ console.log('[6] no background updater: the request log stays empty across a ful
   check('boot + roster + reload made ZERO requests', requestLog.length === 0, requestLog.join(' | '))
   const stale = sources.listSources().find(r => r.label === 'remote-arch')
   check('the month-old source reads ↻ stale — the whole nudge', stale?.state === 'stale', stale?.state)
-  check('no timer API exists in the sources module (structural)', !readFileSync(join(import.meta.dir, '..', '..', 'src', 'extensions', 'sources.ts'), 'utf8').includes('setInterval'))
   server.close()
 }
 

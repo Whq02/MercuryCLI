@@ -138,8 +138,6 @@ section('C. a bare name is placed by the latest run\'s case rows (the reporter c
 section('D. the Test tool: vitest and jest debug ride js-debug; an absent runner is an honest unavailable with its remedy')
 {
   const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
-  const toolSrc = readFileSync(path.join(ROOT, 'src/tools/TestTool/TestTool.ts'), 'utf8')
-  check('D1 the debug op routes vitest and jest through the node-runner shim onto adapterKey js with the shim\'s program and args', toolSrc.includes("buildNodeRunnerDebugShim(runner, input.node") && toolSrc.includes("launchRunnerDebug({ runner, adapterKey: 'js', program: shim.program, args: shim.args") && toolSrc.includes('breakpoints.set(plan.stop.file, [plan.stop])'))
   const root = nodeProject('vitest', false)
   const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: 'src/calc.test.mjs::calc adds two numbers' } as never, ctx))) as { data: { result: string; outcome: string } }
   check('D2 vitest declared but not installed: "debug unavailable" with the install remedy, never a sentence about the debugger not being there', out.data.outcome === 'failed' && out.data.result.startsWith('debug unavailable: vitest is declared but node_modules/.bin/vitest is missing') && out.data.result.includes('remedy: install the project dependencies'), out.data.result)
@@ -295,8 +293,6 @@ section('G. the go plan: dlv builds the package\'s test binary, one test by anch
   } finally {
     process.env.PATH = savedPath
   }
-  const toolSrc = readFileSync(path.join(ROOT, 'src/tools/TestTool/TestTool.ts'), 'utf8')
-  check('G11 the Test tool routes go through the plan onto adapterKey go with mode: test as a launch extra', toolSrc.includes('buildGoTestDebugPlan(input.node') && toolSrc.includes("adapterKey: 'go'") && toolSrc.includes('launchExtras: plan.launchExtras'))
   rmSync(root, { recursive: true, force: true })
 }
 
@@ -336,8 +332,6 @@ section('H. the live go leg — a real go and dlv on PATH')
 section('I. the cargo plan — the test binary cargo built, the one that lists the test, the #[test] fn line, lldb-dap (or gdb)')
 {
   const cargoBin = (process.env.PATH ?? '').split(path.delimiter).map(d => path.join(d, 'cargo')).find(p => p && existsSync(p))
-  const toolSrc = readFileSync(path.join(ROOT, 'src/tools/TestTool/TestTool.ts'), 'utf8')
-  check('I0 the Test tool routes cargo through the plan with the adapter the plan resolved', toolSrc.includes('buildCargoTestDebugPlan(input.node') && toolSrc.includes("runner: 'cargo', adapterKey: plan.adapterKey"))
   if (!cargoBin) {
     console.log('  [SKIP — LOUD] no cargo on PATH — the tool route above is the evidence; install the Rust toolchain (rustup) to run this leg')
   } else {

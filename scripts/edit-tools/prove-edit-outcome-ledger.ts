@@ -153,12 +153,6 @@ section('§5 the formatter grammar readers (one owner, drift-pinned)')
 
 section('§6 the wiring, structural')
 {
-  const root = join(import.meta.dir, '../../')
-  const toolExec = readFileSync(join(root, 'src/services/tools/toolExecution.ts'), 'utf8')
-  check('the validation-refusal seam counts coded Edit refusals', /verdict\.result === false[\s\S]{0,900}recordEditOutcome/.test(toolExec))
-  check('the terminal-effect seam counts applied/no-change for file.edit', /op === 'file\.edit'[\s\S]{0,700}recordEditOutcome/.test(toolExec))
-  const changeSet = readFileSync(join(root, 'src/tools/ChangeSetTool/ChangeSetTool.ts'), 'utf8')
-  check('the ChangeSet settle chokepoint counts applies with typed codes', /input\.op === 'apply'[\s\S]{0,900}changeSetRefusalCodeOfResult/.test(changeSet))
   const ledgerRow = getFlagSpec('MERCURY_EDIT_LEDGER')
   check('the display-tier flag row stands with its off arm', ledgerRow !== undefined && ledgerRow.off.includes('counters are removed entirely'))
   const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')

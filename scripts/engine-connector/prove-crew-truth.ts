@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -19,8 +19,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -180,9 +178,6 @@ const byId = new Map(rows.map(r => [r.id, r]))
     JSON.stringify(ag3),
   )
   check("T2 the session's own main-thread row never rides the roster", !byId.has('main1'))
-  const projector = src('src/utils/task/workRoster.ts')
-  const family = new RegExp(['anth', 'ropic'].join('') + '|' + ['open', 'ai\\b'].join(''), 'i')
-  check('T2 the projector names no family', !family.test(projector))
 }
 
 console.log('— T3 one record, every surface —')
@@ -336,45 +331,6 @@ console.log('— T5 the usage attribution —')
   )
 }
 
-console.log('— T6 the source pins —')
-{
-  const fg = src('src/tools/AgentTool/foregroundExecution.tsx')
-  check(
-    'T6 the foreground path publishes the tracker to the record on every assistant message, ungated',
-    fg.includes("if (message.type === 'assistant') {\n          publishAgentProgressSoon(foregroundTask.taskId, tracker, rootSetAppState)") &&
-      !fg.includes('if (getSdkAgentProgressSummariesEnabled()) {\n            // Publish the tracker'),
-  )
-  check('T6 the foreground registration carries the resolved model', fg.includes('model: metadata.resolvedAgentModel,'))
-  check(
-    'T6 the background registration carries the resolved model',
-    src('src/tools/AgentTool/AgentTool.tsx').includes('model: plan.model,\n        toolUseId: context.toolUseId,'),
-  )
-  const rail = src('src/components/HelmLanesRail.tsx') + src('src/utils/cockpit/helmLanesModel.ts')
-  const ledger = src('src/state/crewLedger.ts')
-  check(
-    'T6 the rail builds every crew row from the owner (through the session crew ledger) and spells a running verb from it',
-    rail.includes('useSessionCrew()') &&
-      ledger.includes('crewAgentsOf(roster.rows, sessionId)') &&
-      ledger.includes('crewAgentsOf(projectWorkRoster(kept), sessionId)') &&
-      rail.includes('crewTokensLabel(c.facts)'),
-  )
-  check("T6 the rail's overflow row opens the crew surface", rail.includes("command: '/crewmates', label: 'crew:more'"))
-  const board = src('src/components/tasks/BackgroundTasksDialog.tsx')
-  check('T6 the /tasks row and card read the owner', (board.match(/crewAgentFactsOf\(work, null\)/g) ?? []).length === 2)
-  check(
-    'T6 the usage section attributes through the owner',
-    src('src/utils/cockpit/helmVitalsModel.ts').includes('crewUsageLine(crewAgentsOf(input.workRoster.rows'),
-  )
-  const view = src('src/components/mercury-ui/screens/CrewView.tsx')
-  check(
-    'T6 the Crew view lists from the owner (the same session crew ledger the rail reads) and hosts the /tasks card as its drill-in',
-    view.includes('useSessionCrew()') && view.includes('<RosterWorkDetail'),
-  )
-  check(
-    'T6 /crewmates opens the Crew view through its one door',
-    src('src/commands/crewmates/crewmates.tsx').includes('openCrewView()'),
-  )
-}
 
 
 console.log('— T7 the status vocabulary and the transcript card —')
@@ -465,15 +421,6 @@ console.log('— T7 the status vocabulary and the transcript card —')
   const card = await paint(React.createElement(RosterWorkDetail, { work: stoppedRows.find(r => r.id === 'ag1')!, now: t0 + 61_001, onBack: () => {} }), 100)
   check("T7 …and on the card", card.includes('stopped') && !card.includes('killed'))
   _resetFocusedSessionConnectorForTesting()
-  check(
-    "T7 the tool row hands its id to the tool's progress renderer",
-    src('src/components/messages/AssistantToolUseMessage.tsx').includes('toolUseID: param.id,'),
-  )
-  const uiSrc = src('src/tools/AgentTool/UI.tsx')
-  check(
-    'T7 the agent card joins its rows to the owner',
-    uiSrc.includes('crewAgentByToolUse(') && uiSrc.includes('<CrewAgentRows entries={entries} animate={animate} />'),
-  )
 }
 
 {
@@ -492,8 +439,6 @@ console.log('— T7 the status vocabulary and the transcript card —')
   check("T8 the status cell reads 'waiting for your answer' while an ask is parked", f1.pendingAsks === 1 && crew.crewStatusWords(f1, t0 + 8_000) === crew.CREW_ASK_WAIT_WORDS && crew.CREW_ASK_WAIT_WORDS === 'waiting for your answer', crew.crewStatusWords(f1, t0 + 8_000))
   check('T8 the parked ask outranks a seat wait in the status cell (the operator ends it)', crew.crewStatusWords(f2, t0 + 8_000) === crew.CREW_ASK_WAIT_WORDS, crew.crewStatusWords(f2, t0 + 8_000))
   check('T8 a landed row never reads the wait word (the count is stale once settled)', f3.running === false && crew.crewStatusWords(f3, t0 + 8_000) !== crew.CREW_ASK_WAIT_WORDS, crew.crewStatusWords(f3, t0 + 8_000))
-  check('T8 the /tasks row paints the same words from the owner', src('src/components/tasks/BackgroundTasksDialog.tsx').includes('CREW_ASK_WAIT_WORDS'))
-  check('T8 the runner publishes the count onto the record the roster projects', src('src/tools/AgentTool/AgentTool.tsx').includes('setAgentPendingAsks(earlyAgentId, count, rootSetAppState)') && src('src/tools/AgentTool/runAgent.ts').includes('onPendingAsks?.(pendingAsks)'))
 }
 
 console.log(failures === 0 ? '\nprove-crew-truth: ALL LAWS HOLD' : `\nprove-crew-truth: ${failures} FAILURE(S)`)

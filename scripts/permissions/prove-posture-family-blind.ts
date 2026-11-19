@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,7 +17,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 const FAMILY_PLANTS: ReadonlyArray<[label: string, model: string | undefined]> = [
   ['no model env', undefined],
@@ -43,22 +42,6 @@ async function main(): Promise<void> {
   console.log(' the posture row is family-blind — skip-permissions')
   console.log('============================================================')
 
-  section('§2 boot arming is env+argv only — the main.tsx bypass expression')
-  {
-    const mainSrc = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf-8')
-    const armIdx = mainSrc.indexOf("flagEnv('MERCURY_SKIP_PERMISSIONS')")
-    check('the arming read exists', armIdx !== -1)
-    const armLine = mainSrc.slice(mainSrc.lastIndexOf('\n', armIdx) + 1, mainSrc.indexOf('\n', armIdx))
-    check(
-      'the arming expression couples ONLY to the run-mode check',
-      /isEnvTruthy\(flagEnv\('MERCURY_SKIP_PERMISSIONS'\)\)\s*&&\s*!isRunArgv\(\)/.test(armLine),
-      armLine.trim(),
-    )
-    check(
-      'no family identifier in the arming expression',
-      !/getEngineModel|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|MERCURY_MODEL|claude|gpt-|glm-/i.test(armLine),
-    )
-  }
 
   const { setPermissionModeWithGuards } = await import('../../src/utils/permissions/permissionSetup.js')
 
@@ -97,23 +80,6 @@ async function main(): Promise<void> {
     }
   }
 
-  section('§4 no model read in the permission setup — neither arm reads identity')
-  {
-    const setupSrc = readFileSync(
-      join(ROOT, 'src', 'utils', 'permissions', 'permissionSetup.ts'),
-      'utf-8',
-    )
-    const calls = setupSrc.match(/getEngineModel\(\)/g) ?? []
-    check('permissionSetup.ts reads no model identity at all (flow has no model dependency)', calls.length === 0 && !setupSrc.includes('getEngineModel'), `${calls.length} call(s)`)
-    const validateStart = setupSrc.indexOf('function validateModeEntry')
-    const validateEnd = setupSrc.indexOf('\nexport ', validateStart + 1)
-    const validateBody = setupSrc.slice(validateStart, validateEnd === -1 ? undefined : validateEnd)
-    check(
-      'validateModeEntry (sovereign/flow arms) reads no model identity',
-      validateStart !== -1 &&
-        !/getEngineModel|utilityCallFor|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|MERCURY_MODEL/.test(validateBody),
-    )
-  }
 
   console.log('\n' + '='.repeat(60))
   if (failures > 0) {

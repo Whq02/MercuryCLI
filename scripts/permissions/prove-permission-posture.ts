@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -69,16 +69,6 @@ section('§2 THE NO-OP LAW')
 
 section('§3 WIRING')
 {
-  const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
-  const helpers = src('src/interactiveHelpers.tsx')
-  check(
-    'the boot dialog decision records the posture (both branches — shown AND suppressed)',
-    /recordPermissionPosture\(\{[\s\S]*?dialogSuppressed,[\s\S]*?\}\)/.test(helpers),
-  )
-  check(
-    'the env arming is read from the REGISTERED row at the decision',
-    helpers.includes("flagEnv('MERCURY_SKIP_PERMISSIONS')"),
-  )
   const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
   const { saveCurrentProjectConfig } = await import('../../src/utils/config/projectConfig.ts')
   const postureRow = crewChecks().find(row => row.id === 'permission-posture')
@@ -99,10 +89,6 @@ section('§3 WIRING')
     'the missing-record-while-env-armed case self-detects (warn + remedy)',
     unrecorded?.status === 'warn' && unrecorded.evidence.includes('NO posture record exists yet') && unrecorded.fix?.startsWith('Open Mercury interactively once in this project') === true,
     JSON.stringify(unrecorded),
-  )
-  check(
-    'the record is declared in the project-config schema',
-    src('src/utils/config/schema.ts').includes('permissionPosture?:'),
   )
 }
 

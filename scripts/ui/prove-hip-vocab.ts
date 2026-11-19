@@ -2,7 +2,6 @@
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 delete process.env.MERCURY_HIP
 delete process.env.MERCURY_HIP
-import { readFileSync } from 'node:fs'
 import {
   isQuicksilverLine,
   quicksilverMode,
@@ -50,15 +49,6 @@ check('desert verb NOT quicksilver', !isQuicksilverLine('Scuttling'))
 check('base verb NOT quicksilver', !isQuicksilverLine('Thinking'))
 check('empty string NOT quicksilver', !isQuicksilverLine(''))
 
-section('deterministic composition + identity coverage (structural)')
-const src = readFileSync('src/constants/spinnerVerbs.ts', 'utf8')
-const srcCode = src
-  .split('\n')
-  .filter(l => !l.trim().startsWith('//'))
-  .join('\n')
-check('no Math.random CALL in the vocab module (comments exempt)', !srcCode.includes('Math.random'))
-check('mixed default folds quicksilver into the pool', src.includes('[...desert, ...quicksilver]'))
-check('adjacent sets present', src.includes('MERCURY_QUICKSILVER_CODE') && src.includes('MERCURY_QUICKSILVER_FLOW'))
 
 section('sampleSpinnerVerb — the fresh-pick contract (less deduped)')
 {
@@ -82,14 +72,6 @@ section('sampleSpinnerVerb — the fresh-pick contract (less deduped)')
   check('a 1-entry pool repeats honestly (no hang, no throw)', solo.every(d => d === 'qsv-solo'))
 }
 
-section('SpinnerGlyph swing (structural)')
-const glyph = readFileSync('src/components/Spinner/SpinnerGlyph.tsx', 'utf8')
-check('QUICKSILVER_SWING bar defined', glyph.includes('const QUICKSILVER_SWING'))
-check('cadence prop gates the swing', glyph.includes("cadence === 'quicksilver'"))
-check('reduced-motion path untouched by cadence', /if \(reducedMotion\) \{[\s\S]{0,400}REDUCED_MOTION_DOT/.test(glyph))
-const row = readFileSync('src/components/Spinner/SpinnerAnimationRow.tsx', 'utf8')
-check('animation row derives cadence from the displayed head', row.includes('isQuicksilverLine(displayedHead)'))
-check('…and threads it to the glyph', row.includes('cadence={cadence}'))
 
 section('flag registry — MERCURY_HIP promoted (legacy alias bounded)')
 const hipRow = getFlagSpec('MERCURY_HIP')

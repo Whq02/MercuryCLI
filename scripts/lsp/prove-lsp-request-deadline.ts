@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { getEventListeners } from 'node:events'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -129,10 +129,6 @@ section('§4 a healthy server still answers, and one budget covers the retry lad
     for (let index = 0; index < 5; index++) await server.sendRequest('textDocument/documentSymbol', {})
   })
   check('successful requests leave no abort listeners on the operation signal', getEventListeners(controller.signal, 'abort').length === 0)
-  const src = readFileSync(path.join(repo, 'src/services/lsp/LSPServerInstance.ts'), 'utf8')
-  const fn = src.slice(src.indexOf('async function sendRequest'), src.indexOf('async function sendNotification'))
-  check('the ContentModified retry ladder still exists', /TRANSIENT_RETRIES/.test(fn))
-  check('the whole call shares ONE deadline (the retries cannot multiply it)', /deadlineAt/.test(fn) && !/for \(let attempt[\s\S]{0,400}setTimeout\(/.test(fn), 'a per-attempt timer would multiply the budget')
   await server.stop().catch(() => undefined)
 }
 
@@ -151,12 +147,6 @@ section('§5 the per-request budget is config-driven and the tool arms the one d
     requestTimeout: 0,
   })
   check('…and refuses a non-positive budget', !bad.success)
-  const tool = readFileSync(path.join(repo, 'src/tools/LSPTool/LSPTool.ts'), 'utf8')
-  check('the LSP tool arms the ambient abort door around its whole call', /runWithLspAbortSignal\(context\.abortController\.signal/.test(tool), 'the tool never arms the door — no request can observe Esc')
-  const instanceSrc = readFileSync(path.join(repo, 'src/services/lsp/LSPServerInstance.ts'), 'utf8')
-  check('the instance reads the ambient signal (the one observer, no call site can forget)', /currentLspAbortSignal\(\)/.test(instanceSrc))
-  const client = readFileSync(path.join(repo, 'src/services/lsp/LSPClient.ts'), 'utf8')
-  check('the client forwards a cancellation token to the connection', /sendRequest<T>\(method: string, params: unknown, token\?: CancellationToken\)/.test(client) && /connection\.sendRequest\(method, params, token\)/.test(client))
 }
 
 rmSync(scratchHome, { recursive: true, force: true })

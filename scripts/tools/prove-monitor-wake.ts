@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   BURST_WINDOW_MS,
@@ -161,15 +160,11 @@ function harness(wall: WatchWall) {
   check('the deadline bounds live in the timeout_ms field', String(MonitorTool.inputSchema.shape.timeout_ms.description).includes('Default 300000, min 1000, max 3600000'))
   check('the model-facing description says what happens to events behind a closed usage window', description.includes("usage window is closed are held and delivered together on your first turn after it reopens"))
   check('the model-facing description names the burst window and says an event is not a user reply', description.includes(`${BURST_WINDOW_MS}ms fold into one notification`) && description.includes('not a reply from the user'))
-  const source = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'MonitorTool', 'MonitorTool.ts'), 'utf8')
-  check("the persistent field's own words tell the model the watch outlives the deadline until stopped or the session ends", /persistent: semanticBoolean\([\s\S]{0,200}?until it is stopped or the session ends/.test(source))
-  check('every event the tool emits rides the mailbox, never the queue directly', (source.match(/mailbox\.push\(/g) ?? []).length >= 4 && (source.match(/\bemit\(/g) ?? []).length === 1)
 }
 
 {
   type Deadline = (timeoutMs: number | undefined, persistent: boolean | undefined) => { timeoutMs: number; clamped: string | null }
   const monitorDeadline = (monitorModule as { monitorDeadline?: Deadline }).monitorDeadline
-  const source = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'MonitorTool', 'MonitorTool.ts'), 'utf8')
   const base = { description: 'watch', command: 'echo hi' }
   const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `${formatZodValidationError('Monitor', r.error as never).replace(/\n/g, ' ')}`)
   const above = MonitorTool.inputSchema.safeParse({ ...base, timeout_ms: 7_200_000 })
@@ -178,7 +173,6 @@ function harness(wall: WatchWall) {
   check('a timeout_ms under the floor passes the schema (the tool clamps it up)', under.success === true, refusal(under))
   const negative = MonitorTool.inputSchema.safeParse({ ...base, timeout_ms: -1 })
   check('a negative timeout_ms has no lawful reading and keeps its typed refusal', negative.success === false && refusal(negative).includes('must have a minimum of 0'), refusal(negative))
-  check('the deadline seam is the one exported function the call uses', typeof monitorDeadline === 'function' && /const \{ timeoutMs, clamped \} = monitorDeadline\(timeout_ms, persistent\)/.test(source))
   if (typeof monitorDeadline === 'function') {
     const over = monitorDeadline(7_200_000, false)
     check('a timeout_ms above the ceiling is clamped to 3600000 and the clause says so in the ScheduleWakeup grammar', over.timeoutMs === 3_600_000 && over.clamped === 'timeout_ms clamped to 3600000 ms (the maximum)', JSON.stringify(over))

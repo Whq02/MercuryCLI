@@ -155,14 +155,6 @@ try {
     for (const gone of [/craft_status/, /craft_install/, /--control 7980/, /mcp --connect/, /^\d+\. /m]) assert.doesNotMatch(skill, gone)
     for (const name of ['command_run', 'command_list', 'import', 'set_develop', 'get_develop', 'crop', 'export', 'list_controls', 'render_photo', 'render_preview', 'ui_screenshot', 'list_widgets', 'press_key']) assert.match(skill, new RegExp(`\`${name}\\b`), name)
   })
-  check('upstream forwarding uses only the shared bootstrap', () => {
-    const bridge = readFileSync(join(extension, 'server/bridge.mjs'), 'utf8')
-    assert.match(bridge, /import \{ runCraftBridge \} from '\.\.\/shared\/bootstrap.mjs'/)
-    assert.match(bridge, /runCraftBridge\(adapter\)/)
-    const adapterSource = readFileSync(join(extension, 'server/install.mjs'), 'utf8')
-    assert.doesNotMatch(adapterSource, /fetch\(|https\.get|--compact|app\.quit/)
-    assert.match(adapterSource, /probe, launch, upstream, verify/)
-  })
   await checkAsync('real bootstrap SDK discovery is actionable and has no install side effects', async () => {
     const dataDir = join(scratch, 'missing-app-data')
     const client = new Client({ name: 'lightcraft-missing-app-proof', version: '1' }, { capabilities: {} })

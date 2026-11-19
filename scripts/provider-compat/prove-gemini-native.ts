@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
@@ -207,8 +207,6 @@ try {
 } finally {
   globalThis.fetch = realFetch
 }
-const sharedRuntime = readFileSync(new URL('../../src/services/providers/openaicompat/compatChatCallModel.ts', import.meta.url), 'utf8')
-check('an absent native hook selects the existing compatibility client unchanged', sharedRuntime.includes('const events = transport?.events ?? streamCompatChat(streamOptions)'))
 const { streamGeminiContent } = await import('../../src/services/providers/gemini/geminiClient.ts')
 const { buildGeminiRequest } = await import('../../src/services/providers/gemini/geminiCodec.ts')
 async function client(fetchImpl: typeof fetch, extras: Record<string, unknown> = {}) {

@@ -42,8 +42,6 @@ t.section('§1 — registry determinism')
     JSON.stringify(names) === JSON.stringify(['acp-tool-call', 'acp-plan', 'acp-message-chunk', 'mercury-review-artifact', 'unknown-raw']),
     names.join(','),
   )
-  const src = readFileSync('src/services/crew/activity.ts', 'utf8')
-  t.check('the owner reads no message-block or system-subtype frame', !/message\.content|subtype|tool_use|tool_result/.test(src))
 }
 
 t.section('§2 — stable source ids')

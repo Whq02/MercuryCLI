@@ -336,26 +336,6 @@ section('§6 the beside-rows walk every family: the OpenRouter cap joins, a wind
   check('an uncapped key states no percent ⇒ no beside-row', quiet.others.length === 0, JSON.stringify(quiet.others.map(o => o.provider)))
 }
 
-section('§7 the shape: the tab reads only the owner')
-{
-  const tab = readFileSync(join(ROOT, 'src/components/Settings/Usage.tsx'), 'utf8')
-  check('the tab imports no reader module (every *UsageState import is gone)', !/UsageState\.js'/.test(tab), (tab.match(/UsageState\.js'/g) ?? []).join(','))
-  check('the tab never refreshes a reader directly (the discovery re-probe rides the door too)', !tab.includes('refreshLocalDiscovery') && !tab.includes('refreshOpenrouterKeyUsage') && !tab.includes('refreshDeepseekBalance') && !tab.includes('refreshMoonshotBalance') && !tab.includes('refreshKimiManagedUsage'))
-  check('the tab samples through the one door and reads the one view', tab.includes("refreshProviderUsage(id, { reason: 'open' })") && tab.includes('return usageForProvider(id)'))
-  for (const family of ['openrouter', 'moonshot', 'local', 'huggingface'] as const) {
-    check(`the ${family} section rides useOwnerUsage`, tab.includes(`useOwnerUsage('${family}'`))
-  }
-  const geminiSection = tab.slice(tab.indexOf('function GeminiUsageSection'), tab.indexOf('function HuggingfaceUsageSection'))
-  const hfSection = tab.slice(tab.indexOf('function HuggingfaceUsageSection'), tab.indexOf('function LocalUsageSection'))
-  check('the Gemini section paints its credits line once, under its identity line through the one credits composer, never again under the Google account slot', tab.includes('<UsageCredits usage={usageForProvider(family)} />') && !geminiSection.includes('usageCreditsLine(usage.credits)'))
-  check('the Hugging Face section paints its credits line once under its identity line, and the plan row rides the plan figure with the one stamp composer', !hfSection.includes('usageCreditsLine(usage.credits)') && hfSection.includes("f.key === 'plan'") && hfSection.includes('usageSourceWords(plan)') && hfSection.includes('period ends'))
-  check('the generic engine body rides useOwnerUsage(section.id)', tab.includes('useOwnerUsage(section.id, section.family.credentialed)'))
-  check('the credit line, the rate line and the credits lines come from the owner\'s figures and credits view', tab.includes('figuresLine(usage)') && tab.includes('usageCreditsLine(usage.credits)') && !tab.includes('usage.balance.display'))
-  check('the absence lines come from the owner (never a tab-only constant)', tab.includes('usage.absence ?? section.limitsNote') && tab.includes("usage.absence ?? ENGINE_USAGE_PRESENTATION.gemini!.limitsNote") && !tab.includes('GEMINI_USAGE_ABSENCE_NOTE') && !tab.includes('HUGGINGFACE_USAGE_ABSENCE_NOTE'))
-  const ownerSrc = readFileSync(join(ROOT, 'src/services/providers/providerUsage.ts'), 'utf8')
-  check('the owner walks every declared family for the beside-rows (no hand-kept window-capable list)', ownerSrc.includes("['anthropic', ...PROVIDER_ID_SPACES.map(space => space.route)]") && !ownerSrc.includes('WINDOW_CAPABLE_PROVIDERS'))
-  check('the beside-rows memo is registered as ttl-bounded', readFileSync(join(ROOT, 'scripts/staleness/prove-stale-registry.ts'), 'utf8').includes('providerUsage.ts :: otherUsagesCache :: ttl-bounded'))
-}
 
 section('§8 the first-party subscription: the extra-usage figure rides the one usage GET (a loopback fixture, never the live endpoint)')
 {

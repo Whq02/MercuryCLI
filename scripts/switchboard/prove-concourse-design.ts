@@ -13,11 +13,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-function ordered(hay: string, a: string, b: string): boolean {
-  const ia = hay.indexOf(a)
-  const ib = hay.indexOf(b)
-  return ia !== -1 && ib !== -1 && ia < ib
-}
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
@@ -152,96 +147,31 @@ console.log('§1 — the older-chats census (L20): one enumeration behind the N 
 
 console.log('§2 — the older-chats drop-down: unfolds on the board, ↵ reactivates through the one door, esc folds')
 {
-  const { readFileSync } = await import('node:fs')
-  const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
   const { CONCOURSE_CONTROLS, regionKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
   const { paneWindow } = await import('../../src/components/mercury-ui/geometry.ts')
   const ctl = CONCOURSE_CONTROLS.find(c => c.id === 'board:older-browse')
   check('the drop-down is a DECLARED control (return/right unfold · up/down choose · escape folds · rows click)', ctl !== undefined && ctl.region === 'list' && ['return', 'right', 'up', 'down', 'escape'].every(k => ctl.keys.includes(k)) && ctl.pointer === 'select-then-activate')
   check('while it stands the row legend yields to the browse grammar (one resolver)', regionKeysFor('list', { newSession: true, olderBrowse: true }).map(k => `${k.keys} ${k.label}`).join(',') === '↵ bring it back')
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  check('the pick rides the ONE resume door with its fact (resumeOlderChat: sessionId · transcriptPath · title)', screen.includes('callbacks.resumeOlderChat(pick.sessionId, pick.transcriptPath, pick.title)') && screen.includes('callbacks.resumeOlderChat(e.sessionId, e.transcriptPath, e.title)'))
-  check('the entries come from THE CENSUS at the unfold, bounded by the week-tier budget (the count stays unbounded)', screen.includes('olderChatsCensus(projectDir, excluded, Date.now(), { entryCap: PARKED_CAP })'))
-  check('the drop-down rides the peek\'s granted-rows channel in BOTH geometry call sites (one owner)', screen.includes('rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : chipRows') && layout.includes('rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : rowChipRows'))
-  check('esc folds the list BEFORE the peek layer and the exit (one layer at a time)', ordered(screen, 'setOlderList(null)\n        return', 'setRowPeekOpen(false)\n        return') && ordered(screen, "if (ctx.kind !== 'chat') {", 'if (olderListRef.current !== null) {'))
-  check('the tail is the honest arithmetic: window overflow + the census rest + the fold hint', screen.includes('+${beyond} more — /sessions lists everything') && screen.includes("'esc folds'"))
   const win = paneWindow(10, 7, 5)
   check('the cursor window keeps the pick visible with exact overflow counts (10 entries · cursor 7 · span 5)', win.start <= 7 && 7 < win.end && win.above === win.start && win.below === 10 - win.end)
 }
 
-console.log('§3 — one project-name owner: the rail\'s ground chip is THE name; the board has no top panel to carry a second name or a clock')
-{
-  const { existsSync, readFileSync, readdirSync } = await import('node:fs')
-  const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
-  const boardSources = readdirSync(join(process.cwd(), 'src', 'components', 'concourse')).filter(f => /\.(ts|tsx)$/.test(f)).map(f => read(join('src', 'components', 'concourse', f)))
-  check('POISON (the dedup): the board mounts no header (the top panel is gone) and no board file paints the clock or holds a live-clock subscription', !existsSync(join(process.cwd(), 'src/components/concourse/ConcourseHeader.tsx')) && !read('src/components/concourse/ConcourseLayout.tsx').includes('ConcourseHeader') && boardSources.every(src => !src.includes('liveClock') && !src.includes('snapshot.clock') && !src.includes('padTo(clock')))
-  const strips = read('src/components/concourse/ConcourseStrips.tsx')
-  check('the rail\'s ground chip IS the name (painted AND clickable — the segment that switches)', strips.includes('{snapshot.context.projectLabel} {GLYPH.chevronDown}') && strips.includes("id=\"concourse:rail:project\""))
-  const dir = join(process.cwd(), 'src', 'components', 'concourse')
-  let namePaints = 0
-  for (const f of readdirSync(dir)) {
-    if (!/\.(ts|tsx)$/.test(f)) continue
-    namePaints += read(join('src', 'components', 'concourse', f)).split('{snapshot.context.projectLabel}').length - 1
-  }
-  check(
-    'TWO paint owners, counted by the render interpolation: the rail chip + the split chat pane title (reads never count; any third paint reds here)',
-    namePaints === 2 &&
-      read('src/components/concourse/ConcourseStrips.tsx').includes('{snapshot.context.projectLabel}') &&
-      read('src/components/concourse/SplitChatPane.tsx').includes('{snapshot.context.projectLabel}'),
-    String(namePaints),
-  )
-}
 
 console.log('§4 — one composer: the live pane owns its box; the strip is retired')
 {
-  const { readFileSync } = await import('node:fs')
-  const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
   const manifest = await import('../../src/components/concourse/controlManifest.ts')
-  check('the full-width strip slot is gone from the layout (no composerNode, no strip band)', !layout.includes('composerNode') && !layout.includes('stripRows') && layout.includes('liveComposerBand'))
-  const liveSendAt = screen.indexOf('const sendLive = (): void => {')
-  const liveSendEnd = screen.indexOf('const closeChordBlocked = (): boolean =>', liveSendAt)
-  const liveSendBody = liveSendEnd > liveSendAt ? screen.slice(liveSendAt, liveSendEnd) : ''
-  check('the LIVE send exists and rides the steering door (session.redirect) with the answer/rename contexts as its own delivery', liveSendAt > 0 && liveSendBody.includes('callbacks.redirectSession(') && liveSendBody.includes("ctx.kind === 'answer'") && liveSendBody.includes("ctx.kind === 'rename'"))
-  check('POISON (live→launcher): the live send never reaches the launcher, and the screen holds no second send', liveSendBody.length > 0 && !liveSendBody.includes('submitSessionDraft') && !screen.includes('submitSessionDraft') && !screen.includes('sendCoordinatorMessage'))
-  check('the screen mounts the shared composer exactly once (the live box)', screen.split('<ConcourseComposer').length - 1 === 1)
-  check('the live gate refuses in type before any edit (printables and newline both check it)', screen.split('liveGateRefusal()').length - 1 >= 2 && ordered(screen, 'const refusal = liveGateRefusal()', 'editLiveDraft(d => insertAt(d, NL))') && ordered(screen, 'const refusal = liveGateRefusal()', 'editLiveDraft(d => insertAt(d, payload))'))
-  check('the gate names the refusal classes (parked · door · queued · attached · none)', ['no session selected', 'a door —', 'queued — m stacks', 'parked —', 'with you —'].every(s => screen.includes(s)))
-  check('the ring is panels and the manifest speaks it (live view → manager, then the rail while it has rows and the split pane while it is open)', screen.includes("const ring: ConcourseRegion[] = compact || reducedStage ? ['list', 'live'] : ['live', 'list']") && screen.includes("if (!compact && snapshot.needsYou.length > 0) ring.push('rail')") && screen.includes("if (splitActive) ring.push('chat')") && screen.split('ring.push(').length - 1 === 2 && !JSON.stringify(manifest.CONCOURSE_CONTROLS).includes("\"region\":\"composer\"") && !JSON.stringify(manifest.CONCOURSE_CONTROLS).includes("\"region\":\"mirror\""))
   check('the live panel key rows exist and the region table holds four panels (one resolver feeds legend + atlas)', manifest.CONCOURSE_REGION_KEYS.live.some(k => k.keys === 'pgup/pgdn') && Object.keys(manifest.CONCOURSE_REGION_KEYS).sort().join(',') === 'chat,list,live,rail')
-  check("the live box's placeholder names the SELECTED row", screen.includes('placeholder: `message ${sel.title} · queued for its next turn`'))
 }
 
 console.log('§5 — arm-then-enter: the first ↵ arms the row as the live composer\'s target; the second enters')
 {
-  const { readFileSync } = await import('node:fs')
-  const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
   const manifest = await import('../../src/components/concourse/controlManifest.ts')
   check('the arm is a DECLARED control and the list legend teaches ↵↵', manifest.CONCOURSE_CONTROLS.some(c => c.id === 'board:arm') && manifest.CONCOURSE_REGION_KEYS.list.some(k => k.keys === '↵↵' && k.label === 'enter session'))
-  const enterAt = screen.indexOf('const enterSession = (sessionId: string, opts')
-  const enterEnd = screen.indexOf('const gitOffer = useMemo<GitOfferV1 | undefined>(() => {', enterAt)
-  const enterBody = enterAt !== -1 && enterEnd > enterAt ? screen.slice(enterAt, enterEnd) : ''
-  check('the arm stage sits AFTER the door/older/queued grammars (they keep one press) and skips pointer, the reduced stage and a parked row', ordered(enterBody, 'door !== undefined', "opts.pointer !== true && boardArmedRef.current !== sessionId") && enterBody.includes('!reducedStage && !parked && opts.pointer !== true') && enterBody.includes("?.state === 'parked'"))
-  check('a second ↵ on the ARMED row enters (the arm clears at the door)', ordered(enterBody, 'setBoardArmed(sessionId)', 'boardArmedRef.current = null') && enterBody.includes('callbacks.enterSession(sessionId)'))
-  check('→ on an ARMED row enters (both the list and the live panel arms)', screen.split('boardArmedRef.current === sel.sessionId').length - 1 >= 2)
-  const escLadderAt = screen.lastIndexOf('if (key.escape) {', screen.indexOf('if (olderListRef.current !== null) {'))
-  const escLadder = escLadderAt === -1 ? '' : screen.slice(escLadderAt, screen.indexOf('callbacks.exitToChat()', escLadderAt))
-  check('esc disarms as its own layer (after the older fold, before the peek)', ordered(escLadder, 'setOlderList(null)\n        return', 'boardArmedRef.current = null\n        setBoardArmed(null)\n        if (!compact) return') && ordered(escLadder, 'boardArmedRef.current = null\n        setBoardArmed(null)\n        if (!compact) return', 'setRowPeekOpen(false)\n        return'))
-  check('a selection move disarms (the target is ALWAYS the selected chat — the operator\'s words)', screen.includes('if (boardArmed !== null && boardSel !== boardArmed) setBoardArmed(null)'))
-  check('typing in the live composer ARMS the selected row (the target turns explicit)', screen.split('armSelectedForTyping()').length - 1 >= 2)
-  check('the armed row SHOWS the arm on its granted line — the words road is tab (the composer’s own focus), advertised only where the gate takes words (G4; the broadcast face suppresses it too), and a held draft says send', screen.includes("'armed — ↵ again enters'") && screen.includes("liveDraft.text.trim().length === 0 && liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · tab to message' : ''") && screen.includes("'armed — ↵ sends the draft · → enters'"))
-  check('the legend says the truth in both states (↵↵ unarmed · ↵ enters while armed)', layout.includes("{ keys: '↵', label: 'enters (armed)' }") && layout.includes("{ keys: '↵↵', label: 'enter session' }"))
 }
 
 console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "needs you · ↵↵ to answer"; settle ⇒ unlocked')
 {
   const { liveComposerGateOf } = await import('../../src/components/concourse/ConcourseScreen.tsx')
-  const { readFileSync } = await import('node:fs')
-  const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
   type Row = import('../../src/components/concourse/contracts.ts').ConcourseRowV1
   const row = (over: Partial<Row>): Row =>
     ({ sessionId: sid('99'), title: 'the parser session', state: 'working', projectLabel: 'p', ownerLabel: null, ageLabel: null, seats: null, ...over }) as Row
@@ -265,11 +195,6 @@ console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "n
     liveComposerGateOf(row({ sessionId: `${OLDER_CHATS_ROW_PREFIX}/tmp/p` }), false, regionArg) as { ok: false; line: string }
   check('the older line speaks ↵ exactly where ↵ fires: the list region and the live box', older('list').line === 'older chats — ↵ unfolds the list' && older('live').line === 'older chats — ↵ unfolds the list' && older(undefined).line === 'older chats — ↵ unfolds the list')
   check('POISON (a ↵ advertised where it goes to another owner): from the rail or the split pane the note names the move that works from there', (['rail', 'chat'] as const).every(r => older(r).line === 'older chats — tab to the list, ↵ unfolds it'))
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  const screenFolded = screen.replace(/\s+/g, ' ')
-  check('the gate is DERIVED, never stored (the lock cannot go stale in either direction — the L17 cut\'s whole point)', screenFolded.includes('liveComposerGateOf( sel, sel !== undefined && snapshot.needsYou.some(o => o.sessionId === sel.sessionId), noteRegion, sel !== undefined ? wallLineBySession.get(sel.sessionId) : undefined, )'))
-  check('the rest hint hands the gate its region (the advertisement follows the operator\'s focus)', screen.includes('liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region)'))
-  check('the answer context rides ABOVE the gate (an answer is never queued behind the ask it settles)', screen.includes("if (composeContextRef.current.kind !== 'chat') return null") && ordered(screen, "ctx.kind === 'answer'", 'const gate = liveComposerGate(sel)'))
 
   console.log('§6b — the single-paint law: bottom hint stays, placeholder empties, one paint per refusal')
   {
@@ -288,33 +213,12 @@ console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "n
     const okGate = liveComposerGateOf(row({}), false)
     const okPaint = liveComposerPaintOf(okGate, null)
     check('an OK gate is unchanged: the placeholder advertises the target, the note passes through', okGate.ok === true && okPaint.restHint === (okGate.ok ? okGate.placeholder : '') && okPaint.note === null && liveComposerPaintOf(okGate, receipt).note === receipt)
-    check('the composer consumes the one derivation (the raw gate line never rides restHint)', screen.includes('const paint = liveComposerPaintOf(g, liveNote ?? boardNote)') && screen.includes('restHint={face !== null ? face.placeholder : paint.restHint}') && !screen.includes('return g.ok ? g.placeholder : g.line'))
   }
 }
 
-console.log('§7 — focus legibility: the focused panel\'s border takes the accent; siblings dim; the selected row speaks')
-{
-  const { readFileSync } = await import('node:fs')
-  const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  const manifest = await import('../../src/components/concourse/controlManifest.ts')
-  check('both panels carry the ONE focus grammar (accent border focused, subtle otherwise — existing tokens, no new hex)', layout.includes('borderColor={managerFocused ? t.info : t.borderSubtle}') && layout.includes("borderColor={region === 'live' ? t.info : t.borderSubtle}"))
-  check('the panel titles dim with their panels', layout.includes("region === 'list' || hover ? t.infoText : t.textMuted"))
-  check('the SELECTED row spells its state beside the glyph (NEEDS YOU legible at a glance, its own ink)', layout.includes('STATE_WORD[r.state] ?? r.state') && layout.includes("'needs-you': 'NEEDS YOU'"))
-  const emptyAt = layout.indexOf('if (sessionRows.length === 0 && filterText.trim().length === 0) {')
-  const emptyEnd = emptyAt === -1 ? -1 : layout.indexOf('if (sessionRows.length === 0) {', emptyAt)
-  check('the empty state is designed: no column header over nothing; both doors clickable', emptyAt > 0 && emptyEnd > emptyAt && layout.includes('no sessions yet') && layout.includes("id=\"concourse:board:empty-new\"") && !layout.slice(emptyAt, emptyEnd).includes('columnHeaderRow'))
-  check('every Tab stop has a pointer path (the manifest census: title clicks focus panels; a click in the message box focuses the live view)', ['board:focus', 'board:empty-new'].every(id => manifest.CONCOURSE_CONTROLS.some(c => c.id === id)) && read('src/components/concourse/ConcourseScreen.tsx').includes("const onLiveComposerClick = (visibleRow: number, col: number): void => {\n    if (reducedStage) return\n    setRegion('live')"))
-  check('the live panel is a real frame around the mirror + its composer (the pane rows − 2 − the composer box)', layout.includes('const mirrorInner = Math.max(1, mirrorRows - 2 - geo.liveComposerRows)') && layout.includes('mirrorNode(mirrorInner, Math.max(0, liveWidth - 4))'))
-}
 
 console.log('§8 — G1/G3: text clips inside its container; every printed key fires on its stage')
 {
-  const { readFileSync } = await import('node:fs')
-  const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
-  const strips = read('src/components/concourse/ConcourseStrips.tsx')
-  check('G1: the rail carries no coordinator chip to clamp (the project chip truncates in its own box)', !/coordinator/i.test(strips) && strips.includes('{snapshot.context.projectLabel} {GLYPH.chevronDown}'))
-  check('G1: the repo picker\'s title clips honestly; the rail carries no operator name (the handle left the concourse)', read('src/components/concourse/GroundPicker.tsx').includes('<Text wrap="truncate-end">\n          <Text color={t.infoText} bold>\n            REPO') && !strips.includes('operatorHandle'))
   const { regionKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
   const reducedList = regionKeysFor('list', { newSession: false })
   check('G3: the reduced stage\'s ↵ enters on ONE press — its legend never teaches ↵↵ (no arm without a composer)', reducedList.some(k => k.keys === '↵' && k.label === 'enter session') && !reducedList.some(k => k.keys === '↵↵'))

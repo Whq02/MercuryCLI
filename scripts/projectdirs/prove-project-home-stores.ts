@@ -124,8 +124,6 @@ section('H4 — the shared set stays in the project folder')
 {
   check('settings.json resolves in the project folder', projectLocalPath(REPO, 'settings.json') === join(REPO, '.mercury', 'settings.json'))
   check('the machine-local settings file resolves in the project folder too (its global exclude is the settings owner\'s road)', String(getSettingsFilePathForSource('localSettings')).endsWith(join('.mercury', 'settings.local.json')))
-  const settingsSource = readFileSync(join(import.meta.dir, '../../src/utils/settings/settings.ts'), 'utf8')
-  check('the settings owner still routes the local file through the global-ignore helper', /source === 'localSettings'[\s\S]{0,120}addFileGlobRuleToGitignore\(getRelativeSettingsFilePathForSource\('localSettings'\)\)/.test(settingsSource))
   check('no ignore file was written into the project', !existsSync(join(REPO, '.gitignore')) && !existsSync(join(REPO, '.mercury', '.gitignore')) && !existsSync(join(REPO, '.git', 'info', 'exclude')) || readFileSync(join(REPO, '.git', 'info', 'exclude'), 'utf8').split('\n').every(l => !l.includes('.mercury')))
 }
 

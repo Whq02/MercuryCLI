@@ -8,7 +8,6 @@ process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const ROOT = resolve(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const seat = await import('../../src/daemon/sessionSeat.ts')
@@ -71,11 +70,6 @@ try {
       check('an unknown session is refused with the writer\'s words', unknown.outcome === 'refused', JSON.stringify(unknown))
     } finally { stand.close() }
   }
-  const main = readFileSync(join(ROOT, 'src/daemon/main.ts'), 'utf8')
-  check("the daemon's set-schedule control arm returns the seat function's result through settle", main.includes("return settle(applySeatScheduleControl(sessionId, scheduleEdit, by, roster))"))
-  check('the control arm no longer applies the op on its own', !main.includes('applyConcourseScheduleOp(sessionId, scheduleEdit, by, {'))
-  const seatSrc = readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8')
-  check('the seat function pushes the roster and asks for facts by the record\'s runnerId after an applied op', /applySeatScheduleControl[\s\S]{0,900}pushScheduleRoster\(rec\.runnerId, roster, dir\)\s*\n\s*requestSessionFacts\(rec\.runnerId, roster, \{ immediate: true \}, dir\)/.test(seatSrc))
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

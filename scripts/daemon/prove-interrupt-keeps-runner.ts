@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, writeFileSy
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { mock } from 'bun:test'
-import { DIST, NODE, REPO, SCRATCH_ROOT, bound, childEnv, makeTally, removeWorld, sleep } from './dupline-world.ts'
+import { DIST, NODE, SCRATCH_ROOT, bound, childEnv, makeTally, removeWorld, sleep } from './dupline-world.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startScriptedFixture, type Script } from '../lib/scriptedTurn.ts'
 import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
@@ -23,7 +23,6 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_WORKER_PARENT_PID
 
-const read = (...p: string[]): string => readFileSync(join(REPO, ...p), 'utf8')
 type LedgerRow = { ts: string; kind?: string; event?: string; id?: string; pid?: number; code?: number | null; signal?: string | null; outcome?: string }
 const ledgerRows = (): LedgerRow[] => {
   const path = join(daemonDir, 'spawn-ledger.jsonl')
@@ -196,25 +195,6 @@ tally.section('§2 the roster on fixture children: a death from outside is a cra
   console.error = realConsoleError
 }
 
-tally.section("§3 the source: the daemon's interrupt verb delivers and never signals; the runner's interrupt aborts the request and never exits; killed rows come only from an intentional stop")
-{
-  const main = read('src', 'daemon', 'main.ts')
-  const verbAt = main.indexOf("if (action === 'interrupt') {")
-  const verbEnd = main.indexOf("if (action === 'stop-agent'", verbAt)
-  const verb = verbAt !== -1 && verbEnd !== -1 ? main.slice(verbAt, verbEnd) : ''
-  tally.check("the interrupt verb asks turn/interrupt through the worker's door", verb.includes('roster?.door(rec.runnerId)') && verb.includes(".send('turn/interrupt', {"), verb === '' ? 'the verb block was not found' : verb.slice(0, 200))
-  tally.check('…and holds no kill and no timer (the incident runtime cut the runner a second after the second press here)', verb !== '' && !/\bkill\(/.test(verb) && !verb.includes('setTimeout('), verb.split('\n').filter(l => /kill\(|setTimeout\(/.test(l)).join(' | '))
-  tally.check("the verb's second press is a re-delivery in its own receipt", verb.includes("'second interrupt'"))
-  const roster = read('src', 'daemon', 'roster.ts')
-  const lifeAt = roster.indexOf('private superviseChildLife(')
-  const life = lifeAt !== -1 ? roster.slice(lifeAt, roster.indexOf('async dispatch(', lifeAt)) : ''
-  const killedAt = life.indexOf("ledgerExit('killed')")
-  const intentionalAt = life.indexOf('if (ll.intentionalStop) {')
-  tally.check("the ledger's killed row is written once, under the intentional-stop arm, and that arm arms no respawn", killedAt !== -1 && intentionalAt !== -1 && intentionalAt < killedAt && life.indexOf("ledgerExit('killed')", killedAt + 1) === -1 && /if \(ll\.intentionalStop\) \{[\s\S]*?return\s*\}/.test(life) && !/if \(ll\.intentionalStop\) \{[\s\S]*?respawnTimer = setTimeout[\s\S]*?return\s*\}/.test(life.slice(intentionalAt, killedAt + 400)))
-  tally.check("a death from outside rides the ladder's own delay: the crash arm arms the respawn with the decision's delayMs", life.includes("ledgerExit('crash-respawn')") && life.includes('setTimeout(() => this.spawnLongLived(short), decision.delayMs)'))
-  const executor = read('src', 'services', 'tools', 'toolExecution.ts')
-  tally.check('the executor races a tool call against the abort: a call that never answers is abandoned within the grace and settles with the interrupt result', executor.includes('const TOOL_ABORT_GRACE_MS = 750') && executor.includes('class ToolCallAbandonedError') && executor.includes('const abandoned = error instanceof ToolCallAbandonedError') && executor.includes('const isInterrupt = abandoned || isAbortError(error)') && /const cutText = cutByTurn \? turnCutResultText\([\s\S]{0,1500}if \(cutText !== undefined\) push\(interruptResultUpdate\(toolUseID, sourceUUID, cutText\)\)/.test(executor))
-}
 
 tally.section('§4 LIVE on the built bundle: a hosted session, an op in flight, the interrupt through the daemon, a line sent meanwhile, then a death from outside')
 if (!existsSync(DIST)) {

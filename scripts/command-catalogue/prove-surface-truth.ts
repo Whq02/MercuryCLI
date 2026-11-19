@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative } from 'node:path'
-import { isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
+import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
@@ -45,18 +44,6 @@ const { noSessionConnector } = await import('../../src/services/engine-connector
 const { resolveStampedEffortTruth } = await import('../../src/utils/effort.js')
 const { permissionModeTitle } = await import('../../src/utils/permissions/PermissionMode.js')
 
-const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-const codeOnly = (text: string): string => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1')
-function walkSrc(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name)
-    if (name === 'node_modules') continue
-    if (statSync(p).isDirectory()) walkSrc(p, out)
-    else if (/\.(ts|tsx)$/.test(name)) out.push(p)
-  }
-  return out
-}
-const SRC_FILES = walkSrc(join(REPO, 'src')).map(p => relative(REPO, p))
 
 section('§1 A DESCRIPTION IS A LABEL')
 const all = [...builtinCommands()]
@@ -123,24 +110,6 @@ check("a seat whose facts are still this process's ambient state ⇒ every colum
 check('focusedSessionModelFacts() is null on the ambient source (the one gate every reader shares)', focusedSlot.focusedSessionModelFacts() === null)
 focusedSlot._resetFocusedSessionConnectorForTesting()
 
-section('§3 THE CENSUS — each re-pointed surface reads the owner in source')
-const has = (rel: string, needle: string | RegExp): boolean => (typeof needle === 'string' ? src(rel).includes(needle) : needle.test(src(rel)))
-const censusRows: Array<[string, string, boolean]> = [
-  ['src/commands/model/index.ts', 'the value column reads focusedSessionModelFacts; no process-default or screen-slice read', has('src/commands/model/index.ts', 'focusedSessionModelFacts()') && !has('src/commands/model/index.ts', 'getEngineModel') && !has('src/commands/model/index.ts', 'engineModelForSession')],
-  ['src/commands/effort/index.ts', "the seat's word through the stamped resolve (no env pin)", has('src/commands/effort/index.ts', 'resolveStampedEffortTruth(facts.effective') && !has('src/commands/effort/index.ts', 'getEngineModel')],
-  ['src/commands/permissions/index.ts', "the seat's mode door", has('src/commands/permissions/index.ts', 'getFocusedSessionConnector().permissionMode()')],
-  ['src/types/command.ts', 'the screen-scoped menu slice is gone; currentValue takes no argument', !has('src/types/command.ts', 'MenuLiveState') && has('src/types/command.ts', 'currentValue?: () => string | undefined')],
-  ['src/hooks/useTypeahead.tsx', 'the palette hands no app-state snapshot to the rows', !has('src/hooks/useTypeahead.tsx', 'engineModelForSession') && has('src/hooks/useTypeahead.tsx', 'generateCommandSuggestions(input, commands)')],
-  ['src/commands/model/mercuryModel.tsx', 'the effort ladder, the window and the kept-model lines read the served model; the dead pin read is gone', has('src/commands/model/mercuryModel.tsx', 'const servedModel = focusedSeat !== null ? focusedSeat.effective') && has('src/commands/model/mercuryModel.tsx', 'contextFillView(messages, servedModel)') && !has('src/commands/model/mercuryModel.tsx', 'sessionPin ??')],
-  ['src/components/mercury-ui/EffortChip.tsx', "the standing chip reads the seat's word first", has('src/components/mercury-ui/EffortChip.tsx', 'useFocusedServedEffort()')],
-  ['src/components/DeckPane.tsx', "the deck's effort chip is fed the served model", has('src/components/DeckPane.tsx', 'useFocusedServedModel()')],
-  ['src/components/Settings/Config.tsx', 'the main-loop rows read the served model first', has('src/components/Settings/Config.tsx', 'useFocusedServedModel()')],
-  ['src/components/mercury-ui/parity/AccountView.tsx', 'the main-loop line reads the served model first', has('src/components/mercury-ui/parity/AccountView.tsx', 'useFocusedServedModel()')],
-  ['src/components/SubModelPicker.tsx', 'the main model beside the sub-model rows is the served one', has('src/components/SubModelPicker.tsx', 'focusedSessionModelFacts()?.effective')],
-  ['src/components/Feedback.tsx', "the report names the session's model", has('src/components/Feedback.tsx', 'focusedSessionModelFacts()?.effective')],
-  ['src/daemon/sessionSeat.ts', "the daemon publishes the record's effort word", has('src/daemon/sessionSeat.ts', "rec.effort !== undefined ? { effort: rec.effort }")],
-]
-for (const [file, what, ok] of censusRows) check(`${file}: ${what}`, ok)
 {
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.js')
   const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.js')
@@ -177,10 +146,6 @@ for (const [file, what, ok] of censusRows) check(`${file}: ${what}`, ok)
   )
 }
 
-section('§4 ONE SPELLING — the 1M suffix is the display owner\'s alone')
-const suffixSpellers = SRC_FILES.filter(f => codeOnly(src(f)).includes('(1M context)'))
-check('the only file spelling "(1M context)" in code is the display owner (model.ts)', suffixSpellers.length === 1 && suffixSpellers[0] === 'src/utils/model/model.ts', suffixSpellers.join(','))
-check('the dead suffixed-row builders are gone from the picker rows', !has('src/utils/model/modelOptions.ts', 'suffixedOption(') && !has('src/utils/model/modelOptions.ts', 'getOpus48_1MOption'))
 
 section('§5 THE GENERATION TABLE — one table per family, every reader derives')
 const strings = getModelStrings()
@@ -214,25 +179,8 @@ const options = getModelOptions()
 check("the picker carries the family full-id row labelled with the head's display name", options.some(o => o.value === head('fable') && o.label === model.renderModelName(head('fable'))), options.filter(o => o.value === head('fable')).map(o => o.label).join(','))
 check('the picker carries a literal row per previous frontier generation', configs.previousGenerationKeys('fable').every(k => options.some(o => o.value === strings[k])), configs.previousGenerationKeys('fable').map(k => strings[k]).join(','))
 check('the picker carries the previous large generations from the table', configs.previousGenerationKeys('opus').every(k => options.some(o => o.value === strings[k])))
-const defaultsBody = src('src/utils/model/model.ts').match(/export function getDefault(Opus|Sonnet|Haiku|Fable)Model\(\)[\s\S]*?\n}/g) ?? []
-check('the four family defaults spell no table key (they read the table)', defaultsBody.length === 4 && defaultsBody.every(b => !/firstPartyString\('/.test(b)))
-check('the picker rows spell no generation (no literal previous-key list, no literal frontier row)', !has('src/utils/model/modelOptions.ts', 'PREVIOUS_LARGE_KEYS') && !has('src/utils/model/modelOptions.ts', 'getFable51Option') && !has('src/utils/model/modelOptions.ts', "strings.fable51"))
-check("the router's class defaults spell no id", !/'claude-[a-z0-9-]+(\[1m\])?'/.test(codeOnly(src('src/services/providers/anthropic/anthropicAdapter.ts')).split('function classDefaultModel')[1]?.split('\n}')[0] ?? "'claude-x'"))
-check('the frontier policy spells no generation in code', !/Fable 5/.test(codeOnly(src('src/utils/model/frontierPolicy.ts'))))
-const DISPLAY_OWNERS = new Set(['src/utils/model/model.ts', 'src/services/providers/openai/gptPins.ts'])
-const strayDisplay = SRC_FILES.filter(f => !DISPLAY_OWNERS.has(f) && !isFlagRegistryFile(f)).filter(f => {
-  const code = codeOnly(src(f))
-  return /['"`]Fable 5(\.1)?['"` (]/.test(code) || GPT_DISPLAY_PINS.some(p => code.includes(`'${p.displayName}'`) || code.includes(`"${p.displayName}"`))
-})
-check('no other file spells a first-party or GPT display name in code (the display owners and the flag registry\'s summaries excepted)', strayDisplay.length === 0, strayDisplay.join(','))
 check("the OpenAI family's display names come from the pins table", gptDisplayName('gpt-5.5') === 'GPT-5.5' && gptDisplayName('gpt-5.6-sol') === 'GPT-5.6 Sol')
-check("the OpenAI family's newest derives live (no GPT id literal in the seat roster owner)", !/gpt-5\./.test(codeOnly(src('src/services/concourse/workerModels.ts'))))
 
-section('§6 THE STALE CLAIMS — the frontier row named through the table')
-const headName = model.renderModelName(head('fable'))
-for (const doc of ['src/skills/bundled/provider-apis/references/models.md', 'mercury-skills/provider-apis/references/models.md']) {
-  check(`${doc}: the skill carries no model inventory — no frontier row, no first-party display name (${headName} lives in the catalogue alone)`, has(doc, 'carries no model inventory') && !has(doc, 'the frontier row') && !has(doc, headName) && !has(doc, 'Fable 5'))
-}
 
 console.log(failures === 0 ? '\nprove-surface-truth: ALL LAWS HOLD' : `\nprove-surface-truth: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

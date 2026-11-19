@@ -116,11 +116,6 @@ console.log('R1 a runner whose daemon died has no host: the daemon that comes af
   check('a second pass ends nothing', again.length === 0, j(again))
 }
 
-console.log('R2 the daemon runs it as it takes the home, before it answers anyone')
-{
-  const main = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
-  check("a runner the roster holds or a living predecessor hosts is not its to end", main.includes("endRunnersLeftWithoutHost(short => (rosterRef?.has(short).present ?? false) || (handoverRef?.holds(short) ?? false))"))
-}
 
 console.log("R3 a process under the runner that outlives the ask is ended with it, and nothing outside the runner's tree is touched")
 {

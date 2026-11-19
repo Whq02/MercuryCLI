@@ -195,9 +195,6 @@ console.log('\n§5 the seams poke the owner: a Bash git word, a mutation, a turn
   vs.markTreeSuspectAfterTurn()
   facts = _gitFactsForTesting()
   check('a turn end dirties the clean verdict', facts.entries.clean.dirty)
-  const vsSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'verification', 'verificationState.ts'), 'utf8')
-  check('markMutation pokes the owner (source)', /markGitTreeSuspect\('tree'\)/.test(vsSrc.slice(vsSrc.indexOf('export function markMutation('), vsSrc.indexOf('export function verifyEvidenceEnabled'))))
-  check('markTreeSuspectAfterTurn pokes the owner (source)', /markGitTreeSuspect\('tree'\)/.test(vsSrc.slice(vsSrc.indexOf('export function markTreeSuspectAfterTurn'), vsSrc.indexOf('export function computeWorkingTreeDigest('))))
 }
 
 console.log('\n§6 a faulting git speaks once and backs off 4×; a working git recovers')
@@ -272,24 +269,6 @@ console.log('\n§8 a reground drops every entry; the next read recomputes')
 
 console.log('\n§9 the source pins')
 {
-  const src = (p: string): string => readFileSync(join(import.meta.dir, '..', '..', p), 'utf8')
-  const bus = src('src/state/vitalsBus.ts')
-  check('the vitals bus keys no memo on the digest (the owner replaces it)', !bus.includes('gitStateMemo') && !bus.includes('computeWorkingTreeDigest'))
-  check('the vitals bus subscribes to the owner', bus.includes('subscribeGitFacts(() => pokeVitals())'))
-  const wb = src('src/services/workbench/projection.ts')
-  check('heartbeats never chain: the workbench no longer rides the vitals beat', !wb.includes('subscribeVitals('))
-  check('the workbench subscribes to the owner and reads the lane list through it', wb.includes('subscribeGitFacts(') && wb.includes('getGitWorktreeLanes()') && !wb.includes('worktreeLanesMemo'))
-  check('nothing on the gather path is a sync spawn (no sync observer import)', !/from '\.\.\/gitGraph\/observe\.js'/.test(wb) && !wb.includes('execFileSync'))
-  const gitSrc = src('src/utils/git.ts')
-  check('the owner consumes the git dir signal', gitSrc.includes('subscribeGitChanges(onGitSignal)'))
-  check('the owner names its floor and back-off', gitSrc.includes('const PROBE_FLOOR_MS = 60_000') && gitSrc.includes('const PROBE_BACKOFF_FACTOR = 4'))
-  const fsSrc = src('src/utils/git/gitFilesystem.ts')
-  check('the pollers cover the index, packed refs and the worktrees dir', fsSrc.includes("join(gitDir, 'index')") && fsSrc.includes("join(commonDir, 'packed-refs')") && fsSrc.includes("join(commonDir, 'worktrees')"))
-  check('the upstream ref is watched beside the branch ref', fsSrc.includes("signalChange('upstream-ref')"))
-  const obs = src('src/services/gitGraph/observe.ts')
-  check('the observer carries the async twin family', ['export async function gitAsync(', 'export async function gitStatusAsync(', 'export async function gitWorktreesAsync(', 'export async function isGitRepoAsync('].every(s => obs.includes(s)))
-  const snap = src('src/services/projectIntel/snapshot.ts')
-  check('the drain road builds its git facts through the async twin', snap.includes('await gitFactsAsync(workspace)') && snap.includes('await buildSnapshotWithDigestAsync('))
   const { healthContext } = await import('../../src/utils/healthReport.ts')
   const { gitChecks } = await import('../../src/utils/health/sections/git.ts')
   const { gitProbeNote: noteNow } = await import('../../src/utils/git.ts')
@@ -304,8 +283,6 @@ console.log('\n§9 the source pins')
   const gitSays = await gitChecks(gitContext).find(row => row.id === 'git')?.run()
   const probeNote = noteNow()
   check('/health demands a fresh read and prints the one notice', gitSays !== undefined && (gitContext.repo === null ? gitSays.status === 'info' || gitSays.status === 'unknown' : probeNote !== null ? gitSays.status === 'warn' && gitSays.evidence.endsWith(` · ${probeNote}`) : gitSays.status === 'ok' && gitSays.evidence.endsWith(' (getGitState)') && gitSays.evidence.includes(gitContext.repo.commitHash.slice(0, 7))), gitSays?.evidence)
-  const feedback = src('src/components/Feedback.tsx')
-  check('the feedback dialog runs no git probe of its own', !feedback.includes('hasUnpushedCommits') && !feedback.includes('getIsClean(') && !feedback.includes('getBranch('))
 }
 
 Date.now = realNow

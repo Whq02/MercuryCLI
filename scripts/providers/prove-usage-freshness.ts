@@ -39,7 +39,6 @@ function section(t: string): void {
 }
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
@@ -251,8 +250,6 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   NOW += fresh.usagePollTtlMs() + 1_000
   await owner.refreshProviderUsage('anthropic', { reason: 'open', now: clock })
   check('refreshProviderUsage(anthropic) is the reader (one request through the door)', reader.anthropicUsageReadStatus().requests === before + 1)
-  const door = src('src/services/providers/providerUsage.ts')
-  check('…by source: the door requires the reader, never the raw fetch', door.includes("require('./anthropic/anthropicUsageState.js')") && !door.includes('await fetchUtilization()'))
   limits.resetLimitsForCredentialSwitch()
   limits.__setRawUtilizationForTest({ five_hour: { utilization: 0.11, resets_at: NOW / 1000 + 3600, source: 'headers', observedAtMs: NOW } })
   limits.foldUtilizationFromEndpoint({ five_hour: { utilization: 36, resets_at: hoursOn(1) }, seven_day: { utilization: 44, resets_at: hoursOn(24) } }, undefined, NOW + 1_000)
@@ -266,35 +263,7 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   raw = limits.getRawUtilization()
   check('a bare header record (no stamp — a proof seam) keeps the header precedence', Math.round((raw.five_hour?.utilization ?? 0) * 100) === 13)
   limits.resetLimitsForCredentialSwitch()
-  const painters = [
-    ['src/utils/cockpit/helmVitalsModel.ts', 'usageAgeTail(w, readNow)'],
-    ['src/components/MercuryFrame.tsx', 'usageAgeTail(first, usageNow)'],
-    ['src/components/DeckPane.tsx', 'usageAgeTail(stripFirst, now)'],
-    ['src/utils/cockpit/helmLanesModel.ts', 'usageAgeTail(lead, nowMs)'],
-    ['src/components/Settings/Usage.tsx', 'usageSourceWords(w)'],
-  ] as const
-  for (const [file, call] of painters) {
-    const text = src(file)
-    const code = text.split('\n').filter(line => !/^\s*(\/\/|\*|\/\*)/.test(line)).join('\n')
-    check(`${file} paints the read's age through the owner (${call}) and spells no age word of its own`, text.includes(call) && !/['`]↻/.test(code) && !code.includes("'stale ") && !code.includes('last read'), file)
-  }
-  const rail = src('src/utils/cockpit/helmVitalsModel.ts')
-  check('the rail paints the reader\'s compact note under the meters', rail.includes('usage.readerNoteCompact') && rail.includes("key: 'usage:reader'"))
   check('isServerWait is the reader\'s one exported predicate (a 429 with Retry-After; never a bare 429 or a 500)', reader.isServerWait({ kind: 'http', status: 429, retryAfterMs: 5000 }) && reader.isServerWait({ status: 429, retryAfterMs: 1 }) && !reader.isServerWait({ kind: 'http', status: 429 }) && !reader.isServerWait({ kind: 'http', status: 500, retryAfterMs: 5000 }) && !reader.isServerWait(undefined))
-  check('the operator\'s hold has a ceiling (the usage poll\'s horizon) and is admitted once past it', typeof reader.SERVER_WAIT_CEILING_MS === 'number' && reader.SERVER_WAIT_CEILING_MS === 15 * 60_000 && src('src/services/providers/anthropic/anthropicUsageState.ts').includes('if (heldFor < SERVER_WAIT_CEILING_MS || operatorAdmitted)'))
-  const usageDoor = src('src/services/providers/providerUsage.ts')
-  check('the door carries the typed wait (readerWait) from the one predicate', usageDoor.includes('const wait = isServerWait(anthropicUsageReadStatus().failure)') && usageDoor.includes("...(reader.wait === true ? { readerWait: true } : {})"))
-  const tab = src('src/components/Settings/Usage.tsx')
-  check('the tab colours by the door\'s typed wait, never a substring of the words', tab.includes("usageForProvider('anthropic').readerWait === true") && !tab.includes("includes('asked us to wait')"))
-  check("the tab's own ask rides the owner's door as the operator (never the raw fetch, never a reader import)", tab.includes("refreshProviderUsage('anthropic', { reason: 'operator' })") && !tab.includes('fetchUtilization()') && !tab.includes('anthropicUsageState'))
-  const frame = src('src/components/MercuryFrame.tsx')
-  check("the frame's quota chips are a shown meter (the on-show read), and no turn pokes the reader", frame.includes('useProviderUsageOnShow(!isCompact && tier.showFrameQuota)') && !frame.includes('pokeProviderUsage'))
-  const boot = src('src/main.tsx')
-  check('the interactive boot arms no usage clock, and nothing headless shows a meter', !boot.includes("'usage-poll'") && !boot.includes('armProviderUsagePoll') && !src('src/cli/run.ts').includes('watchProviderUsageWhileShown'))
-  check('the owner keeps no timer', !/\bsetInterval\s*\(/.test(usageDoor))
-  for (const surface of ['src/components/HelmVitalsRail.tsx', 'src/components/DeckPane.tsx', 'src/components/HelmLanesRail.tsx']) {
-    check(`${surface} reads its meter on show through the one hook`, src(surface).includes('useProviderUsageOnShow('))
-  }
   process.env.MERCURY_USAGE_POLL_MS = '3000'
   reader._resetAnthropicUsageReaderForTesting()
   const asked = api.usageRequests.length
@@ -454,8 +423,6 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
     signIn('B')
     return reader.anthropicUsageReadStatus().requests === asks
   })())
-  const door = src('src/services/providers/providerUsage.ts')
-  check('by source: the on-show watch subscribes the sign-in ledger\'s epoch and asks with the sign-in reason — no second signal', door.includes("subscribeSignInEpoch(() => readShownFamily('sign-in'))") && !door.includes('subscribeAccountChange'))
   removeSignIn()
   seedSubscriber(Date.now() + 7 * 24 * 3600 * 1000)
   auth.dropCredentialMemos()

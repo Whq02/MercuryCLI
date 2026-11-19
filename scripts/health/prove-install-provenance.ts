@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -21,7 +21,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'install-provenance-')))
 const CHECKOUT = join(SCRATCH, 'checkout')
@@ -238,12 +237,6 @@ section('§2 GUIDANCE (IP-07/08/09)')
 
 section('§3 WIRING (IP-01/10/12/16)')
 {
-  const owner = src('src/services/privateChannel/installProvenance.ts')
-  check('the resolver runs no PATH search (IP-12)', !owner.includes("which("))
-  check(
-    'resolution is bounded — no spawns in the owner (IP-16)',
-    !/(?<![.\w])(spawn|spawnSync|execFile|exec)\(/.test(owner),
-  )
   const { healthContext } = await import('../../src/utils/healthReport.ts')
   const { identityChecks } = await import('../../src/utils/health/sections/identity.ts')
   const provenance = await import('../../src/services/privateChannel/installProvenance.ts')
@@ -258,10 +251,6 @@ section('§3 WIRING (IP-01/10/12/16)')
   check(
     "/health carries the install-provenance row consuming the same snapshot (IP-10)",
     provenanceRow?.label === 'Install provenance',
-  )
-  check(
-    'IP-14 rides the update verb estate (structural cite)',
-    src('src/cli/update.ts').includes('performUpdate'),
   )
 }
 

@@ -263,10 +263,6 @@ section('R6 the ledger is history; a re-login restores every surface with the NE
   const decision = computed.computedDefault()
   check('the computed default lands on the returned sign-in', decision.provider === 'anthropic' && families(decision.considered) === 'anthropic')
   check('the session-account words on the default name the returned account', (session.sessionAccountWords(decision.setting, { modelSetting: () => null }) as { text?: string }).text === RETURNED)
-  const logout = readFileSync(join(ROOT, 'src/commands/logout/logout.tsx'), 'utf8')
-  check('/logout clears the scope snapshot and the resolved identities (structural)', logout.includes('clearScopeIdentitySnapshot(getMercuryHome())') && logout.includes('forgetScopeIdentity()'))
-  const board = readFileSync(join(ROOT, 'src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
-  check('the board re-probes on every mutation and drops the departed read (structural)', board.includes('}, [scopeDirsKey, version])') && board.includes('delete next[row.slot.id]') && board.includes('forgetScopeIdentity()'))
 }
 
 await sleep(20)

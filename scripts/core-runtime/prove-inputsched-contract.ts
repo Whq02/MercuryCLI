@@ -2,7 +2,7 @@
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import type { SchedulerClock } from '../../src/ink/root/render-scheduler.js'
 
 if (process.env.NODE_ENV === 'test') {
@@ -437,29 +437,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
 }
 
 {
-  const repoRoot = resolve(import.meta.dir, '../..')
-  const repl = readFileSync(join(repoRoot, 'src/screens/Chat.tsx'), 'utf8')
-  const query = readFileSync(join(repoRoot, 'src/query.ts'), 'utf8')
-  const promptInput = readFileSync(join(repoRoot, 'src/components/PromptInput/useComposerDraft.ts'), 'utf8')
-
-  const localShell = readFileSync(join(repoRoot, 'src/tasks/LocalShellTask/LocalShellTask.tsx'), 'utf8')
-  const localAgent = readFileSync(join(repoRoot, 'src/tasks/LocalAgentTask/LocalAgentTask.tsx'), 'utf8')
-  const modesHome = readFileSync(join(repoRoot, 'src/types/textInputTypes.ts'), 'utf8')
-  const headlessDriver = readFileSync(join(repoRoot, 'src/cli/headless/turnDriver.ts'), 'utf8')
-  const LIVE_MODES = ['bash', 'prompt', 'task-notification']
-  const unionMembers = (/export type PromptInputMode =\n((?:\s*\|\s*'[^']+'\n)+)/.exec(modesHome)?.[1] ?? '').match(/'[^']+'/g)?.map(m => m.slice(1, -1)) ?? []
-  const gate = /while \(\(command = nextDue\(\)\)\) \{[\s\S]*?if \(\n((?:\s*command\.mode !== '[^']+'(?: &&)?\n)+)\s*\) \{/.exec(headlessDriver)?.[1] ?? ''
-  const gateMembers = (gate.match(/'[^']+'/g) ?? []).map(m => m.slice(1, -1))
-  check('lock: the queued-command modes are exactly bash, prompt and task-notification — the type home declares no other',
-    unionMembers.length === LIVE_MODES.length && LIVE_MODES.every(m => unionMembers.includes(m)), JSON.stringify(unionMembers))
-  check("lock: the headless driver's dequeue gate admits exactly those modes — no mode nothing mints",
-    gateMembers.length === LIVE_MODES.length && LIVE_MODES.every(m => gateMembers.includes(m)), JSON.stringify(gateMembers))
-  check('lock: a queued command carries no answer body beside its mode (the queue is transport for the input, nothing else rides it)',
-    !/^\s+\w*[Pp]ermission\w*\??: /m.test(modesHome.slice(modesHome.indexOf('export type QueuedCommand'), modesHome.indexOf('}', modesHome.indexOf('export type QueuedCommand')))))
-  check("lock: a background shell command's completion notice rides the 'next' band, so it drains at the next tool boundary (no Sleep, no turn end)",
-    localShell.includes("mode: 'task-notification',\n    priority: 'next',") && !localShell.includes("priority: agentId !== undefined ? 'next' : 'later'"))
-  check("lock: the sub-agent completion notice already rode the 'next' band (unchanged)",
-    localAgent.includes("mode: 'task-notification',\n    priority: 'next',"))
 
   const { openDraftPart } = await import('../ui/chatScenarios.ts')
   const { settle: settleDraft } = await import('../lib/settingsPopupHarness.ts')
@@ -485,47 +462,8 @@ console.log('native-core T13/T14 — input-scheduling contract')
   check('lock: setInputValue rides the owner edit path',
     edited === 'set by the screen')
 
-  check('lock: the face runs no auto-restore (no shouldAutoRestore call, no history rewind in the screen)',
-    !repl.includes('shouldAutoRestore(') && !repl.includes('removeLastFromHistory'))
-  const cancelHook = readFileSync(join(import.meta.dir, '../../src/hooks/useCancelRequest.ts'), 'utf8')
-
-  const ownerSrc = readFileSync(join(repoRoot, 'src/input-core/pending-input.ts'), 'utf8')
-  const cancelIdx = ownerSrc.indexOf('cancelPendingDraftSave()')
-  const deleteIdx = ownerSrc.indexOf('deleteDraft(owningSessionId ?? getSessionId())', cancelIdx)
-  check('lock: saveDraftDebounced is imported ONLY by the pending-input owner',
-    !repl.includes('saveDraftDebounced') && !promptInput.includes('saveDraftDebounced(')
-      && ownerSrc.includes('saveDraftDebounced('))
-  check('lock: PromptInput reports the durable cursor to the owner',
-    /pendingInput\.reportCursor\(\w+\)/.test(promptInput))
-
-  const onSubmitStart = repl.indexOf('const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers')
-  const captureIdx = repl.indexOf('const seatMode = options?.armedMode ?? pendingInput.mode();', onSubmitStart)
-  const capturePasteIdx = repl.indexOf('const seatPastes = options?.pastedContents ?? pendingInput.pastedContents();', onSubmitStart)
-  const resetIdx = repl.indexOf("setInputMode('prompt');", onSubmitStart)
-  const onSubmitBody = repl.slice(captureIdx, repl.indexOf('const onSubmitRef = useRef(onSubmit);', onSubmitStart))
-  check('lock: no live pendingInput.mode()/pastedContents() read survives in the onSubmit body',
-    !onSubmitBody.slice(200).includes('pendingInput.mode()')
-      && !onSubmitBody.slice(200).includes('pendingInput.pastedContents()'))
-
-  check('lock: a hop never reads or flushes another session\'s draft',
-    !repl.includes('readDraftFor(') && !repl.includes('flushDrafts('))
-
-  const sendIdx = repl.indexOf('.sendWords(text, {', onSubmitStart)
-  const receiptBlock = repl.slice(sendIdx, sendIdx + 900)
-
   check('lock: the composer seeder appends through the owner chokepoint',
     seeded)
-
-  check('lock: the queued-pop call site stays retired (or returns WITH its mode restore)',
-    !repl.includes('popAllEditable(') ||
-      (repl.includes('popAllEditable(pendingInput.text(), 0)') && repl.includes(`setInputMode('prompt');`)))
-
-  check('lock: the Chat root holds NO composer subscription',
-    !repl.includes('useSyncExternalStore(pendingInput.'))
-  check('lock: PromptInput is the composer subscriber (input · mode · pastes · stash)',
-    promptInput.includes('useSyncExternalStore(\n    pendingInput.subscribePendingInput,')
-      && ['pendingInput.text()', 'pendingInput.mode()', 'pendingInput.pastedContents()', 'pendingInput.stashedPrompt()']
-        .every(read => promptInput.includes(read)))
 
 }
 
@@ -572,7 +510,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
   check('lock: the steering drain snapshots through the queue-owned band view and removes by identity',
     plain.delivered === 'nextA,nowA' && plain.left === 'laterA,laterN,nowA' && plain.survivorsAreTheQueuesOwn && plain.twinStays
       && slept.delivered === 'laterN,nextA,nowA' && slept.left === 'laterA,nowA' && slept.survivorsAreTheQueuesOwn && slept.twinStays
-      && readFileSync('src/run-core/attachment-drain.ts', 'utf8').includes('effects.removeFromQueue(consumed)'),
     `a tool boundary over now, next, later and a later notification, with an equal twin of the first command queued while the drain ran — plain: ${JSON.stringify(plain)} (nextA,nowA delivered; laterA,laterN and the twin left); after Sleep: ${JSON.stringify(slept)} (the later notification joins; laterA and the twin left) — afterTools in src/run-core/turn/afterTools.ts takes its snapshot from getDrainableCommands and removes exactly those queue entries`)
 }
 

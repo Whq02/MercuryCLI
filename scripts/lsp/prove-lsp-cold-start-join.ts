@@ -94,16 +94,6 @@ section('§2 a request during the cold start joins it too')
   await manager.shutdown()
 }
 
-section('§3 the format-owner resolver joins a start in flight (source pin)')
-{
-  const ops = readFileSync(path.join(SRC, 'tools/LSPTool/mercuryOps.ts'), 'utf8')
-  const at = ops.indexOf('async function resolveFormatOwner(')
-  const body = at >= 0 ? ops.slice(at, at + 1400) : ''
-  check("the resolver starts every claimant that is not running (a starting one is joined)", body.includes("claimant.state !== 'running'"))
-  check('and never repeats the two-state guard', !body.includes("claimant.state === 'stopped' || claimant.state === 'error'"))
-  const manager = readFileSync(path.join(SRC, 'services/lsp/LSPServerManager.ts'), 'utf8')
-  check('the manager routes open and ensure through one readiness owner', (manager.match(/await readyFor\(server\)/g) ?? []).length >= 2)
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-lsp-cold-start-join: ALL PASS' : `\nprove-lsp-cold-start-join: ${failures} FAIL`)

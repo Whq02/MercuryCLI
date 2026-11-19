@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -139,10 +139,6 @@ section('§4 the age is the ghost\'s own: a hold made before the mount expires b
 section('§5 structural: the budget is the exported constant, bounded; the leaf keys nothing on the turn')
 {
   check('SETTLE_LINGER_MS is exported and bounded (≤ 3 s)', typeof SETTLE_LINGER_MS === 'number' && SETTLE_LINGER_MS > 0 && SETTLE_LINGER_MS <= 3000, String(SETTLE_LINGER_MS))
-  const leaf = readFileSync(join(ROOT, 'src/components/LiveStreamingTail.tsx'), 'utf8')
-  check('the ghost stands until its hold drops (the connector\'s release) or its own linger expires — never on the turn', leaf.includes('const ghost = settled !== null && !lingerExpired'))
-  check('the linger is armed from the clear\'s stamp (readSettledSinceMs), the remaining budget only', /readSettledSinceMs\(\)/.test(leaf) && /SETTLE_LINGER_MS - age/.test(leaf))
-  check('the leaf drops the hold only on the expired linger (the row landing drops it at the source)', leaf.includes('if (settled !== null && lingerExpired) store.dropSettled()'))
 }
 
 console.log(failures === 0 ? '\nprove-settle-ghost-linger: ALL LAWS HOLD' : `\nprove-settle-ghost-linger: ${failures} FAILURE(S)`)

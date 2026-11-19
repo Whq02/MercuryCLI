@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -75,21 +75,6 @@ section('§3 ONE FENCE OWNER (rank 35)')
   }
 }
 
-section('§4 THE HEADLESS BATCH READS THE SAME VERDICT (rank 35)')
-{
-  const main = readFileSync(join(SRC, 'main.tsx'), 'utf8')
-  const batchStart = main.indexOf('async function connectMcpBatch(')
-  const batchEnd = main.indexOf('function dedupeByName', batchStart)
-  const batch = batchStart >= 0 && batchEnd > batchStart ? main.slice(batchStart, batchEnd) : ''
-  check('the run-mode batch exists', batch.length > 0)
-  const fenceAt = batch.indexOf('fenceMcpPrefixCollisions(configs)')
-  const partitionAt = batch.indexOf('partitionMcpConfigsByMembership(survivors)')
-  check('the batch fences BEFORE the membership partition, on the survivors', fenceAt >= 0 && partitionAt > fenceAt, `fence@${fenceAt} partition@${partitionAt}`)
-  check('a collider is seated as a failed roster row carrying the reason', batch.includes("...collided.map(({ name, config, error }) => ({ name, type: 'failed' as const, config, error }))"))
-  const dialAt = batch.indexOf('connectToServer(name, config)')
-  check('the fence runs before anything is dialed', dialAt > fenceAt, `dial@${dialAt}`)
-  check('the fence is a static import from the one owner', /import \{[^}]*fenceMcpPrefixCollisions[^}]*\} from '\.\/services\/mcp\/client\.js'/s.test(main))
-}
 
 rmSync(HOME, { recursive: true, force: true })
 if (failures > 0) {

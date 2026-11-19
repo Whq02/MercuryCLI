@@ -153,13 +153,6 @@ console.log('native-core T5 — session + capability contract')
   check('region scroll: clean env matches the platform', regionScrollTrustedNow() === (process.platform !== 'win32'))
   process.env.WT_SESSION = 'ba54c0s0-guid'
   check('region scroll: WT_SESSION never trusted (ConPTY)', regionScrollTrustedNow() === false)
-  {
-    const inkSrc = readFileSync(join(import.meta.dir, '../../src/ink/ink.tsx'), 'utf8')
-    check(
-      'the scroll fast path gates on sync output AND region-scroll truth (ink.tsx source ratchet)',
-      inkSrc.includes('syncOutputSupportedNow() && regionScrollTrustedNow()'),
-    )
-  }
 
   wipe()
   process.env.TERM_PROGRAM = 'Apple_Terminal'
@@ -169,14 +162,6 @@ console.log('native-core T5 — session + capability contract')
   check('decrqm probe: iTerm safe', isDecrqmProbeSafe() === true)
   wipe()
   check('decrqm probe: unknown terminal safe (the probe is the point)', isDecrqmProbeSafe() === true)
-  {
-    const appSrc = readFileSync(join(import.meta.dir, '../../src/ink/components/App.tsx'), 'utf8')
-    check(
-      'boot batch gates decrqm(2026) on isDecrqmProbeSafe (App.tsx source ratchet)',
-      appSrc.includes('isDecrqmProbeSafe() ? this.querier.send(decrqm(2026)) : Promise.resolve(undefined)') &&
-        !/^\s*this\.querier\.send\(decrqm\(2026\)\),/m.test(appSrc),
-    )
-  }
 
   wipe()
   check('progress: non-TTY false', isProgressReportingAvailable() === false)

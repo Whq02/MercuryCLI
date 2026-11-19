@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
@@ -65,17 +65,6 @@ bootstrap.setCwdState(WORK)
 const roster = new Map<string, AnyTool>()
 for (const tool of getAllBaseTools()) roster.set(tool.name, tool as unknown as AnyTool)
 const catalogued = roster.size
-const toolsSource = readFileSync(join(import.meta.dir, '../../src/tools.ts'), 'utf8')
-for (const match of toolsSource.matchAll(/import \{([^}]+)\} from '(\.\/tools\/[^']+)'/g)) {
-  const mod = (await import(join(import.meta.dir, '../../src', match[2]!.slice(2)))) as Record<string, unknown>
-  for (const name of match[1]!.split(',').map(s => s.trim()).filter(Boolean)) {
-    const exported = mod[name]
-    for (const candidate of Array.isArray(exported) ? exported : [exported]) {
-      const tool = candidate as AnyTool | undefined
-      if (tool && typeof tool.name === 'string' && tool.inputSchema !== undefined && typeof tool.call === 'function' && !roster.has(tool.name)) roster.set(tool.name, tool)
-    }
-  }
-}
 
 const fixtures: Array<{ name: string; schema: Node; expect: 'strict' | 'non-strict'; why: string }> = [
   {

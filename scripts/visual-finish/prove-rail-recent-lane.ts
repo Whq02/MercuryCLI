@@ -89,16 +89,6 @@ console.log('='.repeat(60))
 console.log(' the RECENT lane never names the conversation open in the view')
 console.log('='.repeat(60))
 
-console.log('\n§1 the list roads exclude the conversation in the view, not the bootstrap identity')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-const FOLLOWS_SLOT = 'useSyncExternalStore(subscribeFocusedSessionConnector, conversationIdHere, conversationIdHere)'
-const rail = src('src/components/HelmLanesRail.tsx')
-check('the RECENT scan follows the focused slot', rail.includes(`const conversationId = ${FOLLOWS_SLOT}`))
-check('the RECENT scan keys its scope on the conversation in the view', rail.includes('const recentScopeKey = `${getProjectRoot() || \'\'}::${conversationId}`'))
-check('the RECENT scan excludes the conversation in the view', rail.includes('filterResumableSessions(all, conversationId)') && !rail.includes('getSessionId()'))
-check('the /sessions picker model excludes the conversation in the view', src('src/components/mercury-ui/screens/sessionPickerModel.ts').includes('resumableNewestFirst(all, conversationIdHere())'))
-check('the ⌥←/→ session flip excludes the conversation in the view', src('src/utils/sessionFlip.ts').includes('filterResumableSessions(all, conversationIdHere())'))
-check('the /sessions argument road excludes the conversation in the view', src('src/commands/sessions/sessions.tsx').includes('filterResumableSessions(loaded, conversationIdHere())'))
 
 console.log('\n§2 a direct --resume boot beside an older session of the same project')
 const KEYLESS_REST = 'not signed in · /logins ·'

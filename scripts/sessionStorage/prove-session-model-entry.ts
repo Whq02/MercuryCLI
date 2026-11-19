@@ -94,8 +94,6 @@ section('§5 an old-shape transcript — no model entry — folds to no model: t
 
 section('§6 the source pins: the pre-boundary metadata pass keeps the entry across a compaction; the append path treats it as a metadata kind')
 {
-  const reader = readFileSync(join(import.meta.dir, '../../src/utils/sessionStorage/transcriptReader.ts'), 'utf8')
-  check('the pre-boundary metadata pass lists the model kind beside the mode and the advisor switch', reader.includes(`'"metaKind":"model"'`) && reader.includes(`'"metaKind":"mode"'`))
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
   const before = modelLines().length

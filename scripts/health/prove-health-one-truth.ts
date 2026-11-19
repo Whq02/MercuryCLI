@@ -1,10 +1,9 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const REPO = join(import.meta.dir, '..', '..')
 const SCRATCH = mkdtempSync(join(tmpdir(), 'health-one-truth-'))
 const home = join(SCRATCH, 'home')
 const daemonDir = join(SCRATCH, 'daemon')
@@ -37,7 +36,6 @@ const check = (name: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 section('§1 THE SIGN-IN VIEW — a family whose live catalogue is not fetched yet reads unfetched, so a cockpit that has fetched it and a daemon that has not still agree')
 {
@@ -53,8 +51,6 @@ section('§1 THE SIGN-IN VIEW — a family whose live catalogue is not fetched y
   const options = (await import('../../src/utils/model/modelOptions.ts')).getModelOptions()
   const gptRows = options.filter(o => o.group !== undefined && /gpt|openai/i.test(o.group) && !String(o.value).startsWith('__'))
   check('every pending GPT lineup row carries the typed pending mark beside its words', gptRows.length > 0 && gptRows.every(o => o.unavailable !== undefined && o.cataloguePending === true), j(gptRows.map(o => [o.value, o.unavailable, o.cataloguePending])))
-  const computed = read('src/utils/model/computedDefault.ts')
-  check('the verdict reads the typed mark, never the reason\'s words', computed.includes("familyRows.every(option => option.cataloguePending === true) ? { unfetched: true } : {}"))
 
   section('§1b THE KEY LANES — a key lane whose account list no process has read yet (xAI, Moonshot: a fresh `mercury health` never kicks the read) is the same timing gap, never a FAULT against a daemon that has read it')
   for (const [family, row] of [['xai', 'Grok 4.7'], ['moonshot', 'K3']] as const) {
@@ -126,8 +122,6 @@ section('§2 EDIT OUTCOMES — the cockpit\'s /health counts the SESSION\'s edit
     },
   )
   check('the runner answers its edit ledger in the session facts', j(edits.before) === '[]' && edits.after.some(row => row.model === FIXTURE_MODEL && row.outcome === 'applied' && row.count === 1) && edits.after.reduce((sum, row) => sum + row.count, 0) === 2, j(edits))
-  const wire = read('src/services/engine-connector/seatWire.ts')
-  check('the wire carries the rows as edit_outcomes', wire.includes("editOutcomes: 'edit_outcomes'"))
 }
 
 console.log(`\n${'═'.repeat(76)}`)

@@ -51,11 +51,6 @@ check('the health run never mutated the boot preference', JSON.stringify(menu.re
 const { existsSync, readdirSync } = await import('node:fs')
 check('the health run never created a crew', !existsSync(join(SCRATCH, 'crews')) || readdirSync(join(SCRATCH, 'crews')).length === 0)
 
-{
-  const { readFileSync } = await import('node:fs')
-  const dj = readFileSync(new URL('../../src/cli/healthJson.ts', import.meta.url), 'utf8')
-  check('health --json serializes the certificate sections themselves', /runHealthReport|certificate|sections/.test(dj))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 

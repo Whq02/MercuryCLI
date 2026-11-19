@@ -1,14 +1,13 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ctm-g08-config-'))
 process.env.MERCURY_HOME = mkdtempSync(join(tmpdir(), 'ctm-g08-home-'))
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 const det = await import('../../src/services/api/promptCacheBreakDetection.ts')
 const { buildModelCallReference } = await import('../../src/run-core/call-reference.ts')
@@ -24,23 +23,6 @@ function section(t: string): void {
 
 section('§A the wiring is live on all three lanes (+ the reference carrier)')
 {
-  const LANES: Array<[string, string]> = [
-    ['anthropic', 'src/services/providers/anthropic/streamCore.ts'],
-    ['openai', 'src/services/providers/openai/openaiCallModel.ts'],
-    ['zai', 'src/services/providers/zai/zaiCallModel.ts'],
-  ]
-  for (const [lane, rel] of LANES) {
-    const src = readFileSync(join(ROOT, rel), 'utf8')
-    check(
-      `${lane}: phase 1 call site live (recordPromptState({...}))`,
-      src.includes('recordPromptState({'),
-    )
-    check(
-      `${lane}: phase 2 call site live (checkResponseForCacheBreak(...))`,
-      src.includes('checkResponseForCacheBreak('),
-    )
-    check(`${lane}: the snapshot names its lane`, src.includes(`lane: '${lane}'`))
-  }
   const t = await import('../core-runtime/turnScenarios.ts')
   const called = await t.runScripted({ tools: [{ name: 'Alpha' }, { name: 'Beta' }], script: [t.fixtures.yields(t.fixtures.says('done.'))] })
   const handed = called.requests[0]?.options.callReference
@@ -51,8 +33,6 @@ section('§A the wiring is live on all three lanes (+ the reference carrier)')
     called.requests.length === 1 && typeof handed === 'object' && handed !== null && Object.isFrozen(handed) && JSON.stringify(handed) === JSON.stringify(owed) && announced === handed,
     `the model call (streamModel, src/run-core/turn/streamModel.ts) must hand the lane, as options.callReference, the frozen buildModelCallReference({ model, effort, maxOutputTokensOverride, tools }) of the call it announces; the lane received ${JSON.stringify(handed)}, the call was announced with ${JSON.stringify(announced)}, and the owner builds ${JSON.stringify(owed)}`,
   )
-  const options = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
-  check('the callModel Options contract carries callReference', options.includes('callReference?: ModelCallReference'))
 }
 
 

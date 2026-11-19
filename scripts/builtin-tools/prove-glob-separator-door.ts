@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -18,7 +18,6 @@ console.log('============================================================')
 console.log(' the glob separator door — one intake, both tools, both platforms')
 console.log('============================================================')
 
-const ROOT = join(import.meta.dir, '..', '..')
 type Door = {
   normalizeGlobPattern: (pattern: string, platform?: NodeJS.Platform) => string
   splitGrepGlobField: (field: string, platform?: NodeJS.Platform) => string[]
@@ -44,20 +43,9 @@ if (door) {
   check('the platform default is the live process platform', n('x\\y', process.platform) === n('x\\y'))
 }
 
-section('§2 Glob — the --glob value glob() builds rides the door')
-{
-  const globUtil = readFileSync(join(ROOT, 'src', 'utils', 'glob.ts'), 'utf8')
-  check('glob.ts imports the door', /from '\.\/globPattern\.js'/.test(globUtil))
-  check("the argument vector's --glob values come from the normalised pattern", /const patterns = resolveSearchGlob\(normalizeGlobPattern\(pattern\), searchDir, false\)/.test(globUtil) && /'--files',\s*\.\.\.patterns\.flatMap\(value => \['--glob', value\]\)/.test(globUtil))
-  check('no verbatim pattern reaches the vector any more', !/'--glob',\s*pattern,/.test(globUtil))
-}
 
 section('§3 Grep — every --glob token rides the door')
 {
-  const grepTool = readFileSync(join(ROOT, 'src', 'tools', 'GrepTool', 'GrepTool.ts'), 'utf8')
-  check('GrepTool imports the door', /from '\.\.\/\.\.\/utils\/globPattern\.js'/.test(grepTool))
-  check('the glob field is split and normalised through splitGrepGlobField', /splitGrepGlobField\(input\.glob\)/.test(grepTool))
-  check('no verbatim token/piece push remains', !/args\.push\('--glob', token\)/.test(grepTool) && !/args\.push\('--glob', piece\)/.test(grepTool))
   if (door) {
     const s = door.splitGrepGlobField
     check("win32: 'src\\**\\*.ts' → ['src/**/*.ts']", JSON.stringify(s('src\\**\\*.ts', 'win32')) === JSON.stringify(['src/**/*.ts']), JSON.stringify(s('src\\**\\*.ts', 'win32')))

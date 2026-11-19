@@ -198,8 +198,6 @@ try {
     const treesPlan = await cloneModule.planCloneCalls(join(fixture, 'other-trees'), undefined, true)
     const cachePlan = await cloneModule.planCloneCalls(join(fixture, 'cache'), undefined, true)
     check('what stays behind inside a carried folder is left out of the calls, never cloned and then deleted', JSON.stringify(treesPlan) === JSON.stringify({ folders: [''], clones: ['/plain'], links: ['/wt'] }) && JSON.stringify(cachePlan) === JSON.stringify({ folders: [''], clones: ['/keep'], links: ['/cmake-out'] }), `${JSON.stringify(treesPlan)} ${JSON.stringify(cachePlan)}`)
-    const worktreeSource = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
-    check('which file is an instruction file is the instruction engine\'s own answer, for every convention it knows', worktreeSource.includes("const { conventionsForProfile, isInstructionFilePath } = await import('../services/instructions/engine.js')") && worktreeSource.includes('return path => names.has(basename(path)) || conventions.some(convention => (convention.folderOf?.(path) ?? null) !== null) || isInstructionFilePath(path, conventions)'))
 
     section('§2 a copy frozen at a commit, or standing on another, starts with the dependency folders only')
     const frozen = await make('agent-ad200001', { at: 'HEAD' })

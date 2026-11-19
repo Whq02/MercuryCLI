@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,8 +17,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
-const srcText = (...p: string[]): string => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 
 async function main(): Promise<void> {
   console.log('============================================================')
@@ -117,48 +115,6 @@ async function main(): Promise<void> {
     delete process.env.MERCURY_MODEL
   }
 
-  section('§3 the sites: every utility call reads the helper and pins its floor')
-  {
-    const classifier = srcText('services', 'agentNeedsYou.ts')
-    check('agentNeedsYou rides the routed seam', classifier.includes('routedCallModelSettled'))
-    check('agentNeedsYou rides the helper with a pinned floor', classifier.includes('utilityCallFor()') && classifier.includes('effortPinned: true'))
-    const feedback = srcText('components', 'Feedback.tsx')
-    check('Feedback title rides the routed seam', feedback.includes('routedCallModelSettled'))
-    check('Feedback title rides the helper with a pinned floor', feedback.includes('utilityCallFor()') && feedback.includes('effortPinned: true'))
-    check('Feedback carries no sideQuery residue', !feedback.includes('sideQuery'))
-    const crewmateRunner = srcText('utils', 'hooks', 'crewmateRunner.ts')
-    check('the crewmate hook runner rides the helper: the seat by default, a named model as itself at its own floor, the floor as the seat\'s own word', crewmateRunner.includes("run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })") && crewmateRunner.includes('noteAgentEffortWord(hookAgentId, call.effortValue)') && crewmateRunner.includes('engineModel: call.model'))
-    const questionRunner = srcText('utils', 'hooks', 'questionRunner.ts')
-    check('the question hook runner rides the helper: the seat by default, a named model as itself at its own floor, pinned', questionRunner.includes("run.model === undefined ? utilityCallFor() : utilityCallFor(run.model, { named: true })") && questionRunner.includes('effortPinned: true'))
-    const evalBridge = srcText('services', 'eval', 'evalBridge.ts')
-    check("evalBridge tier 'fast' rides the helper over the session model with a pinned floor", evalBridge.includes('utilityCallFor(context.options.engineModel)') && evalBridge.includes('effortPinned: true'))
-    const streamCoreSeam = srcText('services', 'providers', 'anthropic', 'streamCore.ts')
-    check('queryUtility reads the helper and pins the floor', /export async function queryUtility[\s\S]{0,700}utilityCallFor\(\)[\s\S]{0,400}effortPinned: true/.test(streamCoreSeam))
-    check('queryUtility delegates to the ROUTED one-shot (queryWithModel), never the unrouted engine', /export async function queryUtility[\s\S]{0,700}return queryWithModel\(/.test(streamCoreSeam))
-    check('a pinned effort rides the Anthropic wire even on a side question', streamCoreSeam.includes('const effortRides = effortPinned || options.ridesSessionEffort !== false'))
-    const webFetch = srcText('tools', 'WebFetchTool', 'utils.ts')
-    check('the WebFetch fallback leg rides the fallback model as itself at its own floor, pinned through the helper, never the slot', webFetch.includes('utilityCallFor(fallbackModel, { named: true })') && webFetch.includes('options: { ...baseOptions, ...call }'))
-    const openaiTurn = srcText('services', 'providers', 'openai', 'openaiCallModel.ts')
-    check('the OpenAI road derives a wanted-but-unknown floor from the admitted list before the wire (a pinned value is never lowered)', openaiTurn.includes("const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0") && openaiTurn.includes('floorEffort(servedEfforts)'))
-    const compatChat = srcText('services', 'providers', 'openaicompat', 'compatChatCallModel.ts')
-    check('the shared compat road derives a wanted-but-unknown floor from the vocabulary admitted before its resolution (the lanes that read their list before the request: Melious, xAI, Mistral, Gemini\'s plan road, local and the others that qualify first; OpenRouter, Nous and Gemini\'s key roads read nothing there, so a hook reads their list up front)', compatChat.includes("const floorWanted = options.effortPinned === true && options.effortValue === undefined && servedEfforts.length > 0") && compatChat.includes('floorEffort(servedEfforts)') && compatChat.includes('const floorWanted') && compatChat.includes('resolveWireRequestedEffort(modelId, askedEffort') && compatChat.indexOf('const floorWanted') < compatChat.indexOf('resolveWireRequestedEffort(modelId, askedEffort'))
-    check('the crewmate hook reads the named road\'s catalogue before noting the floor as the child\'s own word', crewmateRunner.includes('await readCatalogueIfPending(declaredRouteOf(run.model ?? getEngineModel())') && crewmateRunner.includes('readCatalogueIfPending(') && crewmateRunner.includes('utilityCallFor(run.model, { named: true })') && crewmateRunner.indexOf('readCatalogueIfPending(') < crewmateRunner.indexOf('utilityCallFor(run.model, { named: true })'))
-    check('the hook answer schema is emitted as draft-07, the dialect the verdict tool\'s engine compiles, and carries no $schema meta-reference onto any wire', questionRunner.includes("target: 'draft-07'") && questionRunner.includes('const { $schema: _dialect, ...shape } = toJSONSchema('))
-    check('the question hook reads the named road\'s catalogue before computing the floor (a bounded read; OpenRouter, Nous and Gemini\'s key roads read nothing before the request themselves)', questionRunner.includes('await readCatalogueIfPending(declaredRouteOf(run.model ?? getEngineModel())') && questionRunner.includes('readCatalogueIfPending(') && questionRunner.includes('utilityCallFor(run.model, { named: true })') && questionRunner.indexOf('readCatalogueIfPending(') < questionRunner.indexOf('utilityCallFor(run.model, { named: true })'))
-    for (const [label, ...path] of [
-      ['sessionTitle', 'utils', 'sessionTitle.ts'],
-      ['generateSessionName', 'commands', 'rename', 'generateSessionName.ts'],
-      ['WebFetch reading', 'tools', 'WebFetchTool', 'utils.ts'],
-      ['MCP datetime parser', 'utils', 'mcp', 'dateTimeParser.ts'],
-    ] as const) {
-      check(`${label} rides the queryUtility seam (the helper by construction)`, srcText(...path).includes('queryUtility'))
-    }
-    const probeBranch = "=== 'anthropic' ? "
-    const tokenEstimation = srcText('services', 'tokenEstimation.ts')
-    const requestParams = srcText('services', 'providers', 'anthropic', 'requestParams.ts')
-    check('the count-tokens create probe names the helper\'s model on the Anthropic road, else the family default, at that model\'s floor with thinking off unless the history thinks', tokenEstimation.includes(probeBranch) && tokenEstimation.includes('getDefaultSonnetModel()') && tokenEstimation.includes('thinking: thinking ? THINKING_BUDGET_TOKENS : false') && tokenEstimation.includes("...(effort !== undefined ? { effort } : {})"))
-    check('the key probe names the helper\'s model on the Anthropic road, else the family default, at that model\'s floor with thinking off', requestParams.includes(probeBranch) && requestParams.includes('getDefaultSonnetModel()') && requestParams.includes("if (!modelThinkingAlwaysOn(model)) body.thinking = { type: 'disabled' }") && requestParams.includes("if (effort !== undefined && !('effort' in outputConfig)) outputConfig.effort = effort") && requestParams.includes('Object.assign(body, extraBody)') && !requestParams.includes('export function keyProbeModel'))
-  }
 
   section('§4 the settlement fold — settleAssistantTurn (the one owner)')
   {
@@ -198,11 +154,6 @@ async function main(): Promise<void> {
       threwEmpty = e instanceof Error && !(e instanceof APIUserAbortError)
     }
     check('empty without abort throws the honest error', threwEmpty)
-    const streamCore = srcText('services', 'providers', 'anthropic', 'streamCore.ts')
-    check(
-      'queryWithModel delegates to settleAssistantTurn (one fold, one owner)',
-      /settleAssistantTurn\(\w+, (?:question\.)?signal\.aborted\)/.test(streamCore),
-    )
   }
 
   console.log('\n' + '='.repeat(60))

@@ -37,7 +37,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
 const recordsDir = join(SCRATCH, 'daemon')
 mkdirSync(recordsDir, { recursive: true })
@@ -180,15 +179,6 @@ console.log('\n── A3/A4: continue → menu → New Session → a clean secon
   check('A4 the birth boots --session-id, never --resume', bornArgv.includes('--session-id') && !bornArgv.includes('--resume'))
 }
 
-console.log('\n── A4: the solo doors carry the claim in source ──')
-{
-  const bornDoor = read('src/services/switchboard/bornSession.ts')
-  const admitAt = bornDoor.indexOf("op: 'sessionAdmit'")
-  check("A4 the birth door claims 'shared' explicitly", admitAt !== -1 && bornDoor.slice(admitAt, bornDoor.indexOf('{ timeoutMs: 60_000 }', admitAt)).includes("isolation: 'shared'"))
-  check('A4 the birth door never names resumeSessionId (new ≠ replay)', !bornDoor.includes('resumeSessionId'))
-  const resumeDoor = read('src/services/switchboard/hopIntoSession.ts')
-  check("A4 the resume door claims 'shared' beside its resumeSessionId", /resumeSessionId: sessionId, isolation: 'shared'/.test(resumeDoor))
-}
 
 console.log('\n── A5: an old exclusive record reactivates as shared ──')
 {

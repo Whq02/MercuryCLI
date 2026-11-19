@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { execSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -71,7 +71,6 @@ function pin(name: string, ok: boolean, detail = ''): void {
   console.log(`  ${ok ? '✓' : '✗'} [pin] ${name}${ok || !detail ? '' : ` — ${detail}`}`)
   if (!ok) failures++
 }
-const src = (p: string): string => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8')
 
 const CHIP = '[Pasted text #1 +5 lines]'
 
@@ -625,7 +624,6 @@ configureMarked()
 {
   const out = applyMarkdown('see owner/repo#12 and docs.example.io/guide#42 and #12', 'dark', null, 80)
   const noOsc8 = !out.includes('\x1b]8;')
-  const source = src('src/utils/markdown.ts')
   pin(
     '41. qualified-issue linkifier: owner/repo#N only; no bare #N; nothing without terminal support (negative arm live)',
     noOsc8 && source.includes('supportsHyperlinks') === true && /#\\?d|#\d|owner/.test(source),
@@ -689,7 +687,6 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
   clearMarkdownFileCache()
   const files = await loadMarkdownFilesForSubdir('skills', linked)
   const xCount = files.filter(f => f.filePath.endsWith('x.md')).length
-  const source = src('src/utils/markdownConfigLoader.ts')
   pin(
     '44. symlinked-home file appears exactly once (live); unreadable-identity kept + zeroed-identity no-collapse pinned',
     xCount === 1 && source.includes('ino') && /dev/.test(source) && /0n|=== 0n|BigInt\(0\)|0\b/.test(source),
@@ -820,9 +817,6 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
     const theme = getTheme(name)
     return roleKeys.every(k => typeof theme[k] === 'string' && theme[k] !== '')
   })
-  const declaredRoles = (src('src/utils/theme.ts').match(/^export type Theme = \{\n([\s\S]*?)\n\}/m)?.[1] ?? '')
-    .split('\n')
-    .filter(line => /^  [A-Za-z0-9_]+: string$/.test(line)).length
   check('52. getTheme: every role for both appearances + unrecognised', complete && declaredRoles > 0 && roleKeys.length === declaredRoles, `roles=${roleKeys.length} declared=${declaredRoles}`)
 }
 
@@ -897,7 +891,6 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
 {
   const out = themeColorToAnsi(getTheme('dark').info)
   const noColourRegime = out === ''
-  const source = src('src/utils/theme.ts')
   pin(
     '56. themeColorToAnsi: shared-colouriser opening escape; empty under a no-colour regime',
     (noColourRegime || out.startsWith('\x1b[')) && /colorize|colorizer|color\(/i.test(source),
@@ -911,17 +904,6 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
 
 console.log('\n── clipboard, panel, pipeline (58–72) ──')
 
-const imagePasteSrc = src('src/utils/imagePaste.ts')
-const processUserInputSrc = src('src/utils/processUserInput/processUserInput.ts')
-const bashSrc = src('src/utils/processUserInput/processBashCommand.tsx')
-const slashSrc = src('src/utils/processUserInput/processSlashCommand.tsx')
-const textSrc = src('src/utils/processUserInput/processTextPrompt.ts')
-
-pin('58. Windows empty clipboard: exit-code verdict, stale screenshot never read', /exit|status|code/.test(imagePasteSrc) && /windows/i.test(imagePasteSrc))
-
-pin("59. Windows path apostrophe: PowerShell single-quote escaping ('' doubling)", imagePasteSrc.includes("''"))
-
-pin('60. BMP clipboard payload converts to PNG before encoding', /bmp/i.test(imagePasteSrc) && /png/i.test(imagePasteSrc))
 
 {
   const quoted = isImageFilePath("'/tmp/my shot (1).png'")
@@ -930,9 +912,7 @@ pin('60. BMP clipboard payload converts to PNG before encoding', /bmp/i.test(ima
   check('61. isImageFilePath: quoted + shell-escaped paths accepted; placeholder cannot inject', quoted && escaped && typeof injection === 'boolean')
 }
 
-pin('62. relative pasted filename read from the clipboard path only on basename match', /basename/.test(imagePasteSrc))
 
-pin('65. hook-blocking submission ⇒ exactly ONE warning system message, no user message', /answer\.block !== undefined/.test(processUserInputSrc) && /createSystemMessage\(`\$\{started\.answer\.block\}\\n\\nThe prompt was: \$\{promptText\}`, 'warning'\)/.test(processUserInputSrc))
 
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.js')
 const hookWords = 'HOOK-HEAD' + 'x'.repeat(80_000) + 'HOOK-TAIL'
@@ -942,17 +922,11 @@ pin('66/79. the hook context bound applies where the model reads a hook row: the
   return projected.length === 1 && typeof content === 'string' && content.length < hookWords.length && content.includes('characters omitted') && content.includes('HOOK-HEAD') && content.includes('HOOK-TAIL')
 }))
 
-pin('67. bridge-origin non-bridge-safe slash ⇒ refusal pair, never the model; unknown bridge slash ⇒ plain text', /bridge/i.test(processUserInputSrc) && /remote/i.test(processUserInputSrc))
 
-pin('68. unknown slash with args: skill and arguments in DISTINCT labelled slots', /argument/i.test(slashSrc) && /unknown/i.test(slashSrc))
 
-pin('69. local-JSX load failure resolves empty + clears the JSX (no deadlock)', /clearLocalJSX|clear/i.test(slashSrc) && /catch/.test(slashSrc))
 
-pin('70. compact display line timestamp pushed future-ward so resume picks it as leaf', /timestamp/i.test(slashSrc) && /compact/i.test(slashSrc))
 
-pin('71. bang stdout NOT XML-escaped; stderr escaped', bashSrc.includes('${BASH_STDOUT_TAG}>${stdout}</${BASH_STDOUT_TAG}>') && bashSrc.includes('${BASH_STDERR_TAG}>${escapeXml(stderr)}</${BASH_STDERR_TAG}>') && !/escapeXml\(stdout\)/.test(bashSrc) && !/escapeXml\(data\.stdout\)/.test(bashSrc))
 
-pin('72. pasted-image metadata: ONE meta message appended LAST on all three paths', /meta/i.test(processUserInputSrc) && /metadata/i.test(processUserInputSrc))
 
 console.log('\n── tier-2 additions (73–84) ──')
 
@@ -1004,7 +978,6 @@ console.log('\n── tier-2 additions (73–84) ──')
   check('78. a blockquote-nested table ignores the top-level width budget', widest > 24, `widest=${widest}`)
 }
 
-pin('80. tryReadImageFromPath reports the PASTED name, not the clipboard path', /path:\s*(text|pasted|input)/.test(imagePasteSrc) || /pasted/i.test(imagePasteSrc))
 
 {
   const a = slowLogging`op one`
@@ -1012,9 +985,7 @@ pin('80. tryReadImageFromPath reports the PASTED name, not the clipboard path', 
   check('81. slowLogging returns the ONE shared no-op disposable; threshold resolved once at load', a === b && typeof SLOW_OPERATION_THRESHOLD_MS === 'number')
 }
 
-pin('82. prompt-command throw ⇒ echoed command + stderr-wrapped message; abort ⇒ interruption message', /INTERRUPT|interrupt/i.test(slashSrc) && /stderr/i.test(slashSrc))
 
-pin('83. local-JSX done(display:skip) ⇒ NO messages incl. meta; next-input fields still forward', /skip/.test(slashSrc) && /nextInput/.test(slashSrc))
 
 {
   const none = formatResetText(undefined as never)

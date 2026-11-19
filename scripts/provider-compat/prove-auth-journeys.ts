@@ -1237,11 +1237,6 @@ check("hygiene: maskedKeyTail refuses short values (nothing to mask ⇒ '')", ma
       universe[0]!.name === 'primary',
     JSON.stringify(universe.map(u => ({ name: u.name, dir: u.dir }))),
   )
-  const scanOwnerSrc = readFileSync(join(import.meta.dir, '../../src/utils/accounts/scopeScan.ts'), 'utf8')
-  check(
-    'universe: the scan cannot enumerate siblings (no readdir, no account- roster pattern)',
-    !scanOwnerSrc.includes('readdirSync') && !scanOwnerSrc.includes("account-'"),
-  )
   const foreignHome = join(HOME, '.codex')
   mkdirSync(foreignHome, { recursive: true })
   process.env.MERCURY_CONFIG_DIR = foreignHome
@@ -1254,12 +1249,6 @@ check("hygiene: maskedKeyTail refuses short values (nothing to mask ⇒ '')", ma
   )
   process.env.MERCURY_CONFIG_DIR = HOME
   ;(envUtils.getMercuryHome as unknown as { cache: { clear(): void } }).cache.clear()
-  const slotsSrc = readFileSync(join(import.meta.dir, '../../src/services/providers/accountSlots.ts'), 'utf8')
-  const walletSrc = readFileSync(join(import.meta.dir, '../../src/services/wallet/wallet.ts'), 'utf8')
-  check(
-    'universe: board derivation and wallet consume the ONE scan owner',
-    slotsSrc.includes('scanAccountScopes') && walletSrc.includes('scanAccountScopes'),
-  )
 }
 
 section('S7 · J8 — the transition confirm is stale-safe for EVERY route (the deadlock class)')

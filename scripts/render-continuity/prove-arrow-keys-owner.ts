@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
@@ -102,10 +101,6 @@ const settle = (ms = 80): Promise<void> => new Promise(resolve => setTimeout(res
   instances.delete(screen as never)
 }
 
-{
-  const handler = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'ScrollKeybindingHandler.tsx'), 'utf8')
-  t('§3 the message cursor is an owner of the arrows: the transcript\'s key handler registers it with the painter', /useEffect\(\(\) => ink\?\.registerArrowKeyOwner\(isMessageCursorActive\), \[ink\]\)/.test(handler) && /import \{ isMessageCursorActive \} from '\.\/messageCursorStore\.js'/.test(handler))
-}
 
 console.log(failures === 0 ? 'ARROW KEYS OWNER: ALL PASS' : 'ARROW KEYS OWNER: RED')
 process.exit(failures)

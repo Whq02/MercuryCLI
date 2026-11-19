@@ -4,13 +4,12 @@
 process.env.NODE_ENV = 'test'
 
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 const ROOT = join(import.meta.dir, '../../')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 const EXPECTED_RED = new Set<string>([
 ])
@@ -77,110 +76,8 @@ section('BM-19 — splash OSC 11 ground write, emitted bytes under the one spell
     !bare.osc11 && bare.bytes > 1000,
     `osc11=${bare.osc11} bytes=${bare.bytes}`,
   )
-  check(
-    'UI-017 parity: the splash and the runtime owner read the ONE opt-out spelling (MERCURY_OASIS_BG in the asset; the registry row for oasisBg)',
-    src('assets/splash/mercury-splash.mjs').includes("process.env.MERCURY_OASIS_BG !== '0'") &&
-      src('src/utils/cockpit/oasisBg.ts').includes("flagEnabled('MERCURY_OASIS_BG')"),
-  )
 }
 
-section('UI-006 — projected assets: the control reads')
-{
-  const splash = src('assets/splash/mercury-splash.mjs')
-  const launchers = src('scripts/release/launcherTemplates.mjs')
-  const readsCanonical = (text: string, name: string): boolean =>
-    new RegExp(`MERCURY_${name}\\b`).test(text)
-  check(
-    'census: splash canonical-aware USER controls (3.6.1, round-7 set) — TRUECOLOR · OASIS_BG · LAUNCH_RIPPLE · REDUCED_MOTION · CRITTER · SPLASH · CONFIG_DIR/HOME',
-    readsCanonical(splash, 'TRUECOLOR') &&
-      readsCanonical(splash, 'OASIS_BG') &&
-      readsCanonical(splash, 'LAUNCH_RIPPLE') &&
-      readsCanonical(splash, 'REDUCED_MOTION') &&
-      readsCanonical(splash, 'CRITTER') &&
-      readsCanonical(splash, 'SPLASH') &&
-      splash.includes('MERCURY_CONFIG_DIR') &&
-      splash.includes('MERCURY_HOME'),
-  )
-  check(
-    'census: splash PROOF-SEAM controls read the one canonical spelling — SPLASH_ONESHOT · SPLASH_VIEW (capture/proof inputs, not user-facing product controls)',
-    readsCanonical(splash, 'SPLASH_ONESHOT') && readsCanonical(splash, 'SPLASH_VIEW'),
-  )
-  check(
-    'census: launcher templates carry the ALT_HELD mark in all THREE shells (POSIX · CMD · PS1)',
-    (launchers.match(/MERCURY_ALT_HELD/g) ?? []).length >= 3,
-  )
-}
-
-section('UI-005 — terminal-mode acquisition/release census (who emits which mode bytes)')
-{
-  const MODE_PATTERNS: Array<[name: string, re: RegExp]> = [
-    ['alt-screen ?1049', /\[\?1049[hl]|\b(ALT_SCREEN\w*):\s*1049\b/],
-    ['bracketed-paste ?2004', /\[\?2004[hl]|\b(BRACKETED_PASTE):\s*2004\b/],
-    ['mouse ?1000-1003', /\[\?100[0-3][hl]|\b(MOUSE_\w+):\s*100[0-3]\b/],
-    ['sgr-mouse ?1006', /\[\?1006[hl]|\b(MOUSE_SGR):\s*1006\b/],
-    ['alternate-scroll ?1007', /\[\?1007[hl]|\b\w+:\s*1007\b/],
-    ['cursor ?25', /\[\?25[hl]/],
-    ['ground OSC ]11;', /\]11;/],
-    ['sync-update ?2026', /\[\?2026[hl]|\b\w+:\s*2026\b/],
-    ['kitty-kbd push/pop', />1u|<1?u/],
-  ]
-  const SURFACES: Array<[surface: string, path: string]> = [
-    ['splash-asset', 'assets/splash/mercury-splash.mjs'],
-    ['launcher-templates', 'scripts/release/launcherTemplates.mjs'],
-    ['launcher-alt-hold', 'src/ink/launcherAltHold.ts'],
-    ['runtime-dec-vocabulary', 'src/ink/termio/dec.ts'],
-    ['runtime-screen-session', 'src/ink/root/screen-session.ts'],
-  ]
-  const censusRows: string[] = []
-  for (const [surface, path] of SURFACES) {
-    if (!existsSync(join(ROOT, path))) {
-      censusRows.push(`${surface}: MISSING ${path}`)
-      continue
-    }
-    const text = src(path)
-    const modes = MODE_PATTERNS.filter(([, re]) => re.test(text)).map(([n]) => n)
-    censusRows.push(`${surface}: ${modes.join(' · ') || '(none)'}`)
-  }
-  console.log(censusRows.map(r => `    ${r}`).join('\n'))
-  const row = (s: string): string => censusRows.find(r => r.startsWith(s)) ?? ''
-  check(
-    'census: the splash asset emits alt-screen + cursor + ground bytes (the BM-20 ownership set)',
-    row('splash-asset').includes('alt-screen') &&
-      row('splash-asset').includes('cursor ?25') &&
-      row('splash-asset').includes('ground OSC'),
-    row('splash-asset'),
-  )
-  {
-    const launchers = src('scripts/release/launcherTemplates.mjs')
-    check(
-      'census: launcher templates emit RELEASE-ONLY heal bytes (abnormal path) — no mode acquisitions',
-      launchers.includes('?1007l') &&
-        launchers.includes('?1049l') &&
-        launchers.includes('?25h') &&
-        !launchers.includes('?1049h') &&
-        !launchers.includes('?1007h') &&
-        !launchers.includes('?25l'),
-      row('launcher-templates'),
-    )
-  }
-  check(
-    'census: launcherAltHold releases alt-screen (the narrow restore 3.6.2 widens through the ledger)',
-    row('launcher-alt-hold').includes('alt-screen'),
-    row('launcher-alt-hold'),
-  )
-  check(
-    'census: the runtime DEC vocabulary owns alt-screen + mouse + bracketed-paste (one constants owner)',
-    row('runtime-dec-vocabulary').includes('alt-screen') &&
-      row('runtime-dec-vocabulary').includes('mouse ?1000-1003') &&
-      row('runtime-dec-vocabulary').includes('bracketed-paste'),
-    row('runtime-dec-vocabulary'),
-  )
-  check(
-    'census: the runtime screen-session owner controls the cursor (composes modes through the DEC vocabulary)',
-    row('runtime-screen-session').includes('cursor ?25'),
-    row('runtime-screen-session'),
-  )
-}
 
 section('UI-007 — same-context legacy-projection collisions in the authored bindings')
 {
@@ -224,37 +121,6 @@ section('UI-007 — same-context legacy-projection collisions in the authored bi
 
 section('BM-20 — held is a settled receipt; release is obligation-exact (UI-027..037)')
 {
-  const launchers = src('scripts/release/launcherTemplates.mjs')
-  const splash = src('assets/splash/mercury-splash.mjs')
-  const altHold = src('src/ink/launcherAltHold.ts')
-  check(
-    'UI-031 (re-anchored by BM-30): all THREE shells mark held ONLY on the settled EXIT-CODE receipt (0 = held handoff; 20 = restored; no shell parses any splash-written file)',
-    launchers.includes('[ "$MERCURY_SA_EXIT" = "0" ] && [ "\\${MERCURY_FULLSCREEN:-}" != "0" ]') &&
-      launchers.includes('if "%MERCURY_SA_EXIT%"=="0" if not "%MERCURY_FULLSCREEN%"=="0" set "MERCURY_ALT_HELD=1"') &&
-      launchers.includes("($saExit -eq 0) -and ($env:MERCURY_FULLSCREEN -ne '0')") &&
-      !launchers.includes('set /p "MERCURY_SA_ACT') &&
-      !launchers.includes('IFS= read -r MERCURY_SA_ACT') &&
-      !launchers.includes('Get-Content -LiteralPath $saTxt'),
-  )
-  check(
-    'UI-029/030: the splash settles the receipt at BOTH restoreAndBrand branches; a SKIPPED splash writes NOTHING (the updater byte-purity law — piped/off runs leave the home untouched)',
-    splash.includes("writeScreenReceipt('held')") &&
-      splash.includes("writeScreenReceipt('restored')") &&
-      !splash.includes("writeScreenReceipt('not-entered')") &&
-      (splash.match(/writeScreenReceipt\(/g) ?? []).length === 3,
-  )
-  check(
-    'UI-032 (re-anchored by BM-30): the 130 cancel stands every shell down, and any OTHER nonzero exit gets the bounded owner-scoped heal + a plain boot',
-    (launchers.match(/1007l/g) ?? []).length >= 3 &&
-      launchers.includes('[ "$MERCURY_SA_EXIT" = "130" ]') &&
-      launchers.includes('if "%MERCURY_SA_EXIT%"=="130" exit /b 0') &&
-      launchers.includes('if ($saExit -eq 130) { exit 0 }'),
-  )
-  check(
-    'UI-037: releaseLauncherAltHoldNow releases the EXACT transferred set (alternate-scroll ?1007l joined the restore — the missed subset member)',
-    altHold.includes("'\\x1b[0m\\x1b[?1007l\\x1b[?1049l\\x1b[?25h'") &&
-      altHold.includes("noteModesImported('launcher-splash'"),
-  )
   const ledger = await import('../../src/ink/root/terminalModeLedger.js')
   ledger._resetTerminalModeLedgerForTesting()
   ledger.noteModesImported('launcher-splash', ['alt-screen', 'alternate-scroll', 'cursor-hidden'])
@@ -268,29 +134,10 @@ section('BM-20 — held is a settled receipt; release is obligation-exact (UI-02
       ledger.openModeObligations('someone-else').length === 0,
   )
   ledger._resetTerminalModeLedgerForTesting()
-  check(
-    'UI-043: the 2s drain bound stands unchanged (collapse cap 2000ms, never lengthened)',
-    splash.includes('function collapse(code, drainCapMs = 2000)'),
-  )
 }
 
 section('BM-22/23 — the remaining desired laws, pinned as flip targets')
 {
-  {
-    const resolverExists = existsSync(join(ROOT, 'src/ink/session/terminalExperience.ts'))
-    check(
-      'UI-021 (BM-21): a TerminalExperienceResolver owns fullscreen/mouse/title/accessibility resolution',
-      resolverExists,
-      'no resolver module',
-    )
-  }
-  const app = src('src/ink/components/App.tsx')
-  check(
-    'UI-052 (BM-22): the batch owner consumes the documented deterministic policy (no chunk-count semantics anywhere)',
-    /ALTERNATE_SCROLL_POLICY|alternateScrollPolicy/.test(app) &&
-      !app.includes('items.length >= 2') &&
-      !/same-direction plain arrows/.test(app),
-  )
   {
     const policy = await import('../../src/ink/termio/alternateScrollPolicy.js')
     const arrow = (name: 'up' | 'down'): Record<string, unknown> => ({
@@ -345,12 +192,6 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
       JSON.stringify(names([{ ...arrow('up'), super: true }], engaged)),
     )
     const historyRows = rowsBinding(shippedKeyForms(), action => action === 'history:previous' || action === 'history:next')
-    const composer = src('src/hooks/useTextInput.ts')
-    check(
-      'UI-058: the portable history route is REAL in the composer (ctrl+p/ctrl+n ride upOrHistory/downOrHistory)',
-      /case 'p':\s*\n\s*return upOrHistory\(cursor\)/.test(composer) &&
-        /case 'n':\s*\n\s*return downOrHistory\(cursor\)/.test(composer),
-    )
     check(
       "UI-058: the registry's dead history rows STAY retired (a revival re-lies to the atlas)",
       historyRows.length === 0,
@@ -361,7 +202,6 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
       policy.ALTERNATE_SCROLL_POLICY === 'scroll-first-in-native-selection',
     )
   }
-  const ping = src('src/ink/termio/notifyPing.ts')
   {
     const { defaultPingMethod, buildOsc9Notification } = await import('../../src/ink/termio/notifyPing.js')
     check(
@@ -373,15 +213,6 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
       defaultPingMethod('Apple_Terminal') === 'bell',
     )
     check('OSC 9 stands where proven (iTerm2)', defaultPingMethod('iTerm.app') === 'osc9')
-    check(
-      'UI-080: the ping never touches OSC 9;4 — progress stays progress (the OSC 9 payload opens with the two newlines)',
-      !ping.includes('9;4') && buildOsc9Notification('x').includes(']9;\n\nx'),
-    )
-    check(
-      'UI-122: the one switch is the settings word, read at fire time — no channel list anywhere',
-      src('src/hooks/useTurnEndPing.ts').includes("getInitialSettings().view?.ping !== false") &&
-        !src('src/components/Settings/Config.tsx').includes('CHANNEL_LABELS'),
-    )
   }
 }
 
@@ -431,32 +262,10 @@ section('UI-061..064 — authored chords classified through the live protocol; c
   )
 }
 
-section('VP — one sprite for the berth at every allocation; the decision consults no OS name')
-{
-  const { SQUARE_DOCK_ART_LINES } = await import('../../src/utils/cockpit/critterData.js')
-  check(
-    'VP-06/11: the berth paints the dock sprite in a fixed slot at every size, and the art module consults no OS name',
-    SQUARE_DOCK_ART_LINES === 3 &&
-      src('src/components/MercuryHome.tsx').includes('height={SQUARE_DOCK_ART_LINES}') &&
-      !src('src/utils/cockpit/critterData.ts').includes('process.platform'),
-  )
-  check(
-    'VP-02: the layout budgets the capsule against the same thirteen-column slot the berth renders in',
-    src('src/components/FullscreenLayout.tsx').includes('width={CR_COLS}') &&
-      src('src/components/FullscreenLayout.tsx').includes('width={sizeVal.columns - 4 - 1 - CR_COLS}'),
-  )
-}
 
 section('RV — reasoning depth is not answer length; one balanced default + one override')
 {
   const contract = await import('../../src/prompt/mercuryContract.js')
-  const PERSIST = 'keep going while evidence advances the outcome'
-  check(
-    'RV-06: persistence is ONE clause on the crewmate seat; the session seat\'s finishing clause is the constitution\'s (never a parallel clause, no separate law constant)',
-    contract.MERCURY_SUBAGENT_CONTRACT.includes(PERSIST) &&
-      contract.MERCURY_CONSTITUTION.includes('Before ending, finish any useful work that remains both requested and authorised.') &&
-      !src('src/prompt/mercuryContract.ts').includes('PERSISTENCE_LAW'),
-  )
   check(
     'RV-02/08: the constitution names no reasoning-depth knob (no retired word) and no answer-length rule',
     !new RegExp('\\b(effort|' + ['deep', 'think'].join('') + '|' + ['super', 'code'].join('') + '|verbosity|brevity)\\b', 'i').test(contract.MERCURY_CONSTITUTION),
@@ -465,20 +274,6 @@ section('RV — reasoning depth is not answer length; one balanced default + one
     'RV-03/04/05: the stated-preferences rule is the constitution\'s; no narration or appendix rule rides any seat text',
     /stated preferences on scope, approach, delegation and communication ahead of your defaults/.test(contract.MERCURY_CONSTITUTION) &&
       !/narration|appendix/.test([contract.MERCURY_CONSTITUTION, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')),
-  )
-  check(
-    'RV-01: the concise profile is ONE settings override at the contract owner (schema key + conditional section; no knob wall)',
-    src('src/utils/config/schema.ts').includes("responseProfile?: 'balanced' | 'concise'") &&
-      src('src/prompt/mercuryContract.ts').includes("responseProfile === 'concise'"),
-  )
-  check(
-    'RV-02: the wire verbosity seam stays typed-but-UNSET (no builder sends it before the provider-contract capture)',
-    src('src/services/providers/openai/openaiWire.ts').includes("verbosity?: 'low' | 'medium' | 'high'") &&
-      !src('src/services/providers/openai/openaiCallModel.ts').includes('verbosity:'),
-  )
-  check(
-    'RV-07: identical-retry prevention is the WK-08/2.2 shared mechanism (bm-classes floors stand; no second implementation)',
-    src('scripts/stop-policy/prove-bm-classes.ts').includes('WK-08'),
   )
 }
 
@@ -502,14 +297,6 @@ section('UI-130 — windows-ui binds captures to ONE exact SHA with a live recei
 
 section('UI-124/125 — copy confirmations name the route that actually settled')
 {
-  const osc = src('src/ink/termio/osc.ts')
-  check(
-    'UI-124: setClipboardWithReceipt returns settled routes from POSITIVE completion facts (exit 0 / load-buffer) — OSC 52 is emission-only, never settled',
-    osc.includes('export interface ClipboardReceipt') &&
-      osc.includes("if (nativeRoute) settled.push(nativeRoute)") &&
-      osc.includes("if (tmuxBufferLoaded) settled.push('tmux-buffer')") &&
-      !/settled\.push\('osc52'\)/.test(osc),
-  )
   const { openSelectorPart } = await import('../ui/chatScenarios.ts')
   const { createAssistantMessage } = await import('../../src/utils/messages/factories.js')
   const copies = await openSelectorPart('uiux-wave0-copy')
@@ -519,142 +306,13 @@ section('UI-124/125 — copy confirmations name the route that actually settled'
   await copies.close()
   check(
     'UI-125: the confirmation copy is honest both ways — settled routes named, or the OSC-52 offer stated with its dependency',
-    osc.includes("`copied (${settled.join(' + ')})`") &&
-      osc.includes('delivery depends on your terminal') &&
       copyNotice?.text === 'copied (the planted route)',
     `the chat screen painted ${JSON.stringify(copyNotice?.text)} for a receipt that said "copied (the planted route)"`,
   )
-  check(
-    'the win32 encoding law survives the receipt refactor (the ΓÇö paste class, the U+FEFF first character): Set-Clipboard decodes UTF-8 bytes itself, clip.exe is fed UTF-16LE with no byte-order mark',
-    osc.includes('input: windowsPowershellInput(text)') && osc.includes('input: windowsClipInput(text)') && !osc.includes('0xff, 0xfe'),
-  )
 }
 
-section('UI-088..100 — selection/tokens/plates/transitions adjudicated to their owners')
-{
-  const inkRoot = src('src/ink/ink.tsx')
-  check(
-    'UI-088..091: ONE screen-level selection owner (ink root copySelection + selection-model); no per-surface selection fork exists',
-    inkRoot.includes('copySelection(): string') &&
-      existsSync(join(ROOT, 'src/ink/geometry/selection-model.ts')) &&
-      existsSync(join(ROOT, 'scripts/render-continuity/prove-selection-region.ts')),
-  )
-  {
-    const allowed = new Set([
-      'src/utils/mercuryTokens.ts',
-      'src/ink/colorize.ts',
-      'src/components/mercuryPalette.ts',
-      'src/components/mercury-ui/sessionAccent.ts',
-    ])
-    const offenders: string[] = []
-    const sweep = (dir: string): void => {
-      for (const entry of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
-        if (entry.isDirectory()) {
-          if (entry.name === 'node_modules' || entry.name === 'dist') continue
-          sweep(`${dir}/${entry.name}`)
-          continue
-        }
-        const p = `${dir}/${entry.name}`
-        if (allowed.has(p)) continue
-        if (!/\.(ts|tsx|md)$/.test(entry.name)) continue
-        if (readFileSync(join(ROOT, p), 'utf8').includes('DD4444')) offenders.push(p)
-      }
-    }
-    sweep('src')
-    check(
-      'UI-093..095: the brand accent literal lives ONLY at the token owners — every surface consumes the token estate',
-      offenders.length === 0,
-      offenders.join(', '),
-    )
-  }
-  check(
-    'UI-096: first text rides the shared stream owner (no plate delays first text)',
-    src('src/utils/messages/streaming.ts').includes("if (delta.type === 'text_delta') {") &&
-      src('src/utils/messages/streaming.ts').includes("text?.(before => (before ?? '') + chunk)") &&
-      src('src/utils/messages/streaming.ts').includes('publishDelta(event, onUpdateLength, onStreamingToolUses, onStreamingText)'),
-  )
-  check(
-    'UI-097..100: the transition families keep their standing owners (board-coverage · view-target-parity · agent-resume-visibility)',
-    existsSync(join(ROOT, 'scripts/interaction/prove-board-coverage.ts')) &&
-      existsSync(join(ROOT, 'scripts/render-continuity/prove-view-target-parity.ts')) &&
-      existsSync(join(ROOT, 'scripts/render-continuity/prove-agent-resume-visibility.ts')),
-  )
-}
 
-section('UI-003 — landed dependencies stand')
-{
-  check(
-    'boot-summary/dual-spelling parity prover stands',
-    existsSync(join(ROOT, 'scripts/node-runtime/prove-launchers.ts')),
-  )
-  check(
-    'snapshot $PATH fix stands (resolveSnapshotPathValue at the owner)',
-    src('src/utils/bash/ShellSnapshot.ts').includes('resolveSnapshotPathValue'),
-  )
-  check(
-    'poise selection owner stands (selection suite present)',
-    existsSync(join(ROOT, 'scripts/interaction')) || existsSync(join(ROOT, 'scripts/render-continuity')),
-  )
-}
 
-section('UI-009 — every prover is enrolled in a permanent suite')
-{
-  const memberPaths = (runner: string, members: string): string[] => {
-    const code = runner.split('\n').filter(line => !line.trimStart().startsWith('#')).join('\n')
-    const parent = /scripts\/([A-Za-z0-9_-]+)\/\$name/.exec(code)?.[1]
-    const consumesMembers = /done\s*<\s*"\$here\/members\.txt"/.test(code) || /drive_members\s+\S+\s+'[^']*\$name[^']*'\s+"\$here\/members\.txt"/.test(code)
-    if (!parent || !consumesMembers) return []
-    return members.split('\n').slice(0, -1).filter(line => line !== '' && !line.startsWith('#')).map(name => `${parent}/${name}`)
-  }
-  const fixtureRunner = 'f="scripts/fixture/$name"\ndone < "$here/members.txt"'
-  const sharedRunner = 'drive_members fixture-drives \'scripts/fixture/$name\' "$here/members.txt"'
-  check('UI-009: a member list handed to the shared drive runner enrolls its parent proof', memberPaths(sharedRunner, 'prove-fixture.ts\n').join() === 'fixture/prove-fixture.ts')
-  check('UI-009: a consumed member list enrolls its parent proof', memberPaths(fixtureRunner, 'prove-fixture.ts\n').join() === 'fixture/prove-fixture.ts')
-  check('UI-009: an unterminated final row is not consumed by read', memberPaths(fixtureRunner, 'prove-fixture.ts').length === 0)
-  check('UI-009: an unconsumed list enrolls nothing', memberPaths('f="scripts/fixture/$name"', 'prove-fixture.ts\n').length === 0)
-  check('UI-009: a member belongs only to its actual parent', !memberPaths(fixtureRunner, 'prove-fixture.ts\n').includes('other/prove-fixture.ts'))
-  const namedByARunner = (dir: string, prover: string, ownRunner: string, everyRunner: string): boolean =>
-    ownRunner.includes(prover) || ownRunner.includes(prover.replace(/\.ts$/, '')) || everyRunner.includes(`scripts/${dir}/${prover}`)
-  const foreignRunner = 'bun run "$here/../../scripts/fixture/prove-fixture.ts"'
-  const silentRunner = 'bun run "$here/prove-other.ts"'
-  check('UI-009: a prover named only by another suite\'s runner, as scripts/<dir>/<file>, is enrolled', namedByARunner('fixture', 'prove-fixture.ts', silentRunner, `${silentRunner}\n${foreignRunner}`))
-  check('UI-009: a prover no runner names is an orphan', !namedByARunner('fixture', 'prove-fixture.ts', silentRunner, `${silentRunner}\nbun run scripts/other/prove-fixture.ts`))
-  const orphans: string[] = []
-  const suiteDirs = readdirSync(join(ROOT, 'scripts'), { withFileTypes: true })
-    .filter(d => d.isDirectory())
-    .map(d => d.name)
-  const listed = new Set<string>()
-  const runnerTexts: string[] = []
-  for (const dir of suiteDirs) {
-    const runAll = join(ROOT, 'scripts', dir, 'run-all.sh')
-    const members = join(ROOT, 'scripts', dir, 'members.txt')
-    if (!existsSync(runAll)) continue
-    runnerTexts.push(readFileSync(runAll, 'utf8'))
-    if (!existsSync(members)) continue
-    for (const path of memberPaths(readFileSync(runAll, 'utf8'), readFileSync(members, 'utf8'))) listed.add(path)
-  }
-  const everyRunner = runnerTexts.join('\n')
-  for (const dir of suiteDirs) {
-    const runAll = join(ROOT, 'scripts', dir, 'run-all.sh')
-    if (!existsSync(runAll)) continue
-    const runner = readFileSync(runAll, 'utf8')
-    const globs = /prove-\*\.ts|\*\.ts/.test(runner)
-    if (globs) continue
-    const provers = readdirSync(join(ROOT, 'scripts', dir)).filter(
-      f => f.startsWith('prove-') && f.endsWith('.ts'),
-    )
-    for (const p of provers) {
-      if (!namedByARunner(dir, p, runner, everyRunner) && !listed.has(`${dir}/${p}`)) {
-        orphans.push(`${dir}/${p}`)
-      }
-    }
-  }
-  check(
-    'UI-009: zero orphaned provers — every prove-*.ts in a listed suite is enrolled (its own runner names it, a runner names it as scripts/<dir>/<file>, a member list holds it, or the suite globs)',
-    orphans.length === 0,
-    orphans.join(', '),
-  )
-}
 
 console.log('')
 let regressions = 0

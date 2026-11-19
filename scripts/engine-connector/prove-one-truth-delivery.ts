@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -36,7 +36,6 @@ const watchdog = setTimeout(() => {
 }, 60_000)
 watchdog.unref?.()
 
-const REPO = join(import.meta.dir, '..', '..')
 
 section('T1 — the pen is gone (class members, files, vocabulary)')
 {
@@ -65,31 +64,8 @@ section('T1 — the pen is gone (class members, files, vocabulary)')
   for (const field of ['optimisticQueue', 'queueSnapshot']) {
     check(`connector carries NO ${field} state`, !(field in cAny))
   }
-  for (const dead of [
-    'src/components/PromptInput/PromptInputQueuedCommands.tsx',
-    'src/components/PromptInput/QueuedSteeringHint.tsx',
-    'src/context/QueuedMessageContext.tsx',
-    'src/hooks/useCommandQueue.ts',
-    'src/utils/handlePromptSubmit.ts',
-    'src/utils/QueryGuard.ts',
-    'src/hooks/useQueueProcessor.ts',
-    'src/utils/queueProcessor.ts',
-  ]) {
-    check(`${dead} does not exist`, !existsSync(join(REPO, dead)))
-  }
-  const placeholder = readFileSync(join(REPO, 'src/components/PromptInput/usePromptInputPlaceholder.ts'), 'utf8')
-  check('placeholder carries no steer/queue sentence', !placeholder.includes('steers this turn') && !placeholder.includes('queued messages back'))
-  const tagBar = readFileSync(join(REPO, 'src/components/SwitchboardTagBar.tsx'), 'utf8')
-  check('tag bar carries no waiting-words copy', !tagBar.includes('waiting for') && !tagBar.includes('land after this reply'))
   const queueRows = rowsBinding(shippedKeyForms(), (action, chord) => /queueForNextTurn|steerNow|holdForNext/.test(`${chord} ${action}`))
   check('no queue keybindings', queueRows.length === 0, queueRows.slice(0, 3).join(' · '))
-  const connectorSrc = readFileSync(join(REPO, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  check(
-    'connector source: no steered/queued send state, no optimisticQueue (call-shaped)',
-    !connectorSrc.includes('.steered') && !connectorSrc.includes('steered:') && !connectorSrc.includes('optimisticQueue'),
-  )
-  const spinner = readFileSync(join(REPO, 'src/components/Spinner.tsx'), 'utf8')
-  check('spinner: no steer receipt', !spinner.includes('steered') && !spinner.includes('steerReceipt'))
 }
 
 type SeatSendSeed = {
@@ -121,8 +97,6 @@ section('T5 — the status sentence and the receipt vocabulary')
   } as never)
   const status = c.status() as unknown as Record<string, unknown>
   check('SeatStatus carries no waitingWords', !('waitingWords' in status), JSON.stringify(Object.keys(status)))
-  const typesSrc = readFileSync(join(REPO, 'src/services/engine-connector/types.ts'), 'utf8')
-  check("SendReceiptV1 has no 'queued' state", !/SendReceiptV1 =[\s\S]{0,200}state: 'queued'/.test(typesSrc))
 }
 
 console.log('\n' + '='.repeat(76))

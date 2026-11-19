@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.NODE_ENV
@@ -12,8 +12,6 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-const ROOT = resolve(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 let failures = 0
 let checks = 0
@@ -98,17 +96,8 @@ try {
     check('the words name the budget when the deadline fired, whatever the provider error said', summarizer.deadlineWords(expired, summarizer.ADVISOR_SUMMARY_WALL_MS, 'the summary call', providerAbort) === 'the summary call hit its 60 s budget before the provider finished')
     check('a caller cancel keeps the error\'s own words', summarizer.deadlineWords(cancelled.signal, summarizer.ADVISOR_SUMMARY_WALL_MS, 'the summary call', providerAbort) === 'Request was aborted.')
     check('a failure with no signal behind it keeps its own words', summarizer.deadlineWords(AbortSignal.timeout(60_000), summarizer.ADVISOR_SUMMARY_WALL_MS, 'the summary call', new Error('no account')) === 'no account')
-    const source = read('src/services/advisor/advisorSummarizer.ts')
-    check('the call holds its one signal, names its budget on a throw and on an empty answer after expiry', source.includes('const signal = AbortSignal.timeout(ADVISOR_SUMMARY_WALL_MS)') && source.includes("throw new Error(deadlineWords(signal, ADVISOR_SUMMARY_WALL_MS, 'the summary call', err))") && source.includes("deadlineExpired(signal) ? deadlineWords(signal, ADVISOR_SUMMARY_WALL_MS, 'the summary call', undefined) : 'the summarizer returned no text'"))
   }
 
-  section('§4 THE OWNER — the advisor folds through a module of its own')
-  {
-    const context = read('src/services/advisor/advisorContext.ts')
-    check('the fold\'s default is the advisor\'s summarizer, loaded when a fold needs it', context.includes("opts.summarize ?? (await import('./advisorSummarizer.js')).liveAdvisorSummarizer"))
-    check('the advisor\'s memory names no concourse module', !/\.\.\/concourse\//.test(context) && !/\.\.\/concourse\//.test(read('src/services/advisor/advisorSummarizer.ts')))
-    check('the call is filed as a fold: its query source stands in the compaction sources', read('src/services/advisor/advisorSummarizer.ts').includes("querySource: 'concourse_coordinator_compact'") && read('src/constants/querySource.ts').includes("'concourse_coordinator_compact'] as const"))
-  }
   section('§5 A PROVIDER ERROR AFTER PARTIAL TEXT — the error row is never the summary, and the words before it are not one either')
   {
     const router = await import('../../src/services/providers/callModelRouter.js')

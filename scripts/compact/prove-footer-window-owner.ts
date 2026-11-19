@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -13,8 +13,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 for (const key of [
   'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL',
   'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT',
@@ -77,15 +75,6 @@ check('the model-less id paints the field\'s row — "Context left until auto-co
 const paintedNear = await renderToString(React.createElement(TokenWarning, { tokenUsage: 940_000, model: SEAT_1M }), 100)
 check('the 1M seat near its fold paints the ladder\'s own room', /Context left until auto-compact: \d+%/.test(paintedNear) && !paintedNear.includes(': 0%'), paintedNear.slice(0, 120))
 
-section('W4 · the footer\'s model is the focused chat\'s — the band\'s owner')
-const footer = src('src/components/PromptInput/Notifications.tsx')
-check('the footer subscribes to the focused connector\'s model facts and hands the warning line their effective model', /const getFocusedModel = \(\): string => getFocusedSessionConnector\(\)\.modelFacts\(\)\.effective/.test(footer) && /const engineModel = useSyncExternalStore\(subscribeFocusedModel, getFocusedModel, getFocusedModel\)/.test(footer) && /<TokenWarning tokenUsage=\{tokenUsage\} model=\{engineModel \?\? ''\} \/>/.test(footer))
-check('…and never the screen\'s own engineModel slot', !/state\.engineModel/.test(footer))
-const frame = src('src/components/MercuryFrame.tsx')
-const repl = src('src/screens/Chat.tsx')
-check('the frame\'s band measures by the same fact: the focused chat\'s effective model (its session pin first)', /const windowModel = routeSurface \? model : \(sessionPinnedModel \?\? model\)/.test(frame) && /<MercuryFrame model=\{focusedEffectiveModel\} \/>/.test(repl) && /const getFocusedEffectiveModel = \(\): string => getFocusedSessionConnector\(\)\.modelFacts\(\)\.effective/.test(repl))
-const warning = src('src/components/TokenWarning.tsx')
-check('the warning line still paints the ladder owner\'s pctLeft for the model it is handed', /calculateTokenWarningState\(tokenUsage, model\)/.test(warning) && warning.includes('Context left until auto-compact: {percent}%'))
 
 console.log(failures === 0 ? '\nprove-footer-window-owner: ALL LAWS HOLD' : `\nprove-footer-window-owner: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

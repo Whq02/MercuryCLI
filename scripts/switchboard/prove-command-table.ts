@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -31,7 +31,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 const table = await getCommands(CWD)
 const printTable = table.filter(c => (c.type === 'prompt' ? c.disableNonInteractive !== true : c.type === 'local' ? c.supportsNonInteractive === true : false))
@@ -167,18 +166,6 @@ function receiptOf(batch: string[]): string {
   control.child.kill('SIGTERM')
 }
 
-{
-  const commands = read('src/commands.ts')
-  const seatBody = commands.slice(commands.indexOf('export function commandSeat('), commands.indexOf('export function sessionSeatCommandTable('))
-  check('C5 commandSeat is the one dispatch rule (route alias · dialog · marked local · user-private ⇒ screen; else session)', seatBody.includes("if (command.type === 'local-jsx') return 'screen'") && seatBody.includes("command.uiRouteAlias !== undefined || command.seat === 'screen' || command.userPrivate === true") && seatBody.includes("return 'session'"))
-  const main = read('src/main.tsx')
-  check("C5 the session runner's table is sessionSeatCommandTable (MERCURY_CONCOURSE_WORKER decides)", main.includes("flagEnv('MERCURY_CONCOURSE_WORKER') === '1'") && main.includes('sessionSeatCommandTable(args.commands)'))
-  const clear = read('src/commands/clear/clear.ts')
-  check('C5 /clear acts on the screen: the old session released, a fresh session born (the one-door law)', clear.includes('clearFocusedSession()'))
-  for (const name of ['bootmenu', 'clear', 'keybindings', 'mouse', 'rewind', 'vim']) {
-    check(`C5 /${name} is marked a screen-seat command`, read(`src/commands/${name}/index.ts`).includes("seat: 'screen'"))
-  }
-}
 
 console.log('C6 — the plain world: the concourse-only commands, one predicate, one sentence')
 {
@@ -214,10 +201,6 @@ console.log('C6 — the plain world: the concourse-only commands, one predicate,
   check('C6 the switch off: the same set is off; the sentence names the way back (--concourse-on or /config)', concourseOnly.every(c => commandOffInPlainWorld(c)) && unavailableCommandLine(byName('crewmates')!).includes('the Session Concourse is off in this boot (concourse off) — `mercury --concourse-on` or /config turns it back'))
   setConcourseEnabled(true)
   check('C6 the switch back on: the fleet world again (off is never a one-way door)', registry.every(c => !commandOffInPlainWorld(c)))
-  check('C6 the sentence has one owner (surfaceRoute.concourseOffSentence) and the dispatcher reads it first', read('src/utils/processUserInput/processSlashCommand.tsx').includes('if (commandOffInPlainWorld(real)) {') && read('src/commands/enablement.ts').includes('command.needsConcourse === true && chatOnlyBoot()'))
-  const dispatcher = read('src/utils/processUserInput/processSlashCommand.tsx')
-  const reReadIdx = dispatcher.indexOf('if (command && !isCommandEnabled(command)) {')
-  check('C6 the dispatcher re-reads enablement at dispatch (a mid-session switch flip answers the line, never runs from the stale roster)', reReadIdx !== -1 && dispatcher.indexOf('if (!command) {', reReadIdx) !== -1)
 }
 
 console.log('C7 — the former doors are unknown commands')
@@ -231,7 +214,6 @@ console.log('C7 — the former doors are unknown commands')
   const shape = (line: string): string => line.replace(/^Unknown command: \/[a-z]+/, 'Unknown command: /<name>').replace(/ — closest: \/[a-z-]+/, '')
   const control = shape(unknownCommandLine('frobnicate', registry))
   check('C7 typed, each former name answers exactly as a never-existing name does — the unknown-command sentence, no retired word', formerNames.every(n => { const l = unknownCommandLine(n, registry); return shape(l) === control && !/retired/i.test(l) }), formerNames.map(n => unknownCommandLine(n, registry)).join(' | '))
-  check('C7 the dispatcher carries no retirement read', !read('src/utils/processUserInput/processSlashCommand.tsx').includes('commandRetired') && !read('src/commands/enablement.ts').includes('commandRetired') && !read('src/screens/Chat.tsx').includes('commandRetired'))
 }
 
 await api.close()

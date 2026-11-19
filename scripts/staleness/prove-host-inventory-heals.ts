@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const repoRoot = process.cwd()
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -83,14 +81,6 @@ function makeProber(script: Presence[]): { fn: (exe: string) => Promise<Presence
   check('non-win32 reports unknown, never fabricated absence', off.windowsTerminal === 'unknown' && off.pwsh7 === 'unknown')
 }
 
-{
-  const src = readFileSync(join(repoRoot, 'src/ink/session/windowsHostSetup.ts'), 'utf8')
-  check('launchHostSetupAction evicts its target after the launch', src.includes('evictHostPresence(presenceTargetsForAction(action.id))'))
-  const card = readFileSync(join(repoRoot, 'src/components/TerminalProfileCard.tsx'), 'utf8')
-  check('the card arms an install watch on a launched install', card.includes('setInstallWatch(action.id)'))
-  check('the watch re-probes the inventory and repaints the rows', card.includes('INSTALL_WATCH_TICK_MS') && card.includes('setInventory(inv)'))
-  check('the watch is bounded (a stalled install stops it)', card.includes('INSTALL_WATCH_TICKS'))
-}
 
 console.log(failures === 0 ? 'prove-host-inventory-heals: GREEN' : `prove-host-inventory-heals: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

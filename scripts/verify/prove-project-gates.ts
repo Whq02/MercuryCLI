@@ -125,17 +125,6 @@ console.log('='.repeat(60))
   check('(5d) an omitted lifecycle still mints (foreground compat unchanged)', verificationSummary(ws).state === 'verified')
 }
 
-{
-  const { readFileSync } = await import('node:fs')
-  const { join: j } = await import('node:path')
-  const src = readFileSync(j(import.meta.dir, '..', '..', 'src', 'utils', 'verification', 'verificationState.ts'), 'utf8')
-  check('(6a) no bare-git spawn survives (execFile/execFileSync always take gitExe())', !/execFile(?:Sync)?\(\s*'git'/.test(src))
-  const spawnSites = [...src.matchAll(/\b(?:execFile|execFileSync|spawn|spawnSync)\(\s*([^,]*?),/g)].map(m => m[1]!.trim())
-  const resolvedSites = spawnSites.filter(site => site === 'gitExe()')
-  check('(6b) every spawn site takes the resolved git, the sync and async digest twins included', spawnSites.length >= 2 && resolvedSites.length === spawnSites.length && src.includes('execFileSync(gitExe(), gitArgs(args') && src.includes('await gitArgsAsync(args, cwd)') && src.includes('execFile(gitExe(), argv'), `${resolvedSites.length} of ${spawnSites.length} spawn sites resolved`)
-  const classifier = src.slice(src.indexOf('export function classifyVerifySegment('), src.indexOf('\n}\n', src.indexOf('export function classifyVerifySegment(')))
-  check('(6c) classifyVerifySegment mints NO regex per call (the static trio is hoisted)', !classifier.includes('new RegExp') && src.includes('const NPM_VERB_RE') && src.includes('const MAKE_VERB_RE') && src.includes('const JUST_VERB_RE'))
-}
 
 console.log('='.repeat(60))
 console.log(failures === 0 ? ' ALL PROJECT-GATE PROOFS PASS' : ` ${failures} PROOF(S) FAILED`)

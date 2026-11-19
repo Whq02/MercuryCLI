@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, win32 } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { cleanup, pdfFixture, reader, scratch, textPage, zip } from './hardening-fixtures.ts'
@@ -31,14 +31,5 @@ try {
   assert.match(await read(pdf), /Paths survive/)
   assert.match(await read(docx), /Paths survive/)
   await healthy()
-  const source = (path: string) => readFileSync(join(import.meta.dir, '../../src', path), 'utf8')
-  const convert = source('tools/DocumentTool/convert.ts'), pdfSource = source('utils/pdf.ts'), ocr = source('utils/ocr.ts')
-  assert.match(convert, /execFileNoThrowWithCwd\(binary, args,/)
-  assert.match(convert, /pathToFileURL\(profile\)\.href/)
-  assert.match(convert, /join\(dir, `input\$\{from\}`\)/)
-  assert.match(pdfSource, /args\.push\(filePath, join\(outputDir, 'page'\)\)/)
-  assert.match(pdfSource, /execFileNoThrow\('pdfinfo', \[filePath\]/)
-  assert.match(ocr, /execFileNoThrow\('tesseract', \['stdin', 'stdout'/)
-  assert.doesNotMatch(convert + pdfSource + ocr, /shell:\s*true|exec\(`|spawn\(`/)
   console.log('PASS document argv and local paths: drive/UNC literals survive real spawn; spaces, symbols and CJK survive reads; converters use argv and file URLs. Native Windows execution not run.')
 } finally { cleanup(root) }

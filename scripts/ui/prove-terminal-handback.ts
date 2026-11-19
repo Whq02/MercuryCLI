@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { closeSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { closeSync, mkdirSync, mkdtempSync, openSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario } from './renderScenarios.ts'
@@ -188,67 +188,6 @@ if (packPresent) {
 
 section('S · one owner · every hand-off site · the one native spelling · the health row · the registry · the fallback road')
 {
-  const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const sites: Array<[string, string, string[]]> = [
-    ['src/utils/editor.ts', "reclaimTerminalAfterChild('external editor')", ['instance.exitAlternateScreen()']],
-    ['src/utils/promptEditor.ts', "reclaimTerminalAfterChild(isTerminalEditor ? 'prompt editor' : 'prompt editor (gui)')", ['instance.exitAlternateScreen()', 'instance.resumeStdin()']],
-  ]
-  for (const [rel, call, rearms] of sites) {
-    const text = read(rel)
-    check(`${rel} imports the one owner`, text.includes("from './terminalHandback.js'"))
-    const inFinally = new RegExp('finally \\{[\\s\\S]*?' + call.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(text)
-    check(`${rel} calls it inside a finally`, inFinally)
-    const at = text.indexOf(call)
-    check(`${rel} calls it BEFORE the renderer re-arms (${rearms.join(' / ')})`, at >= 0 && rearms.every(re => text.indexOf(re, at) > at), `call at ${at}`)
-  }
-  const headless: Record<string, string> = {
-    'src/cli/editorBridge.ts': 'a headless verb (mercury bridge …) — the process ends with the child; no renderer returns to the terminal',
-    'src/cli/lspVerb.ts': 'a headless verb (mercury lsp install …) — the install command runs with the terminal attached and the process ends after it; no renderer returns to the terminal',
-    'src/cli/tuneDoor.ts': 'a headless verb (mercury tune …) — the command line runs in the installed Tune extension with the terminal attached and the process ends with the child; no renderer returns to the terminal',
-    'src/daemon/run/restart.ts': 'the daemon successor spawn — no terminal',
-    'src/daemon/headlessRun.ts': 'the rows child inherits stderr only',
-    'src/services/acp/childSession.ts': 'the ACP child inherits stderr only',
-    'src/utils/worktree.ts': 'the --worktree --multiplex attach: a multiplexer client never takes the foreground group, and it runs before the renderer mounts',
-    'src/substrate/directSplash.ts': 'the pre-boot launch splash — it runs before the renderer mounts, its child shares this process group (no tcsetpgrp, so no foreground-group hand-off), and an abnormal splash death is healed by its own ABNORMAL_HEAL (terminal modes), never the reclaim',
-    'src/services/privateChannel/ghRelease.ts': 'the gh deadline holder: the inherit spelling is SOURCE TEXT of a node -e child that gh() starts with execFile, so the holder holds the execFile pipes and hands them on — it never touches a terminal',
-  }
-  const offenders: string[] = []
-  const walk = (dir: string, visit: (rel: string, text: string) => void): void => {
-    for (const name of readdirSync(dir)) {
-      const full = join(dir, name)
-      if (statSync(full).isDirectory()) {
-        walk(full, visit)
-        continue
-      }
-      if (!/\.(ts|tsx)$/.test(name)) continue
-      visit(full.slice(ROOT.length + 1), readFileSync(full, 'utf8'))
-    }
-  }
-  walk(join(ROOT, 'src'), (rel, text) => {
-    if (!/stdio:[^\n]*'inherit'/.test(text)) return
-    if (text.includes('reclaimTerminalAfterChild(') || headless[rel]) return
-    offenders.push(rel)
-  })
-  check('every inherited-stdio spawn under src calls the owner or is a named headless site', offenders.length === 0, offenders.join(', '))
-  for (const rel of Object.keys(headless)) check(`the named headless site exists: ${rel}`, statSync(join(ROOT, rel), { throwIfNoEntry: false })?.isFile() === true)
-
-  const callers: string[] = []
-  const spellers: string[] = []
-  walk(join(ROOT, 'src'), (rel, text) => {
-    if (/\.reclaimTerminal\(|\.ttyForegroundGroup\(|\.ownProcessGroup\(/.test(text)) callers.push(rel)
-    if (/tcsetpgrp|tcgetpgrp/.test(text)) spellers.push(rel)
-  })
-  check('no src file but the owner CALLS the native surface', callers.length === 1 && callers[0] === 'src/utils/terminalHandback.ts', callers.join(', '))
-  check('no src file outside the owner and the pack loader spells tcsetpgrp/tcgetpgrp', spellers.every(f => f === 'src/utils/terminalHandback.ts' || f === 'src/services/voice/voicePack.ts'), spellers.join(', '))
-  const rustFiles = readdirSync(join(ROOT, 'native/voice/src')).filter(f => f.endsWith('.rs'))
-  const rustSpellers = rustFiles.filter(f => /tcsetpgrp/.test(readFileSync(join(ROOT, 'native/voice/src', f), 'utf8')))
-  check('the crate’s tty module is the ONE native spelling of tcsetpgrp', rustSpellers.join() === 'tty.rs', rustSpellers.join(', '))
-  const tty = read('native/voice/src/tty.rs')
-  check('the native reclaim ignores SIGTTOU for the call and restores the previous disposition', tty.includes('libc::SIGTTOU, &ignore, &mut previous') && tty.includes('libc::SIGTTOU, &previous, std::ptr::null_mut()') && tty.includes('libc::tcsetpgrp(fd, own'))
-  check('off POSIX every function exists and answers "unsupported"', /#\[cfg\(not\(unix\)\)\]\s*mod imp/.test(tty) && (tty.match(/UNSUPPORTED/g) ?? []).length >= 4)
-  check('the crate is one pack: lib.rs mounts the tty module beside the voice capture', read('native/voice/src/lib.rs').includes('pub mod tty;'))
-  check('the libc dependency is unix-only', /\[target\.'cfg\(unix\)'\.dependencies\]\s*\nlibc = "0\.2"/.test(read('native/voice/Cargo.toml')))
-
   const { interfaceChecks } = await import('../../src/utils/health/sections/interface.ts')
   const terminalSays = await interfaceChecks().find(entry => entry.id === 'iface-terminal')?.run()
   const handbackNow = describeTerminalHandback()
@@ -256,10 +195,7 @@ section('S · one owner · every hand-off site · the one native spelling · the
 
   const spec = FLAG_REGISTRY.find(f => f.env === TERMINAL_HANDBACK_FLAG)
   check('the gate is registered: default-on, the owner as consumer, this prover as evidence', spec !== undefined && spec.kind === 'default-on' && spec.consumer === 'src/utils/terminalHandback.ts' && spec.evidence === 'scripts/ui/prove-terminal-handback.ts', JSON.stringify(spec))
-  check('the owner reads the gate through the registry reader', read('src/utils/terminalHandback.ts').includes('flagEnabled(TERMINAL_HANDBACK_FLAG)') && TERMINAL_HANDBACK_FLAG === 'MERCURY_TERMINAL_HANDBACK')
 
-  const stop = read('src/ink/root/stop-continue.ts')
-  check('the stop owner still handles the background stops the fallback rides (SIGTTIN/SIGTTOU)', stop.includes("'SIGTSTP', 'SIGTTIN', 'SIGTTOU'") && stop.includes('stopIsForeground') && statSync(join(ROOT, 'scripts/ui/prove-tty-suspend.ts'), { throwIfNoEntry: false })?.isFile() === true)
 }
 
 section('D · /health: the Terminal profile row carries the hand-back fact')

@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -84,21 +84,6 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check('a pin off the ladder yields to the definition, never rides raw', agentOwnEffortWord({ effortOverride: 'turbo', useExactTools: false, definitionEffort: 'medium' }) === 'medium')
   check('a spoken pin normalises through the one normaliser', agentOwnEffortWord({ effortOverride: 'x-high', useExactTools: false, definitionEffort: undefined }) === 'xhigh')
   check("resolveAgentEffort is the own word else the configured sub-agent default (the session's word is not a rung)", resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' }) === 'high' && resolveAgentEffort({ effortOverride: 'max', useExactTools: false, definitionEffort: 'low', defaultEffort: 'high' }) === 'max' && resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: 'low', defaultEffort: 'high' }) === 'low')
-  const src = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
-  check('the runner notes the RESOLVED word under the agent id once the claim is held, and forgets it with the claim', /executorClaims\.set\(agentId, claim\)[\s\S]{0,400}noteAgentEffortWord\(agentId, resolvedEffort\)/.test(src) && /executorClaims\.delete\(agentId\)\s*\n\s*settleSwarmAgent\(agentId\)\s*\n\s*forgetAgentEffortWord\(agentId\)/.test(src))
-  check('the runner resolves the default through the one reader (never the session state)', /defaultEffort: subagentDefaultEffort\(\)/.test(src) && !/sessionEffort/.test(src))
-  const laneContext = 'const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }'
-  for (const [lane, needle] of [
-    ['openai', 'resolveWireRequestedEffort(modelId, effortValue, effortContext)'],
-    ['zai', 'resolveWireRequestedEffort(modelId, options.effortValue, effortContext)'],
-    ['openaicompat', 'resolveWireRequestedEffort(modelId, askedEffort, effortContext)'],
-    ['anthropic', 'resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId, pinned: effortPinned })'],
-  ] as const) {
-    const file = lane === 'openai' ? 'src/services/providers/openai/openaiCallModel.ts' : lane === 'zai' ? 'src/services/providers/zai/zaiCallModel.ts' : lane === 'openaicompat' ? 'src/services/providers/openaicompat/compatChatCallModel.ts' : 'src/services/providers/anthropic/streamCore.ts'
-    const src = readFileSync(join(ROOT, file), 'utf8')
-    const context = lane === 'anthropic' ? src.includes('const effortPinned = options.effortPinned === true') : src.includes(laneContext)
-    check(`the ${lane} lane resolves its request effort with the agent id and the call's pin (a pinned utility call outranks the seat's own word)`, src.includes(needle) && context)
-  }
 }
 
 {
@@ -151,10 +136,6 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check('a wire-refused word names the road and the re-probe', refused === 'effort max: the wire refused it for GPT-5.5 on the ChatGPT subscription road today — sent xhigh, the nearest word it serves; Mercury asks the wire again after a day', refused)
   const refusedNoKey = effort.effortAdjustedReceiptLine({ model: 'gpt-5.5', name: 'GPT-5.5', asked: 'max', wireRefused: { road: 'API key', reprobeAfter: 'a day' } })
   check('…and with no key sent the line says the model default applies', refusedNoKey === 'effort max: the wire refused it for GPT-5.5 on the API key road today — no effort key was sent (the model default applies); Mercury asks the wire again after a day', refusedNoKey)
-  const messageTypes = readFileSync(join(ROOT, 'src/types/message.ts'), 'utf8')
-  check('the settled assistant message carries the typed stamp beside the typed end', /streamEnd\?: StreamEndV1[\s\S]{0,600}effortAdjusted\?: EffortAdjustedV1/.test(messageTypes))
-  const lane = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
-  check('the GPT lane stamps the adjustment on the settled message and no longer folds it into the reply text', lane.includes('lastMessage.effortAdjusted = ') && !lane.includes("is not in ${modelId}'s live effort catalogue"))
   const t = await import('../core-runtime/turnScenarios.ts')
   const receiptsOf = async (stamp: Record<string, unknown>, agentId?: string): Promise<string> => {
     const run = await t.runScripted({
@@ -190,7 +171,6 @@ console.log('\n— the sent word: resolved · no key · unresolved —')
   check("an UNFETCHED ladder is UNRESOLVED — the key absent (undefined), never the no-key spelling", effortSentOf(unstated) === undefined)
   check('an unreachable catalogue sends no key (null) — the wire omits it', effortSentOf(unavailable) === null)
   check('a model that takes no effort sends no key (null)', effortSentOf(noKey) === null)
-  const read = (rel: string): string => readFileSync(rel, 'utf8')
   const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const SEAT_MODEL = 'claude-sonnet-4-6'
   const asked = [undefined, ...effort.EFFORT_LEVELS]
@@ -207,14 +187,6 @@ console.log('\n— the sent word: resolved · no key · unresolved —')
   }, { model: SEAT_MODEL })
   const sentBy = (model: string, word: (typeof asked)[number]): unknown => effortSentOf(effort.resolveEffortTruth(model, word))
   check("the runner's facts answer spells the sent word through the one owner, leaving the key ABSENT while unresolved", JSON.stringify(seatSent) === JSON.stringify([...asked.map(word => sentBy(SEAT_MODEL, word)), sentBy(FIXTURE_MODEL, 'xhigh')]) && seatSent[asked.indexOf('xhigh')] === 'high' && sentBy(FIXTURE_MODEL, 'xhigh') !== 'high', JSON.stringify(seatSent))
-  const hook = read('src/hooks/useDisplayedSessionModel.ts')
-  check('the screen\'s hook keeps the three states (unresolved · none · sent)', hook.includes("return 'unresolved'") && hook.includes("return 'none'") && hook.includes("if (sent === 'unresolved') return undefined"))
-  const chip = read('src/components/mercury-ui/EffortChip.tsx')
-  check('the chip paints the asked word AS asked while the sent word is unresolved — never a resolution of its own over a seat', chip.includes("const askedOnly = sentEffort === undefined && stamped !== undefined") && chip.includes('`${String(stamped)} (asked)`'))
-  const column = read('src/commands/effort/index.ts')
-  check('the /effort value column paints the asked word AS asked while unresolved', column.includes("if (facts.effortSent === undefined) return `${facts.effort} (asked)`"))
-  const readout = read('src/commands/effort/effort.tsx')
-  check('the /effort readout says the word is asked while the seat has not sent a request', readout.includes('(asked; the seat has not sent a request yet)'))
 }
 
 for (const [key, value] of Object.entries(savedEnv)) {

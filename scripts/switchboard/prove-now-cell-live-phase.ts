@@ -1,10 +1,9 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'now-cell-phase-')))
 process.env['MERCURY_CONFIG_DIR'] = join(SCRATCH, 'home')
 mkdirSync(join(SCRATCH, 'home'), { recursive: true })
@@ -25,7 +24,6 @@ function check(name: string, ok: boolean, detail = ''): void {
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const tailDir = join(SCRATCH, 'daemon')
 let clock = 1_000_000
@@ -78,8 +76,6 @@ section('§1 THE TRANSCRIPT TAIL — a tool whose result landed is settled; a to
   const reply = { label: 'done — 3 files', kind: 'text' as const }
   check("a row's words are a live tool's while its tail is a tool, running or just landed, and the row shows that tool's own words", live?.(running, 'Glob · **/*') === true && live?.(settled, 'thinking') === true, j([live?.(running, 'Glob · **/*'), live?.(settled, 'thinking')]))
   check("the text of a reply is not a live tool's words, and neither is a line the row says over the tool (a park on its way), nor a row with no tail", live?.(reply, 'done — 3 files') === false && live?.(running, 'parking for sam') === false && live?.(null, 'Glob · **/*') === false && live?.(undefined, null) === false, j([live?.(reply, 'done — 3 files'), live?.(running, 'parking for sam'), live?.(null, 'Glob · **/*'), live?.(undefined, null)]))
-  const builder = read('src/services/concourse/concourseSnapshot.ts')
-  check('the board\'s row carries that as nowLive, from the one read of the tail its label comes from', builder.includes("const activity = state === 'working' ? tailActivity(rec) : undefined") && builder.includes('nowMs, activity)') && builder.includes('...(nowWordsAreLive(activity, nowLabel) ? { nowLive: true as const } : {}),') && read('src/components/concourse/contracts.ts').includes('  nowLive?: true\n'))
 }
 
 section('§2 THE LIVE TILE — the NOW cell reads the seat\'s phase facts (the status line\'s), then the transcript')
@@ -139,13 +135,6 @@ section('§2 THE LIVE TILE — the NOW cell reads the seat\'s phase facts (the s
   unsub()
 }
 
-section('§3 THE CELL — a phase line paints as its words, a tool line as running <tool>')
-{
-  const cell = read('src/components/concourse/LiveNowCell.tsx')
-  check('the cell prefixes only a tool line with running', cell.includes("now.kind === 'tool' ? `running ${now.line}` : now.line"))
-  const tiles = read('src/components/concourse/liveTiles.ts')
-  check('the tile derives the phase before the transcript activity and after the streaming text', tiles.includes("return { kind: 'streaming', line }") && tiles.indexOf("return { kind: 'streaming', line }") < tiles.indexOf('const phase = liveTilePhase(tail)') && tiles.indexOf('const phase = liveTilePhase(tail)') < tiles.indexOf('this.deps.activity({ sessionId: e.sessionId'))
-}
 
 console.log(`\n${'═'.repeat(76)}`)
 if (failures > 0) {

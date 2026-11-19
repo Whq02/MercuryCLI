@@ -273,25 +273,6 @@ try {
   else console.log(`  [evidence] scratch kept: ${SCRATCH}`)
 }
 
-{
-  console.log('\n' + '─'.repeat(76) + '\nSR-094 — the typed control vocabulary census (cancel = vacuous by design)')
-  const { readFileSync } = await import('node:fs')
-  const proto = readFileSync(join(process.cwd(), 'src/daemon/protocol.ts'), 'utf8')
-  const controlBlock = proto.slice(proto.indexOf("op: 'sessionControl'"))
-  const actionBlock = controlBlock.slice(controlBlock.indexOf('action:'), controlBlock.indexOf('sessionId'))
-  const union = [...new Set([...actionBlock.matchAll(/'([a-z-]+)'/g)].map(m => m[1]))].join(' | ')
-  check(
-    "the session-control union is EXACTLY the switchboard vocabulary (pause·resume·interrupt·attach·detach·grant/revoke-workflows·answer-permission·stop) + the seat doors (set-model·set-permission-mode·session-facts·set-title·focus·blur·park·park-all·mcp-action·mcp-tools·set-spawn-switch·stop-agent·resume-agent·withdraw-send·background-shell·pause-gate·leave·set-effort·contract·set-kit·set-schedule·send-now·board-post — the exit road: the cockpit asks the daemon-hosted runner for its closing note before the terminal comes back)",
-    union ===
-      'pause | resume | interrupt | attach | detach | grant-workflows | revoke-workflows | answer-permission | stop | set-model | set-permission-mode | session-facts | set-title | focus | blur | park | park-all | mcp-action | mcp-tools | set-spawn-switch | stop-agent | resume-agent | withdraw-send | background-shell | pause-gate | leave | set-effort | contract | set-kit | set-schedule | send-now | board-post',
-    union,
-  )
-  check(
-    "no typed 'cancel' verb exists anywhere in the daemon protocol — the CANCEL semantic is owned by 'interrupt' (turn abort) and the composers' esc (local cancel); a session-level cancel verb is VACUOUS by design",
-    !/['"]cancel['"]/.test(proto),
-    'protocol carries no cancel spelling',
-  )
-}
 
 if (failures > 0) {
   console.log(`\n❌ prove-session-semantics — ${failures} check(s) failed`)

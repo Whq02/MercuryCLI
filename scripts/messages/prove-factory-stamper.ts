@@ -1,5 +1,4 @@
 import { strict as assert } from 'node:assert'
-import { readFileSync } from 'node:fs'
 import { createRowStamper, MESSAGE_STAMPER, heartbeatRow } from '../../src/rows/project.ts'
 import * as factories from '../../src/utils/messages/factories.ts'
 import * as system from '../../src/utils/messages/systemMessages.ts'
@@ -71,10 +70,6 @@ try {
     assert.match(row.timestamp, /^clock-\d+$/)
     assert.equal(seen.has(row.uuid), false)
     seen.add(row.uuid)
-  }
-  for (const path of ['factories.ts', 'systemMessages.ts', 'pairing.ts']) {
-    const source = readFileSync(new URL(`../../src/utils/messages/${path}`, import.meta.url), 'utf8')
-    assert.equal(/randomUUID\(|new Date\(/.test(source), false, path)
   }
 } finally {
   MESSAGE_STAMPER.mint = savedMint

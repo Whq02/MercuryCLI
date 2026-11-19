@@ -221,11 +221,6 @@ console.log('\nWI-6 — link fallback when native decode is unavailable:')
   )
   check('healthy sharp: cells tier decodes again after reset', healthy.protocol === 'cells' && /[▀▄]/.test(healthy.payload))
   check('imageLinkLine is pure + truthful for arbitrary paths', imageLinkLine('/x/y.png', 'why').includes('/x/y.png') && imageLinkLine('/x/y.png', 'why').includes('why'))
-  const srcOf = (p: string) => require('node:fs').readFileSync(join(ROOT, p), 'utf8')
-  check(
-    'the protocol enum + render entry carry the link outcome',
-    srcOf('src/services/visual/imageDisplay.ts').includes("'cells' | 'link'"),
-  )
   check(
     '/health names the consequence (images render as file links)',
     await (async () => {

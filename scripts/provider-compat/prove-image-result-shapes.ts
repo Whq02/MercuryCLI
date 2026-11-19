@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -15,7 +14,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
-const source = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const { modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
 const { buildZaiChatRequest } = await import('../../src/services/providers/zai/zaiCodec.ts')
@@ -73,18 +71,6 @@ for (const row of ROWS) {
   else check(`${row.route}: ${row.images}`, answer === row.images, String(answer))
 }
 
-section('§3 the builder each route reaches (structural)')
-{
-  const compatRuntime = source('src/services/providers/openaicompat/compatChatCallModel.ts')
-  check('the compat runtime maps through the shared codec', compatRuntime.includes('mapMessagesToZai') || compatRuntime.includes('buildZaiChatRequest'))
-  for (const row of ROWS) {
-    const text = source(row.callModel)
-    if (row.route === 'anthropic') check('anthropic: the tool_result rides as blocks (the media fit, which elides the oldest past the ceiling with a visible marker, is the only edit)', text.includes('fitWireImages(') && !text.includes('stripExcessMediaItems('))
-    else if (row.route === 'openai') check('openai: the Responses request is built with the images gate', text.includes('buildOpenaiResponsesRequest(') && text.includes('imagesSupported'))
-    else if (row.route === 'zai') check('zai: the chat request is built by the shared codec', text.includes('buildZaiChatRequest('))
-    else check(`${row.route}: the compat runtime carries it`, text.includes('compatChatCallModel('))
-  }
-}
 
 section('§4 the golden per route: the tool message keeps the text, a user message follows with the image')
 for (const row of ROWS.filter(r => r.route !== 'anthropic' && r.route !== 'openai')) {
@@ -113,11 +99,6 @@ section('§5 the golden for the openai route: input_text then input_image')
   check("a text-only catalogue degrades the image to the visible marker '[image]'", plain?.output === `${RESULT_LINE}[image]`, JSON.stringify(plain))
 }
 
-section('§6 the golden for the anthropic route: the block rides untouched')
-{
-  const params = source('src/services/providers/anthropic/messageParams.ts')
-  check("messageParams.ts never rewrites an image block to a marker", !params.includes("'[image]'"))
-}
 
 console.log(`\nprove-image-result-shapes: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

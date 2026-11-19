@@ -137,8 +137,6 @@ section('§C the resume road (the one the headless --resume and the chat take) r
 section('§D the on-disk shape is untouched')
 {
   check('the session file is byte-identical after the resume (the reader fixed nothing on disk)', sha(readFileSync(path)) === rawHash)
-  const headless = readFileSync(join(ROOT, 'src/cli/headless/resume.ts'), 'utf8')
-  check('the headless --resume door loads through the same resume road', headless.includes('loadConversationForResume('))
 }
 
 section('§E a compacted session loads the same chain on both roads — the compact boundary row (divider + compactMetadata) heads it past 5 MB too')

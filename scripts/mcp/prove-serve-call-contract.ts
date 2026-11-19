@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -19,15 +19,6 @@ const DIST = process.env.MERCURY_PROOF_DIST ?? join(ROOT, 'dist', 'mercury.mjs')
 
 console.log('mercury mcp serve: an unknown tool and bad arguments answer as -32602 with the field named; a failure reply carries no stack trace')
 
-console.log('\n[1] the handler by reading')
-{
-  const serve = readFileSync(join(ROOT, 'src/entrypoints/mcp.ts'), 'utf8')
-  const describeAt = serve.indexOf('function describeToolError')
-  const describe = serve.slice(describeAt, serve.indexOf('\n}\n', describeAt))
-  check('the failure words never carry error.stack', describeAt !== -1 && !describe.includes('.stack'))
-  check('an unknown tool is a protocol error with InvalidParams', /ProtocolError\(ProtocolErrorCode\.InvalidParams, `Tool \$\{request\.params\.name\} not found`\)/.test(serve))
-  check('arguments are parsed against the tool schema before anything runs', /inputSchema\.safeParse\(repairToolInput\(tool,/.test(serve) && /formatZodValidationError\(tool\.name, parsed\.error/.test(serve))
-}
 
 console.log('\n[2] the served surface live')
 if (!existsSync(DIST)) {

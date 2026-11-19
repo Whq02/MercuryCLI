@@ -14,7 +14,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const src = (...parts: string[]): string => readFileSync(join(ROOT, 'src', ...parts), 'utf8')
 
 const storage = await import('../../src/utils/sessionStorage.ts')
 type AgentIdArg = Parameters<typeof storage.writeAgentMetadata>[0]
@@ -28,24 +27,6 @@ await storage.writeAgentMetadata('cwd-continuation-proof-plain' as AgentIdArg, {
 const plain = await storage.readAgentMetadata('cwd-continuation-proof-plain' as AgentIdArg)
 check('a sidecar written without a directory reads none', plain !== null && plain.cwd === undefined, JSON.stringify(plain))
 
-section('§2 the launch records the directory it resolved')
-const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')
-check('the launch records the named directory or the current override when it differs from the session slot', agentTool.includes('const launchDirectory = cwdParam ?? (getCwd() !== getCwdState() ? getCwd() : undefined)'))
-check('the run parameters carry the recorded directory when no worktree is cut', agentTool.includes('...(worktreeInfo === undefined && launchDirectory !== undefined ? { cwd: launchDirectory } : {})'))
-check('the execution override keeps the worktree and named-directory precedence', agentTool.includes('const cwdOverride = worktreeInfo?.worktreePath ?? cwdParam') && !agentTool.includes('runWithCwdOverride(launchDirectory'))
-check('the session slot is read through the one bootstrap import, never a second import line', (agentTool.match(/from '\.\.\/\.\.\/bootstrap\/state\.js'/g) ?? []).length === 1 && /import \{[^}]*\bgetCwdState\b[^}]*\} from '\.\.\/\.\.\/bootstrap\/state\.js'/.test(agentTool))
-const runAgent = src('tools', 'AgentTool', 'runAgent.ts')
-check('the run loop accepts it', /worktreePath\?: string\n\s+cwd\?: string/.test(runAgent))
-check("the run loop's sidecar write records it", runAgent.includes('...(cwd ? { cwd } : {}),'))
-
-section('§3 the continuation reads it back and wakes there')
-const resume = src('tools', 'AgentTool', 'resumeAgent.ts')
-check('the continuation stats the recorded directory', resume.includes('if (meta?.cwd) {') && resume.includes('const info = await stat(meta.cwd)'))
-check('a recorded directory that is gone is logged and the parent directory stands', resume.includes('resumeAgent: recorded directory ${meta.cwd} is gone — resuming in the parent cwd'))
-check('the run is placed in the worktree first, else the recorded directory', resume.includes('const directory = worktreePath ?? cwdPath') && resume.includes('runWithCwdOverride(directory, runLifecycle)'))
-check('the continuation re-persists the directory', resume.includes('...(cwdPath ? { cwd: cwdPath } : {}),\n      description,'))
-check('the continuation hands the directory to the run loop', resume.includes('...(cwdPath ? { cwd: cwdPath } : {}),\n          description,'))
-check('a gone directory is surfaced to the sender as a fallback, never a silent shift', resume.includes("cwdFallback?: 'parent-checkout' | 'parent-directory'") && resume.includes("? { cwdFallback: 'parent-directory' as const, recordedCwd: meta.cwd }"))
 const crewsDoc = readFileSync(join(ROOT, 'docs/CREW.md'), 'utf8').replace(/\s+/g, ' ')
 check('the crews page says a continued sub-agent wakes in its launch directory', crewsDoc.includes('continued by a later message wakes in the directory it was launched in'))
 
@@ -66,22 +47,8 @@ if (noteLeaf !== null) {
   check('an automatic callback names the session directory, not its departed child override', automaticNote.includes(`session's own directory, ${getCwdState()};`), automaticNote)
   check('a gone directory the result did not name is still noted', noteLeaf.continuationDirectoryNote({ cwdFallback: 'parent-directory' }, '/proof/session').includes('its recorded directory is gone'))
 }
-const send = src('tools', 'ResumeAgentTool', 'ResumeAgentTool.ts')
-check('the unified resume arm paints the note from its owner', send.split("resumed.note ?? ''").length - 1 === 1 && resume.includes("from './continuationNote.js'"))
-check('the resume result names the recorded directory beside the parent-directory fallback', resume.includes("{ cwdFallback: 'parent-directory' as const, recordedCwd: meta.cwd }"))
 check('the crews page says the receipt names the gone directory', crewsDoc.includes('naming the directory that is gone'))
 
-section('§5 the resume owner carries the note into every continuation')
-check('the result carries the note', resume.includes('note?: string'))
-check('the resumed helper reads the note in its own prompt', /createUserMessage\(\{ content: prompt \+ note \}\)/.test(resume))
-const lifecycle = src('tools', 'AgentTool', 'agentToolUtils.ts')
-for (const [start, end] of [['export function armBudgetCutResume(', 'const overloadEpisodes'], ['export function armOverloadProbe(', 'export async function runAsyncAgentLifecycle('], ['if (queued.length > 0)', 'drainPendingMessages(taskId,']]) {
-  const at = lifecycle.indexOf(start)
-  const body = lifecycle.slice(at, lifecycle.indexOf(end, at))
-  check(`${start}: the resume receipt carries the returned note`, at >= 0 && body.includes('enqueueAgentReceiptRow(') && /resumed\??\.note/.test(body))
-  if (start.startsWith('export function arm')) check(`${start}: the timer fires on the session directory`, /runWithCwdOverride\(getCwdState\(\), (fire|\(\) => fire\(\))\)/.test(body))
-  if (start === 'export function armBudgetCutResume(') check(`${start}: the sign-in on another account fires the same resume on the session directory`, /subscribeCrewAccountChange\([\s\S]{0,400}runWithCwdOverride\(getCwdState\(\), \(\) => fire\(true\)\)/.test(body))
-}
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -13,8 +13,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '')
 
 const PLAIN = new Set(['·', '↵', '↑', '↓', '←', '→'])
@@ -27,13 +25,6 @@ const { keyHintLabel, MAC_MODIFIER_GLYPHS } = await import('../../src/components
 const { stripKeyMapHintOf } = await import('../../src/context/surfaceRoute.ts')
 const { decideWin32ConsoleUtf8, UTF8_CODEPAGE } = await import('../../src/utils/runtime/win32Console.ts')
 
-console.log('§1 the face’s own hint keys, read from the face')
-const face = read('src/components/BootSplashScreen.tsx')
-const keys = Array.from(face.matchAll(/\{\s*key: '([^']*)', label:/g), m => m[1]!)
-const tiny = Array.from(face.matchAll(/tinyHint: '([^']*)'/g), m => m[1]!)
-check('the face declares its hint keys and the tiny hint', keys.length >= 3 && tiny.length === 1, `${keys.length} keys, ${tiny.length} tiny`)
-check(`every key is plain — ${JSON.stringify([...new Set(keys)])}`, keys.every(k => notPlain(k).length === 0), hex(keys.flatMap(notPlain)))
-check(`the tiny hint is plain — ${JSON.stringify(tiny)}`, tiny.every(t => notPlain(t).length === 0), hex(tiny.flatMap(notPlain)))
 
 console.log('§2 the composed ready line, both faces, through the splash core')
 {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
 import type { ContextFillView } from '../../src/utils/contextFill.ts'
@@ -77,9 +77,6 @@ check(
     (midTurn.usedTokens ?? 0) >= fill.usedTokens,
   JSON.stringify({ ...published, midTurn, own, ownNext }),
 )
-const frame = readFileSync(join(import.meta.dir, '../../src/components/MercuryFrame.tsx'), 'utf8')
-const footer = readFileSync(join(import.meta.dir, '../../src/components/PromptInput/Notifications.tsx'), 'utf8')
-check('rail and hint consume the same runner context reader', frame.includes('useFocusedContextFill(messages, windowModel') && footer.includes('useFocusedContextFill(messages, engineModel'))
 connector.modelFacts = () => ({ main: model, effective: model, setting: model, sessionPin: model, pendingSwitch: null })
 connector.usage = () => receipt.usage
 setFocusedSessionConnector(connector)

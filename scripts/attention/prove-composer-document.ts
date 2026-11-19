@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -100,15 +99,6 @@ t.section('§3 — the ONE normalization rule')
     'the line rule alone keeps the tabs: a pasted chip carries the bytes the model reads',
     C.normalizePastedLines(raw) === 'ared\nb\nc\td',
     JSON.stringify(C.normalizePastedLines(raw)),
-  )
-  const prompt = readFileSync('src/components/PromptInput/useComposerAttachments.ts', 'utf8')
-  t.check(
-    'PromptInput consumes the extracted rules (the line rule for the chip, expandTabs for the composer text) — no drift possible',
-    prompt.includes('normalizePastedLines') && prompt.includes('expandTabs(exact)'),
-  )
-  t.check(
-    'the inline spelling is GONE from PromptInput',
-    !prompt.includes(".replace(/\\r\\n?/g, '\\n').replaceAll('\\t', '    ')"),
   )
 }
 

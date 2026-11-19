@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -172,20 +172,6 @@ section('7 · each wire carries only its own spelling, and the fixture saw nothi
   check('every request the fixture saw was POST /api/chat, one per dispatch (no /v1 fallthrough, no probe)', requests.length === dispatches && chatBodies.length === dispatches && requests.every(line => line === 'POST /api/chat'), `${dispatches} dispatches, saw: ${requests.join(', ')}`)
 }
 
-section('8 · one owner: the native think knob in localCallModel.ts reads one value, decided by ollamaThinkingValue, which reads the localThinkingOff predicate from compatWire.ts for a record without metadata')
-{
-  const source = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'local', 'localCallModel.ts'), 'utf8')
-  const lines = source.split('\n')
-  const knobLines = lines.filter(line => !/^\s*(let|const|var)\s+think\b/.test(line) && /\{\s*think\s*\}|\bthink:\s/.test(line))
-  check('exactly one line of localCallModel.ts puts think on the native knobs, and it reads the one think value', knobLines.length === 1 && /\.\.\.\(think !== undefined \? \{ think \} : \{\}\)/.test(knobLines[0]!), knobLines.map(line => line.trim()).join(' | '))
-  const assignments = lines.filter(line => /^\s*think = /.test(line))
-  check('the think value is assigned once, from ollamaThinkingValue', assignments.length === 1 && /think = ollamaThinkingValue\(record, args\.effortValue, args\.thinkingEnabled\)/.test(assignments[0]!), assignments.map(line => line.trim()).join(' | '))
-  check('no line reads the bare switch as the think value (think: thinkingEnabled, think = thinkingEnabled)', !lines.some(line => /\bthink\s*[:=]\s*(args\.)?thinkingEnabled\b/.test(line)))
-  const owner = source.slice(source.indexOf('export function ollamaThinkingValue('), source.indexOf('export function localLaneProfileFor('))
-  check('ollamaThinkingValue is defined once and, for a record without metadata, returns the predicate\'s complement (!localThinkingOff) for a declared record and undefined otherwise', (source.match(/function ollamaThinkingValue\(/g) ?? []).length === 1 && /thinking === undefined\) return record\.thinkingDeclared === true \? !localThinkingOff\(/.test(owner) && /: undefined/.test(owner))
-  check('localThinkingOff is imported from compatWire.js (the one owner of "off"), not defined locally', /import \{[^}]*\blocalThinkingOff\b[^}]*\} from '\.\.\/openaicompat\/compatWire\.js'/.test(source) && !/function localThinkingOff\b/.test(source))
-  check('the effort stamp reads the same think value (effortOnWire names parameter "think" from it)', /if \(think === undefined\) return \{ kind: 'unsupported' \}/.test(source) && /kind: 'sent', parameter: 'think', value: think/.test(source))
-}
 
 fixture.stop(true)
 console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)

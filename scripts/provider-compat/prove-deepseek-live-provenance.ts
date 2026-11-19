@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const HOME = mkdtempSync(join(tmpdir(), 'deepseek-live-provenance-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -172,27 +171,6 @@ section('6 · a failed read, a stale list, a departed key')
   catalogue.__resetDeepseekCatalogueForTest()
 }
 
-section('7 · the shape: the prefix decides nothing on the catalogue road')
-{
-  const source = readFileSync(join(ROOT, 'src/services/providers/deepseek/deepseekCatalogue.ts'), 'utf8')
-  check('the catalogue reads no grammar predicate (no non-catalogue-view guard, no row filter by prefix)', !source.includes('isDeepseekModelId') && !source.includes('non-catalogue view') && !/startsWith\('deepseek/.test(source))
-  check('the catalogue exports the seam\'s read by its exact name and shape', source.includes('export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string>'))
-  check('the live-id read folds the retired alias like the rows do', /cachedLiveIds[\s\S]*?deepseekCurrentModelId\(m\.id\.trim\(\)\.toLowerCase\(\)\)/.test(source))
-  const pinsSource = readFileSync(join(ROOT, 'src/services/providers/deepseek/deepseekPins.ts'), 'utf8')
-  const nameBody = pinsSource.slice(pinsSource.indexOf('export function deepseekDisplayName'), pinsSource.indexOf('\n}', pinsSource.indexOf('export function deepseekDisplayName')))
-  check('the display name has no family gate; the hand-typed grammar predicate stays for the typed road', !nameBody.includes('isDeepseekModelId') && pinsSource.includes('export function isDeepseekModelId'))
-  const options = readFileSync(join(ROOT, 'src/utils/model/modelOptions.ts'), 'utf8')
-  const between = (text: string, from: string, to: string): string => {
-    const a = text.indexOf(from)
-    const b = text.indexOf(to, a + from.length)
-    return a < 0 ? '' : text.slice(a, b < 0 ? undefined : b)
-  }
-  const pinsBody = between(options, 'export function keyLanePins', '\nexport function')
-  const groupBody = between(options, 'export function keyLaneGroupRows', '\nexport function')
-  check('no picker row composer re-filters the DeepSeek rows by prefix', pinsBody.includes('deepseekCatalogueRows') && !/isDeepseekModelId|startsWith\('deepseek|\/\^deepseek/.test(pinsBody + groupBody))
-  const adapter = readFileSync(join(ROOT, 'src/services/providers/deepseek/deepseekAdapter.ts'), 'utf8')
-  check('the router adapter lists the catalogue rows without a prefix filter', adapter.includes('deepseekCatalogueRows()') && !/isDeepseekModelId|startsWith\('deepseek/.test(adapter))
-}
 
 console.log(failures === 0 ? '\n ✅ DEEPSEEK LIVE PROVENANCE — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

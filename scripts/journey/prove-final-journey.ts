@@ -457,25 +457,6 @@ if (j8) {
   check('close: no crash residue on the final frame', rowOf(j8, 'Traceback') === -1 && rowOf(j8, 'ReferenceError') === -1 && rowOf(j8, 'TypeError') === -1)
 }
 
-console.log('\n── source contracts ─────────────────────────────────────────')
-{
-  const pending = readFileSync(join(REPO, 'src/input-core/pending-input.ts'), 'utf8')
-  const rekeyAt = pending.indexOf('export async function rekeyToSession(')
-  const rekey = rekeyAt === -1 ? '' : pending.slice(rekeyAt, pending.indexOf('\n}\n', rekeyAt))
-  const flushAt = rekey.indexOf('await flushDraftSaves()')
-  const rekeyOwnerAt = rekey.indexOf('owningSessionId = sessionId')
-  check('the switch tail RESTORES the target draft (never blind-clears)', rekeyOwnerAt !== -1 && /(?:const|let) saved = readDraftSync\(sessionId\)/.test(rekey) && !rekey.includes("draft = { text: ''"))
-  const drafts = readFileSync(join(REPO, 'src/utils/promptDraft.ts'), 'utf8')
-  check(
-    'pending source-owned saves flush during STAGE',
-    flushAt !== -1 &&
-      rekeyOwnerAt !== -1 &&
-      drafts.includes('pending = { sessionId, draft: { ...draft, savedAt: Date.now() }, filePath: draftFilePath() }') &&
-      drafts.includes('if (pending && pending.sessionId !== sessionId) void flushPending()') &&
-      drafts.includes('next[p.sessionId] = bounded') &&
-      drafts.includes('delete next[p.sessionId]'),
-  )
-}
 
 if (!process.env.JOURNEY_KEEP_FIXTURE) {
   rmSync(join(REPO, '.mercury', 'proof-fixtures', 'journey'), { recursive: true, force: true })

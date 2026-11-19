@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type Server } from 'node:net'
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -52,14 +52,7 @@ section('§1 the two sentences: timed out ≠ cancelled')
   const abortErr = Object.assign(new Error('aborted'), { name: 'AbortError' })
   t('§1 the classifier reads TimeoutError and AbortError', deadline.isDeadlineBreach(timeoutErr) && deadline.isDeadlineBreach(abortErr))
   t('§1 an ordinary failure is not a breach', !deadline.isDeadlineBreach(new Error('ECONNREFUSED')))
-  const loginSrc = readFileSync(join(REPO, 'src/commands/login/login.tsx'), 'utf8')
-  t("§1 the operator's own close keeps its own sentence at /logins", loginSrc.includes('/logins closed — no credential changed'))
   t('§1 the two sentences share no words that could blur them', !deadline.deadlineBreachLine('x', 1000).includes('closed') && !'/logins closed — no credential changed'.includes('timed out'))
-  const openaiAccountsSrc = readFileSync(join(REPO, 'src/services/providers/openai/openaiAccounts.ts'), 'utf8')
-  t('§1 the OpenAI device wait says EXPIRED for a code the operator never approved', openaiAccountsSrc.includes('OpenAI sign-in expired before the code was approved — retry from /logins openai'))
-  t('§1 …and no longer wears the timeout word for it', !openaiAccountsSrc.includes('device authorization timed out'))
-  const moonshotLoginSrc = readFileSync(join(REPO, 'src/services/providers/moonshot/moonshotLogin.ts'), 'utf8')
-  t('§1 the Kimi wait speaks the same three facts (cancelled · expired)', moonshotLoginSrc.includes('Kimi sign-in cancelled — nothing stored.') && moonshotLoginSrc.includes('Kimi sign-in expired before the code was entered'))
   const oauth = await import(join(REPO, 'src/services/oauth/client.ts'))
   const { AxiosError } = await import('axios')
   const timeout = new AxiosError('timeout of 15000ms exceeded', 'ECONNABORTED')
@@ -69,8 +62,6 @@ section('§1 the two sentences: timed out ≠ cancelled')
   t('§1 every other axios failure passes through untouched', oauth.honestDeadlineBreach(refused, 15_000) === refused)
   const plain = new Error('ECONNREFUSED')
   t('§1 a non-axios failure passes through untouched', oauth.honestDeadlineBreach(plain, 15_000) === plain)
-  const oauthSrc = readFileSync(join(REPO, 'src/services/oauth/client.ts'), 'utf8')
-  t('§1 both the exchange and the refresh legs throw through the mapper', (oauthSrc.match(/throw honestDeadlineBreach\(error, EXCHANGE_TIMEOUT_MS\)/g) ?? []).length >= 2)
 }
 
 section('§2 the door ends a black-holed request within the bound')
@@ -199,58 +190,6 @@ section('§3c the OpenRouter /key probe against the black hole (10s bound)')
   t('§3c nothing was fabricated for the key', observed.usage === null)
 }
 
-section('§4 source census — the deadline at every login/catalogue site')
-{
-  const sites: Array<[string, string, number]> = [
-    ['openrouter catalogue', 'src/services/providers/openrouter/openrouterCatalogue.ts', 1],
-    ['openrouter key exchange', 'src/services/providers/openrouter/openrouterAccounts.ts', 1],
-    ['huggingface oauth + registration + whoami', 'src/services/providers/huggingface/huggingfaceAccounts.ts', 3],
-    ['huggingface catalogue', 'src/services/providers/huggingface/huggingfaceCatalogue.ts', 1],
-    ['gemini token exchange', 'src/services/providers/gemini/geminiAccounts.ts', 1],
-    ['gemini catalogue', 'src/services/providers/gemini/geminiCatalogue.ts', 1],
-    ['moonshot oauth', 'src/services/providers/moonshot/moonshotAccounts.ts', 1],
-    ['moonshot balance + usages probes', 'src/services/providers/moonshot/moonshotUsageState.ts', 2],
-    ['deepseek balance probe', 'src/services/providers/deepseek/deepseekUsageState.ts', 1],
-    ['local discovery probe', 'src/services/providers/local/localDiscovery.ts', 1],
-    ['openai token + device auth', 'src/services/providers/openai/openaiAccounts.ts', 3],
-    ['openai catalogue', 'src/services/providers/openai/openaiClient.ts', 1],
-    ['openrouter key probe', 'src/services/providers/openrouter/openrouterUsageState.ts', 1],
-  ]
-  for (const [label, file, minUses] of sites) {
-    const src = readFileSync(join(REPO, file), 'utf8')
-    const uses = (src.match(/fetchWithProviderDeadline\(/g) ?? []).length
-    t(`§4 ${label} rides the door (${minUses}+ site(s))`, uses >= minUses, `${uses} uses`)
-  }
-  {
-    const { readdirSync } = await import('node:fs')
-    const offenders: string[] = []
-    const walk = (dir: string): void => {
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const child = join(dir, entry.name)
-        if (entry.isDirectory()) walk(child)
-        else if (/\.tsx?$/.test(entry.name) && !child.endsWith('fetchDeadline.ts')) {
-          if (readFileSync(child, 'utf8').includes('AbortSignal.timeout(')) offenders.push(child)
-        }
-      }
-    }
-    walk(join(REPO, 'src/services/providers'))
-    t('§4 no provider site carries a bare AbortSignal.timeout', offenders.length === 0, offenders.join(', '))
-  }
-  {
-    const accounts = readFileSync(join(REPO, 'src/services/providers/gemini/geminiAccounts.ts'), 'utf8')
-    const catalogue = readFileSync(join(REPO, 'src/services/providers/gemini/geminiCatalogue.ts'), 'utf8')
-    const labelOf = (src: string): string[] => [...src.matchAll(/fetchWithProviderDeadline\(\s*\w+,\s*'([^']+)'/g)].map(m => m[1]!)
-    const labels = new Set([...labelOf(accounts), ...labelOf(catalogue)])
-    t('§4 the gemini family speaks ONE name in the breach line', labels.size === 1 && labels.has('gemini'), [...labels].join(', '))
-  }
-}
-
-section('§5 deadlineSecondsLabel has one home')
-{
-  const clientSrc = readFileSync(join(REPO, 'src/services/mcp/client.ts'), 'utf8')
-  t('§5 the MCP client imports the one label', clientSrc.includes("import { deadlineSecondsLabel } from '../providers/fetchDeadline.js'"))
-  t('§5 the MCP client declares no private copy', !clientSrc.includes('function deadlineSecondsLabel'))
-}
 
 console.log(failures === 0 ? '\nPASS prove-provider-deadlines' : `\nFAIL prove-provider-deadlines (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,7 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'kit-presets-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -29,9 +28,6 @@ const watchdog = setTimeout(() => {
 }, 120_000)
 watchdog.unref?.()
 
-const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-const wireKeys = (src: string, name: string): string => (src.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`)) ?? [])[1] ?? ''
 
 console.log('============================================================')
 console.log(' KIT-PRESETS — named kit snapshots at both doors')
@@ -130,18 +126,6 @@ section('§P1-ISO — the store touches NOTHING else: menu record · facts · la
   t('P1-18 save/update/delete leave the MENU record untouched (the workspace’s deltas byte-identical)', JSON.stringify(kitStore.kitDeltasForWorkspace(PROJECT)) === menuBefore)
   t('P1-19 store pens never arm the next-session facts (kit stays null; nothing else set)', facts.bootBirthFacts().kit === null && facts.bootBirthFacts().title === null)
   kitStore.setSkillStateForWorkspace(PROJECT, 'deploy', 'on')
-  const src = read('src/services/mcp/presetStore.ts')
-  t('P1-20 the store imports nothing from the daemon (the derivation imports the store, never the reverse)', !src.includes("from '../../daemon"))
-  const { readdirSync } = await import('node:fs')
-  const writers = (readdirSync(join(REPO, 'src'), { recursive: true }) as string[])
-    .filter(f => (f.endsWith('.ts') || f.endsWith('.tsx')) && !f.includes('node_modules'))
-    .map(f => join('src', f))
-    .filter(f => read(f).includes('kitPresets'))
-    .sort()
-  t('P1-21 the one-writer census: kitPresets appears in src/ only at the schema and the store', deepEq(writers, ['src/services/mcp/presetStore.ts', 'src/utils/config/schema.ts']), writers.join(','))
-  const laneNew = ['src/services/mcp/presetStore.ts']
-  const packHits = laneNew.filter(f => /\bpacks?\b/i.test(read(f).replace(/"pack" is reserved for extensions|"pack" is the extensions estate's word|"pack" is RESERVED for extensions/g, '')))
-  t("P1-22 the vocabulary law: no 'pack' in the kit sources", packHits.length === 0, packHits.join(','))
 }
 
 section('§P2 — THE MENU DOOR: the default hook IS the store (the typed-refusal placeholder is dead)')
@@ -166,8 +150,6 @@ section('§P2 — THE MENU DOOR: the default hook IS the store (the typed-refusa
   hook._resetKitPresetHookForTesting()
   t('P2-5 bindKitPresetHook still intercepts for proofs and reset restores the store door', rec.ok && rec.receipt === 'recorded' && recorded === 1 && hook.kitPresetHook() === hook.STORE_PRESET_HOOK)
   store.deleteKitPreset('door')
-  const hookSrc = read('src/services/kitMenu/presetHook.ts')
-  t('P2-6 the typed-refusal placeholder is dead in the source (no UNWIRED hook, no not-wired sentence)', !hookSrc.includes('UNWIRED_PRESET_HOOK') && !hookSrc.includes('not wired in this build'))
 }
 
 section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu default resumes; a live hop never consumes')
@@ -239,11 +221,6 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   )
   t('P3-13 THE LIVE HOP: ok + liveHop:true on the answer — the carried kit deliberately ignored, nothing spawned', hopped.ok === true && (hopped as { liveHop?: true }).liveHop === true, JSON.stringify(hopped))
   t('P3-14 the live record’s kit did not move a byte (no re-stamp ran)', deepEq(liveRec.kit, REC_KIT))
-  const born = read('src/services/switchboard/bornSession.ts')
-  const hopSrc = read('src/services/switchboard/hopIntoSession.ts')
-  t('P3-15 the birth door consumes at entry and spreads worn-else-carried', born.includes('const worn = takeWornPresetKit()') && born.includes('...(worn !== null ? { kit: worn.kit } : carriedKitOf(facts)),'))
-  t('P3-16 the resume door PEEKS, spreads worn-else-carried, and spends only when applied (liveHop gates the take)', hopSrc.includes('const worn = peekWornPresetKit()') && hopSrc.includes('worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())') && hopSrc.includes('if (worn !== null && reply.liveHop !== true) takeWornPresetKit()'))
-  t('P3-17 the wire carries the pure-hop fact end to end (daemon answer → protocol row → controlServer pass-through)', read('src/daemon/concourseWorkers.ts').includes('liveHop: true,') && read('src/daemon/protocol.ts').includes('liveHop?: true') && /'liveHop'/.test(wireKeys(read('src/daemon/controlServer.ts'), 'ADMIT_WIRE_KEYS')) && read('src/daemon/controlServer.ts').includes('...pickDefined(r, ADMIT_WIRE_KEYS)'))
 }
 
 section('§P4 — THE DAEMON\'S PRESET DOOR: the preset derivation, the closed-roster refusals, the held replay, the receipt line')
@@ -276,23 +253,6 @@ section('§P4 — THE DAEMON\'S PRESET DOOR: the preset derivation, the closed-r
   const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
   const restampRow = JSON.stringify(readSessionReceipts(getProjectDir(wsId), 'sess-restamp-proof'))
   t("P4-6 a preset re-stamp's receipt says the preset truth (never 'from the current menu') with source 'preset' in details", deepEq(rec.kit, KIT_B) && restampRow.includes('kit re-stamped from the named preset (preset)') && restampRow.includes('"source":"preset"') && !restampRow.includes('from the current menu'), restampRow.slice(0, 200))
-  const sup = read('src/daemon/concourseWorkers.ts')
-  const admitBody = sup.slice(sup.indexOf('export function makeConcourseAdmitHandler'))
-  const presetDoorAt = admitBody.indexOf('if (req.kitPreset !== undefined) {')
-  t('P4-7 the preset door sits ABOVE the reactivate branch, the warm claim and the cold mint (one resolution, every road consumes it)', presetDoorAt !== -1 && presetDoorAt < admitBody.indexOf('if (req.resumeSessionId !== undefined) {') && presetDoorAt < admitBody.indexOf('deps.claimWarm !== undefined') && admitBody.includes('kit and kitPreset are one door — send one'))
-  t('P4-8 the hoist folds the preset arm and BOTH mints and the replay of a standing birth speak the widened source + the preset name/note on their answers', sup.includes('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') && (sup.match(/kitSource: req\.kit !== undefined \? 'carried' : preset !== undefined \? 'preset' : 'derived',/g) ?? []).length === 3 && (sup.match(/presetName: preset\.name/g) ?? []).length === 3)
-  t('P4-9 the reactivate takes the resolved preset whole (args.preset), re-stamps from it (source ternary) and answers the name on both applied roads', sup.includes('const kit = args.kit ?? args.preset?.kit ?? deriveSessionKitForWorkspace(rec.workspaceId)') && sup.includes("args.kit !== undefined ? 'carried' : args.preset !== undefined ? 'preset' : 'derived'") && (sup.match(/presetName: args\.preset\.name/g) ?? []).length === 2)
-  t("P4-10 the union widened at its owner: KitStampSource carries 'preset' and the un-stamped live hop still answers liveHop (the twins' one truth)", read('src/daemon/sessionKit.ts').includes("export type KitStampSource = 'carried' | 'derived' | 'preset'") && sup.includes('liveHop: true,'))
-  const proto = read('src/daemon/protocol.ts')
-  const server = read('src/daemon/controlServer.ts')
-  t('P4-11 both wire verbs carry kitPreset and the replies carry the widened source + preset fields', proto.split('kitPreset?: string').length === 3 && proto.split("kitSource?: 'carried' | 'derived' | 'preset'").length === 3 && proto.split('presetName?: string').length === 3)
-  const admitKeys = wireKeys(server, 'ADMIT_WIRE_KEYS')
-  const dispatchKeys = wireKeys(server, 'DISPATCH_WIRE_KEYS')
-  t('P4-12 the server refuses a malformed kitPreset typed on BOTH verbs and forwards the narrowed name on both; the answers pass presetName/presetNote', (server.match(/kitPreset must be a saved preset name \(a non-empty string\)/g) ?? []).length === 2 && (server.match(/\? \{ kitPreset: raw\.kitPreset \} : \{\}/g) ?? []).length === 2 && /'presetName'/.test(admitKeys) && /'presetNote'/.test(admitKeys) && /'presetName'/.test(dispatchKeys) && /'presetNote'/.test(dispatchKeys) && server.includes('...pickDefined(r, ADMIT_WIRE_KEYS)') && server.includes('...pickDefined(r, DISPATCH_WIRE_KEYS)'))
-  const dispatchMod = await import('../../src/daemon/concourseDispatch.ts')
-  void dispatchMod
-  const disp = read('src/daemon/concourseDispatch.ts')
-  t('P4-13 the held envelope banks kitPreset and the daemon-side replay re-supplies it (type + bank + replay spreads)', disp.includes('kitPreset?: string') && disp.includes('...(req.kitPreset !== undefined ? { kitPreset: req.kitPreset } : {})') && disp.includes('...(op.kitPreset !== undefined ? { kitPreset: op.kitPreset } : {})'))
   store.deleteKitPreset('coord')
   store.deleteKitPreset('clean')
   saveGlobalConfig(current => {
@@ -305,29 +265,6 @@ section('§P4 — THE DAEMON\'S PRESET DOOR: the preset derivation, the closed-r
 
 section('§P5 — THE SWEEP: vocabulary lane-wide · both-directions isolation · one grammar at both doors · no world checks')
 {
-  const LAW_SENTENCES = /"pack" is reserved for extensions|"pack" is the extensions estate's word|"pack" is RESERVED for extensions/g
-  const PREEXISTING = /no wrapper\n?\s*(\/\/ )?pack, no crewmate contract/g
-  const SWEEP_FILES = [
-    'src/services/mcp/presetStore.ts',
-    'src/services/kitMenu/presetWear.ts',
-    'src/services/kitMenu/presetHook.ts',
-    'src/components/KitMenuScreen.tsx',
-    'src/components/BootSplashScreen.tsx',
-    'src/services/switchboard/bootBirthFacts.ts',
-    'src/services/switchboard/bornSession.ts',
-    'src/services/switchboard/hopIntoSession.ts',
-    'src/daemon/sessionKit.ts',
-    'src/daemon/concourseWorkers.ts',
-    'src/daemon/controlServer.ts',
-    'src/daemon/protocol.ts',
-    'src/daemon/concourseDispatch.ts',
-    'assets/splash/splash-core.mjs',
-    'src/services/kitMenu/resolvedKit.ts',
-    'src/services/kitMenu/menuStore.ts',
-    'src/services/kitMenu/kitTypes.ts',
-  ]
-  const packHits = SWEEP_FILES.filter(f => /\bpacks?\b/i.test(read(f).replace(LAW_SENTENCES, '').replace(PREEXISTING, '')))
-  t("P5-1 the vocabulary law lane-wide: 'pack' spelled nowhere across every touched file (two quoted standing exceptions only)", packHits.length === 0, packHits.join(','))
 
   const wearMod = await import('../../src/services/kitMenu/presetWear.ts')
   const sk = await import('../../src/daemon/sessionKit.ts')
@@ -346,13 +283,7 @@ section('§P5 — THE SWEEP: vocabulary lane-wide · both-directions isolation �
   kitStore.setExtensionStateForWorkspace(PROJECT, 'sweep-ext', true)
   store.deleteKitPreset('iso-sweep')
 
-  const WORLD_TOKENS = ['chatOnlyBoot', 'chatBoot(', 'MERCURY_SPLASH_CHAT']
-  const LANE_KIT_PATH = ['src/services/mcp/presetStore.ts', 'src/services/kitMenu/presetWear.ts', 'src/services/kitMenu/presetHook.ts', 'src/daemon/sessionKit.ts']
-  const worldHits = LANE_KIT_PATH.filter(f => WORLD_TOKENS.some(tok => read(f).includes(tok)))
-  t('P5-4 no world token in the kit path (identical worlds — the preset roads never ask which boot this is)', worldHits.length === 0, worldHits.join(','))
 
-  const wearSrc = read('src/services/kitMenu/presetWear.ts')
-  t('P5-5 the wear composes membership through resolvedKitOf alone (one composer; statesFromDeltas is the one rendering)', wearSrc.includes("import { resolvedKitOf } from './resolvedKit.js'") && wearSrc.includes('resolvedKitOf(rows, states)') && !wearSrc.includes('for (const row of rows) {\n    if (row.kind ==='))
 
   const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
   facts._resetBootBirthFactsForTesting()

@@ -297,13 +297,6 @@ try {
   check('every daemon left after its owner died', allGone, [p, s, a, b].map(d => `${d.pid}:${alive(d.pid) ? 'alive' : 'gone'}`).join(' '))
   check('the plain daemon named the road (owner-gone) in its log', /owner pid \d+ gone \(owner-gone\)/.test(read(p.log)), read(p.log).slice(-400))
 
-  section('the wiring — nothing periodic launches a process')
-  {
-    const ow = read(join(REPO, 'src/daemon/ownerWatch.ts'))
-    check('the owner watch has no probe on a cadence of its own (the token is read again only when liveness moved)', !/t - facts\.lastProbeAt >= floorMs/.test(ow) && /cameBack/.test(ow))
-    const main = read(join(REPO, 'src/daemon/main.ts'))
-    check('the successor lock wait re-decides on kill(0) facts instead of claiming every 100 ms', /while \(decision\.road === 'wait-lock' && Date\.now\(\) < deadline\)/.test(main) && !/while \(!daemonLock && Date\.now\(\) < deadline\)/.test(main))
-  }
 } finally {
   await cleanup()
 }

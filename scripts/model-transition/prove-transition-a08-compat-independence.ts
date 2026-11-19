@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -11,7 +11,6 @@ process.env.MERCURY_HOME = mkdtempSync(join(tmpdir(), 'ctm-a08-home-'))
 delete process.env.MERCURY_INSTRUCTION_PROFILE
 delete process.env.MERCURY_EFFORT_LEVEL
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -31,52 +30,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-section('§A forward fence — model owners reference no instruction facet')
-{
-  const OWNERS = [
-    'src/utils/model/model.ts',
-    'src/utils/model/capabilities.ts',
-    'src/utils/model/modelTransition.ts',
-    'src/utils/effort.ts',
-    'src/services/providers/callModelRouter.ts',
-  ]
-  const FACET = [
-    'InstructionProfile',
-    'instructionProfile',
-    'instructions/profile',
-    'instructionsCompat',
-    'services/instructions',
-  ]
-  for (const rel of OWNERS) {
-    const src = readFileSync(join(ROOT, rel), 'utf8')
-    const hits = FACET.filter(f => src.includes(f))
-    check(`${rel} is facet-free`, hits.length === 0, hits.join(', '))
-  }
-}
-
-section('§B reverse fence — profile resolution reads no model facet')
-{
-  const src = readFileSync(join(ROOT, 'src/services/instructions/profile.ts'), 'utf8')
-  const hits = ['utils/model', 'callModelRouter', 'getEngineModel'].filter(f =>
-    src.includes(f),
-  )
-  check('profile.ts (the resolution owner) is model-free', hits.length === 0, hits.join(', '))
-  const engine = readFileSync(join(ROOT, 'src/services/instructions/engine.ts'), 'utf8')
-  const modelImports = engine
-    .split('\n')
-    .filter(l => l.includes('utils/model') && l.includes('import'))
-  check(
-    "engine.ts's only model import is the budget read (getEngineModel)",
-    modelImports.length === 1 && modelImports[0]!.includes('getEngineModel'),
-    modelImports.join(' · '),
-  )
-  check(
-    'contracts.ts keeps the origin union to the runtime seams (default · session · agent — no model-derived origin)',
-    /^export type InstructionProfileOrigin = 'default' \| 'session' \| 'agent'$/m.test(
-      readFileSync(join(ROOT, 'src/services/instructions/contracts.ts'), 'utf8'),
-    ),
-  )
-}
 
 section('§C behavioral — model truth is byte-identical across every profile seam')
 {

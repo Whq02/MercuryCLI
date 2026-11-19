@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync, readFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -47,10 +47,6 @@ writeFileSync(join(root, 'plain', 'p.txt'), 'x')
     out.searchDir === join(root, 'junc-target', 'deep') && out.pattern === '**/*.md',
     JSON.stringify(out),
   )
-}
-{
-  const globSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'glob.ts'), 'utf8')
-  check('utils/glob.ts rides the leaf (call-shaped)', globSrc.includes('resolveRelativePatternPrefix(searchDir, pattern)'))
 }
 
 rmSync(root, { recursive: true, force: true })

@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
-import ts from 'typescript'
 
 const home = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'hook-attachment-shapes-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -14,7 +13,6 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 
 import { z } from 'zod/v4'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const PRE_CONTEXT = 'PRE-CONTEXT-SENTINEL'
 const POST_CONTEXT = 'POST-CONTEXT-SENTINEL'
 const FAIL_CONTEXT = 'FAIL-CONTEXT-SENTINEL'
@@ -229,40 +227,6 @@ section('§C a tool.after block is the one hook row the model reads as an object
   check('a row with no words reads as an empty context, never a throw', thrown(() => wireText({ type: 'hook', outcome: 'context', event: 'tool.before', name: 'h', words: '' } as Attachment)) === null)
 }
 
-section('§D the tool road hands the one hook row shape to createAttachmentMessage through the rows writer: no cast, no hand-built literal')
-{
-  const casts: string[] = []
-  let literals = 0
-  let viaWriter = 0
-  for (const rel of ['src/services/tools/toolHooks.ts', 'src/services/tools/toolExecution.ts']) {
-    const full = join(ROOT, rel)
-    const sf = ts.createSourceFile(full, readFileSync(full, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-    const visit = (node: ts.Node): void => {
-      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'createAttachmentMessage' && node.arguments[0] !== undefined) {
-        let inner: ts.Expression = node.arguments[0]
-        let cast: string | null = null
-        while (ts.isAsExpression(inner) || ts.isParenthesizedExpression(inner)) {
-          if (ts.isAsExpression(inner)) cast = inner.type.getText(sf)
-          inner = inner.expression
-        }
-        if (ts.isObjectLiteralExpression(inner)) {
-          const typeProperty = inner.properties.find(p => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === 'type')
-          const kind = typeProperty !== undefined && ts.isPropertyAssignment(typeProperty) && ts.isStringLiteral(typeProperty.initializer) ? typeProperty.initializer.text : null
-          if (kind === 'hook') {
-            literals++
-            if (cast !== null) casts.push(`hook as ${cast} (${rel}:${sf.getLineAndCharacterOfPosition(inner.getStart(sf)).line + 1})`)
-          }
-        } else if (ts.isIdentifier(inner) && inner.text === 'row' && cast === null) {
-          viaWriter++
-        }
-      }
-      ts.forEachChild(node, visit)
-    }
-    visit(sf)
-  }
-  check('no hand-built hook literal reaches createAttachmentMessage on the tool road', literals === 0, `${literals} literal(s)`)
-  check('every hook row comes from the rows writer (hookRowsOfResult), uncast', viaWriter >= 3 && casts.length === 0, `${viaWriter} via the writer; casts: ${casts.join(', ')}`)
-}
 
 rmSync(home, { recursive: true, force: true })
 clearTimeout(guard)

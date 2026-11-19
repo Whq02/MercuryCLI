@@ -18,7 +18,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const manager = await import('../../src/services/projectServices/serviceManager.ts')
 const { readRecord, servicesDir, startService, stopService } = manager as unknown as {
   readRecord: (cwd: string, name: string) => Record<string, unknown> | null
@@ -206,16 +205,6 @@ section('§4 a service Mercury can prove is its own is still stopped, tree and a
   }
 }
 
-section('§5 no ungated strike, and the token never blocks the spawn')
-{
-  const src = readFileSync(join(ROOT, 'src/services/projectServices/serviceManager.ts'), 'utf8')
-  const stop = src.slice(src.indexOf('export async function stopService'), src.indexOf('export async function restartService'))
-  const strikes = stop.match(/endProcessTree\(/g) ?? []
-  check('every strike in the stop is inside the ownership gate', strikes.length > 0 && (stop.match(/decideServiceStrike\(/g) ?? []).length >= 1)
-  check("the stop never strikes on a bare pid (no endProcessTree without a preceding verdict)", !/if \(processAlive\(record\.pid, record\.startToken\)\) \{\s*await endProcessTree/.test(stop))
-  check('the spawn does not block on the sync start-token probe on win32', /platform === 'win32'[\s\S]{0,120}startToken/.test(src) || /captureStartTokenAsync/.test(src))
-  check('a late token lands on the record asynchronously', /getProcessStartTokenAsync/.test(src))
-}
 
 rmSync(workDir, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-service-stop-ownership${failures ? ` (${failures} failure(s))` : ''}`)

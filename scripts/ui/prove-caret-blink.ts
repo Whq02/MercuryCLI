@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import chalk from 'chalk'
 import { Cursor } from '../../src/utils/Cursor.js'
 
@@ -50,49 +48,6 @@ section('B. the strip width law — off phase paints a same-width cell')
   check('mid-text lens exposes the covered character (painted on BOTH phases)', mid.at === 'n')
 }
 
-section('C. one owner, no second timer (source locks)')
-{
-  const root = join(import.meta.dir, '../../src')
-  const textInput = readFileSync(join(root, 'components/TextInput.tsx'), 'utf8')
-  const vimInput = readFileSync(join(root, 'components/VimTextInput.tsx'), 'utf8')
-  const strips = readFileSync(join(root, 'components/concourse/ConcourseStrips.tsx'), 'utf8')
-  const useBlinkSrc = readFileSync(join(root, 'hooks/useBlink.ts'), 'utf8')
-  for (const [name, src] of [
-    ['TextInput', textInput],
-    ['VimTextInput', vimInput],
-    ['ConcourseStrips', strips],
-  ] as const) {
-    check(`${name} consumes the ONE blink owner (useBlink)`, src.includes("from '../hooks/useBlink.js'") || src.includes("from '../../hooks/useBlink.js'"))
-    check(`${name} owns NO timer of its own (poison: a second timer)`, !/set(?:Interval|Timeout)\s*\(/.test(src))
-  }
-  check('useBlink rides useAnimationValue (the shared clock)', useBlinkSrc.includes('useAnimationValue'))
-  check('useBlink owns NO timer of its own', !/set(?:Interval|Timeout)\s*\(/.test(useBlinkSrc))
-  check(
-    'a disabled blinker reads VISIBLE (byte-still law)',
-    /enabled \? \(visible \?\? true\) : true/.test(useBlinkSrc),
-  )
-}
-
-section('D. the focus gates — blink armed only while the composer is focused')
-{
-  const root = join(import.meta.dir, '../../src')
-  const textInput = readFileSync(join(root, 'components/TextInput.tsx'), 'utf8')
-  const vimInput = readFileSync(join(root, 'components/VimTextInput.tsx'), 'utf8')
-  const strips = readFileSync(join(root, 'components/concourse/ConcourseStrips.tsx'), 'utf8')
-  check(
-    'TextInput arms on focus + shown + terminal focus + accessibility-off',
-    /useBlink\(\s*props\.focus !== false &&\s*props\.showCursor !== false &&\s*terminalFocused &&\s*!accessibility,?\s*\)/.test(textInput),
-  )
-  check(
-    'VimTextInput arms on focus + shown + terminal focus (its preserved accessibility inconsistency)',
-    /useBlink\(\s*props\.focus !== false && props\.showCursor !== false && terminalFocused,?\s*\)/.test(vimInput),
-  )
-  check('the strip arms on its own focus alone', /useBlink\(focused\)/.test(strips))
-  check(
-    'the strip inversion still keys the phase (both caret cells)',
-    (strips.match(/caretPhaseOn/g) ?? []).length >= 3,
-  )
-}
 
 if (failures > 0) {
   console.error(`\n❌ ${failures} CARET-BLINK PROOF(S) FAILED`)

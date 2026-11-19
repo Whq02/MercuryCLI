@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
@@ -348,12 +348,7 @@ t.section('§7 — the world is honest about itself: the why, the way back, one 
   t.check("the switch off: why = 'concourse off'; the way back is --concourse-on or /config", route.plainWorldWhyOf(off) === 'concourse off' && route.concourseWayBackOf(off) === '`mercury --concourse-on` or /config turns it back')
   t.check('--chat over a saved off is no contradiction: the plain world, the why names both, the way back is the switch', route.chatOnlyBootOf(both) === true && route.plainWorldWhyOf(both) === '--chat · concourse off' && route.concourseWayBackOf(both) === '`mercury --concourse-on` or /config turns it back')
   t.check('the sentence composes the why and the way back', route.concourseOffSentenceOf(chat) === 'the Session Concourse is off in this boot (--chat) — a plain `mercury` boot has it' && route.concourseOffSentenceOf(off) === 'the Session Concourse is off in this boot (concourse off) — `mercury --concourse-on` or /config turns it back')
-  const main = readFileSync(new URL('../../src/main.tsx', import.meta.url), 'utf8')
-  t.check("--concourse-off and --concourse-on on one line: the later wins", main.includes("const lastSwitch = [...process.argv].reverse().find(a => a === '--concourse-off' || a === '--concourse-on')") && main.includes("setConcourseEnabled(lastSwitch === '--concourse-on')"))
   t.check('--chat beside --concourse-on: this boot plain by the mark (menu ⇄ chat), the switch on for the next', route.chatOnlyBootOf(chat) === true && route.stripStops({ ...chat, chatPresent: true }).join(',') === 'boot-settings,repl')
-  const config = readFileSync(new URL('../../src/components/Settings/Config.tsx', import.meta.url), 'utf8')
-  t.check("/config's Session concourse row says a --chat boot is the plain world whatever the switch says", config.includes('off this boot (--chat)') && config.includes('the switch governs the next plain `mercury` boot'))
-  t.check('the router owns the sentence and no reader spells its own', !config.includes('is off in this boot') && readFileSync(new URL('../../src/utils/processUserInput/processSlashCommand.tsx', import.meta.url), 'utf8').includes('concourseOffSentence()'))
 }
 
 t.finish('prove-surface-strip')

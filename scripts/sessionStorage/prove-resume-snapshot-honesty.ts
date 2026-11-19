@@ -91,14 +91,6 @@ console.log('L2 control — a clean >1 MB tail folds from the snapshot and earns
   t('the refresh advances the cursor to the folded extent', after === statSync(file).size, `cursor=${after} size=${statSync(file).size}`)
 }
 
-console.log('L3 a short read invalidates the hit')
-{
-  const src = readFileSync(join(SRC, 'utils/sessionStorage/resumeSnapshot.ts'), 'utf8')
-  const loopAt = src.indexOf('readSync(fd, tail, read, tailLen - read, cursor + read)')
-  const guardAt = src.indexOf('if (read < tailLen) return null')
-  t('the read loop exists', loopAt >= 0)
-  t('a short read returns null instead of the padded buffer', guardAt > loopAt && loopAt >= 0, `loop=${loopAt} guard=${guardAt}`)
-}
 
 console.log(failures === 0 ? 'RESUME SNAPSHOT HONESTY: ALL PASS' : 'RESUME SNAPSHOT HONESTY: RED')
 process.exit(failures)

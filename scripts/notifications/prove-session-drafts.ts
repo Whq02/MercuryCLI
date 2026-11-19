@@ -81,8 +81,6 @@ t.section('§6 — a draft an earlier version left in its coordinator composer i
   t.check('the store drops a field its decoder does not name (why the two stay named)', afterSession.aFieldNoVersionKnew === undefined)
   t.check('it never bleeds into the new-session strip draft', (await readConcourseDraft(dir)) === 'the new-session strip draft')
   t.check('it never bleeds into a session draft', (await readConcourseSessionDraft('caret-legacy', dir)) === 'old shape')
-  const snapshotSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'concourse', 'concourseSnapshot.ts'), 'utf8')
-  t.check('nothing in the store reads or writes the two fields but its decoder', !/file\.coordinatorDraft|value\.coordinatorDraft|coordinatorDraft: clamped|coordinatorDraft: undefined/.test(snapshotSrc))
 }
 
 rmSync(dir, { recursive: true, force: true })

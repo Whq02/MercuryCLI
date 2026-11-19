@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -28,7 +28,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const SRC = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 const remedy = (over: Partial<HealthRemedy> = {}): HealthRemedy => ({
   plan: 'test remedy',
@@ -186,11 +185,6 @@ section('(4) wiring — remedies attached, async spawns, panel f-flow, CLI flags
   const stale = await identityChecks(await healthContext()).find(row => row.id === 'build-fresh')?.run()
   process.argv[1] = entryBefore!
   check('build-fresh check attaches a rebuild remedy', stale?.status === 'stale' && stale.remedy?.class === 'safe' && stale.remedy.plan.startsWith('rebuild dist ('), JSON.stringify({ status: stale?.status, evidence: stale?.evidence, plan: stale?.remedy?.plan }))
-  const panel = SRC('src/commands/health/HealthCertificate.tsx')
-  check("panel wires f → consent → applyRemedy", panel.includes("input === 'f'") && panel.includes('applyRemedy(check)'))
-  check('destructive renders the warning register', panel.includes('DESTRUCTIVE — this discards state'))
-  const cli = SRC('src/cli/healthJson.ts')
-  check('headless runHealthFixCli exists with only/yes', cli.includes('export async function runHealthFixCli(opts: { only?: string; yes: boolean })'))
   const { builtHelp } = await import('../lib/builtProduct.ts')
   const healthHelp = builtHelp('health')
   check('CLI carries --fix/--only/--yes on the health command', healthHelp.includes(' --fix ') && healthHelp.includes(' --only <id> ') && healthHelp.includes(' --yes '))

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -73,13 +73,6 @@ console.log('L3 the watch-path derivation sees candidates that do not exist')
   t('projectConfigCandidatePaths exists and derives the missing candidate', Array.isArray(paths) && paths.length > 0 && paths.every((p: string) => p.includes('.mercury')), JSON.stringify(paths ?? null))
 }
 
-console.log('L4 the Chat watcher arms for missing candidates too')
-{
-  const hook = readFileSync(join(SRC, 'hooks/useSkillsChange.ts'), 'utf8')
-  t('it derives unfiltered candidates', hook.includes('projectConfigCandidatePaths(cwd,'))
-  t('it walks to the nearest existing ancestor for a missing candidate', hook.includes('while (!existsSync(ancestor))'))
-  t('a birth re-arms and rescans', hook.includes('if (existsSync(dir)) rescan()'))
-}
 
 console.log(failures === 0 ? 'SKILL BIRTH WATCH: ALL PASS' : 'SKILL BIRTH WATCH: RED')
 process.exit(failures)

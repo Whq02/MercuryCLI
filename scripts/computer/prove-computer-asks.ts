@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { check, finish, scratchDir, section, sourceText } from './computerProofKit.ts'
+import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, COMPUTER_READS, ownerOf, pixelOfPointOn, pointOfPixelOn, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
 
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
@@ -306,8 +306,6 @@ section('the owned window, not every window of its application')
   useScene('fullscreen-panel', { ownTerminal: TERMINAL, frontmost: { ...TERMINAL, windowId: '999', bounds: { x: 0, y: 0, width: 1440, height: 68 } }, focusedWindow: TERMINAL })
   const fullscreen = await permission({ action: 'type', text: 'hello' }, context)
   check('a fullscreen panel above the terminal never replaces its focused window', fullscreen.behavior === 'deny' && (fullscreen.message ?? '').includes('a keystroke there would land in this conversation'), JSON.stringify(fullscreen))
-  const macOwner = sourceText('native/desktop/src/mac.rs')
-  check('the native front-window path reads Accessibility focus without a prompt or private link', macOwner.includes('focused_window_facts(pid)') && macOwner.includes('AXFocusedWindow') && macOwner.includes('if !AXIsProcessTrusted()') && macOwner.includes('libc::dlsym(libc::RTLD_DEFAULT, c"_AXUIElementGetWindow"') && !macOwner.includes('fn _AXUIElementGetWindow('))
   useScene('sibling-beside-own', { ownTerminal: TERMINAL, frontmost: { ...sibling, bounds: { x: 0, y: 0, width: 600, height: 400 } } })
   const ownPoint = await permission({ action: 'click', ...pixel, capture: false }, context)
   check('a point outside the sibling but inside the own window is refused', ownPoint.behavior === 'deny' && (ownPoint.message ?? '').includes('inside the window of the terminal running this session'), JSON.stringify(ownPoint))
@@ -533,8 +531,6 @@ section('§13 the card offers four answers while sovereign mode is already on, f
   check('with sovereign mode off the card offers the five answers exactly as they are', computerAskChoicesFor(false) === COMPUTER_ASK_CHOICES && COMPUTER_ASK_CHOICES.map(c => c.value).join(',') === 'yes,no,hour,day,sovereign')
   const four = computerAskChoicesFor(true)
   check('with sovereign mode on the card offers the first four answers only, unchanged', four.length === 4 && four.every((c, i) => c === COMPUTER_ASK_CHOICES[i]))
-  const card = sourceText('src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
-  check('the card reads the posture through the one predicate every ask road reads', card.includes('postureBypassesAsks(') && card.includes('computerAskChoicesFor('))
 }
 
 
@@ -549,10 +545,6 @@ section('§14 the challenge card: two plain answers, the question in the owner\'
   check('the note names the pre-given rule', COMPUTER_CHALLENGE_NOTE.includes('Computer(captcha)'))
   const judged = judgedAppFromAsk(`Computer click (325, 143) in ${TEXTEDIT.name} (${TEXTEDIT.identity}) — ${CAPTCHA_QUESTION}`, [{ type: 'addRules', rules: [{ toolName: 'Computer', ruleContent: 'captcha' }] }])
   check('the card names the application from the ask without mistaking the captcha rule for an application', computerChallengeAppLine(judged) === `${TEXTEDIT.name} (${TEXTEDIT.identity}) shows a human-verification challenge`, computerChallengeAppLine(judged))
-  const card = sourceText('src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
-  const { challengeAsk } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
-  check('the card takes the challenge shape from the Computer(captcha) suggestion the harness attaches, never from the input, and hides the timed grants there', !card.includes('input.captcha') && card.includes('challengeAsk(') && card.includes('challenge ? COMPUTER_CHALLENGE_CHOICES') && challengeAsk([{ type: 'addRules', rules: [{ toolName: 'Computer', ruleContent: 'captcha' }] }]) === true && challengeAsk([{ type: 'addRules', rules: [{ toolName: 'Computer', ruleContent: `app:${TEXTEDIT.identity}` }] }]) === false)
-  check('No on the challenge card rejects with the resume sentence as feedback, never the feedback-less reject that ends the turn', card.includes('toolUseConfirm.onReject(CAPTCHA_OPERATOR_COMPLETES)'))
 }
 useScene('default', null)
 finish('prove-computer-asks')

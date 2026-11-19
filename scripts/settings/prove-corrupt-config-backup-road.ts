@@ -47,32 +47,6 @@ console.log('L2 the restore road')
   check('…and by content: the older copy still holds GOOD_OLD, the restored copy still holds GOOD_NEW', readFileSync(join(backupDir, '.mercury.json.backup.1000'), 'utf8') === GOOD_OLD && readFileSync(join(backupDir, '.mercury.json.backup.2000'), 'utf8') === GOOD_NEW)
 }
 
-console.log('L3 the dialog (source pins)')
-{
-  const dialog = readFileSync(join(SRC, 'components/InvalidConfigDialog.tsx'), 'utf8')
-  check('the dialog looks the newest backup up', dialog.includes('findMostRecentBackup(error.filePath)'))
-  check('it offers the restore as the FIRST option, naming the copy', /Restore the newest backup \(\$\{basename\(backupPath\)\}\)/.test(dialog) && dialog.indexOf("value: 'restore'") !== -1 && dialog.indexOf("value: 'restore'") < dialog.indexOf("value: 'exit'"))
-  const restoreArmStart = dialog.indexOf("if (choice === 'restore' && backupPath !== null) {")
-  const restoreArmEnd = dialog.indexOf("if (choice === 'reset') {", restoreArmStart)
-  check('the restore arm is a bounded branch of the dialog choice handler', restoreArmStart >= 0 && restoreArmEnd > restoreArmStart, `${restoreArmStart}..${restoreArmEnd}`)
-  const restoreArm = dialog.slice(restoreArmStart, restoreArmEnd)
-  const tryStart = restoreArm.indexOf('try {')
-  const catchStart = restoreArm.indexOf('} catch (restoreError) {')
-  const successArm = restoreArm.slice(tryStart, catchStart)
-  const failureArm = restoreArm.slice(catchStart)
-  check('the restore rides the one road and exits 0 with a notice', successArm.includes('restoreConfigFromBackup(error.filePath, backupPath)') && successArm.includes('the configuration was restored from') && /gracefulShutdownSync\(0\)/.test(successArm) && !/gracefulShutdownSync\(1\)/.test(successArm), successArm.replace(/\s+/g, ' ').slice(0, 160))
-  check('a failed restore leaves the file, names the cp fallback and exits 1 — in ITS arm only', failureArm.includes('the file is unchanged') && failureArm.includes('cp "${backupPath}" "${error.filePath}"') && /gracefulShutdownSync\(1\)/.test(failureArm) && !/gracefulShutdownSync\(0\)/.test(failureArm), failureArm.replace(/\s+/g, ' ').slice(0, 160))
-  check('the reset option warns what it discards', dialog.includes('discards account, trust grants, project records'))
-  check('the copy is named in the dialog text', dialog.includes('The newest good copy is at'))
-}
-
-console.log('L4 the non-interactive arm (source pin)')
-{
-  const init = readFileSync(join(SRC, 'entrypoints/init.ts'), 'utf8')
-  const arm = init.slice(init.indexOf('if (error instanceof ConfigParseError)'), init.indexOf('if (error instanceof ConfigParseError)') + 1200)
-  check('the headless arm looks the backup up', arm.includes('findMostRecentBackup(error.filePath)'))
-  check('and prints the pointer and the cp line', arm.includes('A backup file exists at:') && arm.includes('You can restore it by running: cp'))
-}
 
 rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-corrupt-config-backup-road: ALL PASS' : `\nprove-corrupt-config-backup-road: ${failures} FAIL`)

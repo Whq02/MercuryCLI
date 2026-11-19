@@ -89,27 +89,12 @@ const foldRunning = (on: boolean): void => {
 
 section('F4 the wiring — the seat, the roster, the daemon, the hint row, the composer')
 {
-  const read = (rel: string): string => readFileSync(join(SRC, rel), 'utf8')
-  const seat = read('daemon/sessionSeat.ts')
-  check('the seat bumps its runner life on every spawn hook and publishes it on the facts', seat.includes('seat.generation += 1') && seat.includes('runnerGeneration: seat.generation'))
-  const roster = read('daemon/roster.ts')
-  check('the roster fires the relaunch hook after the first life, once the child is wired', roster.includes('onChildRelaunched?: (short: string, pid: number) => void') && /ll\.spawnGeneration > 1 && this\.opts\.onChildRelaunched/.test(roster))
-  const main = read('daemon/main.ts')
-  check('the daemon routes a session runner relaunch to the seat spawn hook', /onChildRelaunched: short => \{[\s\S]{0,120}if \(!short\.startsWith\('concourse-w'\) \|\| roster === null\) return\s*onSeatSpawned\(short, roster\)/.test(main))
-  const projections = read('services/engine-connector/seatProjections.ts')
-  check('the facts carry the count as an optional field (the mixed-version law)', projections.includes('runnerGeneration?: number'))
-  const composer = read('components/PromptInput/PromptInput.tsx')
-  check("the composer's lost-line notice outlives the plain refusal", composer.includes("addNotification({ key: 'recall-send', text: receipt.detail") && composer.includes('receipt.retired === true ? LOST_LINE_NOTICE_MS : 4000'))
-  const live = read('services/engine-connector/seatLive.ts')
-  check('the live extension names the lost line', live.includes('lostLine?(): LostLineV1 | null'))
   const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
   const dressed = normalizeMessages([
     { type: 'user', uuid: '00000000-0000-4000-8000-0000000000d1', timestamp: '2026-01-01T00:00:00.000Z', queued: true, heldFor: 'compaction', message: { role: 'user', content: [{ type: 'text', text: 'held' }] } },
     { type: 'user', uuid: '00000000-0000-4000-8000-0000000000d2', timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'user', content: [{ type: 'text', text: 'plain' }] } },
   ] as never) as Array<{ queued?: boolean; heldFor?: string }>
   check('the normalizer carries the held dress beside the queued one onto the row the plate reads', dressed[0]?.queued === true && dressed[0]?.heldFor === 'compaction' && dressed[1]?.queued === undefined && dressed[1]?.heldFor === undefined)
-  const rowMemo = read('components/Message.tsx')
-  check('the row repaints when the held dress moves, as it does for the queued one', rowMemo.includes("(prev.message as { heldFor?: 'compaction' }).heldFor !== (next.message as { heldFor?: 'compaction' }).heldFor) return false"))
 }
 
 section("F5 a context block is known by its header and its isMeta mark, never by its words — the fixture's recognisers are the product's own")

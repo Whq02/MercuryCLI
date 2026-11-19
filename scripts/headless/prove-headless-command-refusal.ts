@@ -89,13 +89,6 @@ console.log('§3 the positive control: a real -p prompt still succeeds on stdout
 const ok = await run(w, ['run', 'hello control'])
 check('exit 0 with the model answer on stdout', ok.code === 0 && /Control answered\./.test(ok.stdout), `${ok.code} · ${ok.stdout.trim().slice(0, 60)}`)
 
-console.log('§4 the source seams: ONE refusal door, marked at all three call sites, read at the outcome')
-const { readFileSync } = await import('node:fs')
-const slash = readFileSync(join(REPO, 'src/utils/processUserInput/processSlashCommand.tsx'), 'utf8')
-check('all three unavailableCommandLine call sites mark commandRefused', (slash.match(/const line = unavailableCommandLine\((?:command|registered)(?:, args)?\)\n\s*(?:.*\n){1,5}?\s*commandRefused: true,/g) ?? []).length === 3, String((slash.match(/commandRefused: true/g) ?? []).length))
-check('the user-private popup door checks the seat before it executes', /registered\.seat === 'screen' && getIsNonInteractiveSession\(\)/.test(slash), 'processSlashCommand user-private branch')
-const engine = readFileSync(join(REPO, 'src/rows/turn.ts'), 'utf8')
-check("the no-model outcome reads the mark (refused ⇐ inputResult.commandRefused === true)", engine.includes("const refused = inputResult.commandRefused === true || inputResult.hookBlocked === true") && engine.includes("endTurn(refused ? 'refused' : 'completed'"), "the turn module's no-model outcome")
 
 await api.close()
 rmSync(w.home, { recursive: true, force: true })

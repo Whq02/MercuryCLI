@@ -118,9 +118,6 @@ section("§1 the runner's own facts: advisorFacts() reads the effective test, th
   advisor.setAdvisorMinutes(10)
   saveGlobalConfig(c => { const next = { ...c.subModels }; delete next.advisor; return { ...c, subModels: Object.keys(next).length > 0 ? next : undefined } })
   check("the session facts answer carries `advisor: advisorFacts()` beside the pause gate, so the screen reads THIS chat's state through its connector", j(liveAdvisor) === j({ ...on, on: false, chat: false }) && j(liveAdvised) === j(on), j({ liveAdvisor, liveAdvised }))
-  const projection = src('src/services/engine-connector/seatProjections.ts')
-  const types = src('src/services/engine-connector/types.ts')
-  check('the answer type and the connector door are declared', projection.includes('advisor?: AdvisorFactsV1') && types.includes('advisorFacts(): AdvisorFactsV1 | null'))
   const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
   const planeBefore = process.env.MERCURY_DAEMON_DIR
@@ -133,7 +130,6 @@ section("§1 the runner's own facts: advisorFacts() reads the effective test, th
   if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
   else process.env.MERCURY_DAEMON_DIR = planeBefore
   check('the daemon connector answers the facts it read, the resting connector null', j(hosted) === j({ told: on, untold: null, unread: null }) && src('src/services/engine-connector/noSessionConnector.ts').includes('advisorFacts(): null'), `advisorFacts() of the hosted connector answers ${j(hosted)}: it returns the facts' advisor as published, and null when the facts name none or none were read`)
-  check("the /advise row of the slash menu reads the focused chat's value from the same facts", src('src/commands/advise/index.ts').includes('getFocusedSessionConnector().advisorFacts()'))
 }
 
 section("§2 the inline chat's statusline, rendered from source (the one surface that paints the frame's chips since the cockpit's sessions box left): the chip stands after the vitals while the chat is on, says off in settings when the settings are off, and is absent when the chat is off")

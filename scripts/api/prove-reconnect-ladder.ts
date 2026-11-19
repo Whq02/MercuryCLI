@@ -217,8 +217,6 @@ section('S4 — not an outage: a TLS failure, a proxy 407, a sandbox refusal, a 
   check('MERCURY_MAX_RETRIES=0 turns the reconnect ladder off with every other retry: the refused connect ends the turn at once', off.error instanceof retry.CannotRetryError && off.notices.length === 0 && (off.error as { originalError?: unknown }).originalError === undefined === false, String(off.error))
   const probe = await drive([refusedNode, refusedNode], { maxRetries: 2, reconnect: false })
   check('a caller that opts out (the latency-sensitive key probe) keeps the API ladder for a refused connect: charged faults, no reconnect rows', probe.result === 'answer' && probe.notices.length === 2 && probe.words.every(w => /^connection lost — waiting/.test(w)) && probe.charged.faults === 2, probe.words.join(' | '))
-  const src = await Bun.file('src/services/providers/anthropic/requestParams.ts').text()
-  check('the key probe opts out at its call', /withRetry\(createClient, probe, \{\s*maxRetries: 2, model, thinkingConfig: \{ type: 'disabled' \}, reconnect: false,\s*\}\)/.test(src))
 }
 
 section('S5 — the ladder\'s own arithmetic at scale 1 with an injected clock, and the knob')

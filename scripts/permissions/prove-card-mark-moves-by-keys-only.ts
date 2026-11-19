@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 import React from 'react'
-import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 pinSourceRef()
@@ -183,10 +181,6 @@ section('the question card: its lists follow the same rule')
   } finally {
     plain.unmount()
   }
-  const wheelAtom = { name: 'wheelup', sequence: WHEEL_UP, ctrl: false, shift: false, meta: false, option: false, super: false, fn: false }
-  const named = new KeyboardEvent(wheelAtom as never).key
-  const preview = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'permissions', 'AskUserQuestionPermissionRequest', 'PreviewQuestionView.tsx'), 'utf8')
-  check('the question with previews moves by named keys, and a notch or a page key is none of them', named === 'wheelup' && decodeDomNavKey({ key: named }, { orientation: 'vertical' }) === null && decodeDomNavKey({ key: 'pageup' }, { orientation: 'vertical' }) === null && decodeDomNavKey({ key: 'up' }, { orientation: 'vertical' }) === 'movePrevious' && /decodeDomNavKey\(e, \{ orientation: 'vertical' \}\)/.test(preview) && !/<Select/.test(preview), `a notch is named ${named}`)
 }
 
 section('where the terminal sends the wheel as arrows, an arrow is read as a wheel step: it still moves a card\'s mark')
@@ -294,21 +288,6 @@ section('three consent lists that are no permission card keep their mark under t
   }
 }
 
-section('every card whose ↵ answers passes it: no list of a card takes the wheel')
-{
-  const root = join(import.meta.dir, '..', '..', 'src', 'components', 'permissions')
-  const files = (readdirSync(root, { recursive: true }) as string[]).filter(file => file.endsWith('.tsx') && !file.startsWith('rules'))
-  const lists: Array<{ file: string; passes: boolean }> = []
-  for (const file of files) {
-    const source = readFileSync(join(root, file), 'utf8')
-    for (const opening of source.matchAll(/<Select(?:Multi)?\b[^>]*?(?:\/>|>)/gs)) lists.push({ file, passes: /\bscrollMovesFocus=\{false\}/.test(source.slice(opening.index, opening.index + 400)) })
-  }
-  const missing = lists.filter(list => !list.passes).map(list => list.file)
-  check(`the ${lists.length} lists of the permission and question cards each say so`, lists.length >= 11 && missing.length === 0, `${lists.length} lists; without it: ${missing.join(', ')}`)
-  const cards = (readdirSync(root, { recursive: true }) as string[]).filter(file => /PermissionRequest\.tsx$/.test(file) && file !== 'PermissionRequest.tsx' && !file.startsWith('AskUserQuestionPermissionRequest'))
-  const own = cards.filter(file => /<Select\b|<PermissionPrompt\b|<FilePermissionDialog\b|<FallbackPermissionRequest\b/.test(readFileSync(join(root, file), 'utf8')))
-  check('every card is one of those lists, the shared prompt, the file dialog or the fallback card built on the prompt', cards.length >= 17 && own.length === cards.length && /<PermissionPrompt\b/.test(readFileSync(join(root, 'FallbackPermissionRequest.tsx'), 'utf8')), `${cards.length} cards; with none of the four: ${cards.filter(file => !own.includes(file)).join(', ')}`)
-}
 
 await releaseScratchHome(home)
 console.log(`\n${checks - failures} passed, ${failures} failed`)

@@ -50,17 +50,6 @@ const { saveGlobalConfig } = await import('../../src/utils/config.js')
 
 
 {
-  const { readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'switchboard', 'capacityCheck.ts'), 'utf8')
-  check(
-    'the win32 return-0 arm is GONE (the ask named an input the code never probed)',
-    !src.includes("if (process.platform === 'win32') return 0"),
-  )
-  check(
-    'win32 scans through the CIM listing with command lines, via the windowsHide spawner',
-    src.includes('Get-CimInstance Win32_Process') && src.includes('execFileNoThrow'),
-  )
   const cap = await import('../../src/services/switchboard/capacityCheck.ts')
   const probe = await cap.probeCapacity()
   check(

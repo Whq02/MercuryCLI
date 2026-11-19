@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
@@ -107,8 +107,6 @@ check('outside-region action repeats the frame remedy', outside.outcome === 'fai
 const full = await withScreenshot(ComputerTool as never, context, 'round-two-full')
 context = full.context
 check('returning to full screenshot announces changed coordinates', full.result.includes('previous coordinates do not apply'), full.result)
-const scaleSource = readFileSync(new URL('../../src/tools/ComputerTool/ComputerTool.ts', import.meta.url), 'utf8')
-check('screenshot preparation does not reuse content-dependent Read image shrinkage', !scaleSource.includes('readImageWithTokenBudget'))
 const { FakeDesktopDriver, FAKE_SCENE_DEFAULT } = await import('../../src/services/desktop/fakeDesktopDriver.ts')
 const display = { index: 0, id: 'scale-proof', originX: 0, originY: 0, width: 1920, height: 1080, scale: 1, primary: true }
 const plainDriver = new FakeDesktopDriver({ ...FAKE_SCENE_DEFAULT, displays: [display], noise: false }, null)

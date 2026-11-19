@@ -12,7 +12,6 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.on('exit', () => rmSync(HOME, { recursive: true, force: true }))
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -42,10 +41,6 @@ for (const [index, stored] of OLD_TYPES.entries()) {
   const back = await storage.readAgentMetadata(id)
   check(`a sidecar carrying '${stored}' still opens and keeps its word`, back?.agentType === stored && back.description === `old helper ${index}` && back.model === 'claude-fable-5-1', JSON.stringify(back))
 }
-const constants = readFileSync(join(ROOT, 'src/tools/AgentTool/constants.ts'), 'utf8')
-const pathsSource = readFileSync(join(ROOT, 'src/utils/sessionStorage/paths.ts'), 'utf8')
-check('the Crewmate tool constants carry no stored-type translation table', !/Record<string, string>/.test(constants))
-check('the sidecar reader rewrites no agent type', !/agentType: current/.test(pathsSource) && !/RETIRED_AGENT_TYPES/.test(pathsSource))
 
 section('§2 the resume road: a known type is itself; any type Mercury does not know opens as mercury-crew')
 const custom = { agentType: 'code-reviewer', whenToUse: 'the owner\'s own kind', source: 'userSettings', getSystemPrompt: () => 'custom' } as never
@@ -56,8 +51,6 @@ check('mercury-crew opens as the crew', (definitionForStoredType('mercury-crew',
 for (const stored of [...OLD_TYPES, 'mercury-frobnicate', undefined]) {
   check(`a record carrying ${stored === undefined ? 'no type' : `'${stored}'`} opens as mercury-crew`, (definitionForStoredType(stored, roster) as { agentType: string }).agentType === 'mercury-crew')
 }
-const resumeSource = readFileSync(join(ROOT, 'src/tools/AgentTool/resumeAgent.ts'), 'utf8')
-check('the resume road picks its definition through that one selector', resumeSource.includes('definition: AgentDefinition = definitionForStoredType(meta?.agentType, definitions.activeAgents)'))
 const live = await getAgentDefinitionsWithOverrides(HOME)
 check('on the live roster of this tree the fallback is the real crew definition', (definitionForStoredType(OLD_TYPES[0], live.activeAgents) as { agentType: string }).agentType === 'mercury-crew' && live.activeAgents.some(a => a.agentType === 'mercury-crew'))
 

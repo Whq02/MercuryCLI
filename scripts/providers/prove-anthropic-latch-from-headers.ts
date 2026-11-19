@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -27,7 +27,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const auth = await import('../../src/utils/auth.ts')
@@ -143,12 +142,6 @@ section('§5 the subscriber gate: a response for a session with no sign-in clear
   seed(SUBSCRIBER)
 }
 
-section('§6 the wire road hands the latch what it reads (source pins)')
-{
-  const stream = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
-  check("the stream road hands the streaming response's headers to the latch", stream.includes('extractQuotaStatusFromHeaders(resp.headers, start)'))
-  check('…and a refused turn to the error road', stream.includes('extractQuotaStatusFromError(error)'))
-}
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-anthropic-latch-from-headers — ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

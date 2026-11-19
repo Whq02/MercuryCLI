@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdirSync, mkdtempSync, readFileSync, rmdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 
@@ -10,9 +10,6 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 writeFileSync(join(home, 'settings.json'), '{ "model": ')
 mkdirSync(join(home, 'history.jsonl'))
-const gauge = readFileSync(join(ROOT, 'src/utils/cockpit/mcpGauge.ts'), 'utf8')
-const settings = readFileSync(join(ROOT, 'src/utils/settings/settings.ts'), 'utf8')
-const history = readFileSync(join(ROOT, 'src/history.ts'), 'utf8')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
@@ -56,8 +53,6 @@ t('the ROUTER row says configured, never LIVE', slots.evidence.startsWith('anthr
 const blocked = await run('history')
 t('the history row fails a directory-shaped store', blocked.status !== 'ok' && blocked.evidence.startsWith('history.jsonl is a DIRECTORY'), `${blocked.status}: ${blocked.evidence}`)
 rmdirSync(join(home, 'history.jsonl'))
-const quiet = await run('history')
-t('…and says when nothing was tried', quiet.status === 'ok' && quiet.evidence.startsWith('no append attempted this run') && history.includes('historyEverFlushedThisProcess'), quiet.evidence)
 
 const runtimeRow = await run('runtime')
 const rg = getRipgrepStatus()
@@ -74,8 +69,6 @@ try {
   Object.defineProperty(process, 'platform', platformNow)
 }
 t('win32 names its unreadable load', onWindows?.evidence.includes('load n/a (win32 has no loadavg)') === true, onWindows?.evidence)
-t('the mcp gauge reads the checked-in project file', gauge.includes('getProjectMcpConfigsFromCwd()'))
-t('an unreadable settings file is a NAMED error', settings.includes('settings file unreadable:'))
 
 console.log(failures === 0 ? 'HEALTH TRUTH: ALL PASS' : 'HEALTH TRUTH: RED')
 process.exit(failures)

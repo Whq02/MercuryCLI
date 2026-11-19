@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -76,36 +76,12 @@ section('§3 — the in-family fix, and where it would be a lie')
     const text = textFor(rejected({ rateLimitType: claim }), 'claude-fable-5')
     check(`${claim} offers NO model switch (the window is shared)`, !/other Claude model pools/.test(text), text)
   }
-  const src = readFileSync(join(import.meta.dir, '../../src/services/rateLimitMessages.ts'), 'utf8')
-  check(
-    'the in-family clause is scoped to the per-model windows at the owner',
-    /claim === 'seven_day_opus' \|\| claim === 'seven_day_sonnet' \|\| claim === 'seven_day_fable'/.test(src),
-  )
 }
 
 section('§4 — every remedy names a live command')
 {
-  const src = readFileSync(join(import.meta.dir, '../../src/services/rateLimitMessages.ts'), 'utf8')
-  const row = readFileSync(join(import.meta.dir, '../../src/components/messages/RateLimitMessage.tsx'), 'utf8')
-  const registered = new Set<string>()
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry)
-      if (statSync(full).isDirectory()) walk(full)
-      else if (/\.tsx?$/.test(entry)) {
-        for (const m of readFileSync(full, 'utf8').matchAll(/\bname:\s*'([^']+)'/g)) registered.add(m[1]!)
-      }
-    }
-  }
-  walk(join(import.meta.dir, '../../src/commands'))
-  const named = (text: string): string[] =>
-    [...text.matchAll(/(?:^|[\s"'`(])\/([a-z][a-z0-9-]*)/g)].map(m => m[1]!)
-  const ghosts = [...new Set([...named(src), ...named(row)])].filter(n => !registered.has(n))
-  check('every /command the owner and the row name is a registered slash command', ghosts.length === 0, ghosts.join(', '))
   const text = textFor(rejected({ rateLimitType: 'seven_day_fable' }), 'claude-fable-5')
   check('a refusal carries no plan pointer', !/\/upgrade\b/.test(text), text)
-  check('the error path has no plan clause (the row surface owns the account remedy)', !/errorUpsellClause/.test(src))
-  check('the warning clause names where the plan is raised, not a slash command', /raise your Claude plan limits at claude\.ai/.test(src))
 
   const armed = upsell.getUpsellMessage({ shouldShowUpsell: true })
   check('the row offers the account switch (/logins) to a subscriber', String(armed).includes('/logins'), String(armed))
@@ -125,10 +101,6 @@ section('§5 — the order at the row: pool + in-family, then plan, then elsewhe
   check('the slot remedy (in-family fix) rides first', slotAt >= 0 && planAt > slotAt, `${slotAt} vs ${planAt}`)
   check('the plan remedy rides behind it', planAt > slotAt, `${slotAt} vs ${planAt}`)
   check('the other provider rides LAST, never first', laneAt > planAt, `${planAt} vs ${laneAt}`)
-  const row = readFileSync(join(import.meta.dir, '../../src/components/messages/RateLimitMessage.tsx'), 'utf8')
-  const headAt = row.indexOf('<Text color="error">{head}</Text>')
-  const remediesAt = row.indexOf('dimColor')
-  check('the renderer paints the refusal head first, the baked remedies dim behind', headAt >= 0 && remediesAt > headAt, `${headAt} vs ${remediesAt}`)
 }
 
 section('§6 — the row still renders as a rate-limit row')

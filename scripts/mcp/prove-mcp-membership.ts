@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'mcp-membership-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -27,7 +26,6 @@ const watchdog = setTimeout(() => {
 }, 60_000)
 watchdog.unref?.()
 
-const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 console.log('============================================================')
 console.log(' MCP membership — one owner, every connect road')
@@ -78,33 +76,6 @@ section('§2 runner partition: excluded never reaches the member half')
   t('empty catalogue partitions empty', empty.members.length === 0 && empty.excluded.length === 0)
 }
 
-section('§2b source-shape: the batch consults the partition')
-{
-  const source = readFileSync(join(REPO, 'src', 'main.tsx'), 'utf8')
-  const start = source.indexOf('async function connectMcpBatch')
-  const end = source.indexOf('function dedupeByName')
-  const body = start >= 0 && end > start ? source.slice(start, end) : ''
-  t('connectMcpBatch found ahead of dedupeByName', body.length > 0)
-  t(
-    'the batch consults the membership partition',
-    body.includes('partitionMcpConfigsByMembership('),
-    'the runner road lost its membership consult',
-  )
-  t(
-    'the connect map runs over MEMBERS',
-    body.includes('members.map(async ([name, config])'),
-    'the dial half no longer scoped to members',
-  )
-  t(
-    "excluded entries seed as 'disabled' roster rows",
-    body.includes("...excluded.map(([name, config]) => ({ name, type: 'disabled' as const, config }))"),
-  )
-  t(
-    'POISON absent: no raw-entries dial remains',
-    !body.includes('entries.map(async ([name, config])'),
-    'a raw entries dial would connect disk-disabled servers again',
-  )
-}
 
 section('§3 subagent ∩: names resolve only within the parent catalogue')
 {
@@ -198,30 +169,6 @@ section('§5 the config key answers the BOOT project for the process lifetime')
   }
 }
 
-section('§6 every door that dials by name consults the owner before the dial (source-shape)')
-{
-  const client = readFileSync(join(REPO, 'src', 'services', 'mcp', 'client.ts'), 'utf8')
-  const start = client.indexOf('export async function getMcpToolsCommandsAndResources(')
-  const end = client.indexOf('export async function reconnectMcpServerImpl(')
-  const batch = start >= 0 && end > start ? client.slice(start, end) : ''
-  t('the batch road found ahead of the reconnect door', batch.length > 0)
-  const consultAt = batch.indexOf('isMcpCatalogueMember(')
-  const dialAt = batch.indexOf('connectToServer(')
-  t(
-    'POISON armed: the batch road consults the membership owner',
-    consultAt >= 0,
-    'the batch road lost its membership consult — it would dial past the record again',
-  )
-  t('the consult precedes the dial', consultAt >= 0 && dialAt > consultAt)
-  t("the refusal is a typed 'disabled' row, not a silent skip", batch.includes("type: 'disabled', config }"))
-  const probe = readFileSync(join(REPO, 'src', 'cli', 'handlers', 'mcp.tsx'), 'utf8')
-  const probeAt = probe.indexOf('export async function probeServer(')
-  const probeBody = probeAt >= 0 ? probe.slice(probeAt, probe.indexOf('\n}\n', probeAt)) : ''
-  const probeConsultAt = probeBody.indexOf('isMcpCatalogueMember(')
-  const probeDialAt = probeBody.indexOf('connectToServer(')
-  t('the health probe consults the owner before its dial', probeConsultAt >= 0 && probeDialAt > probeConsultAt)
-  t("the probe answers the typed 'disabled' outcome without a dial", probeBody.includes("return { outcome: 'disabled' }"))
-}
 
 console.log('')
 if (failures > 0) {

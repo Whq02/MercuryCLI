@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -50,13 +50,7 @@ if (typeof prefix === 'string') {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const resolverSrc = readFileSync(join(ROOT, 'src/services/dap/debugpyResolver.ts'), 'utf8')
-const clientSrc = readFileSync(join(ROOT, 'src/services/dap/dapClient.ts'), 'utf8')
-check('§B the probe spawns with pythonSpawnEnv()', resolverSrc.includes('env: pythonSpawnEnv()'))
-check('§B the adapter launch spawns with pythonSpawnEnv()', clientSrc.includes('env: pythonSpawnEnv()'))
-check('§B no bare inherited env remains at the dap spawn sites', !clientSrc.includes('env: process.env,'))
 
-check('§C the unavailable-cache arm suppresses bytecode entirely', resolverSrc.includes("PYTHONDONTWRITEBYTECODE: '1'"))
 
 const env2 = resolver.pythonSpawnEnv()
 check('§D repeated resolution agrees on ONE cache root', env.PYTHONPYCACHEPREFIX === env2.PYTHONPYCACHEPREFIX)

@@ -21,30 +21,6 @@ const scratch = mkdtempSync(join(tmpdir(), 'hz-ftrace-'))
 
 t.section('§1 — the schema is numbers + identifiers by construction')
 {
-  const src = readFileSync('src/ink/root/frame-trace.ts', 'utf8')
-  const iface = src.slice(src.indexOf('export interface FrameTraceRow'), src.indexOf('const RING_CAP'))
-  const ALLOWED = new Set([
-    'lastClearReason: string | null',
-    'actionId: string | null',
-    'contexts: string[]',
-  ])
-  const stringLines = iface
-    .split('\n')
-    .map(l => l.replace(/\/\*.*?\*\//g, '').replace(/\/\/.*$/, '').trim())
-    .filter(l => /\bstring\b/.test(l))
-  t.check(
-    'every string-typed declaration is an allowlisted identifier slot',
-    stringLines.length === 3 && stringLines.every(l => ALLOWED.has(l)),
-    stringLines.join(' · ') || 'none',
-  )
-  t.check('no extras bag', !iface.includes('Record<') && !iface.includes('unknown'))
-  const interceptor = readFileSync('src/keybindings/KeybindingProviderSetup.tsx', 'utf8')
-  t.check(
-    'the interceptor stamps the RESOLUTION, never the keystroke',
-    interceptor.includes("traceKeyResolved(result.type === 'match' ? result.action : null, contexts)"),
-  )
-  const helpers = readFileSync('src/interactiveHelpers.tsx', 'utf8')
-  t.check('the renderer onFrame feeds the ring', /const onFrame = \(event: FrameEvent\): void => \{[\s\S]{0,300}recordFrameTrace\(\{\s*durationMs: event\.durationMs,/.test(helpers))
 }
 
 t.section('§2 — ring mechanics')

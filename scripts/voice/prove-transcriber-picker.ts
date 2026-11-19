@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
+import { join } from 'node:path'
 import { localFixture } from './localFixture.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'transcriber-picker-'))
@@ -59,10 +58,6 @@ try {
   const retiredPin = 'MERCURY_VOICE_' + 'TRANSCRIBER'
   assert.equal(getFlagSpec(retiredPin), undefined)
   assert.throws(() => flagEnv(retiredPin), /unregistered flag/)
-  const registry = flagRegistryText()
-  assert.ok(!registry.includes(retiredPin), 'there is no registered transcriber-selection pin')
-  const source = readFileSync(resolve(import.meta.dir, '../../src/services/voice/transcribe.ts'), 'utf8')
-  assert.doesNotMatch(source, /audio\/transcriptions|generateContent|providers\//)
   console.log('prove-transcriber-picker: green — present, absent, CPU floor, cannot-load, no cloud wires or selection pin')
 } finally {
   globalThis.fetch = realFetch

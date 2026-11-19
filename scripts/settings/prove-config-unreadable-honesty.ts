@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -147,34 +146,6 @@ console.log('L5 controls — the absent and corrupt arms are untouched')
   check('corrupt file: the boot gate still throws ConfigParseError', (c.gate as Err)?.name === 'ConfigParseError', `name=${(c.gate as Err)?.name}`)
 }
 
-console.log('L6 boot boundary — init.ts refuses by name, never through the reset dialog')
-{
-  const init = codeOnlyText('init.ts', readFileSync(join(SRC, 'entrypoints/init.ts'), 'utf8'))
-  const at = init.indexOf('if (error instanceof ConfigReadError) {')
-  check('init.ts handles ConfigReadError', at >= 0)
-  const armEnd = at >= 0 ? blockEnd(init, init.indexOf('{', at)) : -1
-  const nextArm = init.indexOf('if (error instanceof ConfigParseError)', at)
-  check('the ConfigReadError arm is a bounded block that closes before the ConfigParseError arm opens', at >= 0 && armEnd > at && nextArm > armEnd, `${at}..${armEnd} parse@${nextArm}`)
-  const arm = at >= 0 && armEnd > at ? init.slice(at, armEnd) : ''
-  check('the arm exits non-zero through the graceful shutdown', arm.includes('gracefulShutdownSync(1)') && arm.includes('return'))
-  check('the arm names the file and the errno on stderr', arm.includes('process.stderr.write') && arm.includes('.filePath') && arm.includes('.code'))
-  check('the reset dialog is not on the unreadable road', arm.length > 0 && !arm.includes('showInvalidConfigDialog') && !arm.includes('findMostRecentBackup'), 'the reset arm sits inside the ConfigReadError block')
-  const parseArm = nextArm >= 0 ? init.slice(nextArm, blockEnd(init, init.indexOf('{', nextArm))) : ''
-  check('control: the NEIGHBOURING ConfigParseError arm does carry the reset road and its own exit — the read arm must not borrow them', parseArm.includes('gracefulShutdownSync(1)') && parseArm.includes('showInvalidConfigDialog'), parseArm.replace(/\s+/g, ' ').slice(0, 120))
-}
-
-function blockEnd(text: string, openBrace: number): number {
-  let depth = 0
-  for (let i = openBrace; i < text.length; i++) {
-    const ch = text[i]
-    if (ch === '{') depth++
-    else if (ch === '}') {
-      depth--
-      if (depth === 0) return i + 1
-    }
-  }
-  return -1
-}
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

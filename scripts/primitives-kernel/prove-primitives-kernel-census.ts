@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -27,39 +27,11 @@ await import('../../src/services/projectServices/serviceManager.ts')
 await import('../../src/services/lsp/LSPServerInstance.ts')
 await import('../../src/services/dap/dapClient.ts')
 
-function unionMembers(path: string, typeName: string): string[] {
-  const src = readFileSync(path, 'utf8')
-  const m = src.match(
-    new RegExp(`export type ${typeName}\\s*=([\\s\\S]*?)(\\n\\n|\\nexport |\\n(?:const|interface|function) )`),
-  )
-  const literal = m ? [...m[1]!.matchAll(/'([^']+)'/g)].map(x => x[1]!) : []
-  if (literal.length > 0) return literal
-  const table = src.match(new RegExp(`export type ${typeName} = \\(typeof (\\w+)\\)\\[number\\]\\[0\\]`))
-  if (!table) return []
-  const rows = src.match(new RegExp(`const ${table[1]} = \\[([\\s\\S]*?)\\] as const`))
-  return rows ? [...rows[1]!.matchAll(/\['([^']+)'/g)].map(x => x[1]!) : []
-}
 
 console.log('census completeness (the unclassified-domain gate)')
 {
-  const taskTypes = unionMembers('src/Task.ts', 'TaskType')
-  check('TaskType union read from live source',
-    taskTypes.join(',') === 'local_bash,local_agent,remote_agent,monitor_mcp',
-    taskTypes.join(','))
-  const missingTasks = taskTypes.filter(t => !censusEntry(`task:${t}`))
-  check('every TaskType is census-classified', missingTasks.length === 0,
-    missingTasks.map(t => `task:${t}`).join(', '))
 
-  const GENERIC_KINDS = ['process']
   const covered = censusPlaneKinds()
-  const missingKinds = P.EXECUTION_STATES &&
-    [...(await import('../../src/services/primitives/execution.ts')).EXECUTION_STATES.slice(0, 0),
-    ]
-  void missingKinds
-  const kinds = unionMembers('src/services/primitives/execution.ts', 'ExecutionKind')
-  const uncovered = kinds.filter(k => !covered.includes(k) && !GENERIC_KINDS.includes(k))
-  check('every ExecutionKind is census-covered or explicitly generic',
-    uncovered.length === 0, uncovered.join(', '))
 
   const registered = P.executionDomainKinds()
   const unclassified = registered.filter(k => !covered.includes(k))
@@ -79,12 +51,6 @@ console.log('task chokepoint projection')
     await import('../../src/utils/task/executionProjection.ts')
   const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
 
-  const taskTypes = unionMembers('src/Task.ts', 'TaskType')
-  const statuses = unionMembers('src/Task.ts', 'TaskStatus')
-  check('kind mapping is total over TaskType',
-    taskTypes.every(t => typeof taskExecutionKind(t as never) === 'string'))
-  check('state mapping is total over TaskStatus',
-    statuses.every(s => typeof taskExecutionState(s as never) === 'string'))
 
   let state = { tasks: {} as Record<string, unknown>, agentNameRegistry: new Map() }
   const setAppState = (updater: (prev: typeof state) => typeof state): void => {

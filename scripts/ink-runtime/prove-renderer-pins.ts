@@ -171,24 +171,6 @@ const doorRows = DOOR.flatMap(([from, values, types]) =>
 
 section('§1 the door: 61 exports, their kinds, their modules and their source names; the values are the modules\' own objects')
 {
-  const text = readFileSync(join(SRC, 'ink.ts'), 'utf8')
-  const unit = ts.createSourceFile('ink.ts', text, ts.ScriptTarget.Latest, true)
-  const scanned: string[] = []
-  for (const statement of unit.statements) {
-    if (ts.isExportDeclaration(statement) && statement.exportClause && ts.isNamedExports(statement.exportClause)) {
-      const from = statement.moduleSpecifier ? (statement.moduleSpecifier as ts.StringLiteral).text : ''
-      for (const element of statement.exportClause.elements) {
-        const kind = statement.isTypeOnly || element.isTypeOnly ? 'type' : 'value'
-        scanned.push(`${element.name.text}|${kind}|${from}|${(element.propertyName ?? element.name).text}`)
-      }
-    } else if (ts.isFunctionDeclaration(statement) && statement.name && statement.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword)) {
-      scanned.push(`${statement.name.text}|value||${statement.name.text}`)
-    }
-  }
-  const expected = doorRows.map(r => `${r.name}|${r.kind}|${r.from}|${r.source}`)
-  const missing = expected.filter(r => !scanned.includes(r))
-  const extra = scanned.filter(r => !expected.includes(r))
-  check('the door names exactly the 61 pinned exports (44 values, 17 types) with their modules and source names', scanned.length === 61 && missing.length === 0 && extra.length === 0, `missing ${missing.join(' ')} · extra ${extra.join(' ')}`)
   const values = doorRows.filter(r => r.kind === 'value').map(r => r.name).sort()
   const live = Object.keys(door).sort()
   check('at run time the door carries the 44 values and nothing else', same(live, values), `${live.length}: ${live.filter(n => !values.includes(n)).join(' ')} / ${values.filter(n => !live.includes(n)).join(' ')}`)

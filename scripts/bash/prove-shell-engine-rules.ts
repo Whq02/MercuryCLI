@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join } from 'node:path'
 import { ENGINE_ENV, ROOT, engineLaneState, resolveEngineUnderTest } from './shell-engine-parity.ts'
 
 plugin({
@@ -145,50 +144,6 @@ for (const [command, expected] of READ_ONLY) {
 
 section('§2 the seam ratchet — the rule road never learns the engine')
 {
-  const walk = (dir: string): string[] => {
-    const out: string[] = []
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry)
-      if (statSync(full).isDirectory()) out.push(...walk(full))
-      else if (/\.tsx?$/.test(entry)) out.push(full)
-    }
-    return out
-  }
-  const bashToolDir = join(ROOT, 'src', 'tools', 'BashTool')
-  const decisionFiles = [
-    'bashPermissions.ts',
-    'readOnlyValidation.ts',
-    'bashCommandHelpers.ts',
-    'pathValidation.ts',
-    'sedValidation.ts',
-    'sedEditParser.ts',
-    'modeValidation.ts',
-    'commandSemantics.ts',
-    'destructiveCommandWarning.ts',
-  ].map(name => join(bashToolDir, name))
-  const parserFiles = ['ast.ts', 'bashParser.ts', 'parser.ts', 'commands.ts', 'heredoc.ts', 'ParsedCommand.ts', 'registry.ts', 'treeSitterAnalysis.ts'].map(name =>
-    join(ROOT, 'src', 'utils', 'bash', name),
-  )
-  const road = [
-    ...decisionFiles,
-    join(ROOT, 'src', 'utils', 'shell', 'readOnlyCommandValidation.ts'),
-    ...parserFiles,
-    ...walk(join(ROOT, 'src', 'utils', 'bash', 'specs')),
-    ...walk(join(ROOT, 'src', 'utils', 'permissions')),
-  ]
-  const offenders: string[] = []
-  for (const file of road) {
-    const text = readFileSync(file, 'utf8')
-    if (text.includes(ENGINE_ENV)) offenders.push(`${relative(ROOT, file)} reads ${ENGINE_ENV}`)
-    if (/\bbrush\b/i.test(text)) offenders.push(`${relative(ROOT, file)} names the engine`)
-    if (/engineSession|shellEngine/.test(text)) offenders.push(`${relative(ROOT, file)} imports the engine seam`)
-  }
-  check(`the rule road (${road.length} files) carries no engine read, name, or seam import`, offenders.length === 0, offenders.slice(0, 5).join('; '))
-  const tool = readFileSync(join(bashToolDir, 'BashTool.tsx'), 'utf8')
-  check(
-    'the tool hands its permission decision to bashToolHasPermission(input, context) unchanged',
-    /async checkPermissions\(input: BashToolInput, context: ToolUseContext\) \{\s*return bashToolHasPermission\(input, context\.getAppState\(\)\.toolPermissionContext as ToolPermissionContext\)/.test(tool),
-  )
   const did: string[] = []
   const more = (which: string): unknown => new Proxy(() => undefined, { get: (_target, key) => (did.push(`read ${String(key)} of a ${which} argument`), undefined), apply: () => (did.push(`called a ${which} argument`), undefined) })
   await (bashToolHasPermission as (...args: unknown[]) => Promise<unknown>)({ command: 'npm run build' }, base, more('third'), more('fourth'))

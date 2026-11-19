@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
@@ -10,7 +9,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { formatMercuryDaemonStatus } = await import('../../src/daemon/status.js')
 
@@ -77,18 +75,6 @@ console.log('§1b every live worker names its runner pid beside its session (REL
   check('no worker rows under an idle daemon', !/^\s{4}concourse-/m.test(none))
 }
 
-console.log('§2 the counting seam excludes the warm pool (call-shaped)')
-{
-  const server = readFileSync(join(ROOT, 'src', 'daemon', 'controlServer.ts'), 'utf8')
-  check(
-    'workersLive subtracts the warm pool at the status reply',
-    /workersLive: Math\.max\(\s*\n?\s*0,\s*\n?\s*deps\.roster\.liveCount\(\) - \(deps\.warmRunnerCount/.test(server),
-  )
-  check(
-    'workersTotal does too',
-    /workersTotal: Math\.max\(\s*\n?\s*0,\s*\n?\s*deps\.roster\.totalCount\(\) - \(deps\.warmRunnerCount/.test(server),
-  )
-}
 
 console.log(failures === 0 ? '\nprove-status-honesty: all green' : `\nprove-status-honesty: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

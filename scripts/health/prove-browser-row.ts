@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -42,7 +41,4 @@ const { interfaceChecks } = await import('../../src/utils/health/sections/interf
 const listed = interfaceChecks().filter(row => row.id === 'iface-browser')
 assert.equal(listed.length, 1)
 assert.deepEqual({ label: listed[0]!.label, probe: listed[0]!.probe, depth: listed[0]!.depth }, { label: 'Browser', probe: 'configuration', depth: 'fast' })
-const resolver = readFileSync(new URL('../../src/services/browser/browserResolver.ts', import.meta.url), 'utf8')
-const description = resolver.slice(resolver.indexOf('export function describeBrowserReadiness'), resolver.indexOf('export function browserVersionOf'))
-assert.ok(!description.includes('browserVersionOf(') && !description.includes('execFileSync(') && !description.includes('installManagedBrowser('))
 console.log('PASS browser row JSON and plain words for managed, pinned, absent and broken browsers; no browser is executed')

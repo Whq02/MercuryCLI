@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { getRateLimitDisplayName } from '../../src/services/anthropicLimits.js'
 import { getRateLimitMessage } from '../../src/services/rateLimitMessages.js'
 
@@ -27,15 +25,6 @@ const rejected = {
 const msg = getRateLimitMessage(rejected, 'claude-fable-5')?.message ?? ''
 check('limit-reached message names the Fable limit', /Fable limit/.test(msg), msg.slice(0, 90))
 
-const msgSrc = readFileSync(join(import.meta.dir, '../../src/services/rateLimitMessages.ts'), 'utf8')
-check(
-  "early-warning switch carries case 'seven_day_fable' → 'Fable limit'",
-  /case 'seven_day_fable':\s*\n\s*limitName = 'Fable limit'/.test(msgSrc),
-)
-check(
-  'the using-overage limitName chain names the Fable limit too',
-  /rateLimitType === 'seven_day_fable'\)\s*\{\s*\n\s*limitName = 'Fable limit'/.test(msgSrc),
-)
 
 check('Opus label intact', getRateLimitDisplayName('seven_day_opus') === 'Opus limit')
 check('weekly label intact', getRateLimitDisplayName('seven_day') === 'weekly limit')

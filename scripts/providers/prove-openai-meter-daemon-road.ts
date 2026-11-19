@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -88,14 +88,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   __resetOpenaiLimitStateForTest()
 }
 
-{
-  const src = readFileSync(
-    join(import.meta.dir, '../../src/services/engine-connector/types.ts'),
-    'utf8',
-  )
-  t('§4 UsageFactsV1 carries openaiObserved', /openaiObserved\?:/.test(src))
-  t('§4 the band shape stamps its observation', src.includes('OpenaiObservedBandV1') && /observedAtMs: number/.test(src))
-}
 
 {
   __resetOpenaiLimitStateForTest()

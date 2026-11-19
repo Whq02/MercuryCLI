@@ -16,8 +16,6 @@ console.log(' the proof run root keeps the daemon socket within the bound')
 console.log('============================================================')
 
 const productBound = Number(/SUN_PATH_SAFE_MAX = (\d+)/.exec(readFileSync(join(root, 'src/daemon/controlSocket.ts'), 'utf8'))?.[1])
-const runnerBound = Number(/^suite_socket_bound=(\d+)$/m.exec(readFileSync(join(root, 'scripts/lib/suite-env.sh'), 'utf8'))?.[1])
-check("the runner budgets the preferred socket path against the product's own bound", Number.isInteger(productBound) && runnerBound === productBound, `product ${productBound}, runner ${Number.isNaN(runnerBound) ? 'none' : runnerBound}`)
 
 const socketPathUnder = (base: string): string => `${base}/mercury-proof-run.XXXXXX/config-home/daemon/control.sock`
 const fits = (base: string): boolean => Buffer.byteLength(socketPathUnder(base), 'utf8') <= productBound

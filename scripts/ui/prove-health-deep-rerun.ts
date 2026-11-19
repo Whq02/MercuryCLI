@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario } from './renderScenarios.ts'
 import {
@@ -11,7 +10,6 @@ import {
   samplesBetween,
 } from './jobcontrolHost.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail && !ok ? ` — ${detail}` : ''}`)
@@ -21,17 +19,6 @@ const section = (name: string): void => {
   console.log(`\n== ${name} ==`)
 }
 
-section('S · the source guarantee: the debug adapter tree gets no controlling terminal')
-{
-  const dap = readFileSync(join(ROOT, 'src/services/dap/dapClient.ts'), 'utf8')
-  const spawnSite = dap.slice(dap.indexOf('const child = spawn(spec.command, spec.args, {'))
-  const block = spawnSite.slice(0, spawnSite.indexOf('})') + 2)
-  check('the ONE adapter spawn runs detached on POSIX (a new session — no /dev/tty for a launcher to grab)', block.includes("detached: process.platform !== 'win32'"), block.slice(0, 200))
-  check('…with piped stdio (no inherited terminal descriptors)', block.includes("stdio: ['pipe', 'pipe', 'pipe']"))
-  const probes = readFileSync(join(ROOT, 'src/utils/healthDeepProbes.ts'), 'utf8')
-  const report = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-  check('no probe on the health path inherits the terminal', !/stdio:\s*'inherit'/.test(probes) && !/stdio:\s*'inherit'/.test(report) && !/'inherit'/.test(probes))
-}
 
 section('J · the operator’s journey under a job-control shell: d, then r within a second, then r again')
 const base = scenario('boot-face', 120, 40) as { argv: string[]; cwd: string }

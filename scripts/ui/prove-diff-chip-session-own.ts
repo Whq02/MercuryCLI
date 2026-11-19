@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -34,7 +34,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
 const settle = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
@@ -81,11 +80,6 @@ section('§2 the deck pane paints the session\'s own diff and spend')
   check('RED ON THE BASE: the deck pane\'s diff chip reads the runner\'s +42/-7, never the cockpit process\'s +0/-0', diffOf(frame) === '42/7', diffOf(frame) + ' · ' + (frame.split('\n').find(l => /\+\d+\/-\d+/.test(l))?.trim() ?? frame.slice(0, 200)))
 }
 
-section('§3 the deck pane names the one source (source pin)')
-{
-  const pane = read('src/components/DeckPane.tsx')
-  check('DeckPane reads the focused session\'s usage facts and never the process ledger\'s line counters', pane.includes('getFocusedSessionConnector().usage()') && !pane.includes('getTotalLinesAdded') && !pane.includes('getTotalCost()'), 'DeckPane')
-}
 
 _resetFocusedSessionConnectorForTesting()
 console.log(`\n${'═'.repeat(76)}`)

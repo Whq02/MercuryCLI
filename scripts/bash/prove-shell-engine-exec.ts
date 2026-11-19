@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ENGINE_ENV, ROOT, engineLaneState, resolveEngineUnderTest, type Engine } from './shell-engine-parity.ts'
@@ -427,10 +427,6 @@ section('§15 an abort with the interrupt reason (the steer road): kept for the 
   const late = await spawnShellTask({ command: 'late probe', description: 'late probe', shellCommand: finished }, taskContext)
   check('a command that already ended is refused on both engines (accepted false)', late.accepted === false, `accepted=${String(late.accepted)}`)
   finished.cleanup()
-  const bashSrc = readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8')
-  const psSrc = readFileSync(join(ROOT, 'src/tools/PowerShellTool/PowerShellTool.tsx'), 'utf8')
-  check('the Bash tool never sets a background id on a refused spawn (the steer and the explicit road)', (bashSrc.match(/if \(handle\.accepted === false\)/g) ?? []).length === 2 && /if \(handle\.accepted === false\) return\n\s*backgroundId = handle\.taskId/.test(bashSrc))
-  check('the PowerShell tool keeps the same guard on both roads (parity)', (psSrc.match(/if \(handle\.accepted === false\)/g) ?? []).length === 2 && /if \(handle\.accepted === false\) return\n\s*backgroundId = handle\.taskId/.test(psSrc))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

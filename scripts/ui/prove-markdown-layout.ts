@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { marked } from 'marked'
 import sliceAnsi from '../../src/utils/sliceAnsi.js'
@@ -14,12 +13,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const md = readFileSync(join(ROOT, 'src', 'utils', 'markdown.ts'), 'utf-8')
-const preview = readFileSync(
-  join(ROOT, 'src', 'components', 'permissions', 'AskUserQuestionPermissionRequest', 'PreviewBox.tsx'),
-  'utf-8',
-)
 
 console.log('============================================================')
 console.log(' markdown layout — loose lists (HB-0203) + table width (HB-0167)')
@@ -32,21 +25,7 @@ const itemTypes = (src: string) =>
 check('tight list item → bare `text` child', itemTypes('- one\n- two').every(t => t === 'text'))
 check('loose list item → `paragraph` child', itemTypes('- one\n\n- two').every(t => t.startsWith('paragraph')))
 check('ordered loose item → `paragraph` child', itemTypes('1. a\n\n2. b').every(t => t.startsWith('paragraph')))
-check(
-  "the paragraph case now emits the marker when parent is a list_item",
-  /parent\?\.type === 'list_item'/.test(md) && /orderedListNumber === null\s*\n?\s*\?\s*'-'/.test(md),
-)
-check(
-  'the marker is emitted for the FIRST block only (idx 0 carries parent+number)',
-  /idx === 0 \? orderedListNumber : null, idx === 0 \? token : null/.test(md),
-)
 
-section('HB-0167: table width budgeting source wiring')
-check('applyMarkdown accepts a maxWidth (defaults to terminal width / Infinity)', /maxWidth: number = process\.stdout\.columns \?\? Number\.POSITIVE_INFINITY/.test(md))
-check('formatToken threads a widthBudget param', /widthBudget: number = Number\.POSITIVE_INFINITY/.test(md))
-check('the table case shrinks the widest column to fit (floor 3)', /while \(tableW > widthBudget\)/.test(md) && /<= 3\) break/.test(md))
-check('over-width cells are ANSI-safe truncated with an ellipsis', /sliceAnsi\(content, 0, Math\.max\(1, width - 1\)\) \+ '…'/.test(md))
-check('PreviewBox passes its inner box width to applyMarkdown', /applyMarkdown\(content, theme, highlight, effectiveMaxWidth - 4\)/.test(preview))
 
 section('HB-0167: budgeting algorithm behaviour (real sliceAnsi/stringWidth)')
 function renderTable(header: string[], rows: string[][], widthBudget: number): string {

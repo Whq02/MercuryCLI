@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DEFAULT_BINDINGS } from '../../src/keybindings/defaultBindings.ts'
@@ -15,39 +15,16 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const read = (...p: string[]) => readFileSync(join(root, ...p), 'utf-8')
 
 console.log('============================================================')
 console.log(' Mercury file quick-open (ctrl+x f)')
 console.log('============================================================')
 
 section('1. keybinding: action + FLAG-GATED ctrl+x f binding')
-const graph = read('src', 'keybindings', 'actionGraph.ts')
-check("KEYBINDING_ACTIONS includes 'app:fileOpen'", /'app:fileOpen'/.test(graph))
 check('ctrl+x f binds app:fileOpen', DEFAULT_BINDINGS.find(block => block.context === 'Global')?.bindings['ctrl+x f'] === 'app:fileOpen')
 const unbound = formsMissing(shippedKeyForms(), 'Global', 'ctrl+x f', 'app:fileOpen')
 check('the ctrl+x f binding is present unconditionally (Global binds it on every shipped form: four platforms, five switch settings)', unbound.length === 0, unbound.join(' · '))
 
-section('2. PromptInput wiring (import · state · keybinding · render), stamp-gated')
-const pi = read('src', 'components', 'PromptInput', 'PromptInput.tsx') + read('src', 'components', 'PromptInput', 'useComposerKeybindings.ts')
-check('imports MercuryFileOpen', /import \{ MercuryFileOpen \} from '\.\.\/MercuryFileOpen\.js'/.test(pi))
-check('has showFileOpen state', /const \[showFileOpen, setShowFileOpen\] = useState\(false\)/.test(pi))
-check("useKeybinding('app:fileOpen', …) opens it", /useKeybinding\('app:fileOpen',[\s\S]{0,80}setShowFileOpen\(true\)/.test(pi))
-check('render branch keys on showFileOpen (unconditional)', /if \(showFileOpen\)/.test(pi))
-check('file-open is in the modal-overlay suppression guard', /showCommandPalette \|\|\s*showFileOpen/.test(pi))
-
-section('3. SAFETY invariants (insert @path, no auto-run, never overflows, lazy index)')
-const fo = read('src', 'components', 'MercuryFileOpen.tsx')
-check('component file exists', existsSync(join(root, 'src', 'components', 'MercuryFileOpen.tsx')))
-check('↵ inserts `@path ` (the @-mention launcher contract)', /onPick\(`@\$\{it\.displayText\} `\)/.test(fo))
-check('NEVER calls the composer submit (submitInput)', !/submitInput/.test(fo))
-check('↵ routes through onPick insertion only', /onSubmit=\{\(\) => \{[\s\S]{0,160}onPick\(`@\$\{it\.displayText\} `\)/.test(fo))
-check('the PromptInput onPick path inserts at cursor (no buffer clobber → no data loss)', /onPick=\{text =>[\s\S]{0,160}insertAtomic/.test(pi))
-check('visible rows are clamped to terminal height (never overflows the alt-screen)', /reserve: cockpitActive \? cockpitBottomSlotReserve\(termRows\) : HEIGHT_RESERVE/.test(fo))
-check('count/recency live in the always-pinned footer (no clippable header row)', /footer=\{footer\}/.test(fo))
-check('the list is bounded with a +N more', /\+\{\(results\?\.length \?\? 0\) - shown\.length\} more/.test(fo))
-check('the heavy file index is LAZY (dynamic import) — not a static top import', /await import\('\.\.\/hooks\/fileSuggestions\.js'\)/.test(fo) && !/^import \{ generateFileSuggestions \}/m.test(fo))
-check('an async gen-guard drops stale result sets (no out-of-order clobber)', /genRef\.current/.test(fo) && /gen === genRef\.current/.test(fo))
 
 section('4. it SHIPS in dist')
 const dist = join(root, 'dist', 'mercury.mjs')

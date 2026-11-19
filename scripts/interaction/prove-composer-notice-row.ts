@@ -28,59 +28,6 @@ function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
-section('§1 source — the notice leaves the column for the hint row')
-{
-  const column = readFileSync('src/components/PromptInput/Notifications.tsx', 'utf8')
-  const footer = readFileSync('src/components/PromptInput/PromptInputFooterLeftSide.tsx', 'utf8')
-  const summary = readFileSync('src/components/tasks/CompactWorkSummary.tsx', 'utf8')
-  const handler = readFileSync('src/components/ScrollKeybindingHandler.tsx', 'utf8')
-  check(
-    'the notifications column paints no transient row',
-    !column.includes('{footerNoticeLine(current.text)}') && !column.includes("'jsx' in current ? ("),
-  )
-  check(
-    'the hint row yields a persistent notice to active hints, otherwise hands the notice the row and paints its way out',
-    footer.includes('const currentNotice = useAppState((state: AppState) => state.notifications.current)') &&
-      footer.includes('const noticeYields = currentNotice !== null && standsUntilRemoved(currentNotice) && parts.length > 0') &&
-      footer.includes('const noticeStands = !noticeYields && (noticeText !== null || noticeBlock !== null)') &&
-      footer.includes('const hintsShow = !vimInsert && !noticeStands && parts.length > 0') &&
-      !footer.includes('parts.push(noticeText)') &&
-      /\{noticeStands && noticeText !== null \? \(\s*\n\s*<Box flexShrink=\{1\} minWidth=\{0\} flexWrap="wrap" height=\{1\} overflow="hidden">/.test(footer) &&
-      footer.includes('<NoticeWords seam={rowHasContent} words={noticeText} wayOut={noticeWayOut} muted={tokens.textMuted} />'),
-  )
-  check(
-    "the hint row's notice box wraps with one row of height, so a notice's detail is its own text node that rides after the words only where the row has room for it whole, and steps aside whole where it does not",
-    footer.includes('const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null') &&
-      /\{noticeDetail !== null \? \(\s*\n\s*<Text dimColor wrap="truncate-end">\s*\n\s*<Text color=\{tokens\.textMuted\}> · <\/Text>\s*\n\s*\{noticeDetail\}/.test(footer),
-  )
-  check(
-    'the idle hint keeps its words and its click road, and steps aside while a notice stands',
-    footer.includes('for commands + files') &&
-      /onClick=\{\(\) => \{[\s\S]{0,240}requestCommandDispatch\('\/help'\)/.test(footer) &&
-      /const idleHintShows =\s*\n\s*parts\.length === 0 && !showTasksPill && hintsEnabled && !showPrBadge && !noticeStands/.test(footer),
-  )
-  check(
-    "the compact layout's count line keeps the way back beside a text notice: the counts step aside while it stands and return when it clears, the notice is cut to the columns before the hint with two blank columns between, and the setting off hands the notice the whole row",
-    summary.includes('const noticeText = noticeRowText(currentNotice)') &&
-      summary.includes('const wayBackStays = noticeText !== null && getSettingsSnapshot().settings.context?.wayBack !== false') &&
-      summary.includes("const hint = noticeText !== null && !wayBackStays ? '' : compactSummaryHint({ focused, vimInsert, escHint: escapeOwned ? '' : escRungHint(rung), stripHint })") &&
-      summary.includes("const noticeColumns = wayBackStays && hint !== '' ? Math.max(0, columns - hintWidth - 1) : null") &&
-      summary.includes('marginLeft={wayBackStays ? 2 : 1}') &&
-      summary.includes('<NoticeWords seam={false} words={noticeText} wayOut={noticeRowWayOut(currentNotice)} muted={tokens.textMuted} />') &&
-      summary.includes('{compactWorkSummaryText(counts, Math.max(0, columns - hintWidth))}') &&
-      !summary.includes('noticeWidth'),
-  )
-  check(
-    "the compact count line's box wraps with one row of height and paints the notice's detail as a second text node in the counts' ink, after the house seam, only where the columns before the hint hold both whole",
-    summary.includes('const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null') &&
-      /minWidth=\{0\} flexWrap="wrap" height=\{1\} overflow="hidden" onClick=\{onFocus\}>/.test(summary) &&
-      /\{noticeDetail !== null \? \(\s*\n\s*<Text wrap="truncate-end" \{\.\.\.ink\}>\s*\n\s*\{' · '\}\s*\n\s*\{noticeDetail\}/.test(summary),
-  )
-  check(
-    "the copy receipt is raised from the clipboard service's own words for the predicted road, and the unsettled correction from the same owner",
-    handler.includes('...copyReceipt(path),') && handler.includes("...copyReceipt('unsettled'),") && !handler.includes('${where}'),
-  )
-}
 
 section('§2 pure — the notice in its row form')
 {

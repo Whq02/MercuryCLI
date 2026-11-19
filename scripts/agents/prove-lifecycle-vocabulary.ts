@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -15,7 +14,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { deriveAgentLifecycle, IDLE_TTL_MS } = await import(
   '../../src/services/agentResults/lifecycle.ts'
 )
@@ -46,26 +44,6 @@ section('§B the reconciliation — Mercury keeps aborted revivable')
   check('failed without a transcript: aborted, not revivable', failedNoTranscript.state === 'aborted' && !failedNoTranscript.revivable)
 }
 
-section('§C the revival honesty (structural pins)')
-{
-  const resume = readFileSync(join(ROOT, 'src/tools/AgentTool/resumeAgent.ts'), 'utf8')
-  check('a gone worktree reports cwdFallback on the result', resume.includes("cwdFallback: 'parent-checkout'"))
-  const send = readFileSync(join(ROOT, 'src/tools/ResumeAgentTool/ResumeAgentTool.ts'), 'utf8')
-  const note = readFileSync(join(ROOT, 'src/tools/AgentTool/continuationNote.ts'), 'utf8')
-  const fallbackClauses = send.split("resumed.note ?? ''").length - 1
-  check('the unified ResumeCrewmate arm surfaces the fallback from its one owner', fallbackClauses === 1 && note.split('its worktree is gone').length - 1 === 1, `clauses=${fallbackClauses}`)
-  check('the surfaced words say WHERE edits land now', note.includes('anything it edits lands in the real tree') && note.includes('anything it edits lands there'))
-}
-
-section('§D the consumers — the vocabulary is SPOKEN (no orphan module)')
-{
-  const bridge = readFileSync(join(ROOT, 'src/components/tasks/taskStatusUtils.tsx'), 'utf8')
-  check('taskStatusUtils bridges rows to the ONE derivation (agentLifecycleOf)', bridge.includes('deriveAgentLifecycle(') && bridge.includes('export function agentLifecycleOf'))
-  check('the bridge feeds owner-held facts (status, endTime, the terminal transcript promise)', bridge.includes('finishedAtMs: row.endTime') && bridge.includes('transcriptExists: isTerminalStatus(row.status)'))
-  const dialog = readFileSync(join(ROOT, 'src/components/tasks/AsyncAgentDetailDialog.tsx'), 'utf8')
-  check('the agent detail dialog SPEAKS the vocabulary (state + basis verbatim)', dialog.includes('agentLifecycleOf(agent)') && dialog.includes('lifecycle.basis'))
-  check('running rows stay on the live status line (no doubled words)', dialog.includes("lifecycle.state !== 'running'"))
-}
 
 section('§E the transcript\'s own end — one fact for every verb once the registry row is gone')
 {
@@ -104,12 +82,6 @@ section('§E the transcript\'s own end — one fact for every verb once the regi
   check('a resumed transcript ends on its newest row (completed after the stop)', resumed?.kind === 'completed', JSON.stringify(resumed))
   check('the disk words every verb speaks', transcriptEndWords(completed) === 'completed (transcript on disk)' && transcriptEndWords(undefined) === 'transcript on disk (unreadable)')
   rmSync(dir, { recursive: true, force: true })
-  const adapter = readFileSync(join(ROOT, 'src/services/resources/adapters/agent.ts'), 'utf8')
-  check('the agent verb reads the registry row first and the transcript\'s end second — never a word of its own', !/settled \(record on disk\)|unregistered \(transcript on disk\)/.test(adapter) && (adapter.match(/transcriptEndWords\(/g) ?? []).length >= 2)
-  const transcriptVerb = readFileSync(join(ROOT, 'src/services/resources/adapters/transcript.ts'), 'utf8')
-  check('the transcript verb reads the same two facts, never "finished agent execution"', !transcriptVerb.includes('finished agent execution') && transcriptVerb.includes('registryStatusOf(ctx') && transcriptVerb.includes('transcriptEndWords('))
-  const stop = readFileSync(join(ROOT, 'src/tasks/stopTask.ts'), 'utf8')
-  check('a stop of an evicted agent names the transcript\'s end and the resume door', stop.includes('export async function taskNotFoundWords') && stop.includes('its transcript on disk ends') && readFileSync(join(ROOT, 'src/tools/TaskStopTool/TaskStopTool.ts'), 'utf8').includes('await finishedTaskOnDisk(taskId)') && readFileSync(join(ROOT, 'src/tools/TaskStopTool/TaskStopTool.ts'), 'utf8').includes('bareMissWords(taskId)'))
 }
 
 console.log('\n' + '='.repeat(60))

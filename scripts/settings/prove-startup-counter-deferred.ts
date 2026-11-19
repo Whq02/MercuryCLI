@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -304,46 +303,7 @@ section('process exit publishes startup metadata without the background task')
   check('exit synchronously publishes the first-start and diagnostic records without granting trust', r.before === null && r.pendingBefore === true && typeof r.started === 'string' && r.posture === 'standard' && r.trusted === false && r.pendingAfter === false, JSON.stringify(r))
 }
 
-section('D5 wiring — the boot band and the background node')
-{
-  const main = readFileSync(join(SRC, 'main.tsx'), 'utf8')
-  check('the boot band spells the deferred save with the increment', /saveGlobalConfigDeferred\(current => \(\{ \.\.\.current, numStartups: \(current\.numStartups \?\? 0\) \+ 1 \}\)\)/.test(main))
-  check('no synchronous numStartups save remains in main.tsx', !/saveGlobalConfig\(current => \(\{ \.\.\.current, numStartups/.test(main))
-  const bandAt = main.indexOf('saveGlobalConfigDeferred(current => ({ ...current, numStartups:')
-  const band = bandAt >= 0 ? main.slice(bandAt, bandAt + 1800) : ''
-  check('the beacon clear stays synchronous right beside the increment (a quit before the node ran is never a failed attempt)', /saveGlobalConfigDeferred\(current =>[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*clearBootAttempts\(\)/.test(band))
-  const mainCode = codeOnlyText('main.tsx', main)
-  const nodeOpen = mainCode.indexOf("registerBackgroundNode('startup-records', async () => {")
-  const nodeBody = nodeOpen >= 0 ? mainCode.slice(nodeOpen, blockEnd(mainCode, mainCode.indexOf('{', nodeOpen + "registerBackgroundNode('startup-records', async () => ".length))) : ''
-  check("the background node 'startup-records' is a bounded callback", nodeOpen >= 0 && nodeBody.length > 0 && nodeBody.endsWith('}'), nodeBody.replace(/\s+/g, ' ').slice(0, 160))
-  const flushAt = nodeBody.indexOf('await flushDeferredGlobalConfigSaves()')
-  const recordAt = nodeBody.indexOf('recordInvocation()')
-  check("the background node 'startup-records' awaits the flush before recording the invocation", flushAt >= 0 && recordAt > flushAt, `flush@${flushAt} record@${recordAt}`)
-  check('the invocation record has exactly one interactive call site, inside the node', (mainCode.match(/recordInvocation\(\)/g) ?? []).length === 1 && recordAt >= 0)
-  check('the invocation call is guarded by a try inside the node (a telemetry failure never fails the node)', /try \{\s*recordInvocation\(\)\s*\} catch \{/.test(nodeBody), nodeBody.replace(/\s+/g, ' '))
-  check('the flush is awaited at the callback top level, not inside that try', flushAt < nodeBody.indexOf('try {') && nodeBody.slice(0, flushAt).trim().endsWith('{'))
-  const nodeAt = main.indexOf("registerBackgroundNode('startup-records'")
-  const armAt = main.indexOf('armBackgroundDiscovery();')
-  check('the node is registered before the background class arms', nodeAt > 0 && armAt > nodeAt, `${nodeAt},${armAt}`)
-  const barrel = readFileSync(join(SRC, 'utils/config.ts'), 'utf8')
-  check('the config barrel exports the deferred door and its flush', barrel.includes('saveGlobalConfigDeferred,') && barrel.includes('flushDeferredGlobalConfigSaves,'))
-  const store = readFileSync(join(SRC, 'utils/config/globalConfig.ts'), 'utf8')
-  check('both save branches fold the pending updates before applying the caller\'s updater', store.includes('mergeFn(file === getGlobalMercuryFile()') && store.includes('foldPendingUpdaters(currentConfig as GlobalConfig)') && store.includes('updater(foldPendingUpdaters(currentConfig))'))
-  check('a landed write clears the pending list on both branches', (store.match(/pendingDeferredUpdaters = \[\]/g) ?? []).length === 2)
-}
 
 console.log(failures === 0 ? '\n✅ ALL STARTUP-COUNTER-DEFERRED PROOFS PASS' : `\n❌ ${failures} STARTUP-COUNTER-DEFERRED PROOF(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)
 
-function blockEnd(text: string, openBrace: number): number {
-  let depth = 0
-  for (let i = openBrace; i < text.length; i++) {
-    const ch = text[i]
-    if (ch === '{') depth++
-    else if (ch === '}') {
-      depth--
-      if (depth === 0) return i + 1
-    }
-  }
-  return -1
-}

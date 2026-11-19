@@ -23,7 +23,6 @@ Object.assign(process.env, {
 })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const NOW = Date.now()
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -172,8 +171,6 @@ section('§5 the wiring: the chat restores the held words to an empty composer a
   const expected = composer.pending.sanitizeComposerText(BRIEF)
   await composer.close()
   check('Chat mounts the hold over the focused transcript with the composer and the effective model', restored === expected && holding?.text === BRIEF && typeof holding.model === 'string' && holding.model !== '', `${JSON.stringify(restored.slice(0, 60))} · ${JSON.stringify(holding)}`)
-  const setup = readFileSync(join(ROOT, 'src/setup.ts'), 'utf8')
-  check('an interactive boot runs the sign-in check once at open', setup.includes('if (getIsInteractive() && !getIsNonInteractiveSession()) void signInsCheckedAtOpen()'))
   writeFileSync(join(HOME, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { accessToken: 'fixture-openai-access-0001', refreshToken: '' } }) + '\n', { mode: 0o600 })
   reread()
   const { credentialWallLine } = await import('../../src/services/providers/credentialWall.ts')

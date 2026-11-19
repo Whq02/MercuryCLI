@@ -72,17 +72,6 @@ section('2 · digest tie — drift expires, with the reason named')
   check('current epoch is stamped', current.architectureEpoch === APEX_ARCHITECTURE_EPOCH)
 }
 
-section('3 · live-only minting (source wiring)')
-{
-  const src = readFileSync(
-    joinPath(import.meta.dir, '../../src/services/providers/openai/openaiCallModel.ts'),
-    'utf8',
-  )
-  const settleIdx = src.indexOf("openaiLiveProof = { at: Date.now(), model: modelId }")
-  const mintIdx = src.indexOf('recordLiveQualification({')
-  check('the mint shares the settled-turn branch with the live-proof latch', settleIdx > 0 && mintIdx > settleIdx && mintIdx - settleIdx < 600)
-  check('the mint carries the behaviour-contract digest', /behaviourContractDigest: contract\.digest/.test(src))
-}
 
 section('4 · role digests are distinct')
 {

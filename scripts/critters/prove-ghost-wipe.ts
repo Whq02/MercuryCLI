@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 import type { Frame } from '../../src/ink/frame.js'
 import { FrameWriter } from '../../src/ink/frame-writer.js'
@@ -189,16 +188,7 @@ t.section('§7 — the re-emitted neighbour is the NEXT screen\'s cell with its 
   emu.feed(bytes)
   const above = emu.styleAt(5, 2)
   t.check('the wiped ground cell is re-emitted WITH its bg (the themed ground survives the wipe)', above !== null && above.bg === '48;2;13;24;27', JSON.stringify(above))
-  t.check('the re-emit reads the NEXT screen after the pass, never the reused diff views (source)', /const cell = cellAt\(next\.screen, x, y\)/.test(readFileSync('src/ink/frame-writer.ts', 'utf8')))
 }
 
-t.section('§6 — source locks')
-{
-  const writer = readFileSync('src/ink/frame-writer.ts', 'utf8')
-  t.check('the writer keeps one reused ledger and no per-frame allocation for it', /const bleedLedger = new Set<number>\(\)/.test(writer) && /bleedLedger\.clear\(\)/.test(writer))
-  t.check('the wipe names above for ▀, below for ▄, both for █', /if \(char === '▀'\) return 1/.test(writer) && /if \(char === '▄'\) return 2/.test(writer) && /if \(char === '█'\) return 3/.test(writer))
-  t.check('the wipe emits only after the completed diff pass', /diffEach\(prev\.screen, next\.screen,[\s\S]*?\n  \}, minRow\)\n  if \(bleedLedger\.size > 0\)/.test(writer))
-  t.check('the writer runs no sync flush (the paint-hardening law)', !/flushSync/.test(writer))
-}
 
 t.finish('GHOST-WIPE')

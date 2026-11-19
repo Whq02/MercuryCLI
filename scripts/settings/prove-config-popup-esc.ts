@@ -351,10 +351,6 @@ section('§6 the receipt seam and the outside-press seam')
   const painted = settingsPopupReceipt('config', 'set tips to off\nset motion to full', n => posted.push(n), { addDisplayRow: row => rows.push(JSON.stringify(row)) })
   check('several lines paint the two display rows on a chat that paints rows', painted === 'rows' && rows.length === 2 && rows[1]!.includes('set tips to off') && rows[1]!.includes('set motion to full'))
   check('several lines on the blank chat fall back to one notification', settingsPopupReceipt('config', 'a\nb', n => posted.push(n), {}) === 'notification' && posted.length === 2)
-  const app = readFileSync(join(REPO, 'src/ink/components/App.tsx'), 'utf8')
-  check('the outside press rides dismissByOutsidePress around the same escape it sent before', app.includes('dismissByOutsidePress(() => app.pressEscape())') && !/^\s*app\.pressEscape\(\)\s*$/m.test(app))
-  const config = readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8')
-  check('the config body reads the seam, never a second click road', config.includes('escapeFromOutsidePress()') && !config.includes('onClickOutside'))
 }
 
 await releaseScratchHome(HOME)

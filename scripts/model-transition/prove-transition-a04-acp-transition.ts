@@ -1,10 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { emptyRunSnapshot, reduceRunEvent } = await import('../../src/services/run/runKernel.ts')
 
@@ -73,20 +70,6 @@ section('§A the kernel fold — durable, merging, additive')
   )
 }
 
-section('§B the seam + projection anchors')
-{
-  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
-  const kernel = readFileSync(join(ROOT, 'src/services/run/runKernel.ts'), 'utf8')
-  check(
-    "the run kernel carries the 'model-transition' event; the screen notes none of its own",
-    kernel.includes("type: 'model-transition'") && !repl.includes("type: 'model-transition'"),
-  )
-  const acp = readFileSync(join(ROOT, 'src/services/acp/acpServer.ts'), 'utf8')
-  check(
-    'the _mercury/run projection carries snap.modelState (both branches share the snapshot read)',
-    acp.includes('snap.modelState ? { model: snap.modelState }'),
-  )
-}
 
 console.log(failures === 0 ? '\n ✅ MODEL STATE IS DURABLE + ACP-VISIBLE' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

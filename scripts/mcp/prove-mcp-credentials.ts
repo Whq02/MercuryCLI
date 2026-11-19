@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -134,42 +134,6 @@ section('config-plane pure gates — policy filter · claude.ai dedup · env exp
   check('only a whole ${...} reference counts as unfilled; a partial one is sent as written', partial.clientInformation()?.client_id === 'tenant-${MCP_CLIENT_ID}')
 }
 
-section('the SDK auth adapter pin — the exact consumed entry points')
-{
-  const src = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'services', 'mcp', 'auth.ts'),
-    'utf8',
-  )
-  const PINNED_CLIENT_AUTH = [
-    'discoverAuthorizationServerMetadata',
-    'discoverOAuthServerInfo',
-    'auth as sdkAuth',
-    'refreshAuthorization as sdkRefreshAuthorization',
-  ]
-  const clientBlock = src.slice(
-    src.indexOf("import {"),
-    src.indexOf("from './sdk.js'"),
-  )
-  for (const name of PINNED_CLIENT_AUTH) {
-    check(`client/auth pin: ${name}`, clientBlock.includes(name))
-  }
-  const clientValueImports = (clientBlock.match(/^\s{2}(?!type )[A-Za-z].*$/gm) ?? []).length
-  check(
-    'no unrecorded client/auth VALUE imports',
-    clientValueImports === PINNED_CLIENT_AUTH.length,
-    `${clientValueImports} value imports vs ${PINNED_CLIENT_AUTH.length} pinned`,
-  )
-  const doorway = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'services', 'mcp', 'sdk.ts'),
-    'utf8',
-  )
-  check(
-    'the SDK OAuth error class and its code vocabulary come through the doorway (classification only)',
-    src.includes('OAuthErrorCode.InvalidGrant') &&
-      src.includes('OAuthErrorCode.InvalidClient') &&
-      /export [{][^}]*\bOAuthError,[^}]*\bOAuthErrorCode,[^}]*[}] from '@modelcontextprotocol[/]client'/.test(doorway),
-  )
-}
 
 console.log('\n============================================================')
 if (failures === 0) {

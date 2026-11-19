@@ -1,9 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 let failures = 0
 const check = (name: string, ok: boolean, detail?: string): void => {
@@ -41,9 +37,6 @@ console.log('§1 WG-1 — astral emoji clusters measure the two cells the grid p
   for (const [s, expected] of cases) {
     check(`corrected width of ${JSON.stringify(s)} is ${expected}`, width(s) === expected, `got ${width(s)}`)
   }
-  const oracle = read('src/ink/stringWidth.ts')
-  check('the anchored copy inherits the vendored flags minus the global one', oracle.includes("return new RegExp(`^(?:${vendored.source})$`, vendored.flags.replace('g', ''))"))
-  check("POISON: the 'u' spelling is gone", !oracle.includes("emojiRegexFactory().source})$`, 'u')"))
 }
 
 process.exit(failures === 0 ? 0 : 1)

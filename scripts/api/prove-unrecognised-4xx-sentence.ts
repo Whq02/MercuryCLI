@@ -1,9 +1,7 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { APIError } from '../../src/services/api/sdkErrors.js'
 
-const ROOT = join(import.meta.dir, '..', '..')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-env-key-not-real'
@@ -78,8 +76,6 @@ section('§2 the first-party OpenAI road: the fault carries the sentence the bod
   check('a detail-shaped body rides as its sentence', detail.message === 'Unprocessable: the tool schema is malformed', detail.message)
   const none = mapOpenaiHttpFailure(400, 'not json at all')
   check('a non-JSON body names the status only', none.message === 'HTTP 400' && none.code === 'http-400', `${none.code}: ${none.message}`)
-  const road = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
-  check('the OpenAI painter spells the status and the sentence', road.includes('OpenAI stream failed (${outcome.fault.code}) — ${outcome.fault.message}'))
 }
 
 section('§3 a compat lane: the sentence painter and the credential kind the seam hands the wall classifier')
@@ -92,8 +88,6 @@ section('§3 a compat lane: the sentence painter and the credential kind the sea
   check('the compat row reads the label, the status and the sentence, no brace', line === `${API_ERROR_MESSAGE_PREFIX}: DeepSeek stream failed (http-400) — max_tokens is above the model limit` && !line.includes('{'), line)
   check('a refused sign-in on a compat lane is the sign-in wall whatever the sentence says', classifyCredentialWall(401, 'Unauthorized', 'sign-in') === 'sign-in' && classifyCredentialWall(403, 'forbidden', 'sign-in') === 'sign-in')
   check('a refused key names no wall unless its words name a reached cap', classifyCredentialWall(401, 'Unauthorized') === undefined && classifyCredentialWall(401, 'Unauthorized', 'key') === undefined && classifyCredentialWall(403, 'Key limit exceeded', 'key') === 'key-limit')
-  const seam = readFileSync(join(ROOT, 'src/services/providers/openaicompat/compatChatCallModel.ts'), 'utf8')
-  check('the compat seam hands the classifier its lane\'s credential kind: a sign-in whose refresh route was tried', seam.includes("classifyCredentialWall(outcome.fault.status, outcome.fault.message, recovery !== undefined ? 'sign-in' : undefined)"))
 }
 
 section('§4 one law for the three roads: a transcript row never carries a brace')

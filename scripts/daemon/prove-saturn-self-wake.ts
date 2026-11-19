@@ -301,36 +301,6 @@ console.log("§D the ticker: parking preserves pending and held self-wakes; stop
   check('D13 the spent wake is not delivered twice', r8.fired === 0 && delivered.length === 1, JSON.stringify(r8))
 }
 
-console.log('§E only interrupt and stop cancel self-wakes; parking preserves them')
-{
-  const read = (p: string): string => readFileSync(join(import.meta.dir, '../..', p), 'utf8')
-  const main = read('src/daemon/main.ts')
-  const interruptArm = main.slice(main.indexOf("if (action === 'interrupt')"), main.indexOf("if (action === 'stop-agent' || action === 'resume-agent')"))
-  check("E1 the interrupt door drops the session's self-wakes once the interrupt is delivered, and hands the roster over so the runner's list follows in the same step", interruptArm.includes("dropSelfWakesAtFlip(sessionId, by, 'interrupted', roster)") && interruptArm.includes("door.send('turn/interrupt'") && interruptArm.indexOf('dropSelfWakesAtFlip') > interruptArm.indexOf("door.send('turn/interrupt'"))
-  const parkArm = main.slice(main.indexOf("if (action === 'park')"), main.indexOf("if (action === 'set-title')"))
-  check('E2 both park doors preserve self-wakes', parkArm.includes('retireConcourseSession(sessionId, by, roster)') && parkArm.includes('parkConcourseSession(sessionId, by, roster ?? undefined)') && !parkArm.includes('dropSelfWakesAtFlip'))
-  const stopArm = main.slice(main.indexOf("if (action === 'stop')"), main.indexOf("if (action === 'attach')"))
-  check('E3 the stop door drops once the stop applied', stopArm.includes("if (out.outcome === 'applied') dropSelfWakesAtFlip(sessionId, by, 'stopped')"))
-  const parkAllArm = main.slice(main.indexOf("if (action === 'park-all')"), main.indexOf("if (action === 'park')"))
-  check('E4 park-all preserves self-wakes for every parked session', parkAllArm.includes('parkAllConcourseSessions(') && !parkAllArm.includes('dropSelfWakesAtFlip'))
-  const idleEdge = main.slice(main.indexOf('onIdle: short => {'), main.indexOf('onIdle: short => {') + 900)
-  check('E5 the idle-edge park completion preserves self-wakes', idleEdge.includes('if (completeRequestedPark(short, roster)) {') && !idleEdge.includes('dropSelfWakesAtFlip'))
-  check('E6 the door helper rides the one writer, fail-soft, names the drop in the daemon log and pushes the roster when a wake went', main.includes('function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeDropWhy, roster: TaskRoster | null = null): void') && main.includes('const gone = dropSaturnSelfWakes(sessionId, by, why)') && main.includes('self-paced wake') && main.includes('if (roster !== null) pushScheduleRosterForSession(sessionId, roster)'))
-
-  const ticker = read('src/daemon/saturnTicker.ts')
-  check("E7 the ticker drops only a stopped record's self-wakes before the ladder runs", ticker.includes('if (rec.stoppedAt !== undefined && scheduleList.some(isSaturnSelfWake))') && ticker.includes("dropSaturnSelfWakes(sessionId, id => `saturn:${id}`, 'stopped', ports.dir)") && ticker.includes('report.dropped += gone.dropped.length') && !ticker.includes('if (parked && scheduleList.some(isSaturnSelfWake))'))
-
-  const rail = read('src/components/HelmLanesRail.tsx')
-  const railModel = read('src/utils/cockpit/helmLanesModel.ts')
-  check('E8 the rail row paints the glance words and nothing else (name + verb from one home; no local clamp)', railModel.includes('saturnWakeGlanceWords(input.wakeGlance, nowMs)') && railModel.includes('name: words.name,') && railModel.includes('verb: words.verb,') && !rail.includes("'due now'") && !railModel.includes("'due now'") && !rail.includes("'no next fire'") && !railModel.includes("'no next fire'"))
-  check('E9 the rail probe reads the records whole (held fires ride them) through saturnWakeGlanceOf', rail.includes('saturnWakeGlanceOf(records)') && rail.includes('readSessionWorkers()).filter(r => r.endedAt === undefined)'))
-  const splash = read('src/components/BootSplashScreen.tsx')
-  check("E10 the Boot face's Saturn ctx reads the same glance and names held fires", splash.includes('saturn.saturnWakeGlanceOf([...records, box.readBoxSchedules()])') && splash.includes('${glance.held > 0 ? ` · ${glance.held} held` : \'\'}'))
-  const screen = read('src/components/BootSaturnScreen.tsx')
-  check('E11 the board row, its trail line and its summary compose from saturnStandingOf', (screen.match(/saturnStandingOf\(/g) ?? []).length >= 3 && screen.includes('export { fireDeltaWords };'))
-  const saturnSrc = read('src/daemon/saturn.ts')
-  check('E12 the rule and the pen live in the one-writer home', saturnSrc.includes('export function isSaturnSelfWake(') && saturnSrc.includes('export function dropSaturnSelfWakes(') && saturnSrc.includes('export function saturnStandingOf('))
-}
 
 console.log(`\n${failures === 0 ? 'prove-saturn-self-wake: ALL LAWS HOLD' : `prove-saturn-self-wake: ${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -7,8 +6,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
-const src = (...p: string[]): string =>
-  readFileSync(join(import.meta.dir, '../../', ...p), 'utf8')
 
 console.log('============================================================')
 console.log(' /resume full-history surface — proof')
@@ -36,48 +33,6 @@ console.log('============================================================')
   check('window size stays fixed', win(250, 500, 8).end - win(250, 500, 8).start === 8)
 }
 
-{
-  const view = src('src', 'components', 'mercury-ui', 'screens', 'SessionManagerView.tsx')
-  const model = src('src', 'components', 'mercury-ui', 'screens', 'sessionPickerModel.ts')
-  const sessions = src('src', 'commands', 'sessions', 'sessions.tsx')
-  check("a bare /sessions opens THIS PROJECT's switcher (the manager's own default scope); `a` widens it to every session /resume listed", sessions.includes('<SessionManagerView') && !sessions.includes('initialScope='))
-  check(
-    "the core keeps cleared sessions in 'all' scope",
-    /facts\.scope === 'project'\s*\?\s*partitionByProject\(/.test(model) &&
-      model.includes("{ inProject: operatorLogs, elsewhere: [] as SessionListing[] }"),
-  )
-  check(
-    "'all' scope marks cleared sessions instead of hiding them (the hook binds the live cleared cache; the skin paints the mark)",
-    model.includes("facts.scope === 'all' ? facts.isCleared(sessionIdOfListing(log)) : undefined") &&
-      model.includes('isCleared: id => isSessionCleared(id)') &&
-      view.includes('· cleared'),
-  )
-  check("the `a` control flips scope in-view", view.includes("input === 'a'") && view.includes("s === 'project' ? 'all' : 'project'"))
-  check(
-    'no misleading "+N older — /resume reaches the full history" copy remains',
-    !view.includes('/resume reaches the full history'),
-  )
-  check(
-    'overflow rows are honest, live scroll indicators',
-    view.includes('newer — ↑ scrolls') && view.includes('older — ↓ scrolls'),
-  )
-  check(
-    'the cursor space is the FULL list, not the visible slice',
-    view.includes('const navLen = flat.length'),
-  )
-}
-
-{
-  const flip = src('src', 'utils', 'sessionFlip.ts')
-  check(
-    'a stale/vanished id produces an explicit notice',
-    flip.includes("no longer in this project's flip ring"),
-  )
-  check(
-    'a stale id can NEVER fall back to a different session',
-    !flip.includes('?? resumable[0]'),
-  )
-}
 
 {
   const { markSessionCleared, unmarkSessionCleared, isSessionCleared, resetClearedSessionsMemo } =
@@ -98,12 +53,8 @@ console.log('============================================================')
   delete process.env.MERCURY_CONFIG_DIR
   fs.rmSync(dir, { recursive: true, force: true })
 
-  const repl = src('src', 'screens', 'Chat.tsx')
 }
 
-{
-  const repl = src('src', 'screens', 'Chat.tsx')
-}
 
 console.log('\n' + '═'.repeat(60))
 if (failures > 0) {

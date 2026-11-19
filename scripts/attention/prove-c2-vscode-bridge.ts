@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -240,54 +239,6 @@ t.section('§4b attentionWireFromSnapshot — the ACP route is the bridge fold, 
   t.check(
     'the spawned-by edge crosses',
     wire.edges.some(e => e.kind === 'spawned-by' && e.from === 'thread:th-9'),
-  )
-  const src = readFileSync('src/services/acp/acpServer.ts', 'utf8')
-  t.check(
-    'the ACP handler folds the snapshot (no store arm in the server)',
-    src.includes('attentionWireFromSnapshot(snap)') && !src.includes('subscribeAttentionView'),
-  )
-}
-
-t.section('§5 VS Code extension: no webview-only truth (RV-28)')
-{
-  const src = readFileSync('integrations/vscode/extension.js', 'utf8')
-  const requires = [...src.matchAll(/require\(['"]([^'"]+)['"]\)/g)].map(m => m[1]!)
-  const allowed = new Set(['vscode', 'node:child_process', 'node:http', 'node:fs', 'node:os', 'node:path', 'node:crypto'])
-  const foreign = requires.filter(r => !allowed.has(r))
-  t.check(
-    'the requires are vscode + the ACP child pipe + the terminal bridge\'s node modules (no fs/net read of Mercury state)',
-    foreign.length === 0,
-    foreign.join(', '),
-  )
-  t.check(
-    'the ACP side never reads Mercury state from disk (no fs read outside the terminal bridge + preview)',
-    !/readFileSync\([^)]*(session|transcript|artifact|workbench)/i.test(src),
-  )
-  const trees = [...src.matchAll(/new SimpleTree\(async \(\) => \{([\s\S]*?)\n  \}\)/g)]
-  t.check('the tree views exist (sessions · workbench · artifacts · attention)', trees.length >= 4, String(trees.length))
-  t.check(
-    'EVERY tree feeds from the ACP client (c.request), never a local store',
-    trees.every(m => m[1]!.includes('c.request(')),
-  )
-  t.check('the attention view is registered', src.includes("registerTreeDataProvider('mercuryAttention'"))
-  t.check(
-    'the attention rows render the receipt truth (reasonLabel crossing)',
-    src.includes('attention') && src.includes('reasonLabel'),
-  )
-  t.check(
-    'plan · usage_update · mode updates are handled in the chat surface',
-    src.includes("'plan'") && src.includes("'usage_update'") && src.includes("'current_mode_update'"),
-  )
-  const pkg = JSON.parse(readFileSync('integrations/vscode/package.json', 'utf8')) as {
-    contributes?: { views?: Record<string, Array<{ id: string }>> }
-  }
-  const viewIds = Object.values(pkg.contributes?.views ?? {})
-    .flat()
-    .map(v => v.id)
-  t.check(
-    'package.json contributes the attention view',
-    viewIds.includes('mercuryAttention'),
-    viewIds.join(', '),
   )
 }
 

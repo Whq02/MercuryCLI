@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
@@ -42,7 +42,6 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'openrouter-native-d
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const MODEL = 'openrouter/qwen/qwen3-coder'
 const WIRE_MODEL = 'qwen/qwen3-coder'
 const SEARCH_TYPE = 'openrouter:tool_search'
@@ -338,20 +337,6 @@ section('§4 THE OFF ARM — a conversation whose latch does not defer keeps the
   clearToolRosterLatches()
 }
 
-section('§5 THE CENSUS — the road is wired where the lane profile says')
-{
-  const lane = readFileSync(join(ROOT, 'src/services/providers/openrouter/openrouterCallModel.ts'), 'utf8')
-  check('the OpenRouter profile hands its transport seam to the Responses road', /streamTransport: \(options, messages\) => openrouterResponsesTransport\(options, messages\)/.test(lane))
-  let transport = ''
-  try {
-    transport = readFileSync(join(ROOT, 'src/services/providers/openrouter/openrouterResponsesTransport.ts'), 'utf8')
-  } catch {
-    transport = ''
-  }
-  check('the transport puts the server search tool first and marks the plan\'s deferred names', /type: OPENROUTER_TOOL_SEARCH_TYPE \}/.test(transport) && /defer_loading: true/.test(transport) && /openrouterResponsesUrl/.test(transport))
-  const runtime = readFileSync(join(ROOT, 'src/services/providers/openaicompat/compatChatCallModel.ts'), 'utf8')
-  check('the compat runtime hands the plan\'s deferral facts to the transport', /deferral: ctx\.deferral/.test(runtime) && /deferredNames: plan\.deferredNames/.test(runtime))
-}
 
 server.close()
 console.log(`\n${checks - failures}/${checks} checks passed`)

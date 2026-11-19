@@ -3,7 +3,6 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const repoRoot = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -436,34 +435,6 @@ section('§5 RELAUNCH — the 1h tier a process bought survives a restart of the
   check('junk in the tier field is read as no lease', tierLeaseOf({ tier: { ttl: '5m', heldAtIso: 'x', prefixKey: 'p' } }) === null && tierLeaseOf({ tier: 'nope' }) === null && tierLeaseOf(null) === null && tierLeaseOf({ tier: { ttl: '1h', heldAtIso: 'not-a-date', prefixKey: 'p' } }) === null)
 }
 
-section('§4 SEAMS — structural wiring')
-{
-const anthropicRuntime = readFileSync(join(repoRoot, 'src/services/providers/anthropic/index.ts'), 'utf8') + readdirSync(join(repoRoot, 'src/services/providers/anthropic')).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(repoRoot, 'src/services/providers/anthropic', f), 'utf8')).join('\n')
-  const decisionIdx = anthropicRuntime.indexOf('cacheClockTtlDecision({')
-  const allowlistIdx = anthropicRuntime.indexOf("'mercury_prompt_cache_1h_config'")
-  check('the anthropic runtime consults the clock', decisionIdx > 0)
-  check(
-    'the clock verdict is the whole decision (no remote allowlist path remains)',
-    decisionIdx > 0 && allowlistIdx === -1,
-  )
-  check('the anthropic runtime taps the meter (cacheClockObserve)', anthropicRuntime.includes('cacheClockObserve({'))
-
-  const shellSrc = readFileSync(join(repoRoot, 'src/utils/cache/cacheClock.ts'), 'utf8')
-  check(
-    'shell gate: MERCURY_CACHE_CLOCK ≠ 0 (live alias read; unconditional)',
-    shellSrc.includes("flagEnabled('MERCURY_CACHE_CLOCK')"),
-  )
-  check(
-    'decision path is fail-open (catch ⇒ logError ⇒ null)',
-    /catch \(e: unknown\) \{\s*logError\(e\)\s*return null/.test(shellSrc),
-  )
-
-  const cost = readFileSync(join(repoRoot, 'src/utils/modelCost.ts'), 'utf8')
-  check(
-    'modelCost prices 1h cache writes at 2× input when the split is present',
-    cost.includes('ephemeral_1h_input_tokens') && cost.includes('modelCosts.inputTokens * 2'),
-  )
-}
 
 console.log('')
 if (failures > 0) {

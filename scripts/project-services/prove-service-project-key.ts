@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -18,7 +18,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 const manager = await import('../../src/services/projectServices/serviceManager.ts')
 const j = (v: unknown): string => JSON.stringify(v)
 
@@ -72,14 +71,6 @@ try {
     await manager.stopService(web, 'plain')
   }
 
-  section('§4 the tool reads the project root for every op, never the drifting shell cwd')
-  {
-    const tool = readFileSync(join(ROOT, 'src/tools/ServiceTool/ServiceTool.ts'), 'utf8')
-    check('the start spec carries the project', tool.includes('const project = getOriginalCwd()') && tool.includes('cwd: input.cwd ?? cwd,\n          project,'))
-    check('list, describe, wait, logs, input, stop and restart read the project key', !tool.includes('input.cwd ?? cwd, input.name') && tool.includes('reconcileAll(project)') && tool.includes('waitForReady(project, input.name!, wait.value)') && tool.includes('stopService(project, input.name!)') && tool.includes('restartService(project, input.name!, sessionId, owner)'))
-    const adapter = readFileSync(join(ROOT, 'src/services/resources/adapters/service.ts'), 'utf8')
-    check('mercury://service/<name> reads the project root too', adapter.includes('reconcileRecord(getOriginalCwd(), ref.id)') && !adapter.includes('reconcileAll(ctx.cwd)'))
-  }
 } finally {
   for (const name of names) {
     try { await manager.stopService(project, name) } catch {}

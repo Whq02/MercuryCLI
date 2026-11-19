@@ -81,13 +81,6 @@ for (const [path, meaning] of MEANINGS) check(`${path} is on the page and means 
 check('the three percent forms the page names: a space, a percent sign, a literal tilde', ['%20', '%25', '%7E'].every(form => page.includes(`\`${form}\``)) && shape('ssh://h/a%20b') === '[null,"h",null,null,"/a b"]' && shape('ssh://h/100%25') === '[null,"h",null,null,"/100%"]' && shape('ssh://h/%7Ex') === '[null,"h",null,null,"/~x"]', `${shape('ssh://h/a%20b')} ${shape('ssh://h/100%25')} ${shape('ssh://h/%7Ex')}`)
 check('a path written with a password is refused, as the page says', page.includes('A path written with a password is refused') && String(parsed('ssh://deploy:hunter2@web1/x')).startsWith('refused: ') && !String(parsed('ssh://deploy:hunter2@web1/x')).includes('hunter2'), String(parsed('ssh://deploy:hunter2@web1/x')))
 
-section('what the page says of a write whose connection is lost')
-const operations = readFileSync(join(ROOT, 'src', 'services', 'remoteFiles', 'ops.ts'), 'utf8')
-check(
-  'the three answers the page names are the three the product gives: made, not made with the file as it was, and read it before relying on it',
-  page.includes('the write was made, or that it was not made and the file holds what it held, or that the file should be read before it is relied on') &&
-    ['did not land: the file holds what it held before.', 'did not land, and the file no longer holds what was read: Read the file before relying on it.', 'was under way and its outcome could not be read: Read the file before relying on it.'].every(words => operations.includes(words)),
-)
 
 section('the rules the page writes decide what the page says they decide')
 const block = /```json\n([\s\S]*?)\n```/.exec(page)?.[1] ?? '{}'

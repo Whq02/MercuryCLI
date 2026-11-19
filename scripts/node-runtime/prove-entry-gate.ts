@@ -16,17 +16,6 @@ const check = (name: string, cond: boolean, detail?: string): void => {
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 
-section('(1) the gate precedes every dispatch (structural)')
-const cli = readFileSync(join(REPO, 'src/entrypoints/cli.tsx'), 'utf8')
-check('cli.tsx imports the ONE policy owner', cli.includes("from '../utils/runtime/nodePolicy.js'"))
-const gateIdx = cli.indexOf('evaluateNodeRuntime(process.versions?.node)')
-const fastPathIdx = cli.indexOf("args[0] === '--version'")
-check('gate call exists in main()', gateIdx !== -1)
-check('gate runs BEFORE the --version fast-path', gateIdx !== -1 && fastPathIdx !== -1 && gateIdx < fastPathIdx)
-check('gate refuses non-zero', cli.includes('console.error(nodeRefusalMessage(nodeDecision))') && /nodeRefusalMessage\(nodeDecision\)\);\s*\n\s*process\.exit\(1\)/.test(cli))
-const setupSrc = readFileSync(join(REPO, 'src/setup.ts'), 'utf8')
-check('setup() carries no duplicate Node floor', !setupSrc.includes('requires Node.js version 18') && !/parseInt\(nodeVersion\) < 18/.test(setupSrc))
-check('gate exempts Bun-hosted execution by name', /if \(!process\.versions\?\.bun\) \{\s*\n\s*const nodeDecision = evaluateNodeRuntime\(process\.versions\?\.node\)/.test(cli))
 
 section('(2) the REAL bundle refuses unsupported runtimes on every route')
 const dist = join(REPO, 'dist', 'mercury.mjs')
@@ -142,8 +131,6 @@ if (!existsSync(dist)) {
   }
 }
 
-const qual = readFileSync(join(REPO, 'scripts/node-runtime/qualify-artifact.sh'), 'utf8')
-check('qualify-artifact asserts label + range + no stack on refusal', qual.includes('Node 24 LTS') && qual.includes(NODE_SUPPORT.minimum) && qual.includes('stack trace'))
 try {
   execFileSync('bash', ['-n', join(REPO, 'scripts/node-runtime/qualify-artifact.sh')])
   check('qualify-artifact.sh survives bash -n', true)

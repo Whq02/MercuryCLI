@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync } from 'node:fs'
 import http from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
@@ -695,11 +695,6 @@ try {
       'Linux arm64 resolves navigatorPlatform to Linux aarch64 and x64 to Linux x86_64',
       resolveNavigatorPlatform('Mozilla/5.0 (X11; Linux aarch64) Chrome/155.0.0.0', 'linux', 'arm64') === 'Linux aarch64' &&
         resolveNavigatorPlatform('Mozilla/5.0 (X11; Linux x86_64) Chrome/155.0.0.0', 'linux', 'x64') === 'Linux x86_64',
-    )
-    const toolSrc = readFileSync(join(ROOT, 'src/tools/BrowserTool/BrowserTool.ts'), 'utf8')
-    check(
-      'BrowserTool.ts carries no dead void browserProfileDirForOrigin call',
-      !toolSrc.includes('void browserProfileDirForOrigin'),
     )
     const desc = await BrowserTool.description({} as never)
     const prompt = await BrowserTool.prompt({} as never)

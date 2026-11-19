@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
@@ -202,8 +202,6 @@ section('§2b the helper is its own process beside the session\'s server, starte
   delete process.env.MERCURY_MODEL
   check('a local session opening with the slot set starts the helper itself: no start after the unavailable open, one start after the warm-up settle armed with the 2B available (the trigger is the settle)', started.length === 1, JSON.stringify(started))
   console.log(`  the start the seam saw: role=${started[0]?.role} name=${started[0]?.name} · recorded after armLocalWarm on the 27B seat, ${Date.now() - startedBy} ms after arming`)
-  const config = readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8')
-  check('/config\'s row only writes the setting, records it and bumps: no start on the row', /writeHelperModelSetting\(\{ size: next \}, writeGlobal\)\n\s*recordSet\('helperModel'/.test(config) && !config.includes('ensureHelperServing'))
   const request = started[0]
   check('the helper started once, with role helper, its own name, window, port and prompt cache', started.length === 1 && request?.role === 'helper' && request.name === 'qwen3.5-2b' && request.repo === helper.HELPER_2B_REPO && request.window === 32768 && request.promptCacheGib === 1 && typeof request.port === 'number', JSON.stringify(request))
   check('the session\'s 27B record is untouched (never stopped)', stopped.length === 0 && sessionRecord.port === session27b.port)

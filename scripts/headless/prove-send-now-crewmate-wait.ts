@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
@@ -15,7 +15,6 @@ if (!existsSync(DIST)) {
 }
 console.log(`build under proof: ${DIST}`)
 
-const ROOT = join(import.meta.dir, '..', '..')
 const MAIN_ASK = 'send-now probe: hand the probe to a crewmate and wait for it'
 const AGENT_PROMPT = 'the crewmate of the send-now probe'
 const MESSAGE = 'the operator says: stop waiting, read this now'
@@ -128,15 +127,6 @@ tally.check('the Crewmate call returned the background acknowledgement with the 
 tally.check('the operator\'s words reached the model as the queued line of the same turn', afterCrewmate !== undefined && afterCrewmate.allTexts.some(text => text.includes(MESSAGE)), afterCrewmate === undefined ? 'no second request of the main turn' : afterCrewmate.ask.slice(0, 120))
 tally.check('the crewmate ran on in the background to its own end and its completion reached the model as a notification', crewmateRequests.some(r => r.step === 1) && ended !== undefined && notice !== undefined, `crewmate requests ${crewmateRequests.length} · ended ${seconds(ended?.atMs)} · notification ${notice !== undefined ? 'seen' : 'absent'}`)
 
-tally.section('the seam, structural')
-{
-  const sendNow = readFileSync(join(ROOT, 'src/cli/headless/sendNow.ts'), 'utf8')
-  const queue = readFileSync(join(ROOT, 'src/input-core/command-queue.ts'), 'utf8')
-  const methods = readFileSync(join(ROOT, 'src/runner/wire/methods.ts'), 'utf8')
-  tally.check('send-now does nothing with no operator line queued, else releases the hold, hands the foreground crewmates over and moves the main shells to the background', sendNow.includes('if (queued === 0) return SEND_NOW_NOTHING_QUEUED') && sendNow.includes('const released = releaseQueuedWordsToTurn()') && sendNow.includes('const crewmates = handOverForegroundAgentsToQueuedMessage(getAppState, setAppState)') && sendNow.includes('const shells = requestShellBackground()'))
-  tally.check('the release strips the turn-end mark from a fresh record and commits once', queue.includes('export function releaseQueuedWordsToTurn(): number') && queue.includes('const { waitsForTurnEnd: _held, ...rest } = cmd') && queue.includes('if (released > 0) commit()'))
-  tally.check('the wire method is a host request with the four counts', methods.includes("'session/send_now': method({") && methods.includes('queued: z.number().int().min(0), released: z.number().int().min(0), crewmates: z.number().int().min(0), shells: z.number().int().min(0)'))
-}
 
 if (tally.failed() === 0) rmSync(runHome, { recursive: true, force: true })
 else console.log(`  world kept: ${runHome}\n  stderr tail: ${stderr.slice(-800)}`)

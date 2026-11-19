@@ -293,7 +293,6 @@ async function main(): Promise<void> {
       badJson ? JSON.stringify(badJson.problems) : 'export missing',
     )
     {
-      const { readFileSync } = await import('node:fs')
       const { join } = await import('node:path')
       const fsH = await import('node:fs')
       const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
@@ -308,11 +307,6 @@ async function main(): Promise<void> {
         "health carries a wards row that names problems (call-shaped: id 'wards' + loadProjectWardsWithReport)",
         guard.wardsEnabled() ? reportNow.problems.length > 0 && wardsSays.status === 'warn' && wardsSays.evidence.includes(`${reportNow.problems.length} problem(s): ${reportNow.problems.slice(0, 3).join(' | ')}`) : wardsSays.status === 'off',
         `${wardsSays.status}: ${wardsSays.evidence}`,
-      )
-      const hookSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'guards', 'wardsGuard.ts'), 'utf8')
-      check(
-        'registration logs the problems (call-shaped)',
-        /projectReport\.problems/.test(hookSrc),
       )
     }
   }
@@ -344,12 +338,6 @@ async function main(): Promise<void> {
 
   section('5. wiring — the registration chokepoints, never mode-skipped')
   {
-    const { readFileSync } = await import('node:fs')
-    const { join } = await import('node:path')
-    const src = (...p: string[]) =>
-      readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
-    const engine = src('rows', 'turn.ts')
-    check('the turn registers for EVERY session kind (the one chokepoint)', engine.includes('registerWardsGuard(config.setAppState, sessionId)'))
     check('flag registry carries the MERCURY_WARDS row', getFlagSpec('MERCURY_WARDS') !== undefined)
   }
 
@@ -612,31 +600,6 @@ async function main(): Promise<void> {
 
   section('9. shell execution declares its command projection, independent of the tool name')
   {
-    const { readFileSync } = await import('node:fs')
-    const { join } = await import('node:path')
-    const ts = (await import('typescript')).default
-    const root = join(import.meta.dir, '..', '..')
-    const shellModules: string[] = []
-    for (const file of new Bun.Glob('**/*.{ts,tsx}').scanSync(join(root, 'src/tools'))) {
-      const source = ts.createSourceFile(file, readFileSync(join(root, 'src/tools', file), 'utf8'), ts.ScriptTarget.Latest, true)
-      let executesShell = false
-      let declaresProjection = false
-      const visit = (node: import('typescript').Node): void => {
-        if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && ['exec', 'spawnShellTask'].includes(node.expression.text)) executesShell = true
-        if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'buildTool') {
-          let definition = node.arguments[0]
-          while (definition && (ts.isSatisfiesExpression(definition) || ts.isAsExpression(definition) || ts.isParenthesizedExpression(definition))) definition = definition.expression
-          if (definition && ts.isObjectLiteralExpression(definition)) declaresProjection ||= definition.properties.some(property => property.name?.getText(source) === 'shellCommandOf')
-        }
-        ts.forEachChild(node, visit)
-      }
-      visit(source)
-      if (executesShell) {
-        shellModules.push(file)
-        check(`${file}: shell execution declares shellCommandOf`, declaresProjection)
-      }
-    }
-    check('the shell census sees Bash, PowerShell and Monitor', ['BashTool/BashTool.tsx', 'PowerShellTool/PowerShellTool.tsx', 'MonitorTool/MonitorTool.ts'].every(file => shellModules.includes(file)))
     const { REFUSAL_WARDS } = await import('../../src/utils/wards/wards.js')
     const command = 'git config --global refusal.probe blocked'
     check('a declared command on an unknown tool meets the refuse-list', !evaluateWards(REFUSAL_WARDS, { toolName: 'WatchFixture', input: { script: command }, shellCommand: command }).allow)

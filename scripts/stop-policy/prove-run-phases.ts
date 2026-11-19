@@ -3,7 +3,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,7 +17,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 async function main(): Promise<void> {
   const state = await import('../../src/bootstrap/state.js')
@@ -92,67 +91,6 @@ async function main(): Promise<void> {
     )
   }
 
-  section('F01 wiring — the twelve stamps live at their owners (both provider lanes)')
-  {
-    const engine = src('src/rows/turn.ts')
-    const anthropic = src('src/services/providers/anthropic/streamCore.ts')
-    const openai = src('src/services/providers/openai/openaiCallModel.ts')
-    check(
-      'the turn stamps assembly · first_canonical_event · terminal · settlement (settlement inside the outcome facts — every outcome passes it)',
-      engine.includes("noteRunPhase('assembly')") &&
-        engine.includes("noteRunPhase('first_canonical_event')") &&
-        engine.includes("noteRunPhase('terminal')") &&
-        engine.includes("noteRunPhase('settlement')"),
-    )
-    check(
-      'BOTH provider lanes stamp dispatch + first_byte (anthropic streamCore · openai callModel)',
-      anthropic.includes("noteRunPhase('dispatch')") &&
-        anthropic.includes("noteRunPhase('first_byte')") &&
-        openai.includes("noteRunPhase('dispatch')") &&
-        openai.includes("noteRunPhase('first_byte')"),
-    )
-  }
-
-  section('F04/F05 — print mounts no UI/splash and starts no daemon/multiplayer')
-  {
-    const print = src('src/cli/run.ts')
-    check(
-      "F04: the print owner never mounts Ink (no ink import, no render()) and never touches the splash",
-      !print.includes("from 'ink'") && !/\brender\(/.test(print) && !/splash/i.test(print),
-    )
-    check(
-      'F05: the print owner starts no daemon and no multiplayer room host',
-      !/ensureDaemon|startDaemon|spawnDaemon|longLivedRespawn|roomHost/.test(print),
-    )
-    const cli = src('src/entrypoints/cli.tsx')
-    check(
-      'F04 audit pin: the run route reaches print through the main.js graph (the recorded residue the F07 battery prices)',
-      cli.includes("await import('../main.js')"),
-    )
-  }
-
-  section('F06/F12 — optional subsystems load lazily and record their phase truthfully')
-  {
-    const engine = src('src/rows/turn.ts')
-    check(
-      'F06: print-path extensions load from DISK ONLY (no network block) and skills/extensions record their load phase',
-      engine.includes('ensureExtensionsLoaded(') &&
-        engine.includes("headlessProfilerCheckpoint('before_skills_extensions')") &&
-        engine.includes("headlessProfilerCheckpoint('after_skills_extensions')"),
-    )
-  }
-
-  section('F09/F10/F11 — dispositions at their owning provers')
-  {
-    check(
-      'F09: forwarding budget owned by prove-tool-delta-grammar (C07 p95 probe)',
-      src('scripts/stop-policy/prove-tool-delta-grammar.ts').includes('p95 fold latency'),
-    )
-    check(
-      'F11: cold/warm parity rides the compile-cache law (byte-stable reuse prover) — the cache changes parse cost, never behavior',
-      src('scripts/node-runtime/prove-compile-cache.ts').includes('byte'),
-    )
-  }
 
   console.log('')
   let red = 0

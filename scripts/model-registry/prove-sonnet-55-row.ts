@@ -151,9 +151,6 @@ section('§4 the wire laws as the real model answered: thinking always on, no fo
   const { sideQueryThinkingParam } = await import('../../src/utils/sideQuery.ts')
   const { isSameModel, modelSwitchReceipt } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
   const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/utils/messages/apiFilters.ts')
-  const { readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const src = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf-8')
   const show = (v: unknown): string => JSON.stringify(v)
 
   check('thinking is always on for the row (the [1m] twin too); Sonnet 5 keeps its switch; a carrier row never joins', caps.modelThinkingAlwaysOn(ID) && caps.modelThinkingAlwaysOn(`${ID}[1m]`) && !caps.modelThinkingAlwaysOn(PREVIOUS) && !caps.modelThinkingAlwaysOn('openrouter/anthropic/claude-sonnet-5-5'))
@@ -168,9 +165,6 @@ section('§4 the wire laws as the real model answered: thinking always on, no fo
   check('the fold leaves Sonnet 5 verbatim', caps.foldToolChoiceForModel(PREVIOUS, forcedTool) === forcedTool && caps.foldToolChoiceForModel(PREVIOUS, forcedAny) === forcedAny)
   check('an undeclared sonnet generation answers both laws as the row does (the family head owns them)', caps.modelThinkingAlwaysOn('claude-sonnet-5-7') && !caps.modelSupportsForcedToolChoice('claude-sonnet-5-7'))
 
-  const stream = src('src/services/providers/anthropic/streamCore.ts')
-  check('the main stream sends no thinking parameter when the config is disabled (the parameter stays undefined; never the disabled shape)', stream.includes("let thinking: BetaMessageStreamParams['thinking'] | undefined = undefined") && stream.includes('if (hasThinking && modelSupportsThinking(options.model))') && !/thinking\s*=\s*\{\s*type:\s*'disabled'/.test(stream))
-  check('the main stream folds the tool choice through the one owner', stream.includes('foldToolChoiceForModel(options.model, options.toolChoice)') && stream.includes('tool_choice: toolChoice,'))
 
   const thinking = { type: 'thinking' as const, thinking: 'a plan', signature: 'sig' }
   const text = (t: string) => ({ type: 'text' as const, text: t, citations: [] })

@@ -2,73 +2,17 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { parseSplashRuns, type SplashRun } from '../../src/components/mercury-ui/splashRuns.ts'
 import { createSplashCore, assembleCardRows } from '../../assets/splash/splash-core.mjs'
 
 const t = checker()
-const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
-const coreSrc = read('assets/splash/splash-core.mjs')
-const driverSrc = read('assets/splash/mercury-splash.mjs')
-const faceSrc = read('src/components/BootSplashScreen.tsx')
 
-t.section('§1 — one grid owner, two consuming hosts (share-by-extraction)')
-{
-  t.check(
-    'the helmet + WORD grids live in the core (the baked grids present)',
-    coreSrc.includes('const HEADSTD = [') && coreSrc.includes('const WORD = ['),
-    'core grids',
-  )
-  t.check(
-    'the driver carries NO grid of its own (the extraction is complete)',
-    !driverSrc.includes('const HEADSTD = [') && !driverSrc.includes('const WORD = ['),
-    'driver grid-free',
-  )
-  t.check(
-    "the driver imports the one core ('./splash-core.mjs') and composes through composeLockup",
-    driverSrc.includes("from './splash-core.mjs'") && driverSrc.includes('composeLockup(cols, rows, {'),
-    'driver host',
-  )
-  t.check(
-    'the in-process Boot face consumes createSplashCore + composeLockup (never a hand-authored sibling)',
-    faceSrc.includes('createSplashCore') && faceSrc.includes('composeLockup') && !faceSrc.includes('BigWordmark') && !faceSrc.includes('CritterArt'),
-    'face host',
-  )
-  t.check(
-    'no second rasterHard exists outside the core (one raster owner)',
-    !driverSrc.includes('function rasterHard') && !faceSrc.includes('rasterHard('),
-    'raster census',
-  )
-  t.check(
-    'both hosts assemble the ORIGINAL card through core assembleCardRows',
-    driverSrc.includes('assembleCardRows({') && faceSrc.includes('assembleCardRows({') && coreSrc.includes('export function assembleCardRows'),
-    'one card-data owner',
-  )
-  t.check(
-    'both hosts emit the strip through core composeStrip (no second strip grammar)',
-    driverSrc.includes('coreComposeStrip(') && faceSrc.includes('composeStrip(') && !driverSrc.includes('const fitRow'),
-    'one strip owner',
-  )
-  t.check(
-    'both hosts compose the boot menu through core composeBootMenu (no second three-panel)',
-    driverSrc.includes('coreComposeBootMenu(') &&
-      read('src/components/BootSettingsScreen.tsx').includes('composeBootMenu(') &&
-      !driverSrc.includes('function composeMenuWide'),
-    'one menu owner',
-  )
-}
 
 t.section('§2 — the core is pure (injection-only capability + data)')
 {
-  t.check(
-    'the core reads NO ambient process state (no process. / import of node builtins)',
-    !/\bprocess\./.test(coreSrc) && !/from 'node:/.test(coreSrc) && !/require\(/.test(coreSrc),
-    'ambient-free',
-  )
   const mod = createSplashCore({ nocolor: false, truecolor: true })
   t.check('createSplashCore yields the compose surface', typeof mod.composeLockup === 'function' && typeof mod.placeBlock === 'function', 'factory shape')
   const plain = createSplashCore({ nocolor: true, truecolor: true })

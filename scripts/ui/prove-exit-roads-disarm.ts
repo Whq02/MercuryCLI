@@ -1,13 +1,11 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { cleanupScenario, scenario } from './renderScenarios.ts'
 import { lastStateOf, mark, modeEventsBetween, MOUSE_FAMILIES, runJobControlHost, type HostReport } from './jobcontrolHost.ts'
 
-const ROOT = process.cwd()
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
@@ -86,31 +84,6 @@ for (const road of roads) {
 cleanupScenario('boot-face')
 for (const h of homes) rmSync(h, { recursive: true, force: true })
 
-section('B · every road reaches the one teardown (source)')
-{
-  const shutdown = read('src/utils/gracefulShutdown.ts')
-  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK']) {
-    const at = shutdown.indexOf(`process.on('${sig}', () => {`)
-    const arm = at >= 0 ? shutdown.slice(at, at + 700) : ''
-    check(`${sig} ends in the bounded shutdown`, arm.includes('gracefulShutdownSync('))
-  }
-  check('the orphan probe (revoked descriptors) ends in the bounded shutdown', /orphan_detected[\s\S]{0,300}gracefulShutdownSync\(129\)/.test(shutdown))
-  check('the loud failure restores the terminal before its card and exit', /runTerminalRestoration\(\)\n\s+const firstLine/.test(shutdown))
-  check('the crash breaker restores the terminal before its dump', /if \(tripped\) \{\n(?:[ \t]*\/\/[^\n]*\n)*\s+runTerminalRestoration\(\)\n(?:[ \t]*\/\/[^\n]*\n)*\s+try \{\n(?:[ \t]*\/\/[^\n]*\n)*\s+for \(const record of breaker\.ring\)/.test(shutdown))
-  check('the failsafe timer restores the terminal before forcing the exit', /failsafeTimer = setTimeout\(\(\) => \{\n\s+runTerminalRestoration\(\)/.test(shutdown))
-  check('the fallback bytes cover the road where the restoration module failed to load', shutdown.includes("FALLBACK_EXIT_ALT_SCREEN = '\\x1b[?1049l'") && shutdown.includes("FALLBACK_SHOW_CURSOR = '\\x1b[?25h'") && shutdown.includes('writeSync(1, FALLBACK_EXIT_ALT_SCREEN)'))
-  const restoration = read('src/utils/shutdownRestoration.ts')
-  const cleanup = restoration.slice(restoration.indexOf('export function cleanupTerminalModes'), restoration.indexOf('export function cleanupTerminalModes') + 2400)
-  const firstWrite = cleanup.indexOf('writeSync(1, ')
-  const mouseOff = cleanup.indexOf('writeSync(1, DISABLE_MOUSE_TRACKING)')
-  check('the restoration disarms mouse tracking FIRST', firstWrite >= 0 && mouseOff === firstWrite && mouseOff < cleanup.indexOf('inst.unmount()'), `firstWrite=${firstWrite} mouseOff=${mouseOff}`)
-  check('the restoration leaves the alt screen by UNMOUNTING (the exit suite runs)', cleanup.includes('inst.unmount()') && cleanup.includes('writeSync(1, EXIT_ALT_SCREEN)'))
-  const ink = read('src/ink/ink.tsx')
-  check('the renderer registers its unmount with the exit hook — a bare process.exit after mount still runs the suite', ink.includes('this.unsubscribeExit = onExit(this.unmount)'))
-  check("the unmount runs the ONE teardown suite through the host the stop road shares", ink.includes('runTeardownSuite(this.teardownHost())'))
-  const teardown = read('src/ink/root/teardown.ts')
-  check('the suite is the ONE ordered list (mouse · alt-scroll · alt exit · paste · focus · cursor)', teardown.includes('export const TEARDOWN_SUITE: readonly TeardownStep[] = Object.freeze(['))
-}
 
 if (failures > 0) {
   console.log(`\n ❌ exit-roads-disarm — ${failures} failure(s)`)

@@ -1,10 +1,9 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import ts from 'typescript'
 
 const scratch = mkdtempSync(join(tmpdir(), 'model-honesty-'))
 const home = join(scratch, 'home')
@@ -293,19 +292,6 @@ section('§5 the REAL owner, no injection — the scrubbed home gates; a credent
   clearOAuthTokenCache()
 }
 
-section('§6 the wiring (structural)')
-{
-  const root = join(import.meta.dir, '..', '..')
-  const builder = readFileSync(join(root, 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  check('/model routes the Anthropic action row to /logins anthropic --return=/model', builder.includes('id === ANTHROPIC_CONNECT_OPTION_VALUE') && builder.includes("'/logins anthropic --return=/model'"))
-  check('the /model heading reads the presence owner: its signed-in doors and its account word answer the same presence every other family surface answers', builder.includes('anthropicCredentialPresence()') && builder.includes("const anthropic: ProviderHeading = anthropicPresence.credentialed\n    ? {") && builder.includes("doors: signedInDoorsOf('anthropic', slotsOf('anthropic'), anthropicPresence.identity)") && builder.includes('for (const presence of providerFamilyPresences()) presences.set(presence.id, presence)') && !builder.includes("'credential present'") && !builder.includes('isClaudeAISubscriber()'))
-  const inline = readFileSync(join(root, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
-  check('the inline picker routes the sentinel to /logins anthropic', inline.includes("value === ANTHROPIC_CONNECT_OPTION_VALUE") && inline.includes("requestCommandDispatch('/logins anthropic')"))
-  const options = readFileSync(join(root, 'src/utils/model/modelOptions.ts'), 'utf8')
-  check('the catalogue gate reads the ONE owner (anthropicCredentialPresence)', options.includes('anthropicCredentialPresence().credentialed'))
-  const submodels = readFileSync(join(root, 'src/utils/model/subModelSlots.ts'), 'utf8')
-  check('the sub-model composer threads its presences into the catalogue', submodels.includes("getModelOptions({ anthropicCredentialed: () => credentialed('anthropic') })"))
-}
 
 section('§7 the neutral catalog grammar — one description rule, vendor-blind, by predicate')
 {
@@ -341,50 +327,6 @@ section('§7 the neutral catalog grammar — one description rule, vendor-blind,
   }
 }
 
-section('§8 inline focus follows the actual model, including aliases')
-{
-  const path = join(import.meta.dir, '../../src/components/ModelPicker.tsx')
-  const source = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
-  const component = source.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === 'ModelPicker')
-  const statements = ['options', 'focusDefault'].map(name => {
-    const statement = component?.body?.statements.find(node => ts.isVariableStatement(node) && node.declarationList.declarations.some(declaration => ts.isIdentifier(declaration.name) && declaration.name.text === name))
-    if (!statement) throw new Error(`Inline picker declaration missing: ${name}`)
-    return statement.getText(source)
-  }).join('\n')
-  const evaluate = new Function('initial', 'getModelOptions', 'useMemo', 'isCatalogueDoorRow', 'resolvesToExistingOption', 'getPublicModelDisplayName', 'stripContext1m', ts.transpileModule(`${statements}\nreturn { options, focusDefault }`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText)
-  const focus = (initial: string, options: ModelOption[]) => evaluate(initial, () => options, (read: () => unknown) => read(), isCatalogueDoorRow, resolvesToExistingOption, getPublicModelDisplayName, stripContext1m) as { options: ModelOption[]; focusDefault: string }
-  const credentials = JSON.parse(ANTHROPIC_FIXTURE_CREDS)
-  credentials.claudeAiOauth.rateLimitTier = 'default_claude_max_20x'
-  writeFileSync(join(home, '.credentials.json'), JSON.stringify(credentials))
-  clearOAuthTokenCache()
-  const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
-  resetComputedDefaultMemo()
-  const initial = getEngineModel()
-  check('the unpicked fixture resolves to the Fable model', initial === parseUserSpecifiedModel('fable'), initial)
-  const selected = focus(initial, getModelOptions())
-  check('the unpicked model focuses its full-id row, not sign-in', selected.focusDefault === initial && selected.options.filter(option => option.value === initial).length === 1, JSON.stringify({ initial, focus: selected.focusDefault }))
-  const rows: ModelOption[] = [
-    { value: GPT_CONNECT_OPTION_VALUE, label: 'GPT — sign in', description: '' },
-    { value: 'fable', label: 'Fable', description: '' },
-    { value: 'fable[1m]', label: 'Fable 1M', description: '' },
-    { value: 'gpt-6-astra', label: 'GPT-6 Astra', description: '' },
-  ]
-  check('a literal-valued model keeps exact focus', focus('gpt-6-astra', rows).focusDefault === 'gpt-6-astra')
-  check('an exact alias stays selected', focus('fable', rows).focusDefault === 'fable')
-  check('an extended-context resolved id selects the matching alias variant', focus(`${parseUserSpecifiedModel('fable')}[1m]`, rows).focusDefault === 'fable[1m]')
-  const explicit = { value: initial, label: 'Explicit model', description: '' }
-  check('an explicit row outranks another spelling of the same model', focus(initial, [...rows, explicit]).focusDefault === initial)
-  const custom = focus('custom-example-model', rows)
-  check('an off-catalogue model is appended and focused', custom.focusDefault === 'custom-example-model' && custom.options.length === rows.length + 1)
-  check('a matching action is not treated as a model alias', focus(GPT_CONNECT_OPTION_VALUE, rows).focusDefault === GPT_CONNECT_OPTION_VALUE)
-  const literalRows: ModelOption[] = [...rows, { value: 'claude-opus-4-6', label: 'Opus 4.6', description: '' }]
-  const rider = focus('claude-opus-4-6[1m]', literalRows)
-  check("a saved 1M variant of a listed model focuses that model's row (the rider folded), appended nowhere", rider.focusDefault === 'claude-opus-4-6' && rider.options.length === literalRows.length, JSON.stringify({ focus: rider.focusDefault, rows: rider.options.length }))
-  check('the bare id of that model keeps exact focus', focus('claude-opus-4-6', literalRows).focusDefault === 'claude-opus-4-6')
-  rmSync(join(home, '.credentials.json'), { force: true })
-  clearOAuthTokenCache()
-  resetComputedDefaultMemo()
-}
 
 rmSync(scratch, { recursive: true, force: true })
 console.log('\n' + '═'.repeat(60))

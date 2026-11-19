@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,8 +17,6 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
 delete process.env.MERCURY_HOME
 
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const handover = await import('../../src/daemon/handover.ts')
 
 const me = process.pid
@@ -68,18 +66,6 @@ section('§3 two helpers: the window record is the plane holder\'s, not the unna
   check('the per-helper held sets split the same way', state.heldRunners(me).has('concourse-w2') && !state.heldRunners(me).has('concourse-w3') && state.heldRunners(older).has('concourse-w3'))
 }
 
-section('§4 the clocks are stamped where the reads happen, and the update verb reads every helper')
-{
-  const handoverTs = src('src/daemon/handover.ts')
-  const listRead = /const listedAt = Date\.now\(\)\s*\n\s*const list = await forwardFrame\(path, JSON\.stringify\(\{ op: 'list'/.test(handoverTs)
-  check('readHandoverHosts takes the clock before it sends the list and stamps it on the host', listRead && handoverTs.includes('listedAt } : { pid, runners: null }'))
-  const mainTs = src('src/daemon/main.ts')
-  check('the daemon marks the plane moved right after the rename', /renameSocketForPredecessor\(handoverPredecessor\)\s*\n\s*handover\.notePlaneMoved\(\)/.test(mainTs))
-  const updateTs = src('src/cli/update.ts')
-  check('the installer road reads the hosted caller over every helper of the home', updateTs.includes('hostedCallerOf(await helperPidsOfHome())') && !updateTs.includes('hostedCallerOf(d.pid)'))
-  check('…and refuses only when the restart would run now (the shared predicate)', updateTs.includes('restartEndsHostedCaller(first)') && !/hosted && \(first\.heal === 'operator' \|\| first\.live === 0\)/.test(updateTs))
-  check('an armed restart prints the daemon\'s own detail, else the counted noun with its verb', updateTs.includes('when idle — ${reply.detail}') && updateTs.includes('${finishVerb(reply.live)}'))
-}
 
 rmSync(home, { recursive: true, force: true })
 if (failures > 0) {

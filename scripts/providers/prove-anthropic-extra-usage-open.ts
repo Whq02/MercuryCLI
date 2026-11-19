@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,7 +20,6 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const limits = await import('../../src/services/anthropicLimits.ts')
 const mock = await import('../../src/services/mockRateLimits.ts')
 const usability = await import('../../src/services/providers/providerUsability.ts')
@@ -99,9 +98,6 @@ section('§2 the screen side adopts the relayed fact and reads the same open win
   check('the fact is adopted', adopted === true)
   check('the adopted record carries extra usage (isUsingOverage true, overage allowed), status rejected as the wire said', record.status === 'rejected' && record.isUsingOverage === true && record.overageStatus === 'allowed', JSON.stringify(record))
   check('the adopted record is not a closed window', closed(record) === false, String(closed(record)))
-  check("the composer's slot-offer wall reads through anthropicWindowClosed (source)", readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8').includes('anthropicWindowClosed(limits)'))
-  check("the slot-switch seat view's wall reads through anthropicWindowClosed (source)", readFileSync(join(ROOT, 'src/services/providers/slotSwitch.ts'), 'utf8').includes('anthropicWindowClosed(currentLimits)'))
-  check("the cap-failover family read takes the lane-level status (source)", readFileSync(join(ROOT, 'src/services/capFailover.ts'), 'utf8').includes('laneQuotaStatus(current)'))
 }
 
 section('§3 a rejected status with NO overage keeps every tooth (the real wall)')

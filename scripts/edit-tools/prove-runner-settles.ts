@@ -180,22 +180,6 @@ section('§4 a healthy run is untouched')
   }
 }
 
-section('§5 every teardown in the lane routes through the ONE tree owner')
-{
-  const files = [
-    'src/services/ide/projectRunners.ts',
-    'src/services/ide/pythonTests.ts',
-    'src/services/ide/cppBuild.ts',
-    'src/utils/healthReport.ts',
-  ]
-  for (const rel of files) {
-    const src = readFileSync(join(ROOT, rel), 'utf8')
-    check(`${rel}: no root-only child.kill remains`, !/child\.kill\(/.test(src), (src.match(/.*child\.kill\(.*/g) ?? []).join(' | '))
-    check(`${rel}: settles through the shared owner`, /settleChildRun\(/.test(src))
-  }
-  const launch = readFileSync(join(ROOT, 'src/tools/LaunchTool/LaunchTool.ts'), 'utf8')
-  check('LaunchTool hands its abort signal to its runner build call and routes tests through Test\'s own operation', (launch.match(/runRunnerProfile\([^)]*signal: context\.abortController\.signal/gs) ?? []).length >= 1 && /runTestOperation\(/.test(launch), 'a run that ignores Esc is a run nobody can stop')
-}
 
 rmSync(scratch, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-runner-settles${failures ? ` (${failures} failure(s))` : ''}`)

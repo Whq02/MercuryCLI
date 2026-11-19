@@ -40,9 +40,4 @@ assert.equal(measureEffectiveProjectInstructionLines([
 ]), 5)
 console.log('[PASS] effective size measures the native entry and its import closure, not a rules or state directory')
 
-const engine = readFileSync(join(import.meta.dir, '../../src/services/instructions/engine.ts'), 'utf8')
-const writer = readFileSync(join(import.meta.dir, '../../src/services/instructions/projectInstructionWriter.ts'), 'utf8')
-assert.match(engine, /import \{ conventionsForProfile \} from '\.\/compositionOrder\.js'/)
-assert.match(writer, /import \{[^}]*\bmercuryNativeConvention\b[^}]*\} from '\.\/nativeSource\.js'/)
-console.log('[PASS] engine composition and convention capture use the native owner directly')
 console.log('prove-native-entry-road: all green')

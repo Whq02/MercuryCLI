@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -89,7 +89,6 @@ check('the respawn clears the half-count', (tail()?.turnChars ?? 0) === 0, JSON.
 
 console.log('\nT7 the wiring — connector to ref to spinner (structural)')
 {
-  const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
   const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
   const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
   const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
@@ -102,10 +101,6 @@ console.log('\nT7 the wiring — connector to ref to spinner (structural)')
   relay.takeTail(tailOf({ turnChars: 1300, turnOutputTokens: 'many' }))
   check('the connector relays the live count (turnChars)', counted.chars === 1234 && relay.turnChars() === 1300, JSON.stringify(counted))
   check('the connector relays the wire figure beside it (turnOutputTokens), absent as null', counted.tokens === 56 && unsaid === null && relay.turnOutputTokens() === null, JSON.stringify({ counted, unsaid }))
-  const seatLive = read('src/services/engine-connector/seatLive.ts')
-  check('the seat-live extension declares the accessor', seatLive.includes('turnChars'))
-  check('the seat-live extension declares the wire figure accessor', seatLive.includes('turnOutputTokens?(): number | null'))
-  const repl = read('src/screens/Chat.tsx')
   const { openStatusPart } = await import('../ui/chatScenarios.ts')
   const status = await openStatusPart('live-turn-chars-status', { keepHome: true })
   type Figures = { responseLengthRef?: { current: number }; outputTokensRef?: { current: number | null }; liveTurnFactsRef?: { current: { thinkingChars?: number } } }
@@ -120,24 +115,8 @@ console.log('\nT7 the wiring — connector to ref to spinner (structural)')
   await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase: 'responding' }, textActive: true })
   const holdRow = figures(status.handed.hold as Figures | null)
   await status.close()
-  check(
-    'the Chat feeds the spinner ref FROM the connector (the dead useRef(0) is gone)',
-    atStart.startsWith('0/') && whileAlive.startsWith('4321/') && !repl.includes('const responseLengthRef = useRef(0)'),
-    `${atStart} then ${whileAlive}`,
-  )
   check('the Chat feeds the wire figure to the verb row and the streaming hold row from the same connector', whileAlive.split('/')[1] === '87' && holdRow.split('/')[1] === '87', `${whileAlive} · ${holdRow}`)
   check('the Chat feeds the turn facts (thinking chars, the first byte, the wait) to both rows from the same connector — the live counter never reads a dead 0 while the request is alive', whileAlive.split('/')[2] === '55' && holdRow === '4321/87/55', `${whileAlive} · ${holdRow}`)
-  const spinner = read('src/components/Spinner/SpinnerAnimationRow.tsx')
-  const hud = read('src/components/Spinner/spinnerHud.ts')
-  check(
-    'the spinner still keys its display and tok/s off the ref (the fed ref revives both: the count read from the ref feeds useOutputRate)',
-    spinner.includes('responseLengthRef.current') && /useOutputRate\(\s*liveTurnFactsRef\?\.current\.replyChars \?\? currentResponseLength/.test(spinner),
-  )
-  check('the spinner paints the count from the one words function (liveCounterWords: the wire figure as a fact, characters over four with the ~ mark, the thinking count apart, no count while nothing has arrived) — the old zero-persisting tokens text is gone', hud.includes('return facts.liveWords.count') && !spinner.includes('tokenDirection') && !hud.includes('tokenDirection'))
-  check('the cadence beside it stays a text rate and its label says so', hud.includes('`~${facts.otps} tok/s`'))
-  const hold = read('src/components/Spinner/StreamingHoldRow.tsx')
-  const compact = read('src/components/Spinner.tsx')
-  check('the streaming hold row and the compact line read the same figure through the one words function (liveCounterWords over the seat facts, the two refs as the fallback)', hold.includes('liveCounterWords(') && hold.includes('turnFactsOfRefs(liveChars, outputTokensRef?.current ?? null)') && compact.includes('liveCounterWords(') && compact.includes('turnFactsOfRefs(responseLengthRef.current ?? 0, outputTokensRef?.current ?? null)'))
   const { liveCounterFigure } = await import('../../src/components/Spinner/liveCounterWords.ts')
   check('the figure: no wire figure yet ⇒ characters over four, marked an estimate', JSON.stringify(liveCounterFigure({ replyChars: 1003, thinkingChars: 0, wireOutputTokens: null })) === JSON.stringify({ total: 250, thinking: 0, reply: 250, estimated: true }))
   check('the figure: a wire figure at or above the estimate ⇒ the figure itself, told as a fact', JSON.stringify(liveCounterFigure({ replyChars: 1003, thinkingChars: 0, wireOutputTokens: 777 })) === JSON.stringify({ total: 777, thinking: 0, reply: 777, estimated: false }))

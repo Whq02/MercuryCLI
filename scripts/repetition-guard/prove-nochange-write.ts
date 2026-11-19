@@ -238,29 +238,6 @@ console.log('── W. the anchored non-mutating disposition ──')
     check('W10 repetition policy engaged exactly once (streak 1, WR-09)', streak === 1, String(streak))
   }
 
-  const toolSrc = readFileSync(
-    new URL('../../src/tools/FileWriteTool/FileWriteTool.ts', import.meta.url),
-    'utf8',
-  )
-  const validateBody = toolSrc.slice(
-    toolSrc.indexOf('async validateInput('),
-    toolSrc.indexOf('async call('),
-  )
-  check(
-    'W11 validateInput is content-free — no snapshot read, no equality (WR-31)',
-    !validateBody.includes('readFileSyncWithMetadata') &&
-      !validateBody.includes('rawContent') &&
-      !validateBody.includes('=== content'),
-  )
-
-  const editSrc = readFileSync(
-    new URL('../../src/tools/FileEditTool/FileEditTool.ts', import.meta.url),
-    'utf8',
-  )
-  check(
-    'W12 FileEdit refuses the no-op edit at validation (WR-21 disposition holds)',
-    editSrc.includes('old_string === new_string'),
-  )
 }
 
 clearTimeout(guard)

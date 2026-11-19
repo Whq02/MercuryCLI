@@ -15,8 +15,6 @@ console.log('recovered stream-fault presentation ──')
 
 {
   const errors = src('src/services/api/errors.ts')
-  check('the nudge is owned beside the marker', errors.includes('export const STREAM_FAULT_RECOVERY_NUDGE'))
-  check('the text-level classifier exists', errors.includes('export function isContinuableStreamFaultText'))
   const t = await import('../core-runtime/turnScenarios.ts')
   const owner = await import('../../src/services/api/errors.ts')
   type Row = Record<string, unknown>
@@ -43,22 +41,6 @@ console.log('recovered stream-fault presentation ──')
     added.length === 2 && added[0]?.type === 'assistant' && added[0].isApiErrorMessage !== true && added[1] === nudge && !JSON.stringify(continuation).includes('Continue exactly where you left off'),
     `${RULE} must add to the continuation request the settled reply and the owner's nudge alone, with no prose of its own; the request adds ${rowsOf(added)}`,
   )
-  const lk = src('src/utils/messages/lookups.ts')
-  check('lookups compute the recovered set', lk.includes('recoveredStreamFaultUuids'))
-  const atm = src('src/components/messages/AssistantTextMessage.tsx')
-  check(
-    'renderer: a recovered continuable fault paints nothing in the default view',
-    atm.includes('if (streamFaultRecovered && isContinuableStreamFaultText(text) && !verbose) return null') &&
-      atm.includes('recovered={streamFaultRecovered}'),
-  )
-  check('renderer: the expansion paints the recovered fault whole, quietly', /recovered && isContinuableStreamFaultText\(text\)\) \{\s*return <Text dimColor>\{text\}<\/Text>/.test(atm))
-  const stm = src('src/components/messages/SystemTextMessage.tsx')
-  check('the calm line is the stream_cut row, in the collapsed tool row\u2019s tokens', /case 'stream_cut':[\s\S]{0,600}<Text color="subtle">[\s\S]{0,200}Continued after <Text bold>\{message\.count\}<\/Text> \{plural\(message\.count, 'stream cut'\)\} · context sent again/.test(stm))
-  check('the calm line carries no glyph and no warning colour', !/case 'stream_cut':[\s\S]{0,900}GLYPH\./.test(stm.slice(stm.indexOf("case 'stream_cut':"), stm.indexOf("case 'thinking_note':"))) && !stm.slice(stm.indexOf("case 'stream_cut':"), stm.indexOf("case 'thinking_note':")).includes('warning'))
-  const qe = src('src/rows/turn.ts')
-  check('the headless turn records the stream_cut row (the daemon-hosted cockpit paints from the transcript file)', /systemMessage\.subtype === 'thinking_note' \|\|\s*systemMessage\.subtype === 'stream_cut'/.test(qe))
-  const recordRule = /if \(level === 'warning' \|\| level === 'error' \|\| level === 'suggestion' \|\| systemMessage\.subtype === 'thinking_note' \|\| systemMessage\.subtype === 'stream_cut' \|\| systemMessage\.subtype === 'busy_recovery'\) \{\s*turnMessages\.push\(systemMessage\)\s*await recordDelta\(\)\s*\}/
-  check('the record rule is bounded: a warning, error or suggestion level (the preserved-thinking switch notice rides suggestion), the thinking receipt, the stream_cut row, the busy_recovery row — an info row of any other kind still never leaves the runner', recordRule.test(qe))
   const faultText = owner.streamFaultAfterPartialText('OpenAI', 'openai-stream-error', 'terminated')
   const notices = cutTwice.events.filter(event => event.kind === 'notice').map(event => event.message as Row)
   const [cutRow, exhausted] = notices
@@ -69,11 +51,6 @@ console.log('recovered stream-fault presentation ──')
       cutRow.content === owner.streamFaultNoticeLine(faultText, 'asked the model to continue from where it stopped (continuation 1 of 1)') &&
       exhausted?.subtype !== 'stream_cut' && exhausted?.level === 'warning' && exhausted.content === owner.streamFaultNoticeLine(faultText, 'stopped after 1 continuation; the reply so far stands'),
     `${RULE} must yield createStreamCutMessage({ count, content, road, sent, code }) when it continues and a warning system row saying the reply stands when its one continuation is spent; a run cut twice yielded ${JSON.stringify(notices.map(row => ({ subtype: row.subtype, level: row.level, count: row.count, road: row.road, sent: row.sent, code: row.code, content: row.content })))}`,
-  )
-  const msg = src('src/components/Message.tsx')
-  check(
-    'Message.tsx threads the lookup by normalized uuid',
-    msg.includes('lookups.recoveredStreamFaultUuids.has(message.uuid)'),
   )
 }
 

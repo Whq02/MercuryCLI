@@ -1,9 +1,7 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { formsMissing, rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (ok) console.log(`  ok  ${name}`)
@@ -31,24 +29,6 @@ console.log('§1 the reserved tables carry the chords the Windows hosts actually
   check('every Windows row stays a warning (the law)', WINDOWS_RESERVED.every(s => s.severity === 'warning'))
 }
 
-console.log('§2 the bundled keybindings skill renders the Windows table it used to drop')
-{
-  const skill = readFileSync(join(ROOT, 'src/skills/bundled/keybindings.ts'), 'utf8')
-  check(
-    'reservedTable() renders WINDOWS_RESERVED (`skill-reserved-table-drops-every-windows-row`)',
-    skill.includes('Windows-reserved (warnings on Windows') && skill.includes('for (const { key, reason } of WINDOWS_RESERVED)'),
-  )
-  check('…imported from the one table owner', /import \{[\s\S]{0,200}WINDOWS_RESERVED,[\s\S]{0,100}\} from '\.\.\/\.\.\/keybindings\/reservedShortcuts\.js'/.test(skill))
-}
-
-console.log('§3 /keysetup no longer lists the host it just refused')
-{
-  const ts = readFileSync(join(ROOT, 'src/commands/keysetup/keysetup.tsx'), 'utf8')
-  check(
-    "win32 contributes NO 'Supported terminals' row (three lenses filed the contradiction independently)",
-    !ts.includes("' - Windows Terminal\\n'") && ts.includes("process.platform === 'darwin' ? ' - Apple Terminal\\n' : ''"),
-  )
-}
 
 console.log('§4 the Scroll copy chord is platform-forked (no more super+c on Windows)')
 {

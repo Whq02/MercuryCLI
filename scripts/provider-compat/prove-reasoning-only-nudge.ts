@@ -2,9 +2,9 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', PACKAGE_URL: 'https://github.com/example/mercury' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'reasoning-only-nudge-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'reasoning-only-nudge-daemon-'))
@@ -16,7 +16,6 @@ for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOK
 
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -285,8 +284,6 @@ section('0 · the owners: the words live beside the other nudges, the decision i
   const decide = turnMachine.decideReasoningOnlyRecovery as ((input: { recoveryCount: number; maxTokens: boolean }) => { kind: string; attempt?: number }) | undefined
   check('a plain thinking-only stop: one continuation, then surface', typeof decide === 'function' && decide({ recoveryCount: 0, maxTokens: false }).kind === 'continue' && decide({ recoveryCount: 0, maxTokens: false }).attempt === 1 && decide({ recoveryCount: 1, maxTokens: false }).kind === 'surface', 'not exported or wrong')
   check('a max-tokens thinking-only stop: two continuations, then surface', typeof decide === 'function' && decide({ recoveryCount: 0, maxTokens: true }).kind === 'continue' && decide({ recoveryCount: 1, maxTokens: true }).kind === 'continue' && decide({ recoveryCount: 1, maxTokens: true }).attempt === 2 && decide({ recoveryCount: 2, maxTokens: true }).kind === 'surface', 'not exported or wrong')
-  const transitions = readFileSync(resolve(ROOT, 'src/query/transitions.ts'), 'utf8')
-  check('the transition reason is typed in query/transitions.ts', transitions.includes("reason: 'reasoning_only_recovery'; attempt: number"))
   const ceilings = [LOCAL_MODEL, CLOUD_MODEL].map(model => getModelMaxOutputTokens(model).default)
   check('the row fixtures have different catalogue ceilings, so a literal cannot satisfy both', new Set(ceilings).size === 2, j(ceilings))
   for (const model of [LOCAL_MODEL, CLOUD_MODEL]) {

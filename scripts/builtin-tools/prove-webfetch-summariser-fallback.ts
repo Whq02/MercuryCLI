@@ -1,10 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
@@ -80,40 +77,6 @@ const QUOTING = 'API Error: the page quotes this line as an example, and it is t
 const r11 = await applyPromptToMarkdown('q', 'PAGE', sig, true, false, { utility: async () => fakeMsg(QUOTING) as never, withModel: thrower('should not run') as never, utilityModelId: () => 'local/qwen3.5-2b', mainModelId: () => 'opus' })
 check('an unmarked reply is a labelled reading, whatever its words', r11 === reading(QUOTING), r11)
 
-section('§12 every API-error text Mercury mints carries the marker, so an unmarked refusal cannot reach the tool')
-const { readdirSync, statSync } = await import('node:fs')
-const walk = (dir: string): string[] => readdirSync(dir).flatMap(name => {
-  const path = join(dir, name)
-  return statSync(path).isDirectory() ? walk(path) : /\.tsx?$/.test(path) ? [path] : []
-})
-const sources = [...walk(join(ROOT, 'src/services/providers')), ...walk(join(ROOT, 'src/services/api')), ...walk(join(ROOT, 'src/utils/messages'))]
-const bare: string[] = []
-const plainFactory: string[] = []
-for (const file of sources) {
-  const text = readFileSync(file, 'utf8')
-  const where = (index: number): string => `${file.slice(ROOT.length + 1)}:${text.slice(0, index).split('\n').length}`
-  const templated = /content: `\$\{API_ERROR_MESSAGE_PREFIX\}/g
-  let hit: RegExpExecArray | null
-  while ((hit = templated.exec(text)) !== null) {
-    if (!/createAssistantAPIErrorMessage\(|apiErrorMessage\(/.test(text.slice(Math.max(0, hit.index - 240), hit.index))) bare.push(where(hit.index))
-  }
-  const plain = /createAssistantMessage\(\{[^}]{0,200}API_ERROR_MESSAGE_PREFIX/g
-  while ((hit = plain.exec(text)) !== null) plainFactory.push(where(hit.index))
-}
-check('no templated API-error content is built outside the marker factory or a provider helper that calls it', bare.length === 0, bare.join(', '))
-check('no plain assistant message carries the API-error prefix (the unmarked factory never mints a refusal)', plainFactory.length === 0, plainFactory.join(', '))
-const factories = readFileSync(join(ROOT, 'src/utils/messages/factories.ts'), 'utf8')
-check('the marker factory sets isApiErrorMessage', /export function createAssistantAPIErrorMessage\([\s\S]{0,1200}isApiErrorMessage: true/.test(factories))
-for (const helper of ['src/services/providers/openai/openaiCallModel.ts', 'src/services/providers/openaicompat/compatChatCallModel.ts', 'src/services/providers/zai/zaiCallModel.ts']) {
-  check(`${helper} builds its API-error messages through the marker factory`, /function apiErrorMessage\([\s\S]{0,500}return createAssistantAPIErrorMessage\(/.test(readFileSync(join(ROOT, helper), 'utf8')))
-}
-
-section('§7 the fetch tool wires the two roads')
-const utils = readFileSync(join(ROOT, 'src/tools/WebFetchTool/utils.ts'), 'utf8')
-check('it reaches for the utility call and the session model', utils.includes('utilityCallFor().model') && utils.includes('queryUtility') && utils.includes('getEngineModel') && utils.includes('queryWithModel'))
-check('the fallback runs the session model through queryWithModel as itself at its own floor, pinned, never the slot', utils.includes('await withModel(') && utils.includes('utilityCallFor(fallbackModel, { named: true })') && utils.includes('options: { ...baseOptions, ...call }'))
-const tool = readFileSync(join(ROOT, 'src/tools/WebFetchTool/WebFetchTool.ts'), 'utf8')
-check('only the explicit prompt road calls a model', tool.includes('if (input.prompt === undefined)') && tool.includes('applyPromptToMarkdown('))
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

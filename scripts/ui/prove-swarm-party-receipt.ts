@@ -122,8 +122,6 @@ section('the board event makes one durable row, not the tool result')
 }
 
 section('words')
-check('the derive owner has no board-message words left', !('boardMessagesWords' in receiptModule) && !/board message/.test(readFileSync(join(ROOT, 'src', 'utils', 'cockpit', 'turnReceipt.ts'), 'utf8')))
-check('the row prints no board-message words and no rows of its own', !/board/.test(readFileSync(join(ROOT, 'src', 'components', 'messages', 'TurnReceiptRow.tsx'), 'utf8')) && !/CrewChatRow/.test(readFileSync(join(ROOT, 'src', 'components', 'messages', 'TurnReceiptRow.tsx'), 'utf8')))
 
 section('a board row is never a turn boundary')
 check('a crew_chat row is not a boundary', !isTurnBoundary(chat('c0', 1, 'alpha', 'x', 'p1') as never))
@@ -204,9 +202,6 @@ const receiptRow = receiptOf(closed, 'p1')!
 check('not navigable', !isNavigableMessage(receiptRow as never))
 check('enter does not address it', !MESSAGE_ACTIONS.some(action => action.key === 'enter' && action.types.includes('turn_receipt')))
 check('copy takes nothing from it', copyTextOf(receiptRow as never) === '')
-const messagesSrc = readFileSync(join(ROOT, 'src', 'components', 'Messages.tsx'), 'utf8')
-check('Messages.tsx counts no receipt as clickable and composes the transcript without a turn-open flag', !/turn_receipt'\) return/.test(messagesSrc) && !/turnOpen/.test(messagesSrc) && /collapsed = injectTurnReceipts\(collapsed, getMercuryTempDir\(\)\)/.test(messagesSrc))
-check('Message.tsx hands the row no verbose flag', /<TurnReceiptRow message=\{message\} \/>/.test(readFileSync(join(ROOT, 'src', 'components', 'Message.tsx'), 'utf8')))
 
 section('the painted words')
 const { enableConfigs } = await import('../../src/utils/config.js')

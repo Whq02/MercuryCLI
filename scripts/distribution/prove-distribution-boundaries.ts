@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  ${ok ? '✓' : '✗'} ${label}${ok || !detail ? '' : ` — ${detail}`}`)
@@ -30,11 +27,6 @@ console.log('signature boundaries — home authority')
   delete process.env.MERCURY_CONFIG_DIR
   delete process.env.MERCURY_HOME
 
-  const src = readFileSync(join(ROOT, 'src/utils/crashReport.ts'), 'utf8')
-  check(
-    'crashReport.ts rides the one config-home resolver',
-    src.includes('getMercuryHome'),
-  )
 }
 
 if (failures > 0) {

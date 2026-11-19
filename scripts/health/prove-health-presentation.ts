@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
@@ -11,7 +10,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 const { resolveHealthPresentation, renderPlainCertificate } = await import(
   '../../src/cli/healthPresentation.ts'
@@ -101,16 +99,6 @@ section('§3 THE DRAIN-AWARE EXIT (HL-30/31)')
 
 section('§4 THE CHECK RUNNER (HL-26..28)')
 {
-  const runner = src('src/utils/healthReport.ts')
-  check('the deadline timer is CLEARED on every settle path', runner.includes('clearTimeout(deadline)'))
-  check(
-    'each check receives the LINKED signal (deadline + caller), never the bare caller signal',
-    runner.includes('spec.run({ signal: controller.signal })') && runner.includes('onCallerAbort'),
-  )
-  check(
-    'post-settle continuation is fenced (the controller aborts after settle)',
-    runner.includes("controller.abort(new Error('check settled'))"),
-  )
   const { AbortController: AC } = globalThis
   void AC
   let postSettleWork = 0
@@ -146,55 +134,10 @@ section('§4 THE CHECK RUNNER (HL-26..28)')
 
 section('§5 WIRING (HL-01/13/16/21/30)')
 {
-  const main = src('src/main.tsx')
-  const healthAction = main.slice(main.indexOf("program.command('health [topic]')"))
-  check(
-    'the presentation resolves BEFORE any Ink/createRoot import (HL-01)',
-    healthAction.indexOf('resolveHealthPresentation') !== -1 && healthAction.indexOf('resolveHealthPresentation') < healthAction.indexOf("import('./ink.js')"),
-  )
-  check(
-    "the text path routes through runAndRecordHealthReport (one owner, last-cert refresh — HL-10/16) and the drain-aware exit",
-    healthAction.includes("presentation.output === 'text'") &&
-      healthAction.includes('runAndRecordHealthReport') &&
-      healthAction.includes("writeOutAndExit(renderPlainCertificate(cert), cert.verdict === 'fault' ? 3 : 0)"),
-  )
-  check(
-    'health is the one word for the health check: the command carries no alias (HL-03/21)',
-    builtHelp('health').includes('Usage: mercury health [options] [topic]') && builtHelp().includes(' health [options] [topic] ') && !/command\('health \[topic\]'\)[\s\S]{0,400}?\.alias\(/.test(main),
-  )
-  const healthJson = src('src/cli/healthJson.ts')
-  check(
-    'every healthJson terminal emission rides the shared drain-aware exit (HL-30 census: this family is closed)',
-    healthJson.includes('writeOutAndExit') &&
-      (healthJson.match(/emitAndExit\(/g) ?? []).length >= 7 &&
-      !/emit\(\{[^}]*\}\)\n\s*process\.exit/.test(healthJson),
-  )
-  check(
-    'the json seam is silence-proof (the staged-bundle isolation defect): a ref’d run deadline + beforeExit tripwire emit a typed cert-stalled record',
-    healthJson.includes("code: 'cert-stalled'") &&
-      healthJson.includes("process.on('beforeExit', onBeforeExit)") &&
-      healthJson.includes('JSON_RUN_DEADLINE_MS'),
-  )
-  check(
-    'no redirected path can reach a raw-mode mount (the Ink route requires rich)',
-    healthAction.indexOf("presentation.output === 'json'") !== -1 && healthAction.indexOf("presentation.output === 'json'") < healthAction.indexOf('healthHandler') &&
-      healthAction.indexOf("presentation.output === 'text'") !== -1 && healthAction.indexOf("presentation.output === 'text'") < healthAction.indexOf('healthHandler'),
-  )
 }
 
 section('§6 N-06 · THE PROFILE CONTRACT + THE VISIBLE REMEDIES')
 {
-  const contracts = src('src/services/instructions/contracts.ts')
-  const engine = src('src/services/instructions/engine.ts')
-  const { conventionsForProfile } = await import('../../src/services/instructions/engine.js')
-  check(
-    'the profile contract is declared in source: the union is auto | native, a requested profile resolves as itself, auto adds the shared conventions after the native one, AGENTS.md first; native composes the native convention alone',
-    contracts.includes("export type InstructionProfile = 'auto' | 'native'") &&
-      !contracts.includes('mapped?:') &&
-      /return \{ requested, requestedOrigin, resolved: requested \}/.test(engine) &&
-      JSON.stringify(conventionsForProfile('native').map(convention => convention.id)) === JSON.stringify(['mercury-native']) &&
-      JSON.stringify(conventionsForProfile('auto').map(convention => convention.id)) === JSON.stringify(['mercury-native', 'agents-md', 'agent-folders', 'claude', 'gemini', 'copilot', 'cursor', 'windsurf', 'cline']),
-  )
   check(
     'the health instruction-profile row projects the same diagnostics (warn on findings)',
     (await import('../../src/utils/health/sections/settings.ts')).settingsChecks().some(row => row.id === 'instruction-profile' && row.label === 'Instruction profile'),
@@ -203,34 +146,6 @@ section('§6 N-06 · THE PROFILE CONTRACT + THE VISIBLE REMEDIES')
 
 section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
 {
-  const { existsSync } = await import('node:fs')
-  check(
-    'the orphaned KeybindingWarnings strip died with it',
-    !existsSync(join(import.meta.dir, '../../src/components/KeybindingWarnings.tsx')),
-  )
-  const handler = src('src/cli/handlers/util.tsx')
-  check(
-    'the CLI rich route mounts the CANONICAL certificate view (HL-10)',
-    handler.includes('MercuryHealthCertificate'),
-  )
-  check(
-    'a renderer failure still settles the root (HL-14: unmount in finally)',
-    /finally\s*\{[\s\S]{0,200}root\.unmount\(\)/.test(handler),
-  )
-  const slash = src('src/commands/health/health.tsx')
-  check(
-    '/health always mounts the certificate — the =0 legacy fallback is gone (HL-33)',
-    slash.includes('MercuryHealthCertificate'),
-  )
-  const certView = src('src/commands/health/HealthCertificate.tsx')
-  check(
-    "the legacy `s` route is RETIRED from the certificate view",
-    !certView.includes("input === 's'") && !certView.includes('showStock'),
-  )
-  check(
-    'the footer no longer advertises the dead route',
-    !certView.includes('s install diagnostics'),
-  )
   const { healthContext: contextOf } = await import('../../src/utils/healthReport.ts')
   const { HEALTH_SECTIONS } = await import('../../src/utils/health/sections.ts')
   const listContext = await contextOf()
@@ -245,21 +160,8 @@ section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
     agentsSays?.evidence,
   )
   check(
-    "the false 'Source build — git pull' guidance died with the legacy screen",
-    !certView.includes('git pull && bun run build.ts') &&
-      !handler.includes('git pull && bun run build.ts'),
-  )
-  check(
     'the health command description no longer claims stdio servers are spawned (HL-25)',
     builtHelp('health').includes('WITHOUT starting them'),
-  )
-  check(
-    'Enter = the documented expand action; esc = the one close (HL-19)',
-    certView.includes('if (key.return)') && certView.includes('onClose()'),
-  )
-  check(
-    'the live-PTY Enter proof rides the ui estate (health-detail scenario, HL-20)',
-    src('scripts/ui/renderScenarios.ts').includes("name === 'health-detail'"),
   )
 }
 

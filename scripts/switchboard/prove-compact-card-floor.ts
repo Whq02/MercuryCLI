@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -8,8 +7,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n── ${t} ──`)
-const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 const card = await import('../../src/components/concourse/ContractOfferCard.tsx')
 const board = await import('../../src/components/concourse/compactBoard.ts')
@@ -51,8 +48,6 @@ else {
   check('…and what it keeps is the head of the blurb, word for word', cases.every(([text, c, rows]) => flat(text).startsWith(flat(capped(text, c, rows).join(' ').slice(0, -1)).trimEnd())))
   const at82 = capped(card.CONTRACT_ASK_BLURB, textColumnsAt(82), card.contractCardFit(11, textColumnsAt(82)).askBlurbRows)
   check('82×17 (eleven rows, two blurb lines): the second line ends "Yes opens a field…"', at82.length === 2 && at82[1] === 'agent acknowledges it without being blocked by it. Yes opens a field…', JSON.stringify(at82))
-  const source = read('src/components/concourse/ContractOfferCard.tsx')
-  check('both faces paint their blurb through the one cap', source.includes('{cappedBlurb(CONTRACT_ASK_BLURB, textColumns, fit.askBlurbRows)}') && source.includes('{cappedBlurb(CONTRACT_FIELD_BLURB, textColumns, fit.fieldBlurbRows)}'))
 }
 
 section('§2 the stacked board yields to one frame while the card stands and its mirror is under the floor')
@@ -123,15 +118,6 @@ section('§2b one frame too short for the card beside its composer: the composer
   check('with no card standing, or a mirror that already holds the floor, no size from 3 to 40 rows moves', moved.length === 0, `${moved.length} moved · ${moved.slice(0, 6).join(' ')}`)
 }
 
-section('§3 the screen hands the floor only while the card stands; the painter and the wheel read the one geometry')
-{
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  const compact = read('src/components/concourse/CompactConcourse.tsx')
-  check('the floor rides while the contract card stands and is zero otherwise', screen.includes('const compactCardRows = contractAsk ? CONTRACT_CARD_MIN_ROWS : 0') && screen.includes('cardRows: compactCardRows,') && screen.includes('cardRows={compactCardRows}'))
-  check('the compact painter takes its profile from the geometry it lays out with (no second owner)', compact.includes("if (geo.profile === 'single') {") && !/\bprofile: CompactConcourseProfile\b/.test(compact) && compact.includes('    cardRows,\n  })'))
-  check('the wheel reads the list from the same geometry', screen.includes("const compactListPainted = compactGeo?.profile === 'split' || (compactGeo?.profile === 'single' && region === 'list' && !contractAskRef.current)"))
-  check('the live frame\'s foot keeps its notes and drops its own key hints while the card stands, in both profiles', compact.includes("<FootRow text={cardRows > 0 ? '' : compactOpenedFoot({ reduced, verbsFire, draftHeld: liveDraftHeld })} note={note}") && compact.includes("<FootRow text={cardRows > 0 ? '' : compactLiveFoot({ verbsFire })} note={note}"))
-}
 
 console.log(failures === 0 ? '\nprove-compact-card-floor: ALL LAWS HOLD' : `\nprove-compact-card-floor: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

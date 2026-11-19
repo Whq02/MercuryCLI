@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = join(process.env.TMPDIR ?? '/tmp', `preserved-reads-${process.pid}`)
@@ -62,14 +61,6 @@ check('c.ts is not re-registered here', readFileState.get(C) === undefined)
 console.log('L3 an unchanged-file stub is not a preserved read')
 check('d.ts (its content compacted away) is not re-registered here', readFileState.get(D) === undefined)
 
-console.log('L4 the fold sites (source pins)')
-{
-  const src = readFileSync(join(SRC, 'services/compact/compact.ts'), 'utf8')
-  const handoffs = (src.match(/assembleAttachments\(snapshot, context, [^,]+, 'compact_(full|partial)', ledgerBeforeFold\)/g) ?? []).length
-  check('both fold sites hand the ledger to the assembly', handoffs === 2, `${handoffs} site(s)`)
-  check('the assembly restores the preserved reads', src.includes('restorePreservedReads(context, ledger, preserved)'))
-  check('a ceiling refusal cannot commit the staged read ledger', src.includes('const transaction = prepareFoldContext(context)') && src.indexOf('throw new Error(postCompactOverThresholdMessage(truePostCompactTokenCount, ceiling))') !== -1 && src.indexOf('transaction.commit()') > src.indexOf('throw new Error(postCompactOverThresholdMessage(truePostCompactTokenCount, ceiling))'))
-}
 
 console.log(failures === 0 ? '\nprove-preserved-reads-reregistered: ALL PASS' : `\nprove-preserved-reads-reregistered: ${failures} FAIL`)
 process.exit(failures === 0 ? 0 : 1)

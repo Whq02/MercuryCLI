@@ -120,7 +120,6 @@ try {
   check('a drop on a rental whose file was unreadable starts a fresh observation rather than failing the reconnect', rewritten.outages.length === 1 && readHostLinkObservation('vast', '7998')?.machineId === '9101')
   assert.throws(() => noteHostLink({ vendor: 'vast', id: '../escape' }, { outcome: 'recovered', attempt: 1 }), /Invalid host rental id/)
   check('a rental id that is not a vendor id never names a file outside the folder', !existsSync(join(hostDirectory(), 'vast-..')) && readdirSync(folder).every(name => /^(?:runpod|vast|lambda)-[a-zA-Z0-9_-]+\.json$/.test(name)))
-  check('the module’s only writers are the three link outcomes; an engine death has no entry point here', /outcome: 'reconnecting'|outcome: 'recovered'|outcome: 'lost'/.test(readFileSync(reliabilityPath, 'utf8')) && !/engineDeath|HostEngineDied/.test(readFileSync(reliabilityPath, 'utf8')))
 
   console.log('§5 the worker and the door — the lane’s red-to-green check through the real keep-alive loop')
   {

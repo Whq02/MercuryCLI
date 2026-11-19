@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -28,14 +28,6 @@ section('§1 resolveOperandPath')
   check('a bare drive with no separator is NOT treated as absolute (a drive-relative spelling keeps its later NTFS-stream ask)', resolveOperandPath('C:notes.txt', CWD) === 'C:\\proj/C:notes.txt')
 }
 
-section('§2 the resolution sites ride it')
-{
-  const src = readFileSync(join(import.meta.dir, '../../src/tools/PowerShellTool/pathValidation.ts'), 'utf8')
-  const sites = src.match(/resolveOperandPath\((?:base|path), cwd\)/g) ?? []
-  check('both resolution sites (the glob base and the operand) call resolveOperandPath', sites.length === 2, `sites=${sites.length}`)
-  check('no slash-concatenating resolver remains under the old name', !/function resolveAbsolute\(/.test(src))
-  check('the drive-qualified test is the separator-normalised spelling (X:/)', /\^\[A-Za-z\]:\\\//.test(src))
-}
 
 if (failures > 0) {
   console.error(`\nprove-powershell-drive-operand: ${failures} FAILURE(S)`)

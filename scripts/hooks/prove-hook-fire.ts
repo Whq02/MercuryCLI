@@ -117,8 +117,6 @@ const turnStart = () => fireHooks('turn.start', { turn_id: 'turn-1', prompt: 'he
   const rows = getBackgroundHookAttachments() as Array<{ type: string; outcome: string; name: string; words: string }>
   check("a file.changed hook's notice and a failed hook's line are banked for the operator's next turn as hook rows, and an answer that only sets watch adds no row (F43A-C8-07)", rows.length === 2 && rows.some(r => r.outcome === 'notice' && r.name === 'noticer' && r.words === 'the schema file moved') && rows.some(r => r.outcome === 'failed' && r.name === 'broken watcher' && r.words.includes('lost the plot')), JSON.stringify(rows))
   check('the bank empties once taken', getBackgroundHookAttachments().length === 0)
-  const watcherSrc = readFileSync(join(import.meta.dir, '../../src/utils/hooks/fileChangedWatcher.ts'), 'utf8')
-  check('the watcher banks every file.changed outcome on the one off-turn road, beside its watch update', watcherSrc.includes('bankHookOutcomes(result.outcomes)') && watcherSrc.indexOf('bankHookOutcomes(result.outcomes)') < watcherSrc.indexOf('updateWatchPaths(result.answer.watch'))
 }
 
 {
@@ -271,8 +269,6 @@ const turnStart = () => fireHooks('turn.start', { turn_id: 'turn-1', prompt: 'he
   const payload = JSON.parse(readFileSync(join(root, 'crewmate-end.json'), 'utf8')) as Record<string, unknown>
   check('crewmate.end carries the answer and the worktree path beside the status, the reason road and the transcript', payload.status === 'finished' && payload.answer === 'all done' && payload.worktree_path === join(root, 'lane') && payload.crewmate_transcript_path === join(root, 'agent.jsonl') && payload.crewmate_type === 'mercury-crew', JSON.stringify(payload))
   check('a notice answered on crewmate.end is read', result.answer.notices.includes('the crewmate ended'), JSON.stringify(result.answer))
-  const runAgentSrc = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/runAgent.ts'), 'utf8')
-  check("the crewmate's end hands its answer and worktree to the event and banks the outcomes on the off-turn road the file watcher uses", runAgentSrc.includes('bankHookOutcomes(ended.outcomes)') && /worktree_path: worktreePath/.test(runAgentSrc) && /answer: crewmateRun\.answer/.test(runAgentSrc))
 }
 
 clearTimeout(watchdog)

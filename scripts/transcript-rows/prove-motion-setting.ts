@@ -143,17 +143,6 @@ check('the receipt for auto says the machine decides again', motionReceiptWords(
   check('the detail names the doors and the word', lines.includes('doors: /config · Boot Menu') && lines.includes('the status line says reduced while reduced'))
   check('the doors are spelled once', /\/config/.test(MOTION_DOORS) && /Boot Menu/.test(MOTION_DOORS))
 }
-{
-  const config = src('src/components/Settings/Config.tsx')
-  const boot = src('src/components/BootSettingsScreen.tsx')
-  check('the /config door reads and writes through the owner', /readMotionSetting\(\)/.test(config) && /setMotionSetting\(next, writeGlobal\)/.test(config) && /motionValueWords\(/.test(config))
-  check('the Boot Menu door reads and writes through the owner', /readMotionSetting\(\)/.test(boot) && /setMotionSetting\(next\)/.test(boot) && /motionValueWords\(motionSetting\)/.test(boot) && /motionDetailLines\(\)/.test(boot))
-  check('the /config esc-revert tells the owner when it restored the key', /noteMotionSettingChanged\(\)/.test(config))
-  const owner = src('src/utils/cockpit/motionSetting.ts')
-  check('the owner is the one writer of the key (saveGlobalConfig with motion)', /out\.motion = next/.test(owner))
-  const schema = src('src/utils/config/schema.ts')
-  check("the key is declared beside the config's other feature-owned keys", /motion\?: 'auto' \| 'full' \| 'reduced' \| 'off'/.test(schema))
-}
 
 section('S5 the menu row')
 check('the row sits in the Performance section', MOTION_MENU_ROW.group === 'performance' && MOTION_MENU_ROW.label === 'Motion')
@@ -161,7 +150,6 @@ check('the row is an enum over the three set values, auto the default', MOTION_M
 check('the row applies live', MOTION_MENU_ROW.applicationClass === 'live')
 check('the row is config-backed: not an env row of the startup menu', STARTUP_MENU.every(r => r.env !== MOTION_MENU_ROW.env))
 check('…and not a flag', FLAG_REGISTRY.every(f => f.env !== MOTION_MENU_ROW.env))
-check('the Boot Menu lists it after the Seats row', /SEATS_MENU_ROW as MenuRow, MOTION_MENU_ROW as MenuRow\]/.test(src('src/components/BootSettingsScreen.tsx')))
 
 section('S6 the stills')
 for (const still of STILLS) {

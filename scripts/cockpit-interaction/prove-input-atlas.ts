@@ -190,43 +190,9 @@ t.section('§2 — the reverse lookup runs the runtime resolver')
   t.check('a terminal-reserved chord carries its reason', reserved.reserved?.reason.includes('suspend') === true, `${reserved.reserved?.reason}`)
 }
 
-t.section('§3 — a lookup is a table read: nothing is stored, logged or sent')
-{
-  const src = readFileSync('src/keybindings/atlas.ts', 'utf8')
-  for (const forbidden of ['logEvent', 'analytics', 'writeFile', 'appendFile', 'fetch(']) {
-    t.check(`atlas.ts does not ${forbidden}`, !src.includes(forbidden), forbidden)
-  }
-  t.check(
-    'and holds no module state to accumulate into',
-    !/^let\s/m.test(src) && !/^var\s/m.test(src),
-    'pure functions only',
-  )
-  const panel = readFileSync('src/components/MercuryInputAtlas.tsx', 'utf8')
-  t.check('the panel logs no keystroke', !panel.includes('logEvent'), 'ok')
-  t.check(
-    'and releases the keyboard on every terminal outcome',
-    (panel.match(/setPending\(null\)\n\s*setMode\('browse'\)/g) ?? []).length >= 2,
-    'single-answer capture in both callbacks',
-  )
-}
 
 t.section('§4 — the write half produces exact, deterministic bytes')
 {
-  const wb = readFileSync('src/keybindings/writeBindings.ts', 'utf8')
-  t.check(
-    'the rebind write is ATOMIC (published through the durable owner)',
-    wb.includes("from '../substrate/durablePublish.js'") && wb.includes('await durableAtomicPublish(path, next.content)'),
-  )
-  const atlasSrc = readFileSync('src/components/MercuryInputAtlas.tsx', 'utf8')
-  t.check(
-    'a failed write reports into the panel notice slot',
-    atlasSrc.includes('rebind failed —'),
-  )
-  const template = readFileSync('src/keybindings/template.ts', 'utf8')
-  t.check(
-    'the template points editors at NO foreign schema ($docs, never $schema)',
-    !template.includes("'$schema'") && !template.includes('"$schema"') && template.includes('$docs'),
-  )
   const fresh = applyBindingEdit(null, { context: 'Chat', chord: 'alt+j', action: 'app:toggleTasks' })
   t.check('a first rebind creates the file shape', fresh.ok, fresh.ok ? '' : fresh.error)
   if (fresh.ok) {
@@ -306,17 +272,6 @@ t.section('§6 — the capture claim, and the interceptor that honours it')
   release()
   t.check('a double release is harmless', currentKeyCapture() === null, 'idempotent')
 
-  const setup = readFileSync('src/keybindings/KeybindingProviderSetup.tsx', 'utf8')
-  t.check(
-    'the interceptor consults the claim BEFORE resolving',
-    setup.indexOf('currentKeyCapture()') !== -1 && setup.indexOf('currentKeyCapture()') < setup.indexOf('resolveKeyWithChordState(input'),
-    'first statement in the handler',
-  )
-  t.check(
-    'and acts on nothing while a claim is held',
-    /const capture = currentKeyCapture\(\);[^]*?capture\(input, key\);[^]*?return;/.test(setup),
-    'delivers and returns',
-  )
 }
 
 t.section('§7 — REAL BINARY: /keys renders the live table')

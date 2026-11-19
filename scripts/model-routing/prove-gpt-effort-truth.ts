@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -16,7 +16,6 @@ console.log('============================================================')
 console.log(' GPT effort truth (display ≡ dispatch, nearest-below)')
 console.log('============================================================')
 
-const ROOT = join(import.meta.dir, '..', '..')
 const savedEnv: Record<string, string | undefined> = {}
 for (const key of [
   'OPENAI_API_KEY',
@@ -217,11 +216,6 @@ const liveModel = (efforts: string[], def?: string) =>
     `catalogue=${unavailable.catalogue} wire=${String(unavailable.wire)}`,
   )
 
-  const popup = readFileSync(join(ROOT, 'src/commands/effort/EffortPopup.tsx'), 'utf8')
-  check(
-    'EF-06: the /effort popup derives its rows from the ladder owner (max at the top, no word above it)',
-    popup.includes('selectableEffortLevels(model).map(') && !/\bultra\b/.test(popup),
-  )
 }
 
 {

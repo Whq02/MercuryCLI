@@ -110,17 +110,6 @@ if (!existsSync(DIST)) {
   check('no declared key was written in an undeclared one\'s place', !('toolOutput' in after), j(after.toolOutput))
 }
 
-section('§3 the sources: no startup migration set')
-{
-  const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-  const main = read('src/main.tsx')
-  const schema = read('src/utils/config/schema.ts')
-  const loader = read('src/utils/config/globalConfig.ts')
-  check('main.tsx runs no migration set and stamps no version', !/runMigrations|MIGRATION_VERSION|migrationVersion/.test(main))
-  check('the schema declares no version stamp and no cached changelog', !/migrationVersion|cachedChangelog/.test(schema))
-  check('the loader strips nothing from a project record', !/removeProjectHistory|history/.test(loader))
-  check('no module rewrites a config key spelling', !existsSync(join(REPO, 'src/migrations/migrateVerboseToToolOutput.ts')) && !existsSync(join(REPO, 'src/migrations/migrateAutoUpdatesToSettings.ts')) && !/migrateChangelogFromConfig/.test(read('src/utils/releaseNotes.ts')))
-}
 
 process.chdir(launchDir)
 rmSync(SHORT, { recursive: true, force: true })

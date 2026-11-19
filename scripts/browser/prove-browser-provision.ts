@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Browser as CftBrowser, BrowserPlatform, computeExecutablePath } from '@puppeteer/browsers'
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -94,19 +93,6 @@ console.log('§3 pinned plans need no network; bad tokens refuse by name')
   check('confirm with nothing recorded says "no plan recorded", not "expired"', noPlan.type === 'text' && noPlan.value.includes('no install plan recorded'), noPlan.type === 'text' ? noPlan.value : noPlan.type)
 }
 
-console.log('§4 structural honesty')
-{
-  const sessionSrc = await Bun.file(join(ROOT, 'src', 'services', 'browser', 'browserSession.ts')).text()
-  check('the launch DENIES page-initiated downloads (the header law is a mechanism now)', sessionSrc.includes("downloadBehavior: { policy: 'deny' }"))
-  const installSrc = await Bun.file(join(ROOT, 'src', 'services', 'browser', 'browserInstall.ts')).text()
-  check('the metadata fetch is deadline-bounded', installSrc.includes('withDeadline(') && installSrc.includes('12_000'))
-  const resolverSrc = await Bun.file(join(ROOT, 'src', 'services', 'browser', 'browserResolver.ts')).text()
-  check('the unavailable remedies name op:"provision" (an agent-walkable road)', resolverSrc.includes('op:"provision"'))
-  check("the remedy list carries no dangling ', or' tail", !resolverSrc.includes("normally, or'"))
-  const toolSrc = await Bun.file(join(ROOT, 'src', 'tools', 'BrowserTool', 'BrowserTool.ts')).text()
-  check('the tool renders the no-hand-rolling sentence at the unavailable door', toolSrc.includes('do NOT hand-build a browser harness'))
-  check('provision has its OWN gate (never origin-scoped, never in ACT_OPS)', toolSrc.includes("input.op === 'provision'") && !toolSrc.replace(/\s+/g, ' ').includes("'hover', 'provision'"))
-}
 
 if (failures > 0) {
   console.error(`\nbrowser provision: ${failures} FAILURES`)

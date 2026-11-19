@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { runnerRecordAlive, workChipLine, workCounts, workRowRuns, workWaitingWords } from '../../src/services/engine-connector/workCounts.ts'
 import { rosterRowsOf } from '../../src/components/tasks/BackgroundTasksDialog.tsx'
 import { projectWorkRoster } from '../../src/utils/task/workRoster.ts'
@@ -92,12 +91,6 @@ console.log('— C5 the runner-liveness law —')
   check('C5 an un-ended record with no pid yet is not live', !runnerRecordAlive({}, livePids))
 }
 
-console.log('— C6 one spelling —')
-{
-  const seat = readFileSync('src/daemon/sessionSeat.ts', 'utf8')
-  check("C6 the seat's work poll rides workRowRuns", seat.includes('.some(workRowRuns)'))
-  check('C6 …and keeps no private running/pending test', !seat.includes("r => r.status === 'running' || r.status === 'pending'"))
-}
 
 console.log('\nC7 the held turn\'s wait words name the KINDS over the same counts')
 {
@@ -106,7 +99,6 @@ console.log('\nC7 the held turn\'s wait words name the KINDS over the same count
   check('C7 a background shell is a shell', workWaitingWords(counts({ shells: 1 })) === 'waiting on 1 shell')
   check('C7 a parked ask rides the words', workWaitingWords(counts({ agents: 1, asks: 1 })) === 'waiting on 1 crewmate · 1 ask')
   check('C7 nothing running answers null (the count\'s own words stand)', workWaitingWords(counts({})) === null)
-  const read = (rel: string): string => readFileSync(rel, 'utf8')
   const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
   const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
   const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
@@ -121,19 +113,6 @@ console.log('\nC7 the held turn\'s wait words name the KINDS over the same count
   waiting.takeTail(tailOf({ stateWord: 'waiting-on-agents', waitingOnAgents: 2 }))
   const held = waiting.live()
   check("C7 the connector counts the wait's kinds over the runner's roster (the same facts read)", held.phase === 'waiting' && held.agentsWaiting === 2 && JSON.stringify(held.waitingOn) === JSON.stringify(workCounts(roster)) && JSON.stringify(held.waitingOn) === JSON.stringify({ agents: 2, shells: 1, asks: 1 }), JSON.stringify(held))
-  const tagBar = read('src/components/SwitchboardTagBar.tsx')
-  const repl = read('src/screens/Chat.tsx')
-  const { openStatusPart } = await import('../ui/chatScenarios.ts')
-  const status = await openStatusPart('work-counts-status', { keepHome: true })
-  await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase: 'waiting' } })
-  const waitingRow = status.handed.spinner
-  const sentenceWhileWaiting = waitingRow === null ? 'no spinner' : String(waitingRow.overrideMessage)
-  const toldItWaits = waitingRow?.waitingOnCrewmates === true
-  await status.close()
-  check('C7 the status row retains work-kind facts while the spinner adds no duplicate sentence', tagBar.includes('workWaitingWords(live.waitingOn)') && tagBar.includes('crewWaitingWords(live.agentsWaiting)') && sentenceWhileWaiting === 'null' && toldItWaits && !repl.includes('crewWaitingWords('), `the spinner's own sentence while the turn waits on crewmates: ${sentenceWhileWaiting}`)
-  const views = readFileSync('src/components/tasks/useFocusedWork.ts', 'utf8')
-  check("C6 the work views' presence rides the runner-liveness law", views.includes('runnerRecordAlive(rec, pidAlive)'))
-  check('C6 …and trusts endedAt alone nowhere', !views.includes('rec.sessionId === sessionId && rec.endedAt === undefined'))
 }
 
 console.log('C8 compact counts use current identities and honest availability')

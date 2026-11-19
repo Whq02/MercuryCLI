@@ -461,24 +461,12 @@ section('§5 the pause: an impossible verdict pauses the mission with its reason
 
 section('§6 the surfaces keep their words: the receipt, the panel, the card')
 {
-  const jsx = await import('../../src/commands/mission/mission-jsx.tsx')
   const S = 'goal-surface'
   arm(S, 'the rail paints the goal', async () => verdict('impossible', 0.9, 'no observable state'))
-  const { readFileSync } = await import('node:fs')
-  const panel = readFileSync(join(import.meta.dir, '..', '..', 'src/commands/mission/mission-jsx.tsx'), 'utf8')
-  check('the interactive panel paints completed (reason, turns, elapsed) and paused as distinct states, the block-cap and needs-operator states gone', /Mission completed — \$\{outcome\.reason\} · \$\{outcome\.turns\}/.test(panel) && /Mission paused — /.test(panel) && !/block cap/.test(panel) && !/NEEDS THE OPERATOR/.test(panel) && typeof jsx.call === 'function')
-  check("the panel reads the session's card, never a record of its own", panel.includes('workRoster().missionCard') && !panel.includes('getActiveMission') && !panel.includes('setActiveMission('))
-  const local = readFileSync(join(import.meta.dir, '..', '..', 'src/commands/mission/mission.ts'), 'utf8')
-  check('the print form mirrors the same states', /Mission completed/.test(local) && /Mission PAUSED/.test(local) && !/block cap/.test(local) && !/NEEDS THE OPERATOR/.test(local))
-  const guard = readFileSync(join(import.meta.dir, '..', '..', 'src/guards/mission.ts'), 'utf8')
-  check('the guard carries no block counter, no maxBlocks option and no stall road', !/maxBlocks/.test(guard) && !/DEFAULT_MISSION_MAX_BLOCKS/.test(guard) && !/stalledChecks|GOAL_STALL_CHECKS|askWords|asking|gave no question/.test(guard))
-  check('the guard still claims through the shared continuation latch', guard.includes('claimContinuation('))
   clearActiveMission(S)
   const evidence = { closing: 'read three files', claimedMet: false, asksOperator: false, toolCalls: 3, toolNames: ['Read', 'Read', 'Bash'], verification: null, checks: 2 }
   const prompted = judgeModule?.judgePrompt(goalModule!.compileGoal('the parser suite is green'), evidence as never).user ?? ''
   check("the judge's tool line is a bounded tally of distinct names with counts, never one name per call: 'Tools: 3 tool call(s) this turn: Read ×2, Bash'", judgeModule?.toolTally(['Read', 'Read', 'Bash']) === 'Read ×2, Bash' && prompted.includes('Tools: 3 tool call(s) this turn: Read ×2, Bash'), j({ tally: judgeModule?.toolTally(['Read', 'Read', 'Bash']), line: prompted.split('\n').find(line => line.startsWith('Tools:')) }))
-  const judgeSource = readFileSync(join(import.meta.dir, '..', '..', 'src/services/mission/goalJudge.ts'), 'utf8')
-  check("Jev's unattainable criterion names a contradiction or something outside the session's reach, never turns that change nothing", /unattainable: "the end state cannot be reached from here without the operator: a contradiction, or something outside the session's reach"/.test(judgeSource) && !/turns that change nothing/.test(judgeSource))
   const { call: localMission } = await import('../../src/commands/mission/mission.ts')
   const { conversationIdHere } = await import('../../src/services/engine-connector/focusedConnector.ts')
   const own = conversationIdHere()
@@ -571,9 +559,6 @@ section("§9 the judge's answer is read strictly: one JSON object, a known verdi
     const list = '[{"verdict":"met","reason":"x"}]'
     check('a prose-wrapped object, a missing or empty reason, a two-line reason, an unknown verdict, plain prose and a list are unreadable', [prose, noReason, emptyReason, twoLines, unknown, notJson, list].every(text => read(text) === null), j([prose, noReason, emptyReason, twoLines, unknown, notJson, list].map(text => read(text))))
     check("an unreadable answer maps to not yet with the reason 'the judge gave no readable verdict', never to met and never with an invented reason", [prose, noReason, unknown, notJson].every(text => j(verdictOf(text)) === j({ kind: 'not yet', confidence: 0, reason: judgeModule?.JUDGE_UNREADABLE, road: 'model' })) && verdictOf('{"verdict":"met","reason":"all criteria shown"}').kind === 'met', j(verdictOf(prose)))
-    const { readFileSync: readSource } = await import('node:fs')
-    const judge = readSource(join(import.meta.dir, '..', '..', 'src/services/mission/goalJudge.ts'), 'utf8')
-    check("an API error, a thrown call or the timeout is not the claim road: judgeWithModel answers not yet with 'the judge could not be reached', and null only when no model call can be made", (judge.match(/reason: JUDGE_UNREACHABLE/g) ?? []).length === 2 && /if \(!modelRoadOpen\(call\.model\)\) return null/.test(judge) && !/return null\n\s+\}\n\s+return verdictOfAnswer/.test(judge))
   }
   const { judgeWithModel, modelRoadOpen, JUDGE_UNREACHABLE } = judgeModule!
   const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')

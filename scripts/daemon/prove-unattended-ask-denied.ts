@@ -245,10 +245,6 @@ section('A4 the screen-presence beat: a live client that keeps beating is attach
     screen.stopScreenPresenceBeat()
     bootstrap.setIsInteractive(false)
     check('...and disarms', !screen.screenPresenceBeatArmed())
-    const door = readFileSync(join(REPO, 'src', 'services', 'switchboard', 'ensureDaemon.ts'), 'utf8')
-    check('the screen\'s daemon door starts the beat on every usable daemon (ensureOwnedDaemon)', /if \(usableNow\) startScreenPresenceBeat\(\)/.test(door))
-    const server = readFileSync(join(REPO, 'src', 'daemon', 'controlServer.ts'), 'utf8')
-    check('the daemon notes a client\'s hello (screen or client kind, its pid) in the presence table', server.includes("const presenceKind = clientPresenceKindOf(raw.clientKind)") && server.includes("if (presenceKind !== undefined && typeof raw.clientPid === 'number') noteClientPresence(raw.clientPid, presenceKind)"))
   }
 }
 

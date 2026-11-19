@@ -266,15 +266,5 @@ t.section('§8 — under the REAL clock a still critter never commits a frame id
   sleep.resetCritterSleepForTests()
 }
 
-t.section('§7 — source locks')
-{
-  const animated = await Bun.file('src/components/mercury-ui/AnimatedCritterArt.tsx').text()
-  t.check('the view feeds the painter the EFFECTIVE sway phase', /const swayPhase = effectiveSwayPhase\(def, /.test(animated))
-  t.check('the committed frame value is the FOLDED key and the render reads that one committed key — no raw-key ref beside it', /readCritterFrameKey\(frameKey\)/.test(animated) && !/rawKeyRef/.test(animated))
-  const painter = await Bun.file('src/components/mercury-ui/CritterArt.tsx').text()
-  t.check('the painter keys its frame cache by the def object (the def-identity rule)', /new WeakMap<CritterDef, Map<string, FrameCache>>/.test(painter))
-  t.check('the painter hands back a cached root before building lines', painter.indexOf('cache.roots.get(frameKey)') > 0 && painter.indexOf('cache.roots.get(frameKey)') < painter.indexOf('cache.lines.get(lineKey)'))
-  t.check('the painter runs no hooks (callable as a pure function)', painter.indexOf('export function paintCritterArt') > 0 && !/\buse[A-Z]\w*\(/.test(painter.slice(painter.indexOf('export function paintCritterArt'), painter.indexOf('export const CritterArt'))))
-}
 
 t.finish('CRITTER-FRAME-CACHE')

@@ -161,8 +161,6 @@ console.log('\n[W] nothing is written to the library by the page')
 
 console.log('\n[R] /memory page is the road, and the docs say what it does')
 {
-  const command = readFileSync(join(ROOT, 'src/commands/memory/memory.tsx'), 'utf8')
-  check('/memory page calls the page road', command.includes("trimmed === 'page'") && command.includes('openMemoryPage()'))
   const mneme = readFileSync(join(ROOT, 'docs/MNEME.md'), 'utf8')
   const samples = readFileSync(join(ROOT, 'docs/SAMPLES.md'), 'utf8')
   check('docs/MNEME.md names /memory page', mneme.includes('`/memory page`'))

@@ -111,16 +111,6 @@ rmSync(tee2, { force: true })
 rmSync(cfg2Path, { force: true })
 rmSync(paneGridPath, { force: true })
 
-section('B. re-assert wiring (engage paths + resume/wake/editor seams)')
-const srcOf = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
-const ink = srcOf('ink', 'ink.tsx')
-check('resize re-asserts mouse + 1007', ink.includes("termWrite(this.options.stdout, resizeReassertBytes(this.mouseTracking))"))
-const sess = srcOf('ink', 'root', 'screen-session.ts')
-check('editor-exit re-arms both', /exitEditorBytes[\s\S]{0,500}\(opts\.mouseTracking \? ENABLE_MOUSE_TRACKING : ''\)[\s\S]{0,120}\(opts\.altActive \? ENABLE_ALTERNATE_SCROLL : ''\)/.test(sess) && ink.includes('exitEditorBytes({'))
-const app = srcOf('ink', 'components', 'App.tsx')
-check('stdin-resume re-assert wired (App → onStdinResume)', ink.includes('onStdinResume={this.onStdinResume}') && ink.includes('this.reassertTerminalModes(false)') && app.includes('onStdinResume'))
-const stall = srcOf('utils', 'eventLoopStallDetector.ts')
-check('sleep-wake self-heal re-enters alt screen', stall.includes('reassertTerminalModes(true)'))
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {

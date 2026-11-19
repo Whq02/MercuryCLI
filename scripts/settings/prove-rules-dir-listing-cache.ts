@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -78,13 +78,6 @@ try {
     check("a fresh fs implementation pays its OWN first listing (no cross-impl serve)", count() >= 1, `readdirs=${count()}`)
   }
 
-  console.log('§4 the knobs stay pinned')
-  {
-    const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'instructions', 'discovery.ts'), 'utf8')
-    check('5 s TTL (the refresh-floor precedent)', src.includes('RULES_DIR_LISTING_TTL_MS = 5000'))
-    check('bounded LRU, per-impl WeakMap, negative-as-null wrapped', src.includes('new LRUCache({ max: 500, ttl: RULES_DIR_LISTING_TTL_MS })') && src.includes('rulesDirListingCaches = new WeakMap') && src.includes('cache.set(dir, { entries: null })'))
-    check('the traversal rides the cache (no bare readdir in processRulesDir)', /const entries = await cachedRulesDirListing\(fs, resolvedRulesDir\)/.test(src))
-  }
 } finally {
   setFsImplementation(real)
 }

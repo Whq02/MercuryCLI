@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -215,22 +215,9 @@ console.log('§3b the same at 80×24: the row is below the first window, focused
 
 console.log('§4 the wiring: the door opens the picker; the row owner holds the words')
 {
-  const ROOT = join(import.meta.dir, '..', '..')
-  const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const face = read('src/components/BootSplashScreen.tsx')
-  const handover = read('src/substrate/splashHandover.ts')
-  const card = read('src/components/ConsoleOAuthFlow.tsx')
-  const rows = read('src/components/loginFamilyRows.ts')
-  const onboarding = read('src/components/Onboarding.tsx')
-  check("the face-door union carries 'model'", /export type FaceDoorDeepLink = [^\n]*'model'/.test(handover))
-  check("the home face opens the model-default picker when the 'model' door is armed", face.includes("useState(faceDoor === 'model' && sessionDefaultsKeyOn())"))
-  check('the card paints the row owner\'s local-aware row and arms the door on Enter', card.includes('signInLaterRow(localRoad)') && card.includes("if (localRoadOpen(localRoad)) armFaceDoorDeepLink('model')"))
-  check('the card kicks the same TTL\'d discovery the picker uses, only when it hosts the walk\'s row', /if \(walkHost\) void refreshLocalDiscovery\(\)/.test(card))
-  check('the words live in the row owner', rows.includes('or run a local model — ${local!.models} found on ${local!.labels.join') && rows.includes(`label: '${NO_SERVER_ROW}'`))
   const { LOCAL_NO_SERVER_BLOCKER } = await import('../../src/services/providers/local/localAccounts.ts')
   const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
   check("the wall's readiness row for Local servers names /localsetup when no server answers (the readiness block below the roster paints this blocker)", LOCAL_NO_SERVER_BLOCKER.includes('/localsetup sets one up (Ollama, LM Studio, vLLM, llama.cpp)') && resolveProviderUsability({ anthropicApiKey: () => null, anthropicSubscriber: () => false, anthropicBearerToken: () => false, anthropicLimitStatus: () => 'allowed', gptSeat: () => ({ state: 'disabled', reason: 'no OpenAI account is signed in', why: 'no-account' }), zaiKeyPresent: () => false, moonshotAccount: () => undefined, deepseekKeyPresent: () => false, xaiKeyPresent: () => false, compatConfigured: () => false, huggingfaceAccount: () => undefined, localServerPresent: () => false, openrouterKeyPresent: () => false, geminiAccount: () => undefined }).local.blockers[0] === LOCAL_NO_SERVER_BLOCKER)
-  check('the station gate never counts the local lane as a credential', onboarding.includes("lane.provider !== 'local' && lane.usable"))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

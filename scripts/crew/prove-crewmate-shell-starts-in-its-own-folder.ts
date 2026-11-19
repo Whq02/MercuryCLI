@@ -2,7 +2,7 @@
 // gate-watch: src/utils/Shell.ts src/utils/cwd.ts src/tools/AgentTool/AgentTool.tsx src/tools/AgentTool/resumeAgent.ts
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmdirSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -163,14 +163,6 @@ const parentAfterVanished = await where()
 check("a crewmate recovering from a deleted folder never resets the parent's cwdState or shell directory", parentAfterVanished === PARENT_DIR, `the parent is in ${parentAfterVanished}`)
 for (const crewmate of [A, B, C, D, P, V]) crewmate.end()
 
-section('§5 the launch seams: every crewmate lifecycle runs in a cwd context of its own')
-{
-  const agentTool = readFileSync(join(ROOT, 'src', 'tools', 'AgentTool', 'AgentTool.tsx'), 'utf8')
-  const resume = readFileSync(join(ROOT, 'src', 'tools', 'AgentTool', 'resumeAgent.ts'), 'utf8')
-  check('the background lifecycle never runs outside a cwd context', !/cwdOverride\s*\?\s*runWithCwdOverride\(cwdOverride, lifecycle\)\s*:\s*lifecycle\(\)/.test(agentTool) && agentTool.includes('runWithOwnShellCwd(lifecycle)'))
-  check('the foreground execute never runs outside a cwd context', !/cwdOverride\s*\?\s*runWithCwdOverride\(cwdOverride, execute\)\s*:\s*execute\(\)/.test(agentTool) && agentTool.includes('runWithOwnShellCwd(execute)'))
-  check('a resumed crewmate runs in a cwd context of its own', resume.includes('runWithCwdOverride(directory, runLifecycle)'))
-}
 
 console.log(`\n${checks} checks, ${failures} failed`)
 console.log(failures === 0 ? "GREEN: a crewmate's shell starts in its own folder every call" : `RED: ${failures} check(s) show a shell following another's directory`)

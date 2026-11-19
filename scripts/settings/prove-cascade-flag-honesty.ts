@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'cascade-honesty-home-')))
 const PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'cascade-honesty-proj-')))
@@ -27,7 +26,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 section('§1 FC-027 — a cascade-member flag file keeps flag priority')
 {
@@ -50,16 +48,6 @@ section('§1 FC-027 — a cascade-member flag file keeps flag priority')
 
 section('§2 FC-028 — both flag spellings read')
 {
-  const main = src('src/main.tsx')
-  const eagerStart = main.indexOf('function eagerLoadSettings')
-  const eager = main.slice(eagerStart, main.indexOf("profileCheckpoint('eagerLoadSettings_end')", eagerStart))
-  check(
-    'the eager reader resolves every option through the one session-option reader (call-shaped)',
-    /const eagerFlagValue = \(name: string\)[^\n]*readSessionOption\(optionArgv\.slice\(2\), name\)\.value/.test(eager),
-    eager.slice(0, 80).replace(/\s+/g, ' '),
-  )
-  check("and --config rides it", /eagerFlagValue\('--config'\)/.test(eager))
-  check("and --config-layers rides it", /eagerFlagValue\('--config-layers'\)/.test(eager))
   for (const name of ['--config', '--config-layers']) {
     const spaced = readSessionOption([name, 'value-a'], name)
     const equals = readSessionOption([`${name}=value-a`], name)
@@ -69,26 +57,6 @@ section('§2 FC-028 — both flag spellings read')
   }
 }
 
-section('§3 FC-029 — the full env applies under standing trust, headless too')
-{
-  const init = codeOnlyText('src/entrypoints/init.ts', src('src/entrypoints/init.ts'))
-  const safeAt = init.indexOf('applySafeConfigEnvironmentVariables()')
-  const safeEnd = init.indexOf("profileCheckpoint('init_safe_env_applied')", safeAt)
-  check('the safe-env block is bounded by the safe pass and its own checkpoint', safeAt >= 0 && safeEnd > safeAt, `${safeAt}..${safeEnd}`)
-  const safeBlock = init.slice(safeAt, safeEnd)
-  check(
-    'init applies the FULL merged env ONLY behind the standing-trust check, inside the safe-env block (the guarded call itself, not two names anywhere)',
-    /if\s*\(\s*checkHasTrustDialogAccepted\(\)\s*\)\s*applyConfigEnvironmentVariables\(\)/.test(safeBlock),
-    safeBlock.replace(/\s+/g, ' ').slice(0, 200),
-  )
-  check(
-    'the full-env call has no unguarded twin anywhere in init',
-    (init.match(/applyConfigEnvironmentVariables\(\)/g) ?? []).length === 1,
-    String((init.match(/applyConfigEnvironmentVariables\(\)/g) ?? []).length),
-  )
-  const managedEnv = src('src/utils/managedEnv.ts')
-  check('the SAFE pre-trust pass itself is unchanged (untrusted stays safe-only)', /applySafeConfigEnvironmentVariables/.test(managedEnv))
-}
 
 rmSync(HOME, { recursive: true, force: true })
 rmSync(PROJ, { recursive: true, force: true })

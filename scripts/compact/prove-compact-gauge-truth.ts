@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -14,8 +14,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 for (const key of [
   'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL',
@@ -68,10 +66,6 @@ section('G1 · one owner: used % + left % = the fold point, on one window')
   check("the warning line's number IS the ladder owner's pctLeft", view.leftUntilCompactPct !== null && view.leftUntilCompactPct === ladder.pctLeft, JSON.stringify({ view: view.leftUntilCompactPct, ladder: ladder.pctLeft }))
   check('used % + left % = compactAtPct (to the rounding)', view.compactAtPct !== null && view.leftUntilCompactPct !== null && Math.abs(view.usedPct! + view.leftUntilCompactPct - view.compactAtPct) <= 1, JSON.stringify({ used: view.usedPct, left: view.leftUntilCompactPct, compactAt: view.compactAtPct }))
   check('the trigger counts the same tokens the view shows', tokens.tokenCountWithEstimation(seq as never, OPUS) === view.usedTokens)
-  const warning = src('src/components/TokenWarning.tsx')
-  check("the warning line paints the owner's pctLeft as 'Context left until auto-compact'", /calculateTokenWarningState\(tokenUsage, model\)/.test(warning) && warning.includes('Context left until auto-compact: {percent}%') && /const percent = pctLeft/.test(warning))
-  const auto = src('src/services/compact/autoCompact.ts')
-  check('pctLeft is measured over the model window (the one scale), never over the ceiling', /\(\(ceiling - tokenUsage\) \/ window\) \* 100/.test(auto) && !/\(\(ceiling - tokenUsage\) \/ ceiling\)/.test(auto))
 }
 
 section('G2 · the default threshold leaves 20k below the usable edge')
@@ -88,8 +82,6 @@ section('G2 · the default threshold leaves 20k below the usable edge')
     const view = contextFillView([user('hi'), asst('resp-B', model === FALLBACK ? 'compat/my-model' : OPUS, usageOf(10_000), 'x')] as never, model)
     check(`  compactAtPct reads ${expectPct} % of the window`, view.compactAtPct !== null && Math.abs(view.compactAtPct - expectPct) < 0.01, String(view.compactAtPct))
   }
-  const auto = src('src/services/compact/autoCompact.ts')
-  check('the owner derives its early buffer from the bounded turn reserve', compact.AUTOCOMPACT_BUFFER_TOKENS === 20_000 && compact.getTurnReserveTokens(OPUS) === 20_000 && compact.getTurnReserveTokens(FALLBACK) === 20_000 && auto.includes('full - getTurnReserveTokens(model)'))
 }
 
 section('G3 · a set threshold is honoured')

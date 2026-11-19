@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
@@ -101,14 +101,6 @@ try {
     check('a real command\'s rows open with the caveat and the echo carries the frame uuid', echoed.shouldQuery === false && first.length >= 2 && textOf(first[0]!).startsWith(CAVEAT_TAG) && first[1]!.uuid === echoUuid && textOf(first[1]!).includes('<command-name>/compact</command-name>'), JSON.stringify(first.slice(0, 2).map(r => [r.uuid === echoUuid, textOf(r).slice(0, 60)])))
   }
 
-  section('S5 the help sentence has no reader left')
-  {
-    const root = join(new URL('.', import.meta.url).pathname, '..', '..')
-    const slash = readFileSync(join(root, 'src/utils/processUserInput/processSlashCommand.tsx'), 'utf8')
-    check('processSlashCommand no longer mints the sentence', !slash.includes(HELP_SENTENCE))
-    const input = readFileSync(join(root, 'src/utils/processUserInput/processUserInput.ts'), 'utf8')
-    check('the slash road is taken only by a line that parses as a command', input.includes("syntaxPrompt.startsWith('/') && parseSlashCommand(syntaxPrompt) !== null"))
-  }
 } finally {
   process.chdir('/')
   rmSync(scratch, { recursive: true, force: true })

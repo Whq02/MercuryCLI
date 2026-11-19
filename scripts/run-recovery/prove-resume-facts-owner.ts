@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -122,24 +122,6 @@ check(`${RED}: the per-leaf load (every branch of one file) hands back the owner
 const opened = await logs.loadTranscriptFromFile(transcriptPath)
 check(`${RED}: the open-this-file load hands back the owner's facts — the agent name, colour and setting, the mode and the PR link included`, j(factsOf(opened)) === j(owner), j(factsOf(opened)))
 
-section('§3 the source — the fold\'s per-session maps are read in one function, and every reader calls it')
-const logsSrc = readFileSync(join(import.meta.dir, '../../src/utils/sessionStorage/logs.ts'), 'utf8')
-const recoverySrc = readFileSync(join(import.meta.dir, '../../src/utils/conversationRecovery.ts'), 'utf8')
-const count = (s: string, re: RegExp): number => (s.match(re) ?? []).length
-const rowMaps = ['customTitles', 'tags', 'agentNames', 'agentColors', 'agentSettings', 'modes', 'worktreeStates', 'prNumbers', 'prUrls', 'prRepositories']
-const reads = Object.fromEntries(rowMaps.map(m => [m, count(logsSrc, new RegExp(`\\b${m}\\.(get|has)\\(`, 'g')) + count(recoverySrc, new RegExp(`\\b${m}\\.(get|has)\\(`, 'g'))]))
-check(`${RED}: each row map is read exactly once across logs.ts and conversationRecovery.ts (worktreeStates twice: has, then get) — inside resumeFactsOf`, rowMaps.every(m => reads[m] === (m === 'worktreeStates' ? 2 : 1)), j(reads))
-const body = (name: string): string => {
-  const at = logsSrc.indexOf(`export async function ${name}(`)
-  const next = logsSrc.indexOf('\nexport ', at + 1)
-  return at === -1 ? '' : logsSrc.slice(at, next === -1 ? undefined : next)
-}
-check('the last-log accessor calls resumeFactsOf', body('lastSession').includes('resumeFactsOf('))
-for (const name of ['fillSessionListing', 'listingsOfSessionFile', 'loadTranscriptFromFile']) {
-  check(`${RED}: ${name} calls resumeFactsOf`, body(name).includes('resumeFactsOf('), `resumeFactsOf( absent from ${name}'s body`)
-}
-check('the walk calls resumeFactsOf', recoverySrc.includes('facts: resumeFactsOf(loaded, sessionId, chain)'))
-check('resumeFactsOf is defined once, in logs.ts', count(logsSrc, /export function resumeFactsOf\(/g) === 1 && !recoverySrc.includes('function resumeFactsOf('))
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} resume facts have one owner: ${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)

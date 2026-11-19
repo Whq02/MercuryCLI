@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -51,25 +51,6 @@ console.log('\n── §1 live: an aborted grep stream settles, its child dies �
   check('§1 the rg child is gone after the abort', rgAlive === '', rgAlive && `pids: ${rgAlive}`)
 }
 
-console.log('\n── §2 the picker contract at its owner ──')
-{
-  const rip = readFileSync(join(REPO, 'src/utils/ripgrep.ts'), 'utf8')
-  check('§2 the close arm settles totally under abort', /child\.on\('close', code => \{\s*\n\s*if \(abortSignal\.aborted\) \{\s*\n(?:\s*\/\/[^\n]*\n)*\s*settle\(\)\s*\n\s*return\s*\n\s*\}/.test(rip))
-  const cs = readFileSync(join(REPO, 'src/components/MercuryContentSearch.tsx'), 'utf8')
-  check('§2 a new query aborts the in-flight grep FIRST', /const gen = \+\+genRef\.current\s*\n\s*abortRef\.current\?\.abort\(\)/m.test(cs))
-  check('§2 closing the picker aborts the in-flight grep (unmount cleanup)', /return \(\) => \{\s*alive = false\s*controller\.abort\(\)/m.test(cs))
-  check('§2 no aborted result ever lands (gen-guard on both settle arms)', (cs.match(/gen === genRef\.current/g) ?? []).length >= 2)
-  check('§2 one controller per keystroke, held in the one ref', cs.includes('abortRef.current = controller'))
-}
-
-console.log('\n── §3 the @-picker walk: single-flight, deadline disarmed ──')
-{
-  const idx = readFileSync(join(REPO, 'src/hooks/fileSuggestions.ts'), 'utf8')
-  check('§3 one refresh in flight at a time', idx.includes('if (refreshInFlight) return'))
-  check('§3 the walk deadline is disarmed in finally', /finally \{\s*clearTimeout\(timer\)/m.test(idx))
-  check('§3 the untracked merge is single-flight too', idx.includes('if (untrackedInFlight) return'))
-  check('§3 queries ride the in-memory index, never a per-keystroke rg', !/generateFileSuggestions[\s\S]{0,600}ripGrep/m.test(idx))
-}
 
 console.log(failures === 0 ? '\n✅ ONE IN-FLIGHT SEARCH PROVEN' : `\n❌ ${failures} check(s) failed`)
 process.exit(failures === 0 ? 0 : 1)

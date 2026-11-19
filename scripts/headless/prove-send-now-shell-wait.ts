@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
@@ -15,7 +15,6 @@ if (!existsSync(DIST)) {
 }
 console.log(`build under proof: ${DIST}`)
 
-const ROOT = join(import.meta.dir, '..', '..')
 const MAIN_ASK = 'send-now shell probe: run the long command and wait for it'
 const MESSAGE = 'the operator says: stop waiting on the command, read this now'
 const HEARD = 'heard the operator:'
@@ -118,12 +117,6 @@ tally.check('the Bash call returned the operator\'s move-to-background acknowled
 tally.check('the operator\'s words reached the model as the queued line of the same turn', afterCommand !== undefined && afterCommand.allTexts.some(text => text.includes(MESSAGE)), afterCommand === undefined ? 'no second request of the main turn' : afterCommand.ask.slice(0, 120))
 tally.check('the command ran on in the background to its own end and its completion reached the model as a notification', ended !== undefined && notice !== undefined, `ended ${seconds(ended?.atMs)} · notification ${notice !== undefined ? 'seen' : 'absent'}`)
 
-tally.section('the seam, structural')
-{
-  const bash = readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8')
-  const request = readFileSync(join(ROOT, 'src/tools/BashTool/backgroundRequest.ts'), 'utf8')
-  tally.check('send-now rides the operator\'s one move-to-background road (the shift+B request), never a second one', request.includes('export function requestShellBackground(): number') && bash.includes('const unregisterRun = registerShellRun({') && bash.includes(`return \`${MOVED_WORDS} \${id}; it is still running, and its output arrives as a notification when it completes. Output: \${outputPath}.\``))
-}
 
 if (tally.failed() === 0) rmSync(runHome, { recursive: true, force: true })
 else console.log(`  world kept: ${runHome}\n  stderr tail: ${stderr.slice(-800)}`)

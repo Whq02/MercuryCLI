@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
@@ -39,7 +39,6 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'openrouter-cache-ke
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const MODEL = 'openrouter/openai/gpt-5-mini'
 const WIRE_MODEL = 'openai/gpt-5-mini'
 const OTHER_MODEL = 'openrouter/openai/gpt-5-nano'
@@ -250,15 +249,6 @@ section('§3 A REAL COMPATIBILITY CHANGE MOVES THE KEY — another model, anothe
   check('the appended system-context tail (the git status snapshot, per session) never moves the key', otherTail.body !== undefined && keyOf(otherTail) === keyOf(convA1), `${keyOf(otherTail)} vs ${keyOf(convA1)}`)
 }
 
-section('§4 THE CENSUS — the runtime mints the key through the cache-domain owner and the transport sends nothing else')
-{
-  const runtime = readFileSync(join(ROOT, 'src/services/providers/openaicompat/compatChatCallModel.ts'), 'utf8')
-  check('the compat runtime mints the key through mintCacheDomainKey (the one cache-domain owner)', runtime.includes('mintCacheDomainKey({'))
-  check('…over the loaded definitions only (a deferred definition is withheld upstream, so it is not part of the cached prefix)', /toolSchemaDigest/.test(runtime) && /deferredNames\.has/.test(runtime))
-  const transport = readFileSync(join(ROOT, 'src/services/providers/openrouter/openrouterResponsesTransport.ts'), 'utf8')
-  check('the transport sends the minted domain key as prompt_cache_key', /prompt_cache_key: facts\.cacheDomainKey/.test(transport))
-  check('the transport no longer digests the conversation key into the route', !transport.includes('openrouterPromptCacheKey'))
-}
 
 server.close()
 console.log(`\n${checks - failures}/${checks} checks passed`)

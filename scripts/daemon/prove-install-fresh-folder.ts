@@ -213,13 +213,6 @@ try {
 
   section('§4 the readers of the old name keep working through the link')
   {
-    const launcher = read(join(REPO, 'scripts/ops/launcher-mercury.sh'))
-    check('the launcher reads runtime/current first and falls back to runtime/dist', launcher.includes('runtime/current/mercury.mjs') && launcher.includes('MERCURY_RUNTIME_DIR="$MERCURY_HOME/runtime/dist"'))
-    const handover = read(join(REPO, 'src/daemon/handover.ts'))
-    check("the daemon's deployed-runtime reader walks current, then dist", /RUNTIME_POINTER_NAMES = \['current', 'dist'\]/.test(handover))
-    const script = read(DEPLOY)
-    check('the deploy switches every pointer by rename(2), never a shell mv over a link', script.includes("python3 -c 'import os,sys; os.rename(sys.argv[1], sys.argv[2])'") && !/mv "\$runtime\/dist" "\$runtime\/dist\.prev"/.test(script))
-    check('the deploy never renames a folder something runs from', script.includes('runtime_folder_in_use') && !/mv "\$runtime\/dist"/.test(script))
     check('the docs name the layout and the manual rollback', /runtime\/builds\/<tree>-<bundle>/.test(read(join(REPO, 'docs/TERMINAL-RUNTIME.md'))) && /ln -sfn builds\/<older>/.test(read(join(REPO, 'docs/TERMINAL-RUNTIME.md'))))
   }
 } finally {

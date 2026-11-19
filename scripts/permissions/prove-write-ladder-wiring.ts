@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync, readFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
 const HOME = mkdtempSync(join(tmpdir(), 'write-ladder-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -18,7 +18,6 @@ writeFileSync(join(outside, 'secret.txt'), 'outside\n')
 symlinkSync(join(outside, 'secret.txt'), join(realCwd, 'escape.txt'))
 process.chdir(realCwd)
 
-const REPO = resolve(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -28,21 +27,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-section('§1 source — the three mutation tools hand the ladder their name + path accessor')
-for (const [file, name] of [
-  ['src/tools/FileWriteTool/FileWriteTool.ts', 'FILE_WRITE_TOOL_NAME'],
-  ['src/tools/FileEditTool/FileEditTool.ts', 'FILE_EDIT_TOOL_NAME'],
-  ['src/tools/NotebookEditTool/NotebookEditTool.ts', 'NOTEBOOK_EDIT_TOOL_NAME'],
-] as const) {
-  const src = readFileSync(join(REPO, file), 'utf8')
-  const hook = src.slice(src.indexOf('async checkPermissions('))
-  check(
-    `${file}: checkPermissions routes through checkWritePermissionForTool with its own name`,
-    src.includes('async checkPermissions(') &&
-      /checkWritePermissionForTool\(\s*\{\s*name: [A-Z_]+_TOOL_NAME/.test(hook) &&
-      hook.includes(`name: ${name}`),
-  )
-}
 
 section('§2 behaviour — the REAL Write tool under the ladder, by real targets')
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')

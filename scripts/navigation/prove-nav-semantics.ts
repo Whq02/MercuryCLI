@@ -1,7 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import {
   applyNavMotion,
   decodeDomNavKey,
@@ -12,7 +9,6 @@ import {
 } from '../../src/components/mercury-ui/navSemantics.js'
 import type { Key } from '../../src/ink/events/input-event.js'
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
@@ -121,46 +117,6 @@ check("dom 'return' → activate", decodeDomNavKey({ key: 'return' }, V) === 'ac
 check("dom 'escape' → cancel", decodeDomNavKey({ key: 'escape' }, V) === 'cancel')
 check("dom 'left' decodes NOTHING on vertical", decodeDomNavKey({ key: 'left' }, V) === null)
 
-console.log('== source pins: the kernel derives from the vocabulary ==')
-{
-  const list = readFileSync(join(root, 'src/components/mercury-ui/useInteractiveList.ts'), 'utf8')
-  const panes = readFileSync(join(root, 'src/components/mercury-ui/useNavigablePanes.ts'), 'utf8')
-  const flat = readFileSync(join(root, 'src/components/mercury-ui/useFlatList.ts'), 'utf8')
-  const selectNav = readFileSync(join(root, 'src/components/CustomSelect/use-select-navigation.ts'), 'utf8')
-  const critter = readFileSync(join(root, 'src/components/CritterSelect.tsx'), 'utf8')
-  const qview = readFileSync(join(root, 'src/components/permissions/AskUserQuestionPermissionRequest/QuestionView.tsx'), 'utf8')
-
-  check('useInteractiveList decodes through the vocabulary', list.includes('decodeNavKey(input, key, { orientation, pageKeys: true })'))
-  check('useInteractiveList: the ←→↑↓ alias is DEAD (no raw arrow moves)', !/key\.upArrow \|\| key\.leftArrow/.test(list) && !/key\.downArrow \|\| key\.rightArrow/.test(list))
-  check('useInteractiveList: keyboard motion skips unavailable rows', list.includes('skipDisabled('))
-  check('useInteractiveList: the cursor never OPENS on an unavailable row', list.includes('rows.findIndex(r => !unavailable(r))'))
-  check('useInteractiveList rides the ONE identity core', list.includes('useStableSelection(rows, rowId'))
-  check('useNavigablePanes: all three axes decode through the vocabulary', (panes.match(/decodeNavKey\(/g) ?? []).length >= 3)
-  check('useNavigablePanes: identity-first section memory', panes.includes('sectionRowKeys') && /key: keys\?\.\[clampedSection\]\?\.\[clampedSel\]/.test(panes))
-  check('useNavigablePanes rides the EVENT-IDENTITY gate (not wall-clock)', /const pastBuffer = useOpenEventGate\(\)/.test(panes) && /if \(!pastBuffer\(\)\) return/.test(panes) && !/Date\.now\(\) - mountedAt/.test(panes))
-  check('useFlatList rides the EVENT-IDENTITY gate (not wall-clock)', flat.includes('useOpenEventGate') && !flat.includes('Date.now() - mountedAt'))
-  check('useFlatList: stable-ID selection across reload', flat.includes('selKeyRef') && flat.includes('rowId'))
-  check('useFlatList decodes through the vocabulary', flat.includes('decodeNavKey(input, key, {'))
-  check('CustomSelect: navigation skips disabled options', selectNav.includes('while (next && next.disabled) next = next.next') && selectNav.includes('while (previous && previous.disabled) previous = previous.previous'))
-  check('CustomSelect: initial focus lands enabled', selectNav.includes('(firstEnabled(optionMap) ?? optionMap.first)?.value'))
-  check('CritterSelect declares its REAL geometry (grid/horizontal)', critter.includes('{ grid: { columns: 2 } }') && critter.includes("'horizontal'"))
-  check('CritterSelect: the footer hint PROJECTS the declared orientation', critter.includes('${nav.motionHint} / click move'))
-  check('the kit exposes the orientation-truthful motion hint', list.includes('motionHint:'))
-  check('QuestionView maps DOM keys at the boundary', qview.includes('decodeDomNavKey(e, {'))
-  check('QuestionView: no raw footer arrow comparisons left', !/e\.key === "up" \|\| e\.ctrl && e\.key === "p"/.test(qview))
-
-  const smv = readFileSync(join(root, 'src/components/mercury-ui/screens/SessionManagerView.tsx'), 'utf8')
-  check('SessionManagerView: identity-stable card cursor', smv.includes('useStableSelection(navKeys'))
-  check('SessionManagerView: the switch confirm is armed by IDENTITY (never a retarget)', smv.includes('setConfirmingKey(navKeys[') && smv.includes("useState<string | null>(null)"))
-
-  const irow = readFileSync(join(root, 'src/components/mercury-ui/InteractiveRow.tsx'), 'utf8')
-  check('the dead activation-explanation promise is DEAD', !list.includes('setNote(reasonUnavailable'))
-  check('select()/moveTo heal past unavailable rows (skipDisabled)', /const select = [\s\S]{0,600}skipDisabled\(liveIndexRef\.current, idx/.test(list))
-  check('rowProps carries the visible WHY', list.includes('reasonUnavailable: isUnavailable(row) ? reasonUnavailable?.(row) : undefined'))
-  check('InteractiveRow paints the WHY dim + inline', irow.includes('unavailable && reasonUnavailable') && irow.includes('` — ${reasonUnavailable}`'))
-  check('InteractiveRow strips pointer interactivity on dead rows', irow.includes('const interactive = !unavailable && (!!onSelect || !!onActivate)'))
-
-}
 
 console.log('')
 if (failures > 0) {

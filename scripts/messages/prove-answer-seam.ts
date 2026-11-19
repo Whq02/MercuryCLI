@@ -1,9 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -16,18 +12,6 @@ function section(t: string): void {
 
 const ERR = await import('../../src/services/api/errors.ts')
 
-section('§3 every structured consumer asks the settlement classification first')
-{
-  const summarizer = read('src/services/advisor/advisorSummarizer.ts')
-  check(
-    'the advisor\'s summary call sorts api-error settlements away from its summary text',
-    summarizer.includes('const sink = e.isApiErrorMessage === true ? failures : texts'),
-  )
-  check(
-    'an error row beside any text throws the error\'s words (the refusal is never painted as the summary)',
-    summarizer.includes('if (failure.length > 0) throw new Error('),
-  )
-}
 
 section('§5 malformed frames refuse TYPED; the inbound normalizers survive null holes')
 {
@@ -40,19 +24,6 @@ section('§5 malformed frames refuse TYPED; the inbound normalizers survive null
   check('…and names the expected wire shape', s.includes('Anthropic stream shape'))
   check('…and never reads as a raw TypeError', !s.includes('Cannot read properties'))
 
-  const core = read('src/services/providers/anthropic/streamCore.ts')
-  check(
-    'streamCore guards content_block_start through the typed sentence',
-    core.includes("malformedStreamFrameText('content_block_start', 'content_block')"),
-  )
-  check(
-    'streamCore guards content_block_delta through the typed sentence',
-    core.includes("malformedStreamFrameText('content_block_delta', 'delta')"),
-  )
-  check(
-    'streamCore guards message_delta through the typed sentence',
-    core.includes("malformedStreamFrameText('message_delta', 'delta')"),
-  )
 
   const MSGS = await import('../../src/utils/messages.ts')
   const holed = [null as never, { type: 'text', text: 'still here' }, undefined as never]

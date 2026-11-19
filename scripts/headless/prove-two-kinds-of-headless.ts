@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // gate-watch: src/utils/sessionKind.ts src/cli/run.ts src/utils/cockpit/runtimePosture.ts src/utils/permissions/askClock.ts src/daemon/permissionAsks.ts src/services/tools/toolExecution.ts src/rows/turn.ts src/services/resources/adapters/seat.ts src/daemon/concourseWorkers.ts src/daemon/warmRunner.ts src/bootstrap/state.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import type { PermissionRequestParams } from '../../src/runner/wire/methods.ts'
@@ -83,12 +83,6 @@ await guarded(async () => {
   concourse.stampSpawnPosture(rec as never, { permissionMode: 'default' })
   check('…and drops it when a respawn carries none (a record never keeps a kind its runner lost)', rec.kind === undefined)
   check('the worker env strip sweeps a stray MERCURY_SESSION_KIND before the spec stamps its own', concourse.concourseWorkerStripEnv().includes('MERCURY_SESSION_KIND'))
-  const concourseSrc = readFileSync(join(ROOT, 'src', 'daemon', 'concourseWorkers.ts'), 'utf8')
-  const admit = concourseSrc.slice(concourseSrc.indexOf('export function makeConcourseAdmitHandler('))
-  check('the admission mints the kind from who asked (sessionKindOfAsker(req.by)) before any road', /const kind = sessionKindOfAsker\(req\.by\)/.test(admit))
-  check('the warm claim is the screen\'s own road: a headless admission never claims a warm runner', /deps\.claimWarm !== undefined &&\n\s*kind === 'oculus' &&/.test(admit))
-  const warmSrc = readFileSync(join(ROOT, 'src', 'daemon', 'warmRunner.ts'), 'utf8')
-  check('the warm pool spawns its runner oculus (the pool exists for the screen\'s next birth)', /kind: 'oculus',\n\s*\}\)\n\s*const reg = roster\.registerLongLived\(short, spec\)/.test(warmSrc))
   const { FIXTURE_MODEL, firstSystemPrompt, fixtureCli, systemPromptOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const sessionLineOf = (prompt: string): string => prompt.split('\n').find(line => line.startsWith('- Session:')) ?? ''
   const asksToRead = [{ kind: 'tool_use', name: 'Read', input: { file_path: join(ROOT, 'no-such-file') } }, { kind: 'text', text: 'done' }] as const

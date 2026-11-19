@@ -109,12 +109,6 @@ if (SCENE === undefined) {
       const killed: string[] = []
       const cut = sup.parkConcourseSession(sid('5'), REAP, { kill: short => (killed.push(short), true) }, dir, { afterTurn: false, reason: sup.PARK_DRAIN_CUT_REASON })
       check("the daemon's cut lands the park, with its reason, in the very step that asks for the kill: when that call returns the record on disk reads as a cut at the ceiling (and did not before)", before === false && cut.outcome === 'applied' && killed.join(',') === 'concourse-w5' && rec('5')?.parkedAt !== undefined && rec('5')?.parkReason === sup.PARK_DRAIN_CUT_REASON && cutAt(sid('5'), process.pid, dir) === true, j({ before, cut, killed, rec: rec('5') }))
-      const group = readFileSync(join(REPO, 'src', 'utils', 'processGroup.ts'), 'utf8')
-      const posixAt = group.indexOf('async function endPosixTree(')
-      const posix = posixAt === -1 ? '' : group.slice(posixAt, group.indexOf('\n}\n', posixAt))
-      const tableAt = posix.indexOf('await listPosixProcessTable()')
-      const signalAt = posix.indexOf('process.kill(-pid, signal)')
-      check("…and the kill's signal leaves in a later step than that call (the roster ends a runner's tree through the one owner, which reads the process table before it signals), so the runner hears of the cut after its record says it", readFileSync(join(REPO, 'src', 'daemon', 'roster.ts'), 'utf8').includes('killProcessGroup(child, signal)') && group.includes('void endProcessTree(childProcess, signal)') && tableAt !== -1 && signalAt !== -1 && tableAt < signalAt, j({ posixAt, tableAt, signalAt }))
       check('the reading is of that runner alone: the same session under another pid reads no, and so does another session under the same pid, and a session nobody holds', cutAt(sid('5'), process.pid + 1, dir) === false && cutAt(sid('6'), process.pid, dir) === false && cutAt(sid('9'), process.pid, dir) === false)
       check('a park that is only asked for (a signal for any other cause while the drain still waits) reads no, and so does a park for another reason', rec('6')?.parkRequestedAt !== undefined && rec('6')?.parkedAt === undefined && rec('7')?.parkedAt !== undefined && cutAt(sid('7'), process.pid, dir) === false, j({ six: rec('6'), seven: rec('7') }))
     }

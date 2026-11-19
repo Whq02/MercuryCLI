@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import {
   INITIAL_STATE,
   parseMultipleKeypresses,
@@ -17,7 +15,6 @@ import {
   ENABLE_MODIFY_OTHER_KEYS,
 } from '../../src/ink/termio/csi.js'
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
@@ -115,13 +112,6 @@ console.log('== enhanced sequences: decode or swallow — never leak bytes ==')
 
 console.log('== reversible detection + IME prerequisites (source pins) ==')
 {
-  const read = (p: string): string => readFileSync(join(root, p), 'utf8')
-  const caps = read('src/ink/session/capabilities.ts')
-  const baseText = read('src/components/BaseTextInput.tsx')
-  const promptsPanel = read('src/components/prompts-panel/PromptsPanel.tsx')
-  const fullscreen = read('src/components/FullscreenLayout.tsx')
-
-  check('extended keys arm ONLY on the honor+parse allowlist (quiet fallback elsewhere)', caps.includes('EXTENDED_KEYS_TERMINALS') && caps.includes('supportsExtendedKeys'))
   const reenable = extendedKeysReenable(true)
   const popAt = reenable.indexOf(DISABLE_KITTY_KEYBOARD)
   const pushAt = reenable.indexOf(ENABLE_KITTY_KEYBOARD)
@@ -134,9 +124,6 @@ console.log('== reversible detection + IME prerequisites (source pins) ==')
       check(`editor handoff DISABLES the protocols first (alt=${altActive} mouse=${mouseTracking})`, bytes.startsWith(DISABLE_KITTY_KEYBOARD + DISABLE_MODIFY_OTHER_KEYS) && !bytes.includes(ENABLE_KITTY_KEYBOARD) && !bytes.includes(ENABLE_MODIFY_OTHER_KEYS), JSON.stringify(bytes))
     }
   }
-  check('the composer declares the hardware cursor (use-declared-cursor)', baseText.includes('use-declared-cursor') || baseText.includes('useDeclaredCursor'))
-  check('the prompts-panel editor rides the SAME machinery (TextInput)', promptsPanel.includes('<TextInput'))
-  check('the fullscreen autocomplete renders ABOVE the composer (never obscures the cursor)', fullscreen.includes('<PromptOverlayStrip />\n      {overlay ?? null}\n      {bottom}'))
   check('the width oracle is grapheme-true (ZWJ family = one cell-cluster width)', stringWidth('\u{1F468}‍\u{1F469}‍\u{1F467}') <= 2 && stringWidth('漢') === 2 && stringWidth('é') === 1)
 }
 

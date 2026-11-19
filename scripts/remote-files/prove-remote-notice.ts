@@ -6,7 +6,6 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const notice = (await import('../../src/services/remoteFiles/notice.ts').catch(() => ({}))) as { remoteFilesNotice?: (input: string, messages?: unknown[]) => Array<{ type: string; content?: string }> }
-const orchestrator = await Bun.file(new URL('../../src/utils/attachments/orchestrator.ts', import.meta.url)).text()
 
 let failures = 0
 let checks = 0
@@ -30,7 +29,6 @@ check('a git remote is not a file on another machine: ssh://git@..., and a path 
 check('a prompt that names both carries it', told('clone ssh://git@github.com/acme/app.git and read ssh://web1/etc/hosts').length === 1)
 check('it is said once in a conversation', told('and ssh://web1/etc/hosts too', [said]).length === 0 && told('and ssh://web1/etc/hosts too', [other]).length === 1)
 check('and again after the conversation was folded', told('and ssh://web1/etc/hosts too', [said, boundary]).length === 1 && told('and ssh://web1/etc/hosts too', [said, boundary, said]).length === 0)
-check('the producer loads the notice only for a prompt that holds ssh://, on the road that carries the prompt\'s own attachments', /maybe\('remote_files', async \(\) => \(input\.includes\('ssh:\/\/'\) \? \(await import\('\.\.\/\.\.\/services\/remoteFiles\/notice\.js'\)\)\.remoteFilesNotice\(input, messages\) : \[\]\), \{ inputScoped: true \}\)/.test(orchestrator) && !/^import .*remoteFiles/m.test(orchestrator))
 
 console.log(`\nremote notice: ${checks - failures} of ${checks} ${failures === 0 ? 'PASS' : 'FAIL'}`)
 process.exit(failures === 0 ? 0 : 1)

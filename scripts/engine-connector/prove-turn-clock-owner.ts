@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -71,11 +70,6 @@ section("§2 the seat reads the roster's clock through the facts — never one i
   Date.now = realNow
   check("the effective facts read the daemon's turnStartedAt, else the record's fold, else nothing", starts.both === 500 && starts.foldOnly === 300 && starts.neither === null, j(starts))
   check('no facts path mints a clock of its own (no latch, no inline Date.now())', Object.values(starts).every(start => start !== 999_999), j(starts))
-  const seat = readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8')
-  const roster = readFileSync(join(ROOT, 'src/daemon/roster.ts'), 'utf8')
-  check("the daemon's facts carry the roster's open-turn start (one clock, the roster's edge)", seat.includes('turnStartedAt: seatTurnStartedAt(short, roster)') && roster.includes('e.turnStartedAt = h.longLived.turnStartedAt'))
-  const fold = readFileSync(join(ROOT, 'src/utils/conversationRecovery.ts'), 'utf8')
-  check('the fold\'s start is conditional on the turn being in flight', fold.includes('turnStartedAtMs: inFlight ? acc.lastPromptMs : null'))
 }
 
 console.log(`\n ${checks} checks, ${failures} failures`)

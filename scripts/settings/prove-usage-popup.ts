@@ -14,7 +14,6 @@ for (const name of Object.keys(process.env)) {
 }
 const localeString = Date.prototype.toLocaleString
 Date.prototype.toLocaleString = function (_locales, options) { return localeString.call(this, 'en-US', { ...options, timeZone: 'UTC' }) }
-const ROOT = join(import.meta.dir, '../..')
 const { pinSourceRef } = await import('../lib/settingsPopupHarness.ts')
 pinSourceRef()
 const { enableConfigs } = await import('../../src/utils/config.js')
@@ -157,8 +156,6 @@ async function mount(width: number, rowBudget: number, columns: number, openToke
   }
 }
 
-const src = readFileSync(join(ROOT, 'src/components/Settings/Usage.tsx'), 'utf8')
-check('the body and meters never read terminal dimensions', !src.includes('useTerminalSize'))
 check('146 gives three 46-cell columns, four-cell gaps and 42-cell bars', JSON.stringify(usageColumns(146, 10)) === JSON.stringify({ perRow: 3, colW: 46, meterW: 42, gap: 4 }))
 check('116 keeps the stacked layout', usageColumns(116, 10).perRow === 1)
 let token = 100

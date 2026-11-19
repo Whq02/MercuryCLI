@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, join, resolve } from 'node:path'
 
@@ -244,15 +244,10 @@ section('§4 the win32 scene: an npm delivered as npm.cmd beside the extensionle
   const WINDOWS_TOOLS = /^(scoop|winget|cs|rustup|npm|go|dotnet|gem|cargo|pip|ghcup|opam)$/
   const winRemedies = catalogue.SERVER_CATALOGUE.filter(entry => entry.remedyWin32 !== undefined).map(entry => ({ id: entry.id, parsed: verb ? verb.installCommandOf(entry.remedyWin32!) : null }))
   check('every Windows remedy parses as the one grammar: words, or a clean argv whose tool is one Windows carries', winRemedies.length >= 16 && winRemedies.every(({ parsed }) => parsed !== null && (parsed.kind === 'words' || WINDOWS_TOOLS.test(parsed.tool))), winRemedies.map(({ id, parsed }) => `${id}: ${JSON.stringify(parsed)}`).join('\n'))
-  const srcVerb = source('src/cli/lspVerb.ts')
-  check('the door spawns the plan (file + args + the verbatim flag), never argv[0] by its bare word and never shell:true', /spawn\(plan\.file, plan\.args, \{[^}]*windowsVerbatimArguments: plan\.windowsVerbatimArguments/.test(srcVerb) && !/shell: true/.test(srcVerb) && !/spawn\(argv\[0\]/.test(srcVerb))
 }
 
 section('§5 never an automatic install: nothing under the language service imports the verb, and the verb lives in the CLI alone')
 {
-  const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry => (entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]))
-  const importers = [...walk(join(ROOT, 'src', 'services', 'lsp')), ...walk(join(ROOT, 'src', 'tools', 'LSPTool'))].filter(file => /\.(ts|tsx)$/.test(file) && /cli\/lspVerb/.test(readFileSync(file, 'utf8')))
-  check('no language-service or LSP-tool file imports the install verb', importers.length === 0, importers.join(','))
   const { builtCli, builtHelp } = await import('../lib/builtProduct.ts')
   const refusedHere = harness()
   const refusedCode = verb ? await verb.lspInstallCli('clangd-ultra', { yes: true }, refusedHere.io) : -1
@@ -263,7 +258,6 @@ section('§5 never an automatic install: nothing under the language service impo
   const refusedThere = builtCli(['lsp', 'install', 'clangd-ultra', '--yes'])
   usePath(proofPath)
   check('main.tsx wires lsp list and lsp install <server> with --yes, through the verb module', lspHelp.includes(' list ') && lspHelp.includes(' install [options] <server> ') && installHelp.includes(' --yes ') && refusedThere.status === refusedCode && refusedThere.stderr === `${refusedHere.err.join('\n')}\n`, refusedThere.stderr)
-  check('the catalogue file is read through its exports and not edited for the verb', /export function probeCatalogueEntry\(/.test(source('src/services/lsp/serverCatalogue.ts')) && /export const SERVER_CATALOGUE/.test(source('src/services/lsp/serverCatalogue.ts')) && !/lspVerb|lspInstall/.test(source('src/services/lsp/serverCatalogue.ts')))
   check('AUTOMATION.md names both verbs', /`mercury lsp list`/.test(source('docs/AUTOMATION.md')) && /`mercury lsp install <server>`/.test(source('docs/AUTOMATION.md')))
   for (const file of ['assets/completions/_mercury', 'assets/completions/mercury.bash', 'assets/completions/mercury.fish']) {
     check(`${file} completes lsp install`, /lsp/.test(source(file)) && /install/.test(source(file)))

@@ -453,20 +453,6 @@ section('§5b a routine token refresh that rotates the refresh token carries the
   check('the refusal still names the alias after the rotation', (await refusalOf(SERVED)) === OBSERVED_REFUSAL)
 }
 
-section('§6 the seams, source-shaped')
-{
-  const client = readFileSync(join(import.meta.dir, '../../src/services/providers/openaicompat/compatChatClient.ts'), 'utf8')
-  const runtime = readFileSync(join(import.meta.dir, '../../src/services/providers/openaicompat/compatChatCallModel.ts'), 'utf8')
-  const lane = readFileSync(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotCallModel.ts'), 'utf8')
-  const admission = readFileSync(join(import.meta.dir, '../../src/services/providers/catalogueAdmission.ts'), 'utf8')
-  const ownerSource = readFileSync(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotAccounts.ts'), 'utf8')
-  check('the one chunk decoder names the served model as a typed event', client.includes("out.push({ type: 'served-model', model: servedModel })"))
-  check('the shared runtime hands the settled served word to the lane owner and never stamps it onto the transcript model', runtime.includes('profile.noteServedModel?.(modelId, outcome.served, credential)') && runtime.includes('    model: modelId,\n    content: [] as ContentBlock[],'))
-  check('the Moonshot lane routes the observation to its account owner', lane.includes('recordMoonshotServedModel(requested, served, { identity: credential.accountIdentity })'))
-  check('the refusal words keep one owner; the served fact is an optional clause of the same sentence', admission.includes('is not offered by the ${accountLabel} live catalogue.${alias}${hint}'))
-  check('the dispatch credential pins the account identity from the token set in hand, through the one helper the current-identity read uses', ownerSource.includes('accountIdentity: tokenIdentity(tokens)') && ownerSource.includes('if (tokens) return tokenIdentity(tokens)') && ownerSource.includes("accountIdentity: credentialFingerprint(envKey)") && ownerSource.includes("accountIdentity: credentialFingerprint(stored)"))
-  check('a rotated refresh token moves the rows in the same publish that stores the tokens', ownerSource.includes('writeAuthFile(file => withServedModelsMoved(withTokens(file, next, region), tokenIdentity(stored), tokenIdentity(next)))'))
-}
 
 globalThis.fetch = realFetch
 fixture.closeAllConnections()

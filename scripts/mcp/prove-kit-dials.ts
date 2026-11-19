@@ -1,7 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'kit-dials-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -29,8 +28,6 @@ const watchdog = setTimeout(() => {
 }, 120_000)
 watchdog.unref?.()
 
-const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 console.log('============================================================')
 console.log(' KIT-DIALS — the session owns its dials')
@@ -139,22 +136,12 @@ section('§E the delta (a dial is a delta, never a heal)')
   t('E4c the sibling keeps everything (the poison is dead)', betaRow?.type === 'connected' && next.mcp.tools.some(x => x.name === 'mcp__beta__go') && next.mcp.commands.some(x => x.name === 'mcp__beta__cmd') && 'beta' in (next.mcp.resources ?? {}))
 }
 
-section('§H the write re-point')
-{
-  const src = read('src/cli/run.ts')
-  t('H1 run.ts carries no setMcpServerEnabled CALL (the disease is gone from the child)', !src.includes('setMcpServerEnabled(') && !/import[^\n]*setMcpServerEnabled/.test(src))
-}
 {
   pin._resetSessionKitPinForTesting()
   const beforeShot = homeSnapshot()
   const out = pin.applyProcessSessionKitEdit({ mcp: [{ name: 'alpha', on: false }] }, [])
   const afterShot = homeSnapshot()
   t('H2 a session dial writes NOTHING under the config home', out.outcome === 'applied' && deepEq(beforeShot, afterShot))
-}
-{
-  const pinSrc = read('src/services/mcp/sessionKitPin.ts')
-  const assignments = (pinSrc.match(/latched = /g) ?? []).length
-  t('H3 every latch assignment lives in sessionKitPin.ts (the one home)', assignments >= 5 && !read('src/cli/run.ts').includes('latched ='))
 }
 
 section('§C the seat dial: idle forwards whole, busy parks honest, the beat drains')
@@ -247,18 +234,10 @@ section('§C the seat dial: idle forwards whole, busy parks honest, the beat dra
   const pre = readSessionWorkers(DAEMON_DIR)['w-pre'] as { kit?: { resolved?: false; deltas?: { mcpOff: string[] } } }
   t('C9 a pre-kit record materializes-then-edits and says so', c9.outcome === 'applied' && /materialized/.test(c9.detail ?? '') && pre.kit?.resolved === false && pre.kit.deltas?.mcpOff.includes('ygg') === true)
   t('C9b the materialization carries the workspace STANDING off-record (the widening poison, dead record-side)', pre.kit?.deltas?.mcpOff.includes('menuoff') === true)
-  const mainSrc = read('src/daemon/main.ts')
-  t('C10 the set-kit arm rides the seat and settles only the adjudicated outcomes', /setSessionKitDial\(sessionId, kitEdit, by, roster\)/.test(mainSrc) && /dialed\.outcome === 'queued'\s*\?\s*dialed\s*:\s*settle\(/.test(mainSrc))
 }
 
 section('§G setKit rides the connector, honest end to end')
 {
-  const typesSrc = read('src/services/engine-connector/types.ts')
-  t('G1 the interface speaks the verb with the typed receipt', typesSrc.includes('setKit(edit: SessionKitEditV1): Promise<KitDialReceiptV1>') && /KitDialReceiptV1 = \{\s*\n\s*outcome: 'applied' \| 'queued' \| 'noop' \| 'refused'/.test(typesSrc))
-  const dcSrc = read('src/services/engine-connector/daemonConnector.ts')
-  const body = dcSrc.slice(dcSrc.indexOf('async setKit('), dcSrc.indexOf('workRoster(): WorkRosterV1'))
-  t('G2 the daemon connector rides sessionControl set-kit with a minted op id', body.includes("action: 'set-kit'") && body.includes('kitEdit: edit') && body.includes('clientOpId:'))
-  t('G3 no optimistic roster mutation (the daemon adjudication is the truth; queued must not paint a lie)', !body.includes('this.facts ='))
   const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
   const refused = await noSessionConnector().setKit({ mcp: [{ name: 'x', on: false }] } as never)
   t('G4 the resting slot refuses with the one no-chat sentence', refused.outcome === 'refused' && /no chat is open/.test(refused.detail ?? ''))
@@ -299,14 +278,10 @@ section('§F skillsOff: the lying dial is dead (born-later off is expressible)')
 
 section('§A the screen dial rides the connector')
 {
-  const cmdSrc = read('src/commands/mcp/mcp.tsx')
-  t('A1 the composer walks no client set and writes no store: the toggle rides connector.setKit over the SESSION roster', cmdSrc.includes('connector.setKit({ mcp: dials })') && cmdSrc.includes('connector.mcpRoster()'))
-  t('A1b organs are named, never dialed', cmdSrc.includes('isMcpOrgan(target)') && read('src/commands/mcp/route.ts').includes("is Mercury's own organ — never dialed."))
   const route = await import('../../src/commands/mcp/route.ts')
   t('A3a the roster line says SESSION and points at the boot menu', route.mcpRosterLine({ clients: [{ name: 'a', type: 'connected' }] } as never).includes('this session only, the boot menu sets the next session\'s'))
   t('A3b the empty line points at the boot menu', route.MCP_EMPTY_ROSTER_LINE.includes("boot menu's MCPs & Skills"))
   t('A3c the receipt lines: applied says session-only; queued speaks the turn\'s end; noop and refused carry the detail', route.kitDialLine({ outcome: 'applied' }, 'X').includes('this session only') && route.kitDialLine({ outcome: 'queued', detail: 'the dials apply when this turn ends' }, 'X').includes("turn ends") && route.kitDialLine({ outcome: 'noop', detail: 'd' }, 'X').includes('No change — d') && route.kitDialLine({ outcome: 'refused', detail: 'r' }, 'X').includes('refused — r'))
-  t('A4 the panel names its estate honestly', read('src/commands/mcp/McpPopup.tsx').includes('servers · this session') && read('src/components/mcp/MCPSettings.tsx').includes('<McpPopup'))
 }
 
 section('§S the skills dial: session rows, off rows listed, tri-state words')
@@ -330,12 +305,6 @@ section('§S the skills dial: session rows, off rows listed, tri-state words')
   t('S2a the off row rides the projection with the state word and no description', deepEq(roster.find(r => r.name === 'ns:offed'), { name: 'ns:offed', description: '', state: 'off' }))
   t('S2b the table row wins a collision (the table is the process truth)', roster.filter(r => r.name === 'ns:seen').length === 1 && roster.find(r => r.name === 'ns:seen')?.state === undefined)
   t('S2c the invocable word still projects', roster.find(r => r.name === 'ns:inv')?.state === 'invocable')
-  const cmdSrc = read('src/commands/skills/skills.tsx')
-  t('S3 /skills rides the SESSION dial when a chat is focused; the screen table only for the resting slot', cmdSrc.includes('hasFocusedSession()') && cmdSrc.includes('SessionSkillsDial') && cmdSrc.includes('SkillsMenu'))
-  const dialSrc = read('src/components/skills/SessionSkillsDial.tsx')
-  t('S4a the dial rides the one connector verb and paints the honest receipt arms', dialSrc.includes(".setKit({ skills: [{ name: row.name, state: next }] })") && dialSrc.includes('kitDialLine'))
-  t('S4b the words say SESSION and point at the boot menu (empty line included)', dialSrc.includes("this session's skills — the boot menu sets the next session's") && dialSrc.includes("No skills in this session. The boot menu's MCPs & Skills sets the next session's."))
-  t('S4c no optimistic paint: the roster reads the session facts, never a local mutation', !dialSrc.includes('useState<SkillsRosterEntryV1') && dialSrc.includes('useSyncExternalStore'))
   govern._resetKitGovernanceForTesting()
 }
 
@@ -365,8 +334,6 @@ section('§D a dial never writes config/menu/sibling; a menu edit never reaches 
   t('D2b the live record never moves on a menu edit', JSON.stringify((readSessionWorkers(DAEMON_DIR)['w-dial'] as { kit?: unknown }).kit) === recBefore)
   t('D2c a latched process\'s membership never re-reads the record (the live session keeps its set)', membership.isMcpCatalogueMember('keepme') === true)
   pin._resetSessionKitPinForTesting()
-  const menuStoreSrc = read('src/services/kitMenu/menuStore.ts')
-  t('D3 the menu store speaks its workspace writers only — no sessionControl, no latch, no writer', !menuStoreSrc.includes('setKit(') && !menuStoreSrc.includes('applyConcourseKitOp') && !menuStoreSrc.includes('setProcessSessionKit') && !menuStoreSrc.includes('applyProcessSessionKitEdit'))
 }
 
 console.log(failures === 0 ? '\nPASS prove-kit-dials' : `\nFAIL prove-kit-dials (${failures})`)

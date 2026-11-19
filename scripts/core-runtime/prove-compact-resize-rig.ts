@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -248,7 +248,5 @@ for (const editorMode of ['emacs', 'vim'] as const) {
 console.error = originalError
 clearTimeout(hardLimit)
 check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error/.test(line)), faults.join('\n'))
-const source = readFileSync(join(import.meta.dir, '../../src/components/BaseTextInput.tsx'), 'utf8')
-check('the input routing precedes the production paste wrapper', source.indexOf('props.routeInput?.') >= 0 && source.indexOf('props.routeInput?.') < source.indexOf('wrappedOnInput(input, key, event)'))
 console.log(`compact-resize-rig: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

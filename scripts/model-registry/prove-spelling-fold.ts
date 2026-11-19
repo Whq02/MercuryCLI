@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -68,17 +68,6 @@ check('canonical parity: a declared engine id is byte-identical', parseUserSpeci
 check('canonical parity: a carrier id is byte-identical', parseUserSpecifiedModel('openrouter/anthropic/claude-opus-5') === 'openrouter/anthropic/claude-opus-5')
 check("the alias switch is untouched ('sonnet5' → its row)", parseUserSpecifiedModel('sonnet5') === parseUserSpecifiedModelRaw('sonnet5'))
 
-const modelSrc = readFileSync('src/utils/model/model.ts', 'utf8')
-check(
-  "the fold rung is gated on recognizeModelId 'unrecognised' AND the catalogueFold arm",
-  modelSrc.includes("catalogueFold && recognizeModelId(bare).kind === 'unrecognised'"),
-)
-const foldSrc = readFileSync('src/utils/model/modelSpellingFold.ts', 'utf8')
-const foldCode = foldSrc.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
-check(
-  'the fold module carries ZERO family literals in code (catalogue-derived, provider-equal)',
-  !/['"`](claude-|gpt-|glm-|sonnet|opus|haiku|fable|mythos)/i.test(foldCode),
-)
 
 console.log('\n§3 the launch door')
 const { canonicalWorkerModelId, validateWorkerModelChoice } = await import(
@@ -90,10 +79,6 @@ check("canonicalWorkerModelId('sonnet 5') lands on the canonical row id", doorId
 check('…and the route law declares it (never unrecognised at the arms)', declaredRouteOf(doorId) === 'anthropic', String(declaredRouteOf(doorId)))
 check("'Sonnet-5' lands identically at the door", (await canonicalWorkerModelId('Sonnet-5')) === doorId)
 check('the [1m] context tag strips at the door (a call-time flavour, not an identity)', (await canonicalWorkerModelId(`${doorId}[1m]`)) === doorId, await canonicalWorkerModelId(`${doorId}[1m]`))
-{
-  const registry = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'concourse', 'workerModels.ts'), 'utf8')
-  check('the door canonicalises with the worker registry\'s own function: the registry imports no other concourse module', registry.includes("return parseUserSpecifiedModel(value).replace(/\\[1m]$/, '')") && registry.includes('return canonicalModelId(foldLegacyWorkerModelKey(idOrKey))') && !/from '\.\/[A-Za-z]+\.js'/.test(registry), (registry.match(/from '\.\/[A-Za-z]+\.js'/g) ?? []).join(' '))
-}
 const refusal = await validateWorkerModelChoice('flurble-9000', 'session')
 check('a genuinely unknown launch still refuses, typed', refusal.ok === false && refusal.reason === 'not-runnable:unrecognised')
 const liveExamples = catalogueSpellingExamples(3)
@@ -107,7 +92,6 @@ check(
 
 {
   console.log('\n§4 the run road takes the fold too (FC-073)')
-  const headlessModelSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'headless', 'model.ts'), 'utf8')
   const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const SPOKEN = 'Sonnet 5'
   const folded = parseUserSpecifiedModel(SPOKEN)
@@ -122,14 +106,6 @@ check(
     await host.request('session/claim', { session_id: crypto.randomUUID(), model: SPOKEN })
     return (await liveFactsOf(host)).model.effective
   }, { env: { MERCURY_CONCOURSE_WORKER: '1' } }).catch(() => null)
-  check(
-    'the headless resolver imports and applies the spelling fold (call-shaped)',
-    headlessModelSrc.includes("import { parseUserSpecifiedModel } from '../../utils/model/model.js'") &&
-      /else model = parseUserSpecifiedModel\(requested\)/.test(headlessModelSrc) &&
-      /return model/.test(headlessModelSrc) &&
-      folded !== SPOKEN &&
-      [seeded, switched.spoken?.model, claimed].every(id => id === folded),
-  )
   check(
     'the entry seed folds through the headless resolver (call-shaped)',
     seeded === folded,

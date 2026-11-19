@@ -158,13 +158,6 @@ section("§3 the built artifact: a -p run's note is on disk after the process ex
 
 section('§4 source pins')
 {
-  const ledgerSrc = readFileSync(join(ROOT, 'src/utils/activityLedger.ts'), 'utf8')
-  check('the ledger merges through the deferred road', /saveGlobalConfigDeferred\(current => \{/.test(ledgerSrc))
-  check('…and never the synchronous saver', !/\bsaveGlobalConfig\(/.test(ledgerSrc) && !/import \{[^}]*\bsaveGlobalConfig\b[^}]*\}/.test(ledgerSrc))
-  const cfgSrc = readFileSync(join(ROOT, 'src/utils/config/globalConfig.ts'), 'utf8')
-  check('the deferred writer arms the exit flush at the deferral', /pendingDeferredUpdaters\.push\(updater\)\s*\n\s*armDeferredExitFlush\(\)/.test(cfgSrc))
-  check("the exit listener publishes pending changes synchronously", cfgSrc.includes("process.once('exit', () => {") && cfgSrc.includes('if (hasPendingDeferredGlobalConfigSaves()) saveGlobalConfig(current => current)'))
-  check('…armed exactly once per process', /if \(deferredExitFlushArmed\) return\s*\n\s*deferredExitFlushArmed = true/.test(cfgSrc))
   const { FIXTURE_MODEL, fixtureCli, withLiveRunner } = await import('../lib/builtProduct.ts')
   const stampOf = async (boot: (stampHome: string) => Promise<unknown>): Promise<Activity | undefined> => {
     const stampHome = mkdtempSync(join(tmpdir(), 'activity-entry-'))

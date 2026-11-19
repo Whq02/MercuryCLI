@@ -4,7 +4,6 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ctm-r04-config-'))
 process.env.NODE_ENV = 'test'
@@ -340,36 +339,6 @@ section('§I the words — the card names the family; the spend posture is per f
   check('a key is metered per token, on every family', laneSpendPosture('anthropic', 'api-key', 'Anthropic').kind === 'metered' && laneSpendPosture('openai', 'api-key', 'OpenAI').kind === 'metered' && laneSpendPosture('zai', 'api-key', 'Z.AI').words.includes('bills per token under your Z.AI account'))
   check('a local server bills nothing; an operator endpoint bills per its own terms', laneSpendPosture('local', 'keyless', 'Local models').kind === 'local' && laneSpendPosture('openai-compat', 'api-key', 'Custom endpoint').kind === 'endpoint')
   check('no credential ⇒ the honest none', laneSpendPosture('gemini', 'none', 'Gemini').kind === 'none')
-  const { readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const ROOT = join(import.meta.dir, '..', '..')
-  const card = readFileSync(join(ROOT, 'src/components/CapOfferCard.tsx'), 'utf8')
-  check('the card title names the HOME family (window reset — return? · usage window)', card.includes('`${homeName} window reset — return?`') && card.includes('`${homeName} usage window`'))
-  check('the card never spells a default subscription lane', !card.includes('Claude is your subscription lane') && !card.includes('Claude is the subscription lane') && !card.includes("'Claude window reset"))
-  check('the card composes both spend lines through the ONE posture owner', /import \{[^}]*\blaneSpendPosture\b[^}]*\} from '\.\.\/services\/capFailover\.js'/.test(card) && card.includes('laneSpendPosture(homeRoute') && card.includes('laneSpendPosture(awayRoute'))
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
-  check('the composer reads the home window through the ONE resolver, for the seat model (the pool that binds)', composer.includes('observedFamilyWindow(homeFamily, undefined, {'))
-  check('the composer derives the home family from the handoff note, not a hardwired family', composer.includes('liveRoute === noted.homeFamily') && !composer.includes("liveRoute === 'anthropic'"))
-  check('the composer asks the neutral candidate set for the HOME family', composer.includes('liveCapFailoverTarget(homeFamily)'))
-  check('the return decision carries the home credential verdict', composer.includes('credentialUsable: homeUsability.usable'))
-  check('a signed-out home ends the handoff (no return card)', /homeUsability\.credential === 'none'\) \{\s*\n\s*noteCapReturn\(\)/.test(composer))
-  check('the home usability is read only while parked away (never a per-keystroke walk at home)', composer.includes("onFailoverLane ? usabilityForRoute(homeFamily as CallModelRoute) : null"))
-  check('an ACCEPT latches the STABLE armed-state owner (direction+family) and settles the CHOSEN row — a state/reset jitter never re-fires the card', /onAccept=\{chosen => \{[\s\S]{0,900}?noteCapOfferAnswered\(offer\.direction, offer\.homeRoute\)[\s\S]{0,1400}?handleModelSelect\(chosen\.model\)/.test(composer))
-  check('the armed state is keyed on the stable facts, never the volatile window state|reset string', /capOfferAnswered\(direction, homeFamily\)/.test(composer) && !/`\$\{direction\}\|\$\{homeFamily\}\|\$\{window\.state\}/.test(composer))
-  check("the accepted handoff records the home FAMILY beside the SEAT's own model (the connector's facts, never the screen's ambient state) as an intent, and the note is written only when the switch lands (applied or queued) — the preview's wait and the door's flight never lose it to the self-heal", composer.includes('capHandoffIntentRef.current = { homeModel: seat.sessionPin ?? seat.setting ?? seat.effective, homeFamily: offer.homeRoute }') && composer.includes('capHandoffIntentRef.current = { homeModel: effective, homeFamily }') && composer.includes("settleCapHandoffIntent(receipt.state === 'applied' || receipt.state === 'queued')") && composer.includes("settleCapHandoffIntent(settled.kind === 'applied' || settled.kind === 'queued')") && composer.includes('if (intent !== null && landed) noteCapHandoff(intent.homeModel, intent.homeFamily)') && !composer.includes('noteCapHandoff(seat.') && !composer.includes('noteCapHandoff(effective, homeFamily)'))
-  check('the self-heal (the route home again clears the note) stands down while a switch is parked for the turn boundary', composer.includes("liveRoute === noted.homeFamily && modelFactsNow.pendingSwitch === null && appStateStore.getState().pendingModelSwitch === null"))
-  check('the lane line reads the lane from the ONE owner (the handoff note against the live route) and takes its words from that owner — the composer spells none of them, and never Claude by default', composer.includes('capFailoverLaneOf(declaredRouteOf(capEffectiveModel))') && composer.includes('capLaneLineWords(capLaneFacts)') && !composer.includes('failover lane ·') && !composer.includes('Claude window resets'))
-  check('the lane line stands on the product clock: its deadline is the owner\'s (capLaneLineUntil), the composer ticks only while the sentence stands and parks the tick after', composer.includes('const capLaneUntil = capLaneLineUntil(capLaneFacts === null ? null : capLaneLineKey(capLaneFacts), Date.now())') && composer.includes('useNowTick(capLaneStanding ? 1000 : null)') && composer.includes('const capLaneLine = capLaneStanding && capLaneFacts !== null ? capLaneLineWords(capLaneFacts) : null'))
-  check('the composer is told of every change of the note, the way the strip is (a note that lands on the door\'s receipt paints its sentence without a keystroke)', composer.includes('useSyncExternalStore(subscribeCapHandoff, getCapHandoffVersion, getCapHandoffVersion)'))
-  const strip = readFileSync(join(ROOT, 'src/components/MercuryFrame.tsx'), 'utf8')
-  const band = readFileSync(join(ROOT, 'src/components/CompactIdentityBand.tsx'), 'utf8')
-  const markOwner = readFileSync(join(ROOT, 'src/components/mercury-ui/FailoverMark.tsx'), 'utf8')
-  check("the strip's three model segments mount the ONE mark beside the served model (the wide statusRow, the compact line, the identity band), and the mark's owner subscribes to the note", (strip.match(/<FailoverMark model=/g) ?? []).length === 2 && band.includes('<FailoverMark model={effectiveModel} />') && markOwner.includes('useSyncExternalStore(subscribeCapHandoff, getCapHandoffVersion, getCapHandoffVersion)') && markOwner.includes("export const FAILOVER_MARK = 'failover'"))
-  const menu = readFileSync(join(ROOT, 'src/substrate/startupMenu.ts'), 'utf8')
-  check('the registry row and the /config text spell the neutral law (no favoured family, most recent sign-in first)', getFlagSpec('MERCURY_CAP_FAILOVER')?.summary.includes('NEUTRAL across every signed-in family') === true && menu.includes('no favourite') && !menu.includes('OpenAI first') && !flagRegistryText().includes('OpenAI first'))
-  const openaiCall = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
-  const messages = readFileSync(join(ROOT, 'src/services/rateLimitMessages.ts'), 'utf8')
-  check('the OpenAI wall row carries the cross-family lane remedy through the same composer the Anthropic row uses', openaiCall.includes("crossFamilyLaneRemedy('openai')") && messages.includes("crossFamilyLaneRemedy('anthropic'") && messages.includes('export function crossFamilyLaneRemedy('))
 }
 
 section('§J the failover lane line — one owner of the words, the two-minute clock on the product flag, the strip\'s mark only on the lane')

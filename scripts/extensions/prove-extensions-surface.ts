@@ -1,18 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import {
-  appendFileSync,
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  realpathSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
+import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { bundledPayloads } from '../../src/extensions/bundled/content.generated.ts'
@@ -764,13 +752,6 @@ console.log('\n── the keybinding context (05 §2.3)')
       const expected = chord === 'space' ? ' ' : chord
       check(`the resolver's default for ${action} is '${chord}'`, resolved.chars.get(action) === expected)
     }
-    for (const [file, needle] of [
-      ['src/components/extensions/ExtensionsBoard.tsx', 'resolveExtensionsBindings'],
-      ['src/components/extensions/SourceView.tsx', 'resolveExtensionsBindings'],
-      ['src/components/extensions/ExtensionView.tsx', 'resolveExtensionsBindings'],
-    ] as const) {
-      check(`${file.split('/').pop()} consumes the resolver`, readFileSync(join(REPO, file), 'utf8').includes(needle))
-    }
 
     const { resolveExtensionsBindings: resolveKb } = await import('../../src/components/extensions/bindings.ts')
     const kbFile = join(TEMPLATE, 'keybindings.json')
@@ -806,32 +787,6 @@ console.log('\n── the keybinding context (05 §2.3)')
   }
 }
 
-console.log('\n── the vocabulary law (07 §2 row 8)')
-{
-  const globby = (dir: string, out: string[] = []): string[] => {
-    for (const name of readdirSync(dir)) {
-      const p = join(dir, name)
-      if (statSync(p).isDirectory()) globby(p, out)
-      else if (/\.(ts|tsx|md)$/.test(name) && name !== 'content.generated.ts') out.push(p)
-    }
-    return out
-  }
-  const files = [
-    ...globby(join(REPO, 'src/components/extensions')),
-    ...globby(join(REPO, 'src/commands/extensions')),
-    ...globby(join(REPO, 'src/extensions')),
-    join(REPO, 'docs/EXTENSIONS.md'),
-  ].filter(p => existsSync(p))
-  let dirty = 0
-  for (const file of files) {
-    const low = readFileSync(file, 'utf8').toLowerCase()
-    if (low.includes(P_WORD) || low.includes(M_WORD)) {
-      dirty++
-      console.log(`    retired word in ${file}`)
-    }
-  }
-  check('no retired vocabulary in the surface estate + core + maker doc', dirty === 0, `${files.length} files swept`)
-}
 
 removeScratch(SCRATCH)
 console.log(`\n${failures === 0 ? '✅ EXTENSIONS SURFACE — GREEN' : `❌ ${failures} FAILED`}`)

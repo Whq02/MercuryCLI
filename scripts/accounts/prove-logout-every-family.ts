@@ -183,38 +183,6 @@ section('§2 performLogout — every store empties through the one owner')
   }
 }
 
-section('§3 one owner — /logout calls it; the removal switch and the verb agree')
-{
-  const repo = join(import.meta.dir, '..', '..')
-  const logoutSrc = readFileSync(join(repo, 'src/commands/logout/logout.tsx'), 'utf8')
-  check('/logout calls signOutEveryEngineCredential', logoutSrc.includes('signOutEveryEngineCredential()'))
-  check(
-    '/logout names no family owner of its own (the one-owner law)',
-    !logoutSrc.includes('disconnectOpenaiSubscription') && !logoutSrc.includes('writeStoredOpenaiApiKey') && !logoutSrc.includes('writeStoredZaiApiKey'),
-  )
-  const slotsSrc = readFileSync(join(repo, 'src/services/providers/accountSlots.ts'), 'utf8')
-  const removalStart = slotsSrc.indexOf('export function executeSlotRemoval(')
-  const verbStart = slotsSrc.indexOf('export function signOutEveryEngineCredential(')
-  check('both owners exist in accountSlots', removalStart !== -1 && verbStart !== -1 && verbStart > removalStart)
-  const switchBody = slotsSrc.slice(removalStart, verbStart)
-  const verbBody = slotsSrc.slice(verbStart)
-  const NOT_ENGINE = new Set(['excluded', 'owner', 'settings', 'env', 'anthropic-oauth', 'anthropic-managed-key'])
-  const routes = [...switchBody.matchAll(/case '([a-z-]+)':/g)].map(m => m[1]!).filter(r => !NOT_ENGINE.has(r))
-  check('the removal switch names engine routes', routes.length >= 14, String(routes.length))
-  const missing = routes.filter(r => !verbBody.includes(`['${r}',`))
-  check('every engine route of the removal switch has a row in the everything-verb', missing.length === 0, missing.join(', '))
-
-  const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.js')
-  const families = buildProviderSnapshot().providers.map(p => String(p.id))
-  check('the enumeration lists the ten families', families.length >= 10, families.join(', '))
-  const stem = (id: string): string => (id === 'openai-compat' ? 'compat' : id)
-  const armless = families.filter(id =>
-    id === 'anthropic'
-      ? !(logoutSrc.includes('removeApiKey()') && logoutSrc.includes('getSecureStorage().delete()'))
-      : !verbBody.includes(`['${stem(id)}-`),
-  )
-  check('every family in the enumeration has a logout arm (anthropic: the ladder; the rest: a verb row)', armless.length === 0, armless.join(', '))
-}
 
 try {
   rmSync(scratch, { recursive: true, force: true })

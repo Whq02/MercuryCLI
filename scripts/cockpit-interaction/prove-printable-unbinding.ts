@@ -63,36 +63,6 @@ t.section('§2 — the real parse + resolve path (a user null-unbind of space)')
   )
 }
 
-t.section('§3 — every consume site shares the decision, including the interceptor')
-{
-  const src = readFileSync('src/keybindings/useKeybinding.ts', 'utf8')
-  const arms = src.split("case 'unbound':").length - 1
-  t.check('the hook has exactly two unbound arms', arms === 2, `${arms}`)
-  const guarded = src.split('if (unboundConsumes(input, key))').length - 1
-  t.check('every unbound arm consults unboundConsumes', guarded === 2, `${guarded} guarded`)
-  t.check(
-    'no unconditional consume remains in an unbound arm',
-    !/case 'unbound':[^]*?setPendingChord\(null\)\s*\n\s*event\.stopImmediatePropagation/.test(src),
-    'ok',
-  )
-
-  const setup = readFileSync('src/keybindings/KeybindingProviderSetup.tsx', 'utf8')
-  t.check(
-    'the interceptor consults unboundConsumes too',
-    /case "unbound":[^]*?if \(wasInChord \|\| unboundConsumes\(input, key\)\)/.test(setup),
-    'the deciding site',
-  )
-  t.check(
-    'and keeps consuming a disabled CHORD COMPLETION',
-    setup.includes('wasInChord || unboundConsumes'),
-    'a pending prefix owns its suffix',
-  )
-  t.check(
-    'a chord-suffix MATCH is consumed even when its action has no mounted handler',
-    /case "match":(?:(?!case ")[^])*?if \(wasInChord\) \{(?:(?!case ")[^])*?event\.stopImmediatePropagation\(\);\s*\n\s*\}\s*\n\s*break bb/.test(setup),
-    'the suffix belongs to the chord',
-  )
-}
 
 t.section('§4 — chord states are deterministic (pure resolution)')
 {

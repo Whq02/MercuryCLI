@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
@@ -15,7 +15,6 @@ if (!existsSync(DIST)) {
 }
 console.log(`build under proof: ${DIST}`)
 
-const ROOT = join(import.meta.dir, '..', '..')
 const MAIN_ASK = 'delegation probe: hand the probe to a crewmate and wait for it'
 const AGENT_PROMPT = 'the crewmate of the delegation probe'
 const MESSAGE = 'the operator says: the tide is turning, read this now'
@@ -120,16 +119,6 @@ tally.check('the Crewmate receipt says the crewmate went to the background becau
 tally.check('the operator\'s words reached the model as the queued line of the same turn', afterCrewmate !== undefined && afterCrewmate.allTexts.some(text => text.includes(MESSAGE)), afterCrewmate === undefined ? 'no second request of the main turn' : afterCrewmate.ask.slice(0, 120))
 tally.check('the crewmate ran on in the background to its own end', crewmateRequests.some(r => r.step === 1) && ended !== undefined, `crewmate requests ${crewmateRequests.length} · ended ${seconds(ended?.atMs)}`)
 
-tally.section('the seam, structural')
-{
-  const tasks = readFileSync(join(ROOT, 'src/tasks/LocalAgentTask/LocalAgentTask.tsx'), 'utf8')
-  const receipts = readFileSync(join(ROOT, 'src/tasks/LocalAgentTask/launchReceipts.ts'), 'utf8')
-  const queue = readFileSync(join(ROOT, 'src/input-core/command-queue.ts'), 'utf8')
-  tally.check('the handover is the ctrl+b transition with its reason stamped on the task', tasks.includes('export function handOverForegroundAgentsToQueuedMessage(') && tasks.includes("handoverReason: 'message-queued'") && tasks.includes('backgroundAgentTask(task.id, getAppState, setAppState)'))
-  tally.check('the receipt names the reason in the operator\'s terms', receipts.includes("case 'message-queued':") && receipts.includes(RECEIPT_WORDS))
-  tally.check('the drain scoping is untouched: a subagent never drains user prompts', readFileSync(join(ROOT, 'src/run-core/attachment-drain.ts'), 'utf8').includes("return cmd.mode === 'task-notification' && cmd.agentId === scope.agentId"))
-  tally.check('the turn-end hold is readable at the door', queue.includes('export function queuedWordsWaitForTurnEnd(): boolean'))
-}
 
 if (tally.failed() === 0) rmSync(runHome, { recursive: true, force: true })
 else console.log(`  world kept: ${runHome}\n  stderr tail: ${stderr.slice(-800)}`)

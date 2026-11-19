@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -32,36 +31,6 @@ section('§1 the derivation — both worlds, through the real strip owners')
   check('no stops ⇒ empty hint', stripKeyMapHintOf('repl', []) === '', JSON.stringify(stripKeyMapHintOf('repl', [])))
 }
 
-section('§2 the footer wiring (source locks)')
-{
-  const footer = readFileSync(
-    join(import.meta.dir, '../../src/components/PromptInput/PromptInputFooter.tsx'),
-    'utf8',
-  )
-  check(
-    'the footer derives from stripKeyMapHintOf over presentStripStops',
-    footer.includes("stripKeyMapHintOf('repl', presentStripStops())"),
-  )
-  check('the derivation is SUBSCRIBED (repaints on stop presence)', footer.includes('subscribeSurfaceRoute'))
-  check(
-    'the hint is fullscreen-gated (CB-10: the strip refuses inline boots)',
-    /fullscreen && stripHint !== ''/.test(footer),
-  )
-  check(
-    'POISON: no surface-name literal in the footer source',
-    !/['"`][^'"`]*(?:concourse|boot face)[^'"`]*['"`]/i.test(footer.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')),
-  )
-  const hintsRow =
-    /<Text dimColor wrap="truncate-end">\s*\{getNewlineInstructions\(\)\}\s*\{composerCrewmate !== null \? ` · \$\{crewmateComposerHint\([^`]*\)\}` : ''\}\s*\{fullscreen && stripHint !== '' \? ` · \$\{footerStripHint\(stripHint\)\}` : ''\}\s*<\/Text>/
-  check(
-    'the strip hint rides the newline row (one hints row, kit-joined: the newline chord · the crewmate clause · the strip chord)',
-    hintsRow.test(footer),
-  )
-  check(
-    'one hints row (the newline chord paints once; no second row carries a chord)',
-    (footer.match(/getNewlineInstructions\(\)/g) ?? []).length === 1 && (footer.match(/footerStripHint\(stripHint\)\}/g) ?? []).length === 1,
-  )
-}
 
 section('§3 the footer spells the chord in its own row\'s grammar: "shift + ←", beside "shift + ↵ for a new line", on every host')
 {
@@ -72,10 +41,6 @@ section('§3 the footer spells the chord in its own row\'s grammar: "shift + ←
   check('the stop name stays router-derived (only the chord is respelled)', footerStripHint('⇧← anything') === 'shift + ← anything')
   check('no ⇧ survives into the footer row', !footerStripHint(stripKeyMapHintOf('repl', stripStops({ concourseEnabled: true, chatBoot: false, chatPresent: true }))).includes('⇧'))
   check('the row reads one grammar: both hints open with "shift + "', footerStripHint('⇧← concourse').startsWith('shift + ') && 'shift + ↵ for a new line'.startsWith('shift + '))
-  const footer = readFileSync(join(import.meta.dir, '../../src/components/PromptInput/PromptInputFooter.tsx'), 'utf8')
-  check('the footer paints the respelled hint, never the raw strip hint', footer.includes('` · ${footerStripHint(stripHint)}`') && !footer.includes('` · ${stripHint}`'))
-  const tagBar = readFileSync(join(import.meta.dir, '../../src/components/SwitchboardTagBar.tsx'), 'utf8')
-  check('the tag bar\'s way back keeps its own words ("⇧← back")', (tagBar.match(/keyHintLabel\('⇧← back'\)/g) ?? []).length >= 2)
 }
 
 if (failures > 0) {

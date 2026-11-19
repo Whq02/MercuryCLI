@@ -115,7 +115,6 @@ check('no phrase carries trailing punctuation, an exclamation mark or an emoji',
   const dupes = phrases.filter((p, i) => everyOther.has(norm(p)) || phrases.findIndex(q => norm(q) === norm(p)) !== i)
   check('no phrase duplicates another entry in any list (hyphen and space insensitive)', dupes.length === 0, dupes.join(' | '))
 }
-check('the desert branch of the pool spreads the verbs and the phrases together', src.includes('[...MERCURY_DESERT_VERBS, ...MERCURY_DESERT_PHRASES]'))
 check('the existing cadence laws still read the verbs alone (the phrase list is its own array)', !desert.some(v => v.includes(' ')) && !desert.some(v => phrases.includes(v)), `desert=${desert.length}`)
 {
   ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }

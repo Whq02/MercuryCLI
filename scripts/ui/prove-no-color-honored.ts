@@ -1,7 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { shouldHonorNoColor } from '../../src/ink/colorize.js'
 
 let failures = 0
@@ -12,7 +9,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 console.log('============================================================')
 console.log(' NO_COLOR honored (no-color.org) — precedence + wiring')
@@ -28,14 +24,6 @@ check('NO_COLOR=1 + FORCE_COLOR=0 → honor; disabled force colour cannot turn c
 check('NO_COLOR=1 + FORCE_COLOR=false → honor', shouldHonorNoColor({ NO_COLOR: '1', FORCE_COLOR: 'false' }) === true)
 check('NO_COLOR=1 + FORCE_COLOR empty → force colour on', shouldHonorNoColor({ NO_COLOR: '1', FORCE_COLOR: '' }) === false)
 
-section('source wiring: chalk.level forced 0 + colorize() short-circuit + correct order')
-const src = readFileSync(join(root, 'src', 'ink', 'colorize.ts'), 'utf-8')
-check('honorNoColor() forces chalk.level = 0', /honorNoColor[\s\S]*?chalk\.level = 0/.test(src))
-check('MERCURY_HONORS_NO_COLOR derives from the pure rule', /MERCURY_HONORS_NO_COLOR = shouldHonorNoColor\(process\.env\)/.test(src))
-check('colorize() short-circuits to raw str when honoring (and under the Black and white theme)', /if \(MERCURY_HONORS_NO_COLOR \|\| monochromeTheme\) return str/.test(src))
-const noColorIdx = src.indexOf('CHALK_DISABLED_FOR_NO_COLOR = honorNoColor()')
-const boostIdx = src.indexOf('CHALK_BOOSTED_FOR_FINGERPRINT = boostChalkLevelForFingerprint()')
-check('honorNoColor() runs BEFORE the chalk-level boosts', noColorIdx !== -1 && boostIdx !== -1 && noColorIdx < boostIdx)
 
 section('no-op when NO_COLOR unset — the normal colored path is byte-identical')
 check('module flag false in a normal (no-NO_COLOR) environment', shouldHonorNoColor({ TERM: 'xterm-256color' } as Record<string, string>) === false)

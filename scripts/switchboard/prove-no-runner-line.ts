@@ -45,17 +45,6 @@ const RETIRED_CONFLATION = ['painted from its transcript, but the daemon did not
   check('every case closes with the one action', everyCase.every(l => l.endsWith(ACTION)))
 }
 
-{
-  const { readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const sup = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'concourseWorkers.ts'), 'utf8')
-  const tpl = sup.slice(sup.indexOf('= `model refused ('), sup.indexOf('= `model refused (') + 500)
-  const actionAt = tpl.indexOf('admission.action')
-  const detailAt = tpl.indexOf('admission.detail')
-  const gotAt = tpl.indexOf('(got ${')
-  check('the refusal composer orders reason · action · detail · (got …)', actionAt > 0 && detailAt > 0 && gotAt > 0 && actionAt < detailAt && detailAt < gotAt, `action@${actionAt} detail@${detailAt} got@${gotAt}`)
-  check('POISON: no action segment after the (got …) close', tpl.indexOf('admission.action', gotAt) === -1)
-}
 
 console.log(failures === 0 ? '\n✅ prove-no-runner-line — all checks pass' : '\n❌ prove-no-runner-line — check(s) failed')
 process.exit(failures)

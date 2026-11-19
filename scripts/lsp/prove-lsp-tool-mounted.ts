@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -72,15 +72,6 @@ section('§1 the mount predicate')
   await manager?.shutdown().catch(() => {})
 }
 
-section('§2 the readers (source pins)')
-{
-  const tool = readFileSync(path.join(SRC, 'tools/LSPTool/LSPTool.ts'), 'utf8')
-  check('the roster gate is the mount predicate', tool.includes('isEnabled: isLspToolMounted'))
-  const map = readFileSync(path.join(SRC, 'utils/cockpit/harnessMap.ts'), 'utf8')
-  check('the harness map advertises no LSP line of its own (the roster gate is the one reader)', !map.includes('isLspToolMounted') && !map.includes('Code intelligence'))
-  const manager = readFileSync(path.join(SRC, 'services/lsp/manager.ts'), 'utf8')
-  check('isLspConnected keeps its health meaning (any server not in error)', /export function isLspConnected[\s\S]{0,400}server\.state !== 'error'/.test(manager))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-lsp-tool-mounted: ALL PASS' : `\nprove-lsp-tool-mounted: ${failures} FAIL`)

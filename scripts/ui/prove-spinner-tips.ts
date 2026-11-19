@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '../..')
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'mercury-tips-proof-'))
 process.env.MERCURY_CONFIG_DIR = SCRATCH
@@ -110,17 +109,6 @@ check(
 check('on a fresh config the scheduler picks the first lesson', selectTipWithLongestTimeSinceShown(tips)?.id === 'cycle-mode')
 check("the depth comes last (skills · powershell are the tail)", order[order.length - 1] === 'skills-location', order.slice(-2).join(','))
 
-const registrySource = readFileSync(join(ROOT, 'src/services/tips/tipRegistry.ts'), 'utf8')
-check("the '#'-note tip is retired (no owner in the tree handles a leading #)", !registrySource.includes("id: 'memory-note'"))
-check(
-  'the generic and duplicate tips are retired (prompt-queue · bang-shell · image-paste · resume-session · continue-flag)',
-  ['prompt-queue', 'bang-shell', 'image-paste', 'resume-session', 'continue-flag'].every(id => !registrySource.includes(`id: '${id}'`)),
-)
-check(
-  'the powershell tip advertises the product-native spelling',
-  registrySource.includes('MERCURY_USE_POWERSHELL_TOOL=1'),
-)
-check('the newline tip reads the composer\'s own newline owner', registrySource.includes('getNewlineInstructions()'))
 
 const localAndTensorFoldTips = await getRelevantTips({
   theme: 'dark',

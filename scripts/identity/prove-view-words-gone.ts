@@ -63,7 +63,6 @@ const PINS: Array<[string, string]> = [
   ['scripts/ui/prove-view-reaches-status-row.ts', 'pins that no row reads the title row or the box'],
   ['scripts/ui/prove-status-band.ts', 'pins that the layout mounts no title row module'],
   ['scripts/ui/prove-settings-popup-header.ts', 'pins that the framed centre carries no title row module'],
-  ['scripts/ui/prove-action-honesty.ts', 'pins that the box module is gone from the tree'],
   ['scripts/ui/prove-chat-compact.ts', 'pins that the cockpit paints no title row and no box'],
   ['scripts/ui/prove-feel-journey.ts', 'pins that the chat paints no title row'],
   ['scripts/ui/prove-session-flip-chord.ts', 'pins that no module registers the flip action'],

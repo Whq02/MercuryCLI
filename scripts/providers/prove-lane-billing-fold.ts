@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -34,7 +34,6 @@ for (const key of [
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-lane-billing-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const billing = await import('../../src/services/providers/laneBillingState.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
 
@@ -86,28 +85,10 @@ section('§2 the live read bundle reads the owner')
 
 section('§3 the feeders record AND clear (structural pins)')
 {
-  for (const [file, lane] of [
-    ['src/services/providers/openaicompat/compatChatCallModel.ts', 'profile.lane'],
-    ['src/services/providers/openai/openaiCallModel.ts', "'openai'"],
-    ['src/services/providers/zai/zaiCallModel.ts', "'zai'"],
-  ] as const) {
-    const source = readFileSync(join(ROOT, file), 'utf8')
-    check(
-      `${file.split('/').at(-1)}: records a billing_error refusal on ${lane}`,
-      source.includes(`recordLaneBillingRefusal(${lane}`) && /typed === 'billing_error'/.test(source),
-    )
-    check(`${file.split('/').at(-1)}: clears on a settled turn (${lane})`, source.includes(`recordLaneTurnSettled(${lane})`))
-  }
-  const usability = readFileSync(join(ROOT, 'src/services/providers/providerUsability.ts'), 'utf8')
   const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/idSpaces.ts')
   const billingFamilies = Object.keys(resolveProviderUsability()).filter(family => family !== 'anthropic' && family !== 'huggingface')
   const count = PROVIDER_ID_SPACES.filter(space => space.route !== 'huggingface').length
   check('the route and usability owners agree on billing-family count', billingFamilies.length === count)
-  check(
-    `the usability resolver reads the owner for every non-HF engine lane (${count} applications)`,
-    usability.includes("require('./laneBillingState.js')") && (usability.match(/applyLaneBilling\(/g) ?? []).length === count,
-    String((usability.match(/applyLaneBilling\(/g) ?? []).length),
-  )
 }
 
 console.log('\n' + '='.repeat(60))

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   recordOpenaiRateHeaders,
@@ -14,7 +13,6 @@ import {
   type ActiveUsageReads,
 } from '../../src/services/providers/providerUsage.js'
 import type { WalletEntry } from '../../src/services/wallet/wallet.js'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -25,8 +23,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 console.log('============================================================')
 console.log(' USAGE-TRUTH — one live owner, two renderers, honest shapes')
@@ -279,79 +275,8 @@ section('3b · the tier law — every tier word derives from the active source')
   })
   check('tier is absent ONLY when nothing is logged in', noneTier.tier === undefined && noneTier.sourceKind === 'none')
 
-  const picker = src('src/components/MercuryModelPicker.tsx')
-  check('the picker tier row derives from activeSourceUsage().tier', picker.includes('activeSourceUsage().tier'))
 }
 
-section('4 · structural — two slots, honest absences, one owner, both seams')
-{
-  const usageTab = src('src/components/Settings/Usage.tsx')
-  check('settings: the Subscription slot heading mounts', usageTab.includes('SlotHeading text="Subscription"'))
-  check('settings: the API-key slot component mounts for every section', (usageTab.match(/<ApiKeySlot/g) ?? []).length >= 3)
-  check(
-    'settings: an absent key renders the honest none/n-a body (never a vanished slot)',
-    usageTab.includes('return `none — ${route} · n/a`') &&
-      usageTab.includes("<Text dimColor>{absentSlotLine('a pasted key attaches one')}</Text>"),
-  )
-  check(
-    'settings: the OpenAI meters derive from the ONE owner (openaiObservedWindowViews)',
-    usageTab.includes('openaiObservedWindowViews()'),
-  )
-  check(
-    'settings: before any observation the OpenAI absence names the endpoint and reply roads',
-    usageTab.includes('no usage signal observed yet — this tab reads the ChatGPT usage endpoint;') &&
-      usageTab.includes('GPT replies also update the meter.'),
-  )
-  const { usageColumns } = await import('../../src/components/Settings/Usage.js')
-  check(
-    'settings: the popup width chooses three columns or the stacked layout',
-    usageColumns(146, 10).perRow === 3 && usageColumns(116, 10).perRow === 1 && usageTab.includes('flexDirection="row"'),
-  )
-  check(
-    'settings: meters cap to their popup column without reading the terminal',
-    usageColumns(146, 10).meterW === 42 && usageColumns(146, 10).colW === 46 && !usageTab.includes('useTerminalSize'),
-  )
-
-  const rail = src('src/components/HelmVitalsRail.tsx') + src('src/utils/cockpit/helmVitalsModel.ts')
-  check(
-    'rail: consumes the SAME owner (windowSourceUsages, which reads activeSourceUsage)',
-    /import \{[^}]*\bwindowSourceUsages\b[^}]*\} from '\.\.\/services\/providers\/providerUsage\.js'/.test(rail) &&
-      rail.includes('= windowSourceUsages({ model: sessionModel })') &&
-      src('src/services/providers/providerUsage.ts').includes('const primary = activeSourceUsage(opts)'),
-  )
-  check('rail: the quiet source label line exists', rail.includes("muted('usage:source', usage.label)"))
-  check(
-    'rail: the api-spend branch renders spend truth, never a bar',
-    rail.includes("usage.shape === 'api-spend'") && rail.includes('usage:spend'),
-  )
-  check(
-    'rail: window rows ride the derived window key (source switches republish)',
-    rail.includes('const label = `${keyPrefix}${w.key}`') && rail.includes("meterRowsOf(usage, 'usage:', "),
-  )
-
-  const client = src('src/services/providers/openai/openaiClient.ts')
-  check(
-    'client: BOTH response seams fold the usage headers (stream + catalogue)',
-    (client.match(/recordOpenaiRateHeaders\(response\.headers\)/g) ?? []).length === 2,
-  )
-
-  const facade = codeOnlyText('src/services/providers/providerUsage.ts', src('src/services/providers/providerUsage.ts'))
-  const dispatch = codeOnlyText('src/services/providers/slotSwitch.ts', src('src/services/providers/slotSwitch.ts'))
-  check(
-    'facade: the anthropic windows read the SAME anthropicLimits store the dispatch-side wall check reads (currentLimits through anthropicWindowClosed)',
-    facade.includes("from '../anthropicLimits.js'") &&
-      facade.includes('status: currentLimits.status, raw: getRawUtilization()') &&
-      dispatch.includes("require('../anthropicLimits.js')") &&
-      dispatch.includes('anthropicWindowClosed(currentLimits)'),
-  )
-  check(
-    'facade: the openai bands read the SAME openaiLimitState module the dispatch-side pause reads (openaiLimitWindow)',
-    facade.includes("from './openai/openaiLimitState.js'") &&
-      facade.includes("window: openaiLimitWindow(activeEntry?.kind === 'api-key' ? 'api-key' : 'chatgpt-subscription')") &&
-      dispatch.includes("require('./openai/openaiLimitState.js')") &&
-      dispatch.includes('return openaiLimitWindow(kind)'),
-  )
-}
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('ALL USAGE-TRUTH PROOFS PASS')

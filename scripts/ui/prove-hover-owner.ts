@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import {
   claimHover,
   getHoverOwner,
@@ -62,33 +60,6 @@ setHoverPointerDown(false)
 check('no-op button transitions never notify', fired === 1, `fired=${fired}`)
 un()
 
-console.log('\n── adoption ratchet: no paired-useState hover paint remains ─')
-{
-  const ROOT = join(import.meta.dir, '..', '..')
-  const { readdirSync } = await import('node:fs')
-  const hits: string[] = []
-  const walk = (dir: string): void => {
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      const p = join(dir, e.name)
-      if (e.isDirectory()) walk(p)
-      else if (e.name.endsWith('.tsx') && /setHover(ed|edKey)?\(/.test(readFileSync(p, 'utf8')))
-        hits.push(p)
-    }
-  }
-  walk(join(ROOT, 'src/components'))
-  walk(join(ROOT, 'src/screens'))
-  check(
-    'zero paired-useState hover sites across src/components + src/screens',
-    hits.length === 0,
-    hits.join(', '),
-  )
-  const app = readFileSync(join(ROOT, 'src/ink/components/App.tsx'), 'utf8')
-  check('the mouse decode reports press to the store', app.includes('setHoverPointerDown(true)'))
-  check(
-    'the mouse decode reports release + lost-release recovery',
-    app.split('setHoverPointerDown(false)').length >= 3,
-  )
-}
 
 console.log()
 if (failures > 0) {

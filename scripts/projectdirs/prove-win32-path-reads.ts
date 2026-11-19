@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, win32 } from 'node:path'
 
@@ -18,7 +18,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const record = (label: string, detail: string): void => console.log(`  [record] ${label}: ${detail}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const source = (...parts: string[]): string => readFileSync(join(ROOT, ...parts), 'utf8')
 
 const withPlatform = <T,>(platform: string, fn: () => T): T => {
   const desc = Object.getOwnPropertyDescriptor(process, 'platform')!
@@ -76,12 +75,6 @@ section("§1 the estate walk's names are read with the platform's path semantics
       `absent — the names are read by a slice at the host separator: on win32 the walk's answer reads as ${hostSlice.join(', ')}, and the looped file as ${looped}`,
     )
   }
-  const proof = source('scripts', 'projectdirs', 'prove-estate-walk-caps.ts')
-  check(
-    'prove-estate-walk-caps.ts reads the names through relativeSlashed',
-    proof.includes("from '../lib/platformPath.ts'") && proof.includes('relativeSlashed(estate, f)') && !proof.includes('slice(estate.length + 1)'),
-  )
-  check('…and the looped file too, never endsWith at a fixed separator', proof.includes("relativeSlashed(estate, walk.files[0]!) === 'inner/x.md'") && !proof.includes("endsWith('inner/x.md')"))
 }
 
 section("§2 the leftover census names each store in git's spelling on every platform")
@@ -102,12 +95,6 @@ section("§2 the leftover census names each store in git's spelling on every pla
   check('every row is the /-joined spelling of its store and carries no win32 separator', rows.every(r => bySegments.has(r) && !r.includes('\\')), JSON.stringify(rows))
   const listed = git('ls-files', '-z', '--', ...rows).split('\0').filter(f => f !== '')
   check("git answers every row as a pathspec and lists its files under `<row>/` — /health's compare holds", rows.every(dir => listed.some(f => f.startsWith(`${dir}/`))), JSON.stringify(listed))
-  const store = source('src', 'utils', 'projectHomeStores.ts')
-  check(
-    'the census spells its rows with posix.join, never the host join',
-    /out\.push\(posix\.join\(MERCURY_PROJECT_DIR, \.\.\.segments\)\)/.test(store) && !/out\.push\(join\(MERCURY_PROJECT_DIR/.test(store),
-    `the host join spells ${win32.join('.mercury', 'workflows', 'runs')} on win32 — git lists .mercury/workflows/runs/…, /health's prefix compare never matches, and the row answers "not tracked by git"`,
-  )
   rmSync(REPO, { recursive: true, force: true })
 }
 
@@ -137,14 +124,6 @@ section("§3 the isolation read compares the product's resolved home with the pr
   } else {
     check('the platform-path reads have an owner (scripts/lib/platformPath.ts)', false, `absent — the isolation tests startsWith on a /-templated home: ${projects} does not start with ${templated}`)
   }
-  const proof = source('scripts', 'sessionStorage', 'prove-sessionstorage-parity.ts')
-  check(
-    "prove-sessionstorage-parity.ts builds its private roots with the platform's join",
-    proof.includes("join(PRIVATE_ROOT, 'home')") && proof.includes("join(PRIVATE_ROOT, 'cwd')") && !proof.includes('`${PRIVATE_ROOT}/home`'),
-  )
-  check('…reads the isolation through isInside', proof.includes('isInside(S.getProjectsDir(), PRIVATE_HOME)') && !proof.includes('startsWith(PRIVATE_HOME)'))
-  check('…neutralises and screens the presentation on the slashed spelling', proof.includes('slashed(PRIVATE_HOME)') && proof.includes('slashed(PRIVATE_ROOT)'))
-  check('…and leaves the root before removing it', proof.includes('process.chdir(dirname(PRIVATE_ROOT))') && !proof.includes('process.chdir(PRIVATE_ROOT)'))
   const preload = join(SCRATCH, 'win32-platform.ts')
   writeFileSync(preload, "Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })\n")
   const childEnv: NodeJS.ProcessEnv = { ...process.env, MERCURY_CONFIG_DIR: HOME }

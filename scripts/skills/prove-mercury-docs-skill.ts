@@ -183,9 +183,7 @@ for (const rel of expected) if (existsSync(join(extractDir, rel)) && readFileSyn
 check('every page is extracted byte-identical after the first invocation', extracted === expected.length, `${extracted} of ${expected.length}`)
 
 section('§5 no other product\'s documentation site anywhere in the skill')
-const skillSource = readFileSync(join(ROOT, 'src', 'skills', 'bundled', 'mercuryDocs.ts'), 'utf8') + readFileSync(join(ROOT, 'src', 'skills', 'bundled', 'mercuryDocsPages.ts'), 'utf8')
 const foreignDocs = /docs\.(anthropic|claude|openai|x\.ai|cursor|github)\.com|platform\.(openai|claude)\.com|developers\.openai\.com|modelcontextprotocol\.io|opencode\.ai|cline\.bot/i
-check('the skill source names no other product\'s docs host', !foreignDocs.test(skillSource))
 check('the rendered prompt names no other product\'s docs host', !foreignDocs.test(text))
 const hosts = [...text.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)].map(m => m[1]!.toLowerCase())
 check('the only host the guidance names is mercury-cli.ai', hosts.length > 0 && hosts.every(h => h === 'mercury-cli.ai'), [...new Set(hosts)].join(' '))

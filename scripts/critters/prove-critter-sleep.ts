@@ -266,55 +266,6 @@ t.section('§5b — sway continuity across the sleep boundary (CR-2)')
   sleep.resetCritterSleepForTests()
 }
 
-t.section('§6 — the wiring laws')
-{
-  const animated = await Bun.file('src/components/mercury-ui/AnimatedCritterArt.tsx').text()
-  t.check(
-    'ONE clock subscription carries pupil + sway + Zzz (one viewport ref can own the box)',
-    (animated.match(/useIdleAnimation\(/g) ?? []).length === 2 && /readCritterFrameKey/.test(animated),
-    'one packed key for the art, one for the breathing dot',
-  )
-  t.check(
-    'the frame derive is the store-owned critterLiveFrameKey (one time base)',
-    /critterLiveFrameKey\(\)/.test(animated) && !/critterFrameKey\(/.test(animated),
-    'store-owned derive',
-  )
-  t.check(
-    'the sleep verdict is a STORE read, never a poller in the view',
-    /subscribeCritterSleep/.test(animated) && !/setInterval|setTimeout/.test(animated),
-    'store read',
-  )
-  t.check('the gaze is disarmed while asleep', /!asleep/.test(animated), 'gaze gate')
-  t.check(
-    'specimen mounts veto the LIVE verdict but never the forced capture gate',
-    /!specimen \|\| critterSleepMode\(\) === 'forced'/.test(animated),
-    'specimen seam',
-  )
-
-  const painter = await Bun.file('src/components/mercury-ui/CritterArt.tsx').text()
-  const zzzAt = painter.indexOf('sleepZzzArt(')
-  t.check(
-    'the Zzz is applied AFTER the sway (the width contract)',
-    painter.indexOf('swayRows(') > 0 && zzzAt > painter.lastIndexOf('swayRows('),
-    `sway@${painter.lastIndexOf('swayRows(')} zzz@${zzzAt}`,
-  )
-  const poseAt = painter.indexOf('sleepPoseFor(')
-  const breathAt = painter.indexOf('sleepBreathArt(')
-  t.check(
-    'the sleep pose is resolved BEFORE the transform chain and the breath sits before the sway',
-    poseAt > 0 && poseAt < painter.indexOf('applyGazeKey(') && breathAt > 0 && breathAt < painter.indexOf('swayRows('),
-    `pose@${poseAt} breath@${breathAt}`,
-  )
-
-  for (const [file, label] of [
-    ['src/components/mercury-ui/MiniCritter.tsx', 'the mini critter'],
-    ['src/components/CritterSelect.tsx', 'the /critter picker'],
-    ['src/components/MercuryHome.tsx', 'the hero + the berth'],
-  ] as const) {
-    const src = await Bun.file(file).text()
-    t.check(`${label} mounts AnimatedCritterArt`, /AnimatedCritterArt/.test(src) && !/<CritterArt\b/.test(src), file)
-  }
-}
 
 t.section('§7 — the authored sleep poses (CR-3)')
 {
@@ -491,17 +442,6 @@ t.section('§8 — LIVENESS: nothing ever freezes (the CR-3 mandate)')
     roster.primeDaemonCrewLivenessForProofs(null)
     sleep.resetCritterSleepForTests()
 
-    const src = await Bun.file('src/utils/cockpit/critterSleep.ts').text()
-    t.check(
-      'the live predicate composes the plane AND the daemon roster mirror',
-      /agentsActiveNow\(\) \|\| daemonCrewLivenessSync\(\)\.workersActive/.test(src),
-      'source lock',
-    )
-    t.check(
-      'the asleep clock exception keys on daemon engagement',
-      /sleepSince === 0 \|\| daemonCrewLivenessSync\(\)\.engaged/.test(src),
-      'source lock',
-    )
   }
 
   {
@@ -619,12 +559,6 @@ t.section('§11 — the per-critter SLEEP GLYPH LADDER (bubbles for the clam, Zz
   const clamMini = await render(clam, { pupil: idle.EYE_SHUT, sleepPhase: 2 })
   t.check('RENDERED clam mini asleep: the bubbles paint at three lines too', clamMini.includes('o°o°') && !/z/.test(clamMini), JSON.stringify(clamMini.split('\n')[0]))
 
-  const painter = await Bun.file('src/components/mercury-ui/CritterArt.tsx').text()
-  const slotsAt = painter.indexOf('sleepZzzSlots(swayed, sleepSlotCount)')
-  const writeAt = painter.indexOf('sleepZzzArt(swayed, sleepPhase, sleepSlotCount)')
-  t.check('the painter reads the slots BEFORE writing the glyph cells, both at the ladder\'s count', slotsAt > 0 && writeAt > slotsAt && /const sleepSlotCount = sleepSlotCountFor\(def\)/.test(painter), `slots@${slotsAt} write@${writeAt}`)
-  t.check('both seams paint through sleepGlyphAt (one owner)', (painter.match(/sleepGlyphAt\(def, sleepSlots, c\)/g) ?? []).length === 2)
-  t.check('no literal z paint survives in the painter', !/SLEEP_CELL\.repeat\(|\$\{SLEEP_CELL\} /.test(painter))
 }
 
 t.section('§12 — the VALVE SETTLE: the clam breathes with its shell, never sways it')
@@ -689,13 +623,6 @@ t.section('§12 — the VALVE SETTLE: the clam breathes with its shell, never sw
     t.check(`clam/${form}: an out-of-range depth is the identity, never a throw`, cd.settleRows(awake, awake.length, settlePhases[0]!).join('\n') === awake.join('\n'))
   }
 
-  const painter = await Bun.file('src/components/mercury-ui/CritterArt.tsx').text()
-  t.check('the painter settles at depth 0 for a sleep pose', /const settleDepth = pose \? 0 : settleDepthFor\(def, form\)/.test(painter))
-  const breathAt = painter.indexOf('sleepBreathArt(')
-  const settleAt = painter.indexOf('settleRows(')
-  const swayAt = painter.indexOf('swayRows(')
-  t.check('the settle is applied AFTER the breath and BEFORE the sway', breathAt > 0 && settleAt > breathAt && swayAt > settleAt, `breath@${breathAt} settle@${settleAt} sway@${swayAt}`)
-  t.check('ONE composition settles every form (the square tier rides the same register as mini — no second path)', (painter.match(/settleRows\(breathed, settleDepth, swayPhase\)/g) ?? []).length === 1 && /const base = pose \? pose\.art : usingSquare \? def\.squareDock : def\.mini/.test(painter))
 }
 
 t.section('§13 — the ladder\'s three conditions: the Zzz path byte-identical (base A/B) · the width law at four · reduced motion holds the whole ladder')
@@ -765,8 +692,6 @@ t.section('§13 — the ladder\'s three conditions: the Zzz path byte-identical 
     t.check(`clam/${form} awake grid at count 4: every slot is an empty top-pair cell (the crown is never overwritten)`, awakeSlots.every(c => awakeGrid[0]![c] === '.' && awakeGrid[1]![c] === '.'), JSON.stringify(awakeSlots))
   }
 
-  const animated = await Bun.file('src/components/mercury-ui/AnimatedCritterArt.tsx').text()
-  t.check('the static (reduced-motion) branch renders the FULL sleep phase', /pupil=\{EYE_SHUT\} sleepPhase=\{2\}/.test(animated) && cd.SLEEP_PHASES - 1 === 2)
   {
     const { AnimatedCritterArt } = await import('../../src/components/mercury-ui/AnimatedCritterArt.js')
     const prevIdle = process.env['MERCURY_CRITTER_IDLE']

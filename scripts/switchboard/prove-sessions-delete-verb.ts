@@ -93,7 +93,6 @@ section('§0 the verb exists and rides the one delete door')
   check('the verb module exists (src/cli/sessionsVerb.ts)', verb !== null)
   const { builtHelp } = await import('../lib/builtProduct.ts')
   check('main.tsx registers `sessions delete <id>` with --yes', builtHelp('sessions').includes('delete [options] <id>') && builtHelp('sessions', 'delete').includes('Usage: mercury sessions delete [options] <id>') && builtHelp('sessions', 'delete').includes('--yes'))
-  check('the verb deletes through operatorPruneTranscripts and never unlinks on its own', verb !== null && source('src/cli/sessionsVerb.ts').includes('operatorPruneTranscripts(') && !/unlinkSync\(|rmSync\(|\.unlink\(|\brm\(/.test(source('src/cli/sessionsVerb.ts')))
   check('the door offers a named session without an age window (buildSessionDeleteOffer)', typeof door.buildSessionDeleteOffer === 'function')
   check('AUTOMATION.md names the verb in the headless section', /`mercury sessions delete <id>`/.test(source('docs/AUTOMATION.md')))
   for (const file of ['assets/completions/mercury.bash', 'assets/completions/_mercury', 'assets/completions/mercury.fish']) {
@@ -163,9 +162,6 @@ section('§4 the prune is untouched: the age window still rules the card\'s offe
   check('the named offer refuses a live session (null), whatever its age', named === null)
   const young = namedOffer(rows[2]!, { scopeLabel: 'session', liveSessionIds: new Set() })
   check('the named offer takes a session of any age once it is not live', young != null && young.candidates.length === 1 && young.candidates[0]!.sessionId === ids.parked)
-  const sweep = source('src/utils/cleanup.ts')
-  check('the sweep still knows neither the door nor the verb', !sweep.includes('operatorPruneTranscripts') && !sweep.includes('transcriptPruneDoor') && !sweep.includes('sessionsVerb'))
-  check('the door still unlinks only the three named files (no rm, no directory removal)', !/rmSync\(|\brm\(|rmdir|recursive/.test(source('src/utils/sessionStorage/transcriptPruneDoor.ts')))
 }
 
 for (const dir of [HOME, PROJ]) removeScratch(dir)

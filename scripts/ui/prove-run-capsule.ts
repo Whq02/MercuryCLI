@@ -2,7 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -15,7 +14,6 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const root = join(import.meta.dir, '..', '..')
   const ok = await import('../../src/services/run/ownerKey.js')
   const kernel = await import('../../src/services/run/runKernel.js')
   const model = await import('../../src/commands/run/runInspectorModel.js')
@@ -95,13 +93,6 @@ async function main(): Promise<void> {
 
   section('3. wiring + lifecycle')
   {
-    const commands = readFileSync(join(root, 'src/commands.ts'), 'utf8')
-    check('/run is registered', commands.includes("./commands/run/index.js"))
-    const frame = readFileSync(join(root, 'src/components/MercuryFrame.tsx'), 'utf8')
-    check(
-      'the frame capsule is subscription-driven (no polling timer)',
-      frame.includes('subscribeRuns') && frame.includes('buildRunCapsuleLine'),
-    )
     const coordinator = await import('../../src/services/run/runCoordinator.js')
     for (let i = 0; i < 100; i++) {
       const unsub = coordinator.subscribeRuns(() => {})

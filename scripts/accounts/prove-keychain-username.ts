@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { userInfo } from 'node:os'
-import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -36,8 +34,6 @@ if (prior === undefined) delete process.env.USER
 else process.env.USER = prior
 
 check("the fallback is the product's own spelling", KEYCHAIN_FALLBACK_USERNAME === 'mercury-user', KEYCHAIN_FALLBACK_USERNAME)
-const src = readFileSync(join(import.meta.dir, '../../src/utils/secureStorage/macOsKeychainHelpers.ts'), 'utf8')
-check('the fallback is reached only from the user-info catch arm', /catch \{\s*return KEYCHAIN_FALLBACK_USERNAME\s*\}/.test(src))
 
 console.log(failures === 0 ? 'KEYCHAIN USERNAME: ALL GREEN' : `KEYCHAIN USERNAME: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

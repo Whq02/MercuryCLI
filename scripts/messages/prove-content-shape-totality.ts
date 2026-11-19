@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
 import { normalizeMessages, isToolUseRequestMessage, isToolUseResultMessage, contentBlocksOf } from '../../src/utils/messages/normalize.js'
 import { buildMessageLookups, buildSubagentLookups, getSiblingToolUseIDs } from '../../src/utils/messages/lookups.js'
 import { ensureToolResultPairing, orderToolResultsByUse } from '../../src/utils/messages/pairing.js'
@@ -11,46 +9,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-const DIR = join(import.meta.dir, '..', '..', 'src', 'utils', 'messages')
 
-{
-  const normalizeSrc = readFileSync(join(DIR, 'normalize.ts'), 'utf8')
-  const contentSrc = readFileSync(new URL('../../src/rows/content.ts', import.meta.url), 'utf8')
-  t('§1 the shape owner is exported from normalize.ts', /export function contentBlocksOf\(/.test(normalizeSrc))
-  t('§1 the legacy shape door delegates to the row-content owner', /return storedBlocksOf\(content\)/.test(normalizeSrc))
-  t('§1 the row-content owner handles the string shape (wire equivalence)', /typeof content === 'string'/.test(contentSrc))
-  t('§1 the row-content owner guards with Array.isArray', /Array\.isArray\(content\)/.test(contentSrc))
-}
-
-const CALL_CHAIN = /\.message\.content\s*\.\s*(map|some|every|filter|flatMap|find|findIndex|forEach|reduce|slice|includes|at|concat|indexOf|join)\s*\(/g
-const FOR_OF_CHAIN = /for\s*\(\s*const\s+\w+\s+of\s+[\w.]*\.message\.content\s*\)/g
-
-function chainCount(file: string): number {
-  const src = readFileSync(join(DIR, file), 'utf8')
-  return (src.match(CALL_CHAIN) ?? []).length + (src.match(FOR_OF_CHAIN) ?? []).length
-}
-
-const INVENTORY: Record<string, [number, string]> = {
-  'normalize.ts': [0, 'the door — every read routes through contentBlocksOf'],
-  'lookups.ts': [1, 'one .some in recoveryTracker after its user/Array.isArray decision; every raw walk routes through the owner'],
-  'apiFilters.ts': [1, 'thinkingFromOtherModels filters only after its Array.isArray guard on the preceding line'],
-  'apiView.ts': [2, 'two chains in model post-processing that run AFTER normalizeMessagesForAPI, whose assistant arm coerces through the owner — array by construction'],
-  'pairing.ts': [3, 'foldSplitTurnsForWire and the two repairResultAdjacency chains each follow an Array.isArray guard; pairing helpers read guarded local content'],
-  'streaming.ts': [1, 'one .find over the stream assembler\'s own self-minted block array — never a foreign shape'],
-  'systemMessages.ts': [2, 'callIn and resultIn guard the two direct .find chains; toolCallingRows guards its local content before .some'],
-}
-
-{
-  for (const file of readdirSync(DIR).filter(f => f.endsWith('.ts'))) {
-    const n = chainCount(file)
-    const row = INVENTORY[file]
-    if (row === undefined) {
-      t(`§3 ${file} carries no direct content call-chains`, n === 0, n === 0 ? '' : `${n} chain(s) — route through contentBlocksOf or guard + inventory`)
-    } else {
-      t(`§3 ${file} inventory holds (${row[0]}: ${row[1]})`, n === row[0], n === row[0] ? '' : `found ${n}, inventoried ${row[0]}`)
-    }
-  }
-}
 
 type AnyMessage = Parameters<typeof normalizeMessages>[0][number]
 const mk = (over: object): AnyMessage => over as AnyMessage

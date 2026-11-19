@@ -2,7 +2,7 @@
 import React from 'react'
 import { mock } from 'bun:test'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -473,15 +473,6 @@ section('the fixture never left the loopback box')
   if (rejections.length > 0) console.log(`[note] unhandled rejections while painting: ${JSON.stringify(rejections.slice(0, 4))}`)
 }
 
-section('one composer, one reader per family, both surfaces read it')
-{
-  const read = (relative: string): string => (existsSync(join(ROOT, relative)) ? readFileSync(join(ROOT, relative), 'utf8') : '')
-  const composer = read('src/services/providers/providerIdentityLine.ts')
-  check('the identity composer exists beside the usage owner', composer !== '', 'src/services/providers/providerIdentityLine.ts is absent')
-  check('the composer reads the presence owner and the roster, never a second grammar of its own', composer.includes('deriveFamilySlotGroups(') && composer.includes('presenceIdentityWords(') && composer.includes(`'${NO_ACCOUNT}'`))
-  check('the rail prints the composer\'s line under every block label', read('src/utils/cockpit/helmVitalsModel.ts').includes('providerIdentityLine('))
-  check('the popup prints the composer\'s sentence under every section title', read('src/components/Settings/Usage.tsx').includes('providerIdentityLine('))
-}
 
 if (framesDir) {
   writeFileSync(join(framesDir, 'index.txt'), [

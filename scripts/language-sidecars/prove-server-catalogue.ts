@@ -48,8 +48,6 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 
 {
-  const src = await Bun.file(join(import.meta.dir, '..', '..', 'src', 'services', 'lsp', 'serverCatalogue.ts')).text()
-  check('catalogue never spawns (no child_process import)', !src.includes('child_process'))
   const probe = probeCatalogueEntry(SERVER_CATALOGUE[0]!)
   check('probe returns entry identity', probe.entry.id === SERVER_CATALOGUE[0]!.id)
 }

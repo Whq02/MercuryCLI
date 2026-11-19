@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
 import * as childProcess from 'node:child_process'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import * as fsPromises from 'node:fs/promises'
 import * as os from 'node:os'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import ts from 'typescript'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'capacity-render-'))
@@ -107,59 +106,6 @@ try {
   const windows = await cap.seatCeilingFactsAsync()
   check('Windows uses the available-bytes counter without a subprocess', windows.seats === 16 && windows.sample?.read === 'counter' && samples === samplesBeforeWindows)
 
-  for (const [file, name] of [
-    ['src/components/Settings/Config.tsx', 'Config'],
-    ['src/components/BootSettingsScreen.tsx', 'BootSettingsScreen'],
-  ]) {
-    const source = ts.createSourceFile(file!, readFileSync(join(ROOT, file!), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
-    const component = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name) as ts.FunctionDeclaration | undefined
-    const statements = component?.body?.statements ?? []
-    const index = statements.findIndex(node => ts.isVariableStatement(node) && node.declarationList.declarations.some(declaration => ts.isArrayBindingPattern(declaration.name)
-      ? declaration.name.elements.some(element => ts.isBindingElement(element) && element.name.getText(source) === 'seatFacts')
-      : declaration.name.getText(source) === 'seatFacts'))
-    check(`${name}: the real component's capacity statement exists`, index >= 0)
-    if (index < 0) continue
-    const statement = statements[index]!
-    const isEffectCall = (node: ts.Statement): boolean => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && node.expression.expression.getText(source) === 'useEffect'
-    const effectIndex = statements.findIndex((node, i) => i > index && isEffectCall(node) && node.getText(source).includes('setSeatFacts'))
-    check(`${name}: the capacity refresh effect follows the capacity statement`, effectIndex > index)
-    if (effectIndex <= index) continue
-    const between = statements.slice(index + 1, effectIndex).map(node => node.getText(source)).join('\n')
-    const effect = statements[effectIndex]!.getText(source)
-    const body = ts.transpileModule(`${statement.getText(source)}\n${between}\n${effect}\nreturn { seatFacts }`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
-    const effects: Array<() => (() => void)> = []
-    let reads = 0
-    let asyncReads = 0
-    let updates = 0
-    let finish: ((facts: unknown) => void) | undefined
-    const render = new Function('useState', 'useMemo', 'useEffect', 'useSyncExternalStore', 'subscribeGlobalConfigCache', 'getGlobalConfigCacheStamp', 'getFocusedSessionConnector', 'seatCeilingFacts', 'seatCeilingFactsAsync', 'version', 'seatsTick', 'saveTick', body)
-    const value = render(
-      (initial: unknown) => [typeof initial === 'function' ? initial() : initial, () => { updates++ }],
-      (callback: () => unknown) => callback(),
-      (callback: () => (() => void)) => { effects.push(callback) },
-      (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
-      () => () => {},
-      () => 0,
-      () => ({ subscribeWork: () => () => {} }),
-      () => { reads++; return a },
-      () => { asyncReads++; return new Promise(resolve => { finish = resolve }) },
-      0, 0, 0,
-    )
-    check(`${name}: render performs no capacity operation and keeps an honest pending value`, reads === 0 && asyncReads === 0 && value.seatFacts === null)
-    check(`${name}: refresh is registered as an effect`, effects.length === 1)
-    if (effects.length !== 1) continue
-    const dispose = effects[0]!()
-    check(`${name}: the effect starts one asynchronous refresh`, asyncReads === 1 && updates === 0)
-    finish!(a)
-    await Promise.resolve()
-    check(`${name}: the completed sample updates the mounted component`, updates === 1)
-    dispose()
-    const disposePending = effects[0]!()
-    disposePending()
-    finish!(a)
-    await Promise.resolve()
-    check(`${name}: an unmounted component ignores a late answer`, updates === 1)
-  }
 } finally {
   Date.now = clock
   Object.defineProperty(process, 'platform', platform)

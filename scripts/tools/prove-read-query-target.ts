@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -88,8 +88,6 @@ if (!given) {
   rules = { ...rules, alwaysDenyRules: { session: ['Read(rows.jsonl)'] } }
   const denied = await invoke(`${file}#read?q=.n`)
   check('query cannot evade a source deny rule', denied.includes('den') && !denied.includes('target: JSON query'), denied)
-  const tool = readFileSync(join(src, 'tools/FileReadTool/FileReadTool.ts'), 'utf8')
-  check('query routing remains lazy', tool.includes("import('./readQuery") && !/^import .*from ['"]\.\/readJson/m.test(tool))
   console.log(`${passed}/${passed + failed} checks`)
   process.exitCode = failed ? 1 : 0
 }

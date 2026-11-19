@@ -2,7 +2,7 @@
 import '../lib/hermetic.ts'
 import { mock } from 'bun:test'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import * as fsPromises from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
@@ -159,8 +159,6 @@ try {
     check('its dependency folder is the link to the checkout\'s, as after any clone that fails', launch.result !== null && launch.result.dependencies === true, JSON.stringify(launch.result))
     check('…and so is the pack, without a second wait', launch.result !== null && launch.result.pack === true && Number(launch.result.ms) < 20_000, JSON.stringify(launch.result))
     check('no failure is reported and nothing is left beside the copy', launch.result !== null && launch.result.failure === null && (launch.result.staged as string[]).length === 0, JSON.stringify(launch.result))
-    const source = readFileSync(join(ROOT, 'src/utils/worktreeClone.ts'), 'utf8')
-    check('the bound is ten seconds in which nothing moved, or the caller\'s own bound when that is shorter', source.includes('const WALK_QUIET_BOUND_MS = 10_000') && source.includes('const quietBoundMs = Math.min(answerBoundMs, WALK_QUIET_BOUND_MS)'))
   }
 } finally {
   if (process.platform !== 'win32') execFileSync('chmod', ['-R', 'u+rwx', scratch])

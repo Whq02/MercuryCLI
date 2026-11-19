@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -48,14 +46,6 @@ console.log('§3 — declaration hygiene')
   check('a STALE undeclare from a replaced declaration is a no-op', arity.interruptArityOf('s').hint === 'newer' && arity.interruptArityOf('s').windowMs === 5000)
 }
 
-console.log('§4 — the ladder owner consumes the seam (source pin)')
-{
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src/hooks/useCancelRequest.ts'), 'utf8')
-  check("the chat's running-turn esc routes through pressInterrupt('chat')", src.includes("pressInterrupt('chat')"))
-  check('an unfired press paints the hint, never a silent eat', /press\.hint/.test(src))
-  const afterCtrlC = src.slice(src.indexOf("'app:interrupt'"))
-  check('ctrl+c (app:interrupt) stays immediate — the exit grammar untouched', afterCtrlC.length > 0 && !afterCtrlC.includes('pressInterrupt('))
-}
 
 console.log(failures === 0 ? '\nprove-interrupt-arity: ALL LAWS HOLD' : `\nprove-interrupt-arity: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

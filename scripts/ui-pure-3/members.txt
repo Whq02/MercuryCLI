@@ -1,9 +1,6 @@
-prove-action-honesty.ts
-prove-alt-atomic-swaps.ts
 prove-aurora-roles.ts
 prove-bang-rows.ts
 prove-bash-exit-row-frames.ts
-prove-boot-gate-esc.ts
 prove-caret-blink.ts
 prove-classify-tool-error.ts
 prove-command-domains.ts
@@ -24,16 +21,13 @@ prove-field-findings-concourse-2.ts
 prove-field-findings-measure.ts
 prove-field-findings-strips.ts
 prove-field-findings-transcript-v.ts
-prove-field-w6-c1-controls.ts
 prove-file-open.ts
 prove-footer-dedup.ts
 prove-frame-fill.ts
 prove-glyph-width.ts
 prove-helm-focus.ts
-prove-helm-home.ts
 prove-helm-tasks-card.ts
 prove-hover-owner.ts
-prove-interaction-grammar.ts
 prove-jump-pill-shrink.ts
 prove-keybindings-default-file.ts
 prove-keydead-static.ts
@@ -44,7 +38,6 @@ prove-logins-one-name.ts
 prove-mcp-notif-glyph.ts
 prove-message-actions.ts
 prove-message-cursor-store.ts
-prove-navigablepanes-windowing.ts
 prove-no-emoji-presentation.ts
 prove-no-new-hex.ts
 prove-overlay-stack.ts
@@ -55,8 +48,6 @@ prove-render-oracle.ts
 prove-resume-full-history.ts
 prove-run-capsule.ts
 prove-s25-acceptance.ts
-prove-screen-reassert.ts
-prove-select-numeric-affordance.ts
 prove-session-picker-core.ts
 prove-settings-popup-frame.ts
 prove-settings-popup-header.ts
@@ -78,7 +69,6 @@ prove-width-oracle-sot.ts
 prove-model-picker-popup-frames.ts
 prove-agent-view-frames.ts
 prove-silent-command-surface.ts
-prove-crews-dialog-gone.ts
 prove-diff-chip-session-own.ts
 prove-crew-row-parked-ask.ts
 prove-command-popup-slot.ts

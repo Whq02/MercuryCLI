@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-import { execSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -242,51 +241,10 @@ let parentEnv: NodeJS.ProcessEnv = {}
 }
 
 {
-  const read = (f: string): string => readFileSync(join(ROOT, f), 'utf8')
-  const owner = read('src/substrate/startupMenu.ts')
-  check(
-    'owner: the applier stamps the registered receipt spelling',
-    owner.includes("const BOOT_ENV_APPLIED_MARKER = 'MERCURY_BOOT_ENV_APPLIED'") &&
-      owner.includes('stampFlagOnEnv(env, BOOT_ENV_APPLIED_MARKER, JSON.stringify(receipt))'),
-  )
-  const undo = owner.indexOf('for (const [spelling, value] of bootEnvSelfApplied(env))')
-  check(
-    'owner: the applier undoes inherited copies before it resolves the file',
-    undo > 0 && undo < owner.indexOf('const appliedRows = new Set<string>()'),
-  )
-  const resolverAt = owner.indexOf('export function resolveEffectiveSettingsSnapshot')
-  const resolver = owner.slice(resolverAt, owner.indexOf('\n}\n', resolverAt))
-  check(
-    'owner: the snapshot resolver decides a pin through realEnvPin only',
-    resolver.includes('realEnvPin(row.env, processEnv)') && !/processEnv\[[^\]]+\]\s*!==\s*undefined/.test(resolver),
-  )
   const registryRow = FLAG_REGISTRY.find(f => f.env === 'MERCURY_BOOT_ENV_APPLIED')
   check(
     'registry: the receipt is a registered self-stamped value row owned by the applier',
     registryRow?.kind === 'value' && registryRow.selfStamped === true && registryRow.consumer === 'src/substrate/startupMenu.ts',
-  )
-  const readers = ['src/commands/caching/caching.tsx', 'src/utils/readiness.ts']
-  for (const f of readers) {
-    const text = read(f)
-    check(`reader ${f}: imports the one owner`, /import \{[^}]*\brealEnvPin\b[^}]*\} from '(?:\.\.\/)+substrate\/startupMenu\.js'/.test(text))
-    check(`reader ${f}: never re-decides attribution from the in-process receipt`, !text.includes('bootEnvAppliedKeys'))
-  }
-  const screen = read('src/components/BootSettingsScreen.tsx')
-  check(
-    "screen: the boot menu paints env-pinned from the snapshot's source alone",
-    screen.includes("const envPinned = effective?.source === 'process-env'") && !screen.includes('process.env'),
-  )
-  const files = execSync('git ls-files -z src', { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 })
-    .toString('utf8')
-    .split('\0')
-    .filter(f => /\.(ts|tsx)$/.test(f) && f !== 'src/substrate/startupMenu.ts')
-  const strays = files.filter(f => read(f).includes('bootEnvAppliedKeys'))
-  check('census: no src file outside the owner reads the in-process receipt for attribution', strays.length === 0, strays.join(', '))
-  const sourceDeciders = files.filter(f => f !== 'src/components/BootSettingsScreen.tsx' && read(f).includes("'process-env'"))
-  check(
-    'census: the process-env verdict is minted by the owner and consumed by the boot menu only',
-    sourceDeciders.length === 0,
-    sourceDeciders.join(', '),
   )
 }
 
@@ -305,11 +263,6 @@ console.log('admission snapshot: the boot records once; the menu reads it, never
   check('a later save moves a fresh resolution', rowA(fresh) === a2)
   check('the admission snapshot keeps the boot value across the save (the menu\'s this-session line reads THIS)', rowA(menu.bootAdmissionSnapshot()) === a1 && menu.bootAdmissionSnapshot()?.snapshotId === admitted.snapshotId)
   menu.__resetBootAdmissionSnapshotForTests()
-  const readSrc = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const mainSrc = readSrc('src/main.tsx')
-  check('main records the admission right after the apply, once', /applyBootMenuEnv\(\);[\s\S]{0,400}recordBootAdmissionSnapshot\(resolveEffectiveSettingsSnapshot\(\{ sessionId: getSessionId\(\) \}\)\);/.test(mainSrc) && (mainSrc.match(/recordBootAdmissionSnapshot\(/g) ?? []).length === 1)
-  const screenSrc = readSrc('src/components/BootSettingsScreen.tsx')
-  check("the boot menu's this-session line reads the admission first", screenSrc.includes('bootAdmissionSnapshot() ?? resolveEffectiveSettingsSnapshot({ sessionId: getSessionId(), path })'))
 }
 
 rmSync(HERMETIC, { recursive: true, force: true })

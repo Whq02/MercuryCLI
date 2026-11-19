@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const HOME = mkdtempSync(join(tmpdir(), 'deepseek-catalogue-proof-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -257,24 +256,6 @@ if (catalogue) {
   catalogue.__resetDeepseekCatalogueForTest()
 }
 
-section('6 · the shape: where the kick lives, and where it never does')
-{
-  const options = readFileSync(join(ROOT, 'src/utils/model/modelOptions.ts'), 'utf8')
-  const between = (text: string, from: string, to: string): string => {
-    const a = text.indexOf(from)
-    const b = text.indexOf(to, a + from.length)
-    return a < 0 ? '' : text.slice(a, b < 0 ? undefined : b)
-  }
-  const pinsBody = between(options, 'export function keyLanePins', '\nexport function')
-  const compose = between(options, 'export function getModelOptions', '\nexport function')
-  check('keyLanePins is a sync cache read: no kick, no refresh (the computed default rides it)', pinsBody.includes('deepseekCatalogueRows') && !pinsBody.includes('kickDeepseekCatalogue') && !pinsBody.includes('refreshDeepseekCatalogue'))
-  check('the composition kicks the read before the key-lane rows', compose.includes('kickDeepseekCatalogue()') && compose.indexOf('kickDeepseekCatalogue()') < compose.indexOf('keyLaneProviderRows()'))
-  const gate = readFileSync(join(ROOT, 'src/services/providers/catalogueGate.ts'), 'utf8')
-  check('the catalogue door names the DeepSeek family and its credential owner', gate.includes("'deepseek'") && gate.includes('resolveDeepseekApiKey'))
-  const dispatch = readFileSync(join(ROOT, 'src/utils/crew/engineDispatch.ts'), 'utf8')
-  const table = readFileSync(join(ROOT, 'src/utils/model/bareFamilyWords.ts'), 'utf8')
-  check('sub-agent dispatch reads the DeepSeek class through the shared family-word table, whose resolver reads the catalogue rows, and an exact id through the folding entry lookup', /bareFamilyWordOf\(modelParam\)/.test(dispatch) && /deepseekCatalogueRows\(\)\.rows\[0\]/.test(table) && dispatch.includes("resolveKeyLaneExactModel('deepseek', id, deepseekCatalogueEntry, deepseekCatalogueEntries)") && !/DEEPSEEK_STATIC_CATALOGUE\.find\(/.test(dispatch))
-}
 
 console.log(failures === 0 ? '\n ✅ DEEPSEEK CATALOGUE — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

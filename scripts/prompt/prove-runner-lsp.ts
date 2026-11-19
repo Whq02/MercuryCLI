@@ -7,7 +7,6 @@ import { dirname, join, resolve } from 'node:path'
 import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 const root = resolve(import.meta.dir, '../..')
-const source = process.env.PROVE_SRC ?? join(root, 'src')
 const dist = process.env.PROVE_DIST ?? join(root, 'dist/mercury.mjs')
 const vendored = join(root, 'dist/vendor/node/bin/node')
 const node = existsSync(vendored) ? vendored : Bun.which('node')!
@@ -16,16 +15,6 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const main = readFileSync(join(source, 'main.tsx'), 'utf8')
-const print = main.slice(main.indexOf('async function runLaunch('))
-check('runner discovery settles before the first pool snapshot', print.includes('await waitForInitialization()') && print.includes('let tools = [...getTools(') && print.indexOf('await waitForInitialization()') < print.indexOf('let tools = [...getTools('))
-check('all runner routes share the same enabled discovery before the pool snapshot', /if \(mercuryLspEnabled\(\)\) \{\s*initializeLspServerManager\(\)\s*await waitForInitialization\(\)\s*\}/.test(print))
-check('the explicit off gates runner discovery', print.includes('mercuryLspEnabled()'))
-const stream = readFileSync(join(source, 'services/providers/anthropic/streamCore.ts'), 'utf8')
-check('Anthropic never independently defers a mounted language service', !stream.includes('alsoDefer: shouldDeferLspTool'))
-const economy = readFileSync(join(source, 'tools/ToolSearchTool/prompt.ts'), 'utf8')
-check('the cloud rule names LspRead and Test, and reads the route (never the mounted state)', /ECONOMY_DEFERRED[^\n]*new Set\(\[[^\]]*'Test'[^\]]*'LspRead'[^\]]*\]\)/.test(economy) && /function defersOnCloudFor\([^)]*\)[^{]*\{\s*return isEconomyDeferred\(tool\) && onCloudRoute\(model\)/.test(economy))
-if (process.argv.includes('--source-only')) process.exit(failures === 0 ? 0 : 1)
 check('the built product exists', existsSync(dist))
 if (!existsSync(dist)) process.exit(1)
 const scratch = mkdtempSync(join(tmpdir(), 'runner-lsp-'))

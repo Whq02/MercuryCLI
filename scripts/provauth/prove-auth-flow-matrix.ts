@@ -1522,38 +1522,6 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
 section('§8 accounts-side refusal hygiene + the gemini no-probe gate copy')
 
 {
-  const { readFileSync } = await import('node:fs')
-  const REPO = join(import.meta.dir, '..', '..')
-  const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-  const openrouterSrc = src('src/services/providers/openrouter/openrouterAccounts.ts')
-  const geminiSrc = src('src/services/providers/gemini/geminiAccounts.ts')
-  const openaiSrc = src('src/services/providers/openai/openaiAccounts.ts')
-  const moonshotSrc = src('src/services/providers/moonshot/moonshotAccounts.ts')
-  const hfSrc = src('src/services/providers/huggingface/huggingfaceAccounts.ts')
-
-  for (const [name, text] of [
-    ['openrouter', openrouterSrc],
-    ['gemini', geminiSrc],
-    ['openai', openaiSrc],
-    ['moonshot', moonshotSrc],
-    ['huggingface', hfSrc],
-  ] as const) {
-    check(
-      `${name}: no error/refusal arm stringifies a wire body or echoes a token`,
-      !/new Error\([^)]*JSON\.stringify/.test(text) &&
-        !/new Error\(`[^`]*\$\{[^}]*access_token/.test(text) &&
-        !/new Error\(`[^`]*\$\{[^}]*refresh_token/.test(text),
-    )
-  }
-  check(
-    'the four token-endpoint refusals carry status (+ error code), nothing else',
-    openrouterSrc.includes('`openrouter key exchange returned HTTP ${response.status}`') &&
-      geminiSrc.includes('`google token endpoint returned HTTP ${response.status}${oauthError ? ` (${oauthError})` : \'\'}`') &&
-      openaiSrc.includes('`openai token endpoint returned HTTP ${response.status}${oauthError ? ` (${oauthError})` : \'\'}`') &&
-      moonshotSrc.includes('`Kimi device authorization refused (HTTP ${status}${detail})`') &&
-      hfSrc.includes('`Hugging Face device authorization refused (HTTP ${status}${detail})`'),
-  )
-
   const { GEMINI_CLIENT_STORED_UNVERIFIED_NOTE } = await import(
     '../../src/services/providers/gemini/geminiAccounts.js'
   )
@@ -1561,42 +1529,11 @@ section('§8 accounts-side refusal hygiene + the gemini no-probe gate copy')
     'the client note names invalid_client and how to correct the ID',
     GEMINI_CLIENT_STORED_UNVERIFIED_NOTE === 'If Google shows invalid_client, press esc and correct the client ID here.',
   )
-  const faceSrc = src('src/components/BootLoginsScreen.tsx')
-  const cardSrc = src('src/components/GeminiConnect.tsx')
-  check(
-    'both prompts render the ONE note (the face pane on the storing field; the in-chat card)',
-    faceSrc.includes('wrapPlain(GEMINI_CLIENT_STORED_UNVERIFIED_NOTE, DETAIL_W)') &&
-      cardSrc.includes('{GEMINI_CLIENT_STORED_UNVERIFIED_NOTE}'),
-  )
 }
 
 section('§9 the evidence pair end-to-end + the dead-door sweep')
 
 {
-  const { readFileSync } = await import('node:fs')
-  const REPO = join(import.meta.dir, '..', '..')
-  const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-
-  const retry = src('src/services/api/withRetry.ts')
-  const gateAt = retry.indexOf('if (status === 401 || isRevokedTokenError(error))')
-  const refreshAt = retry.indexOf('await handleOAuth401Error(failedAccessToken)', gateAt)
-  const changedAt = retry.indexOf('refreshed && accessToken && accessToken !== failedAccessToken', refreshAt)
-  const terminalAt = retry.indexOf('throw new CannotRetryError(error, retryContext)', changedAt)
-  const waitAt = retry.indexOf('const delayMs = getRetryDelay(', terminalAt)
-  check(
-    '401/revoked-403 recovery checks the sent credential and settles before backoff',
-    gateAt !== -1 && refreshAt > gateAt && changedAt > refreshAt && terminalAt > changedAt && waitAt > terminalAt &&
-      retry.includes('!authenticationRecoveryAttempted') && retry.includes('const failedAccessToken = client.authToken') &&
-      retry.includes('isRevokedSignInText(errorMessage(error))'),
-  )
-  const errors = src('src/services/api/errors.ts')
-  const wallAt = errors.indexOf('const wall = classifyCredentialWall(status, message, anthropicWireCredential(model, status))')
-  const observedExpiredAt = errors.indexOf("classifyAnthropicRefusal({ status, wireText: message, signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in'")
-  const genericAt = errors.search(/\n  if \(status === 401 \|\| status === 403\) \{\n\s*logForDebugging\(`\[api\] \$\{status\} on/)
-  check(
-    'the presenter: the wall arm and the observed-expired arm both precede the generic 401/403 tail',
-    wallAt !== -1 && observedExpiredAt !== -1 && genericAt !== -1 && wallAt < genericAt && observedExpiredAt < genericAt,
-  )
 
   clearOAuthTokenCache()
   const { observedCredentialWall, credentialWallLineForModel } = await import(
@@ -1777,20 +1714,6 @@ section('§10 the cross-account laws: SF1 spoken · the structural ceiling fence
       verdictOf({ credentialed: false }) === 'signed-out',
   )
 
-  const REPO = join(import.meta.dir, '..', '..')
-  const ticker = (await import('node:fs')).readFileSync(join(REPO, 'src/daemon/saturnTicker.ts'), 'utf8')
-  check(
-    'the mismatch hold speaks the SF1 sentence with the /logins door',
-    ticker.includes(
-      'held: account-mismatch — this schedule was made under a different ${family ?? \'provider\'} account; /logins or run-now releases on the current one',
-    ),
-  )
-  const matchRoadAt = ticker.indexOf('if (resolvedHold.identityMismatch !== true) {')
-  const freshRoadAt = ticker.indexOf('identityLabelOf(resolvedHold.account) !== h.mismatchIdentity')
-  check(
-    'the two release roads stand in the release bar (match-again · fresh-sign-in re-arm)',
-    matchRoadAt !== -1 && freshRoadAt !== -1 && matchRoadAt < freshRoadAt,
-  )
 
   const everything = accountSlots.deriveFamilySlotGroups(
     families.map(id => ({

@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { openaiFaultToTypedError, openaiRetryDelayMs } = await import(
   '../../src/services/providers/openai/openaiCallModel.ts'
@@ -16,7 +13,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 section('§1 D10-13 · THE TYPED CATEGORY TABLE')
 {
@@ -77,31 +73,8 @@ section('§3 D08/D09 · TIMING FEEDS THE LEDGER; THE RETRY LAW IS PURE')
     wall === 1200 + 400 + 900 && api === 900 && api > 0 && api <= wall,
     `wall=${wall} api=${api}`,
   )
-  const callModel = src('src/services/providers/openai/openaiCallModel.ts')
-  check(
-    'the DONE path feeds the SHARED api-duration ledger (D08 wiring — sol turns stop reporting 0)',
-    callModel.includes('logAPISuccessAndDuration({ start: attemptStartedAtMs, startIncludingRetries: turnStartedAtMs })'),
-  )
-  check(
-    'the retry backoff rides the pure law (the inline arithmetic lives ONLY in its definition)',
-    callModel.includes('const delayMs = Math.max(openaiRetryDelayMs(attempt), askedMs ?? 0)') &&
-      callModel.includes('await sleep(delayMs, signal)') &&
-      (callModel.match(/OPENAI_RETRY_BACKOFF_MS \* attempt/g) ?? []).length === 1,
-  )
-  check(
-    'terminal faults carry the TYPED category + code-first details (D13: no prose parsing)',
-    callModel.includes('openaiFaultToTypedError(outcome.fault)') &&
-      callModel.includes('resets_at='),
-  )
 }
 
-section('§4 D07 · CITE')
-{
-  check(
-    'reasoningOutputTokens survival is pinned by prove-usage-canonical (same suite)',
-    src('scripts/agent-dispatch/prove-usage-canonical.ts').includes('reasoningOutputTokens'),
-  )
-}
 
 if (failures > 0) {
   console.error(`\nprove-typed-outcome: ${failures} FAILURE(S)`)

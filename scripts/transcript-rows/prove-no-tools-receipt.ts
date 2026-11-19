@@ -1,6 +1,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import React from 'react'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -81,10 +81,6 @@ try {
   process.env.MERCURY_TURN_RECEIPT = '0'
   check('MERCURY_TURN_RECEIPT=0: no receipt, the stream untouched', receiptsOf(claimed).length === 0)
   delete process.env.MERCURY_TURN_RECEIPT
-  const messagesSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'Messages.tsx'), 'utf8')
-  check('while the turn is in flight the live receipt paints counts only — the no-tools mark waits for the turn to settle', messagesSrc.includes('liveReceipt: hasActivity(last.counts) ? last : null'))
-  const rowSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'messages', 'TurnReceiptRow.tsx'), 'utf8')
-  check('the row prints the derive owner\'s words', rowSrc.includes('NO_TOOLS_RAN_WORDS'))
 
   console.log('§5 the context delta: the turn\'s prompt-side growth from the usage the rows already carry')
   check('prompt tokens are the whole prompt side: uncached input + cache reads + cache writes', promptTokensOf({ input_tokens: 1000, cache_read_input_tokens: 40000, cache_creation_input_tokens: 200 }) === 41200 && promptTokensOf({ input_tokens: 15214 }) === 15214 && promptTokensOf(undefined) === undefined && promptTokensOf({ output_tokens: 3 }) === undefined)

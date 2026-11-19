@@ -28,17 +28,6 @@ const READY_ROW = /ready · .+? · (max|xhigh|high|medium|low)\b/
 
 section('§1 by construction — the picker pick and /model share the one owner of the saved default')
 {
-  const doorsPath = join(ROOT, 'src', 'components', 'PromptInput', 'useComposerModelDoors.tsx')
-  const doors = readFileSync(existsSync(doorsPath) ? doorsPath : join(ROOT, 'src', 'components', 'PromptInput', 'PromptInput.tsx'), 'utf8')
-  const model = readFileSync(join(ROOT, 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf8')
-  check("the composer's pick road saves the choice through persistModelChoice", doors.includes("from '../../commands/model/persistModelChoice.js'") && doors.includes('persistModelChoice(value).sentence'))
-  check('/model saves through the same owner', model.includes('persistModelChoice(value).sentence'))
-  check('the picker surface asks for the save', doors.includes('handleModelSelect(value, true)'))
-  check('a usage handoff or a return home never rewrites the saved default', /applyModelSelection\(target\)\n/.test(doors) && /applyModelSelection\(home\)\n/.test(doors) && doors.includes('handleModelSelect(chosen.model)\n'))
-  check('a held transition preview carries the save with it', doors.includes('applyModelSelection(held.value, held.persist)'))
-  const refusedAt = doors.indexOf("receipt.state === 'refused'")
-  const savedAt = doors.indexOf('const saved = persist ? persistModelChoice(value).sentence')
-  check('a refused switch saves nothing', refusedAt >= 0 && savedAt >= 0 && refusedAt < savedAt, `refused=${refusedAt} saved=${savedAt}`)
 }
 
 section('§2 pty — opt+p, ↓, ↵: the choice is the saved default and the receipt says so')

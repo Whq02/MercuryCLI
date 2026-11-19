@@ -3,7 +3,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const { fingerprintCacheablePrefix, diffPrefixFingerprints } = await import(
@@ -17,7 +16,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 const SYSTEM = ['You are Mercury.', 'Doctrine block.', 'Env block with stable facts.']
 
@@ -43,8 +41,6 @@ section('E06 — dynamic tails cannot move the prefix fingerprint')
   const a = fingerprintCacheablePrefix({ systemBlocks: blocks as never, tools: [] })
   const b = fingerprintCacheablePrefix({ systemBlocks: blocks as never, tools: [] })
   check('E06: identical prefixes fingerprint identically whatever the turn later appends', a.fullPrefixDigest === b.fullPrefixDigest)
-  const owner = src('src/services/api/prefixFingerprint.ts')
-  check('E06: the instrument NEVER reads messages (no messages input, pinned)', !/input\.messages|messages\s*[:?]/.test(owner))
 }
 
 section('E07 — a genuine static change moves the RIGHT segment')

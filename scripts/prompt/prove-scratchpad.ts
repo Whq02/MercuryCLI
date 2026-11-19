@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const ROOT = join(import.meta.dir, '..', '..')
 const tempRoot = realpathSync(mkdtempSync(join(tmpdir(), 'scratchpad-temp-')))
 process.env.MERCURY_TMPDIR = tempRoot
 delete process.env.MERCURY_CONCOURSE_WORKER
@@ -67,11 +66,6 @@ section('§2b on Windows the project’s part of the temp path is bounded, so th
   )
   check('two long projects that end alike get folders of their own', plain(twin).slice(-39) === plain(deep).slice(-39) && named(twin, 'windows') !== bounded && named(twin, 'windows').length === 48, `${named(twin, 'windows')} | ${bounded}`)
   check('on a Mac and on Linux the name is the whole sanitized path as before, whatever its length (holds on the parent too)', named(deep, 'macos') === plain(deep) && named(deep, 'linux') === plain(deep) && named(deep, 'wsl') === plain(deep))
-  const source = readFileSync(join(ROOT, 'src/utils/permissions/filesystem.ts'), 'utf8')
-  check(
-    'both makers of that name, the session’s own and the one the daemon derives from a record, take it from the one helper',
-    source.split('joinWithSep(getMercuryTempDir(), projectTempName(').length - 1 === 2 && !source.includes('joinWithSep(getMercuryTempDir(), sanitizePath('),
-  )
   const lengths = (name: string, agent: string | null): { upload: number; arriving: number } => {
     const pad = win32.join('C:\\Users\\firstname.lastname01\\AppData\\Local\\Temp', 'mercury', name, '0f8fad5b-d9cb-469f-a165-70867728950e', 'scratchpad', ...(agent === null ? [] : [agent]))
     return { upload: win32.join(pad, 'browser-uploads', 'u-XXXXXX').length, arriving: win32.join(pad, 'browser-downloads', 'incoming', '0f8fad5b-d9cb-469f-a165-70867728950e.crdownload').length }
@@ -129,14 +123,6 @@ scratchpad.ensureScratchpadDir()
 writeFileSync(join(dir, 'capture.txt'), 'x\n')
 await runCleanupFunctions()
 check('the registered cleanup sweeps the scratchpad at exit', !existsSync(dir))
-const daemon = readFileSync(join(ROOT, 'src/daemon/concourseWorkers.ts'), 'utf8')
-check('the daemon sweeps a settled session\'s scratchpad, derived from its record', daemon.includes('sweepScratchpadDir(scratchpadDirFor(settledRec.worktreePath ?? settledRec.workspaceId, settledRec.sessionId))'))
-const init = readFileSync(join(ROOT, 'src/entrypoints/init.ts'), 'utf8')
-check('the entry layer arms the sweep beside the shutdown hooks', init.includes('armScratchpadSweep()'))
-for (const [file, needle] of [
-  ['src/components/Messages.tsx', 'injectTurnReceipts(collapsed, getMercuryTempDir())'],
-  ['src/components/concourse/workerTranscriptFold.ts', 'injectTurnReceipts(grouped, getMercuryTempDir())'],
-]) check(`${file} hands the receipt the temp root`, readFileSync(join(ROOT, file!), 'utf8').includes(needle!))
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

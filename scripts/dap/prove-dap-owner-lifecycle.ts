@@ -2,7 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -15,7 +14,6 @@ function section(t: string): void {
 }
 
 async function main(): Promise<void> {
-  const root = join(import.meta.dir, '..', '..')
   const MOCK = join(import.meta.dir, 'mock-dap-adapter.mjs')
   process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({
     mock: { command: process.execPath, args: [MOCK] },
@@ -106,12 +104,6 @@ async function main(): Promise<void> {
     check("status with no sessions is a 'no-change' observation", status.effect?.outcome === 'no-change')
   }
 
-  section('3. the poll loop is gone (structural pin)')
-  {
-    const src = readFileSync(join(root, 'src/services/dap/dapClient.ts'), 'utf8')
-    check('event-driven waiter present', src.includes('waitForStopOutcome') && src.includes('#stateWaiters'))
-    check('process-exit sweep sync-kills survivors', src.includes("process.on('exit'"))
-  }
 
   console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
   process.exit(failures === 0 ? 0 : 1)

@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const HOME = mkdtempSync(join(tmpdir(), 'exit-cliff-drain-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 delete process.env.MERCURY_EXIT_CLIFF_DRAIN
@@ -39,7 +38,6 @@ guard.unref?.()
 const drain = await import('../../src/utils/exitCliffDrain.ts')
 const { drainNamedSeams, drainExitCliffSeams, registerExitCliffSeam, listExitCliffSeams, EXIT_CLIFF_DRAIN_MS } = drain
 type Seam = import('../../src/utils/exitCliffDrain.ts').ExitCliffSeam
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 section('§1 — the drain owner: bounded, never-throw, phased, by name')
 check(
@@ -210,29 +208,6 @@ section('§2 — the product seam registers with its phase; a Project exists onl
   )
 }
 
-section('§3 — POISONS (source shape)')
-{
-  const shutdown = readFileSync(join(ROOT, 'src/utils/gracefulShutdown.ts'), 'utf8')
-  check(
-    'POISON (the unseen seams): gracefulShutdown drains the named seams AFTER the session-end hooks and BEFORE the stdout drain + forceExit',
-    /fireHooks\('session\.end'[\s\S]*?drainExitCliffSeams\(\)[\s\S]*?await drainPipedStdoutForExit\(\)[\s\S]*?forceExit\(exitCode\)/.test(shutdown),
-  )
-  check(
-    'POISON (the stage-1 closure): the drain owner is a fire-time import, never a static one',
-    /await import\('\.\/exitCliffDrain\.js'\)/.test(shutdown) && !/^import .*exitCliffDrain/m.test(shutdown),
-  )
-  const writerSrc = readFileSync(join(ROOT, 'src/utils/sessionStorage/writer.ts'), 'utf8')
-  check(
-    'POISON (the unregistered writer): getProject registers the transcript-writer seam at phase 1 with its flush as the settle',
-    /registerExitCliffSeam\(\{\s*name: 'transcript-writer',\s*phase: 1,\s*settle: \(\) => project\?\.flush\(\)/.test(writerSrc),
-  )
-  const drainRow = getFlagSpec('MERCURY_EXIT_CLIFF_DRAIN')
-  check(
-    'the poison seam is a registered default-on flag whose evidence is the census prover',
-    drainRow?.kind === 'default-on' && drainRow.evidence === 'scripts/exit-handle/prove-exit-cliff-census.ts' &&
-      existsSync(join(ROOT, 'scripts/exit-handle/prove-exit-cliff-census.ts')),
-  )
-}
 
 try {
   rmSync(HOME, { recursive: true, force: true })

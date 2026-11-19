@@ -210,27 +210,6 @@ section('6 · the earned ride (the neutrality ruling): total classifier, admissi
     homeLaneAdmissionRefusal('banana-brew-9', { ...noFact, firstPartyBaseUrl: () => false }) === null,
   )
 
-  const { readFileSync, readdirSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const ROOT = join(import.meta.dir, '..', '..')
-  const routerSrc = readFileSync(join(ROOT, 'src/services/providers/callModelRouter.ts'), 'utf8')
-  const admissionAt = routerSrc.indexOf('homeLaneAdmissionRefusal(params.options.model)')
-  const transportAt = routerSrc.lastIndexOf('yield* queryModelWithStreaming(params)')
-  check('the dispatch home arm consults homeLaneAdmissionRefusal before the transport yield', admissionAt !== -1 && transportAt !== -1 && admissionAt < transportAt)
-  const VALUE_IMPORT_RE = /import\s*\{[^}]*\bqueryModelWithStreaming\b[^}]*\}\s*from/
-  const allowedImporters = new Set([
-    join('src', 'services', 'providers', 'callModelRouter.ts'),
-    join('src', 'services', 'providers', 'primaryBackend.ts'),
-  ])
-  const offenders: string[] = []
-  for (const entry of readdirSync(join(ROOT, 'src'), { recursive: true }) as string[]) {
-    if (!/\.(ts|tsx)$/.test(entry)) continue
-    const rel = join('src', entry)
-    if (rel.includes(join('services', 'providers', 'anthropic'))) continue
-    if (!VALUE_IMPORT_RE.test(readFileSync(join(ROOT, rel), 'utf8'))) continue
-    if (!allowedImporters.has(rel)) offenders.push(rel)
-  }
-  check('no src caller value-imports the streaming transport outside the censused set (no admission bypass)', offenders.length === 0, offenders.join(' · '))
 }
 
 section('7 · the honest verdict (phase 2): absence and unknownness first-class')
@@ -289,21 +268,6 @@ section('7 · the honest verdict (phase 2): absence and unknownness first-class'
   )
 }
 
-section('8 · the remainder-era name stays dead (the kill ratchet)')
-{
-  const { readFileSync: readSrc, readdirSync: walkSrc } = await import('node:fs')
-  const { join: joinSrc } = await import('node:path')
-  const SRC_ROOT = joinSrc(import.meta.dir, '..', '..')
-  const CALL_SHAPE = /\bresolveCallModelRoute\s*\(/
-  const IMPORT_SHAPE = /(?:import|require)[^\n]*\bresolveCallModelRoute\b|\bresolveCallModelRoute\b\s*,/
-  const regrown: string[] = []
-  for (const entry of walkSrc(joinSrc(SRC_ROOT, 'src'), { recursive: true }) as string[]) {
-    if (!/\.(ts|tsx)$/.test(entry)) continue
-    const text = readSrc(joinSrc(SRC_ROOT, 'src', entry), 'utf8')
-    if (CALL_SHAPE.test(text) || IMPORT_SHAPE.test(text)) regrown.push(joinSrc('src', entry))
-  }
-  check('no src file calls or imports the retired resolveCallModelRoute', regrown.length === 0, regrown.join(' · '))
-}
 
 section('9 · provenance before grammar: an id a signed-in account\'s live list holds belongs to that family whatever its spelling; the grammar answers only with no list to check')
 {

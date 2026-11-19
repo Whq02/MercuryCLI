@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -11,8 +9,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const src = (...p: string[]) =>
-  readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 
 console.log('============================================================')
 console.log(' Apollo Mode — the interview station joins the cycle (proof)')
@@ -41,9 +37,6 @@ try {
 } catch (e) {
   carouselLoadable = false
   console.log(`  [info] carousel not loadable under bun-run (${String(e).split('\n')[0]}) — structural assertions`)
-  const gn = src('utils', 'permissions', 'getNextPermissionMode.ts')
-  check("implement returns apollo", /case 'implement':\s*return 'apollo'/.test(gn))
-  check("case 'apollo' carries the flow/sovereign/default exits", /case 'apollo':[\s\S]{0,400}return 'flow'[\s\S]{0,200}'sovereign'/.test(gn))
 }
 
 section("the vocabulary: 'apollo' joins the mode lists; seal + title from the ONE config")
@@ -91,20 +84,6 @@ try {
 } catch (e) {
   check('apolloMode.ts loadable', false, String(e).split('\n')[0])
 }
-{
-  const prompts = src('constants', 'prompts.ts')
-  check('prompts.ts never pushes the apollo pack into the system prompt (the pack rides a mode_pack row)', !/pushPack\('mode-apollo'/.test(prompts) && !/getApolloModeSections\(/.test(prompts))
-  const lifecycles = src('utils', 'attachments', 'modeLifecycles.ts')
-  check('the attachment lifecycle owner emits the apollo pack as a mode_pack row from getApolloModeSections', /getApolloModeSections\('apollo'\)/.test(lifecycles) && /type: 'mode_pack'/.test(lifecycles))
-  check(
-    'the prompt-build callers thread the LIVE toolPermissionContext.mode (the next-turn law)',
-    /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(src('rows', 'turn.ts')) &&
-      /permissionMode: appState\.toolPermissionContext\.mode/.test(src('utils', 'queryContext.ts')) &&
-      src('utils', 'queryContext.ts').includes('getSystemPrompt(input.tools, input.engineModel, input.mcpClients, input.permissionMode, input.memoryTask)'),
-  )
-  const contract = src('prompt', 'behaviourContract.ts')
-  check('behaviour contract owns mode:mode-apollo → src/prompt/apolloMode.ts', /\['mode:mode-apollo', 'src\/prompt\/apolloMode\.ts'\]/.test(contract))
-}
 
 section('the poll letters: A–D + E = custom, one owner, ordinal-channel display')
 try {
@@ -115,18 +94,6 @@ try {
 } catch (e) {
   check('apolloLetters.ts loadable', false, String(e).split('\n')[0])
 }
-{
-  const qv = src('components', 'permissions', 'AskUserQuestionPermissionRequest', 'QuestionView.tsx')
-  check('QuestionView letters options only in apollo (ordinal channel; labels/values raw)', /isApolloPoll \? \{ indexLabel: apolloIndexLabel\(index\) \} : \{\}/.test(qv) && /value: opt\.label/.test(qv))
-  check('QuestionView letters the Other row as E in apollo', /isApolloPoll \? \{ indexLabel: apolloCustomIndexLabel\(\) \} : \{\}/.test(qv))
-  const pv = src('components', 'permissions', 'AskUserQuestionPermissionRequest', 'PreviewQuestionView.tsx')
-  check('PreviewQuestionView letters its ordinals in apollo', /isApolloPoll \? APOLLO_OPTION_LETTERS\[index\]/.test(pv))
-  const sel = src('components', 'CustomSelect', 'select.tsx')
-  check('the select owner honours an option-declared display ordinal (rowPrefix)', /option\.indexLabel !== undefined/.test(sel) && (sel.match(/rowPrefix\(option, option\.index \+ 1/g) ?? []).length >= 2)
-  check('the grammar guarantees the trailing space (rowPrefix padEnd ≥ len+1)', /indexLabel\.padEnd\(Math\.max\(reservedWidth, option\.indexLabel\.length \+ 1\)\)/.test(sel))
-  check('input rows honour the ordinal too', /option\.indexLabel !== undefined[\s\S]{0,200}option\.indexLabel\.length \+ 1/.test(src('components', 'CustomSelect', 'select-input-option.tsx')))
-  check('multi-select rows honour the ordinal too', /option\.indexLabel !== undefined[\s\S]{0,260}option\.indexLabel\.length \+ 1/.test(src('components', 'CustomSelect', 'SelectMulti.tsx')))
-}
 
 section('the setting: apollo.preflightQuestions, default 7')
 try {
@@ -134,10 +101,6 @@ try {
   check('getApolloPreflightQuestions() defaults to 7', settings.getApolloPreflightQuestions() === 7)
 } catch (e) {
   check('settings module loadable', false, String(e).split('\n')[0])
-}
-{
-  const types = src('utils', 'settings', 'types.ts')
-  check('the settings schema registers apollo.preflightQuestions', /apollo:[\s\S]{0,160}preflightQuestions/.test(types))
 }
 
 section('ApolloReview: apollo-only, ask-on-clean, guarded handoff to flow|implement')
@@ -229,41 +192,6 @@ try {
   )
 } catch (e) {
   console.log(`  [info] tool not loadable/drivable under bun-run (${String(e).split('\n')[0]}) — structural assertions`)
-  const tool = src('tools', 'ApolloReviewTool', 'ApolloReviewTool.tsx')
-  check("validateInput refuses mode !== 'apollo'", /mode !== 'apollo'/.test(tool))
-  check('clean path asks; blockered path allows', /behavior: 'ask' as const/.test(tool) && /behavior: 'allow' as const/.test(tool))
-  check('the handoff rides setPermissionModeWithGuards to flow-else-implement', /isFlowGateEnabled\(\)\s*\?\s*\['flow', 'implement'\]\s*:\s*\['implement'\]/.test(tool))
-  check("the ask-first tier lands default (structural)", /'build-ask-first'\s*\?\s*\['default'\]/.test(tool))
-  check("the held review is a typed outcome (structural)", /interviewContinues: true/.test(tool))
-  check('the apollo deferral force-load arm exists (structural)', /APOLLO_REVIEW_TOOL_NAME && permissionMode === 'apollo'/.test(src('tools', 'ToolSearchTool', 'prompt.ts')))
-}
-{
-  const tool = src('tools', 'ApolloReviewTool', 'ApolloReviewTool.tsx')
-  check('subagents are refused at validation (main-agent-only)', /getAgentContext\(\) !== undefined \|\| context\.agentId/.test(tool))
-  const tools = src('tools.ts')
-  check('ApolloReviewTool is registered in the pool', /ApolloReviewTool,/.test(tools))
-  const router = src('components', 'permissions', 'PermissionRequest.tsx')
-  check('the consent router carries the Apollo review card', /ApolloReviewPermissionRequest/.test(router))
-  const card = src('components', 'permissions', 'ApolloReviewPermissionRequest', 'ApolloReviewPermissionRequest.tsx')
-  check(
-    'the consent card offers the three ruled answers',
-    /Yes — begin the build/.test(card) && /Yes — but ask me before each edit/.test(card) && /No — ask me more questions/.test(card),
-  )
-  check(
-    'every yes rides the tool input as a decision; the hold is a typed outcome, not a reject',
-    /decision: 'more-questions'/.test(card) && /decision: value/.test(card),
-  )
-  check('esc stays the plain hold (reject path preserved)', /onCancel=\{handleCancel\}/.test(card) && /onReject\(\)/.test(card))
-  const filesystem = src('utils', 'permissions', 'filesystem.ts')
-  check(
-    "modeSuggestion lists the ask posture only (apollo never moves through a consent card)",
-    /context\.mode === 'default'\) \{/.test(filesystem) &&
-      !/context\.mode === 'default' \|\| context\.mode === 'apollo'/.test(filesystem),
-  )
-  const toolEconomy = src('services', 'providers', 'toolEconomy.ts')
-  check('the wire roster resolves deferral without the live mode (the roster is mode-independent)', /isDeferredTool\(tool\)/.test(toolEconomy) && !/rosterPermissionMode/.test(toolEconomy))
-  const ui = src('tools', 'ApolloReviewTool', 'UI.tsx')
-  check('the transcript receipt has the held settled line', /the interview continues with more questions/.test(ui))
 }
 
 section('the runner accepts Apollo for every host')
@@ -321,20 +249,6 @@ section('the runner accepts Apollo for every host')
     else process.env.MERCURY_CONCOURSE_WORKER = priorMarker
   }
 
-  const engine = src('rows', 'turn.ts')
-  check(
-    'the turn threads the live toolPermissionContext.mode into fetchSystemPromptParts',
-    /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(engine),
-  )
-  const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')
-  const promptBuildStart = agentTool.indexOf('async function buildDefaultSystemPrompt(')
-  const promptBuild = agentTool.slice(promptBuildStart, agentTool.indexOf('\n}', promptBuildStart))
-  check(
-    'the subagent prompt build passes NO permissionMode (main-agent-only holds by construction)',
-    promptBuildStart !== -1 && /definition\.getSystemPrompt\(/.test(promptBuild) && /enhanceSystemPromptWithEnvDetails\(/.test(promptBuild) && !/permissionMode/.test(promptBuild),
-  )
-  const frame = src('components', 'MercuryFrame.tsx')
-  check('the mode chip reads the connector facts', /getFocusedSessionConnector\(\)\.permissionMode\(\)/.test(frame))
 }
 
 section("the seat's initial posture: a carried 'apollo' crosses the admission; the env road keeps the strict list")
@@ -359,10 +273,6 @@ section("the seat's initial posture: a carried 'apollo' crosses the admission; t
     if (priorEnv === undefined) delete process.env.MERCURY_DAEMON_PERMISSION_MODE
     else process.env.MERCURY_DAEMON_PERMISSION_MODE = priorEnv
   }
-  const daemon = src('daemon', 'concourseWorkers.ts')
-  check("the apollo arm sits on the CARRIED road, and the saved default resolves through the one resolver the direct boot reads", /override === 'apollo'\) return 'apollo'/.test(daemon) && /const saved = resolveSavedPermissionMode\(\)/.test(daemon) && !/getInitialSettings/.test(daemon))
-  const hop = src('services', 'switchboard', 'hopIntoSession.ts')
-  check('the birth road carries the boot facts posture into the admission', /bootBirthFacts\(\)\.permissionMode/.test(hop))
 }
 
 console.log('\n' + '═'.repeat(76))

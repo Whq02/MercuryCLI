@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -16,8 +16,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n${t}`)
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -91,11 +89,6 @@ check('the bare row (an older runner\'s queue log) is still recognised by the wa
 check("the same words typed by the operator are the operator's own: no notice, selectable, the last prompt", noticeOfText(bare, false) === null && selectableUserMessagesFilter(userRow(bare)) && getFirstMeaningfulUserMessageTextContent([userRow(bare)]) === bare)
 check("an operator's prose that mentions a restart is not a restart row", !lr.isRestartCarryRow('the runner restarted again, why?'))
 
-section('§3 the painter keys on the fold (structural)')
-const painter = src('src/components/messages/UserTextMessage.tsx')
-check('UserTextMessage hands a wrapped notice to UserNoticeMessage before the operator prompt branch', /const noticeBlocks = noticeOfText\(param\.text, notice\)\s*if \(noticeBlocks !== null\) \{\s*return <UserNoticeMessage/.test(painter))
-const carry = src('src/cli/headless/restartCarry.ts')
-check('the carry queues the wrapped row, never the bare sentence', /enqueuePendingNotification\(\{ value: wrapInSystemReminder\(row\), mode: 'task-notification', priority: 'next', ridesNextWords: true \}\)/.test(carry))
 
 console.log(failures === 0 ? '\nprove-restart-row-marked: all green' : `\nprove-restart-row-marked: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

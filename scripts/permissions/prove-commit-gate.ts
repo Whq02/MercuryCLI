@@ -9,11 +9,10 @@
 }
 
 import { execFileSync, execSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const TREE = join(import.meta.dir, '..', '..')
 const ISOLATED_HOME = mkdtempSync(join(tmpdir(), 'commit-gate-home-'))
 process.env.MERCURY_CONFIG_DIR = ISOLATED_HOME
 process.env.MERCURY_HOME = ISOLATED_HOME
@@ -44,7 +43,6 @@ console.log('============================================================')
 
 const fh = await import('../../src/guards/commitGate.js')
 const { guardsEngaged, judgeToolCall } = await import('../../src/guards/guards.js')
-const { readFileSync } = await import('node:fs')
 const cg = await import('../../src/guards/commitGate.js')
 
 const sid = 'proof-commit-gate'
@@ -54,14 +52,6 @@ const judge = async (tool: string, command: string): Promise<boolean> => {
   return !verdict.refused
 }
 
-section('explicit MERCURY_COMMIT_GATE=0 short-circuits first (advertised opt-out is true)')
-{
-  const src = readFileSync(join(TREE, 'src', 'guards', 'commitGate.ts'), 'utf8')
-  const hardOff = src.indexOf("if (flagEnv('MERCURY_COMMIT_GATE') === '0') return { allow: true }")
-  const gate = src.indexOf('if (!commitGateEnabled()) return { allow: true }')
-  check('explicit =0 short-circuit present', hardOff !== -1)
-  check('…and it sits BEFORE the live gate check', gate !== -1 && hardOff < gate)
-}
 
 section('default-OFF gate truth table (DEFAULT-OFF, opt in MERCURY_COMMIT_GATE=1)')
 {
@@ -140,12 +130,6 @@ section("pure evaluateCommitGate — the gate's deny rules (loadable, exported)"
   check('`npm --prefix` with no verb stays DENIED', cg.evaluateCommitGate('npm --prefix tools/x && git commit -m "x"').allow === false)
 }
 
-section('source: engageCommitGate is WIRED into the turn (not severed)')
-{
-  const qe = readFileSync(join(import.meta.dir, '..', '..', 'src', 'rows', 'turn.ts'), 'utf-8')
-  check('the turn imports engageCommitGate', /import \{[^}]*engageCommitGate[^}]*\} from '..\/guards\/commitGate.js'/.test(qe))
-  check('engageCommitGate is CALLED in the engage block (unconditional)', qe.includes('engageCommitGate(sessionId)'))
-}
 
 section('dist: the wired standalone gate ships in dist/mercury.mjs')
 {

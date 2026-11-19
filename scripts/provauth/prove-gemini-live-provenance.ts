@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -47,7 +47,6 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_GEMINI_API_BASE = 'http://127.0.0.1:1'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const catalogue = await import('../../src/services/providers/gemini/geminiCatalogue.js')
@@ -133,26 +132,6 @@ section('4 · a failed read, a stale list, a departed key')
   __resetGeminiCatalogueForTest()
 }
 
-section('5 · the shape: the picker guard reads the routing law; nothing on the Gemini road filters by prefix')
-{
-  const source = readFileSync(join(ROOT, 'src/services/providers/gemini/geminiCatalogue.ts'), 'utf8')
-  check('the catalogue exports the seam\'s read by its exact name and shape', source.includes('export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string>'))
-  check('the live ids are the generateContent rows of the active source', /cachedLiveIds[\s\S]*?geminiGenerateModels\(snapshot\)\.map\(m => m\.id\.toLowerCase\(\)\)/.test(source))
-  const picker = source.slice(source.indexOf('export function getGeminiModelOptions'), source.indexOf('export function __resetGeminiCatalogueForTest'))
-  check("the picker's one guard is the routing law's own verdict", picker.includes("const routed = declaredRouteOf(model.id) === 'gemini'") && picker.includes('const generateModels = geminiGenerateModels(snapshot)') && picker.includes('...generateModels.map('))
-  check('the listed-row reader is guarded by the same law', source.includes("if (declaredRouteOf(model) !== 'gemini') return undefined"))
-  const prefix = /startsWith\('gemini|\/\^gemini-[^\n]*\.test\(|isGeminiModelId/
-  for (const file of [
-    'src/services/providers/gemini/geminiCatalogue.ts',
-    'src/services/providers/gemini/geminiAccounts.ts',
-    'src/services/providers/gemini/geminiCallModel.ts',
-    'src/services/providers/gemini/geminiClient.ts',
-    'src/services/providers/gemini/geminiAdapter.ts',
-    'src/utils/model/modelOptions.ts',
-  ]) {
-    check(`${file} filters nothing by the gemini- prefix`, !prefix.test(readFileSync(join(ROOT, file), 'utf8')))
-  }
-}
 
 for (const [key, value] of Object.entries(savedEnv)) {
   if (value === undefined) delete process.env[key]

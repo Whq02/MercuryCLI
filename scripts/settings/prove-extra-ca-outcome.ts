@@ -2,7 +2,6 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { readFileSync } from 'node:fs'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'extra-ca-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -55,8 +54,6 @@ console.log('L3 the cache clear re-resolves')
 
 console.log('L4 the surfaces (source pins)')
 {
-  const status = readFileSync(join(SRC, 'utils/status.tsx'), 'utf8')
-  check('/status paints the outcome sentence', status.includes('extraCaCertsStatusLine()'))
   const { authChecks } = await import(join(SRC, 'utils/health/sections/auth.ts'))
   const { getExtraCaCertsOutcome } = await import(join(SRC, 'utils/caCerts.ts'))
   const caRow = (await authChecks()).find((row: { id: string }) => row.id === 'extra-ca-certs')

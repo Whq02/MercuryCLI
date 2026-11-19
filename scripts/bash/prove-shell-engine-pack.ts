@@ -159,12 +159,9 @@ section('§3 the flag registry row and the settings key')
   check('MERCURY_SHELL_ENGINE is registered', row !== undefined)
   check('it is a value knob consumed by the engine session', row?.kind === 'value' && row?.consumer.includes('engineSession'), JSON.stringify(row))
 
-  const typesSrc = readFileSync(join(ROOT, 'src/utils/settings/types.ts'), 'utf8')
-  check("the settings schema carries shell.engine: 'system' | 'brush'", /engine:\s*z\.enum\(\['system',\s*'brush'\]\)/.test(typesSrc))
 
   const ceilingRow = (FLAG_REGISTRY as Array<{ env: string; kind: string; consumer: string }>).find(r => r.env === 'MERCURY_SHELL_ENGINE_SESSIONS')
   check('MERCURY_SHELL_ENGINE_SESSIONS is registered as a value knob consumed by the engine session', ceilingRow?.kind === 'value' && (ceilingRow?.consumer.includes('engineSession') ?? false), JSON.stringify(ceilingRow))
-  check('the settings schema carries shell.sessions as a whole number of at least 1', /sessions:\s*z\s*\.number\(\)\s*\.int\(\)\s*\.min\(1\)/.test(typesSrc))
   const { ENGINE_SESSION_CEILING_DEFAULT, resolveEngineSessionCeiling } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
   const savedPin = process.env.MERCURY_SHELL_ENGINE_SESSIONS
   delete process.env.MERCURY_SHELL_ENGINE_SESSIONS

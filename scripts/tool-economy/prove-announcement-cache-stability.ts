@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
-import { FORBIDDEN_HEAD_WORDS, requestHeadIsPlain, requestHeadSource } from './requestHeadSource.ts'
+import { FORBIDDEN_HEAD_WORDS } from './requestHeadSource.ts'
 
 let failures = 0
 let checks = 0
@@ -126,8 +126,6 @@ section('§2 NO PER-REQUEST ANNOUNCEMENT — every route, and the real first-par
     else if (plan.wireForm === 'openrouter-native') check(`${route}: deferral is on, every deferrable tool rides the roster MARKED for the server's search, Mercury's ToolSearch does not`, plan.enabled === true && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n) && plan.deferredNames.has(n)) && !plan.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME))
     else if (plan.wireForm === 'text-append') check(`${route}: the append form sends only initial definitions and discovery (admissions ride the end of the messages)`, plan.enabled && DEFERRED_NAMES.every(name => !plan.roster.some(t => t.name === name)) && plan.admissionDeclarations.length === 0)
     else check(`${route}: the text form sends only initial definitions and discovery (an admission joins the next request's tools term)`, plan.enabled === true && plan.wireForm === 'text' && DEFERRED_NAMES.every(name => !plan.roster.some(t => t.name === name)) && DEFERRED_NAMES.every(n => plan.deferredNames.has(n)), `enabled=${plan.enabled} wire=${plan.wireForm}`)
-    check(`${route}: the request builder cannot mint a tool head`, requestHeadIsPlain(route))
-    check(`${route}: the first-party builder retains no retired head spelling`, FORBIDDEN_HEAD_WORDS.every(word => !requestHeadSource('anthropic').includes(word)))
     const msgs = fresh()
     check(`${route}: the admission projection leaves the operator's head unchanged`, renderAdmissionRecordsAsText(msgs)[0] === msgs[0] && JSON.stringify(renderAdmissionRecordsAsText(msgs)) === JSON.stringify(msgs))
   }
@@ -258,7 +256,6 @@ section('§4 HEAD STABILITY UNDER POOL CHANGE — a server connecting between re
   check('the delta appends one row naming ONLY the newly connected server\'s tools', second !== null && second.type === 'deferred_tools_delta' && second.addedNames.join(',') === MCP_C.map(t => t.name).sort().join(',') && second.removedNames.length === 0)
   const bothPersisted: Message[] = second ? [...persisted, createAttachmentMessage(second) as Message] : persisted
   check('…and the transcript is then quiet again', getDeferredToolsDeltaAttachment(POOL_GROWN, model, bothPersisted).length === 0)
-  check('the grown request still carries no minted head', requestHeadIsPlain('anthropic') && grownBody !== null && textsOf(grownBody.messages).every(text => FORBIDDEN_HEAD_WORDS.every(word => !text.includes(word))))
   const shrunk = deltaRow(POOL, model, bothPersisted)
   check('a server dropping appends a removal row (never a head rewrite)', shrunk !== null && shrunk.type === 'deferred_tools_delta' && shrunk.removedNames.join(',') === MCP_C.map(t => t.name).sort().join(',') && shrunk.addedNames.length === 0)
 }

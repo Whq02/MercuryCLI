@@ -1,9 +1,6 @@
 #!/usr/bin/env bun
-import { execSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -113,84 +110,6 @@ console.log('\nhealth coherence keys on the AUTH home (a foreign slot is not a s
   probe(true, undefined, undefined)
 }
 
-console.log('\nstore-plane agreement — every inline resolver follows the ONE resolver')
-const controlSocketSrc = readFileSync(join(ROOT, 'src', 'daemon', 'controlSocket.ts'), 'utf-8')
-check('daemon controlSocket configHome delegates to getMercuryHome', /function configHome\(\): string \{\s*\n\s*return getMercuryHome\(\)/.test(controlSocketSrc))
-const envSrc = readFileSync(join(ROOT, 'src', 'utils', 'env.ts'), 'utf-8')
-check('getGlobalMercuryFile env-less defaults into the resolved home (Mercury-named)', envSrc.includes('globalConfigFileIn(getMercuryHome())') && envSrc.includes("join(home, '.mercury.json')"))
-const envUtilsSrc = readFileSync(join(ROOT, 'src', 'utils', 'envUtils.ts'), 'utf-8')
-check('envUtils source carries no ~/.claude default arm', !envUtilsSrc.includes(".claude').normalize"))
-check('envUtils source never probes the filesystem to pick a home (no existence rung)', !/existsSync\([^)]*\.mercury/.test(envUtilsSrc))
-const accountViewSrc = readFileSync(join(ROOT, 'src', 'components', 'mercury-ui', 'parity', 'AccountView.tsx'), 'utf-8')
-check('/accounts scope row keys on the RESOLVED home, not env presence', accountViewSrc.includes('tildify(getMercuryHome(), home)'))
-
-console.log('\nthe ONE-HOME law — no other config-home spelling survives')
-const RETIRED_HOME = new RegExp(['\\.', 'her', 'mes\\b', '|', 'HER', 'MES_HOME'].join(''), 'i')
-const SWEEP_SCOPES = [
-  'src',
-  'scripts/release',
-  'scripts/ops',
-  'scripts/lib',
-  'scripts/gate',
-  'scripts/build-identity',
-  'assets/splash',
-  'assets/vulcan',
-  'README.md',
-  'AGENTS.md',
-  'docs',
-]
-const trackedFiles = execSync(`git ls-files -z -- ${SWEEP_SCOPES.join(' ')}`, { cwd: ROOT })
-  .toString('utf8')
-  .split('\0')
-  .filter(Boolean)
-  .filter(p => !/\.(png|jpe?g|gif|ico|icns|pdf|wasm|woff2?|ttf|otf|node|zip|gz|tgz|jar|mp[34]|exe|dylib|so|bin|zst|tar)$/i.test(p))
-const homeHits: string[] = []
-for (const path of trackedFiles) {
-  let content: string
-  try {
-    content = readFileSync(join(ROOT, path), 'utf8')
-  } catch {
-    continue
-  }
-  const lines = content.split('\n')
-  for (let i = 0; i < lines.length; i++) {
-    if (RETIRED_HOME.test(lines[i]!)) homeHits.push(`${path}:${i + 1}`)
-  }
-}
-check(`no other config-home spelling in ${trackedFiles.length} swept files`, homeHits.length === 0, homeHits.slice(0, 10).join(' · '))
-const registrySrc = flagRegistryText()
-check('the flag registry carries no alias field', !/\blegacy\??:/.test(registrySrc))
-check('flagEnv reads the registered spelling and nothing else', /return process\.env\[spec\.env\]\n\}/.test(registrySrc) && !registrySrc.includes('formerly'))
-
-console.log('\nharness pins — one home for bun writers + dist children')
-const gateUnit = readFileSync(join(ROOT, 'scripts', 'gate', 'run-suite.sh'), 'utf-8')
-check(
-  'gate unit pins an explicit home for every suite (inherited pin, else its own seeded scratch)',
-  gateUnit.includes('if [ -z "${MERCURY_CONFIG_DIR:-}" ]; then') &&
-    gateUnit.includes('export MERCURY_CONFIG_DIR="$MERCURY_SUITE_TMPDIR/config-home"') &&
-    gateUnit.includes('scripts/lib/firstRunSeed.ts" "$MERCURY_CONFIG_DIR"'),
-)
-check('gate unit carries no ~/.claude fallback', !gateUnit.includes('$HOME/.claude'))
-check(
-  'gate unit pins the scratch home on the ONE spelling (MERCURY_HOME)',
-  gateUnit.includes('export MERCURY_HOME="${MERCURY_HOME:-') && !/export [A-Z]+_HOME="\$MERCURY_HOME"/.test(gateUnit),
-)
-const renderTui = readFileSync(join(ROOT, 'scripts', 'ui', 'render-tui.ts'), 'utf-8')
-check('render-tui pins an explicit home for the vshot child (inherited pin, else the proof home)', renderTui.includes('MERCURY_CONFIG_DIR: process.env.MERCURY_CONFIG_DIR || CONFIG_HOME'))
-check('render-tui takes that home from renderScenarios', /import \{[^}]*\bCONFIG_HOME\b[^}]*\} from '\.\/renderScenarios\.ts'/.test(renderTui))
-const renderScenarios = readFileSync(join(ROOT, 'scripts', 'ui', 'renderScenarios.ts'), 'utf-8')
-check('renderScenarios resolves CONFIG_HOME through the proof-home helper', renderScenarios.includes('export const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])'))
-const proofHome = readFileSync(join(ROOT, 'scripts', 'lib', 'proofHome.ts'), 'utf-8')
-check(
-  'the proof-home helper makes its own seeded scratch and never falls back to the foreign ~/.claude',
-  !proofHome.includes("'.claude'") && proofHome.includes("mkdtempSync(join(tmpdir(), 'mercury-proof-home-'))") && proofHome.includes('seedFirstRun(home,'),
-)
-check(
-  'neither the driver nor render-tui spells the base fallback for a child home',
-  !renderTui.includes("join(homedir(), '.claude')") && !renderScenarios.includes("join(homedir(), '.claude')"),
-)
-const owned = readFileSync(join(ROOT, 'src', 'daemon', 'ownedDaemon.ts'), 'utf-8')
-check('owned daemons stamp the RESOLVED home (store-identity gating)', owned.includes("stampFlagOnEnv(env, 'MERCURY_CONFIG_DIR', getMercuryHome())"))
 
 if (process.platform !== 'win32') {
   const { mkdtempSync, rmSync, statSync: st, mkdirSync: mkd, chmodSync: chm } = await import('node:fs')

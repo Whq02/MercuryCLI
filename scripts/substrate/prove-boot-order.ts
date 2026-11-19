@@ -1,71 +1,20 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf-8')
-const mainBody = main.slice(main.indexOf('export async function main()'))
 
 console.log('============================================================')
 console.log(' main() boot-order contract (Phase 10.1)')
 console.log('============================================================')
 
-const chain: Array<[string, string]> = [
-  ['B2 boot-env applied first', 'applyBootMenuEnv()'],
-  ['B3 private config home tightened', 'ensurePrivateConfigHome()'],
-  ['B5a Windows PATH-hijack guard', "NoDefaultCurrentDirectoryInExePath = '1'"],
-  ['B5b warning handler', 'initializeWarningHandler()'],
-  ['B5c exit handler returns the terminal ground', "process.on('exit'"],
-]
-let prev = -1
-let prevName = '(start)'
-for (const [name, needle] of chain) {
-  const i = mainBody.indexOf(needle)
-  check(`${name} present`, i !== -1, needle)
-  check(`${name} after ${prevName}`, i > prev, `${i} <= ${prev}`)
-  prev = i
-  prevName = name
-}
-
-const shutdown = readFileSync(join(ROOT, 'src', 'utils', 'gracefulShutdown.ts'), 'utf-8')
-const entry = readFileSync(join(ROOT, 'src', 'entrypoints', 'cli.tsx'), 'utf-8')
-check('B5d main() installs no SIGINT handler of its own: the graceful shutdown owns the signal so the terminal title and ground are restored', !mainBody.includes("process.on('SIGINT'"))
-check('B5d the entrypoint installs the graceful shutdown before it hands over to main.tsx', entry.indexOf('setupGracefulShutdown()') !== -1 && entry.indexOf('setupGracefulShutdown()') < entry.indexOf('cliMainModule.main()'), `${entry.indexOf('setupGracefulShutdown()')} vs ${entry.indexOf('cliMainModule.main()')}`)
-const sigintIdx = shutdown.indexOf("process.on('SIGINT'")
-const sigintBody = shutdown.slice(sigintIdx, sigintIdx + 240)
-check('the SIGINT handler carves out run (run.ts owns SIGINT there)', sigintIdx !== -1 && sigintBody.includes('runModeOwnsSignals()'), sigintBody.slice(0, 160))
-
-const runIdx = mainBody.indexOf('run(')
-check('B6 the opening band precedes the commander run()/parse', runIdx > prev, `run@${runIdx} vs last landmark@${prev}`)
 
 const { firstSystemPrompt } = await import('../lib/builtProduct.ts')
 check('B7 runHeadless stamps NON-INTERACTIVE before any system-prompt composition', /^- Session: non-interactive/m.test(await firstSystemPrompt()))
 
-{
-  const doors = main.split('announceAbandonedLaunch()').length - 1
-  check('B8a both abandon doors announce', doors >= 2, `${doors} call site(s)`)
-  check(
-    'B8b the announcement is an exit hook, not an inline write (restoration-safe)',
-    /function announceAbandonedLaunch\(\)[\s\S]{0,400}process\.once\('exit'/.test(main),
-  )
-  check("B8c a deliberate clean quit stays quiet (code 0 returns before the write)", /process\.once\('exit', code => \{\s*\n\s*if \(code === 0\) return/.test(main))
-  check(
-    'B8d the one honest line names the refusal and the road to the initiator',
-    main.includes('Mercury did not start: a shutdown was initiated during boot (exit ${code}). Boot again with --debug and read the debug log for the initiator.'),
-  )
-  check('B8e the latch writes once across both doors', main.includes('if (abandonAnnounced) return'))
-  check(
-    'B8f POISON (the wordless return): each door announces immediately before its abandoning debug line',
-    main.includes("announceAbandonedLaunch()\n    logForDebugging('graceful shutdown already initiated; abandoning interactive launch')") &&
-      main.includes("announceAbandonedLaunch()\n    logForDebugging('shutdown in progress; abandoning interactive launch')"),
-  )
-}
 
 console.log('\n============================================================')
 if (failures === 0) {

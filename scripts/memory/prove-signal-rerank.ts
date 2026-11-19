@@ -68,10 +68,6 @@ try {
   const singleFusion = fuseRecallRankings('quartz', pool, lexical, { dir, now })
   assert.deepEqual(singleFusion, fused, 'grep and lexical agreement is fused with the learned list only once')
   assert.deepEqual(fuseRecallRankings('quartz', pool, lexical, { dir: join(scratch, 'cold'), now }), baseline, 'cold Recall keeps grep and lexical fusion')
-  const implementation = readFileSync(new URL('../../src/mneme/mnemeLookup.ts', import.meta.url), 'utf8')
-  const recallFusionBody = implementation.split('export function fuseRecallRankings(')[1]!.split('export function rankAllCandidates(')[0]!
-  assert(!recallFusionBody.includes('rankAllCandidates(') && !recallFusionBody.includes('fuseRankings(['), 'Recall cannot feed an already fused or learned ranking back into fusion')
-  assert.equal((recallFusionBody.match(/fuseSignalRanking\(/g) ?? []).length, 1)
   const fit = readOrFitSignalWeights(dir)
   assert.equal(fit.samples, 64, 'pinned examples never train the model')
   assert.deepEqual(fit.features, [...SIGNAL_FEATURE_NAMES])

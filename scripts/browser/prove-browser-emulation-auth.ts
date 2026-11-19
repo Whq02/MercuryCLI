@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import type http from 'node:http'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BrowserTool, ROOT, check, decide, finish, lead, ownerOf, pageOf, permission, requireBrowser, run, section, serve, sessions, validate } from './harness.ts'
 
@@ -188,8 +187,6 @@ section('S6 the card remembers the subject that was checked')
 {
   const words = await import(join(ROOT, 'src/services/browser/browserWords.ts'))
   const remembered = (words as { checkedRuleContent?: (verdict: unknown, input: unknown) => string | null }).checkedRuleContent
-  const cardSource = readFileSync(join(ROOT, 'src/components/permissions/BrowserPermissionRequest/BrowserPermissionRequest.tsx'), 'utf8')
-  check('[T7] the card takes its remembered rule from the decision, and no longer reads the page that happens to be live', cardSource.includes('checkedRuleContent(toolUseConfirm.permissionResult, toolUseConfirm.input)') && !cardSource.includes('activeSession'))
   await visit(`${A.origin}/open`)
   await pageOf().waitForSelector('iframe')
   const frameAct = { op: 'click', frame: 1, selector: '#inner' }

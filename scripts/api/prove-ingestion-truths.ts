@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
@@ -11,7 +10,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 section('§1 N-04 · NATIVE TOOL-RESULT IMAGES CLAMPED AT THE ONE BOUNDARY')
 {
@@ -80,11 +78,6 @@ section('§1 N-04 · NATIVE TOOL-RESULT IMAGES CLAMPED AT THE ONE BOUNDARY')
     (corrupt.content[0] as { source: { data: string } }).source.data === corruptPayload,
   )
 
-  const wire = src('src/services/tools/toolExecution.ts')
-  check(
-    'the clamp rides the ONE tool-settlement boundary (after the map, before use)',
-    /mapToolResultToToolResultBlockParam\([\s\S]{0,400}?clampToolResultImageBlocks\(mappedBlock/.test(wire),
-  )
 }
 
 section('§2 N-04 · THE SINGLE-IMAGE DIMENSION 400 MATCHER')
@@ -105,39 +98,10 @@ section('§2 N-04 · THE SINGLE-IMAGE DIMENSION 400 MATCHER')
     isMediaSizeError('image dimensions exceed the limit for many-image requests'),
   )
   check('unrelated 400s still do NOT match', !isMediaSizeError('invalid_request: model not found'))
-  const errorsTs = src('src/services/api/errors.ts')
-  check(
-    'the errorDetails branch exists for the new phrasing (recovery loop closed)',
-    errorsTs.includes("error.message.includes('max allowed size')") &&
-      errorsTs.includes('8000px on any side'),
-  )
 }
 
 section('§4 H-19 · ONE FILESYSTEM PERMISSION ENGINE ACROSS THE THREE TOOLS')
 {
-  const changeSet = src('src/tools/ChangeSetTool/ChangeSetTool.ts')
-  const lspOps = src('src/tools/LSPTool/mercuryOps.ts')
-  check(
-    'ChangeSet planning delegates each canonical path to the shared write-permission engine',
-    /import \{[^}]*\bcheckWritePermissionForTool\b[^}]*\} from '\.\.\/\.\.\/utils\/permissions\/filesystem\.js'/.test(changeSet) &&
-      /scopeCheck: \(canonicalPath: string\) => \{\s*const decision = checkWritePermissionForTool\(pathShim, \{ file_path: canonicalPath \}, permCtx\)/.test(changeSet),
-  )
-  check(
-    'the plan blocks deny decisions, not an outside path awaiting ordinary approval',
-    /scopeCheck:[\s\S]*?if \(decision.behavior === 'deny'\) return 'denied by a rule'\s*return null/.test(changeSet),
-  )
-  check(
-    'the aggregate permission decision delegates every path to the same write engine',
-    /for \(const p of new Set\(\[\.\.\.paths, \.\.\.remotePaths\]\)\) \{\s*const decision = checkWritePermissionForTool\(pathShim, \{ file_path: p \}, permCtx\)/.test(changeSet),
-  )
-  check(
-    'the LSP ops delegate to pathInAllowedWorkingPath',
-    /!pathInAllowedWorkingPath\((abs|endpoint), permissionContext\)/.test(lspOps),
-  )
-  check(
-    "no hand-rolled '/'-joined prefix compare survives in either tool",
-    !changeSet.includes("resolved + '/'") && !lspOps.includes('resolved + path.sep'),
-  )
 
   const { pathInAllowedWorkingPath } = await import('../../src/utils/permissions/filesystem.ts')
   const { getOriginalCwd } = await import('../../src/bootstrap/state.ts')

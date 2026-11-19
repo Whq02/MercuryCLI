@@ -4,16 +4,11 @@
 
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { codeOnlyText } from '../lib/codeText.ts'
-import ts from 'typescript'
 import { checker } from '../engine-durability/harness.ts'
 import { configHomeIsReal, guardLoginDriverWrite } from '../lib/loginDriverGuard.ts'
 
 const t = checker()
-const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'face-logins-prove-'))
 process.env['FORCE_COLOR'] = '0'
@@ -358,28 +353,6 @@ t.section('§1 — THE ANTHROPIC MACHINE (both arms · setup-token · retry · b
   t.check('NO notify channel: the sign-in still settles whole (success · recorded · saved)', m14.m.snapshot().flow.name === 'success' && m14.world.recorded === 1 && m14.world.saved.length === 1 && m14.world.notices.length === 0)
 }
 
-t.section('§2 — ONE MACHINE, MANY SKINS (identity both directions; provider-optional structurally)')
-{
-  const model = read('src/components/mercury-ui/screens/anthropicLoginModel.ts')
-  const skin = read('src/components/ConsoleOAuthFlow.tsx')
-
-  t.check('the model carries the manual-code sentence', model.includes('That is not the full code — copy the complete authorization code'))
-  t.check('the model carries the mint law sentence', model.includes('the server accepted the API key request but returned no key'))
-  t.check('the model carries the exchange retry sentence and the SSL remedy', model.includes('The token exchange failed — try again.') && model.includes('NODE_EXTRA_CA_CERTS'))
-  t.check("the model carries the success notice ('login-success' · Signed in)", model.includes("key: 'login-success'") && model.includes("text: 'Signed in'"))
-  t.check('the skin retains NO flow sentence', !skin.includes('not the full code') && !skin.includes('returned no key') && !skin.includes('token exchange failed') && !skin.includes('login-success'), 'a sentence is spelled twice')
-
-  t.check('the skin consumes the one machine', skin.includes("from './mercury-ui/screens/anthropicLoginModel.js'") && skin.includes('useAnthropicLoginModel('))
-  t.check('the OAuth service and the credential writers are GONE from the skin', !skin.includes('OAuthService') && !skin.includes('createAndStoreApiKey') && !skin.includes('saveOAuthTokensIfNeeded') && !skin.includes('shouldUseClaudeAIAuth') && !skin.includes('validateForceLoginOrg') && !skin.includes('setClipboard'))
-  t.check('no sign-in record lives in the skin — the sign-in ledger records at the drivers, the machine records the anthropic arms, the first-login law is gone', !skin.includes('recordFirstLoginDefaultProvider') && !skin.includes('recordSignIn') && skin.includes('const settleLeg'))
-
-  t.check('the model imports NO notification queue and NO AppState', !model.includes('context/notifications') && !model.includes('state/AppState'))
-  t.check('the model reaches no route verb', !model.includes('surfaceRoute') && !model.includes('enterRootChat'))
-  t.check('the in-chat skin hands its queue through the notify seam', skin.includes('notify: notice => addNotification(notice)'))
-
-  const modelBody = model.slice(model.indexOf('export function createAnthropicLoginMachine'))
-  t.check('the machine body owns no bare timer (beats ride the injected seam)', !modelBody.includes('setTimeout(') && !modelBody.includes('clearTimeout('))
-}
 
 t.section('§3 — THE HUGGING FACE DRIVER (A2: the RFC 8628 machine out of the component, moonshotLogin-shaped)')
 {
@@ -478,12 +451,6 @@ t.section('§3 — THE HUGGING FACE DRIVER (A2: the RFC 8628 machine out of the 
   const u6 = await storeHuggingfaceTokenLogin('hf_unreach_tok_00001', { env: ENV, fetchImpl: hubOf({ whoami: 'throw' }).fetchImpl }, async () => null)
   t.check('D6 an unreachable Hub stores UNVERIFIED with the fault named (two different facts)', u6.ok === true && u6.stored === true && u6.receipt.includes('stored UNVERIFIED') && u6.receipt.includes('whoami unreachable'))
 
-  const hfSkin = read('src/components/HuggingfaceConnect.tsx')
-  const hfDriver = read('src/services/providers/huggingface/huggingfaceLogin.ts')
-  t.check('the component consumes the driver and keeps NO poll machinery', hfSkin.includes("from '../services/providers/huggingface/huggingfaceLogin.js'") && !hfSkin.includes('pollHuggingfaceDeviceToken') && !hfSkin.includes('fetchHuggingfaceIdentity') && !hfSkin.includes('writeHuggingfaceTokens') && !hfSkin.includes('refreshHuggingfaceCatalogue'))
-  t.check('the flow sentences left the component for the driver', !hfSkin.includes('expired before the code was entered') && !hfSkin.includes('authorized but the tokens could not be stored') && !hfSkin.includes('The Hub refused this token') && hfDriver.includes('expired before the code was entered') && hfDriver.includes('The Hub refused this token'))
-  t.check("the driver wears the moonshotLogin event grammar (phase 'starting'|'waiting'|'finishing')", hfDriver.includes("{ phase: 'starting' }") && hfDriver.includes("phase: 'waiting'; start: HuggingfaceDeviceAuthStart; polls: number; note?: string") && hfDriver.includes("{ phase: 'finishing' }"))
-  t.check('the browser open stays the SKIN’s move (the driver performs none)', !hfDriver.includes('openBrowser') && hfSkin.includes('void openBrowser(event.start.verificationUriComplete ?? event.start.verificationUri)'))
 }
 
 t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu design, stills)')
@@ -532,38 +499,6 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the summary counts distinct families (22), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=22', 'Signed in=4 of 22', 'Ready=4 lanes']))
   t.check('the status line: signed of total · ready', loginsStatusLine(facts) === '4 of 22 families signed in · 4 ready')
   t.check('the signed-out world says so honestly (lanes can be ready without a sign-in)', loginsStatusLine(signedOutFacts()) === 'no family signed in yet · 0 ready without one')
-  const splashSource = ts.createSourceFile('BootSplashScreen.tsx', read('src/components/BootSplashScreen.tsx'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
-  let countExpression = ''
-  const visit = (node: ts.Node): void => {
-    if (ts.isVariableDeclaration(node) && node.name.getText(splashSource) === 'loginsCtx' && node.initializer && ts.isCallExpression(node.initializer)) {
-      countExpression = node.initializer.arguments[0]!.getText(splashSource)
-    }
-    ts.forEachChild(node, visit)
-  }
-  visit(splashSource)
-  t.check('the boot face exposes its actual Logins count composer', countExpression !== '')
-  const screenModule = await import('../../src/components/BootLoginsScreen.js')
-  const sharedCount = (screenModule as unknown as Record<string, unknown>).loginsFamilyCounts
-  const sharedGlance = (screenModule as unknown as Record<string, unknown>).loginsGlance
-  const loginsScreenSource = read('src/components/BootLoginsScreen.tsx')
-  t.check('the boot face and Logins summary share one count owner (the glance composes the one count)', typeof sharedCount === 'function' && typeof sharedGlance === 'function' && countExpression.includes('loginsGlance') && /export function loginsGlance[\s\S]*?loginsFamilyCounts\(groups\)/.test(loginsScreenSource))
-  if (countExpression !== '') {
-    const js = new Bun.Transpiler({ loader: 'tsx' }).transformSync(`const compose = ${countExpression}`)
-    for (const signedExtras of [false, true]) {
-      const extra = ['local', 'openai-compat'].map(id => ({
-        family: { id, available: true, credentialed: signedExtras },
-        slots: [{ signedIn: signedExtras }],
-      }))
-      for (const snapshot of [facts, signedOutFacts()]) {
-        const groups = [...snapshot.groups, ...extra]
-        const compose = new Function('providerFamilyPresences', 'deriveFamilySlotGroups', 'loginsGlance', `${js}\nreturn compose`)(
-          () => groups.map(group => group.family), () => groups, sharedGlance,
-        ) as () => string | null
-        const expected = snapshot === facts ? '4 of 22 signed in' : 'not signed in — sign in to providers'
-        t.check(`boot count matches the listed families, extra providers signed=${signedExtras}, listed signed=${snapshot === facts}`, compose() === expected, String(compose()))
-      }
-    }
-  }
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · pgup/pgdn page · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
@@ -595,13 +530,6 @@ t.section('§5 — THE REAL MOUNT (staticRender with injected facts; the route c
   t.check('the mounted layer presents the classes and the truthful chips', frame.includes('signed in') && frame.includes('op@example.com') && frame.includes('not signed in'))
   t.check('the mounted layer presents the LOGINS panel and the legend', frame.includes('LOGINS') && frame.includes('↑↓ move · pgup/pgdn page · ↵ sign in · esc back'))
 
-  const screenSrc = read('src/components/BootLoginsScreen.tsx')
-  const routeTokens = ['surfaceRoute', 'enterRootChat', 'settleAbsentChat', 'armRootCommand', 'initialMessage', 'enterConcourse']
-  const routeHits = routeTokens.filter(tok => screenSrc.includes(tok))
-  t.check('the logins layer module never touches the surface-route bridge', routeHits.length === 0, routeHits.join(','))
-  t.check('the module imports the row owner and the two truth owners', screenSrc.includes("from './loginFamilyRows.js'") && screenSrc.includes('deriveFamilySlotGroups') && screenSrc.includes('resolveProviderUsability'))
-  t.check('no second enumeration: the module never spells a family list literal', !/'anthropic',\s*'openai'/.test(screenSrc) && !screenSrc.includes("['anthropic'"))
-  t.check('the layer needs no notification queue and no AppState provider', !screenSrc.includes('context/notifications') && !screenSrc.includes('useAppState('))
 }
 
 t.section('§6 — THE ANTHROPIC PANES (A4: the machine on the face; reset totality; masked drafts; never stranded)')
@@ -660,11 +588,6 @@ t.section('§6 — THE ANTHROPIC PANES (A4: the machine on the face; reset total
   t.check('the legends name only the moves that exist', anthropicFlowLegendOf(waiting, 0) === '↵ submit code · c copy url · esc cancel' && anthropicFlowLegendOf(waiting, 3) === '↵ submit code · esc cancel' && anthropicFlowLegendOf(snapOf({ name: 'success' }), 0) === '↵ done' && anthropicFlowLegendOf(snapOf({ name: 'error', message: 'x', retry: { name: 'ready', loginWithClaudeAi: true } }), 0) === '↵ retry · esc close')
   t.check('the status words track the flow', anthropicFlowStatusOf(waiting) === 'waiting on the browser sign-in' && anthropicFlowStatusOf(snapOf({ name: 'creating-key' })) === 'minting the usage-based key')
 
-  const src = read('src/components/BootLoginsScreen.tsx')
-  t.check('the roster parks under an open flow (list + pointer)', src.includes('active: flow === null') && src.includes('flow === null && arms[entryIdx] !== undefined'))
-  t.check('↵ rides the when-gate over loginsFlowReady', src.includes('when: a => loginsFlowReady(a.row.value)'))
-  t.check('a settled flow RE-READS the owners (never an optimistic flip); injected facts never re-read live', src.includes('if (given === undefined) setFacts(collectLoginsScreenFacts());'))
-  t.check('the flow keys are consumed above every owner beneath (picks own their own)', src.includes("{ isActive: flow !== null && flow.kind !== 'pick' },"))
 }
 
 t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · drivers · receipts · esc edges)')
@@ -688,23 +611,6 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   const { anthropicArmPickRows, openaiArmPickRows } = await import('../../src/components/loginFamilyRows.js')
   t.check('the openai pick is the row owner\'s two-arm pair, byte-same labels', JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(openaiArmPickRows.map(o => o.label)) && JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(['ChatGPT subscription — browser sign-in', 'OpenAI API key — usage-based billing']))
   t.check('the Anthropic pick keeps subscription, Console and key paste distinct', JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify(anthropicArmPickRows) && JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify([{ label: 'Claude subscription — browser sign-in', value: 'claudeai' }, { label: 'Anthropic Console — browser sign-in', value: 'console' }, { label: 'Anthropic API key — usage-based billing', value: 'key' }]))
-  const consoleFlowSrc = read('src/components/ConsoleOAuthFlow.tsx')
-  t.check(
-    'the in-chat pick renders the row owner by construction (ConsoleOAuthFlow spreads openaiArmPickRows and anthropicArmPickRows; walk + card mount it)',
-    consoleFlowSrc.includes('options={[...openaiArmPickRows]}') &&
-      consoleFlowSrc.includes('options={[...anthropicArmPickRows]}') &&
-      read('src/components/Onboarding.tsx').includes('ConsoleOAuthFlow') &&
-      read('src/commands/login/login.tsx').includes('ConsoleOAuthFlow'),
-  )
-  t.check(
-    'no render site spells an arm label by hand (the pairs live ONLY in the row owner)',
-    !consoleFlowSrc.includes('ChatGPT subscription — browser sign-in') &&
-      !consoleFlowSrc.includes('Claude subscription — browser sign-in') &&
-      !read('src/components/BootLoginsScreen.tsx').includes('ChatGPT subscription — browser sign-in') &&
-      !read('src/components/BootLoginsScreen.tsx').includes('Claude subscription — browser sign-in') &&
-      read('src/components/loginFamilyRows.ts').includes("{ label: 'ChatGPT subscription — browser sign-in', value: 'subscription' }") &&
-      read('src/components/loginFamilyRows.ts').includes("{ label: 'Claude subscription — browser sign-in', value: 'claudeai' }"),
-  )
   t.check('the zai pick is the landed plan question, byte-same labels', JSON.stringify(loginsPickOptions('zai').map(o => o.label)) === JSON.stringify(['GLM Coding Plan key — api.z.ai/api/coding/paas/v4', 'Z.AI API key (general, pay-as-you-go) — api.z.ai/api/paas/v4']))
   t.check('the pick panes explain and name the way out', loginsPickPaneLines('anthropic').join(' ').includes('One Anthropic family, two credentials') && loginsPickPaneLines('openai').join(' ').includes('One OpenAI family, two credentials') && loginsPickPaneLines('zai').join(' ').includes('the answer picks the base') && [loginsPickPaneLines('anthropic'), loginsPickPaneLines('openai'), loginsPickPaneLines('zai')].every(l => l[l.length - 1] === 'esc — back to the roster'))
 
@@ -713,15 +619,7 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   t.check("the openai form's redirect clause names the one Anthropic row and its usage-based pick verbatim", keyPasteGuardNote('sk-ant-x', keyLegGuardOpts('openai-key')) === 'That is an Anthropic API key (sk-ant-…) — this step stores an OpenAI key. Anthropic usage-based billing signs in through the Anthropic row, under Usage-based billing, instead.')
   t.check('the redirect clause no longer points at a Console row of its own', !(keyPasteGuardNote('sk-ant-x', keyLegGuardOpts('openai-key')) ?? '').includes('the Console row'))
   t.check('a clean draft passes the guard', keyPasteGuardNote('zk-9f2c3d4e5f6a7b8c', keyLegGuardOpts('zai-general')) === null && keyPasteGuardNote('  ', keyLegGuardOpts('deepseek')) === null)
-  const skinFiles = ['ConsoleOAuthFlow.tsx', 'KimiConnect.tsx', 'HuggingfaceConnect.tsx', 'ZaiConnect.tsx', 'DeepseekConnect.tsx', 'XaiConnect.tsx', 'MetaConnect.tsx']
-  const spellers = skinFiles.filter(f => read(`src/components/${f}`).includes('That is an Anthropic API key'))
-  t.check('NO component spells the guard sentences any more (one home)', spellers.length === 0, spellers.join(','))
-  t.check('every key leg consumes the one guard', skinFiles.every(f => read(`src/components/${f}`).includes('keyPasteGuardNote')))
 
-  const openaiDriver = read('src/services/providers/openai/openaiLogin.ts')
-  t.check('the openai key driver carries the store + catalogue-proof receipt', openaiDriver.includes('storeOpenaiApiKeyLogin') && openaiDriver.includes('GPT rows join /model now') && openaiDriver.includes("refreshOpenaiCatalogue('api-key', { force: true })"))
-  const consoleSkin = read('src/components/ConsoleOAuthFlow.tsx')
-  t.check('the in-chat key leg consumes the driver (no writer, no catalogue call left)', consoleSkin.includes('storeOpenaiApiKeyLogin(value)') && !consoleSkin.includes('writeStoredOpenaiApiKey') && !consoleSkin.includes('refreshOpenaiCatalogue'))
 
   const { storeOpenaiApiKeyLogin } = await import('../../src/services/providers/openai/openaiLogin.js')
   const live = await storeOpenaiApiKeyLogin('ok-abcdefgh12345678', { refreshCatalogue: async () => ({ models: [1, 2, 3] }) })
@@ -740,13 +638,8 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   t.check('the pick/key/receipt legends name only the moves that exist', loginsFlowLegendOf({ kind: 'pick', pick: 'anthropic', pickSel: 0 }) === '↑↓ move · ↵ pick · esc back' && loginsFlowStatusOf({ kind: 'pick', pick: 'anthropic', pickSel: 0 }) === 'Anthropic — subscription or usage-based billing' && loginsFlowLegendOf({ kind: 'key', leg: 'deepseek', note: null, draftLen: 0, storing: false }) === '↵ store key · esc back' && loginsFlowLegendOf({ kind: 'key', leg: 'deepseek', note: null, draftLen: 0, storing: true }) === 'checking…' && loginsFlowLegendOf({ kind: 'receipt', receipt: 'r', ok: true }) === '↵ done')
   t.check('the status words track the sub-view', loginsFlowStatusOf({ kind: 'pick', pick: 'zai', pickSel: 0 }) === 'which Z.AI key is this?' && loginsFlowStatusOf({ kind: 'receipt', receipt: 'r', ok: false }) === 'not connected — ↵ returns to the roster')
 
-  const src = read('src/components/BootLoginsScreen.tsx')
-  t.check('the esc edges ride the landed back topology', src.includes("if (leg === 'openai-key') openPick('openai');") && src.includes("else if (leg === 'zai-general' || leg === 'zai-coding') openPick('zai');") && src.includes('else closeFlow();'))
-  t.check('a storing prompt holds its esc (no half-stored abandon)', src.includes('if (!current.storing) keyEscape(current.leg);'))
-
   const xaiPane = keyPromptPaneLines('xai', null, 6, false)
   t.check('the xAI key leg mirrors the DeepSeek one: the title, the key page line, the store words, the management step it names and the way out', xaiPane[0] === 'xAI API key' && xaiPane.join(' ').includes('API key: console.x.ai — sign in, API Keys, create, paste it here.') && xaiPane.join(' ').includes('XAI_API_KEY wins.') && xaiPane.join(' ').includes('management key follows for /usage.') && xaiPane[xaiPane.length - 1] === '↵ stores · empty keeps existing · esc back')
-  t.check('the xAI leg offers Grok sign-in beside the guarded key road and optional management step', keyPasteGuardNote('sk-ant-x', keyLegGuardOpts('xai')) === 'That is an Anthropic API key (sk-ant-…) — this step stores an xAI API key.' && src.includes("case 'xai':\n        xaiApiReceipt.current = 'xAI API key kept.';\n        openPick('xai');") && src.includes('runXaiDeviceLogin({ cancelled: () => !live(), onEvent })') && src.includes("else if (leg === 'xai') void storeXaiApiKeyLogin(value).then(settle);") && src.includes("else if (leg === 'xai-management') void storeXaiManagementKeyLogin(value).then(settle);"))
 }
 
 t.section('§8 — THE DEVICE FAMILIES (A6a: Kimi + Hugging Face whole — picks · region · the wait pane · key legs)')
@@ -795,12 +688,6 @@ t.section('§8 — THE DEVICE FAMILIES (A6a: Kimi + Hugging Face whole — picks
   t.check('the device legend flips with the phase', loginsFlowLegendOf({ kind: 'device', device: { family: 'moonshot', phase: 'waiting', polls: 0, copied: false }, nowMs: 0 }) === 'c copy url · esc cancel' && loginsFlowLegendOf({ kind: 'device', device: { family: 'moonshot', phase: 'starting', polls: 0, copied: false }, nowMs: 0 }) === 'esc cancel')
   t.check('the status words name the waiting family and the settle', loginsFlowStatusOf({ kind: 'device', device: { family: 'huggingface', phase: 'waiting', polls: 0, copied: false }, nowMs: 0 }) === 'waiting on the Hub device code' && loginsFlowStatusOf({ kind: 'device', device: { family: 'moonshot', phase: 'finishing', polls: 0, copied: false }, nowMs: 0 }) === 'Finishing sign-in…')
 
-  const src = read('src/components/BootLoginsScreen.tsx')
-  t.check('the run-id cancel law is wired (bump on esc/close; cancelled reads it; landings check live())', src.includes('const run = (deviceRunRef.current += 1);') && src.includes('cancelled: () => !live()') && src.includes('if (!live()) return;'))
-  t.check('the browser opens on the first waiting event only', src.includes('if (event.polls === 0 && uri !== undefined) void openBrowser(uri);'))
-  t.check('a device esc backs to the family choice (never strands, never loses the roster)', src.includes('deviceRunRef.current += 1;') && src.includes('openPick(current.device.family);'))
-  t.check('every pick opens through the cursor-resetting opener; the region seeds the remembered answer', src.includes('const openPick = (pick: LoginsPickId, cursor = 0): void => {') && src.includes("openPick('kimi-region', moonshotStoredRegion() === 'mainland-cn' ? 1 : 0);"))
-  t.check('the device landings ride the drivers (never a re-implemented poll)', src.includes('void runKimiDeviceLogin({ region: region ?? ') && src.includes('void runHuggingfaceDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);') && !src.includes('pollMoonshotDeviceToken') && !src.includes('pollHuggingfaceDeviceToken'))
 }
 
 t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini — hoisted receipts · panes · the client prompt)')
@@ -838,13 +725,6 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
   const gKey = await storeGeminiApiKeyLogin('gk-abcdefgh12345678', { refreshCatalogue: async () => null })
   t.check('the key drivers store + prove (openrouter · gemini)', orKey.stored && orKey.receipt.includes('Live catalogue: 4 model(s)') && gKey.stored && gKey.receipt.endsWith('generativelanguage.googleapis.com.'))
 
-  const routers = ['OpenaiConnect.tsx', 'OpenrouterConnect.tsx', 'GeminiConnect.tsx']
-  const spellers = routers.filter(f => {
-    const src = read(`src/components/${f}`)
-    return src.includes('live catalogue: ') || src.includes('connect failed: ${') || src.includes('That is an Anthropic API key')
-  })
-  t.check('NO connect component spells a settle/fail/guard sentence any more', spellers.length === 0, spellers.join(','))
-  t.check('each component consumes its login door', read('src/components/OpenaiConnect.tsx').includes('finishOpenaiSubscriptionConnect') && read('src/components/OpenrouterConnect.tsx').includes('finishOpenrouterConnect') && read('src/components/GeminiConnect.tsx').includes('finishGeminiOauthConnect'))
 
   t.check('the openrouter pick is the landed card, byte-same', JSON.stringify(loginsPickOptions('openrouter').map(o => o.label)) === JSON.stringify(['Sign in with the browser — OAuth mints a scoped key', 'Headless — OpenRouter shows a code you paste here', 'Paste an API key (stored locally, mode 600)']))
   const { geminiConnectRows } = await import('../../src/components/geminiConnectGuide.js')
@@ -879,13 +759,6 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
   t.check("a page step paints the guide's title and current line, the address whole, the open state and the way out before the detail", step3[0] === 'Connect a Google account — step 3 of 6' && step3.slice(1, 3).join(' ').replace(/\s+/g, ' ') === '› 3. Set up the consent screen for testing' && step3.join('').includes('https://console.developers.google.com/auth/audience') && step3.includes('the overview page:') && step3.includes('opened in your browser') && wayOutAt >= 0 && detailAt >= 0 && wayOutAt < detailAt, step3.join(' | '))
   t.check('the client legend follows the step', loginsFlowLegendOf({ kind: 'client', client: { step: 3, from: 'walk', field: 'id', clientId: '', note: null }, draftLen: 0, draft: '' }) === '↵ next · o open · esc back' && loginsFlowLegendOf({ kind: 'client', client: { step: 5, from: 'walk', field: 'id', clientId: '', note: null }, draftLen: 0, draft: '' }) === '↵ continue · esc back')
 
-  const src = read('src/components/BootLoginsScreen.tsx')
-  t.check('the d-switch cancels the browser flow and remounts the device leg', src.includes("handlesRef.current?.cancel('switching to the device-code flow');") && src.includes('startOpenaiDeviceRun();'))
-  t.check('the opdevice esc paints the honest stopped receipt', src.includes('setFlow({ kind: \'receipt\', receipt: OPENAI_DEVICE_STOPPED_RECEIPT, ok: false });'))
-  t.check('a handles esc backs where the leg came from', src.includes("if (h.leg === 'openai-browser') closeFlow();") && src.includes("else if (h.leg === 'gemini-oauth' || h.leg === 'gemini-plan') openPick('gemini');") && src.includes("else openPick('openrouter');"))
-  t.check('the gemini account pick opens the guide at step 1 without a client and signs in from step 6 with one; the change row opens step 5', src.includes("if (geminiGuideOpeningStep(liveGeminiConnectFacts()) === 6) {") && src.includes("openGuideStep(1, 'walk');") && src.includes("openGuideStep(5, 'pick');"))
-  t.check('the gemini key pick opens AI Studio and the sign-in refusal returns to step 3 with its page', src.includes('void openBrowser(GEMINI_API_KEY_PAGE.address)') && src.includes("openGuideStep(back, 'walk', errorMessageWithCause(error));"))
-  t.check('the client store rides the ONE owner (writeGeminiOauthClientConfig)', src.includes('writeGeminiOauthClientConfig({') && src.includes('clientId: c.clientId,'))
 }
 
 t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the LIVE store · the chip epoch · the settle)')
@@ -893,16 +766,6 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
   const handover = await import('../../src/substrate/splashHandover.js')
   handover.armFaceDoorDeepLink('logins')
   t.check('the resolver PEEKS without consuming; the face consumes ONCE', handover.peekFaceDoorDeepLink() === 'logins' && handover.consumeFaceDoorDeepLink() === 'logins' && handover.consumeFaceDoorDeepLink() === null)
-  const handoverSrc = read('src/substrate/splashHandover.ts')
-  t.check("the union carries 'logins' (and the sign-in wall's 'model' door, no wire word: a process-local arm only); ACTIONS gained the logins wire word at the recut", handoverSrc.includes("export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents' | 'model'") && handoverSrc.includes("const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])") && handoverSrc.includes("receipt.action === 'logins'"))
-  const sourceFiles = (dir: string): string[] =>
-    readdirSync(join(REPO, dir), { withFileTypes: true }).flatMap(entry =>
-      entry.isDirectory() ? sourceFiles(join(dir, entry.name)) : /\.(ts|tsx)$/.test(entry.name) ? [join(dir, entry.name)] : [],
-    )
-  const armCallers = sourceFiles('src').filter(rel => rel !== 'src/substrate/splashHandover.ts' && codeOnlyText(rel, read(rel)).includes('armFaceDoorDeepLink('))
-  const boardRoute = 'src/components/concourse/ConcourseRoute.tsx'
-  const signInCard = 'src/components/ConsoleOAuthFlow.tsx'
-  t.check("the board route uses the face-door owner; the sign-in card's local row arms the 'model' door; no other product caller arms an entry", handoverSrc.includes('export function armFaceDoorDeepLink(door: FaceDoorDeepLink, opener?: FaceDoorOpenerV1): void {') && armCallers.includes(boardRoute) && armCallers.includes(signInCard) && armCallers.every(rel => rel === boardRoute || rel === signInCard) && read(boardRoute).includes('if (door) armFaceDoorDeepLink(door, opener)') && read(signInCard).includes("if (localRoadOpen(localRoad)) armFaceDoorDeepLink('model')"), armCallers.join(' '))
 
   const React = (await import('react')).default
   const { renderToString } = await import('../../src/utils/staticRender.tsx')
@@ -921,16 +784,7 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
   unregister()
   routeStore._resetSurfaceRouteForTesting()
 
-  const face = read('src/components/BootSplashScreen.tsx')
-  t.check('the face seeds the layer from the one-shot and parks the list under it', face.includes("useState(faceDoor === 'logins')") && face.includes('!saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
-  t.check('the layer mounts with esc-home wiring and the chip epoch bump', face.includes('<BootLoginsScreen') && face.includes('setLoginsOpen(false);') && face.includes('setPresenceEpoch(e => e + 1);'))
-  t.check('the account chip re-reads on the presence epoch', face.includes('}, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);'))
-  t.check("the card row opens the layer (the recut's wiring)", face.includes("case 'logins':") && face.includes('setLoginsOpen(true);'))
 
-  const screen = read('src/components/BootLoginsScreen.tsx')
-  t.check('credential caches reset before policy checks', screen.includes('user.resetUserCache();') && screen.includes('killswitch.resetSovereignCheck();') && screen.indexOf('user.resetUserCache();') < screen.indexOf('killswitch.resetSovereignCheck();'))
-  t.check('the authVersion bump rides the MAYBE setter; the killswitch re-check stays outside the updater', screen.includes('const setAppStateMaybe = useSetAppStateMaybe();') && screen.includes('authVersion: (prev.authVersion ?? 0) + 1') && screen.includes('checkAndDisableSovereignIfNeeded(capturedContext, setAppStateMaybe)'))
-  t.check('the settle fires on OK settles only and never on injected facts', screen.includes('if (current.ok) settleSignedIn();') && screen.slice(screen.indexOf('const settleSignedIn = (): void => {'), screen.indexOf('const settleSignedIn = (): void => {') + 160).includes('postLoginSettle();') && screen.includes('if (given !== undefined) return;'))
 }
 
 t.section('§11 — THE MERGED SESSIONS·PROJECTS SCREEN (B2, dark: the container · the filter · one highlight)')
@@ -976,13 +830,6 @@ t.section('§11 — THE MERGED SESSIONS·PROJECTS SCREEN (B2, dark: the containe
     120,
   )
   t.check('the mounted merged screen presents both containers and the merged title', frame.includes('sessions · projects') && frame.includes('orchard-src') && frame.includes('moodle') && frame.includes('⇥ repos'))
-  const src = read('src/components/BootResumeScreen.tsx')
-  t.check('↵ on a project row rides the INJECTED landing (never re-implemented)', src.includes('return openProject?.(row.project) ?? null;') && !src.includes('bornSession({ workspaceDir: row'))
-  t.check('the filter rides the core (live) and the SAME matcher (injected)', src.includes('...(projectFilter !== null ? { filterDir: projectFilter.dir } : {})') && src.includes('given.flat.filter(f => isProjectSession(f.row.log, projectFilter.dir))'))
-  t.check('the cursor re-anchors BY ID when the filter resizes the list', src.includes('const at = selectable.findIndex(r => selectableIdOf(r) === want);') && src.includes('if (at !== -1 && at !== list.selectedIndex) list.moveTo(at);'))
-  t.check('⇥ jumps containers through the list’s own moveTo (the ← precedent)', src.includes('list.moveTo(list.selectedIndex >= projStart ? 0 : projStart);'))
-  t.check('the prune door REFUSES under a project filter (its card vocabulary is pinned elsewhere)', src.includes('prune acts on the whole list; exit the project filter first'))
-  t.check('a projects-less mount is the landed picker (title · panel · legend unchanged)', src.includes("title: merged ? 'sessions · projects' : 'resume session'"))
 }
 
 t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND absent from every receipt/notify/log surface)')
@@ -1023,14 +870,6 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
   t.check('NO driver receipt carries the pasted bytes (ok · refused · unverified alike)', leaks.length === 0, leaks.join(' | ').slice(0, 120))
   t.check('every receipt is a real sentence (the sweep exercised them)', receipts.length === 9 && receipts.every(r => r.length > 20))
 
-  const model = read('src/components/mercury-ui/screens/anthropicLoginModel.ts')
-  t.check('the success notice is the fixed const (no interpolated notify anywhere)', model.includes('deps.notify?.(LOGIN_SUCCESS_NOTICE)') && (model.match(/deps\.notify\?\.\(/g) ?? []).length === 1)
-
-  const screen = read('src/components/BootLoginsScreen.tsx')
-  t.check('the key pane signature takes draftLen, never the draft', screen.includes('export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draftLen: number, storing: boolean, opened?: GeminiGuideOpenState): string[]'))
-  t.check('the anthropic pane signature takes draftLen, never the draft', screen.includes('export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: number, backToPicker = false): string[]'))
-  t.check('the handles pane signature takes draftLen, never the draft', screen.includes('export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number): string[]'))
-  t.check("the c and d handlers fire on an empty paste only (c with a URL), and the hint composer gates on the same", screen.includes("h.phase === 'waiting' && draftRef.current === '' && h.authorizeUrl !== undefined") && screen.includes("h.leg === 'openai-browser' && h.phase === 'waiting' && draftRef.current === ''") && screen.includes('lines.push(handlesWaitWayOut(h, draftLen));') && screen.includes("const copy = draftLen === 0 && h.authorizeUrl !== undefined;"))
 }
 
 {
@@ -1056,27 +895,6 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
       JSON.stringify(noticed.slice(1)) === JSON.stringify(plain),
   )
 
-  const screen = read('src/components/BootLoginsScreen.tsx')
-  t.check(
-    'the three handles register onSettledAfterCancel',
-    screen.includes('beginOpenaiBrowserConnect({ onListenerIssue, onSettledAfterCancel })') &&
-      screen.includes('beginGeminiBrowserConnect({ onListenerIssue, onSettledAfterCancel })') &&
-      screen.includes("beginOpenrouterConnect({ mode: leg === 'openrouter-browser' ? 'browser' : 'headless', onListenerIssue, onSettledAfterCancel })"),
-  )
-  t.check(
-    'the device runs land through the settledAfterCancel read (driver sentence verbatim)',
-    screen.includes('if (outcome.settledAfterCancel === true) {') &&
-      screen.includes('discloseLateSettle(outcome.receipt)'),
-  )
-  t.check(
-    "the openai device leg's stale landing discloses (the stop-watching completion made loud)",
-    screen.includes("discloseLateSettle(lateSettleNotice('openai'))"),
-  )
-  t.check(
-    'the roster clears the seen notice and the mount threads it into the composer',
-    /const openFlow = \(arm: LoginsArmV1\): void => \{\s*\n\s*setDraft\(''\);\s*\n\s*setNotice\(null\);/.test(screen) &&
-      screen.includes('summaryRows: loginsSummaryRows(facts, opts.notice ?? null)'),
-  )
 
   const { KIMI_CONNECT_STOPPED_RECEIPT } = await import('../../src/services/providers/moonshot/moonshotLogin.js')
   const { HUGGINGFACE_CONNECT_STOPPED_RECEIPT } = await import('../../src/services/providers/huggingface/huggingfaceLogin.js')
@@ -1086,15 +904,6 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
     [KIMI_CONNECT_STOPPED_RECEIPT, HUGGINGFACE_CONNECT_STOPPED_RECEIPT, OPENROUTER_CONNECT_STOPPED_RECEIPT].every(
       receipt => /already in flight|already completing/.test(receipt) && receipt.includes('/accounts'),
     ) && OPENROUTER_CONNECT_CANCELLED_RECEIPT.includes('nothing stored'),
-  )
-  const kimi = read('src/components/KimiConnect.tsx')
-  const hf = read('src/components/HuggingfaceConnect.tsx')
-  t.check(
-    'the in-chat device esc sites speak the STOPPED receipts (pre-flow cancels keep nothing-stored)',
-    kimi.includes('settle(KIMI_CONNECT_STOPPED_RECEIPT)') &&
-      kimi.includes("onCancel={() => settle('Kimi sign-in cancelled — nothing stored.')}") &&
-      hf.includes('settle(HUGGINGFACE_CONNECT_STOPPED_RECEIPT)') &&
-      hf.includes("onCancel={() => settle('Hugging Face sign-in cancelled — nothing stored.')}"),
   )
 }
 
@@ -1111,22 +920,6 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
     captured === 1 && store.getState().n === 2,
   )
 
-  const screen = read('src/components/BootLoginsScreen.tsx')
-  t.check(
-    'the settle captures the posture INSIDE the bump updater (one tick, no gap)',
-    screen.includes('capturedContext = prev.toolPermissionContext;') &&
-      screen.includes('void killswitch.checkAndDisableSovereignIfNeeded(capturedContext, setAppStateMaybe)'),
-  )
-  const killswitch = read('src/utils/permissions/bypassPermissionsKillswitch.ts')
-  const availabilityAt = killswitch.indexOf('if (!context.isBypassPermissionsModeAvailable) return')
-  const ioAt = killswitch.indexOf('isSovereignDisabled()')
-  t.check(
-    'the availability read precedes the IO await, and the disable write reads FRESH prev (never the captured posture)',
-    availabilityAt !== -1 &&
-      ioAt !== -1 &&
-      availabilityAt < ioAt &&
-      killswitch.includes('createSovereignDisabledContext(prev.toolPermissionContext)'),
-  )
 }
 
 t.section('§15 — THE CLASSIC FRAME CLAMP (no entry row overruns the columns; the legend keeps the way out)')

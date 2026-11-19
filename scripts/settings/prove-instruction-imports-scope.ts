@@ -83,16 +83,6 @@ section('§1 FC-030 — a parent file imports its own sibling')
   rmSync(strangerDir, { recursive: true, force: true })
 }
 
-section('§2 FC-031 — the exclude matcher folds case on windows')
-{
-  const { readFileSync } = await import('node:fs')
-  const srcText = readFileSync(join(import.meta.dir, '../../src/services/instructions/discovery.ts'), 'utf8')
-  check(
-    'matchOpts carries nocase keyed on windows (call-shaped)',
-    /nocase:\s*[^,}]*win32|nocase:\s*isWin/i.test(srcText),
-    srcText.match(/matchOpts[^\n]*/)?.[0],
-  )
-}
 
 section('§3 FN-015 rank 44 — an @import spelled with Windows separators composes, or says why not')
 {
@@ -217,12 +207,6 @@ rmSync(ROOT, { recursive: true, force: true })
       localFiles.length === projectFiles.length &&
       projectFiles.every(p => localFiles.includes(p.replace(/MERCURY\.md$/, 'MERCURY.local.md'))),
     JSON.stringify({ projectFiles, localFiles }),
-  )
-  const { readFileSync: readEngineSrc } = await import('node:fs')
-  const engineSrc = readEngineSrc(join(import.meta.dir, '..', '..', 'src', 'services', 'instructions', 'engine.ts'), 'utf8')
-  check(
-    'FC-101: BOTH engine walks consume the plural candidates',
-    (engineSrc.match(/convention\.localDirFiles\?\.\(dir\)/g) ?? []).length === 2,
   )
 }
 

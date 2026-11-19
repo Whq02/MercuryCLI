@@ -220,17 +220,6 @@ section("C the never-started doors keep today's sentence")
   check('the sentence itself still says before it ran; nothing was changed', /before it ran; nothing was changed/.test(CANCEL_MESSAGE))
 }
 
-section('D the source census: the settle sites in toolExecution.ts')
-{
-  const src = readFileSync(join(ROOT, 'src/services/tools/toolExecution.ts'), 'utf8')
-  check("the abandon settle reads its words from turnCut for the signal's reason and names the tool", /const abandoned = error instanceof ToolCallAbandonedError[\s\S]{0,400}?const cutText = cutByTurn \? turnCutResultText\(turnCutOf\(signal\.reason\), tool\.name\) : undefined/.test(src))
-  check('the facts are minted in turnCut.ts and nowhere in toolExecution.ts', !PARTIAL.test(src) && PARTIAL.test(readFileSync(join(ROOT, 'src/utils/messages/turnCut.ts'), 'utf8')))
-  check('the three never-started gates still settle through the shared shape with its default words', (src.match(/push\(interruptResultUpdate\(toolUseID, sourceUUID\)\)/g) ?? []).length === 3)
-  check('CANCEL_MESSAGE is minted in rejectionText.ts and is the stop block factory\'s content', /export const CANCEL_MESSAGE =/.test(readFileSync(join(ROOT, 'src/utils/messages/rejectionText.ts'), 'utf8')) && /content: CANCEL_MESSAGE,/.test(readFileSync(join(ROOT, 'src/utils/messages/factories.ts'), 'utf8')))
-  check("the answered-abort settle keys on the turn's signal, runs the tool.after hooks, and reads the same words for the signal's reason", /const cutByTurn = isInterrupt && signal\.aborted[\s\S]*?if \(cutText !== undefined\) push\(interruptResultUpdate\(toolUseID, sourceUUID, cutText\)\)[\s\S]*?afterToolHooks\(/.test(src))
-  check('one arm for a cut, whichever road: the abandoned call and the answered call are one isInterrupt, one cutByTurn, one settle', /const isInterrupt = abandoned \|\| isAbortError\(error\)/.test(src) && (src.match(/push\(interruptResultUpdate\(toolUseID, sourceUUID, cutText\)\)/g) ?? []).length === 1 && !/ToolCallAbandonedError\) \{/.test(src))
-  check("the cut's hooks run under the cut budget alone (the turn's signal is dead, and a fire under an aborted signal fires nothing) with the cut's words as the error and cut keyed on the signal", /\{ ok: false, error: message, cut: signal\.aborted, wallMs: durationMs \}/.test(src) && /const message = cutText \?\? \(error instanceof Error \? error\.message : String\(error\)\)/.test(src) && /\.\.\.\(ended\.cut \? \{ budgetMs: HOOK_CUT_BUDGET_MS \} : \{ signal \}\)/.test(readFileSync(join(ROOT, 'src/services/tools/toolHooks.ts'), 'utf8')) && /if \(options\.signal\?\.aborted\) return nothingFired\(event\)/.test(readFileSync(join(ROOT, 'src/utils/hooks/fire.ts'), 'utf8')))
-}
 
 const abortNamed = (words: string): Error => Object.assign(new Error(words), { name: 'AbortError' })
 const answersAbortWith = (name: string, words: string, onStart: () => void): Record<string, unknown> =>

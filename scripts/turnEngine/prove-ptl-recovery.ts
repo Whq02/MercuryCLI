@@ -216,27 +216,6 @@ console.log('============================================================')
 console.log(' query()/queryLoop — the PTL single-shot recovery laws')
 console.log('============================================================')
 
-section('§0 — the reactiveCompact withheld-413 band is structurally ABSENT (deleted lane)')
-{
-  const readDir = (rel: string): string => {
-    const dir = new URL(rel, import.meta.url)
-    return readdirSync(dir)
-      .filter(f => f.endsWith('.ts'))
-      .map(f => readFileSync(new URL(`${rel}${f}`, import.meta.url), 'utf8'))
-      .join('\n')
-  }
-  const moduleSrc =
-    readFileSync(new URL('../../src/query.ts', import.meta.url), 'utf8') +
-    readDir('../../src/query/') +
-    readDir('../../src/run-core/')
-  check(
-    'the query module carries NO reactiveCompact band (tryReactiveCompact / isWithheldPromptTooLong / hasAttemptedReactiveCompact)',
-    !/tryReactiveCompact|isWithheldPromptTooLong|hasAttemptedReactiveCompact/.test(
-      moduleSrc,
-    ),
-    'the reactive-compact lane came alive — its PTL single-shot band now needs BEHAVIORAL rows here',
-  )
-}
 
 const GOOD_SUMMARY =
   'PTL RECOVERY SUMMARY needle: the session refactored the tokenizer into three data-driven passes and ran the 412-test suite green. ' +

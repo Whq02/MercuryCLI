@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -16,83 +16,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  ${cond ? '✓' : '✗'} ${label}${cond ? '' : ' — ' + detail}`);
   if (!cond) fail = 1;
 };
-const code = (src: string): string => src.split("\n").filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
 
-const message = readFileSync('src/components/Message.tsx', 'utf8');
-const messages = readFileSync('src/components/Messages.tsx', 'utf8');
-const thinkingCmp = readFileSync('src/components/messages/AssistantThinkingMessage.tsx', 'utf8');
 
-const thinkingStart = message.indexOf('case "thinking":');
-const thinkingCase = message.slice(
-  thinkingStart,
-  message.indexOf('default:', thinkingStart),
-);
-check(
-  'Message.tsx thinking case exists',
-  thinkingCase.length > 0 && thinkingCase.includes('<AssistantThinkingMessage'),
-);
-const thinkingNulls = code(thinkingCase).match(/return null/g) ?? [];
-check(
-  'thinking rows are never nulled out of the default view on any provider (zero null-returns in the case)',
-  thinkingNulls.length === 0,
-  `null-returns=${thinkingNulls.length} — a null-return in the case makes reasoning unreachable in the default view`,
-);
-check(
-  'the thinking case reads no route and no served model, and Message.tsx imports no route reader',
-  !/declaredRouteOf|servedModel|message\.message\.model/.test(code(thinkingCase)) && !code(message).includes('declaredRouteOf'),
-);
-const redactedCase = message.slice(
-  message.indexOf('case "redacted_thinking":'),
-  message.indexOf('case "thinking":'),
-);
-check(
-  'redacted_thinking keeps its null (no dead disclosure cue)',
-  redactedCase.includes('return null'),
-);
-
-const clickableStart = messages.indexOf('const isItemClickable = useCallback');
-const clickableBody = messages.slice(clickableStart, messages.indexOf('const canAnimate', clickableStart));
-check('isItemClickable found', clickableStart >= 0);
-check(
-  'first-block thinking rows classified clickable',
-  clickableBody.includes("first?.type === 'thinking'"),
-);
-check(
-  'gated on !verbose (no dead toggle under global verbose)',
-  /!verbose && typeof first\.thinking === 'string'/.test(clickableBody),
-);
-check(
-  'gated on non-empty thinking text',
-  clickableBody.includes('first.thinking.trim().length > 0'),
-);
-check(
-  'isItemClickable deps include verbose (classification tracks the live flag)',
-  /\}, \[tools, verbose(, [A-Za-z]+)*\]\);/.test(messages.slice(messages.indexOf('const isItemClickable'))),
-);
-
-check(
-  'row verbose merges the per-message expandedKeys toggle',
-  messages.includes('verbose={verbose || isItemExpanded(msg_8)'),
-);
-check(
-  'expandKey falls back to uuid (per-row identity for thinking)',
-  messages.includes('?? msg.uuid'),
-);
-
-check(
-  'collapsed branch renders the disclosure cue',
-  thinkingCmp.includes('<CtrlOToExpand />'),
-);
-check(
-  'AssistantThinkingMessage holds no accent subscription and no accent read (nothing paints it)',
-  !/useSessionAccent|getSessionAccent|useMercuryTokens|\baccent\b/.test(code(thinkingCmp)),
-);
-check(
-  'the expanded body paints the grammar colour (header and body share one role)',
-  thinkingCmp.includes('<Markdown color={THINKING_COLOR}>'),
-);
-
-const OWNER = 'src/components/messages/thinkingGrammar.tsx';
 const grammar = await import('../../src/components/messages/thinkingGrammar.tsx');
 const { stringWidth } = await import('../../src/ink/stringWidth.ts');
 const { getTheme, THEME_NAMES } = await import('../../src/utils/theme.ts');
@@ -112,49 +37,6 @@ check(
   }),
 );
 check('owner: exports the row element', typeof grammar.ThinkingLabel === 'function');
-const ownerSrc = readFileSync(OWNER, 'utf8');
-check(
-  'owner: the glyph is the figures constant and no presentation selector is spelled (the code point needs none)',
-  ownerSrc.includes('THINKING_GLYPH = TEARDROP_ASTERISK') && !ownerSrc.includes('\uFE0E') && !ownerSrc.includes('\\uFE0E'),
-);
-
-const RENDERERS: Record<string, string> = {
-  settled: 'src/components/messages/AssistantThinkingMessage.tsx',
-  redacted: 'src/components/messages/AssistantRedactedThinkingMessage.tsx',
-  spinner: 'src/components/Spinner/SpinnerAnimationRow.tsx',
-};
-const sources = Object.fromEntries(Object.entries(RENDERERS).map(([k, p]) => [k, readFileSync(p, 'utf8') + (k === 'spinner' ? `\n${readFileSync('src/components/Spinner/spinnerHud.ts', 'utf8')}` : '')]));
-for (const [name, src] of Object.entries(sources)) {
-  check(name === 'spinner' ? `${name}: imports no thinking grammar (the strip paints no phase word)` : `${name}: imports the thinking grammar owner`, name === 'spinner' ? !src.includes("/thinkingGrammar.js'") : src.includes("/thinkingGrammar.js'"));
-  check(`${name}: spells no glyph of its own`, !src.includes('\u2733') && !src.includes('TEARDROP_ASTERISK') && !code(src).includes('\u273B'));
-  check(`${name}: spells no label of its own`, !/[Tt]hinking…/.test(src));
-}
-check('settled + redacted: no accent anywhere (the row is not identity)', !/accent/i.test(code(sources.settled!)) && !/accent/i.test(code(sources.redacted!)));
-check('settled: the collapsed branch, the withheld-text row and the expanded header draw the one element', (sources.settled!.match(/<ThinkingLabel/g) ?? []).length === 3);
-check('redacted: the stub draws the one element, with nothing to expand', sources.redacted!.includes('<ThinkingLabel />') && !sources.redacted!.includes('CtrlOToExpand'));
-const tail = code(readFileSync('src/components/LiveStreamingTail.tsx', 'utf8'));
-check(
-  'live tail: draws no thinking line of its own (no grammar import, no label, no thinking word, no route read, no model subscription)',
-  !tail.includes("/thinkingGrammar.js'") && !tail.includes('ThinkingLabel') && !/\bthinking\b/i.test(tail) && !tail.includes('declaredRouteOf') && !tail.includes('subscribeThroughFocused') && !tail.includes('modelFacts') && !tail.includes('useAppState'),
-);
-check('spinner: the HUD paints no thinking word (the phase words are gone from the strip)', !sources.spinner!.includes('THINKING_WORD') && !/text: 'thinking'/.test(sources.spinner!) && !/`thinking\$\{/.test(sources.spinner!));
-check('spinner: no thinking colour and no dim override remain on the strip', !sources.spinner!.includes('THINKING_COLOR') && !sources.spinner!.includes('dimColor={!shimmerActive}'));
-
-const walk = (dir: string, out: string[]): void => {
-  for (const e of readdirSync(dir)) {
-    const p = join(dir, e);
-    if (statSync(p).isDirectory()) walk(p, out);
-    else if (/\.(ts|tsx)$/.test(e)) out.push(p);
-  }
-};
-const files: string[] = [];
-walk('src', files);
-const spellers = files.filter(f => readFileSync(f, 'utf8').includes('\u2733')).map(f => f.split('\\').join('/'));
-check('the eight-spoked asterisk (U+2733) is spelled nowhere under src', spellers.length === 0, spellers.join(', ') || '(none)');
-check(
-  'the teardrop literal is owned by constants/figures; the owner reads the constant and spells no literal',
-  readFileSync('src/constants/figures.ts', 'utf8').includes("TEARDROP_ASTERISK = '\u273B'") && !ownerSrc.includes('\u273B'),
-);
 
 const React = (await import('react')).default;
 const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx');

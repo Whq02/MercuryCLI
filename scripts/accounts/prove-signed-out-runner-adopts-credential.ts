@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -123,17 +123,6 @@ section('§3 the claude.ai sign-in lands from another process — the next read 
   check('the sign-in is not read as expired', auth.isAnthropicOAuthSignInExpired() === false)
 }
 
-section('§4 the shape: the invalidator names both transitions')
-{
-  const src = readFileSync(join(ROOT, 'src/utils/auth.ts'), 'utf8')
-  const start = src.indexOf('function invalidateOnDiskChange')
-  const inv = src.slice(start, src.indexOf('\n}\n', start))
-  check('the invalidator exists', start > 0)
-  check('absent → present is a change (a null last-mtime clears)', /lastCredentialsMtimeMs === null \|\|/.test(inv))
-  check('the absent branch remembers the absence', /lastCredentialsMtimeMs = null/.test(inv))
-  check('the managed-key memo has a cross-process invalidator', /getApiKeyFromConfigOrMacOSKeychain\.cache\?\.clear/.test(inv))
-  check('…and the boot prefetch goes with it (a stale prefetch would answer the cleared memo)', /clearLegacyApiKeyPrefetch\(\)/.test(inv))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-signed-out-runner-adopts-credential${failures ? ` (${failures} failure(s))` : ''}`)

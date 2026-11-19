@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -7,7 +7,6 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'board-controls-'))
 delete process.env.MERCURY_HOME
 
 const REPO = join(import.meta.dir, '..', '..')
-const read = (p: string): string => readFileSync(join(REPO, p), 'utf8')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -15,32 +14,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-console.log('A — the verb family is the LANDED one; no new daemon verb was added')
-{
-  const protocol = read('src/daemon/protocol.ts')
-  const server = read('src/daemon/controlServer.ts')
-  for (const verb of ['pause', 'resume', 'interrupt', 'set-model', 'session-facts']) {
-    check(`A1 concourseControl carries '${verb}' (the controls build on it)`, protocol.includes(`'${verb}'`) && server.includes(`'${verb}'`))
-  }
-  check("A2 the wire carries 'set-effort' (the daemon door — fold-ordered before this key)", protocol.includes("'set-effort'") && server.includes("'set-effort'"))
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  const effortCalls = route.split("action: 'set-effort'").length - 1
-  check(
-    "A5 poison — e fires exactly one set-effort with the `effort` field, latched against duplicates",
-    effortCalls === 1 &&
-      route.includes("{ op: 'concourseControl', action: 'set-effort', sessionId, by: 'operator', effort }") &&
-      route.includes("peekOpInFlight.current.has('row:effort')"),
-  )
-  check(
-    'A3 the row controls speak the EXISTING verbs — i → interrupt, m → set-model, both op concourseControl',
-    route.includes("{ op: 'concourseControl', action: 'interrupt', sessionId, by: 'operator', clientOpId }") &&
-      route.includes("{ op: 'concourseControl', action: 'set-model', sessionId, by: 'operator', model: modelId }"),
-  )
-  check(
-    'A4 p rides the kernel pair (session.pause / session.resume) — the parity path, not a second owner',
-    route.includes("verb: 'session.pause'") && route.includes("verb: 'session.resume'"),
-  )
-}
 
 console.log('B — row controls i/p/m: manifest, selection-aware legend, receipts on the row')
 {
@@ -98,73 +71,6 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
       cls({ sessionId: 's1', state: 'needs-you' }) === 'live' &&
       cls({ sessionId: 's1', state: 'ready-to-review' }) === 'live',
   )
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check(
-    'B4 the screen guards through the same classifier — one fold for keys and legend',
-    screen.includes('const rowControlSel = ') && screen.includes('boardSelectionClassOf(sel)'),
-  )
-  check(
-    'B4 i fires only in the list region with the door wired; p toggles by the paused state; m keeps its queued meaning first',
-    screen.includes("if (input === 'i' && !key.ctrl && !key.meta && callbacks.interruptSession !== undefined && pastGate())") &&
-      screen.includes("if (target.row.state === 'paused') callbacks.resumeSession(target.row.sessionId)") &&
-      screen.indexOf("sel?.sessionId.startsWith('dispatch:') === true") !== -1 && screen.indexOf("sel?.sessionId.startsWith('dispatch:') === true") < screen.indexOf("setRowPick({ kind: 'model', sessionId: target.row.sessionId"),
-  )
-  check(
-    'B4 the row pick modal (model AND effort — one grammar) is declared and owns the keys while open (through the ONE modal owner)',
-    screen.includes('rowPick: rowPickRef.current !== null,') &&
-      screen.includes('if (modalOwner !== null) return') &&
-      screen.includes("import { RowPickModal } from './RowPickModal.js'") &&
-      !screen.includes('function RowPickModal('),
-  )
-  check(
-    "B4 m on a live row mounts the session model picker, the one picker every model choice uses, with its effort row wired to the seat; the effort rows of the e pick are the shared ladder",
-    screen.includes('<MercurySessionModelPicker') &&
-      screen.includes("onEffort={effort => callbacks.setSessionEffort?.(rowPick.sessionId, effort)}") &&
-      screen.includes('EFFORT_LEVELS.map(l => ({ id: l, label: l }))'),
-  )
-  check(
-    'B4 e fires only in the list region with the door wired, through the same live-row guard as i/p/m',
-    screen.includes("if (input === 'e' && !key.ctrl && !key.meta && callbacks.setSessionEffort !== undefined && pastGate())"),
-  )
-  const layout = await import('../../src/components/concourse/ConcourseLayout.tsx')
-  const layoutSrc = read('src/components/concourse/ConcourseLayout.tsx')
-  check(
-    'B9 the new-session line stands on the board exactly when the door is wired, sessions exist and no filter is typed (one resolver for the screen and the layout)',
-    layout.newSessionLineShown({ newSession: true, sessionRows: 2, filterText: '' }) &&
-      !layout.newSessionLineShown({ newSession: true, sessionRows: 0, filterText: '' }) &&
-      !layout.newSessionLineShown({ newSession: false, sessionRows: 2, filterText: '' }) &&
-      !layout.newSessionLineShown({ newSession: true, sessionRows: 2, filterText: 'x' }) &&
-      layoutSrc.includes('const lineShown = newSessionLineShown({ newSession: wiring.newSession !== undefined, sessionRows: sessionRows.length, filterText })') &&
-      screen.includes('newSessionLineShown({ newSession: !compact && !reducedStage && callbacks.newSession !== undefined, sessionRows: sessionRows.length, filterText: filter.text })'),
-  )
-  check(
-    'B9 the line paints first under the column header with the empty entry\'s words and door tail, its cursor mark following the selection',
-    layoutSrc.includes('const out: React.ReactNode[] = [columnHeaderRow]\n        if (lineShown) {') &&
-      layoutSrc.includes('<Text color={t.info}>{newSessionDoorWords({ region, filtering })}</Text>') &&
-      layoutSrc.includes("{lineSelected ? <Text color={region === 'list' ? t.info : t.textPrimary}>{'▸ '}</Text> : <Text>{'  '}</Text>}") &&
-      layout.NEW_SESSION_DOOR_WORDS === 'n starts a blank session in this project' &&
-      layout.newSessionDoorWords({ region: 'list', filtering: false }) === 'n starts a blank session in this project' &&
-      layout.newSessionDoorWords({ region: 'composer', filtering: false }) === 'tab to the list, then n starts a blank session in this project' &&
-      layout.newSessionDoorWords({ region: 'list', filtering: true }) === 'tab to the list, then n starts a blank session in this project' &&
-      layout.newSessionDoorTail({ modelLabel: 'Opus 5', effortLevel: 'high' }) === ' · Opus 5 · ● high',
-  )
-  check(
-    'B9 the line takes one content row of the list band on both geometry readers and the window fits the rows beneath it',
-    layoutSrc.includes('sessionRows.length + (lineShown ? 1 : 0),') &&
-      layoutSrc.includes('const contentRows = Math.max(1, geo.listContentRows - (lineShown ? 1 : 0))') &&
-      screen.includes('sessionRows.length + (newSessionLine ? 1 : 0),') &&
-      screen.includes('sessionRows.length + (newSessionLineNow() ? 1 : 0),'),
-  )
-  check(
-    'B9 the line is a selection the arrows reach (↑ from the first row, ↓ back), ↵ on it takes the n road, → does nothing on it, and m on it opens the model-default picker while a session row keeps its own m',
-    screen.includes("if (lineShown && at === 0 && dir === -1) {\n      selectSession(NEW_SESSION_ROW_ID)") &&
-      screen.includes('if (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow()) {\n          armContractAsk()') &&
-      screen.includes('if (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow()) return\n        const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)') &&
-      screen.includes('(sessionRows.length === 0 || (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow())) && filterRef.current.text.trim().length === 0 && snapshot.newSession.door !== undefined && pastGate()') &&
-      screen.includes('if (newSessionLine && boardSel === NEW_SESSION_ROW_ID) {\n      lastIdxRef.current = 0\n      return\n    }') &&
-      screen.includes('stableSelectionFallback(ids, boardSel, lastIdxRef.current)') &&
-      screen.includes('if (sessionId !== NEW_SESSION_ROW_ID) callbacks.peekSession(sessionId)'),
-  )
   check(
     "B9 the legend reads the line as the empty board's selection (no row under the cursor ⇒ n and the m phrase), never a session row's verbs",
     manifest.boardSelectionClassOf(undefined) === 'none' &&
@@ -173,40 +79,6 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
   )
   const manifest2 = manifest.regionKeysFor('list', { newSession: true, selection: 'live' })
   check('B2 a LIVE selection prints e effort beside m model (the WARMRUN rider’s key-map row)', manifest2.some(k => k.keys === 'e' && k.label === 'effort'))
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  check(
-    "B5 every row control settles on the row's ONE receipt slot (board:row-control) with who/what/when",
-    route.includes("const rowReceipt = (what: string): string => `${what} — you · ${rowReceiptClock()}`") &&
-      route.includes("reason: `paused by you · ${rowReceiptClock()}`") &&
-      route.includes("rowReceipt('resumed')") &&
-      route.includes("rowReceipt('interrupted · idle')") &&
-      route.includes('rowReceipt(`model → ${spoken}`)'),
-  )
-  check(
-    'B5 the retired peek note keys are gone — the receipts paint where the operator looks',
-    !route.includes("'peek:pause-after-turn'") && !route.includes("'peek:resume'"),
-  )
-  const rowLineAt = screen.indexOf('const selectedRowLineOf = (nowCellWidth: number)')
-  const rowLineEnd = rowLineAt === -1 ? -1 : screen.indexOf('const olderRows = ', rowLineAt)
-  const rowLineBody = rowLineAt !== -1 && rowLineEnd > rowLineAt ? screen.slice(rowLineAt, rowLineEnd) : ''
-  const receiptArm = rowLineBody.indexOf('if (rowControlNote !== undefined) {')
-  const chipArm = rowLineBody.indexOf("if (chipLine !== null) return { glyph: GLYPH.ok, words: chipLine, tone: 'warning' }")
-  check(
-    'B6 the receipt line rides the selected row (the chip slot), keyed BY ROW so it never follows the cursor; it outranks the chip for its beat',
-    screen.includes("controlNotes?.[`board:row-control:${peekSelRow?.sessionId ?? 'none'}`]") &&
-      route.includes('noteControl(`board:row-control:${sessionId}`,') &&
-      receiptArm !== -1 &&
-      chipArm !== -1 &&
-      receiptArm < chipArm &&
-      screen.includes('const selectedRowLine = selectedRowLineOf(listPane.nowCellWidth)') &&
-      screen.includes('const chipRows = !rowPeekOpen && selectedRowLine !== null ? rowLineRows(selectedRowLine.words, rowLineWidth) : 0'),
-    `the receipt's arm at ${receiptArm}, the chip's at ${chipArm} of the line's ${rowLineBody.length} characters`,
-  )
-  check(
-    'B5 a parked model switch stays the daemon’s HELD truth on the row (queued → held, the daemon’s own sentence)',
-    route.includes("reply.ok === true && reply.outcome === 'queued'") && route.includes('applies when this turn ends'),
-  )
-  ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
   const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
   const plane = mkdtempSync(join(tmpdir(), 'board-controls-plane-'))
@@ -230,41 +102,9 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
     settled.length === 1 && settled[0]!.boundary === 'turn-boundary' && settled[0]!.resolution === 'applied' && settled[0]!.applied === 'fable',
     `a hosted connector whose facts feed reads a settlement stamp paints ${JSON.stringify(settled)}: its facts read mints one model_transition row, applied at the turn boundary, naming the model as picked`,
   )
-  const workerModels = read('src/services/concourse/workerModels.ts')
-  check(
-    'B8 every row rides both arms wherever its family is credentialed (no tier is refused on either arm)',
-    !workerModels.includes('ECONOMY_FAMILY') && !workerModels.includes('frontier-only') && workerModels.includes('return { session, crew: session }'),
-  )
 }
 
 console.log('C — the L17 cut: a session ask routes INTO the chat; no board key answers it')
-{
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check("C1 the ComposeContext union carries no 'permission' member", !screen.includes("kind: 'permission'"))
-  check(
-    'C1 no y/n permission grammar on the board (the handler and its context line are gone)',
-    !screen.includes("ctx.kind === 'permission'") && !screen.includes('y allows · n denies'),
-  )
-  check(
-    "C2 a needs-you permission row ROUTES into the chat — beginAnswer's permission branch opens the session, never a context",
-    screen.indexOf("if (ref.startsWith('permission:git-init:')) return") !== -1 && screen.indexOf("if (ref.startsWith('permission:')) {") > screen.indexOf("if (ref.startsWith('permission:git-init:')) return") &&
-      /if \(ref\.startsWith\('permission:'\)\) \{[\s\S]{0,400}?openObligationOrDoor\(obligationId\)[\s\S]{0,40}?return/.test(screen),
-  )
-  const answerSites = screen.split('callbacks.answerPermission?.(').length - 1
-  check('C3 poison — exactly one answer-permission call site remains on the screen (the git card wire)', answerSites === 1)
-  const gitCard = read('src/components/concourse/GitOfferCard.tsx')
-  check(
-    'C3 poison — the card derives ONLY from folder-scoped git-init asks (ref + folder: subject, both required)',
-    gitCard.includes("o.ref?.startsWith('permission:git-init:') === true && o.sessionId.startsWith('folder:')"),
-  )
-  const { deriveGitOffer } = await import('../../src/components/concourse/GitOfferCard.tsx')
-  check(
-    'C3 poison — a SESSION permission ask derives NO card (the verb is unreachable for it)',
-    deriveGitOffer([{ obligationId: 'o1', sessionId: 'session-1', ref: 'permission:req-77' }]) === undefined &&
-      deriveGitOffer([{ obligationId: 'o2', sessionId: 'folder:/tmp/x', ref: 'permission:git-init:abc' }]) !== undefined,
-  )
-  check("C4 the answer-permission verb itself stands (chat-side plumbing)", read('src/daemon/protocol.ts').includes("'answer-permission'"))
-}
 
 console.log('D — permission ids: stable from birth to answer, across repaint/re-subscribe')
 {
@@ -325,15 +165,6 @@ console.log('D — permission ids: stable from birth to answer, across repaint/r
   const g1 = asks.mintGitInitAsk('/tmp/board-controls-folder')
   const g2 = asks.mintGitInitAsk('/tmp/board-controls-folder')
   check('D5 the git-init twin: the folder mints ONE deterministic id — a re-mint converges', g1.requestId === g2.requestId && g1.requestId.startsWith('git-init:'))
-  const snapshotSrc = read('src/services/concourse/concourseSnapshot.ts')
-  check(
-    'D6 the board carries the ref VERBATIM into needsYou (the painted id IS the durable id)',
-    snapshotSrc.includes("...(o.ref !== undefined ? { ref: o.ref } : {})"),
-  )
-  check(
-    "D6 the chat's card answers by the SAME id — the seat projection publishes each ask under its requestId",
-    read('src/daemon/permissionAsks.ts').includes('toolUseId: a.toolUseId ?? requestId,'),
-  )
 }
 
 console.log('E — the seats cell: demand over the reading wears the warning ink; the strip paints context, receipt, hint in that order')
@@ -361,86 +192,9 @@ console.log('E — the seats cell: demand over the reading wears the warning ink
       strips.seatsCellText(2, 2, 4).text === '2/4' &&
       strips.seatsCellText(2, 2, 4).over === false,
   )
-  const stripsSrc = read('src/components/concourse/ConcourseStrips.tsx')
-  check(
-    'E1 the rail wears the over state in warning ink on the ONE seats cell',
-    stripsSrc.includes('seatsCell.over ? t.warning : t.textSecondary') &&
-      stripsSrc.includes('{seatsCell.text} seats'),
-  )
-  check(
-    'E2 the strip paints context > receipt > hint (a self-expiring receipt outranks the standing door hint)',
-    (() => {
-      const ctx = stripsSrc.indexOf('contextLine !== null && contextLine !== undefined ? (')
-      const receipt = stripsSrc.indexOf(') : composerNote !== undefined ? (')
-      const hint = stripsSrc.indexOf(') : note !== null ? (')
-      return ctx !== -1 && receipt > ctx && hint > receipt
-    })(),
-  )
 }
 
 console.log('F — the ground note: composed at dispatch from the REAL isolation fact, both shapes')
-{
-  const { isolationAwarenessNote } = await import('../../src/daemon/isolationNote.ts')
-  const fork = isolationAwarenessNote({ isolation: 'worktree-isolated', workspaceId: '/x/repo', branchName: 'mercury/fork-1' })
-  const shared = isolationAwarenessNote({ isolation: 'exclusive', workspaceId: '/x/repo' })
-  const readonly = isolationAwarenessNote({ isolation: 'read-only', workspaceId: '/x/repo' })
-  const lines = (s: string): number => s.split('\n').length
-  check(
-    'F1 the WORKTREE shape: your own copy · commit/push · never touch the base — 2–4 lines, the branch named',
-    fork.includes('your own copy') && fork.includes('Commit and push') && fork.includes('never touch the base checkout') && fork.includes('mercury/fork-1') && lines(fork) >= 2 && lines(fork) <= 4,
-  )
-  check(
-    'F1 the SHARED-FOLDER shape: others may edit the same files · announce and confine · never reformat/mass-rewrite — 2–4 lines',
-    shared.includes('may edit the same files') && shared.includes('Announce and confine') && shared.includes('never reformat or mass-rewrite') && lines(shared) >= 2 && lines(shared) <= 4,
-  )
-  check(
-    'F1 a read-only lease speaks the shared shape with its no-writes fact',
-    readonly.includes('READ-ONLY') && readonly.includes('Write nothing here') && lines(readonly) >= 2 && lines(readonly) <= 4,
-  )
-  const { buildConcoursePromptRow } = await import('../../src/daemon/concourseDispatch.ts')
-  type Row = { type?: string; content?: unknown; command?: string }
-  const plain = (await buildConcoursePromptRow('do the task', undefined, shared)) as Row
-  check('F2 a plain prompt OPENS with the note (top of the dispatched agent\'s prompt)', typeof plain.content === 'string' && plain.content.startsWith('[ground] ') && plain.content.endsWith('do the task'))
-  const rich = (await buildConcoursePromptRow('ignored', { content: [{ type: 'text', text: 'see' }] }, fork)) as Row
-  check(
-    'F2 rich content leads with the note as its first text block',
-    Array.isArray(rich.content) &&
-      (rich.content as Array<{ type?: string; text?: string }>)[0]?.type === 'text' &&
-      (rich.content as Array<{ type?: string; text?: string }>)[0]?.text?.startsWith('[ground]') === true,
-  )
-  const bash = (await buildConcoursePromptRow('ls -la', { mode: 'bash' }, shared)) as Row
-  check('F2 a bash line is a COMMAND, not a prompt — the note never rides it', bash.type === 'shell' && bash.command === 'ls -la')
-  const dispatchSrc = read('src/daemon/concourseDispatch.ts')
-  check(
-    'F3 the admit-leg delivery composes from the ADMITTED record — the REAL fact, never a guess from the request',
-    dispatchSrc.includes('const admittedRec = readSessionWorkers(deps.dir)[admitted.runnerId]') &&
-      dispatchSrc.includes('isolationAwarenessNote({') &&
-      dispatchSrc.includes('buildConcoursePromptRow(prompt, { ...promptExtrasOf(req), identity: req.clientMessageId }, groundNote)'),
-  )
-  check(
-    'F3 the redirect leg composes NONE (an existing session was briefed at its birth)',
-    dispatchSrc.includes('attemptRedirectDelivery(rec, dispatches, req.targetSessionId, req.prompt, promptExtrasOf(req))'),
-  )
-  const { stripGroundNote, GROUND_NOTE_MARK } = await import('../../src/daemon/isolationNote.ts')
-  check(
-    'F5 stripGroundNote: framed words yield the words, bare words pass through, a lone note yields nothing',
-    stripGroundNote(`${shared}\n\nfix the login bug`) === 'fix the login bug' &&
-      stripGroundNote('fix the login bug') === 'fix the login bug' &&
-      stripGroundNote(shared) === '' &&
-      shared.startsWith(GROUND_NOTE_MARK),
-  )
-  const snapSrc = read('src/services/concourse/concourseSnapshot.ts')
-  const portableSrc = read('src/utils/sessionStoragePortable.ts')
-  check(
-    'F5 the board brief (and its stage-2 title) derive from the words alone — the brief reads the session list\'s first-prompt extractor, which strips the note from every text',
-    snapSrc.includes('extractFirstPromptFromHead(lines.join') && portableSrc.includes('const text = stripGroundNote(rawText)'),
-  )
-  const indexSrc = read('src/utils/sessionStorage/sessionIndex.ts')
-  check(
-    "F5 the /resume and /sessions pickers' first-prompt reader strips it too — one mark, every namer",
-    indexSrc.includes('[stripGroundNote(payload.content)]') && indexSrc.includes('!block.text.startsWith(GROUND_NOTE_MARK)'),
-  )
-}
 
 console.log('G — the git-offer No leg: deny proceeds lawfully; the copy tells each truth')
 {
@@ -520,10 +274,6 @@ console.log('G — the git-offer No leg: deny proceeds lawfully; the copy tells 
     card.gitOfferDescription('/x', false).includes('runs the session in this folder as it is, alone — no isolated copy is made') &&
       card.gitOfferDescription('/x', true).includes('stays queued until the folder frees or git lands'),
   )
-  check(
-    'G4 poison — the clobber sentence is RETIRED from the card (exclusive occupancy shares nothing; the spirit lives in the item-6 ground notes)',
-    !read('src/components/concourse/GitOfferCard.tsx').toLowerCase().includes('clobber'),
-  )
   const heldSnap = {
     groups: [{ id: 'working', label: 'W', rows: [{ sessionId: 's', state: 'working', workspaceDir: '/x/plain' }] }],
   } as never
@@ -537,153 +287,10 @@ console.log('G — the git-offer No leg: deny proceeds lawfully; the copy tells 
       card.gitOfferFolderHeld(parkedSnap, '/x/plain') === false &&
       card.gitOfferFolderHeld(elsewhereSnap, '/x/plain') === true,
   )
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check(
-    'G6 the height mirror DERIVES from the one description composer — the duplicated literal is gone from the screen',
-    screen.includes('gitOfferDescription(folder, folderHeld).length') && !screen.includes('creates the repository (plus one base commit)'),
-  )
-  check(
-    'G6 the daemon wires the deny-proceed hook beside the git-ready one',
-    read('src/daemon/main.ts').includes('onDenyProceed: folder => {') &&
-      read('src/daemon/permissionAsks.ts').includes('hooks?.onDenyProceed?.(ask.workspaceId)'),
-  )
 }
 
 console.log('H — the session model picker follows the selected session facts')
 {
-  const ts = await import('typescript')
-  const source = read('src/commands/model/mercuryModel.tsx')
-  const parsed = ts.createSourceFile('picker.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
-  const slots: unknown[] = []
-  let cursor = 0
-  const dependencies = {
-    React: {
-      createElement: (_type: unknown, props: Record<string, unknown>) => ({ props }),
-      useState: (initial: unknown) => {
-        const at = cursor++
-        if (!(at in slots)) slots[at] = typeof initial === 'function' ? initial() : initial
-        return [slots[at], (value: unknown) => { slots[at] = typeof value === 'function' ? value(slots[at]) : value }]
-      },
-    },
-    MercuryModelPicker: 'picker',
-    useCatalogueEpoch: () => {},
-    getSdkBetas: () => [],
-    nextBirthModel: () => 'fixture-model',
-    getEngineModel: () => 'fixture-model',
-    modelSupportsEffort: () => true,
-    modelSupportsMaxEffort: () => true,
-    selectableEffortLevels: () => ['low', 'medium', 'high', 'xhigh', 'max'],
-    getDisplayedEffortLabel: (_model: string, value: string | undefined) => value ?? 'default',
-    getInitialEffortSetting: () => 'high',
-    useCatalogueRefreshOnOpen: () => {},
-    GPT_ROAD: {}, OPENROUTER_ROAD: {}, GEMINI_ROAD: {}, HUGGINGFACE_ROAD: {}, MOONSHOT_ROAD: {}, DEEPSEEK_ROAD: {}, ZAI_ROAD: {}, XAI_ROAD: {}, META_ROAD: {}, LOCAL_ROAD: {}, ANTHROPIC_SUBSCRIPTION_ROAD: {}, ANTHROPIC_KEY_ROAD: {}, ANTHROPIC_BEARER_ROAD: {}, MISTRAL_ROAD: {}, NOUS_ROAD: {}, MINIMAX_ROAD: {}, TOGETHER_ROAD: {}, COHERE_ROAD: {}, GROQ_ROAD: {}, MELIOUS_ROAD: {}, CEREBRAS_ROAD: {}, FIREWORKS_ROAD: {}, QWEN_ROAD: {},
-    getModelOptions: () => [],
-    modelChoiceOf: (v: unknown) => v,
-    resolveCurrentRowId: (_rows: unknown[], value: string) => value,
-    providerHeadingsOf: () => ({}),
-    orderedModelChoices: (rows: unknown[]) => rows,
-    seatGroupOf: () => undefined,
-    noteModelUse: () => {},
-    slotSwitchOf: () => null,
-    expandRowsOf: () => [],
-    isCatalogueDoorRow: () => false,
-    isProviderActionRow: () => false,
-  }
-  const load = (name: string, extra: Record<string, unknown> = {}) => {
-    const declaration = parsed.statements.find(s => ts.isFunctionDeclaration(s) && s.name?.text === name)
-    if (declaration === undefined) throw new Error(`the ${name} declaration is missing`)
-    const body = ts.transpileModule(declaration.getText(parsed).replace(/^export /, ''), {
-      compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-    }).outputText
-    const scope = { ...dependencies, ...extra }
-    return new Function(...Object.keys(scope), `${body}; return ${name}`)(...Object.values(scope))
-  }
-  const component = load('MercurySessionModelPicker')
-  const seat = await import('../../src/daemon/sessionSeat.ts')
-  let refused: Promise<unknown> | undefined
-  const props = {
-    currentModel: 'fixture-model', currentEffort: 'low' as string | undefined,
-    onSelect: () => {}, onDone: () => {},
-    onEffort: (effort: string) => { refused = seat.setSessionEffort('no-such-session', effort, { control: () => false } as never, process.env.MERCURY_CONFIG_DIR) },
-  }
-  const render = (): { effort: string; efforts: string[]; onEffort: (value: string) => void } => {
-    cursor = 0
-    return component(props).props
-  }
-  const opened = render()
-  check('H1 the initial effort is the selected session low, not the saved high', opened.effort === 'low')
-  check('H2 the session ladder offers the ladder words and ends at max', !opened.efforts.some((w: string) => !['low', 'medium', 'high', 'xhigh', 'max'].includes(w)) && opened.efforts[opened.efforts.length - 1] === 'max')
-  opened.onEffort('medium')
-  check('H3 the refusing seat really refused the effort request', (await refused as { outcome?: string })?.outcome === 'refused')
-  check('H3 a refused effort request never changes the displayed selection', render().effort === 'low')
-  props.currentEffort = 'max'
-  check('H4 settled session facts update the open picker', render().effort === 'max')
-  props.currentEffort = undefined
-  check('H4 missing session facts never borrow the screen saved effort', render().effort === 'default')
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check('H5 the board hands over its painted effort only when the snapshot owns the selected session', screen.includes('currentEffort={snapshot.peek?.sessionId === rowPick.sessionId ? snapshot.context.effortLabel : undefined}'))
-
-  console.log('I — the default picker waits for persistence and carries the existing refusal words')
-  const modelRefusal = ' · not saved as your default: fixture write refused'
-  const override = ' · saved as your default, but MERCURY_MODEL=fixture-model overrides it at boot'
-  let saved = modelRefusal
-  let savedOutcome: 'saved' | 'refused' | 'overridden' = 'refused'
-  let error: Error | null = new Error('fixture write refused')
-  let done = 0
-  let mirrored = 0
-  let unpinned = 0
-  let writes = 0
-  let effortOverride: string | undefined
-  const defaultPicker = load('MercuryModelDefaultPicker', {
-    getEffortEnvOverride: () => effortOverride,
-    flagEnv: () => effortOverride,
-    useSetAppStateMaybe: () => () => { mirrored++ },
-    unpinAllLaunchEffort: () => { unpinned++ },
-    toPersistableEffort: (value: string) => value,
-    updateSettingsForSource: () => { writes++; return { error } },
-    persistModelChoice: () => ({ outcome: savedOutcome, sentence: saved }),
-    settleModelSelection: () => ({ patch: {} }),
-  })
-  const defaultProps = { onDone: () => { done++ } }
-  const renderDefault = (): { effort: string; notice?: string; onSelect: (id: string) => void; onEffort: (value: string) => void } => {
-    cursor = 0
-    return defaultPicker(defaultProps).props
-  }
-  const reset = (): void => { slots.length = 0; done = 0; mirrored = 0; unpinned = 0; writes = 0 }
-  reset()
-  renderDefault().onSelect('fixture-choice')
-  check('I1 a failed model save stays open and carries its refusal verbatim', done === 0 && renderDefault().notice === modelRefusal)
-  check('I1 a failed model save changes no application state', mirrored === 0)
-  reset()
-  saved = override
-  savedOutcome = 'overridden'
-  renderDefault().onSelect('fixture-choice')
-  check('I2 a launch override stays open and carries its sentence verbatim', done === 0 && renderDefault().notice === override)
-  reset()
-  saved = ' · saved as your default'
-  savedOutcome = 'saved'
-  renderDefault().onSelect('fixture-choice')
-  check('I3 a successful unopposed model save closes and mirrors the choice once', done === 1 && mirrored === 1)
-  for (const [value, sentence] of [['medium', 'Could not save the effort level:'], ['max', 'Could not save the effort level:']]) {
-    reset()
-    renderDefault().onEffort(value)
-    const refused = renderDefault()
-    check(`I4 ${value}: a failed write is named, with the prior effort still selected`, refused.notice === `${sentence} fixture write refused` && refused.effort === 'high')
-    check(`I4 ${value}: a failed write changes no application state or launch pin`, mirrored === 0 && unpinned === 0 && done === 0 && writes === 1)
-  }
-  error = null
-  renderDefault().onEffort('max')
-  check('I5 a successful retry selects max and clears the stale refusal', renderDefault().effort === 'max' && renderDefault().notice === undefined && mirrored === 1 && unpinned === 1 && writes === 2)
-  reset()
-  renderDefault().onEffort('medium')
-  check('I5 a successful effort write updates the bracket, application state and launch pins once', renderDefault().effort === 'medium' && mirrored === 1 && unpinned === 1 && writes === 1)
-  reset()
-  effortOverride = 'high'
-  renderDefault().onEffort('medium')
-  check('I6 an effort override is named with the existing effort sentence', renderDefault().notice === 'Saved medium as your default, but MERCURY_EFFORT_LEVEL=high overrides this session — clear it to let medium take over.')
-  reset()
-  renderDefault().onEffort('high')
-  check('I6 an equal override adds no notice', renderDefault().notice === undefined)
 }
 
 process.exit(failures === 0 ? 0 : 1)

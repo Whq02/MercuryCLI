@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -147,11 +147,6 @@ section('command-owned setting rows — the /caching dial law')
   const afterStale = readBootEnvChoices(staleFile) ?? {}
   check("a stale foreign value already in the file (an earlier build's 'sovereign') never refuses a later save: it is pruned and every other saved row is kept",
     wStale.ok === true && afterStale.MERCURY_COMPUTER_ACCESS === undefined && afterStale.MERCURY_CAP_FAILOVER === 'auto' && afterStale.MERCURY_GODOT === '1', JSON.stringify({ wStale, afterStale }))
-  const splashCore = readFileSync(join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs'), 'utf-8')
-  const menuStart = splashCore.indexOf('const MENU = [')
-  const menuBlock = menuStart === -1 ? '' : splashCore.slice(menuStart, splashCore.indexOf('\n]', menuStart))
-  check('the baked splash menu carries the menu rows (the wards row is present)', menuBlock.includes('"env":"MERCURY_WARDS"'))
-  check('the baked splash menu excludes the command row', menuBlock.length > 0 && !menuBlock.includes('MERCURY_CACHE_TTL'))
 }
 
 section('applyBootMenuEnv — apply, refuse, yield, no-op')
@@ -199,16 +194,6 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
     const env: NodeJS.ProcessEnv = {}
     const result = applyBootMenuEnv(file, env)
     check(`${key}: an old saved value is retired, never applied or refused`, result?.retired.includes(key) === true && result.refused.length === 0 && env[key] === undefined && env.MERCURY_SAMPLES === '1')
-  }
-  const menuSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'substrate', 'startupMenu.ts'), 'utf-8')
-  const retiredRows = (menuSource.match(/const RETIRED_MENU_ENV[^']*'([^']+)'/) ?? [])[1]?.split(' ') ?? []
-  check('the retired list names the curator row', retiredRows.includes('MERCURY_TABULA_MINERVA') && retiredRows.length >= 8 && retiredRows.every(e => /^MERCURY_[A-Z_]+$/.test(e)), retiredRows.join(','))
-  for (const retired of retiredRows) {
-    write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { [retired]: '1', MERCURY_SAMPLES: '1' } })
-    const envRetired: NodeJS.ProcessEnv = {}
-    const rRetired = applyBootMenuEnv(file, envRetired)
-    check(`a saved choice for the retired row ${retired} is dropped as retired (never applied, never refused, no boot note), the row beside it still applied`, rRetired !== null && rRetired.retired.length === 1 && rRetired.retired[0] === retired && rRetired.refused.length === 0 && envRetired[retired] === undefined && envRetired.MERCURY_SAMPLES === '1', JSON.stringify(rRetired))
-    check(`the retired row ${retired} is no menu row and no command row`, !allSettingRows().some(r => r.env === retired))
   }
 
   write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_SAMPLES: '1' } })

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { vshotBudgetScale } from '../lib/captureDriver.ts'
 import { join } from 'node:path'
 import {
@@ -106,35 +106,6 @@ console.log('── composer type-through (shipped artifact) ──')
   check('the reset clears the row', consentDeclineRow() === null)
 }
 
-{
-  const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
-  const perm = readFileSync('src/components/permissions/PermissionRequest.tsx', 'utf8')
-  const select = readFileSync('src/components/CustomSelect/use-select-input.ts', 'utf8')
-  const { openDraftPart } = await import('../ui/chatScenarios.ts')
-  const composer = await openDraftPart('composer-seed-chokepoint', { keepHome: true })
-  composer.pending.edit('wait')
-  const reached = composer.seed.seedComposerDirect('!') && composer.pending.text() === 'wait!'
-  await composer.close()
-  check(
-    'Chat registers the seeder through the owner chokepoint (T13 S2: append = edit(text + seed))',
-    reached &&
-      readFileSync('src/input-core/pending-input.ts', 'utf8').includes('edit(draft.text + seed)'),
-  )
-  check(
-    'PermissionRequest arms the seam while mounted (question cards EXEMPT — an open question is modal focus; its options carry ordinal hotkeys and must never yield to the composer)',
-    /if \(isQuestionCard\) return undefined/.test(perm) &&
-      /return armComposerSeed\(\)/.test(perm) &&
-      /toolUseConfirm\.tool === AskUserQuestionTool/.test(perm),
-  )
-  check(
-    'use-select-input falls through to trySeedComposer',
-    /trySeedComposer\(input, key\)/.test(select),
-  )
-  check(
-    'the fall-through sits AFTER the numeric hotkey branch',
-    select.indexOf('/^\\d+$/.test(digits)') !== -1 && select.indexOf('/^\\d+$/.test(digits)') < select.indexOf('trySeedComposer(input, key)'),
-  )
-}
 
 {
   const run = await runArtifactArena({

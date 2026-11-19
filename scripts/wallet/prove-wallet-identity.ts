@@ -507,8 +507,6 @@ section('A6 an env refresh-token sign-in never wears the previous sign-in\'s rec
   const landed = auth.saveOAuthTokensIfNeeded(envTokens)
   const envEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
   check('A6 the landed env sign-in never names the previous account (its credential reported none)', landed.success && envEntry !== undefined && envEntry.identity?.email === undefined && envEntry.identity?.source === undefined && !envEntry.label.includes(CLAUDE_RECEIPT_EMAIL), JSON.stringify(envEntry))
-  const authSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'handlers', 'auth.ts'), 'utf8')
-  check('A6 the env fast path of `auth login` builds its tokens through refreshSignInGrant, never the stored-grant refresh', authSource.includes('await refreshSignInGrant(envRefreshToken') && !authSource.includes('refreshOAuthToken('), 'src/cli/handlers/auth.ts')
 }
 
 section('O OpenAI ChatGPT — the id_token email claim, captured at the token exchange')

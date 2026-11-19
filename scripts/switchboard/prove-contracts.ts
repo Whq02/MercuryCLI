@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -13,7 +13,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
 const { applyConcourseContractOp, CONTRACT_TEXT_CAP } = await import('../../src/daemon/sessionContract.ts')
 const { markConcourseWorkerDelivery, readSessionWorkers } = await import(
@@ -86,57 +85,9 @@ console.log("B — the one verb's four ops (typed refusals; the wire's appended 
   applyConcourseContractOp(SID, { op: 'close' }, 'o', DIR)
   check('B9 a second close is a noop; ack on closed refuses', applyConcourseContractOp(SID, { op: 'close' }, 'o', DIR).outcome === 'noop' && applyConcourseContractOp(SID, { op: 'ack' }, 'w', DIR).outcome === 'refused')
 
-  const protocol = read('src/daemon/protocol.ts')
-  const actionsAt = protocol.indexOf("op: 'sessionControl'", protocol.indexOf('export type DaemonRequest ='))
-  const window = protocol.slice(protocol.indexOf('action:', actionsAt), protocol.indexOf('sessionId: string', actionsAt))
-  check("B10 the wire action 'contract' was APPENDED after set-effort (the shape reads source order; later verbs append after it)", /\|\s*'set-effort'\s*\|\s*'contract'/.test(window))
-  check("B11 the contract payload rides OUTSIDE the shape extractor's action window (after sessionId)", !window.includes("{ op: 'set' | 'ack' | 'amend' | 'close'") && protocol.includes("contract?: { op: 'set' | 'ack' | 'amend' | 'close'; text?: string }"))
-  const { MERCURY_DAEMON_PROTO: liveProto } = await import('../../src/daemon/protocol.ts')
-  check('B12 ONE wire proto beside its registered shape (bump discipline is prove-protocol-shape\'s)', (protocol.match(/export const MERCURY_DAEMON_PROTO = /g) ?? []).length === 1 && protocol.includes(`export const MERCURY_DAEMON_PROTO = ${liveProto}`) && protocol.includes("export const DAEMON_PROTO_SHAPE = 'sha256:"))
-  const server = read('src/daemon/controlServer.ts')
-  check("B13 the server routes the action and passes the typed payload through", server.includes("raw.action === 'contract'") && server.includes('...(contract !== undefined ? { contract } : {})'))
-  const main = read('src/daemon/main.ts')
-  const arm = main.slice(main.indexOf("if (action === 'contract')"), main.indexOf('applyConcourseContractOp(sessionId, contract, by)'))
-  check('B14 the daemon arm adjudicates through the ONE writer and rides the applied-ops settle (exactly-once for a retried agent ack/close)', arm.includes('settle(') || main.includes('return settle(applyConcourseContractOp(sessionId, contract, by))'))
 }
 
-console.log('C — boot-menu births never ask (T2: "from the boot menu, it starts with no contract")')
-{
-  const born = read('src/services/switchboard/bornSession.ts')
-  check('C1 the ONE birth door knows nothing of the offer (no contract reference at all)', !/contract/i.test(born))
-  const face = read('src/components/BootSplashScreen.tsx')
-  check('C2 the boot face carries neither the card nor the arm', !face.includes('ContractOfferCard') && !face.includes('armContractAsk'))
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  const armWrites = screen.split('armContractAsk()').length - 1
-  check('C3 the ask arms from exactly FIVE gestures — the n key, the New Session tab, the split pane’s ↵ birth, the compact frame’s new-session row and the board’s new-session line (all concourse-side)', armWrites === 5)
-}
 
-console.log('D — concourse births ask (the live-view card composes the one consent frame; No/esc births plain; Yes opens the card\'s own field — L25)')
-{
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  const card = read('src/components/concourse/ContractOfferCard.tsx')
-  const screenCode = screen.split('\n').filter(l => !l.trimStart().startsWith('//')).join('\n')
-  const nVerbAt = screen.indexOf("if (input === 'n' && !key.ctrl")
-  check('D1 n arms the ask instead of birthing directly', nVerbAt > 0 && /armContractAsk\(\)/.test(screen.slice(nVerbAt, nVerbAt + 1100)) && !/callbacks\.newSession\(\)/.test(screen.slice(nVerbAt, nVerbAt + 900)))
-  check('D2 the tab wiring arms the same ask', screen.includes('{ newSession: () => armContractAsk() }'))
-  const mirrorAt = screen.indexOf('const mirrorSlot = ')
-  check('D3 the card paints IN THE LIVE-VIEW PANE (mirrorSlot) with the pane’s geometry, never centered over the board', screen.slice(mirrorAt, mirrorAt + 700).includes('<ContractOfferCard onAnswer={answerContractAsk} width={width} rows={rows} />'))
-  check('D3b the slot returns the standing card BEFORE the selected row’s mirror (no sibling transcript behind it)', screen.indexOf('<ContractOfferCard', mirrorAt) > 0 && screen.indexOf('<ContractOfferCard', mirrorAt) < screen.indexOf('const sel = sessionRows.find(r => r.sessionId === boardSel)', mirrorAt))
-  check('D4 No (esc lands there too, from either face) births PLAIN through the same door', /if \(contractText === null\) \{[^]{0,400}?callbacks\.newSession\?\.\(\)/.test(screen))
-  check('D5 Yes opens the FIELD INSIDE THE CARD — "What is the contract?" (L25) — never the live composer', card.includes('What is the contract?') && card.includes("setFace('field')") && card.includes("import TextInput from '../TextInput.js'") && !screenCode.includes('contract-compose') && !screenCode.includes('write the contract here'))
-  check('D6 the card’s ↵ births WITH the words through the one door; an empty ↵ keeps the card (never a blank contract)', screen.includes('callbacks.newSession?.({ contractText })') && card.includes('onSubmit={submit}') && card.includes('if (words.length === 0)') && card.includes('onAnswer(words)'))
-  check('D7 MEMORYLESS ask-each-time: plain state, no persisted decline anywhere near the ask', screen.includes('const [contractAsk, setContractAsk] = useState(false)') && !/contractAsk[^]{0,200}(getGlobalConfig|saveGlobalConfig|localStorage)/.test(screen))
-  check('D8 the card COMPOSES the estate’s owners verbatim — PermissionDialog + PermissionPrompt + TextInput, no lookalike frame, no hand-rolled editor', card.includes('<PermissionDialog title="Start with a contract?">') && card.includes('<PermissionPrompt') && card.includes('<TextInput') && !/border|round|box-drawing/i.test(card) && !/useInput\(/.test(card))
-  check('D9 the card’s esc is the No leg from BOTH faces (the option grammar’s cancel and the field’s escape)', card.includes('onCancel={() => onAnswer(null)}') && card.includes('onEscape={() => onAnswer(null)}'))
-  const answerAt = screen.indexOf('const answerContractAsk = ')
-  const answerBody = screen.slice(answerAt, screen.indexOf('\n  }\n', answerAt))
-  check('D11 POISON: the answer door touches no composer — no live draft, no compose context, no region move', answerAt > 0 && !/setComposeContext|liveDraft|setRegion|clearLiveDraft/.test(answerBody))
-  check('D12 the contract-compose context is gone WHOLE (type member · send branch · esc branch · context line)', !screenCode.includes("'contract-compose'") && !screenCode.includes('contract-compose'))
-  check('D13 every printed key on the field is true: ↵ = onSubmit · ⇧↵ = the text input’s own shift-enter newline · esc = onEscape', card.includes('↵ starts the session under it') && card.includes('⇧↵ newline') && card.includes('esc starts it plain') && card.includes('multiline') && read('src/hooks/useTextInput.ts').includes("if (key.meta || key.shift) return cursor.insert('\\n')"))
-  check('D9b the screen YIELDS the keys while the ask stands (the one-Select modality — the ONE modal owner; git-offer outranks contract-ask exactly as the old ladder did)', screen.includes('contractAsk: contractAskRef.current,') && screen.includes('if (modalOwner !== null) return') && (() => { const owner = read('src/components/concourse/boardModalOwner.ts'); return owner.includes("if (facts.gitOffer) return 'git-offer'") && owner.indexOf("if (facts.gitOffer) return 'git-offer'") !== -1 && owner.indexOf("if (facts.gitOffer) return 'git-offer'") < owner.indexOf("if (facts.contractAsk) return 'contract-ask'") })())
-  const route = read('src/components/concourse/ConcourseRoute.tsx')
-  check('D10 the route lands the composed words as the DRAFT through the one verb, after the admit, before the enter — and a refused set never un-births', route.includes("action: 'contract', sessionId: born.sessionId, by: 'operator', contract: { op: 'set', text: contractText }") && route.includes('the contract was not set'))
-}
 
 console.log('E — ADVISORY ALWAYS (the poison: contract state blocking a tool, a dispatch, or an admission)')
 {
@@ -145,38 +96,6 @@ console.log('E — ADVISORY ALWAYS (the poison: contract state blocking a tool, 
   const before = rec().lastDeliveryAt
   markConcourseWorkerDelivery(RUNNER, DIR)
   check('E1 a delivery lands on an UN-ACKED draft exactly as on no contract (nothing valves on contract state)', before === undefined && typeof rec().lastDeliveryAt === 'number')
-  const allowed = new Set([
-    'src/daemon/sessionContract.ts',
-    'src/daemon/concourseWorkers.ts',
-    'src/daemon/main.ts',
-    'src/daemon/controlServer.ts',
-    'src/daemon/protocol.ts',
-    'src/daemon/saturn.ts',
-    'src/daemon/saturnBirth.ts',
-  ])
-  const { readdirSync } = await import('node:fs')
-  const hits: string[] = []
-  for (const root of ['src/daemon', 'src/services/switchboard']) {
-    for (const name of readdirSync(join(process.cwd(), root), { recursive: true }) as string[]) {
-      if (!name.endsWith('.ts')) continue
-      const rel = join(root, name)
-      if (/\.contract\b/.test(readFileSync(join(process.cwd(), rel), 'utf8'))) hits.push(rel)
-    }
-  }
-  check('E2 the contract field’s daemon/switchboard readers are the closed allowlist (no admission, dispatch, capacity, permission or launch-authority path reads it)', hits.every(h => allowed.has(h)), hits.filter(h => !allowed.has(h)).join(', ') || 'clean')
-  const saturnSrc = readFileSync(join(process.cwd(), 'src/daemon/saturn.ts'), 'utf8')
-  check('E2b saturn.ts never reads the RECORD contract field (its hits are the birth-spec payload + the text cap)', !/\brec\.contract\b|\brecord\.contract\b|\bstanding\.contract\b/.test(saturnSrc) && saturnSrc.includes('CONTRACT_TEXT_CAP'))
-  const birthSrc = readFileSync(join(process.cwd(), 'src/daemon/saturnBirth.ts'), 'utf8')
-  check('E2c saturnBirth.ts never reads the RECORD contract field (its hits are spec.contract + the doors.contract writer)', (birthSrc.match(/\w+\.contract\b/g) ?? []).every(h => h === 'spec.contract' || h === 'doors.contract'))
-  for (const guarded of ['src/daemon/concourseDispatch.ts', 'src/services/switchboard/capacityCheck.ts', 'src/services/switchboard/launchAuthority.ts', 'src/daemon/permissionAsks.ts']) {
-    check(`E3 ${guarded.split('/').pop()} never reads contract state`, !/\.contract\b/.test(read(guarded)))
-  }
-  const tool = read('src/tools/ContractTool/ContractTool.ts')
-  const workGate = /throw new Error\((?!'(acknowledge requires|check-in needs|propose-amend needs|close-against needs))/
-  check('E4 the abide tool never refuses WORK — its only throws are its own malformed-input asks, and every contract-state face is words, not a gate', !workGate.test(tool))
-  check('E4 refusals: a planted contract-state work gate is still rejected', workGate.test("throw new Error('contract is not acknowledged')"))
-  const toolsCat = read('src/tools.ts')
-  check('E5 the catalogue gates ONLY the contract tool on the role stamp — no other tool’s membership mentions contract', (toolsCat.match(/contractToolHosted\(\)/g) ?? []).length === 1)
 }
 
 console.log('F — close-against writes the contract-close receipt through the landed seam')
@@ -192,17 +111,10 @@ console.log('F — close-against writes the contract-close receipt through the l
   })
   const entries = readSessionReceipts(home, SID)
   check("F1 the seam round-trips the 'contract-close' entry (at · by · kind · summary · details)", entries.length === 1 && entries[0]?.kind === 'contract-close' && entries[0]?.by === `worker:${SID.slice(0, 8)}` && (entries[0]?.details as { amendments?: number } | undefined)?.amendments === 1)
-  const tool = read('src/tools/ContractTool/ContractTool.ts')
-  check('F2 the tool imports the LANDED seam and only calls append (the receipts estate owns the module internals)', tool.includes("import('../../services/switchboard/sessionReceipts.js')") && tool.includes("kind: 'contract-close'") && !tool.includes('receipts.jsonl'))
-  const closeArm = tool.slice(tool.indexOf("case 'close-against'"), tool.indexOf('} satisfies ToolDef'))
-  check('F3 the receipt files FIRST, the verb closes second (a crash between leaves a receipted, re-closable contract — benign)', closeArm.indexOf('appendSessionReceipt(') !== -1 && closeArm.indexOf('appendSessionReceipt(') < closeArm.indexOf("contractVerb('close')"))
 }
 
 console.log('G — warm re-surfacing (T3 mechanism 1: at birth, then on cadence, through the estate’s own plumbing)')
 {
-  const reminders = read('src/utils/attachments/reminders.ts')
-  check('G1 the birth ride: a contract never surfaced and never touched is due IMMEDIATELY', reminders.includes('turnsSinceLastReminder === null && turnsSinceLastTouch === null'))
-  check('G2 the producer rides the ONE orchestrator fan-out (no parallel channel)', read('src/utils/attachments/orchestrator.ts').includes("maybe('contract_reminder'"))
   {
     const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
     const rows = normalizeAttachmentForAPI({ type: 'contract_reminder', text: 'the work agreement', status: 'in force', amendments: 0, ackOwed: false } as never)

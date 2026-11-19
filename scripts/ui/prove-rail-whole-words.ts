@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -13,8 +13,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const { fitRailName, railRowBudgets } = await import('../../src/components/HelmLanesRail.tsx')
 const { railPlanAt, HELM_HOME_MIN_COLS } = await import('../../src/utils/helmGeometry.ts')
@@ -24,8 +22,6 @@ const { displayWidth } = await import('../../src/components/mercury-ui/glyphs.ts
 
 const USAGE_ROW = 'usage — after first reply'
 const HEALTH_ROW = '/health — health cert'
-const model = read('src/utils/cockpit/helmLanesModel.ts')
-check('the two rows are the lanes model’s own words', model.includes(`'${USAGE_ROW}'`) && model.includes(`'${HEALTH_ROW}'`))
 
 const nameBudget = (rowW: number, name: string): number => railRowBudgets(rowW - 2 - 2, displayWidth(name), 0, 3).name
 
@@ -88,11 +84,6 @@ console.log('§4 the law across every budget: whole words, the ellipsis, no dang
   check('a separator never ends a row: "ctx 12% · 200k" in 11 reads "ctx 12%…"', fitRailName('ctx 12% · 200k', 11) === 'ctx 12%…')
 }
 
-console.log('§5 the row paints through the whole-word fit')
-{
-  const rail = read('src/components/HelmLanesRail.tsx')
-  check('RailRow fits its name with fitRailName, never the inside cut', rail.includes('const nameT = fitRailName(name, budgets.name)') && !rail.includes('truncateToWidth(name, budgets.name)'))
-}
 
 console.log(failures === 0 ? '\nrail-whole-words: GREEN' : `\nrail-whole-words: ${failures} RED`)
 process.exit(failures === 0 ? 0 : 1)

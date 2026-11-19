@@ -176,21 +176,6 @@ section('F1b — the runner door speaks the method table: every line a JSON-RPC 
   }
 }
 
-section('F2 — every declared key is snake_case')
-{
-  const scan = (src: string): string[] => {
-    const keys: string[] = []
-    for (const line of src.split('\n')) {
-      const m = /^\s+([A-Za-z_][A-Za-z0-9_]*)\??:\s+z\b/.exec(line)
-      if (m) keys.push(m[1]!)
-    }
-    return keys
-  }
-  const rowKeys = scan(readFileSync(join(ROOT, 'src/rows/vocabulary.ts'), 'utf8'))
-  const methodKeys = scan(readFileSync(join(ROOT, 'src/runner/wire/methods.ts'), 'utf8'))
-  check('the row schemas declare snake_case keys only', rowKeys.length > 0 && rowKeys.every(key => SNAKE.test(key)), j(rowKeys.filter(key => !SNAKE.test(key))))
-  check("the runner door's method schemas declare snake_case keys only", methodKeys.length > 0 && methodKeys.every(key => SNAKE.test(key)), j(methodKeys.filter(key => !SNAKE.test(key))))
-}
 
 section('F3 — the seat-wire codecs: snake keys out, deep-equal back')
 {

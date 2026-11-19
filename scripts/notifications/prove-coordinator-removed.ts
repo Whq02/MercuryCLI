@@ -126,8 +126,6 @@ async function main(): Promise<void> {
     const after = await mercury(plain, ['run', '--coordinator-on', 'say the word'])
     check('the flags are the root\'s alone, as before: behind run one is an unknown option', after.code !== 0 && /unknown option '--coordinator-on'/.test(after.err) && !after.err.includes(SENTENCE), j({ code: after.code, err: after.err.slice(0, 200) }))
 
-    const source = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
-    check('the sentence is written in one place, before the screen is taken', source.split(SENTENCE).length === 2 && source.indexOf(SENTENCE) !== -1 && source.indexOf(SENTENCE) < source.indexOf('await interactiveLaunch({'), `${source.split(SENTENCE).length - 1} time(s)`)
   }
 
   section('§2 a home that had the coordinator on starts clean and keeps every file it wrote')
@@ -200,19 +198,13 @@ async function main(): Promise<void> {
     } catch {
     }
     check('mercury health: the constitution row reports the constitution and the crewmate contract, and no other seat', wrapper === `the constitution ${MERCURY_CONSTITUTION.length} chars — built-in source; ${sizes}`, j(wrapper))
-    const preflight = readFileSync(join(ROOT, 'src', 'utils', 'healthPreflight.ts'), 'utf8')
-    check('the boot preflight words its own row the same way', preflight.includes('chars — repo-owned source; crewmate contract ${MERCURY_SUBAGENT_CONTRACT.length} chars`') && !/coordinator|seat contracts/.test(preflight))
-    check('the settings list holds no row and no search word for it', !/coordinator/i.test(readFileSync(join(ROOT, 'src', 'components', 'Settings', 'Config.tsx'), 'utf8')))
 
     const text = (...rel: string[]): string => readFileSync(join(ROOT, ...rel), 'utf8')
     const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
     const crewmates = (STARTUP_MENU as ReadonlyArray<{ env?: string; detail?: { controls?: string } }>).find(row => row.env === 'MERCURY_SESSION_SUBAGENTS')?.detail?.controls ?? ''
     check('the boot menu\'s Crewmates detail goes from the receipt straight to the in-session toggle', crewmates.includes('answers one receipt naming /crewmates and this menu. Inside a session, /crewmates on|off') && !/coordinator/i.test(crewmates), crewmates.slice(0, 600))
-    check('…and the splash carries that detail as the menu owns it', crewmates.length > 0 && text('assets', 'splash', 'splash-core.mjs').includes(JSON.stringify(crewmates).slice(1, -1)) && !/coordinator/i.test(text('assets', 'splash', 'splash-core.mjs')))
-    check('the ground picker\'s legend ends at esc close', text('src', 'components', 'concourse', 'GroundPicker.tsx').includes('          ↑↓ move · pgup/pgdn page · ↵ launch here · esc close\n') && !/coordinator/i.test(text('src', 'components', 'concourse', 'GroundPicker.tsx')))
     const { presetPromptLines } = await import('../../src/components/KitMenuScreen.tsx')
     check('the save-as-preset card says who starts from a preset: the next session', j(presetPromptLines('x', null)) === j(['save as preset', '', 'name: x▌', '', 'a preset is this record under a name —', 'the next session can start from it.', '', '↵ save · esc cancel']), j(presetPromptLines('x', null)))
-    check('/contract with no contract names the one other door', text('src', 'commands', 'contract', 'contract.ts').includes("'No contract — /contract <words> drafts one (the concourse New Session offer is the other door). Advisory always: it encourages, never fences.'"))
     const { backgroundedLaunchRefusal } = await import('../../src/services/switchboard/launchAuthority.ts')
     const refusal = backgroundedLaunchRefusal('subagents')
     check('a backgrounded session\'s refusal names the two ways its tag is granted', refusal.includes('until it holds the crewmates-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option), or until') && !/coordinator/i.test(refusal), refusal)

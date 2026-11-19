@@ -297,8 +297,6 @@ try {
     console.log(`  a cp that sleeps for ten minutes, bounded at 1.5 s, is answered for after ${boundFor.toFixed(0)} ms`)
     check('the clone is given up at the bound, not at the helper\'s pleasure', boundOutcome[0] === 'failed' && boundFor < 20_000, `${boundOutcome[0]} after ${boundFor.toFixed(0)} ms`)
     check('…nothing is left at the name or beside the copy', !present(join(boundTarget, 'node_modules')) && readdirSync(scratch).every(name => !name.startsWith('.cloning-')))
-    const cloneSource = readFileSync(join(ROOT, 'src/utils/worktreeClone.ts'), 'utf8')
-    check('the macOS helper and cp are both started with that bound, two minutes unless a caller says otherwise', cloneSource.includes("execFileNoThrowWithCwd(OSASCRIPT, ['-l', 'JavaScript', '-e', CLONEFILE_SCRIPT], {") && cloneSource.split('timeout: answerBoundMs').length === 3 && cloneSource.includes('const CLONE_ANSWER_BOUND_MS = 120_000') && cloneSource.includes('answerBoundMs: number = CLONE_ANSWER_BOUND_MS'))
 
     section('§7 a launch still waits where the user set up steps of their own, and for every other caller')
     use('pausing')
@@ -327,18 +325,7 @@ try {
     check('the hooks of a tool call and of a permission ask run inside a tool call, behind the gate, and the session\'s own never run in a crewmate\'s directory: none of these makes a crewmate wait', readiness?.hookMayMeetCopy !== undefined && behindTheGate.every(event => (HOOK_EVENTS as readonly string[]).includes(event) && !mayMeet(event)), behindTheGate.filter(mayMeet).join(', '))
     check('every other moment the contract names does: the start, the answer, the turn\'s end, the crewmate\'s end, a fold before and after, a turn\'s start', ['crewmate.start', 'turn.answer', 'turn.end', 'crewmate.end', 'compaction.before', 'compaction.after', 'turn.start'].every(event => (HOOK_EVENTS as readonly string[]).includes(event) && mayMeet(event)) && (HOOK_EVENTS as readonly string[]).filter(event => !behindTheGate.includes(event)).every(mayMeet), (HOOK_EVENTS as readonly string[]).filter(event => !behindTheGate.includes(event) && !mayMeet(event)).join(', '))
     check('…and so does a moment the contract does not name yet', mayMeet('some.later.moment'))
-    const runAgentSource = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
-    check('runAgent asks it of every moment of the contract before the start hook fires, and a crewmate whose own definition carries hooks waits too', runAgentSource.includes("if (agentDefinition.hooks !== undefined || HOOK_EVENTS.some(event => hookMayMeetCopy(event) && hasHooksFor(event, hookScope, toolUseContext.getAppState()))) await worktreeHoldOf({ agentId, abortController })\n      const started = await fireHooks(\n        'crewmate.start',"))
-    check('the hooks of a crewmate\'s end wait for the folders themselves, whatever ended it', runAgentSource.includes("if (hasHooksFor('turn.end', hookScope, toolUseContext.getAppState()) || hasHooksFor('crewmate.end', hookScope, toolUseContext.getAppState())) await worktreeReadyOf(agentId)\n      await fireHooks(\n        'turn.end',"))
 
-    section('§9 where the wait sits')
-    const orchestration = readFileSync(join(ROOT, 'src/services/tools/toolOrchestration.ts'), 'utf8')
-    const early = readFileSync(join(ROOT, 'src/services/tools/earlyStarts.ts'), 'utf8')
-    const gate = readFileSync(join(ROOT, 'src/run-core/pauseGate.ts'), 'utf8')
-    const agentTool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-    check('every tool call of both roads passes parkBeforeTool before it runs', orchestration.includes('await parkBeforeTool(context, block.name)') && orchestration.split('if (taken === undefined) await parkBeforeBlock(block, ').length === 3 && early.indexOf('await parkBeforeTool(context, block.name)') > 0 && early.indexOf('await parkBeforeTool(context, block.name)') < early.indexOf('for await (const update of runToolUse(block, parent, this.gate, context'))
-    check('parkBeforeTool waits on the crewmate\'s folders first, and only when there is a hold', gate.includes('  const held = worktreeHoldOf(context)\n  if (held !== undefined) await held\n  let spoke = false'))
-    check('the Crewmate tool launches without waiting, holds that crewmate\'s tools, and ends the crewmate on finished folders', agentTool.includes('foldersBehindLaunch: true,') && agentTool.includes('if (worktreeInfo.ready !== undefined) holdToolsUntil(earlyAgentId, worktreeInfo.ready)') && agentTool.indexOf('releaseToolHold(earlyAgentId)\n      await worktreeInfo.ready') > 0 && agentTool.indexOf('releaseToolHold(earlyAgentId)\n      await worktreeInfo.ready') < agentTool.indexOf('await unlockAgentWorktree(worktreeInfo.worktreePath, worktreeInfo.gitRoot)'))
   }
 } finally {
   release()

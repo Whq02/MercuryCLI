@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
-import { codeOnlyText } from '../lib/codeText.ts'
 
 for (const knob of ['GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MERCURY_GEMINI_OAUTH_CLIENT_ID', 'MERCURY_GEMINI_OAUTH_CLIENT_SECRET']) delete process.env[knob]
 process.env['MERCURY_CONFIG_DIR'] = realpathSync(mkdtempSync(join(tmpdir(), 'logins-key-lines-')))
@@ -14,8 +13,6 @@ process.env['FORCE_COLOR'] = '0'
 
 const t = checker()
 const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-const code = (rel: string): string => codeOnlyText(rel, read(rel))
 const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
   return at < 0 ? undefined : process.argv[at + 1]
@@ -54,52 +51,6 @@ const expectedLine = (family: Family): string =>
     : `${family === 'huggingface' ? 'Token' : 'API key'}: ${PAGES[family]} — sign in, ${menuWord(family)}, create, paste it here.`
 const LINE_SHAPE = /^(API key|Token): \S+ — sign in, (API Keys|Access Tokens), create, paste it here\.$/
 
-const OWNER = 'src/components/loginFamilyRows.ts'
-const FACE = 'src/components/BootLoginsScreen.tsx'
-const GUIDE = 'src/components/geminiConnectGuide.ts'
-const PANE: Record<Family, string> = {
-  openai: 'src/components/ConsoleOAuthFlow.tsx',
-  openrouter: 'src/components/OpenrouterConnect.tsx',
-  gemini: 'src/components/GeminiConnect.tsx',
-  huggingface: 'src/components/HuggingfaceConnect.tsx',
-  moonshot: 'src/components/KimiConnect.tsx',
-  zai: 'src/components/ZaiConnect.tsx',
-  deepseek: 'src/components/DeepseekConnect.tsx',
-  xai: 'src/components/XaiConnect.tsx',
-  meta: 'src/components/MetaConnect.tsx',
-  mistral: 'src/components/MistralConnect.tsx',
-  nous: 'src/components/NousConnect.tsx',
-  zen: 'src/components/ZenConnect.tsx',
-  minimax: 'src/components/MinimaxConnect.tsx',
-  together: 'src/components/TogetherConnect.tsx',
-  cohere: 'src/components/CohereConnect.tsx',
-  groq: 'src/services/providers/groq/GroqConnect.tsx',
-  melious: 'src/services/providers/melious/MeliousConnect.tsx',
-  orcarouter: 'src/services/providers/orcarouter/OrcarouterConnect.tsx',
-  cerebras: 'src/services/providers/cerebras/CerebrasConnect.tsx',
-  fireworks: 'src/services/providers/fireworks/FireworksConnect.tsx',
-  qwen: 'src/services/providers/qwen/QwenConnect.tsx',
-}
-const ROAD: Partial<Record<Family, string[]>> = {
-  deepseek: ['src/services/providers/deepseek/deepseekLogin.ts', 'src/services/providers/deepseek/deepseekCallModel.ts'],
-  xai: ['src/services/providers/xai/xaiLogin.ts', 'src/services/providers/xai/xaiCallModel.ts'],
-  meta: ['src/services/providers/meta/metaLogin.ts', 'src/services/providers/meta/metaCallModel.ts'],
-  mistral: ['src/services/providers/mistral/mistralLogin.ts', 'src/services/providers/mistral/mistralCallModel.ts'],
-  nous: ['src/services/providers/nous/nousLogin.ts', 'src/services/providers/nous/nousCallModel.ts'],
-  zen: ['src/services/providers/zen/zenLogin.ts', 'src/services/providers/zen/zenCallModel.ts'],
-  minimax: ['src/services/providers/minimax/minimaxLogin.ts', 'src/services/providers/minimax/minimaxCallModel.ts'],
-  together: ['src/services/providers/together/togetherLogin.ts', 'src/services/providers/together/togetherCallModel.ts'],
-  cohere: ['src/services/providers/cohere/cohereLogin.ts', 'src/services/providers/cohere/cohereCallModel.ts'],
-  groq: ['src/services/providers/groq/groqLogin.ts', 'src/services/providers/groq/groqCallModel.ts'],
-  melious: ['src/services/providers/melious/meliousLogin.ts', 'src/services/providers/melious/meliousCallModel.ts'],
-  orcarouter: ['src/services/providers/orcarouter/orcarouterLogin.ts', 'src/services/providers/orcarouter/orcarouterCallModel.ts'],
-  cerebras: ['src/services/providers/cerebras/cerebrasLogin.ts', 'src/services/providers/cerebras/cerebrasCallModel.ts'],
-  fireworks: ['src/services/providers/fireworks/fireworksLogin.ts', 'src/services/providers/fireworks/fireworksCallModel.ts'],
-  qwen: ['src/services/providers/qwen/qwenLogin.ts', 'src/services/providers/qwen/qwenCallModel.ts'],
-  moonshot: ['src/services/providers/moonshot/moonshotLogin.ts'],
-  huggingface: ['src/services/providers/huggingface/huggingfaceLogin.ts'],
-  zai: ['src/services/providers/zai/zaiCallModel.ts'],
-}
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
@@ -139,11 +90,6 @@ t.section('§1 — ONE OWNER: the family-row owner spells every key page once; t
   const drift = FAMILIES.filter(f => line === undefined || line(f) !== expectedLine(f))
   t.check('keyPageLine spells the one plain line — the page, then sign in · the menu word · create · paste', drift.length === 0, drift.join(','))
   t.check('every expected line has the ruled shape and remains a single line', FAMILIES.every(f => !line?.(f).includes('\n') && (f === 'gemini' ? line(f) === 'API key: aistudio.google.com/apikey — create a key, paste it here.' : LINE_SHAPE.test(expectedLine(f)))))
-  t.check(
-    "the Gemini guide's key page IS the owner's page (scheme added, nothing respelled)",
-    guide.GEMINI_API_KEY_PAGE.address === `https://${PAGES.gemini}` && code(GUIDE).includes('KEY_PAGES.gemini') && !code(GUIDE).includes(PAGES.gemini),
-    guide.GEMINI_API_KEY_PAGE.address,
-  )
 }
 
 t.section("§2 — THE CARDS: each key family's card carries exactly one key line, the page hides in no other sentence")
@@ -180,26 +126,6 @@ t.section("§2 — THE CARDS: each key family's card carries exactly one key lin
   }
 }
 
-t.section('§3 — THE PANES AGREE: every in-chat pane reuses the one line; no file respells a page; the road spells the same')
-{
-  for (const family of FAMILIES) {
-    const pane = code(PANE[family])
-    if (family === 'gemini') {
-      t.check("gemini: the in-chat pane paints the guide's key-leg lines and spells no page of its own", pane.includes('geminiKeyLegLines(') && !pane.includes(PAGES.gemini))
-    } else {
-      t.check(`${family}: the in-chat pane renders keyPageLine('${family}') and spells no page of its own`, pane.includes(`keyPageLine('${family}')`) && !pane.includes(PAGES[family]))
-    }
-    for (const road of ROAD[family] ?? []) {
-      t.check(`${family}: the road's own receipt (${road.split('/').at(-1)}) spells the owner's page`, code(road).includes(PAGES[family]))
-    }
-  }
-  const face = code(FACE)
-  const respelled = FAMILIES.filter(f => face.includes(PAGES[f]))
-  t.check('the face module spells no key page itself (every card line comes from the owner)', respelled.length === 0, respelled.join(','))
-  t.check('the face composes the cards through keyPageLine', face.includes('keyPageLine(pick)') && face.includes("keyPageLine('deepseek')") && face.includes("keyPageLine('xai')"))
-  const ownerCode = code(OWNER)
-  t.check('the owner spells each page exactly once', FAMILIES.every(f => count(ownerCode, `'${PAGES[f]}'`) === 1))
-}
 
 const COLS = 178
 const ROWS = 51

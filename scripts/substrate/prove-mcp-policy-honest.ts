@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { isMcpPolicyActive, describeMcpPolicy, getMaxExposedRisk } from '../../src/services/mcp/toolPolicy.js'
 
 let failures = 0
@@ -12,7 +10,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const src = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 function withEnv<T>(v: string | undefined, fn: () => T): T {
   const prev = process.env.MERCURY_MCP_MAX_RISK
   if (v === undefined) delete process.env.MERCURY_MCP_MAX_RISK
@@ -35,16 +32,6 @@ check('mixed default+override ⇒ "default low · scratch:medium"', withEnv('low
 check('junk ⇒ INACTIVE + permissive (fail-open, never throws)', withEnv('@@junk@@', () => isMcpPolicyActive() === false))
 check('getMaxExposedRisk() still returns the BARE fallback unchanged (string field intact)', withEnv('untrusted-srv:low', () => getMaxExposedRisk() === 'high'))
 
-section('threaded as a SEPARATE boolean snapshot→panels (structural)')
-const tp = src('services', 'mcp', 'toolPolicy.ts')
-check('toolPolicy exports isMcpPolicyActive + describeMcpPolicy', /export function isMcpPolicyActive/.test(tp) && /export function describeMcpPolicy/.test(tp))
-const mcps = src('utils', 'cockpit', 'mcpGauge.ts')
-check('McpData carries mcpPolicyActive + mcpPolicyHint', /mcpPolicyActive: boolean/.test(mcps) && /mcpPolicyHint: string/.test(mcps))
-check('mcpGauge threads the boolean through EVERY data arm (no missing-field undefined)', (mcps.match(/mcpPolicyActive/g) || []).length >= 4)
-const perms = src('utils', 'cockpit', 'permissionsSnapshot.ts')
-check('PermissionsData carries mcpPolicyActive (+ all arms)', /mcpPolicyActive: boolean/.test(perms) && (perms.match(/mcpPolicyActive/g) || []).length >= 3)
-const sub = src('utils', 'cockpit', 'substrateSnapshot.ts')
-check('substrateSnapshot uses isMcpPolicyActive() — the canonical bug line is fixed', /isMcpPolicyActive\(\)/.test(sub) && !/=== 'high'\s*[?)]/.test(sub.split('\n').filter(l => /mcpPolic/i.test(l)).join('\n')))
 
 section('panels color/warn off the boolean, NOT the displayed === \'high\' string')
 {

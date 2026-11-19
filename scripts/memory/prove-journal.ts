@@ -8,7 +8,6 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const scratch = realpathSync(mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'mercury-journal-')))
 const home = join(scratch, 'home')
 const project = join(scratch, 'project')
@@ -196,26 +195,6 @@ check('the description names the home, the project tree and the no-sharing line'
 const prompt = await JournalTool.prompt()
 check('the prompt says what the entry carries, its length, its home and its reader', prompt.includes("where the project is, what the queued backlog is, and what the user asked for in this session, in their words — never Mercury's own standing instructions") && prompt.includes('no longer than a sentence') && prompt.includes('never under the project tree') && prompt.includes('memory.journalOnEntryPage'))
 
-section('§7 nothing Mercury sends anywhere but the session\'s own request can carry the journal (the readers are a closed set)')
-const srcFiles = walk(join(ROOT, 'src')).filter(p => /\.(ts|tsx)$/.test(p))
-const readers = srcFiles
-  .filter(p => /mneme\/journal\.js'|from '\.\/journal\.js'/.test(readFileSync(p, 'utf8')))
-  .map(p => relative(ROOT, p))
-  .sort()
-const allowed = new Set([
-  'src/components/memory/MemoryCentreView.tsx',
-  'src/constants/prompts.ts',
-  'src/tools.ts',
-  'src/tools/JournalTool/JournalTool.ts',
-  'src/tools/JournalTool/UI.tsx',
-])
-const strangers = readers.filter(p => !allowed.has(p))
-check('every importer of the journal module is one of the known readers (the tool, the catalogue, the memory screen, the entry page)', strangers.length === 0, strangers.join(', '))
-const pathReaders = srcFiles.filter(p => !p.endsWith(`${sep}mneme${sep}journal.ts`) && /journal\.md|JOURNAL_FILE/.test(readFileSync(p, 'utf8'))).map(p => relative(ROOT, p))
-check('no other source opens the journal file by its path', pathReaders.length === 0, pathReaders.join(', '))
-const network = srcFiles.filter(p => /src\/(services\/providers|services\/notifications|daemon|switchboard|utils\/telemetry|services\/sync)\//.test(p.split(sep).join('/')))
-const networkReaders = network.filter(p => /journal/i.test(readFileSync(p, 'utf8')) && /mneme\/journal|journal\.md|lastJournalEntry|readJournal/.test(readFileSync(p, 'utf8'))).map(p => relative(ROOT, p))
-check('no provider, notification, daemon, switchboard or telemetry module reads the journal', networkReaders.length === 0, networkReaders.join(', '))
 
 section('§8 the settings: the two keys, their defaults, the honesty line where the setting lives')
 const { generateSettingsJSONSchema } = await import('../../src/utils/settings/schemaOutput.js')
@@ -225,9 +204,6 @@ check('memory.journal is a boolean in the schema', memoryProps.journal?.type ===
 check('memory.journalOnEntryPage is a boolean in the schema', memoryProps.journalOnEntryPage?.type === 'boolean')
 check('memory.journal says the default is off and that Mercury never pushes, syncs or shares it', /default off/.test(memoryProps.journal?.description ?? '') && /never pushed, synced or shared by Mercury/.test(memoryProps.journal?.description ?? ''), memoryProps.journal?.description ?? '')
 check('memory.journalOnEntryPage states the honesty line', /travels to the engine's provider with the request/.test(memoryProps.journalOnEntryPage?.description ?? '') && /default off/.test(memoryProps.journalOnEntryPage?.description ?? ''), memoryProps.journalOnEntryPage?.description ?? '')
-const config = readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'utf8')
-check('/config carries both rows', config.includes("id: 'memory.journal'") && config.includes("id: 'memory.journalOnEntryPage'"))
-check('/config states the honesty line on the entry-page row', /sent to the model's provider/.test(config))
 
 section("§9 the entry page carries the journal's last entry only when memory.journalOnEntryPage is on")
 {

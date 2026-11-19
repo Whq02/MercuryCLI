@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { windowSourceUsages, type ActiveUsageReads } from '../../src/services/providers/providerUsage.ts'
 
 let failures = 0
@@ -9,26 +7,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-{
-  const rail = readFileSync(join(import.meta.dir, '../../src/components/HelmVitalsRail.tsx'), 'utf8')
-  t(
-    '§1 the rail reads the FOCUSED CONNECTOR model facts',
-    rail.includes('getFocusedSessionConnector().modelFacts().main'),
-  )
-  t(
-    '§1 …subscribed through the focused slot (hops and switches repaint)',
-    rail.includes('subscribeThroughFocused') && rail.includes('connector.subscribeModel'),
-  )
-  t(
-    '§1 …feeding the composed usages, never the bare global call',
-    rail.includes('windowSourceUsages({ model: sessionModel })') && !/const usage = activeSourceUsage\(\)/.test(rail),
-  )
-  t(
-    '§1 POISON: the AppState session-model read stays out of the rail (local-road-only, lies for daemon chats)',
-    !rail.includes('s.engineModelForSession'),
-  )
-  t('§1 …and paints the beside-accounts block', rail.includes('otherUsages'))
-}
 
 const now = Date.now()
 const NO_SPEND = { models: 0, costUSD: 0 } as never

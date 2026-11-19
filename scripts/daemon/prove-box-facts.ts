@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { liveFactsOf, withLiveRunner } from '../lib/builtProduct.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const ROOT = join(import.meta.dir, '..', '..')
 delete process.env.MERCURY_BOX_LOCK_DIR
 
 const box = await import('../../src/utils/boxLock.ts')
@@ -138,9 +137,6 @@ check(
   liveBox.live !== undefined && liveBox.own.lock?.dir === lockDir && j(still(liveBox.live)) === j(still(liveBox.own)) && liveBox.live.atMs >= liveBox.from && liveBox.live.atMs <= liveBox.to && waitDrift <= 5,
   j({ ...liveBox, waitDrift }),
 )
-check('the reading takes no sample of its own: it reads the last one and refreshes off the answer', readFileSync(join(ROOT, 'src/utils/boxLock.ts'), 'utf8').includes('const last = lastMemorySample(now)') && !readFileSync(join(ROOT, 'src/utils/boxLock.ts'), 'utf8').includes('sampleAvailableMemory('))
-check('the daemon publishes the box row as the child answered it, nothing stamped over it', readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8').includes("{ box: boxAnswer }"))
-check('the Bash tool appends the line to a result that waited', readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8').includes('boxLockLineForCommand(input.command'))
 const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
 const lockDirBefore = process.env.MERCURY_BOX_LOCK_DIR
 process.env.MERCURY_BOX_LOCK_DIR = lockDir

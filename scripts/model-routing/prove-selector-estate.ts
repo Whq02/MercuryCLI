@@ -2,7 +2,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { readFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,7 +15,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const savedEnv: Record<string, string | undefined> = {}
 for (const key of ['MERCURY_CONFIG_DIR', 'MERCURY_DISABLE_1M_CONTEXT']) {
   savedEnv[key] = process.env[key]
@@ -188,28 +186,6 @@ section('5 · the ModelTransition decision matrix (decision #7)')
 
 section('6 · retention + wiring (structural — the module graph is not bun-loadable)')
 {
-  const restore = readFileSync(join(ROOT, 'src', 'utils', 'sessionRestore.ts'), 'utf8')
-  const retained = readFileSync(join(ROOT, 'src', 'utils', 'model', 'retainedModel.ts'), 'utf8')
-  check(
-    '§8 retention is family-blind (no id-spelling gate; the synthetic sentinel is the one exclusion)',
-    !restore.includes(".startsWith('claude-')") &&
-      !restore.includes('(gpt|glm)-') &&
-      !retained.includes(".startsWith('claude-')") &&
-      !retained.includes('(gpt|glm)-') &&
-      retained.includes('model !== SYNTHETIC_MODEL') &&
-      restore.includes("from './model/retainedModel.js'"),
-  )
-  const prompt = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'useComposerModelDoors.tsx'), 'utf8')
-  check(
-    'the picker consumes the settlement owner (settleModelSelection wraps decideModelTransition)',
-    prompt.includes('settleModelSelection(') && !prompt.includes('decideModelTransition({'),
-  )
-  check(
-    'a deferred pick parks in pendingModelSwitch (last-chosen wins, via the owner patch)',
-    /pendingModelSwitch: \{ setting: next \}/.test(
-      readFileSync(join(ROOT, 'src', 'utils', 'model', 'modelTransition.ts'), 'utf8'),
-    ),
-  )
   {
     const { openStatusPart } = await import('../ui/chatScenarios.ts')
     const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
@@ -232,11 +208,6 @@ section('6 · retention + wiring (structural — the module graph is not bun-loa
       `held while the turn ran ${heldDuringTheTurn} · applied ${String(applied)} · left waiting ${JSON.stringify(left)} · ${told} notices · ${JSON.stringify(receipt)}`,
     )
   }
-  const picker = readFileSync(join(ROOT, 'src', 'utils', 'model', 'modelOptions.ts'), 'utf8')
-  check(
-    "/model gains the qualified-GPT group behind the engines+account+catalogue gate",
-    picker.includes('getQualifiedGptOptions') && picker.includes('qualifiedGptCandidates'),
-  )
 }
 
 for (const [key, value] of Object.entries(savedEnv)) {

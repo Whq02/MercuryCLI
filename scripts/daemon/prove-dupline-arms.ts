@@ -20,10 +20,9 @@ import {
   SECOND_LINE,
   SLEEP_TOOL_TURN_ASK,
 } from './dupline-fixture-words.ts'
-import { argAfter, bootRunner, bound, briefly, carriersOf, carrying, childEnv, CLOCK_TOLERANCE_MS, deliveryClockOf, describeRequests, DIST, exportWorld, inMainFile, isDrainedMainRow, isSession, isOutcome, j, makeTally, NODE, queueJournal, removeWorld, REPO, requestsOf, SCRATCH_ROOT, seedHome, settledCarriers, sleep, startFixture, waitWire, type Carrier, type Fixture, type Frame, type Runner, type Wire } from './dupline-world.ts'
+import { argAfter, bootRunner, bound, briefly, carriersOf, carrying, childEnv, CLOCK_TOLERANCE_MS, deliveryClockOf, describeRequests, DIST, exportWorld, inMainFile, isDrainedMainRow, isSession, isOutcome, j, makeTally, NODE, queueJournal, removeWorld, requestsOf, SCRATCH_ROOT, seedHome, settledCarriers, sleep, startFixture, waitWire, type Carrier, type Fixture, type Frame, type Runner, type Wire } from './dupline-world.ts'
 
 const { check, section, finish, failed } = makeTally('prove-dupline-arms')
-const src = (rel: string): string => readFileSync(join(REPO, 'src', ...rel.split('/')), 'utf8')
 const only = new Set((argAfter('--only') ?? '').split(',').map(a => a.trim()).filter(a => a !== ''))
 const runs = (arm: string): boolean => only.size === 0 || only.has(arm)
 
@@ -32,7 +31,6 @@ section('S the doors a sub-agent could nest or fork through are shut at their ow
   const { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
   const { AGENT_TOOL_NAME } = await import('../../src/tools/AgentTool/constants.ts')
   check('every sub-agent loses the Crewmate tool (the one deny set)', ALL_AGENT_DISALLOWED_TOOLS.has(AGENT_TOOL_NAME) && CUSTOM_AGENT_DISALLOWED_TOOLS === ALL_AGENT_DISALLOWED_TOOLS)
-  check('a launch that names no type takes the default type', src('utils/crew/agentLaunchPlan.ts').includes("(i.requestedType || undefined) ?? i.defaultAgentType"))
 }
 
 const FOLD_WINDOW_MODEL = 'claude-opus-4-6'

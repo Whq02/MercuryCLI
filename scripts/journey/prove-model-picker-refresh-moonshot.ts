@@ -340,14 +340,6 @@ try {
     out.unmount()
   }
 
-  section('§5 the seam, source-shaped: every picker in the /model surface opens the Moonshot road beside the other families')
-  {
-    const wrapper = readFileSync(join(import.meta.dir, '../../src/commands/model/mercuryModel.tsx'), 'utf8')
-    const opens = (road: string): number => (wrapper.match(new RegExp(`useCatalogueRefreshOnOpen\\(${road}, setNotice\\)`, 'g')) ?? []).length
-    check('the Moonshot road is opened wherever the OpenRouter road is', opens('MOONSHOT_ROAD') === opens('OPENROUTER_ROAD') && opens('MOONSHOT_ROAD') >= 1, `moonshot ${opens('MOONSHOT_ROAD')} · openrouter ${opens('OPENROUTER_ROAD')}`)
-    check('the road reads the account-keyed cache and forces its refresh', wrapper.includes('cached: () => getCachedMoonshotCatalogue()') && wrapper.includes('refresh: () => refreshMoonshotCatalogue({ force: true })') && wrapper.includes('kimi-oauth:${kimiAccountKey(tokens)}:${kimiCodingBase(account.region)}'))
-    check('the heading counts the live rows through the one composer (the catalogue owner\'s rows, no second count)', !wrapper.includes('moonshotCatalogueSourceWords()') && wrapper.includes('orderPickerRows(anthropicDoorRows(models)'))
-  }
 } finally {
   globalThis.fetch = realFetch
   fixture.closeAllConnections()

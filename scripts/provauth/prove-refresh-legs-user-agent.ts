@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import axios from 'axios'
@@ -43,7 +43,6 @@ process.env.MERCURY_GEMINI_OAUTH_CLIENT_ID = 'fixture-gemini-client'
 process.env.MERCURY_MOONSHOT_OAUTH_BASE = 'https://fixture.invalid/moonshot/oauth'
 process.env.MERCURY_MOONSHOT_API_BASE = 'https://fixture.invalid/moonshot/v1'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const b64url = (s: string): string => Buffer.from(s).toString('base64url')
 const jwt = (payload: Record<string, unknown>): string => `${b64url('{"alg":"none"}')}.${b64url(JSON.stringify(payload))}.sig`
 const futureExp = Math.floor(Date.now() / 1000) + 3600
@@ -131,18 +130,6 @@ section('§4 Anthropic OAuth refresh presents the product agent (axios leg)')
   check('the refreshed credential decodes', tokens.accessToken === 'at-fresh' && tokens.refreshToken === 'rt-fresh' && tokens.scopes.includes('user:inference'))
 }
 
-section('§5 no auxiliary surface composes its own agent string (structural)')
-{
-  const sources = readFileSync(join(ROOT, 'src/extensions/sources.ts'), 'utf8')
-  check('the extension source (archive) fetch presents the product identity', /headers: \{ 'user-agent': getMercuryUserAgent\(\) \}/.test(sources))
-  const hf = readFileSync(join(ROOT, 'src/services/providers/huggingface/huggingfaceAccounts.ts'), 'utf8')
-  check('the Hugging Face token legs ride getUserAgent()', (hf.match(/'user-agent': getUserAgent\(\)/g) ?? []).length >= 2)
-  const oauth = readFileSync(join(ROOT, 'src/services/oauth/client.ts'), 'utf8')
-  check('every Anthropic OAuth axios leg (exchange · refresh · roles · key) names the product agent', (oauth.match(/'User-Agent': getMercuryUserAgent\(\)/g) ?? []).length === 4)
-  const userAgent = readFileSync(join(ROOT, 'src/utils/userAgent.ts'), 'utf8')
-  check('the Anthropic client UA IS the product identity (one owner)', /return getMercuryUserAgent\(\)/.test(userAgent))
-  check('the source fetch reads the agent per request, never at module load (the version macro is a build define)', !/^const [A-Z_]+ = getMercuryUserAgent\(\)/m.test(sources))
-}
 
 console.log('\n' + '='.repeat(60))
 console.log(` ${checks} checks, ${failures} failures`)

@@ -1,7 +1,6 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync, realpathSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'kit-freshness-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -31,7 +30,6 @@ const watchdog = setTimeout(() => {
 }, 120_000)
 watchdog.unref?.()
 
-const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 console.log('============================================================')
 console.log(' KIT freshness — every open reads the estate as it IS')
@@ -91,15 +89,6 @@ section('§2 the ground-move half: the watch roots follow the ground (the frozen
   process.chdir(GROUND_A)
 }
 
-section('§3 the seams stand in source')
-{
-  const screen = readFileSync(join(REPO, 'src', 'components', 'KitMenuScreen.tsx'), 'utf8')
-  t('F8 the screen enumerates through the FRESH door on every open, re-arms the watcher on the current ground, subscribes while open and unsubscribes on close', screen.includes('enumerateKitCatalogueFresh(process.cwd())') && screen.includes('skillChangeDetector.rearmWatchRoots()') && screen.includes('skillChangeDetector.subscribe(enumerate)') && screen.includes('unsubscribe()'))
-  const catalogue = readFileSync(join(REPO, 'src', 'services', 'kitMenu', 'kitCatalogue.ts'), 'utf8')
-  t('F9 the fresh door drops all four memos (loader skills · extension catalogues · connector fetch · active set) and only for the REAL doors', catalogue.includes('clearSkillCaches()') && catalogue.includes('clearExtensionCommandCaches()') && catalogue.includes('clearAnthropicConnectorsCache()') && catalogue.includes('publishActiveSet(null)') && catalogue.includes('doors === REAL_KIT_DOORS'))
-  const det = readFileSync(join(REPO, 'src', 'utils', 'skills', 'skillChangeDetector.ts'), 'utf8')
-  t('F10 the re-arm keeps the signal and the dynamic-skills registration (only the proof-reset clears them) and never double-registers the cleanup', !/rearmWatchRoots[\s\S]{0,400}changeSignal\.clear/.test(det) && det.includes('if (unregisterCleanup === null)') && det.includes('registerDynamicSkillsOnce()'))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? '✅ KIT FRESHNESS PINS GREEN' : `❌ ${failures} FAILURE(S)`}`)

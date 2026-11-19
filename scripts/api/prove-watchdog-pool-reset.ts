@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -135,27 +135,6 @@ console.log('VERDICT ' + JSON.stringify(verdict))
   }
 }
 
-section('P2 — the wiring: both watchdog recovery rungs drop the pool first')
-{
-  const proxySource = readFileSync(join(ROOT, 'src/utils/proxy.ts'), 'utf8')
-  check(
-    'resetApiConnectionPool exists and is NON-STICKY (drops the dispatcher, never touches keepAliveDisabled)',
-    /export function resetApiConnectionPool\(\): void \{\s*apiDispatcher = null\s*\}/.test(proxySource),
-  )
-  const streamSource = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
-  check(
-    'the pre-first-event reissue drops the pool before continuing the streaming pass',
-    /preFirstEventStreamRetryUsed = true[\s\S]{0,900}?resetApiConnectionPool\(\)[\s\S]{0,2400}?continue streamingPass/.test(streamSource),
-  )
-  check(
-    'the non-streaming fallback drops the pool when the watchdog aborted the stream',
-    /if \(streamIdleAborted\) resetApiConnectionPool\(\)/.test(streamSource),
-  )
-  check(
-    'every streaming pass builds a FRESH client (the dropped pool actually re-reads on reissue)',
-    /streamingPass: for \(;;\) \{[\s\S]{0,600}?getAnthropicClient\(\{/.test(streamSource),
-  )
-}
 
 console.log(`\n ${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

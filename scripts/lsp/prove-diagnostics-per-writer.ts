@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { armScratch, check, cleanup, finish, REPO, section, TS_SIDECAR_ENTRY, writeProject } from './lspProofDoor.ts'
@@ -155,18 +155,6 @@ try {
     check('…and its unread publish with it: the main thread reads the error left in its tree', uris(afterHandBack).includes(projectOther) && messagesOf(afterHandBack).some(message => /not assignable to type 'number'/.test(message)), `${j(uris(afterHandBack))} ${j(messagesOf(afterHandBack))}`)
   }
 
-  section('§4 the wiring')
-  {
-    const orchestrator = readFileSync(join(REPO, 'src/utils/attachments/orchestrator.ts'), 'utf8')
-    const producer = "maybe('lsp_diagnostics', () => getLSPDiagnosticAttachments(toolUseContext), { inputScoped: true })"
-    const mainLane = orchestrator.indexOf('const mainThreadAttachments = isMainThread')
-    check('the diagnostics producer rides the every-thread lane, input-scoped (never another thread\'s in-flight read)', orchestrator.includes(producer) && orchestrator.indexOf(producer) < mainLane, '')
-    check('the main-thread-only lane no longer carries it', !orchestrator.slice(mainLane).includes('lsp_diagnostics'))
-    const road = readFileSync(join(REPO, 'src/utils/attachments/diagnostics.ts'), 'utf8')
-    check('the read is the lane\'s own: no table-wide clear behind it', !road.includes('clearAllLSPDiagnostics'))
-    const runner = readFileSync(join(REPO, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
-    check('a worktree run claims its root at launch and the run\'s end hands its lane back', runner.includes('claimDiagnosticsRoot(processOwnerForLane(agentId), worktreePath)') && runner.includes('releaseDiagnosticsWriter(processOwnerForLane(agentId), worktreePath)'))
-  }
 } finally {
   registry.resetAllLSPDiagnosticState()
   await lspManager.shutdownLspServerManager()

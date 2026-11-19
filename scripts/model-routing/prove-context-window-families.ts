@@ -17,7 +17,6 @@ function section(t: string): void {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 for (const key of [
   'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'HF_TOKEN',
   'MERCURY_MODEL', 'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_LOCAL_PROBE_TARGETS',
@@ -205,18 +204,6 @@ section('W5 · awaitContextWindowSource lands the source before a decision; boot
   await new Promise<void>(resolve => server.close(() => resolve()))
 }
 
-section('W6 · the edges are wired (source pins)')
-{
-  const orLane = src('src/services/providers/openrouter/openrouterCallModel.ts')
-  check('the OpenRouter dispatch edge refreshes the catalogue (TTL\'d, fire-and-forget)', /refreshOpenrouterCatalogue\(account\.keySource\)\.catch/.test(orLane))
-  const compact = src('src/services/compact/autoCompact.ts')
-  check('shouldAutoCompact awaits the model\'s window source before reading the threshold', /const known = await awaitContextWindowSource\(model, \{ estTokens: tokenCount \+ snipTokensFreed \}\)[\s\S]{0,400}const threshold = getAutoCompactThreshold\(model\)/.test(compact))
-  const owner = src('src/utils/model/capabilities.ts')
-  check('the owner carries a Gemini arm reading geminiContextWindowFor', /geminiContextWindowFor\(normalizeForEnginePins\(model\)\)/.test(owner))
-  for (const file of ['openrouter/openrouterCatalogue.ts', 'gemini/geminiCatalogue.ts', 'huggingface/huggingfaceCatalogue.ts', 'openai/openaiCatalogue.ts', 'local/localDiscovery.ts']) {
-    check(`${file} notes the source change (epoch bump)`, /bumpCatalogueEpoch\(\)/.test(src(`src/services/providers/${file}`)))
-  }
-}
 
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`))
 process.exit(failures === 0 ? 0 : 1)

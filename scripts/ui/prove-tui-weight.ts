@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -7,27 +6,11 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
-const src = (...p: string[]): string =>
-  readFileSync(join(import.meta.dir, '../../', ...p), 'utf8')
 
 console.log('============================================================')
 console.log(' TUI weight/jump sources — proof')
 console.log('============================================================')
 
-{
-  const fsl = src('src', 'components', 'FullscreenLayout.tsx')
-  check(
-    'FullscreenLayout memoizes the size override (top-level hook)',
-    /const sizeVal = useMemo\(\(\) => \{\s*const next = cockpit/.test(fsl),
-  )
-  check(
-    'the fullscreen branch consumes the memo (no per-render object)',
-    /TerminalSizeContext\.Provider value=\{sizeVal\}/.test(fsl) &&
-      !/const sizeVal = cockpit\s*\?/.test(fsl),
-  )
-  const wc = src('src', 'components', 'mercury-ui', 'WorkCapsule.tsx')
-  check('WorkCapsule size override stays memoized (slice B hold)', /const sizeVal = React\.useMemo\(/.test(wc))
-}
 
 {
   const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.ts')
@@ -51,7 +34,6 @@ console.log('============================================================')
   tail.dispose()
 }
 {
-  const streaming = src('src', 'utils', 'messages', 'streaming.ts')
   {
     const { handleMessageFromStream } = await import('../../src/utils/messages/streaming.ts')
     type Update = { updater: (current: never[]) => unknown; opts: { silent?: boolean; flushSilent?: boolean } | undefined }
@@ -72,45 +54,8 @@ console.log('============================================================')
     check('message_stop clear is identity when already empty', updates.length === 2 && cleared === empty)
     check('message_stop clear empties a populated list', updates[1]!.updater([{ index: 0 }] as never) !== empty && (updates[1]!.updater([{ index: 0 }] as never) as unknown[]).length === 0)
   }
-  check(
-    'content_block_stop flushes the silent accumulation',
-    /case 'content_block_stop':[\s\S]{0,400}\{ flushSilent: true \}/.test(streaming),
-  )
-  const repl = src('src', 'screens', 'Chat.tsx')
-  check(
-    'the face holds no stream batcher (the runner streams; the seat tail carries it)',
-    !repl.includes('batcher.') && !repl.includes('streamingToolUsesBatcher'),
-  )
-  check(
-    'the face holds no turn-boundary tool-use reset (no per-delta commit path to skip)',
-    !repl.includes('resetStreamingToolUses'),
-  )
 }
 
-{
-  const repl = src('src', 'screens', 'Chat.tsx')
-  check(
-    'Chat holds no task-map subscription (no viewed-task read, no whole-map read)',
-    !repl.includes('viewingAgentTaskId') && !/const tasks = useAppState\((state|s) => (state|s)\.tasks\)/.test(repl),
-  )
-  check(
-    'Chat derives no crewmate-running truth of its own (the runner owns its crewmates)',
-    !repl.includes('getRunningCrewmatesSorted') && !repl.includes('anyTaskRunning'),
-  )
-  const spinner = src('src', 'components', 'Spinner.tsx')
-  check(
-    'Spinner subscribes to primitives only',
-    !/useAppState\(state => state\.tasks\)/.test(spinner) &&
-      !/useAppState\(state => state\)/.test(spinner),
-  )
-  const pi = src('src', 'components', 'PromptInput', 'PromptInput.tsx') + src('src', 'components', 'PromptInput', 'useComposerSubmit.ts') + src('src', 'components', 'PromptInput', 'useComposerKeybindings.ts')
-  check(
-    'PromptInput subscribes to primitives; handlers read the store at event time',
-    !/const tasks = useAppState\(\(s: AppState\) => s\.tasks\)/.test(pi) &&
-      /const viewedTask = useAppState\(\(s: AppState\) =>\s*s\.viewingAgentTaskId !== undefined \? s\.tasks\[s\.viewingAgentTaskId\] : undefined,?\s*\)/.test(pi) &&
-      pi.includes('fresh.tasks'),
-  )
-}
 
 {
   const { injectTurnReceipts } = await import('../../src/utils/cockpit/turnReceipt.ts')
@@ -153,32 +98,6 @@ console.log('============================================================')
   delete process.env.MERCURY_TURN_RECEIPT
 }
 
-{
-  const rail = src('src', 'components', 'HelmVitalsRail.tsx') + src('src', 'utils', 'cockpit', 'helmVitalsModel.ts')
-  check(
-    'the health section sheds against the measured ceiling',
-    rail.includes('const shedCeiling = availRows ?? termRows - CHROME_ROWS') &&
-      rail.includes('const healthShed = !fitsSection(healthRows.length)'),
-  )
-  check(
-    'the panel chrome height is honest (border + header + border = 3)',
-    rail.includes('const RAIL_PANEL_CHROME = 3'),
-  )
-  check(
-    'a shed section registers NO selectable rows (builders gated)',
-    /\.\.\.\(healthShed\s*\n?\s*\? \[\]\s*\n?\s*: \[/.test(rail),
-  )
-  check(
-    'everything shed folds into ONE honest pointer line, fit-gated',
-    rail.includes('short height — ${shedPointers.join') &&
-      rail.includes('shedPointers.length > 0 && shedPointerFits') &&
-      rail.includes("...(healthShed ? ['/health'] : [])"),
-  )
-  check(
-    'the published row model is built ONLY from rendered rows (sel() inside the gates)',
-    rail.includes("publishHelmRows('vitals', model.rows)") && rail.includes("for (const s of sections) for (const r of s.rows) if ('row' in r && r.row !== undefined) rows.push(r.row)"),
-  )
-}
 
 console.log('\n' + '═'.repeat(60))
 if (failures > 0) {

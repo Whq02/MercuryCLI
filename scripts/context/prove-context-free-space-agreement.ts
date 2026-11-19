@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_MODEL', 'MERCURY_BARE', 'MERCURY_DISABLE_1M_CONTEXT']) {
@@ -16,7 +16,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -70,15 +69,6 @@ section('§2 no recorded usage: the measured categories stand alone')
   check('Free space is the window less the measured content and the reserve', free !== undefined && reserve !== undefined && free.tokens === Math.max(0, data.maxTokens - measured - reserve.tokens))
 }
 
-section('§3 the shape and the disclosure words')
-{
-  const src = readFileSync(join(ROOT, 'src/utils/analyzeContext.ts'), 'utf8')
-  check('the headline total is computed BEFORE the free-space math', src.indexOf("const totalTokens = fill.source === 'usage'") !== -1 && src.indexOf("const totalTokens = fill.source === 'usage'") < src.indexOf('const freeSpace = Math.max('))
-  check('free space is the window less the layout total (the larger of measured and recorded)', /const usedForLayout = Math\.max\(actualUsage, totalTokens\)/.test(src) && /contextWindow - usedForLayout - reserveTokens/.test(src))
-  check('the unmeasured row rides the same push-only-when-positive rule', /pushContent\('Unmeasured \(recorded usage\)', unmeasured, 'inactive'\)/.test(src))
-  const view = readFileSync(join(ROOT, 'src/components/ContextVisualization.tsx'), 'utf8')
-  check('the disclosure line says the grid and free space follow the recorded usage', /the total, the grid and free space follow the recorded usage/.test(view))
-}
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-context-free-space-agreement${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

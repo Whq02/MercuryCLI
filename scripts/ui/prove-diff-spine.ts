@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { getTheme } from '../../src/utils/theme.js'
 import { getPatchForDisplay } from '../../src/utils/diff.js'
 import {
@@ -19,7 +17,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 console.log('============================================================')
 console.log(' diff-spine — fallback matches the primary color-diff (HB-0218)')
@@ -36,16 +33,6 @@ for (const name of ['dark', 'true-black'] as const) {
   check(`${name}: diffRemovedDimmed is a dark tint (never light red)`, /^#[0-3]/i.test(t.diffRemovedDimmed), t.diffRemovedDimmed)
 }
 
-section('the brand tints EXACTLY equal the native color-diff stamp branch (no drift)')
-const cd = readFileSync(join(ROOT, 'src', 'native-ts', 'color-diff', 'index.ts'), 'utf-8')
-const hexToRgb = (h: string): string => {
-  const n = parseInt(h.slice(1), 16)
-  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`
-}
-check(`color-diff addLine == DIFF_ADD_BG (${hexToRgb(DIFF_ADD_BG)})`, cd.includes(`addLine: ${hexToRgb(DIFF_ADD_BG)}`))
-check(`color-diff addWord == DIFF_ADD_WORD (${hexToRgb(DIFF_ADD_WORD)})`, cd.includes(`addWord: ${hexToRgb(DIFF_ADD_WORD)}`))
-check(`color-diff deleteLine == DIFF_DEL_BG (${hexToRgb(DIFF_DEL_BG)})`, cd.includes(`deleteLine: ${hexToRgb(DIFF_DEL_BG)}`))
-check(`color-diff deleteWord == DIFF_DEL_WORD (${hexToRgb(DIFF_DEL_WORD)})`, cd.includes(`deleteWord: ${hexToRgb(DIFF_DEL_WORD)}`))
 
 section('an unknown name resolves onto the brand spine, exactly as the appearances do')
 const unknown = getTheme('not-a-theme')

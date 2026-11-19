@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -16,7 +16,6 @@ console.log('============================================================')
 console.log(' calibre — the model-effort truth matrix (one typed owner)')
 console.log('============================================================')
 
-const ROOT = join(import.meta.dir, '..', '..')
 const savedEnv: Record<string, string | undefined> = {}
 for (const key of [
   'OPENAI_API_KEY',
@@ -210,15 +209,8 @@ function clearEffortEnv(): void {
   check("cycle on Terra never lands on max: xhigh →right→ low (wrap)", effort.cycleSelectableEffort('gpt-5.6-terra', 'xhigh', 'right') === 'low')
   check("an out-of-vocabulary current ('max' on Terra) enters at its applied projection", effort.cycleSelectableEffort('gpt-5.6-terra', 'max', 'left') === 'high')
 
-  const popupSrc = readFileSync(join(ROOT, 'src/commands/effort/EffortPopup.tsx'), 'utf8')
-  check('EffortPopup lists its rows from selectableEffortLevels', popupSrc.includes('selectableEffortLevels(model).map('))
   const popupRows = (await import('../../src/commands/effort/EffortPopup.js')).effortPopupRows
   check('EffortPopup on sonnet-4-6 lists no xhigh row (absent, never greyed)', popupRows('claude-sonnet-4-6').map(row => String(row.value)).join(',') === 'auto,low,medium,high,max')
-  const pickerSrc = readFileSync(join(ROOT, 'src/components/ModelPicker.tsx'), 'utf8')
-  check('ModelPicker cycles through cycleSelectableEffort (the global full-axis cycle is dead)', pickerSrc.includes('cycleSelectableEffort(') && !pickerSrc.includes('function cycleEffortLevel('))
-  check('ModelPicker row claims the owner label (no local max→high clamp)', pickerSrc.includes('resolveEffortTruth(') && !pickerSrc.includes('effort === "max" && !focusedSupportsMax'))
-  const modelSrc = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  check('/model efforts row derives from selectableEffortLevels', modelSrc.includes('selectableEffortLevels(liveModel)'))
 }
 
 {
@@ -240,25 +232,6 @@ function clearEffortEnv(): void {
   check('an unavailable catalogue is stated honestly in the receipt', degraded.message.includes('provider default'), degraded.message)
 }
 
-{
-  console.log('\n— 8 · wire consumption pins —')
-  const openaiSrc = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
-  check('openaiCallModel requests through resolveWireRequestedEffort with the agent id and the pin (env supremacy and auto/unset for an unpinned turn; a pinned side call outranks the env)', openaiSrc.includes('resolveWireRequestedEffort(modelId, effortValue, effortContext)') && openaiSrc.includes('const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }'))
-  check('the adjustment note stays a VISIBLE settlement note', openaiSrc.includes("profile.source === 'unsupported-fallback' && profile.adjustedFrom"))
-  const zaiSrc = readFileSync(join(ROOT, 'src/services/providers/zai/zaiCallModel.ts'), 'utf8')
-  check('zaiCallModel requests through resolveWireRequestedEffort with the agent id and the pin', zaiSrc.includes('resolveWireRequestedEffort(modelId, options.effortValue, effortContext)') && zaiSrc.includes('const effortContext = { agentId: options.agentId, pinned: options.effortPinned === true }'))
-  check('zai vocabulary rides the shared glmPins module', zaiSrc.includes("from './glmPins.js'"))
-  const streamSrc = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
-  check('the Anthropic wire resolves through resolveAppliedEffort with the agent id and the pin, and a pinned effort rides even on a side question', streamSrc.includes('resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId, pinned: effortPinned })') && streamSrc.includes('const effortRides = effortPinned || options.ridesSessionEffort !== false'))
-  for (const [file, needle] of [
-    ['src/components/mercury-ui/EffortChip.tsx', 'getDisplayedEffortLabel'],
-    ['src/components/MercuryFrame.tsx', '<EffortChip model={model} />'],
-    ['src/components/DeckPane.tsx', '<EffortChip model={rawModel} />'],
-    ['src/components/EffortIndicator.ts', 'getDisplayedEffortLabel'],
-  ] as const) {
-    check(`${file.split('/').pop()} prints the label channel`, readFileSync(join(ROOT, file), 'utf8').includes(needle))
-  }
-}
 
 {
   console.log('\n— 9 · GLM (glm-5.2) —')

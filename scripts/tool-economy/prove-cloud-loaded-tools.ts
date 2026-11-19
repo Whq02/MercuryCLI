@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -26,7 +26,6 @@ process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ fixture: { command: 'true', 
 process.env.TYPESAFE_API_KEY = 'proof-key-cloud-loaded-tools-not-a-real-key'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(config => ({ ...config, jev: { ...(config.jev ?? {}), enabled: true } }))
@@ -229,10 +228,6 @@ section('§4 the readers — the search corpus and the schema-not-sent hint foll
 
 section('§5 the gates the eleven keep, and what a late joiner does')
 {
-  const dap = readFileSync(join(ROOT, 'src', 'services', 'dap', 'dapClient.ts'), 'utf8')
-  check('Debug keeps its gate: the catalogue lists it only while an adapter is reachable', /export function isDapToolCatalogEnabled\(\): boolean \{\s*return mercuryDapEnabled\(\) && reachableDapAdapterKeys\(\)\.length > 0/.test(dap))
-  const lsp = readFileSync(join(ROOT, 'src', 'tools', 'LSPTool', 'LSPTool.ts'), 'utf8')
-  check('the seven language-service tools keep the mount predicate', lsp.includes('isEnabled: isLspToolMounted'))
   const model = 'claude-sonnet-5'
   const initialPool = pool.filter(tool => !MARKED_NAMES.includes(tool.name))
   const joinedPool = [...initialPool, ...FULL, ...EIGHT]

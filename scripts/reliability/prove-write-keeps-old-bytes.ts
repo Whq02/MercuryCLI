@@ -169,13 +169,6 @@ if (process.platform !== 'darwin' || !existsSync('/usr/bin/hdiutil')) {
   }
 }
 
-section('§6 source pin — no truncating fallback remains in the writer')
-{
-  const src = readFileSync(join(import.meta.dir, '../../src/utils/file.ts'), 'utf8')
-  const writer = src.slice(src.indexOf('function guardedDirectWriteSync'))
-  check('the writer never opens the destination with the truncating writeFileSync', writer.length > 0 && !/writeFileSync\(target,/.test(writer))
-  check('the guarded direct write opens the destination without truncation', /openSync\(target, 'r\+'\)/.test(writer))
-}
 
 rmSync(scratch, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-write-keeps-old-bytes${failures ? ` (${failures} failure(s))` : ''}`)

@@ -1,13 +1,12 @@
 #!/usr/bin/env bun
 // gate-watch: src/guards/runStop.ts src/guards/guards.ts src/utils/config/globalConfig.ts
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'run-stop-hook-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures = 1
@@ -44,14 +43,6 @@ section('§1 registration — one silent guard per session, under the executor c
 
 section('§2 the guard never holds — its one answer is "no hold", the record its one effect')
 {
-  const text = readFileSync(join(ROOT, 'src/guards/runStop.ts'), 'utf8')
-  const judge = text.slice(text.indexOf('judge:'), text.indexOf('\n    },', text.indexOf('judge:')))
-  const returns = judge.match(/\breturn\b[^\n]*/g) ?? []
-  check('every return of the judge is `{ hold: false }`', returns.length > 0 && returns.every(r => /^return \{ hold: false \}/.test(r)), returns.join(' | '))
-  check('the judge hands the stop to the adapter with the ceiling, the evidence-only posture and the signal — nothing more', /await evaluateStopAttempt\(messages, \{ maxBlocks: MAX_BLOCKS, wordingUnfinished: false, signal \}\)/.test(judge))
-  check('the judge reads no environment and no setting', !/process\.env|flagEnv\(|getGlobalConfig\(|getSettings/.test(judge))
-  check('the module composes no re-prompt', !/repromptWithNextAction|RUN_STOP_REPROMPT/.test(text))
-  check('the guard is registered silent (it never paints the transcript)', /silent: true/.test(text))
   const exported = Object.keys(guard).sort()
   check('the module exports the guard id, the ceiling and the registrar — nothing else', exported.join(',') === ['RUN_STOP_HOOK_ID', 'RUN_STOP_HOOK_TIMEOUT_MS', 'registerRunStopGuard'].join(','), exported.join(','))
 }

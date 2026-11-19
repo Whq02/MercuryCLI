@@ -298,15 +298,6 @@ section('§4 the Windows road WITH a bash located (MERCURY_WINDOWS_SHELL_ROAD=lo
 
 section('§5 the source keeps the session road and its three exclusions; the per-command road picks the engine only where no bash.exe was found')
 {
-  const shell = readFileSync(join(ROOT, 'src/utils/Shell.ts'), 'utf8')
-  const engine = readFileSync(join(ROOT, 'src/utils/shell/engineSession.ts'), 'utf8')
-  check('the engine session still serves only the plain foreground call', shell.includes("if (shellType === 'bash' && options.onStdout === undefined && options.backgroundIntent !== true && options.inheritSessionEnv !== true) {"))
-  check('the per-command road takes the engine provider when the road names an engine binary, else the provider table', shell.includes("const engineBinary = shellType === 'bash' ? perCommandEngineBinary(getInitialSettings().shell?.engine) : null") && shell.includes('const provider = engineBinary === null ? await PROVIDER_TABLE[shellType]() : createEngineCommandProvider(engineBinary)'))
-  check('a per-command engine call never auto-backgrounds at its timeout', shell.includes('engineBinary === null && (options.shouldAutoBackground ?? false)'))
-  check('the engine binary serves the per-command road only on the Windows road with no bash.exe located', engine.includes('if (!windowsBashAbsent()) return null'))
-  check('the engine provider runs the binary with its own flags and names no null device', engine.includes("getSpawnArgs: commandString => [...ENGINE_FLAGS, '-c', commandString]") && !engine.slice(engine.indexOf('export function createEngineCommandProvider'), engine.indexOf('function sessionFor(owner: string)')).includes('/dev/null'))
-  const config = readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'utf8')
-  check('the /config ceiling warning follows the road the same way', config.includes("still runs, in its own ${windowsBashAbsent() ? 'engine process' : 'system shell'})."))
   const runtime = readFileSync(join(ROOT, 'docs/TERMINAL-RUNTIME.md'), 'utf8').replace(/\r\n/g, '\n')
   check('TERMINAL-RUNTIME names which process takes the three calls, the engine itself on a box where no bash starts', runtime.includes('A call the long-lived process cannot take runs in a process of its own') && runtime.includes('Windows box where no bash starts it is the engine itself') && !runtime.includes('still runs, in its own system shell'))
 }

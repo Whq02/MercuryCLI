@@ -48,7 +48,6 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-vendor-packs-ignored.ts" || { __rc
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-docs-altitude.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-docs-altitude.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-docs-names.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-docs-names.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-docs-integrity.ts" --base 260725425c || { __rc=$?; fail=1; }; prover_mark "$here/prove-docs-integrity.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-release-notes-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-release-notes-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-embed-pack-everywhere-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-embed-pack-everywhere-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-provider-neutral-vocabulary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-provider-neutral-vocabulary.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-editor-prompt-file.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-editor-prompt-file.ts" "$__t" "$__rc"

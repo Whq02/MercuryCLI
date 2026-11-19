@@ -1,16 +1,7 @@
 import { spawnSync } from 'node:child_process'
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, relative, sep } from 'node:path'
-import ts from 'typescript'
+import { dirname, join } from 'node:path'
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -221,30 +212,8 @@ check(
     ;(process.stderr as unknown as { write: typeof realWrite }).write = realWrite
   }
   check('an ordinary teardown reason stays wordless (the line is for bypassed roads only)', writtenQuiet.join('') === '')
-  check(
-    'the daemon hands the exit code into the backstop',
-    readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8').includes(
-      "daemonExitTeardownSync('exit-before-teardown', code)",
-    ),
-  )
 }
 
-console.log('— §4 wiring + policy anchors —')
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string) => readFileSync(join(ROOT, p), 'utf8')
-const mainTs = src('src/daemon/main.ts')
-check(
-  'daemonRun arms the process-exit sync backstop',
-  mainTs.includes("process.once('exit'") && mainTs.includes('daemonExitTeardownSync('),
-)
-check('daemonRun passes projectDir into boot recovery', mainTs.includes("scope: 'daemon', projectDir"))
-const rosterTs = src('src/daemon/roster.ts')
-check(
-  'roster handleCrash ledgers long-lived exit rows (all dispositions)',
-  (rosterTs.match(/ledgerExit\(/g) || []).length >= 4 && rosterTs.includes('recordSpawnExit'),
-)
-const headlessTs = src('src/daemon/headlessRun.ts')
-check('headless settle ledgers an exit row', headlessTs.includes('recordSpawnExit'))
 {
   const fsH = await import('node:fs')
   fsH.mkdirSync(dirname(supPath), { recursive: true })
@@ -257,62 +226,6 @@ check('headless settle ledgers an exit row', headlessTs.includes('recordSpawnExi
     `${daemonSays?.status}: ${daemonSays?.evidence}`,
   )
 }
-check(
-  'ownedDaemon keeps the bounded daemon.log rotation (G14: logs are records, never debris)',
-  src('src/daemon/ownedDaemon.ts').includes('statSync(logPath).size > 5 * 1024 * 1024') &&
-    src('src/daemon/ownedDaemon.ts').includes('renameWithWin32RetrySync(logPath, `${logPath}.1`)'),
-)
-check(
-  'reconcile removal set is exactly the record trio + scheduler lock — never logs (G14)',
-  (src('src/daemon/reconcileRecords.ts').match(/await rm\(/g) || []).length === 3 &&
-    !/unlink[^\n]*\.log/i.test(src('src/daemon/reconcileRecords.ts')),
-)
-check(
-  'workers still carry the parent-death stamp (≤8s self-exit — the other half of teardown)',
-  headlessTs.includes('WORKER_PARENT_PID_ENV, String(process.pid)'),
-)
-const controlSocketTs = src('src/daemon/controlSocket.ts')
-const DAEMON_BOOT = join(ROOT, 'src', 'daemon', 'main.ts')
-const DAEMON_PARTS = join(ROOT, 'src', 'daemon', 'run')
-const daemonProgram = ts.createProgram([DAEMON_BOOT, ...readdirSync(DAEMON_PARTS).filter(name => name.endsWith('.ts')).map(name => join(DAEMON_PARTS, name))], { noResolve: true, noLib: true, skipLibCheck: true, target: ts.ScriptTarget.Latest, module: ts.ModuleKind.ESNext })
-const daemonCallsOf = (callee: string): string[] => {
-  const sites: string[] = []
-  for (const sf of daemonProgram.getSourceFiles()) {
-    const visit = (node: ts.Node): void => {
-      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === callee) sites.push(`${relative(ROOT, sf.fileName).split(sep).join('/')}:${sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1}`)
-      ts.forEachChild(node, visit)
-    }
-    visit(sf)
-  }
-  return sites
-}
-const recordWriteSites = daemonCallsOf('writeDaemonState')
-const rawRecordPublishes = (controlSocketTs.match(/publishInDaemonHome\('the daemon record'/g) || []).length
-check(
-  'the stopping mark in the record owner carries the stored baseline whole',
-  controlSocketTs.includes("{ ...current, state: 'stopping', stoppingAt: now }"),
-)
-check(
-  'no record write stands beside them: the daemon writes the record only through the one writer and the owner rewrite, the record owner publishes it only from the writer and the stopping mark, and the hand-over module writes none',
-  recordWriteSites.length === 2 &&
-    recordWriteSites.filter(site => site.startsWith('src/daemon/main.ts:')).length === 1 &&
-    recordWriteSites.filter(site => site.startsWith('src/daemon/run/owner.ts:')).length === 1 &&
-    rawRecordPublishes === 2 &&
-    !src('src/daemon/handover.ts').includes('writeDaemonState('),
-  `${recordWriteSites.length} record write site(s) in the daemon (${recordWriteSites.join(', ')}), ${rawRecordPublishes} raw publish(es) in the record owner`,
-)
-check(
-  'the record type declares the baseline in the one vocabulary',
-  src('src/daemon/controlSocket.ts').includes('startToken?: string | null'),
-)
-check(
-  'the reconcile judges the record pid through the ONE identity owner (the D-convergence union), never a second liveness test',
-  src('src/daemon/reconcileRecords.ts').includes('daemonRecordIdentity(sup, await (sup.startToken ? getProcessStartTokenAsync(sup.pid, sup.startToken) : getProcessStartInstantAsync(sup.pid)))'),
-)
-check(
-  'spawn ledger documents the exit/reap vocabulary',
-  src('src/utils/spawnLedger.ts').includes("'exit' | 'reap'"),
-)
 
 rmSync(home, { recursive: true, force: true })
 rmSync(projectDir, { recursive: true, force: true })

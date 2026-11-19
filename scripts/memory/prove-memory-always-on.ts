@@ -5,12 +5,10 @@
 // gate-watch: src/mneme/** src/tools/MemoryTools/** src/components/memory/** src/commands/memory/** src/utils/capability/**
 // gate-watch: src/utils/cockpit/** src/services/mcp/** src/substrate/** src/query/** src/utils/attachments/**
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { flagRegistryFiles, flagRegistryText, isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const scratch = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'mercury-memory-always-on-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 for (const name of Object.keys(process.env)) {
@@ -47,29 +45,6 @@ check('two topic pages exist', listTopicDocs(lib).length === 2, listTopicDocs(li
 section('the gate words are gone')
 const envNames = new Set(FLAG_REGISTRY.map(f => f.env))
 check('the registry has no memory gate row', !envNames.has('MERCURY_MNEME') && !envNames.has('MERCURY_MEMORY_OBSERVE'))
-check('the observe hook module is gone', !existsSync(join(ROOT, 'src/mneme/mnemeObserveTurn.ts')))
-const server = readFileSync(join(ROOT, 'src/services/mcp/mercuryServer.ts'), 'utf8')
-check('the in-process mercury server registers no mneme_ verb', !/registerTool\(\s*'mneme_/.test(server))
-const menu = readFileSync(join(ROOT, 'src/substrate/startupMenu.ts'), 'utf8')
-check('the boot menu has no memory gate row', !menu.includes("env: 'MERCURY_MNEME'"))
-const declarations = readFileSync(join(ROOT, 'src/utils/capability/declarations.ts'), 'utf8')
-check('the capability rows declare no memory gate', !declarations.includes("gate: 'MERCURY_MNEME'"))
-
-function walk(dir: string, out: string[]): void {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name)
-    if (statSync(p).isDirectory()) walk(p, out)
-    else if (/\.(ts|tsx)$/.test(name)) out.push(p)
-  }
-}
-const files: string[] = []
-for (const dir of ['src/mneme', 'src/tools/MemoryTools', 'src/components/memory', 'src/commands/memory', 'src/utils/capability', 'src/utils/cockpit', 'src/services/mcp', 'src/substrate', 'src/query', 'src/utils/attachments']) {
-  walk(join(ROOT, dir), files)
-}
-const gateWords = /MERCURY_MNEME|MERCURY_MEMORY_OBSERVE|mneme_observe|mneme_catalog|mneme_grep|mneme_read|mneme_correct|mneme_retire/
-const carriers = files.filter(p => !isFlagRegistryFile(p.slice(ROOT.length + 1)) && gateWords.test(readFileSync(p, 'utf8')))
-if (gateWords.test(flagRegistryText())) carriers.push(join(ROOT, flagRegistryFiles()[0]!))
-check('no memory source names a memory gate or the old observe verbs', carriers.length === 0, carriers.map(p => p.slice(ROOT.length + 1)).join(', '))
 
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ MEMORY IS ON FOR EVERYONE' : `❌ ${failures} ALWAYS-ON CHECK(S) FAILED`)

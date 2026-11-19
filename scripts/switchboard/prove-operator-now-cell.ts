@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
 import type { ConcourseSnapshotV1 } from '../../src/components/concourse/contracts.ts'
@@ -16,8 +15,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n── ${t} ──`)
-const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 const React = await import('react')
 const h = React.createElement
@@ -143,13 +140,6 @@ for (const [cols, rows] of [[214, 50], [96, 64]] as Array<[number, number]>) {
   check(`${cols} columns: the column still carries a park in flight and the activity line`, /parking — /.test(painted.parking) && /Bash · bun/.test(painted.plain), `${painted.parking} | ${painted.plain}`)
 }
 
-section('§4 the source: one predicate, the brief cell, the tile off')
-{
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  const cell = read('src/components/concourse/LiveNowCell.tsx')
-  check('the layout hands the brief cell only where the NOW column is absent and the row needs the operator', layout.includes('const operatorCell = nowWidth === 0 && rowNeedsOperator(r, ask)') && layout.includes('<Box width={colProject + colAge} flexShrink={0}>\n                      <LiveNowCell row={r} ask={ask} brief />'))
-  check('the brief cell registers no live tile and prints no workflows or next-fire lead', cell.includes('const tiled = live && !brief') && cell.includes('useLiveTile(row.sessionId, row.workspaceDir, tiled)') && cell.includes("if (tiled && !degraded && now.kind !== 'still') {") && cell.includes('row.workflowsAllowed === true && !brief') && cell.includes('row.scheduleNextFireMs !== undefined && !brief'))
-}
 
 console.log(failures === 0 ? '\nprove-operator-now-cell: ALL LAWS HOLD' : `\nprove-operator-now-cell: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

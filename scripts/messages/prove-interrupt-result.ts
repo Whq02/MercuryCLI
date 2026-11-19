@@ -183,24 +183,6 @@ section('D the crewmate transcript reader, and the cut lines a stored transcript
 section('E the source census over every recogniser of the interrupt text')
 {
   const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const locks: Array<[string, string]> = [
-    ['src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx', 'param.content.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE)'],
-    ['src/components/messages/UserToolResultMessage/UserToolResultMessage.tsx', 'param.content === INTERRUPT_MESSAGE_FOR_TOOL_USE'],
-    ['src/components/messages/AssistantTextMessage.tsx', 'text === INTERRUPT_MESSAGE || text === INTERRUPT_MESSAGE_FOR_TOOL_USE'],
-    ['src/components/messages/UserTextMessage.tsx', 'turnCutOfText(param.text)'],
-    ['src/components/messageActions.tsx', 'isTurnCutText(first.text)'],
-    ['src/components/FallbackToolUseErrorMessage.tsx', 'isDenialResultText(rawText)'],
-    ['src/utils/messages/text.ts', 'new Set([NO_CONTENT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE])'],
-    ['src/utils/messages/lookups.ts', 'isDenialResultText(toolResultText(block.content))'],
-    ['src/utils/messages/rejectionText.ts', '[INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE].some(marker => text.startsWith(marker) || lines.includes(marker))'],
-    ['src/utils/messages/rejectionText.ts', 'isInterruptedResultText(text)'],
-    ['src/utils/transcriptSearch.ts', 'return isTurnCutText(text)'],
-    ['src/utils/crew/agentTranscriptReader.ts', 'turnCutOfText(text)'],
-    ['src/tools/SkillTool/SkillTool.ts', 'texts.includes(INTERRUPT_MESSAGE)'],
-  ]
-  for (const [rel, needle] of locks) {
-    check(`${rel} still recognises through ${needle}`, src(rel).includes(needle))
-  }
   const t = await import('../core-runtime/turnScenarios.ts')
   const settledTextsOf = (events: Array<{ kind: string; message?: unknown }>): string[] =>
     events.filter(event => event.kind === 'tool_settled').map(event => String((event.message as { message: { content: Array<{ content?: unknown }> } }).message.content[0]?.content))

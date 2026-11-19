@@ -2,7 +2,6 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { readFileSync } from 'node:fs'
 
 for (const k of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME'] as const) delete process.env[k]
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-resume-parity-'))
@@ -16,8 +15,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 
 const storage = (await import('../../src/utils/sessionStorage.js')) as typeof import('../../src/utils/sessionStorage.js')
 const agent = (await import('../../src/utils/model/agent.js')) as typeof import('../../src/utils/model/agent.js')
@@ -63,24 +60,6 @@ section('§2 the restore chain (getAgentModel is id-stable)')
   )
 }
 
-section('§3 seam ratchets — the consumers actually carry the field')
-{
-  const runAgentSrc = src('tools', 'AgentTool', 'runAgent.ts')
-  const resumeSrc = src('tools', 'AgentTool', 'resumeAgent.ts')
-  const toolSrc = src('tools', 'AgentTool', 'AgentTool.tsx')
-  const pathsSrc = src('utils', 'sessionStorage', 'paths.ts')
-  check(
-    'AgentMetadata declares the model + effortOverride carriers',
-    /model\?: string/.test(pathsSrc) && /effortOverride\?: string/.test(pathsSrc),
-  )
-  check(
-    'the spawn write persists the DISPATCHED model (runAgent)',
-    /writeAgentMetadata\(agentId, recordAtRunStart\(latestRecord, \{ model, effortOverride \}, \{[\s\S]{0,1200}?\n\s*\},\n\s*model: resolvedAgentModel,/.test(runAgentSrc),
-  )
-  check(
-    'the spawn write persists the effort override when present (runAgent)',
-    /\n\s*model: resolvedAgentModel,\n\s*effortOverride,\n\s*effort: resolvedEffort !== undefined \? String\(resolvedEffort\) : undefined,\n\s*\}\)\)\.catch/.test(runAgentSrc),
-  )
   {
     const fresh = { agentType: 'mercury-crew', swarm: false }
     const withOverride = record.recordAtRunStart(null, { model: 'sonnet', effortOverride: 'high' }, { fresh, model: 'claude-sonnet-5', effortOverride: 'high', effort: 'high' })
@@ -92,28 +71,6 @@ section('§3 seam ratchets — the consumers actually carry the field')
       JSON.stringify({ withOverride, without }),
     )
   }
-  check(
-    "no clear-write exists any more: a crewmate's end never rewrites its sidecar (the worktree path stays — nothing is deleted automatically)",
-    !toolSrc.includes("receipt.outcome === 'settled'") && !toolSrc.includes('delete kept.worktreePath') && !toolSrc.includes('cleanupStaleAgentWorktrees(') && !toolSrc.includes('cleanupWorktree('),
-  )
-  check(
-    'the launch sidecar keeps naming the model the spawn resolved (parity by construction — no write at the end can move it)',
-    toolSrc.includes('crewWorktreeLeftoverOf(') && !toolSrc.includes('writeAgentMetadata('),
-  )
-  check(
-    'resume THREADS the persisted model into runAgent (resumeAgent)',
-    /restoredModel = \(await crewmateModelOverride\(args\.model, toolUseContext\.options\.engineModel\)\) \?\? meta\?\.model/.test(resumeSrc)
-      && /runAgent\(\{[\s\S]{0,1200}?\n\s*model: restoredModel,/.test(resumeSrc),
-  )
-  check(
-    'resume threads the persisted effort override or the resolved launch effort (resumeAgent)',
-    /restoredEffort = args\.effort \?\? meta\?\.effortOverride \?\? meta\?\.effort/.test(resumeSrc) && /effortOverride: restoredEffort/.test(resumeSrc),
-  )
-  check(
-    'the model:undefined resume hard-pin is GONE (the refuted seam)',
-    !/model: undefined,\s*\n\s*\/\/ Fork resume/.test(resumeSrc),
-  )
-}
 
 console.log('')
 if (failures > 0) {

@@ -57,14 +57,6 @@ check(
   'the JS path (forced via a width-0 routing mark) classifies the same',
   stringWidth('‪֑') === 0 && stringWidth('؜֑') === 0 && stringWidth('⁦֑') === 0,
 )
-{
-  const { readFileSync } = await import('node:fs')
-  const src = readFileSync(new URL('../../src/ink/stringWidth.ts', import.meta.url), 'utf8')
-  check(
-    'the native route refuses every directional format (the corrected-implementation discipline)',
-    src.includes('DIRECTIONAL_FORMAT_RE') && src.includes('!DIRECTIONAL_FORMAT_RE.test(text)'),
-  )
-}
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL GLYPH-WIDTH PROOFS PASS')

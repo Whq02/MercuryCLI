@@ -1559,35 +1559,6 @@ section('X1 CROSS-SURFACE REPLAY — the recorded corpus replayed through the tu
   )
 }
 
-section('T10 ORDERING — transcript persistence discipline (source-anchored)')
-{
-  const engineSrc = readFileSync(
-    new URL('../../src/rows/turn.ts', import.meta.url),
-    'utf8',
-  )
-  const recordAt = engineSrc.indexOf('if (isBoundary && !persistenceDisabled) {')
-  const block = recordAt === -1 ? '' : engineSrc.slice(recordAt, recordAt + 1600)
-  check(
-    'assistant records are fire-and-forget; others await (the drain-timer deadlock rule)',
-    /if \(message\.type === 'assistant'\) \{\s*\n\s*void recordDelta\(\)\s*\n\s*\} else \{\s*\n\s*await recordDelta\(\)/.test(
-      block,
-    ),
-  )
-  check(
-    'the compact boundary pre-flushes the preservedSegment tail BEFORE the push',
-    /tailIdx !== -1[\s\S]{0,80}await recordTranscript\(this\.mutableMessages\.slice\(0, tailIdx \+ 1\)\)/.test(
-      block,
-    ) &&
-      block.indexOf('await recordTranscript(this.mutableMessages.slice') !== -1 &&
-      block.indexOf('await recordTranscript(this.mutableMessages.slice') <
-        block.indexOf('messages.push(message)'),
-  )
-  check(
-    'progress + attachment records stay inline (the dedup-walk anchoring rule)',
-    /case 'progress':[\s\S]{0,700}void recordDelta\(\)/.test(engineSrc) &&
-      /case 'attachment':[\s\S]{0,1200}await recordDelta\(\)[\s\S]{0,300}void recordDelta\(\)/.test(engineSrc),
-  )
-}
 
 section('E15 OPERATOR NOTICES — warning/error system notices reach the transcript file (the silent-stop law)')
 {

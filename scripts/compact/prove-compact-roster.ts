@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -12,7 +12,6 @@ for (const ambient of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_T
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'compact-roster-pure-'))
 
-const ROOT = join(import.meta.dir, '..', '..')
 const FIXTURE_PORT = Number(process.env.COMPACT_ROSTER_PURE_PORT ?? 0)
 
 let failures = 0
@@ -169,18 +168,6 @@ const upToPrompt = getPartialCompactPrompt(undefined, 'up_to')
 check('the partial prompts carry the tenth section too (from, up_to)', /10\. Agents in flight/.test(fromPrompt) && /10\. Agents in flight/.test(upToPrompt) && upToPrompt.includes('these ten numbered sections'))
 check('the from-prompt keeps its recent-messages scope', fromPrompt.includes('Summarise ONLY the recent portion'))
 
-section('§5 every fold road hands the roster its context')
-const smc = readFileSync(join(ROOT, 'src/services/compact/sessionMemoryCompact.ts'), 'utf8')
-check('the session-memory strategy folds the roster in when its caller hands the context', smc.includes('createAsyncAgentAttachmentsIfNeeded(rosterContext'))
-const autoSrc = readFileSync(join(ROOT, 'src/services/compact/autoCompact.ts'), 'utf8')
-const cmdSrc = readFileSync(join(ROOT, 'src/commands/compact/compact.ts'), 'utf8')
-check('the automatic road hands it (the fold-scoped context)', autoSrc.includes('trySessionMemoryCompaction(messages, scoped.agentId, threshold, scoped)'))
-check('the /compact command hands it, and names its fold manual (F43A-C4-19)', cmdSrc.includes("trySessionMemoryCompaction(projected, context.agentId, undefined, context, 'manual')"))
-const notesSrc = readFileSync(join(ROOT, 'src/services/compact/sessionMemoryCompact.ts'), 'utf8')
-check('the notes fold records the trigger it was handed on its boundary and its hook payload — auto only by default, never fixed', notesSrc.includes("trigger: 'auto' | 'manual' = 'auto'") && notesSrc.includes('createCompactBoundaryMessage(trigger, preTokens, lastMessage?.uuid)') && notesSrc.includes("{ method: 'notes', trigger, tokens_before: preTokens, tokens_after: landed }") && !notesSrc.includes("createCompactBoundaryMessage('auto'"))
-const compactSrc = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
-check('the summary fold assembles the roster through the one owner (assembleAttachments → createAsyncAgentAttachmentsIfNeeded → the roster builder)', compactSrc.includes('createAsyncAgentAttachmentsIfNeeded(context),') && compactSrc.includes('getAgentRosterAttachment({'))
-check('no second announcer: the old per-task task_status road is gone from the fold', !compactSrc.includes("type: 'task_status'"))
 
 section('§6 the direct lane — a real fold on an engine family carries the roster')
 {

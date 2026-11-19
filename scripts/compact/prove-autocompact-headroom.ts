@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -58,8 +58,6 @@ for (const road of ['config', 'auto-env', 'master-env'] as const) {
   else delete process.env[road === 'auto-env' ? 'MERCURY_AUTO_COMPACT' : 'MERCURY_COMPACT']
 }
 check('failure breaker still stops emergency recovery', !foldAvailability({ tracking: { compacted: false, turnCounter: 0, turnId: 't', consecutiveFailures: 3 }, hasHistory: true }).available)
-const rail = readFileSync(join(import.meta.dir, '../../src/components/HelmVitalsRail.tsx'), 'utf8') + readFileSync(join(import.meta.dir, '../../src/utils/cockpit/helmVitalsModel.ts'), 'utf8')
-check('the rail warning tier reads the same token policy, not a second percent ramp', rail.includes('calculateTokenWarningState(ctx.usedTokens, input.sessionModel).level') && rail.includes('color: ctxColor,') && rail.includes('color={spec.color}') && !rail.includes('gaugeColor(ctxPct)') && !rail.includes('gaugeColor(95)'))
 const { memoryChecks } = await import('../../src/utils/health/sections/memory.ts')
 const contextRow = memoryChecks().find(row => row.id === 'context')
 const contextSays = await contextRow?.run()

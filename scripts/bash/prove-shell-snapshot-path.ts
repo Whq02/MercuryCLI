@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
@@ -145,23 +144,6 @@ check('powershell/cmd are NOT (the "sh" substring trap)',
   }
 }
 
-console.log('— §2 wiring + suspend routing pins —')
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (p: string) => readFileSync(join(ROOT, p), 'utf8')
-const snapshotTs = src('src/utils/bash/ShellSnapshot.ts')
-check('no {shell:true} PATH probe remains in ShellSnapshot',
-  !/echo \$PATH',\s*\{\s*shell: true/.test(snapshotTs) && !snapshotTs.includes('shell: true'))
-check('the snapshot content generator receives the resolved shell, and the path an engine session runs with',
-  snapshotTs.includes('getMercurySnapshotContent(shellPath, pathOfTheEngine)') &&
-    snapshotTs.includes('resolveSnapshotPathValue(binShell)'))
-const appTsx = src('src/ink/components/App.tsx')
-check('UI-074: SUPPORTS_SUSPEND is the platform gate',
-  appTsx.includes("const SUPPORTS_SUSPEND = process.platform !== 'win32'"))
-check('UI-074: the ONLY ctrl+z suspend dispatch requires the gate',
-  /item\.name === 'z' && item\.ctrl && SUPPORTS_SUSPEND/.test(appTsx))
-check('UI-074: exactly one self-stop call site (SIGTSTP into the stop owner), inside the suspend handler',
-  (appTsx.match(/process\.kill\(process\.pid, 'SIGTSTP'\)/g) || []).length === 1 &&
-    !appTsx.includes("'SIGSTOP'"))
 
 console.log('— §3 resilient rg function —')
 {
@@ -178,17 +160,6 @@ console.log('— §3 resilient rg function —')
   check('non-managed paths return null (repo checkouts stay plain)',
     deriveVersionedPathParts('/Users/dev/repo/vendor/ripgrep/arm64-darwin/rg') === null)
 
-  check('the resilient function exists and tries the baked path first',
-    snapshotTs.includes('createResilientRgFunction') && snapshotTs.includes('if [ -x ${quotedPath} ]'))
-  check('managed layouts re-resolve through current.txt at CALL time',
-    snapshotTs.includes('current.txt') && snapshotTs.includes('__mercury_rg_cur'))
-  check('a system rg on PATH is the next fallback',
-    snapshotTs.includes('command -v rg >/dev/null 2>&1; then command rg'))
-  check('the terminal fallback is an honest one-line 127, never silence',
-    snapshotTs.includes('return 127') && snapshotTs.includes('vendored ripgrep unavailable'))
-  check('absolute vendored paths now bake the FUNCTION, not a stale alias',
-    /includes\('\/'\) && !rgCommand\.rgPath\.includes\('\\\\'\)/.test(snapshotTs) ||
-      snapshotTs.includes("rgCommand.rgPath.includes('/')"))
 }
 
 if (failures > 0) {

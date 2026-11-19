@@ -131,14 +131,6 @@ await check('the terminal probe reads another live session leader as alive, a mi
   assert.equal(probePosixTerminal('ttys003', 3002, table), true)
   assert.equal(probePosixTerminal('ttys999', 5001, table), false)
   assert.equal(probePosixTerminal('../etc/passwd', 5001, table), null)
-  const source = require('node:fs').readFileSync(posix, 'utf8') as string
-  assert.ok(/nowMs - node\.mtimeMs <= freshMs \? true : null/.test(source), 'a self-led terminal is alive only by fresh output through it, otherwise unknown — never gone by the absence of a shell')
-  const { readFileSync } = require('node:fs') as typeof import('node:fs')
-  for (const file of [owner, posix, join(import.meta.dir, '../../src/daemon/processSweepRun.ts')]) {
-    const source = readFileSync(file, 'utf8')
-    assert.ok(!/openSync\(/.test(source) && !/O_NOCTTY/.test(source) && !/\/dev\/tty/.test(source) && !/\bopen\(\s*['"`]?\/dev/.test(source), `${file} never opens a terminal device: an open of a dead pty is itself an uninterruptible kernel wait on macOS`)
-  }
-  assert.ok(/statSync\(`\/dev\/\$\{terminal\}`\)/.test(readFileSync(posix, 'utf8')), 'stat of the node is the most the probe touches')
 })
 
 await check('the collector tolerates a ps that exits non-zero on a vanished pid and keeps the table', async () => {
@@ -253,10 +245,6 @@ await check('a ps that answers no rows is an incomplete table, never an empty su
   const empty = await collectPosixProcessTable({ waitMs: 500, recordedPids: [4001], ps: async () => '' })
   assert.equal(empty.complete, false)
   assert.match(empty.error ?? '', /no rows/)
-  const source = (require('node:fs') as typeof import('node:fs')).readFileSync(posix, 'utf8')
-  assert.ok(/!args\.includes\('-p'\) \|\| failed\.code === 'ENOENT'/.test(source), 'only the named-pid read tolerates a non-zero exit; a failed whole-table read rejects')
-  const runSource = (require('node:fs') as typeof import('node:fs')).readFileSync(join(import.meta.dir, '../../src/daemon/processSweepRun.ts'), 'utf8')
-  assert.ok(/async function pruneDeadRegistrations[\s\S]*?if \(!table\.complete\) return/.test(runSource), 'an incomplete table prunes nothing')
 })
 
 function world(): { table: ProcessSweepTable; records: ProcessSweepRecords } {

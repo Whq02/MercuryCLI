@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 import { proofHome } from '../lib/hermetic.js'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -117,9 +115,6 @@ try {
     globalThis.setTimeout = later
     globalThis.clearTimeout = clear
   }
-  const config = readFileSync(resolve(import.meta.dir, '../../src/components/Settings/Config.tsx'), 'utf8')
-  const row = config.slice(config.indexOf("id: 'patience'"), config.indexOf('change: direction =>', config.indexOf("id: 'patience'")))
-  check('the Patience row explicitly covers every provider without a provider-only exception', /every provider/.test(row) && !/OpenAI|only on|except|excluding/.test(row))
   check('the value calls the quiet budget quiet, not OpenAI-only', /quiet/.test(patienceWords(currentPatience().numbers)) && !/OpenAI/.test(patienceWords(currentPatience().numbers)))
   const idleWords = FLAG_REGISTRY.find(flag => flag.env === 'MERCURY_STREAM_IDLE_TIMEOUT_MS')?.off ?? ''
   const fenceWords = FLAG_REGISTRY.find(flag => flag.env === 'MERCURY_SILENT_AFTER_HEADERS_MS')?.off ?? ''

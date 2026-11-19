@@ -211,9 +211,7 @@ if (WIN || !existsSync('/dev/zero')) {
 section('§3 a file over the bound is never read: the bound is the largest file the Edit door takes, so no file an edit can change loses its generation')
 const overPath = join(files, 'over.log')
 {
-  const editDoor = readFileSync(join(ROOT, 'src/tools/FileEditTool/FileEditTool.ts'), 'utf8')
   const { CHANGESET_BOUNDS } = await import('../../src/services/changeTransaction/changeSetContracts.ts')
-  check('the bound is 1 GiB: the size above which the Edit door refuses a file before any other check', ledgerBound === ONE_GIB && editDoor.includes('const ONE_GIB = 1024 * 1024 * 1024') && editDoor.includes('if (stats.size > ONE_GIB) {'), `bound ${String(ledgerBound)}`)
   check('the ChangeSet door stages far less than the bound, so its files keep their generation too', ledgerBound !== null && CHANGESET_BOUNDS.maxStagedBytes < ledgerBound, `${CHANGESET_BOUNDS.maxStagedBytes} vs ${String(ledgerBound)}`)
 }
 const haveOver = !WIN && sparse(overPath, logHead, ONE_GIB + 1)

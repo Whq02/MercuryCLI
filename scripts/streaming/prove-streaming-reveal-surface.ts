@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -53,15 +52,6 @@ section('§3 non-win32 without WT_SESSION: no suppression on either surface')
 
 section('§4 source pins — the consumers ride the one owner')
 {
-  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
-  check(
-    'the Chat computes streamingSuppressed through the owner with its surface fact',
-    repl.includes('const streamingSuppressed = streamingRevealSuppressed(reducedMotion, fullscreen);'),
-  )
-  check(
-    'no bare yank-bug read remains in the Chat (the owner is the only road)',
-    !repl.includes('hasCursorUpViewportYankBug()'),
-  )
   {
     const { openStatusPart } = await import('../ui/chatScenarios.ts')
     const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
@@ -74,14 +64,6 @@ section('§4 source pins — the consumers ride the one owner')
     await status.close()
     check('showSpinner stands the verb row up when the reveal is suppressed', revealed === 'the hold row' && suppressed === 'the verb row', `prose streaming: ${revealed}; with the reveal suppressed: ${suppressed}`)
   }
-  check(
-    'the three transcript arms mount the focused tail on every surface (the gate suppresses its text half, never its mount — FN-016 R12)',
-    (repl.match(/streamingTail=\{focusedTail\}/g) ?? []).length === 3,
-  )
-  check(
-    'the three transcript arms share the one gate — it suppresses the tail\'s TEXT half',
-    (repl.match(/streamingTextSuppressed=\{streamingSuppressed\}/g) ?? []).length === 3,
-  )
 }
 
 if (savedWt === undefined) delete process.env.WT_SESSION

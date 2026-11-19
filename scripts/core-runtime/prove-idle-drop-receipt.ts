@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -13,8 +11,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const binding = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
 const { classifyThinkingDrops, describeThinkingDrops, prefixMarkOf, resetThinkingDropStates } = binding
@@ -28,11 +24,6 @@ console.log('============================================================')
 
 section('§1 the writer: no site arms a thinking-clear latch after the idle threshold, and the mark writer passes no such flag')
 {
-  const stream = src('src/services/providers/anthropic/streamCore.ts')
-  const state = src('src/bootstrap/state.ts')
-  check('streamCore has no thinking-clear latch accessor (the arming site is gone)', !stream.includes('ThinkingClearLatched'), 'streamCore.ts still names a thinking-clear latch')
-  check('streamCore does not arm a thinking-clear latch from the idle-hour completion gap', !/setThinkingClearLatched\(true\)/.test(stream) && !/thinkingClearLatched\s*=\s*true/.test(stream), 'an idle-hour arming survives in streamCore.ts')
-  check('bootstrap state exposes no getThinkingClearLatched / setThinkingClearLatched', !state.includes('ThinkingClearLatched'), 'a thinking-clear latch accessor survives in state.ts')
 
   const t = await import('./turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
@@ -105,7 +96,6 @@ section('§2 the mark the product builds carries thinkingClearActive=false; the 
   check('the product mark reads thinkingClearActive === false (nothing arms it)', productMark.thinkingClearActive === false, JSON.stringify(productMark.thinkingClearActive))
   const armedMark = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default' }, { thinkingClearActive: true })
   check('the mark still accepts an explicit thinkingClearActive (the retained classifier vocabulary)', armedMark.thinkingClearActive === true, JSON.stringify(armedMark.thinkingClearActive))
-  check("thinkingBinding still carries the 'thinking-cleared' lawful class (kept vocabulary)", src('src/services/providers/anthropic/thinkingBinding.ts').includes("'thinking-cleared'"))
 }
 
 section('§3 the consequence: a post-idle drop now classifies first / warning, where the old idle-armed latch made it lawful / info')

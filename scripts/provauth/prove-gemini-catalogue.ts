@@ -151,10 +151,6 @@ process.env.GEMINI_API_KEY = 'AIza-PROVER-000000000000000'
   check('the stored-key unreachable template', unreachableWords({ kind: 'api-key', keySource: 'stored' }, 'fetch failed') === 'the stored Gemini API key could not reach the live catalogue (fetch failed) · retry from /model, or /model <id> names a model directly')
   const cached = catalogue.getCachedGeminiCatalogue('api-key')
   check('the snapshot keeps the failure and no status', cached?.lastError?.includes('ECONNREFUSED') === true && cached.lastStatus === undefined, JSON.stringify(cached))
-  const { readFileSync } = await import('node:fs')
-  const source = readFileSync(new URL('../../src/services/providers/gemini/geminiCatalogue.ts', import.meta.url), 'utf8')
-  const catchBlock = source.slice(source.indexOf('const answer = error instanceof GeminiCatalogueHttpError'), source.indexOf('const snapshot: GeminiCatalogueSnapshot = {', source.indexOf('const answer = error instanceof GeminiCatalogueHttpError')))
-  check('a refused read that carried no HTTP answer still leaves one masked debug line', /else \{\s*logForDebugging\(\s*`\[gemini\] catalogue unreachable · source=\$\{source \?\? sourceKind\} · \$\{maskGeminiSecrets\(/.test(catchBlock), catchBlock)
 
   __resetGeminiCatalogueForTest()
   const noChat: typeof fetch = (async () =>

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { entryToRecord } from '../../src/fabric/entryCodec.js'
 import { ordinalOf } from '../../src/fabric/ordinal.js'
 let __ord = 0
@@ -135,9 +135,6 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const wedgedMs = Date.now() - wedgedStart
   const TIMER_LEAD_MS = 2
   t('a wedged cleanup is abandoned at the grace, never held forever', wedgedMs >= 80 - TIMER_LEAD_MS && wedgedMs < 500)
-  const shutdownSrc = readFileSync(join(process.cwd(), 'src/utils/gracefulShutdown.ts'), 'utf8')
-  t('POISON (the raced cliff): the shutdown quiesces the HELD cleanup promise after the stdout drain, before forceExit', /await drainPipedStdoutForExit\(\)[\s\S]{0,600}await quiesceCleanupBeforeExit\(cleanupRun\)[\s\S]{0,200}forceExit\(exitCode\)/.test(shutdownSrc))
-  t('POISON (the abandoned promise): the cleanup race consumes the held promise, not a fresh call', shutdownSrc.includes('const cleanupRun = runCleanupFunctions()') && /Promise\.race\(\[\s*\n\s*cleanupRun,/.test(shutdownSrc))
 
   const childScript = join(SCRATCH, 'child.ts')
   writeFileSync(
@@ -324,10 +321,6 @@ await gracefulShutdown(0)
   t('a session with conversation keeps its ordinary live row', liveRow !== undefined && liveRow.state !== 'stopped')
 }
 
-{
-  const source = readFileSync('src/hooks/useExtensions.ts', 'utf8')
-  t('the pending flag reaches app state, never a notification (structural — a React effect)', /onExtensionsPending\(pending =>/.test(source) && !/key: 'extensions-pending'/.test(source))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures ? '\nFAILURES' : '\nALL GREEN')

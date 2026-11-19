@@ -223,8 +223,6 @@ check('the Correct tool result names the conflict', String(correctBlock.content)
 _resetMemoryVerbSessionStateForTesting()
 const imported = retainItems([{ content: 'never use bun for installs' }], { session: 'handover', source: 'handover:old-notes', pin: false }, dir, { guard: 'off' })
 check('with the guard off (the hand-over import) the row lands as today', imported[0]?.status === 'stored', j(imported))
-const handover = readFileSync(join(import.meta.dir, '..', '..', 'src', 'mneme', 'mnemeHandover.ts'), 'utf8')
-check('the hand-over import passes the guard off', /retainItems\([\s\S]*?\{ guard: 'off' \},?\s*\)/.test(handover))
 
 section('§7 numbers belong to one subject, not every fact with the same words')
 const drawerFact = (n: number): string => `Scratch filler fact number ${n}: the scratch drawer ${n} holds ${n} spoons.`

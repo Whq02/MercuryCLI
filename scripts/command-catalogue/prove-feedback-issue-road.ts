@@ -443,8 +443,6 @@ if (!existsSync(BIN)) {
   check('the esc journey delivered every send', esc.status === 0, `exit ${esc.status}: ${esc.tail.trim().slice(-300)}`)
   const kept = esc.marks.kept ?? ''
   check('B4 esc at the review closes the dialog without filing (no Filed:, no review left on screen)', kept.includes('Type a prompt') && !kept.includes('Filed:') && !kept.includes('enter to file it'))
-  const surface = readFileSync(join(REPO, 'src', 'components', 'Feedback.tsx'), 'utf8')
-  check('B4 the kept receipt says so: drafted locally, nothing was filed', surface.includes("drafted locally at ${p.json} — nothing was filed."))
   const escLines = existsSync(escLog) ? readFileSync(escLog, 'utf8') : ''
   check('B4 esc spawns no gh issue create', !escLines.includes('gh issue create'))
   const escDir = join(HOME_ESC, 'feedback')

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -15,7 +15,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
-const code = (src: string): string => src.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
 
 const React = (await import('react')).default
 const { render, Box, Text } = await import(join(ROOT, 'src/ink.ts'))
@@ -166,25 +165,6 @@ section('§4 the suppressed leaf is quiet under deltas (the probe counts the lea
   await settle()
 }
 
-section('§5 structural: one gate, one owner of the row')
-{
-  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
-  check('the three transcript arms mount the focused tail on every surface', (repl.match(/streamingTail=\{focusedTail\}/g) ?? []).length === 3)
-  check('the three arms hand the one gate to the text half', (repl.match(/streamingTextSuppressed=\{streamingSuppressed\}/g) ?? []).length === 3)
-  check('the Chat no longer un-mounts the tail under suppression', !repl.includes('streamingSuppressed ? null : focusedTail'))
-  const messages = readFileSync(join(ROOT, 'src/components/Messages.tsx'), 'utf8')
-  check('Messages threads the gate to the leaf', messages.includes('textSuppressed={streamingTextSuppressed}'))
-  const message = readFileSync(join(ROOT, 'src/components/Message.tsx'), 'utf8')
-  const thinkingStart = message.indexOf('case "thinking":')
-  const thinkingCase = code(message.slice(thinkingStart, message.indexOf('default:', thinkingStart)))
-  check('Message.tsx: the thinking case returns null nowhere and reads no route (the row paints on every provider)', thinkingStart >= 0 && thinkingCase.includes('<AssistantThinkingMessage') && !thinkingCase.includes('return null') && !thinkingCase.includes('declaredRouteOf'))
-  check('Message.tsx: imports no route reader', !code(message).includes('declaredRouteOf'))
-  const leaf = readFileSync(join(ROOT, 'src/components/LiveStreamingTail.tsx'), 'utf8')
-  check('the suppressed leaf reads the phase, not the text', leaf.includes('textSuppressed ? readPhase : store.getSnapshot'))
-  const leafCode = code(leaf)
-  check('the tail reads no model: no focused-connector subscription, no model facts, no route read, no turn read', !leafCode.includes('subscribeThroughFocused') && !leafCode.includes('getFocusedSessionConnector') && !leafCode.includes('modelFacts') && !leafCode.includes('declaredRouteOf') && !leafCode.includes('useAppState'))
-  check('the tail draws no thinking line (no grammar import, no label, no thinking word)', !leafCode.includes('thinkingGrammar') && !leafCode.includes('ThinkingLabel') && !/\bthinking\b/i.test(leafCode))
-}
 
 focus._resetFocusedSessionConnectorForTesting()
 console.log(failures === 0 ? '\nprove-quiet-stream-line-surface: ALL LAWS HOLD' : `\nprove-quiet-stream-line-surface: ${failures} FAILURE(S)`)

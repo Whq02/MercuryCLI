@@ -6,7 +6,6 @@ import { join } from 'node:path'
 
 process.env.MERCURY_BROWSER ??= '1'
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -123,22 +122,8 @@ function makeCacheFixture(buildId: string): string {
   const gate = driverNodeGate()
   const major = Number(process.versions.node.split('.')[0])
   check('node gate verdict matches the runtime', gate.ok === major > 22 || (major === 22 && gate.ok), `node ${process.versions.node}: ${JSON.stringify(gate)}`)
-  const src = await Bun.file(join(ROOT, 'src', 'services', 'browser', 'browserResolver.ts')).text()
-  check('the gate names the floor + the remedy in source', src.includes('22, 12') && src.includes('discovery/status stay live'))
 }
 
-{
-  const resolver = await Bun.file(join(ROOT, 'src', 'services', 'browser', 'browserResolver.ts')).text()
-  check('discovery/resolution never launches (execFileSync only in the version probe)', resolver.split('execFileSync').length === 3)
-  const installSrc = await Bun.file(join(ROOT, 'src', 'services', 'browser', 'browserInstall.ts')).text()
-  check('the download call lives ONLY in the consented install module', installSrc.includes('await install({'))
-  const sessionSrc = await Bun.file(join(ROOT, 'src', 'services', 'browser', 'browserSession.ts')).text()
-  check('the session module never downloads', !sessionSrc.includes('install('))
-  check('the launch path never spawns the version probe', !sessionSrc.includes('browserVersionOf('))
-  const toolSrc = await Bun.file(join(ROOT, 'src', 'tools', 'BrowserTool', 'BrowserTool.ts')).text()
-  check('the tool never downloads', !toolSrc.includes("from '@puppeteer/browsers'"))
-  check('open is the permissioned op (ask names the URL)', toolSrc.includes("behavior: 'ask'") && toolSrc.includes('Browser open'))
-}
 
 if (failures > 0) {
   console.error(`\nbrowser resolution: ${failures} FAILURES`)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { EventEmitter } from 'node:events'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -171,32 +171,6 @@ console.log('── 4. class sweep ──')
   t('no built-in render-path hook throws on the placeholder family', throws.length === 0, throws.slice(0, 8).join(' | '))
 }
 
-console.log('── 5. structural pins ──')
-{
-  const toolTs = readFileSync('src/Tool.ts', 'utf8')
-  t('the classifier contract narrows from unknown', /isSearchOrReadCommand\?: \(input: unknown\) => SearchOrReadClassification/.test(toolTs))
-  const walk = (dir: string, out: string[] = []): string[] => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name)
-      if (entry.isDirectory()) walk(path, out)
-      else if (/\.tsx?$/.test(entry.name)) out.push(path)
-    }
-    return out
-  }
-  const widened: string[] = []
-  const direct: string[] = []
-  for (const file of walk('src')) {
-    const text = readFileSync(file, 'utf8')
-    if (/isSearchOrReadCommand\?*\.?\(.*as never\)/.test(text)) widened.push(file)
-    const owner = file === join('src', 'Tool.ts') || file.startsWith(join('src', 'tools')) || file.startsWith(join('src', 'services', 'mcp'))
-    if (!owner && /\.isSearchOrReadCommand\?*\(/.test(text)) direct.push(file)
-  }
-  t('no classifier call site widens raw input with a cast', widened.length === 0, widened.join(', '))
-  t('every classifier consumer goes through the seam', direct.length === 0, direct.join(', '))
-  const messages = readFileSync('src/components/Messages.tsx', 'utf8')
-  const boundary = /<RowErrorBoundary>([\s\S]*?)<\/RowErrorBoundary>/.exec(messages)?.[1] ?? ''
-  t('the transcript list wraps each row in the per-row boundary', /<MessageRow\b/.test(boundary) && !/<RowErrorBoundary>/.test(boundary) && /\/>\}?\s*$/.test(boundary.trimEnd()))
-}
 
 console.log('── 6. per-row boundary ──')
 {

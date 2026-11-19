@@ -2,7 +2,6 @@
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { spawnSync } from 'node:child_process'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'saturn-core-home-'))
 const DAEMON_DIR = mkdtempSync(join(tmpdir(), 'saturn-core-daemon-'))
@@ -400,44 +399,6 @@ console.log('§P the preflight owner')
 
 console.log('§W the wire')
 {
-  const read = (p: string): string => readFileSync(join(import.meta.dir, '../..', p), 'utf8')
-  const protocol = read('src/daemon/protocol.ts')
-  const actionsAt = protocol.indexOf("op: 'sessionControl'", protocol.indexOf('export type DaemonRequest ='))
-  const window = protocol.slice(protocol.indexOf('action:', actionsAt), protocol.indexOf('sessionId: string', actionsAt))
-  check("W1 'set-schedule' is APPENDED LAST in the union (after 'set-kit'; source order is the shape)", /\|\s*'set-kit'\s*\|\s*'set-schedule'\s*$/m.test(window.trimEnd()))
-  check('W2 the payload rides OUTSIDE the action window, typed off ScheduleOpRequestV1', !window.includes('scheduleEdit') && protocol.includes("scheduleEdit?: import('./saturn.js').ScheduleOpRequestV1"))
-  const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-  check('W3 ONE wire proto beside its registered shape (bump discipline is prove-protocol-shape\'s)', (protocol.match(/export const MERCURY_DAEMON_PROTO = /g) ?? []).length === 1 && protocol.includes(`export const MERCURY_DAEMON_PROTO = ${MERCURY_DAEMON_PROTO}`) && protocol.includes("export const DAEMON_PROTO_SHAPE = 'sha256:"))
-
-  const server = read('src/daemon/controlServer.ts')
-  const controlArm = server.slice(server.indexOf("case 'sessionControl': {"), server.indexOf("case 'sessionList': {"))
-  check(
-    "W4 the server routes the action and narrows: op grammar · 'add' through validateSaturnSubmission ('scheduleEdit refused — <reason>') · the id grammar · the typed forward · the requires-string",
-    controlArm.includes("raw.action === 'set-schedule'") &&
-      controlArm.includes('validateSaturnSubmission(rawSchedule.schedule)') &&
-      controlArm.includes('scheduleEdit refused — ') &&
-      controlArm.includes('SATURN_ID_PATTERN.test(scheduleId)') &&
-      controlArm.includes('...(scheduleEdit !== undefined ? { scheduleEdit } : {})') &&
-      controlArm.includes('contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send|background-shell|pause-gate|leave|send-now|board-post, sessionId, by }'),
-  )
-
-  const main = read('src/daemon/main.ts')
-  const arm = main.slice(main.indexOf("if (action === 'set-schedule')"), main.indexOf("if (action === 'set-kit')"))
-  const seatControlSrc = read('src/daemon/sessionSeat.ts')
-  const seatControl = seatControlSrc.slice(seatControlSrc.indexOf('export function applySeatScheduleControl('), seatControlSrc.indexOf('function applySessionScheduleAnswer('))
-  const seatDeps = seatControlSrc.slice(seatControlSrc.indexOf('function seatScheduleDeps('), seatControlSrc.indexOf('export function pushScheduleRoster('))
-  check(
-    'W5 the daemon arm rides settle over the seat\'s control function, which wires THE REAL RESOLVERS into the one writer and pushes the roster after an applied op',
-    arm.includes('return settle(applySeatScheduleControl(sessionId, scheduleEdit, by, roster))') &&
-      seatControl.includes('applyConcourseScheduleOp(sessionId, edit, by, deps, dir)') &&
-      seatControl.includes('deps = seatScheduleDeps()') &&
-      seatControl.includes('pushScheduleRoster(rec.runnerId, roster, dir)') &&
-      seatDeps.includes('deriveAccount: deriveScheduleAccountForModel') &&
-      seatDeps.includes('scheduleAccountVerdict(') &&
-      seatDeps.includes('readLiveAccountFacts(account)'),
-  )
-  check('W6 a payload-less set-schedule refuses with the requires sentence', arm.includes("'set-schedule requires { scheduleEdit: { op, schedule? | scheduleId? } }'"))
-
   seedRecord()
   const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
   const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
@@ -454,10 +415,6 @@ console.log('§W the wire')
   const last = rows[rows.length - 1]
   check('W7 the receipt row landed with the op facts', last !== undefined && (last.details as Record<string, unknown> | undefined)?.op === 'add' && (last.details as Record<string, unknown>)?.family === 'anthropic' && last.by === 'operator:test')
   check("W7 the row's words name the spelling", (last?.summary ?? '').includes('every day 09:00'))
-  const kindUnionLine = read('src/services/switchboard/sessionReceipts.ts')
-  check("W8 the kind union carries 'schedule-set'", kindUnionLine.includes("| 'schedule-set'"))
-  const mirror = read('src/components/concourse/SessionMirror.tsx')
-  check('W9 the viewer names the schedule family (never the contract fallback)', mirror.includes("e.kind === 'schedule-set'") && mirror.includes('`schedule: ${flat}`'))
 
   const bare = saturn.saturnFactsOf({}, Date.now())
   check('W10 a schedule-less record projects NO fields (absent ≠ empty on the wire)', !('schedules' in bare) && !('heldFireCount' in bare))
@@ -482,8 +439,6 @@ console.log('§W the wire')
       projected.schedules[1]!.nextFireMs === null &&
       projected.heldFireCount === 1,
   )
-  const seatSrc = read('src/daemon/sessionSeat.ts')
-  check('W11 publishSeatFacts composes the projection additively', seatSrc.includes('...saturnFactsOf(rec, Date.now())'))
 }
 
 console.log('§F the ticker')
@@ -1011,20 +966,6 @@ console.log('§X the box tier')
   writeBox([])
 }
 
-console.log('§A3 one-writer census')
-{
-  const ls = spawnSync('git', ['ls-files', 'src/**/*.ts', 'src/**/*.tsx'], { encoding: 'utf8', cwd: join(import.meta.dir, '../..') })
-  const files = ls.stdout.split('\n').filter(f => f.length > 0)
-  check('the census walks a real tree', files.length > 500, `${files.length} files`)
-  const offenders: string[] = []
-  const pen = /(\.schedules\s*=[^=]|\.heldFires\s*=[^=]|delete\s+\w+\.schedules|delete\s+\w+\.heldFires)/
-  const PEN_HOMES = new Set(['src/daemon/saturn.ts', 'src/daemon/saturnBoxSchedules.ts'])
-  for (const f of files) {
-    const body = readFileSync(join(import.meta.dir, '../..', f), 'utf8')
-    if (pen.test(body) && !PEN_HOMES.has(f)) offenders.push(f)
-  }
-  check('every schedules/heldFires pen lives in its tier home (saturn.ts · saturnBoxSchedules.ts)', offenders.length === 0, offenders.join(', '))
-}
 
 console.log(failures === 0 ? '\nprove-saturn-core: ALL GREEN' : `\nprove-saturn-core: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

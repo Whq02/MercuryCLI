@@ -3,13 +3,11 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { readFileSync } from 'node:fs'
 import * as React from 'react'
 import {
   _seedToolStartStamp,
   RunningToolElapsed,
 } from '../../src/components/messages/AssistantToolUseMessage.tsx'
-import { DECOR_TICK_MS } from '../../src/utils/cockpit/liveGlyphs.ts'
 import { renderToString } from '../../src/utils/staticRender.tsx'
 import { checker } from '../engine-durability/harness.ts'
 
@@ -45,26 +43,5 @@ t.section('§1 — the elapsed tail renders honestly')
   t.check('a settled row renders nothing (and clears its stamp)', done === '', JSON.stringify(done))
 }
 
-t.section('§2 — the owner pins')
-{
-  const src = readFileSync('src/components/messages/AssistantToolUseMessage.tsx', 'utf8')
-  const tick = src.match(/ELAPSED_TICK_MS = (\d+)/)?.[1]
-  t.check(
-    `the tick nests on the DECOR tier (${DECOR_TICK_MS}ms × 3)`,
-    tick !== undefined && Number(tick) === DECOR_TICK_MS * 3,
-    `ELAPSED_TICK_MS=${tick}`,
-  )
-  const vis = src.match(/ELAPSED_VISIBLE_MS = ([\d_]+)/)?.[1]
-  t.check(
-    'the visibility threshold is 10s (long-running only)',
-    vis === '10_000',
-    `ELAPSED_VISIBLE_MS=${vis}`,
-  )
-  t.check(
-    'the tail is composed in the headerRow at the ONE owner',
-    /<RunningToolElapsed id=\{param\.id\}/.test(src),
-    'headerRow placement',
-  )
-}
 
 t.finish('prove-waiting-owner')

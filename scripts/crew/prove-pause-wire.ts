@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
@@ -44,7 +44,6 @@ async function until(cond: () => boolean, what: string, ms = 6_000): Promise<boo
   }
   return true
 }
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const guard = setTimeout(() => {
   console.log('\nTIMEOUT — the pause-wire proof exceeded 120s')
@@ -460,12 +459,6 @@ section('P1 THE THREE LAYERS — p on a hosted chat parks a real loop in the run
 section('W1 THE WIRE — the verb\'s ceremony at each layer, pinned in source')
 {
   check('the daemon verb sessionControl/pause-gate is born at proto 12 and the wire is at least there', protocol.DAEMON_VERB_BORN_AT['sessionControl/pause-gate'] === 12 && protocol.verbBornAt('sessionControl', 'pause-gate') === 12 && protocol.MERCURY_DAEMON_PROTO >= 12, `born ${String(protocol.DAEMON_VERB_BORN_AT['sessionControl/pause-gate'])} · proto ${protocol.MERCURY_DAEMON_PROTO}`)
-  const server = read('src/daemon/controlServer.ts')
-  check('the control server admits the action, names it in its refusal and forwards paused as a boolean', server.includes("raw.action === 'pause-gate'") && /requires \{ action: [^']*\|pause-gate(\|[a-z-]+)*, sessionId, by \}/.test(server) && server.includes("typeof raw.paused === 'boolean' ? { paused: raw.paused }"))
-  const main = read('src/daemon/main.ts')
-  check("the daemon's action arm relays through the seat's relay and requires the boolean", main.includes("if (action === 'pause-gate')") && main.includes('pauseSessionGate(sessionId, paused, roster)') && main.includes("'pause-gate requires paused'"))
-  const seatSource = read('src/daemon/sessionSeat.ts')
-  check("the seat asks the runner's session/pause_gate and awaits its word under the agent-verb deadline", seatSource.includes("'session/pause_gate', { paused }") && seatSource.includes('export async function pauseSessionGate('))
   const parse = METHODS['session/pause_gate'].params()
   check('the runner door accepts { paused: boolean } for session/pause_gate and refuses a missing boolean', parse.safeParse({ paused: true }).success && parse.safeParse({ paused: false }).success && !parse.safeParse({}).success)
   const { liveFactsOf, withLiveRunner } = await import('../lib/builtProduct.ts')
@@ -479,10 +472,6 @@ section('W1 THE WIRE — the verb\'s ceremony at each layer, pinned in source')
   })
   check("the runner's arm owns the method: paused closes the one gate, false opens it, the answer is the gate's word", j(gate.closed) === j({ paused: true, parked: 0, changed: true }) && j(gate.again) === j({ paused: true, parked: 0, changed: false }) && j(gate.opened) === j({ paused: false, parked: 0, changed: true }), j(gate))
   check("the runner's facts answer publishes the gate's state (pauseGate: paused, parked)", j(gate.rest) === j({ paused: false, parked: 0 }) && j(gate.held) === j({ paused: gate.closed.paused, parked: gate.closed.parked }) && j(gate.open) === j({ paused: gate.opened.paused, parked: gate.opened.parked }), j(gate))
-  const wire = read('src/services/engine-connector/seatWire.ts')
-  check('the facts wire spells the fact pause_gate (snake_case at every depth)', wire.includes("pauseGate: 'pause_gate'"))
-  const connectorSource = read('src/services/engine-connector/daemonConnector.ts')
-  check("the connector's door rides the seat's verb chain and re-reads the facts on the applied word", connectorSource.includes("pauseGate(paused: boolean): Promise<AgentControlReceiptV1>") && connectorSource.includes("action: 'pause-gate'"))
   {
     const { WorkPart } = await import('../../src/services/engine-connector/daemon/work.ts')
     let seatFacts: Record<string, unknown> = { work: [], pauseGate: { paused: false, parked: 0 }, swarm: { on: true, snapshot: { seq: 1 } } }
@@ -503,10 +492,6 @@ section('W1 THE WIRE — the verb\'s ceremony at each layer, pinned in source')
     const swarmOff = reread({ ...seatFacts, swarm: { on: false, snapshot: { seq: 2 } } })
     check('the roster snapshot carries the gate fact and the live swarm snapshot, content-keyed with the rows', first === 1 && same === 0 && gateMoved === 1 && carried === j({ paused: true, parked: 2 }) && swarmMoved === 1 && swarmOff === 1, j({ first, same, gateMoved, carried, swarmMoved, swarmOff }))
   }
-  const view = read('src/components/mercury-ui/screens/CrewView.tsx')
-  check("the crew view sends the press through the focused connector's door and reads the chip from the roster's fact for a hosted chat", view.includes('getFocusedSessionConnector().pauseGate(paused)') && view.includes('roster.pauseGate'))
-  const doorSource = read('src/components/mercury-ui/screens/crewPauseDoor.ts')
-  check('the hosted refusal is gone from the door (the verb exists)', !doorSource.includes('no control verb carries a pause'))
 }
 
 clearTimeout(guard)

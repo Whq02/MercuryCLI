@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,7 +20,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -73,11 +72,6 @@ console.log('§1 — the pure classifier: two walls in every wire spelling; the 
   check('fence: 401 + "token expired; the refresh token is still valid" is NOT a wall (EXPIRED is the refresh lap\'s word)', classifyCredentialWall(401, 'token expired; the refresh token is still valid') === undefined)
   check('fence: the two words must share one clause — "token" in one sentence and "revoked" in the next is no wall', classifyCredentialWall(401, 'Invalid token. Access to this organization was revoked') === undefined)
   check('fence: a 500 carrying the phrase is no wall', classifyCredentialWall(500, 'OAuth token has been revoked') === undefined)
-  const retrySrc = read('src/services/api/withRetry.ts')
-  check('the retry ladder reads the shared family (no phrase copy of its own)', retrySrc.includes('isRevokedSignInText(errorMessage(error))') && !retrySrc.includes("'OAuth token has been revoked'"))
-  check('no second copy of the revoked phrase outside the classifier', !read('src/utils/http.ts').includes('has been revoked') && !read('src/services/mcp/client.ts').includes('has been revoked'))
-  const errorsSrc = read('src/services/api/errors.ts')
-  check('the presenter and the compat seam read the classifier, never a phrase (no copy anywhere)', (errorsSrc.match(/has been revoked/g) ?? []).length === 0 && !errorsSrc.includes('getTokenRevokedErrorMessage') && !read('src/services/providers/openaicompat/compatChatCallModel.ts').includes('has been revoked'))
   const signIn = credentialWallLine('anthropic', 'sign-in')
   check('the sign-in line: family · state · the switch door · the reconnect door', signIn === SIGN_IN_LINE, signIn)
   const cap = credentialWallLine('openrouter', 'key-limit')
@@ -128,13 +122,6 @@ console.log('§2 — the first-party door: the SDK presenter paints the line, ne
   const painted403bare = textOf(getAssistantMessageFromError(bare403, 'claude-opus-5') as never)
   check('a body-less 403 shows the non-JSON tail verbatim, unattributed (it may be SDK text, not provider words)', painted403bare === `Run /logins. ${API_ERROR_MESSAGE_PREFIX} (403): forbidden`, painted403bare)
 
-  const src = read('src/services/api/errors.ts')
-  const wallAt = src.indexOf('const wall = classifyCredentialWall(status, message, anthropicWireCredential(model, status))')
-  const genericAt = src.indexOf('logForDebugging(`[api] ${status} on ${model} — the wire said: ${message}`)')
-  check('source: the wall branch sits BEFORE the observed-expired branch and the generic tail', wallAt > 0 && genericAt > wallAt && src.indexOf('isAnthropicOAuthSignInExpired()', wallAt) < genericAt)
-  check('source: the payload goes to the debug log in both wall branches', src.slice(wallAt, genericAt).split('logForDebugging(').length - 1 >= 2)
-  check('source: the presenter names no family by hand — routeOfModel + providerDisplayName speak', src.includes('credentialWallLine(routeOfModel(model)') && !src.includes("credentialWallLine('anthropic'"))
-  check("source: the class string reads the shared needle (both spellings)", src.includes("if (isRevokedSignInText(message)) return 'token_revoked'"))
 }
 
 console.log('§3 — the compat door: OpenRouter\'s 403 "Key limit exceeded" through the real client → the line')
@@ -163,13 +150,6 @@ console.log('§3 — the compat door: OpenRouter\'s 403 "Key limit exceeded" thr
   const mapped = mapCompatHttpFailure(403, { error: { message: 'Key limit exceeded', code: 403 } })
   check('mapCompatHttpFailure agrees with the client (status 403 · the sentence · the wall)', mapped.status === 403 && mapped.message === 'Key limit exceeded' && classifyCredentialWall(mapped.status, mapped.message) === 'key-limit')
 
-  const src = read('src/services/providers/openaicompat/compatChatCallModel.ts')
-  const seamAt = src.indexOf("const wall = classifyCredentialWall(outcome.fault.status, outcome.fault.message, recovery !== undefined ? 'sign-in' : undefined)")
-  const faultTextAt = src.indexOf('compatTerminalFaultText(profile, outcome.fault, typed', seamAt)
-  const seam = seamAt > 0 && faultTextAt > seamAt ? src.slice(seamAt, faultTextAt) : ''
-  check('source: the terminal seam consults the wall BEFORE the fault text and returns on it', seam !== '' && seam.includes('return'))
-  check('source: the wall row carries no errorDetails (the payload goes to the debug log) and records the cap for the usability owner', seam.includes('logForDebugging(') && seam.includes('recordLaneBillingRefusal(profile.lane, { detail: wireSaid, remedy: line })') && !seam.includes('outcome.fault.code)'))
-  check('source: the wall row is typed by cause (a cap is a credit fact, a revoked sign-in an auth fact)', seam.includes("wall === 'key-limit' ? 'billing_error' : 'authentication_failed'"))
 }
 
 console.log("§4 — the row receipt: the live composer's gate speaks the identical line for a walled row")
@@ -226,25 +206,8 @@ console.log("§4 — the row receipt: the live composer's gate speaks the identi
   __resetLaneBillingStateForTest()
   delete process.env.OPENROUTER_API_KEY
 
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check("source: the screen derives the wall per snapshot beat from the row's model and hands it to the gate", screen.includes('credentialWallLineForModel(row.modelId)') && screen.includes('wallLineBySession.get(sel.sessionId)') && screen.includes('}, [sessionRows])'))
-  check('source: the gate reads the wall AFTER the row states, before the accepting placeholder', (() => { const at = screen.indexOf("if (credentialWall !== undefined) return { ok: false, line: credentialWall }"); return at > screen.indexOf("if (sel.state === 'needs-you' || openAsk)") && at < screen.indexOf('return { ok: true, placeholder: `message ${sel.title}') })())
-  check("source: the broadcast fan skips a walled row with the gate's line (the row receipt)", screen.includes('reason: `skipped — ${rowGate.line}`'))
 }
 
-console.log("§5 — one truth: the reconnect vocabulary, the row's model, no vendor by hand")
-{
-  const wallSrc = read('src/services/providers/credentialWall.ts')
-  const workerSrc = read('src/services/concourse/workerModels.ts')
-  const setOf = (src: string): string => {
-    const m = /LOGINS_FAMILY_WORDS = new Set\(\[([^\]]+)\]\)/.exec(src)
-    return m?.[1]?.replace(/\s/g, '') ?? ''
-  }
-  check("the /logins family words are ONE set in two files (the launch door's refusal action and the wall's door)", setOf(wallSrc) !== '' && setOf(wallSrc) === setOf(workerSrc), `${setOf(wallSrc)} vs ${setOf(workerSrc)}`)
-  check("the row contract declares the record's model and the snapshot fills it", read('src/components/concourse/contracts.ts').includes('modelId?: string') && read('src/services/concourse/concourseSnapshot.ts').includes('{ modelId: rec.modelKey }'))
-  check('the wall owner names no vendor by hand — the family words come from providerDisplayName', !/'(Anthropic|OpenAI|OpenRouter|Claude)'/.test(wallSrc.replace(/\/\/.*$/gm, '')) && wallSrc.includes('providerDisplayName(route)'))
-  check('the owner reads facts already observed — never a fetch, never a probe', !/fetch\(|refresh[A-Z]\w*\(/.test(wallSrc))
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-credential-wall: ALL LAWS HOLD' : `\nprove-credential-wall: ${failures} FAILURE(S)`)

@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 500) : ''}`)
@@ -125,10 +124,6 @@ console.log('\n(2) the connector says when the runner is gone')
   else process.env.MERCURY_DAEMON_DIR = planeBefore
   rmSync(scratch, { recursive: true, force: true })
 }
-const types = readFileSync(join(ROOT, 'src/services/engine-connector/types.ts'), 'utf8')
-check('WorkRosterV1 carries the additive gone flag', /reported\?: boolean\s*\n\s*gone\?: boolean/.test(types))
-const hook = readFileSync(join(ROOT, 'src/components/tasks/useCrewLedger.ts'), 'utf8')
-check('the rail\'s hook hands the flag to the fold and the rows', /const gone = roster\.gone === true/.test(hook) && /foldCrewLedger\(prev\.crewLedger, seen, sessionId, reported, Date\.now\(\), gone\)/.test(hook) && /sessionCrewRows\(ledger, seen, sessionId, reported, Date\.now\(\), gone\)/.test(hook))
 
 console.log(`\n${failures === 0 ? '✅ the crew rail leaves with the runner — PROVEN' : `❌ ${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

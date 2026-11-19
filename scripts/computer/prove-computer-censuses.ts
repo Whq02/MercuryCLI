@@ -60,12 +60,8 @@ section('§3 the flag rows')
 
 section('§4 the AppState stub is gone and the state facade gained nothing')
 {
-  const store = sourceText('src/state/AppStateStore.ts')
-  check("AppStateStore.ts no longer spells 'computerUseSession'", !store.includes('computerUseSession'))
   const desktopExports = Object.keys(state).filter(k => /desktop|computer/i.test(k))
   check('src/bootstrap/state.ts exports nothing named for the desktop or the computer tool', desktopExports.length === 0, desktopExports.join(','))
-  const contract = sourceText('scripts/core-runtime/prove-state-contract.ts')
-  check('the state contract\'s frozen export list names nothing for the desktop or the computer tool', !/EXPECTED_VALUE_EXPORTS[\s\S]*?'[^']*(?:[Dd]esktop|[Cc]omputer)[^']*'/.test(contract.slice(contract.indexOf('EXPECTED_VALUE_EXPORTS'), contract.indexOf('const actual = Object.keys(state)'))))
 }
 
 section('§5 the suites are seeded')

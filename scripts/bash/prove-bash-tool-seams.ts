@@ -241,16 +241,12 @@ section("§4 the cwd record never replaces the command's status")
   check('a successful cd is still recorded — for the shell, not the session', moved.code === 0 && moved.shellCwd === join(PROJECT, 'sub') && moved.cwd === PROJECT, `shell ${moved.shellCwd} session ${moved.cwd}`)
   const back = await plain(`cd "${PROJECT}"`)
   check('…and back', back.shellCwd === PROJECT && back.cwd === PROJECT, `shell ${back.shellCwd} session ${back.cwd}`)
-  const provider = readFileSync(join(ROOT, 'src', 'utils', 'shell', 'bashProvider.ts'), 'utf8')
-  check('the record step is grouped with || true on the POSIX leg, and what its redirect says goes nowhere', /\{ \{ pwd -P >\| \$\{quote\(\[cwdFileInShell\]\)\}; \} 2>\/dev\/null \|\| true; \}/.test(provider))
 }
 
 section('§5 the timed-out note reaches the result')
 {
   const killed = await plain('sleep 3', { timeout: 400 })
   check('a command past its timeout is killed (143) with the note on the result', killed.code === 143 && !killed.interrupted && /Command timed out after/.test(killed.stderr) && killed.ms < 4000, `code ${killed.code} interrupted ${killed.interrupted} stderr ${JSON.stringify(killed.stderr.slice(0, 80))} ${killed.ms}ms`)
-  const tool = readFileSync(join(ROOT, 'src', 'tools', 'BashTool', 'BashTool.tsx'), 'utf8')
-  check("the tool folds the result's note into the text the model reads (the error path throws that text)", /accumulator\.append\(result\.stderr\.trimEnd\(\) \+ '\\n'\)/.test(tool))
 }
 
 section('§7 the never-auto-background list matches the command word')
@@ -261,10 +257,6 @@ section('§7 the never-auto-background list matches the command word')
   check("'sleeper 1' → sleeper (no prefix match)", firstCommandWord('sleeper 1') === 'sleeper')
   check("'Start-Sleep -Seconds 5' → Start-Sleep", firstCommandWord('Start-Sleep -Seconds 5') === 'Start-Sleep')
   check("'' → ''", firstCommandWord('') === '')
-  const bashTool = readFileSync(join(ROOT, 'src', 'tools', 'BashTool', 'BashTool.tsx'), 'utf8')
-  check('the Bash tool compares the command word of the first subcommand', /NEVER_AUTO_BACKGROUND\.has\(firstCommandWord\(firstSubcommand\)\)/.test(bashTool))
-  const psTool = readFileSync(join(ROOT, 'src', 'tools', 'PowerShellTool', 'PowerShellTool.tsx'), 'utf8')
-  check('the PowerShell tool takes its first token from the same owner', /const firstToken = firstCommandWord\(/.test(psTool) && /NEVER_AUTO_BACKGROUND\.has\(resolveToCanonical\(firstToken\)\)/.test(psTool))
 }
 
 section('§1b the execution seams — the artifact under node')

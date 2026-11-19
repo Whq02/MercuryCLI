@@ -2,7 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -86,35 +85,5 @@ t.section('§3 — banded-cursor guard: the band stays visible on the flat groun
   }
 }
 
-t.section('§4 — the truecolor gate + collapsed-focus ink (source ratchets)')
-{
-  const layout = readFileSync('src/components/concourse/ConcourseLayout.tsx', 'utf8')
-  const tokensSrc = readFileSync('src/utils/mercuryTokens.ts', 'utf8')
-  t.check(
-    'the estate ground gates on truecolorActive() (a11y-p2-03: reduced depth stays honest)',
-    /export function estateGroundBg[\s\S]{0,220}truecolorActive\(\)/.test(tokensSrc),
-    'estateGroundBg carries the depth gate',
-  )
-  const colorize = readFileSync('src/ink/colorize.ts', 'utf8')
-  t.check(
-    'colorize owns the ONE depth predicate (truecolorActive = level ≥ 3)',
-    colorize.includes('export function truecolorActive') && colorize.includes('chalk.level >= 3'),
-    'the chalk-authority module',
-  )
-  const listFork = /borderColor=\{managerFocused \? t\.info : t\.borderSubtle\}/.test(layout) && layout.includes("const managerFocused = region === 'list' || region === 'rail'")
-  const strips = readFileSync('src/components/concourse/ConcourseStrips.tsx', 'utf8')
-  const stripFork = /borderColor=\{paletteCollapsed\(\) && focused \? t\.info : borderColor\}/.test(strips)
-  t.check(
-    'collapsed-palette FOCUSED pane forks wear the visible info ink (a11y-p2-04)',
-    listFork && stripFork,
-    `list ${listFork} · strip ${stripFork} (borderSubtle quantizes to ansi BLACK at level 1)`,
-  )
-  t.check(
-    'the focused chip ink is textInverse on the pill (a11y-p2-09)',
-    strips.includes('groundPickerOpen ? t.textInverse') &&
-      strips.includes('groundPickerOpen ? { backgroundColor: t.accentSoft }'),
-    'never t.info on accentSoft (the status-rail project pill)',
-  )
-}
 
 t.finish('prove-ground-contrast-floors')

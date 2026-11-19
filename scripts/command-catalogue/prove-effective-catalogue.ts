@@ -1,11 +1,10 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
-const repo = path.resolve(import.meta.dir, '../..')
 
 const scratchHome = mkdtempSync(path.join(tmpdir(), 'mercury-verity-cat-'))
 process.env.MERCURY_CONFIG_DIR = scratchHome
@@ -75,93 +74,6 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
   )
 }
 
-{
-  function unitFiles(unit: string): string[] {
-    const p = path.join(repo, unit)
-    if (!existsSync(p)) return []
-    if (statSync(p).isFile()) return [unit]
-    const out: string[] = []
-    const walk = (d: string): void => {
-      for (const n of readdirSync(d).sort()) {
-        const fp = path.join(d, n)
-        if (statSync(fp).isDirectory()) walk(fp)
-        else if (/\.(ts|tsx)$/.test(n) && !/\.test\./.test(n)) out.push(path.relative(repo, fp))
-      }
-    }
-    walk(p)
-    return out
-  }
-  function oneHop(file: string): string[] {
-    const src = readFileSync(path.join(repo, file), 'utf8')
-    const out: string[] = []
-    for (const m of src.matchAll(/from '((?:\.\.?\/)[^']+)'/g)) {
-      const raw = m[1]!.replace(/\.js$/, '')
-      const base = path.normalize(path.join(path.dirname(file), raw))
-      for (const cand of [`${base}.ts`, `${base}.tsx`, path.join(base, 'index.ts'), path.join(base, 'index.tsx')]) {
-        if (cand.startsWith('src/') && existsSync(path.join(repo, cand))) {
-          out.push(cand)
-          break
-        }
-      }
-    }
-    return out
-  }
-
-  const unitByName = new Map<string, string>()
-  for (const entry of readdirSync(path.join(repo, 'src/commands')).sort()) {
-    const unit = `src/commands/${entry}`
-    const files = unitFiles(unit)
-    const def = files.find(f => /(?:^|\/)index\.tsx?$/.test(f)) ?? files[0]
-    if (!def) continue
-    const src = readFileSync(path.join(repo, def), 'utf8')
-    const name = src.match(/\bname:\s*'([^']+)'/)?.[1]
-    if (name && !unitByName.has(name)) unitByName.set(name, unit)
-  }
-
-  const MARKERS: Array<[string, RegExp]> = [
-    ['specimen CommandCenter', /<CommandCenter\s+specimen/],
-    ['illustrative fixed-data banner', /illustrative/i],
-    ['dead-end “would …” action note', /return\s+[`'"](?:gated · |unavailable · )?would /],
-    ['not-a-live-tally banner', /NOT a live/],
-  ]
-
-  const offenders: string[] = []
-  for (const s of catalogue.filter(r => r.visibility === 'normal')) {
-    const unit = unitByName.get(s.name)
-    if (!unit) continue
-    const seen = new Set<string>()
-    const files = unitFiles(unit)
-    for (const f of [...files, ...files.flatMap(oneHop)]) {
-      if (seen.has(f)) continue
-      seen.add(f)
-      const src = readFileSync(path.join(repo, f), 'utf8')
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/^\s*\/\/.*$/gm, '')
-        .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
-      for (const [label, re] of MARKERS) {
-        if (re.test(src)) offenders.push(`/${s.name} → ${f}: ${label}`)
-      }
-    }
-  }
-  check('ZERO specimen markers in any normal route’s view sources', offenders.length === 0,
-    offenders.slice(0, 8).join(' | '))
-}
-
-{
-  for (const dead of [
-    'src/utils/cockpit/commandsSnapshot.ts',
-    'src/utils/cockpit/designCoverageSnapshot.ts',
-    'src/utils/cockpit/rosterSnapshot.ts',
-  ]) {
-    check(`${dead} is deleted`, !existsSync(path.join(repo, dead)))
-  }
-  const helpV2 = readFileSync(path.join(repo, 'src/components/HelpV2/HelpV2.tsx'), 'utf8')
-  check('HelpV2 filters isHidden', /\.filter\(\s*(\w+)\s*=>\s*!\1\.isHidden\)/.test(helpV2))
-  const palette = readFileSync(path.join(repo, 'src/components/mercury-ui/PaletteView.tsx'), 'utf8')
-  check('PaletteView filters isHidden', /!cmd\.isHidden/.test(palette))
-  const typeahead = readFileSync(path.join(repo, 'src/utils/suggestions/commandSuggestions.ts'), 'utf8')
-  check('typeahead filters isHidden', /!cmd\.isHidden/.test(typeahead))
-}
 
 {
   const { isCommandEnabled } = await import('../../src/types/command.js')

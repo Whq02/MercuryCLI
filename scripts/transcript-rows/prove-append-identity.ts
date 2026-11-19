@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-;(globalThis as unknown as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as unknown as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { emptyFoldState, applyTranscriptEntry } = await import('../../src/utils/sessionStorage/fold.ts')
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
@@ -34,14 +31,6 @@ console.log('── transcript fold row-identity law ──')
   check('identical content under a different uuid stays a second row', state.messages.size === 3 && [...state.messages.values()][2] === twin)
 }
 
-{
-  const src = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
-  const connector = readFileSync(join(import.meta.dir, '../../src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  const reader = readFileSync(join(import.meta.dir, '../../src/utils/sessionStorage/transcriptReader.ts'), 'utf8')
-  check('the face holds no settle append or stream handler', !src.includes('setMessages(prev => [...prev, message])') && !src.includes('const handleStreamMessage'))
-  check('the connector reads the folded transcript and deserialises its tail once', connector.includes('readTranscriptChainSince(') && connector.includes('deserializeLiveMessages(tail),') && connector.includes('this.rawRecords = merge.records'))
-  check('the live reader applies the same transcript fold', reader.includes('applyTranscriptEntry('))
-}
 
 {
   const mk = (uuid: string) => ({

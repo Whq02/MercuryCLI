@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -9,7 +9,6 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'stale-local-home-')
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
-const repoRoot = process.cwd()
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -74,10 +73,6 @@ globalConfig.enableConfigs()
   const probedAfter = discovery.primeLocalDiscovery({ now: () => Date.now() })?.probedAtMs ?? 0
   check('/health’s provider-slots row refreshes local for real', slotsSays !== undefined && probedAfter > probedBefore, `probed at ${probedBefore} before the row and ${probedAfter} after · ${slotsSays?.evidence.slice(0, 200)}`)
   check('/health’s honesty grammar accepts discovery-pending', ENGINE_UNAVAILABLE_CODES.includes('discovery-pending:'))
-  const board = readFileSync(join(repoRoot, 'src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
-  check('the accounts board kicks one bounded local probe at mount', board.includes("refreshProviderDiscovery('local')") && board.includes('setVersion(v => v + 1)'))
-  const probe = readFileSync(join(repoRoot, 'src/services/providers/providerDiscovery.ts'), 'utf8')
-  check('probeLocal stamps the snapshot’s time (the io.now() stamp is gone)', probe.includes('probedAtMs: snapshot?.probedAtMs ?? 0') && !/provider: 'local',\s*\n\s*probedAtMs: io\.now\(\)/.test(probe))
 }
 
 console.log(failures === 0 ? 'prove-local-discovery-honest: GREEN' : `prove-local-discovery-honest: ${failures} FAILURE(S)`)

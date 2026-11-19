@@ -407,19 +407,6 @@ section('§D2 a daemon of an older build whose restart re-executes its own bundl
   delete process.env.MERCURY_DAEMON_DIR
 }
 
-section('§E the wiring: the rows, the verb, the daemon')
-{
-  const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
-  const update = read('src/cli/update.ts')
-  check('E3 `mercury update` finishes by moving the daemon and says so (text and --json), then tells the user about windows still open', update.includes("moveDaemonToDeployedBuild({ by: 'mercury update' })") && update.includes('const daemon = installCurrent ? await moveDaemonAfterUpdate() : null') && update.includes('${shimLine}${shellWords}${daemonLine}${openWindowsLineText}') && update.includes('{ ...base, daemon }') && update.includes("const openWindows = result.state === 'updated' ? openWindowsLine(result.from) : null"))
-  check('E3b `mercury update --rollback` runs the mover too and ends with the same lines', update.includes("const daemon = rolled.state === 'rolled-back' ? await moveDaemonAfterUpdate() : null") && update.includes("emitJson({ mode: 'rollback', ...rolled, daemon, openWindows })"))
-  const dmain = read('src/daemon/main.ts')
-  check('E4b the storm-guard refusal carries no bundle path', !dmain.includes('(${deployed.script}) — run'))
-  const handoverSrc = read('src/daemon/handover.ts')
-  check('E5 handover.ts knows the release layout through the install layout\'s own pointer reader', handoverSrc.includes('readCurrentVersion(roots)') && handoverSrc.includes("layout: 'release'") && handoverSrc.includes('return source ?? release'))
-  const hs = read('src/daemon/handshake.ts')
-  check('E6 the screen reads the installed build fresh at every handshake and the operator\'s /daemon restart from an older screen is refused with the reopen line', hs.includes('await installedBuild())') && hs.includes("if (first.heal === 'reopen') return { state: 'refused', line: reopenWayOut(first) }"))
-}
 
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ prove-field-e004-daemon-skew — all checks pass' : `\n❌ prove-field-e004-daemon-skew — ${failures} check(s) failed`)

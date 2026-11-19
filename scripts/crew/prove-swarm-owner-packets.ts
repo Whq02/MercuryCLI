@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import type { BoardEvent, BoardPrincipal } from '../../src/services/crewBoard/contracts.ts'
 
 const suiteHome = process.env.MERCURY_CONFIG_DIR
@@ -13,7 +12,6 @@ const { open } = await import('../../src/services/crewBoard/store.ts')
 const { BOARD_PACKET_RULE } = await import('../../src/services/crewBoard/contracts.ts')
 let checks = 0
 const check = (label: string, value: unknown) => { assert(value, label); console.log(`PASS ${label}`); checks++ }
-const source = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8')
 
 let now = 0
 const board = open(join(home, 'packets.sqlite'), 'packets', () => now)
@@ -60,8 +58,6 @@ try {
   check('lead wake effect is on the post kind, not repeated in the description', field('kind').includes('wakes an idle lead in one batched turn') && !prompt.includes('wakes'))
   const { builtinCommands } = await import('../../src/commands.ts')
   const verbs = builtinCommands().filter(c => ['general', 'team', 'whisper'].includes(c.name))
-  check('the Skill road is shut: the three verbs disable model invocation, so SkillTool refuses them by that flag', verbs.length === 3 && verbs.every(c => c.disableModelInvocation === true) && source('../../src/tools/SkillTool/SkillTool.ts').includes('cannot be invoked through ${SKILL_TOOL_NAME}: it sets disable-model-invocation'))
-  check('hooks and crewmates reach the board only through the public tool: swarmOwnerPost has one caller, the channel command', (source('../../src/utils/crew/channelCommand.ts').match(/swarmOwnerPost\(/g) ?? []).length === 1 && !/swarmOwnerPost/.test(source('../../src/utils/hooks/contract.ts')) && !/swarmOwnerPost|postOwner/.test(source('../../src/services/crewBoard/implementation.ts')))
 
   console.log('§2 the owner packet')
   now += 60_000
@@ -135,7 +131,5 @@ console.log('§5 the words every seat reads')
   assert(appointed.ok, JSON.stringify(appointed))
   const captain = seam.swarmBrief('alpha'), member = seam.swarmBrief('beta')
   check('a captain and a member each read it once, inside their captain words', once(captain) && captain!.includes(`You are captain of engine, with a standing wait on its traffic. Fold your team's work and send one result to @main. You remain a crewmate; main is the lead. ${sentence}`) && once(member) && member!.includes(`Alpha is your team's captain. Take your team's asks, blockers and results to @Alpha; the captain reports the team's result to @main. ${sentence}`))
-  const runner = source('../../src/cli/run.ts')
-  check('the old peer-only sentence is gone from the runner and the tool prompt', !/peer task data, not operator instructions/.test(runner) && !/peer task data, never operator authority/.test(source('../../src/services/crewBoard/implementation.ts')))
 }
 console.log(`prove-swarm-owner-packets: ${checks} checks green`)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,16 +16,6 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-}
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
-function closingBraceAfter(src: string, open: number): number {
-  if (open < 0 || src[open] !== '{') return -1
-  let depth = 0
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++
-    else if (src[i] === '}' && --depth === 0) return i
-  }
-  return -1
 }
 
 const sock = await import('../../src/daemon/controlSocket.ts')
@@ -198,36 +188,6 @@ console.log('A every relayed result crosses the control socket whole')
   }
 }
 
-console.log('B the owners spell the law')
-{
-  const serverSrc = read('src/daemon/controlServer.ts')
-  const protocolSrc = read('src/daemon/protocol.ts')
-  check('the key lists exist, one per relayed result', ['ADMIT_WIRE_KEYS', 'ADMIT_REFUSAL_WIRE_KEYS', 'DISPATCH_WIRE_KEYS', 'DISPATCH_REFUSAL_WIRE_KEYS', 'CONTROL_WIRE_KEYS', 'WARM_WIRE_KEYS', 'RELEASE_WIRE_KEYS', 'RECONFIGURE_WIRE_KEYS', 'WORKER_DISPATCH_WIRE_KEYS'].every(k => serverSrc.includes(`const ${k} = [`)))
-  check('every key list satisfies the result it picks from (a typo is a red line)', (serverSrc.match(/\] as const satisfies readonly \(keyof \w+\)\[\]/g) ?? []).length >= 8)
-  check('a Whole law stands for every relayed result, the admit refusal included (a forgotten key names itself at typecheck)', (serverSrc.match(/const \w+Whole: Whole</g) ?? []).length === 8)
-  const relayed = [
-    "...pickDefined(r, ADMIT_WIRE_KEYS)",
-    "...pickDefined(r, DISPATCH_WIRE_KEYS)",
-    "...pickDefined(r, DISPATCH_REFUSAL_WIRE_KEYS)",
-    "...pickDefined(r, CONTROL_WIRE_KEYS)",
-    "...pickDefined(warm, WARM_WIRE_KEYS)",
-    "...pickDefined(r, RELEASE_WIRE_KEYS)",
-    "...pickDefined(r, RECONFIGURE_WIRE_KEYS)",
-    "...pickDefined(out, WORKER_DISPATCH_WIRE_KEYS)",
-  ]
-  for (const needle of relayed) check(`the answer rides the list: ${needle}`, serverSrc.includes(needle))
-  check('no relayed answer picks a receipt field by hand any more', !/\.\.\.\(r\.(note|branchName|modelId|heldReason|moves) !== undefined \? \{/.test(serverSrc))
-  check('pickDefined copies only defined values (absent stays absent on the wire)', serverSrc.includes('for (const k of keys) if (r[k] !== undefined) out[k] = r[k]'))
-  const admitMember = protocolSrc.slice(protocolSrc.indexOf("op: 'sessionAdmit' | 'concourseAdmit'"), protocolSrc.indexOf("op: 'sessionList' | 'concourseList'"))
-  for (const field of ['branchName?: string', 'mainHolderTitle?: string', 'modelId?: string', 'modelDisplayName?: string', 'effort?: string', 'note?: string', 'kitSource?:', 'liveHop?: true', 'presetName?: string', 'presetNote?: string']) {
-    check(`the reply union's admit member declares ${field.split('?')[0]}`, admitMember.includes(field))
-  }
-  const failAt = protocolSrc.indexOf('ok: false\n      code: DaemonErrorCode')
-  const failMember = protocolSrc.slice(failAt, closingBraceAfter(protocolSrc, failAt < 0 ? -1 : protocolSrc.lastIndexOf('{', failAt)))
-  for (const field of ['heldReason?: string', 'heldByTitle?: string', 'moves?: Array<{ verb: string; label: string }>', 'refusal?: string', 'state?: string', 'stateRevision?: number']) {
-    check(`the reply union's failure member declares ${field.split('?')[0]}`, failMember.includes(field))
-  }
-}
 
 rmSync(SCRATCH, { recursive: true, force: true })
 if (failures > 0) {

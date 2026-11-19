@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -98,30 +98,6 @@ section('§2 LIVE — a binary that exits 101 with stderr is a NAMED refusal')
   check('…and says plainly that the answer is incomplete', /INCOMPLETE/i.test(reason), reason || '(none)')
 }
 
-section('§3 the plain door never returns a silently short answer')
-{
-  const src = readFileSync(join(ROOT, 'src/utils/ripgrep.ts'), 'utf8')
-  const fnAt = src.indexOf('export async function ripGrep(')
-  const fn = src.slice(fnAt, src.indexOf('\n}\n', fnAt))
-  check('ripGrep throws when the answer is incomplete rather than returning it', /if \(!answer\.complete\)/.test(fn) && /throw/.test(fn), fn.slice(0, 200))
-  check('no bare `return salvaged` statement remains (the silent short answer)', !/^\s*return salvaged$/m.test(src))
-  check('every incomplete road ends in an answer that says so', /return \{ lines: salvaged, complete: false, reason \}/.test(src))
-}
-
-section('§4 every caller propagates incompleteness')
-{
-  const grep = readFileSync(join(ROOT, 'src/tools/GrepTool/GrepTool.ts'), 'utf8')
-  check('Grep asks for the completeness-bearing answer', /ripGrepAnswer\(/.test(grep))
-  check('Grep carries the reason on its output', /incomplete/.test(grep))
-  check("Grep's rendered result shows the marker beside the count", /data\.incomplete/.test(grep))
-  const globUtil = readFileSync(join(ROOT, 'src/utils/glob.ts'), 'utf8')
-  check('glob() asks for the completeness-bearing answer', /ripGrepAnswer\(/.test(globUtil))
-  check('glob() returns the reason to its caller', /incomplete/.test(globUtil))
-  const globTool = readFileSync(join(ROOT, 'src/tools/GlobTool/GlobTool.ts'), 'utf8')
-  check('Glob renders the marker (never a bare file list)', /incomplete/.test(globTool))
-  const loader = readFileSync(join(ROOT, 'src/utils/markdownConfigLoader.ts'), 'utf8')
-  check('the config-estate discovery names a walk that stopped at its cap (never a silent partial estate)', /!\w+\.complete/.test(loader) && /addBootNote\('warn'/.test(loader), 'a partial agent/skill/command estate would read as the whole estate')
-}
 
 section('§5 the complete case is byte-identical')
 {

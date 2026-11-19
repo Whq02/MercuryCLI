@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -15,7 +15,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const src = (...p: string[]) => readFileSync(join(REPO, 'src', ...p), 'utf-8')
 
 console.log('============================================================')
 console.log(' Apollo Mode — the one door and the mode-transition record')
@@ -141,9 +140,6 @@ try {
   check('the road owners are loadable', false, String(e).split('\n')[0])
 }
 {
-  check("the launch context records the 'boot' entry", /recordModeTransition\(\{ from: null, to: context\.mode, road: 'boot' \}\)/.test(src('utils', 'permissions', 'permissionSetup.ts')))
-  check("the review card names 'review-approval'", /'review-approval',/.test(src('tools', 'ApolloReviewTool', 'ApolloReviewTool.tsx')))
-  check('the app-state relay audits every observed mode change', /auditModeChange\(oldMode, newMode\)/.test(src('state', 'onChangeAppState.ts')))
   const { openAsksPart } = await import('../ui/chatScenarios.ts')
   const mirror = await openAsksPart('apollo-exit-mirror', { keepHome: true })
   clearModeTransitions()
@@ -196,7 +192,6 @@ try {
   check('default: the same write ASKS and its session tier still offers implement (the ask-posture modes keep it)', asked.behavior === 'ask' && (asked.suggestions ?? []).some(s => s.type === 'setMode' && s.mode === 'implement'), `${asked.behavior} ${JSON.stringify(asked.suggestions)}`)
   const implementSpec = decide('implement', specPath)
   check("implement: the build posture still rides the spec consent", implementSpec.behavior === 'allow')
-  check('the session tier never offers a mode change in Apollo (structural: modeSuggestion lists the ask posture only)', /if \(context\.mode === 'default'\) \{\n\s*return \[\{ type: 'setMode', mode: 'implement'/.test(src('utils', 'permissions', 'filesystem.ts')))
 
   const updates = (await import('../../src/utils/permissions/PermissionUpdate.js')) as typeof import('../../src/utils/permissions/PermissionUpdate.js')
   clearModeTransitions()

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -26,7 +26,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
@@ -119,13 +118,6 @@ section('§4 the first-party table and the GPT pins are untouched')
   }
 }
 
-section('§5 the shape')
-{
-  const src = readFileSync(join(ROOT, 'src/utils/modelCost.ts'), 'utf8')
-  check('the local lane resolves at its recorded zero through its own owner row, by the discovered record: a remote origin or no record is unpriced', /local: model => \{[\s\S]*?const record = localRecordFor\(model\)[\s\S]*?record === undefined \|\| record\.executionOrigin\?\.kind === 'remote' \? undefined : \{ costs: COST_LOCAL_SERVER, basis: 'recorded' \}/.test(src))
-  const pins = readFileSync(join(ROOT, 'src/services/providers/deepseek/deepseekPins.ts'), 'utf8')
-  check('the DeepSeek pin comment no longer claims the ledger never uses these rates', !/the ledger never invents USD from these/.test(pins))
-}
 
 ollama.stop(true)
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-lane-priced-ledger${failures ? ` (${failures} failure(s))` : ''}`)

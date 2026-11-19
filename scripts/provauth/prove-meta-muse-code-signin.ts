@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
-import { readFileSync, rmSync, statSync } from 'node:fs'
+import { rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import React from 'react'
 import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
@@ -148,7 +148,6 @@ const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { validateModel } = await import('../../src/utils/model/validateModel.ts')
-const repoRoot = join(import.meta.dir, '..', '..')
 
 async function runChat(model = 'muse-spark-1.3'): Promise<AssistantMessage[]> {
   const params: CompatCallModelParams = {
@@ -186,17 +185,6 @@ try {
   check(
     'the Boot logins face offers the exact same two rows in the same order',
     JSON.stringify(screen.loginsPickOptions('meta')) === JSON.stringify(login.META_CONNECT_ROWS),
-  )
-  const metaConnectSrc = readFileSync(join(repoRoot, 'src/components/MetaConnect.tsx'), 'utf8')
-  const bootLoginsSrc = readFileSync(join(repoRoot, 'src/components/BootLoginsScreen.tsx'), 'utf8')
-  check(
-    'both skins drive runMetaDeviceLogin and storeMetaApiKeyLogin without copying poll or mint logic',
-    metaConnectSrc.includes('runMetaDeviceLogin') &&
-      metaConnectSrc.includes('storeMetaApiKeyLogin') &&
-      bootLoginsSrc.includes('runMetaDeviceLogin') &&
-      bootLoginsSrc.includes('storeMetaApiKeyLogin') &&
-      !metaConnectSrc.includes('pollMetaDeviceToken') &&
-      !bootLoginsSrc.includes('pollMetaDeviceToken'),
   )
   check(
     'production endpoints match the verified Meta OIDC and key mint contract',

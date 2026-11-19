@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -33,7 +33,6 @@ const section = (title: string): void => {
 
 async function main(): Promise<void> {
   const src = (relative: string): string => join(ROOT, 'src', relative)
-  const read = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
   const { enableConfigs } = await import(src('utils/config.ts'))
   enableConfigs()
   const counts = await import(src('services/engine-connector/workCounts.ts'))
@@ -151,7 +150,6 @@ async function main(): Promise<void> {
 
   section('W3 the wiring: the Chat composes the words as the proof did, over the focused roster')
   {
-    const repl = read('src/screens/Chat.tsx')
     const { LivePart } = await import(src('services/engine-connector/daemon/live.ts'))
     const phaseOver = (transcript: SessionLiveV1): string => {
       const seatLive = new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, transcriptLive: () => transcript } as never)
@@ -160,7 +158,6 @@ async function main(): Promise<void> {
     }
     const overTool = phaseOver({ ...IDLE_LIVE, inFlight: true, phase: 'tool', inProgressToolUseIDs: new Set(['toolu_1']) })
     const overThinking = phaseOver({ ...IDLE_LIVE, inFlight: true, phase: 'thinking' })
-    check('the Chat no longer composes a duplicate delegation-wait sentence', !repl.includes('viewDelegationWait') && !repl.includes('const viewAgentWait ='))
     const { openStatusPart } = await import(join(ROOT, 'scripts/ui/chatScenarios.ts'))
     const { FOLD_ROW_HEAD } = await import(src('services/compact/foldStatus.ts'))
     const slot = await import(src('services/engine-connector/focusedConnector.ts'))

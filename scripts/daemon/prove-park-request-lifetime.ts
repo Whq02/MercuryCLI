@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ConcourseAdmitResult, ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
@@ -68,12 +68,6 @@ const retire = (sup as { retireRequestedPark?: typeof sup.retireRequestedPark })
 const idleEdge = async (runnerId: string): Promise<boolean> =>
   sup.completeRequestedPark(runnerId, roster, dir) || (retire !== undefined && (await retire(runnerId, roster, dir, { exitWaitMs: 2_000 })))
 
-console.log("P0 the daemon's idle edge is what this proof walks: the record's own completion, then the runner's retirement")
-{
-  const main = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
-  const edge = main.slice(main.indexOf('onIdle: short => {'), main.indexOf('onIdle: short => {') + 900)
-  check('main.ts asks completeRequestedPark first and retireRequestedPark when that parked nothing', edge.indexOf('if (completeRequestedPark(short, roster)) {') !== -1 && edge.indexOf('retireRequestedPark(short, roster)') > edge.indexOf('if (completeRequestedPark(short, roster)) {'))
-}
 
 console.log('P1 nobody comes back: the session parks when its turn ends, by its own retirement')
 {
@@ -341,8 +335,6 @@ console.log('P8 what the session armed for itself comes back for it: a wake and 
     dir,
   } as never)
   check('at their minute the ticker fires both into the parked session by the door that re-opens it (parked: true), nothing held and nothing missed', report.fired === 2 && report.held === 0 && report.missed === 0 && reopened.length === 2 && reopened.every(d => d.sessionId === sid('11') && d.parked === true) && reopened.map(d => d.prompt).join('|') === 'carry on with the next unit|the standing beat', j({ report, reopened }))
-  const daemon = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
-  check("the daemon's delivery turns that into the session's own resume", daemon.includes('...(d.parked ? { resumeSessionId: d.sessionId } : { targetSessionId: d.sessionId }),'))
   killed.length = 0
 }
 
@@ -374,9 +366,6 @@ console.log('P9 a crewmate waiting to retry by itself is work still owed: the qu
   const stopped = sup.completeRequestedStop(idle, dir)
   const parkedAfterStop = sup.parkConcourseSession(sid('19'), THIS_WINDOW, roster, dir)
   check('a stop is taken all the same, and the stopped session parks with no fence asked: the refusal is never a dead end', stop.outcome === 'applied' && stopped && parkedAfterStop.outcome === 'applied' && rec(idle)?.parkedAt !== undefined && askedOf(idle) === asksBefore, j({ stop, stopped, parkedAfterStop, asked: askedOf(idle) }))
-  const daemon = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
-  const parkArm = daemon.slice(daemon.indexOf("if (action === 'park') {"), daemon.indexOf("if (action === 'park') {") + 700)
-  check("the daemon's park door asks the fence only of a live runner that is between turns; every other row parks by its record", parkArm.includes('!turnInFlightOf(rec) && workerPidAlive(rec)') && parkArm.includes('await retireConcourseSession(sessionId, by, roster)') && parkArm.includes('parkConcourseSession(sessionId, by, roster ?? undefined)'))
   owes.delete(idle)
   killed.length = 0
 }

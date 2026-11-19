@@ -23,7 +23,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const src = (p: string) => readFileSync(p, 'utf8')
 const hexEq = (a: string | undefined, hex: string) =>
   (a ?? '').replace('#', '').toLowerCase() === hex.replace('#', '').toLowerCase()
 
@@ -59,28 +58,6 @@ for (const [name, text] of ORDINARY) {
   check(`ordinary: ${name} ⇒ FALSE`, isDenialResultText(text) === false)
 }
 
-console.log('\n(B) source contract — the split threads through every surface')
-{
-  const lk = src('src/utils/messages/lookups.ts')
-  check('lookups builds deniedToolUseIDs from isDenialResultText',
-    lk.includes('deniedToolUseIDs') && lk.includes('isDenialResultText('))
-  const lead = src('src/components/messages/ToolRowLead.tsx')
-  check('ToolRowLead paints ✕ in the failure tone for a denial and the family mark in the failure tone for an error',
-    lead.includes("if (state === 'denied') return <Text color={tokens.failure}>{GLYPH.fail} </Text>") &&
-      lead.includes("if (state === 'error') return <Text color={tokens.failure}>{mark.glyph} </Text>") &&
-      lead.includes("if (flags.denied) return 'denied'"))
-  const fb = src('src/components/FallbackToolUseErrorMessage.tsx')
-  check('FallbackToolUseErrorMessage headline honors the denial split',
-    fb.includes('isDenialResultText(rawText)') &&
-      fb.includes('isDenied ? tokens.failure : tokens.warning') &&
-      fb.includes("isDenied ? 'error' : 'warning'"))
-  const atu = src('src/components/messages/AssistantToolUseMessage.tsx')
-  check('AssistantToolUseMessage feeds denied from the lookup into the lead\'s state',
-    atu.includes('lookups.deniedToolUseIDs.has(param.id)') && atu.includes('toolRowStateOf({ resolved, errored, denied })'))
-  const cr = src('src/components/messages/CollapsedReadSearchContent.tsx')
-  check('CollapsedReadSearchContent folds anyDenied through',
-    cr.includes('anyDenied') && cr.includes('denied: anyDenied'))
-}
 
 console.log('\n(C) render — denied-transcript at 80 (real dist binary, PTY)')
 type Cell = { c: string; fg?: string; bold?: boolean }

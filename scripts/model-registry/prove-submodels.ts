@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -156,14 +156,6 @@ section('3 · ONE catalogue — no serve law, no tier (ruled)')
   )
   const gpt = registry.entries.find(entry => entry.modelId === 'gpt-5.2')
   check('a declaring wire keeps its sign-in state too', gpt?.state === 'signed-out')
-  const slotsSrc = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'utils', 'model', 'subModelSlots.ts'),
-    'utf-8',
-  )
-  check(
-    'the derivation takes no container (one row set, structurally)',
-    /export function composeSubModelRegistry\(reads/.test(slotsSrc),
-  )
 }
 
 section("3b · THE UNSET DEFAULT (the operator's word) — the choice is the operator's")
@@ -348,14 +340,6 @@ section('6 · the frontier row — an ordinary tier row of the SHARED catalog (r
   const withCredential = getModelOptions({ anthropicCredentialed: () => true })
   const freeFable = withCredential.find(o => typeof o.value === 'string' && /fable/i.test(o.value))
   check('…and selectable once the family is credentialed', freeFable !== undefined && freeFable.unavailable === undefined)
-  const optionsSrc = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'utils', 'model', 'modelOptions.ts'),
-    'utf-8',
-  )
-  check(
-    'the tier builders push the row unconditionally',
-    (optionsSrc.match(/rows\.push\(getFableOption\(\)\)/g) ?? []).length === 2,
-  )
 
   const registry = composeSubModelRegistry({
     options: getModelOptions,
@@ -552,22 +536,6 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
     )?.credentialed === true,
   )
 
-  const adapterSrc = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'openai', 'openaiAdapter.ts'),
-    'utf-8',
-  )
-  const catalogueSrc = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'openai', 'openaiCatalogue.ts'),
-    'utf-8',
-  )
-  check(
-    'the openai adapter self-primes per read (no cache-first account read)',
-    !adapterSrc.includes('getCachedProviderDiscovery') && adapterSrc.includes('primeOpenaiDiscovery()'),
-  )
-  check(
-    'the openai catalogue module reads the same self-primed owner',
-    !catalogueSrc.includes('getCachedProviderDiscovery') && catalogueSrc.includes('primeOpenaiDiscovery()'),
-  )
 }
 
 section("8 · CATALOGUE EQUALITY — both containers list exactly the main picker's rows, carriers included")

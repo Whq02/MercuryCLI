@@ -552,8 +552,6 @@ section('§7 THE CALL HAS ROOM TO ANSWER: an always-thinking advisor that thinks
   const landed = note as Raw | null
   check("the operator's own condition — the saved model, the saved dial, the saved twenty minutes, the real call — lands the note once the interval has passed (red on the base: null)", landed !== null && landed.text === NOTE && (landed.origin as Raw).model === 'claude-opus-5-5' && (landed.origin as Raw).minutes === 20, j(note))
   check('that request carried output_config.effort max and the 128,000 ceiling, no thinking key', wire.length === 1 && j(wire[0]!.body.output_config) === j({ effort: 'max' }) && wire[0]!.body.max_tokens === 128_000 && !('thinking' in wire[0]!.body), j({ output_config: wire[0]?.body.output_config, max: wire[0]?.body.max_tokens }))
-  const callSource = readFileSync(join(ROOT, 'src/services/advisor/advisorCall.ts'), 'utf8')
-  check('by source: the advisor call carries no wall clock of its own (a thinking model is never cut) and no output cap of its own', !callSource.includes('AbortSignal.timeout(') && !callSource.includes('maxOutputTokensOverride'), callSource.split('\n').filter(l => l.includes('AbortSignal.timeout(') || l.includes('maxOutputTokensOverride')).join(' | '))
   slots.setSubModelEffort('advisor', null)
   advisor.setAdvisorEnabled(false)
   config.saveGlobalConfig(c => {

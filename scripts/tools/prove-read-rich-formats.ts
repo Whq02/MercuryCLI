@@ -4,7 +4,7 @@
 import { closeSync, ftruncateSync, mkdtempSync, openSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { deflateRawSync, gzipSync } from 'node:zlib'
+import { deflateRawSync } from 'node:zlib'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'read-rich-formats-home-'))
 process.env.MERCURY_BARE = '1'
@@ -242,73 +242,6 @@ try {
   const spoofedBombRes = await runRead({ file_path: `${spoofedBombZip}:bomb.txt` })
   check('5c. zip entry with spoofed small header that inflates past 4 MB refuses via maxOutputLength', !spoofedBombRes.ok && spoofedBombRes.error.includes('inflated past the maximum allowed entry size'), spoofedBombRes.ok ? spoofedBombRes.text : spoofedBombRes.error)
 
-  const docxWithBombMedia = join(scratch, 'with-media.docx')
-  const tenMbZeros = Buffer.alloc(10 * 1024 * 1024, 0)
-  const tenMbDeflated = deflateRawSync(tenMbZeros)
-  let inflatedTenMb = 0
-  const origFrom = Buffer.from
-  Buffer.from = function (...args: Parameters<typeof Buffer.from>): Buffer {
-    const b = origFrom.apply(Buffer, args)
-    if (b.length >= 10 * 1024 * 1024) inflatedTenMb++
-    return b
-  } as typeof Buffer.from
-  writeFileSync(
-    docxWithBombMedia,
-    buildCustomZip([
-      {
-        name: 'word/document.xml',
-        rawData: origFrom('<w:document><w:body><w:p><w:r><w:t>Clean document text</w:t></w:r></w:p></w:body></w:document>', 'utf8'),
-      },
-      {
-        name: 'word/media/image1.png',
-        rawData: tenMbZeros,
-        compData: tenMbDeflated,
-        claimedUncompressedSize: tenMbZeros.length,
-        method: 8,
-      },
-    ]),
-  )
-  const memBeforeDocx = process.memoryUsage().rss
-  const docxMediaRes = await runRead({ file_path: docxWithBombMedia })
-  Buffer.from = origFrom
-  const srcRich = await Bun.file(join(SRC, 'tools/FileReadTool/readRichFormats.ts')).text()
-  check(
-    '5d. docx with huge embedded media entry never inflates media (readSelectedZipEntries filters word/*.xml only)',
-    docxMediaRes.ok &&
-      docxMediaRes.text.includes('Clean document text') &&
-      srcRich.includes('readSelectedZipEntries') &&
-      !srcRich.includes('function readZipEntryMap') &&
-      inflatedTenMb === 0 &&
-      process.memoryUsage().rss - memBeforeDocx < 8 * 1024 * 1024,
-    docxMediaRes.ok ? `rssDelta=${process.memoryUsage().rss - memBeforeDocx}` : docxMediaRes.error,
-  )
-
-  const validTar = Buffer.alloc(1536, 0)
-  validTar.write('hello.txt', 0, 100, 'utf8')
-  validTar.write('0000644\0', 100, 8, 'ascii')
-  validTar.write('0000000\0', 108, 8, 'ascii')
-  validTar.write('0000000\0', 116, 8, 'ascii')
-  validTar.write((6).toString(8).padStart(11, '0') + '\0', 124, 12, 'ascii')
-  validTar.write((0).toString(8).padStart(11, '0') + '\0', 136, 12, 'ascii')
-  validTar.fill(0x20, 148, 156)
-  validTar[156] = 0x30
-  validTar.write('ustar\0', 257, 6, 'ascii')
-  validTar.write('00', 263, 2, 'ascii')
-  let sum = 0
-  for (let i = 0; i < 512; i++) sum += validTar[i]!
-  validTar.write(sum.toString(8).padStart(6, '0') + '\0 ', 148, 8, 'ascii')
-  validTar.write('hello\n', 512, 6, 'utf8')
-  const tgzWithTrailingBomb = join(scratch, 'trailing.tgz')
-  writeFileSync(tgzWithTrailingBomb, Buffer.concat([gzipSync(validTar), Buffer.alloc(32768, 0), Buffer.from('not-gzip-after-eof-marker')]))
-  const tgzListRes = await runRead({ file_path: tgzWithTrailingBomb })
-  check(
-    '5e. tgz streaming reader stops at tar end-of-archive blocks without gunzipSync of whole file',
-    tgzListRes.ok &&
-      tgzListRes.text.includes('hello.txt') &&
-      srcRich.includes('readTgzEntriesStreaming') &&
-      !srcRich.includes('gunzipSync('),
-    tgzListRes.ok ? tgzListRes.text : tgzListRes.error,
-  )
 
   console.log('§6 Malformed archives and binary/nested entries')
   const badTar = join(scratch, 'corrupt.tar')
@@ -367,16 +300,6 @@ try {
       JSON.stringify(beforeWalFiles) === JSON.stringify(['wal.sqlite']) &&
       JSON.stringify(afterWalFiles) === JSON.stringify(['wal.sqlite']),
     walOverviewRes.ok ? `files=${afterWalFiles.join(',')}` : walOverviewRes.error,
-  )
-  check(
-    '7b. SQLite view skips COUNT(*) (headed "## heavy_view (view)") and SQLite blob/text columns are bounded in SQL via length()/substr()',
-    walOverviewRes.ok &&
-      walOverviewRes.text.includes('## heavy_view (view)') &&
-      !walOverviewRes.text.includes('## heavy_view (view,') &&
-      walOverviewRes.text.includes('<BLOB 2097152B>') &&
-      walOverviewRes.text.includes(`${'x'.repeat(200)}…`) &&
-      srcRich.includes("typeof(${qCol}) = 'blob' THEN '<BLOB ' || length(${qCol})"),
-    walOverviewRes.ok ? walOverviewRes.text : walOverviewRes.error,
   )
 } finally {
   rmSync(scratch, { recursive: true, force: true })

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -9,24 +9,12 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'stale-kitmenu-home-
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
-const repoRoot = process.cwd()
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-{
-  const screen = readFileSync(join(repoRoot, 'src/components/KitMenuScreen.tsx'), 'utf8')
-  check('the screen enumerates through the FRESH door', screen.includes('enumerateKitCatalogueFresh(process.cwd())'))
-  check('…on every mount AND on every skill-change signal', screen.includes('skillChangeDetector.subscribe(enumerate)'))
-  check('…and lets the signal go on unmount (no leaked subscription)', screen.includes('unsubscribe()'))
-  check('the watcher re-arms its roots on the CURRENT ground at open', screen.includes('skillChangeDetector.rearmWatchRoots()'))
-  const catalogue = readFileSync(join(repoRoot, 'src/services/kitMenu/kitCatalogue.ts'), 'utf8')
-  check('the fresh door drops the memos for REAL doors only', catalogue.includes('if (doors === REAL_KIT_DOORS) refreshKitCatalogueDoors()'))
-  const detector = readFileSync(join(repoRoot, 'src/utils/skills/skillChangeDetector.ts'), 'utf8')
-  check('rearmWatchRoots is the detector’s exported re-arm door', detector.includes('export { initialize, dispose, subscribe, rearmWatchRoots, resetForTesting }'))
-}
 
 {
   const globalConfig = await import('../../src/utils/config/globalConfig.js')

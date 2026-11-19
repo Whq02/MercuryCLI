@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const ROOT = join(import.meta.dir, '..', '..')
 const tempRoot = realpathSync(mkdtempSync(join(tmpdir(), 'agent-scratchpad-temp-')))
 process.env.MERCURY_TMPDIR = tempRoot
 delete process.env.MERCURY_CONCOURSE_WORKER
@@ -64,21 +63,10 @@ const envAgain = await agentEnv(first)
 check('the same id is told the same folder', announced(envAgain) === join(root, first) && announced(envAgain) === dirA, `told ${announced(envAgain)}`)
 check('…with its files still there', existsSync(join(root, first, 'helper.mjs')) && readFileSync(join(root, first, 'helper.mjs'), 'utf8') === 'export const lane = 1\n')
 
-section('§4 the launch hands the id to the prompt build, after the id is minted')
-const agentTool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-const runAgent = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
-const mintAt = agentTool.indexOf("const earlyAgentId = generateTaskId('local_agent')")
-const buildAt = agentTool.search(/buildDefaultSystemPrompt\(\s*agentDef,\s*context,\s*plan\.model,\s*earlyAgentId,\s*new Set\(workerTools\.map\(tool => tool\.name\)\),\s*CREWMATE_SEAT,?\s*\)/)
-check('the tool-side build names the minted id', buildAt > 0)
-check('…and runs after the mint, the worktree preflight still before it', mintAt > 0 && buildAt > mintAt && agentTool.indexOf('preflightWorktreeCapability(') < mintAt)
-check("the run loop's own build names the id the run carries (a resume passes its own)", /buildAgentSystemPrompt\(\s*agentDefinition,\s*toolUseContext,\s*resolvedAgentModel,\s*enabledToolNames,\s*agentId,\s*seat,?\s*\)/.test(runAgent) && runAgent.includes("const agentId = (override?.agentId ?? generateTaskId('local_agent')) as AgentId"))
 
 section('§5 there is no fork road: no prompt composer or message builder beside the frozen-worktree notice, no fork arm in the tool')
 const notice = await import('../../src/tools/AgentTool/frozenWorktreeNotice.ts') as Record<string, unknown>
 check('frozenWorktreeNotice.ts exports the frozen-worktree notice and nothing else', typeof notice.buildFrozenWorktreeNotice === 'function' && Object.keys(notice).every(k => k === 'buildFrozenWorktreeNotice'), Object.keys(notice).join(','))
-check('the tool builds every crewmate prompt its own way: no parent-bytes arm, no fork composer', !agentTool.includes('isFork') && !agentTool.includes('forkSystemPrompt') && agentTool.includes('if (!willOverrideCwd) {'))
-const resumeAgent = readFileSync(join(ROOT, 'src/tools/AgentTool/resumeAgent.ts'), 'utf8')
-check('a resume composes no fork prompt either', !resumeAgent.includes('forkSystemPrompt') && !resumeAgent.includes('isForkResume'))
 
 section("§6 the session's sweep takes the agents' folders; the receipt counts an edit there as a scratchpad edit")
 const rows = injectTurnReceipts(

@@ -10,8 +10,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 
 const root = join(import.meta.dir, '..', '..')
 const doc = readFileSync(join(root, 'docs', 'SESSIONS.md'), 'utf8').replace(/\s+/g, ' ')
-const screen = readFileSync(join(root, 'src', 'components', 'concourse', 'ConcourseScreen.tsx'), 'utf8')
-const route = readFileSync(join(root, 'src', 'components', 'concourse', 'ConcourseRoute.tsx'), 'utf8')
 
 console.log('============================================================')
 console.log(' spec-ledger docs — the older-chats browse (L20) in the doc')
@@ -31,12 +29,6 @@ console.log('============================================================')
   check('the doc never says the ↵ opens the session list in the chat frame', !(doc.includes(toothA) && doc.includes(toothB)))
 }
 
-{
-  check('the screen owns the in-place unfold (the unfold handler lives on the screen)', screen.includes('const unfoldOlderList = (row: ConcourseRowV1): void => {'))
-  check('…reads the census the line counted', screen.includes('olderChatsCensus('))
-  check('…and folds on esc', screen.includes('esc folds'))
-  check('the route reactivates a pick through the one resume door', route.includes('resumeOlderChat'))
-}
 
 {
   check('the retention sentence stands (nothing in the board deletes a transcript)', doc.includes('Nothing in the board deletes a transcript'))

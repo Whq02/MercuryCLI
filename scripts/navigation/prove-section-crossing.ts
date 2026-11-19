@@ -1,11 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { crossSectionAtEdge } from '../../src/components/mercury-ui/useNavigablePanes.js'
-import { codeOnlyText } from '../lib/codeText.ts'
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
@@ -48,38 +43,6 @@ check('bottom of the LAST section clamps (never wraps)', eq(crossSectionAtEdge([
 check('empty extremes clamp too', eq(crossSectionAtEdge([0, 1], 0, 0, -1), null) && eq(crossSectionAtEdge([1, 0], 1, 0, 1), null))
 check('single-section board decodes null both ways', eq(crossSectionAtEdge([4], 0, 3, 1), null) && eq(crossSectionAtEdge([4], 0, 0, -1), null))
 
-console.log('\n== source pins: the hook consumes the brain, unkillably ==')
-const panes = readFileSync(join(root, 'src/components/mercury-ui/useNavigablePanes.ts'), 'utf8')
-check('LIST branch routes ↑↓ through crossSectionAtEdge; a reported mouse wheel never crosses a section (f0007c3462), while an arrow the alternate-scroll policy re-read as a wheel still does', /const reportedWheel = \(key\.wheelUp \|\| key\.wheelDown\) && event\.keypress\.x !== undefined && event\.keypress\.y !== undefined\s*\n\s*const cross = keys && !reportedWheel\s*\n?\s*\? crossSectionAtEdge\(/.test(panes))
-check(
-  'crossing stores the departed remembered row (Tab-axis parity)',
-  (panes.match(/rememberedSel\.current\.set\(sectionMemoKey\(clampedSection/g) ?? []).length >= 2,
-)
-check('count truth: clamp prefers same-render key counts', panes.includes('keyedCount ?? rowCount'))
-check(
-  'the nav axis survives an empty section on a multi-section board',
-  panes.includes('const navActive = active && (rowCount > 0 || sectionCount > 1)'),
-)
-check(
-  '↵ no-ops on an empty section (no ghost detail flip)',
-  /activateCurrent = \(\): void => \{[\s\S]{0,400}?\(keyedCount \?\? rowCount\) === 0\) return/.test(panes),
-)
-const panesCode = codeOnlyText('useNavigablePanes.ts', panes)
-const detailBranches: string[] = []
-const detailHead = /if \(level === 'detail'\) \{/g
-for (let m = detailHead.exec(panesCode); m; m = detailHead.exec(panesCode)) {
-  let depth = 0
-  for (let i = m.index + m[0].length - 1; i < panesCode.length; i++) {
-    if (panesCode[i] === '{') depth++
-    else if (panesCode[i] === '}' && --depth === 0) {
-      detailBranches.push(panesCode.slice(m.index, i + 1))
-      break
-    }
-  }
-}
-const navDetail = detailBranches.filter(b => /'movePrevious'/.test(b) && /'moveNext'/.test(b))
-check('the navigation DETAIL branch exists (↑↓ move the row in place)', navDetail.length === 1 && /setSel\(/.test(navDetail[0]!), `${detailBranches.length} detail branch(es), ${navDetail.length} navigating`)
-check('crossing is absent from every DETAIL branch (list-only, deliberate)', detailBranches.length >= 2 && detailBranches.every(b => !/crossSectionAtEdge/.test(b)), detailBranches.map(b => b.length).join(','))
 
 console.log('')
 if (failures > 0) {

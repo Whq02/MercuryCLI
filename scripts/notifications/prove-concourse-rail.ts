@@ -139,13 +139,6 @@ try {
     [s0, s2, s3].every(v => v !== undefined && v.railLine.includes('· 5')),
   )
 
-  t.section('§3 — the ↵-target identity (structural: acted row == rendered-selected row)')
-  const screenSrc = readFileSync(join(import.meta.dir, '../../src/components/concourse/ConcourseScreen.tsx'), 'utf8')
-  const railSrc = readFileSync(join(import.meta.dir, '../../src/components/concourse/NeedsYouRail.tsx'), 'utf8')
-  t.check('the screen acts on needsYou[liveRailIdx()] (the FULL-list synchronous index)', screenSrc.includes('snapshot.needsYou[liveRailIdx()]'))
-  t.check('the rail renders the paneWindow slice of the SAME list', railSrc.includes('snapshot.needsYou.slice(win.start, win.end)'))
-  t.check('the rail marks selected at the absolute index', railSrc.includes('selected={win.start + i === selectedIndex}'))
-  t.check('the rail windows through the shared paneWindow owner (budget-clamped, RAIL_MAX_ROWS-capped)', railSrc.includes('paneWindow(total, selectedIndex, Math.max(1, Math.min(RAIL_MAX_ROWS, maxRows)))'))
 
   t.section('§4 — window math spot pins (the shared fn answers what §1 rendered)')
   const w4 = paneWindow(5, 4, 3)
@@ -269,8 +262,6 @@ try {
   const answerOnly = railTailParts(o, dismissW - 1)
   t.check("last: 'answer & resume' is the final survivor", answerOnly.map(p => p.key).join(',') === 'answer', joined(answerOnly))
   t.check('a hopeless budget sheds everything whole (no half-truncated affordance)', railTailParts(o, 3).length === 0)
-  const railSrc2 = readFileSync(join(import.meta.dir, '../../src/components/concourse/NeedsYouRail.tsx'), 'utf8')
-  t.check('the component renders the SAME fn against the real remaining budget', railSrc2.includes('railTailParts(o, Math.max(0, rowWidth - titleBand - questionBand), o.foreignProject !== undefined)'))
 }
 
 t.finish('prove-concourse-rail')

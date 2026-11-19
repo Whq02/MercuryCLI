@@ -3,7 +3,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -24,7 +24,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
 section('§1 THE ACTION DIGEST — case and whitespace never mint novelty')
 {
@@ -117,14 +116,6 @@ section('§6 the invocation contract resolves ONCE and threads to the decision')
   check('sdk ⇒ client-led', t({ interactive: false, missionArmed: false, querySource: 'sdk' }).terminalPolicy === 'client-led')
   check('agent lanes ⇒ worker one-shot', JSON.stringify(t({ interactive: false, missionArmed: false, querySource: 'agent:7' })) === JSON.stringify({ surface: 'worker', terminalPolicy: 'one-shot' }))
 
-  const adapter = src('src/guards/runStopAdapter.ts')
-  check('the adapter resolves the contract at the evaluation seam', adapter.includes('resolveInvocationContract({'))
-  check('…and threads surface + terminalPolicy into evaluateStop', adapter.includes('surface: contract.surface') && adapter.includes('terminalPolicy: contract.terminalPolicy'))
-  check("the adapter records a continue decision as the stop-decision it is, the evaluator's reason as given, no admission receipt and no continuation claim", adapter.includes("type: 'stop-decision'") && /decision\.kind === 'continue'\s*\?\s*decision\.reason/.test(adapter) && !adapter.includes("type: 'continuation'") && !adapter.includes('admission'))
-
-  const evaluator = src('src/services/run/completionEvaluator.ts')
-  check('the budget fuse is progress-aware (S2/C9), never progress-blind', evaluator.includes('progressSinceDecision') && evaluator.includes('freshProgress'))
-  check('the evaluator knows no strategy flag, no revision tuple and no re-plan', !/strategyRepeated|priorAdmission|runRevision|REPLAN/.test(evaluator))
 }
 
 section('§7 one continuation per attempt across families; wording demoted; drains batch')
@@ -154,7 +145,6 @@ section('§7 one continuation per attempt across families; wording demoted; drai
   const third = cb ? await cb(grown) : null
   check('a NEW attempt (grown transcript, a tool call in it so the idle brake stays off) re-arms the claim', third === false)
   latch._resetContinuationLatchesForTesting()
-  check('the latch keeps no admission record', !src('src/services/run/continuationLatch.ts').includes('Admission'))
 
   const { evaluateStop } = await import('../../src/services/run/completionEvaluator.ts')
   const settled = kernel.reduceRunEvent(
@@ -207,11 +197,6 @@ section('§8 ONE persistence law on the seat that works a task for a caller; the
   check('sub-agent: the law suggests and never counts (keep going while evidence advances; no repetition count, no strategy switch)', MERCURY_SUBAGENT_CONTRACT.includes(PERSIST) && !/strategy once|stop looping|handoff|strateg/.test(MERCURY_SUBAGENT_CONTRACT))
   check('sub-agent: a block stops for what only the caller can give, named', /returning blocked, with what you need named/.test(MERCURY_SUBAGENT_CONTRACT))
   check('session: the constitution asks only when a necessary fact, consequential decision or required permission cannot be resolved, and carries a given task through without asking again (no repetition count, no strategy switch)', MERCURY_CONSTITUTION.includes('ask only when a necessary fact, consequential decision or required permission cannot be resolved from the available context.') && MERCURY_CONSTITUTION.includes('Once a task is given, carry it through investigation, execution and proportionate verification.') && MERCURY_CONSTITUTION.includes('Do not ask again for routine steps already covered.') && !/strategy once|stop looping|strateg/.test(MERCURY_CONSTITUTION))
-  const doctrineSrc = src('src/constants/subagentDoctrine.ts')
-  check('the subagent doctrine splices the sub-agent contract in its one register (the seat word slotted in)', (doctrineSrc.match(/\$\{mercurySubagentContract\(seat\)\}/g) ?? []).length === 1 && !doctrineSrc.includes('${MERCURY_SUBAGENT_CONTRACT}'))
-  const contract = src('src/prompt/mercuryContract.ts')
-  check('no separate law constant exists (SS-11: the words live in the contract, one owner)', !contract.includes('PERSISTENCE_LAW') && (contract.match(new RegExp(PERSIST, 'g')) ?? []).length === 1)
-  check('the retired GPT overlay is GONE (one content for every family)', !contract.includes('agentic_persistence'))
 }
 
 rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })

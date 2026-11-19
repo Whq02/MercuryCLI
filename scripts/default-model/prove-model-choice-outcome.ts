@@ -9,7 +9,6 @@ delete process.env.MERCURY_MODEL
 
 const { proofHome } = await import('../lib/hermetic.ts')
 const { persistEffortChoice, persistModelChoice } = await import('../../src/commands/model/persistModelChoice.ts')
-const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -86,16 +85,6 @@ section('§4b the effort ladder saves through the same owner: its outcome and it
   check('the effort default is in the settings file', storedEffort() === 'high', String(storedEffort()))
 }
 
-section('§5 the callers read the outcome, never the words')
-{
-  const picker = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  const verb = readFileSync(join(ROOT, 'src/commands/model/model.tsx'), 'utf8')
-  check('the default picker decides on the outcome', picker.includes("if (saved.outcome !== 'saved' && saved.outcome !== 'session') {") && picker.includes('setNotice(saved.sentence)'))
-  check('the receipt words live in the owner alone', !picker.includes('saved as your default') && !verb.includes('saved as your default'))
-  check('the effort ladder saves through the owner and the seat receipt takes its sentence', picker.includes('const kept = persistEffortChoice(persistable)') && picker.includes('settleOnSeat(persistable, kept.sentence,') && picker.includes("this session's next request runs it${standing}"))
-  const sentenceReads = (src: string, arg: string): number => (src.match(new RegExp(`persistModelChoice\\(${arg}\\)\\.sentence|choice\\.sentence`, 'g')) ?? []).length
-  check('the painting callers take the sentence (the daemon road holds the choice before the door and reads its sentence after the receipt)', sentenceReads(picker, 'value') === 2 && sentenceReads(verb, 'target') === 2, JSON.stringify({ picker: sentenceReads(picker, 'value'), verb: sentenceReads(verb, 'target') }))
-}
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

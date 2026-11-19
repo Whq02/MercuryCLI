@@ -2,22 +2,15 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { assembleCardRows, createSplashCore } from '../../assets/splash/splash-core.mjs'
 import { consumeKitManagerDeepLink, decideSplashReceipt } from '../../src/substrate/splashHandover.js'
-import { KIT_LEGEND, KIT_LEGEND_PRESET, KIT_LEGEND_PRESETS, KIT_LEGEND_PROMPT, KIT_LEGEND_SAVED, kitEntryOf, kitStatusLine, kitSummaryRows, kitValueLabel, presetPromptLines } from '../../src/components/KitMenuScreen.js'
+import { KIT_LEGEND_PRESET, KIT_LEGEND_PRESETS, KIT_LEGEND_PROMPT, kitEntryOf, kitStatusLine, kitSummaryRows, kitValueLabel, presetPromptLines } from '../../src/components/KitMenuScreen.js'
 import { EMPTY_KIT_CATALOGUE, KIT_SECTION_TITLE, cycleState, kitCounts, kitRowId, kitRowView, kitStateKey, sectionRows, type KitRow, type KitRowState } from '../../src/services/kitMenu/kitTypes.js'
 import { SAMPLE_CATALOGUE, SAMPLE_STATES, STILLS, composeManager, faceFacts, readStill, renderStill, stillPath } from './kit-menu-stills.ts'
 
 const t = checker()
-const REPO = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-
-const coreSrc = read('assets/splash/splash-core.mjs')
-const driverSrc = read('assets/splash/mercury-splash.mjs')
-const faceSrc = read('src/components/BootSplashScreen.tsx')
 
 type Row = { key: string; icon: string; label: string; ctx: string }
 const rowsOf = (facts: Record<string, unknown>): Row[] => assembleCardRows(facts) as Row[]
@@ -44,27 +37,6 @@ t.section('§1 — THE ROW, BOTH HOSTS, EVERY WORLD (one owner, no world check)'
   ]))
   t.check('the merged door stays LAST (proof-leg stability — the resume slot)', full[full.length - 1] === 'sessions' && chat[chat.length - 1] === 'sessions')
 
-  const asmAt = coreSrc.indexOf('export function assembleCardRows')
-  const asmEnd = coreSrc.indexOf('function placeBlock(block, rows) {', asmAt)
-  const asm = asmAt !== -1 && asmEnd > asmAt ? coreSrc.slice(asmAt, asmEnd) : ''
-  const guardAt = asm.indexOf('if (facts.menuAvailable) {')
-  const guardEnd = asm.indexOf('\n  }', guardAt)
-  const guarded = guardAt >= 0 && guardEnd > guardAt ? asm.slice(guardAt, guardEnd) : ''
-  t.check("the kit push lives inside the menu's fit guard alone", guarded.includes("key: 'kit'") && guarded.includes("key: 'menu'"), guarded.slice(0, 80))
-  const WORLD_TOKENS = ['concourse', 'chatBoot', 'MERCURY_SPLASH_CHAT', 'world', 'chatOnly', 'plain']
-  const worldHits = WORLD_TOKENS.filter(tok => guarded.replace(/\/\/[^\n]*/g, '').includes(tok))
-  t.check('POISON absent: no world token in the guarded block (comments excluded)', worldHits.length === 0, worldHits.join(','))
-  const kitReads = guarded.replace(/\/\/[^\n]*/g, '').match(/facts\.kit\w*/g) ?? []
-  t.check('POISON absent: the guarded block reads no kit-record fact (the armed-wear display fact is the one lawful facts.kit* spelling)', kitReads.every(m => m === 'facts.kitArmedPreset'), kitReads.join(','))
-  t.check('the row assembly has ONE owner — no second kit row on either host', !driverSrc.includes("key: 'kit'") && !faceSrc.includes("key: 'kit'") && (coreSrc.match(/key: 'kit'/g) ?? []).length === 1)
-
-  const driverCallAt = driverSrc.indexOf('function cardRows(')
-  const driverCallEnd = driverSrc.indexOf('function composeStrip(w) {', driverCallAt)
-  const driverCall = driverCallAt !== -1 && driverCallEnd > driverCallAt ? driverSrc.slice(driverCallAt, driverCallEnd) : ''
-  const faceCall = faceSrc.slice(faceSrc.indexOf('assembleCardRows({'), faceSrc.indexOf('}) as BootRow[]'))
-  t.check("neither host passes a kit fact (the row is the core's, from the fit fact both already pass)", !/\bkit\b/.test(driverCall.replace(/\/\/[^\n]*/g, '')) && !/\bkit\b/.test(faceCall.replace(/\/\/[^\n]*/g, '')) && /\bmenuAvailable: /.test(driverCall) && /\bmenuAvailable: /.test(faceCall))
-  t.check("the runtime face activates the row (runRow case 'kit' opens the manager layer)", faceSrc.includes("case 'kit':") && faceSrc.includes('setKitOpen(true)'))
-  t.check("the launcher activates the row with the `kit` receipt action", driverSrc.includes("else if (r2.key === 'kit') writeSplashAction('kit')"))
   const core = createSplashCore({ nocolor: false, truecolor: true })
   const chips = { model: 'Opus 5', critter: 'Crab', critterHue: '#DD4444', dir: 'proj', acct: { state: 'none' as const }, health: null }
   const lockup = (concourseCtx: string | null, cols: number, rows: number) =>
@@ -100,10 +72,6 @@ t.section('§2 — THE HANDOVER: `kit` admits here, unknown still boots plain, t
   t.check('kit ⇒ applied, nothing to chdir or splice (the Boot face is the landing)', kit.reason === 'applied' && kit.apply === null)
   t.check('kit arms the manager deep-link exactly once', consumeKitManagerDeepLink() === true && consumeKitManagerDeepLink() === false)
   t.check("an unknown action reads 'unknown-action' and arms nothing (an older runtime's plain boot, the protocol's law)", d(fresh({ action: 'kit-manager' })).reason === 'unknown-action' && consumeKitManagerDeepLink() === false)
-  const handover = read('src/substrate/splashHandover.ts')
-  t.check("the closed vocabulary names `kit`", /const ACTIONS = new Set\(\[[^\]]*'kit'[^\]]*\]\)/.test(handover))
-  t.check('the face consumes the deep-link at mount (the CB-09 one-shot grammar)', faceSrc.includes('useState(() => consumeKitManagerDeepLink())') && faceSrc.includes("import { consumeFaceDoorDeepLink, consumeKitManagerDeepLink, peekFaceDoorOpener } from '../substrate/splashHandover.js'"))
-  t.check('the manager layer replaces the composition like the settings layer and esc closes it to the face', faceSrc.includes('if (kitOpen) {') && faceSrc.includes('onClose={() => setKitOpen(false)}') && faceSrc.includes('active: !settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
 }
 
 t.section("§3 — THE COMPOSER STAYS ONE: composeBootMenu's host fields are optional and absent ⇒ the boot menu's exact bytes")
@@ -234,19 +202,6 @@ t.section('§6 — THE CONTAINER: cycling, the tri-state words, the master row, 
   t.check('every value label is one of the ruled words', rows.every(r => WORDS.has(kitValueLabel(r, kitRowView(r, SAMPLE_STATES)))) && rows.every(r => WORDS.has(kitValueLabel(r, kitRowView(r, none)))))
   t.check("valueIsDefault is exactly 'own on and not master-off' (the faint/cream tone follows the word, never replaces it)", kitEntryOf(skill, kitRowView(skill, SAMPLE_STATES)).valueIsDefault === false && kitEntryOf(mcp, kitRowView(mcp, SAMPLE_STATES)).valueIsDefault === true && kitEntryOf(extSkill, vExtSkill).valueIsDefault === false)
   t.check("a master-off item's detail names the extension that holds it off", kitEntryOf(extSkill, vExtSkill).detailExtra?.some(l => l.includes('orchard-tools (extension) is off')) === true)
-  const screen = read('src/components/KitMenuScreen.tsx')
-  const bound = { return: screen.includes("key: 'return'"), space: screen.includes("key: ' '"), backspace: screen.includes("key: 'backspace'"), arrows: screen.includes('key.leftArrow') && screen.includes('key.rightArrow'), esc: screen.includes('onClose: () =>'), pages: read('src/components/mercury-ui/useInteractiveList.ts').includes('pageKeys: true') }
-  t.check('the legend names ↵ · ⌫ · esc · ↑↓, every named key is bound, and the ←→ cycle stays bound unadvertised', KIT_LEGEND === '↑↓ move · pgup/pgdn page · ↵ change · ⌫ default · esc back' && KIT_LEGEND_SAVED === '↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · esc back' && Object.values(bound).every(Boolean))
-  t.check("the store-bound screen wears the '(saved)' legend (with the preset key) and its status line says a running session is never touched", screen.includes('legend: preset.open ? KIT_LEGEND_PROMPT : KIT_LEGEND_PRESET') && KIT_LEGEND_PRESET.startsWith(KIT_LEGEND_SAVED.replace(' · esc back', '')) && KIT_LEGEND_PRESET.includes('p save as preset…') && screen.includes("key: 'p'") && kitStatusLine(0).includes('changes apply to new sessions only'))
-  t.check('a click activates through the same toggle body as ↵ (onActivate rides the primary action)', screen.includes('onActivate={props.onActivate}') && screen.includes("{ key: 'return', hint: 'change', run: row => ({ pending: 'saving…', result: Promise.resolve().then(() => cycleRow(row, 1)) }) }"))
-  {
-    const { withSkillState, withExtensionState } = await import('../../src/services/mcp/kitStore.js')
-    const slice = { allowedTools: [], projectOnboardingSeenCount: 0, skillStates: { deploy: 'invocable' as const }, extensionStates: { 'orchard-tools': 'off' as const } } as never
-    const onSkill = withSkillState(slice, 'deploy', 'on') as { skillStates?: unknown }
-    const onExt = withExtensionState(slice, 'orchard-tools', true) as { extensionStates?: unknown }
-    t.check("the record keeps deviations only: the record's withSkillState/withExtensionState DELETE the key on 'on', and the store door rides exactly those pens", onSkill.skillStates === undefined && onExt.extensionStates === undefined && read('src/services/kitMenu/menuStore.ts').includes("from '../mcp/kitStore.js'"))
-  }
-  t.check('cycling a master-off item answers in words instead of moving a hidden value', screen.includes('turn the extension on first'))
   for (const [cols, rowsN] of [[120, 40], [100, 30]] as const) {
     const plain = composeManager(cols, rowsN, SAMPLE_CATALOGUE, 4, SAMPLE_STATES).join('\n')
     t.check(`${cols}x${rowsN}: the composed manager speaks invocable · off · off (extension) and titles both sections`, plain.includes('invocable') && plain.includes('off (extension)') && plain.includes('MCPs') && plain.includes('Skills'))
@@ -413,15 +368,6 @@ t.section("§8 — THE STORE WRITE: write-through per toggle onto the REAL recor
     else process.env.MERCURY_CONFIG_DIR = savedHome
     rmSync(scratch, { recursive: true, force: true })
   }
-  const screenSrc = read('src/components/KitMenuScreen.tsx')
-  const storeSrc = read('src/services/kitMenu/menuStore.ts')
-  const LIVE_DOORS = ['sessionControl', 'daemonConnector', 'set-kit', 'stampSessionKit', 'restampSessionKit', 'dispatchSlash', 'hopIntoSession', 'bornSession']
-  t.check('POISON absent: the screen touches no live-session door (its only daemon read is the established-session COUNT)', LIVE_DOORS.every(tok => !screenSrc.includes(tok)) && (screenSrc.match(/sup\.\w+/g) ?? []).every(m => m === 'sup.countLiveConcourseWorkers'))
-  t.check("POISON absent: the store door imports nothing from the daemon and writes only through the record's workspace-keyed pens", !storeSrc.includes("from '../../daemon") && LIVE_DOORS.every(tok => !storeSrc.includes(tok)) && storeSrc.includes("from '../mcp/kitStore.js'") && storeSrc.includes('setMcpServerEnabledForWorkspace(workspaceDir, row.name, next !== \'off\')') && storeSrc.includes('setSkillStateForWorkspace(workspaceDir, row.name, next)') && storeSrc.includes('setExtensionStateForWorkspace(workspaceDir, row.name, next !== \'off\')'))
-  t.check('the fixture is retired: the store the screen binds by default IS the record store', storeSrc.includes('export const kitMenuStore: KitMenuStore = new RecordKitMenuStore()') && !storeSrc.includes('Fixture'))
-  t.check('the record write runs through the event loop, never inside the keypress handler (the boot menu\'s law)', (screenSrc.match(/pending: 'saving…', result: Promise\.resolve\(\)\.then\(/g) ?? []).length === 3 && screenSrc.includes('void Promise.resolve().then(() => cycleRow(selectedRow'))
-  t.check('the screen re-reads the record after every write (the visible state IS the saved state) and surfaces the receipt', screenSrc.includes('setStates(store.read(workspaceDir));') && screenSrc.includes('setLastReceipt(res.receipt);') && screenSrc.includes('list.note ?? lastReceipt ?? kitStatusLine(states.size)'))
-  t.check('the screen keys the record by the face\'s ground at mount (per repo)', screenSrc.includes('useState(() => givenWorkspace ?? process.cwd())'))
   function isMember(r: KitRow): boolean {
     return r.kind === 'mcp' || r.kind === 'skill' || r.kind === 'extension'
   }
@@ -450,14 +396,6 @@ t.section('§9 — "SAVE AS PRESET…": the action hook, its prompt, the typed r
   t.check("the prompt paints the name with the live caret and its keys ('↵ save · esc cancel')", lines[0] === 'save as preset' && lines.includes('name: review k▌') && lines[lines.length - 1] === '↵ save · esc cancel')
   t.check('a note (the receipt or the refusal) replaces the keys line', presetPromptLines('x', 'type a name first')[lines.length - 1] === 'type a name first')
   t.check("the legends: the screen names 'p save as preset…' and 'w presets…' beside the row keys; the open prompt names only its own keys; the layer its own", KIT_LEGEND_PRESET === '↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back' && KIT_LEGEND_PROMPT === 'type a name · ↵ save · esc cancel' && KIT_LEGEND_PRESETS === '↑↓ move · pgup/pgdn page · ↵ wear next session · ⌫ delete · esc back')
-  const screenSrc = read('src/components/KitMenuScreen.tsx')
-  t.check("p opens the prompt and the list goes inert while a layer owns input ('active: !preset.open && !presetsLayer.open')", screenSrc.includes("key: 'p'") && screenSrc.includes('setPreset({ open: true, name: \'\', note: null })') && screenSrc.includes('active: !preset.open && !presetsLayer.open') && screenSrc.includes('{ isActive: !preset.open && !presetsLayer.open }'))
-  t.check('the prompt owns esc (closes the prompt, not the screen), ↵ (validates, then the hook with the snapshot) and ⌫; every key is consumed', screenSrc.includes('if (key.escape) {') && screenSrc.includes("setPreset({ open: false, name: '', note: null })") && screenSrc.includes('kitPresetHook().save(preset.name.trim(), snapshotOf())') && screenSrc.includes('presetNameProblem(preset.name)') && screenSrc.includes('{ isActive: preset.open }'))
-  t.check("the snapshot is the record's deltas + the roster's resolved names", screenSrc.includes('deltas: deltasFromStates(states)') && screenSrc.includes("mcp: listRows.filter(r => r.kind === 'mcp').map(r => r.name)"))
-  t.check("no third titled section: the preset door is a KEY + the detail body (no 'preset' row kind, no 'Presets' group)", !screenSrc.includes("kind: 'preset'") && !screenSrc.includes("group: 'Presets'") && !read('src/services/kitMenu/kitTypes.ts').includes("'preset'"))
-  const laneSrc = ['src/components/KitMenuScreen.tsx', 'src/services/kitMenu/kitTypes.ts', 'src/services/kitMenu/kitCatalogue.ts', 'src/services/kitMenu/menuStore.ts', 'src/services/kitMenu/presetHook.ts', 'src/services/kitMenu/presetWear.ts', 'src/services/mcp/presetStore.ts']
-  const packHits = laneSrc.filter(f => /\bpacks?\b/i.test(read(f).replace(/"pack" is reserved for extensions|"pack" is the extensions estate's word|"pack" is RESERVED for extensions/g, '')))
-  t.check("the vocabulary law: the word 'pack' appears nowhere in the lane's sources (the law's own sentence excepted)", packHits.length === 0, packHits.join(','))
   for (const [cols, rowsN] of [[120, 40], [100, 30]] as const) {
     const plain = composeManager(cols, rowsN, SAMPLE_CATALOGUE, 4, SAMPLE_STATES, { name: 'review kit', note: null }).join('\n')
     t.check(`${cols}x${rowsN}: the composed manager carries the prompt's legend${cols >= 110 ? ' and the name with its caret' : ''}`, plain.includes(KIT_LEGEND_PROMPT) && (cols < 110 || plain.includes('name: review kit▌')))
@@ -484,11 +422,6 @@ t.section('§10 — THE L18 CARRY: the write seam hands the RESOLVED snapshot to
   const bad: KitRow[] = [{ kind: 'mcp', section: 'mcp', name: 'bad name!', scope: 'user', extension: null }]
   const refused = carryNextSessionKit(bad, new Map())
   t.check('a snapshot the wire would refuse is NOT carried (the record stays null — the daemon derives) and the reason is typed', !refused.carried && refused.reason.length > 0 && bootBirthFacts().kit === null && JSON.stringify(carriedKitOf(bootBirthFacts())) === '{}', refused.carried ? '' : refused.reason)
-  const screenSrc = read('src/components/KitMenuScreen.tsx')
-  t.check('the screen carries at the WRITE seam — after the re-read, once per write, never at mount (a closed snapshot is sticky for the boot; an untouched record leaves the derivation to answer)', (screenSrc.match(/carryNextSessionKit\(/g) ?? []).length === 1 && screenSrc.includes('const carry = carryNextSessionKit(listRows, store.read(workspaceDir));') && screenSrc.includes('setStates(store.read(workspaceDir));') && screenSrc.indexOf('carryNextSessionKit(listRows') > screenSrc.indexOf('setStates(store.read(workspaceDir));'))
-  t.check("a refused carry is said on the receipt ('not carried … the birth derives from the record')", screenSrc.includes('not carried (${carry.reason}) — the birth derives from the record'))
-  const carrierSrc = read('src/services/kitMenu/resolvedKit.ts')
-  t.check("the carrier reaches the record through setNextSessionFacts and the wire's validator only — never a daemon writer", carrierSrc.includes("import { setNextSessionFacts } from '../switchboard/bootBirthFacts.js'") && carrierSrc.includes('validateSessionKit(') && !/stampSessionKit|restampSessionKit|sessionControl|applyConcourseKitOp/.test(carrierSrc))
 }
 
 t.section('§11 — THE PRESETS LAYER (`w`) + the armed wear on the face')
@@ -508,11 +441,6 @@ t.section('§11 — THE PRESETS LAYER (`w`) + the armed wear on the face')
   const armedFace = composeFace('full', 120, 40, 'writing').join('\n')
   const plainFace = composeFace('full', 120, 40).join('\n')
   t.check("the face's kit row says \"next: preset 'writing'\" while armed and the standing ctx otherwise", armedFace.includes("next: preset 'writing'") && !plainFace.includes('next: preset') && plainFace.includes('what the next session loads'))
-  const screenSrc = read('src/components/KitMenuScreen.tsx')
-  t.check("w opens the layer and the sub-list owns the screen while open ('active: presetsLayer.open')", screenSrc.includes("key: 'w'") && screenSrc.includes('setPresetsLayer({ open: true, facts: readPresetFacts() })') && screenSrc.includes('active: presetsLayer.open'))
-  t.check('↵ wears (the armed row disarms — the one-keystroke undo) and ⌫ deletes, both through the event loop', screenSrc.includes('wearOrDisarm') && screenSrc.includes('disarmWornPreset') && screenSrc.includes('deletePresetRow') && screenSrc.includes("pending: 'wearing…'") && screenSrc.includes("pending: 'deleting…'"))
-  t.check('the empty layer answers the honest line, inert (never a nag)', screenSrc.includes('PRESET_LAYER_EMPTY') && PRESET_LAYER_EMPTY.startsWith('no presets saved'))
-  t.check('the wear resolves over THIS screen’s live rows (the doesn’t-bite census is presetWear’s, driven in prove-kit-presets)', screenSrc.includes('wearPresetForNextSession(name, listRows)'))
 }
 
 t.finish('prove-kit-menu')

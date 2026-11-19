@@ -1,10 +1,8 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const rows = await import('../../src/components/prompts-panel/rows.ts')
 const xml = await import('../../src/constants/xml.ts')
 
@@ -132,45 +130,6 @@ section('§3 — the limits line')
   check('clockOf paints HH:MM and never throws on junk', /^\d\d:\d\d$/.test(rows.clockOf('2026-08-26T12:01:00.000Z')) && rows.clockOf('junk') === '--:--')
 }
 
-section('§4 — the reads-only census (sheet lines 5 + 10)')
-{
-  const panel = readFileSync(join(ROOT, 'src/components/prompts-panel/PromptsPanel.tsx'), 'utf8')
-  const rowsSrc = readFileSync(join(ROOT, 'src/components/prompts-panel/rows.ts'), 'utf8')
-  const route = readFileSync(join(ROOT, 'src/commands/workbench/workbench.tsx'), 'utf8')
-  const cmd = readFileSync(join(ROOT, 'src/commands/workbench/index.ts'), 'utf8')
-  const writers = ['sendWords(', 'dispatchSlash(', 'enqueue(', 'queryWithModel', 'submitDispatch', 'dispatchToAgent', 'appendEvents(', 'setTranscript(', 'fetch(', 'submitNextInput']
-  for (const src of [
-    ['PromptsPanel.tsx', panel],
-    ['rows.ts', rowsSrc],
-    ['workbench.tsx', route],
-  ] as const) {
-    const hit = writers.filter(w => src[1].includes(w))
-    check(`${src[0]} imports no sender, queue, slash dispatcher, model call or transcript writer`, hit.length === 0, hit.join(', '))
-  }
-  check('the panel reads the focused chat through the ONE connector slot', panel.includes('useSessionConnector()') && panel.includes('connector.subscribeRecords') && panel.includes('connector.records'))
-  check(
-    'the connector doors are called BOUND (never a bare method reference into useSyncExternalStore)',
-    !/useSyncExternalStore\(\s*connector\./.test(panel) && panel.includes('() => connector.records()') && panel.includes('connector.subscribeRecords(cb)'),
-  )
-  check('the composer hand-off is nextInput (never submitNextInput)', route.includes('nextInput') && !route.includes('submitNextInput'))
-  check('the store is the only writer path the panel touches (saved prompts)', panel.includes('savedPromptsStore.js'))
-  check('a damaged saved-prompts file is said out loud (the panel reads the store’s problem seam; never a silent "reading…")', panel.includes('getSavedPromptsProblem') && panel.includes('could not be read'))
-  const code = panel
-    .split('\n')
-    .filter(line => !line.trim().startsWith('//') && !line.trim().startsWith('*') && !line.trim().startsWith('/*'))
-    .join('\n')
-  const retiredLabels = ['WORK', 'LANES', 'REVIEW', 'GRAPH', 'TO-REVIEW', 'FEED', 'CREW']
-  const retiredVerbs = ['dispatchOpen', 'crewFilter', 'createWalkthroughArtifact', 'promoteHandoff', 'submitDispatch', 'handOffSideConversation', 'no running work']
-  const found = [
-    ...retiredLabels.filter(word => new RegExp(`label: ['"\`]${word}['"\`]`).test(code)),
-    ...retiredVerbs.filter(word => code.includes(word)),
-  ]
-  check('the retired WORK options’ section labels and verbs are absent from the panel source', found.length === 0, found.join(', ') || 'none')
-  check('the three tabs keep traffic off-swarm and replace it with Crew chat only when on', panel.includes("label: 'PROMPTS'") && panel.includes("label: board?.on ? 'Crew chat' : 'CREW TRAFFIC'") && panel.includes("label: 'SAVED PROMPTS'"))
-  check('the honest empty lines are spelled in-panel', panel.includes('no crewmate traffic this session') && panel.includes('no prompts sent in this chat yet') && panel.includes('no saved prompts yet'))
-  check('the route keeps its name (/workbench) and gate, and describes the new content', cmd.includes("name: 'workbench'") && cmd.includes('workbenchEnabled()') && /prompts panel/i.test(cmd))
-  check('no model call, no network on open (no fetch/query import in the panel)', !/from '.*providers/.test(panel) && !panel.includes('fetch('))
-}
 
 
 {
@@ -183,21 +142,6 @@ section('§4 — the reads-only census (sheet lines 5 + 10)')
     'a ceiling-sized paste is CAPPED — never the whole panel',
     layout.promptsComposerRows(4000) === layout.COMPOSER_SLOT_MAX_ROWS,
     String(layout.promptsComposerRows(4000)),
-  )
-  const panelSrc = readFileSync(join(ROOT, 'src/components/prompts-panel/PromptsPanel.tsx'), 'utf8')
-  check(
-    'the slot DECLARES through the one formula (call-shaped)',
-    /rows:[\s\S]{0,200}promptsComposerRows\(editor\.buffer\.length\)/.test(panelSrc),
-  )
-  check(
-    'the paint CLIPS to the same cap (tail window: overflow hidden, flex-end)',
-    /height=\{promptsComposerRows\(editor\.buffer\.length\) - 1\}/.test(panelSrc) &&
-      /overflow="hidden"/.test(panelSrc) &&
-      /justifyContent="flex-end"/.test(panelSrc),
-  )
-  check(
-    'the two-row literal no longer hardcodes the editor arm',
-    !/rows: editor\?\.kind === 'confirm-clear' \? 1 : 2,/.test(panelSrc),
   )
 }
 

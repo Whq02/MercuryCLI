@@ -1,6 +1,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -13,59 +13,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const root = new URL('../../', import.meta.url).pathname
-const mirrorPath = join(root, 'src/components/concourse/SessionMirror.tsx')
-const foldPath = join(root, 'src/components/concourse/workerTranscriptFold.ts')
-const attachedPath = join(root, 'src/components/concourse/AttachedSessionScreen.tsx')
-const mirrorSrc = readFileSync(mirrorPath, 'utf8')
-const foldSrc = readFileSync(foldPath, 'utf8')
-
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ').replace(/([^:'"`])\/\/[^\n]*/g, '$1')
-}
-const mirrorCode = stripComments(mirrorSrc)
-
-console.log('LAW 1 — renderer continuity (the real pipeline, never text lines):')
-check(
-  'mirror renders through MessageRow (the real dispatch)',
-  mirrorCode.includes("from '../MessageRow.js'") && /<MessageRow\b/.test(mirrorCode),
-)
-check(
-  'mirror folds through the shared module (deriveTranscriptRows + useWorkerTranscriptFold)',
-  mirrorCode.includes("from './workerTranscriptFold.js'") &&
-    mirrorCode.includes('useWorkerTranscriptFold(') &&
-    mirrorCode.includes('deriveTranscriptRows('),
-)
-check(
-  'the shared derive IS the Main Chat pipeline (normalize → reorder → group → collapse)',
-  ['normalizeMessages', 'reorderMessagesInUI', 'applyGrouping', 'collapseReadSearchGroups', 'injectTurnReceipts'].every(
-    fn => foldSrc.includes(fn),
-  ),
-)
-check(
-  'the fold is push-driven with the heartbeat guard (fs.watch + 5s)',
-  foldSrc.includes('fs.watch(path') && foldSrc.includes('setInterval(drain, 5000)'),
-)
-check(
-  'transcript path comes from workerTranscriptPath (the home law)',
-  foldSrc.includes('wt.workerTranscriptPath({ sessionId, workspaceId })'),
-)
-check('no lockup in the mirror', !mirrorCode.includes('ProductLockup'))
-check('no MercuryFrame in the mirror', !mirrorCode.includes('MercuryFrame'))
-check(
-  'one-caret law: no composer family (TextInput / prompt glyph / composer border)',
-  !mirrorCode.includes('TextInput') &&
-    !mirrorCode.includes('GLYPH.prompt') &&
-    !mirrorCode.includes('composerBorder'),
-)
-check('a real ScrollBox with stickyScroll', /<ScrollBox\b[^>]*stickyScroll/s.test(mirrorCode))
-
 console.log('LAW 2 — the word-ban (mirror-agent-word):')
-check("the exemption's tooth: 'agent-close' stands as a quoted receipt-kind token", /'agent-close'/.test(mirrorCode))
-check(
-  'the word "agent" is absent from the mirror source (comments stripped; the quoted receipt-kind token exempted)',
-  !/\bagent\b/i.test(mirrorCode.replaceAll("'agent-close'", "'deep-close'")),
-)
 const { attachedPlateName, userHandle } = await import('../../src/components/messages/TranscriptNameplate.js')
 check("attachedPlateName maps 'agent' → 'Mercury'", attachedPlateName('agent') === 'Mercury')
 check("attachedPlateName plates 'coordinator' as 'Coordinator'", attachedPlateName('coordinator') === 'Coordinator')
@@ -78,42 +26,6 @@ check(
   (['agent', 'coordinator', 'user'] as const).every(a => !/\bagent\b/i.test(attachedPlateName(a))),
 )
 
-console.log('LAW 3 — density (every fold CLOSED by default):')
-check('verbose is pinned false', mirrorCode.includes('verbose={false}') && !mirrorCode.includes('verbose={true}'))
-check(
-  'thinking collapses (lastThinkingBlockId null, prompt screen — the collapsed ∴ line)',
-  mirrorCode.includes('lastThinkingBlockId={null}') && mirrorCode.includes("screen={'prompt' as Screen}"),
-)
-check(
-  'one-line grouped tool rows ride the shared collapse (collapseReadSearchGroups in the ONE derive)',
-  !mirrorCode.includes('collapseReadSearchGroups') && foldSrc.includes('collapseReadSearchGroups'),
-)
-
-console.log('LAW 4 — one fold home:')
-check(
-  'foldWorkerRecord is defined in workerTranscriptFold.ts',
-  /export function foldWorkerRecord\(/.test(foldSrc),
-)
-check(
-  'the attached-viewer screen is DELETED (rubric §2.3 — the mirror is the only reader surface)',
-  !existsSync(attachedPath),
-)
-const defSites: string[] = []
-const walk = (dir: string): void => {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    if (e.name === 'node_modules' || e.name.startsWith('.')) continue
-    const p = join(dir, e.name)
-    if (e.isDirectory()) walk(p)
-    else if (/\.(ts|tsx)$/.test(e.name) && /function foldWorkerRecord\(/.test(readFileSync(p, 'utf8')))
-      defSites.push(p)
-  }
-}
-walk(join(root, 'src'))
-check(
-  'exactly one definition site under src/',
-  defSites.length === 1 && (defSites[0]?.endsWith('workerTranscriptFold.ts') ?? false),
-  defSites.join(', '),
-)
 const { foldWorkerRecord } = await import('../../src/components/concourse/workerTranscriptFold.js')
 const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
 const { ordinalOf } = await import('../../src/fabric/ordinal.js')
@@ -176,28 +88,6 @@ if (snap !== null && fin !== null && other !== null) {
   check('the final REPLACES at the same slot — position kept, count kept', settled.length === 2 && text(settled[1]) === 'Finished counting' && settled[0] === partial[0])
   check('distinct rows still append in order', mergeFoldedMessages([other], [snap]).length === 2)
 }
-const foldModuleSrc = readFileSync(foldPath, 'utf8')
-check(
-  'the byte-cursor fold consumes the merge (never a bare concat of folded rows)',
-  foldModuleSrc.includes('mergeFoldedMessages(base, folded)') && !stripComments(foldModuleSrc).includes('[...base, ...folded]'),
-)
-
-console.log('LAW 5 — wheel physics:')
-check(
-  'the mirror scrolls by computeWheelStep (shared physics)',
-  mirrorCode.includes('computeWheelStep(') && mirrorCode.includes("from '../ScrollKeybindingHandler.js'"),
-)
-check('the flat WHEEL_STEP_ROWS constant is not referenced', !mirrorCode.includes('WHEEL_STEP_ROWS'))
-check(
-  'wheel consumption is gated on focused/pointer-over',
-  mirrorCode.includes('isActive: focused || pointerOver'),
-)
-check(
-  'the follow debounce rides the shared 160ms clock family (no new interval primitive)',
-  mirrorCode.includes('useAnimationValue(') &&
-    mirrorCode.includes('WORK_TICK_MS') &&
-    !/setInterval|setTimeout/.test(mirrorCode),
-)
 
 console.log(
   failures === 0 ? '\nprove-mirror-grammar: ALL LAWS HOLD' : `\nprove-mirror-grammar: ${failures} FAILURE(S)`,

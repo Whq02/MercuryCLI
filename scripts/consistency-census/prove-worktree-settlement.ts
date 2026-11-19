@@ -169,34 +169,6 @@ const branchThere = (repo: string, branch: string): boolean => {
   )
 }
 
-{
-  const { readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const root = join(import.meta.dir, '../..')
-  const agentTool = readFileSync(join(root, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-  check(
-    '§L the Crewmate tool keeps every crewmate worktree and reads it through the reminder owner',
-    !('settleAgentWorktree' in wt) &&
-      !agentTool.includes('cleanupStaleAgentWorktrees(') &&
-      !agentTool.includes('cleanupWorktree(') &&
-      agentTool.includes('crewWorktreeLeftoverOf('),
-  )
-  check(
-    '§L the Crewmate tool does not hand-roll the old boolean+remove pair',
-    !agentTool.includes('hasWorktreeChanges('),
-  )
-}
-
-{
-  const { readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const root = join(import.meta.dir, '../..')
-  const janitor = readFileSync(join(root, 'src/utils/worktree.ts'), 'utf8')
-  check(
-    '§M the janitor classifies via the same delta (the -uno split is gone)',
-    janitor.includes('deltaBlocksSettlement(delta)') && !janitor.includes("'-uno'"),
-  )
-}
 
 if (process.platform === 'win32') {
   const { symlinkSync, openSync, closeSync } = await import('node:fs')

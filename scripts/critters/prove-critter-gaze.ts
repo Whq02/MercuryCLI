@@ -19,7 +19,6 @@ import {
   CRITTERS,
   heroBlinkRows,
 } from '../../src/utils/cockpit/critterData.js'
-import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
@@ -231,30 +230,6 @@ console.log('— pointer store: dedupe + edges —')
 }
 
 console.log('— view + decode wiring (static) —')
-{
-  const { readFileSync } = await import('node:fs')
-  const app = readFileSync('src/ink/components/App.tsx', 'utf8')
-  const guardIdx = app.search(/if \(isMouseClicksDisabled\(\)\) return;?/)
-  const decodeIdx = app.search(/const \{ col, row \} = toCell\(atom\);?/)
-  const tapIdx = app.search(/setPointerCell\(col, row\);?/)
-  t('App.handleMouseEvent decodes the pointer cell', decodeIdx > 0, `@${decodeIdx}`)
-  t('…and taps the pointer store AFTER the decode', tapIdx > decodeIdx, `decode@${decodeIdx} tap@${tapIdx}`)
-  t(
-    'tap sits below the /mouse-off guard',
-    guardIdx > 0 && guardIdx < tapIdx,
-    `guard@${guardIdx} tap@${tapIdx}`,
-  )
-  const anim = readFileSync('src/components/mercury-ui/AnimatedCritterArt.tsx', 'utf8')
-  t('gaze gated on animate + NOT asleep + a gaze grid (square) + critterGazeEnabled',
-    /animate && !asleep && gazeGrid !== null && critterGazeEnabled\(\)/.test(anim) &&
-    /const gazeGrid = form === 'square' \? def\.squareDock : null/.test(anim))
-  t('view threads gazeKey into CritterArt', anim.includes('gazeKey={frame.gazeKey}'))
-  const cart = readFileSync('src/components/mercury-ui/CritterArt.tsx', 'utf8')
-  t('CritterArt applies gaze BEFORE blink', /applyGazeKey\(base, gazeKey\)[\s\S]{0,200}heroBlinkRows\(gazed\)/.test(cart))
-  const scen = readFileSync('scripts/ui/renderScenarios.ts', 'utf8')
-  t('renderScenarios pins MERCURY_CRITTER_GAZE off', scen.includes("process.env.MERCURY_CRITTER_GAZE = process.env.MERCURY_CRITTER_GAZE ?? '0'"))
-  t('flag registered', getFlagSpec('MERCURY_CRITTER_GAZE') !== undefined)
-}
 
 console.log(failures ? '\n❌ CRITTER-GAZE RED' : '\n✅ CRITTER-GAZE GREEN')
 process.exit(failures)

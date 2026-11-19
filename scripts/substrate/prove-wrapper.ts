@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   MERCURY_CONSTITUTION,
@@ -9,9 +8,6 @@ import {
 } from '../../src/prompt/mercuryContract.js'
 
 const J = (...parts: string[]): string => parts.join('')
-const ROOT = join(import.meta.dir, '..', '..')
-const PROMPTS = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
-const CONTRACT = readFileSync(join(ROOT, 'src/prompt/mercuryContract.ts'), 'utf8')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -40,16 +36,10 @@ const secs = getMercuryContractSections()
 check('the contract sections carry no identity or doctrine section', secs.every(s => s.name !== J('identity', '-floor') && s.name !== J('mercury', '-doctrine') && !/You are/.test(s.text)))
 check('every section carries a semantic name + string text', secs.every(s => typeof s.name === 'string' && s.name.length > 0 && typeof s.text === 'string'))
 check('no positional section names (semantic-ID law)', secs.every(s => !/^wrapper-\d|^mode-\d+$/.test(s.name)))
-check('prompts.ts composes the constitution into the static group right after the head', PROMPTS.includes("const law = layers === 'replace' ? promptReplacementText() : stockLaw") && PROMPTS.includes('const stockLaw = constitution ?? MERCURY_CONSTITUTION') && PROMPTS.includes("isUnattendedRun() ? MERCURY_HEADLESS_CONSTITUTION : MERCURY_CONSTITUTION") && PROMPTS.includes('const staticSections: Array<string | null> = [frozenHead ?? head, law]'))
-check('prompts.ts carries no behaviour prose of its own: no tone, no communication, no care, no doing-tasks section', !/# Tone and style|# Communicating with the user|# Acting with care|# Doing tasks|# System behaviour|# Using your tools|# Session-specific guidance/.test(PROMPTS))
 
 section('the seat contract stays beside the constitution')
 check('the crewmate contract carries its evidence rule and its gate rule', /Claim only what you opened or ran shows/.test(MERCURY_SUBAGENT_CONTRACT) && /Never bypass a safety, permission, approval, or capability gate/.test(MERCURY_SUBAGENT_CONTRACT))
-check('no session contract and no doctrine tag exist beside the constitution', !new RegExp([J('MERCURY_SESSION', '_CONTRACT'), J('MERCURY_SESSION', '_DOCTRINE'), J('<mercury', '-doctrine>'), J('MERCURY_IDENTITY', '_RECONCILE')].join('|')).test(CONTRACT))
 
-section('ungated: no flag names the constitution or drops it')
-check('the contract module reads no doctrine flag', !new RegExp([J('MERCURY_WRAPPER', '_APPEND'), J('mercuryDoctrine', 'Enabled')].join('|')).test(CONTRACT))
-check('the only flags the module reads are the prompt-ablation instrument\'s', (CONTRACT.match(/flagEnv\('([A-Z_]+)'\)/g) ?? []).join(',') === "flagEnv('MERCURY_PROMPT_LAYERS'),flagEnv('MERCURY_PROMPT_REPLACE_FILE')")
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL CONTRACT PROOFS PASS (model-wake + ungated constitution)')

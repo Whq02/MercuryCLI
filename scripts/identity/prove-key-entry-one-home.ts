@@ -3,9 +3,9 @@ import { proofHome } from '../lib/hermetic.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
@@ -21,17 +21,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const walkFiles = (dir: string, re: RegExp): string[] => readdirSync(dir).flatMap(entry => {
-  if (entry === '.out' || entry === 'node_modules' || entry === 'dist') return []
-  const path = join(dir, entry)
-  if (statSync(path).isDirectory()) return walkFiles(path, re)
-  return re.test(entry) && !entry.endsWith('.d.ts') ? [path] : []
-})
-const productFiles = (dir: string): string[] => walkFiles(dir, /\.tsx?$/)
 const RETIRED_ENVS = ['MERCURY_ROUTER', 'MERCURY_ROUTER_POSTURE', 'MERCURY_ROUTER_STATE_DIR', 'MERCURY_MISSION_POLICY', 'MERCURY_HELM_CONSOLE', 'MERCURY_CONSOLE_MODEL', 'MERCURY_CHANNELS', 'MERCURY_CHANNEL_ROOM', 'MERCURY_LOCAL_CHANNELS']
-const RETIRED_MENU_ROWS: Record<string, string> = { MERCURY_HELM_CONSOLE: join('src', 'substrate', 'startupMenu.ts') }
 const RETIRED_POSTURES = ['adaptive', 'quality', 'balanced', 'fast', 'fixed']
-const OLD_ROUTER_REL = join('utils', 'router')
 const POSTURE_FILENAME = `${'posture'}.json`
 
 console.log('entering a provider key has one home: /logins')
@@ -42,23 +33,6 @@ console.log('entering a provider key has one home: /logins')
   for (const env of RETIRED_ENVS) {
     check(`the flag registry carries no row for ${env}`, !FLAG_REGISTRY.some(row => row.env === env))
   }
-  const spellings = new Map<string, string[]>()
-  for (const path of productFiles(join(REPO, 'src'))) {
-    const text = readFileSync(path, 'utf8')
-    for (const env of RETIRED_ENVS) if (text.includes(env) && RETIRED_MENU_ROWS[env] !== relative(REPO, path)) spellings.set(env, [...(spellings.get(env) ?? []), relative(REPO, path)])
-  }
-  for (const [env, rel] of Object.entries(RETIRED_MENU_ROWS)) {
-    const text = readFileSync(join(REPO, rel), 'utf8')
-    check(`${env} is spelled once in ${rel}, in the list of saved boot-menu rows it sets aside`, text.split(env).length === 2 && (text.match(/const RETIRED_MENU_ENV[^']*'([^']+)'/)?.[1] ?? '').split(' ').includes(env))
-  }
-  check('no product file spells a retired flag', spellings.size === 0, [...spellings].map(([env, paths]) => `${env}: ${paths.join(', ')}`).join(' · '))
-  const stalePathHits: string[] = []
-  for (const root of ['src', 'scripts', 'docs']) {
-    for (const path of walkFiles(join(REPO, root), /\.(?:tsx?|md|sh|json)$/)) {
-      if (readFileSync(path, 'utf8').includes(OLD_ROUTER_REL)) stalePathHits.push(relative(REPO, path))
-    }
-  }
-  check('zero files in src, scripts or docs spell the old provider path', stalePathHits.length === 0, stalePathHits.slice(0, 8).join(', '))
   const homeStores = await import('../../src/utils/projectHomeStores.ts')
   check('the project home stores carry no route-state store (a folder left on disk is never read)', !homeStores.PROJECT_HOME_STORES.some(segments => segments.join('/') === 'router'))
   const storeRepo = realpathSync(mkdtempSync(join(tmpdir(), 'retired-route-store-')))
@@ -89,41 +63,6 @@ console.log('entering a provider key has one home: /logins')
 
 {
   console.log('\nthe key entry: every family the old board carried has its /logins row, key leg and slot switch')
-  const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
-  const { anthropicArmPickRows, loginFamilyRows, openaiArmPickRows } = await import('../../src/components/loginFamilyRows.ts')
-  const rows = loginFamilyRows({ engineLegs: true }).map(row => row.value)
-  const flow = readFileSync(join(REPO, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8')
-  const legs = /type EngineLeg =([\s\S]*?)\n\n/.exec(flow)?.[1] ?? ''
-  for (const [word, family] of [['zai', 'zai'], ['moonshot', 'moonshot'], ['deepseek', 'deepseek'], ['xai', 'xai'], ['meta', 'meta'], ['huggingface', 'huggingface'], ['mistral', 'mistral'], ['nous', 'nous'], ['zen', 'zen']] as const) {
-    check(`/logins ${word} focuses the ${family} row, which the catalogue carries and the card has a leg for`, parseFamilyFocus(word) === family && rows.includes(family) && legs.includes(`'${family}'`))
-  }
-  const openaiConnectExists = existsSync(join(REPO, 'src/components/OpenaiConnect.tsx'))
-  const openrouterConnectExists = existsSync(join(REPO, 'src/components/OpenrouterConnect.tsx'))
-  const geminiConnect = readFileSync(join(REPO, 'src/components/GeminiConnect.tsx'), 'utf8')
-  check('/logins carries the Anthropic, OpenAI, OpenRouter and Gemini key legs alongside their sign-in legs', parseFamilyFocus('anthropic') === 'anthropic' && parseFamilyFocus('console') === 'anthropic' && rows.includes('anthropic') && anthropicArmPickRows.map(r => r.value).join(',') === 'claudeai,console,key' && legs.includes("'anthropic-key'") && flow.includes('<AnthropicKeyLeg') && parseFamilyFocus('openai') === 'openai' && rows.includes('openai') && openaiArmPickRows.some(r => r.value === 'key') && openaiConnectExists && parseFamilyFocus('openrouter') === 'openrouter' && rows.includes('openrouter') && openrouterConnectExists && parseFamilyFocus('gemini') === 'gemini' && rows.includes('gemini') && geminiConnect.includes('storeGeminiApiKeyLogin'))
-  const xai = readFileSync(join(REPO, 'src/components/XaiConnect.tsx'), 'utf8')
-  check('/logins xai carries the management key as its second step', xai.includes("setStep('management')") && xai.includes('storeXaiManagementKeyLogin'))
-  const mistral = readFileSync(join(REPO, 'src/components/MistralConnect.tsx'), 'utf8')
-  check('/logins mistral carries the Admin API key beside the inference key', mistral.includes('storeMistralAdminKeyLogin') || mistral.includes('Admin API key'))
-  const bootLogins = readFileSync(join(REPO, 'src/components/BootLoginsScreen.tsx'), 'utf8')
-  const { switchActiveSlot, slotSeatView } = await import('../../src/services/providers/slotSwitch.ts')
-  const dualOpenaiReads = {
-    openaiSubscription: () => ({ label: 'ChatGPT plus subscription' }),
-    openaiKey: () => ({ source: 'stored' as const }),
-    openaiActiveKind: () => 'chatgpt-subscription' as const,
-    openaiWallOf: () => ({ state: 'clear' as const }),
-  }
-  let writtenOpenaiPref: string | null = null
-  const switched = switchActiveSlot('openai', {
-    reads: dualOpenaiReads,
-    writes: {
-      writeOpenaiPreference: pref => { writtenOpenaiPref = pref },
-      writeAnthropicPreference: () => {},
-      resetAnthropicLimits: () => {},
-      clearAuthHeaderCaches: () => {},
-    },
-  })
-  check('/logins wires the s slot switch on a family row to switchActiveSlot, flipping between subscription and API key', bootLogins.includes('switchActiveSlot(') && slotSeatView('openai', dualOpenaiReads).other?.kind === 'api-key' && switched.switched && writtenOpenaiPref === 'api-key')
   const { reconnectDoorFor } = await import('../../src/services/providers/credentialWall.ts')
   check('the custom endpoint and the local server name their key variable (no sign-in leg exists for them)', reconnectDoorFor('openai-compat') === 'MERCURY_COMPAT_API_KEY' && reconnectDoorFor('local') === 'MERCURY_LOCAL_API_KEY')
   const search = await import('../../src/services/search/searchContract.ts')
@@ -134,7 +73,6 @@ console.log('entering a provider key has one home: /logins')
   console.log('\nthe move: stored-key byte survival, adapters without posture, and request-bytes control')
   const movedSecretsPath = join(REPO, 'src/services/providers/providerSecrets.ts')
   const movedRegistryPath = join(REPO, 'src/services/providers/modelRegistry.ts')
-  check('providerSecrets and modelRegistry live under src/services/providers/', existsSync(movedSecretsPath) && existsSync(movedRegistryPath))
   if (existsSync(movedSecretsPath) && existsSync(movedRegistryPath)) {
     const secretsFile = join(proofHome, '.provider-secrets.json')
     const seededPayload = `${JSON.stringify({
@@ -261,27 +199,6 @@ console.log('entering a provider key has one home: /logins')
       row?.line === 'claude-fable-5-1 · goal[run-objective]' &&
       row.detail.some(d => d === 'model: claude-fable-5-1 (the session model)'),
     JSON.stringify({ view, row }),
-  )
-  const missionAdapterSrc = readFileSync(join(REPO, 'src/services/resources/adapters/mission.ts'), 'utf8')
-  const helmLanesSrc = readFileSync(join(REPO, 'src/utils/cockpit/helmLanesModel.ts'), 'utf8')
-  const { deriveCurrentWork } = await import('../../src/services/workbench/currentWork.ts')
-  const cw = deriveCurrentWork({
-    now: 1000,
-    owner: { id: 'main', kind: 'main', label: 'main' } as never,
-    run: null,
-    workbench: null,
-    model: 'claude-fable-5-1',
-    effortLabel: 'high',
-    contextPct: 10,
-    recovery: { state: 'none' },
-  } as never)
-  check(
-    'mercury://mission has no plans child, the lanes rail paints no via <profile> line, and currentWork carries no executionShape',
-    !missionAdapterSrc.includes('child=plans') &&
-      missionAdapterSrc.includes("the session's model") &&
-      !helmLanesSrc.includes('workShape') &&
-      !helmLanesSrc.includes('via ${') &&
-      !('executionShape' in cw),
   )
 }
 

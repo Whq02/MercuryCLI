@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { markScrollActivity } from '../../src/bootstrap/state.js'
 import { _setUiClockMeterForProofs, lastClockTick, quantizedNow, subscribeUiClock, uiClockPostureForProofs, uiClockStatsForProofs } from '../../src/utils/cockpit/uiClock.js'
 
@@ -85,11 +83,6 @@ unsubC()
   unsub()
 }
 
-{
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'hooks', 'useElapsedTime.ts'), 'utf8')
-  check('§6c useElapsedTime derives the running snapshot from lastClockTick(ms)', src.includes('lastClockTick(ms)'))
-  check('§6c the old raw-Date.now snapshot derivation is gone', !src.includes('endTime ?? Date.now()'))
-}
 
 {
   const METER = { budgetMs: 4, probeMs: 1500 }

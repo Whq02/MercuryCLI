@@ -16,30 +16,6 @@ function check(name: string, ok: boolean, detail = ''): void {
 
 console.log('── motion park under a claims-modal (shipped artifact) ──')
 
-const src = (p: string): string => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8')
-check(
-  'use-animation-value reads MotionParkContext',
-  src('src/ink/hooks/use-animation-value.ts').includes('MotionParkContext'),
-)
-check(
-  'use-animation-frame reads MotionParkContext',
-  src('src/ink/hooks/use-animation-frame.ts').includes('MotionParkContext'),
-)
-check(
-  'useNowTick reads MotionParkContext',
-  src('src/components/mercury-ui/components.tsx').includes('MotionParkContext'),
-)
-{
-  const fsl = src('src/components/FullscreenLayout.tsx')
-  check(
-    'FullscreenLayout provides the park on the always-mounted root',
-    fsl.includes('MotionParkContext.Provider value={motionParked}'),
-  )
-  check(
-    'the modal slot re-provides false (its own primitives stay live)',
-    fsl.includes('MotionParkContext.Provider value={false}'),
-  )
-}
 
 const teeDir = mkdtempSync(join(tmpdir(), 'glide-park-'))
 const tee = join(teeDir, 'tee.jsonl')

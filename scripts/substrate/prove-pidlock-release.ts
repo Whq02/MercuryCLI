@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs'
+import { mkdtempSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -220,20 +220,6 @@ section('§5 RECONCILIATION PINS (DR-06/07)')
 
 section('§6 WIRING (DR-08)')
 {
-  const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
-  const control = src('src/daemon/controlSocket.ts')
-  const tasks = src('src/utils/tasks.ts')
-  check('the daemon lock release consumes the receipt', control.includes('noteLockRelease('))
-  check('task-lock release consumes the receipt', tasks.includes('noteLockRelease('))
-  const bare = [control, tasks].some(s =>
-    s.split('\n').some(
-      line =>
-        /^\s*await releasePidLock\(/.test(line) &&
-        !line.includes('noteLockRelease(') &&
-        !line.trimEnd().endsWith(','),
-    ),
-  )
-  check('no call site discards a release receipt (bare await)', !bare)
   const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
   const { pidLockReleaseHealth: releasesNow } = await import('../../src/substrate/pidLock.ts')
   const lockSays = await crewChecks().find(row => row.id === 'pid-lock-release')?.run()

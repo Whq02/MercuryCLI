@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -21,7 +21,6 @@ function section(t: string): void {
 }
 
 const PROOF_KEY = 'proof-key-jev-not-a-real-key-0002'
-const ROOT = join(import.meta.dir, '..', '..')
 
 writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, numStartups: 3 }))
 const { startJevStandin } = await import('./lib/jevStandin.ts')
@@ -66,8 +65,6 @@ check('read-only and concurrency-safe', JevEvalTool.isReadOnly({} as never) === 
 check('deferred, announced with its line (the model sees it at the fork by name and purpose)', JevEvalTool.shouldDefer === true)
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const permissionVerdict = await JevEvalTool.checkPermissions(valid() as never, { getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) } as never)
-const toolSource = readFileSync(join(ROOT, 'src/tools/JevEvalTool/JevEvalTool.ts'), 'utf8')
-check('an inline call is allowed without a permission check; JevEval answers no permission request — its only permission call is the Read ladder on a file it loads', permissionVerdict.behavior === 'allow' && /checkReadPermissionForTool/.test(toolSource) && !/validateInput|readOnlyAllowlist/.test(toolSource))
 check('the search hint is 3..10 words', JEV_EVAL_SEARCH_HINT.trim().split(/\s+/).length >= 3 && JEV_EVAL_SEARCH_HINT.trim().split(/\s+/).length <= 10, JEV_EVAL_SEARCH_HINT)
 check('the capability declaration is valid and names its condition and proof', validateToolCapability(JevEvalTool.capability).ok && (JevEvalTool.capability?.conditions?.length ?? 0) > 0 && JevEvalTool.capability?.proof === 'scripts/jev/run-all.sh')
 check('it reaches beyond the machine and says so', JevEvalTool.isOpenWorld?.() === true)

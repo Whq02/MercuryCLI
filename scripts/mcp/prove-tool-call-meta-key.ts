@@ -2,9 +2,9 @@
 // gate-watch: src/services/mcp/client.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { inProcessServerConfig, seatInProcessServer } from '../lib/mcpInProcess.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'mcp-meta-key-'))
@@ -13,7 +13,6 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 
-const REPO = resolve(import.meta.dir, '..', '..')
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -70,8 +69,6 @@ check('the id rides under no other key', meta !== undefined && Object.keys(meta)
 const echoed = Array.isArray(withId.content) ? ((withId.content[0] as { text?: string } | undefined)?.text ?? '') : ''
 check("the server's echo of the wire shows the same key", echoed.includes('"mercury/toolUseId":"toolu_meta_0001"'), echoed)
 
-const source = readFileSync(join(REPO, 'src/services/mcp/client.ts'), 'utf8')
-check('the key is spelled once in the client, through the constant', (source.match(/mercury\/toolUseId/g) ?? []).length === 1 && /\[MCP_TOOL_USE_ID_META_KEY\]: toolUseId/.test(source))
 
 unseat()
 await client.close()

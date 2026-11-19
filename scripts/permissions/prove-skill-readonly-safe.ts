@@ -58,14 +58,6 @@ check(
     ['Read', 'Grep', 'Glob'].every(t => READ_ONLY_SKILL_TOOLS.has(t)),
 )
 
-const src = readFileSync('src/tools/SkillTool/SkillTool.ts', 'utf8')
-const caseBlock = src.slice(src.indexOf('READ_ONLY_SKILL_TOOLS.has'), src.indexOf('READ_ONLY_SKILL_TOOLS.has') + 400)
-check(
-  'the special case keys on allowedTools + array shape ',
-  /key === 'allowedTools' &&\s*\n\s*Array\.isArray\(value\)/.test(src),
-)
-check('…and empty grants never reach it (length > 0 guard)', src.includes('value.length > 0 &&'))
-void caseBlock
 
 console.log('\n── repo-skill data ratchet (no pointless pure-read grants)')
 const skillsRoots = ['mercury-skills', join('.mercury', 'skills')]

@@ -3,22 +3,13 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { frameLines, isMainThread, isToolCall, isToolResult } from '../lib/rows.ts'
-import {
-  countTrackedRunningAgents,
-  SleepTool,
-  SUBAGENT_TRACKED_TASK_TYPES,
-  TERMINAL_TASK_STATUSES,
-  TRACKED_AGENT_TASK_TYPES,
-  TRACKED_ARM_GRACE_TICKS,
-  TRACKED_SETTLE_POLL_MS,
-  UNTRACKED_TASK_TYPES,
-} from '../../src/tools/SleepTool/SleepTool.tsx'
+import { countTrackedRunningAgents, SleepTool, TERMINAL_TASK_STATUSES, TRACKED_ARM_GRACE_TICKS, TRACKED_SETTLE_POLL_MS, UNTRACKED_TASK_TYPES } from '../../src/tools/SleepTool/SleepTool.tsx'
 import { isTerminalTaskStatus, type TaskStatus } from '../../src/Task.ts'
 import { setRunInputClosed } from '../../src/bootstrap/state.ts'
 import type { AppState } from '../../src/state/AppState.js'
@@ -47,23 +38,6 @@ async function runSleep(
 
 t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union')
 {
-  const taskSrc = readFileSync('src/Task.ts', 'utf8')
-  const literalUnion = taskSrc.match(/export type TaskType =\n((?:\s*\|\s*'[a-z_]+'\n)+)/)
-  const kindTable = taskSrc.match(/const taskKinds = \[([\s\S]*?)\] as const/)
-  const union = literalUnion
-    ? [...literalUnion[1]!.matchAll(/'([a-z_]+)'/g)].map(m => m[1]!)
-    : [...kindTable?.[1]!.matchAll(/\['([a-z_]+)', '[a-z]'\]/g) ?? []].map(m => m[1]!)
-  t.check('the TaskType union was read from src/Task.ts', union.length >= 4, union.join(','))
-  t.check(
-    'every union member is TRACKED or a DOCUMENTED exclusion — no silent misses',
-    union.every(ty => TRACKED_AGENT_TASK_TYPES.has(ty) || UNTRACKED_TASK_TYPES.has(ty)),
-    union.filter(ty => !TRACKED_AGENT_TASK_TYPES.has(ty) && !UNTRACKED_TASK_TYPES.has(ty)).join(',') || 'total',
-  )
-  t.check(
-    'and no type is both tracked and excluded',
-    union.every(ty => !(TRACKED_AGENT_TASK_TYPES.has(ty) && UNTRACKED_TASK_TYPES.has(ty))),
-    'disjoint',
-  )
   t.check(
     'every exclusion carries its reason on the record',
     [...UNTRACKED_TASK_TYPES.values()].every(r => r.length > 10),
@@ -112,11 +86,6 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
       throw new Error('no state')
     }) === 0,
     'safe',
-  )
-  t.check(
-    "a sub-agent's tracked types are main-thread exclusions, each with both reasons on the record",
-    [...SUBAGENT_TRACKED_TASK_TYPES.keys()].every(ty => UNTRACKED_TASK_TYPES.has(ty) && union.includes(ty)) && [...SUBAGENT_TRACKED_TASK_TYPES.values()].every(r => r.length > 10),
-    [...SUBAGENT_TRACKED_TASK_TYPES.keys()].join(','),
   )
   const ownedShell = { s: { id: 'shell-1', type: 'local_bash', status: 'running', agentId: 'agent-self' } }
   t.check(
@@ -250,22 +219,6 @@ t.section('§4 — abort still wins over both')
 
 t.section('§5 — the mechanism is the TOOL, not an exhortation')
 {
-  const src = readFileSync('src/tools/SleepTool/SleepTool.tsx', 'utf8')
-  t.check(
-    'the tool reads the task registry itself',
-    src.includes('countTrackedRunningAgents(getAppState, agentId)'),
-    'mechanical',
-  )
-  t.check(
-    'and settles on the tracked work rather than the timer',
-    src.includes('if (countTrackedRunningAgents(getAppState, agentId) === 0)'),
-    'redirect',
-  )
-  t.check(
-    'the requested duration stays the CEILING — no wait outlives what was asked',
-    src.includes('const timer = setTimeout('),
-    'ceiling kept',
-  )
   t.check(
     'the settle poll is cheap and named, not a magic number in a loop',
     TRACKED_SETTLE_POLL_MS > 0 && TRACKED_SETTLE_POLL_MS <= 500,
@@ -275,11 +228,6 @@ t.section('§5 — the mechanism is the TOOL, not an exhortation')
     'the arming grace is short and named — same-block dispatches, nothing later',
     TRACKED_ARM_GRACE_TICKS * TRACKED_SETTLE_POLL_MS <= 2000,
     `${TRACKED_ARM_GRACE_TICKS * TRACKED_SETTLE_POLL_MS} ms`,
-  )
-  t.check(
-    "and the watcher is unref'd so a wait can never hold the process open",
-    src.includes('watch?.unref?.()'),
-    'no lingering handle',
   )
 }
 

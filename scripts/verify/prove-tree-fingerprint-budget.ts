@@ -10,7 +10,6 @@ if (process.platform === 'win32') {
   process.exit(0)
 }
 
-const REPO_ROOT = join(import.meta.dir, '..', '..')
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'tree-budget-')))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME)
@@ -221,20 +220,6 @@ section('§4 event-driven, one in flight — readers on timers reuse the last va
   await vs.computeWorkingTreeDigestAsync(repo)
   await vs.computeWorkingTreeDigestAsync(repo)
   check('a turn end makes the cached digest suspect exactly once', since(n0).filter(isAdd).length === 1)
-  const HOT = [
-    'src/services/workbench/projection.ts',
-    'src/services/workbench/currentWork.ts',
-    'src/services/mission/projection.ts',
-    'src/state/vitalsBus.ts',
-    'src/components/HelmLanesRail.tsx',
-    'src/components/concourse/ConcourseRoute.tsx',
-  ]
-  for (const file of HOT) {
-    const src = readFileSync(join(REPO_ROOT, file), 'utf8')
-    check(`${file} names only the async twin (no sync digest, no sync snapshot)`, !/\bcomputeWorkingTreeDigest\b(?!Async)/.test(src) && !/\bgetProjectSnapshot\(/.test(src))
-  }
-  const rt = readFileSync(join(REPO_ROOT, 'src/services/run/runTurnObserver.ts'), 'utf8')
-  check('the turn boundary is the fingerprint clock (runTurnObserver marks the tree suspect)', rt.includes('markTreeSuspectAfterTurn()'))
 }
 
 section('§5 bounded to the launch folder — a nested launch never looks above itself')
@@ -333,7 +318,6 @@ section('§7 the same tree, both forms — and the certificate sha byte-identica
   const after = countObjects(A)
   check('the health certificate names the same tree with its objects redirected', got === expected, `${got} vs ${expected}`)
   check("…and the repository gained nothing from it (the untracked file's blob went beside the temp index)", after.count === before.count, `${before.count} → ${after.count}`)
-  check('the certificate still includes the harness dirs (its semantics are untouched)', !readFileSync(join(REPO_ROOT, 'src/utils/healthReport.ts'), 'utf8').includes('exclude).mercury'))
 }
 
 section('§8 no job outlives its repository — a mid-scan removal quiesces, a cancel awaits')

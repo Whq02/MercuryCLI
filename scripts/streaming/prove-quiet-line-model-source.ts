@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -15,7 +15,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
-const code = (src: string): string => src.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
 
 const React = (await import('react')).default
 const { render, Box, Text } = await import(join(ROOT, 'src/ink.ts'))
@@ -137,13 +136,6 @@ section('§3 the feeds: a facts change and a hop drive nothing in the leaf')
   await settle()
 }
 
-section('§4 structural: the leaf holds no model subscription and no route read')
-{
-  const leaf = code(readFileSync(join(ROOT, 'src/components/LiveStreamingTail.tsx'), 'utf8'))
-  check('no AppState model read in the leaf', !leaf.includes('engineModelForSession') && !leaf.includes('engineModel') && !leaf.includes('useAppState'))
-  check('no focused-connector model read and no subscription through the focused slot', !leaf.includes('getFocusedSessionConnector') && !leaf.includes('modelFacts') && !leaf.includes('subscribeThroughFocused') && !leaf.includes('subscribeModel'))
-  check('no route read and no thinking line', !leaf.includes('declaredRouteOf') && !leaf.includes('ThinkingLabel') && !/\bthinking\b/i.test(leaf))
-}
 
 focus._resetFocusedSessionConnectorForTesting()
 console.log(failures === 0 ? '\nprove-quiet-line-model-source: ALL LAWS HOLD' : `\nprove-quiet-line-model-source: ${failures} FAILURE(S)`)

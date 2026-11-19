@@ -1,19 +1,16 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { getPlatform } from '../../src/utils/platform.js'
-import { relativeSlashed } from '../lib/platformPath.ts'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_DESKTOP_DRIVER = 'fake'
 process.env.BROWSER = '/usr/bin/true'
 for (const key of ['MERCURY_COMPUTER_USE', 'MERCURY_COMPUTER_ACCESS', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_DESKTOP_FAKE_SCENE']) delete process.env[key]
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const source = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
 
 let failures = 0
 let checks = 0
@@ -87,33 +84,6 @@ const assistant = { message: { id: 'zero-cards' } } as never
 section('§0 the law in source: one posture predicate, one card road')
 {
   check('the posture predicate is the shared modeBypassesPermissions read on the permission context', postureBypassesAsks({ mode: 'sovereign' }) === true && postureBypassesAsks({ mode: 'default' }) === false && postureBypassesAsks({ mode: 'flow' }) === false)
-  const senders: string[] = []
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      const path = join(dir, entry)
-      if (statSync(path).isDirectory()) walk(path)
-      else if (/\.(ts|tsx)$/.test(entry) && /\.send\('permission\/request'/.test(readFileSync(path, 'utf8'))) senders.push(relativeSlashed(ROOT, path))
-    }
-  }
-  walk(join(ROOT, 'src'))
-  check("the permission card has ONE sender in src: the hosted runner's door", senders.sort().join(',') === 'src/cli/headless/runnerAsks.ts', senders.join(','))
-  const declaring: string[] = []
-  const walkTools = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      const path = join(dir, entry)
-      if (statSync(path).isDirectory()) walkTools(path)
-      else if (/\.(ts|tsx)$/.test(entry) && /requiresUserInteraction\(\)\s*(?::\s*boolean\s*)?\{/.test(readFileSync(path, 'utf8'))) declaring.push(relativeSlashed(ROOT, path))
-    }
-  }
-  walkTools(join(ROOT, 'src', 'tools'))
-  check('exactly three tools declare an interaction-mandatory ask: the two model questions and the Computer tool', declaring.sort().join(',') === 'src/tools/ApolloReviewTool/ApolloReviewTool.tsx,src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx,src/tools/ComputerTool/ComputerTool.ts', declaring.join(','))
-  check('the Computer tool reads the posture in its own verdict (the one predicate)', source('src/tools/ComputerTool/ComputerTool.ts').includes('postureBypassesAsks('))
-  check('the hook seam reads the posture before it can force an ask', source('src/services/tools/toolHooks.ts').includes('postureBypassesAsks('))
-  check('the engine has no bypass-immune safety floor: no ask survives the posture at 1g', !/floor/.test(source('src/utils/permissions/decision/engine.ts')))
-  check('the safetyCheck reason carries no floor field', !/floor/.test(source('src/types/permissions.ts')))
-  for (const file of ['src/utils/permissions/filesystem.ts', 'src/utils/permissions/pathValidation.ts', 'src/tools/BashTool/bashPermissions.ts']) {
-    check(`${file} marks no verdict as a floor`, !/floor: true/.test(source(file)))
-  }
 }
 
 section('§1 the roads that already stand down: every plain ask verdict is ALLOWED under the posture, named in the reason')

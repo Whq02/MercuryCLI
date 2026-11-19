@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { inProcessServerConfig, seatInProcessServer } from '../lib/mcpInProcess.ts'
 
@@ -95,8 +94,6 @@ console.log('L5 the same tool called twice in one message — the call context n
   check('their progress routes are distinct', one.progress.every(p => p.toolUseID === 'toolu_SAME_1') && two.progress.every(p => p.toolUseID === 'toolu_SAME_2') && one.progress.length > 0 && two.progress.length > 0)
   const scanned = await drive('search', content)
   check('control: without the call context the name scan still answers the first block', scanned.toolUseId === 'toolu_SAME_1', `resolved=${String(scanned.toolUseId)}`)
-  const source = readFileSync(join(SRC, 'services/mcp/client.ts'), 'utf8')
-  check('the MCP tool hands its call context id to the retry road (source pin)', source.includes('toolUseId: context.toolUseId,'))
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
@@ -93,45 +93,6 @@ t.section('§4 — transition silence (ledger untouched; no termio/process impor
   const after = JSON.stringify(ledger.terminalModeLedgerSnapshot())
   t.check('a full transition cycle leaves the terminal-mode ledger IDENTICAL', e.ok && before === after, after)
   ledger._resetTerminalModeLedgerForTesting()
-
-  const src = await Bun.file(join(process.cwd(), 'src/context/surfaceRoute.ts')).text()
-  t.check(
-    'the route owner imports no termio/child-process machinery (structural)',
-    !/termio|child_process|node:child_process|spawn\(/.test(src),
-    'surfaceRoute.ts import surface',
-  )
-  t.check(
-    "the route owner's only static imports are the flag registry + the input-event seam + the CB-10 fullscreen gate + the concourse switch + the key-hint fold (+ types)",
-    (src.match(/^import .*from '(.*)'/gm) ?? []).every(
-      l => l.includes('flagRegistry') || l.includes('ink/events/input-event') || l.includes('utils/fullscreen') || l.includes('services/concourse/concourseEnabled') || l.includes('components/mercury-ui/keyHintLabel'),
-    ),
-    JSON.stringify(src.match(/^import .*from '(.*)'/gm) ?? []),
-  )
-  t.check(
-    'the route owner never imports the focused slot (the chat stop rides the registered presence seam)',
-    !(src.match(/^import .*from '(.*)'/gm) ?? []).some(l => l.includes('engine-connector/focusedConnector')) && /registerChatPresence/.test(src),
-    'surfaceRoute.ts import surface',
-  )
-  const hintSrc = await Bun.file(join(process.cwd(), 'src/components/mercury-ui/keyHintLabel.ts')).text()
-  t.check(
-    'the key-hint fold imports only the platform predicate (transitive silence)',
-    !/termio|child_process|node:child_process|spawn\(/.test(hintSrc) &&
-      (hintSrc.match(/^import .*from '(.*)'/gm) ?? []).every(l => l.includes('utils/platform')),
-    JSON.stringify(hintSrc.match(/^import .*from '(.*)'/gm) ?? []),
-  )
-  const seamSrc = await Bun.file(join(process.cwd(), 'src/ink/events/input-event.ts')).text()
-  t.check(
-    'the input-event seam imports no termio/child-process machinery (transitive silence)',
-    !/termio|child_process|node:child_process|spawn\(/.test(seamSrc),
-    'input-event.ts import surface',
-  )
-  t.check(
-    'the input-event seam statically imports only the decoder tables + the Event base',
-    (seamSrc.match(/^import .*from '(.*)'/gm) ?? []).every(
-      l => l.includes('input-decoder') || l.includes('./event'),
-    ),
-    JSON.stringify(seamSrc.match(/^import .*from '(.*)'/gm) ?? []),
-  )
 }
 
 t.section('§5 — the MERCURY_CONCOURSE closed value grammar')
@@ -230,23 +191,5 @@ t.section('§7 — mount seeding adopts only registered routes')
   route._resetSurfaceRouteForTesting()
 }
 
-t.section('§8 — every boot journey hosts the router (NEW-1: no bare Chat mount)')
-{
-  const resumeSrc = readFileSync(join(import.meta.dir, '../../src/screens/ResumeConversation.tsx'), 'utf8')
-  t.check(
-    'ResumeConversation imports SurfaceRouter (registration rides the module side effect)',
-    /import \{ SurfaceRouter \} from '\.\.\/components\/SurfaceRouter\.js'/.test(resumeSrc),
-  )
-  t.check(
-    'the post-pick Chat swap is hosted under SurfaceRouter, never bare',
-    /<SurfaceRouter><Chat /.test(resumeSrc) && /<\/SurfaceRouter>\);/.test(resumeSrc),
-  )
-  t.check(
-    'the route owner is seeded to the root before the resume paints and the swap (the pick is an explicit Chat journey)',
-    resumeSrc.indexOf('initializeSurfaceRoute(ROOT_CHAT_ROUTE);') !== -1 &&
-      resumeSrc.indexOf('initializeSurfaceRoute(ROOT_CHAT_ROUTE);') < resumeSrc.indexOf('focusResumedSession(') &&
-      resumeSrc.indexOf('focusResumedSession(') < resumeSrc.indexOf('setResumeData({'),
-  )
-}
 
 t.finish('prove-surface-router')

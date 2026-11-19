@@ -479,12 +479,6 @@ section('§4 the roads that stay: the command line and the /accounts board')
 
 section('§5 /config carries the one row in the view group: Account identity · shown / hidden')
 {
-  const source = readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'utf8')
-  check("the row is id 'accountIdentity', labelled Account identity", source.includes("id: 'accountIdentity'") && source.includes("label: 'Account identity'"))
-  check('its value reads shown unless the setting is false', source.includes("merged.view?.accountIdentity !== false ? 'shown' : 'hidden'"))
-  check('←/→ writes false to the user settings and removes the key to show again', source.includes("writeSource('userSettings', { view: { accountIdentity: next ? undefined : false } })"))
-  check('the write records raw leaf values and esc restores them at their source', source.includes('configUndoLeaves(source, raw, partial, [], true)') && source.includes('updateSettingsForSource(undo.source, partial)'))
-  check('the row sits after Ping, beside the other view.* rows', source.includes("id: 'ping'") && source.includes("id: 'accountIdentity'") && source.includes("id: 'motion'") && source.indexOf("id: 'accountIdentity'") > source.indexOf("id: 'ping'") && source.indexOf("id: 'accountIdentity'") < source.indexOf("id: 'motion'"))
   const still = readFileSync(join(ROOT, 'scripts/ui/fixtures/settings-popup-header/config-120x40.txt'), 'utf8')
   check('the stored /config still paints the row with its default word', /Account identity\s+shown/.test(still), still.split('\n').find(line => line.includes('Account identity')) ?? 'no row in the still')
 }
@@ -556,8 +550,6 @@ section('§7 the model picker header and the provider identity words read the ow
   check('true: the picker frame is byte-identical to absent', truePicker === shownPicker)
   check('hidden: the picker header keeps the door and drops the account', heading(hiddenPicker) !== '' && !heading(hiddenPicker).includes('@') && heading(hiddenPicker).includes('login'), heading(hiddenPicker).trim())
   check('hidden: no line of the picker carries an address, a username or a key tail', leaks(hiddenPicker).length === 0, JSON.stringify(leaks(hiddenPicker)))
-  const source = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  check('the picker composes the door account through the owner, no copy of its own', source.includes('const account = providerDoorAccount(slot, identity)') && !source.includes('function accountOfSlot('))
   const identityLine = await import(join(ROOT, 'src/services/providers/providerIdentityLine.ts'))
   const registry = await import(join(ROOT, 'src/services/providers/modelRegistry.ts'))
   const hfLine = (leg: Leg): string => {

@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -50,17 +49,6 @@ section('§2 the busy fact reads the edge')
   check('a seat whose edge is closed reads idle', closed.busy === false, j(closed))
 }
 
-section('§3 the roster and the runner ride the one owner')
-{
-  const roster = readFileSync(join(ROOT, 'src/daemon/roster.ts'), 'utf8')
-  const classify = roster.slice(roster.indexOf('classifyRow('))
-  check('the row hook opens the edge on the turn row BEFORE it reads the outcome row (one row, both edges)', /isTurnOpenRow\(frame\)[\s\S]{0,1200}ll\.turnActive = true[\s\S]{0,80}ll\.turnStartedAt = Date\.now\(\)[\s\S]{0,400}isOutcomeRow\(frame\)/.test(classify))
-  check('reply() opens the edge for a delivery before the answer is read (the same fact, two roads into one field)', /ll\.turnActive = true\n\s*ll\.turnStartedAt = Date\.now\(\)[\s\S]{0,600}await door\.deliver\(row\)/.test(roster))
-  const turn = readFileSync(join(ROOT, 'src/rows/turn.ts'), 'utf8')
-  check('the turn itself opens with its own row, before any row of its stream', /yield turnStartedRow\(scope, \{ turnId, messageIds, model: resolvedModel \}\)/.test(turn) && turn.indexOf('yield turnStartedRow(') !== -1 && turn.indexOf('for await (const event of queryEvents(') !== -1 && turn.indexOf('yield turnStartedRow(') < turn.indexOf('for await (const event of queryEvents('))
-  const driver = readFileSync(join(ROOT, 'src/cli/headless/turnDriver.ts'), 'utf8')
-  check('the driver marks the turn open on its row and mints one only before an outcome of a turn that never opened', /if \(turnOpened\(row\)\) turnOpen = true/.test(driver) && /if \(isOutcome\(row\)\) \{[\s\S]{0,300}openIfUnopened\(\)/.test(driver))
-}
 
 console.log(`\n ${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

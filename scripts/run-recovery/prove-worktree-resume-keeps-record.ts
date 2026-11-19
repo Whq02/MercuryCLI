@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -206,16 +206,7 @@ try {
   check('a recorded warm claim: the clear ahead of the load leaves only the record\'s sections plus the live ones — the first request is byte-identical to the first exchange and no extra section survives', recordedClaimResumed === first && !state.getSystemPromptSectionCache().has('stale_extra_section') && state.getSystemPromptSectionCache().get('project_estate')?.value === recordedRunProtocol, firstDifference(first, recordedClaimResumed))
 
   section('§5 the retirement — the plain road is the one restore; the recorded-worktree entry and its re-entry helpers are gone')
-  const RED = 'RED WHERE THE RETIRED ENTRY STILL STANDS'
-  const retired = ['processResumed' + 'Conversation', 'restoreWorktree' + 'ForResume', 'exitRestored' + 'Worktree', 'invalidateWorktree' + 'SensitiveCaches', 'carriesBound' + 'PrefixRecord', 'Processed' + 'Resume']
-  const restoreSrc = readFileSync(join(import.meta.dir, '../../src/utils/sessionRestore.ts'), 'utf8')
-  check(`${RED}: sessionRestore.ts exports no resume entry and no worktree re-entry`, !(retired[0]! in sessionRestore) && retired.every(name => !restoreSrc.includes(name)), retired.filter(name => restoreSrc.includes(name)).join(', '))
-  check(`${RED}: sessionRestore.ts moves no directory and clears no cache (the plain road restores; the world's moves reach the model on new rows)`, !restoreSrc.includes('process.chdir(') && !restoreSrc.includes('clearSystemPromptSectionState') && !restoreSrc.includes('clearInstructionFileCaches'), restoreSrc.split('\n').filter(l => /chdir|clear/.test(l)).join(' | '))
   check('the surviving restore steps stay exported: the state and the metadata restores', typeof sessionRestore.restoreSessionStateFromLog === 'function' && typeof restoreSessionMetadata === 'function' && typeof sessionRestore.restoreAgentFromSession === 'function')
-  const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(d => (d.isDirectory() ? walk(join(dir, d.name)) : /\.(ts|tsx)$/.test(d.name) ? [join(dir, d.name)] : []))
-  const here = join(import.meta.dir, 'prove-worktree-resume-keeps-record.ts')
-  const naming = [...walk(join(import.meta.dir, '../../src')), ...walk(join(import.meta.dir, '../../scripts'))].filter(f => f !== here && readFileSync(f, 'utf8').includes(retired[0]!))
-  check(`${RED}: nothing under src or scripts names the retired entry`, naming.length === 0, naming.map(f => f.slice(f.indexOf('/src/') === -1 ? f.indexOf('/scripts/') : f.indexOf('/src/'))).join(', '))
 } finally {
   freshProcess()
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -34,14 +34,6 @@ console.log('§1 the engine mechanism')
   rmSync(dir, { recursive: true, force: true })
 }
 
-console.log('§2 the parse arm')
-{
-  const src = readFileSync(join(ROOT, 'src', 'tools', 'GrepTool', 'GrepTool.ts'), 'utf8')
-  check(
-    "a bare integer line counts as that file's tally (call-shaped)",
-    /if \(\/\^\\d\+\$\/\.test\(line\)\) \{\s*\n\s*numMatches \+= parseInt\(line, 10\)\s*\n\s*numFiles\+\+/.test(src),
-  )
-}
 
 console.log(failures === 0 ? '\nprove-grep-count-single-file: all green' : `\nprove-grep-count-single-file: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

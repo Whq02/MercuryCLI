@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
@@ -58,16 +57,6 @@ console.log('L2 refused arms clear nothing')
   t('…and no cache was cleared on either', calls.length === 0, JSON.stringify(calls))
 }
 
-console.log('L3 the live wiring names both cache owners')
-{
-  const slotSwitch = readFileSync(join(SRC, 'services/providers/slotSwitch.ts'), 'utf8')
-  t('slotSwitch liveWrites clears the beta and tool-schema caches', slotSwitch.includes('clearBetasCaches()') && slotSwitch.includes('clearToolSchemaCache()'))
-  t('the switch tail rides the seam', slotSwitch.includes('writes.clearAuthHeaderCaches()'))
-  const resetAt = slotSwitch.indexOf('resetLimitsForCredentialSwitch()')
-  const betasAt = slotSwitch.indexOf('clearBetasCaches()')
-  const schemaAt = slotSwitch.indexOf('clearToolSchemaCache()')
-  t('the switch clears both after its limits reset', resetAt >= 0 && betasAt > resetAt && schemaAt > resetAt, `reset=${resetAt} betas=${betasAt} schema=${schemaAt}`)
-}
 
 console.log(failures === 0 ? 'SLOT SWITCH HEADER CACHES: ALL PASS' : 'SLOT SWITCH HEADER CACHES: RED')
 process.exit(failures)

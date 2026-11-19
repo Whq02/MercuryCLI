@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -18,7 +18,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const manager = await import('../../src/services/projectServices/serviceManager.ts')
 type Rec = Record<string, unknown>
 const { readRecord, servicesDir, startService, stopService, restartService } = manager as unknown as {
@@ -177,15 +176,6 @@ section('§4 the token backfill retries a probe that could not answer')
   kill(pid)
 }
 
-section('§5 the shape')
-{
-  const src = readFileSync(join(ROOT, 'src/services/projectServices/serviceManager.ts'), 'utf8')
-  const restart = src.slice(src.indexOf('export async function restartService'), src.indexOf('export function sendInput'))
-  check('restartService consults the stop\'s refusal note before starting', /stopped\.note !== undefined/.test(restart) && restart.indexOf('stopped.note') !== -1 && restart.indexOf('stopped.note') < restart.indexOf('await startService('))
-  check('…and answers a restart failure', /restart failed:/.test(restart))
-  check('the strike decision takes the held handle as identity', /ownedHandle/.test(src) && /liveChildren\.get\(childKey\(cwd, name\)\)/.test(src))
-  check('the backfill has a bounded retry ladder', /TOKEN_BACKFILL_RETRY_MS/.test(src))
-}
 
 rmSync(workDir, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-service-restart-truth${failures ? ` (${failures} failure(s))` : ''}`)

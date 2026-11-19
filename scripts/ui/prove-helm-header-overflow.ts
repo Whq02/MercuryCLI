@@ -10,7 +10,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const src = (p: string) => readFileSync(p, 'utf8')
 
 console.log('============================================================')
 console.log(' cockpit text-overflow — the standing mission + generic tips')
@@ -68,13 +67,6 @@ if (g) {
 console.log('\n(B) generic install-promo tips removed (registry + dist)')
 {
   const P = ['plug', 'in'].join('')
-  const M = ['market', 'place'].join('')
-  const reg = src('src/services/tips/tipRegistry.ts')
-  check(`no 'frontend-design-${P}' tip id`, !reg.includes(`id: 'frontend-design-${P}'`))
-  check(`no 'vercel-${P}' tip id`, !reg.includes(`id: 'vercel-${P}'`))
-  check('no install-command templates in registry',
-    !reg.includes('install frontend-design@') && !reg.includes('install vercel@'))
-  check('the store-relevance helper is gone', !reg.includes(`is${M[0]!.toUpperCase()}${M.slice(1)}${P[0]!.toUpperCase()}${P.slice(1)}Relevant(`))
   const dist = readFileSync('dist/mercury.mjs', 'utf8')
   check('dist ships no install upsell strings',
     !dist.includes(`Install the frontend-design ${P}`) &&

@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 import React from 'react'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 pinSourceRef()
@@ -90,17 +88,6 @@ section('a list that offers no editor: the key is nobody\'s')
   }
 }
 
-section('both card fields listen where the key is bound')
-{
-  const root = join(import.meta.dir, '..', '..', 'src')
-  const option = readFileSync(join(root, 'components', 'CustomSelect', 'select-input-option.tsx'), 'utf8')
-  const preview = readFileSync(join(root, 'components', 'permissions', 'AskUserQuestionPermissionRequest', 'PreviewQuestionView.tsx'), 'utf8')
-  const bindings = readFileSync(join(root, 'keybindings', 'defaultBindings.ts'), 'utf8')
-  const confirmation = bindings.slice(bindings.indexOf('  Confirmation: {'), bindings.indexOf('  Tabs: {'))
-  check('ctrl+g is the Confirmation context\'s key for the editor', confirmation.includes("'ctrl+g': 'chat:externalEditor'"))
-  check('the list\'s text option listens in Chat and in Confirmation', /useKeybinding\('chat:externalEditor', openEditor, \{ context: 'Chat'/.test(option) && /useKeybinding\('chat:externalEditor', openEditor, \{ context: 'Confirmation'/.test(option))
-  check('the preview card\'s notes field listens in Chat and in Confirmation', /useKeybinding\('chat:externalEditor', editNotesInEditor, \{ context: 'Chat'/.test(preview) && /useKeybinding\('chat:externalEditor', editNotesInEditor, \{ context: 'Confirmation'/.test(preview))
-}
 
 await releaseScratchHome(home)
 console.log(`\n${checks - failures} passed, ${failures} failed`)

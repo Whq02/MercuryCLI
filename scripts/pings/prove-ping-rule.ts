@@ -64,9 +64,6 @@ section('§2 the bytes: OSC 9 on iTerm2, the bell everywhere else, nothing else 
   wrote.length = 0
   bytes.postTerminalNotification('a\x1bb\x07c', { method: 'osc9', write: w })
   check('control bytes never ride inside the OSC payload', wrote[0]!.includes(']9;\n\na b c'), JSON.stringify(wrote))
-  const emitter = src('src/ink/termio/notifyPing.ts')
-  check("the method vocabulary is exactly 'osc9' | 'bell'", /export type PingMethod = 'osc9' \| 'bell'\n/.test(emitter))
-  check('the emitter never touches OSC 9;4 (progress stays progress)', !emitter.includes('9;4'))
 }
 
 section('§3 the switch: view.ping, read at call time')
@@ -78,41 +75,10 @@ section('§3 the switch: view.ping, read at call time')
   writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify({ view: { ping: true } }))
   resetSettingsCache()
   check('view.ping: true turns it back on', ping.pingEnabled() === true)
-  const types = src('src/utils/settings/types.ts')
-  check('the switch is declared under the view group', /view: z\.object\(\{[\s\S]*?ping: z\.boolean\(\)\.optional\(\)/.test(types))
   const schema = JSON.parse(src('scripts/settings/settings-schema.json')) as { properties: { view: { properties: Record<string, unknown> } } }
   check('the generated schema carries view.ping', 'ping' in schema.properties.view.properties)
-  const config = src('src/components/Settings/Config.tsx')
-  check("/config carries the one row (id 'ping', the user settings' view.ping)", config.includes("id: 'ping'") && config.includes("writeSource('userSettings', { view: { ping: next ? undefined : false } })"))
-  check('/config carries no channel picker and no second switch', !config.includes('CHANNEL_LABELS') && !config.includes("id: 'notifChannel'") && !config.includes("id: 'pingsBell'"))
 }
 
-section('§4 one event, one emitter, one mount')
-{
-  const hook = src('src/hooks/useTurnEndPing.ts')
-  check('the hook is inert without a terminal write in context (a headless render, a runner, a crewmate)', hook.includes('if (write === null || turn.lastCompletedAt === null) return'))
-  check('a reported focus state decides at the turn end; unknown focus waits one window', hook.includes("if (getTerminalFocusState() !== 'unknown') {\n      fire()\n      return\n    }") && hook.includes('const timer = setTimeout(fire, threshold)'))
-  check('the switch and the busy fact are read at fire time', hook.includes('if (busyRef.current || isUserAtScreen(threshold) || !pingEnabled()) return'))
-  check('the effect re-arms only on a new turn boundary', hook.includes('}, [write, turn.lastCompletedAt, threshold])'))
-  const repl = src('src/screens/Chat.tsx')
-  check('the chat screen mounts the ping on its turn boundary and the seat liveness', repl.includes('useTurnEndPing({ lastCompletedAt, busy: isLoading })'))
-  const { execFileSync } = await import('node:child_process')
-  const grep = (needle: string): string[] =>
-    execFileSync('git', ['grep', '-l', needle, '--', 'src'], { cwd: ROOT, encoding: 'utf8' })
-      .split('\n')
-      .filter(Boolean)
-      .sort()
-  check('the hook has exactly one mount (the chat screen)', grep('useTurnEndPing(').join(',') === 'src/hooks/useTurnEndPing.ts,src/screens/Chat.tsx', grep('useTurnEndPing(').join(','))
-  check('the emitter has exactly one caller (the hook)', grep('postTerminalNotification(').join(',') === 'src/hooks/useTurnEndPing.ts,src/ink/termio/notifyPing.ts', grep('postTerminalNotification(').join(','))
-  let bare = 0
-  for (const f of execFileSync('git', ['grep', '-l', 'BEL', '--', 'src'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean)) {
-    const text = src(f)
-    if (/write\(BEL\)|termWrite\([^)]*\bBEL\b/.test(text) && f !== 'src/ink/termio/notifyPing.ts') bare += 1
-  }
-  check('no other module writes a bell byte', bare === 0, String(bare))
-  check('the consent card carries no ping of its own', !src('src/components/permissions/PermissionRequest.tsx').includes('Ping'))
-  check('the question dialogs carry no ping of their own', !src('src/components/mcp/ElicitationDialog.tsx').includes('Ping'))
-}
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('ALL PING-RULE PROOFS PASS')

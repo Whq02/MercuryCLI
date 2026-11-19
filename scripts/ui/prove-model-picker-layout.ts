@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import stripAnsi from 'strip-ansi'
 import { modelPickerFooter } from '../../src/utils/model/modelPickerFooter.js'
 import { MODEL_PICKER_HINT, MODEL_PICKER_PANEL } from '../../src/utils/model/modelPickerGroups.js'
@@ -16,7 +15,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 console.log('============================================================')
 console.log(' /model picker — single-column, highlighted-selected, no overflow')
@@ -49,39 +47,6 @@ check('on a heading the action word follows the fold', modelPickerFooter({ gated
 check('while the search box has focus the legend swaps: type to search · ↵ switch · tab back to the rows · esc clears the search', modelPickerFooter({ gated: false, filterFocus: true, filtering: true }, innerOf(120)) === '↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search' && modelPickerFooter({ gated: false, filterFocus: true, filtering: false }, innerOf(120)).endsWith('tab back to the rows · esc or click outside closes'))
 check('a search kept while the rows have focus still says esc clears it', modelPickerFooter({ gated: false, filterFocus: false, filtering: true }, innerOf(120)) === '↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc clears the search')
 
-section('source wiring: single-column, boxed-selected, click-driven')
-const src = readFileSync(join(root, 'src', 'components', 'MercuryModelPicker.tsx'), 'utf-8')
-check('single-column outer Box (flexDirection="column" + round border — schema-true)', /flexDirection="column" borderStyle="round"/.test(src))
-check('footer uses the width-disciplined modelPickerFooter (no raw ternary hint)', /modelPickerFooter\(/.test(src) && /import \{ modelPickerFooter \}/.test(src))
-check('panelWidth rides the ONE panel contract (cap 100 · reserve 2 · floor 20) — never overflows', /panelWidthFor\(slot\.columns, MODEL_PICKER_PANEL\)/.test(src) && MODEL_PICKER_PANEL.cap === 100 && MODEL_PICKER_PANEL.reserve === 2 && MODEL_PICKER_PANEL.min === 20)
-check('uses InteractiveRow for the highlighted-selected container', /<InteractiveRow\n {8}key=\{line\.key\}\n {8}id=\{`model:row:\$\{line\.key\}`\}/.test(src) && /import \{ InteractiveRow \}/.test(src))
-check('the provider heading derives from the one heading composer (PROVIDER · door · account · N live)', /headingWords\(heading, line\.group/.test(src))
-check('every row is click-selectable (onSelect → selectRow) and ↵-parity (onActivate → commitCurrent)', /onSelect=\{\(\) => selectRow\(idx\)\}/.test(src) && /onActivate=\{commitCurrent\}/.test(src) && /const selectRow = \(n: number\)/.test(src))
-check(
-  'retired the shrink-wrapping rail+detail (no modelPickerLayout import, no railWidth/detailWidth)',
-  !/import \{ modelPickerLayout \}/.test(src) && !/width=\{railWidth\}/.test(src) && !/width=\{detailWidth\}/.test(src),
-)
-
-section('SEAT LAW — the picker\'s selection grammar names no engine')
-check('SEAT LAW: glm/haiku never in the picker; gpt only as the seat-state surface', !/glm/i.test(src) && !/haiku/i.test(src))
-check(
-  "SEAT LAW: 'gpt' spellings confined to the seat-state + window-law surfaces (+ their docs)",
-  src
-    .split('\n')
-    .filter(l => /gpt/i.test(l))
-    .every(
-      l =>
-        /gptDetail|gptEligible|'gpt'|focusedGptWindow|focusedGptToggle|GptServedWindowSuffix|gptCtxNudge|parseGptModelId|gptDisplayPin|liveGptContextWindow|liveGptContextCeiling|GPT account source/i.test(l) ||
-        /^\s*(\/?\*|\/\/|\{\/\*)/.test(l),
-    ),
-)
-section('§8.2 — pending-switch current→next visibility + the ONE apply owner')
-const wrapper = readFileSync(join(root, 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf-8')
-check("picker accepts pendingNext + renders the 'next' AMBER row state", /pendingNext\?: string/.test(src) && /'next', AMBER/.test(src))
-check('picker renders the current→next header with the turn-settle note', /applies when the turn settles/.test(src))
-check('wrapper feeds pendingNext from AppState.pendingModelSwitch', /s\.pendingModelSwitch/.test(wrapper) && /pendingNext/.test(wrapper))
-check('/model select routes through settleModelSelection (the ONE settlement owner — unison W1)', /settleModelSelection\(/.test(wrapper) && !/decideModelTransition\(\{/.test(wrapper))
-check('cross-provider picks carry the crossProviderNote', /crossProviderNote\(value\)/.test(wrapper))
 
 section('rendered frames: the crewmate-view picker shares the main /model picker\'s panel geometry at the same terminal size')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }

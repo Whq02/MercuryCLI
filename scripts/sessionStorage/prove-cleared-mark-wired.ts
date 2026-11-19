@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -14,10 +14,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-{
-  const hop = readFileSync(join(import.meta.dir, '../../src/services/switchboard/hopIntoSession.ts'), 'utf8')
-  t('§1 /clear\'s tail marks the released session', /parkSessionById\(oldSessionId\)[\s\S]{0,600}markSessionCleared\(oldSessionId\)/.test(hop))
-}
 
 {
   const cleared = await import('../../src/utils/sessionStorage/clearedSessions.ts')

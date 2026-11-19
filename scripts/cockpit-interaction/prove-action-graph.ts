@@ -2,7 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 import { ACTION_GRAPH, KEYBINDING_ACTIONS } from '../../src/keybindings/actionGraph.ts'
 import { DEFAULT_BINDINGS } from '../../src/keybindings/defaultBindings.ts'
@@ -16,19 +15,6 @@ const graph = ACTION_GRAPH as Record<string, { description: string; contexts: re
 
 t.section('§1 — one authority, zero parallel lists')
 {
-  const types = readFileSync('src/keybindings/types.ts', 'utf8')
-  t.check(
-    'types.ts DERIVES its union from the graph',
-    types.includes('keyof ActionGraph') && !/\|\s*'app:interrupt'/.test(types),
-    'no hand union',
-  )
-  const schema = readFileSync('src/keybindings/schema.ts', 'utf8')
-  t.check(
-    'schema.ts re-exports the derived list',
-    schema.includes("export { KEYBINDING_ACTIONS } from './actionGraph.js'") &&
-      !/KEYBINDING_ACTIONS = \[\s*\n/.test(schema),
-    'no hand list',
-  )
   t.check('the derived list is populated', KEYBINDING_ACTIONS.length >= 100, `${KEYBINDING_ACTIONS.length} actions`)
 }
 

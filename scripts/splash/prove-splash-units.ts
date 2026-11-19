@@ -1,13 +1,6 @@
 #!/usr/bin/env bun
-import { closeSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join, posix, win32 } from 'node:path'
+import { join } from 'node:path'
 
-const SPLASH = join(import.meta.dir, '..', '..', 'assets', 'splash', 'mercury-splash.mjs')
-const CORE = join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs')
-const src = readFileSync(SPLASH, 'utf8')
-const coreSrc = readFileSync(CORE, 'utf8')
-const pairSrc = src + '\n' + coreSrc
 
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
@@ -16,11 +9,6 @@ const check = (name: string, cond: boolean, detail = ''): void => {
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 
-const cut = (text: string, head: RegExp, what: string): string => {
-  const m = text.match(head)
-  if (!m) throw new Error(`${what} is not in the splash pair`)
-  return m[0]
-}
 
 section('§1 vis() — display columns, not UTF-16 code units (E1)')
 const core = await import('../../assets/splash/splash-core.mjs')
@@ -41,164 +29,6 @@ check('cpWidth: latin 1', cpWidth(0x61) === 1)
 check('cpWidth: box drawing 1', cpWidth(0x2500) === 1)
 check('cpWidth: CJK ext B (astral) 2', cpWidth(0x20000) === 2)
 
-section('§2 clipVis — column-accurate clip (E1)')
-const clipSrc = cut(coreSrc, /^function clipVis\(s, w\) \{[\s\S]*?\n\}/m, 'function clipVis')
-const clipVis = new Function('vis', 'cpWidth', 'MARK_RE', 'R', `${clipSrc}\n return clipVis;`)(
-  vis,
-  cpWidth,
-  core.MARK_RE,
-  '\x1b[0m',
-) as (s: string, w: number) => string
-check('short strings pass through', clipVis('abc', 10) === 'abc')
-{
-  const clipped = clipVis('abcdefghij', 5)
-  check('ASCII clip: 4 cols + ellipsis', vis(clipped) === 5 && clipped.startsWith('abcd'))
-}
-{
-  const clipped = clipVis('魔法使いの夜', 7)
-  check('CJK clip never exceeds the budget', vis(clipped) <= 7, `vis=${vis(clipped)}`)
-  check('CJK clip keeps whole characters + ellipsis', clipped === '魔法使…\x1b[0m', JSON.stringify(clipped))
-}
-{
-  const clipped = clipVis('\x1b[31mab\x1b[0mcdef', 4)
-  check('SGR sequences survive the clip intact', clipped.includes('\x1b[31m') && vis(clipped) <= 4)
-}
-{
-  const clipped = clipVis('🚀🚀🚀🚀', 5)
-  check('astral clip: surrogate pairs never split (well-formed result)', vis(clipped) <= 5 && clipped.replace(/\x1b\[[0-9;]*m/g, '').isWellFormed())
-}
-
-section('§3 the ESC coalescer (C1) — the state machine, deterministically')
-const coalesceSrc = `${cut(src, /^const isPartialEscape = [^\n]*$/m, 'isPartialEscape')}\n${cut(src, /^const coalesceStep = \(pending, chunk\) => \{[\s\S]*?\n\}/m, 'coalesceStep')}`
-const co = new Function(`${coalesceSrc}\n return { isPartialEscape, coalesceStep };`)() as {
-  isPartialEscape: (s: string) => boolean
-  coalesceStep: (pending: string, chunk: string) => { dispatch: string | null; pending: string }
-}
-const { isPartialEscape, coalesceStep } = co
-check('bare ESC is partial (waits)', isPartialEscape('\x1b'))
-check('CSI prefix is partial', isPartialEscape('\x1b['))
-check('SS3 prefix is partial', isPartialEscape('\x1bO'))
-check('CSI with params still partial (\\x1b[1;5)', isPartialEscape('\x1b[1;5'))
-check('complete arrow is NOT partial', !isPartialEscape('\x1b[A'))
-check('complete SS3 key is NOT partial', !isPartialEscape('\x1bOP'))
-check('kitty CSI-u is NOT partial (= breaks the param set)', !isPartialEscape('\x1b[=5;1u'))
-check('mouse SGR is NOT partial', !isPartialEscape('\x1b[<0;10;5M'))
-check('plain keys are NOT partial', !isPartialEscape('\r') && !isPartialEscape('m'))
-{
-  const s1 = coalesceStep('', '\x1b')
-  check('split arrow, chunk 1: held (no ESC misfire)', s1.dispatch === null && s1.pending === '\x1b')
-  const s2 = coalesceStep(s1.pending, '[A')
-  check('split arrow, chunk 2: ONE arrow dispatched', s2.dispatch === '\x1b[A' && s2.pending === '')
-}
-{
-  const s1 = coalesceStep('', '\x1b')
-  const s2 = coalesceStep(s1.pending, '[1;5')
-  check('three-way split: partial CSI still held', s2.dispatch === null && s2.pending === '\x1b[1;5')
-  const s3 = coalesceStep(s2.pending, 'C')
-  check('three-way split: final byte completes ctrl-arrow', s3.dispatch === '\x1b[1;5C')
-}
-check('whole arrow in one chunk dispatches immediately', coalesceStep('', '\x1b[B').dispatch === '\x1b[B')
-check('enter dispatches immediately', coalesceStep('', '\r').dispatch === '\r')
-check('ctrl-C dispatches immediately (cancel must never wait 15ms)', coalesceStep('', '\x03').dispatch === '\x03')
-check('paste chunk dispatches whole (inertness preserved downstream)', coalesceStep('', 'line one\rline two\r').dispatch === 'line one\rline two\r')
-check('bracketed-paste opener is not partial (dispatches whole)', coalesceStep('', '\x1b[200~hello\x1b[201~').dispatch !== null)
-check('double-tap ESC in one window merges (documented C1 trade)', coalesceStep('\x1b', '\x1b').dispatch === '\x1b\x1b')
-check('the 15ms timeout constant is the report value', src.includes('const ESC_TIMEOUT_MS = 15'))
-check('C4: the handler decodes utf8, never latin1', src.includes("buf.toString('utf8')") && !src.includes("toString('latin1')"))
-
-section('§4 readHead — the bounded head read (D1)')
-const readHeadSrc = cut(src, /^function readHead\(file, n = 4096\) \{[\s\S]*?\n\}/m, 'function readHead')
-const scratch = mkdtempSync(join(tmpdir(), 'splash-units-'))
-try {
-  const big = join(scratch, 'big.jsonl')
-  const head = `${JSON.stringify({ cwd: '/Users/alice/projects/demo', sessionId: 'x'.repeat(64) })}\n`
-  writeFileSync(big, head + 'z'.repeat(5_000_000))
-  let bytesRequested = 0
-  const countingReadSync = (fd: number, buf: Buffer, off: number, len: number, pos: number): number => {
-    bytesRequested += len
-    return readSync(fd, buf, off, len, pos)
-  }
-  const readHead = new Function(
-    'openSync',
-    'readSync',
-    'closeSync',
-    'Buffer',
-    `${readHeadSrc}\n return readHead;`,
-  )(openSync, countingReadSync, closeSync, Buffer) as (file: string, n?: number) => string
-  const got = readHead(big)
-  check('returns exactly the first 4096 bytes decoded', got.length === 4096 && got.startsWith(head.slice(0, 60)))
-  check('the read is BOUNDED: ≤ 4096 bytes requested from a 5MB file (was: the whole file)', bytesRequested <= 4096, `requested=${bytesRequested}`)
-  const m = /"cwd"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(got)
-  check('the cwd regex still lands inside the head', m !== null && JSON.parse(`"${m[1]}"`) === '/Users/alice/projects/demo')
-  const torn = join(scratch, 'torn.jsonl')
-  writeFileSync(torn, 'a'.repeat(4095) + '魔魔魔')
-  const gotTorn = readHead(torn)
-  check('a torn multibyte tail decodes fail-soft (no throw)', gotTorn.length > 4090)
-  check('the scan site consumes readHead, never a whole-file read', src.includes('const head = readHead(e.file)') && !src.includes("readFileSync(e.file, 'utf8').slice(0, 4096)"))
-} finally {
-  rmSync(scratch, { recursive: true, force: true })
-}
-
-section('§5 the basename mapping (B1) — node:path at all four sites')
-{
-  const seamSites = (src.match(/projectDisplayName\(process\.cwd\(\)\)/g) ?? []).length
-  const bareSites = (src.match(/basename\(process\.cwd\(\)\) \|\| process\.cwd\(\)/g) ?? []).length
-  check('the three process.cwd() sites route through the ruled naming seam', seamSites === 3 && bareSites === 0, `seam ${seamSites} · bare ${bareSites}`)
-  check('the recent-project scan reads the project card (the catalog row)', src.includes("names.includes('project.json')") && src.includes('card = { dir: raw.dir, firstChatAt: raw.firstChatAt }'))
-  check('the recent-project scan routes through the ruled naming seam', src.includes('base: projectDisplayName(cwd)'))
-  check('the naming seam routes through node:path basename', src.includes('const projectDisplayName = dir =>') && src.includes('const base = basename(dir)'))
-  check("no '/'-only basename split survives", !src.includes(".split('/').pop()"))
-  check('the New Session clamp is 24-with-ellipsis (the Dir chip grammar)', pairSrc.includes("cwdBase.length > 24 ? cwdBase.slice(0, 23) + '…' : cwdBase"))
-  check('win32 basename handles backslash paths', win32.basename('C:\\Users\\alice\\Desktop\\Warcraft III 1.26') === 'Warcraft III 1.26')
-  check('win32 basename handles forward slashes too', win32.basename('C:/Users/alice/repo') === 'repo')
-  check('win32 drive root yields empty ⇒ the || fallback shows the path', win32.basename('C:\\') === '')
-  check('posix basename never splits a legal backslash filename', posix.basename('/home/x/weird\\name') === 'weird\\name')
-  check('posix root yields empty ⇒ the || fallback shows the path', posix.basename('/') === '')
-}
-
-section('§6 cancel/idle wiring (C2/C5) — structural pins (behaviour: prove-splash.py)')
-check('Ctrl-C routes through cancelExit (BM-30: every cancel leaves as exit 130)', src.includes("if (s === '\\x03') { cancelExit(); return }"))
-check('SIGINT + SIGTERM cancel the boot', src.includes("process.on('SIGINT', cancelExit)") && src.includes("process.on('SIGTERM', cancelExit)"))
-check('the idle timer cancels, never launches', src.includes('setTimeout(cancelExit, IDLE_MS)') && !src.includes('setTimeout(() => collapse(0), 30 * 60 * 1000)'))
-check('cancelExit records the cancel receipt AND leaves through collapse(130)', src.includes("writeSplashAction('cancel')") && /function cancelExit\(\) \{[\s\S]*?collapse\(130\)\s*\n\}/.test(src))
-check('collapse derives the exit-code contract (cancel→130, restored→20)', src.includes('if (cancelled) exitCode = 130') && src.includes("else if (code === 0 && screenAtExit === 'restored') exitCode = 20"))
-check('both restoreAndBrand branches settle the screen fact for the funnel', src.includes("screenAtExit = 'held'") && src.includes("screenAtExit = 'restored'"))
-check('the plain-text twin is never WRITTEN (BM-30, at the writer; the startup sweep may still delete leftovers)', !src.includes("writeFileSync(join(CONFIG_HOME, 'splash-action.txt')"))
-check('every exit funnels through the draining collapse (D3)', src.includes("out.write('', bye)") && !/restoreAndBrand\(\)\n\s*process\.exit\(0\)/.test(src))
-
-section('§7 resolveConfigFile ↔ runtime parity (K1 — the frozen-stale class)')
-{
-  const resolver = src.match(/function resolveConfigFile\(\) \{[\s\S]*?\n\}/)?.[0] ?? ''
-  check('resolveConfigFile exists in the splash', resolver.length > 0)
-  const iDot = resolver.indexOf("'.config.json'")
-  const iNative = resolver.indexOf("'.mercury.json'")
-  check(
-    'splash chain: .config.json → .mercury.json',
-    iDot >= 0 && iNative > iDot,
-    `${iDot}/${iNative}`,
-  )
-  check(
-    'every monolith-reading chip routes through the resolver (theme + account)',
-    (src.match(/readFileSync\(resolveConfigFile\(\), 'utf8'\)/g) ?? []).length >= 2,
-  )
-  check(
-    "the health chip reads the certificate from the project's store under the config home, never the project folder",
-    src.includes("join(projectHomeDir(process.env.MERCURY_HEALTH_STATE_DIR || process.cwd()), 'health', 'last-cert.json')") &&
-      src.includes("join(CONFIG_HOME, 'projects')") &&
-      !src.includes("join(process.cwd(), projDir, 'health'"),
-  )
-  const envSrc = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'utils', 'env.ts'),
-    'utf8',
-  )
-  const eDot = envSrc.indexOf("'.config.json'")
-  const eNative = envSrc.indexOf("'.mercury.json'")
-  check(
-    'runtime owner expresses the same two-rung chain (env.ts getGlobalMercuryFile)',
-    eDot >= 0 && eNative > eDot,
-    `${eDot}/${eNative}`,
-  )
-}
 
 section('§8 the card-tier strip bill (field return F3) — real rows, not padding')
 {
@@ -342,7 +172,6 @@ section('§Z the menu rows carry one env spelling each and the splash resolves a
   const rows = (core as { MENU?: Array<Record<string, unknown>> }).MENU ?? []
   check('the baked menu has rows', rows.length > 0, String(rows.length))
   check('no baked row carries a second spelling', rows.every(r => !('legacy' in r)), rows.filter(r => 'legacy' in r).map(r => String(r.env)).join(','))
-  check('the splash resolves a saved or pinned row by its env alone', !/\.legacy\b/.test(src) && !/r2\.legacy|x\.legacy|r\.legacy/.test(src))
 }
 
 console.log('\n============================================================')

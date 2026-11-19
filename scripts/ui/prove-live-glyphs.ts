@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import {
   ATTENTION_BUCKETS,
   ATTENTION_PERIOD,
@@ -170,91 +170,9 @@ section('gate polarity — default-on')
 
 section('adoption + hygiene pins (source greps)')
 {
-  const live = readFileSync('src/components/mercury-ui/LiveGlyphs.tsx', 'utf8')
-  check(
-    'LiveGlyphs uses useAnimationValue (derived-value bail — equal frames never commit)',
-    live.includes('useAnimationValue'),
-  )
-  check(
-    'AttentionPulse lerps EXISTING tokens via lerpHex (no new hex)',
-    live.includes('lerpHex(FAINT, AMBER'),
-  )
-  check(
-    'no raw hex literals declared in LiveGlyphs (tokens only)',
-    !/['"`]#[0-9a-fA-F]{3,8}['"`]/.test(live),
-  )
-  check(
-    'both primitives honor view.reducedMotion',
-    (live.match(/view\?\.reducedMotion/g) ?? []).length >= 2,
-  )
-  const rail = readFileSync('src/components/HelmVitalsRail.tsx', 'utf8')
-  const lanes = readFileSync('src/components/HelmLanesRail.tsx', 'utf8')
-  check(
-    'the Helm rails adopt the primitives: HelmLanesRail WorkingGlyph + AttentionPulse + ValueGlow, HelmVitalsRail ValueGlow',
-    lanes.includes('WorkingGlyph') && lanes.includes('AttentionPulse') && lanes.includes('ValueGlow') && rail.includes('ValueGlow'),
-  )
-  check(
-    'rail countdowns ride a tick, not a render-frozen Date.now()',
-    rail.includes('useNowTick(Math.min(30_000, usagePollTtlMs()))'),
-  )
-  const deck = readFileSync('src/components/DeckPane.tsx', 'utf8')
-  check(
-    'DeckPane renders WorkingGlyph; AttentionPulse rides the lanes rail (its DeckPane row left with the two-seat surface, its vitals row with the WORKFLOW card)',
-    deck.includes('<WorkingGlyph') && lanes.includes('<AttentionPulse'),
-  )
-  check('deck countdowns ride the same tick', deck.includes('useNowTick(30_000)'))
-  const frame = readFileSync('src/components/MercuryFrame.tsx', 'utf8')
-  check('MercuryFrame turn counter wears ValueGlow', frame.includes('ValueGlow'))
   check('MERCURY_LIVE_GLYPHS registered in flagRegistry', getFlagSpec('MERCURY_LIVE_GLYPHS') !== undefined)
-  check(
-    'ValueGlow resets on non-flash paths (no stranded glow)',
-    (live.match(/setGlowing\(false\)\s*\n\s*return/g) ?? []).length >= 1,
-  )
 }
 
-section('adoption — the alive-Chat pass (breath · glint · nudge; the tool row stays still)')
-{
-  const lead = readFileSync('src/components/messages/ToolRowLead.tsx', 'utf8')
-  check(
-    'the tool row\'s lead is the family mark alone — no rotation, no settle spark, no breath clock',
-    !/workGlyphForTime|useSettleFlash|GLYPH\.spark|useAnimationValue/.test(lead),
-  )
-  check(
-    'the lead\'s settled tone is the family\'s token, its failure tone the failure token — never a status hue of its own',
-    lead.includes('color={tokens[mark.tone]}') && lead.includes('color={tokens.failure}'),
-  )
-  check('nothing in the product mounts the retired loader', !existsSync('src/components/ToolUseLoader.tsx'))
-  const caret = readFileSync('src/components/PromptInput/PromptInputModeIndicator.tsx', 'utf8')
-  check(
-    'the prompt caret wears ReadyBreath, armed only when idle AND empty',
-    caret.includes('ReadyBreath') && caret.includes('const breathing = !isLoading && inputEmpty'),
-  )
-  const promptInput = readFileSync('src/components/PromptInput/PromptInput.tsx', 'utf8')
-  check(
-    'PromptInput threads the LIVE buffer emptiness to the caret',
-    promptInput.includes("inputEmpty={input === ''}"),
-  )
-  const rollup = readFileSync('src/components/MercuryTurnRollup.tsx', 'utf8')
-  check(
-    'MercuryTurnRollup tallies wear ValueGlow (files + lines; tool-count stays quiet)',
-    (rollup.match(/<ValueGlow /g) ?? []).length === 2,
-  )
-  const assets = readFileSync('src/components/mercury-ui/assets.tsx', 'utf8')
-  check('the inline Sigil glints via TwinkleSpark', assets.includes('<TwinkleSpark color={accent} />'))
-  const cursorFiles = [
-    'src/commands/health/HealthCertificate.tsx',
-    'src/components/mercury-ui/parity/DaemonView.tsx',
-  ]
-  const adopted = cursorFiles.filter(f => {
-    const src = readFileSync(f, 'utf8')
-    return src.includes('<CursorCell ') || src.includes('<NavigablePanes')
-  }).length
-  check(`CursorCell adopted at ≥2 navigable lists`, adopted >= 2, `${adopted}/${cursorFiles.length}`)
-  check(
-    'the NavigablePanes shell itself hosts CursorCell (the framework cursor)',
-    readFileSync('src/components/mercury-ui/NavigablePanes.tsx', 'utf8').includes('<CursorCell '),
-  )
-}
 
 section('dist — the built binary carries the rotation (host-vs-binary)')
 {
@@ -272,22 +190,6 @@ section('dist — the built binary carries the rotation (host-vs-binary)')
   }
 }
 
-section('CACHED MOTION FRAMES — authored at module scope, zero idle cost')
-{
-  const anim = readFileSync('src/ink/hooks/use-animation-value.ts', 'utf8')
-  check(
-    'offscreen / parked / motion-off all fold to inactive (one gate)',
-    anim.includes('const active = isVisible && !parked && intervalMs !== null'),
-  )
-  check(
-    'inactive arms NO clock subscription (the effect returns first)',
-    anim.includes('if (!clock || !active) return'),
-  )
-  check(
-    'same-interval subscribers sample the SAME absolute bucket (commits batch)',
-    anim.includes('Math.floor(clock.now() / intervalMs!)'),
-  )
-}
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {

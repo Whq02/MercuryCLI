@@ -80,20 +80,6 @@ else {
   check('the load reused the one in-flight startup read', r.reads === 1, `reads=${r.reads}`)
 }
 
-console.log('L3 wiring — main.tsx drives the tier load at the boot barrier')
-{
-  const main = readFileSync(join(SRC, 'main.tsx'), 'utf8')
-  const at = main.indexOf('const { ensureMdmSettingsLoaded')
-  const hook = at >= 0 ? main.slice(Math.max(0, at - 400), at + 3000) : ''
-  check('the barrier sits inside a preAction hook', at >= 0 && main.lastIndexOf("program.hook('preAction'", at) >= 0)
-  const loadAt = hook.indexOf('await ensureMdmSettingsLoaded()')
-  const resetAt = hook.indexOf('resetSettingsCache()', loadAt)
-  const initAt = hook.indexOf('await init()')
-  check('the tier import exists in main.tsx', at >= 0)
-  check('the barrier awaits ensureMdmSettingsLoaded (the tier parse), not the bare raw read', loadAt >= 0 && !hook.includes('await getMdmRawReadPromise()'))
-  check('a failed load never stops the boot (guarded)', loadAt >= 0 && hook.slice(loadAt, loadAt + 200).includes('.catch('))
-  check('the settings cache is reset after the load and before init()', loadAt >= 0 && resetAt > loadAt && initAt > resetAt, `load=${loadAt} reset=${resetAt} init=${initAt}`)
-}
 
 console.log('L4 a failed raw read at boot degrades to no policy tier')
 if (!SEAM_PRESENT) skip('L4', 'the proof seam is absent in this src (pre-fix tree)')

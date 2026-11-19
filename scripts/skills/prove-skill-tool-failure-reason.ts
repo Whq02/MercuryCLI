@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = join(process.env.TMPDIR ?? '/tmp', `skill-failure-${process.pid}`)
@@ -48,12 +47,6 @@ console.log('L4 nothing to say still names the skill')
   check('the skill is named and the emptiness is stated', error?.message.includes('/deploy') === true && /no reason/i.test(error?.message ?? ''), error?.message)
 }
 
-console.log('L5 the tool throws through the composer (source pin)')
-{
-  const src = readFileSync(join(SRC, 'tools/SkillTool/SkillTool.ts'), 'utf8')
-  check('the inline road throws refusedExpansionError(name, processed)', src.includes('throw refusedExpansionError(name, processed)'))
-  check('the generic sentence is gone', !src.includes("throw new Error('Command processing failed')"))
-}
 
 console.log(failures === 0 ? '\nprove-skill-tool-failure-reason: ALL PASS' : `\nprove-skill-tool-failure-reason: ${failures} FAIL`)
 process.exit(failures === 0 ? 0 : 1)

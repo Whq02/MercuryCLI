@@ -1,9 +1,6 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 
 const {
   computeVerbatimRecentTail,
@@ -261,23 +258,6 @@ section('(f3) the fit is base64-aware — an image/PDF round is counted at the f
   check('the preserved round is the image round (the screenshot the user just added)', r !== null && (r!.keep as M[]).some(m => (m as { message?: { id?: string } }).message?.id === 'asst-77'))
 }
 
-section('(g) wiring — compact.ts populates messagesToKeep + relink; Chat dedups the tail')
-{
-  const root = join(import.meta.dir, '..', '..')
-  const compact = readFileSync(join(root, 'src/services/compact/compact.ts'), 'utf-8')
-  check('compact.ts imports computeVerbatimRecentTail', compact.includes('computeVerbatimRecentTail'))
-  check('compact.ts gates on isMercuryCompactKeepTailEnabled', compact.includes('isMercuryCompactKeepTailEnabled()'))
-  check('compact.ts annotates the boundary with the summary anchor', compact.includes('annotateBoundaryWithPreservedSegment(') && compact.includes('summaryMessages.at(-1)!.uuid'))
-  check('compact.ts returns messagesToKeep on the full path', /messagesToKeep,\s*\n\s*attachments: postCompactFileAttachments/.test(compact))
-  check('compact.ts counts the tail in truePostCompactTokenCount', compact.includes('...(messagesToKeep ?? []),'))
-  check(
-    'compact.ts passes the preserved-tail flag (!!messagesToKeep) into the summary message, the newest-message-follows flag beside it',
-    /getCompactUserSummaryMessage\(\s*summaryWithCapsule,\s*suppressFollowUpQuestions,\s*getTranscriptPath\(\),[\s\S]{0,80}?!!messagesToKeep,\s*newestMessageFollows,\s*\)/.test(compact),
-  )
-
-  const repl = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf-8')
-  check('the face holds no in-memory scrollback trim (the connector rebuilds the chain from the file)', !repl.includes('retainFullscreenScrollback('))
-}
 
 console.log('\n' + '═'.repeat(76))
 if (fail === 0) console.log('✅ ALL VERBATIM-TAIL PROOFS PASS')

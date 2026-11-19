@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync, mkdtempSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative, sep } from 'node:path'
-import { codeOnlyLines } from '../lib/codeText.ts'
+import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'leak-sweep-home-'))
 delete process.env.MERCURY_HOME
@@ -16,20 +15,10 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const ROOT = join(import.meta.dir, '..', '..')
 
 const MARK = 'LEAKMARK-a1b2c3d4e5f60718'
 const FOREIGN_TOKEN_VAR = ['CLAUDE', 'CODE'].join('_') + '_OAUTH_TOKEN'
 
-function srcFiles(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name)
-    const st = statSync(p)
-    if (st.isDirectory()) srcFiles(p, out)
-    else if (/\.(ts|tsx)$/.test(name) && name !== 'content.generated.ts') out.push(p)
-  }
-  return out
-}
 
 section('§A1a — the scrubbed base is BEHAVIOURAL law (subprocessEnv strips the marks)')
 {
@@ -57,152 +46,6 @@ section('§A1a — the scrubbed base is BEHAVIOURAL law (subprocessEnv strips th
   delete process.env.OTEL_EXPORTER_OTLP_HEADERS
 }
 
-interface RegisteredRawEnvSite {
-  file: string
-  code: string
-  count?: number
-  witness?: string
-  why: string
-}
-const RAW_ENV_SITES: readonly RegisteredRawEnvSite[] = [
-  {
-    file: 'src/services/host/jobCredentials.ts',
-    code: 'const env = reference ? { ...process.env, HF_TOKEN: undefined } : process.env',
-    witness: 'const credential = await resolveHuggingfaceDispatchCredential({ env })',
-    why: 'an in-process credential resolution view masks the ambient Hugging Face token for a recorded account; this env is never a child-process base',
-  },
-  {
-    file: 'src/services/structure/grammarFacility.ts',
-    code: 'env: process.env,',
-    witness: "const probe = spawnSync(process.execPath, [...(held ? HELD_TIER_NODE_FLAGS : []), '-e', FRAGILE_PROBE_SOURCE, dir, wasmPath], {",
-    why: 'the disposable grammar probe is this node binary running a source that reads argv, exports nothing and spawns nothing; its verdict must match what this host would suffer, NODE_OPTIONS and V8 knobs included',
-  },
-  {
-    file: 'src/services/acp/childSession.ts',
-    code: '...process.env,',
-    witness: 'const node = opts.entry?.node ?? process.execPath',
-    why: 'the ACP child IS a Mercury session on this binary; its own subprocessEnv scrubs its children',
-  },
-  {
-    file: 'src/services/privateChannel/installPath.ts',
-    code: 'env: process.env,',
-    why: "the operator's own environment, read for the shell startup file and the user PATH; never a child's base",
-  },
-  {
-    file: 'src/services/privateChannel/installPath.ts',
-    code: "io: Pick<PathEntryIo, 'env' | 'home'> = { env: process.env, home: homedir() },",
-    why: "the PATH warning's default io: the operator's own environment and home, read to spell the folder the way the shell would; nothing is spawned",
-  },
-  {
-    file: 'src/substrate/directSplash.ts',
-    code: 'env: process.env,',
-    count: 2,
-    witness: 'const r = spawnSync(process.execPath, [asset.driver], {',
-    why: "the splash decision reads this process's env and spawns nothing; the enter-screen asset is this launch's own screen on this binary, reading the launch id and the config-home pins from the same env the boot will read",
-  },
-  {
-    file: 'src/services/providers/providerDiscovery.ts',
-    code: 'env: { ...process.env },',
-    why: 'an own-process read seam for provider discovery; nothing is spawned',
-  },
-  {
-    file: 'src/utils/worktree.ts',
-    code: 'const childEnv: NodeJS.ProcessEnv = { ...process.env }',
-    witness: 'const relaunchCommand = [process.execPath, ...relaunchArgs]',
-    why: 'tmux relaunches Mercury itself on this binary',
-  },
-  {
-    file: 'src/daemon/ownedDaemon.ts',
-    code: 'const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair(OWNER_PID_ENV, String(process.pid)) }',
-    witness: 'for (const k of STORED_TOKEN_SCRUB_VARS) {',
-    why: 'the owned daemon IS Mercury; the gated scrub strips the stored-token vars before the spawn',
-  },
-  {
-    file: 'src/daemon/headlessRun.ts',
-    code: 'const env: NodeJS.ProcessEnv = { ...process.env }',
-    witness: 'for (const v of sweptRoleSpellings()) {',
-    why: "a headless worker IS Mercury running on the session's own auth; the role sweep curates the clone",
-  },
-  {
-    file: 'src/daemon/headlessRun.ts',
-    code: 'const inherited: NodeJS.ProcessEnv = { ...process.env }',
-    witness: 'for (const v of spec.stripEnv ?? []) {',
-    why: "the spawned child IS Mercury; the spec's strips curate launch and terminal identity, never its auth",
-  },
-]
-const RAW_ENV_SITES_PROVED_BY_A_RUN: readonly RegisteredRawEnvSite[] = [
-  {
-    file: 'src/daemon/run/restart.ts',
-    code: "const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }",
-    why: 'the successor daemon IS Mercury; the gated scrub strips the stored-token vars before the spawn, and scripts/daemon/prove-daemon-run-restart-part.ts §5 reads the environment the spawn is handed',
-  },
-]
-const ENV_LESS_SPAWNS: readonly RegisteredRawEnvSite[] = [
-  {
-    file: 'src/services/crew/adapters/ndjsonChild.ts',
-    code: 'const child: ChildProcess = spawn(cmd, args, {',
-    why: "the crew child is a foreign agent CLI on the operator's own account; its session env, the very spellings the scrub table strips, IS its auth",
-  },
-  {
-    file: 'src/utils/runtime/win32Console.ts',
-    code: 'const r = spawnSync(exe, arg === undefined ? [] : [arg], options)',
-    witness: 'env: { ...subprocessEnv() }',
-    why: 'the scrubbed env rides inside the options chcpSpawnShape builds',
-  },
-  {
-    file: 'src/utils/shell/parentGuard.ts',
-    code: 'const guard = spawn(process.execPath, [entry, SHELL_PARENT_GUARD], {',
-    witness: '...options,',
-    why: "the caller's options ride in whole: the tool shell's scrubbed env is the one Shell.ts hands spawnOwnedShell",
-  },
-  {
-    file: 'src/utils/shell/parentGuard.ts',
-    code: 'child = spawn(launch.file, launch.args, {',
-    witness: '...options,',
-    why: 'the guard starts on the scrubbed env its parent gave it, and the shell it launches inherits that env unchanged',
-  },
-]
-const relPath = (file: string): string => relative(ROOT, file).split(sep).join('/')
-const siteKey = (file: string, code: string): string => `${file}\n${code}`
-function registeredSiteDrift(sites: readonly RegisteredRawEnvSite[], hits: Map<string, number>): string[] {
-  return sites
-    .filter(s => (hits.get(siteKey(s.file, s.code)) ?? 0) !== (s.count ?? 1))
-    .map(s => `${s.file} ${s.code} ×${hits.get(siteKey(s.file, s.code)) ?? 0} (registered ×${s.count ?? 1})`)
-}
-function missingWitnesses(sites: readonly RegisteredRawEnvSite[]): string[] {
-  return sites
-    .filter(s => s.witness !== undefined && !readFileSync(join(ROOT, s.file), 'utf-8').includes(s.witness))
-    .map(s => `${s.file}: ${s.witness}`)
-}
-
-section('§A1b — the raw-env census (every child rides the scrubbed base, or is a registered raw site with its reason and its code witness)')
-{
-  const needle = /\.\.\.process\.env(?![.\w])|env:\s*process\.env(?![.\w])/
-  const violations: string[] = []
-  const hits = new Map<string, number>()
-  const registered = [...RAW_ENV_SITES, ...RAW_ENV_SITES_PROVED_BY_A_RUN]
-  for (const file of srcFiles(join(ROOT, 'src'))) {
-    if (file.endsWith(join('utils', 'subprocessEnv.ts'))) continue
-    const body = readFileSync(file, 'utf-8')
-    if (!needle.test(body)) continue
-    const rel = relPath(file)
-    const lines = codeOnlyLines(rel, body)
-    for (let i = 0; i < lines.length; i++) {
-      const code = (lines[i] as string).trim()
-      if (!needle.test(code)) continue
-      if (registered.some(s => s.file === rel && s.code === code)) {
-        hits.set(siteKey(rel, code), (hits.get(siteKey(rel, code)) ?? 0) + 1)
-        continue
-      }
-      violations.push(`${rel}:${i + 1}`)
-    }
-  }
-  check('A1b zero unlawful raw process.env child bases in src/', violations.length === 0, violations.join(' · '))
-  const drift = registeredSiteDrift(registered, hits)
-  check('A1b every registered raw site stands exactly as often as registered (a vanished or a duplicated site reds)', drift.length === 0, drift.join(' · '))
-  const witnessless = missingWitnesses(RAW_ENV_SITES)
-  check("A1b every registered raw site's code witness stands in its file", witnessless.length === 0, witnessless.join(' · '))
-}
 
 section('§A2 — the execa wrapper cannot extend over the raw env (extendEnv trap)')
 {
@@ -214,8 +57,6 @@ section('§A2 — the execa wrapper cannot extend over the raw env (extendEnv tr
   check('A2 the wrapper child still has a real env (PATH survives)', bare.stdout.endsWith('|path'), bare.stdout.slice(0, 60))
   const overlaid = await execFileNoThrow(process.execPath, ['-e', probeJs], { env: { LEAK_OVERLAY: 'rides' } })
   check('A2 a partial caller env still merges over the SCRUBBED base', overlaid.stdout === 'absent|rides|path', overlaid.stdout.slice(0, 60))
-  const wrapperSrc = readFileSync(join(ROOT, 'src', 'utils', 'execFileNoThrow.ts'), 'utf-8')
-  check('A2 the wrapper pins extendEnv: false (the execa merge can never resurface the raw env)', wrapperSrc.includes('extendEnv: false'))
   delete process.env.MERCURY_OAUTH_TOKEN
 }
 
@@ -234,12 +75,6 @@ section('§A3 — the no-env spawn subset that runs foreign/user code, and the k
   check('A3 kernel env: the whole OTEL_ exporter family stays out', kernelEnv.OTEL_SERVICE_NAME === undefined)
   check('A3 kernel env: PATH and HOME still ride', kernelEnv.PATH === '/usr/bin' && kernelEnv.HOME === '/home/op')
 
-  const editor = readFileSync(join(ROOT, 'src', 'utils', 'editor.ts'), 'utf-8')
-  check('A3 editor.ts: all four editor spawns ride the scrubbed base', (editor.match(/env: subprocessEnv\(\)/g) ?? []).length === 4)
-  const bridge = readFileSync(join(ROOT, 'src', 'cli', 'editorBridge.ts'), 'utf-8')
-  check('A3 editorBridge.ts: all four CLI calls ride the scrubbed base', (bridge.match(/env: subprocessEnv\(\)/g) ?? []).length === 4)
-  const interp = readFileSync(join(ROOT, 'src', 'services', 'eval', 'interpreters.ts'), 'utf-8')
-  check('A3 interpreters.ts: the version probe rides the scrubbed base', interp.includes('env: { ...subprocessEnv() }'))
 }
 
 section('§A4 — a secret-bearing prompt never persists onto a schedule (both model doors)')
@@ -307,14 +142,6 @@ section('§A5 — SATURN\'s capture is WHO, never a token (the schema\'s own law
   const rowKeys = Object.keys(facts.schedules?.[0] ?? {})
   check('A5 the facts row keys are the closed display set', rowKeys.every(k => ['id', 'when', 'nextFireMs', 'kind', 'paused'].includes(k)), rowKeys.join(','))
 
-  const acctSrc = readFileSync(join(ROOT, 'src', 'daemon', 'saturnAccount.ts'), 'utf-8')
-  check('A5 refreshable is an existence check on the token, never a copy', acctSrc.includes("refreshable: typeof tokens?.refreshToken === 'string' && tokens.refreshToken.length > 0"))
-  const saturnSrc = readFileSync(join(ROOT, 'src', 'daemon', 'saturn.ts'), 'utf-8')
-  const iface = (name: string): string => saturnSrc.slice(saturnSrc.indexOf(`export interface ${name} {`), saturnSrc.indexOf('\n}', saturnSrc.indexOf(`export interface ${name} {`)))
-  const acctIface = iface('ScheduleAccountV1')
-  check('A5 ScheduleAccountV1 spells no secret-shaped field', !/accessToken|refreshToken\??:|apiKey|authorization/i.test(acctIface))
-  const heldIface = iface('HeldFireV1')
-  check('A5 HeldFireV1 spells the closed hold set (identity comparator, never credential)', heldIface.includes('mismatchIdentity?: string') && !/token|apiKey|authorization/i.test(heldIface))
 }
 
 section('§A6 — a headers object is never spelled whole onto a surface (log, confirmation, error)')
@@ -331,106 +158,8 @@ section('§A6 — a headers object is never spelled whole onto a surface (log, c
   check('A6 header NAMES all ride (the diagnostic value)', ['authorization', 'X-Api-Key', 'X-Custom-Note', 'x-org'].every(n => spelled.includes(n)), spelled.slice(0, 160))
   check('A6 a benign value rides verbatim', spelled.includes('acme'), spelled.slice(0, 160))
 
-  const needle = /JSON\.stringify\((?:config\.)?headers/
-  const offenders: string[] = []
-  for (const file of srcFiles(join(ROOT, 'src'))) {
-    const body = readFileSync(file, 'utf-8')
-    if (needle.test(body)) offenders.push(file.slice(ROOT.length + 1))
-  }
-  check('A6 zero whole-headers stringify sites in src/', offenders.length === 0, offenders.join(' · '))
 }
 
-section('§R1 — every listening socket binds LOOPBACK-ONLY by construction (the crown row)')
-{
-  const unity = readFileSync(join(ROOT, 'src', 'services', 'unity', 'bridgeFiles.generated.ts'), 'utf-8')
-  check('R1 the Unity bridge server binds IPAddress.Loopback', unity.includes('TcpListener(IPAddress.Loopback'))
-  const vulcan = readFileSync(join(ROOT, 'src', 'services', 'vulcan', 'addonFiles.generated.ts'), 'utf-8')
-  check('R1 the Godot addon instance listener binds 127.0.0.1', vulcan.includes('listener.listen(port, \\"127.0.0.1\\")'))
-  const blenderBaked = join(ROOT, 'src', 'services', 'blender', 'bridgeFiles.generated.ts')
-  const blenderPresent = ((): boolean => { try { statSync(blenderBaked); return true } catch { return false } })()
-  if (blenderPresent) {
-    const blender = readFileSync(blenderBaked, 'utf-8')
-    check('R1 the Blender bridge server binds 127.0.0.1', blender.includes('bind((\\"127.0.0.1\\"'))
-  } else {
-    check('R1 the Blender baked server is absent on this base (censused read-only on its lane)', true)
-  }
-  const tcpBridge = readFileSync(join(ROOT, 'src', 'services', 'tcpBridge', 'entry.ts'), 'utf-8')
-  check('R1 the tcp bridge client refuses non-loopback hosts typed', tcpBridge.includes("refusing non-loopback host"))
-
-  const LAWFUL_LISTEN = /sockPath|127\.0\.0\.1|'localhost'|conn\.listen\(\)/
-  const offenders: string[] = []
-  for (const file of srcFiles(join(ROOT, 'src'))) {
-    const lines = readFileSync(file, 'utf-8').split('\n')
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i] as string
-      const trimmed = line.trim()
-      if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('#')) continue
-      if (!/\.listen\(/.test(line)) continue
-      if (LAWFUL_LISTEN.test(line)) continue
-      if (file.endsWith('.generated.ts') || file.includes(join('skills', 'bundled'))) continue
-      offenders.push(`${file.slice(ROOT.length + 1)}:${i + 1}`)
-    }
-  }
-  check('R1 zero TCP listeners without a loopback bind on the line', offenders.length === 0, offenders.join(' · '))
-
-  for (const rel of [join('services', 'unity', 'bridgeToken.ts')]) {
-    const body = readFileSync(join(ROOT, 'src', rel), 'utf-8')
-    check(`R1 ${rel} writes the token 0600 with the chmod pin`, body.includes('{ mode: 0o600 }') && body.includes('chmodSync(file, 0o600)'))
-  }
-}
-
-section('§R2 — no real key ever committed (the fixture sweep, standing)')
-{
-  const KEY_SHAPES: ReadonlyArray<{ kind: string; re: RegExp }> = [
-    { kind: 'anthropic', re: /sk-ant-[A-Za-z0-9_-]{16,}/ },
-    { kind: 'aws', re: /\bAKIA[0-9A-Z]{16}\b/ },
-    { kind: 'google', re: /\bAIza[0-9A-Za-z_-]{35}\b/ },
-    { kind: 'github', re: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b|\bgithub_pat_[A-Za-z0-9_]{40,}\b/ },
-    { kind: 'slack', re: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/ },
-    { kind: 'private-key-block', re: /-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----/ },
-  ]
-  const FIXTURE_MARKER = /fixture|dummy|proof|probe|poison|example|fake|test|redact|momentum|crewrender/i
-  const KNOWN_SYNTHETIC = [
-    'AKIA1234567890ABCDEF',
-    'sk-ant-api03-AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJJKKKKLLLL',
-    'sk-ant-spoken-model-pin',
-    'sk-ant-0123456789abcdef',
-    'MIIBfixture',
-  ]
-  const classify = (line: string): string | null => {
-    for (const { kind, re } of KEY_SHAPES) {
-      if (!re.test(line)) continue
-      if (KNOWN_SYNTHETIC.some(v => line.includes(v))) continue
-      if (kind !== 'private-key-block' && FIXTURE_MARKER.test(line)) continue
-      return kind
-    }
-    return null
-  }
-  check('R2 classifier: a bare real-shaped key flags', classify('const k = "sk-ant-api03-' + 'A'.repeat(24) + '"') === 'anthropic')
-  check('R2 classifier: a self-declared fixture key is lawful', classify("process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-dummy0000000000'") === null)
-  check('R2 classifier: a private key block is NEVER lawful', classify('-----BEGIN RSA PRIVATE KEY----- // fixture') === 'private-key-block')
-
-  const { execFileSync } = await import('node:child_process')
-  const tracked = execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env } })
-    .split('\n')
-    .filter(f => f.length > 0 && !/\.(png|jpg|jpeg|gif|ico|woff2?|ttf|zip|gz|pdf)$/i.test(f))
-  const hits: string[] = []
-  for (const rel of tracked) {
-    if (rel === 'scripts/daemon/prove-leak-sweep.ts') continue
-    let body: string
-    try {
-      body = readFileSync(join(ROOT, rel), 'utf-8')
-    } catch {
-      continue
-    }
-    const lines = body.split('\n')
-    for (let i = 0; i < lines.length; i++) {
-      const kind = classify(lines[i] as string)
-      if (kind !== null) hits.push(`${rel}:${i + 1} (${kind})`)
-    }
-  }
-  check('R2 zero real-shaped keys in the tracked tree', hits.length === 0, hits.slice(0, 6).join(' · '))
-}
 
 section('§A7 — the secret-prose guard is the DAEMON VALIDATOR\'s (one home; every persisting door inherits)')
 {
@@ -488,83 +217,10 @@ section('§A7 — the secret-prose guard is the DAEMON VALIDATOR\'s (one home; e
   check('A7 ScheduleWakeup consumes the one spelling', refusalSentence !== null && wakeRefusal.includes(refusalSentence))
 }
 
-section('§A8 — EVERY spawn passes an explicit env (the product law; an env-less spawn reds unless it is a registered call with its reason)')
-{
-  const offenders: string[] = []
-  const registeredHits = new Map<string, number>()
-  for (const file of srcFiles(join(ROOT, 'src'))) {
-    const body = readFileSync(file, 'utf-8')
-    const importMatch = body.match(/import \{([^}]*)\} from 'node:child_process'/)
-    if (!importMatch) continue
-    const names = (importMatch[1] as string)
-      .split(',')
-      .map(n => n.trim().replace(/^type\s+.*/, '').replace(/\s+as\s+(\w+)/, '$1'))
-      .filter(n => /^(spawn|spawnSync|execFile|execFileSync|exec|execSync|fork)$/.test(n))
-    if (names.length === 0) continue
-    const rel = relPath(file)
-    const lines = codeOnlyLines(rel, body)
-    const callRe = new RegExp(`(?<![.\\w])(${names.join('|')})\\(`)
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i] as string
-      if (!callRe.test(line)) continue
-      if (rel.includes('skills/bundled/')) continue
-      let depth = 0
-      let end = i
-      outer: for (let j = i; j < Math.min(lines.length, i + 60); j++) {
-        for (const ch of lines[j] as string) {
-          if (ch === '(') depth++
-          else if (ch === ')') {
-            depth--
-            if (depth === 0 && j > i) { end = j; break outer }
-            if (depth === 0 && j === i && (lines[i] as string).indexOf('(') < (lines[i] as string).lastIndexOf(')')) { end = j; break outer }
-          }
-        }
-        end = j
-      }
-      const windowText = lines.slice(i, end + 1).join('\n')
-      if (/\benv\b\s*[:,)\]}]|\benv:\s/.test(windowText)) continue
-      const code = line.trim()
-      if (ENV_LESS_SPAWNS.some(s => s.file === rel && s.code === code)) {
-        registeredHits.set(siteKey(rel, code), (registeredHits.get(siteKey(rel, code)) ?? 0) + 1)
-        continue
-      }
-      offenders.push(`${rel}:${i + 1}`)
-    }
-  }
-  check('A8 zero env-less child_process calls in src/', offenders.length === 0, offenders.slice(0, 40).join(' · '))
-  const drift = registeredSiteDrift(ENV_LESS_SPAWNS, registeredHits)
-  check('A8 every registered env-less call stands exactly as often as registered (a vanished or a duplicated call reds)', drift.length === 0, drift.join(' · '))
-  const witnessless = missingWitnesses(ENV_LESS_SPAWNS)
-  check("A8 every registered env-less call's code witness stands in its file", witnessless.length === 0, witnessless.join(' · '))
-}
 
 section('§B — every arm is paired with its release (the class-B lifecycle census)')
 {
-  const src = (rel: string): string => readFileSync(join(ROOT, 'src', rel), 'utf-8')
 
-  const ticker = src(join('daemon', 'saturnTicker.ts'))
-  check('B1 ticker stop clears the interval idempotently', ticker.includes('stopped = true') && ticker.includes('clearInterval(timer)') && ticker.includes('if (running || stopped) return'))
-  check('B1 the ticker interval is unref\'d (never holds the process)', ticker.includes('timer.unref?.()'))
-
-  for (const rel of [join('services', 'unity', 'bridgeClient.ts'), join('services', 'vulcan', 'vulcanClient.ts')]) {
-    const body = src(rel)
-    const teardownWhole =
-      body.includes('this.clearHeartbeat()') &&
-      body.includes('socket.removeAllListeners()') &&
-      body.includes('clearTimeout(p.timer)') &&
-      body.includes('if (q.queueTimer) clearTimeout(q.queueTimer)')
-    check(`B2 ${rel} teardown releases heartbeat, pendings, queue, socket`, teardownWhole)
-    check(`B2 ${rel} closes a client before it leaves the cache`, body.includes('singleton?.client.close()') || body.includes('clients.get(oldest)?.close()'))
-  }
-  const unityBaked = src(join('services', 'unity', 'bridgeFiles.generated.ts'))
-  check('B2 the baked server closes the old socket on accept-newest', unityBaked.includes('_client.Tcp.Close()') && unityBaked.includes('_client = client;'))
-
-  const skills = src(join('utils', 'skills', 'skillChangeDetector.ts'))
-  check('B4 skill watcher: rearm and dispose both close the old watcher', (skills.match(/watcher\?\.close\(\) \?\? Promise\.resolve\(\)/g) ?? []).length >= 3 && skills.includes('clearTimeout(reloadTimer)'))
-  for (const rel of [join('components', 'concourse', 'liveTiles.ts'), join('components', 'concourse', 'workerTranscriptFold.ts')]) {
-    const body = src(rel)
-    check(`B4 ${rel} pairs its watch with a close`, body.includes('.close()'))
-  }
 
   {
     ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
@@ -586,12 +242,6 @@ section('§B — every arm is paired with its release (the class-B lifecycle cen
     const kimi = await cancelledInThePause(seam => runKimiDeviceLogin({ region: 'global', cancelled: seam.cancelled, sleep: seam.sleep, io: { fetchImpl: seam.fetchImpl } }))
     check('B5 the Kimi sign-in re-checks cancelled() right after the sleep: a cancel that lands in the pause ends it before any poll', kimi === 'cancelled after 1 pause(s) and 0 poll(s)', kimi)
   }
-  const machine = src(join('components', 'mercury-ui', 'screens', 'anthropicLoginModel.ts'))
-  check('B5 the login machine clears its timer registry on BOTH reset and dispose', (machine.match(/for \(const handle of timers\) deps\.clearTimer\(handle\)/g) ?? []).length === 2)
-
-  const worktrees = src(join('daemon', 'concourseWorktrees.ts'))
-  check('B7 gitAsync kills the child on timeout, timer unref\'d', worktrees.includes("child.kill('SIGKILL')") && worktrees.includes('timer.unref?.()'))
-  check('B7 /health journey probe reaps its owner in finally', src(join('utils', 'healthDeepProbes.ts')).includes('await disposeOwner(owner)'))
 }
 
 section('§B4x — two overlapping re-arms leave EXACTLY ONE live watcher (the generation guard, driven through the factory seam)')

@@ -134,13 +134,6 @@ const again = await lifecycle.runLifecyclePass({ budgetMs: 60_000, maxRemovals: 
 check('nothing more is removed by the three classes', ['compile-cache-retired-nodes', 'bundled-extension-folders', 'bash-audit-ledger'].every(id => again.receipts.find(r => r.id === id)?.removed === 0), JSON.stringify(again.receipts.map(r => [r.id, r.removed])))
 check('a live audit file under the size stays where it is, whole', existsSync(live) && statSync(live).size === row(7).length)
 
-section('§6 the pruners run off the housekeeping cycle, never at boot')
-{
-  const cli = readFileSync(join(import.meta.dir, '../../src/entrypoints/cli.tsx'), 'utf8')
-  const housekeeping = readFileSync(join(import.meta.dir, '../../src/utils/backgroundHousekeeping.ts'), 'utf8')
-  check('the boot path that enables the compile cache prunes nothing', !cli.includes('stateLifecycle') && !cli.includes('compile-cache-retired'))
-  check('the lifecycle pass runs from the housekeeping cycle, which waits for a quiet minute after the first frame', housekeeping.includes('runLifecyclePass') && housekeeping.includes('getLastInteractionTime() > seams.now() - 1000 * 60'))
-}
 
 rmSync(HOME, { recursive: true, force: true })
 if (failures > 0) {

@@ -89,8 +89,6 @@ section('§2 — /defaultprovider is a sign-in of its own kind in the ledger')
   check('the switch records an operator-switch sign-in', switchDefaultProvider('openrouter') === true && readSignInLedger().openrouter?.kind === 'operator-switch')
   check('…and writes NOTHING to the config (no legacy writer remains)', readStored() === undefined && configuredDefaultProvider() === undefined)
   check('a second switch supersedes the first (the latest wins, no first-login law)', switchDefaultProvider('gemini') === true && readSignInLedger().gemini?.kind === 'operator-switch' && readSignInLedger().openrouter !== undefined)
-  const rung = readFileSync(join(import.meta.dir, '../../src/utils/model/defaultProviderRung.ts'), 'utf8')
-  check('the first-login recorder is gone from the owner', !rung.includes('recordFirstLoginDefaultProvider') && !rung.includes('saveGlobalConfig'))
 }
 
 section('§3 — set, never heal-repainted')

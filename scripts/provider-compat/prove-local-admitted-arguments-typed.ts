@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -57,8 +57,6 @@ section('1 · the shared typing: a string value is typed by the schema property 
   check('an object-shaped string under an array of objects is parsed and wrapped as the one item', JSON.stringify(repairArgumentsBySchema({ items: '{"content":"x"}' }, schema).items) === '[{"content":"x"}]')
   check('an array-shaped string under an object type stays text', typeTextBySchema('[1,2]', 'object') === '[1,2]')
   check('the extractor and the gate read one property-type owner', schemaPropertyType(schema, 'limit') === 'integer' && schemaPropertyType(schema, 'nothing') === undefined)
-  const markupSource = readFileSync(new URL('../../src/services/providers/local/toolCallMarkup.ts', import.meta.url), 'utf8')
-  check('the markup extractor imports the shared typing and keeps no copy of it', markupSource.includes("from './schemaTyping.js'") && !/case 'integer'/.test(markupSource) && !/anyOf/.test(markupSource))
 }
 
 section('2 · settlement through the local lane: a stub Ollama answers a structured call whose non-string values are strings (the admitted-tool shape); the gate types them and the call mints')

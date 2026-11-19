@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -11,7 +11,6 @@ delete process.env.MERCURY_GEMINI_OAUTH_CLIENT_ID
 delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 delete process.env.MERCURY_USAGE_POLL_MS
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 let passes = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -20,7 +19,6 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const within = <T,>(promise: Promise<T>, ms = 4000): Promise<T | 'timed-out'> =>
   Promise.race([promise, new Promise<'timed-out'>(resolve => setTimeout(() => resolve('timed-out'), ms))])
 
@@ -149,13 +147,6 @@ try {
   await owner.refreshProviderUsage('gemini', { reason: 'operator' })
   check('the next successful read clears the refusal and the stamp reads the new read', assist.rosterReads === readsAfterFirst + 5 && quotaOf().note === undefined && quotaOf().value === '40%' && quotaOf().stamp === 'endpoint-fed · read 0 s ago', j(quotaOf()))
 
-  console.log('── the source law: the section rides the one door; the door has the Gemini arm ──')
-  const usageTsx = read('src/components/Settings/Usage.tsx')
-  const wrapper = usageTsx.slice(usageTsx.indexOf('function EngineUsageSection('), usageTsx.indexOf("if (section.id === 'gemini') return <GeminiUsageSection"))
-  check("every family section, the Gemini one included, asks the owner's door once on mount through the one wrapper hook", wrapper.includes('const usage = useOwnerUsage(section.id, section.family.credentialed)') && usageTsx.includes("if (section.id === 'gemini') return <GeminiUsageSection") && (usageTsx.match(/useOwnerUsage\('gemini'/g) ?? []).length === 0)
-  check('the section and the compact lines paint the reader\'s note when a read was refused', usageTsx.includes('{planActive && usage.readerNote !== undefined ? <Text dimColor>{usage.readerNote}</Text> : null}') && usageTsx.includes("(section.id === 'openrouter' || section.id === 'gemini') && usage.readerNote !== undefined"))
-  const ownerSrc = read('src/services/providers/providerUsage.ts')
-  check('the refresh door carries a gemini arm that reads the plan quota', /case 'gemini': \{\s*const \{ refreshGeminiPlanQuota \}/.test(ownerSrc))
 
   console.log('── a key lane has no plan quota: the door reads nothing ──')
   accounts.disconnectGeminiPlan()

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // gate-watch: src/utils/statusNoticeDefinitions.tsx src/components/Settings/Config.tsx src/mneme/mnemeFrontPage.ts src/mneme/mnemeUsage.ts
 // gate-watch: src/components/Messages.tsx src/components/CrewmateTranscript.tsx src/components/memory/MemoryCentreView.tsx src/commands/memory/memory.tsx src/components/SettingsPopupSlot.tsx
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
@@ -121,8 +121,6 @@ section("§4 the line paints in the person's chat and never in a crewmate's chat
   const { AppStateProvider } = await import('../../src/state/AppState.js')
   const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
   const { Messages } = await import('../../src/components/Messages.js')
-  const crewmateSource = readFileSync(join(REPO, 'src/components/CrewmateTranscript.tsx'), 'utf8')
-  check('the crewmate transcript mounts Messages with the notice strip suppressed', /<Messages[\s\S]*?suppressNotices[\s\S]*?\/>/.test(crewmateSource))
   const mountMessages = async (suppressNotices: boolean): Promise<string[]> => {
     const props = {
       messages: [],

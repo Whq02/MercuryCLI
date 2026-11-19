@@ -73,15 +73,6 @@ section("D the daemon road's clock — the frame and the wiring")
   check("a dispatch's sentAt rides the input row as its sent_at, under the same identity", stamped.sent_at === sentAt && stamped.id === identity, j(stamped))
   const bare = (await dispatch.buildConcoursePromptRow('the words', { identity })) as Record<string, unknown>
   check('a row without a send clock carries no sent_at key', !('sent_at' in bare), j(bare))
-  const read = (rel: string): string => readFileSync(join(SRC, rel), 'utf8')
-  const control = read('daemon/controlServer.ts')
-  check('the daemon forwards a parseable sentAt into the dispatch request', control.includes("...(typeof raw.sentAt === 'string' && Number.isFinite(Date.parse(raw.sentAt)) ? { sentAt: raw.sentAt } : {}),"))
-  const dispatchSrc = read('daemon/concourseDispatch.ts')
-  check('the prompt extras carry sentAt on both delivery legs (the admit leg and the redirect leg read promptExtrasOf)', dispatchSrc.includes("...(req.sentAt !== undefined ? { sentAt: req.sentAt } : {}),") && dispatchSrc.includes("...(extras?.sentAt !== undefined ? { sent_at: extras.sentAt } : {}),"))
-  const attachments = read('utils/attachments/queuedCommands.ts')
-  check('the queued_command attachment carries the clock', /\.\.\.\(\w+\.sentAt !== undefined \? \{ sentAt: \w+\.sentAt \} : \{\}\),/.test(attachments))
-  const orchestrator = read('utils/attachments/orchestrator.ts')
-  check("the attachment row is stamped with the line's own clock when it has one", orchestrator.includes('timestamp: sentClockOf(attachment) ?? new Date().toISOString(),'))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

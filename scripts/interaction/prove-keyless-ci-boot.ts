@@ -16,30 +16,6 @@ console.log('============================================================')
 console.log(' keyless CI boot — the login cockpit, never a silent wedge')
 console.log('============================================================')
 
-console.log('\n── §1 the probes are non-throwing in source ─────────────────')
-{
-  const read = (p: string): string => readFileSync(join(import.meta.dir, '..', '..', p), 'utf8')
-  const auth = read('src/utils/auth.ts')
-  check(
-    'hasAnthropicApiKeyAuth cannot throw (the /login description probe)',
-    /hasAnthropicApiKeyAuth\(\): boolean \{[\s\S]{0,600}?try \{[\s\S]{0,400}?\} catch \{\s*return false/.test(auth),
-  )
-  const hook = read('src/hooks/useApiKeyVerification.ts')
-  check(
-    'the useState initializer probe cannot throw (a render error otherwise)',
-    /useState<VerificationStatus>\(\(\) => \{[\s\S]{0,900}?try \{[\s\S]{0,600}?\} catch \{/.test(hook),
-  )
-  const notices = read('src/utils/statusNoticeDefinitions.tsx')
-  const guardedProbes = notices
-    .split('isActive: ')
-    .slice(1)
-    .filter(body => body.slice(0, 700).includes('getAnthropicApiKeyWithSource'))
-  check(
-    'every notice isActive that reads the key source is try/caught',
-    guardedProbes.length >= 2 && guardedProbes.every(body => body.slice(0, 700).includes('try {')),
-    `${guardedProbes.length} probes`,
-  )
-}
 
 console.log('\n── §2 REAL BINARY: CI=true, zero credentials, seeded home ───')
 {

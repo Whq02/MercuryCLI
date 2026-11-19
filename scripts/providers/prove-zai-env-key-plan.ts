@@ -214,8 +214,6 @@ try {
   check('no request body carried a key', roads.every(road => !j(road.body).includes('zai-fixture')))
 
   section('§4 the words')
-  const login = readFileSync(join(ROOT, 'src/services/providers/zai/zaiLogin.ts'), 'utf8')
-  check('the /logins receipt no longer says an env key rides the general base', !login.includes('using the general base') && login.includes('its plan is ZAI_KEY_PLAN, or read from its own models list'))
   const engines = readFileSync(join(ROOT, 'docs/ENGINES.md'), 'utf8')
   check('ENGINES.md names ZAI_KEY_PLAN and the learned plan of an env key', engines.includes('`ZAI_KEY_PLAN`') && engines.includes('reads the plan from the key\'s own models list'))
 

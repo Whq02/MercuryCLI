@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, statSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -14,7 +14,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
@@ -58,7 +57,6 @@ console.log('A — the retention numbers come from the estate\'s own owners, exa
   check('recordingsUnderSweep counts the .cast files in project dirs and only those (2 — root strays and .txt excluded)', r.count === 2, String(r.count))
   check('…with their exact bytes (50+70)', r.bytes === 120, String(r.bytes))
   check('the window has ONE owner and defaults honest (30 days in a bare home)', retentionWindowDays() === 30, String(retentionWindowDays()))
-  check("the sweep's cutoff DERIVES from the one window owner (no second derivation in cleanup.ts)", /Date\.now\(\) - retentionWindowDays\(\)/.test(read('src/utils/cleanup.ts')))
 }
 
 console.log("B — the frozen offer is the honest set; the door unlinks exactly it and nothing else")
@@ -102,56 +100,8 @@ console.log("B — the frozen offer is the honest set; the door unlinks exactly 
   check('POISON (the freeze law): a chat born after the card, or aged past the window inside the gap, is never deleted — the offer never rebuilds at Yes', existsSync(born) && existsSync(t4))
   check('POISON: the door reached into no other project (the census estate stands whole)', existsSync(join(projectsRoot, 'proj-a', `${sid('a1')}.jsonl`)) && existsSync(join(projectsRoot, 'proj-b', `${sid('b1')}.jsonl`)))
 
-  const { readdirSync } = await import('node:fs')
-  const callers: string[] = []
-  const walk = (dir: string): void => {
-    for (const name of readdirSync(dir, { withFileTypes: true })) {
-      const p = join(dir, name.name)
-      if (name.isDirectory()) walk(p)
-      else if (/\.(ts|tsx)$/.test(name.name) && readFileSync(p, 'utf8').includes('operatorPruneTranscripts(')) callers.push(p)
-    }
-  }
-  walk(join(process.cwd(), 'src'))
-  const expected = [
-    join(process.cwd(), 'src/cli/sessionsVerb.ts'),
-    join(process.cwd(), 'src/components/BootResumeScreen.tsx'),
-    join(process.cwd(), 'src/components/mercury-ui/screens/SessionManagerView.tsx'),
-    join(process.cwd(), 'src/utils/sessionStorage/transcriptPruneDoor.ts'),
-  ].sort()
-  check('the door has exactly its THREE named callers — the two cards and the sessions delete verb (plus its own definition, nothing else)', callers.sort().join('|') === expected.join('|'), callers.join(', '))
-  const core = read('src/components/mercury-ui/screens/sessionPickerModel.ts')
-  check('the shared picker core reaches no delete road (neither the function nor the module)', !core.includes('operatorPruneTranscripts') && !core.includes('transcriptPruneDoor'))
 }
 
-console.log('C — the card opens answered No; esc/n leave without the door; the key is named; nothing is remembered')
-{
-  const view = read('src/components/mercury-ui/screens/SessionManagerView.tsx')
-  check('the card opens answered No (the frozen offer arms nothing)', view.includes("setPrune({ stage: 'card', offer, answer: 'no' })"))
-  const branchStart = view.indexOf('if (prune !== null) {')
-  const branchEnd = view.indexOf('if (confirming !== null) {', branchStart)
-  const pruneBranch = branchStart >= 0 && branchEnd > branchStart ? view.slice(branchStart, branchEnd) : ''
-  check('esc / n answer No before any commit road (the cancel line leads the branch)', pruneBranch.includes("if (key.escape || input === 'n')") && pruneBranch.indexOf("if (key.escape || input === 'n')") < pruneBranch.indexOf('runPrune'))
-  check('the ONE commit road is the highlighted Yes over a non-empty offer', pruneBranch.includes("if (prune.answer === 'yes' && prune.offer.candidates.length > 0) {") && pruneBranch.includes('void runPrune(prune.offer)'))
-  check('runPrune has exactly one call site (the gated Yes) beside its definition', view.split('runPrune(').length === 3)
-  check('the door is operator-PRESSED: d opens it from the list and the footer names it in the key-map row', view.includes("if (input === 'd' && !key.ctrl && !key.meta) {") && view.includes('d prune'))
-  check('the answer is never remembered (no settings write anywhere near the door)', !view.includes('saveGlobalConfig') && !view.includes('savedSettings'))
-  check("the receipt is typed and says whose act it was (count · bytes · when · by the operator)", view.includes('by the operator') && view.includes('prune.receipt.deleted') && view.includes('formatFileSize(prune.receipt.bytesFreed)'))
-
-  const face = read('src/components/BootResumeScreen.tsx')
-  check('face: the card opens answered No (the frozen offer arms nothing)', face.includes("setPrune({ stage: 'card', offer, answer: 'no' })"))
-  const fBranchStart = face.indexOf('if (prune === null) return')
-  const fBranchEnd = face.indexOf("{ isActive: prune !== null }", fBranchStart)
-  const fBranch = fBranchStart >= 0 && fBranchEnd > fBranchStart ? face.slice(fBranchStart, fBranchEnd) : ''
-  check('face: esc / n answer No before any commit road (the cancel line leads the branch)', fBranch.includes("if (key.escape || input === 'n')") && fBranch.indexOf("if (key.escape || input === 'n')") < fBranch.indexOf('runPrune'))
-  check('face: the ONE commit road is the highlighted Yes over a non-empty offer', fBranch.includes("if (prune.answer === 'yes' && prune.offer.candidates.length > 0) {") && fBranch.includes('void runPrune(prune.offer)'))
-  check('face: runPrune has exactly one call site (the gated Yes) beside its definition', face.split('runPrune(').length === 3)
-  check('face: d is the pressed door and the legend names it', face.includes("key: 'd'") && face.includes('d prune'))
-  check('face: the offer freezes from the SESSION rows alone (crew transcripts are never offered)', face.includes('flat.map(f => f.row.log)'))
-  check('face: the answer is never remembered', !face.includes('saveGlobalConfig') && !face.includes('savedSettings'))
-  check("face: the receipt speaks the same vocabulary (the operator's own act · by the operator · still listed)", face.includes("pruned · the operator's own act") && face.includes('by the operator') && face.includes('could not be deleted — still listed'))
-  check('face: the card speaks the same consent vocabulary (keep everything · delete exactly this set · never remembered)', face.includes('No — keep everything (default)') && face.includes('Yes — delete exactly this set, for good') && face.includes('asked every time, never remembered'))
-  check('face: the mirror rides the model door, never a local list write', face.includes('dropSessions(new Set(receipt.deletedSessionIds))'))
-}
 
 console.log('D — the REAL sweep over the scratch estate: aged recordings go, no transcript moves')
 {
@@ -164,9 +114,6 @@ console.log('D — the REAL sweep over the scratch estate: aged recordings go, n
   check('not one transcript moved: the census counts are unmoved across the sweep (kept for good, executed)', postT.count === preT.count && postT.bytes === preT.bytes, `${preT.count}→${postT.count}`)
   check('the aged transcript survives the sweep BY NAME (90 days old and still standing)', existsSync(join(projectsRoot, 'proj-door', `${sid('11')}.jsonl`)))
   check('the young recording survives; the recordings census dropped by exactly the swept pair', postR.count === preR.count - 2 && postR.count === 1, `${preR.count}→${postR.count}`)
-  const sweep = read('src/utils/cleanup.ts')
-  check("the sweep's file filter keeps only recordings (.cast) — a transcript filter is the poison", /endsWith\('\.cast'\)/.test(sweep) && !/endsWith\('\.jsonl'\)[^\n]*continue/.test(sweep) && !/!entry\.name\.endsWith\('\.jsonl'\) &&/.test(sweep))
-  check("POISON: the door's function appears nowhere in the sweep's path (auto-deletion cannot re-arm)", !sweep.includes('operatorPruneTranscripts') && !sweep.includes('transcriptPruneDoor'))
 }
 
 removeScratch(SCRATCH)

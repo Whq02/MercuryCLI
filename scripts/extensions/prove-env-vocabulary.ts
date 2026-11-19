@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { execSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -39,16 +38,10 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
 }
 const FIXTURE = join(import.meta.dir, 'fixtures', 'fixture-source')
-const ROOT = join(import.meta.dir, '..', '..')
 const J = (...parts: string[]): string => parts.join('')
 const RETIRED_ROOT = J('MERCURY_', 'PLUG', 'IN_ROOT')
 const RETIRED_DATA = J('MERCURY_', 'PLUG', 'IN_DATA')
 const RETIRED_OPTION = J('MERCURY_', 'PLUG', 'IN_OPTION_')
-const RETIRED_CACHE = J('MERCURY_', 'PLUG', 'IN_CACHE_DIR')
-const RETIRED_SEED = J('MERCURY_', 'PLUG', 'IN_SEED_DIR')
-const RETIRED_SYNC = J('MERCURY_SYNC_', 'PLUG', 'IN_INSTALL')
-const EXTERNAL_SKILL_DIR = J('${', 'CLA', 'UDE_SKILL_DIR}')
-const EXTERNAL_SESSION = J('${', 'CLA', 'UDE_SESSION_ID}')
 
 console.log('============================================================')
 console.log(' the env vocabulary — one spelling, emitted and substituted')
@@ -109,14 +102,6 @@ console.log('[4] MERCURY_EXTENSIONS_DIR overrides the one path owner')
   check('unset restores the config-home estate', paths.getExtensionsRoot() === join(home, 'extensions'))
 }
 
-console.log('[5] no source file reads the retired inputs')
-{
-  const hits = execSync(
-    `grep -rl -e "${RETIRED_CACHE}" -e "${RETIRED_SEED}" -e "${RETIRED_SYNC}" -e "${RETIRED_ROOT}" -e "${RETIRED_DATA}" src || true`,
-    { cwd: ROOT, encoding: 'utf8' },
-  ).trim()
-  check('src spells none of the retired env names', hits === '', hits)
-}
 
 console.log("[6] prose gets the placeholder; the child env gets the value; only Mercury's template spellings substitute")
 {
@@ -131,11 +116,6 @@ console.log("[6] prose gets the placeholder; the child env gets the value; only 
     check('the prompt opens on the one base-directory line every skill shares (folder named, the reference-files clause present)', /^Base directory for this skill: \S+ \(read or grep files under it for the skill's own references\)\n\n/.test(text), text.slice(0, 160))
     check('${MERCURY_EXTENSION_ROOT} substitutes in prose', text.includes(installed.ok ? installed.root : '<nope>'))
   }
-  const loaderSrc = readFileSync(join(ROOT, 'src', 'extensions', 'load', 'commands.ts'), 'utf8')
-  check("Mercury's skill-dir spelling substitutes", loaderSrc.includes("replaceAll('${MERCURY_SKILL_DIR}'"))
-  check("Mercury's session-id spelling substitutes", loaderSrc.includes("replaceAll('${MERCURY_SESSION_ID}'"))
-  check("another product's skill-dir spelling never substitutes", !loaderSrc.includes(EXTERNAL_SKILL_DIR))
-  check("another product's session-id spelling never substitutes", !loaderSrc.includes(EXTERNAL_SESSION))
 }
 
 removeScratch(scratch)

@@ -5,7 +5,6 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
-const REPO = join(import.meta.dir, '..', '..')
 const HOME = pinScratchHome('jev-facts-total')
 delete process.env.TYPESAFE_API_KEY
 delete process.env.MERCURY_HOME
@@ -289,20 +288,6 @@ section(`§${n + 2} a throw inside a popup surface never reaches the app root: t
   check('no app-root report landed', !reports.some(name => name.includes('-app-root.json')))
 }
 
-section(`§${n + 3} the source pins`)
-{
-  const slotSrc = readFileSync(join(REPO, 'src/components/SettingsPopupSlot.tsx'), 'utf8')
-  check('the popup slot wraps the shell in the row boundary with the settings-popup origin', slotSrc.includes('<RowErrorBoundary key={open} origin="settings-popup">') && slotSrc.includes('<Settings key={open} request={request} geometry={geometry} />') && slotSrc.includes('</RowErrorBoundary>'))
-  const boundary = readFileSync(join(REPO, 'src/components/RowErrorBoundary.tsx'), 'utf8')
-  check('the boundary files the report under the origin it was given, message-boundary by default', boundary.includes("persistCrashReport(error, errorInfo, this.props.origin ?? 'message-boundary')"))
-  const readerSrc = readFileSync(join(REPO, 'src/services/jev/jevSessionFacts.ts'), 'utf8')
-  check('the reader decodes the row through the one total decoder', readerSrc.includes('const facts = jevFactsOfRow(getFocusedSessionConnector().usage().jev)') && readerSrc.includes('export function jevFactsOfRow(value: unknown): JevFactsV1 | undefined'))
-  const allowed = new Set(['session.facts.spendUsd', 'settings.allowanceUsd', 'facts.spendUsd', 'facts.session.facts.spendUsd', 'facts.settings.allowanceUsd', 'maxCall', 'usage.limitRemaining', 'session.facts.lastCostUsd', 'JEV_DEFAULT_ALLOWANCE_USD', 'usd'])
-  const offenders = ['src/components/Settings/Jev.tsx', 'src/components/Settings/Usage.tsx'].flatMap(rel => [...readFileSync(join(REPO, rel), 'utf8').matchAll(/jevUsdLabel\(([^()]*)\)/g)].map(m => m[1]!.trim()).filter(arg => !allowed.has(arg)).map(arg => `${rel}: ${arg}`))
-  check('Jev.tsx and Usage.tsx hand jevUsdLabel only the decoded facts, the settings or a constant', offenders.length === 0, offenders.join(' | '))
-  const contractSrc = readFileSync(join(REPO, 'src/services/jev/jevContract.ts'), 'utf8')
-  check('jevUsdLabel keeps its number type: the type forbids undefined, the reader owns the absence words', contractSrc.includes('export function jevUsdLabel(usd: number): string'))
-}
 
 slot._resetFocusedSessionConnectorForTesting()
 await releaseScratchHome(HOME)

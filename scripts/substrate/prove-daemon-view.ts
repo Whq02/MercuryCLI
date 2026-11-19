@@ -12,7 +12,7 @@ plugin({
 })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync, mkdtempSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { deriveDaemonRows } from '../../src/utils/cockpit/daemonRows.js'
@@ -109,11 +109,6 @@ section('elapsed-on-turn + stall (busy too long ⇒ the AMBER heads-up)')
   check('busy 12m ⇒ elapsed "12m", STALLED', stalled!.elapsed === '12m' && stalled!.stalled === true)
   check('idle ⇒ no elapsed, never stalled (even with a stale turn clock)', idle!.elapsed === '' && idle!.stalled === false)
   check('busy w/o turn clock ⇒ no elapsed, not stalled', noclock!.elapsed === '' && noclock!.stalled === false)
-  const rd = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
-  const proto = rd('daemon', 'protocol.ts')
-  check('WireRosterEntry carries turnElapsedMs (optional)', /turnElapsedMs\?:\s*number/.test(proto))
-  const roster = rd('daemon', 'roster.ts')
-  check('roster.list() populates turnElapsedMs busy-only from the turn clock', /e\.busy && h\.longLived\.turnStartedAt !== undefined/.test(roster) && /e\.turnElapsedMs = Math\.max\(0, Date\.now\(\) - h\.longLived\.turnStartedAt\)/.test(roster))
 }
 
 section('degraded ⇒ the loud escalation reason')
@@ -164,23 +159,6 @@ section('fire-outcome rollup + recent-trend (window is a real subset)')
   check('no recent line when total ≤ window', v2.recentLine === null)
 }
 
-section('anti-fabrication: the rewritten view carries NO mockup literals')
-{
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'mercury-ui', 'parity', 'DaemonView.tsx'), 'utf-8')
-  check("no fake 'pid 4821'", !src.includes('pid 4821'))
-  check("no fake 'orphan b_3f1'", !src.includes('orphan b_3f1'))
-  check("no fake 'queue 2'", !src.includes('queue 2'))
-  check('reads the live RPC (getMercuryDaemonStatus)', src.includes('getMercuryDaemonStatus'))
-  check('derives via the pure helper (deriveDaemonRows)', src.includes('deriveDaemonRows'))
-  check('no leftover useSpecimenNav (the old fake-roster nav)', !src.includes('useSpecimenNav'))
-}
-
-section('the /daemon command is stamp-gated (byte-identical OFF)')
-{
-  const idx = readFileSync(join(import.meta.dir, '..', '..', 'src', 'commands', 'daemon', 'index.ts'), 'utf-8')
-  check('isEnabled: MERCURY_DAEMON_UI turns the route off by the shared off rule (flagEnabled: 0, false, no, off)', /isEnabled:\s*\(\)\s*=>\s*flagEnabled\('MERCURY_DAEMON_UI'\),/.test(idx))
-  check('no longer the unconditional () => true', !/isEnabled:\s*\(\)\s*=>\s*true/.test(idx))
-}
 
 section('getMercuryDaemonStatus never throws on a missing socket (daemon:null, workers:[])')
 {

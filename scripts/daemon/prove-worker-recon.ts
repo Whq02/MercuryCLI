@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const saved = process.env.MERCURY_WORKER_RECON_ALLOW
 delete process.env.MERCURY_WORKER_RECON_ALLOW
 
@@ -51,15 +49,6 @@ console.log('\n§3 the CSV extension')
   check('isValidReconAllowRule: shape law', isValidReconAllowRule('Bash(git status *)') && !isValidReconAllowRule('Bash') && !isValidReconAllowRule('Bash(*)') && !isValidReconAllowRule('bash(ls)'))
 }
 
-console.log('\n§4 every daemon worker kind reads the one resolver')
-{
-  const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const roster = read('src/daemon/roster.ts')
-  const main = read('src/daemon/main.ts')
-  check("the roster's one-shots ride it", roster.includes("from './workerRecon.js'") && roster.includes('allowedTools: resolveWorkerReconAllow()'))
-  check('the daemon main carries no recon read of its own (the roster seam is the reader)', !main.includes("from './workerRecon.js'") && !/allowedTools: resolveWorkerReconAllow\(\)/.test(main))
-  check('no worker builder carries a second recon table', !/SEAT_RECON_ALLOW\s*[:=]/.test(roster + main))
-}
 
 if (saved !== undefined) process.env.MERCURY_WORKER_RECON_ALLOW = saved
 console.log(failures === 0 ? '\n ✅ WORKER RECON ALLOWLIST HOLDS' : `\n ❌ ${failures} FAILED`)

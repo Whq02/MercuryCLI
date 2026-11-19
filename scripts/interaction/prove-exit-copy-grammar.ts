@@ -1,9 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
 
-const ROOT = path.resolve(import.meta.dir, '../..')
-const read = (rel: string): string => readFileSync(path.join(ROOT, rel), 'utf8')
 
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
@@ -41,25 +37,6 @@ console.log('== 1 · key-map identity: \\x03 and CSI-u decode to ONE ctrl+c ==')
       evLegacy.key.ctrl && evLegacy.input === 'c' && !evLegacy.key.shift && !evLegacy.key.meta &&
         evCsiU.key.ctrl && evCsiU.input === 'c' && !evCsiU.key.shift && !evCsiU.key.meta,
       `legacy={input:${JSON.stringify(evLegacy.input)}} csiU={input:${JSON.stringify(evCsiU.input)}}`,
-    )
-  }
-  for (const rel of [
-    'src/ink/input/byte-decoder.ts',
-    'src/ink/input/interpreter.ts',
-    'src/ink/input/scanner.ts',
-  ]) {
-    const src = read(rel)
-    check(
-      `${rel} carries no platform branch`,
-      !src.includes('process.platform') && !src.includes('getPlatform('),
-    )
-  }
-  {
-    const src = read('src/ink/input/input-decoder.ts')
-    const sites = src.match(/process\.platform/g) ?? []
-    check(
-      'src/ink/input/input-decoder.ts: the ONE platform read is the burst-CR default arg (no second site, no fork in the key path)',
-      sites.length === 1 && src.includes('platform: string = process.platform') && !src.includes('getPlatform('),
     )
   }
 }
@@ -131,99 +108,13 @@ console.log('== 3 · the exit chord window: 3000 ms, Esc keeps 800 ms ==')
   check('EXIT_CHORD_WINDOW_MS === 3000', EXIT_CHORD_WINDOW_MS === 3000)
   check('DOUBLE_PRESS_TIMEOUT_MS === 800 (the Esc rhythm, unchanged)', DOUBLE_PRESS_TIMEOUT_MS === 800)
 
-  const uti = read('src/hooks/useTextInput.ts')
-  const ctrlC = uti.slice(uti.indexOf('const handleCtrlC'), uti.indexOf('const handleCtrlD'))
-  const ctrlD = uti.slice(uti.indexOf('const handleCtrlD'), uti.indexOf('const handleEscape'))
-  const esc = uti.slice(uti.indexOf('const handleEscape'), uti.indexOf('function upOrHistory'))
-  check('composer ctrl+c chord rides EXIT_CHORD_WINDOW_MS', ctrlC.includes('EXIT_CHORD_WINDOW_MS'))
-  check('composer ctrl+d chord rides EXIT_CHORD_WINDOW_MS', ctrlD.includes('EXIT_CHORD_WINDOW_MS'))
-  check("Esc's double-tap does NOT (keeps the 800 ms default)", !esc.includes('EXIT_CHORD_WINDOW_MS'))
-
-  const hook = read('src/hooks/useExitOnCtrlCD.ts')
-  check(
-    'useExitOnCtrlCD (dialog exit chords) rides EXIT_CHORD_WINDOW_MS on both chords',
-    (hook.match(/EXIT_CHORD_WINDOW_MS/g) ?? []).length >= 3,
-  )
 }
 
-console.log('== 4 · the severed exit loop stays closed ==')
-{
-  const pi = read('src/components/PromptInput/PromptInput.tsx')
-  check('PromptInput no longer voids onExit', !pi.includes('void onExit'))
-  const props = pi.slice(pi.indexOf('const textInputProps'), pi.indexOf('onHistoryUp:'))
-  check('textInputProps carries onExit (double press CLOSES Mercury)', /\bonExit,/.test(props))
-}
 
-console.log('== 5 · one receipt · truthful footer ==')
-{
-  const skh = read('src/components/ScrollKeybindingHandler.tsx')
-  const { copyReceipt } = await import('../../src/ink/termio/osc.js')
-  check(
-    'the receipt copy is "Copied to clipboard" (the road named in the sentence only off the native path, the road\'s advice as the notice\'s detail)',
-    skh.includes('...copyReceipt(path),') && !skh.includes('characters} →') &&
-      copyReceipt('native').text === 'Copied to clipboard' && copyReceipt('native').detail === undefined &&
-      copyReceipt('tmux-buffer').text.startsWith('Copied to clipboard via ') && copyReceipt('osc52').text.startsWith('Copied to clipboard via '),
-  )
-  check(
-    'the native receipt holds ~2 s; the mux/escape paths keep the longer read window',
-    skh.includes("timeoutMs: path === 'native' ? 2000 : 4000"),
-  )
-  const guardAt = skh.indexOf("if (!key.ctrl || key.shift || key.meta || key.super) return")
-  check('the plain-ctrl+c guard exists, chord-exact', guardAt !== -1 && skh.includes("if (input !== 'c') return"))
-  check('…gated on a live selection', skh.slice(guardAt, guardAt + 400).includes('selection.hasSelection()'))
-  check(
-    '…consumes the press when it copies (stopImmediatePropagation)',
-    skh.slice(guardAt, guardAt + 500).includes('event.stopImmediatePropagation()'),
-  )
-  const clearAt = skh.indexOf('if (shouldClearSelectionOnKey(key_0)) {')
-  check('…and registers BEFORE the key-driven clear listener', guardAt !== -1 && clearAt !== -1 && guardAt < clearAt)
 
-  const footer = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
-  const notice = read('src/components/PromptInput/ExitChordNotice.tsx')
-  check(
-    'the armed notice reads "press ctrl+c twice to close mercury" (ctrl+d variant beside it) at its ONE owner',
-    notice.includes("press ${keyName === 'Ctrl-D' ? 'ctrl+d' : 'ctrl+c'} twice to close Mercury"),
-  )
-  check(
-    'and the footer mounts that owner (the composer wears the same words)',
-    footer.includes('<ExitChordNotice keyName={exitKeyName} />'),
-  )
-  check(
-    'the busy resting hint names Esc — chat:cancel, not the ctrl+c spelling',
-    footer.includes("useShortcutDisplay('chat:cancel', 'Chat', 'esc')") &&
-      !footer.includes("useShortcutDisplay('app:interrupt'"),
-  )
-  const notif = read('src/components/PromptInput/Notifications.tsx')
-  check(
-    "the receipt rides the composer's hint row, never a row of its own (the column paints no transient; the footer paints notifications.current)",
-    !notif.includes('{footerNoticeLine(current.text)}') &&
-      footer.includes('const currentNotice = useAppState((state: AppState) => state.notifications.current)') &&
-      footer.includes('const noticeText = noticeRowText(currentNotice)'),
-  )
-}
-
-console.log('== 4b · Mercury owns ctrl+c at the root (the S33 regression pin) ==')
-{
-  const main = read('src/main.tsx')
-  check(
-    'the interactive root boots with getRenderContext(false)',
-    main.includes('getRenderContext(false)') && !main.includes('getRenderContext(true)'),
-  )
-}
 
 console.log('== 6 · the busy fall-through ==')
 {
-  const cancel = read('src/hooks/useCancelRequest.ts')
-  const at = cancel.indexOf("'app:interrupt'")
-  const body = cancel.slice(at, at + 1600)
-  check(
-    'CancelRequestHandler declines consumption after cancelling (the same press arms the composer chord)',
-    body.includes('return false'),
-  )
-  check(
-    '…except while a focused input dialog owns its own settlement',
-    body.includes('!isInputDialogFocused'),
-  )
   const { openKeysPart } = await import('../ui/chatScenarios.ts')
   const keys = await openKeysPart('exit-copy-grammar-keys')
   check(

@@ -226,11 +226,6 @@ try {
   const session = await worktree.createWorktreeForSession(state.getSessionId(), 'copy-session', undefined, { gitRoot: fixture, permission: rules } as never)
   worktree.restoreWorktreeSession(null)
   await roadHolds('a session\'s worktree', session.worktreePath, rules)
-  const enterTool = readFileSync(join(ROOT, 'src/tools/EnterWorktreeTool/EnterWorktreeTool.ts'), 'utf8')
-  const setupSource = readFileSync(join(ROOT, 'src/setup.ts'), 'utf8')
-  const mainSource = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
-  check('EnterWorktree hands the session\'s rules to the worktree it makes', enterTool.includes('permission: context.getAppState().toolPermissionContext })'))
-  check('the --worktree start hands the rules the command line gave: main to setup, setup to the same function', mainSource.includes('    worktreePRNumber,\n    undefined,\n    toolPermissionContext,\n  )') && setupSource.includes('createWorktreeForSession('))
 
   section('beside the clone the same folders get where a volume clones')
   if (!cloneRoadExpected(scratch)) skip('this volume or platform cannot clone a file: there is no clone to read the copy beside')

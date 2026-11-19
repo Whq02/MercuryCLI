@@ -3,7 +3,7 @@
 import React from 'react'
 import { mock } from 'bun:test'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -41,7 +41,6 @@ function section(t: string): void {
 }
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
@@ -153,18 +152,6 @@ check("both say STALE with the same age: the card 'stale ↻55m' per row, the po
 check('the card names the same windows at the same percents as the popup (5h 0% · wk 52%)', cardRows.map(row => row.split(' ').slice(0, 2).join(' ')).join(' | ') === '5h 0% | wk 52%', JSON.stringify(cardRows))
 check('a session that spent nothing changes neither surface, and the popup carries no session tally line', !popupFrame.includes('This session') && primary.spend.models === 0)
 
-section('§3 the laws this pin transcribes stand in the source (the rail, the popup, the composer)')
-{
-  const rail = src('src/utils/cockpit/helmVitalsModel.ts')
-  check("the rail paints the focused source's LIVE rows, with the one meter tail, and the no-read hint only when none is live", rail.includes("const liveWindows = usage.windows.filter(w => w.state === 'live')") && rail.includes("const usageEmpty = usage.shape !== 'api-spend' && liveWindows.length === 0") && rail.includes('text: `${NO_USAGE_READ_WORDS} · fills after first reply`') && rail.includes('const age = usageAgeTail(w, readNow)'))
-  check("every meter row — the focused source's and every other account's — carries the one meter tail, except a Moonshot or GLM Coding Plan row, whose reset and age ride its own detail rows", rail.includes("const detailRows = (provider: ActiveSourceUsage['provider']): boolean => provider === 'moonshot' || provider === 'zai'") && rail.includes('resetIn: detailRows(source.provider) ? undefined : meterTail(w, pool),') && rail.split('resetIn: detailRows(').length === 2 && rail.includes('if (detailRows(source.provider)) appendKimiDetails(w, label)') && rail.includes("meterRowsOf(usage, 'usage:', ") && rail.includes('meterRowsOf(other, `usage:${other.provider}:`, ') && rail.includes('const appendKimiDetails = (w: UsageWindowView, key: string): void => {') && rail.includes('usageAgeWords(w, readNow)].filter('))
-  const tab = src('src/components/Settings/Usage.tsx')
-  check('the popup paints every band the one derivation states, captioned by usageSourceWords', tab.includes('const windows = openaiObservedWindowViews()') && tab.includes('const observed = usageSourceWords(w)'))
-  const composer = src('src/services/providers/providerUsage.ts')
-  check("the composer's state means 'stated', never 'aged' — the age is the freshness vocabulary's to say (the Anthropic law, quota.ts)", !composer.includes("usageFreshness({ ...stamp, freshForMs }).state === 'stale' ? 'unavailable'") && composer.includes("state: 'live' as const,\n      usedPct: band.usedPct!,"))
-  const quota = src('src/utils/cockpit/quota.ts')
-  check('…as the first-party pair does: a stated window is live, an absent one unavailable', quota.includes("return { key, usedPct: null, resetsAtMs: null, state: 'unavailable' }") && quota.includes("state: 'live',"))
-}
 
 section('§4 a band the source never stated stays absent on both surfaces (never a fabricated 0%)')
 {

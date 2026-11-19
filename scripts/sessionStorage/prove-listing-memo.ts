@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,7 +17,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { getProjectsDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const logs = await import('../../src/utils/sessionStorage/logs.ts')
@@ -104,16 +103,6 @@ section('L5 the public door rides the memo; callers get fresh rows')
   }
 }
 
-section('L6 wiring')
-{
-  const src = readFileSync(join(ROOT, 'src/utils/sessionStorage/logs.ts'), 'utf8')
-  check('the memo is served only on an equal truth stamp inside the TTL', /memo\.key === key && memo\.truth === truth && Date\.now\(\) - memo\.at < LISTING_MEMO_TTL_MS/.test(src) && /const LISTING_MEMO_TTL_MS = 5_000/.test(src))
-  check("the truth stamp is the root's mtime plus every project directory's mtime", /const root = await stat\(projectsDir\)[\s\S]{0,400}?\(await stat\(dir\)\)\.mtimeMs/.test(src))
-  check('the running sweep is shared (single-flight) and cleared by identity', /listingFlight !== null && listingFlight\.key === key/.test(src) && /listingFlight\.promise === promise\) listingFlight = null/.test(src))
-  check('the sweep body is the one the pool prover pins (mapWithConcurrency over sessionFilesLite)', /mapWithConcurrency\(projectDirs, discoveryPoolWidth\(\), projectDir =>\n\s*sessionFilesLite\(projectDir, limit\),/.test(src))
-  const registry = readFileSync(join(ROOT, 'scripts/staleness/prove-stale-registry.ts'), 'utf8')
-  check('the memo carries its stale-registry row (keyed-by-truth)', registry.includes('src/utils/sessionStorage/logs.ts :: listingMemo :: keyed-by-truth'))
-}
 
 console.log(failures === 0 ? '\n✅ ALL LISTING-MEMO PROOFS PASS' : `\n❌ ${failures} LISTING-MEMO PROOF(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

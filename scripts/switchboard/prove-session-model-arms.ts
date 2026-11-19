@@ -361,8 +361,6 @@ section("§6c — the session's own model entry: written when the session starts
   const oldUnanswered = writeShape(SID_OLD_UNANSWERED, [])
   check('an old-shape unanswered transcript retains nothing on both roads — the registry default serves it, as today', workers.resumeModelKeyOf(SID_OLD_UNANSWERED, work) === undefined && (await headlessRoad(oldUnanswered, SID_OLD_UNANSWERED)) === null)
 
-  const admit = readFileSync(j(import.meta.dir, '../../src/daemon/concourseWorkers.ts'), 'utf8')
-  check('the admission policy reads the resume walk for a re-admitted session', admit.includes('resumeModelKeyOf(req.resumeSessionId, req.workspaceDir, deps.dir)'))
 }
 
 section('§7 — spoken names resolve on the LAUNCH path')

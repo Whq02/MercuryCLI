@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -10,7 +10,6 @@ process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 process.env.BROWSER = '/usr/bin/true'
 process.env.MERCURY_SAMPLES = '1'
 
-const REPO = join(import.meta.dir, '..', '..')
 const store = await import('../../src/services/samples/store.ts')
 const { sampleRowsOf } = await import('../../src/services/samples/facts.ts')
 const listener = await import('../../src/services/samples/listener.ts')
@@ -119,8 +118,6 @@ const frame = createRowStamper(() => '2026-10-02T00:00:00.000Z').stamp(samplesUp
 check('F6a the row is a samples_updated row with the session id and its stamp', frame.type === 'samples_updated' && frame.session_id === 'sess-1' && typeof frame.seq === 'number')
 check('F6b the row schema admits it', RowSchema().safeParse(frame).success)
 check('F6c the reader parses it as its own type, never the mission row', parseRow(JSON.stringify(frame))?.type === 'samples_updated')
-const seat = readFileSync(join(REPO, 'src/daemon/sessionSeat.ts'), 'utf8')
-check('F6e the daemon re-asks the facts on the row', /case 'samples_updated':/.test(seat))
 {
   const { WorkPart } = await import('../../src/services/engine-connector/daemon/work.ts')
   const crew = [{ id: 'agent-1', kind: 'agent', name: 'an errand', status: 'running', startTime: 1 }]

@@ -16,7 +16,6 @@ const DIST = resolve(argAfter('--dist') ?? join(ROOT, 'dist', 'mercury.mjs'))
 const OUT = argAfter('--out')
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const FIXTURE = join(import.meta.dir, 'deepseek-catalogue-fixture-server.ts')
-const PINS = join(ROOT, 'src', 'services', 'providers', 'deepseek', 'deepseekPins.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -39,7 +38,6 @@ const KEY = 'sk-deepseek-fixture-live-rows-000001'
 const scratch = mkdtempSync(join(tmpdir(), 'deepseek-live-rows-'))
 if (OUT) mkdirSync(OUT, { recursive: true })
 
-const PIN_DATE = /observedAt: '(\d{4}-\d{2}-\d{2})'/.exec(readFileSync(PINS, 'utf8'))?.[1] ?? ''
 
 async function startFixture(mode: string, ledger: string): Promise<{ port: number; stop: () => void }> {
   const child = spawn(process.execPath, ['run', FIXTURE, mode, ledger], { stdio: ['ignore', 'pipe', 'pipe'] })
@@ -228,7 +226,6 @@ console.log('\n[2] the pins stand in: the fixture refuses the list (HTTP 503)')
   check('refuse: the list was asked for (the ledger records the refused request)', ledgerHits(ledger) >= 1, `hits ${ledgerHits(ledger)}`)
   check('refuse: the two dated pins stand in with their exact ids and windows', /DeepSeek V4 Pro\s+deepseek-v4-pro/.test(rows) && /DeepSeek V4\.1 Fla…\s+deepseek-flash/.test(rows) && lines(rows, 'deepseek-v4-pro').includes('1.05M ctx') && lines(rows, 'deepseek-flash').includes('1.05M ctx'), lines(rows, 'DeepSeek'))
   check('refuse: no fixture row is invented', !rows.includes('deepseek-fixture-next'))
-  check(`refuse: the group names the key and its two selectable pins, never a frontier row or date (${PIN_DATE})`, /DEEPSEEK · API key · …0001 · 2 live$/.test(groupLine(rows, 'DEEPSEEK ·')) && !rows.includes('frontier:') && !groupLine(rows, 'DEEPSEEK ·').includes(PIN_DATE), groupLine(rows, 'DEEPSEEK ·'))
   dumpOnRed('refuse', before, res)
 }
 

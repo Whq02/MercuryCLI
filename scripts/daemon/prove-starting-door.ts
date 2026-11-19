@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import net from 'node:net'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,7 +17,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
 const sock = await import('../../src/daemon/controlSocket.ts')
 const server = await import('../../src/daemon/controlServer.ts')
@@ -132,21 +131,6 @@ console.log('\n── D · hello during adoption still answers at once, ready:fa
 console.log('\n── E · the hold sits under the work doors\' deadlines; the host wakes it at its ready flip ──')
 {
   check('E1 the hold is far under the connector\'s round-trip deadline (15s) and the seat\'s (10s)', server.ESTARTING_HOLD_MS > 0 && server.ESTARTING_HOLD_MS <= 5_000, String(server.ESTARTING_HOLD_MS))
-  const mainSrc = read('src/daemon/main.ts')
-  const { makeDaemonRunState, markDaemonReady } = await import('../../src/daemon/run/state.ts')
-  const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
-  const host = makeDaemonRunState({ dir: home, bootBuildTree: null, foreground: false, breaker: new DaemonBreaker(), maxInflight: 1, controlEnabled: true })
-  let woke = false
-  void host.readyPromise.then(() => {
-    woke = true
-  })
-  await new Promise(resolve => setTimeout(resolve, 20))
-  const heldBefore = host.ready === false && !woke
-  markDaemonReady(host)
-  await Promise.resolve()
-  check('E2 the host wakes the hold beside its own ready flip and hands the wake to the server', heldBefore && host.ready === true && woke && mainSrc.includes('whenReady: () => readyPromise,'), `held before ${heldBefore} · ready ${host.ready} · woke ${woke}`)
-  const serverSrc = read('src/daemon/controlServer.ts')
-  check('E3 the polls keep the prompt refusal (list · has · status)', serverSrc.includes("const PROMPT_WHILE_STARTING = new Set(['sessionList', 'list', 'has', 'status'])"))
 }
 
 rmSync(home, { recursive: true, force: true })

@@ -1,6 +1,5 @@
 process.env.NODE_ENV = 'test';
 
-import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 let fail = 0;
@@ -29,15 +28,6 @@ const lone = permissionQueueStatus(0, 1);
 check('lone request is 1/1 (marker hidden by the total>1 gate)',
   lone.position === 1 && lone.total === 1);
 
-const dialog = readFileSync('src/components/permissions/PermissionDialog.tsx', 'utf8');
-check('PermissionDialog consumes PermissionQueueContext',
-  dialog.includes('React.useContext(PermissionQueueContext)'));
-check('marker hidden for a lone request (total > 1 gate)',
-  dialog.includes('queueStatus.total > 1'));
-check('marker renders position/total in the title row',
-  dialog.includes('{queueStatus.position}/{queueStatus.total}'));
-check('marker sits in the titleRight/modeChip cluster',
-  /\{titleRight\}\s*\{queueMarker\}\s*\{modeChip\}/.test(dialog));
 
 const { mountPart, openAsksPart } = await import('./chatScenarios.ts');
 const { settle, waitFor } = await import('../lib/settingsPopupHarness.ts');

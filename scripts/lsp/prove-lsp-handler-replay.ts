@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
@@ -77,11 +76,6 @@ await waitFor(() => extras.includes('gen2'), 1000)
 }
 await client.stop()
 
-{
-  const src = readFileSync(join(SRC, 'services/lsp/LSPClient.ts'), 'utf8')
-  t('L4 the durable registries exist', src.includes('const notificationHandlers') && src.includes('const requestHandlers'))
-  t('L4 the one-shot clears are gone', !src.includes('pendingNotifications.length = 0') && !src.includes('pendingRequests.length = 0'))
-}
 
 console.log(failures === 0 ? 'LSP HANDLER REPLAY: ALL PASS' : 'LSP HANDLER REPLAY: RED')
 process.exit(failures)

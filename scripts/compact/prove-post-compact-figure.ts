@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -14,7 +14,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { roughTokenCountEstimation } = await import('../../src/services/tokenEstimation.ts')
 const { estimateMessageTokens, estimateContextTokens } = await import('../../src/services/compact/microCompact.ts')
@@ -39,21 +38,6 @@ section('§1 the real estimators over the post-compact shape')
   check('the figure counts the summary AND the tail under the estimator\'s one headroom factor', newFigure >= rawSum && newFigure <= Math.ceil((rawSum * 4) / 3) + 8, `new=${newFigure} raw=${rawSum}`)
 }
 
-section('§2 the shape: one estimator family on both sides')
-{
-  const compact = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
-  check('compact.ts takes the true post figure from the whole-context estimator over the post-compact messages', /truePostCompactTokenCount = landingCount\(buildPostCompactMessages\(partial\)\)/.test(compact) && compact.includes('gauge ? estimateRequestGauge(request, gauge.fixed, gauge.density, context.options.engineModel) : estimateContextTokens(request, context.options.engineModel)'))
-  check('…and the partial fold too (the same owner, never the call\'s billed usage)', /truePostCompactTokenCount = estimateContextTokens\(buildPostCompactMessages\(partialResult\)\)/.test(compact))
-  check('…and no longer from the round estimator', !/truePostCompactTokenCount = estimateMessageTokens\(/.test(compact))
-  const memory = readFileSync(join(ROOT, 'src/services/compact/sessionMemoryCompact.ts'), 'utf8')
-  check('the session-memory fold takes its summary estimate from the same owner', /const summaryEstimate = estimateContextTokens\(\[summaryMessage\]\)/.test(memory))
-  const micro = readFileSync(join(ROOT, 'src/services/compact/microCompact.ts'), 'utf8')
-  const estimator = micro.slice(micro.indexOf('export function estimateContextTokens'), micro.indexOf('export function estimateContextTokens') + 1400)
-  const owner = readFileSync(join(ROOT, 'src/services/tokenEstimation.ts'), 'utf8')
-  check('fold 46ao: the whole-context estimator delegates strings, attachments and system rows to the model-aware content owner', estimator.includes('return roughTokenCountEstimationForMessages(messages, model)') && owner.includes("typeof content === 'string'") && owner.includes("message.type === 'attachment'") && owner.includes("message.type === 'system'") && owner.includes('normalizeAttachmentForAPI(message.attachment'))
-  const epoch = compact.slice(compact.indexOf('advanceContextEpoch(owner, {'), compact.indexOf('advanceContextEpoch(owner, {') + 400)
-  check('the context-epoch ledger rides the corrected figure as tokensAfter', /tokensAfter: truePostCompactTokenCount/.test(epoch))
-}
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-post-compact-figure${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

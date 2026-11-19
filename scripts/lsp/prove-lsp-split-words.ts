@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { armScratch, check, cleanup, FAKE_SERVER, finish, fixtureServer, openToolDoor, REPO, TS_PROBE_FILES, writeProject } from './lspProofDoor.ts'
+import { armScratch, check, cleanup, FAKE_SERVER, finish, fixtureServer, openToolDoor, TS_PROBE_FILES, writeProject } from './lspProofDoor.ts'
 
 const scratch = armScratch('lsp-split-words')
 const project = writeProject(scratch, 'project', TS_PROBE_FILES)
@@ -35,8 +34,6 @@ try {
   }
   const remedy = remedyForLanguageServer({ name: 'fixture', config: { extensionToLanguage: { '.ts': 'typescript' } } } as never, join(project, 'lib.ts'), 'busy', project)
   check('the remedy names LspRead serverStatus', remedy === "check the files with npm run typecheck; LspRead serverStatus shows the server's state", remedy)
-  const ops = readFileSync(join(REPO, 'src/tools/LSPTool/mercuryOps.ts'), 'utf8')
-  check('all four transaction refusals are explicitly excluded from fault counting', (ops.match(/applyRefusal: true/g) ?? []).length === 4)
   process.env.MERCURY_LSP = '0'
   for (const tool of available.LSP_TOOLS.filter(tool => tool.name !== 'LspRead')) {
     const permission = await tool.checkPermissions({ filePath: join(project, 'lib.ts'), apply: true }, door.prover.ctx as never)

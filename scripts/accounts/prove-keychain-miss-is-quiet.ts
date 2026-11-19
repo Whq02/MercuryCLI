@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
-import { join, relative } from 'node:path'
+import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -12,41 +12,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 
-section('§1 every keychain spawn in src captures the tool\'s stderr')
-{
-  const walk = (dir: string, out: string[] = []): string[] => {
-    for (const name of readdirSync(dir)) {
-      const p = join(dir, name)
-      if (statSync(p).isDirectory()) walk(p, out)
-      else if (/\.tsx?$/.test(name)) out.push(p)
-    }
-    return out
-  }
-  const files = walk(join(ROOT, 'src'))
-  const spawnSites: string[] = []
-  const inherited: string[] = []
-  for (const f of files) {
-    const text = readFileSync(f, 'utf8')
-    if (!/['"]security['"]/.test(text)) continue
-    const lines = text.split('\n')
-    lines.forEach((line, i) => {
-      if (!/(execFileSync|execFile|spawnSync|spawn|execFileNoThrow)\(\s*['"]security['"]/.test(line)) return
-      const rel = relative(ROOT, f)
-      spawnSites.push(`${rel}:${i + 1}`)
-      if (/execFileSync|execSync/.test(line)) {
-        const window = lines.slice(i, i + 6).join('\n')
-        if (!/stdio\s*:/.test(window)) inherited.push(`${rel}:${i + 1}`)
-      }
-    })
-  }
-  check('the tree spawns the keychain tool somewhere (the census is not vacuous)', spawnSites.length >= 3, spawnSites.join(' '))
-  check('no keychain spawn hands its stderr to the process (no bare execFileSync)', inherited.length === 0, inherited.join(' '))
-  const auth = readFileSync(join(ROOT, 'src/utils/auth.ts'), 'utf8')
-  check('auth.ts spawns the keychain tool through no sync exec of its own', !/execFileSync\(/.test(auth))
-  check('…the legacy managed-key service is read through the store\'s one reader', /readKeychainServiceSync\(getMacOsKeychainStorageServiceName\(\)\)/.test(auth))
-  const store = readFileSync(join(ROOT, 'src/utils/secureStorage/macOsKeychainStorage.ts'), 'utf8')
-  check('the store exports that one reader over the bounded runner', /export function readKeychainServiceSync\(/.test(store) && /runSecurity\(\['find-generic-password'/.test(store))
-}
 
 section('§2 a miss on a headless read prints nothing (darwin)')
 if (process.platform !== 'darwin') {

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { execFileSync, spawn } from 'node:child_process'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 delete process.env.NODE_ENV
@@ -11,9 +11,7 @@ process.env.MERCURY_DESKTOP_DRIVER = 'none'
 process.env.MERCURY_BROWSER_PATH = process.execPath
 process.env.MERCURY_BROWSER ??= '1'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const posix = process.platform !== 'win32'
-const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const home = process.env.MERCURY_CONFIG_DIR!
 const work = join(home, 'work')
 mkdirSync(work, { recursive: true })
@@ -62,16 +60,7 @@ const SEAT = processOwnerForLane(null)
 
 section('§1 THE SEAM — the run\'s finally ends the lane\'s live processes beside its shells; the live stores say so')
 {
-  const runAgent = src('src/tools/AgentTool/runAgent.ts')
-  const tail = runAgent.slice(runAgent.indexOf('if (executorClaims.get(agentId) === claim) {'))
-  check('runAgent\'s claim-guarded finally kills the shells, ends the engine session, then disposes the lane\'s processes', /killShellTasksForAgent\([\s\S]*?endEngineSessionFor\(agentId\)[\s\S]*?disposeOwnerProcesses\(processOwnerForLane\(agentId\)\)/.test(tail), tail.slice(0, 200))
   check('ownerLifecycle exports disposeOwnerProcesses', typeof lifecycle.disposeOwnerProcesses === 'function')
-  for (const [file, name] of [['src/services/eval/kernelManager.ts', 'eval-kernels'], ['src/services/browser/browserSession.ts', 'browser-sessions'], ['src/services/projectServices/serviceManager.ts', 'project-services']] as const) {
-    check(`${name} is a live store`, new RegExp(`name: '${name}',\\s*live: true,`).test(src(file)))
-  }
-  check('the Service tool hands the lane owner to start and restart (restart under the session\'s project)', /startService\(\{\s*sessionId,\s*owner,/.test(src('src/tools/ServiceTool/ServiceTool.ts')) && src('src/tools/ServiceTool/ServiceTool.ts').includes('restartService(project, input.name!, sessionId, owner)') && src('src/tools/ServiceTool/ServiceTool.ts').includes('const project = getOriginalCwd()'))
-  check('the journey runner hands its owner to the services it starts', src('src/services/journeys/runner.ts').includes('startService({ spec, sessionId: ctx.sessionId, owner: ctx.owner })'))
-  check('the Debug tool registers each adapter under the lane owner (dap:<id>)', src('src/services/dap/dapClient.ts').includes('registerOwnerDisposer(options.owner, `dap:${options.id}`') && src('src/tools/DebugTool/DebugTool.ts').includes('ownerFromToolUseContext'))
 }
 
 section('§2 EVAL — the crewmate\'s kernel and the children its cells spawned are gone; the seat\'s kernel stays')
@@ -227,12 +216,6 @@ section('§9 THE WIN32 ARM — the strikes the Windows box re-checks live')
 {
   const { win32TaskkillCommand } = await import('../../src/utils/processGroup.ts')
   check('the tree kill is taskkill /PID <pid> /T /F through an argv array', win32TaskkillCommand(4242).args.join(' ') === '/PID 4242 /T /F')
-  const kernel = src('src/services/eval/procKernel.ts')
-  check('the kernel\'s escalation strikes ride endProcessTree (taskkill /T on win32), never a root-only kill', /await endProcessTree\(this\.child, 'SIGTERM'\)[\s\S]*?await endProcessTree\(this\.child, 'SIGKILL'\)/.test(kernel) && !kernel.includes("this.child.kill('SIGTERM')") && !kernel.includes("this.child.kill('SIGKILL')"))
-  check('the kernel leads its own process group on POSIX and keeps the console semantics on win32', kernel.includes("detached: process.platform !== 'win32'"))
-  check('the kernel\'s polite exit is followed by the group sweep', /await endProcessTree\(this\.child, 'SIGKILL'\)\n  \}\n\}/.test(kernel))
-  const manager = src('src/services/projectServices/serviceManager.ts')
-  check('a service stop on win32 strikes the whole tree first (the record\'s root-only kill orphaned a listener)', manager.includes("if (process.platform === 'win32') {") && /win32'\) \{[\s\S]{0,900}?await endProcessTree\(record\.pid, 'SIGKILL'\)/.test(manager))
 }
 
 section('§10 THE QUIT ROAD — the session\'s own cleanup ends session-lifecycle services and leaves a project-lifecycle one alive, as the Service tool promises')

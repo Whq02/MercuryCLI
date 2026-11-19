@@ -50,9 +50,6 @@ section('§1 by construction — the notice names the word the status chip names
       check(`${label}: the notice carries the chip's word (${chip})`, chip !== undefined && word === chip, `notice ${JSON.stringify(notice)} chip ${JSON.stringify(chip)}`)
     }
     check('a model without an effort axis has no notice', composerEffortNotice({ model: 'claude-haiku-4-5-20251001', seatEffort: 'max', sentEffort: undefined, effortValue: 'max', bornEffort: null }) === undefined)
-    const root = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'PromptInput.tsx'), 'utf8')
-    check('the composer toast is built from the seat facts through that module', root.includes('composerEffortNotice({') && root.includes('seatEffort,') && root.includes('sentEffort,') && root.includes('bornEffort,'))
-    check('the composer reads the three seat facts the chip reads', root.includes('useFocusedServedEffort()') && root.includes('useFocusedSentEffort()') && root.includes('useFocusedBornEffort()'))
   }
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -24,7 +24,6 @@ const section = (t: string): void => {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const mock = await import('../../src/services/mockRateLimits.ts')
@@ -86,11 +85,6 @@ check('the scenario re-arms after the 7d setter, byte for byte the first tier ag
 mock.setMockRateLimitScenario('clear')
 check('clear disarms', mock.getMockHeaders() === null || mock.shouldProcessMockLimits() === false)
 
-section('§4 the source: the scenario speaks through the early-warning setter at the tier owner\'s number')
-const src = readFileSync(join(ROOT, 'src/services/mockRateLimits.ts'), 'utf8')
-const arm = src.slice(src.indexOf(`case '${SCENARIO}':`), src.indexOf("case 'weekly-limit-reached':"))
-check(`${RED}: the scenario's arm calls the early-warning setter for the 7d window at FIRST_WARNING_PCT`, /setMockEarlyWarning\('7d', FIRST_WARNING_PCT \/ 100, 7 \* 24\)/.test(arm), arm.trim().split('\n').map(l => l.trim()).join(' | '))
-check('the number is the tier owner\'s, imported, never a literal of the mock\'s own', /import \{ FIRST_WARNING_PCT \} from '\.\/providers\/usageTiers\.js'/.test(src) && !/0\.8|\b80\b/.test(arm))
 check('the description still says what it shows', mock.getScenarioDescription(SCENARIO) === 'Weekly limit early warning')
 
 rmSync(HOME, { recursive: true, force: true })

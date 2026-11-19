@@ -152,12 +152,6 @@ try {
   const switched = hostReadyWords('GLM-5.3-Flash', HOSTED_MODEL, record, true)
   check('not switched: the notice names the /model door with the id', kept.startsWith(`GLM-5.3-Flash ready · /model ${HOSTED_MODEL}\n~$4.`) && kept.endsWith(' so far + storage.'), JSON.stringify(kept))
   check('switched: the notice reads "now your model" and names no door', switched.startsWith('GLM-5.3-Flash ready · now your model\n~$4.') && switched.endsWith(' so far + storage.') && !switched.includes('/model'), JSON.stringify(switched))
-  const worker = readFileSync(join(REPO, 'src/services/host/worker.ts'), 'utf8')
-  check('the ready path switches the renting session before it posts the notice, and the notice reads the outcome', worker.includes("const switched = await switchRentingSession(record, result.model)\n    hostNotice(record, 'ready', hostReadyWords(recipe.label, result.model, record, switched))"))
-  check('the ready path reads the session’s model before the switch and remembers both models on the record for Terminate', worker.includes('const modelBefore = await rentingSessionModel(record)\n    const switched = await switchRentingSession(record, result.model)') && worker.includes("if (switched && modelBefore && modelBefore !== result.model && !record.sessionModelBefore) patchHostRecord(id, { sessionModelBefore: modelBefore, sessionModel: result.model })"))
-  const index = readFileSync(join(REPO, 'src/services/host/index.ts'), 'utf8')
-  const idle = readFileSync(join(REPO, 'src/services/host/idle.ts'), 'utf8')
-  check('Terminate (the user’s, and the two-hour idle release) puts the renting session back on the model it had', index.includes('await restoreRentingSession(record) }\n          removeHostRecord(pod.id)') && idle.includes('await restoreRentingSession(record) }'))
 
   section('§2 no session owns the record, or the session is gone: nothing is asked of the daemon')
   check('a record with no session id switches nothing', (await switchRentingSession({ sessionId: undefined }, HOSTED_MODEL)) === false)

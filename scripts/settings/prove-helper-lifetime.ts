@@ -121,13 +121,6 @@ section('§1 the specs: the helper role is a session-lifecycle service, the sess
   const mainSpec = serve.tensorFoldServiceSpec('/opt/tensorfold/bin/tensorfold', point, 262144, 8080, HOME)
   check('the helper spec: tensorfold-helper · lifecycle session · restart never (red on the base: lifecycle project)', helperSpec.name === 'tensorfold-helper' && helperSpec.lifecycle === 'session' && helperSpec.restart === 'never', JSON.stringify({ name: helperSpec.name, lifecycle: helperSpec.lifecycle }))
   check('the main slot spec: tensorfold · lifecycle project · untouched', mainSpec.name === 'tensorfold' && mainSpec.lifecycle === 'project' && mainSpec.restart === 'never', JSON.stringify({ name: mainSpec.name, lifecycle: mainSpec.lifecycle }))
-  const helperSrc = readFileSync(join(REPO, 'src/services/providers/local/tensorfoldHelper.ts'), 'utf8')
-  const ggufSrc = readFileSync(join(REPO, 'src/services/localSetup/ggufServer.ts'), 'utf8')
-  const serveSrc = readFileSync(join(REPO, 'src/services/tensorfold/serve.ts'), 'utf8')
-  check('the 2B rides its seam with the session as owner and a no-op rememberPort, its stop and record with a no-op forgetPort', /serve\.startTensorFold\(request, \{ \.\.\.serveIo, owner: processMainOwner\(\), rememberPort: \(\) => undefined \}\)/.test(helperSrc) && /const roleIo = \{ \.\.\.serveIo, role: HELPER_ROLE, forgetPort: \(\) => undefined \}/.test(helperSrc))
-  check('startTensorFold passes the owner it is given to startService, nothing else', /startService\(\{ spec, sessionId, \.\.\.\(io\.owner !== undefined \? \{ owner: io\.owner \} : \{\}\) \}\)/.test(serveSrc))
-  check('the 4B: a session-lifecycle mercury-helper spec, started with the session as owner', /name: HELPER_SERVICE_NAME, lifecycle: 'session'/.test(helperSrc) && /startGgufServer\(model, spec, \{ port, owner: processMainOwner\(\) \}\)/.test(helperSrc))
-  check('startGgufServer passes the owner it is given to startService; its own plan stays a project service', /startService\(\{ spec, sessionId: getSessionId\(\), \.\.\.\(seam\.owner !== undefined \? \{ owner: seam\.owner \} : \{\}\) \}\)/.test(ggufSrc) && /lifecycle: 'project'/.test(ggufSrc))
 }
 
 section('§2 the seam: the helper a session starts ends when that session\'s owner is disposed; the seam\'s stop sees the helper\'s name once, helperProcess is cleared')

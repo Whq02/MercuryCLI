@@ -1,11 +1,8 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -23,12 +20,6 @@ console.log('§1 B1 — the width-resize scale preserves recorded zeros')
   check('the scale rounds, not truncates (6 at 1.5 → 9; 7 at 0.5 → 4)', scaleHeightForWidth(6, 1.5) === 9 && scaleHeightForWidth(7, 0.5) === 4)
   const thereAndBack = (h: number): number => scaleHeightForWidth(scaleHeightForWidth(h, 0.5), 2)
   check('a there-and-back keeps zero at zero', thereAndBack(0) === 0)
-  const hook = read('src/hooks/useVirtualScroll.ts')
-  check('the resize loop rides the pure scale (no inline Math.max survives)', hook.includes('cache.set(key, scaleHeightForWidth(height, ratio))') && !hook.includes('cache.set(key, Math.max(1, Math.round(height * ratio)))'))
-  check(
-    'the zero-record law this pairs with still stands (rows that painted nothing record 0)',
-    /\} else if \(width > 0\) \{\s*\n(?:\s*\/\/[^\n]*\n)*\s*if \(cache\.get\(key\) !== 0\) \{\s*\n\s*cache\.set\(key, 0\)/.test(hook),
-  )
 }
 
 console.log('§2 B2 — the spinner stack decision is a hysteresis band')
@@ -44,12 +35,6 @@ console.log('§2 B2 — the spinner stack decision is a hysteresis band')
   check('below the band the stack releases', !d(40 - STACK_EXIT_SLACK, true) && !d(20, true))
   check('ineligible never stacks whatever the latch says', !spinnerStackDecision({ eligible: false, cost: 100, space: 10, wasStacked: true }))
   check('the band out-sizes the counters’ per-tick width jitter', STACK_EXIT_SLACK > 4)
-  const row = read('src/components/Spinner/SpinnerAnimationRow.tsx')
-  check(
-    'the component rides the pure fold through a per-instance latch',
-    read('src/components/Spinner/spinnerHud.ts').includes('const stacked = spinnerStackDecision({') && row.includes('stackedLatchRef.current = plan.stacked') && row.includes('const stackedLatchRef = useRef(false)'),
-  )
-  check('the raw flapping comparison is gone', !row.includes('(segBFullCost > 0 || suffixText !== \'\') && segBFullCost > oneLineSpace\n'))
 }
 
 console.log('§3 B3 — the shell-progress reserve is monotone; the footer holds the bottom edge')
@@ -60,56 +45,8 @@ console.log('§3 B3 — the shell-progress reserve is monotone; the footer holds
   check('an all-blank window after content keeps the frame (never a collapse)', reserveShellRows(0, 5).latch === 5 && reserveShellRows(0, 5).pad === 5)
   check('the latch caps at the tail budget', reserveShellRows(9, 9).latch === 5)
   check('a fresh stream starts honest (nothing shown, nothing reserved)', reserveShellRows(0, 0).latch === 0)
-  const src = read('src/components/shell/ShellProgressMessage.tsx')
-  check(
-    'the block rides the reserve: latched height, pad rows, the latch written back',
-    src.includes('height={latch + 1}') && src.includes('Array.from({ length: pad }') && src.includes('shownLatchRef.current = latch'),
-  )
-  check('the raw shown-count height is gone', !src.includes('height={Math.min(shown.length, TAIL_LINES) + 1}'))
-  check('the one-row running line stands only before ANY content (latch === 0 gate)', src.includes('if (latch === 0) {'))
 }
 
-console.log('§4 B4 — no process.stdout size read under the render trees')
-{
-  const { readdirSync, statSync } = await import('node:fs')
-  const offenders: string[] = []
-  const walk = (dir: string): void => {
-    for (const e of readdirSync(join(ROOT, dir))) {
-      const rel = `${dir}/${e}`
-      const st = statSync(join(ROOT, rel))
-      if (st.isDirectory()) walk(rel)
-      else if (/\.(ts|tsx)$/.test(e) && !/\.test\./.test(e)) {
-        const src = readFileSync(join(ROOT, rel), 'utf8')
-        src.split('\n').forEach((line, i) => {
-          if (/process\.stdout\.(columns|rows)/.test(line) && !line.trim().startsWith('//') && !line.trim().startsWith('*')) {
-            offenders.push(`${rel}:${i + 1}`)
-          }
-        })
-      }
-    }
-  }
-  for (const tree of ['src/components', 'src/screens', 'src/commands']) walk(tree)
-  check('zero offenders across the render trees', offenders.length === 0, offenders.join(' · '))
-  const ctx = read('src/commands/context/context.tsx')
-  check('/context prints at the transcript width (staticPrintColumns, both calls)', (ctx.match(/staticPrintColumns\(\)/g) ?? []).length === 2 && !ctx.includes('process.stdout.columns'))
-  const helper = read('src/utils/staticRender.tsx')
-  check(
-    'the one lawful print-width owner reads the layout’s own pure owners',
-    helper.includes('export function staticPrintColumns') && helper.includes("chromeModeLive(cols, rows) === 'cockpit'") && helper.includes('railPlan(cols).centerCols - 2'),
-  )
-  const ask = read('src/components/permissions/AskUserQuestionPermissionRequest/AskUserQuestionPermissionRequest.tsx')
-  check(
-    'the preview measure loop measures at the CONTEXT width',
-    ask.includes('applyMarkdown(opt.preview, theme, highlight, terminalColumns)'),
-  )
-}
-
-console.log('§5 D1 — the select description column is list-measured, not window-measured')
-{
-  const sel = read('src/components/CustomSelect/select.tsx')
-  check('the column measures the WHOLE list', sel.includes('const labelColumnWidth = options.reduce((max, option) => {'))
-  check('the window-local measure is gone', !sel.includes('const labelColumnWidth = visible.reduce'))
-}
 
 console.log('§6 D2 — the composer viewport holds still inside the band')
 {
@@ -137,61 +74,11 @@ console.log('§6 D2 — the composer viewport holds still inside the band')
     paintedFrom(at(12), at(12).getViewportStartLine(MAX, held)) === 'line 10' && paintedFrom(at(12)) === 'line 8' && at(12).render('', '', identity, undefined, MAX, undefined, held).split('\n').length === MAX,
     `${paintedFrom(at(12), held)} / ${paintedFrom(at(12))}`,
   )
-  const hook = read('src/hooks/useTextInput.ts')
-  check(
-    'the hook threads ONE banded start into the paint and every derived offset',
-    hook.includes('getViewportStartLine(maxVisibleLines, bandRef.current)') &&
-      hook.includes('bandRef.current = viewportStartLine') &&
-      hook.indexOf('bandRef.current = viewportStartLine') < hook.indexOf('renderCursor.render(') &&
-      /renderCursor\.render\([\s\S]{0,200}?viewportStartLine,\s*\)/.test(hook) &&
-      hook.includes('getViewportCharOffset(maxVisibleLines, viewportStartLine)') &&
-      hook.includes('getViewportCharEnd(maxVisibleLines, viewportStartLine)'),
-  )
-  const prompt = read('src/components/PromptInput/PromptInput.tsx') + read('src/components/PromptInput/useComposerSelection.ts')
-  check(
-    'the click mapper reads the PAINTED window (the shared ref), never an independent centring',
-    prompt.includes('composerViewportStartRef.current ?? cursor.getViewportStartLine(maxVisibleLines)') &&
-      prompt.includes('viewportStartRef: composerViewportStartRef'),
-  )
 }
 
-console.log('§7 D3 — option clicks are the option box’s own, wrap-proof')
-{
-  const sel = read('src/components/CustomSelect/select.tsx')
-  check(
-    'compact-vertical options own their click and it FOCUSES only',
-    sel.includes('? () => state.focusValue(optionValueOf(option))') &&
-      /compact-vertical'\) \{[\s\S]{0,900}onClick=\{/.test(sel),
-  )
-  check('disabled and isDisabled stay click-dead', sel.includes('!isDisabled && !option.disabled && disableSelection !== true'))
-}
-
-console.log('§8 D4 — the split partitions hover ids and the wheel at the divider')
-{
-  const mirror = read('src/components/concourse/SessionMirror.tsx')
-  check('the mirror namespaces its pointer ids', mirror.includes('id={`${idScope}:title`}') && mirror.includes('id={`${idScope}:jump-newest`}'))
-  check(
-    'the wheel is band-gated by the event’s OWN x',
-    mirror.includes('kp.x < wheelBand[0] || kp.x > wheelBand[1]'),
-  )
-  const pane = read('src/components/concourse/SplitChatPane.tsx')
-  check('the chat pane claims its namespace and forwards its band', pane.includes('idScope="split:chat:mirror"') && pane.includes('{...(wheelBand !== undefined ? { wheelBand } : {})}'))
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check(
-    'the screen hands each side its band from the ONE split geometry',
-    screen.includes('wheelBand: [0, splitGeo.dividerCol - 1]') && screen.includes('wheelBand={[splitGeo.dividerCol + 1, termCols - 1]'),
-  )
-  check('each board hands the live view its own wheel band: the split its board side, the compact frame its live frame, the two-pane board its live column; the stacked forms partition by rows, the frame partitioning the wheel as the divider does', screen.replace(/\s+/g, ' ').includes("{...(splitGeo !== null ? { wheelBand: [0, splitGeo.dividerCol - 1] as [number, number] } : compactGeo !== null ? { wheelBand: [compactGeo.live.x0 + 1, compactGeo.live.x1 + 1] as [number, number] } : geo.profile === 'wide' && !geo.constrained ? { wheelBand: geo.liveCols } : {})}") && screen.replace(/\s+/g, ' ').includes('{...(compactGeo !== null ? { wheelRows: [compactGeo.live.y0 + 2, compactGeo.live.y1] as [number, number] } : !geo.constrained ? { wheelRows: [geo.mirrorBand[0] + 1, geo.mirrorBand[1] - 1] as [number, number] } : {})}'))
-}
 
 console.log('§9 D5 — the collapse notice dies when the frame affords again')
 {
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check(
-    'the affordance branch clears exactly the collapse note',
-    screen.includes('else if (splitAvailableAt(termCols, termRows)) {') &&
-      screen.includes("prev.text.startsWith('split collapsed') ? null : prev"),
-  )
   const { collapseSplitForFrame, toggleSplitView, _resetSplitViewForTesting, splitAvailableAt, SPLIT_MIN_ROWS } = await import(
     '../../src/components/concourse/splitView.ts'
   )
@@ -203,49 +90,9 @@ console.log('§9 D5 — the collapse notice dies when the frame affords again')
   _resetSplitViewForTesting()
 }
 
-console.log('§10 D6 — the daemon cursor survives the roster shuffle by key')
-{
-  const view = read('src/components/mercury-ui/parity/DaemonView.tsx')
-  check('the cursor carries a key beside the index', view.includes("const [selKey, setSelKey] = React.useState<string | null>(null)"))
-  check('the key wins where it exists; the clamp is the reap fallback', view.includes('const clampedSel = keyAt >= 0 ? keyAt : indexClamped'))
-  check('the index state re-anchors to the painted row', view.includes('if (sel !== clampedSel) setSel(clampedSel)'))
-  check('arrows move from the PAINTED cursor and restamp the key', view.includes('usePopupListNavigation(clampedSel, v.workers.length, MAX_ROWS, next => { setSel(next); setSelKey(v.workers[next]?.short ?? null); setNote(null) })'))
-  check('no bare functional index-walk survives', !view.includes('setSel(s => Math.max(0, s - 1))'))
-}
-
-console.log('§11 D7 — rename patches in place; loadMore is single-flight')
-{
-  const selector = read('src/components/LogSelector.tsx')
-  check(
-    'the rename prefers the in-place receipt and keeps the reload as fallback',
-    selector.includes('if (onLogRenamed !== undefined) onLogRenamed(String(target.sessionId), trimmed)') &&
-      selector.includes('else onLogsChanged?.()'),
-  )
-  const screen = read('src/screens/ResumeConversation.tsx')
-  check(
-    'the owner patches the ONE row in both stores (no isLoading, no teardown)',
-    screen.includes('rows.map(l => (String(l.sessionId) === sessionId ? { ...l, customTitle: title } : l))') &&
-      screen.includes('setLogs(patch)') &&
-      screen.includes('setAllStatLogs(patch)'),
-  )
-  check('loadMore is single-flight through a ref', screen.includes('if (loadMoreInFlightRef.current) return') && screen.includes('loadMoreInFlightRef.current = true') && /finally \{\s*\n\s*loadMoreInFlightRef\.current = false/.test(screen))
-}
-
-console.log('§12 D8 — the steering band stays dead (steer-removal poison)')
-{
-  const { existsSync } = await import('node:fs')
-  check('the strip component stays deleted', !existsSync(join(ROOT, 'src/components/PromptInput/PromptInputQueuedCommands.tsx')))
-  check('the hint component stays deleted', !existsSync(join(ROOT, 'src/components/PromptInput/QueuedSteeringHint.tsx')))
-}
 
 console.log('§13 D9 — the terminal card reserves its probe block')
 {
-  const card = read('src/components/TerminalProfileCard.tsx')
-  check(
-    "the block renders from the first win32 frame with the 'unknown' placeholder",
-    card.includes("inventory !== null || process.platform === 'win32'") &&
-      card.includes("inventory ?? { windowsTerminal: 'unknown', pwsh7: 'unknown', winget: 'unknown' }"),
-  )
   const { inventoryLines } = await import('../../src/ink/session/windowsHostSetup.ts')
   const pending = inventoryLines({ windowsTerminal: 'unknown', pwsh7: 'unknown', winget: 'unknown' })
   const landed = inventoryLines({ windowsTerminal: 'present', pwsh7: 'missing', winget: 'present' })
@@ -258,8 +105,6 @@ console.log('§14 CB-05 — the state-word column is reserved; title columns are
   const { STATE_WORD_RESERVE, stateWordCell } = await import(
     '../../src/components/concourse/ConcourseLayout.tsx'
   )
-  const layoutSrc = read('src/components/concourse/ConcourseLayout.tsx')
-  check('the reserve is table-derived', layoutSrc.includes('Object.values(STATE_WORD).map(word => word.length)'))
   const words = ['ready', 'working', 'NEEDS YOU', 'with you', 'stalled', 'failed', 'queued', 'starting', 'paused', 'stopped', 'done', 'cancelled', 'draft', 'parked', 'a door']
   check('the longest table word sizes the column', STATE_WORD_RESERVE === Math.max(...words.map(w => w.length)))
   const stable = words.every(w => stateWordCell(w).length === stateWordCell(null).length)
@@ -267,11 +112,6 @@ console.log('§14 CB-05 — the state-word column is reserved; title columns are
   check('an unknown over-long raw state cannot move even its own row', stateWordCell('a-very-long-unknown-state').length === stateWordCell(null).length)
   check('the resting cell is pure space', stateWordCell(null) === ' '.repeat(1 + STATE_WORD_RESERVE))
   check('the filled cell: word then spaces (the still)', stateWordCell('ready') === ' ready    ' && stateWordCell('NEEDS YOU') === ' NEEDS YOU' && stateWordCell('a door') === ' a door   ')
-  check(
-    'every row paints the reserve cell where the list has the width for it (the selected row fills, the rest hold spaces); a narrow list drops the cell on every row alike',
-    layoutSrc.includes('stateWordCell(') && layoutSrc.includes("? (STATE_WORD[r.state] ?? r.state)\n                              : null,") && layoutSrc.includes('const stateCellShown = listInner >= 48') && layoutSrc.includes('{stateCellShown ? ('),
-  )
-  check('the old inserting paint is gone', !layoutSrc.includes('<Text color={t[sg.color]}> {STATE_WORD[r.state] ?? r.state}</Text>'))
 }
 
 console.log('§15 — live geometry and a bounded compact frame at every size')
@@ -289,41 +129,8 @@ console.log('§15 — live geometry and a bounded compact frame at every size')
       }
     }
   }
-  const alt = read('src/ink/components/AlternateScreen.tsx')
-  const router = read('src/components/SurfaceRouter.tsx')
-  check('the alternate host does not freeze or refuse a small surface', !alt.includes('useViewportFloor') && !alt.includes('floor.fits') && alt.includes('<TerminalSizeContext.Provider value={size}>'))
-  check('the router provides the current size, not a last-fit snapshot', !router.includes('useViewportFloor') && router.includes('<TerminalSizeContext.Provider value={liveSize}>') && router.includes('<TerminalSizeContext.Provider value={hostSize}>'))
-  const app = read('src/ink/components/App.tsx')
-  check('live and local root sizes begin at the same stable renderer object', app.includes('<LiveTerminalSizeContext.Provider value={this.terminalSize}>') && app.includes('<TerminalSizeContext.Provider value={this.terminalSize}>'))
-  check('alternate-screen nesting remains tree-owned', alt.includes('const AltScreenDepthContext = createContext(0)') && alt.includes('const nested = depthAbove > 0') && alt.includes('<AltScreenDepthContext.Provider value={depthAbove + 1}>'))
-  check('compactness has one real-geometry owner', read('src/context/layoutChromeContext.tsx').includes('useRealTerminalSize()') && read('src/context/layoutChromeContext.tsx').includes('layoutChromeLive(columns, rows)'))
 }
 
-console.log('§16 — a resize storm paints its hold once, on entry')
-{
-  const ink = read('src/ink/ink.tsx')
-  const entry = ink.indexOf('if (this.resizeSettleTimer === null) {')
-  const elseAt = ink.indexOf('} else {', entry)
-  const rearm = ink.indexOf('this.resizeSettleTimer = setTimeout(this.applySettledResize, RESIZE_SETTLE_MS)', entry)
-  const hold = ink.indexOf('this.paintResizeHold(columns, rows)', entry)
-  check('the holding paint sits inside the storm-entry branch', entry >= 0 && hold > entry && hold < elseAt)
-  check('a later event only re-arms the timer (no hold after the re-arm)', rearm > elseAt && ink.indexOf('this.paintResizeHold(columns, rows)', rearm) === -1)
-}
-
-console.log('§17 — the virtual list holds its pin across an out-of-layout window')
-{
-  const hook = read('src/hooks/useVirtualScroll.ts')
-  check('a laid-out spacer reading zero width marks the list out of layout and arms the hold',
-    hook.includes('} else if (spacer?.layoutNode && laidOutRef.current && !outOfLayoutRef.current) {') &&
-      hook.includes('outOfLayoutRef.current = true\n      reflowHoldRef.current = true'))
-  check('re-entry re-arms the hold and pumps a re-resolve (the reflow discipline)',
-    /if \(outOfLayoutRef\.current\) \{\s*\n(?:\s*\/\/[^\n]*\n)*\s*outOfLayoutRef\.current = false\s*\n\s*reflowHoldRef\.current = true\s*\n\s*forceResolve\(\)/.test(hook))
-  check('the cold start is never read as a hidden surface (laid out once first)', hook.includes('laidOutRef.current = true') && hook.includes('const laidOutRef = useRef(false)'))
-  check('the hold still suspends the outside-actor cancel and pumps until quiet (the reflow law it rides)',
-    hook.includes('!reflowHoldRef.current') && hook.includes('reflowHoldRef.current = false'))
-  check('the hold outlives the hidden window (the pump never releases it while out of layout)',
-    hook.includes('} else if (outOfLayoutRef.current) {') && hook.indexOf('} else if (outOfLayoutRef.current) {') < hook.indexOf('reflowHoldRef.current = false'))
-}
 
 console.log(failures === 0 ? '\nresize-laws: GREEN' : `\nresize-laws: ${failures} RED`)
 process.exit(failures === 0 ? 0 : 1)

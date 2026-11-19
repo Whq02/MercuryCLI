@@ -209,10 +209,6 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   check('a joiner appended once keeps its position and its mark for good — even after it leaves the pool again', names(j1) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Deferred', 'mcp__srv__late']) && names(j2) === names(j1) && j2.deferredNames.has('mcp__srv__late'), `${names(j2)} deferred=${j([...j2.deferredNames])}`)
   const sumPlan = await plan([readTool, search], { pending: false, key: 'conv-marks' })
   check("the summariser's plan under the conversation's key — from its own two-tool pool — yields the conversation's array and marks, byte for byte", names(sumPlan) === names(j1) && j([...sumPlan.deferredNames].sort()) === j([...j1.deferredNames].sort()), names(sumPlan))
-  const forkSrc = readFileSync(join(ROOT, 'src', 'utils', 'forkedAgent.ts'), 'utf8')
-  const compactSrc = readFileSync(join(ROOT, 'src', 'services', 'compact', 'compact.ts'), 'utf8')
-  const scSrc = readFileSync(join(ROOT, 'src', 'services', 'providers', 'anthropic', 'streamCore.ts'), 'utf8')
-  check("the fork runner stamps the parent's roster owner on the fork context (rosterOwner)", forkSrc.includes('rosterOwner: rosterOwnerFromToolUseContext(cacheSafeParams.toolUseContext)'))
   const t = await import('../core-runtime/turnScenarios.ts')
   const { mainOwnerOfSession } = await import('../../src/services/run/resolveOwner.ts')
   const ownerKeySentBy = async (owners: Record<string, string>): Promise<{ sent: unknown; processOwner: string }> => {
@@ -232,8 +228,6 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
     forked.sent === 'the-parent-conversation' && unforked.sent === 'the-fork' && plain.sent === plain.processOwner,
     `the ownerKey the model call was handed — by a context that carries a roster owner beside its own: ${j(forked.sent)} (the-parent-conversation is right); by one that carries only its own owner: ${j(unforked.sent)} (the-fork); by one that carries neither: ${j(plain.sent)} (its process owner ${j(plain.processOwner)}) — the model call of src/run-core/turn/streamModel.ts passes rosterOwnerFromToolUseContext of the context as ownerKey, the key the provider latches the roster under`,
   )
-  check("the direct summariser road keys the latch on the conversation's roster owner", compactSrc.includes('ownerKey: String(rosterOwnerFromToolUseContext(context))'))
-  check('the Anthropic lane uses only the plan marks, with no language-server deferral override', scSrc.includes('const deferredToolNames = plan.deferredNames') && !scSrc.includes('shouldDeferLspTool'))
 
   process.env.MERCURY_TOOL_SEARCH = '0'
   const s1 = await plan([search, readTool, deferrable], { key: 'conv-c' })

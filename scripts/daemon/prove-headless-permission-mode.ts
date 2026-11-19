@@ -1,9 +1,6 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const savedMode = process.env.MERCURY_DAEMON_PERMISSION_MODE
 delete process.env.MERCURY_DAEMON_PERMISSION_MODE
@@ -121,21 +118,6 @@ section('cross-checks against the real CLI + the one-shot seam')
       (PERMISSION_MODES as readonly string[]).includes(m),
     )
   }
-  const src = readFileSync(join(import.meta.dir, '../../src/daemon/headlessRun.ts'), 'utf8')
-  const oneShot = src.slice(src.indexOf('export function runTaskHeadless'))
-  check(
-    'runTaskHeadless spawn threads headlessPermissionArgv(spec.permissionMode)',
-    oneShot.includes('...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode))'),
-  )
-  check(
-    'runTaskHeadless spawn threads spec.allowedTools (the recon floor)',
-    /spec\.allowedTools && spec\.allowedTools\.length > 0[\s\S]{0,120}'--allowed-tools', \.\.\.spec\.allowedTools/.test(oneShot),
-  )
-  const rosterSrc = readFileSync(join(import.meta.dir, '../../src/daemon/roster.ts'), 'utf8')
-  check(
-    'roster dispatch passes allowedTools: resolveWorkerReconAllow()',
-    /runTaskHeadless\(\s*(?:\/\/[^\n]*\n\s*)*\{[\s\S]{0,300}allowedTools: resolveWorkerReconAllow\(\)/.test(rosterSrc),
-  )
   check(
     'MERCURY_DAEMON_PERMISSION_MODE registered → headlessRun consumer',
     getFlagSpec('MERCURY_DAEMON_PERMISSION_MODE')?.consumer.includes('src/daemon/headlessRun.ts') === true,

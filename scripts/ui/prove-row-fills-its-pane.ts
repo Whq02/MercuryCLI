@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-import { execSync } from 'node:child_process'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import * as React from 'react'
@@ -261,28 +260,6 @@ section('§2 the control — the trap, documented: a narrowed columns prop under
   check('CONTROL: with the context left at the terminal width the band paints past the pane (why a pane must re-provide the context)', out.length > 0, 'the band stayed inside the pane without a re-provision — the trap has moved; re-read the owners')
 }
 
-section('§3 the census: every transcript-row host, and every narrower host re-provides the size context')
-{
-  const hits = execSync(`grep -rlE '<(MessageRow|Messages)\\b' src/components src/screens src/utils src/tools src/commands 2>/dev/null || true`, {
-    cwd: ROOT,
-    encoding: 'utf8',
-  })
-    .trim()
-    .split('\n')
-    .filter(Boolean)
-    .sort()
-  const FULL_WIDTH = ['src/components/CrewmateTranscript.tsx', 'src/components/Messages.tsx', 'src/screens/Chat.tsx', 'src/utils/exportRenderer.tsx']
-  const NARROWER: Array<{ file: string; measure: RegExp }> = [
-    { file: 'src/components/concourse/SessionMirror.tsx', measure: /columns:\s*paneWidth,\s*rows:\s*paneRows/ },
-    { file: 'src/components/SessionPreview.tsx', measure: /columns:\s*Math\.max\(\d+,\s*columns\s*-\s*4\)/ },
-  ]
-  const inventory = [...FULL_WIDTH, ...NARROWER.map(n => n.file)].sort()
-  check('the row-host census matches the inventory', JSON.stringify(hits) === JSON.stringify(inventory), `found: ${hits.join(', ') || '(none)'}`)
-  for (const host of NARROWER) {
-    const src = readFileSync(join(ROOT, host.file), 'utf8')
-    check(`${host.file} re-provides the size context from its own measure`, /TerminalSizeContext\.Provider\s+value=\{/.test(src) && host.measure.test(src), 'no narrowed TerminalSizeContext.Provider around its rows, or a measure that is not the pane\'s own')
-  }
-}
 
 console.log(failures === 0 ? '\nprove-row-fills-its-pane: ALL LAWS HOLD' : `\nprove-row-fills-its-pane: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

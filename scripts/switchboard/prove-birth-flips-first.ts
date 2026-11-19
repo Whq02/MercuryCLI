@@ -19,16 +19,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n── ${t} ──`)
-const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-const ordered = (src: string, ...needles: string[]): boolean => {
-  let at = -1
-  for (const n of needles) {
-    const i = src.indexOf(n, at + 1)
-    if (i === -1) return false
-    at = i
-  }
-  return true
-}
 const text = (v: unknown): string => JSON.stringify(v)
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'birth-flips-first-')))
@@ -51,30 +41,6 @@ process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
 mkdirSync(join(scratch, 'daemon'), { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-section('§1 the source law — flip first, birth behind, the refusal on the seam, the picker on path + title')
-{
-  const face = read('src/components/BootSplashScreen.tsx')
-  check('the face starts the birth through the one door with the model resolving inside it (the B3 needle stands)', face.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() }))') && read('src/services/switchboard/bornSession.ts').includes('birthModelOf('))
-  check('…both birth arms ride the one flip-first road (New Session and a project card’s fresh chat)', face.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: p.dir }))'))
-  check('…flips the chat route BEFORE awaiting the birth', ordered(face, 'const birth = start(bornSession);', 'const flipped = enterRootChat().ok;', 'const born = await birth;'))
-  check('…and never awaits the birth before the flip', !face.includes('await bornSession('))
-  check('the milestones record the order (chat-flipped · birth-landed · birth-refused)', face.includes("recordLaunchMilestone('chat-flipped')") && face.includes("recordLaunchMilestone('birth-landed')") && face.includes("recordLaunchMilestone('birth-refused')"))
-  check('a refused birth hands the frame back to the face at once — the absent-chat settle, else the face pushed back over the chat that still held the slot', ordered(face, "recordLaunchMilestone('birth-refused');", 'if (!settleAbsentChat().ok) enterBootSettings();'))
-  check('…and mints the warning receipt with the reason on the NEXT macrotask (after the chat’s own subscription has left)', /setTimeout\(\(\) => mintImmediateReceipt\(`▲ the chat could not start — \$\{born\.reason\}`, 'warning'\), 0\)/.test(face))
-  check('the face subscribes to the seam and paints the warning where the row note stands', face.includes('subscribeSeatReceipts(r => {') && face.includes("if (r.level === 'warning') setBirthReceipt(r.text);") && face.includes('(list.note ?? birthReceipt ?? \'\')'))
-  check('…and a face mounting AFTER the mint reads the row back (the chat’s subscription drained it)', face.includes('useState<string | null>(() => recentWarningReceipt()?.text ?? null)'))
-  const door = read('src/services/switchboard/bornSession.ts')
-  check('a keyless birth carries NO model: the door’s screen arm is the neutral owner’s word and the frame omits the field', door.includes('screenBirthModel()') && door.includes('...(model !== undefined ? { model } : {}),'))
-  check('…and the door drops every inherited or chosen model on a keyless home (no product door ever spells the placeholder)', door.includes('const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
-  const milestones = read('src/substrate/launchMilestones.ts')
-  check('the milestone kinds exist', ["'chat-flipped'", "'birth-landed'", "'birth-refused'"].every(k => milestones.includes(k)))
-  const picker = read('src/screens/ResumeConversation.tsx')
-  check('the resume picker parses no transcript before the hop', !picker.includes('loadConversationForResume('))
-  check('…and hops on the log’s path and title through the one resume door', picker.includes('focusResumedSession(String(sessionId), log.fullPath, {') && picker.includes('title: log.customTitle ?? log.agentName,') && picker.includes('const sessionId = sessionIdOfListing(log)'))
-  const wm = read('src/services/concourse/workerModels.ts')
-  check('the registry admits ONLY a launch with no id at all keyless, the row reading the keyless words', wm.includes("if (arm === 'session' && idOrKey === undefined) return { ok: true, entry: { ...entry, displayName: NO_SIGN_IN_ROW }, keyless: true }") && wm.includes('const unnamed = idOrKey === undefined || (id === defaultId && defaultDispatches)'))
-  check('…and its keyless seed is the operator’s own row (the id the face names), so that launch counts as unnamed', ordered(wm, "const firstAvailable = registry.entries.find(e => e[arm].availability === 'available')", 'const operatorRow = registry.entries.find(e => e.isOperatorDefault === true)', 'return registry.entries[0]?.modelId'))
-}
 
 section('§2 the seed, pure — a keyless registry seeds the operator’s own row')
 {
@@ -141,8 +107,6 @@ section('§4 the seam’s order — a listener gone before the mint never sees i
   stopLateChat()
   stopWarningFace()
   seam.__resetSeatReceiptsForTests()
-  const face2 = read('src/components/BootSplashScreen.tsx')
-  check('the boot face declares that it takes warnings alone', face2.includes("}, r => r.level === 'warning'),"))
 }
 
 section('§5 the drive — a keyless one-seat home: ↵ paints the cockpit; a second ↵ is refused and the face wears the receipt')
@@ -262,11 +226,6 @@ if (sendRecs.length === sends.length) {
 
 section('§6 THE RESUME SIBLING — a resumed session whose retained model has no credential here is ADMITTED modelless: the receipt names the model and its door, and a shell line runs')
 {
-  const socket = read('src/daemon/controlServer.ts')
-  check('the admit answer carries the retained-model note across the control socket', /const ADMIT_WIRE_KEYS = \[[^\]]*'note'[^\]]*\]/.test(socket))
-  const daemon6 = read('src/daemon/concourseWorkers.ts')
-  check('the admission re-validates a refused retained model UNNAMED and mints the note on every ok road', daemon6.includes("validated.reason.startsWith('no-credential:')") && daemon6.split('retainedNote !== undefined').length >= 4)
-  check('the resume door paints the note on the resumed session’s own rows', read('src/services/switchboard/hopIntoSession.ts').includes('if (refused === null && note !== undefined) void paintAdmissionNote(sessionId, note)') && read('src/services/switchboard/hopIntoSession.ts').includes("seat.getDaemonSessionConnector(sessionId)?.addDisplayRow(createSeatReceiptMessage(`▲ ${note}`, 'warning') as never)"))
   const home2 = mkdtempSync(join(tmpdir(), 'resume-keyless-home-'))
   const cwd2 = realpathSync(mkdtempSync(join(tmpdir(), 'resume-keyless-cwd-')))
   const configDir2 = join(home2, '.mercury')

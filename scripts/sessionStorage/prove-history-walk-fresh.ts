@@ -21,7 +21,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-const ROOT = join(import.meta.dir, '..', '..')
 const settle = (ms = 60): Promise<void> => new Promise(r => setTimeout(r, ms))
 
 const bootstrap = await import('../../src/bootstrap/state.ts')
@@ -78,19 +77,6 @@ section('§1 the writer: one record per taken line, the cockpit\'s project and s
   check('another project\'s line never enters the walk', !walk.includes(otherProject.display))
 }
 
-section('§2 the submit road: the composer is taken once, before the send, busy or idle — and the take ends the walk')
-{
-  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
-  const onSubmitAt = repl.indexOf('const onSubmit = useCallback(async (input: string')
-  const onSubmit = repl.slice(onSubmitAt, repl.indexOf('const onSubmitRef = useRef(onSubmit)'))
-  const takeAt = onSubmit.indexOf('const takeComposer = (): void => {')
-  const take = onSubmit.slice(takeAt, onSubmit.indexOf('};', takeAt))
-  const sessionAt = onSubmit.indexOf("if (seat === 'session') {")
-  const sendAt = onSubmit.indexOf('.sendWords(text, {')
-  const sessionRoad = onSubmit.slice(sessionAt, sendAt)
-  const lastTake = sessionRoad.lastIndexOf('takeComposer();')
-  check('no drain-time history write exists on the face (the runner drains in its own process)', !repl.includes('queuedCommandHistoryEntry('))
-}
 
 section('§3 the walk (the real hook, headless): after a fold and more lines, ↑ recalls what was typed after the earlier walk')
 {

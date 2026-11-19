@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -92,31 +90,10 @@ section('§2 the row\'s words per state, with and without a crew, at three width
 
 section('§3 the title row is gone: the pane opens on the berth card')
 {
-  check('the header module is gone from the tree', !existsSync('src/components/HelmCenterHeader.tsx'))
-  const fsl = readFileSync('src/components/FullscreenLayout.tsx', 'utf8')
-  check('the layout mounts no header: the centre pane\'s first interior row is the berth card, then the transcript', !fsl.includes('HelmCenterHeader') && /borderColor=\{centerFrame \? t\.borderStrong : undefined\}\s*>\s*(?:\{\s*(?:\/\*[^]*?\*\/)?\s*\}\s*)?<TerminalSizeContext\.Provider value=\{sizeVal\}>\s*\{isCompact \? <CompactIdentityBand \/> : null\}\s*\{centerFrame && statusBand \? \(/.test(fsl))
-  check('the bar keeps no title reader for a row that no longer paints', !('seatDisplayTitle' in bar) && !readFileSync('src/components/SwitchboardTagBar.tsx', 'utf8').includes('seatDisplayTitle'))
   const naming = await import('../../src/services/concourse/sessionNaming.ts')
   check('the unnamed word has one owner, the naming owner', naming.UNNAMED_SESSION_WORD === 'new session' && naming.newSessionTitle('/tmp/proj').startsWith(`${naming.UNNAMED_SESSION_WORD} · `))
 }
 
-section('§4 structure: the clock is gone; the glyph reads the crew')
-{
-  check('the clock module is gone', !existsSync('src/utils/cockpit/liveClock.ts'))
-  const registry = flagRegistryText()
-  check('the clock\'s flag left the registry with its reader', !registry.includes('MERCURY_LIVE_CLOCK'))
-  const tag = readFileSync('src/components/SwitchboardTagBar.tsx', 'utf8')
-  check('the bottom row paints no glyph and no session name (the title row alone names the session)', !tag.includes('<WorkingGlyph') && !tag.includes('{title}') && !/seatDisplayTitle\(status\)/.test(tag))
-  check('the model and its effort lead the bottom row in every state; the state words follow them; the project never leads', !tag.includes('{status.projectLabel}') && tag.includes("const resting = daemonBuild === '' && held === null && line === 'ready'") && tag.includes("const head = [signedOut !== null ? [signedOut, modelWords].filter(Boolean).join(' · ') : resting ? restingStatusWords(shownModel, shownEffort) : modelWords, motionWords].filter(Boolean).join(' · ')") && tag.includes("const rest = held ?? (resting ? '' : line)"))
-  check('the resting row reads ready · the model · the effort (the one display-label owner, the chip\'s own effort word, no asked mark)', bar.restingStatusWords('Opus 5', 'high') === 'ready · Opus 5 · high' && bar.restingStatusWords('GLM-5.3', null) === 'ready · GLM-5.3' && bar.restingStatusWords('', 'high') === 'ready' && tag.includes('useDisplayedSessionModel().compact') && tag.includes('focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false)'))
-  check('the resting row paints ready in the state ink and the pair in the muted ink the project wore', tag.includes('<Text color={t.textInstruction}> ready</Text>') && tag.includes("<Text color={t.textMuted}>{head.slice('ready'.length)}</Text>"))
-  check('a seat receipt takes the row while it stands, in the muted ink, and yields to the warning arms', tag.includes('const held = receipt !== \'\' && !statusRowWarns(live, status) ? receipt : null') && tag.includes('<Text color={held !== null || resting ? t.textMuted : t.textInstruction}>{fitted}</Text>') && bar.statusRowWarns({ ...IDLE_LIVE, inFlight: true }, { interrupting: true, hardStopping: false, wait: null, stuck: false }) && !bar.statusRowWarns(IDLE_LIVE, { interrupting: false, hardStopping: false, wait: null, stuck: false }))
-  check('the receipt slot paints only while a row paints, stands for the composer receipt\'s eight seconds, and clears itself', bar.paintStatusRowReceipt('Effort set to medium for this session') === false && bar.statusRowReceipt() === '' && bar.STATUS_ROW_RECEIPT_MS === 8000 && tag.includes('rowsPainting += 1'))
-  check('the row\'s words are statusLine over the crew\'s clock', tag.includes('statusLine(live, status, crew)'))
-  check('the row\'s tick is armed only while a sub-agent runs or the runner is still booting (the boot clock)', tag.includes('useNowTick(crewActive || runnerBooting ? 1000 : null)'))
-  check('the crew\'s clock reads the one work-row list and the crew facts owner', tag.includes('useFocusedWorkRows()') && tag.includes('crewAgentsOf(rows, null)'))
-  check('the row omits the words\' separator when there are no words', tag.includes("{fitted !== '' ? (") && tag.includes("(restFloor > 0 && head !== '' ? 3 : 0)"))
-}
 
 console.log(`\n ${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

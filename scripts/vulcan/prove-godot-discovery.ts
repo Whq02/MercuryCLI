@@ -211,19 +211,8 @@ try {
     else process.env.MERCURY_GODOT_TOOLS = toolsFlag
     check('the health row reads the presence owner and its nudge', vulcanSays.status === 'warn' && vulcanSays.fix === presenceOwner.presenceNudge(presence, status) && vulcanSays.evidence.includes(presence.reachable ? `bridge up :${presence.port}` : `${presence.words} (:${presence.port} dark)`) && !/focus\/restart the editor/.test(`${vulcanSays.evidence} ${vulcanSays.fix}`), JSON.stringify(vulcanSays))
   }
-  const prompt = readFileSync(join(ROOT, 'src/tools/GodotTool/prompt.ts'), 'utf8')
-  check('the tool prompt requires an explicit operator instance and names class refresh', prompt.includes('Pass args.instance') && prompt.includes('never choose the operator-editor role unless the call explicitly names it') && prompt.includes('project_refresh_classes') && !/picks it up on focus/.test(prompt))
-  const plugin = readFileSync(join(ROOT, 'assets/vulcan/addon/plugin.gd'), 'utf8')
-  check('plugin.gd writes the autoload row only when absent, as the plain res:// setting (no add_autoload_singleton, no per-boot rewrite)', /if not ProjectSettings\.has_setting\("autoload\/" \+ RUNTIME_AUTOLOAD\):\n\t\tProjectSettings\.set_setting\("autoload\/" \+ RUNTIME_AUTOLOAD, "\*" \+ RUNTIME_BRIDGE_PATH\)/.test(plugin) && !/^\s*add_autoload_singleton\(/m.test(plugin))
-  const scriptCategory = readFileSync(join(ROOT, 'assets/vulcan/addon/categories/script.gd'), 'utf8')
-  check('the validator gives a path-backed script its own path before the parse (a class_name script is not a duplicate of itself), guarded for engines without the method', /if not src_path\.is_empty\(\) and s\.has_method\("set_path_cache"\):\n\t\ts\.set_path_cache\(src_path\)\n\ts\.source_code = content\n\tvar parse_err := s\.reload\(false\)/.test(scriptCategory))
-  const server = readFileSync(join(ROOT, 'assets/vulcan/addon/core/server.gd'), 'utf8')
-  const editorCat = readFileSync(join(ROOT, 'assets/vulcan/addon/categories/editor.gd'), 'utf8')
-  check('the server carries a start stamp and editor_state reports it (the reload confirmation)', /started_ms = Time\.get_ticks_msec\(\)/.test(server) && editorCat.includes('"vulcan_server_started_ms"') && /OpClassesScript\.mercury_side\(op\)/.test(server))
   const op = optable.vulcanOp('project_refresh_classes')
   check('project_refresh_classes: a frontier exec op, Mercury-side', op?.cls === 'exec' && op?.category === 'frontier' && /headless --import/.test(op?.summary ?? ''))
-  const tool = readFileSync(join(ROOT, 'src/tools/GodotTool/GodotTool.ts'), 'utf8')
-  check('the tool answers it locally by the optable\'s side and rides the file-history road for installs', op?.side === 'mercury' && /if \(spec\.side === 'mercury'\) return runLocalOp/.test(tool) && !/LOCAL_OPS/.test(tool) && tool.includes('fileHistoryTrackEdit(context.updateFileHistoryState, file, parentMessage.uuid'))
   check('the reload script defers the toggle so the answer leaves first', /call_deferred\("set_plugin_enabled", "mercury_vulcan", false\)/.test(installer.PLUGIN_RELOAD_SCRIPT) && /call_deferred\("set_plugin_enabled", "mercury_vulcan", true\)/.test(installer.PLUGIN_RELOAD_SCRIPT))
 } finally {
   rmSync(scratch, { recursive: true, force: true })

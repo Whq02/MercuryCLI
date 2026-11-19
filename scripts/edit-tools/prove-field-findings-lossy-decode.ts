@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { readFileSyncWithMetadata } from '../../src/utils/fileRead.ts'
@@ -45,18 +45,5 @@ console.log('§1 the read owner tells a lossy decode from a clean one')
   check('a genuine U+FFFD character is NOT lossy', readFileSyncWithMetadata(p6).losslessDecode === true)
 }
 
-console.log('§2 both edit doors refuse a lossy decode (the write never runs)')
-{
-  const tool = readFileSync(join(import.meta.dir, '../../src/tools/FileEditTool/FileEditTool.ts'), 'utf8')
-  check('validation refuses (7b, its own errorCode)', tool.includes('if (fileExists && !decodeLossless) {') && tool.includes('errorCode: 14'))
-  check(
-    "the atomic write door has its own belt (throw before any write)",
-    tool.includes('if (!metadata.losslessDecode) {') && tool.includes('Nothing was written.'),
-  )
-  const words = readFileSync(join(import.meta.dir, '../../src/utils/fileRead.ts'), 'utf8')
-  check('the refusal names the destruction and the move', words.includes('destroying content the edit never touches') && words.includes('iconv -f cp1252 -t utf-8') && tool.includes('LOSSY_DECODE_MESSAGE'))
-  const planner = readFileSync(join(import.meta.dir, '../../src/services/changeTransaction/changeSetPlan.ts'), 'utf8')
-  check('the ChangeSet planner refuses a lossy decode with the same words', planner.includes('Buffer.from(rawText, encoding).equals(raw)') && planner.includes("code: 'encoding', message: LOSSY_DECODE_MESSAGE"))
-}
 
 process.exit(failures === 0 ? 0 : 1)

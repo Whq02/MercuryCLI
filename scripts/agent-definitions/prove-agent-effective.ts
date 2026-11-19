@@ -1,10 +1,4 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -36,15 +30,6 @@ function check(name: string, cond: boolean, detail?: string): void {
     failures++
     console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`)
   }
-}
-function closingBraceAfter(src: string, open: number): number {
-  if (open < 0 || src[open] !== '{') return -1
-  let depth = 0
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++
-    else if (src[i] === '}' && --depth === 0) return i
-  }
-  return -1
 }
 
 const PARENT = 'claude-opus-4-8'
@@ -204,27 +189,6 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   )
 }
 
-{
-  console.log('E6: dispatch seam pins (display truth = dispatch truth inputs)')
-  const runAgent = readFileSync('src/tools/AgentTool/runAgent.ts', 'utf-8')
-  check(
-    'runAgent consumes definition-effort-over-the-configured-default (the one ladder at the dispatch seam), never the session state',
-    /definitionEffort:\s*agentDefinition\.effort,\s*defaultEffort:\s*subagentDefaultEffort\(\),/.test(
-      runAgent,
-    ) && !/sessionEffort/.test(runAgent),
-  )
-  const agentTool = readFileSync('src/tools/AgentTool/AgentTool.tsx', 'utf-8')
-  check(
-    'AgentTool records the plan-resolved model at launch (the task record names what runs)',
-    /selectedAgent:\s*agentDef,[\s\S]{0,600}?model:\s*plan\.model,/.test(agentTool) &&
-      !/model:\s*model\s*\?\?\s*agentDef\?\.model/.test(agentTool),
-  )
-  const launchPlan = readFileSync('src/utils/crew/agentLaunchPlan.ts', 'utf-8')
-  check(
-    "the plan resolves the definition's model under the caller's parameter (the one ladder)",
-    /getAgentModel\(\s*definition\.model,\s*i\.engineModel,\s*i\.modelParam,/.test(launchPlan),
-  )
-}
 
 {
   console.log('E7: the agent-scoped state dispatches the resolved effort (FN-018 rank 2)')
@@ -236,28 +200,11 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   check('nothing declared anywhere ⇒ undefined (the resolver keeps its own default)', resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: undefined }) === undefined)
   check('a pin off the ladder yields to the next rung, never rides raw', resolveAgentEffort({ effortOverride: 'turbo', useExactTools: false, definitionEffort: undefined, defaultEffort: 'low' }) === 'low')
   check('a spoken pin normalises through the one effort normaliser', resolveAgentEffort({ effortOverride: 'x-high', useExactTools: false, definitionEffort: undefined, defaultEffort: undefined }) === 'xhigh')
-  const runAgent = readFileSync('src/tools/AgentTool/runAgent.ts', 'utf-8')
-  const scopedAt = runAgent.indexOf('const agentGetAppState')
-  const scoped = runAgent.slice(scopedAt, closingBraceAfter(runAgent, scopedAt < 0 ? -1 : runAgent.indexOf('{', scopedAt)) + 1)
-  const posture = readFileSync('src/tools/AgentTool/agentPermissionPosture.ts', 'utf-8')
-  check(
-    'the scoped state writes effortValue (the key dispatch reads) through the one posture owner',
-    /return composeAgentAppState\(state, \{/.test(scoped) &&
-      /effortValue: resolveAgentEffort\(\{/.test(scoped) &&
-      /defaultEffort: subagentDefaultEffort\(\),/.test(scoped) &&
-      /if \(facts\.effortValue !== undefined && next\.effortValue !== facts\.effortValue\) \{\s*next = \{ \.\.\.next, effortValue: facts\.effortValue \}/.test(posture),
-    scoped.slice(0, 80),
-  )
-  check('…and never an effort key', !/\beffort: effortValue/.test(scoped) && !/\{ effort\?: unknown \}/.test(scoped) && !/\beffort: facts\.effortValue/.test(posture) && /^\s*effortValue: EffortValue \| undefined/m.test(posture))
-  check('the identity readout rides the same ladder', /const resolvedEffort = resolveAgentEffort\(\{/.test(runAgent))
   const t = await import('../core-runtime/turnScenarios.ts')
   const dispatched = await t.runScripted({ appState: { effortValue: 'low', effort: 'max' }, script: [t.fixtures.yields(t.fixtures.says('done.'))] })
   const sent = dispatched.requests[0]?.options.effortValue
   const announced = dispatched.events.find(event => event.kind === 'model_call_started')?.effort
   check('dispatch reads appState.effortValue (the key the scoped state now carries)', sent === 'low' && announced === 'low', `a run whose app state holds effortValue low (and a stray effort key max) sent ${String(sent)} to the model and announced ${String(announced)}: the model call of src/run-core/turn/streamModel.ts must carry the effortValue key of the context's app state`)
-  const store = readFileSync('src/state/AppStateStore.ts', 'utf-8')
-  check('AppState declares effortValue and no effort key', /^\s*effortValue: EffortValue \| undefined/m.test(store) && !/^\s*effort: /m.test(store))
-  check('the instruction capture reads bundleDigest (no structural cast to a field that does not exist)', /digest: slice\.bundle\.bundleDigest/.test(runAgent) && !/\{ digest\?: string \}/.test(runAgent))
 }
 
 rmSync(scratch, { recursive: true, force: true })

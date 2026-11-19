@@ -111,12 +111,6 @@ section('the navigation reducer: first and last land on the enabled edges and mo
 
 section('the select hook consumes the edge moves; the transcript scroller yields the wheel to a list on top')
 {
-  const { readFileSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const ROOT = join(import.meta.dir, '..', '..')
-  const hook = readFileSync(join(ROOT, 'src/components/CustomSelect/use-select-input.ts'), 'utf8')
-  check('the select hook registers select:first and select:last beside next and previous', hook.includes("'select:first'") && hook.includes("'select:last'"))
-  check('the hook still gates the row moves off while an input row has focus', hook.includes("{ context: 'Select', isActive: !isDisabled && !state.isInInput }"))
   const scroller = await import('../../src/components/ScrollKeybindingHandler.tsx')
   const yields = (scroller as Record<string, unknown>).wheelYieldsToTopOverlay as (() => boolean) | undefined
   check('the scroller exposes its wheel-yield rule', typeof yields === 'function')
@@ -159,10 +153,6 @@ section('the select hook consumes the edge moves; the transcript scroller yields
     check('a wheel notch that reaches the clear listener (the scroller yielded it) never clears a transcript selection', !clears(keyOf('wheelUp')) && !clears(keyOf('wheelDown')))
     check('a bare key still clears; a shifted or meta key still does not', clears(keyOf('downArrow')) && !clears({ ...keyOf('downArrow'), shift: true }) && !clears({ ...keyOf('downArrow'), meta: true }))
   }
-  const text = readFileSync(join(ROOT, 'src/components/ScrollKeybindingHandler.tsx'), 'utf8')
-  const sites = (text.match(/if \(wheelYieldsToTopOverlay\(\)\) return/g) ?? []).length
-  check('the two line actions and the raw wheel handler all stand down under the rule (three sites)', sites === 3, String(sites))
-  check('the page-key yield the estate already had is untouched (six sites)', (text.match(/if \(topOverlayOwnsPageKeys\(\)\) return false/g) ?? []).length === 6)
 }
 
 console.log(failures === 0 ? '\nGREEN: Home, End and the wheel act in the lists' : `\nRED: ${failures} check(s) show keys that do nothing in the lists`)

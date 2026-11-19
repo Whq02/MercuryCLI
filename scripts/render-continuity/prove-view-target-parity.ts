@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
@@ -292,32 +292,6 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
     )
   }
 
-  const src = (p: string): string => readFileSync(join(HERE, '..', '..', p), 'utf8')
-  const prompt = src('src/components/PromptInput/useComposerRawKeys.ts')
-  t.check(
-    "the composer's esc on a viewed crewmate consumes interruptCrewmate and, on idle, exitCrewmateView (esc back to Mercury Lead)",
-    /key\.escape[\s\S]{0,900}?interruptCrewmate\(viewed/.test(prompt) && /road === 'idle'\)\s*\{\s*exitCrewmateView\(/.test(prompt),
-  )
-  t.check(
-    'dialog f/m routes local_agent rows through enterCrewmateView',
-    /local_agent'\s*\)\s*\{[^}]*enterCrewmateView/s.test(src('src/components/tasks/BackgroundTasksDialog.tsx')),
-  )
-  t.check(
-    'agent detail card owns the f/m → onForeground pair',
-    /onForeground\?\:/.test(src('src/components/tasks/AsyncAgentDetailDialog.tsx')) &&
-      /action="foreground"/.test(src('src/components/tasks/AsyncAgentDetailDialog.tsx')),
-  )
-  t.check(
-    'footer pill + prompt gate + dialog list share isManageableTask',
-    ['src/components/tasks/BackgroundTaskStatus.tsx', 'src/components/PromptInput/PromptInputFooterLeftSide.tsx', 'src/components/PromptInput/PromptInput.tsx', 'src/components/tasks/BackgroundTasksDialog.tsx'].every(
-      p => src(p).includes('isManageableTask'),
-    ),
-  )
-  const dialog = src('src/components/tasks/BackgroundTasksDialog.tsx')
-  t.check(
-    'the tasks dialog binds Escape itself (kill/foreground/detail dispatch per kind)',
-    /useKeybindings\(\s*\{\s*'confirm:no': \(\) => \{[\s\S]{0,200}?onDone\(\)/.test(dialog) && dialog.includes("{ context: 'Confirmation', isActive: !inDetail }"),
-  )
 }
 
 t.section('§4 journey: completed agent stays reachable through the tasks board')

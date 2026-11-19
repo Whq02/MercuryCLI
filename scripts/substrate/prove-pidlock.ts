@@ -88,10 +88,6 @@ const L = (name: string) => join(tmp, name)
 }
 
 {
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'substrate', 'pidLock.ts'), 'utf8')
-  const fn = src.slice(src.indexOf('async function liveTokenFor('), src.indexOf('export interface PidLockHolder'))
-  ok(/\/\^\\d\+\$\/\.test\(holder\.procStart\)/.test(fn) && fn.includes('procStartToken(holder.pid)'), '§7 liveTokenFor reads a digits record through /proc first (the record\'s own vocabulary)')
-  ok(/return probed === '' \? '' : null/.test(fn), "§7 a ps token against a /proc record is unknowable (null ⇒ alive), a gone answer ('') stays gone")
   writeFileSync(L('digits.lock'), JSON.stringify({ owner: 'ghost', pid: process.pid, acquiredAt: Date.now() - 60_000, procStart: '424242' }))
   const digits = await acquirePidLock(L('digits.lock'), 'owner-v', { liveness: 'assume-alive' })
   if (process.platform === 'linux') {

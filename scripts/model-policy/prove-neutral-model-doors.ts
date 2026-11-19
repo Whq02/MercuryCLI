@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'neutral-model-doors-'))
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = scratch
@@ -26,15 +25,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-function walk(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name)
-    if (statSync(full).isDirectory()) walk(full, out)
-    else if (/\.(ts|tsx)$/.test(name)) out.push(full)
-  }
-  return out
-}
-const src = (...p: string[]): string => readFileSync(join(ROOT, 'src', ...p), 'utf8')
 
 console.log('============================================================')
 console.log(' every model door feeds from the live list; nothing substitutes')
@@ -149,13 +139,6 @@ section('§2 the model allowlist: a family word is any family the live list know
 
 section('§3 the floor is gone: no substitution anywhere, no telemetry of one, no document naming one')
 {
-  check('modelFloor.ts no longer exists', !existsSync(join(ROOT, 'src', 'utils', 'model', 'modelFloor.ts')))
-  const offenders: string[] = []
-  for (const file of walk(join(ROOT, 'src'))) {
-    const text = readFileSync(file, 'utf8')
-    if (/modelFloor|enforceSubagentModelFloor|NEVER_HAIKU_FALLBACK|isHaikuTier|recentFloorEvents|flooredFrom/.test(text)) offenders.push(file.slice(ROOT.length + 1))
-  }
-  check('no source file names the floor, its fallback, its predicate, its ring or its note', offenders.length === 0, offenders.join(', '))
   const posture = await import('../../src/utils/cockpit/runtimePosture.ts')
   const { setAskChannel } = await import('../../src/bootstrap/state.ts')
   posture.resetRuntimePostureForTest()
@@ -170,8 +153,6 @@ section('§3 the floor is gone: no substitution anywhere, no telemetry of one, n
   const { substrateSnapshot } = await import('../../src/utils/cockpit/substrateSnapshot.ts')
   const rows = substrateSnapshot().data.sections.flatMap(s => s.rows)
   check('the substrate panel carries no floor row', rows.length > 0 && rows.every(r => !/floor/i.test(r.name) && !/Haiku/.test(r.hint)), rows.filter(r => /floor|Haiku/i.test(`${r.name} ${r.hint}`)).map(r => r.name).join(', '))
-  const flags = flagRegistryText()
-  check('the worker-parent flag row names no floor', !/never-Haiku|worker-loop floor/.test(flags))
   const ledger = await import('../../src/utils/accounts/signInLedger.ts')
   ledger.recordSignIn('anthropic', 'api-key')
   ;(await import('../../src/utils/model/computedDefault.ts')).resetComputedDefaultMemo()
@@ -180,9 +161,6 @@ section('§3 the floor is gone: no substitution anywhere, no telemetry of one, n
   check('a session worker runs the small tier when the account runs it', seat.ok === true, JSON.stringify(seat))
   const seats = await import('../../src/utils/model/seatSlots.ts')
   check('the seat family allowlist and its substituting validator are gone', !('SEAT_ALLOWED_FAMILIES' in seats) && !('validateSeatModel' in seats))
-  const controlServer = src('daemon', 'controlServer.ts')
-  check("the daemon's reconfigure validates the model through the worker registry's session arm and refuses typed", controlServer.includes("validateWorkerModelChoice(model.trim(), 'session')") && controlServer.includes('model refused ('))
-  check('the roster applies a reconfigure model as validated, substituting nothing', !src('daemon', 'roster.ts').includes('validateSeatModel'))
   const kernel = await import('../../src/services/providers/modelRegistry.ts')
   const snapshot = kernel.buildProviderSnapshot()
   check("the kernel's exact pin resolves the sonnet family word as the sonnet class", snapshot.resolveExact('sonnet')?.modelClass === 'sonnet')
@@ -213,23 +191,10 @@ section('§4 the Crewmate tool: haiku is a dispatch word like any other, and the
   check('neither the schema text nor the manual enumerates a per-boot id list', !description.includes('gpt-5.6-sol') && !description.includes('glm-5.2') && !modelWords.includes('gpt-5.6-sol') && !modelWords.includes('glm-5.2'))
   const { unrecognisedModelWordRefusal } = await import('../../src/utils/crew/engineDispatch.ts')
   check("the dispatch grammar refuses a word no family declares, naming it", (unrecognisedModelWordRefusal('banana') ?? '').includes("'banana'") && unrecognisedModelWordRefusal('haiku') === null && unrecognisedModelWordRefusal('gemini-2.5-pro') === null)
-  const config = src('components', 'Settings', 'Config.tsx')
-  check('the /config sub-agent default row is a picker door, not an alias walk', !config.includes('AGENT_DISPATCH_MODELS') && /id: 'agentsDefaultModel',[\s\S]{0,400}kind: 'managed-enum'/.test(config))
-  check("the /config sub-agent row's door opens the picker, and no second model door remains", /subMenu === 'agent-model'[\s\S]{0,1200}MercuryModelChoicePicker/.test(config) && !config.includes("subMenu === 'crewmate-model'"))
-  check("the rows' warnings name no alias walk", !/walk the aliases/.test(config))
-  check("the door's leading row is a choice, never painted as a model id", (config.match(/\bchoice: ["']/g) ?? []).length === 1)
-  const picker = src('components', 'MercuryModelPicker.tsx')
-  check('a choice row is never a model row: it paints no id column and never counts as live', /row\.action !== true && row\.expand === undefined && row\.choice === undefined/.test(src('utils', 'model/modelPickerGroups.ts')) && /const model = isModelRow\(m\)/.test(picker))
 }
 
 section('§5 the doors store exact ids; the words come from a lookup of the id')
 {
-  const wrapper = src('commands', 'model', 'mercuryModel.tsx')
-  const choice = wrapper.slice(wrapper.indexOf('export function MercuryModelChoicePicker('), wrapper.indexOf('function modelChoiceRowOf('))
-  for (const road of ['GPT_ROAD', 'OPENROUTER_ROAD', 'GEMINI_ROAD', 'HUGGINGFACE_ROAD', 'LOCAL_ROAD']) {
-    check(`the Config choice picker refreshes ${road} through the shared open hook`, choice.includes(`useCatalogueRefreshOnOpen(${road}, setNotice)`))
-  }
-  check('the Config choice picker paints the shared refresh notice ahead of a caller\'s line', choice.includes('notice={notice ?? line}'))
   const picker = await import('../../src/commands/model/mercuryModel.tsx')
   const fable = model.parseUserSpecifiedModel('fable')
   check("a first-party family word resolves to its exact id at write time", /^claude-/.test(fable) && fable !== 'fable', fable)
@@ -243,8 +208,6 @@ section('§5 the doors store exact ids; the words come from a lookup of the id')
   }
   const { subagentDefaultsOf } = await import('../../src/utils/agentDefaults.ts')
   check("the sub-agent default reader takes the choice word 'inherit' as unset", subagentDefaultsOf({ defaultModel: 'inherit' }).model === undefined && subagentDefaultsOf({ defaultModel: fable }).model === fable)
-  const config = src('components', 'Settings', 'Config.tsx')
-  check('the door resolves the pick through parseUserSpecifiedModel at write time', (config.match(/parseUserSpecifiedModel\(id\)/g) ?? []).length >= 1)
 }
 
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`}`)

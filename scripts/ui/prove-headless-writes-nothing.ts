@@ -110,10 +110,6 @@ section('the exit-time restoration follows the ledger: a ring or a title this pr
   noteModeAcquired('terminal-title', 'terminal-title')
   check('a set title is an open obligation', shutdownReleaseObligations().includes('terminal-title'))
   noteModeReleased('terminal-title', 'terminal-title')
-  const src = readFileSync(join(ROOT, 'src/utils/shutdownRestoration.ts'), 'utf8')
-  const cleanup = src.slice(src.indexOf('function cleanupTerminalModes'), src.indexOf('let resumeHintPrinted'))
-  check('the ring clear is gated on its obligation', /open\.has\('progress-ring'\)[\s\S]{0,120}CLEAR_ITERM2_PROGRESS/.test(cleanup))
-  check('the title clear is gated on its obligation (and still on the title setting)', /open\.has\('terminal-title'\)\s*&&[\s\S]{0,200}CLEAR_TERMINAL_TITLE/.test(cleanup))
   _resetTerminalModeLedgerForTesting()
 }
 

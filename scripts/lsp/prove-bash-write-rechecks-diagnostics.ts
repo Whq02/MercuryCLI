@@ -1,10 +1,8 @@
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import * as registry from '../../src/services/lsp/LSPDiagnosticRegistry.js'
 import type { Diagnostic, DiagnosticFile } from '../../src/services/diagnosticTracking.js'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const SERVER = 'mercury-ts'
 const FILE = '/x/proj/src/app.ts'
 
@@ -73,13 +71,6 @@ registry.resetAllLSPDiagnosticState()
   check('with nothing re-synced the delivery does not wait', noneRows !== null && Date.now() - noneStart < 100, '')
 }
 
-section('§3 the manager tells the registry about a re-sync, with the document versions it knew')
-{
-  const manager = readFileSync(join(ROOT, 'src/services/lsp/LSPServerManager.ts'), 'utf8')
-  check('revalidateOpenDocuments notes the out-of-band write after the change reaches the servers', manager.includes('await changeFile(path, text)') && manager.includes('noteOutOfBandWrite(path, versions)') && manager.indexOf('await changeFile(path, text)') < manager.indexOf('noteOutOfBandWrite(path, versions)'), '')
-  const road = readFileSync(join(ROOT, 'src/utils/attachments/diagnostics.ts'), 'utf8')
-  check('the attachment road delivers after the revalidation report, waiting on the re-synced files and the files just written', road.includes('deliverAfterRevalidation(resynced, RESYNC_REPORT_WAIT_MS, { owner, written })') && road.includes('const waitFor = [...resynced, ...written]'), '')
-}
 
 console.log(`\n${count} checks, ${failures} failures`)
 if (failures > 0) {

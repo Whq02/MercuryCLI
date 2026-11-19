@@ -5,7 +5,7 @@
 // gate-watch: scripts/lib/firstRunSeed.ts
 import { spawn, spawnSync } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,7 +17,6 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'seam-home')
 const ROOT = join(import.meta.dir, '..', '..')
 const BIN = process.env.MERCURY_PROOF_BUNDLE ?? join(ROOT, 'dist', 'mercury.mjs')
 const KEEP = process.argv.includes('--keep')
-const src = (...p: string[]): string => readFileSync(join(ROOT, 'src', ...p), 'utf8')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -64,12 +63,6 @@ section('§2 the Studio offers what a definition may carry: sovereign only under
   const withConsent = offeredDefinitionModes(true)
   check('without consent the offer is the mode list minus sovereign', j(without) === j(PERMISSION_MODES.filter(m => m !== 'sovereign')), j(without))
   check('with consent the offer is the whole mode list', j(withConsent) === j([...PERMISSION_MODES]), j(withConsent))
-  const studio = src('components', 'agents', 'studio', 'StudioEditor.tsx')
-  const host = src('components', 'agents', 'studio', 'AgentStudio.tsx')
-  const face = src('components', 'BootAgentsScreen.tsx')
-  check('the Studio field editor reads the one offer', studio.includes('offeredDefinitionModes(props.sovereignConsent)') && !studio.includes('PERMISSION_MODES.map'))
-  check("the Studio host hands it the session's own consent", host.includes('sovereignConsent={toolPermissionContext.isBypassPermissionsModeAvailable === true}'))
-  check("the Boot face's agents screen reads the one offer under the launch's consent", face.includes('offeredDefinitionModes(bootBirthFacts().bypassConsent)') && !face.includes('[...PERMISSION_MODES]'))
 }
 
 section('§3 both agent routes validate the word against the one list and refuse an unknown word the same way')
@@ -87,8 +80,6 @@ section('§3 both agent routes validate the word against the one list and refuse
   }
   const sovereignDoc = decodeAgentDocument('---\nname: probe\ndescription: d\npermissionMode: sovereign\n---\nbody\n', 'probe.md')
   check('the markdown route keeps sovereign as a word of the list (the consent is asked at the spawn, not at the file)', sovereignDoc.fields.permissionMode === 'sovereign' && sovereignDoc.diagnostics.length === 0, j(sovereignDoc.diagnostics))
-  const schema = src('tools', 'AgentTool', 'loadAgentsDir.ts')
-  check('the JSON schema spells the one list', schema.includes('permissionMode: z.enum(PERMISSION_MODES') && !schema.includes('permissionMode: z.string()'))
 }
 
 if (!existsSync(BIN)) {

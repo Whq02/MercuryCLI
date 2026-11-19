@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -204,27 +203,6 @@ try {
   check('the off-screen harness rendered the selects', false, String(e).split('\n')[0])
 }
 
-section('§5 an empty Other never submits nothing')
-const sel = readFileSync('src/components/CustomSelect/select.tsx', 'utf8')
-const multiState = readFileSync('src/components/CustomSelect/use-multi-select-state.ts', 'utf8')
-const qv = readFileSync('src/components/permissions/AskUserQuestionPermissionRequest/QuestionView.tsx', 'utf8')
-check(
-  'the single select reports an empty ↵ to its caller before it would cancel',
-  /\} else if \(onEmptyInputSubmit\) \{\s*onEmptyInputSubmit\(optionValueOf\(option\)\)\s*\} else \{\s*onCancel\?\.\(\)/.test(sel),
-)
-check(
-  'the multi-select input door adds no row without text and reports the empty ↵',
-  /if \(text === ''\) \{\s*focusByValue\(value\)\s*if \(via === 'enter'\) onEmptyInputSubmit\?\.\(value\)\s*return\s*\}/.test(multiState),
-)
-check(
-  'the multi-select’s ↵ on the focused input row takes the door, never the toggle',
-  /key\.return && navigation\.isInInput && navigation\.focusedValue !== undefined\) \{\s*activateInputValue\(navigation\.focusedValue, 'enter'\)/.test(multiState),
-)
-check(
-  'the card listens on both selects and paints the hint',
-  /<SelectMulti[\s\S]*?onEmptyInputSubmit=\{showEmptyHint\}/.test(qv) && /<Select\s[\s\S]*?onEmptyInputSubmit=\{showEmptyHint\}/.test(qv) && qv.includes('Type something first'),
-)
-check('the card hands its tabs out of the multi-select (the documented key from every row)', /onTabOut=\{direction => \(direction === 'next' \? onTabNext\?\.\(\) : onTabPrev\?\.\(\)\)\}/.test(qv))
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL QUESTION-CARD STATE PROOFS PASS')

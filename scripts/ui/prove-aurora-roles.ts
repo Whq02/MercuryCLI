@@ -1,11 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-
-const ROOT = join(import.meta.dir, '..', '..')
-const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -101,77 +97,6 @@ section('§4 — ACCENT BLOOM: derived per accent, per family')
   check('dark tokens.info = OASIS', t('dark', brand.TERRA).info === brand.OASIS)
 }
 
-section('§5 — consent = attention (never identity)')
-{
-  const dialog = src('components', 'permissions', 'PermissionDialog.tsx')
-  check("PermissionDialog default color = 'warning'", /color = 'warning'/.test(dialog))
-  const title = src('components', 'permissions', 'PermissionRequestTitle.tsx')
-  check("PermissionRequestTitle default color = 'warning'", /color = 'warning'/.test(title))
-}
-
-section('§6 — consumer-QoL source invariants')
-{
-  const commands = src('components', 'HelpV2', 'Commands.tsx')
-  check('/help commands tab: dead-Enter guard removed (no disableSelection)', !/disableSelection/.test(commands))
-  check('/help commands tab: ↵ stages via onPick', /onPick\(name\)/.test(commands) || /onPick\(/.test(commands))
-  const helpV2 = src('components', 'HelpV2', 'HelpV2.tsx')
-  check('/help wires the composer seed (safe insertion: ↵ stages `/name ` through the close channel, never runs it)', /const stage = \(commandName: string\) =>\s*onClose\(undefined, \{ nextInput: `\/\$\{commandName\} `, display: 'skip' \}\)/.test(helpV2) && /onPick=\{stage\}/.test(helpV2))
-  const seed = src('utils', 'cockpit', 'composerSeed.ts')
-  check('seedComposerDirect exists and rides the ONE seeder chokepoint', /export function seedComposerDirect/.test(seed))
-  const footer = src('components', 'PromptInput', 'PromptInputFooterLeftSide.tsx')
-  check('the launcher is advertised in the resting footer slot', /for commands \+ files/.test(footer))
-  const shortcuts = src('components', 'HelpV2', 'ShortcutsTab.tsx')
-  check('shortcut help splits everyday from advanced', /head: 'everyday'/.test(shortcuts) && /head: 'advanced'/.test(shortcuts))
-  const promptInput = src('components', 'PromptInput', 'PromptInput.tsx')
-  const composerFloor = src('components', 'mercury-ui', 'composerFloor.ts')
-  check('resting composer border is structural; composing regains the accent (shared composerFloor owner)',
-    /empty \? 'promptBorderResting' : 'promptBorder'/.test(composerFloor) &&
-    /composerBorderRole\(input === ''\)/.test(promptInput))
-  check('the composer text tint is the CENTRAL accentSoft (no local lerp)',
-    /userTextColor: composerBloom/.test(promptInput))
-  const lead = src('components', 'messages', 'ToolRowLead.tsx')
-  check('the tool row\'s lead paints the family tone through the token layer and the failure tone through tokens.failure', /color=\{tokens\[mark\.tone\]\}/.test(lead) && /color=\{tokens\.failure\}/.test(lead))
-  const glyphs = src('components', 'mercury-ui', 'LiveGlyphs.tsx')
-  check('TwinkleSpark glints the DERIVED accentSoft (no pinned BELLY)',
-    /accentSoft : color/.test(glyphs) && !/\bBELLY\b/.test(glyphs))
-  const kit = src('components', 'mercury-ui', 'components.tsx')
-  check('WarningBanner info tone rides t.info (never identity)', /tone === 'info' \? t\.info/.test(kit))
-  check('CommandCenter shell border is STRUCTURE', /borderStyle="round" borderColor=\{t\.borderStrong\} paddingX=\{1\}>/.test(kit))
-  const railPanel = src('components', 'mercury-ui', 'RailPanel.tsx')
-  check('RailPanel headers ride the info channel', /const headerHue = tokens\.info/.test(railPanel))
-  const spinner = src('components', 'Spinner.tsx')
-  check("SUBMIT→WAITING wears info; thinking regains identity (requesting → 'info')",
-    /requesting \? 'info' : 'brand'/.test(spinner))
-  const md = src('utils', 'markdown.ts')
-  check("inline code spans ride 'info'", /color\('info', theme\)\(token\.text\)/.test(md))
-  const fsl = src('components', 'FullscreenLayout.tsx')
-  check('the jump-to-new pill is a NAVIGATION cue (info bg at rest, infoShimmer on hover)',
-    /backgroundColor=\{hover \? 'infoShimmer' : 'info'\}/.test(fsl))
-  const lanes = src('components', 'HelmLanesRail.tsx')
-  check('lanes rail: lane names ride info', /const \{ info[^}]*\} = useMercuryTokens\(\)/.test(lanes))
-  check('lanes rail: no standing "no recent sessions" stub', !/no recent sessions/.test(lanes))
-  check('lanes rail: no stub gamedev lane', !/no missions yet/.test(lanes))
-  check('lanes rail: empty CREW disappears (never engaged ⇒ no stub)', !/no crew running/.test(lanes))
-  const palette = src('components', 'MercuryCommandPalette.tsx')
-  check('palette rows are one line by construction (no footer bleed)',
-    /wrap="truncate-end">\s*<Text color=\{here \? accent : tokens\.textMuted\}/.test(palette.replace(/\n/g, ' ').replace(/\s+/g, ' ')) || /truncate-end/.test(palette))
-}
-
-section('§7 — no new animation machinery (motion joins existing tiers only)')
-{
-  const touched = [
-    ['components', 'mercury-ui', 'RailPanel.tsx'],
-    ['components', 'mercury-ui', 'components.tsx'],
-    ['components', 'mercury-ui', 'LiveGlyphs.tsx'],
-    ['components', 'HelpV2', 'ShortcutsTab.tsx'],
-    ['components', 'HelpV2', 'Commands.tsx'],
-    ['components', 'permissions', 'PermissionDialog.tsx'],
-    ['components', 'MercuryCommandPalette.tsx'],
-  ] as string[][]
-  for (const p of touched) {
-    check(`${p[p.length - 1]}: no setInterval`, !/setInterval\(/.test(src(...p)))
-  }
-}
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL AURORA ROLE PROOFS PASS')

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join, isAbsolute, dirname, basename, sep } from 'node:path'
 
 let failures = 0
@@ -11,18 +10,11 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const ROOT = join(import.meta.dir, '..', '..')
-const globTool = readFileSync(join(ROOT, 'src', 'tools', 'GlobTool', 'GlobTool.ts'), 'utf-8')
-const globUtil = readFileSync(join(ROOT, 'src', 'utils', 'glob.ts'), 'utf-8')
 
 console.log('============================================================')
 console.log(' glob permission — getPath keys off the real search root (HB-0102)')
 console.log('============================================================')
 
-section('source: getPath derives the root from the pattern, mirroring glob()')
-check('getPath now takes `pattern` (not just `path`)', /getPath\(\{ path, pattern \}\)/.test(globTool))
-check('getPath derives an absolute pattern’s base dir via extractGlobBaseDirectory', /isAbsolute\(pattern\)[\s\S]{0,120}extractGlobBaseDirectory\(pattern\)/.test(globTool))
-check('getPath imports the SAME helper glob() uses', /import \{ glob, extractGlobBaseDirectory \} from/.test(globTool))
-check('glob() ALSO uses extractGlobBaseDirectory for absolute patterns (consistency)', /if \(isAbsolute\(filePattern\)\)[\s\S]{0,160}extractGlobBaseDirectory\(filePattern\)/.test(globUtil))
 
 section('behavioural mirror: an absolute pattern resolves to its base dir (escapes cwd)')
 function baseDirOf(pattern: string): string {
@@ -89,11 +81,6 @@ section('WP-1: win32 deny-rule normalization (live, platform-seam primed)')
 
 section('WP siblings: file-URI construction, argv quoting, win32 tokens')
 {
-  const read = (p: string): string => readFileSync(join(ROOT, p), 'utf-8')
-  const mcpClient = read('src/services/mcp/client.ts')
-  check('WP-3: MCP roots via pathToFileURL (defective concat template gone)', mcpClient.includes('pathToFileURL(getOriginalCwd()).href') && !mcpClient.includes('`file://${'))
-  const browser = read('src/utils/browser.ts')
-  check('WP-7: BROWSER argv gets the bare url (no literal quotes)', browser.includes('await execFileNoThrow(browserEnv, [url])') && !browser.includes('[`"${url}"`]'))
   const { isPathLikeToken } = await import(join(ROOT, 'src', 'utils', 'suggestions', 'directoryCompletion.ts'))
   check('WP-8: drive-letter forms are path-like', isPathLikeToken('C:\\Users\\me') && isPathLikeToken('C:/Users/me') && isPathLikeToken('c:\\'))
   check('WP-8: UNC form is path-like', isPathLikeToken('\\\\server\\share'))

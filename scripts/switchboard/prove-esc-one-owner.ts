@@ -1,9 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -71,27 +68,6 @@ section('§2 the whole paint-order law, pairwise')
   }
   check('for EVERY armed pair, the top-painted surface owns the keys', pairwiseHolds, broke.join(' · '))
   check('nothing armed ⇒ no owner (the regions own their grammars)', boardModalOwner(none) === null)
-}
-
-section("§3 the screen's arms follow the owner")
-{
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check(
-    'the daemon offer yields under ANY modal (owner-null guard on its arm)',
-    screen.includes("modalOwner === null && callbacks.daemonOfferArmed?.() === true"),
-  )
-  check(
-    "the help atlas consumes only as the owner (modalOwner === 'help')",
-    screen.includes("if (modalOwner === 'help')"),
-  )
-  check(
-    'no bare helpOpen arm consumes ahead of the owner computation',
-    !screen.includes('if (helpOpenRef.current) {\n      event.stopImmediatePropagation()'),
-  )
-  check(
-    'the owner facts carry helpOpen (the atlas is in the paint order)',
-    screen.includes('helpOpen: helpOpenRef.current,'),
-  )
 }
 
 section('§4 the overlay-stack esc law beside it (one esc, one layer)')

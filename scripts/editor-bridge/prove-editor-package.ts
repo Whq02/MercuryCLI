@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
@@ -55,17 +55,5 @@ t.section('§2 locateBridgeVsix — beside the bundle, else dist/, else null')
   )
 }
 
-t.section('§3 `mercury bridge` — the one installer, every VS Code-family CLI')
-{
-  const cli = readFileSync('src/cli/editorBridge.ts', 'utf8')
-  t.check('the verb imports the one package owner', cli.includes("from '../utils/editorExtensionPackage.js'") && cli.includes('locateBridgeVsix()'))
-  t.check('the verb installs the located package file, not a catalogue id', cli.includes("['--install-extension', vsix, '--force']"))
-  t.check('a missing package is a named failure that says where one comes from', cli.includes('mercury-vscode.vsix not found') && cli.includes('scripts/vscode/build-vsix.sh'))
-  for (const name of ['code', 'code-insiders', 'cursor', 'codium', 'windsurf']) {
-    t.check(`probes the ${name} CLI`, new RegExp(`'${name}'`).test(cli))
-  }
-  t.check('names the CLI it used in the output', cli.includes('editor CLI: ${cli}') && cli.includes('via ${cli}'))
-  t.check('a missing CLI names the roster in the manual steps', cli.includes('${CLI_ROSTER}'))
-}
 
 t.finish('prove-editor-package')

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -35,12 +35,6 @@ if (process.argv[2] === '--child') {
     const { resolveCaptureDriver, captureEngineEntry, vshotBudgetMs } = await import('../lib/captureDriver.js')
     const driver = resolveCaptureDriver()
     if (driver.kind === 'unavailable') throw new Error(`${driver.reason}: ${driver.remedy}`)
-    if (comparison) {
-      const transpiler = new Bun.Transpiler({ loader: 'tsx' })
-      const old = transpiler.transformSync(readFileSync(join(comparison, 'src/tools/TransactionTool/UI.tsx'), 'utf8'))
-      const current = transpiler.transformSync(readFileSync(join(root, 'src/tools/TransactionTool/UI.tsx'), 'utf8'))
-      check('the replay renderer compiles byte-identically to the base', old === current)
-    }
     for (const cols of [120, 80]) {
       const capture = (source: string, label: string) => {
         const config = join(scratch, `${label}-${cols}.json`)
