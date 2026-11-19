@@ -1,11 +1,9 @@
-import { setInitialEngineModel, setEngineModelOverride, setMainThreadAgentType } from '../bootstrap/state.js'
-import { addBootNote } from '../substrate/bootNotes.js'
+import { setMainThreadAgentType } from '../bootstrap/state.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getAgentDefinitionsWithOverrides, computeActiveAgents, parseAgentsFromJson, type AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { logError } from '../utils/log.js'
-import { getDefaultEngineModelSetting, getEngineModel } from '../utils/model/model.js'
 import { initializeToolPermissionContext, stripDangerousPermissionsForFlow } from '../utils/permissions/permissionSetup.js'
 import { modeBypassesPermissions, type PermissionMode } from '../utils/permissions/PermissionMode.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
@@ -107,36 +105,4 @@ export async function resolveAgents(opts: RootOptions) {
     }
   }
   return { activeAgents, allAgents, mainThreadAgentDefinition }
-}
-
-export async function resolveModels(opts: RootOptions, runMode: boolean, mainThreadAgentDefinition: AgentDefinition | undefined) {
-  let userSpecifiedModel = typedString(opts.model)
-  if (userSpecifiedModel !== undefined && userSpecifiedModel !== 'default') {
-    const { matchReachableModelName, modelNameHeadlessRefusal } = await import('../utils/model/modelNameRoad.js')
-    const matched = matchReachableModelName(userSpecifiedModel, 'pass')
-    if (matched?.kind === 'match') {
-      addBootNote('info', `--model ${matched.said}`)
-      userSpecifiedModel = matched.id
-    } else if (matched?.kind === 'exact') {
-      userSpecifiedModel = matched.id
-    } else if (matched !== null && (matched.kind === 'ambiguous' || matched.kind === 'none')) {
-      if (runMode) failCli(modelNameHeadlessRefusal(matched, '--model'), 1)
-      addBootNote('warn', `${modelNameHeadlessRefusal(matched, '--model')} The session starts on its default model; /model picks another.`)
-      userSpecifiedModel = undefined
-    }
-  }
-  if (userSpecifiedModel === 'default') userSpecifiedModel = getDefaultEngineModelSetting() ?? undefined
-  let fallbackModel = typedString(opts.backupModel)
-  if (fallbackModel === 'default') fallbackModel = getDefaultEngineModelSetting() ?? undefined
-  if (!userSpecifiedModel && mainThreadAgentDefinition?.model && mainThreadAgentDefinition.model !== 'inherit') {
-    userSpecifiedModel = mainThreadAgentDefinition.model
-  }
-  if (userSpecifiedModel) setEngineModelOverride(userSpecifiedModel)
-  setInitialEngineModel(userSpecifiedModel ?? null)
-  if (runMode) {
-    const { readComputedDefaultCatalogue } = await import('../utils/model/computedDefault.js')
-    await readComputedDefaultCatalogue()
-  }
-  const resolvedInitialModel = getEngineModel()
-  return { userSpecifiedModel, fallbackModel, resolvedInitialModel }
 }

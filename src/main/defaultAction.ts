@@ -1,22 +1,24 @@
-import { getIsInteractive } from '../bootstrap/state.js'
+import { getIsInteractive, setInitialEngineModel, setEngineModelOverride } from '../bootstrap/state.js'
 import { getCommands } from '../commands.js'
 import { MERCURY_VERSION } from '../constants/product.js'
 import { getSystemContext, getUserContext } from '../context.js'
 import { initBundledSkills } from '../skills/bundled/index.js'
 import { getInstructionFiles } from '../services/instructions/engine.js'
+import { addBootNote } from '../substrate/bootNotes.js'
 import { flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
 import { recordLaunchMilestone } from '../substrate/launchMilestones.js'
 import { binaryName } from '../utils/config.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { startCapturingEarlyInput } from '../utils/earlyInput.js'
+import { getDefaultEngineModelSetting, getEngineModel } from '../utils/model/model.js'
 import { profileCheckpoint } from '../utils/startupProfiler.js'
 import { checkHasTrustDialogAccepted } from '../utils/config.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { setup } from '../setup.js'
-import { applyMergedConfigEnv, typedString, type RootOptions } from './cli.js'
-import { refuseFlagClashes, readBriefs, readRunFormats } from './bootFlags.js'
-import { resolveAgents, resolveModels, resolvePermissions, resolveThinkingConfig } from './sessionChoices.js'
-import { readRunPrompt } from './runPrompt.js'
+import { applyMergedConfigEnv, failCli, typedString, writeErr, type RootOptions } from './cli.js'
+import { readBriefFile, readRunFormats, refuseMissingTmux, refuseModeAndBriefClashes, refuseResumeClashes, refuseSchemaFlag, refuseSessionIdClash, refuseTerminalMismatch } from './bootFlags.js'
+import { resolveAgents, resolvePermissions, resolveThinkingConfig } from './sessionChoices.js'
+import { noStdinChunks, readStdinChunks, readStdinWithPeek, refuseEmptyRunPrompt, refuseSwallowedPrompt } from './runPrompt.js'
 import { resolveMcpConfigs } from './mcpConfigs.js'
 import { interactiveLaunch } from './interactiveLaunch.js'
 import { runLaunch } from './runLaunch.js'
@@ -35,10 +37,30 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
   const runMode = Boolean(opts.runMode)
   const runnerDoor = opts.runner === true
 
-  const { worktreeOpt, tmuxEnabled, sessionIdOpt } = await refuseFlagClashes(inputPromptArg, opts, { cliName, isNonInteractiveSession, runMode, runnerDoor })
-  const { customSystemPrompt, appendSystemPrompt } = await readBriefs(opts)
+  refuseTerminalMismatch(inputPromptArg, { cliName, isNonInteractiveSession, runMode, runnerDoor })
 
-  const { inputFormat, outputFormat, includePartialMessages } = await readRunFormats(opts, runMode, runnerDoor)
+  const worktreeOpt = opts.worktree as string | boolean | undefined
+  const tmuxEnabled = Boolean(opts.multiplex)
+  if (tmuxEnabled && !worktreeOpt) failCli('--multiplex requires --worktree')
+  if (tmuxEnabled && process.platform === 'win32') failCli('--multiplex is not supported on Windows')
+  if (tmuxEnabled) await refuseMissingTmux()
+
+  refuseResumeClashes(opts, runMode)
+  const sessionIdOpt = typedString(opts.sessionId)
+  if (sessionIdOpt) await refuseSessionIdClash(opts, sessionIdOpt)
+  refuseModeAndBriefClashes(opts, runMode, runnerDoor)
+  let customSystemPrompt = typedString(opts.brief)
+  let appendSystemPrompt = typedString(opts.briefAdd)
+  for (const [fileOpt, assign] of [
+    [typedString(opts.briefFile), (text: string) => (customSystemPrompt = text)],
+    [typedString(opts.briefAddFile), (text: string) => (appendSystemPrompt = text)],
+  ] as const) {
+    if (fileOpt) await readBriefFile(fileOpt, assign)
+  }
+
+  const { inputFormat, outputFormat, includePartialMessages } = readRunFormats(opts, runMode, runnerDoor)
+  const schemaFlag = runMode ? typedString(opts.schema) : undefined
+  if (schemaFlag !== undefined) await refuseSchemaFlag(schemaFlag)
 
   if (opts.lean) {
     setFlagEnv('MERCURY_BARE', '1')
@@ -67,11 +89,74 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
 
   const { activeAgents, allAgents, mainThreadAgentDefinition } = await resolveAgents(opts)
 
-  const { userSpecifiedModel, fallbackModel, resolvedInitialModel } = await resolveModels(opts, runMode, mainThreadAgentDefinition)
+  let userSpecifiedModel = typedString(opts.model)
+  if (userSpecifiedModel !== undefined && userSpecifiedModel !== 'default') {
+    const { matchReachableModelName, modelNameHeadlessRefusal } = await import('../utils/model/modelNameRoad.js')
+    const matched = matchReachableModelName(userSpecifiedModel, 'pass')
+    if (matched?.kind === 'match') {
+      addBootNote('info', `--model ${matched.said}`)
+      userSpecifiedModel = matched.id
+    } else if (matched?.kind === 'exact') {
+      userSpecifiedModel = matched.id
+    } else if (matched !== null && (matched.kind === 'ambiguous' || matched.kind === 'none')) {
+      if (runMode) failCli(modelNameHeadlessRefusal(matched, '--model'), 1)
+      addBootNote('warn', `${modelNameHeadlessRefusal(matched, '--model')} The session starts on its default model; /model picks another.`)
+      userSpecifiedModel = undefined
+    }
+  }
+  if (userSpecifiedModel === 'default') userSpecifiedModel = getDefaultEngineModelSetting() ?? undefined
+  let fallbackModel = typedString(opts.backupModel)
+  if (fallbackModel === 'default') fallbackModel = getDefaultEngineModelSetting() ?? undefined
+  if (!userSpecifiedModel && mainThreadAgentDefinition?.model && mainThreadAgentDefinition.model !== 'inherit') {
+    userSpecifiedModel = mainThreadAgentDefinition.model
+  }
+  if (userSpecifiedModel) setEngineModelOverride(userSpecifiedModel)
+  setInitialEngineModel(userSpecifiedModel ?? null)
+  if (runMode) {
+    const { readComputedDefaultCatalogue } = await import('../utils/model/computedDefault.js')
+    await readComputedDefaultCatalogue()
+  }
+  const resolvedInitialModel = getEngineModel()
 
   const sessionTitle = typedString(opts.title)?.trim() || undefined
 
-  const { prompt, syntaxInput } = await readRunPrompt({ opts, inputPrompt, runMode, runnerDoor, inputFormat, mainThreadAgentDefinition, cliName })
+  let prompt: string | AsyncIterable<string> | undefined = inputPrompt
+  let syntaxInput: string | undefined
+  if (runnerDoor) {
+    prompt = noStdinChunks()
+  } else if (!process.stdin.isTTY) {
+    if (inputFormat === 'rows') {
+      prompt = readStdinChunks()
+    } else {
+      const collected = await readStdinWithPeek(runMode ? (inputPrompt === undefined ? -1 : 1_000) : 3000)
+      if (collected === null && runMode && inputPrompt === undefined) failCli('mercury run could not read its prompt from stdin', 1)
+      if (collected === null && inputPrompt === undefined) {
+        writeErr(
+          'No stdin data arrived within 3s; proceeding without piped input. Redirect from the null device to skip the wait, or keep the pipe open longer to include its data.',
+        )
+      }
+      const pieces = [inputPrompt, collected ?? undefined].filter(
+        (piece): piece is string => typeof piece === 'string' && piece.length > 0,
+      )
+      if (runMode && collected) syntaxInput = inputPrompt ?? ''
+      prompt = runMode && inputPrompt && collected
+        ? `${inputPrompt}\n\n<stdin>\n${collected}${collected.endsWith('\n') ? '' : '\n'}</stdin>`
+        : pieces.length > 0 ? pieces.join('\n') : undefined
+    }
+  }
+
+  refuseSwallowedPrompt({ opts, prompt, runMode, inputFormat, mainThreadAgentDefinition, cliName })
+
+  if (mainThreadAgentDefinition?.initialPrompt) {
+    if (typeof prompt === 'string') {
+      prompt = `${mainThreadAgentDefinition.initialPrompt}\n${prompt}`
+      if (syntaxInput !== undefined) syntaxInput = `${mainThreadAgentDefinition.initialPrompt}\n${syntaxInput}`
+    } else if (prompt === undefined) {
+      prompt = mainThreadAgentDefinition.initialPrompt
+    }
+  }
+
+  refuseEmptyRunPrompt(opts, prompt, runMode, inputFormat)
 
   const { mcpConfigPromise, regularDynamicMcpConfig } = resolveMcpConfigs(opts)
 
