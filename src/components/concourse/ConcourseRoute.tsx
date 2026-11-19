@@ -1,14 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { readFileSync } from 'node:fs';
-import { basename, dirname } from 'node:path';
-import { flagEnv } from '../../substrate/flagRegistry.js';
+import { basename } from 'node:path';
 import { logForDebugging } from '../../utils/debug.js';
 import { getCwd } from '../../utils/cwd.js';
 import { getInitialEffortSetting } from '../../utils/effort.js';
 import { armFaceDoorDeepLink } from '../../substrate/splashHandover.js';
 import {
   chatOnlyBoot,
-  chatPresent,
   consumeEntryDecisionInput,
   enterBootSettings,
   enterRootChat,
@@ -17,196 +14,34 @@ import {
   surfaceGeneration,
 } from '../../context/surfaceRoute.js';
 import {
-  buildConcourseSnapshot,
   dispatchSeedInputs,
   markParkedCleared,
   markSessionSeen,
   OLDER_CHATS_ROW_PREFIX,
   readConcourseSeedOverrides,
   resolveHarnessGround,
-  sanitizeLabel,
-  subscribeConcourseDraft,
   writeConcourseDraft,
   writeConcourseSeedOverride,
 } from '../../services/concourse/concourseSnapshot.js';
-import { subscribeObligations, resolveObligation } from '../../services/crew/obligations.js';
-import { subscribeCurrentProject } from '../../utils/bootCardFacts.js';
-import { getFocusedSessionConnector, hasFocusedSession, subscribeFocusedSessionConnector, withLanding } from '../../services/engine-connector/focusedConnector.js';
+import { resolveObligation } from '../../services/crew/obligations.js';
+import { getFocusedSessionConnector, hasFocusedSession, withLanding } from '../../services/engine-connector/focusedConnector.js';
 import { armEntryWarmth, settleEntryWarmth } from '../../services/concourse/sessionWarmth.js';
 import { removePrefixRecord } from '../../services/providers/anthropic/prefixRecordStore.js';
-import type { ConcourseCallbacks, ConcourseSnapshotV1, ControlNoteState } from './contracts.js';
+import type { ConcourseCallbacks, ControlNoteState } from './contracts.js';
 import { CONTROL_NOTE_REFUSED_MS, CONTROL_NOTE_SETTLED_MS, controlNoteOf, concourseWaitCopy } from './contracts.js';
-import { Box, Text, useInput, useTheme } from '../../ink.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
-import { resolveMercuryTokens } from '../../utils/mercuryTokens.js';
 import { splitAvailableAt, splitViewOn } from './splitView.js';
-import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
-import { rampSegments } from '../mercury-ui/focalRamp.js';
-import { useGreetingShimmer } from '../mercury-ui/useGreetingShimmer.js';
-import { displayWidth } from '../mercury-ui/glyphs.js';
-import { useSessionAccent } from '../mercury-ui/sessionAccent.js';
 import { ConcourseScreen } from './ConcourseScreen.js';
 import { SessionWaitingRoom } from './SessionWaitingRoom.js';
 import { thisMercuryCommand } from '../../services/privateChannel/installPath.js';
 import { sleep } from '../../utils/sleep.js';
+import { ConcourseAssemblingShell } from './route/Assembling.js';
+import { noteFromReceipt, rowReceipt, rowReceiptClock } from './route/receipts.js';
+import { readFixtureSnapshot, useConcourseSnapshot } from './route/useConcourseSnapshot.js';
 
+export { makeCoalescedRebuild } from './route/useConcourseSnapshot.js';
 
-let lastCoherentSnapshot: ConcourseSnapshotV1 | null = null
-
-export function makeCoalescedRebuild(
-  runBuild: () => Promise<void>,
-  isAlive: () => boolean,
-): () => void {
-  let active = false
-  let pending = false
-  const kick = (): void => {
-    if (active) {
-      pending = true
-      return
-    }
-    active = true
-    void runBuild().finally(() => {
-      active = false
-      if (pending && isAlive()) {
-        pending = false
-        kick()
-      }
-    })
-  }
-  return kick
-}
-
-function useConcourseSnapshot(): {
-  snapshot: ConcourseSnapshotV1 | null
-  failing: boolean
-  setPeek: (sessionId: string) => void
-  noteResident: (state: 'wink' | 'refused' | 'held', reason?: string) => void
-  refresh: () => void
-} {
-  const [snapshot, setSnapshot] = useState<ConcourseSnapshotV1 | null>(lastCoherentSnapshot)
-  const [failing, setFailing] = useState(false)
-  const peekRef = useRef<string | undefined>(undefined)
-  const residentRef = useRef<'wink' | 'refused' | 'held' | undefined>(undefined)
-  const residentReasonRef = useRef<string | undefined>(undefined)
-  const alive = useRef(true)
-  const buildSeq = useRef(0)
-  const rebuild = useMemo(
-    () =>
-      makeCoalescedRebuild(async () => {
-        const seq = ++buildSeq.current
-        try {
-          const s = await buildConcourseSnapshot({
-            ...(peekRef.current !== undefined ? { peekSessionId: peekRef.current } : {}),
-            ...(residentRef.current !== undefined ? { residentOverride: residentRef.current } : {}),
-          })
-          if (!alive.current || seq !== buildSeq.current) return
-          const reason = residentReasonRef.current
-          const next =
-            reason !== undefined && s.peek !== null
-              ? { ...s, peek: { ...s.peek, residentReason: reason } }
-              : s
-          lastCoherentSnapshot = next
-          setSnapshot(next)
-          setFailing(false)
-        } catch (e) {
-          logForDebugging(`[concourse] snapshot rebuild failed: ${e}`)
-          if (alive.current && seq === buildSeq.current) setFailing(true)
-        }
-      }, () => alive.current),
-    [],
-  )
-  useEffect(() => {
-    alive.current = true
-    rebuild()
-    const unsubObl = subscribeObligations(
-      () => {
-        rebuild()
-      },
-      { scope: 'switchboard' },
-    )
-    const unsubDraft = subscribeConcourseDraft(rebuild)
-    const unsubProject = subscribeCurrentProject(rebuild)
-    const unsubSlot = subscribeFocusedSessionConnector(() => rebuild())
-    let watcher: import('node:fs').FSWatcher | null = null
-    let lastDelta = ''
-    void Promise.all([import('../../daemon/concourseWorkers.js'), import('node:fs')])
-      .then(([sup, fs]) => {
-        if (!alive.current) return
-        const deltaPath = sup.concourseDeltaPath()
-        const dir = dirname(deltaPath)
-        const name = basename(deltaPath)
-        try {
-          fs.mkdirSync(dir, { recursive: true })
-          watcher = fs.watch(dir, (_ev, file) => {
-            if (file !== null && file !== name) return
-            try {
-              const raw = fs.readFileSync(deltaPath, 'utf8')
-              const stamp = JSON.parse(raw) as { pid?: number; revision?: number }
-              const key = `${stamp.pid ?? 0}:${stamp.revision ?? 0}`
-              if (key === lastDelta) return
-              lastDelta = key
-            } catch {
-            }
-            rebuild()
-          })
-          watcher.on('error', () => {
-            try {
-              watcher?.close()
-            } catch {
-            }
-            watcher = null
-          })
-        } catch {
-        }
-      })
-      .catch(() => {})
-    const timer = setInterval(rebuild, 15_000)
-    timer.unref?.()
-    return () => {
-      alive.current = false
-      unsubObl()
-      unsubDraft()
-      unsubProject()
-      unsubSlot()
-      watcher?.close()
-      clearInterval(timer)
-    }
-  }, [rebuild])
-  return {
-    snapshot,
-    setPeek: (sessionId: string) => {
-      peekRef.current = sessionId
-      residentRef.current = undefined
-      rebuild()
-    },
-    noteResident: (state: 'wink' | 'refused' | 'held', reason?: string) => {
-      residentRef.current = state
-      residentReasonRef.current = reason
-      rebuild()
-    },
-    refresh: rebuild,
-    failing,
-  }
-}
-
-function readFixtureSnapshot(): ConcourseSnapshotV1 | null {
-  try {
-    const path = flagEnv('MERCURY_CONCOURSE_FIXTURE')
-    if (!path) return null
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as ConcourseSnapshotV1
-    if (parsed.schema !== 1) return null
-    const floor = <T extends { title: string }>(r: T): T => ({ ...r, title: sanitizeLabel(r.title) })
-    return {
-      ...parsed,
-      needsYou: parsed.needsYou.map(o => ({ ...floor(o), question: sanitizeLabel(o.question) })),
-      groups: parsed.groups.map(g => ({ ...g, rows: g.rows.map(floor) })),
-      peek: parsed.peek ? floor(parsed.peek) : null,
-    }
-  } catch {
-    return null
-  }
-}
 
 async function restFocusedSlotAfterRelease(
   sessionId: string,
@@ -258,28 +93,6 @@ function LiveConcourse(): React.ReactNode {
     },
     [],
   )
-  const rowReceiptClock = (): string => {
-    const d = new Date()
-    const p = (n: number): string => String(n).padStart(2, '0')
-    return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
-  }
-  const rowReceipt = (what: string): string => `${what} — you · ${rowReceiptClock()}`
-  const noteFromReceipt = (receipt: { outcome?: string; detail?: string }): ControlNoteState =>
-    receipt.outcome === 'applied'
-      ? 'applied'
-      : receipt.outcome === 'noop'
-        ? { state: 'applied', reason: receipt.detail ?? 'no change' }
-        : receipt.outcome === 'failed'
-          ? {
-              state: 'failed',
-              reason: receipt.detail ?? 'the daemon did not answer',
-              next: '↵ retries the same request',
-            }
-          : {
-              state: 'refused',
-              ...(receipt.detail !== undefined ? { reason: receipt.detail } : {}),
-              next: 'the draft is kept · ↵ retries',
-            }
   const noteControl = useCallback((control: string, state: ControlNoteState): void => {
     setControlNotes(prev => ({ ...prev, [control]: state }))
     const mySeq = ++noteSeqRef.current
@@ -1507,67 +1320,6 @@ function LiveConcourse(): React.ReactNode {
       controlNotes={controlNotes}
       reducedStage={chatOnlyBoot()}
     />
-  )
-}
-
-function ConcourseLockup(): React.ReactNode {
-  const t = useMercuryTokens()
-  const [theme] = useTheme()
-  const sa = useSessionAccent()
-  const ramp = resolveMercuryTokens(theme, sa.accent).focalRamp
-  const shimmer = useGreetingShimmer(ramp, displayWidth('MERCURY — SESSION CONCOURSE'))
-  if (ramp.length <= 1) {
-    return (
-      <Text bold color={t.info} wrap="truncate-end">
-        MERCURY — SESSION CONCOURSE
-      </Text>
-    )
-  }
-  return (
-    <Text wrap="truncate-end">
-      {rampSegments('MERCURY — SESSION CONCOURSE', ramp, { shimmer }).map((s, i) => (
-        <Text key={i} bold color={s.color}>
-          {s.text}
-        </Text>
-      ))}
-    </Text>
-  )
-}
-
-function ConcourseAssemblingShell({ failing, onRetry }: { failing: boolean; onRetry: () => void }): React.ReactNode {
-  const t = useMercuryTokens()
-  const { rows: termRows } = useTerminalSize()
-  const escLabel = chatPresent() ? 'esc focused chat' : 'esc boot face'
-  useInput((input, key, event) => {
-    if (key.escape) {
-      event.stopImmediatePropagation()
-      if (!enterRootChat().ok) enterBootSettings()
-      return
-    }
-    if (key.ctrl && input === 'r') {
-      event.stopImmediatePropagation()
-      onRetry()
-      return
-    }
-  })
-  return (
-    <Box flexDirection="column" width="100%" height={termRows} paddingX={2} alignItems="center" justifyContent="center">
-      <Box flexDirection="column" borderStyle="round" borderColor={failing ? t.warning : t.info} paddingX={3} paddingY={1} alignItems="center">
-        {}
-        <ConcourseLockup />
-        {failing ? (
-          <>
-            <Text color={t.warning}>the live view is unavailable — nothing loaded yet</Text>
-            <Text color={t.textMuted}>{`${keyHintLabel('⌃r')} retry · ${escLabel}`}</Text>
-          </>
-        ) : (
-          <>
-            <Text color={t.textSecondary}>assembling the concourse…</Text>
-            <Text color={t.textMuted}>{escLabel}</Text>
-          </>
-        )}
-      </Box>
-    </Box>
   )
 }
 
