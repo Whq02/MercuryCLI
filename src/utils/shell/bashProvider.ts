@@ -17,6 +17,7 @@ import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPlatform } from '../platform.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
+import { protectBackslashRunsFromMsysArgv } from './msysArgv.js'
 import type { BuildExecCommandOptions, ShellProvider } from './shellProvider.js'
 import { PIPELINE_STATUS_ARRAY, loginFilesNotCarried, type ShellRecord } from './shellRecord.js'
 
@@ -28,13 +29,7 @@ function shellPrefix(): string {
   return flagEnv('MERCURY_SHELL_PREFIX') ?? ''
 }
 
-const MSYS_ARGV_HALVED_BACKSLASH_RUN_RE = /\\{2,}(?=[^\\"])/g
-
 const MSYS_ARGUMENT_KEEPS = 8186
-
-function protectBackslashRunsFromMsysArgv(script: string): string {
-  return script.replace(MSYS_ARGV_HALVED_BACKSLASH_RUN_RE, run => run + run)
-}
 
 function markFrameRead(cwdFileInShell: string): string {
   return `{ : >| ${quote([cwdFileInShell])}; } 2>/dev/null`
