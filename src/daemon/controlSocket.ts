@@ -9,6 +9,7 @@ import {
   writeFile,
   unlink,
   chmod,
+  stat,
 } from 'node:fs/promises'
 import { loadavg, platform, tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -18,6 +19,7 @@ import { directoryIdentity } from '../utils/directoryIdentity.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { availableCores } from '../utils/availableCores.js'
 import { logForDebugging } from '../utils/debug.js'
+import { errorMessage, getErrnoCode } from '../utils/errors.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import {
@@ -210,7 +212,21 @@ export async function mintControlKey(): Promise<string> {
   const key = randomBytes(32).toString('hex')
   await mkdir(daemonDir(), { recursive: true })
   await writeFile(controlKeyPath(), key, { mode: 0o600 })
-  await chmod(controlKeyPath(), 0o600).catch(() => {})
+  await chmod(controlKeyPath(), 0o600).catch(async (err: unknown) => {
+    if (process.platform === 'win32') return
+    const path = controlKeyPath()
+    const code = getErrnoCode(err) ?? errorMessage(err)
+    let owner: number
+    try {
+      owner = (await stat(path)).uid
+    } catch (statErr) {
+      throw new Error(`the control key ${path} could not be made private (${code}) and its owner could not be read (${getErrnoCode(statErr) ?? errorMessage(statErr)}) — remove it and start the daemon again`)
+    }
+    if (owner !== process.getuid?.()) {
+      throw new Error(`the control key ${path} belongs to another user and could not be made private (${code}) — remove it and start the daemon again`)
+    }
+    console.error(`[daemon] the control key ${path} could not be made private (${code}): its filesystem takes no file mode`)
+  })
   return key
 }
 
