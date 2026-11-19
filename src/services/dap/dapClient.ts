@@ -1,6 +1,6 @@
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { DapCancelledError, throwIfDapAborted, waitForDap } from './dapCancellation.js'
+import { DapCancelledError, throwIfDapAborted } from './dapCancellation.js'
 import type { DapTerminalRunner } from './dapTerminal.js'
 import { createServer as createNetServer, type Socket } from 'node:net'
 import { pythonSpawnEnv } from './debugpyResolver.js'
@@ -16,7 +16,6 @@ import { logForDebugging } from '../../utils/debug.js'
 import { endProcessTree, endProcessTreeSurvivors, strikeProcessGroupNow } from '../../utils/processGroup.js'
 import { dormantBuiltinAdapterHints, knownAdapterKeys, resolveAdapter } from './client/adapters.js'
 import { dialListener, listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
-import { adapterSilenceMessage } from './client/probes.js'
 import {
   dataBreakpointInfo,
   setBreakpoints,
@@ -25,9 +24,10 @@ import {
   setInstructionBreakpoints,
   writeMemory,
 } from './client/breakpoints.js'
-import { startBodyOf, type DapStartOptions } from './client/launch.js'
+import type { DapStartOptions } from './client/launch.js'
 import { MessagesPart } from './client/messages.js'
 import { OutputPart } from './client/output.js'
+import { StartPart } from './client/start.js'
 import { childBoundRefusal, ReversePart } from './client/reverse.js'
 import { TerminalPart } from './client/terminal.js'
 import { WirePart } from './client/wire.js'
@@ -42,7 +42,6 @@ import {
   treeVerifiedFunctionBreakpoints,
 } from './client/tree.js'
 import {
-  CLIENT_INIT_ARGS,
   OUTPUT_RING_MAX,
   REQUEST_TIMEOUT_MS,
   type DapAdapterSpec,
@@ -150,7 +149,7 @@ export class DapSession {
     childBoundRefusal: () => childBoundRefusal(this),
     createChildSession: configuration => this.#createChildSession(configuration),
     operationSignal: () => this.#operationSignal ?? this.root().#operationSignal,
-    runChildDance: (child, requestKind, configuration) => child.#runChildDance(requestKind, configuration),
+    runChildDance: (child, requestKind, configuration) => child.#start.runChildDance(requestKind, configuration),
     runInTerminal: msg => this.#terminal.runInTerminal(msg),
   })
   #messages: MessagesPart = new MessagesPart(this, {
@@ -168,8 +167,14 @@ export class DapSession {
   #initializedEvent: Promise<void>
   #resolveInitialized!: () => void
   #stateWaiters = new Set<() => void>()
-  #requestedBreakpoints: Map<string, Array<number | DapBreakpointSpec>> | null = null
-  #requestedFunctionBreakpoints: DapFunctionBreakpointSpec[] | null = null
+  #start: StartPart = new StartPart(this, {
+    rootStart: () => this.root().#start,
+    initializedEvent: () => this.#initializedEvent,
+    operationSignal: () => this.#operationSignal ?? this.root().#operationSignal,
+    spec: () => this.#spec,
+    cwd: () => this.#cwd,
+    pushOutput: line => this.#pushOutput(line),
+  })
   readonly children: DapSession[] = []
   readonly parentSession: DapSession | null
   readonly label: string
@@ -339,30 +344,11 @@ export class DapSession {
     return treeVerifiedBreakpoints(this)
   }
 
-  async setBreakpointsTree(
+  setBreakpointsTree(
     path: string,
     breakpoints: Array<number | DapBreakpointSpec>,
   ): Promise<Array<{ line: number; verified: boolean; message?: string; id?: number; verifier?: string }>> {
-    const root = this.root()
-    const clearing = breakpoints.length === 0
-    if (clearing) {
-      root.#requestedBreakpoints?.delete(path)
-    } else {
-      if (!root.#requestedBreakpoints) root.#requestedBreakpoints = new Map()
-      root.#requestedBreakpoints.set(path, breakpoints)
-    }
-    for (const s of root.treeSessions()) {
-      if (!s.alive) {
-        s.breakpoints.delete(path)
-        continue
-      }
-      try {
-        await s.setBreakpoints(path, breakpoints)
-      } catch (err) {
-        this.#pushOutput(`[dap] breakpoints for ${path} on '${s.label}' failed: ${(err as Error).message}`)
-      }
-    }
-    return root.treeVerifiedBreakpoints().get(path) ?? []
+    return this.#start.setBreakpointsTree(path, breakpoints)
   }
 
   acceptsFunctionBreakpoints(): boolean {
@@ -373,24 +359,10 @@ export class DapSession {
     return treeVerifiedFunctionBreakpoints(this)
   }
 
-  async setFunctionBreakpointsTree(
+  setFunctionBreakpointsTree(
     specs: DapFunctionBreakpointSpec[],
   ): Promise<Array<{ name: string; verified: boolean; message?: string; id?: number; verifier?: string }>> {
-    const root = this.root()
-    root.#requestedFunctionBreakpoints = specs.length > 0 ? specs : null
-    for (const s of root.treeSessions()) {
-      if (!s.alive) {
-        s.functionBreakpoints = []
-        continue
-      }
-      if (!s.acceptsFunctionBreakpoints()) continue
-      try {
-        await s.setFunctionBreakpoints(specs)
-      } catch (err) {
-        this.#pushOutput(`[dap] function breakpoints on '${s.label}' failed: ${(err as Error).message}`)
-      }
-    }
-    return root.treeVerifiedFunctionBreakpoints()
+    return this.#start.setFunctionBreakpointsTree(specs)
   }
 
   treeTerminated(): boolean {
@@ -468,42 +440,6 @@ export class DapSession {
     return child
   }
 
-  async #runChildDance(
-    requestKind: 'launch' | 'attach',
-    configuration: Record<string, unknown>,
-  ): Promise<void> {
-    this.startMode = requestKind
-    this.capabilities = await this.request('initialize', {
-      ...CLIENT_INIT_ARGS,
-      adapterID: this.adapterKey,
-    })
-    const startDone = this.request(requestKind, configuration, 20_000)
-    startDone.catch(() => {})
-    const sawInitialized = await waitForDap(this.#initializedEvent.then(() => true), this.#operationSignal ?? this.root().#operationSignal, 10_000)
-    if (!sawInitialized) {
-      throw new Error(adapterSilenceMessage('child adapter never sent initialized (10s)', this.adapterKey))
-    }
-    const requested = this.root().#requestedBreakpoints
-    if (requested) {
-      for (const [path, lines] of requested) {
-        await this.setBreakpoints(path, lines).catch(err =>
-          this.#pushOutput(
-            `[dap] child '${this.label}' breakpoints for ${path} failed: ${(err as Error).message}`,
-          ),
-        )
-      }
-    }
-    const requestedFunctions = this.root().#requestedFunctionBreakpoints
-    if (requestedFunctions && this.acceptsFunctionBreakpoints()) {
-      await this.setFunctionBreakpoints(requestedFunctions).catch(err =>
-        this.#pushOutput(`[dap] child '${this.label}' function breakpoints failed: ${(err as Error).message}`),
-      )
-    }
-    await this.request('configurationDone').catch(() => {
-    })
-    await startDone
-  }
-
   terminalProcessCount(): number {
     return this.treeSessions().reduce((count, session) => count + session.#terminal.processes().size, 0)
   }
@@ -532,51 +468,8 @@ export class DapSession {
     return this.#wire.request(command, args, timeoutMs, signal)
   }
 
-  async launch(options: DapStartOptions): Promise<void> {
-    this.#requestedBreakpoints = options.breakpoints ?? null
-    this.capabilities = await this.request('initialize', {
-      ...CLIENT_INIT_ARGS,
-      adapterID: this.adapterKey,
-    }).catch((error: unknown) => {
-      if (this.#listener === null || !(error instanceof Error) || !/timed out/.test(error.message)) throw error
-      throw new Error(`the program listening at ${this.#listener.host}:${this.#listener.port} did not answer initialize within ${REQUEST_TIMEOUT_MS}ms — is it a debugpy --listen socket?`)
-    })
-    const attach = options.mode === 'attach' || this.#spec.startRequest === 'attach'
-    this.startMode = attach ? 'attach' : 'launch'
-    const startBody = startBodyOf(this.#spec, this.#cwd, options, attach)
-    const launchDone = this.request(attach ? 'attach' : 'launch', startBody, 20_000)
-    launchDone.catch(() => {})
-    const initializedTimeoutMs = options.noDebug ? 2_000 : 10_000
-    const sawInitialized = await waitForDap(this.#initializedEvent.then(() => true), this.#operationSignal ?? this.root().#operationSignal, initializedTimeoutMs)
-    if (!sawInitialized && !options.noDebug) {
-      if (this.#listener !== null) {
-        throw new Error(`the program listening at ${this.#listener.host}:${this.#listener.port} never sent initialized (10s) — is it a debugpy --listen socket?`)
-      }
-      throw new Error(adapterSilenceMessage('adapter never sent initialized (10s)', this.adapterKey))
-    }
-    if (sawInitialized) {
-      if (options.breakpoints && !options.noDebug) {
-        for (const [path, lines] of options.breakpoints) {
-          try {
-            await this.setBreakpoints(path, lines)
-          } catch (err) {
-            this.#recordUnboundBreakpoints(path, lines, err)
-          }
-        }
-      }
-      await this.request('configurationDone').catch(() => {
-      })
-    }
-    await launchDone
-  }
-
-  #recordUnboundBreakpoints(path: string, breakpoints: Array<number | DapBreakpointSpec>, err: unknown): void {
-    const reason = err instanceof Error ? err.message : String(err)
-    this.breakpoints.set(
-      path,
-      breakpoints.map(b => ({ line: typeof b === 'number' ? b : b.line, verified: false, message: `setBreakpoints failed: ${reason}` })),
-    )
-    this.#pushOutput(`[dap] breakpoints for ${path} on '${this.label}' failed: ${reason} — the program runs without them; op:"breakpoints" retries the binding`)
+  launch(options: DapStartOptions): Promise<void> {
+    return this.#start.launch(options)
   }
 
   setBreakpoints(
