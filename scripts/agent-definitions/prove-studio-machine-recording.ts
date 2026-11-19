@@ -217,6 +217,8 @@ const THEIR_RAW = '---\nname: fixture-scout\ndescription: Their newer descriptio
 const DRAFT_RAW = '---\nname: recovered-scout\ndescription: A draft left behind by a previous session for recovery.\n---\nThe recovered body, long enough to stand as a lawful system prompt.\n'
 const CLEAN_RAW = '---\nname: raw-scout\ndescription: A clean raw replacement written through the editor door.\n---\nA lawful replacement body, long enough for the validation floor.\n'
 const NAMELESS_RAW = '---\ndescription: no name here\n---\nA body without a name key above it, long enough to pass length.\n'
+const HOOKED_RAW = BASE_RAW.replace('maxTurns: 5\n', 'maxTurns: 5\nhooks:\n  PreToolUse: []\n')
+const DOUBLED_RAW = '---\nname: first-scout\nname: second-scout\ndescription: one\ndescription: two\ntools: Read\ntools: Write\nmodel: opus\nmodel: haiku\n---\nA body under keys written twice, long enough for the floor.\n'
 const LONG_PROMPT = 'You are the walk scout. Walk the whole estate and report faithfully.'
 const GENERATED: Generated = {
   identifier: 'made-scout',
@@ -276,6 +278,20 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
     s.call('setView', { kind: 'raw' })
     s.call('guidedModel', 'haiku')
     s.call('reviewEscape')
+  }],
+  ['the guided steps over a document whose keys the codec will not patch', async lines => {
+    const s = stage(lines, { mode: 'create' })
+    s.call('loadRaw', DOUBLED_RAW)
+    s.call('guidedIdentity', 'patched-scout')
+    s.call('guidedDescription', 'Use this agent when a patch is refused.')
+    s.call('guidedTools', ['Read'])
+    s.call('guidedTools', undefined)
+    s.call('guidedModel', 'opus')
+    s.call('guidedModel', 'inherit')
+    s.call('guidedPrompt', LONG_PROMPT)
+    s.call('setView', ADVANCED)
+    s.call('openFieldEditor', 'name')
+    s.call('commitTextField', 'name', 'patched-scout')
   }],
   ['the text fields of the advanced list', async lines => {
     const s = stage(lines, { mode: 'create' })
@@ -410,6 +426,7 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
     await s.drain()
     const edited = stage(lines, { mode: 'edit', base: { filePath: BASE_PATH, raw: BASE_RAW, revision: 'rev-of-the-listing' } })
     edited.call('commit', { set: { maxTurns: 6 } })
+    edited.drafts.push(draftOf('/drafts/edit.json', DRAFT_RAW, BASE_PATH), draftOf('/drafts/other.json', DRAFT_RAW, '/repo/.mercury/agents/other-scout.md'), draftOf('/drafts/new.json', DRAFT_RAW))
     edited.call('save')
     await edited.drain()
     const unread = stage(lines, { mode: 'edit', base: { filePath: BASE_PATH, raw: null, revision: 'rev-of-the-listing' } })
@@ -429,7 +446,7 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
     s.plan.saveDocument = async () => receipt(['skills'])
     s.call('save')
     await s.drain()
-    const kept = stage(lines, { mode: 'edit', base: { filePath: BASE_PATH, raw: BASE_RAW } })
+    const kept = stage(lines, { mode: 'edit', base: { filePath: BASE_PATH, raw: HOOKED_RAW } })
     kept.call('commit', { set: { description: 'My newer description, edited in this draft with intent.' } })
     kept.plan.saveDocument = () => Promise.reject(new AgentStoreError('revision-conflict', 'revision moved', { currentRaw: THEIR_RAW }))
     kept.call('save')
