@@ -10,19 +10,16 @@ import { useActionAffordance } from '../../../keybindings/useShortcutDisplay.js'
 import { useAppState } from '../../../state/AppState.js'
 import type { AppState } from '../../../state/AppState.js'
 import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
-import { DISCUSS_OPTION_LABEL } from '../../../tools/AskUserQuestionTool/prompt.js'
 import { APOLLO_OPTION_LETTERS } from '../../../tools/AskUserQuestionTool/apolloLetters.js'
 import { normalizePastedInput } from '../../../input-core/composer-document.js'
 import { editorDisplayName, getExternalEditor } from '../../../utils/editor.js'
 import { PASTE_THRESHOLD } from '../../../utils/imagePaste.js'
 import { editPromptInEditor } from '../../../utils/promptEditor.js'
-import { Divider } from '../../design-system/Divider.js'
 import { decodeDomNavKey } from '../../mercury-ui/navSemantics.js'
 import TextInput from '../../TextInput.js'
-import { PermissionRequestTitle } from '../PermissionRequestTitle.js'
 import { resolveInterviewLayout } from './interviewLayout.js'
 import { PreviewBox } from './PreviewBox.js'
-import { QuestionNavigationBar } from './QuestionNavigationBar.js'
+import { previewQuestionBody } from './previewQuestionBody.js'
 import type { QuestionState } from './questionState.js'
 
 type Props = {
@@ -306,60 +303,5 @@ export function PreviewQuestionView({
     />
   )
 
-  return (
-    <Box flexDirection="column" marginTop={1} tabIndex={0} autoFocus onKeyDown={handleKeyDown}>
-      <Divider color="inactive" />
-      <Box flexDirection="column" paddingTop={0}>
-        <QuestionNavigationBar
-          questions={questions}
-          currentQuestionIndex={currentQuestionIndex}
-          answers={answers}
-          hideSubmitTab={hideSubmitTab}
-        />
-        <PermissionRequestTitle title={question.question} color={'text'} />
-
-        <Box flexDirection="column" minHeight={minContentHeight}>
-          {layout.mode === 'side-by-side' ? (
-            <Box marginTop={1} flexDirection="row" gap={2}>
-              <Box flexDirection="column" width={layout.optionPaneWidth}>
-                {optionRows}
-              </Box>
-              <Box flexDirection="column" flexGrow={1}>
-                {previewBox}
-                {notesRow}
-              </Box>
-            </Box>
-          ) : (
-            <Box marginTop={1} flexDirection="column">
-              <Box flexDirection="column">{optionRows}</Box>
-              {layout.mode === 'stacked' && <Box marginTop={1}>{previewBox}</Box>}
-              {notesRow}
-            </Box>
-          )}
-
-          <Box flexDirection="column" marginTop={1}>
-            <Divider color="inactive" />
-            <Box flexDirection="row" gap={1} onClick={onRespondToModel}>
-              {isFooterFocused ? (
-                <Text color="suggestion">{figures.pointer}</Text>
-              ) : (
-                <Text> </Text>
-              )}
-              <Text color={isFooterFocused ? 'suggestion' : undefined}>
-                {DISCUSS_OPTION_LABEL}
-              </Text>
-            </Box>
-          </Box>
-          <Box marginTop={1}>
-            <Text color="inactive" dimColor>
-              Enter to select · {figures.arrowUp}/{figures.arrowDown} to navigate · n to add notes
-              {questions.length > 1 && <> · Tab to switch questions</>}
-              {isInNotesInput && editorName && editorKey && <> · {editorKey} to edit in {editorName}</>}{' '}
-              · Esc to cancel
-            </Text>
-          </Box>
-        </Box>
-      </Box>
-    </Box>
-  )
+  return previewQuestionBody({ handleKeyDown, questions, currentQuestionIndex, answers, hideSubmitTab, question, minContentHeight, layout, optionRows, previewBox, notesRow, onRespondToModel, isFooterFocused, isInNotesInput, editorName, editorKey })
 }
