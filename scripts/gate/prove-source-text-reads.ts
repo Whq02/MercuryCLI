@@ -22,7 +22,20 @@ const digestOf = (files: Iterable<string>): string =>
     .digest('hex')
     .slice(0, 12)
 
-const rowOf = (f: Facts): Row => ({ pins: f.pins.size, searches: f.searches.length, digest: digestOf(f.pins.keys()) })
+function doorOf(file: string): string | null {
+  const folder = file.slice(0, file.lastIndexOf('/'))
+  for (const ext of ['.ts', '.tsx']) if (existsSync(join(ROOT, folder + ext))) return folder + ext
+  return null
+}
+
+function rowOf(f: Facts): Row {
+  const opened = new Set(f.pins.keys())
+  const counted = [...opened].filter(file => {
+    const door = doorOf(file)
+    return door === null || !opened.has(door)
+  })
+  return { pins: counted.length, searches: f.searches.length, digest: digestOf(counted) }
+}
 
 function rowsOf(facts: Map<string, Facts>): Table {
   const rows: Table = new Map()
