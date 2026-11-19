@@ -2,7 +2,7 @@
   "note": "legacy write-route ratchet — may only SHRINK",
   "publish": [
     "src/components/Feedback.tsx",
-    "src/daemon/concourseWorkers.ts",
+    "src/daemon/concourseWorkers/revive.ts",
     "src/daemon/ownedDaemon.ts",
     "src/daemon/processSweepRun.ts",
     "src/extensions/records.ts",
@@ -30,6 +30,7 @@
     "src/services/providers/nous/nousOauth.ts",
     "src/services/providers/openai/openaiAccounts.ts",
     "src/services/providers/openrouter/openrouterAccounts.ts",
+    "src/services/providers/providerSecrets.ts",
     "src/services/providers/xai/xaiOauth.ts",
     "src/services/repoHost/repoHost.ts",
     "src/services/run/runSidecar.ts",
@@ -40,7 +41,7 @@
     "src/substrate/pidLock.ts",
     "src/substrate/recoveryOrchestrator.ts",
     "src/tasks/taskOutcomeEnvelope.ts",
-    "src/tools/LSPTool/mercuryOps.ts",
+    "src/tools/LSPTool/mercuryOps/pathRename.ts",
     "src/tools/ToolSearchTool/cooccurPrior.ts",
     "src/utils/accounts/accountIdentity.ts",
     "src/utils/accounts/signInLedger.ts",
@@ -51,7 +52,6 @@
     "src/utils/file.ts",
     "src/utils/healthDeepProbes.ts",
     "src/utils/observability/invocationTrace.ts",
-    "src/services/providers/providerSecrets.ts",
     "src/utils/scratchLeases.ts",
     "src/utils/secureStorage/plainTextStorage.ts",
     "src/utils/sessionStorage/paths.ts",
@@ -61,7 +61,7 @@
     "src/utils/verification/verificationState.ts"
   ],
   "lock": [
-    "src/daemon/concourseWorkers.ts",
+    "src/daemon/concourseWorkers/storeLock.ts",
     "src/history.ts",
     "src/services/mcp/auth.ts",
     "src/services/providers/nous/nousOauth.ts",
@@ -73,7 +73,7 @@
     "src/utils/settings/settings.ts"
   ],
   "reasons": {
-    "src/daemon/concourseWorkers.ts": "synchronous cross-process lock (proper-lockfile lockSync via src/utils/lockfile.ts) serialising updateConcourseWorkers and the sibling daemon stores across helper daemons and the daemon-down settle",
-    "src/utils/secureStorage/sealedStoreStart.ts": "synchronous cross-process lock (proper-lockfile lockSync via src/utils/lockfile.ts) on the site src/utils/auth.ts names for the OAuth refresh (oauthRefreshLockSite), held from the last read of the credential file to its publish, so that the first sealing of a plain credential store at start cannot land inside another process's token refresh"
+    "src/utils/secureStorage/sealedStoreStart.ts": "synchronous cross-process lock (proper-lockfile lockSync via src/utils/lockfile.ts) on the site src/utils/auth.ts names for the OAuth refresh (oauthRefreshLockSite), held from the last read of the credential file to its publish, so that the first sealing of a plain credential store at start cannot land inside another process's token refresh",
+    "src/daemon/concourseWorkers/storeLock.ts": "synchronous cross-process lock (proper-lockfile lockSync via src/utils/lockfile.ts) serialising updateConcourseWorkers and the sibling daemon stores across helper daemons and the daemon-down settle"
   }
 }
