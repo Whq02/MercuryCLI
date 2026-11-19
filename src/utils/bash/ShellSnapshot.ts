@@ -576,7 +576,7 @@ export async function createAndSaveSnapshot(
 
     if (bashOfThisMachine) noteLoginFiles(null)
     if (scratch !== undefined) return undefined
-    const path = pathWithLoginEntries(pathValue, loginExports(shellPath))
+    const path = pathOfTheEngine !== undefined && getPlatform() === 'windows' ? pathValue : pathWithLoginEntries(pathValue, loginExports(shellPath))
     if (path !== pathValue) await appendFile(snapshotFilePath, `export PATH=${quote([path])}\n`)
     registerCleanup(async () => {
       try {
