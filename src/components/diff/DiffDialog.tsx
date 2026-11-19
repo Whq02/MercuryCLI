@@ -3,9 +3,9 @@ import { appendFileSync } from 'fs'
 import { isAbsolute, relative, resolve } from 'path'
 import * as React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Text } from '../../ink.js'
+import '../../ink.js'
 import { usePopupListPaging } from '../CustomSelect/popup-list.js'
-import { setClipboard } from '../../ink/termio/osc.js'
+import '../../ink/termio/osc.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useTurnDiffs, type TurnDiff } from '../../hooks/useTurnDiffs.js'
@@ -17,33 +17,29 @@ import type { Message } from '../../types/message.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import type { StructuredPatchHunk } from '../../utils/diff.js'
 import { getCwd } from '../../utils/cwd.js'
-import { getExternalEditor, openFileInExternalEditor } from '../../utils/editor.js'
+import { getExternalEditor } from '../../utils/editor.js'
 import { plural } from '../../utils/stringUtils.js'
-import TextInput from '../TextInput.js'
-import { CommandCenter } from '../mercury-ui/components.js'
-import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
+import '../TextInput.js'
+import '../mercury-ui/components.js'
+import '../mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { DiffDetailView } from './DiffDetailView.js'
-import { DiffFileList } from './DiffFileList.js'
+import './DiffDetailView.js'
+import './DiffFileList.js'
 import {
   artifactDiffData,
   enumerateExtraSources,
   sourceGitSpec,
   sourceKey,
-  sourceLabel,
-  sourceSummaryValue,
   sourceTitle,
   type WorkspaceDiffSource,
 } from './diffSources.js'
 import {
   artifactReviewCounts,
-  annotateHunk,
   boundArtifactId,
-  ensureDiffArtifact,
   resolveHunkComments,
   reviewMarksForFile,
-  sendComments,
 } from './reviewLayer.js'
+import { commitCommentOf, copyActionOf, diffDialogViewOf, openActionOf, sendActionOf, sourceStripOf } from './diffDialog/views.js'
 
 export function hunkPatchText(path: string, hunk: StructuredPatchHunk): string {
   return (
@@ -252,46 +248,9 @@ export function DiffDialog({
     body()
   }
 
-  const copyAction = () => {
-    if (!selectedFile) return
-    if (viewMode === 'detail' && currentHunk) {
-      const patch = hunkPatchText(selectedFile.path, currentHunk)
-      void setClipboard(patch).then(sequence => {
-        if (sequence) process.stdout.write(sequence)
-      })
-      setNote(
-        `copied hunk ${hunkIndex + 1}/${hunksForSelected.length} of ${selectedFile.path}`,
-      )
-      return
-    }
-    void setClipboard(selectedFile.path).then(sequence => {
-      if (sequence) process.stdout.write(sequence)
-    })
-    setNote(`copied ${selectedFile.path}`)
-  }
+  const copyAction = () => copyActionOf({ selectedFile, viewMode, currentHunk, hunkPatchText, setNote, hunkIndex, hunksForSelected })
 
-  const openAction = () => {
-    if (!selectedFile) return
-    if (!editorConfigured) {
-      setNote('no editor configured — set $VISUAL or $EDITOR')
-      return
-    }
-    const line =
-      viewMode === 'detail' && currentHunk ? currentHunk.newStart : undefined
-    const launched = openFileInExternalEditor(
-      resolve(getCwd(), selectedFile.path),
-      line,
-    )
-    if (!launched) {
-      setNote('the editor failed to launch')
-      return
-    }
-    setNote(
-      line !== undefined
-        ? `opened ${selectedFile.path}:${line}`
-        : `opened ${selectedFile.path}`,
-    )
-  }
+  const openAction = () => openActionOf({ selectedFile, editorConfigured, setNote, viewMode, currentHunk })
 
   const annotateAction = () => {
     if (viewMode !== 'detail' || !selectedFile) return
@@ -302,44 +261,7 @@ export function DiffDialog({
     setComposer({ open: true, text: '' })
   }
 
-  const commitComment = async (raw: string) => {
-    setComposer({ open: false, text: '' })
-    const body = raw.replace(/\r?\n/g, ' ').trim()
-    if (body === '') {
-      setNote('comment discarded (empty)')
-      return
-    }
-    if (!selectedFile || !currentHunk) {
-      setNote('no hunk under the cursor to comment on')
-      return
-    }
-    let targetArtifact = artifactId
-    if (!targetArtifact) {
-      const minted = await ensureDiffArtifact({
-        sourceKey: currentSourceKey,
-        label: sourceTitle(source).title,
-        diffData,
-        sessionId: getSessionId() ?? 'unknown-session',
-      })
-      if (!minted.ok) {
-        setNote(minted.reason)
-        setReviewRevision(revision => revision + 1)
-        return
-      }
-      targetArtifact = minted.artifactId
-    }
-    const added = annotateHunk({
-      artifactId: targetArtifact,
-      path: selectedFile.path,
-      hunk: currentHunk,
-      hunkIndex,
-      body,
-      currentDiffData: diffData,
-      producerSessionId: getSessionId() ?? undefined,
-    })
-    setNote(added.ok ? `comment ${added.commentId} added` : added.reason)
-    setReviewRevision(revision => revision + 1)
-  }
+  const commitComment = (raw: string) => commitCommentOf({ setComposer, setNote, selectedFile, currentHunk, artifactId, currentSourceKey, source, diffData, setReviewRevision, hunkIndex }, raw)
 
   const nextFindingAction = () => {
     const commented = [...marks.byHunk.keys()].sort((a, b) => a - b)
@@ -372,25 +294,7 @@ export function DiffDialog({
     setReviewRevision(revision => revision + 1)
   }
 
-  const sendAction = (scope: 'hunk' | 'all') => {
-    if (!artifactId) {
-      setNote('no review artifact yet — press a to comment first')
-      return
-    }
-    const result = sendComments({
-      artifactId,
-      scope:
-        scope === 'hunk' && selectedFile
-          ? { kind: 'hunk', path: selectedFile.path, hunkIndex }
-          : { kind: 'all-open' },
-    })
-    setNote(
-      result.ok
-        ? `sent ${result.sent} ${plural(result.sent, 'comment')} for review`
-        : result.reason,
-    )
-    setReviewRevision(revision => revision + 1)
-  }
+  const sendAction = (scope: 'hunk' | 'all') => sendActionOf({ artifactId, setNote, selectedFile, hunkIndex, setReviewRevision }, scope)
 
   const bindingsActive = !composer.open
   const bind = (
@@ -476,266 +380,9 @@ export function DiffDialog({
         ].join(' ')
       : null
 
-  const strip = useMemo(() => {
-    if (sources.length <= 1) return null
-    const labels = sources.map(sourceLabel)
-    const budget = Math.max(24, columns - 18)
-    const chosen = new Set<number>([sourceIndex])
-    let used = labels[sourceIndex]!.length + 4
-    let left = sourceIndex - 1
-    let right = sourceIndex + 1
-    let toggle = true
-    while (left >= 0 || right < sources.length) {
-      const candidate = toggle && left >= 0 ? left : right < sources.length ? right : left
-      if (candidate < 0 || candidate >= sources.length) break
-      const cost = labels[candidate]!.length + 3
-      if (used + cost > budget) break
-      chosen.add(candidate)
-      used += cost
-      if (candidate === left) left--
-      else right++
-      toggle = !toggle
-    }
-    const visible = [...chosen].sort((a, b) => a - b)
-    return {
-      hasLeft: visible[0]! > 0,
-      hasRight: visible[visible.length - 1]! < sources.length - 1,
-      visible,
-      labels,
-    }
-  }, [sources, sourceIndex, columns])
+  const strip = useMemo(() => sourceStripOf({ sources, columns, sourceIndex }), [sources, sourceIndex, columns])
 
   const pendingNote = note
 
-  const footer = (() => {
-    if (composer.open) return 'enter save · esc discard'
-    const parts: string[] = []
-    if (viewMode === 'list') {
-      if (sources.length > 1) parts.push('←→ source')
-      if (files.length > 1) parts.push('↑↓ file', 'pgup/pgdn page')
-      if (files.length > 0) parts.push('↵ view', 'c copy path')
-      if (files.length > 0 && editorConfigured) parts.push('o open')
-    } else {
-      parts.push('← back')
-      if (hunksForSelected.length > 1) parts.push('n/p hunk')
-      if (files.length > 1) parts.push('[/] file')
-      if (hunksForSelected.length > 0) parts.push('a comment')
-      if (marks.byHunk.size > 0) parts.push('f finding')
-      if ((marks.byHunk.get(hunkIndex) ?? []).some(c => c.state === 'open')) {
-        parts.push('r resolve')
-      }
-      if (counts.open > 0) parts.push('s/x send')
-      if (hunksForSelected.length > 0) parts.push('c copy')
-      if (editorConfigured) parts.push('o open')
-    }
-    return parts.join(' · ')
-  })()
-
-  const summaryCard = selectedFile ? (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderDimColor
-      paddingX={1}
-      width={wideSummary ? summaryWidth : undefined}
-    >
-      <Text bold wrap="truncate-end">
-        {selectedFile.path}
-      </Text>
-      {!selectedFile.isBinary && !selectedFile.isUntracked ? (
-        <Text>
-          <Text dimColor>lines </Text>
-          <Text color="success">+{selectedFile.linesAdded}</Text>
-          <Text dimColor> / </Text>
-          <Text color="error">-{selectedFile.linesRemoved}</Text>
-        </Text>
-      ) : null}
-      {hunksForSelected.length > 0 ? (
-        <Text>
-          <Text dimColor>hunks </Text>
-          {hunksForSelected.length}
-        </Text>
-      ) : null}
-      {(() => {
-        const posture = [
-          ...(selectedFile.isNewFile ? ['new'] : []),
-          ...(selectedFile.isUntracked ? ['untracked'] : []),
-          ...(selectedFile.isBinary ? ['binary'] : []),
-          ...(selectedFile.isLargeFile ? ['large'] : []),
-          ...(selectedFile.isTruncated ? ['truncated'] : []),
-        ]
-        return posture.length > 0 ? (
-          <Text>
-            <Text dimColor>posture </Text>
-            {posture.join(' · ')}
-          </Text>
-        ) : null
-      })()}
-      {marks.olderVersion > 0 ? (
-        <Text color="warning">
-          older: {marks.olderVersion} open on an older stored version
-        </Text>
-      ) : null}
-      {counts.open + counts.resolved + counts.outdated > 0 ? (
-        <Text color={counts.open > 0 ? 'warning' : undefined}>
-          <Text dimColor>review </Text>
-          {counts.open} open · {counts.resolved} resolved
-          {counts.outdated > 0 ? ` · ${counts.outdated} outdated` : ''}
-        </Text>
-      ) : null}
-      <Text>
-        <Text dimColor>source </Text>
-        {sourceSummaryValue(source)}
-      </Text>
-      {pendingNote && viewMode === 'list' ? (
-        <Text color={tokens.info}>{pendingNote}</Text>
-      ) : null}
-    </Box>
-  ) : null
-
-  const emptyMessage = (() => {
-    if (diffData.loading) return null
-    if (source.type === 'turn') return 'This turn changed no files.'
-    if (stats && stats.filesCount > 0) {
-      return 'Stats report changes, but the details were suppressed (too many files).'
-    }
-    if (source.type === 'artifact') return 'This artifact has no stored hunks.'
-    if (source.type === 'staged') return 'Nothing is staged.'
-    if (source.type === 'branch') {
-      return 'This branch is identical to its base.'
-    }
-    return 'The working tree is clean.'
-  })()
-
-  const comments = marks.byHunk.get(hunkIndex) ?? []
-  const openComments = comments.filter(c => c.state === 'open').length
-  const outdatedComments = comments.filter(c => c.state === 'outdated').length
-
-  return (
-    <CommandCenter
-      view="diff"
-      subtitle={statsLine ?? undefined}
-      onClose={closeOneLevel}
-      captureInput={false}
-      closeKeys="esc"
-      footer={footer}
-      bodyOwnsPageKeys={viewMode === 'list'}
-      elevated
-    >
-      <Box flexDirection="column">
-        <Box>
-          <Text bold>{title}</Text>
-          <Text dimColor> {subtitle}</Text>
-        </Box>
-        {strip ? (
-          <Box>
-            {strip.hasLeft ? <Text dimColor>‹ </Text> : null}
-            {strip.visible.map(index => (
-              <Text
-                key={index}
-                inverse={index === sourceIndex}
-                dimColor={index !== sourceIndex}
-              >
-                {' '}
-                {strip.labels[index]}{' '}
-              </Text>
-            ))}
-            {strip.hasRight ? <Text dimColor> ›</Text> : null}
-          </Box>
-        ) : null}
-        {diffData.loading || files.length === 0 ? (
-          <Box minHeight={bodyBudget}>
-            {diffData.loading ? (
-              <>
-                <WorkingGlyph color={tokens.info} />
-                <Text dimColor> Reading the diff…</Text>
-              </>
-            ) : (
-              <Text dimColor>{emptyMessage}</Text>
-            )}
-          </Box>
-        ) : viewMode === 'list' ? (
-          <Box
-            flexDirection={wideSummary ? 'row' : 'column'}
-            gap={wideSummary ? 2 : 0}
-          >
-            <Box flexDirection="column" minHeight={bodyBudget}>
-              <DiffFileList
-                files={files}
-                selectedIndex={selectedIndex}
-                visibleRows={listRows}
-                listWidth={listWidth}
-                onSelect={path => {
-                  setSelectedPath(path)
-                  setHunkIndex(0)
-                  setNote(null)
-                }}
-                onActivate={path => {
-                  setSelectedPath(path)
-                  setHunkIndex(0)
-                  setViewMode('detail')
-                }}
-              />
-            </Box>
-            {summaryCard}
-          </Box>
-        ) : (
-          <Box flexDirection="column">
-            <DiffDetailView
-              filePath={selectedFile?.path ?? ''}
-              hunks={hunksForSelected}
-              hunkIndex={hunkIndex}
-              linesAdded={selectedFile?.linesAdded}
-              linesRemoved={selectedFile?.linesRemoved}
-              isLargeFile={selectedFile?.isLargeFile}
-              isBinary={selectedFile?.isBinary}
-              isTruncated={selectedFile?.isTruncated}
-              isUntracked={selectedFile?.isUntracked}
-            />
-            {comments.length > 0 ? (
-              <Box flexDirection="column">
-                <Text dimColor>
-                  {comments.length} {plural(comments.length, 'comment')} on this
-                  hunk
-                  {openComments > 0 ? ` · ${openComments} open` : ''}
-                  {outdatedComments > 0
-                    ? ` · ${outdatedComments} outdated (the anchor moved)`
-                    : ''}
-                </Text>
-                {comments.slice(0, 3).map(comment => (
-                  <Text key={comment.id} wrap="truncate-end">
-                    <Text dimColor>[{comment.state}] </Text>
-                    <Text bold>{comment.author}</Text>
-                    <Text>: {comment.body}</Text>
-                  </Text>
-                ))}
-              </Box>
-            ) : null}
-            {composer.open ? (
-              <Box>
-                <Text color={tokens.info}>comment: </Text>
-                <TextInput
-                  value={composer.text}
-                  onChange={text =>
-                    setComposer({ open: true, text: text.replace(/\r?\n/g, ' ') })
-                  }
-                  cursorOffset={composer.text.length}
-                  onChangeCursorOffset={() => {}}
-                  columns={Math.max(20, columns - 14)}
-                  onSubmit={value => {
-                    void commitComment(value)
-                  }}
-                  onExit={discardComment}
-                  onEscape={discardComment}
-                />
-              </Box>
-            ) : null}
-            {pendingNote ? (
-              <Text color={tokens.info}>{pendingNote}</Text>
-            ) : null}
-          </Box>
-        )}
-      </Box>
-    </CommandCenter>
-  )
+  return diffDialogViewOf({ composer, setComposer, viewMode, setViewMode, sources, source, files, editorConfigured, hunksForSelected, marks, hunkIndex, setHunkIndex, counts, selectedFile, selectedIndex, setSelectedPath, wideSummary, summaryWidth, tokens, pendingNote, setNote, diffData, stats, statsLine, closeOneLevel, title, subtitle, strip, sourceIndex, bodyBudget, listRows, listWidth, columns, commitComment, discardComment })
 }

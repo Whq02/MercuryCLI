@@ -3,12 +3,19 @@ import { useEffect, useRef, useState } from 'react'
 import { basename } from 'node:path'
 import { Text, useInput } from '../../ink.js'
 import { useAppState, useSetAppState } from '../../state/AppState.js'
+import '../../extensions/active.js'
+import '../../extensions/boot.js'
+import '../../extensions/blocklist.js'
+import '../../extensions/install.js'
+import '../../extensions/manifest.js'
+import '../../extensions/options.js'
 import { rosterSummary, trustStateOf } from '../../extensions/roster.js'
 import {
   listSources,
   type SourceRow,
 } from '../../extensions/sources.js'
 import type { Health, RosterEntry } from '../../extensions/types.js'
+import '../../hooks/useExtensions.js'
 import { getCwd } from '../../utils/cwd.js'
 import {
   NavigablePanes,

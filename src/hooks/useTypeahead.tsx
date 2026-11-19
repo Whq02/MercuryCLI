@@ -9,24 +9,38 @@ import { getSelectedSuggestion } from '../components/PromptInput/suggestionSelec
 import { useNotifications } from '../context/notifications.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { useIsModalOverlayActive, useRegisterOverlay } from '../context/overlayContext.js'
+import '../context/overlayStack.js'
+import '../context/surfaceRoute.js'
 import { useInput } from '../ink.js'
-import { KeyboardEvent } from '../ink/events/keyboard-event.js'
+import '../ink/events/keyboard-event.js'
+import type { KeyboardEvent } from '../ink/events/keyboard-event.js'
 import { useOptionalKeybindingContext } from '../keybindings/KeybindingContext.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
+import '../keybindings/shortcutFormat.js'
 import { useAppStateStore } from '../state/AppState.js'
 import type {
   InlineGhostText,
   PromptInputMode,
 } from '../types/textInputTypes.js'
+import '../utils/bash/shellCompletion.js'
+import '../utils/argumentSubstitution.js'
 import {
   findChannelTargetQuery,
 } from '../utils/suggestions/commandSuggestions.js'
 import { subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
+import '../services/crewBoard/seam.js'
+import '../utils/suggestions/directoryCompletion.js'
+import '../utils/suggestions/shellHistoryCompletion.js'
+import '../utils/suggestions/slackChannelSuggestions.js'
 import {
   onIndexBuildComplete,
   startBackgroundCacheRefresh,
 } from '../hooks/fileSuggestions.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import '../hooks/unifiedSuggestions.js'
+import '../utils/sessionStorage.js'
+import '../utils/format.js'
+import '../utils/log.js'
 import { disarmTypeaheadTimer } from './typeahead/timers.js'
 import { ladderChannelTarget, ladderClearStale, ladderCommands, ladderMentions, ladderPaths, type LadderContext } from './typeahead/ladder.js'
 import type { SuggestionsState } from './typeahead/state.js'

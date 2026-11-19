@@ -13,16 +13,12 @@ import {
   SectionHeader,
   StateBadge,
 } from '../components.js'
+import { GLYPH } from '../glyphs.js'
 import {
   resolveProviderUsability,
   type ProviderId,
   type ProviderUsability,
 } from '../../../services/providers/providerUsability.js'
-
-function usabilityFor(familyId: string): ProviderUsability | undefined {
-  const map = resolveProviderUsability()
-  return (map as Partial<Record<string, ProviderUsability>>)[familyId as ProviderId]
-}
 import {
   deriveFamilySlotGroups,
   executeSlotRemoval,
@@ -40,8 +36,13 @@ import { getEngineModel, renderModelName } from '../../../utils/model/model.js'
 import { useFocusedServedModel } from '../../../hooks/useDisplayedSessionModel.js'
 import { useSessionAccent } from '../sessionAccent.js'
 import { useInteractiveList } from '../useInteractiveList.js'
-import { GLYPH } from '../glyphs.js'
+import '../InteractiveRow.js'
 import { renderAccountRow, rowKey, type BoardRow } from './accountRows.js'
+
+function usabilityFor(familyId: string): ProviderUsability | undefined {
+  const map = resolveProviderUsability()
+  return (map as Partial<Record<string, ProviderUsability>>)[familyId as ProviderId]
+}
 
 
 function familyRouteNote(id: string): string {

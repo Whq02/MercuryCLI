@@ -16,8 +16,8 @@ export function messageText(message: UserMessage): string {
   return last
 }
 
-export const PREVIEW_CHAR_CAP = 500
-export const PREVIEW_LINE_CAP = 4
+const PREVIEW_CHAR_CAP = 500
+const PREVIEW_LINE_CAP = 4
 
 export function previewOf(
   message: UserMessage,

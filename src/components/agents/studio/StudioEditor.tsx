@@ -8,7 +8,7 @@ import type { AgentDocument } from '../../../services/agents/contracts.js'
 import { newAgentPath } from '../../../services/agents/store.js'
 import type { Tools } from '../../../Tool.js'
 import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
-import { SCOUT_TOOLS_DESCRIPTION } from '../../../tools/AgentTool/scoutPolicy.js'
+import '../../../tools/AgentTool/scoutPolicy.js'
 import { type EffortValue, resolveEffortTruth } from '../../../utils/effort.js'
 import type { ModelName } from '../../../utils/model/model.js'
 import { offeredDefinitionModes } from '../../../tools/AgentTool/agentPermissionPosture.js'
@@ -22,10 +22,9 @@ import TextInput from '../../TextInput.js'
 import { ColorPicker } from '../ColorPicker.js'
 import { ToolSelector } from '../ToolSelector.js'
 import { ModelSelector } from '../ModelSelector.js'
-import { agentModelAvailabilityNote } from '../../../utils/model/agentModelPicker.js'
 import type { AgentColorName } from '../../../tools/AgentTool/agentColorManager.js'
+import '../../../utils/model/agentModelPicker.js'
 import {
-  buildReviewFacts,
   computeStudioValidation,
   createStudioEditorMachine,
   effectiveStudioRuntime,
@@ -38,6 +37,7 @@ import {
   type StudioEditorSnapshot,
   studioDestinationPath,
 } from './studioEditorModel.js'
+import { studioReviewView } from './studioEditorView.js'
 
 export type { StudioDraftBase } from './studioEditorModel.js'
 
@@ -283,70 +283,7 @@ export function StudioEditor({
   }
 
   if (view.kind === 'review') {
-    const { changed, diffLines } = buildReviewFacts(doc, base)
-    const availability = agentModelAvailabilityNote(doc.fields.model)
-    return (
-      <Box flexDirection="column">
-        {header}
-        <SectionHeader>Review</SectionHeader>
-        <Text>
-          <Text color={FAINT}>{'destination  '}</Text>
-          <Text color={IVORY}>{truncateToWidth(destinationPath, 62)}</Text>
-        </Text>
-        <Text>
-          <Text color={FAINT}>{'fields       '}</Text>
-          <Text color={changed.length > 0 ? IVORY : FAINT}>
-            {changed.length > 0 ? changed.join(', ') : '(no field changes)'}
-          </Text>
-        </Text>
-        <Text>
-          <Text color={FAINT}>{'effective    '}</Text>
-          <Text color={TEAL}>
-            {`${effective.model} · ${effective.effort.supportsEffort ? `effort ${effective.effort.label}` : effective.effort.label}${effective.effort.adjustedFrom ? ` (requested ${effective.effort.adjustedFrom})` : ''}`}
-          </Text>
-        </Text>
-        {availability !== null ? (
-          <Text>
-            <Text color={FAINT}>{'availability '}</Text>
-            <Text color={AMBER}>{truncateToWidth(`${availability} — /logins signs in`, 62)}</Text>
-          </Text>
-        ) : null}
-        {effective.tools ? (
-          <Text>
-            <Text color={FAINT}>{'tools        '}</Text>
-            <Text color={effective.tools.invalidTools.length > 0 ? AMBER : IVORY}>
-              {effective.tools.readOnly
-                ? SCOUT_TOOLS_DESCRIPTION
-                : effective.tools.hasWildcard
-                ? 'all tools'
-                : `${effective.tools.validTools.length} available${effective.tools.invalidTools.length > 0 ? ` · unknown: ${effective.tools.invalidTools.join(', ')}` : ''}`}
-            </Text>
-          </Text>
-        ) : null}
-        {diffLines.length > 0 ? (
-          <Box flexDirection="column" marginTop={1}>
-            {diffLines.map((l, i) => (
-              <Text key={i} color={l.startsWith('+') ? TEAL : l.startsWith('-') ? CRIMSON : FAINT}>
-                {truncateToWidth(`  ${l}`, 78)}
-              </Text>
-            ))}
-          </Box>
-        ) : null}
-        {validation.errors.map((e, i) => (
-          <Text key={`e${i}`} color={CRIMSON}>{`  ✗ ${truncateToWidth(e, 74)}`}</Text>
-        ))}
-        {validation.warnings.map((w, i) => (
-          <Text key={`w${i}`} color={AMBER}>{`  ▲ ${truncateToWidth(w, 74)}`}</Text>
-        ))}
-        <Box marginTop={1}>
-          <Text color={validation.canSave ? TEAL : FAINT}>
-            {validation.canSave
-              ? 's / ↵ save · v advanced · r raw · esc back'
-              : 'save disabled while errors exist · v advanced · r raw · esc back'}
-          </Text>
-        </Box>
-      </Box>
-    )
+    return studioReviewView({ doc, base, header, destinationPath, effective, validation })
   }
 
   const editing = view.editing

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { basename } from 'node:path';
 import { getCwd } from '../utils/cwd.js';
-import { Box, useInput } from '../ink.js';
+import { useInput } from '../ink.js';
 import { createSplashCore, fmtAge, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { isProjectSession } from '../utils/sessionFilter.js';
 import type { BootProjectFact } from '../utils/bootCardFacts.js';
@@ -26,13 +26,14 @@ import {
 } from '../utils/sessionStorage/transcriptPruneDoor.js';
 import { sessionIdOfListing } from '../utils/sessionStorage.js';
 import { renderModelChip } from '../utils/model/model.js';
-import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
-import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
+import './mercury-ui/InteractiveRow.js';
+import './mercury-ui/SceneCanvas.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList, type AsyncListNote } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
+import { resumeView, type SelectableRow } from './bootResume/resumeView.js';
 
 
 interface BootResumePickerModel {
@@ -237,10 +238,6 @@ export function pruneLegendOf(stage: 'card' | 'deleting' | 'receipt', offered = 
   }
   return stage === 'receipt' ? '↵ / esc back to the list' : 'deleting the named set…';
 }
-
-type SelectableRow =
-  | { kind: 'session'; flat: SessionPickerFlatRow }
-  | { kind: 'project'; project: BootProjectFact & { running?: number } };
 
 function selectableIdOf(row: SelectableRow): string {
   if (row.kind === 'session') return `resume:${sessionIdOfListing(row.flat.row.log) ?? row.flat.row.label}`;
@@ -533,39 +530,5 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
     if (entryIdx === elsewhereAt) return -1;
     return elsewhereAt >= 0 && entryIdx > elsewhereAt ? entryIdx - 1 : entryIdx;
   };
-  return (
-    <Box flexDirection="column" width={columns} height={rows}>
-      {Array.from({ length: rows }, (_, i) => {
-        const line = composition.placed[i] ?? '';
-        const entryIdx = composition.entryAt.get(i);
-        const rowIdx = entryIdx !== undefined ? listIndexOf(entryIdx) : -1;
-        const row = rowIdx >= 0 ? selectable[rowIdx] : undefined;
-        if (row !== undefined) {
-          const props = list.rowProps(row, rowIdx);
-          const hoverLabel =
-            row.kind === 'session' ? row.flat.row.label : row.project.base;
-          return (
-            <InteractiveRow
-              key={props.id}
-              id={props.id}
-              selected={props.selected}
-              unavailable={props.unavailable}
-              onSelect={props.onSelect}
-              onActivate={props.onActivate}
-              selectionBand={false}
-              hoverStyle="chrome-ink"
-              height={1}
-            >
-              {hover => renderSceneLine(line, hover && !props.selected ? { label: hoverLabel, color: t.info } : undefined)}
-            </InteractiveRow>
-          );
-        }
-        return (
-          <Box key={`resumeline-${i}`} height={1} flexShrink={0}>
-            {line.length > 0 ? renderSceneLine(line) : null}
-          </Box>
-        );
-      })}
-    </Box>
-  );
+  return resumeView({ t, columns, rows, selectable, list, composition, listIndexOf });
 }

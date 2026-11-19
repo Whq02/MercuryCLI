@@ -1,11 +1,11 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { basename } from 'node:path';
-import { Box, useInput } from '../ink.js';
+import 'node:path';
+import { useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { readSessionWorkers } from '../daemon/concourseWorkers.js';
 import { formatRelativeTimeAgo } from '../utils/format.js';
-import { daemonControlRpc } from '../daemon/controlSocket.js';
-import { MERCURY_DAEMON_PROTO } from '../daemon/protocol.js';
+import '../daemon/controlSocket.js';
+import '../daemon/protocol.js';
 import {
   fireDeltaWords,
   saturnFactsOf,
@@ -21,28 +21,30 @@ import {
   type ScheduleAccountVerdictV1,
 } from '../daemon/saturn.js';
 import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVerdict } from '../daemon/saturnAccount.js';
-import { addBoxSchedule, readBoxSchedules, removeBoxSchedule, setBoxSchedulePaused } from '../daemon/saturnBoxSchedules.js';
-import { compileWhenSpelling, WHEN_SPELLING_EXAMPLES } from '../services/saturn/whenSpelling.js';
+import { readBoxSchedules, removeBoxSchedule, setBoxSchedulePaused } from '../daemon/saturnBoxSchedules.js';
+import { WHEN_SPELLING_EXAMPLES } from '../services/saturn/whenSpelling.js';
 import { listKitPresets } from '../services/mcp/presetStore.js';
 import { getModelOptions, KEY_CONNECT_PREFIX } from '../utils/model/modelOptions.js';
 import { readSessionReceipts, type SessionReceiptEntry } from '../services/switchboard/sessionReceipts.js';
 import { accountIdentityShown } from '../services/wallet/identityWords.js';
 import { getProjectDir } from '../utils/sessionStorage/paths.js';
-import { projectDisplayName, workedInProjects } from '../utils/bootCardFacts.js';
+import { workedInProjects } from '../utils/bootCardFacts.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
-import { renderModelChip } from '../utils/model/model.js';
+import '../utils/model/model.js';
 import { wrapPlain } from './BootHealthScreen.js';
-import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
+import './mercury-ui/InteractiveRow.js';
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js';
-import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
-import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
+import './mercury-ui/SceneCanvas.js';
+import './mercury-ui/sessionAccent.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 import { LOCAL_PULL_RECOMMENDATION } from '../services/providers/local/localAccounts.js';
 import { LOCAL_SETUP_OFFER } from '../commands/localsetup/words.js';
+import { clearFormRowOf, commitPromptOf, editFormRowOf, runNowOf, scheduleEditRpcOf, submitFormOf, type SaturnFormRowId } from './bootSaturn/actions.js';
+import { saturnMenuOf, saturnRowsView } from './bootSaturn/menu.js';
 
 
 const DETAIL_W = 38;
@@ -271,7 +273,6 @@ export interface SaturnFormStateV1 {
   note: string | null;
 }
 
-type SaturnFormRowId = 'when' | 'model' | 'workspace' | 'presence' | 'kit' | 'opening' | 'contract' | 'title' | 'note';
 export const SATURN_FORM_ROWS: readonly SaturnFormRowId[] = ['when', 'model', 'workspace', 'presence', 'kit', 'opening', 'contract', 'title', 'note'];
 
 export function freshSaturnForm(defaults: { modelKey: string; workspaceDir: string }): SaturnFormStateV1 {
@@ -542,67 +543,14 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
 
   const scheduleEditRpc = useCallback(
     (row: SaturnScreenRowV1, op: 'remove' | 'pause' | 'resume', pendingWord: string, doneWord: string): void => {
-      if (busy.current) return;
-      busy.current = true;
-      setNote(`${pendingWord} '${row.facts.id}'…`);
-      void daemonControlRpc(
-        {
-          op: 'sessionControl',
-          proto: MERCURY_DAEMON_PROTO,
-          action: 'set-schedule',
-          sessionId: row.sessionId,
-          by: 'operator:saturn-screen',
-          scheduleEdit: { op, scheduleId: row.facts.id },
-        },
-        { timeoutMs: 3000 },
-      )
-        .then(reply => {
-          const r = reply as { ok?: boolean; outcome?: string; detail?: string; error?: string };
-          setNote(
-            r.ok === true && (r.outcome === 'applied' || r.outcome === 'noop')
-              ? `${doneWord} '${row.facts.id}' — ${r.detail ?? 'receipted'}`
-              : `${op} refused — ${r.detail ?? r.error ?? 'no detail'}`,
-          );
-        })
-        .catch(e => setNote(`${op} failed — ${String(e)}`))
-        .finally(() => {
-          busy.current = false;
-          refresh();
-        });
+      scheduleEditRpcOf({ busy, setNote, refresh }, row, op, pendingWord, doneWord);
     },
     [refresh],
   );
 
   const runNow = useCallback(
     (row: SaturnScreenRowV1): void => {
-      if (busy.current) return;
-      if (row.schedule.action.kind !== 'fire') {
-        setNote('run-now takes fire schedules; a birth fires on its own clock');
-        return;
-      }
-      busy.current = true;
-      setNote(`running '${row.facts.id}' now…`);
-      void daemonControlRpc(
-        {
-          op: 'sessionDispatch',
-          proto: MERCURY_DAEMON_PROTO,
-          clientMessageId: `saturn-screen-run-${row.facts.id}-${Date.now()}`,
-          prompt: row.schedule.action.prompt,
-          workspaceDir: row.workspaceId,
-          by: 'operator:saturn-screen',
-          ...(row.parked ? { resumeSessionId: row.sessionId } : { targetSessionId: row.sessionId }),
-        },
-        { timeoutMs: 5000 },
-      )
-        .then(reply => {
-          const r = reply as { ok?: boolean; error?: string };
-          setNote(r.ok === true ? `fired '${row.facts.id}' into ${row.sessionTitle}` : `run-now refused — ${r.error ?? 'no detail'}`);
-        })
-        .catch(e => setNote(`run-now failed — ${String(e)}`))
-        .finally(() => {
-          busy.current = false;
-          refresh();
-        });
+      runNowOf({ busy, setNote, refresh }, row);
     },
     [refresh],
   );
@@ -685,126 +633,19 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
   const selected = list.selectedRow;
 
   const commitPrompt = (field: SaturnFormRowId, draft: string): void => {
-    const text = draft.trim();
-    setForm(f => {
-      if (f === null) return f;
-      switch (field) {
-        case 'when':
-          return { ...f, when: text };
-        case 'workspace':
-          return text === '' ? f : { ...f, workspaceDir: text };
-        case 'opening':
-          return { ...f, opening: text === '' ? null : text };
-        case 'contract':
-          return { ...f, contract: text === '' ? { kind: 'none' } : { kind: 'text', text } };
-        case 'title':
-          return { ...f, title: text === '' ? null : text };
-        case 'note':
-          return { ...f, note: text === '' ? null : text };
-        default:
-          return f;
-      }
-    });
+    commitPromptOf({ setForm }, field, draft);
   };
 
   const editFormRow = (id: SaturnFormRowId): void => {
-    const f = form;
-    if (f === null) return;
-    setFormNote(null);
-    switch (id) {
-      case 'when':
-        setFormPrompt({ field: 'when', draft: f.when });
-        return;
-      case 'model':
-        setFormPick({ field: 'model', options: (modelOptionsOf ?? liveModelOptions)() });
-        return;
-      case 'workspace':
-        setFormPick({ field: 'workspace', options: saturnWorkspacePickOptions((projectsOf ?? liveProjectDirs)()) });
-        return;
-      case 'presence':
-        setForm({ ...f, presence: f.presence === 'headless' ? 'screen-present' : 'headless' });
-        return;
-      case 'kit':
-        setFormPick({ field: 'kit', options: ['none', ...(presetsOf ?? livePresets)()] });
-        return;
-      case 'opening':
-        setFormPick({ field: 'opening', options: saturnOpeningPickOptions() });
-        return;
-      case 'contract':
-        if (f.contract.kind === 'unset') setForm({ ...f, contract: { kind: 'none' } });
-        else if (f.contract.kind === 'none') setFormPrompt({ field: 'contract', draft: '' });
-        else setForm({ ...f, contract: { kind: 'unset' } });
-        return;
-      case 'title':
-        setFormPrompt({ field: 'title', draft: f.title ?? '' });
-        return;
-      case 'note':
-        setFormPrompt({ field: 'note', draft: f.note ?? '' });
-        return;
-    }
+    editFormRowOf({ form, setFormNote, setFormPrompt, setFormPick, modelOptionsOf, liveModelOptions, saturnWorkspacePickOptions, projectsOf, liveProjectDirs, setForm, presetsOf, livePresets, saturnOpeningPickOptions }, id);
   };
 
   const clearFormRow = (id: SaturnFormRowId): void => {
-    setForm(f => {
-      if (f === null) return f;
-      switch (id) {
-        case 'when':
-          return { ...f, when: '' };
-        case 'kit':
-          return { ...f, kitPreset: null };
-        case 'opening':
-          return { ...f, opening: null };
-        case 'contract':
-          return { ...f, contract: { kind: 'unset' } };
-        case 'title':
-          return { ...f, title: null };
-        case 'note':
-          return { ...f, note: null };
-        default:
-          return f;
-      }
-    });
+    clearFormRowOf({ setForm }, id);
   };
 
   const submitForm = (): void => {
-    const f = form;
-    if (f === null) return;
-    if (f.when === '') {
-      setFormNote('say when first — ↵ on the When row');
-      return;
-    }
-    const compiled = compileWhenSpelling(f.when, Date.now());
-    if (!compiled.ok) {
-      setFormNote(compiled.reason);
-      return;
-    }
-    const birth = {
-      workspaceDir: f.workspaceDir,
-      modelKey: f.modelKey,
-      presence: f.presence,
-      ...(f.kitPreset !== null ? { kitPreset: f.kitPreset } : {}),
-      ...(f.opening !== null ? { opening: f.opening } : {}),
-      ...(f.contract.kind === 'none' ? { contract: null } : f.contract.kind === 'text' ? { contract: { text: f.contract.text } } : {}),
-      ...(f.title !== null ? { title: f.title } : {}),
-    };
-    const res = addBoxSchedule(
-      { when: compiled.when, action: { kind: 'birth', birth }, ...(f.note !== null ? { note: f.note } : {}) },
-      'operator:saturn-screen',
-      {
-        deriveAccount: m => deriveScheduleAccountForModel(m),
-        preflight: (account, nextFireMs) =>
-          scheduleAccountVerdict({ account, nextFireMs, nowMs: Date.now(), live: readLiveAccountFacts(account) }),
-      },
-    );
-    if (!res.ok) {
-      setFormNote(res.reason);
-      return;
-    }
-    setForm(null);
-    setFormPrompt(null);
-    setFormPick(null);
-    setNote(`schedule '${res.id}' set — a ${f.presence} box birth, ${compiled.when.spelling ?? f.when}; the next daemon tick sees it`);
-    refresh();
+    submitFormOf({ form, setFormNote, setForm, setFormPrompt, setFormPick, setNote, refresh });
   };
 
   const formList = useInteractiveList<SaturnFormRowId>({
@@ -924,94 +765,7 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
 
   const menuM = useMemo(() => {
-    const critterKey = getSessionCritterKey();
-    const environment = {
-      model: renderModelChip(mainModel),
-      critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-      critterHue: getSessionAccent().accent,
-      dirBase: basename(process.cwd()) || process.cwd(),
-      dirTail: '',
-    };
-    const base = {
-      title: 'saturn scheduler',
-      summaryTitle: 'SATURN',
-      summaryRows: saturnSummaryRows(facts, nowMs),
-      environment,
-      glowWord: wordGlow,
-      moreHint: '… (the trail continues — a taller terminal shows it whole)',
-    };
-    if (form !== null) {
-      const previewNow = givenNow ?? Date.now();
-      const compiled = form.when === '' ? null : compileWhenSpelling(form.when, previewNow);
-      const nextFire = compiled !== null && compiled.ok ? saturnNextFireMs(compiled.when, previewNow) : null;
-      const preflight = (preflightOf ?? livePreflightOf)(form.modelKey, nextFire);
-      if (formPick !== null) {
-        return {
-          ...base,
-          entries: formPick.options.map(o => ({
-            label:
-              formPick.field === 'workspace' && o !== SATURN_WORKSPACE_CUSTOM_ROW
-                ? `${projectDisplayName(o)}  ${clampText(o, 40)}`
-                : o,
-            group: formPick.field,
-            groupTitle:
-              formPick.field === 'model'
-                ? 'pick the model'
-                : formPick.field === 'workspace'
-                  ? 'pick the project'
-                  : formPick.field === 'opening'
-                    ? 'pick the opening mission'
-                    : 'pick the preset',
-            summary:
-              formPick.field === 'opening' && o === SATURN_OPENING_AUDIT_ROW
-                ? clampText(SATURN_AUDIT_MISSION, 60)
-                : formPick.field === 'opening' && o === SATURN_OPENING_REVIEW_ROW
-                  ? clampText(SATURN_REVIEW_MISSION, 60)
-                  : '',
-            valueLabel:
-              (formPick.field === 'model'
-                ? form.modelKey === o
-                : formPick.field === 'workspace'
-                  ? form.workspaceDir === o
-                  : formPick.field === 'opening'
-                    ? saturnOpeningRowIsCurrent(o, form.opening)
-                    : (form.kitPreset ?? 'none') === o)
-                ? 'current'
-                : '',
-            valueIsDefault: true,
-            pinnedVal: null,
-            detail: null,
-          })),
-          selIdx: pickList.selectedIndex,
-          statusRight: `${formPick.options.length} option${formPick.options.length === 1 ? '' : 's'}`,
-          legend: saturnFormLegendOf({ prompt: false, pick: true }),
-          detailOverride: saturnFormDetailLines(form, compiled, preflight, previewNow),
-        };
-      }
-      const promptLine =
-        formPrompt !== null ? `${formPrompt.field}: ${formPrompt.draft === '' ? '(type)' : formPrompt.draft}▌` : null;
-      return {
-        ...base,
-        entries: saturnFormEntries(form),
-        selIdx: formPrompt === null ? formList.selectedIndex : -1,
-        statusRight: promptLine ?? formNote ?? 'the seven facts — ↵ edits a row',
-        legend: saturnFormLegendOf({ prompt: formPrompt !== null, pick: false }),
-        detailOverride: saturnFormDetailLines(form, compiled, preflight, previewNow),
-      };
-    }
-    const entries = facts.rows.map(r => saturnEntryOf(r, nowMs));
-    const statusRight = list.note ?? note ?? saturnStatusLine(facts);
-    return {
-      ...base,
-      entries,
-      selIdx: selected !== null ? list.selectedIndex : -1,
-      statusRight,
-      legend: saturnLegendOf({ busy: busy.current }),
-      detailOverride:
-        selected !== null
-          ? saturnDetailLines(selected, nowMs, (receiptsOf ?? liveReceiptsOf)(selected))
-          : saturnEmptyDetailLines(facts),
-    };
+    return saturnMenuOf({ mainModel, saturnSummaryRows, facts, nowMs, wordGlow, form, givenNow, preflightOf, livePreflightOf, formPick, SATURN_WORKSPACE_CUSTOM_ROW, clampText, SATURN_OPENING_AUDIT_ROW, SATURN_AUDIT_MISSION, SATURN_OPENING_REVIEW_ROW, SATURN_REVIEW_MISSION, saturnOpeningRowIsCurrent, pickList, saturnFormLegendOf, saturnFormDetailLines, formPrompt, saturnFormEntries, formList, formNote, saturnEntryOf, list, note, saturnStatusLine, selected, saturnLegendOf, busy, saturnDetailLines, receiptsOf, liveReceiptsOf, saturnEmptyDetailLines });
   }, [facts, nowMs, selected, list.selectedIndex, list.note, note, mainModel, receiptsOf, form, formNote, formPrompt, formPick, formList.selectedIndex, pickList.selectedIndex, givenNow, preflightOf, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {
@@ -1040,36 +794,5 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
     return row === undefined ? null : { props: list.rowProps(row, entryIdx), hoverLabel: row.facts.id };
   };
 
-  return (
-    <Box flexDirection="column" width={columns} height={rows}>
-      {Array.from({ length: rows }, (_, i) => {
-        const line = composition.placed[i] ?? '';
-        const entryIdx = composition.entryAt.get(i);
-        const target = entryIdx !== undefined ? rowPropsAt(entryIdx) : null;
-        if (target !== null) {
-          const { props, hoverLabel } = target;
-          return (
-            <InteractiveRow
-              key={props.id}
-              id={props.id}
-              selected={props.selected}
-              unavailable={props.unavailable}
-              onSelect={props.onSelect}
-              onActivate={props.onActivate}
-              selectionBand={false}
-              hoverStyle="chrome-ink"
-              height={1}
-            >
-              {hover => renderSceneLine(line, hover && !props.selected ? { label: hoverLabel, color: t.info } : undefined)}
-            </InteractiveRow>
-          );
-        }
-        return (
-          <Box key={`saturnline-${i}`} height={1} flexShrink={0}>
-            {line.length > 0 ? renderSceneLine(line) : null}
-          </Box>
-        );
-      })}
-    </Box>
-  );
+  return saturnRowsView({ columns, rows, composition, rowPropsAt, t });
 }

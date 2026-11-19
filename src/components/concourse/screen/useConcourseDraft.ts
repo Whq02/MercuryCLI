@@ -6,7 +6,7 @@ import { credentialWallLineForModel } from '../../../services/providers/credenti
 import { liveComposerGateOf, broadcastSummaryOf } from './composerGate.js'
 import type { Filter, Marks, ScreenProps, Selection } from './state.js'
 
-export type ComposeContext =
+type ComposeContext =
   | { kind: 'chat' }
   | { kind: 'answer'; obligationId: string; title: string }
   | { kind: 'rename'; sessionId: string; title: string }

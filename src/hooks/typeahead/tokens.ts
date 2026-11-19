@@ -78,7 +78,7 @@ export function applyDirectorySuggestion(
   return { newInput, cursorPos: tokenStartPos + replacement.length }
 }
 
-export type ShellSuggestionMetadata = {
+type ShellSuggestionMetadata = {
   completionType?: ShellCompletionType
   input?: string
 }
@@ -102,7 +102,7 @@ export function shellCompletionTypeOf(
   return undefined
 }
 
-export const TOKEN_CHAR = /[^\s]/
+const TOKEN_CHAR = /[^\s]/
 
 export function extractCompletionToken(
   text: string,

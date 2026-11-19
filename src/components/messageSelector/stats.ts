@@ -5,8 +5,8 @@ import type { Message } from '../../types/message.js'
 
 export type CodeStats = { filesChanged: string[]; insertions: number; deletions: number }
 
-export type PatchHunk = { lines?: string[] }
-export type EditResult = {
+type PatchHunk = { lines?: string[] }
+type EditResult = {
   filePath?: string
   file_path?: string
   structuredPatch?: PatchHunk[]
@@ -16,7 +16,7 @@ export type EditResult = {
   changeView?: { state?: string; files?: Array<{ file: string; added: number; removed: number }> }
 }
 
-export function createdLineCount(content: string): number {
+function createdLineCount(content: string): number {
   if (content === '') return 0
   return content.split('\n').length - (content.endsWith('\n') ? 1 : 0)
 }

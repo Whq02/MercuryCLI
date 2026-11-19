@@ -13,10 +13,7 @@ import {
   listAgentTrash,
   restoreAgentFromTrash,
 } from '../../../services/agents/store.js'
-import {
-  setAgentDisabled,
-  setAgentOverride,
-} from '../../../services/agents/overrides.js'
+import '../../../services/agents/overrides.js'
 import {
   decodeAgentDocument,
   patchAgentDocument,
@@ -29,46 +26,33 @@ import type { Tools } from '../../../Tool.js'
 import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
 import { SCOUT_TOOLS_DESCRIPTION } from '../../../tools/AgentTool/scoutPolicy.js'
 import { getCwd } from '../../../utils/cwd.js'
-import { editFileInEditor } from '../../../utils/promptEditor.js'
+import '../../../utils/promptEditor.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import {
-  CommandCenter,
   EmptyState,
   SectionHeader,
   StateBadge,
 } from '../../mercury-ui/components.js'
-import { GLYPH, truncateToWidth } from '../../mercury-ui/glyphs.js'
+import { truncateToWidth } from '../../mercury-ui/glyphs.js'
 import { useSessionAccent } from '../../mercury-ui/sessionAccent.js'
 import { useFlatList } from '../../mercury-ui/useFlatList.js'
 import { popupListWindow, PopupListViewport, usePopupListNavigation } from '../../CustomSelect/popup-list.js'
 import { useEngineModel } from '../../../hooks/useEngineModel.js'
 import TextInput from '../../TextInput.js'
 import { getAgentSourceDisplayName } from '../utils.js'
-import { StudioEditor, type StudioDraftBase } from './StudioEditor.js'
-import { ModelSelector } from '../ModelSelector.js'
+import './StudioEditor.js'
+import '../ModelSelector.js'
 import { agentModelAvailabilityNote } from '../../../utils/model/agentModelPicker.js'
 import {
   buildStudioRows,
   isFileBacked,
-  SCOPE_TABS,
-  STATUS_FILTERS,
   type StudioRow,
   type StudioScopeTab,
   type StudioStatusFilter,
 } from './studioData.js'
 import { readFileSync } from 'node:fs'
+import { inspectKeysOf, libraryKeysOf, modelOverrideView, studioEditorPane, studioLibraryView, type Mode } from './agentStudioParts.js'
 
-
-type Mode =
-  | { kind: 'library' }
-  | { kind: 'inspect'; row: StudioRow }
-  | { kind: 'create' }
-  | { kind: 'edit'; base: StudioDraftBase }
-  | { kind: 'delete-confirm'; agent: AgentDefinition }
-  | { kind: 'trash' }
-  | { kind: 'clone'; agent: AgentDefinition; buffer: string }
-  | { kind: 'testdrive'; agent: AgentDefinition; buffer: string }
-  | { kind: 'override-model'; agent: AgentDefinition }
 
 type Props = {
   tools: Tools
@@ -157,127 +141,13 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
   )
 
   useInput(
-    (input, key) => {
-      if (mode.kind !== 'library') return
-      const row = fl.selected
-      if (key.tab) {
-        if (key.shift) {
-          setFilter(f => STATUS_FILTERS[(STATUS_FILTERS.indexOf(f) + 1) % STATUS_FILTERS.length]!)
-        } else {
-          setTab(t => SCOPE_TABS[(SCOPE_TABS.indexOf(t) + 1) % SCOPE_TABS.length]!)
-        }
-        return
-      }
-      if (key.backspace || key.delete) {
-        if (query.length > 0) setQuery(q => q.slice(0, -1))
-        return
-      }
-      if (input === ' ') {
-        if (!row?.agent) return
-        if (row.agent.source === 'built-in') return
-        const target = row.agent
-        void setAgentDisabled('user', cwd, target.agentType, target.disabled !== true)
-          .then(() => refresh())
-          .then(() =>
-            fl.setNote({
-              text: `${target.disabled ? 'enabled' : 'disabled'} ${target.agentType}`,
-              kind: 'ok',
-            }),
-          )
-          .catch(e => fl.setNote({ text: String(e), kind: 'fail' }))
-        return
-      }
-      if (input === 'N') {
-        setMode({ kind: 'create' })
-        return
-      }
-      if (input === 'R') {
-        fl.setNote({ text: 'reloading definitions from disk …', kind: 'pending' })
-        void refresh().then(() => fl.setNote({ text: `${GLYPH.check} reloaded`, kind: 'ok' }))
-        return
-      }
-      if (input === 'U') {
-        setMode({ kind: 'trash' })
-        return
-      }
-      if (
-        input &&
-        input.length === 1 &&
-        !key.ctrl &&
-        !key.meta &&
-        input >= ' ' &&
-        input === input.toLowerCase()
-      ) {
-        setQuery(q => q + input)
-      }
-    },
+    (input, key) => libraryKeysOf({ mode, fl, setFilter, setTab, query, setQuery, cwd, refresh, setMode }, input, key),
     { isActive: mode.kind === 'library' },
   )
 
   const inspected = mode.kind === 'inspect' ? mode.row : null
   useInput(
-    (input, key) => {
-      if (mode.kind !== 'inspect') return
-      const row = mode.row
-      const agent = row.agent
-      if (key.escape || key.leftArrow) {
-        setMode({ kind: 'library' })
-        return
-      }
-      if (row.kind === 'invalid') {
-        if (input === 'o' && row.invalid) {
-          void editFileInEditor(row.invalid.path).then(r => {
-            if (r.error) fl.setNote({ text: r.error, kind: 'fail' })
-            else done(`Edited invalid file ${row.invalid!.path} in editor`)
-          })
-        }
-        return
-      }
-      if (!agent) return
-      if (input === 'e') {
-        if (isFileBacked(agent)) {
-          setMode({
-            kind: 'edit',
-            base: { identity: { filePath: agent.filePath, revision: agent.revision }, agent },
-          })
-        }
-        return
-      }
-      if (input === 'd' && !key.ctrl && !key.meta) {
-        if (isFileBacked(agent)) setMode({ kind: 'delete-confirm', agent })
-        return
-      }
-      if (input === 'c' && !key.ctrl && !key.meta) {
-        if (isFileBacked(agent) || agent.source === 'extension') {
-          setMode({ kind: 'clone', agent, buffer: `${agent.agentType}-copy` })
-        }
-        return
-      }
-      if (input === 't') {
-        setMode({ kind: 'testdrive', agent, buffer: '' })
-        return
-      }
-      if (input === 'o') {
-        if (isFileBacked(agent)) {
-          void editFileInEditor(agent.filePath).then(r => {
-            if (r.error) fl.setNote({ text: r.error, kind: 'fail' })
-            else done(`Opened ${agent.agentType} in editor — changes hot-reload`)
-          })
-        }
-        return
-      }
-      if (input === 'x') {
-        if (agent.source === 'built-in') return
-        void setAgentDisabled('user', cwd, agent.agentType, agent.disabled !== true)
-          .then(() => done(`${agent.disabled ? 'Enabled' : 'Disabled'} ${agent.agentType}`))
-          .catch(e => fl.setNote({ text: String(e), kind: 'fail' }))
-        return
-      }
-      if (input === 'm') {
-        setMode({ kind: 'override-model', agent })
-        return
-      }
-    },
+    (input, key) => inspectKeysOf({ mode, setMode, fl, done, cwd }, input, key),
     { isActive: mode.kind === 'inspect' },
   )
 
@@ -403,63 +273,9 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
   )
 
 
-  if (mode.kind === 'override-model') {
-    const agent = mode.agent
-    return (
-      <CommandCenter
-        view="agents"
-        subtitle="agent studio · model override"
-        onClose={() => setMode({ kind: 'inspect', row: { id: 'back', kind: 'agent', agent } })}
-        captureInput={false}
-        footer=""
-      >
-        <Box flexDirection="column" marginTop={1}>
-          <SectionHeader>{`Model override for ${agent.agentType}`}</SectionHeader>
-          <ModelSelector
-            initialModel={agent.operatorOverride?.model}
-            onComplete={m => {
-              const cleared = m === undefined || m === 'inherit'
-              void setAgentOverride('user', cwd, agent.agentType, cleared ? undefined : { model: m })
-                .then(() => done(cleared ? `Cleared model override for ${agent.agentType}` : `Model override for ${agent.agentType}: ${m}`))
-                .catch(e => fl.setNote({ text: String(e), kind: 'fail' }))
-            }}
-            onCancel={() => setMode({ kind: 'inspect', row: { id: 'back', kind: 'agent', agent } })}
-          />
-        </Box>
-      </CommandCenter>
-    )
-  }
+  if (mode.kind === 'override-model') return modelOverrideView({ mode, setMode, cwd, done, fl })
 
-  if (mode.kind === 'create' || mode.kind === 'edit') {
-    return (
-      <CommandCenter
-        view="agents"
-        subtitle={mode.kind === 'create' ? 'agent studio · create' : 'agent studio · edit'}
-        onClose={() => setMode({ kind: 'library' })}
-        captureInput={false}
-        footer=""
-      >
-        <StudioEditor
-          mode={mode.kind}
-          {...(mode.kind === 'edit' ? { base: mode.base } : {})}
-          cwd={cwd}
-          tools={mergedTools}
-          existingAgents={agentDefinitions.allAgents}
-          parentModel={parentModel}
-          sessionEffort={sessionEffort}
-          sovereignConsent={toolPermissionContext.isBypassPermissionsModeAvailable === true}
-          onSaved={done}
-          onCancel={() => {
-            if (initialMode === 'create' && changes.length === 0 && mode.kind === 'create') {
-              onExit('Agent creation cancelled', { display: 'system' })
-            } else {
-              setMode({ kind: 'library' })
-            }
-          }}
-        />
-      </CommandCenter>
-    )
-  }
+  if (mode.kind === 'create' || mode.kind === 'edit') return studioEditorPane({ mode, setMode, cwd, mergedTools, agentDefinitions, parentModel, sessionEffort, toolPermissionContext, done, initialMode, changes, onExit })
 
   const inspectFooter = (agent: NonNullable<StudioRow['agent']>): string => {
     const verbs: string[] = []
@@ -492,98 +308,7 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
                 ? '↑↓ move · pgup/pgdn page · ↵ inspect · esc clear search'
                 : `type to search · ↑↓ · pgup/pgdn page · ↵ inspect · ${librarySpace}N new · U trash · R reload · tab scope · shift+tab filter · esc close`
 
-  return (
-    <CommandCenter
-      view="agents"
-      subtitle="agent studio"
-      onClose={() => {
-        onExit(
-          changes.length > 0 ? `Agent changes:\n${changes.join('\n')}` : 'Agent Studio closed',
-          { display: changes.length > 0 ? undefined : 'system' },
-        )
-      }}
-      captureInput={false}
-      footer={footer}
-      bodyOwnsPageKeys={mode.kind === 'library' || mode.kind === 'trash'}
-    >
-      <Box flexDirection="column">
-        {mode.kind === 'delete-confirm' ? (
-          <Box marginTop={1} flexDirection="column">
-            <SectionHeader>Delete agent</SectionHeader>
-            <Text>
-              <Text color={IVORY}>{`delete ${mode.agent.agentType}? `}</Text>
-              <Text color={FAINT}>
-                {`moves the file to the recovery area (press U to restore)`}
-              </Text>
-            </Text>
-            <Text color={FAINT}>{truncateToWidth(`  ${(mode.agent as { filePath?: string }).filePath ?? ''}`, 76)}</Text>
-          </Box>
-        ) : mode.kind === 'trash' ? (
-          <TrashView sel={trashSel} />
-        ) : mode.kind === 'clone' ? (
-          <Box marginTop={1} flexDirection="column">
-            <SectionHeader>{`Clone ${mode.agent.agentType}`}</SectionHeader>
-            <Text color={FAINT}>new identifier (a lossless copy lands in the project scope):</Text>
-            <TextInput
-              value={mode.buffer}
-              onChange={v => setMode({ ...mode, buffer: v })}
-              onSubmit={() => runClone(mode.agent, mode.buffer.trim())}
-              columns={50}
-              cursorOffset={mode.buffer.length}
-              onChangeCursorOffset={() => {}}
-              focus
-              showCursor
-            />
-          </Box>
-        ) : mode.kind === 'testdrive' ? (
-          <TestDrivePane
-            agent={mode.agent}
-            buffer={mode.buffer}
-            onChange={v => setMode({ ...mode, buffer: v })}
-            onSubmit={() => {
-              if (mode.buffer.trim()) runTestDrive(mode.agent, mode.buffer.trim())
-            }}
-            parentModel={parentModel}
-            sessionEffort={sessionEffort}
-            tools={mergedTools}
-          />
-        ) : mode.kind === 'inspect' ? (
-          <InspectorPane
-            row={mode.row}
-            estate={estateRef.current}
-            parentModel={parentModel}
-            sessionEffort={sessionEffort}
-            tools={mergedTools}
-          />
-        ) : (
-          <LibraryPane
-            fl={fl}
-            query={query}
-            tab={tab}
-            filter={filter}
-            accent={accent}
-          />
-        )}
-        {fl.note ? (
-          <Box marginTop={1}>
-            <Text
-              color={
-                fl.note.kind === 'ok'
-                  ? TEAL
-                  : fl.note.kind === 'fail'
-                    ? CRIMSON
-                    : fl.note.kind === 'warn'
-                      ? AMBER
-                      : FAINT
-              }
-            >
-              {truncateToWidth(fl.note.text, 76)}
-            </Text>
-          </Box>
-        ) : null}
-      </Box>
-    </CommandCenter>
-  )
+  return studioLibraryView({ onExit, changes, footer, mode, setMode, trashSel, runClone, runTestDrive, parentModel, sessionEffort, mergedTools, estateRef, fl, query, tab, filter, accent, TrashView, TestDrivePane, InspectorPane, LibraryPane })
 }
 
 

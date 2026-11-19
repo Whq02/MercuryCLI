@@ -6,7 +6,7 @@ import { enterRootChat, surfaceGeneration } from '../../../context/surfaceRoute.
 import { dispatchSeedInputs, readConcourseSeedOverrides, resolveHarnessGround } from '../../../services/concourse/concourseSnapshot.js';
 import type { ConcourseCallbacks, ConcourseSnapshotV1, ControlNoteState } from '../contracts.js';
 
-export type LaunchControls = {
+type LaunchControls = {
   noteControl: (control: string, state: ControlNoteState) => void
   splitFrameStands: () => boolean
   birthInFlightRef: { current: boolean }

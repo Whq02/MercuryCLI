@@ -1,14 +1,18 @@
 import type { UUID } from 'node:crypto';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { getCommandName, type Command, type ResumeEntrypoint } from '../../commands.js';
+import '../../components/messages/TranscriptNameplate.js';
 import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js';
 import type { useNotifications } from '../../context/notifications.js';
 import type { useApiKeyVerification } from '../../hooks/useApiKeyVerification.js';
 import type { useAuthWallHold } from '../../hooks/useAuthWallHold.js';
+import '../../context/routeAliases.js';
+import '../../history.js';
 import { interruptFocusedTurn } from '../../hooks/useCancelRequest.js';
 import type { useMergedTools } from '../../hooks/useMergedTools.js';
 import { useSeatReceipts } from '../../hooks/useSeatReceipts.js';
 import type { useTheme } from '../../ink.js';
+import '../../input-core/pending-input.js';
 import { query } from '../../query.js';
 import { getFocusedSessionConnector, landingInFlight, subscribeFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js';
 import type { SessionLiveV1 } from '../../services/engine-connector/seatLive.js';
@@ -20,6 +24,8 @@ import type { Message, UserMessage } from '../../types/message.js';
 import type { PromptInputHelpers } from '../../types/promptInputHelpers.js';
 import type { PromptInputMode } from '../../types/textInputTypes.js';
 import type { PastedContent } from '../../utils/config/schema.js';
+import '../../utils/abortController.js';
+import '../../utils/cockpit/settingsPopup.js';
 import { logForDebugging } from '../../utils/debug.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../../utils/fileStateCache.js';
 import { createCommandInputMessage, createUserMessage, getUserMessageText } from '../../utils/messages.js';
@@ -175,7 +181,7 @@ export function useChatSubmitTools({ store, setAppState, addNotification, remove
 }
 
 type SubmitTools = ReturnType<typeof useChatSubmitTools>;
-export type SubmitArgs = {
+type SubmitArgs = {
   addNotification: ReturnType<typeof useNotifications>['addNotification'];
   setAppState: ReturnType<typeof useSetAppState>;
   setInputValue: (value: string) => void;
@@ -234,7 +240,15 @@ export function useChatSubmit({ addNotification, setAppState, setInputValue, set
     if (seatCommand !== undefined && seatCommand.type === 'local-jsx') {
       const dialogName = getCommandName(seatCommand);
       if (queueBehindDialog(deps, line, dialogName)) return;
-      await openDialogCommand(deps, line, seatCommand, dialogName, commandArgs);
+      const { spaceAt, argsWithPastes } = commandArgs;
+      const { context, onDone, mountDialog, failDialog } = openDialogCommand(deps, line, seatCommand, dialogName, commandArgs);
+      try {
+        const module = await seatCommand.load();
+        const element = await module.call(onDone, context, await argsWithPastes(), text.slice(1, spaceAt === -1 ? undefined : spaceAt));
+        mountDialog(element);
+      } catch (error) {
+        failDialog(error);
+      }
     }
   }, [addNotification, authWallHold, drainQueuedDialogCommand, getToolUseContext, lastCompletedAt, paintScreenCommandReceipt, repinToBottom, setInputMode, setInputValue, setPastedContents, setToolJSX]);
   const onSubmitRef = useRef(onSubmit);

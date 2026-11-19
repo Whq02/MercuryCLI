@@ -60,7 +60,7 @@ export function formFace({ base, defs, faceTools, form, formList, formPick, form
   return formRowsFace({ base, destination, effectiveLine, form, formList, formPrompt, formRowIds, note, snap, validation });
 }
 
-export function formPickFace({ base, destination, effectiveLine, form, formPick, pickList, snap, validation }: { base: AgentsFaceBase; destination: string; effectiveLine: string; form: NonNullable<AgentFormState['form']>; formPick: NonNullable<AgentFormState['formPick']>; pickList: AgentLists['pickList']; snap: StudioEditorSnapshot; validation: StudioValidation }) {
+function formPickFace({ base, destination, effectiveLine, form, formPick, pickList, snap, validation }: { base: AgentsFaceBase; destination: string; effectiveLine: string; form: NonNullable<AgentFormState['form']>; formPick: NonNullable<AgentFormState['formPick']>; pickList: AgentLists['pickList']; snap: StudioEditorSnapshot; validation: StudioValidation }) {
   const current = (snap.doc.fields as Record<string, unknown>)[formPick.field];
   if (formPick.modelRows !== undefined) {
     const currentModel = String(snap.doc.fields.model ?? 'inherit');
@@ -107,7 +107,7 @@ export function formPickFace({ base, destination, effectiveLine, form, formPick,
   };
 }
 
-export function formRowsFace({ base, destination, effectiveLine, form, formList, formPrompt, formRowIds, note, snap, validation }: { base: AgentsFaceBase; destination: string; effectiveLine: string; form: NonNullable<AgentFormState['form']>; formList: AgentLists['formList']; formPrompt: AgentFormState['formPrompt']; formRowIds: Array<'destination' | FieldId>; note: AgentDefinitions['note']; snap: StudioEditorSnapshot; validation: StudioValidation }) {
+function formRowsFace({ base, destination, effectiveLine, form, formList, formPrompt, formRowIds, note, snap, validation }: { base: AgentsFaceBase; destination: string; effectiveLine: string; form: NonNullable<AgentFormState['form']>; formList: AgentLists['formList']; formPrompt: AgentFormState['formPrompt']; formRowIds: Array<'destination' | FieldId>; note: AgentDefinitions['note']; snap: StudioEditorSnapshot; validation: StudioValidation }) {
   const promptOpen = formPrompt !== null;
   const promptLine = promptOpen
     ? `${String(formPrompt)}: ${snap.textBuffer === '' ? '(type)' : snap.textBuffer}▌`

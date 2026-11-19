@@ -8,7 +8,7 @@ import type { PromptInputMode } from '../../../types/textInputTypes.js';
 import type { PastedContent } from '../../../utils/config/schema.js';
 import { createUserMessage } from '../../../utils/messages.js';
 import { resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } from '../../../utils/processUserInput/processSlashCommand.js';
-import type { SubmitArgs } from '../useChatSubmit.js';
+import type { useChatSubmit } from '../useChatSubmit.js';
 
 export const INERT_PROMPT_HELPERS: PromptInputHelpers = {
   setCursorOffset: () => {},
@@ -17,8 +17,8 @@ export const INERT_PROMPT_HELPERS: PromptInputHelpers = {
 };
 
 export type SubmitOptions = { fromKeybinding?: boolean; rearmed?: boolean; submittedAt?: string; pastedContents?: Record<number, PastedContent>; armedMode?: PromptInputMode };
-export type OnSubmit = (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: SubmitOptions) => Promise<void>;
-export type SubmitDeps = Omit<SubmitArgs, 'toolJSX' | 'lastCompletedAt'> & { drainQueuedDialogCommand: () => void; onSubmitRef: { current: OnSubmit } };
+type OnSubmit = (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: SubmitOptions) => Promise<void>;
+export type SubmitDeps = Omit<Parameters<typeof useChatSubmit>[0], 'toolJSX' | 'lastCompletedAt'> & { drainQueuedDialogCommand: () => void; onSubmitRef: { current: OnSubmit } };
 export type SubmitLine = {
   input: string;
   helpers: PromptInputHelpers;

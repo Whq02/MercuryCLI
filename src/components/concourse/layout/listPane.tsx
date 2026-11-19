@@ -14,7 +14,7 @@ import { NeedsYouRail } from '../NeedsYouRail.js'
 import type { MercuryThemeTokens } from '../../../utils/mercuryTokens.js'
 import { NEW_SESSION_ROW_ID, newSessionDoorWords, newSessionDoorTail, rowNeedsOperator, MORE_BEYOND_ROW, type ConcourseRegion, type SwitchboardGeometry, STATE_GLYPH, STATE_WORD, stateWordCell, type ConcourseLayoutWiring } from './shared.js'
 
-export function boardRowsOf({
+function boardRowsOf({
   rightWidth,
   geo,
   t,
