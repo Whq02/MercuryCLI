@@ -197,9 +197,9 @@ function shellDirectoryStays(before: string, why: string): string {
   return `The shell's directory stays ${before}: ${why}.`
 }
 
-function startRefusal(folder: string, tracked: boolean): string | null {
+function startRefusal(folder: string, tracked: boolean, bashLeaves: boolean): string | null {
   if (getPlatform() !== 'windows' || folder.length <= WINDOWS_STARTS_A_PROGRAM_IN) return null
-  return shellDirectoryStays(tracked ? folder : getShellCwd(), `${NO_PROGRAM_STARTS_PAST}, and ${tracked ? 'this one' : folder} has ${folder.length}, so the command was not started${tracked ? '; cd to a shorter folder with the Bash tool' : ''}`)
+  return shellDirectoryStays(tracked ? folder : getShellCwd(), `${NO_PROGRAM_STARTS_PAST}, and ${tracked ? 'this one' : folder} has ${folder.length}, so the command was not started${tracked && bashLeaves ? '; cd to a shorter folder with the Bash tool' : ''}`)
 }
 
 function folderNoProgramStartsIn(path: string, base: string): string | null {
@@ -295,7 +295,7 @@ export async function exec(
     if (directoryResolves(shellDirectory)) {
       const invocation = await planWindowsBatchInvocation(command, { cwd: shellDirectory })
       if (invocation.kind === 'batch') {
-        const unstartable = startRefusal(shellDirectory, cwdOverride === undefined)
+        const unstartable = startRefusal(shellDirectory, cwdOverride === undefined, true)
         if (unstartable !== null) return createFailedCommand(unstartable)
         logForDebugging(`batch invocation through cmd.exe: ${invocation.batchPath}`)
         return await runWindowsBatchCommand(invocation, abortSignal, {
@@ -337,7 +337,7 @@ export async function exec(
     }
   }
 
-  const refusal = built.handOver === undefined ? startRefusal(cwd, cwdOverride === undefined) : null
+  const refusal = built.handOver === undefined ? startRefusal(cwd, cwdOverride === undefined, shellType !== 'bash') : null
   if (refusal !== null) return createFailedCommand(refusal)
 
   if (abortSignal.aborted) {
