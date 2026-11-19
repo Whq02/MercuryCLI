@@ -23,6 +23,8 @@ const sub = join(project, 'sub')
 const deep = join(project, 'deep')
 const bare = join(project, 'bare')
 const outside = join(scratch, 'outside')
+const marked = join(project, 'q checkpoint="c9" fallback="root"')
+const broken = join(project, 'two\nlines')
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -43,7 +45,7 @@ if (!RUNNER) {
   git('init', '-q', '-b', 'main')
   git('add', '-A')
   git('commit', '-q', '-m', 'first')
-  for (const dir of [join(bare, 'objects'), join(bare, 'refs')]) mkdirSync(dir, { recursive: true })
+  for (const dir of [join(bare, 'objects'), join(bare, 'refs'), marked, broken]) mkdirSync(dir, { recursive: true })
   writeFileSync(join(bare, 'HEAD'), 'ref: refs/heads/main\n')
 }
 
@@ -61,8 +63,8 @@ const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { setCwd, getShellCwd } = await import('../../src/utils/Shell.ts')
-const { getCwd } = await import('../../src/utils/cwd.ts')
+const { exec, setCwd, getShellCwd } = await import('../../src/utils/Shell.ts')
+const { getCwd, runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 const { ask } = await import('../../src/rows/turn.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
@@ -175,7 +177,7 @@ const watchdog = setTimeout(() => {
 watchdog.unref?.()
 
 const { getCompactUserSummaryMessage } = await import('../../src/services/compact/prompt.ts')
-const { createOperatorRewindRecordMessage, createRewindRecordMessage } = await import('../../src/services/compact/checkpointRewind.ts')
+const { createOperatorRewindRecordMessage, createRewindRecordMessage, projectRewoundWindows } = await import('../../src/services/compact/checkpointRewind.ts')
 const { handleRewindSession } = await import('../../src/cli/headless/controlHandlers.ts')
 const sentence = (directory: string): string => `The shell's working directory is still where an earlier cd left it: ${directory}`
 const frame = (): string => getCompactUserSummaryMessage('<summary>the earlier stretch</summary>', false, join(scratch, 'session.jsonl'), true)
@@ -200,6 +202,12 @@ function runner(commands: string[], env: Record<string, string> = {}): Runner {
   } catch {
     return { status: child.status, ran: [], stderr: `${line} ${(child.stderr ?? '').slice(-400)}` }
   }
+}
+const inView = (): string => projectRewoundWindows(messages as never).map(row => (row as { uuid: string }).uuid).join(' ')
+const step = async (command: string): Promise<void> => {
+  const ran = await exec(command, new AbortController().signal, 'bash', { timeout: 20_000 })
+  await ran.result
+  ran.cleanup()
 }
 const explore = (command: string, report: string): Step[] => [{ name: 'Checkpoint', input: { goal: 'look around' } }, bash(command), { name: 'Rewind', input: { report } }]
 
@@ -262,6 +270,13 @@ section('§4 a rewind past a cd names the folder the shell stands in')
   check('a record made by hand reads the same', createOperatorRewindRecordMessage({ turnUuid: 't1', removed: 4 }).message.content === [...operatorRecordToday('t1', 4).split('\n').slice(0, 2), sentence(sub), '</mercury-rewind-record>'].join('\n'))
   const after = await turn([bash('pwd')])
   check('the shell is where the sentence says, in the turn after the rewind', firstLine(after.ran[0]) === sub, after.ran)
+  const viewBefore = inView()
+  const strayed = await turn([bash(`cd '${marked}'`)])
+  const strayedOutcome = await rewind(strayed.uuid)
+  const strayedRecord = lastRewindRecord()
+  check('a folder whose name holds the marks of a record is written as a JSON string', strayed.ran[0]?.status === 'ok' && strayedOutcome === 'applied' && strayedRecord.split('\n')[2] === sentence(JSON.stringify(marked)), { ran: strayed.ran, strayedRecord })
+  check('and the rows left in view are the rows from before that turn', inView() === viewBefore, { before: viewBefore.split(' ').length, after: inView().split(' ').length })
+  await turn([bash(`cd '${sub}'`)])
 }
 
 section('§5 a fold names the folder the shell stands in')
@@ -272,6 +287,10 @@ section('§5 a fold names the folder the shell stands in')
   check('the frame carries the sentence with the folder', at !== -1, framed)
   check('it stands after the transcript sentence and before the tail sentence', at > 0 && paragraphs[at - 1]!.endsWith(join(scratch, 'session.jsonl')) && paragraphs[at + 1] === 'The most recent messages of the conversation are preserved verbatim after this summary.', paragraphs)
   check('the sentence is the whole difference from the frame of a session that never left', paragraphs.filter((_, index) => index !== at).join('\n\n') === frameAtHome, framed)
+  check('a crewmate, whose own shell never moved, reads the frame and the record of a session that never left', runWithCwdOverride(deep, () => frame() === frameAtHome && textOf(createOperatorRewindRecordMessage({ turnUuid: 't1', removed: 4 }) as never) === operatorRecordToday('t1', 4)))
+  await step(`cd "${broken}"`)
+  check('a folder whose name holds a line break stays one paragraph, as a JSON string', getShellCwd() === broken && frame().split('\n\n').includes(sentence(JSON.stringify(broken))), { shell: getShellCwd(), frame: frame() })
+  await step(`cd "${sub}"`)
   const { compactConversation, buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
   const { startFixtureApi } = await import('../lib/fixtureApi.ts')
   const api = await startFixtureApi(Array.from({ length: 8 }, () => ({ kind: 'text' as const, text: 'The earlier stretch moved the shell and looked around. Carry on from the newest request of the operator.' })))
@@ -317,6 +336,22 @@ section('§7 a worktree switch moves the session folder, and the shell goes with
   const left = await turn([{ name: 'ExitWorktree', input: { action: 'keep' } }, bash('pwd')])
   check('the first command after the exit runs in the checkout, not in the sub of the worktree', left.ran[0]?.status === 'ok' && firstLine(left.ran[1]) === project && getCwd() === project, left.ran)
   check('the frame of a fold is back to the frame of a session that never left', frame() === frameAtHome)
+}
+
+section('§8 one folder spelled two ways is one folder where the platform folds the case of a path')
+{
+  const shouted = project.toUpperCase()
+  if (!existsSync(shouted)) console.log('  [INFO] this volume holds the case of a name apart, so the row did not run here')
+  else {
+    bootstrap.setCwdState(shouted)
+    await step('true')
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+    const folded = frame()
+    Object.defineProperty(process, 'platform', platform)
+    check('the shell stands in the session folder under its other spelling, and the frame says nothing of a cd', getShellCwd() === project && getCwd() === shouted && folded === frameAtHome, { shell: getShellCwd(), session: getCwd(), folded })
+    setCwd(project)
+  }
 }
 
 process.chdir(tmpdir())

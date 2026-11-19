@@ -26,10 +26,10 @@ export function setContextShellCwd(next: string | null): boolean {
   return true
 }
 
-let whereTheShellStands: (() => string) | undefined
+let whereACdLeftTheShell: (() => string | null) | undefined
 
-export function tellWhereTheShellStands(read: () => string): void {
-  whereTheShellStands = read
+export function tellWhereACdLeftTheShell(read: () => string | null): void {
+  whereACdLeftTheShell = read
 }
 
 export function getStartingCwd(): string {
@@ -51,7 +51,7 @@ export function getCwd(): string {
 }
 
 export function shellDirectoryLeftByCd(): string | null {
-  const session = getCwd()
-  const directory = whereTheShellStands === undefined ? session : whereTheShellStands()
-  return directory === session ? null : `The shell's working directory is still where an earlier cd left it: ${directory}`
+  const directory = whereACdLeftTheShell === undefined ? null : whereACdLeftTheShell()
+  if (directory === null) return null
+  return `The shell's working directory is still where an earlier cd left it: ${/["\p{Cc}]/u.test(directory) ? JSON.stringify(directory) : directory}`
 }

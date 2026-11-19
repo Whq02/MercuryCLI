@@ -6,10 +6,11 @@ import { memoize } from 'lodash-es'
 import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
 import { createAndSaveSnapshot, loginExports } from './bash/ShellSnapshot.js'
-import { contextShellCwd, getCwd, getStartingCwd, setContextShellCwd, tellWhereTheShellStands } from './cwd.js'
+import { contextShellCwd, getCwd, getStartingCwd, setContextShellCwd, tellWhereACdLeftTheShell } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { diagnosticAsksFor, isReadOnlyDiagnostic } from './diagnosticReadOnly.js'
 import { errorMessage, isENOENT } from './errors.js'
+import { normalizePathForComparison } from './file.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
 import { getPlatform } from './platform.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
@@ -203,7 +204,7 @@ subscribeCwdState(sessionCwd => {
   sessionCwdSeen = sessionCwd
   shellCwd = null
 })
-tellWhereTheShellStands(getShellCwd)
+tellWhereACdLeftTheShell(shellCwdLeftByCd)
 
 function readShellCwd(): string | null {
   const own = contextShellCwd()
@@ -219,6 +220,11 @@ export function getShellCwd(): string {
   if (last !== null && directoryResolves(last)) return last
   writeShellCwd(null)
   return getCwd()
+}
+
+function shellCwdLeftByCd(): string | null {
+  const directory = getShellCwd()
+  return normalizePathForComparison(directory) === normalizePathForComparison(getCwd()) ? null : directory
 }
 
 export function resolveShellCwd(cwd?: string): string {
