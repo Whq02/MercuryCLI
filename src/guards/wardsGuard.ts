@@ -7,6 +7,7 @@ import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
 import { untrustedWorkspaceHeadless } from '../utils/config/trust.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
+import { errorMessage, getErrnoCode } from '../utils/errors.js'
 import type { SetAppState } from '../utils/messageQueueManager.js'
 import { createSystemMessage } from '../utils/messages/systemMessages.js'
 import { expandPath } from '../utils/path.js'
@@ -32,13 +33,23 @@ export const WARDS_HOOK_ID = 'wards-content-rules'
 
 const TARGET_HEAD_BYTES = 2048
 
+const NO_FILE_THERE_CODES = new Set(['ENOENT', 'ENOTDIR', 'ENAMETOOLONG', 'EISDIR'])
+
+class TargetHeadUnread extends Error {
+  constructor(readonly path: string, readonly why: string) {
+    super(`${path} could not be read (${why})`)
+  }
+}
+
 export function readTargetHead(path: string, work?: WardWork, bytes = TARGET_HEAD_BYTES): string | undefined {
   let fd: number
   try {
     if (work) countWardWork(work, 'nonblockingOpens')
     fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK)
-  } catch {
-    return undefined
+  } catch (error) {
+    const code = getErrnoCode(error)
+    if (code !== undefined && NO_FILE_THERE_CODES.has(code)) return undefined
+    throw new TargetHeadUnread(path, errorMessage(error))
   }
   const buffer = Buffer.alloc(bytes)
   let read = 0
@@ -46,8 +57,8 @@ export function readTargetHead(path: string, work?: WardWork, bytes = TARGET_HEA
     if (!fstatSync(fd).isFile()) return undefined
     if (work) countWardWork(work, 'headReads')
     read = readSync(fd, buffer, 0, bytes, 0)
-  } catch {
-    return undefined
+  } catch (error) {
+    throw new TargetHeadUnread(path, errorMessage(error))
   } finally {
     closeSync(fd)
   }
@@ -61,14 +72,16 @@ function deepestExisting(path: string, work?: WardWork): { real: string; tail: s
   if (work) countWardWork(work, 'characters', path.length)
   const segments = path.split(sep).filter(Boolean)
   const realAt = (depth: number): string | null => {
+    const candidate = depth === 0 ? sep : sep + segments.slice(0, depth).join(sep)
     try {
-      const candidate = depth === 0 ? sep : sep + segments.slice(0, depth).join(sep)
       if (work) {
         countWardWork(work, 'characters', candidate.length)
         countWardWork(work, 'realpathCalls')
       }
       return realpathSync(candidate)
-    } catch {
+    } catch (error) {
+      const code = getErrnoCode(error)
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') logForDebugging(`wards: ${candidate} could not be resolved (${code ?? errorMessage(error)}), so it is judged as a path not made yet`)
       return null
     }
   }
@@ -106,12 +119,17 @@ export function realTargetPath(path: string): string {
 }
 
 let homeSpellingsCache: { home: string; spellings: string[] } | undefined
+let homeUnknownLogged = false
 
 export function homeSpellings(): string[] {
   let home: string
   try {
     home = expandPath('~')
-  } catch {
+  } catch (error) {
+    if (!homeUnknownLogged) {
+      homeUnknownLogged = true
+      logForDebugging(`wards: the home folder could not be told (${errorMessage(error)}), so no ward matches a path by its home spelling`)
+    }
     return []
   }
   if (homeSpellingsCache?.home === home) return homeSpellingsCache.spellings
@@ -275,7 +293,8 @@ export function registerWardsGuard(
           if (root === undefined || !resolved.startsWith(`${join(root, 'src')}${sep}`) || !existsSync(join(root, 'src', 'components', 'mercuryPalette.ts'))) return false
           try {
             return JSON.parse(readTargetHead(join(root, 'package.json'), work, 65_536) ?? 'null')?.name === 'mercury'
-          } catch {
+          } catch (error) {
+            logForDebugging(`wards: ${join(root, 'package.json')} could not be read as a manifest (${error instanceof SyntaxError ? 'its first 64 KB are not valid JSON' : errorMessage(error)}), so ${resolved} is not judged as Mercury source`)
             return false
           }
         }
@@ -301,7 +320,8 @@ export function registerWardsGuard(
             call.callId,
           ),
         }
-      } catch {
+      } catch (error) {
+        if (error instanceof TargetHeadUnread) return { allow: false, reason: `The ${call.tool} call was not made: the wards could not read ${error.path} to check its content rules (${error.why}) — retry it, and if it fails again, make the file readable to you first.` }
         return { allow: true }
       }
     },

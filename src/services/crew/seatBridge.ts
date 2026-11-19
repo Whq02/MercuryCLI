@@ -194,7 +194,9 @@ export async function attachExternalSeat(
                 live.dir !== undefined ? { dir: live.dir } : undefined,
               ),
             )
-            .catch(() => {})
+            .catch(e =>
+              logForDebugging(`[crew/seatBridge] descriptor retire on lifecycle loss failed, the seat stays listed as live: ${e}`),
+            )
         }
       })
     }

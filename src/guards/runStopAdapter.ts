@@ -20,6 +20,7 @@ import type { Message } from '../types/message.js'
 import { getIsInteractive } from '../bootstrap/state.js'
 import { getCwd } from '../utils/cwd.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from '../utils/envUtils.js'
+import { errorMessage } from '../utils/errors.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import {
   evidenceDemandCount,
@@ -259,10 +260,21 @@ export function mintDeliveryArtifact(owner: OwnerKey, runId: string, hasChanges:
           at: Date.now(),
           action: `review the delivered walkthrough v${minted.value.version} (/diff · /workbench)`,
         })
+      } else {
+        noteWalkthroughUnwritten(owner, minted.reason)
       }
-    } catch {
+    } catch (error) {
+      noteWalkthroughUnwritten(owner, error instanceof SyntaxError ? 'a record it reads is not valid JSON' : errorMessage(error))
     }
   })()
+}
+
+function noteWalkthroughUnwritten(owner: OwnerKey, reason: string): void {
+  noteRunEvent(owner, {
+    type: 'next-action',
+    at: Date.now(),
+    action: `the delivered walkthrough could not be written (${reason}) — review the changes in /diff`,
+  })
 }
 
 export function _resetDeliveryLatchForTesting(): void {

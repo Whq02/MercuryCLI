@@ -17,9 +17,12 @@ import {
   readFileSync,
   statSync,
   writeSync,
+  type Stats,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { errorMessage, getErrnoCode, isENOENT } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 
 const OPERATOR_KEY_VERSION = 1 as const
 
@@ -102,10 +105,23 @@ function parseKeyFile(path: string, raw: string): OperatorKey {
 
 function guardKeyFileMode(path: string): void {
   if (process.platform === 'win32') return
+  let stats: Stats
   try {
-    const mode = statSync(path).mode & 0o777
-    if ((mode & 0o077) !== 0) chmodSync(path, mode & 0o700)
-  } catch {
+    stats = statSync(path)
+  } catch (e) {
+    if (isENOENT(e)) return
+    throw new Error(`[identity] the operator identity key at ${path} was read, but its mode could not be checked (${getErrnoCode(e) ?? errorMessage(e)}), so it may be readable by other users — make it readable to you, run: chmod 600 ${path}, and start again`)
+  }
+  const mode = stats.mode & 0o777
+  if ((mode & 0o077) === 0) return
+  try {
+    chmodSync(path, mode & 0o700)
+  } catch (e) {
+    const code = getErrnoCode(e) ?? errorMessage(e)
+    if (stats.uid !== process.getuid?.()) {
+      throw new Error(`[identity] the operator identity key at ${path} belongs to another user and could not be made private (${code}) — make the file yours and run: chmod 600 ${path}, or restore your own key from a backup`)
+    }
+    logError(new Error(`[identity] the operator identity key at ${path} could not be made private (${code}): its filesystem takes no file mode, so other users of this machine may read it`))
   }
 }
 

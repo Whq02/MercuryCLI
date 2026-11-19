@@ -6,6 +6,8 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { errorMessage } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 import { sleep } from '../../utils/sleep.js'
 import { announcerMachineName } from '../lan/announcer.js'
 import { startPairingServer } from '../lan/pairing.js'
@@ -175,8 +177,8 @@ async function forgetShared(sharedAs: string | undefined, io: Pick<ServeIo, 'for
   if (sharedAs === undefined) return
   try {
     await (io.forgetHost ?? forgetTensorFoldHost)(sharedAs)
-  } catch {
-    void 0
+  } catch (error) {
+    logError(new Error(`the shared TensorFold host ${sharedAs} could not be removed from the hosts store (${errorMessage(error)}) — it stays listed, with its key, for a model that no longer serves`))
   }
 }
 
@@ -297,7 +299,9 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
   const pause = io.sleep ?? sleep
   const machine = io.machine ?? (await cachedTensorFoldMachineTruth(io))
   if (machine.platform === 'darwin' || io.app !== undefined) {
-    const app = await (io.app ?? detectTensorFoldApp)().catch(() => undefined)
+    const app = await (io.app ?? detectTensorFoldApp)().catch((error: unknown) => {
+      throw new TensorFoldStartError(`whether the TensorFold app is already serving on this Mac could not be read (${errorMessage(error)}) · nothing was started — quit the app if it is open, then serve again`, null)
+    })
     const refused = app === undefined ? undefined : refuseSecondCopy(app)
     if (refused !== undefined) throw new TensorFoldStartError(refused, null)
   }
@@ -376,14 +380,14 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
   const rememberPort = io.rememberPort ?? rememberTensorFoldPort
   try {
     rememberPort(pick.port)
-  } catch {
-    void 0
+  } catch (error) {
+    logError(new Error(`port ${pick.port} of the TensorFold server could not be remembered in the hosts store (${errorMessage(error)}) — local discovery does not look for it there`))
   }
   if (role === 'session') {
     try {
       ;(io.rememberWindow ?? rememberTensorFoldWindow)(request.repo, request.window)
-    } catch {
-      void 0
+    } catch (error) {
+      logError(new Error(`the window ${request.window} for ${request.repo} could not be remembered in the hosts store (${errorMessage(error)}) — the next start offers the earlier window`))
     }
   }
   if (role === 'session') endAnnouncement()
@@ -411,8 +415,8 @@ export async function stopTensorFold(name: string, io: Pick<ServeIo, 'role' | 's
   const forgetPort = io.forgetPort ?? forgetTensorFoldPort
   try {
     forgetPort(record.port)
-  } catch {
-    void 0
+  } catch (error) {
+    logError(new Error(`port ${record.port} of the stopped TensorFold server could not be removed from the hosts store (${errorMessage(error)}) — discovery keeps probing it`))
   }
   await forgetShared(record.sharedAs, io)
   if ('error' in stopped) throw new Error(stopped.error)

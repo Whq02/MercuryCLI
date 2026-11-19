@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { storeArtifact } from '../../utils/artifacts/store.js'
+import { logError } from '../../utils/log.js'
 import {
   latestRunAtRoot,
   persistTestRun,
@@ -835,6 +836,8 @@ export async function runRunnerProfile(
   const outputLines = combined.split('\n')
   let outputArtifactRef: string | undefined
   if (outputLines.length > OUTPUT_TAIL_LINES) {
+    const unkept = (): void =>
+      logError(new Error(`the full output of test run ${id} (${outputLines.length} lines) could not be stored as an artifact, so the record keeps only its last ${OUTPUT_TAIL_LINES} lines`))
     try {
       const { id: artifactId } = await storeArtifact({
         scope: 'test',
@@ -843,7 +846,9 @@ export async function runRunnerProfile(
         kind: 'test-output',
       })
       if (artifactId) outputArtifactRef = `mercury://artifact/test/${artifactId}`
+      else unkept()
     } catch {
+      unkept()
     }
   }
 

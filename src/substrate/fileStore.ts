@@ -299,7 +299,12 @@ export function defineStore<T, A extends unknown[] = []>(
       readDegradeRecorded = true
       void import('./storeRecovery.js')
         .then(m => m.recordStoreReadDegradation({ store: cfg.name, path, reason: String(e) }))
-        .catch(() => {})
+        .catch((recordError: unknown) => {
+          logForDebugging(
+            `[${cfg.name}] the read degradation could not be recorded, so health does not show this store degrading to empty: ${recordError}`,
+            { level: 'warn' },
+          )
+        })
     }
     return cfg.empty()
   }

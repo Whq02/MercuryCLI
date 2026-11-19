@@ -126,11 +126,11 @@ export async function livePayloadDirs(roots: LayoutRoots): Promise<string[]> {
     if (typeof daemon.version === 'string' && daemon.version.length > 0) live.push(join(roots.versionsDir, daemon.version))
     if (typeof daemon.script === 'string' && daemon.script.length > 0) live.push(dirname(daemon.script))
   }
-  live.push(...(await runningBundleDirs()))
+  live.push(...((await runningBundleDirs()) ?? listInstalledVersions(roots).map(version => join(roots.versionsDir, version))))
   return live
 }
 
-async function runningBundleDirs(): Promise<string[]> {
+async function runningBundleDirs(): Promise<string[] | null> {
   try {
     const { readCockpitRegistrations, readMercuryProcesses } = await import('../../daemon/processSweepRun.js')
     const { bundleArgOf, bundleDirOf, processNamesMercury, tokenBinding } = await import('../../daemon/processSweep.js')
@@ -147,8 +147,9 @@ async function runningBundleDirs(): Promise<string[]> {
       dirs.push(bundleDirOf(window.bundle))
     }
     return dirs
-  } catch {
-    return []
+  } catch (error) {
+    logForDebugging(`update: the running Mercury windows could not be read (${String(error)}), so every installed version is kept this time; the next update prunes`)
+    return null
   }
 }
 

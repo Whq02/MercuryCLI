@@ -2,6 +2,7 @@ import { getSessionId } from '../bootstrap/state.js'
 import { POWERSHELL_TOOL_NAME } from '../tools/PowerShellTool/toolName.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
+import { getErrnoCode, isENOENT } from '../utils/errors.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import {
   isVerifySegment,
@@ -225,9 +226,27 @@ export function chainedSegmentsBeforeCommit(command: string): string[] {
   return out
 }
 
+function gitAnswered(error: unknown): boolean {
+  return typeof (error as { status?: unknown } | null)?.status === 'number'
+}
+
+function failureReason(error: unknown): string {
+  const code = getErrnoCode(error)
+  if (code === 'ETIMEDOUT') return 'no answer within 3 s'
+  if (code === 'ENOBUFS') return 'more output than the gate reads'
+  if (code !== undefined) return code
+  const signal = (error as { signal?: unknown } | null)?.signal
+  return typeof signal === 'string' ? `ended by ${signal}` : 'ended without an answer'
+}
+
+const NOT_A_FILE_CODES = new Set(['ENOENT', 'ENOTDIR', 'EISDIR'])
+
 export function commitRepositoryRoot(commitSegment: string, cwd: string): string | null {
   const prefix = commitRepositoryArguments(commitSegment)
-  try { return gitLines(cwd, [...prefix, 'rev-parse', '--show-toplevel'])[0] ?? null } catch { return null }
+  try { return gitLines(cwd, [...prefix, 'rev-parse', '--show-toplevel'])[0] ?? null } catch (error) {
+    if (gitAnswered(error) || isENOENT(error)) return null
+    throw new Error(`git rev-parse --show-toplevel failed in ${cwd} (${failureReason(error)}), so the commit's repository and its generated-asset map cannot be checked — run the commit again`)
+  }
 }
 
 function rejectGitSelectionEnvironment(segment: string): void {
@@ -355,7 +374,9 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   const readGitMap = (revision: string): string => execFileSync('git', gitArgs([...repositoryArgs, 'show', `${revision}:${GENERATED_ASSETS_MAP}`], directory), { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true })
   const indexedMap = gitLines(directory, [...repositoryArgs, 'ls-files', '--full-name', '--', `:(top,literal)${GENERATED_ASSETS_MAP}`]).includes(GENERATED_ASSETS_MAP) ? readGitMap('') : null
   let previousMap: string | null = null
-  try { previousMap = readGitMap('HEAD') } catch {  }
+  try { previousMap = readGitMap('HEAD') } catch (error) {
+    if (!gitAnswered(error)) throw new Error(`git show HEAD:${GENERATED_ASSETS_MAP} failed (${failureReason(error)}), so the generated-asset map of HEAD cannot be checked — run the commit again`)
+  }
   const workingMap = existsSync(join(root, GENERATED_ASSETS_MAP)) ? readFileSync(join(root, GENERATED_ASSETS_MAP), 'utf8') : null
   if (workingMap === null && indexedMap === null && previousMap === null) return null
   if (workingMap !== null) {
@@ -402,12 +423,21 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   const readFile = (path: string): string | null => {
     try {
       return readFileSync(join(root, path), 'utf8')
-    } catch {
-      return null
+    } catch (error) {
+      const code = getErrnoCode(error)
+      if (code !== undefined && NOT_A_FILE_CODES.has(code)) return null
+      throw new Error(`${path} could not be read (${failureReason(error)}), so the generated assets it names or feeds cannot be checked — make it readable, then commit again`)
     }
   }
   const previousContentOf = (path: string): string | null => {
-    try { return execFileSync('git', gitArgs([...prefix, 'show', `HEAD:${path}`], directory), { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }) } catch { return null }
+    try { return execFileSync('git', gitArgs([...prefix, 'show', `HEAD:${path}`], directory), { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }) } catch (error) {
+      if (gitAnswered(error)) return null
+      if (getErrnoCode(error) === 'ENOBUFS') {
+        logForDebugging(`[commit-gate] HEAD:${path} is over the 16 MB the gate reads, so its previous content is not matched against the map's re: sources`)
+        return null
+      }
+      throw new Error(`git show HEAD:${path} failed (${failureReason(error)}), so the generated assets its previous content feeds cannot be checked — run the commit again`)
+    }
   }
   const chainedVerifies = chainedSegmentsBeforeCommit(command).filter(segment => realpathSync(checkDirectories.get(segment) ?? directory) === realpathSync(root))
   const unchecked = generatedAssetsOwed({ rows: map.rows, commitPaths, contentOf, previousContentOf, readFile, chainedVerifies: [] })
