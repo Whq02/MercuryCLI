@@ -28,6 +28,7 @@ import {
 } from './client/breakpoints.js'
 import { startBodyOf, type DapStartOptions } from './client/launch.js'
 import { OutputPart } from './client/output.js'
+import { childBoundRefusal, ReversePart } from './client/reverse.js'
 import { TerminalPart } from './client/terminal.js'
 import { WirePart } from './client/wire.js'
 import { drainOutput, waitForStopOutcome } from './client/stops.js'
@@ -72,6 +73,7 @@ export type {
   StoppedInfo,
 } from './client/shared.js'
 export { dialListener, listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
+export { _setDapChildBoundsForTesting } from './client/reverse.js'
 export {
   _resetDarwinDebuggerAuthForTesting,
   _resetGdbProbeForTesting,
@@ -109,19 +111,6 @@ export {
   settleDapAdapterProbes,
 } from './client/adapters.js'
 
-const CHILD_SESSION_MAX_DEFAULT = 16
-const CHILD_SESSION_DEPTH_MAX_DEFAULT = 4
-let childSessionMax = CHILD_SESSION_MAX_DEFAULT
-let childSessionDepthMax = CHILD_SESSION_DEPTH_MAX_DEFAULT
-
-export function _setDapChildBoundsForTesting(
-  maxChildren = CHILD_SESSION_MAX_DEFAULT,
-  maxDepth = CHILD_SESSION_DEPTH_MAX_DEFAULT,
-): void {
-  childSessionMax = maxChildren
-  childSessionDepthMax = maxDepth
-}
-
 let stopStamp = 0
 
 
@@ -158,6 +147,15 @@ export class DapSession {
     },
   })
   #out = new OutputPart({ pushOutput: line => this.#pushOutput(line) })
+  #reverse: ReversePart = new ReversePart({
+    respondToReverse: (request, success, message, body) => this.#wire.respondToReverse(request, success, message, body),
+    pushOutput: line => this.#pushOutput(line),
+    childBoundRefusal: () => childBoundRefusal(this),
+    createChildSession: configuration => this.#createChildSession(configuration),
+    operationSignal: () => this.#operationSignal ?? this.root().#operationSignal,
+    runChildDance: (child, requestKind, configuration) => child.#runChildDance(requestKind, configuration),
+    runInTerminal: msg => this.#terminal.runInTerminal(msg),
+  })
   #initializedEvent: Promise<void>
   #resolveInitialized!: () => void
   #stateWaiters = new Set<() => void>()
@@ -435,7 +433,7 @@ export class DapSession {
 
   #onMessage(msg: Record<string, unknown>): void {
     if (msg.type === 'request') {
-      this.#onReverseRequest(msg)
+      this.#reverse.onReverseRequest(msg)
       return
     }
     if (msg.type === 'response') {
@@ -490,16 +488,6 @@ export class DapSession {
           break
       }
     }
-  }
-
-  #childBoundRefusal(): string | null {
-    if (this.root().treeSize() - 1 >= childSessionMax) {
-      return `child-session bound reached (${childSessionMax} per tree) — op:"disconnect" and re-launch to reset`
-    }
-    if (this.depth + 1 > childSessionDepthMax) {
-      return `child-session depth bound reached (${childSessionDepthMax}) — refusing a deeper session`
-    }
-    return null
   }
 
   #createChildSession(configuration: Record<string, unknown>): DapSession {
@@ -568,50 +556,6 @@ export class DapSession {
 
   terminalProcessCount(): number {
     return this.treeSessions().reduce((count, session) => count + session.#terminal.processes().size, 0)
-  }
-
-  #onReverseRequest(msg: Record<string, unknown>): void {
-    const command = String(msg.command ?? '')
-    if (command === 'startDebugging') {
-      const args = (msg.arguments as Record<string, unknown> | undefined) ?? {}
-      const configuration = (args.configuration as Record<string, unknown> | undefined) ?? {}
-      const requestKind: 'launch' | 'attach' = args.request === 'attach' ? 'attach' : 'launch'
-      const refusal = this.#childBoundRefusal()
-      if (refusal) {
-        this.#wire.respondToReverse(msg, false, refusal)
-        this.#pushOutput(`[dap] refused startDebugging: ${refusal}`)
-        return
-      }
-      let child: DapSession
-      try {
-        child = this.#createChildSession(configuration)
-      } catch (e) {
-        const reason = `child session could not start: ${(e as Error).message}`
-        this.#wire.respondToReverse(msg, false, reason)
-        this.#pushOutput(`[dap] ${reason}`)
-        return
-      }
-      this.#wire.respondToReverse(msg, true)
-      void child.withOperation(this.#operationSignal ?? this.root().#operationSignal, () => child.#runChildDance(requestKind, configuration)).catch(err => {
-        this.#pushOutput(
-          `[dap] child session '${child.label}' failed to start: ${(err as Error).message}`,
-        )
-        child.killSync()
-      })
-      return
-    }
-    if (command === 'runInTerminal') {
-      void this.#terminal.runInTerminal(msg).then(
-        processId => this.#wire.respondToReverse(msg, true, undefined, { processId }),
-        error => {
-          const reason = error instanceof Error ? error.message : String(error)
-          this.#wire.respondToReverse(msg, false, reason)
-          this.#pushOutput(`[dap] runInTerminal: ${reason}`)
-        },
-      )
-      return
-    }
-    this.#wire.respondToReverse(msg, false, `unsupported reverse request '${command}'`)
   }
 
   async withOperation<T>(signal: AbortSignal | undefined, run: () => Promise<T>): Promise<T> {
