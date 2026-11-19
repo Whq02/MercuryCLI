@@ -57,7 +57,6 @@ import { fitImagesToRequestCap, manyImageLimitStatedIn } from '../../../utils/im
 import { captureAPIRequest } from '../../../utils/log.js'
 import {
   createAssistantAPIErrorMessage,
-  createSystemAPIErrorMessage,
   createUserMessage,
 } from '../../../utils/messages.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
@@ -76,14 +75,12 @@ import { transportCutOf } from '../../api/transportEvidence.js'
 import { captureModelRefusalRequest, type ModelRefusalRequest } from './modelRefusal.js'
 import {
   API_ERROR_MESSAGE_PREFIX,
-  getAssistantMessageFromError,
   getErrorMessageIfRefusal,
   malformedStreamFrameText,
 } from '../../api/errors.js'
 import { EMPTY_USAGE } from '../../api/logging.js'
 import type { ModelCallReference } from '../../../run-core/call-reference.js'
 import {
-  CannotRetryError,
   FallbackTriggeredError,
   is529Error,
 } from '../../api/withRetry.js'
@@ -106,9 +103,10 @@ type BetaToolChoiceTool = Extract<BetaMessageStreamParams['tool_choice'], { type
 type BetaToolChoiceNone = Extract<BetaMessageStreamParams['tool_choice'], { type: 'none' }>
 import type { CallState, QueryCtx, StreamPass } from './streamCore/state.js'
 import { createCallLedger } from './streamCore/callLedger.js'
-import { executeNonStreamingRequest, getNonstreamingFallbackTimeoutMs } from './streamCore/nonStreaming.js'
+import { executeNonStreamingRequest } from './streamCore/nonStreaming.js'
 import { streamPassRetries } from './streamCore/passRetries.js'
 import { preEventReissueRow, streamCutReissueRow, oneShotNoticeRow, oneShotAnswerOf } from './streamCore/reissueRows.js'
+import { requestFailed } from './streamCore/requestFailed.js'
 import { messagesBeforeImages, requestBetas, toolRosterOf, wireRequestOf } from './streamCore/requestPlan.js'
 import { closeSucceededRequest, settleAttemptLedger } from './streamCore/settleCall.js'
 import { openContentBlock, applyBlockDelta, settleMessageDelta, noteWatchdogCleanExit, observeStreamEnd, noteWatchdogErrorExit } from './streamCore/streamEvents.js'
@@ -324,10 +322,10 @@ async function* queryModel(
   const contentBlocks: (BetaContentBlock | ConnectorTextBlock)[] = []
   const stoppedBlockIndices = new Set<number>()
   const ledger = createCallLedger(call, tools, options, resolvedModel, newMessages, contentBlocks, stoppedBlockIndices, observeSignInResponse)
-  const { releaseStreamResources, noteServedModel, pricingModel, mintAssistantMessage, yieldAbortedPartialText, settleUnpricedAttempt, logRequestFailure } = ledger
+  const { releaseStreamResources, noteServedModel, pricingModel, mintAssistantMessage, yieldAbortedPartialText, settleUnpricedAttempt } = ledger
 
   const heldWaitDoor = options.agentId !== undefined ? (wait: HeldBusyRetryWait): void => options.onWait?.(wait) : undefined
-  const ctx: QueryCtx = { options, modelRefusalRequest, observeSignInResponse, startIncludingRetries, newMessages, contentBlocks, stoppedBlockIndices, ...ledger }
+  const ctx: QueryCtx = { messages, thinkingConfig, signal, options, modelRefusalRequest, captureModelRequest, observeSignInResponse, rosterOwnerKey, messagesForAPI, startIncludingRetries, paramsFromContext, heldWaitDoor, newMessages, contentBlocks, stoppedBlockIndices, ...ledger }
   try {
     streamingPass: for (;;) {
     const firstByte: { wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null } = { wait: null }
@@ -672,102 +670,7 @@ async function* queryModel(
       throw errorFromRetry
     }
 
-    const is404StreamCreationError =
-      !call.didFallBackToNonStreaming &&
-      errorFromRetry instanceof CannotRetryError &&
-      errorFromRetry.originalError instanceof APIError &&
-      errorFromRetry.originalError.status === 404
-
-    if (is404StreamCreationError) {
-      const failedRequestId =
-        (errorFromRetry.originalError as APIError).requestID ?? 'unknown'
-      logForDebugging(
-        'The streaming endpoint answered 404; the request is retried as one shot',
-        { level: 'warn' },
-      )
-      call.didFallBackToNonStreaming = true
-      if (options.onStreamingFallback) {
-        options.onStreamingFallback()
-      }
-      yield createSystemAPIErrorMessage(
-        errorFromRetry.originalError as APIError,
-        0,
-        1,
-        1,
-        { recoveryTimeoutMs: getNonstreamingFallbackTimeoutMs() },
-      )
-
-      try {
-        const result = yield* executeNonStreamingRequest(
-          { model: options.model, source: options.querySource, fetchOverride: options.fetchOverride },
-          {
-            model: options.model,
-            fallbackModel: options.fallbackModel,
-            thinkingConfig,
-            signal,
-            ...(heldWaitDoor !== undefined ? { onHeldWait: heldWaitDoor } : {}),
-          },
-          paramsFromContext,
-          (_attempt, _startTime, tokens) => {
-            call.maxOutputTokens = tokens
-          },
-          captureModelRequest,
-          failedRequestId,
-        )
-
-        const m = oneShotAnswerOf(call, result, noteServedModel, mintAssistantMessage, newMessages, options, rosterOwnerKey)
-        yield m
-
-      } catch (fallbackError) {
-        if (fallbackError instanceof FallbackTriggeredError) {
-          throw fallbackError
-        }
-
-        logForDebugging(
-          `The one-shot retry failed too: ${errorMessage(fallbackError)}`,
-          { level: 'error' },
-        )
-
-        const { error, errorModel } = logRequestFailure(fallbackError)
-
-        if (error instanceof APIUserAbortError) {
-          yield* yieldAbortedPartialText()
-          releaseStreamResources()
-          return
-        }
-
-        if ((error as { status?: unknown }).status === 429) {
-          await (await import('../catalogueOnDemand.js')).readCataloguesForOtherFamilies('anthropic')
-        }
-        yield getAssistantMessageFromError(error, errorModel, {
-          messages,
-          messagesForAPI,
-          modelRefusalRequest: modelRefusalRequest.current,
-        })
-        releaseStreamResources()
-        return
-      }
-    } else {
-      logForDebugging(`Error in API request: ${errorMessage(errorFromRetry)}`, {
-        level: 'error',
-      })
-
-      const { error, errorModel } = logRequestFailure(errorFromRetry)
-
-      if (error instanceof APIUserAbortError) {
-        yield* yieldAbortedPartialText()
-        releaseStreamResources()
-        return
-      }
-
-      if ((error as { status?: unknown }).status === 429) {
-        await (await import('../catalogueOnDemand.js')).readCataloguesForOtherFamilies('anthropic')
-      }
-      yield getAssistantMessageFromError(error, errorModel, {
-        messages,
-        messagesForAPI,
-        modelRefusalRequest: modelRefusalRequest.current,
-      })
+    if (yield* requestFailed(ctx, call, errorFromRetry)) {
       releaseStreamResources()
       return
     }

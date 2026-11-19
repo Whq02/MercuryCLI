@@ -2,21 +2,33 @@ import type {
   ContentBlock as BetaContentBlock,
   ApiMessage as BetaMessage,
 } from '../../../../types/wire.js'
+import type { AnthropicMessageParams as BetaMessageStreamParams } from '../anthropicWire.js'
 import type { AnthropicStream } from '../anthropicStream.js'
+import type { ThinkingConfig } from 'src/utils/thinking.js'
 import type { PrefixMismatch } from '../prefixLedger.js'
 import type { ConnectorTextBlock } from '../../../../types/connectorText.js'
-import type { AssistantMessage } from '../../../../types/message.js'
+import type {
+  AssistantMessage,
+  Message,
+  StreamEvent,
+  SystemAPIErrorMessage,
+  SystemStreamCutMessage,
+} from '../../../../types/message.js'
 import type { EffortStampV1 } from '../../../../utils/effortStamp.js'
 import type { ModelRefusalRequest } from '../modelRefusal.js'
 import type { NonNullableUsage } from '../../../api/logging.js'
+import type { HeldBusyRetryWait } from '../../busyRetry.js'
 import type { RequestWaitV1 } from '../../streamIdleBudget.js'
 import type { Options } from '../streamCore.js'
 import type { createCallLedger } from './callLedger.js'
 import type { wireRequestOf } from './requestPlan.js'
+import type { wireParamsFor } from './wireParams.js'
 
 export type SignInRefusal = typeof import('../../../../utils/accounts/signInRefusal.js')
 
 export type BetaStopReason = NonNullable<BetaMessage['stop_reason']>
+
+export type QueryYield = StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage
 
 export type PlannedRequest = ReturnType<typeof wireRequestOf>
 
@@ -46,10 +58,18 @@ export type CallState = {
 }
 
 export type QueryCtx = {
+  messages: Message[]
+  thinkingConfig: ThinkingConfig
+  signal: AbortSignal
   options: Options
   modelRefusalRequest: { current?: ModelRefusalRequest }
+  captureModelRequest: (params: BetaMessageStreamParams) => void
   observeSignInResponse: SignInRefusal['observeSignInResponse']
+  rosterOwnerKey: string
+  messagesForAPI: PlannedRequest['messagesForAPI']
   startIncludingRetries: number
+  paramsFromContext: ReturnType<typeof wireParamsFor>
+  heldWaitDoor: ((wait: HeldBusyRetryWait) => void) | undefined
   newMessages: AssistantMessage[]
   contentBlocks: (BetaContentBlock | ConnectorTextBlock)[]
   stoppedBlockIndices: Set<number>
