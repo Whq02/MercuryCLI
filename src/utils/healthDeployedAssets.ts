@@ -45,14 +45,14 @@ function bytesEqual(a: string, b: string): boolean {
 
 export function assessDeployedAssets(repoRoot: string, home: string): DeployedAssetsAssessment {
   const matched: string[] = []
-  const undeployed: string[] = []
+  const undeployed: Array<{ label: string; redeploy: string }> = []
   const drifted: Array<{ label: string; redeploy: string }> = []
   for (const pair of DEPLOYED_ASSET_PAIRS) {
     const repoPath = join(repoRoot, pair.repoRel)
     const homePath = join(home, pair.homeRel)
     if (!existsSync(repoPath)) continue
     if (!existsSync(homePath)) {
-      undeployed.push(pair.label)
+      undeployed.push({ label: pair.label, redeploy: pair.redeploy })
       continue
     }
     if (bytesEqual(repoPath, homePath)) {
@@ -67,14 +67,14 @@ export function assessDeployedAssets(repoRoot: string, home: string): DeployedAs
   if (matched.length > 0) parts.push(`${matched.join(' + ')} byte-match the repo canon`)
   if (drifted.length > 0)
     parts.push(`${drifted.map(d => d.label).join(' + ')} DRIFTED from the repo canon`)
-  if (undeployed.length > 0) parts.push(`${undeployed.join(' + ')} not deployed`)
+  if (undeployed.length > 0) parts.push(`${undeployed.map(u => u.label).join(' + ')} not deployed`)
   if (cruft.length > 0) parts.push(`retired artifact(s) linger: ${cruft.join(', ')}`)
 
   if (drifted.length > 0) {
     return {
       status: 'stale',
       evidence: parts.join(' · '),
-      fix: `Redeploy: ${drifted.map(d => d.redeploy).join(' && ')}`,
+      fix: `Redeploy: ${[...new Set([...drifted, ...undeployed].map(d => d.redeploy))].join(' && ')}`,
       drifted,
       cruft,
     }
