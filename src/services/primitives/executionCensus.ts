@@ -103,7 +103,7 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
     domain: 'browser-session',
     classification: 'child-execution',
     kind: 'browser-session',
-    adapter: 'src/services/browser/browserSession.ts (the per-owner session store)',
+    adapter: 'src/services/browser/session/owners.ts (the per-owner session store)',
     owner: 'conversation OwnerKey — sessions and origin grants are owner-keyed (main lane and each agent lane its own; capped by MERCURY_BROWSER_MAX_SESSIONS)',
     notes:
       'One puppeteer-core-driven browser child per OWNER; ephemeral, tool-scoped, reaped per owner (agent teardown / disposeOwner) and swept at exit — standing plane records would duplicate the Browser status surface without a consumer. Status/provenance ride the Browser tool + readiness rows.',
