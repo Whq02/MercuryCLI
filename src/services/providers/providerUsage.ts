@@ -10,7 +10,6 @@ import {
 } from '../../utils/auth.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { buildProviderSnapshot, type ProviderSnapshot } from './modelRegistry.js'
-import { resolveZaiDispatch } from './providerDiscovery.js'
 import type { ProviderFamilyId } from './providerAdapter.js'
 import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
 import {
@@ -57,47 +56,45 @@ import {
   type OpenaiObservedUsage,
 } from './openai/openaiLimitState.js'
 import { openaiSubscriptionUsage, openaiUsageReaderState } from './openai/openaiUsageState.js'
-import { readMintedOpenrouterKey, resolveOpenrouterApiKey, type OpenrouterKeySource } from './openrouter/openrouterAccounts.js'
+import type { OpenrouterKeySource } from './openrouter/openrouterAccounts.js'
 import {
-  openrouterLimitWindow,
   openrouterObservedKeyUsage,
-  openrouterLowBalanceNote,
   refreshOpenrouterKeyUsage,
   type OpenrouterKeyUsage,
   type OpenrouterLimitWindow,
 } from './openrouter/openrouterUsageState.js'
-import {
-  resolveGeminiAccount,
-  type GeminiAccountRef,
-} from './gemini/geminiAccounts.js'
-import { GEMINI_PLAN_USAGE_ABSENCE_NOTE, GEMINI_USAGE_ABSENCE_NOTE, geminiLimitWindow, type GeminiLimitWindow } from './gemini/geminiUsageState.js'
-import { geminiPlanFacts } from './gemini/geminiAccounts.js'
-import { geminiPlanTierWords } from './gemini/geminiPlanAccess.js'
-import { getCachedGeminiCatalogue } from './gemini/geminiCatalogue.js'
-import { geminiPlanQuotaReadNote } from './gemini/geminiPlanQuota.js'
+import type { GeminiAccountRef } from './gemini/geminiAccounts.js'
+import type { GeminiLimitWindow } from './gemini/geminiUsageState.js'
 export { geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanQuotaView, type GeminiPlanQuotaView } from './gemini/geminiPlanQuota.js'
 import {
   resolveHuggingfaceAccount,
   type HuggingfaceAccountRef,
 } from './huggingface/huggingfaceAccounts.js'
 import {
-  HUGGINGFACE_USAGE_ABSENCE_NOTE,
-  huggingfaceAccountFactsFailure,
-  huggingfaceAccountFactsFailureWords,
-  huggingfaceLimitWindow,
-  huggingfaceObservedAccountFacts,
-  huggingfaceObservedRate,
   refreshHuggingfaceAccountFacts,
   type HuggingfaceAccountFacts,
   type HuggingfaceAccountFactsFailure,
   type HuggingfaceLimitWindow,
 } from './huggingface/huggingfaceUsageState.js'
-import { resolveLocalAccount, type LocalAccountRef } from './local/localAccounts.js'
-import { cachedLocalModels, refreshLocalDiscovery } from './local/localDiscovery.js'
+import type { LocalAccountRef } from './local/localAccounts.js'
+import { refreshLocalDiscovery } from './local/localDiscovery.js'
 import { resolveXaiManagementApiKey } from './xai/xaiAccounts.js'
 import { providerSessionSpend, spendForRoute } from './providerUsage/spend.js'
 export { ADVISOR_WORK_WORD, advisorSessionSpend, advisorUsageLine, providerSessionSpend, SCHEDULED_WORK_WORD, scheduledSessionSpend, scheduledUsageLine, sessionSpendByModel, sessionSpendOfFacts } from './providerUsage/spend.js'
 import { refreshXaiSubscriptionCredits, refreshXaiUsage, xaiObservedSubscriptionCredits, xaiObservedUsage, xaiUsageFailureWords, XAI_MANAGEMENT_KEY_HINT, type XaiSubscriptionCredits } from './xai/xaiUsageState.js'
+import { geminiUsageView } from './providerUsage/gemini.js'
+export { geminiPlanUsageFigures } from './providerUsage/gemini.js'
+import { huggingfaceUsageView } from './providerUsage/huggingface.js'
+export { huggingfacePlanFigures } from './providerUsage/huggingface.js'
+import { localUsageView } from './providerUsage/local.js'
+import { moonshotUsageView } from './providerUsage/moonshot.js'
+export { KIMI_EXTRA_USAGE_NOT_READ_WORDS, KIMI_EXTRA_USAGE_UNSTATED_WORDS, kimiManagedWindowViews } from './providerUsage/moonshot.js'
+import { openrouterUsageView } from './providerUsage/openrouter.js'
+export { openrouterObservedWindowViews } from './providerUsage/openrouter.js'
+import { API_BILLING_TIER, CARRY_NOTHING_TAIL, CARRY_UNSTATED, CARRY_UNSTATED_COMPACT, CREDITS_UNREPORTED, CREDITS_UNREPORTED_WORDS, laneCredentialedLive, planWord, polledBalanceCredits, usageWindowLabel } from './providerUsage/shared.js'
+export { CARRY_NOTHING_TAIL, CARRY_UNSTATED_COMPACT, CARRY_UNSTATED_WORDS, CREDITS_UNREPORTED_WORDS, usageWindowLabel } from './providerUsage/shared.js'
+import { zaiUsageView } from './providerUsage/zai.js'
+export { zaiAccountFacts, zaiQuotaFigures, zaiQuotaWindowViews } from './providerUsage/zai.js'
 
 export type UsageProvider = 'anthropic' | 'openai'
 
@@ -295,8 +292,6 @@ export interface UsageCreditsView {
   reason?: string
 }
 
-export const CREDITS_UNREPORTED_WORDS = 'not reported by the provider'
-
 export interface UsageCarryView {
   state: 'carries' | 'nothing' | 'unstated'
   display: string
@@ -305,11 +300,6 @@ export interface UsageCarryView {
   observedAtMs?: number
   freshForMs?: number
 }
-
-export const CARRY_NOTHING_TAIL = 'nothing carries requests until the reset'
-export const CARRY_UNSTATED_WORDS = 'the provider states nothing about what carries requests past the window'
-export const CARRY_UNSTATED_COMPACT = 'past window: not stated'
-const CARRY_UNSTATED: UsageCarryView = { state: 'unstated', display: CARRY_UNSTATED_WORDS, compact: CARRY_UNSTATED_COMPACT }
 
 export type ActiveUsageShape = 'subscription-windows' | 'api-spend' | 'none'
 
@@ -675,163 +665,10 @@ export interface ZaiQuotaFailureView {
   message?: string
 }
 
-function laneCredentialedLive(provider: ProviderFamilyId): boolean {
-  if (provider === 'xai') {
-    const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
-    return resolveXaiAccount() !== undefined
-  }
-  if (provider === 'meta') {
-    const { resolveMetaApiKey } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
-    return resolveMetaApiKey() !== undefined
-  }
-  if (provider === 'mistral') {
-    const { resolveMistralApiKey } = require('./mistral/mistralAccounts.js') as typeof import('./mistral/mistralAccounts.js')
-    return resolveMistralApiKey() !== undefined
-  }
-  if (provider === 'nous') {
-    const { resolveNousAccount } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
-    return resolveNousAccount() !== undefined
-  }
-  if (provider === 'deepseek') {
-    const { resolveDeepseekApiKey } =
-      require('./deepseek/deepseekAccounts.js') as typeof import('./deepseek/deepseekAccounts.js')
-    return resolveDeepseekApiKey() !== undefined
-  }
-  if (provider === 'openai-compat') {
-    const { configuredCompatEndpoints } =
-      require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
-    return configuredCompatEndpoints().length > 0
-  }
-  if (provider === 'zen') {
-    const { resolveZenApiKey } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')
-    return resolveZenApiKey() !== undefined
-  }
-  if (provider === 'minimax') {
-    const { resolveMinimaxApiKey } = require('./minimax/minimaxAccounts.js') as typeof import('./minimax/minimaxAccounts.js')
-    return resolveMinimaxApiKey() !== undefined
-  }
-  if (provider === 'together') {
-    const { resolveTogetherApiKey } = require('./together/togetherAccounts.js') as typeof import('./together/togetherAccounts.js')
-    return resolveTogetherApiKey() !== undefined
-  }
-  if (provider === 'cohere') {
-    const { resolveCohereApiKey } = require('./cohere/cohereAccounts.js') as typeof import('./cohere/cohereAccounts.js')
-    return resolveCohereApiKey() !== undefined
-  }
-  if (provider === 'qwen') {
-    const { resolveQwenCredentialSnapshot } = require('./qwen/qwenAccounts.js') as typeof import('./qwen/qwenAccounts.js')
-    return resolveQwenCredentialSnapshot() !== undefined
-  }
-  return false
-}
-
 function liveDeepseekBalance(): DeepseekObservedBalanceView | null {
   const { deepseekObservedBalance } =
     require('./deepseek/deepseekUsageState.js') as typeof import('./deepseek/deepseekUsageState.js')
   return deepseekObservedBalance()
-}
-
-function liveMoonshotBalance(): MoonshotObservedBalanceView | null {
-  const { moonshotObservedBalance } =
-    require('./moonshot/moonshotUsageState.js') as typeof import('./moonshot/moonshotUsageState.js')
-  return moonshotObservedBalance()
-}
-
-function liveMoonshotAccount(): { kind: 'kimi-oauth' | 'api-key' } | undefined {
-  const { resolveMoonshotAccount } =
-    require('./moonshot/moonshotAccounts.js') as typeof import('./moonshot/moonshotAccounts.js')
-  return resolveMoonshotAccount()
-}
-
-function liveKimiManagedUsage(): KimiManagedUsageView | null {
-  const { kimiObservedManagedUsage } =
-    require('./moonshot/moonshotUsageState.js') as typeof import('./moonshot/moonshotUsageState.js')
-  return kimiObservedManagedUsage()
-}
-
-export function zaiAccountFacts(): { plan: 'general' | 'coding'; source: 'env' | 'stored' } | undefined {
-  const dispatch = resolveZaiDispatch()
-  return dispatch ? { plan: dispatch.plan, source: dispatch.source } : undefined
-}
-
-function liveZaiQuota(): ZaiObservedQuotaView | null {
-  const { zaiObservedQuota } = require('./zai/zaiUsageState.js') as typeof import('./zai/zaiUsageState.js')
-  return zaiObservedQuota()
-}
-
-function liveZaiQuotaFailure(): ZaiQuotaFailureView | null {
-  const { zaiLastQuotaFailure } = require('./zai/zaiUsageState.js') as typeof import('./zai/zaiUsageState.js')
-  return zaiLastQuotaFailure()
-}
-
-export function zaiQuotaWindowViews(quota: ZaiObservedQuotaView | null): UsageWindowView[] {
-  if (!quota) return []
-  const seen = new Map<string, number>()
-  const credit = quota.windows
-    .filter(w => w.kind === 'credit')
-    .sort((a, b) => (a.windowMinutes ?? Number.POSITIVE_INFINITY) - (b.windowMinutes ?? Number.POSITIVE_INFINITY))
-  return credit.map(w => {
-    const label = w.windowMinutes === 7 * 24 * 60 ? '7d' : usageWindowLabel(w.windowMinutes)
-    const count = (seen.get(label) ?? 0) + 1
-    seen.set(label, count)
-    return {
-      key: count === 1 ? label : `${label}#${count}`,
-      label,
-      state: 'live',
-      usedPct: w.usedPct,
-      ...(w.resetsAtMs !== undefined ? { resetsAtMs: w.resetsAtMs } : {}),
-      observedAtMs: quota.observedAtMs,
-      source: 'endpoint',
-    }
-  })
-}
-
-export function zaiQuotaFigures(quota: ZaiObservedQuotaView | null): UsageFigureView[] {
-  if (!quota) return []
-  const stamp = { observedAtMs: quota.observedAtMs, source: 'endpoint' as const, freshForMs: usageStaleAfterMs() }
-  return quota.windows
-    .filter(w => w.kind === 'tool-calls')
-    .map(w => ({
-      key: 'tool-calls',
-      label: 'MCP tool calls this month',
-      value: w.used !== undefined && w.limit !== undefined ? `${w.used} of ${w.limit}` : `${Math.round(w.usedPct)}% used`,
-      ...(w.resetsAtMs !== undefined ? { resetsAtMs: w.resetsAtMs } : {}),
-      ...stamp,
-    }))
-}
-
-export function kimiManagedWindowViews(usage: KimiManagedUsageView | null): UsageWindowView[] {
-  if (!usage) return []
-  const seen = new Map<string, number>()
-  const view = (w: KimiUsageWindowView, fallbackLabel: string): UsageWindowView => {
-    const label = w.windowMinutes === 7 * 24 * 60 ? '7d' : w.windowMinutes !== undefined ? usageWindowLabel(w.windowMinutes) : fallbackLabel
-    const count = (seen.get(label) ?? 0) + 1
-    seen.set(label, count)
-    const usedPct = w.usedRatio !== undefined ? w.usedRatio * 100 : w.used !== undefined && w.limit !== undefined && w.limit > 0 ? (w.used / w.limit) * 100 : undefined
-    return {
-      key: count === 1 ? label : `${label}#${count}`,
-      label,
-      state: 'live',
-      ...(usedPct !== undefined ? { usedPct: Math.min(100, Math.max(0, usedPct)) } : {}),
-      ...(w.resetsAtMs !== undefined ? { resetsAtMs: w.resetsAtMs } : {}),
-      observedAtMs: usage.observedAtMs,
-      source: 'endpoint',
-    }
-  }
-  const windows = [...usage.windows].sort(
-    (a, b) => (a.windowMinutes ?? Number.POSITIVE_INFINITY) - (b.windowMinutes ?? Number.POSITIVE_INFINITY),
-  )
-  const views = windows.map(w => view(w, w.name ?? 'win'))
-  if (usage.quota) views.push(view(usage.quota, 'quota'))
-  return views
-}
-
-export function usageWindowLabel(windowMinutes?: number): string {
-  if (windowMinutes === undefined) return 'win'
-  if (windowMinutes >= 6 * 24 * 60) return 'wk'
-  if (windowMinutes >= 24 * 60) return `${Math.round(windowMinutes / (24 * 60))}d`
-  if (windowMinutes >= 60) return `${Math.round(windowMinutes / 60)}h`
-  return `${Math.round(windowMinutes)}m`
 }
 
 export function anthropicWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
@@ -1123,90 +960,6 @@ export function openaiObservedWindowViews(reads?: ActiveUsageReads): UsageWindow
 }
 
 
-export function openrouterObservedWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
-  const observed = (reads?.openrouterObserved ?? openrouterObservedKeyUsage)()
-  const usage = observed.usage
-  if (!usage) return []
-  const { limit, limitRemaining } = usage
-  if (typeof limit !== 'number' || limit <= 0 || typeof limitRemaining !== 'number') return []
-  const usedPct = Math.min(100, Math.max(0, ((limit - limitRemaining) / limit) * 100))
-  return [
-    {
-      key: 'cap',
-      label: 'cap',
-      state: 'live',
-      usedPct,
-      observedAtMs: usage.observedAtMs,
-      source: 'endpoint',
-    },
-  ]
-}
-
-function openrouterBudgetLabel(scope: NonNullable<OpenrouterKeyUsage['effectiveBudget']>['scope']): string {
-  return { workspace_default_member: 'workspace member', workspace_default_key: 'workspace key', member: 'member', api_key: 'API key', workspace: 'workspace', key_limit: 'key' }[scope]
-}
-
-function openrouterCredits(observed: { usage: OpenrouterKeyUsage | null; lastError?: string }): UsageCreditsView {
-  const usage = observed.usage
-  if (usage === null) {
-    return observed.lastError !== undefined
-      ? { state: 'unreported', reason: 'not read — see the failed key slot', compact: 'not read' }
-      : { state: 'unreported', reason: 'not read yet — /usage samples the key endpoint', compact: 'not read yet' }
-  }
-  const budget = usage.effectiveBudget
-  if (budget) {
-    const cap = typeof usage.limitRemaining === 'number' ? `$${usage.limitRemaining.toFixed(2)} key cap ${usage.limitReset ?? (usage.limitReset === null ? 'never' : '')}` : usage.limit === null ? 'key cap uncapped' : 'key cap unstated'
-    return {
-      state: 'reported',
-      display: `${cap.trim()} · $${budget.remainingUsd.toFixed(2)} ${openrouterBudgetLabel(budget.scope)} budget ${budget.resetInterval ?? (budget.resetInterval === null ? 'never' : '')}`.trim(),
-      compact: typeof usage.limitRemaining === 'number' ? `cap ${usage.limitRemaining.toFixed(2)}` : 'not stated',
-      source: 'endpoint', observedAtMs: usage.observedAtMs, freshForMs: usageStaleAfterMs(),
-    }
-  }
-  if (typeof usage.limitRemaining === 'number') {
-    return {
-      state: 'reported',
-      display: `${usage.limitRemaining.toFixed(2)} remaining under the key cap`,
-      compact: `cap ${usage.limitRemaining.toFixed(2)}`,
-      source: 'endpoint',
-      observedAtMs: usage.observedAtMs,
-      freshForMs: usageStaleAfterMs(),
-    }
-  }
-  if (usage.limit === null) {
-    return {
-      state: 'unreported',
-      reason: 'the key endpoint states no balance for an uncapped key — the OpenRouter dashboard is the view',
-      compact: 'not stated',
-    }
-  }
-  return { state: 'unreported', reason: 'the key endpoint stated no cap or balance', compact: 'not stated' }
-}
-
-function kimiManagedCredits(usage: KimiManagedUsageView | null, error?: string): UsageCreditsView {
-  if (usage === null) return { state: 'unreported', reason: error ?? 'not read yet — /usage samples Kimi /usages', compact: error ? 'not read' : 'not read yet' }
-  if (usage.extraUsage === undefined) return {
-    state: 'unreported',
-    reason: 'Kimi /usages states no Extra Usage balance with a currency — Kimi Code Console shows membership billing',
-    compact: 'not stated',
-  }
-  const amount = `${usage.extraUsage.currency} ${usage.extraUsage.balance}`
-  return { state: 'reported', display: `${amount} Extra Usage balance`, compact: `${amount} extra`, source: 'endpoint', observedAtMs: usage.observedAtMs, freshForMs: usageStaleAfterMs() }
-}
-
-export const KIMI_EXTRA_USAGE_NOT_READ_WORDS = 'Extra Usage not read yet — /usage samples Kimi /usages'
-export const KIMI_EXTRA_USAGE_UNSTATED_WORDS = 'no Extra Usage balance stated — Kimi Code Console shows membership billing'
-
-function kimiExtraUsageCarry(usage: KimiManagedUsageView | null, error?: string): UsageCarryView {
-  if (usage === null) return { state: 'unstated', display: error ?? KIMI_EXTRA_USAGE_NOT_READ_WORDS, compact: error ? 'Extra Usage not read' : 'Extra Usage not read yet' }
-  const stamp = { source: 'endpoint' as const, observedAtMs: usage.observedAtMs, freshForMs: usageStaleAfterMs() }
-  if (usage.extraUsage === undefined) return { state: 'unstated', display: KIMI_EXTRA_USAGE_UNSTATED_WORDS, compact: 'Extra Usage not stated', ...stamp }
-  const amount = `${usage.extraUsage.currency} ${usage.extraUsage.balance}`
-  const value = Number(usage.extraUsage.balance)
-  if (Number.isFinite(value) && value <= 0) return { state: 'nothing', display: `Extra Usage balance ${amount} — ${CARRY_NOTHING_TAIL}`, compact: `Extra Usage ${amount}`, ...stamp }
-  return { state: 'carries', display: `on Extra Usage · ${amount} left`, compact: `on Extra Usage ${amount}`, ...stamp }
-}
-
 export function xaiSubscriptionWindowViews(pool: XaiSubscriptionCredits | null): UsageWindowView[] {
   if (!pool || pool.usedPercent === undefined) return []
   const type = pool.period?.type ?? ''
@@ -1244,14 +997,6 @@ export function xaiPurchasedCreditsCarry(pool: XaiSubscriptionCredits | null, fa
   if (pool.prepaidBalanceUsd <= 0) return { state: 'nothing', display: `purchased credits ${amount} — ${CARRY_NOTHING_TAIL}`, compact: `purchased credits ${amount}`, ...stamp }
   return { state: 'carries', display: `on purchased credits · ${amount} left`, compact: `on purchased credits ${amount}`, ...stamp }
 }
-
-function polledBalanceCredits(balance: { display: string; observedAtMs: number } | undefined): UsageCreditsView {
-  return balance !== undefined
-    ? { state: 'reported', display: balance.display, compact: balance.display, source: 'endpoint', observedAtMs: balance.observedAtMs, freshForMs: usageStaleAfterMs() }
-    : { state: 'unreported', reason: 'not read yet — /usage samples the balance endpoint', compact: 'not read yet' }
-}
-
-const CREDITS_UNREPORTED: UsageCreditsView = { state: 'unreported', reason: CREDITS_UNREPORTED_WORDS, compact: 'not reported' }
 
 export function openrouterCreditFacts(reads?: ActiveUsageReads): {
   usage: OpenrouterKeyUsage | null
@@ -1394,103 +1139,10 @@ function deriveOtherWindowUsages(
   return others
 }
 
-function planWord(plan: string): string {
-  return plan.length > 0 ? plan[0]!.toUpperCase() + plan.slice(1) : plan
-}
-
-const API_BILLING_TIER = 'API billing'
-
-const ZAI_GENERAL_KEY_ABSENCE_NOTE =
-  'No usage road for a general Z.AI key — https://z.ai/manage-apikey/billing is the view'
-const ZAI_NO_PLAN_NOTE = 'usage: not on a coding plan'
 const COMPAT_USAGE_ABSENCE_NOTE =
   "a custom endpoint publishes no usage Mercury reads — the endpoint's own dashboard is the view"
 const API_KEY_USAGE_ABSENCE_NOTE =
   'no usage endpoint is read for an API key on this lane — the provider console is the view'
-
-function openrouterResetWords(interval: string | null | undefined, resetsAt?: string | null): string {
-  if (interval === null) return 'never resets'
-  return [interval, resetsAt ? `resets ${resetsAt}` : undefined].filter(Boolean).join(' · ')
-}
-
-function openrouterFigures(usage: OpenrouterKeyUsage | null): UsageFigureView[] {
-  if (!usage) return []
-  const observedAtMs = usage.observedAtMs
-  const stamp = { observedAtMs, source: 'endpoint' as const, freshForMs: usageStaleAfterMs() }
-  const figures: UsageFigureView[] = []
-  if (usage.usage !== undefined) {
-    figures.push({ key: 'credits-all-time', label: 'credits used (all-time)', value: usage.usage.toFixed(2), ...stamp })
-  }
-  if (usage.usageWeekly !== undefined) {
-    figures.push({ key: 'credits-week', label: 'credits used this week', value: usage.usageWeekly.toFixed(2), ...stamp })
-  }
-  const capReset = openrouterResetWords(usage.limitReset)
-  const capLabel = `key cap${capReset ? ` (${capReset})` : ''}`
-  if (typeof usage.limitRemaining === 'number') {
-    figures.push({ key: 'cap-remaining', label: `remaining under the ${capLabel}`, value: usage.limitRemaining.toFixed(2), ...stamp })
-  } else if (usage.limit === null) {
-    figures.push({ key: 'cap', label: capLabel, value: 'uncapped', ...stamp })
-  }
-  const budget = usage.effectiveBudget
-  if (budget) {
-    const scope = openrouterBudgetLabel(budget.scope)
-    const reset = openrouterResetWords(budget.resetInterval, budget.resetsAt)
-    figures.push({ key: 'effective-budget', label: `enforced ${scope} budget${reset ? ` (${reset})` : ''}`, value: `$${budget.remainingUsd.toFixed(2)} of $${budget.limitUsd.toFixed(2)} remaining`, ...stamp })
-  }
-  const free = usage.freeModelDailyRequests
-  if (free) figures.push({ key: 'free-model-daily-requests', label: 'free-model requests (daily)', value: free.limit !== null && free.remaining !== null ? `${free.remaining} of ${free.limit} remaining` : `${free.used} used`, ...stamp })
-  if (usage.isFreeTier === true) {
-    figures.push({ key: 'tier', label: 'account', value: 'free tier', ...stamp })
-  }
-  return figures
-}
-
-export function huggingfacePlanFigures(facts: HuggingfaceAccountFacts | null): UsageFigureView[] {
-  if (facts === null || facts.isPro === undefined) return []
-  const label =
-    facts.canPay === true ? 'plan · payment method on file' : facts.canPay === false ? 'plan · no payment method' : 'plan'
-  return [
-    {
-      key: 'plan',
-      label,
-      value: facts.isPro ? 'PRO' : 'free',
-      observedAtMs: facts.observedAtMs,
-      ...(facts.periodEndMs !== undefined ? { resetsAtMs: facts.periodEndMs } : {}),
-      source: 'endpoint',
-      freshForMs: usageStaleAfterMs(),
-    },
-  ]
-}
-
-export function geminiPlanUsageFigures(plan: NonNullable<ReturnType<typeof geminiPlanFacts>>, env: NodeJS.ProcessEnv = process.env): UsageFigureView[] {
-  const figures: UsageFigureView[] = [
-    { key: 'plan-tier', label: 'tier Google reports', value: geminiPlanTierWords(plan.tier), ...(plan.tierReadAtMs !== undefined ? { observedAtMs: plan.tierReadAtMs } : {}), source: 'endpoint', freshForMs: 24 * 60 * 60 * 1000 },
-  ]
-  const roster = getCachedGeminiCatalogue('plan', env)
-  if (roster && roster.fetchedAtMs > 0) {
-    for (const model of roster.models) {
-      if (!model.quota || model.quota.remainingFraction === undefined) continue
-      const resetsAtMs = model.quota.resetTime !== undefined ? Date.parse(model.quota.resetTime) : NaN
-      figures.push({
-        key: `plan-quota:${model.id}`,
-        label: `${model.displayName ?? model.id} quota left`,
-        value: `${Math.round(model.quota.remainingFraction * 100)}%`,
-        observedAtMs: roster.fetchedAtMs,
-        ...(Number.isFinite(resetsAtMs) ? { resetsAtMs } : {}),
-        source: 'endpoint',
-        freshForMs: usageStaleAfterMs(),
-      })
-    }
-  }
-  return figures
-}
-
-function huggingfaceTier(kind: 'oauth' | 'api-key', facts: HuggingfaceAccountFacts | null): string {
-  if (kind !== 'oauth') return API_BILLING_TIER
-  if (facts?.isPro === true) return 'Hugging Face PRO'
-  if (facts?.isPro === false) return 'Hugging Face free'
-  return 'Hugging Face sign-in'
-}
 
 function deriveActiveSourceUsage(opts?: {
   model?: string
@@ -1547,205 +1199,17 @@ function deriveUsageForProvider(
 ): ActiveSourceUsage {
   const spend = provider === 'unrecognised' ? spendForRoute(provider) : (reads?.spend ?? spendForRoute)(provider)
 
-  if (provider === 'zai') {
-    const account = reads?.zaiAccount ? reads.zaiAccount() : zaiAccountFacts()
-    const keyPresent = reads?.zaiKeyPresent?.() ?? account !== undefined
-    if (!keyPresent) {
-      return { provider, sourceKind: 'none', label: 'Z.AI usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins zai adds a key' }
-    }
-    if (account?.plan !== 'coding') {
-      return { provider, sourceKind: 'api-key', label: 'Z.AI usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER, absence: ZAI_GENERAL_KEY_ABSENCE_NOTE, credits: CREDITS_UNREPORTED }
-    }
-    const quota = reads?.zaiQuota ? reads.zaiQuota() : liveZaiQuota()
-    const failure = reads?.zaiQuotaFailure ? reads.zaiQuotaFailure() : liveZaiQuotaFailure()
-    const { isZaiNoPlanFailure, zaiQuotaFailureWords } = require('./zai/zaiUsageState.js') as typeof import('./zai/zaiUsageState.js')
-    if (quota === null && failure !== null && isZaiNoPlanFailure(failure)) {
-      return { provider, sourceKind: 'api-key', label: 'Z.AI usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER, absence: ZAI_NO_PLAN_NOTE, credits: CREDITS_UNREPORTED }
-    }
-    const figures = zaiQuotaFigures(quota)
-    const note = failure !== null && (quota === null || failure.atMs > quota.observedAtMs) ? zaiQuotaFailureWords(failure) : undefined
-    return {
-      provider,
-      sourceKind: 'api-key',
-      label: 'GLM Coding Plan usage',
-      shape: 'subscription-windows',
-      windows: zaiQuotaWindowViews(quota),
-      pools: [],
-      spend,
-      tier: quota?.level ? `GLM Coding ${planWord(quota.level)}` : 'GLM Coding Plan',
-      ...(figures.length > 0 ? { figures } : {}),
-      ...(note !== undefined ? { readerNote: note, readerNoteCompact: note } : {}),
-    }
-  }
+  if (provider === 'zai') return zaiUsageView(provider, spend, reads)
 
-  if (provider === 'openrouter') {
-    const keyPresent = reads?.openrouterKeyPresent?.() ?? resolveOpenrouterApiKey() !== undefined
-    if (!keyPresent) {
-      const refused = readMintedOpenrouterKey()?.expiredMessage !== undefined
-      return {
-        provider, sourceKind: 'none', label: 'OpenRouter usage', shape: 'none', windows: [], pools: [], spend,
-        whyNot: refused ? 'no usable key — the OAuth-minted key was refused; /logins adds OpenRouter' : 'not connected — /logins adds OpenRouter',
-        ...(refused ? { readerNote: 'OAuth-minted key refused — no usable key', readerNoteCompact: 'OAuth-minted key refused — no usable key' } : {}),
-      }
-    }
-    const limitedWindow = (reads?.openrouterLimited ?? openrouterLimitWindow)()
-    const observed = (reads?.openrouterObserved ?? openrouterObservedKeyUsage)()
-    const figures = openrouterFigures(observed.usage)
-    const source = observed.errorSource ?? resolveOpenrouterApiKey()?.source
-    const slot = source === 'oauth' ? 'OAuth-minted key' : source === 'env' ? 'API key (env)' : 'API key (stored)'
-    const readerNote = observed.lastError !== undefined ? `credit truth unavailable for ${slot}` : openrouterLowBalanceNote(observed.usage)
-    return {
-      provider,
-      sourceKind: 'api-key',
-      label: 'API usage',
-      shape: 'api-spend',
-      windows: openrouterObservedWindowViews(reads),
-      pools: [],
-      credits: openrouterCredits(observed),
-      spend,
-      tier: API_BILLING_TIER,
-      ...(figures.length > 0 ? { figures } : {}),
-      ...(readerNote !== undefined
-        ? { readerNote, readerNoteCompact: readerNote }
-        : observed.usage !== null && figures.length === 0
-          ? { readerNote: 'the key endpoint stated no credit facts' }
-          : {}),
-      ...(limitedWindow.state === 'limited'
-        ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } }
-        : {}),
-    }
-  }
+  if (provider === 'openrouter') return openrouterUsageView(provider, spend, reads)
 
-  if (provider === 'gemini') {
-    const account = reads?.geminiAccount ? reads.geminiAccount() : resolveGeminiAccount()
-    if (!account) {
-      return { provider, sourceKind: 'none', label: 'Gemini usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins adds Gemini' }
-    }
-    const limitedWindow = (reads?.geminiLimited ?? geminiLimitWindow)()
-    const plan = account.kind === 'plan' ? geminiPlanFacts() : undefined
-    const planFigures = plan ? geminiPlanUsageFigures(plan) : []
-    const planNote = plan ? geminiPlanQuotaReadNote(getCachedGeminiCatalogue('plan')) : undefined
-    return {
-      provider,
-      sourceKind: account.kind === 'plan' ? 'oauth' : account.kind,
-      label: account.kind === 'api-key' ? 'API usage' : 'Gemini usage',
-      shape: 'api-spend',
-      windows: [],
-      pools: [],
-      credits: CREDITS_UNREPORTED,
-      spend,
-      absence: plan ? GEMINI_PLAN_USAGE_ABSENCE_NOTE : GEMINI_USAGE_ABSENCE_NOTE,
-      ...(planFigures.length > 0 ? { figures: planFigures } : {}),
-      ...(planNote !== undefined ? { readerNote: planNote, readerNoteCompact: planNote } : {}),
-      tier: plan ? geminiPlanTierWords(plan.tier) : account.kind === 'oauth' ? 'Google sign-in' : API_BILLING_TIER,
-      ...(limitedWindow.state === 'limited'
-        ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } }
-        : {}),
-    }
-  }
+  if (provider === 'gemini') return geminiUsageView(provider, spend, reads)
 
-  if (provider === 'huggingface') {
-    const account = reads?.huggingfaceAccount ? reads.huggingfaceAccount() : resolveHuggingfaceAccount()
-    if (!account) {
-      return { provider, sourceKind: 'none', label: 'Hugging Face usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins adds Hugging Face' }
-    }
-    const limitedWindow = (reads?.huggingfaceLimited ?? huggingfaceLimitWindow)()
-    const rate = reads?.huggingfaceRate ? reads.huggingfaceRate() : huggingfaceObservedRate()
-    const facts = reads?.huggingfaceAccountFacts ? reads.huggingfaceAccountFacts() : huggingfaceObservedAccountFacts()
-    const factsFailure = reads?.huggingfaceAccountFactsFailure ? reads.huggingfaceAccountFactsFailure() : huggingfaceAccountFactsFailure()
-    const figures: UsageFigureView[] = [
-      ...(rate
-        ? [
-            {
-              key: 'rate-remaining',
-              label: 'requests remaining (stated by the last response)',
-              value: String(rate.remaining),
-              observedAtMs: rate.observedAtMs,
-              ...(rate.resetsAtMs !== undefined ? { resetsAtMs: rate.resetsAtMs } : {}),
-              source: 'headers' as const,
-            },
-          ]
-        : []),
-      ...huggingfacePlanFigures(facts),
-    ]
-    const planNote =
-      factsFailure !== null && (facts === null || factsFailure.atMs > facts.observedAtMs)
-        ? huggingfaceAccountFactsFailureWords(factsFailure)
-        : undefined
-    return {
-      provider,
-      sourceKind: account.kind === 'oauth' ? 'oauth' : 'api-key',
-      label: account.kind === 'oauth' ? 'Hugging Face usage' : 'API usage',
-      shape: 'api-spend',
-      windows: [],
-      pools: [],
-      credits: CREDITS_UNREPORTED,
-      spend,
-      ...(figures.length > 0 ? { figures } : {}),
-      absence: HUGGINGFACE_USAGE_ABSENCE_NOTE,
-      tier: huggingfaceTier(account.kind, facts),
-      ...(planNote !== undefined ? { readerNote: planNote, readerNoteCompact: planNote } : {}),
-      ...(limitedWindow.state === 'limited' ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } } : {}),
-    }
-  }
+  if (provider === 'huggingface') return huggingfaceUsageView(provider, spend, reads)
 
-  if (provider === 'local') {
-    const account = reads?.localAccount ? reads.localAccount() : resolveLocalAccount()
-    if (!account) {
-      return { provider, sourceKind: 'none', label: 'Local usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'no local server — start one, or set MERCURY_LOCAL_BASE_URL' }
-    }
-    return {
-      provider,
-      sourceKind: account.kind === 'keyless' ? 'keyless' : 'api-key',
-      label: 'Local usage',
-      shape: 'none',
-      windows: [],
-      pools: [],
-      spend,
-      absence: cachedLocalModels().some(model => model.executionOrigin?.kind === 'remote') ? 'local inference $0 · remote pricing unknown' : 'local · no metering',
-      tier: cachedLocalModels().some(model => model.executionOrigin?.kind === 'remote') ? 'remote pricing unknown' : 'local · no metering',
-    }
-  }
+  if (provider === 'local') return localUsageView(provider, spend, reads)
 
-  if (provider === 'moonshot') {
-    const account = reads?.moonshotAccount ? reads.moonshotAccount() : liveMoonshotAccount()
-    if (!account) {
-      return { provider, sourceKind: 'none', label: 'Moonshot usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins moonshot adds Kimi or a key' }
-    }
-    if (account.kind === 'kimi-oauth') {
-      const managed = reads?.kimiManagedUsage ? reads.kimiManagedUsage() : liveKimiManagedUsage()
-      const error = reads?.kimiManagedError ? reads.kimiManagedError() : reads?.kimiManagedUsage ? undefined : (require('./moonshot/moonshotUsageState.js') as typeof import('./moonshot/moonshotUsageState.js')).kimiManagedUsageError()
-      return {
-        provider,
-        sourceKind: 'oauth',
-        label: 'Kimi usage',
-        shape: 'subscription-windows',
-        windows: kimiManagedWindowViews(managed),
-        pools: [],
-        credits: kimiManagedCredits(managed, error),
-        carry: kimiExtraUsageCarry(managed, error),
-        ...(error ? { readerNote: error, readerNoteCompact: error } : {}),
-        spend,
-        tier: 'Kimi sign-in',
-      }
-    }
-    const record = reads?.moonshotBalance?.() ?? liveMoonshotBalance()
-    const balance = record
-      ? { display: `USD ${record.availableBalance}`, observedAtMs: record.observedAtMs }
-      : undefined
-    return {
-      provider,
-      sourceKind: 'api-key',
-      label: 'API usage',
-      shape: 'api-spend',
-      windows: [],
-      pools: [],
-      credits: polledBalanceCredits(balance),
-      spend,
-      tier: API_BILLING_TIER,
-      ...(balance ? { balance } : {}),
-    }
-  }
+  if (provider === 'moonshot') return moonshotUsageView(provider, spend, reads)
 
   if (provider === 'xai') {
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
