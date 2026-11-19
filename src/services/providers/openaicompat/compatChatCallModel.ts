@@ -48,6 +48,7 @@ import { imageRefusalWords } from '../zai/zaiCodec.js'
 import '../../../utils/model/capabilities.js'
 import { noteImageRefusal } from '../../desktop/desktopSession.js'
 import { compatImageRefusalWords, refreshCompatModelImageReading } from './compatProbe.js'
+import './compatChatClient.js'
 import {
   type CompatFault,
 } from './compatChatClient.js'
