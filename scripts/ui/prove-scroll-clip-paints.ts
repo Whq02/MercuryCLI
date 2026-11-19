@@ -27,7 +27,7 @@ const TICK_ITEM = 10
 const LAST_ROW = ITEMS * ITEM_ROWS - 1
 const ALT_SWITCH = /\u001b\[\?1049[hl]/
 const UNMODELLED = /\u001b\[(?:[<>=][0-9;]*[a-zA-Z]|\?u|\??[0-9;]*\$p|c|[0-9;]*t)/g
-const PADDED_BOXES: Record<string, string[]> = { 'components/FullscreenLayout.tsx': ['paddingTop'] }
+const PADDED_BOXES: Record<string, string[]> = { 'components/fullscreenLayout/frame.tsx': ['paddingTop'] }
 
 let checks = 0
 let failures = 0
