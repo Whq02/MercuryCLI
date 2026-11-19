@@ -1,34 +1,20 @@
 import { randomUUID } from 'node:crypto'
-import { getSessionId, getSessionKind, isSessionPersistenceDisabled } from '../bootstrap/state.js'
+import { getSessionId, isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import type { Command } from '../commands.js'
-import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
-import { armWorkerParentWatch } from '../daemon/workerParentWatch.js'
-import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
-import { query, queryEvents } from '../query.js'
+import { queryEvents } from '../query.js'
 import type { Terminal } from '../query/transitions.js'
 import type { RunEvent } from '../run-core/events.js'
 import { legacyYieldsOf } from '../run-core/project-legacy.js'
 import type { QueryParams } from '../run-core/turn-machine.js'
-import { retryReasonWords } from '../services/providers/streamIdleBudget.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/emptyUsage.js'
-import { INVALID_API_KEY_ERROR_MESSAGE, isStreamFaultRecoveryNudgeEcho } from '../services/api/errors.js'
-import { CHOOSE_A_MODEL_DOOR } from '../utils/model/computedDefault.js'
-import { localRoadBesideSignIn } from '../services/providers/local/localAccounts.js'
-import { toolCallShapedAnswer } from '../services/providers/local/toolCallMarkup.js'
-import { emptyReplyEndedLine, emptyReplyKindOf } from '../services/providers/emptyReply.js'
-import { localFitRefusalFacts } from '../services/providers/local/localCatalogue.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
-import { refusalAnsweredBy } from '../services/providers/toolCallGate.js'
 import type { Tools, ToolUseContext } from '../Tool.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/constants.js'
-import type { AssistantMessage, CompactMetadata, Message, MessageOrigin, ProgressMessage, SystemCloseUsageMessage } from '../types/message.js'
+import type { AssistantMessage, CompactMetadata, Message, MessageOrigin } from '../types/message.js'
 import type { ApiStreamEvent, ContentBlockParam } from '../types/wire.js'
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
-import type { EvalToolProgress, MCPProgress, ShellProgress } from '../types/tools.js'
-import type { HookProgress } from '../types/hooks.js'
 import { createAttachmentMessage } from '../utils/attachments/orchestrator.js'
 import { getQueuedCommandAttachments } from '../utils/attachments/queuedCommands.js'
-import { getGlobalConfig } from '../utils/config.js'
 import { createGetAppStateWithAllowedTools } from '../utils/forkedAgent.js'
 import { isBareMode, isEnvTruthy } from '../utils/envUtils.js'
 import type { FileStateCache } from '../utils/fileStateCache.js'
@@ -36,80 +22,61 @@ import { cloneFileStateCache } from '../utils/fileStateCache.js'
 import { reconstructContentReplacementState, type ContentReplacementState } from '../utils/toolResultStorage.js'
 import { fileHistoryMakeSnapshot } from '../utils/fileHistory.js'
 import { headlessProfilerCheckpoint } from '../utils/headlessProfiler.js'
-import { engageCommitGate } from '../guards/commitGate.js'
-import { registerForcedReadGuard } from '../guards/forcedRead.js'
-import { registerStructuredOutputGuard, releaseStructuredOutputGuard } from '../guards/structuredOutput.js'
-import { registerRunStopGuard } from '../guards/runStop.js'
-import { forgetWardFirings, registerWardsGuard, wardFiringsOf } from '../guards/wardsGuard.js'
-import { askNobodyAnswered, unansweredAsksBlocker } from '../services/run/unansweredAsk.js'
-import type { PermissionDecision } from '../types/permissions.js'
-import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
+import { forgetWardFirings, wardFiringsOf } from '../guards/wardsGuard.js'
+import { getInMemoryErrors, logError } from '../utils/log.js'
 import { isClaudeAISubscriber } from '../utils/auth.js'
-import { declaredRouteOf } from '../services/providers/routeLaw.js'
-import { normalizeMessages } from '../utils/messages.js'
-import { createUserMessage } from '../utils/messages/factories.js'
-import { isNotEmptyMessage } from '../utils/messages/text.js'
-import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
-import { turnCutOf, turnCutResultText } from '../utils/messages/turnCut.js'
-import { fireHooks } from '../utils/hooks/fire.js'
+import { turnCutOf } from '../utils/messages/turnCut.js'
 import type { HookAttachment } from '../utils/attachments/types.js'
-import { hookRowsOfResult } from '../utils/hooks/rows.js'
-import { HOOK_CUT_BUDGET_MS } from '../utils/hooks/contract.js'
 import { getEngineModel } from '../utils/model/model.js'
 import { resolveModelPricing } from '../utils/modelCost.js'
 import { getTokenUsage, messageContextFill } from '../utils/tokens.js'
 import { getModelUsage, getTotalCostUSD } from '../bootstrap/state.js'
-import { advanceLedgerMark, ledgerMark, ledgerSpentSince, usageSince } from '../utils/ledgerMark.js'
+import { ledgerMark, ledgerSpentSince, usageSince } from '../utils/ledgerMark.js'
 import { noteRunPhase } from '../utils/runPhases.js'
 import { processUserInput } from '../utils/processUserInput/processUserInput.js'
 import { getSlashCommandToolSkills } from '../commands.js'
 import { ensureExtensionsLoaded } from '../extensions/boot.js'
-import { fetchSystemPromptParts } from '../utils/queryContext.js'
-import { assertSingleRole } from '../utils/workerRole.js'
 import { flushSessionStorage, recordTranscript } from '../utils/sessionStorage.js'
-import { isEphemeralToolProgress } from '../utils/sessionStorage/paths.js'
-import { recordTurnEnd, recordTurnStart, settleTranscriptMessage } from '../utils/sessionStorage/writer.js'
+import { recordTurnStart, settleTranscriptMessage } from '../utils/sessionStorage/writer.js'
 import { setCwd } from '../utils/Shell.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { shouldEnableThinkingByDefault } from '../utils/thinking.js'
-import { asSystemPrompt, type SystemPrompt } from '../utils/systemPromptType.js'
-import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
-import { hasMnemeHomeOverride } from '../mneme/paths.js'
 import { getCwd } from '../utils/cwd.js'
 import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import {
-  commandOutputRow,
-  commandOutputTextOf,
-  shellOutputTextOf,
   compactionEndedRow,
-  itemRowsOf,
   modelUsageRows,
   noticeRow,
-  closeRow,
   outcomeRow,
   partialRowsOf,
-  refusedCallRowsOf,
   retractedRow,
-  retryWaitRow,
-  stepRow,
   toolResultRowsOf,
-  toolUpdateRow,
   turnStartedRow,
   type OutcomeFacts,
   type RowDraft,
   type RowScope,
   type SessionFacts,
 } from './project.js'
-import { budgetCannotPaySentence, errorClassOf, statusOfTerminal, toolCallsRefusedSentence, unexecutedToolCallSentence, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus, type Usage } from './vocabulary.js'
-import { childRowsOf } from './child.js'
+import { budgetCannotPaySentence, statusOfTerminal, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, type Denial, type OutcomeStatus, type Usage } from './vocabulary.js'
 import { recoveryKindOf, type RecoveryKind } from './vocabulary.js'
+import { StepLedger } from './turn/steps.js'
+import { messageRowsOf } from './turn/messageRows.js'
+import { canUseToolKeepingDenials } from './turn/asks.js'
+import { systemPromptComposer } from './turn/prompt.js'
+import { armTurnGuards } from './turn/guards.js'
+import { contextBuilder } from './turn/context.js'
+import { commandOutputRows } from './turn/command.js'
+import { latestAnswerOf } from './turn/answer.js'
+import { openCallsCutter } from './turn/cut.js'
+import { turnEnder } from './turn/end.js'
+import { MaxTimeCut, settledTurnRows } from './turn/settle.js'
+import { costUnknownIn } from './turn/close.js'
+import { systemMessageRows } from './turn/system.js'
+
+export { closeRowOf } from './turn/close.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
-
-class MaxTimeCut extends Error {
-  override readonly name = 'MaxTimeCut'
-}
 
 type CanUseTool = ToolUseContext extends never ? never : QueryParams['canUseTool']
 type GetAppState = ToolUseContext['getAppState']
@@ -161,16 +128,6 @@ export type TurnOptions = {
   turn?: number
 }
 
-function messageTextContent(message: Message): string | null {
-  const content = (message as { message?: { content?: unknown } }).message?.content
-  if (typeof content === 'string') return content
-  return null
-}
-
-function isLocalCommandOutputText(text: string): boolean {
-  return text.includes(LOCAL_COMMAND_STDOUT_TAG) || text.includes(LOCAL_COMMAND_STDERR_TAG)
-}
-
 
 function inputFloorUsd(messages: readonly Message[], model: string): number | null {
   const pricing = resolveModelPricing(model)
@@ -183,45 +140,6 @@ function inputFloorUsd(messages: readonly Message[], model: string): number | nu
     return (carried * Math.min(pricing.costs.promptCacheReadTokens, pricing.costs.inputTokens)) / 1e6
   }
   return null
-}
-
-const TOOL_UPDATE_BEAT_MS = 250
-const TOOL_UPDATE_MAP_CAP = 100
-const TOOL_UPDATE_LINE_MAX = 300
-const toolUpdateState = new Map<string, { lastEmitMs: number; tick: number }>()
-
-function latestLineOf(text: string | undefined): string | undefined {
-  if (typeof text !== 'string' || text === '') return undefined
-  const lines = text.split('\n')
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i]!.trim()
-    if (line === '') continue
-    return line.length > TOOL_UPDATE_LINE_MAX ? `${line.slice(0, TOOL_UPDATE_LINE_MAX)}…` : line
-  }
-  return undefined
-}
-
-function lastTextBlockOf(message: AssistantMessage): string {
-  const content = message.message.content
-  if (typeof content === 'string') return content
-  if (!Array.isArray(content)) return ''
-  for (let index = content.length - 1; index >= 0; index--) {
-    const block = content[index] as { type?: string; text?: string }
-    if (block.type === 'text' && typeof block.text === 'string') return block.text === NO_CONTENT_MESSAGE ? '' : block.text
-  }
-  return ''
-}
-
-const costUnknownIn = (unpricedTurns: Record<string, number>, subscriber: boolean) => (model: string): boolean => (unpricedTurns[model] ?? 0) > 0 || (subscriber && declaredRouteOf(model) === 'anthropic')
-
-export function closeRowOf(scope: RowScope, note: Pick<SystemCloseUsageMessage, 'closeState' | 'noteChars' | 'usage' | 'spent'>): ReturnType<typeof closeRow> {
-  const models = modelUsageRows(note.spent?.modelUsage, costUnknownIn(note.spent?.unpricedTurns ?? {}, isClaudeAISubscriber()))
-  return closeRow(scope, {
-    state: note.closeState,
-    ...(note.noteChars !== undefined ? { noteChars: note.noteChars } : {}),
-    ...(note.usage !== undefined ? { usage: note.usage } : {}),
-    ...(Object.keys(models).length > 0 ? { models } : {}),
-  })
 }
 
 export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 'tools' | 'mcpClients' | 'commands' | 'agents'>, model: string, mode: string, resumeOf?: string, toolsWithheld?: SessionFacts['toolsWithheld']): Promise<SessionFacts> {
@@ -244,65 +162,6 @@ export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 't
     agents: (config.agents ?? []).map(agent => agent.agentType),
     skills: skills.filter(invocable).map(skill => skill.name),
     extensions: loaded.set.active.map(ext => ({ name: ext.manifest.name, path: ext.root, id: ext.entry.id })),
-  }
-}
-
-class StepLedger {
-  private open: { messageId: string; model: string; stop: string | null; usage: NonNullableUsage } | null = null
-  private readonly done = new Set<string>()
-  readonly blocks = new Map<string, number>()
-  count = 0
-  lastModel = ''
-  constructor(private readonly scope: RowScope) {}
-
-  see(messageId: string, model: string, usage: NonNullableUsage, stop: string | null): RowDraft | null {
-    let flushed: RowDraft | null = null
-    if (this.open !== null && this.open.messageId !== messageId) flushed = this.flush()
-    if (this.done.has(messageId)) return flushed
-    this.open = { messageId, model, usage, stop: stop ?? this.open?.stop ?? null }
-    return flushed
-  }
-
-  flush(): RowDraft | null {
-    if (this.open === null) return null
-    const { messageId, model, usage, stop } = this.open
-    this.open = null
-    this.done.add(messageId)
-    this.count += 1
-    return stepRow(this.scope, { messageId, model, stopReason: stop, usage })
-  }
-
-  settle(messageId: string, usage: NonNullableUsage, stop: string | null): RowDraft | null {
-    if (this.open !== null && this.open.messageId === messageId) {
-      this.open.usage = usage
-      if (stop !== null) this.open.stop = stop
-      return this.flush()
-    }
-    if (this.done.has(messageId)) return null
-    this.open = { messageId, model: this.lastModel, usage, stop }
-    return this.flush()
-  }
-}
-
-function conversationOptions(config: ConversationConfig, model: string, thinkingConfig: ThinkingConfig): ToolUseContext['options'] {
-  return {
-    commands: config.commands,
-    debug: false,
-    verbose: false,
-    engineModel: model,
-    thinkingConfig,
-    tools: config.tools,
-    mcpClients: config.mcpClients,
-    mcpResources: {},
-    isNonInteractiveSession: true,
-    ...(config.hostHoldsAsks === true ? { hostHoldsAsks: true } : {}),
-    customSystemPrompt: config.customSystemPrompt,
-    appendSystemPrompt: config.appendSystemPrompt,
-    agentDefinitions: { activeAgents: config.agents ?? [], allAgents: [] },
-    theme: getGlobalConfig().theme,
-    maxBudgetUsd: config.maxBudgetUsd,
-    runDeadline: config.maxTime,
-    querySource: 'sdk',
   }
 }
 
@@ -400,7 +259,6 @@ export class Conversation {
     this.turnToOpen = turnId
     const promptUuid = options?.uuid ?? randomUUID()
     const scope: RowScope = { session_id: getSessionId(), turn: turnOrdinal }
-    const scopeFor = (parentCallId: string | undefined): RowScope => (parentCallId === undefined ? scope : { ...scope, parent_call_id: parentCallId })
     const notices: Array<{ level: 'warning' | 'error'; text: string }> = []
     const recoveries: Array<{ kind: RecoveryKind }> = []
     const hookNoticeRows = (hookRow: HookAttachment): RowDraft[] => {
@@ -415,94 +273,23 @@ export class Conversation {
     const denialsBefore = this.denials.length
     forgetWardFirings(scope.session_id)
 
-    const wrappedCanUseTool: CanUseTool = (async (
-      tool: { name: string },
-      input: Record<string, unknown>,
-      toolUseContext: ToolUseContext,
-      assistantMessage: AssistantMessage,
-      toolUseID: string,
-      forceDecision?: unknown,
-    ) => {
-      const decision = await (config.canUseTool as (...args: unknown[]) => Promise<PermissionDecision>)(tool, input, toolUseContext, assistantMessage, toolUseID, forceDecision)
-      if (decision?.behavior !== 'allow') {
-        this.denials.push({ tool: tool.name, call_id: toolUseID, input })
-        if (askNobodyAnswered(decision)) this.unansweredAsks.add(toolUseID)
-      }
-      return decision
-    }) as CanUseTool
+    const wrappedCanUseTool = canUseToolKeepingDenials(config, this.denials, this.unansweredAsks)
 
     const appStateSnapshot = config.getAppState()
     const resolvedModel = this.userSpecifiedModel ?? getEngineModel()
     const thinkingConfig: ThinkingConfig =
       config.thinkingConfig ?? (shouldEnableThinkingByDefault() ? ({ type: 'adaptive' } as ThinkingConfig) : ({ type: 'disabled' } as ThinkingConfig))
 
-    const compose = async (): Promise<{ systemPrompt: SystemPrompt; userContext: Record<string, string>; systemContext: Record<string, string> }> => {
-      const parts = await fetchSystemPromptParts({
-        tools: config.tools,
-        engineModel: resolvedModel,
-        mcpClients: config.mcpClients,
-        customSystemPrompt: config.customSystemPrompt,
-        permissionMode: appStateSnapshot.toolPermissionContext.mode,
-        memoryTask: { prompt: typeof prompt === 'string' ? prompt : prompt.filter(block => block.type === 'text').map(block => block.text).join('\n') },
-      })
-      let memoryMechanicsPrompt: string | null = null
-      if (config.customSystemPrompt !== undefined && hasMnemeHomeOverride()) memoryMechanicsPrompt = await loadMemoryPrompt()
-      const sections: string[] = config.customSystemPrompt !== undefined ? [MERCURY_CONSTITUTION, config.customSystemPrompt] : [...parts.defaultSystemPrompt]
-      if (memoryMechanicsPrompt) sections.push(memoryMechanicsPrompt)
-      if (config.appendSystemPrompt) sections.push(config.appendSystemPrompt)
-      return { systemPrompt: asSystemPrompt(sections), userContext: parts.userContext, systemContext: parts.systemContext }
-    }
+    const compose = systemPromptComposer(config, resolvedModel, appStateSnapshot, prompt)
     headlessProfilerCheckpoint('before_getSystemPrompt')
     const promptParts = await compose()
     headlessProfilerCheckpoint('after_getSystemPrompt')
     const systemPrompt = promptParts.systemPrompt
 
     const sessionId = getSessionId()
-    const hasSyntheticOutputTool = config.tools.some(tool => tool.name === SYNTHETIC_OUTPUT_TOOL_NAME)
-    if (config.jsonSchema && hasSyntheticOutputTool) registerStructuredOutputGuard(sessionId)
-    else releaseStructuredOutputGuard(sessionId)
-    const forcedReadList = (flagEnv('MERCURY_FORCE_READ_FILES') ?? '')
-      .split(',')
-      .map(entry => entry.trim())
-      .filter(entry => entry.length > 0)
-    if (forcedReadList.length > 0) registerForcedReadGuard(sessionId, forcedReadList)
-    registerWardsGuard(config.setAppState, sessionId)
-    registerRunStopGuard(sessionId)
-    engageCommitGate(sessionId)
-    assertSingleRole()
-    armWorkerParentWatch()
+    armTurnGuards(config, sessionId)
 
-    const buildContext = (messages: Message[], model: string): ToolUseContext => ({
-      options: conversationOptions(config, model, thinkingConfig),
-      startTurn: query,
-      abortController: this.abortController,
-      readFileState: this.readFileState,
-      contentReplacementState: this.contentReplacementState,
-      getAppState: config.getAppState,
-      setAppState: config.setAppState,
-      messages,
-      setResponseLength: () => {},
-      setInProgressToolUseIDs: () => {},
-      callChain: { key: turnId, hop: 0 },
-      updateFileHistoryState: updater => {
-        config.setAppState(prev => {
-          const next = updater(prev.fileHistory)
-          return next === prev.fileHistory ? prev : { ...prev, fileHistory: next }
-        })
-      },
-      updateAttributionState: updater => {
-        config.setAppState(prev => {
-          const next = updater(prev.attribution)
-          return next === prev.attribution ? prev : { ...prev, attribution: next }
-        })
-      },
-      handleElicitation: config.handleElicitation,
-      setSDKStatus: config.setSDKStatus,
-      discoveredSkillNames: this.discoveredSkillNames,
-      loadedNestedMemoryPaths: this.loadedNestedMemoryPaths,
-      nestedMemoryAttachmentTriggers: new Set<string>(),
-      dynamicSkillDirTriggers: new Set<string>(),
-    })
+    const buildContext = contextBuilder({ config, thinkingConfig, turnId, abortController: this.abortController, readFileState: this.readFileState, contentReplacementState: this.contentReplacementState, discoveredSkillNames: this.discoveredSkillNames, loadedNestedMemoryPaths: this.loadedNestedMemoryPaths })
     if (options?.initialNotices?.length) {
       const attachments = await getQueuedCommandAttachments(options.initialNotices, { messages: this.mutableMessages, model: resolvedModel })
       this.mutableMessages.push(...attachments.map(createAttachmentMessage))
@@ -513,119 +300,7 @@ export class Conversation {
     const messageIds = [promptUuid, ...(options?.batchUuids ?? []).filter(uuid => uuid !== promptUuid)]
     yield turnStartedRow(scope, { turnId, messageIds, model: resolvedModel })
 
-    const rowsOfMessage = (message: Message, parentCallId: string | undefined): RowDraft[] => {
-      const rows: RowDraft[] = []
-      const rowScope = scopeFor(parentCallId)
-      if (parentCallId !== undefined && (message.type === 'assistant' || message.type === 'user')) {
-        const child = childRowsOf({ ...scope, parent_call_id: parentCallId }, message)
-        for (const row of child) {
-          const call = row as RowDraft & { call_id?: string }
-          if (call.type === 'tool_call' && call.call_id !== undefined) callScopes.set(call.call_id, rowScope)
-        }
-        return child
-      }
-      if (message.type === 'assistant') {
-        const assistant = message as AssistantMessage & { isApiErrorMessage?: boolean }
-        if (assistant.isApiErrorMessage === true) return rows
-        const content = assistant.message.content
-        const refused = (assistant.refusedToolCalls ?? []).filter(refusal => !refusalAnsweredBy(refusal, [assistant]))
-        const hasContent = isNotEmptyMessage(message)
-        if (!hasContent && refused.length === 0) return rows
-        const messageId = assistant.message.id ?? (assistant.uuid as string)
-        const base = steps.blocks.get(messageId) ?? 0
-        const length = hasContent ? (Array.isArray(content) ? content.length : 1) : 0
-        steps.blocks.set(messageId, base + length + refused.length)
-        let block = base
-        if (hasContent) {
-          for (const normalized of normalizeMessages([message])) {
-            const pieces = (normalized as AssistantMessage).message.content
-            const items = itemRowsOf(rowScope, messageId, pieces, block, assistant.inReplyTo)
-            for (const item of items) if (item.type === 'tool_call') callScopes.set(item.call_id, rowScope)
-            rows.push(...items)
-            block += Array.isArray(pieces) ? pieces.length : 1
-          }
-        }
-        if (refused.length > 0) rows.push(...refusedCallRowsOf(rowScope, messageId, refused, base + length))
-        return rows
-      }
-      if (message.type === 'user') {
-        rows.push(...toolResultRowsOf(rowScope, (message as { message: { content: unknown } }).message.content, (callId, isError) => toolOutcomes.get(callId) ?? (isError ? 'error' : 'ok')))
-        return rows
-      }
-      if (message.type === 'progress') {
-        const progress = message as ProgressMessage
-        const data = progress.data as { type?: string; message?: Message; elapsedTimeSeconds?: number }
-        if (data.type === 'agent_progress' || data.type === 'skill_progress') {
-          const inner = data.message as Message
-          return rowsOfMessage(inner, progress.parentToolUseID)
-        }
-        const evalRunning = data.type === 'eval_progress' && (data as { kind?: string }).kind === 'running' ? (data as Extract<EvalToolProgress, { kind: 'running' }>) : null
-        const hookWaiting = data.type === 'hook_progress' && (data as { state?: string }).state === 'waiting' ? (data as HookProgress) : null
-        if (isEphemeralToolProgress(data.type) || evalRunning !== null || hookWaiting !== null) {
-          const callId = callScopes.has(progress.toolUseID) ? progress.toolUseID : progress.parentToolUseID
-          const updateScope = callScopes.get(callId) ?? rowScope
-          const key = JSON.stringify([scope.session_id, callId])
-          const now = Date.now()
-          const state = toolUpdateState.get(key)
-          const hookWaitEnded = hookWaiting !== null && hookWaiting.line === undefined
-          if (!hookWaitEnded) {
-            if (state !== undefined && now - state.lastEmitMs < TOOL_UPDATE_BEAT_MS) return rows
-          }
-          while (toolUpdateState.size >= TOOL_UPDATE_MAP_CAP) {
-            const oldest = toolUpdateState.keys().next()
-            if (oldest.done) break
-            toolUpdateState.delete(oldest.value)
-          }
-          const tick = (state?.tick ?? 0) + 1
-          toolUpdateState.set(key, { lastEmitMs: now, tick })
-          if (hookWaiting !== null) {
-            rows.push(
-              toolUpdateRow(updateScope, {
-                callId,
-                tick,
-                source: 'hook',
-                ...(hookWaiting.line !== undefined ? { line: hookWaiting.line } : {}),
-                ...(hookWaiting.elapsedS !== undefined ? { elapsedS: hookWaiting.elapsedS } : {}),
-                ...(hookWaiting.timeoutS !== undefined && hookWaiting.timeoutS > 0 ? { budgetMs: hookWaiting.timeoutS * 1000 } : {}),
-              }),
-            )
-            return rows
-          }
-          if (evalRunning !== null) {
-            rows.push(
-              toolUpdateRow(updateScope, {
-                callId,
-                tick,
-                source: 'eval',
-                line: latestLineOf(evalRunning.tail),
-                elapsedS: evalRunning.elapsedSeconds,
-                budgetMs: evalRunning.budgetMs,
-              }),
-            )
-            return rows
-          }
-          const shell = data as Partial<ShellProgress>
-          const mcp = data as Partial<MCPProgress>
-          const isMcp = data.type === 'mcp_progress'
-          rows.push(
-            toolUpdateRow(updateScope, {
-              callId,
-              tick,
-              source: isMcp ? 'mcp' : data.type === 'powershell_progress' ? 'powershell' : 'shell',
-              line: isMcp ? latestLineOf(mcp.progressMessage) : latestLineOf(shell.output),
-              elapsedS: typeof data.elapsedTimeSeconds === 'number' ? data.elapsedTimeSeconds : undefined,
-              lines: !isMcp && typeof shell.totalLines === 'number' ? shell.totalLines : undefined,
-              bytes: !isMcp && typeof shell.totalBytes === 'number' ? shell.totalBytes : undefined,
-              budgetMs: !isMcp && typeof shell.budgetMs === 'number' ? shell.budgetMs : undefined,
-              progress: isMcp && typeof mcp.progress === 'number' ? mcp.progress : undefined,
-              total: isMcp && typeof mcp.total === 'number' ? mcp.total : undefined,
-            }),
-          )
-        }
-        return rows
-      }
-      return rows
-    }
+    const rowsOfMessage = messageRowsOf({ scope, steps, toolOutcomes, callScopes })
 
     const syntheticCallsBeforeTurn = this.countSyntheticOutputCalls()
     const priorUuids = new Set<string>(this.mutableMessages.map(message => message.uuid))
@@ -748,53 +423,14 @@ export class Conversation {
     }
     const closeTurn = (status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): RowDraft => outcomeRow({ ...scope, turn: turnOrdinal }, outcomeFactsOf(status, extra))
     let timeLimitTimer: ReturnType<typeof setTimeout> | null = null
+    const turnEnding = turnEnder({ scope, turnId, sessionId, abortController: this.abortController, toolUseContext, inputResult, mutableMessages: this.mutableMessages, turnMessages, seedMessages, persistenceDisabled, recordDelta: turnMessages => this.recordDelta(turnMessages), cutCalls, openCalls })
     const endTurn = async function* (this: Conversation, status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): AsyncGenerator<RowDraft> {
       if (timeLimitTimer !== null) {
         clearTimeout(timeLimitTimer)
         timeLimitTimer = null
       }
       const row = closeTurn(status, extra) as RowDraft & { stop?: string; error?: { message: string; class: string }; steps: number; wall_ms: number; cost_usd?: number; usage: Usage; answer?: string }
-      const aborted = this.abortController.signal.aborted
-      const cut = aborted ? turnCutOf(this.abortController.signal.reason) : null
-      try {
-        const ended = await fireHooks(
-          'turn.end',
-          {
-            turn_id: turnId,
-            status,
-            ...(row.stop !== undefined ? { stop: row.stop as never } : {}),
-            ...(row.error !== undefined ? { error: { message: row.error.message, class: row.error.class as never } } : {}),
-            ...(cut !== null ? { cut: { reason: cut.kind, ...(cut.detail !== undefined ? { detail: cut.detail } : {}), tools: [...cutCalls, ...openCalls.values()] } } : {}),
-            steps: row.steps,
-            wall_ms: row.wall_ms,
-            ...(row.cost_usd !== undefined ? { cost_usd: row.cost_usd } : {}),
-            usage: row.usage,
-            ...(row.answer !== undefined ? { answer: row.answer } : {}),
-          },
-          { scope: { sessionId: String(sessionId) }, toolUseContext, ...(cut !== null ? { budgetMs: HOOK_CUT_BUDGET_MS } : {}) },
-        )
-        const hookRows = hookRowsOfResult(ended)
-        if (hookRows.length > 0) {
-          const attachments = hookRows.map(hookRow => createAttachmentMessage(hookRow))
-          this.mutableMessages.push(...attachments)
-          turnMessages.push(...attachments)
-          if (!persistenceDisabled) await this.recordDelta(turnMessages)
-        }
-        for (const hookRow of hookRows) {
-          if (hookRow.outcome === 'failed' || hookRow.outcome === 'notice') yield noticeRow(scope, 'warning', hookRow.words, HOOK_NOTICE_CODES[hookRow.outcome])
-        }
-      } catch (error) {
-        logError(error)
-      }
-      if (!persistenceDisabled && (inputResult.messages.length > 0 || turnMessages.some(message => !seedMessages.has(message)))) {
-        try {
-          await this.recordDelta(turnMessages)
-          await recordTurnEnd(turnId, status)
-          if (!isBareMode()) await flushSessionStorage()
-        } catch (error) {
-          logError(error)
-        }
-      }
+      yield* turnEnding(status, row)
       yield row
     }.bind(this)
 
@@ -802,29 +438,7 @@ export class Conversation {
     noteRunPhase('assembly')
 
     if (!inputResult.shouldQuery) {
-      let commandAnswer = ''
-      for (const message of inputResult.messages) {
-        if (priorUuids.has(message.uuid)) continue
-        if (message.type === 'user') {
-          const text = messageTextContent(message)
-          const isCompactSummary = (message as { isCompactSummary?: boolean }).isCompactSummary === true
-          const shellOutput = text !== null && options?.mode === 'bash' ? shellOutputTextOf(text) : null
-          if (shellOutput !== null) {
-            commandAnswer = shellOutput
-            yield commandOutputRow(scope, shellOutput, typeof prompt === 'string' ? prompt : undefined)
-          } else if (text !== null && isLocalCommandOutputText(text) && !isCompactSummary) {
-            yield commandOutputRow(scope, commandOutputTextOf(text), typeof prompt === 'string' ? prompt.split(/\s+/)[0] : undefined)
-          }
-        } else if (message.type === 'system' && (message as { subtype?: string }).subtype === 'local_command') {
-          const content = (message as { content?: unknown }).content
-          if (typeof content === 'string' && isLocalCommandOutputText(content)) {
-            yield commandOutputRow(scope, commandOutputTextOf(content), typeof prompt === 'string' ? prompt.split(/\s+/)[0] : undefined)
-          }
-        } else if (message.type === 'system' && (message as { subtype?: string }).subtype === 'compact_boundary') {
-          const meta = (message as { compactMetadata?: CompactMetadata }).compactMetadata
-          yield compactionEndedRow(scope, { trigger: meta?.trigger ?? 'manual', tokensBefore: meta?.preTokens })
-        }
-      }
+      const commandAnswer = yield* commandOutputRows(inputResult, priorUuids, scope, prompt, options)
       if (!persistenceDisabled) {
         await this.recordDelta(turnMessages)
         if (eagerFlush) await flushSessionStorage()
@@ -872,34 +486,10 @@ export class Conversation {
       await this.recordDelta(turnMessages)
     }
     const messages = this.mutableMessages
-    const latestAnswer = (): string => {
-      for (let i = turnMessages.length - 1; i >= 0; i--) {
-        const message = turnMessages[i]!
-        if (message.type !== 'assistant') continue
-        if ((message as { isApiErrorMessage?: boolean }).isApiErrorMessage === true) continue
-        const answer = lastTextBlockOf(message as AssistantMessage)
-        if (answer !== '') return answer
-      }
-      return ''
-    }
+    const latestAnswer = latestAnswerOf(turnMessages)
     const maxTimeReached = (): boolean => config.maxTime !== undefined && Date.now() >= config.maxTime.at
     const timeLimitFacts = (): Partial<OutcomeFacts> => ({ error: { message: OUTCOME_SENTENCES.time_limit({ maxTimeMs: config.maxTime?.limitMs }), class: 'time_limit' } })
-    const cutOpenCalls = async function* (limit: string): AsyncGenerator<RowDraft> {
-      const words = turnCutResultText({ kind: 'cut', detail: limit })
-      for (const reply of [...turnMessages]) {
-        if (reply.type !== 'assistant') continue
-        for (const block of reply.message.content) {
-          if (block.type !== 'tool_use' || !openCalls.has(block.id)) continue
-          toolOutcomes.set(block.id, 'aborted')
-          const result = createUserMessage({ content: [{ type: 'tool_result', content: words, is_error: true, tool_use_id: block.id }], toolUseResult: words, sourceToolAssistantUUID: reply.uuid })
-          messages.push(result)
-          turnMessages.push(result)
-          await recordDelta()
-          for (const row of trackCalls(rowsOfMessage(result, undefined))) yield row
-        }
-      }
-      if (!persistenceDisabled) await flushSessionStorage().catch(() => {})
-    }
+    const cutOpenCalls = openCallsCutter({ turnMessages, messages, openCalls, toolOutcomes, persistenceDisabled, recordDelta, trackCalls, rowsOfMessage })
     if (maxTimeReached()) {
       yield* endTurn('time_limit', timeLimitFacts())
       return
@@ -1069,52 +659,7 @@ export class Conversation {
             break
           }
           case 'system': {
-            const systemMessage = message
-            if (systemMessage.subtype === 'close_usage') {
-              const close = systemMessage as SystemCloseUsageMessage
-              if (close.spent !== undefined) advanceLedgerMark(ledgerAtStart, close.spent)
-              yield closeRowOf(scope, close)
-              break
-            }
-            if (systemMessage.subtype === 'api_error') {
-              this.mutableMessages.push(systemMessage)
-              turnMessages.push(systemMessage)
-              await recordDelta()
-              const apiError = systemMessage as { retryAttempt?: number; maxRetries?: number; retryInMs?: number; errorDetail?: { status?: number | null }; error?: { status?: number | null; message?: string } }
-              const httpStatus = apiError.errorDetail?.status ?? apiError.error?.status ?? null
-              yield retryWaitRow(scope, {
-                attempt: apiError.retryAttempt,
-                of: apiError.maxRetries,
-                reason: retryReasonWords(httpStatus, apiError.error?.message),
-                delayMs: apiError.retryInMs,
-                httpStatus,
-                sinceMs: Date.now() - turnStartedAt,
-              })
-              break
-            }
-            if (systemMessage.subtype !== 'compact_boundary') {
-              const level = (systemMessage as { level?: string }).level
-              if (systemMessage.subtype === 'informational' && (level === 'warning' || level === 'error')) {
-                this.mutableMessages.push(systemMessage)
-                turnMessages.push(systemMessage)
-                await recordDelta()
-                const text = String((systemMessage as { content?: unknown }).content ?? '')
-                notices.push({ level, text })
-                yield noticeRow(scope, level, text)
-                break
-              }
-              this.mutableMessages.push(systemMessage)
-              if (level === 'warning' || level === 'error' || level === 'suggestion' || systemMessage.subtype === 'thinking_note' || systemMessage.subtype === 'stream_cut' || systemMessage.subtype === 'busy_recovery') {
-                turnMessages.push(systemMessage)
-                await recordDelta()
-              }
-              if (systemMessage.subtype === 'stream_cut') {
-                const text = String((systemMessage as { content?: unknown }).content ?? '')
-                notices.push({ level: 'warning', text })
-                yield noticeRow(scope, 'warning', text)
-              }
-              break
-            }
+            if (yield* systemMessageRows({ scope, ledgerAtStart, turnStartedAt, mutableMessages: this.mutableMessages, turnMessages, notices, recordDelta }, message)) break
             shouldRecord = true
             isBoundary = true
             break
@@ -1195,92 +740,7 @@ export class Conversation {
 
     const answer = latestAnswer()
 
-    if (terminal === undefined) {
-      yield* endTurn('failed', { error: { message: 'The turn ended without a terminal', class: 'internal' } })
-      return
-    }
-    const aborted = terminal.reason === 'aborted_streaming' || terminal.reason === 'aborted_tools'
-    const cut = aborted ? turnCutOf(this.abortController.signal.reason).kind : null
-    if (aborted && this.abortController.signal.reason instanceof MaxTimeCut) {
-      yield* endTurn('time_limit', { ...timeLimitFacts(), ...(answer !== '' ? { answer } : {}) })
-      return
-    }
-    let lastAssistant: (AssistantMessage & { isApiErrorMessage?: boolean }) | undefined
-    for (let i = turnMessages.length - 1; i >= 0; i--) {
-      const message = turnMessages[i]!
-      if (message.type === 'assistant' && !seedMessages.has(message)) {
-        lastAssistant = message as AssistantMessage & { isApiErrorMessage?: boolean }
-        break
-      }
-    }
-    const endedOnApiError = terminal.reason === 'completed' && lastAssistant?.isApiErrorMessage === true
-    const settled = endedOnApiError ? { status: 'failed' as const, errorClass: 'model' as const } : statusOfTerminal(terminal, cut)
-    if (settled.status === 'completed') {
-      const unanswered = this.denials.slice(denialsBefore).filter(denial => this.unansweredAsks.has(denial.call_id))
-      if (unanswered.length > 0 && getSessionKind() !== 'oculus') {
-        const tools = [...new Set(unanswered.map(denial => denial.tool))]
-        if (!recoveredUnansweredAsk) {
-          yield* endTurn('blocked', { answer, error: unansweredAsksBlocker(unanswered) })
-          return
-        }
-        notices.push({ level: 'warning', text: `${tools.join(', ')} was not approved; the run continued with other tools.` })
-      }
-      const unexecuted = toolCallShapedAnswer(answer)
-      if (unexecuted !== undefined) {
-        yield* endTurn('failed', { error: { message: unexecutedToolCallSentence(unexecuted.names), class: 'model' } })
-        return
-      }
-      if (isStreamFaultRecoveryNudgeEcho(answer)) {
-        const faultWords = apiErrorMessage !== null ? lastTextBlockOf(apiErrorMessage) : ''
-        yield* endTurn('failed', {
-          error: {
-            message: faultWords !== '' ? faultWords : TERMINAL_FAILURE_SENTENCES.model_error,
-            class: apiErrorMessage?.error !== undefined ? errorClassOf(apiErrorMessage.error) : 'model',
-          },
-        })
-        return
-      }
-      if (answer === '' && lastAssistant !== undefined && emptyReplyKindOf(lastAssistant) === 'empty') {
-        const emptyReplies = turnMessages.filter(message => message.type === 'assistant' && !seedMessages.has(message) && emptyReplyKindOf(message as AssistantMessage) === 'empty').length
-        yield* endTurn('failed', { error: { message: emptyReplyEndedLine(Math.max(1, emptyReplies - 1)), class: 'model' } })
-        return
-      }
-      yield* endTurn('completed', { answer, ...(this.structuredOutput !== undefined ? { structured: this.structuredOutput } : {}) })
-      return
-    }
-    const allErrors = getInMemoryErrors()
-    const watermarkIndex = errorWatermark ? allErrors.indexOf(errorWatermark) : -1
-    const turnErrors = allErrors.slice(watermarkIndex + 1).map(entry => withoutStackFrames(entry.error))
-    const errorClass: ErrorClass = settled.errorClass ?? (settled.status === 'interrupted' ? 'interrupt' : 'internal')
-    const apiErrorText = apiErrorMessage !== null ? lastTextBlockOf(apiErrorMessage) : ''
-    const localFitRefused = localFitRefusalFacts(apiErrorText) !== null
-    let message: string
-    if (settled.status === 'interrupted') {
-      message = OUTCOME_SENTENCES.interrupted({})
-    } else if (terminal.reason === 'model_error' || endedOnApiError) {
-      message = apiErrorMessage !== null ? lastTextBlockOf(apiErrorMessage) : terminal.reason === 'model_error' ? (terminal.error instanceof Error ? terminal.error.message : String(terminal.error ?? 'The model call failed')) : 'The model call failed'
-      if (message === INVALID_API_KEY_ERROR_MESSAGE || message === CHOOSE_A_MODEL_DOOR) message = `${message}, ${localRoadBesideSignIn()}`
-    } else if (cut !== null) {
-      message = cut === 'idle-timeout' ? 'The turn was aborted after a no-progress timeout' : `The turn was cut: ${turnCutOf(this.abortController.signal.reason).detail ?? 'the run was aborted'}`
-    } else if (terminal.reason === 'max_turns') {
-      message = OUTCOME_SENTENCES.turn_limit({ maxTurns: config.maxTurns })
-    } else if (terminal.reason === 'loop_stopped') {
-      message = OUTCOME_SENTENCES.loop_stopped({})
-    } else if (terminal.reason === 'tool_calls_refused') {
-      message = toolCallsRefusedSentence(terminal)
-    } else if (terminal.reason === 'blocking_limit' && localFitRefused) {
-      message = apiErrorText
-    } else {
-      message = TERMINAL_FAILURE_SENTENCES[terminal.reason]
-    }
-    const finalClass: ErrorClass = localFitRefused ? 'context_limit' : (terminal.reason === 'model_error' || endedOnApiError) && apiErrorMessage?.error !== undefined ? errorClassOf(apiErrorMessage.error) : errorClass
-    yield* endTurn(settled.status, {
-      error: {
-        message,
-        class: finalClass,
-        ...(turnErrors.length > 0 ? { detail: turnErrors } : {}),
-      },
-    })
+    yield* settledTurnRows({ config, terminal, answer, abortController: this.abortController, turnMessages, seedMessages, denials: this.denials, denialsBefore, unansweredAsks: this.unansweredAsks, recoveredUnansweredAsk, notices, apiErrorMessage, structuredOutput: this.structuredOutput, errorWatermark, timeLimitFacts, endTurn })
   }
 }
 
