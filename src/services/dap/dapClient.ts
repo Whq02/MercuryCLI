@@ -13,7 +13,7 @@ import {
 import { registerExecutionDomain } from '../primitives/executionPlane.js'
 import { projectExternalState } from '../primitives/externalProjection.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { endProcessTree, endProcessTreeSurvivors, strikeProcessGroupNow } from '../../utils/processGroup.js'
+import { strikeProcessGroupNow } from '../../utils/processGroup.js'
 import { dormantBuiltinAdapterHints, knownAdapterKeys, resolveAdapter } from './client/adapters.js'
 import { dialListener, listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
 import {
@@ -25,6 +25,7 @@ import {
   writeMemory,
 } from './client/breakpoints.js'
 import type { DapStartOptions } from './client/launch.js'
+import { LifePart } from './client/life.js'
 import { MessagesPart } from './client/messages.js'
 import { OutputPart } from './client/output.js'
 import { StartPart } from './client/start.js'
@@ -128,7 +129,7 @@ export class DapSession {
     alive: () => this.alive,
     transportReady: () => this.#transportReady,
     child: () => this.#child,
-    socketClosed: closedDetail => this.#socketClosed(closedDetail),
+    socketClosed: closedDetail => this.#life.socketClosed(closedDetail),
     onMessage: msg => this.#messages.onMessage(msg),
   })
   #terminal: TerminalPart = new TerminalPart({
@@ -163,6 +164,14 @@ export class DapSession {
       this.#hostsDebuggee = true
     },
     wakeStateWaiters: () => this.#wakeStateWaiters(),
+  })
+  #life: LifePart = new LifePart(this, {
+    lifetime: () => this.#lifetime,
+    terminal: () => this.#terminal,
+    wire: () => this.#wire,
+    child: () => this.#child,
+    wakeStateWaiters: () => this.#wakeStateWaiters(),
+    pushOutput: line => this.#pushOutput(line),
   })
   #initializedEvent: Promise<void>
   #resolveInitialized!: () => void
@@ -251,33 +260,7 @@ export class DapSession {
       child.stdout.on('data', (chunk: Buffer) => this.#wire.onData(chunk))
       this.#transportReady = Promise.resolve()
     }
-    child.stderr.on('data', (chunk: Buffer) => {
-      this.#pushOutput(`[adapter] ${String(chunk).trimEnd()}`)
-    })
-    child.on('exit', (code, signal) => {
-      if (!this.terminated) this.exitDetail = `adapter exited (code ${code ?? 'null'}${signal ? `, signal ${signal}` : ''})`
-      this.terminated = true
-      this.#lifetime.abort()
-      void this.#terminal.reapTerminalProcesses()
-      for (const [, p] of this.#wire.pending()) {
-        p.cancelDeadline()
-        p.reject(new Error(this.exitDetail))
-      }
-      this.#wire.pending().clear()
-      this.#wakeStateWaiters()
-    })
-    child.on('error', err => {
-      this.terminated = true
-      this.exitDetail = `adapter failed to start: ${err.message}`
-      this.#lifetime.abort()
-      void this.#terminal.reapTerminalProcesses()
-      for (const [, p] of this.#wire.pending()) {
-        p.cancelDeadline()
-        p.reject(new Error(this.exitDetail))
-      }
-      this.#wire.pending().clear()
-      this.#wakeStateWaiters()
-    })
+    this.#life.watchChild(child)
   }
 
   #wakeStateWaiters(): void {
@@ -381,16 +364,6 @@ export class DapSession {
 
   debugTarget(): { session: DapSession } | { ambiguousDetail: string } {
     return debugTarget(this)
-  }
-
-  #socketClosed(closedDetail: string): void {
-    if (!this.terminated) {
-      this.terminated = true
-      this.exitDetail = this.exitDetail || closedDetail
-      this.#lifetime.abort()
-      void this.#terminal.reapTerminalProcesses()
-      this.#wakeStateWaiters()
-    }
   }
 
   get listener(): DapListenerTarget | null {
@@ -536,26 +509,8 @@ export class DapSession {
     return { terminateDebuggee: this.startMode !== 'attach' }
   }
 
-  async dispose(signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {
-    this.#lifetime.abort()
-    await this.#terminal.reapTerminalProcesses()
-    for (const child of [...this.children]) {
-      await child.dispose(signal)
-    }
-    if (this.#listener === null || this.capabilities !== null) {
-      try {
-        await this.request('disconnect', this.disconnectArguments(), 2_000, signal)
-      } catch {
-      }
-    }
-    const child = this.#child
-    if (child !== null && child.exitCode === null) {
-      const receipt = await endProcessTree(child, 'SIGKILL')
-      if (receipt.survivors.length > 0 && child.pid) {
-        await endProcessTreeSurvivors(child.pid, receipt.survivors, 'SIGKILL')
-      }
-    }
-    this.killSync()
+  dispose(signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {
+    return this.#life.dispose(signal)
   }
 
   killSync(): void {
