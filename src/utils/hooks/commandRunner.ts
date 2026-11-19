@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
 import { unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -136,12 +137,10 @@ async function spawnHook(run: CommandHookRun, prepared: { command: string; env: 
 
 class HookNotHandedOver extends Error {}
 
-let hookFiles = 0
-
 function spawnUnderWindowsBash(shell: string, prepared: { command: string; env: NodeJS.ProcessEnv; cwd: string }): ChildProcessWithoutNullStreams {
   const options = { env: hookBashEnv(prepared.env), cwd: prepared.cwd, shell, windowsHide: true }
   if (msysArgvCarries(prepared.command, options.env)) return spawn(protectBackslashRunsFromMsysArgv(prepared.command), [], options) as ChildProcessWithoutNullStreams
-  const file = join(tmpdir(), `mercury-hook-${process.pid}-${hookFiles++}`)
+  const file = join(tmpdir(), `mercury-hook-${randomBytes(6).toString('hex')}`)
   try {
     writeFileSync(file, prepared.command)
   } catch (error) {

@@ -1,4 +1,5 @@
 import { spawnOwnedShell } from './shell/parentGuard.js'
+import { randomBytes } from 'node:crypto'
 import { closeSync, constants as fsConstants, existsSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
 import { memoize } from 'lodash-es'
@@ -107,9 +108,7 @@ export async function terminalShellInvocation(
   leftBehind: string[]
 }> {
   const road = await spawnRoad('bash')
-  const invocationId = Math.floor(Math.random() * 0x10000)
-    .toString(16)
-    .padStart(4, '0')
+  const invocationId = randomBytes(6).toString('hex')
   const built = await road.provider.buildExecCommand(command, { id: invocationId })
   const { env, scrubbed } = await commandEnvironment(road, 'bash', command, inheritSessionEnv)
   const native = (path: string): string => (getPlatform() === 'windows' ? posixPathToWindowsPath(path) : path)
@@ -325,9 +324,7 @@ export async function exec(
   const road = await spawnRoad(shellType)
   const { provider, engineBinary } = road
 
-  const invocationId = Math.floor(Math.random() * 0x10000)
-    .toString(16)
-    .padStart(4, '0')
+  const invocationId = randomBytes(6).toString('hex')
 
   const built = await provider.buildExecCommand(command, { id: invocationId })
 
