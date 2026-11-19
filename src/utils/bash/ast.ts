@@ -1022,6 +1022,10 @@ class Walk extends FlowWalk {
         else if (child.type !== 'unset' && child.type !== 'unsetenv') for (const name of scope.keys()) scope.set(name, UNKNOWN_VALUE)
       }
     }
+    if (node.type === 'for_statement') {
+      const name = childOfKind(node, 'variable_name')?.text
+      if (name !== undefined) scope.set(name, UNKNOWN_VALUE)
+    }
     if (node.type === 'command' && commandMayWriteVariables(node)) {
       const changed = new Map(scope)
       try {
