@@ -15,7 +15,7 @@ import type { OwnerKey } from '../../../services/run/ownerKey.js'
 import { getRuleByContentsForToolName } from '../../../utils/permissions/permissions.js'
 import type { PermissionRule, ToolPermissionContext } from '../../../types/permissions.js'
 import { classifyModelRoute, providerDisplayName } from '../../../services/providers/routeLaw.js'
-import type { DesktopBounds, DesktopDriver } from '../../../services/desktop/driver.js'
+import type { DesktopBounds, DesktopDriver, DesktopPoint } from '../../../services/desktop/driver.js'
 import {
   DESKTOP_SHOTS_KEEP,
   imageRefusedFor,
@@ -25,17 +25,33 @@ import {
   screenshotPath,
   setScreen,
 } from '../../../services/desktop/desktopSession.js'
+import { screenshotVisibleInContext } from '../../../services/desktop/screenshotRetention.js'
 import { COMPUTER_TOOL_NAME } from '../../../services/desktop/toolName.js'
-import type { AssistantMessage } from '../../../types/message.js'
-import { type ScreenMap, screenMapOfCapture, screenMapSizeWords } from '../screenMap.js'
+import type { AssistantMessage, Message } from '../../../types/message.js'
+import { type ScreenMap, isPixelOutside, pointOfPixel, screenMapOfCapture, screenMapSizeWords } from '../screenMap.js'
 import { type CaptureRegion, regionRefusal, sameWindow, settledCapture, windowOnDisplay } from '../fastRoad.js'
-import { framePixel } from './plan.js'
+import { NO_SCREENSHOT, SCREENSHOT_GONE, SCREENSHOT_UNSEEN } from './schema.js'
 import { faultText } from './act.js'
 import { factsLine } from './words.js'
 
 export type Shot =
   | { ok: true; line: string; imagePath: string; inlinePath?: string; inlineMediaType?: string; screen: ScreenMap }
   | { ok: false; aborted: boolean; text: string }
+
+type Framed = { ok: true; point: DesktopPoint } | { ok: false; text: string }
+
+export function framePixel(map: ScreenMap | null, messages: readonly Message[], x: number, y: number, sameMessage: ReadonlySet<string> = new Set()): Framed {
+  if (map === null) return { ok: false, text: NO_SCREENSHOT }
+  if (map.toolUseId !== '' && !screenshotVisibleInContext(messages, map.toolUseId)) return { ok: false, text: sameMessage.has(map.toolUseId) ? SCREENSHOT_UNSEEN : SCREENSHOT_GONE }
+  const point = pointOfPixel(map, x, y)
+  if (isPixelOutside(point)) {
+    return {
+      ok: false,
+      text: `(${x}, ${y}) is outside the last screenshot (${point.imageWidth}×${point.imageHeight} px) — ${map.region ? `coordinates refer to this region (origin ${map.originX},${map.originY} pt); take a full screenshot with full:true to return` : 'take a screenshot and use its pixels'}`,
+    }
+  }
+  return { ok: true, point }
+}
 
 export function toolUseIdsOfParent(parent: AssistantMessage | undefined): string[] {
   const content = (parent as { message?: { content?: unknown } } | undefined)?.message?.content

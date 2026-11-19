@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from 'node:child_process'
+import { type ChildProcess, type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import type { Writable } from 'node:stream'
 
@@ -55,6 +55,69 @@ export function createLspMessageWriter(output: Writable): MessageWriter {
     }
   }
   return writer
+}
+
+function spawnServer(command: string, args: string[], options?: { env?: NodeJS.ProcessEnv; cwd?: string }) {
+  const isWindowsBatchShim =
+    process.platform === 'win32' && /\.(cmd|bat)$/i.test(command.trim())
+  const proc = spawn(command, args, {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    env: options?.env,
+    cwd: options?.cwd,
+    windowsHide: true,
+    ...(isWindowsBatchShim ? { shell: true } : {}),
+  })
+  return proc
+}
+
+function spawnSettled(proc: ChildProcess): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const onSpawn = (): void => {
+      proc.off('error', onError)
+      resolve()
+    }
+    const onError = (err: Error): void => {
+      proc.off('spawn', onSpawn)
+      reject(err)
+    }
+    proc.once('spawn', onSpawn)
+    proc.once('error', onError)
+  })
+}
+
+function tailStderr(proc: ChildProcessWithoutNullStreams, serverName: string, stderrTail: string[]): void {
+  const lines = createInterface({ input: proc.stderr })
+  lines.on('line', line => {
+    const trimmed = line.trim()
+    if (trimmed !== '') {
+      logForDebugging(`[lsp:${serverName}] ${trimmed}`)
+      stderrTail.push(trimmed.slice(0, 200))
+      if (stderrTail.length > 5) stderrTail.shift()
+    }
+  })
+}
+
+function traceConnection(conn: MessageConnection, serverName: string): void {
+  conn
+    .trace(Trace.Verbose, {
+      log: (message: string, data?: string) => {
+        logForDebugging(`[lsp-trace:${serverName}] ${message}${data ? ` ${data}` : ''}`)
+      },
+    })
+    .catch((err: unknown) => {
+      logForDebugging(`LSP server ${serverName} trace enable failed: ${String(err)}`)
+    })
+}
+
+function applyQueuedHandlers(conn: MessageConnection, serverName: string, notificationHandlers: QueuedNotification[], requestHandlers: QueuedRequest[]): void {
+  for (const entry of notificationHandlers) {
+    conn.onNotification(entry.method, entry.handler)
+    logForDebugging(`LSP server ${serverName}: applied notification handler ${entry.method}`)
+  }
+  for (const entry of requestHandlers) {
+    conn.onRequest(entry.method, entry.handler as never)
+    logForDebugging(`LSP server ${serverName}: applied request handler ${entry.method}`)
+  }
 }
 
 export function createLSPClient(serverName: string, onCrash?: (error: Error) => void): LSPClient {
@@ -116,43 +179,16 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       stderrTail.length = 0
       armDeathPromise()
 
-      const isWindowsBatchShim =
-        process.platform === 'win32' && /\.(cmd|bat)$/i.test(command.trim())
-      const proc = spawn(command, args, {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: options?.env,
-        cwd: options?.cwd,
-        windowsHide: true,
-        ...(isWindowsBatchShim ? { shell: true } : {}),
-      })
+      const proc = spawnServer(command, args, options)
       if (!proc.stdout || !proc.stdin) {
         throw new Error(`LSP server ${serverName}: stdio streams are not available`)
       }
       child = proc
 
-      await new Promise<void>((resolve, reject) => {
-        const onSpawn = (): void => {
-          proc.off('error', onError)
-          resolve()
-        }
-        const onError = (err: Error): void => {
-          proc.off('spawn', onSpawn)
-          reject(err)
-        }
-        proc.once('spawn', onSpawn)
-        proc.once('error', onError)
-      })
+      await spawnSettled(proc)
 
       if (proc.stderr) {
-        const lines = createInterface({ input: proc.stderr })
-        lines.on('line', line => {
-          const trimmed = line.trim()
-          if (trimmed !== '') {
-            logForDebugging(`[lsp:${serverName}] ${trimmed}`)
-            stderrTail.push(trimmed.slice(0, 200))
-            if (stderrTail.length > 5) stderrTail.shift()
-          }
-        })
+        tailStderr(proc, serverName, stderrTail)
         stderrDataListener = () => {
         }
         proc.stderr.on('data', stderrDataListener)
@@ -210,24 +246,9 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
 
       conn.listen()
 
-      conn
-        .trace(Trace.Verbose, {
-          log: (message: string, data?: string) => {
-            logForDebugging(`[lsp-trace:${serverName}] ${message}${data ? ` ${data}` : ''}`)
-          },
-        })
-        .catch((err: unknown) => {
-          logForDebugging(`LSP server ${serverName} trace enable failed: ${String(err)}`)
-        })
+      traceConnection(conn, serverName)
 
-      for (const entry of notificationHandlers) {
-        conn.onNotification(entry.method, entry.handler)
-        logForDebugging(`LSP server ${serverName}: applied notification handler ${entry.method}`)
-      }
-      for (const entry of requestHandlers) {
-        conn.onRequest(entry.method, entry.handler as never)
-        logForDebugging(`LSP server ${serverName}: applied request handler ${entry.method}`)
-      }
+      applyQueuedHandlers(conn, serverName, notificationHandlers, requestHandlers)
     } catch (err) {
       logForDebugging(`LSP server ${serverName} failed to start: ${String(err)}`, { level: 'error' })
       throw err

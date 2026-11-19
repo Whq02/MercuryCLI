@@ -15,14 +15,13 @@ import type {
   DesktopTreeLimits,
 } from '../../../services/desktop/driver.js'
 import { type DesktopJudgedApp, screenOf } from '../../../services/desktop/desktopSession.js'
-import { screenshotVisibleInContext } from '../../../services/desktop/screenshotRetention.js'
 import { challengeGranted, grantChallenge, settleChallenge } from '../../../services/desktop/computerGrant.js'
 import { postureBypassesAsks } from '../../../utils/permissions/decision/engine.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { COMPUTER_TOOL_NAME } from '../../../services/desktop/toolName.js'
 import type { AssistantMessage, Message } from '../../../types/message.js'
 import { type KeyChord, appSwitchChord, isAppSwitchChord, isKeyChordRefusal, parseKeyChord } from '../keyChord.js'
-import { type ScreenMap, isPixelOutside, pointOfPixel, resolveTreeRef } from '../screenMap.js'
+import { type ScreenMap, resolveTreeRef } from '../screenMap.js'
 import {
   type ScreenFacts,
   candidateWords,
@@ -46,10 +45,7 @@ import {
 import {
   type Input,
   MODIFIER_KEYS,
-  NO_SCREENSHOT,
   POINT_ACTIONS,
-  SCREENSHOT_GONE,
-  SCREENSHOT_UNSEEN,
   TREE_DEPTH_CAP,
   TREE_DEPTH_DEFAULT,
   TREE_LIMIT_CAP,
@@ -58,7 +54,7 @@ import {
 } from './schema.js'
 import { actDetail, faultText, pixelWordsOf, pointWords } from './act.js'
 import { interruptedText } from './words.js'
-import { ruleFor } from './shot.js'
+import { framePixel, ruleFor } from './shot.js'
 
 export interface ActPlan {
   point: DesktopPoint | null
@@ -92,10 +88,6 @@ export async function frontAfterCard(driver: DesktopDriver, checked: { app: Desk
   if (checked === null || !checked.asked || checked.app.identity === front.identity) return null
   const back = await backFromOwnTerminal(driver, checked.app, front, signal)
   return back === null ? null : { front: back, returned: `${checked.app.name} brought back in front (the terminal that asked had taken it)` }
-}
-
-export function scrolledWords(plan: ActPlan): string {
-  return `${plan.scrolled ? ` · scrolled into view first (${plan.scrolled})` : ''}${plan.aimed ? ` · ${plan.aimed}` : ''}${plan.returned ? ` · ${plan.returned}` : ''}`
 }
 
 const AIMED_ACTS = new Set(['click', 'doubleClick', 'rightClick', 'move', 'drag', 'file'])
@@ -209,21 +201,6 @@ export async function scrollClippedEnds(driver: DesktopDriver, input: Input, pla
     }
   }
   return null
-}
-
-type Framed = { ok: true; point: DesktopPoint } | { ok: false; text: string }
-
-export function framePixel(map: ScreenMap | null, messages: readonly Message[], x: number, y: number, sameMessage: ReadonlySet<string> = new Set()): Framed {
-  if (map === null) return { ok: false, text: NO_SCREENSHOT }
-  if (map.toolUseId !== '' && !screenshotVisibleInContext(messages, map.toolUseId)) return { ok: false, text: sameMessage.has(map.toolUseId) ? SCREENSHOT_UNSEEN : SCREENSHOT_GONE }
-  const point = pointOfPixel(map, x, y)
-  if (isPixelOutside(point)) {
-    return {
-      ok: false,
-      text: `(${x}, ${y}) is outside the last screenshot (${point.imageWidth}×${point.imageHeight} px) — ${map.region ? `coordinates refer to this region (origin ${map.originX},${map.originY} pt); take a full screenshot with full:true to return` : 'take a screenshot and use its pixels'}`,
-    }
-  }
-  return { ok: true, point }
 }
 
 export function planOf(owner: OwnerKey, context: ToolUseContext, input: Input, sameMessage: ReadonlySet<string> = new Set()): ActPlan | { refusal: string } {

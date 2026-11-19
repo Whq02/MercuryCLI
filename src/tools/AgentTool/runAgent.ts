@@ -1,8 +1,8 @@
 
 import { getProjectRoot, getSessionId } from '../../bootstrap/state.js'
-import { getCwd } from '../../utils/cwd.js'
-import { ASK_ADVISOR_TOOL_NAME } from '../AskAdvisorTool/constants.js'
-import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
+import '../../utils/cwd.js'
+import '../AskAdvisorTool/constants.js'
+import '../../services/desktop/toolName.js'
 import { getSkillToolCommands } from '../../commands.js'
 import type { Command, PromptCommand } from '../../types/command.js'
 import {
@@ -18,70 +18,50 @@ import {
   doesEnterpriseMcpConfigExist,
   filterMcpServersByPolicy,
 } from '../../services/mcp/config.js'
-import {
-  getInstructionSliceForProfile,
-} from '../../services/instructions/engine.js'
-import {
-  isInstructionProfile,
-  resolveRequestedInstructionProfile,
-} from '../../services/instructions/profile.js'
-import type { InstructionProfile } from '../../services/instructions/contracts.js'
+import '../../services/instructions/engine.js'
+import '../../services/instructions/profile.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { killShellTasksForAgent } from '../../tasks/LocalShellTask/killShellTasks.js'
 import { endEngineSessionFor } from '../../utils/shell/engineSession.js'
 import { INSTRUCTIONS_CONTEXT_KEY } from '../../utils/userContextReminder.js'
-import { claimDiagnosticsRoot, releaseDiagnosticsWriter } from '../../services/lsp/LSPDiagnosticRegistry.js'
+import { releaseDiagnosticsWriter } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { disposeOwnerProcesses } from '../../services/run/ownerLifecycle.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import { beginAgentProjectLeases } from '../../services/vulcan/engine/leases.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
-import { readToolCallChain, type Tool, type Tools, type ToolUseContext } from '../../Tool.js'
+import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
+import '../../Tool.js'
 import { McpServerConfigSchema, type MCPServerConnection } from '../../services/mcp/types.js'
 import { generateTaskId } from '../../Task.js'
-import { getUserContext, getSystemContext, isInstructionDiscoveryDisabled } from '../../context.js'
+import '../../context.js'
 import { forgetAgentEffortWord, noteAgentEffortWord, parseEffortValue, type EffortValue } from '../../utils/effort.js'
 import { subagentDefaultEffort } from '../../utils/agentDefaults.js'
-import { createSubagentContext } from '../../utils/forkedAgent.js'
+import '../../utils/forkedAgent.js'
 import {
   cloneFileStateCache,
   createFileStateCacheWithSizeLimit,
   READ_FILE_STATE_CACHE_SIZE,
 } from '../../utils/fileStateCache.js'
 import { removeSessionHooks } from '../../utils/hooks/sessionHooks.js'
-import { registerAgentHooks } from '../../utils/hooks/registerFrontmatterHooks.js'
-import { fireHooks } from '../../utils/hooks/fire.js'
-import { hasHooksFor } from '../../utils/hooks/matching.js'
-import { hookMayMeetCopy, worktreeHoldOf, worktreeReadyOf } from '../../utils/worktreeReadiness.js'
-import { bankHookOutcomes } from '../../utils/hooks/background.js'
-import { HOOK_CUT_BUDGET_MS, HOOK_EVENTS } from '../../utils/hooks/contract.js'
-import { hookRowsOfResult } from '../../utils/hooks/rows.js'
-import { createAttachmentMessage } from '../../utils/attachments.js'
+import '../../utils/hooks/registerFrontmatterHooks.js'
+import '../../utils/hooks/fire.js'
+import '../../utils/hooks/matching.js'
+import '../../utils/worktreeReadiness.js'
+import '../../utils/hooks/background.js'
+import '../../utils/hooks/contract.js'
+import '../../utils/hooks/rows.js'
+import '../../utils/attachments.js'
 import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
 import { accumulateUsage, updateUsage } from '../../services/providers/anthropic/cacheAndUsage.js'
-import { usageOf, OUTCOME_SENTENCES, type OutcomeStatus } from '../../rows/vocabulary.js'
-import { turnCutOf } from '../../utils/messages/rejectionText.js'
-import { agentStopReasonOf } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { OUTCOME_SENTENCES, type OutcomeStatus } from '../../rows/vocabulary.js'
+import '../../utils/messages/rejectionText.js'
+import '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { logForDebugging } from '../../utils/debug.js'
-import {
-  getSchemaBoundStructuredOutputTool,
-  STRUCTURED_OUTPUT_TOOL_NAME,
-} from '../SyntheticOutputTool/structuredOutputTool.js'
-import { armInactivityDeadline, DeadlineExceededError, minutesKnobToMs } from '../../utils/deadline.js'
-import {
-  honourRecoveryWait,
-  makeRecoveryBudget,
-  recoveryAnswerRefills,
-  RecoveryBudgetSpentError,
-  recoveryNoticeFacts,
-  refillRecoveryBudget,
-  retryWaitWords,
-  settleRecoveryWait,
-  type RecoveryBudget,
-  type RecoveryNoticeFacts,
-  type RecoveryReservation,
-} from '../../services/api/recoveryBudget.js'
-import { heldBusyRetryNotice } from '../../services/providers/busyRetry.js'
+import '../SyntheticOutputTool/structuredOutputTool.js'
+import { DeadlineExceededError, minutesKnobToMs } from '../../utils/deadline.js'
+import { honourRecoveryWait, makeRecoveryBudget, retryWaitWords, settleRecoveryWait, type RecoveryBudget, type RecoveryNoticeFacts, type RecoveryReservation } from '../../services/api/recoveryBudget.js'
+import '../../services/providers/busyRetry.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createChildAbortController } from '../../utils/abortController.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
@@ -92,41 +72,32 @@ import { getAgentModel } from '../../utils/model/agent.js'
 import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
 import { delegationDispatchBlocker } from '../../services/providers/providerUsability.js'
 import { classifyModelRoute } from '../../services/providers/callModelRouter.js'
-import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import type { CanUseToolFn } from '../../Tool.js'
 import type { QuerySource } from '../../constants/querySource.js'
-import {
-  flushSessionStorage,
-  getAgentTranscriptPath,
-  readAgentMetadata,
-  recordSidechainTranscript,
-  registerAgentTranscriptDestination,
-  writeAgentMetadata,
-  writtenChainTail,
-} from '../../utils/sessionStorage.js'
-import { recordAtRunStart } from '../../utils/crew/crewmateRecord.js'
+import { flushSessionStorage, recordSidechainTranscript, writtenChainTail } from '../../utils/sessionStorage.js'
+import '../../utils/crew/crewmateRecord.js'
 import { settledSidechainMessages } from '../../utils/sessionStorage/settledSidechainMessages.js'
-import { latchSwarmAgent, settleSwarmAgent, swarmBrief } from '../../services/crewBoard/seam.js'
+import { latchSwarmAgent, settleSwarmAgent } from '../../services/crewBoard/seam.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import {
   isRestrictedToExtensionsOnly,
   isSourceAdminTrusted,
 } from '../../utils/settings/extensionOnlyPolicy.js'
-import { sessionThinkingConfig, type ThinkingConfig } from '../../utils/thinking.js'
+import type { ThinkingConfig } from '../../utils/thinking.js'
+import '../../utils/thinking.js'
 import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import { buildSubagentMercurySections } from '../../constants/subagentDoctrine.js'
 import type { MercuryAgentSeat } from '../../prompt/mercuryContract.js'
 import type { AgentDefinition, AgentMcpServerSpec } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
-import { REVIEW_BRIEF, canonicalReviewerReceipt, restrictReviewerTools, reviewerRefusal } from './reviewerPolicy.js'
+import { canonicalReviewerReceipt } from './reviewerPolicy.js'
 import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
-import { restrictScoutTools, scoutRefusal } from './scoutPolicy.js'
-import {
-  composeAgentAppState,
-  definitionModeWithinConsent,
-  resolveAgentPromptPosture,
-} from './agentPermissionPosture.js'
+import './scoutPolicy.js'
+import './agentPermissionPosture.js'
 
+import { fireCrewmateEndOf } from './runAgent/crewmateEnd.js'
+import { type AgentRun, armWatchdogOf, askLivelyOf, callModelOf, cutAtBudgetOf, observeProgressOf, stalledErrorOf, touchThroughOf } from './runAgent/watch.js'
+import { prepareAgentRun } from './runAgent/prepare.js'
 export function filterIncompleteToolCalls(messages: Message[]): Message[] {
   const resolvedToolUseIds = new Set<string>()
   for (const message of messages) {
@@ -567,6 +538,17 @@ export async function landAgentTranscriptRows(
   return writtenChainTail(messages, parentUuid)
 }
 
+function recordableRow(anyMessage: Message & { subtype?: string; attachment?: { type?: string } }): boolean {
+  const subtype = (anyMessage as { subtype?: string }).subtype
+  const recordable =
+    anyMessage.type === 'assistant' ||
+    anyMessage.type === 'user' ||
+    anyMessage.type === 'progress' ||
+    (anyMessage.type === 'system' &&
+      (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error' || subtype === 'stream_cut' || subtype === 'busy_recovery'))
+  return recordable
+}
+
 export async function* runAgent(
   params: RunAgentParams,
 ): AsyncGenerator<Message, void> {
@@ -641,88 +623,18 @@ export async function* runAgent(
     (isAsync ? new AbortController() : toolUseContext.abortController)
   const abortController = createChildAbortController(ownerAbortController)
   const startedAt = Date.now()
-  let eventsSeen = 0
-  let toolUsesSeen = 0
-  let deferredTouch: ReturnType<typeof setTimeout> | null = null
+  const run: AgentRun = { eventsSeen: 0, toolUsesSeen: 0, deferredTouch: null, retryStalledRequest: null, stoppedAfterRetry: false, watchdog: undefined as never, throttled: null, cuttingWait: { declaredMs: 0, honoredMs: 0 }, pendingAsks: 0, askHeartbeat: null }
   const idleLimitMs = agentIdleLimitMs()
-  let retryStalledRequest: ((error: DeadlineExceededError) => boolean) | null = null
-  let stoppedAfterRetry = false
-  const stalledError = (): DeadlineExceededError =>
-    agentStalledError({
-      agentType: agentDefinition.agentType,
-      agentId,
-      limitMs: idleLimitMs,
-      elapsedMs: Date.now() - startedAt,
-      events: eventsSeen,
-      toolUses: toolUsesSeen,
-      retried: stoppedAfterRetry,
-    })
-  const armWatchdog = (): ReturnType<typeof armInactivityDeadline> => armInactivityDeadline({
-    seam: `crewmate ${agentDefinition.agentType} (${agentId})`,
-    limitMs: idleLimitMs,
-    onExpire: error => {
-      if (retryStalledRequest?.(error)) {
-        watchdog = armWatchdog()
-        return
-      }
-      const stalled = stalledError()
-      logForDebugging(`runAgent: ${agentId} stalled${stoppedAfterRetry ? ' on the first and second attempts' : ''} — ${stalled.message}`)
-      abortController.abort(stalled)
-    },
-  })
-  let watchdog = armWatchdog()
+  const stalledError = stalledErrorOf(run, { agentDefinition, agentId, idleLimitMs, startedAt, agentStalledError })
+  const armWatchdog = armWatchdogOf(run, { agentDefinition, agentId, idleLimitMs, stalledError, abortController })
+  run.watchdog = armWatchdog()
   const recovery = makeRecoveryBudget()
-  let throttled: Error | null = null
-  let cuttingWait = { declaredMs: 0, honoredMs: 0 }
-  const cutAtBudget = (cutting: { declaredMs: number; honoredMs: number }): void => {
-    cuttingWait = cutting
-    throttled = new RecoveryBudgetSpentError(recovery, cuttingWait)
-    abortController.abort(throttled)
-  }
+  const cutAtBudget = cutAtBudgetOf(run, { recovery, abortController })
   const accountant = makeRecoveryAccountant({ budget: recovery, cut: cutAtBudget, words: line => onWait?.(line) })
-  const touchThrough = (declaredMs: number): void => {
-    watchdog.touch()
-    if (declaredMs <= 0) return
-    if (deferredTouch !== null) clearTimeout(deferredTouch)
-    deferredTouch = setTimeout(() => {
-      deferredTouch = null
-      watchdog.touch()
-    }, declaredMs)
-    deferredTouch.unref?.()
-  }
+  const touchThrough = touchThroughOf(run)
 
-  const askHeartbeatMs = Math.max(1_000, Math.min(30_000, Math.floor(idleLimitMs / 4)))
-  let pendingAsks = 0
-  let askHeartbeat: ReturnType<typeof setInterval> | null = null
   const canUseToolAskLively: typeof canUseTool = canUseTool
-    ? (async (...args: Parameters<NonNullable<typeof canUseTool>>) => {
-        if (reviewReceipt !== undefined) {
-          const refusal = await reviewerRefusal(args[0], args[1], reviewReceipt, worktreePath!)
-          if (refusal !== null) return { behavior: 'deny', message: refusal }
-        }
-        if (readOnlyScout) {
-          const refusal = await scoutRefusal(args[0], args[1])
-          if (refusal !== null) return { behavior: 'deny', message: refusal }
-        }
-        pendingAsks++
-        onPendingAsks?.(pendingAsks)
-        watchdog.touch()
-        if (askHeartbeat === null) {
-          askHeartbeat = setInterval(() => watchdog.touch(), askHeartbeatMs)
-          askHeartbeat.unref?.()
-        }
-        try {
-          return await canUseTool(...args)
-        } finally {
-          pendingAsks--
-          onPendingAsks?.(pendingAsks)
-          if (pendingAsks === 0 && askHeartbeat !== null) {
-            clearInterval(askHeartbeat)
-            askHeartbeat = null
-          }
-          watchdog.touch()
-        }
-      }) as NonNullable<typeof canUseTool>
+    ? askLivelyOf(run, canUseTool, { idleLimitMs, reviewReceipt, worktreePath, readOnlyScout, onPendingAsks })
     : canUseTool
 
   const rootSetAppState =
@@ -753,46 +665,7 @@ export async function* runAgent(
   }
   const hookScope = { sessionId: String(getSessionId()), crewmateId: agentId }
   const crewmateRun = { usage: { ...EMPTY_USAGE }, steps: 0, answer: undefined as string | undefined, endedBy: 'completed' as OutcomeStatus, reason: undefined as string | undefined }
-  const fireCrewmateEnd = async (): Promise<void> => {
-    const aborted = abortController.signal.aborted
-    const status: OutcomeStatus = aborted && crewmateRun.endedBy === 'completed' ? 'interrupted' : crewmateRun.endedBy
-    const cut = aborted ? turnCutOf(abortController.signal.reason) : null
-    const usage = usageOf(crewmateRun.usage)
-    const wallMs = Date.now() - startedAt
-    try {
-      if (hasHooksFor('turn.end', hookScope, toolUseContext.getAppState()) || hasHooksFor('crewmate.end', hookScope, toolUseContext.getAppState())) await worktreeReadyOf(agentId)
-      await fireHooks(
-        'turn.end',
-        {
-          turn_id: readToolCallChain(childContextRef.current)?.key ?? agentId,
-          status,
-          ...(crewmateRun.reason !== undefined && status === 'failed' ? { error: { message: crewmateRun.reason, class: 'internal' } } : {}),
-          ...(cut !== null ? { cut: { reason: cut.kind, ...(cut.detail !== undefined ? { detail: cut.detail } : {}), tools: [] } } : {}),
-          steps: crewmateRun.steps,
-          wall_ms: wallMs,
-          usage,
-          ...(crewmateRun.answer !== undefined ? { answer: crewmateRun.answer } : {}),
-        },
-        { scope: hookScope, toolUseContext: childContextRef.current ?? toolUseContext, crewmateType: agentDefinition.agentType, ...(cut !== null ? { budgetMs: HOOK_CUT_BUDGET_MS } : {}) },
-      )
-      const ended = await fireHooks(
-        'crewmate.end',
-        {
-          ...(name !== undefined ? { name } : {}),
-          status: status === 'failed' ? 'failed' : aborted ? 'stopped' : 'finished',
-          ...(crewmateRun.reason !== undefined ? { reason: crewmateRun.reason } : aborted ? { reason: agentStopReasonOf(abortController.signal.reason) ?? 'stopped' } : {}),
-          ...(crewmateRun.answer !== undefined ? { answer: crewmateRun.answer } : {}),
-          ...(worktreePath !== undefined ? { worktree_path: worktreePath } : {}),
-          crewmate_transcript_path: getAgentTranscriptPath(agentId),
-          usage,
-        },
-        { scope: { sessionId: hookScope.sessionId }, toolUseContext, crewmateType: agentDefinition.agentType },
-      )
-      bankHookOutcomes(ended.outcomes)
-    } catch (error) {
-      logForDebugging(`runAgent: the end-of-crewmate hooks failed: ${errorMessage(error)}`)
-    }
-  }
+  const fireCrewmateEnd = (): Promise<void> => fireCrewmateEndOf({ abortController, crewmateRun, startedAt, hookScope, toolUseContext, agentId, childContextRef, agentDefinition, name, worktreePath })
   const childContextRef: { current: ToolUseContext | undefined } = { current: undefined }
   let runDeadlineTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -808,358 +681,13 @@ export async function* runAgent(
       runDeadlineTimer.unref?.()
     }
     swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, params.resumed === true, params.team, abortController.signal)
-    let userContext = override?.userContext ?? (await getUserContext())
-    const systemContext = { ...(override?.systemContext ?? (await getSystemContext())) }
-
-    if (
-      agentDefinition.omitProjectInstructions &&
-      slimAgentGateOn() &&
-      !override?.userContext
-    ) {
-      userContext = withoutInstructionBlob(userContext)
-    }
-
-    const sessionResolution = resolveRequestedInstructionProfile()
-    const requestedProfile =
-      (instructionProfileOverride &&
-      isInstructionProfile(instructionProfileOverride)
-        ? instructionProfileOverride
-        : undefined) ??
-      agentDefinition.instructionProfile ??
-      sessionResolution.profile
-    let instructionCapture:
-      | { profile: InstructionProfile; digest: string }
-      | undefined
-    if (
-      !agentDefinition.omitProjectInstructions &&
-      !isInstructionDiscoveryDisabled() &&
-      isInstructionProfile(requestedProfile)
-    ) {
-      if (requestedProfile !== sessionResolution.profile) {
-        try {
-          const slice = await getInstructionSliceForProfile(requestedProfile)
-          if (override?.userContext === undefined) {
-            userContext = { ...userContext }
-            if (slice.instructionPrompt) {
-              userContext[INSTRUCTIONS_CONTEXT_KEY] = slice.instructionPrompt
-            } else {
-              userContext = withoutInstructionBlob(userContext)
-            }
-          }
-          instructionCapture = {
-            profile: requestedProfile,
-            digest: slice.bundle.bundleDigest,
-          }
-        } catch (error) {
-          logForDebugging(
-            `runAgent: instruction slice for '${requestedProfile}' failed: ${errorMessage(error)}`,
-          )
-        }
-      } else {
-        instructionCapture = { profile: requestedProfile, digest: '' }
-      }
-    }
-
-    if (readOnlyScout) {
-      for (const key of Object.keys(systemContext)) {
-        if (/gitstatus/i.test(key)) delete systemContext[key]
-      }
-    }
-
-    const parentGetAppState = toolUseContext.getAppState
-    const definitionMode = agentDefinition.permissionMode as
-      | PermissionMode
-      | undefined
-    const parentPermissionContext = parentGetAppState?.()?.toolPermissionContext
-    if (
-      definitionMode !== undefined &&
-      parentPermissionContext !== undefined &&
-      definitionModeWithinConsent(definitionMode, parentPermissionContext) === undefined
-    ) {
-      logForDebugging(
-        `runAgent: ${agentDefinition.agentType} declares permissionMode ${definitionMode} — Sovereign Mode requires launching with --sovereign; the agent keeps the session's posture`,
-      )
-    }
-    const posture = resolveAgentPromptPosture({
-      isAsync,
-      canShowPermissionPrompts,
-      definitionMode,
-      parentAvoidsPrompts:
-        parentGetAppState?.()?.toolPermissionContext
-          .shouldAvoidPermissionPrompts === true,
-      parentNonInteractive: toolUseContext.options.isNonInteractiveSession,
-      parentHostHoldsAsks: toolUseContext.options.hostHoldsAsks,
-    })
-    const avoidPrompts = posture.avoidPrompts
-    const agentGetAppState: typeof parentGetAppState = () => {
-      const state = parentGetAppState()
-      return composeAgentAppState(state, {
-        definitionMode,
-        definitionTools: agentDefinition,
-        avoidPrompts,
-        isAsync,
-        allowedTools,
-        effortValue: resolveAgentEffort({
-          effortOverride,
-          useExactTools,
-          definitionEffort: agentDefinition.effort,
-          defaultEffort: subagentDefaultEffort(),
-        }),
-      })
-    }
-
-    const hookContextMessages: Message[] = []
-    try {
-      if (agentDefinition.hooks !== undefined || HOOK_EVENTS.some(event => hookMayMeetCopy(event) && hasHooksFor(event, hookScope, toolUseContext.getAppState()))) await worktreeHoldOf({ agentId, abortController })
-      const started = await fireHooks(
-        'crewmate.start',
-        { ...(name !== undefined ? { name } : {}), prompt: promptMessages.map(message => {
-          if (message.type !== 'user' && message.type !== 'assistant') return ''
-          const content = message.message.content
-          return typeof content === 'string' ? content : extractTextContent(content, '\n')
-        }).filter(Boolean).join('\n'), model: resolvedAgentModel, directory: cwd ?? getCwd() },
-        { scope: hookScope, signal: abortController.signal, toolUseContext, crewmateType: agentDefinition.agentType },
-      )
-      for (const row of hookRowsOfResult(started)) hookContextMessages.push(createAttachmentMessage(row) as Message)
-      for (const context of started.answer.contexts) hookContextMessages.push(createUserMessage({ content: context, isMeta: true }))
-    } catch (error) {
-      logForDebugging(`runAgent: the crewmate.start hooks failed: ${errorMessage(error)}`)
-    }
-
-    if (
-      agentDefinition.hooks &&
-      (!isRestrictedToExtensionsOnly('hooks') ||
-        isSourceAdminTrusted(agentDefinition.source))
-    ) {
-      registerAgentHooks(rootSetAppState, hookScope, agentDefinition.hooks, agentDefinition.agentType)
-    }
-
-    const skillMessages = await preloadSkills(agentDefinition, toolUseContext)
-
-    const agentMcp = await connectAgentMcpServers(
-      agentDefinition.mcpServers,
-      agentDefinition,
-      [
-        ...toolUseContext.options.mcpClients,
-        ...(toolUseContext.getAppState?.().mcp.clients ?? []),
-      ],
-    )
-    mcp.clients = agentMcp.clients
-    mcp.tools = agentMcp.tools
-    mcp.cleanup = agentMcp.cleanup
-
-    let tools: Tools = availableTools
-      .filter(tool => tool.name !== COMPUTER_TOOL_NAME && (swarm || tool.name !== 'CrewBoard'))
-      .map(tool => tool.name === 'CrewBoard' ? { ...tool, alwaysLoad: true } : tool)
-    if (mcp.tools.length > 0) {
-      const merged = [...tools]
-      for (const mcpTool of mcp.tools) {
-        if (!merged.some(existing => existing.name === mcpTool.name)) {
-          merged.push(mcpTool)
-        }
-      }
-      tools = merged
-    }
-
-    if (structuredOutputSpec !== undefined) {
-      const bound = getSchemaBoundStructuredOutputTool(structuredOutputSpec.schema)
-      if (bound.tool !== undefined) {
-        tools = [...tools.filter(t => t.name !== bound.tool.name), bound.tool]
-      } else {
-        logForDebugging(
-          `runAgent: structured-output schema failed to bind (${bound.error ?? 'unknown'}) — dispatch proceeds without the tool`,
-          { level: 'error' },
-        )
-      }
-    }
-
-    if (reviewReceipt !== undefined) tools = restrictReviewerTools(tools, reviewReceipt, worktreePath!)
-    if (readOnlyScout) tools = restrictScoutTools(tools)
-    tools = tools.filter(tool => tool.name !== ASK_ADVISOR_TOOL_NAME)
-
-    const enabledToolNames = new Set(tools.map(tool => tool.name))
-    const systemPrompt: string[] =
-      override?.systemPrompt ??
-      (await buildAgentSystemPrompt(
-        agentDefinition,
-        toolUseContext,
-        resolvedAgentModel,
-        enabledToolNames,
-        agentId,
-        seat,
-      ))
-    if (reviewReceipt !== undefined) systemPrompt.push(REVIEW_BRIEF, `Your declared review receipt is ${reviewReceipt}. Only its Review section is editable. Run bun verification under scripts, bash suite runners, or bun run typecheck in the frozen worktree; a with-box-lock.sh wrapper with a literal temporary BASE is accepted. Verification commands have a fresh temporary home and filesystem confinement: sources and the report are read-only, temporary results are writable. Ordinary permission checks still apply; unavailable confinement refuses without running.`)
-    if (structuredOutputSpec !== undefined) {
-      systemPrompt.push(
-        `When the task is COMPLETE, deliver the final answer by calling the ${STRUCTURED_OUTPUT_TOOL_NAME} tool with data matching its schema${
-          structuredOutputSpec.mode === 'strict'
-            ? ' — the dispatch FAILS without a conforming call'
-            : ' — prose alone is accepted but the caller loses the parsed data'
-        }. Prose before the call is welcome; the structured payload is the contract.`,
-      )
-    }
-    const swarmWords = swarm ? swarmBrief(agentId, override?.swarmBrief) : null
-    if (swarmWords !== null) systemPrompt.push(swarmWords)
-
-    const parentOptions = toolUseContext.options
-    const isNonInteractiveSession = posture.isNonInteractiveSession
-
-    const thinkingOverride = { thinkingConfig: thinkingConfigOverride ?? parentOptions.thinkingConfig ?? sessionThinkingConfig() }
-
-    const childContext = createSubagentContext(toolUseContext, {
-      agentId,
-      agentType: agentDefinition.agentType,
-      abortController,
-      getAppState: agentGetAppState,
-      shareSetAppState: !isAsync,
-      shareSetResponseLength: true,
-      options: {
-        isNonInteractiveSession,
-        runDeadline: parentOptions.runDeadline,
-        ...(posture.hostHoldsAsks === true ? { hostHoldsAsks: true } : {}),
-        appendSystemPrompt: parentOptions.appendSystemPrompt,
-        tools,
-        commands: [],
-        debug: parentOptions.debug,
-        verbose: parentOptions.verbose,
-        engineModel: resolvedAgentModel,
-        ...thinkingOverride,
-        mcpClients: [...parentOptions.mcpClients, ...mcp.clients],
-        mcpResources: parentOptions.mcpResources,
-        agentDefinitions: parentOptions.agentDefinitions,
-        ...(isFork ? { querySource } : {}),
-      },
-      readFileState,
-      ...(agentDefinition.standingRule
-        ? { standingRule: agentDefinition.standingRule }
-        : {}),
-      ...(contentReplacementState ? { contentReplacementState } : {}),
-    })
-    childContextRef.current = childContext
-    if (worktreePath !== undefined) claimDiagnosticsRoot(processOwnerForLane(agentId), worktreePath)
-    childContext.agentKind = agentKind
-    childContext.seatHolder = seatHolder ?? description ?? agentDefinition.agentType
-    if (onWait !== undefined) childContext.onSeatWait = onWait
-    if (preserveToolUseResults) {
-      ;(childContext as { preserveToolResults?: boolean }).preserveToolResults =
-        true
-    }
-    childContext.setSDKStatus = (status: unknown) => {
-      if (status === null || typeof status !== 'object') return
-      if ('streamActivity' in status) {
-        const atMs = (status as { streamActivity?: unknown }).streamActivity
-        if (typeof atMs !== 'number') return
-        watchdog.touch()
-        onQueryProgress?.({ type: 'stream_activity', atMs } as never)
-        return
-      }
-      if ('wait' in status) {
-        const wait = (status as { wait?: unknown }).wait ?? null
-        const heldNotice = heldBusyRetryNotice(wait)
-        if (heldNotice !== null) {
-          const facts = recoveryNoticeFacts(heldNotice)
-          if (facts !== null) {
-            accountant.wait(facts, false)
-            touchThrough(facts.declaredMs)
-          }
-          return
-        }
-        onQueryProgress?.({ type: 'request_wait', wait } as never)
-      }
-    }
-
-    const messages: Message[] = [
-      ...initialMessages,
-      ...hookContextMessages,
-      ...skillMessages,
-    ]
-
-    if (onCacheSafeParams) {
-      onCacheSafeParams({
-        systemPrompt: asSystemPrompt(systemPrompt),
-        userContext,
-        systemContext,
-        toolUseContext: childContext,
-        forkContextMessages: messages,
-      })
-    }
-
-    try {
-      registerAgentTranscriptDestination(
-        agentId,
-        getAgentTranscriptPath(agentId),
-      )
-    } catch {
-    }
-    await landAgentTranscriptRows(messages, agentId)
-
-    const latestRecord = await readAgentMetadata(agentId).catch(() => null)
-    await writeAgentMetadata(agentId, recordAtRunStart(latestRecord, { model, effortOverride }, {
-      fresh: {
-        agentType: agentDefinition.agentType,
-        swarm,
-        ...(worktreePath ? { worktreePath } : {}),
-        ...(cwd ? { cwd } : {}),
-        ...(description ? { description } : {}),
-        ...(name ? { name } : {}),
-        ...(launchedAt !== undefined ? { launchedAt } : {}),
-        ...(swarmWords !== null ? { swarmBrief: swarmWords } : {}),
-        thinkingConfig: thinkingOverride.thinkingConfig,
-        ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
-        ...(instructionCapture
-          ? {
-              instructionProfile: instructionCapture.profile,
-              ...(instructionCapture.digest
-                ? { instructionDigest: instructionCapture.digest }
-                : {}),
-            }
-          : {}),
-      },
-      model: resolvedAgentModel,
-      effortOverride,
-      effort: resolvedEffort !== undefined ? String(resolvedEffort) : undefined,
-    })).catch(() => {})
+    const { userContext, systemContext, systemPrompt, childContext, messages } = await prepareAgentRun({ agentId, name, description, swarm, abortController, override, agentDefinition, slimAgentGateOn, withoutInstructionBlob, instructionProfileOverride, readOnlyScout, toolUseContext, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort, hookScope, promptMessages, resolvedAgentModel, cwd, rootSetAppState, preloadSkills, connectAgentMcpServers, mcp, availableTools, structuredOutputSpec, reviewReceipt, worktreePath, buildAgentSystemPrompt, seat, thinkingConfigOverride, isFork, querySource, readFileState, contentReplacementState, childContextRef, agentKind, seatHolder, onWait, preserveToolUseResults, run, onQueryProgress, accountant, touchThrough, initialMessages, onCacheSafeParams, landAgentTranscriptRows, model, launchedAt, resolvedEffort })
 
     let lastRecordedUuid: string | undefined = writtenChainTail(messages)
     const effectiveMaxTurns = maxTurns ?? agentDefinition.maxTurns
 
     const deps = productionDeps()
-    const callModel: typeof deps.callModel = async function* (request) {
-      let retried = false
-      for (;;) {
-        const requestController = new AbortController()
-        const forwardAbort = (): void => requestController.abort(request.signal.reason)
-        if (request.signal.aborted) forwardAbort()
-        else request.signal.addEventListener('abort', forwardAbort, { once: true })
-        let produced = false
-        let resend = false
-        stoppedAfterRetry = false
-        retryStalledRequest = error => {
-          if (request.signal.aborted) return false
-          if (retried) stoppedAfterRetry = true
-          if (requestController.signal.aborted || produced || retried) return false
-          retried = true
-          resend = true
-          logForDebugging(`runAgent: ${agentId} stalled request — retrying the same request once on ${request.options.model}`, { level: 'warn' })
-          requestController.abort(error)
-          return true
-        }
-        try {
-          for await (const message of deps.callModel({ ...request, signal: requestController.signal })) {
-            if (resend) continue
-            if (message.type === 'assistant' || message.type === 'stream_event') produced = true
-            yield message
-          }
-        } catch (error) {
-          if (!resend || request.signal.aborted) throw error
-        } finally {
-          retryStalledRequest = null
-          request.signal.removeEventListener('abort', forwardAbort)
-          requestController.abort()
-        }
-        if (!resend || request.signal.aborted) return
-      }
-    }
+    const callModel: typeof deps.callModel = callModelOf(run, { deps, agentId })
     const queryParams: QueryParams = {
       deps: { ...deps, callModel },
       messages,
@@ -1172,24 +700,7 @@ export async function* runAgent(
       ...(effectiveMaxTurns !== undefined ? { maxTurns: effectiveMaxTurns } : {}),
     }
 
-    const observeProgress = (message: LegacyQueryYield): void => {
-      eventsSeen++
-      touchThrough(declaredRecoveryWaitMs(message))
-      const notice = recoveryNoticeFacts(message)
-      if (notice !== null) {
-        accountant.wait(notice, true)
-      } else if (accountant.standing() && (message as { type?: string }).type !== 'progress') {
-        accountant.spoke()
-      }
-      if (recoveryAnswerRefills(message)) refillRecoveryBudget(recovery)
-      if ((message as { type?: string }).type === 'assistant') {
-        const content = (message as { message?: { content?: unknown } }).message?.content
-        if (Array.isArray(content) && content.some(block => (block as { type?: string })?.type === 'tool_use')) {
-          toolUsesSeen++
-        }
-      }
-      onQueryProgress?.(message as Message)
-    }
+    const observeProgress = observeProgressOf(run, { recovery, accountant, onQueryProgress, touchThrough, declaredRecoveryWaitMs })
     const retriedRefusals = new Set<string>()
     let runMessages: Message[] = messages
     const pausableQuery = async function* (): AsyncGenerator<LegacyQueryYield, void> {
@@ -1246,13 +757,7 @@ export async function* runAgent(
         yield message as Message
         continue
       }
-      const subtype = (anyMessage as { subtype?: string }).subtype
-      const recordable =
-        anyMessage.type === 'assistant' ||
-        anyMessage.type === 'user' ||
-        anyMessage.type === 'progress' ||
-        (anyMessage.type === 'system' &&
-          (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error' || subtype === 'stream_cut' || subtype === 'busy_recovery'))
+      const recordable = recordableRow(anyMessage)
       if (!recordable) continue
 
       lastRecordedUuid = await landAgentTranscriptRows(
@@ -1273,7 +778,7 @@ export async function* runAgent(
     }
 
     const refusalRetry =
-      stoppedEarly || watchdog.fired || throttled !== null || abortController.signal.aborted
+      stoppedEarly || run.watchdog.fired || run.throttled !== null || abortController.signal.aborted
         ? null
         : refusalRetryRowOf(lastAssistantRow, retriedRefusals, resolvedAgentModel)
     if (refusalRetry === null) break
@@ -1292,10 +797,10 @@ export async function* runAgent(
     runMessages = [...(boundaryAt >= 0 ? carried.slice(boundaryAt) : carried), refusalRetry.row]
     }
 
-    if (watchdog.fired) {
+    if (run.watchdog.fired) {
       throw stalledError()
     }
-    if (throttled !== null) throw throttled
+    if (run.throttled !== null) throw run.throttled
     if (abortController.signal.aborted) {
       throw new AbortError()
     }
@@ -1303,7 +808,7 @@ export async function* runAgent(
       void agentDefinition.callback()
     }
   } catch (error) {
-    const thrown = watchdog.fired && !(error instanceof DeadlineExceededError) ? stalledError() : throttled !== null && error !== throttled ? throttled : error
+    const thrown = run.watchdog.fired && !(error instanceof DeadlineExceededError) ? stalledError() : run.throttled !== null && error !== run.throttled ? run.throttled : error
     if (!(thrown instanceof AbortError) && !abortController.signal.aborted) {
       crewmateRun.endedBy = 'failed'
       crewmateRun.reason = errorMessage(thrown)
@@ -1313,13 +818,13 @@ export async function* runAgent(
     if (runDeadlineTimer !== undefined) clearTimeout(runDeadlineTimer)
     await endProjectLeases()
     await fireCrewmateEnd()
-    watchdog.cancel()
+    run.watchdog.cancel()
     accountant.end()
-    if (askHeartbeat !== null) {
-      clearInterval(askHeartbeat)
-      askHeartbeat = null
+    if (run.askHeartbeat !== null) {
+      clearInterval(run.askHeartbeat)
+      run.askHeartbeat = null
     }
-    if (deferredTouch !== null) clearTimeout(deferredTouch)
+    if (run.deferredTouch !== null) clearTimeout(run.deferredTouch)
     await mcp.cleanup()
     readFileState.clear?.()
     initialMessages.length = 0

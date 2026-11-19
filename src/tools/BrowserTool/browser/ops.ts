@@ -14,7 +14,7 @@ import { resolveBrowserSecret } from '../../../services/browser/browserSecrets.j
 import type { Transfer } from '../../../services/browser/browserTransfers.js'
 import type { OwnerKey } from '../../../services/run/ownerKey.js'
 import { type Input, PRESS_KEYS, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
-import { CRASH_OPEN_OPS, crashedWords, noSessionWords } from './failures.js'
+import { CRASH_OPEN_OPS, crashedWords, isDriverTimeout, noSessionWords } from './failures.js'
 import { type LiveSession, errorPageWords, pageWhere, preview, sendOrigin, targetSurface } from './page.js'
 import { transferWords } from './downloads.js'
 import { replacedSinceCheck } from './targets.js'
@@ -114,6 +114,13 @@ export function runOp(run: OpRun): OpDone | Promise<OpDone> {
         : input.text !== undefined
           ? `text "${preview(input.text)}"`
           : 'navigation'
+      if (input.selector || input.text !== undefined) {
+        try {
+          targetSurface(s, input.frame)
+        } catch (err) {
+          if (!isDriverTimeout(err)) throw err
+        }
+      }
       return waitForOp(s, run, deadline, t0, waited)
     }
     case 'back': {
