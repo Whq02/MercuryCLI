@@ -7,7 +7,7 @@ import type { AgentId } from '../../types/ids.js'
 import { asAgentId } from '../../types/ids.js'
 import { publishAtomic } from '../../substrate/fileStore.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { isFsInaccessible } from '../../utils/errors.js'
+import { getErrnoCode, isFsInaccessible } from '../../utils/errors.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getAgentMetadataPath, getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
@@ -46,7 +46,8 @@ export async function clearAgentPauseRecord(agentId: string): Promise<void> {
   try {
     await unlink(agentPauseRecordPath(agentId))
   } catch (failure) {
-    if (!isFsInaccessible(failure)) throw failure
+    const code = getErrnoCode(failure)
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') throw failure
   }
 }
 

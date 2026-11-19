@@ -3,6 +3,8 @@ import { dirname, join } from 'path'
 import { getProcessStartInstantAsync, getProcessStartTokenAsync, isProcessAlive } from '../daemon/ownerWatch.js'
 import { tokenBinding } from '../daemon/processSweep.js'
 import { publishAtomic } from '../substrate/fileStore.js'
+import { errorMessage, isENOENT } from '../utils/errors.js'
+import { logError } from '../utils/log.js'
 import { endProcessTree } from '../utils/processGroup.js'
 import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
 import { loadTaskOutcomes } from './taskOutcomeEnvelope.js'
@@ -39,13 +41,18 @@ function taskLaunchesPath(sessionId: string): string {
 
 const writeChainBySession = new Map<string, Promise<void>>()
 
+function ledgerFailure(sessionId: string, what: string, error: unknown): Error {
+  return new Error(`task launch ledger of session ${sessionId}: ${what} — ${error instanceof SyntaxError ? 'the file is not valid JSON' : errorMessage(error)}`)
+}
+
 async function loadFile(sessionId: string): Promise<TaskLaunchRecord[]> {
   try {
     const raw = await readFile(taskLaunchesPath(sessionId), 'utf8')
     const parsed = JSON.parse(raw) as LedgerFile
     if (parsed?.v !== TASK_LAUNCH_LEDGER_VERSION || !Array.isArray(parsed.launches)) return []
     return parsed.launches.filter(row => typeof row?.taskId === 'string' && (row.kind === 'monitor' || row.kind === 'shell'))
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error)) logError(ledgerFailure(sessionId, 'it could not be read, so the next write keeps none of its launches', error))
     return []
   }
 }
@@ -76,7 +83,8 @@ export function recordTaskLaunch(sessionId: string, launch: Omit<TaskLaunchRecor
       launches.push({ ...launch, v: TASK_LAUNCH_LEDGER_VERSION, command: launch.command.slice(0, MAX_COMMAND_CHARS), startToken })
       if (launches.length > MAX_LAUNCHES) launches.splice(0, launches.length - MAX_LAUNCHES)
       await publish(sessionId, launches)
-    } catch {
+    } catch (error) {
+      logError(ledgerFailure(sessionId, `the launch of task ${launch.taskId} could not be recorded, so after a crash its process is not reaped on resume`, error))
     }
   })
 }

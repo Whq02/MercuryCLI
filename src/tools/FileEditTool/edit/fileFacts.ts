@@ -5,7 +5,7 @@ import { runtimeKernel } from '../../../services/primitives/runtimeKernel.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import { activateConditionalSkillsForPaths, addSkillDirectories, discoverSkillDirsForPaths } from '../../../skills/loadSkillsDir.js'
 import { getCwd } from '../../../utils/cwd.js'
-import { findSimilarFile, getFileModificationTime, suggestPathUnderCwd } from '../../../utils/file.js'
+import { findSimilarFile, getCheckedFileModificationTime, suggestPathUnderCwd } from '../../../utils/file.js'
 import { formatFileSize } from '../../../utils/format.js'
 import { logError } from '../../../utils/log.js'
 import { readFileInRange } from '../../../utils/readFileInRange.js'
@@ -56,7 +56,7 @@ export async function staleAtValidation(
   signal: AbortSignal,
   farMoved?: boolean,
 ): Promise<boolean> {
-  if (farMoved === undefined ? getFileModificationTime(expandedPath) <= entry.timestamp : !farMoved) return false
+  if (farMoved === undefined ? getCheckedFileModificationTime(expandedPath) <= entry.timestamp : !farMoved) return false
   if (isFullReadEntry(entry)) {
     return entry.content !== currentContent
   }

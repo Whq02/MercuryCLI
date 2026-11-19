@@ -24,7 +24,7 @@ import './services/mcp/sessionKitPin.js'
 import './services/mcp/config.js'
 import './services/mcp/mercuryServer.js'
 import './substrate/bootBeacon.js'
-import { collectLauncherNotes } from './substrate/bootNotes.js'
+import { addBootNote, collectLauncherNotes } from './substrate/bootNotes.js'
 import { flagEnv, setFlagEnv } from './substrate/flagRegistry.js'
 import './substrate/invocationRecord.js'
 import './substrate/launchMilestones.js'
@@ -121,7 +121,11 @@ export async function main(): Promise<void> {
 
   applyBootMenuEnv();
   recordBootAdmissionSnapshot(resolveEffectiveSettingsSnapshot({ sessionId: getSessionId() }));
-  ensurePrivateConfigHome();
+  try {
+    ensurePrivateConfigHome();
+  } catch (error) {
+    addBootNote('warn', error instanceof Error ? error.message : String(error));
+  }
   collectLauncherNotes();
 
   const surfaceDumpPath = flagEnv('MERCURY_SURFACE_DUMP')

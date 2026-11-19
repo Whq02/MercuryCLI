@@ -12,7 +12,7 @@ import { updateTaskState } from '../utils/task/framework.js'
 import { projectLeaseHolder, releaseProjectLeases } from '../services/vulcan/engine/leases.js'
 import type { AgentPauseV1 } from './LocalAgentTask/agentPause.js'
 import { AGENT_RESUME_DOOR, isLocalAgentTask, stopPausedAgentTask } from './LocalAgentTask/LocalAgentTask.js'
-import { clearAgentPauseRecord } from './LocalAgentTask/pauseCarry.js'
+import { agentPauseRecordPath, clearAgentPauseRecord } from './LocalAgentTask/pauseCarry.js'
 import { isLocalShellTask, type LocalShellTaskState } from './LocalShellTask/guards.js'
 import { findTaskOutcome, type TaskOutcomeEnvelope, type TaskOutcomeState } from './taskOutcomeEnvelope.js'
 
@@ -125,7 +125,7 @@ export function finishedAgentWords(agent: FinishedAgent): string {
   return `Task ${agent.taskId}${named} had already ${agent.ended}${when}; nothing was stopped; its output file is ${agent.outputPath} — read it directly; ResumeCrewmate to that id resumes it`
 }
 
-type PausedAgentStop = { description: string; pause: AgentPauseV1; leasesReleased: number }
+type PausedAgentStop = { description: string; pause: AgentPauseV1; leasesReleased: number; recordKept?: string }
 
 export function isPausedAgentRow(task: unknown): task is TaskStateBase & { paused: AgentPauseV1 } {
   return isLocalAgentTask(task) && task.status !== 'running' && task.paused !== undefined
@@ -134,7 +134,8 @@ export function isPausedAgentRow(task: unknown): task is TaskStateBase & { pause
 export function stoppedWhilePausedWords(taskId: string, stop: PausedAgentStop): string {
   const retry = stop.pause.resumesAtMs !== undefined ? `the retry it had armed for ${new Date(stop.pause.resumesAtMs).toISOString()} is cancelled` : 'no retry stays armed'
   const leases = stop.leasesReleased > 0 ? `${stop.leasesReleased} lease${stop.leasesReleased === 1 ? '' : 's'} released` : 'no lease was held'
-  return `Stopped task ${taskId} (${stop.description}) while it was paused: ${retry}, ${leases}; its work is kept; ${AGENT_RESUME_DOOR}`
+  const kept = stop.recordKept !== undefined ? `; its pause record ${agentPauseRecordPath(taskId)} could not be removed (${stop.recordKept}) — delete it, or the next session start resumes it` : ''
+  return `Stopped task ${taskId} (${stop.description}) while it was paused: ${retry}, ${leases}; its work is kept${kept}; ${AGENT_RESUME_DOOR}`
 }
 
 export async function stopPausedAgent(
@@ -145,7 +146,13 @@ export async function stopPausedAgent(
   if (!isPausedAgentRow(task)) return null
   const { cancelAutomaticResume } = await import('../tools/AgentTool/agentToolUtils.js')
   cancelAutomaticResume(taskId)
-  await clearAgentPauseRecord(taskId).catch(() => undefined)
+  let recordKept: string | undefined
+  try {
+    await clearAgentPauseRecord(taskId)
+  } catch (error) {
+    recordKept = error instanceof Error ? error.message : String(error)
+    logForDebugging(`stop of paused crewmate ${taskId}: its pause record could not be removed — ${recordKept}`)
+  }
   const stopped = stopPausedAgentTask(taskId, context.setAppState)
   if (stopped === null) return null
   let leasesReleased = 0
@@ -155,7 +162,7 @@ export async function stopPausedAgent(
   } catch (error) {
     logForDebugging(`stop of paused crewmate ${taskId}: its leases could not be released — ${error instanceof Error ? error.message : String(error)}`)
   }
-  return { ...stopped, leasesReleased }
+  return { ...stopped, leasesReleased, ...(recordKept !== undefined ? { recordKept } : {}) }
 }
 
 export async function finishedTaskOnDisk(taskId: string): Promise<FinishedTaskOnDisk | null> {

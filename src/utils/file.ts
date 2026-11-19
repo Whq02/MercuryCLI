@@ -21,7 +21,7 @@ import { isRemotePath } from '../services/remoteFiles/target.js'
 import { faultPoint, isTransientWin32FsCode, renameWithWin32RetrySync, WIN32_RENAME_RETRY_DELAYS_MS } from '../substrate/durablePublish.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
-import { isENOENT, isFsInaccessible, getErrnoCode } from './errors.js'
+import { errorMessage, isENOENT, isFsInaccessible, getErrnoCode } from './errors.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
 import { detectEncodingForResolvedPath, detectLineEndingsForString, type LineEndingType } from './fileRead.js'
 import { fileReadCache } from './fileReadCache.js'
@@ -63,15 +63,26 @@ export function readFileSyncCached(path: string): string {
 export function getFileModificationTime(path: string): number {
   try {
     return Math.floor(statSync(path).mtimeMs)
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error)) logError(error)
     return 0
+  }
+}
+
+export function getCheckedFileModificationTime(path: string): number {
+  try {
+    return Math.floor(statSync(path).mtimeMs)
+  } catch (error) {
+    if (isENOENT(error)) return 0
+    throw new Error(`${path} could not be checked for changes since it was read (${errorMessage(error)}) — read it again, then retry`)
   }
 }
 
 export async function getFileModificationTimeAsync(path: string): Promise<number> {
   try {
     return Math.floor((await stat(path)).mtimeMs)
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error)) logError(error)
     return 0
   }
 }
@@ -297,7 +308,8 @@ export function writeFileAndFlushAtomically(
       target = isAbsolute(linkTarget) ? linkTarget : resolve(dirname(filePath), linkTarget)
       logForDebugging(`atomic write: ${filePath} is a symlink; writing through to ${target}`)
     }
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error)) logError(error)
   }
 
   let existingMode: number | undefined

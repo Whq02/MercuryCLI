@@ -2,6 +2,8 @@
 import { readFile } from 'fs/promises'
 import { dirname, join } from 'path'
 import { durableAtomicPublish } from '../substrate/durablePublish.js'
+import { errorMessage, isENOENT } from '../utils/errors.js'
+import { logError } from '../utils/log.js'
 import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
 
 const TASK_OUTCOME_ENVELOPE_VERSION = 1
@@ -54,6 +56,10 @@ interface EnvelopeFile {
 const writeChainBySession = new Map<string, Promise<void>>()
 const cacheBySession = new Map<string, TaskOutcomeEnvelope[]>()
 
+function outcomesFailure(sessionId: string, what: string, error: unknown): Error {
+  return new Error(`task outcomes of session ${sessionId}: ${what} — ${error instanceof SyntaxError ? 'the file is not valid JSON' : errorMessage(error)}`)
+}
+
 async function loadFile(sessionId: string): Promise<TaskOutcomeEnvelope[]> {
   try {
     const raw = await readFile(taskOutcomesPath(sessionId), 'utf8')
@@ -62,7 +68,8 @@ async function loadFile(sessionId: string): Promise<TaskOutcomeEnvelope[]> {
       return []
     }
     return parsed.envelopes
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error)) logError(outcomesFailure(sessionId, 'they could not be read, so the next saved outcome replaces every earlier one', error))
     return []
   }
 }
@@ -101,7 +108,8 @@ export async function recordTaskOutcome(
         taskOutcomesPath(sessionId),
         JSON.stringify(file, null, 1),
       )
-    } catch {
+    } catch (error) {
+      logError(outcomesFailure(sessionId, `the outcome of task ${envelope.taskId} could not be saved`, error))
     }
   }
   const op = previous.then(run, run)
