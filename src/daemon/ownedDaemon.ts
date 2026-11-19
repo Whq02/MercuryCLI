@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { logForDebugging } from '../utils/debug.js'
+import { errorMessage, isENOENT } from '../utils/errors.js'
 import { canonicalHomeSpelling, getMercuryHome } from '../utils/envUtils.js'
 import { hasStoredOAuthToken } from '../utils/auth.js'
 import { subscribeSignInEpoch } from '../utils/accounts/signInLedger.js'
@@ -99,8 +100,10 @@ export function anotherLiveCockpitHoldsDaemon(
   let parsed: { workers?: Record<string, { endedAt?: number; parkedAt?: number; focusedBy?: string; attachedBy?: string }> }
   try {
     parsed = JSON.parse(readFileSync(workersPath, 'utf8'))
-  } catch {
-    return false
+  } catch (err) {
+    if (isENOENT(err)) return false
+    logForDebugging(`[daemon] ${workersPath} could not be read (${err instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(err)}), so the daemon is left running for any other window that may still use it`)
+    return true
   }
   for (const rec of Object.values(parsed.workers ?? {})) {
     if (rec.endedAt !== undefined || rec.parkedAt !== undefined) continue
