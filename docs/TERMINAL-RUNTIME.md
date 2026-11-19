@@ -339,7 +339,9 @@ like, where the launcher set none). So a Mercury started from a terminal,
 which holds these values already, hands a command the same environment as
 before, and one started by an editor, cron, an ssh one-liner or the daemon
 gains what the files export. On Windows the variables the bash login files
-export are carried by the same rule.
+export are carried by the same rule to the commands a bash runs; a `.cmd` the
+tool starts through cmd.exe, and the PowerShell tool, get the environment
+Mercury was started with.
 A background job a login file starts in that run, under `nohup` too, is ended
 when the run ends. An `ssh-agent` the files start (`eval "$(ssh-agent -s)"`)
 is kept for the session when Mercury was started with no `SSH_AUTH_SOCK`: the
