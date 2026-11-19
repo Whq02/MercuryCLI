@@ -1,9 +1,7 @@
-import { UnauthorizedError, SSEClientTransport, StdioClientTransport, StreamableHTTPClientTransport, type Transport, ProtocolError, ProtocolErrorCode, SdkError, SdkErrorCode, type Tool as McpSdkTool } from './sdk.js'
+import { UnauthorizedError, StdioClientTransport, type Transport, ProtocolError, ProtocolErrorCode, SdkError, SdkErrorCode, type Tool as McpSdkTool } from './sdk.js'
 import memoize from 'lodash-es/memoize.js'
 import { LRUCache } from 'lru-cache'
-import { getSessionId } from '../../bootstrap/state.js'
 import { deadlineSecondsLabel } from '../providers/fetchDeadline.js'
-import { getOauthConfig } from '../../constants/oauth.js'
 import type { Command } from '../../types/command.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
@@ -13,33 +11,24 @@ import { classifyMcpToolForCollapse } from '../../tools/MCPTool/classifyForColla
 import { ListMcpResourcesTool } from '../../tools/ListMcpResourcesTool/ListMcpResourcesTool.js'
 import { createMcpAuthTool } from '../../tools/McpAuthTool/McpAuthTool.js'
 import { ReadMcpResourceTool } from '../../tools/ReadMcpResourceTool/ReadMcpResourceTool.js'
-import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
-import { getClaudeAIOAuthTokens } from '../../utils/auth.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { restoreRenamedArgumentKeys } from '../../utils/normalizeToolSchema.js'
 import { armInactivityDeadline, formatLimit } from '../../utils/deadline.js'
 import { errorMessage, getErrnoCode, isAbortError, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../utils/errors.js'
 import { isShuttingDown } from '../../utils/gracefulShutdown.js'
-import { getMCPUserAgent } from '../../utils/http.js'
 import { logError, logMCPDebug, logMCPError } from '../../utils/log.js'
 import type { MCPToolResult } from '../../utils/mcpValidation.js'
-import { getWebSocketTLSOptions } from '../../utils/mtls.js'
-import { getApiFetch, getProxyFetchOptions, getProxyUrl } from '../../utils/proxy.js'
 import { createSecretRedactor, isSecretEnvName } from '../../utils/redactSecrets.js'
 import { recursivelySanitizeUnicode } from '../../utils/sanitization.js'
 import { forgetHiddenCharacters, recordHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
-import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { hasMcpDiscoveryButNoToken, MercuryMcpAuthProvider, wrapFetchWithStepUpDetection } from './auth.js'
+import { hasMcpDiscoveryButNoToken, MercuryMcpAuthProvider } from './auth.js'
 import { markAnthropicConnectorConnected } from './anthropicConnectors.js'
 import { clearEraVerdict, readEraVerdict, recordEraVerdict } from './eraVerdictCache.js'
 import { getAllMcpConfigs } from './config.js'
 import { mcpStdioCommandRefusal } from './stdioCommandSafety.js'
-import { LazyStdioClientTransport } from './lazyStdio.js'
 import { isMcpCatalogueMember } from './membership.js'
 import { elicitationPausedClock } from './elicitationHandler.js'
-import { getMcpServerHeaders } from './headersHelper.js'
 import { buildMcpToolName, wireSafeMcpToolName } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
 import { isMercuryServerEnabled, isMercuryServer, withMercuryLeaseHolder } from './mercuryServer.js'
@@ -48,12 +37,11 @@ import { mcpPolicyDenyReason, mcpToolAllowed, type McpToolAnnotations } from './
 import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig, ServerResource } from './types.js'
 import { describeMcpConnectFailure, getLoggingSafeMcpBaseUrl, mcpConfigAsWritten, MCP_CONNECT_TIMEOUT_TELEMETRY } from './utils.js'
 import { McpAuthError, McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, McpSessionExpiredError, isMcpSessionExpiredError, isConnectionClosedError, isProbeExitError, isStaleSocketFetchError, isResponseStreamEndedError } from './client/errors.js'
-import { LONG_CALL_LOG_INTERVAL_MS, MCP_TOOL_USE_ID_META_KEY, STDERR_FLUSH_BYTES, INSTRUCTIONS_MAX_CHARS, TERMINAL_ERROR_LIMIT, URL_ELICITATION_RETRIES, TERMINAL_ERROR_SUBSTRINGS, connectTimeoutMs, toolTimeoutMs, mcpCallIdleLimitMs, mcpStdioMaxMessageBytes, OVERSIZED_MESSAGE, oversizedMessages, mcpOversizedMessageWords, getMcpServerConnectionBatchSize, getRemoteConnectionBatchSize } from './client/limits.js'
+import { LONG_CALL_LOG_INTERVAL_MS, MCP_TOOL_USE_ID_META_KEY, STDERR_FLUSH_BYTES, INSTRUCTIONS_MAX_CHARS, TERMINAL_ERROR_LIMIT, URL_ELICITATION_RETRIES, TERMINAL_ERROR_SUBSTRINGS, connectTimeoutMs, toolTimeoutMs, mcpCallIdleLimitMs, OVERSIZED_MESSAGE, oversizedMessages, mcpOversizedMessageWords, getMcpServerConnectionBatchSize, getRemoteConnectionBatchSize } from './client/limits.js'
 import { routeProgress } from './client/progress.js'
-import { type FetchLike, wrapFetchWithTimeout, loggedHeadersOf, createAnthropicProxyFetch } from './client/fetch.js'
 import { isNeedsAuthWarm, handleRemoteAuthFailure } from './client/needsAuth.js'
-import { OwnedStdioClientTransport, buildClient, installRootsHandler } from './client/protocolClient.js'
-import { createWsTransport } from './client/wsTransport.js'
+import { buildClient, installRootsHandler } from './client/protocolClient.js'
+import { type RemoteConfig, buildStdioTransport, sseTransportFor, wsTransportFor, httpTransportFor, proxyTransportFor, inProcessTransportFor, endStdioTree } from './client/transports.js'
 import { listAllTools } from './client/toolList.js'
 import { transformResultContent, processMCPResult } from './client/results.js'
 import { withoutNullOptionals } from './client/nullOptionals.js'
@@ -75,7 +63,6 @@ export function getServerCacheKey(name: string, serverRef: ScopedMcpServerConfig
   return `${name}:${JSON.stringify(serverRef)}`
 }
 
-type RemoteConfig = ScopedMcpServerConfig & { url?: string; headers?: Record<string, string> }
 
 function isTerminalErrorMessage(message: string): boolean {
   return TERMINAL_ERROR_SUBSTRINGS.some(substring => message.includes(substring))
@@ -112,87 +99,25 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   let stderrBuffer = ''
   let inProcess = false
   const redactStderr = mcpServerStderrRedactor(serverRef)
-  const buildStdioTransport = (): StdioClientTransport => {
-    const stdioConfig = config as { command: string; args?: string[]; env?: Record<string, string> }
-    const prefix = flagEnv('MERCURY_SHELL_PREFIX')
-    const command = prefix ? prefix : stdioConfig.command
-    const args = prefix ? [[stdioConfig.command, ...(stdioConfig.args ?? [])].join(' ')] : (stdioConfig.args ?? [])
-    const refusal = mcpStdioCommandRefusal(name, { command, args })
-    if (refusal !== null) throw new Error(refusal)
-    const parameters = {
-      command,
-      args,
-      env: { ...(scrubSessionEnvStamps(subprocessEnv({ stripProviderCredentials: true })).env as Record<string, string>), ...(stdioConfig.env ?? {}) },
-      stderr: 'pipe' as const,
-      maxBufferSize: mcpStdioMaxMessageBytes(),
-    }
-    return serverRef.bundledBootstrap
-      ? new LazyStdioClientTransport(parameters, serverRef.bundledBootstrap, connectTimeoutMs())
-      : new OwnedStdioClientTransport(parameters)
-  }
   const provider =
     type === 'sse' || type === 'http' ? new MercuryMcpAuthProvider(name, serverRef, undefined, false) : null
 
   try {
     if (type === 'sse') {
-      const headers = await getMcpServerHeaders(name, config as never)
-      const wrapped = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch() as FetchLike, provider as MercuryMcpAuthProvider))
-      transport = new SSEClientTransport(new URL(config.url as string), {
-        authProvider: provider as never,
-        fetch: wrapped as never,
-        requestInit: { headers: { 'User-Agent': getMCPUserAgent(), ...headers } },
-        eventSourceInit: {
-          fetch: async (input: string | URL, init?: RequestInit) => {
-            const tokens = await (provider as MercuryMcpAuthProvider).tokens()
-            const streamHeaders = new Headers(init?.headers)
-            streamHeaders.set('User-Agent', getMCPUserAgent())
-            if (tokens?.access_token) streamHeaders.set('Authorization', `Bearer ${tokens.access_token}`)
-            for (const [key, value] of Object.entries(headers)) streamHeaders.set(key, value)
-            streamHeaders.set('Accept', 'text/event-stream')
-            return getApiFetch()(input as string, { ...init, headers: streamHeaders, ...getProxyFetchOptions() } as never)
-          },
-        } as never,
-      })
+      transport = await sseTransportFor(name, config, provider)
     } else if (type === 'ws') {
-      const wsHeaders: Record<string, string> = { 'User-Agent': getMCPUserAgent() }
-      Object.assign(wsHeaders, await getMcpServerHeaders(name, config as never))
-      logMCPDebug(name, `WebSocket connection options: ${JSON.stringify({ headers: loggedHeadersOf(wsHeaders), tls: Boolean(getWebSocketTLSOptions()), proxy: Boolean(getProxyUrl()) })}`)
-      transport = await createWsTransport(config.url as string, wsHeaders)
+      transport = await wsTransportFor(name, config)
     } else if (type === 'http') {
-      const headers = await getMcpServerHeaders(name, config as never)
-      const wrapped = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch() as FetchLike, provider as MercuryMcpAuthProvider))
-      const requestInit = { headers: { 'User-Agent': getMCPUserAgent(), ...headers }, ...getProxyFetchOptions() }
-      const proxyUrl = getProxyUrl()
-      logMCPDebug(name, `runtime ${typeof Bun !== 'undefined' ? 'bun' : 'node'}, proxy ${proxyUrl === undefined ? 'none' : getLoggingSafeMcpBaseUrl({ type: 'http', url: proxyUrl }) ?? '[REDACTED]'}`)
-      logMCPDebug(name, `HTTP request options: ${JSON.stringify({ headers: loggedHeadersOf(requestInit.headers), tls: 'tls' in requestInit, proxy: proxyUrl !== undefined })}`)
-      void Boolean(await (provider as MercuryMcpAuthProvider).tokens())
-      transport = new StreamableHTTPClientTransport(new URL(config.url as string), {
-        authProvider: provider as never,
-        fetch: wrapped as never,
-        requestInit: requestInit as never,
-      })
+      transport = await httpTransportFor(name, config, provider)
     } else if (type === 'claudeai-proxy') {
-      const token = getClaudeAIOAuthTokens()?.accessToken
-      if (!token) throw new Error(`claude.ai proxy server ${name} requires a claude.ai OAuth token`)
-      const oauth = getOauthConfig()
-      const url = `${oauth.MCP_PROXY_URL}${oauth.MCP_PROXY_PATH.replace('{server_id}', (config as { id?: string }).id ?? '')}`
-      transport = new StreamableHTTPClientTransport(new URL(url), {
-        fetch: wrapFetchWithTimeout(createAnthropicProxyFetch(fetch as FetchLike)) as never,
-        requestInit: { headers: { 'User-Agent': getMCPUserAgent(), 'X-Mcp-Client-Session-Id': getSessionId() } },
-      })
+      transport = proxyTransportFor(name, config)
     } else if ((type === 'stdio' || config.type === undefined) && isMercuryServer(name) && isMercuryServerEnabled()) {
-      const [{ createMercuryServer }, { createLinkedTransportPair }] = await Promise.all([
-        import('./mercuryServer.js'),
-        import('./InProcessTransport.js'),
-      ])
-      const server = await createMercuryServer()
-      const [clientSide, serverSide] = createLinkedTransportPair()
-      await server.connect(serverSide)
+      const { server, clientSide } = await inProcessTransportFor()
       inProcessServer = server
       transport = clientSide
       inProcess = true
     } else if (type === 'stdio') {
-      stdioTransport = buildStdioTransport()
+      stdioTransport = buildStdioTransport(name, serverRef, config)
       transport = stdioTransport
       releaseSpawnGuard = registerCleanup(async () => {
         spawnRefused = true
@@ -224,26 +149,6 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   }
   stdioTransport?.stderr?.on('data', onStderr)
 
-  const endStdioTree = async (): Promise<void> => {
-    const pid = stdioTransport?.pid ?? null
-    if (pid === null) return
-    try {
-      const { endProcessTree, endProcessTreeSurvivors } = await import('../../utils/processGroup.js')
-      const graceful = await endProcessTree(pid, 'SIGINT')
-      const swept = graceful.survivors.length > 0 ? await endProcessTreeSurvivors(pid, graceful.survivors, 'SIGKILL') : null
-      const survivors = swept ? swept.survivors : graceful.survivors
-      const ended = graceful.ended + (swept?.ended ?? 0)
-      logMCPDebug(
-        name,
-        survivors.length > 0
-          ? `process tree still present after kill (${survivors.length} pid(s) unconfirmed)`
-          : `process tree exited (${ended} process(es) ended)`,
-      )
-    } catch (err) {
-      logMCPError(name, err)
-    }
-  }
-
   let client = buildClient(!serverRef.bundledBootstrap, stdioTransport !== null ? 'stdio' : 'remote')
   installRootsHandler(client)
   const eraKey = getServerCacheKey(name, serverRef)
@@ -258,10 +163,10 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       if (stdioTransport === null || prior || !isProbeExitError(err) || spawnRefused) throw err
       logMCPDebug(name, 'the server exited on the revision probe — remembered as an older server; connecting again with the handshake')
       await recordEraVerdict(eraKey, 'legacy')
-      await endStdioTree()
+      await endStdioTree(name, stdioTransport)
       stdioTransport.stderr?.off('data', onStderr)
       if (spawnRefused) throw err
-      stdioTransport = buildStdioTransport()
+      stdioTransport = buildStdioTransport(name, serverRef, config)
       transport = stdioTransport
       stdioTransport.stderr?.on('data', onStderr)
       client = buildClient(false)
@@ -287,7 +192,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
           MCP_CONNECT_TIMEOUT_TELEMETRY,
         ),
       )
-      void endStdioTree().finally(() => {
+      void endStdioTree(name, stdioTransport).finally(() => {
         void inProcessServer?.close().catch(() => {})
         void transport.close().catch(() => {})
       })
@@ -318,7 +223,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     if ((type === 'sse' || type === 'http') && unauthorized) return handleRemoteAuthFailure(name, serverRef, type.toUpperCase())
     if (type === 'claudeai-proxy' && (err as { code?: unknown } | null)?.code === 401) return handleRemoteAuthFailure(name, serverRef, 'claude.ai proxy')
     releaseSpawnGuard?.()
-    await endStdioTree()
+    await endStdioTree(name, stdioTransport)
     await inProcessServer?.close().catch(() => {})
     await transport.close().catch(() => {})
     if (stderrBuffer) logMCPError(name, `stderr: ${stderrBuffer}`)
@@ -410,7 +315,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     }
     if (type === 'stdio' || config.type === undefined) {
       stdioTransport?.stderr?.off('data', onStderr)
-      await endStdioTree()
+      await endStdioTree(name, stdioTransport)
     }
     await client.close().catch(err => logMCPError(name, err))
   }
