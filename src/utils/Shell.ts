@@ -112,13 +112,14 @@ export async function terminalShellInvocation(
   const built = await road.provider.buildExecCommand(command, { id: invocationId })
   const { env, scrubbed } = await commandEnvironment(road, 'bash', command, inheritSessionEnv)
   const native = (path: string): string => (getPlatform() === 'windows' ? posixPathToWindowsPath(path) : path)
+  if (built.frame !== undefined) writeFileSync(built.frame.path, built.frame.text)
   return {
     file: road.provider.shellPath,
     args: road.provider.getSpawnArgs(built.commandString),
     argsFor: line => road.provider.getSpawnArgs(line),
     env: road.provider.origin === undefined ? env : withRoadPrograms(env, road.provider.origin, road.provider.shellPath),
     scrubbed,
-    leftBehind: [built.cwdFilePath, ...(built.pipelineStatusPath === undefined ? [] : [built.pipelineStatusPath])].map(native),
+    leftBehind: [...[built.cwdFilePath, ...(built.pipelineStatusPath === undefined ? [] : [built.pipelineStatusPath])].map(native), ...(built.frame === undefined ? [] : [built.frame.path])],
   }
 }
 
@@ -334,7 +335,11 @@ export async function exec(
   let outputFd: number | undefined
   let shellCommand: ShellCommand
   if (road.recordsBash) markFrameUnread(built.cwdFilePath)
+  const dropFrame = (): void => {
+    if (built.frame !== undefined) void getFsImplementation().unlink(built.frame.path).catch(() => {})
+  }
   try {
+    if (built.frame !== undefined) writeFileSync(built.frame.path, built.frame.text)
     let stdio: ('pipe' | 'ignore' | number)[]
     if (pipeMode) {
       stdio = ['pipe', 'pipe', 'pipe']
@@ -388,6 +393,7 @@ export async function exec(
       }
     }
     taskOutput.clear()
+    dropFrame()
     if (road.recordsBash) void Promise.allSettled([getFsImplementation().unlink(built.cwdFilePath)])
     logForDebugging(`spawn failed for shell command: ${errorMessage(spawnError)}`)
     const code = (spawnError as NodeJS.ErrnoException).code
@@ -433,6 +439,7 @@ export async function exec(
       } catch {}
       void getFsImplementation().unlink(file).catch(() => {})
     }
+    dropFrame()
     void getFsImplementation()
       .unlink(cwdFilePath)
       .catch(() => {

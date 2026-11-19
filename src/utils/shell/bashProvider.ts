@@ -30,6 +30,8 @@ function shellPrefix(): string {
 
 const MSYS_ARGV_HALVED_BACKSLASH_RUN_RE = /\\{2,}(?=[^\\"])/g
 
+const MSYS_ARGUMENT_KEEPS = 8186
+
 function protectBackslashRunsFromMsysArgv(script: string): string {
   return script.replace(MSYS_ARGV_HALVED_BACKSLASH_RUN_RE, run => run + run)
 }
@@ -102,6 +104,10 @@ export async function createBashShellProvider(
       if (prefix) commandString = formatShellPrefixCommand(prefix, isWindows ? commandString : shellStartLine(shellPath, commandString))
       if (!isWindows) commandString = `${markFrameRead(cwdFileInShell)}; ${commandString}`
 
+      if (isWindows && Buffer.byteLength(protectBackslashRunsFromMsysArgv(commandString)) > MSYS_ARGUMENT_KEEPS) {
+        const frame = { path: join(nativeTmp, `${name}-frame`), text: commandString }
+        return { commandString: `source ${quote([`${cwdFileInShell}-frame`])}`, cwdFilePath: cwdFileForEngine, frame, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
+      }
       return { commandString, cwdFilePath: cwdFileForEngine, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
     },
 
