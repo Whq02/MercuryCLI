@@ -248,7 +248,11 @@ export function setRunPreflightSignalWriter(writer: (code: number) => void): voi
 function writePreflightSignal(code: number): void {
   const writer = preflightSignalWriter
   preflightSignalWriter = undefined
-  try { writer?.(code) } catch {}
+  try {
+    writer?.(code)
+  } catch (err) {
+    if (!isPeerGoneWriteError(err)) logForDebugging(`gracefulShutdown: the run's interrupt outcome could not be written, its consumer has only the exit code: ${String(err)}`)
+  }
 }
 
 export function markRunModeSignalsOwned(): void {
@@ -471,7 +475,8 @@ export async function gracefulShutdown(
         cleanupTimeout = setTimeout(() => reject(new Error('cleanup timed out')), CLEANUP_TIMEOUT_MS)
       }),
     ])
-  } catch {
+  } catch (err) {
+    logForDebugging(`gracefulShutdown: a cleanup failed or passed its ${CLEANUP_TIMEOUT_MS}ms limit (ignored): ${String(err)}`)
   } finally {
     if (cleanupTimeout) clearTimeout(cleanupTimeout)
   }
@@ -563,7 +568,8 @@ export async function crashShutdown(exitCode: number): Promise<void> {
         cleanupTimeout = setTimeout(() => reject(new Error('crash cleanup timed out')), CRASH_CLEANUP_CAP_MS)
       }),
     ])
-  } catch {
+  } catch (err) {
+    logForDebugging(`crashShutdown: a cleanup failed or passed its ${CRASH_CLEANUP_CAP_MS}ms limit (ignored): ${String(err)}`)
   } finally {
     if (cleanupTimeout) clearTimeout(cleanupTimeout)
   }
