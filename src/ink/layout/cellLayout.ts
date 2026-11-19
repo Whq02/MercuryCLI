@@ -295,7 +295,8 @@ class CellLayoutNode implements LayoutNode {
     _measured = 0
     _cacheHits = 0
     _generation++
-    const size = this.layoutInternal(
+    const size = layoutInternal(
+      this,
       width,
       width === undefined ? 'undefined' : 'exactly',
       undefined,
@@ -313,598 +314,645 @@ class CellLayoutNode implements LayoutNode {
     }
     roundPass(this, 0, 0)
   }
+}
 
-  private layoutInternal(
-    availableWidth: number | undefined,
-    widthMode: LayoutMeasureMode,
-    availableHeight: number | undefined,
-    heightMode: LayoutMeasureMode,
-    ownerWidth: number | undefined,
-    ownerHeight: number | undefined,
-    performLayout: boolean,
-    forceWidth = false,
-    forceHeight = false,
-  ): { width: number; height: number } {
-    _visited++
+function layoutInternal(
+  self: CellLayoutNode,
+  availableWidth: number | undefined,
+  widthMode: LayoutMeasureMode,
+  availableHeight: number | undefined,
+  heightMode: LayoutMeasureMode,
+  ownerWidth: number | undefined,
+  ownerHeight: number | undefined,
+  performLayout: boolean,
+  forceWidth = false,
+  forceHeight = false,
+): { width: number; height: number } {
+  _visited++
 
-    if (this.display === LayoutDisplay.None) {
-      zeroSubtree(this)
-      return { width: 0, height: 0 }
-    }
+  if (self.display === LayoutDisplay.None) {
+    zeroSubtree(self)
+    return { width: 0, height: 0 }
+  }
 
-    if (!forceWidth) {
-      const styleW = resolve(this.styleWidth, ownerWidth)
-      if (styleW !== undefined) {
-        availableWidth = styleW
-        widthMode = 'exactly'
-      }
+  if (!forceWidth) {
+    const styleW = resolve(self.styleWidth, ownerWidth)
+    if (styleW !== undefined) {
+      availableWidth = styleW
+      widthMode = 'exactly'
     }
-    if (!forceHeight) {
-      const styleH = resolve(this.styleHeight, ownerHeight)
-      if (styleH !== undefined) {
-        availableHeight = styleH
-        heightMode = 'exactly'
-      }
+  }
+  if (!forceHeight) {
+    const styleH = resolve(self.styleHeight, ownerHeight)
+    if (styleH !== undefined) {
+      availableHeight = styleH
+      heightMode = 'exactly'
     }
-    if (availableWidth !== undefined) {
-      availableWidth = clampW(this, availableWidth, ownerWidth)
-    }
-    if (availableHeight !== undefined) {
-      availableHeight = clampH(this, availableHeight, ownerHeight)
-    }
+  }
+  if (availableWidth !== undefined) {
+    availableWidth = clampW(self, availableWidth, ownerWidth)
+  }
+  if (availableHeight !== undefined) {
+    availableHeight = clampH(self, availableHeight, ownerHeight)
+  }
 
-    {
-      const reusable = (e: SizingEntry | null): e is SizingEntry =>
-        e !== null &&
-        e.ownerWidth === ownerWidth &&
-        e.ownerHeight === ownerHeight &&
-        e.forceW === forceWidth &&
-        e.forceH === forceHeight &&
-        axisReusable(widthMode, availableWidth, e.wMode, e.availW, e.resultW) &&
-        axisReusable(heightMode, availableHeight, e.hMode, e.availH, e.resultH)
-      const hit = (e: SizingEntry): { width: number; height: number } => {
-        _cacheHits++
-        this.final = { ...this.final, width: e.resultW, height: e.resultH }
-        if (performLayout) traceContamination(this, e.resultW, e.resultH)
-        return { width: e.resultW, height: e.resultH }
-      }
-      if (
-        reusable(this.layoutEntry) &&
-        (!performLayout || this.measRecGen !== _generation)
-      ) {
-        return hit(this.layoutEntry)
-      }
-      if (!performLayout) {
-        for (const e of this.measureEntries) {
-          if (reusable(e)) return hit(e)
-        }
+  {
+    const reusable = (e: SizingEntry | null): e is SizingEntry =>
+      e !== null &&
+      e.ownerWidth === ownerWidth &&
+      e.ownerHeight === ownerHeight &&
+      e.forceW === forceWidth &&
+      e.forceH === forceHeight &&
+      axisReusable(widthMode, availableWidth, e.wMode, e.availW, e.resultW) &&
+      axisReusable(heightMode, availableHeight, e.hMode, e.availH, e.resultH)
+    const hit = (e: SizingEntry): { width: number; height: number } => {
+      _cacheHits++
+      self.final = { ...self.final, width: e.resultW, height: e.resultH }
+      if (performLayout) traceContamination(self, e.resultW, e.resultH)
+      return { width: e.resultW, height: e.resultH }
+    }
+    if (
+      reusable(self.layoutEntry) &&
+      (!performLayout || self.measRecGen !== _generation)
+    ) {
+      return hit(self.layoutEntry)
+    }
+    if (!performLayout) {
+      for (const e of self.measureEntries) {
+        if (reusable(e)) return hit(e)
       }
     }
+  }
 
-    let out: { width: number; height: number }
-    if (this.measureFunc && this.children.length === 0) {
-      const pbH = padBorderH(this)
-      const pbV = padBorderV(this)
-      const innerW =
-        widthMode === 'undefined' || availableWidth === undefined
-          ? undefined
-          : Math.max(0, availableWidth - pbH)
-      const measured = this.measure(innerW, widthMode)
-      out = {
-        width:
-          widthMode === 'exactly'
-            ? availableWidth!
-            : clampW(this, measured.width + pbH, ownerWidth),
-        height:
-          heightMode === 'exactly'
-            ? availableHeight!
-            : clampH(this, measured.height + pbV, ownerHeight),
-      }
-    } else if (this.children.length === 0) {
-      out = {
-        width:
-          widthMode === 'exactly'
-            ? availableWidth!
-            : clampW(this, padBorderH(this), ownerWidth),
-        height:
-          heightMode === 'exactly'
-            ? availableHeight!
-            : clampH(this, padBorderV(this), ownerHeight),
-      }
-    } else {
-      out = this.layoutContainer(
-        availableWidth,
-        widthMode,
-        availableHeight,
-        heightMode,
-        ownerWidth,
-        ownerHeight,
-        performLayout,
-      )
+  let out: { width: number; height: number }
+  if (self.measureFunc && self.children.length === 0) {
+    const pbH = padBorderH(self)
+    const pbV = padBorderV(self)
+    const innerW =
+      widthMode === 'undefined' || availableWidth === undefined
+        ? undefined
+        : Math.max(0, availableWidth - pbH)
+    const measured = measure(self, innerW, widthMode)
+    out = {
+      width:
+        widthMode === 'exactly'
+          ? availableWidth!
+          : clampW(self, measured.width + pbH, ownerWidth),
+      height:
+        heightMode === 'exactly'
+          ? availableHeight!
+          : clampH(self, measured.height + pbV, ownerHeight),
     }
-
-    this.final = { ...this.final, width: out.width, height: out.height }
-    if (this.children.length > 0) {
-      this.measRecGen = performLayout ? -1 : _generation
+  } else if (self.children.length === 0) {
+    out = {
+      width:
+        widthMode === 'exactly'
+          ? availableWidth!
+          : clampW(self, padBorderH(self), ownerWidth),
+      height:
+        heightMode === 'exactly'
+          ? availableHeight!
+          : clampH(self, padBorderV(self), ownerHeight),
     }
-    storeSizing(
-      this,
+  } else {
+    out = layoutContainer(
+      self,
       availableWidth,
       widthMode,
       availableHeight,
       heightMode,
       ownerWidth,
       ownerHeight,
-      forceWidth,
-      forceHeight,
-      out,
       performLayout,
     )
-    return out
   }
 
-  private measure(
-    width: number | undefined,
-    mode: LayoutMeasureMode,
-  ): { width: number; height: number } {
-    const key = `${width}|${mode}`
-    const hit = this.measureCache.get(key)
-    if (hit) {
-      _cacheHits++
-      return hit
-    }
-    _measured++
-    const raw = this.measureFunc!(width ?? Number.NaN, mode)
-    const result = { width: raw.width, height: raw.height }
-    this.measureCache.set(key, result)
-    return result
+  self.final = { ...self.final, width: out.width, height: out.height }
+  if (self.children.length > 0) {
+    self.measRecGen = performLayout ? -1 : _generation
   }
+  storeSizing(
+    self,
+    availableWidth,
+    widthMode,
+    availableHeight,
+    heightMode,
+    ownerWidth,
+    ownerHeight,
+    forceWidth,
+    forceHeight,
+    out,
+    performLayout,
+  )
+  return out
+}
 
-  private layoutContainer(
-    availW: number | undefined,
-    wMode: LayoutMeasureMode,
-    availH: number | undefined,
-    hMode: LayoutMeasureMode,
-    callerOwnerW: number | undefined,
-    callerOwnerH: number | undefined,
-    performLayout: boolean,
-  ): { width: number; height: number } {
-    const axis = mainAxis(this)
-    const row = axis === 'row'
-    const pbH = padBorderH(this)
-    const pbV = padBorderV(this)
-    const mainSize = row ? availW : availH
-    const crossSize = row ? availH : availW
-    const mainMode = row ? wMode : hMode
-    const crossMode = row ? hMode : wMode
-    const mainPB = row ? pbH : pbV
-    const crossPB = row ? pbV : pbH
-    const innerMain = mainSize !== undefined ? Math.max(0, mainSize - mainPB) : undefined
-    const innerCross = crossSize !== undefined ? Math.max(0, crossSize - crossPB) : undefined
+function measure(
+  self: CellLayoutNode,
+  width: number | undefined,
+  mode: LayoutMeasureMode,
+): { width: number; height: number } {
+  const key = `${width}|${mode}`
+  const hit = self.measureCache.get(key)
+  if (hit) {
+    _cacheHits++
+    return hit
+  }
+  _measured++
+  const raw = self.measureFunc!(width ?? Number.NaN, mode)
+  const result = { width: raw.width, height: raw.height }
+  self.measureCache.set(key, result)
+  return result
+}
 
-    const ownerW = availW
-    const ownerH = availH
+type Item = {
+  node: CellLayoutNode
+  basis: number
+  mainMargin: number
+  crossMargin: number
+  targetMain: number
+  crossSize: number
+}
 
-    const mainGap = mainGapOf(this, axis)
-    const crossGap = crossGapOf(this, axis)
-    const isWrapStyle = this.flexWrap !== 'nowrap'
+function layoutContainer(
+  self: CellLayoutNode,
+  availW: number | undefined,
+  wMode: LayoutMeasureMode,
+  availH: number | undefined,
+  hMode: LayoutMeasureMode,
+  callerOwnerW: number | undefined,
+  callerOwnerH: number | undefined,
+  performLayout: boolean,
+): { width: number; height: number } {
+  const axis = mainAxis(self)
+  const row = axis === 'row'
+  const pbH = padBorderH(self)
+  const pbV = padBorderV(self)
+  const mainSize = row ? availW : availH
+  const crossSize = row ? availH : availW
+  const mainMode = row ? wMode : hMode
+  const crossMode = row ? hMode : wMode
+  const mainPB = row ? pbH : pbV
+  const crossPB = row ? pbV : pbH
+  const innerMain = mainSize !== undefined ? Math.max(0, mainSize - mainPB) : undefined
+  const innerCross = crossSize !== undefined ? Math.max(0, crossSize - crossPB) : undefined
 
-    for (const c of this.children) {
-      if (c.display === LayoutDisplay.None) zeroSubtree(c)
-    }
-    const flow = this.children.filter(
-      c => c.positionType !== 'absolute' && c.display !== LayoutDisplay.None,
-    )
-    const absolutes = this.children.filter(
-      c => c.positionType === 'absolute' && c.display !== LayoutDisplay.None,
-    )
+  const ownerW = availW
+  const ownerH = availH
 
-    const clampMain = (c: CellLayoutNode, v: number) =>
-      row ? clampW(c, v, ownerW) : clampH(c, v, ownerH)
-    const mainMarginOf = (c: CellLayoutNode) => (row ? marginH(c) : marginV(c))
-    const crossMarginOf = (c: CellLayoutNode) => (row ? marginV(c) : marginH(c))
+  const mainGap = mainGapOf(self, axis)
+  const crossGap = crossGapOf(self, axis)
+  const isWrapStyle = self.flexWrap !== 'nowrap'
 
-    type Item = {
-      node: CellLayoutNode
-      basis: number
-      mainMargin: number
-      crossMargin: number
-      targetMain: number
-      crossSize: number
-    }
+  for (const c of self.children) {
+    if (c.display === LayoutDisplay.None) zeroSubtree(c)
+  }
+  const flow = self.children.filter(
+    c => c.positionType !== 'absolute' && c.display !== LayoutDisplay.None,
+  )
+  const absolutes = self.children.filter(
+    c => c.positionType === 'absolute' && c.display !== LayoutDisplay.None,
+  )
 
-    const crossIsExact = crossMode === 'exactly'
-    const items: Item[] = flow.map(child => {
-      const mk = (basis: number): Item => ({
-        node: child,
-        basis,
-        mainMargin: mainMarginOf(child),
-        crossMargin: crossMarginOf(child),
-        targetMain: basis,
-        crossSize: 0,
-      })
-      if (
-        child.fbGen === _generation &&
-        child.fbAvailMain === innerMain &&
-        child.fbAvailCross === innerCross &&
-        child.fbCrossExact === crossIsExact
-      ) {
-        return mk(child.fbBasis)
-      }
-      let basis = resolve(child.flexBasis, innerMain)
-      if (basis !== undefined) {
-        basis = Math.max(0, basis)
-      } else {
-        basis = row
-          ? resolve(child.styleWidth, ownerW)
-          : resolve(child.styleHeight, ownerH)
-        if (basis !== undefined) basis = Math.max(0, basis)
-      }
-      if (basis === undefined) {
-        const mainConstrained =
-          row && innerMain !== undefined && hasMeasureFuncInSubtree(child)
-        const mainAvail = mainConstrained ? innerMain : undefined
-        const mainModeB: LayoutMeasureMode = mainConstrained ? 'at-most' : 'undefined'
-        let crossAvail: number | undefined
-        let crossModeB: LayoutMeasureMode
-        const crossStyle = row
-          ? resolve(child.styleHeight, ownerH)
-          : resolve(child.styleWidth, ownerW)
-        if (crossStyle !== undefined) {
-          crossAvail = Math.max(0, crossStyle)
-          crossModeB = 'exactly'
-        } else if (innerCross !== undefined) {
-          crossAvail = Math.max(0, innerCross - crossMarginOf(child))
-          crossModeB =
-            crossIsExact && resolvedAlign(child, this) === 'stretch'
-              ? 'exactly'
-              : 'at-most'
-        } else {
-          crossAvail = undefined
-          crossModeB = 'undefined'
-        }
-        const size = child.layoutInternal(
-          row ? mainAvail : crossAvail,
-          row ? mainModeB : crossModeB,
-          row ? crossAvail : mainAvail,
-          row ? crossModeB : mainModeB,
-          ownerW,
-          ownerH,
-          false,
-        )
-        basis = row ? size.width : size.height
-      }
-      child.fbGen = _generation
-      child.fbBasis = basis
-      child.fbAvailMain = innerMain
-      child.fbAvailCross = innerCross
-      child.fbCrossExact = crossIsExact
-      return mk(basis)
+  const clampMain = (c: CellLayoutNode, v: number) =>
+    row ? clampW(c, v, ownerW) : clampH(c, v, ownerH)
+  const mainMarginOf = (c: CellLayoutNode) => (row ? marginH(c) : marginV(c))
+  const crossMarginOf = (c: CellLayoutNode) => (row ? marginV(c) : marginH(c))
+
+  const crossIsExact = crossMode === 'exactly'
+  const items: Item[] = flow.map(child => {
+    const mk = (basis: number): Item => ({
+      node: child,
+      basis,
+      mainMargin: mainMarginOf(child),
+      crossMargin: crossMarginOf(child),
+      targetMain: basis,
+      crossSize: 0,
     })
-
-    const lines: Item[][] = []
-    if (!isWrapStyle || innerMain === undefined) {
-      if (items.length > 0) lines.push(items)
-    } else {
-      let line: Item[] = []
-      let lineLen = 0
-      for (const item of items) {
-        const hypo = Math.max(0, clampMain(item.node, item.basis))
-        const outer = hypo + item.mainMargin
-        const withGap = line.length > 0 ? outer + mainGap : outer
-        if (line.length > 0 && lineLen + withGap > innerMain + 1e-9) {
-          lines.push(line)
-          line = [item]
-          lineLen = outer
-        } else {
-          line.push(item)
-          lineLen += withGap
-        }
-      }
-      if (line.length > 0) lines.push(line)
+    if (
+      child.fbGen === _generation &&
+      child.fbAvailMain === innerMain &&
+      child.fbAvailCross === innerCross &&
+      child.fbCrossExact === crossIsExact
+    ) {
+      return mk(child.fbBasis)
     }
-
-    const lineCrossSizes: number[] = []
-    const lineConsumedMain: number[] = []
-    let maxLineMain = 0
-    for (const line of lines) {
-      const gaps = mainGap * Math.max(0, line.length - 1)
-      const lineBasis =
-        line.reduce((s, i) => s + i.basis + i.mainMargin, 0) + gaps
-
-      let flexAvail = innerMain
-      if (flexAvail === undefined) {
-        const mainOwner = row ? callerOwnerW : callerOwnerH
-        const maxM = resolve(row ? this.styleMaxWidth : this.styleMaxHeight, mainOwner)
-        const minM = resolve(row ? this.styleMinWidth : this.styleMinHeight, mainOwner)
-        if (maxM !== undefined && lineBasis > maxM - mainPB) {
-          flexAvail = Math.max(0, maxM - mainPB)
-        } else if (minM !== undefined && lineBasis < minM - mainPB) {
-          flexAvail = Math.max(0, minM - mainPB)
-        }
+    let basis = resolve(child.flexBasis, innerMain)
+    if (basis !== undefined) {
+      basis = Math.max(0, basis)
+    } else {
+      basis = row
+        ? resolve(child.styleWidth, ownerW)
+        : resolve(child.styleHeight, ownerH)
+      if (basis !== undefined) basis = Math.max(0, basis)
+    }
+    if (basis === undefined) {
+      const mainConstrained =
+        row && innerMain !== undefined && hasMeasureFuncInSubtree(child)
+      const mainAvail = mainConstrained ? innerMain : undefined
+      const mainModeB: LayoutMeasureMode = mainConstrained ? 'at-most' : 'undefined'
+      let crossAvail: number | undefined
+      let crossModeB: LayoutMeasureMode
+      const crossStyle = row
+        ? resolve(child.styleHeight, ownerH)
+        : resolve(child.styleWidth, ownerW)
+      if (crossStyle !== undefined) {
+        crossAvail = Math.max(0, crossStyle)
+        crossModeB = 'exactly'
+      } else if (innerCross !== undefined) {
+        crossAvail = Math.max(0, innerCross - crossMarginOf(child))
+        crossModeB =
+          crossIsExact && resolvedAlign(child, self) === 'stretch'
+            ? 'exactly'
+            : 'at-most'
+      } else {
+        crossAvail = undefined
+        crossModeB = 'undefined'
       }
-      resolveFlexibleLengths(line, flexAvail, lineBasis, clampMain)
+      const size = layoutInternal(
+        child,
+        row ? mainAvail : crossAvail,
+        row ? mainModeB : crossModeB,
+        row ? crossAvail : mainAvail,
+        row ? crossModeB : mainModeB,
+        ownerW,
+        ownerH,
+        false,
+      )
+      basis = row ? size.width : size.height
+    }
+    child.fbGen = _generation
+    child.fbBasis = basis
+    child.fbAvailMain = innerMain
+    child.fbAvailCross = innerCross
+    child.fbCrossExact = crossIsExact
+    return mk(basis)
+  })
 
-      let lineCross = 0
-      let consumed = gaps
+  const lines: Item[][] = []
+  if (!isWrapStyle || innerMain === undefined) {
+    if (items.length > 0) lines.push(items)
+  } else {
+    let line: Item[] = []
+    let lineLen = 0
+    for (const item of items) {
+      const hypo = Math.max(0, clampMain(item.node, item.basis))
+      const outer = hypo + item.mainMargin
+      const withGap = line.length > 0 ? outer + mainGap : outer
+      if (line.length > 0 && lineLen + withGap > innerMain + 1e-9) {
+        lines.push(line)
+        line = [item]
+        lineLen = outer
+      } else {
+        line.push(item)
+        lineLen += withGap
+      }
+    }
+    if (line.length > 0) lines.push(line)
+  }
+
+  const lineCrossSizes: number[] = []
+  const lineConsumedMain: number[] = []
+  let maxLineMain = 0
+  for (const line of lines) {
+    const gaps = mainGap * Math.max(0, line.length - 1)
+    const lineBasis =
+      line.reduce((s, i) => s + i.basis + i.mainMargin, 0) + gaps
+
+    let flexAvail = innerMain
+    if (flexAvail === undefined) {
+      const mainOwner = row ? callerOwnerW : callerOwnerH
+      const maxM = resolve(row ? self.styleMaxWidth : self.styleMaxHeight, mainOwner)
+      const minM = resolve(row ? self.styleMinWidth : self.styleMinHeight, mainOwner)
+      if (maxM !== undefined && lineBasis > maxM - mainPB) {
+        flexAvail = Math.max(0, maxM - mainPB)
+      } else if (minM !== undefined && lineBasis < minM - mainPB) {
+        flexAvail = Math.max(0, minM - mainPB)
+      }
+    }
+    resolveFlexibleLengths(line, flexAvail, lineBasis, clampMain)
+
+    let lineCross = 0
+    let consumed = gaps
+    for (const item of line) {
+      const child = item.node
+      const align = resolvedAlign(child, self)
+      const crossStyleResolved = row
+        ? resolve(child.styleHeight, ownerH)
+        : resolve(child.styleWidth, ownerW)
+      let childCross: number | undefined
+      let childCrossMode: LayoutMeasureMode = 'undefined'
+      if (crossStyleResolved !== undefined) {
+        childCross = crossStyleResolved
+        childCrossMode = 'exactly'
+      } else if (
+        align === 'stretch' &&
+        !isWrapStyle &&
+        innerCross !== undefined &&
+        crossMode === 'exactly'
+      ) {
+        childCross = Math.max(0, innerCross - item.crossMargin)
+        childCrossMode = 'exactly'
+      } else if (!isWrapStyle && innerCross !== undefined) {
+        childCross = Math.max(0, innerCross - item.crossMargin)
+        childCrossMode = 'at-most'
+      }
+      const size = layoutInternal(
+        child,
+        row ? item.targetMain : childCross,
+        row ? 'exactly' : childCrossMode,
+        row ? childCross : item.targetMain,
+        row ? childCrossMode : 'exactly',
+        ownerW,
+        ownerH,
+        performLayout,
+        row,
+        !row,
+      )
+      item.crossSize = row ? size.height : size.width
+      lineCross = Math.max(lineCross, item.crossSize + item.crossMargin)
+      consumed += item.targetMain + item.mainMargin
+    }
+    lineCrossSizes.push(lineCross)
+    lineConsumedMain.push(consumed)
+    maxLineMain = Math.max(maxLineMain, consumed)
+  }
+  const totalLinesCross =
+    lineCrossSizes.reduce((s, c) => s + c, 0) +
+    crossGap * Math.max(0, lines.length - 1)
+
+  const isScroll = self.overflow === 'scroll'
+  const contentMain = maxLineMain + mainPB
+  const finalMain =
+    mainMode === 'exactly'
+      ? mainSize!
+      : mainMode === 'at-most' && isScroll
+        ? Math.max(Math.min(mainSize!, contentMain), mainPB)
+        : isWrapStyle && lines.length > 1 && mainMode === 'at-most'
+          ? mainSize!
+          : contentMain
+  const contentCross = totalLinesCross + crossPB
+  const finalCross =
+    crossMode === 'exactly'
+      ? crossSize!
+      : crossMode === 'at-most' && isScroll
+        ? Math.max(Math.min(crossSize!, contentCross), crossPB)
+        : contentCross
+  const outW = clampW(self, row ? finalMain : finalCross, callerOwnerW)
+  const outH = clampH(self, row ? finalCross : finalMain, callerOwnerH)
+
+  if (!performLayout) return { width: outW, height: outH }
+
+  placeChildren(
+    self,
+    row,
+    outW,
+    outH,
+    mainPB,
+    crossPB,
+    lines,
+    isWrapStyle,
+    lineCrossSizes,
+    crossMode,
+    ownerW,
+    ownerH,
+    performLayout,
+    lineConsumedMain,
+    mainGap,
+    crossGap,
+    absolutes,
+  )
+
+  return { width: outW, height: outH }
+}
+
+function placeChildren(
+  self: CellLayoutNode,
+  row: boolean,
+  outW: number,
+  outH: number,
+  mainPB: number,
+  crossPB: number,
+  lines: Item[][],
+  isWrapStyle: boolean,
+  lineCrossSizes: number[],
+  crossMode: LayoutMeasureMode,
+  ownerW: number | undefined,
+  ownerH: number | undefined,
+  performLayout: boolean,
+  lineConsumedMain: number[],
+  mainGap: number,
+  crossGap: number,
+  absolutes: CellLayoutNode[],
+): void {
+  const actualInnerMain = (row ? outW : outH) - mainPB
+  const actualInnerCross = (row ? outH : outW) - crossPB
+  const mainLeadPB = row
+    ? edgeValue(self.padding, 'left') + edgeValue(self.border, 'left')
+    : edgeValue(self.padding, 'top') + edgeValue(self.border, 'top')
+  const crossLeadPB = row
+    ? edgeValue(self.padding, 'top') + edgeValue(self.border, 'top')
+    : edgeValue(self.padding, 'left') + edgeValue(self.border, 'left')
+  const reversed = isReverse(self)
+  const mainContainerSize = row ? outW : outH
+  const crossContainerSize = row ? outH : outW
+  const wrapReverse = self.flexWrap === 'wrap-reverse'
+
+  if (lines.length === 1 && !isWrapStyle) {
+    lineCrossSizes[0] = actualInnerCross
+  }
+
+  if (isWrapStyle || crossMode !== 'exactly') {
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li]!
+      const lineCross = lineCrossSizes[li]!
       for (const item of line) {
         const child = item.node
-        const align = resolvedAlign(child, this)
+        const align = resolvedAlign(child, self)
         const crossStyleResolved = row
           ? resolve(child.styleHeight, ownerH)
           : resolve(child.styleWidth, ownerW)
-        let childCross: number | undefined
-        let childCrossMode: LayoutMeasureMode = 'undefined'
-        if (crossStyleResolved !== undefined) {
-          childCross = crossStyleResolved
-          childCrossMode = 'exactly'
-        } else if (
-          align === 'stretch' &&
-          !isWrapStyle &&
-          innerCross !== undefined &&
-          crossMode === 'exactly'
-        ) {
-          childCross = Math.max(0, innerCross - item.crossMargin)
-          childCrossMode = 'exactly'
-        } else if (!isWrapStyle && innerCross !== undefined) {
-          childCross = Math.max(0, innerCross - item.crossMargin)
-          childCrossMode = 'at-most'
-        }
-        const size = child.layoutInternal(
-          row ? item.targetMain : childCross,
-          row ? 'exactly' : childCrossMode,
-          row ? childCross : item.targetMain,
-          row ? childCrossMode : 'exactly',
+        if (align !== 'stretch' || crossStyleResolved !== undefined) continue
+        const target = Math.max(0, lineCross - item.crossMargin)
+        if (item.crossSize === target) continue
+        layoutInternal(
+          child,
+          row ? item.targetMain : target,
+          'exactly',
+          row ? target : item.targetMain,
+          'exactly',
           ownerW,
           ownerH,
           performLayout,
           row,
           !row,
         )
-        item.crossSize = row ? size.height : size.width
-        lineCross = Math.max(lineCross, item.crossSize + item.crossMargin)
-        consumed += item.targetMain + item.mainMargin
+        item.crossSize = target
       }
-      lineCrossSizes.push(lineCross)
-      lineConsumedMain.push(consumed)
-      maxLineMain = Math.max(maxLineMain, consumed)
     }
-    const totalLinesCross =
-      lineCrossSizes.reduce((s, c) => s + c, 0) +
-      crossGap * Math.max(0, lines.length - 1)
+  }
 
-    const isScroll = this.overflow === 'scroll'
-    const contentMain = maxLineMain + mainPB
-    const finalMain =
-      mainMode === 'exactly'
-        ? mainSize!
-        : mainMode === 'at-most' && isScroll
-          ? Math.max(Math.min(mainSize!, contentMain), mainPB)
-          : isWrapStyle && lines.length > 1 && mainMode === 'at-most'
-            ? mainSize!
-            : contentMain
-    const contentCross = totalLinesCross + crossPB
-    const finalCross =
-      crossMode === 'exactly'
-        ? crossSize!
-        : crossMode === 'at-most' && isScroll
-          ? Math.max(Math.min(crossSize!, contentCross), crossPB)
-          : contentCross
-    const outW = clampW(this, row ? finalMain : finalCross, callerOwnerW)
-    const outH = clampH(this, row ? finalCross : finalMain, callerOwnerH)
-
-    if (!performLayout) return { width: outW, height: outH }
-
-
-    const actualInnerMain = (row ? outW : outH) - mainPB
-    const actualInnerCross = (row ? outH : outW) - crossPB
-    const mainLeadPB = row
-      ? edgeValue(this.padding, 'left') + edgeValue(this.border, 'left')
-      : edgeValue(this.padding, 'top') + edgeValue(this.border, 'top')
-    const crossLeadPB = row
-      ? edgeValue(this.padding, 'top') + edgeValue(this.border, 'top')
-      : edgeValue(this.padding, 'left') + edgeValue(this.border, 'left')
-    const reversed = isReverse(this)
-    const mainContainerSize = row ? outW : outH
-    const crossContainerSize = row ? outH : outW
-    const wrapReverse = this.flexWrap === 'wrap-reverse'
-
-    if (lines.length === 1 && !isWrapStyle) {
-      lineCrossSizes[0] = actualInnerCross
-    }
-
-    if (isWrapStyle || crossMode !== 'exactly') {
-      for (let li = 0; li < lines.length; li++) {
-        const line = lines[li]!
-        const lineCross = lineCrossSizes[li]!
-        for (const item of line) {
-          const child = item.node
-          const align = resolvedAlign(child, this)
-          const crossStyleResolved = row
-            ? resolve(child.styleHeight, ownerH)
-            : resolve(child.styleWidth, ownerW)
-          if (align !== 'stretch' || crossStyleResolved !== undefined) continue
-          const target = Math.max(0, lineCross - item.crossMargin)
-          if (item.crossSize === target) continue
-          child.layoutInternal(
-            row ? item.targetMain : target,
-            'exactly',
-            row ? target : item.targetMain,
-            'exactly',
-            ownerW,
-            ownerH,
-            performLayout,
-            row,
-            !row,
-          )
-          item.crossSize = target
+  let lineCrossPos = crossLeadPB
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li]!
+    const lineCross = lineCrossSizes[li]!
+    const consumedMain = lineConsumedMain[li]!
+    const freeMain = actualInnerMain - consumedMain
+    const remainingMain = Math.max(0, freeMain)
+    let mainOffset = mainLeadPB
+    let betweenMain = mainGap
+    switch (self.justifyContent) {
+      case 'flex-start':
+        break
+      case 'center':
+        mainOffset += freeMain / 2
+        break
+      case 'flex-end':
+        mainOffset += freeMain
+        break
+      case 'space-between':
+        if (line.length > 1) betweenMain += remainingMain / (line.length - 1)
+        break
+      case 'space-around':
+        if (line.length > 0) {
+          betweenMain += remainingMain / line.length
+          mainOffset += remainingMain / line.length / 2
         }
-      }
+        break
+      case 'space-evenly':
+        if (line.length > 0) {
+          betweenMain += remainingMain / (line.length + 1)
+          mainOffset += remainingMain / (line.length + 1)
+        }
+        break
     }
 
-    let lineCrossPos = crossLeadPB
-    for (let li = 0; li < lines.length; li++) {
-      const line = lines[li]!
-      const lineCross = lineCrossSizes[li]!
-      const consumedMain = lineConsumedMain[li]!
-      const freeMain = actualInnerMain - consumedMain
-      const remainingMain = Math.max(0, freeMain)
-      let mainOffset = mainLeadPB
-      let betweenMain = mainGap
-      switch (this.justifyContent) {
+    const effectiveLineCrossPos = wrapReverse
+      ? crossContainerSize - lineCrossPos - lineCross
+      : lineCrossPos
+
+    let pos = mainOffset
+    for (const item of line) {
+      const child = item.node
+      const mMainLead = row
+        ? edgeValue(child.margin, 'left')
+        : edgeValue(child.margin, 'top')
+      const mMainTrail = row
+        ? edgeValue(child.margin, 'right')
+        : edgeValue(child.margin, 'bottom')
+      const mCrossLead = row
+        ? edgeValue(child.margin, 'top')
+        : edgeValue(child.margin, 'left')
+
+      const mainPos = reversed
+        ? mainContainerSize - (pos + mMainLead) - item.targetMain
+        : pos + mMainLead
+
+      const align = resolvedAlign(child, self)
+      let crossPos = effectiveLineCrossPos + mCrossLead
+      const crossFree = lineCross - item.crossSize - item.crossMargin
+      switch (align) {
         case 'flex-start':
+        case 'stretch':
+          if (wrapReverse) crossPos += crossFree
           break
         case 'center':
-          mainOffset += freeMain / 2
+          crossPos += crossFree / 2
           break
         case 'flex-end':
-          mainOffset += freeMain
+          if (!wrapReverse) crossPos += crossFree
           break
-        case 'space-between':
-          if (line.length > 1) betweenMain += remainingMain / (line.length - 1)
-          break
-        case 'space-around':
-          if (line.length > 0) {
-            betweenMain += remainingMain / line.length
-            mainOffset += remainingMain / line.length / 2
-          }
-          break
-        case 'space-evenly':
-          if (line.length > 0) {
-            betweenMain += remainingMain / (line.length + 1)
-            mainOffset += remainingMain / (line.length + 1)
-          }
+        default:
           break
       }
 
-      const effectiveLineCrossPos = wrapReverse
-        ? crossContainerSize - lineCrossPos - lineCross
-        : lineCrossPos
-
-      let pos = mainOffset
-      for (const item of line) {
-        const child = item.node
-        const mMainLead = row
-          ? edgeValue(child.margin, 'left')
-          : edgeValue(child.margin, 'top')
-        const mMainTrail = row
-          ? edgeValue(child.margin, 'right')
-          : edgeValue(child.margin, 'bottom')
-        const mCrossLead = row
-          ? edgeValue(child.margin, 'top')
-          : edgeValue(child.margin, 'left')
-
-        const mainPos = reversed
-          ? mainContainerSize - (pos + mMainLead) - item.targetMain
-          : pos + mMainLead
-
-        const align = resolvedAlign(child, this)
-        let crossPos = effectiveLineCrossPos + mCrossLead
-        const crossFree = lineCross - item.crossSize - item.crossMargin
-        switch (align) {
-          case 'flex-start':
-          case 'stretch':
-            if (wrapReverse) crossPos += crossFree
-            break
-          case 'center':
-            crossPos += crossFree / 2
-            break
-          case 'flex-end':
-            if (!wrapReverse) crossPos += crossFree
-            break
-          default:
-            break
-        }
-
-        let relX = 0
-        let relY = 0
-        if (child.positionType === 'relative') {
-          const l = insetValue(child.position, 'left', outW)
-          const r = insetValue(child.position, 'right', outW)
-          const t = insetValue(child.position, 'top', outH)
-          const b = insetValue(child.position, 'bottom', outH)
-          relX = l !== undefined ? l : r !== undefined ? -r : 0
-          relY = t !== undefined ? t : b !== undefined ? -b : 0
-        }
-
-        if (row) {
-          child.final = { ...child.final, left: mainPos + relX, top: crossPos + relY }
-        } else {
-          child.final = { ...child.final, left: crossPos + relX, top: mainPos + relY }
-        }
-        pos += mMainLead + item.targetMain + mMainTrail + betweenMain
+      let relX = 0
+      let relY = 0
+      if (child.positionType === 'relative') {
+        const l = insetValue(child.position, 'left', outW)
+        const r = insetValue(child.position, 'right', outW)
+        const t = insetValue(child.position, 'top', outH)
+        const b = insetValue(child.position, 'bottom', outH)
+        relX = l !== undefined ? l : r !== undefined ? -r : 0
+        relY = t !== undefined ? t : b !== undefined ? -b : 0
       }
 
-      lineCrossPos += lineCross + crossGap
+      if (row) {
+        child.final = { ...child.final, left: mainPos + relX, top: crossPos + relY }
+      } else {
+        child.final = { ...child.final, left: crossPos + relX, top: mainPos + relY }
+      }
+      pos += mMainLead + item.targetMain + mMainTrail + betweenMain
     }
 
-    for (const abs of absolutes) {
-      this.layoutAbsoluteChild(abs, outW, outH)
-    }
-
-    return { width: outW, height: outH }
+    lineCrossPos += lineCross + crossGap
   }
 
-  private layoutAbsoluteChild(child: CellLayoutNode, outW: number, outH: number): void {
-    const bl = edgeValue(this.border, 'left')
-    const br = edgeValue(this.border, 'right')
-    const bt = edgeValue(this.border, 'top')
-    const bb = edgeValue(this.border, 'bottom')
-
-    const innerW = outW - bl - br
-    const innerH = outH - bt - bb
-    const left = insetValue(child.position, 'left', innerW)
-    const right = insetValue(child.position, 'right', innerW)
-    const top = insetValue(child.position, 'top', innerH)
-    const bottom = insetValue(child.position, 'bottom', innerH)
-
-    let w = resolve(child.styleWidth, innerW)
-    let h = resolve(child.styleHeight, innerH)
-    if (w === undefined && left !== undefined && right !== undefined) {
-      w = Math.max(0, outW - bl - br - left - right - marginH(child))
-    }
-    if (h === undefined && top !== undefined && bottom !== undefined) {
-      h = Math.max(0, outH - bt - bb - top - bottom - marginV(child))
-    }
-    if (w !== undefined) w = clampW(child, w, innerW)
-    if (h !== undefined) h = clampH(child, h, innerH)
-
-    const size = child.layoutInternal(
-      w,
-      w !== undefined ? 'exactly' : 'undefined',
-      h,
-      h !== undefined ? 'exactly' : 'undefined',
-      outW,
-      outH,
-      true,
-      w !== undefined,
-      h !== undefined,
-    )
-
-    let x: number
-    if (left !== undefined) {
-      x = bl + left + edgeValue(child.margin, 'left')
-    } else if (right !== undefined) {
-      x = outW - br - right - size.width - edgeValue(child.margin, 'right')
-    } else {
-      x =
-        edgeValue(this.padding, 'left') +
-        bl +
-        edgeValue(child.margin, 'left')
-    }
-    let y: number
-    if (top !== undefined) {
-      y = bt + top + edgeValue(child.margin, 'top')
-    } else if (bottom !== undefined) {
-      y = outH - bb - bottom - size.height - edgeValue(child.margin, 'bottom')
-    } else {
-      y =
-        edgeValue(this.padding, 'top') +
-        bt +
-        edgeValue(child.margin, 'top')
-    }
-    child.final = { left: x, top: y, width: size.width, height: size.height }
+  for (const abs of absolutes) {
+    layoutAbsoluteChild(self, abs, outW, outH)
   }
+}
+
+function layoutAbsoluteChild(self: CellLayoutNode, child: CellLayoutNode, outW: number, outH: number): void {
+  const bl = edgeValue(self.border, 'left')
+  const br = edgeValue(self.border, 'right')
+  const bt = edgeValue(self.border, 'top')
+  const bb = edgeValue(self.border, 'bottom')
+
+  const innerW = outW - bl - br
+  const innerH = outH - bt - bb
+  const left = insetValue(child.position, 'left', innerW)
+  const right = insetValue(child.position, 'right', innerW)
+  const top = insetValue(child.position, 'top', innerH)
+  const bottom = insetValue(child.position, 'bottom', innerH)
+
+  let w = resolve(child.styleWidth, innerW)
+  let h = resolve(child.styleHeight, innerH)
+  if (w === undefined && left !== undefined && right !== undefined) {
+    w = Math.max(0, outW - bl - br - left - right - marginH(child))
+  }
+  if (h === undefined && top !== undefined && bottom !== undefined) {
+    h = Math.max(0, outH - bt - bb - top - bottom - marginV(child))
+  }
+  if (w !== undefined) w = clampW(child, w, innerW)
+  if (h !== undefined) h = clampH(child, h, innerH)
+
+  const size = layoutInternal(
+    child,
+    w,
+    w !== undefined ? 'exactly' : 'undefined',
+    h,
+    h !== undefined ? 'exactly' : 'undefined',
+    outW,
+    outH,
+    true,
+    w !== undefined,
+    h !== undefined,
+  )
+
+  let x: number
+  if (left !== undefined) {
+    x = bl + left + edgeValue(child.margin, 'left')
+  } else if (right !== undefined) {
+    x = outW - br - right - size.width - edgeValue(child.margin, 'right')
+  } else {
+    x =
+      edgeValue(self.padding, 'left') +
+      bl +
+      edgeValue(child.margin, 'left')
+  }
+  let y: number
+  if (top !== undefined) {
+    y = bt + top + edgeValue(child.margin, 'top')
+  } else if (bottom !== undefined) {
+    y = outH - bb - bottom - size.height - edgeValue(child.margin, 'bottom')
+  } else {
+    y =
+      edgeValue(self.padding, 'top') +
+      bt +
+      edgeValue(child.margin, 'top')
+  }
+  child.final = { left: x, top: y, width: size.width, height: size.height }
 }
 
 export function createCellLayoutNode(): LayoutNode {
