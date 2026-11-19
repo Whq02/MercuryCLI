@@ -17,11 +17,28 @@ import type { QuerySource } from 'src/constants/querySource.js'
 import type { Notification } from 'src/context/notifications.js'
 import type { AgentId } from 'src/types/ids.js'
 import type { NativeWebSearchRequest } from 'src/services/search/nativeSearchRequest.js'
+import 'src/constants/betas.js'
+import './thinkingBinding.js'
+import './thinkingDisplay.js'
+import 'src/cost-tracker.js'
+import 'src/utils/agentContext.js'
+import 'src/utils/betas.js'
+import 'src/utils/cache/cacheClock.js'
+import 'src/utils/context.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
 import type { EffortValue } from 'src/utils/effort.js'
+import 'src/utils/headlessProfiler.js'
+import 'src/utils/modelCost.js'
+import 'src/services/tokenEstimation.js'
+import 'src/utils/model/providers.js'
+import 'src/utils/runPhases.js'
 import { resetApiConnectionPool } from 'src/utils/proxy.js'
 import type { ThinkingConfig } from 'src/utils/thinking.js'
+import 'src/utils/thinking.js'
+import 'src/utils/model/capabilities.js'
+import '../../../constants/apiLimits.js'
+import '../../../constants/system.js'
 import {
   getEmptyToolPermissionContext,
   type ToolCallChain,
@@ -30,6 +47,9 @@ import {
 } from '../../../Tool.js'
 import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
+import '../deferralProbe.js'
+import '../deferralWire.js'
+import '../fetchDeadline.js'
 import { planToolPayload } from '../toolEconomy.js'
 import type { ConnectorTextBlock } from '../../../types/connectorText.js'
 import type {
@@ -44,29 +64,45 @@ import type {
   JsonOutputFormat,
   StreamCapabilityAdvertisement,
 } from '../../../types/wire.js'
+import '../lawfulPrefixChange.js'
+import './prefixLedger.js'
+import './cacheDiagnostics.js'
 import { toolToAPISchema } from '../../../utils/api.js'
+import '../../../utils/toolSearch.js'
+import '../../../utils/betas.js'
+import '../../../utils/context.js'
 import { resolveAppliedEffort, resolveEffortTruth } from '../../../utils/effort.js'
 import { effortStampOf } from '../../../utils/effortStamp.js'
+import '../../../utils/envValidation.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { errorMessage } from '../../../utils/errors.js'
+import '../../../utils/fingerprint.js'
 import { fitImagesToRequestCap, manyImageLimitStatedIn } from '../../../utils/imageResizer.js'
 import { captureAPIRequest } from '../../../utils/log.js'
 import {
   createAssistantAPIErrorMessage,
   createUserMessage,
 } from '../../../utils/messages.js'
+import '../../../utils/messages/apiFilters.js'
+import '../../../utils/messages/pairing.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
+import '../../../utils/model/model.js'
 import { utilityCallFor } from '../../../utils/model/utilityModel.js'
 import { startSessionActivity } from '../../../utils/sessionActivity.js'
+import '../../../utils/sessionStorage/writer.js'
 import {
   asSystemPrompt,
   type SystemPrompt,
 } from '../../../utils/systemPromptType.js'
+import '../../anthropicLimits.js'
 import {
   consumePendingCacheEdits,
   getPinnedCacheEdits,
 } from '../../compact/microCompact.js'
+import '../providerUsage.js'
 import { withStreamingVCR, withVCR } from '../../vcr.js'
+import '../../api/client.js'
+import '../../api/clientContractLearned.js'
 import { transportCutOf } from '../../api/transportEvidence.js'
 import { captureModelRefusalRequest, type ModelRefusalRequest } from './modelRefusal.js'
 import {
@@ -76,6 +112,7 @@ import {
 } from '../../api/errors.js'
 import { EMPTY_USAGE } from '../../api/logging.js'
 import type { ModelCallReference } from '../../../run-core/call-reference.js'
+import '../../api/promptCacheBreakDetection.js'
 import {
   FallbackTriggeredError,
   is529Error,
@@ -83,14 +120,19 @@ import {
 import type { HeldBusyRetryWait } from '../busyRetry.js'
 import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords } from '../emptyStreamRetry.js'
 import { retrySeconds } from '../../api/recoveryBudget.js'
+import '../../api/outputFit.js'
 import { toolCallRefusalNote } from '../toolCallGate.js'
 import { safeParseJSON } from '../../../utils/json.js'
 import type { RefusedToolCall } from '../../../types/message.js'
 import { sleep } from '../../../utils/sleep.js'
+import './cacheAndUsage.js'
+import '../../../utils/messages/imageRequestFit.js'
+import '../../desktop/screenshotRetention.js'
 import {
   retryNoticeWait,
   type RequestWaitV1,
 } from '../streamIdleBudget.js'
+import '../patience.js'
 import { anthropicEffortWireFact } from './requestParams.js'
 type BetaToolChoiceAuto = Extract<BetaMessageStreamParams['tool_choice'], { type: 'auto' }>
 type BetaToolChoiceTool = Extract<BetaMessageStreamParams['tool_choice'], { type: 'tool' }>
