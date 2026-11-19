@@ -46,7 +46,7 @@ function mask(text: string): string {
     .replace(/127\.0\.0\.1:\d+/g, '127.0.0.1:<port>')
     .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g, '<time>')
     .replace(/~\$[\d,.]+ so far/g, '~$<spent> so far')
-    .replace(/\n/g, ' ⏎ ')
+    .replace(/\n/g, ' \\n ')
 }
 function shown(value: unknown): string {
   if (value === undefined) return 'undefined'

@@ -102,7 +102,7 @@
   record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl patch provider="pod-hf-zml4dhvyzs1vd25lci9ozi1rz"
   record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl patch step="ready" advancedAt=<at> steps+="ready"
   record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl patch jobState="ready" engineDeath=undefined linkLost=undefined
-  notice ready for hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl: Qwen3.8-27B · FP8 ready · /model compat/pod-hf-zml4dhvyzs1vd25lci9ozi1rz/Qwen/Qwen3.8-27B-FP8 ⏎ ~$<spent> so far + storage.
+  notice ready for hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl: Qwen3.8-27B · FP8 ready · /model compat/pod-hf-zml4dhvyzs1vd25lci9ozi1rz/Qwen/Qwen3.8-27B-FP8 \n ~$<spent> so far + storage.
   keep-alive read 1 carries <the Hugging Face key>
   request GET Hugging Face /v1/models
   keep-alive read 2 carries <the Hugging Face key after a new sign-in>
@@ -320,7 +320,7 @@
   record fixture-pod-8 patch provider="pod-fixture-pod-8"
   record fixture-pod-8 patch step="ready" advancedAt=<at> steps+="ready"
   record fixture-pod-8 patch jobState="ready" engineDeath=undefined linkLost=undefined loadedWeights="/workspace/mercury-host/nemotron35-super-gguf-rtx-pro-6000/weights"
-  notice ready for fixture-pod-8: Nemotron 3.5 Super VL 120B · UD-Q3_K_XL ready · /model compat/pod-fixture-pod-8/Fixture/Reasoner ⏎ ~$<spent> so far + storage.
+  notice ready for fixture-pod-8: Nemotron 3.5 Super VL 120B · UD-Q3_K_XL ready · /model compat/pod-fixture-pod-8/Fixture/Reasoner \n ~$<spent> so far + storage.
   the job ended
   at the end, record watch-rents-and-sets-up: gone
   at the end, record fixture-pod-8: jobKind=setup jobState=ready status=RUNNING step="ready" error=undefined steps=["waiting for SSH","checking engine","installing","building llama.cpp","downloading weights on the machine","starting engine","tunnel on 127.0.0.1:<port>","ready"]
