@@ -154,9 +154,7 @@ function parseRegisterName(token: string, patchLine: number): string | AnchorPat
   return token
 }
 
-export function parseAnchorPatch(patchText: string): AnchorPatchParseResult {
-  const warnings: AnchorPatchWarning[] = []
-  const rawLines = patchText.split('\n')
+function patchBounds(rawLines: string[], warnings: AnchorPatchWarning[]): { startIdx: number; endIdx: number } | AnchorPatchError {
   if (rawLines.length > ANCHOR_PATCH_BOUNDS.maxPatchLines) {
     return err(
       'too-large',
@@ -188,6 +186,15 @@ export function parseAnchorPatch(patchText: string): AnchorPatchParseResult {
     }
   }
   if (startIdx > endIdx) return err('empty', 0, 'the patch is empty — nothing to parse')
+  return { startIdx, endIdx }
+}
+
+export function parseAnchorPatch(patchText: string): AnchorPatchParseResult {
+  const warnings: AnchorPatchWarning[] = []
+  const rawLines = patchText.split('\n')
+  const bounds = patchBounds(rawLines, warnings)
+  if ('ok' in bounds) return bounds
+  const { startIdx, endIdx } = bounds
 
   const sections: AnchorPatchSection[] = []
   const cutRegisters = new Map<string, number>()
@@ -476,6 +483,10 @@ export function parseAnchorPatch(patchText: string): AnchorPatchParseResult {
   const flushErr = flushBody()
   if (flushErr) return flushErr
 
+  return patchAnswer(sections, warnings, cutRegisters, storeReads)
+}
+
+function patchAnswer(sections: AnchorPatchSection[], warnings: AnchorPatchWarning[], cutRegisters: Map<string, number>, storeReads: Set<string>): AnchorPatchParseResult {
   if (sections.length === 0) return err('empty', 0, 'the patch names no file sections')
   for (const section of sections) {
     if (section.ops.length === 0) {
