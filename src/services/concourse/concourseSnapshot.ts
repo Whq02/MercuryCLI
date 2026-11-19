@@ -34,6 +34,7 @@ import { keyHintLabel } from '../../components/mercury-ui/keyHintLabel.js'
 import { concourseRecordState, type ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
 import type { DaemonSessionRecordV1 } from '../engine-connector/daemonConnector.js'
 import { withoutMissionMetSentinel } from '../mission/sentinel.js'
+import type { ObligationV1 } from '../crew/obligations.js'
 
 export const PARKING_NOW_LEAD = 'parking — '
 export const PARK_REFUSED_NOW_LEAD = 'park refused — '
@@ -916,38 +917,7 @@ export async function buildConcourseSnapshot(
   const aliveById = new Map<string, boolean>()
   const workspaceOfRow = new Map<string, string>()
   const seenAt = await readSessionSeenAt(opts.draftDir)
-  const allRows: ConcourseRowV1[] = allRecords.map(rec => {
-    const alive = rec.pid !== undefined && isProcessAlive(rec.pid)
-    aliveById.set(rec.sessionId, alive)
-    const state = concourseRecordState(rec, { needsYou: needsYouSessions.has(rec.sessionId), alive })
-    const projectName = basename(rec.workspaceId) || rec.workspaceId
-    workspaceOfRow.set(rec.sessionId, rec.workspaceId)
-    const activity = state === 'working' ? tailActivity(rec) : undefined
-    const nowLabel = concourseNowLabel(rec, { alive, needsYou: needsYouSessions.has(rec.sessionId) }, nowMs, activity)
-    return {
-      sessionId: rec.sessionId,
-      title: sanitizeLabel(sessionTitleOf(rec, () => headBriefLabel(rec, 48))),
-      state,
-      projectLabel: sanitizeLabel(projectName),
-      ownerLabel: sanitizeLabel(rec.agentName ?? 'Mercury'),
-      ageLabel: ageLabelOf(nowMs, rec.spawnedAt),
-      seats: null,
-      nowLabel,
-      ...(nowWordsAreLive(activity, nowLabel) ? { nowLive: true as const } : {}),
-      ...(rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined ? { newborn: true as const } : {}),
-      ...(state === 'ready-to-review' && rec.lastTurnSettledAt !== undefined && rec.lastTurnSettledAt > (seenAt[rec.sessionId] ?? 0) ? { finishedUnseen: true as const } : {}),
-      ...(rec.workflowsAllowed === true ? { workflowsAllowed: true } : {}),
-      ...(rec.kind !== undefined ? { kind: rec.kind } : {}),
-      ...((): { scheduleNextFireMs?: number } => {
-        const next = saturnSoonestFireMs(rec, nowMs)
-        return next !== null ? { scheduleNextFireMs: next } : {}
-      })(),
-      workspaceDir: rec.workspaceId,
-      ...(typeof rec.modelKey === 'string' && rec.modelKey !== '' ? { modelId: rec.modelKey } : {}),
-      ...(rec.branchName !== undefined ? { worktreeBranch: sanitizeLabel(rec.branchName) } : {}),
-      ...(state === 'parked' ? { transcriptPath: workerTranscriptPath(rec) } : {}),
-    }
-  })
+  const allRows: ConcourseRowV1[] = allRecords.map(rec => recordRowOf(rec, nowMs, seenAt, needsYouSessions, aliveById, workspaceOfRow, isProcessAlive))
 
   try {
     const { readConcourseDispatches, normalizeHoldReason } = await import('../../daemon/concourseDispatch.js')
@@ -1018,101 +988,13 @@ export async function buildConcourseSnapshot(
     return r.sessionId === focusedSessionId ? [{ ...r, foreignProject: foreignOf(workspace) ?? '' }] : []
   })
   let foreignParkedRow: ConcourseRowV1 | undefined
-  if (
-    focusedSessionId !== null &&
-    focusedRecord !== undefined &&
-    !rows.some(r => r.sessionId === focusedSessionId) &&
-    foreignOf(focusedRecord.workspaceId) !== undefined
-  ) {
-    const name = foreignOf(focusedRecord.workspaceId) ?? ''
-    foreignParkedRow = {
-      sessionId: focusedSessionId,
-      title: sanitizeLabel(focusedRecord.title.length > 0 ? focusedRecord.title : focusedSessionId.slice(0, 8)),
-      state: 'parked',
-      projectLabel: name,
-      ownerLabel: 'Mercury',
-      ageLabel: null,
-      seats: null,
-      nowLabel: 'parked',
-      workspaceDir: focusedRecord.workspaceId,
-      transcriptPath: join(focusedRecord.home, `${focusedSessionId}.jsonl`),
-      foreignProject: name,
-    }
-  }
+  foreignParkedRow = foreignParkedRowOf(foreignParkedRow, rows, focusedSessionId, focusedRecord, foreignOf)
 
   const byBucket = (bucket: ConcourseRowV1['state'][]): ConcourseRowV1[] =>
     rows.filter(r => bucket.includes(r.state))
-  const groups: ConcourseSnapshotV1['groups'] = []
-  const attachedRows = byBucket(['attached'])
-  if (attachedRows.length > 0) groups.push({ id: 'attached', label: 'WITH YOU', rows: attachedRows })
-  const needsYouRows = byBucket(['needs-you'])
-  const reviewRows = byBucket(['ready-to-review'])
-  const workingRows = byBucket(['working'])
-  const startingRows = byBucket(['starting'])
-  const queuedRows = byBucket(['queued'])
-  const pausedRows = byBucket(['paused'])
-  const stoppedRows = byBucket(['stopped'])
-  if (needsYouRows.length > 0) groups.push({ id: 'needs-you', label: 'NEEDS YOU', rows: needsYouRows })
-  if (reviewRows.length > 0) groups.push({ id: 'ready-to-review', label: 'READY TO REVIEW', rows: reviewRows })
-  if (workingRows.length > 0) groups.push({ id: 'working', label: 'WORKING', rows: workingRows })
-  if (startingRows.length > 0) groups.push({ id: 'starting', label: 'STARTING', rows: startingRows })
-  if (queuedRows.length > 0) groups.push({ id: 'queued', label: 'QUEUED', rows: queuedRows })
-  if (pausedRows.length > 0) groups.push({ id: 'paused', label: 'PAUSED', rows: pausedRows })
-  if (stoppedRows.length > 0) groups.push({ id: 'stopped', label: 'STOPPED', rows: stoppedRows })
-  const elsewhere: ConcourseElsewhereV1[] = projectActivity(allRows, {
-    current: project,
-    excludeSessionId: focusedSessionId,
-    aliveOf: sessionId => aliveById.get(sessionId) ?? false,
-  })
-  const shownElsewhere = elsewhere.slice(0, ELSEWHERE_CAP).sort((a, b) => a.name.localeCompare(b.name))
-  const doorRows: ConcourseRowV1[] = shownElsewhere.map(p => ({
-    sessionId: `project:${p.key}`,
-    title: sanitizeLabel(elsewhereLine(p)),
-    state: 'elsewhere',
-    projectLabel: sanitizeLabel(p.name),
-    ownerLabel: null,
-    ageLabel: null,
-    seats: null,
-    nowLabel: 'switch to see them',
-    door: { kind: 'switch-project', dir: p.dir, running: p.running, needsYou: p.needsYou, finished: p.finished },
-  }))
-  const moreElsewhere = elsewhere.length - shownElsewhere.length
-  if (moreElsewhere > 0) {
-    doorRows.push({
-      sessionId: 'project:+more',
-      title: `+${moreElsewhere} more project${moreElsewhere === 1 ? '' : 's'} with activity`,
-      state: 'elsewhere',
-      projectLabel: '—',
-      ownerLabel: null,
-      ageLabel: null,
-      seats: null,
-      nowLabel: keyHintLabel('⌃g picks one'),
-      door: { kind: 'pick-project', more: moreElsewhere },
-    })
-  }
-  if (doorRows.length > 0) groups.push({ id: 'elsewhere', label: 'OTHER PROJECTS', rows: doorRows })
-  rows.push(...doorRows)
+  const { groups, elsewhere } = boardGroupsOf(rows, allRows, byBucket, project, focusedSessionId, aliveById)
 
-  const LIVE_STATES: ReadonlyArray<ConcourseRowV1['state']> = ['working', 'needs-you', 'stalled', 'paused', 'ready-to-review', 'attached', 'starting']
-  const holdsSeat = (r: ConcourseRowV1): boolean =>
-    LIVE_STATES.includes(r.state) &&
-    (r.state === 'attached' || r.state === 'starting' || aliveById.get(r.sessionId) === true)
-  const live = rows.filter(holdsSeat)
-  const liveAll = allRows.filter(holdsSeat)
-  const peekRecord =
-    records.find(r => r.sessionId === (opts.peekSessionId ?? '')) ??
-    records.find(r => live.some(l => l.sessionId === r.sessionId)) ??
-    null
-
-  const scopeClear =
-    peekRecord === null ||
-    !allRecords.some(
-      other =>
-        other !== peekRecord &&
-        other.workspaceId === peekRecord.workspaceId &&
-        (other.isolation ?? 'exclusive') === 'exclusive' &&
-        (peekRecord.isolation ?? 'exclusive') === 'exclusive',
-    )
+  const { liveAll, peekRecord, scopeClear } = peekOf(rows, allRows, records, allRecords, aliveById, opts)
 
   const draftFile = await draftStore(opts.draftDir).read()
   const draft = draftFile.draft
@@ -1161,18 +1043,7 @@ export async function buildConcourseSnapshot(
   const modelLabel =
     workerRegistry.entries.find(e => e.modelId === chosenModelId)?.displayName ?? chosenModelId
   let scopeDetail = 'shares a workspace exclusively'
-  if (!scopeClear && peekRecord !== null) {
-    try {
-      const evidence = workers
-        .readCollisionEvidence(opts.recordsDir)
-        .filter(e => e.workspaceId === peekRecord.workspaceId && e.kind === 'exclusive-overlap')
-      const latest = evidence[evidence.length - 1]
-      if (latest !== undefined) {
-        scopeDetail = `exclusive overlap · ${latest.holders.length} holder(s) · ${clockOf(latest.observedAt)}`
-      }
-    } catch {
-    }
-  }
+  scopeDetail = scopeDetailOf(scopeDetail, scopeClear, peekRecord, workers, opts)
   let preflight: { ok: boolean; refusals: string[] } | undefined
   if (draft.length > 0) {
     try {
@@ -1191,17 +1062,7 @@ export async function buildConcourseSnapshot(
     peekRecord !== null ? await canonicalWorkerModelId(peekRecord.modelKey ?? 'fable') : chosenModelId
   const savedEffort = getInitialEffortSetting()
   let door: { modelLabel: string; effortLevel: string } | undefined
-  if (sessionDefaultsKeyOn()) {
-    try {
-      const doorModel = nextBirthModel()
-      if (doorModel !== undefined) {
-        const bootEffort = parseEffortValue(bootBirthFacts().effort ?? undefined)
-        door = { modelLabel: renderModelChip(doorModel), effortLevel: getDisplayedEffortLevel(doorModel, bootEffort ?? savedEffort) }
-      }
-    } catch {
-      door = undefined
-    }
-  }
+  door = doorOf(door, savedEffort)
   const railEffort =
     (peekRecord !== null ? peekRecord.effort : (seedOverrides.effort ?? savedEffort)) ??
     workerRegistry.entries.find(e => e.modelId === railModelId)?.effort
@@ -1221,35 +1082,8 @@ export async function buildConcourseSnapshot(
       submission: 'disabled-while-parked',
       reachedBy: 'esc',
     },
-    counts: {
-      live: liveAll.length,
-      needsYou: openObl.length,
-      working: allRows.filter(r => r.state === 'working').length,
-      queued: allRows.filter(r => r.state === 'starting').length,
-      seatsDenominator: liveAll.reduce((sum, row) => {
-        const rec = allRecords.find(r => r.sessionId === row.sessionId)
-        return sum + (rec?.seatsMax ?? 2)
-      }, 0),
-      admission: 'auto-balanced',
-    },
-    needsYou: openObl.map(o => {
-      const rec = allRecords.find(r => r.sessionId === o.sessionId)
-      const home = rec !== undefined ? foreignOf(rec.workspaceId) : undefined
-      return {
-        obligationId: o.obligationId,
-        ...(o.ref !== undefined ? { ref: o.ref } : {}),
-        sessionId: o.sessionId,
-        title:
-          home !== undefined
-            ? sanitizeLabel(`switch to ${home} · needs you`)
-            : sanitizeLabel(o.question.length > 24 ? `${o.question.slice(0, 24)}…` : o.question),
-        question: sanitizeLabel(o.question),
-        projectLabel: rec !== undefined ? sanitizeLabel(projectDisplayName(rec.workspaceId)) : projectLabel,
-        agentLabel: sanitizeLabel(o.owner),
-        ageLabel: ageLabelOf(nowMs, o.createdAtMs),
-        ...(home !== undefined && rec !== undefined ? { foreignProject: { dir: rec.workspaceId, name: home } } : {}),
-      }
-    }),
+    counts: snapshotCountsOf(liveAll, openObl, allRows, allRecords),
+    needsYou: openObl.map(o => needsYouRowOf(o, allRecords, foreignOf, nowMs, projectLabel)),
     groups,
     elsewhere,
     peek: peekRecord
@@ -1321,5 +1155,253 @@ export async function buildConcourseSnapshot(
       ...(preflight !== undefined ? { preflight } : {}),
       ...(door !== undefined ? { door } : {}),
     },
+  }
+}
+
+function recordRowOf(
+  rec: ConcourseWorkerRecordV1,
+  nowMs: number,
+  seenAt: Readonly<Record<string, number>>,
+  needsYouSessions: Set<string>,
+  aliveById: Map<string, boolean>,
+  workspaceOfRow: Map<string, string>,
+  isProcessAlive: (pid: number) => boolean,
+): ConcourseRowV1 {
+  const alive = rec.pid !== undefined && isProcessAlive(rec.pid)
+  aliveById.set(rec.sessionId, alive)
+  const state = concourseRecordState(rec, { needsYou: needsYouSessions.has(rec.sessionId), alive })
+  const projectName = basename(rec.workspaceId) || rec.workspaceId
+  workspaceOfRow.set(rec.sessionId, rec.workspaceId)
+  const activity = state === 'working' ? tailActivity(rec) : undefined
+  const nowLabel = concourseNowLabel(rec, { alive, needsYou: needsYouSessions.has(rec.sessionId) }, nowMs, activity)
+  return {
+    sessionId: rec.sessionId,
+    title: sanitizeLabel(sessionTitleOf(rec, () => headBriefLabel(rec, 48))),
+    state,
+    projectLabel: sanitizeLabel(projectName),
+    ownerLabel: sanitizeLabel(rec.agentName ?? 'Mercury'),
+    ageLabel: ageLabelOf(nowMs, rec.spawnedAt),
+    seats: null,
+    nowLabel,
+    ...(nowWordsAreLive(activity, nowLabel) ? { nowLive: true as const } : {}),
+    ...(rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined ? { newborn: true as const } : {}),
+    ...(state === 'ready-to-review' && rec.lastTurnSettledAt !== undefined && rec.lastTurnSettledAt > (seenAt[rec.sessionId] ?? 0) ? { finishedUnseen: true as const } : {}),
+    ...(rec.workflowsAllowed === true ? { workflowsAllowed: true } : {}),
+    ...(rec.kind !== undefined ? { kind: rec.kind } : {}),
+    ...((): { scheduleNextFireMs?: number } => {
+      const next = saturnSoonestFireMs(rec, nowMs)
+      return next !== null ? { scheduleNextFireMs: next } : {}
+    })(),
+    workspaceDir: rec.workspaceId,
+    ...(typeof rec.modelKey === 'string' && rec.modelKey !== '' ? { modelId: rec.modelKey } : {}),
+    ...(rec.branchName !== undefined ? { worktreeBranch: sanitizeLabel(rec.branchName) } : {}),
+    ...(state === 'parked' ? { transcriptPath: workerTranscriptPath(rec) } : {}),
+  }
+}
+
+function foreignParkedRowOf(
+  foreignParkedRow: ConcourseRowV1 | undefined,
+  rows: ConcourseRowV1[],
+  focusedSessionId: string | null,
+  focusedRecord: DaemonSessionRecordV1 | undefined,
+  foreignOf: (workspaceId: string) => string | undefined,
+): ConcourseRowV1 | undefined {
+  if (
+    focusedSessionId !== null &&
+    focusedRecord !== undefined &&
+    !rows.some(r => r.sessionId === focusedSessionId) &&
+    foreignOf(focusedRecord.workspaceId) !== undefined
+  ) {
+    const name = foreignOf(focusedRecord.workspaceId) ?? ''
+    foreignParkedRow = {
+      sessionId: focusedSessionId,
+      title: sanitizeLabel(focusedRecord.title.length > 0 ? focusedRecord.title : focusedSessionId.slice(0, 8)),
+      state: 'parked',
+      projectLabel: name,
+      ownerLabel: 'Mercury',
+      ageLabel: null,
+      seats: null,
+      nowLabel: 'parked',
+      workspaceDir: focusedRecord.workspaceId,
+      transcriptPath: join(focusedRecord.home, `${focusedSessionId}.jsonl`),
+      foreignProject: name,
+    }
+  }
+  return foreignParkedRow
+}
+
+function boardGroupsOf(
+  rows: ConcourseRowV1[],
+  allRows: ConcourseRowV1[],
+  byBucket: (bucket: ConcourseRowV1['state'][]) => ConcourseRowV1[],
+  project: ProjectIdentity,
+  focusedSessionId: string | null,
+  aliveById: Map<string, boolean>,
+): { groups: ConcourseSnapshotV1['groups']; elsewhere: ConcourseElsewhereV1[] } {
+  const groups: ConcourseSnapshotV1['groups'] = []
+  const attachedRows = byBucket(['attached'])
+  if (attachedRows.length > 0) groups.push({ id: 'attached', label: 'WITH YOU', rows: attachedRows })
+  const needsYouRows = byBucket(['needs-you'])
+  const reviewRows = byBucket(['ready-to-review'])
+  const workingRows = byBucket(['working'])
+  const startingRows = byBucket(['starting'])
+  const queuedRows = byBucket(['queued'])
+  const pausedRows = byBucket(['paused'])
+  const stoppedRows = byBucket(['stopped'])
+  if (needsYouRows.length > 0) groups.push({ id: 'needs-you', label: 'NEEDS YOU', rows: needsYouRows })
+  if (reviewRows.length > 0) groups.push({ id: 'ready-to-review', label: 'READY TO REVIEW', rows: reviewRows })
+  if (workingRows.length > 0) groups.push({ id: 'working', label: 'WORKING', rows: workingRows })
+  if (startingRows.length > 0) groups.push({ id: 'starting', label: 'STARTING', rows: startingRows })
+  if (queuedRows.length > 0) groups.push({ id: 'queued', label: 'QUEUED', rows: queuedRows })
+  if (pausedRows.length > 0) groups.push({ id: 'paused', label: 'PAUSED', rows: pausedRows })
+  if (stoppedRows.length > 0) groups.push({ id: 'stopped', label: 'STOPPED', rows: stoppedRows })
+  const elsewhere: ConcourseElsewhereV1[] = projectActivity(allRows, {
+    current: project,
+    excludeSessionId: focusedSessionId,
+    aliveOf: sessionId => aliveById.get(sessionId) ?? false,
+  })
+  const shownElsewhere = elsewhere.slice(0, ELSEWHERE_CAP).sort((a, b) => a.name.localeCompare(b.name))
+  const doorRows: ConcourseRowV1[] = shownElsewhere.map(p => ({
+    sessionId: `project:${p.key}`,
+    title: sanitizeLabel(elsewhereLine(p)),
+    state: 'elsewhere',
+    projectLabel: sanitizeLabel(p.name),
+    ownerLabel: null,
+    ageLabel: null,
+    seats: null,
+    nowLabel: 'switch to see them',
+    door: { kind: 'switch-project', dir: p.dir, running: p.running, needsYou: p.needsYou, finished: p.finished },
+  }))
+  const moreElsewhere = elsewhere.length - shownElsewhere.length
+  if (moreElsewhere > 0) {
+    doorRows.push({
+      sessionId: 'project:+more',
+      title: `+${moreElsewhere} more project${moreElsewhere === 1 ? '' : 's'} with activity`,
+      state: 'elsewhere',
+      projectLabel: '—',
+      ownerLabel: null,
+      ageLabel: null,
+      seats: null,
+      nowLabel: keyHintLabel('⌃g picks one'),
+      door: { kind: 'pick-project', more: moreElsewhere },
+    })
+  }
+  if (doorRows.length > 0) groups.push({ id: 'elsewhere', label: 'OTHER PROJECTS', rows: doorRows })
+  rows.push(...doorRows)
+  return { groups, elsewhere }
+}
+
+function peekOf(
+  rows: ConcourseRowV1[],
+  allRows: ConcourseRowV1[],
+  records: ConcourseWorkerRecordV1[],
+  allRecords: ConcourseWorkerRecordV1[],
+  aliveById: Map<string, boolean>,
+  opts: BuildConcourseSnapshotOpts,
+): { liveAll: ConcourseRowV1[]; peekRecord: ConcourseWorkerRecordV1 | null; scopeClear: boolean } {
+  const LIVE_STATES: ReadonlyArray<ConcourseRowV1['state']> = ['working', 'needs-you', 'stalled', 'paused', 'ready-to-review', 'attached', 'starting']
+  const holdsSeat = (r: ConcourseRowV1): boolean =>
+    LIVE_STATES.includes(r.state) &&
+    (r.state === 'attached' || r.state === 'starting' || aliveById.get(r.sessionId) === true)
+  const live = rows.filter(holdsSeat)
+  const liveAll = allRows.filter(holdsSeat)
+  const peekRecord =
+    records.find(r => r.sessionId === (opts.peekSessionId ?? '')) ??
+    records.find(r => live.some(l => l.sessionId === r.sessionId)) ??
+    null
+
+  const scopeClear =
+    peekRecord === null ||
+    !allRecords.some(
+      other =>
+        other !== peekRecord &&
+        other.workspaceId === peekRecord.workspaceId &&
+        (other.isolation ?? 'exclusive') === 'exclusive' &&
+        (peekRecord.isolation ?? 'exclusive') === 'exclusive',
+    )
+  return { liveAll, peekRecord, scopeClear }
+}
+
+function scopeDetailOf(
+  scopeDetail: string,
+  scopeClear: boolean,
+  peekRecord: ConcourseWorkerRecordV1 | null,
+  workers: typeof import('../../daemon/concourseWorkers.js'),
+  opts: BuildConcourseSnapshotOpts,
+): string {
+  if (!scopeClear && peekRecord !== null) {
+    try {
+      const evidence = workers
+        .readCollisionEvidence(opts.recordsDir)
+        .filter(e => e.workspaceId === peekRecord.workspaceId && e.kind === 'exclusive-overlap')
+      const latest = evidence[evidence.length - 1]
+      if (latest !== undefined) {
+        scopeDetail = `exclusive overlap · ${latest.holders.length} holder(s) · ${clockOf(latest.observedAt)}`
+      }
+    } catch {
+    }
+  }
+  return scopeDetail
+}
+
+function doorOf(
+  door: { modelLabel: string; effortLevel: string } | undefined,
+  savedEffort: ReturnType<typeof getInitialEffortSetting>,
+): { modelLabel: string; effortLevel: string } | undefined {
+  if (sessionDefaultsKeyOn()) {
+    try {
+      const doorModel = nextBirthModel()
+      if (doorModel !== undefined) {
+        const bootEffort = parseEffortValue(bootBirthFacts().effort ?? undefined)
+        door = { modelLabel: renderModelChip(doorModel), effortLevel: getDisplayedEffortLevel(doorModel, bootEffort ?? savedEffort) }
+      }
+    } catch {
+      door = undefined
+    }
+  }
+  return door
+}
+
+function snapshotCountsOf(
+  liveAll: ConcourseRowV1[],
+  openObl: ObligationV1[],
+  allRows: ConcourseRowV1[],
+  allRecords: ConcourseWorkerRecordV1[],
+): ConcourseSnapshotV1['counts'] {
+  return {
+    live: liveAll.length,
+    needsYou: openObl.length,
+    working: allRows.filter(r => r.state === 'working').length,
+    queued: allRows.filter(r => r.state === 'starting').length,
+    seatsDenominator: liveAll.reduce((sum, row) => {
+      const rec = allRecords.find(r => r.sessionId === row.sessionId)
+      return sum + (rec?.seatsMax ?? 2)
+    }, 0),
+    admission: 'auto-balanced',
+  }
+}
+
+function needsYouRowOf(
+  o: ObligationV1,
+  allRecords: ConcourseWorkerRecordV1[],
+  foreignOf: (workspaceId: string) => string | undefined,
+  nowMs: number,
+  projectLabel: string,
+): ConcourseSnapshotV1['needsYou'][number] {
+  const rec = allRecords.find(r => r.sessionId === o.sessionId)
+  const home = rec !== undefined ? foreignOf(rec.workspaceId) : undefined
+  return {
+    obligationId: o.obligationId,
+    ...(o.ref !== undefined ? { ref: o.ref } : {}),
+    sessionId: o.sessionId,
+    title:
+      home !== undefined
+        ? sanitizeLabel(`switch to ${home} · needs you`)
+        : sanitizeLabel(o.question.length > 24 ? `${o.question.slice(0, 24)}…` : o.question),
+    question: sanitizeLabel(o.question),
+    projectLabel: rec !== undefined ? sanitizeLabel(projectDisplayName(rec.workspaceId)) : projectLabel,
+    agentLabel: sanitizeLabel(o.owner),
+    ageLabel: ageLabelOf(nowMs, o.createdAtMs),
+    ...(home !== undefined && rec !== undefined ? { foreignProject: { dir: rec.workspaceId, name: home } } : {}),
   }
 }
