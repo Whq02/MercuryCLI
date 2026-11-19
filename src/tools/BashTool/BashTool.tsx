@@ -15,7 +15,7 @@ import { captureVerificationStart } from '../../utils/verification/verificationS
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import { execViaIdeTerminal, IdeTerminalUnavailableError, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
 import { HARD_CAP_MULTIPLIER } from '../../utils/ShellCommand.js'
-import type { ExecResult } from '../../utils/ShellCommand.js'
+import type { ExecResult, ShellCommand } from '../../utils/ShellCommand.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
@@ -300,20 +300,7 @@ async function* runBash(
   const isMainThread = agentId === undefined
   const cwd = resolveShellCwd(input.cwd)
   const webNotice = await shellWebContentNotice(input.command)
-  const setToolJSX = context.setToolJSX
-  const setTaskState = context.setAppStateForTasks ?? context.setAppState
-
-  const requestedTimeout = input.timeout
-  const effectiveTimeout = Math.min(requestedTimeout || getDefaultTimeoutMs(), getMaxTimeoutMs())
-  const timeoutClampNotice =
-    requestedTimeout !== undefined && requestedTimeout > getMaxTimeoutMs()
-      ? `The timeout asked for (${formatDuration(requestedTimeout)}) is above the cap (${formatDuration(getMaxTimeoutMs())}), so ${formatDuration(getMaxTimeoutMs())} applied; a command that needs longer runs with run_in_background.`
-      : undefined
-  const firstSubcommand = pinnedCommandAnalysis.splitCommand(input.command)[0]?.trim() ?? input.command.trim()
-  const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstCommandWord(firstSubcommand))
-
-  const creations = snapshotCreations(input.command, cwd)
-  const launchedAt = Date.now()
+  const { setToolJSX, setTaskState, requestedTimeout, effectiveTimeout, timeoutClampNotice, shouldAutoBackground, creations, launchedAt } = shellRunPlan(input, context, cwd)
   let progressResolve: (() => void) | null = null
   let latest: { recent: string; all: string; lines: number; bytes: number; incomplete: boolean } = {
     recent: '',
@@ -357,6 +344,7 @@ async function* runBash(
     }))
 
   shellCommand.verificationStart = verificationStart
+  const postNeeds: PostProcessNeeds = { input, creations, editorTerminalNote, agentId, shouldAutoBackground, cwd, abortController, shellCommand, webNotice, timeoutClampNotice }
   let timeoutAutoBackgroundedAfterMs: number | undefined
   let foregroundTaskId: string | null = null
   let backgroundId: string | undefined
@@ -450,7 +438,7 @@ async function* runBash(
     if (handle.accepted === false) {
       const result = await shellCommand.result
       shellCommand.cleanup()
-      return await postProcess(result)
+      return await postProcess(result, postNeeds)
     }
     return { stdout: webNotice, stderr: '', interrupted: false, backgroundTaskId: handle.taskId, scrubbedSessionEnv: shellCommand.scrubbedSessionEnv, ...backgroundFacts() }
   }
@@ -489,7 +477,7 @@ async function* runBash(
     if (quietTimerHandle !== undefined) clearTimeout(quietTimerHandle)
     const result = await shellCommand.result
     shellCommand.cleanup()
-    return await postProcess(result)
+    return await postProcess(result, postNeeds)
   }
   if (settledEarly === 'background') {
     if (quietTimerHandle !== undefined) clearTimeout(quietTimerHandle)
@@ -498,31 +486,13 @@ async function* runBash(
     if (backgroundId === undefined) {
       const result = await shellCommand.result
       shellCommand.cleanup()
-      return await postProcess(result)
+      return await postProcess(result, postNeeds)
     }
-    return {
-      stdout: webNotice + latest.all,
-      stderr: '',
-      interrupted: false,
-      backgroundTaskId: backgroundId,
-      scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
-      backgroundedByUser: true,
-      ...backgroundFacts(),
-    }
+    return userBackgroundedAnswer({ webNotice, latest, backgroundId, shellCommand, backgroundFacts })
   }
   if (backgroundId !== undefined) {
     const soFar = timeoutAutoBackgroundedAfterMs !== undefined ? await outputSoFar() : { stdout: '', isTail: false }
-    return {
-      stdout: webNotice + soFar.stdout,
-      stderr: '',
-      interrupted: false,
-      backgroundTaskId: backgroundId,
-      scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
-      timeoutAutoBackgroundedAfterMs,
-      ...(timeoutClampNotice !== undefined ? { timeoutClampNotice } : {}),
-      ...backgroundFacts(),
-      ...(soFar.isTail ? { backgroundOutputIsTail: true } : {}),
-    }
+    return timeoutBackgroundedAnswer({ webNotice, soFar, backgroundId, shellCommand, timeoutAutoBackgroundedAfterMs, timeoutClampNotice, backgroundFacts })
   }
 
   TaskOutput.startPolling(shellCommand.taskOutput.taskId)
@@ -539,13 +509,13 @@ async function* runBash(
       if (settled && settled.backgroundTaskId !== undefined) {
         markTaskNotified(settled.backgroundTaskId, setTaskState)
         shellCommand.cleanup()
-        return await postProcess({ ...settled, backgroundTaskId: undefined })
+        return await postProcess({ ...settled, backgroundTaskId: undefined }, postNeeds)
       }
 
       if (settled) {
         if (foregroundTaskId !== null) unregisterForeground(foregroundTaskId, setTaskState)
         shellCommand.cleanup()
-        return await postProcess(settled)
+        return await postProcess(settled, postNeeds)
       }
 
       if (!interruptBackgroundingStarted && abortController.signal.reason === 'interrupt') {
@@ -565,29 +535,11 @@ async function* runBash(
       if (backgroundId !== undefined) {
         const fullOutput = latest.all
         const soFar = timeoutAutoBackgroundedAfterMs !== undefined ? await outputSoFar() : { stdout: '', isTail: false }
-        return {
-          stdout: webNotice + (interruptBackgroundingStarted || backgroundAskHandled ? fullOutput : soFar.stdout),
-          stderr: '',
-          interrupted: false,
-          backgroundTaskId: backgroundId,
-          scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
-          timeoutAutoBackgroundedAfterMs,
-          ...(backgroundAskHandled ? { backgroundedByUser: true } : {}),
-          ...backgroundFacts(),
-          ...(soFar.isTail ? { backgroundOutputIsTail: true } : {}),
-        }
+        return loopBackgroundedAnswer({ webNotice, interruptBackgroundingStarted, backgroundAskHandled, fullOutput, soFar, backgroundId, shellCommand, timeoutAutoBackgroundedAfterMs, backgroundFacts })
       }
 
       if (foregroundTaskId !== null && shellCommand.status === 'backgrounded') {
-        return {
-          stdout: webNotice,
-          stderr: '',
-          interrupted: false,
-          backgroundTaskId: foregroundTaskId,
-          scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
-          backgroundedByUser: true,
-          ...backgroundFacts(),
-        }
+        return foregroundBackgroundedAnswer({ webNotice, foregroundTaskId, shellCommand, backgroundFacts })
       }
 
       const elapsedSeconds = Math.floor((Date.now() - launchedAt) / 1000)
@@ -628,108 +580,193 @@ async function* runBash(
     if (foregroundTaskId !== null) unregisterForeground(foregroundTaskId, setTaskState)
     unregisterRun()
   }
+}
 
+function shellRunPlan(input: BashToolInput, context: ToolUseContext, cwd: string) {
+  const setToolJSX = context.setToolJSX
+  const setTaskState = context.setAppStateForTasks ?? context.setAppState
 
-  async function postProcess(result: ExecResult): Promise<Out> {
-    if (result.backgroundTaskId === undefined) {
-      trackGitOperations(input.command, result.code, result.stdout)
-      settleCreations(creations, result.code)
+  const requestedTimeout = input.timeout
+  const effectiveTimeout = Math.min(requestedTimeout || getDefaultTimeoutMs(), getMaxTimeoutMs())
+  const timeoutClampNotice =
+    requestedTimeout !== undefined && requestedTimeout > getMaxTimeoutMs()
+      ? `The timeout asked for (${formatDuration(requestedTimeout)}) is above the cap (${formatDuration(getMaxTimeoutMs())}), so ${formatDuration(getMaxTimeoutMs())} applied; a command that needs longer runs with run_in_background.`
+      : undefined
+  const firstSubcommand = pinnedCommandAnalysis.splitCommand(input.command)[0]?.trim() ?? input.command.trim()
+  const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstCommandWord(firstSubcommand))
+
+  const creations = snapshotCreations(input.command, cwd)
+  const launchedAt = Date.now()
+  return { setToolJSX, setTaskState, requestedTimeout, effectiveTimeout, timeoutClampNotice, shouldAutoBackground, creations, launchedAt }
+}
+
+interface PostProcessNeeds {
+  input: BashToolInput
+  creations: ReturnType<typeof snapshotCreations>
+  editorTerminalNote: string | undefined
+  agentId: string | undefined
+  shouldAutoBackground: boolean
+  cwd: string
+  abortController: ToolUseContext['abortController']
+  shellCommand: ShellCommand
+  webNotice: string
+  timeoutClampNotice: string | undefined
+}
+
+async function postProcess(result: ExecResult, { input, creations, editorTerminalNote, agentId, shouldAutoBackground, cwd, abortController, shellCommand, webNotice, timeoutClampNotice }: PostProcessNeeds): Promise<Out> {
+  if (result.backgroundTaskId === undefined) {
+    trackGitOperations(input.command, result.code, result.stdout)
+    settleCreations(creations, result.code)
+  }
+
+  const accumulator = new EndTruncatingAccumulator()
+  accumulator.append(result.stdout.trimEnd() + '\n')
+  if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
+  for (const note of [editorTerminalNote, result.preSpawnError ? null : loginFilesLineOnce(agentId ?? 'main')]) if (note) accumulator.append(note + '\n')
+  if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
+  if (commandNamesBoxLock(input.command)) await refreshBoxReading()
+  const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd })
+  if (boxLine !== null) accumulator.append(boxLine + '\n')
+  const interpretation = interpretCommandResult(input.command, result.code, result.stdout, '')
+  const returnCodeInterpretation = interpretation.message
+  const exitNote =
+    !interpretation.isError && result.code !== 0 && interpretation.message !== undefined
+      ? `${interpretation.message} (exit code ${result.code})`
+      : undefined
+  const noOutputExpected = isSilentCommand(input.command)
+  const interruptedByUser = result.interrupted && abortController.signal.reason === 'interrupt'
+  if (interpretation.isError && !interruptedByUser && result.code !== 0) {
+    accumulator.append(`\n${exitLine(result.code, !result.interrupted && result.stderr.trim() === '')}`)
+  }
+
+  let stderr = ''
+
+  const redact = createShellResultRedactor()
+  let out = await applyShellOutputFilter(redact(accumulator.toString()), { taskId: shellCommand.taskOutput.taskId, spilledPath: result.outputFilePath })
+  const budget = resolveOutputBudget(readMaxOutputChars(input.max_output_chars))
+  const windowed = result.outputFilePath === undefined
+  const clause = outputBudgetClause(budget)
+  const outputBudgetNotice = windowed ? clause : undefined
+
+  if (result.preSpawnError) {
+    throw new ShellError('', result.preSpawnError, result.code, result.interrupted, false)
+  }
+  if (interpretation.isError && !interruptedByUser) {
+    const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)
+    const notice = sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })
+    const error = new ShellError('', [webNotice + thrown, clause].filter(Boolean).join('\n'), result.code, result.interrupted, true, notice)
+    error.pipelineStatus = result.pipelineStatus
+    throw budget.requested === undefined ? error : windowedError(error)
+  }
+
+  let persistedOutputPath: string | undefined
+  let persistedOutputSize: number | undefined
+  if (result.outputFilePath && result.outputTaskId) {
+    try {
+      const stats = await stat(result.outputFilePath)
+      persistedOutputSize = stats.size
+      const destination = join(getScratchpadDir(), `${result.outputTaskId}.output`)
+      if (stats.size > MAX_OUTPUT_BYTES) await truncate(result.outputFilePath, MAX_OUTPUT_BYTES)
+      let prefix = webNotice
+      await redactedCopy(result.outputFilePath, destination, text => {
+        const marked = prefix + redact(text)
+        prefix = ''
+        return marked
+      })
+      persistedOutputSize += Buffer.byteLength(webNotice)
+      persistedOutputPath = destination
+    } catch {
     }
+  }
 
-    const accumulator = new EndTruncatingAccumulator()
-    accumulator.append(result.stdout.trimEnd() + '\n')
-    if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
-    for (const note of [editorTerminalNote, result.preSpawnError ? null : loginFilesLineOnce(agentId ?? 'main')]) if (note) accumulator.append(note + '\n')
-    if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
-    if (commandNamesBoxLock(input.command)) await refreshBoxReading()
-    const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd })
-    if (boxLine !== null) accumulator.append(boxLine + '\n')
-    const interpretation = interpretCommandResult(input.command, result.code, result.stdout, '')
-    const returnCodeInterpretation = interpretation.message
-    const exitNote =
-      !interpretation.isError && result.code !== 0 && interpretation.message !== undefined
-        ? `${interpretation.message} (exit code ${result.code})`
-        : undefined
-    const noOutputExpected = isSilentCommand(input.command)
-    const interruptedByUser = result.interrupted && abortController.signal.reason === 'interrupt'
-    if (interpretation.isError && !interruptedByUser && result.code !== 0) {
-      accumulator.append(`\n${exitLine(result.code, !result.interrupted && result.stderr.trim() === '')}`)
+  out = stripEmptyLines(out)
+
+  let isImage = isImageOutput(out)
+  if (isImage) {
+    const resized = await resizeShellImageOutput(out, result.outputFilePath, persistedOutputSize)
+    if (resized === null) {
+      isImage = false
+    } else {
+      out = resized
     }
+  }
 
-    let stderr = ''
+  if (result.backgroundTaskId === undefined) {
+    recordBashAudit(input.command, result.code, result.interrupted)
+  }
 
-    const redact = createShellResultRedactor()
-    let out = await applyShellOutputFilter(redact(accumulator.toString()), { taskId: shellCommand.taskOutput.taskId, spilledPath: result.outputFilePath })
-    const budget = resolveOutputBudget(readMaxOutputChars(input.max_output_chars))
-    const windowed = result.outputFilePath === undefined
-    const clause = outputBudgetClause(budget)
-    const outputBudgetNotice = windowed ? clause : undefined
+  const formatted = formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective })
+  return {
+    stdout: webNotice + formatted.truncatedContent,
+    stderr,
+    interrupted: result.interrupted,
+    code: result.code,
+    ...(result.pipelineStatus ? { pipelineStatus: result.pipelineStatus } : {}),
+    isImage,
+    returnCodeInterpretation,
+    ...(exitNote !== undefined ? { exitNote } : {}),
+    ...(timeoutClampNotice !== undefined ? { timeoutClampNotice } : {}),
+    ...(outputBudgetNotice !== undefined ? { outputBudgetNotice } : {}),
+    noOutputExpected,
+    ...(persistedOutputPath ? { persistedOutputPath, persistedOutputSize } : {}),
+    ...(shellCommand.scrubbedSessionEnv && shellCommand.scrubbedSessionEnv.length > 0
+      ? { scrubbedSessionEnv: shellCommand.scrubbedSessionEnv }
+      : {}),
+  }
+}
 
-    if (result.preSpawnError) {
-      throw new ShellError('', result.preSpawnError, result.code, result.interrupted, false)
-    }
-    if (interpretation.isError && !interruptedByUser) {
-      const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)
-      const notice = sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })
-      const error = new ShellError('', [webNotice + thrown, clause].filter(Boolean).join('\n'), result.code, result.interrupted, true, notice)
-      error.pipelineStatus = result.pipelineStatus
-      throw budget.requested === undefined ? error : windowedError(error)
-    }
+type BackgroundFacts = () => Pick<Out, 'backgroundPid' | 'backgroundLifetime' | 'stopOffered' | 'serviceOffered' | 'sleepOffered'>
+type OutputSoFar = { stdout: string; isTail: boolean }
 
-    let persistedOutputPath: string | undefined
-    let persistedOutputSize: number | undefined
-    if (result.outputFilePath && result.outputTaskId) {
-      try {
-        const stats = await stat(result.outputFilePath)
-        persistedOutputSize = stats.size
-        const destination = join(getScratchpadDir(), `${result.outputTaskId}.output`)
-        if (stats.size > MAX_OUTPUT_BYTES) await truncate(result.outputFilePath, MAX_OUTPUT_BYTES)
-        let prefix = webNotice
-        await redactedCopy(result.outputFilePath, destination, text => {
-          const marked = prefix + redact(text)
-          prefix = ''
-          return marked
-        })
-        persistedOutputSize += Buffer.byteLength(webNotice)
-        persistedOutputPath = destination
-      } catch {
-      }
-    }
+function userBackgroundedAnswer({ webNotice, latest, backgroundId, shellCommand, backgroundFacts }: { webNotice: string; latest: { all: string }; backgroundId: string | undefined; shellCommand: ShellCommand; backgroundFacts: BackgroundFacts }): Out {
+  return {
+    stdout: webNotice + latest.all,
+    stderr: '',
+    interrupted: false,
+    backgroundTaskId: backgroundId,
+    scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
+    backgroundedByUser: true,
+    ...backgroundFacts(),
+  }
+}
 
-    out = stripEmptyLines(out)
+function timeoutBackgroundedAnswer({ webNotice, soFar, backgroundId, shellCommand, timeoutAutoBackgroundedAfterMs, timeoutClampNotice, backgroundFacts }: { webNotice: string; soFar: OutputSoFar; backgroundId: string | undefined; shellCommand: ShellCommand; timeoutAutoBackgroundedAfterMs: number | undefined; timeoutClampNotice: string | undefined; backgroundFacts: BackgroundFacts }): Out {
+  return {
+    stdout: webNotice + soFar.stdout,
+    stderr: '',
+    interrupted: false,
+    backgroundTaskId: backgroundId,
+    scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
+    timeoutAutoBackgroundedAfterMs,
+    ...(timeoutClampNotice !== undefined ? { timeoutClampNotice } : {}),
+    ...backgroundFacts(),
+    ...(soFar.isTail ? { backgroundOutputIsTail: true } : {}),
+  }
+}
 
-    let isImage = isImageOutput(out)
-    if (isImage) {
-      const resized = await resizeShellImageOutput(out, result.outputFilePath, persistedOutputSize)
-      if (resized === null) {
-        isImage = false
-      } else {
-        out = resized
-      }
-    }
+function loopBackgroundedAnswer({ webNotice, interruptBackgroundingStarted, backgroundAskHandled, fullOutput, soFar, backgroundId, shellCommand, timeoutAutoBackgroundedAfterMs, backgroundFacts }: { webNotice: string; interruptBackgroundingStarted: boolean; backgroundAskHandled: boolean; fullOutput: string; soFar: OutputSoFar; backgroundId: string | undefined; shellCommand: ShellCommand; timeoutAutoBackgroundedAfterMs: number | undefined; backgroundFacts: BackgroundFacts }): Out {
+  return {
+    stdout: webNotice + (interruptBackgroundingStarted || backgroundAskHandled ? fullOutput : soFar.stdout),
+    stderr: '',
+    interrupted: false,
+    backgroundTaskId: backgroundId,
+    scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
+    timeoutAutoBackgroundedAfterMs,
+    ...(backgroundAskHandled ? { backgroundedByUser: true } : {}),
+    ...backgroundFacts(),
+    ...(soFar.isTail ? { backgroundOutputIsTail: true } : {}),
+  }
+}
 
-    if (result.backgroundTaskId === undefined) {
-      recordBashAudit(input.command, result.code, result.interrupted)
-    }
-
-    const formatted = formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective })
-    return {
-      stdout: webNotice + formatted.truncatedContent,
-      stderr,
-      interrupted: result.interrupted,
-      code: result.code,
-      ...(result.pipelineStatus ? { pipelineStatus: result.pipelineStatus } : {}),
-      isImage,
-      returnCodeInterpretation,
-      ...(exitNote !== undefined ? { exitNote } : {}),
-      ...(timeoutClampNotice !== undefined ? { timeoutClampNotice } : {}),
-      ...(outputBudgetNotice !== undefined ? { outputBudgetNotice } : {}),
-      noOutputExpected,
-      ...(persistedOutputPath ? { persistedOutputPath, persistedOutputSize } : {}),
-      ...(shellCommand.scrubbedSessionEnv && shellCommand.scrubbedSessionEnv.length > 0
-        ? { scrubbedSessionEnv: shellCommand.scrubbedSessionEnv }
-        : {}),
-    }
+function foregroundBackgroundedAnswer({ webNotice, foregroundTaskId, shellCommand, backgroundFacts }: { webNotice: string; foregroundTaskId: string; shellCommand: ShellCommand; backgroundFacts: BackgroundFacts }): Out {
+  return {
+    stdout: webNotice,
+    stderr: '',
+    interrupted: false,
+    backgroundTaskId: foregroundTaskId,
+    scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
+    backgroundedByUser: true,
+    ...backgroundFacts(),
   }
 }
 
