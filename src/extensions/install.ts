@@ -291,7 +291,7 @@ function removeSwitchFromKnownProjects(id: string): { touched: string[]; missed:
       writeFileSync(file, JSON.stringify(parsed, null, 2) + '\n')
       touched.push(file)
     } catch (error) {
-      if (!isENOENT(error)) missed.push(`switch could not be removed from ${file} (${errorMessage(error)}) — delete ${id} from extensions.enabled there`)
+      if (!isENOENT(error)) missed.push(`switch could not be removed from ${file} (${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}) — delete ${id} from extensions.enabled there`)
     }
   }
   return { touched, missed }
