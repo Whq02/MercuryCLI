@@ -14,21 +14,7 @@ import {
   type LayoutWrap,
 } from './node.js'
 import { AUTO, type DimValue, type EdgeStore, edgeValue, type InsetStore, insetValue, pointOrAuto, resolve } from './cellLayout/values.js'
-
-function roundGrid(v: number, forceCeil: boolean, forceFloor: boolean): number {
-  let frac = v - Math.floor(v)
-  if (frac < 0) frac += 1
-  if (frac < 0.0001) return Math.floor(v)
-  if (frac > 0.9999) return Math.ceil(v)
-  if (forceCeil) return Math.ceil(v)
-  if (forceFloor) return Math.floor(v)
-  return Math.floor(v) + (frac >= 0.4999 ? 1 : 0)
-}
-
-function nearWhole(v: number): boolean {
-  const frac = v - Math.floor(v)
-  return frac < 0.0001 || frac > 0.9999
-}
+import { type FinalRect, roundPass } from './cellLayout/rounding.js'
 
 let _visited = 0
 let _measured = 0
@@ -91,56 +77,49 @@ function axisReusable(
   return false
 }
 
-interface FinalRect {
-  left: number
-  top: number
-  width: number
-  height: number
-}
-
 class CellLayoutNode implements LayoutNode {
-  private children: CellLayoutNode[] = []
-  private parent: CellLayoutNode | null = null
+  children: CellLayoutNode[] = []
+  parent: CellLayoutNode | null = null
 
-  private styleWidth: DimValue = AUTO
-  private styleHeight: DimValue = AUTO
-  private styleMinWidth: DimValue = AUTO
-  private styleMinHeight: DimValue = AUTO
-  private styleMaxWidth: DimValue = AUTO
-  private styleMaxHeight: DimValue = AUTO
-  private flexDirection: LayoutFlexDirection = 'column'
-  private flexGrow = 0
-  private flexShrink = 0
-  private flexBasis: DimValue = AUTO
-  private flexWrap: LayoutWrap = 'nowrap'
-  private alignItems: LayoutAlign = 'stretch'
-  private alignSelf: LayoutAlign = 'auto'
-  private justifyContent: LayoutJustify = 'flex-start'
-  private display: LayoutDisplay = LayoutDisplay.Flex
-  private positionType: LayoutPositionType = 'relative'
-  private overflow: LayoutOverflow = 'visible'
-  private margin: EdgeStore = {}
-  private padding: EdgeStore = {}
-  private border: EdgeStore = {}
-  private gap: Partial<Record<LayoutGutter, number>> = {}
-  private position: InsetStore = {}
+  styleWidth: DimValue = AUTO
+  styleHeight: DimValue = AUTO
+  styleMinWidth: DimValue = AUTO
+  styleMinHeight: DimValue = AUTO
+  styleMaxWidth: DimValue = AUTO
+  styleMaxHeight: DimValue = AUTO
+  flexDirection: LayoutFlexDirection = 'column'
+  flexGrow = 0
+  flexShrink = 0
+  flexBasis: DimValue = AUTO
+  flexWrap: LayoutWrap = 'nowrap'
+  alignItems: LayoutAlign = 'stretch'
+  alignSelf: LayoutAlign = 'auto'
+  justifyContent: LayoutJustify = 'flex-start'
+  display: LayoutDisplay = LayoutDisplay.Flex
+  positionType: LayoutPositionType = 'relative'
+  overflow: LayoutOverflow = 'visible'
+  margin: EdgeStore = {}
+  padding: EdgeStore = {}
+  border: EdgeStore = {}
+  gap: Partial<Record<LayoutGutter, number>> = {}
+  position: InsetStore = {}
 
-  private measureFunc: LayoutMeasureFunc | null = null
-  private measureCache = new Map<string, { width: number; height: number }>()
+  measureFunc: LayoutMeasureFunc | null = null
+  measureCache = new Map<string, { width: number; height: number }>()
 
-  private measRecGen = -1
+  measRecGen = -1
 
-  private fbGen = -1
-  private fbBasis = 0
-  private fbAvailMain: number | undefined
-  private fbAvailCross: number | undefined
-  private fbCrossExact = false
+  fbGen = -1
+  fbBasis = 0
+  fbAvailMain: number | undefined
+  fbAvailCross: number | undefined
+  fbCrossExact = false
 
-  private measureEntries: SizingEntry[] = []
-  private layoutEntry: SizingEntry | null = null
+  measureEntries: SizingEntry[] = []
+  layoutEntry: SizingEntry | null = null
 
-  private final: FinalRect = { left: 0, top: 0, width: 0, height: 0 }
-  private rounded: FinalRect = { left: NaN, top: NaN, width: NaN, height: NaN }
+  final: FinalRect = { left: 0, top: 0, width: 0, height: 0 }
+  rounded: FinalRect = { left: NaN, top: NaN, width: NaN, height: NaN }
 
   constructor() {
     _liveNodes++
@@ -384,7 +363,7 @@ class CellLayoutNode implements LayoutNode {
       width: size.width,
       height: size.height,
     }
-    this.roundPass(0, 0)
+    roundPass(this, 0, 0)
   }
 
 
@@ -1165,25 +1144,6 @@ class CellLayoutNode implements LayoutNode {
         edgeValue(child.margin, 'top')
     }
     child.final = { left: x, top: y, width: size.width, height: size.height }
-  }
-
-  private roundPass(parentAbsLeft: number, parentAbsTop: number): void {
-    const absLeft = parentAbsLeft + this.final.left
-    const absTop = parentAbsTop + this.final.top
-    const text = this.measureFunc !== null
-    const fracW = !nearWhole(this.final.width)
-    const fracH = !nearWhole(this.final.height)
-    this.rounded = {
-      left: roundGrid(this.final.left, false, text),
-      top: roundGrid(this.final.top, false, text),
-      width:
-        roundGrid(absLeft + this.final.width, text && fracW, text && !fracW) -
-        roundGrid(absLeft, false, text),
-      height:
-        roundGrid(absTop + this.final.height, text && fracH, text && !fracH) -
-        roundGrid(absTop, false, text),
-    }
-    for (const c of this.children) c.roundPass(absLeft, absTop)
   }
 }
 
