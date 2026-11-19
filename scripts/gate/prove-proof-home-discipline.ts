@@ -189,7 +189,6 @@ const SUITE_HOMED_WRITERS = new Set<string>([
   'scripts/provider-compat/prove-xai-catalogue.ts',
   'scripts/provider-compat/prove-zai-flash-wire.ts',
   'scripts/providers/prove-gemini-family-refusal.ts',
-  'scripts/providers/prove-meta-contract.ts',
   'scripts/providers/prove-mistral-contract.ts',
   'scripts/providers/prove-nous-client-contract.ts',
   'scripts/providers/prove-nous-contract.ts',
@@ -200,7 +199,6 @@ const SUITE_HOMED_WRITERS = new Set<string>([
   'scripts/providers/prove-xai-usage.ts',
   'scripts/providers/prove-zai-catalogue.ts',
   'scripts/providers/prove-zai-env-key-plan.ts',
-  'scripts/providers/prove-zen-contract.ts',
 ])
 
 const proofs = tracked.filter(path => /\/prove-[^/]+\.(?:ts|tsx|mjs|py)$/.test(path) && path !== SELF)

@@ -58,11 +58,8 @@ const EXCLUDED_AREAS: Array<[string, string]> = [
 
 const PINS: Array<[string, string]> = [
   ['scripts/identity/prove-view-words-gone.ts', 'this census composes the words it hunts'],
-  ['scripts/cockpit-interaction/prove-cockpit-wiring.ts', 'pins that the composer and the rail carry no console compose line and read no console store'],
   ['scripts/identity/prove-retired-keys-unknown.ts', 'drives the retired settings key to prove it unknown'],
   ['scripts/ui/prove-view-reaches-status-row.ts', 'pins that no row reads the title row or the box'],
-  ['scripts/ui/prove-status-band.ts', 'pins that the layout mounts no title row module'],
-  ['scripts/ui/prove-settings-popup-header.ts', 'pins that the framed centre carries no title row module'],
   ['scripts/ui/prove-chat-compact.ts', 'pins that the cockpit paints no title row and no box'],
   ['scripts/ui/prove-feel-journey.ts', 'pins that the chat paints no title row'],
   ['scripts/ui/prove-session-flip-chord.ts', 'pins that no module registers the flip action'],
@@ -75,11 +72,9 @@ const PINS: Array<[string, string]> = [
   ['scripts/samples-drives/prove-samples-cockpit-drive.ts', 'pins that no box paints under the view'],
   ['scripts/critters/prove-critter-mini-drive.ts', 'pins that no title row paints and the box command is unknown'],
   ['scripts/critters/prove-small-critter-estate.ts', 'pins that the box switch, the box and the title row are gone'],
-  ['scripts/switchboard/prove-chat-mode-polish.ts', 'pins that the box module is gone'],
   ['scripts/switchboard/prove-surface-truth-drive.ts', 'pins that no frame paints a title row'],
   ['scripts/switchboard/prove-plain-world-command-honesty.ts', 'reads the title rows to prove them absent'],
   ['scripts/switchboard/prove-contract-offer-drive.ts', 'pins that the focused chat paints no title row'],
-  ['scripts/engine-connector/prove-header-truth.ts', 'pins that the title row module is gone'],
   ['scripts/visual-contract/prove-paste-safety.ts', 'pins that no row reads the title row'],
   ['scripts/visual-finish/prove-rail-recent-lane.ts', 'reads the box row to prove it absent'],
 ]
