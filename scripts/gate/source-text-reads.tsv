@@ -333,7 +333,7 @@ scripts/daemon/prove-rename-migration.ts	6	20	fc1c6c9fcb4e
 scripts/daemon/prove-restart-waits-live.ts	1	9	c24dc3f7fbaa
 scripts/daemon/prove-runner-asked-to-end.ts	1	7	22ebe5833cb3
 scripts/daemon/prove-runner-refusal-drive.ts	1	1	1e19e7dcd89c
-scripts/daemon/prove-runners-left-without-host.ts	1	4	c24dc3f7fbaa
+scripts/daemon/prove-runners-left-without-host.ts	1	1	c24dc3f7fbaa
 scripts/daemon/prove-saturn-adversarial.ts	10	13	9038bacf4a77
 scripts/daemon/prove-saturn-core.ts	6	36	1f5f5dd3f9d7
 scripts/daemon/prove-saturn-self-wake.ts	7	46	4179b6431fbb
@@ -342,7 +342,7 @@ scripts/daemon/prove-schedule-roster-fresh.ts	1	6	c24dc3f7fbaa
 scripts/daemon/prove-seat-door-direct.ts	5	17	7109db76d33e
 scripts/daemon/prove-send-hops.ts	2	8	cdf305118c12
 scripts/daemon/prove-sessionless-daemon-exits.ts	1	3	c24dc3f7fbaa
-scripts/daemon/prove-start-token-forms.ts	15	28	c93e638f3d59
+scripts/daemon/prove-start-token-forms.ts	15	25	c93e638f3d59
 scripts/daemon/prove-starting-door.ts	2	2	9a334474f2a6
 scripts/daemon/prove-status-honesty.ts	1	2	2b5b3f61bbda
 scripts/daemon/prove-stop-acknowledged.ts	3	10	0f6fbf1a1d2b
@@ -1009,7 +1009,7 @@ scripts/substrate/prove-boot-order.ts	3	18	6b30ffc00bdb
 scripts/substrate/prove-breaker-timeout.ts	3	4	e46d565918c2
 scripts/substrate/prove-cache-stability.ts	2	4	7c04e3fb5a19
 scripts/substrate/prove-capability-kill.ts	1	2	807227e9fa42
-scripts/substrate/prove-daemon-reconcile.ts	8	20	4846e621664d
+scripts/substrate/prove-daemon-reconcile.ts	8	18	4846e621664d
 scripts/substrate/prove-daemon-view.ts	4	11	5f915c072a8b
 scripts/substrate/prove-env-names.ts	1	4	f0c0c67bc887
 scripts/substrate/prove-env-switches.ts	5	5	48620f3acd84
