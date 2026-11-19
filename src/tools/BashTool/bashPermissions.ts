@@ -48,7 +48,7 @@ import {
   type CommandIdentityCheckers,
 } from './bashCommandHelpers.js'
 import { checkPermissionMode } from './modeValidation.js'
-import { denyRuleReach, hiddenDenyRuleRefusal, type HiddenDenyRule, type ReachBudget } from './denyRuleReach.js'
+import { denyRuleReach, hiddenDenyRuleAsk, hiddenDenyRuleRefusal, type HiddenDenyRule, type ReachBudget } from './denyRuleReach.js'
 import { modeBypassesPermissions, permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { checkPathConstraints, checkShellCwd } from './pathValidation.js'
 import { checkPreparedReadOnlyConstraints, checkReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
@@ -593,11 +593,12 @@ function shellTextVerdict(input: BashInput, context: ToolPermissionContext, know
     const reached = await decideWithDenyRuleReach(resolvedInput, context, 0)
     if (reached.result.behavior === 'deny') return reached.result
     const unread = reached.unread
-    const result = unread !== null && reached.result.behavior === 'allow' ? unprovenAsk(`${unread.why}, and ${ruleWords(unread.rule)} denies what it may print; name the paths it should print, or approve`) : reached.result
+    const printed = unread !== null && reached.result.behavior === 'allow' ? unprovenAsk(`${unread.why}, and ${ruleWords(unread.rule)} denies what it may print; name the paths it should print, or approve`) : reached.result
     const hidden = reached.hidden ?? unread
-    if (knownForCommand && hidden !== null && result.behavior !== 'allow' && (modeBypassesPermissions(context.mode) || context.mode === 'flow')) {
+    if (knownForCommand && hidden !== null && printed.behavior !== 'allow' && (modeBypassesPermissions(context.mode) || context.mode === 'flow')) {
       return hiddenDenyRuleRefusal(hidden, permissionModeTitle(context.mode))
     }
+    const result = knownForCommand && reached.hidden !== null && printed.behavior !== 'allow' ? hiddenDenyRuleAsk(reached.hidden) : printed
     const cwd = checkShellCwd(resolvedInput, context)
     if (cwd !== null) return cwd
     if (context.mode === 'flow' && result.behavior !== 'allow' && !keptByFlow(result)) {

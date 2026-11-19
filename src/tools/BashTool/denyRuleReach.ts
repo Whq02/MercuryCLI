@@ -500,6 +500,12 @@ function quotedInCode(text: string): string[] {
   return quoted.slice(0, 64)
 }
 
+function pathsInside(word: string): string[] {
+  const parts = word.split(/[\s'"`;|&<>()=,]+/).filter(part => /\w/.test(part) && /[\\/.~]/.test(part))
+  const spelled = parts.flatMap(part => (part.includes('\\') ? [part, part.replace(/\\/g, '/')] : [part]))
+  return [...new Set(spelled)].filter(part => part !== word).slice(0, 64)
+}
+
 function curlReads(args: readonly string[]): string[] {
   const posted = optionValuesOf(args, 'Fd', ['--form', '--form-string', '--data', '--data-binary', '--data-ascii', '--data-urlencode', '--json'])
   const sent = posted.flatMap(value => {
@@ -892,7 +898,7 @@ function viewChecksOf(reach: Reach, denials: Denials, ports: DenyRuleReachPorts)
         break
       }
     }
-    for (const path of operandPaths(words)) {
+    for (const path of [...operandPaths(words), ...words.flatMap(pathsInside)]) {
       const found = pathFound(path, view.cwds, ['read', 'edit'])
       if (found === 'unread') hide(fileRule, `the wildcard ${path} matches more files than Mercury reads`)
       else if (found !== null && 'folder' in found) hide(fileRule, unreadableWhy(found))
@@ -1113,6 +1119,11 @@ async function reachOf(
    }
   }
   return { denied: null, hidden: reach.hidden, unread: reach.unread }
+}
+
+export function hiddenDenyRuleAsk(hidden: HiddenDenyRule): PermissionResult {
+  const message = `${hidden.why}, and ${ruleWords(hidden.rule)} denies what it may do; spell it out as plain commands with literal paths, or approve`
+  return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
 }
 
 export function hiddenDenyRuleRefusal(hidden: HiddenDenyRule, modeTitle: string): PermissionResult {
