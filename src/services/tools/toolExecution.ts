@@ -12,7 +12,7 @@ import { completionIdentity } from '../agentResults/summaryRoom.js'
 import { addToToolDuration, canAnswerAsks, getSessionId, getSessionKind, getStatsStore } from '../../bootstrap/state.js'
 import { guardKeysOf, judgeToolCall } from '../../guards/guards.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
-import type { PermissionDecisionReason } from '../../types/permissions.js'
+import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import type { ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
@@ -494,41 +494,13 @@ async function runTransactionBody(args: {
 
 
   if (isToolKilled(tool, toolUseContext.agentType)) {
-    const reason = toolKillReason(tool, toolUseContext.agentType)
-    const target = extractKillTarget(tool.name, input)
-    const hermesKill: HermesKillInfo = {
-      kind: 'capability-gate',
-      ...(reason?.killPattern !== undefined ? { killPattern: reason.killPattern } : {}),
-      tool: tool.name,
-      ...(target !== undefined ? { target } : {}),
-    }
-    traceOnce({ killed: true, ok: false })
-    const content = `The ${tool.name} tool has been switched off for this agent by the operator (capability kill-switch).`
-    push(
-      errorResultUpdate({
-        toolUseID,
-        content,
-        toolUseResult: { error: content, hermesKill },
-        sourceToolAssistantUUID: sourceUUID,
-      }),
-    )
-    logForDebugging(`tool use refused by capability kill-switch: ${tool.name}`)
+    refuseKilledTool(tool, toolUseContext, input, traceOnce, push, toolUseID, sourceUUID)
     return
   }
 
   const parsed = tool.inputSchema.safeParse(repairToolInput(tool, input))
   if (!parsed.success) {
-    traceOnce({ ok: false })
-    let content = formatZodValidationError(tool.name, parsed.error, tool.inputJSONSchema)
-    const silence = schemaHintSilence({
-      tool,
-      messages: toolUseContext.messages,
-      tools: toolUseContext.options.tools,
-      model: toolUseContext.options.engineModel,
-    })
-    if (silence === null) content += schemaNotSentWords(tool.name)
-    else logForDebugging(`schema hint withheld for ${tool.name}: ${silence}`)
-    emitError(content, content)
+    refuseInvalidInput(tool, parsed, toolUseContext, traceOnce, emitError)
     return
   }
   let parsedInput = parsed.data as AnyObject
@@ -755,6 +727,70 @@ async function runTransactionBody(args: {
     callInput = { ...workingInput, file_path: parsedInput.file_path }
   }
 
+  await runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool, toolUseContext, push, signal, sourceUUID, traceOnce, settleHookWait, announceHooks, decision, callInput, observableInput, decidedRows, allowanceRow, hookNotes, stopReason })
+}
+
+type TraceOnce = (opts: { killed?: boolean; durationMs?: number; ok?: boolean }) => void
+
+function refuseKilledTool(tool: Tool, toolUseContext: ToolUseContext, input: AnyObject, traceOnce: TraceOnce, push: (update: MessageUpdateLazy) => void, toolUseID: string, sourceUUID: AssistantMessage['uuid']): void {
+  const reason = toolKillReason(tool, toolUseContext.agentType)
+  const target = extractKillTarget(tool.name, input)
+  const hermesKill: HermesKillInfo = {
+    kind: 'capability-gate',
+    ...(reason?.killPattern !== undefined ? { killPattern: reason.killPattern } : {}),
+    tool: tool.name,
+    ...(target !== undefined ? { target } : {}),
+  }
+  traceOnce({ killed: true, ok: false })
+  const content = `The ${tool.name} tool has been switched off for this agent by the operator (capability kill-switch).`
+  push(
+    errorResultUpdate({
+      toolUseID,
+      content,
+      toolUseResult: { error: content, hermesKill },
+      sourceToolAssistantUUID: sourceUUID,
+    }),
+  )
+  logForDebugging(`tool use refused by capability kill-switch: ${tool.name}`)
+}
+
+function refuseInvalidInput(tool: Tool, parsed: { error: Parameters<typeof formatZodValidationError>[1] }, toolUseContext: ToolUseContext, traceOnce: TraceOnce, emitError: (content: string, toolUseResult: unknown) => void): void {
+  traceOnce({ ok: false })
+  let content = formatZodValidationError(tool.name, parsed.error, tool.inputJSONSchema)
+  const silence = schemaHintSilence({
+    tool,
+    messages: toolUseContext.messages,
+    tools: toolUseContext.options.tools,
+    model: toolUseContext.options.engineModel,
+  })
+  if (silence === null) content += schemaNotSentWords(tool.name)
+  else logForDebugging(`schema hint withheld for ${tool.name}: ${silence}`)
+  emitError(content, content)
+}
+
+interface ToolCallNeeds {
+  args: Parameters<typeof runTransactionBody>[0]
+  tool: Tool
+  toolUseID: string
+  assistantMessage: AssistantMessage
+  canUseTool: CanUseToolFn
+  toolUseContext: ToolUseContext
+  push: (update: MessageUpdateLazy) => void
+  signal: AbortSignal
+  sourceUUID: AssistantMessage['uuid']
+  traceOnce: TraceOnce
+  settleHookWait: () => void
+  announceHooks: (event: 'tool.before' | 'tool.after') => HookAnnounce
+  decision: PermissionDecision
+  callInput: AnyObject
+  observableInput: AnyObject
+  decidedRows: { message: ReturnType<typeof createAttachmentMessage> }[]
+  allowanceRow: ReturnType<typeof createAttachmentMessage> | null
+  hookNotes: Message[]
+  stopReason: string | undefined
+}
+
+async function runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool, toolUseContext, push, signal, sourceUUID, traceOnce, settleHookWait, announceHooks, decision, callInput, observableInput, decidedRows, allowanceRow, hookNotes, stopReason }: ToolCallNeeds): Promise<void> {
   const executionRecord = toolUseContext.toolDecisions?.get(toolUseID)
   void executionRecord
   const executionStartedAt = Date.now()
@@ -846,46 +882,6 @@ async function runTransactionBody(args: {
     const acceptFeedback = (decision as { acceptFeedback?: string }).acceptFeedback
     const allowBlocks = (decision as { contentBlocks?: unknown[] }).contentBlocks ?? []
 
-    const buildResultUpdate = async (blockForEmission: ToolResultBlockParam): Promise<MessageUpdateLazy> => {
-      const room = resultRoomFor(assistantMessage)
-      const processed = await processPreMappedToolResultBlock(
-        blockForEmission,
-        tool.name,
-        tool.maxResultSizeChars,
-        room === null || room.reserved(toolUseID) ? undefined : { shareChars: room.allowance(toolUseID) * 4, words: RESULT_ROOM_WORDS },
-        toolUseContext.options.engineModel,
-      )
-      if (room !== null) {
-        const landed = (processed as { content?: unknown }).content
-        room.settle(toolUseID, tokensOfResultText(typeof landed === 'string' ? landed : JSON.stringify(landed ?? '')))
-      }
-      const blocks: unknown[] = [processed]
-      if (acceptFeedback) blocks.push({ type: 'text', text: acceptFeedback })
-      blocks.push(...allowBlocks)
-      const imageCount = allowBlocks.filter(isImageBlock).length
-      const imagePasteIds =
-        imageCount > 0 ? nextImagePasteIds(toolUseContext.messages, imageCount) : undefined
-      return {
-        message: createUserMessage({
-          content: blocks as never,
-          ...(isSubagent ? tool.name === AGENT_TOOL_NAME && completionIdentity(result!.data) !== null ? { toolUseResult: completionIdentity(result!.data) } : {} : { toolUseResult: result!.data }),
-          ...(isSubagent || result!.mcpMeta === undefined
-            ? {}
-            : { mcpMeta: result!.mcpMeta }),
-          sourceToolAssistantUUID: sourceUUID as never,
-          ...(imagePasteIds !== undefined ? { imagePasteIds } : {}),
-        }),
-        ...(result!.contextModifier !== undefined
-          ? {
-              contextModifier: {
-                toolUseID,
-                modifier: result!.contextModifier,
-              },
-            }
-          : {}),
-      }
-    }
-
     const postStartedAt = Date.now()
     const returnedError = effect?.outcome === 'failed' || mappedBlock.is_error === true
     const cut = signal.aborted
@@ -908,7 +904,7 @@ async function runTransactionBody(args: {
       const words = typeof after.answer.output === 'string' ? after.answer.output : jsonStringify(after.answer.output)
       mappedBlock = { type: 'tool_result', tool_use_id: toolUseID, content: words, ...(returnedError ? { is_error: true } : {}) }
     }
-    const resultUpdate = await buildResultUpdate(mappedBlock)
+    const resultUpdate = await buildResultUpdate(mappedBlock, { assistantMessage, tool, toolUseID, toolUseContext, acceptFeedback, allowBlocks, isSubagent, result, sourceUUID })
     if (tool.isMcp || after.answer.output !== undefined) {
       push(resultUpdate)
     } else {
@@ -1056,6 +1052,58 @@ async function runTransactionBody(args: {
     }
     stopSessionActivity(TOOL_EXEC_ACTIVITY)
     toolUseContext.toolDecisions?.delete(toolUseID)
+  }
+}
+
+interface ResultUpdateNeeds {
+  assistantMessage: AssistantMessage
+  tool: Tool
+  toolUseID: string
+  toolUseContext: ToolUseContext
+  acceptFeedback: string | undefined
+  allowBlocks: unknown[]
+  isSubagent: boolean
+  result: ToolResult<unknown> | undefined
+  sourceUUID: AssistantMessage['uuid']
+}
+
+async function buildResultUpdate(blockForEmission: ToolResultBlockParam, { assistantMessage, tool, toolUseID, toolUseContext, acceptFeedback, allowBlocks, isSubagent, result, sourceUUID }: ResultUpdateNeeds): Promise<MessageUpdateLazy> {
+  const room = resultRoomFor(assistantMessage)
+  const processed = await processPreMappedToolResultBlock(
+    blockForEmission,
+    tool.name,
+    tool.maxResultSizeChars,
+    room === null || room.reserved(toolUseID) ? undefined : { shareChars: room.allowance(toolUseID) * 4, words: RESULT_ROOM_WORDS },
+    toolUseContext.options.engineModel,
+  )
+  if (room !== null) {
+    const landed = (processed as { content?: unknown }).content
+    room.settle(toolUseID, tokensOfResultText(typeof landed === 'string' ? landed : JSON.stringify(landed ?? '')))
+  }
+  const blocks: unknown[] = [processed]
+  if (acceptFeedback) blocks.push({ type: 'text', text: acceptFeedback })
+  blocks.push(...allowBlocks)
+  const imageCount = allowBlocks.filter(isImageBlock).length
+  const imagePasteIds =
+    imageCount > 0 ? nextImagePasteIds(toolUseContext.messages, imageCount) : undefined
+  return {
+    message: createUserMessage({
+      content: blocks as never,
+      ...(isSubagent ? tool.name === AGENT_TOOL_NAME && completionIdentity(result!.data) !== null ? { toolUseResult: completionIdentity(result!.data) } : {} : { toolUseResult: result!.data }),
+      ...(isSubagent || result!.mcpMeta === undefined
+        ? {}
+        : { mcpMeta: result!.mcpMeta }),
+      sourceToolAssistantUUID: sourceUUID as never,
+      ...(imagePasteIds !== undefined ? { imagePasteIds } : {}),
+    }),
+    ...(result!.contextModifier !== undefined
+      ? {
+          contextModifier: {
+            toolUseID,
+            modifier: result!.contextModifier,
+          },
+        }
+      : {}),
   }
 }
 
