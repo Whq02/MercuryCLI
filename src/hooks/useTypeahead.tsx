@@ -15,17 +15,13 @@ import { useInput } from '../ink.js'
 import { KeyboardEvent } from '../ink/events/keyboard-event.js'
 import { useOptionalKeybindingContext } from '../keybindings/KeybindingContext.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
-import { getShortcutDisplay } from '../keybindings/shortcutFormat.js'
 import { useAppStateStore } from '../state/AppState.js'
 import type {
   InlineGhostText,
   PromptInputMode,
 } from '../types/textInputTypes.js'
-import { getShellCompletions } from '../utils/bash/shellCompletion.js'
 import {
-  applyCommandSuggestion,
   findChannelTargetQuery,
-  isNameAnchoredSuggestion,
   findMidInputSlashCommand,
   getBestCommandMatch,
 } from '../utils/suggestions/commandSuggestions.js'
@@ -35,7 +31,6 @@ import {
   isPathLikeToken,
 } from '../utils/suggestions/directoryCompletion.js'
 import {
-  findLongestCommonPrefix,
   onIndexBuildComplete,
   startBackgroundCacheRefresh,
 } from '../hooks/fileSuggestions.js'
@@ -44,23 +39,19 @@ import { logError } from '../utils/log.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { armTypeaheadTimer, disarmTypeaheadTimer } from './typeahead/timers.js'
 import {
-  applyDirectorySuggestion,
-  applyShellSuggestion,
   extractCompletionToken,
   extractSearchToken,
-  formatReplacementValue,
   preservedSelection,
-  shellCompletionTypeOf,
-  shellMetadataOf,
 } from './typeahead/tokens.js'
 import { ladderChannelTarget, ladderClearStale, ladderCommands, ladderMentions, ladderPaths, type LadderContext } from './typeahead/ladder.js'
 import type { SuggestionsState } from './typeahead/state.js'
+import { acceptAgent, acceptChannelTarget, acceptCommand, acceptCustomTitle, acceptDirectory, acceptFile, acceptShell, acceptSlackChannel, acceptWithoutList, type AcceptContext } from './typeahead/accept.js'
+import { acceptPromptSuggestionOf, handleTypeaheadKey } from './typeahead/keys.js'
 
 
 export { armTypeaheadTimer, disarmTypeaheadTimer, typeaheadTimerCensus } from './typeahead/timers.js'
 
 const FILE_FETCH_DEBOUNCE_MS = 50
-const THINKING_HINT_KEY = 'thinking-toggle-hint'
 
 
 export type { SuggestionsState } from './typeahead/state.js'
@@ -326,6 +317,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
       const cursor = cursorOffsetRef.current
       const list = suggestionsRef.current
       const type = suggestionTypeRef.current
+      const accept: AcceptContext = { atIndex, viaEnter, currentInput, cursor, list, mode, commands, setInput, setCursorOffset, onSubmit, publish, clearSuggestions, runUnifiedFetch, rerunLadderForInput, userNavigatedRef, inputRef, cursorOffsetRef }
 
       const ghost =
         mode === 'prompt' ? promptGhost : (asyncGhostText ?? undefined)
@@ -362,227 +354,20 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
         if (!suggestion) return
 
         switch (type) {
-          case 'command': {
-            if (
-              viaEnter &&
-              atIndex === undefined &&
-              !userNavigatedRef.current &&
-              !isNameAnchoredSuggestion(currentInput, suggestion)
-            ) {
-              clearSuggestions()
-              onSubmit?.(currentInput, true)
-              return
-            }
-            applyCommandSuggestion(
-              suggestion,
-              viaEnter,
-              commands,
-              setInput,
-              setCursorOffset,
-              onSubmit ?? (() => {}),
-            )
-            clearSuggestions()
-            return
-          }
-          case 'custom-title': {
-            const sessionRef =
-              (suggestion.metadata as string | undefined) ??
-              suggestion.displayText
-            const rebuilt = `/sessions ${sessionRef}`
-            setInput(rebuilt)
-            setCursorOffset(rebuilt.length)
-            if (viaEnter) onSubmit?.(rebuilt, true)
-            clearSuggestions()
-            return
-          }
-          case 'directory': {
-            if (currentInput.startsWith('/')) {
-              if (viaEnter) {
-                clearSuggestions()
-                return
-              }
-              const spaceIndex = currentInput.indexOf(' ')
-              const prefix = currentInput.slice(0, spaceIndex + 1)
-              const isDirectory = suggestion.id.endsWith('/')
-              const id = isDirectory
-                ? suggestion.id.slice(0, -1)
-                : suggestion.id
-              const rebuilt = `${prefix}${id}${isDirectory ? '/' : ' '}`
-              setInput(rebuilt)
-              setCursorOffset(rebuilt.length)
-              if (isDirectory) rerunLadderForInput(rebuilt)
-              else clearSuggestions()
-              return
-            }
-            const token = extractCompletionToken(currentInput, cursor, true)
-            if (!token) {
-              clearSuggestions()
-              return
-            }
-            const isDirectory = suggestion.id.endsWith('/')
-            const id = isDirectory ? suggestion.id.slice(0, -1) : suggestion.id
-            const { newInput, cursorPos } = applyDirectorySuggestion(
-              currentInput,
-              id,
-              token.startPos,
-              token.token.length,
-              isDirectory,
-            )
-            setInput(newInput)
-            setCursorOffset(cursorPos)
-            if (isDirectory && !viaEnter) rerunLadderForInput(newInput)
-            else clearSuggestions()
-            return
-          }
-          case 'shell': {
-            applyShellSuggestion(
-              suggestion,
-              currentInput,
-              cursor,
-              setInput,
-              setCursorOffset,
-              shellCompletionTypeOf(suggestion),
-            )
-            clearSuggestions()
-            return
-          }
-          case 'channel-target': {
-            const target = findChannelTargetQuery(currentInput, cursor)
-            if (!target) {
-              clearSuggestions()
-              return
-            }
-            const rebuilt = `${currentInput.slice(0, target.start)}${String(suggestion.metadata ?? suggestion.displayText)} `
-            setInput(rebuilt)
-            setCursorOffset(rebuilt.length)
-            clearSuggestions()
-            return
-          }
-          case 'agent': {
-            if (!suggestion.id.startsWith('dm-')) return
-            const before = currentInput.slice(0, cursor)
-            const match = before.match(/(^|\s)@[\w-]*$/)
-            if (!match) {
-              clearSuggestions()
-              return
-            }
-            const start = before.length - match[0].length + match[1]!.length
-            const rebuilt =
-              currentInput.slice(0, start) +
-              suggestion.displayText +
-              ' ' +
-              currentInput.slice(cursor)
-            setInput(rebuilt)
-            setCursorOffset(start + suggestion.displayText.length + 1)
-            clearSuggestions()
-            return
-          }
-          case 'slack-channel': {
-            const before = currentInput.slice(0, cursor)
-            const match = before.match(/(^|\s)#[a-z0-9][a-z0-9_-]*$/)
-            if (!match) {
-              clearSuggestions()
-              return
-            }
-            const start = before.length - match[0].length + match[1]!.length
-            const rebuilt =
-              currentInput.slice(0, start) +
-              suggestion.displayText +
-              ' ' +
-              currentInput.slice(cursor)
-            setInput(rebuilt)
-            setCursorOffset(start + suggestion.displayText.length + 1)
-            clearSuggestions()
-            return
-          }
-          case 'file': {
-            const token = extractCompletionToken(currentInput, cursor, true)
-            if (!token) {
-              clearSuggestions()
-              return
-            }
-            const search = extractSearchToken(token)
-            const commonPrefix = findLongestCommonPrefix(list)
-            if (
-              !viaEnter &&
-              commonPrefix.length > search.length &&
-              list.length > 1
-            ) {
-              const partial = formatReplacementValue({
-                displayText: commonPrefix,
-                mode,
-                hasAtPrefix: token.token.startsWith('@'),
-                needsQuotes: commonPrefix.includes(' '),
-                isQuoted: token.isQuoted,
-                isComplete: false,
-              })
-              const rebuilt =
-                currentInput.slice(0, token.startPos) +
-                partial +
-                currentInput.slice(token.startPos + token.token.length)
-              setInput(rebuilt)
-              setCursorOffset(token.startPos + partial.length)
-              runUnifiedFetch(commonPrefix)
-              return
-            }
-            const complete = formatReplacementValue({
-              displayText: suggestion.displayText,
-              mode,
-              hasAtPrefix: token.token.startsWith('@'),
-              needsQuotes: suggestion.displayText.includes(' '),
-              isQuoted: token.isQuoted,
-              isComplete: true,
-            })
-            const rebuilt =
-              currentInput.slice(0, token.startPos) +
-              complete +
-              currentInput.slice(token.startPos + token.token.length)
-            setInput(rebuilt)
-            setCursorOffset(token.startPos + complete.length)
-            clearSuggestions()
-            return
-          }
+          case 'command': return acceptCommand(accept, suggestion)
+          case 'custom-title': return acceptCustomTitle(accept, suggestion)
+          case 'directory': return acceptDirectory(accept, suggestion)
+          case 'shell': return acceptShell(accept, suggestion)
+          case 'channel-target': return acceptChannelTarget(accept, suggestion)
+          case 'agent': return acceptAgent(accept, suggestion)
+          case 'slack-channel': return acceptSlackChannel(accept, suggestion)
+          case 'file': return acceptFile(accept, suggestion)
           default:
             return
         }
       }
 
-      if (currentInput.trim() === '') return
-      if (mode === 'bash') {
-        void getShellCompletions(currentInput, cursor, new AbortController().signal)
-          .then(completions => {
-            if (completions.length === 1) {
-              applyShellSuggestion(
-                completions[0]!,
-                inputRef.current,
-                cursorOffsetRef.current,
-                setInput,
-                setCursorOffset,
-                shellCompletionTypeOf(completions[0]!),
-              )
-              return
-            }
-            if (completions.length > 0) {
-              publish(
-                completions.map((completion, index) =>
-                  index === 0
-                    ? {
-                        ...completion,
-                        metadata: { ...shellMetadataOf(completion), input: inputRef.current },
-                      }
-                    : completion,
-                ),
-                'shell',
-                { selected: 0 },
-              )
-            }
-          })
-          .catch(error => logError(error))
-        return
-      }
-      const token = extractCompletionToken(currentInput, cursor, true)
-      if (!token) return
-      runUnifiedFetch(extractSearchToken(token))
+      acceptWithoutList(accept)
     },
     [
       mode,
@@ -648,86 +433,12 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
   )
 
   const acceptPromptSuggestion = useCallback((): void => {
-    const state = appStateStore.getState()
-    const promptSuggestion = state.promptSuggestion
-    if (!promptSuggestion?.text) return
-    markAccepted?.()
-    const text = promptSuggestion.text
-    const { getModeFromInput, getValueFromInput } =
-      require('../components/PromptInput/inputModes.js') as typeof import('../components/PromptInput/inputModes.js')
-    const impliedMode = getModeFromInput(text)
-    if (impliedMode !== 'prompt' && onModeChange) {
-      onModeChange(impliedMode)
-      const stripped = getValueFromInput(text)
-      setInput(stripped)
-      setCursorOffset(stripped.length)
-    } else {
-      setInput(text)
-      setCursorOffset(text.length)
-    }
+    acceptPromptSuggestionOf({ appStateStore, markAccepted, onModeChange, setInput, setCursorOffset })
   }, [appStateStore, markAccepted, onModeChange, setInput, setCursorOffset])
 
   const handleKeyboardEvent = useCallback(
     (event: KeyboardEvent): void => {
-      const state = appStateStore.getState()
-      const viewingCrewmate = Boolean(state.viewingAgentTaskId)
-      const promptSuggestion = state.promptSuggestion
-
-      if (
-        event.key === 'right' &&
-        !viewingCrewmate &&
-        promptSuggestion?.text &&
-        (promptSuggestion.shownAt ?? 0) > 0 &&
-        inputRef.current === ''
-      ) {
-        acceptPromptSuggestion()
-        event.stopImmediatePropagation()
-        return
-      }
-
-      if (event.key === 'tab' && !event.shift) {
-        if (
-          suggestionsRef.current.length > 0 ||
-          inlineGhostText !== undefined
-        ) {
-          return
-        }
-        if (
-          !viewingCrewmate &&
-          promptSuggestion?.text &&
-          inputRef.current === ''
-        ) {
-          event.stopImmediatePropagation()
-          acceptPromptSuggestion()
-          return
-        }
-        if (inputRef.current.trim() === '') {
-          if (cockpitActive) return
-          event.stopImmediatePropagation()
-          const chord = getShortcutDisplay('chat:thinkingToggle', 'Chat', 'meta+t')
-          addNotification({
-            key: THINKING_HINT_KEY,
-            text: `${chord} toggles thinking`,
-            priority: 'immediate',
-            timeoutMs: 3000,
-          })
-        }
-        return
-      }
-
-      if (suggestionsRef.current.length === 0) return
-
-      if (event.ctrl && (event.key === 'n' || event.key === 'p')) {
-        if (keybindingContext?.pendingChord) return
-        event.stopImmediatePropagation()
-        moveSelection(event.key === 'n' ? 1 : -1)
-        return
-      }
-
-      if (event.key === 'return' && !event.shift && !event.meta) {
-        event.stopImmediatePropagation()
-        acceptSuggestion(undefined, true)
-      }
+      handleTypeaheadKey(event, { appStateStore, inputRef, suggestionsRef, inlineGhostText, cockpitActive, addNotification, keybindingContext, acceptPromptSuggestion, moveSelection, acceptSuggestion })
     },
     [
       appStateStore,
