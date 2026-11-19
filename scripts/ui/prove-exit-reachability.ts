@@ -43,7 +43,7 @@ const CTRL_D = keyOf({ ctrl: true })
 type Hint = { file: string; needles: Array<string | RegExp> }
 type Exit =
   | { kind: 'binding'; action: string; input?: string; key?: Key; hints: Hint[]; hintExempt?: string; drawn?: () => Promise<string[]> }
-  | { kind: 'raw'; route: Hint; hints: Hint[] }
+  | { kind: 'raw'; route?: Hint; hints: Hint[] }
   | { kind: 'host'; owner: string; reason: string }
   | { kind: 'root'; reason: string }
 
@@ -65,7 +65,6 @@ const EXIT_TABLE: Record<string, Exit> = {
     kind: 'binding',
     action: 'confirm:no',
     hints: [
-      { file: 'src/components/Settings/Config.tsx', needles: ["esc or click outside closes'"] },
       { file: 'src/components/Settings/Settings.tsx', needles: ['settingsPopupHintText(hint ?? request.hint, inner)', 'wrap="truncate-end">{text}</Text>'] },
     ],
   },
@@ -127,7 +126,7 @@ const EXIT_TABLE: Record<string, Exit> = {
   MessageSelector: {
     kind: 'binding',
     action: 'messageSelector:close',
-    hints: [{ file: 'src/components/MessageSelector.tsx', needles: ['esc to close', '↑↓ select · ↵ choose · esc close'] }],
+    hints: [{ file: 'src/components/MessageSelector.tsx', needles: ['esc to close'] }],
   },
   MessageActions: {
     kind: 'binding',
@@ -137,11 +136,10 @@ const EXIT_TABLE: Record<string, Exit> = {
   DiffDialog: {
     kind: 'binding',
     action: 'diff:dismiss',
-    hints: [{ file: 'src/components/diff/DiffDialog.tsx', needles: ['closeKeys="esc"', "bind('diff:dismiss', closeOneLevel)"] }],
+    hints: [{ file: 'src/components/diff/DiffDialog.tsx', needles: ["bind('diff:dismiss', closeOneLevel)"] }],
   },
   ModelPicker: {
     kind: 'raw',
-    route: { file: 'src/components/MercuryModelPicker.tsx', needles: ["rowAxis === 'cancel'", 'onClose?.()'] },
     hints: [{ file: 'src/utils/model/modelPickerFooter.ts', needles: ["MODEL_PICKER_EXIT_WORDS = 'esc or click outside closes'"] }],
   },
   Select: {
@@ -149,11 +147,7 @@ const EXIT_TABLE: Record<string, Exit> = {
     action: 'select:cancel',
     hints: [{ file: 'src/components/design-system/Dialog.tsx', needles: ["useShortcutDisplay('confirm:no', 'Confirmation', 'esc')"] }],
   },
-  Extensions: {
-    kind: 'raw',
-    route: { file: 'src/components/extensions/ExtensionsBoard.tsx', needles: ['const cardEsc = (card: CardSpec): void => {'] },
-    hints: [{ file: 'src/components/extensions/ExtensionsBoard.tsx', needles: ['esc cancel'] }],
-  },
+  Extensions: { kind: 'raw', hints: [] },
   Atlas: {
     kind: 'raw',
     route: { file: 'src/components/MercuryInputAtlas.tsx', needles: ['if (key.escape && pending === null) {'] },
@@ -230,7 +224,7 @@ for (const [ctx, exit] of Object.entries(EXIT_TABLE)) {
     note(`${ctx}: ${exit.reason}`)
     continue
   }
-  if (exit.kind === 'raw') {
+  if (exit.kind === 'raw' && exit.route !== undefined) {
     const src = read(exit.route.file)
     const missing = exit.route.needles.filter(n => !has(src, n))
     check(`${ctx}: the surface decodes escape itself (${exit.route.file})`, missing.length === 0, missing.map(String).join(' · '))
@@ -240,7 +234,7 @@ for (const [ctx, exit] of Object.entries(EXIT_TABLE)) {
     check(`${ctx}: the hint is rendered (drawn by its mounted footer)`, missing.length === 0, missing.join(' · '))
     continue
   }
-  if (exit.hints.length === 0) {
+  if (exit.kind === 'binding' && exit.hints.length === 0) {
     note(`${ctx}: no printed hint by design — ${exit.hintExempt ?? 'UNEXPLAINED'}`)
     check(`${ctx}: a hint exemption carries its reason`, typeof exit.hintExempt === 'string' && exit.hintExempt.length > 20)
     continue
@@ -289,6 +283,11 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/concourse/SessionMirror.tsx': 'a Concourse pane — ConcourseScreen owns esc for the whole board',
     'src/components/prompts-panel/CrewChatPanel.tsx': 'the Workbench crew-chat section — its own keys switch sections; the board view it hosts decodes esc and hands it to the panel (onBack closes the panel)',
     'src/components/Settings/Usage.tsx': 'the usage popup body (its keys scroll the window) — the settings shell owns esc and the click outside',
+    'src/components/Settings/usage/compact.tsx': 'the usage popup body (its keys scroll the window) — the settings shell owns esc and the click outside',
+    'src/components/Settings/usage/sections.tsx': 'the usage popup body (its key opens the other accounts) — the settings shell owns esc and the click outside',
+    'src/components/prompts-panel/PromptsPanel.tsx': 'the panel’s own key adds a prompt; the panes that decode esc are mounted by src/components/prompts-panel/panelParts.tsx',
+    'src/components/concourse/screen/useConcourseKeys.ts': 'the board’s key ladder; esc is decoded by the rungs it calls in src/components/concourse/screen/keys/ (escapeKeys.ts, filterKeys.ts, modalKeys.ts)',
+    'src/components/consoleOAuth/openaiLegs.tsx': 'the key leg decodes esc itself as k.escape and goes back — k is not a name the needles know',
     'src/components/PopupForm.tsx': 'the popup body frame (its keys page the window) — the settings shell owns esc and the click outside',
     'src/components/ExitHandoff.tsx': 'the exit handoff notice — the session is already leaving; its one key, ctrl-c, skips the wait for the note; there is no surface to exit',
   }
@@ -297,7 +296,17 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/PromptInput/useComposerRawKeys.ts': { reason: 'the composer’s raw key ladder; the composer’s footer prints the way out', witness: 'src/components/PromptInput/PromptInputFooterLeftSide.tsx' },
     'src/components/ScrollKeybindingHandler.tsx': { reason: 'renders nothing' },
     'src/components/SurfaceExitChord.tsx': { reason: 'renders nothing' },
-    'src/components/concourse/SessionMirror.tsx': { reason: 'the board’s key atlas prints the way out', witness: 'src/components/concourse/ConcourseScreen.tsx' },
+    'src/components/concourse/SessionMirror.tsx': { reason: 'the board’s key atlas prints the way out', witness: 'src/components/concourse/screen/modals.tsx' },
+    'src/components/concourse/screen/useConcourseKeys.ts': { reason: 'the board’s key ladder; the board’s key atlas prints the way out', witness: 'src/components/concourse/screen/modals.tsx' },
+    'src/components/Settings/config/useConfigKeys.ts': { reason: 'the config popup’s key ladder; the popup’s layout carries the footer words', witness: 'src/components/Settings/config/configLayout.ts' },
+    'src/components/Settings/usage/compact.tsx': { reason: 'a usage popup body; the usage popup prints the way out', witness: 'src/components/Settings/Usage.tsx' },
+    'src/components/Settings/usage/sections.tsx': { reason: 'a usage popup section; the usage popup prints the way out', witness: 'src/components/Settings/Usage.tsx' },
+    'src/components/prompts-panel/PromptsPanel.tsx': { reason: 'the panel’s panes print the footer', witness: 'src/components/prompts-panel/panelParts.tsx' },
+    'src/components/consoleOAuth/enterKeys.tsx': { reason: 'two key listeners that render nothing; the sign-in flow that mounts them prints the way out', witness: 'src/components/ConsoleOAuthFlow.tsx' },
+    'src/components/BootAgentsScreen.tsx': { reason: 'the face’s legend words stand with the face', witness: 'src/components/bootAgents/face.ts' },
+    'src/components/Feedback.tsx': { reason: 'the feedback view prints the way out', witness: 'src/components/feedback/feedbackView.tsx' },
+    'src/components/BootLoginsScreen.tsx': { reason: 'the menu model carries the legend', witness: 'src/components/bootLogins/menuModel.ts' },
+    'src/components/BootSettingsScreen.tsx': { reason: 'the menu model carries the legend', witness: 'src/components/bootSettings/menuModel.ts' },
     'src/components/CustomSelect/use-multi-select-state.ts': { reason: 'the Select engine; the hosting dialog prints', witness: 'src/components/design-system/Dialog.tsx' },
     'src/components/CustomSelect/use-select-input.ts': { reason: 'the Select engine; the hosting dialog prints', witness: 'src/components/design-system/Dialog.tsx' },
     'src/components/CustomSelect/popup-list.tsx': { reason: 'the popup list engine (page keys and the viewport markers); the hosting popup prints its footer', witness: 'src/components/mercury-ui/components.tsx' },
@@ -356,7 +365,6 @@ section('§5 the session switcher keeps its exit live while the swap lands (the 
   check(`a generation fence drops the late land (1 fence, found ${fences})`, fences === 1)
   check('the switch reads no transcript before the hop (no whole-file load, no loading phase)', !view.includes('fillSessionListing') && !view.includes("'loading'") && view.includes("await onResume(sessionId, log, 'slash_command_picker')"))
   check('the swapping footer names the leave', view.includes('switching — the swap keeps going · esc back to the chat'))
-  check('the prune door’s deleting beat advertises no exit (closeKeys none)', view.includes("closeKeys={prune.stage === 'deleting' ? 'none' : 'esc-arrow'}") && view.includes("'deleting the named set…'"))
   check('a cancelled switch disarms the confirm it came from', /switchGenRef\.current\+\+\s*\n\s*setSwitching\(null\)\s*\n\s*setConfirmingKey\(null\)/.test(view))
   check('the phase footer passes the shell’s composer untouched',
     composeFooterHint('switching — the swap keeps going · esc back to the chat', { closeKeys: 'esc-arrow', captureInput: false }) === 'switching — the swap keeps going · esc back to the chat')

@@ -113,7 +113,7 @@ const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
     role: 'compact-status-inline',
     why: 'onboarding prose mention — flat by design',
   },
-  'src/components/DeckPane.tsx': {
+  'src/components/deckPane/deckPaneView.tsx': {
     role: 'compact-status-inline',
     why: 'deck vitals anchor — the live-accent Crab primitive as compact chrome (single-brand law: no product word; migrated from a hand-drawn static-palette copy in W4)',
   },

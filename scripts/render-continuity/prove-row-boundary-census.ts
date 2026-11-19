@@ -20,7 +20,7 @@ const hits = execSync(`grep -rlnE '<MessageRow($|[[:space:]>/])' src/components 
   .filter(Boolean)
   .sort()
 
-const INVENTORY = ['src/components/Messages.tsx', 'src/components/concourse/SessionMirror.tsx']
+const INVENTORY = ['src/components/concourse/sessionMirror/sessionMirrorView.tsx', 'src/components/messagesList/row.tsx']
 t('§1 the MessageRow mount census matches the inventory', JSON.stringify(hits) === JSON.stringify(INVENTORY), `found: ${hits.join(', ') || '(none)'}`)
 
 for (const file of INVENTORY) {

@@ -38,20 +38,6 @@
       "why": "context view — session mark, not product crab"
     },
     {
-      "file": "src/components/DeckPane.tsx",
-      "kind": "crab",
-      "excerpt": "<Crab />",
-      "role": "compact-status-inline",
-      "why": "deck vitals anchor — the live-accent Crab primitive as compact chrome (single-brand law: no product word; migrated from a hand-drawn static-palette copy in W4)"
-    },
-    {
-      "file": "src/components/DeckPane.tsx",
-      "kind": "crab",
-      "excerpt": "<Crab />",
-      "role": "compact-status-inline",
-      "why": "deck vitals anchor — the live-accent Crab primitive as compact chrome (single-brand law: no product word; migrated from a hand-drawn static-palette copy in W4)"
-    },
-    {
       "file": "src/components/MercuryExitConfirm.tsx",
       "kind": "session-mark",
       "excerpt": "<SessionMark />{' '}",
@@ -92,6 +78,20 @@
       "excerpt": "<Wordmark />",
       "role": "mission-focal-title",
       "why": "setup/onboarding frame — focal mission surface"
+    },
+    {
+      "file": "src/components/deckPane/deckPaneView.tsx",
+      "kind": "crab",
+      "excerpt": "<Crab />",
+      "role": "compact-status-inline",
+      "why": "deck vitals anchor — the live-accent Crab primitive as compact chrome (single-brand law: no product word; migrated from a hand-drawn static-palette copy in W4)"
+    },
+    {
+      "file": "src/components/deckPane/deckPaneView.tsx",
+      "kind": "crab",
+      "excerpt": "<Crab />",
+      "role": "compact-status-inline",
+      "why": "deck vitals anchor — the live-accent Crab primitive as compact chrome (single-brand law: no product word; migrated from a hand-drawn static-palette copy in W4)"
     },
     {
       "file": "src/components/mercury-ui/components.tsx",
