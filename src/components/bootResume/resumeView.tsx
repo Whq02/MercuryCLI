@@ -3,7 +3,12 @@ import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { renderSceneLine } from '../mercury-ui/SceneCanvas.js';
 import type { useInteractiveList } from '../mercury-ui/useInteractiveList.js';
 import type { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
-import type { SelectableRow } from '../BootResumeScreen.js';
+import type { BootProjectFact } from '../../utils/bootCardFacts.js';
+import type { SessionPickerFlatRow } from '../mercury-ui/screens/sessionPickerModel.js';
+
+export type SelectableRow =
+  | { kind: 'session'; flat: SessionPickerFlatRow }
+  | { kind: 'project'; project: BootProjectFact & { running?: number } };
 
 export function resumeView({ t, columns, rows, selectable, list, composition, listIndexOf }: { t: ReturnType<typeof useMercuryTokens>; columns: number; rows: number; selectable: SelectableRow[]; list: ReturnType<typeof useInteractiveList<SelectableRow>>; composition: { placed: string[]; entryAt: Map<number, number> }; listIndexOf: (entryIdx: number) => number }) {
   return (

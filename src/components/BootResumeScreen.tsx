@@ -26,12 +26,14 @@ import {
 } from '../utils/sessionStorage/transcriptPruneDoor.js';
 import { sessionIdOfListing } from '../utils/sessionStorage.js';
 import { renderModelChip } from '../utils/model/model.js';
+import './mercury-ui/InteractiveRow.js';
+import './mercury-ui/SceneCanvas.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList, type AsyncListNote } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
-import { resumeView } from './bootResume/resumeView.js';
+import { resumeView, type SelectableRow } from './bootResume/resumeView.js';
 
 
 interface BootResumePickerModel {
@@ -236,10 +238,6 @@ export function pruneLegendOf(stage: 'card' | 'deleting' | 'receipt', offered = 
   }
   return stage === 'receipt' ? '↵ / esc back to the list' : 'deleting the named set…';
 }
-
-export type SelectableRow =
-  | { kind: 'session'; flat: SessionPickerFlatRow }
-  | { kind: 'project'; project: BootProjectFact & { running?: number } };
 
 function selectableIdOf(row: SelectableRow): string {
   if (row.kind === 'session') return `resume:${sessionIdOfListing(row.flat.row.log) ?? row.flat.row.label}`;
