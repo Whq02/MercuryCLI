@@ -20,14 +20,32 @@ import { dormantBuiltinAdapterHints, knownAdapterKeys, resolveAdapter } from './
 import { dialListener, listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
 import { adapterSilenceMessage } from './client/probes.js'
 import {
-  BREAKPOINT_REQUEST_TIMEOUT_MS,
+  applyBreakpointEvent,
+  dataBreakpointInfo,
+  setBreakpoints,
+  setDataBreakpoints,
+  setFunctionBreakpoints,
+  setInstructionBreakpoints,
+  writeMemory,
+} from './client/breakpoints.js'
+import { startBodyOf, type DapStartOptions } from './client/launch.js'
+import { drainOutput, waitForStopOutcome } from './client/stops.js'
+import {
+  debuggeeEndDetail,
+  debugTarget,
+  treeExitDetail,
+  treeNewestStopStamp,
+  treeStopped,
+  treeVerifiedBreakpoints,
+  treeVerifiedFunctionBreakpoints,
+} from './client/tree.js'
+import {
   CLIENT_INIT_ARGS,
   OUTPUT_RING_MAX,
   REQUEST_TIMEOUT_MS,
   type DapAdapterSpec,
   type DapBreakpointSpec,
   type DapBreakpointVerdict,
-  type DapDataAccessType,
   type DapDataBreakpointInfo,
   type DapDataBreakpointSpec,
   type DapFunctionBreakpointSpec,
@@ -264,21 +282,11 @@ export class DapSession {
   }
 
   treeStopped(sinceStamp = 0): DapSession | null {
-    let best: DapSession | null = null
-    for (const s of this.treeSessions()) {
-      if (s.alive && s.lastStopped && s.lastStoppedAt > sinceStamp && (best === null || s.lastStoppedAt > best.lastStoppedAt)) {
-        best = s
-      }
-    }
-    return best
+    return treeStopped(this, sinceStamp)
   }
 
   treeNewestStopStamp(): number {
-    let max = 0
-    for (const s of this.treeSessions()) {
-      if (s.lastStoppedAt > max) max = s.lastStoppedAt
-    }
-    return max
+    return treeNewestStopStamp(this)
   }
 
   #stoppedFrameMemo: { stamp: number; frameId: number } | null = null
@@ -307,25 +315,7 @@ export class DapSession {
     string,
     Array<{ line: number; verified: boolean; message?: string; id?: number; verifier?: string }>
   > {
-    const out = new Map<string, Array<{ line: number; verified: boolean; message?: string; id?: number; verifier?: string }>>()
-    for (const s of this.treeSessions()) {
-      for (const [path, rows] of s.breakpoints) {
-        const cur = out.get(path)
-        if (!cur) {
-          out.set(
-            path,
-            rows.map(r => ({ ...r, ...(r.verified ? { verifier: s.label } : {}) })),
-          )
-          continue
-        }
-        rows.forEach((r, i) => {
-          const prev = cur[i]
-          if (!prev) cur[i] = { ...r, ...(r.verified ? { verifier: s.label } : {}) }
-          else if (!prev.verified && r.verified) cur[i] = { ...r, verifier: s.label }
-        })
-      }
-    }
-    return out
+    return treeVerifiedBreakpoints(this)
   }
 
   async setBreakpointsTree(
@@ -359,15 +349,7 @@ export class DapSession {
   }
 
   treeVerifiedFunctionBreakpoints(): Array<{ name: string; verified: boolean; message?: string; id?: number; verifier?: string }> {
-    const out: Array<{ name: string; verified: boolean; message?: string; id?: number; verifier?: string }> = []
-    for (const s of this.treeSessions()) {
-      s.functionBreakpoints.forEach((r, i) => {
-        const prev = out[i]
-        if (!prev) out[i] = { ...r, ...(r.verified ? { verifier: s.label } : {}) }
-        else if (!prev.verified && r.verified) out[i] = { ...r, verifier: s.label }
-      })
-    }
-    return out
+    return treeVerifiedFunctionBreakpoints(this)
   }
 
   async setFunctionBreakpointsTree(
@@ -397,45 +379,15 @@ export class DapSession {
   }
 
   treeExitDetail(): string {
-    const own = this.exitDetail.startsWith('debuggee exited') ? this.exitDetail : ''
-    if (own !== '') return own
-    for (const child of this.children) {
-      const detail = child.treeExitDetail()
-      if (detail !== '') return detail
-    }
-    return this.exitDetail
+    return treeExitDetail(this)
   }
 
   debuggeeEndDetail(): string {
-    const tree = this.treeExitDetail()
-    if (tree.startsWith('debuggee exited')) return tree
-    for (let index = this.output.length - 1; index >= 0; index--) {
-      const printed = /Process exited with code (\d+)/.exec(this.output[index] ?? '')
-      if (printed !== null) return `debuggee exited (code ${printed[1]})`
-    }
-    return tree !== '' ? tree : 'debuggee ended (no non-zero exit code reported)'
+    return debuggeeEndDetail(this)
   }
 
   debugTarget(): { session: DapSession } | { ambiguousDetail: string } {
-    const stopped = this.treeStopped()
-    if (stopped) return { session: stopped }
-    const liveDescendants = this.treeSessions().filter(s => s !== this && s.alive)
-    if (liveDescendants.length === 1) {
-      const only = liveDescendants[0]
-      if (only) return { session: only }
-    }
-    if (liveDescendants.length === 0) return { session: this }
-    const listing = this.treeSessions()
-      .map(
-        s =>
-          `${s.label}: ${s.terminated ? 'terminated' : s.lastStopped ? `stopped (${s.lastStopped.reason})` : 'running'}`,
-      )
-      .join(' · ')
-    return {
-      ambiguousDetail:
-        `${liveDescendants.length} child sessions are live and none is stopped — refusing to guess a target. ` +
-        `tree: ${listing}. Wait for a stop (op:"status" shows the tree), or op:"disconnect" to end the session`,
-    }
+    return debugTarget(this)
   }
 
   async #connectTcp(port: number, host = '127.0.0.1', deadlineMs = 6_000): Promise<void> {
@@ -593,25 +545,7 @@ export class DapSession {
           break
         }
         case 'breakpoint': {
-          const bp =
-            (body.breakpoint as { id?: number; line?: number; verified?: boolean; message?: string } | undefined) ?? {}
-          for (const rows of this.breakpoints.values()) {
-            for (const row of rows) {
-              const idMatch = typeof bp.id === 'number' && row.id === bp.id
-              const lineMatch = typeof bp.id !== 'number' && typeof bp.line === 'number' && row.line === bp.line
-              if (idMatch || lineMatch) {
-                if (bp.verified === true) row.verified = true
-                if (typeof bp.line === 'number') row.line = bp.line
-                if (typeof bp.message === 'string') row.message = bp.message
-              }
-            }
-          }
-          for (const row of this.functionBreakpoints) {
-            if (typeof bp.id === 'number' && row.id === bp.id) {
-              if (bp.verified === true) row.verified = true
-              if (typeof bp.message === 'string') row.message = bp.message
-            }
-          }
+          applyBreakpointEvent(this, body)
           break
         }
         case 'terminated':
@@ -891,21 +825,7 @@ export class DapSession {
     })
   }
 
-  async launch(options: {
-    program: string
-    args?: string[]
-    runtimeArgs?: string[]
-    launchExtras?: Record<string, unknown>
-    env?: Record<string, string>
-    module?: string
-    stopOnEntry?: boolean
-    breakpoints?: Map<string, Array<number | DapBreakpointSpec>>
-    mode?: 'launch' | 'attach'
-    pid?: number
-    port?: number
-    host?: string
-    noDebug?: boolean
-  }): Promise<void> {
+  async launch(options: DapStartOptions): Promise<void> {
     this.#requestedBreakpoints = options.breakpoints ?? null
     this.capabilities = await this.request('initialize', {
       ...CLIENT_INIT_ARGS,
@@ -916,50 +836,7 @@ export class DapSession {
     })
     const attach = options.mode === 'attach' || this.#spec.startRequest === 'attach'
     this.startMode = attach ? 'attach' : 'launch'
-    let startBody: Record<string, unknown>
-    if (attach) {
-      const host = options.host ?? '127.0.0.1'
-      if (this.#spec.buildAttachArgs) {
-        startBody = this.#spec.buildAttachArgs({
-          program: options.program,
-          cwd: this.#cwd,
-          ...(options.host !== undefined ? { host: options.host } : {}),
-          ...(options.port !== undefined ? { port: options.port } : {}),
-          ...(options.pid !== undefined ? { pid: options.pid } : {}),
-        })
-      } else if (this.#spec.attachShape === 'connect' && options.port !== undefined) {
-        startBody = { ...(this.#spec.attachDefaults ?? {}), connect: { host, port: options.port } }
-      } else {
-        startBody = {
-          ...(this.#spec.attachDefaults ?? {}),
-          ...(options.pid !== undefined ? { pid: options.pid } : {}),
-          ...(options.port !== undefined ? { port: options.port, host } : {}),
-          ...(options.program && options.pid === undefined && options.port === undefined
-            ? { program: options.program }
-            : {}),
-        }
-      }
-    } else {
-      startBody = this.#spec.buildLaunchArgs?.({
-        program: options.program,
-        args: options.args,
-        cwd: this.#cwd,
-        stopOnEntry: options.stopOnEntry,
-      }) ?? {
-        ...(this.#spec.launchDefaults ?? {}),
-        ...(options.launchExtras ?? {}),
-        ...(options.module !== undefined ? { module: options.module } : { program: options.program }),
-        args: options.args ?? [],
-        ...(options.runtimeArgs !== undefined ? { runtimeArgs: options.runtimeArgs } : {}),
-        ...(options.env !== undefined
-          ? { env: this.#spec.envShape === 'pairs' ? Object.entries(options.env).map(([key, value]) => `${key}=${value}`) : options.env }
-          : {}),
-        cwd: this.#cwd,
-        stopOnEntry: options.stopOnEntry ?? false,
-        noDebug: options.noDebug ?? false,
-        console: 'internalConsole',
-      }
-    }
+    const startBody = startBodyOf(this.#spec, this.#cwd, options, attach)
     const launchDone = this.request(attach ? 'attach' : 'launch', startBody, 20_000)
     launchDone.catch(() => {})
     const initializedTimeoutMs = options.noDebug ? 2_000 : 10_000
@@ -995,149 +872,43 @@ export class DapSession {
     this.#pushOutput(`[dap] breakpoints for ${path} on '${this.label}' failed: ${reason} — the program runs without them; op:"breakpoints" retries the binding`)
   }
 
-  async setBreakpoints(
+  setBreakpoints(
     path: string,
     breakpoints: Array<number | DapBreakpointSpec>,
   ): Promise<Array<{ line: number; verified: boolean; message?: string; id?: number }>> {
-    const specs: DapBreakpointSpec[] = breakpoints.map(b =>
-      typeof b === 'number' ? { line: b } : b,
-    )
-    const body = await this.request(
-      'setBreakpoints',
-      {
-        source: { path },
-        breakpoints: specs.map(s => ({
-          line: s.line,
-          ...(s.column !== undefined ? { column: s.column } : {}),
-          ...(s.condition !== undefined ? { condition: s.condition } : {}),
-          ...(s.hitCondition !== undefined ? { hitCondition: s.hitCondition } : {}),
-          ...(s.logMessage !== undefined ? { logMessage: s.logMessage } : {}),
-        })),
-        sourceModified: false,
-      },
-      BREAKPOINT_REQUEST_TIMEOUT_MS,
-    )
-    const reported = Array.isArray(body.breakpoints)
-      ? (body.breakpoints as Array<{ verified?: boolean; line?: number; message?: string; id?: number }>)
-      : []
-    const verified = specs.map((s, i) => ({
-      line: reported[i]?.line ?? s.line,
-      verified: reported[i]?.verified === true,
-      ...(typeof reported[i]?.id === 'number' ? { id: reported[i]?.id } : {}),
-      ...(typeof reported[i]?.message === 'string' ? { message: reported[i]?.message } : {}),
-    }))
-    if (verified.length === 0) this.breakpoints.delete(path)
-    else this.breakpoints.set(path, verified)
-    return verified
+    return setBreakpoints(this, path, breakpoints)
   }
 
-  async setFunctionBreakpoints(specs: DapFunctionBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
-    const body = await this.request(
-      'setFunctionBreakpoints',
-      {
-        breakpoints: specs.map(s => ({
-          name: s.name,
-          ...(s.condition !== undefined ? { condition: s.condition } : {}),
-          ...(s.hitCondition !== undefined ? { hitCondition: s.hitCondition } : {}),
-        })),
-      },
-      BREAKPOINT_REQUEST_TIMEOUT_MS,
-    )
-    const verdicts = this.#breakpointVerdicts(body, specs.length)
-    this.functionBreakpoints = specs.map((s, i) => ({
-      name: s.name,
-      verified: verdicts[i]?.verified === true,
-      ...(typeof verdicts[i]?.id === 'number' ? { id: verdicts[i]?.id } : {}),
-      ...(typeof verdicts[i]?.message === 'string' ? { message: verdicts[i]?.message } : {}),
-    }))
-    return verdicts
+  setFunctionBreakpoints(specs: DapFunctionBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
+    return setFunctionBreakpoints(this, specs)
   }
 
-  #breakpointVerdicts(body: Record<string, unknown>, count: number): DapBreakpointVerdict[] {
-    const reported = Array.isArray(body.breakpoints)
-      ? (body.breakpoints as Array<{ verified?: boolean; message?: string; id?: number }>)
-      : []
-    return Array.from({ length: count }, (_, i) => ({
-      verified: reported[i]?.verified === true,
-      ...(typeof reported[i]?.id === 'number' ? { id: reported[i]?.id } : {}),
-      ...(typeof reported[i]?.message === 'string' ? { message: reported[i]?.message } : {}),
-    }))
-  }
-
-  async dataBreakpointInfo(args: {
+  dataBreakpointInfo(args: {
     name: string
     variablesReference?: number
     frameId?: number
   }): Promise<DapDataBreakpointInfo> {
-    const body = await this.request('dataBreakpointInfo', {
-      name: args.name,
-      ...(args.variablesReference !== undefined ? { variablesReference: args.variablesReference } : {}),
-      ...(args.frameId !== undefined ? { frameId: args.frameId } : {}),
-    })
-    const accessTypes = Array.isArray(body.accessTypes)
-      ? (body.accessTypes as unknown[]).filter(
-          (t): t is DapDataAccessType => t === 'read' || t === 'write' || t === 'readWrite',
-        )
-      : undefined
-    return {
-      dataId: typeof body.dataId === 'string' && body.dataId.length > 0 ? body.dataId : null,
-      description: typeof body.description === 'string' ? body.description : '',
-      ...(accessTypes !== undefined ? { accessTypes } : {}),
-      ...(typeof body.canPersist === 'boolean' ? { canPersist: body.canPersist } : {}),
-    }
+    return dataBreakpointInfo(this, args)
   }
 
-  async setDataBreakpoints(specs: DapDataBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
-    const body = await this.request(
-      'setDataBreakpoints',
-      {
-        breakpoints: specs.map(s => ({
-          dataId: s.dataId,
-          ...(s.accessType !== undefined ? { accessType: s.accessType } : {}),
-          ...(s.condition !== undefined ? { condition: s.condition } : {}),
-          ...(s.hitCondition !== undefined ? { hitCondition: s.hitCondition } : {}),
-        })),
-      },
-      BREAKPOINT_REQUEST_TIMEOUT_MS,
-    )
-    return this.#breakpointVerdicts(body, specs.length)
+  setDataBreakpoints(specs: DapDataBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
+    return setDataBreakpoints(this, specs)
   }
 
-  async setInstructionBreakpoints(specs: DapInstructionBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
-    const body = await this.request(
-      'setInstructionBreakpoints',
-      {
-        breakpoints: specs.map(s => ({
-          instructionReference: s.instructionReference,
-          ...(s.offset !== undefined ? { offset: s.offset } : {}),
-          ...(s.condition !== undefined ? { condition: s.condition } : {}),
-          ...(s.hitCondition !== undefined ? { hitCondition: s.hitCondition } : {}),
-        })),
-      },
-      BREAKPOINT_REQUEST_TIMEOUT_MS,
-    )
-    return this.#breakpointVerdicts(body, specs.length)
+  setInstructionBreakpoints(specs: DapInstructionBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
+    return setInstructionBreakpoints(this, specs)
   }
 
-  async writeMemory(args: {
+  writeMemory(args: {
     memoryReference: string
     data: string
     offset?: number
     allowPartial?: boolean
   }): Promise<DapWriteMemoryReceipt> {
-    const body = await this.request('writeMemory', {
-      memoryReference: args.memoryReference,
-      data: args.data,
-      ...(args.offset !== undefined ? { offset: args.offset } : {}),
-      ...(args.allowPartial !== undefined ? { allowPartial: args.allowPartial } : {}),
-    })
-    return {
-      ...(typeof body.offset === 'number' ? { offset: body.offset } : {}),
-      ...(typeof body.bytesWritten === 'number' ? { bytesWritten: body.bytesWritten } : {}),
-    }
+    return writeMemory(this, args)
   }
 
-  async waitForStopOutcome(
+  waitForStopOutcome(
     timeoutMs = 10_000,
     signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal,
     sinceStamp = 0,
@@ -1147,39 +918,7 @@ export class DapSession {
     | { state: 'timeout' }
     | { state: 'aborted' }
   > {
-    const deadline = Date.now() + timeoutMs
-    for (;;) {
-      if (signal?.aborted) return { state: 'aborted' }
-      const stopped = this.treeStopped(sinceStamp)
-      if (stopped?.lastStopped) {
-        return { state: 'stopped', info: stopped.lastStopped, session: stopped }
-      }
-      if (this.treeTerminated()) return { state: 'terminated' }
-      if (Date.now() >= deadline) return { state: 'timeout' }
-      const woke = await new Promise<'event' | 'timeout' | 'aborted'>(resolve => {
-        const cancelDeadline = dapDeadline(() => {
-          cleanup()
-          resolve('timeout')
-        }, Math.max(0, deadline - Date.now()))
-        const wake = (): void => {
-          cleanup()
-          resolve('event')
-        }
-        const onAbort = (): void => {
-          cleanup()
-          resolve('aborted')
-        }
-        const cleanup = (): void => {
-          cancelDeadline()
-          this.#stateWaiters.delete(wake)
-          signal?.removeEventListener('abort', onAbort)
-        }
-        this.#stateWaiters.add(wake)
-        signal?.addEventListener('abort', onAbort, { once: true })
-      })
-      if (woke === 'timeout') return { state: 'timeout' }
-      if (woke === 'aborted') return { state: 'aborted' }
-    }
+    return waitForStopOutcome(this, this.#stateWaiters, timeoutMs, signal, sinceStamp)
   }
 
   async waitForStop(timeoutMs = 10_000, signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<StoppedInfo | null> {
@@ -1188,21 +927,8 @@ export class DapSession {
     return outcome.state === 'stopped' ? outcome.info : null
   }
 
-  async drainOutput(quietMs = 200, maxMs = 1_000, signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {
-    const start = Date.now()
-    let lastLen = this.output.length
-    let lastChange = Date.now()
-    for (;;) {
-      if (Date.now() - start >= maxMs) break
-      await waitForDap(sleep(50), signal)
-      if (this.output.length !== lastLen) {
-        lastLen = this.output.length
-        lastChange = Date.now()
-      } else if (Date.now() - lastChange >= quietMs) {
-        break
-      }
-    }
-    this.flushPartialOutput()
+  drainOutput(quietMs = 200, maxMs = 1_000, signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {
+    return drainOutput(this, quietMs, maxMs, signal)
   }
 
   disconnectArguments(): Record<string, unknown> {
