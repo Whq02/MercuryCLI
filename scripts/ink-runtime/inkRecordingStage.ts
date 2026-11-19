@@ -112,9 +112,15 @@ function drainFd1(): void {
   }
 }
 
+const hidden: Array<[found: string, said: string]> = []
+
+export function hide(found: string, said: string): void {
+  if (found !== '') hidden.push([escaped(found), said])
+}
+
 export function note(line: string): void {
   drainFd1()
-  lines.push(line)
+  lines.push(hidden.reduce((text, [found, said]) => text.replaceAll(found, said), line))
 }
 
 export function recorded(): string[] {

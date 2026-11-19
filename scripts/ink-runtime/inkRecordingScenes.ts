@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { homedir } from 'node:os'
+import { join, sep } from 'node:path'
 import type { ReactNode } from 'react'
 import type { ScrollBoxHandle } from '../../src/ink/components/ScrollBox.tsx'
 import type { DOMElement } from '../../src/ink/dom.ts'
@@ -10,6 +11,7 @@ import {
   advance,
   enterWorld,
   escaped,
+  hide,
   installStage,
   leaveStage,
   note,
@@ -34,6 +36,7 @@ export type Scene = {
   world: WorldName
   env?: (folder: string) => Record<string, string>
   tees?: readonly TeeName[]
+  probe?: string
   play: (p: Play) => Promise<void>
 }
 
@@ -53,7 +56,9 @@ async function loadProduct() {
   const log = await import('../../src/utils/log.ts')
   const doors = await import('../../src/utils/process.ts')
   const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
-  getMercuryHome()
+  const home = getMercuryHome()
+  hide(home, '<the config home>')
+  if (home.startsWith(homedir() + sep)) hide(`~${home.slice(homedir().length)}`, '<the config home>')
   const h = React.createElement as unknown as (type: unknown, props?: Record<string, unknown> | null, ...children: unknown[]) => ReactNode
   return { React, h, Ink: unit.default, unit, instances, Box, Text, Link, ScrollBox, AlternateScreen, NoSelect, useInput, useDeclaredCursor, ledger, log, doors }
 }
@@ -115,7 +120,7 @@ export class Play {
       stderr: (knobs.stderr ?? this.err) as never,
       exitOnCtrlC: knobs.exitOnCtrlC ?? false,
       patchConsole: knobs.patchConsole ?? false,
-      onFrame: event => this.onFrame(event),
+      ...(knobs.silentFrames ? {} : { onFrame: (event: FrameEvent) => this.onFrame(event) }),
       ...(knobs.waitUntilExit ? { waitUntilExit: knobs.waitUntilExit } : {}),
     }
     this.ink = new this.the.Ink(options)
@@ -265,6 +270,7 @@ async function mainScreenUpdates(p: Play): Promise<void> {
   await p.paint('a line is added', lines(p, ['alpha', '_BETA TWO', 'gamma', '~delta']))
   await p.paint('two lines leave', lines(p, ['alpha', 'BETA TWO']))
   await p.paint('the whole screen changes', lines(p, ['1111', '2222', '3333']))
+  await p.paint('wide letters come and a text holds another', p.h(p.the.Box, { flexDirection: 'column' }, line(p, '\u4e16\u754c 1111'), p.h(p.the.Text, null, 'outer ', p.h(p.the.Text, { bold: true }, 'inner')), line(p, '3333')))
   await p.paint('more lines than the terminal has rows', lines(p, ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9']))
   await p.paint('a line changes above the fold', lines(p, ['R1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9']))
   await p.paint('back under the rows', lines(p, ['r1', 'r2']))
@@ -334,7 +340,15 @@ async function launcherHeldAltScreen(p: Play): Promise<void> {
 async function resizeBetweenFrames(p: Play): Promise<void> {
   p.mount(24, 6)
   const tree = alt(p, lines(p, ['a line that is long enough to wrap', 'second'], { width: '100%' }))
-  await p.paint('the alternate screen is painted', tree, 100)
+  await p.step('the alternate screen is given, and the terminal moves to 26 by 6 before the first paint', () => {
+    p.show(tree)
+    p.out.resizes(26, 6)
+  })
+  await p.wait(120)
+  await p.wait(100)
+  await p.step('the terminal moves back to 24 by 6', () => p.out.resizes(24, 6))
+  await p.wait(120)
+  await p.wait(16)
   await p.step('the terminal grows to 30 by 8', () => p.out.resizes(30, 8))
   await p.step('a frame is asked for while the size settles', () => p.ink.onRender())
   await p.step('a tree is given while the size settles', () => p.show(tree))
@@ -351,6 +365,13 @@ async function resizeBetweenFrames(p: Play): Promise<void> {
   await p.wait(60)
   await p.wait(16)
   await p.step('a resize is announced at the same size', () => p.out.emit('resize'))
+  await p.step('the frame loop is paused, and the terminal moves to 28 by 7', () => {
+    p.ink.pause()
+    p.out.resizes(28, 7)
+  })
+  await p.wait(120)
+  await p.step('the frame loop is resumed at the new size', () => p.ink.resume())
+  await p.wait(16)
   await p.step('the terminal grows, and the tree is unmounted before it settles', () => p.out.resizes(40, 10))
   await p.end()
 }
@@ -438,6 +459,11 @@ async function windowSignal(p: Play): Promise<void> {
   })
   await p.wait(250)
   await p.wait(16)
+  await p.step('the window signal comes when the stream already holds a size the screen has not seen', () => {
+    p.out.becomes(28, 7)
+    process.emit('SIGWINCH')
+  })
+  await p.paint('a tree is the first to see it', tree)
   await p.end()
   await p.step('the window signal comes after the unmount', () => {
     process.emit('SIGWINCH')
@@ -569,12 +595,14 @@ async function declaredCursor(p: Play, onAlt: boolean): Promise<void> {
         second ? p.h(Field, { p, line: 0, column: 2, active: false, label: 'field two' }) : null,
       ),
     )
-  await p.paint('a field declares the cursor at its fourth cell', tree(3, true), 100)
+  await p.paint('a field that declares nothing is painted', tree(3, false), 100)
+  await p.paint('the field declares the cursor at its fourth cell', tree(3, true))
   await p.paint('the cursor moves two cells with nothing else changed', tree(5, true))
   await p.paint('a second field that declares nothing mounts', tree(5, true, true))
   await p.paint('the text changes while the cursor stays', frame(p.h(p.the.Box, { flexDirection: 'column' }, p.h(p.the.Text, null, 'ABOVE'), p.h(Field, { p, line: 0, column: 5, active: true, label: 'field one' }))))
   await p.paint('the field gives the cursor up', tree(5, false))
   await p.paint('and takes it again', tree(1, true))
+  await p.paint('the field is hidden, and still declares', frame(p.h(p.the.Box, { flexDirection: 'column' }, p.h(p.the.Text, null, 'above'), p.h(p.the.Box, { display: 'none' }, p.h(Field, { p, line: 0, column: 1, active: true, label: 'field one' })))))
   await p.paint('the field leaves the tree', frame(lines(p, ['above'])))
   await p.end()
 }
@@ -610,6 +638,7 @@ function pointerTree(p: Play, withLinks: boolean): ReactNode {
       p.h(Text, null, 'see https://example.test/a now'),
       withLinks ? p.h(Link, { url: 'https://example.test/linked' }, 'docs \u4e16\u754c') : p.h(Text, null, 'no link here'),
       p.h(NoSelect, null, p.h(Text, null, 'not for selecting')),
+      p.h(Text, null, '\u4e16\u754c plain'),
     ),
     true,
   )
@@ -667,6 +696,10 @@ async function pointerAndKeys(p: Play): Promise<void> {
   await p.step('to the strip that is not selected', () => p.hover(2, 3))
   await p.step('to an empty cell', () => p.hover(30, 5))
   await p.step('outside the screen', () => p.ink.dispatchHover(-1, 99))
+  await p.step('the doors are asked about cells by hand', () => {
+    note(`  a link outside the screen: ${String(p.ink.getHyperlinkAt(99, 99))}; on the second cell of a wide letter that is no link: ${String(p.ink.getHyperlinkAt(1, 4))}; on the address: ${String(p.ink.getHyperlinkAt(8, 1))}`)
+    note(`  a click outside the screen finds ${yn(p.ink.dispatchClick(99, 99))}`)
+  })
   await p.step('the wheel turns down three notches as the terminal reports it', () => p.keys.sends(sgr(65, 3, 3) + sgr(65, 3, 3) + sgr(65, 3, 3)))
   await p.step('mouse tracking is switched off', () => p.ink.setMouseTrackingEnabled(false))
   await p.step('and off again', () => p.ink.setMouseTrackingEnabled(false))
@@ -675,6 +708,12 @@ async function pointerAndKeys(p: Play): Promise<void> {
     p.hover(5, 1)
     p.ink.setMouseTrackingEnabled(false)
   })
+  await p.step('tracking is switched on, the pointer moves over the address, and the alternate screen is left', () => {
+    p.ink.setMouseTrackingEnabled(true)
+    p.hover(5, 1)
+    p.show(lines(p, ['on the main screen']))
+  })
+  await p.wait(16)
   await p.end()
   await p.step('mouse tracking is switched on after the unmount', () => p.ink.setMouseTrackingEnabled(true))
 }
@@ -843,6 +882,28 @@ async function selection(p: Play): Promise<void> {
     p.release(7, 3)
   })
   said()
+  await p.wait(600)
+  await p.step('a press and a release beyond the screen', () => {
+    p.press(60, 20)
+    p.release(60, 20)
+  })
+  said()
+  await p.wait(600)
+  await p.step('two presses beyond the screen', () => {
+    p.click(60, 20)
+    p.press(60, 20)
+    p.release(60, 20)
+  })
+  said()
+  await p.wait(600)
+  await p.step('the blank end of a row is selected, copied and kept, and its focus moved a way no key names', () => {
+    p.press(30, 4)
+    p.drag(35, 4)
+    p.release(35, 4)
+    note(`  copied: ${escaped(JSON.stringify(p.ink.copySelectionNoClear()))}`)
+    p.ink.moveSelectionFocus('sideways' as never)
+  })
+  said()
   await p.step('the listener leaves, and the selection is cleared', () => {
     stop()
     p.ink.clearTextSelection()
@@ -964,6 +1025,10 @@ async function editorHandover(p: Play, onAlt: boolean): Promise<void> {
   await p.step('the terminal queries are awaited after they settled', async () => {
     await p.ink.awaitTerminalQueries()
   })
+  await p.wait(5000)
+  await p.step('a key comes after five quiet seconds', () => p.keys.sends('k'))
+  await p.wait(16)
+  await p.step('and another at once after it', () => p.keys.sends('l'))
   await p.step('the editor is entered twice', () => {
     p.ink.enterAlternateScreen()
     p.ink.enterAlternateScreen()
@@ -992,9 +1057,6 @@ async function editorHandover(p: Play, onAlt: boolean): Promise<void> {
   })
   await p.wait(16)
   await p.step('the screen state is asserted again without a repaint', () => p.ink.reassertScreenState('asked by the scene', { repaint: false }))
-  await p.wait(16)
-  await p.wait(5000)
-  await p.step('a key comes after five quiet seconds', () => p.keys.sends('k'))
   await p.wait(16)
   await p.step('the terminal stops taking writes, and the modes are asked for', () => {
     p.out.destroyed = true
@@ -1080,6 +1142,23 @@ async function stopAndContinue(p: Play, onAlt: boolean): Promise<void> {
       p.keys.setRawMode = setRawMode
     })
     await p.step('the continue comes', () => process.emit('SIGCONT'))
+    await p.wait(16)
+    await p.step('the stop of the foreground comes where the process cannot signal itself', () => {
+      const stubbed = process.kill
+      process.kill = (() => {
+        throw new Error('the process may not signal itself')
+      }) as typeof process.kill
+      process.emit('SIGTSTP', 'SIGTSTP')
+      process.kill = stubbed
+    })
+    await p.step('the continue comes where raw mode cannot be taken again', () => {
+      const setRawMode = p.keys.setRawMode
+      p.keys.setRawMode = () => {
+        throw new Error('raw mode is not this stream\'s to change')
+      }
+      process.emit('SIGCONT')
+      p.keys.setRawMode = setRawMode
+    })
     await p.wait(16)
     await p.end()
     await p.step('the stop and the continue come after the unmount', () => {
@@ -1187,11 +1266,32 @@ async function unmountWithAnError(p: Play): Promise<void> {
     await p.ink.waitUntilExit().catch(error => note(`  a wait after the exit is refused at once: ${wordsOf(error)}`))
   })
   await p.wait(600)
+  const second = p.mount(24, 6, { silentFrames: true, ttyIn: false })
+  await p.paint('a second screen, whose frames nobody listens to and whose keys are no terminal, is painted', lines(p, ['second']), 100)
+  await p.step('it is unmounted with an error before anything waits for its exit', () => second.unmount(new Error('the second app failed')))
+  await p.step('its exit is awaited after it', async () => {
+    await second.waitUntilExit().catch(error => note(`  a wait after the exit is refused at once: ${wordsOf(error)}`))
+  })
+  await p.wait(600)
 }
 
-async function unmountBeforeAnyWait(p: Play): Promise<void> {
+async function noTree(p: Play): Promise<void> {
   p.mount(24, 6)
-  await p.step('the screen is unmounted with a number, as the exit hook gives it, before any tree or wait', () => p.ink.unmount(0))
+  await p.step('the terminal resizes before any tree is given', () => p.out.resizes(30, 8))
+  await p.wait(120)
+  await p.step('the size changes with no announcement, and a frame is asked for', () => {
+    p.out.becomes(24, 6)
+    p.ink.onRender()
+  })
+  await p.step('the reader is destroyed by a hand-over, and a fresh one is opened', () => {
+    p.keys.destroyed = true
+    p.ink.recoverStdin('EBADF', 'read')
+  })
+  await p.wait(50)
+  await p.step('the screen leaves the register of screens, and is unmounted with a number, as the exit hook gives it', () => {
+    p.the.instances.delete(p.out as never)
+    p.ink.unmount(0)
+  })
   await p.step('the exit is awaited after it', async () => {
     await p.ink.waitUntilExit()
     note('  a wait after the exit is over at once')
@@ -1236,6 +1336,16 @@ async function detachForShutdown(p: Play): Promise<void> {
     p.ink.unmount()
   })
   await p.wait(600)
+  await p.step('the stop of the foreground and the continue come to the detached screen', () => {
+    const kill = process.kill
+    process.kill = (() => {
+      note('  the process sends itself a stop')
+      return true
+    }) as typeof process.kill
+    process.emit('SIGTSTP', 'SIGTSTP')
+    process.emit('SIGCONT')
+    process.kill = kill
+  })
   const again = p.mount(24, 6)
   await p.paint('a second screen is painted', lines(p, ['second']), 100)
   await p.step('it is detached where raw mode cannot be given up', () => {
@@ -1245,6 +1355,10 @@ async function detachForShutdown(p: Play): Promise<void> {
     }
     again.detachForShutdown()
   })
+  await p.wait(600)
+  const third = p.mount(24, 6)
+  await p.paint('a third screen is painted', lines(p, ['third']), 100)
+  await p.step('it is detached with raw mode off', () => third.detachForShutdown())
   await p.wait(600)
 }
 
@@ -1273,6 +1387,11 @@ async function patchedConsole(p: Play): Promise<void> {
     p.err.write(Buffer.from('a third leak'), 'utf8', () => note('  the second callback is called'))
   })
   await p.wait(16)
+  await p.step('something writes a thing there that cannot be read as text', () => {
+    const unreadable = { toString: () => { throw new Error('this chunk has no text') } }
+    note(`  the write answers ${String((p.err.write as (chunk: unknown) => boolean)(unreadable))}`)
+  })
+  await p.wait(16)
   await p.step('something writes there while the frame loop is paused', () => {
     p.ink.pause()
     p.err.write('a leak under the pause')
@@ -1296,10 +1415,9 @@ async function patchedConsole(p: Play): Promise<void> {
 async function patchedConsoleOnTheMainScreen(p: Play): Promise<void> {
   p.mount(24, 6, { patchConsole: true })
   const write = p.err.write
-  let withCallback = false
+  let sent = 0
   sendDebugLinesTo(line => {
-    withCallback = !withCallback
-    if (withCallback) p.err.write(`${line}\n`, () => {})
+    if (sent++ === 0) p.err.write(`${line}\n`, () => {})
     else p.err.write(`${line}\n`, 'utf8', () => {})
   })
   await p.paint('a line on the main screen, where the debug lines go to the stream the screen watches', lines(p, ['main']), 100)
@@ -1355,7 +1473,10 @@ async function smallDoors(p: Play): Promise<void> {
     note(`  with only an idle one: ${yn(p.ink.arrowKeysOwned())}`)
     idle()
   })
-  await p.step('the wheel is confirmed', () => p.ink.confirmWheelReporting())
+  await p.step('the wheel is confirmed, and the alternate screen is set active where it is', () => {
+    p.ink.confirmWheelReporting()
+    p.ink.setAltScreenActive(true)
+  })
   await p.step('the watchdog is armed, and five frames change nothing', () => p.ink.armScreenWatchdog())
   for (let turn = 0; turn < 6; turn++) await p.step('a frame is asked for', () => p.ink.onRender())
   await p.step('the watchdog is armed, and a frame changes a cell among them', () => p.ink.armScreenWatchdog())
@@ -1493,7 +1614,10 @@ async function topLevelDoors(p: Play): Promise<void> {
     drainStdin(p.keys as never)
     p.keys.isRaw = false
   })
-  await p.step('keys that are no terminal are drained', () => drainStdin(new StageKeys(false) as never))
+  await p.step('keys that are no terminal are drained, and the process\'s own, which are none', () => {
+    drainStdin(new StageKeys(false) as never)
+    drainStdin()
+  })
   await p.step('keys whose read throws, and keys that refuse raw mode, are drained', () => {
     const broken = new StageKeys()
     broken.read = () => {
@@ -1557,6 +1681,78 @@ async function copyOverOsc52(p: Play): Promise<void> {
   await p.end()
 }
 
+const thrownBy = { error: null as Error | null, once: false }
+
+function Throws({ p, now }: { p: Play; now: boolean }): ReactNode {
+  if (now && thrownBy.error !== null) throw thrownBy.error
+  return p.h(p.the.Text, null, 'steady')
+}
+
+async function componentThrows(p: Play): Promise<void> {
+  const tree = (now: boolean): ReactNode => alt(p, p.h(p.the.Box, { flexDirection: 'column' }, p.h(p.the.Text, null, 'above'), p.h(Throws, { p, now })))
+  const mounted = (): void => {
+    p.mount(200, 12)
+    void p.ink.waitUntilExit().then(
+      () => note('  the wait for the exit is over'),
+      error => note(`  the wait for the exit is refused: ${wordsOf(error)}`),
+    )
+  }
+  mounted()
+  await p.paint('a component is painted', tree(false), 100)
+  await p.step('the component throws while rendering', () => {
+    thrownBy.error = new Error('the component cannot render')
+    p.show(tree(true))
+  })
+  await p.wait(600)
+  mounted()
+  await p.paint('a second screen is painted', tree(false), 100)
+  await p.step('its component throws an error that carries no stack', () => {
+    thrownBy.error = new Error('an error with no stack')
+    thrownBy.error.stack = undefined
+    p.show(tree(true))
+  })
+  await p.wait(600)
+}
+
+let turnTo: ((turn: number) => void) | null = null
+
+function ThrowsOnce({ p }: { p: Play }): ReactNode {
+  const [turn, setTurn] = p.the.React.useState(0)
+  turnTo = setTurn
+  if (turn > 0 && !thrownBy.once) {
+    thrownBy.once = true
+    const error = new Error(`thrown once on turn ${turn}`)
+    if (turn > 1) error.stack = undefined
+    throw error
+  }
+  return p.h(p.the.Text, null, `turn ${turn}`)
+}
+
+async function componentRecovers(p: Play): Promise<void> {
+  p.mount(24, 6)
+  await p.paint('a component is painted', alt(p, p.h(ThrowsOnce, { p })), 100)
+  await p.step('its next turn, taken as a transition, throws once and is rendered again', () => p.the.React.startTransition(() => turnTo!(1)))
+  await p.wait(16)
+  await p.step('and once more, with an error that carries no stack', () => {
+    thrownBy.once = false
+    p.the.React.startTransition(() => turnTo!(2))
+  })
+  await p.wait(16)
+  await p.end()
+}
+
+async function commitTeeShapes(p: Play): Promise<void> {
+  p.mount(24, 8)
+  const { Box, Text, ScrollBox } = p.the
+  const deep = (depth: number, leaf: ReactNode): ReactNode => (depth === 0 ? leaf : p.h(Box, null, deep(depth - 1, leaf)))
+  await p.paint('a tree with no row of fixed widths is painted with the commit tee open', alt(p, lines(p, ['plain', 'column'])), 100)
+  await p.paint('a row whose children are all of fixed width', alt(p, p.h(Box, { flexDirection: 'row' }, p.h(Box, { width: 4 }, p.h(Text, null, 'a')), p.h(Box, { width: 4 }, p.h(Text, null, 'b')))))
+  await p.paint('a row with a free child that holds no pane', alt(p, p.h(Box, { flexDirection: 'row' }, p.h(Box, { width: 4 }, p.h(Text, null, 'a')), p.h(Box, { flexGrow: 1 }, p.h(Text, null, 'free')))))
+  await p.paint('a row whose free child holds a pane fourteen boxes down', alt(p, p.h(Box, { flexDirection: 'row' }, p.h(Box, { width: 4 }, p.h(Text, null, 'a')), p.h(Box, { flexGrow: 1 }, deep(14, p.h(ScrollBox, { height: 2, flexDirection: 'column' }, p.h(Text, null, 'far down')))))))
+  await p.paint('a row whose free child holds two panes', alt(p, p.h(Box, { flexDirection: 'row' }, p.h(Box, { width: 4 }, p.h(Text, null, 'a')), p.h(Box, { flexGrow: 1, flexDirection: 'column' }, p.h(ScrollBox, { height: 1, flexDirection: 'column' }, p.h(Text, null, 'first')), p.h(ScrollBox, { height: 1, flexDirection: 'column' }, p.h(Text, null, 'second'))))))
+  await p.end()
+}
+
 export const SCENES: readonly Scene[] = [
   { name: 'the first paint on the main screen', world: 'plain', play: firstPaint },
   { name: 'the first paint on the main screen of an atomic terminal', world: 'atomic', play: firstPaint },
@@ -1596,7 +1792,7 @@ export const SCENES: readonly Scene[] = [
   { name: 'the reader of keys faults', world: 'plain', play: stdinRecovery },
   { name: 'unmount on the alternate screen, and the waits for the exit', world: 'atomic', play: unmountAndExit },
   { name: 'unmount with an error', world: 'plain', play: unmountWithAnError },
-  { name: 'unmount before any tree', world: 'plain', play: unmountBeforeAnyWait },
+  { name: 'a screen that is given no tree', world: 'plain', play: noTree },
   { name: 'the exit hook of the process', world: 'plain', play: exitHook },
   { name: 'a wait for the exit given by the options', world: 'plain', play: waitGivenByTheOptions },
   { name: 'detached for shutdown', world: 'plain', play: detachForShutdown },
@@ -1605,8 +1801,12 @@ export const SCENES: readonly Scene[] = [
   { name: 'listeners, owners, the watchdog and the idle resets', world: 'plain', play: smallDoors },
   { name: 'a stream that is no terminal', world: 'plain', play: notATerminal },
   { name: 'the test environment', world: 'test', play: testEnvironment },
-  { name: 'every tee open', world: 'atomic', tees: TEE_NAMES, play: everyTee },
-  { name: 'the tree dump alone', world: 'plain', tees: ['INK_TREE_DUMP'], play: treeDumpAlone },
+  { name: 'every tee open', world: 'atomic', tees: TEE_NAMES, probe: 'needle', play: everyTee },
+  { name: 'the tree dump alone, and a tee that cannot be written', world: 'plain', tees: ['INK_TREE_DUMP'], env: folder => ({ INK_COMMIT_TEE: join(folder, 'no such folder', 'tee') }), play: treeDumpAlone },
+  { name: 'the write tee alone on the main screen', world: 'plain', tees: ['INK_WRITE_TEE'], play: mainScreenUpdates },
+  { name: 'the commit tee over trees of other shapes', world: 'plain', tees: ['INK_COMMIT_TEE'], play: commitTeeShapes },
+  { name: 'a component throws while rendering', world: 'plain', play: componentThrows },
+  { name: 'a component throws once in a transition', world: 'plain', play: componentRecovers },
   { name: 'the doors beside the class', world: 'plain', play: topLevelDoors },
 ]
 
@@ -1617,7 +1817,7 @@ export async function playScene(name: string, fd1File: string | null, folder: st
   const clipboard = join(folder, 'clipboard')
   Object.assign(process.env, { MERCURY_CLIPBOARD_FILE: clipboard }, scene.env?.(folder) ?? {})
   for (const tee of scene.tees ?? []) process.env[tee] = join(folder, tee)
-  if (scene.tees !== undefined) process.env.INK_TEE_PROBE = 'needle'
+  if (scene.probe !== undefined) process.env.INK_TEE_PROBE = scene.probe
   installStage(fd1File)
   const the = await loadProduct()
   note(`world: ${scene.world}, ${WORLDS[scene.world].says}`)

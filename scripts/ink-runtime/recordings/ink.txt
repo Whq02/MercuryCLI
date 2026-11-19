@@ -183,11 +183,21 @@ out \r\e[2A1111 \r\e[1B2222\e[6G   \r\n3333\r\n
     |1111
     |2222
     |3333
+> wide letters come and a text holds another
+  timers: 16
+> 16 ms pass
+out \r\e[3A\u{4e16}\e[3G\u{754c}\e[6G1111\r\e[1Bouter\e[7G\e[1minner\e[22m\r\n\n
+  frame 8: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=17 nodes=15/3/9/5
+  timers: none
+  screen:
+    |\u{4e16}\u{754c} 1111
+    |outer inner
+    |3333
 > more lines than the terminal has rows
   timers: 16
 > 16 ms pass
-out \r\e[3Ar\e[3G  \r\e[1Br\e[3G  \r\e[1Br\e[3G  \r\nr4\r\nr5\r\nr6\r\nr7\r\nr8\r\nr9\r\n
-  frame 8: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=35 nodes=39/9/27/11
+out \r\e[3Ar1  \e[6G    \r\e[1Br2   \e[7G     \r\e[1Br\e[3G  \r\nr4\r\nr5\r\nr6\r\nr7\r\nr8\r\nr9\r\n
+  frame 9: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=35 nodes=39/9/27/11
   timers: none
   screen:
     |r1
@@ -202,7 +212,7 @@ out \r\e[3Ar\e[3G  \r\e[1Br\e[3G  \r\e[1Br\e[3G  \r\nr4\r\nr5\r\nr6\r\nr7\r\nr8\
 > a line changes above the fold
   timers: 16
 > 16 ms pass
-  frame 9: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=1 commit=1 patches=0 nodes=39/1/35/11
+  frame 10: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=1 commit=1 patches=0 nodes=39/1/35/11
   timers: none
   screen:
     |R1
@@ -218,7 +228,7 @@ out \r\e[3Ar\e[3G  \r\e[1Br\e[3G  \r\e[1Br\e[3G  \r\nr4\r\nr5\r\nr6\r\nr7\r\nr8\
   timers: 16
 > 16 ms pass
 out \e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[G\e[1Gr1\r\nr2\r\n
-  frame 10: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=8 nodes=11/1/7/4
+  frame 11: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=8 nodes=11/1/7/4
   timers: none
   screen:
     |r1
@@ -229,7 +239,7 @@ out \e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[G\e[1Gr1\r\nr2\r\n
   timers: 16
 > 16 ms pass
 out \e[1Gr1\r\nr2\r\nr3\r\n
-  frame 11: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=10 nodes=15/1/11/5
+  frame 12: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=10 nodes=15/1/11/5
   timers: none
   screen:
     |r1
@@ -238,20 +248,20 @@ out \e[1Gr1\r\nr2\r\nr3\r\n
 > a full redraw is forced
 out \e[2J\e[H
 out \e[1Gr1\r\nr2\r\nr3\r\n
-  frame 12: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
+  frame 13: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
 > a repaint is asked for
 out \e[1Gr1\r\nr2\r\nr3\r\n
-  frame 13: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
+  frame 14: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
 > the alternate screen is asked to repaint where none is
 out \e[2J\e[H
 out \e[1Gr1\r\nr2\r\nr3\r\n
-  frame 14: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
+  frame 15: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
 > the frame before is declared invalid
 > a cell after it
   timers: 16
 > 16 ms pass
 out \r\e[1C\e[1A4\r\n
-  frame 15: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=5 nodes=15/1/11/5
+  frame 16: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=5 nodes=15/1/11/5
   timers: none
   screen:
     |r1
@@ -261,7 +271,7 @@ out \r\e[1C\e[1A4\r\n
   a click finds no, a link undefined
 > 16 ms pass
 > the screen is unmounted
-  frame 16: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=15/1/11/5
+  frame 17: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=15/1/11/5
 out \e[?25h
 fd1 \e[?2026l
 fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
@@ -355,11 +365,21 @@ out \e[?2026h\r\e[2A1111 \r\e[1B2222\e[6G   \r\n3333\r\n\e[?2026l
     |1111
     |2222
     |3333
+> wide letters come and a text holds another
+  timers: 16
+> 16 ms pass
+out \e[?2026h\r\e[3A\u{4e16}\e[3G\u{754c}\e[6G1111\r\e[1Bouter\e[7G\e[1minner\e[22m\r\n\n\e[?2026l
+  frame 8: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=17 nodes=15/3/9/5
+  timers: none
+  screen:
+    |\u{4e16}\u{754c} 1111
+    |outer inner
+    |3333
 > more lines than the terminal has rows
   timers: 16
 > 16 ms pass
-out \e[?2026h\r\e[3Ar\e[3G  \r\e[1Br\e[3G  \r\e[1Br\e[3G  \r\nr4\r\nr5\r\nr6\r\nr7\r\nr8\r\nr9\r\n\e[?2026l
-  frame 8: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=35 nodes=39/9/27/11
+out \e[?2026h\r\e[3Ar1  \e[6G    \r\e[1Br2   \e[7G     \r\e[1Br\e[3G  \r\nr4\r\nr5\r\nr6\r\nr7\r\nr8\r\nr9\r\n\e[?2026l
+  frame 9: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=35 nodes=39/9/27/11
   timers: none
   screen:
     |r1
@@ -374,7 +394,7 @@ out \e[?2026h\r\e[3Ar\e[3G  \r\e[1Br\e[3G  \r\e[1Br\e[3G  \r\nr4\r\nr5\r\nr6\r\n
 > a line changes above the fold
   timers: 16
 > 16 ms pass
-  frame 9: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=1 commit=1 patches=0 nodes=39/1/35/11
+  frame 10: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=1 commit=1 patches=0 nodes=39/1/35/11
   timers: none
   screen:
     |R1
@@ -390,7 +410,7 @@ out \e[?2026h\r\e[3Ar\e[3G  \r\e[1Br\e[3G  \r\e[1Br\e[3G  \r\nr4\r\nr5\r\nr6\r\n
   timers: 16
 > 16 ms pass
 out \e[?2026h\e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[G\e[1Gr1\r\nr2\r\n\e[?2026l
-  frame 10: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=8 nodes=11/1/7/4
+  frame 11: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=8 nodes=11/1/7/4
   timers: none
   screen:
     |r1
@@ -401,7 +421,7 @@ out \e[?2026h\e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[G\e[1Gr1\
   timers: 16
 > 16 ms pass
 out \e[?2026h\e[1Gr1\r\nr2\r\nr3\r\n\e[?2026l
-  frame 11: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=10 nodes=15/1/11/5
+  frame 12: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=10 nodes=15/1/11/5
   timers: none
   screen:
     |r1
@@ -410,20 +430,20 @@ out \e[?2026h\e[1Gr1\r\nr2\r\nr3\r\n\e[?2026l
 > a full redraw is forced
 out \e[2J\e[H
 out \e[?2026h\e[1Gr1\r\nr2\r\nr3\r\n\e[?2026l
-  frame 12: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
+  frame 13: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
 > a repaint is asked for
 out \e[?2026h\e[1Gr1\r\nr2\r\nr3\r\n\e[?2026l
-  frame 13: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
+  frame 14: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
 > the alternate screen is asked to repaint where none is
 out \e[2J\e[H
 out \e[?2026h\e[1Gr1\r\nr2\r\nr3\r\n\e[?2026l
-  frame 14: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
+  frame 15: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
 > the frame before is declared invalid
 > a cell after it
   timers: 16
 > 16 ms pass
 out \e[?2026h\r\e[1C\e[1A4\r\n\e[?2026l
-  frame 15: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=5 nodes=15/1/11/5
+  frame 16: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=5 nodes=15/1/11/5
   timers: none
   screen:
     |r1
@@ -433,7 +453,7 @@ out \e[?2026h\r\e[1C\e[1A4\r\n\e[?2026l
   a click finds no, a link undefined
 > 16 ms pass
 > the screen is unmounted
-  frame 16: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=15/1/11/5
+  frame 17: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=15/1/11/5
 out \e[?25h
 fd1 \e[?2026l
 fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
@@ -1051,13 +1071,14 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
 
 ## a resize between frames: larger, smaller, twice within the settle window
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
-> the alternate screen is painted
+> the alternate screen is given, and the terminal moves to 26 by 6 before the first paint
 out \e[?25l
-  modes: dec[] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+out \e[?25l\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[?25h
+  modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
   held: alt-screen alternate-scroll cursor-hidden
   ink: alt=yes mouse=no prefers=yes wheel=no entry=yes reasserts=0 exit=none
   stdin: raw=off readable=0
-  timers: 100
+  timers: 100 120
   selection: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
   screen:
     |
@@ -1066,11 +1087,29 @@ out \e[?25l
     |
     |
     |
-> 100 ms pass
-out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[2;1Henough\e[8Gto\e[11Gwrap\e[3;1Hsecond\e[6;1H
-  frame 1: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=18 nodes=12/2/6/5
-  modes: dec[1007 1049] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+> 120 ms pass
+out \e[?1007h
+out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[0m\e[1Ga line that is long enough\e[2;1Hto wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H
+  frame 1: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=15 nodes=12/2/6/5
+  modes: dec[1007 1049] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
   ink: alt=yes mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=none
+  timers: none
+  screen:
+    |a line that is long enough
+    |to wrap
+    |second
+    |
+    |
+    |
+> 100 ms pass
+> the terminal moves back to 24 by 6
+out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[21Genou\e[K\e[2;1Hto\e[4Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K
+  modes: dec[1007 1049] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+  timers: 120
+> 120 ms pass
+out \e[?1007h
+out \e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H
+  frame 2: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
   timers: none
   screen:
     |a line that is long
@@ -1079,6 +1118,7 @@ out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glon
     |
     |
     |
+> 16 ms pass
 > the terminal grows to 30 by 8
 out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[K\e[2;1Henough\e[8Gto\e[11Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J
   timers: 120
@@ -1089,7 +1129,7 @@ out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[K\e[2;1Henough\e[8Gto\e[
 > 1 ms pass
 out \e[?1007h
 out \e[H\e[0m\e[1Ga line that is long enough to\e[K\e[2;1Hwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[K\e[8;1H\e[K\e[8;1H
-  frame 2: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=20 nodes=12/2/6/5
+  frame 3: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=20 nodes=12/2/6/5
   timers: none
   screen:
     |a line that is long enough to
@@ -1107,7 +1147,7 @@ out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Gl\e[K\e[2;1Hwrap\e[K\e[3;1Hseco
 > 120 ms pass
 out \e[?1007h
 out \e[H\e[0m\e[1Ga line that is\e[K\e[2;1Hlong enough to\e[K\e[3;1Hwrap\e[K\e[4;1Hsecond\e[K\e[4;1H
-  frame 3: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=13 nodes=12/2/6/5
+  frame 4: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=13 nodes=12/2/6/5
   timers: none
   screen:
     |a line that is
@@ -1127,7 +1167,7 @@ out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[K\e[2;1Hlong\e[6Genough\e[13Gto\e[
 > 60 ms pass
 out \e[?1007h
 out \e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H
-  frame 4: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
+  frame 5: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
   timers: none
   screen:
     |a line that is long
@@ -1138,8 +1178,25 @@ out \e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;1Hsecond\
     |
 > 16 ms pass
 > a resize is announced at the same size
+> the frame loop is paused, and the terminal moves to 28 by 7
+  frame 6: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=8/0/5/5
+  timers: 120
+> 120 ms pass
+  timers: none
+> the frame loop is resumed at the new size
+out \e[H\e[2J\e[H\e[1Ga line that is long enough\e[2;1Hto wrap\e[3;1Hsecond\e[4;1H\e[5;1H\e[6;1H\e[7;1H\e[7;1H
+  frame 7: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=11 nodes=12/2/6/5 flicker=resize:7/7
+  screen:
+    |a line that is long enough
+    |to wrap
+    |second
+    |
+    |
+    |
+    |
+> 16 ms pass
 > the terminal grows, and the tree is unmounted before it settles
-out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[K\e[2;1Henough\e[8Gto\e[11Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J
+out \e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[21Genough\e[K\e[2;1Hto\e[4Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[K\e[8;1H\e[J
   timers: 120
 > the screen is unmounted
 out \e[?25h
@@ -1166,13 +1223,14 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
 
 ## a resize between frames on an atomic terminal
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
-> the alternate screen is painted
+> the alternate screen is given, and the terminal moves to 26 by 6 before the first paint
 out \e[?25l
-  modes: dec[] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+out \e[?2026h\e[?25l\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[?25h\e[?2026l
+  modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
   held: alt-screen alternate-scroll cursor-hidden
   ink: alt=yes mouse=no prefers=yes wheel=no entry=yes reasserts=0 exit=none
   stdin: raw=off readable=0
-  timers: 100
+  timers: 100 120
   selection: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
   screen:
     |
@@ -1181,11 +1239,29 @@ out \e[?25l
     |
     |
     |
-> 100 ms pass
-out \e[?2026h\e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[2;1Henough\e[8Gto\e[11Gwrap\e[3;1Hsecond\e[6;1H\e[?2026l
-  frame 1: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=18 nodes=12/2/6/5
-  modes: dec[1007 1049] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+> 120 ms pass
+out \e[?1007h
+out \e[?2026h\e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[0m\e[1Ga line that is long enough\e[2;1Hto wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H\e[?2026l
+  frame 1: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=15 nodes=12/2/6/5
+  modes: dec[1007 1049] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
   ink: alt=yes mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=none
+  timers: none
+  screen:
+    |a line that is long enough
+    |to wrap
+    |second
+    |
+    |
+    |
+> 100 ms pass
+> the terminal moves back to 24 by 6
+out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[21Genou\e[K\e[2;1Hto\e[4Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[?2026l
+  modes: dec[1007 1049] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+  timers: 120
+> 120 ms pass
+out \e[?1007h
+out \e[?2026h\e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H\e[?2026l
+  frame 2: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
   timers: none
   screen:
     |a line that is long
@@ -1194,6 +1270,7 @@ out \e[?2026h\e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Ga\e[3Gline\e[8Gthat\e[13Gis
     |
     |
     |
+> 16 ms pass
 > the terminal grows to 30 by 8
 out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[K\e[2;1Henough\e[8Gto\e[11Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J\e[?2026l
   timers: 120
@@ -1204,7 +1281,7 @@ out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[K\e[2;1Henough\
 > 1 ms pass
 out \e[?1007h
 out \e[?2026h\e[H\e[0m\e[1Ga line that is long enough to\e[K\e[2;1Hwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[K\e[8;1H\e[K\e[8;1H\e[?2026l
-  frame 2: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=20 nodes=12/2/6/5
+  frame 3: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=20 nodes=12/2/6/5
   timers: none
   screen:
     |a line that is long enough to
@@ -1222,7 +1299,7 @@ out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Gl\e[K\e[2;1Hwrap\e[K\e
 > 120 ms pass
 out \e[?1007h
 out \e[?2026h\e[H\e[0m\e[1Ga line that is\e[K\e[2;1Hlong enough to\e[K\e[3;1Hwrap\e[K\e[4;1Hsecond\e[K\e[4;1H\e[?2026l
-  frame 3: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=13 nodes=12/2/6/5
+  frame 4: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=13 nodes=12/2/6/5
   timers: none
   screen:
     |a line that is
@@ -1242,7 +1319,7 @@ out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[K\e[2;1Hlong\e[6Genough\e
 > 60 ms pass
 out \e[?1007h
 out \e[?2026h\e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H\e[?2026l
-  frame 4: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
+  frame 5: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=16 nodes=8/0/5/5
   timers: none
   screen:
     |a line that is long
@@ -1253,8 +1330,25 @@ out \e[?2026h\e[H\e[0m\e[1Ga line that is long\e[K\e[2;1Henough to wrap\e[K\e[3;
     |
 > 16 ms pass
 > a resize is announced at the same size
+> the frame loop is paused, and the terminal moves to 28 by 7
+  frame 6: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=8/0/5/5
+  timers: 120
+> 120 ms pass
+  timers: none
+> the frame loop is resumed at the new size
+out \e[?2026h\e[H\e[2J\e[H\e[1Ga line that is long enough\e[2;1Hto wrap\e[3;1Hsecond\e[4;1H\e[5;1H\e[6;1H\e[7;1H\e[7;1H\e[?2026l
+  frame 7: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=11 nodes=12/2/6/5 flicker=resize:7/7
+  screen:
+    |a line that is long enough
+    |to wrap
+    |second
+    |
+    |
+    |
+    |
+> 16 ms pass
 > the terminal grows, and the tree is unmounted before it settles
-out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[K\e[2;1Henough\e[8Gto\e[11Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[J\e[?2026l
+out \e[?2026h\e[?25l\e[1Ga\e[3Gline\e[8Gthat\e[13Gis\e[16Glong\e[21Genough\e[K\e[2;1Hto\e[4Gwrap\e[K\e[3;1Hsecond\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[K\e[8;1H\e[J\e[?2026l
   timers: 120
 > the screen is unmounted
 out \e[?25h
@@ -1701,8 +1795,26 @@ out \e[H\e[0m\e[1Gwindow\e[K\e[2;1Hsignal\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e
   frame 5: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=0 commit=0 patches=19 nodes=12/2/6/5
   timers: none
 > 16 ms pass
+> the window signal comes when the stream already holds a size the screen has not seen
+out is asked for its size
+> a tree is the first to see it
+out \e[?1007h
+out \e[H\e[0m\e[1Gwindow\e[K\e[2;1Hsignal\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[7;1H\e[K\e[7;1H
+  frame 6: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=1 commit=1 patches=17 nodes=1/0/1/5
+  timers: 16
+  screen:
+    |window
+    |signal
+    |
+    |
+    |
+    |
+    |
+> 16 ms pass
+  frame 7: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=1/0/1/5
+  timers: none
 > the screen is unmounted
-  frame 6: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=12/2/6/5
+  frame 8: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=1/0/1/5
 out \e[?25h
 fd1 \e[?2026l
 fd1 \e[?1049l
@@ -1721,8 +1833,10 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
   held: nothing
   ink: alt=no mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=ok
+  timers: 16
   screen: empty
 > 600 ms pass
+  timers: none
 > the window signal comes after the unmount
 
 ## the old console of Windows
@@ -2518,7 +2632,7 @@ the clipboard file holds "ow 03\\nrow 04\\nrow 05\\nrow 06\\nrow 07"
 
 ## the cursor declared on the alternate screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
-> a field declares the cursor at its fourth cell
+> a field that declares nothing is painted
 out \e[?25l
   modes: dec[] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
   held: alt-screen alternate-scroll cursor-hidden
@@ -2534,7 +2648,7 @@ out \e[?25l
     |
     |
 > 100 ms pass
-out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Gabove\e[2;1Hfield\e[7Gone\e[6;1H\e[2;4H
+out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Gabove\e[2;1Hfield\e[7Gone\e[6;1H
   frame 1: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=6 nodes=20/3/9/6
   modes: dec[1007 1049] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
   ink: alt=yes mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=none
@@ -2546,17 +2660,23 @@ out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Gabove\e[2;1Hfield\e[7Gone\e[6;1H\e[2
     |
     |
     |
+> the field declares the cursor at its fourth cell
+  timers: 16
+> 16 ms pass
+out \e[2;4H
+  frame 2: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=0 nodes=1/0/1/6
+  timers: none
 > the cursor moves two cells with nothing else changed
   timers: 16
 > 16 ms pass
 out \e[2;6H
-  frame 2: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=0 nodes=1/0/1/6
+  frame 3: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=0 nodes=1/0/1/6
   timers: none
 > a second field that declares nothing mounts
   timers: 16
 > 16 ms pass
 out \e[H\e[3;1Hfield\e[7Gtwo\e[6;1H\e[2;6H
-  frame 3: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=28/2/16/8
+  frame 4: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=28/2/16/8
   timers: none
   screen:
     |above
@@ -2569,7 +2689,7 @@ out \e[H\e[3;1Hfield\e[7Gtwo\e[6;1H\e[2;6H
   timers: 16
 > 16 ms pass
 out \e[H\e[1GABOVE\e[3;1H     \e[7G   \e[6;1H\e[2;6H
-  frame 4: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=6 nodes=14/1/8/6
+  frame 5: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=6 nodes=14/1/8/6
   timers: none
   screen:
     |ABOVE
@@ -2582,7 +2702,7 @@ out \e[H\e[1GABOVE\e[3;1H     \e[7G   \e[6;1H\e[2;6H
   timers: 16
 > 16 ms pass
 out \e[H\e[1Gabove\e[6;1H
-  frame 5: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=2 nodes=12/1/7/6
+  frame 6: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=2 nodes=12/1/7/6
   timers: none
   screen:
     |above
@@ -2595,13 +2715,13 @@ out \e[H\e[1Gabove\e[6;1H
   timers: 16
 > 16 ms pass
 out \e[2;2H
-  frame 6: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=0 nodes=1/0/1/6
+  frame 7: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=0 nodes=1/0/1/6
   timers: none
-> the field leaves the tree
+> the field is hidden, and still declares
   timers: 16
 > 16 ms pass
 out \e[H\e[2;1H     \e[7G   \e[6;1H
-  frame 7: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=8/1/3/4
+  frame 8: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=8/0/4/7
   timers: none
   screen:
     |above
@@ -2610,8 +2730,13 @@ out \e[H\e[2;1H     \e[7G   \e[6;1H
     |
     |
     |
+> the field leaves the tree
+  timers: 16
+> 16 ms pass
+  frame 9: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=1 commit=1 patches=0 nodes=8/1/3/4
+  timers: none
 > the screen is unmounted
-  frame 8: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=8/1/3/4
+  frame 10: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=8/1/3/4
 out \e[?25h
 fd1 \e[?2026l
 fd1 \e[?1049l
@@ -2637,7 +2762,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
 
 ## the cursor declared on the main screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
-> a field declares the cursor at its fourth cell
+> a field that declares nothing is painted
 out \e[?25l
   modes: dec[] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
   held: cursor-hidden
@@ -2647,23 +2772,29 @@ out \e[?25l
   selection: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
   screen: empty
 > 100 ms pass
-out \e[1Gabove\r\nfield one\r\n\e[3C\e[1A
+out \e[1Gabove\r\nfield one\r\n
   frame 1: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=7 nodes=19/3/9/5
   timers: none
   screen:
     |above
     |field one
+> the field declares the cursor at its fourth cell
+  timers: 16
+> 16 ms pass
+out \e[3C\e[1A
+  frame 2: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=0 nodes=1/0/1/5
+  timers: none
 > the cursor moves two cells with nothing else changed
   timers: 16
 > 16 ms pass
 out \e[2C
-  frame 2: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=0 nodes=1/0/1/5
+  frame 3: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=0 nodes=1/0/1/5
   timers: none
 > a second field that declares nothing mounts
   timers: 16
 > 16 ms pass
 out \e[5D\e[1B\e[1Gfield two\r\n\e[5C\e[2A
-  frame 3: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=27/2/16/7
+  frame 4: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=27/2/16/7
   timers: none
   screen:
     |above
@@ -2673,7 +2804,7 @@ out \e[5D\e[1B\e[1Gfield two\r\n\e[5C\e[2A
   timers: 16
 > 16 ms pass
 out \e[5D\e[2B\e[2K\e[1A\e[2K\e[G\r\e[2AABOVE\r\n\n\e[5C\e[1A
-  frame 4: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=7 nodes=13/1/8/5
+  frame 5: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=7 nodes=13/1/8/5
   timers: none
   screen:
     |ABOVE
@@ -2682,7 +2813,7 @@ out \e[5D\e[2B\e[2K\e[1A\e[2K\e[G\r\e[2AABOVE\r\n\n\e[5C\e[1A
   timers: 16
 > 16 ms pass
 out \e[5D\e[1B\r\e[2Aabove\r\n\n
-  frame 5: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=6 nodes=11/1/7/5
+  frame 6: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=6 nodes=11/1/7/5
   timers: none
   screen:
     |above
@@ -2691,18 +2822,23 @@ out \e[5D\e[1B\r\e[2Aabove\r\n\n
   timers: 16
 > 16 ms pass
 out \e[1C\e[1A
-  frame 6: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=0 nodes=1/0/1/5
+  frame 7: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=0 nodes=1/0/1/5
   timers: none
-> the field leaves the tree
+> the field is hidden, and still declares
   timers: 16
 > 16 ms pass
 out \e[1D\e[1B\e[2K\e[1A\e[2K\e[G
-  frame 7: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=1 nodes=7/1/3/3
+  frame 8: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=1 nodes=7/0/4/6
   timers: none
   screen:
     |above
+> the field leaves the tree
+  timers: 16
+> 16 ms pass
+  frame 9: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=1 commit=1 patches=0 nodes=7/1/3/3
+  timers: none
 > the screen is unmounted
-  frame 8: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=7/1/3/3
+  frame 10: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=7/1/3/3
 out \e[?25h
 fd1 \e[?2026l
 fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
@@ -2808,8 +2944,8 @@ out \e[?25l
     |
     |
 > 100 ms pass
-out \e[?2026h\e[?1049h\e[r\e[2J\e[H\e[?1000h\e[?1002h\e[?1003h\e[?1006h\e[?1007h\e[H\e[1GA\e[9GB\e[17GL\e[24GR\e[2;1Hsee\e[5Ghttps://example.test/a\e[28Gnow\e[3;1H\e]8;id=1ef009e;https://example.test/linked\adocs \u{4e16}\e[8G\u{754c}\e[4;1H\e]8;;\anot\e[5Gfor\e[9Gselecting\e[6;1H\e[?2026l
-  frame 1: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=26 nodes=60/12/27/15
+out \e[?2026h\e[?1049h\e[r\e[2J\e[H\e[?1000h\e[?1002h\e[?1003h\e[?1006h\e[?1007h\e[H\e[1GA\e[9GB\e[17GL\e[24GR\e[2;1Hsee\e[5Ghttps://example.test/a\e[28Gnow\e[3;1H\e]8;id=1ef009e;https://example.test/linked\adocs \u{4e16}\e[8G\u{754c}\e[4;1H\e]8;;\anot\e[5Gfor\e[9Gselecting\e[5;1H\u{4e16}\e[3G\u{754c}\e[6Gplain\e[6;1H\e[?2026l
+  frame 1: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=32 nodes=64/13/30/16
   modes: dec[1000 1002 1003 1004 1006 1007 1049 2004] cursor=hidden kitty=1 otherkeys=2 region=whole pointer=unset
   ink: alt=yes mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=none
   timers: 150
@@ -2818,7 +2954,7 @@ out \e[?2026h\e[?1049h\e[r\e[2J\e[H\e[?1000h\e[?1002h\e[?1003h\e[?1006h\e[?1007h
     |see https://example.test/a now
     |docs \u{4e16}\u{754c}
     |not for selecting
-    |
+    |\u{4e16}\u{754c} plain
     |
 > 250 ms pass
   timers: none
@@ -2863,32 +2999,32 @@ out \e[?2026h\e[?1049h\e[r\e[2J\e[H\e[?1000h\e[?1002h\e[?1003h\e[?1006h\e[?1007h
   the stubborn box loses the focus
   box b is focused
 > a click lands on box a
-  frame 2: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 2: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   box b loses the focus
   box a is focused
   box a is clicked at 0,0 of its own, on blank=no
-  frame 3: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 3: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   selection: anchor=0,0 focus=none dragging=no span=none band=0..0 x 0..0 alt-press=no off=0/0 has=no
 > 600 ms pass
 > a click lands on the blank of box b
-  frame 4: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 4: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   box a loses the focus
   box b is focused
   box b is clicked at 4,0 of its own, on blank=yes
-  frame 5: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 5: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   selection: anchor=12,0 focus=none dragging=no span=none band=8..15 x 0..0 alt-press=no off=0/0 has=no
 > 600 ms pass
 > a click lands in the gap between the two letters of the stubborn box
-  frame 6: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 6: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   box b loses the focus
   the stubborn box is focused
   the stubborn box is clicked at 3,0 of its own, on blank=no
-  frame 7: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 7: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   selection: anchor=19,0 focus=none dragging=no span=none band=16..23 x 0..0 alt-press=no off=0/0 has=no
 > 600 ms pass
 > a click lands on the plain address
-  frame 8: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
-  frame 9: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 8: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
+  frame 9: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   timers: 500
   selection: anchor=8,1 focus=none dragging=no span=none band=-..- x 1..1 alt-press=no off=0/0 has=no
 > 499 ms pass
@@ -2897,38 +3033,38 @@ out \e[?2026h\e[?1049h\e[r\e[2J\e[H\e[?1000h\e[?1002h\e[?1003h\e[?1006h\e[?1007h
   a link is opened: https://example.test/a
   timers: none
 > a click lands on the link
-  frame 10: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
-  frame 11: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 10: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
+  frame 11: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   timers: 500
   selection: anchor=1,2 focus=none dragging=no span=none band=-..- x 2..2 alt-press=no off=0/0 has=no
 > 500 ms pass
   a link is opened: https://example.test/linked
   timers: none
 > a click lands on the second cell of a wide letter of the link
-  frame 12: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
-  frame 13: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 12: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
+  frame 13: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   timers: 500
   selection: anchor=6,2 focus=none dragging=no span=none band=-..- x 2..2 alt-press=no off=0/0 has=no
 > 500 ms pass
   a link is opened: https://example.test/linked
   timers: none
 > a click lands where nothing is
-  frame 14: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
-  frame 15: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 14: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
+  frame 15: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   selection: anchor=30,5 focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
 > 500 ms pass
 > two clicks land on the link before it opens
-  frame 16: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
-  frame 17: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 16: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
+  frame 17: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
 out \e[?2026h\e[H\e[3;1H\e]8;id=1ef009e;https://example.test/linked\a\e[7mdocs\e[27m\e]8;;\a\e[6;1H\e[?2026l
-  frame 18: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=6 nodes=60/12/27/15
-  frame 19: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 18: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=6 nodes=64/13/30/16
+  frame 19: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   selection: anchor=0,2 focus=3,2 dragging=no span=word 0,2..3,2 band=-..- x 2..2 alt-press=no off=0/0 has=yes
 > 600 ms pass
 > the link has no opener, and a click lands on it
 out \e[?2026h\e[H\e[3;1H\e]8;id=1ef009e;https://example.test/linked\adocs\e]8;;\a\e[6;1H\e[?2026l
-  frame 20: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=4 nodes=60/12/27/15
-  frame 21: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 20: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=4 nodes=64/13/30/16
+  frame 21: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   timers: 500
   selection: anchor=1,2 focus=none dragging=no span=none band=-..- x 2..2 alt-press=no off=0/0 has=no
 > 500 ms pass
@@ -2953,6 +3089,9 @@ out \e]22;default\a
   modes: dec[1000 1002 1003 1004 1006 1007 1049 2004] cursor=hidden kitty=1 otherkeys=2 region=whole pointer=default
 > to an empty cell
 > outside the screen
+> the doors are asked about cells by hand
+  a link outside the screen: undefined; on the second cell of a wide letter that is no link: undefined; on the address: https://example.test/a
+  a click outside the screen finds no
 > the wheel turns down three notches as the terminal reports it
   the app hears "" downArrow+wheelDown
   the stubborn box takes the key "wheeldown"
@@ -2976,13 +3115,31 @@ out \e[?1006l\e[?1003l\e[?1002l\e[?1000l
   modes: dec[1004 1007 1049 2004] cursor=hidden kitty=1 otherkeys=2 region=whole pointer=reset
   held: alt-screen alternate-scroll bracketed-paste focus-events kitty-kbd cursor-hidden
   ink: alt=yes mouse=no prefers=no wheel=no entry=no reasserts=0 exit=none
+> tracking is switched on, the pointer moves over the address, and the alternate screen is left
+out \e[?1000h\e[?1002h\e[?1003h\e[?1006h
+out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
+out \e[>4m\e[<u\e[?1004l\e[?2004l
+stdin raw off
+stdin loses a readable listener
+stdin unref
+  the stubborn box loses the focus
+out \e[?2026h\e[1Gon the main screen\r\n\e[?2026l
+  frame 22: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=6 patches=4 nodes=7/1/3/3
+  modes: dec[] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=reset
+  held: cursor-hidden
+  ink: alt=no mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=none
+  stdin: raw=off readable=0
+  screen:
+    |on the main screen
+> 16 ms pass
 > the screen is unmounted
-  frame 22: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 23: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=7/1/3/3
 out \e[?25h
 fd1 \e[?2026l
-fd1 \e[?1049l
 fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
 fd1 \e[?1007l
+stdin raw on
+stdin raw off
 fd1 \e[>4m
 fd1 \e[<u
 fd1 \e[?1004l
@@ -2990,17 +3147,9 @@ fd1 \e[?2004l
 fd1 \e[?25h
 fd1 \e]9;4;0;\a
 out \e[?25h
-out \e[>4m\e[<u\e[?1004l\e[?2004l
-stdin raw off
-stdin loses a readable listener
-stdin unref
-out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
-  the stubborn box loses the focus
   modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=reset
   held: nothing
-  ink: alt=no mouse=no prefers=no wheel=no entry=no reasserts=0 exit=ok
-  stdin: raw=off readable=0
-  screen: empty
+  ink: alt=no mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=ok
 > 600 ms pass
 > mouse tracking is switched on after the unmount
   ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=ok
@@ -3037,8 +3186,8 @@ out \e[?25l
 > 100 ms pass
   timers: 16 150
 > 250 ms pass
-out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1GA\e[9GB\e[17GL\e[24GR\e[2;1Hsee\e[5Ghttps://example.test/a\e[28Gnow\e[3;1Hno\e[4Glink\e[9Ghere\e[4;1Hnot\e[5Gfor\e[9Gselecting\e[6;1H
-  frame 1: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=26 nodes=60/12/27/15
+out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1GA\e[9GB\e[17GL\e[24GR\e[2;1Hsee\e[5Ghttps://example.test/a\e[28Gnow\e[3;1Hno\e[4Glink\e[9Ghere\e[4;1Hnot\e[5Gfor\e[9Gselecting\e[5;1H\u{4e16}\e[3G\u{754c}\e[6Gplain\e[6;1H
+  frame 1: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=32 nodes=64/13/30/16
   modes: dec[1004 1007 1049 2004] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
   ink: alt=yes mouse=no prefers=no wheel=no entry=no reasserts=0 exit=none
   timers: none
@@ -3047,18 +3196,18 @@ out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1GA\e[9GB\e[17GL\e[24GR\e[2;1Hsee\e[5G
     |see https://example.test/a now
     |no link here
     |not for selecting
-    |
+    |\u{4e16}\u{754c} plain
     |
 > a click lands on box a
-  frame 2: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 2: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   box a is focused
   box a is clicked at 0,0 of its own, on blank=no
-  frame 3: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 3: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   selection: anchor=0,0 focus=none dragging=no span=none band=0..0 x 0..0 alt-press=no off=0/0 has=no
 > 600 ms pass
 > a click lands on the plain address
-  frame 4: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
-  frame 5: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 4: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
+  frame 5: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
   timers: 500
   selection: anchor=8,1 focus=none dragging=no span=none band=-..- x 1..1 alt-press=no off=0/0 has=no
 > 500 ms pass
@@ -3077,7 +3226,7 @@ out \e[?1000h\e[?1002h\e[?1003h\e[?1006h
   box a takes the key "wheelup"
   ink: alt=yes mouse=yes prefers=yes wheel=yes entry=no reasserts=0 exit=none
 > the screen is unmounted
-  frame 6: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=60/12/27/15
+  frame 6: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=64/13/30/16
 out \e[?25h
 fd1 \e[?2026l
 fd1 \e[?1049l
@@ -3408,12 +3557,55 @@ out \e[?2026h\e[H\e[4;4H\e[44mield \e[49m\e[6;1H\e[?2026l
   the selection's listeners hear: anchor=3,3 focus=7,3 dragging=yes span=none band=0..31 x 3..3 alt-press=no off=0/0 has=yes
   the selection's listeners hear: anchor=3,3 focus=7,3 dragging=no span=none band=0..31 x 3..3 alt-press=no off=0/0 has=yes
   the field's handler hears: press at 3,0 count 1
-> the listener leaves, and the selection is cleared
+> 600 ms pass
+> a press and a release beyond the screen
 out \e[?2026h\e[H\e[4;4Hield \e[6;1H\e[?2026l
   frame 55: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=2 nodes=30/5/15/9
-  selection: anchor=none focus=none dragging=no span=none band=0..31 x 3..3 alt-press=no off=0/0 has=no
-> the screen is unmounted
   frame 56: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=30/5/15/9
+  selection: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
+  the selection's listeners hear: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
+  the selection's listeners hear: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
+> 600 ms pass
+> two presses beyond the screen
+  frame 57: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=30/5/15/9
+  frame 58: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=30/5/15/9
+  frame 59: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=30/5/15/9
+  frame 60: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=30/5/15/9
+  the selection's listeners hear: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
+  the selection's listeners hear: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
+  the selection's listeners hear: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
+  the selection's listeners hear: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
+> 600 ms pass
+> the blank end of a row is selected, copied and kept, and its focus moved a way no key names
+  frame 61: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=30/5/15/9
+out \e[?2026h\e[H\e[5;31H\e[44m      \e[49m\e[6;1H\e[?2026l
+  frame 62: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=4 nodes=30/5/15/9
+  frame 63: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=30/5/15/9
+  copied: ""
+  selection: anchor=30,4 focus=35,4 dragging=no span=none band=-..- x 4..4 alt-press=no off=0/0 has=yes
+  screen:
+    |the quick brown fox
+    |jumps over the lazy dog
+    |
+    |a field that takes text gestures
+    |last row                            
+    |
+  the selection's listeners hear: anchor=30,4 focus=none dragging=yes span=none band=-..- x 4..4 alt-press=no off=0/0 has=no
+  the selection's listeners hear: anchor=30,4 focus=35,4 dragging=yes span=none band=-..- x 4..4 alt-press=no off=0/0 has=yes
+  the selection's listeners hear: anchor=30,4 focus=35,4 dragging=no span=none band=-..- x 4..4 alt-press=no off=0/0 has=yes
+> the listener leaves, and the selection is cleared
+out \e[?2026h\e[H\e[5;31H      \e[6;1H\e[?2026l
+  frame 64: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=2 nodes=30/5/15/9
+  selection: anchor=none focus=none dragging=no span=none band=-..- x 4..4 alt-press=no off=0/0 has=no
+  screen:
+    |the quick brown fox
+    |jumps over the lazy dog
+    |
+    |a field that takes text gestures
+    |last row
+    |
+> the screen is unmounted
+  frame 65: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=30/5/15/9
 out \e[?25h
 fd1 \e[?2026l
 fd1 \e[?1049l
@@ -4135,6 +4327,13 @@ out \e[?1004h\e[<u\e[>5u\e[>4;2m
     |
 > 16 ms pass
 > the terminal queries are awaited after they settled
+> 5000 ms pass
+> a key comes after five quiet seconds
+out \e[<u\e[>5u\e[>4;2m\e[?2004h\e[?1004h\e[?1000h\e[?1002h\e[?1003h\e[?1006h\e[?1007h
+  the app hears "k"
+> 16 ms pass
+> and another at once after it
+  the app hears "l"
 > the editor is entered twice
   frame 4: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=8/1/3/4
 stdin loses a readable listener
@@ -4217,9 +4416,6 @@ out \e[?1049h
     |
     |
 > 16 ms pass
-> 5000 ms pass
-> a key comes after five quiet seconds
-> 16 ms pass
 > the terminal stops taking writes, and the modes are asked for
 > the screen is unmounted
 out \e[?2026h\e[H\e[0m\e[1Ggiven while paused\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H\e[?2026l
@@ -4298,6 +4494,13 @@ out \e[?1004h
     |changed under the editor
 > 16 ms pass
 > the terminal queries are awaited after they settled
+> 5000 ms pass
+> a key comes after five quiet seconds
+out \e[?2004h\e[?1004h
+  the app hears "k"
+> 16 ms pass
+> and another at once after it
+  the app hears "l"
 > the editor is entered twice
   frame 3: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=7/1/3/3
 stdin loses a readable listener
@@ -4360,9 +4563,6 @@ out \e[?2004h\e[?1004h
 > the screen state is asserted again without a repaint
 debug [DEBUG] Screen-state re-assert (asked by the scene): belief=main-screen
   ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=4 exit=none
-> 16 ms pass
-> 5000 ms pass
-> a key comes after five quiet seconds
 > 16 ms pass
 > the terminal stops taking writes, and the modes are asked for
 > the screen is unmounted
@@ -4746,13 +4946,37 @@ out \e[?2026h\e[H\e[0m\e[1Grunning\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e
   frame 6: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=0 commit=0 patches=14 nodes=8/1/3/4
   modes: dec[1000 1002 1003 1004 1006 1007 1049 2004] cursor=hidden kitty=1 otherkeys=2 region=whole pointer=unset
 > 16 ms pass
+> the stop of the foreground comes where the process cannot signal itself
+fd1 \e[?2026l
+fd1 \e[?1049l
+fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
+fd1 \e[?1007l
+fd1 \e[>4m
+fd1 \e[<u
+fd1 \e[?1004l
+fd1 \e[?2004l
+fd1 \e[?25h
+fd1 \e]9;4;0;\a
+stdin raw off
+  modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
+  stdin: raw=off readable=1
+> the continue comes where raw mode cannot be taken again
+out \e[<u\e[>5u\e[>4;2m\e[?2004h\e[?1004h\e[?1000h\e[?1002h\e[?1003h\e[?1006h\e[?1007h
+out \e[?25l
+out \e[?1049h\e[r\e[2J\e[H\e[?1000h\e[?1002h\e[?1003h\e[?1006h\e[?1007h
+out \e[?2026h\e[H\e[0m\e[1Grunning\e[K\e[2;1H\e[K\e[3;1H\e[K\e[4;1H\e[K\e[5;1H\e[K\e[6;1H\e[K\e[6;1H\e[?2026l
+  frame 7: reads=11 renderer=1 diff=2 optimize=1 write=2 layout=0 commit=0 patches=14 nodes=8/1/3/4
+  modes: dec[1000 1002 1003 1004 1006 1007 1049 2004] cursor=hidden kitty=1 otherkeys=2 region=whole pointer=unset
+> 16 ms pass
 > the screen is unmounted
-  frame 7: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=8/1/3/4
+  frame 8: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=8/1/3/4
 out \e[?25h
 fd1 \e[?2026l
 fd1 \e[?1049l
 fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
 fd1 \e[?1007l
+stdin raw on
+stdin raw off
 fd1 \e[>4m
 fd1 \e[<u
 fd1 \e[?1004l
@@ -4879,12 +5103,34 @@ out \e[1Grunning\r\n
   frame 6: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=4 nodes=7/1/3/3
   modes: dec[1004 2004] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
 > 16 ms pass
+> the stop of the foreground comes where the process cannot signal itself
+fd1 \e[?2026l
+fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
+fd1 \e[?1007l
+fd1 \e[>4m
+fd1 \e[<u
+fd1 \e[?1004l
+fd1 \e[?2004l
+fd1 \e[?25h
+fd1 \e]9;4;0;\a
+stdin raw off
+  modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
+  stdin: raw=off readable=1
+> the continue comes where raw mode cannot be taken again
+out \e[?2004h\e[?1004h
+out \e[?25l
+out \e[1Grunning\r\n
+  frame 7: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=4 nodes=7/1/3/3
+  modes: dec[1004 2004] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+> 16 ms pass
 > the screen is unmounted
-  frame 7: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=7/1/3/3
+  frame 8: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=7/1/3/3
 out \e[?25h
 fd1 \e[?2026l
 fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
 fd1 \e[?1007l
+stdin raw on
+stdin raw off
 fd1 \e[>4m
 fd1 \e[<u
 fd1 \e[?1004l
@@ -5131,33 +5377,73 @@ out \e[?25h
   a wait after the exit is refused at once: the app failed
 > 600 ms pass
   timers: none
-
-## unmount before any tree
-world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
-> the screen is unmounted with a number, as the exit hook gives it, before any tree or wait
-  frame 1: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=0/0/0/0
+> a second screen, whose frames nobody listens to and whose keys are no terminal, is painted
+out \e[?25l
+  modes: dec[] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+  held: cursor-hidden
+  ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=none
+  timers: 100
+  screen: empty
+> 100 ms pass
+out \e[1Gsecond\r\n
+  timers: none
+  screen:
+    |second
+> it is unmounted with an error before anything waits for its exit
+out \e[?25h
 fd1 \e[?2026l
 fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
 fd1 \e[?1007l
-stdin raw on
-stdin raw off
 fd1 \e[>4m
 fd1 \e[<u
 fd1 \e[?1004l
 fd1 \e[?2004l
 fd1 \e[?25h
 fd1 \e]9;4;0;\a
+out \e[?25h
   modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
   held: nothing
-  ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=ok
+  ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=error
+  timers: 16
+> its exit is awaited after it
+  a wait after the exit is refused at once: the second app failed
+> 600 ms pass
+  timers: none
+
+## a screen that is given no tree
+world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
+> the terminal resizes before any tree is given
+  modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
+  held: nothing
+  ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=none
   stdin: raw=off readable=0
-  timers: 100
+  timers: 120
   selection: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
   screen: empty
+> 120 ms pass
+  timers: none
+> the size changes with no announcement, and a frame is asked for
+  frame 1: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=1 commit=0 patches=0 nodes=1/0/0/1
+> the reader is destroyed by a hand-over, and a fresh one is opened
+  timers: 50
+> 50 ms pass
+debug [WARN] stdin recovery after read EBADF: the reader was destroyed by the hand-off \u{2014} a fresh reader on the same terminal takes over (raw=false)
+  timers: none
+> the screen leaves the register of screens, and is unmounted with a number, as the exit hook gives it
+  frame 2: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=1/0/0/1
+fd1 \e[?2026l
+fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
+fd1 \e[?1007l
+fd1 \e[>4m
+fd1 \e[<u
+fd1 \e[?1004l
+fd1 \e[?2004l
+fd1 \e[?25h
+fd1 \e]9;4;0;\a
+  ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=ok
 > the exit is awaited after it
   a wait after the exit is over at once
 > 600 ms pass
-  timers: none
 
 ## the exit hook of the process
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -5343,6 +5629,8 @@ stdin unref
   stdin: raw=off readable=0
   screen: empty
 > 600 ms pass
+> the stop of the foreground and the continue come to the detached screen
+  the process sends itself a stop
 > a second screen is painted
 out \e[?25l
   ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=none
@@ -5355,6 +5643,21 @@ out \e[1Gsecond\r\n
     |second
 > it is detached where raw mode cannot be given up
   stdin: raw=on readable=0
+> 600 ms pass
+> a third screen is painted
+out \e[?25l
+  stdin: raw=off readable=0
+  timers: 100
+  screen: empty
+> 100 ms pass
+out \e[1Gthird\r\n
+  frame 3: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=7/1/3/9
+  timers: none
+  screen:
+    |third
+> it is detached with raw mode off
+stdin raw on
+stdin raw off
 > 600 ms pass
 
 ## the console patched on the alternate screen
@@ -5411,6 +5714,9 @@ debug [WARN] [stderr] a third leak
 > 16 ms pass
   frame 3: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=12/2/6/5
   timers: none
+> something writes a thing there that cannot be read as text
+  the write answers true
+> 16 ms pass
 > something writes there while the frame loop is paused
   frame 4: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=12/2/6/5
 debug [WARN] [stderr] a leak under the pause
@@ -5555,7 +5861,7 @@ debug [WARN] frame listener threw (ignored): Error: a frame listener throws
   after the last leaves: no
   with an owner: yes
   with only an idle one: no
-> the wheel is confirmed
+> the wheel is confirmed, and the alternate screen is set active where it is
   ink: alt=yes mouse=yes prefers=yes wheel=yes entry=no reasserts=0 exit=none
 > the watchdog is armed, and five frames change nothing
 > a frame is asked for
@@ -6139,7 +6445,7 @@ the tee INK_WRITE_TEE holds 30 lines
   {"phase":"after-diff","patches":0,"bytes":0,"probeInOutput":false,"kinds":[]}
   {"ts":1700000000434,"len":6,"path":"stream","delivered":true,"sample":"\\u001b[?25h"}
 
-## the tree dump alone
+## the tree dump alone, and a tee that cannot be written
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
 > a line is painted with only the tree dump open
 out \e[?25l
@@ -6416,6 +6722,600 @@ the tee INK_TREE_DUMP holds 168 lines
         ink-text [0,0 24x1] flexGrow=0 flexShrink=1 flexDirection=row
           #text "the line that shifts"
 
+## the write tee alone on the main screen
+world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
+> three lines are given
+out \e[?25l
+  modes: dec[] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+  held: cursor-hidden
+  ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=none
+  stdin: raw=off readable=0
+  timers: 100
+  selection: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
+  screen: empty
+> 100 ms pass
+out \e[1Galpha\r\nbeta\r\n\e[31m\e[1mgamma\e[22m\e[39m\r\n
+  frame 1: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=12 nodes=15/3/9/5
+  timers: none
+  screen:
+    |alpha
+    |beta
+    |gamma
+> one cell changes
+  timers: 16
+> 16 ms pass
+out \r\e[2C\e[2Al\r\n\n
+  frame 2: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=6 nodes=15/1/11/5
+  timers: none
+  screen:
+    |alpha
+    |bela
+    |gamma
+> one line changes
+  timers: 16
+> 16 ms pass
+out \r\e[2A\e[48;5;236m\e[38;2;51;102;204m\e[3mBETA TWO\e[23m\e[39m\e[49m\r\n\n
+  frame 3: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=8 nodes=15/1/11/5
+  timers: none
+  screen:
+    |alpha
+    |BETA TWO
+    |gamma
+> a line changes its paint only
+  timers: 16
+> 16 ms pass
+out \r\e[2A\e[2m\e[4mBETA TWO\e[24m\e[22m\r\n\n
+  frame 4: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=8 nodes=15/1/11/5
+  timers: none
+> a line is added
+  timers: 16
+> 16 ms pass
+out \r\e[1Agamma\r\n\e[48;5;236m\e[38;2;51;102;204m\e[3mdelta\e[23m\e[39m\e[49m\r\n
+  frame 5: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=10 nodes=19/2/14/6
+  timers: none
+  screen:
+    |alpha
+    |BETA TWO
+    |gamma
+    |delta
+> two lines leave
+  timers: 16
+> 16 ms pass
+out \e[2K\e[1A\e[2K\e[1A\e[2K\e[G\r\e[1ABETA TWO\r\n
+  frame 6: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=6 nodes=11/1/7/4
+  timers: none
+  screen:
+    |alpha
+    |BETA TWO
+> the whole screen changes
+  timers: 16
+> 16 ms pass
+out \r\e[2A1111 \r\e[1B2222\e[6G   \r\n3333\r\n
+  frame 7: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=13 nodes=15/3/9/5
+  timers: none
+  screen:
+    |1111
+    |2222
+    |3333
+> wide letters come and a text holds another
+  timers: 16
+> 16 ms pass
+out \r\e[3A\u{4e16}\e[3G\u{754c}\e[6G1111\r\e[1Bouter\e[7G\e[1minner\e[22m\r\n\n
+  frame 8: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=17 nodes=15/3/9/5
+  timers: none
+  screen:
+    |\u{4e16}\u{754c} 1111
+    |outer inner
+    |3333
+> more lines than the terminal has rows
+  timers: 16
+> 16 ms pass
+out \r\e[3Ar1  \e[6G    \r\e[1Br2   \e[7G     \r\e[1Br\e[3G  \r\nr4\r\nr5\r\nr6\r\nr7\r\nr8\r\nr9\r\n
+  frame 9: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=35 nodes=39/9/27/11
+  timers: none
+  screen:
+    |r1
+    |r2
+    |r3
+    |r4
+    |r5
+    |r6
+    |r7
+    |r8
+    |r9
+> a line changes above the fold
+  timers: 16
+> 16 ms pass
+  frame 10: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=1 commit=1 patches=0 nodes=39/1/35/11
+  timers: none
+  screen:
+    |R1
+    |r2
+    |r3
+    |r4
+    |r5
+    |r6
+    |r7
+    |r8
+    |r9
+> back under the rows
+  timers: 16
+> 16 ms pass
+out \e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[1A\e[2K\e[G\e[1Gr1\r\nr2\r\n
+  frame 11: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=8 nodes=11/1/7/4
+  timers: none
+  screen:
+    |r1
+    |r2
+> the line count is reset, as after a clear from outside
+  screen: empty
+> a line after the reset
+  timers: 16
+> 16 ms pass
+out \e[1Gr1\r\nr2\r\nr3\r\n
+  frame 12: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=10 nodes=15/1/11/5
+  timers: none
+  screen:
+    |r1
+    |r2
+    |r3
+> a full redraw is forced
+out \e[2J\e[H
+out \e[1Gr1\r\nr2\r\nr3\r\n
+  frame 13: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
+> a repaint is asked for
+out \e[1Gr1\r\nr2\r\nr3\r\n
+  frame 14: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
+> the alternate screen is asked to repaint where none is
+out \e[2J\e[H
+out \e[1Gr1\r\nr2\r\nr3\r\n
+  frame 15: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=0 commit=0 patches=10 nodes=15/1/11/5
+> the frame before is declared invalid
+> a cell after it
+  timers: 16
+> 16 ms pass
+out \r\e[1C\e[1A4\r\n
+  frame 16: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=5 nodes=15/1/11/5
+  timers: none
+  screen:
+    |r1
+    |r2
+    |r4
+> the doors of the alternate screen are tried where none is
+  a click finds no, a link undefined
+> 16 ms pass
+> the screen is unmounted
+  frame 17: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=15/1/11/5
+out \e[?25h
+fd1 \e[?2026l
+fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
+fd1 \e[?1007l
+stdin raw on
+stdin raw off
+fd1 \e[>4m
+fd1 \e[<u
+fd1 \e[?1004l
+fd1 \e[?2004l
+fd1 \e[?25h
+fd1 \e]9;4;0;\a
+out \e[?25h
+  modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
+  held: nothing
+  ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=ok
+> 600 ms pass
+the tee INK_WRITE_TEE holds 50 lines
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":14,"differingRows":[0,1,2],"baseDamage":null,"nextDamage":{"x":0,"y":0,"width":5,"height":3}}
+  {"ts":1700000000100,"len":43,"path":"stream","delivered":true,"sample":"\\u001b[1Galpha\\r\\nbeta\\r\\n\\u001b[31m\\u001b[1mgamma\\u001b[22m\\u001b[39"}
+  {"phase":"after-diff","patches":12,"bytes":36,"probeInOutput":false,"kinds":["cursorTo","stdout","carriageReturn","styleStr"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":1,"differingRows":[1],"baseDamage":{"x":0,"y":0,"width":5,"height":3},"nextDamage":{"x":0,"y":0,"width":24,"height":3}}
+  {"ts":1700000000116,"len":13,"path":"stream","delivered":true,"sample":"\\r\\u001b[2C\\u001b[2Al\\r\\n\\n"}
+  {"phase":"after-diff","patches":6,"bytes":3,"probeInOutput":false,"kinds":["carriageReturn","cursorMove","stdout"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":7,"differingRows":[1],"baseDamage":{"x":0,"y":0,"width":24,"height":3},"nextDamage":{"x":0,"y":0,"width":24,"height":3}}
+  {"ts":1700000000132,"len":64,"path":"stream","delivered":true,"sample":"\\r\\u001b[2A\\u001b[48;5;236m\\u001b[38;2;51;102;204m\\u001b[3mBE"}
+  {"phase":"after-diff","patches":8,"bytes":58,"probeInOutput":false,"kinds":["carriageReturn","cursorMove","styleStr","stdout"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":0,"differingRows":[],"baseDamage":{"x":0,"y":0,"width":24,"height":3},"nextDamage":{"x":0,"y":0,"width":24,"height":3}}
+  {"ts":1700000000148,"len":34,"path":"stream","delivered":true,"sample":"\\r\\u001b[2A\\u001b[2m\\u001b[4mBETA TWO\\u001b[24m\\u001b[22m\\r\\n\\n"}
+  {"phase":"after-diff","patches":8,"bytes":28,"probeInOutput":false,"kinds":["carriageReturn","cursorMove","styleStr","stdout"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":5,"differingRows":[3],"baseDamage":{"x":0,"y":0,"width":24,"height":3},"nextDamage":{"x":0,"y":0,"width":24,"height":4}}
+  {"ts":1700000000164,"len":67,"path":"stream","delivered":true,"sample":"\\r\\u001b[1Agamma\\r\\n\\u001b[48;5;236m\\u001b[38;2;51;102;204"}
+  {"phase":"after-diff","patches":10,"bytes":60,"probeInOutput":false,"kinds":["carriageReturn","cursorMove","stdout","styleStr"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":10,"differingRows":[2,3],"baseDamage":{"x":0,"y":0,"width":24,"height":4},"nextDamage":{"x":0,"y":0,"width":24,"height":2}}
+  {"ts":1700000000180,"len":38,"path":"stream","delivered":true,"sample":"\\u001b[2K\\u001b[1A\\u001b[2K\\u001b[1A\\u001b[2K\\u001b[G\\r\\u001b[1ABETA TWO\\r\\n"}
+  {"phase":"after-diff","patches":6,"bytes":9,"probeInOutput":false,"kinds":["clear","carriageReturn","cursorMove","stdout"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":16,"differingRows":[0,1,2],"baseDamage":{"x":0,"y":0,"width":24,"height":2},"nextDamage":{"x":0,"y":0,"width":24,"height":3}}
+  {"ts":1700000000196,"len":34,"path":"stream","delivered":true,"sample":"\\r\\u001b[2A1111 \\r\\u001b[1B2222\\u001b[6G   \\r\\n3333\\r\\n"}
+  {"phase":"after-diff","patches":13,"bytes":18,"probeInOutput":false,"kinds":["carriageReturn","cursorMove","stdout","cursorTo"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":16,"differingRows":[0,1],"baseDamage":{"x":0,"y":0,"width":24,"height":3},"nextDamage":{"x":0,"y":0,"width":24,"height":3}}
+  {"ts":1700000000212,"len":50,"path":"stream","delivered":true,"sample":"\\r\\u001b[3A\u{4e16}\\u001b[3G\u{754c}\\u001b[6G1111\\r\\u001b[1Bouter\\u001b[7G\\u001b[1minn"}
+  {"phase":"after-diff","patches":17,"bytes":27,"probeInOutput":false,"kinds":["carriageReturn","cursorMove","stdout","cursorTo","styleStr"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":31,"differingRows":[0,1,2,3,4,5,6,7,8],"baseDamage":{"x":0,"y":0,"width":24,"height":3},"nextDamage":{"x":0,"y":0,"width":24,"height":9}}
+  {"ts":1700000000228,"len":74,"path":"stream","delivered":true,"sample":"\\r\\u001b[3Ar1  \\u001b[6G    \\r\\u001b[1Br2   \\u001b[7G     \\r\\u001b[1"}
+  {"phase":"after-diff","patches":35,"bytes":40,"probeInOutput":false,"kinds":["carriageReturn","cursorMove","stdout","cursorTo"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":1,"differingRows":[0],"baseDamage":{"x":0,"y":0,"width":24,"height":9},"nextDamage":{"x":0,"y":0,"width":24,"height":9}}
+  {"phase":"after-diff","patches":0,"bytes":0,"probeInOutput":false,"kinds":[]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":15,"differingRows":[0,2,3,4,5,6,7,8],"baseDamage":{"x":0,"y":0,"width":24,"height":9},"nextDamage":{"x":0,"y":0,"width":24,"height":2}}
+  {"ts":1700000000260,"len":59,"path":"stream","delivered":true,"sample":"\\u001b[2K\\u001b[1A\\u001b[2K\\u001b[1A\\u001b[2K\\u001b[1A\\u001b[2K\\u001b[1A\\u001b[2K\\u001b[1A"}
+  {"phase":"after-diff","patches":8,"bytes":6,"probeInOutput":false,"kinds":["clear","cursorTo","stdout","carriageReturn"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":6,"differingRows":[0,1,2],"baseDamage":null,"nextDamage":{"x":0,"y":0,"width":24,"height":3}}
+  {"ts":1700000000276,"len":16,"path":"stream","delivered":true,"sample":"\\u001b[1Gr1\\r\\nr2\\r\\nr3\\r\\n"}
+  {"phase":"after-diff","patches":10,"bytes":9,"probeInOutput":false,"kinds":["cursorTo","stdout","carriageReturn"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":6,"differingRows":[0,1,2],"baseDamage":null,"nextDamage":{"x":0,"y":0,"width":24,"height":3}}
+  {"ts":1700000000276,"len":16,"path":"stream","delivered":true,"sample":"\\u001b[1Gr1\\r\\nr2\\r\\nr3\\r\\n"}
+  {"phase":"after-diff","patches":10,"bytes":9,"probeInOutput":false,"kinds":["cursorTo","stdout","carriageReturn"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":6,"differingRows":[0,1,2],"baseDamage":null,"nextDamage":{"x":0,"y":0,"width":24,"height":3}}
+  {"ts":1700000000276,"len":16,"path":"stream","delivered":true,"sample":"\\u001b[1Gr1\\r\\nr2\\r\\nr3\\r\\n"}
+  {"phase":"after-diff","patches":10,"bytes":9,"probeInOutput":false,"kinds":["cursorTo","stdout","carriageReturn"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":6,"differingRows":[0,1,2],"baseDamage":null,"nextDamage":{"x":0,"y":0,"width":24,"height":3}}
+  {"ts":1700000000276,"len":16,"path":"stream","delivered":true,"sample":"\\u001b[1Gr1\\r\\nr2\\r\\nr3\\r\\n"}
+  {"phase":"after-diff","patches":10,"bytes":9,"probeInOutput":false,"kinds":["cursorTo","stdout","carriageReturn"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":1,"differingRows":[2],"baseDamage":{"x":0,"y":0,"width":24,"height":3},"nextDamage":{"x":0,"y":0,"width":24,"height":3}}
+  {"ts":1700000000292,"len":12,"path":"stream","delivered":true,"sample":"\\r\\u001b[1C\\u001b[1A4\\r\\n"}
+  {"phase":"after-diff","patches":5,"bytes":2,"probeInOutput":false,"kinds":["carriageReturn","cursorMove","stdout"]}
+  {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":0,"differingRows":[],"baseDamage":{"x":0,"y":0,"width":24,"height":3},"nextDamage":{"x":0,"y":0,"width":24,"height":3}}
+  {"phase":"after-diff","patches":0,"bytes":0,"probeInOutput":false,"kinds":[]}
+  {"ts":1700000000308,"len":6,"path":"stream","delivered":true,"sample":"\\u001b[?25h"}
+
+## the commit tee over trees of other shapes
+world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
+> a tree with no row of fixed widths is painted with the commit tee open
+out \e[?25l
+  modes: dec[] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+  held: alt-screen alternate-scroll cursor-hidden
+  ink: alt=yes mouse=no prefers=yes wheel=no entry=yes reasserts=0 exit=none
+  stdin: raw=off readable=0
+  timers: 100
+  selection: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
+  screen:
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+> 100 ms pass
+out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Gplain\e[2;1Hcolumn\e[8;1H
+  frame 1: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=12/2/6/5
+  modes: dec[1007 1049] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+  ink: alt=yes mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=none
+  timers: none
+  screen:
+    |plain
+    |column
+    |
+    |
+    |
+    |
+    |
+    |
+> a row whose children are all of fixed width
+  timers: 16
+> 16 ms pass
+out \e[H\e[1Ga   b\e[2;1H      \e[8;1H
+  frame 2: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=16/4/4/7
+  timers: none
+  screen:
+    |a   b
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+> a row with a free child that holds no pane
+  timers: 16
+> 16 ms pass
+out \e[H\e[5Gfree\e[8;1H
+  frame 3: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=2 nodes=18/3/7/7
+  timers: none
+  screen:
+    |a   free
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+> a row whose free child holds a pane fourteen boxes down
+  timers: 16
+> 16 ms pass
+out \e[H\e[4Gfa\e[7G down\e[8;1H
+  frame 4: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=229/3/77/23
+  timers: none
+  screen:
+    |a  far down
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+> a row whose free child holds two panes
+  timers: 16
+> 16 ms pass
+out \e[H\e[5Gi\e[7Gst   \e[2;4Hsecond\e[8;1H
+  frame 5: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=6 nodes=52/4/22/12
+  timers: none
+  screen:
+    |a  first
+    |   second
+    |
+    |
+    |
+    |
+    |
+    |
+> the screen is unmounted
+  frame 6: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=52/4/22/12
+out \e[?25h
+fd1 \e[?2026l
+fd1 \e[?1049l
+fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
+fd1 \e[?1007l
+stdin raw on
+stdin raw off
+fd1 \e[>4m
+fd1 \e[<u
+fd1 \e[?1004l
+fd1 \e[?2004l
+fd1 \e[?25h
+fd1 \e]9;4;0;\a
+out \e[?25h
+out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
+  modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
+  held: nothing
+  ink: alt=no mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=ok
+  timers: 16
+  screen: empty
+> 600 ms pass
+  timers: none
+the tee INK_COMMIT_TEE holds 5 lines
+  {"phase":"commit","at":1700000000000,"layoutMs":0.0000010000000000000006}
+  {"phase":"commit","at":1700000000100,"layoutMs":9.999999974752427e-7,"row":[{"x":0,"y":0,"w":4,"h":1},{"x":4,"y":0,"w":4,"h":1}],"slot":[],"scroll":null}
+  {"phase":"commit","at":1700000000116,"layoutMs":9.999999974752427e-7,"row":[{"x":0,"y":0,"w":4,"h":1},{"x":4,"y":0,"w":20,"h":1}],"slot":[{"x":0,"y":0,"w":4,"h":1}],"scroll":null}
+  {"phase":"commit","at":1700000000132,"layoutMs":9.999999974752427e-7,"row":[{"x":0,"y":0,"w":3,"h":2},{"x":3,"y":0,"w":21,"h":2}],"slot":[{"x":0,"y":0,"w":21,"h":2}],"scroll":null}
+  {"phase":"commit","at":1700000000148,"layoutMs":9.999999974752427e-7,"row":[{"x":0,"y":0,"w":3,"h":2},{"x":3,"y":0,"w":21,"h":2}],"slot":[{"x":0,"y":0,"w":21,"h":1},{"x":0,"y":1,"w":21,"h":1}],"scroll":null}
+
+## a component throws while rendering
+world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
+> a component is painted
+out \e[?25l
+  modes: dec[] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+  held: alt-screen alternate-scroll cursor-hidden
+  ink: alt=yes mouse=no prefers=yes wheel=no entry=yes reasserts=0 exit=none
+  stdin: raw=off readable=0
+  timers: 100
+  selection: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
+  screen:
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+> 100 ms pass
+out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Gabove\e[2;1Hsteady\e[12;1H
+  frame 1: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=12/2/6/5
+  modes: dec[1007 1049] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+  ink: alt=yes mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=none
+  timers: none
+  screen:
+    |above
+    |steady
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+> the component throws while rendering
+out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
+debug [WARN] Caught render error: Error: the component cannot render
+out \r\n \e[31m\e[7m RENDER ERROR \e[17G\e[27m\e[39mMercury hit a render error and this view had to close.\r\n\r\n Transcript, drafts, and receipts already on disk are preserved.\r\n\r\n \e[2mthe component cannot render\e[22m\r\n \e[2mFull stack and component trace in the crash report: <the config home>/crashes\e[22m\r\n\r\n Restart Mercury to continue.\r\n\r\n
+  frame 2: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=3 patches=36 nodes=51/8/32/19
+out \e[?25h
+fd1 \e[?2026l
+fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
+fd1 \e[?1007l
+stdin raw on
+stdin raw off
+fd1 \e[>4m
+fd1 \e[<u
+fd1 \e[?1004l
+fd1 \e[?2004l
+fd1 \e[?25h
+fd1 \e]9;4;0;\a
+out \e[?25h
+  the wait for the exit is refused: the component cannot render
+  modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
+  held: nothing
+  ink: alt=no mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=error
+  timers: 16
+  screen:
+    |
+    |  RENDER ERROR  Mercury hit a render error and this view had to close.
+    |
+    | Transcript, drafts, and receipts already on disk are preserved.
+    |
+    | the component cannot render
+    | Full stack and component trace in the crash report: <the config home>/crashes
+    |
+    | Restart Mercury to continue.
+    |
+> 600 ms pass
+  timers: none
+> a second screen is painted
+out \e[?25l
+  modes: dec[] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+  held: alt-screen alternate-scroll cursor-hidden
+  ink: alt=yes mouse=no prefers=yes wheel=no entry=yes reasserts=0 exit=none
+  timers: 100
+  screen:
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+> 100 ms pass
+out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Gabove\e[2;1Hsteady\e[12;1H
+  frame 3: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=12/2/6/14
+  modes: dec[1007 1049] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+  ink: alt=yes mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=none
+  timers: none
+  screen:
+    |above
+    |steady
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+    |
+> its component throws an error that carries no stack
+out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
+debug [WARN] Caught render error: an error with no stack
+out \r\n \e[31m\e[7m RENDER ERROR \e[17G\e[27m\e[39mMercury hit a render error and this view had to close.\r\n\r\n Transcript, drafts, and receipts already on disk are preserved.\r\n\r\n \e[2man error with no stack\e[22m\r\n \e[2mFull stack and component trace in the crash report: <the config home>/crashes\e[22m\r\n\r\n Restart Mercury to continue.\r\n\r\n
+  frame 4: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=3 patches=36 nodes=51/8/32/28
+out \e[?25h
+fd1 \e[?2026l
+fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
+fd1 \e[?1007l
+stdin raw on
+stdin raw off
+fd1 \e[>4m
+fd1 \e[<u
+fd1 \e[?1004l
+fd1 \e[?2004l
+fd1 \e[?25h
+fd1 \e]9;4;0;\a
+out \e[?25h
+  the wait for the exit is refused: an error with no stack
+  modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
+  held: nothing
+  ink: alt=no mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=error
+  timers: 16
+  screen:
+    |
+    |  RENDER ERROR  Mercury hit a render error and this view had to close.
+    |
+    | Transcript, drafts, and receipts already on disk are preserved.
+    |
+    | an error with no stack
+    | Full stack and component trace in the crash report: <the config home>/crashes
+    |
+    | Restart Mercury to continue.
+    |
+> 600 ms pass
+  timers: none
+
+## a component throws once in a transition
+world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
+> a component is painted
+out \e[?25l
+  modes: dec[] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+  held: alt-screen alternate-scroll cursor-hidden
+  ink: alt=yes mouse=no prefers=yes wheel=no entry=yes reasserts=0 exit=none
+  stdin: raw=off readable=0
+  timers: 100
+  selection: anchor=none focus=none dragging=no span=none band=whole alt-press=no off=0/0 has=no
+  screen:
+    |
+    |
+    |
+    |
+    |
+    |
+> 100 ms pass
+out \e[?1049h\e[r\e[2J\e[H\e[?1007h\e[H\e[1Gturn\e[6G0\e[6;1H
+  frame 1: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=4 nodes=4/1/1/3
+  modes: dec[1007 1049] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=unset
+  ink: alt=yes mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=none
+  timers: none
+  screen:
+    |turn 0
+    |
+    |
+    |
+    |
+    |
+> its next turn, taken as a transition, throws once and is rendered again
+debug [WARN] Recoverable render error: Error: Minified React error #520; visit https://react.dev/errors/520 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+  timers: 16
+> 16 ms pass
+out \e[H\e[6G1\e[6;1H
+  frame 2: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=2 nodes=4/1/1/12
+  timers: none
+  screen:
+    |turn 1
+    |
+    |
+    |
+    |
+    |
+> and once more, with an error that carries no stack
+debug [WARN] Recoverable render error: Error: Minified React error #520; visit https://react.dev/errors/520 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+  timers: 16
+> 16 ms pass
+out \e[H\e[6G2\e[6;1H
+  frame 3: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=1 patches=2 nodes=4/1/1/21
+  timers: none
+  screen:
+    |turn 2
+    |
+    |
+    |
+    |
+    |
+> the screen is unmounted
+  frame 4: reads=11 renderer=1 diff=3 optimize=1 write=1 layout=0 commit=0 patches=0 nodes=4/1/1/21
+out \e[?25h
+fd1 \e[?2026l
+fd1 \e[?1049l
+fd1 \e[?1006l\e[?1003l\e[?1002l\e[?1000l
+fd1 \e[?1007l
+stdin raw on
+stdin raw off
+fd1 \e[>4m
+fd1 \e[<u
+fd1 \e[?1004l
+fd1 \e[?2004l
+fd1 \e[?25h
+fd1 \e]9;4;0;\a
+out \e[?25h
+out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
+  modes: dec[] cursor=shown kitty=0 otherkeys=0 region=whole pointer=unset
+  held: nothing
+  ink: alt=no mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=ok
+  timers: 16
+  screen: empty
+> 600 ms pass
+  timers: none
+
 ## the doors beside the class
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
 > the plan after a fault, by its count
@@ -6439,7 +7339,7 @@ stdin raw on
 stdin raw off
   the keys hold 0 chars
 > keys in raw mode are drained
-> keys that are no terminal are drained
+> keys that are no terminal are drained, and the process's own, which are none
 > keys whose read throws, and keys that refuse raw mode, are drained
 stdin raw on
 stdin raw off
