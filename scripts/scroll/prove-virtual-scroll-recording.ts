@@ -66,7 +66,7 @@ const runsOf = (names: string[]): string[] => {
 const at = (key: string): number => Number(key.slice(1))
 const keysOf = (count: number, from = 0): string[] => Array.from({ length: count }, (_, at) => `k${String(from + at).padStart(3, '0')}`)
 
-async function stage(lines: string[], start: { world: World; rowsOf: (key: string, columns: number) => number; viewport: number; attached?: boolean; top?: number }): Promise<Stage> {
+async function stage(lines: string[], start: { world: World; rowsOf: (key: string, columns: number) => number; viewport: number; attached?: boolean; top?: number; cost?: number }): Promise<Stage> {
   const ids = new Map<object, string>()
   const counts = new Map<string, number>()
   const idOf = (kind: string, value: object): string => {
@@ -162,9 +162,10 @@ async function stage(lines: string[], start: { world: World; rowsOf: (key: strin
 
   const refs: { current: unknown }[] = []
   let refsSaid: string[] = []
-  const refsText = (): string => refs.map(ref => text(ref.current)).join('|')
+  const held = (ref: { current: unknown }, at: number): string => (REFS[at] === 'prevCommittedRange' && Array.isArray(ref.current) ? `[${ref.current.join(',')}]` : text(ref.current))
+  const refsText = (): string => refs.map(held).join('|')
   const saidRefs = (head: string): void => {
-    const now = refs.map(ref => text(ref.current))
+    const now = refs.map(held)
     const moved = now.flatMap((value, at) => (value === refsSaid[at] ? [] : [`${REFS[at] ?? `ref${at}`}=${value}`]))
     refsSaid = now
     if (moved.length > 0) say(`${head}${moved.join(' ')}`)
@@ -181,7 +182,7 @@ async function stage(lines: string[], start: { world: World; rowsOf: (key: strin
     traceRead = all.length
   }
 
-  const clock = { now: 1000, cost: 1 }
+  const clock = { now: 1000, cost: start.cost ?? 1 }
   const realNow = performance.now.bind(performance)
   const scripted = (on: boolean): void => {
     performance.now = on ? () => clock.now : realNow
@@ -196,7 +197,7 @@ async function stage(lines: string[], start: { world: World; rowsOf: (key: strin
     const now = calls.map(call => {
       const deps = call.name === 'useCallback' || call.name === 'useMemo' || call.name === 'useEffect' || call.name === 'useLayoutEffect' ? call.args[1] : undefined
       const depsText = Array.isArray(deps) ? `[${deps.map(text).join(',')}]` : deps === undefined ? '' : `[${text(deps)}]`
-      const outText = call.name === 'useRef' || call.name === 'useEffect' || call.name === 'useLayoutEffect' ? '' : call.name === 'useReducer' ? '' : ` -> ${text(call.out)}`
+      const outText = call.name === 'useRef' || call.name === 'useEffect' || call.name === 'useLayoutEffect' ? '' : call.name === 'useReducer' ? ` -> ${text((call.out as unknown[])[0])}` : ` -> ${text(call.out)}`
       return `${call.name}${depsText}${outText}`
     })
     if (hooksSaid.length === 0) say(`    hooks ${runsOf(now).join(' · ')}`)
@@ -276,7 +277,7 @@ async function stage(lines: string[], start: { world: World; rowsOf: (key: strin
     saidTrace()
     const offsets = Array.from({ length: shown.keys.length + 1 }, (_, at) => result.offsets[at])
     const doors = `measureRef=${text(result.measureRef)} spacerRef=${text(result.spacerRef)} getItemTop=${text(result.getItemTop)} getItemElement=${text(result.getItemElement)} getItemHeight=${text(result.getItemHeight)} scrollToIndex=${text(result.scrollToIndex)}`
-    say(`    answers range=[${result.range[0]},${result.range[1]}] topSpacer=${result.topSpacer} bottomSpacer=${result.bottomSpacer} offsets=${offsets.length <= 12 ? `[${offsets.join(',')}]` : `[${offsets.slice(0, 4).join(',')},…,${offsets.slice(-3).join(',')}]@${digest(offsets.join(','))}`}${doors === doorsSaid ? '' : ` ${doors}`}`)
+    say(`    answers range=[${result.range[0]},${result.range[1]}] topSpacer=${result.topSpacer} bottomSpacer=${result.bottomSpacer} offsets=${offsets.length <= 12 ? `[${offsets.join(',')}]` : `${offsets.length}:${offsets[offsets.length - 1]}@${digest(offsets.join(','))}`}${doors === doorsSaid ? '' : ` ${doors}`}`)
     doorsSaid = doors
     saidRefs('    refs after the render: ')
     React.useLayoutEffect(() => {
@@ -489,10 +490,14 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
   ['a flick of two hundred rows, on a fast machine and on a slow one', async lines => {
     for (const [machine, cost] of [['fast', 0.5], ['slow', 900]] as const) {
       lines.push(`machine: ${machine}`)
-      const s = await stage(lines, { world: listOf(400, { header: 3 }), rowsOf: mixed, viewport: 20 })
-      s.cost(cost)
+      const s = await stage(lines, { world: listOf(400, { header: 3 }), rowsOf: mixed, viewport: 20, cost })
       await s.step('a frame follows the tail, and the list renders', () => {
         s.frame()
+        s.poke()
+      })
+      await s.step('one notch of fifty rows up', () => s.wheel(-50))
+      await s.step('the frames drain it, and the list renders', () => {
+        for (let n = 0; n < 3; n++) s.frame()
         s.poke()
       })
       for (const notch of [1, 2, 3, 4, 5]) {
@@ -584,9 +589,9 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
       s.frame()
       s.poke()
     })
-    await s.step('the pane narrows to eighty and the wheel turns thirty rows up in the same beat', () => {
+    await s.step('the pane narrows to eighty and the wheel turns sixty rows up in the same beat', () => {
       s.list({ columns: 80 })
-      s.wheel(-30)
+      s.wheel(-60)
     })
     await s.step('the frames drain it, and the list renders', () => {
       for (let n = 0; n < 3; n++) s.frame()
@@ -601,7 +606,11 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
     s.ask('the row the pane opens on', () => s.pinned())
     await s.step('the pane narrows to forty columns', () => s.list({ columns: 40 }))
     await s.step('the list renders', () => s.poke())
-    await s.step('the pane widens to eighty again, with a wheel notch in the same beat', () => {
+    await s.step('the view jumps to the last line of a row of four', () => s.jump(2 + s.result().offsets[94]! + 3))
+    await s.step('the list renders', () => s.poke())
+    await s.step('the pane widens to a hundred and sixty', () => s.list({ columns: 160 }))
+    await s.step('the list renders', () => s.poke())
+    await s.step('the pane narrows to eighty again, with a wheel notch in the same beat', () => {
       s.list({ columns: 80 })
       s.wheel(-3)
     })
@@ -652,6 +661,8 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
       s.frame()
       s.poke()
     })
+    await s.step('the view jumps to the first line under the list', () => s.jump(2 + s.result().offsets[s.world().keys.length]!))
+    await s.step('the list renders', () => s.poke())
     await s.step('the reply grows by eight rows', () => s.list({ footer: 78 }))
     await s.step('the reply joins the list as one row', () => {
       s.rows(key => (at(key) === 30 ? 78 : mixed(key)))
@@ -673,6 +684,41 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
       s.frame()
       s.poke()
     })
+    await s.step('a hundred and fifty rows down in one notch, through rows never measured', () => s.wheel(150))
+    await s.step('the frames drain it, and the list renders', () => {
+      for (let n = 0; n < 9; n++) s.frame()
+      s.poke()
+    })
+    await s.close()
+    lines.push('mounted on the first line under the list')
+    const under = await stage(lines, { world: listOf(20, { footer: 40 }), rowsOf: mixed, viewport: 20, top: 60 })
+    await under.step('the list renders', () => under.poke())
+    await under.close()
+  }],
+  ['new rows wait unmeasured while the list is out of the layout', async lines => {
+    const s = await atTheTail(lines, listOf(60, { header: 2, footer: 50 }), mixed)
+    const measured = s.result().offsets[60]!
+    await s.step('the list is hidden', () => s.list({ hidden: true }))
+    await s.step('three rows arrive in the same keys list', () => s.append(3))
+    await s.step('the view jumps four lines under the measured rows', () => s.jump(2 + measured + 4))
+    await s.step('the list renders', () => s.poke())
+    await s.step('the list is shown again', () => s.list({ hidden: false }))
+    await s.step('the list renders', () => s.poke())
+    await s.close()
+  }],
+  ['rows mounted out of the layout are kept until they are measured', async lines => {
+    const s = await atTheTail(lines, listOf(200, { header: 3 }), mixed)
+    await s.step('the list is hidden', () => s.list({ hidden: true }))
+    await s.step('the view jumps to row seventy', () => s.jump(3 + s.result().offsets[70]!))
+    await s.step('the list renders', () => s.poke())
+    await s.step('the row the pane opens on leaves the list, and the view stands on row one hundred and thirty in the same beat', () => {
+      const gone = s.pinned()
+      s.scroll.top = 3 + s.result().offsets[130]!
+      s.list({ keys: s.world().keys.filter(key => key !== gone) })
+    })
+    await s.step('the list renders', () => s.poke())
+    await s.step('the list is shown again', () => s.list({ hidden: false }))
+    await s.step('the list renders', () => s.poke())
     await s.close()
   }],
   ['a jump that lands one slide past the mounted rows', async lines => {
@@ -713,6 +759,11 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
     const s = await stage(lines, { world: listOf(1000), rowsOf: () => 1, viewport: 400 })
     await s.step('the list renders before any frame', () => s.poke())
     await s.step('a frame follows the tail, and the list renders', () => {
+      s.frame()
+      s.poke()
+    })
+    await s.step('fifty rows up', () => s.wheel(-50))
+    await s.step('a frame drains it, and the list renders', () => {
       s.frame()
       s.poke()
     })
