@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, renameSync, rmSync, watch, writeFileSync } from 'node:fs'
-import { basename, dirname, resolve } from 'node:path'
+import { basename, dirname, resolve, toNamespacedPath } from 'node:path'
 import { createRequire } from 'node:module'
 import { SEAT_NAME_REFUSAL, boardSeatName, boardLabelKey, type BoardEvent, type BoardPacket, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
 import { CHAT_OFF, type BoardChat } from './party.js'
@@ -28,12 +28,17 @@ const watchBoard = (path: string, emit: () => void): (() => void) => {
   return () => { watcher.close(); floor.abort() }
 }
 
+const WINDOWS_MAX_PATH = 260
+const SQLITE_JOURNAL_SUFFIX = '-journal'
+const asSqliteOpens = (path: string): string => (path.length + SQLITE_JOURNAL_SUFFIX.length < WINDOWS_MAX_PATH ? path : toNamespacedPath(path))
+
 export function open(path: string, sessionId: string, now: () => number = Date.now, readOnly = false, live: (agent: string) => boolean = () => true): BoardStore {
   if (!readOnly) mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
   const sqlite = requireRuntime(process.versions.bun ? 'bun:sqlite' : 'node:sqlite')
+  const file = asSqliteOpens(path)
   const db: Database = process.versions.bun
-    ? readOnly ? new sqlite.Database(path, { readonly: true }) : new sqlite.Database(path)
-    : new sqlite.DatabaseSync(path, { readOnly })
+    ? readOnly ? new sqlite.Database(file, { readonly: true }) : new sqlite.Database(file)
+    : new sqlite.DatabaseSync(file, { readOnly })
   db.exec('PRAGMA busy_timeout = 5000')
   const hasTable = (name: string): boolean => db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").get(name) != null
   if (!readOnly) {
