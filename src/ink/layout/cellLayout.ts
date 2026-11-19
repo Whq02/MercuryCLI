@@ -13,24 +13,7 @@ import {
   type LayoutPositionType,
   type LayoutWrap,
 } from './node.js'
-
-
-type DimValue =
-  | { unit: 'auto' }
-  | { unit: 'point'; value: number }
-  | { unit: 'percent'; value: number }
-
-const AUTO: DimValue = { unit: 'auto' }
-
-function resolve(v: DimValue | undefined, basis: number | undefined): number | undefined {
-  if (!v || v.unit === 'auto') return undefined
-  if (v.unit === 'point') return v.value
-  return basis === undefined || Number.isNaN(basis) ? undefined : (v.value * basis) / 100
-}
-
-function pointOrAuto(value: number): DimValue {
-  return Number.isFinite(value) ? { unit: 'point', value } : AUTO
-}
+import { AUTO, type DimValue, type EdgeStore, edgeValue, type InsetStore, insetValue, pointOrAuto, resolve } from './cellLayout/values.js'
 
 function roundGrid(v: number, forceCeil: boolean, forceFloor: boolean): number {
   let frac = v - Math.floor(v)
@@ -46,33 +29,6 @@ function nearWhole(v: number): boolean {
   const frac = v - Math.floor(v)
   return frac < 0.0001 || frac > 0.9999
 }
-
-type EdgeStore = Partial<Record<LayoutEdge, number>>
-
-function edgeValue(store: EdgeStore, edge: 'left' | 'right' | 'top' | 'bottom'): number {
-  if (store[edge] !== undefined) return store[edge]!
-  if (edge === 'left' && store.start !== undefined) return store.start
-  if (edge === 'right' && store.end !== undefined) return store.end
-  const axis = edge === 'left' || edge === 'right' ? 'horizontal' : 'vertical'
-  if (store[axis] !== undefined) return store[axis]!
-  return store.all ?? 0
-}
-
-type InsetStore = Partial<Record<LayoutEdge, DimValue>>
-
-function insetValue(
-  store: InsetStore,
-  edge: 'left' | 'right' | 'top' | 'bottom',
-  basis: number | undefined,
-): number | undefined {
-  const pick =
-    store[edge] ??
-    (edge === 'left' ? store.start : edge === 'right' ? store.end : undefined) ??
-    store[edge === 'left' || edge === 'right' ? 'horizontal' : 'vertical'] ??
-    store.all
-  return resolve(pick, basis)
-}
-
 
 let _visited = 0
 let _measured = 0
