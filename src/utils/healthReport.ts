@@ -37,6 +37,7 @@ import { computedDefault } from './model/computedDefault.js'
 import { gitSnapshot } from './cockpit/gitSnapshot.js'
 import { healthFixEnabled } from './healthFix.js'
 import { sleep } from './sleep.js'
+import { logError } from './log.js'
 
 const treeScratchDirs = new Set<string>()
 const treeScratchGits = new Set<ChildProcess>()
@@ -717,7 +718,8 @@ export async function runAndRecordHealthReport(opts?: RunHealthReportOptions): P
         lastCertPath(),
         JSON.stringify({ ...summary, _v: 1 }, null, 2),
       )
-    } catch {
+    } catch (err) {
+      logError(new Error(`the health cert summary could not be saved to ${lastCertPath()}, so the health views keep the older one: ${err instanceof Error ? err.message : String(err)}`))
     }
   }
   if (!isReadOnlyDiagnostic()) {
