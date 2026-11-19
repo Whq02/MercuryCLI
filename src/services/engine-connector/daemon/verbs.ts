@@ -1,36 +1,22 @@
 import { randomUUID } from 'node:crypto'
-import type { SessionKitEditV1 } from '../../../daemon/sessionKit.js'
-import type { PermissionMode } from '../../../types/permissions.js'
-import { logForDebugging } from '../../../utils/debug.js'
-import { getEngineModel } from '../../../utils/model/model.js'
 import { submitTrace } from '../../../utils/submitTrace.js'
-import { mcpToolsOfReply } from '../../mcp/toolsAnswer.js'
-import type { SpawnSwitchKind } from '../../switchboard/spawnSwitches.js'
 import type { SessionLiveV1 } from '../seatLive.js'
-import type { SessionFactsV1 } from '../seatProjections.js'
 import type {
   AgentControlReceiptV1,
   BoardPostReceiptV1,
   BoardPostRequestV1,
-  KitDialReceiptV1,
   LeaveReceiptV1,
-  McpToolsV1,
-  ModelFactsV1,
-  ModelSwitchReceiptV1,
-  PermissionModeReceiptV1,
   RewindReceiptV1,
   RewindRequestV1,
   SendReceiptV1,
   SessionAskV1,
-  SpawnSwitchReceiptV1,
 } from '../types.js'
 import { REFUSED_EMPTY } from './shared.js'
 
 const LEAVE_RPC_TIMEOUT_MS = 135_000
-export const SEAT_VERB_SETTLE_MS = 4000
 
 interface VerbsNeeds {
-  record(): { readonly sessionId: string; readonly runnerId: string }
+  record(): { readonly sessionId: string }
   rpc(req: Record<string, unknown>, timeoutMs?: number): Promise<Record<string, unknown>>
   chainRpc(req: Record<string, unknown>): Promise<Record<string, unknown>>
   verbChain(): Promise<unknown>
@@ -40,12 +26,6 @@ interface VerbsNeeds {
   asks(): readonly SessionAskV1[]
   dropAsks(): void
   pressInterrupt(): { hard: boolean; undo: () => void } | null
-  modelFacts(): ModelFactsV1
-  showModel(target: string, busy: boolean): void
-  showEffort(level: string, busy: boolean): void
-  showMode(mode: PermissionMode): SessionFactsV1 | null
-  restoreMode(before: SessionFactsV1 | null, mode: PermissionMode): void
-  settleFacts(windowMs: number): void
 }
 
 export class VerbsPart {
@@ -245,152 +225,5 @@ export class VerbsPart {
     } catch (e) {
       return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
     }
-  }
-
-  async setModel(setting: string | null, words?: string): Promise<ModelSwitchReceiptV1> {
-    const target = setting ?? getEngineModel()
-    const current = this.needs.modelFacts()
-    if (current.effective === target && current.pendingSwitch === null) return { state: 'no-op' }
-    const busy = this.needs.live().inFlight
-    this.needs.showModel(target, busy)
-    const refuse = (detail: string): ModelSwitchReceiptV1 => {
-      logForDebugging(`[engine-connector] daemon set-model refused: ${detail}`)
-      this.needs.readFacts()
-      return { state: 'refused', detail }
-    }
-    try {
-      const reply = await this.needs.chainRpc({ op: 'sessionControl', action: 'set-model', sessionId: this.needs.record().sessionId, by: 'operator', model: target, ...(words === undefined ? {} : { words }) })
-      if (reply.ok !== true) return refuse(String(reply.error ?? 'the daemon refused the switch'))
-      const outcome = reply.outcome
-      const detail = typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : undefined
-      if (outcome === 'refused') return refuse(detail ?? 'the daemon refused the switch')
-      if (outcome !== 'applied' && outcome !== 'queued' && outcome !== 'noop') return refuse(`unexpected outcome ${String(outcome)}`)
-      if (outcome === 'noop' || (outcome === 'queued') !== busy) this.needs.readFacts()
-      if (outcome === 'noop') return { state: 'no-op' }
-      this.needs.settleFacts(SEAT_VERB_SETTLE_MS)
-      if (outcome === 'applied') {
-        const respawned = (reply as { respawned?: unknown }).respawned === true
-        if (respawned) this.needs.readFacts()
-        if (detail !== undefined && (respawned || detail !== `${this.needs.record().runnerId} → ${target}`)) return { state: 'applied', note: detail }
-      }
-      return { state: outcome }
-    } catch (e) {
-      return refuse(`the daemon is not answering — the switch did not land (${e instanceof Error ? e.message : String(e)})`)
-    }
-  }
-
-  async setEffort(level: string): Promise<ModelSwitchReceiptV1> {
-    const current = this.needs.modelFacts()
-    if (current.effort === level) return { state: 'no-op' }
-    const busy = this.needs.live().inFlight
-    this.needs.showEffort(level, busy)
-    const refuse = (detail: string): ModelSwitchReceiptV1 => {
-      logForDebugging(`[engine-connector] daemon set-effort refused: ${detail}`)
-      this.needs.readFacts()
-      return { state: 'refused', detail }
-    }
-    try {
-      const reply = await this.needs.chainRpc({ op: 'sessionControl', action: 'set-effort', sessionId: this.needs.record().sessionId, by: 'operator', effort: level })
-      if (reply.ok !== true) return refuse(String(reply.error ?? 'the daemon refused the effort'))
-      const outcome = reply.outcome
-      const detail = typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : undefined
-      if (outcome === 'refused') return refuse(detail ?? 'the daemon refused the effort')
-      if (outcome !== 'applied' && outcome !== 'queued' && outcome !== 'noop') return refuse(`unexpected outcome ${String(outcome)}`)
-      if ((outcome === 'queued') !== busy) this.needs.readFacts()
-      if (outcome === 'noop') return { state: 'no-op' }
-      this.needs.settleFacts(SEAT_VERB_SETTLE_MS)
-      return { state: outcome }
-    } catch (e) {
-      return refuse(`the daemon is not answering — the effort did not land (${e instanceof Error ? e.message : String(e)})`)
-    }
-  }
-
-  async mcpAction(name: string, action: 'authenticate' | 'reconnect' | 'cancel-auth'): Promise<KitDialReceiptV1> {
-    try {
-      const reply = await this.needs.rpc({ op: 'sessionControl', action: 'mcp-action', sessionId: this.needs.record().sessionId, by: 'operator', mcpAction: { name, action } }, 300_000)
-      return reply.ok === true && reply.outcome === 'applied'
-        ? { outcome: 'applied', ...(typeof reply.detail === 'string' ? { detail: reply.detail } : {}) }
-        : { outcome: 'refused', detail: String(reply.detail ?? reply.error ?? 'the MCP action refused') }
-    } catch (error) {
-      return { outcome: 'refused', detail: error instanceof Error ? error.message : String(error) }
-    }
-  }
-
-  async mcpTools(serverName: string): Promise<McpToolsV1> {
-    const unavailable = (detail: string): McpToolsV1 => ({ server: serverName, state: 'unavailable', tools: [], omitted: 0, detail })
-    try {
-      const reply = await this.needs.rpc({ op: 'sessionControl', action: 'mcp-tools', sessionId: this.needs.record().sessionId, by: 'operator', mcpServer: serverName })
-      if (reply.ok !== true) return unavailable(String(reply.error ?? 'the daemon refused the MCP tools list'))
-      if (reply.outcome !== 'applied') return unavailable(typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : `unexpected outcome ${String(reply.outcome)}`)
-      return mcpToolsOfReply(reply.mcpTools) ?? unavailable('the daemon answered the MCP tools list with a payload this screen cannot read')
-    } catch (e) {
-      return unavailable(`the daemon is not answering — ${e instanceof Error ? e.message : String(e)}`)
-    }
-  }
-
-  async setKit(edit: SessionKitEditV1): Promise<KitDialReceiptV1> {
-    try {
-      const reply = await this.needs.chainRpc({
-        op: 'sessionControl',
-        action: 'set-kit',
-        sessionId: this.needs.record().sessionId,
-        by: 'operator',
-        kitEdit: edit,
-        clientOpId: `kit-${randomUUID()}`,
-      })
-      if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the dial') }
-      const outcome = reply.outcome
-      if (outcome === 'applied' || outcome === 'queued' || outcome === 'noop' || outcome === 'refused') {
-        return { outcome, ...(typeof reply.detail === 'string' && reply.detail !== '' ? { detail: reply.detail } : {}) }
-      }
-      return { outcome: 'refused', detail: `unexpected outcome ${String(outcome)}` }
-    } catch (e) {
-      logForDebugging(`[engine-connector] daemon set-kit failed: ${e}`)
-      return { outcome: 'refused', detail: 'the daemon is not answering — the dial did not land' }
-    }
-  }
-
-  async setSpawnSwitch(kind: SpawnSwitchKind, on: boolean): Promise<SpawnSwitchReceiptV1> {
-    try {
-      const reply = await this.needs.chainRpc({
-        op: 'sessionControl',
-        action: 'set-spawn-switch',
-        sessionId: this.needs.record().sessionId,
-        by: 'operator',
-        spawnSwitch: { kind, on },
-      })
-      if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the toggle') }
-      const outcome = reply.outcome
-      if (outcome === 'applied' || outcome === 'queued' || outcome === 'noop' || outcome === 'refused') {
-        this.needs.readFacts()
-        return { outcome, ...(typeof reply.detail === 'string' && reply.detail !== '' ? { detail: reply.detail } : {}) }
-      }
-      return { outcome: 'refused', detail: `unexpected outcome ${String(outcome)}` }
-    } catch (e) {
-      logForDebugging(`[engine-connector] daemon set-spawn-switch failed: ${e}`)
-      return { outcome: 'refused', detail: 'the daemon is not answering — the toggle did not land' }
-    }
-  }
-
-  async setPermissionMode(mode: PermissionMode): Promise<PermissionModeReceiptV1> {
-    const before = this.needs.showMode(mode)
-    let receipt: PermissionModeReceiptV1
-    try {
-      const reply = await this.needs.chainRpc({ op: 'sessionControl', action: 'set-permission-mode', sessionId: this.needs.record().sessionId, by: 'operator', mode })
-      const outcome = reply.outcome
-      receipt =
-        reply.ok === true && (outcome === 'applied' || outcome === 'noop')
-          ? { outcome, ...(typeof reply.detail === 'string' && reply.detail !== '' ? { detail: reply.detail } : {}) }
-          : { outcome: 'refused', detail: typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : String(reply.error ?? 'the daemon refused the mode change') }
-    } catch (e) {
-      logForDebugging(`[engine-connector] daemon set-permission-mode failed: ${e}`)
-      receipt = { outcome: 'refused', detail: 'the daemon is not answering — the mode change did not land' }
-    }
-    if (receipt.outcome === 'applied') this.needs.settleFacts(SEAT_VERB_SETTLE_MS)
-    if (receipt.outcome === 'refused') {
-      this.needs.restoreMode(before, mode)
-      this.needs.readFacts()
-    }
-    return receipt
   }
 }

@@ -78,6 +78,7 @@ import { LivePart } from './daemon/live.js'
 import { WorkPart } from './daemon/work.js'
 import { TranscriptPart } from './daemon/transcript.js'
 import { VerbsPart } from './daemon/verbs.js'
+import { DialsPart } from './daemon/dials.js'
 import { HEARTBEAT_MS, ProjectionFeed } from './daemon/feed.js'
 
 export interface DaemonSessionRecordV1 {
@@ -132,7 +133,7 @@ export function imageBlocksOf(pastes: Record<number, PastedContent>): ContentBlo
 export { HEARTBEAT_MS, PROJECTION_ABSENT, ProjectionFeed, projectionChangeKey } from './daemon/feed.js'
 const RPC_TIMEOUT_MS = 15_000
 export const IDLE_PROJECTION_FLOOR_MS = 10_000
-export { SEAT_VERB_SETTLE_MS } from './daemon/verbs.js'
+export { SEAT_VERB_SETTLE_MS } from './daemon/dials.js'
 export const CARRIER_GONE_WORDS = 'the background daemon ended — the next prompt starts a new one'
 
 const SEAT_BY = `operator:${process.pid}`
@@ -288,6 +289,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     asks: () => this.asksPart.asks(),
     dropAsks: () => this.asksPart.dropAll(),
     pressInterrupt: () => this.livePart.pressInterrupt(),
+  })
+
+  private readonly dialsPart = new DialsPart({
+    record: () => this.record,
+    rpc: (req, timeoutMs) => this.rpc(req, timeoutMs),
+    chainRpc: req => this.chainRpc(req),
+    readFacts: () => this.readFacts(),
+    live: () => this.livePart.live(),
     modelFacts: () => this.modelFacts(),
     showModel: (target, busy) => this.factsPart.showModel(target, busy),
     showEffort: (level, busy) => this.factsPart.showEffort(level, busy),
@@ -682,11 +691,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   setModel(setting: string | null, words?: string): Promise<ModelSwitchReceiptV1> {
-    return this.verbsPart.setModel(setting, words)
+    return this.dialsPart.setModel(setting, words)
   }
 
   setEffort(level: string): Promise<ModelSwitchReceiptV1> {
-    return this.verbsPart.setEffort(level)
+    return this.dialsPart.setEffort(level)
   }
 
   usage(): UsageFactsV1 {
@@ -710,15 +719,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   mcpAction(name: string, action: 'authenticate' | 'reconnect' | 'cancel-auth'): Promise<KitDialReceiptV1> {
-    return this.verbsPart.mcpAction(name, action)
+    return this.dialsPart.mcpAction(name, action)
   }
 
   mcpTools(serverName: string): Promise<McpToolsV1> {
-    return this.verbsPart.mcpTools(serverName)
+    return this.dialsPart.mcpTools(serverName)
   }
 
   setKit(edit: SessionKitEditV1): Promise<KitDialReceiptV1> {
-    return this.verbsPart.setKit(edit)
+    return this.dialsPart.setKit(edit)
   }
 
   spawnSwitches(): SpawnSwitchFacts {
@@ -726,7 +735,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   setSpawnSwitch(kind: SpawnSwitchKind, on: boolean): Promise<SpawnSwitchReceiptV1> {
-    return this.verbsPart.setSpawnSwitch(kind, on)
+    return this.dialsPart.setSpawnSwitch(kind, on)
   }
 
   workRoster(): WorkRosterV1 {
@@ -754,7 +763,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   setPermissionMode(mode: PermissionMode): Promise<PermissionModeReceiptV1> {
-    return this.verbsPart.setPermissionMode(mode)
+    return this.dialsPart.setPermissionMode(mode)
   }
 
   workspace(): WorkspaceFactsV1 {
