@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import type { ToolEffectOutcome } from '../../../Tool.js'
 import {
   NAVIGATION_CAP_MS,
-  activeSession,
   approveWebOrigin,
   bringTabToFront,
   browserTabs,
@@ -17,9 +16,8 @@ import {
 import { carryEmulation, emulationActive, emulationSummary } from '../../../services/browser/browserEmulation.js'
 import { ensureScratchpadDir } from '../../../utils/scratchpad.js'
 import { getScratchpadDir } from '../../../utils/permissions/filesystem.js'
-import { WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
-import { RECOVERED_NOTE, isDriverTimeout, noSessionWords, relayNamedFailure } from './failures.js'
-import { deepTextOf, failedNavigationWords, pageWhere, preview, targetSurface } from './page.js'
+import { RECOVERED_NOTE, isDriverTimeout, relayNamedFailure } from './failures.js'
+import { type LiveSession, deepTextOf, failedNavigationWords, pageWhere, preview, targetSurface } from './page.js'
 import { downloadWords } from './downloads.js'
 import { errorPageSettled, markAct, settleAfterAct } from './settle.js'
 import { actOriginGate } from './targets.js'
@@ -144,22 +142,9 @@ export async function openOp({ input, owner, tab, context, sessionAtEntry, crash
   return { result, outcome }
 }
 
-export async function waitForOp({ input, owner, tab, signalFor }: OpRun): Promise<OpDone> {
+export async function waitForOp(s: LiveSession, { input, signalFor }: OpRun, deadline: number, t0: number, waited: string): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
-  const deadline = Math.min(Math.max(input.timeoutMs ?? WAIT_DEFAULT_MS, 250), WAIT_CAP_MS)
-  const t0 = Date.now()
-  const waited = input.selector
-    ? `selector ${input.selector}`
-    : input.text !== undefined
-      ? `text "${preview(input.text)}"`
-      : 'navigation'
   try {
     if (input.selector) {
       const state = input.state ?? 'visible'
@@ -210,15 +195,9 @@ export async function waitForOp({ input, owner, tab, signalFor }: OpRun): Promis
   return { result, outcome }
 }
 
-export async function backOp({ input, owner, tab, signalFor }: OpRun): Promise<OpDone> {
+export async function backOp(s: LiveSession, { input, owner, signalFor }: OpRun): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
   const originGate = await actOriginGate(owner, s, input)
   if (originGate !== null) {
     result = originGate
@@ -262,15 +241,9 @@ export async function backOp({ input, owner, tab, signalFor }: OpRun): Promise<O
   return { result, outcome }
 }
 
-export async function reloadOp({ input, owner, tab, crashedAtEntry, signalFor }: OpRun): Promise<OpDone> {
+export async function reloadOp(s: LiveSession, { input, owner, crashedAtEntry, signalFor }: OpRun): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
   const originGate = await actOriginGate(owner, s, input)
   if (originGate !== null) {
     result = originGate

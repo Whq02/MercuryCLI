@@ -1,26 +1,18 @@
 import { join } from 'node:path'
 import type { ToolEffectOutcome, ToolUseContext } from '../../../Tool.js'
-import { activeSession } from '../../../services/browser/browserSession.js'
+import type { UploadSource } from '../../../services/browser/browserUploads.js'
 import { ensureScratchpadDir } from '../../../utils/scratchpad.js'
 import type { ToolPermissionContext } from '../../../types/permissions.js'
-import { PRESS_KEYS } from './schema.js'
-import { noSessionWords } from './failures.js'
-import { pageWhere, targetOrigin } from './page.js'
+import { type LiveSession, pageWhere, targetOrigin } from './page.js'
 import { actConsequences, markAct, settleAfterAct } from './settle.js'
 import { actDeadline, actOriginGate, clickGate, resolveActTarget, settleBoundingBox } from './targets.js'
 import { humanClickPoint, humanMoveTo, pickTargetPoint } from './human.js'
-import { sendUpload, takeCheckedUpload } from './upload.js'
+import { sendUpload } from './upload.js'
 import type { OpDone, OpRun } from './ops.js'
 
-export async function clickOp({ input, owner, tab, signalFor }: OpRun): Promise<OpDone> {
+export async function clickOp(s: LiveSession, { input, owner, signalFor }: OpRun): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
   const originGate = await actOriginGate(owner, s, input)
   if (originGate !== null) {
     result = originGate
@@ -68,16 +60,9 @@ export async function clickOp({ input, owner, tab, signalFor }: OpRun): Promise<
   return { result, outcome }
 }
 
-export async function uploadOp({ input, owner, tab, context, signalFor }: OpRun): Promise<OpDone> {
+export async function uploadOp(s: LiveSession, { input, owner, context, signalFor }: OpRun, checked: UploadSource[] | null): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
-  const checked = takeCheckedUpload(owner, input)
   const judgedOrigin = await targetOrigin(s, input.frame).catch(() => null)
   const originGate = await actOriginGate(owner, s, input)
   if (originGate !== null) {
@@ -93,15 +78,9 @@ export async function uploadOp({ input, owner, tab, context, signalFor }: OpRun)
   return { result, outcome }
 }
 
-export async function scrollOp({ input, owner, tab, signalFor }: OpRun): Promise<OpDone> {
+export async function scrollOp(s: LiveSession, { input, owner, signalFor }: OpRun): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
   const originGate = await actOriginGate(owner, s, input)
   if (originGate !== null) {
     result = originGate
@@ -125,15 +104,9 @@ export async function scrollOp({ input, owner, tab, signalFor }: OpRun): Promise
   return { result, outcome }
 }
 
-export async function selectOp({ input, owner, tab, signalFor }: OpRun): Promise<OpDone> {
+export async function selectOp(s: LiveSession, { input, owner, signalFor }: OpRun): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
   const originGate = await actOriginGate(owner, s, input)
   if (originGate !== null) {
     result = originGate
@@ -185,20 +158,9 @@ export async function selectOp({ input, owner, tab, signalFor }: OpRun): Promise
   return { result, outcome }
 }
 
-export async function pressOp({ input, owner, tab }: OpRun): Promise<OpDone> {
+export async function pressOp(s: LiveSession, { input, owner }: OpRun): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
-  if (!PRESS_KEYS.has(input.key ?? '')) {
-    result = `press refused: "${input.key}" is not in the key allowlist [${[...PRESS_KEYS].join(', ')}] — printable characters go through op:"type" (where credential fields refuse)`
-    outcome = 'failed'
-    return { result, outcome }
-  }
   const originGate = await actOriginGate(owner, s, input)
   if (originGate !== null) {
     result = originGate
@@ -224,15 +186,9 @@ export async function pressOp({ input, owner, tab }: OpRun): Promise<OpDone> {
   return { result, outcome }
 }
 
-export async function hoverOp({ input, owner, tab, signalFor }: OpRun): Promise<OpDone> {
+export async function hoverOp(s: LiveSession, { input, owner, signalFor }: OpRun): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
   const originGate = await actOriginGate(owner, s, input)
   if (originGate !== null) {
     result = originGate

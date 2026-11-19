@@ -1,23 +1,16 @@
 import type { ElementHandle } from 'puppeteer-core'
 import type { ToolEffectOutcome } from '../../../Tool.js'
-import { activeSession, approveSecretPairing } from '../../../services/browser/browserSession.js'
+import { approveSecretPairing } from '../../../services/browser/browserSession.js'
 import { resolveBrowserSecret } from '../../../services/browser/browserSecrets.js'
 import { TEXT_INPUT_TYPES } from './schema.js'
-import { noSessionWords } from './failures.js'
-import { pageWhere, targetOrigin, targetSurface } from './page.js'
+import { type LiveSession, pageWhere, targetOrigin, targetSurface } from './page.js'
 import { actDeadline, actOriginGate, isDisabledTarget, probeEditableTarget, resolveActTarget } from './targets.js'
 import { humanTypeText } from './human.js'
 import type { OpDone, OpRun } from './ops.js'
 
-export async function typeOp({ input, owner, tab, signalFor, holdSecret }: OpRun): Promise<OpDone> {
+export async function typeOp(s: LiveSession, { input, owner, signalFor, holdSecret }: OpRun): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
   const originGate = await actOriginGate(owner, s, input)
   if (originGate !== null) {
     result = originGate

@@ -1,12 +1,6 @@
 import type { ToolEffectOutcome } from '../../../Tool.js'
-import {
-  BROWSER_CLOSE_BOUND_MS,
-  BROWSER_FINISH_BOUND_MS,
-  browserTransfers,
-  closeBrowserSessionDetailed,
-} from '../../../services/browser/browserSession.js'
+import { BROWSER_CLOSE_BOUND_MS, BROWSER_FINISH_BOUND_MS, closeBrowserSessionDetailed } from '../../../services/browser/browserSession.js'
 import type { Transfer } from '../../../services/browser/browserTransfers.js'
-import { WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
 import { transferWords } from './downloads.js'
 import type { OpDone, OpRun } from './ops.js'
 
@@ -23,50 +17,25 @@ export async function provisionOp({ input }: OpRun): Promise<OpDone> {
   return { result, outcome }
 }
 
-export async function downloadOp({ input, owner, tab, context }: OpRun): Promise<OpDone> {
+export async function downloadOp(wanted: Transfer, outer: AbortSignal | undefined, deadline: number): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const all = browserTransfers(owner)
-  if (input.downloadId !== undefined && input.downloadId !== '') {
-    const wanted = all.find(transfer => transfer.id === input.downloadId)
-    if (wanted === undefined) {
-      result = `no download ${input.downloadId} — op:"download" without downloadId lists the ${all.length} of this session`
-      outcome = 'failed'
-      return { result, outcome }
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, deadline)
+    const stop = (): void => {
+      clearTimeout(timer)
+      reject(outer?.reason ?? new Error('interrupted'))
     }
-    if (wanted.state === 'pending') {
-      const outer = context.abortController?.signal
-      const deadline = Math.min(Math.max(input.timeoutMs ?? WAIT_DEFAULT_MS, 250), WAIT_CAP_MS)
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(resolve, deadline)
-        const stop = (): void => {
-          clearTimeout(timer)
-          reject(outer?.reason ?? new Error('interrupted'))
-        }
-        if (outer?.aborted) stop()
-        else outer?.addEventListener('abort', stop, { once: true })
-        void wanted.done.then(() => {
-          clearTimeout(timer)
-          outer?.removeEventListener('abort', stop)
-          resolve()
-        })
-      })
-    }
-    result = `download: ${transferWords(wanted)}`
-    outcome = wanted.state === 'failed' ? 'failed' : wanted.state === 'complete' ? 'succeeded' : 'no-change'
-    return { result, outcome }
-  }
-  const first = Math.min(Math.max(Math.floor(input.offset ?? 0), 0), all.length)
-  const shown = all.slice(first, first + Math.max(Math.floor(input.limit ?? 50), 1))
-  const count = (state: Transfer['state']): number => all.filter(transfer => transfer.state === state).length
-  result =
-    all.length === 0
-      ? 'downloads: none — a download that an act starts is saved in the session scratchpad and named in that act’s answer'
-      : [
-          `downloads: ${all.length} (${count('complete')} complete, ${count('pending')} arriving, ${count('failed')} failed)${first > 0 ? `, from ${first}` : ''}`,
-          ...shown.map(transfer => `  tab ${transfer.tab}: ${transferWords(transfer)}`),
-          ...(first + shown.length < all.length ? [`  … ${all.length - first - shown.length} more — continue with offset: ${first + shown.length}`] : []),
-        ].join('\n')
+    if (outer?.aborted) stop()
+    else outer?.addEventListener('abort', stop, { once: true })
+    void wanted.done.then(() => {
+      clearTimeout(timer)
+      outer?.removeEventListener('abort', stop)
+      resolve()
+    })
+  })
+  result = `download: ${transferWords(wanted)}`
+  outcome = wanted.state === 'failed' ? 'failed' : wanted.state === 'complete' ? 'succeeded' : 'no-change'
   return { result, outcome }
 }
 
