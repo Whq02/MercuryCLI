@@ -88,8 +88,13 @@ export const GIT_BASH_REMEDY =
   'set MERCURY_GIT_BASH_PATH=<path to bash.exe> ' +
   '(for example C:\\Program Files\\Git\\bin\\bash.exe) if one is already installed, or turn the shell engine on.'
 
+function namedGitBash(): string | undefined {
+  const named = flagEnv('MERCURY_GIT_BASH_PATH')?.trim().replace(/^"(.*)"$/, '$1').trim()
+  return named !== undefined && named !== '' && !pathExists(named) && pathExists(`${named}.exe`) ? `${named}.exe` : named
+}
+
 export const locateGitBash = memoize((): GitBashLocation => {
-  const override = flagEnv('MERCURY_GIT_BASH_PATH')
+  const override = namedGitBash()
   if (override !== undefined && override !== '') {
     if (pathExists(override)) return { path: override }
     releaseLauncherAltHoldNow()
@@ -106,7 +111,7 @@ export const locateGitBash = memoize((): GitBashLocation => {
 })
 
 export function pinnedGitBash(): string | null {
-  const override = flagEnv('MERCURY_GIT_BASH_PATH')
+  const override = namedGitBash()
   return override !== undefined && override !== '' && pathExists(override) ? override : null
 }
 
