@@ -20,7 +20,7 @@ import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
 import { fallbackEngineBinary, systemShellRecord } from './shell/shellRecord.js'
-import { wrapSpawn, createAbortedCommand, createFailedCommand, type ShellCommand } from './ShellCommand.js'
+import { wrapSpawn, createAbortedCommand, createFailedCommand, type ExecResult, type ShellCommand } from './ShellCommand.js'
 import { noteMsysGroupLeftBehind, noteShellOfThisProcess, tellProcessGroupTheShell, tellWhatProcessGroupEnds } from './processGroup.js'
 import { toolShellEnv, subprocessEnv, withLoginExports } from './subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../substrate/envStamps.js'
@@ -128,6 +128,12 @@ if (process.platform === 'win32') {
   tellWhatProcessGroupEnds(line => logForDebugging(`shell jobs: ${line}`))
   tellProcessGroupTheShell(() => subprocessEnv().SHELL)
   tellWhatTheShellGuardReads(line => logForDebugging(`shell guard: ${line}`))
+}
+
+const ranUnderABashOfWindows = new WeakSet<ExecResult>()
+
+export function signalsCountIn(result: ExecResult): boolean {
+  return process.platform !== 'win32' || ranUnderABashOfWindows.has(result)
 }
 
 function noteServingShell(shellPath: string): void {
@@ -459,6 +465,7 @@ export async function exec(
   }
 
   void shellCommand.result.then(result => {
+    if (handed !== undefined && provider.origin !== 'engine') ranUnderABashOfWindows.add(result)
     const cwdFilePath =
       getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
 

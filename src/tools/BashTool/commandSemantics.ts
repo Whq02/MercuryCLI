@@ -112,7 +112,7 @@ const SIGNAL_EXIT_WORDS: Readonly<Record<number, string>> = {
   143: 'terminated (SIGTERM)',
 }
 
-export function exitLine(exitCode: number, diedOnItsOwn: boolean = true): string {
-  const words = diedOnItsOwn && process.platform !== 'win32' ? SIGNAL_EXIT_WORDS[exitCode] : undefined
+export function exitLine(exitCode: number, diedOnItsOwn: boolean = true, signalsCount: boolean = process.platform !== 'win32'): string {
+  const words = diedOnItsOwn && signalsCount ? SIGNAL_EXIT_WORDS[exitCode] : undefined
   return words === undefined ? `Exited with code ${exitCode}` : `exit ${exitCode} · ${words}`
 }
