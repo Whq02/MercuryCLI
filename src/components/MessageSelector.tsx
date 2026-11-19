@@ -1,5 +1,4 @@
 
-import figures from 'figures'
 import React, {
   useCallback,
   useEffect,
@@ -8,7 +7,6 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { basename } from 'path'
 import { Box, Text } from '../ink.js'
 import type {
   Message,
@@ -16,25 +14,18 @@ import type {
   UserMessage,
 } from '../types/message.js'
 import type { BranchManifest } from '../services/branches/branchManifest.js'
-import TextInput from './TextInput.js'
-import { Select } from './CustomSelect/index.js'
 import { useKeybinding, useKeybindings } from '../keybindings/useKeybinding.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import {
-  BASH_INPUT_TAG,
   BASH_STDERR_TAG,
   BASH_STDOUT_TAG,
-  COMMAND_ARGS_TAG,
-  COMMAND_NAME_TAG,
   LOCAL_COMMAND_STDERR_TAG,
   LOCAL_COMMAND_STDOUT_TAG,
   TASK_NOTIFICATION_TAG,
   CREWMATE_MESSAGE_TAG,
   TICK_TAG,
 } from '../constants/xml.js'
-import { isRemotePath } from '../services/remoteFiles/target.js'
-import { isSqliteRowTarget } from '../tools/FileWriteTool/structuredTargets.js'
 import { isSyntheticMessage, isTurnCutText } from '../utils/messages.js'
 import { stripDisplayTagsAllowEmpty } from '../utils/displayTags.js'
 import { isAdvisorOrigin, isSaturnOrigin, wrappedNoticeBlocks } from '../utils/messages/noticeRows.js'
@@ -50,6 +41,11 @@ import type {
   CheckpointFactsV1,
   RewindReceiptV1,
 } from '../services/engine-connector/types.js'
+import { messageText, previewOf } from './messageSelector/preview.js'
+import { writtenElsewhereLine, type CodeStats } from './messageSelector/stats.js'
+import { confirmOptionsOf, confirmView, CURRENT_PROMPT, pickView, summarizeView, UNDO_REWIND, type PickEntry } from './messageSelector/views.js'
+
+export { statsBetween, writtenElsewhereLine } from './messageSelector/stats.js'
 
 
 const subscribeFocusedCheckpoints = subscribeThroughFocused((connector, listener) =>
@@ -59,8 +55,6 @@ const subscribeFocusedCheckpoints = subscribeThroughFocused((connector, listener
 function getFocusedCheckpoints(): CheckpointFactsV1 {
   return getFocusedSessionConnector().checkpointFacts()
 }
-
-type CodeStats = { filesChanged: string[]; insertions: number; deletions: number }
 
 
 const COMPLETE_TAG_MARKERS = [
@@ -73,15 +67,6 @@ const COMPLETE_TAG_MARKERS = [
 ]
 const CREWMATE_PREFIX = `<${CREWMATE_MESSAGE_TAG}`
 
-function messageText(message: UserMessage): string {
-  const content = message.message.content
-  if (typeof content === 'string') return content
-  let last = ''
-  for (const block of content) {
-    if (block.type === 'text') last = block.text
-  }
-  return last
-}
 
 function isTurnCutRow(message: UserMessage): boolean {
   const content = message.message.content
@@ -147,153 +132,8 @@ export function messagesAfterAreOnlySynthetic(
 }
 
 
-const PREVIEW_CHAR_CAP = 500
-const PREVIEW_LINE_CAP = 4
-
-
-function previewOf(
-  message: UserMessage,
-  width?: number,
-): { text: string; shell: boolean; command: boolean } {
-  const raw = messageText(message).trim()
-  if (raw === '') return { text: '(empty message)', shell: false, command: false }
-  const bashMatch = raw.match(
-    new RegExp(`<${BASH_INPUT_TAG}>([\\s\\S]*?)</${BASH_INPUT_TAG}>`),
-  )
-  if (bashMatch) {
-    return { text: `! ${bashMatch[1]!.trim()}`, shell: true, command: false }
-  }
-  const nameMatch = raw.match(
-    new RegExp(`<${COMMAND_NAME_TAG}>([\\s\\S]*?)</${COMMAND_NAME_TAG}>`),
-  )
-  if (nameMatch) {
-    const argsMatch = raw.match(
-      new RegExp(`<${COMMAND_ARGS_TAG}>([\\s\\S]*?)</${COMMAND_ARGS_TAG}>`),
-    )
-    const name = nameMatch[1]!.trim()
-    const args = argsMatch?.[1]?.trim() ?? ''
-    const skillMatch = name.match(/^skill:(.+)$/)
-    if (skillMatch) {
-      return {
-        text: `/${skillMatch[1]}${args ? ` ${args}` : ''}`,
-        shell: false,
-        command: true,
-      }
-    }
-    return { text: `${name}${args ? ` ${args}` : ''}`, shell: false, command: true }
-  }
-  let text = stripDisplayTagsAllowEmpty(raw)
-  if (text === '') return { text: '(no prompt text)', shell: false, command: false }
-  if (width !== undefined) {
-    text = text.split('\n')[0]!.slice(0, Math.max(8, width))
-  } else {
-    const lines = text.split('\n').slice(0, PREVIEW_LINE_CAP)
-    text = lines.join('\n').slice(0, PREVIEW_CHAR_CAP)
-  }
-  return { text, shell: false, command: false }
-}
-
-
-type PatchHunk = { lines?: string[] }
-type EditResult = {
-  filePath?: string
-  file_path?: string
-  structuredPatch?: PatchHunk[]
-  type?: string
-  content?: string
-  outcome?: string
-  changeView?: { state?: string; files?: Array<{ file: string; added: number; removed: number }> }
-}
-
-function createdLineCount(content: string): number {
-  if (content === '') return 0
-  return content.split('\n').length - (content.endsWith('\n') ? 1 : 0)
-}
-
-export function statsBetween(
-  messages: Message[],
-  fromUuid: string,
-  toUuid: string | undefined,
-): { files: string[]; insertions: number; deletions: number } {
-  const start = messages.findIndex(message => message.uuid === fromUuid)
-  const end =
-    toUuid === undefined
-      ? messages.length
-      : messages.findIndex(message => message.uuid === toUuid)
-  const files = new Set<string>()
-  let insertions = 0
-  let deletions = 0
-  for (let i = start + 1; i < (end === -1 ? messages.length : end); i++) {
-    const message = messages[i]!
-    if (message.type !== 'user') continue
-    const content = message.message.content
-    if (!Array.isArray(content) || content[0]?.type !== 'tool_result') continue
-    const result = (message as { toolUseResult?: unknown }).toolUseResult as
-      | EditResult
-      | undefined
-    if (!result || typeof result !== 'object') continue
-    if (result.changeView !== undefined && Array.isArray(result.changeView.files)) {
-      if (result.changeView.state === 'applied' && result.outcome === 'succeeded') {
-        for (const changed of result.changeView.files) {
-          files.add(changed.file)
-          insertions += changed.added
-          deletions += changed.removed
-        }
-      }
-      continue
-    }
-    const filePath = result.filePath ?? result.file_path
-    if (typeof filePath !== 'string') continue
-    if (isSqliteRowTarget(filePath)) continue
-    if (result.type === 'create' && typeof result.content === 'string') {
-      files.add(filePath)
-      insertions += createdLineCount(result.content)
-      continue
-    }
-    if (!Array.isArray(result.structuredPatch)) continue
-    files.add(filePath)
-    for (const hunk of result.structuredPatch) {
-      if (!Array.isArray(hunk.lines)) continue
-      for (const line of hunk.lines) {
-        if (typeof line !== 'string') continue
-        if (line.startsWith('+')) insertions += 1
-        else if (line.startsWith('-')) deletions += 1
-      }
-    }
-  }
-  return { files: [...files], insertions, deletions }
-}
-
-export function writtenElsewhereLine(messages: Message[], fromUuid: string): string | null {
-  const written = new Set<string>()
-  for (const message of messages.slice(messages.findIndex(candidate => candidate.uuid === fromUuid) + 1)) {
-    const result = (message as { toolUseResult?: unknown }).toolUseResult as EditResult | null | undefined
-    if (typeof result !== 'object' || result === null || typeof result.filePath !== 'string' || !isRemotePath(result.filePath)) continue
-    if (result.type === 'create' || (Array.isArray(result.structuredPatch) && result.structuredPatch.length > 0)) written.add(result.filePath)
-  }
-  const far = [...written]
-  if (far.length === 0) return null
-  const named = far.length <= 2 ? far.join(' and ') : `${far[0]}, ${far[1]} and ${far.length - 2} more`
-  return `Stays as written on another machine: ${named}.`
-}
-
-function describeFiles(files: string[]): string {
-  if (files.length === 0) return ''
-  if (files.length === 1) return basename(files[0]!)
-  if (files.length === 2) {
-    return `${basename(files[0]!)} and ${basename(files[1]!)}`
-  }
-  return `${basename(files[0]!)} and ${files.length - 1} others`
-}
-
-
-const VISIBLE_ROWS = 7
-const CURRENT_PROMPT = Symbol('current-prompt')
-const UNDO_REWIND = Symbol('undo-rewind')
-
 let mountClaimed = false
 
-type PickEntry = UserMessage | typeof CURRENT_PROMPT | typeof UNDO_REWIND
 
 export function MessageSelector({
   messages,
@@ -546,119 +386,14 @@ export function MessageSelector({
     )
   }
 
-  if (phase === 'pick') {
-    const nothingToRewind = selectable.length === 0 && checkpoints.undo === undefined
-    const half = Math.floor(VISIBLE_ROWS / 2)
-    const start = Math.max(
-      0,
-      Math.min(index - half, entries.length - VISIBLE_ROWS),
-    )
-    const visible = entries.slice(start, start + VISIBLE_ROWS)
-    return (
-      <Box flexDirection="column" paddingX={1}>
-        <Text dimColor>{'─'.repeat(Math.max(8, Math.min(60, columns - 4)))}</Text>
-        <Text bold>Rewind</Text>
-        {nothingToRewind ? (
-          <Text dimColor>There is nothing to rewind to yet.</Text>
-        ) : (
-          <Text dimColor>
-            {historyOn
-              ? 'Wind back to a saved point — the files, the conversation, or both.'
-              : checkpoints.capture === 'off'
-                ? 'File checkpoints are off for this session (Settings › File checkpointing) — the conversation can still be restored or forked.'
-                : 'This session started before checkpoint capture (start a new session when ready); the conversation can still be restored or forked.'}
-          </Text>
-        )}
-        {visible.map((entry, offset) => {
-          const entryIndex = start + offset
-          const focused = entryIndex === index
-          if (entry === UNDO_REWIND) {
-            return <Box key="undo" flexDirection="column">
-              <Text color={focused ? tokens.accent : undefined}>{focused ? `${figures.pointer} ` : '  '}Undo the rewind</Text>
-              <Text dimColor>    Restore the previous files; conversation unchanged.</Text>
-            </Box>
-          }
-          if (entry === CURRENT_PROMPT) {
-            return (
-              <Box key="current">
-                <Text color={focused ? tokens.accent : undefined}>
-                  {focused ? `${figures.pointer} ` : '  '}
-                  <Text italic dimColor>
-                    (current prompt)
-                  </Text>
-                </Text>
-              </Box>
-            )
-          }
-          const preview = previewOf(entry, columns - 24)
-          const between = historyOn
-            ? statsBetween(
-                messages,
-                entry.uuid,
-                selectable[entryIndex + 1]?.uuid,
-              )
-            : null
-          const canRestore = historyOn && hasSavedPoint(entry.uuid)
-          return (
-            <Box key={entry.uuid} flexDirection="column">
-              <Text color={focused ? tokens.accent : undefined}>
-                {focused ? `${figures.pointer} ` : '  '}
-                {preview.shell ? (
-                  <Text color={tokens.warning}>{preview.text}</Text>
-                ) : (
-                  <Text>{preview.text}</Text>
-                )}
-              </Text>
-              {historyOn && between !== null ? (
-                <Text dimColor>
-                  {'    '}
-                  {!canRestore
-                    ? 'no saved files at this point'
-                    : between.files.length === 0
-                      ? 'no code changes'
-                      : `${describeFiles(between.files)} +${between.insertions} -${between.deletions}`}
-                </Text>
-              ) : null}
-            </Box>
-          )
-        })}
-        <Text dimColor>↑↓ select · ↵ choose · esc close</Text>
-      </Box>
-    )
-  }
+  if (phase === 'pick') return pickView({ selectable, checkpoints, index, entries, columns, historyOn, tokens, messages, hasSavedPoint })
 
   if (!chosen) {
     close()
     return null
   }
 
-  if (phase === 'summarize') {
-    return (
-      <Box flexDirection="column" borderStyle="round" borderColor={tokens.borderSubtle} paddingX={1} gap={1}>
-        <Text bold>Summarise from this point</Text>
-        <Text dimColor>
-          Optional extra context for the summary (empty cancels):
-        </Text>
-        <TextInput
-          value={feedback}
-          onChange={setFeedback}
-          onSubmit={value => {
-            const trimmed = value.trim()
-            if (trimmed === '') {
-              setPhase('confirm')
-              return
-            }
-            onPreRestore()
-            void onSummarize(chosen, trimmed, 'from')
-            close()
-          }}
-          columns={Math.max(30, columns - 8)}
-          cursorOffset={feedbackCursor}
-          onChangeCursorOffset={setFeedbackCursor}
-        />
-      </Box>
-    )
-  }
+  if (phase === 'summarize') return summarizeView({ tokens, feedback, setFeedback, setPhase, onPreRestore, onSummarize, chosen, close, columns, feedbackCursor, setFeedbackCursor })
 
   const canRestoreCode = historyOn && hasSavedPoint(chosen.uuid)
   const elsewhere = writtenElsewhereLine(messages, chosen.uuid)
@@ -667,151 +402,9 @@ export function MessageSelector({
   const conversationText =
     'The conversation winds back to before this point — later messages leave the model\'s view (the transcript keeps them)'
 
-  type ConfirmOption = { label: string; value: string; description: string }
-  const options: ConfirmOption[] = []
-  if (canRestoreCode) {
-    options.push({
-      label: 'Restore code and conversation',
-      value: 'both',
-      description: `The files go back to their saved state at this point; ${conversationText.charAt(0).toLowerCase()}${conversationText.slice(1)}.`,
-    })
-    options.push({
-      label: 'Restore conversation only',
-      value: 'conversation',
-      description: `${conversationText}; the files are unchanged.`,
-    })
-    options.push({
-      label: 'Restore code only',
-      value: 'code',
-      description: 'The files go back to their saved state at this point; the conversation is unchanged.',
-    })
-    for (const file of checkpoints.files ?? []) {
-      options.push({
-        label: `Restore ${file}`,
-        value: `file:${file}`,
-        description: 'Restore this file only; other files and the conversation are unchanged.',
-      })
-    }
-  } else {
-    options.push({
-      label: 'Restore conversation',
-      value: 'conversation',
-      description: `${conversationText}; no saved files at this point, so the files are unchanged.`,
-    })
-  }
-  if (onViewOnly) {
-    options.push({
-      label: 'View history read-only (nothing is mutated)',
-      value: 'view',
-      description: 'Nothing changes — a read-only view of the history.',
-    })
-  }
-  if (onBranchCreated) {
-    options.push({
-      label: 'Create a branch session from here (this one is untouched)',
-      value: 'branch',
-      description:
-        'A new branch session is created from this point; the current conversation stays untouched.',
-    })
-  }
-  if (onRerun) {
-    options.push({
-      label: 'Rerun from here on a new branch (this session is untouched)',
-      value: 'rerun',
-      description:
-        'A new branch reruns this message; the current session is untouched.',
-    })
-  }
-  options.push({
-    label: 'Summarise from here…',
-    value: 'summarize',
-    description: 'Messages after this point will be summarised.',
-  })
-  options.push({
-    label: 'Never mind',
-    value: 'cancel',
-    description: 'The conversation is unchanged.',
-  })
+  const options = confirmOptionsOf({ canRestoreCode, conversationText, checkpoints, onViewOnly, onBranchCreated, onRerun })
 
-  const codeLine = (value: string): string | null => {
-    if (value === 'summarize') return null
-    if (value.startsWith('file:')) return null
-    if (value === 'both' || value === 'code') {
-      if (storeStats === undefined) return 'Asking the session what a restore would touch…'
-      if (storeStats.filesChanged.length === 0) {
-        return 'The files already match this point.'
-      }
-      return `Restores ${describeFiles(storeStats.filesChanged)} +${storeStats.insertions} -${storeStats.deletions}.`
-    }
-    return 'The files are unchanged.'
-  }
-
-  return (
-    <Box flexDirection="column" borderStyle="round" borderColor={tokens.borderSubtle} paddingX={1} gap={1}>
-      <Text>
-        <Text bold>{preview.text}</Text> <Text dimColor>({age})</Text>
-      </Text>
-      <Select
-        options={options.map(option => ({
-          label: option.label,
-          value: option.value,
-        }))}
-        defaultFocusValue={canRestoreCode ? 'both' : 'conversation'}
-        inlineDescriptions={false}
-        onFocus={value => setFocusedConfirm(value)}
-        onChange={value => {
-          if (value === 'cancel') {
-            if (openedPreselected.current) close()
-            else setPhase('pick')
-            return
-          }
-          if (value === 'view') {
-            onViewOnly?.()
-            close()
-            return
-          }
-          if (value === 'branch') {
-            void runBranch()
-            return
-          }
-          if (value === 'rerun') {
-            void runRerun()
-            return
-          }
-          if (value === 'summarize') {
-            setPhase('summarize')
-            return
-          }
-          if (value.startsWith('file:')) {
-            void runRestore('code', { filePath: value.slice(5) })
-            return
-          }
-          void runRestore(value as 'both' | 'conversation' | 'code')
-        }}
-        onCancel={() => {
-          if (openedPreselected.current) close()
-          else setPhase('pick')
-        }}
-      />
-      <Box flexDirection="column">
-        <Text dimColor>
-          {(options.find(option => option.value === focusedConfirm) ??
-            options[0])!.description}
-        </Text>
-        {codeLine(focusedConfirm) !== null ? (
-          <Text dimColor>{codeLine(focusedConfirm)}</Text>
-        ) : null}
-        {elsewhere !== null && (focusedConfirm === 'both' || focusedConfirm === 'code') ? (
-          <Text dimColor>{elsewhere}</Text>
-        ) : null}
-      </Box>
-      {canRestoreCode ? (
-        <Text dimColor>
-          A file edited by hand since the session last touched it is refused by name — nothing is restored until you resolve it.
-        </Text>
-      ) : null}
-    </Box>
-  )
+  return confirmView({ tokens, preview, age, options, canRestoreCode, focusedConfirm, setFocusedConfirm, setPhase, openedPreselected, close, onViewOnly, runBranch, runRerun, runRestore, storeStats, elsewhere })
 }
 
 export default MessageSelector
