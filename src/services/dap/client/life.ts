@@ -1,6 +1,6 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { DapSession } from '../dapClient.js'
-import { endProcessTree, endProcessTreeSurvivors } from '../../../utils/processGroup.js'
+import { endProcessTree, endProcessTreeSurvivors, strikeProcessGroupNow } from '../../../utils/processGroup.js'
 import type { TerminalPart } from './terminal.js'
 import type { WirePart } from './wire.js'
 
@@ -79,6 +79,34 @@ export class LifePart {
       }
     }
     this.session.killSync()
+  }
+
+  killSync(): void {
+    this.needs.lifetime().abort()
+    for (const process of this.needs.terminal().processes()) {
+      strikeProcessGroupNow(process, 'SIGKILL')
+      process.kill('SIGKILL')
+    }
+    this.needs.terminal().processes().clear()
+    for (const child of [...this.session.children]) {
+      try {
+        child.killSync()
+      } catch {
+      }
+    }
+    try {
+      this.needs.wire().socket()?.destroy()
+    } catch {
+    }
+    const adapter = this.needs.child()
+    if (adapter && adapter.exitCode === null) adapter.kill('SIGKILL')
+    this.session.terminated = true
+    for (const [, p] of this.needs.wire().pending()) {
+      p.cancelDeadline()
+      p.reject(new Error('session disposed'))
+    }
+    this.needs.wire().pending().clear()
+    this.needs.wakeStateWaiters()
   }
 }
 

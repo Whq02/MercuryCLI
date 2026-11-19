@@ -19,7 +19,7 @@ import '../../utils/config/trust.js'
 import '../../bootstrap/state.js'
 import '../../utils/projectConfig.js'
 import '../../utils/settings/constants.js'
-import { strikeProcessGroupNow } from '../../utils/processGroup.js'
+import '../../utils/processGroup.js'
 import '../lsp/godotLane.js'
 import '../ide/pythonProject.js'
 import '../ide/unityProject.js'
@@ -394,30 +394,7 @@ export class DapSession extends DapSessionPublicLayer {
   }
 
   killSync(): void {
-    this.#lifetime.abort()
-    for (const process of this.#terminal.processes()) {
-      strikeProcessGroupNow(process, 'SIGKILL')
-      process.kill('SIGKILL')
-    }
-    this.#terminal.processes().clear()
-    for (const child of [...this.children]) {
-      try {
-        child.killSync()
-      } catch {
-      }
-    }
-    try {
-      this.#wire.socket()?.destroy()
-    } catch {
-    }
-    if (this.#child && this.#child.exitCode === null) this.#child.kill('SIGKILL')
-    this.terminated = true
-    for (const [, p] of this.#wire.pending()) {
-      p.cancelDeadline()
-      p.reject(new Error('session disposed'))
-    }
-    this.#wire.pending().clear()
-    this.#wakeStateWaiters()
+    this.#life.killSync()
     this.#stateWaiters.clear()
   }
 
