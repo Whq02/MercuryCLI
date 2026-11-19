@@ -16,7 +16,13 @@ import { reactivateConcourseSession } from './reactivate.js'
 import type { ConcourseWorkerRecordV1 } from './record.js'
 import { admitModelOf } from './admitModel.js'
 import { admitWarm } from './admitWarm.js'
-import { admitCold } from './admitCold.js'
+import { coldRunnerIdOf, coldSpecOf, coldSeatAnswer } from './admitCold.js'
+import { randomUUID } from '../../utils/crypto.js'
+import { getProcessStartInstantAsync } from '../ownerWatch.js'
+import { workspaceKindOf, ensureWorkerWorktree } from '../concourseWorktrees.js'
+import { describeSeatReading } from '../../services/switchboard/capacityCheck.js'
+import { effectiveSeatCeiling } from './admission.js'
+import { pidFieldsOf } from './marks.js'
 
 export interface WorkerRosterPort {
   has(short: string): { present: boolean; alive?: boolean }
@@ -271,6 +277,71 @@ export function makeConcourseAdmitHandler(
       if (warm !== undefined) return warm
     }
 
-    return admitCold({ ...seat, roster, liveWorkers })
+    const runnerId = coldRunnerIdOf(records, roster)
+    if (runnerId === null) {
+      return { ok: false, code: 'runtime-ceiling', error: `at the live-session limit — ${describeSeatReading(effectiveSeatCeiling())}` }
+    }
+
+    const sessionId = req.resumeSessionId ?? randomUUID()
+    const workspaceKind = workspaceKindOf(workspaceId)
+    let workerCwd = workspaceId
+    let worktreePath: string | undefined
+    let worktreeBranch: string | undefined
+    if (effectiveIsolation === 'worktree-isolated') {
+      const wt = await ensureWorkerWorktree(workspaceId, runnerId, deps.dir, {
+        branchName: mintWorktreeBranchName(req.title ?? sessionId.slice(0, 8), records),
+      })
+      if (!wt.ok) {
+        if (wt.code === 'no-repository' || wt.code === 'unborn-head') {
+          return {
+            ok: false,
+            code: wt.code,
+            error: wt.error,
+            moves: [{ verb: 'init-git', label: 'say yes to the git offer — then it forks on its own' }],
+          }
+        }
+        if (wt.code === 'git-unavailable') {
+          return {
+            ok: false,
+            code: wt.code,
+            error: wt.error,
+            moves: [{ verb: 'retry', label: 'install git, then retry the launch' }],
+          }
+        }
+        return { ok: false, code: 'invalid-request', error: wt.error }
+      }
+      workerCwd = wt.path
+      worktreePath = wt.path
+      worktreeBranch = wt.branchName
+    }
+    const { snapshot, effort, runnerArgv, spec } = coldSpecOf({ req, records, workspaceId, sessionId, runnerId, worktreePath, workerCwd, modelKey, keyless, kit, kind })
+    carryBuildNotices(sessionId)
+    const reg = roster.registerLongLived(runnerId, spec)
+    if (!reg.ok) return { ok: false, code: 'spawn-failed', error: reg.error ?? 'registerLongLived refused' }
+    const pidFields = pidFieldsOf(reg.pid, reg.pid === undefined ? null : await getProcessStartInstantAsync(reg.pid))
+    return coldSeatAnswer({ ...seat, liveWorkers, runnerId, sessionId, workspaceKind, worktreePath, worktreeBranch, snapshot, effort, runnerArgv, spec, reg, pidFields })
   }
+}
+
+function mintWorktreeBranchName(
+  seed: string,
+  records: Record<string, ConcourseWorkerRecordV1>,
+): string {
+  const slug =
+    seed
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 32) || 'session'
+  const taken = new Set(
+    Object.values(records)
+      .map(r => r.branchName)
+      .filter((b): b is string => b !== undefined),
+  )
+  const base = `mercury/${slug}`
+  if (!taken.has(base)) return base
+  for (let n = 2; n <= 9; n++) {
+    if (!taken.has(`${base}-${n}`)) return `${base}-${n}`
+  }
+  return `${base}-${Date.now().toString(36).slice(-4)}`
 }
