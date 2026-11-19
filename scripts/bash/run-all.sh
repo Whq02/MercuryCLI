@@ -116,6 +116,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-line-break-inside-command.ts" || {
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-pack.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-pack.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-win-pack.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-win-pack.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-bash-detector.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-bash-detector.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-long-frame.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-long-frame.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-road-no-zsh.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-road-no-zsh.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-road-order.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-road-order.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-record.ts" "$__t" "$__rc"
