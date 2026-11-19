@@ -7,7 +7,7 @@ import type { NotebookCell, NotebookCellType, NotebookContent } from '../../type
 import type { AssistantMessage } from '../../types/message.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
-import { getDisplayPath, getFileModificationTime, writeTextContent } from '../../utils/file.js'
+import { getCheckedFileModificationTime, getDisplayPath, getFileModificationTime, writeTextContent } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
 import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
 import { jsonParse } from '../../utils/slowOperations.js'
@@ -202,7 +202,7 @@ export const NotebookEditTool = buildTool({
       return refuse('File has not been read yet. Read it first before editing it.', 9)
     }
 
-    if (getFileModificationTime(resolvedPath) > readState.timestamp) {
+    if (getCheckedFileModificationTime(resolvedPath) > readState.timestamp) {
       return refuse(
         'The notebook has been modified since it was last read, either by the user or by a linter or formatter. Read it again before attempting to edit it.',
         10,

@@ -2,7 +2,7 @@ import { realpathSync } from 'node:fs'
 import { checkSeenLines, fileGeneration } from '../../../services/changeTransaction/seenLines.js'
 import { type NormalizedFileEdits } from '../../../services/lsp/workspaceEditApply.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
-import { getFileModificationTime } from '../../../utils/file.js'
+import { getCheckedFileModificationTime } from '../../../utils/file.js'
 import { MAX_LINES_TO_READ } from '../../FileReadTool/prompt.js'
 import type { OpEnv } from './types.js'
 
@@ -55,7 +55,7 @@ export function readKnowledgeHolds(
       const start = Math.max(1, entry.offset ?? 1)
       const count = Math.min(entry.limit ?? MAX_LINES_TO_READ, entry.content.split('\n').length)
       const covers = touched.every(range => range.start >= start && range.end < start + count)
-      if (covers && getFileModificationTime(abs) <= entry.timestamp) return true
+      if (covers && getCheckedFileModificationTime(abs) <= entry.timestamp) return true
     }
   }
   try {
