@@ -35,9 +35,30 @@ import { updateUsage } from '../cacheAndUsage.js'
 import {
   createStreamActivityRelay,
   createStreamIdleWatchdog,
+  type RequestWaitV1,
 } from '../../streamIdleBudget.js'
 import type { Options } from '../streamCore.js'
 import type { CallState, StreamPass } from './state.js'
+
+export function openStreamPass(): StreamPass {
+  const firstByte: { wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null } = { wait: null }
+  const pass: StreamPass = {
+    noteTransportActivity: null,
+    transportSawByte: false,
+    firstByte,
+    streamIdleAborted: false,
+    streamedToolUse: false,
+    sawFirstStreamEvent: false,
+    streamEventCount: 0,
+    streamWatchdogFiredAt: null,
+    sawMessageStop: false,
+    isFirstChunk: true,
+    lastEventTime: null,
+    totalStallTime: 0,
+    stallCount: 0,
+  }
+  return pass
+}
 
 export function resetStreamAttempt(call: CallState, settleUnpricedAttempt: () => void, newMessages: AssistantMessage[], contentBlocks: (BetaContentBlock | ConnectorTextBlock)[], stoppedBlockIndices: Set<number>): void {
   settleUnpricedAttempt()

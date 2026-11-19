@@ -6,7 +6,7 @@ import {
   APIError,
   APIUserAbortError,
 } from '../../api/sdkErrors.js'
-import type { ContentBlock as BetaContentBlock } from '../../../types/wire.js'
+import type { ContentBlock as BetaContentBlock, ApiStreamEvent as BetaRawMessageStreamEvent } from '../../../types/wire.js'
 import type { AnthropicMessageParams as BetaMessageStreamParams } from './anthropicWire.js'
 import type { AnthropicStream } from './anthropicStream.js'
 import {
@@ -114,6 +114,7 @@ import { EMPTY_USAGE } from '../../api/logging.js'
 import type { ModelCallReference } from '../../../run-core/call-reference.js'
 import '../../api/promptCacheBreakDetection.js'
 import {
+  CannotRetryError,
   FallbackTriggeredError,
   is529Error,
 } from '../../api/withRetry.js'
@@ -141,11 +142,11 @@ import type { CallState, QueryCtx, StreamPass } from './streamCore/state.js'
 import { createCallLedger } from './streamCore/callLedger.js'
 import { executeNonStreamingRequest } from './streamCore/nonStreaming.js'
 import { streamPassRetries, retryWaitOf } from './streamCore/passRetries.js'
-import { preEventReissueRow, streamCutReissueRow, oneShotNoticeRow, oneShotAnswerOf } from './streamCore/reissueRows.js'
-import { requestFailed } from './streamCore/requestFailed.js'
+import { preEventReissueRow, streamCutReissueRow, oneShotNoticeRow, oneShotAnswerOf, streamCreation404Row } from './streamCore/reissueRows.js'
+import { failedRequestRows } from './streamCore/requestFailed.js'
 import { messagesBeforeImages, requestBetas, toolRosterOf, wireRequestOf } from './streamCore/requestPlan.js'
 import { closeSucceededRequest, settleAttemptLedger } from './streamCore/settleCall.js'
-import { resetStreamAttempt, noteStreamEvent, startMessage, openContentBlock, applyBlockDelta, settleMessageDelta, noteWatchdogCleanExit, observeStreamEnd, noteWatchdogErrorExit, sdkAbortError } from './streamCore/streamEvents.js'
+import { openStreamPass, resetStreamAttempt, noteStreamEvent, startMessage, openContentBlock, applyBlockDelta, settleMessageDelta, noteWatchdogCleanExit, observeStreamEnd, noteWatchdogErrorExit, sdkAbortError } from './streamCore/streamEvents.js'
 import { watchStream } from './streamCore/watchStream.js'
 import { wireParamsFor } from './streamCore/wireParams.js'
 
@@ -371,22 +372,7 @@ async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
   const { messages, thinkingConfig, signal, options, captureModelRequest, rosterOwnerKey, prefixKey, turnOwning, startIncludingRetries, paramsFromContext, heldWaitDoor, newMessages, contentBlocks, stoppedBlockIndices, releaseStreamResources, noteServedModel, pricingModel, mintAssistantMessage, yieldAbortedPartialText, settleUnpricedAttempt } = ctx
   try {
     streamingPass: for (;;) {
-    const firstByte: { wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null } = { wait: null }
-    const pass: StreamPass = {
-      noteTransportActivity: null,
-      transportSawByte: false,
-      firstByte,
-      streamIdleAborted: false,
-      streamedToolUse: false,
-      sawFirstStreamEvent: false,
-      streamEventCount: 0,
-      streamWatchdogFiredAt: null,
-      sawMessageStop: false,
-      isFirstChunk: true,
-      lastEventTime: null,
-      totalStallTime: 0,
-      stallCount: 0,
-    }
+    const pass: StreamPass = openStreamPass()
     const generator = streamPassRetries(call, pass, { messages, thinkingConfig, signal, options, paramsFromContext, captureModelRequest, rosterOwnerKey, heldWaitDoor })
 
     let e
@@ -424,33 +410,8 @@ async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
             break
           }
           case 'content_block_stop': {
-            const contentBlock = contentBlocks[part.index]
-            if (!contentBlock) {
-              throw new RangeError('Content block not found')
-            }
-            if (!call.partialMessage) {
-              throw new Error('Message not found')
-            }
-            const cutCall = cutToolCallOf(contentBlock)
-            if (cutCall !== null) {
-              const note = mintAssistantMessage(call.partialMessage, [
-                { type: 'text', text: toolCallRefusalNote('anthropic', cutCall), citations: null },
-              ] as BetaContentBlock[])
-              note.refusedToolCalls = [cutCall]
-              stoppedBlockIndices.add(part.index)
-              newMessages.push(note)
-              yield note
-              break
-            }
-            const m = mintAssistantMessage(call.partialMessage, [
-              contentBlock,
-            ] as BetaContentBlock[])
-            stoppedBlockIndices.add(part.index)
-            if (contentBlock.type === 'tool_use') {
-              pass.streamedToolUse = true
-            }
-            newMessages.push(m)
-            yield m
+            const row = blockStopRow(ctx, call, pass, part)
+            yield row
             break
           }
           case 'message_delta': {
@@ -637,7 +598,58 @@ async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
       throw errorFromRetry
     }
 
-    if (yield* requestFailed(ctx, call, errorFromRetry)) {
+    const is404StreamCreationError =
+      !call.didFallBackToNonStreaming &&
+      errorFromRetry instanceof CannotRetryError &&
+      errorFromRetry.originalError instanceof APIError &&
+      errorFromRetry.originalError.status === 404
+
+    if (is404StreamCreationError) {
+      const failedRequestId =
+        (errorFromRetry.originalError as APIError).requestID ?? 'unknown'
+      yield streamCreation404Row(call, options, errorFromRetry.originalError as APIError)
+
+      try {
+        const result = yield* executeNonStreamingRequest(
+          { model: options.model, source: options.querySource, fetchOverride: options.fetchOverride },
+          {
+            model: options.model,
+            fallbackModel: options.fallbackModel,
+            thinkingConfig,
+            signal,
+            ...(heldWaitDoor !== undefined ? { onHeldWait: heldWaitDoor } : {}),
+          },
+          paramsFromContext,
+          (_attempt, _startTime, tokens) => {
+            call.maxOutputTokens = tokens
+          },
+          captureModelRequest,
+          failedRequestId,
+        )
+
+        const m = oneShotAnswerOf(call, result, noteServedModel, mintAssistantMessage, newMessages, options, rosterOwnerKey)
+        yield m
+
+      } catch (fallbackError) {
+        if (fallbackError instanceof FallbackTriggeredError) {
+          throw fallbackError
+        }
+
+        logForDebugging(
+          `The one-shot retry failed too: ${errorMessage(fallbackError)}`,
+          { level: 'error' },
+        )
+
+        yield* failedRequestRows(ctx, fallbackError)
+        releaseStreamResources()
+        return
+      }
+    } else {
+      logForDebugging(`Error in API request: ${errorMessage(errorFromRetry)}`, {
+        level: 'error',
+      })
+
+      yield* failedRequestRows(ctx, errorFromRetry)
       releaseStreamResources()
       return
     }
@@ -646,6 +658,36 @@ async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
   }
 
   closeSucceededRequest(ctx, call)
+}
+
+function blockStopRow(ctx: QueryCtx, call: CallState, pass: StreamPass, part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_stop' }>) {
+  const { contentBlocks, stoppedBlockIndices, newMessages, mintAssistantMessage } = ctx
+  const contentBlock = contentBlocks[part.index]
+  if (!contentBlock) {
+    throw new RangeError('Content block not found')
+  }
+  if (!call.partialMessage) {
+    throw new Error('Message not found')
+  }
+  const cutCall = cutToolCallOf(contentBlock)
+  if (cutCall !== null) {
+    const note = mintAssistantMessage(call.partialMessage, [
+      { type: 'text', text: toolCallRefusalNote('anthropic', cutCall), citations: null },
+    ] as BetaContentBlock[])
+    note.refusedToolCalls = [cutCall]
+    stoppedBlockIndices.add(part.index)
+    newMessages.push(note)
+    return note
+  }
+  const m = mintAssistantMessage(call.partialMessage, [
+    contentBlock,
+  ] as BetaContentBlock[])
+  stoppedBlockIndices.add(part.index)
+  if (contentBlock.type === 'tool_use') {
+    pass.streamedToolUse = true
+  }
+  newMessages.push(m)
+  return m
 }
 
 function maxOutputTokensRow(call: CallState) {
