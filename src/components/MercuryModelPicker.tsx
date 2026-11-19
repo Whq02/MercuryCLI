@@ -1,10 +1,9 @@
-import figures from 'figures'
 import * as React from 'react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useRegisterOverlay } from '../context/overlayContext.js'
-import { Box, Text, useInput, wrapText } from '../ink.js'
+import { Box, Text, useInput } from '../ink.js'
 import { usePopupListPaging } from './CustomSelect/popup-list.js'
-import { fitMeasuredWindow, paneWindow, panelWidth as panelWidthFor, type PaneWindow } from './mercury-ui/geometry.js'
+import { panelWidth as panelWidthFor } from './mercury-ui/geometry.js'
 import { useModalOrTerminalSize } from '../context/modalContext.js'
 import { PopupFrameContext } from './PopupGutter.js'
 import { decodeNavKey } from './mercury-ui/navSemantics.js'
@@ -22,45 +21,34 @@ import { markTransitionEnd } from '../utils/observability/frictionStopwatch.js'
 import { getContextWindowForModel } from '../utils/context.js'
 import { AMBER, FAINT, IVORY, SAND, TEAL } from './mercuryPalette.js'
 import { ProductLockup } from './mercury-ui/components.js'
-import { GLYPH, padTo, truncateToWidth } from './mercury-ui/glyphs.js'
 import { truncateStartToWidth } from '../utils/truncate.js'
-import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
-import { EffortStrip, effortStripText } from './mercury-ui/EffortStrip.js'
+import { EffortStrip } from './mercury-ui/EffortStrip.js'
 import { gaugeColor } from './mercury-ui/theme.js'
 import { modelPickerFooter } from '../utils/model/modelPickerFooter.js'
 import type { ModelPickerFooterKeys } from '../utils/model/modelPickerFooter.js'
-import { wrapPlain } from './BootHealthScreen.js'
-import { FOLD_CLOSED_LEAD, FOLD_OPEN_LEAD, MenuFilterLine } from './mercury-ui/menuFold.js'
+import { FOLD_OPEN_LEAD, MenuFilterLine } from './mercury-ui/menuFold.js'
 import {
   MODEL_PICKER_CURRENT,
   MODEL_PICKER_EFFORT_WORDS,
   MODEL_PICKER_FILTER_PLACEHOLDER,
   MODEL_PICKER_SEARCH_PLACEHOLDER,
-  MODEL_PICKER_NO_ALIAS,
   MODEL_PICKER_PANEL,
   MODEL_PICKER_UNAVAILABLE,
   composePickerLines,
-  doorWords,
   firstRowIndex,
   groupPickerRows,
-  hasAlias,
-  headingIndexOf,
-  headingWords,
   initialPickerFolds,
   isCursorStop,
   isModelRow,
   matchWords,
-  moreLineWords,
   nextStop,
   orderPickerGroups,
-  pickerCellColumns,
   pickerColumns,
   pickerReachTotal,
   providerNameOfGroup,
   rowKey,
   type FoldState,
   type PickerGroup,
-  type PickerLine,
   type ProviderHeading,
 } from '../utils/model/modelPickerGroups.js'
 import {
@@ -73,10 +61,9 @@ import {
   type TensorFoldPickerFacts,
   type TensorFoldTyping,
 } from './tensorfold/tensorfoldRows.js'
-import { TensorFoldCard, tensorFoldInk } from './tensorfold/TensorFoldCard.js'
 import { isLocalModelId, LOCAL_MODEL_GROUP, localRecordFor } from '../services/providers/local/localCatalogue.js'
 import { LOCAL_SETUP_PICKER_OFFER } from '../commands/localsetup/words.js'
-import { localWindowApplication, localWindowChoiceLine, localWindowNoticeKind, localWindowRefusalSpan } from '../services/providers/local/localWindow.js'
+import { localWindowApplication, localWindowRefusalSpan } from '../services/providers/local/localWindow.js'
 import { localServerTruthStamp, refreshLocalMachineTruth, subscribeLocalServerTruth } from '../services/localServer/localServerTruth.js'
 import {
   parseGptModelId,
@@ -88,7 +75,9 @@ import {
 } from '../services/providers/openai/openaiCatalogue.js'
 import type { ModelChoice } from './modelPicker/choice.js'
 import { chordKeys, filterKeys, navigationKeys, tensorFoldKeys, windowTypingKeys, type PickerKeys } from './modelPicker/keys.js'
+import { pickerGeometry } from './modelPicker/geometry.js'
 import { pickerActs, pickerCursor } from './modelPicker/moves.js'
+import { pickerLineRenderer } from './modelPicker/renderLine.js'
 
 export { fmtCtx } from './modelPicker/choice.js'
 export type { ModelChoice } from './modelPicker/choice.js'
@@ -131,8 +120,6 @@ type Props = {
   hint?: string
 }
 
-const cell = (text: string, width: number): string => (width <= 2 ? '' : `${padTo(text, width - 2)}  `)
-const idCell = (id: string, width: number): string => cell(truncateStartToWidth(id, Math.max(0, width - 2)), width)
 
 function withTensorFoldRows(given: ModelChoice[], rows: ModelChoice[]): ModelChoice[] {
   const at = given.findIndex(row => row.group === LOCAL_MODEL_GROUP)
@@ -357,66 +344,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     if (chordKeys(input, key, event, keys)) return
     filterKeys(input, key, event, keys)
   })
-  const cardWidth = inner - 4
-  const linePaint = (idx: number): number => {
-    const line = lines[idx]
-    if (!line) return 0
-    if (line.kind !== 'row') return 1
-    if (compact || idx !== i) return 1
-    if (line.row.tensorfold !== undefined) return 3 + line.row.tensorfold.card(cardWidth).length
-    const tag = line.row.tag
-    return tag === '' ? 3 : 3 + wrapText(tag, panelWidth - 8, 'wrap').split('\n').length
-  }
-  const reasonLines: string[] | null =
-    focusedModel !== undefined && focusedModel.gated && focusedModel.gatedReason
-      ? wrapPlain(`${focusedModel.id} · ${focusedModel.gatedReason} — not selectable`, inner)
-      : null
-  const painted = (text: string): number => wrapText(text, inner, 'wrap').split('\n').length
-  const pendingLine = pendingNext
-    ? [
-        { text: 'current ', color: FAINT },
-        { text: listed.find(m => m.id === currentRow)?.name ?? current, color: TEAL },
-        { text: ' · ', color: FAINT },
-        { text: `${GLYPH.pending} next `, color: AMBER },
-        { text: listed.find(m => m.id === pendingNext)?.name ?? pendingNext, color: AMBER },
-        { text: ' · applies when the turn settles', color: FAINT },
-      ]
-    : null
-  const localWindowLine = focusedLocal !== undefined ? localWindowChoiceLine(focusedLocal, { wide: inner >= 90, ...(windowTyping !== null ? { typing: windowTyping } : {}) }) : null
-  const noticeInk = localWindowLine !== null && localWindowNoticeKind(localWindowLine) === 'warning' ? tokens.warning : tokens.failureText
-  const noticeLines: string[] = compact
-    ? []
-    : ctxNotice
-      ? wrapPlain(ctxNotice, inner)
-      : reasonLines !== null
-        ? reasonLines
-        : [...(localWindowLine !== null ? wrapPlain(localWindowLine, inner) : []), ...(notice ? wrapPlain(notice, inner) : [])]
-  const liveLine = panelView && live !== undefined && live !== ''
-  const chromeBase =
-    2 + 1 + (compact ? 0 : 2) + (panelView ? (liveLine ? 1 : 0) : shedMeters ? 0 : 1) + 2 +
-    (pendingLine !== null ? painted(pendingLine.map(part => part.text).join('')) : 0) +
-    noticeLines.length + (localOffer ? 1 : 0)
-  const effortPaint = hasEffort && !panelView ? (compact ? 1 : painted(effortStripText(efforts!, effort))) : 0
-  const shedPageHint = panelView || (compact && availRows - chromeBase - 1 - effortPaint < 4)
-  const chromePaint = chromeBase + (shedPageHint ? 0 : 1)
-  const shedEffort = compact && effortPaint > 0 && availRows - chromePaint - effortPaint < 4
-  const room = availRows - chromePaint - (shedEffort ? 0 : effortPaint)
-  const paintBudget = Math.max(1, room)
-  const markersOn = room >= 3
-  const pinnedOn = room >= 4
-  const headingAbove = (w: PaneWindow): number => {
-    if (!pinnedOn || w.above === 0) return -1
-    const first = lines[w.start]
-    if (first === undefined || first.kind === 'heading') return -1
-    const at = headingIndexOf(lines, first.kind === 'row' ? first.row.group : first.group)
-    return at >= 0 && at < w.start ? at : -1
-  }
-  const windowPaint = (w: PaneWindow): number => {
-    let sum = (markersOn && w.above > 0 ? 1 : 0) + (markersOn && w.below > 0 ? 1 : 0) + (headingAbove(w) >= 0 ? 1 : 0)
-    for (let idx = w.start; idx < w.end; idx++) sum += linePaint(idx)
-    return sum
-  }
-  const win = fitMeasuredWindow(totalLines, paintBudget, span => paneWindow(totalLines, i, span), windowPaint)
+  const { cardWidth, reasonLines, pendingLine, localWindowLine, noticeInk, noticeLines, liveLine, shedPageHint, shedEffort, paintBudget, markersOn, headingAbove, windowPaint, win } = pickerGeometry({ inner, lines, compact, i, panelWidth, focusedModel, listed, currentRow, current, pendingNext, focusedLocal, windowTyping, tokens, ctxNotice, notice, panelView, live, shedMeters, hasEffort, efforts, effort, availRows, localOffer, totalLines })
   usePopupListPaging(i, totalLines, win.end - win.start, target => selectRow(isCursorStop(lines[target]) ? target : nextStop(lines, target, target > i ? 1 : -1)), windowTyping === null)
   const pinnedHeading = headingAbove(win)
   const slack = win.above > 0 || win.below > 0 ? Math.max(0, paintBudget - windowPaint(win)) : 0
@@ -450,115 +378,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     },
     inner,
   )
-  const renderLine = (line: PickerLine<ModelChoice>, idx: number): React.ReactNode => {
-    if (line.kind === 'heading') {
-      const on = idx === i
-      const heading = headings?.[line.group]
-      const words = headingWords(heading, line.group, { live: line.live, ...(line.matched !== undefined ? { matched: line.matched, total: line.total ?? 0 } : {}) }, inner - 2)
-      const cut = words.indexOf(' · ')
-      const name = cut < 0 ? words : words.slice(0, cut)
-      const rest = cut < 0 ? '' : words.slice(cut)
-      return (
-        <InteractiveRow key={`heading:${line.group}`} id={`model:group:${line.group}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} width={inner} height={1} selectionBand={true}>
-          <Text wrap="truncate-end">
-            <Text color={on ? TERRA : FAINT}>{on ? `${GLYPH.prompt} ` : line.fold === 'folded' ? FOLD_CLOSED_LEAD : FOLD_OPEN_LEAD}</Text>
-            <Text bold color={tokens.info}>{name}</Text>
-            <Text color={FAINT}>{rest}</Text>
-          </Text>
-        </InteractiveRow>
-      )
-    }
-    if (line.kind === 'door') {
-      const door = headings?.[line.group]?.doors.find(candidate => candidate.door === line.door)
-      const words = doorWords(door ?? { door: line.door }, { live: line.live, ...(line.matched !== undefined ? { matched: line.matched, total: line.total ?? 0 } : {}) }, inner - 2)
-      return (
-        <Box key={`door:${line.group}:${line.door}`} height={1}>
-          <Text color={tokens.textSecondary} wrap="truncate-end">{`  ${words}`}</Text>
-        </Box>
-      )
-    }
-    if (line.kind === 'more') {
-      const on = idx === i
-      return (
-        <InteractiveRow key={`more:${line.group}`} id={`model:more:${line.group}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} width={inner} height={1} selectionBand={true}>
-          <Text wrap="truncate-end">
-            <Text color={on ? TERRA : FAINT}>{on ? `${GLYPH.prompt} ` : '  '}</Text>
-            <Text color={FAINT}>{moreLineWords(line.hidden, line.reach)}</Text>
-          </Text>
-        </InteractiveRow>
-      )
-    }
-    const m = line.row
-    const on = idx === i
-    if (m.tensorfold !== undefined) {
-      const choice = m.tensorfold
-      const cells = pickerCellColumns(inner - 4)
-      if (compact && narrowId) cells.id = Math.max(0, cells.id - 1)
-      const ink = (tone: Parameters<typeof tensorFoldInk>[0]): string => tensorFoldInk(tone, tokens, TERRA)
-      return (
-        <InteractiveRow key={line.key} id={`model:row:${line.key}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} flexDirection="column" selectionBand={compact}>
-          <Box borderStyle={on && !compact ? 'round' : undefined} borderColor={on && !compact ? TERRA : undefined} paddingLeft={on && !compact ? 1 : 2} paddingRight={1} flexDirection="column">
-            <Text wrap="truncate-end">
-              {compact ? <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text> : null}
-              {m.action === true ? (
-                <>
-                  <Text bold color={IVORY}>{m.name}</Text>
-                  {choice.words !== undefined ? <Text color={FAINT}>{` — ${choice.words}`}</Text> : null}
-                  {choice.state !== undefined ? <Text color={ink(choice.state.tone)}>{`  ${choice.state.text}`}</Text> : null}
-                </>
-              ) : (
-                <>
-                  <Text bold color={IVORY}>{cell(m.name, cells.alias)}</Text>
-                  <Text color={FAINT}>{idCell(m.id, cells.id)}</Text>
-                  <Text color={ink(choice.state?.tone ?? 'faint')}>{cell(choice.state?.text ?? '', cells.state)}</Text>
-                  <Text color={FAINT}>{cell(m.ctx, cells.ctx)}</Text>
-                  <Text color={ink(choice.memory?.tone ?? 'faint')}>{truncateToWidth(choice.memory?.text ?? '', cells.tail)}</Text>
-                </>
-              )}
-            </Text>
-            {on && !compact ? <TensorFoldCard lines={choice.card(cardWidth)} tokens={tokens} accent={TERRA} /> : null}
-          </Box>
-        </InteractiveRow>
-      )
-    }
-    const [stateWord, stateColor] = stateWordOf(m, line.key)
-    const model = isModelRow(m)
-    const alias = model ? (hasAlias(m) ? m.name : '—') : m.name
-    const ctxText = on && (focusedSupports1m || focusedGptToggle) ? (context1m ? (m.ctx1m ?? m.ctx) : (m.ctxBase ?? m.ctx)) : m.ctx
-    const tail = model && !hasAlias(m) ? truncateToWidth(MODEL_PICKER_NO_ALIAS, columns.tail) : ''
-    return (
-      <InteractiveRow
-        key={line.key}
-        id={`model:row:${line.key}`}
-        selected={on}
-        unavailable={m.gated}
-        onSelect={() => selectRow(idx)}
-        onActivate={commitCurrent}
-        flexDirection="column"
-        selectionBand={compact}
-      >
-        <Box borderStyle={on && !compact ? 'round' : undefined} borderColor={on && !compact ? TERRA : undefined} paddingLeft={on && !compact ? 1 : 2} paddingRight={1} flexDirection="column">
-          <Text wrap="truncate-end">
-            {compact ? <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text> : null}
-            {model ? (
-              <>
-                <Text bold color={m.gated ? SAND : hasAlias(m) ? IVORY : FAINT}>{cell(alias, columns.alias)}</Text>
-                <Text color={FAINT}>{idCell(m.id, columns.id)}</Text>
-              </>
-            ) : (
-              <Text bold color={m.gated ? SAND : IVORY}>{m.name}</Text>
-            )}
-            {model ? <>
-              <Text color={stateColor}>{cell(stateWord, columns.state)}</Text>
-              <Text color={FAINT}>{cell(ctxText, columns.ctx)}</Text>
-              <Text color={tokens.info}>{tail}</Text>
-            </> : null}
-          </Text>
-          {on && !compact && m.tag !== '' ? <Text color={SAND}>{m.tag}</Text> : null}
-        </Box>
-      </InteractiveRow>
-    )
-  }
+  const renderLine = pickerLineRenderer({ i, headings, inner, selectRow, commitCurrent, TERRA, tokens, compact, narrowId, cardWidth, stateWordOf, focusedSupports1m, focusedGptToggle, context1m, columns })
   return (
     <Box flexDirection="column" alignItems={modelPickerCentred() ? 'center' : 'flex-start'}>
     <Box ref={surfaceRef} flexDirection="column" borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} width={panelWidth} flexShrink={0}>
