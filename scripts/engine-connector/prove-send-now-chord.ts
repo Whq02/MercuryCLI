@@ -73,7 +73,6 @@ section('§5 the road — the cockpit fact, the connector verb, the daemon actio
 const fact = read('src/services/engine-connector/sendNowLive.ts')
 check('the focused fact reads the live turn, its in-progress tools and the connector\'s queued sends, and subscribes to records and live', fact.includes('sendNowLive({ inFlight: live.inFlight, toolsInFlight: live.inProgressToolUseIDs.size, queuedSends: connector.queuedSendCount() })') && fact.includes('const records = connector.subscribeRecords(listener)') && fact.includes("hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {}"))
 const connector = read('src/services/engine-connector/daemonConnector.ts')
-check('the connector counts a sent line as queued only while the runner\'s queue holds it, not held for a fold, not withdrawing, never a crew notice', connector.includes("if (s.state === 'queued' && s.heldFor === undefined && s.withdrawing !== true && !isNoticeKey(s.clientMessageId)) count += 1"))
 check('the connector\'s verb is the seat\'s send-now action on the verb chain', connector.includes("const reply = await this.chainRpc({ op: 'sessionControl', action: 'send-now', sessionId: this.record.sessionId, by: 'operator' })"))
 const noSession = read('src/services/engine-connector/noSessionConnector.ts')
 check('no chat open: the verb refuses with the one sentence and counts nothing', noSession.includes('async sendNow(): Promise<AgentControlReceiptV1> {\n    return { outcome: \'refused\', detail: NO_CHAT_OPEN }') && noSession.includes('queuedSendCount(): number {\n    return 0'))

@@ -43,14 +43,19 @@ async function connectorScenes(): Promise<void> {
     attached: boolean
     tick: () => Promise<void>
     readTail: () => void
-    readFacts: () => void
     textRows?: unknown[]
   }
   const transcript = getTranscriptPath()
   const sid = path.basename(transcript, '.jsonl')
   const home = path.dirname(transcript)
   let pressAnswer: Record<string, unknown> = { ok: true, outcome: 'applied' }
-  const connector = new DaemonSessionConnector({ sessionId: sid, home, workspaceId: '/tmp', title: 'rig', projectLabel: 'p' } as never, { rpc: () => Promise.resolve(pressAnswer) })
+  let factsFeedReads: () => void = () => {}
+  const connector = new DaemonSessionConnector({ sessionId: sid, home, workspaceId: '/tmp', title: 'rig', projectLabel: 'p' } as never, {
+    rpc: () => Promise.resolve(pressAnswer),
+    factsRead: (read: () => void) => {
+      factsFeedReads = read
+    },
+  })
   const g = connector as unknown as Guts
 
   let clock = Date.now() - 60_000
@@ -69,7 +74,7 @@ async function connectorScenes(): Promise<void> {
   let factsStamp = Date.now()
   const busy = (on: boolean): void => {
     publishSessionFacts({ schema: 1, sessionId: sid, atMs: ++factsStamp, busy: on, queueReady: false, pendingModel: null, model: { effective: 'claude-sonnet-5', setting: null }, usage: {}, queue: [] } as never)
-    g.readFacts.call(connector)
+    factsFeedReads()
   }
   const press = async (): Promise<boolean> => {
     const took = connector.interrupt()

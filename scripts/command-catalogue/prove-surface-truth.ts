@@ -138,10 +138,44 @@ const censusRows: Array<[string, string, boolean]> = [
   ['src/components/mercury-ui/parity/AccountView.tsx', 'the main-loop line reads the served model first', has('src/components/mercury-ui/parity/AccountView.tsx', 'useFocusedServedModel()')],
   ['src/components/SubModelPicker.tsx', 'the main model beside the sub-model rows is the served one', has('src/components/SubModelPicker.tsx', 'focusedSessionModelFacts()?.effective')],
   ['src/components/Feedback.tsx', "the report names the session's model", has('src/components/Feedback.tsx', 'focusedSessionModelFacts()?.effective')],
-  ['src/services/engine-connector/daemonConnector.ts', 'the seat facts carry the pin and the effort word; the effort move pulses the model feed', !has('src/services/engine-connector/daemonConnector.ts', 'sessionPin: null') && has('src/services/engine-connector/daemonConnector.ts', 'effort: this.facts?.effort ?? this.record.effort ?? null') && has('src/services/engine-connector/daemonConnector.ts', 'prev.effort !== next.effort')],
   ['src/daemon/sessionSeat.ts', "the daemon publishes the record's effort word", has('src/daemon/sessionSeat.ts', "rec.effort !== undefined ? { effort: rec.effort }")],
 ]
 for (const [file, what, ok] of censusRows) check(`${file}: ${what}`, ok)
+{
+  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.js')
+  const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.js')
+  const sessionId = 'surface-truth-seat'
+  let factsFeedReads: () => void = () => {}
+  const hosted = new DaemonSessionConnector({ sessionId, runnerId: 'runner-1', title: 'surface truth', projectLabel: 'proof', workspaceId: SCRATCH, home: SCRATCH, modelKey: 'claude-sonnet-5', effort: 'medium' }, {
+    rpc: async () => ({ ok: true }),
+    factsRead: (read: () => void) => {
+      factsFeedReads = read
+    },
+  })
+  const says = (atMs: number, setting: string | null, extra: Record<string, unknown>): void => {
+    publishSessionFacts({ schema: 1, sessionId, atMs, pendingModel: null, busy: false, model: { effective: 'claude-opus-5', setting }, usage: noSessionConnector().usage(), identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], workspace: { cwd: SCRATCH, originalCwd: SCRATCH, projectRoot: SCRATCH }, queue: [], ...extra } as never)
+    factsFeedReads()
+  }
+  const recorded = hosted.modelFacts()
+  says(1, 'claude-opus-5', { permissionMode: 'default' })
+  const pinned = hosted.modelFacts()
+  says(2, 'claude-opus-5', { permissionMode: 'default', effort: 'xhigh' })
+  const worded = hosted.modelFacts()
+  const woken: string[] = []
+  hosted.subscribeModel(() => woken.push('model'))
+  hosted.subscribePermissionMode(() => woken.push('permission'))
+  says(3, 'claude-opus-5', { permissionMode: 'implement', effort: 'low' })
+  const effortAndMode = woken.splice(0).join(' ')
+  says(4, 'claude-opus-5', { permissionMode: 'default', effort: 'low' })
+  const modeAlone = woken.splice(0).join(' ')
+  says(5, null, { permissionMode: 'default', effort: 'low' })
+  const unpinned = hosted.modelFacts()
+  check(
+    'src/services/engine-connector/daemonConnector.ts: the seat facts carry the pin and the effort word; the effort move pulses the model feed',
+    recorded.sessionPin === 'claude-sonnet-5' && recorded.effort === 'medium' && pinned.sessionPin === 'claude-opus-5' && pinned.effort === 'medium' && worded.effort === 'xhigh' && unpinned.sessionPin === 'claude-sonnet-5' && effortAndMode === 'model permission' && modeAlone === 'permission model',
+    `before any facts the pin and the word are the record's (${String(recorded.sessionPin)}, ${String(recorded.effort)}); facts that name a setting and no effort read ${String(pinned.sessionPin)} and ${String(pinned.effort)}; facts with a word read ${String(worded.effort)}; facts whose setting is null read the pin ${String(unpinned.sessionPin)}; a read where the effort and the mode moved woke "${effortAndMode}" and one where the mode moved alone woke "${modeAlone}" (the model feed first only when the model's facts moved)`,
+  )
+}
 
 section('§4 ONE SPELLING — the 1M suffix is the display owner\'s alone')
 const suffixSpellers = SRC_FILES.filter(f => codeOnly(src(f)).includes('(1M context)'))

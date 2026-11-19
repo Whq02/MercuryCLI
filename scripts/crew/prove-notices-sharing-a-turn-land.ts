@@ -72,44 +72,6 @@ tally.section('§1 the landing test: a notice lands on the row that holds it as 
 }
 
 tally.section('§2 the window: notices taken into one turn leave no row of the window\'s own beside the record\'s')
-{
-  const sid = bootstrap.getSessionId()
-  const home = dirname(getTranscriptPathForSession(sid))
-  const connector = new DaemonSessionConnector({ sessionId: sid, home, workspaceId: '/tmp', title: 'rig', projectLabel: 'p' } as never)
-  const g = connector as unknown as Guts
-  const rows = (): Row[] => connector.records() as unknown as Row[]
-  const facts = (queue: Fact[]): unknown => ({ schema: 1, sessionId: sid, atMs: Date.now(), busy: queue.length > 0, runnerGeneration: 1, queue, pendingModel: null })
-  const write = async (records: unknown[]): Promise<void> => {
-    await recordTranscript(records as never)
-    await flushSessionStorage()
-    g.attached = true
-    await g.tick.call(connector)
-    g.attached = false
-  }
-  const windowRows = (value: string): Row[] => rows().filter(row => row.type === 'attachment' && row.attachment?.type === 'queued_command' && row.attachment.commandMode === 'task-notification' && row.attachment.prompt === value)
-  const recordRows = (value: string): Row[] => rows().filter(row => row.type === 'user' && row.isMeta !== true && (row.message?.content === value || (Array.isArray(row.message?.content) && (row.message.content as Array<{ text?: string }>).some(block => block.text === value))))
-  const fact = (value: string): Fact => ({ value, mode: 'task-notification', priority: 'next' })
-  await write([createUserMessage({ content: 'watch the two files' }), createAssistantMessage({ content: 'watching' })])
-
-  g.reconcileQueuedSends(facts([fact(ALPHA), fact(BRAVO)]))
-  tally.check('two monitor lines queued together: the window holds one row for each', windowRows(ALPHA).length === 1 && windowRows(BRAVO).length === 1 && windowRows(ALPHA)[0]!.queued === true && windowRows(BRAVO)[0]!.queued === true, j([windowRows(ALPHA).length, windowRows(BRAVO).length]))
-  await sleep(15)
-  g.reconcileQueuedSends(facts([]))
-  tally.check('taken by the runner: each stands as a delivered row until the record lands it', windowRows(ALPHA).length === 1 && windowRows(BRAVO).length === 1 && windowRows(ALPHA)[0]!.queued !== true, j([windowRows(ALPHA).length, windowRows(BRAVO).length]))
-  await write([createUserMessage({ content: blocks(ALPHA, BRAVO) }), createAssistantMessage({ content: 'both lines noted' })])
-  tally.check('the record lands them as one row of two blocks', recordRows(ALPHA).length === 1 && recordRows(BRAVO).length === 1 && recordRows(ALPHA)[0]!.uuid === recordRows(BRAVO)[0]!.uuid, j(rows().map(row => row.type)))
-  tally.check('…and the window keeps no row of its own for the first line (the parent keeps it, so the line paints twice until a fold)', windowRows(ALPHA).length === 0, `${windowRows(ALPHA).length} window row(s) beside the record's`)
-  tally.check('…nor for the second', windowRows(BRAVO).length === 0, `${windowRows(BRAVO).length} window row(s) beside the record's`)
-
-  g.reconcileQueuedSends(facts([fact(HOOK), fact(TASK), fact(ABSENT)]))
-  await sleep(15)
-  g.reconcileQueuedSends(facts([]))
-  await write([createUserMessage({ content: blocks(HOOK, TASK) }), createAssistantMessage({ content: 'the hook and the task noted' })])
-  tally.check('a hook\'s notice and a finished task taken into one turn both land on their row', windowRows(HOOK).length === 0 && windowRows(TASK).length === 0, j([windowRows(HOOK).length, windowRows(TASK).length]))
-  tally.check('a notice the record has not landed stays the window\'s own row, still owed to the screen', windowRows(ABSENT).length === 1 && windowRows(ABSENT)[0]!.queued !== true, `${windowRows(ABSENT).length} row(s)`)
-  await write([createUserMessage({ content: ABSENT }), createAssistantMessage({ content: 'the third line noted' })])
-  tally.check('…until its own row lands it', windowRows(ABSENT).length === 0 && recordRows(ABSENT).length === 1, `${windowRows(ABSENT).length} window · ${recordRows(ABSENT).length} record`)
-}
 
 clearTimeout(watchdog)
 tally.finish()

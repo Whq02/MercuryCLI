@@ -80,8 +80,13 @@ section('W2 the connector busy-union never claims writing for a fold-idle transc
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
   const { publishSessionFacts, publishSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
   const sessionId = 'writing-indicator'
-  const seat = new DaemonSessionConnector({ sessionId, runnerId: 'runner-1', title: 'the chat', projectLabel: 'proof', workspaceId: scratch, home: scratch })
-  const reads = seat as unknown as { readFacts(): void; readTail(): void }
+  let factsFeedReads: () => void = () => {}
+  const seat = new DaemonSessionConnector({ sessionId, runnerId: 'runner-1', title: 'the chat', projectLabel: 'proof', workspaceId: scratch, home: scratch }, {
+    factsRead: (read: () => void) => {
+      factsFeedReads = read
+    },
+  })
+  const reads = seat as unknown as { readTail(): void }
   let stamp = 0
   const facts = (busy: boolean): void => {
     publishSessionFacts({
@@ -98,7 +103,7 @@ section('W2 the connector busy-union never claims writing for a fold-idle transc
       workspace: { cwd: scratch, originalCwd: scratch, projectRoot: scratch },
       queue: [],
     })
-    reads.readFacts()
+    factsFeedReads()
   }
   const tail = (says: Record<string, unknown>): void => {
     publishSessionTail({ schema: 1, sessionId, atMs: ++stamp, text: null, ...says } as never)

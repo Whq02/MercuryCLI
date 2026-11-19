@@ -63,14 +63,18 @@ try {
   section('§2 the window\'s connector: the facts the daemon publishes for the session are where the window hears it')
   {
     const sid = 'store-fail-window-a'
-    const connector = new DaemonSessionConnector({ sessionId: sid, runnerId: `runner-${sid}`, title: 'the chat', projectLabel: 'proof', workspaceId: work, home: SCRATCH, modelKey: 'claude-sonnet-5-5' } as never)
-    const g = connector as unknown as { readFacts: () => void }
+    let factsFeedReads: () => void = () => {}
+    const connector = new DaemonSessionConnector({ sessionId: sid, runnerId: `runner-${sid}`, title: 'the chat', projectLabel: 'proof', workspaceId: work, home: SCRATCH, modelKey: 'claude-sonnet-5-5' } as never, {
+      factsRead: (read: () => void) => {
+        factsFeedReads = read
+      },
+    })
     const hears = connector as unknown as { transcriptStoreFailing?: () => string | null; subscribeModel: (listener: () => void) => () => void }
     const heard: Array<string | null> = []
     const off = hears.subscribeModel(() => { heard.push(hears.transcriptStoreFailing?.() ?? null) })
     const publish = (atMs: number, extra: Record<string, unknown>): void => {
       proj.publishSessionFacts({ schema: 1, sessionId: sid, atMs, pendingModel: null, busy: false, ...baseAnswer, ...extra } as never, daemonDir)
-      g.readFacts()
+      factsFeedReads()
     }
     const t0 = Date.now()
     publish(t0, {})

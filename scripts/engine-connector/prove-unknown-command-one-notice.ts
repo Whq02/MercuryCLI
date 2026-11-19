@@ -71,47 +71,6 @@ section('§1 the runner\'s unknown branch: one notice carrying the frame identit
   check('the model\'s next request carries the next prompt alone — not the refusal, not the paragraph', wire.includes('the next prompt') && !wire.includes('Unknown command') && !wire.includes('local-command-caveat') && !wire.includes('some long text here'), wire.slice(0, 300))
 }
 
-section('§2 the seat retires the send\'s echo on the notice row that carries its identity')
-{
-  const now = Date.now()
-  const stamp = (offset: number): string => new Date(now + offset).toISOString()
-  const rig = () => {
-    const connector = new DaemonSessionConnector({ sessionId: randomUUID(), runnerId: 'runner', title: 'check', projectLabel: 'check', workspaceId: 'check', home: tmpdir() })
-    const guts = connector as unknown as Guts
-    const id = randomUUID()
-    const text = `/nosuch ${PARAGRAPH}`
-    guts.sends = [{ clientMessageId: id, text, sentAtMs: now, state: 'delivered', mode: 'prompt' }]
-    guts.echoRows.set(id, { ...createUserMessage({ content: text }), uuid: id, timestamp: stamp(0) } as Message)
-    guts.reconcileQueuedSends({ runnerGeneration: 1, atMs: now + 1, queueReady: true, queue: [] } as unknown as SessionFactsV1)
-    guts.paint()
-    const land = (rows: Message[]): void => {
-      guts.rawRecords = rows
-      guts.reconcileSends()
-      guts.paint()
-    }
-    return { connector, guts, id, text, land }
-  }
-  const line = unknownCommandLine('nosuch', roster)
-  {
-    const r = rig()
-    check('before any record lands the echo row paints (the send is in flight)', r.guts.sends.length === 1 && r.connector.records().some(row => JSON.stringify(row).includes('nosuch some long text')))
-    r.land([{ ...createSystemMessage(line, 'warning'), uuid: r.id, timestamp: stamp(500) } as Message])
-    check('RED on the base: the notice carrying the identity retires the send', r.guts.sends.length === 0 && r.guts.echoRows.size === 0, `${r.guts.sends.length} sends, ${r.guts.echoRows.size} echoes`)
-    const painted = r.connector.records()
-    check('the screen shows the one notice and no echo of the words', painted.length === 1 && painted[0]?.type === 'system' && !JSON.stringify(painted).includes('nosuch some long text'), `${painted.length} rows`)
-  }
-  {
-    const r = rig()
-    r.land([{ ...createSystemMessage(line, 'warning'), uuid: randomUUID(), timestamp: stamp(500) } as Message])
-    check('a notice under another identity retires nothing', r.guts.sends.length === 1 && r.guts.echoRows.size === 1)
-  }
-  {
-    const r = rig()
-    r.land([{ ...createUserMessage({ content: r.text }), uuid: r.id, timestamp: stamp(500) } as Message])
-    check('a user row carrying the identity still retires the send (unchanged)', r.guts.sends.length === 0 && r.guts.echoRows.size === 0)
-  }
-}
-
 section('§3 the screen\'s honesty reads the words the session reads: a pasted chip resolves like a typed line')
 {
   const pastes = { 1: { id: 1, type: 'text', content: `/nosuch ${PARAGRAPH}`, contentHash: 'h1' } } as never

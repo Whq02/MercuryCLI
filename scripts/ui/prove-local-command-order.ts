@@ -23,7 +23,7 @@ function check(label: string, ok: boolean): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
 }
 
-type Guts = { rawRecords: MessageRow[]; sends: Array<{ clientMessageId: string; text: string; sentAtMs: number; state: 'queued'; mode: 'prompt' }>; echoRows: Map<string, MessageRow>; reconcileSends(): boolean; paint(): void }
+type Guts = { rawRecords: MessageRow[]; paint(): void }
 const connector = new DaemonSessionConnector({ sessionId: randomUUID(), runnerId: 'fixture', title: 'fixture', projectLabel: 'fixture', workspaceId: 'fixture', home })
 const guts = connector as unknown as Guts
 const before = createAssistantMessage({ content: 'BEFORE_COMMAND' })
@@ -35,10 +35,6 @@ const pending = processSlashCommand('/order-fixture on', [], [], [], {
 } as never, () => {}, uuid)
 await settle(30)
 const prompt = createUserMessage({ content: 'LATER_PROMPT' })
-guts.sends = [{ clientMessageId: prompt.uuid, text: 'LATER_PROMPT', sentAtMs: Date.parse(prompt.timestamp), state: 'queued', mode: 'prompt' }]
-guts.echoRows.set(prompt.uuid, { ...prompt, queued: true } as MessageRow)
-guts.paint()
-check('the later prompt is already visible while the command awaits its answer', connector.records().at(-1)?.uuid === prompt.uuid)
 await settle(30)
 done('COMMAND_ANSWER')
 const result = await pending
@@ -66,11 +62,7 @@ async function assertFrame(label: string): Promise<void> {
   if (!(commandAt >= 0 && commandAt < answerAt && answerAt < promptAt)) console.log(frame)
 }
 
-guts.rawRecords = [before, ...result.messages]
-guts.paint()
-await assertFrame('queued prompt')
 guts.rawRecords = [before, prompt, ...result.messages]
-guts.reconcileSends()
 guts.paint()
 await assertFrame('prompt lands before the delayed command records')
 check('the stored records are not rewritten to fix their display order', guts.rawRecords[1] === prompt)

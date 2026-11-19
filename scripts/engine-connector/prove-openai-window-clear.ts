@@ -43,12 +43,17 @@ check('a request inside the noted window still reaches and is served by the prov
 const served = openaiWindowFact(reads)
 check('a served response publishes explicit clear instead of omitting the fact', (served as any)?.state === 'clear' && served?.source === source && served.observedAtMs >= at, served)
 state.__resetOpenaiLimitStateForTest()
-const connector: any = new DaemonSessionConnector({ sessionId: 'window-clear-fixture', home, cwd: home } as never)
+let factsFeedReads: () => void = () => {}
+const connector = new DaemonSessionConnector({ sessionId: 'window-clear-fixture', home, cwd: home } as never, {
+  factsRead: (read: () => void) => {
+    factsFeedReads = read
+  },
+})
 const publish = (fact: unknown): void => {
   const decoded = sessionFactsFromWire(sessionFactsToWire({ model: { effective: 'fixture' }, usage: { totalCostUSD: 0, openaiWindow: fact }, skills: [], mcp: [], permissionMode: 'default', workspace: {}, queue: [], work: [], busy: false } as never))
   check('the runner wire preserves the complete window fact', JSON.stringify(decoded?.usage.openaiWindow) === JSON.stringify(fact))
   publishSessionFacts({ ...decoded, schema: 1, sessionId: 'window-clear-fixture', atMs: Date.now() } as never)
-  connector.readFacts()
+  factsFeedReads()
 }
 try {
   publish(refused)

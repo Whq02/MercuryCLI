@@ -134,13 +134,17 @@ section('§4 the wiring, structural')
     })
   const parkedId = '00000000-aaaa-bbbb-cccc-00000000m203'
   says(parkedId, 1)
-  const parked = seat.daemonSessionConnectorFor({ sessionId: parkedId, runnerId: '', title: 'parked fixture', projectLabel: 'proj', workspaceId: scratch, home: scratch })
+  let parkedFeedReads: () => void = () => {}
+  const parked = new seat.DaemonSessionConnector({ sessionId: parkedId, runnerId: '', title: 'parked fixture', projectLabel: 'proj', workspaceId: scratch, home: scratch }, {
+    factsRead: (read: () => void) => {
+      parkedFeedReads = read
+    },
+  })
   const coldSeed = parked.modelFacts().effectiveSource
-  const reads = parked as unknown as { readFacts(): void }
-  reads.readFacts()
+  parkedFeedReads()
   const sameSeed = parked.modelFacts().effectiveSource
   says(parkedId, 2)
-  reads.readFacts()
+  parkedFeedReads()
   const answered = parked.modelFacts().effectiveSource
   const hostedId = '00000000-aaaa-bbbb-cccc-00000000m204'
   says(hostedId, 1)

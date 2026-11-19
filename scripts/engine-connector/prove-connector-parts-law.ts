@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import ts from 'typescript'
 
@@ -13,8 +14,11 @@ const PARTS: Readonly<Record<string, { file: string; type: string }>> = {
   asksPart: { file: 'asks.ts', type: 'AsksPart' },
   carrierPart: { file: 'carrier.ts', type: 'CarrierPart' },
   completionPart: { file: 'completion.ts', type: 'CompletionPart' },
+  deliveryPart: { file: 'delivery.ts', type: 'DeliveryPart' },
+  factsPart: { file: 'facts.ts', type: 'FactsPart' },
   foldPart: { file: 'fold.ts', type: 'FoldPart' },
   livePart: { file: 'live.ts', type: 'LivePart' },
+  sendsPart: { file: 'sends.ts', type: 'SendsPart' },
   tailPart: { file: 'tail.ts', type: 'TailPart' },
   workPart: { file: 'work.ts', type: 'WorkPart' },
 }
@@ -24,10 +28,15 @@ const OF_THE_DOOR: readonly string[] = ['carrier', 'record', 'hands', 'attached'
 const REACHED_BY_PROOFS: readonly string[] = ['textRows', 'liveStateWord']
 
 const AWAITING_THEIR_PART: Readonly<Record<string, readonly string[]>> = {
-  facts: ['facts', 'factsBusy', 'modelListeners', 'permissionListeners'],
-  sends: ['sends', 'echoRows', 'deliveredNotices', 'sendSeq', 'textRetiredRowUuids', 'retainedSend', 'runnerGeneration', 'lostLineNotice', 'settleWaiters'],
   transcript: ['rawRecords', 'recordSigs', 'painted', 'keptRecords', 'answeredRows', 'liveState', 'displayRows', 'clearModelReceipt', 'rowsAfterTail', 'lastSize', 'lastLen', 'transcriptUnreadableFp', 'chainCursor', 'liveFold', 'releaseTranscript', 'transcriptWatcher', 'transcriptTimer', 'transcriptTimerMs', 'tickInFlight', 'tickDirty', 'transcriptPath', 'recordListeners'],
 }
+
+const STEPPED_BY_A_HAND: Readonly<Record<string, string>> = { readFacts: 'factsRead' }
+
+const REACHED_THROUGH_A_CAST: ReadonlyArray<{ script: string; name: string; reason: string }> = [
+  { script: 'scripts/engine-connector/prove-parked-resume-freshness.ts', name: 'readFacts', reason: 'the product builds the connector there (focusResumedSession) and nothing is handed at construction' },
+  { script: 'scripts/ui/prove-refused-admission-status.ts', name: 'readFacts', reason: 'the product builds the connector there (focusResumedSession) and nothing is handed at construction' },
+]
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -39,7 +48,8 @@ const slash = (p: string): string => p.split('\\').join('/')
 const rel = (file: string): string => slash(relative(ROOT, file))
 const abs = (file: string): string => join(ROOT, file)
 
-type Law = 'field' | 'accessor' | 'import' | 'reach' | 'list' | 'private' | 'names' | 'needs' | 'built' | 'door' | 'unread' | 'state'
+type Law = 'field' | 'accessor' | 'import' | 'reach' | 'list' | 'private' | 'names' | 'needs' | 'built' | 'door' | 'unread' | 'state' | 'cast'
+type Script = { file: string; text: string }
 type Finding = { law: Law; at: string; what: string }
 type Planted = Readonly<Record<string, (text: string, source: ts.SourceFile) => string>>
 type Carried = { kind: 'class' | 'call'; name: string }
@@ -374,11 +384,55 @@ function read(program: ts.Program, door: 'read' | 'declarations only' = 'declara
   return found
 }
 
+function scriptsOnDisk(): Script[] {
+  const out: Script[] = []
+  for (const name of readdirSync(abs('scripts'), { recursive: true }) as string[]) {
+    const file = `scripts/${slash(name)}`
+    if (!/\.(?:[cm]?ts|tsx|[cm]?js)$/.test(file) || file.includes('/node_modules/')) continue
+    out.push({ file, text: readFileSync(abs(file), 'utf8') })
+  }
+  return out
+}
+
+function castsIn(scripts: readonly Script[]): Finding[] {
+  const found: Finding[] = []
+  const names = Object.keys(STEPPED_BY_A_HAND)
+  const reached = new Set<string>()
+  for (const script of scripts) {
+    if (!names.some(name => script.text.includes(name))) continue
+    const source = ts.createSourceFile(script.file, script.text, ts.ScriptTarget.ES2022, true, script.file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+    const first = new Map<string, number>()
+    const visit = (node: ts.Node): void => {
+      const name = ts.isPropertyAccessExpression(node)
+        ? node.name.text
+        : ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)
+          ? node.argumentExpression.text
+          : (ts.isPropertySignature(node) || ts.isMethodSignature(node)) && (ts.isIdentifier(node.name) || ts.isStringLiteralLike(node.name))
+            ? node.name.text
+            : undefined
+      if (name !== undefined && names.includes(name) && !first.has(name)) first.set(name, source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1)
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+    for (const [name, line] of first) {
+      reached.add(`${script.file} ${name}`)
+      if (REACHED_THROUGH_A_CAST.some(row => row.script === script.file && row.name === name)) continue
+      const hand = STEPPED_BY_A_HAND[name]!
+      found.push({ law: 'cast', at: `${script.file}:${line}`, what: `the script reaches ${name} of the connector as a member, through a cast: a proof steps the door by what it hands in at construction; hand in ${hand}, new DaemonSessionConnector(record, { ${hand}: read => { … } }), and call the read it is handed` })
+    }
+  }
+  for (const row of REACHED_THROUGH_A_CAST) {
+    if (!reached.has(`${row.script} ${row.name}`)) found.push({ law: 'list', at: SELF, what: `the list of scripts that reach a private name of the door through a cast holds ${row.script} for ${row.name} and the script no longer reaches it: take the row off the list, which only falls` })
+  }
+  return found
+}
+
 const told = (found: readonly Finding[]): string => found.map(f => `\n      ${f.at} ${f.what}`).join('')
 const lawsOf = (found: readonly Finding[]): string => [...new Set(found.map(f => f.law))].sort().join(' ')
 
 const tally: Tally = { members: 0, built: 0, bindings: 0, files: 0 }
-const standing = read(estate, 'read', tally)
+const onDisk = scriptsOnDisk()
+const standing = [...read(estate, 'read', tally), ...castsIn(onDisk)]
 const stands = new Set(standing.map(f => `${f.law}\n${f.what}`))
 const planted = (program: ts.Program, door: 'read' | 'declarations only' = 'declarations only'): Finding[] => read(program, door).filter(f => !stands.has(`${f.law}\n${f.what}`))
 
@@ -469,6 +523,18 @@ section('§1 the law on planted trees: each plant is refused by its own line')
   check('state kept beside the class in a part file, a let or a const that holds a collection, is refused by its line', lawsOf(state) === 'state' && state.length === 2 && state[0]!.at === `${firstFile}:1` && state[0]!.what.includes('plantedByTheLaw (let)') && state[1]!.at === `${firstFile}:3` && state[1]!.what.includes('plantedKept'), told(state))
   const shared = planted(programWith({ [firstFile]: intoClass(first.type, '\n  private static plantedCount = 0') }))
   check('…and so is a static field a part could count in', lawsOf(shared) === 'state' && only(shared, 'state', `${firstFile}:${classLine(firstFile, first.type)}`, 'plantedCount'), told(shared))
+
+  const plantedScript = 'scripts/engine-connector/prove-planted-by-the-law.ts'
+  const fresh = (found: readonly Finding[]): Finding[] => found.filter(f => !stands.has(`${f.law}\n${f.what}`))
+  const called = fresh(castsIn([...onDisk, { file: plantedScript, text: 'const door = {} as unknown\n;(door as { readFacts(): void }).readFacts()\n' }]))
+  check('a script that calls the facts read of a connector through a cast is refused by its line, with the hand to take', lawsOf(called) === 'cast' && only(called, 'cast', `${plantedScript}:2`, 'hand in factsRead'), told(called))
+  const keyed = fresh(castsIn([...onDisk, { file: plantedScript, text: "const door: any = {}\n\ndoor['readFacts']()\n" }]))
+  check('…and so is one that reaches it through brackets', lawsOf(keyed) === 'cast' && only(keyed, 'cast', `${plantedScript}:3`, 'hand in factsRead'), told(keyed))
+  const own = fresh(castsIn([...onDisk, { file: plantedScript, text: 'const readFacts = (): number => 1\nreadFacts()\n' }]))
+  check('a script that calls a function of its own under that name passes', own.length === 0, told(own))
+  const listed = REACHED_THROUGH_A_CAST[0]
+  const let_go = listed === undefined ? [] : fresh(castsIn(onDisk.map(script => (script.file === listed.script ? { file: script.file, text: '' } : script))))
+  check('a listed script that no longer reaches the name is told to leave the list', listed === undefined || (lawsOf(let_go) === 'list' && let_go.length === 1 && let_go[0]!.what.includes(listed.script)), told(let_go))
 }
 
 section('§2 the estate: the class holds the parts and what the door needs; the parts stand behind the one door and hold what they were handed')
@@ -491,6 +557,7 @@ section('§2 the estate: the class holds the parts and what the door needs; the 
   check(`one door: no file of src outside ${PARTS_DIR}/ but the door imports a part (${tally.files} files of src read)`, by('door').length === 0 && tally.files > 0, told(by('door')))
   check(`every file under ${PARTS_DIR}/ is imported by the door, itself or through a file of that folder (${partFiles(estate).length} files)`, by('unread').length === 0, told(by('unread')))
   check(`no file under ${PARTS_DIR}/ keeps state beside its class (${tally.bindings} module-level bindings and statics read)`, by('state').length === 0, told(by('state')))
+  check(`no script reaches a read of the door through a cast but the listed (${onDisk.length} scripts read; ${REACHED_THROUGH_A_CAST.length} listed: ${REACHED_THROUGH_A_CAST.map(row => `${row.script} reaches ${row.name}, ${row.reason}`).join(' · ') || 'none'})`, by('cast').length === 0 && onDisk.length > 0, told(by('cast')))
   const methods = connector.members.filter(ts.isMethodDeclaration)
   const privates = methods.filter(method => (ts.getCombinedModifierFlags(method) & ts.ModifierFlags.Private) !== 0).length
   const lines = (n: ts.Node, source: ts.SourceFile): number => source.getLineAndCharacterOfPosition(n.getEnd()).line - source.getLineAndCharacterOfPosition(n.getStart(source)).line + 1

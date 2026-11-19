@@ -259,7 +259,8 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     readonly home: string
     readonly transcriptPath: string
     readonly connector: InstanceType<typeof DaemonSessionConnector>
-    private readonly guts: { attached: boolean; tick: () => Promise<void>; readFacts: () => void; readTail: () => void; readAsks: () => void }
+    private readonly guts: { attached: boolean; tick: () => Promise<void>; readTail: () => void; readAsks: () => void }
+    private factsFeedReads: () => void = () => {}
     private carrierBroken: string | null = null
     private readonly ids = new Map<string, string>()
     private readonly last = new Map<string, string>()
@@ -284,6 +285,9 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
         {
           rpc: (req: Reply, timeoutMs: number) => (this.carrierBroken === null ? carrierCall(req, timeoutMs) : carrierThrows(this.carrierBroken)),
           ...(watcher === 'real' ? {} : { armTranscriptWatcher: () => {} }),
+          factsRead: (read: () => void) => {
+            this.factsFeedReads = read
+          },
         },
       )
       this.guts = this.connector as unknown as Harness['guts']
@@ -504,7 +508,7 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
 
     facts(patch: Record<string, unknown> = {}, script: ScriptedReply[] = []): Promise<void> {
       this.publishFacts(patch)
-      return this.step(`facts ${JSON.stringify(this.mask(patch))}`, script, () => this.guts.readFacts.call(this.connector))
+      return this.step(`facts ${JSON.stringify(this.mask(patch))}`, script, () => this.factsFeedReads())
     }
 
     publishFacts(patch: Record<string, unknown> = {}): void {
@@ -513,7 +517,7 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     }
 
     rereadFacts(label = 'the same facts are read again'): Promise<void> {
-      return this.step(label, [], () => this.guts.readFacts.call(this.connector))
+      return this.step(label, [], () => this.factsFeedReads())
     }
 
     rereadAsks(): Promise<void> {
@@ -527,7 +531,7 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     dropFacts(): Promise<void> {
       return this.step('the facts file is gone', [], () => {
         rmSync(projections.sessionFactsPath(this.sessionId, daemonDir), { force: true })
-        this.guts.readFacts.call(this.connector)
+        this.factsFeedReads()
       })
     }
 

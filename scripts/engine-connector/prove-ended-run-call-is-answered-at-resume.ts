@@ -49,11 +49,16 @@ const watchdog = setTimeout(() => {
 watchdog.unref?.()
 
 type Facts = { schema: 1; sessionId: string; atMs: number; busy: boolean; runnerGeneration: number; queue: unknown[]; pendingModel: null; turnStartedAt?: number; transcriptStoreFailing?: string }
-type Guts = { attached: boolean; tick: () => Promise<void>; readFacts: () => void }
+type Guts = { attached: boolean; tick: () => Promise<void> }
 
 const sid = bootstrap.getSessionId()
 const file = getTranscriptPathForSession(sid)
-const connector = new DaemonSessionConnector({ sessionId: sid, home: dirname(file), workspaceId: '/tmp', title: 'rig', projectLabel: 'p' } as never)
+let factsFeedReads: () => void = () => {}
+const connector = new DaemonSessionConnector({ sessionId: sid, home: dirname(file), workspaceId: '/tmp', title: 'rig', projectLabel: 'p' } as never, {
+  factsRead: (read: () => void) => {
+    factsFeedReads = read
+  },
+})
 const g = connector as unknown as Guts
 const write = async (rows: unknown[]): Promise<void> => {
   await recordTranscript(rows as never)
@@ -77,7 +82,7 @@ connector.subscribeRecords(() => {
 })
 const told = (facts: Facts): readonly Message[] => {
   publishSessionFacts({ ...answer, ...facts } as never)
-  g.readFacts.call(connector)
+  factsFeedReads()
   return connector.records()
 }
 const paintsOver = (reads: Facts[]): number => {
@@ -170,7 +175,7 @@ check('the scene: the record holds the build call and no result for it', callAt(
 
 section('A — not known yet, and a turn that is live: the call paints as it does today')
 {
-  g.readFacts.call(connector)
+  factsFeedReads()
   const unknown = connector.records()
   check('A1 before the runner has said anything the call has no result painted', answersTo(unknown, BUILD).length === 0, tail(unknown))
   const live = told(facts(true, replyAt + 500, replyAt - 2_000))

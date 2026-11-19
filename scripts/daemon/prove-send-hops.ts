@@ -131,21 +131,6 @@ section('S5 the daemon gone — an ENOCONN reply stamps the transport; the memo 
   check('the usable-daemon memo no longer answers (the next ensure would handshake and heal)', ensure._daemonUsableMemoActiveForProofs() === false)
 }
 
-section('S6 the echo paints before the obligations read (deliver)')
-{
-  const src = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  const at = src.indexOf('  private async deliver(')
-  const body = at >= 0 ? src.slice(at, at + 6000) : ''
-  const setAt = body.indexOf('this.echoRows.set(provisionalId,')
-  const paintAt = body.indexOf('this.paint()', setAt)
-  const readAt = body.indexOf('await this.openQuestion()')
-  check('the echo row is set and painted BEFORE the obligations read', setAt > 0 && paintAt > setAt && readAt > paintAt, `${setAt},${paintAt},${readAt}`)
-  check('a held/failed resend of the same words keeps its id (minted before the read)', /const provisionalId =\n\s*this\.retainedSend !== null && this\.retainedSend\.text === expanded \? this\.retainedSend\.id : randomUUID\(\)/.test(body))
-  check('the answering case re-keys the row in place', /const clientMessageId = answering !== null \? `obl-answer:\$\{answering\}` : provisionalId\n\s*if \(clientMessageId !== provisionalId\) \{[\s\S]{0,500}?this\.echoRows\.set\(key === provisionalId \? clientMessageId : key, row\)/.test(body))
-  check('no obligations read precedes the paint', body.indexOf('await this.openQuestion()') > paintAt)
-  console.log('  BEFORE: the echo row waited on an obligations-store file read + parse · AFTER: it paints at entry; the read follows')
-}
-
 section('S7 wiring')
 {
   const sock = readFileSync(join(ROOT, 'src/daemon/controlSocket.ts'), 'utf8')

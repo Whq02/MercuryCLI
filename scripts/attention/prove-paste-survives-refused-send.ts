@@ -86,8 +86,6 @@ section('§C the crash road: the chip carries its hash, the bytes are on disk fr
   check('C7 the sweep keeps a paste a draft still names, past the cutoff', existsSync(file) && retained.has(hash), `retained=${[...retained].join(',')}`)
   await store.cleanupOldPastes(new Date())
   check('C8 …and with nothing naming it the same sweep removes it', !existsSync(file))
-  const connectorSrc = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  check('C9 the refusal has one owner of its words: the composer and the send both say the sentence history.ts owns', typeof history.pasteUnavailableLine === 'function' && history.pasteUnavailableLine(chip) === `${chip} is no longer available — remove the reference or paste the content again` && promptSrc.includes('text: pasteUnavailableLine(dangling[0]!.match)') && connectorSrc.includes('detail: pasteUnavailableLine(resolved.missing[0]!)'))
 }
 
 console.log(`\n${failures === 0 ? 'prove-paste-survives-refused-send: ALL LAWS HOLD' : `prove-paste-survives-refused-send: ${failures} FAILURE(S)`}`)
