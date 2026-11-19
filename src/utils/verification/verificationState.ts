@@ -535,7 +535,9 @@ function scanTreePrivateSync(cwd: string, rec: TreeScanRecord): string | null {
     gitTextSync(cwd, env, ['read-tree', 'HEAD'])
     stageSync(cwd, env, rec)
     return gitTextSync(cwd, env, ['write-tree', '--missing-ok', ...prefixArg(rec)]).trim() || null
-  } catch {
+  } catch (err) {
+    rec.fault = faultFrom(err, rec)
+    noticeOnce(rec, `tree unmeasured — ${rec.fault.detail}`)
     return null
   } finally {
     rmSync(idxDir, { recursive: true, force: true })
@@ -561,18 +563,22 @@ function accountScan(rec: TreeScanRecord, ms: number, digest: string | null): vo
   }
 }
 
-function recordFault(rec: TreeScanRecord, err: unknown): void {
+function faultFrom(err: unknown, rec: TreeScanRecord): NonNullable<TreeScanRecord['fault']> {
   const e = err instanceof GitStepError ? err : new GitStepError('scan', String(err), false)
   const seconds = scanTimeoutMs() / 1000
   const detail = e.timedOut
     ? `the scan timed out after ${seconds < 1 ? seconds.toFixed(1) : Math.round(seconds)} s over ${fmtCount(rec.fileCount)} files (git ${e.step})`
     : e.message.slice(0, 160)
-  rec.fault = { kind: e.timedOut ? 'timeout' : 'error', detail, at: Date.now() }
+  return { kind: e.timedOut ? 'timeout' : 'error', detail, at: Date.now() }
+}
+
+function recordFault(rec: TreeScanRecord, err: unknown): void {
+  rec.fault = faultFrom(err, rec)
   rec.lastScanAt = Date.now()
   rec.lastDigest = null
   rec.minIntervalMs = Math.min(SCAN_INTERVAL_CAP_MS, Math.max(SCAN_INTERVAL_FLOOR_MS, rec.minIntervalMs * 2))
-  if (!e.timedOut) rmSync(rec.indexFile, { force: true })
-  noticeOnce(rec, `tree unmeasured — ${detail}`)
+  if (rec.fault.kind !== 'timeout') rmSync(rec.indexFile, { force: true })
+  noticeOnce(rec, `tree unmeasured — ${rec.fault.detail}`)
 }
 
 function noticeCeiling(rec: TreeScanRecord): void {
@@ -733,7 +739,8 @@ function persist(cwd: string, state: OwnerVerificationState): void {
     if (workspaceEvidenceOptIn()) {
       durableAtomicPublishSync(workspaceEvidencePath(cwd), payload)
     }
-  } catch {
+  } catch (err) {
+    logForDebugging(`[verify] the evidence could not be saved, so a resumed session asks for verification again: ${String(err)}`, { level: 'warn' })
   }
 }
 
