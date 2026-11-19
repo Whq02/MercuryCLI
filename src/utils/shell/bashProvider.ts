@@ -31,6 +31,8 @@ function shellPrefix(): string {
 
 let frameFiles = 0
 
+const UTF8_CONSOLE = '{ chcp.com 65001 >/dev/null 2>&1 || true; }'
+
 function msysSpawnArgs(commandString: string, noLoginFiles: boolean): string[] {
   const script = protectBackslashRunsFromMsysArgv(commandString)
   return noLoginFiles ? ['-c', script] : ['-c', '-l', script]
@@ -93,6 +95,7 @@ export async function createBashShellProvider(
       if (sessionScript) parts.push(sessionScript)
       const preamble = getGlobPreambleCommand(record.origin)
       if (preamble) parts.push(preamble)
+      if (isWindows) parts.push(UTF8_CONSOLE)
       parts.push(`eval ${quotedCommand}`)
       parts.push(`{ { pwd -P >| ${quote([cwdFileInShell])}; } 2>/dev/null || true; }`)
       if (isWindows) {
