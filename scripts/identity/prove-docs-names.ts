@@ -786,7 +786,7 @@ async function buildVocab(): Promise<Vocab> {
   }
   const pkg = JSON.parse(readText('package.json')) as { scripts: Record<string, string> }
 
-  const oauth = readText('src/components/ConsoleOAuthFlow.tsx')
+  const oauth = readText('src/components/consoleOAuth/readiness.tsx')
   const rows = oauth.match(/READINESS_ROWS[^=]*=\s*\[([\s\S]*?)\n\]/)?.[1] ?? ''
   const ids = [...rows.matchAll(/id:\s*'([a-z-]+)'/g)].map(m => m[1] ?? '')
   const providerCount = ids.filter(id => id !== 'local' && id !== 'openai-compat').length
