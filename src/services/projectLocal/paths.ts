@@ -1,7 +1,11 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
+import { errorMessage } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, projectConfigDirs } from '../../utils/projectConfig.js'
+
+let homeUnknownSaid = false
 
 export function projectLocalDir(root: string): string {
   return join(root, MERCURY_PROJECT_DIR)
@@ -22,7 +26,11 @@ export function initializeProjectLocalEstate(root: string): { dir: string; creat
   let home = ''
   try {
     home = resolve(homedir())
-  } catch {
+  } catch (error) {
+    if (!homeUnknownSaid) {
+      homeUnknownSaid = true
+      logError(new Error(`the home folder could not be told (${errorMessage(error)}), so a project estate is made without checking that its folder is not the home`))
+    }
   }
   if (home !== '' && absolute === home) return null
   if (projectLocalEstateExists(root)) return { dir: projectLocalDir(root), created: false }
