@@ -115,7 +115,7 @@ try {
         return text
       }
       const record = read(built.cwdFilePath).trim().split(/\r?\n/).filter(line => line !== '')
-      const pipeline = read(built.pipelineStatusPath).trim()
+      const pipeline = read(built.pipelineStatusPath).trim().split(/\s+/).join(' ')
       read(built.jobsPath)
       if (handed.file !== undefined) rmSync(handed.file.path, { force: true })
       return { ...ran, viaFile: handed.file !== undefined, startedIn, record, pipeline }
