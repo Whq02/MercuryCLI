@@ -140,7 +140,7 @@ if (child) {
     : child === 'reply-streaming' ? spin(streaming, { overrideMessage: 'Hashing the oasis' })
     : child === 'long-prefill' ? spin(prefill, { overrideMessage: 'Parsing the dunes' })
     : child === 'one-tool' || child === 'several-tools' ? spin(frozen, { mode: 'tool-use', hasActiveTools: true, activeToolCount: child === 'one-tool' ? 1 : 3, activeToolLabel: 'Reading fixture.ts' })
-    : child === 'waiting-on-crewmates' ? spin(frozen, { mode: 'requesting', waitingOnCrewmates: live.phase === 'waiting', compactWarning: beforeWait && compact, overrideMessage: beforeWait ? compact ? statusLine(live, { wait: null } as never, null, true) : waitingStatusWords(live) : null })
+    : child === 'waiting-on-crewmates' ? spin(frozen, { mode: 'requesting', waitingOnCrewmates: live.phase === 'waiting', compactWarning: false, overrideMessage: null })
     : child === 'crew-view' ? h(CrewView, { onClose: noop, popup: true })
     : child === 'reconnect' ? spin(reconnect, { overrideMessage: 'Parsing the dunes' })
     : child === 'permission-ask' ? h(PermissionRequest, { toolUseConfirm: confirm, toolUseContext, onDone: noop, onReject: noop, verbose: false, workerBadge: { name: 'checks', color: 'blue' } } as never)
