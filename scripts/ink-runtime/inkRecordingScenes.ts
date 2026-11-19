@@ -55,12 +55,15 @@ async function loadProduct() {
   const ledger = await import('../../src/ink/root/terminalModeLedger.ts')
   const log = await import('../../src/utils/log.ts')
   const doors = await import('../../src/utils/process.ts')
+  const flux = await import('../../src/utils/flux/fluxProbe.ts')
+  const governor = await import('../../src/utils/cockpit/motionGovernor.ts')
+  const session = await import('../../src/bootstrap/state.ts')
   const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
   const home = getMercuryHome()
   hide(home, '<the config home>')
   if (home.startsWith(homedir() + sep)) hide(`~${home.slice(homedir().length)}`, '<the config home>')
   const h = React.createElement as unknown as (type: unknown, props?: Record<string, unknown> | null, ...children: unknown[]) => ReactNode
-  return { React, h, Ink: unit.default, unit, instances, Box, Text, Link, ScrollBox, AlternateScreen, NoSelect, useInput, useDeclaredCursor, ledger, log, doors }
+  return { React, h, Ink: unit.default, unit, instances, Box, Text, Link, ScrollBox, AlternateScreen, NoSelect, useInput, useDeclaredCursor, ledger, log, doors, flux, governor, session }
 }
 
 type Product = Awaited<ReturnType<typeof loadProduct>>
@@ -92,6 +95,8 @@ function selectionWords(ink: InkClass): string {
   return `anchor=${at(s.anchor)} focus=${at(s.focus)} dragging=${yn(s.isDragging)} span=${span} band=${band} alt-press=${yn(s.lastPressHadAlt)} off=${s.scrolledOffAbove.length}/${s.scrolledOffBelow.length} has=${yn(ink.hasTextSelection())}`
 }
 
+const touchedWords = (at: number): string => (at >= 1_700_000_000_000 ? `${at - 1_700_000_000_000} ms into the scene` : 'before the scene')
+
 const sgr = (button: number, col: number, row: number, up = false): string => `\u001b[<${button};${col + 1};${row + 1}${up ? 'm' : 'M'}`
 
 class Play {
@@ -103,6 +108,8 @@ class Play {
   frameHook: ((event: FrameEvent) => void) | null = null
   private readonly last = new Map<string, string>()
   private errorsSeen = 0
+  private pools: unknown = null
+  private poolsSeen = 0
 
   constructor(readonly the: Product, readonly folder: string) {}
 
@@ -112,7 +119,7 @@ class Play {
 
   mount(columns: number, rows: number, knobs: MountKnobs = {}): InkClass {
     this.out = new StageScreen('out', columns, rows, knobs.ttyOut ?? true)
-    this.err = new StageScreen('err', columns, rows, knobs.ttyOut ?? true)
+    this.err = new StageScreen('err', columns + 7, rows + 3, false)
     this.keys = new StageKeys(knobs.ttyIn ?? true)
     const options: Options = {
       stdout: this.out as never,
@@ -153,6 +160,8 @@ class Play {
         `alt=${yn(ink.isAltScreenActive)} mouse=${yn(ink.isMouseTrackingEnabled())} prefers=${yn(ink.isMouseTrackingPreferred())} wheel=${yn(ink.isWheelReportingConfirmed())} entry=${yn(ink.isAltEntryPending())} reasserts=${ink.screenReassertCount} exit=${ink.exitOutcome?.kind ?? 'none'}`,
       ],
       ['stdin', this.keys.words()],
+      ['pools', this.poolsWords()],
+      ['touched', touchedWords(this.the.session.getLastInteractionTime())],
       ['timers', pendingTimers() || 'none'],
       ['selection', selectionWords(ink)],
       ['screen', screenWords(ink.lastFrameText())],
@@ -165,6 +174,13 @@ class Play {
     const errors = this.the.log.getInMemoryErrors()
     for (const entry of errors.slice(this.errorsSeen)) note(`  an error is logged: ${escaped(entry.error.split('\n')[0]!)}`)
     this.errorsSeen = errors.length
+  }
+
+  private poolsWords(): string {
+    const now = (this.ink as unknown as { charPool: unknown }).charPool
+    if (now !== this.pools) this.poolsSeen++
+    this.pools = now
+    return `the ${this.poolsSeen}. set`
   }
 
   async step(title: string, act?: () => unknown): Promise<void> {
@@ -374,6 +390,8 @@ async function resizeBetweenFrames(p: Play): Promise<void> {
   await p.wait(16)
   await p.step('the terminal grows, and the tree is unmounted before it settles', () => p.out.resizes(40, 10))
   await p.end()
+  await p.step('the terminal resizes after the unmount', () => p.out.resizes(50, 12))
+  await p.wait(200)
 }
 
 async function resizeOnTheMainScreen(p: Play): Promise<void> {
@@ -600,6 +618,7 @@ async function declaredCursor(p: Play, onAlt: boolean): Promise<void> {
   await p.paint('the cursor moves two cells with nothing else changed', tree(5, true))
   await p.paint('a second field that declares nothing mounts', tree(5, true, true))
   await p.paint('the text changes while the cursor stays', frame(p.h(p.the.Box, { flexDirection: 'column' }, p.h(p.the.Text, null, 'ABOVE'), p.h(Field, { p, line: 0, column: 5, active: true, label: 'field one' }))))
+  await p.paint('the field declares the cursor far beyond the right edge', tree(99, true))
   await p.paint('the field gives the cursor up', tree(5, false))
   await p.paint('and takes it again', tree(1, true))
   await p.paint('the field is hidden, and still declares', frame(p.h(p.the.Box, { flexDirection: 'column' }, p.h(p.the.Text, null, 'above'), p.h(p.the.Box, { display: 'none' }, p.h(Field, { p, line: 0, column: 1, active: true, label: 'field one' })))))
@@ -1478,15 +1497,23 @@ async function smallDoors(p: Play): Promise<void> {
     p.ink.setAltScreenActive(true)
   })
   await p.step('the watchdog is armed, and five frames change nothing', () => p.ink.armScreenWatchdog())
-  for (let turn = 0; turn < 6; turn++) await p.step('a frame is asked for', () => p.ink.onRender())
+  for (let turn = 0; turn < 12; turn++) await p.step('a frame is asked for', () => p.ink.onRender())
   await p.step('the watchdog is armed, and a frame changes a cell among them', () => p.ink.armScreenWatchdog())
   for (let turn = 0; turn < 3; turn++) await p.step('a frame is asked for', () => p.ink.onRender())
   await p.paint('a cell changes', tree('doors'))
   for (let turn = 0; turn < 12; turn++) await p.step('a frame is asked for', () => p.ink.onRender())
+  await p.wait(30_000)
+  await p.paint('a cell changes after thirty idle seconds to the millisecond', tree('d00rs'))
+  await p.wait(29_985)
+  await p.paint('a cell changes one millisecond later than that', tree('doors'))
   await p.wait(31_000)
-  await p.paint('a cell changes after thirty idle seconds', tree('d00rs'))
+  await p.paint('a cell changes after thirty-one idle seconds', tree('d00rs'))
   await p.wait(300_000)
   await p.paint('a cell changes after five idle minutes', tree('doors'))
+  await p.step('methods are called loose from the instance', () => {
+    const { arrowKeysOwned, isMouseTrackingEnabled, hasTextSelection, lastFrameText, isAltEntryPending } = p.ink
+    note(`  owned ${yn(arrowKeysOwned())}, tracking ${yn(isMouseTrackingEnabled())}, selected ${yn(hasTextSelection())}, pending ${yn(isAltEntryPending())}, the frame ${escaped(JSON.stringify(lastFrameText().replace(ANSI, '').trim()))}`)
+  })
   await p.step('the pools are reset by hand', () => p.ink.resetPools())
   await p.paint('a cell changes after it', tree('d00rs'))
   await p.step('a frame is asked for from inside a frame', () => {
@@ -1803,7 +1830,8 @@ export const SCENES: readonly Scene[] = [
   { name: 'the test environment', world: 'test', play: testEnvironment },
   { name: 'every tee open', world: 'atomic', tees: TEE_NAMES, probe: 'needle', play: everyTee },
   { name: 'the tree dump alone, and a tee that cannot be written', world: 'plain', tees: ['INK_TREE_DUMP'], env: folder => ({ INK_COMMIT_TEE: join(folder, 'no such folder', 'tee') }), play: treeDumpAlone },
-  { name: 'the write tee alone on the main screen', world: 'plain', tees: ['INK_WRITE_TEE'], play: mainScreenUpdates },
+  { name: 'the write tee and the composed tee on the main screen', world: 'plain', tees: ['INK_WRITE_TEE', 'INK_COMPOSED_TEE'], play: mainScreenUpdates },
+  { name: 'a frame that burns a cost pad', world: 'plain', env: () => ({ MERCURY_FRAME_COST_PAD_MS: '0.001' }), play: firstPaint },
   { name: 'the commit tee over trees of other shapes', world: 'plain', tees: ['INK_COMMIT_TEE'], play: commitTeeShapes },
   { name: 'a component throws while rendering', world: 'plain', play: componentThrows },
   { name: 'a component throws once in a transition', world: 'plain', play: componentRecovers },
@@ -1817,7 +1845,7 @@ export async function playScene(name: string, fd1File: string | null, folder: st
   const clipboard = join(folder, 'clipboard')
   const home = join(folder, 'home')
   mkdirSync(home)
-  Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_CLIPBOARD_FILE: clipboard }, scene.env?.(folder) ?? {})
+  Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_CLIPBOARD_FILE: clipboard, MERCURY_FLUX_PROBE: '1' }, scene.env?.(folder) ?? {})
   for (const tee of scene.tees ?? []) process.env[tee] = join(folder, tee)
   if (scene.probe !== undefined) process.env.INK_TEE_PROBE = scene.probe
   installStage(fd1File)
@@ -1835,6 +1863,14 @@ export async function playScene(name: string, fd1File: string | null, folder: st
   const milestones = join(home, 'launch-milestones.json')
   const reached = existsSync(milestones) ? (JSON.parse(readFileSync(milestones, 'utf8')) as { rows: Array<{ milestone: string }> }).rows.map(row => row.milestone) : []
   note(`the launch milestones written: ${reached.join(', ') || 'none'}`)
+  const dump = the.flux.fluxProbeDump()
+  const marks = new Map<string, number>()
+  for (const mark of dump.allMarks) marks.set(`${mark.k}=${mark.v}`, (marks.get(`${mark.k}=${mark.v}`) ?? 0) + 1)
+  note(`the probe counted: ${Object.entries(dump.counters).map(([name, count]) => `${name} ${count}`).join(', ') || 'nothing'}`)
+  note(`the probe marked: ${[...marks].map(([mark, count]) => `${mark} x${count}`).join(', ') || 'nothing'}`)
+  note(`the probe saw ${dump.frames.total} frames, the longest of ${ticks(dump.frames.maxMs)} clock reads`)
+  const facts = the.governor.motionGovernorFacts()
+  note(`the motion governor: ${facts.framesSeen} frames seen, level ${facts.level}, trip ${String(facts.trip)}`)
   const out = recorded().join('\n').split('\n')
   leaveStage()
   return out
