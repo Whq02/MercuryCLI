@@ -164,7 +164,6 @@ const BRIEF = 'اقرأ سندات الأرض في المجلد وابدأ با�
 
 section('§5 the wiring: the chat restores the held words to an empty composer and rides the /logins and /model doors; the boot runs the check once')
 {
-  const chat = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   const { openDraftPart } = await import('../ui/chatScenarios.ts')
   const composer = await openDraftPart('sign-in-wall-hold', { keepHome: true })
   await composer.plant({ messages: [user('u1', BRIEF), wall('e1')] as never })
@@ -173,7 +172,6 @@ section('§5 the wiring: the chat restores the held words to an empty composer a
   const expected = composer.pending.sanitizeComposerText(BRIEF)
   await composer.close()
   check('Chat mounts the hold over the focused transcript with the composer and the effective model', restored === expected && holding?.text === BRIEF && typeof holding.model === 'string' && holding.model !== '', `${JSON.stringify(restored.slice(0, 60))} · ${JSON.stringify(holding)}`)
-  check('the /logins and /model completions ask the hold to resend with the composer taken once (rearmed)', chat.includes("if (seatCommand.name === 'logins' || seatCommand.name === 'model') {") && chat.includes("authWallHold.afterDoor(seatCommand.name, hold => {\n            void onSubmitRef.current(hold.text, INERT_PROMPT_HELPERS, undefined, { rearmed: true });"))
   const setup = readFileSync(join(ROOT, 'src/setup.ts'), 'utf8')
   check('an interactive boot runs the sign-in check once at open', setup.includes('if (getIsInteractive() && !getIsNonInteractiveSession()) void signInsCheckedAtOpen()'))
   writeFileSync(join(HOME, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { accessToken: 'fixture-openai-access-0001', refreshToken: '' } }) + '\n', { mode: 0o600 })

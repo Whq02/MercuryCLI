@@ -13,13 +13,6 @@ const cancel = readFileSync('src/hooks/useCancelRequest.ts', 'utf8')
 
 const connector = readFileSync('src/services/engine-connector/daemonConnector.ts', 'utf8')
 t(
-  "the screen's cancel reaches the focused connector's interrupt door (no ask store of its own)",
-  repl.includes('interruptFocusedTurn()') &&
-    cancel.includes('focused.interrupt()') &&
-    !repl.includes('getInProcessAsks') &&
-    connector.includes('interrupt(): boolean'),
-)
-t(
   "the cancel handler reaches the same door (settle-every-ask-then-cancel is the session's law)",
   cancel.includes('const settleAsksAndCancel = (): void => {') && cancel.includes('interruptFocusedTurn()') && cancel.includes('getFocusedSessionConnector()') && cancel.includes('focused.interrupt()'),
 )

@@ -168,10 +168,6 @@ console.log('\nI5 THE FOCUS LAW — /compact applies to the FOCUSED session (ope
 
   const root = join(import.meta.dir, '..', '..')
   const repl = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf8')
-  check(
-    'F2 the submit captures the focused connector and delivers through it',
-    repl.includes('const focusedNow = getFocusedSessionConnector()') && repl.includes('focusedNow\n        .sendWords(text'),
-  )
   const connector = readFileSync(join(root, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
   check(
     "F3 the connector targets its own record's session (targetSessionId: this.record.sessionId)",

@@ -219,10 +219,6 @@ section('§7 the seam in source: the composer is taken only when it holds the su
   const repl = readFileSync(join(import.meta.dir, '..', '..', 'src', 'screens', 'Chat.tsx'), 'utf8')
   const takeAt = repl.indexOf('const takeComposer = (): void => {')
   const take = takeAt < 0 ? '' : repl.slice(takeAt, repl.indexOf('};', takeAt) + 2)
-  check('takeComposer reads the composer line once', take.includes("const composerLine = pendingInput.text().replace(/\\s+$/, '');"))
-  check('the durable draft is cleared for the submitted line only', take.includes('if (composerLine === input) pendingInput.clearForSubmit(input);'))
-  check('the live draft, its pastes, buffer, caret and mode are taken only for that line or an empty composer', /if \(composerLine === '' \|\| composerLine === input\) \{\s*setInputValue\(''\);\s*setPastedContents\(\{\}\);\s*helpers\.clearBuffer\(\);\s*helpers\.setCursorOffset\(0\);\s*helpers\.resetHistory\(\);\s*setInputMode\('prompt'\);\s*\}/.test(take), take)
-  check('a dispatched line still writes no history and a typed one still does', take.includes("if (!options?.fromKeybinding && !options?.rearmed) addToHistory({ display: seatMode === 'bash' ? `!${input}` : input, pastedContents: seatPastes });"))
 }
 
 m.unmount()

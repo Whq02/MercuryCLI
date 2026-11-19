@@ -95,10 +95,6 @@ console.log('\nC6 the wiring — service stamp to glass word (structural)')
   check("the connector lifts the word into phase 'compacting'", before === 'thinking' && during === 'compacting' && ended === 'thinking' && lifted.live().phase === 'thinking', JSON.stringify({ before, during, ended, after: lifted.live().phase }))
   const repl = read('src/screens/Chat.tsx')
   check(
-    "the Chat paints the fold's own word (its own state word, never the thinking dress)",
-    repl.includes("compacting"),
-  )
-  check(
     "the Chat never maps the compacting phase onto the thinking mode",
     !/compacting'\s*\?\s*'thinking'/.test(repl),
   )

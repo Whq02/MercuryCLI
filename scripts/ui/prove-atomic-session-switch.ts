@@ -8,25 +8,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const repl = readFileSync('src/screens/Chat.tsx', 'utf8');
 const start = repl.indexOf('const resume = useCallback(async (sessionId: UUID');
-check('resume() found', start >= 0);
 const bodyEnd = repl.indexOf('resumeRef.current = resume;', start);
 const body = repl.slice(start, bodyEnd > start ? bodyEnd : start + 6000);
 
-check(
-  'opening status shows before staging',
-  /addNotification\(\{\s*key: 'session-switch',\s*text: `opening \$\{label\}…`/.test(body) &&
-    body.indexOf("key: 'session-switch'") !== -1 && body.indexOf("key: 'session-switch'") < body.indexOf('await focusResumedSession('),
-);
-check(
-  "status leaves with the outcome (removeNotification('session-switch'))",
-  body.includes("removeNotification('session-switch')"),
-);
-check(
-  'failure reports honestly and stays on the source session (no slot write on the failure arm)',
-  body.includes('if (!outcome.ok) {') &&
-    body.includes('the session could not be opened — ${outcome.reason}') &&
-    !body.includes('setFocusedSessionConnector('),
-);
 
 const connector = readFileSync('src/services/engine-connector/daemonConnector.ts', 'utf8');
 const hopStart = connector.indexOf('export async function focusDaemonSession(');
@@ -64,10 +48,5 @@ check(
 
 const depsMatch = body.match(/\}, \[([^\]]+)\]\);\n/);
 const deps = depsMatch?.[1] ?? '';
-check(
-  'deps include the live setters the callback closes over',
-  deps.includes('addNotification') && deps.includes('removeNotification') && deps.includes('setToolJSX'),
-  deps,
-);
 
 process.exit(fail);

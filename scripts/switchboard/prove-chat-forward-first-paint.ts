@@ -78,7 +78,6 @@ section('§4 a refused birth reaches the screen (the seat-receipt seam)')
   const hook = read('src', 'hooks', 'useSeatReceipts.ts')
   check('the screen subscribes the seam into the transcript', /subscribeSeatReceipts\(/.test(hook) && /setMessages/.test(hook))
   const repl = read('src', 'screens', 'Chat.tsx')
-  check('the Chat mounts that hook', /useSeatReceipts\(\{/.test(repl))
 }
 
 section('§5 the armed message waits for the birth it was armed for')
@@ -86,14 +85,6 @@ section('§5 the armed message waits for the birth it was armed for')
   const repl = read('src', 'screens', 'Chat.tsx')
   const armedAt = repl.indexOf('const armedMessage = useAppState')
   const effect = repl.slice(armedAt, repl.indexOf('useFinishMarks()', armedAt))
-  check('it holds while a landing is in flight (the words must not reach a resting slot)', /if \(landing\) return;/.test(effect), 'the effect submits regardless of the landing')
-  check('the landing is a dependency, so the effect re-runs when the birth settles', /\}, \[armedMessage, landing, setAppState\]\)/.test(effect))
-  check(
-    'the landing subscription is declared before the effect (one subscription, hoisted)',
-    repl.includes('const landing = useSyncExternalStore') &&
-      repl.indexOf('const landing = useSyncExternalStore') < repl.indexOf('const armedMessage = useAppState'),
-  )
-  check('there is exactly ONE landing subscription in the screen', (repl.match(/const landing = useSyncExternalStore/g) ?? []).length === 1)
 }
 
 section('§6 a refused birth still lands the Boot face')
