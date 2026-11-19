@@ -28,7 +28,6 @@ import type {
   OpenaiFault,
   OpenaiResponsesRequest,
 } from '../openaiWire.js'
-import type { CallModelYield } from '../../callModelContract.js'
 import type { ToolPayloadPlan } from '../../toolEconomy.js'
 import type { BehaviourContract } from '../../../../prompt/behaviourContract.js'
 import type { AttemptOutcome } from './attempt.js'
@@ -71,18 +70,9 @@ export type AttemptFaultOutcome = Extract<AttemptOutcome, { kind: 'fault' }>
 export type AttemptFault = {
   outcome: AttemptFaultOutcome
   typed: NonNullable<AssistantMessage['error']>
-  attempt: number
-  reissueAtServedWord: boolean
   refusedMedia: MediaRefusal | null
   overflow: OverflowSignal | null
-  askedMs: number | undefined
-  wireDetail: string
-  singleShot: boolean
 }
-
-export type FaultStep = { kind: 'go_on' } | { kind: 'next' } | { kind: 'again' } | { kind: 'end' }
-
-export type FaultStepFn = (turn: OpenaiTurn, fault: AttemptFault) => AsyncGenerator<CallModelYield, FaultStep>
 
 export function effortOnWire(turn: OpenaiTurn): EffortStampV1 {
   const { effortTruth, request } = turn

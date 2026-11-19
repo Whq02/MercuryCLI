@@ -1,8 +1,5 @@
 import { settleTranscriptMessage } from '../../../../utils/sessionStorage/writer.js'
 import type {
-  ContentBlock,
-} from '../../../../types/wire.js'
-import type {
   AssistantMessage,
 } from '../../../../types/message.js'
 import { EMPTY_USAGE } from '../../../api/emptyUsage.js'
@@ -12,22 +9,16 @@ import {
 import { addToTotalSessionCost } from '../../../../cost-tracker.js'
 import { calculateUSDCost } from '../../../../utils/modelCost.js'
 import { estimateFaultedRequestUsage } from '../../faultUsageEstimate.js'
-import { emptyReplyChatText, emptyReplyNote, markEmptyReply, type EmptyReplyKind } from '../../emptyReply.js'
-import {
-  loadedToolNamesOf,
-} from '../responsesBridge.js'
-import { logForDebugging } from '../../../../utils/debug.js'
 import type {
   OpenaiCompletedToolCall,
+  OpenaiFault,
   OpenaiFinishReason,
   OpenaiInputItem,
   OpenaiUsage,
 } from '../openaiWire.js'
 import type { RefusedToolCall } from '../../../../types/message.js'
-import { gateToolCalls, refusalAnswersAsToolResult, refusedCallInput, toolCallRefusalDiagnostic, toolCallRefusalNote } from '../../toolCallGate.js'
 import type { StreamEndV1 } from '../../streamIdleBudget.js'
-import type { AttemptBlocks } from './attemptBlocks.js'
-import type { AttemptRead, OpenaiSettledFinish } from './attemptEvents.js'
+import type { OpenaiSettledFinish } from './attemptEvents.js'
 import type { OpenaiAttemptCtx } from './attempt.js'
 
 export function mapOpenaiUsageToAnthropic(usage: OpenaiUsage | undefined, webSearchRequests = 0): typeof EMPTY_USAGE {
@@ -97,125 +88,27 @@ export const FINISH_TO_STOP: Record<OpenaiFinishReason, 'end_turn' | 'tool_use' 
   'other-incomplete': 'end_turn',
 }
 
-export function* settleAttemptToolCalls(ctx: OpenaiAttemptCtx, w: AttemptBlocks, finish: OpenaiSettledFinish | undefined) {
-  const { tools } = ctx
-  const { livePaintComplete, minted, mintBlock, emitSettledBlock, emitNoteBlock } = w
-  const completed = finish?.toolCalls ?? []
-  const accepted: Array<{ call: OpenaiCompletedToolCall; input: Record<string, unknown> }> = []
-  const refused: RefusedToolCall[] = []
-  const answered: Array<{ call: OpenaiCompletedToolCall; refusal: RefusedToolCall }> = []
-  const verdicts = gateToolCalls(
-    tools,
-    completed.map(call => ({
-      id: call.callId,
-      name: call.name,
-      argumentsRaw: call.argumentsRaw,
-      malformed: call.malformed,
-    })),
-    { deferredUnadmitted: ctx.deferredUnadmitted, straightenQuotes: true },
-  )
-  completed.forEach((call, index) => {
-    const verdict = verdicts[index]!
-    if (verdict.ok) accepted.push({ call, input: verdict.input })
-    else if (finish?.reason !== 'max_output_tokens' && refusalAnswersAsToolResult(verdict.refusal)) answered.push({ call, refusal: verdict.refusal })
-    else refused.push(verdict.refusal)
-  })
-  for (const [index, call] of completed.entries()) {
-    const verdict = verdicts[index]!
-    const refusal = verdict.ok ? undefined : answered.find(entry => entry.call === call)?.refusal
-    if (!verdict.ok && refusal === undefined) continue
-    const input = verdict.ok ? verdict.input : refusedCallInput(refusal!)
-    const decorate = refusal === undefined ? undefined : (message: AssistantMessage): void => {
-      message.refusedToolCalls = [refusal]
-    }
-    if (refusal !== undefined) logForDebugging(`[openai] ${toolCallRefusalDiagnostic(refusal)}`, { level: 'warn' })
-    if (livePaintComplete.has(call.callId)) {
-      const m = mintBlock({
-        type: 'tool_use',
-        id: call.callId,
-        name: call.name,
-        input,
-      })
-      decorate?.(m)
-      minted.push(m)
-      yield m
-      continue
-    }
-    yield* emitSettledBlock(
-      { type: 'tool_use', id: call.callId, name: call.name, input },
-      [{ type: 'input_json_delta', partial_json: verdict.ok ? call.argumentsRaw : JSON.stringify(input) }],
-      { type: 'tool_use', id: call.callId, name: call.name, input: {} },
-      decorate,
-    )
-  }
-  for (const refusal of refused) {
-    yield* emitNoteBlock(toolCallRefusalNote('openai', refusal), message => {
-      message.refusedToolCalls = [refusal]
-    })
-  }
-  return { accepted, refused, answered }
-}
-
-export function* emitFinishNotes(w: AttemptBlocks, read: AttemptRead) {
-  const { minted, emitSettledBlock, emitNoteBlock } = w
-  const { finish, refusalStreamed, usageSeen } = read
-  if (finish && finish.webSearchCalls.length > 0) {
-    for (const call of finish.webSearchCalls) {
-      const block: ContentBlock = { type: 'server_tool_use', id: call.id, name: 'web_search', input: call.query !== undefined ? { query: call.query } : {} }
-      yield* emitSettledBlock(block, [], block)
-    }
-    const lastCall = finish.webSearchCalls[finish.webSearchCalls.length - 1]!
-    const resultBlock: ContentBlock = {
-      type: 'web_search_tool_result',
-      tool_use_id: lastCall.id,
-      content: finish.citations.map(citation => ({ type: 'web_search_result', title: citation.title, url: citation.url })),
-    }
-    yield* emitSettledBlock(resultBlock, [], resultBlock)
-  }
-  if (finish?.refusalText && !refusalStreamed) yield* emitNoteBlock(finish.refusalText)
-  if (finish?.reason === 'content_filter' && !refusalStreamed && !finish.refusalText) {
-    yield* emitNoteBlock(
-      '[openai] the provider ended this response under its content filter — the turn is incomplete by provider policy.',
-    )
-  }
-  if (finish?.reason === 'other-incomplete') {
-    yield* emitNoteBlock(
-      `[openai] the provider ended this response INCOMPLETE (${finish.incompleteDetail ?? 'no reason stated'}) — the turn was cut short by the provider, not finished; continue or retry as needed.`,
-    )
-  }
-  if (finish && finish.unknownItemTypes.length > 0) {
-    yield* emitNoteBlock(
-      `[openai] the provider returned output item types Mercury does not decode yet (${finish.unknownItemTypes.join(', ')}); recorded here.`,
-    )
-  }
-  const loadedTools = finish ? loadedToolNamesOf(finish.orderedItems) : []
-  if (loadedTools.length > 0) {
-    logForDebugging(`[openai] tool search loaded ${loadedTools.length} deferred tool(s) server-side (${loadedTools.join(', ')}); the tools array is unchanged and the loaded definitions replay at the end of the input`)
-  }
-  if (minted.length === 0) {
-    const emptyKind: EmptyReplyKind =
-      finish?.reason === 'max_output_tokens'
-        ? 'cap'
-        : finish?.reason === 'completed' && finish.orderedItems.length > 0
-          ? 'silence'
-          : 'empty'
-    const emptyNote = emptyReplyNote('openai', emptyKind, usageSeen?.reasoningOutputTokens)
-    if (emptyKind === 'silence') logForDebugging(emptyNote)
-    yield* emitNoteBlock(emptyReplyChatText(emptyKind, emptyNote), message => markEmptyReply(message, emptyKind, emptyNote))
-  }
+export type AttemptFacts = {
+  usageSeen: OpenaiUsage | undefined
+  responseId: string | undefined
+  refusalStreamed: boolean
+  finish: OpenaiSettledFinish | undefined
+  fault: OpenaiFault | undefined
+  settledOnFault: OpenaiInputItem[]
+  accepted: Array<{ call: OpenaiCompletedToolCall; input: Record<string, unknown> }>
+  refused: RefusedToolCall[]
+  answered: Array<{ call: OpenaiCompletedToolCall; refusal: RefusedToolCall }>
 }
 
 export function settleAttemptUsage(
   ctx: OpenaiAttemptCtx,
   minted: AssistantMessage[],
-  read: AttemptRead,
-  settled: GeneratorReturn<ReturnType<typeof settleAttemptToolCalls>>,
+  facts: AttemptFacts,
   requestStartedAtMs: number,
   typedEnd: StreamEndV1 | null,
 ) {
   const { request, options, modelId } = ctx
-  const { usageSeen, responseId, refusalStreamed, finish, fault, settledOnFault } = read
-  const { accepted, refused, answered } = settled
+  const { usageSeen, responseId, refusalStreamed, finish, fault, settledOnFault, accepted, refused, answered } = facts
   const mappedFinish = refusalStreamed || finish?.refusalText ? 'refusal' : FINISH_TO_STOP[finish?.reason ?? 'completed'] ?? 'end_turn'
   const stopReason =
     accepted.length > 0 || answered.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
@@ -266,5 +159,3 @@ export function settleAttemptUsage(
   }
   return { stopReason, finalUsage } as const
 }
-
-type GeneratorReturn<G> = G extends Generator<unknown, infer R, unknown> ? R : never
