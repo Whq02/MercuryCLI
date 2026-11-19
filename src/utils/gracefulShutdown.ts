@@ -476,7 +476,7 @@ export async function gracefulShutdown(
       }),
     ])
   } catch (err) {
-    logForDebugging(`gracefulShutdown: a cleanup failed or passed its ${CLEANUP_TIMEOUT_MS}ms limit (ignored): ${String(err)}`)
+    logForDebugging(`gracefulShutdown: a cleanup failed or passed its ${CLEANUP_TIMEOUT_MS}ms limit (ignored): ${err instanceof SyntaxError ? 'a record it read is not valid JSON' : String(err)}`)
   } finally {
     if (cleanupTimeout) clearTimeout(cleanupTimeout)
   }
@@ -569,7 +569,7 @@ export async function crashShutdown(exitCode: number): Promise<void> {
       }),
     ])
   } catch (err) {
-    logForDebugging(`crashShutdown: a cleanup failed or passed its ${CRASH_CLEANUP_CAP_MS}ms limit (ignored): ${String(err)}`)
+    logForDebugging(`crashShutdown: a cleanup failed or passed its ${CRASH_CLEANUP_CAP_MS}ms limit (ignored): ${err instanceof SyntaxError ? 'a record it read is not valid JSON' : String(err)}`)
   } finally {
     if (cleanupTimeout) clearTimeout(cleanupTimeout)
   }
