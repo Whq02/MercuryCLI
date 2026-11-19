@@ -218,7 +218,7 @@ const THIRD_RAW = '---\nname: fixture-scout\ndescription: A third description, w
 const DRAFT_RAW = '---\nname: recovered-scout\ndescription: A draft left behind by a previous session for recovery.\n---\nThe recovered body, long enough to stand as a lawful system prompt.\n'
 const CLEAN_RAW = '---\nname: raw-scout\ndescription: A clean raw replacement written through the editor door.\n---\nA lawful replacement body, long enough for the validation floor.\n'
 const NAMELESS_RAW = '---\ndescription: no name here\n---\nA body without a name key above it, long enough to pass length.\n'
-const HOOKED_RAW = BASE_RAW.replace('maxTurns: 5\n', 'maxTurns: 5\nhooks:\n  PreToolUse: []\n')
+const HOOKED_RAW = BASE_RAW.replace('maxTurns: 5\n', 'maxTurns: 5\nhooks:\n  tool.before: []\n')
 const DOUBLED_RAW = '---\nname: first-scout\nname: second-scout\ndescription: one\ndescription: two\ntools: Read\ntools: Write\nmodel: opus\nmodel: haiku\n---\nA body under keys written twice, long enough for the floor.\n'
 const LONG_PROMPT = 'You are the walk scout. Walk the whole estate and report faithfully.'
 const GENERATED: Generated = {
@@ -332,7 +332,7 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
   ['commit: taken, refused by the codec, failed by a throw', async lines => {
     const s = stage(lines, { mode: 'create' })
     s.call('commit', { set: { name: 'commit-scout' } })
-    s.call('commit', { set: { hooks: { PreToolUse: [] } } })
+    s.call('commit', { set: { hooks: { 'tool.before': [] } } })
     s.call(
       'commit',
       calledAs('an edit whose set throws', {
@@ -484,14 +484,14 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
     await kept.drain()
     kept.call('mergeOntoTheirs')
     const hooked = stage(lines, { mode: 'edit', base: { filePath: BASE_PATH, raw: HOOKED_RAW } })
-    hooked.call('loadRaw', HOOKED_RAW.replace('PreToolUse', 'PostToolUse').replace('The base description', 'My description'))
+    hooked.call('loadRaw', HOOKED_RAW.replace('tool.before', 'tool.after').replace('The base description', 'My description'))
     hooked.plan.saveDocument = () => Promise.reject(new AgentStoreError('revision-conflict', 'revision moved', { currentRaw: THEIR_RAW.replace('maxTurns: 9\n', 'maxTurns: 9\nhooks:\n  Stop: []\n') }))
     hooked.call('save')
     await hooked.drain()
     hooked.call('mergeOntoTheirs')
     const failing = stage(lines, { mode: 'edit', base: { filePath: BASE_PATH, raw: BASE_RAW } })
     failing.call('loadRaw', BASE_RAW.replace('maxTurns: 5', 'model: "two\\nlines"'))
-    failing.plan.saveDocument = () => Promise.reject(new AgentStoreError('revision-conflict', 'revision moved', { currentRaw: THEIR_RAW.replace('maxTurns: 9\n', 'maxTurns: 9\nhooks:\n  PreToolUse: []\n') }))
+    failing.plan.saveDocument = () => Promise.reject(new AgentStoreError('revision-conflict', 'revision moved', { currentRaw: THEIR_RAW.replace('maxTurns: 9\n', 'maxTurns: 9\nhooks:\n  tool.before: []\n') }))
     failing.call('save')
     await failing.drain()
     failing.call('mergeOntoTheirs')
