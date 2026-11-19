@@ -23,40 +23,23 @@ import type {
 } from '../types/textInputTypes.js'
 import { getShellCompletions } from '../utils/bash/shellCompletion.js'
 import {
-  generateProgressiveArgumentHint,
-  parseArgumentNames,
-  parseArguments,
-} from '../utils/argumentSubstitution.js'
-import {
   applyCommandSuggestion,
-  channelTargetCandidates,
   findChannelTargetQuery,
   isNameAnchoredSuggestion,
   findMidInputSlashCommand,
-  generateCommandSuggestions,
   getBestCommandMatch,
-  hasCommandArgs,
-  rankChannelTargets,
 } from '../utils/suggestions/commandSuggestions.js'
-import { getFocusedSessionConnector, hasFocusedSession, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
-import { swarmView } from '../services/crewBoard/seam.js'
+import { subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
 import {
   getPathCompletions,
   isPathLikeToken,
 } from '../utils/suggestions/directoryCompletion.js'
-import { getShellHistoryCompletion } from '../utils/suggestions/shellHistoryCompletion.js'
-import {
-  getSlackChannelSuggestions,
-  hasSlackMcpServer,
-} from '../utils/suggestions/slackChannelSuggestions.js'
 import {
   findLongestCommonPrefix,
   onIndexBuildComplete,
   startBackgroundCacheRefresh,
 } from '../hooks/fileSuggestions.js'
 import { generateUnifiedSuggestions } from '../hooks/unifiedSuggestions.js'
-import { searchSessionsByCustomTitle } from '../utils/sessionStorage.js'
-import { formatLogMetadata } from '../utils/format.js'
 import { logError } from '../utils/log.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { armTypeaheadTimer, disarmTypeaheadTimer } from './typeahead/timers.js'
@@ -70,21 +53,17 @@ import {
   shellCompletionTypeOf,
   shellMetadataOf,
 } from './typeahead/tokens.js'
+import { ladderChannelTarget, ladderClearStale, ladderCommands, ladderMentions, ladderPaths, type LadderContext } from './typeahead/ladder.js'
+import type { SuggestionsState } from './typeahead/state.js'
 
 
 export { armTypeaheadTimer, disarmTypeaheadTimer, typeaheadTimerCensus } from './typeahead/timers.js'
 
 const FILE_FETCH_DEBOUNCE_MS = 50
-const CHANNEL_FETCH_DEBOUNCE_MS = 150
-const RESUME_TITLE_LIMIT = 10
 const THINKING_HINT_KEY = 'thinking-toggle-hint'
 
 
-export type SuggestionsState = {
-  suggestions: Suggestion[]
-  selectedSuggestion: number
-  commandArgumentHint?: string
-}
+export type { SuggestionsState } from './typeahead/state.js'
 
 type UseTypeaheadProps = {
   input: string
@@ -293,248 +272,13 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
       lastSearchTokenRef.current = null
     }
 
-    if (mode === 'prompt') {
-      const midCommand = findMidInputSlashCommand(input, cursor)
-      if (
-        midCommand &&
-        getBestCommandMatch(midCommand.partialCommand, commands)
-      ) {
-        clearSuggestions()
-        return
-      }
-      const target = findChannelTargetQuery(input, cursor)
-      if (target) {
-        const seats = (hasFocusedSession() ? getFocusedSessionConnector().swarmBoard?.()?.seats : swarmView().seats) ?? []
-        const items = rankChannelTargets(target.query, channelTargetCandidates(target.kind, seats))
-        if (items.length > 0) publish(items, 'channel-target', { selected: 0 })
-        else clearSuggestions()
-        return
-      }
-    }
-
-    if (mode === 'bash' && input.trim() !== '') {
-      lastBashInputRef.current = input
-      void getShellHistoryCompletion(input)
-        .then(match => {
-          if (lastBashInputRef.current !== input) return
-          if (match) {
-            setAsyncGhostText({
-              text: match.suffix,
-              fullCommand: match.fullCommand,
-              insertPosition: input.length,
-            })
-            setSuggestionsState({ suggestions: [], selectedSuggestion: -1 })
-            setSuggestionType('none')
-          } else {
-            setAsyncGhostText(null)
-          }
-        })
-        .catch(error => logError(error))
-    } else if (mode !== 'bash') {
-      const beforeCursor = input.slice(0, cursor)
-      const mention = beforeCursor.match(/(^|\s)@([\w-]*)$/)
-      if (mention) {
-        const fragment = mention[2]!.toLowerCase()
-        const state = appStateStore.getState()
-        const members: Suggestion[] = []
-        const seen = new Set<string>()
-        for (const name of state.agentNameRegistry.keys()) {
-          if (seen.has(name)) continue
-          if (!name.toLowerCase().startsWith(fragment)) continue
-          seen.add(name)
-          members.push({
-            id: `dm-${name}`,
-            displayText: `@${name}`,
-            description: describeAgent(state, name),
-          })
-        }
-        if (members.length > 0) {
-          cancelFileFetch()
-          publish(members, 'agent')
-          return
-        }
-      }
-
-      if (mode === 'prompt') {
-        const channel = beforeCursor.match(/(^|\s)#([a-z0-9][a-z0-9_-]*)$/)
-        if (channel && hasSlackMcpServer(appStateStore.getState().mcp.clients)) {
-          const fragment = channel[2]!
-          cancelChannelFetch()
-          channelFetchTimerRef.current = armTypeaheadTimer(() => {
-            channelFetchTimerRef.current = null
-            lastChannelQueryRef.current = fragment
-            void getSlackChannelSuggestions(
-              appStateStore.getState().mcp.clients,
-              fragment,
-            )
-              .then(results => {
-                if (lastChannelQueryRef.current !== fragment) return
-                if (results.length === 0) {
-                  resetOnEmptyFetch()
-                  return
-                }
-                publish(results, 'slack-channel')
-              })
-              .catch(error => logError(error))
-          }, CHANNEL_FETCH_DEBOUNCE_MS)
-          return
-        }
-        if (!channel && suggestionTypeRef.current === 'slack-channel') {
-          cancelChannelFetch()
-          clearSuggestions()
-        }
-      }
-    }
-
-    if (mode === 'prompt') {
-      const resume = input.match(/^\/sessions\s+(.*)$/)
-      if (resume) {
-        void searchSessionsByCustomTitle(resume[1]!, { limit: RESUME_TITLE_LIMIT })
-          .then(sessions => {
-            if (inputRef.current !== input) return
-            if (sessions.length === 0) {
-              clearSuggestions()
-              return
-            }
-            publish(
-              sessions.map(session => ({
-                id: session.customTitle ?? session.sessionId ?? '',
-                displayText: session.customTitle ?? session.sessionId ?? '',
-                description: formatLogMetadata(session),
-                metadata: session.sessionId,
-              })),
-              'custom-title',
-            )
-          })
-          .catch(error => logError(error))
-        return
-      }
-
-      if (
-        input.startsWith('/') &&
-        cursor > 0 &&
-        !hasCommandArgs(input)
-      ) {
-        const spaceIndex = input.indexOf(' ')
-        if (spaceIndex !== -1) {
-          const name = input.slice(1, spaceIndex)
-          const rest = input.slice(spaceIndex + 1)
-          const exact = commands.some(
-            command => command.userFacingName?.() === name || command.name === name,
-          )
-          if (exact || rest.trim() !== '') {
-            let hint: string | undefined
-            const command = commands.find(
-              c => c.userFacingName?.() === name || c.name === name,
-            )
-            if (command?.argumentHint && input === `/${name} `) {
-              hint = command.argumentHint
-            } else if (command && /\s$/.test(input)) {
-              hint =
-                generateProgressiveArgumentHint(
-                  parseArgumentNames(command.argumentHint ?? ''),
-                  parseArguments(rest),
-                ) ?? undefined
-            }
-            publish([], 'none', {
-              selected: -1,
-              ...(hint !== undefined ? { argumentHint: hint } : {}),
-            })
-            return
-          }
-        }
-        const generated = generateCommandSuggestions(input, commands)
-        if (generated.length > 0) {
-          const longest = Math.max(
-            0,
-            ...commands
-              .filter(command => !command.isHidden)
-              .map(command => (command.userFacingName?.() ?? command.name).length),
-          )
-          publish(generated, 'command', {
-            selected: 0,
-            maxWidth: longest + 6,
-          })
-        } else {
-          clearSuggestions()
-        }
-        return
-      }
-    }
-
-    if (suggestionTypeRef.current === 'command' && !input.startsWith('/')) {
-      cancelFileFetch()
-      clearSuggestions()
-    }
-    if (hasCommandArgs(input) && argumentHint) {
-      setSuggestionsState(prev => ({
-        suggestions: prev.suggestions,
-        selectedSuggestion: prev.selectedSuggestion,
-      }))
-    }
-    if (suggestionTypeRef.current === 'custom-title') {
-      clearSuggestions()
-    }
-    if (
-      suggestionTypeRef.current === 'agent' &&
-      suggestionsRef.current.some(item => item.id.startsWith('dm-')) &&
-      !/(^|\s)@[\w-]*$/.test(input.slice(0, cursor))
-    ) {
-      clearSuggestions()
-    }
-
-    if (mode !== 'bash') {
-      const token = extractCompletionToken(input, cursor, true)
-      if (token?.token.startsWith('@')) {
-        const search = extractSearchToken(token)
-        if (isPathLikeToken(search)) {
-          lastPathQueryRef.current = search
-          void getPathCompletions(search, { maxResults: 10 })
-            .then(entries => {
-              if (lastPathQueryRef.current !== search) return
-              if (entries.length > 0) publish(entries, 'directory')
-            })
-            .catch(error => logError(error))
-          return
-        }
-        if (lastSearchTokenRef.current === search) return
-        runUnifiedFetch(search)
-        return
-      }
-    }
-
-    if (suggestionTypeRef.current === 'file') {
-      const token = extractCompletionToken(input, cursor, true)
-      if (token) {
-        const search = extractSearchToken(token)
-        if (lastSearchTokenRef.current !== search) runUnifiedFetch(search)
-      } else {
-        cancelFileFetch()
-        clearSuggestions()
-      }
-      return
-    }
-
-    if (suggestionTypeRef.current === 'shell') {
-      const snapshot = shellMetadataOf(suggestionsRef.current[0]).input
-      if (mode !== 'bash' || snapshot !== input) {
-        cancelFileFetch()
-        clearSuggestions()
-      }
-    }
+    const ladder: LadderContext = { input, cursor, mode, commands, argumentHint, appStateStore, publish, clearSuggestions, cancelFileFetch, cancelChannelFetch, resetOnEmptyFetch, runUnifiedFetch, setAsyncGhostText, setSuggestionsState, setSuggestionType, inputRef, suggestionsRef, suggestionTypeRef, lastBashInputRef, lastChannelQueryRef, lastPathQueryRef, lastSearchTokenRef, channelFetchTimerRef }
+    if (ladderChannelTarget(ladder)) return
+    if (ladderMentions(ladder)) return
+    if (ladderCommands(ladder)) return
+    ladderClearStale(ladder)
+    ladderPaths(ladder)
   }, [input, mode, suppressSuggestions, commands, rosterStamp])
-
-  function describeAgent(
-    state: ReturnType<typeof appStateStore.getState>,
-    name: string,
-  ): string {
-    const taskId = state.agentNameRegistry.get(name)
-    if (taskId) {
-      const task = state.tasks[taskId]
-      if (task?.status) return `send a message · ${task.status}`
-    }
-    return 'send a message'
-  }
 
   const promptGhost = useMemo((): InlineGhostText | undefined => {
     if (mode !== 'prompt') return undefined
