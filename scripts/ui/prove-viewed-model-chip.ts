@@ -97,7 +97,9 @@ const localAgentId = asAgentId('chip-local-agent')
 const now = Date.now()
 let focusedId = 'chip-parent'
 const row: WorkRow = { id: taskId, agentId: taskId, kind: 'agent', name: 'atlas', status: 'running', startTime: now, model: agentModel }
-const roster = { rows: [row], mission: [], samples: [], reported: true }
+const wideModel = 'claude-sonnet-5-5'
+const wideLabel = renderModelChip(wideModel)
+let roster = { rows: [row], mission: [], samples: [], reported: true }
 const listeners = new Set<() => void>()
 const overrides: Record<string, unknown> = {
   sessionId: () => focusedId,
@@ -130,6 +132,7 @@ function seed(parent: string, data: unknown): void {
 }
 seed(focusedId, { agentType: 'mercury-crew', model: agentModel, effort: 'max' })
 seed('chip-other-parent', { agentType: 'mercury-crew', model: leadModel, effort: 'low' })
+seed('chip-wide-parent', { agentType: 'mercury-crew', model: `${wideModel}[1m]`, effort: 'max' })
 await writeAgentMetadata(localAgentId, { agentType: 'mercury-crew', model: agentModel, effort: 'medium' })
 check('the local metadata fixture has its own agent id and scope', getAgentMetadataPath(localAgentId) !== sidecar(focusedId))
 
@@ -207,6 +210,15 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   enterCrewmateView(taskId, store!.setState)
   check(`${size}: a missing launch effort paints no effort word and never borrows the lead or previous crewmate`, await until(() => strip().includes(agentLabel) && !/\bhigh\b|\blow\b|\bmax\b|\bmedium\b|unreported/.test(strip())), strip())
   snapshot('unreported')
+  exitCrewmateView(store!.setState)
+  await until(() => /\bhigh\b/.test(strip()))
+  focusedId = 'chip-wide-parent'
+  roster = { ...roster, rows: [{ ...row, model: wideModel }] }
+  for (const listener of listeners) listener()
+  enterCrewmateView(taskId, store!.setState)
+  check(`${size}: a crewmate recorded as ${wideModel}[1m] that runs ${wideModel} at the same window shows its model and effort and no next-turn words`, (await until(() => strip().includes(wideLabel) && /\bmax\b/.test(strip()))) && !/\bmax →/.test(strip()), strip())
+  snapshot('same-window')
+  roster = { ...roster, rows: [row] }
   ink.unmount()
   await ink.waitUntilExit()
   instances.delete(stdout as never)

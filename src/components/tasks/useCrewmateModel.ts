@@ -2,6 +2,8 @@ import { readFile } from 'node:fs/promises'
 import { useEffect, useState } from 'react'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { getContextWindowForModel } from '../../utils/model/capabilities.js'
+import { normalizeModelStringForAPI, parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { crewmateTranscriptFile, CREWMATE_TRANSCRIPT_TICK_MS } from './useCrewmateTranscript.js'
 import type { CrewmateInView } from './useCrewmateView.js'
 
@@ -9,10 +11,15 @@ type CrewmateModel = { model: string | null; effort: string | null; next: { mode
 type CrewmateRecord = { model: string | null; effort: string | null; effortOverride: string | null }
 const word = (value: unknown): string | null => typeof value === 'string' && value.trim() !== '' ? value.trim() : null
 
+function resolveAlike(recorded: string, running: string): boolean {
+  const [one, other] = [parseUserSpecifiedModel(recorded), parseUserSpecifiedModel(running)]
+  return normalizeModelStringForAPI(one) === normalizeModelStringForAPI(other) && getContextWindowForModel(one) === getContextWindowForModel(other)
+}
+
 function crewmateModelOf(record: CrewmateRecord | null, running: { model: string | null; effort: string | null }): CrewmateModel {
   const model = running.model ?? record?.model ?? null
   const effort = record?.effort ?? running.effort ?? null
-  const nextModel = record !== null && record.model !== null && record.model !== model ? record.model : null
+  const nextModel = record !== null && record.model !== null && model !== null && record.model !== model && !resolveAlike(record.model, model) ? record.model : null
   const nextEffort = record !== null && record.effortOverride !== null && record.effortOverride !== effort ? record.effortOverride : null
   return { model, effort, next: nextModel === null && nextEffort === null ? null : { model: nextModel, effort: nextEffort } }
 }
