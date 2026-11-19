@@ -1,6 +1,6 @@
 
 import { readFileSync, writeFileSync } from 'node:fs'
-import { metadataRefusal, metadataSafeAddresses } from '../WebFetchTool/privateHost.js'
+import { metadataSafeAddresses } from '../WebFetchTool/privateHost.js'
 import { join } from 'node:path'
 import type { ElementHandle, Frame, Page } from 'puppeteer-core'
 import { type ToolEffectOutcome, type ToolUseContext, buildTool } from '../../Tool.js'
@@ -13,7 +13,6 @@ import {
   BROWSER_FINISH_BOUND_MS,
   BROWSER_PROTOCOL_TIMEOUT_MS,
   CONSOLE_RING_CAP,
-  type CheckedTarget,
   MAIN_TAB,
   NAVIGATION_CAP_MS,
   activeSession,
@@ -31,13 +30,11 @@ import {
   ensureBrowserSession,
   firstNavigation,
   isBrowserErrorPage,
-  noteCheckedActOrigin,
   noteEmulatedPage,
   originApproved,
   originOf,
   pageKitOf,
   screenshotPath,
-  secretPairingApproved,
 } from '../../services/browser/browserSession.js'
 import {
   EMULATION_FIELD_WORDS,
@@ -52,16 +49,13 @@ import {
   notePlainSize,
   parseEmulation,
 } from '../../services/browser/browserEmulation.js'
-import { BROWSER_SECRET_REF_GRAMMAR, resolveBrowserSecret, scrubSecretFromText } from '../../services/browser/browserSecrets.js'
+import { resolveBrowserSecret, scrubSecretFromText } from '../../services/browser/browserSecrets.js'
 import type { Transfer } from '../../services/browser/browserTransfers.js'
 import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
-import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
-import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
-import { ruleSentence } from '../../utils/permissions/ruleReason.js'
-import type { PermissionRule, ToolPermissionContext } from '../../types/permissions.js'
+import type { ToolPermissionContext } from '../../types/permissions.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
 import {
   ACT_OPS,
@@ -93,7 +87,6 @@ import {
   isDriverTimeout,
   noSessionWords,
   openOpLife,
-  openSchemeRefusal,
   relayNamedFailure,
 } from './browser/failures.js'
 import {
@@ -118,7 +111,6 @@ import { actConsequences, errorPageSettled, firstRequestWords, markAct, popupWor
 import {
   actDeadline,
   actOriginGate,
-  checkedTarget,
   clickGate,
   isDisabledTarget,
   probeEditableTarget,
@@ -128,8 +120,9 @@ import {
   settleBoundingBox,
 } from './browser/targets.js'
 import { humanClickPoint, humanMoveTo, humanTypeText, pickTargetPoint } from './browser/human.js'
-import { judgeUploadSources, sendUpload, takeCheckedUpload } from './browser/upload.js'
-import { actDetail, sentByEmulation } from './browser/permissions.js'
+import { sendUpload, takeCheckedUpload } from './browser/upload.js'
+import { checkBrowserPermissions, sentByEmulation } from './browser/permissions.js'
+import { validateBrowserInput } from './browser/validate.js'
 export { browserToolEnabled, EXTRACT_CAP, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './browser/schema.js'
 export type { Input, Output } from './browser/schema.js'
 export { browserGoneMidOpWords, driverFailureWords, errorChainText, isDriverTimeout, openSchemeRefusal } from './browser/failures.js'
@@ -232,285 +225,11 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
   interruptBehavior() {
     return 'cancel' as const
   },
-  async checkPermissions(asked: Input, context: ToolUseContext) {
-    const input = downloadAct(asked)
-    const refused = input.url === undefined ? null : metadataRefusal(input.url)
-    if (refused !== null) return { behavior: 'deny' as const, message: refused, decisionReason: { type: 'other' as const, reason: refused } }
-    if (input.op === 'provision') {
-      try {
-        const { installPlanLines, planBrowserInstall } = await import('../../services/browser/browserInstall.js')
-        const plan = await planBrowserInstall(input.buildId)
-        const lines = installPlanLines(plan)
-        return {
-          behavior: 'ask' as const,
-          message: `Browser provision: download ${plan.consentLine}`,
-          decisionReason: { type: 'other' as const, reason: lines.join('\n') },
-          updatedInput: { ...input, buildId: plan.buildId },
-        }
-      } catch (err) {
-        return {
-          behavior: 'deny' as const,
-          message: `provision cannot plan: ${(err as Error).message} — ask the operator to run /browser install on a connected box, or to install a browser normally`,
-          decisionReason: { type: 'other' as const, reason: 'browser provisioning metadata unreachable' },
-        }
-      }
-    }
-    const sent = input.op === 'viewport' ? sentByEmulation(input) : null
-    if (!ACT_OPS.has(input.op) && sent === null) return { behavior: 'allow' as const, updatedInput: asked }
-    const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
-    const permissionContext = (context as Partial<ToolUseContext> | undefined)?.getAppState?.()
-      ?.toolPermissionContext as ToolPermissionContext | undefined
-    const ruleFor = (content: string): PermissionRule | null => {
-      if (!permissionContext) return null
-      for (const behavior of ['deny', 'ask', 'allow'] as const) {
-        const rule = getRuleByContentsForToolName(permissionContext, 'Browser', behavior).get(content)
-        if (rule) return rule
-      }
-      return null
-    }
-    const ruleVerdict = (content: string): 'deny' | 'ask' | 'allow' | null => ruleFor(content)?.ruleBehavior ?? null
-    const inTab = input.tab === undefined ? '' : ` in tab ${input.tab}`
-    const sources = input.op === 'upload' ? judgeUploadSources(owner, input, permissionContext) : null
-    if (sources !== null && 'deny' in sources) return sources.deny
-    const sourceAsk = sources === null ? null : sources.ask
-    if (input.op === 'open') {
-      const target = originOf(input.url ?? '')
-      const ruled = ruleVerdict(`origin:${target}`)
-      if (ruled === 'deny') {
-        return {
-          behavior: 'deny' as const,
-          message: ruleSentence(`Browsing ${target}`, 'deny', ruleFor(`origin:${target}`)!),
-          decisionReason: { type: 'other' as const, reason: `origin:${target} carries a deny rule` },
-        }
-      }
-      if (ruled === 'allow' || (ruled === null && (!target.startsWith('http') || originApproved(owner, target)))) {
-        return { behavior: 'allow' as const, updatedInput: asked }
-      }
-      return {
-        behavior: 'ask' as const,
-        message: `Browser open: ${input.url ?? '(no url)'}${inTab} — first visit to ${target} this session (drives a real headless browser)`,
-        suggestions: suggestionForExactCommand('Browser', `origin:${target}`),
-      }
-    }
-    const s = activeSession(owner, input.tab ?? MAIN_TAB)
-    if (!s || (s.crashed && !CRASH_OPEN_OPS.has(input.op))) return { behavior: 'allow' as const, updatedInput: asked }
-    let origin: string
-    let bound: CheckedTarget
-    try {
-      origin = sent === null ? (await targetOrigin(s, input.frame)) : sendOrigin(s)
-      bound = checkedTarget(s, sent === null ? targetSurface(s, input.frame) : s.page)
-    } catch { return { behavior: 'allow' as const, updatedInput: asked } }
-    const ruled = ruleVerdict(`origin:${origin}`)
-    if (ruled === 'deny') {
-      return {
-        behavior: 'deny' as const,
-        message: ruleSentence(`Browsing ${origin}`, 'deny', ruleFor(`origin:${origin}`)!),
-        decisionReason: { type: 'other' as const, reason: `origin:${origin} carries a deny rule` },
-      }
-    }
-    const secret =
-      input.op === 'type' && typeof input.secretRef === 'string'
-        ? {
-            ref: input.secretRef,
-            nonWeb: `secret fills only land on real web origins — the page is ${origin} content`,
-            nonWebReason: `secret fill refused on non-web scheme ${origin}`,
-            deed: `Filling the secret ${input.secretRef} on ${origin}`,
-            ask: `Browser fill secret ${input.secretRef} into ${origin}${inTab} (target ${input.selector ?? ''}) — the value never enters the conversation; approve exactly this secret-origin pairing`,
-            reason: `filling registered secret ${input.secretRef} into ${origin} needs the operator's own consent for the pairing`,
-          }
-        : sent?.secretRef !== undefined
-          ? {
-              ref: sent.secretRef,
-              nonWeb: `credentials answer a real web origin only — the page is ${origin} content`,
-              nonWebReason: `credentials refused on non-web scheme ${origin}`,
-              deed: `Answering ${origin} with the secret ${sent.secretRef}`,
-              ask: `Browser answer basic authentication on ${origin}${inTab} with secret ${sent.secretRef} as ${sent.username}${sent.headers ? '; extra headers sent on every request, including other origins' : ''} — the value never enters the conversation; approve exactly this secret-origin pairing`,
-              reason: `answering ${origin} with registered secret ${sent.secretRef} needs the operator's own consent for the pairing`,
-            }
-          : null
-    if (secret !== null) {
-      if (!origin.startsWith('http')) {
-        return {
-          behavior: 'deny' as const,
-          message: secret.nonWeb,
-          decisionReason: { type: 'other' as const, reason: secret.nonWebReason },
-        }
-      }
-      const pairing = `secret:${secret.ref}@${origin}`
-      const pairingRuled = ruleVerdict(pairing)
-      if (pairingRuled === 'deny') {
-        return {
-          behavior: 'deny' as const,
-          message: ruleSentence(secret.deed, 'deny', ruleFor(pairing)!),
-          decisionReason: { type: 'other' as const, reason: `${pairing} carries a deny rule` },
-        }
-      }
-      noteCheckedActOrigin(owner, input.op, origin, bound)
-      if (pairingRuled === 'allow' || secretPairingApproved(owner, secret.ref, origin)) {
-        return { behavior: 'allow' as const, updatedInput: asked }
-      }
-      return {
-        behavior: 'ask' as const,
-        message: secret.ask,
-        decisionReason: {
-          type: 'safetyCheck' as const,
-          reason: secret.reason,
-          operatorOnly: true,
-        },
-        suggestions: suggestionForExactCommand('Browser', pairing),
-      }
-    }
-    const sourcesAsk = {
-      behavior: 'ask' as const,
-      message: `Browser ${input.op}${actDetail(input)} on ${origin}${inTab} — ${sourceAsk?.message ?? ''}`,
-      decisionReason: sourceAsk?.decisionReason,
-      suggestions: [],
-    }
-    if (ruled === 'allow' || (ruled === null && origin.startsWith('http') && originApproved(owner, origin))) {
-      noteCheckedActOrigin(owner, input.op, origin, bound)
-      return sourceAsk === null ? { behavior: 'allow' as const, updatedInput: asked } : sourcesAsk
-    }
-    if (!origin.startsWith('http')) {
-      if (origin === 'about:' || origin === 'chrome-error:') {
-        noteCheckedActOrigin(owner, input.op, origin, bound)
-        return sourceAsk === null ? { behavior: 'allow' as const, updatedInput: asked } : sourcesAsk
-      }
-      noteCheckedActOrigin(owner, input.op, origin, bound)
-      return {
-        behavior: 'ask' as const,
-        message: `Browser ${input.op}${actDetail(input)} on a NON-WEB page (${origin})${inTab} — page-conjured content, not an approved web origin${sourceAsk === null ? '' : `\n${sourceAsk.message}`}`,
-        decisionReason: {
-          type: 'safetyCheck' as const,
-          reason: `the top frame is ${origin} content the page itself conjured`,
-          operatorOnly: true,
-        },
-        suggestions: sourceAsk === null ? suggestionForExactCommand('Browser', `origin:${origin}`) : [],
-      }
-    }
-    noteCheckedActOrigin(owner, input.op, origin, bound)
-    const unloaded = sent !== null && !originOf(s.page.url()).startsWith('http')
-    return {
-      behavior: 'ask' as const,
-      message: `${sent?.headers ? `Browser viewport on ${origin}${inTab} with ${sent.words}` : `Browser ${input.op}${actDetail(input)} on ${origin}${inTab}`} — ${unloaded ? 'its address did not load' : 'reached by navigation'}, not yet approved this session${sourceAsk === null ? '' : `\n${sourceAsk.message}`}`,
-      decisionReason: {
-        type: 'safetyCheck' as const,
-        reason: unloaded ? `${origin} did not load, and no page of it is approved` : `${origin} was reached by navigation, not requested by the operator`,
-        operatorOnly: true,
-      },
-      suggestions: sourceAsk === null ? suggestionForExactCommand('Browser', `origin:${origin}`) : [],
-    }
+  checkPermissions(asked: Input, context: ToolUseContext) {
+    return checkBrowserPermissions(asked, context)
   },
-  async validateInput(asked: Input) {
-    if (!browserToolEnabled()) {
-      return { result: false as const, message: 'the Browser tool is disabled (MERCURY_BROWSER=0)', errorCode: 1 }
-    }
-    if (asked.op === 'download' && [asked.downloadId, asked.url, asked.selector].filter(given => given !== undefined && given !== '').length > 1) {
-      return { result: false as const, message: 'download takes one of downloadId, url or selector', errorCode: 1 }
-    }
-    const input = downloadAct(asked)
-    if (input.tab !== undefined && (input.tab.trim() === '' || input.tab !== input.tab.trim() || /[\r\n]/.test(input.tab))) {
-      return { result: false as const, message: 'tab takes a name on one line with no space around it', errorCode: 1 }
-    }
-    if (input.persist === true && input.op !== 'open') {
-      return { result: false as const, message: 'persist requires op open', errorCode: 1 }
-    }
-    if (asked.downloadId !== undefined && asked.downloadId !== '' && asked.op !== 'download') {
-      return { result: false as const, message: 'downloadId requires op download', errorCode: 1 }
-    }
-    if (asked.files !== undefined && asked.files.length > 0 && asked.op !== 'upload') {
-      return { result: false as const, message: 'files requires op upload', errorCode: 1 }
-    }
-    if (asked.op === 'upload' && (!asked.selector || asked.files === undefined)) {
-      return { result: false as const, message: 'upload requires selector and files (an empty list clears a file input)', errorCode: 1 }
-    }
-    if (input.op === 'open' && !(input.url === undefined && input.tab !== undefined) && (!input.url || !/^https?:\/\//.test(input.url))) {
-      return { result: false as const, message: openSchemeRefusal(input.url), errorCode: 1 }
-    }
-    if (input.frame !== undefined && (!['click', 'type', 'scroll', 'waitFor', 'select', 'hover', 'extract', 'screenshot', 'upload'].includes(input.op) || (['click', 'scroll', 'screenshot'].includes(input.op) && !input.selector) || (input.op === 'waitFor' && !input.selector && input.text === undefined))) {
-      return { result: false as const, message: 'frame requires a selector act/read, a type target, or a selector/text wait', errorCode: 1 }
-    }
-    if (input.force === true && (input.op !== 'click' || !input.selector)) {
-      return { result: false as const, message: 'force requires click with a selector', errorCode: 1 }
-    }
-    if (input.op === 'click' && !input.selector && !(typeof input.x === 'number' && typeof input.y === 'number')) {
-      return { result: false as const, message: 'click requires selector, or both x and y', errorCode: 1 }
-    }
-    if (input.op === 'type' && input.secretRef !== undefined) {
-      if (typeof input.text === 'string') {
-        return { result: false as const, message: 'type takes text OR secretRef, never both', errorCode: 1 }
-      }
-      if (!input.selector) {
-        return {
-          result: false as const,
-          message: 'secretRef requires an explicit selector target (secrets are never aimed at "whatever is focused")',
-          errorCode: 1,
-        }
-      }
-      if (!BROWSER_SECRET_REF_GRAMMAR.test(input.secretRef)) {
-        return {
-          result: false as const,
-          message: `secretRef "${input.secretRef}" does not match the name grammar (UPPER_SNAKE, letter-led, up to 64 chars)`,
-          errorCode: 1,
-        }
-      }
-    }
-    if (input.op === 'type' && input.secretRef === undefined && typeof input.text !== 'string') {
-      return { result: false as const, message: 'type requires text (the characters to type) or secretRef', errorCode: 1 }
-    }
-    if (input.op === 'type' && input.clear === true && !input.selector) {
-      return { result: false as const, message: 'clear requires a selector target', errorCode: 1 }
-    }
-    if (input.op === 'scroll' && !input.selector && typeof input.dy !== 'number') {
-      return { result: false as const, message: 'scroll requires selector or dy', errorCode: 1 }
-    }
-    if (input.op === 'waitFor' && input.selector !== undefined && input.text !== undefined) {
-      return {
-        result: false as const,
-        message: 'waitFor takes selector OR text (or neither, meaning navigation)',
-        errorCode: 1,
-      }
-    }
-    if (input.op === 'waitFor' && input.state !== undefined && input.selector === undefined) {
-      return {
-        result: false as const,
-        message: 'waitFor state requires a selector (visibility states describe an element)',
-        errorCode: 1,
-      }
-    }
-    if (input.op === 'select' && (!input.selector || !input.values || input.values.length === 0)) {
-      return {
-        result: false as const,
-        message: 'select requires selector and values (option values, or visible labels as the fallback)',
-        errorCode: 1,
-      }
-    }
-    if (input.op === 'press' && (!input.key || !PRESS_KEYS.has(input.key))) {
-      return {
-        result: false as const,
-        message: `press takes a key from the allowlist [${[...PRESS_KEYS].join(', ')}] — printable characters go through op:"type" (where credential fields refuse)`,
-        errorCode: 1,
-      }
-    }
-    if (input.op === 'hover' && !input.selector) {
-      return { result: false as const, message: 'hover requires selector', errorCode: 1 }
-    }
-    if (input.emulation !== undefined) {
-      if (input.op !== 'viewport') return { result: false as const, message: 'emulation requires op viewport', errorCode: 1 }
-      const parsed = parseEmulation(input.emulation)
-      if ('refusal' in parsed) return { result: false as const, message: parsed.refusal, errorCode: 1 }
-      const ref = parsed.request.credentials?.secret
-      if (ref !== undefined && !BROWSER_SECRET_REF_GRAMMAR.test(ref)) {
-        return {
-          result: false as const,
-          message: `emulation.credentials.secret "${ref}" does not match the name grammar (UPPER_SNAKE, letter-led, up to 64 chars)`,
-          errorCode: 1,
-        }
-      }
-    }
-    if (input.op === 'viewport' && input.emulation === undefined && (typeof input.width !== 'number' || typeof input.height !== 'number')) {
-      return { result: false as const, message: 'viewport requires width and height (CSS px)', errorCode: 1 }
-    }
-    return { result: true as const }
+  validateInput(asked: Input) {
+    return validateBrowserInput(asked)
   },
   async call(asked: Input, context: ToolUseContext) {
     const input = downloadAct(asked)
