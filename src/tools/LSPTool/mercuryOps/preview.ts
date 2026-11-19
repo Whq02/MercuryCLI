@@ -36,7 +36,7 @@ export function changeViewOf(
   return { state, action: operation, files: viewFiles, refs: [] }
 }
 
-type PlannedFile = {
+export type PlannedFile = {
   abs: string
   originalText: string
   newText: string
