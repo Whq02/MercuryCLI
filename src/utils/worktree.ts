@@ -11,7 +11,6 @@ import type { ToolPermissionContext } from '../Tool.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { findCanonicalGitRoot, findGitRoot, gitExe } from './git.js'
-import { subprocessEnv } from './subprocessEnv.js'
 import { readGitHead, readWorktreeHeadSha, resolveGitDir, getCommonDir } from './git/gitFilesystem.js'
 import { parseGitConfigValue } from './git/gitConfigParser.js'
 import { registerCleanup } from './cleanupRegistry.js'
@@ -26,6 +25,9 @@ import { getInitialSettings, getRelativeSettingsFilePathForSource, getSettingsFi
 import { sleep } from './sleep.js'
 import { isInITerm2, isInsideTmuxSync } from './terminalDetection.js'
 import { canCloneHere, carryEntries, cloneIntoWorktree, cloneRefusedBetween, discardSetAside, recordWorktreeClones, returnWorktreeFromAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones, type HeldBack } from './worktreeClone.js'
+import { readWorktreeBaseline, resolveWorktreeAdminDir, writeWorktreeBaseline } from './worktree/baseline.js'
+import { deltaBlocksSettlement, readWorktreeDelta, worktreeRemovalSafe } from './worktree/delta.js'
+import { runGit } from './worktree/git.js'
 
 
 
@@ -63,62 +65,6 @@ export function worktreeBranchName(slug: string): string {
 
 function worktreePathForSlug(gitRoot: string, slug: string): string {
   return join(worktreesHome(gitRoot), flattenSlug(slug))
-}
-
-
-const BASELINE_FILENAME = 'WORKTREE_BASE'
-
-async function resolveWorktreeAdminDir(worktreePath: string): Promise<string | null> {
-  try {
-    const content = (await readFile(join(worktreePath, '.git'), 'utf8')).trim()
-    if (!content.startsWith('gitdir:')) return null
-    return resolve(worktreePath, content.slice('gitdir:'.length).trim())
-  } catch {
-    return null
-  }
-}
-
-async function writeWorktreeBaseline(worktreePath: string, sha: string): Promise<void> {
-  const adminDir = await resolveWorktreeAdminDir(worktreePath)
-  if (adminDir === null) {
-    logForDebugging(`worktree baseline not written: no admin dir for ${worktreePath}`)
-    return
-  }
-  try {
-    await writeFile(join(adminDir, BASELINE_FILENAME), sha)
-  } catch (error) {
-    logForDebugging(`worktree baseline write failed: ${String(error)}`)
-  }
-}
-
-async function readWorktreeBaseline(worktreePath: string): Promise<string | null> {
-  const adminDir = await resolveWorktreeAdminDir(worktreePath)
-  if (adminDir === null) return null
-  let content: string
-  try {
-    content = await readFile(join(adminDir, BASELINE_FILENAME), 'utf8')
-  } catch {
-    return null
-  }
-  const trimmed = content.trim()
-  return /^[0-9a-fA-F]{7,64}$/.test(trimmed) ? trimmed : null
-}
-
-
-function noPromptEnv(): NodeJS.ProcessEnv {
-  return { ...subprocessEnv(), GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '' }
-}
-
-async function runGit(
-  args: string[],
-  cwd: string,
-  options?: { suppressPrompts?: boolean },
-): Promise<{ code: number; stdout: string; stderr: string }> {
-  const result = await execFileNoThrowWithCwd(gitExe(), args, {
-    cwd,
-    ...(options?.suppressPrompts ? { env: noPromptEnv(), stdin: 'ignore' as never } : {}),
-  })
-  return { code: result.code, stdout: result.stdout, stderr: result.stderr }
 }
 
 const creationChainByRepository = new Map<string, Promise<unknown>>()
@@ -1006,127 +952,7 @@ async function removeAgentWorktree(
 }
 
 
-const MERCURY_EPHEMERAL_PREFIXES = ['.mercury/cache-clock/']
-
-function isMercuryEphemeralLanePath(relPath: string): boolean {
-  return MERCURY_EPHEMERAL_PREFIXES.some(prefix => relPath.startsWith(prefix))
-}
-
-type WorktreeDelta = {
-  commitsAhead: number
-  tracked: string[]
-  untrackedAuthored: string[]
-  mercuryEphemeral: string[]
-  uncertainty: string | null
-}
-
-export function classifyPorcelainRecords(zOutput: string): {
-  tracked: string[]
-  untrackedAuthored: string[]
-  mercuryEphemeral: string[]
-} {
-  const tracked: string[] = []
-  const untrackedAuthored: string[] = []
-  const mercuryEphemeral: string[] = []
-  const records = zOutput.split('\u0000')
-  for (let index = 0; index < records.length; index++) {
-    const record = records[index] as string
-    if (record.length < 4) continue
-    const statusPair = record.slice(0, 2)
-    const path = record.slice(3)
-    if (statusPair === '??') {
-      if (isMercuryEphemeralLanePath(path)) mercuryEphemeral.push(path)
-      else untrackedAuthored.push(path)
-      continue
-    }
-    tracked.push(path)
-    if (statusPair.includes('R') || statusPair.includes('C')) {
-      const origin = records[index + 1]
-      if (origin !== undefined && origin !== '') {
-        tracked.push(origin)
-        index++
-      }
-    }
-  }
-  return { tracked, untrackedAuthored, mercuryEphemeral }
-}
-
-export async function readWorktreeDelta(worktreePath: string, headCommit?: string): Promise<WorktreeDelta> {
-  const status = await runGit(['--no-optional-locks', 'status', '--porcelain=v1', '-uall', '-z'], worktreePath)
-  if (status.code !== 0) {
-    return {
-      commitsAhead: 0,
-      tracked: [],
-      untrackedAuthored: [],
-      mercuryEphemeral: [],
-      uncertainty: `git status exited ${status.code}`,
-    }
-  }
-  const classified = classifyPorcelainRecords(status.stdout)
-  let commitsAhead = 0
-  let uncertainty: string | null = null
-  if (headCommit !== undefined) {
-    const revList = await runGit(['rev-list', '--count', `${headCommit}..HEAD`], worktreePath)
-    if (revList.code !== 0) {
-      uncertainty = `git rev-list exited ${revList.code}`
-    } else {
-      const parsed = parseInt(revList.stdout.trim(), 10)
-      if (Number.isNaN(parsed)) uncertainty = 'git rev-list output was malformed'
-      else commitsAhead = parsed
-    }
-  }
-  return { commitsAhead, ...classified, uncertainty }
-}
-
-function deltaBlocksSettlement(delta: WorktreeDelta): boolean {
-  return (
-    delta.uncertainty !== null ||
-    delta.commitsAhead > 0 ||
-    delta.tracked.length > 0 ||
-    delta.untrackedAuthored.length > 0
-  )
-}
-
-export async function hasWorktreeChanges(worktreePath: string, headCommit: string): Promise<boolean> {
-  const delta = await readWorktreeDelta(worktreePath, headCommit)
-  return deltaBlocksSettlement(delta)
-}
-
-type WorktreeRemovalVerdict =
-  | { safe: true }
-  | { safe: false; state: 'uncommitted' | 'unreachable' | 'unowned'; detail: string }
-
-async function worktreeUnreachableCommits(worktreePath: string, ownBranch?: string): Promise<number | null> {
-  const refs = await runGit(['for-each-ref', '--format=%(refname)'], worktreePath)
-  if (refs.code !== 0) return null
-  const others = refs.stdout
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line !== '' && line !== `refs/heads/${ownBranch ?? ''}`)
-  const counted = await runGit(['rev-list', '--count', 'HEAD', '--not', ...others], worktreePath)
-  if (counted.code !== 0) return null
-  const parsed = parseInt(counted.stdout.trim(), 10)
-  return Number.isNaN(parsed) ? null : parsed
-}
-
-export async function worktreeRemovalSafe(worktreePath: string, ownBranch?: string): Promise<WorktreeRemovalVerdict> {
-  const owned = await resolveWorktreeAdminDir(worktreePath)
-  if (owned === null) return { safe: false, state: 'unowned', detail: 'git no longer owns it, so what it holds cannot be judged' }
-  const delta = await readWorktreeDelta(worktreePath)
-  if (delta.uncertainty !== null) return { safe: false, state: 'unowned', detail: `its state could not be read (${delta.uncertainty})` }
-  if (delta.tracked.length > 0 || delta.untrackedAuthored.length > 0) {
-    const parts: string[] = []
-    if (delta.tracked.length > 0) parts.push(`${delta.tracked.length} uncommitted change${delta.tracked.length === 1 ? '' : 's'} (${delta.tracked.slice(0, 3).join(', ')}${delta.tracked.length > 3 ? ', …' : ''})`)
-    if (delta.untrackedAuthored.length > 0) parts.push(`${delta.untrackedAuthored.length} untracked file${delta.untrackedAuthored.length === 1 ? '' : 's'} (${delta.untrackedAuthored.slice(0, 3).join(', ')}${delta.untrackedAuthored.length > 3 ? ', …' : ''})`)
-    return { safe: false, state: 'uncommitted', detail: parts.join(' · ') }
-  }
-  const unreachable = await worktreeUnreachableCommits(worktreePath, ownBranch)
-  if (unreachable === null) return { safe: false, state: 'unowned', detail: 'its commits could not be read' }
-  if (unreachable > 0) {
-    return { safe: false, state: 'unreachable', detail: `${unreachable} commit${unreachable === 1 ? '' : 's'} reachable from no other branch` }
-  }
-  return { safe: true }
-}
+export { classifyPorcelainRecords, hasWorktreeChanges, readWorktreeDelta, worktreeRemovalSafe } from './worktree/delta.js'
 
 
 const AGENT_LANE_SLUG = /^agent-a[0-9a-f]{7,32}$/
