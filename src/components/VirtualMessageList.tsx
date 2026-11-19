@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { Box, elementScreenLeft } from '../ink.js'
+import { Box } from '../ink.js'
 import type { DOMElement } from '../ink/dom.js'
 import type { ClickEvent } from '../ink/events/click-event.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
@@ -32,8 +32,9 @@ import {
   type MessageActionsNav,
   type MessageActionsState,
 } from './messageActions.js'
-import { JUMP_HEADROOM_ROWS, MOUNT_ATTEMPT_LIMIT, newEngineState, PHANTOM_LIMIT, type JumpHandle, type SearchEngineState } from './virtualMessageList/engine.js'
+import { JUMP_HEADROOM_ROWS, newEngineState, type JumpHandle, type SearchEngineState } from './virtualMessageList/engine.js'
 import { cursorNavHandleOf, jumpHandleOf } from './virtualMessageList/handles.js'
+import { advanceOf, settleOnMessageOf } from './virtualMessageList/search.js'
 
 export type { JumpHandle } from './virtualMessageList/engine.js'
 
@@ -269,70 +270,7 @@ export function VirtualMessageList({
   )
 
   const settleOnMessage = useCallback(
-    (index: number, direction: 1 | -1): void => {
-      const engine = engineRef.current
-      const finish = (): void => {
-        engine.seekInFlight = false
-        const queued = engine.queuedStep
-        engine.queuedStep = null
-        if (queued !== null) stepRef.current?.(queued)
-      }
-      const attempt = (): void => {
-        const handle = scrollRef.current
-        if (!handle) {
-          finish()
-          return
-        }
-        const el = vsRef.current.getItemElement(index)
-        if (!el || vsRef.current.getItemHeight(index) === 0) {
-          engine.mountAttempts += 1
-          if (engine.mountAttempts >= MOUNT_ATTEMPT_LIMIT) {
-            engine.mountAttempts = 0
-            finish()
-            advanceRef.current?.(direction)
-            return
-          }
-          scrollMessageIntoView(index)
-          engine.pendingTimer = setTimeout(attempt, 0)
-          return
-        }
-        engine.mountAttempts = 0
-        handle.scrollToElement(el, JUMP_HEADROOM_ROWS)
-        const positions = scanElementRef.current?.(el) ?? []
-        if (positions.length === 0) {
-          engine.phantomRun += 1
-          if (engine.phantomRun >= PHANTOM_LIMIT) {
-            engine.phantomRun = 0
-            finish()
-            return
-          }
-          finish()
-          advanceRef.current?.(direction)
-          return
-        }
-        engine.phantomRun = 0
-        const ordinal = Math.min(
-          Math.max(0, engine.ordinal),
-          positions.length - 1,
-        )
-        engine.ordinal = ordinal
-        const rowOffset =
-          handle.getViewportTop() +
-          vsRef.current.getItemTop(index) -
-          handle.getScrollTop()
-        setPositionsRef.current?.({
-          positions,
-          rowOffset,
-          colOffset: elementScreenLeft(el),
-          currentIdx: ordinal,
-        })
-        reportBadge()
-        finish()
-      }
-      engine.seekInFlight = true
-      if (engine.pendingTimer !== null) clearTimeout(engine.pendingTimer)
-      engine.pendingTimer = setTimeout(attempt, 0)
-    },
+    (index: number, direction: 1 | -1): void => settleOnMessageOf({ engineRef, stepRef, advanceRef, scrollRef, vsRef, scanElementRef, setPositionsRef, scrollMessageIntoView, reportBadge }, index, direction),
     [scrollRef, scrollMessageIntoView, reportBadge],
   )
 
@@ -351,29 +289,7 @@ export function VirtualMessageList({
   )
 
   const advance = useCallback(
-    (direction: 1 | -1): void => {
-      const engine = engineRef.current
-      const count = messagesRef.current.length
-      if (count === 0 || engine.total === 0) return
-      let pointer = engine.messagePointer
-      for (let step = 0; step < count; step++) {
-        pointer = (pointer + direction + count) % count
-        if (pointer === engine.wrapStart && step > 0) {
-          engine.phantomRun = 0
-          clearHighlight()
-          return
-        }
-        if ((engine.counts[pointer] ?? 0) > 0) {
-          seekToMessage(
-            pointer,
-            direction,
-            direction === -1 ? Math.max(0, (engine.counts[pointer] ?? 1) - 1) : 0,
-          )
-          return
-        }
-      }
-      clearHighlight()
-    },
+    (direction: 1 | -1): void => advanceOf({ engineRef, messagesRef, clearHighlight, seekToMessage }, direction),
     [clearHighlight, seekToMessage],
   )
   const advanceRef = useRef(advance)
