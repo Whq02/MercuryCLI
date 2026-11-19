@@ -626,82 +626,23 @@ async function routeControlRequest(
     }
 
     case 'status': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      const now = Date.now()
-      const sup = deps.roster.getRespawnState()
-      return answer(sock, {
-        ok: true,
-        op: 'status',
-        status: {
-          pid: process.pid,
-          version: currentVersion(),
-          startedAt: deps.startedAt,
-          uptimeSec: Math.floor((now - deps.startedAt) / 1000),
-          dir: deps.dir,
-          workersLive: Math.max(
-            0,
-            deps.roster.liveCount() - (deps.warmRunnerCount !== undefined ? deps.warmRunnerCount() : 0),
-          ),
-          workersTotal: Math.max(
-            0,
-            deps.roster.totalCount() - (deps.warmRunnerCount !== undefined ? deps.warmRunnerCount() : 0),
-          ),
-          maxInflight: deps.maxInflight,
-          breakerOpen: deps.breaker.shouldSuppressFire(),
-          leaseCount: leases.size,
-          proto: MERCURY_DAEMON_PROTO,
-          degraded: sup.degraded,
-          degradedReason: sup.degraded ? sup.reason : undefined,
-          ...(deps.warmRunnerCount !== undefined ? { warmRunners: deps.warmRunnerCount() } : {}),
-        },
-      })
+      return answerStatus(deps, leases, sock, auth, op)
     }
 
     case 'dispatch': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      const body = raw.d
-      if (!body || typeof body !== 'object' || typeof (body as { prompt?: unknown }).prompt !== 'string') {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'dispatch requires { d: { prompt } }' })
-      }
-      const out = await deps.roster.dispatch(body as Parameters<TaskRoster['dispatch']>[0])
-      if (!out.ok) {
-        return answer(sock, {
-          ok: false,
-          code: out.code ?? 'EUNKNOWN',
-          error: out.error ?? 'dispatch failed',
-        })
-      }
-      return answer(sock, { ok: true, op: 'dispatch', ...pickDefined(out, WORKER_DISPATCH_WIRE_KEYS) })
+      const read = readDispatch(deps, sock, raw, auth, op)
+      if (read === undefined) return
+      return await answerDispatch(deps, sock, read)
     }
 
     case 'reply': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      const short = String(raw.short ?? '')
-      const text = String(raw.text ?? '')
-      const h = deps.roster.has(short)
-      if (!h.present) {
-        return answer(sock, { ok: false, code: 'ENOJOB', error: 'job not found — it may have already exited' })
-      }
-      const accepted = await deps.roster.reply(short, { type: 'prompt', content: text })
-      if (!accepted) {
-        return answer(sock, {
-          ok: false,
-          code: 'ENOREPLY',
-          error: "job isn't accepting replies — headless runs have no interactive stdin",
-        })
-      }
-      return answer(sock, { ok: true, op: 'reply' })
+      const read = readReply(deps, sock, raw, auth, op)
+      if (read === undefined) return
+      return await answerReply(deps, sock, read)
     }
 
     case 'kill': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      const short = String(raw.short ?? '')
-      const signal = (typeof raw.signal === 'string' ? raw.signal : 'SIGTERM') as NodeJS.Signals
-      const killed = deps.roster.kill(short, signal)
-      if (!killed) {
-        return answer(sock, { ok: false, code: 'ENOJOB', error: 'job not found — it may have already exited' })
-      }
-      return answer(sock, { ok: true, op: 'kill' })
+      return answerKill(deps, sock, raw, auth, op)
     }
 
     case 'reconfigure': {
@@ -742,373 +683,32 @@ async function routeControlRequest(
     }
 
     case 'sessionAdmit': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      if (!deps.concourseAdmit) {
-        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
-      }
-      if (raw.resumeSessionId !== undefined && validateUuid(raw.resumeSessionId) === null) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'no live session record owns this id' })
-      }
-      const workspaceDir = String(raw.workspaceDir ?? '')
-      if (!workspaceDir) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionAdmit requires { workspaceDir }' })
-      }
-      const isolation =
-        raw.isolation === 'exclusive' || raw.isolation === 'shared' || raw.isolation === 'worktree-isolated' || raw.isolation === 'read-only'
-          ? raw.isolation
-          : undefined
-      if (raw.runnerArgv !== undefined) {
-        const refusal = refuseRunnerArgv(raw.runnerArgv)
-        if (refusal !== null) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `runnerArgv refused — ${refusal}` })
-      }
-      let kit: SessionKitV1 | undefined
-      if (raw.kit !== undefined) {
-        const verdict = validateSessionKit(raw.kit)
-        if (!verdict.ok) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `kit refused — ${verdict.reason}` })
-        kit = verdict.kit
-      }
-      if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
-      }
-      const named = requestedModel(raw)
-      if (named.conflict !== undefined) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${named.conflict}; nothing was admitted` })
-      }
-      if (raw.birthKey !== undefined && !isBirthKey(raw.birthKey)) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'birthKey refused — a birth names itself with one key of 8 to 64 letters, digits or dashes; nothing was admitted' })
-      }
-      const waitForSeatMs = typeof raw.waitForSeatMs === 'number' && Number.isFinite(raw.waitForSeatMs) ? Math.max(0, Math.min(raw.waitForSeatMs, 120_000)) : 0
-      const admitRequest: Parameters<NonNullable<ControlServerDeps['concourseAdmit']>>[0] = {
-        workspaceDir,
-        ...(typeof raw.birthKey === 'string' ? { birthKey: raw.birthKey } : {}),
-        ...(isolation !== undefined ? { isolation } : {}),
-        ...(named.model !== undefined ? { modelKey: named.model } : {}),
-        ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort } : {}),
-        ...(typeof raw.title === 'string' && raw.title ? { title: raw.title } : {}),
-        ...(typeof raw.agentName === 'string' && raw.agentName ? { agentName: raw.agentName } : {}),
-        ...(raw.seatsMax === 1 || raw.seatsMax === 2 ? { seatsMax: raw.seatsMax } : {}),
-        ...(typeof raw.resumeSessionId === 'string' && raw.resumeSessionId ? { resumeSessionId: raw.resumeSessionId } : {}),
-        ...(typeof raw.permissionMode === 'string' && raw.permissionMode ? { permissionMode: raw.permissionMode as never } : {}),
-        ...(Array.isArray(raw.runnerArgv) && raw.runnerArgv.length > 0 ? { runnerArgv: raw.runnerArgv as string[] } : {}),
-        ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
-        ...(raw.bornBlank === true ? { bornBlank: true } : {}),
-        ...(typeof raw.resumeSessionId === 'string' && raw.resumeSessionId && raw.bornBlank !== true ? { resumedAtRest: true as const } : {}),
-        ...(typeof raw.by === 'string' && raw.by ? { by: raw.by } : {}),
-        ...(kit !== undefined ? { kit } : {}),
-        ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
-        ...(typeof raw.vacatingSessionId === 'string' && raw.vacatingSessionId !== '' ? { vacatingSessionId: raw.vacatingSessionId } : {}),
-        ...(raw.restartReason === 'update' ? { restartReason: 'update' as const } : {}),
-      }
-      let r = await deps.concourseAdmit(admitRequest)
-      const seatDeadline = Date.now() + waitForSeatMs
-      while (!r.ok && r.code === 'runtime-ceiling' && waitForSeatMs > 0 && Date.now() < seatDeadline && !sock.destroyed) {
-        await sleep(Math.min(1000, Math.max(50, seatDeadline - Date.now())))
-        r = await deps.concourseAdmit(admitRequest)
-      }
-      if (!r.ok) {
-        const waited = waitForSeatMs > 0 && r.code === 'runtime-ceiling' ? ` — no seat freed in ${Math.round(waitForSeatMs / 1000)} s` : ''
-        const refusal = pickDefined(r, ADMIT_REFUSAL_WIRE_KEYS)
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${r.error}${waited}`, refusal: r.code, ...(refusal.moves !== undefined ? { moves: [...refusal.moves] } : {}) })
-      }
-      return answer(sock, {
-        ok: true,
-        op: requestedOp === 'concourseAdmit' ? 'concourseAdmit' : 'sessionAdmit',
-        workerId: r.runnerId,
-        ...pickDefined(r, ADMIT_WIRE_KEYS),
-      })
+      const read = readSessionAdmit(deps, sock, raw, auth, op)
+      if (read === undefined) return
+      return await answerSessionAdmit(deps as DepsWith<'concourseAdmit'>, sock, requestedOp, read)
     }
 
     case 'concourseWithdraw': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      if (!deps.concourseWithdraw) {
-        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
-      }
-      const clientMessageId = String(raw.clientMessageId ?? '')
-      if (!clientMessageId) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'concourseWithdraw requires { clientMessageId }' })
-      }
-      const withdrawn = await deps.concourseWithdraw(clientMessageId)
-      return answer(sock, { ok: true, op: 'concourseWithdraw', withdrawn })
+      const read = readConcourseWithdraw(deps, sock, raw, auth, op)
+      if (read === undefined) return
+      return await answerConcourseWithdraw(deps as DepsWith<'concourseWithdraw'>, sock, read)
     }
 
     case 'concourseWarm': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      if (!deps.concourseWarm) {
-        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
-      }
-      const warmWorkspaceDir = String(raw.workspaceDir ?? '')
-      if (!warmWorkspaceDir) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'concourseWarm requires { workspaceDir }' })
-      }
-      let warmKit: SessionKitV1 | undefined
-      if (raw.kit !== undefined) {
-        const verdict = validateSessionKit(raw.kit)
-        if (!verdict.ok) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `kit refused — ${verdict.reason}` })
-        warmKit = verdict.kit
-      }
-      const warm = await deps.concourseWarm({
-        workspaceDir: warmWorkspaceDir,
-        ...(typeof raw.retiring === 'string' && raw.retiring !== '' ? { retiring: raw.retiring } : {}),
-        ...(raw.runnerOptionsPresent === true ? { bootCarriesRunnerOptions: true } : {}),
-        ...(warmKit !== undefined ? { kit: warmKit } : {}),
-        ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
-      })
-      return answer(sock, { ok: true, op: 'concourseWarm', ...pickDefined(warm, WARM_WIRE_KEYS) })
+      const read = readConcourseWarm(deps, sock, raw, auth, op)
+      if (read === undefined) return
+      return await answerConcourseWarm(deps as DepsWith<'concourseWarm'>, sock, raw, read)
     }
     case 'sessionDispatch': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      if (!deps.concourseDispatch) {
-        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
-      }
-      const clientMessageId = String(raw.clientMessageId ?? '')
-      const prompt = String(raw.prompt ?? '')
-      const workspaceDir = String(raw.workspaceDir ?? '')
-      const targetSessionId = typeof raw.targetSessionId === 'string' && raw.targetSessionId ? raw.targetSessionId : undefined
-      if (raw.origin !== undefined && isScreenCommandOrigin(raw.origin) && targetSessionId === undefined) {
-        return answer(sock, { ok: false, code: 'EREFUSED', error: 'A screen command\'s meta row requires an existing target session' })
-      }
-      if (raw.origin !== undefined && !isScreenCommandOrigin(raw.origin) && (!isOutsideReportOrigin(raw.origin) || targetSessionId === undefined)) {
-        return answer(sock, { ok: false, code: 'EREFUSED', error: 'An outside report requires a sender and an existing target session' })
-      }
-      if (!clientMessageId || !prompt || (!workspaceDir && targetSessionId === undefined)) {
-        return answer(sock, { ok: false, code: 'EREFUSED', error: 'sessionDispatch requires { clientMessageId, prompt, workspaceDir } (workspaceDir optional with targetSessionId)' })
-      }
-      const isolation =
-        raw.isolation === 'exclusive' || raw.isolation === 'worktree-isolated' || raw.isolation === 'read-only'
-          ? raw.isolation
-          : undefined
-      if (raw.isolation !== undefined && isolation === undefined) {
-        return answer(sock, {
-          ok: false,
-          code: 'EREFUSED',
-          error: `unknown isolation '${String(raw.isolation)}' — the closed vocabulary is exclusive | worktree-isolated | read-only`,
-        })
-      }
-      if (raw.runnerArgv !== undefined) {
-        const refusal = refuseRunnerArgv(raw.runnerArgv)
-        if (refusal !== null) return answer(sock, { ok: false, code: 'EREFUSED', error: `runnerArgv refused — ${refusal}` })
-      }
-      if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
-        return answer(sock, { ok: false, code: 'EREFUSED', error: 'kitPreset must be a saved preset name (a non-empty string)' })
-      }
-      const named = requestedModel(raw)
-      if (named.conflict !== undefined) {
-        return answer(sock, { ok: false, code: 'EREFUSED', error: `${named.conflict}; nothing was dispatched` })
-      }
-      const r = await deps.concourseDispatch({
-        clientMessageId,
-        prompt,
-        workspaceDir,
-        ...(isolation !== undefined ? { isolation } : {}),
-        ...(named.model !== undefined ? { modelKey: named.model } : {}),
-        ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort } : {}),
-        ...(typeof raw.title === 'string' && raw.title ? { title: raw.title } : {}),
-        ...(typeof raw.agentName === 'string' && raw.agentName ? { agentName: raw.agentName } : {}),
-        ...(raw.seatsMax === 1 || raw.seatsMax === 2 ? { seatsMax: raw.seatsMax } : {}),
-        ...(typeof raw.resumeSessionId === 'string' && raw.resumeSessionId ? { resumeSessionId: raw.resumeSessionId } : {}),
-        ...(typeof raw.by === 'string' && raw.by ? { by: raw.by } : {}),
-        ...(typeof raw.permissionMode === 'string' && raw.permissionMode ? { permissionMode: raw.permissionMode as never } : {}),
-        ...(Array.isArray(raw.runnerArgv) && raw.runnerArgv.length > 0 ? { runnerArgv: raw.runnerArgv as string[] } : {}),
-        ...(targetSessionId !== undefined ? { targetSessionId } : {}),
-        ...(isOutsideReportOrigin(raw.origin) || isScreenCommandOrigin(raw.origin) ? { origin: raw.origin } : {}),
-        ...(raw.mode === 'bash' || raw.mode === 'prompt' || raw.mode === 'task-notification' ? { mode: raw.mode } : {}),
-        ...(raw.mode === 'task-notification' && typeof raw.agentId === 'string' && raw.agentId !== '' ? { agentId: raw.agentId } : {}),
-        ...(raw.priority === 'now' || raw.priority === 'next' || raw.priority === 'later' ? { priority: raw.priority } : {}),
-        ...(Array.isArray(raw.content) && raw.content.length > 0 ? { content: raw.content } : {}),
-        ...(typeof raw.sentAt === 'string' && Number.isFinite(Date.parse(raw.sentAt)) ? { sentAt: raw.sentAt } : {}),
-        ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
-      })
-      if (!r.ok) {
-        return answer(sock, {
-          ok: false,
-          code: 'EREFUSED',
-          error: r.error ?? 'dispatch refused',
-          refusal: r.replay,
-          ...pickDefined(r, DISPATCH_REFUSAL_WIRE_KEYS),
-        })
-      }
-      return answer(sock, {
-        ok: true,
-        op: requestedOp === 'concourseDispatch' ? 'concourseDispatch' : 'sessionDispatch',
-        workerId: r.runnerId,
-        ...pickDefined(r, DISPATCH_WIRE_KEYS),
-      })
+      const read = readSessionDispatch(deps, sock, raw, auth, op)
+      if (read === undefined) return
+      return await answerSessionDispatch(deps as DepsWith<'concourseDispatch'>, sock, raw, requestedOp, read)
     }
 
     case 'sessionControl': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      if (!deps.concourseControl) {
-        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
-      }
-      const action =
-        raw.action === 'pause' ||
-        raw.action === 'resume' ||
-        raw.action === 'interrupt' ||
-        raw.action === 'attach' ||
-        raw.action === 'detach' ||
-        raw.action === 'grant-workflows' ||
-        raw.action === 'revoke-workflows' ||
-        raw.action === 'answer-permission' ||
-        raw.action === 'stop' ||
-        raw.action === 'set-model' ||
-        raw.action === 'set-permission-mode' ||
-        raw.action === 'session-facts' ||
-        raw.action === 'set-title' ||
-        raw.action === 'focus' ||
-        raw.action === 'blur' ||
-        raw.action === 'park' ||
-        raw.action === 'park-all' ||
-        raw.action === 'set-effort' ||
-        raw.action === 'contract' ||
-        raw.action === 'set-kit' ||
-        raw.action === 'mcp-action' ||
-        raw.action === 'mcp-tools' ||
-        raw.action === 'set-schedule' ||
-        raw.action === 'set-spawn-switch' ||
-        raw.action === 'stop-agent' ||
-        raw.action === 'resume-agent' ||
-        raw.action === 'withdraw-send' ||
-        raw.action === 'background-shell' ||
-        raw.action === 'pause-gate' ||
-        raw.action === 'leave' ||
-        raw.action === 'send-now' ||
-        raw.action === 'board-post'
-          ? raw.action
-          : undefined
-      const sessionId = String(raw.sessionId ?? '')
-      const by = String(raw.by ?? '')
-      if (action === undefined || !sessionId || !by) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send|background-shell|pause-gate|leave|send-now|board-post, sessionId, by }' })
-      }
-      let boardPost: BoardPostRequestV1 | undefined
-      if (action === 'board-post') {
-        const p = raw.boardPost && typeof raw.boardPost === 'object' && !Array.isArray(raw.boardPost) ? (raw.boardPost as Record<string, unknown>) : undefined
-        const channel = p?.channel === 'general' || p?.channel === 'team' || p?.channel === 'whisper' ? p.channel : undefined
-        if (channel === undefined || typeof p?.clientOpId !== 'string' || p.clientOpId.length === 0 || p.clientOpId.length > 160 || typeof p.text !== 'string' || p.text.length === 0 || (p.target !== undefined && typeof p.target !== 'string')) {
-          return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'board-post requires { boardPost: { clientOpId, channel, target?, text } }' })
-        }
-        boardPost = { clientOpId: p.clientOpId, channel, ...(typeof p.target === 'string' ? { target: p.target.slice(0, 200) } : {}), text: p.text }
-      }
-      let spawnSwitch: { kind: 'subagents' | 'workflows'; on: boolean } | undefined
-      if (raw.spawnSwitch !== undefined) {
-        const rawSwitch =
-          raw.spawnSwitch && typeof raw.spawnSwitch === 'object' && !Array.isArray(raw.spawnSwitch)
-            ? (raw.spawnSwitch as Record<string, unknown>)
-            : undefined
-        const kind = rawSwitch?.kind === 'subagents' || rawSwitch?.kind === 'workflows' ? rawSwitch.kind : undefined
-        if (kind === undefined || typeof rawSwitch?.on !== 'boolean') {
-          return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'spawnSwitch refused — { kind: subagents|workflows, on: boolean }' })
-        }
-        spawnSwitch = { kind, on: rawSwitch.on }
-      }
-      const rawAnswer = raw.answer && typeof raw.answer === 'object' && !Array.isArray(raw.answer) ? (raw.answer as Record<string, unknown>) : undefined
-      const answerPayload =
-        rawAnswer !== undefined
-          ? {
-              ...(rawAnswer.updatedInput && typeof rawAnswer.updatedInput === 'object' && !Array.isArray(rawAnswer.updatedInput)
-                ? { updatedInput: rawAnswer.updatedInput as Record<string, unknown> }
-                : {}),
-              ...(Array.isArray(rawAnswer.permissionUpdates) ? { permissionUpdates: rawAnswer.permissionUpdates } : {}),
-              ...(typeof rawAnswer.feedback === 'string' ? { feedback: rawAnswer.feedback.slice(0, 4000) } : {}),
-              ...(rawAnswer.interrupt === true ? { interrupt: true } : {}),
-            }
-          : undefined
-      const rawContract = raw.contract && typeof raw.contract === 'object' && !Array.isArray(raw.contract) ? (raw.contract as Record<string, unknown>) : undefined
-      const contract =
-        rawContract?.op === 'set' || rawContract?.op === 'ack' || rawContract?.op === 'amend' || rawContract?.op === 'close'
-          ? {
-              op: rawContract.op as 'set' | 'ack' | 'amend' | 'close',
-              ...(typeof rawContract.text === 'string' ? { text: rawContract.text.slice(0, 20_000) } : {}),
-            }
-          : undefined
-      let mcpAction: { name: string; action: 'authenticate' | 'reconnect' | 'cancel-auth' } | undefined
-      if (raw.action === 'mcp-action') {
-        const m = raw.mcpAction as Record<string, unknown> | undefined
-        if (!m || typeof m.name !== 'string' || m.name.length === 0 || m.name.length > 200 || !['authenticate', 'reconnect', 'cancel-auth'].includes(String(m.action))) {
-          return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'mcp-action requires { name, action: authenticate|reconnect|cancel-auth }' })
-        }
-        mcpAction = { name: m.name, action: m.action as 'authenticate' | 'reconnect' | 'cancel-auth' }
-      }
-      let mcpServer: string | undefined
-      if (raw.action === 'mcp-tools') {
-        if (typeof raw.mcpServer !== 'string' || raw.mcpServer.length === 0 || raw.mcpServer.length > 200) {
-          return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'mcp-tools requires { mcpServer }' })
-        }
-        mcpServer = raw.mcpServer
-      }
-      let kitEdit: SessionKitEditV1 | undefined
-      if (raw.kitEdit !== undefined) {
-        const verdict = validateSessionKitEdit(raw.kitEdit)
-        if (!verdict.ok) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `kitEdit refused — ${verdict.reason}` })
-        kitEdit = verdict.edit
-      }
-      let scheduleEdit: ScheduleOpRequestV1 | undefined
-      if (raw.scheduleEdit !== undefined) {
-        const rawSchedule =
-          raw.scheduleEdit && typeof raw.scheduleEdit === 'object' && !Array.isArray(raw.scheduleEdit)
-            ? (raw.scheduleEdit as Record<string, unknown>)
-            : undefined
-        const op =
-          rawSchedule?.op === 'add' || rawSchedule?.op === 'remove' || rawSchedule?.op === 'pause' || rawSchedule?.op === 'resume'
-            ? rawSchedule.op
-            : undefined
-        if (rawSchedule === undefined || op === undefined) {
-          return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'scheduleEdit refused — op must be add|remove|pause|resume' })
-        }
-        if (op === 'add') {
-          const verdict = validateSaturnSubmission(rawSchedule.schedule)
-          if (!verdict.ok) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `scheduleEdit refused — ${verdict.reason}` })
-          scheduleEdit = { op, schedule: rawSchedule.schedule }
-        } else {
-          const scheduleId = typeof rawSchedule.scheduleId === 'string' ? rawSchedule.scheduleId : ''
-          if (!SATURN_ID_PATTERN.test(scheduleId)) {
-            return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'scheduleEdit refused — scheduleId must be eight hex characters' })
-          }
-          scheduleEdit = { op, scheduleId }
-        }
-      }
-      let terminalApplication: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null | undefined
-      if (raw.terminalApplication !== undefined) {
-        if (action !== 'focus') return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication belongs to focus only' })
-        const candidate = raw.terminalApplication as { identity?: unknown; name?: unknown; windowId?: unknown; tty?: unknown } | null
-        if (candidate === null) terminalApplication = null
-        else if (typeof candidate === 'object' && !Array.isArray(candidate) && typeof candidate.identity === 'string' && candidate.identity.length > 0 && candidate.identity.length <= 512 && typeof candidate.name === 'string' && candidate.name.length > 0 && candidate.name.length <= 512) {
-          if (candidate.windowId !== undefined && candidate.windowId !== null && (typeof candidate.windowId !== 'string' || candidate.windowId.length === 0 || candidate.windowId.length > 128)) return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication.windowId requires a nonempty string of at most 128 characters or null' })
-          if (candidate.tty !== undefined && candidate.tty !== null && (typeof candidate.tty !== 'string' || candidate.tty.length > 1024 || !/^\/dev\/[A-Za-z0-9/_]+$/.test(candidate.tty))) return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication.tty requires a terminal device path or null' })
-          terminalApplication = { identity: candidate.identity, name: candidate.name, ...(candidate.windowId !== undefined ? { windowId: candidate.windowId as string | null } : {}), ...(candidate.tty !== undefined ? { tty: candidate.tty as string | null } : {}) }
-        } else return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication requires nonempty identity and name strings' })
-      }
-      const r = await deps.concourseControl({
-        action,
-        sessionId,
-        by,
-        ...(typeof raw.agentId === 'string' && raw.agentId ? { agentId: raw.agentId.slice(0, 128) } : {}),
-        ...(typeof raw.note === 'string' && raw.note ? { note: raw.note.slice(0, 4000) } : {}),
-        ...(typeof raw.reason === 'string' && raw.reason ? { reason: raw.reason } : {}),
-        ...(raw.hard === true ? { hard: true } : {}),
-        ...(typeof raw.requestId === 'string' && raw.requestId ? { requestId: raw.requestId.slice(0, 128) } : {}),
-        ...(typeof raw.allow === 'boolean' ? { allow: raw.allow } : {}),
-        ...(answerPayload !== undefined ? { answer: answerPayload } : {}),
-        ...(typeof raw.model === 'string' && raw.model ? { model: raw.model.slice(0, 128) } : {}),
-        ...(typeof raw.words === 'string' && raw.words ? { words: raw.words.slice(0, 200) } : {}),
-        ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort.slice(0, 32) } : {}),
-        ...(typeof raw.mode === 'string' && raw.mode ? { mode: raw.mode.slice(0, 64) } : {}),
-        ...(typeof raw.title === 'string' && raw.title ? { title: raw.title.slice(0, 200) } : {}),
-        ...(raw.titleSource === 'operator' || raw.titleSource === 'minted' ? { titleSource: raw.titleSource } : {}),
-        ...(contract !== undefined ? { contract } : {}),
-        ...(kitEdit !== undefined ? { kitEdit } : {}),
-        ...(mcpAction !== undefined ? { mcpAction } : {}),
-        ...(mcpServer !== undefined ? { mcpServer } : {}),
-        ...(scheduleEdit !== undefined ? { scheduleEdit } : {}),
-        ...(spawnSwitch !== undefined ? { spawnSwitch } : {}),
-        ...(terminalApplication !== undefined ? { terminalApplication } : {}),
-        ...(typeof raw.clientOpId === 'string' && raw.clientOpId ? { clientOpId: raw.clientOpId.slice(0, 128) } : {}),
-        ...(typeof raw.mintedAtMs === 'number' && Number.isFinite(raw.mintedAtMs) ? { mintedAtMs: raw.mintedAtMs } : {}),
-        ...(typeof raw.clientMessageId === 'string' && raw.clientMessageId ? { clientMessageId: raw.clientMessageId.slice(0, 128) } : {}),
-        ...(typeof raw.paused === 'boolean' ? { paused: raw.paused } : {}),
-        ...(boardPost !== undefined ? { boardPost } : {}),
-      })
-      return answer(sock, { ok: true, op: requestedOp === 'concourseControl' ? 'concourseControl' : 'sessionControl', ...pickDefined(r, CONTROL_WIRE_KEYS) })
+      const read = readSessionControl(deps, sock, raw, auth, op)
+      if (read === undefined) return
+      return await answerSessionControl(deps as DepsWith<'concourseControl'>, sock, raw, requestedOp, read)
     }
 
     case 'sessionFileRestore': {
@@ -1127,29 +727,9 @@ async function routeControlRequest(
       return answer(sock, { ok: true, op: 'sessionFileRestore', ...receipt })
     }
     case 'sessionRewind': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      if (!deps.sessionRewind) {
-        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
-      }
-      const sessionId = String(raw.sessionId ?? '')
-      const by = String(raw.by ?? '')
-      const mode = raw.mode === 'code' || raw.mode === 'conversation' || raw.mode === 'both' ? raw.mode : undefined
-      const userMessageId = typeof raw.userMessageId === 'string' ? raw.userMessageId.slice(0, 128) : ''
-      if (!sessionId || !by || mode === undefined || !userMessageId) {
-        return answer(sock, {
-          ok: false,
-          code: 'EUNKNOWN',
-          error: 'sessionRewind requires { sessionId, by, mode: code|conversation|both, userMessageId }',
-        })
-      }
-      const r = await deps.sessionRewind({
-        sessionId,
-        by,
-        mode,
-        userMessageId,
-        ...(raw.dryRun === true ? { dryRun: true } : {}),
-      })
-      return answer(sock, { ok: true, op: 'sessionRewind', ...r })
+      const read = readSessionRewind(deps, sock, raw, auth, op)
+      if (read === undefined) return
+      return await answerSessionRewind(deps as DepsWith<'sessionRewind'>, sock, raw, read)
     }
 
     case 'sessionList': {
@@ -1161,32 +741,11 @@ async function routeControlRequest(
     }
 
     case 'sessionRelease': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      if (!deps.concourseRelease) {
-        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
-      }
-      const runnerId = String(raw.runnerId ?? raw.workerId ?? '')
-      if (!runnerId) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionRelease requires { runnerId }' })
-      }
-      const r = deps.concourseRelease(runnerId)
-      return answer(sock, { ok: true, op: requestedOp === 'concourseRelease' ? 'concourseRelease' : 'sessionRelease', ...pickDefined(r, RELEASE_WIRE_KEYS) })
+      return answerSessionRelease(deps, sock, raw, auth, op, requestedOp)
     }
 
     case 'restart-when-idle': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      if (!deps.restartWhenIdle) {
-        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon cannot restart itself' })
-      }
-      const by = typeof raw.by === 'string' && raw.by !== '' ? raw.by.slice(0, 64) : 'client'
-      const r = deps.restartWhenIdle(by)
-      return answer(sock, {
-        ok: true,
-        op: 'restart-when-idle',
-        state: r.state,
-        live: r.live,
-        ...(r.detail !== undefined ? { detail: r.detail } : {}),
-      })
+      return answerRestartWhenIdle(deps, sock, raw, auth, op)
     }
 
     case 'signIns': {
@@ -1219,6 +778,547 @@ async function routeControlRequest(
     default:
       return answer(sock, { ok: false, code: 'EUNKNOWN', error: `unknown op: ${String(op)}` })
   }
+}
+
+type ControlRequestRaw = { op?: string; [k: string]: unknown }
+
+type DepsWith<K extends keyof ControlServerDeps> = ControlServerDeps & Required<Pick<ControlServerDeps, K>>
+
+function answerStatus(deps: ControlServerDeps, leases: Map<net.Socket, LeaseClient>, sock: net.Socket, auth: string | undefined, op: string): void {
+  if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+  const now = Date.now()
+  const sup = deps.roster.getRespawnState()
+  return answer(sock, {
+    ok: true,
+    op: 'status',
+    status: {
+      pid: process.pid,
+      version: currentVersion(),
+      startedAt: deps.startedAt,
+      uptimeSec: Math.floor((now - deps.startedAt) / 1000),
+      dir: deps.dir,
+      workersLive: Math.max(
+        0,
+        deps.roster.liveCount() - (deps.warmRunnerCount !== undefined ? deps.warmRunnerCount() : 0),
+      ),
+      workersTotal: Math.max(
+        0,
+        deps.roster.totalCount() - (deps.warmRunnerCount !== undefined ? deps.warmRunnerCount() : 0),
+      ),
+      maxInflight: deps.maxInflight,
+      breakerOpen: deps.breaker.shouldSuppressFire(),
+      leaseCount: leases.size,
+      proto: MERCURY_DAEMON_PROTO,
+      degraded: sup.degraded,
+      degradedReason: sup.degraded ? sup.reason : undefined,
+      ...(deps.warmRunnerCount !== undefined ? { warmRunners: deps.warmRunnerCount() } : {}),
+    },
+  })
+}
+
+function readDispatch(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string) {
+  if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+  const body = raw.d
+  if (!body || typeof body !== 'object' || typeof (body as { prompt?: unknown }).prompt !== 'string') {
+    return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'dispatch requires { d: { prompt } }' })
+  }
+  return { body }
+}
+
+async function answerDispatch(deps: ControlServerDeps, sock: net.Socket, { body }: Exclude<ReturnType<typeof readDispatch>, void>): Promise<void> {
+  const out = await deps.roster.dispatch(body as Parameters<TaskRoster['dispatch']>[0])
+  if (!out.ok) {
+    return answer(sock, {
+      ok: false,
+      code: out.code ?? 'EUNKNOWN',
+      error: out.error ?? 'dispatch failed',
+    })
+  }
+  return answer(sock, { ok: true, op: 'dispatch', ...pickDefined(out, WORKER_DISPATCH_WIRE_KEYS) })
+}
+
+function readReply(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string) {
+  if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+  const short = String(raw.short ?? '')
+  const text = String(raw.text ?? '')
+  const h = deps.roster.has(short)
+  if (!h.present) {
+    return answer(sock, { ok: false, code: 'ENOJOB', error: 'job not found — it may have already exited' })
+  }
+  return { short, text }
+}
+
+async function answerReply(deps: ControlServerDeps, sock: net.Socket, { short, text }: Exclude<ReturnType<typeof readReply>, void>): Promise<void> {
+  const accepted = await deps.roster.reply(short, { type: 'prompt', content: text })
+  if (!accepted) {
+    return answer(sock, {
+      ok: false,
+      code: 'ENOREPLY',
+      error: "job isn't accepting replies — headless runs have no interactive stdin",
+    })
+  }
+  return answer(sock, { ok: true, op: 'reply' })
+}
+
+function answerKill(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string): void {
+  if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+  const short = String(raw.short ?? '')
+  const signal = (typeof raw.signal === 'string' ? raw.signal : 'SIGTERM') as NodeJS.Signals
+  const killed = deps.roster.kill(short, signal)
+  if (!killed) {
+    return answer(sock, { ok: false, code: 'ENOJOB', error: 'job not found — it may have already exited' })
+  }
+  return answer(sock, { ok: true, op: 'kill' })
+}
+
+function readSessionAdmit(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string) {
+  if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+  if (!deps.concourseAdmit) {
+    return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
+  }
+  if (raw.resumeSessionId !== undefined && validateUuid(raw.resumeSessionId) === null) {
+    return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'no live session record owns this id' })
+  }
+  const workspaceDir = String(raw.workspaceDir ?? '')
+  if (!workspaceDir) {
+    return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionAdmit requires { workspaceDir }' })
+  }
+  const isolation =
+    raw.isolation === 'exclusive' || raw.isolation === 'shared' || raw.isolation === 'worktree-isolated' || raw.isolation === 'read-only'
+      ? raw.isolation
+      : undefined
+  if (raw.runnerArgv !== undefined) {
+    const refusal = refuseRunnerArgv(raw.runnerArgv)
+    if (refusal !== null) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `runnerArgv refused — ${refusal}` })
+  }
+  let kit: SessionKitV1 | undefined
+  if (raw.kit !== undefined) {
+    const verdict = validateSessionKit(raw.kit)
+    if (!verdict.ok) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `kit refused — ${verdict.reason}` })
+    kit = verdict.kit
+  }
+  if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
+    return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
+  }
+  const named = requestedModel(raw)
+  if (named.conflict !== undefined) {
+    return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${named.conflict}; nothing was admitted` })
+  }
+  if (raw.birthKey !== undefined && !isBirthKey(raw.birthKey)) {
+    return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'birthKey refused — a birth names itself with one key of 8 to 64 letters, digits or dashes; nothing was admitted' })
+  }
+  const waitForSeatMs = typeof raw.waitForSeatMs === 'number' && Number.isFinite(raw.waitForSeatMs) ? Math.max(0, Math.min(raw.waitForSeatMs, 120_000)) : 0
+  const admitRequest: Parameters<NonNullable<ControlServerDeps['concourseAdmit']>>[0] = {
+    workspaceDir,
+    ...(typeof raw.birthKey === 'string' ? { birthKey: raw.birthKey } : {}),
+    ...(isolation !== undefined ? { isolation } : {}),
+    ...(named.model !== undefined ? { modelKey: named.model } : {}),
+    ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort } : {}),
+    ...(typeof raw.title === 'string' && raw.title ? { title: raw.title } : {}),
+    ...(typeof raw.agentName === 'string' && raw.agentName ? { agentName: raw.agentName } : {}),
+    ...(raw.seatsMax === 1 || raw.seatsMax === 2 ? { seatsMax: raw.seatsMax } : {}),
+    ...(typeof raw.resumeSessionId === 'string' && raw.resumeSessionId ? { resumeSessionId: raw.resumeSessionId } : {}),
+    ...(typeof raw.permissionMode === 'string' && raw.permissionMode ? { permissionMode: raw.permissionMode as never } : {}),
+    ...(Array.isArray(raw.runnerArgv) && raw.runnerArgv.length > 0 ? { runnerArgv: raw.runnerArgv as string[] } : {}),
+    ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
+    ...(raw.bornBlank === true ? { bornBlank: true } : {}),
+    ...(typeof raw.resumeSessionId === 'string' && raw.resumeSessionId && raw.bornBlank !== true ? { resumedAtRest: true as const } : {}),
+    ...(typeof raw.by === 'string' && raw.by ? { by: raw.by } : {}),
+    ...(kit !== undefined ? { kit } : {}),
+    ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
+    ...(typeof raw.vacatingSessionId === 'string' && raw.vacatingSessionId !== '' ? { vacatingSessionId: raw.vacatingSessionId } : {}),
+    ...(raw.restartReason === 'update' ? { restartReason: 'update' as const } : {}),
+  }
+  return { admitRequest, waitForSeatMs }
+}
+
+async function answerSessionAdmit(deps: DepsWith<'concourseAdmit'>, sock: net.Socket, requestedOp: string | undefined, { admitRequest, waitForSeatMs }: Exclude<ReturnType<typeof readSessionAdmit>, void>): Promise<void> {
+  let r = await deps.concourseAdmit(admitRequest)
+  const seatDeadline = Date.now() + waitForSeatMs
+  while (!r.ok && r.code === 'runtime-ceiling' && waitForSeatMs > 0 && Date.now() < seatDeadline && !sock.destroyed) {
+    await sleep(Math.min(1000, Math.max(50, seatDeadline - Date.now())))
+    r = await deps.concourseAdmit(admitRequest)
+  }
+  if (!r.ok) {
+    const waited = waitForSeatMs > 0 && r.code === 'runtime-ceiling' ? ` — no seat freed in ${Math.round(waitForSeatMs / 1000)} s` : ''
+    const refusal = pickDefined(r, ADMIT_REFUSAL_WIRE_KEYS)
+    return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${r.error}${waited}`, refusal: r.code, ...(refusal.moves !== undefined ? { moves: [...refusal.moves] } : {}) })
+  }
+  return answer(sock, {
+    ok: true,
+    op: requestedOp === 'concourseAdmit' ? 'concourseAdmit' : 'sessionAdmit',
+    workerId: r.runnerId,
+    ...pickDefined(r, ADMIT_WIRE_KEYS),
+  })
+}
+
+function readConcourseWithdraw(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string) {
+  if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+  if (!deps.concourseWithdraw) {
+    return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
+  }
+  const clientMessageId = String(raw.clientMessageId ?? '')
+  if (!clientMessageId) {
+    return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'concourseWithdraw requires { clientMessageId }' })
+  }
+  return { clientMessageId }
+}
+
+async function answerConcourseWithdraw(deps: DepsWith<'concourseWithdraw'>, sock: net.Socket, { clientMessageId }: Exclude<ReturnType<typeof readConcourseWithdraw>, void>): Promise<void> {
+  const withdrawn = await deps.concourseWithdraw(clientMessageId)
+  return answer(sock, { ok: true, op: 'concourseWithdraw', withdrawn })
+}
+
+function readConcourseWarm(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string) {
+  if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+  if (!deps.concourseWarm) {
+    return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
+  }
+  const warmWorkspaceDir = String(raw.workspaceDir ?? '')
+  if (!warmWorkspaceDir) {
+    return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'concourseWarm requires { workspaceDir }' })
+  }
+  let warmKit: SessionKitV1 | undefined
+  if (raw.kit !== undefined) {
+    const verdict = validateSessionKit(raw.kit)
+    if (!verdict.ok) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `kit refused — ${verdict.reason}` })
+    warmKit = verdict.kit
+  }
+  return { warmWorkspaceDir, warmKit }
+}
+
+async function answerConcourseWarm(deps: DepsWith<'concourseWarm'>, sock: net.Socket, raw: ControlRequestRaw, { warmWorkspaceDir, warmKit }: Exclude<ReturnType<typeof readConcourseWarm>, void>): Promise<void> {
+  const warm = await deps.concourseWarm({
+    workspaceDir: warmWorkspaceDir,
+    ...(typeof raw.retiring === 'string' && raw.retiring !== '' ? { retiring: raw.retiring } : {}),
+    ...(raw.runnerOptionsPresent === true ? { bootCarriesRunnerOptions: true } : {}),
+    ...(warmKit !== undefined ? { kit: warmKit } : {}),
+    ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
+  })
+  return answer(sock, { ok: true, op: 'concourseWarm', ...pickDefined(warm, WARM_WIRE_KEYS) })
+}
+
+function readSessionDispatch(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string) {
+  if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+  if (!deps.concourseDispatch) {
+    return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
+  }
+  const clientMessageId = String(raw.clientMessageId ?? '')
+  const prompt = String(raw.prompt ?? '')
+  const workspaceDir = String(raw.workspaceDir ?? '')
+  const targetSessionId = typeof raw.targetSessionId === 'string' && raw.targetSessionId ? raw.targetSessionId : undefined
+  if (raw.origin !== undefined && isScreenCommandOrigin(raw.origin) && targetSessionId === undefined) {
+    return answer(sock, { ok: false, code: 'EREFUSED', error: 'A screen command\'s meta row requires an existing target session' })
+  }
+  if (raw.origin !== undefined && !isScreenCommandOrigin(raw.origin) && (!isOutsideReportOrigin(raw.origin) || targetSessionId === undefined)) {
+    return answer(sock, { ok: false, code: 'EREFUSED', error: 'An outside report requires a sender and an existing target session' })
+  }
+  if (!clientMessageId || !prompt || (!workspaceDir && targetSessionId === undefined)) {
+    return answer(sock, { ok: false, code: 'EREFUSED', error: 'sessionDispatch requires { clientMessageId, prompt, workspaceDir } (workspaceDir optional with targetSessionId)' })
+  }
+  const isolation =
+    raw.isolation === 'exclusive' || raw.isolation === 'worktree-isolated' || raw.isolation === 'read-only'
+      ? raw.isolation
+      : undefined
+  if (raw.isolation !== undefined && isolation === undefined) {
+    return answer(sock, {
+      ok: false,
+      code: 'EREFUSED',
+      error: `unknown isolation '${String(raw.isolation)}' — the closed vocabulary is exclusive | worktree-isolated | read-only`,
+    })
+  }
+  if (raw.runnerArgv !== undefined) {
+    const refusal = refuseRunnerArgv(raw.runnerArgv)
+    if (refusal !== null) return answer(sock, { ok: false, code: 'EREFUSED', error: `runnerArgv refused — ${refusal}` })
+  }
+  if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
+    return answer(sock, { ok: false, code: 'EREFUSED', error: 'kitPreset must be a saved preset name (a non-empty string)' })
+  }
+  const named = requestedModel(raw)
+  if (named.conflict !== undefined) {
+    return answer(sock, { ok: false, code: 'EREFUSED', error: `${named.conflict}; nothing was dispatched` })
+  }
+  return { clientMessageId, prompt, workspaceDir, targetSessionId, isolation, named } as const
+}
+
+async function answerSessionDispatch(deps: DepsWith<'concourseDispatch'>, sock: net.Socket, raw: ControlRequestRaw, requestedOp: string | undefined, { clientMessageId, prompt, workspaceDir, targetSessionId, isolation, named }: Exclude<ReturnType<typeof readSessionDispatch>, void>): Promise<void> {
+  const r = await deps.concourseDispatch({
+    clientMessageId,
+    prompt,
+    workspaceDir,
+    ...(isolation !== undefined ? { isolation } : {}),
+    ...(named.model !== undefined ? { modelKey: named.model } : {}),
+    ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort } : {}),
+    ...(typeof raw.title === 'string' && raw.title ? { title: raw.title } : {}),
+    ...(typeof raw.agentName === 'string' && raw.agentName ? { agentName: raw.agentName } : {}),
+    ...(raw.seatsMax === 1 || raw.seatsMax === 2 ? { seatsMax: raw.seatsMax } : {}),
+    ...(typeof raw.resumeSessionId === 'string' && raw.resumeSessionId ? { resumeSessionId: raw.resumeSessionId } : {}),
+    ...(typeof raw.by === 'string' && raw.by ? { by: raw.by } : {}),
+    ...(typeof raw.permissionMode === 'string' && raw.permissionMode ? { permissionMode: raw.permissionMode as never } : {}),
+    ...(Array.isArray(raw.runnerArgv) && raw.runnerArgv.length > 0 ? { runnerArgv: raw.runnerArgv as string[] } : {}),
+    ...(targetSessionId !== undefined ? { targetSessionId } : {}),
+    ...(isOutsideReportOrigin(raw.origin) || isScreenCommandOrigin(raw.origin) ? { origin: raw.origin } : {}),
+    ...(raw.mode === 'bash' || raw.mode === 'prompt' || raw.mode === 'task-notification' ? { mode: raw.mode } : {}),
+    ...(raw.mode === 'task-notification' && typeof raw.agentId === 'string' && raw.agentId !== '' ? { agentId: raw.agentId } : {}),
+    ...(raw.priority === 'now' || raw.priority === 'next' || raw.priority === 'later' ? { priority: raw.priority } : {}),
+    ...(Array.isArray(raw.content) && raw.content.length > 0 ? { content: raw.content } : {}),
+    ...(typeof raw.sentAt === 'string' && Number.isFinite(Date.parse(raw.sentAt)) ? { sentAt: raw.sentAt } : {}),
+    ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
+  })
+  if (!r.ok) {
+    return answer(sock, {
+      ok: false,
+      code: 'EREFUSED',
+      error: r.error ?? 'dispatch refused',
+      refusal: r.replay,
+      ...pickDefined(r, DISPATCH_REFUSAL_WIRE_KEYS),
+    })
+  }
+  return answer(sock, {
+    ok: true,
+    op: requestedOp === 'concourseDispatch' ? 'concourseDispatch' : 'sessionDispatch',
+    workerId: r.runnerId,
+    ...pickDefined(r, DISPATCH_WIRE_KEYS),
+  })
+}
+
+function readSessionControl(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string) {
+  if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+  if (!deps.concourseControl) {
+    return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
+  }
+  const action =
+    raw.action === 'pause' ||
+    raw.action === 'resume' ||
+    raw.action === 'interrupt' ||
+    raw.action === 'attach' ||
+    raw.action === 'detach' ||
+    raw.action === 'grant-workflows' ||
+    raw.action === 'revoke-workflows' ||
+    raw.action === 'answer-permission' ||
+    raw.action === 'stop' ||
+    raw.action === 'set-model' ||
+    raw.action === 'set-permission-mode' ||
+    raw.action === 'session-facts' ||
+    raw.action === 'set-title' ||
+    raw.action === 'focus' ||
+    raw.action === 'blur' ||
+    raw.action === 'park' ||
+    raw.action === 'park-all' ||
+    raw.action === 'set-effort' ||
+    raw.action === 'contract' ||
+    raw.action === 'set-kit' ||
+    raw.action === 'mcp-action' ||
+    raw.action === 'mcp-tools' ||
+    raw.action === 'set-schedule' ||
+    raw.action === 'set-spawn-switch' ||
+    raw.action === 'stop-agent' ||
+    raw.action === 'resume-agent' ||
+    raw.action === 'withdraw-send' ||
+    raw.action === 'background-shell' ||
+    raw.action === 'pause-gate' ||
+    raw.action === 'leave' ||
+    raw.action === 'send-now' ||
+    raw.action === 'board-post'
+      ? raw.action
+      : undefined
+  const sessionId = String(raw.sessionId ?? '')
+  const by = String(raw.by ?? '')
+  if (action === undefined || !sessionId || !by) {
+    return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send|background-shell|pause-gate|leave|send-now|board-post, sessionId, by }' })
+  }
+  let boardPost: BoardPostRequestV1 | undefined
+  if (action === 'board-post') {
+    const p = raw.boardPost && typeof raw.boardPost === 'object' && !Array.isArray(raw.boardPost) ? (raw.boardPost as Record<string, unknown>) : undefined
+    const channel = p?.channel === 'general' || p?.channel === 'team' || p?.channel === 'whisper' ? p.channel : undefined
+    if (channel === undefined || typeof p?.clientOpId !== 'string' || p.clientOpId.length === 0 || p.clientOpId.length > 160 || typeof p.text !== 'string' || p.text.length === 0 || (p.target !== undefined && typeof p.target !== 'string')) {
+      return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'board-post requires { boardPost: { clientOpId, channel, target?, text } }' })
+    }
+    boardPost = { clientOpId: p.clientOpId, channel, ...(typeof p.target === 'string' ? { target: p.target.slice(0, 200) } : {}), text: p.text }
+  }
+  let spawnSwitch: { kind: 'subagents' | 'workflows'; on: boolean } | undefined
+  if (raw.spawnSwitch !== undefined) {
+    const rawSwitch =
+      raw.spawnSwitch && typeof raw.spawnSwitch === 'object' && !Array.isArray(raw.spawnSwitch)
+        ? (raw.spawnSwitch as Record<string, unknown>)
+        : undefined
+    const kind = rawSwitch?.kind === 'subagents' || rawSwitch?.kind === 'workflows' ? rawSwitch.kind : undefined
+    if (kind === undefined || typeof rawSwitch?.on !== 'boolean') {
+      return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'spawnSwitch refused — { kind: subagents|workflows, on: boolean }' })
+    }
+    spawnSwitch = { kind, on: rawSwitch.on }
+  }
+  const rawAnswer = raw.answer && typeof raw.answer === 'object' && !Array.isArray(raw.answer) ? (raw.answer as Record<string, unknown>) : undefined
+  const answerPayload =
+    rawAnswer !== undefined
+      ? {
+          ...(rawAnswer.updatedInput && typeof rawAnswer.updatedInput === 'object' && !Array.isArray(rawAnswer.updatedInput)
+            ? { updatedInput: rawAnswer.updatedInput as Record<string, unknown> }
+            : {}),
+          ...(Array.isArray(rawAnswer.permissionUpdates) ? { permissionUpdates: rawAnswer.permissionUpdates } : {}),
+          ...(typeof rawAnswer.feedback === 'string' ? { feedback: rawAnswer.feedback.slice(0, 4000) } : {}),
+          ...(rawAnswer.interrupt === true ? { interrupt: true } : {}),
+        }
+      : undefined
+  const rawContract = raw.contract && typeof raw.contract === 'object' && !Array.isArray(raw.contract) ? (raw.contract as Record<string, unknown>) : undefined
+  const contract =
+    rawContract?.op === 'set' || rawContract?.op === 'ack' || rawContract?.op === 'amend' || rawContract?.op === 'close'
+      ? {
+          op: rawContract.op as 'set' | 'ack' | 'amend' | 'close',
+          ...(typeof rawContract.text === 'string' ? { text: rawContract.text.slice(0, 20_000) } : {}),
+        }
+      : undefined
+  let mcpAction: { name: string; action: 'authenticate' | 'reconnect' | 'cancel-auth' } | undefined
+  if (raw.action === 'mcp-action') {
+    const m = raw.mcpAction as Record<string, unknown> | undefined
+    if (!m || typeof m.name !== 'string' || m.name.length === 0 || m.name.length > 200 || !['authenticate', 'reconnect', 'cancel-auth'].includes(String(m.action))) {
+      return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'mcp-action requires { name, action: authenticate|reconnect|cancel-auth }' })
+    }
+    mcpAction = { name: m.name, action: m.action as 'authenticate' | 'reconnect' | 'cancel-auth' }
+  }
+  let mcpServer: string | undefined
+  if (raw.action === 'mcp-tools') {
+    if (typeof raw.mcpServer !== 'string' || raw.mcpServer.length === 0 || raw.mcpServer.length > 200) {
+      return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'mcp-tools requires { mcpServer }' })
+    }
+    mcpServer = raw.mcpServer
+  }
+  let kitEdit: SessionKitEditV1 | undefined
+  if (raw.kitEdit !== undefined) {
+    const verdict = validateSessionKitEdit(raw.kitEdit)
+    if (!verdict.ok) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `kitEdit refused — ${verdict.reason}` })
+    kitEdit = verdict.edit
+  }
+  let scheduleEdit: ScheduleOpRequestV1 | undefined
+  if (raw.scheduleEdit !== undefined) {
+    const rawSchedule =
+      raw.scheduleEdit && typeof raw.scheduleEdit === 'object' && !Array.isArray(raw.scheduleEdit)
+        ? (raw.scheduleEdit as Record<string, unknown>)
+        : undefined
+    const op =
+      rawSchedule?.op === 'add' || rawSchedule?.op === 'remove' || rawSchedule?.op === 'pause' || rawSchedule?.op === 'resume'
+        ? rawSchedule.op
+        : undefined
+    if (rawSchedule === undefined || op === undefined) {
+      return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'scheduleEdit refused — op must be add|remove|pause|resume' })
+    }
+    if (op === 'add') {
+      const verdict = validateSaturnSubmission(rawSchedule.schedule)
+      if (!verdict.ok) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `scheduleEdit refused — ${verdict.reason}` })
+      scheduleEdit = { op, schedule: rawSchedule.schedule }
+    } else {
+      const scheduleId = typeof rawSchedule.scheduleId === 'string' ? rawSchedule.scheduleId : ''
+      if (!SATURN_ID_PATTERN.test(scheduleId)) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'scheduleEdit refused — scheduleId must be eight hex characters' })
+      }
+      scheduleEdit = { op, scheduleId }
+    }
+  }
+  let terminalApplication: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null | undefined
+  if (raw.terminalApplication !== undefined) {
+    if (action !== 'focus') return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication belongs to focus only' })
+    const candidate = raw.terminalApplication as { identity?: unknown; name?: unknown; windowId?: unknown; tty?: unknown } | null
+    if (candidate === null) terminalApplication = null
+    else if (typeof candidate === 'object' && !Array.isArray(candidate) && typeof candidate.identity === 'string' && candidate.identity.length > 0 && candidate.identity.length <= 512 && typeof candidate.name === 'string' && candidate.name.length > 0 && candidate.name.length <= 512) {
+      if (candidate.windowId !== undefined && candidate.windowId !== null && (typeof candidate.windowId !== 'string' || candidate.windowId.length === 0 || candidate.windowId.length > 128)) return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication.windowId requires a nonempty string of at most 128 characters or null' })
+      if (candidate.tty !== undefined && candidate.tty !== null && (typeof candidate.tty !== 'string' || candidate.tty.length > 1024 || !/^\/dev\/[A-Za-z0-9/_]+$/.test(candidate.tty))) return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication.tty requires a terminal device path or null' })
+      terminalApplication = { identity: candidate.identity, name: candidate.name, ...(candidate.windowId !== undefined ? { windowId: candidate.windowId as string | null } : {}), ...(candidate.tty !== undefined ? { tty: candidate.tty as string | null } : {}) }
+    } else return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication requires nonempty identity and name strings' })
+  }
+  return { action, sessionId, by, boardPost, spawnSwitch, answerPayload, contract, mcpAction, mcpServer, kitEdit, scheduleEdit, terminalApplication } as const
+}
+
+async function answerSessionControl(deps: DepsWith<'concourseControl'>, sock: net.Socket, raw: ControlRequestRaw, requestedOp: string | undefined, { action, sessionId, by, boardPost, spawnSwitch, answerPayload, contract, mcpAction, mcpServer, kitEdit, scheduleEdit, terminalApplication }: Exclude<ReturnType<typeof readSessionControl>, void>): Promise<void> {
+  const r = await deps.concourseControl({
+    action,
+    sessionId,
+    by,
+    ...(typeof raw.agentId === 'string' && raw.agentId ? { agentId: raw.agentId.slice(0, 128) } : {}),
+    ...(typeof raw.note === 'string' && raw.note ? { note: raw.note.slice(0, 4000) } : {}),
+    ...(typeof raw.reason === 'string' && raw.reason ? { reason: raw.reason } : {}),
+    ...(raw.hard === true ? { hard: true } : {}),
+    ...(typeof raw.requestId === 'string' && raw.requestId ? { requestId: raw.requestId.slice(0, 128) } : {}),
+    ...(typeof raw.allow === 'boolean' ? { allow: raw.allow } : {}),
+    ...(answerPayload !== undefined ? { answer: answerPayload } : {}),
+    ...(typeof raw.model === 'string' && raw.model ? { model: raw.model.slice(0, 128) } : {}),
+    ...(typeof raw.words === 'string' && raw.words ? { words: raw.words.slice(0, 200) } : {}),
+    ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort.slice(0, 32) } : {}),
+    ...(typeof raw.mode === 'string' && raw.mode ? { mode: raw.mode.slice(0, 64) } : {}),
+    ...(typeof raw.title === 'string' && raw.title ? { title: raw.title.slice(0, 200) } : {}),
+    ...(raw.titleSource === 'operator' || raw.titleSource === 'minted' ? { titleSource: raw.titleSource } : {}),
+    ...(contract !== undefined ? { contract } : {}),
+    ...(kitEdit !== undefined ? { kitEdit } : {}),
+    ...(mcpAction !== undefined ? { mcpAction } : {}),
+    ...(mcpServer !== undefined ? { mcpServer } : {}),
+    ...(scheduleEdit !== undefined ? { scheduleEdit } : {}),
+    ...(spawnSwitch !== undefined ? { spawnSwitch } : {}),
+    ...(terminalApplication !== undefined ? { terminalApplication } : {}),
+    ...(typeof raw.clientOpId === 'string' && raw.clientOpId ? { clientOpId: raw.clientOpId.slice(0, 128) } : {}),
+    ...(typeof raw.mintedAtMs === 'number' && Number.isFinite(raw.mintedAtMs) ? { mintedAtMs: raw.mintedAtMs } : {}),
+    ...(typeof raw.clientMessageId === 'string' && raw.clientMessageId ? { clientMessageId: raw.clientMessageId.slice(0, 128) } : {}),
+    ...(typeof raw.paused === 'boolean' ? { paused: raw.paused } : {}),
+    ...(boardPost !== undefined ? { boardPost } : {}),
+  })
+  return answer(sock, { ok: true, op: requestedOp === 'concourseControl' ? 'concourseControl' : 'sessionControl', ...pickDefined(r, CONTROL_WIRE_KEYS) })
+}
+
+function readSessionRewind(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string) {
+  if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+  if (!deps.sessionRewind) {
+    return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
+  }
+  const sessionId = String(raw.sessionId ?? '')
+  const by = String(raw.by ?? '')
+  const mode = raw.mode === 'code' || raw.mode === 'conversation' || raw.mode === 'both' ? raw.mode : undefined
+  const userMessageId = typeof raw.userMessageId === 'string' ? raw.userMessageId.slice(0, 128) : ''
+  if (!sessionId || !by || mode === undefined || !userMessageId) {
+    return answer(sock, {
+      ok: false,
+      code: 'EUNKNOWN',
+      error: 'sessionRewind requires { sessionId, by, mode: code|conversation|both, userMessageId }',
+    })
+  }
+  return { sessionId, by, mode, userMessageId } as const
+}
+
+async function answerSessionRewind(deps: DepsWith<'sessionRewind'>, sock: net.Socket, raw: ControlRequestRaw, { sessionId, by, mode, userMessageId }: Exclude<ReturnType<typeof readSessionRewind>, void>): Promise<void> {
+  const r = await deps.sessionRewind({
+    sessionId,
+    by,
+    mode,
+    userMessageId,
+    ...(raw.dryRun === true ? { dryRun: true } : {}),
+  })
+  return answer(sock, { ok: true, op: 'sessionRewind', ...r })
+}
+
+function answerSessionRelease(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string, requestedOp: string | undefined): void {
+  if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+  if (!deps.concourseRelease) {
+    return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
+  }
+  const runnerId = String(raw.runnerId ?? raw.workerId ?? '')
+  if (!runnerId) {
+    return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionRelease requires { runnerId }' })
+  }
+  const r = deps.concourseRelease(runnerId)
+  return answer(sock, { ok: true, op: requestedOp === 'concourseRelease' ? 'concourseRelease' : 'sessionRelease', ...pickDefined(r, RELEASE_WIRE_KEYS) })
+}
+
+function answerRestartWhenIdle(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string): void {
+  if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+  if (!deps.restartWhenIdle) {
+    return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon cannot restart itself' })
+  }
+  const by = typeof raw.by === 'string' && raw.by !== '' ? raw.by.slice(0, 64) : 'client'
+  const r = deps.restartWhenIdle(by)
+  return answer(sock, {
+    ok: true,
+    op: 'restart-when-idle',
+    state: r.state,
+    live: r.live,
+    ...(r.detail !== undefined ? { detail: r.detail } : {}),
+  })
 }
 
 function refuseAuth(sock: net.Socket, op: string): void {
