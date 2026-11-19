@@ -29,6 +29,7 @@ import { stripSafeWrappers } from './bashPermissions.js'
 import { sedCommandIsAllowedByAllowlist } from './sedValidation.js'
 import { scanCeiling } from '../../utils/verification/scanCeiling.js'
 import { gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
+import { errorMessage, getErrnoCode, isFsInaccessible } from '../../utils/errors.js'
 
 
 export type PathCommand =
@@ -821,10 +822,29 @@ function grepNameFilters(args: string[]): { includes: string[]; excludes: string
   return { includes, excludes }
 }
 
+function unreadCode(failure: unknown): string {
+  return getErrnoCode(failure) ?? errorMessage(failure)
+}
+
+function unreadEnvFolderAsk(command: PathCommand, folder: string, failure: unknown): PermissionResult {
+  const message = `${command} reads ${folder}, a folder Mercury could not search for env files (${unreadCode(failure)}); narrow the search, or approve`
+  return { behavior: 'ask', message, decisionReason: { type: 'other', reason: message } }
+}
+
+function unreadTreeAsk(command: PathCommand, follows: boolean, root: string, folder: string, failure: unknown): PermissionResult {
+  const message = `${command} ${follows ? 'follows links' : 'reads'} under ${root}, where the folder ${folder} could not be read (${unreadCode(failure)}); narrow the search, or approve`
+  return { behavior: 'ask', message, decisionReason: { type: 'other', reason: message } }
+}
+
 function envFileBeneath(command: PathCommand, args: string[], roots: string[], context: ToolPermissionContext): PermissionResult | null {
   const { includes, excludes } = command === 'grep' ? grepNameFilters(args) : { includes: [], excludes: [] }
   const budget = scanCeiling()
-  const queue = roots.filter(isDirectory)
+  const queue: string[] = []
+  for (const root of roots) {
+    const reading = folderReading(root)
+    if (typeof reading === 'object') return unreadEnvFolderAsk(command, root, reading.unread)
+    if (reading) queue.push(root)
+  }
   const seen = new Set<string>()
   let visited = 0
   while (queue.length > 0) {
@@ -834,8 +854,9 @@ function envFileBeneath(command: PathCommand, args: string[], roots: string[], c
     let entries: Dirent[]
     try {
       entries = readdirSync(dir, { withFileTypes: true })
-    } catch {
-      continue
+    } catch (failure) {
+      if (isFsInaccessible(failure)) continue
+      return unreadEnvFolderAsk(command, dir, failure)
     }
     for (const entry of entries) {
       if (++visited > budget) return null
@@ -853,11 +874,11 @@ function envFileBeneath(command: PathCommand, args: string[], roots: string[], c
   return null
 }
 
-function isDirectory(path: string): boolean {
+function folderReading(path: string): boolean | { unread: unknown } {
   try {
     return statSync(path).isDirectory()
-  } catch {
-    return false
+  } catch (failure) {
+    return isFsInaccessible(failure) ? false : { unread: failure }
   }
 }
 
@@ -872,23 +893,30 @@ function treeRefusal(
 ): PermissionResult | null {
   const budget = scanCeiling()
   const seen = new Set<string>()
-  const queue = roots.filter(isDirectory).map(root => ({ dir: root, root }))
+  const queue: { dir: string; root: string }[] = []
+  for (const root of roots) {
+    const reading = folderReading(root)
+    if (typeof reading === 'object') return unreadTreeAsk(command, follows, root, root, reading.unread)
+    if (reading) queue.push({ dir: root, root })
+  }
   let visited = 0
   while (queue.length > 0) {
     const { dir, root } = queue.pop() as { dir: string; root: string }
     let real: string
     try {
       real = realpathSync(dir)
-    } catch {
-      continue
+    } catch (failure) {
+      if (isFsInaccessible(failure)) continue
+      return unreadTreeAsk(command, follows, root, dir, failure)
     }
     if (seen.has(real)) continue
     seen.add(real)
     let entries: Dirent[]
     try {
       entries = readdirSync(real, { withFileTypes: true })
-    } catch {
-      continue
+    } catch (failure) {
+      if (isFsInaccessible(failure)) continue
+      return unreadTreeAsk(command, follows, root, real, failure)
     }
     for (const entry of entries) {
       if (++visited > budget) {
@@ -900,7 +928,9 @@ function treeRefusal(
         if (!follows) continue
         const check = validatePath(full, cwd, context, operationType)
         if (!check.allowed) return operandRefusal(command, check, context, operationType, full)
-        if (isDirectory(check.resolvedPath)) queue.push({ dir: check.resolvedPath, root })
+        const target = folderReading(check.resolvedPath)
+        if (typeof target === 'object') return unreadTreeAsk(command, follows, root, check.resolvedPath, target.unread)
+        if (target) queue.push({ dir: check.resolvedPath, root })
         continue
       }
       const rule = denied?.(full)[0]
