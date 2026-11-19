@@ -839,7 +839,7 @@ const fail = (line: string): void => {
 }
 
 const source = Bun.resolveSync('../../src/hooks/useVirtualScroll.js', import.meta.dirname)
-if (useVirtualScroll.name === UNIT && source.endsWith('/src/hooks/useVirtualScroll.ts')) console.log(`  [PASS] the hook recorded is the product's own ${UNIT} of src/hooks/useVirtualScroll.ts: no module is replaced; the scroll handle, the rows' heights and the clock are scripted`)
+if (useVirtualScroll.name === UNIT && source.replaceAll('\\', '/').endsWith('/src/hooks/useVirtualScroll.ts')) console.log(`  [PASS] the hook recorded is the product's own ${UNIT} of src/hooks/useVirtualScroll.ts: no module is replaced; the scroll handle, the rows' heights and the clock are scripted`)
 else fail(`the hook under the recording is not the product's own ${UNIT}: it is ${useVirtualScroll.name} of ${source}`)
 
 const first = await record()

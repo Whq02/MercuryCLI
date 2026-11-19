@@ -6,6 +6,7 @@ import { getEventListeners } from 'node:events'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type { CancellationToken } from 'vscode-jsonrpc'
 import { removeScratch } from '../lib/removeScratch.ts'
 
@@ -56,7 +57,7 @@ let failures = 0
 
 process.on('unhandledRejection', reason => unhandled.push(reason))
 
-const plain = (text: string): string => text.replaceAll(WORKSPACE, '<workspace>').replaceAll(String(process.pid), '<pid>')
+const plain = (text: string): string => text.replaceAll(pathToFileURL(WORKSPACE).href, 'file://<workspace>').replaceAll(WORKSPACE, '<workspace>').replaceAll(String(process.pid), '<pid>')
 const say = (text: string): void => void lines.push(plain(text))
 const step = (text: string): void => void lines.push(plain(`> ${text}`))
 const called = (server: string, method: string): number => calls.get(`${server}.${method}`) ?? 0
@@ -142,7 +143,7 @@ function scriptedClient(serverName: string, onCrash?: (error: Error) => void) {
     isInitialized: false,
     async start(command: string, args: string[], options?: { env?: NodeJS.ProcessEnv; cwd?: string }): Promise<void> {
       count('start')
-      say(`  client.start ${command} ${JSON.stringify(args)} env.RECORDING=${options?.env?.RECORDING ?? '-'} env.PATH ${options?.env?.PATH === undefined ? 'absent' : 'carried'} cwd=${options?.cwd ?? '-'} | ${glance(serverName)}`)
+      say(`  client.start ${command} ${JSON.stringify(args)} env.RECORDING=${options?.env?.RECORDING ?? '-'} env.PATH ${Object.entries(options?.env ?? {}).some(([key, value]) => key.toUpperCase() === 'PATH' && value !== undefined) ? 'carried' : 'absent'} cwd=${options?.cwd ?? '-'} | ${glance(serverName)}`)
       await script().start?.()
     },
     async initialize(params: Record<string, unknown>): Promise<unknown> {
