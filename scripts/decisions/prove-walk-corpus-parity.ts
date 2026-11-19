@@ -22,8 +22,9 @@ type Tree = { type: string; text: string; startIndex: number; endIndex: number; 
 type Verdict = Awaited<ReturnType<typeof ast.parseForSecurity>>
 type Row = [command: string, reading: number, inner?: Array<[text: string, reading: number]>]
 type Crafted = [label: string, tree: unknown, reading: number]
-type Fixture = { kinds: Record<string, number>; aborted: unknown; started: unknown; readings: unknown[]; crafted: Crafted[]; rows: Row[] }
-type Read = { reading: string | null; inner: Array<[string, string]>; prepared: boolean; found: boolean; kind: string; nodeType: string | undefined }
+type Peeled = [argv: string[], peeled: unknown]
+type Fixture = { kinds: Record<string, number>; aborted: unknown; started: unknown; readings: unknown[]; crafted: Crafted[]; peeled: Peeled[]; rows: Row[] }
+type Read = { reading: string | null; inner: Array<[string, string]>; prepared: boolean; found: boolean; kind: string; nodeType: string | undefined; peeled: Array<[string, string]> }
 
 let failures = 0
 let checks = 0
@@ -82,7 +83,12 @@ async function read(command: string): Promise<Read> {
       if (alone !== asCommand) inner.push([node.text, folded(alone, node.text)])
     }
   }
-  return { reading: settled(command, verdict), inner, prepared, found, kind: verdict.kind, nodeType: verdict.kind === 'too-complex' ? verdict.nodeType : undefined }
+  const peeled: Array<[string, string]> = verdict.kind !== 'simple' ? [] : verdict.commands.flatMap(one => {
+    const given = JSON.stringify(one.argv)
+    const left = JSON.stringify(ast.peelWrappers(one.argv))
+    return left === given ? [] : [[given, left] as [string, string]]
+  })
+  return { reading: settled(command, verdict), inner, prepared, found, kind: verdict.kind, nodeType: verdict.kind === 'too-complex' ? verdict.nodeType : undefined, peeled }
 }
 
 async function innerTexts(command: string): Promise<string[]> {
@@ -110,7 +116,7 @@ console.log('============================================================')
 console.log(' the walk — corpus parity (what every command reads as)')
 console.log('============================================================')
 
-const fixture: Fixture = existsSync(FIXTURE) ? (JSON.parse(readFileSync(FIXTURE, 'utf8')) as Fixture) : { kinds: {}, aborted: null, started: null, readings: [], crafted: [], rows: [] }
+const fixture: Fixture = existsSync(FIXTURE) ? (JSON.parse(readFileSync(FIXTURE, 'utf8')) as Fixture) : { kinds: {}, aborted: null, started: null, readings: [], crafted: [], peeled: [], rows: [] }
 const recorded = fixture.readings.map(reading => JSON.stringify(reading))
 
 if (RECORD) {
@@ -132,9 +138,11 @@ if (RECORD) {
   }
   const rows: Row[] = []
   const nodeTypes = new Set<string>()
+  const peeled = new Map<string, string>()
   for (const command of [...corpus].sort()) {
     const now = await read(command)
     if (now.nodeType !== undefined) nodeTypes.add(now.nodeType)
+    for (const [given, left] of now.peeled) peeled.set(given, left)
     const reading = now.reading === null ? PLAIN : intern(now.reading)
     rows.push(now.inner.length === 0 ? [command, reading] : [command, reading, now.inner.map(([text, alone]) => [text, intern(alone)])])
   }
@@ -144,8 +152,8 @@ if (RECORD) {
     if (nodeType !== undefined) nodeTypes.add(nodeType)
   }
   const head = JSON.stringify({ kinds: kindTable(nodeTypes), aborted: JSON.parse(abortedPlainly) as unknown, started: JSON.parse(startedNow) as unknown }).slice(1, -1)
-  writeFileSync(FIXTURE, `{${head},\n"readings":[\n${readings.join(',\n')}\n],\n"crafted":[\n${crafted.map(row => JSON.stringify(row)).join(',\n')}\n],\n"rows":[\n${rows.map(row => JSON.stringify(row)).join(',\n')}\n]}\n`)
-  console.log(`\n  [RECORDED] ${rows.length} commands and ${crafted.length} hand-built trees with ${readings.length} distinct readings → ${FIXTURE}`)
+  writeFileSync(FIXTURE, `{${head},\n"readings":[\n${readings.join(',\n')}\n],\n"crafted":[\n${crafted.map(row => JSON.stringify(row)).join(',\n')}\n],\n"peeled":[\n${[...peeled.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([given, left]) => `[${given},${left}]`).join(',\n')}\n],\n"rows":[\n${rows.map(row => JSON.stringify(row)).join(',\n')}\n]}\n`)
+  console.log(`\n  [RECORDED] ${rows.length} commands and ${crafted.length} hand-built trees with ${readings.length} distinct readings, ${peeled.size} commands that peelWrappers changes → ${FIXTURE}`)
 } else {
   section(`(1) the corpus — ${fixture.rows.length} commands, ${fixture.readings.length} distinct readings`)
   check('the recorded corpus exists beside the proof', fixture.rows.length > 0, FIXTURE)
@@ -155,8 +163,10 @@ if (RECORD) {
   let unprepared = 0
   let lost = 0
   let plain = 0
+  const peeled = new Map<string, string>()
   for (const [command, reading, inner = []] of fixture.rows) {
     const now = await read(command)
+    for (const [given, left] of now.peeled) peeled.set(given, left)
     kinds.set(now.kind, (kinds.get(now.kind) ?? 0) + 1)
     if (now.nodeType !== undefined) nodeTypes.add(now.nodeType)
     if (!now.prepared) unprepared++
@@ -187,7 +197,13 @@ if (RECORD) {
   check(`each hand-built tree reads as recorded (${fixture.crafted.length} trees)`, bent.length === 0, `${bent.length} moved; record again with \`bun ${SELF} --record\` if the walk was meant to change`)
   for (const line of bent.slice(0, SHOWN)) console.log(`    ${line}`)
 
-  section('(3) the door beside the walk')
+  section(`(3) the wrappers — ${fixture.peeled.length} commands of the corpus that peelWrappers changes`)
+  const wanted = new Map<string, string>(fixture.peeled.map(([given, left]) => [JSON.stringify(given), JSON.stringify(left)]))
+  const unpeeled = [...new Set([...wanted.keys(), ...peeled.keys()])].sort().flatMap(given => (wanted.get(given) === peeled.get(given) ? [] : [`${given}\n      recorded: ${wanted.get(given) ?? 'the words as given'}\n      now:      ${peeled.get(given) ?? 'the words as given'}`]))
+  check(`peelWrappers leaves every simple command of the corpus as recorded: its words as given, or the ${fixture.peeled.length} recorded answers`, unpeeled.length === 0, `${unpeeled.length} moved; record again with \`bun ${SELF} --record\` if the wrappers were meant to change, else the change to src/utils/bash/ast/wrappers.ts altered what a wrapper leaves`)
+  for (const line of unpeeled.slice(0, SHOWN)) console.log(`    ${line}`)
+
+  section('(4) the door beside the walk')
   check('a parse that did not finish reads as recorded', abortedPlainly === JSON.stringify(fixture.aborted), abortedPlainly)
   check(`startedCommandText spells the ${STARTED.length} recorded starts as recorded`, startedNow === JSON.stringify(fixture.started), startedNow)
   check('a command longer than the parser reads has no reading, and no command at all reads as none', (await ast.parseForSecurity(LONGER_THAN_THE_PARSER_READS)).kind === 'parse-unavailable' && JSON.stringify(await ast.parseForSecurity('')) === '{"kind":"simple","commands":[]}')
