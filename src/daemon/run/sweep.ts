@@ -1,5 +1,5 @@
 import { logForDebugging } from '../../utils/debug.js'
-import { errorMessage } from '../../utils/errors.js'
+import { errorMessage, getErrnoCode } from '../../utils/errors.js'
 import { concourseWorkersPath, readSessionWorkersSnapshot, reconcileConcourseWorkers } from '../concourseWorkers.js'
 import type { ControlServerDeps } from '../controlServer.js'
 import { daemonHomeStands } from '../daemonHome.js'
@@ -59,8 +59,9 @@ export function armReconcile(state: DaemonRunState, { warmDeps, armPeriodic }: R
       }
     } catch (e) {
       const words = errorMessage(e)
-      if (!namedReconcileFailures.has(words)) {
-        namedReconcileFailures.add(words)
+      const key = getErrnoCode(e) ?? words
+      if (!namedReconcileFailures.has(key)) {
+        namedReconcileFailures.add(key)
         console.error(`[daemon] the reconcile tick failed, so the records of ended sessions are not corrected and idle retirement does not run until it succeeds: ${words}`)
       }
     }
