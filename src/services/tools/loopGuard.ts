@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { getIsNonInteractiveSession, getSessionKind } from '../../bootstrap/state.js'
 import { REPEATED_RESULT_MIN_CHARS, REPEATED_RESULT_TAG } from '../../constants/toolLimits.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { errorMessage } from '../../utils/errors.js'
 import { FILE_UNCHANGED_STUB } from '../../tools/FileReadTool/prompt.js'
 import type { Message } from '../../types/message.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
@@ -22,6 +23,7 @@ const CYCLE_REPEATS = 5
 const ARGUMENT_PREVIEW_CHARS = 160
 export const LOOP_GUARD_STOP_SETTING = 'turns.loopGuard'
 const FAILED_CALL_LIMIT = 3
+const STOP_SETTING_UNREAD = 'could not be read from the settings, so its stop is applied'
 
 const BOOKKEEPING_PREFIXES = ['Task', 'Todo']
 const BOOKKEEPING_NAMES = new Set(['Checkpoint', 'Rewind', 'Sleep', 'Monitor'])
@@ -116,12 +118,17 @@ const store = new OwnerScopedStore<LoopGuardState>({
 })
 registerOwnerScopedStore(store)
 
-export function isLoopGuardStopEnabled(): boolean {
+function loopGuardStop(): { on: boolean; unread: boolean } {
   try {
-    return getInitialSettings().turns?.loopGuard === true
-  } catch {
-    return false
+    return { on: getInitialSettings().turns?.loopGuard === true, unread: false }
+  } catch (err) {
+    logForDebugging(`[loop-guard] ${LOOP_GUARD_STOP_SETTING} ${STOP_SETTING_UNREAD}: ${err instanceof SyntaxError ? 'a settings file is not valid JSON' : errorMessage(err)}`, { level: 'warn' })
+    return { on: true, unread: true }
   }
+}
+
+export function isLoopGuardStopEnabled(): boolean {
+  return loopGuardStop().on
 }
 
 function isBookkeepingTool(name: string): boolean {
@@ -296,9 +303,9 @@ function cycleStopText(cycle: CycleDetection): string {
   return `The loop guard ended the turn: ${cycleShape(cycle)} repeated five more times after the loop notice, with identical arguments and identical results each time. When the turn resumes, report what was found and what a different approach would be.`
 }
 
-function rowText(cycle: CycleDetection, endTurn: boolean, stopEnabled: boolean): string {
+function rowText(cycle: CycleDetection, endTurn: boolean, stopEnabled: boolean, stopUnread: boolean): string {
   if (endTurn) {
-    return `Loop guard ended the turn: the cycle ${cycle.tools.join(' -> ')} repeated five more times after the loop notice, with identical arguments and results (${LOOP_GUARD_STOP_SETTING})`
+    return `Loop guard ended the turn: the cycle ${cycle.tools.join(' -> ')} repeated five more times after the loop notice, with identical arguments and results (${LOOP_GUARD_STOP_SETTING}${stopUnread ? ` ${STOP_SETTING_UNREAD}` : ''})`
   }
   if (cycle.length === 1) {
     return `Loop check: ${cycle.tools[0]} returned the same result five more times for the same call; a successful repeated call never ends a turn`
@@ -596,7 +603,8 @@ export function closeRound(owner: OwnerKey, roundID: string, complete = true): L
       cycle = rememberDetection(state, found.keys)
     }
     if (step === null && cycle === null && !failureReminder) return quiet(state.run)
-    const stopEnabled = isLoopGuardStopEnabled()
+    const stop = loopGuardStop()
+    const stopEnabled = stop.on
     const endTurn = cycle !== null && cycle.length > 1 && cycle.detection >= 2 && stopEnabled
     const messages: Message[] = []
     if (endTurn && cycle !== null) {
@@ -608,15 +616,15 @@ export function closeRound(owner: OwnerKey, roundID: string, complete = true): L
           message: cycleStopText(cycle),
         }),
       )
-      messages.push(createSystemMessage(rowText(cycle, true, stopEnabled), 'warning', last.toolUseID))
+      messages.push(createSystemMessage(rowText(cycle, true, stopEnabled, stop.unread), 'warning', last.toolUseID))
       return { run: state.run, step, cycle, endTurn, messages }
     }
     const parts = [...reminders]
     if (cycle !== null && !(cycle.length === 1 && step !== null)) parts.push(cycleNudgeText(cycle, state.run, stopEnabled))
     messages.push(createAttachmentMessage({ type: 'critical_system_reminder', content: parts.join(' ') }))
     if (cycle !== null) {
-      const cycleRow = rowText(cycle, false, stopEnabled)
-      if (cycle.length === 1 && step !== null) rows.push(`the turn continues (${LOOP_GUARD_STOP_SETTING} is ${stopEnabled ? 'on, and a successful repeated call never ends a turn' : 'off'})`)
+      const cycleRow = rowText(cycle, false, stopEnabled, stop.unread)
+      if (cycle.length === 1 && step !== null) rows.push(`the turn continues (${LOOP_GUARD_STOP_SETTING} ${stop.unread ? `${STOP_SETTING_UNREAD}, and a successful repeated call never ends a turn` : `is ${stopEnabled ? 'on, and a successful repeated call never ends a turn' : 'off'}`})`)
       else rows.push(cycleRow)
     }
     messages.push(createSystemMessage(rows.join('; '), failureReminder ? 'warning' : 'info', last.toolUseID))
