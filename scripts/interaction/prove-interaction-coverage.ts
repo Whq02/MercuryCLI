@@ -63,6 +63,7 @@ reg(
     'src/components/mercury-ui/InteractiveRow.tsx',
     'src/components/mercury-ui/InteractiveDisclosure.tsx',
     'src/components/mercury-ui/NavigablePanes.tsx',
+    'src/components/mercury-ui/navigablePanes/views.tsx',
     'src/components/mercury-ui/useNavigablePanes.ts',
     'src/components/mercury-ui/useFlatList.ts',
     'src/components/mercury-ui/useInteractiveList.ts',
@@ -76,20 +77,28 @@ reg(
 reg(
   [
     'src/components/BootSaturnScreen.tsx',
+    'src/components/bootSaturn/menu.tsx',
     'src/components/BootAgentsScreen.tsx',
+    'src/components/bootAgents/rows.tsx',
     'src/components/BootLoginsScreen.tsx',
     'src/components/BootHealthScreen.tsx',
     'src/components/BootResumeScreen.tsx',
+    'src/components/bootResume/resumeView.tsx',
     'src/components/KitMenuScreen.tsx',
+    'src/components/kitMenu/kitMenuView.tsx',
     'src/components/concourse/CompactConcourse.tsx',
- 'src/components/concourse/ConcourseScreen.tsx',
+ 'src/components/concourse/screen/fullTree.tsx',
+ 'src/components/concourse/screen/modals.tsx',
+ 'src/components/concourse/screen/useConcourseKeys.ts',
  'src/components/concourse/ConcourseLayout.tsx',
+ 'src/components/concourse/layout/listPane.tsx',
  'src/components/concourse/ConcourseStrips.tsx',
- 'src/components/concourse/ConcourseRoute.tsx',
+ 'src/components/concourse/route/Assembling.tsx',
     'src/components/concourse/SplitChatPane.tsx',
     'src/components/extensions/ExtensionsBoard.tsx',
     'src/components/extensions/SourceView.tsx',
  'src/components/prompts-panel/PromptsPanel.tsx',
+ 'src/components/prompts-panel/panelParts.tsx',
  'src/components/prompts-panel/CrewChatPanel.tsx',
   ],
   'board',
@@ -97,14 +106,15 @@ reg(
 
 reg(
   [
-    'src/components/BootSplashScreen.tsx',
+    'src/components/bootSplash/face.tsx',
     'src/components/diff/DiffFileList.tsx',
     'src/components/HelmVitalsRail.tsx',
     'src/components/MercuryCommandPalette.tsx',
     'src/components/MercuryModelPicker.tsx',
+    'src/components/modelPicker/renderLine.tsx',
     'src/components/Onboarding.tsx',
     'src/components/mercury-ui/RailPanel.tsx',
-    'src/components/mercury-ui/parity/AccountView.tsx',
+    'src/components/mercury-ui/parity/accountRows.tsx',
     'src/components/samples/SamplesListView.tsx',
   ],
   'shared-list',
@@ -114,7 +124,7 @@ reg(
 reg(
   [
     'src/components/BaseTextInput.tsx',
-    'src/components/PromptInput/PromptInput.tsx',
+    'src/components/PromptInput/composerView.tsx',
     'src/components/PromptInput/useComposerRawKeys.ts',
     'src/components/concourse/ConcourseStrips.tsx',
   ],
@@ -126,6 +136,8 @@ reg(
     'src/components/ScrollKeybindingHandler.tsx',
     'src/components/VirtualMessageList.tsx',
     'src/components/Settings/Usage.tsx',
+    'src/components/Settings/usage/compact.tsx',
+    'src/components/Settings/usage/sections.tsx',
     'src/components/PopupForm.tsx',
   ],
   'scroll-owner',
@@ -141,14 +153,18 @@ reg(
     'src/commands/effort/EffortPopup.tsx',
     'src/commands/run/run.tsx',
  'src/components/BootSettingsScreen.tsx',
+ 'src/components/bootSettings/rows.tsx',
  'src/components/concourse/RowPickModal.tsx',
     'src/components/concourse/GroundPicker.tsx',
     'src/components/concourse/SessionMirror.tsx',
+    'src/components/concourse/sessionMirror/sessionMirrorView.tsx',
     'src/components/concourse/SessionWaitingRoom.tsx',
  'src/components/concourse/NeedsYouRail.tsx',
     'src/components/SwitchboardTagBar.tsx',
     'src/components/CompatConnect.tsx',
     'src/components/ConsoleOAuthFlow.tsx',
+    'src/components/consoleOAuth/enterKeys.tsx',
+    'src/components/consoleOAuth/openaiLegs.tsx',
     'src/components/GeminiConnect.tsx',
     'src/components/HuggingfaceConnect.tsx',
     'src/components/OpenrouterConnect.tsx',
@@ -173,6 +189,7 @@ reg(
     'src/components/MercuryFilesMenu.tsx',
     'src/components/mercury-ui/menuFold.tsx',
  'src/components/MercuryInputAtlas.tsx',
+ 'src/components/inputAtlas/atlasView.tsx',
     'src/components/ModelPicker.tsx',
     'src/components/LogSelector.tsx',
     'src/components/mcp/ElicitationDialog.tsx',
@@ -194,7 +211,8 @@ reg(
     'src/keybindings/KeybindingProviderSetup.tsx',
     'src/screens/chat/useChatSearch.tsx',
     'src/screens/ResumeConversation.tsx',
-    'src/components/Settings/Config.tsx',
+    'src/components/Settings/config/ConfigViews.tsx',
+    'src/components/Settings/config/useConfigKeys.ts',
     'src/components/HelpV2/Commands.tsx',
     'src/components/HelpV2/HelpV2.tsx',
     'src/components/Settings/Jev.tsx',
@@ -214,6 +232,7 @@ reg(
 reg(
   [
     'src/components/CustomSelect/select.tsx',
+    'src/components/CustomSelect/selectView.tsx',
     'src/components/CustomSelect/SelectMulti.tsx',
     'src/components/CustomSelect/select-input-option.tsx',
     'src/components/CustomSelect/use-multi-select-state.ts',
@@ -224,7 +243,10 @@ reg(
 )
 
 reg(
-  ['src/components/permissions/AskUserQuestionPermissionRequest/PreviewQuestionView.tsx'],
+  [
+    'src/components/permissions/AskUserQuestionPermissionRequest/PreviewQuestionView.tsx',
+    'src/components/permissions/AskUserQuestionPermissionRequest/previewQuestionBody.tsx',
+  ],
   'direct-control',
   'the interview preview workspace (MERCURY INTERVIEW IN-25): option rows and footer rows are single-purpose click targets with Select-owner parity — a click selects the CLICKED row; keyboard is complete without the pointer (the input-graph journey prover)',
 )
@@ -234,7 +256,7 @@ reg(
   'authored-art cards: border-paint hover via the ONE global owner (a bg fill shows through sprite holes); state/actions ride useInteractiveList; card click selects, the launch line activates',
 )
 reg(
-  ['src/components/FullscreenLayout.tsx'],
+  ['src/components/fullscreenLayout/frame.tsx', 'src/components/fullscreenLayout/panes.tsx'],
   'direct-control',
   'NewMessagesPill jump-to-tail — one true single-purpose control',
 )
@@ -254,7 +276,10 @@ reg(
   'one click focuses the compact work summary; the task-toggle binding reaches the same focus gate without a pointer',
 )
 reg(
-  ['src/components/PromptInput/PromptInputFooterLeftSide.tsx'],
+  [
+    'src/components/PromptInput/PromptInputFooterLeftSide.tsx',
+    'src/components/PromptInput/footerLeftSideView.tsx',
+  ],
   'direct-control',
   'footer mode chips — single-purpose toggles',
 )
@@ -269,6 +294,7 @@ reg(
     'src/components/messages/SystemTextMessage.tsx',
     'src/components/tasks/BackgroundTaskStatus.tsx',
     'src/components/mercury-ui/screens/SessionManagerView.tsx',
+    'src/components/mercury-ui/screens/sessionManager/views.tsx',
     'src/components/HelmLanesRail.tsx',
   ],
   'shared-list',
