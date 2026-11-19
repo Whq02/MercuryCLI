@@ -360,7 +360,8 @@ class NativeDesktopDriver implements DesktopDriver {
     try {
       const value = this.addon.keyboardIdleMs?.()
       return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
-    } catch {
+    } catch (error) {
+      logForDebugging(`desktop driver: the keyboard idle read threw: ${error instanceof Error ? error.message : String(error)}`)
       return null
     }
   }
