@@ -129,6 +129,14 @@ if (process.platform === 'win32') {
   tellProcessGroupTheShell(() => subprocessEnv().SHELL)
 }
 
+function dropOwnFile(path: string, what: string): void {
+  void getFsImplementation()
+    .unlink(path)
+    .catch((error: unknown) => {
+      if (!isENOENT(error)) logForDebugging(`${what} was not removed (${path}): ${errorMessage(error)}`)
+    })
+}
+
 async function noteJobsLeftBehind(shellPath: string, group: number): Promise<void> {
   try {
     const left = await noteMsysGroupLeftBehind(shellPath, group)
@@ -372,7 +380,7 @@ export async function exec(
   if (road.recordsBash) markFrameUnread(built.cwdFilePath)
   const handed = built.handOver?.(childEnv, cwd)
   const dropFrame = (): void => {
-    if (handed?.file !== undefined) void getFsImplementation().unlink(handed.file.path).catch(() => {})
+    if (handed?.file !== undefined) dropOwnFile(handed.file.path, "the file that carried the command's frame")
   }
   try {
     if (handed?.file !== undefined) writeFileSync(handed.file.path, handed.file.text)
@@ -493,8 +501,10 @@ export async function exec(
       let group = Number.NaN
       try {
         group = Number(readFileSync(file, 'utf8').trim())
-      } catch {}
-      void getFsImplementation().unlink(file).catch(() => {})
+      } catch (error) {
+        if (!isENOENT(error)) logForDebugging(`shell jobs: the record of the command's group was not read (${file}): ${errorMessage(error)}`)
+      }
+      dropOwnFile(file, "shell jobs: the record of the command's group")
       if (Number.isSafeInteger(group) && result.backgroundTaskId === undefined) void noteJobsLeftBehind(spawnFile, group)
     }
     dropFrame()
