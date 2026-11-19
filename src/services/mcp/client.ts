@@ -1,30 +1,7 @@
-import { Client } from './sdk.js'
-import { UnauthorizedError } from './sdk.js'
-import { SSEClientTransport } from './sdk.js'
-import { StdioClientTransport } from './sdk.js'
-import { StreamableHTTPClientTransport } from './sdk.js'
-import type { Transport } from './sdk.js'
-import type { JSONRPCMessage } from './sdk.js'
-import {
-  ProtocolError,
-  ProtocolErrorCode,
-  SdkError,
-  SdkErrorCode,
-  type ListToolsResult,
-  type Tool as McpSdkTool,
-} from './sdk.js'
-import isEqual from 'lodash-es/isEqual.js'
+import { UnauthorizedError, StdioClientTransport, type Transport, ProtocolError, ProtocolErrorCode, SdkError, SdkErrorCode, type Tool as McpSdkTool } from './sdk.js'
 import memoize from 'lodash-es/memoize.js'
 import { LRUCache } from 'lru-cache'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
-import { pathToFileURL } from 'node:url'
-
-import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
-import { deepestErrorDetail, isStaleSocketCode } from '../api/transportEvidence.js'
 import { deadlineSecondsLabel } from '../providers/fetchDeadline.js'
-import { getOauthConfig } from '../../constants/oauth.js'
 import type { Command } from '../../types/command.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
@@ -34,580 +11,58 @@ import { classifyMcpToolForCollapse } from '../../tools/MCPTool/classifyForColla
 import { ListMcpResourcesTool } from '../../tools/ListMcpResourcesTool/ListMcpResourcesTool.js'
 import { createMcpAuthTool } from '../../tools/McpAuthTool/McpAuthTool.js'
 import { ReadMcpResourceTool } from '../../tools/ReadMcpResourceTool/ReadMcpResourceTool.js'
-import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
-import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
-import { checkAndRefreshOAuthTokenIfNeeded, getClaudeAIOAuthTokens, handleOAuth401Error } from '../../utils/auth.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { restoreRenamedArgumentKeys } from '../../utils/normalizeToolSchema.js'
-import { armInactivityDeadline, formatLimit, minutesKnobToMs } from '../../utils/deadline.js'
-import { getMercuryHome } from '../../utils/envUtils.js'
+import { armInactivityDeadline, formatLimit } from '../../utils/deadline.js'
 import { errorMessage, getErrnoCode, isAbortError, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../utils/errors.js'
 import { isShuttingDown } from '../../utils/gracefulShutdown.js'
-import { getMCPUserAgent } from '../../utils/http.js'
-import { createImageMetadataText, type ImageDimensions, ImageResizeError, maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { logError, logMCPDebug, logMCPError } from '../../utils/log.js'
-import { formatFileSize } from '../../utils/format.js'
-import { getBinaryBlobSavedMessage, getFormatDescription, getLargeOutputInstructions, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
-import { mcpContentNeedsTruncation, truncateMcpContent } from '../../utils/mcpValidation.js'
 import type { MCPToolResult } from '../../utils/mcpValidation.js'
-import { getWebSocketTLSOptions } from '../../utils/mtls.js'
-import { getApiFetch, getProxyFetchOptions, getProxyUrl, getWebSocketProxyAgent, getWebSocketProxyUrl } from '../../utils/proxy.js'
 import { createSecretRedactor, isSecretEnvName } from '../../utils/redactSecrets.js'
 import { recursivelySanitizeUnicode } from '../../utils/sanitization.js'
 import { forgetHiddenCharacters, recordHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
-import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { persistToolResult } from '../../utils/toolResultStorage.js'
-import { hasMcpDiscoveryButNoToken, MercuryMcpAuthProvider, wrapFetchWithStepUpDetection } from './auth.js'
+import { hasMcpDiscoveryButNoToken, MercuryMcpAuthProvider } from './auth.js'
 import { markAnthropicConnectorConnected } from './anthropicConnectors.js'
 import { clearEraVerdict, readEraVerdict, recordEraVerdict } from './eraVerdictCache.js'
 import { getAllMcpConfigs } from './config.js'
 import { mcpStdioCommandRefusal } from './stdioCommandSafety.js'
-import { LazyStdioClientTransport } from './lazyStdio.js'
 import { isMcpCatalogueMember } from './membership.js'
 import { elicitationPausedClock } from './elicitationHandler.js'
-import { getMcpServerHeaders } from './headersHelper.js'
 import { buildMcpToolName, wireSafeMcpToolName } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
 import { isMercuryServerEnabled, isMercuryServer, withMercuryLeaseHolder } from './mercuryServer.js'
 import { withMcpToolCardHeader } from './toolCard.js'
 import { mcpPolicyDenyReason, mcpToolAllowed, type McpToolAnnotations } from './toolPolicy.js'
-import type {
-  ConnectedMCPServer,
-  MCPServerConnection,
-  ScopedMcpServerConfig,
-  ServerResource,
-} from './types.js'
+import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig, ServerResource } from './types.js'
 import { describeMcpConnectFailure, getLoggingSafeMcpBaseUrl, mcpConfigAsWritten, MCP_CONNECT_TIMEOUT_TELEMETRY } from './utils.js'
+import { McpAuthError, McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, McpSessionExpiredError, isMcpSessionExpiredError, isConnectionClosedError, isProbeExitError, isStaleSocketFetchError, isResponseStreamEndedError } from './client/errors.js'
+import { LONG_CALL_LOG_INTERVAL_MS, MCP_TOOL_USE_ID_META_KEY, STDERR_FLUSH_BYTES, INSTRUCTIONS_MAX_CHARS, TERMINAL_ERROR_LIMIT, URL_ELICITATION_RETRIES, TERMINAL_ERROR_SUBSTRINGS, connectTimeoutMs, toolTimeoutMs, mcpCallIdleLimitMs, OVERSIZED_MESSAGE, oversizedMessages, mcpOversizedMessageWords, getMcpServerConnectionBatchSize, getRemoteConnectionBatchSize } from './client/limits.js'
+import { routeProgress } from './client/progress.js'
+import { isNeedsAuthWarm, handleRemoteAuthFailure } from './client/needsAuth.js'
+import { buildClient, installRootsHandler } from './client/protocolClient.js'
+import { type RemoteConfig, buildStdioTransport, sseTransportFor, wsTransportFor, httpTransportFor, proxyTransportFor, inProcessTransportFor, endStdioTree } from './client/transports.js'
+import { listAllTools } from './client/toolList.js'
+import { transformResultContent, processMCPResult } from './client/results.js'
+import { withoutNullOptionals } from './client/nullOptionals.js'
+import { type UrlElicitation, parseUrlElicitations, queueUrlElicitation } from './client/urlElicitation.js'
+import { runWithLimit, fenceMcpPrefixCollisions } from './client/bulkParts.js'
 
-
-
-export class McpAuthError extends Error {
-  constructor(
-    public readonly serverName: string,
-    message: string,
-  ) {
-    super(message)
-    this.name = 'McpAuthError'
-  }
-}
-
-export class McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS extends TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS {
-  constructor(
-    message: string,
-    telemetryMessage: string,
-    public readonly mcpMeta?: Record<string, unknown>,
-  ) {
-    super(message, telemetryMessage)
-    this.name = 'McpToolCallError'
-  }
-}
-
-class McpSessionExpiredError extends Error {
-  constructor(serverName: string) {
-    super(`MCP session for ${serverName} expired`)
-    this.name = 'McpSessionExpiredError'
-  }
-}
-
-export function isMcpSessionExpiredError(error: unknown): boolean {
-  const status = (error as { status?: unknown; code?: unknown } | null)?.status
-  const message = errorMessage(error)
-  if (status === 404 && (message.includes('"code":-32001') || message.includes('"code": -32001'))) return true
-  return false
-}
-
-function isConnectionClosedError(error: unknown): boolean {
-  return error instanceof SdkError && error.code === SdkErrorCode.ConnectionClosed
-}
-
-function isProbeExitError(error: unknown): boolean {
-  return (
-    error instanceof SdkError &&
-    error.code === SdkErrorCode.EraNegotiationFailed &&
-    /closed during the server\/discover probe/.test(error.message)
-  )
-}
-
-const STALE_SOCKET_MESSAGE_SUBSTRINGS = ['other side closed', 'socket hang up', 'ECONNRESET', 'terminated']
-function isStaleSocketFetchError(error: unknown): boolean {
-  if (isStaleSocketCode(deepestErrorDetail(error).code)) return true
-  if (!(error instanceof TypeError)) return false
-  const message = `${errorMessage(error)} ${errorMessage((error as { cause?: unknown }).cause)}`
-  return STALE_SOCKET_MESSAGE_SUBSTRINGS.some(substring => message.includes(substring))
-}
-
-
-const DEFAULT_CONNECT_TIMEOUT_MS = 30_000
-const DEFAULT_TOOL_TIMEOUT_MS = 100_000_000
-const REQUEST_TIMEOUT_MS = 60_000
-const LONG_CALL_LOG_INTERVAL_MS = 30_000
-export const MCP_TOOL_USE_ID_META_KEY = 'mercury/toolUseId'
-const STDERR_FLUSH_BYTES = 1024 * 1024
-const INSTRUCTIONS_MAX_CHARS = 2048
-const TOOLS_MAX_PAGES = 50
-const TOOLS_MAX_PER_SERVER = 1000
-const TERMINAL_ERROR_LIMIT = 3
-const NEEDS_AUTH_TTL_MS = 15 * 60 * 1000
-const URL_ELICITATION_RETRIES = 3
-const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
-const TERMINAL_ERROR_SUBSTRINGS = [
-  'ECONNRESET',
-  'ETIMEDOUT',
-  'EPIPE',
-  'EHOSTUNREACH',
-  'ECONNREFUSED',
-  'Body Timeout Error',
-  'terminated',
-  'SSE stream disconnected',
-  'Failed to reconnect SSE stream',
-]
-
-function connectTimeoutMs(): number {
-  const raw = flagEnv('MERCURY_MCP_TIMEOUT_MS')
-  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_CONNECT_TIMEOUT_MS
-}
-
-function toolTimeoutMs(): number {
-  const raw = flagEnv('MERCURY_MCP_TOOL_TIMEOUT_MS')
-  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TOOL_TIMEOUT_MS
-}
-
-export const MCP_LAUNCH_SPAWN_GRACE_MS = 1_000
-
-export function mcpLaunchBudgetMs(): number {
-  return connectTimeoutMs() + MCP_LAUNCH_SPAWN_GRACE_MS
-}
-
-export async function withMcpLaunchBudget(
-  work: Promise<unknown>,
-  budgetMs: number,
-): Promise<'settled' | 'timeout'> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const bound = new Promise<'timeout'>(resolve => {
-    timer = setTimeout(() => resolve('timeout'), budgetMs)
-  })
-  try {
-    return await Promise.race([
-      work.then(
-        () => 'settled' as const,
-        () => 'settled' as const,
-      ),
-      bound,
-    ])
-  } finally {
-    if (timer !== undefined) clearTimeout(timer)
-  }
-}
-
-export const DEFAULT_MCP_CALL_IDLE_MINUTES = 10
-export function mcpCallIdleLimitMs(): number {
-  return minutesKnobToMs(flagEnv('MERCURY_MCP_CALL_IDLE_MINUTES'), DEFAULT_MCP_CALL_IDLE_MINUTES)
-}
-
-export const DEFAULT_MCP_STDIO_MESSAGE_MB = 64
-export function mcpStdioMaxMessageBytes(): number {
-  const raw = flagEnv('MERCURY_MCP_STDIO_MESSAGE_MB')
-  const parsed = raw ? Number.parseFloat(raw) : Number.NaN
-  return Math.floor((Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MCP_STDIO_MESSAGE_MB) * 1024 * 1024)
-}
-
-const OVERSIZED_MESSAGE = /ReadBuffer exceeded maximum size of (\d+) bytes/
-const oversizedMessages = new WeakMap<Client, number>()
-
-export function mcpOversizedMessageWords(tool: string, serverName: string, limitBytes: number): string {
-  return `MCP tool "${tool}" on server "${serverName}": the server sent one message over ${formatFileSize(limitBytes)}, the stdio message limit, and the connection was dropped before this call's answer could be read; inspect the effect before retrying — MERCURY_MCP_STDIO_MESSAGE_MB raises the limit.`
-}
-
-type ProgressParams = { progressToken?: string | number; progress: number; total?: number; message?: string }
-const progressRouters = new WeakMap<Client, Map<string, (params: ProgressParams) => void>>()
-function routeProgress(client: Client, token: string, handler: (params: ProgressParams) => void): () => void {
-  let routes = progressRouters.get(client)
-  if (!routes) {
-    const table = new Map<string, (params: ProgressParams) => void>()
-    routes = table
-    progressRouters.set(client, table)
-    client.setNotificationHandler('notifications/progress', notification => {
-      const params = notification.params as ProgressParams
-      if (params.progressToken === undefined) return
-      table.get(String(params.progressToken))?.(params)
-    })
-  }
-  routes.set(token, handler)
-  return () => {
-    routes?.delete(token)
-  }
-}
-
-export function getMcpServerConnectionBatchSize(): number {
-  const raw = flagEnv('MERCURY_MCP_CONNECTION_BATCH')
-  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 3
-}
-
-function getRemoteConnectionBatchSize(): number {
-  const raw = flagEnv('MERCURY_MCP_REMOTE_CONNECTION_BATCH')
-  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 20
-}
-
-type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>
-
-
-function jsonRpcMethodOf(body: unknown): string | null {
-  if (typeof body !== 'string') return null
-  const head = body.slice(0, 2048)
-  const match = /"method"\s*:\s*"([^"\\]+)"/.exec(head)
-  if (match) return match[1]!
-  try {
-    const parsed = JSON.parse(body) as { method?: unknown } | Array<{ method?: unknown }>
-    const first = Array.isArray(parsed) ? parsed[0] : parsed
-    return typeof first?.method === 'string' ? first.method : null
-  } catch {
-    return null
-  }
-}
-
-export function mcpRequestBudgetMs(body: unknown): number {
-  return jsonRpcMethodOf(body) === 'tools/call' ? toolTimeoutMs() : REQUEST_TIMEOUT_MS
-}
-
-export function wrapFetchWithTimeout(baseFetch: FetchLike): FetchLike {
-  return async (input, init) => {
-    const method = (init?.method ?? 'GET').toUpperCase()
-    if (method === 'GET') return baseFetch(input, init)
-    const controller = new AbortController()
-    const timer = setTimeout(
-      () => controller.abort(new DOMException('MCP request timed out', 'TimeoutError')),
-      mcpRequestBudgetMs(init?.body),
-    )
-    timer.unref?.()
-    const callerSignal = init?.signal ?? undefined
-    const onCallerAbort = (): void => controller.abort(callerSignal?.reason)
-    if (callerSignal) {
-      if (callerSignal.aborted) controller.abort(callerSignal.reason)
-      else callerSignal.addEventListener('abort', onCallerAbort, { once: true })
-    }
-    const headers = new Headers(init?.headers)
-    if (!headers.has('accept')) headers.set('Accept', 'application/json, text/event-stream')
-    try {
-      return await baseFetch(input, { ...init, headers, signal: controller.signal })
-    } finally {
-      clearTimeout(timer)
-      callerSignal?.removeEventListener('abort', onCallerAbort)
-    }
-  }
-}
-
-export function loggedHeadersOf(headers: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, key.toLowerCase() === 'user-agent' && value === getMCPUserAgent() ? value : '[REDACTED]']))
-}
-
-
-export function createAnthropicProxyFetch(innerFetch: FetchLike): FetchLike {
-  return async (input, init) => {
-    const send = async (): Promise<{ response: Response; sentToken: string }> => {
-      await checkAndRefreshOAuthTokenIfNeeded()
-      const token = getClaudeAIOAuthTokens()?.accessToken
-      if (!token) throw new Error('No claude.ai OAuth token available for the MCP proxy')
-      const headers = new Headers(init?.headers)
-      headers.set('Authorization', `Bearer ${token}`)
-      return { response: await innerFetch(input, { ...init, headers }), sentToken: token }
-    }
-    const first = await send()
-    if (first.response.status !== 401) return first.response
-    const changed = await handleOAuth401Error(first.sentToken)
-    if (!changed) {
-      const current = getClaudeAIOAuthTokens()?.accessToken
-      if (!current || current === first.sentToken) return first.response
-    }
-    try {
-      return (await send()).response
-    } catch {
-      return first.response
-    }
-  }
-}
-
-
-function needsAuthCachePath(): string {
-  return join(getMercuryHome(), 'mcp-needs-auth-cache.json')
-}
-
-let needsAuthReadMemo: Promise<Record<string, { timestamp: number }>> | null = null
-let needsAuthWriteChain: Promise<void> = Promise.resolve()
-
-function readNeedsAuthCache(): Promise<Record<string, { timestamp: number }>> {
-  if (needsAuthReadMemo === null) {
-    needsAuthReadMemo = readFile(needsAuthCachePath(), 'utf8')
-      .then(text => JSON.parse(text) as Record<string, { timestamp: number }>)
-      .catch(() => ({}))
-  }
-  return needsAuthReadMemo
-}
-
-async function isNeedsAuthWarm(serverName: string): Promise<boolean> {
-  const cache = await readNeedsAuthCache()
-  const entry = cache[serverName]
-  return entry !== undefined && Date.now() - entry.timestamp < NEEDS_AUTH_TTL_MS
-}
-
-function writeNeedsAuth(serverName: string): Promise<void> {
-  needsAuthWriteChain = needsAuthWriteChain.then(async () => {
-    const cache = await readNeedsAuthCache()
-    cache[serverName] = { timestamp: Date.now() }
-    const path = needsAuthCachePath()
-    await mkdir(dirname(path), { recursive: true })
-    await writeFile(path, JSON.stringify(cache, null, 2))
-    needsAuthReadMemo = null
-  }).catch(() => undefined)
-  return needsAuthWriteChain
-}
-
-export function clearMcpAuthCache(): void {
-  needsAuthReadMemo = null
-  void rm(needsAuthCachePath(), { force: true }).catch(() => {})
-}
-
-export function forgetMcpNeedsAuth(serverName: string): Promise<void> {
-  needsAuthWriteChain = needsAuthWriteChain
-    .then(async () => {
-      const cache = await readNeedsAuthCache()
-      if (!(serverName in cache)) return
-      delete cache[serverName]
-      const path = needsAuthCachePath()
-      await mkdir(dirname(path), { recursive: true })
-      await writeFile(path, JSON.stringify(cache, null, 2))
-    })
-    .catch(() => undefined)
-    .finally(() => {
-      needsAuthReadMemo = null
-    })
-  return needsAuthWriteChain
-}
-
-async function handleRemoteAuthFailure(name: string, config: ScopedMcpServerConfig, transportClass: string): Promise<MCPServerConnection> {
-  logMCPDebug(name, `Authentication required for ${transportClass} server`)
-  await writeNeedsAuth(name)
-  return { name, type: 'needs-auth', config }
-}
-
-
-function clientVersion(): string {
-  return typeof MACRO !== 'undefined' ? (MACRO.VERSION ?? 'unknown') : 'unknown'
-}
-
-type ProbeTransportKind = 'stdio' | 'remote'
-
-class OwnedStdioClientTransport extends StdioClientTransport {}
-
-function externalVersionNegotiation(transportKind: ProbeTransportKind): { mode: 'auto'; probe: { timeoutMs: number; maxRetries: number } } {
-  const deadline = connectTimeoutMs()
-  const timeoutMs = transportKind === 'stdio' ? Math.max(1000, Math.floor(deadline / 3)) : deadline + 1000
-  return { mode: 'auto', probe: { timeoutMs, maxRetries: 0 } }
-}
-
-type ListChangedKind = 'tools' | 'prompts' | 'resources'
-const listChangedListeners = new WeakMap<Client, Partial<Record<ListChangedKind, () => void>>>()
-
-export function onMcpListChanged(client: Client, kind: ListChangedKind, listener: () => void): void {
-  const slots = listChangedListeners.get(client) ?? {}
-  slots[kind] = listener
-  listChangedListeners.set(client, slots)
-}
-
-function listChangedHandlers(lookup: () => Client | undefined): {
-  tools: { autoRefresh: false; onChanged: () => void }
-  prompts: { autoRefresh: false; onChanged: () => void }
-  resources: { autoRefresh: false; onChanged: () => void }
-} {
-  const signal =
-    (kind: ListChangedKind) => (): void => {
-      const client = lookup()
-      if (client === undefined) return
-      listChangedListeners.get(client)?.[kind]?.()
-    }
-  return {
-    tools: { autoRefresh: false, onChanged: signal('tools') },
-    prompts: { autoRefresh: false, onChanged: signal('prompts') },
-    resources: { autoRefresh: false, onChanged: signal('resources') },
-  }
-}
-
-const TOOL_REQUIRED_FIELDS = new Set(['name', 'inputSchema'])
-
-function withoutNullKeys(value: unknown): unknown {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return value
-  return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([, inner]) => inner !== null))
-}
-
-export function withoutNullToolMetadata(tool: unknown): unknown {
-  if (tool === null || typeof tool !== 'object' || Array.isArray(tool)) return tool
-  const out: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(tool as Record<string, unknown>)) {
-    if (value === null && !TOOL_REQUIRED_FIELDS.has(key)) continue
-    out[key] = key === 'inputSchema' || key === 'annotations' ? withoutNullKeys(value) : value
-  }
-  return out
-}
-
-const RESPONSE_STREAM_ENDED = 'mercury/response-stream-ended'
-
-export function isResponseStreamEndedError(error: unknown): boolean {
-  return error instanceof ProtocolError && (error.data as { reason?: unknown } | undefined)?.reason === RESPONSE_STREAM_ENDED
-}
-
-class ToolListClient extends Client {
-  override async connect(...args: Parameters<Client['connect']>): Promise<void> {
-    const [transport] = args
-    const requests = new Set<string | number>()
-    const awaiting = new Set<string | number>()
-    const send = transport.send.bind(transport)
-    transport.send = (message, options) => {
-      if (!('method' in message) || !('id' in message) || message.id === undefined) return send(message, options)
-      const id = message.id
-      if (message.method === 'tools/list') requests.add(id)
-      awaiting.add(id)
-      const onRequestStreamEnd = (): void => {
-        options?.onRequestStreamEnd?.()
-        if (!awaiting.has(id)) return
-        setTimeout(() => {
-          if (!awaiting.delete(id)) return
-          transport.onmessage?.({
-            jsonrpc: '2.0',
-            id,
-            error: { code: ProtocolErrorCode.InternalError, message: 'the server closed the response stream before answering', data: { reason: RESPONSE_STREAM_ENDED } },
-          })
-        }, 0)
-      }
-      return send(message, { ...options, onRequestStreamEnd })
-    }
-    const onmessage = transport.onmessage
-    transport.onmessage = (message, extra) => {
-      if ('id' in message && message.id !== undefined && ('result' in message || 'error' in message)) awaiting.delete(message.id)
-      if ('id' in message && message.id !== undefined && requests.delete(message.id) && 'result' in message) {
-        const result = message.result
-        if (Array.isArray(result.tools) && this._wireCodec().validateResult('tools/list', { ...result, tools: [] }).ok) {
-          result.tools = result.tools.map(withoutNullToolMetadata).filter((tool: unknown) => {
-            const checked = this._wireCodec().validateResult('tools/list', { ...result, tools: [tool] })
-            if (checked.ok) return true
-            logMCPDebug(this.getServerVersion()?.name ?? 'MCP', `skipping malformed tool: ${checked.reason === 'invalid' ? checked.message : checked.reason}`)
-            return false
-          })
-        }
-      }
-      onmessage?.(message, extra)
-    }
-    return super.connect(...args)
-  }
-}
-
-function buildClient(negotiate: boolean, transportKind: ProbeTransportKind = 'remote'): Client {
-  let built: Client | undefined
-  built = new ToolListClient(
-    {
-      name: 'mercury',
-      title: 'Mercury',
-      version: clientVersion(),
-      description: 'Mercury, an agentic coding harness',
-    },
-    {
-      capabilities: { roots: {}, elicitation: { form: {}, url: {} } },
-      versionNegotiation: negotiate ? externalVersionNegotiation(transportKind) : { mode: 'legacy' },
-      listChanged: listChangedHandlers(() => built),
-    },
-  )
-  return built
-}
-
-function installRootsHandler(client: Client): void {
-  client.setRequestHandler('roots/list', async () => {
-    const roots = [pathToFileURL(getOriginalCwd()).href]
-    const add = (p: string): void => {
-      const stripped = p.replace(/[\\/]+$/, '')
-      const uri = pathToFileURL(stripped || p).href
-      if (!roots.includes(uri)) roots.push(uri)
-    }
-    if (flagEnabled('MERCURY_MCP_ROOTS_WIDE')) {
-      add(getCwd())
-      add(tmpdir())
-      if (process.platform !== 'win32') {
-        add('/tmp')
-        add('/private/tmp')
-      }
-    }
-    return { roots: roots.map(uri => ({ uri })) }
-  })
-}
-
-
-type WsSocketLike = {
-  send(data: string): void
-  close(): void
-  readyState?: number
-  addEventListener?(event: string, handler: (event: never) => void): void
-  on?(event: string, handler: (...args: never[]) => void): void
-}
-
-async function createWsTransport(url: string, headers: Record<string, string>): Promise<Transport> {
-  const tlsOptions = getWebSocketTLSOptions()
-  let socket: WsSocketLike
-  if (typeof Bun !== 'undefined') {
-    const proxyUrl = getWebSocketProxyUrl(url)
-    socket = new WebSocket(url, {
-      protocols: ['mcp'],
-      headers,
-      ...(tlsOptions ? { tls: tlsOptions } : {}),
-      ...(proxyUrl ? { proxy: proxyUrl } : {}),
-    } as never) as unknown as WsSocketLike
-  } else {
-    const proxyAgent = getWebSocketProxyAgent(url)
-    const nodeOptions = { headers, ...(tlsOptions ?? {}), ...(proxyAgent ? { agent: proxyAgent } : {}) }
-    const { default: NodeWebSocket } = await import('ws')
-    socket = new NodeWebSocket(url, ['mcp'], nodeOptions as never) as unknown as WsSocketLike
-  }
-  const listen = (event: string, handler: (payload: unknown) => void): void => {
-    if (typeof socket.on === 'function') socket.on(event, handler as never)
-    else socket.addEventListener?.(event, handler as never)
-  }
-  const wsTransport: Transport & { onmessage?: (message: JSONRPCMessage) => void } = {
-    start: () =>
-      new Promise<void>((resolve, reject) => {
-        listen('open', () => resolve())
-        listen('error', (payload: unknown) => {
-          const error = payload instanceof Error ? payload : new Error(String((payload as { message?: unknown } | null)?.message ?? 'WebSocket error'))
-          wsTransport.onerror?.(error)
-          reject(error)
-        })
-        listen('close', () => wsTransport.onclose?.())
-        listen('message', (payload: unknown) => {
-          const raw = (payload as { data?: unknown } | null)?.data ?? payload
-          try {
-            wsTransport.onmessage?.(JSON.parse(String(raw)) as JSONRPCMessage)
-          } catch (err) {
-            wsTransport.onerror?.(err instanceof Error ? err : new Error(String(err)))
-          }
-        })
-        if (socket.readyState === 1) resolve()
-      }),
-    send: async (message: JSONRPCMessage) => {
-      socket.send(JSON.stringify(message))
-    },
-    close: async () => {
-      socket.close()
-    },
-  }
-  return wsTransport
-}
-
+export { McpAuthError, McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, isMcpSessionExpiredError, isResponseStreamEndedError } from './client/errors.js'
+export { MCP_TOOL_USE_ID_META_KEY, MCP_LAUNCH_SPAWN_GRACE_MS, mcpLaunchBudgetMs, withMcpLaunchBudget, DEFAULT_MCP_CALL_IDLE_MINUTES, mcpCallIdleLimitMs, DEFAULT_MCP_STDIO_MESSAGE_MB, mcpStdioMaxMessageBytes, mcpOversizedMessageWords, getMcpServerConnectionBatchSize } from './client/limits.js'
+export { mcpRequestBudgetMs, wrapFetchWithTimeout, loggedHeadersOf, createAnthropicProxyFetch } from './client/fetch.js'
+export { clearMcpAuthCache, forgetMcpNeedsAuth } from './client/needsAuth.js'
+export { onMcpListChanged, withoutNullToolMetadata } from './client/protocolClient.js'
+export { transformResultContent, inferCompactSchema, transformMCPResult, processMCPResult } from './client/results.js'
+export type { MCPResultType, TransformedMCPResult } from './client/results.js'
+export { withoutNullOptionals } from './client/nullOptionals.js'
+export { fenceMcpPrefixCollisions } from './client/bulkParts.js'
+export type { McpPrefixCollision } from './client/bulkParts.js'
 
 export function getServerCacheKey(name: string, serverRef: ScopedMcpServerConfig): string {
   return `${name}:${JSON.stringify(serverRef)}`
 }
 
-type RemoteConfig = ScopedMcpServerConfig & { url?: string; headers?: Record<string, string> }
 
 function isTerminalErrorMessage(message: string): boolean {
   return TERMINAL_ERROR_SUBSTRINGS.some(substring => message.includes(substring))
@@ -644,87 +99,25 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   let stderrBuffer = ''
   let inProcess = false
   const redactStderr = mcpServerStderrRedactor(serverRef)
-  const buildStdioTransport = (): StdioClientTransport => {
-    const stdioConfig = config as { command: string; args?: string[]; env?: Record<string, string> }
-    const prefix = flagEnv('MERCURY_SHELL_PREFIX')
-    const command = prefix ? prefix : stdioConfig.command
-    const args = prefix ? [[stdioConfig.command, ...(stdioConfig.args ?? [])].join(' ')] : (stdioConfig.args ?? [])
-    const refusal = mcpStdioCommandRefusal(name, { command, args })
-    if (refusal !== null) throw new Error(refusal)
-    const parameters = {
-      command,
-      args,
-      env: { ...(scrubSessionEnvStamps(subprocessEnv({ stripProviderCredentials: true })).env as Record<string, string>), ...(stdioConfig.env ?? {}) },
-      stderr: 'pipe' as const,
-      maxBufferSize: mcpStdioMaxMessageBytes(),
-    }
-    return serverRef.bundledBootstrap
-      ? new LazyStdioClientTransport(parameters, serverRef.bundledBootstrap, connectTimeoutMs())
-      : new OwnedStdioClientTransport(parameters)
-  }
   const provider =
     type === 'sse' || type === 'http' ? new MercuryMcpAuthProvider(name, serverRef, undefined, false) : null
 
   try {
     if (type === 'sse') {
-      const headers = await getMcpServerHeaders(name, config as never)
-      const wrapped = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch() as FetchLike, provider as MercuryMcpAuthProvider))
-      transport = new SSEClientTransport(new URL(config.url as string), {
-        authProvider: provider as never,
-        fetch: wrapped as never,
-        requestInit: { headers: { 'User-Agent': getMCPUserAgent(), ...headers } },
-        eventSourceInit: {
-          fetch: async (input: string | URL, init?: RequestInit) => {
-            const tokens = await (provider as MercuryMcpAuthProvider).tokens()
-            const streamHeaders = new Headers(init?.headers)
-            streamHeaders.set('User-Agent', getMCPUserAgent())
-            if (tokens?.access_token) streamHeaders.set('Authorization', `Bearer ${tokens.access_token}`)
-            for (const [key, value] of Object.entries(headers)) streamHeaders.set(key, value)
-            streamHeaders.set('Accept', 'text/event-stream')
-            return getApiFetch()(input as string, { ...init, headers: streamHeaders, ...getProxyFetchOptions() } as never)
-          },
-        } as never,
-      })
+      transport = await sseTransportFor(name, config, provider)
     } else if (type === 'ws') {
-      const wsHeaders: Record<string, string> = { 'User-Agent': getMCPUserAgent() }
-      Object.assign(wsHeaders, await getMcpServerHeaders(name, config as never))
-      logMCPDebug(name, `WebSocket connection options: ${JSON.stringify({ headers: loggedHeadersOf(wsHeaders), tls: Boolean(getWebSocketTLSOptions()), proxy: Boolean(getProxyUrl()) })}`)
-      transport = await createWsTransport(config.url as string, wsHeaders)
+      transport = await wsTransportFor(name, config)
     } else if (type === 'http') {
-      const headers = await getMcpServerHeaders(name, config as never)
-      const wrapped = wrapFetchWithTimeout(wrapFetchWithStepUpDetection(getApiFetch() as FetchLike, provider as MercuryMcpAuthProvider))
-      const requestInit = { headers: { 'User-Agent': getMCPUserAgent(), ...headers }, ...getProxyFetchOptions() }
-      const proxyUrl = getProxyUrl()
-      logMCPDebug(name, `runtime ${typeof Bun !== 'undefined' ? 'bun' : 'node'}, proxy ${proxyUrl === undefined ? 'none' : getLoggingSafeMcpBaseUrl({ type: 'http', url: proxyUrl }) ?? '[REDACTED]'}`)
-      logMCPDebug(name, `HTTP request options: ${JSON.stringify({ headers: loggedHeadersOf(requestInit.headers), tls: 'tls' in requestInit, proxy: proxyUrl !== undefined })}`)
-      void Boolean(await (provider as MercuryMcpAuthProvider).tokens())
-      transport = new StreamableHTTPClientTransport(new URL(config.url as string), {
-        authProvider: provider as never,
-        fetch: wrapped as never,
-        requestInit: requestInit as never,
-      })
+      transport = await httpTransportFor(name, config, provider)
     } else if (type === 'claudeai-proxy') {
-      const token = getClaudeAIOAuthTokens()?.accessToken
-      if (!token) throw new Error(`claude.ai proxy server ${name} requires a claude.ai OAuth token`)
-      const oauth = getOauthConfig()
-      const url = `${oauth.MCP_PROXY_URL}${oauth.MCP_PROXY_PATH.replace('{server_id}', (config as { id?: string }).id ?? '')}`
-      transport = new StreamableHTTPClientTransport(new URL(url), {
-        fetch: wrapFetchWithTimeout(createAnthropicProxyFetch(fetch as FetchLike)) as never,
-        requestInit: { headers: { 'User-Agent': getMCPUserAgent(), 'X-Mcp-Client-Session-Id': getSessionId() } },
-      })
+      transport = proxyTransportFor(name, config)
     } else if ((type === 'stdio' || config.type === undefined) && isMercuryServer(name) && isMercuryServerEnabled()) {
-      const [{ createMercuryServer }, { createLinkedTransportPair }] = await Promise.all([
-        import('./mercuryServer.js'),
-        import('./InProcessTransport.js'),
-      ])
-      const server = await createMercuryServer()
-      const [clientSide, serverSide] = createLinkedTransportPair()
-      await server.connect(serverSide)
+      const { server, clientSide } = await inProcessTransportFor()
       inProcessServer = server
       transport = clientSide
       inProcess = true
     } else if (type === 'stdio') {
-      stdioTransport = buildStdioTransport()
+      stdioTransport = buildStdioTransport(name, serverRef, config)
       transport = stdioTransport
       releaseSpawnGuard = registerCleanup(async () => {
         spawnRefused = true
@@ -756,26 +149,6 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   }
   stdioTransport?.stderr?.on('data', onStderr)
 
-  const endStdioTree = async (): Promise<void> => {
-    const pid = stdioTransport?.pid ?? null
-    if (pid === null) return
-    try {
-      const { endProcessTree, endProcessTreeSurvivors } = await import('../../utils/processGroup.js')
-      const graceful = await endProcessTree(pid, 'SIGINT')
-      const swept = graceful.survivors.length > 0 ? await endProcessTreeSurvivors(pid, graceful.survivors, 'SIGKILL') : null
-      const survivors = swept ? swept.survivors : graceful.survivors
-      const ended = graceful.ended + (swept?.ended ?? 0)
-      logMCPDebug(
-        name,
-        survivors.length > 0
-          ? `process tree still present after kill (${survivors.length} pid(s) unconfirmed)`
-          : `process tree exited (${ended} process(es) ended)`,
-      )
-    } catch (err) {
-      logMCPError(name, err)
-    }
-  }
-
   let client = buildClient(!serverRef.bundledBootstrap, stdioTransport !== null ? 'stdio' : 'remote')
   installRootsHandler(client)
   const eraKey = getServerCacheKey(name, serverRef)
@@ -790,10 +163,10 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       if (stdioTransport === null || prior || !isProbeExitError(err) || spawnRefused) throw err
       logMCPDebug(name, 'the server exited on the revision probe — remembered as an older server; connecting again with the handshake')
       await recordEraVerdict(eraKey, 'legacy')
-      await endStdioTree()
+      await endStdioTree(name, stdioTransport)
       stdioTransport.stderr?.off('data', onStderr)
       if (spawnRefused) throw err
-      stdioTransport = buildStdioTransport()
+      stdioTransport = buildStdioTransport(name, serverRef, config)
       transport = stdioTransport
       stdioTransport.stderr?.on('data', onStderr)
       client = buildClient(false)
@@ -819,7 +192,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
           MCP_CONNECT_TIMEOUT_TELEMETRY,
         ),
       )
-      void endStdioTree().finally(() => {
+      void endStdioTree(name, stdioTransport).finally(() => {
         void inProcessServer?.close().catch(() => {})
         void transport.close().catch(() => {})
       })
@@ -850,7 +223,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     if ((type === 'sse' || type === 'http') && unauthorized) return handleRemoteAuthFailure(name, serverRef, type.toUpperCase())
     if (type === 'claudeai-proxy' && (err as { code?: unknown } | null)?.code === 401) return handleRemoteAuthFailure(name, serverRef, 'claude.ai proxy')
     releaseSpawnGuard?.()
-    await endStdioTree()
+    await endStdioTree(name, stdioTransport)
     await inProcessServer?.close().catch(() => {})
     await transport.close().catch(() => {})
     if (stderrBuffer) logMCPError(name, `stderr: ${stderrBuffer}`)
@@ -942,7 +315,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     }
     if (type === 'stdio' || config.type === undefined) {
       stdioTransport?.stderr?.off('data', onStderr)
-      await endStdioTree()
+      await endStdioTree(name, stdioTransport)
     }
     await client.close().catch(err => logMCPError(name, err))
   }
@@ -1079,40 +452,6 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
   return tool
 }
 
-async function listAllTools(client: ConnectedMCPServer): Promise<McpSdkTool[]> {
-  const accumulated: McpSdkTool[] = []
-  let cursor: string | undefined
-  const seenCursors = new Set<string>()
-  for (let page = 0; page < TOOLS_MAX_PAGES; page++) {
-    let result: ListToolsResult
-    try {
-      result = await client.client.request(
-        { method: 'tools/list', params: cursor ? { cursor } : {} },
-        { timeout: connectTimeoutMs() },
-      )
-    } catch (err) {
-      if (page === 0) throw err
-      logMCPDebug(client.name, `tools/list page ${page} failed; keeping ${accumulated.length} tools: ${errorMessage(err)}`)
-      break
-    }
-    accumulated.push(...(result.tools ?? []))
-    if (accumulated.length >= TOOLS_MAX_PER_SERVER) {
-      logMCPDebug(client.name, `tool cap ${TOOLS_MAX_PER_SERVER} reached; truncating`)
-      accumulated.length = TOOLS_MAX_PER_SERVER
-      break
-    }
-    const next = result.nextCursor
-    if (!next) break
-    if (seenCursors.has(next)) {
-      logMCPDebug(client.name, 'repeated tools/list cursor; stopping pagination')
-      break
-    }
-    seenCursors.add(next)
-    cursor = next
-  }
-  return accumulated
-}
-
 type ToolDiscoveryFailure = { message: string; at: number; attempts: number; nextRetryAt: number }
 const toolDiscoveryFailures = new Map<string, ToolDiscoveryFailure>()
 const TOOL_DISCOVERY_RETRY_BASE_MS = 30_000
@@ -1241,245 +580,7 @@ export const fetchCommandsForClient = memoize(
 )
 fetchCommandsForClient.cache = new LRUCache({ max: 20 }) as never
 
-
-export type MCPResultType = 'toolResult' | 'structuredContent' | 'contentArray'
-
-export type TransformedMCPResult = {
-  type: MCPResultType
-  content: MCPToolResult
-  schema?: string
-  isImage?: boolean
-}
-
-function persistId(serverName: string, extra?: string): string {
-  return `${normalizeNameForMCP(serverName)}${extra ? `-${normalizeNameForMCP(extra)}` : ''}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-}
-
-async function persistBlob(bytes: Buffer, mimeType: string | undefined, serverName: string, source: string): Promise<ContentBlockParam> {
-  const saved = await persistBinaryContent(bytes, mimeType, persistId(serverName))
-  if ('error' in saved) {
-    return { type: 'text', text: `${source}: binary content could not be saved (${mimeType ?? 'unknown type'}, ${bytes.length} bytes): ${saved.error}` } as ContentBlockParam
-  }
-  return { type: 'text', text: getBinaryBlobSavedMessage(saved.filepath, mimeType, saved.size, source) } as ContentBlockParam
-}
-
-async function resizedImageBlock(base64: string, mimeType: string | undefined): Promise<{ block: ContentBlockParam; dimensions?: ImageDimensions }> {
-  const subtype = mimeType?.split('/')[1] ?? 'png'
-  const bytes = Buffer.from(base64, 'base64')
-  const resized = await maybeResizeAndDownsampleImageBuffer(bytes, bytes.length, subtype, { role: 'tool-result' })
-  const block = {
-    type: 'image',
-    source: { type: 'base64', media_type: `image/${resized.mediaType}`, data: resized.buffer.toString('base64') },
-  } as ContentBlockParam
-  return { block, dimensions: resized.dimensions }
-}
-
-type MCPResource = { uri?: string; text?: string; blob?: string; mimeType?: string } | undefined
-
-function isImageResource(resource: MCPResource): boolean {
-  return resource?.text === undefined && resource?.blob !== undefined && resource.mimeType !== undefined && IMAGE_MIME_TYPES.has(resource.mimeType)
-}
-
-async function forwardableImage(base64: string, mimeType: string | undefined): Promise<{ block: ContentBlockParam; dimensions: ImageDimensions } | null> {
-  let image: { block: ContentBlockParam; dimensions?: ImageDimensions }
-  try {
-    image = await resizedImageBlock(base64, mimeType)
-  } catch (error) {
-    if (error instanceof ImageResizeError) return null
-    throw error
-  }
-  const mediaType = (image.block as { source?: { media_type?: string } }).source?.media_type
-  if (image.dimensions === undefined || mediaType === undefined || !IMAGE_MIME_TYPES.has(mediaType)) return null
-  return { block: image.block, dimensions: image.dimensions }
-}
-
-export async function transformResultContent(content: unknown[], serverName: string): Promise<ContentBlockParam[]> {
-  const out: ContentBlockParam[] = []
-  const shown: Array<{ ordinal: number; dimensions: ImageDimensions }> = []
-  let images = 0
-  const pushImage = async (base64: string, mimeType: string | undefined): Promise<void> => {
-    const image = await forwardableImage(base64, mimeType)
-    if (image === null) {
-      out.push(await persistBlob(Buffer.from(base64, 'base64'), mimeType, serverName, `Image from ${serverName}`))
-      return
-    }
-    images++
-    out.push(image.block)
-    shown.push({ ordinal: images, dimensions: image.dimensions })
-  }
-  for (const block of content) {
-    const record = block as Record<string, unknown>
-    switch (record.type) {
-      case 'text':
-        out.push({ type: 'text', text: String(record.text ?? '') } as ContentBlockParam)
-        break
-      case 'audio': {
-        const bytes = Buffer.from(String(record.data ?? ''), 'base64')
-        out.push(await persistBlob(bytes, record.mimeType as string | undefined, serverName, `Audio from ${serverName}`))
-        break
-      }
-      case 'image':
-        await pushImage(String(record.data ?? ''), record.mimeType as string | undefined)
-        break
-      case 'resource': {
-        const resource = record.resource as MCPResource
-        const marker = `Resource from ${serverName} at ${resource?.uri ?? 'unknown'}`
-        if (resource?.text !== undefined) {
-          out.push({ type: 'text', text: `${marker}:\n${resource.text}` } as ContentBlockParam)
-        } else if (resource?.blob !== undefined) {
-          if (isImageResource(resource)) {
-            out.push({ type: 'text', text: marker } as ContentBlockParam)
-            await pushImage(resource.blob, resource.mimeType)
-          } else {
-            out.push(await persistBlob(Buffer.from(resource.blob, 'base64'), resource.mimeType, serverName, marker))
-          }
-        }
-        break
-      }
-      case 'resource_link':
-        out.push({
-          type: 'text',
-          text: `Resource: ${String(record.name ?? '')} (${String(record.uri ?? '')})${record.description ? ` (${String(record.description)})` : ''}`,
-        } as ContentBlockParam)
-        break
-      default:
-        break
-    }
-  }
-  for (const { ordinal, dimensions } of shown) {
-    const note = createImageMetadataText(dimensions, undefined, { index: ordinal, count: images })
-    if (note !== null) out.push({ type: 'text', text: note } as ContentBlockParam)
-  }
-  return out
-}
-
-export function inferCompactSchema(value: unknown, depth: number = 2): string {
-  if (value === null) return 'null'
-  if (Array.isArray(value)) return value.length === 0 ? '[]' : `[${inferCompactSchema(value[0], depth - 1)}]`
-  if (typeof value === 'object') {
-    if (depth <= 0) return '{...}'
-    const entries = Object.entries(value as Record<string, unknown>)
-    const shown = entries.slice(0, 10).map(([key, inner]) => `${key}: ${inferCompactSchema(inner, depth - 1)}`)
-    return `{${shown.join(', ')}${entries.length > 10 ? ', ...' : ''}}`
-  }
-  return typeof value
-}
-
-export async function transformMCPResult(result: unknown, tool: string, name: string): Promise<TransformedMCPResult> {
-  const record = result as { toolResult?: unknown; structuredContent?: unknown; content?: unknown } | null
-  if (record && 'toolResult' in record && record.toolResult !== undefined) {
-    return { type: 'toolResult', content: String(record.toolResult) }
-  }
-  if (record && record.structuredContent !== undefined) {
-    const serialized = JSON.stringify(record.structuredContent)
-    const schema = inferCompactSchema(record.structuredContent)
-    const blocks = Array.isArray(record.content) ? record.content : []
-    const restates = (block: unknown): boolean => {
-      const text = (block as { type?: string; text?: unknown } | null)?.type === 'text' ? (block as { text?: unknown }).text : undefined
-      if (typeof text !== 'string') return false
-      try {
-        return isEqual(JSON.parse(text), record.structuredContent)
-      } catch {
-        return false
-      }
-    }
-    if (blocks.every(restates)) return { type: 'structuredContent', content: serialized, schema }
-    const content = await transformResultContent(blocks.filter(block => !restates(block)), name)
-    content.push({ type: 'text', text: serialized } as ContentBlockParam)
-    return {
-      type: 'structuredContent',
-      content,
-      schema,
-      isImage: content.some(block => (block as { type?: string }).type === 'image'),
-    }
-  }
-  if (record && Array.isArray(record.content)) {
-    const content = await transformResultContent(record.content, name)
-    return {
-      type: 'contentArray',
-      content,
-      schema: inferCompactSchema(record.content),
-      isImage: content.some(block => (block as { type?: string }).type === 'image'),
-    }
-  }
-  logMCPError(name, `unexpected response format from tool ${tool}`)
-  throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-    `Unexpected response format from MCP server "${name}" tool "${tool}"`,
-    'MCP unexpected response format',
-  )
-}
-
-export async function processMCPResult(result: unknown, tool: string, name: string): Promise<MCPToolResult> {
-  const transformed = await transformMCPResult(result, tool, name)
-  if (transformed.content === undefined) return transformed.content
-  if (!(await mcpContentNeedsTruncation(transformed.content))) return transformed.content
-  if (!flagEnabled('MERCURY_MCP_LARGE_OUTPUT_FILES')) return truncateMcpContent(transformed.content)
-  if (transformed.isImage) return truncateMcpContent(transformed.content)
-  const serialized = typeof transformed.content === 'string' ? transformed.content : JSON.stringify(transformed.content, null, 2)
-  const persisted = await persistToolResult(serialized, persistId(name, tool))
-  if ('error' in persisted) {
-    return `MCP tool result exceeded the maximum allowed tokens (${serialized.length} characters), and saving it to disk failed: ${persisted.error}. If the server offers pagination or filtering tools, use them.`
-  }
-  return getLargeOutputInstructions(persisted.filepath, serialized.length, getFormatDescription(transformed.type, transformed.schema))
-}
-
-
 type MCPToolCallResult = { content: MCPToolResult; _meta?: Record<string, unknown>; structuredContent?: unknown }
-
-const schemaAllowsNull = (property: unknown): boolean => {
-  if (property === null || typeof property !== 'object') return false
-  const p = property as { type?: unknown; anyOf?: unknown[]; oneOf?: unknown[]; nullable?: unknown; enum?: unknown[] }
-  if (p.nullable === true) return true
-  if (p.type === 'null' || (Array.isArray(p.type) && p.type.includes('null'))) return true
-  if (Array.isArray(p.enum) && p.enum.includes(null)) return true
-  return [...(p.anyOf ?? []), ...(p.oneOf ?? [])].some(schemaAllowsNull)
-}
-
-type ObjectSchema = { properties?: Record<string, unknown>; required?: unknown; items?: unknown; anyOf?: unknown[]; oneOf?: unknown[]; allOf?: unknown[] }
-
-const objectSchemaOf = (schema: unknown): ObjectSchema => {
-  if (schema === null || typeof schema !== 'object') return {}
-  const s = schema as ObjectSchema
-  if (s.properties !== undefined) return s
-  for (const branch of [...(s.anyOf ?? []), ...(s.oneOf ?? []), ...(s.allOf ?? [])]) {
-    const found = objectSchemaOf(branch)
-    if (found.properties !== undefined) return found
-  }
-  return s
-}
-
-function withoutNullOptionalsIn(value: unknown, schema: unknown): unknown {
-  if (Array.isArray(value)) {
-    const items = objectSchemaOf(schema).items
-    let changed = false
-    const out = value.map(entry => {
-      const next = withoutNullOptionalsIn(entry, items)
-      if (next !== entry) changed = true
-      return next
-    })
-    return changed ? out : value
-  }
-  if (value === null || typeof value !== 'object') return value
-  return withoutNullOptionals(value as Record<string, unknown>, schema)
-}
-
-export function withoutNullOptionals(args: Record<string, unknown>, inputSchema: unknown): Record<string, unknown> {
-  const schema = objectSchemaOf(inputSchema ?? {})
-  const required = new Set(Array.isArray(schema.required) ? (schema.required as unknown[]).filter((k): k is string => typeof k === 'string') : [])
-  let changed = false
-  const out: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(args)) {
-    const property = schema.properties?.[key]
-    if (value === null && !required.has(key) && !schemaAllowsNull(property)) {
-      changed = true
-      continue
-    }
-    const next = withoutNullOptionalsIn(value, property)
-    if (next !== value) changed = true
-    out[key] = next
-  }
-  return changed ? out : args
-}
 
 async function callToolOnce(
   connected: ConnectedMCPServer,
@@ -1628,23 +729,6 @@ async function callToolOnce(
   }
 }
 
-type UrlElicitation = { mode: 'url'; url: string; elicitationId: string; message: string }
-
-function parseUrlElicitations(error: unknown): UrlElicitation[] {
-  const data = (error as { data?: { elicitations?: unknown[] } } | null)?.data
-  const raw = Array.isArray(data?.elicitations) ? data.elicitations : []
-  return raw.filter((entry): entry is UrlElicitation => {
-    const record = entry as Record<string, unknown> | null
-    return (
-      record !== null &&
-      record.mode === 'url' &&
-      typeof record.url === 'string' &&
-      typeof record.elicitationId === 'string' &&
-      typeof record.message === 'string'
-    )
-  })
-}
-
 export async function callMCPToolWithUrlElicitationRetry(params: {
   client: MCPServerConnection
   tool: string
@@ -1745,45 +829,6 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
   }
 }
 
-function queueUrlElicitation(
-  serverName: string,
-  elicitation: UrlElicitation,
-  signal: AbortSignal,
-  setAppState: (updater: (prev: unknown) => unknown) => void,
-): Promise<'accept' | 'decline' | 'cancel'> {
-  if (signal.aborted) return Promise.resolve('cancel')
-  return new Promise(resolve => {
-    let settled = false
-    const finish = (answer: 'accept' | 'decline' | 'cancel'): void => {
-      if (settled) return
-      settled = true
-      signal.removeEventListener('abort', onAbort)
-      resolve(answer)
-    }
-    const onAbort = (): void => finish('cancel')
-    signal.addEventListener('abort', onAbort, { once: true })
-    const event = {
-      serverName,
-      requestId: elicitation.elicitationId,
-      elicitationId: elicitation.elicitationId,
-      params: { mode: 'url', url: elicitation.url, message: elicitation.message },
-      signal,
-      respond: (response: { action?: string }) => {
-        if (response.action === 'accept') return
-        finish(response.action === 'decline' ? 'decline' : 'cancel')
-      },
-      waitingState: { actionLabel: 'Open the URL, then return here', showCancel: true },
-      onWaitingDismiss: (action: 'dismiss' | 'retry' | 'cancel') => finish(action === 'retry' ? 'accept' : 'cancel'),
-    }
-    setAppState(prev => {
-      const state = prev as { elicitation?: { queue?: unknown[] } }
-      const queue = state.elicitation?.queue ?? []
-      return { ...state, elicitation: { ...(state.elicitation ?? {}), queue: [...queue, event] } }
-    })
-  })
-}
-
-
 type ConnectionReport = { client: MCPServerConnection; tools: Tool[]; commands: Command[]; resources?: ServerResource[] }
 
 async function discoverFor(connection: ConnectedMCPServer, includeResourceTools: boolean): Promise<ConnectionReport> {
@@ -1797,44 +842,6 @@ async function discoverFor(connection: ConnectedMCPServer, includeResourceTools:
     ? [...tools, ListMcpResourcesTool as unknown as Tool, ReadMcpResourceTool as unknown as Tool]
     : tools
   return { client: connection, tools: allTools, commands, ...(resources.length > 0 ? { resources } : {}) }
-}
-
-async function runWithLimit<T>(items: T[], limit: number, work: (item: T) => Promise<void>): Promise<void> {
-  let index = 0
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (index < items.length) {
-      const item = items[index++] as T
-      await work(item)
-    }
-  })
-  await Promise.all(workers)
-}
-
-export type McpPrefixCollision = { name: string; config: ScopedMcpServerConfig; winner: string; error: string }
-
-export function fenceMcpPrefixCollisions(configs: Record<string, ScopedMcpServerConfig>): {
-  survivors: Record<string, ScopedMcpServerConfig>
-  collided: McpPrefixCollision[]
-} {
-  const prefixOwners = new Map<string, string>()
-  const survivors = Object.create(null) as Record<string, ScopedMcpServerConfig>
-  const collided: McpPrefixCollision[] = []
-  for (const [name, config] of Object.entries(configs)) {
-    const folded = normalizeNameForMCP(name)
-    const winner = prefixOwners.get(folded)
-    if (winner === undefined) {
-      prefixOwners.set(folded, name)
-      survivors[name] = config
-      continue
-    }
-    collided.push({
-      name,
-      config,
-      winner,
-      error: `its tool prefix collides with '${winner}' (both normalise to mcp__${folded}__) — rename one server; only '${winner}' was connected`,
-    })
-  }
-  return { survivors, collided }
 }
 
 export async function getMcpToolsCommandsAndResources(
@@ -1933,4 +940,3 @@ export async function reconnectMcpServerImpl(
     return { client: { name, type: 'failed', config, error: errorMessage(err) }, tools: [], commands: [] }
   }
 }
-
