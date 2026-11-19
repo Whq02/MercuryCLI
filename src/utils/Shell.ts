@@ -197,7 +197,10 @@ export function setCwd(path: string, base?: string): void {
 }
 
 let shellCwd: string | null = null
-subscribeCwdState(() => {
+let sessionCwdSeen: string | undefined
+subscribeCwdState(sessionCwd => {
+  if (sessionCwd === sessionCwdSeen) return
+  sessionCwdSeen = sessionCwd
   shellCwd = null
 })
 
@@ -221,6 +224,11 @@ export function resolveShellCwd(cwd?: string): string {
   if (cwd === undefined) return getShellCwd()
   const absolute = isAbsolute(cwd) ? cwd : resolvePath(getStartingCwd(), cwd)
   return safeResolvePath(getFsImplementation(), absolute).resolvedPath
+}
+
+export function shellDirectoryLeftByCd(): string | null {
+  const directory = getShellCwd()
+  return directory === getCwd() ? null : `The shell's working directory is still where an earlier cd left it: ${directory}`
 }
 
 function recordShellCwd(path: string, base: string): void {
