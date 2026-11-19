@@ -145,7 +145,9 @@ export function trackGitOperations(command: string, exitCode: number, stdout?: s
         import('../../bootstrap/state.js'),
       ])
       await linkSessionToPR(String(getSessionId()) as UUID, number, url, repository)
-    } catch {
+    } catch (error) {
+      const { logError } = await import('../../utils/log.js')
+      logError(new Error(`the session could not be recorded against pull request ${url}, so it is not listed with it: ${error instanceof Error ? error.message : String(error)}`))
     }
   })()
 }
