@@ -6,6 +6,7 @@ import { z } from 'zod/v4'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import type { InlineChangeViewData } from '../../components/InlineChangeView.js'
+import type { AssistantMessage } from '../../types/message.js'
 import { runVerbatimTextCommit } from '../../services/changeTransaction/changeSetCommit.js'
 import { changeTransactionEnabled } from '../../services/changeTransaction/contracts.js'
 import { dropSeenLines } from '../../services/changeTransaction/seenLines.js'
@@ -227,6 +228,216 @@ function dryRunText(scope: AstScope, plan: AstRewritePlan): string {
   return lines.join('\n')
 }
 
+async function astEditCall(input: Input, context: ToolUseContext, parentMessage: AssistantMessage) {
+  const startedAt = Date.now()
+  const { scope, plan } = await planFor(input, context)
+  const base = {
+    pattern: input.rules ? input.rules.map(r => r.pattern).join(' ; ') : (input.pattern ?? ''),
+    rewrite: input.rules ? input.rules.map(r => r.rewrite).join(' ; ') : (input.rewrite ?? ''),
+    scope: scope.display,
+    matchCount: plan.matchCount,
+    fileCount: plan.files.length,
+  }
+
+  if (plan.files.length === 0) {
+    const already = plan.unchangedMatches > 0
+    const emptyScope = scope.files.length === 0
+    const targetLabel = input.rules
+      ? `${input.rules.length} ${plural(input.rules.length, 'rule')}`
+      : JSON.stringify(input.pattern)
+    const head = emptyScope
+      ? `Nothing searched: no files with a supported language ${scope.singleFile ? scope.display : `under ${scope.display}`}${scope.glob ? ` matching ${scope.glob}` : ''}${scope.lang ? ` in ${scope.lang.name}` : ''} — nothing to rewrite.`
+      : already
+        ? `${plan.unchangedMatches} ${plural(plan.unchangedMatches, 'match', 'matches')} of ${targetLabel} already read exactly as the rewrite — nothing to write.`
+        : `No matches for ${targetLabel} — nothing to rewrite.`
+    const trailer = renderSearchTrailer(scope, plan.search)
+    const text = [head, ...renderBatchSummaryLines(plan), ...(emptyScope ? trailer.slice(1) : trailer), ...renderLeftOut(plan.leftOut)].join('\n')
+    return {
+      data: { ...base, state: already ? ('no-change' as const) : ('no-matches' as const), text, changedPaths: [] } satisfies Output,
+      effect: {
+        outcome: 'no-change' as const,
+        operation: 'ast.preview',
+        changedPaths: [],
+        evidence: already ? `${plan.unchangedMatches} match(es) already in the rewritten form` : `no structural matches in ${scope.files.length} file(s)`,
+        startedAt,
+        completedAt: Date.now(),
+      },
+    }
+  }
+
+  if (input.apply !== true) {
+    return {
+      data: {
+        ...base,
+        state: 'dry-run' as const,
+        text: dryRunText(scope, plan),
+        plan: plan.token,
+        changedPaths: [],
+        changeView: changeViewOf(plan, 'proposed'),
+      } satisfies Output,
+      effect: {
+        outcome: 'succeeded' as const,
+        operation: 'ast.preview',
+        changedPaths: [],
+        evidence: `dry run: ${plan.matchCount} match(es) in ${plan.files.length} file(s), plan ${plan.token}`,
+        startedAt,
+        completedAt: Date.now(),
+        details: { plan: plan.token, matches: plan.matchCount, files: plan.files.length },
+      },
+    }
+  }
+
+  if (input.plan?.trim() !== plan.token) {
+    const whatDiffered = input.rules
+      ? 'a file, the rules or the scope differs from the dry run you read'
+      : 'a file, the pattern, the rewrite or the scope differs from the dry run you read'
+    throw new Error(
+      `Plan ${input.plan} does not match the current dry run (${plan.token}): ${whatDiffered}. Nothing was written. The current dry run follows — apply it with plan: "${plan.token}" if it is what you want.\n\n${dryRunText(scope, plan)}`,
+    )
+  }
+
+  const permCtx = context.getAppState().toolPermissionContext
+  const denied: string[] = []
+  for (const f of plan.files) {
+    const decision = checkWritePermissionForTool(pathShim, { file_path: f.abs }, permCtx)
+    if (decision.behavior === 'allow') continue
+    if (decision.behavior === 'deny') {
+      denied.push(f.rel)
+      continue
+    }
+  }
+  if (denied.length > 0) {
+    const rows = denied.map(p => `  ${p} — denied by a rule`)
+    throw new Error(
+      `Apply refused — ${rows.length} ${plural(rows.length, 'file')} not writable:\n${rows.join('\n')}\nNothing was written (a denied path refuses the whole edit). Adjust permission rules, then apply again.`,
+    )
+  }
+  if (context.abortController.signal.aborted) {
+    throw new Error('Cancelled before writing — nothing was written.')
+  }
+
+  const owner = ownerFromToolUseContext(context)
+  for (const f of plan.files) {
+    if (fileHistoryEnabled()) {
+      await fileHistoryTrackEdit(context.updateFileHistoryState, f.abs, parentMessage.uuid as UUID)
+    }
+  }
+
+  const outcome = await runVerbatimTextCommit({
+    ownerKey: owner,
+    source: 'ast-edit',
+    files: plan.files.map(f => ({ canonicalPath: f.abs, originalText: f.before, plannedText: f.after })),
+    signal: context.abortController.signal,
+  })
+  switch (outcome.kind) {
+    case 'stale': {
+      const rels = outcome.stalePaths.map(p => plan.files.find(f => f.abs === p)?.rel ?? p)
+      throw new Error(`Stale — changed since the dry run: ${rels.join(', ')}. Nothing was written. Run the dry run again and apply the new plan.`)
+    }
+    case 'cancelled':
+      throw new Error('Cancelled before writing — nothing was written.')
+    case 'in-flight':
+      throw new Error(`Another live Mercury process is committing this exact change (operation ${outcome.operationId}) — nothing was written here.`)
+    case 'failed-restored':
+      throw new Error(
+        `Apply FAILED (${outcome.reason}) — partial application is failure; every touched file was restored to its original bytes and VERIFIED by reread.`,
+      )
+    case 'indeterminate': {
+      const rels = outcome.divergedPaths.map(p => plan.files.find(f => f.abs === p)?.rel ?? p)
+      throw new Error(
+        `Apply INDETERMINATE (${outcome.reason}) — the final state differs from both the plan and the original at: ${rels.join(', ')}; re-read those files before relying on them.`,
+      )
+    }
+    case 'replayed': {
+      const text = `Plan ${plan.token} was already committed — replayed the prior result without writing twice (${outcome.changedPaths.length} ${plural(outcome.changedPaths.length, 'file')}).`
+      return {
+        data: { ...base, state: 'no-change' as const, text, plan: plan.token, changedPaths: [], changeView: changeViewOf(plan, 'applied') } satisfies Output,
+        effect: {
+          outcome: 'no-change' as const,
+          operation: 'file.astEdit',
+          changedPaths: [],
+          evidence: `replayed committed plan ${plan.token}`,
+          startedAt,
+          completedAt: Date.now(),
+          details: { plan: plan.token, replayedOperationId: outcome.operationId },
+        },
+      }
+    }
+    case 'committed':
+      break
+  }
+
+  const lspManager = getLspServerManager()
+  const syncFailures: string[] = []
+  const anchors = new Map<string, string>()
+  for (const f of plan.files) {
+    context.nestedMemoryAttachmentTriggers?.add(f.abs)
+    context.readFileState.set(f.abs, {
+      content: f.after,
+      timestamp: getFileModificationTime(f.abs),
+      offset: undefined,
+      limit: undefined,
+    })
+    if (lspManager) {
+      const sync = await syncServersAfterWrite(lspManager, f.abs, f.after, f.before, owner)
+      if (!sync.ok) syncFailures.push(`${f.rel}: ${sync.reason}`)
+    }
+    const anchor = mintFileAnchor(f.after)
+    anchors.set(f.abs, anchor)
+    rememberAnchoredSnapshot(owner, anchor, f.after, f.abs)
+    dropSeenLines(owner, f.abs)
+  }
+  if (!isEnvTruthy(flagEnv('MERCURY_BARE'))) {
+    const paths = plan.files.map(f => f.abs)
+    discoverSkillDirsForPaths(paths, getCwd())
+      .then(dirs => (dirs.length > 0 ? addSkillDirectories(dirs) : undefined))
+      .catch(() => {})
+    activateConditionalSkillsForPaths(paths, getCwd())
+  }
+
+  const withAnchors = changeTransactionEnabled()
+  const rows = plan.files.map(f => {
+    if (plan.batch) {
+      const changes = plan.batch.fileChanges.get(f.rel) ?? []
+      const ruleSet = [...new Set(changes.flatMap(c => c.ruleIndices))].sort((a, b) => a - b)
+      return `  ${f.rel} — ${f.matchCount} ${plural(f.matchCount, 'rewrite')} (rule${ruleSet.length === 1 ? '' : 's'} ${ruleSet.join(', ')})${withAnchors ? ` (anchor: ${anchors.get(f.abs)})` : ''}`
+    }
+    return `  ${f.rel} — ${f.matchCount} ${plural(f.matchCount, 'rewrite')}${withAnchors ? ` (anchor: ${anchors.get(f.abs)})` : ''}`
+  })
+  const text = [
+    `Applied ${plan.matchCount} structural ${plural(plan.matchCount, 'rewrite')} in ${plan.files.length} ${plural(plan.files.length, 'file')} (re-read verified):`,
+    ...rows,
+    ...renderBatchSummaryLines(plan),
+    ...renderLeftOut(plan.leftOut),
+    ...(syncFailures.length > 0
+      ? [`Written and verified, but the editor/language-server sync failed for: ${syncFailures.join('; ')} — re-open those files before relying on live diagnostics.`]
+      : []),
+  ].join('\n')
+  const effectOutcome: ToolEffectOutcome = syncFailures.length > 0 ? 'indeterminate' : 'succeeded'
+  return {
+    data: {
+      ...base,
+      state: 'applied' as const,
+      text,
+      plan: plan.token,
+      changedPaths: outcome.changedPaths,
+      changeView: changeViewOf(plan, 'applied'),
+    } satisfies Output,
+    effect: {
+      outcome: effectOutcome,
+      operation: 'file.astEdit',
+      changedPaths: outcome.changedPaths,
+      evidence:
+        syncFailures.length > 0
+          ? `wrote ${outcome.changedPaths.length} file(s), re-read verified; editor sync failed for ${syncFailures.length}`
+          : `applied ${plan.matchCount} structural rewrite(s) in ${plan.files.length} file(s), re-read verified`,
+      startedAt,
+      completedAt: Date.now(),
+      details: { plan: plan.token, matches: plan.matchCount, files: plan.files.length, operationId: outcome.operationId },
+    },
+  }
+}
+
 export const AstEditTool = buildTool({
   shouldDefer: true,
   name: AST_EDIT_TOOL_NAME,
@@ -409,214 +620,8 @@ export const AstEditTool = buildTool({
     }
     return { behavior: 'allow', updatedInput: input } as PermissionDecision
   },
-  async call(input: Input, context: ToolUseContext, _canUseTool, parentMessage) {
-    const startedAt = Date.now()
-    const { scope, plan } = await planFor(input, context)
-    const base = {
-      pattern: input.rules ? input.rules.map(r => r.pattern).join(' ; ') : (input.pattern ?? ''),
-      rewrite: input.rules ? input.rules.map(r => r.rewrite).join(' ; ') : (input.rewrite ?? ''),
-      scope: scope.display,
-      matchCount: plan.matchCount,
-      fileCount: plan.files.length,
-    }
-
-    if (plan.files.length === 0) {
-      const already = plan.unchangedMatches > 0
-      const emptyScope = scope.files.length === 0
-      const targetLabel = input.rules
-        ? `${input.rules.length} ${plural(input.rules.length, 'rule')}`
-        : JSON.stringify(input.pattern)
-      const head = emptyScope
-        ? `Nothing searched: no files with a supported language ${scope.singleFile ? scope.display : `under ${scope.display}`}${scope.glob ? ` matching ${scope.glob}` : ''}${scope.lang ? ` in ${scope.lang.name}` : ''} — nothing to rewrite.`
-        : already
-          ? `${plan.unchangedMatches} ${plural(plan.unchangedMatches, 'match', 'matches')} of ${targetLabel} already read exactly as the rewrite — nothing to write.`
-          : `No matches for ${targetLabel} — nothing to rewrite.`
-      const trailer = renderSearchTrailer(scope, plan.search)
-      const text = [head, ...renderBatchSummaryLines(plan), ...(emptyScope ? trailer.slice(1) : trailer), ...renderLeftOut(plan.leftOut)].join('\n')
-      return {
-        data: { ...base, state: already ? ('no-change' as const) : ('no-matches' as const), text, changedPaths: [] } satisfies Output,
-        effect: {
-          outcome: 'no-change' as const,
-          operation: 'ast.preview',
-          changedPaths: [],
-          evidence: already ? `${plan.unchangedMatches} match(es) already in the rewritten form` : `no structural matches in ${scope.files.length} file(s)`,
-          startedAt,
-          completedAt: Date.now(),
-        },
-      }
-    }
-
-    if (input.apply !== true) {
-      return {
-        data: {
-          ...base,
-          state: 'dry-run' as const,
-          text: dryRunText(scope, plan),
-          plan: plan.token,
-          changedPaths: [],
-          changeView: changeViewOf(plan, 'proposed'),
-        } satisfies Output,
-        effect: {
-          outcome: 'succeeded' as const,
-          operation: 'ast.preview',
-          changedPaths: [],
-          evidence: `dry run: ${plan.matchCount} match(es) in ${plan.files.length} file(s), plan ${plan.token}`,
-          startedAt,
-          completedAt: Date.now(),
-          details: { plan: plan.token, matches: plan.matchCount, files: plan.files.length },
-        },
-      }
-    }
-
-    if (input.plan?.trim() !== plan.token) {
-      const whatDiffered = input.rules
-        ? 'a file, the rules or the scope differs from the dry run you read'
-        : 'a file, the pattern, the rewrite or the scope differs from the dry run you read'
-      throw new Error(
-        `Plan ${input.plan} does not match the current dry run (${plan.token}): ${whatDiffered}. Nothing was written. The current dry run follows — apply it with plan: "${plan.token}" if it is what you want.\n\n${dryRunText(scope, plan)}`,
-      )
-    }
-
-    const permCtx = context.getAppState().toolPermissionContext
-    const denied: string[] = []
-    for (const f of plan.files) {
-      const decision = checkWritePermissionForTool(pathShim, { file_path: f.abs }, permCtx)
-      if (decision.behavior === 'allow') continue
-      if (decision.behavior === 'deny') {
-        denied.push(f.rel)
-        continue
-      }
-    }
-    if (denied.length > 0) {
-      const rows = denied.map(p => `  ${p} — denied by a rule`)
-      throw new Error(
-        `Apply refused — ${rows.length} ${plural(rows.length, 'file')} not writable:\n${rows.join('\n')}\nNothing was written (a denied path refuses the whole edit). Adjust permission rules, then apply again.`,
-      )
-    }
-    if (context.abortController.signal.aborted) {
-      throw new Error('Cancelled before writing — nothing was written.')
-    }
-
-    const owner = ownerFromToolUseContext(context)
-    for (const f of plan.files) {
-      if (fileHistoryEnabled()) {
-        await fileHistoryTrackEdit(context.updateFileHistoryState, f.abs, parentMessage.uuid as UUID)
-      }
-    }
-
-    const outcome = await runVerbatimTextCommit({
-      ownerKey: owner,
-      source: 'ast-edit',
-      files: plan.files.map(f => ({ canonicalPath: f.abs, originalText: f.before, plannedText: f.after })),
-      signal: context.abortController.signal,
-    })
-    switch (outcome.kind) {
-      case 'stale': {
-        const rels = outcome.stalePaths.map(p => plan.files.find(f => f.abs === p)?.rel ?? p)
-        throw new Error(`Stale — changed since the dry run: ${rels.join(', ')}. Nothing was written. Run the dry run again and apply the new plan.`)
-      }
-      case 'cancelled':
-        throw new Error('Cancelled before writing — nothing was written.')
-      case 'in-flight':
-        throw new Error(`Another live Mercury process is committing this exact change (operation ${outcome.operationId}) — nothing was written here.`)
-      case 'failed-restored':
-        throw new Error(
-          `Apply FAILED (${outcome.reason}) — partial application is failure; every touched file was restored to its original bytes and VERIFIED by reread.`,
-        )
-      case 'indeterminate': {
-        const rels = outcome.divergedPaths.map(p => plan.files.find(f => f.abs === p)?.rel ?? p)
-        throw new Error(
-          `Apply INDETERMINATE (${outcome.reason}) — the final state differs from both the plan and the original at: ${rels.join(', ')}; re-read those files before relying on them.`,
-        )
-      }
-      case 'replayed': {
-        const text = `Plan ${plan.token} was already committed — replayed the prior result without writing twice (${outcome.changedPaths.length} ${plural(outcome.changedPaths.length, 'file')}).`
-        return {
-          data: { ...base, state: 'no-change' as const, text, plan: plan.token, changedPaths: [], changeView: changeViewOf(plan, 'applied') } satisfies Output,
-          effect: {
-            outcome: 'no-change' as const,
-            operation: 'file.astEdit',
-            changedPaths: [],
-            evidence: `replayed committed plan ${plan.token}`,
-            startedAt,
-            completedAt: Date.now(),
-            details: { plan: plan.token, replayedOperationId: outcome.operationId },
-          },
-        }
-      }
-      case 'committed':
-        break
-    }
-
-    const lspManager = getLspServerManager()
-    const syncFailures: string[] = []
-    const anchors = new Map<string, string>()
-    for (const f of plan.files) {
-      context.nestedMemoryAttachmentTriggers?.add(f.abs)
-      context.readFileState.set(f.abs, {
-        content: f.after,
-        timestamp: getFileModificationTime(f.abs),
-        offset: undefined,
-        limit: undefined,
-      })
-      if (lspManager) {
-        const sync = await syncServersAfterWrite(lspManager, f.abs, f.after, f.before, owner)
-        if (!sync.ok) syncFailures.push(`${f.rel}: ${sync.reason}`)
-      }
-      const anchor = mintFileAnchor(f.after)
-      anchors.set(f.abs, anchor)
-      rememberAnchoredSnapshot(owner, anchor, f.after, f.abs)
-      dropSeenLines(owner, f.abs)
-    }
-    if (!isEnvTruthy(flagEnv('MERCURY_BARE'))) {
-      const paths = plan.files.map(f => f.abs)
-      discoverSkillDirsForPaths(paths, getCwd())
-        .then(dirs => (dirs.length > 0 ? addSkillDirectories(dirs) : undefined))
-        .catch(() => {})
-      activateConditionalSkillsForPaths(paths, getCwd())
-    }
-
-    const withAnchors = changeTransactionEnabled()
-    const rows = plan.files.map(f => {
-      if (plan.batch) {
-        const changes = plan.batch.fileChanges.get(f.rel) ?? []
-        const ruleSet = [...new Set(changes.flatMap(c => c.ruleIndices))].sort((a, b) => a - b)
-        return `  ${f.rel} — ${f.matchCount} ${plural(f.matchCount, 'rewrite')} (rule${ruleSet.length === 1 ? '' : 's'} ${ruleSet.join(', ')})${withAnchors ? ` (anchor: ${anchors.get(f.abs)})` : ''}`
-      }
-      return `  ${f.rel} — ${f.matchCount} ${plural(f.matchCount, 'rewrite')}${withAnchors ? ` (anchor: ${anchors.get(f.abs)})` : ''}`
-    })
-    const text = [
-      `Applied ${plan.matchCount} structural ${plural(plan.matchCount, 'rewrite')} in ${plan.files.length} ${plural(plan.files.length, 'file')} (re-read verified):`,
-      ...rows,
-      ...renderBatchSummaryLines(plan),
-      ...renderLeftOut(plan.leftOut),
-      ...(syncFailures.length > 0
-        ? [`Written and verified, but the editor/language-server sync failed for: ${syncFailures.join('; ')} — re-open those files before relying on live diagnostics.`]
-        : []),
-    ].join('\n')
-    const effectOutcome: ToolEffectOutcome = syncFailures.length > 0 ? 'indeterminate' : 'succeeded'
-    return {
-      data: {
-        ...base,
-        state: 'applied' as const,
-        text,
-        plan: plan.token,
-        changedPaths: outcome.changedPaths,
-        changeView: changeViewOf(plan, 'applied'),
-      } satisfies Output,
-      effect: {
-        outcome: effectOutcome,
-        operation: 'file.astEdit',
-        changedPaths: outcome.changedPaths,
-        evidence:
-          syncFailures.length > 0
-            ? `wrote ${outcome.changedPaths.length} file(s), re-read verified; editor sync failed for ${syncFailures.length}`
-            : `applied ${plan.matchCount} structural rewrite(s) in ${plan.files.length} file(s), re-read verified`,
-        startedAt,
-        completedAt: Date.now(),
-        details: { plan: plan.token, matches: plan.matchCount, files: plan.files.length, operationId: outcome.operationId },
-      },
-    }
+  call(input: Input, context: ToolUseContext, _canUseTool, parentMessage) {
+    return astEditCall(input, context, parentMessage)
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content: data.text }
