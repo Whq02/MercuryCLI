@@ -2,33 +2,40 @@ import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { classifyImageRefusalFault } from '../../api/mediaRefusal.js'
 import {
+  createAssistantMessage,
   createSystemAPIErrorMessage,
 } from '../../../utils/messages.js'
+import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
+import { getSessionId } from '../../../bootstrap/state.js'
 import { noteRunPhase } from '../../../utils/runPhases.js'
 import {
+  resolveOpenaiAccount,
   resolveOpenaiRequestAuth,
 } from './openaiAccounts.js'
+import { openaiLimitWindow } from './openaiLimitState.js'
 import { refreshProviderUsage } from '../providerUsage.js'
+import { recordLaneBillingRefusal } from '../laneBillingState.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { rejectOpenaiCacheRetention } from './openaiCacheRetention.js'
 import { retryNoticeWait, retryReasonWords } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds } from '../../api/recoveryBudget.js'
 import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError } from '../../api/reconnectLadder.js'
 import { sleep } from '../../../utils/sleep.js'
-import { heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder } from '../busyRetry.js'
+import { busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder } from '../busyRetry.js'
 import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords, isEmptyStreamFault } from '../emptyStreamRetry.js'
-import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../providerKeyCommand.js'
+import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import {
   requestCarriesInputImage,
 } from './responsesBridge.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import { OPENAI_MAX_ATTEMPTS, apiErrorMessage, openaiFaultToTypedError, openaiRetryDelayMs, overflowOf } from './openaiCallModel/faults.js'
+import { MODEL_NOT_FOUND_CODE, OPENAI_MAX_ATTEMPTS, apiErrorMessage, openaiFaultToTypedError, openaiRetryDelayMs, overflowOf } from './openaiCallModel/faults.js'
+import { applyCompactedToolResults, compactedToolResultsByConversation, isCompactionSource, priorConversation4xx, priorTurn4xxCodeOf } from './openaiCallModel/resumeTrim.js'
 import { prepareOpenaiTurn } from './openaiCallModel/prepareTurn.js'
 import { settleOpenaiTurn } from './openaiCallModel/turnSettled.js'
 import { streamOneOpenaiAttempt } from './openaiCallModel/attempt.js'
 import { reissueAtServedEffort, reissueTextForm, trimResumedTranscript } from './openaiCallModel/faultReissue.js'
-import { refuseTurn, refuseUsageLimit } from './openaiCallModel/faultRefusal.js'
-import { effortOnWire, withEffort, type AttemptFault } from './openaiCallModel/turnState.js'
+import { refuseUsageLimit } from './openaiCallModel/faultRefusal.js'
+import { busyPrefix, effortOnWire, withEffort, type AttemptFault } from './openaiCallModel/turnState.js'
 
 export { openaiLiveProofState } from './openaiCallModel/turnSettled.js'
 export { effortVocabularyRefusalOf, openaiFaultToTypedError, openaiRetryDelayMs } from './openaiCallModel/faults.js'
@@ -46,9 +53,28 @@ async function* openaiTurn(
   deferralFormReissued?: string,
   resumeTrimReissued?: string,
 ): CallModelStream {
-  const turn = yield* prepareOpenaiTurn(params, deferralFormReissued, resumeTrimReissued)
-  if (turn === undefined) return
-  const { signal, tools, options, modelId, messages } = turn
+  const { systemPrompt, tools, signal, options } = params
+  const requestedId = normalizeModelStringForAPI(options.model).trim().toLowerCase()
+  const conversation4xxKey = `${getSessionId()}:${options.agentId ?? options.ownerKey ?? ''}:${params.messages[0]?.uuid ?? ''}`
+  const messages = applyCompactedToolResults(params.messages, compactedToolResultsByConversation.get(conversation4xxKey))
+  const prior4xxCode = priorTurn4xxCodeOf(messages, conversation4xxKey)
+
+  const account = resolveOpenaiAccount()
+  if (!account) {
+    const failure = providerKeyCommandFailure('openai')
+    const hint = failure ? `the configured ${failure.message} — no OpenAI account source is connected.` : 'no OpenAI account source is connected — /logins signs in to this account or attaches an API key.'
+    yield apiErrorMessage(
+      `${API_ERROR_MESSAGE_PREFIX}: ${hint} Model '${requestedId}' cannot run.`,
+    )
+    return
+  }
+  if (openaiLimitWindow(account.kind).state === 'limited') await refreshProviderUsage('openai', { force: true, reason: 'operator' })
+  const turn = await prepareOpenaiTurn({ params, deferralFormReissued, resumeTrimReissued, systemPrompt, tools, signal, options, requestedId, conversation4xxKey, messages, prior4xxCode, account })
+  if ('refusal' in turn) {
+    yield turn.refusal
+    return
+  }
+  const { modelId } = turn
   let attemptStartedAtMs = turn.turnStartedAtMs
   for (let attempt = 1; attempt <= OPENAI_MAX_ATTEMPTS || turn.busy !== undefined; attempt++) {
     if (attempt > 1) {
@@ -220,10 +246,48 @@ async function* openaiTurn(
     }
     const fault: AttemptFault = { outcome, typed, refusedMedia, overflow }
     if (outcome.fault.kind === 'usage-limit' && typed === 'rate_limit') {
-      yield* refuseUsageLimit(turn, fault)
+      yield await refuseUsageLimit(turn, fault)
       return
     }
-    yield* refuseTurn(turn, fault)
+    const detail = outcome.fault.message
+      ? `${outcome.fault.code}: ${outcome.fault.message}`
+      : outcome.fault.code
+    const text =
+      typed === 'authentication_failed'
+        ? `${API_ERROR_MESSAGE_PREFIX}: OpenAI rejected the ${turn.auth.account.label} credential (${detail}) — ${
+            turn.auth.account.kind === 'chatgpt-subscription'
+              ? '/logins signs in to the ChatGPT account again'
+              : 'set a valid OPENAI_API_KEY, or /logins attaches a fresh API key'
+          }.${
+            turn.recovery === 'retried'
+              ? ' The stored token was refreshed and the call retried once before this refusal.'
+              : turn.recovery === 'no-new-credential'
+                ? ' A token refresh was attempted first and produced no new credential.'
+                : ''
+          }`
+        : typed === 'billing_error'
+          ? `${API_ERROR_MESSAGE_PREFIX}: OpenAI reports the ${turn.auth.account.label} account out of credit (${detail}) — add credit to the OpenAI account, then retry; /model picks another model meanwhile.`
+          : `${API_ERROR_MESSAGE_PREFIX}: OpenAI stream failed (${outcome.fault.code}) — ${outcome.fault.message}`
+    if (typed === 'billing_error') {
+      recordLaneBillingRefusal('openai', {
+        detail,
+        remedy: 'add credit to the OpenAI account, then retry; /model picks another model meanwhile.',
+      })
+    }
+    if (typed === 'invalid_request' && refusedMedia === null && overflow === null && !MODEL_NOT_FOUND_CODE.test(outcome.fault.code) && !isCompactionSource(options.querySource)) {
+      priorConversation4xx.set(conversation4xxKey, outcome.fault.code)
+    }
+    if (resumeTrimReissued !== undefined) {
+      yield withEffort(turn, createAssistantMessage({ content: resumeTrimReissued }))
+    }
+    yield withEffort(turn, apiErrorMessage(
+      busyPrefix(turn, text, outcome.fault, typed),
+      typed,
+      outcome.fault.code,
+      overflow,
+      refusedMedia,
+      turn.busy !== undefined ? busyRefusalFact('OpenAI', turn.busy.ladder, outcome.fault) : null,
+    ))
     return
   }
 }
