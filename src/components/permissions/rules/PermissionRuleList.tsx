@@ -21,6 +21,8 @@ import {
 } from '../../../utils/permissions/decision/rules.js'
 import { deletePermissionRule } from '../../../utils/permissions/permissions.js'
 import { permissionRuleValueToString } from '../../../utils/permissions/permissionRuleParser.js'
+import { errorMessage } from '../../../utils/errors.js'
+import { logError } from '../../../utils/log.js'
 import type { ToolPermissionContext } from '../../../Tool.js'
 import type { LocalJSXCommandOnDone } from '../../../types/command.js'
 import type {
@@ -307,7 +309,14 @@ export function PermissionRuleList({
           )
           setListFocusValue(nextFocus ?? undefined)
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          const why = error instanceof SyntaxError ? 'a settings file is not valid JSON' : errorMessage(error)
+          logError(new Error(`the ${rule.ruleBehavior} rule ${permissionRuleValueToString(rule.ruleValue)} could not be deleted: ${why}`))
+          appendLog(
+            `Could not delete ${BEHAVIOR_ADJECTIVE[rule.ruleBehavior]} rule ${chalk.bold(
+              permissionRuleValueToString(rule.ruleValue),
+            )}: ${why}`,
+          )
         })
       setSubDialog(null)
     },
