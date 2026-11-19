@@ -315,20 +315,11 @@ export class Cursor {
   }
 
   snapOutOfImageRef(offset: number, direction: 'start' | 'end'): number {
-    const re = chipScanRe()
-    for (const m of this.text.matchAll(re)) {
-      const start = m.index
-      const end = m.index + m[0]!.length
-      if (offset > start && offset < end) {
-        return direction === 'start' ? start : end
-      }
-      if (start > offset) break
-    }
-    return offset
+    return snapOutOfImageRefOf.call(this, offset, direction)
   }
 
 
-  private atSelf(): Cursor {
+  atSelf(): Cursor {
     return this.selection === 0 ? this : new Cursor(this.measuredText, this.offset)
   }
 
@@ -352,47 +343,20 @@ export class Cursor {
   }
 
   up(): Cursor {
-    const { line, column } = this.getPosition()
-    if (line === 0) return this.atSelf()
-    return new Cursor(
-      this.measuredText,
-      this.measuredText.getOffsetFromPosition({ line: line - 1, column }),
-    )
+    return upOf.call(this)
   }
 
   down(): Cursor {
-    const { line, column } = this.getPosition()
-    if (line >= this.measuredText.lineCount - 1) return this.atSelf()
-    return new Cursor(
-      this.measuredText,
-      this.measuredText.getOffsetFromPosition({ line: line + 1, column }),
-    )
+    return downOf.call(this)
   }
 
 
   startOfLine(): Cursor {
-    const { line, column } = this.getPosition()
-    if (column === 0 && line > 0) {
-      return new Cursor(
-        this.measuredText,
-        this.measuredText.getOffsetFromPosition({ line: line - 1, column: 0 }),
-      )
-    }
-    return new Cursor(
-      this.measuredText,
-      this.measuredText.getOffsetFromPosition({ line, column: 0 }),
-    )
+    return startOfLineOf.call(this)
   }
 
   endOfLine(): Cursor {
-    const { line } = this.getPosition()
-    return new Cursor(
-      this.measuredText,
-      this.measuredText.getOffsetFromPosition({
-        line,
-        column: this.measuredText.getLineLength(line),
-      }),
-    )
+    return endOfLineOf.call(this)
   }
 
   firstNonBlankInLine(): Cursor {
@@ -404,12 +368,12 @@ export class Cursor {
   }
 
 
-  private logicalLineStart(offset: number): number {
+  logicalLineStart(offset: number): number {
     const idx = this.text.lastIndexOf('\n', offset - 1)
     return idx === -1 ? 0 : idx + 1
   }
 
-  private logicalLineEnd(offset: number): number {
+  logicalLineEnd(offset: number): number {
     const idx = this.text.indexOf('\n', offset)
     return idx === -1 ? this.text.length : idx
   }
@@ -431,26 +395,11 @@ export class Cursor {
   }
 
   upLogicalLine(): Cursor {
-    const start = this.logicalLineStart(this.offset)
-    if (start === 0) return new Cursor(this.measuredText, 0)
-    const column = this.offset - start
-    const prevStart = this.logicalLineStart(start - 1)
-    const prevEnd = start - 1
-    const target = Math.min(prevStart + column, prevEnd)
-    return new Cursor(this.measuredText, this.measuredText.snapToGraphemeBoundary(target))
+    return upLogicalLineOf.call(this)
   }
 
   downLogicalLine(): Cursor {
-    const end = this.logicalLineEnd(this.offset)
-    if (end === this.text.length) {
-      return new Cursor(this.measuredText, this.text.length)
-    }
-    const start = this.logicalLineStart(this.offset)
-    const column = this.offset - start
-    const nextStart = end + 1
-    const nextEnd = this.logicalLineEnd(nextStart)
-    const target = Math.min(nextStart + column, nextEnd)
-    return new Cursor(this.measuredText, this.measuredText.snapToGraphemeBoundary(target))
+    return downLogicalLineOf.call(this)
   }
 
 
@@ -473,7 +422,7 @@ export class Cursor {
   }
 
 
-  private wordLikeBoundaries(): WordBoundary[] {
+  wordLikeBoundaries(): WordBoundary[] {
     return this.measuredText.getWordBoundaries().filter(b => b.isWordLike)
   }
 
@@ -486,189 +435,67 @@ export class Cursor {
   }
 
   prevWord(): Cursor {
-    if (this.offset === 0) return this.atSelf()
-    const words = this.wordLikeBoundaries()
-    for (const w of words) {
-      if (this.offset > w.start && this.offset <= w.end) {
-        return new Cursor(this.measuredText, w.start)
-      }
-    }
-    let candidate = 0
-    for (const w of words) {
-      if (w.start < this.offset) candidate = w.start
-      else break
-    }
-    return new Cursor(this.measuredText, candidate)
+    return prevWordOf.call(this)
   }
 
-  private lastCharOf(w: WordBoundary): number {
+  lastCharOf(w: WordBoundary): number {
     return this.measuredText.prevOffset(w.end)
   }
 
   endOfWord(): Cursor {
-    if (this.isAtEnd()) return this.atSelf()
-    const words = this.wordLikeBoundaries()
-    for (let i = 0; i < words.length; i++) {
-      const w = words[i]!
-      const last = this.lastCharOf(w)
-      if (this.offset >= w.start && this.offset < w.end) {
-        if (this.offset < last) return new Cursor(this.measuredText, last)
-        const next = words[i + 1]
-        if (!next) return this.atSelf()
-        return new Cursor(this.measuredText, this.lastCharOf(next))
-      }
-      if (w.start > this.offset) {
-        return new Cursor(this.measuredText, last)
-      }
-    }
-    return this.atSelf()
+    return endOfWordOf.call(this)
   }
 
 
-  private charAt(offset: number): string {
+  charAt(offset: number): string {
     if (offset >= this.text.length) return ''
     return this.text.slice(offset, this.measuredText.nextOffset(offset))
   }
 
-  private classOf(ch: string): 'word' | 'space' | 'punct' | 'none' {
+  classOf(ch: string): 'word' | 'space' | 'punct' | 'none' {
     if (ch === '') return 'none'
     if (isVimWhitespace(ch)) return 'space'
     if (isVimWordChar(ch)) return 'word'
     return 'punct'
   }
 
-  private isEmptyLine(offset: number): boolean {
+  isEmptyLine(offset: number): boolean {
     return this.text[offset] === '\n' && (offset === 0 || this.text[offset - 1] === '\n')
   }
 
   nextVimWord(): Cursor {
-    const doc = this.measuredText
-    let pos = this.offset
-    const cls = this.classOf(this.charAt(pos))
-    if (cls === 'word' || cls === 'punct') {
-      while (pos < this.text.length && this.classOf(this.charAt(pos)) === cls) {
-        pos = doc.nextOffset(pos)
-      }
-    }
-    while (pos < this.text.length && this.classOf(this.charAt(pos)) === 'space') {
-      if (pos > this.offset && this.isEmptyLine(pos)) break
-      pos = doc.nextOffset(pos)
-    }
-    return new Cursor(doc, pos)
+    return nextVimWordOf.call(this)
   }
 
   endOfVimWord(): Cursor {
-    const doc = this.measuredText
-    let pos = doc.nextOffset(this.offset)
-    while (pos < this.text.length && this.classOf(this.charAt(pos)) === 'space') {
-      pos = doc.nextOffset(pos)
-    }
-    if (pos >= this.text.length) return new Cursor(doc, this.text.length)
-    const cls = this.classOf(this.charAt(pos))
-    while (pos < this.text.length) {
-      const next = doc.nextOffset(pos)
-      if (next >= this.text.length || this.classOf(this.charAt(next)) !== cls) break
-      pos = next
-    }
-    return new Cursor(doc, pos)
+    return endOfVimWordOf.call(this)
   }
 
   prevVimWord(): Cursor {
-    const doc = this.measuredText
-    if (this.offset === 0) return this.atSelf()
-    let pos = doc.prevOffset(this.offset)
-    while (pos > 0 && this.classOf(this.charAt(pos)) === 'space') {
-      if (this.isEmptyLine(pos)) return new Cursor(doc, pos)
-      pos = doc.prevOffset(pos)
-    }
-    if (pos === 0 && this.classOf(this.charAt(pos)) === 'space') {
-      return new Cursor(doc, 0)
-    }
-    const cls = this.classOf(this.charAt(pos))
-    while (pos > 0) {
-      const prev = doc.prevOffset(pos)
-      if (this.classOf(this.charAt(prev)) !== cls) break
-      pos = prev
-    }
-    return new Cursor(doc, pos)
+    return prevVimWordOf.call(this)
   }
 
 
-  private wsAt(cursor: Cursor): boolean {
+  wsAt(cursor: Cursor): boolean {
     const ch = cursor.charAt(cursor.offset)
     return ch !== '' && isVimWhitespace(ch)
   }
 
   nextWORD(): Cursor {
-    let c: Cursor = this
-    while (!c.isAtEnd() && !this.wsAt(c)) {
-      const n = c.right()
-      if (n.offset === c.offset) break
-      c = n
-    }
-    while (!c.isAtEnd() && this.wsAt(c)) {
-      if (c.offset > this.offset && this.isEmptyLine(c.offset)) break
-      const n = c.right()
-      if (n.offset === c.offset) break
-      c = n
-    }
-    return c
+    return nextWORDOf.call(this)
   }
 
   endOfWORD(): Cursor {
-    if (this.isAtEnd()) return this.atSelf()
-    let c: Cursor = this
-    const followingIsBreak = (cur: Cursor): boolean => {
-      const n = cur.right()
-      return n.offset === cur.offset || n.isAtEnd()
-        ? n.offset === cur.offset || this.wsAt(n) || n.isAtEnd()
-        : this.wsAt(n)
-    }
-    if (!this.wsAt(c) && followingIsBreak(c)) {
-      c = c.right()
-    }
-    while (!c.isAtEnd() && this.wsAt(c)) {
-      const n = c.right()
-      if (n.offset === c.offset) break
-      c = n
-    }
-    while (!c.isAtEnd()) {
-      const n = c.right()
-      if (n.offset === c.offset || n.isAtEnd() || this.wsAt(n)) break
-      c = n
-    }
-    return c
+    return endOfWORDOf.call(this)
   }
 
   prevWORD(): Cursor {
-    if (this.offset === 0) return this.atSelf()
-    let c: Cursor = this
-    const leftChar = this.text[c.offset - 1] ?? ''
-    if (leftChar !== '' && isVimWhitespace(leftChar)) {
-      c = c.left()
-    }
-    while (c.offset > 0 && this.wsAt(c)) {
-      if (this.isEmptyLine(c.offset)) return c
-      const l = c.left()
-      if (l.offset === c.offset) break
-      c = l
-    }
-    while (c.offset > 0 && !isVimWhitespace(this.text[c.offset - 1] ?? ' ')) {
-      const l = c.left()
-      if (l.offset === c.offset) break
-      c = l
-    }
-    return c
+    return prevWORDOf.call(this)
   }
 
 
   modifyText(end: Cursor, insertString: string = ''): Cursor {
-    const start = Math.min(this.offset, end.offset)
-    const stop = Math.max(this.offset, end.offset)
-    const prefixWithInsert = this.text.slice(0, start) + insertString
-    const next = prefixWithInsert + this.text.slice(stop)
-    const doc = new MeasuredText(next, this.measuredText.columns)
-    return new Cursor(doc, prefixWithInsert.normalize('NFC').length)
+    return modifyTextOf.call(this, end, insertString)
   }
 
   insert(s: string): Cursor {
@@ -688,34 +515,15 @@ export class Cursor {
 
 
   deleteToLineStart(): { cursor: Cursor; killed: string } {
-    if (this.offset > 0 && this.text[this.offset - 1] === '\n') {
-      const start = new Cursor(this.measuredText, this.offset - 1)
-      return { cursor: start.modifyText(this), killed: '\n' }
-    }
-    const start = this.startOfLine()
-    const killed = this.text.slice(start.offset, this.offset)
-    return { cursor: start.modifyText(this), killed }
+    return deleteToLineStartOf.call(this)
   }
 
   deleteToLineEnd(): { cursor: Cursor; killed: string } {
-    if (this.text[this.offset] === '\n') {
-      const end = new Cursor(this.measuredText, this.offset + 1)
-      return { cursor: this.modifyText(end), killed: '\n' }
-    }
-    const end = this.endOfLine()
-    const killed = this.text.slice(this.offset, end.offset)
-    return { cursor: this.modifyText(end), killed }
+    return deleteToLineEndOf.call(this)
   }
 
   deleteWordBefore(): { cursor: Cursor; killed: string } {
-    if (this.offset === 0) return { cursor: this, killed: '' }
-    const boundary = this.prevWord().offset
-    const start = this.snapOutOfImageRef(boundary, 'start')
-    const killed = this.text.slice(start, this.offset)
-    return {
-      cursor: new Cursor(this.measuredText, start).modifyText(this),
-      killed,
-    }
+    return deleteWordBeforeOf.call(this)
   }
 
   deleteWordAfter(): Cursor {
@@ -726,76 +534,17 @@ export class Cursor {
   }
 
   deleteTokenBefore(): Cursor | null {
-    const selected = this.chipStartingAt(this.offset)
-    if (selected) {
-      let end = selected.end
-      if (this.text[end] === ' ') end += 1
-      return this.modifyText(new Cursor(this.measuredText, end))
-    }
-    if (this.offset === 0) return null
-    const after = this.text[this.offset]
-    if (after !== undefined && !/\s/.test(after)) return null
-    const before = this.text.slice(0, this.offset)
-    const m = CHIP_END_RE.exec(before)
-    if (!m) return null
-    const chipStart = this.offset - m[0]!.length
-    const preceding = before.slice(0, chipStart)
-    if (preceding !== '' && !/\s$/.test(preceding)) return null
-    return new Cursor(this.measuredText, chipStart).modifyText(this)
+    return deleteTokenBeforeOf.call(this)
   }
 
 
   findCharacter(char: string, type: 'f' | 'F' | 't' | 'T', count: number = 1): number | null {
-    const doc = this.measuredText
-    if (char === '') return null
-    let remaining = Math.max(1, count)
-    if (type === 'f' || type === 't') {
-      let pos = doc.nextOffset(this.offset)
-      while (pos < this.text.length) {
-        if (this.charAt(pos) === char) {
-          remaining -= 1
-          if (remaining === 0) {
-            if (type === 'f') return pos
-            return Math.max(this.offset, doc.prevOffset(pos))
-          }
-        }
-        pos = doc.nextOffset(pos)
-      }
-      return null
-    }
-    let pos = this.offset > 0 ? doc.prevOffset(this.offset) : -1
-    while (pos >= 0) {
-      if (this.charAt(pos) === char) {
-        remaining -= 1
-        if (remaining === 0) {
-          if (type === 'F') return pos
-          return Math.min(this.offset, doc.nextOffset(pos))
-        }
-      }
-      if (pos === 0) break
-      pos = doc.prevOffset(pos)
-    }
-    return null
+    return findCharacterOf.call(this, char, type, count)
   }
 
 
   getViewportStartLine(maxVisibleLines?: number, previousStart?: number): number {
-    if (!maxVisibleLines || maxVisibleLines <= 0) return 0
-    const lineCount = this.measuredText.lineCount
-    if (lineCount <= maxVisibleLines) return 0
-    const { line } = this.getPosition()
-    const clampStart = (s: number): number =>
-      Math.max(0, Math.min(s, lineCount - maxVisibleLines))
-    if (previousStart !== undefined) {
-      const held = clampStart(previousStart)
-      const margin = maxVisibleLines >= 6 ? 1 : 0
-      if (line >= held + margin && line <= held + maxVisibleLines - 1 - margin) {
-        return held
-      }
-      if (line < held + margin) return clampStart(line - margin)
-      return clampStart(line - maxVisibleLines + 1 + margin)
-    }
-    return clampStart(line - Math.floor(maxVisibleLines / 2))
+    return getViewportStartLineOf.call(this, maxVisibleLines, previousStart)
   }
 
   getViewportCharOffset(maxVisibleLines?: number, previousStart?: number): number {
@@ -805,12 +554,7 @@ export class Cursor {
   }
 
   getViewportCharEnd(maxVisibleLines?: number, previousStart?: number): number {
-    if (!maxVisibleLines || maxVisibleLines <= 0) return this.text.length
-    const start = this.getViewportStartLine(maxVisibleLines, previousStart)
-    const lines = this.measuredText.getWrappedLines()
-    const after = start + maxVisibleLines
-    if (after >= lines.length) return this.text.length
-    return lines[after]!.startOffset
+    return getViewportCharEndOf.call(this, maxVisibleLines, previousStart)
   }
 
 
@@ -823,51 +567,14 @@ export class Cursor {
     selection?: SelectionPaint,
     viewportStart?: number,
   ): string {
-    const doc = this.measuredText
-    const lines = doc.getWrappedLines()
-    const { line: caretLine, column: caretColumn } = this.getPosition()
-    const start = viewportStart ?? this.getViewportStartLine(maxVisibleLines)
-    const end =
-      !maxVisibleLines || maxVisibleLines <= 0
-        ? lines.length
-        : Math.min(lines.length, start + maxVisibleLines)
-
-    const lastLineIdx = lines.length - 1
-    const painted = mask ? undefined : selection
-    const out: string[] = []
-    for (let i = start; i < end; i++) {
-      const raw = lines[i]!
-      let display = raw.isPrecededByNewline ? raw.text : raw.text.replace(/^\s+/, '')
-      const lineStart = raw.startOffset + raw.text.length - display.length
-
-      if (mask) {
-        display = this.maskLine(display, mask, i === lastLineIdx)
-      }
-
-      if (i !== caretLine) {
-        out.push(paintSelected(display.replace(/\s+$/, ''), lineStart, painted))
-        continue
-      }
-      out.push(
-        this.renderCaretLine(display, caretColumn, cursorChar, invert, ghostText, i === lastLineIdx, lineStart, painted),
-      )
-    }
-    return out.join('\n')
+    return renderOf.call(this, cursorChar, mask, invert, ghostText, maxVisibleLines, selection, viewportStart)
   }
 
-  private maskLine(display: string, mask: string, isDocumentLastLine: boolean): string {
-    const graphemes: string[] = []
-    for (const seg of getGraphemeSegmenter().segment(display)) graphemes.push(seg.segment)
-    if (!isDocumentLastLine) {
-      return mask.repeat(graphemes.length)
-    }
-    const visible = 6
-    if (graphemes.length <= visible) return display
-    const maskedCount = graphemes.length - visible
-    return mask.repeat(maskedCount) + graphemes.slice(maskedCount).join('')
+  maskLine(display: string, mask: string, isDocumentLastLine: boolean): string {
+    return maskLineOf.call(this, display, mask, isDocumentLastLine)
   }
 
-  private renderCaretLine(
+  renderCaretLine(
     display: string,
     caretColumn: number,
     cursorChar: string,
@@ -877,48 +584,464 @@ export class Cursor {
     lineStart = 0,
     selection?: SelectionPaint,
   ): string {
-    const showGhost =
-      ghostText !== undefined &&
-      ghostText.text.length > 0 &&
-      isDocumentLastLine &&
-      this.isAtEnd()
+    return renderCaretLineOf.call(this, display, caretColumn, cursorChar, invert, ghostText, isDocumentLastLine, lineStart, selection)
+  }
+}
 
-    let before = ''
-    let atCaret = ''
-    let after = ''
-    let width = 0
-    for (const seg of getGraphemeSegmenter().segment(display)) {
-      const w = stringWidth(seg.segment)
-      if (atCaret === '' && width + w > caretColumn) {
-        atCaret = seg.segment
-      } else if (atCaret === '') {
-        before += seg.segment
-      } else {
-        after += seg.segment
-      }
-      width += w
+function getViewportCharEndOf(this: Cursor, maxVisibleLines?: number, previousStart?: number): number {
+  if (!maxVisibleLines || maxVisibleLines <= 0) return this.text.length
+  const start = this.getViewportStartLine(maxVisibleLines, previousStart)
+  const lines = this.measuredText.getWrappedLines()
+  const after = start + maxVisibleLines
+  if (after >= lines.length) return this.text.length
+  return lines[after]!.startOffset
+}
+
+function modifyTextOf(this: Cursor, end: Cursor, insertString: string = ''): Cursor {
+  const start = Math.min(this.offset, end.offset)
+  const stop = Math.max(this.offset, end.offset)
+  const prefixWithInsert = this.text.slice(0, start) + insertString
+  const next = prefixWithInsert + this.text.slice(stop)
+  const doc = new MeasuredText(next, this.measuredText.columns)
+  return new Cursor(doc, prefixWithInsert.normalize('NFC').length)
+}
+
+function downOf(this: Cursor): Cursor {
+  const { line, column } = this.getPosition()
+  if (line >= this.measuredText.lineCount - 1) return this.atSelf()
+  return new Cursor(
+    this.measuredText,
+    this.measuredText.getOffsetFromPosition({ line: line + 1, column }),
+  )
+}
+
+function upOf(this: Cursor): Cursor {
+  const { line, column } = this.getPosition()
+  if (line === 0) return this.atSelf()
+  return new Cursor(
+    this.measuredText,
+    this.measuredText.getOffsetFromPosition({ line: line - 1, column }),
+  )
+}
+
+function renderCaretLineOf(
+  this: Cursor,
+  display: string,
+  caretColumn: number,
+  cursorChar: string,
+  invert: (s: string) => string,
+  ghostText: { text: string; dim: (s: string) => string } | undefined,
+  isDocumentLastLine: boolean,
+  lineStart = 0,
+  selection?: SelectionPaint,
+): string {
+  const showGhost =
+    ghostText !== undefined &&
+    ghostText.text.length > 0 &&
+    isDocumentLastLine &&
+    this.isAtEnd()
+
+  let before = ''
+  let atCaret = ''
+  let after = ''
+  let width = 0
+  for (const seg of getGraphemeSegmenter().segment(display)) {
+    const w = stringWidth(seg.segment)
+    if (atCaret === '' && width + w > caretColumn) {
+      atCaret = seg.segment
+    } else if (atCaret === '') {
+      before += seg.segment
+    } else {
+      after += seg.segment
+    }
+    width += w
+  }
+
+  const hidden = cursorChar === ''
+  const paintedBefore = paintSelected(before, lineStart, selection)
+
+  if (showGhost) {
+    const ghostFirst = firstGrapheme(ghostText.text)
+    const ghostRest = ghostText.text.slice(ghostFirst.length)
+    const cell = hidden ? ghostFirst : invert(ghostFirst)
+    return paintedBefore + cell + (ghostRest ? ghostText.dim(ghostRest) : '')
+  }
+
+  if (atCaret === '') {
+    return paintedBefore + (hidden ? '' : invert(cursorChar))
+  }
+  const cell = hidden ? paintSelected(atCaret, lineStart + before.length, selection) : invert(atCaret)
+  return (
+    paintedBefore +
+    cell +
+    paintSelected(after.replace(/\s+$/, ''), lineStart + before.length + atCaret.length, selection)
+  )
+}
+
+function renderOf(
+  this: Cursor,
+  cursorChar: string,
+  mask: string,
+  invert: (s: string) => string,
+  ghostText?: { text: string; dim: (s: string) => string },
+  maxVisibleLines?: number,
+  selection?: SelectionPaint,
+  viewportStart?: number,
+): string {
+  const doc = this.measuredText
+  const lines = doc.getWrappedLines()
+  const { line: caretLine, column: caretColumn } = this.getPosition()
+  const start = viewportStart ?? this.getViewportStartLine(maxVisibleLines)
+  const end =
+    !maxVisibleLines || maxVisibleLines <= 0
+      ? lines.length
+      : Math.min(lines.length, start + maxVisibleLines)
+
+  const lastLineIdx = lines.length - 1
+  const painted = mask ? undefined : selection
+  const out: string[] = []
+  for (let i = start; i < end; i++) {
+    const raw = lines[i]!
+    let display = raw.isPrecededByNewline ? raw.text : raw.text.replace(/^\s+/, '')
+    const lineStart = raw.startOffset + raw.text.length - display.length
+
+    if (mask) {
+      display = this.maskLine(display, mask, i === lastLineIdx)
     }
 
-    const hidden = cursorChar === ''
-    const paintedBefore = paintSelected(before, lineStart, selection)
-
-    if (showGhost) {
-      const ghostFirst = firstGrapheme(ghostText.text)
-      const ghostRest = ghostText.text.slice(ghostFirst.length)
-      const cell = hidden ? ghostFirst : invert(ghostFirst)
-      return paintedBefore + cell + (ghostRest ? ghostText.dim(ghostRest) : '')
+    if (i !== caretLine) {
+      out.push(paintSelected(display.replace(/\s+$/, ''), lineStart, painted))
+      continue
     }
-
-    if (atCaret === '') {
-      return paintedBefore + (hidden ? '' : invert(cursorChar))
-    }
-    const cell = hidden ? paintSelected(atCaret, lineStart + before.length, selection) : invert(atCaret)
-    return (
-      paintedBefore +
-      cell +
-      paintSelected(after.replace(/\s+$/, ''), lineStart + before.length + atCaret.length, selection)
+    out.push(
+      this.renderCaretLine(display, caretColumn, cursorChar, invert, ghostText, i === lastLineIdx, lineStart, painted),
     )
   }
+  return out.join('\n')
+}
+
+function findCharacterOf(this: Cursor, char: string, type: 'f' | 'F' | 't' | 'T', count: number = 1): number | null {
+  const doc = this.measuredText
+  if (char === '') return null
+  let remaining = Math.max(1, count)
+  if (type === 'f' || type === 't') {
+    let pos = doc.nextOffset(this.offset)
+    while (pos < this.text.length) {
+      if (this.charAt(pos) === char) {
+        remaining -= 1
+        if (remaining === 0) {
+          if (type === 'f') return pos
+          return Math.max(this.offset, doc.prevOffset(pos))
+        }
+      }
+      pos = doc.nextOffset(pos)
+    }
+    return null
+  }
+  let pos = this.offset > 0 ? doc.prevOffset(this.offset) : -1
+  while (pos >= 0) {
+    if (this.charAt(pos) === char) {
+      remaining -= 1
+      if (remaining === 0) {
+        if (type === 'F') return pos
+        return Math.min(this.offset, doc.nextOffset(pos))
+      }
+    }
+    if (pos === 0) break
+    pos = doc.prevOffset(pos)
+  }
+  return null
+}
+
+function endOfWORDOf(this: Cursor): Cursor {
+  if (this.isAtEnd()) return this.atSelf()
+  let c: Cursor = this
+  const followingIsBreak = (cur: Cursor): boolean => {
+    const n = cur.right()
+    return n.offset === cur.offset || n.isAtEnd()
+      ? n.offset === cur.offset || this.wsAt(n) || n.isAtEnd()
+      : this.wsAt(n)
+  }
+  if (!this.wsAt(c) && followingIsBreak(c)) {
+    c = c.right()
+  }
+  while (!c.isAtEnd() && this.wsAt(c)) {
+    const n = c.right()
+    if (n.offset === c.offset) break
+    c = n
+  }
+  while (!c.isAtEnd()) {
+    const n = c.right()
+    if (n.offset === c.offset || n.isAtEnd() || this.wsAt(n)) break
+    c = n
+  }
+  return c
+}
+
+function prevWORDOf(this: Cursor): Cursor {
+  if (this.offset === 0) return this.atSelf()
+  let c: Cursor = this
+  const leftChar = this.text[c.offset - 1] ?? ''
+  if (leftChar !== '' && isVimWhitespace(leftChar)) {
+    c = c.left()
+  }
+  while (c.offset > 0 && this.wsAt(c)) {
+    if (this.isEmptyLine(c.offset)) return c
+    const l = c.left()
+    if (l.offset === c.offset) break
+    c = l
+  }
+  while (c.offset > 0 && !isVimWhitespace(this.text[c.offset - 1] ?? ' ')) {
+    const l = c.left()
+    if (l.offset === c.offset) break
+    c = l
+  }
+  return c
+}
+
+function prevVimWordOf(this: Cursor): Cursor {
+  const doc = this.measuredText
+  if (this.offset === 0) return this.atSelf()
+  let pos = doc.prevOffset(this.offset)
+  while (pos > 0 && this.classOf(this.charAt(pos)) === 'space') {
+    if (this.isEmptyLine(pos)) return new Cursor(doc, pos)
+    pos = doc.prevOffset(pos)
+  }
+  if (pos === 0 && this.classOf(this.charAt(pos)) === 'space') {
+    return new Cursor(doc, 0)
+  }
+  const cls = this.classOf(this.charAt(pos))
+  while (pos > 0) {
+    const prev = doc.prevOffset(pos)
+    if (this.classOf(this.charAt(prev)) !== cls) break
+    pos = prev
+  }
+  return new Cursor(doc, pos)
+}
+
+function getViewportStartLineOf(this: Cursor, maxVisibleLines?: number, previousStart?: number): number {
+  if (!maxVisibleLines || maxVisibleLines <= 0) return 0
+  const lineCount = this.measuredText.lineCount
+  if (lineCount <= maxVisibleLines) return 0
+  const { line } = this.getPosition()
+  const clampStart = (s: number): number =>
+    Math.max(0, Math.min(s, lineCount - maxVisibleLines))
+  if (previousStart !== undefined) {
+    const held = clampStart(previousStart)
+    const margin = maxVisibleLines >= 6 ? 1 : 0
+    if (line >= held + margin && line <= held + maxVisibleLines - 1 - margin) {
+      return held
+    }
+    if (line < held + margin) return clampStart(line - margin)
+    return clampStart(line - maxVisibleLines + 1 + margin)
+  }
+  return clampStart(line - Math.floor(maxVisibleLines / 2))
+}
+
+function deleteTokenBeforeOf(this: Cursor): Cursor | null {
+  const selected = this.chipStartingAt(this.offset)
+  if (selected) {
+    let end = selected.end
+    if (this.text[end] === ' ') end += 1
+    return this.modifyText(new Cursor(this.measuredText, end))
+  }
+  if (this.offset === 0) return null
+  const after = this.text[this.offset]
+  if (after !== undefined && !/\s/.test(after)) return null
+  const before = this.text.slice(0, this.offset)
+  const m = CHIP_END_RE.exec(before)
+  if (!m) return null
+  const chipStart = this.offset - m[0]!.length
+  const preceding = before.slice(0, chipStart)
+  if (preceding !== '' && !/\s$/.test(preceding)) return null
+  return new Cursor(this.measuredText, chipStart).modifyText(this)
+}
+
+function endOfWordOf(this: Cursor): Cursor {
+  if (this.isAtEnd()) return this.atSelf()
+  const words = this.wordLikeBoundaries()
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i]!
+    const last = this.lastCharOf(w)
+    if (this.offset >= w.start && this.offset < w.end) {
+      if (this.offset < last) return new Cursor(this.measuredText, last)
+      const next = words[i + 1]
+      if (!next) return this.atSelf()
+      return new Cursor(this.measuredText, this.lastCharOf(next))
+    }
+    if (w.start > this.offset) {
+      return new Cursor(this.measuredText, last)
+    }
+  }
+  return this.atSelf()
+}
+
+function nextWORDOf(this: Cursor): Cursor {
+  let c: Cursor = this
+  while (!c.isAtEnd() && !this.wsAt(c)) {
+    const n = c.right()
+    if (n.offset === c.offset) break
+    c = n
+  }
+  while (!c.isAtEnd() && this.wsAt(c)) {
+    if (c.offset > this.offset && this.isEmptyLine(c.offset)) break
+    const n = c.right()
+    if (n.offset === c.offset) break
+    c = n
+  }
+  return c
+}
+
+function endOfVimWordOf(this: Cursor): Cursor {
+  const doc = this.measuredText
+  let pos = doc.nextOffset(this.offset)
+  while (pos < this.text.length && this.classOf(this.charAt(pos)) === 'space') {
+    pos = doc.nextOffset(pos)
+  }
+  if (pos >= this.text.length) return new Cursor(doc, this.text.length)
+  const cls = this.classOf(this.charAt(pos))
+  while (pos < this.text.length) {
+    const next = doc.nextOffset(pos)
+    if (next >= this.text.length || this.classOf(this.charAt(next)) !== cls) break
+    pos = next
+  }
+  return new Cursor(doc, pos)
+}
+
+function nextVimWordOf(this: Cursor): Cursor {
+  const doc = this.measuredText
+  let pos = this.offset
+  const cls = this.classOf(this.charAt(pos))
+  if (cls === 'word' || cls === 'punct') {
+    while (pos < this.text.length && this.classOf(this.charAt(pos)) === cls) {
+      pos = doc.nextOffset(pos)
+    }
+  }
+  while (pos < this.text.length && this.classOf(this.charAt(pos)) === 'space') {
+    if (pos > this.offset && this.isEmptyLine(pos)) break
+    pos = doc.nextOffset(pos)
+  }
+  return new Cursor(doc, pos)
+}
+
+function prevWordOf(this: Cursor): Cursor {
+  if (this.offset === 0) return this.atSelf()
+  const words = this.wordLikeBoundaries()
+  for (const w of words) {
+    if (this.offset > w.start && this.offset <= w.end) {
+      return new Cursor(this.measuredText, w.start)
+    }
+  }
+  let candidate = 0
+  for (const w of words) {
+    if (w.start < this.offset) candidate = w.start
+    else break
+  }
+  return new Cursor(this.measuredText, candidate)
+}
+
+function startOfLineOf(this: Cursor): Cursor {
+  const { line, column } = this.getPosition()
+  if (column === 0 && line > 0) {
+    return new Cursor(
+      this.measuredText,
+      this.measuredText.getOffsetFromPosition({ line: line - 1, column: 0 }),
+    )
+  }
+  return new Cursor(
+    this.measuredText,
+    this.measuredText.getOffsetFromPosition({ line, column: 0 }),
+  )
+}
+
+function downLogicalLineOf(this: Cursor): Cursor {
+  const end = this.logicalLineEnd(this.offset)
+  if (end === this.text.length) {
+    return new Cursor(this.measuredText, this.text.length)
+  }
+  const start = this.logicalLineStart(this.offset)
+  const column = this.offset - start
+  const nextStart = end + 1
+  const nextEnd = this.logicalLineEnd(nextStart)
+  const target = Math.min(nextStart + column, nextEnd)
+  return new Cursor(this.measuredText, this.measuredText.snapToGraphemeBoundary(target))
+}
+
+function snapOutOfImageRefOf(this: Cursor, offset: number, direction: 'start' | 'end'): number {
+  const re = chipScanRe()
+  for (const m of this.text.matchAll(re)) {
+    const start = m.index
+    const end = m.index + m[0]!.length
+    if (offset > start && offset < end) {
+      return direction === 'start' ? start : end
+    }
+    if (start > offset) break
+  }
+  return offset
+}
+
+function maskLineOf(this: Cursor, display: string, mask: string, isDocumentLastLine: boolean): string {
+  const graphemes: string[] = []
+  for (const seg of getGraphemeSegmenter().segment(display)) graphemes.push(seg.segment)
+  if (!isDocumentLastLine) {
+    return mask.repeat(graphemes.length)
+  }
+  const visible = 6
+  if (graphemes.length <= visible) return display
+  const maskedCount = graphemes.length - visible
+  return mask.repeat(maskedCount) + graphemes.slice(maskedCount).join('')
+}
+
+function deleteWordBeforeOf(this: Cursor): { cursor: Cursor; killed: string } {
+  if (this.offset === 0) return { cursor: this, killed: '' }
+  const boundary = this.prevWord().offset
+  const start = this.snapOutOfImageRef(boundary, 'start')
+  const killed = this.text.slice(start, this.offset)
+  return {
+    cursor: new Cursor(this.measuredText, start).modifyText(this),
+    killed,
+  }
+}
+
+function endOfLineOf(this: Cursor): Cursor {
+  const { line } = this.getPosition()
+  return new Cursor(
+    this.measuredText,
+    this.measuredText.getOffsetFromPosition({
+      line,
+      column: this.measuredText.getLineLength(line),
+    }),
+  )
+}
+
+function deleteToLineEndOf(this: Cursor): { cursor: Cursor; killed: string } {
+  if (this.text[this.offset] === '\n') {
+    const end = new Cursor(this.measuredText, this.offset + 1)
+    return { cursor: this.modifyText(end), killed: '\n' }
+  }
+  const end = this.endOfLine()
+  const killed = this.text.slice(this.offset, end.offset)
+  return { cursor: this.modifyText(end), killed }
+}
+
+function deleteToLineStartOf(this: Cursor): { cursor: Cursor; killed: string } {
+  if (this.offset > 0 && this.text[this.offset - 1] === '\n') {
+    const start = new Cursor(this.measuredText, this.offset - 1)
+    return { cursor: start.modifyText(this), killed: '\n' }
+  }
+  const start = this.startOfLine()
+  const killed = this.text.slice(start.offset, this.offset)
+  return { cursor: start.modifyText(this), killed }
+}
+
+function upLogicalLineOf(this: Cursor): Cursor {
+  const start = this.logicalLineStart(this.offset)
+  if (start === 0) return new Cursor(this.measuredText, 0)
+  const column = this.offset - start
+  const prevStart = this.logicalLineStart(start - 1)
+  const prevEnd = start - 1
+  const target = Math.min(prevStart + column, prevEnd)
+  return new Cursor(this.measuredText, this.measuredText.snapToGraphemeBoundary(target))
 }
 
 
