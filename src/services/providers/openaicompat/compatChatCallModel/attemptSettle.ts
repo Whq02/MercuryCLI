@@ -9,9 +9,10 @@ import {
   type CompatRuntimeReading,
   type CompatUsage,
 } from '../compatChatClient.js'
-import { gateToolCalls, refusalAnswersAsToolResult } from '../../toolCallGate.js'
+import type { AssistantMessage } from '../../../../types/message.js'
+import { gateToolCalls, refusalAnswersAsToolResult, refusedCallInput } from '../../toolCallGate.js'
 import type { CompatLaneProfile } from './lane.js'
-import type { CompatAttemptFinish } from './attemptBlocks.js'
+import type { AttemptBlocks, CompatAttemptFinish } from './attemptBlocks.js'
 import type { CompatAttemptCtx } from './attempt.js'
 
 export function mapCompatUsageToAnthropic(usage: CompatUsage | undefined): typeof EMPTY_USAGE {
@@ -63,6 +64,39 @@ export function gateCompatToolCalls(ctx: CompatAttemptCtx, completed: CompatComp
     else if (finish?.reason !== 'length' && refusalAnswersAsToolResult(verdict.refusal)) answered.add(call)
   })
   return { accepted, verdicts, answered }
+}
+
+export function paintedCallsOf(
+  w: Pick<AttemptBlocks, 'paintSlots' | 'minted' | 'mintBlock' | 'refusalNoteMessage'>,
+  completed: CompatCompletedToolCall[],
+  verdicts: ReturnType<typeof gateToolCalls>,
+  answered: Set<CompatCompletedToolCall>,
+): Set<CompatCompletedToolCall> {
+  const { paintSlots, minted, mintBlock, refusalNoteMessage } = w
+  const paintedCalls = new Set<CompatCompletedToolCall>()
+  let inserted = 0
+  for (const slot of paintSlots) {
+    const at = completed.findIndex(entry => entry.index === slot.toolIndex && entry.id === slot.id && !paintedCalls.has(entry))
+    if (at < 0) continue
+    const call = completed[at]!
+    const verdict = verdicts[at]!
+    paintedCalls.add(call)
+    let message: AssistantMessage
+    if (verdict.ok) {
+      message = mintBlock({ type: 'tool_use', id: call.id, name: call.name, input: verdict.input })
+    } else if (answered.has(call)) {
+      message = mintBlock({ type: 'tool_use', id: call.id, name: call.name, input: refusedCallInput(verdict.refusal) })
+      refusalNoteMessage(verdict.refusal).decorate(message)
+    } else {
+      const refusal = refusalNoteMessage(verdict.refusal)
+      message = mintBlock({ type: 'text', text: refusal.note, citations: null })
+      refusal.decorate(message)
+    }
+    minted.splice(slot.at + inserted, 0, message)
+    inserted += 1
+  }
+  paintSlots.length = 0
+  return paintedCalls
 }
 
 export function terminationNoteOf(profile: CompatLaneProfile, finish: CompatAttemptFinish | undefined): string | undefined {
