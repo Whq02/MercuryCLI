@@ -508,7 +508,10 @@ async function whatTheLoginFilesExport(): Promise<void> {
     )
   }
 
-  if (spawnSync('ssh-agent', ['-h'], { env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin' } }).error !== undefined || spawnSync('ssh-add', ['-h'], { env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin' } }).error !== undefined) {
+  const asked = join(scratch, 'asked-for-ssh')
+  mkdirSync(join(asked, 'config-home'), { recursive: true })
+  const askedIn = { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', HOME: asked, MERCURY_CONFIG_DIR: join(asked, 'config-home'), MERCURY_LOCAL_PROBE_TARGETS: 'none' }
+  if (spawnSync('ssh-agent', ['-h'], { env: askedIn }).error !== undefined || spawnSync('ssh-add', ['-h'], { env: askedIn }).error !== undefined) {
     console.log('  [SKIP] ssh-agent or ssh-add is not on this machine: the rows of an agent the login file starts are not driven')
     return
   }
