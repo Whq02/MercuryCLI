@@ -430,6 +430,10 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   const previousContentOf = (path: string): string | null => {
     try { return execFileSync('git', gitArgs([...prefix, 'show', `HEAD:${path}`], directory), { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }) } catch (error) {
       if (gitAnswered(error)) return null
+      if (getErrnoCode(error) === 'ENOBUFS') {
+        logForDebugging(`[commit-gate] HEAD:${path} is over the 16 MB the gate reads, so its previous content is not matched against the map's re: sources`)
+        return null
+      }
       throw new Error(`git show HEAD:${path} failed (${failureReason(error)}), so the generated assets its previous content feeds cannot be checked — run the commit again`)
     }
   }
