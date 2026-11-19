@@ -26,11 +26,11 @@ import '../cwd.js'
 import '../debug.js'
 import { isEnvTruthy } from '../envUtils.js'
 import type { FileHistorySnapshot } from '../fileHistory.js'
-import '../errors.js'
+import { errorMessage } from '../errors.js'
 import '../format.js'
 import { getFsImplementation } from '../fsOperations.js'
 import '../git.js'
-import '../log.js'
+import { logError } from '../log.js'
 import '../messages.js'
 import { LITE_READ_BUF_SIZE } from '../sessionStoragePortable.js'
 import { getInitialSettings } from '../settings/settings.js'
@@ -118,7 +118,8 @@ export function getProject(): Project {
         await project?.flush()
         try {
           project?.reAppendSessionMetadata()
-        } catch {
+        } catch (error) {
+          logError(new Error(`the session's title and tag rows could not be restamped into its transcript at exit, so it can list without its title: ${errorMessage(error)}`))
         }
       })
       registerExitCliffSeam({
