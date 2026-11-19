@@ -1,92 +1,26 @@
 import * as React from 'react'
-import { Box, Text, useInput } from '../../ink.js'
-import { AMBER, CRIMSON, FAINT, SECOND, TEAL } from '../mercuryPalette.js'
-import { EmptyState, StateBadge } from '../mercury-ui/components.js'
-import { GLYPH, padTo, truncateToWidth } from '../mercury-ui/glyphs.js'
-import { MenuFilterLine } from '../mercury-ui/menuFold.js'
+import { useInput } from '../../ink.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { useFlatList } from '../mercury-ui/useFlatList.js'
-import { collectMemoryRefs, factMemoryState, memoryStatusWords, type MemoryRef } from '../../mneme/memoryRefs.js'
-import { SOVEREIGN_SOURCE_MARK } from '../../mneme/memoryVerbs.js'
+import { factMemoryState, type MemoryRef } from '../../mneme/memoryRefs.js'
 import { pendingRows } from '../../mneme/mnemeBuffer.js'
-import { correctFact, pinPendingRow, replacePendingRow, retireFact, strikePendingRow } from '../../mneme/mnemeCorrect.js'
 import { mnemeEnabled, mnemeLibraryDir } from '../../mneme/mnemeGates.js'
 import { readSignalLog, signalCounts, SIGNAL_TURN_LIMIT } from '../../mneme/mnemeSignal.js'
-import { mnemeStatus, readMaintenanceReceipts, runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
 import { readDocLines } from '../../mneme/mnemeRetrieval.js'
-import { indexLines, liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus, type IndexLine } from '../../mneme/mnemeFrontPage.js'
-import { handoverDue, handoverIfDue, readHandoverReceipt, renderHandoverReceipt } from '../../mneme/mnemeHandover.js'
-import { journalEnabled, journalPath, readJournal, type JournalEntry } from '../../mneme/journal.js'
+import { liveEntryIndex } from '../../mneme/mnemeFrontPage.js'
+import { journalPath, type JournalEntry } from '../../mneme/journal.js'
 import { listArchiveDocs, listTopicDocs } from '../../mneme/mnemeLibrary.js'
 import type { MnemeEntry, MnemeTopicDoc } from '../../mneme/mnemeTopicDocs.js'
-import { bumpUsage, formatTextSize, pinFact, pinnedTextLimit, readPins, readUsage, unpinFact, type PinRecord } from '../../mneme/mnemeUsage.js'
-import { getMnemeHome, mnemeProjectKey } from '../../mneme/paths.js'
-import { readLedger } from '../../mneme/ledger.js'
-import { conversationIdHere } from '../../services/engine-connector/focusedConnector.js'
-import { getInstructionCompositionState, getInstructionFiles } from '../../services/instructions/engine.js'
-import { toRelativePath, toTildePath } from '../../utils/path.js'
-import {
-  MEMORY_SEARCH_READS,
-  LINEAGE_COLUMNS,
-  OVERVIEW_COLUMNS,
-  VIEW_LEGEND,
-  conventionHits,
-  conventionRowLabel,
-  filePageLines,
-  humanStamp,
-  itemLines,
-  journalHeading,
-  lineageHeading,
-  lineageRows,
-  lineageWidths,
-  memoryBodySpacing,
-  memoryFooter,
-  newestOf,
-  overviewCells,
-  overviewRows,
-  overviewWidths,
-  pageLines,
-  pageWindow,
-  pinnedHeading,
-  plural,
-  searchPlaceholder,
-  tableLine,
-  topicsHeading,
-  wrapText,
-  type ConventionHit,
-  type LineageTableRow,
-  type MemoryFooterState,
-  type OverviewRow,
-  type PageLine,
-} from './memoryCentreLayout.js'
+import { bumpUsage, readPins } from '../../mneme/mnemeUsage.js'
+import { filePageLines, humanStamp, itemLines, memoryBodySpacing, memoryFooter, pageLines, pageWindow, plural, wrapText, type ConventionHit, type LineageTableRow, type MemoryFooterState, type PageLine } from './memoryCentreLayout.js'
+import { type View, type CentreRow, type Page, type OpenRef, seqOf, sourceWords, fileWords, instructionTexts } from './centre/refs.js'
+import { buildCentreRows } from './centre/rows.js'
+import { type CentreActions, openPageOf, runMaintenanceOf, runIntakeOf, togglePinOf, commitCorrectionOf, retirePendingOf, pinPendingOf, retireSelectedOf } from './centre/actions.js'
+import { type CentreKeys, correctingKeys, openKeys, listKeys } from './centre/keys.js'
+import { centreView } from './centre/views.js'
 
-const NOTE_COLOR: Record<'ok' | 'warn' | 'fail' | 'pending', string> = {
-  ok: TEAL,
-  warn: SECOND,
-  fail: CRIMSON,
-  pending: FAINT,
-}
-
-const STATUS_TONE: Record<MemoryRef['status'], { glyph: string; color: string }> = {
-  current: { glyph: '●', color: TEAL },
-  unconsolidated: { glyph: '◌', color: SECOND },
-  'needs-review': { glyph: '▲', color: AMBER },
-  stale: { glyph: '◌', color: SECOND },
-}
-
-const WARNING_STATES = new Set(['off', 'over', 'due', 'degraded', 'no note', 'unclosed'])
-const QUIET_STATES = new Set(['none', 'first', '—'])
-
-type View = 'overview' | 'facts' | 'pinned' | 'topics' | 'lineage' | 'journal'
-
-const VIEW_WORDS: Record<Exclude<View, 'overview'>, string> = {
-  facts: 'facts and decisions',
-  pinned: 'pinned rules',
-  topics: 'topics',
-  lineage: 'lineage',
-  journal: 'journal',
-}
+export { NEXT_SESSION_WORDS, type OpenRef, sourceWords, fileWords, journalEntryRows, journalRowLabel, topicRef, factRef, pinnedRuleRow, factListRows, pendingRef, refHeader, refWhyLine, printable } from './centre/refs.js'
 
 const VIEW_OF_SECTION: Partial<Record<string, Exclude<View, 'overview'>>> = {
   facts: 'facts',
@@ -96,47 +30,9 @@ const VIEW_OF_SECTION: Partial<Record<string, Exclude<View, 'overview'>>> = {
   journal: 'journal',
 }
 
-const EMPTY_WORDS: Record<Exclude<View, 'overview'>, string> = {
-  facts: 'the first fact Mercury saves lands here',
-  pinned: 'open a fact and press p to pin it as said',
-  topics: 'the first fact Mercury saves opens a page',
-  lineage: 'the ledger starts with this session',
-  journal: 'the model writes an entry, in its own words, when a session ends',
-}
-
-export const NEXT_SESSION_WORDS = 'this chat keeps what it loaded; new sessions get this'
-
-interface CentreRow {
-  id: string
-  kind: 'overview' | 'ref' | 'pin' | 'missing-pin' | 'topic' | 'session' | 'journal' | 'convention'
-  label: string
-  cells?: string[]
-  overview?: OverviewRow
-  ref?: MemoryRef
-  session?: LineageTableRow
-  entry?: JournalEntry
-  convention?: ConventionHit
-}
-
-interface Page {
-  kind: 'topic' | 'note' | 'journal' | 'file'
-  crumb: string
-  title: string
-  meta: string
-  lines: PageLine[]
-  path?: string
-  focus?: number
-}
-
-export type OpenRef = MemoryRef & { missing?: boolean }
-
 export const MEMORY_DEFAULT_INNER = 76
-export const MEMORY_DEFAULT_ROWS = 30
 
-function seqOf(ref: MemoryRef): number | null {
-  const m = /^mneme:(\d+)$/.exec(ref.refId)
-  return m ? Number(m[1]) : null
-}
+export const MEMORY_DEFAULT_ROWS = 30
 
 function slugOf(ref: MemoryRef): string | null {
   if (ref.kind === 'mneme-topic') return ref.refId.slice('mneme-topic:'.length)
@@ -160,16 +56,6 @@ export function missingPinRef(seq: number): OpenRef {
     tier: 1,
     missing: true,
   }
-}
-
-export function sourceWords(source: string | undefined, text?: string): string {
-  if (!source) return ''
-  const sovereign = source.endsWith(SOVEREIGN_SOURCE_MARK) ? ' under sovereign' : ''
-  if (source === 'operator') return 'from /memory'
-  if (source.startsWith('tool:Retain')) return sovereign ? `replaced from the chat${sovereign}` : 'from the chat'
-  if (source.startsWith('tool:Correct')) return sovereign && text?.startsWith('retired: ') ? `unpinned and struck from the chat${sovereign}` : `corrected from the chat${sovereign}`
-  if (source.startsWith('handover:')) return `taken in from ${source.slice('handover:'.length)}`
-  return source
 }
 
 export function topicTitle(doc: Pick<MnemeTopicDoc, 'slug' | 'summary'>): string {
@@ -245,11 +131,6 @@ export function journalPage(entry: JournalEntry, width: number): Page {
   }
 }
 
-export function fileWords(path: string): string {
-  const relative = toRelativePath(path)
-  return relative === path ? toTildePath(path) : `./${relative}`
-}
-
 export function filePage(hit: ConventionHit, text: string, width: number): Page {
   const lines = filePageLines(text, width, hit.line)
   const focus = lines.findIndex(line => line.marked === true)
@@ -261,131 +142,6 @@ export function filePage(hit: ConventionHit, text: string, width: number): Page 
     lines,
     path: hit.path,
     focus: focus < 0 ? 0 : focus,
-  }
-}
-
-export function journalEntryRows(entries: JournalEntry[]): JournalEntry[] {
-  return [...entries].sort((a, b) => (a.at === b.at ? 0 : a.at > b.at ? -1 : 1))
-}
-
-export function journalRowLabel(entry: JournalEntry): string {
-  return `${humanStamp(entry.at)}  ${entry.text.split('\n')[0] ?? ''}`
-}
-
-export function topicRef(row: IndexLine): MemoryRef {
-  const slug = row.slugs[0] ?? row.key
-  return {
-    refId: `mneme-topic:${slug}`,
-    kind: 'mneme-topic',
-    store: 'mneme',
-    scope: 'project',
-    status: 'current',
-    summary: row.line.slice(2),
-    why: `${row.facts} fact${row.facts === 1 ? '' : 's'} on ${row.slugs.length} page${row.slugs.length === 1 ? '' : 's'}`,
-    deref: `Recall read:"doc:${slug}"`,
-    tier: 1,
-  }
-}
-
-export function factRef(entry: MnemeEntry, slug: string, opts: Parameters<typeof factMemoryState>[1] = {}): MemoryRef {
-  return {
-    refId: `mneme:${entry.seq}`,
-    kind: 'mneme-fact',
-    store: 'mneme',
-    scope: 'project',
-    ...factMemoryState(entry, opts),
-    summary: entry.text.length > 140 ? `${entry.text.slice(0, 139)}…` : entry.text,
-    source: entry.source,
-    capturedAt: entry.time,
-    why: `saved ${humanStamp(entry.time)} ${sourceWords(entry.source)}`,
-    deref: `Recall read:"doc:${slug}"`,
-    tier: 2,
-  }
-}
-
-export function pinnedRuleRow(row: { pin: PinRecord; entry: MnemeEntry; slug: string }): { label: string; ref: MemoryRef } {
-  const size = pinnedLine(row.entry, row.pin).length + 1
-  return {
-    label: `${formatTextSize(size)} chars · ${row.pin.asked ? 'asked for by you' : 'pinned by Mercury'} · ${row.entry.text}`,
-    ref: {
-      ...factRef(row.entry, row.slug, { pins: [row.pin] }),
-      why: `pinned ${humanStamp(row.pin.at)}${row.pin.asked ? ' · asked for by you' : ' · by Mercury'}`,
-      tier: 1,
-    },
-  }
-}
-
-export function factListRows(docs: readonly MnemeTopicDoc[], pins: ReadonlySet<number>): { id: string; label: string; ref: MemoryRef }[] {
-  const live: { entry: MnemeEntry; slug: string }[] = []
-  for (const doc of docs) for (const section of doc.sections) for (const entry of section.entries) live.push({ entry, slug: doc.slug })
-  live.sort((a, b) => (a.entry.time === b.entry.time ? b.entry.seq - a.entry.seq : a.entry.time > b.entry.time ? -1 : 1))
-  const state = { pins: [...pins].map(seq => ({ seq, at: '' })), usage: readUsage(), now: new Date() }
-  return live.map(({ entry, slug }) => {
-    const ref = factRef(entry, slug, state)
-    return {
-      id: `fact-${entry.seq}`,
-      label: `${humanStamp(entry.time)}  ${pins.has(entry.seq) ? 'pinned · ' : ref.status === 'stale' ? 'stale · ' : ''}${entry.text}`,
-      ref,
-    }
-  })
-}
-
-export function pendingRef(row: { text: string; ts: string; source: string }, index: number): MemoryRef {
-  return {
-    refId: `mneme-pending:${index + 1}`,
-    kind: 'mneme-pending',
-    store: 'mneme',
-    scope: 'project',
-    status: 'unconsolidated',
-    summary: row.text.length > 140 ? `${row.text.slice(0, 139)}…` : row.text,
-    source: row.source,
-    capturedAt: row.ts,
-    why: `saved ${humanStamp(row.ts)} ${sourceWords(row.source)} · consolidates at the next maintenance pass`,
-    deref: 'Recall',
-    tier: 2,
-  }
-}
-
-export function refHeader(ref: MemoryRef, pinned: boolean, asked: boolean): string {
-  const seq = seqOf(ref)
-  const id = seq !== null ? `seq ${seq}` : ref.kind === 'mneme-pending' ? 'recent' : ref.kind === 'mneme-topic' ? 'topic' : ''
-  return [id, pinned ? 'pinned' : '', asked ? 'asked for by you' : ''].filter(Boolean).join(' · ')
-}
-
-export function refWhyLine(ref: MemoryRef, pins: readonly PinRecord[]): string {
-  const seq = seqOf(ref)
-  const pin = seq === null ? undefined : pins.find(p => p.seq === seq)
-  const parts: string[] = []
-  if (pin) parts.push(`pinned ${humanStamp(pin.at)}`)
-  if (ref.capturedAt) parts.push(`saved ${humanStamp(ref.capturedAt)}${ref.source ? ` ${sourceWords(ref.source)}` : ''}`)
-  const why = ref.why.replace(/^content matches/, 'matches').replace(/ · asked for by you$| · by Mercury$/, '')
-  if (!/^(pinned|saved) /.test(why)) parts.push(why)
-  return parts.join(' · ')
-}
-
-function matches(query: string, text: string): boolean {
-  const needle = query.trim().toLowerCase()
-  return needle === '' || text.toLowerCase().includes(needle)
-}
-
-export function printable(input: string): string {
-  return Array.from(input).filter(ch => ch >= ' ' && ch !== '\u007f').join('')
-}
-
-async function instructionFileFacts(): Promise<{ count: number; profile: string } | null> {
-  try {
-    const files = await getInstructionFiles()
-    return { count: files.length, profile: getInstructionCompositionState().resolution.resolved }
-  } catch {
-    return null
-  }
-}
-
-async function instructionTexts(): Promise<{ path: string; text: string }[]> {
-  try {
-    return (await getInstructionFiles()).map(file => ({ path: file.path, text: file.rawContent ?? file.content }))
-  } catch {
-    return []
   }
 }
 
@@ -446,89 +202,7 @@ export function MemoryCentreView({
   const textWidth = Math.max(8, inner - 2)
   const detailLines = React.useMemo(() => (detail ? factPageLines(detail, textWidth) : []), [detail, textWidth])
 
-  const buildRows = React.useCallback(async (): Promise<CentreRow[]> => {
-    if (view === 'overview' && query.trim().length > 0) {
-      const pins = new Set(readPins().map(p => p.seq))
-      const refs = collectMemoryRefs(query, { maxRefs: 12 })
-      const rows: CentreRow[] = refs.map(r => {
-        const seq = seqOf(r)
-        return { id: r.refId, kind: 'ref' as const, label: `${seq !== null && pins.has(seq) ? 'pinned · ' : r.status === 'stale' ? 'stale · ' : ''}${r.summary}`, ref: r }
-      })
-      for (const hit of conventionHits(query, await instructionTexts())) {
-        rows.push({ id: `convention-${hit.path}:${hit.line}`, kind: 'convention', label: conventionRowLabel(hit), convention: hit })
-      }
-      return rows
-    }
-    if (view === 'facts') {
-      const pins = new Set(readPins().map(p => p.seq))
-      const rows: CentreRow[] = factListRows(listTopicDocs(), pins)
-        .filter(row => matches(query, row.label))
-        .map(row => ({ id: row.id, kind: 'ref' as const, label: row.label, ref: row.ref }))
-      pendingRows().forEach((row, i) => {
-        const label = `${humanStamp(row.ts)}  recent · ${row.text}`
-        if (matches(query, label)) rows.unshift({ id: `pending-${i}`, kind: 'ref', label, ref: pendingRef(row, i) })
-      })
-      return rows
-    }
-    if (view === 'pinned') {
-      const shelf = pinnedView(readPins(), liveEntryIndex(listTopicDocs()))
-      const rows: CentreRow[] = []
-      for (const row of shelf.loaded) {
-        const built = pinnedRuleRow(row)
-        if (matches(query, built.label)) rows.push({ id: `pin-${row.entry.seq}`, kind: 'pin', label: built.label, ref: built.ref })
-      }
-      for (const seq of shelf.missing) {
-        const label = `seq ${seq} — pinned, but no page holds it any more; ↵ opens it, u unpins`
-        if (matches(query, label)) rows.push({ id: `pin-${seq}`, kind: 'missing-pin', label })
-      }
-      return rows
-    }
-    if (view === 'topics') {
-      return indexLines(listTopicDocs())
-        .filter(row => matches(query, row.line))
-        .map(row => ({ id: `topic-${row.key}`, kind: 'topic' as const, label: row.line.slice(2), ref: topicRef(row) }))
-    }
-    if (view === 'lineage') {
-      return lineageRows(readLedger(mnemeProjectKey()), conversationIdHere())
-        .filter(row => matches(query, row.cells.join(' ')))
-        .map(row => ({ id: row.id, kind: 'session' as const, label: row.cells.join(' '), cells: row.cells, session: row }))
-    }
-    if (view === 'journal') {
-      return journalEntryRows(readJournal())
-        .map((entry, i) => ({ id: `journal-${i}`, kind: 'journal' as const, label: journalRowLabel(entry), entry }))
-        .filter(row => matches(query, row.label))
-    }
-    const st = mnemeStatus()
-    const docs = st.enabled ? listTopicDocs() : []
-    const pins = st.enabled ? readPins() : []
-    const receipt = st.enabled ? readHandoverReceipt() : null
-    const rows = overviewRows({
-      enabled: st.enabled,
-      entryCount: st.entryCount,
-      recent: st.buffered + st.pendingConsuming,
-      historyCount: st.historyCount,
-      topicCount: st.topicCount,
-      newestFact: newestOf(docs.flatMap(d => d.sections.flatMap(s => s.entries.map(e => e.time)))),
-      pinned: st.enabled ? readPinnedStatus() : null,
-      pinnedLimit: pinnedTextLimit(),
-      newestPin: newestOf(pins.map(p => p.at)),
-      newestTopic: newestOf(docs.map(d => d.updated)),
-      ledger: st.enabled ? readLedger(mnemeProjectKey()) : [],
-      sessionId: conversationIdHere(),
-      journal: st.enabled && journalEnabled() ? { enabled: true, entries: readJournal() } : { enabled: false, entries: [] },
-      intake: receipt ? { kind: 'done', receipt } : st.enabled && handoverDue(getMnemeHome()) ? { kind: 'due' } : null,
-      maintenance: {
-        due: st.due,
-        dueReason: st.dueReason,
-        running: st.running,
-        degraded: st.degraded,
-        lastConsolidatedAt: st.lastConsolidatedAt,
-        receipts: st.enabled ? readMaintenanceReceipts(undefined, 50).reverse() : [],
-      },
-      files: await instructionFileFacts(),
-    })
-    return rows.map(row => ({ id: row.id, kind: 'overview' as const, label: row.section, cells: overviewCells(row), overview: row }))
-  }, [query, view])
+  const buildRows = React.useCallback((): Promise<CentreRow[]> => buildCentreRows(view, query), [query, view])
 
   const searching = view === 'overview' && query.trim().length > 0
   const { roomy, fixedRows, detailLines: detailLineBudget } = memoryBodySpacing(rowBudget)
@@ -628,128 +302,15 @@ export function MemoryCentreView({
     } else reloadRef.current({ top: true })
   }, [query, view])
 
-  function openPage(next: Page): void {
-    setPageOffset(next.focus === undefined ? 0 : Math.max(0, next.focus - 2))
-    setPage(next)
-  }
-
-  function runMaintenance(): void {
-    if (fl.busyRef.current) return
-    fl.busyRef.current = true
-    fl.setNote({ text: 'running memory maintenance …', kind: 'pending' })
-    void runDueMaintenance('operator', { force: true })
-      .then(out =>
-        fl.setNote(
-          out.ran
-            ? { text: `${GLYPH.check} maintenance: ${out.reason}${out.entries ? ` — ${out.entries} entr${out.entries === 1 ? 'y' : 'ies'} consolidated` : ''}`, kind: 'ok' }
-            : { text: `maintenance skipped: ${out.reason}`, kind: 'warn' },
-        ),
-      )
-      .catch((e: unknown) => fl.setNote({ text: `${GLYPH.fail} maintenance failed: ${String(e)}`, kind: 'fail' }))
-      .finally(() => {
-        fl.busyRef.current = false
-        fl.reload()
-      })
-  }
-
-  function runIntake(): void {
-    if (fl.busyRef.current) return
-    fl.busyRef.current = true
-    fl.setNote({ text: 'taking the existing notes into memory …', kind: 'pending' })
-    try {
-      const receipt = handoverIfDue(getMnemeHome())
-      fl.setNote(receipt ? { text: `${GLYPH.check} ${renderHandoverReceipt(receipt)[0]}`, kind: 'ok' } : { text: 'nothing to take in', kind: 'warn' })
-    } catch (e) {
-      fl.setNote({ text: `${GLYPH.fail} intake failed: ${String(e)}`, kind: 'fail' })
-    } finally {
-      fl.busyRef.current = false
-      fl.reload()
-    }
-  }
-
-  function togglePin(seq: number, pin: boolean): void {
-    if (fl.busyRef.current) return
-    fl.busyRef.current = true
-    if (pin) pinFact(seq, undefined, undefined, { asked: true })
-    else unpinFact(seq)
-    fl.setNote({ text: pin ? 'pinning — republishing the front page …' : 'unpinning — republishing the front page …', kind: 'pending' })
-    void runDueMaintenance('operator', { force: true })
-      .then(() => {
-        const status = readPinnedStatus()
-        const over = status?.over ? ` — the shelf is over its limit (${formatTextSize(status.used)} of ${formatTextSize(status.limit)}); every rule still loads` : ''
-        const undo = pin ? 'u unpins it again' : 'p pins it again'
-        fl.setNote({ text: `${GLYPH.check} seq ${seq} ${pin ? 'pinned word for word, asked for by you' : 'unpinned'} · ${undo} · ${NEXT_SESSION_WORDS}${over}`, kind: over ? 'warn' : 'ok' })
-      })
-      .catch((e: unknown) => fl.setNote({ text: `${GLYPH.fail} pin failed: ${String(e)}`, kind: 'fail' }))
-      .finally(() => {
-        fl.busyRef.current = false
-        fl.reload()
-      })
-  }
-
-  function commitCorrection(): void {
-    if (!correcting || !detail) return
-    const text = correcting.buffer.trim()
-    if (!text) {
-      fl.setNote({ text: 'correction text is empty — nothing changed', kind: 'warn' })
-      setCorrecting(null)
-      return
-    }
-    if (correcting.seq === null) {
-      const r = correcting.ts === null ? null : replacePendingRow({ ts: correcting.ts, text, source: 'operator', byUser: true })
-      if (r !== null && r.ok) {
-        fl.setNote({ text: `${GLYPH.check} corrected the pending fact — the old wording is struck, the new one consolidates in its place · ${NEXT_SESSION_WORDS}`, kind: 'ok' })
-        setDetail(null)
-      } else {
-        fl.setNote({ text: `${GLYPH.fail} correction ${r?.code ?? 'invalid'}: ${truncateToWidth(r?.message ?? 'no pending row to correct', 48)}`, kind: 'fail' })
-      }
-      setCorrecting(null)
-      fl.reload()
-      return
-    }
-    const r = correctFact({ targetSeq: correcting.seq, text, source: 'operator', byUser: true })
-    if (r.ok) {
-      fl.setNote({ text: `${GLYPH.check} corrected seq ${r.targetSeq} → ${r.seq} (old kept as history) · ${NEXT_SESSION_WORDS}`, kind: 'ok' })
-      setDetail(null)
-    } else {
-      fl.setNote({ text: `${GLYPH.fail} correction ${r.code}: ${truncateToWidth(r.message, 48)}`, kind: 'fail' })
-    }
-    setCorrecting(null)
-    fl.reload()
-  }
-
-  function retirePending(ts: string): void {
-    const r = strikePendingRow({ ts, byUser: true })
-    fl.setNote(
-      r.ok
-        ? { text: `${GLYPH.check} retired the pending fact — struck before it consolidated · ${NEXT_SESSION_WORDS}`, kind: 'ok' }
-        : { text: `${GLYPH.fail} retire ${r.code}: ${truncateToWidth(r.message, 52)}`, kind: 'fail' },
-    )
-    if (r.ok) setDetail(null)
-    fl.reload()
-  }
-
-  function pinPending(ts: string): void {
-    const r = pinPendingRow({ ts, byUser: true })
-    fl.setNote(
-      r.ok
-        ? { text: `${GLYPH.check} pinned word for word, asked for by you — it lands pinned when it consolidates · ${NEXT_SESSION_WORDS}`, kind: 'ok' }
-        : { text: `${GLYPH.fail} pin ${r.code}: ${truncateToWidth(r.message, 52)}`, kind: 'fail' },
-    )
-    if (r.ok) setDetail(null)
-    fl.reload()
-  }
-
-  function retireSelected(seq: number): void {
-    const r = retireFact({ targetSeq: seq, reason: 'operator marked no longer current', source: 'operator', byUser: true })
-    fl.setNote(
-      r.ok
-        ? { text: `${GLYPH.check} retired seq ${r.targetSeq} — kept in history · ${NEXT_SESSION_WORDS}`, kind: 'ok' }
-        : { text: `${GLYPH.fail} retire ${r.code}: ${truncateToWidth(r.message, 52)}`, kind: 'fail' },
-    )
-    if (r.ok) setDetail(null)
-    fl.reload()
-  }
+  const actions: CentreActions = { fl, setPageOffset, setPage, correcting, detail, setCorrecting, setDetail }
+  function openPage(next: Page): void { return openPageOf(actions, next) }
+  function runMaintenance(): void { return runMaintenanceOf(actions) }
+  function runIntake(): void { return runIntakeOf(actions) }
+  function togglePin(seq: number, pin: boolean): void { return togglePinOf(actions, seq, pin) }
+  function commitCorrection(): void { return commitCorrectionOf(actions) }
+  function retirePending(ts: string): void { return retirePendingOf(actions, ts) }
+  function pinPending(ts: string): void { return pinPendingOf(actions, ts) }
+  function retireSelected(seq: number): void { return retireSelectedOf(actions, seq) }
 
   const detailSeq = detail ? seqOf(detail) : null
   const pins = readPins()
@@ -781,94 +342,10 @@ export function MemoryCentreView({
 
   useInput(
     (input, key, event) => {
-      if (correcting) {
-        if (key.escape) {
-          event.stopImmediatePropagation()
-          setCorrecting(null)
-        } else if (key.return) commitCorrection()
-        else if (key.backspace || key.delete) setCorrecting(prev => (prev ? { ...prev, buffer: prev.buffer.slice(0, -1) } : prev))
-        else if (input && !key.ctrl && !key.meta) setCorrecting(prev => (prev ? { ...prev, buffer: prev.buffer + input } : prev))
-        return
-      }
-      if (page || detail) {
-        if (key.escape || key.leftArrow) {
-          event.stopImmediatePropagation()
-          if (armed !== null) {
-            setArmed(null)
-            fl.setNote(null)
-            return
-          }
-          if (page) setPage(null)
-          else setDetail(null)
-          fl.reload()
-          setPageOffset(0)
-          return
-        }
-        if (key.upArrow || key.downArrow || key.pageUp || key.pageDown) {
-          event.stopImmediatePropagation()
-          const step = key.pageUp || key.pageDown ? Math.max(1, pageRows - 1) : 1
-          const direction = key.upArrow || key.pageUp ? -1 : 1
-          setPageOffset(offset => Math.max(0, Math.min(Math.max(0, openLines.length - pageRows), offset + direction * step)))
-          return
-        }
-        if (page) {
-          if (input === 'e' && !key.ctrl && !key.meta && page.kind === 'file' && page.path && onOpenFile) onOpenFile(page.path)
-          return
-        }
-        if (key.ctrl || key.meta || !detailActs) return
-        if (detailSeq === null) {
-          if (detailPendingTs === null) return
-          if (armed !== null) {
-            if (input === 'x' && armed === detailPendingTs) {
-              setArmed(null)
-              retirePending(detailPendingTs)
-            } else if (input) {
-              setArmed(null)
-              fl.setNote({ text: 'kept the pending fact — nothing changed', kind: 'warn' })
-            }
-            return
-          }
-          if (input === 'c' && !key.ctrl && !key.meta) setCorrecting({ seq: null, ts: detailPendingTs, buffer: '' })
-          else if (input === 'x') {
-            setArmed(detailPendingTs)
-            fl.setNote({ text: 'retire this pending fact? x again strikes it before it consolidates · any other key keeps it', kind: 'warn' })
-          } else if (input === 'p' && !detailPendingPinned) pinPending(detailPendingTs)
-          return
-        }
-        if (armed !== null) {
-          if (input === 'x' && armed === detailSeq) {
-            setArmed(null)
-            retireSelected(detailSeq)
-          } else if (input) {
-            setArmed(null)
-            fl.setNote({ text: `kept seq ${detailSeq} — nothing changed`, kind: 'warn' })
-          }
-          return
-        }
-        if (input === 'c' && !key.ctrl && !key.meta && detailLive) setCorrecting({ seq: detailSeq, ts: null, buffer: '' })
-        else if (input === 'x' && detailLive) {
-          setArmed(detailSeq)
-          fl.setNote({ text: `retire seq ${detailSeq}? x again retires it (kept in history) · any other key keeps it`, kind: 'warn' })
-        } else if (input === 'p' && !detailPinned && detailLive) togglePin(detailSeq, true)
-        else if (input === 'u' && detailPinned) togglePin(detailSeq, false)
-        return
-      }
-      if (loadError && input === 'r' && !key.ctrl && !key.meta) {
-        fl.reload()
-        return
-      }
-      if (key.backspace || key.delete) {
-        if (query.length > 0) setQuery(q => q.slice(0, -1))
-        return
-      }
-      if (input === '/' && !key.ctrl && !key.meta && query === '') {
-        setSearchFocus(true)
-        return
-      }
-      if (input && !key.ctrl && !key.meta && !key.return && !key.upArrow && !key.downArrow && !key.tab && !key.escape && !key.leftArrow && !key.rightArrow) {
-        const typed = printable(input)
-        if (typed !== '') setQuery(q => q + typed)
-      }
+      const keys: CentreKeys = { correcting, setCorrecting, commitCorrection, page, detail, armed, setArmed, fl, setPage, setDetail, setPageOffset, pageRows, openLines, onOpenFile, detailActs, detailSeq, detailPendingTs, retirePending, pinPending, detailPendingPinned, retireSelected, detailLive, togglePin, detailPinned, loadError, query, setQuery, setSearchFocus }
+      if (correctingKeys(keys, input, key, event)) return
+      if (openKeys(keys, input, key, event)) return
+      listKeys(keys, input, key)
     },
     { isActive: true },
   )
@@ -899,157 +376,5 @@ export function MemoryCentreView({
     onHint?.(footer)
   }, [footer, onHint])
 
-  const subHeading = (): string => {
-    if (view === 'facts') return `${plural(list.length, 'fact')}, newest first · ↵ opens one with its keys`
-    if (view === 'pinned') return pinnedHeading(readPinnedStatus(), pinnedTextLimit())
-    if (view === 'topics') return topicsHeading(list.length)
-    if (view === 'lineage') return lineageHeading(readLedger(mnemeProjectKey()), conversationIdHere())
-    if (view === 'journal') return journalHeading(list.length)
-    return ''
-  }
-
-  const widths = view === 'lineage' ? lineageWidths(inner) : overviewWidths(inner)
-  const columns = view === 'lineage' ? LINEAGE_COLUMNS : OVERVIEW_COLUMNS
-  const stateColor = (state: string): string => (WARNING_STATES.has(state) ? tok.warning : QUIET_STATES.has(state) ? tok.textMuted : tok.textSecondary)
-  const placeholder = searchPlaceholder(detail || page || correcting ? 'open' : view === 'overview' ? 'overview' : 'list')
-  const legendLines = (text: string): string[] => (detailLineBudget === 2 ? wrapText(text, inner - 2).slice(0, 2) : [truncateToWidth(text, inner - 2)])
-
-  const renderTableRow = (row: CentreRow, active: boolean): React.ReactNode => {
-    const cells = row.cells ?? []
-    const head = cells.slice(0, -1).map((cell, i) => padTo(cell, widths[i] ?? 0)).join(' ')
-    const last = cells[cells.length - 1] ?? ''
-    const lastWidth = widths[cells.length - 1] ?? 0
-    return (
-      <Text key={row.id} wrap="truncate-end">
-        <Text color={active ? accent : tok.textMuted}>{active ? `${GLYPH.prompt} ` : '  '}</Text>
-        <Text color={active ? tok.textPrimary : tok.textSecondary} bold={active}>{head}</Text>
-        <Text> </Text>
-        <Text color={active ? tok.textPrimary : stateColor(last)}>{truncateToWidth(last, lastWidth)}</Text>
-      </Text>
-    )
-  }
-
-  const renderListRow = (row: CentreRow, active: boolean): React.ReactNode => {
-    const tone = row.ref && (row.kind === 'ref' || row.kind === 'pin') ? STATUS_TONE[row.ref.status] : row.kind === 'convention' ? { glyph: '§', color: tok.textInstruction } : null
-    return (
-      <Text key={row.id} wrap="truncate-end">
-        <Text color={active ? accent : tok.textMuted}>{active ? `${GLYPH.prompt} ` : '  '}</Text>
-        {tone ? <Text color={tone.color}>{`${tone.glyph} `}</Text> : null}
-        <Text color={active ? tok.textPrimary : tok.textSecondary} bold={active}>{truncateToWidth(row.label, inner - (tone ? 4 : 2))}</Text>
-      </Text>
-    )
-  }
-
-  const renderPageLine = (line: PageLine, i: number): React.ReactNode => {
-    const marked = line.marked === true
-    const color = line.kind === 'heading' ? tok.textPrimary : line.kind === 'meta' ? tok.textMuted : marked ? tok.textPrimary : tok.textSecondary
-    return (
-      <Text key={i} wrap="truncate-end">
-        <Text color={marked ? accent : tok.textMuted}>{marked ? `${GLYPH.prompt} ` : '  '}</Text>
-        <Text color={color} bold={line.kind === 'heading' || marked}>{truncateToWidth(line.text, textWidth)}</Text>
-      </Text>
-    )
-  }
-
-  const pageBlock = (title: string, meta: string, crumb: string): React.ReactNode => (
-    <Box flexDirection="column">
-      <Text color={tok.textMuted} wrap="truncate-end">{truncateToWidth(`memory › ${crumb}`, inner)}</Text>
-      <Text color={tok.textPrimary} bold wrap="truncate-end">{truncateToWidth(title, inner)}</Text>
-      <Text color={tok.textInstruction} wrap="truncate-end">{truncateToWidth(meta, inner)}</Text>
-      {roomy ? <Box height={1} /> : null}
-      {pageWin.above > 0 ? <Text color={tok.textMuted}>{`  +${pageWin.above} above`}</Text> : null}
-      {openLines.slice(pageWin.start, pageWin.end).map((line, i) => renderPageLine(line, pageWin.start + i))}
-      {pageWin.below > 0 ? <Text color={tok.textMuted}>{`  +${pageWin.below} more below`}</Text> : null}
-    </Box>
-  )
-
-  const selectedWhy = (): string => {
-    const row = fl.selected
-    if (!row) return MEMORY_SEARCH_READS
-    if (row.kind === 'convention' && row.convention) return `instruction file · line ${row.convention.line} · loads every session · ↵ opens it there · ${fileWords(row.convention.path)}`
-    if (row.ref) return `${refWhyLine(row.ref, pins)} · ${memoryStatusWords(row.ref)}`
-    return MEMORY_SEARCH_READS
-  }
-
-  return (
-    <Box flexDirection="column">
-      <MenuFilterLine focused={query !== '' || searchFocus} text={query} placeholder={placeholder} accent={accent} muted={tok.textMuted} primary={tok.textPrimary} />
-      {roomy ? <Box height={1} /> : null}
-      {correcting && detail ? (
-        <Box flexDirection="column">
-          <Text color={AMBER} wrap="truncate-end">{correcting.seq === null ? 'correcting the pending fact — retype it; the wording below is struck:' : `correcting seq ${correcting.seq} — retype it; the wording below goes to history:`}</Text>
-          {detailPinned ? <Text color={AMBER} wrap="truncate-end">the pin and its asked-for mark follow the new wording</Text> : null}
-          {correctingLines.map((line, i) => (
-            <Text key={i} color={tok.textSecondary} wrap="truncate-end">{`${i === 0 ? 'now: ' : '     '}${line}`}</Text>
-          ))}
-          <Text color={tok.textPrimary}>{`> ${correcting.buffer}`}<Text color={accent}>▁</Text></Text>
-        </Box>
-      ) : detail ? (
-        <Box flexDirection="column">
-          <Box>
-            <StateBadge state={detail.status === 'current' ? 'live' : 'gated'} label={memoryStatusWords(detail)} />
-            <Text color={tok.textMuted}>{`  ${refHeader(detail, detailPinned, detailPin?.asked === true)}`}</Text>
-          </Box>
-          <Text color={tok.textInstruction} wrap="truncate-end">{truncateToWidth(refWhyLine(detail, pins), inner)}</Text>
-          {roomy ? <Box height={1} /> : null}
-          {pageWin.above > 0 ? <Text color={tok.textMuted}>{`  +${pageWin.above} above`}</Text> : null}
-          {openLines.slice(pageWin.start, pageWin.end).map((line, i) => renderPageLine(line, pageWin.start + i))}
-          {pageWin.below > 0 ? <Text color={tok.textMuted}>{`  +${pageWin.below} more below`}</Text> : null}
-        </Box>
-      ) : page ? (
-        pageBlock(page.title, page.meta, page.crumb)
-      ) : fl.raw === null ? (
-        <Text color={tok.textMuted}>◓ reading memory stores …</Text>
-      ) : loadError ? (
-        <Box flexDirection="column">
-          <Text color={AMBER}>{`▲ memory unreadable — ${truncateToWidth(loadError, inner - 22)}`}</Text>
-          <Text color={tok.textMuted}>the stores are unknown, not empty · r retries</Text>
-        </Box>
-      ) : (
-        <Box flexDirection="column">
-          {view === 'overview' && !searching ? (
-            <Text color={tok.textInstruction} wrap="truncate-end">{`  ${tableLine([...columns], widths)}`}</Text>
-          ) : view === 'lineage' ? (
-            <Box flexDirection="column">
-              <Text color={tok.textMuted} wrap="truncate-end">{truncateToWidth(`memory › ${VIEW_WORDS.lineage} · ${subHeading()}`, inner)}</Text>
-              <Text color={tok.textInstruction} wrap="truncate-end">{`  ${tableLine([...columns], widths)}`}</Text>
-            </Box>
-          ) : searching ? (
-            <Text color={tok.textMuted} wrap="truncate-end">{truncateToWidth(`memory › matches for “${query}” · ${plural(list.length, 'match', 'matches')}`, inner)}</Text>
-          ) : (
-            <Text color={tok.textMuted} wrap="truncate-end">{truncateToWidth(`memory › ${VIEW_WORDS[view as Exclude<View, 'overview'>]} · ${subHeading()}`, inner)}</Text>
-          )}
-          {list.length === 0 ? (
-            <Box marginTop={1}>
-              <EmptyState glyph="○" title={searching || query ? 'nothing matches' : 'nothing here yet'} hint={searching || query ? 'different words, or esc to clear the search' : view === 'overview' ? '' : EMPTY_WORDS[view as Exclude<View, 'overview'>]} />
-            </Box>
-          ) : null}
-          {above > 0 ? <Text color={tok.textMuted}>{`  +${above} above`}</Text> : null}
-          {visible.map((row, i) => (row.cells ? renderTableRow(row, i === clampedSel) : renderListRow(row, i === clampedSel)))}
-          {below > 0 ? <Text color={tok.textMuted}>{`  +${below} more below`}</Text> : null}
-          <Box marginTop={roomy ? 1 : 0} flexDirection="column">
-            {note ? (
-              <Text color={NOTE_COLOR[note.kind]} wrap="truncate-end">{truncateToWidth(`  ${note.text}`, inner)}</Text>
-            ) : selectedOverview ? (
-              legendLines(selectedOverview.detail).map((line, i) => <Text key={i} color={tok.textInstruction} wrap="truncate-end">{`  ${line}`}</Text>)
-            ) : searching ? (
-              legendLines(selectedWhy()).map((line, i) => <Text key={i} color={tok.textInstruction} wrap="truncate-end">{`  ${line}`}</Text>)
-            ) : view !== 'overview' && view !== 'facts' ? (
-              legendLines(VIEW_LEGEND[view]).map((line, i) => <Text key={i} color={tok.textInstruction} wrap="truncate-end">{`  ${line}`}</Text>)
-            ) : null}
-          </Box>
-        </Box>
-      )}
-      {note && (detail !== null || page !== null || correcting !== null || fl.raw === null || loadError !== null) ? (
-        <Box marginTop={1}>
-          <Text color={NOTE_COLOR[note.kind]} wrap="truncate-end">{truncateToWidth(note.text, inner)}</Text>
-        </Box>
-      ) : null}
-      {onHint === undefined ? (
-        <Box marginTop={1}>
-          <Text color={tok.textMuted} wrap="truncate-end">{truncateToWidth(footer, inner)}</Text>
-        </Box>
-      ) : null}
-    </Box>
-  )
+  return centreView({ view, list, query, searchFocus, detail, page, correcting, inner, tok, accent, textWidth, roomy, detailLineBudget, pageWin, openLines, fl, pins, detailPinned, detailPin, correctingLines, loadError, searching, above, visible, clampedSel, below, note, selectedOverview, onHint, footer })
 }

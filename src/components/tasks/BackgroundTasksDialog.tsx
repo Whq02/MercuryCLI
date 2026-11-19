@@ -1,113 +1,37 @@
 
-import figures from 'figures'
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { Box, Text, useInput } from '../../ink.js'
+import { useInput } from '../../ink.js'
 import { usePopupListPaging } from '../CustomSelect/popup-list.js'
 import { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
-import { clearMainChat, enterCrewmateView, exitCrewmateView } from '../../state/crewmateViewHelpers.js'
-import { LEAD_ROW_NAME } from '../../utils/cockpit/crewmateWords.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
-import { useVitals } from '../../state/vitalsBus.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useModalScrollRef } from '../../context/modalContext.js'
-import { CursorRow } from '../mercury-ui/CursorRow.js'
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
 import type { CompactWorkControls } from './CompactWorkSummary.js'
-import { useCompactWorkCounts, compactWorkSummaryText } from './useFocusedWork.js'
-import { countOperatorTurns } from '../../utils/messages/operatorTurns.js'
-import { formatSessionCost } from '../../utils/spendSpelling.js'
-import { contextFillView, contextPercentLabel } from '../../utils/contextFill.js'
-import { renderModelName } from '../../utils/model/model.js'
-import { hasSeatLive } from '../../services/engine-connector/seatLive.js'
-import { statusLine } from '../SwitchboardTagBar.js'
-import {
-  bootRecoveryStatusLine,
-  getBootRecovery,
-  subscribeBootRecovery,
-} from '../../substrate/recoveryOrchestrator.js'
-import { isLocalShellTask, type LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
-import { killTask } from '../../tasks/LocalShellTask/killShellTasks.js'
-import {
-  isLocalAgentTask,
-  killAsyncAgent,
-  killAllRunningAgentTasks,
-  type LocalAgentTaskState,
-} from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { getBootRecovery, subscribeBootRecovery } from '../../substrate/recoveryOrchestrator.js'
+import { isLocalShellTask } from '../../tasks/LocalShellTask/guards.js'
+import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import type { TaskState } from '../../tasks/types.js'
-import { formatDuration, formatTokens } from '../../utils/format.js'
-import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
-import { CommandCenter, KeyValueGrid, SectionHeader, useNowTick, type KVRow } from '../mercury-ui/components.js'
-import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
-import { computeSessionWindow } from '../mercury-ui/screens/SessionManagerView.js'
+import { useNowTick } from '../mercury-ui/components.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import type { SampleRowV1, WorkRowV1 } from '../../services/engine-connector/types.js'
-import { sampleStateWord } from '../../services/samples/contracts.js'
-import { openSampleUrl } from '../../services/samples/open.js'
-import {
-  crewAgentFactsOf,
-  type CrewAgentFacts,
-  crewCostLabel,
-  crewModelLabel,
-  CREW_ASK_WAIT_WORDS,
-  crewPhaseWords,
-  crewSpendLabel,
-  crewStateLabel,
-  crewStatusWords,
-  crewTokensBreakdown,
-  crewTokensLabel,
-  crewToolUsesLabel,
-  workRowOfCrewFacts,
-} from '../../services/engine-connector/crewFacts.js'
+import type { WorkRowV1 } from '../../services/engine-connector/types.js'
+import { type CrewAgentFacts, workRowOfCrewFacts } from '../../services/engine-connector/crewFacts.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { workRowRuns } from '../../services/engine-connector/workCounts.js'
-import { crewStopArmed, crewStopHint, pressCrewStop, type CrewStopArm } from '../mercury-ui/screens/crewStopChord.js'
-import { GLYPH } from '../mercury-ui/glyphs.js'
-import {
-  focusedRunnerPresence,
-  useFocusedWorkRoster,
-} from './useFocusedWork.js'
-import { AsyncAgentDetailDialog } from './AsyncAgentDetailDialog.js'
+import { crewStopArmed, type CrewStopArm } from '../mercury-ui/screens/crewStopChord.js'
+import { focusedRunnerPresence, useFocusedWorkRoster } from './useFocusedWork.js'
 import { useSessionCrew } from './useCrewLedger.js'
-import { BackgroundTask as BackgroundTaskComponent } from './BackgroundTask.js'
-import { ShellDetailDialog, shellCardFactsOfRow, shellCardFactsOfTask } from './ShellDetailDialog.js'
 import { isManageableTask } from './taskStatusUtils.js'
+import { type BoardItem, type RowKind, WINDOW } from './backgroundTasks/rows.js'
+import { taskDetailView, workDetailView, boardListView } from './backgroundTasks/views.js'
+import { openDetailOf, stopSelectedOf, boardKeyDownOf } from './backgroundTasks/actions.js'
+import type { BoardContext } from './backgroundTasks/context.js'
+export { boardRowElapsedMs, RosterWorkDetail } from './backgroundTasks/rows.js'
 
 const LEAD_ROW_ID = 'lead'
-const WINDOW = 10
-const MISSION_IN_PROGRESS_CAP = 4
-const MISSION_PENDING_CAP = 6
-
-type RowKind =
-  | 'shell'
-  | 'monitor'
-  | 'agent'
-  | 'sample'
-  | 'lead'
-
-type BoardItem = {
-  id: string
-  kind: RowKind
-  task?: TaskState
-  work?: WorkRowV1
-  sample?: SampleRowV1
-}
-
-function SampleRowLine({ sample }: { sample: SampleRowV1 }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  return (
-    <Text wrap="truncate-end">
-      <Text color={sample.state === 'approved' ? tokens.success : sample.state === 'changes-needed' ? tokens.warning : tokens.textMuted}>
-        {sample.glyph}
-      </Text>
-      <Text> {sample.title}</Text>
-      <Text color={tokens.textMuted}> · v{sample.version} · {sampleStateWord(sample.state)}</Text>
-    </Text>
-  )
-}
 
 function kindOf(task: TaskState): RowKind {
   if (isLocalShellTask(task)) return task.kind === 'monitor' ? 'monitor' : 'shell'
@@ -115,25 +39,6 @@ function kindOf(task: TaskState): RowKind {
   if ((task as { type?: string }).type === 'monitor_mcp') return 'monitor'
   throw new Error(
     `BackgroundTasksDialog: unrecognised task kind ${(task as { type?: string }).type}`,
-  )
-}
-
-export function boardRowElapsedMs(item: { task?: { startTime: number; endTime?: number }; work?: { startTime: number; endTime?: number } }, now: number): number | null {
-  const started = item.task?.startTime ?? item.work?.startTime
-  if (started === undefined || !Number.isFinite(started) || started === 0) return null
-  const ended = item.task?.endTime ?? item.work?.endTime
-  return Math.max(0, (ended !== undefined && Number.isFinite(ended) && ended > 0 ? ended : now) - started)
-}
-
-function AgeCell({ item, now }: { item: BoardItem; now: number }): React.ReactNode {
-  const elapsed = boardRowElapsedMs(item, now)
-  if (elapsed === null) {
-    return <Box width={9} flexShrink={0} />
-  }
-  return (
-    <Box width={9} flexShrink={0} justifyContent="flex-end">
-      <Text dimColor>{formatDuration(elapsed)}</Text>
-    </Box>
   )
 }
 
@@ -162,107 +67,6 @@ export function boardAgentRowsOf(
   const hidden = new Set([...(excludeIds ?? []), ...rows.filter(w => w.kind === 'agent' && !shown.has(w.id)).map(w => w.id)])
   const unlisted = crew.filter(facts => !listed.has(facts.id) && !(excludeIds?.has(facts.id) ?? false)).map(workRowOfCrewFacts)
   return rosterRowsOf([...rows, ...unlisted], 'agent', hidden)
-}
-
-function WorkRowLine({ work }: { work: WorkRowV1 }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const crew = crewAgentFactsOf(work, null)
-  const crewTokens = crew === null ? null : crewTokensLabel(crew)
-  const running = work.status === 'running'
-  const pending = work.status === 'pending'
-  const failed = work.status === 'failed' || work.status === 'killed'
-  return (
-    <Text wrap="truncate-end">
-      {running ? (
-        <WorkingGlyph color={tokens.success} active />
-      ) : (
-        <Text color={failed ? tokens.failure : pending ? tokens.warning : tokens.textMuted}>
-          {failed ? GLYPH.fail : pending ? GLYPH.pending : GLYPH.done}
-        </Text>
-      )}
-      <Text> {work.name}</Text>
-      <Text color={tokens.textMuted}> · {crew !== null ? crewStatusWords(crew, Date.now()) : work.status}</Text>
-      {crew !== null ? (
-        <Text color={tokens.textMuted}>
-          {' · '}{crewModelLabel(crew)}{crewTokens !== null ? ` · ${crewTokens}` : ''}
-        </Text>
-      ) : null}
-      {(work.pendingAsks ?? 0) > 0 ? (
-        <Text color={tokens.warning}> · {CREW_ASK_WAIT_WORDS}{(work.pendingAsks ?? 0) > 1 ? ` (${work.pendingAsks} asks)` : ''}</Text>
-      ) : null}
-    </Text>
-  )
-}
-
-export function RosterWorkDetail({
-  work,
-  now,
-  onBack,
-}: {
-  work: WorkRowV1
-  now: number
-  onBack: () => void
-}): React.ReactNode {
-  const tokens = useMercuryTokens()
-  useKeybindings(
-    {
-      'confirm:no': () => {
-        onBack()
-      },
-    },
-    { context: 'Confirmation', isActive: true },
-  )
-  const crew = crewAgentFactsOf(work, null)
-  const rows: KVRow[] = [
-    { k: 'state', v: crew !== null ? crewStateLabel(crew) : work.status, tone: work.status === 'running' ? tokens.success : tokens.textPrimary },
-    { k: 'started', v: `${formatDuration(Math.max(0, now - work.startTime))} ago`, tone: tokens.textMuted },
-  ]
-  if (work.endTime !== undefined) rows.push({ k: 'ran', v: formatDuration(Math.max(0, work.endTime - work.startTime)), tone: tokens.textMuted })
-  if (crew !== null) {
-    rows.push({ k: 'model', v: crewModelLabel(crew), tone: tokens.textPrimary })
-    const toolUses = crewToolUsesLabel(crew)
-    if (toolUses !== null) rows.push({ k: 'tools', v: toolUses, tone: tokens.textPrimary })
-    if (crew.activity !== null) rows.push({ k: 'doing', v: crew.activity, tone: tokens.textSecondary })
-    if (crew.stopReason !== null) rows.push({ k: 'why', v: crew.stopReason, tone: tokens.warning })
-    const phase = crewPhaseWords(crew, now)
-    if (phase !== null) rows.push({ k: 'phase', v: phase, tone: tokens.textSecondary })
-    if (crew.agentType !== null) rows.push({ k: 'agent', v: crew.agentType, tone: tokens.textPrimary })
-    if (crew.crew !== null) rows.push({ k: 'crew', v: crew.crew, tone: tokens.textPrimary })
-    const crewTokens = crewTokensLabel(crew)
-    if (crewTokens !== null) rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${crewTokens}`, tone: tokens.textPrimary })
-    const crewSpend = crewSpendLabel(crew)
-    if (crewSpend !== null) {
-      const breakdown = crewTokensBreakdown(crew)
-      rows.push({ k: 'spent', v: `${GLYPH.tokens} ${crewSpend}${breakdown !== null ? ` (${breakdown})` : ''}`, tone: tokens.textPrimary })
-    }
-    const spend = crewCostLabel(crew)
-    if (spend !== null && getFocusedSessionConnector().identity().consoleBilling) {
-      rows.push({ k: 'spend', v: spend, tone: tokens.textPrimary })
-    }
-  } else {
-    if (work.model !== undefined) rows.push({ k: 'model', v: work.model, tone: tokens.textPrimary })
-    if ((work.totalTokens ?? 0) > 0) rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${formatTokens(work.totalTokens ?? 0)} spent`, tone: tokens.textPrimary })
-  }
-  return (
-    <Box flexDirection="column">
-      {work.description !== undefined ? (
-        <Text color={tokens.textMuted} wrap="truncate-end">
-          {work.description}
-        </Text>
-      ) : null}
-      {work.error !== undefined ? (
-        <Text color={tokens.failure} wrap="wrap">
-          {work.error}
-        </Text>
-      ) : null}
-      <KeyValueGrid rows={rows} keyWidth={8} />
-      <Box marginTop={1} flexDirection="column">
-        <Text dimColor>
-          <KeyboardShortcutHint shortcut="Esc" action="back" />
-        </Text>
-      </Box>
-    </Box>
-  )
 }
 
 export function BackgroundTasksDialog({
@@ -409,57 +213,13 @@ export function BackgroundTasksDialog({
     else setDetailTaskId(undefined)
   }, [detailTaskId, tasks, roster, onDone])
 
-  const openDetail = (item: BoardItem): void => {
-    if (item.kind === 'sample') {
-      if (item.sample?.url !== undefined) void openSampleUrl(item.sample.url)
-      return
-    }
-    if (item.kind === 'lead') {
-      exitCrewmateView(setAppState)
-      onDone()
-      return
-    }
-    if (item.kind === 'agent') {
-      enterCrewmateView(item.id, setAppState)
-      onDone()
-      return
-    }
-    setDetailTaskId(item.id)
-  }
+  const openDetail = (item: BoardItem): void => openDetailOf(ctx, item)
 
   const [stopArm, setStopArm] = useState<CrewStopArm | null>(null)
   const armedWork = stopArm !== null && crewStopArmed(stopArm, stopArm.id, now) ? (roster.rows.find(w => w.id === stopArm.id) ?? null) : null
 
-  const stopSelected = (item: BoardItem): void => {
-    const task = item.task
-    if (task === undefined) {
-      const work = item.work
-      if (work === undefined || !workRowRuns(work)) return
-      const press = pressCrewStop(stopArm, work.id, Date.now())
-      if (!press.fire) {
-        setStopArm(press.arm)
-        return
-      }
-      setStopArm(null)
-      void getFocusedSessionConnector().stopAgent(work.id)
-      return
-    }
-    if (task.status !== 'running') return
-    if (isLocalShellTask(task)) { void killTask(task.id, setAppState); return }
-    switch (item.kind) {
-      case 'shell':
-        void killTask(task.id, setAppState)
-        return
-      case 'agent':
-        killAsyncAgent(task.id, setAppState)
-        return
-      case 'monitor':
-        ;(task as { abortController?: AbortController }).abortController?.abort()
-        return
-      default:
-        return
-    }
-  }
+  const stopSelected = (item: BoardItem): void => stopSelectedOf(ctx, item)
+  const ctx: BoardContext = { onDone, setAppState, setDetailTaskId, stopArm, setStopArm, ownsInputNow, pastOpen, selected, stopSelected, summaryEntry, tasks }
 
   usePopupListPaging(selectedIndex, flat.length, WINDOW, next => { if (ownsInputNow()) moveSelection(next - selectedIndex) }, !inDetail)
   useKeybindings(
@@ -484,44 +244,7 @@ export function BackgroundTasksDialog({
     { context: 'Confirmation', isActive: !inDetail },
   )
 
-  const handleKeyDown = (e: KeyboardEvent): void => {
-    if (!ownsInputNow() || (summaryEntry && e.key !== 'left' && !pastOpen())) return
-    if (e.key === 'left') {
-      e.stopImmediatePropagation()
-      onDone()
-      return
-    }
-    if (e.key === 'x' && selected !== undefined) {
-      e.stopImmediatePropagation()
-      stopSelected(selected)
-      return
-    }
-    if (e.key === 'r' && selected?.work !== undefined && selected.kind === 'agent' && !workRowRuns(selected.work)) {
-      e.stopImmediatePropagation()
-      void getFocusedSessionConnector().resumeAgent(selected.work.id)
-      return
-    }
-    if (e.key === 'X') {
-      e.stopImmediatePropagation()
-      killAllRunningAgentTasks(tasks, setAppState)
-      return
-    }
-    if (e.key === 'f' || e.key === 'm') {
-      e.stopImmediatePropagation()
-      if (selected === undefined) return
-      if (e.key === 'm' && selected.kind === 'lead') {
-        clearMainChat(setAppState)
-        onDone()
-        return
-      }
-      const task = selected.task
-      if (task === undefined) return
-      if (task.type === 'local_agent') {
-        enterCrewmateView(task.id, setAppState)
-        onDone()
-      }
-    }
-  }
+  const handleKeyDown = (e: KeyboardEvent): void => boardKeyDownOf(ctx, e)
   useInput(
     (_input, _key, event) => {
       handleKeyDown(new KeyboardEvent(event.keypress))
@@ -530,330 +253,12 @@ export function BackgroundTasksDialog({
   )
 
   if (inDetail && detailTask !== undefined) {
-    if (isLocalAgentTask(detailTask)) {
-      const agent = detailTask as LocalAgentTaskState
-      return (
-        <CommandCenter elevated
-          view={`crewmate › ${agent.description !== '' ? agent.description : agent.agentType}`}
-          onClose={onDone}
-          captureInput={false}
-        >
-          <AsyncAgentDetailDialog
-            agent={agent}
-            onDone={onDone}
-            onBack={backFromDetail}
-            onKillAgent={() => killAsyncAgent(agent.id, setAppState)}
-            onForeground={() => {
-              enterCrewmateView(agent.id, setAppState)
-              onDone()
-            }}
-          />
-        </CommandCenter>
-      )
-    }
-    if (isLocalShellTask(detailTask)) {
-      const shell = detailTask as LocalShellTaskState
-      return (
-        <ShellDetailDialog
-          shell={shellCardFactsOfTask(shell)}
-          onDone={onDone}
-          onBack={backFromDetail}
-          onKillShell={() => void killTask(shell.id, setAppState)}
-        />
-      )
-    }
+    const detailView = taskDetailView({ backFromDetail, detailTask, onDone, setAppState })
+    if (detailView !== undefined) return detailView
   }
   if (inDetail && detailTask === undefined && detailWork !== undefined) {
-    if (detailWork.kind === 'shell' || (detailWork.kind === 'monitor' && detailWork.command !== undefined)) {
-      return (
-        <ShellDetailDialog
-          shell={shellCardFactsOfRow(detailWork)}
-          onDone={onDone}
-          onBack={backFromDetail}
-        />
-      )
-    }
-    return (
-      <CommandCenter elevated
-        view={`${detailWork.kind} › ${detailWork.name}`}
-        onClose={onDone}
-        captureInput={false}
-      >
-        <RosterWorkDetail work={detailWork} now={now} onBack={backFromDetail} />
-      </CommandCenter>
-    )
+    return workDetailView({ backFromDetail, detailWork, now, onDone })
   }
 
-  const runningCount = flat.filter(item => (item.task ?? item.work)?.status === 'running').length
-  const pendingCount = flat.filter(item => (item.task ?? item.work)?.status === 'pending').length
-  const activeCount = runningCount + pendingCount
-  const subtitle =
-    `${activeCount} active` +
-    (ledgerOpenCount > 0 ? ` · ${ledgerOpenCount} mission` : '')
-
-  const { start: winStart, end: winEnd } = computeSessionWindow(
-    selectedIndex,
-    flat.length,
-    WINDOW,
-  )
-  const inWin = (item: BoardItem): boolean => {
-    const index = indexById.get(item.id)
-    return index !== undefined && index >= winStart && index < winEnd
-  }
-  const activityWidth = Math.max(30, columns - 26)
-
-  const recoveryLine = bootRecoveryStatusLine(bootRecovery)
-
-  const rowFor = (item: BoardItem): React.ReactNode => {
-    const isSelected = item.id === selectedIdRef.current
-    if (item.sample !== undefined) {
-      return (
-        <CursorRow key={item.id} selected={isSelected}>
-          <Text bold={isSelected} color={isSelected ? tokens.textPrimary : undefined}>
-            {isSelected ? `${figures.pointer} ` : '  '}
-          </Text>
-          <Box flexGrow={1} minWidth={0}>
-            <SampleRowLine sample={item.sample} />
-          </Box>
-          <Box flexShrink={0} marginLeft={1}>
-            <Text color={tokens.textMuted}>↵ opens in your browser</Text>
-          </Box>
-        </CursorRow>
-      )
-    }
-    if (item.kind === 'lead') {
-      return (
-        <CursorRow key={item.id} selected={isSelected}>
-          <Text bold={isSelected} color={isSelected ? tokens.textPrimary : undefined}>
-            {isSelected ? `${figures.pointer} ` : '  '}
-          </Text>
-          <Box flexGrow={1} minWidth={0}>
-            <Text wrap="truncate-end">
-              <Text color={accent} bold>{GLYPH.spark} {LEAD_ROW_NAME}</Text>
-              <Text color={tokens.textMuted}> · the lead's own chat · ↵ goes back</Text>
-            </Text>
-          </Box>
-        </CursorRow>
-      )
-    }
-    return (
-      <CursorRow key={item.id} selected={isSelected}>
-        <Text bold={isSelected} color={isSelected ? tokens.textPrimary : undefined}>
-          {isSelected ? `${figures.pointer} ` : '  '}
-        </Text>
-        <Box flexGrow={1} minWidth={0}>
-          {item.task !== undefined ? (
-            <BackgroundTaskComponent
-              task={item.task}
-              maxActivityWidth={activityWidth}
-            />
-          ) : item.work !== undefined ? (
-            <WorkRowLine work={item.work} />
-          ) : null}
-        </Box>
-        <AgeCell item={item} now={now} />
-      </CursorRow>
-    )
-  }
-
-  const shellItems = flat.filter(item => item.kind === 'shell')
-  const monitorItems = flat.filter(item => item.kind === 'monitor')
-  const agentItems = flat.filter(item => item.kind === 'agent')
-  const sampleItems = flat.filter(item => item.kind === 'sample')
-  const processItems = flat.filter(item => item.kind !== 'sample')
-
-  const selectedStoppable =
-    (selected?.task !== undefined && selected.task.status === 'running') ||
-    (selected?.work !== undefined && workRowRuns(selected.work))
-  const selectedResumable = selected?.work !== undefined && selected.kind === 'agent' && !workRowRuns(selected.work)
-  const anyAgentRunning = agentTasks.some(task => task.status === 'running')
-
-  return (
-    <CommandCenter elevated
-      view={summaryEntry ? "activity" : "runs"}
-      bodyOwnsPageKeys
-      footer="↑↓ move · pgup/pgdn page · ↵ open · esc close"
-      subtitle={subtitle}
-      onClose={onDone}
-      captureInput={false}
-    >
-      <Box flexDirection="column" tabIndex={-1}>
-        {summaryEntry ? <CompactSessionOverview /> : null}
-        {missionTasks.length > 0 ? (
-          <Box flexDirection="column">
-            <SectionHeader marginTop={0} count={ledgerOpenCount}>
-              Mission
-            </SectionHeader>
-            {inProgress.slice(0, MISSION_IN_PROGRESS_CAP).map(task => (
-              <Box key={task.id}>
-                <WorkingGlyph color={tokens.success} active={true} />
-                <Text> {task.activeForm ?? task.subject}</Text>
-              </Box>
-            ))}
-            {inProgress.length > MISSION_IN_PROGRESS_CAP ? (
-              <Text dimColor>
-                +{inProgress.length - MISSION_IN_PROGRESS_CAP} more in progress
-              </Text>
-            ) : null}
-            {pendingMission.slice(0, MISSION_PENDING_CAP).map(task => (
-              <Text key={task.id} dimColor>
-                ○ {task.subject}
-              </Text>
-            ))}
-            {pendingMission.length > MISSION_PENDING_CAP ? (
-              <Text dimColor>
-                +{pendingMission.length - MISSION_PENDING_CAP} more pending
-              </Text>
-            ) : null}
-            {doneMission.length > 0 ? (
-              <Text dimColor>{doneMission.length} done</Text>
-            ) : null}
-          </Box>
-        ) : null}
-
-        {processItems.length === 0 ? (
-          <Box flexDirection="column" marginTop={missionTasks.length > 0 ? 1 : 0}>
-            {ledgerOpenCount === 0 && missionTasks.length === 0 ? (
-              <Text dimColor>no mission tasks and no background runs</Text>
-            ) : (
-              <Text dimColor>no background runs</Text>
-            )}
-            {presence === 'dormant' ? (
-              <Text color={tokens.textMuted}>
-                the session has no live runner — ↵ in the chat revives it
-              </Text>
-            ) : null}
-            {recoveryLine !== null ? (
-              <Text
-                color={
-                  recoveryLine.tone === 'ok'
-                    ? tokens.success
-                    : recoveryLine.tone === 'warn'
-                      ? tokens.warning
-                      : tokens.textSecondary
-                }
-              >
-                {recoveryLine.text}
-              </Text>
-            ) : null}
-          </Box>
-        ) : (
-          <Box flexDirection="column">
-            <Box>
-              <Text>
-                {runningCount} running
-                <Text color={tokens.textMuted}> · </Text>
-                {pendingCount} pending
-              </Text>
-            </Box>
-            {winStart > 0 ? (
-              <Text dimColor>↑ {winStart} more above</Text>
-            ) : null}
-            {shellItems.length > 0 ? (
-              <Box flexDirection="column">
-                <SectionHeader count={shellItems.length}>Shells</SectionHeader>
-                {shellItems.filter(inWin).map(rowFor)}
-              </Box>
-            ) : null}
-            {monitorItems.length > 0 ? (
-              <Box flexDirection="column">
-                <SectionHeader count={monitorItems.length}>
-                  Monitors
-                </SectionHeader>
-                {monitorItems.filter(inWin).map(rowFor)}
-              </Box>
-            ) : null}
-            {agentItems.length > 0 || leadItems.length > 0 ? (
-              <Box flexDirection="column">
-                <SectionHeader count={agentItems.length}>Crewmates</SectionHeader>
-                {leadItems.filter(inWin).map(rowFor)}
-                {agentItems.filter(inWin).map(rowFor)}
-              </Box>
-            ) : null}
-            {winEnd < flat.length ? (
-              <Text dimColor>↓ {flat.length - winEnd} more</Text>
-            ) : null}
-          </Box>
-        )}
-        {sampleItems.length > 0 ? (
-          <Box flexDirection="column">
-            <SectionHeader count={sampleItems.length}>Samples</SectionHeader>
-            {sampleItems.filter(inWin).map(rowFor)}
-          </Box>
-        ) : null}
-
-        <Box marginTop={1}>
-          <Text dimColor>
-            {flat.length > 0 ? (
-              <>
-                <KeyboardShortcutHint shortcut="↑/↓" action="select" />
-                {' · '}
-                <KeyboardShortcutHint shortcut="Enter" action={selected?.kind === 'sample' ? 'open' : selected?.kind === 'lead' ? `back to ${LEAD_ROW_NAME}` : 'view'} />
-                {' · '}
-              </>
-            ) : null}
-            {armedWork !== null ? (
-              <>
-                <Text color={tokens.warning}>{crewStopHint(armedWork.name)}</Text>
-                {' · '}
-              </>
-            ) : selectedStoppable ? (
-              <>
-                <KeyboardShortcutHint shortcut="x" action={selected?.work !== undefined ? 'x stop' : 'stop'} />
-                {' · '}
-              </>
-            ) : null}
-            {selectedResumable ? (
-              <>
-                <KeyboardShortcutHint shortcut="r" action="resume" />
-                {' · '}
-              </>
-            ) : null}
-            {anyAgentRunning ? (
-              <>
-                <KeyboardShortcutHint shortcut="X" action="stop all" />
-                {' · '}
-              </>
-            ) : null}
-            <KeyboardShortcutHint shortcut="Esc" action="close" />
-          </Text>
-        </Box>
-      </Box>
-    </CommandCenter>
-  )
-}
-function CompactSessionOverview(): React.ReactNode {
-  const counts = useCompactWorkCounts()
-  const snapshot = useVitals(s => s.sessions)
-  const refreshedAt = useVitals(s => s.refreshedAt)
-  const git = useVitals(s => s.git)
-  const connector = getFocusedSessionConnector()
-  const records = connector.records()
-  const model = connector.modelFacts()
-  const usage = connector.usage()
-  const fill = contextFillView(records, model.effective)
-  const active = hasSeatLive(connector) ? statusLine(connector.live(), connector.status()) : connector.turnActive() ? 'working' : 'ready'
-  const rows: KVRow[] = [
-    { k: 'session', v: connector.sessionId() },
-    { k: 'project', v: connector.workspace().cwd },
-    { k: 'model', v: renderModelName(model.effective) },
-    { k: 'effort', v: model.effortSent ?? (model.effort ? `${model.effort} (asked)` : 'unreported') },
-    { k: 'permissions', v: connector.permissionMode() ?? 'unreported' },
-    { k: 'turns', v: String(countOperatorTurns(records)) },
-    { k: 'context', v: contextPercentLabel(fill.usedPct, fill.fillSource) },
-    { k: 'tokens in', v: formatTokens(usage.totalInputTokens) },
-    { k: 'tokens out', v: formatTokens(usage.totalOutputTokens) },
-    { k: 'files', v: `+${usage.totalLinesAdded} / -${usage.totalLinesRemoved} lines` },
-  ]
-  if (git !== null) rows.push({ k: 'repository', v: `${git.branchName} · ${git.isClean ? 'clean' : 'changed'} · ${git.unpushedCount} unpushed` })
-  if (connector.identity().consoleBilling) rows.push({ k: 'cost', v: formatSessionCost(usage.totalCostUSD, usage.unpricedTurns ?? 0) })
-  return <Box flexDirection="column">
-    <SectionHeader marginTop={0}>Session statistics</SectionHeader>
-    <KeyValueGrid rows={rows} keyWidth={12} />
-    <SectionHeader>Activity</SectionHeader>
-    <Text>{active}</Text>
-    <Text>{compactWorkSummaryText(counts, Number.POSITIVE_INFINITY)}</Text>
-    <Text dimColor>Sessions are live, unpaused conversations; crewmates and monitors belong to the focused chat.</Text>
-    <Text dimColor>{snapshot.state === 'known' ? `Session snapshot: ${snapshot.rows.length} retained records, ${refreshedAt ? new Date(refreshedAt).toLocaleTimeString() : 'not sampled'}` : 'Session snapshot unavailable'}</Text>
-  </Box>
+  return boardListView({ accent, agentTasks, armedWork, bootRecovery, columns, doneMission, flat, inProgress, indexById, leadItems, ledgerOpenCount, missionTasks, now, onDone, pendingMission, presence, selected, selectedIdRef, selectedIndex, summaryEntry, tokens })
 }

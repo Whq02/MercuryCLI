@@ -1,68 +1,30 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { basename } from 'node:path';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
-import { reloadAgentDefinitionsIntoAppState } from '../hooks/useAgentsChange.js';
 import { useSetAppStateMaybe } from '../state/AppState.js';
-import {
-  clearAgentDefinitionsCache,
-  getAgentDefinitionsWithOverrides,
-  type AgentDefinition,
-  type AgentDefinitionsResult,
-} from '../tools/AgentTool/loadAgentsDir.js';
-import { startAgentWatch, subscribeAgentsChanged } from '../services/agents/watch.js';
-import { resolveEffectiveAgentRuntime, type AgentEstateEntry } from '../services/agents/resolver.js';
-import { setAgentDisabled, setAgentOverride } from '../services/agents/overrides.js';
-import {
-  AgentStoreError,
-  deleteAgentToTrash,
-  listAgentTrash,
-  restoreAgentFromTrash,
-  type AgentTrashEntry,
-} from '../services/agents/store.js';
-import {
-  buildStudioRows,
-  isFileBacked,
-  type StudioRow,
-} from './agents/studio/studioData.js';
-import {
-  createStudioEditorMachine,
-  computeStudioValidation,
-  effectiveStudioRuntime,
-  fieldValueLabel,
-  FIELD_ROWS,
-  studioDestinationPath,
-  type FieldId,
-  type StudioDraftBase,
-  type StudioEditorMachine,
-  type StudioEditorSnapshot,
-  type StudioValidation,
-} from './agents/studio/studioEditorModel.js';
-import { getAgentSourceDisplayName } from './agents/utils.js';
-import { AGENT_COLORS } from '../tools/AgentTool/agentColorManager.js';
-import { SCOUT_TOOLS_DESCRIPTION } from '../tools/AgentTool/scoutPolicy.js';
+import type { AgentDefinition, AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js';
+import { AgentStoreError, listAgentTrash, restoreAgentFromTrash, type AgentTrashEntry } from '../services/agents/store.js';
+import { isFileBacked, type StudioRow } from './agents/studio/studioData.js';
+import type { FieldId } from './agents/studio/studioEditorModel.js';
 import { getAllBaseTools } from '../tools.js';
 import type { Tools } from '../Tool.js';
-import { EFFORT_LEVELS, resolveEffortTruth, type EffortValue } from '../utils/effort.js';
-import {
-  agentModelAvailabilityNote,
-  agentModelPickOutcome,
-  getAgentModelPickerRows,
-  type AgentModelPickerRow,
-} from '../utils/model/agentModelPicker.js';
-import { bootBirthFacts } from '../services/switchboard/bootBirthFacts.js';
-import { offeredDefinitionModes } from '../tools/AgentTool/agentPermissionPosture.js';
-import { renderModelChip } from '../utils/model/model.js';
-import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
+import { getAgentModelPickerRows } from '../utils/model/agentModelPicker.js';
 import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
-import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
-
+import { agentFormRowIds } from './bootAgents/face.js';
+import { toggleRowOf, runDeleteOf, agentEditRun, modelPickRun, editFormRowOf, clearFormRowOf, formPickRun } from './bootAgents/actions.js';
+import { formPromptKeys, confirmKeys, formSnapKeys } from './bootAgents/keys.js';
+import { agentsFaceBase, formFace, modelPickFace, trashFace, listFace } from './bootAgents/menuModel.js';
+import { agentFaceRow } from './bootAgents/rows.js';
+import { useAgentDefinitions } from './bootAgents/useAgentDefinitions.js';
+import { useAgentFormState } from './bootAgents/useAgentFormState.js';
+import type { AgentsFaceContext } from './bootAgents/context.js';
+export { agentFaceEntryOf, agentFaceDetailLines, agentFaceSummaryRows, agentFaceStatusLine, AGENT_FACE_LEGEND, AGENT_FACE_LEGEND_FORM, agentFormRowIds, agentFormEntryOf, agentFormDetailLines } from './bootAgents/face.js';
 
 interface BootAgentsScreenProps {
   onClose?: () => void;
@@ -73,269 +35,6 @@ interface BootAgentsScreenProps {
   workspaceDir?: string;
   toolsOf?: () => Tools;
 }
-
-type FaceEntry = {
-  label: string;
-  group: string;
-  groupTitle: string;
-  summary: string;
-  valueLabel: string;
-  valueIsDefault: boolean;
-  pinnedVal: string | null;
-  detail: null;
-  inert?: boolean;
-};
-
-
-export function agentFaceEntryOf(row: StudioRow): FaceEntry {
-  if (row.kind === 'invalid') {
-    return {
-      label: `invalid: ${row.invalid!.path.split(/[\\/]/).slice(-2).join('/')}`,
-      group: 'needs attention',
-      groupTitle: 'needs attention',
-      summary: row.invalid!.error,
-      valueLabel: 'unreadable',
-      valueIsDefault: false,
-      pinnedVal: null,
-      detail: null,
-    };
-  }
-  const agent = row.agent!;
-  const disabled = agent.disabled === true;
-  const group = getAgentSourceDisplayName(agent.source);
-  return {
-    label: agent.agentType,
-    group,
-    groupTitle: group,
-    summary: agent.whenToUse.replace(/\n/g, ' '),
-    valueLabel: disabled
-      ? 'off'
-      : `${agent.model ?? 'inherit'}${agent.operatorOverride ? ' (override)' : ''}${row.shadowed ? ' · shadowed' : ''}`,
-    valueIsDefault: !disabled && agent.operatorOverride === undefined && row.shadowed !== true,
-    pinnedVal: null,
-    detail: null,
-  };
-}
-
-export function agentFaceDetailLines(
-  row: StudioRow,
-  estate: Map<string, AgentEstateEntry>,
-  eff: ReturnType<typeof resolveEffectiveAgentRuntime> | null,
-  availabilityNote: string | null = null,
-): string[] {
-  if (row.kind === 'invalid') {
-    return [
-      'invalid definition',
-      '',
-      row.invalid!.path,
-      row.invalid!.error,
-      '',
-      'the file stays visible until it parses —',
-      'fix it in your editor; the roster repaints',
-      'as it lands on disk.',
-    ];
-  }
-  const agent = row.agent!;
-  const lines: string[] = [
-    `${agent.agentType}${agent.disabled ? ' (disabled)' : ''}`,
-    '',
-    (agent as { filePath?: string }).filePath ??
-      (agent.source === 'built-in'
-        ? 'built-in (no file)'
-        : agent.source === 'extension'
-          ? `extension: ${(agent as { extensionName?: string }).extensionName ?? '?'}`
-          : 'in-memory (--agent-defs flag)'),
-    `scope: ${getAgentSourceDisplayName(agent.source)}`,
-  ];
-  if (eff !== null) {
-    lines.push(
-      `model: ${eff.modelIntent} → ${eff.model}${eff.modelIntent === 'inherit' ? " (your session's model)" : ''}`,
-      `effort: ${eff.effortIntent !== undefined ? `${eff.effortIntent} → ` : 'session → '}${eff.effort.label}`,
-    );
-    if (availabilityNote !== null) lines.push(`availability: ${availabilityNote} — Logins signs in`);
-    if (eff.tools) {
-      lines.push(
-        eff.tools.readOnly
-          ? `tools: ${SCOUT_TOOLS_DESCRIPTION}`
-          : eff.tools.hasWildcard
-          ? 'tools: all (MCP tools join at session time)'
-          : `tools: ${eff.tools.validTools.length} of the base roster${eff.tools.invalidTools.length > 0 ? ` · unknown: ${eff.tools.invalidTools.join(', ')}` : ''}`,
-      );
-    }
-  }
-  if (agent.skills && agent.skills.length > 0) lines.push(`skills: ${agent.skills.join(', ')}`);
-  if (agent.memory) lines.push(`memory: ${agent.memory}`);
-  const entry = estate.get(agent.agentType);
-  if (entry && entry.candidates.length > 1) {
-    lines.push('', 'shadow chain:');
-    for (const c of entry.candidates) {
-      lines.push(`  ${c.winner ? '● wins' : `◌ ${c.shadowReason ?? 'shadowed'}`} — ${getAgentSourceDisplayName(c.agent.source)}`);
-    }
-  }
-  return lines;
-}
-
-export function agentFaceSummaryRows(counts: {
-  active: number;
-  disabled: number;
-  issues: number;
-}): Array<{ key: string; value: string; tone?: 'teal' }> {
-  return [
-    { key: 'Agents', value: `${counts.active} active · ${counts.disabled} off` },
-    { key: 'Issues', value: counts.issues > 0 ? `${counts.issues} need attention` : 'none' },
-    { key: 'Applies', value: '● live sessions see new agents', tone: 'teal' },
-  ];
-}
-
-export function agentFaceStatusLine(counts: { active: number; disabled: number }): string {
-  return `${counts.active} agent${counts.active === 1 ? '' : 's'} active — a create lands in every session, running ones included`;
-}
-
-export const AGENT_FACE_LEGEND = '↑↓ move · ↵ edit · n new · x on/off · ⌫ delete · u trash · esc back';
-export const AGENT_FACE_LEGEND_FORM = '↑↓ move · ↵ edit field · g generate · s save · ⌫ clear · esc back';
-const AGENT_FACE_LEGEND_PROMPT = 'type · ↵ apply · esc cancel';
-const AGENT_FACE_LEGEND_PICK = '↑↓ move · ↵ pick · esc back';
-const AGENT_FACE_LEGEND_TRASH = '↑↓ move · ↵ restore · esc back';
-const AGENT_FACE_LEGEND_CONFIRM = 'y / ↵ delete (recoverable) · n / esc cancel';
-
-function agentDeleteConfirmLines(agent: AgentDefinition): string[] {
-  return [
-    'delete agent',
-    '',
-    `delete ${agent.agentType}?`,
-    '',
-    'the file moves to the recovery area —',
-    "never a permanent unlink; 'u' on the",
-    'library restores it.',
-    '',
-    (agent as { filePath?: string }).filePath ?? '',
-  ];
-}
-
-function agentTrashEntryOf(entry: AgentTrashEntry): FaceEntry {
-  return {
-    label: entry.agentType,
-    group: 'recovery area',
-    groupTitle: 'recovery area',
-    summary: `deleted ${entry.deletedAt.slice(0, 16)} · was ${entry.originalPath}`,
-    valueLabel: 'restorable',
-    valueIsDefault: true,
-    pinnedVal: null,
-    detail: null,
-  };
-}
-
-
-export function agentFormRowIds(mode: 'create' | 'edit'): Array<'destination' | FieldId> {
-  return mode === 'create' ? ['destination', ...FIELD_ROWS.map(r => r.id)] : FIELD_ROWS.map(r => r.id);
-}
-
-export function agentFormEntryOf(
-  id: 'destination' | FieldId,
-  snap: StudioEditorSnapshot,
-): FaceEntry {
-  if (id === 'destination') {
-    return {
-      label: 'destination',
-      group: 'agent form',
-      groupTitle: 'agent form',
-      summary: 'where the definition file lands — the project repo or your personal home.',
-      valueLabel: snap.scope,
-      valueIsDefault: snap.scope === 'project',
-      pinnedVal: null,
-      detail: null,
-    };
-  }
-  const rowMeta = FIELD_ROWS.find(r => r.id === id)!;
-  return {
-    label: rowMeta.label,
-    group: 'agent form',
-    groupTitle: 'agent form',
-    summary: '',
-    valueLabel: fieldValueLabel(snap.doc, id),
-    valueIsDefault: false,
-    pinnedVal: null,
-    detail: null,
-  };
-}
-
-export function agentFormDetailLines(args: {
-  snap: StudioEditorSnapshot;
-  validation: StudioValidation;
-  destination: string;
-  effectiveLine: string | null;
-  mode: 'create' | 'edit';
-}): string[] {
-  const { snap, validation, destination, effectiveLine, mode } = args;
-  if (snap.recoverOffer) {
-    return [
-      'unsaved draft found',
-      '',
-      'an unsaved draft from a previous session',
-      'exists for this target.',
-      '',
-      'y / ↵ recover it · n discard it',
-    ];
-  }
-  if (snap.conflict) {
-    return [
-      'revision conflict',
-      '',
-      'the file changed on disk while you edited.',
-      '',
-      'L load theirs + re-apply your edits',
-      'esc keep editing (save will keep refusing)',
-    ];
-  }
-  if (snap.busy) {
-    return [mode === 'create' ? 'create agent' : 'edit agent', '', '◓ working … (esc cancels generation)'];
-  }
-  const lines: string[] = [
-    mode === 'create' ? 'create agent' : `edit ${snap.doc.fields.name}`,
-    '',
-    `→ ${destination}`,
-  ];
-  if (effectiveLine !== null) lines.push(`runs: ${effectiveLine}`);
-  lines.push('');
-  if (validation.errors.length > 0) {
-    for (const e of validation.errors) lines.push(`✗ ${e}`);
-  }
-  if (validation.warnings.length > 0) {
-    for (const w of validation.warnings) lines.push(`▲ ${w}`);
-  }
-  if (validation.errors.length === 0 && validation.warnings.length === 0) {
-    lines.push('✓ ready to save');
-  }
-  lines.push('', validation.canSave ? 's saves it' : 'save disabled while errors exist');
-  return lines;
-}
-
-function agentFormFieldKind(
-  id: 'destination' | FieldId,
-): 'cycle' | 'text' | 'body' | 'pick' | 'tools' {
-  switch (id) {
-    case 'destination':
-    case 'background':
-    case 'isolation':
-      return 'cycle';
-    case 'name':
-    case 'description':
-    case 'skills':
-    case 'maxTurns':
-    case 'initialPrompt':
-      return 'text';
-    case 'body':
-      return 'body';
-    case 'tools':
-    case 'disallowedTools':
-      return 'tools';
-    default:
-      return 'pick';
-  }
-}
-
-const BODY_CAP = 20_000;
-const TEXT_CAP = 4096;
 
 export function BootAgentsScreen({
   onClose,
@@ -355,133 +54,14 @@ export function BootAgentsScreen({
   const mainModel = useEngineModel();
   const setAppStateMaybe = useSetAppStateMaybe();
 
-  const [defs, setDefs] = useState<AgentDefinitionsResult | null>(given ?? null);
-  const [note, setNote] = useState<string | null>(null);
-  const reload = useCallback((): void => {
-    if (given !== undefined) {
-      setDefs(given);
-      return;
-    }
-    clearAgentDefinitionsCache();
-    void getAgentDefinitionsWithOverrides(workspaceDir)
-      .then(fresh => setDefs(fresh))
-      .catch(e => setNote(`definitions unreadable — ${String(e)}`));
-  }, [given, workspaceDir]);
-  useEffect(() => {
-    reload();
-    if (given !== undefined) return;
-    void startAgentWatch(workspaceDir).catch(() => {});
-    const unsubscribe = subscribeAgentsChanged(reload);
-    return unsubscribe;
-  }, [given, reload, workspaceDir]);
+  const { defs, note, setNote, refreshEverywhere, built, listRows, counts } = useAgentDefinitions({ given, workspaceDir, setAppStateMaybe });
 
-  const refreshEverywhere = useCallback((): void => {
-    reload();
-    if (setAppStateMaybe !== null) {
-      void reloadAgentDefinitionsIntoAppState(workspaceDir, setAppStateMaybe, { invalidate: true }).catch(() => {});
-    }
-  }, [reload, setAppStateMaybe, workspaceDir]);
+  const { confirm, setConfirm, trash, setTrash, modelPick, setModelPick, form, formSnap, formPrompt, setFormPrompt, formPick, setFormPick, formRef, formPromptRef, closeForm, openForm } = useAgentFormState({ defs, workspaceDir, mainModel, setNote, refreshEverywhere });
 
-  const built = useMemo(
-    () =>
-      defs === null
-        ? null
-        : buildStudioRows(defs, { tab: 'all', filter: 'all', query: '' }),
-    [defs],
-  );
-  const listRows: StudioRow[] = built?.rows ?? [];
-  const counts = useMemo(() => {
-    const active = listRows.filter(r => r.kind === 'agent' && r.agent!.disabled !== true).length;
-    const disabled = listRows.filter(r => r.agent?.disabled === true).length;
-    const issues = built?.counts.issues ?? 0;
-    return { active, disabled, issues };
-  }, [listRows, built]);
+  const toggleRow = (row: StudioRow | null): { pending: string; result: Promise<string | null> } | null => toggleRowOf(ctx, row);
 
-  const [confirm, setConfirm] = useState<AgentDefinition | null>(null);
-  const [trash, setTrash] = useState<{ open: boolean; entries: AgentTrashEntry[] }>({ open: false, entries: [] });
-  const [modelPick, setModelPick] = useState<{
-    agentType: string;
-    current: string;
-    effortKept?: EffortValue;
-    rows: AgentModelPickerRow[];
-  } | null>(null);
-
-  const [form, setForm] = useState<{ machine: StudioEditorMachine; mode: 'create' | 'edit' } | null>(null);
-  const [formSnap, setFormSnap] = useState<StudioEditorSnapshot | null>(null);
-  const [formPrompt, setFormPrompt] = useState<'destination' | 'describe' | FieldId | null>(null);
-  const [formPick, setFormPick] = useState<{ field: FieldId; options: string[]; toggles?: boolean; modelRows?: AgentModelPickerRow[] } | null>(null);
-  const formRef = useRef(form);
-  formRef.current = form;
-  const formPromptRef = useRef(formPrompt);
-  formPromptRef.current = formPrompt;
-  const defsRef = useRef(defs);
-  defsRef.current = defs;
-
-  const closeForm = useCallback((): void => {
-    formRef.current?.machine.dispose();
-    setForm(null);
-    setFormSnap(null);
-    setFormPrompt(null);
-    setFormPick(null);
-  }, []);
-
-  const openForm = useCallback(
-    (mode: 'create' | 'edit', base?: StudioDraftBase): void => {
-      formRef.current?.machine.dispose();
-      const machine = createStudioEditorMachine(
-        {
-          mode,
-          ...(base !== undefined ? { base } : {}),
-          cwd: workspaceDir,
-          getExistingAgents: () => defsRef.current?.allAgents ?? [],
-          getParentModel: () => mainModel,
-          onSaved: message => {
-            closeForm();
-            setNote(message);
-            refreshEverywhere();
-          },
-          onCancel: () => closeForm(),
-        },
-        s => setFormSnap(s),
-      );
-      machine.setView({ kind: 'advanced', cursor: 0, editing: null });
-      setForm({ machine, mode });
-      setFormSnap(machine.snapshot());
-    },
-    [workspaceDir, mainModel, closeForm, refreshEverywhere],
-  );
-  useEffect(() => () => formRef.current?.machine.dispose(), []);
-
-  const toggleRow = (row: StudioRow | null): { pending: string; result: Promise<string | null> } | null => {
-    if (!row?.agent || row.agent.source === 'built-in') return null;
-    const target = row.agent;
-    return {
-      pending: 'saving…',
-      result: setAgentDisabled('user', workspaceDir, target.agentType, target.disabled !== true)
-        .then(() => {
-          refreshEverywhere();
-          return `${target.disabled ? 'enabled' : 'disabled'} ${target.agentType}`;
-        })
-        .catch(e => String(e)),
-    };
-  };
-
-  const runDelete = (agent: AgentDefinition): void => {
-    if (!isFileBacked(agent)) return;
-    void deleteAgentToTrash(
-      { filePath: agent.filePath, revision: agent.revision },
-      {
-        agentType: agent.agentType,
-        source: agent.source as Exclude<typeof agent.source, 'built-in' | 'extension'>,
-      },
-    )
-      .then(entry => {
-        setNote(`deleted ${agent.agentType} — restorable in the recovery area as ${entry.id}`);
-        refreshEverywhere();
-      })
-      .catch(e => setNote(e instanceof AgentStoreError ? e.message : String(e)))
-      .finally(() => setConfirm(null));
-  };
+  const runDelete = (agent: AgentDefinition): void => runDeleteOf(ctx, agent);
+  const ctx: AgentsFaceContext = { refreshEverywhere, workspaceDir, setConfirm, setNote, openForm, setModelPick, modelPick, onOpenLogins, faceTools, formRef, mainModel, setFormPick, setFormPrompt, formPick, formPromptRef, confirm, runDelete, formSnap };
 
   const list = useInteractiveList<StudioRow>({
     rows: listRows,
@@ -493,24 +73,7 @@ export function BootAgentsScreen({
       {
         key: 'return',
         hint: 'edit',
-        run: r => {
-          if (!r?.agent) return null;
-          if (r.agent.source === 'built-in') {
-            const agent = r.agent;
-            setModelPick({
-              agentType: agent.agentType,
-              current: agent.model ?? 'inherit',
-              ...(agent.operatorOverride?.from === 'user' && agent.operatorOverride.effort !== undefined
-                ? { effortKept: agent.operatorOverride.effort }
-                : {}),
-              rows: getAgentModelPickerRows(),
-            });
-            return null;
-          }
-          if (!isFileBacked(r.agent)) return 'only file-backed agents edit here — clone it in /agents first';
-          openForm('edit', { identity: { filePath: r.agent.filePath, revision: r.agent.revision }, agent: r.agent });
-          return null;
-        },
+        run: r => agentEditRun(ctx, r),
       },
       {
         key: 'n',
@@ -586,123 +149,15 @@ export function BootAgentsScreen({
       {
         key: 'return',
         hint: 'pick',
-        run: value => {
-          const pick = modelPick;
-          if (value === null || pick === null) return null;
-          const row = pick.rows.find(r => r.value === value);
-          if (row === undefined) return null;
-          const outcome = agentModelPickOutcome(row);
-          if (outcome.kind === 'needs-sign-in') {
-            if (onOpenLogins) {
-              onOpenLogins();
-              return null;
-            }
-            return `${outcome.hint} — /logins opens the sign-in catalogue`;
-          }
-          const cleared = outcome.model === undefined;
-          setModelPick(null);
-          return {
-            pending: 'saving…',
-            result: setAgentOverride(
-              'user',
-              workspaceDir,
-              pick.agentType,
-              cleared
-                ? pick.effortKept !== undefined
-                  ? { effort: pick.effortKept }
-                  : undefined
-                : { model: outcome.model!, ...(pick.effortKept !== undefined ? { effort: pick.effortKept } : {}) },
-            )
-              .then(() => {
-                refreshEverywhere();
-                return cleared
-                  ? `${pick.agentType} follows your session's model again — override cleared`
-                  : `${pick.agentType} runs ${outcome.model} — a config row, the built-in definition untouched`;
-              })
-              .catch(e => String(e)),
-          };
-        },
+        run: value => modelPickRun(ctx, value),
       },
     ],
   });
 
   const formRowIds = useMemo(() => (form === null ? [] : agentFormRowIds(form.mode)), [form]);
-  const editFormRow = (id: 'destination' | FieldId): void => {
-    const f = formRef.current;
-    const snap = f?.machine.snapshot();
-    if (!f || !snap) return;
-    switch (agentFormFieldKind(id)) {
-      case 'cycle': {
-        if (id === 'destination') f.machine.setScope(snap.scope === 'project' ? 'user' : 'project');
-        else if (id === 'background') f.machine.commit({ set: { background: snap.doc.fields.background ? undefined : true } });
-        else f.machine.commit({ set: { isolation: snap.doc.fields.isolation ? undefined : 'worktree' } });
-        return;
-      }
-      case 'text':
-        f.machine.openFieldEditor(id as FieldId);
-        setFormPrompt(id);
-        return;
-      case 'body':
-        f.machine.setTextBuffer(snap.doc.body.trim());
-        setFormPrompt('body');
-        return;
-      case 'tools': {
-        const names = faceTools.map(tool => tool.name);
-        setFormPick({ field: id as FieldId, options: names, toggles: true });
-        return;
-      }
-      case 'pick': {
-        const field = id as FieldId;
-        if (field === 'model') {
-          const modelRows = getAgentModelPickerRows();
-          setFormPick({ field, options: modelRows.map(r => r.value), modelRows });
-          return;
-        }
-        const options =
-          field === 'effort'
-              ? (() => {
-                  const previewModel =
-                    snap.doc.fields.model && snap.doc.fields.model !== 'inherit'
-                      ? snap.doc.fields.model
-                      : mainModel;
-                  const stops = resolveEffortTruth(previewModel, undefined).selectable;
-                  return (stops.length > 0 ? stops : EFFORT_LEVELS).map(String);
-                })()
-              : field === 'permissionMode'
-                ? offeredDefinitionModes(bootBirthFacts().bypassConsent)
-                : field === 'memory'
-                  ? ['user', 'project', 'local']
-                  : field === 'instructionProfile'
-                    ? ['auto', 'native']
-                    : [...AGENT_COLORS];
-        setFormPick({ field, options: [...options, '(clear — use the default)'] });
-        return;
-      }
-    }
-  };
+  const editFormRow = (id: 'destination' | FieldId): void => editFormRowOf(ctx, id);
 
-  const clearFormRow = (id: 'destination' | FieldId): void => {
-    const f = formRef.current;
-    if (!f) return;
-    switch (id) {
-      case 'destination':
-        f.machine.setScope('project');
-        return;
-      case 'name':
-      case 'description':
-      case 'body':
-        return;
-      case 'background':
-        f.machine.commit({ set: { background: undefined } });
-        return;
-      case 'isolation':
-        f.machine.commit({ set: { isolation: undefined } });
-        return;
-      default:
-        f.machine.commit({ set: { [id]: undefined } as never });
-        return;
-    }
-  };
+  const clearFormRow = (id: 'destination' | FieldId): void => clearFormRowOf(ctx, id);
 
   const formList = useInteractiveList<'destination' | FieldId>({
     rows: formRowIds,
@@ -764,123 +219,23 @@ export function BootAgentsScreen({
       {
         key: 'return',
         hint: 'pick',
-        run: value => {
-          const f = formRef.current;
-          const pick = formPick;
-          if (value === null || !f || !pick) return null;
-          const snap = f.machine.snapshot();
-          if (pick.toggles) {
-            const field = pick.field as 'tools' | 'disallowedTools';
-            const current = snap.doc.fields[field];
-            const next =
-              current === undefined
-                ? [value]
-                : current.includes(value)
-                  ? current.filter(n => n !== value)
-                  : [...current, value];
-            f.machine.commit({ set: { [field]: next.length === 0 ? undefined : next } as never });
-            return null;
-          }
-          const cleared = value === '(clear — use the default)';
-          if (pick.field === 'model') {
-            const row = pick.modelRows?.find(r => r.value === value);
-            if (row !== undefined) {
-              const outcome = agentModelPickOutcome(row);
-              if (outcome.kind === 'needs-sign-in') {
-                if (onOpenLogins) {
-                  onOpenLogins();
-                  return null;
-                }
-                return `${outcome.hint} — /logins opens the sign-in catalogue`;
-              }
-              f.machine.commit({ set: { model: outcome.model } });
-              setFormPick(null);
-              return null;
-            }
-            f.machine.commit({ set: { model: cleared || value === 'inherit' ? undefined : value } });
-          } else if (pick.field === 'effort') {
-            f.machine.commit({ set: { effort: cleared ? undefined : (value as never) } });
-          } else if (pick.field === 'maxTurns') {
-          } else {
-            f.machine.commit({ set: { [pick.field]: cleared ? undefined : value } as never });
-          }
-          setFormPick(null);
-          return null;
-        },
+        run: value => formPickRun(ctx, value),
       },
     ],
   });
 
   useInput(
-    (input, key, event) => {
-      event.stopImmediatePropagation();
-      const f = formRef.current;
-      const promptField = formPromptRef.current;
-      if (!f || promptField === null) return;
-      const snap = f.machine.snapshot();
-      if (key.escape) {
-        f.machine.closeFieldEditor();
-        setFormPrompt(null);
-        return;
-      }
-      if (key.return) {
-        const draft = snap.textBuffer;
-        if (promptField === 'describe') {
-          if (draft.trim() !== '') f.machine.guidedDescribe(draft.trim());
-        } else if (promptField === 'body') {
-          f.machine.commit({ body: draft.trim() === '' ? '' : draft.trim() + '\n' });
-        } else {
-          f.machine.commitTextField(promptField as FieldId, draft);
-        }
-        setFormPrompt(null);
-        return;
-      }
-      if (key.backspace || key.delete) {
-        f.machine.setTextBuffer(snap.textBuffer.slice(0, -1));
-        return;
-      }
-      if (key.ctrl || key.meta || key.tab || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) return;
-      if (input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) {
-        const cap = promptField === 'body' ? BODY_CAP : TEXT_CAP;
-        f.machine.setTextBuffer((snap.textBuffer + input).slice(0, cap));
-      }
-    },
+    (input, key, event) => formPromptKeys(ctx, input, key, event),
     { isActive: !suspended && form !== null && formPrompt !== null },
   );
 
   useInput(
-    (input, key, event) => {
-      event.stopImmediatePropagation();
-      if (confirm === null) return;
-      if (input === 'y' || key.return) runDelete(confirm);
-      else if (input === 'n' || key.escape) setConfirm(null);
-    },
+    (input, key, event) => confirmKeys(ctx, input, key, event),
     { isActive: !suspended && confirm !== null },
   );
 
   useInput(
-    (input, key, event) => {
-      const f = formRef.current;
-      const snap = formSnap;
-      if (!f || !snap) return;
-      if (snap.busy) {
-        event.stopImmediatePropagation();
-        if (key.escape) f.machine.abortGeneration();
-        return;
-      }
-      if (snap.recoverOffer) {
-        event.stopImmediatePropagation();
-        if (input === 'y' || key.return) f.machine.acceptRecover();
-        else if (input === 'n' || key.escape) f.machine.declineRecover();
-        return;
-      }
-      if (snap.conflict) {
-        event.stopImmediatePropagation();
-        if (input === 'l' || input === 'L') f.machine.mergeOntoTheirs();
-        else if (key.escape) f.machine.clearConflict();
-        return;
-      }
-    },
+    (input, key, event) => formSnapKeys(ctx, input, key, event),
     {
       isActive:
         !suspended &&
@@ -913,218 +268,17 @@ export function BootAgentsScreen({
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
 
   const menuM = useMemo(() => {
-    const critterKey = getSessionCritterKey();
-    const environment = {
-      model: renderModelChip(mainModel),
-      critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-      critterHue: getSessionAccent().accent,
-      dirBase: basename(workspaceDir) || workspaceDir,
-      dirTail: '',
-    };
-    const base = {
-      title: 'agents',
-      summaryTitle: 'AGENTS',
-      summaryRows: agentFaceSummaryRows(counts),
-      environment,
-      glowWord: wordGlow,
-      moreHint: '… (the trail continues — a taller terminal shows it whole)',
-    };
+    const base = agentsFaceBase({ counts, mainModel, wordGlow, workspaceDir });
     if (form !== null && formSnap !== null) {
-      const snap = formSnap;
-      const validation = computeStudioValidation({
-        doc: snap.doc,
-        existingAgents: defs?.allAgents ?? [],
-        base: undefined,
-        mode: form.mode,
-      });
-      const destination = studioDestinationPath({
-        base: undefined,
-        scope: snap.scope,
-        cwd: workspaceDir,
-        name: snap.doc.fields.name,
-      });
-      const modelAvailability = agentModelAvailabilityNote(snap.doc.fields.model);
-      const effRun = effectiveStudioRuntime({
-        doc: snap.doc,
-        base: undefined,
-        scope: snap.scope,
-        parentModel: mainModel,
-        sessionEffort: undefined,
-        tools: faceTools,
-      });
-      const effectiveLine = `${effRun.modelIntent} → ${effRun.model} · effort ${effRun.effort.label}${modelAvailability !== null ? ` · ${modelAvailability}` : ''}`;
-      if (formPick !== null) {
-        const current = (snap.doc.fields as Record<string, unknown>)[formPick.field];
-        if (formPick.modelRows !== undefined) {
-          const currentModel = String(snap.doc.fields.model ?? 'inherit');
-          return {
-            ...base,
-            entries: formPick.modelRows.map(r => ({
-              label: r.kind === 'connect' ? `${r.label} …` : r.label,
-              group: r.group,
-              groupTitle: r.group,
-              summary: r.unavailable ?? r.description,
-              valueLabel: r.kind === 'connect' ? 'sign in' : r.unavailable !== undefined ? 'needs sign-in' : currentModel === r.value ? 'current' : '',
-              valueIsDefault: r.unavailable === undefined && r.kind !== 'connect',
-              pinnedVal: null,
-              detail: null,
-            })),
-            selIdx: pickList.selectedIndex,
-            statusRight: `${formPick.modelRows.length} rows — the full catalogue; ↵ on a sign-in row opens Logins`,
-            legend: AGENT_FACE_LEGEND_PICK,
-            detailOverride: agentFormDetailLines({ snap, validation, destination, effectiveLine, mode: form.mode }),
-          };
-        }
-        return {
-          ...base,
-          entries: formPick.options.map(o => ({
-            label: o,
-            group: formPick.field,
-            groupTitle: `pick ${formPick.field}`,
-            summary: '',
-            valueLabel: formPick.toggles
-              ? Array.isArray(current) && current.includes(o)
-                ? 'in'
-                : ''
-              : String(current ?? (formPick.field === 'model' ? 'inherit' : '')) === o
-                ? 'current'
-                : '',
-            valueIsDefault: true,
-            pinnedVal: null,
-            detail: null,
-          })),
-          selIdx: pickList.selectedIndex,
-          statusRight: `${formPick.options.length} option${formPick.options.length === 1 ? '' : 's'}${formPick.toggles ? ' · ↵ toggles membership' : ''}`,
-          legend: AGENT_FACE_LEGEND_PICK,
-          detailOverride: agentFormDetailLines({ snap, validation, destination, effectiveLine, mode: form.mode }),
-        };
-      }
-      const promptOpen = formPrompt !== null;
-      const promptLine = promptOpen
-        ? `${String(formPrompt)}: ${snap.textBuffer === '' ? '(type)' : snap.textBuffer}▌`
-        : null;
-      return {
-        ...base,
-        entries: formRowIds.map(id => agentFormEntryOf(id, snap)),
-        selIdx: promptOpen ? -1 : formList.selectedIndex,
-        statusRight: promptLine ?? snap.note?.text ?? note ?? 'the agent form — ↵ edits a row · s saves',
-        legend: promptOpen ? AGENT_FACE_LEGEND_PROMPT : AGENT_FACE_LEGEND_FORM,
-        detailOverride: agentFormDetailLines({ snap, validation, destination, effectiveLine, mode: form.mode }),
-      };
+      return formFace({ base, defs, faceTools, form, formList, formPick, formPrompt, formRowIds, formSnap, mainModel, note, pickList, workspaceDir });
     }
     if (modelPick !== null) {
-      return {
-        ...base,
-        entries: modelPick.rows.map(r => ({
-          label: r.kind === 'connect' ? `${r.label} …` : r.label,
-          group: r.group,
-          groupTitle: r.group,
-          summary: r.unavailable ?? r.description,
-          valueLabel:
-            r.kind === 'connect'
-              ? 'sign in'
-              : r.unavailable !== undefined
-                ? 'needs sign-in'
-                : modelPick.current === r.value
-                  ? 'current'
-                  : '',
-          valueIsDefault: r.unavailable === undefined && r.kind !== 'connect',
-          pinnedVal: null,
-          detail: null,
-        })),
-        selIdx: modelPickList.selectedIndex,
-        statusRight:
-          modelPickList.note ??
-          `${modelPick.agentType} — the model dial; ↵ on a sign-in row opens Logins`,
-        legend: AGENT_FACE_LEGEND_PICK,
-        detailOverride: [
-          `${modelPick.agentType} — model override`,
-          '',
-          'built-in (no file): the definition is',
-          'code — your pick lands in config as a',
-          'per-agent settings row, never a file',
-          'edit; dispatch wears it on the next',
-          'spawn, running sessions included.',
-          '',
-          "'Inherit' clears the row — the agent",
-          "follows your session's model again.",
-        ],
-      };
+      return modelPickFace({ base, modelPick, modelPickList });
     }
     if (trash.open) {
-      const empty = trash.entries.length === 0;
-      return {
-        ...base,
-        entries: empty
-          ? [
-              {
-                label: 'the recovery area is empty — deleted agents land here, restorable',
-                group: 'recovery area',
-                groupTitle: 'recovery area',
-                summary: '',
-                valueLabel: '—',
-                valueIsDefault: true,
-                pinnedVal: null,
-                detail: null,
-                inert: true,
-              } satisfies FaceEntry,
-            ]
-          : trash.entries.map(agentTrashEntryOf),
-        selIdx: empty ? -1 : trashList.selectedIndex,
-        statusRight: trashList.note ?? `${trash.entries.length} restorable`,
-        legend: AGENT_FACE_LEGEND_TRASH,
-      };
+      return trashFace({ base, trash, trashList });
     }
-    const entries = listRows.map(agentFaceEntryOf);
-    const selected = list.selectedRow;
-    const detailOverride = confirm
-      ? agentDeleteConfirmLines(confirm)
-      : selected !== null && built !== null
-        ? agentFaceDetailLines(
-            selected,
-            built.estate,
-            selected.agent
-              ? resolveEffectiveAgentRuntime(selected.agent, {
-                  parentModel: mainModel,
-                  sessionEffort: undefined,
-                  tools: faceTools,
-                })
-              : null,
-            selected.agent ? agentModelAvailabilityNote(selected.agent.operatorOverride?.model ?? selected.agent.model) : null,
-          )
-        : [
-            'no agents yet',
-            '',
-            "n creates one — it lands on disk and",
-            'every session sees it, running ones',
-            'included (the freshness law).',
-          ];
-    return {
-      ...base,
-      entries:
-        entries.length > 0
-          ? entries
-          : [
-              {
-                label: 'no agents in this workspace yet — n creates one',
-                group: 'agents',
-                groupTitle: 'agents',
-                summary: '',
-                valueLabel: '—',
-                valueIsDefault: true,
-                pinnedVal: null,
-                detail: null,
-                inert: true,
-              } satisfies FaceEntry,
-            ],
-      selIdx: entries.length > 0 ? list.selectedIndex : -1,
-      statusRight:
-        defs === null
-          ? '◓ reading definitions …'
-          : (list.note ?? note ?? agentFaceStatusLine(counts)),
-      legend: confirm ? AGENT_FACE_LEGEND_CONFIRM : AGENT_FACE_LEGEND,
-      detailOverride,
-    };
+    return listFace({ base, built, confirm, counts, defs, faceTools, list, listRows, mainModel, note });
   }, [counts, listRows, built, defs, list.selectedRow, list.selectedIndex, list.note, note, confirm, trash, trashList.selectedIndex, trashList.note, form, formSnap, formPrompt, formPick, formRowIds, formList.selectedIndex, pickList.selectedIndex, modelPick, modelPickList.selectedIndex, modelPickList.note, mainModel, faceTools, workspaceDir, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {
@@ -1147,57 +301,8 @@ export function BootAgentsScreen({
         const line = composition.placed[i] ?? '';
         const entryIdx = composition.entryAt.get(i);
         if (entryIdx !== undefined) {
-          if (formPick !== null) {
-            const option = formPick.options[entryIdx];
-            if (option !== undefined) {
-              const props = pickList.rowProps(option, entryIdx);
-              return (
-                <InteractiveRow key={props.id} id={props.id} selected={props.selected} unavailable={props.unavailable} onSelect={props.onSelect} onActivate={props.onActivate} selectionBand={false} hoverStyle="chrome-ink" height={1}>
-                  {hover => renderSceneLine(line, hover && !props.selected ? { label: option, color: t.info } : undefined)}
-                </InteractiveRow>
-              );
-            }
-          } else if (form !== null) {
-            const rowId = formRowIds[entryIdx];
-            if (rowId !== undefined) {
-              const props = formList.rowProps(rowId, entryIdx);
-              return (
-                <InteractiveRow key={props.id} id={props.id} selected={props.selected} unavailable={props.unavailable} onSelect={props.onSelect} onActivate={props.onActivate} selectionBand={false} hoverStyle="chrome-ink" height={1}>
-                  {hover => renderSceneLine(line, hover && !props.selected ? { label: agentFormEntryOf(rowId, formSnap!).label, color: t.info } : undefined)}
-                </InteractiveRow>
-              );
-            }
-          } else if (modelPick !== null) {
-            const row = modelPick.rows[entryIdx];
-            if (row !== undefined) {
-              const props = modelPickList.rowProps(row.value, entryIdx);
-              return (
-                <InteractiveRow key={props.id} id={props.id} selected={props.selected} unavailable={props.unavailable} onSelect={props.onSelect} onActivate={props.onActivate} selectionBand={false} hoverStyle="chrome-ink" height={1}>
-                  {hover => renderSceneLine(line, hover && !props.selected ? { label: row.label, color: t.info } : undefined)}
-                </InteractiveRow>
-              );
-            }
-          } else if (trash.open) {
-            const entry = trash.entries[entryIdx];
-            if (entry !== undefined) {
-              const props = trashList.rowProps(entry, entryIdx);
-              return (
-                <InteractiveRow key={props.id} id={props.id} selected={props.selected} unavailable={props.unavailable} onSelect={props.onSelect} onActivate={props.onActivate} selectionBand={false} hoverStyle="chrome-ink" height={1}>
-                  {hover => renderSceneLine(line, hover && !props.selected ? { label: entry.agentType, color: t.info } : undefined)}
-                </InteractiveRow>
-              );
-            }
-          } else {
-            const row = listRows[entryIdx];
-            if (row !== undefined) {
-              const props = list.rowProps(row, entryIdx);
-              return (
-                <InteractiveRow key={props.id} id={props.id} selected={props.selected} unavailable={props.unavailable} onSelect={props.onSelect} onActivate={props.onActivate} selectionBand={false} hoverStyle="chrome-ink" height={1}>
-                  {hover => renderSceneLine(line, hover && !props.selected ? { label: agentFaceEntryOf(row).label, color: t.info } : undefined)}
-                </InteractiveRow>
-              );
-            }
-          }
+          const faceRow = agentFaceRow({ entryIdx, form, formList, formPick, formRowIds, formSnap, line, list, listRows, modelPick, modelPickList, pickList, t, trash, trashList });
+          if (faceRow !== undefined) return faceRow;
         }
         return (
           <Box key={`agentline-${i}`} height={1} flexShrink={0}>

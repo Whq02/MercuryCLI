@@ -1,80 +1,34 @@
 
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useInsertionEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react'
+import React, { useCallback, useContext, useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { fileURLToPath } from 'node:url'
 import { logError } from '../utils/log.js'
-import { Box, MotionParkContext, Text, measureElement } from '../ink.js'
-import type { DOMElement } from '../ink.js'
-import ScrollBox, {
-  type ScrollBoxHandle,
-} from '../ink/components/ScrollBox.js'
-import { AlternateScreen } from '../ink/components/AlternateScreen.js'
-import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
+import { Box, MotionParkContext, measureElement, type DOMElement } from '../ink.js'
+import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { InkInstanceContext } from '../ink/components/InkInstanceContext.js'
 import instances from '../ink/instances.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
-import { CompactFooterNoticeContext, CompactFrameBudgetContext, useLayoutChrome } from '../context/layoutChromeContext.js'
+import { useLayoutChrome } from '../context/layoutChromeContext.js'
 import { compactBandRows, compactFrameBudget } from './mercury-ui/geometry.js'
-import { CompactIdentityBand } from './CompactIdentityBand.js'
 import { railPlan } from '../utils/helmGeometry.js'
-import {
-  setHelmFocus,
-  setHelmVitalsAvailable,
-} from '../utils/cockpit/helmFocus.js'
-import { ModalContext } from '../context/modalContext.js'
-import CursorDeclarationContext from '../ink/components/CursorDeclarationContext.js'
-import { useCursorFollow } from './mercury-ui/useCursorFollow.js'
-import {
-  PromptOverlayProvider,
-  usePromptOverlay,
-  usePromptOverlayDialog,
-} from '../context/promptOverlayContext.js'
-import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
+import { setHelmFocus, setHelmVitalsAvailable } from '../utils/cockpit/helmFocus.js'
+import { PromptOverlayProvider } from '../context/promptOverlayContext.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { openBrowser, openPath } from '../utils/browser.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
-import { estateGroundBg } from '../utils/mercuryTokens.js'
 import { setRecessTarget } from '../ink/recessLayer.js'
 import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
 import { recessTargetFor } from '../utils/cockpit/recessBackdrop.js'
-import { DeckPane } from './DeckPane.js'
-import { HelmLanesRail } from './HelmLanesRail.js'
-import { HelmVitalsRail } from './HelmVitalsRail.js'
-import { FilesMenuSlot } from './FilesMenuSlot.js'
-import { ModelPickerPopupSlot } from './ModelPickerPopupSlot.js'
 import { modelPickerPopupClaimed, subscribeModelPickerPopup } from '../utils/cockpit/modelPickerPopup.js'
-import { CommandPopupSlot } from './CommandPopupSlot.js'
 import { commandPopupClaim, subscribeCommandPopup } from '../utils/cockpit/commandPopup.js'
 import { SettingsPopupSlot } from './SettingsPopupSlot.js'
-import { PinnedCritterBerth } from './MercuryHome.js'
-import { CR_COLS } from '../utils/cockpit/critterData.js'
-import { WorkCapsule } from './mercury-ui/WorkCapsule.js'
-import { PromptInputFooterSuggestions } from './PromptInput/PromptInputFooterSuggestions.js'
-import { CrewViewSlot } from './CrewViewSlot.js'
-import { CrewmateCard } from './CrewmateCard.js'
 import { useViewedCrewmate } from './tasks/useCrewmateView.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
-import type {
-  Message as WireMessage,
-  NormalizedMessage,
-} from '../types/message.js'
-import {
-  isNullRenderingAttachment,
-  isNullRenderingSystemRow,
-} from './messages/nullRenderingAttachments.js'
+import type { Message as WireMessage, NormalizedMessage } from '../types/message.js'
+import { isNullRenderingAttachment, isNullRenderingSystemRow } from './messages/nullRenderingAttachments.js'
+import type { UnseenDivider } from './fullscreenLayout/panes.js'
+import { fullscreenFrame } from './fullscreenLayout/frame.js'
+export type { UnseenDivider } from './fullscreenLayout/panes.js'
 
-
-export type UnseenDivider = { firstUnseenUuid: string; count: number }
 
 export function countUnseenAssistantTurns(
   messages: readonly WireMessage[],
@@ -245,106 +199,6 @@ export function useUnseenDivider(
     jumpToNew,
     shiftDivider,
   }
-}
-
-
-function PromptOverlayStrip(): React.ReactNode {
-  const data = usePromptOverlay()
-  const dialog = usePromptOverlayDialog()
-  if (dialog) return <Box flexDirection="column">{dialog}</Box>
-  if (!data) return null
-  return (
-    <PromptInputFooterSuggestions
-      suggestions={data.suggestions}
-      overlay
-      onPick={data.onPick}
-      onHover={data.onHover}
-      maxColumnWidth={data.maxColumnWidth}
-      maxRows={data.maxRows}
-    />
-  )
-}
-
-function JumpPill({
-  divider,
-  scrollRef,
-  dividerYRef,
-  onClick,
-}: {
-  divider: UnseenDivider | undefined
-  scrollRef: React.RefObject<ScrollBoxHandle | null>
-  dividerYRef: React.MutableRefObject<number | null>
-  onClick: () => void
-}): React.ReactNode {
-  const visible = React.useSyncExternalStore(
-    useCallback(
-      (listener: () => void) => {
-        const handle = scrollRef.current
-        if (!handle) return () => {}
-        const offScroll = handle.subscribe(listener)
-        const offLayout = handle.subscribeLayout(listener)
-        return () => {
-          offScroll()
-          offLayout()
-        }
-      },
-      [scrollRef],
-    ),
-    () => {
-      const handle = scrollRef.current
-      if (!handle || dividerYRef.current === null || handle.isSticky()) return false
-      return (
-        handle.getScrollTop() +
-          handle.getPendingDelta() +
-          handle.getFreshViewportHeight() <
-        handle.getFreshScrollHeight()
-      )
-    },
-    () => false,
-  )
-  if (!visible) return null
-  const count = divider?.count ?? 0
-  const label =
-    count === 0
-      ? '[ back to the bottom · alt+↓ ]'
-      : `[ ${count} new ${count === 1 ? 'message' : 'messages'} · alt+↓ ]`
-  return (
-    <>
-      <Box height={1} flexShrink={0} />
-      <Box position="absolute" bottom={0} left={0} right={0} justifyContent="center">
-        <InteractiveRow
-          id="transcript:jump-to-new"
-          directActivate
-          onActivate={onClick}
-          height={1}
-        >
-          {(hover: boolean) => (
-            <Text backgroundColor={hover ? 'infoShimmer' : 'info'} bold>
-              {label}
-            </Text>
-          )}
-        </InteractiveRow>
-      </Box>
-    </>
-  )
-}
-
-function ModalPaneBody({ rows, columns, scrollRef, children }: { rows: number; columns: number; scrollRef: React.RefObject<ScrollBoxHandle | null> | null; children: React.ReactNode }): React.ReactNode {
-  const paneRef = useRef<ScrollBoxHandle | null>(null)
-  const follow = useCursorFollow(paneRef, { rows, width: columns })
-  useLayoutEffect(() => {
-    if (scrollRef && scrollRef.current === null) scrollRef.current = paneRef.current
-  })
-  useLayoutEffect(() => () => {
-    if (scrollRef && scrollRef.current === paneRef.current) scrollRef.current = null
-  }, [scrollRef])
-  return (
-    <CursorDeclarationContext.Provider value={follow}>
-      <ScrollBox ref={paneRef} flexShrink={1} minHeight={0} flexDirection="column">
-        {children}
-      </ScrollBox>
-    </CursorDeclarationContext.Provider>
-  )
 }
 
 
@@ -520,197 +374,7 @@ export function FullscreenLayout({
     )
   }
 
-  const divider =
-    newMessageCount !== undefined && newMessageCount > 0
-      ? { firstUnseenUuid: '', count: newMessageCount }
-      : undefined
-
-  const modalPeek = isCompact ? 0 : chrome === 'inline' ? 2 : 0
-  const modalSeparatorRows = modalUp && (!isCompact || terminalRows > 1) ? 1 : 0
-  const t = tokens
-  const modalClaims = modalPeek === 0;
-  const recessOn = modalUp && recessTargetFor(t) !== null;
-  const blankClaims = modalUp && modalClaims && !recessOn;
-
-  const transcriptArea = (
-    <Box
-      flexDirection="column"
-      flexGrow={1}
-      minHeight={0}
-      paddingX={transcriptGutter}
-    >
-      <ScrollBox
-        ref={scrollRef}
-        stickyScroll
-        flexDirection="column"
-        flexGrow={1}
-        minHeight={0}
-        paddingTop={isCompact ? 0 : 1}
-      >
-        {scrollable}
-      </ScrollBox>
-      {!hidePill && dividerYRef && scrollRef && (!isCompact || (compactBudget?.transcriptMinRows ?? 0) > 0) ? (
-        <JumpPill
-          divider={viewedCrewmate === null ? divider : undefined}
-          scrollRef={scrollRef}
-          dividerYRef={dividerYRef}
-          onClick={() => onPillClick?.()}
-        />
-      ) : null}
-      {bottomFloat ? (
-        <Box justifyContent="flex-end">{bottomFloat}</Box>
-      ) : null}
-    </Box>
-  )
-
-  const bottomBlock = (
-    <Box flexDirection="column" flexShrink={0}>
-      <PromptOverlayStrip />
-      {overlay ?? null}
-      {bottom}
-    </Box>
-  )
-
-  const motionParked = modalUp && modalPeek === 0
-  const modalPane = popupUp ? (
-    <MotionParkContext.Provider value={false}>
-      <ModelPickerPopupSlot hostRef={centreBoxRef} bandRef={statusBandRef} framed={centerFrame} scrollRef={modalScrollRef ?? null}>
-        {modal}
-      </ModelPickerPopupSlot>
-    </MotionParkContext.Provider>
-  ) : commandPopupUp ? (
-    <MotionParkContext.Provider value={false}>
-      <CommandPopupSlot hostRef={centreBoxRef} bandRef={statusBandRef} framed={centerFrame} scrollRef={modalScrollRef ?? null} shape={commandPopup.shape}>
-        {modal}
-      </CommandPopupSlot>
-    </MotionParkContext.Provider>
-  ) : modalMounted ? (
-    <MotionParkContext.Provider value={false}>
-      <Box ref={recessOn ? elevatedRef : undefined} position="absolute" bottom={0} width="100%" height={blankClaims ? terminalRows : undefined} maxHeight={Math.max(0, terminalRows - modalPeek)} flexDirection="column" overflow="hidden" opaque={true}>
-        {blankClaims && <Box flexGrow={1} />}{modalSeparatorRows > 0 ? <Box flexShrink={0}><Text color="info">{"▔".repeat(Math.max(1, columns))}</Text></Box> : null}
-        <ModalContext.Provider
-          value={{
-            rows: Math.max(0, terminalRows - modalPeek - modalSeparatorRows),
-            columns,
-            scrollRef: modalScrollRef ?? null,
-          }}
-        >
-          {}
-          <ModalPaneBody rows={Math.max(0, terminalRows - modalPeek - modalSeparatorRows)} columns={columns} scrollRef={modalScrollRef ?? null}>{modal}</ModalPaneBody>{blankClaims && <Box flexGrow={1} />}
-        </ModalContext.Provider>
-      </Box>
-    </MotionParkContext.Provider>
-  ) : null
-
-  return (
-    <AlternateScreen>
-      <PromptOverlayProvider>
-        <CompactFooterNoticeContext.Provider value={isCompact ? setCompactFooterNotice : null}>
-        <CompactFrameBudgetContext.Provider value={compactBudget}>
-        <CockpitActiveContext.Provider value={cockpit}>
-          {}
-          <MotionParkContext.Provider value={motionParked}>
-            <Box
-              flexDirection="column"
-              width={columns}
-              height={rows}
-              overflow="hidden"
-              {...(estateGroundBg(tokens) !== undefined
-                ? { backgroundColor: estateGroundBg(tokens) }
-                : {})}
-            >
-              {fullscreen && !isCompact && chrome === 'deck-strip' ? <DeckPane /> : null}
-              <Box flexDirection="row" flexGrow={1} minHeight={0} overflow="hidden">
-                {}
-                <Box ref={lanesBoxRef} flexDirection="column" overflow="hidden" flexShrink={0} width={cockpit && plan.lanes ? plan.lanesW : 0}>
-                  {cockpit && plan.lanes ? (
-                    <HelmLanesRail
-                      width={plan.lanesW}
-                      mergedVitals={!plan.vitals}
-                      availRows={lanesRows}
-                    />
-                  ) : null}
-                </Box>
-                {}
-                <Box
-                  ref={centreBoxRef}
-                  flexDirection="column"
-                  flexGrow={1}
-                  minWidth={0}
-                  overflow="hidden"
-                  borderStyle={centerFrame ? 'round' : undefined}
-                  borderColor={centerFrame ? t.borderStrong : undefined}
-                >
-                  {}
-                  <TerminalSizeContext.Provider value={sizeVal}>
-                    {isCompact ? <CompactIdentityBand /> : null}
-                    {centerFrame && statusBand ? (
-                      <Box
-                        ref={statusBandRef}
-                        display={bandFits ? 'flex' : 'none'}
-                        flexDirection="row"
-                        flexShrink={0}
-                        width={sizeVal.columns}
-                        borderStyle="round"
-                        borderColor={t.borderStrong}
-                        paddingX={1}
-                        gap={1}
-                      >
-                        <Box
-                          flexDirection="column"
-                          flexShrink={0}
-                          width={CR_COLS}
-                          justifyContent="center"
-                        >
-                          <PinnedCritterBerth />
-                        </Box>
-                        <Box
-                          flexDirection="column"
-                          flexGrow={1}
-                          minWidth={0}
-                          justifyContent="center"
-                        >
-                          {viewedCrewmate !== null ? (
-                            <CrewmateCard crewmate={viewedCrewmate} width={sizeVal.columns - 4 - 1 - CR_COLS} />
-                          ) : (
-                            <WorkCapsule
-                              active={!!statusBandActive}
-                              width={sizeVal.columns - 4 - 1 - CR_COLS}
-                            >
-                              {statusBand}
-                            </WorkCapsule>
-                          )}
-                        </Box>
-                      </Box>
-                    ) : null}
-                    <TerminalSizeContext.Provider value={transcriptSize}>
-                      {transcriptArea}
-                    </TerminalSizeContext.Provider>
-                  </TerminalSizeContext.Provider>
-                  <FilesMenuSlot hostRef={centreBoxRef} framed={centerFrame} />
-                  <CrewViewSlot hostRef={centreBoxRef} bandRef={statusBandRef} framed={centerFrame} />
-                </Box>
-                {}
-                <Box ref={vitalsBoxRef} flexDirection="column" overflow="hidden" flexShrink={0} width={cockpit && plan.vitals ? plan.vitalsW : 0}>
-                  {cockpit && plan.vitals ? (
-                    <HelmVitalsRail
-                      width={plan.vitalsW}
-                      availRows={vitalsRows}
-                    />
-                  ) : null}
-                </Box>
-              </Box>
-              {bottomBlock}
-              {modalPane}
-              <SettingsPopupSlot overlay={true} hostRef={centreBoxRef} framed={centerFrame} />
-            </Box>
-          </MotionParkContext.Provider>
-        </CockpitActiveContext.Provider>
-        </CompactFrameBudgetContext.Provider>
-        </CompactFooterNoticeContext.Provider>
-      </PromptOverlayProvider>
-    </AlternateScreen>
-  )
+  return fullscreenFrame({ bandFits, bottom, bottomFloat, centerFrame, centreBoxRef, chrome, cockpit, columns, commandPopup, commandPopupUp, compactBudget, dividerYRef, elevatedRef, fullscreen, hidePill, isCompact, lanesBoxRef, lanesRows, modal, modalMounted, modalScrollRef, modalUp, newMessageCount, onPillClick, overlay, plan, popupUp, rows, scrollRef, scrollable, setCompactFooterNotice, sizeVal, statusBand, statusBandActive, statusBandRef, terminalRows, tokens, transcriptGutter, transcriptSize, viewedCrewmate, vitalsBoxRef, vitalsRows })
 }
 
 export default FullscreenLayout

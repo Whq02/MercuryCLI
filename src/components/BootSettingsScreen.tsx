@@ -1,89 +1,35 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { basename } from 'node:path';
 import { execFile } from 'node:child_process';
-import { subprocessEnv } from '../utils/subprocessEnv.js'
-import { gitArgs } from '../utils/git/spawnArgs.js'
-import { Box, useInput, wrapText } from '../ink.js';
+import { subprocessEnv } from '../utils/subprocessEnv.js';
+import { gitArgs } from '../utils/git/spawnArgs.js';
+import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { getSessionId } from '../bootstrap/state.js';
 import { chatOnlyBoot, leaveCurrentSurface, enterConcourse, routeSurfaceRegistered, stripFacts } from '../context/surfaceRoute.js';
 import { armBootSettingsLayerDeepLink } from './BootSplashScreen.js';
-import {
-  STARTUP_MENU,
-  bootEnvPath,
-  evaluateExplicitApply,
-  isLiveEnvRow,
-  menuRowChoices,
-  menuRowValueLabel,
-  menuRowWarning,
-  readBootDefaultsProfile,
-  bootAdmissionSnapshot,
-  resolveEffectiveSettingsSnapshot,
-  saveBootDefaultsProfile,
-  type BootDefaultsProfileV1,
-  type ExplicitApplyReceipt,
-  type MenuRow,
-} from '../substrate/startupMenu.js';
+import { STARTUP_MENU, bootEnvPath, evaluateExplicitApply, isLiveEnvRow, menuRowChoices, readBootDefaultsProfile, bootAdmissionSnapshot, resolveEffectiveSettingsSnapshot, type BootDefaultsProfileV1, type ExplicitApplyReceipt, type MenuRow } from '../substrate/startupMenu.js';
 import { flagSpellings } from '../substrate/flagRegistry.js';
-import {
-  SEATS_MENU_ROW,
-  seatCeilingDetailLines,
-  seatCeilingFactsAsync,
-  type SeatCeilingFacts,
-  seatCeilingValueWords,
-  seatCostWarning,
-  seatSourceWords,
-  setOperatorSeats,
-} from '../services/switchboard/capacityCheck.js';
-import {
-  MOTION_MENU_ROW,
-  MOTION_SETTINGS,
-  motionDetailLines,
-  motionReceiptWords,
-  motionValueWords,
-  readMotionSetting,
-  setMotionSetting,
-  type MotionSetting,
-} from '../utils/cockpit/motionSetting.js';
-import { jevKeyPresence, jevKeySourceWords } from '../services/jev/jevKey.js';
-import {
-  JEV_MENU_ROW,
-  jevReceiptWords,
-  jevSettingLines,
-  jevValueWords,
-  readJevSettings,
-  setJevEnabled,
-} from '../services/jev/jevSetting.js';
-import { jevStatusLine } from '../services/jev/jevStatus.js';
-import {
-  BACKGROUND_LAUNCH_MENU_ROW,
-  backgroundLaunchDetailLines,
-  backgroundLaunchReceiptWords,
-  backgroundLaunchValueWords,
-  backgroundSessionsLaunchCrewmates,
-  setBackgroundSessionsLaunchCrewmates,
-} from '../services/switchboard/backgroundLaunch.js';
+import { SEATS_MENU_ROW, seatCeilingFactsAsync, type SeatCeilingFacts } from '../services/switchboard/capacityCheck.js';
+import { MOTION_MENU_ROW, readMotionSetting, type MotionSetting } from '../utils/cockpit/motionSetting.js';
+import { JEV_MENU_ROW, readJevSettings } from '../services/jev/jevSetting.js';
+import { BACKGROUND_LAUNCH_MENU_ROW, backgroundSessionsLaunchCrewmates } from '../services/switchboard/backgroundLaunch.js';
 import { daemonControlRpc } from '../daemon/controlSocket.js';
 import type { DaemonRequest } from '../daemon/protocol.js';
-import { getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js';
-import {
-  SPAWN_SWITCH_ENV,
-  spawnSwitchFactsOfRecord,
-  spawnSwitchKindOfEnv,
-  spawnSwitchOnFromValue,
-} from '../services/switchboard/spawnSwitches.js';
+import { SPAWN_SWITCH_ENV, spawnSwitchFactsOfRecord, spawnSwitchKindOfEnv, spawnSwitchOnFromValue } from '../services/switchboard/spawnSwitches.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
-import { renderModelChip } from '../utils/model/model.js';
-import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { branchChip } from './mercury-ui/glyphs.js';
-import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
-import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
-import { isFullscreenEnvEnabled, isHelmHomeEnabled } from '../utils/fullscreen.js';
+import { isFullscreenEnvEnabled } from '../utils/fullscreen.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
+import { jevBootDetailLines } from './bootSettings/detailLines.js';
+import { type WorkerApplySummary, type ApplyState, settingsMenuModel } from './bootSettings/menuModel.js';
+import { commitBackgroundLaunchOf, commitMotionOf, commitJevOf, commitSeatsOf, commitRowOf, cycleRowOf } from './bootSettings/commits.js';
+import { settingsRowLine } from './bootSettings/rows.js';
+import type { SettingsContext } from './bootSettings/context.js';
+export { JEV_BOOT_DETAIL_WIDTH, jevBootDetailLines, backgroundLaunchBootDetailLines } from './bootSettings/detailLines.js';
 
 
 function savedChoicesByRow(profile: BootDefaultsProfileV1 | null): Record<string, string> {
@@ -95,8 +41,6 @@ function savedChoicesByRow(profile: BootDefaultsProfileV1 | null): Record<string
   }
   return out;
 }
-
-export const JEV_BOOT_DETAIL_WIDTH = 41;
 
 function withGroupRow(rows: readonly MenuRow[], row: MenuRow): MenuRow[] {
   let after = -1;
@@ -110,28 +54,6 @@ function withGroupRow(rows: readonly MenuRow[], row: MenuRow): MenuRow[] {
 export function withJevRow(rows: readonly MenuRow[]): MenuRow[] {
   return withGroupRow(withGroupRow(rows, BACKGROUND_LAUNCH_MENU_ROW as MenuRow), JEV_MENU_ROW as MenuRow);
 }
-
-function bootDetailLines(facts: readonly string[]): string[] {
-  return facts.flatMap(line => wrapText(line, JEV_BOOT_DETAIL_WIDTH, 'wrap').split('\n'));
-}
-
-export function jevBootDetailLines(): string[] {
-  const settings = readJevSettings();
-  return bootDetailLines([jevStatusLine(), jevKeySourceWords(jevKeyPresence()), ...jevSettingLines(settings)]);
-}
-
-export function backgroundLaunchBootDetailLines(on: boolean): string[] {
-  return bootDetailLines(backgroundLaunchDetailLines(on));
-}
-
-interface WorkerApplySummary {
-  runnerId: string;
-  sessionId: string;
-  snapshotRevision: number | null;
-  receipts: ExplicitApplyReceipt[] | null;
-}
-
-type ApplyState = { phase: 'closed' } | { phase: 'loading' } | { phase: 'ready'; workers: WorkerApplySummary[] };
 
 function gitTailProbe(onTail: (tail: string) => void): () => void {
   let alive = true;
@@ -194,39 +116,10 @@ export function BootSettingsScreen({
   const isMotionRow = (row: MenuRow): boolean => row.env === MOTION_MENU_ROW.env;
   const isJevRow = (row: MenuRow): boolean => row.env === JEV_MENU_ROW.env;
   const isBackgroundLaunchRow = (row: MenuRow): boolean => row.env === BACKGROUND_LAUNCH_MENU_ROW.env;
-  const commitBackgroundLaunch = (next: boolean): string => {
-    const on = setBackgroundSessionsLaunchCrewmates(next);
-    setBackgroundLaunchTick(n => n + 1);
-    const words = backgroundLaunchReceiptWords(on);
-    setLastReceipt(words);
-    return words;
-  };
-  const commitMotion = (next: MotionSetting): string => {
-    setMotionSetting(next);
-    setMotionTick(n => n + 1);
-    const words = motionReceiptWords(next);
-    setLastReceipt(words);
-    return words;
-  };
-  const commitJev = (next: boolean): string => {
-    const settings = setJevEnabled(next);
-    setJevTick(n => n + 1);
-    const words = jevReceiptWords(settings);
-    setLastReceipt(words);
-    return words;
-  };
-  const commitSeats = (next: number | null): string => {
-    const facts = setOperatorSeats(next);
-    setSeatFacts(facts);
-    setSeatsTick(n => n + 1);
-    const warning = seatCostWarning(facts);
-    const words =
-      next === null
-        ? `seats follow ${seatSourceWords(facts.source)}: ${facts.seats} — applies to the next admission`
-        : `seats ${facts.seats} · set by you — applies to the next admission${warning !== null ? ` · ${warning}` : ''}`;
-    setLastReceipt(words);
-    return words;
-  };
+  const commitBackgroundLaunch = (next: boolean): string => commitBackgroundLaunchOf(ctx, next);
+  const commitMotion = (next: MotionSetting): string => commitMotionOf(ctx, next);
+  const commitJev = (next: boolean): string => commitJevOf(ctx, next);
+  const commitSeats = (next: number | null): string => commitSeatsOf(ctx, next);
 
   const [liveCount, setLiveCount] = useState<number | null>(null);
   const [apply, setApply] = useState<ApplyState>({ phase: 'closed' });
@@ -329,43 +222,10 @@ export function BootSettingsScreen({
     };
   }, [apply.phase === 'closed', path]);
 
-  const commitRow = (row: MenuRow, value: string | null): string => {
-    if (isSeatsRow(row)) return commitSeats(value === null ? null : Number(value));
-    if (isMotionRow(row)) return commitMotion(value === null ? 'auto' : (value as MotionSetting));
-    if (isJevRow(row)) return commitJev(value === 'on');
-    if (isBackgroundLaunchRow(row)) return commitBackgroundLaunch(value === 'on');
-    const env: Record<string, string> = { ...saved };
-    if (value === null) delete env[row.env];
-    else env[row.env] = value;
-    const res = saveBootDefaultsProfile(env, path, {
-      ...(liveCount !== null ? { existingSessionsUnchanged: liveCount } : {}),
-    });
-    if (!res.ok) return `save refused — ${res.reason}`;
-    setSaveTick(n => n + 1);
-    setLastReceipt(`r${res.revision} · ${res.receipt}`);
-    const kind = spawnSwitchKindOfEnv(row.env);
-    if (row.applicationClass === 'live' && kind !== null && hasFocusedSession()) {
-      void getFocusedSessionConnector()
-        .setSpawnSwitch(kind, spawnSwitchOnFromValue(value))
-        .then(receipt => setLastReceipt(`r${res.revision} · saved for new sessions · this session: ${receipt.detail ?? receipt.outcome}`));
-    }
-    return `r${res.revision} · ${res.receipt}`;
-  };
+  const commitRow = (row: MenuRow, value: string | null): string => commitRowOf(ctx, row, value);
 
-  const cycleRow = (row: MenuRow, direction: 1 | -1): string => {
-    if (isSeatsRow(row)) return seatFacts === null ? 'capacity reading is pending — try again shortly' : commitSeats(direction > 0 ? seatFacts.seats + 1 : Math.max(1, seatFacts.seats - 1));
-    if (isMotionRow(row)) {
-      const at = MOTION_SETTINGS.indexOf(motionSetting);
-      return commitMotion(MOTION_SETTINGS[((at < 0 ? 0 : at) + direction + MOTION_SETTINGS.length) % MOTION_SETTINGS.length]!);
-    }
-    if (isJevRow(row)) return commitJev(!jevSettings.enabled);
-    if (isBackgroundLaunchRow(row)) return commitBackgroundLaunch(!backgroundLaunchOn);
-    const choices = menuRowChoices(row);
-    const currentValue = saved[row.env] ?? null;
-    const idx = Math.max(0, choices.findIndex(c => c.value === currentValue));
-    const next = choices[(idx + direction + choices.length) % choices.length]!;
-    return commitRow(row, next.value);
-  };
+  const cycleRow = (row: MenuRow, direction: 1 | -1): string => cycleRowOf(ctx, row, direction);
+  const ctx: SettingsContext = { setBackgroundLaunchTick, setLastReceipt, setMotionTick, setJevTick, setSeatFacts, setSeatsTick, commitBackgroundLaunch, commitJev, commitMotion, commitSeats, isBackgroundLaunchRow, isJevRow, isMotionRow, isSeatsRow, liveCount, path, saved, setSaveTick, backgroundLaunchOn, commitRow, jevSettings, motionSetting, seatFacts };
 
   const concourseLive = routeSurfaceRegistered('concourse') && isFullscreenEnvEnabled();
   const plainWorld = chatOnlyBoot();
@@ -445,108 +305,7 @@ export function BootSettingsScreen({
 
   const changed = useMemo(() => STARTUP_MENU.filter(r => saved[r.env] !== undefined).length, [saved]);
   const menuM = useMemo(() => {
-    const entries = menuRows.map(row => {
-      if (isSeatsRow(row)) {
-        return {
-          label: row.label,
-          group: row.group,
-          summary: row.summary,
-          valueLabel: seatFacts === null ? 'reading capacity…' : seatCeilingValueWords(seatFacts),
-          valueIsDefault: seatFacts?.source !== 'operator',
-          pinnedVal: null,
-          detail: row.detail ?? null,
-          detailExtra: seatFacts === null ? ['reading capacity…'] : seatCeilingDetailLines(seatFacts),
-        };
-      }
-      if (isMotionRow(row)) {
-        return {
-          label: row.label,
-          group: row.group,
-          summary: row.summary,
-          valueLabel: motionValueWords(motionSetting),
-          valueIsDefault: motionSetting === 'auto',
-          pinnedVal: null,
-          detail: row.detail ?? null,
-          detailExtra: motionDetailLines(),
-        };
-      }
-      if (isJevRow(row)) {
-        return {
-          label: row.label,
-          group: row.group,
-          summary: row.summary,
-          valueLabel: jevValueWords(jevSettings),
-          valueIsDefault: !jevSettings.enabled,
-          pinnedVal: null,
-          detail: row.detail ?? null,
-          detailExtra: jevDetailLines,
-        };
-      }
-      if (isBackgroundLaunchRow(row)) {
-        return {
-          label: row.label,
-          group: row.group,
-          summary: row.summary,
-          valueLabel: backgroundLaunchValueWords(backgroundLaunchOn),
-          valueIsDefault: !backgroundLaunchOn,
-          pinnedVal: null,
-          detail: row.detail ?? null,
-          detailExtra: backgroundLaunchBootDetailLines(backgroundLaunchOn),
-        };
-      }
-      const effective = effectiveByEnv.get(row.env);
-      const envPinned = effective?.source === 'process-env';
-      return {
-        label: row.label,
-        group: row.group,
-        summary: row.summary,
-        valueLabel: menuRowValueLabel(row, saved[row.env] ?? null, env => {
-          const other = effectiveByEnv.get(env);
-          return other?.source === 'process-env' ? (other.value ?? null) : (saved[env] ?? null);
-        }),
-        valueIsDefault: saved[row.env] === undefined,
-        pinnedVal: envPinned ? (effective?.value ?? '') : null,
-        warn: menuRowWarning(row, envPinned ? (effective?.value ?? null) : (saved[row.env] ?? null)),
-        detail: row.detail ?? null,
-        detailExtra: [
-          `this session  ${effective ? (effective.value ?? 'default') : 'default'} (${effective?.source ?? 'default'})`,
-        ],
-      };
-    });
-    const harness = [
-      isHelmHomeEnabled() ? 'helm' : null,
-    ].filter(Boolean) as string[];
-    const critterKey = getSessionCritterKey();
-    const idleStatus =
-      (changed > 0 ? `${changed} choice${changed === 1 ? '' : 's'} saved — applies to new sessions` : 'changes reach new sessions') +
-      (liveCount !== null ? `  ·  ${liveCount} established session${liveCount === 1 ? '' : 's'} unchanged` : '');
-    const statusRight = list.note ?? lastReceipt ?? idleStatus;
-    return {
-      entries,
-      selIdx: list.selectedIndex,
-      summary: {
-        profile: `r${profile?.revision ?? 0} · ${changed > 0 ? `custom · ${changed} set` : 'default'}`,
-        harness: harness.join(' · ') || 'none',
-      },
-      environment: {
-        model: renderModelChip(mainModel),
-        critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-        critterHue: getSessionAccent().accent,
-        dirBase: basename(process.cwd()) || process.cwd(),
-        dirTail,
-      },
-      statusRight,
-      glowWord: wordGlow,
-      legend: `↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts${concourseLive && !chatBoot ? ` · o ${plainWorld ? 'live view' : 'concourse'}` : ''} · esc ${apply.phase === 'closed' ? 'back' : 'close receipts'}`,
-      ...(apply.phase !== 'closed'
-        ? {
-            detailOverride:
-              apply.phase === 'loading'
-                ? ['reading established sessions…']
-                : applyOverrideRows(apply.workers),
-          }
-        : {}),
-    };
+    return settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot, concourseLive, dirTail, effectiveByEnv, isBackgroundLaunchRow, isJevRow, isMotionRow, isSeatsRow, jevDetailLines, jevSettings, lastReceipt, list, liveCount, mainModel, menuRows, motionSetting, plainWorld, profile, saved, seatFacts, wordGlow });
   }, [saved, effectiveByEnv, seatFacts, motionSetting, jevSettings, jevDetailLines, backgroundLaunchOn, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {
@@ -564,58 +323,8 @@ export function BootSettingsScreen({
   return (
     <Box flexDirection="column" width={columns} height={rows}>
       {Array.from({ length: rows }, (_, i) => {
-        const line = composition.placed[i] ?? '';
-        const entryIdx = composition.entryAt.get(i);
-        if (entryIdx !== undefined && menuRows[entryIdx] !== undefined) {
-          const row = menuRows[entryIdx]!;
-          const props = list.rowProps(row, entryIdx);
-          return (
-            <InteractiveRow
-              key={props.id}
-              id={props.id}
-              selected={props.selected}
-              onSelect={props.onSelect}
-              onActivate={props.onActivate}
-              selectionBand={false}
-              hoverStyle="chrome-ink"
-              height={1}
-            >
-              {hover => renderSceneLine(line, hover && !props.selected ? { label: row.label, color: t.info } : undefined)}
-            </InteractiveRow>
-          );
-        }
-        return (
-          <Box key={`menuline-${i}`} height={1} flexShrink={0}>
-            {line.length > 0 ? renderSceneLine(line) : null}
-          </Box>
-        );
+        return settingsRowLine({ composition, list, menuRows, t }, i);
       })}
     </Box>
   );
-}
-
-function applyOverrideRows(workers: WorkerApplySummary[]): string[] {
-  if (workers.length === 0) {
-    return [
-      'apply to established sessions',
-      'no established sessions — saved defaults reach',
-      'the next session at creation',
-    ];
-  }
-  const rows: string[] = [`apply to established sessions · ${workers.length}`];
-  for (const w of workers.slice(0, 6)) {
-    if (!w.receipts) {
-      rows.push(`${w.runnerId} · ${w.sessionId.slice(0, 8)} — no captured snapshot`);
-      continue;
-    }
-    const refused = w.receipts.filter(r => r.outcome === 'refused');
-    const noChange = w.receipts.filter(r => r.outcome === 'no-change');
-    const live = w.receipts.filter(r => r.outcome === 'applied' || r.outcome === 'queued');
-    rows.push(
-      `${w.runnerId} · ${w.sessionId.slice(0, 8)} — snapshot r${w.snapshotRevision ?? 0} · ${noChange.length} at profile · ${refused.length} refused${live.length > 0 ? ` · ${live.length} live (${live.map(r => r.outcome).join(', ')})` : ''}`,
-    );
-    if (live.length > 0 && live[0]?.reason) rows.push(`  · ${live[0].reason}`);
-    if (refused.length > 0 && refused[0]?.reason) rows.push(`  · ${refused[0].reason}`);
-  }
-  return rows;
 }

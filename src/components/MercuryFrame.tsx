@@ -34,14 +34,11 @@ import { CompactFrameBudgetContext, useLayoutChrome } from '../context/layoutChr
 import { stringWidth } from '../ink/stringWidth.js'
 import { compactBandForm, shedToFit } from './mercury-ui/geometry.js'
 import { compactModeChip } from './mercury-ui/compactModeChip.js'
-import { formatCountdown } from '../utils/cockpit/quota.js'
-import { activeSourceUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
-import { usageAgeTail, usagePollTtlMs } from '../services/providers/usageFreshness.js'
+import { usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/anthropicLimits.js'
 import inkInstances from '../ink/instances.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
 import {
   subscribeVerification,
   treeScanStatus,
@@ -60,7 +57,7 @@ import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js'
 import { useFocusedWorkspaceBranch } from '../hooks/useFocusedWorkspaceBranch.js'
 import { hasSeatLive } from '../services/engine-connector/seatLive.js'
 import { SessionMark } from './mercury-ui/assets.js'
-import { Sep, UsageMeter, useNowTick } from './mercury-ui/components.js'
+import { Sep, useNowTick } from './mercury-ui/components.js'
 import { EffortChip, RecordedEffortChip } from './mercury-ui/EffortChip.js'
 import { useViewedCrewmate } from './tasks/useCrewmateView.js'
 import { useCrewmateModel } from './tasks/useCrewmateModel.js'
@@ -69,6 +66,7 @@ import { TrimChip } from './mercury-ui/TrimChip.js'
 import { GLYPH, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
 import { ValueGlow } from './mercury-ui/LiveGlyphs.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
+import { ctxChip, healthChipNode, usageChip } from './mercuryFrame/chips.js'
 
 
 type Props = {
@@ -190,23 +188,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     })
   }, [used, windowSize, fill.compactAtPct, fill.usedTokens, fill.fillSource, fill.windowSource, fill.windowPinned])
 
-  const ctxNode = !usageOwnedElsewhere ? (
-    <Text>
-      <Sep />
-      <Text color={tok.textMuted}>ctx </Text>
-      <Text
-        color={
-          used !== null && used >= 90
-            ? tok.failure
-            : used !== null && used >= 75
-              ? tok.warning
-              : tok.textSecondary
-        }
-      >
-        {contextPercentLabel(used, fill.fillSource)}
-      </Text>
-    </Text>
-  ) : null
+  const ctxNode = ctxChip({ usageOwnedElsewhere, used, fill, tok })
 
   const advisorChip = useSyncExternalStore(subscribeFocusedModelFacts, getFocusedAdvisorChip, getFocusedAdvisorChip)
   const advisorNode = advisorChip !== null ? (
@@ -229,88 +211,9 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
       </Text>
     ) : null
 
-  let usageNode: React.ReactNode = null
-  if (tier.showFrameQuota) {
-    const usage = activeSourceUsage({ model: getFocusedSessionConnector().modelFacts().main })
-    const numberOnly = tier.numberOnlyGauges
-    const showSecond = tier.show7dGauge
-    const first = usage.windows[0]
-    const second =
-      usage.binding !== undefined && first !== undefined && usage.binding.window.key !== first.key
-        ? usage.binding.window
-        : usage.windows[1]
-    const limited = usage.limited
-    const ageTail = first !== undefined ? usageAgeTail(first, usageNow) : undefined
-    usageNode =
-      first !== undefined || limited !== undefined ? (
-        <Text>
-          <Sep />
-          {first !== undefined ? (
-            <UsageMeter
-              compact
-              numberOnly={numberOnly}
-              window={first.label}
-              state={first.state}
-              value={first.usedPct ?? undefined}
-            />
-          ) : null}
-          {second !== undefined && showSecond ? (
-            <Text>
-              <Text color={tok.textMuted}> {GLYPH.dot} </Text>
-              <UsageMeter
-                compact
-                window={second.label}
-                state={second.state}
-                value={second.usedPct ?? undefined}
-              />
-            </Text>
-          ) : null}
-          {ageTail !== undefined && first !== undefined ? (
-            <Text>
-              <Text color={tok.textMuted}> {GLYPH.dot} </Text>
-              <Text color={usageViewIsStale(first, usageNow) ? tok.warning : tok.textMuted}>{ageTail}</Text>
-            </Text>
-          ) : null}
-          {limited !== undefined ? (
-            <Text>
-              {first !== undefined ? <Text color={tok.textMuted}> {GLYPH.dot} </Text> : null}
-              <Text color={tok.warning}>limit · resets {formatCountdown(limited.resetsAtMs - Date.now())}</Text>
-            </Text>
-          ) : null}
-        </Text>
-      ) : null
-  }
+  const usageNode = usageChip({ tier, usageNow, tok })
 
-  const healthSnap = !helmActive ? healthCertSnapshot() : null
-  const healthChip = healthSnap && healthSnap.state === 'live' ? healthSnap.data : null
-  const healthAlarm =
-    healthChip !== null &&
-    (healthChip.verdict === 'fault' || healthChip.alert?.tone === 'fault')
-  const healthWarn =
-    healthChip !== null &&
-    !healthAlarm &&
-    (healthChip.verdict === 'caution' || healthChip.stale)
-  const healthAge =
-    healthChip?.ageLabel && healthChip.ageLabel !== 'never'
-      ? healthChip.ageLabel.replace(' ago', '')
-      : null
-  const healthNode =
-    healthChip && (healthAlarm || healthWarn) ? (
-      <Text>
-        <Sep />
-        <Text color={tok.textMuted}>health </Text>
-        {healthAlarm ? (
-          <Text bold color={tok.failure}>
-            {GLYPH.fail} fault
-          </Text>
-        ) : (
-          <Text color={tok.warning}>
-            {GLYPH.warn} {healthChip.stale ? 'stale' : 'caution'}
-          </Text>
-        )}
-        {healthAge ? <Text color={tok.textMuted}>{` · ${healthAge}`}</Text> : null}
-      </Text>
-    ) : null
+  const healthNode = healthChipNode({ helmActive, tok })
 
   const vfySnap = useSyncExternalStore(
     subscribeVerification,
