@@ -3,7 +3,6 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -15,11 +14,8 @@ import type { LocalJSXCommandContext } from '../../commands.js'
 import { useNotifications } from '../../context/notifications.js'
 import {
   currentSurfaceRoute,
-  subscribeSurfaceRoute,
-  surfaceRouteVersion,
 } from '../../context/surfaceRoute.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { useArrowKeyHistory } from '../../hooks/useArrowKeyHistory.js'
 import { useHistorySearch } from '../../hooks/useHistorySearch.js'
 import { usePromptSuggestion } from '../../hooks/usePromptSuggestion.js'
 import { useTypeahead } from '../../hooks/useTypeahead.js'
@@ -28,21 +24,11 @@ import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import * as pendingInput from '../../input-core/pending-input.js'
 import { useAppState, useAppStateStore, useSetAppState, type AppState } from '../../state/AppState.js'
-import {
-  enterCrewmateView,
-  exitCrewmateView,
-} from '../../state/crewmateViewHelpers.js'
-import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { PastedContent } from '../../utils/config.js'
 import type { Message } from '../../types/message.js'
 import type { VimMode } from '../../types/textInputTypes.js'
 import {
-  consumeCommandDispatch,
-  consumeHelmActivation,
   getHelmFocus,
-  getHelmVersion,
-  setHelmFocus,
-  subscribeHelmFocus,
 } from '../../utils/cockpit/helmFocus.js'
 import { usePromptInputPlaceholder } from './usePromptInputPlaceholder.js'
 import { useCrewBanner } from './useCrewBanner.js'
@@ -71,18 +57,16 @@ import { useComposerHoldToTalk, useComposerVoiceReceipt } from './useComposerVoi
 import { useComposerSuggestions } from './useComposerSuggestions.js'
 import { useComposerCrewmateRefs } from './useComposerCrewmateRefs.js'
 import { useComposerCompactFocus } from './useComposerCompactFocus.js'
+import { useComposerHistory } from './useComposerHistory.js'
+import { useComposerHelm } from './useComposerHelm.js'
+import { useComposerHighlights } from './useComposerHighlights.js'
+import { useComposerEffortNotice } from './useComposerEffortNotice.js'
 import { MercuryContentSearch } from '../MercuryContentSearch.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
-import { findSlashCommandPositions } from '../../utils/suggestions/commandSuggestions.js'
-import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelSuggestions.js'
-import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
-import type { TextHighlight } from '../../utils/textHighlighting.js'
-import { parseReferences } from '../../history.js'
-import { composerEffortNotice } from './composerEffortNotice.js'
 import { useFocusedBornEffort, useFocusedSentEffort, useFocusedServedEffort } from '../../hooks/useDisplayedSessionModel.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
@@ -95,15 +79,12 @@ import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
 import { composerBorderRole, composerBorderStyle } from '../mercury-ui/composerFloor.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
-import { openFilesMenu } from '../../utils/cockpit/filesMenu.js'
 import { popupOwnsKeys, subscribePopupOwnsKeys } from '../../utils/cockpit/popupOwnsKeys.js'
 import { AMBER } from '../mercuryPalette.js'
 import type { Key } from '../../ink/events/input-event.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
 import { fluxMark, fluxWhy } from '../../utils/flux/fluxProbe.js'
-
-const LOST_LINE_NOTICE_MS = 8000
 
 export type PromptInputProps = {
   compactWork?: CompactWorkControls
@@ -402,55 +383,20 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     markAccepted: suggestionApi.markAccepted,
   })
 
-  const recallFitsOneRow = useCallback(
-    (value: string): boolean => {
-      if (value.includes('\n')) return false
-      return stringWidth(value) <= Math.max(1, (isCompact ? compactBudget?.inputColumns ?? columns : columns - 3) - 1)
-    },
-    [columns, isCompact, compactBudget?.inputColumns],
-  )
-  const applyRecalledEntry = useCallback(
-    (value: string, recalledMode: PromptInputMode, recalledPastes: Record<number, PastedContent>): void => {
-      onChange(value)
-      setMode(recalledMode)
-      pendingInput.setPastedContents(recalledPastes)
-    },
-    [onChange, setMode],
-  )
-  const history = useArrowKeyHistory(
-    applyRecalledEntry,
+  const { history, recallQueuedSend, helpers } = useComposerHistory({
     input,
     pastedContents,
-    setCursorOffset,
     mode,
-    recallFitsOneRow,
-  )
-  historyRecallActiveRef.current = history.historyIndex !== 0
-  const recallQueuedSend = useCallback((): boolean => {
-    const focused = getFocusedSessionConnector()
-    const queued = focused.recallableSend()
-    if (queued === null) return false
-    void focused.withdrawSend(queued.clientMessageId).then(receipt => {
-      if (receipt.withdrawn) {
-        const meanwhile = pendingInput.text()
-        const value = meanwhile === '' ? receipt.text : `${receipt.text}${meanwhile}`
-        applyRecalledEntry(value, receipt.mode, receipt.pastedContents)
-        setCursorOffset(value.length)
-        return
-      }
-      addNotification({ key: 'recall-send', text: receipt.detail, priority: 'immediate', timeoutMs: receipt.retired === true ? LOST_LINE_NOTICE_MS : 4000 })
-    })
-    return true
-  }, [applyRecalledEntry, setCursorOffset, addNotification])
-
-  const helpers: PromptInputHelpers = useMemo(
-    () => ({
-      setCursorOffset,
-      clearBuffer: buffer.clearBuffer,
-      resetHistory: history.resetHistory,
-    }),
-    [setCursorOffset, buffer.clearBuffer, history.resetHistory],
-  )
+    onChange,
+    setMode,
+    setCursorOffset,
+    buffer,
+    columns,
+    isCompact,
+    compactBudget,
+    historyRecallActiveRef,
+    addNotification,
+  })
 
   const historySearch = useHistorySearch(
     entry => {
@@ -499,47 +445,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     writeDraft,
   })
 
-  const helmVersion = useSyncExternalStore(
-    subscribeHelmFocus,
-    getHelmVersion,
-    getHelmVersion,
-  )
-  const routeVersion = useSyncExternalStore(
-    subscribeSurfaceRoute,
-    surfaceRouteVersion,
-    surfaceRouteVersion,
-  )
-  void routeVersion
-  const surfaceCovered = currentSurfaceRoute().kind !== 'repl'
-  const submitRef = useRef(submit)
-  submitRef.current = submit
-  useEffect(() => {
-    const activation = consumeHelmActivation()
-    const dispatch = consumeCommandDispatch()
-    if (activation !== null) {
-      switch (activation.type) {
-        case 'crewmate':
-          enterCrewmateView(activation.id, setAppState)
-          setHelmFocus('prompt')
-          break
-        case 'main':
-          exitCrewmateView(setAppState)
-          setHelmFocus('prompt')
-          break
-        case 'command':
-          setHelmFocus('prompt')
-          void submitRef.current(activation.command, { fromKeybinding: true })
-          break
-        case 'files':
-          setHelmFocus('prompt')
-          openFilesMenu()
-          break
-      }
-    }
-    if (dispatch !== null) {
-      void submitRef.current(dispatch, { fromKeybinding: true })
-    }
-  }, [helmVersion])
+  const { surfaceCovered, submitRef } = useComposerHelm({ submit, setAppState })
 
   const { performUndo, crewmateFooterIndex } = useComposerKeybindings({
     buffer,
@@ -603,77 +509,26 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   })
 
 
-  const displayedValue = isSearchingHistory
-    ? (historySearch.historyMatch?.display ?? input)
-    : input
-  const highlights = useMemo((): TextHighlight[] => {
-    const spans: TextHighlight[] = []
-    if (isSearchingHistory && historySearch.historyMatch !== undefined && !historySearch.historyFailedMatch) {
-      spans.push({
-        start: 0,
-        end: Math.min(historySearch.historyQuery.length, displayedValue.length),
-        color: 'permission',
-        priority: 20,
-      })
-    }
-    for (const ref of parseReferences(displayedValue)) {
-      if (ref.index === cursorOffset) {
-        spans.push({
-          start: ref.index,
-          end: ref.index + ref.match.length,
-          inverse: true,
-          priority: 8,
-        })
-      }
-    }
-    for (const position of findSlashCommandPositions(displayedValue)) {
-      const bare = displayedValue.slice(position.start + 1, position.end)
-      if (commands.some(command => command.name === bare || command.aliases?.includes(bare) === true)) {
-        spans.push({ start: position.start, end: position.end, color: 'suggestion', priority: 5 })
-      }
-    }
-    for (const position of findTokenBudgetPositions(displayedValue)) {
-      spans.push({ start: position.start, end: position.end, color: 'suggestion', priority: 5 })
-    }
-    if (mcpClients.some(client => client.name.toLowerCase().includes('slack'))) {
-      for (const position of findSlackChannelPositions(displayedValue)) {
-        spans.push({ start: position.start, end: position.end, color: 'suggestion', priority: 5 })
-      }
-    }
-    return spans
-  }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients])
+  const highlights = useComposerHighlights({
+    isSearchingHistory,
+    historySearch,
+    input,
+    cursorOffset,
+    commands,
+    mcpClients,
+  })
 
-  const effortText = composerEffortNotice({
-    model: focusedEffectiveModel !== '' ? focusedEffectiveModel : (engineModel ?? focusedMainModel),
+  useComposerEffortNotice({
+    focusedEffectiveModel,
+    engineModel,
+    focusedMainModel,
     seatEffort,
     sentEffort,
     effortValue,
     bornEffort,
+    addNotification,
+    removeNotification,
   })
-  const effortBaselineRef = useRef<{ armed: boolean; text: string | undefined }>({
-    armed: false,
-    text: undefined,
-  })
-  useEffect(() => {
-    const baseline = effortBaselineRef.current
-    if (!baseline.armed) {
-      effortBaselineRef.current = { armed: true, text: effortText }
-      return
-    }
-    if (effortText === baseline.text) return
-    effortBaselineRef.current = { armed: true, text: effortText }
-    if (effortText === undefined) {
-      removeNotification('effort-level')
-      return
-    }
-    addNotification({
-      key: 'effort-level',
-      text: effortText,
-      priority: 'high',
-      timeoutMs: 12000,
-      fold: (_accumulator, incoming) => incoming,
-    })
-  }, [effortText, addNotification, removeNotification])
 
   const placeholder = usePromptInputPlaceholder({
     input,
