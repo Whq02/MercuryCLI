@@ -210,7 +210,7 @@ function mergeForeignDispatches(path: string, dispatches: Record<string, Concour
     }
   } catch (err) {
     if (!isENOENT(err)) {
-      logForDebugging(`[concourse/dispatch] ${path}: the ledger could not be read for the merge before publish, its other writers' records are not merged: ${errorMessage(err)}`, { level: 'warn' })
+      logForDebugging(`[concourse/dispatch] ${path}: the ledger could not be read for the merge before publish, its other writers' records are not merged: ${err instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(err)}`, { level: 'warn' })
     }
   }
 }
