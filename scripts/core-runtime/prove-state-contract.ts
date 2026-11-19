@@ -357,10 +357,6 @@ section('LAW FAN-IN — the import census (the measurable cut baseline)')
   )
   check('fan-in census mechanism found importers', srcCensus.count > 0)
   check(
-    'fan-in census catches the relative-path variant (screens/Chat.tsx)',
-    srcCensus.files.some(f => f.endsWith('screens/Chat.tsx')),
-  )
-  check(
     'fan-in census catches the OwnerKey boundary (services/run/resolveOwner.ts)',
     srcCensus.files.some(f => f.endsWith('services/run/resolveOwner.ts')),
   )

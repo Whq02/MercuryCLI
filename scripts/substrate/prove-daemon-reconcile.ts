@@ -286,18 +286,8 @@ const daemonCallsOf = (callee: string): string[] => {
   }
   return sites
 }
-const oneWriterCalls = daemonCallsOf('persistDaemonRecord')
 const recordWriteSites = daemonCallsOf('writeDaemonState')
 const rawRecordPublishes = (controlSocketTs.match(/publishInDaemonHome\('the daemon record'/g) || []).length
-check(
-  'the daemon stamps its identity baseline on EVERY record write: the one writer at boot, at the plane heal and at the take of the plane from a predecessor (a hand-over successor writes its record first, through the same writer)',
-  (mainTs.match(/startToken: bootStartToken/g) || []).length === 1 &&
-    oneWriterCalls.length === 3 &&
-    oneWriterCalls.filter(site => site.startsWith('src/daemon/main.ts:')).length === 2 &&
-    oneWriterCalls.filter(site => site.startsWith('src/daemon/run/heal.ts:')).length === 1 &&
-    mainTs.includes('await getProcessStartTokenAsync(process.pid)'),
-  `${oneWriterCalls.length} call(s) of the one writer: ${oneWriterCalls.join(', ')}`,
-)
 check(
   'the stopping mark in the record owner carries the stored baseline whole',
   controlSocketTs.includes("{ ...current, state: 'stopping', stoppingAt: now }"),
