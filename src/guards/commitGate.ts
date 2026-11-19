@@ -2,7 +2,7 @@ import { getSessionId } from '../bootstrap/state.js'
 import { POWERSHELL_TOOL_NAME } from '../tools/PowerShellTool/toolName.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
-import { errorMessage, getErrnoCode, isENOENT } from '../utils/errors.js'
+import { getErrnoCode, isENOENT } from '../utils/errors.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import {
   isVerifySegment,
@@ -234,7 +234,9 @@ function failureReason(error: unknown): string {
   const code = getErrnoCode(error)
   if (code === 'ETIMEDOUT') return 'no answer within 3 s'
   if (code === 'ENOBUFS') return 'more output than the gate reads'
-  return code ?? errorMessage(error)
+  if (code !== undefined) return code
+  const signal = (error as { signal?: unknown } | null)?.signal
+  return typeof signal === 'string' ? `ended by ${signal}` : 'ended without an answer'
 }
 
 const NOT_A_FILE_CODES = new Set(['ENOENT', 'ENOTDIR', 'EISDIR'])
