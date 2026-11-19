@@ -1,6 +1,6 @@
 
 import { join } from 'node:path';
-import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useRef, useState, useSyncExternalStore } from 'react';
 import { type Command } from '../commands.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
