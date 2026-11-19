@@ -182,6 +182,7 @@ function runBounded(
       if (ownGroup) end()
       const value = login ? { ...result, stdout: result.stdout.split('\0', 1)[0] ?? '', exported: exportedBy(stdout, env), began } : result
       if (windowsLogin) {
+        if (result.killed || result.overflowed) resolve(value)
         void treeEnded.then(() => endGroupOfTheLoginRunOnWindows(file, stdout)).then(() => resolve(value))
         return
       }
