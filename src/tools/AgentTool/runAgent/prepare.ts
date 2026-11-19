@@ -21,7 +21,7 @@ import { STRUCTURED_OUTPUT_TOOL_NAME } from '../../SyntheticOutputTool/structure
 import { errorMessage } from '../../../utils/errors.js'
 import { createUserMessage, extractTextContent } from '../../../utils/messages.js'
 import { getAgentTranscriptPath, readAgentMetadata, registerAgentTranscriptDestination, writeAgentMetadata } from '../../../utils/sessionStorage.js'
-import { latchSwarmAgent, swarmBrief } from '../../../services/crewBoard/seam.js'
+import { swarmBrief } from '../../../services/crewBoard/seam.js'
 import { asSystemPrompt } from '../../../utils/systemPromptType.js'
 import { isRestrictedToExtensionsOnly, isSourceAdminTrusted } from '../../../utils/settings/extensionOnlyPolicy.js'
 import type { MercuryAgentSeat } from '../../../prompt/mercuryContract.js'
@@ -33,7 +33,7 @@ import type { connectAgentMcpServers, landAgentTranscriptRows, resolveAgentEffor
 
 export type PrepareNeeds = Pick<RunAgentParams, 'name' | 'description' | 'override' | 'agentDefinition' | 'instructionProfileOverride' | 'toolUseContext' | 'isAsync' | 'canShowPermissionPrompts' | 'allowedTools' | 'effortOverride' | 'useExactTools' | 'promptMessages' | 'cwd' | 'availableTools' | 'structuredOutputSpec' | 'worktreePath' | 'thinkingConfigOverride' | 'querySource' | 'contentReplacementState' | 'seatHolder' | 'onWait' | 'preserveToolUseResults' | 'onQueryProgress' | 'onCacheSafeParams' | 'model' | 'launchedAt'> & {
   agentId: AgentId
-  params: RunAgentParams
+  swarm: boolean
   abortController: AbortController
   slimAgentGateOn: () => boolean
   withoutInstructionBlob: (context: { [k: string]: string }) => { [k: string]: string }
@@ -60,9 +60,7 @@ export type PrepareNeeds = Pick<RunAgentParams, 'name' | 'description' | 'overri
   resolvedEffort: ReturnType<typeof resolveAgentEffort>
 }
 
-export async function prepareAgentRun({ agentId, name, description, params, abortController, override, agentDefinition, slimAgentGateOn, withoutInstructionBlob, instructionProfileOverride, readOnlyScout, toolUseContext, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort, hookScope, promptMessages, resolvedAgentModel, cwd, rootSetAppState, preloadSkills, connectAgentMcpServers, mcp, availableTools, structuredOutputSpec, reviewReceipt, worktreePath, buildAgentSystemPrompt, seat, thinkingConfigOverride, isFork, querySource, readFileState, contentReplacementState, childContextRef, agentKind, seatHolder, onWait, preserveToolUseResults, run, onQueryProgress, accountant, touchThrough, initialMessages, onCacheSafeParams, landAgentTranscriptRows, model, launchedAt, resolvedEffort }: PrepareNeeds) {
-  let swarm = false
-  swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, params.resumed === true, params.team, abortController.signal)
+export async function prepareAgentRun({ agentId, name, description, swarm, abortController, override, agentDefinition, slimAgentGateOn, withoutInstructionBlob, instructionProfileOverride, readOnlyScout, toolUseContext, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort, hookScope, promptMessages, resolvedAgentModel, cwd, rootSetAppState, preloadSkills, connectAgentMcpServers, mcp, availableTools, structuredOutputSpec, reviewReceipt, worktreePath, buildAgentSystemPrompt, seat, thinkingConfigOverride, isFork, querySource, readFileState, contentReplacementState, childContextRef, agentKind, seatHolder, onWait, preserveToolUseResults, run, onQueryProgress, accountant, touchThrough, initialMessages, onCacheSafeParams, landAgentTranscriptRows, model, launchedAt, resolvedEffort }: PrepareNeeds) {
   let userContext = override?.userContext ?? (await getUserContext())
   const systemContext = { ...(override?.systemContext ?? (await getSystemContext())) }
 

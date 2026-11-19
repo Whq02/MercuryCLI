@@ -77,7 +77,7 @@ import type { QuerySource } from '../../constants/querySource.js'
 import { flushSessionStorage, recordSidechainTranscript, writtenChainTail } from '../../utils/sessionStorage.js'
 import '../../utils/crew/crewmateRecord.js'
 import { settledSidechainMessages } from '../../utils/sessionStorage/settledSidechainMessages.js'
-import { settleSwarmAgent } from '../../services/crewBoard/seam.js'
+import { latchSwarmAgent, settleSwarmAgent } from '../../services/crewBoard/seam.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import {
   isRestrictedToExtensionsOnly,
@@ -645,6 +645,7 @@ export async function* runAgent(
   const endProjectLeases = beginAgentProjectLeases(agentId, abortController.signal)
   noteAgentEffortWord(agentId, resolvedEffort)
 
+  let swarm = false
 
   const filteredContext = forkContextMessages
     ? filterIncompleteToolCalls(forkContextMessages)
@@ -679,7 +680,8 @@ export async function* runAgent(
       runDeadlineTimer = setTimeout(cut, deadline.at - Date.now())
       runDeadlineTimer.unref?.()
     }
-    const { userContext, systemContext, systemPrompt, childContext, messages } = await prepareAgentRun({ agentId, name, description, params, abortController, override, agentDefinition, slimAgentGateOn, withoutInstructionBlob, instructionProfileOverride, readOnlyScout, toolUseContext, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort, hookScope, promptMessages, resolvedAgentModel, cwd, rootSetAppState, preloadSkills, connectAgentMcpServers, mcp, availableTools, structuredOutputSpec, reviewReceipt, worktreePath, buildAgentSystemPrompt, seat, thinkingConfigOverride, isFork, querySource, readFileState, contentReplacementState, childContextRef, agentKind, seatHolder, onWait, preserveToolUseResults, run, onQueryProgress, accountant, touchThrough, initialMessages, onCacheSafeParams, landAgentTranscriptRows, model, launchedAt, resolvedEffort })
+    swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, params.resumed === true, params.team, abortController.signal)
+    const { userContext, systemContext, systemPrompt, childContext, messages } = await prepareAgentRun({ agentId, name, description, swarm, abortController, override, agentDefinition, slimAgentGateOn, withoutInstructionBlob, instructionProfileOverride, readOnlyScout, toolUseContext, isAsync, canShowPermissionPrompts, allowedTools, effortOverride, useExactTools, resolveAgentEffort, hookScope, promptMessages, resolvedAgentModel, cwd, rootSetAppState, preloadSkills, connectAgentMcpServers, mcp, availableTools, structuredOutputSpec, reviewReceipt, worktreePath, buildAgentSystemPrompt, seat, thinkingConfigOverride, isFork, querySource, readFileState, contentReplacementState, childContextRef, agentKind, seatHolder, onWait, preserveToolUseResults, run, onQueryProgress, accountant, touchThrough, initialMessages, onCacheSafeParams, landAgentTranscriptRows, model, launchedAt, resolvedEffort })
 
     let lastRecordedUuid: string | undefined = writtenChainTail(messages)
     const effectiveMaxTurns = maxTurns ?? agentDefinition.maxTurns
