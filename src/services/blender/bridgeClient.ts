@@ -84,15 +84,15 @@ interface Pending {
 }
 
 export class BlenderBridgeClient {
-  private readonly port: number
+  readonly port: number
   private readonly token: string
   private socket: net.Socket | null = null
-  private state: 'disconnected' | 'connecting' | 'ready' = 'disconnected'
-  private closed = false
+  state: 'disconnected' | 'connecting' | 'ready' = 'disconnected'
+  closed = false
   private buf = ''
   private nextId = 1
   private pending = new Map<number, Pending>()
-  private queue: Array<{ op: string; args: Record<string, unknown> | undefined; timeoutMs: number; signal: AbortSignal | undefined; resolve: (r: BlenderBridgeResult) => void; queueTimer: NodeJS.Timeout | null }> = []
+  queue: Array<{ op: string; args: Record<string, unknown> | undefined; timeoutMs: number; signal: AbortSignal | undefined; resolve: (r: BlenderBridgeResult) => void; queueTimer: NodeJS.Timeout | null }> = []
   private helloTimer: NodeJS.Timeout | null = null
   private events: BlenderBridgeEvent[] = []
   private heartbeat: NodeJS.Timeout | null = null
@@ -151,58 +151,13 @@ export class BlenderBridgeClient {
     return out
   }
 
-  async request(
+  request(
     op: string,
     args?: Record<string, unknown>,
     timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS,
     signal?: AbortSignal,
   ): Promise<BlenderBridgeResult> {
-    if (this.closed) return err('CLIENT_CLOSED', 'the Blender bridge client was closed')
-    if (signal?.aborted) return abortedBeforeSending(op)
-    if (this.state === 'ready') return this.send(op, args, timeoutMs, signal)
-    const remaining = this.backoffRemainingMs()
-    if (remaining > 0) {
-      return err(
-        'EDITOR_UNREACHABLE',
-        `the Blender bridge is not answering on 127.0.0.1:${this.port}`,
-        `${blenderBridgeHint(this.port)} — retrying in ${Math.ceil(remaining / 1000)}s`,
-      )
-    }
-    return new Promise<BlenderBridgeResult>(resolve => {
-      const onAbort = (): void => {
-        const i = this.queue.indexOf(entry)
-        if (i < 0) return
-        this.queue.splice(i, 1)
-        if (entry.queueTimer) clearTimeout(entry.queueTimer)
-        resolve(abortedBeforeSending(op))
-      }
-      const entry = {
-        op,
-        args,
-        timeoutMs,
-        signal,
-        resolve: (r: BlenderBridgeResult): void => {
-          signal?.removeEventListener('abort', onAbort)
-          resolve(r)
-        },
-        queueTimer: null as NodeJS.Timeout | null,
-      }
-      entry.queueTimer = setTimeout(() => {
-        const i = this.queue.indexOf(entry)
-        if (i >= 0) this.queue.splice(i, 1)
-        entry.resolve(
-          err(
-            'REQUEST_TIMEOUT',
-            `${op} timed out after ${timeoutMs}ms waiting for the bridge connection`,
-            `${blenderBridgeHint(this.port)}`,
-          ),
-        )
-      }, timeoutMs)
-      entry.queueTimer.unref?.()
-      signal?.addEventListener('abort', onAbort, { once: true })
-      this.queue.push(entry)
-      if (this.state === 'disconnected') this.connect()
-    })
+    return requestOf.call(this, op, args, timeoutMs, signal)
   }
 
   close(): void {
@@ -211,7 +166,7 @@ export class BlenderBridgeClient {
   }
 
 
-  private connect(): void {
+  connect(): void {
     this.state = 'connecting'
     this.helloError = null
     const socket = net.connect({ host: '127.0.0.1', port: this.port })
@@ -320,7 +275,7 @@ export class BlenderBridgeClient {
     }
   }
 
-  private send(
+  send(
     op: string,
     args: Record<string, unknown> | undefined,
     timeoutMs: number,
@@ -426,6 +381,61 @@ export class BlenderBridgeClient {
       q.resolve(reason)
     }
   }
+}
+
+async function requestOf(
+  this: BlenderBridgeClient,
+  op: string,
+  args?: Record<string, unknown>,
+  timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS,
+  signal?: AbortSignal,
+): Promise<BlenderBridgeResult> {
+  if (this.closed) return err('CLIENT_CLOSED', 'the Blender bridge client was closed')
+  if (signal?.aborted) return abortedBeforeSending(op)
+  if (this.state === 'ready') return this.send(op, args, timeoutMs, signal)
+  const remaining = this.backoffRemainingMs()
+  if (remaining > 0) {
+    return err(
+      'EDITOR_UNREACHABLE',
+      `the Blender bridge is not answering on 127.0.0.1:${this.port}`,
+      `${blenderBridgeHint(this.port)} — retrying in ${Math.ceil(remaining / 1000)}s`,
+    )
+  }
+  return new Promise<BlenderBridgeResult>(resolve => {
+    const onAbort = (): void => {
+      const i = this.queue.indexOf(entry)
+      if (i < 0) return
+      this.queue.splice(i, 1)
+      if (entry.queueTimer) clearTimeout(entry.queueTimer)
+      resolve(abortedBeforeSending(op))
+    }
+    const entry = {
+      op,
+      args,
+      timeoutMs,
+      signal,
+      resolve: (r: BlenderBridgeResult): void => {
+        signal?.removeEventListener('abort', onAbort)
+        resolve(r)
+      },
+      queueTimer: null as NodeJS.Timeout | null,
+    }
+    entry.queueTimer = setTimeout(() => {
+      const i = this.queue.indexOf(entry)
+      if (i >= 0) this.queue.splice(i, 1)
+      entry.resolve(
+        err(
+          'REQUEST_TIMEOUT',
+          `${op} timed out after ${timeoutMs}ms waiting for the bridge connection`,
+          `${blenderBridgeHint(this.port)}`,
+        ),
+      )
+    }, timeoutMs)
+    entry.queueTimer.unref?.()
+    signal?.addEventListener('abort', onAbort, { once: true })
+    this.queue.push(entry)
+    if (this.state === 'disconnected') this.connect()
+  })
 }
 
 
