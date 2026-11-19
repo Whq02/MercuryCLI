@@ -1,4 +1,5 @@
 import type { ChildProcess } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { turnWaiting, type LooseRow } from '../../rows/read.js'
 import type { PermissionRequestParams, SessionAppliedParams } from '../../runner/wire/methods.js'
 import type { RpcError } from '../../runner/wire/errors.js'
@@ -7,15 +8,18 @@ import { UNANSWERED_ASK_REJECT_MESSAGE } from '../../utils/messages/rejectionTex
 import { killProcessGroup } from '../../utils/processGroup.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { assertSpawnCwd, recordSpawn } from '../../utils/spawnLedger.js'
-import { spawnRunnerChild } from '../headlessRun.js'
+import { spawnRunnerChild, type RunnerChildSpec } from '../headlessRun.js'
 import {
   occupancyOfRow,
   isOutcomeRow,
   isTurnOpenRow,
   errorTextOfOutcome,
+  DEFAULT_LONG_LIVED_CONFIG,
+  type LongLivedRespawnConfig,
 } from '../longLivedRespawn.js'
 import { calculateContextPercentages, getContextWindowForModel } from '../../utils/context.js'
-import type { LongLivedSeat, RosterOptions, WorkerHandle } from './types.js'
+import { currentVersion } from '../controlSocket.js'
+import type { LongLivedSeat, RosterEntry, RosterOptions, WorkerHandle } from './types.js'
 
 interface SpawnNeeds {
   keepChildStderr(short: string, child: ChildProcess, ll: LongLivedSeat): void
@@ -30,6 +34,49 @@ export class SpawnPart {
     private readonly degradedSeats: Map<string, string>,
     private readonly needs: SpawnNeeds,
   ) {}
+
+  registerLongLived(
+    short: string,
+    spec: RunnerChildSpec,
+    opts?: Partial<LongLivedRespawnConfig>,
+    start?: { cwd: string; worktree?: string },
+  ): { ok: boolean; pid?: number; error?: string } {
+    const existing = this.handles.get(short)
+    if (existing && !existing.entry.outcome) {
+      return { ok: false, error: 'a live worker already holds this id' }
+    }
+    const ll: LongLivedSeat = {
+      spec,
+      cfg: { ...DEFAULT_LONG_LIVED_CONFIG, ...opts },
+      respawns: 0,
+      lifetimeCrashes: 0,
+      lastSpawnAt: 0,
+      intentionalStop: false,
+      spawnGeneration: 0,
+      turnEdges: 0,
+    }
+    const entry: RosterEntry = {
+      short,
+      sessionId: randomUUID(),
+      prompt: `[long-lived ${spec.role}]`,
+      source: 'dispatch',
+      state: 'spawning',
+      startedAt: Date.now(),
+      cliVersion: currentVersion(),
+      via: 'runner',
+      ...(start !== undefined ? { cwd: start.cwd } : spec.cwd !== undefined ? { cwd: spec.cwd } : {}),
+      ...(start?.worktree !== undefined ? { worktree: start.worktree } : {}),
+    }
+    this.handles.set(short, { entry, done: Promise.resolve(), longLived: ll })
+    this.degradedSeats.delete(short)
+    const pid = this.spawnLongLived(short)
+    if (pid === undefined) {
+      ll.intentionalStop = true
+      this.handles.delete(short)
+      return { ok: false, error: 'spawn failed (no pid)' }
+    }
+    return { ok: true, pid }
+  }
 
   spawnLongLived(short: string): number | undefined {
     const h = this.handles.get(short)

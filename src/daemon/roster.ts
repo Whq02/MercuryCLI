@@ -1,18 +1,11 @@
 
-import { randomUUID } from 'node:crypto'
 import type { InputRow } from '../rows/vocabulary.js'
 import type { RunnerDoor } from './runnerConnection.js'
 import { logForDebugging } from '../utils/debug.js'
 import type { RunnerChildSpec, SeatPermissionMode } from './headlessRun.js'
-import {
-  lastStderrLine,
-  deriveWireSpec,
-  DEFAULT_LONG_LIVED_CONFIG,
-  type LongLivedRespawnConfig,
-} from './longLivedRespawn.js'
-import { currentVersion } from './controlSocket.js'
+import { lastStderrLine, deriveWireSpec, type LongLivedRespawnConfig } from './longLivedRespawn.js'
 import type { DispatchBody, WireRosterEntry } from './protocol.js'
-import type { DispatchOutcome, LongLivedSeat, RosterEntry, RosterOptions, SeatPause, WorkerHandle } from './roster/types.js'
+import type { DispatchOutcome, RosterOptions, SeatPause, WorkerHandle } from './roster/types.js'
 import { EndPart } from './roster/end.js'
 import { LifePart } from './roster/life.js'
 import { SpawnPart } from './roster/spawn.js'
@@ -32,18 +25,18 @@ export class TaskRoster {
   private readonly dispatchPart: DispatchPart
 
   constructor(private readonly opts: RosterOptions) {
-    this.endPart = new EndPart(opts)
-    this.lifePart = new LifePart(opts, this.degradedSeats, { spawnLongLived: short => this.spawnPart.spawnLongLived(short) })
-    this.spawnPart = new SpawnPart(opts, this.handles, this.degradedSeats, {
+    this.endPart = new EndPart(this.opts)
+    this.lifePart = new LifePart(this.opts, this.degradedSeats, { spawnLongLived: short => this.spawnPart.spawnLongLived(short) })
+    this.spawnPart = new SpawnPart(this.opts, this.handles, this.degradedSeats, {
       keepChildStderr: (short, child, ll) => this.lifePart.keepChildStderr(short, child, ll),
       superviseChildLife: (short, h, ll, child) => this.lifePart.superviseChildLife(short, h, ll, child),
       noteWorkerIdle: short => this.retargetPart.noteWorkerIdle(short),
     })
-    this.retargetPart = new RetargetPart(opts, this.handles, {
+    this.retargetPart = new RetargetPart(this.opts, this.handles, {
       spawnLongLived: short => this.spawnPart.spawnLongLived(short),
       endChild: (short, h, child, signal) => this.endPart.endChild(short, h, child, signal),
     })
-    this.dispatchPart = new DispatchPart(opts, this.handles, { reapSettled: keepRecent => this.reapSettled(keepRecent) })
+    this.dispatchPart = new DispatchPart(this.opts, this.handles, { reapSettled: keepRecent => this.reapSettled(keepRecent) })
   }
 
   getRespawnState(): { degraded: boolean; reason: string } {
@@ -227,41 +220,7 @@ export class TaskRoster {
     opts?: Partial<LongLivedRespawnConfig>,
     start?: { cwd: string; worktree?: string },
   ): { ok: boolean; pid?: number; error?: string } {
-    const existing = this.handles.get(short)
-    if (existing && !existing.entry.outcome) {
-      return { ok: false, error: 'a live worker already holds this id' }
-    }
-    const ll: LongLivedSeat = {
-      spec,
-      cfg: { ...DEFAULT_LONG_LIVED_CONFIG, ...opts },
-      respawns: 0,
-      lifetimeCrashes: 0,
-      lastSpawnAt: 0,
-      intentionalStop: false,
-      spawnGeneration: 0,
-      turnEdges: 0,
-    }
-    const entry: RosterEntry = {
-      short,
-      sessionId: randomUUID(),
-      prompt: `[long-lived ${spec.role}]`,
-      source: 'dispatch',
-      state: 'spawning',
-      startedAt: Date.now(),
-      cliVersion: currentVersion(),
-      via: 'runner',
-      ...(start !== undefined ? { cwd: start.cwd } : spec.cwd !== undefined ? { cwd: spec.cwd } : {}),
-      ...(start?.worktree !== undefined ? { worktree: start.worktree } : {}),
-    }
-    this.handles.set(short, { entry, done: Promise.resolve(), longLived: ll })
-    this.degradedSeats.delete(short)
-    const pid = this.spawnPart.spawnLongLived(short)
-    if (pid === undefined) {
-      ll.intentionalStop = true
-      this.handles.delete(short)
-      return { ok: false, error: 'spawn failed (no pid)' }
-    }
-    return { ok: true, pid }
+    return this.spawnPart.registerLongLived(short, spec, opts, start)
   }
 
   isWorkerBusy(short: string): boolean {
@@ -324,53 +283,18 @@ export class TaskRoster {
   }
 
   patchSeatModel(short: string, model: string): boolean {
-    const h = this.handles.get(short)
-    if (!h?.longLived) return false
-    h.longLived.spec = { ...h.longLived.spec, model }
-    if (h.longLived.running) h.longLived.running = { ...h.longLived.running, model }
-    return true
+    return this.retargetPart.patchSeatModel(short, model)
   }
 
   patchSeatEffort(short: string, effort: string): boolean {
-    const h = this.handles.get(short)
-    if (!h?.longLived) return false
-    h.longLived.spec = { ...h.longLived.spec, effort }
-    if (h.longLived.running) h.longLived.running = { ...h.longLived.running, effort }
-    return true
+    return this.retargetPart.patchSeatEffort(short, effort)
   }
 
   patchSeatClaim(
     short: string,
     patch: { model: string; effort: string; respawnExtraArgv: readonly string[]; permissionMode: SeatPermissionMode },
   ): RunnerChildSpec | null {
-    const h = this.handles.get(short)
-    if (!h?.longLived) return null
-    const ll = h.longLived
-    ll.spec = {
-      ...ll.spec,
-      model: patch.model,
-      effort: patch.effort,
-      respawnExtraArgv: [...patch.respawnExtraArgv],
-      permissionMode: patch.permissionMode,
-    }
-    if (ll.running) ll.running = { model: patch.model, effort: patch.effort }
-    const connection = ll.connection
-    if (connection !== undefined && !connection.closed) {
-      ll.ready = false
-      ll.claimedAt = Date.now()
-      const generation = ll.spawnGeneration
-      void connection.sessionLoaded().then(loaded => {
-        if (!loaded || ll.connection !== connection || ll.spawnGeneration !== generation) return
-        ll.ready = true
-        logForDebugging(`[daemon] ${short}: the claimed session is loaded after ${Math.round(connection.loadMs / 1000)} s`)
-        try {
-          this.opts.onChildReady?.(short)
-        } catch (e) {
-          logForDebugging(`[daemon] onChildReady(${short}) hook threw (ignored): ${e}`)
-        }
-      })
-    }
-    return ll.spec
+    return this.retargetPart.patchSeatClaim(short, patch)
   }
 
   onDispatchTick(short: string, delivered: number): void {

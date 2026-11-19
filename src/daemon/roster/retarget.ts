@@ -3,6 +3,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import type { EffortValue } from '../../utils/effort.js'
 import { validateSeatEffort } from '../../utils/model/seatSlots.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import type { RunnerChildSpec, SeatPermissionMode } from '../headlessRun.js'
 import { decideWorkerBusy, getMaxTurnMs } from '../longLivedRespawn.js'
 import type { LongLivedSeat, RosterOptions, WorkerHandle } from './types.js'
 
@@ -103,6 +104,56 @@ export class RetargetPart {
     ll.pendingReconfigure = true
     logForDebugging(`[daemon] reconfigure(${short}) queued — worker busy, will apply when idle`)
     return { ok: true, respawned: false, pending: true, note }
+  }
+
+  patchSeatModel(short: string, model: string): boolean {
+    const h = this.handles.get(short)
+    if (!h?.longLived) return false
+    h.longLived.spec = { ...h.longLived.spec, model }
+    if (h.longLived.running) h.longLived.running = { ...h.longLived.running, model }
+    return true
+  }
+
+  patchSeatEffort(short: string, effort: string): boolean {
+    const h = this.handles.get(short)
+    if (!h?.longLived) return false
+    h.longLived.spec = { ...h.longLived.spec, effort }
+    if (h.longLived.running) h.longLived.running = { ...h.longLived.running, effort }
+    return true
+  }
+
+  patchSeatClaim(
+    short: string,
+    patch: { model: string; effort: string; respawnExtraArgv: readonly string[]; permissionMode: SeatPermissionMode },
+  ): RunnerChildSpec | null {
+    const h = this.handles.get(short)
+    if (!h?.longLived) return null
+    const ll = h.longLived
+    ll.spec = {
+      ...ll.spec,
+      model: patch.model,
+      effort: patch.effort,
+      respawnExtraArgv: [...patch.respawnExtraArgv],
+      permissionMode: patch.permissionMode,
+    }
+    if (ll.running) ll.running = { model: patch.model, effort: patch.effort }
+    const connection = ll.connection
+    if (connection !== undefined && !connection.closed) {
+      ll.ready = false
+      ll.claimedAt = Date.now()
+      const generation = ll.spawnGeneration
+      void connection.sessionLoaded().then(loaded => {
+        if (!loaded || ll.connection !== connection || ll.spawnGeneration !== generation) return
+        ll.ready = true
+        logForDebugging(`[daemon] ${short}: the claimed session is loaded after ${Math.round(connection.loadMs / 1000)} s`)
+        try {
+          this.opts.onChildReady?.(short)
+        } catch (e) {
+          logForDebugging(`[daemon] onChildReady(${short}) hook threw (ignored): ${e}`)
+        }
+      })
+    }
+    return ll.spec
   }
 
   applyQueuedRetargetIfIdle(short: string, ll: LongLivedSeat): void {
