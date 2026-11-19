@@ -1,0 +1,219 @@
+== a setup whose vendor key is not saved
+  record no-vendor-key patch jobState="running" error=undefined
+  log setup paused · The saved Vast.ai key is unavailable. · Vast.ai instance no-vendor-key · $1.25/hr still billing · Resume or Terminate in /llmhost
+  record no-vendor-key patch jobState="paused" step="paused at waiting for SSH" error="setup paused · The saved Vast.ai key is unavailable. · Vast.ai instance no-vendor-key · $1.25/hr still billing · Resume or Terminate in /llmhost" advancedAt=<at> steps+="paused at waiting for SSH"
+  notice paused for no-vendor-key: no-vendor-key · setup paused · The saved Vast.ai key is unavailable. · Vast.ai instance no-vendor-key · $1.25/hr still billing · Resume or Terminate in /llmhost
+  the job ended
+  at the end, record no-vendor-key: jobKind=setup jobState=paused status=RUNNING step="paused at waiting for SSH" error="setup paused · The saved Vast.ai key is unavailable. · Vast.ai instance no-vendor-key · $1.25/hr still billing · Resume or Terminate in /llmhost" steps=["waiting for SSH","paused at waiting for SSH"]
+== a managed setup whose saved Hugging Face credential is gone
+  record hf-credential-gone patch jobState="running" error=undefined
+  log setup paused · The saved Hugging Face credential for this job is unavailable. Connect Hugging Face and start the job again. · HF endpoint hf-credential-gone · $5.00/hr still billing · Terminate in /llmhost
+  record hf-credential-gone patch jobState="paused" step="paused at waiting for SSH" error="setup paused · The saved Hugging Face credential for this job is unavailable. Connect Hugging Face and start the job again. · HF endpoint hf-credential-gone · $5.00/hr still billing · Terminate in /llmhost" advancedAt=<at> steps+="paused at waiting for SSH"
+  notice paused for hf-credential-gone: hf-credential-gone · setup paused · The saved Hugging Face credential for this job is unavailable. Connect Hugging Face and start the job again. · HF endpoint hf-credential-gone · $5.00/hr still billing · Terminate in /llmhost
+  the job ended
+  at the end, record hf-credential-gone: jobKind=setup jobState=paused status=PROVISIONING step="paused at waiting for SSH" error="setup paused · The saved Hugging Face credential for this job is unavailable. Connect Hugging Face and start the job again. · HF endpoint hf-credential-gone · $5.00/hr still billing · Terminate in /llmhost" steps=["waiting for SSH","paused at waiting for SSH"]
+== a private repository with no Hugging Face sign-in
+  record fixture-pod-1 patch jobState="running" error=undefined
+  request GET Runpod /v2/pods/fixture-pod-1
+  record fixture-pod-1 patch status="RUNNING"
+  record fixture-pod-1 patch target={"host":"127.0.0.1","port":"<port>","user":"root"} status="RUNNING"
+  log setup paused · The saved Hugging Face sign-in is unavailable, so fixture-owner/private-weights cannot be read; nothing was downloaded. Connect with /logins huggingface and resume. · Runpod pod fixture-pod-1 · $2.49/hr still billing · Resume or Terminate in /llmhost
+  record fixture-pod-1 patch jobState="paused" step="paused at waiting for SSH" error="setup paused · The saved Hugging Face sign-in is unavailable, so fixture-owner/private-weights cannot be read; nothing was downloaded. Connect with /logins huggingface and resume. · Runpod pod fixture-pod-1 · $2.49/hr still billing · Resume or Terminate in /llmhost" advancedAt=<at> steps+="paused at waiting for SSH"
+  notice paused for fixture-pod-1: private-repo-no-sign-in · setup paused · The saved Hugging Face sign-in is unavailable, so fixture-owner/private-weights cannot be read; nothing was downloaded. Connect with /logins huggingface and resume. · Runpod pod fixture-pod-1 · $2.49/hr still billing · Resume or Terminate in /llmhost
+  the job ended
+  at the end, record fixture-pod-1: jobKind=setup jobState=paused status=RUNNING step="paused at waiting for SSH" error="setup paused · The saved Hugging Face sign-in is unavailable, so fixture-owner/private-weights cannot be read; nothing was downloaded. Connect with /logins huggingface and resume. · Runpod pod fixture-pod-1 · $2.49/hr still billing · Resume or Terminate in /llmhost" steps=["waiting for SSH","paused at waiting for SSH"]
+== a private repository whose saved Hugging Face credential is gone
+  record fixture-pod-2 patch jobState="running" error=undefined
+  request GET Runpod /v2/pods/fixture-pod-2
+  record fixture-pod-2 patch status="RUNNING"
+  record fixture-pod-2 patch target={"host":"127.0.0.1","port":"<port>","user":"root"} status="RUNNING"
+  log setup paused · The saved Hugging Face credential for this job is unavailable. Connect Hugging Face and start the job again. · Runpod pod fixture-pod-2 · $2.49/hr still billing · Resume or Terminate in /llmhost
+  record fixture-pod-2 patch jobState="paused" step="paused at waiting for SSH" error="setup paused · The saved Hugging Face credential for this job is unavailable. Connect Hugging Face and start the job again. · Runpod pod fixture-pod-2 · $2.49/hr still billing · Resume or Terminate in /llmhost" advancedAt=<at> steps+="paused at waiting for SSH"
+  notice paused for fixture-pod-2: private-repo-credential-gone · setup paused · The saved Hugging Face credential for this job is unavailable. Connect Hugging Face and start the job again. · Runpod pod fixture-pod-2 · $2.49/hr still billing · Resume or Terminate in /llmhost
+  the job ended
+  at the end, record fixture-pod-2: jobKind=setup jobState=paused status=RUNNING step="paused at waiting for SSH" error="setup paused · The saved Hugging Face credential for this job is unavailable. Connect Hugging Face and start the job again. · Runpod pod fixture-pod-2 · $2.49/hr still billing · Resume or Terminate in /llmhost" steps=["waiting for SSH","paused at waiting for SSH"]
+== a setup whose endpoint lists no model
+  record fixture-pod-3 patch jobState="running" error=undefined
+  request GET Runpod /v2/pods/fixture-pod-3
+  record fixture-pod-3 patch status="RUNNING"
+  record fixture-pod-3 patch target={"host":"127.0.0.1","port":"<port>","user":"root"} status="RUNNING"
+  record fixture-pod-3 patch step="installing" advancedAt=<at> steps+="installing"
+  log MERCURY_STEP installing
+  log MERCURY_STEP building llama.cpp
+  log MERCURY_STEP downloading weights
+  record fixture-pod-3 patch step="building llama.cpp" advancedAt=<at> steps+="building llama.cpp"
+  record fixture-pod-3 patch step="downloading weights on the machine" advancedAt=<at> steps+="downloading weights on the machine"
+  request GET the model /v1/models
+  record fixture-pod-3 patch target={"host":"127.0.0.1","port":"<port>","user":"root"} status="RUNNING"
+  record fixture-pod-3 patch step="starting engine" advancedAt=<at> steps+="starting engine"
+  request GET the tunnel /v1/models
+  record fixture-pod-3 patch localPort=<port>
+  record fixture-pod-3 patch step="tunnel on 127.0.0.1:<port>" advancedAt=<at> steps+="tunnel on 127.0.0.1:<port>"
+  request GET the tunnel /v1/models
+  request GET the tunnel /model_info
+  request GET the tunnel /props
+  request GET the tunnel /api/tags
+  request GET the tunnel /get_model_info
+  log setup paused · The server returned no models. Load a model there, then open /llmhost again. · Runpod pod fixture-pod-3 · $2.49/hr still billing · Resume or Terminate in /llmhost
+  record fixture-pod-3 patch jobState="paused" step="paused at tunnel on 127.0.0.1:<port>" error="setup paused · The server returned no models. Load a model there, then open /llmhost again. · Runpod pod fixture-pod-3 · $2.49/hr still billing · Resume or Terminate in /llmhost" advancedAt=<at> steps+="paused at tunnel on 127.0.0.1:<port>"
+  notice paused for fixture-pod-3: no-model-listed · setup paused · The server returned no models. Load a model there, then open /llmhost again. · Runpod pod fixture-pod-3 · $2.49/hr still billing · Resume or Terminate in /llmhost
+  the job ended
+  at the end, record fixture-pod-3: jobKind=setup jobState=paused status=RUNNING step="paused at tunnel on 127.0.0.1:<port>" error="setup paused · The server returned no models. Load a model there, then open /llmhost again. · Runpod pod fixture-pod-3 · $2.49/hr still billing · Resume or Terminate in /llmhost" steps=["waiting for SSH","installing","building llama.cpp","downloading weights on the machine","starting engine","tunnel on 127.0.0.1:<port>","paused at tunnel on 127.0.0.1:<port>"]
+== a managed endpoint kept alive through a new sign-in, then refused
+  record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl patch jobState="running" error=undefined
+  request GET Hugging Face /api/whoami-v2
+  request GET Hugging Face /v2/endpoint/fixture-owner/hf-kept-alive
+  request GET Hugging Face /v2/provider/fixture-owner
+  record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl patch status="PROVISIONING"
+  record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl patch step="HF endpoint · starting · 0 min" advancedAt=<at> steps+="HF endpoint · starting · 0 min"
+  request GET Hugging Face /v2/endpoint/fixture-owner/hf-kept-alive
+  record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl patch status="RUNNING"
+  record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl patch target=undefined status="RUNNING"
+  request GET Hugging Face /v1/models
+  request GET Hugging Face /model_info
+  request GET Hugging Face /props
+  request GET Hugging Face /api/tags
+  request GET Hugging Face /v1/models
+  request GET Hugging Face /model_info
+  request GET Hugging Face /metrics
+  request POST Hugging Face /v1/chat/completions
+  record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl patch provider="pod-hf-zml4dhvyzs1vd25lci9ozi1rz"
+  record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl patch step="ready" advancedAt=<at> steps+="ready"
+  record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl patch jobState="ready" engineDeath=undefined linkLost=undefined
+  notice ready for hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl: Qwen3.8-27B · FP8 ready · /model compat/pod-hf-zml4dhvyzs1vd25lci9ozi1rz/Qwen/Qwen3.8-27B-FP8 ⏎ ~$<spent> so far + storage.
+  keep-alive read 1 carries <the Hugging Face key>
+  request GET Hugging Face /v1/models
+  keep-alive read 2 carries <the Hugging Face key after a new sign-in>
+  request GET Hugging Face /v1/models
+  record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl patch jobState="failed" error="Error: The HF endpoint no longer answers: HTTP 401 from the endpoint"
+  log Error: The HF endpoint no longer answers: HTTP 401 from the endpoint
+  notice failed for hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl: hf-kept-alive · the tunnel to the pod dropped after setup: Error: The HF endpoint no longer answers: HTTP 401 from the endpoint · Mercury did not terminate the pod; it bills $5.00/hr while it runs · /llmhost → Machines I’m paying for → Resume to reconnect, Terminate to stop the bill
+  the job ended
+  at the end, record hf-Zml4dHVyZS1vd25lci9oZi1rZXB0LWFsaXZl: jobKind=setup jobState=failed status=RUNNING step="ready" error="Error: The HF endpoint no longer answers: HTTP 401 from the endpoint" steps=["waiting for SSH","HF endpoint · starting · 0 min","ready"]
+== a setup stopped as its tunnel opens
+  record fixture-pod-4 patch jobState="running" error=undefined
+  request GET Runpod /v2/pods/fixture-pod-4
+  record fixture-pod-4 patch status="RUNNING"
+  record fixture-pod-4 patch target={"host":"127.0.0.1","port":"<port>","user":"root"} status="RUNNING"
+  record fixture-pod-4 patch step="installing" advancedAt=<at> steps+="installing"
+  log MERCURY_STEP installing
+  log MERCURY_STEP building llama.cpp
+  log MERCURY_STEP downloading weights
+  record fixture-pod-4 patch step="building llama.cpp" advancedAt=<at> steps+="building llama.cpp"
+  record fixture-pod-4 patch step="downloading weights on the machine" advancedAt=<at> steps+="downloading weights on the machine"
+  request GET the model /v1/models
+  record fixture-pod-4 patch target={"host":"127.0.0.1","port":"<port>","user":"root"} status="RUNNING"
+  record fixture-pod-4 patch step="starting engine" advancedAt=<at> steps+="starting engine"
+  request GET the tunnel /v1/models
+  the setup is stopped as this write lands
+  record fixture-pod-4 write jobKind=setup jobState=stopped step="starting engine" watchedFrom=undefined
+  record fixture-pod-4 patch localPort=<port>
+  the job ended
+  at the end, record fixture-pod-4: jobKind=setup jobState=stopped status=RUNNING step="starting engine" error=undefined steps=["waiting for SSH","installing","building llama.cpp","downloading weights on the machine","starting engine"]
+== a managed setup whose Hugging Face sign-in is removed before the provider asks for its key
+  record hf-Zml4dHVyZS1vd25lci9oZi1zaWduLWluLXJlbW92ZWQ patch jobState="running" error=undefined
+  request GET Hugging Face /api/whoami-v2
+  request GET Hugging Face /v2/endpoint/fixture-owner/hf-sign-in-removed
+  request GET Hugging Face /v2/provider/fixture-owner
+  record hf-Zml4dHVyZS1vd25lci9oZi1zaWduLWluLXJlbW92ZWQ patch status="PROVISIONING"
+  record hf-Zml4dHVyZS1vd25lci9oZi1zaWduLWluLXJlbW92ZWQ patch step="HF endpoint · starting · 0 min" advancedAt=<at> steps+="HF endpoint · starting · 0 min"
+  the Hugging Face sign-in is removed while this read is on its way
+  request GET Hugging Face /v2/endpoint/fixture-owner/hf-sign-in-removed
+  record hf-Zml4dHVyZS1vd25lci9oZi1zaWduLWluLXJlbW92ZWQ patch status="RUNNING"
+  record hf-Zml4dHVyZS1vd25lci9oZi1zaWduLWluLXJlbW92ZWQ patch target=undefined status="RUNNING"
+  request GET Hugging Face /v1/models
+  log setup paused · Cancelled · HF endpoint hf-Zml4dHVyZS1vd25lci9oZi1zaWduLWluLXJlbW92ZWQ · $5.00/hr still billing · Resume or Terminate in /llmhost
+  record hf-Zml4dHVyZS1vd25lci9oZi1zaWduLWluLXJlbW92ZWQ patch jobState="paused" step="paused at HF endpoint · starting · 0 min" error="setup paused · Cancelled · HF endpoint hf-Zml4dHVyZS1vd25lci9oZi1zaWduLWluLXJlbW92ZWQ · $5.00/hr still billing · Resume or Terminate in /llmhost" advancedAt=<at> steps+="paused at HF endpoint · starting · 0 min"
+  notice paused for hf-Zml4dHVyZS1vd25lci9oZi1zaWduLWluLXJlbW92ZWQ: hf-sign-in-removed · setup paused · Cancelled · HF endpoint hf-Zml4dHVyZS1vd25lci9oZi1zaWduLWluLXJlbW92ZWQ · $5.00/hr still billing · Resume or Terminate in /llmhost
+  the job ended
+  at the end, record hf-Zml4dHVyZS1vd25lci9oZi1zaWduLWluLXJlbW92ZWQ: jobKind=setup jobState=paused status=RUNNING step="paused at HF endpoint · starting · 0 min" error="setup paused · Cancelled · HF endpoint hf-Zml4dHVyZS1vd25lci9oZi1zaWduLWluLXJlbW92ZWQ · $5.00/hr still billing · Resume or Terminate in /llmhost" steps=["waiting for SSH","HF endpoint · starting · 0 min","paused at HF endpoint · starting · 0 min"]
+== a watch whose vendor refuses the key
+  record watch-key-refused patch jobState="running" error=undefined
+  record watch-key-refused patch advancedAt=<at>
+  request GET Runpod /v2/catalog/gpus
+  record watch-key-refused patch jobState="failed" error="stock watch stopped · Error: Runpod GET /catalog/gpus returned HTTP 401 · fixture key needed — check the key and its Pods, Catalog and billing read permissions. · no pod was created"
+  log stock watch stopped · Error: Runpod GET /catalog/gpus returned HTTP 401 · fixture key needed — check the key and its Pods, Catalog and billing read permissions. · no pod was created
+  notice failed for watch-key-refused: Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · stock watch stopped · Error: Runpod GET /catalog/gpus returned HTTP 401 · fixture key needed — check the key and its Pods, Catalog and billing read permissions. · no pod was created
+  the job ended
+  at the end, record watch-key-refused: jobKind=watch jobState=failed status=WATCHING step="watching for stock ≤ $10.00/hr" error="stock watch stopped · Error: Runpod GET /catalog/gpus returned HTTP 401 · fixture key needed — check the key and its Pods, Catalog and billing read permissions. · no pod was created" steps=["watching for stock ≤ $10.00/hr"]
+== a watch stopped while it reads the stock
+  record watch-stopped-mid-read patch jobState="running" error=undefined
+  record watch-stopped-mid-read patch advancedAt=<at>
+  the watch is stopped while this read is on its way
+  record watch-stopped-mid-read write jobKind=watch jobState=stopped step="watching for stock ≤ $10.00/hr" watchedFrom=undefined
+  request GET Runpod /v2/catalog/gpus
+  the job ended
+  at the end, record watch-stopped-mid-read: jobKind=watch jobState=stopped status=WATCHING step="watching for stock ≤ $10.00/hr" error=undefined steps=["watching for stock ≤ $10.00/hr"]
+== a watch that finds stock its weights disk cannot reach, until its window ends
+  record watch-volume-elsewhere patch jobState="running" error=undefined
+  record watch-volume-elsewhere patch advancedAt=<at>
+  request GET Runpod /v2/catalog/gpus
+  record watch-volume-elsewhere patch rateLimit="one catalogue read every 0.005 s (12000 a minute) · this account’s Runpod quota: 60 a minute, 3000 an hour, 50000 a day"
+  log stock at Runpod (1× RTX PRO 6000 · $2.49/hr) but your kept volume is not on that machine · no pod was created · still watching
+  record watch-volume-elsewhere patch step="stock at Runpod (1× RTX PRO 6000 · $2.49/hr) but your kept volume is not on that machine · no pod was created · still watching"
+  record watch-volume-elsewhere patch advancedAt=<at>
+  request GET Runpod /v2/catalog/gpus
+  log stock at Runpod (1× RTX PRO 6000 · $2.49/hr) but your kept volume is not on that machine · no pod was created · still watching
+  record watch-volume-elsewhere patch step="stock at Runpod (1× RTX PRO 6000 · $2.49/hr) but your kept volume is not on that machine · no pod was created · still watching"
+  record watch-volume-elsewhere patch jobState="stopped" status="EXPIRED" step="watch ended after 2 s without stock ≤ $10.00/hr · no pod was created"
+  notice expired for watch-volume-elsewhere: Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · watch ended after 2 s without stock ≤ $10.00/hr · no pod was created
+  the job ended
+  at the end, record watch-volume-elsewhere: jobKind=watch jobState=stopped status=EXPIRED step="watch ended after 2 s without stock ≤ $10.00/hr · no pod was created" error=undefined steps=["watching for stock ≤ $10.00/hr"]
+== a watch stopped as it marks the create
+  record watch-stopped-at-the-mark patch jobState="running" error=undefined
+  record watch-stopped-at-the-mark patch advancedAt=<at>
+  request GET Runpod /v2/catalog/gpus
+  record watch-stopped-at-the-mark patch rateLimit="one catalogue read every 0.005 s (12000 a minute) · this account’s Runpod quota: 60 a minute, 3000 an hour, 50000 a day"
+  the watch is stopped as this write lands
+  record watch-stopped-at-the-mark write jobKind=watch jobState=stopped step="watching for stock ≤ $10.00/hr" watchedFrom=undefined
+  record watch-stopped-at-the-mark patch creating="mercury-<id>" step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr"
+  the job ended
+  at the end, record watch-stopped-at-the-mark: jobKind=watch jobState=stopped status=WATCHING step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr" error=undefined steps=["watching for stock ≤ $10.00/hr"]
+== a watch whose every create is refused for placement, until its window ends
+  record watch-never-placed patch jobState="running" error=undefined
+  record watch-never-placed patch advancedAt=<at>
+  request GET Runpod /v2/catalog/gpus
+  record watch-never-placed patch rateLimit="one catalogue read every 0.005 s (12000 a minute) · this account’s Runpod quota: 60 a minute, 3000 an hour, 50000 a day"
+  record watch-never-placed patch creating="mercury-<id>" step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr"
+  request POST Runpod /v2/pods
+  record watch-never-placed patch creating=undefined
+  log Runpod could not place 1× RTX PRO 6000 · $2.49/hr · no pod was created · still watching · fixture: this GPU and data center combination could not be placed
+  record watch-never-placed patch step="Runpod could not place 1× RTX PRO 6000 · $2.49/hr · no pod was created · still watching · fixture: this GPU and data center combination could not be placed"
+  record watch-never-placed patch advancedAt=<at>
+  request GET Runpod /v2/catalog/gpus
+  record watch-never-placed patch creating="mercury-<id>" step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr"
+  request POST Runpod /v2/pods
+  record watch-never-placed patch creating=undefined
+  log Runpod could not place 1× RTX PRO 6000 · $2.49/hr · no pod was created · still watching · fixture: this GPU and data center combination could not be placed
+  record watch-never-placed patch step="Runpod could not place 1× RTX PRO 6000 · $2.49/hr · no pod was created · still watching · fixture: this GPU and data center combination could not be placed"
+  record watch-never-placed patch jobState="stopped" status="EXPIRED" step="watch ended after 1 s · no pod was created · last refusal: Runpod could not place 1× RTX PRO 6000 · $2.49/hr · fixture: this GPU and data center combination could not be placed"
+  notice expired for watch-never-placed: Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · watch ended after 1 s · no pod was created · last refusal: Runpod could not place 1× RTX PRO 6000 · $2.49/hr · fixture: this GPU and data center combination could not be placed
+  the job ended
+  at the end, record watch-never-placed: jobKind=watch jobState=stopped status=EXPIRED step="watch ended after 1 s · no pod was created · last refusal: Runpod could not place 1× RTX PRO 6000 · $2.49/hr · fixture: this GPU and data center combination could not be placed" error=undefined steps=["watching for stock ≤ $10.00/hr"]
+== a watch whose create is refused for payment
+  record watch-create-unpaid patch jobState="running" error=undefined
+  record watch-create-unpaid patch advancedAt=<at>
+  request GET Runpod /v2/catalog/gpus
+  record watch-create-unpaid patch rateLimit="one catalogue read every 0.005 s (12000 a minute) · this account’s Runpod quota: 60 a minute, 3000 an hour, 50000 a day"
+  record watch-create-unpaid patch creating="mercury-<id>" step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr"
+  request POST Runpod /v2/pods
+  record watch-create-unpaid patch creating=undefined
+  record watch-create-unpaid patch jobState="failed" error="stock watch stopped · Error: Runpod POST /pods returned HTTP 402 · fixture: insufficient balance · Runpod refused it; no pod was created."
+  log stock watch stopped · Error: Runpod POST /pods returned HTTP 402 · fixture: insufficient balance · Runpod refused it; no pod was created.
+  notice failed for watch-create-unpaid: Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · stock watch stopped · Error: Runpod POST /pods returned HTTP 402 · fixture: insufficient balance · Runpod refused it; no pod was created.
+  the job ended
+  at the end, record watch-create-unpaid: jobKind=watch jobState=failed status=WATCHING step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr" error="stock watch stopped · Error: Runpod POST /pods returned HTTP 402 · fixture: insufficient balance · Runpod refused it; no pod was created." steps=["watching for stock ≤ $10.00/hr"]
+== a watch that rents a pod it cannot record
+  record watch-rented-unrecorded patch jobState="running" error=undefined
+  record watch-rented-unrecorded patch advancedAt=<at>
+  request GET Runpod /v2/catalog/gpus
+  record watch-rented-unrecorded patch rateLimit="one catalogue read every 0.005 s (12000 a minute) · this account’s Runpod quota: 60 a minute, 3000 an hour, 50000 a day"
+  record watch-rented-unrecorded patch creating="mercury-<id>" step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr"
+  a folder stands where the rented pod is to be recorded
+  request POST Runpod /v2/pods
+  log Rented Nemotron 3.5 Super VL 120B · 1× RTX PRO 6000 · $2.49/hr · setting up
+  record watch-rented-unrecorded patch jobState="failed" error="fixture-pod-5 was created but could not be recorded · Error: EISDIR: illegal operation on a directory, read · /llmhost → Machines I’m paying for"
+  log fixture-pod-5 was created but could not be recorded · Error: EISDIR: illegal operation on a directory, read · /llmhost → Machines I’m paying for
+  notice failed for watch-rented-unrecorded: Nemotron 3.5 Super VL 120B · UD-Q3_K_XL · fixture-pod-5 was created but could not be recorded · Error: EISDIR: illegal operation on a directory, read · /llmhost → Machines I’m paying for
+  the job ended
+  at the end, record watch-rented-unrecorded: jobKind=watch jobState=failed status=WATCHING step="creating mercury-<id> · 1× RTX PRO 6000 · $2.49/hr" error="fixture-pod-5 was created but could not be recorded · Error: EISDIR: illegal operation on a directory, read · /llmhost → Machines I’m paying for" steps=["watching for stock ≤ $10.00/hr"]

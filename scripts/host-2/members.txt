@@ -6,3 +6,4 @@ prove-fast-load-drive.ts
 prove-host-guard.ts
 prove-host-hiccups.ts
 prove-host-upload-confirm-drive.ts
+prove-host-job-recording.ts
