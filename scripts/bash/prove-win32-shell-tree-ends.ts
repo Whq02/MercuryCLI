@@ -145,6 +145,18 @@ section('§1 the MSYS table reader and the tree walk (pure)')
       check('…and the privileged start keeps a BASH_ENV file and an exported SHELLOPTS out of it', !(ran.stdout ?? '').includes('9 9 9 9') && rows.length === 3, JSON.stringify(ran.stdout))
     }
     rmSync(stand, { recursive: true, force: true })
+
+    const guard = await import(join(ROOT, 'src/utils/shell/parentGuard.ts'))
+    const leaves = guard.statusAnMsysShellLeaves as ((status: number, underMsys: boolean, platform: string) => number) | undefined
+    check('the guard owns the reading of the status the MSYS runtime gives a bash a signal ended', typeof leaves === 'function')
+    if (typeof leaves === 'function') {
+      check('on Windows a bash of the MSYS family that left with 15 times 256 reads 143, and with 9 times 256 reads 137', leaves(3840, true, 'win32') === 143 && leaves(2304, true, 'win32') === 137, `${leaves(3840, true, 'win32')} ${leaves(2304, true, 'win32')}`)
+      check('a status that is no exact multiple of 256, a zero and an ordinary exit code leave as they are', leaves(3841, true, 'win32') === 3841 && leaves(0, true, 'win32') === 0 && leaves(3, true, 'win32') === 3 && leaves(255, true, 'win32') === 255)
+      check('the last signal is 64, and a multiple past it leaves as it is', leaves(64 * 256, true, 'win32') === 192 && leaves(65 * 256, true, 'win32') === 65 * 256)
+      check('a program outside the MSYS family keeps its status, and so does every program off Windows', leaves(3840, false, 'win32') === 3840 && leaves(3840, true, 'darwin') === 3840 && leaves(3840, true, 'linux') === 3840)
+      const inRuntime = group.runsInAnMsysRuntime as (spawnfile: string | undefined, fileExists: (file: string) => boolean) => boolean
+      check("Git's launcher and a usr\\bin bash stand in an MSYS runtime; PowerShell and a bash with no runtime beside it do not", inRuntime(`${git}\\bin\\bash.exe`, gitWorld) && inRuntime(`${git}\\usr\\bin\\bash.exe`, gitWorld) && !inRuntime('C:\\Program Files\\PowerShell\\7\\pwsh.exe', gitWorld) && !inRuntime('C:\\pin\\bin\\bash.exe', world()) && !inRuntime(undefined, gitWorld))
+    }
   }
 }
 

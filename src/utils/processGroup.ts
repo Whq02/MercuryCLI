@@ -270,6 +270,10 @@ function msysRuntimesOf(spawnfile: string, fileExists: (file: string) => boolean
   return [holder, pathWin32.join(holder, '..', 'usr', 'bin')].filter(dir => fileExists(pathWin32.join(dir, 'msys-2.0.dll')) || fileExists(pathWin32.join(dir, 'cygwin1.dll')))
 }
 
+export function runsInAnMsysRuntime(spawnfile: string | undefined, fileExists: (file: string) => boolean = existsSync): boolean {
+  return typeof spawnfile === 'string' && pathWin32.isAbsolute(spawnfile) && msysRuntimesOf(spawnfile, fileExists).length > 0
+}
+
 export function msysTableReaderOf(spawnfile: string | undefined, fileExists: (file: string) => boolean = existsSync): MsysTableReader | undefined {
   if (typeof spawnfile !== 'string' || !pathWin32.isAbsolute(spawnfile)) return undefined
   const runtimes = msysRuntimesOf(spawnfile, fileExists)

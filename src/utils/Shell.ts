@@ -1,4 +1,4 @@
-import { spawnOwnedShell } from './shell/parentGuard.js'
+import { spawnOwnedShell, tellWhatTheShellGuardReads } from './shell/parentGuard.js'
 import { randomBytes } from 'node:crypto'
 import { closeSync, constants as fsConstants, existsSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
@@ -127,6 +127,7 @@ export async function terminalShellInvocation(
 if (process.platform === 'win32') {
   tellWhatProcessGroupEnds(line => logForDebugging(`shell jobs: ${line}`))
   tellProcessGroupTheShell(() => subprocessEnv().SHELL)
+  tellWhatTheShellGuardReads(line => logForDebugging(`shell guard: ${line}`))
 }
 
 function noteServingShell(shellPath: string): void {
