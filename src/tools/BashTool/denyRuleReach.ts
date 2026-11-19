@@ -21,6 +21,7 @@ import { scanCeiling } from '../../utils/verification/scanCeiling.js'
 import { BASH_TOOL_NAME } from './toolName.js'
 import { gitLeavingOut, gitNamesPrinted, gitPatchQuestion, gitVariableSet } from './gitPrintedNames.js'
 import { COMMAND_OPERATION_TYPE, PATH_EXTRACTORS, type PathCommand } from './pathValidation.js'
+import { errorMessage, getErrnoCode, isFsInaccessible } from '../../utils/errors.js'
 
 export type HiddenDenyRule = { rule: PermissionRule; why: string }
 type DenyRuleReach = { denied: PermissionResult | null; hidden: HiddenDenyRule | null; unread?: HiddenDenyRule | null }
@@ -121,9 +122,20 @@ function segmentPatternOf(segment: string): RegExp {
   return new RegExp(`^${source}$`)
 }
 
-function globMatches(pattern: string, cwd: string): string[] | null {
+type Unreadable = { folder: string; code: string }
+
+function unreadableOf(folder: string, failure: unknown): Unreadable | null {
+  return isFsInaccessible(failure) ? null : { folder, code: getErrnoCode(failure) ?? errorMessage(failure) }
+}
+
+function unreadableWhy(one: Unreadable): string {
+  return `the folder ${one.folder} could not be read (${one.code})`
+}
+
+function globMatches(pattern: string, cwd: string): { matches: string[]; unreadable: Unreadable | null } | null {
   const spelled = expandTilde(pattern)
   let folders = [isAbsolute(spelled) ? '/' : cwd]
+  let unreadable: Unreadable | null = null
   for (const segment of spelled.split(/[\\/]/)) {
     if (segment === '' || segment === '.') continue
     if (segment === '..') {
@@ -140,7 +152,8 @@ function globMatches(pattern: string, cwd: string): string[] | null {
       let names: string[]
       try {
         names = readdirSync(folder)
-      } catch {
+      } catch (failure) {
+        unreadable ??= unreadableOf(folder, failure)
         continue
       }
       for (const name of names) if (matches.test(name)) next.push(join(folder, name))
@@ -148,7 +161,7 @@ function globMatches(pattern: string, cwd: string): string[] | null {
     if (next.length > MAX_GLOB_MATCHES) return null
     folders = next
   }
-  return folders
+  return { matches: folders, unreadable }
 }
 
 function braceAlternatives(inner: string): string[] | null {
@@ -544,27 +557,34 @@ function denialsOf(reach: Reach) {
     }
     return estate !== undefined && wanted.includes('edit') && estate(resolve(folder, expandTilde(path))) ? ESTATE_RULE : null
   }
-  const pathDenial = (path: string, folders: readonly string[], wanted: readonly FileKind[]): { rule: PermissionRule; path: string } | 'unread' | null => {
+  const pathFound = (path: string, folders: readonly string[], wanted: readonly FileKind[]): { rule: PermissionRule; path: string } | 'unread' | Unreadable | null => {
+    let unreadable: Unreadable | null = null
     for (const folder of folders) {
       if (!hasGlob(path)) {
         const rule = fileDenial(path, folder, wanted)
         if (rule !== null) return { rule, path: resolve(folder, expandTilde(path)) }
         continue
       }
-      const matches = globMatches(path, folder)
-      if (matches === null) return 'unread'
-      for (const match of matches) {
+      const read = globMatches(path, folder)
+      if (read === null) return 'unread'
+      for (const match of read.matches) {
         const rule = fileDenial(match, folder, wanted)
         if (rule !== null) return { rule, path: match }
       }
       const above = path.slice(0, path.search(/[*?[]/)).replace(/[^\\/]*$/, '')
       if (estate !== undefined && above !== '' && wanted.includes('edit') && estate(resolve(folder, expandTilde(above)))) return { rule: ESTATE_RULE, path: resolve(folder, expandTilde(above)) }
+      unreadable ??= read.unreadable
     }
-    return null
+    return unreadable
   }
-  const treeDenial = (roots: readonly string[], folders: readonly string[], wanted: readonly FileKind[], names: readonly RegExp[]): { rule: PermissionRule; path: string } | 'unread' | null => {
+  const pathDenial = (path: string, folders: readonly string[], wanted: readonly FileKind[]): { rule: PermissionRule; path: string } | 'unread' | null => {
+    const found = pathFound(path, folders, wanted)
+    return found !== null && found !== 'unread' && 'folder' in found ? 'unread' : found
+  }
+  const treeDenial = (roots: readonly string[], folders: readonly string[], wanted: readonly FileKind[], names: readonly RegExp[]): { rule: PermissionRule; path: string } | 'unread' | Unreadable | null => {
     const budget = scanCeiling()
     let visited = 0
+    let unreadable: Unreadable | null = null
     const queue = folders.flatMap(folder => roots.map(root => resolve(folder, expandTilde(root))))
     const named = estate !== undefined && wanted.includes('edit') ? queue.find(root => estate(root)) : undefined
     if (named !== undefined) return { rule: ESTATE_RULE, path: named }
@@ -582,7 +602,8 @@ function denialsOf(reach: Reach) {
       let entries: Dirent[]
       try {
         entries = readdirSync(folder, { withFileTypes: true })
-      } catch {
+      } catch (failure) {
+        unreadable ??= unreadableOf(folder, failure)
         continue
       }
       for (const entry of entries) {
@@ -594,7 +615,7 @@ function denialsOf(reach: Reach) {
         if (rule !== undefined) return { rule, path: full }
       }
     }
-    return null
+    return unreadable
   }
   const refusal = (subject: string, path: string, rule: PermissionRule, kind: FileKind): PermissionResult => {
     if (rule === ESTATE_RULE) {
@@ -613,12 +634,13 @@ function denialsOf(reach: Reach) {
       hide(fileRules.find(rule => kindOf(rule) === kind), target === null ? 'a redirect names its file at run time' : 'the folder a redirect resolves in could not be established')
       return null
     }
-    const found = pathDenial(target, folders, [kind])
+    const found = pathFound(target, folders, [kind])
     if (found === 'unread') hide(fileRules.find(rule => kindOf(rule) === kind), `the wildcard ${target} matches more files than Mercury reads`)
+    else if (found !== null && 'folder' in found) hide(fileRules.find(rule => kindOf(rule) === kind), unreadableWhy(found))
     else if (found !== null) return refusal(kind === 'edit' ? `The redirection to ${found.path}` : `The input redirect from ${found.path}`, found.path, found.rule, kind)
     return null
   }
-  return { hide, pathDenial, treeDenial, refusal, kindOf, checkRedirect }
+  return { hide, pathFound, pathDenial, treeDenial, refusal, kindOf, checkRedirect }
 }
 
 function viewsOf(root: Node, cwd: string) {
@@ -749,7 +771,7 @@ function viewsOf(root: Node, cwd: string) {
 
 function viewChecksOf(reach: Reach, denials: Denials, ports: DenyRuleReachPorts) {
   const { context, kinds, fileRule } = reach
-  const { hide, pathDenial, treeDenial, refusal, kindOf } = denials
+  const { hide, pathFound, pathDenial, treeDenial, refusal, kindOf } = denials
   const peeledOf = (view: View): { argv: Word[]; changed: boolean; scripts: Word[] } | { denied: PermissionResult } => {
     let argv = view.argv
     let changed = false
@@ -782,6 +804,7 @@ function viewChecksOf(reach: Reach, denials: Denials, ports: DenyRuleReachPorts)
         const reader = ran in COMMAND_OPERATION_TYPE && COMMAND_OPERATION_TYPE[ran as PathCommand] === 'read'
         const found = treeDenial(fed.roots, view.cwds, reader ? ['read'] : ['read', 'edit'], fed.names)
         if (found === 'unread') hide(fileRule, 'xargs takes its operands from a tree larger than Mercury reads')
+        else if (found !== null && 'folder' in found) hide(fileRule, unreadableWhy(found))
         else if (found !== null && fed.exact) return { denied: refusal(`The ${ran} of ${found.path}`, found.path, found.rule, kindOf(found.rule)) }
         else if (found !== null) hide(found.rule, `xargs may hand ${found.path} to ${ran}`)
       }
@@ -797,6 +820,7 @@ function viewChecksOf(reach: Reach, denials: Denials, ports: DenyRuleReachPorts)
     if (wanted.length > 0) {
       const found = treeDenial(roots, view.cwds, wanted, optionValuesOf(words, '', ['-name', '-iname']).map(segmentPattern))
       if (found === 'unread') hide(fileRule, 'find acts on a tree larger than Mercury reads')
+      else if (found !== null && 'folder' in found) hide(fileRule, unreadableWhy(found))
       else if (found !== null) return refusal(`The find over ${found.path}`, found.path, found.rule, kindOf(found.rule))
     }
     return null
@@ -828,8 +852,9 @@ function viewChecksOf(reach: Reach, denials: Denials, ports: DenyRuleReachPorts)
     const reads = base === 'dd' ? words.filter(word => word.startsWith('if=')).map(word => word.slice(3)) : sources
     for (const [paths, wanted] of [[reads, ['read']], [operands, [own]]] as Array<[string[], FileKind[]]>) {
       for (const path of paths) {
-        const found = pathDenial(path, view.cwds, wanted)
+        const found = pathFound(path, view.cwds, wanted)
         if (found === 'unread') hide(fileRule, `the wildcard ${path} matches more files than Mercury reads`)
+        else if (found !== null && 'folder' in found) hide(fileRule, unreadableWhy(found))
         else if (found !== null) return refusal(`The ${base} of ${found.path}`, found.path, found.rule, kindOf(found.rule))
       }
     }
@@ -868,8 +893,9 @@ function viewChecksOf(reach: Reach, denials: Denials, ports: DenyRuleReachPorts)
       }
     }
     for (const path of operandPaths(words)) {
-      const found = pathDenial(path, view.cwds, ['read', 'edit'])
+      const found = pathFound(path, view.cwds, ['read', 'edit'])
       if (found === 'unread') hide(fileRule, `the wildcard ${path} matches more files than Mercury reads`)
+      else if (found !== null && 'folder' in found) hide(fileRule, unreadableWhy(found))
       else if (found !== null) hide(found.rule, `${base} is not a command Mercury can follow and it names ${found.path}`)
     }
   }
