@@ -38,9 +38,8 @@ function isMessageEffortRow(row: unknown): boolean {
 }
 
 export function noteMessageEffortRefusal(messages: readonly unknown[], error: unknown): void {
-  if (refusal !== null || typeof error !== 'object' || error === null) return
-  if (!('status' in error) || error.status !== 400 || !messages.some(isMessageEffortRow)) return
-  refusal = error
+  if (typeof error !== 'object' || error === null || !('status' in error) || error.status !== 400) return
+  if (messages.some(isMessageEffortRow)) refusal = error
 }
 
 export function messageEffortRefusedBy(error: unknown): boolean {

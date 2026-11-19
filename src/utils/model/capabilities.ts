@@ -198,7 +198,7 @@ export function modelSupportsForcedToolChoice(model: string): boolean {
 }
 
 export function modelSupportsMessageEffort(model: string): boolean {
-  if (isCarrierShapedId(model) || !isFirstPartyAnthropicBaseUrl()) return false
+  if (!isFirstPartyAnthropicBaseUrl()) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   return canonical === 'claude-fable-5-2' || canonical === 'claude-fable-5-1' || canonical === 'claude-opus-5-5' || canonical === 'claude-opus-5' || canonical === 'claude-sonnet-5-5' || canonical === 'claude-haiku-5-5'
 }

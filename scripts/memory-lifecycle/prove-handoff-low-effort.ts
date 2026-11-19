@@ -60,9 +60,10 @@ const REFUSALS = [
   'Unexpected value(s) `mid-conversation-output-config-2026-07-01` for the `anthropic-beta` header. Please consult our documentation at platform.claude.com/docs or try again without the header.',
   'the request was refused in words no page of the provider holds',
 ]
+const LATER_REFUSAL = 'a refusal of another kind, answered to a request that carried no row'
 const REFUSAL_MARK = 'REFUSAL-LEG '
 const refusalAt = process.argv.indexOf('--refusal')
-const REFUSAL = refusalAt === -1 ? null : REFUSALS[Number(process.argv[refusalAt + 1])]!
+const REFUSAL = refusalAt === -1 ? null : REFUSALS[Number(process.argv[refusalAt + 1])] ?? LATER_REFUSAL
 
 const { HANDOFF_ASK_MARK, handoffTurn, startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFixture.ts')
@@ -76,14 +77,22 @@ const api = await startFixtureApi([
   handoffTurn(NOTE_SECOND),
   ...plain(80),
 ])
-const refusing = await startFixtureApi([
-  { kind: 'error', status: 400, errorType: 'invalid_request_error', message: REFUSAL ?? REFUSALS[0]!, whenBody: '"role":"system"' },
-  { kind: 'text', text: 'ANSWER-THREE', whenBody: 'third probe' },
-  handoffTurn(NOTE),
-  { kind: 'text', text: 'ANSWER-FOUR', whenBody: 'fourth probe' },
-  handoffTurn(NOTE_LATER),
-  ...plain(8),
-])
+const refusing = await startFixtureApi(REFUSAL === LATER_REFUSAL
+  ? [
+      { kind: 'text', text: 'ANSWER-THREE', whenBody: 'third probe' },
+      { kind: 'error', status: 400, errorType: 'invalid_request_error', message: LATER_REFUSAL, whenBody: HANDOFF_ASK_MARK },
+      ...plain(8),
+    ]
+  : [
+      { kind: 'error', status: 400, errorType: 'invalid_request_error', message: REFUSAL ?? REFUSALS[0]!, whenBody: '"role":"system"' },
+      { kind: 'text', text: 'ANSWER-THREE', whenBody: 'third probe' },
+      handoffTurn(NOTE),
+      { kind: 'text', text: 'ANSWER-FOUR', whenBody: 'fourth probe' },
+      handoffTurn(NOTE_LATER),
+      { kind: 'text', text: 'ANSWER-FIVE', whenBody: 'fifth probe' },
+      { kind: 'error', status: 400, errorType: 'invalid_request_error', message: LATER_REFUSAL, whenBody: HANDOFF_ASK_MARK },
+      ...plain(8),
+    ])
 const families = await startCrossfamilyFixture({ port: 0, gptReasoningLevels: ['low', 'medium', 'high'] })
 
 let upstream = api.port
@@ -222,13 +231,23 @@ async function forkWire(captured: () => unknown[], model: string, effort: string
 const anthropicHits = (): unknown[] => sent(api)
 const beta = (request: Captured | undefined): string[] => (request?.headers['anthropic-beta'] ?? '').split(',').filter(Boolean)
 
+if (REFUSAL === LATER_REFUSAL) {
+  upstream = refusing.port
+  address('first-party')
+  const plainAsk = await session(refusing, 'claude-opus-4-8', 'max', 'third probe')
+  console.log(REFUSAL_MARK + j({ asks: plainAsk.asks.length, rows: plainAsk.asks.filter(ask => ask.raw.includes('"role":"system"')).length, note: plainAsk.note, left: leftTheMachine }))
+  process.exit(0)
+}
 if (REFUSAL !== null) {
   upstream = refusing.port
   address('first-party')
   const three = await session(refusing, 'claude-opus-5-5', 'max', 'third probe')
   const [refused, again] = three.asks
   const four = await session(refusing, 'claude-opus-5-5', 'max', 'fourth probe')
+  const five = await session(refusing, 'claude-opus-5-5', 'max', 'fifth probe')
   console.log(REFUSAL_MARK + j({
+    unrelatedAsks: five.asks.length,
+    unrelatedNote: five.note,
     asks: three.asks.length,
     carried: j(refused?.body.messages?.at(-1)) === ROW && beta(refused).includes(HEADER),
     againIsTheBase: again !== undefined && again.raw === refused!.raw.replace(`,${ROW}`, '') && j(beta(again)) === j(beta(refused).filter(value => value !== HEADER)),
@@ -336,10 +355,17 @@ section('§8 the provider answers 400 to the request that carries the row: the b
 for (const [index, words] of REFUSALS.entries()) {
   const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--refusal', String(index)], { encoding: 'utf8', timeout: 120_000 })
   const line = child.stdout.split('\n').find(row => row.startsWith(REFUSAL_MARK))
-  const leg = line === undefined ? null : JSON.parse(line.slice(REFUSAL_MARK.length)) as { asks: number; carried: boolean; againIsTheBase: boolean; note: { text: string; stored: boolean } | null; laterAsks: number; laterPlain: boolean; laterNote: { text: string; stored: boolean } | null; left: string[] }
+  const leg = line === undefined ? null : JSON.parse(line.slice(REFUSAL_MARK.length)) as { asks: number; carried: boolean; againIsTheBase: boolean; note: { text: string; stored: boolean } | null; laterAsks: number; laterPlain: boolean; laterNote: { text: string; stored: boolean } | null; unrelatedAsks: number; unrelatedNote: unknown; left: string[] }
   const said = `400 "${words.slice(0, 44)}${words.length > 44 ? '…' : ''}"`
   check(`${said}: the ask with the row, then the ask as the base sends it (no row, no header, nothing else moved)`, leg !== null && leg.asks === 2 && leg.carried && leg.againIsTheBase && leg.left.length === 0, line ?? `${child.status} ${child.stderr.slice(-400)}`)
   check(`${said}: the note is stored, and a later exit of the same process asks once without the row`, leg !== null && leg.note?.text === NOTE && leg.note.stored === true && leg.laterAsks === 1 && leg.laterPlain && leg.laterNote?.text === NOTE_LATER && leg.laterNote.stored === true, line ?? '')
+  check(`${said}: a 400 answered afterwards to an ask that carried no row is not sent again`, leg !== null && leg.unrelatedAsks === 1 && leg.unrelatedNote === null, line ?? '')
+}
+{
+  const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--refusal', String(REFUSALS.length)], { encoding: 'utf8', timeout: 120_000 })
+  const line = child.stdout.split('\n').find(row => row.startsWith(REFUSAL_MARK))
+  const leg = line === undefined ? null : JSON.parse(line.slice(REFUSAL_MARK.length)) as { asks: number; rows: number; note: unknown; left: string[] }
+  check('a 400 answered to an ask that never carried the row (Opus 4.8) is today\'s failure: one request, no note', leg !== null && leg.asks === 1 && leg.rows === 0 && leg.note === null && leg.left.length === 0, line ?? `${child.status} ${child.stderr.slice(-400)}`)
 }
 
 check('no request left the machine', leftTheMachine.length === 0, j(leftTheMachine))
