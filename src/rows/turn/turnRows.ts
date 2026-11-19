@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
 import { getSessionId, getSessionKind, isSessionPersistenceDisabled } from '../../bootstrap/state.js'
-import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { queryEvents } from '../../query.js'
 import type { Terminal } from '../../query/transitions.js'
 import type { RunEvent } from '../../run-core/events.js'
@@ -41,7 +40,7 @@ import { setCwd } from '../../utils/Shell.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import { shouldEnableThinkingByDefault } from '../../utils/thinking.js'
-import { commandOutputRow, commandOutputTextOf, shellOutputTextOf, compactionEndedRow, noticeRow, outcomeRow, partialRowsOf, retractedRow, retryWaitRow, toolResultRowsOf, turnStartedRow, type OutcomeFacts, type RowDraft, type RowScope } from '../project.js'
+import { compactionEndedRow, noticeRow, outcomeRow, partialRowsOf, retractedRow, retryWaitRow, toolResultRowsOf, turnStartedRow, type OutcomeFacts, type RowDraft, type RowScope } from '../project.js'
 import { budgetCannotPaySentence, errorClassOf, statusOfTerminal, toolCallsRefusedSentence, unexecutedToolCallSentence, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type ErrorClass, type OutcomeStatus } from '../vocabulary.js'
 import { recoveryKindOf, type RecoveryKind } from '../vocabulary.js'
 import { StepLedger } from './steps.js'
@@ -56,20 +55,12 @@ import { MaxTimeCut } from './settle.js'
 import { closeRowOf } from './close.js'
 import { outcomeFacts } from './outcome.js'
 import { turnEnder } from './end.js'
+import { commandTurnRows } from './command.js'
 import type { TurnOptions } from '../turn.js'
 import type { ConversationState } from './state.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
 
-function messageTextContent(message: Message): string | null {
-  const content = (message as { message?: { content?: unknown } }).message?.content
-  if (typeof content === 'string') return content
-  return null
-}
-
-function isLocalCommandOutputText(text: string): boolean {
-  return text.includes(LOCAL_COMMAND_STDOUT_TAG) || text.includes(LOCAL_COMMAND_STDERR_TAG)
-}
 
 
 function inputFloorUsd(messages: readonly Message[], model: string): number | null {
@@ -237,49 +228,7 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
   noteRunPhase('assembly')
 
   if (!inputResult.shouldQuery) {
-    let commandAnswer = ''
-    for (const message of inputResult.messages) {
-      if (priorUuids.has(message.uuid)) continue
-      if (message.type === 'user') {
-        const text = messageTextContent(message)
-        const isCompactSummary = (message as { isCompactSummary?: boolean }).isCompactSummary === true
-        const shellOutput = text !== null && options?.mode === 'bash' ? shellOutputTextOf(text) : null
-        if (shellOutput !== null) {
-          commandAnswer = shellOutput
-          yield commandOutputRow(scope, shellOutput, typeof prompt === 'string' ? prompt : undefined)
-        } else if (text !== null && isLocalCommandOutputText(text) && !isCompactSummary) {
-          yield commandOutputRow(scope, commandOutputTextOf(text), typeof prompt === 'string' ? prompt.split(/\s+/)[0] : undefined)
-        }
-      } else if (message.type === 'system' && (message as { subtype?: string }).subtype === 'local_command') {
-        const content = (message as { content?: unknown }).content
-        if (typeof content === 'string' && isLocalCommandOutputText(content)) {
-          yield commandOutputRow(scope, commandOutputTextOf(content), typeof prompt === 'string' ? prompt.split(/\s+/)[0] : undefined)
-        }
-      } else if (message.type === 'system' && (message as { subtype?: string }).subtype === 'compact_boundary') {
-        const meta = (message as { compactMetadata?: CompactMetadata }).compactMetadata
-        yield compactionEndedRow(scope, { trigger: meta?.trigger ?? 'manual', tokensBefore: meta?.preTokens })
-      }
-    }
-    if (!persistenceDisabled) {
-      await this.recordDelta(turnMessages)
-      if (eagerFlush) await flushSessionStorage()
-    }
-    if (options?.mode === 'bash' && this.abortController.signal.aborted) {
-      const cut = turnCutOf(this.abortController.signal.reason)
-      const ended = statusOfTerminal({ reason: 'aborted_tools' }, cut.kind)
-      yield* endTurn(ended.status, { error: { message: ended.status === 'interrupted' ? OUTCOME_SENTENCES.interrupted({}) : cut.kind === 'idle-timeout' ? 'The turn was aborted after a no-progress timeout' : `The turn was cut: ${cut.detail ?? 'the run was aborted'}`, class: ended.errorClass ?? 'interrupt' } })
-      return
-    }
-    if (inputResult.commandError !== undefined) {
-      yield* endTurn('failed', { error: { message: inputResult.commandError, class: 'command' } })
-      return
-    }
-    const refused = inputResult.commandRefused === true || inputResult.hookBlocked === true
-    yield* endTurn(refused ? 'refused' : 'completed', {
-      ...(refused
-        ? { error: { message: inputResult.resultText ?? 'The request was refused', class: inputResult.hookBlocked === true ? 'hook' : 'command' } }
-        : { answer: inputResult.resultText ?? commandAnswer }),
-    })
+    yield* commandTurnRows.call(this, { inputResult, priorUuids, options, scope, prompt, persistenceDisabled, turnMessages, eagerFlush, endTurn })
     return
   }
 
