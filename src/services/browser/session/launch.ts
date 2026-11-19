@@ -3,6 +3,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Browser as DriverBrowser, Page } from 'puppeteer-core'
 import { getMercuryHome } from '../../../utils/envUtils.js'
+import { errorMessage, getErrnoCode } from '../../../utils/errors.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { parseOwnerKey, type OwnerKey } from '../../run/ownerKey.js'
 import { driverNodeGate, resolveBrowser, type BrowserResolution } from '../browserResolver.js'
@@ -161,10 +162,13 @@ function readyProfileDir(owner: OwnerKey, profileDir: string, opts: EnsureBrowse
   fs.mkdirSync(profilesRoot, { recursive: true, mode: 0o700 })
   fs.mkdirSync(profileDir, { recursive: true, mode: 0o700 })
   if (process.platform !== 'win32') {
-    try {
-      fs.chmodSync(profilesRoot, 0o700)
-      fs.chmodSync(profileDir, 0o700)
-    } catch {}
+    for (const dir of [profilesRoot, profileDir]) {
+      try {
+        fs.chmodSync(dir, 0o700)
+      } catch (err) {
+        throw new Error(`the browser profile folder ${dir} could not be made private to you (chmod 0700: ${getErrnoCode(err) ?? errorMessage(err)}) — nothing was opened; give the folder back to your user or remove it, then open again`)
+      }
+    }
   }
   const heldElsewhere = ownerStates.owners().some(other => other !== owner && profileHeld(other, profileDir))
   if (!heldElsewhere) {
