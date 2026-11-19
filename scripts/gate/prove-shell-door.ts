@@ -56,7 +56,7 @@ const IMPORTERS = [
   'src/hooks/useTypeahead.tsx',
   'src/rows/turn.ts',
   'src/schemas/hooks.ts',
-  'src/screens/Chat.tsx',
+  'src/screens/chat/useChatBoot.tsx',
   'src/services/acp/ideToolBridge.ts',
   'src/services/dap/dapTerminal.ts',
   'src/services/engine-connector/shellRunning.ts',

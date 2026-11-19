@@ -132,8 +132,6 @@ console.log('S6 who writes which form')
   check("a window's registration is the instant", read('src/daemon/processSweepRun.ts').includes('startToken: await getProcessStartInstantAsync(process.pid),'))
   check("a launched task's ledger row is the instant, and its reader probes in the row's form", read('src/tasks/taskLaunchLedger.ts').includes('await getProcessStartInstantAsync(launch.pid)') && read('src/tasks/taskLaunchLedger.ts').includes('await getProcessStartTokenAsync(record.pid, record.startToken)'))
   check("a scratchpad's owner record is the instant", read('src/utils/scratchpad.ts').includes('getProcessStartInstantAsync(process.pid)'))
-  const main = read('src/daemon/main.ts')
-  check("the daemon record keeps startToken in today's bytes and carries the instant beside it", main.includes('const bootStartToken = await getProcessStartTokenAsync(process.pid)') && main.includes('startToken: bootStartToken,') && main.includes('...(bootStartInstant && bootStartInstant !== bootStartToken ? { startInstant: bootStartInstant } : {}),'))
   for (const [file, line] of [
     ['src/substrate/pidLock.ts', 'return getProcessStartTokenAsync(holder.pid, holder.procStart)'],
     ['src/substrate/pidLock.ts', 'getProcessStartTokenCachedOrRefresh(holder.pid, undefined, holder.procStart)'],

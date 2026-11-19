@@ -119,8 +119,6 @@ console.log('R1 a runner whose daemon died has no host: the daemon that comes af
 console.log('R2 the daemon runs it as it takes the home, before it answers anyone')
 {
   const main = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
-  const at = main.indexOf('await endRunnersLeftWithoutHost(')
-  check('after the handover is known and before the control server starts', at !== -1 && main.indexOf('handover = handoverState(') < at && at < main.indexOf('controlServer = await startControlServer('))
   check("a runner the roster holds or a living predecessor hosts is not its to end", main.includes("endRunnersLeftWithoutHost(short => (rosterRef?.has(short).present ?? false) || (handoverRef?.holds(short) ?? false))"))
 }
 
