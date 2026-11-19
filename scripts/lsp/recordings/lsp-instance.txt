@@ -196,6 +196,40 @@
   logged LspStartFailure: LSP server rust did not start (1 attempt this session): error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'.
   restart -> refused Error: Failed to restart LSP server rust (restart 1): LSP server rust did not start (1 attempt this session): error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'. | faults noted 0
   state=error healthy=false generation=0 restarts=1 started=never lastError=LspStartFailure: LSP server rust did not start (1 attempt this session): error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'. {server=rust attempts=1 lspCause="error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'." refused=undefined retryAt=none isLspStartFailure=true} capabilities=none plane=failed (LSP server rust did not start (1 attempt this session): error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'.)
+> inside one call: a failure; the server is mended, a call of its own starts and stops it; then the first call starts it again
+  client.start scripted-server ["--stdio"] env.RECORDING=rust env.PATH carried cwd=<workspace> | state=starting plane=starting
+  logged LspStartFailure: LSP server rust did not start (2 attempts this session): error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'.
+  the first start -> refused LspStartFailure: LSP server rust did not start (2 attempts this session): error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'. {server=rust attempts=2 lspCause="error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'." refused=undefined retryAt=none isLspStartFailure=true} | faults noted 0
+  client.start scripted-server ["--stdio"] env.RECORDING=rust env.PATH carried cwd=<workspace> | state=starting plane=starting
+  client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
+  a start in a call of its own -> undefined | faults noted 0
+  client.stop undefined | state=stopping plane=stopping
+  stop -> {"outcome":"exited","elapsedMs":0,"exitCode":0,"survivors":[]} | faults noted 0
+  client.start scripted-server ["--stdio"] env.RECORDING=rust env.PATH carried cwd=<workspace> | state=starting plane=starting
+  client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
+  the first call starts again -> undefined | faults noted 0
+  state=running healthy=true generation=2 restarts=1 started=clock+1089000 lastError=LspStartFailure: LSP server rust did not start (2 attempts this session): error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'. {server=rust attempts=2 lspCause="error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'." refused=undefined retryAt=none isLspStartFailure=true} capabilities={"hoverProvider":true} plane=running
+  client.stop undefined | state=stopping plane=stopping
+  stop -> {"outcome":"exited","elapsedMs":0,"exitCode":0,"survivors":[]} | faults noted 0
+
+## a crash, then the component goes missing, then a crash again: the missing component began the crash count again
+  client created for rust-crash
+  client.start scripted-server ["--stdio"] env.RECORDING=rust-crash env.PATH carried cwd=<workspace> | state=starting plane=starting
+  client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
+  start -> undefined | faults noted 0
+> the client reports a crash: LSP server rust-crash crashed with exit code 1
+> a start that finds the component missing
+  client.start scripted-server ["--stdio"] env.RECORDING=rust-crash env.PATH carried cwd=<workspace> | state=starting plane=starting
+  logged LspStartFailure: LSP server rust-crash did not start (1 attempt this session): error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'.
+  start -> refused LspStartFailure: LSP server rust-crash did not start (1 attempt this session): error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'. {server=rust-crash attempts=1 lspCause="error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'." refused=undefined retryAt=none isLspStartFailure=true} | faults noted 0
+> the client reports a crash: LSP server rust-crash crashed with exit code 1
+> 15000ms later, the server mended: one crash since the count began again, under a cap of one
+  client.start scripted-server ["--stdio"] env.RECORDING=rust-crash env.PATH carried cwd=<workspace> | state=starting plane=starting
+  client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
+  start -> undefined | faults noted 0
+  state=running healthy=true generation=2 restarts=0 started=clock+1104000 lastError=Error: LSP server rust-crash crashed with exit code 1 capabilities={"hoverProvider":true} plane=running
+  client.stop undefined | state=stopping plane=stopping
+  stop -> {"outcome":"exited","elapsedMs":0,"exitCode":0,"survivors":[]} | faults noted 0
 
 ## a crash, and what a start does after it
   client created for crashing
@@ -203,25 +237,30 @@
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
   start -> undefined | faults noted 0
 > the client reports a crash: LSP server crashing crashed with exit code 1
-  state=error healthy=false generation=1 restarts=0 started=clock+1089000 lastError=Error: LSP server crashing crashed with exit code 1 capabilities={"hoverProvider":true} plane=failed (LSP server crashing crashed with exit code 1)
+  state=error healthy=false generation=1 restarts=0 started=clock+1104000 lastError=Error: LSP server crashing crashed with exit code 1 capabilities={"hoverProvider":true} plane=failed (LSP server crashing crashed with exit code 1)
   sendRequest textDocument/hover -> refused Error: LSP server crashing is not healthy (state: error, last error: LSP server crashing crashed with exit code 1) | faults noted 1
 > a start after one crash
   client.start scripted-server ["--stdio"] env.RECORDING=crashing env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
   start -> undefined | faults noted 0
-  state=running healthy=true generation=2 restarts=0 started=clock+1089000 lastError=Error: LSP server crashing crashed with exit code 1 capabilities={"hoverProvider":true} plane=running
+  state=running healthy=true generation=2 restarts=0 started=clock+1104000 lastError=Error: LSP server crashing crashed with exit code 1 capabilities={"hoverProvider":true} plane=running
+> three crashes, then a start: the start that held began the count again, so this one is within the cap
+  client.start scripted-server ["--stdio"] env.RECORDING=crashing env.PATH carried cwd=<workspace> | state=starting plane=starting
+  client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
+  start -> undefined | faults noted 0
+  state=running healthy=true generation=3 restarts=0 started=clock+1104000 lastError=Error: LSP server crashing connection closed (3) capabilities={"hoverProvider":true} plane=running
 > four crashes with no start between them
-  state=error healthy=false generation=2 restarts=0 started=clock+1089000 lastError=Error: LSP server crashing connection closed (4) capabilities={"hoverProvider":true} plane=failed (LSP server crashing connection closed (1))
+  state=error healthy=false generation=3 restarts=0 started=clock+1104000 lastError=Error: LSP server crashing connection closed (4) capabilities={"hoverProvider":true} plane=failed (LSP server crashing connection closed (1))
   logged Error: LSP server crashing exceeded the crash-restart cap (3)
   start -> refused Error: LSP server crashing exceeded the crash-restart cap (3) | faults noted 0
   lastError is the cap's error=false
-  state=error healthy=false generation=2 restarts=0 started=clock+1089000 lastError=Error: LSP server crashing connection closed (4) capabilities={"hoverProvider":true} plane=failed (LSP server crashing connection closed (1))
+  state=error healthy=false generation=3 restarts=0 started=clock+1104000 lastError=Error: LSP server crashing connection closed (4) capabilities={"hoverProvider":true} plane=failed (LSP server crashing connection closed (1))
 > restart brings a capped server back
   client.stop undefined | state=stopping plane=stopping
   client.start scripted-server ["--stdio"] env.RECORDING=crashing env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
   restart -> {"outcome":"exited","elapsedMs":0,"exitCode":0,"survivors":[]} | faults noted 0
-  state=running healthy=true generation=3 restarts=1 started=clock+1089000 lastError=Error: LSP server crashing connection closed (4) capabilities={"hoverProvider":true} plane=running
+  state=running healthy=true generation=4 restarts=1 started=clock+1104000 lastError=Error: LSP server crashing connection closed (4) capabilities={"hoverProvider":true} plane=running
   client.stop undefined | state=stopping plane=stopping
   stop -> {"outcome":"exited","elapsedMs":0,"exitCode":0,"survivors":[]} | faults noted 0
 
@@ -234,7 +273,7 @@
   client.start scripted-server ["--stdio"] env.RECORDING=cap-three env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
   start -> undefined | faults noted 0
-  state=running healthy=true generation=2 restarts=0 started=clock+1089000 lastError=Error: LSP server cap-three exited unexpectedly (code 0, signal none) capabilities={"hoverProvider":true} plane=running
+  state=running healthy=true generation=2 restarts=0 started=clock+1104000 lastError=Error: LSP server cap-three exited unexpectedly (code 0, signal none) capabilities={"hoverProvider":true} plane=running
   client created for cap-one
   client.start scripted-server ["--stdio"] env.RECORDING=cap-one env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
@@ -242,7 +281,7 @@
 > maxRestarts 1, 2 crash(es), then a start
   logged Error: LSP server cap-one exceeded the crash-restart cap (1)
   start -> refused Error: LSP server cap-one exceeded the crash-restart cap (1) | faults noted 0
-  state=error healthy=false generation=1 restarts=0 started=clock+1089000 lastError=Error: LSP server cap-one exited unexpectedly (code 0, signal none) capabilities={"hoverProvider":true} plane=failed (LSP server cap-one exited unexpectedly (code 0, signal none))
+  state=error healthy=false generation=1 restarts=0 started=clock+1104000 lastError=Error: LSP server cap-one exited unexpectedly (code 0, signal none) capabilities={"hoverProvider":true} plane=failed (LSP server cap-one exited unexpectedly (code 0, signal none))
   client created for cap-zero
   client.start scripted-server ["--stdio"] env.RECORDING=cap-zero env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
@@ -250,7 +289,7 @@
 > maxRestarts 0, 1 crash(es), then a start
   logged Error: LSP server cap-zero exceeded the crash-restart cap (0)
   start -> refused Error: LSP server cap-zero exceeded the crash-restart cap (0) | faults noted 0
-  state=error healthy=false generation=1 restarts=0 started=clock+1089000 lastError=Error: LSP server cap-zero exited unexpectedly (code 0, signal none) capabilities={"hoverProvider":true} plane=failed (LSP server cap-zero exited unexpectedly (code 0, signal none))
+  state=error healthy=false generation=1 restarts=0 started=clock+1104000 lastError=Error: LSP server cap-zero exited unexpectedly (code 0, signal none) capabilities={"hoverProvider":true} plane=failed (LSP server cap-zero exited unexpectedly (code 0, signal none))
 
 ## restartOnCrash false
   client created for pinned
@@ -265,7 +304,7 @@
 > a second start
   logged Error: LSP server pinned crashed and will not respawn (restartOnCrash is false): LSP server pinned crashed and will not respawn (restartOnCrash is false): LSP server pinned crashed with exit code 9
   start -> refused Error: LSP server pinned crashed and will not respawn (restartOnCrash is false): LSP server pinned crashed and will not respawn (restartOnCrash is false): LSP server pinned crashed with exit code 9 | faults noted 0
-  state=error healthy=false generation=1 restarts=0 started=clock+1089000 lastError=Error: LSP server pinned crashed and will not respawn (restartOnCrash is false): LSP server pinned crashed and will not respawn (restartOnCrash is false): LSP server pinned crashed with exit code 9 capabilities={"hoverProvider":true} plane=failed (LSP server pinned crashed with exit code 9)
+  state=error healthy=false generation=1 restarts=0 started=clock+1104000 lastError=Error: LSP server pinned crashed and will not respawn (restartOnCrash is false): LSP server pinned crashed and will not respawn (restartOnCrash is false): LSP server pinned crashed with exit code 9 capabilities={"hoverProvider":true} plane=failed (LSP server pinned crashed with exit code 9)
 
 ## a stop that fails
   client created for wedged
@@ -276,14 +315,14 @@
   client.stop undefined | state=stopping plane=stopping
   stop -> refused Error: shutdown wedged | faults noted 0
   the Error thrown is the client's own=true and is lastError=true
-  state=error healthy=false generation=1 restarts=0 started=clock+1089000 lastError=Error: shutdown wedged capabilities={"hoverProvider":true} plane=failed (shutdown wedged)
+  state=error healthy=false generation=1 restarts=0 started=clock+1104000 lastError=Error: shutdown wedged capabilities={"hoverProvider":true} plane=failed (shutdown wedged)
 > a start after it, then the client throws a bare word
   client.start scripted-server ["--stdio"] env.RECORDING=wedged env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
   start -> undefined | faults noted 0
   client.stop undefined | state=stopping plane=stopping
   stop -> refused Error: bare words | faults noted 0
-  state=error healthy=false generation=2 restarts=0 started=clock+1089000 lastError=Error: bare words capabilities={"hoverProvider":true} plane=failed (bare words)
+  state=error healthy=false generation=2 restarts=0 started=clock+1104000 lastError=Error: bare words capabilities={"hoverProvider":true} plane=failed (bare words)
 
 ## restart
 > a restart of a server never started
@@ -291,25 +330,25 @@
   client.start scripted-server ["--stdio"] env.RECORDING=again env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
   restart -> undefined | faults noted 0
-  state=running healthy=true generation=1 restarts=1 started=clock+1089000 lastError=none capabilities={"hoverProvider":true} plane=running
+  state=running healthy=true generation=1 restarts=1 started=clock+1104000 lastError=none capabilities={"hoverProvider":true} plane=running
 > a restart of a running server
   client.stop undefined | state=stopping plane=stopping
   client.start scripted-server ["--stdio"] env.RECORDING=again env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
   restart -> {"outcome":"exited","elapsedMs":7,"exitCode":0,"survivors":[]} | faults noted 0
   restart answers the stop's own result=true
-  state=running healthy=true generation=2 restarts=2 started=clock+1089000 lastError=none capabilities={"hoverProvider":true} plane=running
+  state=running healthy=true generation=2 restarts=2 started=clock+1104000 lastError=none capabilities={"hoverProvider":true} plane=running
 > the stop leaves survivors
   client.stop undefined | state=stopping plane=stopping
   restart -> refused Error: Failed to stop LSP server again for restart: Processes still running: 4242, 4243 | faults noted 0
-  state=stopped healthy=false generation=2 restarts=2 started=clock+1089000 lastError=none capabilities=none plane=stopped
+  state=stopped healthy=false generation=2 restarts=2 started=clock+1104000 lastError=none capabilities=none plane=stopped
 > the stop throws an Error, then a bare word
   client.start scripted-server ["--stdio"] env.RECORDING=again env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
   start -> undefined | faults noted 0
   client.stop undefined | state=stopping plane=stopping
   restart -> refused Error: Failed to stop LSP server again for restart: shutdown wedged | faults noted 0
-  state=error healthy=false generation=3 restarts=2 started=clock+1089000 lastError=Error: shutdown wedged capabilities={"hoverProvider":true} plane=failed (shutdown wedged)
+  state=error healthy=false generation=3 restarts=2 started=clock+1104000 lastError=Error: shutdown wedged capabilities={"hoverProvider":true} plane=failed (shutdown wedged)
   client.start scripted-server ["--stdio"] env.RECORDING=again env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
   start -> undefined | faults noted 0
@@ -323,14 +362,14 @@
   client.start scripted-server ["--stdio"] env.RECORDING=again env.PATH carried cwd=<workspace> | state=starting plane=starting
   logged LspStartFailure: LSP server again did not start (1 attempt this session): spawn scripted-server EACCES
   restart -> refused Error: Failed to restart LSP server again (restart 3): LSP server again did not start (1 attempt this session): spawn scripted-server EACCES | faults noted 0
-  state=error healthy=false generation=5 restarts=3 started=clock+1089000 lastError=LspStartFailure: LSP server again did not start (1 attempt this session): spawn scripted-server EACCES {server=again attempts=1 lspCause="spawn scripted-server EACCES" refused=undefined retryAt=clock+15000 isLspStartFailure=true} capabilities=none plane=failed (LSP server again did not start (1 attempt this session): spawn scripted-server EACCES)
+  state=error healthy=false generation=5 restarts=3 started=clock+1104000 lastError=LspStartFailure: LSP server again did not start (1 attempt this session): spawn scripted-server EACCES {server=again attempts=1 lspCause="spawn scripted-server EACCES" refused=undefined retryAt=clock+15000 isLspStartFailure=true} capabilities=none plane=failed (LSP server again did not start (1 attempt this session): spawn scripted-server EACCES)
 > a restart inside the wait of that failure starts at once
   start -> refused LspStartFailure: LSP server again did not start (1 attempt this session): spawn scripted-server EACCES {server=again attempts=1 lspCause="spawn scripted-server EACCES" refused=true retryAt=clock+15000 isLspStartFailure=true} | faults noted 0
   client.stop undefined | state=stopping plane=stopping
   client.start scripted-server ["--stdio"] env.RECORDING=again env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
   restart -> {"outcome":"exited","elapsedMs":0,"exitCode":0,"survivors":[]} | faults noted 0
-  state=running healthy=true generation=6 restarts=4 started=clock+1089000 lastError=LspStartFailure: LSP server again did not start (1 attempt this session): spawn scripted-server EACCES {server=again attempts=1 lspCause="spawn scripted-server EACCES" refused=undefined retryAt=clock+15000 isLspStartFailure=true} capabilities={"hoverProvider":true} plane=running
+  state=running healthy=true generation=6 restarts=4 started=clock+1104000 lastError=LspStartFailure: LSP server again did not start (1 attempt this session): spawn scripted-server EACCES {server=again attempts=1 lspCause="spawn scripted-server EACCES" refused=undefined retryAt=clock+15000 isLspStartFailure=true} capabilities={"hoverProvider":true} plane=running
 
 ## requests: answers, failures, and the retry of content modified
   client created for asking
@@ -441,7 +480,7 @@
   sendRequest textDocument/hover -> {"echoed":"textDocument/hover"} | faults noted 0
   abort listeners on the signal after=0
 > the client says it is not initialized
-  state=running healthy=false generation=1 restarts=0 started=clock+1093700 lastError=none capabilities={"hoverProvider":true} plane=running
+  state=running healthy=false generation=1 restarts=0 started=clock+1108700 lastError=none capabilities={"hoverProvider":true} plane=running
   sendRequest textDocument/hover -> refused Error: LSP server silent is not healthy (state: running) | faults noted 1
   sendNotification textDocument/didSave -> refused Error: Cannot send notification textDocument/didSave: LSP server silent is not healthy | faults noted 0
 > the server crashed
@@ -458,7 +497,7 @@
   sendNotification textDocument/didChange -> refused Error: LSP notification textDocument/didChange to server telling failed: the pipe is closed | faults noted 0
   client.sendNotification textDocument/didChange {}
   sendNotification textDocument/didChange -> refused Error: LSP notification textDocument/didChange to server telling failed: bare words | faults noted 0
-  state=running healthy=true generation=1 restarts=0 started=clock+1094400 lastError=none capabilities={"hoverProvider":true} plane=running
+  state=running healthy=true generation=1 restarts=0 started=clock+1109400 lastError=none capabilities={"hoverProvider":true} plane=running
   client.stop undefined | state=stopping plane=stopping
   stop -> {"outcome":"exited","elapsedMs":0,"exitCode":0,"survivors":[]} | faults noted 0
 
@@ -480,13 +519,13 @@
   timer 1 fires
   timer 3 armed for 300ms
   timer 3 unref
-  state=running healthy=true generation=1 restarts=0 started=clock+1094400 lastError=none capabilities={"hoverProvider":true} plane=running
+  state=running healthy=true generation=1 restarts=0 started=clock+1109400 lastError=none capabilities={"hoverProvider":true} plane=running
 > 300ms of quiet
   the clock moves 300ms
   timer 3 fires
   client.stop undefined | state=stopping plane=stopping
   the server stopped=true
-  state=stopped healthy=false generation=1 restarts=0 started=clock+1094400 lastError=none capabilities=none plane=stopped
+  state=stopped healthy=false generation=1 restarts=0 started=clock+1109400 lastError=none capabilities=none plane=stopped
 > a start after the idle stop, then a stop by hand
   client.start scripted-server ["--stdio"] env.RECORDING=idle env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
@@ -496,7 +535,16 @@
   timer 4 cleared
   client.stop undefined | state=stopping plane=stopping
   stop -> {"outcome":"exited","elapsedMs":0,"exitCode":0,"survivors":[]} | faults noted 0
-  state=stopped healthy=false generation=2 restarts=0 started=clock+1095000 lastError=none capabilities=none plane=stopped
+  state=stopped healthy=false generation=2 restarts=0 started=clock+1110000 lastError=none capabilities=none plane=stopped
+> a start after the stop by hand, and a stop
+  client.start scripted-server ["--stdio"] env.RECORDING=idle env.PATH carried cwd=<workspace> | state=starting plane=starting
+  client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
+  timer 5 armed for 300ms
+  timer 5 unref
+  start -> undefined | faults noted 0
+  timer 5 cleared
+  client.stop undefined | state=stopping plane=stopping
+  stop -> {"outcome":"exited","elapsedMs":0,"exitCode":0,"survivors":[]} | faults noted 0
 
 ## the idle limit: a stop that fails, and a limit that comes due on a crashed server
   client created for idle-wedged
@@ -510,7 +558,7 @@
   timer 1 fires
   client.stop undefined | state=stopping plane=stopping
   the server is in error=true
-  state=error healthy=false generation=1 restarts=0 started=clock+1095000 lastError=Error: shutdown wedged capabilities={"hoverProvider":true} plane=failed (shutdown wedged)
+  state=error healthy=false generation=1 restarts=0 started=clock+1110000 lastError=Error: shutdown wedged capabilities={"hoverProvider":true} plane=failed (shutdown wedged)
 > a start, a crash, then the limit comes due
   client.start scripted-server ["--stdio"] env.RECORDING=idle-wedged env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
@@ -520,7 +568,7 @@
 > the client reports a crash: LSP server idle-wedged crashed with exit code 1
   the clock moves 300ms
   timer 2 fires
-  state=error healthy=false generation=2 restarts=0 started=clock+1095300 lastError=Error: LSP server idle-wedged crashed with exit code 1 capabilities={"hoverProvider":true} plane=failed (LSP server idle-wedged crashed with exit code 1)
+  state=error healthy=false generation=2 restarts=0 started=clock+1110300 lastError=Error: LSP server idle-wedged crashed with exit code 1 capabilities={"hoverProvider":true} plane=failed (LSP server idle-wedged crashed with exit code 1)
 > a start after it arms the limit again
   client.start scripted-server ["--stdio"] env.RECORDING=idle-wedged env.PATH carried cwd=<workspace> | state=starting plane=starting
   client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
@@ -559,8 +607,31 @@
   timer 2 fires
   client.stop undefined | state=stopping plane=stopping
   the server stopped=true
-  state=stopped healthy=false generation=1 restarts=0 started=clock+1095600 lastError=none capabilities=none plane=stopped
+  state=stopped healthy=false generation=1 restarts=0 started=clock+1110600 lastError=none capabilities=none plane=stopped
+
+## what each call has done by the time it hands back its promise
+  start has handed back its promise: state=starting plane=starting
+  client created for prompt
+  client.start scripted-server ["--stdio"] env.RECORDING=prompt env.PATH carried cwd=<workspace> | state=starting plane=starting
+  client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
+  timer 1 armed for 30000ms
+  client.sendRequest textDocument/hover {} token live
+  sendRequest has handed back its promise
+  timer 1 cleared
+  client.sendNotification textDocument/didChange {}
+  sendNotification has handed back its promise
+  client.stop undefined | state=stopping plane=stopping
+  stop has handed back its promise: state=stopping plane=stopping
+  restart has handed back its promise: state=stopped
+  client.start scripted-server ["--stdio"] env.RECORDING=prompt env.PATH carried cwd=<workspace> | state=starting plane=starting
+  client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=starting plane=starting
+  state=running healthy=true generation=2 restarts=1 started=clock+1110900 lastError=none capabilities={"hoverProvider":true} plane=running
+  client.stop undefined | state=stopping plane=stopping
+  a stop and then a start, neither awaited: state=starting
+  client.start scripted-server ["--stdio"] env.RECORDING=prompt env.PATH carried cwd=<workspace> | state=starting plane=stopping
+  client.initialize processId=<pid> rootPath=<workspace> rootUri=file://<workspace> folders=[{"uri":"file://<workspace>","name":"workspace"}] options={} workspace keys=configuration,workspaceFolders,symbol textDocument keys=synchronization,publishDiagnostics,hover,definition,references,documentSymbol,callHierarchy,implementation,rename,codeAction,diagnostic | state=stopped plane=stopped
+  state=running healthy=true generation=3 restarts=1 started=clock+1110900 lastError=none capabilities={"hoverProvider":true} plane=running
 
 ## the whole run
   unhandled rejections=0
-  clients created=22 for 22 instances
+  clients created=24 for 24 instances

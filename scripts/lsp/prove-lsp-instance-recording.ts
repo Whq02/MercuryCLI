@@ -29,7 +29,7 @@ const realSetTimeout = globalThis.setTimeout
 const realClearTimeout = globalThis.clearTimeout
 const realNow = Date.now
 
-type Timer = { id: number; ms: number; at: number; run: () => void; live: boolean }
+type Timer = { id: number; ms: number; at: number; run: () => void; live: boolean; fired: boolean }
 type Deferred<T> = { promise: Promise<T>; resolve: (value: T) => void; reject: (error: unknown) => void }
 type Script = {
   start?: () => unknown
@@ -92,7 +92,7 @@ function check(name: string, ok: boolean, detail = ''): void {
 }
 
 globalThis.setTimeout = ((fn: (...args: unknown[]) => void, ms = 0, ...args: unknown[]) => {
-  const timer: Timer = { id: ++timerSeq, ms, at: clock + ms, run: () => fn(...args), live: true }
+  const timer: Timer = { id: ++timerSeq, ms, at: clock + ms, run: () => fn(...args), live: true, fired: false }
   timers.push(timer)
   say(`  timer ${timer.id} armed for ${ms}ms`)
   const handle = {
@@ -109,7 +109,7 @@ globalThis.setTimeout = ((fn: (...args: unknown[]) => void, ms = 0, ...args: unk
 globalThis.clearTimeout = ((handle?: { timer?: Timer }) => {
   const timer = handle?.timer
   if (timer === undefined) return void realClearTimeout(handle as never)
-  say(`  timer ${timer.id} cleared${timer.live ? '' : ' after it fired'}`)
+  say(`  timer ${timer.id} cleared${timer.live ? '' : timer.fired ? ' after it fired' : ' again'}`)
   timer.live = false
 }) as unknown as typeof clearTimeout
 Date.now = () => clock
@@ -120,6 +120,7 @@ async function pass(ms: number): Promise<void> {
   for (const timer of [...timers]) {
     if (!timer.live || timer.at > clock) continue
     timer.live = false
+    timer.fired = true
     say(`  timer ${timer.id} fires`)
     timer.run()
   }
@@ -501,6 +502,37 @@ try {
       await asked('restart', () => instance.restart(), undefined, 'the call around it')
     })
     shot('rust')
+    step('inside one call: a failure; the server is mended, a call of its own starts and stops it; then the first call starts it again')
+    await runWithLspAbortSignal(undefined, async () => {
+      await asked('the first start', () => instance.start(), undefined, 'the call around it')
+      scripts.set('rust', {})
+      await asked('a start in a call of its own', () => instance.start())
+      await asked('stop', () => instance.stop())
+      await asked('the first call starts again', () => instance.start(), undefined, 'the call around it')
+    })
+    shot('rust')
+    await asked('stop', () => instance.stop())
+  }
+
+  scene('a crash, then the component goes missing, then a crash again: the missing component began the crash count again')
+  {
+    const { instance } = make('rust-crash', { maxRestarts: 1 })
+    await asked('start', () => instance.start())
+    crash('rust-crash', 'LSP server rust-crash crashed with exit code 1')
+    step('a start that finds the component missing')
+    scripts.set('rust-crash', {
+      start: () => {
+        throw new Error("error: Unknown binary 'rust-analyzer' in official toolchain 'stable-aarch64-apple-darwin'.")
+      },
+    })
+    await asked('start', () => instance.start())
+    crash('rust-crash', 'LSP server rust-crash crashed with exit code 1')
+    step('15000ms later, the server mended: one crash since the count began again, under a cap of one')
+    clock += 15_000
+    scripts.set('rust-crash', {})
+    await asked('start', () => instance.start())
+    shot('rust-crash')
+    await asked('stop', () => instance.stop())
   }
 
   scene('a crash, and what a start does after it')
@@ -511,6 +543,10 @@ try {
     shot('crashing')
     await asked('sendRequest textDocument/hover', () => instance.sendRequest('textDocument/hover', {}))
     step('a start after one crash')
+    await asked('start', () => instance.start())
+    shot('crashing')
+    step('three crashes, then a start: the start that held began the count again, so this one is within the cap')
+    for (const round of [1, 2, 3]) crashes.get('crashing')?.(new Error(`LSP server crashing connection closed (${round})`))
     await asked('start', () => instance.start())
     shot('crashing')
     step('four crashes with no start between them')
@@ -770,6 +806,9 @@ try {
     await asked('start', () => instance.start())
     await asked('stop', () => instance.stop())
     shot('idle')
+    step('a start after the stop by hand, and a stop')
+    await asked('start', () => instance.start())
+    await asked('stop', () => instance.stop())
   }
 
   scene('the idle limit: a stop that fails, and a limit that comes due on a crashed server')
@@ -812,6 +851,32 @@ try {
     await pass(300)
     say(`  the server stopped=${await until(() => instance.state === 'stopped')}`)
     shot('late-limit')
+  }
+
+  scene('what each call has done by the time it hands back its promise')
+  {
+    const { instance } = make('prompt')
+    const starting = instance.start()
+    say(`  start has handed back its promise: state=${instance.state} plane=${planeOf('prompt')}`)
+    await bounded(starting)
+    const sent = instance.sendRequest('textDocument/hover', {})
+    say('  sendRequest has handed back its promise')
+    await bounded(sent)
+    const noted = instance.sendNotification('textDocument/didChange', {})
+    say('  sendNotification has handed back its promise')
+    await bounded(noted)
+    const stopping = instance.stop()
+    say(`  stop has handed back its promise: state=${instance.state} plane=${planeOf('prompt')}`)
+    await bounded(stopping)
+    const again = instance.restart()
+    say(`  restart has handed back its promise: state=${instance.state}`)
+    await bounded(again)
+    shot('prompt')
+    const down = instance.stop()
+    const up = instance.start()
+    say(`  a stop and then a start, neither awaited: state=${instance.state}`)
+    await bounded(Promise.allSettled([down, up]))
+    shot('prompt')
   }
 
   await turn()
