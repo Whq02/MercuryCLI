@@ -9,7 +9,7 @@ import { ModelPickerPopupLease } from '../../components/ModelPickerPopupSlot.js'
 import { claimModelPickerPopup } from '../../utils/cockpit/modelPickerPopup.js'
 import { MercuryModelLandingGate } from './modelPickerLandingGate.js'
 import { getSdkBetas } from '../../bootstrap/state.js'
-import { useAppState, useSetAppState, useSetAppStateMaybe, useAppStateStore } from '../../state/AppState.js'
+import { useAppState, useSetAppState, useAppStateStore } from '../../state/AppState.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
 import { contextFillView } from '../../utils/contextFill.js'
@@ -25,8 +25,7 @@ import {
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, parseKeyConnectValue, signInFamilyOfRow } from '../../utils/model/modelOptions.js'
-import { nextBirthModel } from '../../services/switchboard/bootBirthFacts.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, parseKeyConnectValue } from '../../utils/model/modelOptions.js'
 import { OPENROUTER_CONNECT_OPTION_VALUE } from '../../services/providers/openrouter/openrouterCatalogue.js'
 import { NOUS_CONNECT_OPTION_VALUE, getNousAvailability, refreshNousCatalogue } from '../../services/providers/nous/nousCatalogue.js'
 import { GEMINI_CONNECT_OPTION_VALUE } from '../../services/providers/gemini/geminiCatalogue.js'
@@ -36,21 +35,7 @@ import { pairTensorFoldHost, tensorFoldCapableMachine } from '../../components/t
 import { useModelTensorFoldFacts } from '../../components/tensorfold/tensorfoldModelFacts.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { readModelUseLedger } from '../../utils/model/modelUseLedger.js'
-import {
-  type EffortLevel,
-  type EffortValue,
-  getDisplayedEffortLabel,
-  getEffortEnvOverride,
-  getInitialEffortSetting,
-  modelSupportsEffort,
-  parseEffortValue,
-  resolveStampedEffortTruth,
-  selectableEffortLevels,
-  toPersistableEffort,
-  unpinAllLaunchEffort,
-} from '../../utils/effort.js'
-import { updateSettingsForSource } from '../../utils/settings/settings.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { type EffortLevel, type EffortValue, getDisplayedEffortLabel, modelSupportsEffort, parseEffortValue, resolveStampedEffortTruth, selectableEffortLevels, toPersistableEffort, unpinAllLaunchEffort } from '../../utils/effort.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
 import { persistEffortChoice, persistModelChoice } from './persistModelChoice.js'
 import { matchReachableModelName, modelNameAskWords } from '../../utils/model/modelNameRoad.js'
@@ -61,6 +46,9 @@ import { resolveCurrentRowId, subscribeFocusedModelFeed, getFocusedModelKey, mod
 
 export { familyOfModelGroup } from './picker/headings.js'
 export { servedByTensorFold, tensorFoldPodEndpoints, modelChoiceLabel, modelChoiceRow } from './picker/rows.js'
+export { MercuryModelDefaultPicker } from './picker/DefaultPicker.js'
+export { MercurySessionModelPicker } from './picker/SessionPicker.js'
+export { MercuryModelChoicePicker } from './picker/ChoicePicker.js'
 
 type PickRoad = { flip: boolean; door?: string }
 
@@ -596,179 +584,6 @@ function MercuryModelWrapper({
 }
 
 
-export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => void; onSignIn?: (family: string | undefined) => void }): React.ReactNode {
-  const setAppState = useSetAppStateMaybe()
-  useCatalogueEpoch()
-  const betas = getSdkBetas()
-  const model = nextBirthModel() ?? getEngineModel()
-  const efforts = modelSupportsEffort(model) ? [...selectableEffortLevels(model)] : []
-  const [effort, setEffort] = React.useState<string>(() => getDisplayedEffortLabel(model, getInitialEffortSetting()))
-  const [slotVersion] = React.useState(0)
-  const [notice, setNotice] = React.useState<string | undefined>(undefined)
-  useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(NOUS_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(XAI_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(META_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(MISTRAL_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(MINIMAX_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(TOGETHER_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(MELIOUS_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(CEREBRAS_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(FIREWORKS_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(QWEN_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(ANTHROPIC_BEARER_ROAD, setNotice)
-  const options = getModelOptions()
-  const listedModels: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
-  const currentRowId = resolveCurrentRowId(listedModels, model)
-  const models = orderedModelChoices(listedModels, currentRowId)
-  const topGroup = seatGroupOf(listedModels, currentRowId)
-  function handleEffort(mode: string): void {
-    const persistable = toPersistableEffort(mode as EffortValue)
-    if (persistable === undefined) return
-    const { error } = updateSettingsForSource('userSettings', { engine: { effort: persistable } })
-    if (error) {
-      setNotice(`Could not save the effort level: ${error.message}`)
-      return
-    }
-    unpinAllLaunchEffort()
-    setEffort(mode)
-    const override = getEffortEnvOverride()
-    setNotice(override !== undefined && override !== persistable
-      ? `Saved ${persistable} as your default, but MERCURY_EFFORT_LEVEL=${flagEnv('MERCURY_EFFORT_LEVEL') ?? ''} overrides this session — clear it to let ${persistable} take over.`
-      : undefined)
-    setAppState?.(prev => ({ ...prev, effortValue: persistable }))
-  }
-  function handleSelect(id: string, door?: string): void {
-    if (isCatalogueDoorRow(id)) return
-    if (isProviderActionRow(id)) {
-      if (!retryNamedCompatRow(id, setNotice)) onSignIn?.(signInFamilyOfRow(id))
-      return
-    }
-    const saved = persistModelChoice(id)
-    if (saved.outcome !== 'saved' && saved.outcome !== 'session') {
-      setNotice(saved.sentence)
-      return
-    }
-    noteModelUse(id, door)
-    if (setAppState !== null) {
-      setAppState(prev => {
-        const settled = settleModelSelection(prev, id, {
-          turnActive: prev.foregroundTurnActive || prev.pendingModelSwitch !== null,
-        })
-        return settled.patch === null ? prev : { ...prev, ...settled.patch }
-      })
-    }
-    onDone()
-  }
-  return (
-    <MercuryModelPicker
-      models={models}
-      current={currentRowId}
-      ctxPct={null}
-      efforts={efforts}
-      effort={effort}
-      onEffort={handleEffort}
-      notice={notice}
-      headings={providerHeadingsOf(slotVersion)}
-      {...(topGroup !== undefined ? { topGroup } : {})}
-      expandRows={group => expandRowsOf(group, betas)}
-      onSelect={handleSelect}
-      onClose={onDone}
-    />
-  )
-}
-
-export function MercurySessionModelPicker({
-  currentModel,
-  currentEffort,
-  onSelect,
-  onEffort,
-  onDone,
-  onSignIn,
-}: {
-  currentModel: string | undefined
-  currentEffort: string | undefined
-  onSelect: (modelId: string, displayName: string) => void
-  onEffort: (effort: string) => void
-  onDone: () => void
-  onSignIn?: (family: string | undefined) => void
-}): React.ReactNode {
-  useCatalogueEpoch()
-  const betas = getSdkBetas()
-  const model = currentModel ?? nextBirthModel() ?? getEngineModel()
-  const efforts = modelSupportsEffort(model) ? [...selectableEffortLevels(model)] : []
-  const effort = currentEffort ?? 'default'
-  const [slotVersion] = React.useState(0)
-  const [notice, setNotice] = React.useState<string | undefined>(undefined)
-  useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(NOUS_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(XAI_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(META_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(MISTRAL_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(MINIMAX_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(TOGETHER_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(MELIOUS_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(CEREBRAS_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(FIREWORKS_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(QWEN_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(ANTHROPIC_BEARER_ROAD, setNotice)
-  const options = getModelOptions()
-  const listedModels: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
-  const currentRowId = resolveCurrentRowId(listedModels, model)
-  const models = orderedModelChoices(listedModels, currentRowId)
-  const topGroup = seatGroupOf(listedModels, currentRowId)
-  function handleEffort(mode: string): void {
-    onEffort(mode)
-  }
-  function handleSelect(id: string, door?: string): void {
-    if (isCatalogueDoorRow(id)) return
-    if (isProviderActionRow(id)) {
-      if (!retryNamedCompatRow(id, setNotice)) onSignIn?.(signInFamilyOfRow(id))
-      return
-    }
-    noteModelUse(id, door)
-    onSelect(id, models.find(m => m.id === id)?.name ?? id)
-    onDone()
-  }
-  return (
-    <MercuryModelPicker
-      models={models}
-      current={currentRowId}
-      ctxPct={null}
-      efforts={efforts}
-      effort={effort}
-      onEffort={handleEffort}
-      notice={notice}
-      headings={providerHeadingsOf(slotVersion)}
-      {...(topGroup !== undefined ? { topGroup } : {})}
-      expandRows={group => expandRowsOf(group, betas)}
-      onSelect={handleSelect}
-      onClose={onDone}
-    />
-  )
-}
 
 export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   const typed = args?.trim() ?? ''
@@ -794,68 +609,5 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
         <MercuryModelWrapper messages={context.messages ?? []} onDone={onDone} {...(ask !== undefined ? { ask } : {})} />
       </MercuryModelLandingGate>
     </ModelPickerPopupLease>
-  )
-}
-
-export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn, onClose, line, hint, ctxPct = null }: {
-  leading?: ModelChoice[]
-  current: string
-  onSelect: (id: string) => void
-  onSignIn?: (id: string) => void
-  onClose: () => void
-  line?: string
-  hint?: string
-  ctxPct?: number | null
-}): React.ReactNode {
-  useCatalogueEpoch()
-  const [notice, setNotice] = React.useState<string | undefined>(undefined)
-  useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(NOUS_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(XAI_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(META_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(MISTRAL_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(MINIMAX_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(TOGETHER_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(COHERE_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(GROQ_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(MELIOUS_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(CEREBRAS_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(FIREWORKS_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(QWEN_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
-  useCatalogueRefreshOnOpen(ANTHROPIC_BEARER_ROAD, setNotice)
-  const betas = getSdkBetas()
-  const options = getModelOptions().filter(opt => onSignIn !== undefined || !isProviderActionRow(opt.value) || isCatalogueDoorRow(opt.value))
-  const catalogue = options.map(opt => modelChoiceOf(opt, betas))
-  const models: ModelChoice[] = [...(leading ?? []), ...orderedModelChoices(catalogue, current)]
-  const topGroup = seatGroupOf(models, current)
-  return (
-    <MercuryModelPicker
-      models={models}
-      current={current}
-      ctxPct={ctxPct}
-      notice={notice ?? line}
-      headings={providerHeadingsOf(0)}
-      {...(topGroup !== undefined ? { topGroup } : {})}
-      {...(hint !== undefined ? { hint } : {})}
-      expandRows={group => expandRowsOf(group, betas)}
-      onSelect={id => {
-        if (isCatalogueDoorRow(id)) return
-        if (isProviderActionRow(id)) {
-          if (!retryNamedCompatRow(id, setNotice)) onSignIn?.(id)
-          return
-        }
-        onSelect(id)
-      }}
-      onClose={onClose}
-    />
   )
 }
