@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { CONTRACT_CARD_MIN_ROWS } from '../ContractOfferCard.js'
 import { isPathTrusted, setPathTrusted } from '../../../utils/config.js'
 import { getCwd } from '../../../utils/cwd.js'
+import { errorMessage } from '../../../utils/errors.js'
+import { logError } from '../../../utils/log.js'
 import { basename } from 'node:path'
 import type { Draft, Panes, ScreenProps } from './state.js'
 
@@ -85,7 +87,14 @@ export function useConcourseAsks({ callbacks, setGroundPickerOpen, setNote }: Pi
           text: capacityDecisionReceipt(allowed, r.recommendedSeats),
         })
       })
-      .catch(() => {})
+      .catch((error: unknown) => {
+        const why = error instanceof SyntaxError ? 'a config file is not valid JSON' : errorMessage(error)
+        logError(new Error(`the capacity answer could not be saved: ${why}`))
+        setNote({
+          tone: 'warning',
+          text: `capacity answer not saved (${why}) — the board asks again next time`,
+        })
+      })
   }
   return { contractAsk, contractAskRef, compactCardRows, armContractAsk, answerContractAsk, capacityAsk, capacityAskRef, trustAsk, trustAskRef, applyGround, pickGround, answerTrustAsk, answerCapacityAsk }
 }
