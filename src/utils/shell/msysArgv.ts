@@ -12,3 +12,7 @@ export function msysArgvCarries(script: string, env: NodeJS.ProcessEnv): boolean
   const options = Object.entries(env).find(([name]) => name.toUpperCase() === 'MSYS')?.[1] ?? ''
   return !MSYS_NAMES_GLOB.test(options) && Buffer.byteLength(protectBackslashRunsFromMsysArgv(script)) <= MSYS_ARGUMENT_KEEPS
 }
+
+export function msysSourceLine(fileInShell: string): string {
+  return `source '${fileInShell.split("'").join("'\\''")}'`
+}

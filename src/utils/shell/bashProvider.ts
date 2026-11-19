@@ -17,7 +17,7 @@ import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPlatform } from '../platform.js'
 import { WINDOWS_STARTS_A_PROGRAM_IN, folderWindowsStartsIn, windowsPathToPosixPath } from '../windowsPaths.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
-import { msysArgvCarries, protectBackslashRunsFromMsysArgv } from './msysArgv.js'
+import { msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } from './msysArgv.js'
 import type { BuildExecCommandOptions, FrameHandOver, ShellProvider } from './shellProvider.js'
 import { PIPELINE_STATUS_ARRAY, loginFilesNotCarried, type ShellRecord } from './shellRecord.js'
 
@@ -28,6 +28,8 @@ function cwdFileName(id: number | string): string {
 function shellPrefix(): string {
   return flagEnv('MERCURY_SHELL_PREFIX') ?? ''
 }
+
+let frameFiles = 0
 
 function msysSpawnArgs(commandString: string, snapshotSourced: boolean): string[] {
   const script = protectBackslashRunsFromMsysArgv(commandString)
@@ -110,7 +112,8 @@ export async function createBashShellProvider(
               ? { frame: `cd -- ${quote([windowsPathToPosixPath(cwd)])} || exit; ${commandString}`, startIn: folderWindowsStartsIn(cwd) }
               : { frame: commandString }
           if (msysArgvCarries(frame, env)) return { args: msysSpawnArgs(frame, snapshotSourced), ...where }
-          return { args: msysSpawnArgs(`source ${quote([`${cwdFileInShell}-frame`])}`, snapshotSourced), file: { path: join(nativeTmp, `${name}-frame`), text: frame }, ...where }
+          const own = `-${process.pid}-${frameFiles++}-frame`
+          return { args: msysSpawnArgs(msysSourceLine(`${cwdFileInShell}${own}`), snapshotSourced), file: { path: join(nativeTmp, `${name}${own}`), text: frame }, ...where }
         }
         return { commandString, cwdFilePath: cwdFileForEngine, handOver, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
       }
