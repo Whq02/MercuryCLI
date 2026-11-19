@@ -1,0 +1,156 @@
+#!/usr/bin/env bun
+import { spawn, spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+let failures = 0
+function check(label: string, cond: boolean, detail = ''): void {
+  if (!cond) failures++
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+}
+const HERE = import.meta.dir
+const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
+const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
+const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'mcp-remove-revokes-')))
+const LATE = 'The authorization server of probe did not answer within 10 s, so its tokens may stay valid there until they expire; the local copies are cleared.'
+
+type Seen = { at: number; method: string; path: string; body: string }
+type Stand = { base: string; seen: Seen[]; close: () => Promise<void> }
+
+async function standIn(answers: 'promptly' | 'never'): Promise<Stand> {
+  const seen: Seen[] = []
+  const held: ServerResponse[] = []
+  const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+    const chunks: Buffer[] = []
+    req.on('data', chunk => chunks.push(chunk as Buffer))
+    req.on('end', () => {
+      const path = (req.url ?? '/').split('?')[0]!
+      seen.push({ at: Date.now(), method: req.method ?? '', path, body: Buffer.concat(chunks).toString('utf8') })
+      if (answers === 'never') {
+        held.push(res)
+        return
+      }
+      const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+      if (req.method === 'GET' && path.startsWith('/.well-known/oauth-authorization-server')) {
+        res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ issuer: base, authorization_endpoint: `${base}/authorize`, token_endpoint: `${base}/token`, response_types_supported: ['code'], revocation_endpoint: `${base}/revoke` }))
+        return
+      }
+      if (req.method === 'POST' && path === '/revoke') {
+        res.writeHead(200).end()
+        return
+      }
+      res.writeHead(404).end()
+    })
+  })
+  await new Promise<void>(done => server.listen(0, '127.0.0.1', done))
+  return {
+    base: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+    seen,
+    close: () =>
+      new Promise<void>(done => {
+        for (const res of held) res.destroy()
+        server.closeAllConnections()
+        server.close(() => done())
+      }),
+  }
+}
+
+const PRELUDE = (home: string, cwd: string): string => `
+  process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
+  process.env.MERCURY_CREDENTIAL_STORE = 'file'
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  delete process.env.MERCURY_HOME
+  delete process.env.NODE_ENV
+  globalThis.MACRO = { VERSION: '1.0.0' }
+  process.chdir(${JSON.stringify(cwd)})
+  const { enableConfigs } = await import(${JSON.stringify(join(SRC, 'utils/config/globalConfig.ts'))})
+  enableConfigs()
+  const bootstrap = await import(${JSON.stringify(join(SRC, 'bootstrap/state.ts'))})
+  bootstrap.setOriginalCwd(${JSON.stringify(cwd)})
+  const config = await import(${JSON.stringify(join(SRC, 'services/mcp/config.ts'))})
+  const auth = await import(${JSON.stringify(join(SRC, 'services/mcp/auth.ts'))})
+  const { getSecureStorage } = await import(${JSON.stringify(join(SRC, 'utils/secureStorage/index.ts'))})
+`
+
+type Run = { code: number | null; stdout: string; stderr: string; seconds: number; seenBeforeExit: Seen[]; seenAfter: Seen[]; tokensLeft: string[]; configured: boolean }
+
+async function remove(stand: Stand, opts: { scope: boolean; tokens: boolean }): Promise<Run> {
+  const world = mkdtempSync(join(scratch, 'world-'))
+  const home = join(world, 'home')
+  const cwd = join(world, 'project')
+  for (const dir of [home, cwd]) mkdirSync(dir, { recursive: true })
+  const env = { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '', MERCURY_CREDENTIAL_STORE: 'file' }
+  const server = `{ type: 'http', url: ${JSON.stringify(`${stand.base}/mcp`)} }`
+  const src = `
+    ${PRELUDE(home, cwd)}
+    const handlers = await import(${JSON.stringify(join(SRC, 'cli/handlers/mcp.tsx'))})
+    const server = ${server}
+    await config.addMcpConfig('probe', server, 'user')
+    if (${opts.tokens}) {
+      const stored = getSecureStorage().update({ mcpOAuth: { [auth.getServerKey('probe', server)]: { serverName: 'probe', serverUrl: server.url, accessToken: 'fixture-access-token', refreshToken: 'fixture-refresh-token', expiresAt: Date.now() + 3600000, clientId: 'fixture-client', discoveryState: { authorizationServerUrl: ${JSON.stringify(stand.base)} } } } })
+      if (!stored.success) throw new Error('the fixture tokens were not stored')
+    }
+    await handlers.mcpRemoveHandler('probe', ${opts.scope ? `{ scope: 'user' }` : '{}'})
+  `
+  const startedAt = Date.now()
+  const child = spawn(BUN, ['-e', src], { env, stdio: ['ignore', 'pipe', 'pipe'] })
+  let stdout = ''
+  let stderr = ''
+  child.stdout.on('data', chunk => (stdout += String(chunk)))
+  child.stderr.on('data', chunk => (stderr += String(chunk)))
+  const code = await new Promise<number | null>(done => child.on('exit', exit => done(exit)))
+  const exitedAt = Date.now()
+  const seenBeforeExit = [...stand.seen]
+  await new Promise<void>(done => setTimeout(done, 1500))
+  const after = spawnSync(BUN, ['-e', `
+    ${PRELUDE(home, cwd)}
+    const left = Object.keys(getSecureStorage().read()?.mcpOAuth ?? {})
+    process.stdout.write('\\n' + JSON.stringify({ left, configured: Object.hasOwn(config.getMcpConfigsByScope('user').servers, 'probe') }))
+    process.exit(0)
+  `], { env, encoding: 'utf8' })
+  const facts = JSON.parse(after.stdout.trim().split('\n').pop() ?? '{}') as { left?: string[]; configured?: boolean }
+  return { code, stdout, stderr, seconds: (exitedAt - startedAt) / 1000, seenBeforeExit, seenAfter: stand.seen.slice(seenBeforeExit.length), tokensLeft: facts.left ?? ['(the store was not read)'], configured: facts.configured ?? true }
+}
+const lines = (seen: Seen[]): string => seen.map(row => `${row.method} ${row.path}${row.body ? ` ${row.body.replace(/token=[^&]+/, 'token=…')}` : ''}`).join(' · ') || 'no request at all'
+const revoked = (seen: Seen[], token: string, hint: string): boolean => seen.some(row => row.method === 'POST' && row.path === '/revoke' && row.body.includes(`token=${token}`) && row.body.includes(`token_type_hint=${hint}`))
+
+try {
+  for (const scope of [true, false]) {
+    console.log(`mercury mcp remove probe${scope ? ' --scope user' : ''} — a server whose tokens are stored, an authorization server that answers`)
+    const stand = await standIn('promptly')
+    const run = await remove(stand, { scope, tokens: true })
+    await stand.close()
+    check('the verb ends 0 and says what it removed', run.code === 0 && run.stdout.includes('Removed MCP server probe from user scope') && run.stdout.includes('Modified: the user config') && !run.configured, `exit ${run.code} · ${run.stdout.trim()} · ${run.stderr.trim()}`)
+    check('before the process exits, the authorization server is asked for its metadata', run.seenBeforeExit.some(row => row.method === 'GET' && row.path.startsWith('/.well-known/')), lines(run.seenBeforeExit))
+    check('…and both tokens are revoked there, the refresh token and the access token', revoked(run.seenBeforeExit, 'fixture-refresh-token', 'refresh_token') && revoked(run.seenBeforeExit, 'fixture-access-token', 'access_token'), `${lines(run.seenBeforeExit)} — the tokens stay valid on the server after the remove`)
+    check('the local tokens are cleared', run.tokensLeft.length === 0, run.tokensLeft.join(', '))
+    check('nothing is said of a server that answered, and the verb does not wait its bound', !run.stderr.includes('did not answer') && run.seconds < 8, `${run.seconds}s · ${run.stderr.trim()}`)
+  }
+
+  console.log('mercury mcp remove probe --scope user — an authorization server that never answers')
+  {
+    const stand = await standIn('never')
+    const run = await remove(stand, { scope: true, tokens: true })
+    await stand.close()
+    check('the request is sent before the process exits', run.seenBeforeExit.length >= 1, lines(run.seenBeforeExit))
+    check('the verb waits its bound and no longer, then ends 0', run.code === 0 && run.seconds >= 9 && run.seconds < 20, `exit ${run.code} after ${run.seconds}s`)
+    check('it says in one line that the server did not answer in time', run.stderr.split('\n').filter(line => line === LATE).length === 1, run.stderr.trim() || '(stderr is empty)')
+    check('it still says what it removed, and the local tokens are cleared either way', run.stdout.includes('Removed MCP server probe from user scope') && run.stdout.includes('Modified: the user config') && run.tokensLeft.length === 0 && !run.configured, `${run.stdout.trim()} · left ${run.tokensLeft.join(', ')}`)
+  }
+
+  console.log('mercury mcp remove probe --scope user — control: a server with no stored tokens has nothing to revoke')
+  {
+    const stand = await standIn('promptly')
+    const run = await remove(stand, { scope: true, tokens: false })
+    await stand.close()
+    check('the verb ends 0 at once, asks the server nothing and says nothing of it', run.code === 0 && run.seenBeforeExit.length === 0 && run.seenAfter.length === 0 && !run.stderr.includes('did not answer') && run.seconds < 8 && !run.configured, `exit ${run.code} after ${run.seconds}s · ${lines(run.seenBeforeExit)}`)
+  }
+} finally {
+  rmSync(scratch, { recursive: true, force: true })
+}
+
+console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
+process.exit(failures === 0 ? 0 : 1)
