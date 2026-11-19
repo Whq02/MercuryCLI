@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, sep } from 'node:path'
 import type { ReactNode } from 'react'
@@ -708,9 +708,9 @@ async function pointerAndKeys(p: Play): Promise<void> {
     p.hover(5, 1)
     p.ink.setMouseTrackingEnabled(false)
   })
-  await p.step('tracking is switched on, the pointer moves over the address, and the alternate screen is left', () => {
+  await p.step('tracking is switched on, the pointer moves along the address, and the alternate screen is left', () => {
     p.ink.setMouseTrackingEnabled(true)
-    p.hover(5, 1)
+    p.hover(6, 1)
     p.show(lines(p, ['on the main screen']))
   })
   await p.wait(16)
@@ -1815,7 +1815,9 @@ export async function playScene(name: string, fd1File: string | null, folder: st
   if (scene === undefined) throw new Error(`no scene is named "${name}"`)
   enterWorld(scene.world)
   const clipboard = join(folder, 'clipboard')
-  Object.assign(process.env, { MERCURY_CLIPBOARD_FILE: clipboard }, scene.env?.(folder) ?? {})
+  const home = join(folder, 'home')
+  mkdirSync(home)
+  Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_CLIPBOARD_FILE: clipboard }, scene.env?.(folder) ?? {})
   for (const tee of scene.tees ?? []) process.env[tee] = join(folder, tee)
   if (scene.probe !== undefined) process.env.INK_TEE_PROBE = scene.probe
   installStage(fd1File)
@@ -1830,6 +1832,9 @@ export async function playScene(name: string, fd1File: string | null, folder: st
     for (const line of held) note(`  ${escaped(line)}`)
   }
   if (existsSync(clipboard)) note(`the clipboard file holds ${escaped(JSON.stringify(readFileSync(clipboard, 'utf8')))}`)
+  const milestones = join(home, 'launch-milestones.json')
+  const reached = existsSync(milestones) ? (JSON.parse(readFileSync(milestones, 'utf8')) as { rows: Array<{ milestone: string }> }).rows.map(row => row.milestone) : []
+  note(`the launch milestones written: ${reached.join(', ') || 'none'}`)
   const out = recorded().join('\n').split('\n')
   leaveStage()
   return out

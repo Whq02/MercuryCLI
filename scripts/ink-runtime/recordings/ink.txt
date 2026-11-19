@@ -52,6 +52,7 @@ out \e[?25h
   timers: 16
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## the first paint on the main screen of an atomic terminal
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -107,6 +108,7 @@ out \e[?25h
   timers: 16
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## the main screen: a cell, a line, lines more and fewer, the whole screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -289,6 +291,7 @@ out \e[?25h
   held: nothing
   ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=ok
 > 600 ms pass
+the launch milestones written: first-frame
 
 ## the main screen of an atomic terminal: a cell, a line, lines more and fewer, the whole screen
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -471,6 +474,7 @@ out \e[?25h
   held: nothing
   ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=ok
 > 600 ms pass
+the launch milestones written: first-frame
 
 ## the alternate screen: entered, a cell, a line, the whole screen, left
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -676,6 +680,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   screen: empty
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## the alternate screen of an atomic terminal: entered, a cell, a line, the whole screen, left
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -881,6 +886,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   screen: empty
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## an alternate screen inside another
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -987,6 +993,7 @@ out \e[?25h
   timers: 16
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## the alternate screen the launcher holds
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -1068,6 +1075,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   screen: empty
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## a resize between frames: larger, smaller, twice within the settle window
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -1220,6 +1228,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   timers: none
   screen: empty
 > 600 ms pass
+the launch milestones written: first-frame
 
 ## a resize between frames on an atomic terminal
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -1372,6 +1381,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   timers: none
   screen: empty
 > 600 ms pass
+the launch milestones written: first-frame
 
 ## a resize on the main screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -1447,6 +1457,7 @@ out \e[?25h
   timers: 16
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## a resize during a frame
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -1547,6 +1558,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   screen: empty
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## a resize during a frame on an atomic terminal
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -1647,6 +1659,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   screen: empty
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## a resize seen from inside a commit
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -1719,6 +1732,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   screen: empty
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## the window signal
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -1838,6 +1852,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
 > 600 ms pass
   timers: none
 > the window signal comes after the unmount
+the launch milestones written: first-frame
 
 ## the old console of Windows
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -1985,6 +2000,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   screen: empty
 > 600 ms pass
 > 5000 ms pass
+the launch milestones written: first-frame, input-live
 
 ## a scroll region
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -2307,6 +2323,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
 > 600 ms pass
   timers: none
 the clipboard file holds "ow 03\\nrow 04\\nrow 05\\nrow 06\\nrow 07"
+the launch milestones written: first-frame, input-live
 
 ## a scrolled pane on a terminal with no atomic drawing
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -2629,6 +2646,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
 > 600 ms pass
   timers: none
 the clipboard file holds "ow 03\\nrow 04\\nrow 05\\nrow 06\\nrow 07"
+the launch milestones written: first-frame, input-live
 
 ## the cursor declared on the alternate screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -2759,6 +2777,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   screen: empty
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## the cursor declared on the main screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -2858,6 +2877,7 @@ out \e[?25h
   timers: 16
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## the cursor declared where it is never hidden
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -2920,6 +2940,7 @@ stdin unref
   ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=ok
   stdin: raw=off readable=0
 > 600 ms pass
+the launch milestones written: first-frame, input-live
 
 ## clicks, hovers and keys
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -3115,8 +3136,10 @@ out \e[?1006l\e[?1003l\e[?1002l\e[?1000l
   modes: dec[1004 1007 1049 2004] cursor=hidden kitty=1 otherkeys=2 region=whole pointer=reset
   held: alt-screen alternate-scroll bracketed-paste focus-events kitty-kbd cursor-hidden
   ink: alt=yes mouse=no prefers=no wheel=no entry=no reasserts=0 exit=none
-> tracking is switched on, the pointer moves over the address, and the alternate screen is left
+> tracking is switched on, the pointer moves along the address, and the alternate screen is left
 out \e[?1000h\e[?1002h\e[?1003h\e[?1006h
+out \e]22;text\a
+out \e]22;\a
 out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
 out \e[>4m\e[<u\e[?1004l\e[?2004l
 stdin raw off
@@ -3124,7 +3147,7 @@ stdin loses a readable listener
 stdin unref
   the stubborn box loses the focus
 out \e[?2026h\e[1Gon the main screen\r\n\e[?2026l
-  frame 22: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=6 patches=4 nodes=7/1/3/3
+  frame 22: reads=12 renderer=1 diff=3 optimize=1 write=2 layout=1 commit=8 patches=4 nodes=7/1/3/3
   modes: dec[] cursor=hidden kitty=0 otherkeys=0 region=whole pointer=reset
   held: cursor-hidden
   ink: alt=no mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=none
@@ -3153,6 +3176,7 @@ out \e[?25h
 > 600 ms pass
 > mouse tracking is switched on after the unmount
   ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=ok
+the launch milestones written: first-frame, input-live
 
 ## clicks, hovers and keys on a plain terminal
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -3251,6 +3275,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   stdin: raw=off readable=0
   screen: empty
 > 600 ms pass
+the launch milestones written: first-frame, input-live
 
 ## a selection started, dragged, released and copied
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -3630,6 +3655,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   screen: empty
 > 600 ms pass
 the clipboard file holds "copied by hand"
+the launch milestones written: first-frame, input-live
 
 ## a copy offered to the terminal
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -3712,6 +3738,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   stdin: raw=off readable=0
   screen: empty
 > 600 ms pass
+the launch milestones written: first-frame, input-live
 
 ## search highlight
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -3812,6 +3839,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   ink: alt=no mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=ok
   screen: empty
 > 600 ms pass
+the launch milestones written: first-frame
 
 ## frames the terminal refuses, on the alternate screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -4036,6 +4064,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   ink: alt=no mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=ok
   screen: empty
 > 600 ms pass
+the launch milestones written: first-frame
 
 ## frames the terminal refuses, on the main screen
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -4254,6 +4283,7 @@ out \e[?25h
   timers: 16
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## an editor is given the terminal from the alternate screen
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -4443,6 +4473,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   screen: empty
 > 600 ms pass
 > the doors are tried after the unmount
+the launch milestones written: first-frame, input-live
 
 ## an editor is given the terminal from the main screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -4587,6 +4618,7 @@ stdin unref
   stdin: raw=off readable=0
 > 600 ms pass
 > the doors are tried after the unmount
+the launch milestones written: first-frame, input-live
 
 ## the terminal queries are awaited and never answered
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -4662,6 +4694,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   stdin: raw=off readable=0
   screen: empty
 > 600 ms pass
+the launch milestones written: first-frame, input-live
 
 ## the terminal answers its queries
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -4761,6 +4794,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   stdin: raw=off readable=0
   screen: empty
 > 600 ms pass
+the launch milestones written: first-frame, input-live
 
 ## the first paint is held for the terminal's answer
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -4816,6 +4850,7 @@ stdin unref
   ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=ok
   stdin: raw=off readable=0
 > 600 ms pass
+the launch milestones written: first-frame, input-live
 
 ## stop and continue on the alternate screen
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -4996,6 +5031,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   screen: empty
 > 600 ms pass
 > the stop and the continue come after the unmount
+the launch milestones written: first-frame, input-live
 
 ## stop and continue on the main screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -5148,6 +5184,7 @@ stdin unref
   stdin: raw=off readable=0
 > 600 ms pass
 > the stop and the continue come after the unmount
+the launch milestones written: first-frame, input-live
 
 ## the reader of keys faults
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -5260,6 +5297,7 @@ debug [WARN] Uncaught render error: Error: Raw mode is not supported on the stdi
 > the reader faults after the unmount, through the product's door and by hand
   the process hears a fault of the hand-over: read EIO
 > 600 ms pass
+the launch milestones written: first-frame, input-live
 
 ## unmount on the alternate screen, and the waits for the exit
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -5334,6 +5372,7 @@ out \e[?25l
   timers: 16
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame, input-live
 
 ## unmount with an error
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -5409,6 +5448,7 @@ out \e[?25h
   a wait after the exit is refused at once: the second app failed
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## a screen that is given no tree
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -5444,6 +5484,7 @@ fd1 \e]9;4;0;\a
 > the exit is awaited after it
   a wait after the exit is over at once
 > 600 ms pass
+the launch milestones written: first-frame
 
 ## the exit hook of the process
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -5533,6 +5574,7 @@ out \e[?25h
   timers: 16
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## a wait for the exit given by the options
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -5574,6 +5616,7 @@ out \e[?25h
   timers: 16
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## detached for shutdown
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -5659,6 +5702,7 @@ out \e[1Gthird\r\n
 stdin raw on
 stdin raw off
 > 600 ms pass
+the launch milestones written: first-frame, input-live
 
 ## the console patched on the alternate screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -5753,6 +5797,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   the console is its own again: log yes, error yes, assert yes
 > something writes to the error stream after the unmount
 debug [WARN] [stderr] written after the unmount
+the launch milestones written: first-frame
 
 ## the console patched on the main screen, with the debug lines on the stream it watches
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -5803,6 +5848,7 @@ out \e[?25h
   ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=ok
 > 600 ms pass
   the stream's write is the one from before the screen: no
+the launch milestones written: first-frame
 
 ## listeners, owners, the watchdog and the idle resets
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -6027,6 +6073,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   ink: alt=no mouse=no prefers=yes wheel=no entry=no reasserts=2 exit=ok
   screen: empty
 > 600 ms pass
+the launch milestones written: first-frame
 
 ## a stream that is no terminal
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -6093,6 +6140,7 @@ out alt on a pipe\n\n\n\n\n\n\n\n\n
 out \n
   ink: alt=no mouse=yes prefers=yes wheel=no entry=no reasserts=0 exit=ok
 > 600 ms pass
+the launch milestones written: first-frame
 
 ## the test environment
 world: test, the plain terminal under the test environment, where a commit paints at once
@@ -6159,6 +6207,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   ink: alt=no mouse=no prefers=yes wheel=no entry=no reasserts=0 exit=ok
   screen: empty
 > 600 ms pass
+the launch milestones written: first-frame
 
 ## every tee open
 world: atomic, a terminal that draws atomically and speaks the extended keys, with pointer shapes on
@@ -6444,6 +6493,7 @@ the tee INK_WRITE_TEE holds 30 lines
   {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":true,"probeInNext":true,"differingCells":0,"differingRows":[],"baseDamage":{"x":0,"y":0,"width":24,"height":8},"nextDamage":{"x":0,"y":0,"width":24,"height":8}}
   {"phase":"after-diff","patches":0,"bytes":0,"probeInOutput":false,"kinds":[]}
   {"ts":1700000000434,"len":6,"path":"stream","delivered":true,"sample":"\\u001b[?25h"}
+the launch milestones written: first-frame, input-live
 
 ## the tree dump alone, and a tee that cannot be written
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -6721,6 +6771,7 @@ the tee INK_TREE_DUMP holds 168 lines
       ink-box [0,0 24x1] flexGrow=0 flexShrink=1 flexDirection=column overflowX=visible
         ink-text [0,0 24x1] flexGrow=0 flexShrink=1 flexDirection=row
           #text "the line that shifts"
+the launch milestones written: first-frame
 
 ## the write tee alone on the main screen
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -6954,6 +7005,7 @@ the tee INK_WRITE_TEE holds 50 lines
   {"phase":"before-diff","sameScreen":false,"sharedCharPool":true,"probeInBase":false,"probeInNext":false,"differingCells":0,"differingRows":[],"baseDamage":{"x":0,"y":0,"width":24,"height":3},"nextDamage":{"x":0,"y":0,"width":24,"height":3}}
   {"phase":"after-diff","patches":0,"bytes":0,"probeInOutput":false,"kinds":[]}
   {"ts":1700000000308,"len":6,"path":"stream","delivered":true,"sample":"\\u001b[?25h"}
+the launch milestones written: first-frame
 
 ## the commit tee over trees of other shapes
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -7079,6 +7131,7 @@ the tee INK_COMMIT_TEE holds 5 lines
   {"phase":"commit","at":1700000000116,"layoutMs":9.999999974752427e-7,"row":[{"x":0,"y":0,"w":4,"h":1},{"x":4,"y":0,"w":20,"h":1}],"slot":[{"x":0,"y":0,"w":4,"h":1}],"scroll":null}
   {"phase":"commit","at":1700000000132,"layoutMs":9.999999974752427e-7,"row":[{"x":0,"y":0,"w":3,"h":2},{"x":3,"y":0,"w":21,"h":2}],"slot":[{"x":0,"y":0,"w":21,"h":2}],"scroll":null}
   {"phase":"commit","at":1700000000148,"layoutMs":9.999999974752427e-7,"row":[{"x":0,"y":0,"w":3,"h":2},{"x":3,"y":0,"w":21,"h":2}],"slot":[{"x":0,"y":0,"w":21,"h":1},{"x":0,"y":1,"w":21,"h":1}],"scroll":null}
+the launch milestones written: first-frame
 
 ## a component throws while rendering
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -7232,6 +7285,7 @@ out \e[?25h
     |
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## a component throws once in a transition
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -7315,6 +7369,7 @@ out \e[?1007l\e[?1006l\e[?1003l\e[?1002l\e[?1000l\e[?1049l
   screen: empty
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
 ## the doors beside the class
 world: plain, a terminal that names itself to nothing: no atomic drawing, no extended keys, no pointer shapes
@@ -7360,4 +7415,5 @@ fd1 \e]9;4;0;\a
   timers: 100
 > 600 ms pass
   timers: none
+the launch milestones written: first-frame
 
