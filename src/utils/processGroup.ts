@@ -271,6 +271,10 @@ function msysPsBeside(spawnfile: string | undefined): string | undefined {
   return undefined
 }
 
+function startsNode(spawnfile: string): boolean {
+  return spawnfile === process.execPath || /^(?:node|bun)(?:\.exe)?$/i.test(pathWin32.basename(spawnfile))
+}
+
 function readMsysTable(ps: string): Promise<MsysProcessRow[]> {
   return new Promise(resolve => {
     execFile(
@@ -332,7 +336,7 @@ export async function endMsysGroupBeside(spawnfile: string, pgid: number): Promi
 
 async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTreeKillReceipt> {
   if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) return { ended: 0, survivors: [] }
-  const msysPs = msysPsBeside(spawnfile)
+  const msysPs = msysPsBeside(spawnfile) ?? (spawnfile === undefined || startsNode(spawnfile) ? msysPsBeside(process.env.SHELL) : undefined)
   const before = msysPs === undefined ? [] : await readMsysTable(msysPs)
   const { file, args } = win32TaskkillCommand(pid)
   const stdout = await new Promise<string>(resolve => {
