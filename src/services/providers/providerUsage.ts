@@ -78,23 +78,34 @@ import {
 } from './huggingface/huggingfaceUsageState.js'
 import type { LocalAccountRef } from './local/localAccounts.js'
 import { refreshLocalDiscovery } from './local/localDiscovery.js'
-import { resolveXaiManagementApiKey } from './xai/xaiAccounts.js'
-import { providerSessionSpend, spendForRoute } from './providerUsage/spend.js'
+import { spendForRoute } from './providerUsage/spend.js'
 export { ADVISOR_WORK_WORD, advisorSessionSpend, advisorUsageLine, providerSessionSpend, SCHEDULED_WORK_WORD, scheduledSessionSpend, scheduledUsageLine, sessionSpendByModel, sessionSpendOfFacts } from './providerUsage/spend.js'
-import { refreshXaiSubscriptionCredits, refreshXaiUsage, xaiObservedSubscriptionCredits, xaiObservedUsage, xaiUsageFailureWords, XAI_MANAGEMENT_KEY_HINT, type XaiSubscriptionCredits } from './xai/xaiUsageState.js'
+import { refreshXaiSubscriptionCredits, refreshXaiUsage, xaiObservedSubscriptionCredits, xaiObservedUsage } from './xai/xaiUsageState.js'
+import { deepseekUsageView } from './providerUsage/deepseek.js'
 import { geminiUsageView } from './providerUsage/gemini.js'
 export { geminiPlanUsageFigures } from './providerUsage/gemini.js'
 import { huggingfaceUsageView } from './providerUsage/huggingface.js'
 export { huggingfacePlanFigures } from './providerUsage/huggingface.js'
 import { localUsageView } from './providerUsage/local.js'
+import { metaUsageView } from './providerUsage/meta.js'
+export { metaMuseCodeUsage } from './providerUsage/meta.js'
+import { minimaxUsageView } from './providerUsage/minimax.js'
+export { minimaxPlanWindowViews } from './providerUsage/minimax.js'
+import { mistralUsageView } from './providerUsage/mistral.js'
 import { moonshotUsageView } from './providerUsage/moonshot.js'
 export { KIMI_EXTRA_USAGE_NOT_READ_WORDS, KIMI_EXTRA_USAGE_UNSTATED_WORDS, kimiManagedWindowViews } from './providerUsage/moonshot.js'
+import { nousUsageView } from './providerUsage/nous.js'
 import { openrouterUsageView } from './providerUsage/openrouter.js'
 export { openrouterObservedWindowViews } from './providerUsage/openrouter.js'
-import { API_BILLING_TIER, CARRY_NOTHING_TAIL, CARRY_UNSTATED, CARRY_UNSTATED_COMPACT, CREDITS_UNREPORTED, CREDITS_UNREPORTED_WORDS, laneCredentialedLive, planWord, polledBalanceCredits, usageWindowLabel } from './providerUsage/shared.js'
+import { API_BILLING_TIER, CARRY_NOTHING_TAIL, CARRY_UNSTATED, CREDITS_UNREPORTED, CREDITS_UNREPORTED_WORDS, planWord, usageWindowLabel } from './providerUsage/shared.js'
 export { CARRY_NOTHING_TAIL, CARRY_UNSTATED_COMPACT, CARRY_UNSTATED_WORDS, CREDITS_UNREPORTED_WORDS, usageWindowLabel } from './providerUsage/shared.js'
+import { togetherUsageView } from './providerUsage/together.js'
+import { xaiUsageView } from './providerUsage/xai.js'
+export { XAI_POOL_NOT_READ_WORDS, XAI_POOL_UNSTATED_WORDS, xaiPurchasedCreditsCarry, xaiSubscriptionWindowViews } from './providerUsage/xai.js'
 import { zaiUsageView } from './providerUsage/zai.js'
 export { zaiAccountFacts, zaiQuotaFigures, zaiQuotaWindowViews } from './providerUsage/zai.js'
+import { zenUsageView } from './providerUsage/zen.js'
+export { zenGoWindowViews } from './providerUsage/zen.js'
 
 export type UsageProvider = 'anthropic' | 'openai'
 
@@ -412,51 +423,10 @@ export interface ZenGoObservationView {
   failure: { atMs: number; kind: 'refused' | 'unreachable' | 'invalid'; status?: number } | null
 }
 
-const ZEN_GO_WINDOW_KEYS: Record<'5 hour' | 'weekly' | 'monthly', string> = { '5 hour': '5h', weekly: 'wk', monthly: 'mo' }
-
-export function zenGoWindowViews(observation: ZenGoObservationView): UsageWindowView[] {
-  if (observation.usage === null) return []
-  return observation.usage.windows.map(window => ({
-    key: ZEN_GO_WINDOW_KEYS[window.name],
-    label: `Go ${window.name}`,
-    state: 'live',
-    usedPct: Math.min(100, Math.max(0, window.usedPercent)),
-    ...(window.resetsAtMs !== undefined ? { resetsAtMs: window.resetsAtMs } : {}),
-    observedAtMs: observation.usage!.observedAtMs,
-    source: 'endpoint',
-    freshForMs: usageStaleAfterMs(),
-  }))
-}
-
-function liveZenGoUsage(): ZenGoObservationView {
-  const { zenObservedGoUsage } = require('./zen/zenUsageState.js') as typeof import('./zen/zenUsageState.js')
-  return zenObservedGoUsage()
-}
-
 export interface MinimaxPlanObservationView {
   usage: { observedAtMs: number; windows: { model: string; name: '5 hour' | 'weekly'; usedPercent: number; resetsAtMs?: number }[] } | null
   plan: 'm-plan' | 'none' | 'unknown'
   failure: { atMs: number; kind: 'refused' | 'unreachable' | 'invalid'; status?: number } | null
-}
-
-export function minimaxPlanWindowViews(observation: MinimaxPlanObservationView): UsageWindowView[] {
-  if (observation.usage === null) return []
-  const models = new Set(observation.usage.windows.map(window => window.model))
-  return observation.usage.windows.map(window => ({
-    key: `${window.name === '5 hour' ? '5h' : 'wk'}${models.size > 1 ? `:${window.model.toLowerCase()}` : ''}`,
-    label: `M Plan ${window.name}${models.size > 1 ? ` · ${window.model}` : ''}`,
-    state: 'live',
-    usedPct: Math.min(100, Math.max(0, window.usedPercent)),
-    ...(window.resetsAtMs !== undefined ? { resetsAtMs: window.resetsAtMs } : {}),
-    observedAtMs: observation.usage!.observedAtMs,
-    source: 'endpoint',
-    freshForMs: usageStaleAfterMs(),
-  }))
-}
-
-function liveMinimaxPlanUsage(): MinimaxPlanObservationView {
-  const { minimaxObservedPlanUsage } = require('./minimax/minimaxUsageState.js') as typeof import('./minimax/minimaxUsageState.js')
-  return minimaxObservedPlanUsage()
 }
 
 export interface UsageRefreshIo {
@@ -663,12 +633,6 @@ export interface ZaiQuotaFailureView {
   status?: number
   code?: number
   message?: string
-}
-
-function liveDeepseekBalance(): DeepseekObservedBalanceView | null {
-  const { deepseekObservedBalance } =
-    require('./deepseek/deepseekUsageState.js') as typeof import('./deepseek/deepseekUsageState.js')
-  return deepseekObservedBalance()
 }
 
 export function anthropicWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
@@ -960,44 +924,6 @@ export function openaiObservedWindowViews(reads?: ActiveUsageReads): UsageWindow
 }
 
 
-export function xaiSubscriptionWindowViews(pool: XaiSubscriptionCredits | null): UsageWindowView[] {
-  if (!pool || pool.usedPercent === undefined) return []
-  const type = pool.period?.type ?? ''
-  const span = pool.period?.startMs !== undefined && pool.period.endMs !== undefined && pool.period.endMs > pool.period.startMs
-    ? (pool.period.endMs - pool.period.startMs) / 60_000
-    : type.endsWith('WEEKLY') ? 7 * 24 * 60 : type.endsWith('MONTHLY') ? 30 * 24 * 60 : undefined
-  const label = usageWindowLabel(span)
-  return [{
-    key: label,
-    label,
-    state: 'live',
-    usedPct: Math.min(100, Math.max(0, pool.usedPercent)),
-    ...(pool.period?.endMs !== undefined ? { resetsAtMs: pool.period.endMs } : {}),
-    observedAtMs: pool.observedAtMs,
-    source: 'endpoint',
-    freshForMs: usageStaleAfterMs(),
-  }]
-}
-
-export const XAI_POOL_NOT_READ_WORDS = 'not read yet — /usage samples the Grok pool endpoint'
-export const XAI_POOL_UNSTATED_WORDS = 'the Grok pool endpoint stated no included usage for this period'
-
-function xaiSubscriptionCredits(pool: XaiSubscriptionCredits | null, failed: boolean): UsageCreditsView {
-  if (pool === null) return { state: 'unreported', reason: failed ? 'not read — see the usage reader note' : XAI_POOL_NOT_READ_WORDS, compact: failed ? 'not read' : 'not read yet' }
-  if (pool.prepaidBalanceUsd === undefined) return { state: 'unreported', reason: 'the Grok pool endpoint stated no purchased-credits balance', compact: 'not stated' }
-  const amount = `USD ${pool.prepaidBalanceUsd.toFixed(2)}`
-  return { state: 'reported', display: `${amount} purchased credits`, compact: `${amount} purchased`, source: 'endpoint', observedAtMs: pool.observedAtMs, freshForMs: usageStaleAfterMs() }
-}
-
-export function xaiPurchasedCreditsCarry(pool: XaiSubscriptionCredits | null, failed: boolean): UsageCarryView {
-  if (pool === null) return { state: 'unstated', display: failed ? 'not read — see the usage reader note' : XAI_POOL_NOT_READ_WORDS, compact: failed ? 'not read' : 'not read yet' }
-  const stamp = { source: 'endpoint' as const, observedAtMs: pool.observedAtMs, freshForMs: usageStaleAfterMs() }
-  if (pool.prepaidBalanceUsd === undefined) return { state: 'unstated', display: 'the Grok pool endpoint stated no purchased-credits balance', compact: CARRY_UNSTATED_COMPACT, ...stamp }
-  const amount = `USD ${pool.prepaidBalanceUsd.toFixed(2)}`
-  if (pool.prepaidBalanceUsd <= 0) return { state: 'nothing', display: `purchased credits ${amount} — ${CARRY_NOTHING_TAIL}`, compact: `purchased credits ${amount}`, ...stamp }
-  return { state: 'carries', display: `on purchased credits · ${amount} left`, compact: `on purchased credits ${amount}`, ...stamp }
-}
-
 export function openrouterCreditFacts(reads?: ActiveUsageReads): {
   usage: OpenrouterKeyUsage | null
   lastError?: string
@@ -1139,8 +1065,6 @@ function deriveOtherWindowUsages(
   return others
 }
 
-const COMPAT_USAGE_ABSENCE_NOTE =
-  "a custom endpoint publishes no usage Mercury reads — the endpoint's own dashboard is the view"
 const API_KEY_USAGE_ABSENCE_NOTE =
   'no usage endpoint is read for an API key on this lane — the provider console is the view'
 
@@ -1166,33 +1090,6 @@ export function usageForProvider(
   return { ...view, carry: CARRY_UNSTATED }
 }
 
-export function metaMuseCodeUsage(spend: ProviderSessionSpend = providerSessionSpend('meta')): ActiveSourceUsage | undefined {
-  const state = require('./meta/metaUsageState.js') as typeof import('./meta/metaUsageState.js')
-  const observed = state.metaObservedMuseCodeUsage()
-  if (observed.usage === null) return undefined
-  const note = observed.failure ? state.metaMuseCodeFailureWords(observed.failure) : undefined
-  const windows = state.metaMuseCodeWindowViews(observed.usage)
-  return {
-    provider: 'meta',
-    sourceKind: 'subscription-oauth',
-    label: 'Muse Code subscription',
-    shape: 'subscription-windows',
-    windows,
-    ...(windows.length === 0 ? { absence: 'Plan windows: not stated on the last read.' } : {}),
-    pools: [],
-    spend,
-    tier: observed.usage.tierName ?? observed.usage.tierId ?? 'Muse Code',
-    credits: {
-      state: 'unreported',
-      reason: 'plan windows meter the subscription',
-      compact: 'plan windows',
-      ...(observed.usage.observedAtMs ? { observedAtMs: observed.usage.observedAtMs, source: 'endpoint' as const, freshForMs: usageStaleAfterMs() } : {}),
-    },
-    carry: CARRY_UNSTATED,
-    ...(note !== undefined ? { readerNote: note, readerNoteCompact: note } : {}),
-  }
-}
-
 function deriveUsageForProvider(
   provider: ProviderFamilyId | 'unrecognised',
   reads?: ActiveUsageReads,
@@ -1211,177 +1108,13 @@ function deriveUsageForProvider(
 
   if (provider === 'moonshot') return moonshotUsageView(provider, spend, reads)
 
-  if (provider === 'xai') {
-    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
-    if (!credentialed) return { provider, sourceKind: 'none', label: 'xAI usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins xai adds a key' }
-    const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
-    if ((reads?.xaiAccount ?? resolveXaiAccount)()?.kind === 'grok-subscription') {
-      const { credits: pool, failure: poolFailure } = (reads?.xaiSubscriptionCredits ?? xaiObservedSubscriptionCredits)()
-      const windows = xaiSubscriptionWindowViews(pool)
-      const note = poolFailure ? xaiUsageFailureWords(poolFailure) : undefined
-      return {
-        provider, sourceKind: 'subscription-oauth', label: 'Grok subscription', shape: 'subscription-windows', windows, pools: [], spend,
-        tier: pool?.tier ?? 'Grok subscription', credits: xaiSubscriptionCredits(pool, poolFailure !== null),
-        carry: xaiPurchasedCreditsCarry(pool, poolFailure !== null),
-        ...(pool && windows.length === 0 ? { absence: XAI_POOL_UNSTATED_WORDS } : {}),
-        ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
-      }
-    }
-    const management = reads?.xaiManagementKeyPresent?.() ?? resolveXaiManagementApiKey() !== undefined
-    if (!management) return {
-      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,
-      credits: { state: 'unreported', reason: 'not read — a management key unlocks the team balance', compact: 'needs management key' },
-      absence: XAI_MANAGEMENT_KEY_HINT,
-    }
-    const { usage, failure } = (reads?.xaiObserved ?? xaiObservedUsage)()
-    const stamp = { source: 'endpoint' as const, observedAtMs: usage?.observedAtMs, freshForMs: usageStaleAfterMs() }
-    const balance = usage ? { display: `USD ${usage.prepaidBalanceUsd.toFixed(2)} prepaid`, observedAtMs: usage.observedAtMs } : undefined
-    const figures: UsageFigureView[] = []
-    if (usage) {
-      const cycle = `${usage.cycle.year}-${String(usage.cycle.month).padStart(2, '0')}`
-      figures.push({ key: 'team-cycle', label: `team usage (${cycle}${usage.partial ? ', partial' : ''})`, value: `USD ${usage.usageUsd.toFixed(2)}`, ...stamp })
-      if (usage.postpaidInvoiceUsd !== undefined) figures.push({ key: 'postpaid-preview', label: 'postpaid invoice preview (with VAT)', value: `USD ${usage.postpaidInvoiceUsd.toFixed(2)}`, ...stamp })
-      if (usage.postpaidLimitUsd !== undefined) figures.push({ key: 'postpaid-limit', label: 'postpaid spending limit', value: `USD ${usage.postpaidLimitUsd.toFixed(2)}`, ...stamp })
-    }
-    const note = failure ? xaiUsageFailureWords(failure) : usage?.partial ? 'usage query returned only part of the results — this is not a spending-limit signal' : undefined
-    return {
-      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,
-      credits: balance ? polledBalanceCredits(balance) : { state: 'unreported', reason: failure ? 'not read — see the usage reader note' : 'not read yet — /usage samples the Management API', compact: 'not read' },
-      ...(balance ? { balance } : {}),
-      ...(figures.length ? { figures } : {}),
-      ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
-    }
-  }
-  if (provider === 'meta') {
-    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
-    if (!credentialed) return { provider, sourceKind: 'none', label: 'Meta usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins meta adds a key' }
-    const state = require('./meta/metaUsageState.js') as typeof import('./meta/metaUsageState.js')
-    const { resolveMetaAccount } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
-    const account = reads?.laneCredentialed ? undefined : resolveMetaAccount()
-    if (account?.kind === 'muse-code') {
-      const subscription = metaMuseCodeUsage(spend)
-      if (subscription !== undefined) return subscription
-    }
-    return { provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], credits: CREDITS_UNREPORTED, spend, tier: API_BILLING_TIER, absence: state.META_USAGE_ABSENCE }
-  }
-  if (provider === 'mistral') {
-    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
-    if (!credentialed) return { provider, sourceKind: 'none', label: 'Mistral usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins mistral adds a key' }
-    const state = require('./mistral/mistralUsageState.js') as typeof import('./mistral/mistralUsageState.js')
-    const { resolveMistralAdminApiKey } = require('./mistral/mistralAccounts.js') as typeof import('./mistral/mistralAccounts.js')
-    const admin = reads?.mistralAdminKeyPresent?.() ?? resolveMistralAdminApiKey() !== undefined
-    const observed = (reads?.mistralObserved ?? state.mistralObservedUsage)()
-    const account = observed.identity?.email ?? observed.identity?.name
-    const scope = [observed.identity?.organization, observed.identity?.workspace].filter((part): part is string => typeof part === 'string' && part !== '').join(' / ')
-    const figures: UsageFigureView[] = []
-    const identityNote = observed.failure?.endpoint === 'identity' ? state.mistralUsageFailureWords(observed.failure) : undefined
-    if (account) figures.push({ key: 'account', label: 'account', value: scope ? `${account} (${scope})` : account })
-    if (!admin) return {
-      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,
-      credits: { state: 'unreported', reason: 'not read — an Admin API key unlocks the organisation meter', compact: 'needs admin key' },
-      absence: state.MISTRAL_ADMIN_KEY_HINT,
-      ...(figures.length ? { figures } : {}),
-      ...(identityNote ? { readerNote: identityNote, readerNoteCompact: identityNote } : {}),
-    }
-    const limits = observed.limits
-    const stamp = { source: 'endpoint' as const, observedAtMs: limits?.observedAtMs, freshForMs: usageStaleAfterMs() }
-    const spent = limits?.totalUsage ?? limits?.usage
-    let balance: { display: string; observedAtMs: number } | undefined
-    if (limits) {
-      if (spent !== undefined) figures.push({ key: 'month-usage', label: 'organisation usage this month', value: `${limits.currency} ${spent.toFixed(2)}`, ...stamp })
-      if (limits.vibeUsage !== undefined && limits.vibeUsage > 0) figures.push({ key: 'vibe-usage', label: 'of which Vibe Code usage', value: `${limits.currency} ${limits.vibeUsage.toFixed(2)}`, ...stamp })
-      if (limits.noMonthlyLimit) figures.push({ key: 'month-limit', label: 'monthly spend limit', value: 'none set', ...stamp })
-      else if (limits.usageLimit !== undefined) {
-        figures.push({ key: 'month-limit', label: 'monthly spend limit', value: `${limits.currency} ${limits.usageLimit.toFixed(2)}${limits.monthlyLimitReached ? ' · reached' : ''}`, ...stamp })
-        if (spent !== undefined) balance = { display: `${limits.currency} ${Math.max(0, limits.usageLimit - spent).toFixed(2)} left of the monthly limit`, observedAtMs: limits.observedAtMs }
-      }
-      if (limits.requestsPerSecond !== undefined) figures.push({ key: 'rate-limit', label: 'rate limit', value: `${limits.requestsPerSecond} requests/s`, ...stamp })
-      if (limits.lastPaymentFailure) figures.push({ key: 'payment', label: 'last payment', value: 'failed — check admin.mistral.ai', ...stamp })
-    }
-    const adminNote = observed.failure?.endpoint === 'admin' ? state.mistralUsageFailureWords(observed.failure) : undefined
-    const note = adminNote ?? identityNote
-    return {
-      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,
-      credits: balance ? polledBalanceCredits(balance) : limits
-        ? { state: 'unreported', reason: limits.noMonthlyLimit ? 'no monthly limit is set — usage is the figure' : 'the spend limit read states no figure', compact: limits.noMonthlyLimit ? 'no limit set' : 'not stated' }
-        : { state: 'unreported', reason: adminNote ? 'not read — see the usage reader note' : 'not read yet — /usage samples the Admin API', compact: 'not read' },
-      ...(balance ? { balance } : {}),
-      ...(figures.length ? { figures } : {}),
-      ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
-    }
-  }
-  if (provider === 'nous') {
-    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
-    if (!credentialed) return { provider, sourceKind: 'none', label: 'Nous Portal usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins nous adds a key' }
-    const nousState = require('./nous/nousUsageState.js') as typeof import('./nous/nousUsageState.js')
-    const { resolveNousAccount } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
-    const signedIn = (reads?.nousSignedIn ?? (() => resolveNousAccount()?.kind === 'signin'))()
-    const account = (reads?.nousAccount ?? nousState.nousObservedAccount)()
-    const failed = (reads?.nousAccountFailure ?? nousState.nousAccountFailure)()
-    const usable = account?.paidAccess?.totalUsableCredits ?? account?.subscription?.creditsRemaining
-    const balance = account && usable !== undefined ? { display: `USD ${usable.toFixed(2)} usable credits`, observedAtMs: account.observedAtMs } : undefined
-    const stamp = { source: 'endpoint' as const, observedAtMs: account?.observedAtMs, freshForMs: usageStaleAfterMs() }
-    const figures: UsageFigureView[] = []
-    if (account) {
-      const sub = account.subscription
-      if (sub?.plan !== undefined) figures.push({ key: 'plan', label: 'subscription plan', value: `${sub.plan}${sub.tier !== undefined ? ` (tier ${sub.tier})` : ''}`, ...stamp })
-      if (sub?.creditsRemaining !== undefined) figures.push({ key: 'subscription-credits', label: 'subscription credits remaining', value: `USD ${sub.creditsRemaining.toFixed(2)}${sub.monthlyCredits !== undefined ? ` of ${sub.monthlyCredits.toFixed(2)} monthly` : ''}`, ...stamp, ...(sub.currentPeriodEnd !== undefined && Number.isFinite(Date.parse(sub.currentPeriodEnd)) ? { resetsAtMs: Date.parse(sub.currentPeriodEnd) } : {}) })
-      if (sub?.rolloverCredits !== undefined && sub.rolloverCredits > 0) figures.push({ key: 'rollover-credits', label: 'rollover credits', value: `USD ${sub.rolloverCredits.toFixed(2)}`, ...stamp })
-      const access = account.paidAccess
-      if (access?.purchasedCreditsRemaining !== undefined) figures.push({ key: 'purchased-credits', label: 'purchased credits remaining', value: `USD ${access.purchasedCreditsRemaining.toFixed(2)}`, ...stamp })
-      if (access?.memberSpendCapUsd !== undefined) figures.push({ key: 'member-spend-cap', label: 'organisation spend cap', value: `USD ${(access.memberSpendUsd ?? 0).toFixed(2)} of ${access.memberSpendCapUsd.toFixed(2)}`, ...stamp })
-    }
-    const note = account?.paidAccess?.allowed === false
-      ? `the Portal reports no paid service access${account.paidAccess.reason ? ` (${account.paidAccess.reason})` : ''} — top up or renew at portal.nousresearch.com`
-      : failed ? nousState.nousAccountFailureWords(failed) : undefined
-    return {
-      provider, sourceKind: signedIn ? 'oauth' : 'api-key', label: signedIn ? 'Nous Portal account' : 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: signedIn ? (account?.subscription?.plan !== undefined ? `${account.subscription.plan} plan` : 'Nous Portal account') : API_BILLING_TIER,
-      credits: balance ? polledBalanceCredits(balance) : { state: 'unreported', reason: failed ? 'not read — see the usage reader note' : 'not read yet — /usage samples the Portal account endpoint', compact: failed ? 'not read' : 'not read yet' },
-      ...(balance ? { balance } : {}),
-      ...(figures.length ? { figures } : {}),
-      ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
-    }
-  }
-  if (provider === 'zen') {
-    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
-    if (!credentialed) return { provider, sourceKind: 'none', label: 'OpenCode Zen usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins zen adds a key' }
-    const { ZEN_BALANCE_NOTE, ZEN_GO_ABSENT_NOTE, zenGoFailureWords } = require('./zen/zenUsageState.js') as typeof import('./zen/zenUsageState.js')
-    const observation = (reads?.zenGoUsage ?? liveZenGoUsage)()
-    const windows = zenGoWindowViews(observation)
-    const note = observation.failure ? zenGoFailureWords(observation.failure) : undefined
-    const absence = observation.plan === 'none' ? `${ZEN_GO_ABSENT_NOTE}; ${ZEN_BALANCE_NOTE}` : ZEN_BALANCE_NOTE
-    return {
-      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows, pools: [], spend, tier: API_BILLING_TIER,
-      credits: { state: 'unreported', reason: 'the gateway states no balance to clients — the OpenCode console shows it', compact: 'console only' },
-      absence,
-      ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
-    }
-  }
-  if (provider === 'minimax') {
-    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
-    if (!credentialed) return { provider, sourceKind: 'none', label: 'MiniMax usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins minimax adds a key' }
-    const { MINIMAX_BALANCE_NOTE, MINIMAX_PLAN_ABSENT_NOTE, minimaxPlanFailureWords } = require('./minimax/minimaxUsageState.js') as typeof import('./minimax/minimaxUsageState.js')
-    const observation = (reads?.minimaxPlanUsage ?? liveMinimaxPlanUsage)()
-    const windows = minimaxPlanWindowViews(observation)
-    const note = observation.failure ? minimaxPlanFailureWords(observation.failure) : undefined
-    const absence = observation.plan === 'none' ? `${MINIMAX_PLAN_ABSENT_NOTE}; ${MINIMAX_BALANCE_NOTE}` : MINIMAX_BALANCE_NOTE
-    return {
-      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows, pools: [], spend, tier: API_BILLING_TIER,
-      credits: { state: 'unreported', reason: 'the API states no balance to clients — platform.minimax.io shows it', compact: 'console only' },
-      absence,
-      ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
-    }
-  }
-  if (provider === 'together' || provider === 'cohere') {
-    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
-    const words = provider === 'together' ? { label: 'Together AI usage', door: '/logins together', console: 'api.together.ai/settings/billing' } : { label: 'Cohere usage', door: '/logins cohere', console: 'dashboard.cohere.com' }
-    if (!credentialed) return { provider, sourceKind: 'none', label: words.label, shape: 'none', windows: [], pools: [], spend, whyNot: `not connected — ${words.door} adds a key` }
-    return {
-      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,
-      credits: { state: 'unreported', reason: `a standard API key reads no balance endpoint — ${words.console} shows it`, compact: 'console only' },
-      absence: `a standard ${provider === 'together' ? 'Together AI' : 'Cohere'} API key reads no usage, balance or quota endpoint — the session ledger counts this key's tokens; ${words.console} shows the account's spend`,
-    }
-  }
+  if (provider === 'xai') return xaiUsageView(provider, spend, reads)
+  if (provider === 'meta') return metaUsageView(provider, spend, reads)
+  if (provider === 'mistral') return mistralUsageView(provider, spend, reads)
+  if (provider === 'nous') return nousUsageView(provider, spend, reads)
+  if (provider === 'zen') return zenUsageView(provider, spend, reads)
+  if (provider === 'minimax') return minimaxUsageView(provider, spend, reads)
+  if (provider === 'together' || provider === 'cohere') return togetherUsageView(provider, spend, reads)
   if (provider === 'groq') {
     const { groqUsageView } = require('./groq/groqUsageState.js') as typeof import('./groq/groqUsageState.js')
     return groqUsageView(spend, reads?.laneCredentialed?.(provider))
@@ -1406,39 +1139,7 @@ function deriveUsageForProvider(
     const { qwenUsageView } = require('./qwen/qwenUsageState.js') as typeof import('./qwen/qwenUsageState.js')
     return qwenUsageView(spend, reads?.laneCredentialed?.(provider))
   }
-  if (provider === 'deepseek' || provider === 'openai-compat') {
-    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
-    const uncredentialedLabel = provider === 'deepseek' ? 'DeepSeek usage' : 'Endpoint usage'
-    if (!credentialed) {
-      const whyNot =
-        provider === 'deepseek'
-          ? 'not connected — /logins deepseek adds a key'
-          : 'not configured — set MERCURY_COMPAT_BASE_URL'
-      return { provider, sourceKind: 'none', label: uncredentialedLabel, shape: 'none', windows: [], pools: [], spend, whyNot }
-    }
-    const record = provider === 'deepseek' ? (reads?.deepseekBalance?.() ?? liveDeepseekBalance()) : null
-    const primary = record?.balances[0]
-    const balance =
-      record && primary
-        ? { display: `${primary.currency} ${primary.totalBalance}`, observedAtMs: record.observedAtMs }
-        : undefined
-    return {
-      provider,
-      sourceKind: 'api-key',
-      label: 'API usage',
-      shape: 'api-spend',
-      windows: [],
-      pools: [],
-      credits: provider === 'deepseek' ? polledBalanceCredits(balance) : CREDITS_UNREPORTED,
-      spend,
-      tier: API_BILLING_TIER,
-      ...(balance ? { balance } : {}),
-      ...(record && !record.isAvailable
-        ? { readerNote: 'the provider marks this account unavailable for inference' }
-        : {}),
-      ...(provider === 'openai-compat' ? { absence: COMPAT_USAGE_ABSENCE_NOTE } : {}),
-    }
-  }
+  if (provider === 'deepseek' || provider === 'openai-compat') return deepseekUsageView(provider, spend, reads)
 
   if (provider === 'unrecognised') {
     return {
