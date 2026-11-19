@@ -113,7 +113,7 @@ export function hunksInUse(input: FileEditInput): boolean {
   return editHunksEnabled() && Array.isArray(input.hunks) && input.hunks.length > 0
 }
 
-type EditMode = 'exact' | 'hunks' | 'append' | 'section'
+export type EditMode = 'exact' | 'hunks' | 'append' | 'section'
 
 export function editMode(input: FileEditInput): EditMode {
   if (hunksInUse(input)) return 'hunks'
