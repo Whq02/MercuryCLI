@@ -1,8 +1,11 @@
 import React from 'react'
+import type { GlobalConfig } from '../../../utils/config.js'
+import type { SettingsJson } from '../../../utils/settings/types.js'
 import { THEME_LABELS as THEME_NAMES_BY_SETTING } from '../../../utils/theme.js'
 import type { ModelChoice } from '../../MercuryModelPicker.js'
 import type { LOCAL_SERVER_APPLY_MENU } from '../LocalServer.js'
 import type { MediaMenu } from '../Media.js'
+import type { MercuryThemeTokens } from '../../../utils/mercuryTokens.js'
 
 export type SubMenu =
   | 'theme'
@@ -54,4 +57,16 @@ export function validated<T extends string>(
   return typeof value === 'string' && (list as readonly string[]).includes(value)
     ? (value as T)
     : fallback
+}
+
+export type ConfigRowKit = {
+  config: GlobalConfig
+  merged: SettingsJson
+  tokens: MercuryThemeTokens
+  boolValue: (on: boolean) => React.ReactNode
+  writeGlobal: (mutate: (config: GlobalConfig) => GlobalConfig) => void
+  writeSource: (source: 'localSettings' | 'userSettings', partial: Partial<SettingsJson>) => boolean
+  recordToggle: (key: string, text: string) => void
+  recordSet: (key: string, text: string) => void
+  bump: () => void
 }
