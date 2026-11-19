@@ -3,7 +3,7 @@ import { DapCancelledError, throwIfDapAborted } from './dapCancellation.js'
 import '../../utils/combinedAbortSignal.js'
 import '../../utils/subprocessEnv.js'
 import '../../utils/execFileNoThrow.js'
-import { pythonSpawnEnv } from './debugpyResolver.js'
+import './debugpyResolver.js'
 import './optionalAdapters.js'
 import {
   registerOwnerDisposer,
@@ -12,7 +12,7 @@ import {
 import { registerExecutionDomain } from '../primitives/executionPlane.js'
 import { projectExternalState } from '../primitives/externalProjection.js'
 import '../../substrate/flagRegistry.js'
-import { logForDebugging } from '../../utils/debug.js'
+import '../../utils/debug.js'
 import '../../utils/envUtils.js'
 import '../../utils/cwd.js'
 import '../../utils/config/trust.js'
@@ -25,7 +25,7 @@ import '../ide/pythonProject.js'
 import '../ide/unityProject.js'
 import './unityAdapter.js'
 import '../../utils/sleep.js'
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { DapTerminalRunner } from './dapTerminal.js'
 import { createServer as createNetServer, type Socket } from 'node:net'
 import type { OwnerKey } from '../run/ownerKey.js'
@@ -219,46 +219,10 @@ export class DapSession extends DapSessionPublicLayer {
       this.#resolveInitialized = res
     })
     if (this.parentSession) this.output = this.parentSession.root().output
-    if (wire === 'dial' && listener !== undefined) {
-      this.#child = null
-      this.#listener = { host: listener.host, port: listener.port }
-      this.#transportReady =
-        listener.socket !== undefined
-          ? this.#wire.adoptSocket(listener.socket, `the program listening at ${listener.host}:${listener.port} closed the connection`)
-          : this.#wire.connectTcp(listener.port, listener.host)
-      return
-    }
-    if (wire === 'dial') {
-      this.#child = null
-      if (tcpPort === undefined) {
-        this.terminated = true
-        this.exitDetail = 'dial session has no server port'
-        this.#transportReady = Promise.reject(new Error(this.exitDetail))
-        this.#transportReady.catch(() => {})
-        return
-      }
-      this.#transportReady = this.#wire.connectTcp(tcpPort)
-      return
-    }
-    const child = spawn(spec.command, spec.args, {
-      windowsHide: true,
-      cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      detached: process.platform !== 'win32',
-      env: pythonSpawnEnv(),
-    })
-    this.#child = child
-    child.stdin.on('error', err => logForDebugging(`dap: adapter stdin error: ${err.message}`))
-    if (spec.connect === 'tcp' && tcpPort !== undefined) {
-      child.stdout.on('data', (chunk: Buffer) => {
-        this.#pushOutput(`[adapter] ${String(chunk).trimEnd()}`)
-      })
-      this.#transportReady = this.#wire.connectTcp(tcpPort)
-    } else {
-      child.stdout.on('data', (chunk: Buffer) => this.#wire.onData(chunk))
-      this.#transportReady = Promise.resolve()
-    }
-    this.#life.watchChild(child)
+    const transport = this.#life.openTransport(spec, cwd, tcpPort, wire, listener)
+    this.#child = transport.child
+    this.#listener = transport.listener
+    this.#transportReady = transport.ready
   }
 
   #wakeStateWaiters(): void {
