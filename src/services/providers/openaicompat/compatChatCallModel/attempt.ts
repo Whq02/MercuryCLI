@@ -33,7 +33,7 @@ import type { CompatLaneProfile } from './lane.js'
 import { apiErrorMessage, compatFaultToTypedError, overflowOf } from './faults.js'
 import { openCompatBlocks, streamEvent } from './attemptBlocks.js'
 import { openCompatEvents } from './attemptEvents.js'
-import { gateCompatToolCalls, settleCompatUsage, terminationNoteOf } from './attemptSettle.js'
+import { gateCompatToolCalls, paintedCallsOf, settleCompatUsage, terminationNoteOf } from './attemptSettle.js'
 
 export type AttemptOutcome =
   | { kind: 'done'; served?: string }
@@ -271,29 +271,7 @@ export async function* streamOneCompatAttempt(ctx: CompatAttemptCtx): AsyncGener
 
 
   const { accepted, verdicts, answered } = gateCompatToolCalls(ctx, completed, w.finish)
-  const paintedCalls = new Set<CompatCompletedToolCall>()
-  let inserted = 0
-  for (const slot of paintSlots) {
-    const at = completed.findIndex(entry => entry.index === slot.toolIndex && entry.id === slot.id && !paintedCalls.has(entry))
-    if (at < 0) continue
-    const call = completed[at]!
-    const verdict = verdicts[at]!
-    paintedCalls.add(call)
-    let message: AssistantMessage
-    if (verdict.ok) {
-      message = mintBlock({ type: 'tool_use', id: call.id, name: call.name, input: verdict.input })
-    } else if (answered.has(call)) {
-      message = mintBlock({ type: 'tool_use', id: call.id, name: call.name, input: refusedCallInput(verdict.refusal) })
-      refusalNoteMessage(verdict.refusal).decorate(message)
-    } else {
-      const refusal = refusalNoteMessage(verdict.refusal)
-      message = mintBlock({ type: 'text', text: refusal.note, citations: null })
-      refusal.decorate(message)
-    }
-    minted.splice(slot.at + inserted, 0, message)
-    inserted += 1
-  }
-  paintSlots.length = 0
+  const paintedCalls = paintedCallsOf(w, completed, verdicts, answered)
   yield* releaseMinted()
   for (const [index, call] of completed.entries()) {
     const verdict = verdicts[index]!
