@@ -6,7 +6,7 @@ import { logForDebugging } from '../debug.js'
 import { logForDiagnosticsNoPII } from '../diagLogs.js'
 import { getGlobalMercuryFile } from '../env.js'
 import { getMercuryHome } from '../envUtils.js'
-import { ConfigParseError, ConfigReadError, getErrnoCode } from '../errors.js'
+import { ConfigParseError, ConfigReadError, errorMessage, getErrnoCode } from '../errors.js'
 import { isReadOnlyDiagnostic } from '../diagnosticReadOnly.js'
 import { writeFileAndFlushAtomically } from '../file.js'
 import { getFsImplementation } from '../fsOperations.js'
@@ -48,7 +48,8 @@ function armDeferredExitFlush(): void {
   process.once('exit', () => {
     try {
       if (hasPendingDeferredGlobalConfigSaves()) saveGlobalConfig(current => current)
-    } catch {
+    } catch (error) {
+      process.stderr.write(`\nThe settings changed in this session could not be saved to ${getGlobalMercuryFile()} (${errorMessage(error)}); they are lost — set them again next time.\n`)
     }
   })
 }
