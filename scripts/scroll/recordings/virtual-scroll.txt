@@ -2237,125 +2237,212 @@ step: a frame follows the tail, and the list renders
     hooks 33:useDeferredValue -> range#9[526,1000]
     answers range=[700,1000] topSpacer=1760 bottomSpacer=0 offsets=1001:2060@b62f8c5c90
   commit 10: afterLayout=fn#19
+step: the handle goes and the pane narrows in one beat
+  render 11: keys=keys#1(1000) columns=40 top=1660 pending=0 viewport=400 sticky=true no handle
+    hooks 31:useSyncExternalStore -> NaN
+    answers range=[700,1000] topSpacer=1930 bottomSpacer=0 offsets=1001:2530@8aede05ebd
+    refs after the render: heightCache=map[470]@ab72ea032e offsetsVersion=471 offsetsBuffer=f64[1001]@8aede05ebd offsetsBuiltVersion=471 prevColumns=40 measurementSkip=true freezeRenders=2 reflowHold=true
+  commit 11: measurementSkip=false freezeRenders=1 afterLayout=fn#20
+  render 12: keys=keys#1(1000) columns=40 top=1660 pending=0 viewport=400 sticky=true no handle
+    hooks 28:useReducer -> 5
+    answers range=[700,1000] topSpacer=1930 bottomSpacer=0 offsets=1001:2530@8aede05ebd
+  commit 12: heightCache=map[470]@35f3cbfad6 offsetsVersion=771 freezeRenders=0 painted={offsets:f64[1001]@e2dbdbc841 keys:keys#1(1000) count:1000 version:771 origin:0} afterLayout=fn#21
+  render 13: keys=keys#1(1000) columns=40 top=1660 pending=0 viewport=400 sticky=true no handle
+    hooks 28:useReducer -> 6 · 32:useMemo[970,1000] -> range#10[970,1000]
+    answers range=[970,1000] topSpacer=2200 bottomSpacer=0 offsets=1001:2230@e2dbdbc841
+    refs after the render: offsetsBuffer=f64[1001]@e2dbdbc841 offsetsBuiltVersion=771 prevRange=range#10[970,1000]
+  commit 13: elements=map[30]@dfb9905695 reflowHold=false afterLayout=fn#22 prevCommittedRange=[970,1000]
+  render 14: keys=keys#1(1000) columns=40 top=1660 pending=0 viewport=400 sticky=true no handle
+    hooks 33:useDeferredValue -> range#10[970,1000]
+    answers range=[970,1000] topSpacer=2200 bottomSpacer=0 offsets=1001:2230@e2dbdbc841
+  commit 14: afterLayout=fn#23
+step: the list renders
+  render 15: keys=keys#1(1000) columns=40 top=1660 pending=0 viewport=400 sticky=true no handle
+    answers range=[970,1000] topSpacer=2200 bottomSpacer=0 offsets=1001:2230@e2dbdbc841
+  commit 15: afterLayout=fn#24
+    handle.subscribe ended
+    handle.subscribeLayout ended
+the same pane, wheeled off the tail
+  render 1: keys=keys#1(1000) columns=80 top=0 pending=0 viewport=400 sticky=true
+    hooks useRef×27 · useReducer -> 0 · useCallback[scrollRef] -> fn#1 · useCallback[scrollRef] -> fn#2 · useSyncExternalStore -> -1 · useMemo[700,1000] -> range#1[700,1000] · useDeferredValue -> range#1[700,1000] · useRef · useLayoutEffect×4 · useEffect[scrollRef] · useCallback[] -> fn#3 · useCallback[] -> fn#4 · useCallback[keys#1(1000)] -> fn#5 · useCallback[keys#1(1000)] -> fn#6 · useCallback[keys#1(1000)] -> fn#7 · useCallback[scrollRef] -> fn#8
+    answers range=[700,1000] topSpacer=2100 bottomSpacer=0 offsets=1001:3000@7681a8a6c6 measureRef=fn#3 spacerRef=fn#4 getItemTop=fn#6 getItemElement=fn#5 getItemHeight=fn#7 scrollToIndex=fn#8
+    refs after the render: heightCache=map{} elements=map{} refCallbacks=map{} offsetsVersion=0 offsetsBuffer=f64[1001]@7681a8a6c6 offsetsBuiltVersion=0 offsetsBuiltCount=1000 offsetsBuiltKeys=keys#1(1000) listOrigin=0 spacerElement=null prevRange=range#1[700,1000] prevColumns=80 prevItemKeys=keys#1(1000) measurementSkip=false freezeRenders=0 prevScrollAtCommit=0 msPerItemEma=0.320000 contentPin=null lastWrittenTop=null keyIndex={keys:null map:map{} indexed:0} minChangedIndex=Infinity reflowHold=false outOfLayout=false laidOut=false listCommitting=false painted={offsets:f64[0]@e3b0c44298 keys:null count:0 version:-1 origin:0} afterLayout=fn#9 prevCommittedRange=null
+    handle.setClampBounds(2100, MAX)
+  commit 1: heightCache=map[300]@a24eb5a7d6 elements=map[300]@f10f791009 refCallbacks=map[300]@5a20b473d6 offsetsVersion=300 offsetsBuffer=f64[1001]@b8e3bdcd61 offsetsBuiltVersion=300 spacerElement=element#1 msPerItemEma=0.260000 keyIndex={keys:keys#1(1000) map:map[1000]@2581a32855 indexed:1000} laidOut=true painted={offsets:f64[1001]@b8e3bdcd61 keys:keys#1(1000) count:1000 version:300 origin:0} afterLayout=fn#10 prevCommittedRange=[700,1000]
+    handle.subscribe
+    handle.subscribeLayout
+  render 2: keys=keys#1(1000) columns=80 top=0 pending=0 viewport=400 sticky=true
+    hooks 28:useReducer -> 1 · 32:useMemo[640,1000] -> range#2[640,1000]
+    answers range=[640,940] topSpacer=1920 bottomSpacer=60 offsets=1001:2400@b8e3bdcd61
+    refs after the render: prevRange=range#2[640,1000]
+    handle.setClampBounds(1920, MAX)
+  commit 2: heightCache=map[360]@f99e7c000a elements=map[300]@d01c11af39 refCallbacks=map[360]@9bfbbd3d5e offsetsVersion=360 offsetsBuffer=f64[1001]@a1272ccdab offsetsBuiltVersion=360 msPerItemEma=0.212000 painted={offsets:f64[1001]@a1272ccdab keys:keys#1(1000) count:1000 version:360 origin:0} afterLayout=fn#11 prevCommittedRange=[640,940]
+  render 3: keys=keys#1(1000) columns=80 top=0 pending=0 viewport=400 sticky=true
+    hooks 28:useReducer -> 2 · 32:useMemo[600,1000] -> range#3[600,1000]
+    answers range=[600,900] topSpacer=1800 bottomSpacer=100 offsets=1001:2280@a1272ccdab
+    refs after the render: prevRange=range#3[600,1000]
+    handle.setClampBounds(1800, MAX)
+  commit 3: heightCache=map[400]@bda5b8681c elements=map[300]@23d1b2886a refCallbacks=map[400]@9664925a13 offsetsVersion=400 offsetsBuffer=f64[1001]@92d7c6668a offsetsBuiltVersion=400 msPerItemEma=0.174600 painted={offsets:f64[1001]@92d7c6668a keys:keys#1(1000) count:1000 version:400 origin:0} afterLayout=fn#12 prevCommittedRange=[600,900]
+  render 4: keys=keys#1(1000) columns=80 top=0 pending=0 viewport=400 sticky=true
+    hooks 28:useReducer -> 3 · 32:useMemo[573,1000] -> range#4[573,1000]
+    answers range=[573,873] topSpacer=1719 bottomSpacer=127 offsets=1001:2200@92d7c6668a
+    refs after the render: prevRange=range#4[573,1000]
+    handle.setClampBounds(1719, MAX)
+  commit 4: heightCache=map[427]@df75bd8b00 elements=map[300]@b4d988c473 refCallbacks=map[427]@5601f13d3f offsetsVersion=427 offsetsBuffer=f64[1001]@2e5bf239ac offsetsBuiltVersion=427 msPerItemEma=0.147087 painted={offsets:f64[1001]@2e5bf239ac keys:keys#1(1000) count:1000 version:427 origin:0} afterLayout=fn#13 prevCommittedRange=[573,873]
+  render 5: keys=keys#1(1000) columns=80 top=0 pending=0 viewport=400 sticky=true
+    hooks 28:useReducer -> 4 · 32:useMemo[555,1000] -> range#5[555,1000]
+    answers range=[555,855] topSpacer=1665 bottomSpacer=145 offsets=1001:2146@2e5bf239ac
+    refs after the render: prevRange=range#5[555,1000]
+    handle.setClampBounds(1665, MAX)
+  commit 5: heightCache=map[445]@c86fffca30 elements=map[300]@836721d5bf refCallbacks=map[445]@c03ac5ee8b offsetsVersion=445 offsetsBuffer=f64[1001]@a2938f3f17 offsetsBuiltVersion=445 msPerItemEma=0.128781 painted={offsets:f64[1001]@a2938f3f17 keys:keys#1(1000) count:1000 version:445 origin:0} afterLayout=fn#14 prevCommittedRange=[555,855]
+  render 6: keys=keys#1(1000) columns=80 top=0 pending=0 viewport=400 sticky=true
+    hooks 32:useMemo[543,1000] -> range#6[543,1000] · 33:useDeferredValue -> range#6[543,1000]
+    answers range=[543,843] topSpacer=1629 bottomSpacer=157 offsets=1001:2110@a2938f3f17
+    refs after the render: prevRange=range#6[543,1000]
+    handle.setClampBounds(1629, MAX)
+  commit 6: heightCache=map[457]@b67f80b7dd elements=map[300]@69f7762d73 refCallbacks=map[457]@4deb37429a offsetsVersion=457 offsetsBuffer=f64[1001]@a797d2893f offsetsBuiltVersion=457 msPerItemEma=0.119691 painted={offsets:f64[1001]@a797d2893f keys:keys#1(1000) count:1000 version:457 origin:0} afterLayout=fn#15 prevCommittedRange=[543,843]
+step: a frame follows the tail, and the list renders
+  render 7: keys=keys#1(1000) columns=80 top=1686 pending=0 viewport=400 sticky=true
+    hooks 31:useSyncExternalStore -> -43 · 32:useMemo[535,1000] -> range#7[535,1000]
+    answers range=[700,1000] topSpacer=1786 bottomSpacer=0 offsets=1001:2086@a797d2893f
+    refs after the render: prevRange=range#7[535,1000] prevScrollAtCommit=1686
+    handle.setClampBounds(1786, MAX)
+  commit 7: elements=map[300]@f10f791009 msPerItemEma=0.099753 afterLayout=fn#16 prevCommittedRange=[700,1000]
+  render 8: keys=keys#1(1000) columns=80 top=1686 pending=0 viewport=400 sticky=true
+    hooks 33:useDeferredValue -> range#7[535,1000]
+    answers range=[700,1000] topSpacer=1786 bottomSpacer=0 offsets=1001:2086@a797d2893f
+  commit 8: afterLayout=fn#17
 step: fifty rows up
-  render 11: keys=keys#1(1000) columns=80 top=1660 pending=-50 viewport=400 sticky=false
-    hooks 31:useSyncExternalStore -> 40 · 32:useMemo[510,810] -> range#10[510,810]
-    trace {"act":"follow","committed":1660,"origin":0,"idx":600,"off":1660,"h":1,"pin":{"key":"k600","inner":0}}
-    answers range=[526,810] topSpacer=1578 bottomSpacer=190 offsets=1001:2060@b62f8c5c90
-    refs after the render: prevRange=range#10[510,810] contentPin={key:"k600" inner:0} lastWrittenTop=1660
-    handle.setClampBounds(1578, 1578)
-  commit 11: heightCache=map[474]@c442249529 elements=map[284]@4992e86bca refCallbacks=map[474]@83f613002b offsetsVersion=474 offsetsBuffer=f64[1001]@628789f292 offsetsBuiltVersion=474 msPerItemEma=0.094626 painted={offsets:f64[1001]@628789f292 keys:keys#1(1000) count:1000 version:474 origin:0} afterLayout=fn#20 prevCommittedRange=[526,810]
-  render 12: keys=keys#1(1000) columns=80 top=1660 pending=-50 viewport=400 sticky=false
-    handle.pinScrollTop(1652)
-    hooks 28:useReducer -> 6 · 32:useMemo[507,807] -> range#11[507,807]
-    trace {"act":"write","committed":1660,"target":1652,"origin":0,"idx":600,"off":1652,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
-    answers range=[526,807] topSpacer=1578 bottomSpacer=193 offsets=1001:2052@628789f292
-    refs after the render: prevRange=range#11[507,807] prevScrollAtCommit=1652 lastWrittenTop=1652
-  commit 12: elements=map[281]@d3a74b28cb afterLayout=fn#21 prevCommittedRange=[526,807]
-  render 13: keys=keys#1(1000) columns=80 top=1652 pending=-50 viewport=400 sticky=false
-    hooks 33:useDeferredValue -> range#11[507,807]
-    answers range=[507,807] topSpacer=1521 bottomSpacer=193 offsets=1001:2052@628789f292
-    handle.setClampBounds(1521, 1521)
-  commit 13: heightCache=map[493]@de6ec9eb16 elements=map[300]@0a00d97200 refCallbacks=map[493]@67e1d55660 offsetsVersion=493 offsetsBuffer=f64[1001]@ab0cb28430 offsetsBuiltVersion=493 msPerItemEma=0.086227 painted={offsets:f64[1001]@ab0cb28430 keys:keys#1(1000) count:1000 version:493 origin:0} afterLayout=fn#22 prevCommittedRange=[507,807]
-  render 14: keys=keys#1(1000) columns=80 top=1652 pending=-50 viewport=400 sticky=false
-    handle.pinScrollTop(1614)
-    hooks 28:useReducer -> 8 · 32:useMemo[494,794] -> range#12[494,794]
-    trace {"act":"write","committed":1652,"target":1614,"origin":0,"idx":600,"off":1614,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
-    answers range=[507,794] topSpacer=1521 bottomSpacer=206 offsets=1001:2014@ab0cb28430
-    refs after the render: prevRange=range#12[494,794] prevScrollAtCommit=1614 lastWrittenTop=1614
-  commit 14: elements=map[287]@c2a1d87262 afterLayout=fn#23 prevCommittedRange=[507,794]
-  render 15: keys=keys#1(1000) columns=80 top=1614 pending=-50 viewport=400 sticky=false
-    hooks 31:useSyncExternalStore -> 39 · 33:useDeferredValue -> range#12[494,794]
-    answers range=[494,794] topSpacer=1482 bottomSpacer=206 offsets=1001:2014@ab0cb28430
-    handle.setClampBounds(1482, 1482)
-  commit 15: heightCache=map[506]@76869498a8 elements=map[300]@1830d94364 refCallbacks=map[506]@87406bad26 offsetsVersion=506 offsetsBuffer=f64[1001]@3ef6b57adc offsetsBuiltVersion=506 msPerItemEma=0.084366 painted={offsets:f64[1001]@3ef6b57adc keys:keys#1(1000) count:1000 version:506 origin:0} afterLayout=fn#24 prevCommittedRange=[494,794]
-  render 16: keys=keys#1(1000) columns=80 top=1614 pending=-50 viewport=400 sticky=false
-    handle.pinScrollTop(1588)
-    hooks 28:useReducer -> 10 · 32:useMemo[486,786] -> range#13[486,786]
-    trace {"act":"write","committed":1614,"target":1588,"origin":0,"idx":600,"off":1588,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
-    answers range=[494,786] topSpacer=1482 bottomSpacer=214 offsets=1001:1988@3ef6b57adc
-    refs after the render: prevRange=range#13[486,786] prevScrollAtCommit=1588 lastWrittenTop=1588
-  commit 16: elements=map[292]@14b9f2dc48 afterLayout=fn#25 prevCommittedRange=[494,786]
-  render 17: keys=keys#1(1000) columns=80 top=1588 pending=-50 viewport=400 sticky=false
-    hooks 31:useSyncExternalStore -> 38 · 33:useDeferredValue -> range#13[486,786]
-    answers range=[486,786] topSpacer=1458 bottomSpacer=214 offsets=1001:1988@3ef6b57adc
-    handle.setClampBounds(1458, 1458)
-  commit 17: heightCache=map[514]@adc275f218 elements=map[300]@e6eb99f93b refCallbacks=map[514]@8cfc2b28f8 offsetsVersion=514 offsetsBuffer=f64[1001]@f4cdf50c8f offsetsBuiltVersion=514 msPerItemEma=0.092493 painted={offsets:f64[1001]@f4cdf50c8f keys:keys#1(1000) count:1000 version:514 origin:0} afterLayout=fn#26 prevCommittedRange=[486,786]
-  render 18: keys=keys#1(1000) columns=80 top=1588 pending=-50 viewport=400 sticky=false
-    handle.pinScrollTop(1572)
-    hooks 28:useReducer -> 12 · 32:useMemo[480,780] -> range#14[480,780]
-    trace {"act":"write","committed":1588,"target":1572,"origin":0,"idx":600,"off":1572,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
-    answers range=[486,780] topSpacer=1458 bottomSpacer=220 offsets=1001:1972@f4cdf50c8f
-    refs after the render: prevRange=range#14[480,780] prevScrollAtCommit=1572 lastWrittenTop=1572
-  commit 18: elements=map[294]@74c7dea333 afterLayout=fn#27 prevCommittedRange=[486,780]
-  render 19: keys=keys#1(1000) columns=80 top=1572 pending=-50 viewport=400 sticky=false
-    hooks 33:useDeferredValue -> range#14[480,780]
-    answers range=[480,780] topSpacer=1440 bottomSpacer=220 offsets=1001:1972@f4cdf50c8f
-    handle.setClampBounds(1440, 1440)
-  commit 19: heightCache=map[520]@8e5b0eca52 elements=map[300]@6a2172fbb8 refCallbacks=map[520]@547438ec55 offsetsVersion=520 offsetsBuffer=f64[1001]@6dfc29d76e offsetsBuiltVersion=520 msPerItemEma=0.107328 painted={offsets:f64[1001]@6dfc29d76e keys:keys#1(1000) count:1000 version:520 origin:0} afterLayout=fn#28 prevCommittedRange=[480,780]
-  render 20: keys=keys#1(1000) columns=80 top=1572 pending=-50 viewport=400 sticky=false
-    handle.pinScrollTop(1560)
-    hooks 28:useReducer -> 14 · 32:useMemo[476,776] -> range#15[476,776]
-    trace {"act":"write","committed":1572,"target":1560,"origin":0,"idx":600,"off":1560,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
-    answers range=[480,776] topSpacer=1440 bottomSpacer=224 offsets=1001:1960@6dfc29d76e
-    refs after the render: prevRange=range#15[476,776] prevScrollAtCommit=1560 lastWrittenTop=1560
-  commit 20: elements=map[296]@dd5b54f034 afterLayout=fn#29 prevCommittedRange=[480,776]
-  render 21: keys=keys#1(1000) columns=80 top=1560 pending=-50 viewport=400 sticky=false
-    hooks 31:useSyncExternalStore -> 37 · 33:useDeferredValue -> range#15[476,776]
-    answers range=[476,776] topSpacer=1428 bottomSpacer=224 offsets=1001:1960@6dfc29d76e
-    handle.setClampBounds(1428, 1428)
-  commit 21: heightCache=map[524]@a1710c71bc elements=map[300]@918bdf5fb3 refCallbacks=map[524]@cf5a8d261a offsetsVersion=524 offsetsBuffer=f64[1001]@03a9eada06 offsetsBuiltVersion=524 msPerItemEma=0.135862 painted={offsets:f64[1001]@03a9eada06 keys:keys#1(1000) count:1000 version:524 origin:0} afterLayout=fn#30 prevCommittedRange=[476,776]
-  render 22: keys=keys#1(1000) columns=80 top=1560 pending=-50 viewport=400 sticky=false
-    handle.pinScrollTop(1552)
-    hooks 28:useReducer -> 16 · 32:useMemo[474,774] -> range#16[474,774]
-    trace {"act":"write","committed":1560,"target":1552,"origin":0,"idx":600,"off":1552,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
-    answers range=[476,774] topSpacer=1428 bottomSpacer=226 offsets=1001:1952@03a9eada06
-    refs after the render: prevRange=range#16[474,774] prevScrollAtCommit=1552 lastWrittenTop=1552
-  commit 22: elements=map[298]@6523c81ea9 afterLayout=fn#31 prevCommittedRange=[476,774]
-  render 23: keys=keys#1(1000) columns=80 top=1552 pending=-50 viewport=400 sticky=false
-    hooks 33:useDeferredValue -> range#16[474,774]
-    answers range=[474,774] topSpacer=1422 bottomSpacer=226 offsets=1001:1952@03a9eada06
-    handle.setClampBounds(1422, 1422)
-  commit 23: heightCache=map[526]@aee02659f0 elements=map[300]@aed3cee19d refCallbacks=map[526]@48daf1e341 offsetsVersion=526 offsetsBuffer=f64[1001]@af118454b7 offsetsBuiltVersion=526 painted={offsets:f64[1001]@af118454b7 keys:keys#1(1000) count:1000 version:526 origin:0} afterLayout=fn#32 prevCommittedRange=[474,774]
-  render 24: keys=keys#1(1000) columns=80 top=1552 pending=-50 viewport=400 sticky=false
-    handle.pinScrollTop(1548)
-    hooks 28:useReducer -> 18 · 32:useMemo[472,772] -> range#17[472,772]
-    trace {"act":"write","committed":1552,"target":1548,"origin":0,"idx":600,"off":1548,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
-    answers range=[474,772] topSpacer=1422 bottomSpacer=228 offsets=1001:1948@af118454b7
-    refs after the render: prevRange=range#17[472,772] prevScrollAtCommit=1548 lastWrittenTop=1548
-  commit 24: elements=map[298]@7c0a7e81d1 afterLayout=fn#33 prevCommittedRange=[474,772]
-  render 25: keys=keys#1(1000) columns=80 top=1548 pending=-50 viewport=400 sticky=false
-    hooks 33:useDeferredValue -> range#17[472,772]
-    answers range=[472,772] topSpacer=1416 bottomSpacer=228 offsets=1001:1948@af118454b7
+  render 9: keys=keys#1(1000) columns=80 top=1686 pending=-50 viewport=400 sticky=false
+    hooks 31:useSyncExternalStore -> 40 · 32:useMemo[518,818] -> range#8[518,818]
+    trace {"act":"follow","committed":1686,"origin":0,"idx":600,"off":1686,"h":1,"pin":{"key":"k600","inner":0}}
+    answers range=[535,818] topSpacer=1605 bottomSpacer=182 offsets=1001:2086@a797d2893f
+    refs after the render: prevRange=range#8[518,818] contentPin={key:"k600" inner:0} lastWrittenTop=1686
+    handle.setClampBounds(1605, 1605)
+  commit 9: heightCache=map[465]@f67edd4bee elements=map[283]@b0ed188f6a refCallbacks=map[465]@d441ff34e9 offsetsVersion=465 offsetsBuffer=f64[1001]@35ad08e366 offsetsBuiltVersion=465 msPerItemEma=0.083803 painted={offsets:f64[1001]@35ad08e366 keys:keys#1(1000) count:1000 version:465 origin:0} afterLayout=fn#18 prevCommittedRange=[535,818]
+  render 10: keys=keys#1(1000) columns=80 top=1686 pending=-50 viewport=400 sticky=false
+    handle.pinScrollTop(1670)
+    hooks 28:useReducer -> 6 · 32:useMemo[513,813] -> range#9[513,813]
+    trace {"act":"write","committed":1686,"target":1670,"origin":0,"idx":600,"off":1670,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
+    answers range=[535,813] topSpacer=1605 bottomSpacer=187 offsets=1001:2070@35ad08e366
+    refs after the render: prevRange=range#9[513,813] prevScrollAtCommit=1670 lastWrittenTop=1670
+  commit 10: elements=map[278]@b0ceb4ec85 afterLayout=fn#19 prevCommittedRange=[535,813]
+  render 11: keys=keys#1(1000) columns=80 top=1670 pending=-50 viewport=400 sticky=false
+    hooks 33:useDeferredValue -> range#9[513,813]
+    answers range=[513,813] topSpacer=1539 bottomSpacer=187 offsets=1001:2070@35ad08e366
+    handle.setClampBounds(1539, 1539)
+  commit 11: heightCache=map[487]@7d5ac343a3 elements=map[300]@b63ca97c7e refCallbacks=map[487]@9cce337a6b offsetsVersion=487 offsetsBuffer=f64[1001]@e149bed839 offsetsBuiltVersion=487 msPerItemEma=0.076133 painted={offsets:f64[1001]@e149bed839 keys:keys#1(1000) count:1000 version:487 origin:0} afterLayout=fn#20 prevCommittedRange=[513,813]
+  render 12: keys=keys#1(1000) columns=80 top=1670 pending=-50 viewport=400 sticky=false
+    handle.pinScrollTop(1626)
+    hooks 28:useReducer -> 8 · 32:useMemo[498,798] -> range#10[498,798]
+    trace {"act":"write","committed":1670,"target":1626,"origin":0,"idx":600,"off":1626,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
+    answers range=[513,798] topSpacer=1539 bottomSpacer=202 offsets=1001:2026@e149bed839
+    refs after the render: prevRange=range#10[498,798] prevScrollAtCommit=1626 lastWrittenTop=1626
+  commit 12: elements=map[285]@315695ecda afterLayout=fn#21 prevCommittedRange=[513,798]
+  render 13: keys=keys#1(1000) columns=80 top=1626 pending=-50 viewport=400 sticky=false
+    hooks 31:useSyncExternalStore -> 39 · 33:useDeferredValue -> range#10[498,798]
+    answers range=[498,798] topSpacer=1494 bottomSpacer=202 offsets=1001:2026@e149bed839
+    handle.setClampBounds(1494, 1494)
+  commit 13: heightCache=map[502]@aae1d14df4 elements=map[300]@89c243369b refCallbacks=map[502]@829e4657d0 offsetsVersion=502 offsetsBuffer=f64[1001]@1c73789e22 offsetsBuiltVersion=502 msPerItemEma=0.074240 painted={offsets:f64[1001]@1c73789e22 keys:keys#1(1000) count:1000 version:502 origin:0} afterLayout=fn#22 prevCommittedRange=[498,798]
+  render 14: keys=keys#1(1000) columns=80 top=1626 pending=-50 viewport=400 sticky=false
+    handle.pinScrollTop(1596)
+    hooks 28:useReducer -> 10 · 32:useMemo[488,788] -> range#11[488,788]
+    trace {"act":"write","committed":1626,"target":1596,"origin":0,"idx":600,"off":1596,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
+    answers range=[498,788] topSpacer=1494 bottomSpacer=212 offsets=1001:1996@1c73789e22
+    refs after the render: prevRange=range#11[488,788] prevScrollAtCommit=1596 lastWrittenTop=1596
+  commit 14: elements=map[290]@593f799bc7 afterLayout=fn#23 prevCommittedRange=[498,788]
+  render 15: keys=keys#1(1000) columns=80 top=1596 pending=-50 viewport=400 sticky=false
+    hooks 31:useSyncExternalStore -> 38 · 33:useDeferredValue -> range#11[488,788]
+    answers range=[488,788] topSpacer=1464 bottomSpacer=212 offsets=1001:1996@1c73789e22
+    handle.setClampBounds(1464, 1464)
+  commit 15: heightCache=map[512]@46f66ca56d elements=map[300]@67af92c178 refCallbacks=map[512]@3aa86fa782 offsetsVersion=512 offsetsBuffer=f64[1001]@362482e098 offsetsBuiltVersion=512 msPerItemEma=0.079392 painted={offsets:f64[1001]@362482e098 keys:keys#1(1000) count:1000 version:512 origin:0} afterLayout=fn#24 prevCommittedRange=[488,788]
+  render 16: keys=keys#1(1000) columns=80 top=1596 pending=-50 viewport=400 sticky=false
+    handle.pinScrollTop(1576)
+    hooks 28:useReducer -> 12 · 32:useMemo[482,782] -> range#12[482,782]
+    trace {"act":"write","committed":1596,"target":1576,"origin":0,"idx":600,"off":1576,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
+    answers range=[488,782] topSpacer=1464 bottomSpacer=218 offsets=1001:1976@362482e098
+    refs after the render: prevRange=range#12[482,782] prevScrollAtCommit=1576 lastWrittenTop=1576
+  commit 16: elements=map[294]@fa16338903 afterLayout=fn#25 prevCommittedRange=[488,782]
+  render 17: keys=keys#1(1000) columns=80 top=1576 pending=-50 viewport=400 sticky=false
+    hooks 33:useDeferredValue -> range#12[482,782]
+    answers range=[482,782] topSpacer=1446 bottomSpacer=218 offsets=1001:1976@362482e098
+    handle.setClampBounds(1446, 1446)
+  commit 17: heightCache=map[518]@4bf8000242 elements=map[300]@cc0f8f5dc6 refCallbacks=map[518]@8502ed57b0 offsetsVersion=518 offsetsBuffer=f64[1001]@6ce59b9fd4 offsetsBuiltVersion=518 msPerItemEma=0.096847 painted={offsets:f64[1001]@6ce59b9fd4 keys:keys#1(1000) count:1000 version:518 origin:0} afterLayout=fn#26 prevCommittedRange=[482,782]
+  render 18: keys=keys#1(1000) columns=80 top=1576 pending=-50 viewport=400 sticky=false
+    handle.pinScrollTop(1564)
+    hooks 28:useReducer -> 14 · 32:useMemo[478,778] -> range#13[478,778]
+    trace {"act":"write","committed":1576,"target":1564,"origin":0,"idx":600,"off":1564,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
+    answers range=[482,778] topSpacer=1446 bottomSpacer=222 offsets=1001:1964@6ce59b9fd4
+    refs after the render: prevRange=range#13[478,778] prevScrollAtCommit=1564 lastWrittenTop=1564
+  commit 18: elements=map[296]@0f7db6387f afterLayout=fn#27 prevCommittedRange=[482,778]
+  render 19: keys=keys#1(1000) columns=80 top=1564 pending=-50 viewport=400 sticky=false
+    hooks 31:useSyncExternalStore -> 37 · 33:useDeferredValue -> range#13[478,778]
+    answers range=[478,778] topSpacer=1434 bottomSpacer=222 offsets=1001:1964@6ce59b9fd4
+    handle.setClampBounds(1434, 1434)
+  commit 19: heightCache=map[522]@a4f78328aa elements=map[300]@3185c2c299 refCallbacks=map[522]@74ba1d2103 offsetsVersion=522 offsetsBuffer=f64[1001]@f61e217c16 offsetsBuiltVersion=522 msPerItemEma=0.127477 painted={offsets:f64[1001]@f61e217c16 keys:keys#1(1000) count:1000 version:522 origin:0} afterLayout=fn#28 prevCommittedRange=[478,778]
+  render 20: keys=keys#1(1000) columns=80 top=1564 pending=-50 viewport=400 sticky=false
+    handle.pinScrollTop(1556)
+    hooks 28:useReducer -> 16 · 32:useMemo[475,775] -> range#14[475,775]
+    trace {"act":"write","committed":1564,"target":1556,"origin":0,"idx":600,"off":1556,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
+    answers range=[478,775] topSpacer=1434 bottomSpacer=225 offsets=1001:1956@f61e217c16
+    refs after the render: prevRange=range#14[475,775] prevScrollAtCommit=1556 lastWrittenTop=1556
+  commit 20: elements=map[297]@2f6cb4893e afterLayout=fn#29 prevCommittedRange=[478,775]
+  render 21: keys=keys#1(1000) columns=80 top=1556 pending=-50 viewport=400 sticky=false
+    hooks 33:useDeferredValue -> range#14[475,775]
+    answers range=[475,775] topSpacer=1425 bottomSpacer=225 offsets=1001:1956@f61e217c16
+    handle.setClampBounds(1425, 1425)
+  commit 21: heightCache=map[525]@46c7bdbdbb elements=map[300]@7a7e721af8 refCallbacks=map[525]@130bd4a705 offsetsVersion=525 offsetsBuffer=f64[1001]@5e167db31a offsetsBuiltVersion=525 msPerItemEma=0.168649 painted={offsets:f64[1001]@5e167db31a keys:keys#1(1000) count:1000 version:525 origin:0} afterLayout=fn#30 prevCommittedRange=[475,775]
+  render 22: keys=keys#1(1000) columns=80 top=1556 pending=-50 viewport=400 sticky=false
+    handle.pinScrollTop(1550)
+    hooks 28:useReducer -> 18 · 32:useMemo[473,773] -> range#15[473,773]
+    trace {"act":"write","committed":1556,"target":1550,"origin":0,"idx":600,"off":1550,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
+    answers range=[475,773] topSpacer=1425 bottomSpacer=227 offsets=1001:1950@5e167db31a
+    refs after the render: prevRange=range#15[473,773] prevScrollAtCommit=1550 lastWrittenTop=1550
+  commit 22: elements=map[298]@a42652427f afterLayout=fn#31 prevCommittedRange=[475,773]
+  render 23: keys=keys#1(1000) columns=80 top=1550 pending=-50 viewport=400 sticky=false
+    hooks 33:useDeferredValue -> range#15[473,773]
+    answers range=[473,773] topSpacer=1419 bottomSpacer=227 offsets=1001:1950@5e167db31a
+    handle.setClampBounds(1419, 1419)
+  commit 23: heightCache=map[527]@0a1ad4c7e7 elements=map[300]@982347acbb refCallbacks=map[527]@610f6bf0ba offsetsVersion=527 offsetsBuffer=f64[1001]@0281f6e9a3 offsetsBuiltVersion=527 painted={offsets:f64[1001]@0281f6e9a3 keys:keys#1(1000) count:1000 version:527 origin:0} afterLayout=fn#32 prevCommittedRange=[473,773]
+  render 24: keys=keys#1(1000) columns=80 top=1550 pending=-50 viewport=400 sticky=false
+    handle.pinScrollTop(1546)
+    hooks 28:useReducer -> 20 · 32:useMemo[472,772] -> range#16[472,772]
+    trace {"act":"write","committed":1550,"target":1546,"origin":0,"idx":600,"off":1546,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
+    answers range=[473,772] topSpacer=1419 bottomSpacer=228 offsets=1001:1946@0281f6e9a3
+    refs after the render: prevRange=range#16[472,772] prevScrollAtCommit=1546 lastWrittenTop=1546
+  commit 24: elements=map[299]@ff41979849 afterLayout=fn#33 prevCommittedRange=[473,772]
+  render 25: keys=keys#1(1000) columns=80 top=1546 pending=-50 viewport=400 sticky=false
+    hooks 33:useDeferredValue -> range#16[472,772]
+    answers range=[472,772] topSpacer=1416 bottomSpacer=228 offsets=1001:1946@0281f6e9a3
     handle.setClampBounds(1416, 1416)
-  commit 25: heightCache=map[528]@aee96da52c elements=map[300]@792345f69a refCallbacks=map[528]@f27b50e85b offsetsVersion=528 offsetsBuffer=f64[1001]@3f0c92fac1 offsetsBuiltVersion=528 painted={offsets:f64[1001]@3f0c92fac1 keys:keys#1(1000) count:1000 version:528 origin:0} afterLayout=fn#34 prevCommittedRange=[472,772]
-  render 26: keys=keys#1(1000) columns=80 top=1548 pending=-50 viewport=400 sticky=false
+  commit 25: heightCache=map[528]@b13106b2f7 elements=map[300]@c56c29c87d refCallbacks=map[528]@7ee29d7135 offsetsVersion=528 offsetsBuffer=f64[1001]@3f0c92fac1 offsetsBuiltVersion=528 painted={offsets:f64[1001]@3f0c92fac1 keys:keys#1(1000) count:1000 version:528 origin:0} afterLayout=fn#34 prevCommittedRange=[472,772]
+  render 26: keys=keys#1(1000) columns=80 top=1546 pending=-50 viewport=400 sticky=false
     handle.pinScrollTop(1544)
-    hooks 28:useReducer -> 20 · 32:useMemo[471,771] -> range#18[471,771]
-    trace {"act":"write","committed":1548,"target":1544,"origin":0,"idx":600,"off":1544,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
+    hooks 28:useReducer -> 22 · 32:useMemo[471,771] -> range#17[471,771]
+    trace {"act":"write","committed":1546,"target":1544,"origin":0,"idx":600,"off":1544,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
     answers range=[472,771] topSpacer=1416 bottomSpacer=229 offsets=1001:1944@3f0c92fac1
-    refs after the render: prevRange=range#18[471,771] prevScrollAtCommit=1544 lastWrittenTop=1544
-  commit 26: elements=map[299]@0f3c8072dd afterLayout=fn#35 prevCommittedRange=[472,771]
+    refs after the render: prevRange=range#17[471,771] prevScrollAtCommit=1544 lastWrittenTop=1544
+  commit 26: elements=map[299]@039d08da63 afterLayout=fn#35 prevCommittedRange=[472,771]
   render 27: keys=keys#1(1000) columns=80 top=1544 pending=-50 viewport=400 sticky=false
-    hooks 33:useDeferredValue -> range#18[471,771]
+    hooks 33:useDeferredValue -> range#17[471,771]
     answers range=[471,771] topSpacer=1413 bottomSpacer=229 offsets=1001:1944@3f0c92fac1
     handle.setClampBounds(1413, 1413)
-  commit 27: heightCache=map[529]@7c6b364313 elements=map[300]@b1ff231cf5 refCallbacks=map[529]@8eaf2581a6 offsetsVersion=529 offsetsBuffer=f64[1001]@c0732f5803 offsetsBuiltVersion=529 painted={offsets:f64[1001]@c0732f5803 keys:keys#1(1000) count:1000 version:529 origin:0} afterLayout=fn#36 prevCommittedRange=[471,771]
+  commit 27: heightCache=map[529]@23c6abc4e3 elements=map[300]@2c8844f049 refCallbacks=map[529]@c6679a9f6c offsetsVersion=529 offsetsBuffer=f64[1001]@c0732f5803 offsetsBuiltVersion=529 painted={offsets:f64[1001]@c0732f5803 keys:keys#1(1000) count:1000 version:529 origin:0} afterLayout=fn#36 prevCommittedRange=[471,771]
   render 28: keys=keys#1(1000) columns=80 top=1544 pending=-50 viewport=400 sticky=false
     handle.pinScrollTop(1542)
-    hooks 28:useReducer -> 22 · 32:useMemo[470,770] -> range#19[470,770]
+    hooks 28:useReducer -> 24 · 32:useMemo[470,770] -> range#18[470,770]
     trace {"act":"write","committed":1544,"target":1542,"origin":0,"idx":600,"off":1542,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
     answers range=[471,770] topSpacer=1413 bottomSpacer=230 offsets=1001:1942@c0732f5803
-    refs after the render: prevRange=range#19[470,770] prevScrollAtCommit=1542 lastWrittenTop=1542
-  commit 28: elements=map[299]@dcceebfb56 afterLayout=fn#37 prevCommittedRange=[471,770]
+    refs after the render: prevRange=range#18[470,770] prevScrollAtCommit=1542 lastWrittenTop=1542
+  commit 28: elements=map[299]@936eafeb91 afterLayout=fn#37 prevCommittedRange=[471,770]
   render 29: keys=keys#1(1000) columns=80 top=1542 pending=-50 viewport=400 sticky=false
-    hooks 33:useDeferredValue -> range#19[470,770]
+    hooks 33:useDeferredValue -> range#18[470,770]
     answers range=[470,770] topSpacer=1410 bottomSpacer=230 offsets=1001:1942@c0732f5803
     handle.setClampBounds(1410, 1410)
-  commit 29: heightCache=map[530]@358d570d18 elements=map[300]@54ba1ddc75 refCallbacks=map[530]@3a914463c9 offsetsVersion=530 offsetsBuffer=f64[1001]@cae1930fa8 offsetsBuiltVersion=530 painted={offsets:f64[1001]@cae1930fa8 keys:keys#1(1000) count:1000 version:530 origin:0} afterLayout=fn#38 prevCommittedRange=[470,770]
+  commit 29: heightCache=map[530]@d92897b556 elements=map[300]@531b647002 refCallbacks=map[530]@a4bb6fdbb6 offsetsVersion=530 offsetsBuffer=f64[1001]@cae1930fa8 offsetsBuiltVersion=530 painted={offsets:f64[1001]@cae1930fa8 keys:keys#1(1000) count:1000 version:530 origin:0} afterLayout=fn#38 prevCommittedRange=[470,770]
   render 30: keys=keys#1(1000) columns=80 top=1542 pending=-50 viewport=400 sticky=false
     handle.pinScrollTop(1540)
-    hooks 28:useReducer -> 24
+    hooks 28:useReducer -> 26
     trace {"act":"write","committed":1542,"target":1540,"origin":0,"idx":600,"off":1540,"inner":0,"h":1,"vp":400,"hold":false,"out":false}
     answers range=[470,770] topSpacer=1410 bottomSpacer=230 offsets=1001:1940@cae1930fa8
     refs after the render: prevScrollAtCommit=1540 lastWrittenTop=1540
@@ -2366,34 +2453,6 @@ step: a frame drains it, and the list renders
     answers range=[470,770] topSpacer=1410 bottomSpacer=230 offsets=1001:1940@cae1930fa8
     refs after the render: prevScrollAtCommit=1490 contentPin={key:"k550" inner:0} lastWrittenTop=1490
   commit 31: afterLayout=fn#40
-step: the handle goes and the pane narrows in one beat
-  render 32: keys=keys#1(1000) columns=40 top=1490 pending=0 viewport=400 sticky=false no handle
-    hooks 31:useSyncExternalStore -> NaN
-    answers range=[470,770] topSpacer=1410 bottomSpacer=460 offsets=1001:2470@6ff439792d
-    refs after the render: heightCache=map[530]@24a0c86533 offsetsVersion=531 offsetsBuffer=f64[1001]@6ff439792d offsetsBuiltVersion=531 prevColumns=40 measurementSkip=true freezeRenders=2 reflowHold=true
-  commit 32: measurementSkip=false freezeRenders=1 afterLayout=fn#41
-  render 33: keys=keys#1(1000) columns=40 top=1490 pending=0 viewport=400 sticky=false no handle
-    hooks 28:useReducer -> 25
-    answers range=[470,770] topSpacer=1410 bottomSpacer=460 offsets=1001:2470@6ff439792d
-  commit 33: heightCache=map[530]@ecaed33039 offsetsVersion=831 freezeRenders=0 painted={offsets:f64[1001]@253cba9bd1 keys:keys#1(1000) count:1000 version:831 origin:0} afterLayout=fn#42
-  render 34: keys=keys#1(1000) columns=40 top=1490 pending=0 viewport=400 sticky=false no handle
-    hooks 28:useReducer -> 27 · 32:useMemo[970,1000] -> range#20[970,1000]
-    answers range=[970,1000] topSpacer=2110 bottomSpacer=0 offsets=1001:2170@253cba9bd1
-    refs after the render: offsetsBuffer=f64[1001]@253cba9bd1 offsetsBuiltVersion=831 prevRange=range#20[970,1000]
-  commit 34: heightCache=map[530]@434c431111 elements=map[30]@dfb9905695 offsetsVersion=861 msPerItemEma=0.112690 painted={offsets:f64[1001]@4ed980b75c keys:keys#1(1000) count:1000 version:861 origin:0} afterLayout=fn#43 prevCommittedRange=[970,1000]
-  render 35: keys=keys#1(1000) columns=40 top=1490 pending=0 viewport=400 sticky=false no handle
-    hooks 28:useReducer -> 28
-    answers range=[970,1000] topSpacer=2110 bottomSpacer=0 offsets=1001:2140@4ed980b75c
-    refs after the render: offsetsBuffer=f64[1001]@4ed980b75c offsetsBuiltVersion=861
-  commit 35: reflowHold=false afterLayout=fn#44
-  render 36: keys=keys#1(1000) columns=40 top=1490 pending=0 viewport=400 sticky=false no handle
-    hooks 33:useDeferredValue -> range#20[970,1000]
-    answers range=[970,1000] topSpacer=2110 bottomSpacer=0 offsets=1001:2140@4ed980b75c
-  commit 36: afterLayout=fn#45
-step: the list renders
-  render 37: keys=keys#1(1000) columns=40 top=1490 pending=0 viewport=400 sticky=false no handle
-    answers range=[970,1000] topSpacer=2110 bottomSpacer=0 offsets=1001:2140@4ed980b75c
-  commit 37: afterLayout=fn#46
     handle.subscribe ended
     handle.subscribeLayout ended
 

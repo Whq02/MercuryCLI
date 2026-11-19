@@ -762,17 +762,20 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
       s.frame()
       s.poke()
     })
-    await s.step('fifty rows up', () => s.wheel(-50))
-    await s.step('a frame drains it, and the list renders', () => {
-      s.frame()
-      s.poke()
-    })
     await s.step('the handle goes and the pane narrows in one beat', () => {
       s.attach(false)
       s.list({ columns: 40 })
     })
     await s.step('the list renders', () => s.poke())
     await s.close()
+    lines.push('the same pane, wheeled off the tail')
+    const wheeled = await atTheTail(lines, listOf(1000), () => 1, 400)
+    await wheeled.step('fifty rows up', () => wheeled.wheel(-50))
+    await wheeled.step('a frame drains it, and the list renders', () => {
+      wheeled.frame()
+      wheeled.poke()
+    })
+    await wheeled.close()
   }],
   ['what the callbacks answer', async lines => {
     const s = await offTheTail(lines, listOf(100, { header: 3 }), mixed, 30)
