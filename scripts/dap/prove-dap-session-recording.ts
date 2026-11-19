@@ -32,12 +32,18 @@ process.on('unhandledRejection', reason => unhandled.push(reason))
 const spawned: ChildProcess[] = []
 const ports: number[] = []
 const lines: string[] = []
+const NEVER = 'never settled'
+let standing = 'before the first scene'
 
 const plain = (text: string): string => ports.reduce((out, port) => out.replaceAll(String(port), '<port>'), text.replaceAll(scratch, '<scratch>'))
 const say = (text: string): void => void lines.push(plain(text))
-const scene = (title: string): void => void lines.push('', `## ${title}`)
+const scene = (title: string): void => {
+  standing = title
+  lines.push('', `## ${title}`)
+}
 const pause = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
 const after = <T>(ms: number, value: T): Promise<T> => new Promise(done => setTimeout(() => done(value), ms))
+const bounded = <T>(asked: Promise<T>, ms = 15_000): Promise<T | typeof NEVER> => Promise.race([asked, after(ms, NEVER as typeof NEVER)])
 const outcome = (asked: Promise<Record<string, unknown>>): Promise<string> =>
   asked.then(body => `answered ${JSON.stringify(body)}`, (error: unknown) => `refused: ${error instanceof Error ? error.message : String(error)}`)
 
@@ -111,6 +117,33 @@ function sayChild(root: Session): void {
   say(`child ${facts(child)} parent is the root=${child.parentSession === root} shares the root's output=${child.output === root.output} capabilities=${Object.keys(child.capabilities ?? {}).sort().join(',')}`)
 }
 
+function endSpawned(): void {
+  for (const child of spawned) {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+  }
+}
+
+function sayDifferences(recorded: string, now: string): void {
+  const was = recorded.split('\n')
+  const is = now.split('\n')
+  let shown = 0
+  for (let index = 0; index < Math.max(was.length, is.length) && shown < 20; index++) {
+    if (was[index] === is[index]) continue
+    shown++
+    console.log(`  line ${index + 1}\n    recorded: ${was[index] ?? '(none)'}\n    now:      ${is[index] ?? '(none)'}`)
+  }
+}
+
+const recorded = existsSync(RECORDING) ? readFileSync(RECORDING, 'utf8') : ''
+const watchdog = setTimeout(() => {
+  endSpawned()
+  const sofar = `${lines.join('\n').trimStart()}\n`
+  sayDifferences(recorded.split('\n').slice(0, sofar.split('\n').length - 1).join('\n') + '\n', sofar)
+  console.log(`  [FAIL] the scene "${standing}" did not come to its end within 120 s: a step of DapSession it waits for never settles; the ${lines.length} lines before it are compared above with ${RECORDING_NAME}`)
+  console.log('prove-dap-session-recording: 1 FAILURE')
+  process.exit(1)
+}, 120_000)
+
 try {
   scene('a dial with no port ends at once and leaves no rejection unhandled')
   {
@@ -119,11 +152,11 @@ try {
     say(`unhandled rejections=${unhandled.length}`)
     say(facts(session))
     say(tree(session))
-    say(`request threads -> ${await outcome(session.request('threads'))}`)
-    say(`request disconnect -> ${await outcome(session.request('disconnect'))}`)
+    say(`request threads -> ${await bounded(outcome(session.request('threads')))}`)
+    say(`request disconnect -> ${await bounded(outcome(session.request('disconnect')))}`)
     say(`pending=${session._pendingRequestCountForTesting()} waiters=${session._stateWaiterCountForTesting()}`)
-    say(`wait for a stop -> ${JSON.stringify(await session.waitForStopOutcome(50))}`)
-    await session.dispose()
+    say(`wait for a stop -> ${JSON.stringify(await bounded(session.waitForStopOutcome(50)))}`)
+    if ((await bounded(session.dispose())) === NEVER) say(`dispose ${NEVER}`)
     say(`after dispose: ${facts(session)}`)
   }
 
@@ -149,9 +182,9 @@ try {
     say(`root ${facts(root)}`)
     sayChild(root)
     say(tree(root))
-    say(`wait for a stop -> ${JSON.stringify(await root.waitForStopOutcome(1_000))}`)
+    say(`wait for a stop -> ${JSON.stringify(await bounded(root.waitForStopOutcome(1_000)))}`)
     sayOutput(root)
-    say(`removed=${await removeDapSession(owner, 'listener')} sessions=${_dapSessionCountForTesting()}`)
+    say(`removed=${await bounded(removeDapSession(owner, 'listener'))} sessions=${_dapSessionCountForTesting()}`)
     say(`the program left with ${await Promise.race([exited, after(5_000, 'no exit')])}`)
   }
 
@@ -172,7 +205,7 @@ try {
     say(facts(session))
     say(tree(session))
     sayOutput(session)
-    await session.dispose()
+    if ((await bounded(session.dispose())) === NEVER) say(`dispose ${NEVER}`)
     say(`after dispose: terminated=${session.terminated} alive=${session.alive} pending=${session._pendingRequestCountForTesting()}`)
   }
 
@@ -219,10 +252,10 @@ try {
     root.killSync()
     say(`after the kill: ${facts(root)}`)
     say(`after the kill: terminal processes=${root.terminalProcessCount()} pending=${root._pendingRequestCountForTesting()} waiters=${root._stateWaiterCountForTesting()} child terminated=${root.children[0]?.terminated}`)
-    say(`the waiting request -> ${await waiting}`)
-    say(`the parked waiter -> ${JSON.stringify(await parked)}`)
+    say(`the waiting request -> ${await bounded(waiting)}`)
+    say(`the parked waiter -> ${JSON.stringify(await bounded(parked))}`)
     say(`the terminal process was killed=${await Promise.race([killed, after(5_000, false)])}`)
-    say(`removed=${await removeDapSession(owner, 'terminal')} sessions=${_dapSessionCountForTesting()}`)
+    say(`removed=${await bounded(removeDapSession(owner, 'terminal'))} sessions=${_dapSessionCountForTesting()}`)
   }
 
   scene('an adapter that speaks tcp is started and dialed on its port, and the child it starts dials that port')
@@ -240,16 +273,15 @@ try {
     sayChild(root)
     say(tree(root))
     sayOutput(root)
-    say(`removed=${await removeDapSession(owner, 'tcp')} sessions=${_dapSessionCountForTesting()}`)
+    say(`removed=${await bounded(removeDapSession(owner, 'tcp'))} sessions=${_dapSessionCountForTesting()}`)
   }
 
   await pause(25)
   scene('the whole run')
   say(`unhandled rejections=${unhandled.length}`)
 } finally {
-  for (const child of spawned) {
-    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
-  }
+  clearTimeout(watchdog)
+  endSpawned()
   for (const folder of [scratch, home]) {
     try {
       removeScratch(folder)
@@ -266,20 +298,12 @@ if (WRITE) {
   console.log(`prove-dap-session-recording: recorded ${lines.length} lines in ${RECORDING_NAME}`)
   process.exit(0)
 }
-const recorded = existsSync(RECORDING) ? readFileSync(RECORDING, 'utf8') : ''
 if (recorded === now) {
   console.log(`  [PASS] DapSession answers the five scenes as recorded (${lines.length} lines equal to ${RECORDING_NAME})`)
   console.log('prove-dap-session-recording: green')
   process.exit(0)
 }
-const was = recorded.split('\n')
-const is = now.split('\n')
-let shown = 0
-for (let index = 0; index < Math.max(was.length, is.length) && shown < 20; index++) {
-  if (was[index] === is[index]) continue
-  shown++
-  console.log(`  line ${index + 1}\n    recorded: ${was[index] ?? '(none)'}\n    now:      ${is[index] ?? '(none)'}`)
-}
+sayDifferences(recorded, now)
 console.log(`  [FAIL] DapSession no longer answers as recorded in ${RECORDING_NAME}: mend src/services/dap/dapClient.ts or its parts in src/services/dap/client/ until the lines above are equal; only where the difference is meant, record it again with \`bun ${SELF} --write\` and commit the recording`)
 console.log('prove-dap-session-recording: 1 FAILURE')
 process.exit(1)
