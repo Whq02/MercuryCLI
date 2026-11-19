@@ -214,6 +214,7 @@ function stage(lines: string[], world: World): Stage {
 const BASE_PATH = '/repo/.mercury/agents/fixture-scout.md'
 const BASE_RAW = '---\nname: fixture-scout\ndescription: The base description as discovered on disk today.\nmaxTurns: 5\n---\nThe base body, long enough to be a lawful system prompt for the walk.\n'
 const THEIR_RAW = '---\nname: fixture-scout\ndescription: Their newer description, written elsewhere on disk.\nmaxTurns: 9\n---\nTheir newer body, long enough to stand as a real system prompt.\n'
+const THIRD_RAW = '---\nname: fixture-scout\ndescription: A third description, written after theirs.\nmaxTurns: 11\n---\nA third body, long enough to stand as a real system prompt.\n'
 const DRAFT_RAW = '---\nname: recovered-scout\ndescription: A draft left behind by a previous session for recovery.\n---\nThe recovered body, long enough to stand as a lawful system prompt.\n'
 const CLEAN_RAW = '---\nname: raw-scout\ndescription: A clean raw replacement written through the editor door.\n---\nA lawful replacement body, long enough for the validation floor.\n'
 const NAMELESS_RAW = '---\ndescription: no name here\n---\nA body without a name key above it, long enough to pass length.\n'
@@ -465,6 +466,10 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
     await s.drain()
     s.call('mergeOntoTheirs')
     s.call('mergeOntoTheirs')
+    s.plan.saveDocument = () => Promise.reject(new AgentStoreError('revision-conflict', 'revision moved', { currentRaw: THIRD_RAW }))
+    s.call('save')
+    await s.drain()
+    s.call('mergeOntoTheirs')
     s.plan.saveDocument = async () => receipt(['skills'])
     s.call('save')
     await s.drain()
@@ -478,6 +483,12 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
     kept.call('save')
     await kept.drain()
     kept.call('mergeOntoTheirs')
+    const hooked = stage(lines, { mode: 'edit', base: { filePath: BASE_PATH, raw: HOOKED_RAW } })
+    hooked.call('loadRaw', HOOKED_RAW.replace('PreToolUse', 'PostToolUse').replace('The base description', 'My description'))
+    hooked.plan.saveDocument = () => Promise.reject(new AgentStoreError('revision-conflict', 'revision moved', { currentRaw: THEIR_RAW.replace('maxTurns: 9\n', 'maxTurns: 9\nhooks:\n  Stop: []\n') }))
+    hooked.call('save')
+    await hooked.drain()
+    hooked.call('mergeOntoTheirs')
     const failing = stage(lines, { mode: 'edit', base: { filePath: BASE_PATH, raw: BASE_RAW } })
     failing.call('loadRaw', BASE_RAW.replace('maxTurns: 5', 'model: "two\\nlines"'))
     failing.plan.saveDocument = () => Promise.reject(new AgentStoreError('revision-conflict', 'revision moved', { currentRaw: THEIR_RAW.replace('maxTurns: 9\n', 'maxTurns: 9\nhooks:\n  PreToolUse: []\n') }))
