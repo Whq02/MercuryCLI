@@ -7,6 +7,7 @@ import type { PastedContent } from './config.js'
 import { getMercuryHome } from './envUtils.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
+import { isENOENT } from './errors.js'
 import { getProjectDir } from './sessionStorage/paths.js'
 
 interface PromptDraft {
@@ -101,8 +102,9 @@ export function draftPasteHashes(): Set<string> {
     let parsed: Record<string, unknown>
     try {
       parsed = JSON.parse(readFileSync(join(dir, file), 'utf8')) as Record<string, unknown>
-    } catch {
-      continue
+    } catch (error) {
+      if (isENOENT(error)) continue
+      throw error
     }
     if (!parsed || typeof parsed !== 'object') continue
     for (const [key, raw] of Object.entries(parsed)) {
@@ -209,7 +211,9 @@ export function deleteDraft(sessionId: string | null | undefined): void {
       delete next[sessionId]
       return next
     })
-    .catch(() => {})
+    .catch(e => {
+      logForDebugging(`[promptDraft] delete failed for ${sessionId.slice(0, 8)}, the sent draft stays stored: ${String(e)}`, { level: 'warn' })
+    })
 }
 
 export function readDraftSync(sessionId: string | null | undefined): PromptDraft | null {

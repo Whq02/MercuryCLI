@@ -2,6 +2,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../envUtils.js'
+import { errorMessage, isENOENT } from '../errors.js'
+import { logError } from '../log.js'
 
 const CACHE_MAX = 500
 
@@ -22,7 +24,8 @@ function readMap(): ClearedMap {
       if (typeof v === 'number' && Number.isFinite(v)) out[k] = v
     }
     return out
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error)) logError(new Error(`the cleared sessions map ${cachePath()} could not be read: ${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}`))
     return {}
   }
 }
@@ -39,7 +42,8 @@ export function markSessionCleared(sessionId: string | null | undefined): void {
     mkdirSync(getMercuryHome(), { recursive: true })
     writeFileSync(cachePath(), JSON.stringify(Object.fromEntries(entries), null, 2) + '\n')
     memo = null
-  } catch {
+  } catch (error) {
+    logError(new Error(`the cleared mark of session ${sessionId} could not be written to ${cachePath()}, so it stays listed: ${errorMessage(error)}`))
   }
 }
 
@@ -51,7 +55,8 @@ export function unmarkSessionCleared(sessionId: string | null | undefined): void
     delete map[sessionId]
     writeFileSync(cachePath(), JSON.stringify(map, null, 2) + '\n')
     memo = null
-  } catch {
+  } catch (error) {
+    logError(new Error(`the cleared mark of session ${sessionId} could not be removed from ${cachePath()}, so it stays hidden: ${errorMessage(error)}`))
   }
 }
 

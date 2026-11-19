@@ -20,6 +20,8 @@ export function clearOf(stored: Stored): Stored {
   return clear
 }
 
+let tornRemovalsTold: string | undefined
+
 export function removedOf(stored: Stored): string[][] {
   const text = stored[REMOVED_FIELD]
   if (typeof text !== 'string') return []
@@ -27,6 +29,13 @@ export function removedOf(stored: Stored): string[][] {
   try {
     marks = JSON.parse(text)
   } catch {
+    if (tornRemovalsTold !== text) {
+      tornRemovalsTold = text
+      logForDebugging(
+        'credential store: the removal list beside the sealed part is not valid JSON; it is read as empty, so credentials removed while the part was closed come back from the sealed part and the next write seals them again',
+        { level: 'warn' },
+      )
+    }
     return []
   }
   if (!Array.isArray(marks)) return []
