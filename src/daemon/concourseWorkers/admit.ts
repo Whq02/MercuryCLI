@@ -14,8 +14,15 @@ import { type WorkspaceIsolation, type ConcourseMoveV1, canonicalWorkspaceId, re
 import { readSessionWorkers } from './store.js'
 import { reactivateConcourseSession } from './reactivate.js'
 import type { ConcourseWorkerRecordV1 } from './record.js'
-import { admitModelOf } from './admitModel.js'
-import { admitWarm } from './admitWarm.js'
+import { validateWorkerModelChoice, canonicalWorkerModelId } from '../../services/concourse/workerModels.js'
+import { refreshSignInReads, describeSignInRead } from '../signInView.js'
+import { isLocalModelId } from '../../services/providers/local/localCatalogue.js'
+import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { resolveEffectiveSettingsSnapshot } from '../../substrate/startupMenu.js'
+import { seatInitialPermissionMode } from './spec.js'
+import { resumeModelKeyOf, localModelNotServedNote } from './admitModel.js'
+import { warmSeatAnswer } from './admitWarm.js'
 import { coldRunnerIdOf, coldSpecOf, coldSeatAnswer } from './admitCold.js'
 import { randomUUID } from '../../utils/crypto.js'
 import { getProcessStartInstantAsync } from '../ownerWatch.js'
@@ -149,9 +156,41 @@ export function makeConcourseAdmitHandler(
       }
       req = { ...req, effort: level }
     }
-    const model = await admitModelOf(req, deps)
-    if ('ok' in model) return model
-    const { retainedNote, modelKey, modelDisplayName, keyless } = model
+    const retainedModelKey =
+      req.modelKey === undefined && req.resumeSessionId !== undefined
+        ? resumeModelKeyOf(req.resumeSessionId, req.workspaceDir, deps.dir)
+        : undefined
+    refreshSignInReads(true)
+    const validated = await validateWorkerModelChoice(req.modelKey ?? retainedModelKey, 'session')
+    let admission = validated
+    let retainedNote: string | undefined
+    if (!validated.ok && req.modelKey === undefined && retainedModelKey !== undefined && validated.reason.startsWith('no-credential:')) {
+      const unnamed = await validateWorkerModelChoice(undefined, 'session')
+      if (unnamed.ok) {
+        admission = unnamed
+        retainedNote =
+          unnamed.keyless === true
+            ? `the session's model ${retainedModelKey} has no credential here — the first model send picks the neutral default; /model chooses`
+            : `the session's model ${retainedModelKey} has no credential here — it continues on ${unnamed.entry.displayName} (the neutral default); /model chooses`
+      }
+    }
+    const named = req.modelKey ?? retainedModelKey
+    if (!admission.ok && admission.reason === 'unreachable:local' && named !== undefined && isLocalModelId(named) && sessionKindOfAsker(req.by) === 'oculus') {
+      const id = await canonicalWorkerModelId(named)
+      const arm = { availability: 'refused' as const, refusal: 'unreachable:local' as const, ...(admission.detail !== undefined ? { detail: admission.detail } : {}), ...(admission.action !== undefined ? { action: admission.action } : {}) }
+      admission = { ok: true, entry: { modelId: id, displayName: id, session: arm, crew: arm } }
+      retainedNote = localModelNotServedNote(id)
+    }
+    if (!admission.ok) {
+      const read = admission.reason.startsWith('no-credential:') ? ` — ${describeSignInRead(admission.reason.slice('no-credential:'.length))}` : ''
+      const error = `model refused (${admission.reason})${admission.action !== undefined ? ` · ${admission.action}` : ''}${admission.detail !== undefined ? ` — ${admission.detail}` : ''}${read} (got ${JSON.stringify(req.modelKey ?? retainedModelKey ?? '(unset → registry default)')}${retainedModelKey !== undefined && req.modelKey === undefined ? ' — the model this session ran on; --model picks another' : ''})`
+      console.error(`[daemon] admission refused: ${error}`)
+      return { ok: false, code: 'invalid-request', error }
+    }
+    const modelKey = admission.entry.modelId
+    const modelDisplayName = admission.entry.displayName
+    const keyless = admission.keyless === true
+    if (keyless && admission.note !== undefined && retainedNote === undefined) retainedNote = admission.note
     let stat
     try {
       stat = statSync(req.workspaceDir)
@@ -273,8 +312,33 @@ export function makeConcourseAdmitHandler(
       (effectiveIsolation === 'exclusive' || effectiveIsolation === 'shared') &&
       (req.runnerArgv === undefined || req.runnerArgv.length === 0)
     ) {
-      const warm = await admitWarm(seat)
-      if (warm !== undefined) return warm
+      const claimSessionId = randomUUID()
+      carryBuildNotices(claimSessionId)
+      const claimEffort = req.effort ?? 'high'
+      const claimPosture = seatInitialPermissionMode(req.permissionMode)
+      const claimStartedAt = Date.now()
+      const claimed = await deps.claimWarm({
+        workspaceId,
+        sessionId: claimSessionId,
+        modelKey,
+        effort: claimEffort,
+        permissionMode: claimPosture,
+        bypassConsent: req.bypassConsent === true,
+        kit,
+        ...(req.title !== undefined && req.title.length > 0 ? { title: partiallySanitizeUnicode(req.title).slice(0, 120) } : {}),
+      })
+      if (claimed.claimed) {
+        console.error(`[daemon] warm claim acked in ${Date.now() - claimStartedAt}ms: ${claimed.short} takes session ${claimSessionId}`)
+        const runnerId = claimed.short
+        const snapshot = resolveEffectiveSettingsSnapshot({ sessionId: claimSessionId })
+        const pidFields = pidFieldsOf(claimed.pid, claimed.pid === undefined ? null : await getProcessStartInstantAsync(claimed.pid))
+        return warmSeatAnswer({ ...seat, runnerId, claimSessionId, claimEffort, claimPosture, snapshot, pidFields, claimed })
+      }
+      logForDebugging(`[daemon] warm claim declined (${claimed.reason}) — spawning cold`)
+      if (deps.ensureWarm !== undefined) {
+        const rewarm = setTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
+        rewarm.unref?.()
+      }
     }
 
     const runnerId = coldRunnerIdOf(records, roster)
