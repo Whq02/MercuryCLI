@@ -9,7 +9,9 @@ import { healthAction, showAction } from './verbActions.js'
 export async function registerSubcommands(program: CommanderCommand): Promise<void> {
   const cliName = binaryName()
 
-  await registerMcpVerbs(program)
+  const mcp = registerMcpVerbs(program)
+  if (process.argv.includes('mcp')) await registerMcpAddVerb(mcp)
+  registerMcpManageVerbs(mcp)
   registerAuthVerbs(program)
   registerExtensionVerbs(program)
   await registerReportVerbs(program)
@@ -18,7 +20,7 @@ export async function registerSubcommands(program: CommanderCommand): Promise<vo
   registerToolVerbs(program, cliName)
 }
 
-async function registerMcpVerbs(program: CommanderCommand): Promise<void> {
+function registerMcpVerbs(program: CommanderCommand): CommanderCommand {
   const mcp = program.command('mcp').description('Manage MCP servers').helpCommand('help [command]', 'Show help for a command')
   mcp.enablePositionalOptions().configureHelp({ sortSubcommands: true, sortOptions: true })
   mcp
@@ -29,14 +31,19 @@ async function registerMcpVerbs(program: CommanderCommand): Promise<void> {
       const { mcpServeHandler } = await import('../cli/handlers/mcp.js')
       await mcpServeHandler(options)
     })
-  if (process.argv.includes('mcp')) {
-    try {
-      const { registerMcpAddCommand } = await import('../commands/mcp/addCommand.js')
-      registerMcpAddCommand(mcp as unknown as Parameters<typeof registerMcpAddCommand>[0])
-    } catch (error) {
-      logError(error)
-    }
+  return mcp
+}
+
+async function registerMcpAddVerb(mcp: CommanderCommand): Promise<void> {
+  try {
+    const { registerMcpAddCommand } = await import('../commands/mcp/addCommand.js')
+    registerMcpAddCommand(mcp as unknown as Parameters<typeof registerMcpAddCommand>[0])
+  } catch (error) {
+    logError(error)
   }
+}
+
+function registerMcpManageVerbs(mcp: CommanderCommand): void {
   mcp
     .command('remove <name>')
     .description('Remove an MCP server')

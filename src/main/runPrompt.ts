@@ -1,41 +1,15 @@
 import { writeSync } from 'node:fs'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
-import { failCli, writeErr, type RootOptions } from './cli.js'
+import { failCli, type RootOptions } from './cli.js'
 
-export async function readRunPrompt({ opts, inputPrompt, runMode, runnerDoor, inputFormat, mainThreadAgentDefinition, cliName }: {
+export function refuseSwallowedPrompt({ opts, prompt, runMode, inputFormat, mainThreadAgentDefinition, cliName }: {
   opts: RootOptions
-  inputPrompt: string | undefined
+  prompt: string | AsyncIterable<string> | undefined
   runMode: boolean
-  runnerDoor: boolean
   inputFormat: string
   mainThreadAgentDefinition: AgentDefinition | undefined
   cliName: string
-}): Promise<{ prompt: string | AsyncIterable<string> | undefined; syntaxInput: string | undefined }> {
-  let prompt: string | AsyncIterable<string> | undefined = inputPrompt
-  let syntaxInput: string | undefined
-  if (runnerDoor) {
-    prompt = noStdinChunks()
-  } else if (!process.stdin.isTTY) {
-    if (inputFormat === 'rows') {
-      prompt = readStdinChunks()
-    } else {
-      const collected = await readStdinWithPeek(runMode ? (inputPrompt === undefined ? -1 : 1_000) : 3000)
-      if (collected === null && runMode && inputPrompt === undefined) failCli('mercury run could not read its prompt from stdin', 1)
-      if (collected === null && inputPrompt === undefined) {
-        writeErr(
-          'No stdin data arrived within 3s; proceeding without piped input. Redirect from the null device to skip the wait, or keep the pipe open longer to include its data.',
-        )
-      }
-      const pieces = [inputPrompt, collected ?? undefined].filter(
-        (piece): piece is string => typeof piece === 'string' && piece.length > 0,
-      )
-      if (runMode && collected) syntaxInput = inputPrompt ?? ''
-      prompt = runMode && inputPrompt && collected
-        ? `${inputPrompt}\n\n<stdin>\n${collected}${collected.endsWith('\n') ? '' : '\n'}</stdin>`
-        : pieces.length > 0 ? pieces.join('\n') : undefined
-    }
-  }
-
+}): void {
   if (
     (runMode || !process.stdout.isTTY) &&
     prompt === undefined &&
@@ -71,16 +45,9 @@ export async function readRunPrompt({ opts, inputPrompt, runMode, runnerDoor, in
       )
     }
   }
+}
 
-  if (mainThreadAgentDefinition?.initialPrompt) {
-    if (typeof prompt === 'string') {
-      prompt = `${mainThreadAgentDefinition.initialPrompt}\n${prompt}`
-      if (syntaxInput !== undefined) syntaxInput = `${mainThreadAgentDefinition.initialPrompt}\n${syntaxInput}`
-    } else if (prompt === undefined) {
-      prompt = mainThreadAgentDefinition.initialPrompt
-    }
-  }
-
+export function refuseEmptyRunPrompt(opts: RootOptions, prompt: string | AsyncIterable<string> | undefined, runMode: boolean, inputFormat: string): void {
   if (runMode && inputFormat === 'text' && (prompt === undefined || (typeof prompt === 'string' && !prompt.trim())) && !opts.resume && !opts.continue && !opts.pr) {
     const debugFilter = typeof opts.debug === 'string' && /\s/.test(opts.debug.trim()) ? opts.debug : null
     const usage = debugFilter !== null
@@ -92,17 +59,16 @@ export async function readRunPrompt({ opts, inputPrompt, runMode, runnerDoor, in
     }
     failCli(usage)
   }
-  return { prompt, syntaxInput }
 }
 
-async function* readStdinChunks(): AsyncIterable<string> {
+export async function* readStdinChunks(): AsyncIterable<string> {
   process.stdin.setEncoding('utf8')
   for await (const chunk of process.stdin) yield chunk as string
 }
 
-async function* noStdinChunks(): AsyncIterable<string> {}
+export async function* noStdinChunks(): AsyncIterable<string> {}
 
-function readStdinWithPeek(timeoutMs: number): Promise<string | null> {
+export function readStdinWithPeek(timeoutMs: number): Promise<string | null> {
   return new Promise(resolvePeek => {
     const chunks: string[] = []
     let timer: ReturnType<typeof setTimeout> | undefined
