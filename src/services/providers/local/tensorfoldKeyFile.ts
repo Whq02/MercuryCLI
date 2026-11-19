@@ -68,7 +68,7 @@ function keyToKeep(path: string, home: string): string | undefined {
       { code: read.code },
     )
   }
-  if (read.state === 'unusable') {
+  if (read.state === 'unusable' && process.platform !== 'win32') {
     const { keepDamagedFileAsideSync } = require('../../../substrate/storeRecovery.js') as typeof import('../../../substrate/storeRecovery.js')
     try {
       keepDamagedFileAsideSync({ store: 'tensorfold-key', path, reason: read.why, by: 'copy', asideAt: stamp => join(home, `.tensorfold-key.corrupt.${stamp}-auth.json`) })
