@@ -97,6 +97,15 @@ export function startedBashVersion(path: string, limitMs: number = START_PROBE_T
   })
 }
 
+export function zshNamedBeforeBash(shells: ReadonlyArray<string | undefined>): string | null {
+  for (const shell of shells) {
+    const name = basename(shell ?? '')
+    if (name === 'bash') return null
+    if (shell !== undefined && name === 'zsh' && existsSync(shell)) return shell
+  }
+  return null
+}
+
 async function systemBashCandidates(): Promise<string[]> {
   const shell = process.env.SHELL ?? ''
   const located = await which('bash')

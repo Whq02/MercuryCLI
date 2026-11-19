@@ -1,8 +1,7 @@
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
 import { appendFile, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir, userInfo } from 'node:os'
-import { basename, join } from 'node:path'
+import { join } from 'node:path'
 import memoize from 'lodash-es/memoize.js'
 import { onExit } from 'signal-exit'
 import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
@@ -19,7 +18,7 @@ import { birthAfter, birthMark, endMsysGroupBeside, endProcessBornAfter, endProc
 import { ripgrepCommand } from '../ripgrep.js'
 import { sleep } from '../sleep.js'
 import { loginExportsCarried, pathWithLoginEntries, subprocessEnv } from '../subprocessEnv.js'
-import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
+import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, zshNamedBeforeBash, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
 import { windowsShellRoadActive, withOwnPrograms, withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
 import { msysSourceLine } from '../shell/msysArgv.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
@@ -459,13 +458,7 @@ function loginRunHandedOver(read: LoginFilesRead): LoginFilesAbsence {
 const LOGIN_RUN_HANDED_OVER = loginRunHandedOver(BASH_READS)
 
 function zshOfTheUser(): string | null {
-  if (windowsShellRoadActive()) return null
-  for (const shell of [subprocessEnv().SHELL, accountShell()]) {
-    const name = basename(shell ?? '')
-    if (name === 'bash') return null
-    if (shell !== undefined && name === 'zsh' && existsSync(shell)) return shell
-  }
-  return null
+  return windowsShellRoadActive() ? null : zshNamedBeforeBash([subprocessEnv().SHELL, accountShell()])
 }
 
 function accountShell(): string | undefined {
