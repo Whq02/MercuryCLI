@@ -26,9 +26,9 @@ import {
 } from './client/breakpoints.js'
 import type { DapStartOptions } from './client/launch.js'
 import { FramePart } from './client/frame.js'
-import { LifePart } from './client/life.js'
+import { disconnectArguments, LifePart } from './client/life.js'
 import { MessagesPart } from './client/messages.js'
-import { OutputPart } from './client/output.js'
+import { OutputPart, pushOutput } from './client/output.js'
 import { StartPart } from './client/start.js'
 import { childBoundRefusal, ReversePart } from './client/reverse.js'
 import { TerminalPart } from './client/terminal.js'
@@ -37,14 +37,16 @@ import { drainOutput, waitForStop, waitForStopOutcome } from './client/stops.js'
 import {
   debuggeeEndDetail,
   debugTarget,
+  root,
   treeExitDetail,
   treeNewestStopStamp,
+  treeSessions,
   treeStopped,
+  treeTerminated,
   treeVerifiedBreakpoints,
   treeVerifiedFunctionBreakpoints,
 } from './client/tree.js'
 import {
-  OUTPUT_RING_MAX,
   REQUEST_TIMEOUT_MS,
   type DapAdapterSpec,
   type DapBreakpointSpec,
@@ -277,15 +279,11 @@ export class DapSession {
 
 
   root(): DapSession {
-    let s: DapSession = this
-    while (s.parentSession) s = s.parentSession
-    return s
+    return root(this)
   }
 
   treeSessions(): DapSession[] {
-    const out: DapSession[] = [this]
-    for (const child of this.children) out.push(...child.treeSessions())
-    return out
+    return treeSessions(this)
   }
 
   treeSize(): number {
@@ -333,9 +331,7 @@ export class DapSession {
   }
 
   treeTerminated(): boolean {
-    if (this.terminated) return true
-    if (this.#hostsDebuggee) return false
-    return this.children.length > 0 && this.children.every(c => c.treeTerminated())
+    return treeTerminated(this, this.#hostsDebuggee)
   }
 
   treeExitDetail(): string {
@@ -359,10 +355,7 @@ export class DapSession {
   }
 
   #pushOutput(line: string): void {
-    this.output.push(line)
-    if (this.output.length > OUTPUT_RING_MAX) {
-      this.output.splice(0, this.output.length - OUTPUT_RING_MAX)
-    }
+    pushOutput(this, line)
   }
 
   flushPartialOutput(): void {
@@ -487,8 +480,7 @@ export class DapSession {
   }
 
   disconnectArguments(): Record<string, unknown> {
-    if (this.capabilities?.supportTerminateDebuggee !== true) return {}
-    return { terminateDebuggee: this.startMode !== 'attach' }
+    return disconnectArguments(this)
   }
 
   dispose(signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {

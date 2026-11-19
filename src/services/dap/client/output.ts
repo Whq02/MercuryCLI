@@ -1,3 +1,6 @@
+import type { DapSession } from '../dapClient.js'
+import { OUTPUT_RING_MAX } from './shared.js'
+
 export const PARTIAL_OUTPUT_KEEP_BYTES = 64 * 1024
 export const RING_LINE_MAX_CHARS = 4_096
 
@@ -29,5 +32,12 @@ export class OutputPart {
     const rest = this.#partialOutput.trimEnd()
     this.#partialOutput = ''
     if (rest) this.needs.pushOutput(rest)
+  }
+}
+
+export function pushOutput(session: DapSession, line: string): void {
+  session.output.push(line)
+  if (session.output.length > OUTPUT_RING_MAX) {
+    session.output.splice(0, session.output.length - OUTPUT_RING_MAX)
   }
 }

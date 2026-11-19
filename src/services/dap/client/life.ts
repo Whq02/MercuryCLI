@@ -81,3 +81,8 @@ export class LifePart {
     this.session.killSync()
   }
 }
+
+export function disconnectArguments(session: DapSession): Record<string, unknown> {
+  if (session.capabilities?.supportTerminateDebuggee !== true) return {}
+  return { terminateDebuggee: session.startMode !== 'attach' }
+}
