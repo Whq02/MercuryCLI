@@ -121,7 +121,7 @@ class ActRun {
   }
 }
 
-export function scrolledWords(plan: ActPlan): string {
+function scrolledWords(plan: ActPlan): string {
   return `${plan.scrolled ? ` · scrolled into view first (${plan.scrolled})` : ''}${plan.aimed ? ` · ${plan.aimed}` : ''}${plan.returned ? ` · ${plan.returned}` : ''}`
 }
 

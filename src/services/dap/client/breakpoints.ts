@@ -70,7 +70,7 @@ export async function setFunctionBreakpoints(session: DapSession, specs: DapFunc
   return verdicts
 }
 
-export function breakpointVerdicts(body: Record<string, unknown>, count: number): DapBreakpointVerdict[] {
+function breakpointVerdicts(body: Record<string, unknown>, count: number): DapBreakpointVerdict[] {
   const reported = Array.isArray(body.breakpoints)
     ? (body.breakpoints as Array<{ verified?: boolean; message?: string; id?: number }>)
     : []
