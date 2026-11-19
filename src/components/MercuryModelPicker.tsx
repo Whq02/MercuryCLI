@@ -67,14 +67,12 @@ import { localWindowApplication, localWindowRefusalSpan } from '../services/prov
 import { localServerTruthStamp, refreshLocalMachineTruth, subscribeLocalServerTruth } from '../services/localServer/localServerTruth.js'
 import {
   parseGptModelId,
-  gptDisplayPin,
   hasGptServedWindowSuffix,
-  liveGptContextWindow,
-  liveGptContextCeiling,
   stripGptServedWindowSuffix,
 } from '../services/providers/openai/openaiCatalogue.js'
 import type { ModelChoice } from './modelPicker/choice.js'
 import { chordKeys, filterKeys, navigationKeys, tensorFoldKeys, windowTypingKeys, type PickerKeys } from './modelPicker/keys.js'
+import { focusedGptFacts } from './modelPicker/focus.js'
 import { pickerGeometry } from './modelPicker/geometry.js'
 import { pickerActs, pickerCursor } from './modelPicker/moves.js'
 import { pickerLineRenderer } from './modelPicker/renderLine.js'
@@ -292,21 +290,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
   }
   const focusedSupports1m = focusedModel !== undefined && focusedOptionSupports1m(focusedModel.id)
   const [context1m, setContext1m] = useState(ctxStateOf(focusedModel?.id))
-  const focusedGptWindow = ((): { served: number; ceiling?: number; observed?: string } | null => {
-    const p = focusedModel?.id
-    if (!p || !parseGptModelId(p)) return null
-    const live = liveGptContextWindow(p)
-    const pin = gptDisplayPin(p)
-    const served = live ?? pin?.contextWindow
-    if (served === undefined) return null
-    const ceiling = liveGptContextCeiling(p)
-    return {
-      served,
-      ...(ceiling !== undefined && ceiling > served ? { ceiling } : {}),
-      ...(live === undefined && pin?.observedAt !== undefined ? { observed: pin.observedAt } : {}),
-    }
-  })()
-  const focusedGptToggle = focusedGptWindow?.ceiling !== undefined
+  const { focusedGptWindow, focusedGptToggle } = focusedGptFacts(focusedModel)
   const [ctxNotice, setCtxNotice] = useState<string | null>(null)
   const [windowTyping, setWindowTyping] = useState<string | null>(null)
   const [, setWindowStamp] = useState(0)
