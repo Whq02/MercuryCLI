@@ -17,7 +17,8 @@ import { endProcessTree } from '../processGroup.js'
 import { getHookEnvFilePath, hookEventWritesEnvFile } from '../sessionEnvironment.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
 import { buildPowerShellArgs } from '../shell/powershellProvider.js'
-import { hookBashEnv, hookBashShell } from '../shell/windowsShellRoad.js'
+import { protectBackslashRunsFromMsysArgv } from '../shell/msysArgv.js'
+import { hookBashEnv, hookBashShell, windowsBashRoad } from '../shell/windowsShellRoad.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { getHookRunContext } from './hookEvents.js'
@@ -125,7 +126,8 @@ async function spawnHook(run: CommandHookRun, prepared: { command: string; env: 
     return spawn(pwsh, buildPowerShellArgs(prepared.command), { env: prepared.env, cwd: prepared.cwd, windowsHide: true }) as ChildProcessWithoutNullStreams
   }
   const shell = isWindows ? await hookBashShell(run.command) : true
-  return spawn(prepared.command, [], { env: isWindows ? hookBashEnv(prepared.env) : prepared.env, cwd: prepared.cwd, shell, windowsHide: true }) as ChildProcessWithoutNullStreams
+  const command = isWindows && windowsBashRoad().kind !== 'engine' ? protectBackslashRunsFromMsysArgv(prepared.command) : prepared.command
+  return spawn(command, [], { env: isWindows ? hookBashEnv(prepared.env) : prepared.env, cwd: prepared.cwd, shell, windowsHide: true }) as ChildProcessWithoutNullStreams
 }
 
 function endedEarly(run: CommandHookRun, ending: Extract<HookEnding, { status: 'failed' }>, startedAt: number): CommandHookProcess {
