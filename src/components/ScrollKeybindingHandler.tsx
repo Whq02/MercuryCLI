@@ -14,7 +14,7 @@ import {
 } from '../ink/hooks/use-selection.js'
 import { useCopyOnSelect, useSelectionBgColor } from '../hooks/useCopyOnSelect.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
-import { topOverlay, topOverlayOwnsPageKeys } from '../context/overlayStack.js'
+import { topOverlay } from '../context/overlayStack.js'
 import { hasElevatedSurface } from '../ink/recessLayer.js'
 import { useNotifications } from '../context/notifications.js'
 import { copyReceipt, getClipboardPath, subscribeClipboardReceipts } from '../ink/termio/osc.js'
@@ -28,6 +28,7 @@ import { isXtermJs } from '../ink/session/capabilities.js'
 import { appendFileSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { subscribeUiClock } from '../utils/cockpit/uiClock.js'
+import { scrollKeyHandlersOf } from './scrollKeybinding/handlers.js'
 
 
 export type WheelAccelState = {
@@ -376,69 +377,7 @@ export function ScrollKeybindingHandler({
   )
 
   useKeybindings(
-    {
-      'scroll:pageUp': () => {
-          if (topOverlayOwnsPageKeys()) return false
-          if (isCrewViewOpen()) return false
-          if (!runScroll(-pageStep())) return false
-        },
-      'scroll:pageDown': () => {
-          if (topOverlayOwnsPageKeys()) return false
-          if (isCrewViewOpen()) return false
-          if (!runScroll(pageStep())) return false
-        },
-      'scroll:lineUp': () => {
-          if (topOverlayOwnsPageKeys()) return false
-          if (wheelYieldsToTopOverlay()) return false
-          runScroll(-(modalUp ? 3 : 1))
-        },
-      'scroll:lineDown': () => {
-          if (topOverlayOwnsPageKeys()) return false
-          if (wheelYieldsToTopOverlay()) return false
-          runScroll(modalUp ? 3 : 1)
-        },
-      'scroll:top': () => {
-          if (topOverlayOwnsPageKeys()) return false
-          const handle = activeHandle()
-          if (handle) {
-            handle.scrollTo(0)
-            notifyScroll(handle)
-          }
-        },
-      'scroll:bottom': () => {
-          if (topOverlayOwnsPageKeys()) return false
-          const handle = activeHandle()
-          if (handle) {
-            const max = Math.max(
-              0,
-              handle.getScrollHeight() - handle.getViewportHeight(),
-            )
-            handle.scrollTo(max)
-            handle.scrollToBottom()
-            notifyScroll(handle)
-          }
-        },
-      'scroll:halfPageUp': () => {
-        runScroll(-Math.max(1, Math.floor((activeHandle()?.getViewportHeight() ?? 2) / 2)))
-      },
-      'scroll:halfPageDown': () => {
-        runScroll(Math.max(1, Math.floor((activeHandle()?.getViewportHeight() ?? 2) / 2)))
-      },
-      'scroll:fullPageUp': () => {
-        runScroll(-Math.max(1, activeHandle()?.getViewportHeight() ?? 1))
-      },
-      'scroll:fullPageDown': () => {
-        runScroll(Math.max(1, activeHandle()?.getViewportHeight() ?? 1))
-      },
-      'selection:copy': () => {
-          if (selection.hasSelection()) {
-            const text = selection.copySelection()
-            if (text) raiseCopyToast(text)
-            return
-          }
-          copyOwnInputSelection()
-        },
-    },
+    scrollKeyHandlersOf({ runScroll, pageStep, modalUp, wheelYieldsToTopOverlay, activeHandle, notifyScroll, selection, raiseCopyToast, copyOwnInputSelection }),
     { context: 'Scroll', isActive },
   )
 
