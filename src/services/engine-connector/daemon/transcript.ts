@@ -1,0 +1,340 @@
+import { statSync, watch, type FSWatcher } from 'node:fs'
+import { basename, dirname } from 'node:path'
+import type { Message } from '../../../types/message.js'
+import { createLiveTurnFold, deserializeLiveMessages, type LiveTurnFold } from '../../../utils/conversationRecovery.js'
+import { logForDebugging } from '../../../utils/debug.js'
+import type { TranscriptChainCursor } from '../../../utils/sessionStorage/transcriptReader.js'
+import { resolveWatchRoot } from '../../../utils/watchRoot.js'
+import { projectOperatorRewinds } from '../../compact/checkpointRewind.js'
+import { readClearModelReceipt } from '../../switchboard/sessionReceipts.js'
+import { endedRunResults } from '../endedRunCalls.js'
+import { placeLocalCommandRows } from '../localCommandRows.js'
+import { withoutRetractedReplies, type CommittedTextRow } from '../midTurnText.js'
+import { mergeRecordsContentKeyed } from '../recordIdentity.js'
+import { IDLE_LIVE, type SessionLiveV1 } from '../seatLive.js'
+import type { SessionFactsV1 } from '../seatProjections.js'
+import { HEARTBEAT_MS } from './feed.js'
+import { connectorTrace, emitAll, type Listeners } from './shared.js'
+
+const IDLE_TRANSCRIPT_FLOOR_MS = 2000
+
+interface TranscriptNeeds {
+  record(): { readonly sessionId: string; readonly home: string }
+  attached(): boolean
+  turnInFlight(): boolean
+  facts(): SessionFactsV1 | null
+  carrierGone(): boolean
+  admissionAwaiting(): boolean
+  readFacts(): void
+  recomputeLive(): void
+  tailSeq(): number | null
+  textRows(): readonly CommittedTextRow[]
+  dropCommittedRows(): void
+  releaseTail(): void
+  retireTextRows(): boolean
+  echoes(tailSeq: number | null): { held: Array<{ seq: number; row: Message }>; afterTail: Message[] }
+  reconcileSends(): boolean
+  placeDelivered(rows: readonly Message[]): readonly Message[]
+}
+
+interface TranscriptHands {
+  tickOnce?(pass: () => Promise<void>): Promise<void>
+  armTranscriptWatcher?(): void
+  armTranscriptTimer?(): void
+}
+
+export class TranscriptPart {
+  private rawRecords: Message[] = []
+  private recordSigs: string[] = []
+  private painted: readonly Message[] = []
+  private keptRecords: readonly Message[] = []
+  private answeredRows: readonly Message[] = []
+  private liveState: SessionLiveV1 = IDLE_LIVE
+  private displayRows: Array<{ row: Message; anchor: number }> = []
+  private clearModelReceipt: Message | null | undefined
+  private rowsAfterTail = 0
+  private lastSize = -1
+  private lastLen = -1
+  private transcriptUnreadableFp: string | null = null
+  private chainCursor: TranscriptChainCursor | null = null
+  private readonly liveFold: LiveTurnFold = createLiveTurnFold()
+  private releaseTranscript: (() => void) | null = null
+  private transcriptWatcher: FSWatcher | null = null
+  private transcriptTimer: ReturnType<typeof setInterval> | null = null
+  private transcriptTimerMs = 0
+  private tickInFlight: Promise<void> | null = null
+  private tickDirty = false
+  private readonly recordListeners: Listeners = new Set()
+
+  constructor(
+    private readonly transcriptPath: string,
+    private readonly hands: TranscriptHands,
+    private readonly needs: TranscriptNeeds,
+  ) {}
+
+  rows(): Message[] {
+    return this.rawRecords
+  }
+
+  displayCount(): number {
+    return this.displayRows.length
+  }
+
+  live(): SessionLiveV1 {
+    return this.liveState
+  }
+
+  kept(): readonly Message[] {
+    return this.keptRecords
+  }
+
+  answered(): readonly Message[] {
+    return this.answeredRows
+  }
+
+  clearReceipt(): Message | null | undefined {
+    return this.clearModelReceipt
+  }
+
+  heartbeatMs(): number {
+    return this.transcriptTimer === null ? 0 : this.transcriptTimerMs
+  }
+
+  detached(): void {
+  if (this.transcriptTimer !== null) {
+    clearInterval(this.transcriptTimer)
+    this.transcriptTimer = null
+    this.transcriptTimerMs = 0
+  }
+  try {
+    this.transcriptWatcher?.close()
+  } catch {
+  }
+  this.transcriptWatcher = null
+  this.releaseTranscript?.()
+  this.releaseTranscript = null
+  }
+
+  armTranscriptWatcher(): void {
+    if (this.hands.armTranscriptWatcher !== undefined) return this.hands.armTranscriptWatcher()
+    if (this.transcriptWatcher !== null) return
+    try {
+      const dir = dirname(this.transcriptPath)
+      const name = basename(this.transcriptPath)
+      const watcher = watch(resolveWatchRoot(dir), (_event, filename) => {
+        if (filename === undefined || filename === null || String(filename) === name) void this.tick()
+      })
+      watcher.on('error', () => {
+        try {
+          watcher.close()
+        } catch {
+        }
+        if (this.transcriptWatcher === watcher) this.transcriptWatcher = null
+        this.armTranscriptTimer()
+      })
+      this.transcriptWatcher = watcher
+    } catch {
+    }
+  }
+
+  armTranscriptTimer(): void {
+    if (this.hands.armTranscriptTimer !== undefined) return this.hands.armTranscriptTimer()
+    if (!this.needs.attached()) return
+    const ms = this.transcriptWatcher === null || this.needs.turnInFlight() ? HEARTBEAT_MS : IDLE_TRANSCRIPT_FLOOR_MS
+    if (this.transcriptTimer !== null && this.transcriptTimerMs === ms) return
+    if (this.transcriptTimer !== null) clearInterval(this.transcriptTimer)
+    const timer = setInterval(() => void this.tick(), ms)
+    timer.unref?.()
+    this.transcriptTimer = timer
+    this.transcriptTimerMs = ms
+  }
+
+  toolStartedAtMs(inProgress: ReadonlySet<string>): number | null {
+    let earliest: number | null = null
+    for (let i = this.rawRecords.length - 1; i >= 0; i--) {
+      const row = this.rawRecords[i] as { type?: string; timestamp?: string; message?: { content?: unknown } } | undefined
+      if (row?.type !== 'assistant' || !Array.isArray(row.message?.content)) continue
+      const carries = (row.message.content as Array<{ type?: string; id?: string }>).some(b => b.type === 'tool_use' && typeof b.id === 'string' && inProgress.has(b.id))
+      if (!carries) continue
+      const at = typeof row.timestamp === 'string' ? Date.parse(row.timestamp) : Number.NaN
+      if (Number.isNaN(at)) continue
+      earliest = earliest === null ? at : Math.min(earliest, at)
+    }
+    return earliest
+  }
+
+  addDisplayRow(row: Message): void {
+    const subtype = (row as { subtype?: string }).subtype
+    const kept =
+      row.type === 'system' && subtype === 'away_summary'
+        ? this.displayRows.filter(d => !(d.row.type === 'system' && (d.row as { subtype?: string }).subtype === 'away_summary'))
+        : this.displayRows
+    connectorTrace({ ev: 'display-row', sid: this.needs.record().sessionId, anchor: this.rawRecords.length, subtype: subtype ?? row.type, display: kept.length + 1 })
+    this.displayRows = [...kept, { row, anchor: this.rawRecords.length }]
+    this.paint()
+  }
+
+  private releaseDisplayRowsPast(since: number): void {
+    const kept = this.displayRows.filter(d => d.anchor <= since)
+    if (kept.length === this.displayRows.length) return
+    connectorTrace({ ev: 'display-release', sid: this.needs.record().sessionId, since, released: this.displayRows.length - kept.length, display: kept.length })
+    this.displayRows = kept
+  }
+
+  transcriptFile(): string {
+    return this.transcriptPath
+  }
+
+  tick(): Promise<void> {
+    if (this.tickInFlight !== null) {
+      this.tickDirty = true
+      return this.tickInFlight
+    }
+    const flight = (async () => {
+      try {
+        do {
+          this.tickDirty = false
+          await (this.hands.tickOnce === undefined ? this.tickOnce() : this.hands.tickOnce(() => this.tickOnce()))
+        } while (this.tickDirty && this.needs.attached())
+      } finally {
+        this.tickInFlight = null
+      }
+    })()
+    this.tickInFlight = flight
+    return flight
+  }
+
+  private async tickOnce(): Promise<void> {
+    if (!this.needs.attached()) return
+    let fpNow: string | null = null
+    try {
+      let sizeNow = -1
+      try {
+        const st = statSync(this.transcriptPath, { bigint: true })
+        sizeNow = Number(st.size)
+        fpNow = `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
+      } catch {
+        sizeNow = -1
+      }
+      connectorTrace({ ev: 'tick', sid: this.needs.record().sessionId, sizeNow, lastSize: this.lastSize, lastLen: this.lastLen })
+      if (sizeNow === this.lastSize && this.lastLen >= 0) return
+      if (sizeNow !== -1 && this.transcriptWatcher === null) {
+        this.armTranscriptWatcher()
+        this.armTranscriptTimer()
+      }
+      const reader = await import('../../../utils/sessionStorage/transcriptReader.js')
+      if (this.releaseTranscript === null) this.releaseTranscript = reader.retainTranscript(this.transcriptPath)
+      const chain = await reader.readTranscriptChainSince(this.transcriptPath, this.chainCursor)
+      if (!this.needs.attached()) return
+      this.transcriptUnreadableFp = null
+      this.chainCursor = chain.cursor
+      const raw = chain.rows as unknown as Message[]
+      this.lastSize = sizeNow
+      this.lastLen = raw.length
+      const since = chain.since <= this.rawRecords.length && chain.since <= this.recordSigs.length ? chain.since : 0
+      const tail = (since === 0 ? raw : (chain.appended as unknown as Message[]))
+      const merge = mergeRecordsContentKeyed(
+        this.rawRecords,
+        this.recordSigs,
+        raw,
+        deserializeLiveMessages(tail),
+        reader.chainRowSigner(),
+        since,
+      )
+      this.recordSigs = merge.sigs
+      connectorTrace({ ev: 'load', sid: this.needs.record().sessionId, rawLen: raw.length, reusedAll: merge.reusedAll, prevLen: this.rawRecords.length, since: chain.since, rewound: chain.rewound })
+      if (merge.reusedAll) {
+        this.needs.recomputeLive()
+        return
+      }
+      this.rawRecords = merge.records
+      if (chain.rewound) {
+        this.releaseDisplayRowsPast(chain.since)
+        this.needs.dropCommittedRows()
+      }
+      this.liveState = this.liveFold.fold(this.rawRecords, chain.since)
+      this.needs.releaseTail()
+      this.needs.reconcileSends()
+      this.needs.retireTextRows()
+      this.paint()
+      if (this.needs.admissionAwaiting() || this.needs.facts()?.runner?.state === 'starting') this.needs.readFacts()
+      this.needs.recomputeLive()
+    } catch (error) {
+      if (fpNow !== null) this.transcriptUnreadableFp = fpNow
+      connectorTrace({ ev: 'tick-error', sid: this.needs.record().sessionId, message: error instanceof Error ? error.message : String(error) })
+      if (this.needs.attached()) this.needs.recomputeLive()
+    }
+  }
+
+  hasUnreadTranscript(): boolean {
+    if (!this.needs.attached()) return false
+    try {
+      const st = statSync(this.transcriptPath, { bigint: true })
+      const sizeNow = Number(st.size)
+      if (sizeNow <= 0 || sizeNow === this.lastSize) return false
+      const fp = `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
+      return fp !== this.transcriptUnreadableFp
+    } catch {
+      return false
+    }
+  }
+
+  paint(): void {
+    const tailSeq = this.needs.tailSeq()
+    const { held, afterTail } = this.needs.echoes(tailSeq)
+    for (const committed of this.needs.textRows()) {
+      const at = held.findIndex(entry => entry.seq > committed.seq)
+      const entry = { seq: committed.seq, row: committed.row }
+      if (at === -1) held.push(entry)
+      else held.splice(at, 0, entry)
+    }
+    const echoes: Message[] = [...held.map(entry => entry.row), ...afterTail]
+    this.rowsAfterTail = afterTail.length
+    const kept = withoutRetractedReplies(projectOperatorRewinds(this.rawRecords))
+    const dropped = kept.length === this.rawRecords.length ? null : new Set<Message>(kept)
+    const answered = endedRunResults(kept, this.needs.facts(), this.needs.carrierGone())
+    this.keptRecords = kept
+    this.answeredRows = answered
+    if (echoes.length === 0 && this.displayRows.length === 0 && dropped === null && answered.length === 0) {
+      this.painted = this.rawRecords
+    } else {
+      const rows: Message[] = []
+      let d = 0
+      for (let i = 0; i <= this.rawRecords.length; i++) {
+        if (i === this.rawRecords.length) rows.push(...answered)
+        while (d < this.displayRows.length && this.displayRows[d]!.anchor <= i) rows.push(this.displayRows[d++]!.row)
+        if (i < this.rawRecords.length) {
+          const record = this.rawRecords[i]!
+          if (dropped === null || dropped.has(record)) rows.push(record)
+        }
+      }
+      while (d < this.displayRows.length) rows.push(this.displayRows[d++]!.row)
+      this.painted = [...rows, ...echoes]
+    }
+    if (this.clearModelReceipt === undefined) {
+      try { this.clearModelReceipt = readClearModelReceipt(this.needs.record().home, this.needs.record().sessionId) }
+      catch (error) { logForDebugging(`[engine-connector] clear receipt unreadable: ${error}`) }
+    }
+    if (this.clearModelReceipt != null && !this.rawRecords.some(row => row.uuid === this.clearModelReceipt!.uuid)) {
+      this.painted = [this.clearModelReceipt, ...this.painted]
+    }
+    this.painted = placeLocalCommandRows(this.needs.placeDelivered(this.painted))
+    connectorTrace({ ev: 'paint', sid: this.needs.record().sessionId, raw: this.rawRecords.length, display: this.displayRows.length, echoes: echoes.length, painted: this.painted.length, listeners: this.recordListeners.size })
+    emitAll(this.recordListeners, 'records')
+  }
+
+  records(): readonly Message[] {
+    return this.painted
+  }
+
+  subscribeRecords(listener: () => void): () => void {
+    this.recordListeners.add(listener)
+    return () => {
+      this.recordListeners.delete(listener)
+    }
+  }
+
+  tailAnchor(): number {
+    return this.painted.length - this.rowsAfterTail
+  }
+}
