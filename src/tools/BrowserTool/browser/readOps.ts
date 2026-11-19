@@ -5,25 +5,16 @@ import { readImageWithTokenBudget } from '../../FileReadTool/FileReadTool.js'
 import { imageDimensionsOfBase64 } from '../../../utils/imageResizer.js'
 import { modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
 import { getEngineModel } from '../../../utils/model/model.js'
+import { CONSOLE_RING_CAP, pageKitOf } from '../../../services/browser/browserSession.js'
 import {
-  CONSOLE_RING_CAP,
-  activeSession,
-  isBrowserErrorPage,
-  originApproved,
-  originOf,
-  pageKitOf,
-  screenshotPath,
-} from '../../../services/browser/browserSession.js'
-import { emulationLines } from '../../../services/browser/browserEmulation.js'
-import { noSessionWords } from './failures.js'
-import {
+  type LiveSession,
   capExtract,
   deepTextOf,
-  errorPageWords,
   frameListing,
   localClock,
   pageWhere,
   serializeAxTree,
+  statusReport,
   targetSurface,
   viewportWords,
 } from './page.js'
@@ -31,17 +22,16 @@ import { firstRequestWords } from './settle.js'
 import { actDeadline, resolveActTarget, resolveReadTarget } from './targets.js'
 import type { OpDone, OpRun } from './ops.js'
 
-export async function extractOp({ input, owner, tab, signalFor }: OpRun): Promise<OpDone> {
+export async function statusOp({ input, owner }: OpRun): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
-  const scope = input.selector ?? 'body'
-  const where = input.frame === undefined ? pageWhere(s) : targetSurface(s, input.frame).url()
+  result = await statusReport(owner, input)
+  return { result, outcome }
+}
+
+export async function extractOp(s: LiveSession, { input, signalFor }: OpRun, scope: string, where: string): Promise<OpDone> {
+  let result: string
+  let outcome: ToolEffectOutcome = 'no-change'
   const root = input.selector ? await resolveReadTarget(s, input.selector, actDeadline(input), signalFor(s), input.frame) : null
   if ((input.mode ?? 'text') === 'text') {
     const text = root
@@ -56,15 +46,9 @@ export async function extractOp({ input, owner, tab, signalFor }: OpRun): Promis
   return { result, outcome }
 }
 
-export async function consoleOp({ input, owner, tab }: OpRun): Promise<OpDone> {
+export function consoleOp(s: LiveSession, { input }: OpRun): OpDone {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
   const ring = s.consoleRing
   const limit = Math.min(Math.max(Math.floor(input.limit ?? 50), 1), CONSOLE_RING_CAP)
   const slice = ring.slice(-limit)
@@ -78,24 +62,9 @@ export async function consoleOp({ input, owner, tab }: OpRun): Promise<OpDone> {
   return { result, outcome }
 }
 
-export async function infoOp({ owner, tab }: OpRun): Promise<OpDone> {
+export async function infoOp(s: LiveSession, origin: string, approval: string, active: string[]): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome }
-  }
-  const origin = originOf(s.page.url())
-  const approval = origin.startsWith('http')
-    ? originApproved(owner, origin)
-      ? ' (approved this session)'
-      : ' (NOT approved — acts will ask)'
-    : isBrowserErrorPage(s.page.url())
-      ? ` (${errorPageWords(s)})`
-      : ''
-  const active = emulationLines(s.page)
   result = [
     `url: ${s.page.url()}`,
     `title: ${await s.page.title()}`,
@@ -107,18 +76,10 @@ export async function infoOp({ owner, tab }: OpRun): Promise<OpDone> {
   return { result, outcome }
 }
 
-export async function screenshotOp({ input, owner, tab, signalFor, holdImage }: OpRun): Promise<OpDone> {
+export async function screenshotOp(s: LiveSession, { input, signalFor, holdImage, holdInline, holdInlineType }: OpRun, file: string): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
   let inlinePath: string | undefined
-  let inlineMediaType: string | undefined
-  const s = activeSession(owner, tab)
-  if (!s) {
-    result = noSessionWords(owner, tab)
-    outcome = 'failed'
-    return { result, outcome, inlinePath, inlineMediaType }
-  }
-  const file = screenshotPath(input.label ?? new URL(s.page.url()).hostname)
   if (input.selector) {
     const handle = await resolveActTarget(s, input.selector, actDeadline(input), signalFor(s), input.frame)
     await handle.screenshot({ path: file as `${string}.png` })
@@ -135,8 +96,9 @@ export async function screenshotOp({ input, owner, tab, signalFor, holdImage }: 
       const inlineBytes = Math.floor((img.file.base64.length * 3) / 4)
       if (img.file.originalSize > inlineBytes * 1.2) {
         inlinePath = `${file}.inline`
+        holdInline(inlinePath)
         writeFileSync(inlinePath, Buffer.from(img.file.base64, 'base64'))
-        inlineMediaType = img.file.type
+        holdInlineType(img.file.type)
         sizeNote = ` (inlined copy downscaled to the image budget: ${(img.file.originalSize / 1024).toFixed(0)}KB on disk, ~${(inlineBytes / 1024).toFixed(0)}KB inlined)`
         shown = imageDimensionsOfBase64(img.file.base64) ?? shown
       }
@@ -160,5 +122,5 @@ export async function screenshotOp({ input, owner, tab, signalFor, holdImage }: 
   }
   result = `screenshot: ${file}${input.selector ? ` (element ${input.selector})` : ''} (${pageWhere(s)}, viewport ${vp?.width}x${vp?.height})${sizeNote}${scaleNote}`
   outcome = 'succeeded'
-  return { result, outcome, inlinePath, inlineMediaType }
+  return { result, outcome }
 }

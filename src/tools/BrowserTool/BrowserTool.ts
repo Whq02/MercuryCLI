@@ -169,8 +169,8 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     let result: string
     let outcome: ToolEffectOutcome = 'no-change'
     let imagePath = undefined as string | undefined
-    let inlinePath: string | undefined
-    let inlineMediaType: string | undefined
+    let inlinePath = undefined as string | undefined
+    let inlineMediaType = undefined as string | undefined
     let secretInPlay = null as { value: string; ref: string } | null
     let life = null as OpLife | null
     const signalFor = (s: LiveSession): AbortSignal => (life ??= openOpLife(s, context.abortController?.signal)).signal
@@ -186,7 +186,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     try {
       if (sessionAtEntry !== null && ACT_OPS.has(input.op)) acting(sessionAtEntry)
       if (sessionAtEntry !== null && !crashedAtEntry && FRONT_OPS.has(input.op)) await bringTabToFront(sessionAtEntry)
-      const done = await runOp({
+      const answer = runOp({
         input,
         owner,
         tab,
@@ -201,11 +201,16 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
         holdImage: path => {
           imagePath = path
         },
+        holdInline: path => {
+          inlinePath = path
+        },
+        holdInlineType: type => {
+          inlineMediaType = type
+        },
       })
+      const done = answer instanceof Promise ? await answer : answer
       result = done.result
       outcome = done.outcome
-      inlinePath = done.inlinePath
-      inlineMediaType = done.inlineMediaType
     } catch (err) {
       const e = err as Error
       const interrupted = context.abortController?.signal.aborted === true
