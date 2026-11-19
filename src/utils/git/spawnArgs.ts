@@ -125,7 +125,19 @@ type RepositoryLayout = { root: string; gitDir: string; commonDir: string; finge
 
 const layoutCache = new Map<string, RepositoryLayout>()
 
-function readGitSync(args: string[], cwd: string): string | null {
+class GitFactsUnread extends Error {}
+
+function gitAnswered(error: unknown): boolean {
+  if (error === null || typeof error !== 'object') return false
+  const { status, code } = error as { status?: unknown; code?: unknown }
+  return typeof status === 'number' || typeof code === 'number' || code === 'ENOENT'
+}
+
+function factsUnread(what: string, cwd: string, error: unknown): GitFactsUnread {
+  return new GitFactsUnread(`${what} of the git repository at ${cwd} could not be read (${error instanceof Error ? error.message : String(error)})`)
+}
+
+function readGitSync(args: string[], cwd: string, what: string): string | null {
   try {
     return execFileSync(gitExe(), [...GIT_SPAWN_CONFIG, ...args], {
       cwd,
@@ -135,28 +147,36 @@ function readGitSync(args: string[], cwd: string): string | null {
       timeout: 5_000,
       windowsHide: true,
     })
-  } catch {
-    return null
+  } catch (error) {
+    if (gitAnswered(error)) return null
+    throw factsUnread(what, cwd, error)
   }
 }
 
-function readGitAsync(args: string[], cwd: string): Promise<string | null> {
-  return new Promise(resolveRead => {
+function readGitAsync(args: string[], cwd: string, what: string): Promise<string | null> {
+  return new Promise((resolveRead, rejectRead) => {
+    const answer = (error: unknown, stdout: string | null): void => {
+      if (error === null) resolveRead(stdout)
+      else if (gitAnswered(error)) resolveRead(null)
+      else rejectRead(factsUnread(what, cwd, error))
+    }
     try {
       execFile(
         gitExe(),
         [...GIT_SPAWN_CONFIG, ...args],
         { cwd, encoding: 'utf8', env: subprocessEnv(), timeout: 5_000, windowsHide: true },
-        (error: Error | null, stdout: string) => resolveRead(error ? null : stdout),
+        (error: Error | null, stdout: string) => answer(error, stdout),
       )
-    } catch {
-      resolveRead(null)
+    } catch (error) {
+      answer(error, null)
     }
   })
 }
 
 const LAYOUT_ARGS = ['rev-parse', '--show-toplevel', '--absolute-git-dir', '--git-common-dir']
 const FILTER_ARGS = ['config', '--get-regexp', '^filter\\..*\\.(clean|smudge|process)$']
+const LAYOUT_FACTS = 'the layout'
+const FILTER_FACTS = 'the filter settings'
 
 function layoutFingerprint(cwd: string, layout: Pick<RepositoryLayout, 'root' | 'gitDir'>): string {
   const paths = [join(layout.gitDir, 'commondir')]
@@ -186,11 +206,11 @@ function layoutFrom(cwd: string, facts: string | null): RepositoryLayout | null 
 }
 
 function repositoryLayout(cwd: string): RepositoryLayout | null {
-  return knownLayout(cwd) ?? layoutFrom(cwd, readGitSync(LAYOUT_ARGS, cwd))
+  return knownLayout(cwd) ?? layoutFrom(cwd, readGitSync(LAYOUT_ARGS, cwd, LAYOUT_FACTS))
 }
 
 async function repositoryLayoutAsync(cwd: string): Promise<RepositoryLayout | null> {
-  return knownLayout(cwd) ?? layoutFrom(cwd, await readGitAsync(LAYOUT_ARGS, cwd))
+  return knownLayout(cwd) ?? layoutFrom(cwd, await readGitAsync(LAYOUT_ARGS, cwd, LAYOUT_FACTS))
 }
 
 function cachedFilters(layout: RepositoryLayout): { fingerprint: string; configured: string | null | undefined } {
@@ -218,18 +238,23 @@ function repositoryFilters(cwd: string): string[] {
   const layout = repositoryLayout(cwd)
   if (layout === null) return []
   const { fingerprint, configured } = cachedFilters(layout)
-  return filtersFrom(layout, fingerprint, configured === undefined ? readGitSync(FILTER_ARGS, layout.root) : configured)
+  return filtersFrom(layout, fingerprint, configured === undefined ? readGitSync(FILTER_ARGS, layout.root, FILTER_FACTS) : configured)
 }
 
 async function repositoryFiltersAsync(cwd: string): Promise<string[]> {
   const layout = await repositoryLayoutAsync(cwd)
   if (layout === null) return []
   const { fingerprint, configured } = cachedFilters(layout)
-  return filtersFrom(layout, fingerprint, configured === undefined ? await readGitAsync(FILTER_ARGS, layout.root) : configured)
+  return filtersFrom(layout, fingerprint, configured === undefined ? await readGitAsync(FILTER_ARGS, layout.root, FILTER_FACTS) : configured)
 }
 
 export function gitFilterSkipMessages(cwd: string): string[] {
-  return repositoryFilters(cwd).map(name => `filter ${name} skipped: its command lives inside this repository`)
+  try {
+    return repositoryFilters(cwd).map(name => `filter ${name} skipped: its command lives inside this repository`)
+  } catch (error) {
+    if (error instanceof GitFactsUnread) return [`filters not checked: ${error.message}`]
+    throw error
+  }
 }
 
 function filterArgsOf(names: string[]): string[] {
@@ -256,11 +281,11 @@ function scopedRowsFrom(text: string | null): ScopedRow[] {
 }
 
 function scopedConfig(cwd: string, key: string): ScopedRow[] {
-  return scopedRowsFrom(readGitSync(['config', '--show-scope', '--get-all', key], cwd))
+  return scopedRowsFrom(readGitSync(['config', '--show-scope', '--get-all', key], cwd, key))
 }
 
 async function scopedConfigAsync(cwd: string, key: string): Promise<ScopedRow[]> {
-  return scopedRowsFrom(await readGitAsync(['config', '--show-scope', '--get-all', key], cwd))
+  return scopedRowsFrom(await readGitAsync(['config', '--show-scope', '--get-all', key], cwd, key))
 }
 
 const repositoryScoped = (row: ScopedRow): boolean => row.scope === 'local' || row.scope === 'worktree'
