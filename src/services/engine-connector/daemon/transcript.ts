@@ -19,6 +19,10 @@ import { connectorTrace, emitAll, type Listeners } from './shared.js'
 const IDLE_TRANSCRIPT_FLOOR_MS = 2000
 
 interface TranscriptNeeds {
+  transcriptPath: string
+  armWatcherByHand(): boolean
+  armTimerByHand(): boolean
+  tickByHand(pass: () => Promise<void>): Promise<void> | undefined
   record(): { readonly sessionId: string; readonly home: string }
   attached(): boolean
   turnInFlight(): boolean
@@ -35,12 +39,6 @@ interface TranscriptNeeds {
   echoes(tailSeq: number | null): { held: Array<{ seq: number; row: Message }>; afterTail: Message[] }
   reconcileSends(): boolean
   placeDelivered(rows: readonly Message[]): readonly Message[]
-}
-
-interface TranscriptHands {
-  tickOnce?(pass: () => Promise<void>): Promise<void>
-  armTranscriptWatcher?(): void
-  armTranscriptTimer?(): void
 }
 
 export class TranscriptPart {
@@ -64,13 +62,12 @@ export class TranscriptPart {
   private transcriptTimerMs = 0
   private tickInFlight: Promise<void> | null = null
   private tickDirty = false
+  private readonly transcriptPath: string
   private readonly recordListeners: Listeners = new Set()
 
-  constructor(
-    private readonly transcriptPath: string,
-    private readonly hands: TranscriptHands,
-    private readonly needs: TranscriptNeeds,
-  ) {}
+  constructor(private readonly needs: TranscriptNeeds) {
+    this.transcriptPath = needs.transcriptPath
+  }
 
   rows(): Message[] {
     return this.rawRecords
@@ -116,7 +113,7 @@ export class TranscriptPart {
   }
 
   armTranscriptWatcher(): void {
-    if (this.hands.armTranscriptWatcher !== undefined) return this.hands.armTranscriptWatcher()
+    if (this.needs.armWatcherByHand()) return
     if (this.transcriptWatcher !== null) return
     try {
       const dir = dirname(this.transcriptPath)
@@ -138,7 +135,7 @@ export class TranscriptPart {
   }
 
   armTranscriptTimer(): void {
-    if (this.hands.armTranscriptTimer !== undefined) return this.hands.armTranscriptTimer()
+    if (this.needs.armTimerByHand()) return
     if (!this.needs.attached()) return
     const ms = this.transcriptWatcher === null || this.needs.turnInFlight() ? HEARTBEAT_MS : IDLE_TRANSCRIPT_FLOOR_MS
     if (this.transcriptTimer !== null && this.transcriptTimerMs === ms) return
@@ -194,7 +191,7 @@ export class TranscriptPart {
       try {
         do {
           this.tickDirty = false
-          await (this.hands.tickOnce === undefined ? this.tickOnce() : this.hands.tickOnce(() => this.tickOnce()))
+          await (this.needs.tickByHand(() => this.tickOnce()) ?? this.tickOnce())
         } while (this.tickDirty && this.needs.attached())
       } finally {
         this.tickInFlight = null

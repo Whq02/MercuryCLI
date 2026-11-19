@@ -319,7 +319,19 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private attached = false
 
   constructor(readonly record: DaemonSessionRecordV1, private readonly hands: ConnectorHands = {}) {
-    this.transcriptPart = new TranscriptPart(join(record.home, `${record.sessionId}.jsonl`), this.hands, {
+    this.transcriptPart = new TranscriptPart({
+      transcriptPath: join(record.home, `${record.sessionId}.jsonl`),
+      armWatcherByHand: () => {
+        if (this.hands.armTranscriptWatcher === undefined) return false
+        this.hands.armTranscriptWatcher()
+        return true
+      },
+      armTimerByHand: () => {
+        if (this.hands.armTranscriptTimer === undefined) return false
+        this.hands.armTranscriptTimer()
+        return true
+      },
+      tickByHand: pass => (this.hands.tickOnce === undefined ? undefined : this.hands.tickOnce(pass)),
       record: () => this.record,
       attached: () => this.attached,
       turnInFlight: () => this.turnInFlight,
