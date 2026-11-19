@@ -33,7 +33,7 @@ function literalOps(path: string, pattern: RegExp): string[] {
 }
 const { LSP_READ_OPERATIONS } = await import('../../src/tools/LSPTool/schemas.ts')
 const lspOps = [...LSP_READ_OPERATIONS]
-const dapSrc = readFileSync('src/tools/DebugTool/DebugTool.ts', 'utf8')
+const dapSrc = readFileSync('src/tools/DebugTool/debug/schema.ts', 'utf8')
 const dapOpsBlock = dapSrc.match(/const OPS = \[([\s\S]*?)\] as const/)?.[1] ?? ''
 const dapOps = [...dapOpsBlock
   .split('\n')
