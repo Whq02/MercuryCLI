@@ -14,6 +14,7 @@ import {
   type LayoutWrap,
 } from './node.js'
 import { AUTO, type DimValue, type EdgeStore, edgeValue, type InsetStore, insetValue, pointOrAuto, resolve } from './cellLayout/values.js'
+import { axisReusable, markSubtreeDirty, type SizingEntry, storeSizing, zeroSubtree } from './cellLayout/sizing.js'
 import { type FinalRect, roundPass } from './cellLayout/rounding.js'
 
 let _visited = 0
@@ -33,49 +34,6 @@ export function getCellLayoutCounters(): {
 
 
 type Axis = 'row' | 'column'
-
-type SizingEntry = {
-  availW: number | undefined
-  wMode: LayoutMeasureMode
-  availH: number | undefined
-  hMode: LayoutMeasureMode
-  ownerWidth: number | undefined
-  ownerHeight: number | undefined
-  forceW: boolean
-  forceH: boolean
-  resultW: number
-  resultH: number
-}
-
-function axisReusable(
-  mode: LayoutMeasureMode,
-  avail: number | undefined,
-  lastMode: LayoutMeasureMode,
-  lastAvail: number | undefined,
-  lastResult: number,
-): boolean {
-  if (mode === lastMode && avail === lastAvail) return true
-  if (mode === 'exactly' && avail !== undefined && lastResult === avail) return true
-  if (
-    mode === 'at-most' &&
-    lastMode === 'undefined' &&
-    avail !== undefined &&
-    lastResult <= avail
-  ) {
-    return true
-  }
-  if (
-    mode === 'at-most' &&
-    lastMode === 'at-most' &&
-    avail !== undefined &&
-    lastAvail !== undefined &&
-    lastAvail > avail &&
-    lastResult <= avail
-  ) {
-    return true
-  }
-  return false
-}
 
 class CellLayoutNode implements LayoutNode {
   children: CellLayoutNode[] = []
@@ -130,7 +88,7 @@ class CellLayoutNode implements LayoutNode {
     const c = child as CellLayoutNode
     c.parent = this
     this.children.splice(index, 0, c)
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
 
   removeChild(child: LayoutNode): void {
@@ -139,7 +97,7 @@ class CellLayoutNode implements LayoutNode {
     if (i >= 0) {
       this.children.splice(i, 1)
       c.parent = null
-      this.markSubtreeDirty()
+      markSubtreeDirty(this)
     }
   }
 
@@ -154,161 +112,152 @@ class CellLayoutNode implements LayoutNode {
 
   markDirty(): void {
     this.measureCache.clear()
-    this.markSubtreeDirty()
-  }
-
-  private markSubtreeDirty(): void {
-    let node: CellLayoutNode | null = this
-    while (node) {
-      node.measureEntries.length = 0
-      node.layoutEntry = null
-      node = node.parent
-    }
+    markSubtreeDirty(this)
   }
 
 
   setWidth(value: number): void {
     this.styleWidth = pointOrAuto(value)
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setWidthPercent(value: number): void {
     this.styleWidth = { unit: 'percent', value }
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setWidthAuto(): void {
     this.styleWidth = AUTO
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setHeight(value: number): void {
     this.styleHeight = pointOrAuto(value)
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setHeightPercent(value: number): void {
     this.styleHeight = { unit: 'percent', value }
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setHeightAuto(): void {
     this.styleHeight = AUTO
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setMinWidth(value: number): void {
     this.styleMinWidth = pointOrAuto(value)
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setMinWidthPercent(value: number): void {
     this.styleMinWidth = { unit: 'percent', value }
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setMinHeight(value: number): void {
     this.styleMinHeight = pointOrAuto(value)
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setMinHeightPercent(value: number): void {
     this.styleMinHeight = { unit: 'percent', value }
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setMaxWidth(value: number): void {
     this.styleMaxWidth = pointOrAuto(value)
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setMaxWidthPercent(value: number): void {
     this.styleMaxWidth = { unit: 'percent', value }
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setMaxHeight(value: number): void {
     this.styleMaxHeight = pointOrAuto(value)
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setMaxHeightPercent(value: number): void {
     this.styleMaxHeight = { unit: 'percent', value }
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setFlexDirection(dir: LayoutFlexDirection): void {
     this.flexDirection = dir
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setFlexGrow(value: number): void {
     this.flexGrow = value
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setFlexShrink(value: number): void {
     this.flexShrink = value
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setFlexBasis(value: number): void {
     this.flexBasis = pointOrAuto(value)
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setFlexBasisPercent(value: number): void {
     this.flexBasis = { unit: 'percent', value }
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setFlexWrap(wrap: LayoutWrap): void {
     this.flexWrap = wrap
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setAlignItems(align: LayoutAlign): void {
     this.alignItems = align
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setAlignSelf(align: LayoutAlign): void {
     this.alignSelf = align
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setJustifyContent(justify: LayoutJustify): void {
     this.justifyContent = justify
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setDisplay(display: LayoutDisplay): void {
     this.display = display
-    if (display === LayoutDisplay.None) this.zeroSubtree()
-    this.markSubtreeDirty()
+    if (display === LayoutDisplay.None) zeroSubtree(this)
+    markSubtreeDirty(this)
   }
   getDisplay(): LayoutDisplay {
     return this.display
   }
   setPositionType(type: LayoutPositionType): void {
     this.positionType = type
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setPosition(edge: LayoutEdge, value: number): void {
     this.position[edge] = { unit: 'point', value }
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setPositionPercent(edge: LayoutEdge, value: number): void {
     this.position[edge] = { unit: 'percent', value }
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setOverflow(overflow: LayoutOverflow): void {
     this.overflow = overflow
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setMargin(edge: LayoutEdge, value: number): void {
     this.margin[edge] = value
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setPadding(edge: LayoutEdge, value: number): void {
     this.padding[edge] = value
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setBorder(edge: LayoutEdge, value: number): void {
     this.border[edge] = value
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   setGap(gutter: LayoutGutter, value: number): void {
     this.gap[gutter] = value
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
 
   setMeasureFunc(fn: LayoutMeasureFunc): void {
     this.measureFunc = fn
     this.measureCache.clear()
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
   unsetMeasureFunc(): void {
     this.measureFunc = null
     this.measureCache.clear()
-    this.markSubtreeDirty()
+    markSubtreeDirty(this)
   }
 
 
@@ -439,7 +388,7 @@ class CellLayoutNode implements LayoutNode {
     _visited++
 
     if (this.display === LayoutDisplay.None) {
-      this.zeroSubtree()
+      zeroSubtree(this)
       return { width: 0, height: 0 }
     }
 
@@ -538,7 +487,8 @@ class CellLayoutNode implements LayoutNode {
     if (this.children.length > 0) {
       this.measRecGen = performLayout ? -1 : _generation
     }
-    this.storeSizing(
+    storeSizing(
+      this,
       availableWidth,
       widthMode,
       availableHeight,
@@ -551,38 +501,6 @@ class CellLayoutNode implements LayoutNode {
       performLayout,
     )
     return out
-  }
-
-  private storeSizing(
-    availW: number | undefined,
-    wMode: LayoutMeasureMode,
-    availH: number | undefined,
-    hMode: LayoutMeasureMode,
-    ownerWidth: number | undefined,
-    ownerHeight: number | undefined,
-    forceW: boolean,
-    forceH: boolean,
-    out: { width: number; height: number },
-    fromLayout: boolean,
-  ): void {
-    const entry: SizingEntry = {
-      availW,
-      wMode,
-      availH,
-      hMode,
-      ownerWidth,
-      ownerHeight,
-      forceW,
-      forceH,
-      resultW: out.width,
-      resultH: out.height,
-    }
-    if (fromLayout) {
-      this.layoutEntry = entry
-    } else {
-      if (this.measureEntries.length >= 8) this.measureEntries.shift()
-      this.measureEntries.push(entry)
-    }
   }
 
   private measure(
@@ -600,16 +518,6 @@ class CellLayoutNode implements LayoutNode {
     const result = { width: raw.width, height: raw.height }
     this.measureCache.set(key, result)
     return result
-  }
-
-  private zeroSubtree(): void {
-    this.final = { left: 0, top: 0, width: 0, height: 0 }
-    this.rounded = { left: 0, top: 0, width: 0, height: 0 }
-    this.measureEntries.length = 0
-    this.layoutEntry = null
-    this.fbGen = -1
-    this.measRecGen = -1
-    for (const c of this.children) c.zeroSubtree()
   }
 
   private mainGap(axis: Axis): number {
@@ -649,7 +557,7 @@ class CellLayoutNode implements LayoutNode {
     const isWrapStyle = this.flexWrap !== 'nowrap'
 
     for (const c of this.children) {
-      if (c.display === LayoutDisplay.None) c.zeroSubtree()
+      if (c.display === LayoutDisplay.None) zeroSubtree(c)
     }
     const flow = this.children.filter(
       c => c.positionType !== 'absolute' && c.display !== LayoutDisplay.None,
