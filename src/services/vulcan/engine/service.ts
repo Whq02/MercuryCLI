@@ -274,24 +274,24 @@ export class EngineJobService {
   readonly projectRoot: string
   readonly workers: number
   readonly workersSource: string
-  private readonly queue: EngineJob[] = []
-  private readonly running = new Map<string, EngineJob>()
+  readonly queue: EngineJob[] = []
+  readonly running = new Map<string, EngineJob>()
   private readonly recent: EngineJob[] = []
-  private readonly byId = new Map<string, EngineJob>()
-  private readonly handles = new Map<string, EngineHandle>()
+  readonly byId = new Map<string, EngineJob>()
+  readonly handles = new Map<string, EngineHandle>()
   private readonly waiters = new Map<string, Array<() => void>>()
-  private readonly busyWorkers = new Set<number>()
-  private readonly heartbeats = new Map<string, () => void>()
-  private readonly debuggers = new Map<string, GodotDebuggerProfile>()
+  readonly busyWorkers = new Set<number>()
+  readonly heartbeats = new Map<string, () => void>()
+  readonly debuggers = new Map<string, GodotDebuggerProfile>()
   private readonly census: () => Promise<GodotProcess[]>
-  private readonly strictCensus: () => Promise<GodotProcess[]>
+  readonly strictCensus: () => Promise<GodotProcess[]>
   private readonly executableOption: string | null
   private executableCache: { resolved: string; note: string } | null = null
-  private seq = 0
+  seq = 0
   private swept: EngineOrphanSweep[] = []
   private sweepError: string | null = null
   private staleTreesRemoved: string[] = []
-  private readonly ready: Promise<void>
+  readonly ready: Promise<void>
 
   constructor(projectRoot: string, opts: EngineServiceOptions = {}) {
     this.projectRoot = path.resolve(projectRoot)
@@ -340,7 +340,7 @@ export class EngineJobService {
     this.staleTreesRemoved = removeDeadEngineTrees(this.projectRoot, processes, this.swept)
   }
 
-  private stopHeartbeat(id: string): void {
+  stopHeartbeat(id: string): void {
     this.heartbeats.get(id)?.()
     this.heartbeats.delete(id)
   }
@@ -364,87 +364,11 @@ export class EngineJobService {
     return this.executableCache
   }
 
-  async submit(request: EngineJobRequest): Promise<EngineJob | { refused: string }> {
-    request = structuredClone(request)
-    if (request.media) request = { ...request, native: request.media.route === 'display', capture: false, suites: [] }
-    request = freezeEngineRequest(request)
-    await this.ready
-    const media = request.media
-    if (media) {
-      if (media.route === 'hidden') return { refused: 'hidden run refused: stock Godot shows its native bootstrap window before scripts initialize; no verified hidden bootstrap is available. Use headless project Image capture, or explicitly request route:"display".' }
-      if (media.kind === 'profile' && media.quiet === 'refuse') {
-        const workers = await this.otherEngineWorkers()
-        if (workers.length) return { refused: quietGuardRefusal(workers) }
-      }
-    }
-    const manifest = this.manifest()
-    const selection = request.media ? { entries: [], unknown: [] } : resolveEngineSuites(manifest, request.suites)
-    if (selection.unknown.length > 0) {
-      const known = manifest.suites.map(s => s.name)
-      return {
-        refused: `Unknown suite: ${selection.unknown.join(', ')}${known.length > 0 ? ` — registered: ${known.join(', ')}` : ''}${manifest.teaching ? `; ${manifest.teaching}` : ''}`,
-      }
-    }
-    if (!request.media && selection.entries.length === 0) {
-      return { refused: manifest.teaching ?? `no suites selected — registered: ${manifest.suites.map(s => s.name).join(', ')}` }
-    }
-    if (request.capture && !request.native) return { refused: '--capture requires --native; headless runs do not prove appearance (pass native:true with capture:true)' }
-    const nativeOnly = selection.entries.filter(e => e.kind === 'suite' && e.suite.nativeOnly).map(e => (e.kind === 'suite' ? e.suite.name : ''))
-    if (nativeOnly.length > 0 && !request.native) return { refused: `${nativeOnly.join(', ')} ${nativeOnly.length === 1 ? 'is' : 'are'} native-only: pass native:true (a display run, one at a time)` }
-    const executable = await this.executable()
-    if ('error' in executable) return { refused: `no Godot executable to run the engine: ${executable.error}` }
-    ensureEngineEstate(this.projectRoot)
-    const id = newEngineJobId()
-    const job: EngineJob = {
-      id,
-      request,
-      state: 'queued',
-      seq: this.seq++,
-      queuedAt: new Date().toISOString(),
-      startedAt: null,
-      endedAt: null,
-      runDir: engineRunPath(this.projectRoot, id),
-      treePath: engineTreePath(this.projectRoot, id),
-      worker: null,
-      currentSuite: null,
-      record: null,
-      error: null,
-      cancelRequested: false,
-      tree: null,
-    }
-    Object.defineProperty(job, 'request', { value: request, enumerable: true, writable: false, configurable: false })
-    mkdirSync(job.runDir, { recursive: true })
-    this.byId.set(id, job)
-    this.heartbeats.set(id, startEngineHeartbeat(job.runDir))
-    const facts = await materializeEngineTree(this.projectRoot, request.tree, job.treePath)
-    if ('error' in facts) {
-      job.state = 'failed'
-      job.error = facts.error
-      job.endedAt = new Date().toISOString()
-      job.record = this.baseRecord(job, executable.resolved, selection.entries.map(e => (e.kind === 'import' ? IMPORT_SUITE_NAME : e.suite.name)))
-      job.record.error = facts.error
-      job.record.endedAt = job.endedAt
-      this.writeRecord(job)
-      removeEngineTree(job.treePath)
-      this.stopHeartbeat(id)
-      this.remember(job)
-      return job
-    }
-    job.tree = facts
-    const refusal = await this.leaseRefusal(job)
-    if (refusal) {
-      removeEngineTree(job.treePath)
-      this.stopHeartbeat(id)
-      rmSync(job.runDir, { recursive: true, force: true })
-      this.byId.delete(id)
-      return { refused: refusal }
-    }
-    this.queue.push(job)
-    this.pump()
-    return job
+  submit(request: EngineJobRequest): Promise<EngineJob | { refused: string }> {
+    return submitOf.call(this, request)
   }
 
-  private async leaseRefusal(job: EngineJob): Promise<string | null> {
+  async leaseRefusal(job: EngineJob): Promise<string | null> {
     if (!job.tree) return null
     try {
       return await engineLeaseRefusal(this.projectRoot, job.tree, job.request.holder ?? projectLeaseHolder())
@@ -453,44 +377,11 @@ export class EngineJobService {
     }
   }
 
-  private baseRecord(job: EngineJob, executable: string, selected: string[]): EngineRunRecord {
-    return {
-      proofTreeFingerprint: job.tree ? proofTreeFingerprint(job.tree) : '',
-      drift: [],
-      root: this.projectRoot,
-      executable,
-      results: [],
-      complete: false,
-      allPass: false,
-      jobId: job.id,
-      label: job.request.label,
-      priority: job.request.priority,
-      native: job.request.native,
-      capture: job.request.media?.kind === 'capture' || job.request.capture,
-      enginePath: job.treePath,
-      tree: {
-        label: job.request.tree.label,
-        ref: job.request.tree.ref,
-        commit: job.tree?.commit ?? '',
-        files: job.tree?.files ?? [],
-        skipped: job.tree?.skipped ?? [],
-        kept: job.request.keepTree,
-      },
-      ...(job.request.media ? { media: newEngineMediaRecord(job.request.media) } : {}),
-      selected: job.request.media ? this.mediaNames(job.request.media) : selected,
-      importCache: { key: '', hit: false, ran: false, seededFrom: null, stored: false },
-      classCache: null,
-      userDir: engineRunUserDir(job.runDir),
-      startedAt: job.startedAt ?? job.queuedAt,
-      endedAt: null,
-      cancelled: false,
-      budgetMs: job.request.budgetMs,
-      budgetExceeded: false,
-      error: null,
-    }
+  baseRecord(job: EngineJob, executable: string, selected: string[]): EngineRunRecord {
+    return baseRecordOf.call(this, job, executable, selected)
   }
 
-  private writeRecord(job: EngineJob): void {
+  writeRecord(job: EngineJob): void {
     if (!job.record) return
     try {
       mkdirSync(job.runDir, { recursive: true })
@@ -500,7 +391,7 @@ export class EngineJobService {
     }
   }
 
-  private remember(job: EngineJob): void {
+  remember(job: EngineJob): void {
     this.recent.unshift(job)
     while (this.recent.length > ENGINE_RECENT_KEEP) {
       const dropped = this.recent.pop()
@@ -520,7 +411,7 @@ export class EngineJobService {
     return null
   }
 
-  private pump(): void {
+  pump(): void {
     if (this.queue.length === 0 && this.running.size === 0) {
       ACTIVE_SERVICES.delete(this)
       return
@@ -539,7 +430,7 @@ export class EngineJobService {
     }
   }
 
-  private async displayHolder(): Promise<string | null> {
+  async displayHolder(): Promise<string | null> {
     let processes: GodotProcess[] = []
     try {
       processes = await this.census()
@@ -550,13 +441,13 @@ export class EngineJobService {
     return holder ? describeGodotProcess(holder) : null
   }
 
-  private userDirFor(job: EngineJob, suite: EngineSuite | null): string {
+  userDirFor(job: EngineJob, suite: EngineSuite | null): string {
     const dir = suite && suite.userDir === 'keep' ? path.join(engineUsersDir(this.projectRoot), suite.name.replace(/[\\/]/g, '__')) : engineRunUserDir(job.runDir)
     mkdirSync(dir, { recursive: true })
     return dir
   }
 
-  private async runOne(
+  runOne(
     job: EngineJob,
     executable: string,
     name: string,
@@ -566,93 +457,18 @@ export class EngineJobService {
     userDir: string,
     unclean: RegExp,
   ): Promise<EngineResultRow> {
-    if (job.cancelRequested) throw new Error('engine job cancelled before launch')
-    const argv = argvFor(job.treePath)
-    const scriptIndex = argv.indexOf('--script')
-    const script = scriptIndex >= 0 ? argv[scriptIndex + 1] : undefined
-    const bridged = !job.request.media && !argv.includes('--check-only') && (script === undefined || script.startsWith('res://'))
-    const instrumented = bridged && script ? injectVulcanWorkerScript(job.treePath, script) : bridged
-    const bridge = instrumented ? await prepareVulcanInstance(job.treePath, name === IMPORT_SUITE_NAME ? 'agent-editor' : job.request.native ? 'native-worker' : 'headless-worker') : undefined
-    const root = bridge?.projectRoot ?? job.treePath
-    const handle = spawnEngine({ executable, args: bridge ? argvFor(root) : argv, cwd: root, userDir, timeoutMs, label: `${job.id}:${name}`, ...(bridge ? { bridge } : {}) })
-    this.handles.set(job.id, handle)
-    job.currentSuite = name
-    const out = await handle.done
-    if (bridge) rmSync(vulcanInstanceDir(job.treePath, bridge.id), { recursive: true, force: true })
-    this.handles.delete(job.id)
-    job.currentSuite = null
-    const logFile = engineRunLogFile(job.runDir, name)
-    try {
-      mkdirSync(path.dirname(logFile), { recursive: true })
-      writeFileSync(logFile, out.output)
-    } catch {
-      void 0
-    }
-    const clean = isCleanEngineLog(out.output, unclean)
-    const markerLine = marker ? markerLineOf(marker, out.output) : null
-    const markerHit = marker === null || markerLine !== null
-    const drift = engineLogDrift(out.output, name, job.id)
-    job.record?.drift.push(...drift)
-    const ok = out.exitCode === 0 && !out.signal && !out.timedOut && !out.spawnError && clean && markerHit && drift.length === 0
-    const errors: EngineRowError[] = []
-    for (const e of engineLogErrors(out.output)) {
-      let lastChange: string | null = null
-      if (e.file && e.file.startsWith('res://') && job.tree) {
-        lastChange = describeAttribution(await engineFileAttribution(this.projectRoot, job.tree, e.file))
-      }
-      errors.push({ ...e, lastChange })
-    }
-    return {
-      name,
-      ok,
-      exitCode: out.exitCode,
-      signal: out.signal,
-      timedOut: out.timedOut,
-      spawnError: out.spawnError,
-      clean,
-      marker: markerHit,
-      seconds: out.seconds,
-      log: logFile,
-      markerLine,
-      failLines: engineFailLines(out.output),
-      scriptErrorLines: engineScriptErrorLines(out.output),
-      errors,
-      argv,
-      startedAt: out.startedAt,
-      endedAt: out.endedAt,
-      cancelled: out.killed === 'cancel',
-      userDir,
-      instance: handle.bridge,
-      drift,
-    }
+    return runOneOf.call(this, job, executable, name, argvFor, timeoutMs, marker, userDir, unclean)
   }
 
-  private mediaNames(request: EngineMediaRequest): string[] {
+  mediaNames(request: EngineMediaRequest): string[] {
     return request.kind === 'profile' ? ['profile'] : request.pair ? ['capture-a', 'capture-b'] : ['capture-single']
   }
 
-  private async otherEngineWorkers(job?: EngineJob): Promise<string[]> {
-    const workers = new Set<string>()
-    for (const service of ACTIVE_SERVICES) {
-      for (const active of service.running.values()) if (active !== job) workers.add(`engine job ${active.id} on ${service.projectRoot}`)
-    }
-    const ownPid = job ? this.handles.get(job.id)?.pid : null
-    for (const engine of liveEngines()) {
-      if (job && engine.label.startsWith(`${job.id}:`)) continue
-      workers.add(`pid ${engine.pid} ${engine.label}`)
-    }
-    try {
-      for (const engine of await this.strictCensus()) {
-        if (job && (engine.pid === ownPid || (engine.project !== undefined && path.resolve(engine.project) === path.resolve(job.treePath)))) continue
-        workers.add(describeGodotProcess(engine))
-      }
-    } catch (e) {
-      workers.add(`census unavailable: ${(e as Error).message}`)
-    }
-    return [...workers]
+  otherEngineWorkers(job?: EngineJob): Promise<string[]> {
+    return otherEngineWorkersOf.call(this, job)
   }
 
-  private async observeProfileQuiet(job: EngineJob, stage: string, refuse: boolean): Promise<void> {
+  async observeProfileQuiet(job: EngineJob, stage: string, refuse: boolean): Promise<void> {
     const media = job.record?.media
     if (!media || media.kind !== 'profile') return
     const workers = await this.otherEngineWorkers(job)
@@ -663,224 +479,16 @@ export class EngineJobService {
     if (refuse && workers.length && media.quiet.policy === 'refuse') throw new Error(quietGuardRefusal(workers))
   }
 
-  private async runMedia(job: EngineJob, executable: string, timeoutMs: number, budgetLeft: () => number, unclean: RegExp): Promise<void> {
-    const request = job.request.media
-    const record = job.record
-    const media = record?.media
-    if (!request || !record || !media || !job.tree) throw new Error('media job is missing its frozen request or run record')
-    const variants = request.kind === 'capture' && request.pair ? ['a', 'b'] : ['single']
-    for (const variant of variants) {
-      if (job.cancelRequested) return
-      if (budgetLeft() <= 0) {
-        record.budgetExceeded = true
-        return
-      }
-      if (request.kind === 'profile') await this.observeProfileQuiet(job, 'before-measurement-boot', true)
-      if (job.cancelRequested) return
-      if (budgetLeft() <= 0) {
-        record.budgetExceeded = true
-        return
-      }
-      const debuggerProfile = request.kind === 'profile' && request.source !== 'project' ? new GodotDebuggerProfile(request, engineMediaDriverFile(job.runDir, variant)) : null
-      try {
-        if (debuggerProfile) {
-          await debuggerProfile.transport.open()
-          this.debuggers.set(job.id, debuggerProfile)
-        }
-        if (job.cancelRequested) return
-        if (budgetLeft() <= 0) { record.budgetExceeded = true; return }
-        const connection = debuggerProfile ? { port: debuggerProfile.transport.port, token: debuggerProfile.transport.token } : undefined
-        const boot = writeEngineMediaDriver(job.runDir, job.treePath, request, variant, connection)
-        const userDir = engineMediaUserDir(job.runDir, variant)
-        mkdirSync(userDir, { recursive: true })
-        let timer: ReturnType<typeof setInterval> | null = null
-        let observing: Promise<void> | null = null
-        if (request.kind === 'profile') {
-          timer = setInterval(() => {
-            if (observing) return
-            observing = this.observeProfileQuiet(job, 'measurement-boot', false).finally(() => { observing = null })
-          }, ENGINE_QUIET_SAMPLE_MS)
-        }
-        let row: EngineResultRow
-        try {
-          media.boots++
-          row = await this.runOne(job, executable, request.kind === 'profile' ? 'profile' : `capture-${variant}`, () => boot.argv, Math.max(1, Math.min(timeoutMs, budgetLeft())), { kind: 'line', text: ENGINE_MEDIA_MARKER }, userDir, unclean)
-        } finally {
-          if (timer) clearInterval(timer)
-          if (observing) await observing
-        }
-        record.results.push(row)
-        if (row.timedOut && budgetLeft() <= 0) record.budgetExceeded = true
-        if (request.kind === 'profile') await this.observeProfileQuiet(job, 'after-measurement-boot', false)
-        this.writeRecord(job)
-        if (debuggerProfile) media.evidence.push(debuggerProfile.evidence())
-        if (debuggerProfile?.transport.error && row.signal === null) throw new Error(debuggerProfile.transport.error)
-        if (!row.ok || job.cancelRequested) return
-        if (debuggerProfile?.transport.accepted && !debuggerProfile.finished) throw new Error('Godot debugger connected but did not finish the profile; no project fallback is claimed')
-        if (request.source === 'engine' && !debuggerProfile?.finished) throw new Error('The game never connected to the engine debugger; source "engine" takes no project tables in its place (source "auto" falls back to them)')
-        const out = readEngineMediaBoot(boot.resultFile, request, variant, boot.outputDir)
-        if (request.kind === 'profile') media.evidence.unshift({ variant, ...out.evidence, source: 'project', phases: out.phases })
-        else media.evidence.push({ variant, ...out.evidence })
-        media.frames.push(...out.frames)
-        if (request.kind === 'capture') {
-          record.frames = media.frames
-          media.phases.push(...out.phases)
-        } else {
-          media.selectedSource = debuggerProfile?.finished ? 'engine' : 'project'
-          media.sources = ['project', ...(debuggerProfile?.finished ? ['engine debugger'] : [])]
-          media.fallbackReason = debuggerProfile && !debuggerProfile.finished ? 'The game never connected to the engine debugger; the project source is selected.' : null
-          media.phases.push(...(debuggerProfile?.finished ? debuggerProfile.phases : out.phases))
-        }
-        this.writeRecord(job)
-      } finally {
-        this.debuggers.delete(job.id)
-        await debuggerProfile?.transport.close()
-      }
-    }
-    if (budgetLeft() <= 0) record.budgetExceeded = true
-    if (job.cancelRequested || record.budgetExceeded) return
-    if (request.kind === 'capture') media.contactSheet = await writeEngineContactSheet(media.frames.map(frame => frame.path), engineContactSheetFile(job.runDir))
-    this.writeRecord(job)
+  runMedia(job: EngineJob, executable: string, timeoutMs: number, budgetLeft: () => number, unclean: RegExp): Promise<void> {
+    return runMediaOf.call(this, job, executable, timeoutMs, budgetLeft, unclean)
   }
 
-  private async runJob(job: EngineJob, worker: number): Promise<void> {
-    job.state = 'running'
-    job.worker = worker
-    job.startedAt = new Date().toISOString()
-    const manifest = this.manifest()
-    const selection = job.request.media ? { entries: [], unknown: [] } : resolveEngineSuites(manifest, job.request.suites)
-    const selected = job.request.media ? this.mediaNames(job.request.media) : selection.entries.map(e => (e.kind === 'import' ? IMPORT_SUITE_NAME : e.suite.name))
-    const exe = await this.executable()
-    const record = this.baseRecord(job, 'error' in exe ? '' : exe.resolved, selected)
-    job.record = record
-    this.writeRecord(job)
-    const unclean = uncleanRegExp(manifest.uncleanSource, manifest.uncleanFlags)
-    const deadline = job.request.budgetMs !== null ? Date.now() + job.request.budgetMs : null
-    const budgetLeft = (): number => (deadline === null ? Number.POSITIVE_INFINITY : deadline - Date.now())
-    try {
-      if ('error' in exe) throw new Error(`no Godot executable: ${exe.error}`)
-      if (!job.tree) throw new Error('the frozen tree was not materialised')
-      if (record.media?.kind === 'profile') await this.observeProfileQuiet(job, 'before-import', true)
-      if (job.cancelRequested) throw new Error('engine job cancelled before import')
-      const refusal = await this.leaseRefusal(job)
-      if (refusal) throw new Error(refusal)
-      record.drift = await sourceProofDrift(this.projectRoot, job.treePath, job.tree, manifest.suites.map(suite => suiteRelativeFile(suite, manifest.defaults)))
-      if (job.request.native && !job.request.displayShared) {
-        const holder = await this.displayHolder()
-        if (job.cancelRequested) throw new Error('engine job cancelled while checking the display')
-        if (holder) throw new Error(`native run refused: the display is held by ${holder} — pass displayShared:true to run beside it`)
-      }
-      const bridged = !job.request.media
-      if (bridged) await installVulcanWorkerAddon(job.treePath)
-      const hashes = engineTreeHashes(job.tree)
-      if (bridged) hashes.key = createHash('sha256').update(hashes.key).update(VULCAN_ADDON_DIGEST).digest('hex')
-      const seed = seedEngineTree(this.projectRoot, job.treePath, hashes.key)
-      rmSync(vulcanInstancesDir(job.treePath), { recursive: true, force: true })
-      record.importCache = { key: hashes.key, hit: seed.hit, ran: false, seededFrom: seed.seededFrom, stored: false }
-      const explicitImport = selection.entries.some(e => e.kind === 'import')
-      if (!seed.hit || explicitImport) {
-        const timeout = Math.max(1, Math.min(manifest.defaults.importTimeoutMs, budgetLeft()))
-        const row = await this.runOne(job, exe.resolved, IMPORT_SUITE_NAME, root => engineImportArgv(root), timeout, null, this.userDirFor(job, null), unclean)
-        record.results.push(row)
-        record.importCache.ran = true
-        if (row.ok) record.importCache.stored = storeEngineCache(this.projectRoot, job.treePath, hashes.key).stored
-        if (row.timedOut && budgetLeft() <= 0) record.budgetExceeded = true
-        this.writeRecord(job)
-        if (job.request.media && !row.ok) throw new Error('media import failed; no capture or measurement boot was started')
-      }
-      record.classCache = classCacheDigest(job.treePath)
-      if (job.request.media) {
-        await this.runMedia(job, exe.resolved, manifest.defaults.timeoutMs, budgetLeft, unclean)
-        if (budgetLeft() <= 0) record.budgetExceeded = true
-      }
-      for (const entry of selection.entries) {
-        if (entry.kind === 'import') continue
-        if (job.cancelRequested) break
-        if (budgetLeft() <= 0) {
-          record.budgetExceeded = true
-          break
-        }
-        const suite = entry.suite
-        const file = suiteRelativeFile(suite, manifest.defaults)
-        if (suite.local && !existsSync(path.join(job.treePath, file))) {
-          record.results.push({ name: suite.name, skipped: true, reason: `local draft, ${file} absent` })
-          this.writeRecord(job)
-          continue
-        }
-        const timeout = Math.max(1, Math.min(suite.timeoutMs, budgetLeft()))
-        const row = await this.runOne(job, exe.resolved, suite.name, root => engineSuiteArgv(root, suite, manifest.defaults, { native: job.request.native, capture: job.request.capture }), timeout, suite.marker, this.userDirFor(job, suite), unclean)
-        if (row.timedOut && deadline !== null && Date.now() >= deadline) record.budgetExceeded = true
-        record.results.push(row)
-        this.writeRecord(job)
-      }
-      record.cancelled = job.cancelRequested
-      const named = new Set(record.results.map(r => r.name))
-      record.complete = selected.every(name => named.has(name))
-      const ran = record.results.filter((r): r is EngineResultRow => !('skipped' in r) && r.name !== IMPORT_SUITE_NAME)
-      const importRows = record.results.filter((r): r is EngineResultRow => !('skipped' in r) && r.name === IMPORT_SUITE_NAME)
-      record.allPass = record.drift.length === 0 && !record.cancelled && !record.budgetExceeded && record.complete && ran.length > 0 && ran.every(r => r.ok) && importRows.every(r => r.ok)
-      if (record.media?.quiet.contaminated && record.media.quiet.policy === 'refuse') {
-        record.allPass = false
-        record.error = 'quiet-machine guard flagged contamination during the profile boot; timings are retained but are not a quiet comparison'
-        job.error = record.error
-      }
-      job.state = job.cancelRequested ? 'cancelled' : 'done'
-    } catch (e) {
-      record.error = (e as Error).message
-      job.error = record.error
-      job.state = job.cancelRequested ? 'cancelled' : 'failed'
-    } finally {
-      record.cancelled = record.cancelled || job.cancelRequested
-      if (!job.request.keepTree) removeEngineTree(job.treePath)
-      record.tree.kept = job.request.keepTree && existsSync(job.treePath)
-      if (!record.tree.kept) this.stopHeartbeat(job.id)
-      if (job.request.media && budgetLeft() <= 0) record.budgetExceeded = true
-      if (record.cancelled || record.budgetExceeded || record.error !== null) record.allPass = false
-      job.endedAt = new Date().toISOString()
-      record.endedAt = job.endedAt
-      const media = record.media
-      if (media?.kind === 'profile' && (media.request.baseline.save || media.request.baseline.compare)) {
-        if (job.state === 'done' && record.allPass && !media.quiet.contaminated && job.tree) {
-          try {
-            finishEngineProfileBaseline(this.projectRoot, job.tree.commit, [...job.tree.overlay].some(([file, blob]) => blob !== job.tree!.baseBlobs.get(file)), record.executable, media)
-          } catch (e) {
-            media.baseline.reason = `Cannot finish baseline: ${(e as Error).message}`
-          }
-        } else {
-          media.baseline.reason = 'Baseline save and comparison require a successful quiet profile without cancellation, errors, or an exceeded budget.'
-        }
-      }
-      this.writeRecord(job)
-      this.running.delete(job.id)
-      this.busyWorkers.delete(worker)
-      if (NATIVE_JOB === job.id) NATIVE_JOB = null
-      this.remember(job)
-      for (const service of ACTIVE_SERVICES) service.pump()
-    }
+  private runJob(job: EngineJob, worker: number): Promise<void> {
+    return runJobOf.call(this, job, worker)
   }
 
   queryRoad(jobId: string): EngineQueryRoad | null {
-    const job = this.byId.get(jobId)
-    if (!job) return null
-    const media = job.request.media
-    const worker = media ? media.kind : 'suite'
-    if (job.state === 'queued') {
-      const order = [...this.queue].sort((a, b) => priorityRank(a.request.priority) - priorityRank(b.request.priority) || a.seq - b.seq)
-      const ahead = Math.max(0, order.findIndex(queued => queued.id === jobId))
-      return { kind: 'waiting', job, message: `engine job ${jobId} is queued (${this.running.size} running, ${ahead} queued ahead of it, ${this.workers} worker(s)); no engine is running for it yet`, hint: 'op:"engine_jobs" shows the queue; ask again once the job is running' }
-    }
-    if (job.state !== 'running') return { kind: 'none', job, message: `engine job ${jobId} is ${job.state}; no engine is running for it`, hint: 'op:"engine_result" {id} reads its record' }
-    if (job.currentSuite === null || job.currentSuite === IMPORT_SUITE_NAME) return { kind: 'waiting', job, message: `engine job ${jobId} is running its import pass; the ${worker} worker has not booted yet`, hint: 'ask again once op:"engine_jobs" names the worker under liveEngines' }
-    if (!media) {
-      const engine = liveEngines().find(live => live.label === `${jobId}:${job.currentSuite}`)
-      if (engine?.bridge) return { kind: 'bridge', job, instance: engine.bridge.id }
-      return { kind: 'none', job, message: `engine job ${jobId} is running suite ${job.currentSuite} without a bridge, so no live query reaches it`, hint: 'the suite log and op:"engine_result" carry its output' }
-    }
-    const profile = this.debuggers.get(jobId)
-    if (!profile) return { kind: 'none', job, message: `engine job ${jobId} is a ${media.kind === 'capture' ? 'capture' : 'project-source profile'} boot: it has no bridge and no engine debugger connection, so no live query reaches it`, hint: 'op:"engine_result" {id} reads its frames and tables; a profile with source "engine" or "auto" reads its scene tree while it runs' }
-    if (!profile.transport.accepted) return { kind: 'waiting', job, message: `engine job ${jobId} is booting its profile worker; the game has not connected to the engine debugger yet`, hint: 'ask again in a moment; op:"engine_jobs" lists the live engine' }
-    if (!profile.transport.connected) return { kind: 'waiting', job, message: `engine job ${jobId} connected its worker to the engine debugger; the worker's hello has not arrived yet`, hint: 'ask again in a moment' }
-    return { kind: 'debugger', job, profile }
+    return queryRoadOf.call(this, jobId)
   }
 
   async sceneTreeOverDebugger(jobId: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -900,33 +508,8 @@ export class EngineJobService {
     return { ok: true, result: viewGodotSceneTree(node, typeof depth === 'number' && Number.isFinite(depth) ? depth : undefined), ...answer }
   }
 
-  async cancel(id: string): Promise<{ id: string; state: EngineJobState; receipt: ProcessTreeKillReceipt | null } | { error: string }> {
-    const job = this.byId.get(id)
-    if (!job) return { error: `no engine job ${id} in this session — op:"engine_jobs" lists them; a finished run is read with op:"engine_result"` }
-    if (job.state === 'queued') {
-      const at = this.queue.indexOf(job)
-      if (at >= 0) this.queue.splice(at, 1)
-      job.cancelRequested = true
-      job.state = 'cancelled'
-      job.endedAt = new Date().toISOString()
-      job.record = this.baseRecord(job, '', job.request.suites)
-      job.record.cancelled = true
-      job.record.endedAt = job.endedAt
-      this.writeRecord(job)
-      removeEngineTree(job.treePath)
-      this.stopHeartbeat(id)
-      this.remember(job)
-      this.pump()
-      return { id, state: job.state, receipt: null }
-    }
-    if (job.state === 'running') {
-      job.cancelRequested = true
-      const handle = this.handles.get(id)
-      const receipt = handle ? await handle.kill('cancel') : null
-      await this.wait(id, 15_000)
-      return { id, state: job.state, receipt }
-    }
-    return { id, state: job.state, receipt: null }
+  cancel(id: string): Promise<{ id: string; state: EngineJobState; receipt: ProcessTreeKillReceipt | null } | { error: string }> {
+    return cancelOf.call(this, id)
   }
 
   async wait(id: string, ms: number): Promise<EngineJob | null> {
@@ -979,4 +562,463 @@ export class EngineJobService {
     for (const id of [...this.heartbeats.keys()]) this.stopHeartbeat(id)
     ACTIVE_SERVICES.delete(this)
   }
+}
+
+async function runJobOf(this: EngineJobService, job: EngineJob, worker: number): Promise<void> {
+  job.state = 'running'
+  job.worker = worker
+  job.startedAt = new Date().toISOString()
+  const manifest = this.manifest()
+  const selection = job.request.media ? { entries: [], unknown: [] } : resolveEngineSuites(manifest, job.request.suites)
+  const selected = job.request.media ? this.mediaNames(job.request.media) : selection.entries.map(e => (e.kind === 'import' ? IMPORT_SUITE_NAME : e.suite.name))
+  const exe = await this.executable()
+  const record = this.baseRecord(job, 'error' in exe ? '' : exe.resolved, selected)
+  job.record = record
+  this.writeRecord(job)
+  const unclean = uncleanRegExp(manifest.uncleanSource, manifest.uncleanFlags)
+  const deadline = job.request.budgetMs !== null ? Date.now() + job.request.budgetMs : null
+  const budgetLeft = (): number => (deadline === null ? Number.POSITIVE_INFINITY : deadline - Date.now())
+  try {
+    if ('error' in exe) throw new Error(`no Godot executable: ${exe.error}`)
+    if (!job.tree) throw new Error('the frozen tree was not materialised')
+    if (record.media?.kind === 'profile') await this.observeProfileQuiet(job, 'before-import', true)
+    if (job.cancelRequested) throw new Error('engine job cancelled before import')
+    const refusal = await this.leaseRefusal(job)
+    if (refusal) throw new Error(refusal)
+    record.drift = await sourceProofDrift(this.projectRoot, job.treePath, job.tree, manifest.suites.map(suite => suiteRelativeFile(suite, manifest.defaults)))
+    if (job.request.native && !job.request.displayShared) {
+      const holder = await this.displayHolder()
+      if (job.cancelRequested) throw new Error('engine job cancelled while checking the display')
+      if (holder) throw new Error(`native run refused: the display is held by ${holder} — pass displayShared:true to run beside it`)
+    }
+    const bridged = !job.request.media
+    if (bridged) await installVulcanWorkerAddon(job.treePath)
+    const hashes = engineTreeHashes(job.tree)
+    if (bridged) hashes.key = createHash('sha256').update(hashes.key).update(VULCAN_ADDON_DIGEST).digest('hex')
+    const seed = seedEngineTree(this.projectRoot, job.treePath, hashes.key)
+    rmSync(vulcanInstancesDir(job.treePath), { recursive: true, force: true })
+    record.importCache = { key: hashes.key, hit: seed.hit, ran: false, seededFrom: seed.seededFrom, stored: false }
+    const explicitImport = selection.entries.some(e => e.kind === 'import')
+    if (!seed.hit || explicitImport) {
+      const timeout = Math.max(1, Math.min(manifest.defaults.importTimeoutMs, budgetLeft()))
+      const row = await this.runOne(job, exe.resolved, IMPORT_SUITE_NAME, root => engineImportArgv(root), timeout, null, this.userDirFor(job, null), unclean)
+      record.results.push(row)
+      record.importCache.ran = true
+      if (row.ok) record.importCache.stored = storeEngineCache(this.projectRoot, job.treePath, hashes.key).stored
+      if (row.timedOut && budgetLeft() <= 0) record.budgetExceeded = true
+      this.writeRecord(job)
+      if (job.request.media && !row.ok) throw new Error('media import failed; no capture or measurement boot was started')
+    }
+    record.classCache = classCacheDigest(job.treePath)
+    if (job.request.media) {
+      await this.runMedia(job, exe.resolved, manifest.defaults.timeoutMs, budgetLeft, unclean)
+      if (budgetLeft() <= 0) record.budgetExceeded = true
+    }
+    for (const entry of selection.entries) {
+      if (entry.kind === 'import') continue
+      if (job.cancelRequested) break
+      if (budgetLeft() <= 0) {
+        record.budgetExceeded = true
+        break
+      }
+      const suite = entry.suite
+      const file = suiteRelativeFile(suite, manifest.defaults)
+      if (suite.local && !existsSync(path.join(job.treePath, file))) {
+        record.results.push({ name: suite.name, skipped: true, reason: `local draft, ${file} absent` })
+        this.writeRecord(job)
+        continue
+      }
+      const timeout = Math.max(1, Math.min(suite.timeoutMs, budgetLeft()))
+      const row = await this.runOne(job, exe.resolved, suite.name, root => engineSuiteArgv(root, suite, manifest.defaults, { native: job.request.native, capture: job.request.capture }), timeout, suite.marker, this.userDirFor(job, suite), unclean)
+      if (row.timedOut && deadline !== null && Date.now() >= deadline) record.budgetExceeded = true
+      record.results.push(row)
+      this.writeRecord(job)
+    }
+    record.cancelled = job.cancelRequested
+    const named = new Set(record.results.map(r => r.name))
+    record.complete = selected.every(name => named.has(name))
+    const ran = record.results.filter((r): r is EngineResultRow => !('skipped' in r) && r.name !== IMPORT_SUITE_NAME)
+    const importRows = record.results.filter((r): r is EngineResultRow => !('skipped' in r) && r.name === IMPORT_SUITE_NAME)
+    record.allPass = record.drift.length === 0 && !record.cancelled && !record.budgetExceeded && record.complete && ran.length > 0 && ran.every(r => r.ok) && importRows.every(r => r.ok)
+    if (record.media?.quiet.contaminated && record.media.quiet.policy === 'refuse') {
+      record.allPass = false
+      record.error = 'quiet-machine guard flagged contamination during the profile boot; timings are retained but are not a quiet comparison'
+      job.error = record.error
+    }
+    job.state = job.cancelRequested ? 'cancelled' : 'done'
+  } catch (e) {
+    record.error = (e as Error).message
+    job.error = record.error
+    job.state = job.cancelRequested ? 'cancelled' : 'failed'
+  } finally {
+    record.cancelled = record.cancelled || job.cancelRequested
+    if (!job.request.keepTree) removeEngineTree(job.treePath)
+    record.tree.kept = job.request.keepTree && existsSync(job.treePath)
+    if (!record.tree.kept) this.stopHeartbeat(job.id)
+    if (job.request.media && budgetLeft() <= 0) record.budgetExceeded = true
+    if (record.cancelled || record.budgetExceeded || record.error !== null) record.allPass = false
+    job.endedAt = new Date().toISOString()
+    record.endedAt = job.endedAt
+    const media = record.media
+    if (media?.kind === 'profile' && (media.request.baseline.save || media.request.baseline.compare)) {
+      if (job.state === 'done' && record.allPass && !media.quiet.contaminated && job.tree) {
+        try {
+          finishEngineProfileBaseline(this.projectRoot, job.tree.commit, [...job.tree.overlay].some(([file, blob]) => blob !== job.tree!.baseBlobs.get(file)), record.executable, media)
+        } catch (e) {
+          media.baseline.reason = `Cannot finish baseline: ${(e as Error).message}`
+        }
+      } else {
+        media.baseline.reason = 'Baseline save and comparison require a successful quiet profile without cancellation, errors, or an exceeded budget.'
+      }
+    }
+    this.writeRecord(job)
+    this.running.delete(job.id)
+    this.busyWorkers.delete(worker)
+    if (NATIVE_JOB === job.id) NATIVE_JOB = null
+    this.remember(job)
+    for (const service of ACTIVE_SERVICES) service.pump()
+  }
+}
+
+async function submitOf(this: EngineJobService, request: EngineJobRequest): Promise<EngineJob | { refused: string }> {
+  request = structuredClone(request)
+  if (request.media) request = { ...request, native: request.media.route === 'display', capture: false, suites: [] }
+  request = freezeEngineRequest(request)
+  await this.ready
+  const media = request.media
+  if (media) {
+    if (media.route === 'hidden') return { refused: 'hidden run refused: stock Godot shows its native bootstrap window before scripts initialize; no verified hidden bootstrap is available. Use headless project Image capture, or explicitly request route:"display".' }
+    if (media.kind === 'profile' && media.quiet === 'refuse') {
+      const workers = await this.otherEngineWorkers()
+      if (workers.length) return { refused: quietGuardRefusal(workers) }
+    }
+  }
+  const manifest = this.manifest()
+  const selection = request.media ? { entries: [], unknown: [] } : resolveEngineSuites(manifest, request.suites)
+  if (selection.unknown.length > 0) {
+    const known = manifest.suites.map(s => s.name)
+    return {
+      refused: `Unknown suite: ${selection.unknown.join(', ')}${known.length > 0 ? ` — registered: ${known.join(', ')}` : ''}${manifest.teaching ? `; ${manifest.teaching}` : ''}`,
+    }
+  }
+  if (!request.media && selection.entries.length === 0) {
+    return { refused: manifest.teaching ?? `no suites selected — registered: ${manifest.suites.map(s => s.name).join(', ')}` }
+  }
+  if (request.capture && !request.native) return { refused: '--capture requires --native; headless runs do not prove appearance (pass native:true with capture:true)' }
+  const nativeOnly = selection.entries.filter(e => e.kind === 'suite' && e.suite.nativeOnly).map(e => (e.kind === 'suite' ? e.suite.name : ''))
+  if (nativeOnly.length > 0 && !request.native) return { refused: `${nativeOnly.join(', ')} ${nativeOnly.length === 1 ? 'is' : 'are'} native-only: pass native:true (a display run, one at a time)` }
+  const executable = await this.executable()
+  if ('error' in executable) return { refused: `no Godot executable to run the engine: ${executable.error}` }
+  ensureEngineEstate(this.projectRoot)
+  const id = newEngineJobId()
+  const job: EngineJob = {
+    id,
+    request,
+    state: 'queued',
+    seq: this.seq++,
+    queuedAt: new Date().toISOString(),
+    startedAt: null,
+    endedAt: null,
+    runDir: engineRunPath(this.projectRoot, id),
+    treePath: engineTreePath(this.projectRoot, id),
+    worker: null,
+    currentSuite: null,
+    record: null,
+    error: null,
+    cancelRequested: false,
+    tree: null,
+  }
+  Object.defineProperty(job, 'request', { value: request, enumerable: true, writable: false, configurable: false })
+  mkdirSync(job.runDir, { recursive: true })
+  this.byId.set(id, job)
+  this.heartbeats.set(id, startEngineHeartbeat(job.runDir))
+  const facts = await materializeEngineTree(this.projectRoot, request.tree, job.treePath)
+  if ('error' in facts) {
+    job.state = 'failed'
+    job.error = facts.error
+    job.endedAt = new Date().toISOString()
+    job.record = this.baseRecord(job, executable.resolved, selection.entries.map(e => (e.kind === 'import' ? IMPORT_SUITE_NAME : e.suite.name)))
+    job.record.error = facts.error
+    job.record.endedAt = job.endedAt
+    this.writeRecord(job)
+    removeEngineTree(job.treePath)
+    this.stopHeartbeat(id)
+    this.remember(job)
+    return job
+  }
+  job.tree = facts
+  const refusal = await this.leaseRefusal(job)
+  if (refusal) {
+    removeEngineTree(job.treePath)
+    this.stopHeartbeat(id)
+    rmSync(job.runDir, { recursive: true, force: true })
+    this.byId.delete(id)
+    return { refused: refusal }
+  }
+  this.queue.push(job)
+  this.pump()
+  return job
+}
+
+async function runMediaOf(this: EngineJobService, job: EngineJob, executable: string, timeoutMs: number, budgetLeft: () => number, unclean: RegExp): Promise<void> {
+  const request = job.request.media
+  const record = job.record
+  const media = record?.media
+  if (!request || !record || !media || !job.tree) throw new Error('media job is missing its frozen request or run record')
+  const variants = request.kind === 'capture' && request.pair ? ['a', 'b'] : ['single']
+  for (const variant of variants) {
+    if (job.cancelRequested) return
+    if (budgetLeft() <= 0) {
+      record.budgetExceeded = true
+      return
+    }
+    if (request.kind === 'profile') await this.observeProfileQuiet(job, 'before-measurement-boot', true)
+    if (job.cancelRequested) return
+    if (budgetLeft() <= 0) {
+      record.budgetExceeded = true
+      return
+    }
+    const debuggerProfile = request.kind === 'profile' && request.source !== 'project' ? new GodotDebuggerProfile(request, engineMediaDriverFile(job.runDir, variant)) : null
+    try {
+      if (debuggerProfile) {
+        await debuggerProfile.transport.open()
+        this.debuggers.set(job.id, debuggerProfile)
+      }
+      if (job.cancelRequested) return
+      if (budgetLeft() <= 0) { record.budgetExceeded = true; return }
+      const connection = debuggerProfile ? { port: debuggerProfile.transport.port, token: debuggerProfile.transport.token } : undefined
+      const boot = writeEngineMediaDriver(job.runDir, job.treePath, request, variant, connection)
+      const userDir = engineMediaUserDir(job.runDir, variant)
+      mkdirSync(userDir, { recursive: true })
+      let timer: ReturnType<typeof setInterval> | null = null
+      let observing: Promise<void> | null = null
+      if (request.kind === 'profile') {
+        timer = setInterval(() => {
+          if (observing) return
+          observing = this.observeProfileQuiet(job, 'measurement-boot', false).finally(() => { observing = null })
+        }, ENGINE_QUIET_SAMPLE_MS)
+      }
+      let row: EngineResultRow
+      try {
+        media.boots++
+        row = await this.runOne(job, executable, request.kind === 'profile' ? 'profile' : `capture-${variant}`, () => boot.argv, Math.max(1, Math.min(timeoutMs, budgetLeft())), { kind: 'line', text: ENGINE_MEDIA_MARKER }, userDir, unclean)
+      } finally {
+        if (timer) clearInterval(timer)
+        if (observing) await observing
+      }
+      record.results.push(row)
+      if (row.timedOut && budgetLeft() <= 0) record.budgetExceeded = true
+      if (request.kind === 'profile') await this.observeProfileQuiet(job, 'after-measurement-boot', false)
+      this.writeRecord(job)
+      if (debuggerProfile) media.evidence.push(debuggerProfile.evidence())
+      if (debuggerProfile?.transport.error && row.signal === null) throw new Error(debuggerProfile.transport.error)
+      if (!row.ok || job.cancelRequested) return
+      if (debuggerProfile?.transport.accepted && !debuggerProfile.finished) throw new Error('Godot debugger connected but did not finish the profile; no project fallback is claimed')
+      if (request.source === 'engine' && !debuggerProfile?.finished) throw new Error('The game never connected to the engine debugger; source "engine" takes no project tables in its place (source "auto" falls back to them)')
+      const out = readEngineMediaBoot(boot.resultFile, request, variant, boot.outputDir)
+      if (request.kind === 'profile') media.evidence.unshift({ variant, ...out.evidence, source: 'project', phases: out.phases })
+      else media.evidence.push({ variant, ...out.evidence })
+      media.frames.push(...out.frames)
+      if (request.kind === 'capture') {
+        record.frames = media.frames
+        media.phases.push(...out.phases)
+      } else {
+        media.selectedSource = debuggerProfile?.finished ? 'engine' : 'project'
+        media.sources = ['project', ...(debuggerProfile?.finished ? ['engine debugger'] : [])]
+        media.fallbackReason = debuggerProfile && !debuggerProfile.finished ? 'The game never connected to the engine debugger; the project source is selected.' : null
+        media.phases.push(...(debuggerProfile?.finished ? debuggerProfile.phases : out.phases))
+      }
+      this.writeRecord(job)
+    } finally {
+      this.debuggers.delete(job.id)
+      await debuggerProfile?.transport.close()
+    }
+  }
+  if (budgetLeft() <= 0) record.budgetExceeded = true
+  if (job.cancelRequested || record.budgetExceeded) return
+  if (request.kind === 'capture') media.contactSheet = await writeEngineContactSheet(media.frames.map(frame => frame.path), engineContactSheetFile(job.runDir))
+  this.writeRecord(job)
+}
+
+async function runOneOf(
+  this: EngineJobService,
+  job: EngineJob,
+  executable: string,
+  name: string,
+  argvFor: (root: string) => string[],
+  timeoutMs: number,
+  marker: EngineMarker | null,
+  userDir: string,
+  unclean: RegExp,
+): Promise<EngineResultRow> {
+  if (job.cancelRequested) throw new Error('engine job cancelled before launch')
+  const argv = argvFor(job.treePath)
+  const scriptIndex = argv.indexOf('--script')
+  const script = scriptIndex >= 0 ? argv[scriptIndex + 1] : undefined
+  const bridged = !job.request.media && !argv.includes('--check-only') && (script === undefined || script.startsWith('res://'))
+  const instrumented = bridged && script ? injectVulcanWorkerScript(job.treePath, script) : bridged
+  const bridge = instrumented ? await prepareVulcanInstance(job.treePath, name === IMPORT_SUITE_NAME ? 'agent-editor' : job.request.native ? 'native-worker' : 'headless-worker') : undefined
+  const root = bridge?.projectRoot ?? job.treePath
+  const handle = spawnEngine({ executable, args: bridge ? argvFor(root) : argv, cwd: root, userDir, timeoutMs, label: `${job.id}:${name}`, ...(bridge ? { bridge } : {}) })
+  this.handles.set(job.id, handle)
+  job.currentSuite = name
+  const out = await handle.done
+  if (bridge) rmSync(vulcanInstanceDir(job.treePath, bridge.id), { recursive: true, force: true })
+  this.handles.delete(job.id)
+  job.currentSuite = null
+  const logFile = engineRunLogFile(job.runDir, name)
+  try {
+    mkdirSync(path.dirname(logFile), { recursive: true })
+    writeFileSync(logFile, out.output)
+  } catch {
+    void 0
+  }
+  const clean = isCleanEngineLog(out.output, unclean)
+  const markerLine = marker ? markerLineOf(marker, out.output) : null
+  const markerHit = marker === null || markerLine !== null
+  const drift = engineLogDrift(out.output, name, job.id)
+  job.record?.drift.push(...drift)
+  const ok = out.exitCode === 0 && !out.signal && !out.timedOut && !out.spawnError && clean && markerHit && drift.length === 0
+  const errors: EngineRowError[] = []
+  for (const e of engineLogErrors(out.output)) {
+    let lastChange: string | null = null
+    if (e.file && e.file.startsWith('res://') && job.tree) {
+      lastChange = describeAttribution(await engineFileAttribution(this.projectRoot, job.tree, e.file))
+    }
+    errors.push({ ...e, lastChange })
+  }
+  return {
+    name,
+    ok,
+    exitCode: out.exitCode,
+    signal: out.signal,
+    timedOut: out.timedOut,
+    spawnError: out.spawnError,
+    clean,
+    marker: markerHit,
+    seconds: out.seconds,
+    log: logFile,
+    markerLine,
+    failLines: engineFailLines(out.output),
+    scriptErrorLines: engineScriptErrorLines(out.output),
+    errors,
+    argv,
+    startedAt: out.startedAt,
+    endedAt: out.endedAt,
+    cancelled: out.killed === 'cancel',
+    userDir,
+    instance: handle.bridge,
+    drift,
+  }
+}
+
+function baseRecordOf(this: EngineJobService, job: EngineJob, executable: string, selected: string[]): EngineRunRecord {
+  return {
+    proofTreeFingerprint: job.tree ? proofTreeFingerprint(job.tree) : '',
+    drift: [],
+    root: this.projectRoot,
+    executable,
+    results: [],
+    complete: false,
+    allPass: false,
+    jobId: job.id,
+    label: job.request.label,
+    priority: job.request.priority,
+    native: job.request.native,
+    capture: job.request.media?.kind === 'capture' || job.request.capture,
+    enginePath: job.treePath,
+    tree: {
+      label: job.request.tree.label,
+      ref: job.request.tree.ref,
+      commit: job.tree?.commit ?? '',
+      files: job.tree?.files ?? [],
+      skipped: job.tree?.skipped ?? [],
+      kept: job.request.keepTree,
+    },
+    ...(job.request.media ? { media: newEngineMediaRecord(job.request.media) } : {}),
+    selected: job.request.media ? this.mediaNames(job.request.media) : selected,
+    importCache: { key: '', hit: false, ran: false, seededFrom: null, stored: false },
+    classCache: null,
+    userDir: engineRunUserDir(job.runDir),
+    startedAt: job.startedAt ?? job.queuedAt,
+    endedAt: null,
+    cancelled: false,
+    budgetMs: job.request.budgetMs,
+    budgetExceeded: false,
+    error: null,
+  }
+}
+
+async function cancelOf(this: EngineJobService, id: string): Promise<{ id: string; state: EngineJobState; receipt: ProcessTreeKillReceipt | null } | { error: string }> {
+  const job = this.byId.get(id)
+  if (!job) return { error: `no engine job ${id} in this session — op:"engine_jobs" lists them; a finished run is read with op:"engine_result"` }
+  if (job.state === 'queued') {
+    const at = this.queue.indexOf(job)
+    if (at >= 0) this.queue.splice(at, 1)
+    job.cancelRequested = true
+    job.state = 'cancelled'
+    job.endedAt = new Date().toISOString()
+    job.record = this.baseRecord(job, '', job.request.suites)
+    job.record.cancelled = true
+    job.record.endedAt = job.endedAt
+    this.writeRecord(job)
+    removeEngineTree(job.treePath)
+    this.stopHeartbeat(id)
+    this.remember(job)
+    this.pump()
+    return { id, state: job.state, receipt: null }
+  }
+  if (job.state === 'running') {
+    job.cancelRequested = true
+    const handle = this.handles.get(id)
+    const receipt = handle ? await handle.kill('cancel') : null
+    await this.wait(id, 15_000)
+    return { id, state: job.state, receipt }
+  }
+  return { id, state: job.state, receipt: null }
+}
+
+function queryRoadOf(this: EngineJobService, jobId: string): EngineQueryRoad | null {
+  const job = this.byId.get(jobId)
+  if (!job) return null
+  const media = job.request.media
+  const worker = media ? media.kind : 'suite'
+  if (job.state === 'queued') {
+    const order = [...this.queue].sort((a, b) => priorityRank(a.request.priority) - priorityRank(b.request.priority) || a.seq - b.seq)
+    const ahead = Math.max(0, order.findIndex(queued => queued.id === jobId))
+    return { kind: 'waiting', job, message: `engine job ${jobId} is queued (${this.running.size} running, ${ahead} queued ahead of it, ${this.workers} worker(s)); no engine is running for it yet`, hint: 'op:"engine_jobs" shows the queue; ask again once the job is running' }
+  }
+  if (job.state !== 'running') return { kind: 'none', job, message: `engine job ${jobId} is ${job.state}; no engine is running for it`, hint: 'op:"engine_result" {id} reads its record' }
+  if (job.currentSuite === null || job.currentSuite === IMPORT_SUITE_NAME) return { kind: 'waiting', job, message: `engine job ${jobId} is running its import pass; the ${worker} worker has not booted yet`, hint: 'ask again once op:"engine_jobs" names the worker under liveEngines' }
+  if (!media) {
+    const engine = liveEngines().find(live => live.label === `${jobId}:${job.currentSuite}`)
+    if (engine?.bridge) return { kind: 'bridge', job, instance: engine.bridge.id }
+    return { kind: 'none', job, message: `engine job ${jobId} is running suite ${job.currentSuite} without a bridge, so no live query reaches it`, hint: 'the suite log and op:"engine_result" carry its output' }
+  }
+  const profile = this.debuggers.get(jobId)
+  if (!profile) return { kind: 'none', job, message: `engine job ${jobId} is a ${media.kind === 'capture' ? 'capture' : 'project-source profile'} boot: it has no bridge and no engine debugger connection, so no live query reaches it`, hint: 'op:"engine_result" {id} reads its frames and tables; a profile with source "engine" or "auto" reads its scene tree while it runs' }
+  if (!profile.transport.accepted) return { kind: 'waiting', job, message: `engine job ${jobId} is booting its profile worker; the game has not connected to the engine debugger yet`, hint: 'ask again in a moment; op:"engine_jobs" lists the live engine' }
+  if (!profile.transport.connected) return { kind: 'waiting', job, message: `engine job ${jobId} connected its worker to the engine debugger; the worker's hello has not arrived yet`, hint: 'ask again in a moment' }
+  return { kind: 'debugger', job, profile }
+}
+
+async function otherEngineWorkersOf(this: EngineJobService, job?: EngineJob): Promise<string[]> {
+  const workers = new Set<string>()
+  for (const service of ACTIVE_SERVICES) {
+    for (const active of service.running.values()) if (active !== job) workers.add(`engine job ${active.id} on ${service.projectRoot}`)
+  }
+  const ownPid = job ? this.handles.get(job.id)?.pid : null
+  for (const engine of liveEngines()) {
+    if (job && engine.label.startsWith(`${job.id}:`)) continue
+    workers.add(`pid ${engine.pid} ${engine.label}`)
+  }
+  try {
+    for (const engine of await this.strictCensus()) {
+      if (job && (engine.pid === ownPid || (engine.project !== undefined && path.resolve(engine.project) === path.resolve(job.treePath)))) continue
+      workers.add(describeGodotProcess(engine))
+    }
+  } catch (e) {
+    workers.add(`census unavailable: ${(e as Error).message}`)
+  }
+  return [...workers]
 }
