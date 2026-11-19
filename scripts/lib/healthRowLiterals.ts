@@ -15,6 +15,7 @@ interface RowLiteral {
 
 interface RowLiteralRead {
   files: string[]
+  sections: string[]
   rows: string[]
   literals: RowLiteral[]
   ms: number
@@ -31,7 +32,7 @@ function programFor(entry: string): ts.Program {
   return ts.createProgram([entry], { ...parsed.options, noEmit: true, skipLibCheck: true })
 }
 
-function moduleFiles(program: ts.Program, entry: ts.SourceFile): ts.SourceFile[] {
+function moduleFiles(program: ts.Program, entry: ts.SourceFile): { files: ts.SourceFile[]; sections: ts.SourceFile[] } {
   const checker = program.getTypeChecker()
   const imported = (file: ts.SourceFile): ts.SourceFile[] => {
     const out: ts.SourceFile[] = []
@@ -48,7 +49,22 @@ function moduleFiles(program: ts.Program, entry: ts.SourceFile): ts.SourceFile[]
     const module = checker.getSymbolAtLocation(file)
     return module !== undefined && checker.getExportsOfModule(module).some(symbol => symbol.name === LIST_EXPORT)
   })
-  return list ? [entry, list, ...imported(list).filter(file => file !== entry)] : [entry]
+  if (!list) return { files: [entry], sections: [] }
+  const partsOf = (door: ts.SourceFile): ts.SourceFile[] => {
+    const folder = door.fileName.replace(/\.tsx?$/, '/')
+    const found: ts.SourceFile[] = []
+    const walk = (file: ts.SourceFile): void => {
+      for (const part of imported(file)) {
+        if (!part.fileName.startsWith(folder) || found.includes(part)) continue
+        found.push(part)
+        walk(part)
+      }
+    }
+    walk(door)
+    return found
+  }
+  const sections = imported(list).filter(file => file !== entry)
+  return { files: [entry, list, ...sections.flatMap(door => [door, ...partsOf(door)])], sections }
 }
 
 function isModuleSpecifier(node: ts.Node): boolean {
@@ -111,10 +127,12 @@ export function healthRowLiterals(): RowLiteralRead {
   const program = programFor(ENTRY)
   const entry = program.getSourceFile(ENTRY)
   if (!entry) throw new Error('the health report did not load into the compiler program')
-  const files = moduleFiles(program, entry)
+  const { files, sections } = moduleFiles(program, entry)
   const literals = files.flatMap(file => literalsOf(file))
+  const named = (file: ts.SourceFile): string => relative(REPO, file.fileName).split('\\').join('/')
   read = {
-    files: files.map(file => relative(REPO, file.fileName).split('\\').join('/')),
+    files: files.map(named),
+    sections: sections.map(named),
     rows: [...new Set(literals.flatMap(literal => (literal.row === null ? [] : [literal.row])))],
     literals,
     ms: Date.now() - started,

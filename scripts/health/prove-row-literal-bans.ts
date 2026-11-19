@@ -53,9 +53,9 @@ section('2. the reader reaches every row of the list')
   const { healthContext } = await import('../../src/utils/healthReport.ts')
   const context = await healthContext()
   check(
-    `the compiler program follows the report's import of the list to the list and to each section's module (${read.files.length} modules for ${HEALTH_SECTIONS.length} sections, ${read.literals.length} strings, ${read.ms}ms)`,
-    read.files.length === HEALTH_SECTIONS.length + 2 && read.files.every(file => read.literals.some(literal => literal.file === file)),
-    [`modules read: ${read.files.join(' ')}`, 'the reader starts at src/utils/healthReport.ts, finds the module that exports HEALTH_SECTIONS among its imports and reads every module that one imports: a section that is listed another way is not read, and no ban holds it'],
+    `the compiler program follows the report's import of the list to the list and to each section's module with its parts (${read.files.length} modules for ${HEALTH_SECTIONS.length} sections, ${read.literals.length} strings, ${read.ms}ms)`,
+    read.sections.length === HEALTH_SECTIONS.length && read.sections.every(door => read.literals.some(literal => literal.file === door || literal.file.startsWith(door.replace(/\.tsx?$/, '/')))),
+    [`modules read: ${read.files.join(' ')}`, 'the reader starts at src/utils/healthReport.ts, finds the module that exports HEALTH_SECTIONS among its imports and reads every module that one imports, each with the modules it imports from the folder of its own name beside it: a section that is listed another way is not read, and no ban holds it'],
   )
   const unread: string[] = []
   let rows = 0
