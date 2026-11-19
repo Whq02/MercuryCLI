@@ -25,7 +25,7 @@ function check(label: string, ok: boolean): void {
 
 type Guts = { rawRecords: MessageRow[]; paint(): void }
 const connector = new DaemonSessionConnector({ sessionId: randomUUID(), runnerId: 'fixture', title: 'fixture', projectLabel: 'fixture', workspaceId: 'fixture', home })
-const guts = connector as unknown as Guts
+const guts = (connector as unknown as { transcriptPart: Guts }).transcriptPart
 const before = createAssistantMessage({ content: 'BEFORE_COMMAND' })
 guts.rawRecords = [before]
 let done!: LocalJSXCommandOnDone
@@ -67,7 +67,7 @@ guts.paint()
 await assertFrame('prompt lands before the delayed command records')
 check('the stored records are not rewritten to fix their display order', guts.rawRecords[1] === prompt)
 const reload = new DaemonSessionConnector({ sessionId: randomUUID(), runnerId: 'fixture', title: 'fixture', projectLabel: 'fixture', workspaceId: 'fixture', home })
-const reloaded = reload as unknown as Guts
+const reloaded = (reload as unknown as { transcriptPart: Guts }).transcriptPart
 reloaded.rawRecords = [...guts.rawRecords]
 reloaded.paint()
 check('a reload gives the same positions as the live transcript', reload.records().map(row => row.uuid).join() === connector.records().map(row => row.uuid).join())
@@ -76,7 +76,7 @@ connector.addDisplayRow({ ...createUserMessage({ content: formatCommandLoadingMe
 connector.addDisplayRow(createCommandInputMessage('<local-command-stdout>COMMAND_ANSWER</local-command-stdout>'))
 await assertFrame('screen command receipt after the prompt lands')
 const overlapping = new DaemonSessionConnector({ sessionId: randomUUID(), runnerId: 'fixture', title: 'fixture', projectLabel: 'fixture', workspaceId: 'fixture', home })
-const overlapGuts = overlapping as unknown as Guts
+const overlapGuts = (overlapping as unknown as { transcriptPart: Guts }).transcriptPart
 const stamp = (second: number): string => new Date(Date.UTC(2026, 0, 1, 10, 0, second)).toISOString()
 const firstEcho = { ...createUserMessage({ content: formatCommandLoadingMetadata('first', '') }), timestamp: stamp(1) }
 const firstAnswer = { ...createCommandInputMessage('<local-command-stdout>FIRST_ANSWER</local-command-stdout>'), timestamp: stamp(4) }
