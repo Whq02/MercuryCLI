@@ -2,6 +2,7 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
+import { errorMessage, isENOENT } from '../utils/errors.js'
 import { bufferTokens, currentBufferPath, readBuffer, type MnemeObservation } from './mnemeBuffer.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { durableAtomicPublishSync, renameWithWin32RetrySync } from '../substrate/durablePublish.js'
@@ -208,8 +209,10 @@ export function consolidateLockOwnedBy(lock: string, pid: number): boolean {
   let raw: string
   try {
     raw = readFileSync(join(lock, 'pid'), 'utf8')
-  } catch {
-    return true
+  } catch (e) {
+    if (isENOENT(e)) return true
+    logForDebugging(`mneme: the holder of the consolidation lock ${lock} could not be read (${errorMessage(e)}), so the lock is left to go stale`)
+    return false
   }
   const holder = Number(raw.trim())
   return !Number.isInteger(holder) || holder <= 0 || holder === pid
@@ -303,6 +306,7 @@ function consumeBuffer(dir: string): Consumed {
   const rows: MnemeObservation[] = []
   const landedPins: ManifestRow[] = []
   let landedCount = 0
+  const unread = new Set<string>()
   for (const f of files) {
     try {
       for (const line of readFileSync(f, 'utf8').split('\n')) {
@@ -324,9 +328,14 @@ function consumeBuffer(dir: string): Consumed {
           logForDebugging('mneme consumeBuffer: skipped malformed row')
         }
       }
-    } catch {
+    } catch (e) {
+      if (!isENOENT(e)) {
+        logForDebugging(`mneme consumeBuffer: ${f} could not be read (${errorMessage(e)}), so it is left for a later run`)
+        unread.add(f)
+      }
     }
   }
+  if (unread.size > 0) files.splice(0, files.length, ...files.filter(f => !unread.has(f)))
   if (landedCount > 0) logForDebugging(`mneme consumeBuffer: ${landedCount} row(s) already landed pre-crash (manifest dedup)`)
   return { files, rows, staleManifests, landedCount, landedPins }
 }
@@ -350,6 +359,30 @@ function replayLandedPins(dir: string, landedPins: readonly ManifestRow[], now: 
   }
   for (const row of landedPins) {
     if (live.has(row.seq)) pinFact(row.seq, dir, now, { asked: row.asked === true, applicability: row.applicability })
+  }
+}
+
+function unlinkConsumedFiles(files: readonly string[]): number {
+  let left = 0
+  for (const f of files) {
+    try {
+      unlinkSync(f)
+    } catch (e) {
+      if (isENOENT(e)) continue
+      left++
+      logForDebugging(`mneme consolidate: ${f} could not be removed (${errorMessage(e)}), so this run's batch manifests are kept to dedupe it next run`)
+    }
+  }
+  return left
+}
+
+function unlinkBatchManifests(manifests: readonly string[]): void {
+  for (const m of manifests) {
+    try {
+      unlinkSync(m)
+    } catch (e) {
+      if (!isENOENT(e)) logForDebugging(`mneme consolidate: the batch manifest ${m} could not be removed (${errorMessage(e)})`)
+    }
   }
 }
 
@@ -435,7 +468,8 @@ function tidyUp(dir: string, now: Date, alreadyTouched: Set<string>): TidyResult
     const stale = join(dir, docFileName(slug))
     try {
       if (existsSync(stale)) unlinkSync(stale)
-    } catch {
+    } catch (e) {
+      if (!isENOENT(e)) logForDebugging(`memory tidy-up: the merged topic page ${stale} could not be removed (${errorMessage(e)}), so its entries stand in two pages until a later tidy-up`)
     }
     alreadyTouched.delete(slug)
   }
@@ -493,13 +527,9 @@ export function maybeConsolidate(
     }
     if (rows.length === 0) {
       if (consumed.landedCount > 0) {
-        for (const f of [...consumed.files, ...consumed.staleManifests]) {
-          try {
-            unlinkSync(f)
-          } catch {
-          }
-        }
-        return none('crashed batch had fully landed; cleanup completed')
+        const left = unlinkConsumedFiles(consumed.files)
+        if (left === 0) unlinkBatchManifests(consumed.staleManifests)
+        return none(left === 0 ? 'crashed batch had fully landed; cleanup completed' : `crashed batch had fully landed; cleanup left ${left} file(s) it could not remove`)
       }
       restoreConsumed(dir, consumed.files)
       return none('buffer empty')
@@ -644,18 +674,7 @@ export function maybeConsolidate(
     } catch (e) {
       logForDebugging(`memory tidy-up after the batch failed: ${String(e)}`)
     }
-    for (const f of consumed.files) {
-      try {
-        unlinkSync(f)
-      } catch {
-      }
-    }
-    for (const m of [manifestPath, ...consumed.staleManifests]) {
-      try {
-        unlinkSync(m)
-      } catch {
-      }
-    }
+    if (unlinkConsumedFiles(consumed.files) === 0) unlinkBatchManifests([manifestPath, ...consumed.staleManifests])
     return { consolidated: true, reason: 'ok', docsTouched: [...touched].sort(), entries, tidy: tidySummary(tidy) }
   } catch (e) {
     logForDebugging(`mneme consolidate failed: ${String(e)}`)
