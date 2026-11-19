@@ -1,14 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { buildDiffHunks } from '../services/changeTransaction/diffBudget.js'
-import { loadGrammarEngine, parsePolyglot, patternLanguageForFile, type PolyglotLanguage, type TSNode } from '../services/structure/grammarFacility.js'
+import { loadGrammarEngine, parsePolyglot, patternLanguageForFile, type TSNode } from '../services/structure/grammarFacility.js'
 import { encodePattern, substituteRewrite } from '../services/structure/pattern.js'
-import { compileFor } from '../services/structure/polyglotQuery.js'
 import { applyEdits, digestOf, lineExtendedRange, type Edit } from '../services/structure/transform.js'
 import { AST_BOUNDS } from './astPatterns/languages.js'
 import { type AstScope, type AstRefusal, isAstRefusal } from './astPatterns/scope.js'
 import { type AstMatch, type CompileCache, searchAstPattern } from './astPatterns/search.js'
-import { type AstRewriteRule, type AstRewriteFile, type AstLeftOutFile, type AstRewritePlan, sameShape, alignEdits, uncapturedCommentSpans, locateMatchNode, ANON_IN_REWRITE, rewritePlanToken, unifiedDiff, countChangedLines, touchesParseError, introducedParseError } from './astPatterns/rewriteParts.js'
+import { type AstRewriteRule, type AstRewriteFile, type AstLeftOutFile, type AstRewritePlan, alignEdits, uncapturedCommentSpans, locateMatchNode, ANON_IN_REWRITE, rewritePlanToken, unifiedDiff, countChangedLines, touchesParseError, introducedParseError } from './astPatterns/rewriteParts.js'
 import { planAstBatchRewrite } from './astPatterns/batchRewrite.js'
+import { spansTerminator, shapeFor, releaseCompiled } from './astPatterns/singleRewrite.js'
 
 export { AST_BOUNDS, availableAstLanguages, astLanguageNames, GRAMMAR_PACK_REMEDY, resolveAstLanguage, PATTERN_GRAMMAR_LINES, PATTERN_EXAMPLES, LANGUAGE_PATTERN_EXAMPLES } from './astPatterns/languages.js'
 export { isAstRefusal, resolveAstScope, describeSkipped } from './astPatterns/scope.js'
@@ -72,35 +72,6 @@ export async function planAstRewrite(
   const terminatorByLang = new Map<string, boolean>()
   const encodedPattern = encodePattern(singlePattern)
   const encodedRewrite = encodePattern(singleRewrite)
-  async function spansTerminator(lang: PolyglotLanguage): Promise<boolean> {
-    const cached = terminatorByLang.get(lang.name)
-    if (cached !== undefined) return cached
-    const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedPattern, patternCache)
-    const spans = !('state' in pat) && pat.pattern.spansTerminator === true
-    terminatorByLang.set(lang.name, spans)
-    return spans
-  }
-  async function shapeFor(lang: PolyglotLanguage): Promise<{ pat: TSNode; rw: TSNode; standIn?: RegExp } | null> {
-    const cached = shapeByLang.get(lang.name)
-    if (cached !== undefined) return cached
-    let shape: { pat: TSNode; rw: TSNode; standIn?: RegExp } | null = null
-    if (singleRewrite.trim() !== '') {
-      const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedPattern, patternCache)
-      const rw = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedRewrite, rewriteCache)
-      if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root, pat.pattern.standIn, rw.pattern.standIn)) {
-        shape = { pat: pat.pattern.root, rw: rw.pattern.root, ...(pat.pattern.standIn && { standIn: pat.pattern.standIn }) }
-      }
-    }
-    shapeByLang.set(lang.name, shape)
-    return shape
-  }
-  const releaseCompiled = (): void => {
-    for (const cache of [patternCache, rewriteCache]) {
-      for (const entry of cache.values()) {
-        if (!('state' in entry)) entry.hold.delete()
-      }
-    }
-  }
 
   const files: AstRewriteFile[] = []
   const leftOut: AstLeftOutFile[] = []
@@ -109,13 +80,13 @@ export async function planAstRewrite(
   let inPlaceMatches = 0
   for (const [rel, list] of [...byFile.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
     if (opts.signal?.aborted) {
-      releaseCompiled()
+      releaseCompiled(patternCache, rewriteCache)
       return { refused: 'cancelled before planning finished — nothing written.' }
     }
     const first = list[0]!
     const lang = scope.files.find(f => f.rel === rel)?.lang ?? patternLanguageForFile(first.abs)
     if (!lang) {
-      releaseCompiled()
+      releaseCompiled(patternCache, rewriteCache)
       return { refused: `${rel}: no grammar for this file (it should not have matched).` }
     }
     const recovery = search.recovered?.find(file => file.rel === rel)
@@ -129,7 +100,7 @@ export async function planAstRewrite(
     try {
       before = recovery?.source ?? readFileSync(first.abs, 'utf8')
     } catch (err) {
-      releaseCompiled()
+      releaseCompiled(patternCache, rewriteCache)
       return { refused: `${rel}: unreadable — ${(err as Error).message}. Nothing was written.` }
     }
     list.sort((a, b) => a.startIndex - b.startIndex || b.endIndex - a.endIndex)
@@ -143,7 +114,7 @@ export async function planAstRewrite(
           `(${JSON.stringify(cur.text.split('\n')[0]!.slice(0, 60))} inside ${JSON.stringify(prev.text.split('\n')[0]!.slice(0, 60))}), ` +
           `so rewriting both would rewrite the same bytes twice. Narrow the pattern so matches do not nest, or split the scope. Nothing was written.`
         if (!recovery) {
-          releaseCompiled()
+          releaseCompiled(patternCache, rewriteCache)
           return { refused: refusal }
         }
         nested = { rel, note: `${cur.startLine}:${cur.startCol} the match sits inside the match at line ${prev.startLine}`, refusal }
@@ -163,8 +134,8 @@ export async function planAstRewrite(
         continue
       }
     }
-    const shape = await shapeFor(lang)
-    const keepsTerminator = await spansTerminator(lang)
+    const shape = await shapeFor(engine, shapeByLang, singleRewrite, encodedPattern, encodedRewrite, patternCache, rewriteCache, lang)
+    const keepsTerminator = await spansTerminator(engine, terminatorByLang, encodedPattern, patternCache, lang)
     let tree: { rootNode: TSNode; delete(): void } | null = null
     if (shape) {
       const parsed = await parsePolyglot(engine, lang, before)
@@ -185,7 +156,7 @@ export async function planAstRewrite(
           captureNames.length > 0 ? captureNames : (search.captureNamesByLang.get(lang.name) ?? []),
         )
         if (typeof substituted !== 'string') {
-          releaseCompiled()
+          releaseCompiled(patternCache, rewriteCache)
           return {
             refused: `${rel}:${m.startLine}: the rewrite ${substituted.refuse.replace(/^out references /, 'references ')} — every meta-variable in the rewrite must be captured by the pattern. Nothing was written.`,
           }
@@ -242,7 +213,7 @@ export async function planAstRewrite(
       if (edits[i]!.start < edits[i - 1]!.end) {
         const refusal = `Ambiguous rewrite in ${rel}: two deletions share a line — narrow the pattern. Nothing was written.`
         if (!recovery) {
-          releaseCompiled()
+          releaseCompiled(patternCache, rewriteCache)
           return { refused: refusal }
         }
         const match = list.find(m => edits[i]!.start <= m.endIndex && edits[i]!.end >= m.startIndex) ?? first
@@ -271,7 +242,7 @@ export async function planAstRewrite(
     {
       const reparsed = await parsePolyglot(engine, lang, after, recovery ? { errorRegions: true } : undefined)
       if ('state' in reparsed) {
-        releaseCompiled()
+        releaseCompiled(patternCache, rewriteCache)
         return { refused: `${rel}: ${reparsed.note}. Nothing was written.` }
       }
       const broken = reparsed.parseErrors.length > 0
@@ -286,7 +257,7 @@ export async function planAstRewrite(
           continue
         }
       } else if (broken) {
-        releaseCompiled()
+        releaseCompiled(patternCache, rewriteCache)
         return {
           refused: `The rewrite would leave ${rel} unparsable as ${lang.name} (${firstError}) — adjust the rewrite so the result is valid code. Nothing was written.`,
         }
@@ -311,7 +282,7 @@ export async function planAstRewrite(
       edits,
     })
   }
-  releaseCompiled()
+  releaseCompiled(patternCache, rewriteCache)
   if (files.length === 0 && leftOut.length > 0 && unchangedMatches === 0) return { refused: leftOut[0]!.refusal }
   const token = rewritePlanToken(singlePattern, singleRewrite, files.map(f => [f.rel, f.digestBefore, f.digestAfter]), leftOut.map(f => f.rel))
   return {
