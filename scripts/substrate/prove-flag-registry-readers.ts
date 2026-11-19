@@ -46,16 +46,11 @@ type Near = { before: ts.Node | undefined; after: ts.Node | undefined; argument:
 const NAMED: Row[] = [
   { file: 'scripts/gate/impact-doors.txt', line: 'src/@S@/flags/** src/@S@/@M@.ts', why: "the planner's door row: a glob and a path that scripts/verify/impactManifest.ts matches against changed paths; it opens no registry file" },
   { file: 'scripts/identity/prove-docs-altitude.ts', line: "const CONFIG_INDEX_SPELLING = J('src/@S@/', '@M@.ts')", why: 'the spelling a document may cite: the proof strips it from document text and opens no registry file' },
-  { file: 'scripts/memory/prove-memory-always-on.ts', line: "for (const dir of ['src/mneme', 'src/tools/MemoryTools', 'src/components/memory', 'src/commands/memory', 'src/utils/capability', 'src/utils/cockpit', 'src/services/mcp', 'src/@S@', 'src/query', 'src/utils/attachments']) {", why: "ten folders walked for memory gate words: the registry's files are skipped by the path test and read through the door" },
-  { file: 'scripts/motion/prove-motion-wire-trip.ts', line: "check('the governor is still config-free (flag reads only)', !/utils\\/config/.test(governorSrc) && /@M@/.test(governorSrc))", why: "tests the motion governor's own source for its import of the registry: it reads the governor" },
-  { file: 'scripts/notifications/prove-surface-router.ts', line: "l => l.includes('@M@') || l.includes('ink/events/input-event') || l.includes('utils/fullscreen') || l.includes('services/concourse/concourseEnabled') || l.includes('components/mercury-ui/keyHintLabel'),", why: "an import the route owner may carry: the proof reads the owner's import lines" },
   { file: 'scripts/orphans/gen-reachability-manifest.ts', line: "'src/@S@/@M@.ts',", why: 'a root-class label written into the generated manifest: the generator reads the rows through its import' },
   { file: 'scripts/substrate/gen-flag-table.ts', line: '> Derived from \\`src/@S@/@M@.ts\\` by \\`scripts/@S@/gen-flag-table.ts\\`.', why: 'a sentence in the header of the rendered table: the renderer reads the rows through its import' },
-  { file: 'scripts/transcript-rows/prove-motion-governor.ts', line: "check('the governor is config-free (flag reads only — the ink layer taps it)', !/utils\\/config/.test(governor) && /@M@/.test(governor))", why: "tests the motion governor's own source for its import of the registry: it reads the governor" },
   { file: 'scripts/vulcan/vulcan-audit-waves.js', line: 'The new surfaces: src/utils/vulcan/*, src/services/vulcan/*, src/tools/GodotTool/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools.ts, src/constants/prompts.ts, src/constants/subagentDoctrine.ts, src/utils/cockpit/harnessMap.ts, src/@S@/startupMenu.ts, src/@S@/@M@.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.', why: 'a file list inside the audit prompt text: the script opens none of them' },
-  { file: 'scripts/wards/prove-wards-model-free.ts', line: "'../@S@/@M@.js',", why: "an import specifier the wards guard may carry: the proof reads the guard's imports" },
 ].map(row => ({ ...row, line: spell(row.line) }))
-const NAMED_ROWS = 10
+const NAMED_ROWS = 5
 
 type Place = { file: string; line: number; flag: string; form: string; say: string }
 type Kept = { file: string; flag: string; places: number; why: string }
@@ -93,7 +88,7 @@ const AMBIENT = 'ambient environment: waits for the environment door'
 const MIXED = 'a list that holds names with no row beside the registered ones, on an environment that is not the process: flagEnv throws on the others and flagEnvLoose takes no environment'
 const NO_REMOVE = 'the key holds undefined, which takes the flag out of the child: no verb of the door says remove'
 const UNSEEN: Unseen[] = [
-  { file: 'src/services/providers/accountSlots.ts', fn: 'compatSlots', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/services/providers/accountSlots/compat.ts', fn: 'compatSlots', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
   { file: 'src/services/llmHost/index.ts', fn: 'runLlmHost', at: 'process.env', kind: 'read', places: 2, why: AMBIENT },
   { file: 'src/services/providers/modelRegistry.ts', fn: 'snapshotKey', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
   { file: 'src/services/providers/providerIdentityLine.ts', fn: 'memoKey', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
@@ -106,7 +101,7 @@ const UNSEEN: Unseen[] = [
   { file: 'src/daemon/headlessRun.ts', fn: 'scrubDaemonRoleEnv', at: 'env', kind: 'read', places: 1, why: MIXED },
   { file: 'src/daemon/run/restart.ts', fn: 'spawnSuccessorDaemon', at: 'env', kind: 'read', places: 1, why: MIXED },
   { file: 'src/daemon/ownedDaemon.ts', fn: 'spawnOwnedDaemon', at: 'env', kind: 'read', places: 1, why: MIXED },
-  { file: 'src/main.tsx', fn: 'applyMergedConfigEnv', at: 'process.env', kind: 'write', places: 1, why: "every key of the settings' environment block goes into the process: setFlagEnv and stampFlagEnv throw on a name with no row" },
+  { file: 'src/main/cli.ts', fn: 'applyMergedConfigEnv', at: 'process.env', kind: 'write', places: 1, why: "every key of the settings' environment block goes into the process: setFlagEnv and stampFlagEnv throw on a name with no row" },
   { file: 'src/utils/managedEnv.ts', fn: 'applyFiltered', at: 'process.env', kind: 'write', places: 1, why: 'every key of the managed environment goes into the process: setFlagEnv and stampFlagEnv throw on a name with no row' },
   { file: 'src/daemon/ownedDaemon.ts', fn: 'spawnOwnedDaemon', at: 'env', kind: 'write', places: 1, why: 'every key of the extra environment is copied: a mixed map, and stampFlagOnEnv throws on a name with no row' },
   { file: 'src/extensions/options.ts', fn: 'optionEnv', at: 'env', kind: 'write', places: 1, why: 'the name is built from the family prefix and a key: the whole name has no row' },
@@ -116,7 +111,7 @@ const UNSEEN: Unseen[] = [
   { file: 'src/daemon/run/restart.ts', fn: 'spawnSuccessorDaemon', at: 'env', kind: 'delete', places: 1, why: MIXED },
   { file: 'src/daemon/ownedDaemon.ts', fn: 'spawnOwnedDaemon', at: 'env', kind: 'delete', places: 2, why: MIXED },
   { file: 'src/utils/subprocessEnv.ts', fn: 'deleteNames', at: 'env', kind: 'delete', places: 1, why: AMBIENT },
-  { file: 'src/utils/subprocessEnv.ts', fn: 'subprocessEnv', at: 'clone', kind: 'delete', places: 1, why: AMBIENT },
+  { file: 'src/utils/subprocessEnv.ts', fn: 'scrub', at: 'clone', kind: 'delete', places: 1, why: AMBIENT },
   { file: 'src/daemon/handshake.ts', fn: '', at: 'MERCURY_DAEMON_SUCCESSOR_OF', kind: 'key', places: 1, why: NO_REMOVE },
   { file: 'src/daemon/handshake.ts', fn: '', at: 'MERCURY_DAEMON_OWNER_PID', kind: 'key', places: 2, why: NO_REMOVE },
   { file: 'src/services/eval/jsRunnerSource.ts', fn: '', at: '', kind: 'text', places: 2, why: 'the text of a program that another node runs: it cannot import the registry' },

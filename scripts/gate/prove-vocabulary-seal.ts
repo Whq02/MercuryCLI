@@ -240,7 +240,7 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/search/fixtures/', 'words', "captured third-party search-result pages — the outside world's own text, replayed verbatim"],
   ['scripts/search/prove-websearch-doors.ts', 'words', 'names the needles it refuses in its negative user-agent checks'],
   ['scripts/search/lib/bundle-for-node.ts', 'words', "Bun's build API vocabulary (the bundling hook)"],
-  ['src/services/browser/browserSession.ts', 'words', "the DOM's own names (navigator.plugins, Plugin) the stealth init reads and reshapes — the browser's vocabulary, not Mercury's"],
+  ['src/services/browser/session/stealth.ts', 'words', "the DOM's own names (navigator.plugins, Plugin) the stealth init reads and reshapes — the browser's vocabulary, not Mercury's"],
   ['scripts/browser/prove-browser-stealth.ts', 'words', "the DOM's own names (navigator.plugins, Plugin) the detection checks read — the browser's vocabulary, not Mercury's"],
   ['scripts/browser/prove-browser-prepared-once.ts', 'words', "the DOM's own name (navigator.plugins) among the five readings a frame is held to its page on — the browser's vocabulary, not Mercury's"],
   ['scripts/browser/prove-browser-marked-names.ts', 'words', "the DOM's own names (navigator.plugins, Plugin, PluginArray) of the functions the stealth init marks, read beside Chrome's own — the browser's vocabulary, not Mercury's"],

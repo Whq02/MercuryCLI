@@ -8,7 +8,7 @@ const REGISTRY = flagRegistryFiles()[0]!
 
 const JOIN_ALLOWLIST: Record<string, string> = {
   'src/utils/projectConfig.ts': 'THE seam — the home names live here',
-  'src/utils/worktree.ts':
+  'src/utils/worktree/delta.ts':
     'classifier vocabulary — MERCURY_EPHEMERAL_PREFIXES names the cache-clock debris path; a classifier row, never a write path',
   'src/utils/envUtils.ts': 'THE config-home resolver + label derivation',
   'src/entrypoints/cli.tsx':
