@@ -87,4 +87,8 @@ export type StreamPass = {
   streamEventCount: number
   streamWatchdogFiredAt: number | null
   sawMessageStop: boolean
+  isFirstChunk: boolean
+  lastEventTime: number | null
+  totalStallTime: number
+  stallCount: number
 }
