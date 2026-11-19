@@ -6,17 +6,14 @@ import { getInitialEffortSetting } from '../../utils/effort.js';
 import { armFaceDoorDeepLink } from '../../substrate/splashHandover.js';
 import {
   chatOnlyBoot,
-  consumeEntryDecisionInput,
   enterBootSettings,
   enterRootChat,
   registerRouteSurface,
-  returnToConcourse,
   surfaceGeneration,
 } from '../../context/surfaceRoute.js';
 import {
   dispatchSeedInputs,
   markParkedCleared,
-  markSessionSeen,
   OLDER_CHATS_ROW_PREFIX,
   readConcourseSeedOverrides,
   resolveHarnessGround,
@@ -24,21 +21,20 @@ import {
   writeConcourseSeedOverride,
 } from '../../services/concourse/concourseSnapshot.js';
 import { resolveObligation } from '../../services/crew/obligations.js';
-import { getFocusedSessionConnector, hasFocusedSession, withLanding } from '../../services/engine-connector/focusedConnector.js';
-import { armEntryWarmth, settleEntryWarmth } from '../../services/concourse/sessionWarmth.js';
 import { removePrefixRecord } from '../../services/providers/anthropic/prefixRecordStore.js';
-import type { ConcourseCallbacks, ControlNoteState } from './contracts.js';
-import { CONTROL_NOTE_REFUSED_MS, CONTROL_NOTE_SETTLED_MS, controlNoteOf, concourseWaitCopy } from './contracts.js';
+import type { ConcourseCallbacks } from './contracts.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { splitAvailableAt, splitViewOn } from './splitView.js';
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
 import { ConcourseScreen } from './ConcourseScreen.js';
 import { SessionWaitingRoom } from './SessionWaitingRoom.js';
-import { thisMercuryCommand } from '../../services/privateChannel/installPath.js';
-import { sleep } from '../../utils/sleep.js';
 import { ConcourseAssemblingShell } from './route/Assembling.js';
 import { noteFromReceipt, rowReceipt, rowReceiptClock } from './route/receipts.js';
 import { readFixtureSnapshot, useConcourseSnapshot } from './route/useConcourseSnapshot.js';
+import { useConcourseAdmissionPump } from './route/useConcourseAdmissionPump.js';
+import { useConcourseControlNotes } from './route/useConcourseControlNotes.js';
+import { useConcourseDraftDispatch } from './route/useConcourseDraftDispatch.js';
+import { useConcourseEntry } from './route/useConcourseEntry.js';
 
 export { makeCoalescedRebuild } from './route/useConcourseSnapshot.js';
 
@@ -82,41 +78,7 @@ function LiveConcourse(): React.ReactNode {
     (): boolean => splitViewOn() && splitAvailableAt(termColsRef.current, termRowsRef.current),
     [],
   )
-  const [controlNotes, setControlNotes] = useState<Readonly<Record<string, ControlNoteState>>>({})
-  const noteSeqRef = useRef(0)
-  const noteIdentityRef = useRef<Record<string, number>>({})
-  const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
-  useEffect(
-    () => () => {
-      for (const t of Object.values(noteTimersRef.current)) clearTimeout(t)
-      noteTimersRef.current = {}
-    },
-    [],
-  )
-  const noteControl = useCallback((control: string, state: ControlNoteState): void => {
-    setControlNotes(prev => ({ ...prev, [control]: state }))
-    const mySeq = ++noteSeqRef.current
-    noteIdentityRef.current[control] = mySeq
-    const stale = noteTimersRef.current[control]
-    if (stale !== undefined) {
-      clearTimeout(stale)
-      delete noteTimersRef.current[control]
-    }
-    const kind = controlNoteOf(state).state
-    if (kind !== 'pending') {
-      const timer = setTimeout(() => {
-        if (noteIdentityRef.current[control] !== mySeq) return
-        delete noteTimersRef.current[control]
-        setControlNotes(prev => {
-          const next = { ...prev }
-          delete next[control]
-          return next
-        })
-      }, kind === 'refused' || kind === 'failed' ? CONTROL_NOTE_REFUSED_MS : CONTROL_NOTE_SETTLED_MS)
-      timer.unref?.()
-      noteTimersRef.current[control] = timer
-    }
-  }, [])
+  const { controlNotes, noteControl } = useConcourseControlNotes()
   const redirectIdRef = useRef<Map<string, { instruction: string; id: string }>>(new Map())
   const controlOpIdRef = useRef<Map<string, { id: string; mintedAtMs: number }>>(new Map())
   const CONTROL_RETRY_WINDOW_MS = 15_000
@@ -162,129 +124,7 @@ function LiveConcourse(): React.ReactNode {
       noteControl('strip:composer', { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} archives it (the chat stands parked)` })
     }
   }, [snapshot, noteControl])
-  const enterOpRef = useRef<{ sessionId: string; gen: number } | null>(null)
-  const [waitingRoom, setWaitingRoom] = useState<{
-    dispatchId: string
-    title: string
-    project: string
-  } | null>(null)
-  const drainQueuedStack = useCallback(async (dispatchId: string, sessionId: string): Promise<void> => {
-    try {
-      const store = await import('../../services/concourse/concourseSnapshot.js')
-      const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-      const entries = await store.readConcourseQueuedStack(dispatchId)
-      for (const entry of entries) {
-        const reply = (await daemonControlRpc(
-          {
-            op: 'concourseDispatch',
-            clientMessageId: entry.clientMessageId,
-            prompt: entry.text,
-            workspaceDir: '',
-            targetSessionId: sessionId,
-            by: 'operator',
-          } as never,
-          { timeoutMs: 15_000 },
-        )) as { ok?: boolean; refusal?: string }
-        if (reply.ok === true) {
-          await store.removeConcourseQueuedStackEntry(dispatchId, entry.clientMessageId)
-        } else if (reply.refusal === 'edited-replay') {
-          await store.removeConcourseQueuedStackEntry(dispatchId, entry.clientMessageId)
-        } else {
-          break
-        }
-      }
-    } catch (e) {
-      logForDebugging(`[concourse] queued-stack drain failed (replayed next pump): ${e}`)
-    }
-  }, [])
-  const attachAndEnter = useCallback(
-    (
-      sessionId: string,
-      noteKey: string,
-      opts?: { fullChat?: boolean; parkedFact?: { transcriptPath: string; title: string }; entry?: 'dispatch' | 'settled' },
-    ): void => {
-      if (sessionId.startsWith('dispatch:')) {
-        noteControl(noteKey, {
-          state: 'refused',
-          reason: 'still waiting for a seat',
-          next: 'it starts when one frees',
-        })
-        return
-      }
-      if (sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
-        noteControl(noteKey, { state: 'refused', reason: 'the older chats unfold on the board — ↵ on the line opens them' })
-        return
-      }
-      void markSessionSeen(sessionId).catch(() => {})
-      const row = snapshotRef.current?.groups.flatMap(g => g.rows).find(r => r.sessionId === sessionId)
-      const rowParked = row?.state === 'parked' ? { transcriptPath: row.transcriptPath, title: row.title } : undefined
-      const parked = opts?.parkedFact ?? rowParked
-      const op = { sessionId, gen: surfaceGeneration() }
-      enterOpRef.current = op
-      noteControl(noteKey, { state: 'pending', reason: parked !== undefined ? 'bringing it back…' : 'opening…' })
-      armEntryWarmth(sessionId, row?.title ?? parked?.title, hasFocusedSession() ? getFocusedSessionConnector().sessionId() : undefined)
-      const landing = withLanding(
-        (async () => {
-          const hops = await import('../../services/switchboard/hopIntoSession.js')
-          return parked !== undefined
-            ? await hops.focusResumedSession(sessionId, parked.transcriptPath, { title: parked.title })
-            : await hops.hopIntoBoardSession(sessionId)
-        })(),
-      )
-      const settled = opts?.entry === 'settled'
-      const split = splitFrameStands() && opts?.fullChat !== true
-      let flippedGen: number | null = null
-      if (!settled) {
-        if (split) {
-          consumeEntryDecisionInput()
-        } else if (enterRootChat().ok) {
-          flippedGen = surfaceGeneration()
-        }
-      }
-      void (async () => {
-        try {
-          const hop = await landing
-          if (!hop.ok) {
-            noteControl(noteKey, { state: 'refused', reason: hop.reason })
-            if (flippedGen !== null && surfaceGeneration() === flippedGen) returnToConcourse()
-            return
-          }
-          if (enterOpRef.current !== op) return
-          if (!settled) {
-            noteControl(noteKey, split ? { state: 'applied', reason: 'in the chat pane' } : 'applied')
-            return
-          }
-          if (surfaceGeneration() === op.gen) {
-            if (splitFrameStands() && opts?.fullChat !== true) {
-              noteControl(noteKey, { state: 'applied', reason: 'in the chat pane' })
-            } else {
-              noteControl(noteKey, 'applied')
-              enterRootChat()
-            }
-          }
-        } catch (e) {
-          logForDebugging(`[switchboard] hop failed: ${e}`)
-          noteControl(noteKey, { state: 'failed', reason: 'the session could not be opened', next: '↵ retries' })
-          if (flippedGen !== null && surfaceGeneration() === flippedGen) returnToConcourse()
-        } finally {
-          settleEntryWarmth(sessionId)
-          if (enterOpRef.current === op) enterOpRef.current = null
-        }
-      })()
-    },
-    [noteControl, splitFrameStands],
-  )
-  const waitingRoomAdmitted = useCallback(
-    (dispatchId: string, sessionId: string): void => {
-      void (async () => {
-        await drainQueuedStack(dispatchId, sessionId)
-        setWaitingRoom(null)
-        setPeek(sessionId)
-        attachAndEnter(sessionId, 'board:open', { entry: 'settled' })
-      })()
-    },
-    [drainQueuedStack, attachAndEnter],
-  )
+  const { waitingRoom, setWaitingRoom, drainQueuedStack, attachAndEnter, waitingRoomAdmitted } = useConcourseEntry({ noteControl, splitFrameStands, snapshotRef, setPeek })
   const callbacks = useMemo<ConcourseCallbacks>(
     () => ({
       noteControl,
@@ -866,360 +706,8 @@ function LiveConcourse(): React.ReactNode {
     }),
     [setPeek, noteResident, refresh, noteControl, attachAndEnter],
   )
-  const submitInFlight = useRef(false)
-  const seedWriteChain = useRef<Promise<unknown>>(Promise.resolve())
-  const birthInFlightRef = useRef(false)
-  const submitIdRef = useRef<{ key: string; id: string } | null>(null)
-  useEffect(() => {
-    void import('../../services/concourse/concourseSnapshot.js').then(async s => {
-      if (submitIdRef.current !== null) return
-      const held = await s.readConcourseHeldDispatch()
-      if (held !== null && submitIdRef.current === null)
-        submitIdRef.current = { key: held.envelopeKey, id: held.clientMessageId }
-    })
-  }, [])
-  const daemonOfferRef = useRef<{ draft: string } | null>(null)
-  const submitDraft = useCallback(
-    (draft: string): void => {
-      if (submitInFlight.current) return
-      submitInFlight.current = true
-      void (async () => {
-        try {
-          const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-          const { randomUUID } = await import('../../utils/crypto.js')
-          await seedWriteChain.current
-          const seeds = await readConcourseSeedOverrides()
-          const si = dispatchSeedInputs(seeds, getCwd(), snapshotRef.current?.newSession.seeds.modelId, getInitialEffortSetting())
-          const envelopeKey = `${draft}\u0000${JSON.stringify(si)}`
-          const minted = submitIdRef.current
-          const clientMessageId =
-            minted !== null && minted.key === envelopeKey ? minted.id : `concourse-ui-${randomUUID()}`
-          submitIdRef.current = { key: envelopeKey, id: clientMessageId }
-          const opInputs: Record<string, unknown> = {
-            workspaceDir: si.workspaceDir,
-            ...(si.modelKey !== undefined ? { model: si.modelKey } : {}),
-            ...(si.effort !== undefined ? { effort: si.effort } : {}),
-            title: si.title ?? draft.replace(/\s+/g, ' ').slice(0, 48),
-            ...(si.agentName !== undefined ? { agentName: si.agentName } : {}),
-            ...(si.seatsMax !== undefined ? { seatsMax: si.seatsMax } : {}),
-            ...(seeds.isolation !== undefined ? { isolation: si.isolation } : {}),
-          }
-          const reply = await daemonControlRpc(
-            {
-              op: 'concourseDispatch',
-              clientMessageId,
-              by: 'operator',
-              prompt: draft,
-              ...opInputs,
-            } as never,
-            { timeoutMs: 15_000 },
-          )
-          const snapshotStore = await import('../../services/concourse/concourseSnapshot.js')
-          if ((reply as { ok?: boolean }).ok) {
-            submitIdRef.current = null
-            await snapshotStore.writeConcourseHeldDispatch(null)
-            await writeConcourseDraft('')
-            noteResident('wink')
-            const okr = reply as { branchName?: string; mainHolderTitle?: string }
-            const landedIn = basename(si.workspaceDir) || si.workspaceDir
-            noteControl(
-              'strip:composer',
-              okr.branchName !== undefined
-                ? {
-                    state: 'applied',
-                    reason: `on worktree ${okr.branchName} in ${landedIn}${okr.mainHolderTitle !== undefined ? ` — main checkout is with ${okr.mainHolderTitle}` : ''}`,
-                  }
-                : { state: 'applied', reason: `started in ${landedIn}` },
-            )
-          } else {
-            const r = reply as {
-              state?: string
-              heldReason?: string
-              heldByTitle?: string
-              moves?: Array<{ verb: string; label: string }>
-              detail?: string
-              error?: string
-              code?: string
-            }
-            if (r.state === 'queued') {
-              await snapshotStore.writeConcourseHeldDispatch({
-                clientMessageId,
-                envelopeKey,
-                prompt: draft,
-                op: opInputs,
-              })
-              const waitCopy = concourseWaitCopy(r.heldReason, r.heldByTitle)
-              noteResident('held', waitCopy)
-              noteControl('strip:composer', {
-                state: 'held',
-                reason: waitCopy,
-                next: r.moves?.[0]?.label ?? '↵ again replays the same request',
-              })
-            } else if (r.code === 'ETIMEOUT' || r.code === 'ENOCONN') {
-              await snapshotStore.writeConcourseHeldDispatch({
-                clientMessageId,
-                envelopeKey,
-                prompt: draft,
-                op: opInputs,
-              })
-              if (r.code === 'ENOCONN') {
-                daemonOfferRef.current = { draft }
-                noteResident('held', 'the daemon that hosts background sessions is not running')
-                noteControl('strip:composer', {
-                  state: 'failed',
-                  reason: 'the daemon that hosts background sessions is not running',
-                  next: 'y starts it · n keeps your draft',
-                })
-              } else {
-                noteResident('held', 'the daemon did not answer')
-                noteControl('strip:composer', {
-                  state: 'failed',
-                  reason: 'the daemon did not answer',
-                  next: '↵ retries the same request',
-                })
-              }
-            } else {
-              submitIdRef.current = null
-              await snapshotStore.writeConcourseHeldDispatch(null)
-              const reason = r.detail ?? r.error ?? 'the dispatch was refused'
-              noteResident('refused', reason)
-              noteControl('strip:composer', {
-                state: 'refused',
-                reason,
-                next: 'edit the task or seeds · ↵ retries',
-              })
-            }
-          }
-        } catch (e) {
-          logForDebugging(`[concourse] dispatch failed: ${e}`)
-          noteResident('held', 'the daemon was unreachable')
-          noteControl('strip:composer', { state: 'failed', reason: 'the daemon was unreachable', next: '↵ retries' })
-        } finally {
-          setTimeout(() => {
-            submitInFlight.current = false
-          }, 500)
-          refresh()
-        }
-      })()
-    },
-    [noteResident, refresh, noteControl],
-  )
-  const answerDaemonOffer = useCallback(
-    (yes: boolean): void => {
-      const offer = daemonOfferRef.current
-      if (offer === null) return
-      daemonOfferRef.current = null
-      if (!yes) {
-        noteControl('strip:composer', {
-          state: 'failed',
-          reason: 'the daemon that hosts background sessions is not running',
-          next: `start it with \`${thisMercuryCommand()} daemon\` · your draft is kept`,
-        })
-        return
-      }
-      noteControl('strip:composer', { state: 'pending', reason: 'starting the daemon…' })
-      void (async () => {
-        const { spawnOwnedDaemon } = await import('../../daemon/ownedDaemon.js')
-        const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-        const pid = spawnOwnedDaemon(getCwd(), { label: 'concourse' })
-        if (pid === undefined) {
-          noteControl('strip:composer', {
-            state: 'failed',
-            reason: 'the daemon did not start (see .mercury/daemon/daemon.log)',
-            next: `run \`${thisMercuryCommand()} daemon\` yourself · your draft is kept`,
-          })
-          return
-        }
-        for (let i = 0; i < 40; i++) {
-          const probe = (await daemonControlRpc({ op: 'concourseList' } as never, { timeoutMs: 500 })) as { code?: string }
-          if (probe.code !== 'ENOCONN') {
-            submitDraft(offer.draft)
-            return
-          }
-          await sleep(250)
-        }
-        noteControl('strip:composer', {
-          state: 'failed',
-          reason: 'the daemon started but never answered (see .mercury/daemon/daemon.log)',
-          next: '↵ retries · your draft is kept',
-        })
-      })()
-    },
-    [noteControl, submitDraft],
-  )
-  const bootGroundApplied = useRef(false)
-  useEffect(() => {
-    if (fixture !== null || bootGroundApplied.current) return
-    bootGroundApplied.current = true
-    void (async () => {
-      try {
-        const seeds = await readConcourseSeedOverrides()
-        if (typeof seeds.projectDir === 'string' && seeds.projectDir.length > 0 && seeds.projectDir !== getCwd()) {
-          await writeConcourseSeedOverride({ projectDir: null })
-          refresh()
-        }
-      } catch {
-      }
-    })()
-  }, [fixture, refresh])
-  const pumpBusyRef = useRef(false)
-  useEffect(() => {
-    if (fixture !== null) return
-    if (pumpBusyRef.current) return
-    const snap = liveSnapshot
-    if (!snap) return
-    pumpBusyRef.current = true
-    void (async () => {
-      try {
-        const store = await import('../../services/concourse/concourseSnapshot.js')
-        const dispatchMod = await import('../../daemon/concourseDispatch.js')
-        const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-        try {
-          const attachedMod = await import('../../services/switchboard/attachedSession.js')
-          const marker = await store.readConcoursePendingHandback()
-          let handedBack = 0
-          if (
-            marker !== null &&
-            (await attachedMod.completeHandback(marker.kind, marker.sessionId, {
-              mintedAtMs: marker.mintedAtMs,
-            }))
-          ) {
-            handedBack++
-          }
-          handedBack += await attachedMod.healStaleAttachRecords()
-          if (handedBack > 0) {
-            noteControl('strip:composer', {
-              state: 'applied',
-              reason: 'the session was handed back — it lives on the board again',
-            })
-            refresh()
-          }
-        } catch {
-        }
-        const deliveries = await store.readConcourseHeldDeliveries()
-        const deliveryIds = Object.keys(deliveries)
-        if (deliveryIds.length > 0) {
-          const { readSessionWorkers } = await import('../../daemon/concourseWorkers.js')
-          const workers = Object.values(readSessionWorkers())
-          for (const sessionId of deliveryIds) {
-            const heldDelivery = deliveries[sessionId]
-            if (heldDelivery === undefined) continue
-            const drec = dispatchMod.readConcourseDispatches()[heldDelivery.clientMessageId]
-            if (drec === undefined || drec.heldReason === undefined || drec.state !== 'queued') {
-              await store.writeConcourseHeldDelivery(sessionId, null)
-              continue
-            }
-            const w = workers.find(x => x.sessionId === sessionId && x.endedAt === undefined)
-            const free = w !== undefined && w.attachedAt === undefined && w.pausedAt === undefined && w.attachRequestedAt === undefined
-            if (!free) continue
-            const dreply = (await daemonControlRpc(
-              {
-                op: 'concourseDispatch',
-                clientMessageId: heldDelivery.clientMessageId,
-                prompt: heldDelivery.text,
-                workspaceDir: '',
-                targetSessionId: sessionId,
-                by: 'operator',
-              } as never,
-              { timeoutMs: 15_000 },
-            )) as { ok?: boolean; heldReason?: string }
-            if (dreply.ok === true || dreply.heldReason === undefined) {
-              await store.writeConcourseHeldDelivery(sessionId, null)
-              refresh()
-            }
-          }
-        }
-        try {
-          const rowsNY = snap.needsYou ?? []
-          if (rowsNY.length > 0) {
-            const o = await import('../../services/crew/obligations.js')
-            const sup = await import('../../daemon/concourseWorkers.js')
-            const state = await import('../../bootstrap/state.js')
-            const hostId = String(state.getSessionId())
-            const workerRecs = Object.values(sup.readSessionWorkers())
-            const ledger = dispatchMod.readConcourseDispatches()
-            for (const ny of rowsNY.slice(0, 12)) {
-              const sid = ny.sessionId
-              if (sid === hostId || sid.startsWith('folder:')) continue
-              let stale = false
-              if (sid.startsWith('dispatch:')) {
-                const drow = ledger[sid.slice('dispatch:'.length)]
-                stale =
-                  drow !== undefined &&
-                  (drow.sessionId !== undefined || drow.reason?.startsWith('withdrawn') === true)
-              } else {
-                stale =
-                  workerRecs.some(r => r.sessionId === sid && r.endedAt !== undefined) &&
-                  !workerRecs.some(r => r.sessionId === sid && r.endedAt === undefined)
-              }
-              if (stale) {
-                await o
-                  .resolveObligation(ny.obligationId, { kind: 'superseded', by: 'board-sweep', scope: 'switchboard' })
-                  .catch(() => undefined)
-              }
-            }
-          }
-        } catch {
-        }
-        const held = await store.readConcourseHeldDispatch()
-        if (held === null || held.prompt === undefined) return
-        const rec = dispatchMod.readConcourseDispatches()[held.clientMessageId]
-        if (rec === undefined) return
-        if (rec.sessionId !== undefined && rec.state !== 'queued' && rec.state !== 'failed') {
-          await drainQueuedStack(held.clientMessageId, rec.sessionId)
-          await store.writeConcourseHeldDispatch(null)
-          return
-        }
-        if (rec.state !== 'queued' || rec.heldReason === undefined || rec.sessionId !== undefined) return
-        const reason = dispatchMod.normalizeHoldReason(rec.heldReason)
-        const rows = snap.groups.flatMap(g => g.rows)
-        let cleared = false
-        if (reason === 'seat') {
-          const { effectiveSeatCeiling } = await import('../../daemon/concourseWorkers.js')
-          cleared = snap.counts.live < effectiveSeatCeiling()
-        } else if (reason === 'repo-held') {
-          cleared = !rows.some(
-            r =>
-              r.workspaceDir === rec.workspaceId &&
-              r.worktreeBranch === undefined &&
-              !r.sessionId.startsWith('dispatch:') &&
-              r.state !== 'queued' &&
-              r.state !== 'stopped',
-          )
-        } else if (reason === 'no-repository' || reason === 'unborn-head') {
-          const { workspaceKindOf } = await import('../../daemon/concourseWorktrees.js')
-          cleared = rec.workspaceId !== undefined && workspaceKindOf(rec.workspaceId) === 'git'
-        }
-        if (!cleared) return
-        const reply = (await daemonControlRpc(
-          {
-            op: 'concourseDispatch',
-            clientMessageId: held.clientMessageId,
-            by: 'operator',
-            prompt: held.prompt,
-            ...(held.op ?? {}),
-          } as never,
-          { timeoutMs: 15_000 },
-        )) as { ok?: boolean; sessionId?: string; branchName?: string }
-        if (reply.ok === true) {
-          await store.writeConcourseHeldDispatch(null)
-          noteControl('strip:composer', {
-            state: 'applied',
-            reason:
-              reply.branchName !== undefined
-                ? `the queued session started on worktree ${reply.branchName}`
-                : 'the queued session started — its block cleared',
-          })
-          if (reply.sessionId !== undefined) await drainQueuedStack(held.clientMessageId, reply.sessionId)
-          refresh()
-        }
-      } catch (e) {
-        logForDebugging(`[concourse] admission pump beat failed (next refresh retries): ${e}`)
-      } finally {
-        pumpBusyRef.current = false
-      }
-    })()
-  }, [liveSnapshot, fixture, drainQueuedStack, noteControl, refresh])
+  const { seedWriteChain, birthInFlightRef, daemonOfferRef, submitDraft, answerDaemonOffer } = useConcourseDraftDispatch({ snapshotRef, noteResident, refresh, noteControl })
+  useConcourseAdmissionPump({ fixture, liveSnapshot, refresh, drainQueuedStack, noteControl })
   if (!snapshot) return <ConcourseAssemblingShell failing={failing} onRetry={refresh} />
   if (waitingRoom !== null) {
     return (
