@@ -390,6 +390,34 @@ export interface StudioEditorMachine {
   dispose(): void
 }
 
+interface StudioEditorState {
+  doc: AgentDocument
+  baseDocument: AgentDocument
+  baseRevision: string | undefined
+  scope: 'user' | 'project'
+  view: EditorView
+  note: StudioNote | null
+  busy: boolean
+  conflict: { currentRaw: string } | null
+  textBuffer: string
+  textCursor: number
+  recoverOffer: { path: string; raw: string } | null
+  generationAbort: AbortController | null
+  autosaveTimer: unknown
+  disposed: boolean
+}
+
+interface StudioEditorPorts {
+  options: StudioEditorOptions
+  deps: StudioEditorDeps
+  mode: 'create' | 'edit'
+  base: StudioDraftBase | undefined
+  cwd: string
+  onChange: (snapshot: StudioEditorSnapshot) => void
+}
+
+type StudioEditorCore = ReturnType<typeof studioEditorCore>
+
 export function createStudioEditorMachine(
   options: StudioEditorOptions,
   onChange: (snapshot: StudioEditorSnapshot) => void,
@@ -397,8 +425,21 @@ export function createStudioEditorMachine(
 ): StudioEditorMachine {
   const deps: StudioEditorDeps = { ...liveDeps(), ...injected }
   const { mode, base, cwd } = options
+  const ports: StudioEditorPorts = { options, deps, mode, base, cwd, onChange }
+  const state = studioEditorState(ports)
+  const core = studioEditorCore(state, ports)
+  return {
+    snapshot: core.snapshot,
+    commit: core.commit,
+    ...studioFieldMethods(state, ports, core),
+    ...studioGuidedMethods(state, ports, core),
+    ...studioSaveMethods(state, ports, core),
+    ...studioLifetimeMethods(state, ports, core),
+  }
+}
 
-  let doc: AgentDocument = (() => {
+function studioEditorState({ deps, mode, base }: StudioEditorPorts): StudioEditorState {
+  const doc: AgentDocument = (() => {
     if (base) {
       try {
         return decodeAgentDocument(deps.readFile(base.identity.filePath), base.identity.filePath)
@@ -408,47 +449,62 @@ export function createStudioEditorMachine(
     }
     return freshStudioDocument()
   })()
-  let baseDocument = doc
-  let baseRevision: string | undefined = base ? revisionDigest(doc.raw) : undefined
-  let scope: 'user' | 'project' = 'project'
-  let view: EditorView =
-    mode === 'create'
-      ? { kind: 'guided', step: 'destination', history: [] }
-      : { kind: 'advanced', cursor: 0, editing: null }
-  let note: StudioNote | null = null
-  let busy = false
-  let conflict: { currentRaw: string } | null = null
-  let textBuffer = ''
-  let textCursor = 0
-  let recoverOffer: { path: string; raw: string } | null = (() => {
-    const drafts = deps.listDrafts()
-    const match = drafts.find(d =>
-      base
-        ? d.draft.baseIdentity?.filePath === base.identity.filePath
-        : d.draft.baseIdentity === undefined,
-    )
-    return match ? { path: match.path, raw: match.draft.raw } : null
-  })()
+  return {
+    doc,
+    baseDocument: doc,
+    baseRevision: base ? revisionDigest(doc.raw) : undefined,
+    scope: 'project',
+    view:
+      mode === 'create'
+        ? { kind: 'guided', step: 'destination', history: [] }
+        : { kind: 'advanced', cursor: 0, editing: null },
+    note: null,
+    busy: false,
+    conflict: null,
+    textBuffer: '',
+    textCursor: 0,
+    recoverOffer: (() => {
+      const drafts = deps.listDrafts()
+      const match = drafts.find(d =>
+        base
+          ? d.draft.baseIdentity?.filePath === base.identity.filePath
+          : d.draft.baseIdentity === undefined,
+      )
+      return match ? { path: match.path, raw: match.draft.raw } : null
+    })(),
+    generationAbort: null,
+    autosaveTimer: null,
+    disposed: false,
+  }
+}
 
-  let generationAbort: AbortController | null = null
-  let autosaveTimer: unknown = null
-  let disposed = false
-
+function studioEditorCore(state: StudioEditorState, { deps, base, cwd, onChange }: StudioEditorPorts) {
   const emit = (): void => {
-    if (!disposed) onChange(snapshot())
+    if (!state.disposed) onChange(snapshot())
   }
   function snapshot(): StudioEditorSnapshot {
-    return { doc, baseRevision, scope, view, note, busy, conflict, recoverOffer, textBuffer, textCursor }
+    return {
+      doc: state.doc,
+      baseRevision: state.baseRevision,
+      scope: state.scope,
+      view: state.view,
+      note: state.note,
+      busy: state.busy,
+      conflict: state.conflict,
+      recoverOffer: state.recoverOffer,
+      textBuffer: state.textBuffer,
+      textCursor: state.textCursor,
+    }
   }
 
   const armAutosave = (): void => {
-    if (autosaveTimer !== null) deps.clearTimer(autosaveTimer)
-    autosaveTimer = deps.setTimer(() => {
-      autosaveTimer = null
+    if (state.autosaveTimer !== null) deps.clearTimer(state.autosaveTimer)
+    state.autosaveTimer = deps.setTimer(() => {
+      state.autosaveTimer = null
       void deps
         .saveDraft({
-          ...(base ? { baseIdentity: base.identity } : { newTarget: { scope, cwd } }),
-          raw: doc.raw,
+          ...(base ? { baseIdentity: base.identity } : { newTarget: { scope: state.scope, cwd } }),
+          raw: state.doc.raw,
         })
         .catch(() => {})
     }, STUDIO_AUTOSAVE_DEBOUNCE_MS)
@@ -464,17 +520,17 @@ export function createStudioEditorMachine(
   }
 
   const adoptDoc = (next: AgentDocument): void => {
-    doc = next
+    state.doc = next
     armAutosave()
   }
 
   const commit = (edit: Parameters<typeof patchAgentDocument>[1]): boolean => {
     try {
-      adoptDoc(patchAgentDocument(doc, edit))
+      adoptDoc(patchAgentDocument(state.doc, edit))
       emit()
       return true
     } catch (e) {
-      note = {
+      state.note = {
         text:
           e instanceof AgentCodecPatchError
             ? `edit refused: ${e.message}`
@@ -487,24 +543,39 @@ export function createStudioEditorMachine(
   }
 
   const goStep = (from: GuidedStep, to: GuidedStep): void => {
-    if (view.kind !== 'guided') return
-    view = { kind: 'guided', step: to, history: [...view.history, from] }
-    const seed = guidedSeedFor(doc, to)
-    textBuffer = seed
-    textCursor = seed.length
+    if (state.view.kind !== 'guided') return
+    state.view = { kind: 'guided', step: to, history: [...state.view.history, from] }
+    const seed = guidedSeedFor(state.doc, to)
+    state.textBuffer = seed
+    state.textCursor = seed.length
     emit()
   }
 
-  const machine: StudioEditorMachine = {
-    snapshot,
-    commit,
+  return { emit, snapshot, discardDraftFile, adoptDoc, commit, goStep }
+}
 
+function studioFieldMethods(
+  state: StudioEditorState,
+  { base }: StudioEditorPorts,
+  { emit, adoptDoc, commit }: StudioEditorCore,
+): Pick<
+  StudioEditorMachine,
+  | 'loadRaw'
+  | 'commitTextField'
+  | 'openFieldEditor'
+  | 'closeFieldEditor'
+  | 'setView'
+  | 'setTextBuffer'
+  | 'setTextCursor'
+  | 'setScope'
+> {
+  return {
     loadRaw(content) {
-      if (content === doc.raw) return
+      if (content === state.doc.raw) return
       const next = decodeAgentDocument(content, base?.identity.filePath)
       adoptDoc(next)
       const errs = next.diagnostics.filter(d => d.severity === 'error')
-      note =
+      state.note =
         errs.length > 0
           ? { text: `raw edit loaded with ${errs.length} error(s) — fix before saving`, tone: AMBER }
           : { text: 'raw edit loaded', tone: TEAL }
@@ -535,7 +606,7 @@ export function createStudioEditorMachine(
           else {
             const n = Number(value)
             if (!Number.isInteger(n) || n <= 0) {
-              note = { text: 'max turns must be a positive integer (empty clears)', tone: AMBER }
+              state.note = { text: 'max turns must be a positive integer (empty clears)', tone: AMBER }
               emit()
               return
             }
@@ -549,14 +620,14 @@ export function createStudioEditorMachine(
         default:
           return
       }
-      if (ok && view.kind === 'advanced') {
-        view = { ...view, editing: null }
+      if (ok && state.view.kind === 'advanced') {
+        state.view = { ...state.view, editing: null }
         emit()
       }
     },
 
     openFieldEditor(field) {
-      if (view.kind !== 'advanced') return
+      if (state.view.kind !== 'advanced') return
       if (
         field === 'name' ||
         field === 'description' ||
@@ -564,39 +635,61 @@ export function createStudioEditorMachine(
         field === 'maxTurns' ||
         field === 'initialPrompt'
       ) {
-        const seed = advancedFieldSeed(doc, field)
-        textBuffer = seed
-        textCursor = seed.length
+        const seed = advancedFieldSeed(state.doc, field)
+        state.textBuffer = seed
+        state.textCursor = seed.length
       }
-      view = { ...view, editing: field }
+      state.view = { ...state.view, editing: field }
       emit()
     },
 
     closeFieldEditor() {
-      if (view.kind !== 'advanced') return
-      view = { ...view, editing: null }
+      if (state.view.kind !== 'advanced') return
+      state.view = { ...state.view, editing: null }
       emit()
     },
 
     setView(next) {
-      view = next
+      state.view = next
       emit()
     },
     setTextBuffer(value) {
-      textBuffer = value
+      state.textBuffer = value
       emit()
     },
     setTextCursor(offset) {
-      textCursor = offset
+      state.textCursor = offset
       emit()
     },
     setScope(next) {
-      scope = next
+      state.scope = next
       emit()
     },
+  }
+}
 
+function studioGuidedMethods(
+  state: StudioEditorState,
+  ports: StudioEditorPorts,
+  core: StudioEditorCore,
+): Pick<
+  StudioEditorMachine,
+  | 'guidedDestination'
+  | 'guidedMethod'
+  | 'guidedDescribe'
+  | 'guidedIdentity'
+  | 'guidedPrompt'
+  | 'guidedDescription'
+  | 'guidedTools'
+  | 'guidedModel'
+  | 'guidedBack'
+  | 'reviewEscape'
+> {
+  const { options, mode } = ports
+  const { emit, commit, goStep } = core
+  return {
     guidedDestination(next) {
-      scope = next
+      state.scope = next
       goStep('destination', 'method')
     },
     guidedMethod(method) {
@@ -604,12 +697,12 @@ export function createStudioEditorMachine(
       else goStep('method', 'identity')
     },
     guidedDescribe(prompt) {
-      void runGeneration(prompt)
+      void runStudioGeneration(state, ports, core, prompt)
     },
     guidedIdentity(name) {
       const err = validateAgentIdentifier(name)
       if (err) {
-        note = { text: err, tone: AMBER }
+        state.note = { text: err, tone: AMBER }
         emit()
         return
       }
@@ -617,7 +710,7 @@ export function createStudioEditorMachine(
     },
     guidedPrompt(body) {
       if (body.trim().length < 20) {
-        note = { text: 'system prompt is too short (minimum 20 characters)', tone: AMBER }
+        state.note = { text: 'system prompt is too short (minimum 20 characters)', tone: AMBER }
         emit()
         return
       }
@@ -625,7 +718,7 @@ export function createStudioEditorMachine(
     },
     guidedDescription(description) {
       if (!description.trim()) {
-        note = { text: 'description is required — it tells Mercury when to delegate', tone: AMBER }
+        state.note = { text: 'description is required — it tells Mercury when to delegate', tone: AMBER }
         emit()
         return
       }
@@ -636,55 +729,63 @@ export function createStudioEditorMachine(
     },
     guidedModel(model) {
       if (commit({ set: { model: model === 'inherit' ? undefined : model } })) {
-        view = { kind: 'review' }
+        state.view = { kind: 'review' }
         emit()
       }
     },
     guidedBack() {
-      if (view.kind !== 'guided') return
-      const history = [...view.history]
+      if (state.view.kind !== 'guided') return
+      const history = [...state.view.history]
       const prev = history.pop()
       if (!prev) {
         options.onCancel()
         return
       }
-      view = { kind: 'guided', step: prev, history }
-      const seed = guidedSeedFor(doc, prev)
-      textBuffer = seed
-      textCursor = seed.length
+      state.view = { kind: 'guided', step: prev, history }
+      const seed = guidedSeedFor(state.doc, prev)
+      state.textBuffer = seed
+      state.textCursor = seed.length
       emit()
     },
 
     reviewEscape() {
       if (mode === 'create') {
-        view = {
+        state.view = {
           kind: 'guided',
           step: 'model',
           history: ['destination', 'method', 'identity', 'prompt', 'description', 'tools'],
         }
-        const seed = guidedSeedFor(doc, 'model')
-        textBuffer = seed
-        textCursor = seed.length
+        const seed = guidedSeedFor(state.doc, 'model')
+        state.textBuffer = seed
+        state.textCursor = seed.length
       } else {
-        view = { kind: 'advanced', cursor: 0, editing: null }
+        state.view = { kind: 'advanced', cursor: 0, editing: null }
       }
       emit()
     },
+  }
+}
 
+function studioSaveMethods(
+  state: StudioEditorState,
+  { options, deps, mode, base, cwd }: StudioEditorPorts,
+  { emit, discardDraftFile, adoptDoc }: StudioEditorCore,
+): Pick<StudioEditorMachine, 'save' | 'mergeOntoTheirs' | 'clearConflict' | 'acceptRecover' | 'declineRecover'> {
+  return {
     async save() {
-      if (busy) return
+      if (state.busy) return
       const validation = computeStudioValidation({
-        doc,
+        doc: state.doc,
         existingAgents: options.getExistingAgents(),
         base,
         mode,
       })
       if (!validation.canSave) {
-        note = { text: 'fix the errors above before saving', tone: AMBER }
+        state.note = { text: 'fix the errors above before saving', tone: AMBER }
         emit()
         return
       }
-      busy = true
+      state.busy = true
       emit()
       try {
         const receipt = await deps.saveDocument(
@@ -693,140 +794,151 @@ export function createStudioEditorMachine(
                 kind: 'existing',
                 identity: {
                   filePath: base.identity.filePath,
-                  revision: baseRevision ?? base.identity.revision,
+                  revision: state.baseRevision ?? base.identity.revision,
                 },
               }
-            : { kind: 'new', scope, cwd, slug: doc.fields.name },
-          doc,
+            : { kind: 'new', scope: state.scope, cwd, slug: state.doc.fields.name },
+          state.doc,
         )
         discardDraftFile()
         options.onSaved(
-          `${mode === 'create' ? 'Created' : 'Updated'} agent ${doc.fields.name} → ${receipt.path} (rev ${receipt.afterRevision}${receipt.semanticChanges.length > 0 ? `; changed: ${receipt.semanticChanges.join(', ')}` : ''})`,
+          `${mode === 'create' ? 'Created' : 'Updated'} agent ${state.doc.fields.name} → ${receipt.path} (rev ${receipt.afterRevision}${receipt.semanticChanges.length > 0 ? `; changed: ${receipt.semanticChanges.join(', ')}` : ''})`,
         )
       } catch (e) {
         if (e instanceof AgentStoreError && e.code === 'revision-conflict') {
-          conflict = { currentRaw: e.detail?.currentRaw ?? '' }
-          note = {
+          state.conflict = { currentRaw: e.detail?.currentRaw ?? '' }
+          state.note = {
             text: 'the file changed outside this draft — L loads theirs + re-applies your field edits · esc keeps editing',
             tone: AMBER,
           }
         } else {
-          note = {
+          state.note = {
             text: e instanceof Error ? e.message : String(e),
             tone: CRIMSON,
           }
         }
       } finally {
-        busy = false
+        state.busy = false
         emit()
       }
     },
 
     mergeOntoTheirs() {
-      if (!conflict) return
+      if (!state.conflict) return
       try {
-        const theirs = decodeAgentDocument(conflict.currentRaw, base?.identity.filePath)
+        const theirs = decodeAgentDocument(state.conflict.currentRaw, base?.identity.filePath)
         const edits: Partial<AgentSpecFields> = {}
-        for (const key of new Set([...Object.keys(baseDocument.fields), ...Object.keys(doc.fields)]) as Set<keyof AgentSpecFields>) {
+        for (const key of new Set([...Object.keys(state.baseDocument.fields), ...Object.keys(state.doc.fields)]) as Set<keyof AgentSpecFields>) {
           if (key === 'mcpServers' || key === 'hooks') continue
-          if (JSON.stringify(doc.fields[key]) !== JSON.stringify(baseDocument.fields[key])) {
+          if (JSON.stringify(state.doc.fields[key]) !== JSON.stringify(state.baseDocument.fields[key])) {
             // @ts-expect-error narrow per-key assignment over the shared union
-            edits[key] = doc.fields[key]
+            edits[key] = state.doc.fields[key]
           }
         }
         const merged = patchAgentDocument(theirs, {
           set: edits,
-          ...(doc.body !== baseDocument.body ? { body: doc.body } : {}),
+          ...(state.doc.body !== state.baseDocument.body ? { body: state.doc.body } : {}),
         })
         adoptDoc(merged)
-        baseDocument = theirs
-        baseRevision = revisionDigest(conflict.currentRaw)
-        conflict = null
-        note = { text: 'their version loaded — your field edits re-applied on top; review and save again', tone: TEAL }
+        state.baseDocument = theirs
+        state.baseRevision = revisionDigest(state.conflict.currentRaw)
+        state.conflict = null
+        state.note = { text: 'their version loaded — your field edits re-applied on top; review and save again', tone: TEAL }
         emit()
       } catch (e) {
-        note = { text: `merge failed: ${String(e)}`, tone: CRIMSON }
+        state.note = { text: `merge failed: ${String(e)}`, tone: CRIMSON }
         emit()
       }
     },
 
     clearConflict() {
-      conflict = null
+      state.conflict = null
       emit()
     },
 
     acceptRecover() {
-      if (!recoverOffer) return
+      if (!state.recoverOffer) return
       try {
-        const recovered = decodeAgentDocument(recoverOffer.raw, base?.identity.filePath)
+        const recovered = decodeAgentDocument(state.recoverOffer.raw, base?.identity.filePath)
         adoptDoc(recovered)
-        note = { text: 'draft recovered — continuing where you left off', tone: TEAL }
-        if (mode === 'create') view = { kind: 'advanced', cursor: 0, editing: null }
+        state.note = { text: 'draft recovered — continuing where you left off', tone: TEAL }
+        if (mode === 'create') state.view = { kind: 'advanced', cursor: 0, editing: null }
       } catch {
-        note = { text: 'draft unreadable — starting fresh', tone: AMBER }
+        state.note = { text: 'draft unreadable — starting fresh', tone: AMBER }
       }
-      recoverOffer = null
+      state.recoverOffer = null
       emit()
     },
 
     declineRecover() {
-      if (!recoverOffer) return
-      deps.discardDraft(recoverOffer.path)
-      recoverOffer = null
+      if (!state.recoverOffer) return
+      deps.discardDraft(state.recoverOffer.path)
+      state.recoverOffer = null
       emit()
     },
+  }
+}
 
+function studioLifetimeMethods(
+  state: StudioEditorState,
+  { deps }: StudioEditorPorts,
+  { emit }: StudioEditorCore,
+): Pick<StudioEditorMachine, 'abortGeneration' | 'dispose'> {
+  return {
     abortGeneration() {
-      if (!generationAbort) return false
-      generationAbort.abort()
-      note = { text: 'generation cancelled', tone: AMBER }
+      if (!state.generationAbort) return false
+      state.generationAbort.abort()
+      state.note = { text: 'generation cancelled', tone: AMBER }
       emit()
       return true
     },
 
     dispose() {
-      disposed = true
-      if (autosaveTimer !== null) deps.clearTimer(autosaveTimer)
-      autosaveTimer = null
-      generationAbort?.abort()
-      generationAbort = null
+      state.disposed = true
+      if (state.autosaveTimer !== null) deps.clearTimer(state.autosaveTimer)
+      state.autosaveTimer = null
+      state.generationAbort?.abort()
+      state.generationAbort = null
     },
   }
+}
 
-  async function runGeneration(prompt: string): Promise<void> {
-    if (busy || disposed) return
-    busy = true
-    note = { text: 'generating agent from description …', tone: SECOND }
-    emit()
-    const controller = new AbortController()
-    generationAbort = controller
-    try {
-      const generated = await deps.generate(
-        prompt,
-        options.getParentModel(),
-        options.getExistingAgents().map(a => a.agentType),
-        controller.signal,
-      )
-      if (disposed || controller.signal.aborted) return
-      adoptDoc(
-        patchAgentDocument(doc, {
-          set: { name: generated.identifier, description: generated.whenToUse },
-          body: generated.systemPrompt.trim() + '\n',
-        }),
-      )
-      note = { text: `generated "${generated.identifier}" — review it below`, tone: TEAL }
-      view = { kind: 'review' }
-    } catch (e) {
-      note = {
-        text: `generation failed: ${e instanceof Error ? e.message : String(e)} — edit the description and ↵ retries`,
-        tone: CRIMSON,
-      }
-    } finally {
-      busy = false
-      generationAbort = null
-      emit()
+async function runStudioGeneration(
+  state: StudioEditorState,
+  { options, deps }: StudioEditorPorts,
+  { emit, adoptDoc }: StudioEditorCore,
+  prompt: string,
+): Promise<void> {
+  if (state.busy || state.disposed) return
+  state.busy = true
+  state.note = { text: 'generating agent from description …', tone: SECOND }
+  emit()
+  const controller = new AbortController()
+  state.generationAbort = controller
+  try {
+    const generated = await deps.generate(
+      prompt,
+      options.getParentModel(),
+      options.getExistingAgents().map(a => a.agentType),
+      controller.signal,
+    )
+    if (state.disposed || controller.signal.aborted) return
+    adoptDoc(
+      patchAgentDocument(state.doc, {
+        set: { name: generated.identifier, description: generated.whenToUse },
+        body: generated.systemPrompt.trim() + '\n',
+      }),
+    )
+    state.note = { text: `generated "${generated.identifier}" — review it below`, tone: TEAL }
+    state.view = { kind: 'review' }
+  } catch (e) {
+    state.note = {
+      text: `generation failed: ${e instanceof Error ? e.message : String(e)} — edit the description and ↵ retries`,
+      tone: CRIMSON,
     }
+  } finally {
+    state.busy = false
+    state.generationAbort = null
+    emit()
   }
-
-  return machine
 }
