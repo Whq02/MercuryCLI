@@ -78,8 +78,10 @@ function cliMain(): void {
   sayAndLeave(process.stdout, text, EXIT_BY_STATE[result.verdict.state] ?? 6)
 }
 
+let invokedDirectly = false
 try {
   const invoked = process.argv[1] ? realpathSync(process.argv[1]) : ''
-  if (invoked && realpathSync(fileURLToPath(import.meta.url)) === invoked) cliMain()
+  invokedDirectly = invoked !== '' && realpathSync(fileURLToPath(import.meta.url)) === invoked
 } catch {
 }
+if (invokedDirectly) cliMain()
