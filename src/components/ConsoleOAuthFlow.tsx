@@ -1,4 +1,3 @@
-
 import React, {
   useCallback,
   useEffect,
@@ -6,122 +5,31 @@ import React, {
   useState,
 } from 'react'
 import { Box, Text } from '../ink.js'
-import wrapText from '../ink/wrap-text.js'
 import { SetupFrameBody } from './MercurySetupFrame.js'
-import { Select } from './CustomSelect/index.js'
-import TextInput from './TextInput.js'
 import { useSettingsPopupFrameIfAny } from './Settings/Settings.js'
 import { Spinner } from './Spinner.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
-import { PopupFormContext, PopupCompactContext, usePopupCompact, usePopupMarker } from '../context/popupFormContext.js'
+import { PopupFormContext, usePopupCompact, usePopupMarker } from '../context/popupFormContext.js'
 import { PopupFrameContext } from './PopupGutter.js'
 import { settingsPopupMarker } from '../utils/cockpit/settingsPopup.js'
 import { escapeFromOutsidePress } from '../ink/recessLayer.js'
 import { LoginAccountCard } from './LoginAccountCard.js'
-import { familyDisplayName } from '../services/providers/accountSlots.js'
-import { collectLoginsScreenFacts, loginsArmSlots, loginsCatalogue, loginsRowStateOf } from './BootLoginsScreen.js'
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js'
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'
-import { mostRecentSignInFamily } from '../utils/model/computedDefault.js'
 import { useNotifications } from '../context/notifications.js'
 import { useInput } from '../ink.js'
-import {
-  useAnthropicLoginModel,
-  waitingHeadline,
-} from './mercury-ui/screens/anthropicLoginModel.js'
-import {
-  resolveProviderUsability,
-  type ProviderId,
-} from '../services/providers/providerUsability.js'
-import { OpenaiConnect } from './OpenaiConnect.js'
-import { OpenrouterConnect } from './OpenrouterConnect.js'
-import { GeminiConnect } from './GeminiConnect.js'
-import { HuggingfaceConnect } from './HuggingfaceConnect.js'
-import { KimiConnect } from './KimiConnect.js'
-import { ZaiConnect } from './ZaiConnect.js'
-import { DeepseekConnect } from './DeepseekConnect.js'
-import { XaiConnect } from './XaiConnect.js'
-import { MetaConnect } from './MetaConnect.js'
-import { MistralConnect } from './MistralConnect.js'
-import { NousConnect } from './NousConnect.js'
-import { ZenConnect } from './ZenConnect.js'
-import { MinimaxConnect } from './MinimaxConnect.js'
-import { TogetherConnect } from './TogetherConnect.js'
-import { CohereConnect } from './CohereConnect.js'
-import { GroqConnect } from '../services/providers/groq/GroqConnect.js'
-import { MeliousConnect } from '../services/providers/melious/MeliousConnect.js'
-import { OrcarouterConnect } from '../services/providers/orcarouter/OrcarouterConnect.js'
-import { CerebrasConnect } from '../services/providers/cerebras/CerebrasConnect.js'
-import { FireworksConnect } from '../services/providers/fireworks/FireworksConnect.js'
-import { QwenConnect } from '../services/providers/qwen/QwenConnect.js'
+import { useAnthropicLoginModel } from './mercury-ui/screens/anthropicLoginModel.js'
 import { CompatConnect } from './CompatConnect.js'
-import type { LoginFamilyRow } from './loginFamilyRows.js'
-import { KeyCardTitle } from './KeyCardTitle.js'
-import { AnthropicKeyLeg } from './AnthropicKeyLeg.js'
-import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js'
-import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
-import {
-  anthropicArmPickRows,
-  keyPageLine,
-  localRoadOpen,
-  loginFamilyFocusFor,
-  loginFamilyRows,
-  loginFamilyInitialFocus,
-  openaiArmPickRows,
-  SIGN_IN_LATER_ROW,
-  signInLaterRow,
-  TENSORFOLD_FAMILY_VALUE,
-  type LoginFamilyValue,
-  type TensorFoldOffer,
-} from './loginFamilyRows.js'
+import { localRoadOpen, loginFamilyRows, SIGN_IN_LATER_ROW, TENSORFOLD_FAMILY_VALUE, type LoginFamilyValue, type TensorFoldOffer } from './loginFamilyRows.js'
 import { localDiscoverySummary } from '../services/providers/local/localCatalogue.js'
 import { refreshLocalDiscovery } from '../services/providers/local/localDiscovery.js'
 import { armFaceDoorDeepLink, armTensorFoldDeepLink, disarmTensorFoldDeepLink } from '../substrate/splashHandover.js'
+import { type EngineLeg, legCard } from './consoleOAuth/legCard.js'
+import { type LoginFamilyFocus, idleCard, waitingCard, successCard, errorCard } from './consoleOAuth/flowCards.js'
 
-type EngineLeg =
-  | 'anthropic'
-  | 'anthropic-key'
-  | 'openai'
-  | 'openai-subscription'
-  | 'openai-key'
-  | 'openrouter'
-  | 'gemini'
-  | 'huggingface'
-  | 'moonshot'
-  | 'zai'
-  | 'deepseek'
-  | 'xai'
-  | 'meta'
-  | 'mistral'
-  | 'nous'
-  | 'zen'
-  | 'minimax'
-  | 'together'
-  | 'cohere'
-  | 'groq'
-  | 'melious'
-  | 'orcarouter'
-  | 'cerebras'
-  | 'fireworks'
-  | 'qwen'
-  | `compat/${string}`
-
-export type LoginFamilyFocus = LoginFamilyRow['value']
-
-export const MORE_BELOW_ROW = (hidden: number): string => `…and ${hidden} more below`
-
-export type SignInCardFit = { introLines: number; roster: number; readiness: number }
-
-export function signInCardFit(input: { bodyRows: number; textWidth: number; intro: string; rosterRows: number; readinessRows: number }): SignInCardFit {
-  const introLines = wrapText(input.intro, Math.max(1, input.textWidth), 'wrap').split('\n').length
-  const fixed = 1 + 1 + 1 + introLines + 1 + 1
-  const forRoster = input.bodyRows - fixed
-  if (forRoster < input.rosterRows) return { introLines, roster: Math.max(1, forRoster - 2), readiness: 0 }
-  const left = forRoster - input.rosterRows - 1
-  if (left >= input.readinessRows) return { introLines, roster: input.rosterRows, readiness: input.readinessRows }
-  return { introLines, roster: input.rosterRows, readiness: left >= 3 ? left : 0 }
-}
+export { MORE_BELOW_ROW, READINESS_ROWS } from './consoleOAuth/readiness.js'
+export { type LoginFamilyFocus, type SignInCardFit, signInCardFit } from './consoleOAuth/flowCards.js'
 
 export function ConsoleOAuthFlow({
   onDone,
@@ -297,246 +205,20 @@ export function ConsoleOAuthFlow({
 
   if (leg?.startsWith('compat/')) return frame(<CompatConnect name={leg.slice(7)} onResult={settleLeg} onBack={() => setLeg(null)} />)
   if (leg !== null) {
-    switch (leg) {
-      case 'anthropic':
-        return frame(
-          <Box flexDirection="column" gap={compact ? 0 : 1}>
-            <Text wrap="truncate-end">Anthropic</Text>
-            <Select
-              options={[...anthropicArmPickRows]}
-              onChange={value => {
-                if (value === 'key') { setLeg('anthropic-key'); return }
-                setLeg(null)
-                model.start(value === 'claudeai')
-              }}
-              onCancel={() => setLeg(null)}
-            />
-          </Box>,
-        )
-
-      case 'anthropic-key':
-        return frame(<AnthropicKeyLeg onDone={onDone} onBack={() => setLeg('anthropic')} />)
-      case 'openai':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>OpenAI login unavailable here.</Text>)
-        return frame(
-          <Box flexDirection="column" gap={compact ? 0 : 1}>
-            <Text wrap="truncate-end">OpenAI</Text>
-            <Select
-              options={[...openaiArmPickRows]}
-              onChange={value => setLeg(value === 'key' ? 'openai-key' : 'openai-subscription')}
-              onCancel={() => setLeg(null)}
-            />
-          </Box>,
-        )
-
-      case 'openai-subscription':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>OpenAI login unavailable here.</Text>)
-        return frame(<OpenaiSubscriptionLeg onOpenaiDone={settleLeg} />)
-
-      case 'openrouter':
-        if (onOpenaiDone === undefined)
-          return frame(<Text dimColor>OpenRouter login unavailable here.</Text>)
-        return frame(<OpenrouterConnect onResult={settleLeg} />)
-
-      case 'gemini':
-        if (onOpenaiDone === undefined)
-          return frame(<Text dimColor>Gemini login unavailable here.</Text>)
-        return frame(<GeminiConnect onResult={settleLeg} />)
-
-      case 'huggingface':
-        if (onOpenaiDone === undefined)
-          return frame(<Text dimColor>Hugging Face login unavailable here.</Text>)
-        return frame(<HuggingfaceConnect onResult={settleLeg} />)
-
-      case 'moonshot':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>Kimi login unavailable here.</Text>)
-        return frame(<KimiConnect onResult={settleLeg} />)
-
-      case 'zai':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>GLM (Z.AI) login unavailable here.</Text>)
-        return frame(<ZaiConnect onResult={settleLeg} />)
-
-      case 'meta':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>Meta login unavailable here.</Text>)
-        return frame(<MetaConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-
-      case 'mistral':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>Mistral login unavailable here.</Text>)
-        return frame(<MistralConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-
-      case 'nous':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>Nous Portal login unavailable here.</Text>)
-        return frame(<NousConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-
-      case 'zen':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>OpenCode Zen login unavailable here.</Text>)
-        return frame(<ZenConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-
-      case 'minimax':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>MiniMax login unavailable here.</Text>)
-        return frame(<MinimaxConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-
-      case 'together':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>Together AI login unavailable here.</Text>)
-        return frame(<TogetherConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-
-      case 'cohere':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>Cohere login unavailable here.</Text>)
-        return frame(<CohereConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-
-      case 'groq':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>Groq login unavailable here.</Text>)
-        return frame(<GroqConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-      case 'melious':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>Melious login unavailable here.</Text>)
-        return frame(<MeliousConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-      case 'orcarouter':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>OrcaRouter login unavailable here.</Text>)
-        return frame(<OrcarouterConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-      case 'cerebras':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>Cerebras login unavailable here.</Text>)
-        return frame(<CerebrasConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-      case 'fireworks':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>Fireworks login unavailable here.</Text>)
-        return frame(<FireworksConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-      case 'qwen':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>Qwen login unavailable here.</Text>)
-        return frame(<QwenConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-      case 'deepseek':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>DeepSeek login unavailable here.</Text>)
-        return frame(<DeepseekConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-
-      case 'xai':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>xAI login unavailable here.</Text>)
-        return frame(<XaiConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
-
-      case 'openai-key':
-        if (onOpenaiDone === undefined) return frame(<Text dimColor>OpenAI login unavailable here.</Text>)
-        return frame(<OpenaiKeyLeg onOpenaiDone={settleLeg} onBack={() => setLeg('openai')} />)
-    }
+    const legView = legCard({ leg, frame, compact, setLeg, model, onDone, onOpenaiDone, settleLeg })
+    if (legView !== null) return legView
   }
 
   switch (state.name) {
     case 'idle': {
-      const idleRows = [
-        ...familyRows,
-        ...(onSkip !== undefined ? [signInLaterRow(localRoad)] : []),
-      ]
-      const recordedFocus = loginFamilyFocusFor(mostRecentSignInFamily())
-      const defaultFocus = loginFamilyInitialFocus(idleRows, recordedFocus, initialFocus)
-      const facts = popup ? collectLoginsScreenFacts() : null
-      const arms = popup ? loginsCatalogue() : []
-      const intro = startingMessage ?? 'Choose a provider to sign in.'
-      const refusalLayout = popup && facts !== null && Object.keys(facts.refusals ?? {}).length > 0
-      const rosterCompact = compact || refusalLayout
-      const statusWidth = !compact && setupBody !== null ? setupBody.width - 4 - READINESS_LABEL_WIDTH : null
-      const readinessPlan = compact ? null : readinessBlockPlan(resolveProviderUsability(), statusWidth)
-      const fit =
-        !compact && setupBody !== null && readinessPlan !== null
-          ? signInCardFit({ bodyRows: setupBody.rows, textWidth: setupBody.width - 4, intro, rosterRows: idleRows.length, readinessRows: readinessPlan.rows })
-          : { introLines: 0, roster: idleRows.length, readiness: readinessPlan?.rows ?? 0 }
-      const rowHeight = !compact && setupBody !== null
-        ? Math.max(...idleRows.map(row => wrapText(row.label, Math.max(1, setupBody.width - 6), 'wrap').split('\n').length))
-        : 1
-      const focusedArm = arms.find(arm => arm.row.value === idleRows[menuFocus]?.value)
-      const focusedState = facts && focusedArm ? loginsRowStateOf(focusedArm, facts) : null
-      const refusalText = rosterCompact && focusedState?.refusal ? focusedState.chip : null
-      const refusalRows = refusalText ? wrapText(refusalText, Math.max(1, popupFrame ? popupFrame.width - 4 : columns), 'wrap').split('\n').length : 0
-      const singleLineRows = !rosterCompact && setupBody !== null && fit.roster < rowHeight
-      const rosterWindow = rosterCompact ? Math.max(1, Math.min(rows - refusalRows, idleRows.length)) : Math.max(1, Math.floor(fit.roster / (singleLineRows ? 1 : rowHeight)))
-      const rosterHidden = Math.max(0, idleRows.length - (rosterVisibleTo ?? Math.min(idleRows.length, rosterWindow)))
-      const renderMenu = refusalLayout ? (children: React.ReactNode) => children : frame
-      return renderMenu(
-        <Box flexDirection="column" gap={rosterCompact ? 0 : 1}>
-          {rosterCompact ? null : <Text>{intro}</Text>}
-          <PopupFormContext.Provider value={popup || singleLineRows}>
-          <PopupCompactContext.Provider value={{ compact: rosterCompact || singleLineRows, setMarker: () => {} }}>
-          <Select
-            key={tensorfold ? 'tensorfold' : 'roster'}
-            hideIndexes
-            disableSelection="numeric"
-            visibleOptionCount={rosterWindow}
-            defaultFocusValue={defaultFocus}
-            layout={popup ? 'compact-vertical' : 'compact'}
-            options={idleRows.map(row => {
-              const arm = arms.find(candidate => candidate.row.value === row.value)
-              const status = facts && arm ? loginsRowStateOf(arm, facts) : null
-              if (rosterCompact && status?.refusal && arm) return { ...row, label: `${familyDisplayName(arm.familyId)} · refused (HTTP ${status.refusal.status})` }
-              if (rosterCompact) return status && (status.signedIn || status.loud) ? { ...row, label: `${row.label} · ${status.chip}` } : row
-              return { ...row, ...(status && (status.signedIn || status.loud) ? { description: status.chip } : {}) }
-            })}
-            onFocus={value => setMenuFocus(Math.max(0, idleRows.findIndex(row => row.value === value)))}
-            onVisibleWindowChange={(_, to) => setRosterVisibleTo(to)}
-            onChange={value => {
-              const arm = arms.find(candidate => candidate.row.value === value)
-              if (facts && arm && !arm.row.value.startsWith('compat/') && loginsArmSlots(arm, facts.groups.find(group => group.family.id === arm.familyId)).length > 0) {
-                setAccountFamily(arm.row.value as LoginFamilyValue)
-                return
-              }
-              startFamily(value)
-            }}
-            onCancel={onCancel}
-          />
-          </PopupCompactContext.Provider>
-          </PopupFormContext.Provider>
-          {refusalText ? <Text>{refusalText}</Text> : null}
-          {!rosterCompact && rosterWindow < idleRows.length && rosterHidden > 0 ? <Text dimColor>{MORE_BELOW_ROW(rosterHidden)}</Text> : null}
-          {rosterCompact || fit.readiness === 0 ? null : <ProviderReadinessBlock rows={fit.readiness} statusWidth={statusWidth} />}
-        </Box>,
-      )
+      return idleCard({ frame, compact, familyRows, onSkip, localRoad, initialFocus, popup, setupBody, startingMessage, columns, rows, popupFrame, menuFocus, rosterVisibleTo, tensorfold, setMenuFocus, setRosterVisibleTo, setAccountFamily, startFamily, onCancel })
     }
 
     case 'ready':
       return frame(<Text dimColor>Opening your browser…</Text>)
 
     case 'waiting': {
-      const promptLabel = 'Paste code here if prompted > '
-      const inputColumns = Math.max(10, columns - promptLabel.length - 1)
-      const headline = waitingHeadline(model)
-      return frame(
-        <Box flexDirection="column" gap={compact ? 0 : 1}>
-          {compact ? (
-            headline.warns ? <Text color={tokens.warning} wrap="wrap">{headline.words}</Text> : null
-          ) : (
-            <Text color={headline.warns ? tokens.warning : undefined} wrap="wrap">
-              {headline.words}
-              {state.forcedMethod
-                ? ` (login method pre-selected: ${state.forcedMethod})`
-                : ''}
-            </Text>
-          )}
-          {pastePromptUp ? (
-            <Box flexDirection="column" gap={compact ? 0 : 1}>
-              {compact ? (
-                <Text dimColor wrap="truncate-end">{state.url}</Text>
-              ) : (
-                <Text dimColor wrap="wrap">
-                  Browser did not open? Use this URL:{'\n'}
-                  {state.url}
-                </Text>
-              )}
-              {copied ? (
-                <Text color={tokens.success}>Copied to clipboard</Text>
-              ) : compact ? null : (
-                <Text dimColor>press c to copy the URL</Text>
-              )}
-              <Box>
-                <Text>{promptLabel}</Text>
-                <TextInput
-                  value={code}
-                  onChange={setCode}
-                  onSubmit={submitCode}
-                  mask="*"
-                  columns={inputColumns}
-                  cursorOffset={codeCursor}
-                  onChangeCursorOffset={setCodeCursor}
-                />
-              </Box>
-              {compact ? <Text dimColor>c copies the URL · esc cancels</Text> : null}
-            </Box>
-          ) : null}
-        </Box>,
-      )
+      return waitingCard({ state, frame, compact, model, columns, tokens, pastePromptUp, copied, code, setCode, submitCode, codeCursor, setCodeCursor })
     }
 
     case 'creating-key':
@@ -548,247 +230,14 @@ export function ConsoleOAuthFlow({
       )
 
     case 'success':
-      if (setupToken && state.token !== undefined) {
-        return frame(
-          <Box flexDirection="column" gap={compact ? 0 : 1}>
-            <Text color={tokens.success}>Token created. It is valid for one year.</Text>
-            <Text bold>{state.token}</Text>
-            <Text color={tokens.warning}>
-              It will not be shown again — store it now.
-            </Text>
-            <Text dimColor>
-              Export it as MERCURY_OAUTH_TOKEN to use it.
-            </Text>
-          </Box>,
-        )
-      }
-      return frame(
-        <Box flexDirection="column" gap={compact ? 0 : 1}>
-          <SuccessEnterConfirms onDone={onDone} />
-          <Text color={tokens.success}>
-            Signed in{accountLabel !== null ? ` as ${accountLabel}` : ''}.
-          </Text>
-          {state.warning !== undefined ? (
-            <Text color={tokens.warning}>{state.warning}</Text>
-          ) : null}
-          {shadowWarning !== null ? (
-            <Text color={tokens.warning}>{shadowWarning}</Text>
-          ) : null}
-          <Text dimColor>press Enter to continue</Text>
-        </Box>,
-      )
+      return successCard({ state, frame, compact, onDone, tokens, setupToken, accountLabel, shadowWarning })
 
     case 'error':
-      return frame(
-        <Box flexDirection="column" gap={compact ? 0 : 1}>
-          <ErrorEnterRetries
-            hasRetry={state.retry !== undefined}
-            onRetry={() => {
-              setCode('')
-              setCodeCursor(0)
-              model.retry()
-            }}
-          />
-          <Text color={tokens.failureText}>{state.message}</Text>
-          {state.retry !== undefined ? (
-            <Text dimColor>press Enter to retry</Text>
-          ) : null}
-        </Box>,
-      )
+      return errorCard({ state, frame, compact, model, tokens, setCode, setCodeCursor })
 
     case 'about-to-retry':
       return frame(<Text dimColor>Retrying…</Text>)
   }
-}
-
-function OpenaiSubscriptionLeg({
-  onOpenaiDone,
-}: {
-  onOpenaiDone: (result: { ok: boolean; receipt: string }) => void
-}): React.ReactNode {
-  const [mode, setMode] = useState<'browser' | 'device'>('browser')
-  return (
-    <OpenaiConnect
-      key={mode}
-      mode={mode}
-      onDone={() => {}}
-      onResult={onOpenaiDone}
-      {...(mode === 'browser' ? { onSwitchToDevice: () => setMode('device') } : {})}
-    />
-  )
-}
-
-function OpenaiKeyLeg({
-  onOpenaiDone,
-  onBack,
-}: {
-  onOpenaiDone: (result: { ok: boolean; receipt: string }) => void
-  onBack: () => void
-}): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const [key, setKey] = useState('')
-  const [cursor, setCursor] = useState(0)
-  const [note, setNote] = useState<string | null>(null)
-  const [storing, setStoring] = useState(false)
-  useInput((_input, k) => {
-    if (k.escape && !storing) onBack()
-  })
-  const submit = (raw: string): void => {
-    const value = raw.trim()
-    if (!value) return
-    const guard = keyPasteGuardNote(value, {
-      stores: 'an OpenAI key. Anthropic usage-based billing signs in through the Anthropic row, under Usage-based billing, instead',
-    })
-    if (guard !== null) {
-      setNote(guard)
-      return
-    }
-    setStoring(true)
-    void storeOpenaiApiKeyLogin(value).then(outcome => {
-      if (!outcome.stored) {
-        setStoring(false)
-        setNote(outcome.receipt)
-        return
-      }
-      onOpenaiDone({ ok: outcome.ok, receipt: outcome.receipt })
-    })
-  }
-  const { compact } = usePopupCompact()
-  return (
-    <Box flexDirection="column" gap={compact ? 0 : 1}>
-      {compact ? <KeyCardTitle family="openai">OpenAI key</KeyCardTitle> : <Text>{keyPageLine('openai')}</Text>}
-      {compact ? null : <Text>Paste your OpenAI API key. Stored auth-scoped (mode 600), never logged; an OPENAI_API_KEY env var always wins over the store.</Text>}
-      <Box>
-        <Text>Key: </Text>
-        <TextInput
-          value={key}
-          onChange={setKey}
-          onSubmit={submit}
-          mask="*"
-          columns={48}
-          cursorOffset={cursor}
-          onChangeCursorOffset={setCursor}
-        />
-      </Box>
-      {storing ? <Text dimColor>Storing and checking the live catalogue…</Text> : null}
-      {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
-      {compact ? null : <Text dimColor>esc back</Text>}
-    </Box>
-  )
-}
-
-function SuccessEnterConfirms({ onDone }: { onDone: () => void }): React.ReactNode {
-  useInput((input, key) => {
-    if (key.return || key.escape) onDone()
-  })
-  return null
-}
-
-function ErrorEnterRetries({
-  hasRetry,
-  onRetry,
-}: {
-  hasRetry: boolean
-  onRetry: () => void
-}): React.ReactNode {
-  useInput((input, key) => {
-    if (key.return && hasRetry) onRetry()
-  })
-  return null
-}
-
-export const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = [
-  { id: 'anthropic', label: 'Anthropic' },
-  { id: 'openai', label: 'OpenAI' },
-  { id: 'openrouter', label: 'OpenRouter' },
-  { id: 'gemini', label: 'Gemini' },
-  { id: 'huggingface', label: 'Hugging Face' },
-  { id: 'moonshot', label: 'Kimi (Moonshot)' },
-  { id: 'zai', label: 'GLM (Z.AI)' },
-  { id: 'deepseek', label: 'DeepSeek' },
-  { id: 'xai', label: 'xAI' },
-  { id: 'meta', label: 'Meta' },
-  { id: 'mistral', label: 'Mistral' },
-  { id: 'zen', label: 'OpenCode Zen' },
-  { id: 'minimax', label: 'MiniMax' },
-  { id: 'together', label: 'Together AI' },
-  { id: 'cohere', label: 'Cohere' },
-  { id: 'groq', label: 'Groq' },
-  { id: 'melious', label: 'Melious AI' },
-  { id: 'orcarouter', label: 'OrcaRouter' },
-  { id: 'cerebras', label: 'Cerebras' },
-  { id: 'fireworks', label: 'Fireworks' },
-  { id: 'qwen', label: 'Qwen' },
-  { id: 'local', label: 'Local servers' },
-  { id: 'openai-compat', label: 'OpenAI-compatible' },
-  { id: 'nous', label: 'Nous Portal' },
-]
-
-const READINESS_LABEL_WIDTH = 21
-
-function readinessStatusOf(lane: { usable: boolean; credential?: string | null; limit?: string | null; blockers: readonly string[] }): string {
-  return lane.usable
-    ? `ready · ${lane.credential}${lane.limit === 'rejected' ? ' · window reached' : ''}`
-    : (lane.blockers[0] ?? 'not ready')
-}
-
-function readinessBlockPlan(
-  map: Record<ProviderId, { usable: boolean; credential?: string | null; limit?: string | null; blockers: readonly string[] }>,
-  statusWidth: number | null,
-): { rows: number; lines: number[] } {
-  const lines = READINESS_ROWS.map(({ id }) => (statusWidth === null ? 1 : wrapText(readinessStatusOf(map[id]), Math.max(1, statusWidth), 'wrap').split('\n').length))
-  return { rows: 1 + lines.reduce((sum, n) => sum + n, 0), lines }
-}
-
-function readinessFamiliesShown(plan: { rows: number; lines: number[] }, rows: number): number {
-  if (rows >= plan.rows) return plan.lines.length
-  let used = 2
-  let shown = 0
-  for (const n of plan.lines) {
-    if (used + n > rows) break
-    used += n
-    shown++
-  }
-  return shown
-}
-
-function ProviderReadinessBlock({ rows, statusWidth }: { rows: number; statusWidth: number | null }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  useCatalogueEpoch()
-  useEffect(() => {
-    resolveProviderUsability(undefined, { fetchCatalogues: true })
-  }, [])
-  const map = resolveProviderUsability()
-  const plan = readinessBlockPlan(map, statusWidth)
-  const whole = rows >= plan.rows
-  const shown = READINESS_ROWS.slice(0, readinessFamiliesShown(plan, rows))
-  return (
-    <Box flexDirection="column">
-      <Text dimColor bold>
-        Provider readiness
-      </Text>
-      {shown.map(({ id, label }) => {
-        const lane = map[id]
-        const status = readinessStatusOf(lane)
-        return (
-          <Box key={id}>
-            <Box width={READINESS_LABEL_WIDTH} flexShrink={0}>
-              <Text dimColor>
-                {'  '}
-                {label}
-              </Text>
-            </Box>
-            <Box flexGrow={1} flexShrink={1}>
-              <Text color={lane.usable ? tokens.success : undefined} dimColor={!lane.usable}>
-                {status}
-              </Text>
-            </Box>
-          </Box>
-        )
-      })}
-      {whole ? null : <Text dimColor>{MORE_BELOW_ROW(READINESS_ROWS.length - shown.length)}</Text>}
-    </Box>
-  )
 }
 
 export default ConsoleOAuthFlow
