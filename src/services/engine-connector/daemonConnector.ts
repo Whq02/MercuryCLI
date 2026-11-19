@@ -1,9 +1,6 @@
-import { statSync, watch, type FSWatcher } from 'node:fs'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
-import { resolveWatchRoot } from '../../utils/watchRoot.js'
-import { basename, dirname, join } from 'node:path'
+import { join } from 'node:path'
 import type { Message } from '../../types/message.js'
-import { readClearModelReceipt } from '../switchboard/sessionReceipts.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import type { PastedContent } from '../../utils/config/schema.js'
@@ -15,15 +12,11 @@ import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
 import { createModelTransitionMessage, createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
-import { createLiveTurnFold, deserializeLiveMessages, type LiveTurnFold } from '../../utils/conversationRecovery.js'
-import type { TranscriptChainCursor } from '../../utils/sessionStorage/transcriptReader.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import type { StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import { adoptOpenaiObservedUsage, adoptOpenaiWindowFact } from '../providers/openai/openaiLimitState.js'
 import { adoptOpenaiCatalogueFact } from '../providers/openai/openaiCatalogue.js'
 import { adoptAnthropicObservedUsage, adoptAnthropicWindowFact } from '../anthropicLimits.js'
-import { mergeRecordsContentKeyed } from './recordIdentity.js'
-import { placeLocalCommandRows } from './localCommandRows.js'
 import { endedRunResults } from './endedRunCalls.js'
 import {
   readSessionFacts,
@@ -38,8 +31,7 @@ import {
   sessionTailPath,
   type SessionFactsV1,
 } from './seatProjections.js'
-import { IDLE_LIVE, type LiveTurnFactsV1, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
-import { withoutRetractedReplies, type CommittedTextRow } from './midTurnText.js'
+import type { LiveTurnFactsV1, LostLineV1, SeatLiveExtensionV1, SeatStatusV1, SessionLiveV1 } from './seatLive.js'
 import type { FoldStatusV1 } from '../compact/foldStatus.js'
 import { mcpToolsOfReply } from '../mcp/toolsAnswer.js'
 import { getFocusedSessionConnector, setFocusedSessionConnector, subscribeFocusedSessionConnector, claimHopEpoch, hopEpochIsCurrent } from './focusedConnector.js'
@@ -84,12 +76,12 @@ import { DeliveryPart } from './daemon/delivery.js'
 import { FactsPart } from './daemon/facts.js'
 import { FoldPart } from './daemon/fold.js'
 import { SendsPart } from './daemon/sends.js'
-import { connectorTrace, emitAll, REFUSED_EMPTY, type Listeners } from './daemon/shared.js'
+import { connectorTrace, REFUSED_EMPTY } from './daemon/shared.js'
 import { TailPart } from './daemon/tail.js'
 import { LivePart } from './daemon/live.js'
 import { WorkPart } from './daemon/work.js'
+import { TranscriptPart } from './daemon/transcript.js'
 import { HEARTBEAT_MS, ProjectionFeed } from './daemon/feed.js'
-import { projectOperatorRewinds } from '../compact/checkpointRewind.js'
 
 export interface DaemonSessionRecordV1 {
   sessionId: string
@@ -143,7 +135,6 @@ export function imageBlocksOf(pastes: Record<number, PastedContent>): ContentBlo
 export { HEARTBEAT_MS, PROJECTION_ABSENT, ProjectionFeed, projectionChangeKey } from './daemon/feed.js'
 const RPC_TIMEOUT_MS = 15_000
 const LEAVE_RPC_TIMEOUT_MS = 135_000
-const IDLE_TRANSCRIPT_FLOOR_MS = 2000
 export const IDLE_PROJECTION_FLOOR_MS = 10_000
 export const SEAT_VERB_SETTLE_MS = 4000
 export const CARRIER_GONE_WORDS = 'the background daemon ended — the next prompt starts a new one'
@@ -184,12 +175,6 @@ async function carrierRpc(req: Record<string, unknown>, timeoutMs: number): Prom
 export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtensionV1 {
   readonly carrier = 'daemon' as const
 
-  private rawRecords: Message[] = []
-  private recordSigs: string[] = []
-  private painted: readonly Message[] = []
-  private keptRecords: readonly Message[] = []
-  private answeredRows: readonly Message[] = []
-  private liveState: SessionLiveV1 = IDLE_LIVE
   private readonly carrierPart = new CarrierPart({
     sessionId: () => this.record.sessionId,
     rpc: req => this.rpc(req),
@@ -206,27 +191,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.recomputeLive()
     this.addDisplayRow(createSeatReceiptMessage(CARRIER_GONE_WORDS, 'warning') as unknown as Message)
   }
-  private displayRows: Array<{ row: Message; anchor: number }> = []
-  private clearModelReceipt: Message | null | undefined
-  private rowsAfterTail = 0
-  private lastSize = -1
-  private lastLen = -1
-  private transcriptUnreadableFp: string | null = null
-  private chainCursor: TranscriptChainCursor | null = null
-  private readonly liveFold: LiveTurnFold = createLiveTurnFold()
-  private releaseTranscript: (() => void) | null = null
-  private transcriptWatcher: FSWatcher | null = null
-  private transcriptTimer: ReturnType<typeof setInterval> | null = null
-  private transcriptTimerMs = 0
   private turnInFlight = false
-  private tickInFlight: Promise<void> | null = null
-  private tickDirty = false
-  private readonly transcriptPath: string
-  private readonly recordListeners: Listeners = new Set()
+  private readonly transcriptPart: TranscriptPart
 
   private readonly sendsPart = new SendsPart({
     sessionId: () => this.record.sessionId,
-    rows: () => this.rawRecords,
+    rows: () => this.transcriptPart.rows(),
     paint: () => this.paint(),
     compacting: () => this.liveStateWord === 'compacting',
     wakeLive: () => this.livePart.wake(),
@@ -271,7 +241,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private readonly asksPart = new AsksPart({
     record: () => this.record,
-    rows: () => this.rawRecords,
+    rows: () => this.transcriptPart.rows(),
     facts: () => this.factsPart.read(),
     permissionMode: () => this.permissionMode(),
     chainRpc: req => this.chainRpc(req),
@@ -282,7 +252,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly tailFeed: ProjectionFeed
   private readonly tailPart = new TailPart({
     sessionId: () => this.record.sessionId,
-    rows: () => this.rawRecords,
+    rows: () => this.transcriptPart.rows(),
     model: () => this.modelFacts().effective,
     paint: () => this.paint(),
   })
@@ -297,8 +267,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     model: () => this.modelFacts().effective,
     anySendDelivered: () => this.sendsPart.anyDelivered(),
     redressQueuedSends: () => this.sendsPart.redressQueued(),
-    transcriptLive: () => this.liveState,
-    toolStartedAtMs: inProgress => this.toolStartedAtMs(inProgress),
+    transcriptLive: () => this.transcriptPart.live(),
+    toolStartedAtMs: inProgress => this.transcriptPart.toolStartedAtMs(inProgress),
     tailHeld: () => this.tailPart.store().read() !== null,
     clearTail: atMs => this.tailPart.clearTail(atMs),
     tailInterrupted: atMs => this.tailPart.interrupted(atMs),
@@ -316,7 +286,24 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private attached = false
 
   constructor(readonly record: DaemonSessionRecordV1, private readonly hands: ConnectorHands = {}) {
-    this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
+    this.transcriptPart = new TranscriptPart(join(record.home, `${record.sessionId}.jsonl`), this.hands, {
+      record: () => this.record,
+      attached: () => this.attached,
+      turnInFlight: () => this.turnInFlight,
+      facts: () => this.factsPart.read(),
+      carrierGone: () => this.carrierPart.gone(),
+      admissionAwaiting: () => this.admissionPart.awaiting(),
+      readFacts: () => this.readFacts(),
+      recomputeLive: () => this.recomputeLive(),
+      tailSeq: () => this.tailPart.seq(),
+      textRows: () => this.tailPart.committedRows(),
+      dropCommittedRows: () => this.tailPart.dropCommittedRows(),
+      releaseTail: () => this.tailPart.releaseTail(),
+      retireTextRows: () => this.tailPart.retireTextRows(),
+      echoes: tailSeq => this.sendsPart.echoes(tailSeq),
+      reconcileSends: () => this.sendsPart.reconcileSends(),
+      placeDelivered: rows => this.sendsPart.placeDelivered(rows),
+    })
     this.factsPart = new FactsPart({
       sessionId: () => this.record.sessionId,
       recordModel: () => this.record.modelKey,
@@ -336,7 +323,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.completionPart = new CompletionPart({
       sessionId: () => this.record.sessionId,
       factsBusy: () => this.factsPart.busy(),
-      hasUnreadTranscript: () => this.hasUnreadTranscript(),
+      hasUnreadTranscript: () => this.transcriptPart.hasUnreadTranscript(),
       tick: () => this.tick(),
     })
     this.admissionPart.seed(this.factsPart.read()?.atMs ?? null, record.runnerId === '')
@@ -356,9 +343,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   attach(): Promise<void> {
     if (this.attached) return Promise.resolve()
     this.attached = true
-    connectorTrace({ ev: 'attach', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length })
-    this.armTranscriptWatcher()
-    this.armTranscriptTimer()
+    connectorTrace({ ev: 'attach', sid: this.record.sessionId, raw: this.transcriptPart.rows().length, display: this.transcriptPart.displayCount() })
+    this.transcriptPart.armTranscriptWatcher()
+    this.transcriptPart.armTranscriptTimer()
     this.factsFeed.start()
     this.asksFeed.start()
     this.tailFeed.start()
@@ -373,19 +360,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (!this.attached) return
     this.attached = false
     this.livePart.syncLivenessTicker(false)
-    connectorTrace({ ev: 'detach', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length })
-    if (this.transcriptTimer !== null) {
-      clearInterval(this.transcriptTimer)
-      this.transcriptTimer = null
-      this.transcriptTimerMs = 0
-    }
-    try {
-      this.transcriptWatcher?.close()
-    } catch {
-    }
-    this.transcriptWatcher = null
-    this.releaseTranscript?.()
-    this.releaseTranscript = null
+    connectorTrace({ ev: 'detach', sid: this.record.sessionId, raw: this.transcriptPart.rows().length, display: this.transcriptPart.displayCount() })
+    this.transcriptPart.detached()
     this.factsFeed.stop()
     this.asksFeed.stop()
     this.tailFeed.stop()
@@ -433,69 +409,21 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private syncFeedCadence(inFlight: boolean): void {
     if (this.turnInFlight === inFlight) return
     this.turnInFlight = inFlight
-    this.armTranscriptTimer()
+    this.transcriptPart.armTranscriptTimer()
     this.factsFeed.rearm()
     this.asksFeed.rearm()
     this.tailFeed.rearm()
     this.progressFeed.rearm()
   }
 
-  private armTranscriptWatcher(): void {
-    if (this.hands.armTranscriptWatcher !== undefined) return this.hands.armTranscriptWatcher()
-    if (this.transcriptWatcher !== null) return
-    try {
-      const dir = dirname(this.transcriptPath)
-      const name = basename(this.transcriptPath)
-      const watcher = watch(resolveWatchRoot(dir), (_event, filename) => {
-        if (filename === undefined || filename === null || String(filename) === name) void this.tick()
-      })
-      watcher.on('error', () => {
-        try {
-          watcher.close()
-        } catch {
-        }
-        if (this.transcriptWatcher === watcher) this.transcriptWatcher = null
-        this.armTranscriptTimer()
-      })
-      this.transcriptWatcher = watcher
-    } catch {
-    }
-  }
-
-  private armTranscriptTimer(): void {
-    if (this.hands.armTranscriptTimer !== undefined) return this.hands.armTranscriptTimer()
-    if (!this.attached) return
-    const ms = this.transcriptWatcher === null || this.turnInFlight ? HEARTBEAT_MS : IDLE_TRANSCRIPT_FLOOR_MS
-    if (this.transcriptTimer !== null && this.transcriptTimerMs === ms) return
-    if (this.transcriptTimer !== null) clearInterval(this.transcriptTimer)
-    const timer = setInterval(() => void this.tick(), ms)
-    timer.unref?.()
-    this.transcriptTimer = timer
-    this.transcriptTimerMs = ms
-  }
-
   feedCadencesForProofs(): { transcript: number; facts: number; asks: number; tail: number; progress: number } {
     return {
-      transcript: this.transcriptTimer === null ? 0 : this.transcriptTimerMs,
+      transcript: this.transcriptPart.heartbeatMs(),
       facts: this.factsFeed.heartbeatMs(),
       asks: this.asksFeed.heartbeatMs(),
       tail: this.tailFeed.heartbeatMs(),
       progress: this.progressFeed.heartbeatMs(),
     }
-  }
-
-  private toolStartedAtMs(inProgress: ReadonlySet<string>): number | null {
-    let earliest: number | null = null
-    for (let i = this.rawRecords.length - 1; i >= 0; i--) {
-      const row = this.rawRecords[i] as { type?: string; timestamp?: string; message?: { content?: unknown } } | undefined
-      if (row?.type !== 'assistant' || !Array.isArray(row.message?.content)) continue
-      const carries = (row.message.content as Array<{ type?: string; id?: string }>).some(b => b.type === 'tool_use' && typeof b.id === 'string' && inProgress.has(b.id))
-      if (!carries) continue
-      const at = typeof row.timestamp === 'string' ? Date.parse(row.timestamp) : Number.NaN
-      if (Number.isNaN(at)) continue
-      earliest = earliest === null ? at : Math.min(earliest, at)
-    }
-    return earliest
   }
 
   isAttached(): boolean {
@@ -507,25 +435,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   addDisplayRow(row: Message): void {
-    const subtype = (row as { subtype?: string }).subtype
-    const kept =
-      row.type === 'system' && subtype === 'away_summary'
-        ? this.displayRows.filter(d => !(d.row.type === 'system' && (d.row as { subtype?: string }).subtype === 'away_summary'))
-        : this.displayRows
-    connectorTrace({ ev: 'display-row', sid: this.record.sessionId, anchor: this.rawRecords.length, subtype: subtype ?? row.type, display: kept.length + 1 })
-    this.displayRows = [...kept, { row, anchor: this.rawRecords.length }]
-    this.paint()
-  }
-
-  private releaseDisplayRowsPast(since: number): void {
-    const kept = this.displayRows.filter(d => d.anchor <= since)
-    if (kept.length === this.displayRows.length) return
-    connectorTrace({ ev: 'display-release', sid: this.record.sessionId, since, released: this.displayRows.length - kept.length, display: kept.length })
-    this.displayRows = kept
+    this.transcriptPart.addDisplayRow(row)
   }
 
   transcriptFile(): string {
-    return this.transcriptPath
+    return this.transcriptPart.transcriptFile()
   }
 
   adoptRecord(next: DaemonSessionRecordV1, runnerLive = false): void {
@@ -549,84 +463,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private tick(): Promise<void> {
-    if (this.tickInFlight !== null) {
-      this.tickDirty = true
-      return this.tickInFlight
-    }
-    const flight = (async () => {
-      try {
-        do {
-          this.tickDirty = false
-          await (this.hands.tickOnce === undefined ? this.tickOnce() : this.hands.tickOnce(() => this.tickOnce()))
-        } while (this.tickDirty && this.attached)
-      } finally {
-        this.tickInFlight = null
-      }
-    })()
-    this.tickInFlight = flight
-    return flight
-  }
-
-  private async tickOnce(): Promise<void> {
-    if (!this.attached) return
-    let fpNow: string | null = null
-    try {
-      let sizeNow = -1
-      try {
-        const st = statSync(this.transcriptPath, { bigint: true })
-        sizeNow = Number(st.size)
-        fpNow = `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
-      } catch {
-        sizeNow = -1
-      }
-      connectorTrace({ ev: 'tick', sid: this.record.sessionId, sizeNow, lastSize: this.lastSize, lastLen: this.lastLen })
-      if (sizeNow === this.lastSize && this.lastLen >= 0) return
-      if (sizeNow !== -1 && this.transcriptWatcher === null) {
-        this.armTranscriptWatcher()
-        this.armTranscriptTimer()
-      }
-      const reader = await import('../../utils/sessionStorage/transcriptReader.js')
-      if (this.releaseTranscript === null) this.releaseTranscript = reader.retainTranscript(this.transcriptPath)
-      const chain = await reader.readTranscriptChainSince(this.transcriptPath, this.chainCursor)
-      if (!this.attached) return
-      this.transcriptUnreadableFp = null
-      this.chainCursor = chain.cursor
-      const raw = chain.rows as unknown as Message[]
-      this.lastSize = sizeNow
-      this.lastLen = raw.length
-      const since = chain.since <= this.rawRecords.length && chain.since <= this.recordSigs.length ? chain.since : 0
-      const tail = (since === 0 ? raw : (chain.appended as unknown as Message[]))
-      const merge = mergeRecordsContentKeyed(
-        this.rawRecords,
-        this.recordSigs,
-        raw,
-        deserializeLiveMessages(tail),
-        reader.chainRowSigner(),
-        since,
-      )
-      this.recordSigs = merge.sigs
-      connectorTrace({ ev: 'load', sid: this.record.sessionId, rawLen: raw.length, reusedAll: merge.reusedAll, prevLen: this.rawRecords.length, since: chain.since, rewound: chain.rewound })
-      if (merge.reusedAll) {
-        this.recomputeLive()
-        return
-      }
-      this.rawRecords = merge.records
-      if (chain.rewound) {
-        this.releaseDisplayRowsPast(chain.since)
-        this.tailPart.dropCommittedRows()
-      }
-      this.liveState = this.liveFold.fold(this.rawRecords, chain.since)
-      this.tailPart.releaseTail()
-      this.sendsPart.reconcileSends()
-      this.tailPart.retireTextRows()
-      this.paint()
-      if (this.admissionPart.awaiting() || this.factsPart.read()?.runner?.state === 'starting') this.readFacts()
-      this.recomputeLive()
-    } catch (error) {
-      if (fpNow !== null) this.transcriptUnreadableFp = fpNow
-      connectorTrace({ ev: 'tick-error', sid: this.record.sessionId, message: error instanceof Error ? error.message : String(error) })
-      if (this.attached) this.recomputeLive()
-    }
+    return this.transcriptPart.tick()
   }
 
   private recomputeLive(): void {
@@ -635,19 +472,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   lastTurnCompletedAtMs(): number | null {
     return this.completionPart.lastTurnCompletedAtMs()
-  }
-
-  private hasUnreadTranscript(): boolean {
-    if (!this.attached) return false
-    try {
-      const st = statSync(this.transcriptPath, { bigint: true })
-      const sizeNow = Number(st.size)
-      if (sizeNow <= 0 || sizeNow === this.lastSize) return false
-      const fp = `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
-      return fp !== this.transcriptUnreadableFp
-    } catch {
-      return false
-    }
   }
 
   heldForCompaction(): string[] {
@@ -663,47 +487,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private paint(): void {
-    const tailSeq = this.tailPart.seq()
-    const { held, afterTail } = this.sendsPart.echoes(tailSeq)
-    for (const committed of this.textRows) {
-      const at = held.findIndex(entry => entry.seq > committed.seq)
-      const entry = { seq: committed.seq, row: committed.row }
-      if (at === -1) held.push(entry)
-      else held.splice(at, 0, entry)
-    }
-    const echoes: Message[] = [...held.map(entry => entry.row), ...afterTail]
-    this.rowsAfterTail = afterTail.length
-    const kept = withoutRetractedReplies(projectOperatorRewinds(this.rawRecords))
-    const dropped = kept.length === this.rawRecords.length ? null : new Set<Message>(kept)
-    const answered = endedRunResults(kept, this.factsPart.read(), this.carrierPart.gone())
-    this.keptRecords = kept
-    this.answeredRows = answered
-    if (echoes.length === 0 && this.displayRows.length === 0 && dropped === null && answered.length === 0) {
-      this.painted = this.rawRecords
-    } else {
-      const rows: Message[] = []
-      let d = 0
-      for (let i = 0; i <= this.rawRecords.length; i++) {
-        if (i === this.rawRecords.length) rows.push(...answered)
-        while (d < this.displayRows.length && this.displayRows[d]!.anchor <= i) rows.push(this.displayRows[d++]!.row)
-        if (i < this.rawRecords.length) {
-          const record = this.rawRecords[i]!
-          if (dropped === null || dropped.has(record)) rows.push(record)
-        }
-      }
-      while (d < this.displayRows.length) rows.push(this.displayRows[d++]!.row)
-      this.painted = [...rows, ...echoes]
-    }
-    if (this.clearModelReceipt === undefined) {
-      try { this.clearModelReceipt = readClearModelReceipt(this.record.home, this.record.sessionId) }
-      catch (error) { logForDebugging(`[engine-connector] clear receipt unreadable: ${error}`) }
-    }
-    if (this.clearModelReceipt != null && !this.rawRecords.some(row => row.uuid === this.clearModelReceipt!.uuid)) {
-      this.painted = [this.clearModelReceipt, ...this.painted]
-    }
-    this.painted = placeLocalCommandRows(this.sendsPart.placeDelivered(this.painted))
-    connectorTrace({ ev: 'paint', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length, echoes: echoes.length, painted: this.painted.length, listeners: this.recordListeners.size })
-    emitAll(this.recordListeners, 'records')
+    this.transcriptPart.paint()
   }
 
   checkpointFacts(): CheckpointFactsV1 {
@@ -798,9 +582,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.recomputeLive()
     connectorTrace({ ev: 'facts', sid: this.record.sessionId, busy: next.busy, atMs: next.atMs, queue: next.queue?.length ?? 0, sends: this.sendsPart.states(), inFlight: this.livePart.live().inFlight, ...this.livePart.pressed() })
     this.factsPart.wake(modelMoved, modeMoved)
-    const answered = endedRunResults(this.keptRecords, this.factsPart.read(), this.carrierPart.gone())
-    const answeredMoved = answered.length !== this.answeredRows.length || answered.some((row, at) => row !== this.answeredRows[at])
-    if (this.sendsPart.reconcileSends() || this.clearModelReceipt === undefined || answeredMoved) this.paint()
+    const answered = endedRunResults(this.transcriptPart.kept(), this.factsPart.read(), this.carrierPart.gone())
+    const answeredMoved = answered.length !== this.transcriptPart.answered().length || answered.some((row, at) => row !== this.transcriptPart.answered()[at])
+    if (this.sendsPart.reconcileSends() || this.transcriptPart.clearReceipt() === undefined || answeredMoved) this.paint()
     this.workPart.refreshWork()
   }
 
@@ -868,14 +652,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   records(): readonly Message[] {
-    return this.painted
+    return this.transcriptPart.records()
   }
 
   subscribeRecords(listener: () => void): () => void {
-    this.recordListeners.add(listener)
-    return () => {
-      this.recordListeners.delete(listener)
-    }
+    return this.transcriptPart.subscribeRecords(listener)
   }
 
   turnActive(): boolean {
@@ -1264,12 +1045,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return this.tailPart.store()
   }
 
-  private get textRows(): readonly CommittedTextRow[] {
-    return this.tailPart.committedRows()
-  }
-
   tailAnchor(): number {
-    return this.painted.length - this.rowsAfterTail
+    return this.transcriptPart.tailAnchor()
   }
 
   status(): SeatStatusV1 {
