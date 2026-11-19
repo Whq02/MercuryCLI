@@ -24,6 +24,7 @@ function formatAgentLine(agent: AgentDefinition, refusal?: string): string {
 }
 
 const AGENT_ROSTER_HEAD = 'Agents, by crewmate_type:'
+const SEATS_TALK_DIRECTLY = 'Seats talk to each other directly: a board post that starts @seat reaches a running seat at its next step and wakes an idle one, so brief seats to ask each other instead of relaying through you.'
 
 export function agentRosterOf(fullPrompt: string): string {
   const start = fullPrompt.indexOf(AGENT_ROSTER_HEAD)
@@ -43,6 +44,7 @@ export async function getPrompt(
   allowedAgentTypes?: readonly string[],
   offered?: ReadonlySet<string>,
   refusals?: ReadonlyMap<string, string>,
+  swarmOn = false,
 ): Promise<string> {
   void offered
   const effectiveAgents = allowedAgentTypes
@@ -53,7 +55,7 @@ export async function getPrompt(
   if (isCoordinator) return sections.join('\n\n')
 
   sections.push(`## Execution
-Launches in one message run concurrently; foreground launches in separate messages run sequentially and wait for the report (returned to you, not directly to the user). Tool access follows the selected agent definition and the session's permissions. Foreground and background launches have the same tool access. With swarm on, a new crewmate is enrolled on the live crew board and told its name, its team and the seats already there; posts arrive as [name] [team] [kind] rows between turns.`)
+Launches in one message run concurrently; foreground launches in separate messages run sequentially and wait for the report (returned to you, not directly to the user). Tool access follows the selected agent definition and the session's permissions. Foreground and background launches have the same tool access. With swarm on, a new crewmate is enrolled on the live crew board and told its name, its team and the seats already there; posts arrive as [name] [team] [kind] rows between turns.${swarmOn ? ` ${SEATS_TALK_DIRECTLY}` : ''}`)
 
   sections.push(`## Worktree cleanup
 The seven-day janitor removes only a clean worktree whose commits are reachable.`)

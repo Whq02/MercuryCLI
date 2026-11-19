@@ -49,7 +49,7 @@ import './worktreePrepareNotice.js'
 import './loadAgentsDir.js'
 import { agentRosterOf, getPrompt, withoutAgentRoster } from './prompt.js'
 import './runAgent.js'
-import '../../services/crewBoard/seam.js'
+import { swarmSessionEnabled } from '../../services/crewBoard/seam.js'
 import './agentColorManager.js'
 import * as UI from './UI.js'
 import { isResultTruncated } from './UI.js'
@@ -116,7 +116,7 @@ export const AgentTool = buildTool({
       const rule = getDenyRuleForAgent(permissionContext, AGENT_TOOL_NAME, agent.agentType)
       if (rule) refusals.set(agent.agentType, refusalWithReason(ruleSentence('launching it', 'deny', rule), reasonForRule(permissionContext, rule)))
     }
-    return getPrompt(mcpEligible, false, options.allowedAgentTypes, new Set(options.tools.map(tool => tool.name)), refusals)
+    return getPrompt(mcpEligible, false, options.allowedAgentTypes, new Set(options.tools.map(tool => tool.name)), refusals, swarmSessionEnabled())
   },
   isEnabled(): boolean {
     return evaluateLaunchAuthority('subagents').allowed

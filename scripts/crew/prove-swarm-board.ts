@@ -32,17 +32,24 @@ const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/Resume
 const { getSwarmAttachments } = await import('../../src/utils/attachments/queuedCommands.ts')
 const { drainPendingMessages } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const { operatorPauseGate } = await import('../../src/run-core/pauseGate.ts')
+const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const crewmateManual = (): Promise<string> => AgentTool.prompt({ getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools: [], agents: [] })
+const SEATS_TALK = 'Seats talk to each other directly: a board post that starts @seat reaches a running seat at its next step and wakes an idle one'
 let checks = 0
 function check(label: string, truth: unknown): void { assert(truth, label); checks++; console.log(`PASS ${label}`) }
 
 check('cold, with nothing set, the master is on and no implementation is imported', seam.swarmMasterEnabled() && !seam.swarmModuleLoaded())
 check('a new session starts on and offers the deferred board tool', seam.swarmSessionEnabled() && getAllBaseTools().some(t => t.name === 'CrewBoard' && t.shouldDefer))
+check('with swarm on the Crewmate tool says that seats talk to each other directly', (await crewmateManual()).includes(SEATS_TALK))
 runSwarmCommand('off')
 check('off removes the board tool for this session', !getAllBaseTools().some(t => t.name === 'CrewBoard'))
+check('with the session switched off the Crewmate tool leaves that line out', !(await crewmateManual()).includes('Seats talk'))
 updateSettingsForSource('userSettings', { swarm: { enabled: false } })
 check('an explicit false is the opt-out: the command answers with the setting door', !seam.swarmMasterEnabled() && runSwarmCommand('on').includes('swarm.enabled') && !seam.swarmSessionEnabled())
 updateSettingsForSource('projectSettings', { swarm: { enabled: true } })
 check('a repository cannot enable the board', !seam.swarmMasterEnabled())
+check('with the master setting false the Crewmate tool leaves that line out', !(await crewmateManual()).includes('Seats talk'))
 updateSettingsForSource('userSettings', { swarm: { enabled: undefined } })
 updateSettingsForSource('projectSettings', { swarm: { enabled: false } })
 check('with the user setting absent the master is on, and a repository cannot turn it off either', seam.swarmMasterEnabled())
@@ -52,6 +59,7 @@ check('an earlier launch stays plain', await seam.latchSwarmAgent('earlier', 'Ea
 await writeAgentMetadata('earlier' as never, { agentType: 'mercury-crew', swarm: false })
 const enabledResult = runSwarmCommand('on')
 check(`the command turns enrollment back on (${enabledResult})`, enabledResult.startsWith('Swarm on') && seam.swarmModuleLoaded())
+check('switched on again the Crewmate tool says it again', (await crewmateManual()).includes(SEATS_TALK))
 check('plain launch does not migrate', !await seam.latchSwarmAgent('earlier', 'Earlier'))
 check('two later crewmates join', await seam.latchSwarmAgent('alpha', 'Alpha') && await seam.latchSwarmAgent('beta', 'Beta'))
 const board = seam.swarmStore()!
