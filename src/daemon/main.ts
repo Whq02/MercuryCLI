@@ -14,22 +14,13 @@ import { getRunTimeoutMs, scrubDaemonRoleEnv } from './headlessRun.js'
 import {
   makeConcourseAdmitHandler,
   readSessionWorkers,
-  settleConcourseWorker,
 } from './concourseWorkers.js'
 import {
-  completeRequestedPark,
   endRunnersLeftWithoutHost,
-  retireRequestedPark,
 } from './concourseWorkers.js'
-import { holdWorkerAsk } from './permissionAsks.js'
 import { seatCeilingFactsAsync, serveHeldReadingFromBackground } from '../services/switchboard/capacityCheck.js'
 import {
-  onSeatIdle,
-  onSeatApplied,
-  answerSeatScheduleEdit,
-  onSeatRow,
   onSeatSpawned,
-  publishSeatFacts,
   requestSessionFacts,
 } from './sessionSeat.js'
 import { resetSeatProjections } from '../services/engine-connector/seatProjections.js'
@@ -40,7 +31,7 @@ import {
 } from './warmRunner.js'
 import { reviveConcourseWorker } from './concourseWorkers.js'
 import { readSessionWorkersSnapshot } from './concourseWorkers.js'
-import { makeConcourseDispatchHandler, failWorkingDispatchesForRunner, reconcileWorkingDispatches } from './concourseDispatch.js'
+import { makeConcourseDispatchHandler, reconcileWorkingDispatches } from './concourseDispatch.js'
 import { TaskRoster } from './roster.js'
 import {
   parseOwnerPid,
@@ -72,7 +63,6 @@ import { holdBuild, invokedScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync } from './planeRecords.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidsOfHome } from './status.js'
-import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { sleep } from '../utils/sleep.js'
 import { atBootStep, makeDaemonRunState, markDaemonReady } from './run/state.js'
 import { armHandoverBeats } from './run/handover.js'
@@ -81,6 +71,7 @@ import { armOwnerWatch, makeSessionlessBeat, markHosted } from './run/owner.js'
 import { periodicArmer } from './run/periodic.js'
 import { armWaysOut, bindWayOut, giveHomeBack, shutdownDaemon } from './run/shutdown.js'
 import { armedRestartBeat, spawnSuccessorDaemon } from './run/restart.js'
+import { makeDaemonRoster } from './run/roster.js'
 import { armSaturn } from './run/saturn.js'
 import { controlServerDeps } from './run/control.js'
 import { armReconcile } from './run/sweep.js'
@@ -301,65 +292,7 @@ async function daemonRun(args: string[]): Promise<void> {
     try {
       await atBootStep(state, 'the seat ceiling')(seatCeilingFactsAsync())
       state.releaseHeldReading = serveHeldReadingFromBackground()
-      roster = atBootStep(state, 'the roster')(new TaskRoster({
-        dir,
-        breaker,
-        maxInflight: MAX_INFLIGHT,
-        onAsk: (short, params) => holdWorkerAsk(short, params),
-        onRow: (short, row) => {
-          if (!short.startsWith('concourse-w') || roster === null) return
-          onSeatRow(short, row, roster)
-        },
-        onApplied: (short, params) => {
-          if (!short.startsWith('concourse-w') || roster === null) return
-          onSeatApplied(short, params, roster)
-        },
-        onScheduleEdit: (short, params) => {
-          if (!short.startsWith('concourse-w') || roster === null) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
-          return answerSeatScheduleEdit(short, params, roster)
-        },
-        onChildRelaunched: short => {
-          if (!short.startsWith('concourse-w') || roster === null) return
-          onSeatSpawned(short, roster)
-        },
-        onChildReady: short => {
-          if (!short.startsWith('concourse-w') || roster === null) return
-          publishSeatFacts(short, undefined, roster)
-          requestSessionFacts(short, roster, { immediate: true })
-        },
-        onChildCrashed: short => {
-          if (!short.startsWith('concourse-w') || roster === null) return
-          publishSeatFacts(short, undefined, roster)
-        },
-        onDegraded: (reason, short) => {
-          console.error(`[daemon] ${GLYPH.warn} DAEMON DEGRADED — ${reason}`)
-          if (short !== undefined && short.startsWith('concourse-w')) {
-            try {
-              settleConcourseWorker(short)
-            } catch {
-            }
-            try {
-              failWorkingDispatchesForRunner(short, reason)
-            } catch {
-            }
-          }
-        },
-        onIdle: short => {
-          if (short.startsWith('concourse-w') && roster !== null) {
-            const parkedWords = `[daemon] ${short} finished its turn and parked (a park was requested while it worked)`
-            if (completeRequestedPark(short, roster)) {
-              console.error(parkedWords)
-            } else {
-              void retireRequestedPark(short, roster)
-                .then(parked => {
-                  if (parked) console.error(parkedWords)
-                })
-                .catch(e => logForDebugging(`[daemon] ${short}: the requested park's retirement threw (ignored): ${e}`))
-            }
-            onSeatIdle(short, roster)
-          }
-        },
-      }))
+      roster = atBootStep(state, 'the roster')(makeDaemonRoster(state))
       state.roster = roster
       if (handoverPredecessor === null) resetSeatProjections(dir)
       const controlKey = atBootStep(state, 'the control key')(handoverPredecessor === null ? await mintControlKey() : ((await readControlKey()) ?? (await mintControlKey())))
