@@ -233,9 +233,18 @@ export function withoutWhatTheEngineRefuses(env: NodeJS.ProcessEnv): NodeJS.Proc
   return withoutShellStartFiles(env, process.platform, ENGINE_REFUSES)
 }
 
+function withoutEmptyPathConversionSwitch(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  if (!windowsShellRoadActive()) return env
+  const empty = Object.keys(env).filter(name => name.toUpperCase() === 'MSYS_NO_PATHCONV' && env[name] === '')
+  if (empty.length === 0) return env
+  const kept = { ...env }
+  for (const name of empty) delete kept[name]
+  return kept
+}
+
 export function withRoadPrograms(env: NodeJS.ProcessEnv, origin: ShellOrigin, shellPath: string): NodeJS.ProcessEnv {
   if (origin === 'engine') return withoutWhatTheEngineRefuses(windowsShellRoadActive() ? withGitPrograms(env) : env)
-  return origin === 'system' ? withOwnPrograms(env, shellPath) : withShippedPrograms(env, shellPath)
+  return withoutEmptyPathConversionSwitch(origin === 'system' ? withOwnPrograms(env, shellPath) : withShippedPrograms(env, shellPath))
 }
 
 function resolvedShellEngine(): ShellEngineResolution {
