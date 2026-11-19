@@ -504,16 +504,16 @@ const selectAllModifier = (): DesktopModifier => (process.platform === 'darwin' 
 export class FakeDesktopDriver implements DesktopDriver {
   readonly kind = 'fake' as const
   readonly acts: FakeAct[] = []
-  private readonly scene: FakeScene
+  readonly scene: FakeScene
   private readonly logPath: string | null
-  private cursorAt: DesktopPoint
-  private sceneActs = 0
-  private captures = 0
-  private heldButtons: DesktopButton[] = []
+  cursorAt: DesktopPoint
+  sceneActs = 0
+  captures = 0
+  heldButtons: DesktopButton[] = []
   private heldKeys: string[] = []
   private typingInto: FakeTreeNode | null = null
   private selectedAll = false
-  private closed = false
+  closed = false
 
   constructor(scene: FakeScene, log: string | null) {
     this.scene = structuredClone(scene)
@@ -545,39 +545,8 @@ export class FakeDesktopDriver implements DesktopDriver {
     return answer({ displays, fingerprint: displaysFingerprint(displays), spanning: this.scene.spanning ?? true })
   }
 
-  async capture(display: number, signal: AbortSignal): Promise<DesktopAnswer<DesktopCapture>> {
-    if (this.closed) return refusal({ kind: 'unavailable', note: 'the fake desktop driver is closed' })
-    const permissions = this.scene.permissions
-    if (permissions.session !== 'desktop') return refusal({ kind: 'session', note: permissions.reason ?? `the session is ${permissions.session}, not a desktop` })
-    if (!grantHolds(permissions.screenCapture)) return refusal({ kind: 'permission', note: `screen capture is not granted — ${permissions.reason ?? permissions.screenCapture}`, remedy: GRANT_REMEDY })
-    const record = Number.isInteger(display) ? this.scene.displays[display] : undefined
-    if (record === undefined) return refusal({ kind: 'display', note: `no display ${display} — the scene has ${this.scene.displays.length}` })
-    if ((await this.hold(signal)) === 'aborted') {
-      this.record('capture', 'aborted', { display })
-      return desktopAbortedAnswer()
-    }
-    const width = Math.round(record.width * record.scale)
-    const height = Math.round(record.height * record.scale)
-    let png: Buffer
-    try {
-      png = composeCapture([...this.scene.lines, `acts ${this.sceneActs} · captures ${this.captures}`].join('\n'), width, height, record.scale, this.scene.noise === true)
-    } catch (error) {
-      return refusal({ kind: 'defect', note: `the fake driver could not paint the capture: ${(error as Error).message}` })
-    }
-    this.captures += 1
-    const size = pngDimensions(png) ?? { width, height }
-    this.record('capture', 'done', { display, width: size.width, height: size.height })
-    return answer({
-      png,
-      width: size.width,
-      height: size.height,
-      scale: record.scale,
-      display: record.index,
-      displayId: record.id,
-      originX: record.originX,
-      originY: record.originY,
-      capturedAt: Date.now(),
-    })
+  capture(display: number, signal: AbortSignal): Promise<DesktopAnswer<DesktopCapture>> {
+    return fakeCapture.call(this, display, signal)
   }
 
   async frontmostApplication(): Promise<DesktopAnswer<DesktopApplication>> {
@@ -591,44 +560,8 @@ export class FakeDesktopDriver implements DesktopDriver {
     return answer(terminal ? { ...terminal, bounds: terminal.bounds ? { ...terminal.bounds } : null } : null)
   }
 
-  async accessibilityTree(app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>> {
-    if (this.closed) return refusal({ kind: 'unavailable', note: 'the fake desktop driver is closed' })
-    if (!Number.isInteger(limits.depth) || limits.depth < 0 || !Number.isInteger(limits.count) || limits.count < 1) return refusal(inputError(`the tree limits must be a whole depth and a count of at least one, not ${JSON.stringify(limits)}`))
-    const permissions = this.scene.permissions
-    if (permissions.session !== 'desktop') return refusal({ kind: 'session', note: permissions.reason ?? `the session is ${permissions.session}, not a desktop` })
-    if (!grantHolds(permissions.input)) return refusal({ kind: 'permission', note: `Accessibility is not granted — ${permissions.reason ?? permissions.input}`, remedy: GRANT_REMEDY })
-    const front = await this.frontmostApplication()
-    if (!front.ok || front.value.identity !== app.identity) return refusal({ kind: 'display', note: `${app.name} is not the application in front of the fake scene` })
-    if ((await this.hold(signal)) === 'aborted') {
-      this.record('accessibilityTree', 'aborted', { app: app.identity, ...limits })
-      return desktopAbortedAnswer()
-    }
-    const focused = this.scene.tree.find(node => node.role === 'AXWindow' && node.focused === true)
-    const window = focused ?? this.scene.tree.find(node => node.role === 'AXWindow' && node.title === app.title)
-    let children = this.scene.tree
-    if (limits.scope === 'window' && window) children = [window]
-    else if (limits.scope === 'app' && window) children = [window, ...children.filter(node => node !== window && node.role !== 'AXMenuBar'), ...children.filter(node => node.role === 'AXMenuBar')]
-    const focusPath = (nodes: FakeTreeNode[]): FakeTreeNode[] => {
-      for (const node of nodes) {
-        if (node.focused && !node.role.includes('Window')) return [node]
-        const path = focusPath(node.children ?? [])
-        if (path.length) return [node, ...path]
-      }
-      return []
-    }
-    const path = focusPath(children)
-    const focus = path.at(-1)
-    const tree = flattenTree(limits.observation && window ? window : { role: 'AXApplication', title: app.name, children }, limits)
-    tree.focused = focus ? flattenTree(focus, { depth: 0, count: 1 }).elements[0]! : null
-    if (limits.observation) {
-      for (const node of path.filter(node => /\b(?:AXApplicationDialog|AXSheet)\b/.test(node.role))) {
-        const element = flattenTree(node, { depth: 0, count: 1 }).elements[0]!
-        if (!tree.elements.some(row => row.role === element.role && row.title === element.title && JSON.stringify(row.frame) === JSON.stringify(element.frame))) tree.elements.push(element)
-      }
-    }
-    if (limits.scope === 'window' && window) tree.scope = 'window'
-    this.record('accessibilityTree', 'done', { app: app.identity, ...limits, elements: tree.elements.length, truncated: tree.truncated })
-    return answer(tree)
+  accessibilityTree(app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>> {
+    return fakeAccessibilityTree.call(this, app, limits, signal)
   }
 
   async readElement(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<import('./driver.js').DesktopFocusedText | null>> {
@@ -648,33 +581,8 @@ export class FakeDesktopDriver implements DesktopDriver {
     return answer({ text: text.slice(0, 20000), role: selected.role, title: selected.title, truncated: text.length > 20000 })
   }
 
-  async scrollToVisible(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopScrollReceipt>> {
-    const located = await this.locate(app, element, signal)
-    if (!located.ok) return located
-    const { node, window } = located.value
-    const detail = { app: app.identity, role: node.role, title: titleOf(node) }
-    const road = node.actions === undefined || node.actions.includes(SCROLL_ACTION) ? 'action' : 'wheel'
-    const viewport = window?.frame ?? app.bounds
-    if (road === 'wheel' && node.wheel === false) {
-      this.record('scrollToVisible', 'done', { ...detail, scrolled: false, road })
-      return answer({ scrolled: false, road: null, frame: node.frame ? { ...node.frame } : null, note: WHEEL_FAILED })
-    }
-    let at: DesktopPoint | null = null
-    if (node.frame && viewport) {
-      const below = node.frame.y < viewport.y || node.frame.y + node.frame.height > viewport.y + viewport.height || node.frame.height <= 1
-      const beside = node.frame.x < viewport.x || node.frame.x + node.frame.width > viewport.x + viewport.width
-      if (road === 'wheel' && (below || beside)) {
-        at = { x: Math.round(Math.min(Math.max(node.frame.x + node.frame.width / 2, viewport.x + 2), viewport.x + viewport.width - 2)), y: Math.round(viewport.y + viewport.height / 2) }
-        this.cursorAt = { ...at }
-      }
-      if (below) node.frame = { ...node.frame, y: Math.round(viewport.y + (viewport.height - node.frame.height) / 2) }
-      if (beside) node.frame = { ...node.frame, x: Math.round(viewport.x + (viewport.width - node.frame.width) / 2) }
-      if (node.visibleFrame && (below || beside || node.offscreen === true)) node.frame = { ...node.visibleFrame }
-    }
-    if (node.offscreen === true && node.visibleFrame) node.offscreen = false
-    this.sceneActs += 1
-    this.record('scrollToVisible', 'done', { ...detail, scrolled: true, road, frame: node.frame ?? null, ...(at ? { at } : {}) })
-    return answer({ scrolled: true, road, frame: node.frame ? { ...node.frame } : null, note: at ? wheelWords(at.x, at.y) : null })
+  scrollToVisible(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopScrollReceipt>> {
+    return fakeScrollToVisible.call(this, app, element, signal)
   }
 
   async clickablePoint(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopClickablePoint>> {
@@ -686,25 +594,11 @@ export class FakeDesktopDriver implements DesktopDriver {
     return answer(node.clickablePoint === null ? { point: null, road: null, note: 'UI Automation reports no clickable point for it and no point of its frame hits it (covered, or scrolled out of its pane)' } : { point: { ...node.clickablePoint }, road: 'native', note: null })
   }
 
-  async setValue(app: DesktopApplication, element: DesktopTreeElement, text: string, signal: AbortSignal): Promise<DesktopAnswer<DesktopValueReceipt>> {
-    if (!isText(text)) return refusal(inputError('the value to set must be a string'))
-    const located = await this.locate(app, element, signal)
-    if (!located.ok) return located
-    const { node } = located.value
-    const detail = { app: app.identity, role: node.role, title: titleOf(node), chars: text.length }
-    const secure = node.role.includes('Secure')
-    if (!(node.settable ?? VALUE_ROLES.test(node.role))) {
-      this.record('setValue', 'done', { ...detail, set: false })
-      return answer({ set: false, value: !secure && isText(node.value) && node.value !== '' ? node.value : null, note: VALUE_UNSUPPORTED })
-    }
-    node.value = text
-    this.sceneActs += 1
-    this.record('setValue', 'done', { ...detail, set: true })
-    if (secure) return answer({ set: true, value: null, note: SECURE_NOT_READ_BACK })
-    return answer({ set: true, value: text === '' ? null : text, note: null })
+  setValue(app: DesktopApplication, element: DesktopTreeElement, text: string, signal: AbortSignal): Promise<DesktopAnswer<DesktopValueReceipt>> {
+    return fakeSetValue.call(this, app, element, text, signal)
   }
 
-  private async locate(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<{ node: FakeTreeNode; window: FakeTreeNode | undefined }>> {
+  async locate(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<{ node: FakeTreeNode; window: FakeTreeNode | undefined }>> {
     const gate = this.actGate()
     if (gate !== null) return refusal(gate)
     const front = await this.frontmostApplication()
@@ -765,24 +659,8 @@ export class FakeDesktopDriver implements DesktopDriver {
     })
   }
 
-  async drag(from: DesktopPoint, to: DesktopPoint, button: DesktopButton, signal: AbortSignal): Promise<DesktopAnswer<DesktopActReceipt>> {
-    const problem = pointError(from) ?? pointError(to) ?? buttonError(button)
-    if (problem !== null) return refusal(problem)
-    const gate = this.actGate()
-    if (gate !== null) return refusal(gate)
-    this.cursorAt = { ...from }
-    if (!this.heldButtons.includes(button)) this.heldButtons.push(button)
-    const outcome = await this.hold(signal)
-    this.heldButtons = this.heldButtons.filter(b => b !== button)
-    if (outcome === 'aborted') {
-      this.record('drag', 'aborted', { from: { ...from }, to: { ...to }, button })
-      return desktopAbortedAnswer()
-    }
-    this.cursorAt = { ...to }
-    this.sceneActs += 1
-    this.record('drag', 'done', { from: { ...from }, to: { ...to }, button })
-    const receipt: DesktopActReceipt = { act: 'drag', at: { ...to }, completedAt: Date.now() }
-    return answer(receipt)
+  drag(from: DesktopPoint, to: DesktopPoint, button: DesktopButton, signal: AbortSignal): Promise<DesktopAnswer<DesktopActReceipt>> {
+    return fakeDrag.call(this, from, to, button, signal)
   }
 
   async scroll(at: DesktopPoint, deltaX: number, deltaY: number, signal: AbortSignal): Promise<DesktopAnswer<DesktopActReceipt>> {
@@ -863,7 +741,7 @@ export class FakeDesktopDriver implements DesktopDriver {
     return null
   }
 
-  private actGate(): DesktopError | null {
+  actGate(): DesktopError | null {
     if (this.closed) return { kind: 'unavailable', note: 'the fake desktop driver is closed' }
     const permissions = this.scene.permissions
     if (permissions.session !== 'desktop') return { kind: 'session', note: permissions.reason ?? `the session is ${permissions.session}, not a desktop` }
@@ -884,7 +762,7 @@ export class FakeDesktopDriver implements DesktopDriver {
     return answer(receipt)
   }
 
-  private hold(signal: AbortSignal): Promise<FakeActOutcome> {
+  hold(signal: AbortSignal): Promise<FakeActOutcome> {
     if (signal.aborted) return Promise.resolve('aborted')
     if (this.scene.holdMs <= 0) return Promise.resolve('done')
     return new Promise(resolve => {
@@ -901,11 +779,153 @@ export class FakeDesktopDriver implements DesktopDriver {
     })
   }
 
-  private record(act: FakeActKind, outcome: FakeActOutcome, detail: Record<string, unknown>): void {
+  record(act: FakeActKind, outcome: FakeActOutcome, detail: Record<string, unknown>): void {
     const entry: FakeAct = { act, at: this.acts.length + 1, outcome, detail }
     this.acts.push(entry)
     if (this.logPath === null) return
     mkdirSync(dirname(this.logPath), { recursive: true })
     appendFileSync(this.logPath, `${JSON.stringify(entry)}\n`)
   }
+}
+
+async function fakeAccessibilityTree(this: FakeDesktopDriver, app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>> {
+  if (this.closed) return refusal({ kind: 'unavailable', note: 'the fake desktop driver is closed' })
+  if (!Number.isInteger(limits.depth) || limits.depth < 0 || !Number.isInteger(limits.count) || limits.count < 1) return refusal(inputError(`the tree limits must be a whole depth and a count of at least one, not ${JSON.stringify(limits)}`))
+  const permissions = this.scene.permissions
+  if (permissions.session !== 'desktop') return refusal({ kind: 'session', note: permissions.reason ?? `the session is ${permissions.session}, not a desktop` })
+  if (!grantHolds(permissions.input)) return refusal({ kind: 'permission', note: `Accessibility is not granted — ${permissions.reason ?? permissions.input}`, remedy: GRANT_REMEDY })
+  const front = await this.frontmostApplication()
+  if (!front.ok || front.value.identity !== app.identity) return refusal({ kind: 'display', note: `${app.name} is not the application in front of the fake scene` })
+  if ((await this.hold(signal)) === 'aborted') {
+    this.record('accessibilityTree', 'aborted', { app: app.identity, ...limits })
+    return desktopAbortedAnswer()
+  }
+  const focused = this.scene.tree.find(node => node.role === 'AXWindow' && node.focused === true)
+  const window = focused ?? this.scene.tree.find(node => node.role === 'AXWindow' && node.title === app.title)
+  let children = this.scene.tree
+  if (limits.scope === 'window' && window) children = [window]
+  else if (limits.scope === 'app' && window) children = [window, ...children.filter(node => node !== window && node.role !== 'AXMenuBar'), ...children.filter(node => node.role === 'AXMenuBar')]
+  const focusPath = (nodes: FakeTreeNode[]): FakeTreeNode[] => {
+    for (const node of nodes) {
+      if (node.focused && !node.role.includes('Window')) return [node]
+      const path = focusPath(node.children ?? [])
+      if (path.length) return [node, ...path]
+    }
+    return []
+  }
+  const path = focusPath(children)
+  const focus = path.at(-1)
+  const tree = flattenTree(limits.observation && window ? window : { role: 'AXApplication', title: app.name, children }, limits)
+  tree.focused = focus ? flattenTree(focus, { depth: 0, count: 1 }).elements[0]! : null
+  if (limits.observation) {
+    for (const node of path.filter(node => /\b(?:AXApplicationDialog|AXSheet)\b/.test(node.role))) {
+      const element = flattenTree(node, { depth: 0, count: 1 }).elements[0]!
+      if (!tree.elements.some(row => row.role === element.role && row.title === element.title && JSON.stringify(row.frame) === JSON.stringify(element.frame))) tree.elements.push(element)
+    }
+  }
+  if (limits.scope === 'window' && window) tree.scope = 'window'
+  this.record('accessibilityTree', 'done', { app: app.identity, ...limits, elements: tree.elements.length, truncated: tree.truncated })
+  return answer(tree)
+}
+
+async function fakeCapture(this: FakeDesktopDriver, display: number, signal: AbortSignal): Promise<DesktopAnswer<DesktopCapture>> {
+  if (this.closed) return refusal({ kind: 'unavailable', note: 'the fake desktop driver is closed' })
+  const permissions = this.scene.permissions
+  if (permissions.session !== 'desktop') return refusal({ kind: 'session', note: permissions.reason ?? `the session is ${permissions.session}, not a desktop` })
+  if (!grantHolds(permissions.screenCapture)) return refusal({ kind: 'permission', note: `screen capture is not granted — ${permissions.reason ?? permissions.screenCapture}`, remedy: GRANT_REMEDY })
+  const record = Number.isInteger(display) ? this.scene.displays[display] : undefined
+  if (record === undefined) return refusal({ kind: 'display', note: `no display ${display} — the scene has ${this.scene.displays.length}` })
+  if ((await this.hold(signal)) === 'aborted') {
+    this.record('capture', 'aborted', { display })
+    return desktopAbortedAnswer()
+  }
+  const width = Math.round(record.width * record.scale)
+  const height = Math.round(record.height * record.scale)
+  let png: Buffer
+  try {
+    png = composeCapture([...this.scene.lines, `acts ${this.sceneActs} · captures ${this.captures}`].join('\n'), width, height, record.scale, this.scene.noise === true)
+  } catch (error) {
+    return refusal({ kind: 'defect', note: `the fake driver could not paint the capture: ${(error as Error).message}` })
+  }
+  this.captures += 1
+  const size = pngDimensions(png) ?? { width, height }
+  this.record('capture', 'done', { display, width: size.width, height: size.height })
+  return answer({
+    png,
+    width: size.width,
+    height: size.height,
+    scale: record.scale,
+    display: record.index,
+    displayId: record.id,
+    originX: record.originX,
+    originY: record.originY,
+    capturedAt: Date.now(),
+  })
+}
+
+async function fakeScrollToVisible(this: FakeDesktopDriver, app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopScrollReceipt>> {
+  const located = await this.locate(app, element, signal)
+  if (!located.ok) return located
+  const { node, window } = located.value
+  const detail = { app: app.identity, role: node.role, title: titleOf(node) }
+  const road = node.actions === undefined || node.actions.includes(SCROLL_ACTION) ? 'action' : 'wheel'
+  const viewport = window?.frame ?? app.bounds
+  if (road === 'wheel' && node.wheel === false) {
+    this.record('scrollToVisible', 'done', { ...detail, scrolled: false, road })
+    return answer({ scrolled: false, road: null, frame: node.frame ? { ...node.frame } : null, note: WHEEL_FAILED })
+  }
+  let at: DesktopPoint | null = null
+  if (node.frame && viewport) {
+    const below = node.frame.y < viewport.y || node.frame.y + node.frame.height > viewport.y + viewport.height || node.frame.height <= 1
+    const beside = node.frame.x < viewport.x || node.frame.x + node.frame.width > viewport.x + viewport.width
+    if (road === 'wheel' && (below || beside)) {
+      at = { x: Math.round(Math.min(Math.max(node.frame.x + node.frame.width / 2, viewport.x + 2), viewport.x + viewport.width - 2)), y: Math.round(viewport.y + viewport.height / 2) }
+      this.cursorAt = { ...at }
+    }
+    if (below) node.frame = { ...node.frame, y: Math.round(viewport.y + (viewport.height - node.frame.height) / 2) }
+    if (beside) node.frame = { ...node.frame, x: Math.round(viewport.x + (viewport.width - node.frame.width) / 2) }
+    if (node.visibleFrame && (below || beside || node.offscreen === true)) node.frame = { ...node.visibleFrame }
+  }
+  if (node.offscreen === true && node.visibleFrame) node.offscreen = false
+  this.sceneActs += 1
+  this.record('scrollToVisible', 'done', { ...detail, scrolled: true, road, frame: node.frame ?? null, ...(at ? { at } : {}) })
+  return answer({ scrolled: true, road, frame: node.frame ? { ...node.frame } : null, note: at ? wheelWords(at.x, at.y) : null })
+}
+
+async function fakeSetValue(this: FakeDesktopDriver, app: DesktopApplication, element: DesktopTreeElement, text: string, signal: AbortSignal): Promise<DesktopAnswer<DesktopValueReceipt>> {
+  if (!isText(text)) return refusal(inputError('the value to set must be a string'))
+  const located = await this.locate(app, element, signal)
+  if (!located.ok) return located
+  const { node } = located.value
+  const detail = { app: app.identity, role: node.role, title: titleOf(node), chars: text.length }
+  const secure = node.role.includes('Secure')
+  if (!(node.settable ?? VALUE_ROLES.test(node.role))) {
+    this.record('setValue', 'done', { ...detail, set: false })
+    return answer({ set: false, value: !secure && isText(node.value) && node.value !== '' ? node.value : null, note: VALUE_UNSUPPORTED })
+  }
+  node.value = text
+  this.sceneActs += 1
+  this.record('setValue', 'done', { ...detail, set: true })
+  if (secure) return answer({ set: true, value: null, note: SECURE_NOT_READ_BACK })
+  return answer({ set: true, value: text === '' ? null : text, note: null })
+}
+
+async function fakeDrag(this: FakeDesktopDriver, from: DesktopPoint, to: DesktopPoint, button: DesktopButton, signal: AbortSignal): Promise<DesktopAnswer<DesktopActReceipt>> {
+  const problem = pointError(from) ?? pointError(to) ?? buttonError(button)
+  if (problem !== null) return refusal(problem)
+  const gate = this.actGate()
+  if (gate !== null) return refusal(gate)
+  this.cursorAt = { ...from }
+  if (!this.heldButtons.includes(button)) this.heldButtons.push(button)
+  const outcome = await this.hold(signal)
+  this.heldButtons = this.heldButtons.filter(b => b !== button)
+  if (outcome === 'aborted') {
+    this.record('drag', 'aborted', { from: { ...from }, to: { ...to }, button })
+    return desktopAbortedAnswer()
+  }
+  this.cursorAt = { ...to }
+  this.sceneActs += 1
+  this.record('drag', 'done', { from: { ...from }, to: { ...to }, button })
+  const receipt: DesktopActReceipt = { act: 'drag', at: { ...to }, completedAt: Date.now() }
+  return answer(receipt)
 }
