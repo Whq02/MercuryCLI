@@ -71,7 +71,7 @@ export function readPins(dir: string = mnemeLibraryDir()): PinRecord[] {
       .filter(p => Number.isInteger(p?.seq) && p.seq > 0 && typeof p?.at === 'string')
       .map(p => ({ seq: p.seq, at: p.at, ...(p.asked === true ? { asked: true as const } : {}), ...(validatedApplicability(p.applicability) ? { applicability: validatedApplicability(p.applicability) } : {}) }))
   } catch (e) {
-    if (!isENOENT(e)) logForDebugging(`memory pins unreadable at ${pinsPath(dir)}: ${String(e)}`)
+    if (!isENOENT(e)) logForDebugging(`memory pins unreadable at ${pinsPath(dir)}: ${e instanceof SyntaxError ? 'it is not valid JSON' : String(e)}`)
     return []
   }
 }
@@ -135,7 +135,7 @@ export function readUsage(dir: string = mnemeLibraryDir()): Record<string, Usage
     const parsed = JSON.parse(readFileSync(usagePath(dir), 'utf8')) as UsageFile
     return parsed?.rows && typeof parsed.rows === 'object' ? parsed.rows : {}
   } catch (e) {
-    if (!isENOENT(e)) logForDebugging(`memory usage unreadable at ${usagePath(dir)}: ${String(e)}`)
+    if (!isENOENT(e)) logForDebugging(`memory usage unreadable at ${usagePath(dir)}: ${e instanceof SyntaxError ? 'it is not valid JSON' : String(e)}`)
     return {}
   }
 }
