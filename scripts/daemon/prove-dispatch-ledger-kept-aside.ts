@@ -88,6 +88,19 @@ try {
     check('the dispatch after it merges with the new ledger and keeps nothing more aside', next.threw === undefined && idsOn(file).join() === 'msg-new,msg-next' && asides(dir).length === 1 && said.length === 0, { ids: idsOn(file), asides: asides(dir), said })
   }
 
+  console.log('the dispatch ledger — a version 1 ledger holding a record that is no record: kept aside, and dispatch is not stalled')
+  {
+    const { dir, file } = fresh()
+    const bytes = '{"version":1,"dispatches":{"msg-broken":null}}\n'
+    writeFileSync(file, bytes)
+    const sent = await send(dir, 'msg-new')
+    const next = await send(dir, 'msg-next')
+    const kept = asides(dir)
+    check('both dispatches are answered and the ledger holds them', sent.threw === undefined && next.threw === undefined && idsOn(file).join() === 'msg-new,msg-next', { sent, next, ids: idsOn(file) })
+    check('the ledger that could not be used is kept aside once, byte for byte', kept.length === 1 && readFileSync(join(dir, kept[0]!), 'utf8') === bytes, kept)
+    check('daemon.log says why', said.some(line => line.includes('could not be read for the merge before publish (it is not a version 1 dispatch ledger); it is kept aside at ')), said)
+  }
+
   console.log('the dispatch ledger — two that cannot be used in one millisecond: the second copy never clobbers the first')
   {
     const { dir, file } = fresh()

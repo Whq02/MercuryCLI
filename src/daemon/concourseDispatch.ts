@@ -211,7 +211,7 @@ function mergeForeignDispatches(path: string, dispatches: Record<string, Concour
     keepUnusedLedgerAside(path, notJson ? 'it is not valid JSON' : (getErrnoCode(err) ?? errorMessage(err)), notJson ? 'it is not valid JSON' : errorMessage(err))
     return
   }
-  if (!raw || raw.version !== 1 || typeof raw.dispatches !== 'object' || raw.dispatches === null) {
+  if (!raw || raw.version !== 1 || typeof raw.dispatches !== 'object' || raw.dispatches === null || Object.values(raw.dispatches).some(rec => typeof rec !== 'object' || rec === null)) {
     keepUnusedLedgerAside(path, 'it is not a version 1 dispatch ledger', 'it is not a version 1 dispatch ledger')
     return
   }
