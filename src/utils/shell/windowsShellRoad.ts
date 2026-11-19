@@ -229,6 +229,10 @@ function programsReach(bashPath: string): boolean {
   return lsResolves(gitProgramsDir(bashPath), process.platform) || lsResolves(env[pathKeyOf(env, process.platform)] ?? '', process.platform)
 }
 
+function processTableBeside(bashPath: string): boolean {
+  return [dirname(bashPath), gitProgramsDir(bashPath)].some(dir => existsSync(join(dir, 'ps.exe')))
+}
+
 export function withoutWhatTheEngineRefuses(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return withoutShellStartFiles(env, process.platform, ENGINE_REFUSES)
 }
@@ -348,8 +352,9 @@ export function describeWindowsShellRoad(): {
     if (pinned && settled === null) {
       return { road: 'git-bash', absent: false, unasked: true, line: `${road.path} — named by MERCURY_GIT_BASH_PATH; whether it is a bash is asked when the Bash tool is first offered, and a program that does not answer as one is passed over` }
     }
-    if (pinned && !programsReach(road.path)) {
-      return { road: 'git-bash', absent: false, bare: true, line: `${known} at ${road.path} — named by MERCURY_GIT_BASH_PATH; the Bash tool runs under it; no ls, grep or sed stands beside it or on PATH`, fix: PIN_WAYS_OUT }
+    const lacks = pinned ? [...(programsReach(road.path) ? [] : ['no ls, grep or sed stands beside it or on PATH']), ...(processTableBeside(road.path) ? [] : ['no ps.exe stands beside it, so the programs a command starts cannot be ended with it'])] : []
+    if (lacks.length > 0) {
+      return { road: 'git-bash', absent: false, bare: true, line: `${known} at ${road.path} — named by MERCURY_GIT_BASH_PATH; the Bash tool runs under it; ${lacks.join('; ')}`, fix: PIN_WAYS_OUT }
     }
     return { road: 'git-bash', absent: false, line: `${known} at ${road.path} — ${pinned ? 'named by MERCURY_GIT_BASH_PATH' : 'found on this machine'}; the Bash tool runs under it` }
   }
