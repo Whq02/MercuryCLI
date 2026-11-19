@@ -22,6 +22,8 @@ import {
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, win32 as pathWin32 } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { errorMessage } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 import { NODE_SUPPORT } from '../../utils/runtime/nodePolicy.js'
 import { TEARDOWN_SUITE } from '../../ink/root/teardown.js'
@@ -908,7 +910,8 @@ export function reconcileManagedShims(
     if (nixInstallRoot() !== null) return null
     if (readCurrentVersion(roots) === null) return null
     return writeShimSet(roots)
-  } catch {
+  } catch (error) {
+    logError(new Error(`the mercury command in ${roots.binDir} could not be brought up to date with the installed version (${errorMessage(error)}); it stays as it was until a later run writes it`))
     return null
   }
 }
