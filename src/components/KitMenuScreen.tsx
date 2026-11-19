@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { basename } from 'node:path';
-import { Box, useInput } from '../ink.js';
+import { useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { leaveCurrentSurface } from '../context/surfaceRoute.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
@@ -31,13 +31,12 @@ import {
   type KitStates,
 } from '../services/kitMenu/kitTypes.js';
 import { renderModelChip } from '../utils/model/model.js';
-import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
-import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
+import { kitMenuView } from './kitMenu/kitMenuView.js';
 
 
 interface KitMenuScreenProps {
@@ -478,57 +477,5 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
     };
   }, [core, columns, rows, menuM]);
 
-  return (
-    <Box flexDirection="column" width={columns} height={rows}>
-      {Array.from({ length: rows }, (_, i) => {
-        const line = composition.placed[i] ?? '';
-        const entryIdx = composition.entryAt.get(i);
-        if (entryIdx !== undefined && presetsLayer.open) {
-          const fact = presetsLayer.facts[entryIdx];
-          if (fact !== undefined) {
-            const props = presetsList.rowProps(fact, entryIdx);
-            return (
-              <InteractiveRow
-                key={props.id}
-                id={props.id}
-                selected={props.selected}
-                unavailable={props.unavailable}
-                onSelect={props.onSelect}
-                onActivate={props.onActivate}
-                selectionBand={false}
-                hoverStyle="chrome-ink"
-                height={1}
-              >
-                {hover => renderSceneLine(line, hover && !props.selected && !props.unavailable ? { label: fact.name, color: t.info } : undefined)}
-              </InteractiveRow>
-            );
-          }
-        }
-        const row = entryIdx !== undefined && !presetsLayer.open ? listRows[entryIdx] : undefined;
-        if (row !== undefined && entryIdx !== undefined) {
-          const props = list.rowProps(row, entryIdx);
-          return (
-            <InteractiveRow
-              key={props.id}
-              id={props.id}
-              selected={props.selected}
-              unavailable={props.unavailable}
-              onSelect={props.onSelect}
-              onActivate={props.onActivate}
-              selectionBand={false}
-              hoverStyle="chrome-ink"
-              height={1}
-            >
-              {hover => renderSceneLine(line, hover && !props.selected && !props.unavailable ? { label: kitEntryOf(row).label, color: t.info } : undefined)}
-            </InteractiveRow>
-          );
-        }
-        return (
-          <Box key={`kitline-${i}`} height={1} flexShrink={0}>
-            {line.length > 0 ? renderSceneLine(line) : null}
-          </Box>
-        );
-      })}
-    </Box>
-  );
+  return kitMenuView({ t, columns, rows, listRows, presetsLayer, list, presetsList, composition, kitEntryOf });
 }
