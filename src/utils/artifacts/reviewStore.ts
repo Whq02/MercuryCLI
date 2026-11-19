@@ -92,8 +92,11 @@ function sleepSync(ms: number): void {
 export function artifactLockOwnedBy(lock: string, token: string): boolean {
   try {
     return readFileSync(path.join(lock, 'owner'), 'utf8') === token
-  } catch {
-    return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return true
+    const message = error instanceof Error ? error.message : String(error)
+    void import('../log.js').then(({ logError }) => logError(new Error(`review artifact lock ${lock}: its owner could not be read, so the lock is left in place — ${message}`)))
+    return false
   }
 }
 
@@ -111,18 +114,21 @@ function withArtifactLock<T>(id: string, fn: () => T): T {
       } catch {
       }
       break
-    } catch {
+    } catch (mkdirFailure) {
+      let untaken: unknown
       try {
         const age = Date.now() - statSync(lock).mtimeMs
         if (age > LOCK_STALE_MS) {
           rmSync(lock, { recursive: true, force: true })
           continue
         }
-      } catch {
-        continue
+      } catch (lockFailure) {
+        const held = (mkdirFailure as NodeJS.ErrnoException).code === 'EEXIST'
+        if (held && (lockFailure as NodeJS.ErrnoException).code === 'ENOENT') continue
+        untaken = held ? lockFailure : mkdirFailure
       }
       if (Date.now() > deadline) {
-        throw new Error(`the artifact '${id}' write lock is held (waited ${LOCK_TIMEOUT_MS}ms)`)
+        throw new Error(untaken === undefined ? `the artifact '${id}' write lock is held (waited ${LOCK_TIMEOUT_MS}ms)` : `the artifact '${id}' write lock could not be taken (waited ${LOCK_TIMEOUT_MS}ms): ${untaken instanceof Error ? untaken.message : String(untaken)}`)
       }
       sleepSync(15)
     }

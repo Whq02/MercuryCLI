@@ -62,6 +62,7 @@ export function getAuthConfigHomeDir(): string {
 
 export function ensurePrivateConfigHome(): void {
   if (process.platform === 'win32') return
+  let chmodFailure: NodeJS.ErrnoException | null = null
   try {
     const home = getMercuryHome()
     if (!existsSync(home)) {
@@ -70,10 +71,17 @@ export function ensurePrivateConfigHome(): void {
     }
     const permissionBits = statSync(home).mode & 0o777
     if ((permissionBits & 0o077) !== 0) {
-      chmodSync(home, permissionBits & 0o700)
+      try {
+        chmodSync(home, permissionBits & 0o700)
+      } catch (failure) {
+        chmodFailure = failure as NodeJS.ErrnoException
+      }
     }
   } catch {
   }
+  if (chmodFailure === null) return
+  const shown = displayConfigHome()
+  throw new Error(`the config home ${shown} could not be made private to you (${chmodFailure.code ?? chmodFailure.message}), so other users of this machine can read it — make it yours and run: chmod 700 ${shown}`)
 }
 
 export function displayConfigHome(): string {

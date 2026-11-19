@@ -1,3 +1,4 @@
+import { logForDebugging } from '../debug.js'
 import { PARSE_ABORTED, pinnedCommandAnalysis, type Node } from './decision/commandAnalysis.js'
 
 type Run = { id: string; state: string[]; pending: string; reading: Promise<void> }
@@ -55,12 +56,15 @@ export function noteServiceInput(service: string, run: string, text: string, sub
   const lines = whole.slice(0, cut + 1)
   if (lines.trim() === '') return
   const held = known
-  held.reading = held.reading
-    .then(async () => {
+  held.reading = held.reading.then(async () => {
+    try {
       held.state.push(...(await stateStatements(lines)))
-      while (held.state.length > 1 && held.state.join('\n').length > MAX_STATE_CHARS) held.state.shift()
-    })
-    .catch(() => undefined)
+    } catch (error) {
+      logForDebugging(`service input: the folder, alias and variable lines of an input could not be picked out (${error instanceof Error ? error.message : String(error)}), so the whole input is kept for judging what follows`)
+      held.state.push(lines.replace(/\n$/, ''))
+    }
+    while (held.state.length > 1 && held.state.join('\n').length > MAX_STATE_CHARS) held.state.shift()
+  })
 }
 
 export function serviceInputSoFar(service: string, text: string, run?: string): string {

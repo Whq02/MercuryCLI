@@ -138,8 +138,9 @@ export async function collectReferencedBlobDirs(transcriptPath: string, cutoff: 
       referenced.add(match[1] as string)
     }
     return referenced
-  } catch {
-    return null
+  } catch (error) {
+    if (isENOENT(error)) return null
+    throw error
   }
 }
 
@@ -187,7 +188,14 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
         }
 
         const transcriptPath = join(projectDir, `${entry.name}.jsonl`)
-        const referenced = await collectReferencedBlobDirs(transcriptPath, cutoff)
+        let referenced: Set<string> | null
+        try {
+          referenced = await collectReferencedBlobDirs(transcriptPath, cutoff)
+        } catch (error) {
+          logError(error)
+          result.errors++
+          continue
+        }
 
         for (const toolResultEntry of toolResultEntries) {
           const toolResultPath = join(toolResultsDir, toolResultEntry.name)

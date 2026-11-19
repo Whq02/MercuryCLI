@@ -1,6 +1,7 @@
 import { readdirSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { posix } from 'node:path'
+import { logForDebugging } from '../../debug.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../../envUtils.js'
 import { type ReadWorld, type ShellRead, UNREAD_PART, readShellCommands, wordKnown } from '../../wards/wardsShellRead.js'
 import { mercurySecretPath, protectedPathForms, spelling } from './paths.js'
@@ -26,13 +27,21 @@ export function floorsWorld(cwd: string): ReadWorld {
   return { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [], ...currentUser(), windows: process.platform === 'win32' }
 }
 
+let homeUnknownSaid = false
+
 export async function readForFloors(command: string, powershell: boolean, cwd: string): Promise<ShellRead | null> {
+  let world: ReadWorld
   try {
-    const read = await readShellCommands(command, powershell ? 'powershell' : 'posix', floorsWorld(cwd))
-    return read
-  } catch {
+    world = floorsWorld(cwd)
+  } catch (error) {
+    if (!homeUnknownSaid) {
+      homeUnknownSaid = true
+      logForDebugging(`shell floors: the home folder could not be told (${error instanceof Error ? error.message : String(error)}), so the credential and self-protection floors read no command`)
+    }
     return null
   }
+  const read = await readShellCommands(command, powershell ? 'powershell' : 'posix', world)
+  return read
 }
 
 export function mercuryHomes(): string[] {
@@ -96,7 +105,7 @@ export function couldNameSecret(word: string, cwd: string, homes: readonly strin
   try {
     pattern = new RegExp(`^${wildcardSource(segments.slice(at).join('/').toLowerCase())}$`)
   } catch {
-    return false
+    pattern = new RegExp(`^${segments.slice(at).map(segment => globPartSource(segment.toLowerCase())).join('/')}$`)
   }
   for (const folder of protectedPathForms(fixed, cwd)) {
     const conventional = CONVENTIONAL_HOME.test(folder) ? [folder] : []
@@ -140,6 +149,17 @@ export function holdsMercuryHome(word: string, cwd: string, homes: readonly stri
 
 export const GLOB_PART = /[*?[{]/
 
+export function globPartSource(part: string): string {
+  const source = wildcardSource(part)
+  try {
+    RegExp(`^${source}$`)
+    return source
+  } catch (error) {
+    logForDebugging(`shell floors: the glob part ${part} could not be compiled (${error instanceof Error ? error.message : String(error)}), so it is read as matching any name`)
+    return '[^/]+'
+  }
+}
+
 export function globNamesStore(word: string, cwd: string, homes: readonly string[], hidden: boolean, dotted = false): boolean {
   if (!GLOB_PART.test(word) || word.includes(UNREAD_PART)) return false
   const expanded = spelling(word)
@@ -152,7 +172,7 @@ export function globNamesStore(word: string, cwd: string, homes: readonly string
   try {
     tests = patterns.map(pattern => new RegExp(`^${wildcardSource(pattern)}$`))
   } catch {
-    return false
+    tests = patterns.map(pattern => new RegExp(`^${globPartSource(pattern)}$`))
   }
   const dotLed = (pattern: string): boolean => pattern.startsWith('.') || /^\{(?:[^}]*,)?\./.test(pattern)
   for (const folder of protectedPathForms(fixed, cwd)) {

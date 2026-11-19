@@ -362,8 +362,11 @@ async function ownSettingsDenyReads(sourceRoot: string): Promise<boolean> {
     let text: string
     try {
       text = await readFile(theirs, 'utf8')
-    } catch {
-      continue
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'ENOENT' || code === 'ENOTDIR') continue
+      logForDebugging(`worktree clone: ${theirs} could not be read (${code ?? String(error)}), so its Read rules are unknown; every folder is held back`, { level: 'warn' as never })
+      return true
     }
     try {
       const deny = (JSON.parse(text) as { guardrails?: { deny?: unknown } } | null)?.guardrails?.deny

@@ -1,6 +1,7 @@
 import { readdirSync, realpathSync, type Dirent } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, resolve } from 'node:path'
+import { isENOENT } from './errors.js'
 import { findGitRoot } from './git.js'
 
 export const PROJECT_ENTRY_CEILING = 20_000
@@ -114,31 +115,37 @@ export function projectMarkerOf(dir: string): string | null {
 interface EntryCount {
   count: number
   ceilingReached: boolean
+  unreadable?: number
 }
 
 export function countEntriesBounded(dir: string, ceiling: number = PROJECT_ENTRY_CEILING): EntryCount {
   let count = 0
+  let unreadable = 0
   const stack: string[] = [dir]
   while (stack.length > 0) {
     const current = stack.pop() as string
     let entries: Dirent[]
     try {
       entries = readdirSync(current, { withFileTypes: true })
-    } catch {
+    } catch (error) {
+      if (!isENOENT(error)) unreadable++
       continue
     }
     for (const entry of entries) {
       count++
-      if (count > ceiling) return { count, ceilingReached: true }
+      if (count > ceiling) return { count, ceilingReached: true, unreadable }
       if (entry.isDirectory()) stack.push(resolve(current, entry.name))
     }
   }
-  return { count, ceilingReached: false }
+  return { count, ceilingReached: false, unreadable }
 }
 
 export function entryCountWords(c: EntryCount): string {
   if (c.ceilingReached) return `over ${(c.count - 1).toLocaleString('en-US')} entries`
-  return `${c.count.toLocaleString('en-US')} ${c.count === 1 ? 'entry' : 'entries'}`
+  const counted = `${c.count.toLocaleString('en-US')} ${c.count === 1 ? 'entry' : 'entries'}`
+  const unreadable = c.unreadable ?? 0
+  if (unreadable === 0) return counted
+  return `${counted}, ${unreadable.toLocaleString('en-US')} ${unreadable === 1 ? 'folder' : 'folders'} could not be read`
 }
 
 type GitInitRefusalKind = NonProjectRootKind | 'not-a-project'

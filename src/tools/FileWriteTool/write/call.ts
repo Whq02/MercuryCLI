@@ -23,6 +23,7 @@ import { getCwd } from '../../../utils/cwd.js'
 import { countLinesChanged, getPatchForDisplay } from '../../../utils/diff.js'
 import { isENOENT } from '../../../utils/errors.js'
 import {
+  getCheckedFileModificationTime,
   getFileModificationTime,
   needsPowerShellBom,
   preserveUntouchedLineEndings,
@@ -233,7 +234,7 @@ export async function writeFileCall(input: Input, context: ToolUseContext, canUs
       if (
         entry !== undefined &&
         !entry.isPartialView &&
-        (far !== null ? remoteMovedSinceRead(context.readFileState, expandedPath, currentMtimeMs, entry.timestamp) : (currentMtimeMs ?? getFileModificationTime(expandedPath)) > entry.timestamp) &&
+        (far !== null ? remoteMovedSinceRead(context.readFileState, expandedPath, currentMtimeMs, entry.timestamp) : (currentMtimeMs ?? getCheckedFileModificationTime(expandedPath)) > entry.timestamp) &&
         !fullRead
       ) {
         throw new Error(modifiedSinceReadMessage())

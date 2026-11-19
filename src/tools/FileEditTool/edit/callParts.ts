@@ -14,7 +14,7 @@ import { mintFileAnchor } from '../../../services/changeTransaction/snapshotAnch
 import { serializeIntentDigest } from '../../../services/changeTransaction/repetitionPolicy.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import { remoteMovedSinceRead } from '../../../services/remoteFiles/target.js'
-import { getFileModificationTime } from '../../../utils/file.js'
+import { getCheckedFileModificationTime } from '../../../utils/file.js'
 import { plural } from '../../../utils/stringUtils.js'
 import { modifiedSinceReadMessage } from '../otherSession.js'
 import type { FileEditInput } from '../types.js'
@@ -45,7 +45,7 @@ export function sameCallKnowledge(context: ToolUseContext, input: FileEditInput,
   if (clipped !== null) throw new Error(clipped)
   const entry = context.readFileState.get(expandedPath)
   const intact = entry !== undefined && readCoversRanges(entry, touched) && (
-    (far !== null ? !remoteMovedSinceRead(context.readFileState, expandedPath, currentMtimeMs, entry.timestamp) : (currentMtimeMs ?? getFileModificationTime(expandedPath)) <= entry.timestamp) ||
+    (far !== null ? !remoteMovedSinceRead(context.readFileState, expandedPath, currentMtimeMs, entry.timestamp) : (currentMtimeMs ?? getCheckedFileModificationTime(expandedPath)) <= entry.timestamp) ||
     (isFullReadEntry(entry) && entry.content === freshContent)
   )
   if (!intact) {

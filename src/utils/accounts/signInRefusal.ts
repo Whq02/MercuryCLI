@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { credentialFingerprint } from '../../services/providers/credentialIdentity.js'
+import { logForDebugging } from '../debug.js'
+import { errorMessage } from '../errors.js'
 import { getAuthConfigHomeDir } from '../envUtils.js'
 import { noteCredentialChange, publishSignInRecord } from './signInLedger.js'
 
@@ -121,7 +123,9 @@ export function clearSignInRefusal(family: string, home = getAuthConfigHomeDir()
     const path = pathOf(family, home)
     if (!path) return
     publishSignInRecord(path, JSON.stringify({ version: 1, generation: randomUUID() }) + '\n')
-  } catch { return }
+  } catch (error) {
+    logForDebugging(`[accounts] the refusal record of ${family} could not be cleared after its sign-in, so it still reads refused until a later answer succeeds: ${errorMessage(error)}`, { level: 'warn' })
+  }
 }
 
 export function readSignInRefusal(family: string): SignInRefusal | undefined {
@@ -169,5 +173,7 @@ export function observeSignInResponse(request: Observation | undefined, status: 
     const refusal: StoredRefusal = { status: status === 401 ? 401 : 403, at: Date.now(), identity: credential.identity, ...(words !== undefined ? { message: words } : {}), ...(credential.noun !== undefined ? { credential: credential.noun } : {}) }
     publishSignInRecord(path, JSON.stringify({ version: 1, generation, refusal }) + '\n')
     noteCredentialChange()
-  } catch { return }
+  } catch (error) {
+    logForDebugging(`[accounts] the answer (HTTP ${status}) to the sign-in of ${request.family} could not be recorded: ${errorMessage(error)}`, { level: 'warn' })
+  }
 }

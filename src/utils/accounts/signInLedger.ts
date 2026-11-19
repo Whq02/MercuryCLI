@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import { logForDebugging } from '../debug.js'
+import { errorMessage } from '../errors.js'
 
 export const SIGN_IN_LEDGER_FILE = '.sign-ins.json'
 const SIGN_IN_LEDGER_VERSION = 1
@@ -125,7 +127,8 @@ export function recordSignIn(family: string, kind: SignInKind, io?: SignInLedger
     }
     bumpEpoch()
     return true
-  } catch {
+  } catch (error) {
+    logForDebugging(`[accounts] the sign-in of ${name} could not be recorded in the sign-in ledger, so the default provider and the refusal clearing do not see it: ${errorMessage(error)}`, { level: 'warn' })
     return false
   }
 }
