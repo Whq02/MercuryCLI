@@ -10,23 +10,18 @@ import {
 import type { ContentBlock as BetaContentBlock } from '../../../types/wire.js'
 import type { AnthropicMessageParams as BetaMessageStreamParams } from './anthropicWire.js'
 import type { AnthropicStream } from './anthropicStream.js'
-import { randomUUID } from 'crypto'
 import {
   getCacheEditingHeaderLatched,
   setLastApiCompletionTimestamp,
 } from 'src/bootstrap/state.js'
 import type { QuerySource } from 'src/constants/querySource.js'
 import type { Notification } from 'src/context/notifications.js'
-import { addToTotalSessionCost } from 'src/cost-tracker.js'
 import type { AgentId } from 'src/types/ids.js'
 import type { NativeWebSearchRequest } from 'src/services/search/nativeSearchRequest.js'
-import { cacheClockObserve } from 'src/utils/cache/cacheClock.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
 import type { EffortValue } from 'src/utils/effort.js'
 import { headlessProfilerCheckpoint } from 'src/utils/headlessProfiler.js'
-import { calculateUSDCost } from 'src/utils/modelCost.js'
-import { isFirstPartyAnthropicBaseUrl } from 'src/utils/model/providers.js'
 import { noteRunPhase } from 'src/utils/runPhases.js'
 import { resetApiConnectionPool } from 'src/utils/proxy.js'
 import type { ThinkingConfig } from 'src/utils/thinking.js'
@@ -39,12 +34,8 @@ import {
 import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { planToolPayload } from '../toolEconomy.js'
-import { noteRequestOnWire } from './prefixLedger.js'
 import { noteCacheDiagnostics } from './cacheDiagnostics.js'
-import type {
-  ConnectorTextBlock,
-  ConnectorTextDelta,
-} from '../../../types/connectorText.js'
+import type { ConnectorTextBlock } from '../../../types/connectorText.js'
 import type {
   AssistantMessage,
   Message,
@@ -58,7 +49,7 @@ import type {
   StreamCapabilityAdvertisement,
 } from '../../../types/wire.js'
 import { toolToAPISchema } from '../../../utils/api.js'
-import { isTurnOwningQuerySource, resolveAppliedEffort, resolveEffortTruth } from '../../../utils/effort.js'
+import { resolveAppliedEffort, resolveEffortTruth } from '../../../utils/effort.js'
 import { effortStampOf } from '../../../utils/effortStamp.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { errorMessage } from '../../../utils/errors.js'
@@ -66,32 +57,22 @@ import { fitImagesToRequestCap, manyImageLimitStatedIn } from '../../../utils/im
 import { captureAPIRequest } from '../../../utils/log.js'
 import {
   createAssistantAPIErrorMessage,
-  createStreamCutMessage,
   createSystemAPIErrorMessage,
   createUserMessage,
 } from '../../../utils/messages.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
-import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { utilityCallFor } from '../../../utils/model/utilityModel.js'
 import { startSessionActivity } from '../../../utils/sessionActivity.js'
-import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
 import {
   asSystemPrompt,
   type SystemPrompt,
 } from '../../../utils/systemPromptType.js'
 import {
-  anthropicLimitVerdict,
-  clearAnthropicUsageLimit,
-  extractQuotaStatusFromHeaders,
-} from '../../anthropicLimits.js'
-import {
   consumePendingCacheEdits,
   getPinnedCacheEdits,
 } from '../../compact/microCompact.js'
-import { refreshProviderUsage } from '../providerUsage.js'
 import { withStreamingVCR, withVCR } from '../../vcr.js'
-import { CLIENT_REQUEST_ID_HEADER, getAnthropicClient } from '../../api/client.js'
-import { transportCutOf, transportCutWords } from '../../api/transportEvidence.js'
+import { transportCutOf } from '../../api/transportEvidence.js'
 import { captureModelRefusalRequest, type ModelRefusalRequest } from './modelRefusal.js'
 import {
   API_ERROR_MESSAGE_PREFIX,
@@ -100,18 +81,11 @@ import {
   malformedStreamFrameText,
 } from '../../api/errors.js'
 import { EMPTY_USAGE } from '../../api/logging.js'
-import {
-  checkResponseForCacheBreak,
-  recordPromptState,
-  type NeutralSystemBlock,
-  type NeutralToolSchema,
-} from '../../api/promptCacheBreakDetection.js'
 import type { ModelCallReference } from '../../../run-core/call-reference.js'
 import {
   CannotRetryError,
   FallbackTriggeredError,
   is529Error,
-  withRetry,
 } from '../../api/withRetry.js'
 import type { HeldBusyRetryWait } from '../busyRetry.js'
 import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords } from '../emptyStreamRetry.js'
@@ -122,26 +96,22 @@ import type { RefusedToolCall } from '../../../types/message.js'
 import { sleep } from '../../../utils/sleep.js'
 import { updateUsage } from './cacheAndUsage.js'
 import {
-  coldPrefixOf,
-  estimateRequestTokens,
-  firstByteBudgetMs,
-  firstByteTimeoutLine,
   retryNoticeWait,
   retryReasonWords,
-  streamActivityFetchOptions,
-  streamIdleTimeoutMsForRoute,
   type RequestWaitV1,
 } from '../streamIdleBudget.js'
-import { patienceSeconds } from '../patience.js'
 import { anthropicEffortWireFact } from './requestParams.js'
 type BetaToolChoiceAuto = Extract<BetaMessageStreamParams['tool_choice'], { type: 'auto' }>
 type BetaToolChoiceTool = Extract<BetaMessageStreamParams['tool_choice'], { type: 'tool' }>
 type BetaToolChoiceNone = Extract<BetaMessageStreamParams['tool_choice'], { type: 'none' }>
 import type { CallState, QueryCtx, StreamPass } from './streamCore/state.js'
 import { createCallLedger } from './streamCore/callLedger.js'
-import { executeNonStreamingRequest, getNonstreamingFallbackTimeoutMs, isFirstByteTimeout } from './streamCore/nonStreaming.js'
+import { executeNonStreamingRequest, getNonstreamingFallbackTimeoutMs } from './streamCore/nonStreaming.js'
+import { streamPassRetries } from './streamCore/passRetries.js'
+import { preEventReissueRow, streamCutReissueRow, oneShotNoticeRow, oneShotAnswerOf } from './streamCore/reissueRows.js'
 import { messagesBeforeImages, requestBetas, toolRosterOf, wireRequestOf } from './streamCore/requestPlan.js'
 import { closeSucceededRequest, settleAttemptLedger } from './streamCore/settleCall.js'
+import { openContentBlock, applyBlockDelta, settleMessageDelta, noteWatchdogCleanExit, observeStreamEnd, noteWatchdogErrorExit } from './streamCore/streamEvents.js'
 import { watchStream } from './streamCore/watchStream.js'
 import { wireParamsFor } from './streamCore/wireParams.js'
 
@@ -372,99 +342,7 @@ async function* queryModel(
       streamWatchdogFiredAt: null,
       sawMessageStop: false,
     }
-    const generator = withRetry(
-      () =>
-        getAnthropicClient({
-          maxRetries: 0,
-          fetchOverride: options.fetchOverride,
-          source: options.querySource,
-        }),
-      async (anthropic, attempt, context) => {
-        if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
-        call.start = Date.now()
-
-        const params = paramsFromContext(context)
-        captureModelRequest(params)
-
-        recordPromptState({
-          system: params.system as unknown as NeutralSystemBlock[],
-          toolSchemas: params.tools as unknown as NeutralToolSchema[],
-          querySource: options.querySource,
-          model: options.model,
-          agentId: options.agentId,
-          betas: params.betas ?? [],
-          effortValue: params.output_config?.effort as string | undefined,
-          lane: 'anthropic',
-          callReference: options.callReference,
-        })
-
-        call.maxOutputTokens = params.max_tokens
-
-        const promptTokens = estimateRequestTokens({ system: params.system, tools: params.tools, messages: params.messages })
-        const cold = coldPrefixOf(messages, options.model)
-        const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
-          kind: 'first-byte',
-          cold,
-          promptTokens,
-          model: getPublicModelDisplayName(context.model) ?? context.model,
-          budgetMs: firstByteBudgetMs({ cold, promptTokens, idleMs: streamIdleTimeoutMsForRoute('anthropic') }),
-          sinceMs: Date.now(),
-          attempt,
-        }
-        firstByte.wait = wait
-        pass.transportSawByte = false
-        options.onWait?.(wait)
-
-        if (!options.agentId) {
-          headlessProfilerCheckpoint('api_request_sent')
-          noteRunPhase('dispatch')
-        }
-
-        call.clientRequestId = isFirstPartyAnthropicBaseUrl() ? randomUUID() : undefined
-
-        const dispatch = () =>
-          anthropic.beta.messages
-            .create(
-              { ...params, stream: true },
-              {
-                signal,
-                timeout: wait.budgetMs,
-                fetchOptions: streamActivityFetchOptions(() => {
-                  pass.transportSawByte = true
-                  pass.noteTransportActivity?.()
-                }) as never,
-                ...(call.clientRequestId && {
-                  headers: { [CLIENT_REQUEST_ID_HEADER]: call.clientRequestId },
-                }),
-              },
-            )
-            .withResponse()
-        let result: Awaited<ReturnType<typeof dispatch>>
-        try {
-          result = await dispatch()
-        } catch (sent) {
-          if (!signal.aborted && isFirstByteTimeout(sent)) {
-            logForDebugging(`first-byte budget fired: ${firstByteTimeoutLine(wait)}`, { level: 'warn' })
-            throw new APIConnectionTimeoutError({ message: firstByteTimeoutLine(wait), requestDeadline: (sent as { requestDeadline?: unknown }).requestDeadline === true })
-          }
-          throw sent
-        }
-        options.onWait?.(null)
-        call.streamRequestId = result.request_id
-        call.streamResponse = result.response
-        if (isTurnOwningQuerySource(options.querySource)) noteRequestOnWire(rosterOwnerKey)
-        return result.data
-      },
-      {
-        model: options.model,
-        fallbackModel: options.fallbackModel,
-        thinkingConfig,
-        signal,
-        querySource: options.querySource,
-        ...(heldWaitDoor !== undefined ? { onHeldWait: heldWaitDoor } : {}),
-        healClientContract: true,
-      },
-    )
+    const generator = streamPassRetries(call, pass, { messages, thinkingConfig, signal, options, paramsFromContext, captureModelRequest, rosterOwnerKey, heldWaitDoor })
 
     let e
     do {
@@ -545,83 +423,10 @@ async function* queryModel(
             break
           }
           case 'content_block_start':
-            if (part.content_block == null) {
-              throw new Error(malformedStreamFrameText('content_block_start', 'content_block'))
-            }
-            switch (part.content_block.type) {
-              case 'tool_use':
-                contentBlocks[part.index] = {
-                  ...part.content_block,
-                  input: '',
-                }
-                break
-              case 'server_tool_use':
-                contentBlocks[part.index] = {
-                  ...part.content_block,
-                  input: '' as unknown as { [key: string]: unknown },
-                }
-                break
-              case 'text':
-                contentBlocks[part.index] = {
-                  ...part.content_block,
-                  text: '',
-                }
-                break
-              case 'thinking':
-                contentBlocks[part.index] = {
-                  ...part.content_block,
-                  thinking: '',
-                  signature: '',
-                }
-                break
-              default:
-                contentBlocks[part.index] = { ...part.content_block }
-                break
-            }
+            openContentBlock(contentBlocks, part)
             break
           case 'content_block_delta': {
-            const contentBlock = contentBlocks[part.index]
-            const delta = part.delta as typeof part.delta | ConnectorTextDelta
-            if (!contentBlock) {
-              throw new RangeError('Content block not found')
-            }
-            if (delta == null) {
-              throw new Error(malformedStreamFrameText('content_block_delta', 'delta'))
-            }
-            switch (delta.type) {
-              case 'citations_delta':
-                break
-              case 'input_json_delta':
-                if (
-                  contentBlock.type !== 'tool_use' &&
-                  contentBlock.type !== 'server_tool_use'
-                ) {
-                  throw new Error('Content block is not a input_json block')
-                }
-                if (typeof contentBlock.input !== 'string') {
-                  throw new Error('Content block input is not a string')
-                }
-                contentBlock.input += delta.partial_json
-                break
-              case 'text_delta':
-                if (contentBlock.type !== 'text') {
-                  throw new Error('Content block is not a text block')
-                }
-                contentBlock.text += delta.text
-                break
-              case 'signature_delta':
-                if (contentBlock.type !== 'thinking') {
-                  throw new Error('Content block is not a thinking block')
-                }
-                contentBlock.signature = delta.signature
-                break
-              case 'thinking_delta':
-                if (contentBlock.type !== 'thinking') {
-                  throw new Error('Content block is not a thinking block')
-                }
-                contentBlock.thinking += delta.thinking
-                break
-            }
+            applyBlockDelta(contentBlocks, part)
             break
           }
           case 'content_block_stop': {
@@ -658,29 +463,7 @@ async function* queryModel(
             if (part.delta == null) {
               throw new Error(malformedStreamFrameText('message_delta', 'delta'))
             }
-            call.usage = updateUsage(call.usage, part.usage)
-
-            call.stopReason = part.delta.stop_reason
-
-            const lastMsg = newMessages.at(-1)
-            if (lastMsg) {
-              lastMsg.message.usage = call.usage as AssistantMessage['message']['usage']
-              lastMsg.message.stop_reason = call.stopReason
-              void settleTranscriptMessage(lastMsg)
-            }
-
-            const costUSDForPart = calculateUSDCost(pricingModel(), call.usage)
-            addToTotalSessionCost(costUSDForPart, call.usage, pricingModel())
-            call.ledgerSettled = true
-
-            void checkResponseForCacheBreak(
-              options.querySource,
-              call.usage.cache_read_input_tokens,
-              call.usage.cache_creation_input_tokens,
-              messages,
-              options.agentId,
-              call.clientRequestId ?? null,
-            )
+            settleMessageDelta(call, part, newMessages, pricingModel, options, messages)
 
             const refusalMessage = getErrorMessageIfRefusal(
               part.delta.stop_reason,
@@ -738,18 +521,7 @@ async function* queryModel(
       }
 
       if (pass.streamIdleAborted) {
-        const exitDelayMs =
-          pass.streamWatchdogFiredAt !== null
-            ? Math.round(performance.now() - pass.streamWatchdogFiredAt)
-            : -1
-        logForDiagnosticsNoPII(
-          'info',
-          'cli_stream_loop_exited_after_watchdog_clean',
-        )
-        logForDebugging(
-          `stream loop exited ${exitDelayMs}ms after watchdog abort (clean exit)`,
-        )
-        pass.streamWatchdogFiredAt = null
+        noteWatchdogCleanExit(pass)
         if (settledTailStands()) {
           yield* settleTypedEnd({
             reason: 'silent-after-last-item',
@@ -784,43 +556,12 @@ async function* queryModel(
         }
       }
 
-      if (stallCount > 0) {
-        logForDebugging(
-          `stream finished carrying ${stallCount} stall(s), ${(totalStallTime / 1000).toFixed(1)}s stalled in total`,
-          { level: 'warn' },
-        )
-      }
-
-      cacheClockObserve({
-        cacheReadTokens: call.usage.cache_read_input_tokens,
-        cacheCreationTotal: call.usage.cache_creation_input_tokens,
-        cacheCreation5m: call.usage.cache_creation?.ephemeral_5m_input_tokens ?? null,
-        cacheCreation1h: call.usage.cache_creation?.ephemeral_1h_input_tokens ?? null,
-        uncachedInputTokens: call.usage.input_tokens,
-        now: Date.now(),
-        prefixKey: turnOwning ? prefixKey : null,
-        startedAt: call.start,
-      })
-
-      const resp = call.streamResponse as unknown as Response | undefined
-      if (resp) {
-        extractQuotaStatusFromHeaders(resp.headers, call.start)
-        clearAnthropicUsageLimit(call.start)
-      }
+      observeStreamEnd(call, stallCount, totalStallTime, turnOwning, prefixKey)
     } catch (streamingError) {
       clearStreamIdleTimers()
 
       if (pass.streamIdleAborted && pass.streamWatchdogFiredAt !== null) {
-        const exitDelayMs = Math.round(
-          performance.now() - pass.streamWatchdogFiredAt,
-        )
-        logForDiagnosticsNoPII(
-          'info',
-          'cli_stream_loop_exited_after_watchdog_error',
-        )
-        logForDebugging(
-          `stream loop exited ${exitDelayMs}ms after watchdog abort (error exit)`,
-        )
+        noteWatchdogErrorExit(pass as StreamPass & { streamWatchdogFiredAt: number })
       }
 
       if (pass.streamIdleAborted && !signal.aborted && settledTailStands()) {
@@ -883,81 +624,17 @@ async function* queryModel(
         !pass.sawFirstStreamEvent &&
         !call.preFirstEventStreamRetryUsed
       ) {
-        call.preFirstEventStreamRetryUsed = true
-        resetApiConnectionPool()
-        logForDiagnosticsNoPII('info', 'cli_stream_preevent_streaming_retry')
-        logForDebugging(
-          `watchdog: ${preEventSilenceWords()} — reissuing the stream (pass 2)`,
-          { level: 'warn' },
-        )
-        yield createSystemAPIErrorMessage(
-          Object.assign(
-            new Error(
-              `${preEventSilenceWords()}; reissuing the stream`,
-            ),
-            { cause: streamingError },
-          ),
-          0,
-          1,
-          2,
-          { recoveryTimeoutMs: STREAM_IDLE_TIMEOUT_MS },
-        )
+        yield preEventReissueRow(call, streamingError, preEventSilenceWords, STREAM_IDLE_TIMEOUT_MS)
         continue streamingPass
       }
 
       const cut = signal.aborted ? null : transportCutOf(streamingError)
       if (cut !== null && !pass.streamedToolUse && !call.streamCutRetryUsed) {
-        call.streamCutRetryUsed = true
-        resetApiConnectionPool()
-        if (options.onStreamingFallback) {
-          options.onStreamingFallback()
-        }
-        logForDiagnosticsNoPII('warn', 'cli_stream_cut_streaming_retry')
-        logForDebugging(
-          `${transportCutWords('Anthropic', cut)} — reissuing the stream on a fresh connection (pass 2)`,
-          { level: 'warn' },
-        )
-        yield createStreamCutMessage({
-          count: 1,
-          content: `${transportCutWords('Anthropic', cut)}; the request was sent again on a fresh connection (reissue 1 of 1)`,
-          road: 'Anthropic',
-          sent: cut.words,
-          code: cut.code,
-        })
+        yield streamCutReissueRow(call, options, cut)
         continue streamingPass
       }
 
-      logForDebugging(
-        `The stream failed; the request is retried as one shot: ${errorMessage(streamingError)}`,
-        { level: 'error' },
-      )
-      if (pass.streamIdleAborted) resetApiConnectionPool()
-      if (cut !== null) resetApiConnectionPool()
-      call.didFallBackToNonStreaming = true
-      if (options.onStreamingFallback) {
-        options.onStreamingFallback()
-      }
-      const fallbackWaitWords = `waiting up to ${patienceSeconds(getNonstreamingFallbackTimeoutMs())} for ONE non-streamed completion (no tokens stream while it runs; esc abandons it)`
-      const noticeError = pass.streamIdleAborted
-        ? Object.assign(
-            new Error(
-              pass.sawFirstStreamEvent
-                ? `stream idle watchdog fired after ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} of mid-stream silence (${pass.streamEventCount} event(s) arrived, then the stream went quiet — the connection likely dropped) — ${fallbackWaitWords}`
-                : streamIdleWatchdog.fired()?.noBytes === true
-                  ? `${preEventSilenceWords()}, TWICE (the request authenticates and is accepted, then nothing arrives) — ${fallbackWaitWords}; /model can switch families meanwhile`
-                  : `stream idle watchdog fired after ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} with no first event, TWICE (the request authenticates and is accepted, then nothing arrives — a dead connection, or a request the server parks) — ${fallbackWaitWords}; /model can switch families meanwhile`,
-            ),
-            { cause: streamingError },
-          )
-        : cut !== null
-          ? Object.assign(
-              new Error(`${transportCutWords('Anthropic', cut)}${call.streamCutRetryUsed ? ', twice' : ''} — ${fallbackWaitWords}`),
-              { cause: streamingError },
-            )
-          : (streamingError as APIError)
-      yield createSystemAPIErrorMessage(noticeError, 0, 1, 1, {
-        recoveryTimeoutMs: getNonstreamingFallbackTimeoutMs(),
-      })
+      yield oneShotNoticeRow(call, pass, options, streamingError, cut, STREAM_IDLE_TIMEOUT_MS, streamIdleWatchdog, preEventSilenceWords)
 
       logForDiagnosticsNoPII('info', 'cli_nonstreaming_fallback_started')
       const result = yield* executeNonStreamingRequest(
@@ -982,12 +659,7 @@ async function* queryModel(
           : undefined,
       )
 
-      const nonStreamContent = Array.isArray(result.content) ? result.content : []
-      noteServedModel(result.model)
-      const m = mintAssistantMessage(result, nonStreamContent)
-      newMessages.push(m)
-      call.fallbackMessage = m
-      if (isTurnOwningQuerySource(options.querySource)) noteRequestOnWire(rosterOwnerKey)
+      const m = oneShotAnswerOf(call, result, noteServedModel, mintAssistantMessage, newMessages, options, rosterOwnerKey)
       yield m
     } finally {
       clearStreamIdleTimers()
@@ -1043,12 +715,7 @@ async function* queryModel(
           failedRequestId,
         )
 
-        const nonStreamContent = Array.isArray(result.content) ? result.content : []
-        noteServedModel(result.model)
-        const m = mintAssistantMessage(result, nonStreamContent)
-        newMessages.push(m)
-        call.fallbackMessage = m
-        if (isTurnOwningQuerySource(options.querySource)) noteRequestOnWire(rosterOwnerKey)
+        const m = oneShotAnswerOf(call, result, noteServedModel, mintAssistantMessage, newMessages, options, rosterOwnerKey)
         yield m
 
       } catch (fallbackError) {
