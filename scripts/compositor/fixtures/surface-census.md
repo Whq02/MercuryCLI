@@ -37,7 +37,7 @@ the interaction primitives the view actually mounts (1-hop join).
 
 | route | kernel signals | unit |
 |---|---|---|
-| /accounts | ilist irow | `src/commands/accounts` |
+| /accounts | ilist | `src/commands/accounts` |
 | /agents | flat | `src/commands/agents` |
 | /appearance | irow | `src/commands/appearance` |
 | /browse | — | `src/commands/browse` |
@@ -59,30 +59,30 @@ the interaction primitives the view actually mounts (1-hop join).
 | /health | irow | `src/commands/health` |
 | /help | — | `src/commands/help` |
 | /hooks | — | `src/commands/hooks` |
-| /keys | irow | `src/commands/keys` |
+| /keys | — | `src/commands/keys` |
 | /keysetup | — | `src/commands/keysetup` |
 | /logins | — | `src/commands/login` |
 | /logout | — | `src/commands/logout` |
 | /mcp | irow | `src/commands/mcp` |
 | /memory | flat | `src/commands/memory` |
 | /mission | — | `src/commands/mission` |
-| /model | irow | `src/commands/model` |
+| /model | — | `src/commands/model` |
 | /palette | — | `src/commands/palette` |
 | /permissions | — | `src/commands/permissions` |
 | /rename | — | `src/commands/rename` |
 | /run | irow | `src/commands/run` |
 | /runs | — | `src/commands/tasks` |
 | /samples | irow | `src/commands/samples` |
-| /saturn | ilist irow | `src/commands/saturn` |
-| /sessions | irow | `src/commands/sessions` |
+| /saturn | ilist | `src/commands/saturn` |
+| /sessions | — | `src/commands/sessions` |
 | /skills | ilist irow | `src/commands/skills` |
 | /submodels | ilist irow | `src/commands/submodels` |
-| /swarm | panes | `src/commands/swarm` |
+| /swarm | — | `src/commands/swarm` |
 | /swarmchat | — | `src/commands/swarmchat` |
-| /tensorfold | irow | `src/commands/tensorfold` |
+| /tensorfold | — | `src/commands/tensorfold` |
 | /title | — | `src/commands/title` |
 | /trace | — | `src/commands/trace` |
-| /workbench | panes | `src/commands/workbench` |
+| /workbench | — | `src/commands/workbench` |
 | /zen | — | `src/commands/zen` |
 
 ## Slash routes — transcript prints (local: 25)
