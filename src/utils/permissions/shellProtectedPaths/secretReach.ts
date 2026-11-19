@@ -1,5 +1,4 @@
 import { posix } from 'node:path'
-import { getShellCwd } from '../../Shell.js'
 import { type ReadCommand, UNREAD_PART, layersOf, wordKnown } from '../../wards/wardsShellRead.js'
 import { mercurySecretPath } from './paths.js'
 import { UNREAD_ADVICE, readOperands, unreadWords, verb } from './words.js'
@@ -9,7 +8,7 @@ import { GLOB_PART, SECRET_NAME_SAMPLES, UPLOADERS, couldNameSecret, globNamesSt
 import { foldersAfter, foldersRead } from './folders.js'
 import { FILE_READERS, FIND_NON_READERS, POWERSHELL_LISTERS, callsUnreadName, filesSentOrPrinted, findMaxDepth, findNamesASecret, findstrFolderFiles, gitGrepRoots, joinedUnderStanding, keychainItemRead, namesNoSecret, powershellListing, readsHandedFiles, readsWholeTree, receivesListing, ripgrepReachesHidden, searcherOf, searchesNamesAsText, searchesTextOfListing, sharesEarlierStage, stagesApart, standingSpelled, storeBelowDepth, treeReadRoots } from './listings.js'
 
-async function readSecretReach(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+export async function readSecretReach(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   const read = await readForFloors(command, powershell, cwd)
   if (read === null) return null
   const homes = mercuryHomes()
@@ -113,13 +112,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
   return null
 }
 
-export async function shellMercurySecretPath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
-  const named = await namedMercurySecretPath(command, powershell, cwd)
-  const reached = named ?? (await readSecretReach(command, powershell, cwd))
-  return reached === null ? null : reached.replaceAll(UNREAD_PART, '$(…)')
-}
-
-async function namedMercurySecretPath(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+export async function namedMercurySecretPath(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   const expanded = expandShellConstants(command, powershell)
   const pending = [expanded]
   while (pending.length) {

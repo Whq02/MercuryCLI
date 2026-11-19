@@ -1,5 +1,4 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import { getShellCwd } from '../../Shell.js'
 import { getMercuryHome } from '../../envUtils.js'
 import { type Layer, type ReadCommand, UNREAD_PART, layersOf } from '../../wards/wardsShellRead.js'
 import { namesMercuryProcess, runtimeProcessRefusal, runtimeWritePath } from '../runtimeProtection.js'
@@ -112,7 +111,7 @@ function withinMercuryRecords(word: string, cwd: string, homes: readonly string[
   return protectedPathForms(word, cwd).some(form => homes.some(home => form === home || form.startsWith(`${home}/`)))
 }
 
-async function readSelfProtection(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+export async function readSelfProtection(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   const read = await readForFloors(command, powershell, cwd)
   if (read === null) return null
   const homes = [...mercuryHomes(), ...protectedPathForms(flagEnv('MERCURY_DAEMON_DIR') || getMercuryHome())]
@@ -200,12 +199,7 @@ async function readSelfProtection(command: string, powershell: boolean, cwd: str
   return null
 }
 
-export async function shellSelfProtectionReason(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
-  const named = await namedSelfProtectionReason(command, powershell, cwd)
-  return named ?? readSelfProtection(command, powershell, cwd)
-}
-
-async function namedSelfProtectionReason(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+export async function namedSelfProtectionReason(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   return walkShellCommands(command, powershell, async ({ argv, commands, operandEnds, cwd, text, powershell: ps }) => {
     if (ps) {
       for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {

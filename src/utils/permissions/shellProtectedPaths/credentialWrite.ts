@@ -1,5 +1,4 @@
 import { posix } from 'node:path'
-import { getShellCwd } from '../../Shell.js'
 import { layersOf } from '../../wards/wardsShellRead.js'
 import { credentialStorePath } from './paths.js'
 import { OTHER_WRITERS, UNREAD_ADVICE, WRITERS, WRITE_REDIRECT, pathLike, unreadWords, verb, writeOperands } from './words.js'
@@ -8,10 +7,6 @@ import { expandShellConstants, walkShellCommands } from './walk.js'
 import { GLOB_PART, readForFloors } from './homes.js'
 import { foldersAfter } from './folders.js'
 import { POWERSHELL_LISTERS, powershellListing, sharesEarlierStage } from './listings.js'
-
-export async function shellCredentialWritePath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
-  return (await credentialWriteWalked(command, powershell, cwd)) ?? (await credentialWriteAfterMove(command, powershell, cwd)) ?? credentialWriteInBlocks(command, powershell, cwd)
-}
 
 const NET_WRITER = /\[(?:System\.)?IO\.(File|Directory|StreamWriter|FileStream)\]::(\w+)\s*\(/gi
 const NET_WRITTEN: Record<string, readonly number[]> = { writealltext: [0], writeallbytes: [0], writealllines: [0], appendalltext: [0], appendalllines: [0], appendtext: [0], createtext: [0], create: [0], openwrite: [0], delete: [0], copy: [1], move: [0, 1], replace: [0, 1, 2] }
@@ -55,7 +50,7 @@ function netWrites(text: string): string[] {
   return out
 }
 
-async function credentialWriteInBlocks(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+export async function credentialWriteInBlocks(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   for (const text of new Set([expandShellConstants(command, powershell), command])) {
     const found = await credentialWriteRead(text, powershell, cwd)
     if (found !== null) return found
@@ -86,7 +81,7 @@ async function credentialWriteRead(command: string, powershell: boolean, cwd: st
   return null
 }
 
-async function credentialWriteAfterMove(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+export async function credentialWriteAfterMove(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   const read = await readForFloors(command, powershell, cwd)
   if (read === null) return null
   for (const [at, simple] of read.commands.entries()) {
@@ -111,7 +106,7 @@ async function credentialWriteAfterMove(command: string, powershell: boolean, cw
   return null
 }
 
-function credentialWriteWalked(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+export function credentialWriteWalked(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   return walkShellCommands(command, powershell, ({ argv, cwd, text, powershell: ps }) => {
     if (ps) {
       for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Copy|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
