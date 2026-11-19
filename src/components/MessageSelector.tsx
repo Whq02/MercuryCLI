@@ -14,6 +14,8 @@ import type {
   UserMessage,
 } from '../types/message.js'
 import type { BranchManifest } from '../services/branches/branchManifest.js'
+import './TextInput.js'
+import './CustomSelect/index.js'
 import { useKeybinding, useKeybindings } from '../keybindings/useKeybinding.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -26,6 +28,8 @@ import {
   CREWMATE_MESSAGE_TAG,
   TICK_TAG,
 } from '../constants/xml.js'
+import '../services/remoteFiles/target.js'
+import '../tools/FileWriteTool/structuredTargets.js'
 import { isSyntheticMessage, isTurnCutText } from '../utils/messages.js'
 import { stripDisplayTagsAllowEmpty } from '../utils/displayTags.js'
 import { isAdvisorOrigin, isSaturnOrigin, wrappedNoticeBlocks } from '../utils/messages/noticeRows.js'

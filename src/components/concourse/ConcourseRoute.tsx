@@ -1,4 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import '../../substrate/flagRegistry.js';
+import '../../utils/debug.js';
+import '../../utils/cwd.js';
+import '../../utils/effort.js';
 import { armFaceDoorDeepLink } from '../../substrate/splashHandover.js';
 import {
   chatOnlyBoot,
@@ -11,11 +15,26 @@ import {
   writeConcourseSeedOverride,
 } from '../../services/concourse/concourseSnapshot.js';
 import type { ConcourseCallbacks } from './contracts.js';
+import '../../services/crew/obligations.js';
+import '../../utils/bootCardFacts.js';
+import '../../services/engine-connector/focusedConnector.js';
+import '../../services/concourse/sessionWarmth.js';
+import '../../services/providers/anthropic/prefixRecordStore.js';
+import './contracts.js';
+import '../../ink.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
+import '../../utils/mercuryTokens.js';
 import { splitAvailableAt, splitViewOn } from './splitView.js';
+import '../mercury-ui/useMercuryTokens.js';
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
+import '../mercury-ui/focalRamp.js';
+import '../mercury-ui/useGreetingShimmer.js';
+import '../mercury-ui/glyphs.js';
+import '../mercury-ui/sessionAccent.js';
 import { ConcourseScreen } from './ConcourseScreen.js';
 import { SessionWaitingRoom } from './SessionWaitingRoom.js';
+import '../../services/privateChannel/installPath.js';
+import '../../utils/sleep.js';
 import { ConcourseAssemblingShell } from './route/Assembling.js';
 import { readFixtureSnapshot, useConcourseSnapshot } from './route/useConcourseSnapshot.js';
 import { useConcourseAdmissionPump } from './route/useConcourseAdmissionPump.js';
