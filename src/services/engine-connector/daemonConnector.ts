@@ -484,10 +484,193 @@ abstract class ConnectorHandOffs {
   }
 }
 
-export class DaemonSessionConnector extends ConnectorHandOffs implements EngineConnectorV1, SeatLiveExtensionV1 {
+abstract class ConnectorOwnWork extends ConnectorHandOffs {
+  protected abstract readonly hands: ConnectorHands
+  protected abstract readonly carrierPart: CarrierPart
+  protected abstract readonly factsFeed: ProjectionFeed
+  protected abstract readonly asksFeed: ProjectionFeed
+  protected abstract readonly tailFeed: ProjectionFeed
+  protected abstract readonly progressFeed: ProjectionFeed
+  protected abstract turnInFlight: boolean
+  protected abstract attached: boolean
+  protected abstract verbChain: Promise<unknown>
+
+  protected carrierWentAway(): void {
+    this.factsPart.strip()
+    this.workPart.refreshWork()
+    this.recomputeLive()
+    this.addDisplayRow(createSeatReceiptMessage(CARRIER_GONE_WORDS, 'warning') as unknown as Message)
+  }
+
+  attach(): Promise<void> {
+    if (this.attached) return Promise.resolve()
+    this.attached = true
+    connectorTrace({ ev: 'attach', sid: this.record.sessionId, raw: this.transcriptPart.rows().length, display: this.transcriptPart.displayCount() })
+    this.transcriptPart.armTranscriptWatcher()
+    this.transcriptPart.armTranscriptTimer()
+    this.factsFeed.start()
+    this.asksFeed.start()
+    this.tailFeed.start()
+    this.progressFeed.start()
+    void this.rpc({ op: 'sessionControl', action: 'session-facts', sessionId: this.record.sessionId, by: 'operator' }).catch(() => {})
+    seatVerb('focus', this.record.sessionId)
+    return this.tick()
+  }
+
+  detach(): void {
+    this.carrierPart.disarmBusyStall()
+    if (!this.attached) return
+    this.attached = false
+    this.livePart.syncLivenessTicker(false)
+    connectorTrace({ ev: 'detach', sid: this.record.sessionId, raw: this.transcriptPart.rows().length, display: this.transcriptPart.displayCount() })
+    this.transcriptPart.detached()
+    this.factsFeed.stop()
+    this.asksFeed.stop()
+    this.tailFeed.stop()
+    this.progressFeed.stop()
+    seatVerb('blur', this.record.sessionId)
+    this.tailPart.detached()
+    this.livePart.detached()
+  }
+
+  protected readTail(): void {
+    const tail = readSessionTail(this.record.sessionId)
+    if (tail === null) {
+      this.livePart.tailGone()
+      this.tailPart.clearTail(Date.now())
+      return
+    }
+    this.livePart.takeTail(tail)
+    this.tailPart.takeTail(tail)
+  }
+
+  protected syncFeedCadence(inFlight: boolean): void {
+    if (this.turnInFlight === inFlight) return
+    this.turnInFlight = inFlight
+    this.transcriptPart.armTranscriptTimer()
+    this.factsFeed.rearm()
+    this.asksFeed.rearm()
+    this.tailFeed.rearm()
+    this.progressFeed.rearm()
+  }
+
+  feedCadencesForProofs(): { transcript: number; facts: number; asks: number; tail: number; progress: number } {
+    return {
+      transcript: this.transcriptPart.heartbeatMs(),
+      facts: this.factsFeed.heartbeatMs(),
+      asks: this.asksFeed.heartbeatMs(),
+      tail: this.tailFeed.heartbeatMs(),
+      progress: this.progressFeed.heartbeatMs(),
+    }
+  }
+
+  isAttached(): boolean {
+    return this.attached
+  }
+
+  assertSeat(): void {
+    if (this.attached) seatVerb('focus', this.record.sessionId)
+  }
+
+  adoptRecord(next: DaemonSessionRecordV1, runnerLive = false): void {
+    if (next.sessionId !== this.record.sessionId) return
+    if (this.admissionPart.parksAgain(next.runnerId)) {
+      this.factsPart.seedAgain()
+      this.admissionPart.parked(this.factsPart.read()?.atMs ?? null)
+    }
+    Object.assign(this.record, next)
+    if (runnerLive) this.admissionPart.runnerLive()
+    this.factsPart.wakeModel()
+    this.livePart.wake()
+  }
+
+  protected tick(): Promise<void> {
+    return this.transcriptPart.tick()
+  }
+
+  protected recomputeLive(): void {
+    this.livePart.recomputeLive()
+  }
+
+  protected paint(): void {
+    this.transcriptPart.paint()
+  }
+
+  protected readFacts(): void {
+    const next = readSessionFacts(this.record.sessionId)
+    if (next === null) {
+      if (this.factsPart.dropRowsWithNoFile()) this.workPart.refreshWork()
+      return
+    }
+    if (!this.admissionPart.factsArrive(next.atMs)) return
+    const held = this.carrierPart.factsFromCarrier(next)
+    const { prev, modelMoved, modeMoved } = this.factsPart.take(next, held)
+    this.admissionPart.runnerReported(held.runner)
+    this.workPart.refreshCheckpoints()
+    this.factsPart.handOn(next, prev)
+    const settled = next.modelSettled
+    if (
+      prev !== null &&
+      settled !== undefined &&
+      prev.modelSettled?.atMs !== settled.atMs
+    ) {
+      this.addDisplayRow(modelSettledRow(settled))
+    }
+    if (this.factsPart.followBusy()) this.carrierPart.armBusyStall()
+    else this.carrierPart.disarmBusyStall()
+    this.sendsPart.reconcileQueuedSends(next)
+    this.completionPart.refreshWorkerTurnMarks()
+    this.recomputeLive()
+    connectorTrace({ ev: 'facts', sid: this.record.sessionId, busy: next.busy, atMs: next.atMs, queue: next.queue?.length ?? 0, sends: this.sendsPart.states(), inFlight: this.livePart.live().inFlight, ...this.livePart.pressed() })
+    this.factsPart.wake(modelMoved, modeMoved)
+    const answered = endedRunResults(this.transcriptPart.kept(), this.factsPart.read(), this.carrierPart.gone())
+    const answeredMoved = answered.length !== this.transcriptPart.answered().length || answered.some((row, at) => row !== this.transcriptPart.answered()[at])
+    if (this.sendsPart.reconcileSends() || this.transcriptPart.clearReceipt() === undefined || answeredMoved) this.paint()
+    this.workPart.refreshWork()
+  }
+
+  protected readAsks(): void {
+    this.asksPart.readAsks()
+  }
+
+  protected rpc(req: Record<string, unknown>, timeoutMs = RPC_TIMEOUT_MS): Promise<Record<string, unknown>> {
+    return this.hands.rpc === undefined ? carrierRpc(req, timeoutMs) : this.hands.rpc(req, timeoutMs)
+  }
+
+  protected chainRpc(req: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const link = this.verbChain.then(() => this.rpc(req))
+    this.verbChain = link.catch(() => {})
+    return link
+  }
+
+  protected async openQuestion(): Promise<string | null> {
+    try {
+      return await questionOpenFor(this.record.sessionId)
+    } catch {
+      return null
+    }
+  }
+
+  interrupt(): boolean {
+    const wasRunning = this.livePart.live().inFlight || this.asksPart.asks().length > 0
+    if (!wasRunning) return false
+    this.asksPart.dropAll()
+    const press = this.livePart.pressInterrupt()
+    if (press === null) return true
+    const { hard, undo } = press
+    void this.chainRpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.record.sessionId, by: 'operator', clientOpId: randomUUID(), ...(hard ? { hard: true } : {}) })
+      .then(reply => {
+        if (!(reply.ok === true && reply.outcome === 'applied')) undo()
+      })
+      .catch(undo)
+    return true
+  }
+}
+
+export class DaemonSessionConnector extends ConnectorOwnWork implements EngineConnectorV1, SeatLiveExtensionV1 {
   readonly carrier = 'daemon' as const
 
-  private readonly carrierPart = new CarrierPart({
+  protected readonly carrierPart = new CarrierPart({
     sessionId: () => this.record.sessionId,
     rpc: req => this.rpc(req),
     factsBusy: () => this.factsPart.busy(),
@@ -496,14 +679,7 @@ export class DaemonSessionConnector extends ConnectorHandOffs implements EngineC
     recomputeLive: () => this.recomputeLive(),
     carrierWentAway: () => this.carrierWentAway(),
   })
-
-  private carrierWentAway(): void {
-    this.factsPart.strip()
-    this.workPart.refreshWork()
-    this.recomputeLive()
-    this.addDisplayRow(createSeatReceiptMessage(CARRIER_GONE_WORDS, 'warning') as unknown as Message)
-  }
-  private turnInFlight = false
+  protected turnInFlight = false
   protected readonly transcriptPart: TranscriptPart
 
   protected readonly sendsPart = new SendsPart({
@@ -548,7 +724,7 @@ export class DaemonSessionConnector extends ConnectorHandOffs implements EngineC
   protected readonly factsPart: FactsPart
   protected readonly completionPart: CompletionPart
   protected readonly admissionPart = new AdmissionPart({ wakeLive: () => this.livePart.wake() })
-  private readonly factsFeed: ProjectionFeed
+  protected readonly factsFeed: ProjectionFeed
   protected readonly workPart = new WorkPart({ facts: () => this.factsPart.read(), carrierGone: () => this.carrierPart.gone() })
 
   protected readonly asksPart = new AsksPart({
@@ -559,9 +735,9 @@ export class DaemonSessionConnector extends ConnectorHandOffs implements EngineC
     chainRpc: req => this.chainRpc(req),
     deliver: (text, opts) => this.deliveryPart.deliver(text, opts),
   })
-  private readonly asksFeed: ProjectionFeed
+  protected readonly asksFeed: ProjectionFeed
 
-  private readonly tailFeed: ProjectionFeed
+  protected readonly tailFeed: ProjectionFeed
   protected readonly tailPart = new TailPart({
     sessionId: () => this.record.sessionId,
     rows: () => this.transcriptPart.rows(),
@@ -616,11 +792,12 @@ export class DaemonSessionConnector extends ConnectorHandOffs implements EngineC
     settleFacts: windowMs => this.factsFeed.settle(windowMs),
   })
 
-  private readonly progressFeed: ProjectionFeed
+  protected readonly progressFeed: ProjectionFeed
 
-  private attached = false
+  protected attached = false
+  protected verbChain: Promise<unknown> = Promise.resolve()
 
-  constructor(readonly record: DaemonSessionRecordV1, private readonly hands: ConnectorHands = {}) {
+  constructor(readonly record: DaemonSessionRecordV1, protected readonly hands: ConnectorHands = {}) {
     super()
     this.transcriptPart = new TranscriptPart({
       transcriptPath: join(record.home, `${record.sessionId}.jsonl`),
@@ -688,173 +865,8 @@ export class DaemonSessionConnector extends ConnectorHandOffs implements EngineC
     this.workPart.refreshCheckpoints()
   }
 
-  attach(): Promise<void> {
-    if (this.attached) return Promise.resolve()
-    this.attached = true
-    connectorTrace({ ev: 'attach', sid: this.record.sessionId, raw: this.transcriptPart.rows().length, display: this.transcriptPart.displayCount() })
-    this.transcriptPart.armTranscriptWatcher()
-    this.transcriptPart.armTranscriptTimer()
-    this.factsFeed.start()
-    this.asksFeed.start()
-    this.tailFeed.start()
-    this.progressFeed.start()
-    void this.rpc({ op: 'sessionControl', action: 'session-facts', sessionId: this.record.sessionId, by: 'operator' }).catch(() => {})
-    seatVerb('focus', this.record.sessionId)
-    return this.tick()
-  }
-
-  detach(): void {
-    this.carrierPart.disarmBusyStall()
-    if (!this.attached) return
-    this.attached = false
-    this.livePart.syncLivenessTicker(false)
-    connectorTrace({ ev: 'detach', sid: this.record.sessionId, raw: this.transcriptPart.rows().length, display: this.transcriptPart.displayCount() })
-    this.transcriptPart.detached()
-    this.factsFeed.stop()
-    this.asksFeed.stop()
-    this.tailFeed.stop()
-    this.progressFeed.stop()
-    seatVerb('blur', this.record.sessionId)
-    this.tailPart.detached()
-    this.livePart.detached()
-  }
-
-  private readTail(): void {
-    const tail = readSessionTail(this.record.sessionId)
-    if (tail === null) {
-      this.livePart.tailGone()
-      this.tailPart.clearTail(Date.now())
-      return
-    }
-    this.livePart.takeTail(tail)
-    this.tailPart.takeTail(tail)
-  }
-
   private get liveStateWord(): 'compacting' | 'waiting-on-agents' | null {
     return this.livePart.stateWord()
-  }
-
-  private syncFeedCadence(inFlight: boolean): void {
-    if (this.turnInFlight === inFlight) return
-    this.turnInFlight = inFlight
-    this.transcriptPart.armTranscriptTimer()
-    this.factsFeed.rearm()
-    this.asksFeed.rearm()
-    this.tailFeed.rearm()
-    this.progressFeed.rearm()
-  }
-
-  feedCadencesForProofs(): { transcript: number; facts: number; asks: number; tail: number; progress: number } {
-    return {
-      transcript: this.transcriptPart.heartbeatMs(),
-      facts: this.factsFeed.heartbeatMs(),
-      asks: this.asksFeed.heartbeatMs(),
-      tail: this.tailFeed.heartbeatMs(),
-      progress: this.progressFeed.heartbeatMs(),
-    }
-  }
-
-  isAttached(): boolean {
-    return this.attached
-  }
-
-  assertSeat(): void {
-    if (this.attached) seatVerb('focus', this.record.sessionId)
-  }
-
-  adoptRecord(next: DaemonSessionRecordV1, runnerLive = false): void {
-    if (next.sessionId !== this.record.sessionId) return
-    if (this.admissionPart.parksAgain(next.runnerId)) {
-      this.factsPart.seedAgain()
-      this.admissionPart.parked(this.factsPart.read()?.atMs ?? null)
-    }
-    Object.assign(this.record, next)
-    if (runnerLive) this.admissionPart.runnerLive()
-    this.factsPart.wakeModel()
-    this.livePart.wake()
-  }
-
-  private tick(): Promise<void> {
-    return this.transcriptPart.tick()
-  }
-
-  private recomputeLive(): void {
-    this.livePart.recomputeLive()
-  }
-
-  private paint(): void {
-    this.transcriptPart.paint()
-  }
-
-  private readFacts(): void {
-    const next = readSessionFacts(this.record.sessionId)
-    if (next === null) {
-      if (this.factsPart.dropRowsWithNoFile()) this.workPart.refreshWork()
-      return
-    }
-    if (!this.admissionPart.factsArrive(next.atMs)) return
-    const held = this.carrierPart.factsFromCarrier(next)
-    const { prev, modelMoved, modeMoved } = this.factsPart.take(next, held)
-    this.admissionPart.runnerReported(held.runner)
-    this.workPart.refreshCheckpoints()
-    this.factsPart.handOn(next, prev)
-    const settled = next.modelSettled
-    if (
-      prev !== null &&
-      settled !== undefined &&
-      prev.modelSettled?.atMs !== settled.atMs
-    ) {
-      this.addDisplayRow(modelSettledRow(settled))
-    }
-    if (this.factsPart.followBusy()) this.carrierPart.armBusyStall()
-    else this.carrierPart.disarmBusyStall()
-    this.sendsPart.reconcileQueuedSends(next)
-    this.completionPart.refreshWorkerTurnMarks()
-    this.recomputeLive()
-    connectorTrace({ ev: 'facts', sid: this.record.sessionId, busy: next.busy, atMs: next.atMs, queue: next.queue?.length ?? 0, sends: this.sendsPart.states(), inFlight: this.livePart.live().inFlight, ...this.livePart.pressed() })
-    this.factsPart.wake(modelMoved, modeMoved)
-    const answered = endedRunResults(this.transcriptPart.kept(), this.factsPart.read(), this.carrierPart.gone())
-    const answeredMoved = answered.length !== this.transcriptPart.answered().length || answered.some((row, at) => row !== this.transcriptPart.answered()[at])
-    if (this.sendsPart.reconcileSends() || this.transcriptPart.clearReceipt() === undefined || answeredMoved) this.paint()
-    this.workPart.refreshWork()
-  }
-
-  private readAsks(): void {
-    this.asksPart.readAsks()
-  }
-
-  private rpc(req: Record<string, unknown>, timeoutMs = RPC_TIMEOUT_MS): Promise<Record<string, unknown>> {
-    return this.hands.rpc === undefined ? carrierRpc(req, timeoutMs) : this.hands.rpc(req, timeoutMs)
-  }
-
-  private verbChain: Promise<unknown> = Promise.resolve()
-  private chainRpc(req: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const link = this.verbChain.then(() => this.rpc(req))
-    this.verbChain = link.catch(() => {})
-    return link
-  }
-
-  private async openQuestion(): Promise<string | null> {
-    try {
-      return await questionOpenFor(this.record.sessionId)
-    } catch {
-      return null
-    }
-  }
-
-  interrupt(): boolean {
-    const wasRunning = this.livePart.live().inFlight || this.asksPart.asks().length > 0
-    if (!wasRunning) return false
-    this.asksPart.dropAll()
-    const press = this.livePart.pressInterrupt()
-    if (press === null) return true
-    const { hard, undo } = press
-    void this.chainRpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.record.sessionId, by: 'operator', clientOpId: randomUUID(), ...(hard ? { hard: true } : {}) })
-      .then(reply => {
-        if (!(reply.ok === true && reply.outcome === 'applied')) undo()
-      })
-      .catch(undo)
-    return true
   }
 
   private get textRows(): readonly CommittedTextRow[] {
