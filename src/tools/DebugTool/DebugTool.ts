@@ -1,14 +1,11 @@
-
+import * as path from 'node:path'
 import { existsSync } from 'node:fs'
-import type { CanUseToolFn } from '../../Tool.js'
+import { type CanUseToolFn, type ToolUseContext, buildTool } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { DapCancelledError, throwIfDapAborted } from '../../services/dap/dapCancellation.js'
-import { createDapTerminalRunner, type DapTerminalRunner } from '../../services/dap/dapTerminal.js'
+import { type DapTerminalRunner, createDapTerminalRunner } from '../../services/dap/dapTerminal.js'
 import { whichSync } from '../../utils/which.js'
 import { provisionDebugAdapter } from '../../services/dap/adapterInstallConsent.js'
-import * as path from 'node:path'
-import { z } from 'zod/v4'
-import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { startedCommandVerdict } from '../BashTool/bashPermissions.js'
 import { startedCommandText } from '../../utils/bash/ast.js'
 import { runtimeProcessRefusal } from '../../utils/permissions/runtimeProtection.js'
@@ -17,187 +14,48 @@ import type { PermissionResult } from '../../utils/permissions/PermissionResult.
 import { evalCodePermission } from '../../utils/permissions/shellProtectedPaths.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
-import { lazySchema } from '../../utils/lazySchema.js'
 import { expandPath } from '../../utils/path.js'
-import { semanticBoolean } from '../../utils/semanticBoolean.js'
-import { semanticNumber } from '../../utils/semanticNumber.js'
 import { mercuryGodotEnabled } from '../../services/lsp/godotLane.js'
+import { findUnityProjectRoot, mercuryUnityEnabled } from '../../services/ide/unityProject.js'
 import {
-  findUnityProjectRoot,
-  mercuryUnityEnabled,
-} from '../../services/ide/unityProject.js'
-import {
+  type DapBreakpointSpec,
+  type DapFunctionBreakpointSpec,
+  type DapSession,
   adapterKeyForExtension,
   createDapSession,
   gdbProbeFromMemo,
   getDapSession,
-  knownAdapterKeys,
   listDapSessions,
   probeGdbDap,
-  removeDapSession,
   resolveAdapter,
-  type DapBreakpointSpec,
-  type DapDataBreakpointSpec,
-  type DapFunctionBreakpointSpec,
-  type DapSession,
 } from '../../services/dap/dapClient.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { DEBUG_TOOL_NAME, DEBUG_WIRE_DESCRIPTION, getDebugToolDescription } from './prompt.js'
+import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
+import { type Input, type InputWith, type OpResult, type Output, type SchemaType, inputSchema } from './debug/schema.js'
+import { formatStackTop, reportStop, resolveThreadId } from './debug/shared.js'
 import {
-  renderToolResultMessage,
-  renderToolUseErrorMessage,
-  renderToolUseMessage,
-  userFacingName,
-} from './UI.js'
-
-const OPS = [
-  'launch',
-  'breakpoints',
-  'threads',
-  'stack',
-  'scopes',
-  'variables',
-  'evaluate',
-  'continue',
-  'next',
-  'stepIn',
-  'stepOut',
-  'pause',
-  'output',
-  'status',
-  'disconnect',
-  'loadedSources',
-  'modules',
-  'exceptionBreakpoints',
-  'source',
-  'completions',
-  'setVariable',
-  'attach',
-  'functionBreakpoints',
-  'disassemble',
-  'readMemory',
-  'dataBreakpoints',
-  'instructionBreakpoints',
-  'writeMemory',
-  'restart',
-  'customRequest',
-] as const
-
-const inputSchema = lazySchema(() =>
-  z.strictObject({
-    op: z.enum(OPS).describe('Debug operation.'),
-    session: z
-      .string()
-      .optional()
-      .describe('Session name (default "main"; re-launch replaces it)'),
-    adapter: z
-      .string()
-      .optional()
-      .describe('launch/attach: adapter key (default inferred from extension)'),
-    program: z.string().optional().describe('launch/attach: target program'),
-    args: z.array(z.string()).optional().describe('launch: argv'),
-    stopOnEntry: semanticBoolean(z.boolean().optional()).describe('launch: stop at first instruction'),
-    timeoutMs: semanticNumber(z.number().positive().optional()).describe('Stop wait in ms (default 10000, uncapped)'),
-    file: z.string().optional().describe('breakpoints: source file'),
-    lines: z.array(semanticNumber(z.number().int().positive())).optional().describe('breakpoints: replaces file lines across sessions; [] clears'),
-    breakpoints: z
-      .array(
-        z.strictObject({
-          line: semanticNumber(z.number().int().positive()),
-          condition: z.string().optional().describe('Break expression'),
-          hitCondition: z.string().optional().describe('Hit count ("3")'),
-          logMessage: z.string().optional().describe('Logpoint message (no stop)'),
-        }),
-      )
-      .optional()
-      .describe('breakpoints: conditional/hit/logpoint rows instead of lines; replaces file set across sessions; [] clears'),
-    pid: semanticNumber(z.number().int().positive().optional()).describe('attach: process id'),
-    port: semanticNumber(z.number().int().positive().max(65_535).optional()).describe('attach: debug port (alone implies python)'),
-    host: z.string().optional().describe('attach: default 127.0.0.1'),
-    method: z.string().optional().describe('customRequest: verbatim DAP command'),
-    body: z.string().optional().describe('customRequest: JSON arguments string'),
-    functions: z
-      .array(
-        z.union([
-          z.string(),
-          z.strictObject({
-            name: z.string(),
-            condition: z.string().optional(),
-            hitCondition: z.string().optional(),
-          }),
-        ]),
-      )
-      .optional()
-      .describe('functionBreakpoints: names, or {name, condition?, hitCondition?} rows; the set reaches every session of the tree and a child session started later, and [] clears it everywhere'),
-    dataBreakpoints: z
-      .array(
-        z.strictObject({
-          name: z.string().describe('Variable to watch'),
-          variablesReference: semanticNumber(z.number().int().optional()).describe('Scope/container ref (from scopes/variables)'),
-          frameId: semanticNumber(z.number().int().optional()).describe('Frame for expression-style names'),
-          accessType: z.enum(['read', 'write', 'readWrite']).optional().describe('Default "write"'),
-          condition: z.string().optional(),
-          hitCondition: z.string().optional(),
-        }),
-      )
-      .optional()
-      .describe('dataBreakpoints: replaces watched set; [] clears'),
-    instructionBreakpoints: z
-      .array(
-        z.strictObject({
-          instructionReference: z.string().describe('Frame [ip …] or disassemble address'),
-          offset: semanticNumber(z.number().int().optional()).describe('Byte offset'),
-          condition: z.string().optional(),
-          hitCondition: z.string().optional(),
-        }),
-      )
-      .optional()
-      .describe('instructionBreakpoints: replaces set; [] clears'),
-    memoryReference: z.string().optional().describe('disassemble/readMemory/writeMemory: frame [ip …] or variable [memory …]'),
-    count: semanticNumber(z.number().int().positive().optional()).describe('readMemory: bytes (≤4096)'),
-    offset: semanticNumber(z.number().int().optional()).describe('disassemble/readMemory/writeMemory: byte offset'),
-    data: z.string().optional().describe('writeMemory: base64 bytes'),
-    allowPartial: semanticBoolean(z.boolean().optional()).describe('writeMemory: allow partial write'),
-    instructionCount: semanticNumber(z.number().int().positive().optional()).describe('disassemble: instructions (default 16, ≤64)'),
-    granularity: z
-      .enum(['statement', 'instruction'])
-      .optional()
-      .describe('next/stepIn: default "statement"'),
-    threadId: semanticNumber(z.number().int().optional()).describe('stack/continue/step/pause thread (default stopped thread)'),
-    frameId: semanticNumber(z.number().int().optional()).describe('scopes/evaluate/completions frame; evaluate defaults to the top frame of the thread that stopped last'),
-    depth: semanticNumber(z.number().int().positive().optional()).describe('stack: number of frames to return (default 20)'),
-    variablesReference: semanticNumber(z.number().int().optional()).describe('variables/setVariable: container ref from scopes/variables/evaluate'),
-    expression: z.string().optional().describe('evaluate: expression in debuggee'),
-    context: z
-      .enum(['repl', 'watch', 'hover', 'clipboard', 'variables'])
-      .optional()
-      .describe('evaluate: default "repl"; "watch" for a side-effect-free read, "hover" for a symbol under the cursor, "clipboard" for a copyable value, "variables" for a variables-view value'),
-    filters: z
-      .array(z.string())
-      .optional()
-      .describe('exceptionBreakpoints: filter ids to arm (omit to list)'),
-    sourceReference: semanticNumber(z.number().int().optional()).describe('source: sourceReference (>0) from stack/loadedSources'),
-    name: z.string().optional().describe('setVariable: variable name in variablesReference'),
-    value: z.string().optional().describe('setVariable: new value expression'),
-    text: z.string().optional().describe('completions: partial expression'),
-  }),
-)
-
-type SchemaType = ReturnType<typeof inputSchema>
-export type Input = z.infer<SchemaType>
-export type Output = {
-  op: Input['op']
-  result: string
-  outcome: ToolEffectOutcome
-  debuggee?: 'stopped' | 'running' | 'terminated'
-}
-
-export type OpResult = {
-  result: string
-  outcome: ToolEffectOutcome
-  debuggee?: 'stopped' | 'running' | 'terminated'
-  details?: Record<string, unknown>
-}
+  breakpointsOp,
+  dataBreakpointsOp,
+  exceptionBreakpointsOp,
+  functionBreakpointsOp,
+  instructionBreakpointsOp,
+} from './debug/breakpoints.js'
+import {
+  completionsOp,
+  evaluateOp,
+  loadedSourcesOp,
+  modulesOp,
+  outputOp,
+  scopesOp,
+  sourceOp,
+  statusOp,
+  threadsOp,
+  variablesOp,
+} from './debug/inspect.js'
+import { disassembleOp, readMemoryOp, setVariableOp, writeMemoryOp } from './debug/memory.js'
+import { customRequestOp, disconnectOp, stepOp } from './debug/control.js'
+export type { Input, OpResult, Output } from './debug/schema.js'
 
 const INSPECT_OPS = new Set<Input['op']>([
   'threads',
@@ -276,100 +134,6 @@ function requireTarget(
     return { error: `session '${id}': ${picked.ambiguousDetail}` }
   }
   return { root: r.session, target: picked.session }
-}
-
-async function resolveThreadId(session: DapSession, explicit?: number): Promise<number> {
-  if (explicit !== undefined) return explicit
-  if (session.lastStopped?.threadId !== undefined) return session.lastStopped.threadId
-  const body = await session.request('threads')
-  const threads = Array.isArray(body.threads)
-    ? (body.threads as Array<{ id?: number }>)
-    : []
-  const first = threads[0]?.id
-  if (first === undefined) throw new Error('no threads reported by the adapter')
-  return first
-}
-
-async function formatStackTop(session: DapSession, threadId: number, depth = 3): Promise<string> {
-  const body = await session.request('stackTrace', { threadId, startFrame: 0, levels: depth })
-  const frames = Array.isArray(body.stackFrames)
-    ? (body.stackFrames as Array<{
-        id?: number
-        name?: string
-        line?: number
-        source?: { path?: string; name?: string }
-        instructionPointerReference?: string
-      }>)
-    : []
-  if (frames.length === 0) return '(no frames)'
-  return frames
-    .map(
-      (f, i) =>
-        `#${i} ${f.name ?? '?'} (${f.source?.path ?? f.source?.name ?? '?'}:${f.line ?? '?'})` +
-        (f.id !== undefined ? ` [frameId ${f.id}]` : '') +
-        (f.instructionPointerReference ? ` [ip ${f.instructionPointerReference}]` : ''),
-    )
-    .join('\n')
-}
-
-async function reportStop(root: DapSession, label: string, sinceStamp = 0, timeoutMs = 10_000, signal?: AbortSignal): Promise<OpResult> {
-  const outcome = await root.waitForStopOutcome(timeoutMs, signal, sinceStamp)
-  if (outcome.state === 'aborted') throw new DapCancelledError()
-  if (outcome.state === 'terminated') {
-    await root.drainOutput(200, 1_000, signal)
-    const tail = root.output.slice(-8).join('\n')
-    return {
-      result: `${label}: ${root.debuggeeEndDetail()}${tail ? `\noutput:\n${tail}` : ''}`,
-      outcome: 'succeeded',
-      debuggee: 'terminated',
-    }
-  }
-  if (outcome.state === 'timeout') {
-    return {
-      result: `${label}: still running after ${timeoutMs % 1000 === 0 ? `${timeoutMs / 1000}s` : `${timeoutMs}ms`} — op:"pause" to interrupt, op:"output" to inspect`,
-      outcome: 'succeeded',
-      debuggee: 'running',
-    }
-  }
-  const stopped = outcome.info
-  const at = outcome.session
-  const threadId = stopped.threadId
-  const top =
-    threadId !== undefined
-      ? await formatStackTop(at, threadId).catch(e => `(stack unavailable: ${(e as Error).message})`)
-      : '(no thread)'
-  const topLine = top.split('\n')[0] ?? ''
-  const frameMatch = topLine.match(/^#0 (.+) \((.+):(\d+)\)/)
-  const verifiedBreakpoints = [...root.treeVerifiedBreakpoints().values()]
-    .flat()
-    .filter(b => b.verified).length
-  return {
-    result:
-      `${label}: stopped${at !== root ? ` in '${at.label}'` : ''} — reason ${stopped.reason}` +
-      (stopped.description ? ` (${stopped.description})` : '') +
-      (threadId !== undefined ? `, threadId ${threadId}` : '') +
-      `\n${top}`,
-    outcome: 'succeeded',
-    debuggee: 'stopped',
-    details: {
-      stopCard: {
-        reason: stopped.reason,
-        ...(stopped.description ? { description: stopped.description } : {}),
-        ...(threadId !== undefined ? { threadId } : {}),
-        ...(at !== root ? { session: at.label } : {}),
-        ...(frameMatch
-          ? {
-              topFrame: {
-                name: frameMatch[1],
-                path: frameMatch[2],
-                line: Number(frameMatch[3]),
-              },
-            }
-          : {}),
-        verifiedBreakpoints,
-      },
-    },
-  }
 }
 
 function gateCapability(
@@ -452,15 +216,6 @@ function decodeBase64Strict(data: string): Buffer | null {
   const compact = data.replace(/\s+/g, '')
   if (compact.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(compact)) return null
   return Buffer.from(compact, 'base64')
-}
-
-function instructionLabel(spec: { instructionReference: string; offset?: number }): string {
-  if (!spec.offset) return spec.instructionReference
-  return `${spec.instructionReference}${spec.offset > 0 ? '+' : ''}${spec.offset}`
-}
-
-function verdictText(verdict: { verified: boolean; message?: string } | undefined): string {
-  return `${verdict?.verified ? 'verified' : 'UNVERIFIED'}${verdict?.message ? ` (${verdict.message})` : ''}`
 }
 
 export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?: string; env?: Record<string, string>; module?: string; signal?: AbortSignal; terminalRunner?: DapTerminalRunner } = {}): Promise<OpResult> {
@@ -571,29 +326,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
       }
       const gated = gateRichBreakpoints(r.session, requested)
       if (gated) return gated
-      const verified = await r.session.setBreakpointsTree(expandPath(input.file), requested)
-      if (requested.length === 0) {
-        return {
-          result: `breakpoints on ${input.file}: 0 breakpoints — cleared on every session of the tree (a later child session inherits none)`,
-          outcome: 'succeeded',
-          details: { breakpoints: verified },
-        }
-      }
-      const detail = verified
-        .map(
-          b =>
-            `line ${b.line}: ${
-              b.verified
-                ? `verified${b.verifier && b.verifier !== r.session.label ? ` by ${b.verifier}` : ''}`
-                : 'UNVERIFIED'
-            }${b.message ? ` (${b.message})` : ''}`,
-        )
-        .join(', ')
-      return {
-        result: `breakpoints on ${input.file}: ${detail || '(none reported)'}`,
-        outcome: 'succeeded',
-        details: { breakpoints: verified },
-      }
+      return breakpointsOp(r, input as InputWith<'file'>, requested)
     }
     case 'functionBreakpoints': {
       const r = requireSession(owner, sessionId)
@@ -606,42 +339,12 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
       const specs: DapFunctionBreakpointSpec[] = input.functions.map(f => (typeof f === 'string' ? { name: f } : f))
       const richGate = gateRichBreakpoints(r.session, specs)
       if (richGate) return richGate
-      const verified = await r.session.setFunctionBreakpointsTree(specs)
-      if (specs.length === 0) {
-        return {
-          result: 'function breakpoints cleared on every session of the tree (a later child session inherits none)',
-          outcome: 'succeeded',
-          details: { functionBreakpoints: [] },
-        }
-      }
-      const detail = specs
-        .map((s, i) => {
-          const v = verified[i]
-          const spelled = `${s.name}${s.condition !== undefined ? ` if ${s.condition}` : ''}${s.hitCondition !== undefined ? ` hits ${s.hitCondition}` : ''}`
-          return `${spelled}: ${
-            v?.verified ? `verified${v.verifier && v.verifier !== r.session.label ? ` by ${v.verifier}` : ''}` : 'UNVERIFIED'
-          }${v?.message ? ` (${v.message})` : ''}`
-        })
-        .join(', ')
-      return {
-        result: `function breakpoints: ${detail}`,
-        outcome: 'succeeded',
-        details: { functionBreakpoints: verified },
-      }
+      return functionBreakpointsOp(r, specs)
     }
     case 'threads': {
       const r = requireTarget(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }
-      const body = await r.target.request('threads')
-      const threads = Array.isArray(body.threads)
-        ? (body.threads as Array<{ id?: number; name?: string }>)
-        : []
-      return {
-        result: threads.length
-          ? threads.map(t => `thread ${t.id}: ${t.name ?? '?'}`).join('\n')
-          : '(no threads)',
-        outcome: 'no-change',
-      }
+      return threadsOp(r)
     }
     case 'stack': {
       const r = requireTarget(owner, sessionId)
@@ -655,18 +358,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
       if (input.frameId === undefined) {
         return { result: 'scopes needs frameId (from op:"stack")', outcome: 'failed' }
       }
-      const body = await r.target.request('scopes', { frameId: input.frameId })
-      const scopes = Array.isArray(body.scopes)
-        ? (body.scopes as Array<{ name?: string; variablesReference?: number }>)
-        : []
-      return {
-        result: scopes.length
-          ? scopes
-              .map(s => `${s.name ?? '?'} [variablesReference ${s.variablesReference ?? '?'}]`)
-              .join('\n')
-          : '(no scopes)',
-        outcome: 'no-change',
-      }
+      return scopesOp(r, input)
     }
     case 'variables': {
       const r = requireTarget(owner, sessionId)
@@ -677,32 +369,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
           outcome: 'failed',
         }
       }
-      const body = await r.target.request('variables', {
-        variablesReference: input.variablesReference,
-      })
-      const vars = Array.isArray(body.variables)
-        ? (body.variables as Array<{
-            name?: string
-            value?: string
-            type?: string
-            variablesReference?: number
-            memoryReference?: string
-          }>)
-        : []
-      return {
-        result: vars.length
-          ? vars
-              .map(
-                v =>
-                  `${v.name ?? '?'} = ${v.value ?? '?'}` +
-                  (v.type ? ` (${v.type})` : '') +
-                  (v.variablesReference ? ` [ref ${v.variablesReference}]` : '') +
-                  (v.memoryReference ? ` [memory ${v.memoryReference}]` : ''),
-              )
-              .join('\n')
-          : '(no variables)',
-        outcome: 'no-change',
-      }
+      return variablesOp(r, input)
     }
     case 'evaluate': {
       const r = requireTarget(owner, sessionId)
@@ -731,42 +398,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
         }
         frameId = current
       }
-      const body = await r.target.request('evaluate', {
-        expression: input.expression,
-        frameId,
-        context,
-      })
-      const debuggee = r.root.treeTerminated()
-        ? ('terminated' as const)
-        : r.root.treeStopped()
-          ? ('stopped' as const)
-          : ('running' as const)
-      const variablesReference =
-        typeof body.variablesReference === 'number' && body.variablesReference > 0 ? body.variablesReference : 0
-      const namedVariables = typeof body.namedVariables === 'number' ? body.namedVariables : undefined
-      const indexedVariables = typeof body.indexedVariables === 'number' ? body.indexedVariables : undefined
-      const counts = [
-        ...(namedVariables !== undefined ? [`${namedVariables} named`] : []),
-        ...(indexedVariables !== undefined ? [`${indexedVariables} indexed`] : []),
-      ].join(', ')
-      const type = typeof body.type === 'string' && body.type ? body.type : undefined
-      return {
-        result:
-          `${input.expression} = ${String(body.result ?? '?')}${type ? ` (${type})` : ''}` +
-          (variablesReference ? ` [variablesReference ${variablesReference}${counts ? `, ${counts}` : ''}]` : '') +
-          ` [debuggee ${debuggee}]`,
-        outcome: 'succeeded',
-        debuggee,
-        details: {
-          context,
-          frameId,
-          ...(variablesReference ? { variablesReference } : {}),
-          ...(namedVariables !== undefined ? { namedVariables } : {}),
-          ...(indexedVariables !== undefined ? { indexedVariables } : {}),
-          ...(type ? { type } : {}),
-          ...(typeof body.memoryReference === 'string' ? { memoryReference: body.memoryReference } : {}),
-        },
-      }
+      return evaluateOp(r, input, context, frameId)
     }
     case 'continue':
     case 'next':
@@ -780,14 +412,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
         const gated = gateCapability(r.target, 'supportsSteppingGranularity', `${input.op} (granularity instruction)`)
         if (gated) return gated
       }
-      const threadId = await resolveThreadId(r.target, input.threadId)
-      const sinceStamp = r.root.treeNewestStopStamp()
-      r.target.lastStopped = null
-      await r.target.request(input.op, {
-        threadId,
-        ...(wantsInstruction ? { granularity: 'instruction' } : {}),
-      })
-      return await reportStop(r.root, wantsInstruction ? `${input.op} (instruction)` : input.op, sinceStamp, input.timeoutMs, signal)
+      return stepOp(r, input, wantsInstruction, signal)
     }
     case 'restart': {
       const r = requireSession(owner, sessionId)
@@ -816,36 +441,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
         }
       }
       const count = Math.min(input.instructionCount ?? DISASSEMBLE_DEFAULT_INSTRUCTIONS, DISASSEMBLE_MAX_INSTRUCTIONS)
-      const body = await r.target.request('disassemble', {
-        memoryReference: input.memoryReference,
-        offset: input.offset ?? 0,
-        instructionOffset: 0,
-        instructionCount: count,
-        resolveSymbols: true,
-      })
-      const instructions = Array.isArray(body.instructions)
-        ? (body.instructions as Array<{
-            address?: string
-            instruction?: string
-            instructionBytes?: string
-            symbol?: string
-            location?: { path?: string }
-            line?: number
-          }>)
-        : []
-      return {
-        result: instructions.length
-          ? instructions
-              .map(
-                i =>
-                  `${i.address ?? '?'}: ${i.instruction ?? '?'}` +
-                  (i.symbol ? ` <${i.symbol}>` : '') +
-                  (i.location?.path && i.line !== undefined ? `  ; ${i.location.path}:${i.line}` : ''),
-              )
-              .join('\n')
-          : '(no instructions returned)',
-        outcome: 'no-change',
-      }
+      return disassembleOp(r, input, count)
     }
     case 'readMemory': {
       const r = requireTarget(owner, sessionId)
@@ -859,33 +455,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
         }
       }
       const count = Math.min(input.count ?? READ_MEMORY_DEFAULT_BYTES, READ_MEMORY_MAX_BYTES)
-      const body = await r.target.request('readMemory', {
-        memoryReference: input.memoryReference,
-        offset: input.offset ?? 0,
-        count,
-      })
-      const data = typeof body.data === 'string' ? Buffer.from(body.data, 'base64') : Buffer.alloc(0)
-      const address = String(body.address ?? input.memoryReference)
-      const unreadable = typeof body.unreadableBytes === 'number' ? body.unreadableBytes : 0
-      if (data.length === 0) {
-        return {
-          result: `readMemory at ${address}: 0 bytes readable${unreadable ? ` (${unreadable} unreadable)` : ''}`,
-          outcome: 'no-change',
-        }
-      }
-      const rows: string[] = []
-      for (let i = 0; i < data.length; i += 16) {
-        const slice = data.subarray(i, i + 16)
-        const hex = [...slice].map(b => b.toString(16).padStart(2, '0')).join(' ')
-        const ascii = [...slice].map(b => (b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : '.')).join('')
-        rows.push(`+0x${i.toString(16).padStart(4, '0')}  ${hex.padEnd(47)}  ${ascii}`)
-      }
-      return {
-        result:
-          `memory at ${address} (${data.length} bytes${unreadable ? `, ${unreadable} unreadable` : ''}):\n` +
-          rows.join('\n'),
-        outcome: 'no-change',
-      }
+      return readMemoryOp(r, input, count)
     }
     case 'dataBreakpoints': {
       const r = requireTarget(owner, sessionId)
@@ -901,51 +471,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
         await r.target.setDataBreakpoints([])
         return { result: 'data breakpoints cleared', outcome: 'succeeded' }
       }
-      const resolved: Array<{ name: string; spec: DapDataBreakpointSpec }> = []
-      const refused: string[] = []
-      for (const want of input.dataBreakpoints) {
-        const info = await r.target.dataBreakpointInfo({
-          name: want.name,
-          variablesReference: want.variablesReference,
-          frameId: want.frameId,
-        })
-        if (info.dataId === null) {
-          refused.push(`${want.name}: refused by adapter${info.description ? ` (${info.description})` : ''}`)
-          continue
-        }
-        const accessType = want.accessType ?? 'write'
-        if (info.accessTypes && info.accessTypes.length > 0 && !info.accessTypes.includes(accessType)) {
-          refused.push(`${want.name} (${accessType}): refused — adapter allows ${info.accessTypes.join('/')} only`)
-          continue
-        }
-        resolved.push({
-          name: want.name,
-          spec: {
-            dataId: info.dataId,
-            accessType,
-            ...(want.condition !== undefined ? { condition: want.condition } : {}),
-            ...(want.hitCondition !== undefined ? { hitCondition: want.hitCondition } : {}),
-          },
-        })
-      }
-      if (resolved.length === 0) {
-        return { result: `data breakpoints: nothing armed — ${refused.join(', ')}`, outcome: 'failed' }
-      }
-      const verdicts = await r.target.setDataBreakpoints(resolved.map(x => x.spec))
-      const detail = resolved.map((x, i) => `${x.name} (${x.spec.accessType}): ${verdictText(verdicts[i])}`)
-      return {
-        result: `data breakpoints: ${[...detail, ...refused].join(', ')}`,
-        outcome: 'succeeded',
-        details: {
-          dataBreakpoints: resolved.map((x, i) => ({
-            name: x.name,
-            dataId: x.spec.dataId,
-            accessType: x.spec.accessType,
-            verified: verdicts[i]?.verified === true,
-          })),
-          refused,
-        },
-      }
+      return dataBreakpointsOp(r, input as InputWith<'dataBreakpoints'>)
     }
     case 'instructionBreakpoints': {
       const r = requireTarget(owner, sessionId)
@@ -961,21 +487,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
         await r.target.setInstructionBreakpoints([])
         return { result: 'instruction breakpoints cleared', outcome: 'succeeded' }
       }
-      const verdicts = await r.target.setInstructionBreakpoints(input.instructionBreakpoints)
-      const detail = input.instructionBreakpoints
-        .map((b, i) => `${instructionLabel(b)}: ${verdictText(verdicts[i])}`)
-        .join(', ')
-      return {
-        result: `instruction breakpoints: ${detail}`,
-        outcome: 'succeeded',
-        details: {
-          instructionBreakpoints: input.instructionBreakpoints.map((b, i) => ({
-            instructionReference: b.instructionReference,
-            offset: b.offset ?? 0,
-            verified: verdicts[i]?.verified === true,
-          })),
-        },
-      }
+      return instructionBreakpointsOp(r, input as InputWith<'instructionBreakpoints'>)
     }
     case 'writeMemory': {
       const r = requireTarget(owner, sessionId)
@@ -993,29 +505,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
         return { result: 'writeMemory data must be base64 (e.g. "KgAAAA==" for the bytes 2a 00 00 00)', outcome: 'failed' }
       }
       if (bytes.length === 0) return { result: 'writeMemory needs at least one byte of data', outcome: 'failed' }
-      const receipt = await r.target.writeMemory({
-        memoryReference: input.memoryReference,
-        data: bytes.toString('base64'),
-        offset: input.offset,
-        allowPartial: input.allowPartial,
-      })
-      const where = `${input.memoryReference}${input.offset ? ` (offset ${input.offset})` : ''}`
-      const written = receipt.bytesWritten
-      if (written === 0) {
-        return { result: `writeMemory at ${where}: 0 of ${bytes.length} bytes written — nothing changed`, outcome: 'no-change' }
-      }
-      const count =
-        written === undefined
-          ? `${bytes.length} bytes sent (adapter reported no byte count)`
-          : written < bytes.length
-            ? `${written} of ${bytes.length} bytes written (partial)`
-            : `${written} bytes written`
-      return {
-        result: `writeMemory at ${where}: ${count} [debuggee state mutated]`,
-        outcome: 'succeeded',
-        debuggee: r.target.lastStopped ? 'stopped' : 'running',
-        details: { requestedBytes: bytes.length, ...(written !== undefined ? { bytesWritten: written } : {}) },
-      }
+      return writeMemoryOp(r, input as InputWith<'memoryReference'>, bytes)
     }
     case 'pause': {
       const r = requireTarget(owner, sessionId)
@@ -1028,52 +518,10 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
     case 'output': {
       const r = requireSession(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }
-      const drained = r.session.output.splice(0, r.session.output.length)
-      return {
-        result: drained.length ? drained.join('\n') : '(no buffered output)',
-        outcome: 'no-change',
-      }
+      return outputOp(r)
     }
     case 'status': {
-      const all = listDapSessions(owner)
-      if (all.length === 0) {
-        return {
-          result: `no debug sessions. adapters: ${knownAdapterKeys().join(', ')}`,
-          outcome: 'no-change',
-        }
-      }
-      const stateOf = (s: DapSession): string =>
-        s.terminated
-          ? `terminated (${s.exitDetail || 'exit'})`
-          : s.lastStopped
-            ? `stopped (${s.lastStopped.reason}, threadId ${s.lastStopped.threadId ?? '?'})`
-            : 'running'
-      return {
-        result: all
-          .map(({ id, session }) => {
-            const lines = [
-              `session '${id}': ${session.program} via ${session.adapterKey} — ${stateOf(session)}`,
-            ]
-            for (const s of session.treeSessions().slice(1)) {
-              lines.push(`  child '${s.label}'${s.depth > 1 ? ` (depth ${s.depth})` : ''}: ${stateOf(s)}`)
-            }
-            const bps = [...session.treeVerifiedBreakpoints().entries()]
-              .map(
-                ([f, list]) =>
-                  `${f}:${list.map(b => `${b.line}${b.verified ? '' : '?'}`).join(',')}`,
-              )
-              .join(' · ')
-            if (bps) lines.push(`  breakpoints: ${bps}`)
-            const fbps = session
-              .treeVerifiedFunctionBreakpoints()
-              .map(b => `${b.name}${b.verified ? '' : '?'}`)
-              .join(',')
-            if (fbps) lines.push(`  function breakpoints: ${fbps}`)
-            return lines.join('\n')
-          })
-          .join('\n'),
-        outcome: 'no-change',
-      }
+      return statusOp(owner)
     }
     case 'customRequest': {
       const r = requireSession(owner, sessionId)
@@ -1091,111 +539,31 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
           return { result: `customRequest body is not valid JSON: ${(e as Error).message}`, outcome: 'failed' }
         }
       }
-      const body = await r.session.request(input.method, args)
-      const text = JSON.stringify(body, null, 2) ?? 'null'
-      const clipped = text.length > 20_000
-      return {
-        result:
-          `${input.method}:\n` +
-          (clipped ? `${text.slice(0, 20_000)}\n… (${text.length - 20_000} more chars)` : text),
-        outcome: 'succeeded',
-        details: { method: input.method },
-      }
+      return customRequestOp(r, input as InputWith<'method'>, args)
     }
     case 'disconnect': {
       const detached = getDapSession(owner, sessionId)?.startMode === 'attach'
       const session = getDapSession(owner, sessionId)
-      const removed = await removeDapSession(owner, sessionId, signal)
-      if (!removed) return { result: `no session '${sessionId}' to disconnect`, outcome: 'no-change' }
-      return detached
-        ? {
-            result: `session '${sessionId}' disconnected (detached — the target keeps running; adapter reaped)`,
-            outcome: 'succeeded',
-            debuggee: 'running',
-          }
-        : {
-            result: `session '${sessionId}' disconnected (debuggee terminated, adapter reaped)`,
-            outcome: 'succeeded',
-            ...(session ? { details: { terminalCleanup: session.terminalCleanup } } : {}),
-            debuggee: 'terminated',
-          }
+      return disconnectOp(owner, sessionId, signal, detached, session)
     }
     case 'loadedSources': {
       const r = requireTarget(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }
       const gated = gateCapability(r.target, 'supportsLoadedSourcesRequest', 'loadedSources')
       if (gated) return gated
-      const body = await r.target.request('loadedSources')
-      const sources = Array.isArray(body.sources)
-        ? (body.sources as Array<{ name?: string; path?: string; sourceReference?: number }>)
-        : []
-      const shown = sources.slice(0, 100)
-      return {
-        result: shown.length
-          ? shown
-              .map(
-                s =>
-                  `${s.path ?? s.name ?? '?'}${s.sourceReference ? ` [sourceReference ${s.sourceReference}]` : ''}`,
-              )
-              .join('\n') +
-            (sources.length > shown.length ? `\n(+${sources.length - shown.length} more)` : '')
-          : '(no loaded sources reported)',
-        outcome: 'no-change',
-      }
+      return loadedSourcesOp(r)
     }
     case 'modules': {
       const r = requireTarget(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }
       const gated = gateCapability(r.target, 'supportsModulesRequest', 'modules')
       if (gated) return gated
-      const body = await r.target.request('modules', { startModule: 0, moduleCount: 100 })
-      const modules = Array.isArray(body.modules)
-        ? (body.modules as Array<{ name?: string; path?: string; id?: unknown }>)
-        : []
-      return {
-        result: modules.length
-          ? modules.map(m => `${m.name ?? '?'}${m.path ? ` (${m.path})` : ''}`).join('\n')
-          : '(no modules reported)',
-        outcome: 'no-change',
-      }
+      return modulesOp(r)
     }
     case 'exceptionBreakpoints': {
       const r = requireTarget(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }
-      const available = Array.isArray(r.target.capabilities?.exceptionBreakpointFilters)
-        ? (r.target.capabilities!.exceptionBreakpointFilters as Array<{
-            filter?: string
-            label?: string
-            default?: boolean
-          }>)
-        : []
-      if (!input.filters) {
-        return {
-          result: available.length
-            ? 'available exception filters:\n' +
-              available
-                .map(f => `${f.filter}: ${f.label ?? ''}${f.default ? ' (default)' : ''}`)
-                .join('\n') +
-              '\n\nRe-run with filters: ["<id>", …] to arm (empty array disarms all).'
-            : `adapter '${r.target.adapterKey}' advertises no exception filters`,
-          outcome: 'no-change',
-        }
-      }
-      const known = new Set(available.map(f => f.filter))
-      const unknown = input.filters.filter(f => !known.has(f))
-      if (unknown.length > 0 && available.length > 0) {
-        return {
-          result: `unknown exception filter(s): ${unknown.join(', ')} — available: ${[...known].join(', ')}`,
-          outcome: 'failed',
-        }
-      }
-      await r.target.request('setExceptionBreakpoints', { filters: input.filters })
-      return {
-        result: input.filters.length
-          ? `exception breakpoints armed: ${input.filters.join(', ')}`
-          : 'exception breakpoints disarmed',
-        outcome: 'succeeded',
-      }
+      return exceptionBreakpointsOp(r, input)
     }
     case 'source': {
       const r = requireTarget(owner, sessionId)
@@ -1206,19 +574,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
           outcome: 'failed',
         }
       }
-      const body = await r.target.request('source', {
-        sourceReference: input.sourceReference,
-        source: { sourceReference: input.sourceReference },
-      })
-      const content = String(body.content ?? '')
-      return {
-        result: content
-          ? content.length > 20_000
-            ? content.slice(0, 20_000) + `\n… (${content.length - 20_000} more chars truncated)`
-            : content
-          : '(empty source)',
-        outcome: 'no-change',
-      }
+      return sourceOp(r, input)
     }
     case 'completions': {
       const r = requireTarget(owner, sessionId)
@@ -1226,22 +582,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
       const gated = gateCapability(r.target, 'supportsCompletionsRequest', 'completions')
       if (gated) return gated
       if (!input.text) return { result: 'completions needs text', outcome: 'failed' }
-      const body = await r.target.request('completions', {
-        text: input.text,
-        column: input.text.length + 1,
-        ...(input.frameId !== undefined ? { frameId: input.frameId } : {}),
-      })
-      const targets = Array.isArray(body.targets)
-        ? (body.targets as Array<{ label?: string; text?: string; type?: string }>)
-        : []
-      const shown = targets.slice(0, 50)
-      return {
-        result: shown.length
-          ? shown.map(t => `${t.text ?? t.label ?? '?'}${t.type ? ` (${t.type})` : ''}`).join('\n') +
-            (targets.length > shown.length ? `\n(+${targets.length - shown.length} more)` : '')
-          : '(no completions)',
-        outcome: 'no-change',
-      }
+      return completionsOp(r, input as InputWith<'text'>)
     }
     case 'setVariable': {
       const r = requireTarget(owner, sessionId)
@@ -1254,16 +595,7 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
           outcome: 'failed',
         }
       }
-      const body = await r.target.request('setVariable', {
-        variablesReference: input.variablesReference,
-        name: input.name,
-        value: input.value,
-      })
-      return {
-        result: `${input.name} = ${String(body.value ?? input.value)}${body.type ? ` (${String(body.type)})` : ''} [debuggee state mutated]`,
-        outcome: 'succeeded',
-        debuggee: r.target.lastStopped ? 'stopped' : 'running',
-      }
+      return setVariableOp(r, input)
     }
   }
 }
