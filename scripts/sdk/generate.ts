@@ -23,6 +23,7 @@ const VOCABULARY = 'src/rows/vocabulary.ts'
 const PERMISSIONS = 'src/types/permissions.ts'
 const EFFORT = 'src/utils/effortLadder.ts'
 const MAIN = 'src/main.tsx'
+const MAIN_SOURCES = [MAIN, 'src/main/rootOptions.ts', 'src/main/cli.ts', 'src/main/sessionDoors.ts', 'src/main/subcommands.ts']
 const GENERATOR = 'scripts/sdk/generate.ts'
 const ROW = {
   assets: 'sdk/src/rows.ts sdk/src/door.ts sdk/src/wire.ts sdk-py/src/mercury_cli_sdk/generated.py sdk/README.md sdk-py/README.md',
@@ -178,8 +179,9 @@ const unionMembers = (exportName: string, members: Map<string, string>): void =>
 unionMembers('RowSchema', rowSchemas)
 unionMembers('InputRowSchema', inputSchemas)
 
-const mainSource = readFileSync(join(ROOT, MAIN), 'utf8')
-const mainFile = ts.createSourceFile(MAIN, mainSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+const mainSources = MAIN_SOURCES.map(path => ({ path, text: readFileSync(join(ROOT, path), 'utf8') }))
+const mainSource = mainSources.map(source => source.text).join('\n')
+let sourceBase = 0
 type Option = { flag: string; short?: string; value: 'none' | 'required' | 'optional' | 'variadic'; choices?: readonly string[]; hidden: boolean }
 const text = (node: ts.Node): string | undefined => (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) ? node.text : undefined)
 const parseFlags = (flags: string): Pick<Option, 'flag' | 'short' | 'value'> => {
@@ -200,7 +202,7 @@ const seen = new Set<string>()
 const addOption = (at: number, option: Option): void => {
   if (seen.has(option.flag)) fail(`the option ${option.flag} is declared twice`)
   seen.add(option.flag)
-  declared.push({ at, option })
+  declared.push({ at: sourceBase + at, option })
 }
 const visit = (node: ts.Node): void => {
   if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && ts.isNewExpression(node.initializer) && ts.isIdentifier(node.initializer.expression) && node.initializer.expression.text === 'Set') {
@@ -264,9 +266,12 @@ const visit = (node: ts.Node): void => {
   }
   ts.forEachChild(node, visit)
 }
-visit(mainFile)
+for (const source of mainSources) {
+  visit(ts.createSourceFile(source.path, source.text, ts.ScriptTarget.Latest, true, source.path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS))
+  sourceBase += source.text.length + 1
+}
 const programOptions = declared.sort((a, b) => a.at - b.at).map(entry => entry.option)
-if (programOptions.length < 40) fail(`only ${programOptions.length} root options read from ${MAIN}`)
+if (programOptions.length < 40) fail(`only ${programOptions.length} root options read from ${MAIN_SOURCES.join(', ')}`)
 const interactiveBoot = constLists.get('INTERACTIVE_BOOT_OPTIONS')
 const runOutput = constLists.get('RUN_OUTPUT_OPTIONS')
 if (!interactiveBoot || !runOutput) fail('INTERACTIVE_BOOT_OPTIONS or RUN_OUTPUT_OPTIONS not read')

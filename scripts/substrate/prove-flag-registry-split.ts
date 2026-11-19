@@ -45,6 +45,7 @@ const AREAS: Record<string, string> = {
   'scripts/release/': 'boot.ts',
   'src/bootstrap/': 'boot.ts',
   'src/main.tsx': 'boot.ts',
+  'src/main/': 'boot.ts',
   'src/services/privateChannel/': 'boot.ts',
   'src/substrate/durablePublish.ts': 'boot.ts',
   'src/substrate/envStamps.ts': 'boot.ts',
