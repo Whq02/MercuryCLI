@@ -239,8 +239,6 @@ section('§F engine-lane usage truth — observed limit latches flip the limit a
   )
 }
 
-}
-
 section("§H the compat slot's credential word comes from ITS OWN resolver (FC-075)")
 {
   const keyless = resolveProviderUsability({
