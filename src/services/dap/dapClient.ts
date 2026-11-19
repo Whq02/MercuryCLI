@@ -1,9 +1,8 @@
 
-import { spawn, type ChildProcess, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { DapCancelledError, dapDeadline, throwIfDapAborted, waitForDap } from './dapCancellation.js'
-import type { DapTerminalRequest, DapTerminalRunner } from './dapTerminal.js'
-import { createCombinedAbortSignal } from '../../utils/combinedAbortSignal.js'
-import { createServer as createNetServer, connect as netConnect, type Socket } from 'node:net'
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { DapCancelledError, throwIfDapAborted, waitForDap } from './dapCancellation.js'
+import type { DapTerminalRunner } from './dapTerminal.js'
+import { createServer as createNetServer, type Socket } from 'node:net'
 import { pythonSpawnEnv } from './debugpyResolver.js'
 import * as path from 'node:path'
 import type { OwnerKey } from '../run/ownerKey.js'
@@ -15,7 +14,6 @@ import { registerExecutionDomain } from '../primitives/executionPlane.js'
 import { projectExternalState } from '../primitives/externalProjection.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { endProcessTree, endProcessTreeSurvivors, strikeProcessGroupNow } from '../../utils/processGroup.js'
-import { sleep } from '../../utils/sleep.js'
 import { dormantBuiltinAdapterHints, knownAdapterKeys, resolveAdapter } from './client/adapters.js'
 import { dialListener, listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
 import { adapterSilenceMessage } from './client/probes.js'
@@ -29,6 +27,9 @@ import {
   writeMemory,
 } from './client/breakpoints.js'
 import { startBodyOf, type DapStartOptions } from './client/launch.js'
+import { OutputPart } from './client/output.js'
+import { TerminalPart } from './client/terminal.js'
+import { WirePart } from './client/wire.js'
 import { drainOutput, waitForStopOutcome } from './client/stops.js'
 import {
   debuggeeEndDetail,
@@ -52,7 +53,6 @@ import {
   type DapInstructionBreakpointSpec,
   type DapListenerTarget,
   type DapWriteMemoryReceipt,
-  type Pending,
   type StoppedInfo,
 } from './client/shared.js'
 
@@ -131,19 +131,33 @@ export class DapSession {
   #spec: DapAdapterSpec
   #cwd: string
   #child: ChildProcessWithoutNullStreams | null
-  #socket: Socket | null = null
   #tcpPort: number | undefined
   #listener: DapListenerTarget | null = null
   #transportReady: Promise<void>
-  #seq = 1
-  #pending = new Map<number, Pending>()
   #lifetime = new AbortController()
   #operationSignal: AbortSignal | undefined
-  #terminalRunner: DapTerminalRunner | undefined
-  #terminalProcesses = new Set<ChildProcess>()
-  #terminalReaps = new Map<ChildProcess, Promise<void>>()
   terminalCleanup = { ended: 0, survivors: [] as number[] }
-  #buffer = Buffer.alloc(0)
+  #wire = new WirePart({
+    terminated: () => this.terminated,
+    exitDetail: () => this.exitDetail,
+    alive: () => this.alive,
+    transportReady: () => this.#transportReady,
+    child: () => this.#child,
+    socketClosed: closedDetail => this.#socketClosed(closedDetail),
+    onMessage: msg => this.#onMessage(msg),
+  })
+  #terminal: TerminalPart = new TerminalPart({
+    cwd: () => this.#cwd,
+    rootRunner: () => this.root().#terminal.runner(),
+    operationSignal: () => this.#operationSignal ?? this.root().#operationSignal,
+    lifetimeSignal: () => this.#lifetime.signal,
+    cleanup: () => this.terminalCleanup,
+    pushOutput: line => this.#pushOutput(line),
+    hostsDebuggee: () => {
+      this.#hostsDebuggee = true
+    },
+  })
+  #out = new OutputPart({ pushOutput: line => this.#pushOutput(line) })
   #initializedEvent: Promise<void>
   #resolveInitialized!: () => void
   #stateWaiters = new Set<() => void>()
@@ -191,8 +205,8 @@ export class DapSession {
       this.#listener = { host: listener.host, port: listener.port }
       this.#transportReady =
         listener.socket !== undefined
-          ? this.#adoptSocket(listener.socket, `the program listening at ${listener.host}:${listener.port} closed the connection`)
-          : this.#connectTcp(listener.port, listener.host)
+          ? this.#wire.adoptSocket(listener.socket, `the program listening at ${listener.host}:${listener.port} closed the connection`)
+          : this.#wire.connectTcp(listener.port, listener.host)
       return
     }
     if (wire === 'dial') {
@@ -204,7 +218,7 @@ export class DapSession {
         this.#transportReady.catch(() => {})
         return
       }
-      this.#transportReady = this.#connectTcp(tcpPort)
+      this.#transportReady = this.#wire.connectTcp(tcpPort)
       return
     }
     const child = spawn(spec.command, spec.args, {
@@ -220,9 +234,9 @@ export class DapSession {
       child.stdout.on('data', (chunk: Buffer) => {
         this.#pushOutput(`[adapter] ${String(chunk).trimEnd()}`)
       })
-      this.#transportReady = this.#connectTcp(tcpPort)
+      this.#transportReady = this.#wire.connectTcp(tcpPort)
     } else {
-      child.stdout.on('data', (chunk: Buffer) => this.#onData(chunk))
+      child.stdout.on('data', (chunk: Buffer) => this.#wire.onData(chunk))
       this.#transportReady = Promise.resolve()
     }
     child.stderr.on('data', (chunk: Buffer) => {
@@ -232,24 +246,24 @@ export class DapSession {
       if (!this.terminated) this.exitDetail = `adapter exited (code ${code ?? 'null'}${signal ? `, signal ${signal}` : ''})`
       this.terminated = true
       this.#lifetime.abort()
-      void this.#reapTerminalProcesses()
-      for (const [, p] of this.#pending) {
+      void this.#terminal.reapTerminalProcesses()
+      for (const [, p] of this.#wire.pending()) {
         p.cancelDeadline()
         p.reject(new Error(this.exitDetail))
       }
-      this.#pending.clear()
+      this.#wire.pending().clear()
       this.#wakeStateWaiters()
     })
     child.on('error', err => {
       this.terminated = true
       this.exitDetail = `adapter failed to start: ${err.message}`
       this.#lifetime.abort()
-      void this.#reapTerminalProcesses()
-      for (const [, p] of this.#pending) {
+      void this.#terminal.reapTerminalProcesses()
+      for (const [, p] of this.#wire.pending()) {
         p.cancelDeadline()
         p.reject(new Error(this.exitDetail))
       }
-      this.#pending.clear()
+      this.#wire.pending().clear()
       this.#wakeStateWaiters()
     })
   }
@@ -390,44 +404,14 @@ export class DapSession {
     return debugTarget(this)
   }
 
-  async #connectTcp(port: number, host = '127.0.0.1', deadlineMs = 6_000): Promise<void> {
-    const start = Date.now()
-    for (;;) {
-      if (this.terminated) throw new Error(this.exitDetail || 'adapter exited before the tcp port opened')
-      const socket = await new Promise<Socket | null>(resolve => {
-        const s = netConnect({ host, port }, () => resolve(s))
-        s.on('error', () => resolve(null))
-      })
-      if (socket) {
-        await this.#adoptSocket(socket, 'adapter socket closed')
-        return
-      }
-      if (Date.now() - start > deadlineMs) {
-        throw new Error(`adapter never opened ${host}:${port} within ${deadlineMs}ms`)
-      }
-      await sleep(100)
+  #socketClosed(closedDetail: string): void {
+    if (!this.terminated) {
+      this.terminated = true
+      this.exitDetail = this.exitDetail || closedDetail
+      this.#lifetime.abort()
+      void this.#terminal.reapTerminalProcesses()
+      this.#wakeStateWaiters()
     }
-  }
-
-  #adoptSocket(socket: Socket, closedDetail: string): Promise<void> {
-    this.#socket = socket
-    socket.on('data', (chunk: Buffer) => this.#onData(chunk))
-    socket.on('close', () => {
-      if (!this.terminated) {
-        this.terminated = true
-        this.exitDetail = this.exitDetail || closedDetail
-        this.#lifetime.abort()
-        void this.#reapTerminalProcesses()
-        this.#wakeStateWaiters()
-      }
-      for (const [, p] of this.#pending) {
-        p.cancelDeadline()
-        p.reject(new Error(this.exitDetail))
-      }
-      this.#pending.clear()
-    })
-    socket.on('error', () => undefined)
-    return Promise.resolve()
   }
 
   get listener(): DapListenerTarget | null {
@@ -445,52 +429,8 @@ export class DapSession {
     }
   }
 
-  #partialOutput = ''
-  static readonly #PARTIAL_OUTPUT_KEEP_BYTES = 64 * 1024
-  static readonly #RING_LINE_MAX_CHARS = 4_096
-  #pushOutputChunk(chunk: string): void {
-    this.#partialOutput += chunk
-    for (;;) {
-      const nl = this.#partialOutput.search(/[\r\n]/)
-      if (nl === -1) break
-      const line = this.#partialOutput.slice(0, nl).trimEnd()
-      const next = this.#partialOutput[nl] === '\r' && this.#partialOutput[nl + 1] === '\n' ? nl + 2 : nl + 1
-      this.#partialOutput = this.#partialOutput.slice(next)
-      if (line) this.#pushOutput(line)
-    }
-    if (this.#partialOutput.length > DapSession.#PARTIAL_OUTPUT_KEEP_BYTES) {
-      this.#partialOutput = this.#partialOutput.slice(-DapSession.#PARTIAL_OUTPUT_KEEP_BYTES)
-    }
-  }
-
   flushPartialOutput(): void {
-    const rest = this.#partialOutput.trimEnd()
-    this.#partialOutput = ''
-    if (rest) this.#pushOutput(rest)
-  }
-
-  #onData(chunk: Buffer): void {
-    this.#buffer = Buffer.concat([this.#buffer, chunk])
-    for (;;) {
-      const headerEnd = this.#buffer.indexOf('\r\n\r\n')
-      if (headerEnd < 0) return
-      const header = this.#buffer.subarray(0, headerEnd).toString('utf-8')
-      const m = header.match(/Content-Length:\s*(\d+)/i)
-      if (!m || m[1] === undefined) {
-        this.#buffer = this.#buffer.subarray(headerEnd + 4)
-        continue
-      }
-      const length = Number(m[1])
-      const start = headerEnd + 4
-      if (this.#buffer.length < start + length) return
-      const body = this.#buffer.subarray(start, start + length).toString('utf-8')
-      this.#buffer = this.#buffer.subarray(start + length)
-      try {
-        this.#onMessage(JSON.parse(body) as Record<string, unknown>)
-      } catch {
-        logForDebugging(`dap: unparseable message body (${length} bytes)`)
-      }
-    }
+    this.#out.flushPartialOutput()
   }
 
   #onMessage(msg: Record<string, unknown>): void {
@@ -499,20 +439,7 @@ export class DapSession {
       return
     }
     if (msg.type === 'response') {
-      const reqSeq = Number(msg.request_seq)
-      const pending = this.#pending.get(reqSeq)
-      if (!pending) return
-      this.#pending.delete(reqSeq)
-      pending.cancelDeadline()
-      if (msg.success) {
-        pending.resolve((msg.body as Record<string, unknown>) ?? {})
-      } else {
-        pending.reject(
-          new Error(
-            `${pending.command} failed: ${String(msg.message ?? 'unknown adapter error')}`,
-          ),
-        )
-      }
+      this.#wire.onResponse(msg)
       return
     }
     if (msg.type === 'event') {
@@ -541,7 +468,7 @@ export class DapSession {
           break
         case 'output': {
           if (body.category === 'telemetry') break
-          this.#pushOutputChunk(String(body.output ?? ''))
+          this.#out.pushOutputChunk(String(body.output ?? ''))
           break
         }
         case 'breakpoint': {
@@ -552,7 +479,7 @@ export class DapSession {
         case 'exited':
           this.terminated = true
           this.#lifetime.abort()
-          void this.#reapTerminalProcesses()
+          void this.#terminal.reapTerminalProcesses()
           this.flushPartialOutput()
           if (msg.event === 'exited') {
             this.exitDetail = `debuggee exited (code ${String(body.exitCode ?? '?')})`
@@ -563,33 +490,6 @@ export class DapSession {
           break
       }
     }
-  }
-
-  #writeFrame(payload: string, onError?: (err: Error) => void, isCurrent: () => boolean = () => true): void {
-    const framed = `Content-Length: ${Buffer.byteLength(payload, 'utf-8')}\r\n\r\n${payload}`
-    void this.#transportReady
-      .then(() => {
-        if (!isCurrent()) return
-        const wire = this.#socket ?? this.#child?.stdin
-        if (!wire) throw new Error(this.exitDetail || 'session has no transport')
-        wire.write(framed, err => {
-          if (err) onError?.(err)
-        })
-      })
-      .catch(err => onError?.(err as Error))
-  }
-
-  #respondToReverse(request: Record<string, unknown>, success: boolean, message?: string, body: Record<string, unknown> = {}): void {
-    const payload = JSON.stringify({
-      seq: this.#seq++,
-      type: 'response',
-      request_seq: Number(request.seq),
-      command: String(request.command ?? ''),
-      success,
-      ...(message !== undefined ? { message } : {}),
-      body,
-    })
-    this.#writeFrame(payload)
   }
 
   #childBoundRefusal(): string | null {
@@ -667,73 +567,7 @@ export class DapSession {
   }
 
   terminalProcessCount(): number {
-    return this.treeSessions().reduce((count, session) => count + session.#terminalProcesses.size, 0)
-  }
-
-  #reapTerminalProcess(child: ChildProcess): Promise<void> {
-    const pending = this.#terminalReaps.get(child)
-    if (pending) return pending
-    const reaped = (async () => {
-      let receipt = await endProcessTree(child, 'SIGKILL')
-      this.terminalCleanup.ended += receipt.ended
-      if (receipt.survivors.length > 0 && child.pid !== undefined) {
-        receipt = await endProcessTreeSurvivors(child.pid, receipt.survivors, 'SIGKILL')
-        this.terminalCleanup.ended += receipt.ended
-      }
-      this.terminalCleanup.survivors.push(...receipt.survivors)
-      if (receipt.survivors.length) this.#pushOutput(`[dap] debuggee cleanup could not end process(es): ${receipt.survivors.join(', ')}`)
-      this.#terminalProcesses.delete(child)
-      this.#terminalReaps.delete(child)
-    })()
-    this.#terminalReaps.set(child, reaped)
-    return reaped
-  }
-
-  async #reapTerminalProcesses(): Promise<void> {
-    await Promise.all([...this.#terminalProcesses].map(child => this.#reapTerminalProcess(child)))
-  }
-
-  async #runInTerminal(msg: Record<string, unknown>): Promise<number> {
-    const args = (msg.arguments ?? {}) as Record<string, unknown>
-    if (!Array.isArray(args.args) || args.args.length === 0 || !args.args.every(arg => typeof arg === 'string')) {
-      throw new Error('runInTerminal needs a nonempty command argv of strings')
-    }
-    if (args.cwd !== undefined && typeof args.cwd !== 'string') throw new Error('runInTerminal cwd must be a string')
-    if (args.env !== undefined && (args.env === null || typeof args.env !== 'object' || Array.isArray(args.env) || !Object.values(args.env).every(value => value === null || typeof value === 'string'))) {
-      throw new Error('runInTerminal env values must be strings or null')
-    }
-    const request: DapTerminalRequest = {
-      args: args.args,
-      cwd: path.resolve(this.#cwd, typeof args.cwd === 'string' ? args.cwd : '.'),
-      ...(args.env !== undefined ? { env: args.env as Record<string, string | null> } : {}),
-    }
-    const runner = this.root().#terminalRunner
-    if (!runner) throw new Error('runInTerminal requires the session’s Bash permission context')
-    const combined = createCombinedAbortSignal(this.#operationSignal ?? this.root().#operationSignal, { signalB: this.#lifetime.signal })
-    const started: ChildProcess[] = []
-    let partial = ''
-    const output = (chunk: string): void => {
-      const lines = (partial + chunk).split(/\r\n|\r|\n/)
-      partial = (lines.pop() ?? '').slice(-DapSession.#PARTIAL_OUTPUT_KEEP_BYTES)
-      for (const line of lines) this.#pushOutput(`[debuggee] ${line.slice(0, DapSession.#RING_LINE_MAX_CHARS)}`)
-    }
-    try {
-      throwIfDapAborted(combined.signal)
-      const processId = await runner(request, combined.signal, child => {
-        this.#terminalProcesses.add(child)
-        started.push(child)
-        this.#hostsDebuggee = true
-        child.once('exit', () => { void this.#reapTerminalProcess(child) })
-        child.once('close', () => { if (partial) { this.#pushOutput(`[debuggee] ${partial.slice(0, DapSession.#RING_LINE_MAX_CHARS)}`); partial = '' } })
-      }, output)
-      throwIfDapAborted(combined.signal)
-      return processId
-    } catch (error) {
-      await Promise.all(started.map(child => this.#reapTerminalProcess(child)))
-      throw error
-    } finally {
-      combined.cleanup()
-    }
+    return this.treeSessions().reduce((count, session) => count + session.#terminal.processes().size, 0)
   }
 
   #onReverseRequest(msg: Record<string, unknown>): void {
@@ -744,7 +578,7 @@ export class DapSession {
       const requestKind: 'launch' | 'attach' = args.request === 'attach' ? 'attach' : 'launch'
       const refusal = this.#childBoundRefusal()
       if (refusal) {
-        this.#respondToReverse(msg, false, refusal)
+        this.#wire.respondToReverse(msg, false, refusal)
         this.#pushOutput(`[dap] refused startDebugging: ${refusal}`)
         return
       }
@@ -753,11 +587,11 @@ export class DapSession {
         child = this.#createChildSession(configuration)
       } catch (e) {
         const reason = `child session could not start: ${(e as Error).message}`
-        this.#respondToReverse(msg, false, reason)
+        this.#wire.respondToReverse(msg, false, reason)
         this.#pushOutput(`[dap] ${reason}`)
         return
       }
-      this.#respondToReverse(msg, true)
+      this.#wire.respondToReverse(msg, true)
       void child.withOperation(this.#operationSignal ?? this.root().#operationSignal, () => child.#runChildDance(requestKind, configuration)).catch(err => {
         this.#pushOutput(
           `[dap] child session '${child.label}' failed to start: ${(err as Error).message}`,
@@ -767,17 +601,17 @@ export class DapSession {
       return
     }
     if (command === 'runInTerminal') {
-      void this.#runInTerminal(msg).then(
-        processId => this.#respondToReverse(msg, true, undefined, { processId }),
+      void this.#terminal.runInTerminal(msg).then(
+        processId => this.#wire.respondToReverse(msg, true, undefined, { processId }),
         error => {
           const reason = error instanceof Error ? error.message : String(error)
-          this.#respondToReverse(msg, false, reason)
+          this.#wire.respondToReverse(msg, false, reason)
           this.#pushOutput(`[dap] runInTerminal: ${reason}`)
         },
       )
       return
     }
-    this.#respondToReverse(msg, false, `unsupported reverse request '${command}'`)
+    this.#wire.respondToReverse(msg, false, `unsupported reverse request '${command}'`)
   }
 
   async withOperation<T>(signal: AbortSignal | undefined, run: () => Promise<T>): Promise<T> {
@@ -792,7 +626,7 @@ export class DapSession {
   }
 
   setTerminalRunner(runner: DapTerminalRunner): void {
-    this.root().#terminalRunner = runner
+    this.root().#terminal.setRunner(runner)
   }
 
   request(
@@ -801,28 +635,7 @@ export class DapSession {
     timeoutMs = REQUEST_TIMEOUT_MS,
     signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal,
   ): Promise<Record<string, unknown>> {
-    if (signal?.aborted) return Promise.reject(new DapCancelledError())
-    if (!this.alive && command !== 'disconnect') {
-      return Promise.reject(new Error(this.exitDetail || 'session is not alive'))
-    }
-    const seq = this.#seq++
-    const payload = JSON.stringify({ seq, type: 'request', command, arguments: args ?? {} })
-    return new Promise((resolve, reject) => {
-      const cleanup = (): void => {
-        this.#pending.delete(seq)
-        cancelDeadline()
-        signal?.removeEventListener('abort', onAbort)
-      }
-      const fail = (err: Error): void => {
-        cleanup()
-        reject(err)
-      }
-      const onAbort = (): void => fail(new DapCancelledError())
-      const cancelDeadline = dapDeadline(() => fail(new Error(`${command} timed out after ${timeoutMs}ms`)), timeoutMs)
-      this.#pending.set(seq, { resolve: body => { cleanup(); resolve(body) }, reject: fail, cancelDeadline, command })
-      signal?.addEventListener('abort', onAbort, { once: true })
-      this.#writeFrame(payload, fail, () => this.#pending.has(seq))
-    })
+    return this.#wire.request(command, args, timeoutMs, signal)
   }
 
   async launch(options: DapStartOptions): Promise<void> {
@@ -938,7 +751,7 @@ export class DapSession {
 
   async dispose(signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {
     this.#lifetime.abort()
-    await this.#reapTerminalProcesses()
+    await this.#terminal.reapTerminalProcesses()
     for (const child of [...this.children]) {
       await child.dispose(signal)
     }
@@ -960,11 +773,11 @@ export class DapSession {
 
   killSync(): void {
     this.#lifetime.abort()
-    for (const process of this.#terminalProcesses) {
+    for (const process of this.#terminal.processes()) {
       strikeProcessGroupNow(process, 'SIGKILL')
       process.kill('SIGKILL')
     }
-    this.#terminalProcesses.clear()
+    this.#terminal.processes().clear()
     for (const child of [...this.children]) {
       try {
         child.killSync()
@@ -972,22 +785,22 @@ export class DapSession {
       }
     }
     try {
-      this.#socket?.destroy()
+      this.#wire.socket()?.destroy()
     } catch {
     }
     if (this.#child && this.#child.exitCode === null) this.#child.kill('SIGKILL')
     this.terminated = true
-    for (const [, p] of this.#pending) {
+    for (const [, p] of this.#wire.pending()) {
       p.cancelDeadline()
       p.reject(new Error('session disposed'))
     }
-    this.#pending.clear()
+    this.#wire.pending().clear()
     this.#wakeStateWaiters()
     this.#stateWaiters.clear()
   }
 
   _pendingRequestCountForTesting(): number {
-    return this.#pending.size
+    return this.#wire.pending().size
   }
 
   _stateWaiterCountForTesting(): number {
