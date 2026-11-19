@@ -7,14 +7,11 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { Box, Text } from '../../ink.js'
+import { Box } from '../../ink.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import type { Command } from '../../commands.js'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { useNotifications } from '../../context/notifications.js'
-import {
-  currentSurfaceRoute,
-} from '../../context/surfaceRoute.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useHistorySearch } from '../../hooks/useHistorySearch.js'
 import { usePromptSuggestion } from '../../hooks/usePromptSuggestion.js'
@@ -38,15 +35,10 @@ import { PromptInputFooter } from './PromptInputFooter.js'
 import { PromptInputModeIndicator } from './PromptInputModeIndicator.js'
 import { PromptInputStashNotice } from './PromptInputStashNotice.js'
 import { Notifications } from './Notifications.js'
-import { IssueFlagBanner } from './IssueFlagBanner.js'
 import TextInput from '../TextInput.js'
 import VimTextInput from '../VimTextInput.js'
-import { ThinkingToggle } from '../ThinkingToggle.js'
-import { MercuryCommandPalette } from '../MercuryCommandPalette.js'
-import { MercuryFileOpen } from '../MercuryFileOpen.js'
 import type { OverlaySurface } from './composerOverlay.js'
 import { useComposerModelDoors } from './useComposerModelDoors.js'
-import { crewmateCommandReceipt, openCrewmateModelPickerFor } from './crewmateCommands.js'
 import { useComposerSubmit } from './useComposerSubmit.js'
 import { useComposerRawKeys } from './useComposerRawKeys.js'
 import { useComposerAttachments } from './useComposerAttachments.js'
@@ -61,29 +53,21 @@ import { useComposerHistory } from './useComposerHistory.js'
 import { useComposerHelm } from './useComposerHelm.js'
 import { useComposerHighlights } from './useComposerHighlights.js'
 import { useComposerEffortNotice } from './useComposerEffortNotice.js'
-import { MercuryContentSearch } from '../MercuryContentSearch.js'
-import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
-import { isManageableTask } from '../tasks/taskStatusUtils.js'
-import { getTheme, type Theme } from '../../utils/theme.js'
+import { composerSurface } from './composerSurface.js'
+import { composerHistoryDown, composerRouteInput } from './composerRouteInput.js'
+import { composerFrame, composerGeometry, composerNotices } from './composerFrame.js'
+import { getTheme } from '../../utils/theme.js'
 import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
 import { useFocusedBornEffort, useFocusedSentEffort, useFocusedServedEffort } from '../../hooks/useDisplayedSessionModel.js'
-import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
 import { CompactFrameBudgetContext, useLayoutChrome } from '../../context/layoutChromeContext.js'
 import { CompactWorkSummary, type CompactWorkControls, type CompactWorkFocus } from '../tasks/CompactWorkSummary.js'
 import { useOptionalKeybindingContext } from '../../keybindings/KeybindingContext.js'
-import { anyModalOverlayActive, topOverlay } from '../../context/overlayStack.js'
-import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
-import { composerBorderRole, composerBorderStyle } from '../mercury-ui/composerFloor.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import { popupOwnsKeys, subscribePopupOwnsKeys } from '../../utils/cockpit/popupOwnsKeys.js'
-import { AMBER } from '../mercuryPalette.js'
-import type { Key } from '../../ink/events/input-event.js'
-import { stringWidth } from '../../ink/stringWidth.js'
-import { truncateToWidth } from '../mercury-ui/glyphs.js'
 import { fluxMark, fluxWhy } from '../../utils/flux/fluxProbe.js'
 
 export type PromptInputProps = {
@@ -538,23 +522,17 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     compact: isCompact,
   })
   const banner = useCrewBanner()
-  const borderStyle = isCompact ? compactBudget?.composerBorderRows === 2 ? 'round' : undefined : composerBorderStyle(rows)
-  const nonDefaultModeColor = !isDefaultMode(toolPermissionContext.mode)
-    ? ('permission' as keyof Theme)
-    : undefined
-  const borderColor: keyof Theme =
-    mode === 'bash'
-      ? 'bashBorder'
-      : (nonDefaultModeColor ?? composerBorderRole(input === ''))
-
-  const compactPool = compactBudget?.editorPoolRows ?? rows
-  const compactTransientRows = isCompact ? Math.min(2, Math.max(0, compactPool - 1)) : 0
-  const compactSuggestionRows = isCompact && typeahead.suggestions.length > 0 ? Math.min(5, Math.max(0, compactPool - compactTransientRows - 1)) : 0
-  const maxVisibleLines = isCompact
-    ? Math.max(1, Math.min(Math.max(1, Math.floor(rows / 2) - 5), compactPool - compactTransientRows - compactSuggestionRows))
-    : fullscreen ? Math.max(3, Math.floor(rows / 2) - 5) : undefined
-
-  const textColumns = isCompact ? Math.max(1, compactBudget?.inputColumns ?? columns) : columns - 3
+  const { borderStyle, borderColor, compactTransientRows, compactSuggestionRows, maxVisibleLines, textColumns } = composerGeometry({
+    isCompact,
+    compactBudget,
+    rows,
+    columns,
+    toolPermissionContext,
+    mode,
+    input,
+    typeahead,
+    fullscreen,
+  })
   const composerViewportStartRef = useRef<number | undefined>(undefined)
   const { ownSelection, handleInputBoxClick, handleInputTextGesture } = useComposerSelectionRoad(selection, {
     input,
@@ -572,120 +550,31 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   }, [])
 
   const voiceInputFilter = useComposerHoldToTalk({ cursorRef, writeDraft, setCursorOffset })
-  if (externalEditorActive) {
-    return (
-      <Box
-        borderStyle={borderStyle}
-        borderColor={borderColor as string}
-        borderTop={false}
-        borderLeft={false}
-        borderRight={false}
-        justifyContent="center"
-      >
-        <Text dimColor italic>
-          editing in your external editor — save and close to continue
-        </Text>
-      </Box>
-    )
-  }
-  if (overlay === 'tasks-dialog') {
-    return (
-      <BackgroundTasksDialog
-        onDone={() => setOverlay(null)}
-        toolUseContext={getToolUseContext(messages, [], new AbortController(), engineModel ?? '')}
-      />
-    )
-  }
-  if (showCommandPalette) {
-    return (
-      <MercuryCommandPalette
-        commands={commands}
-        actions={[
-          {
-            kind: 'open', action: 'app:fileOpen', context: 'Global',
-            label: 'open a file',
-            run: () => { setShowCommandPalette(false); setShowFileOpen(true) },
-          },
-          {
-            label: 'search file contents',
-            run: () => { setShowCommandPalette(false); setShowContentSearch(true) },
-            kind: 'open', action: 'app:contentSearch', context: 'Global',
-          },
-          {
-            label: 'reverse history search',
-            kind: 'open',
-            run: () => {
-              setShowCommandPalette(false)
-              historySearch.handleStartSearch()
-            },
-          },
-          {
-            label: 'open the model picker',
-            kind: 'open',
-            action: 'chat:modelPicker',
-            context: 'Chat',
-            run: () => {
-              setShowCommandPalette(false)
-              const crewmate = commandCrewmateRef.current
-              if (crewmate !== null) {
-                void openCrewmateModelPickerFor(crewmate, { setAppState, receipt: crewmateCommandReceipt(addNotification) })
-                return
-              }
-              setOverlay('model-picker')
-            },
-          },
-        ]}
-        onRun={text => {
-          setShowCommandPalette(false)
-          insertAtomic(text)
-        }}
-        onClose={() => setShowCommandPalette(false)}
-      />
-    )
-  }
-  if (showFileOpen) {
-    return (
-      <MercuryFileOpen
-        onPick={text => {
-          setShowFileOpen(false)
-          insertAtomic(text)
-        }}
-        onClose={() => setShowFileOpen(false)}
-      />
-    )
-  }
-  if (showContentSearch) {
-    return (
-      <MercuryContentSearch
-        onPick={text => {
-          setShowContentSearch(false)
-          insertAtomic(text)
-        }}
-        onClose={() => setShowContentSearch(false)}
-      />
-    )
-  }
-  if (doors.surface !== null) return doors.surface
-  if (overlay === 'thinking-toggle') {
-    return (
-      <ThinkingToggle
-        currentValue={(appStateStore.getState().thinkingEnabled ?? true) === true}
-        isMidConversation={messages.some(message => message.type === 'assistant')}
-        onSelect={next => {
-          setAppState(prev => ({ ...prev, thinkingEnabled: next }))
-          setOverlay(null)
-          addNotification({
-            key: 'thinking-toggled-hotkey',
-            text: `Thinking ${next ? 'on' : 'off'}`,
-            color: next ? 'suggestion' : 'subtle',
-            priority: 'high',
-            timeoutMs: 3000,
-          })
-        }}
-        onCancel={() => setOverlay(null)}
-      />
-    )
-  }
+  const surface = composerSurface({
+    externalEditorActive,
+    borderStyle,
+    borderColor,
+    overlay,
+    setOverlay,
+    getToolUseContext,
+    messages,
+    engineModel,
+    showCommandPalette,
+    setShowCommandPalette,
+    showFileOpen,
+    setShowFileOpen,
+    showContentSearch,
+    setShowContentSearch,
+    commands,
+    historySearch,
+    commandCrewmateRef,
+    setAppState,
+    addNotification,
+    insertAtomic,
+    doors,
+    appStateStore,
+  })
+  if (surface !== null) return surface
 
   const searchField = isSearchingHistory ? (
     <HistorySearchInput
@@ -721,38 +610,16 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     },
     columns: textColumns,
     pastePendingRef,
-    routeInput: compactWork === undefined ? undefined : (raw: string, key: Key, event: import('../../ink/events/input-event.js').InputEvent, pastePending: boolean) => {
-      if (currentSurfaceRoute().kind !== 'repl') return 'yield' as const
-      const focus = compactWork.read()
-      if (anyModalOverlayActive() && !(focus === 'composer' && topOverlay()?.id === 'compact-work')) return 'yield' as const
-      if (keyboardOwnedByOverlay || isSearchingHistory || !helmOnPrompt) return 'yield' as const
-      if (focus === 'detail') {
-        if (key.escape) compactWork.set('composer')
-        return 'consume' as const
-      }
-      if (pastePending) {
-        const resolved = keybindings?.resolve(raw, key, ['Chat', 'Global'])
-        return resolved?.type === 'match' && resolved.action === 'app:toggleTasks' ? 'consume' as const : 'edit-and-consume' as const
-      }
-      const resolved = keybindings?.resolve(raw, key, ['Footer', 'Chat', 'Global'])
-      if (isCompact && resolved?.type === 'match' && resolved.action === 'app:toggleTasks') {
-        compactWork.toggleSummary()
-        return 'consume' as const
-      }
-      if (focus !== 'summary') return inputAvailable ? 'edit' as const : 'yield' as const
-      if (!summaryVisible) { compactWork.set('composer'); return 'edit' as const }
-      if (key.isPasted || (raw !== '' && !key.ctrl && !key.meta && !key.escape && !key.return && !key.tab && !key.upArrow && !key.downArrow && !key.leftArrow && !key.rightArrow && !key.pageUp && !key.pageDown && !key.backspace && !key.delete)) {
-        compactWork.set('composer')
-        return 'edit-and-consume' as const
-      }
-      if (key.escape) { compactWork.set('composer'); return 'consume' as const }
-      if (key.return && !key.shift && !key.ctrl && !key.meta) { compactWork.set('detail'); return 'consume' as const }
-      if (key.pageUp || key.pageDown || key.wheelUp || key.wheelDown) return 'yield' as const
-      if (key.ctrl && (raw === 'c' || raw === 'd')) { compactWork.set('composer'); return 'edit' as const }
-      if (key.upArrow || key.downArrow || key.leftArrow || key.rightArrow || key.tab) { compactWork.set('composer'); return 'consume' as const }
-      void event
-      return 'consume' as const
-    },
+    routeInput: composerRouteInput({
+      compactWork,
+      keyboardOwnedByOverlay,
+      isSearchingHistory,
+      helmOnPrompt,
+      keybindings,
+      isCompact,
+      inputAvailable,
+      summaryVisible,
+    }),
     inputFilter: voiceInputFilter,
     onSubmit: (value: string) => {
       void submit(pendingInput.text() || value, {})
@@ -775,26 +642,17 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       if (input === '' && recallQueuedSend()) return
       history.onHistoryUp()
     },
-    onHistoryDown: () => {
-      if (!historyNavAllowed('last')) return
-      if (history.historyIndex === 0) {
-        if (footerSelection === null && suggestionsMirrorRef.current.suggestions.length === 0) {
-          if (isCompact) {
-            if (compactWork !== undefined && canFocusSummary()) compactWork.set('summary')
-            return
-          }
-          const manageable = Object.values(appStateStore.getState().tasks).filter(isManageableTask)
-          if (manageable.length > 0) {
-            setAppState(prev => ({ ...prev, footerSelection: 'tasks' as const }))
-            if (getGlobalConfig().hasSeenTasksHint !== true) {
-              saveGlobalConfig(config => ({ ...config, hasSeenTasksHint: true }))
-            }
-          }
-        }
-        return
-      }
-      history.onHistoryDown()
-    },
+    onHistoryDown: composerHistoryDown({
+      historyNavAllowed,
+      history,
+      footerSelection,
+      suggestionsMirrorRef,
+      isCompact,
+      compactWork,
+      canFocusSummary,
+      appStateStore,
+      setAppState,
+    }),
     onHistoryReset: history.resetHistory,
     onPaste: handleTextPaste,
     onImagePaste: handleImagePaste,
@@ -861,56 +719,12 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     </Box>
   )
 
-  const bannerLabel = banner !== null ? truncateToWidth(banner.text, Math.max(0, columns - 6)) : null
-  const frame =
-    !isCompact && banner !== null && bannerLabel !== null ? (
-      <Box flexDirection="column">
-        <Text color={banner.bgColor}>
-          {'-'.repeat(Math.max(0, columns - stringWidth(bannerLabel) - 4))}
-          <Text backgroundColor={banner.bgColor}> {bannerLabel} </Text>
-          {'--'}
-        </Text>
-        {inputBody}
-        <Text color={banner.bgColor}>{'-'.repeat(Math.max(1, columns))}</Text>
-      </Box>
-    ) : (
-      <Box
-        flexDirection="column"
-        borderStyle={borderStyle}
-        borderColor={theme[borderColor] as string}
-        borderDimColor={input === ''}
-      >
-        {inputBody}
-      </Box>
-    )
+  const frame = composerFrame({ banner, columns, isCompact, inputBody, borderStyle, theme, borderColor, input })
 
 
   return (
     <Box flexDirection="column">
-      <Box flexDirection="column" maxHeight={isCompact ? Math.ceil(compactTransientRows / 2) : undefined} overflow="hidden">
-      <IssueFlagBanner />
-      {capLaneLine !== null ? (
-        capLaneCut !== null ? (
-          <Box paddingLeft={1}>
-            <Box width={capLaneCut.bodyColumns} flexShrink={0} minWidth={0}>
-              <Text color={AMBER} wrap="truncate-end">{capLaneCut.body}</Text>
-            </Box>
-            <Box flexShrink={0}>
-              <Text color={AMBER}>{capLaneCut.tail}</Text>
-            </Box>
-          </Box>
-        ) : (
-          <Box paddingLeft={1}>
-            <Text color={AMBER}>{capLaneLine}</Text>
-          </Box>
-        )
-      ) : null}
-      {hasSuppressedDialogs ? (
-        <Box marginTop={isCompact ? 0 : 1} marginLeft={isCompact ? 0 : 2}>
-          <Text dimColor wrap="truncate-end">Waiting for permission…</Text>
-        </Box>
-      ) : null}
-      </Box>
+      {composerNotices({ isCompact, compactTransientRows, capLaneLine, capLaneCut, hasSuppressedDialogs })}
       {frame}
       {summaryVisible && compactWork !== undefined ? <CompactWorkSummary columns={columns} focused={compactFocus === 'summary'} vimInsert={vimEnabled && vimMode === 'INSERT'} onFocus={() => { if (canFocusSummary()) compactWork.set('summary') }} /> : null}
       {!isCompact ? <PromptInputStashNotice hasStash={stash !== undefined} /> : null}
