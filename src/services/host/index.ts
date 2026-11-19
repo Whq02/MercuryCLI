@@ -640,7 +640,7 @@ function hostRoadControls(run: HostRoadRun, { options, ask, emit, lifetimeSignal
       }
       closeHostTunnel(run.pod.id)
       if (run.record) { run.record.status = run.pod.status; if (run.api.capabilities.managed) run.record.step = 'Paused · no compute bills'; writeHostRecord(run.record) }
-      if (run.record) { const { tensorFoldPodFacts, tensorFoldPodHostName } = await import('./tensorfoldPod.js'); if (tensorFoldPodFacts(run.record, undefined) !== undefined) { const { forgetTensorFoldHost } = await import('../providers/local/tensorfoldHosts.js'); await forgetTensorFoldHost(tensorFoldPodHostName(run.pod.id)).catch(() => undefined) } }
+      if (run.record) { const { tensorFoldPodFacts, tensorFoldPodHostName } = await import('./tensorfoldPod.js'); if (tensorFoldPodFacts(run.record, undefined) !== undefined) { const { forgetTensorFoldHost } = await import('../providers/local/tensorfoldHosts.js'); const podId = run.pod.id; await forgetTensorFoldHost(tensorFoldPodHostName(podId)).catch((error: unknown) => emit({ title: words.manage, words: podId + ' · stopped · its TensorFold host entry could not be removed (' + plain(error) + '), so this machine still lists it as a TensorFold host' })) } }
     }
   }
   return { stopped, question, connect, paidPods, paidCount, paidSummary, mark, finish }

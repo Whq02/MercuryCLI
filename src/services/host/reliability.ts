@@ -4,6 +4,7 @@ import { z } from 'zod/v4'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { hostMachineName } from '../../commands/llmhost/words.js'
 import { hostDirectory } from './store.js'
+import { logForDebugging } from '../../utils/debug.js'
 import type { HostOffer } from './runpod.js'
 import type { HostVendor } from './vendors/vendor.js'
 
@@ -36,7 +37,10 @@ const pathOf = (vendor: HostVendorId, rental: string): string => {
 }
 const parse = (text: string): HostLinkObservation | undefined => { const read = observationSchema.safeParse(JSON.parse(text)); return read.success ? read.data : undefined }
 export function readHostLinkObservation(vendor: HostVendorId, rental: string): HostLinkObservation | undefined {
-  try { return parse(readFileSync(pathOf(vendor, rental), 'utf8')) } catch { return undefined }
+  try { return parse(readFileSync(pathOf(vendor, rental), 'utf8')) } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') logForDebugging(`[host] the link history of ${vendor} ${rental} could not be read (${error instanceof SyntaxError ? 'it is not valid JSON' : error instanceof Error ? error.message : String(error)}), so the next note of its link replaces it with only the new outage`, { level: 'warn' })
+    return undefined
+  }
 }
 export function hostLinkObservations(): HostLinkObservation[] {
   let names: string[]
