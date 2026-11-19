@@ -217,7 +217,7 @@ async function launchAgentReason(args: string[], pids: number[]): Promise<string
     if (!target.endsWith('.plist') && !target.includes('/')) continue
     if (target.endsWith('.plist')) {
       try {
-        const text = readFileSync(resolve(getShellCwd(), target.replace(/^~(?=\/|$)/, process.env.HOME || homedir())), 'utf8')
+        const text = readFileSync(resolve(getShellCwd(), target.replace(/^~(?=\/|$)/, homedir())), 'utf8')
         const program = /<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(text)?.[1]
           ?? /<key>Program<\/key>\s*(<string>[^<]*<\/string>)/.exec(text)?.[1] ?? ''
         const paths = [...program.matchAll(/<string>([^<]+)/g)].map(match => match[1]!)
