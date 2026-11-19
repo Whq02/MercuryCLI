@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { BASH_PACK_MANIFEST_FILE, BASH_PACK_PATH, bashPackIsFetched, bashPackTreeDigest, checkBashPackDir, readBashPackManifest } from '../../src/utils/shell/bashPack.ts'
-import { BashWinPackRefused, bashVersionInside, bashWinPackFault, bashWinPlatforms, layBashWinPack, pinnedBashWinFiles, pinnedFileFault, readBashWinLock, readPe } from '../vendor/lay-bash-win-pack.ts'
+import { BashWinPackRefused, bashVersionInside, bashWinPackFault, bashWinPlatforms, bunzip2, layBashWinPack, memberOfBzip2Tar, pinnedBashWinFiles, pinnedFileFault, readBashWinLock, readPe } from '../vendor/lay-bash-win-pack.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const PACK_ROOT = join(ROOT, ...BASH_PACK_PATH.split('/'))
@@ -166,6 +167,28 @@ if (cached.some(file => !existsSync(file.path))) {
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }
+}
+
+section('(5) the bzip2 reader that lays the pack on Windows, where the system tar reads no bzip2')
+{
+  const stream = Buffer.from('QlpoOTFBWSZTWT5poD8AABxfgIBQQAMCAQolUAA/597gAAggAIqGphKbNUzUwT00RgA0amkyGo02jQgybUZCWFV/oc0euwIFseS2Y9PpDg91iDehXOkl7T+5CdAsdozcCwW1P7EfjpytmqikOQ5ao+q0KiNWdMx1Qg0Z1u7j7QHVmx3cn0yzsEhqdYg7Ad/MQYVuISQ1f2k13cjIMkJgwcMXlFgRKgytxffdK+xuhdyRThQkD5poD8A=', 'base64')
+  const reading = (bytes: Uint8Array): Uint8Array | string => {
+    try {
+      return bunzip2(bytes)
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error)
+    }
+  }
+  const read = reading(stream)
+  check('it reads a stream bzip2 wrote to the byte: 516 bytes with a run of 300 in them', typeof read !== 'string' && read.length === 516 && createHash('sha256').update(read).digest('hex') === '1ba6784c7df12e8ac81cf1704caf62d5f44accc8c3540d7c5cedf9e40a7784d6', typeof read === 'string' ? read : `${read.length} bytes`)
+  const changed = Buffer.from(stream)
+  changed[90] = changed[90]! ^ 0x04
+  const refused = reading(changed)
+  check('one changed bit is refused, never read as other text', typeof refused === 'string', typeof refused === 'string' ? '' : `${refused.length} bytes were read`)
+  const cut = reading(stream.subarray(0, 120))
+  check('a stream that stops early is refused', typeof cut === 'string' && cut.includes('ends before'), String(cut).slice(0, 80))
+  const notOne = memberOfBzip2Tar(Buffer.from('not a bzip2 stream at all'), 'pcre-8.45/LICENCE')
+  check('what is no bzip2 stream is named as that, where the layout asks for a file inside it', notOne === 'not a bzip2 stream', String(notOne).slice(0, 80))
 }
 
 console.log(failures === 0 ? '\nprove-bash-win-pack: ALL LAWS HOLD' : `\nprove-bash-win-pack: ${failures} FAILURE(S)`)

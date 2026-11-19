@@ -178,6 +178,199 @@ function tarFileMembers(buffer: Uint8Array): Array<{ path: string; body: Uint8Ar
   return out
 }
 
+const BZIP2_CRC = Uint32Array.from({ length: 256 }, (_, index) => {
+  let word = index << 24
+  for (let bit = 0; bit < 8; bit++) word = (word & 0x80000000) !== 0 ? (word << 1) ^ 0x04c11db7 : word << 1
+  return word >>> 0
+})
+
+type Bzip2Codes = { shortest: number; longest: number; first: number[]; last: number[]; offset: number[]; symbols: number[] }
+
+export function bunzip2(data: Uint8Array): Uint8Array {
+  let at = 0
+  const bits = (count: number): number => {
+    let value = 0
+    for (let left = count; left > 0; ) {
+      const byte = data[at >>> 3]
+      if (byte === undefined) throw new Error('the bzip2 stream ends before its last block')
+      const room = 8 - (at & 7)
+      const take = Math.min(room, left)
+      value = value * (1 << take) + ((byte >>> (room - take)) & ((1 << take) - 1))
+      at += take
+      left -= take
+    }
+    return value
+  }
+  if (bits(8) !== 0x42 || bits(8) !== 0x5a || bits(8) !== 0x68) throw new Error('not a bzip2 stream')
+  const level = bits(8) - 0x30
+  if (level < 1 || level > 9) throw new Error('the bzip2 stream names no block size')
+  const blockSize = level * 100000
+  let out = new Uint8Array(1 << 20)
+  let size = 0
+  let streamCrc = 0
+  for (;;) {
+    const high = bits(24)
+    const low = bits(24)
+    if (high === 0x177245 && low === 0x385090) {
+      if (bits(32) !== streamCrc >>> 0) throw new Error('the bzip2 stream does not match its checksum')
+      return out.subarray(0, size)
+    }
+    if (high !== 0x314159 || low !== 0x265359) throw new Error('the bzip2 stream holds no block where one is due')
+    const blockCrc = bits(32)
+    if (bits(1) !== 0) throw new Error('a randomised bzip2 block is not read')
+    const start = bits(24)
+    const rows = bits(16)
+    const used: number[] = []
+    for (let row = 0; row < 16; row++) {
+      if ((rows & (0x8000 >>> row)) === 0) continue
+      const columns = bits(16)
+      for (let column = 0; column < 16; column++) if ((columns & (0x8000 >>> column)) !== 0) used.push(row * 16 + column)
+    }
+    const alphabet = used.length + 2
+    const groups = bits(3)
+    const selectorCount = bits(15)
+    if (used.length === 0 || groups < 2 || groups > 6 || selectorCount < 1) throw new Error('the bzip2 block header is not valid')
+    const order = Array.from({ length: groups }, (_, group) => group)
+    const selectors = new Uint8Array(selectorCount)
+    for (let index = 0; index < selectorCount; index++) {
+      let place = 0
+      while (bits(1) === 1) if (++place >= groups) throw new Error('a bzip2 selector names no table')
+      const group = order.splice(place, 1)[0] as number
+      order.unshift(group)
+      selectors[index] = group
+    }
+    const tables: Bzip2Codes[] = []
+    for (let group = 0; group < groups; group++) {
+      const lengths: number[] = []
+      let length = bits(5)
+      for (let symbol = 0; symbol < alphabet; symbol++) {
+        for (;;) {
+          if (length < 1 || length > 20) throw new Error('a bzip2 code length is out of range')
+          if (bits(1) === 0) break
+          length += bits(1) === 0 ? 1 : -1
+        }
+        lengths.push(length)
+      }
+      const shortest = Math.min(...lengths)
+      const longest = Math.max(...lengths)
+      const first: number[] = []
+      const last: number[] = []
+      const offset: number[] = []
+      const symbols: number[] = []
+      let code = 0
+      for (let bitsLong = shortest; bitsLong <= longest; bitsLong++) {
+        first[bitsLong] = code
+        offset[bitsLong] = symbols.length
+        for (let symbol = 0; symbol < alphabet; symbol++) if (lengths[symbol] === bitsLong) symbols.push(symbol)
+        code += symbols.length - (offset[bitsLong] as number)
+        last[bitsLong] = code - 1
+        code *= 2
+      }
+      tables.push({ shortest, longest, first, last, offset, symbols })
+    }
+    const front = used.slice()
+    const column = new Uint32Array(blockSize)
+    const tally = new Int32Array(256)
+    const end = alphabet - 1
+    let held = 0
+    let run = 0
+    let weight = 1
+    let selector = 0
+    let left = 0
+    let table = tables[0] as Bzip2Codes
+    for (;;) {
+      if (left === 0) {
+        if (selector >= selectorCount) throw new Error('the bzip2 block outruns its selectors')
+        table = tables[selectors[selector++] as number] as Bzip2Codes
+        left = 50
+      }
+      left--
+      let bitsLong = table.shortest
+      let code = bits(bitsLong)
+      while (code > (table.last[bitsLong] as number)) {
+        if (++bitsLong > table.longest) throw new Error('a bzip2 code matches no symbol')
+        code = code * 2 + bits(1)
+      }
+      const symbol = table.symbols[(table.offset[bitsLong] as number) + code - (table.first[bitsLong] as number)]
+      if (symbol === undefined) throw new Error('a bzip2 code matches no symbol')
+      if (symbol < 2) {
+        run += weight * (symbol + 1)
+        weight *= 2
+        if (run > blockSize) throw new Error('a bzip2 run outgrows its block')
+        continue
+      }
+      if (run > 0) {
+        const byte = front[0] as number
+        if (held + run > blockSize) throw new Error('the bzip2 block outgrows its size')
+        tally[byte] = (tally[byte] as number) + run
+        column.fill(byte, held, held + run)
+        held += run
+        run = 0
+      }
+      weight = 1
+      if (symbol === end) break
+      const byte = front.splice(symbol - 1, 1)[0] as number
+      front.unshift(byte)
+      if (held >= blockSize) throw new Error('the bzip2 block outgrows its size')
+      tally[byte] = (tally[byte] as number) + 1
+      column[held++] = byte
+    }
+    if (start >= held) throw new Error('the bzip2 block starts outside itself')
+    let sum = 0
+    const next = new Int32Array(256)
+    for (let byte = 0; byte < 256; byte++) {
+      next[byte] = sum
+      sum += tally[byte] as number
+    }
+    for (let index = 0; index < held; index++) {
+      const byte = (column[index] as number) & 0xff
+      const slot = next[byte] as number
+      next[byte] = slot + 1
+      column[slot] = (column[slot] as number) | (index << 8)
+    }
+    let crc = 0xffffffff
+    const emit = (byte: number, times: number): void => {
+      if (size + times > out.length) {
+        const grown = new Uint8Array(Math.max(out.length * 2, size + times))
+        grown.set(out.subarray(0, size))
+        out = grown
+      }
+      for (let count = 0; count < times; count++) {
+        out[size++] = byte
+        crc = ((crc << 8) ^ (BZIP2_CRC[((crc >>> 24) ^ byte) & 0xff] as number)) >>> 0
+      }
+    }
+    let position = (column[start] as number) >>> 8
+    let previous = -1
+    let streak = 0
+    for (let index = 0; index < held; index++) {
+      const entry = column[position] as number
+      const byte = entry & 0xff
+      position = entry >>> 8
+      if (streak === 4) {
+        emit(previous, byte)
+        previous = -1
+        streak = 0
+        continue
+      }
+      streak = byte === previous ? streak + 1 : 1
+      previous = byte
+      emit(byte, 1)
+    }
+    if ((~crc >>> 0) !== blockCrc) throw new Error('a bzip2 block does not match its checksum')
+    streamCrc = (((streamCrc << 1) | (streamCrc >>> 31)) ^ blockCrc) >>> 0
+  }
+}
+
+export function memberOfBzip2Tar(archive: Uint8Array, member: string): Uint8Array | string {
+  try {
+    const found = tarFileMembers(bunzip2(archive)).find(entry => entry.path === member)
+    return found === undefined || found.body.length === 0 ? 'the archive holds no such file' : found.body
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error)
+  }
+}
+
 function matcher(patterns: string[]): (candidate: string) => boolean {
   const tests = patterns.map(pattern => new RegExp(`^${pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*')}$`))
   return candidate => tests.some(test => test.test(candidate))
@@ -307,6 +500,12 @@ export function layBashWinPack(args: { lock: BashWinLock; platform: string; cach
       const inner = tarFileMembers(Bun.zstdDecompressSync(readFileSync(path.join(cacheDir, 'src', pkg.source.file)))).find(member => member.path === copy.inner)
       if (inner === undefined) {
         faults.push(`${pkg.name}: ${pkg.source.file} holds no ${copy.inner}`)
+        continue
+      }
+      if (process.platform === 'win32' && copy.inner.endsWith('.tar.bz2')) {
+        const member = memberOfBzip2Tar(inner.body, copy.member)
+        if (typeof member === 'string') faults.push(`${pkg.name}: no ${copy.member} was read out of ${copy.inner} (${member})`)
+        else write(copy.to, member, pkg.name)
         continue
       }
       const innerName = `.inner-${path.posix.basename(copy.inner)}`
