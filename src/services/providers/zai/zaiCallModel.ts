@@ -512,6 +512,177 @@ async function* streamOneZaiAttempt(ctx: {
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
   const { request, apiKey, requestUrl, signal, tools, options, modelId } = ctx
 
+  const w = openZaiAttemptBlocks(ctx)
+  const { streamEvent, blocks, minted, mintBlock, ensureMessageStart, closeOpenBlock, openNewBlock, emitSettledBlock } = w
+  let firstEventSeen = false
+  let usageSeen: ZaiUsage | undefined
+  let fault: ZaiFault | undefined
+
+  const events = openZaiAttemptEvents(ctx, { request, apiKey, requestUrl, signal, options, modelId })
+  for await (const event of events) {
+    if (!firstEventSeen) {
+      firstEventSeen = true
+    }
+    switch (event.type) {
+      case 'reasoning-delta': {
+        yield* ensureMessageStart()
+        if (blocks.open?.kind !== 'thinking') yield* openNewBlock('thinking')
+        blocks.open!.value += event.text
+        yield streamEvent({
+          type: 'content_block_delta',
+          index: blocks.index,
+          delta: { type: 'thinking_delta', thinking: event.text },
+        })
+        break
+      }
+      case 'text-delta': {
+        w.visibleTextStarted ||= event.text.trim().length > 0
+        yield* ensureMessageStart()
+        if (blocks.open?.kind !== 'text') yield* openNewBlock('text')
+        blocks.open!.value += event.text
+        yield streamEvent({
+          type: 'content_block_delta',
+          index: blocks.index,
+          delta: { type: 'text_delta', text: event.text },
+        })
+        break
+      }
+      case 'tool-call-fragment':
+        w.toolFragmentSeen = true
+        break
+      case 'usage':
+        usageSeen = event.usage
+        break
+      case 'finish':
+        w.finish = {
+          reason: event.reason,
+          rawReason: event.rawReason,
+          toolCalls: event.toolCalls,
+          stated: event.stated,
+        }
+        break
+      case 'stream-fault':
+        fault = fault ?? event.fault
+        break
+    }
+  }
+
+  if (fault?.kind === 'cancelled' || signal.aborted) {
+    if (blocks.open?.kind === 'text' && blocks.open.value.length > 0) yield* closeOpenBlock()
+    return { kind: 'cancelled' }
+  }
+  if (fault && !w.finish && w.messageStarted && !w.visibleTextStarted && !w.toolFragmentSeen) {
+    if (blocks.open) {
+      const block = blocks.open.kind === 'thinking' ? { type: 'thinking' as const, thinking: blocks.open.value, signature: '' } : { type: 'text' as const, text: blocks.open.value, citations: null }
+      minted.push(mintBlock(block))
+      yield streamEvent({ type: 'content_block_stop', index: blocks.index })
+    }
+    const usage = usageSeen ? mapZaiUsageToAnthropic(usageSeen) : estimateFaultedRequestUsage({ lane: 'zai', model: modelId, request, minted, faultCode: fault.code })
+    addToTotalSessionCost(calculateUSDCost(modelId, usage), usage, modelId)
+    yield streamEvent({ type: 'message_stop' })
+    return { kind: 'fault', fault, retryEligible: true, invisibleOnly: true }
+  }
+  const nothingYielded = !w.messageStarted && minted.length === 0
+  if (fault && nothingYielded && !w.finish && !w.toolFragmentSeen) {
+    return { kind: 'fault', fault, retryEligible: true }
+  }
+  const typedEnd =
+    fault !== undefined && !w.finish
+      ? typedStreamEndOf({
+          fault,
+          provider: 'Z.AI',
+          tailStands: blocks.open === null && minted.at(-1)?.message.content[0]?.type === 'text',
+          silentMs: streamIdleTimeoutMsForRoute('zai'),
+        })
+      : null
+
+  yield* ensureMessageStart()
+  yield* closeOpenBlock()
+
+  const { completed, accepted, refused, answered, verdicts } = gateZaiToolCalls(ctx, tools, w.finish)
+  for (const [index, call] of completed.entries()) {
+    const verdict = verdicts[index]!
+    if (verdict.ok) {
+      yield* emitSettledBlock(
+        { type: 'tool_use', id: call.id, name: call.name, input: verdict.input },
+        [{ type: 'input_json_delta', partial_json: call.argumentsRaw }],
+        { type: 'tool_use', id: call.id, name: call.name, input: {} },
+      )
+      continue
+    }
+    const refusal = answered.find(entry => entry.call === call)?.refusal
+    if (refusal === undefined) continue
+    const input = refusedCallInput(refusal)
+    yield* emitSettledBlock(
+      { type: 'tool_use', id: call.id, name: call.name, input },
+      [{ type: 'input_json_delta', partial_json: JSON.stringify(input) }],
+      { type: 'tool_use', id: call.id, name: call.name, input: {} },
+      message => {
+        message.refusedToolCalls = [refusal]
+      },
+    )
+  }
+  for (const refusal of refused) {
+    const note = toolCallRefusalNote('zai', refusal)
+    yield* emitSettledBlock(
+      { type: 'text', text: note, citations: null },
+      [{ type: 'text_delta', text: note }],
+      { type: 'text', text: '', citations: null },
+      message => {
+        message.refusedToolCalls = [refusal]
+      },
+    )
+  }
+  const terminationNote = zaiTerminationNote(w.finish)
+  if (terminationNote !== undefined) {
+    yield* emitSettledBlock(
+      { type: 'text', text: terminationNote, citations: null },
+      [{ type: 'text_delta', text: terminationNote }],
+      { type: 'text', text: '', citations: null },
+    )
+  }
+  if (minted.length === 0) {
+    const emptyKind: EmptyReplyKind =
+      w.finish?.reason === 'length'
+        ? 'cap'
+        : w.finish?.reason === 'stop' && w.finish.stated
+          ? 'silence'
+          : 'empty'
+    const note = emptyReplyNote('zai', emptyKind)
+    if (emptyKind === 'silence') logForDebugging(note)
+    const words = emptyReplyChatText(emptyKind, note)
+    yield* emitSettledBlock(
+      { type: 'text', text: words, citations: null },
+      [{ type: 'text_delta', text: words }],
+      { type: 'text', text: '', citations: null },
+      message => markEmptyReply(message, emptyKind, note),
+    )
+  }
+
+  const { stopReason, finalUsage } = settleZaiUsage(ctx, { finish: w.finish, accepted, answered, usageSeen, fault, typedEnd, minted, request, modelId, options })
+  yield streamEvent({
+    type: 'message_delta',
+    delta: { stop_reason: stopReason, stop_sequence: null },
+    usage: finalUsage,
+  })
+  yield streamEvent({ type: 'message_stop' })
+
+  if (fault && typedEnd === null) {
+    const faultRow = apiErrorMessage(
+      streamFaultAfterPartialText('Z.AI', fault.code, fault.message),
+      compatFaultToTypedError(fault),
+      fault.code,
+      overflowOf(fault),
+    )
+    yield ctx.effort !== undefined ? { ...faultRow, effort: ctx.effort } : faultRow
+  }
+  return { kind: 'done' }
+}
+
+type ZaiAttemptCtx = Parameters<typeof streamOneZaiAttempt>[0]
+
+function openZaiAttemptBlocks(ctx: ZaiAttemptCtx) {
+  const { tools, modelId } = ctx
   const partial: ApiMessage = {
     id: `zai_${randomUUID()}`,
     type: 'message' as const,
@@ -560,17 +731,14 @@ async function* streamOneZaiAttempt(ctx: {
   let visibleTextStarted = false
   let toolFragmentSeen = false
   let released = 0
-  let firstEventSeen = false
   const blocks = {
     index: -1,
     open: null as { kind: 'thinking' | 'text'; value: string } | null,
   }
   const minted: AssistantMessage[] = []
-  let usageSeen: ZaiUsage | undefined
   let finish:
     | { reason: ZaiFinishReason; rawReason: string; toolCalls: ZaiCompletedToolCall[]; stated: boolean }
     | undefined
-  let fault: ZaiFault | undefined
 
   function* ensureMessageStart(): Generator<StreamEvent> {
     if (messageStarted) return
@@ -621,6 +789,45 @@ async function* streamOneZaiAttempt(ctx: {
     yield m
   }
 
+  return {
+    get messageStarted(): boolean {
+      return messageStarted
+    },
+    get visibleTextStarted(): boolean {
+      return visibleTextStarted
+    },
+    set visibleTextStarted(started: boolean) {
+      visibleTextStarted = started
+    },
+    get toolFragmentSeen(): boolean {
+      return toolFragmentSeen
+    },
+    set toolFragmentSeen(seen: boolean) {
+      toolFragmentSeen = seen
+    },
+    get finish(): typeof finish {
+      return finish
+    },
+    set finish(settled: typeof finish) {
+      finish = settled
+    },
+    streamEvent,
+    blocks,
+    minted,
+    mintBlock,
+    ensureMessageStart,
+    closeOpenBlock,
+    openNewBlock,
+    emitSettledBlock,
+  }
+}
+
+type ZaiAttemptBlocks = ReturnType<typeof openZaiAttemptBlocks>
+
+function openZaiAttemptEvents(
+  ctx: ZaiAttemptCtx,
+  { request, apiKey, requestUrl, signal, options, modelId }: Pick<ZaiAttemptCtx, 'request' | 'apiKey' | 'requestUrl' | 'signal' | 'options' | 'modelId'>,
+) {
   const idleTimeoutMs = streamIdleTimeoutMsForRoute('zai')
   const cold = coldPrefixOf(ctx.messages, modelId)
   const promptTokens = estimateRequestTokens(request)
@@ -639,86 +846,10 @@ async function* streamOneZaiAttempt(ctx: {
       ...(options.onWait ? { onWait: options.onWait } : {}),
     },
   })
-  for await (const event of events) {
-    if (!firstEventSeen) {
-      firstEventSeen = true
-    }
-    switch (event.type) {
-      case 'reasoning-delta': {
-        yield* ensureMessageStart()
-        if (blocks.open?.kind !== 'thinking') yield* openNewBlock('thinking')
-        blocks.open!.value += event.text
-        yield streamEvent({
-          type: 'content_block_delta',
-          index: blocks.index,
-          delta: { type: 'thinking_delta', thinking: event.text },
-        })
-        break
-      }
-      case 'text-delta': {
-        visibleTextStarted ||= event.text.trim().length > 0
-        yield* ensureMessageStart()
-        if (blocks.open?.kind !== 'text') yield* openNewBlock('text')
-        blocks.open!.value += event.text
-        yield streamEvent({
-          type: 'content_block_delta',
-          index: blocks.index,
-          delta: { type: 'text_delta', text: event.text },
-        })
-        break
-      }
-      case 'tool-call-fragment':
-        toolFragmentSeen = true
-        break
-      case 'usage':
-        usageSeen = event.usage
-        break
-      case 'finish':
-        finish = {
-          reason: event.reason,
-          rawReason: event.rawReason,
-          toolCalls: event.toolCalls,
-          stated: event.stated,
-        }
-        break
-      case 'stream-fault':
-        fault = fault ?? event.fault
-        break
-    }
-  }
+  return events
+}
 
-  if (fault?.kind === 'cancelled' || signal.aborted) {
-    if (blocks.open?.kind === 'text' && blocks.open.value.length > 0) yield* closeOpenBlock()
-    return { kind: 'cancelled' }
-  }
-  if (fault && !finish && messageStarted && !visibleTextStarted && !toolFragmentSeen) {
-    if (blocks.open) {
-      const block = blocks.open.kind === 'thinking' ? { type: 'thinking' as const, thinking: blocks.open.value, signature: '' } : { type: 'text' as const, text: blocks.open.value, citations: null }
-      minted.push(mintBlock(block))
-      yield streamEvent({ type: 'content_block_stop', index: blocks.index })
-    }
-    const usage = usageSeen ? mapZaiUsageToAnthropic(usageSeen) : estimateFaultedRequestUsage({ lane: 'zai', model: modelId, request, minted, faultCode: fault.code })
-    addToTotalSessionCost(calculateUSDCost(modelId, usage), usage, modelId)
-    yield streamEvent({ type: 'message_stop' })
-    return { kind: 'fault', fault, retryEligible: true, invisibleOnly: true }
-  }
-  const nothingYielded = !messageStarted && minted.length === 0
-  if (fault && nothingYielded && !finish && !toolFragmentSeen) {
-    return { kind: 'fault', fault, retryEligible: true }
-  }
-  const typedEnd =
-    fault !== undefined && !finish
-      ? typedStreamEndOf({
-          fault,
-          provider: 'Z.AI',
-          tailStands: blocks.open === null && minted.at(-1)?.message.content[0]?.type === 'text',
-          silentMs: streamIdleTimeoutMsForRoute('zai'),
-        })
-      : null
-
-  yield* ensureMessageStart()
-  yield* closeOpenBlock()
-
+function gateZaiToolCalls(ctx: ZaiAttemptCtx, tools: Tools, finish: ZaiAttemptBlocks['finish']) {
   const completed = finish?.toolCalls ?? []
   const accepted: Array<{ call: ZaiCompletedToolCall; input: Record<string, unknown> }> = []
   const refused: RefusedToolCall[] = []
@@ -739,78 +870,36 @@ async function* streamOneZaiAttempt(ctx: {
     else if (finish?.reason !== 'length' && refusalAnswersAsToolResult(verdict.refusal)) answered.push({ call, refusal: verdict.refusal })
     else refused.push(verdict.refusal)
   })
-  for (const [index, call] of completed.entries()) {
-    const verdict = verdicts[index]!
-    if (verdict.ok) {
-      yield* emitSettledBlock(
-        { type: 'tool_use', id: call.id, name: call.name, input: verdict.input },
-        [{ type: 'input_json_delta', partial_json: call.argumentsRaw }],
-        { type: 'tool_use', id: call.id, name: call.name, input: {} },
-      )
-      continue
-    }
-    const refusal = answered.find(entry => entry.call === call)?.refusal
-    if (refusal === undefined) continue
-    const input = refusedCallInput(refusal)
-    yield* emitSettledBlock(
-      { type: 'tool_use', id: call.id, name: call.name, input },
-      [{ type: 'input_json_delta', partial_json: JSON.stringify(input) }],
-      { type: 'tool_use', id: call.id, name: call.name, input: {} },
-      message => {
-        message.refusedToolCalls = [refusal]
-      },
-    )
-  }
-  for (const refusal of refused) {
-    const note = toolCallRefusalNote('zai', refusal)
-    yield* emitSettledBlock(
-      { type: 'text', text: note, citations: null },
-      [{ type: 'text_delta', text: note }],
-      { type: 'text', text: '', citations: null },
-      message => {
-        message.refusedToolCalls = [refusal]
-      },
-    )
-  }
-  const terminationNote = ((): string | undefined => {
-    switch (finish?.reason) {
-      case 'sensitive':
-        return `[zai] the provider ended this response under its content policy ('sensitive') — the turn is incomplete by provider policy, not finished.`
-      case 'model_context_window_exceeded':
-        return `[zai] the provider ended this response: the request exceeded the model's context window — the turn was cut short; compact or trim the conversation, then retry.`
-      case 'network_error':
-        return `[zai] the provider ended this response: a provider-side network error (a documented transient) — the turn was cut short, not finished; continue or retry as needed.`
-      case 'other':
-        return `[zai] the provider ended this response with an unmapped finish reason ('${finish?.rawReason ?? 'none stated'}') — the turn may be incomplete; continue or retry as needed.`
-      default:
-        return undefined
-    }
-  })()
-  if (terminationNote !== undefined) {
-    yield* emitSettledBlock(
-      { type: 'text', text: terminationNote, citations: null },
-      [{ type: 'text_delta', text: terminationNote }],
-      { type: 'text', text: '', citations: null },
-    )
-  }
-  if (minted.length === 0) {
-    const emptyKind: EmptyReplyKind =
-      finish?.reason === 'length'
-        ? 'cap'
-        : finish?.reason === 'stop' && finish.stated
-          ? 'silence'
-          : 'empty'
-    const note = emptyReplyNote('zai', emptyKind)
-    if (emptyKind === 'silence') logForDebugging(note)
-    const words = emptyReplyChatText(emptyKind, note)
-    yield* emitSettledBlock(
-      { type: 'text', text: words, citations: null },
-      [{ type: 'text_delta', text: words }],
-      { type: 'text', text: '', citations: null },
-      message => markEmptyReply(message, emptyKind, note),
-    )
-  }
+  return { completed, accepted, refused, answered, verdicts }
+}
 
+function zaiTerminationNote(finish: ZaiAttemptBlocks['finish']): string | undefined {
+  switch (finish?.reason) {
+    case 'sensitive':
+      return `[zai] the provider ended this response under its content policy ('sensitive') — the turn is incomplete by provider policy, not finished.`
+    case 'model_context_window_exceeded':
+      return `[zai] the provider ended this response: the request exceeded the model's context window — the turn was cut short; compact or trim the conversation, then retry.`
+    case 'network_error':
+      return `[zai] the provider ended this response: a provider-side network error (a documented transient) — the turn was cut short, not finished; continue or retry as needed.`
+    case 'other':
+      return `[zai] the provider ended this response with an unmapped finish reason ('${finish?.rawReason ?? 'none stated'}') — the turn may be incomplete; continue or retry as needed.`
+    default:
+      return undefined
+  }
+}
+
+function settleZaiUsage(
+  ctx: ZaiAttemptCtx,
+  { finish, accepted, answered, usageSeen, fault, typedEnd, minted, request, modelId, options }: {
+    finish: ZaiAttemptBlocks['finish']
+    accepted: ReturnType<typeof gateZaiToolCalls>['accepted']
+    answered: ReturnType<typeof gateZaiToolCalls>['answered']
+    usageSeen: ZaiUsage | undefined
+    fault: ZaiFault | undefined
+    typedEnd: ReturnType<typeof typedStreamEndOf> | null
+    minted: AssistantMessage[]
+  } & Pick<ZaiAttemptCtx, 'request' | 'modelId' | 'options'>,
+) {
   const mappedFinish = FINISH_TO_STOP[finish?.reason ?? 'stop'] ?? 'end_turn'
   const stopReason =
     accepted.length > 0 || answered.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
@@ -843,21 +932,5 @@ async function* streamOneZaiAttempt(ctx: {
     if (typedEnd !== null) lastMessage.streamEnd = typedEnd
     void settleTranscriptMessage(lastMessage)
   }
-  yield streamEvent({
-    type: 'message_delta',
-    delta: { stop_reason: stopReason, stop_sequence: null },
-    usage: finalUsage,
-  })
-  yield streamEvent({ type: 'message_stop' })
-
-  if (fault && typedEnd === null) {
-    const faultRow = apiErrorMessage(
-      streamFaultAfterPartialText('Z.AI', fault.code, fault.message),
-      compatFaultToTypedError(fault),
-      fault.code,
-      overflowOf(fault),
-    )
-    yield ctx.effort !== undefined ? { ...faultRow, effort: ctx.effort } : faultRow
-  }
-  return { kind: 'done' }
+  return { stopReason, finalUsage } as const
 }
