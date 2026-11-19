@@ -125,6 +125,8 @@ type RepositoryLayout = { root: string; gitDir: string; commonDir: string; finge
 
 const layoutCache = new Map<string, RepositoryLayout>()
 
+const GIT_FACTS_TIMEOUT_MS = 5_000
+
 class GitFactsUnread extends Error {
   readonly shortMessage = this.message
   readonly stderr = this.message
@@ -136,8 +138,14 @@ function gitAnswered(error: unknown): boolean {
   return typeof status === 'number' || typeof code === 'number' || code === 'ENOENT'
 }
 
+function unansweredWhy(error: unknown): string {
+  const { code, killed } = (error ?? {}) as { code?: unknown; killed?: unknown }
+  if (code === 'ETIMEDOUT' || (killed === true && code == null)) return `no answer within ${GIT_FACTS_TIMEOUT_MS / 1000} s`
+  return error instanceof Error ? error.message : String(error)
+}
+
 function factsUnread(what: string, cwd: string, error: unknown): GitFactsUnread {
-  return new GitFactsUnread(`${what} of the git repository at ${cwd} could not be read (${error instanceof Error ? error.message : String(error)})`)
+  return new GitFactsUnread(`${what} of the git repository at ${cwd} could not be read (${unansweredWhy(error)})`)
 }
 
 function readGitSync(args: string[], cwd: string, what: string): string | null {
@@ -147,7 +155,7 @@ function readGitSync(args: string[], cwd: string, what: string): string | null {
       encoding: 'utf8',
       env: subprocessEnv(),
       stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 5_000,
+      timeout: GIT_FACTS_TIMEOUT_MS,
       windowsHide: true,
     })
   } catch (error) {
@@ -167,7 +175,7 @@ function readGitAsync(args: string[], cwd: string, what: string): Promise<string
       execFile(
         gitExe(),
         [...GIT_SPAWN_CONFIG, ...args],
-        { cwd, encoding: 'utf8', env: subprocessEnv(), timeout: 5_000, windowsHide: true },
+        { cwd, encoding: 'utf8', env: subprocessEnv(), timeout: GIT_FACTS_TIMEOUT_MS, windowsHide: true },
         (error: Error | null, stdout: string) => answer(error, stdout),
       )
     } catch (error) {
