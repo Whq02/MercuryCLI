@@ -97,7 +97,7 @@ export const FINISH_TO_STOP: Record<OpenaiFinishReason, 'end_turn' | 'tool_use' 
   'other-incomplete': 'end_turn',
 }
 
-export async function* settleAttemptToolCalls(ctx: OpenaiAttemptCtx, w: AttemptBlocks, finish: OpenaiSettledFinish | undefined) {
+export function* settleAttemptToolCalls(ctx: OpenaiAttemptCtx, w: AttemptBlocks, finish: OpenaiSettledFinish | undefined) {
   const { tools } = ctx
   const { livePaintComplete, minted, mintBlock, emitSettledBlock, emitNoteBlock } = w
   const completed = finish?.toolCalls ?? []
@@ -156,7 +156,7 @@ export async function* settleAttemptToolCalls(ctx: OpenaiAttemptCtx, w: AttemptB
   return { accepted, refused, answered }
 }
 
-export async function* emitFinishNotes(w: AttemptBlocks, read: AttemptRead) {
+export function* emitFinishNotes(w: AttemptBlocks, read: AttemptRead) {
   const { minted, emitSettledBlock, emitNoteBlock } = w
   const { finish, refusalStreamed, usageSeen } = read
   if (finish && finish.webSearchCalls.length > 0) {
@@ -209,7 +209,7 @@ export function settleAttemptUsage(
   ctx: OpenaiAttemptCtx,
   minted: AssistantMessage[],
   read: AttemptRead,
-  settled: AsyncGeneratorReturn<ReturnType<typeof settleAttemptToolCalls>>,
+  settled: GeneratorReturn<ReturnType<typeof settleAttemptToolCalls>>,
   requestStartedAtMs: number,
   typedEnd: StreamEndV1 | null,
 ) {
@@ -267,4 +267,4 @@ export function settleAttemptUsage(
   return { stopReason, finalUsage } as const
 }
 
-type AsyncGeneratorReturn<G> = G extends AsyncGenerator<unknown, infer R, unknown> ? R : never
+type GeneratorReturn<G> = G extends Generator<unknown, infer R, unknown> ? R : never

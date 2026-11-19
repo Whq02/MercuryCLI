@@ -2,13 +2,9 @@ import type {
   Message,
 } from '../../../../types/message.js'
 import {
-  resolveOpenaiRequestAuth,
-} from '../openaiAccounts.js'
-import {
   resolveGptReasoningProfile,
 } from '../openaiCatalogue.js'
 import { recordWireEffortRefusal } from '../qualificationStore.js'
-import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../../providerKeyCommand.js'
 import {
   OPENAI_FIRST_PARTY_PROBE_KEY,
   OPENAI_NATIVE_DEFERRAL_REFUSAL,
@@ -19,47 +15,7 @@ import { openaiGatewayHost } from '../../deferralWire.js'
 import { logForDebugging } from '../../../../utils/debug.js'
 import { MODEL_NOT_FOUND_CODE, OPENAI_MAX_ATTEMPTS, effortVocabularyRefusalOf } from './faults.js'
 import { compactTranscriptFor4xxResume, isCompactionSource } from './resumeTrim.js'
-import type { AttemptFault, AttemptFaultOutcome, FaultStep, OpenaiTurn } from './turnState.js'
-
-export async function recoverCredential(
-  turn: OpenaiTurn,
-  outcome: AttemptFaultOutcome,
-  typed: AttemptFault['typed'],
-  attempt: number,
-): Promise<FaultStep> {
-  const { auth, recovery, signal } = turn
-  if (
-    typed === 'authentication_failed' &&
-    outcome.retryEligible &&
-    recovery === undefined &&
-    attempt < OPENAI_MAX_ATTEMPTS
-  ) {
-    if (auth.account.kind === 'chatgpt-subscription') {
-      const fresh = await resolveOpenaiRequestAuth({
-        sourceKind: 'chatgpt-subscription',
-        forceRefresh: true,
-      }).catch(() => undefined)
-      if (signal.aborted) return { kind: 'end' }
-      if (fresh && fresh.headers.authorization !== auth.headers.authorization) {
-        turn.recovery = 'retried'
-        turn.auth = fresh
-        return { kind: 'next' }
-      }
-      turn.recovery = 'no-new-credential'
-    } else if (configuredProviderKeyCommand('openai')) {
-      const freshKey = recoverProviderKeyCommand('openai', auth.headers.authorization?.replace(/^Bearer /i, ''))
-      const fresh = freshKey ? await resolveOpenaiRequestAuth({ sourceKind: 'api-key' }).catch(() => undefined) : undefined
-      if (signal.aborted) return { kind: 'end' }
-      if (fresh && fresh.headers.authorization !== auth.headers.authorization) {
-        turn.recovery = 'retried'
-        turn.auth = fresh
-        return { kind: 'next' }
-      }
-      turn.recovery = 'no-new-credential'
-    }
-  }
-  return { kind: 'go_on' }
-}
+import type { AttemptFault, AttemptFaultOutcome, OpenaiTurn } from './turnState.js'
 
 export function reissueTextForm(turn: OpenaiTurn, outcome: AttemptFaultOutcome): string | undefined {
   const { nativeDeferral, deferralFormReissued, auth } = turn

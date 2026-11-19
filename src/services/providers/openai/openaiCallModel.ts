@@ -5,6 +5,7 @@ import {
   resolveOpenaiRequestAuth,
 } from './openaiAccounts.js'
 import { refreshProviderUsage } from '../providerUsage.js'
+import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
 import { rejectOpenaiCacheRetention } from './openaiCacheRetention.js'
 import {
@@ -14,7 +15,7 @@ import { OPENAI_MAX_ATTEMPTS, openaiFaultToTypedError, overflowOf } from './open
 import { prepareOpenaiTurn } from './openaiCallModel/prepareTurn.js'
 import { settleOpenaiTurn } from './openaiCallModel/turnSettled.js'
 import { streamOneOpenaiAttempt } from './openaiCallModel/attempt.js'
-import { recoverCredential, reissueAtServedEffort, reissueTextForm, trimResumedTranscript } from './openaiCallModel/faultReissue.js'
+import { reissueAtServedEffort, reissueTextForm, trimResumedTranscript } from './openaiCallModel/faultReissue.js'
 import { retryOnFault } from './openaiCallModel/faultWait.js'
 import { refuseTurn, refuseUsageLimit } from './openaiCallModel/faultRefusal.js'
 import { effortOnWire, type AttemptFault } from './openaiCallModel/turnState.js'
@@ -76,9 +77,36 @@ async function* openaiTurn(
     }
     observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.wireMessage ?? outcome.fault.message)
     const typed = openaiFaultToTypedError(outcome.fault)
-    const credential = await recoverCredential(turn, outcome, typed, attempt)
-    if (credential.kind === 'end') return
-    if (credential.kind === 'next') continue
+    if (
+      typed === 'authentication_failed' &&
+      outcome.retryEligible &&
+      turn.recovery === undefined &&
+      attempt < OPENAI_MAX_ATTEMPTS
+    ) {
+      if (turn.auth.account.kind === 'chatgpt-subscription') {
+        const fresh = await resolveOpenaiRequestAuth({
+          sourceKind: 'chatgpt-subscription',
+          forceRefresh: true,
+        }).catch(() => undefined)
+        if (signal.aborted) return
+        if (fresh && fresh.headers.authorization !== turn.auth.headers.authorization) {
+          turn.recovery = 'retried'
+          turn.auth = fresh
+          continue
+        }
+        turn.recovery = 'no-new-credential'
+      } else if (configuredProviderKeyCommand('openai')) {
+        const freshKey = recoverProviderKeyCommand('openai', turn.auth.headers.authorization?.replace(/^Bearer /i, ''))
+        const fresh = freshKey ? await resolveOpenaiRequestAuth({ sourceKind: 'api-key' }).catch(() => undefined) : undefined
+        if (signal.aborted) return
+        if (fresh && fresh.headers.authorization !== turn.auth.headers.authorization) {
+          turn.recovery = 'retried'
+          turn.auth = fresh
+          continue
+        }
+        turn.recovery = 'no-new-credential'
+      }
+    }
     const note = reissueTextForm(turn, outcome)
     if (note !== undefined) {
       yield* openaiTurn(params, note, resumeTrimReissued)
