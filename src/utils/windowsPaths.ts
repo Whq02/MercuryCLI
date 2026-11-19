@@ -143,7 +143,7 @@ export function nativeCwdFromShellRecord(record: string): { path: string } | { r
   const posix = lines[0]
   if (posix === undefined) return { refused: 'the shell recorded no directory (the command may have died before writing it)' }
   const native = lines[1]
-  if (native !== undefined) return { path: stripExtendedLengthPrefix(posixPathToWindowsPath(native)) }
+  if (native !== undefined) return { path: asStoredOnDisk(stripExtendedLengthPrefix(posixPathToWindowsPath(native))) }
   const converted = stripExtendedLengthPrefix(posixPathToWindowsPath(posix))
   if (/^\\(?!\\)/.test(converted)) {
     return {
@@ -151,6 +151,17 @@ export function nativeCwdFromShellRecord(record: string): { path: string } | { r
     }
   }
   return { path: converted }
+}
+
+function msysStoredSpelling(path: string): string {
+  const from = /^[A-Za-z]:/.test(path) ? 2 : 0
+  return path.slice(0, from) + path.slice(from).replace(/["*:<>?|]/g, forbidden => String.fromCharCode(0xf000 | forbidden.charCodeAt(0)))
+}
+
+function asStoredOnDisk(path: string): string {
+  if (pathExists(path)) return path
+  const stored = msysStoredSpelling(path)
+  return stored !== path && pathExists(stored) ? stored : path
 }
 
 export const WINDOWS_STARTS_A_PROGRAM_IN = 258

@@ -432,6 +432,10 @@ export async function exec(
     const cwdFilePath =
       getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
 
+    const told = (line: string): void => {
+      result.stderr = result.stderr === '' ? line : `${result.stderr}\n${line}`
+    }
+    let named: string | undefined
     try {
       const record = readFileSync(cwdFilePath, 'utf8')
       if (road.recordsBash && record === FRAME_UNREAD) {
@@ -446,18 +450,22 @@ export async function exec(
           logForDebugging('bash cwd tracking: the shell directory stays put — the command left no directory')
         } else if ('refused' in recorded) {
           logForDebugging(`bash cwd tracking: the shell directory stays put — ${recorded.refused}`)
+          if (record.trim() !== '') told(shellDirectoryStays(cwdBefore, `${record.trim().split(/\r?\n/)[0]} is a folder of the bash's own with no Windows path`))
         } else if (recorded.path.normalize('NFC') !== cwdBefore.normalize('NFC')) {
+          named = recorded.path
           const unstartable = built.handOver === undefined ? folderNoProgramStartsIn(recorded.path, cwdBefore) : null
           if (unstartable !== null) {
-            result.stderr = result.stderr === '' ? unstartable : `${result.stderr}\n${unstartable}`
+            told(unstartable)
           } else {
             recordShellCwd(recorded.path, cwdBefore)
             invalidateSessionEnvCache()
           }
+          named = undefined
         }
       }
     } catch (error) {
       logForDebugging(`bash cwd tracking: the shell directory stays put — ${errorMessage(error)}`)
+      if (named !== undefined && getPlatform() === 'windows') told(shellDirectoryStays(cwdBefore, `${named} does not resolve (${errorMessage(error)})`))
     }
 
     if (built.pipelineStatusPath !== undefined) {
