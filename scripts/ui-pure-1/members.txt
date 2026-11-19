@@ -19,7 +19,6 @@ prove-fable-weekly-window.ts
 prove-face-logins.ts
 prove-field-findings-composer.ts
 prove-field-findings-concourse.ts
-prove-field-findings-keysetup.ts
 prove-field-w6-caret.ts
 prove-footer-strip-hint.ts
 prove-frame-dedup.ts

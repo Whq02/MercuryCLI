@@ -73,7 +73,6 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-telemetry-absence.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-kill-target.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-kill-target.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-startup-menu.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-startup-menu.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-live-boot-menu.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-live-boot-menu.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-boot-order.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-boot-order.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-spawn-ledger.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-spawn-ledger.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-live-e2e-hermetic.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-live-e2e-hermetic.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-friction-stopwatch.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-friction-stopwatch.ts" "$__t" "$__rc"

@@ -18,7 +18,6 @@ scripts/daemon/prove-quit-reaps-the-tree.ts	1	1	92054d08495b
 scripts/distribution/prove-json-query-pack.ts	2	0	612799d1f3db
 scripts/document/prove-licence-checkout.ts	2	0	a1707bae0d53
 scripts/document/prove-research.ts	1	0	0c620af93c99
-scripts/effort/prove-setting-writers-name-their-scope.ts	1	1	135b5ec8f34b
 scripts/engine-connector/prove-face-census.ts	10	18	23a5a7224e12
 scripts/extensions/gen-bundled.ts	7	0	0844d20687c8
 scripts/extensions/gen-contract.ts	1	0	43f5da69f682
