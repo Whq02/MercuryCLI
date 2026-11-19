@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { renameWithWin32RetrySync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { errorMessage, isENOENT } from '../../utils/errors.js'
 import {
   SAMPLE_GLYPH_DEFAULT,
   stateAfterVerdict,
@@ -156,7 +157,10 @@ export function readMarks(sessionId: string, id: string, n: number): SampleMarks
   try {
     const raw: unknown = JSON.parse(readFileSync(join(sampleDir(sessionId, id), `marks-v${n}.json`), 'utf8'))
     return Array.isArray(raw) ? (raw as SampleMarksV1[]) : []
-  } catch {
+  } catch (err) {
+    if (!isENOENT(err)) {
+      logForDebugging(`samples: the marks of ${id} v${n} could not be read — ${errorMessage(err)}`)
+    }
     return []
   }
 }
