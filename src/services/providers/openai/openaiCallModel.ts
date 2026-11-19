@@ -1270,6 +1270,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   busy?: { ladder: BusyRetryLadder; fault: OpenaiFault }
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
   const { request, auth, signal, tools, options, modelId } = ctx
+  const requestStartedAtMs = Date.now()
 
   const partial: ApiMessage = {
     id: `openai_${randomUUID()}`,
@@ -1680,8 +1681,10 @@ export async function* streamOneOpenaiAttempt(ctx: {
   const stopReason =
     accepted.length > 0 || answered.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
   const finalUsage = mapOpenaiUsageToAnthropic(usageSeen, finish?.webSearchCalls.length ?? 0)
+  Object.assign(finalUsage, { request_started_at_ms: requestStartedAtMs })
   if (!usageSeen && fault !== undefined) {
     const estimated = estimateFaultedRequestUsage({ lane: 'openai', model: modelId, request, minted, faultCode: fault.code })
+    Object.assign(estimated, { request_started_at_ms: requestStartedAtMs })
     addToTotalSessionCost(calculateUSDCost(modelId, estimated), estimated, modelId)
   }
   if (usageSeen) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -446,6 +446,78 @@ section('nous — the list\'s own long tier: pricing.overrides chosen by prompt 
   check('a row with no tier is priced as before at every size', JSON.stringify(ratesAt('nous/fixture/one-tier', 900_000)) === JSON.stringify([3, 3, 3, 15]) && JSON.stringify(ratesAt('nous/fixture/one-tier', undefined)) === JSON.stringify([3, 3, 3, 15]), JSON.stringify(ratesAt('nous/fixture/one-tier', 900_000)))
   nous.__resetNousCatalogueForTest()
   delete process.env.NOUS_API_KEY
+}
+
+section('a price that turns on a date is the price of the day the request was made: as it settles, resumed and in /usage')
+{
+  const { readUsageHistory } = await import('../../src/utils/usageHistory.ts')
+  const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
+  const { streamOneOpenaiAttempt } = await import('../../src/services/providers/openai/openaiCallModel.ts')
+  const RealDate = Date
+  let clock = 0
+  const on = async <T>(iso: string, read: () => T | Promise<T>): Promise<T> => {
+    clock = RealDate.parse(iso)
+    globalThis.Date = class extends RealDate {
+      constructor(...args: unknown[]) { super(...((args.length === 0 ? [clock] : args) as [number])) }
+      static override now(): number { return clock }
+    } as DateConstructor
+    try {
+      return await read()
+    } finally {
+      globalThis.Date = RealDate
+    }
+  }
+  const directory = join(scratch, 'projects', '-scratch-dated-price')
+  mkdirSync(directory, { recursive: true })
+  const stored = (sessionId: string, project: string, rows: Array<Record<string, unknown>>): string => {
+    const path = join(directory, `${sessionId}.jsonl`)
+    for (const row of rows) appendFileSync(path, encodeTranscriptLine(path, { ...row, sessionId, cwd: project, version: '1.0.0', parentUuid: null, isSidechain: false }).line)
+    return path
+  }
+  const resumedOn = (iso: string, sessionId: string, path: string): Promise<number> => on(iso, async () => {
+    tracker.resetCostState()
+    await tracker.restoreCostStateForSession(sessionId, path)
+    return tracker.getTotalCost()
+  })
+  const turn = { input_tokens: 100_000, cache_read_input_tokens: 40_000, cache_creation_input_tokens: 30_000, output_tokens: 5_000 }
+  const startedAt = (iso: string): Usage => ({ ...turn, request_started_at_ms: RealDate.parse(iso) })
+  const request = (model: string, n: number, at: string): Record<string, unknown> => ({ type: 'assistant', uuid: `00000000-0000-4000-8000-00000000000${n}`, timestamp: at, message: { id: `resp_${n}`, role: 'assistant', model, stop_reason: 'end_turn', stop_sequence: null, content: [{ type: 'text', text: 'OK' }], usage: turn } })
+  for (const [model, sessionId, november, december] of [['gpt-5.6-sol', '0b7a0c3e-1111-4222-8333-944455556666', 0.666, 0.8575], ['gemini-4-carbon', '0b7a0c3e-2222-4222-8333-944455556666', 0.314, 0.628]] as const) {
+    const both = november + december
+    const project = `/scratch/dated-price/${model}`
+    const path = stored(sessionId, project, [request(model, 1, '2026-11-30T23:30:00.000Z'), request(model, 2, '2026-12-01T00:30:00.000Z')])
+    const live = (await on('2026-11-30T23:30:00.000Z', () => cost.calculateUSDCost(model, turn))) + (await on('2026-12-01T00:30:00.000Z', () => cost.calculateUSDCost(model, turn)))
+    check(`${model}: two requests of 100,000 fresh, 40,000 cached, 30,000 written and 5,000 out, at 23:30 UTC on 30 November and 00:30 UTC on 1 December, cost $${november} and $${december} as each settles, $${both.toFixed(4)} together`, near(live, both), live.toFixed(6))
+    for (const day of ['2026-12-01T01:00:00.000Z', '2026-12-20T12:00:00.000Z']) {
+      const resumed = await resumedOn(day, sessionId, path)
+      check(`${model}: …the session resumed on ${day.slice(0, 10)} reads the same $${both.toFixed(4)}: a stored request with no start on its usage is priced by the day of its own timestamp`, near(resumed, both), resumed.toFixed(6))
+    }
+    const history = await on('2026-12-02T12:00:00.000Z', () => readUsageHistory({ project }))
+    check(`${model}: …and /usage on 2026-12-02 reads the same $${both.toFixed(4)}, $${november} under 30 November and $${december} under 1 December`, near(history.totals.costUSD, both) && history.byDay.length === 2 && near(history.byDay[0]!.costUSD, november) && near(history.byDay[1]!.costUSD, december), `${history.totals.costUSD.toFixed(6)} ${JSON.stringify(history.byDay.map(day => `${day.key} ${day.costUSD.toFixed(6)}`))}`)
+    const lastOfNovember = await on('2026-12-15T12:00:00.000Z', () => cost.calculateUSDCost(model, startedAt('2026-11-30T23:59:59.999Z')))
+    const firstOfDecember = await on('2026-11-15T12:00:00.000Z', () => cost.calculateUSDCost(model, startedAt('2026-12-01T00:00:00.000Z')))
+    check(`${model}: …the day is the UTC day the request started, whatever the clock reads: one started at 23:59:59.999 on 30 November costs $${november} when it is priced on 15 December, one started at 00:00:00.000 on 1 December costs $${december} when it is priced on 15 November`, near(lastOfNovember, november) && near(firstOfDecember, december), `${lastOfNovember.toFixed(6)} ${firstOfDecember.toFixed(6)}`)
+  }
+  tracker.resetCostState()
+  const sol = 'gpt-5.6-sol'
+  const minted: Array<Record<string, unknown>> = []
+  await on('2026-11-30T23:59:50.000Z', async () => {
+    const events = (async function* () {
+      clock = RealDate.parse('2026-12-01T00:00:20.000Z')
+      yield { type: 'text-delta', text: 'OK' }
+      yield { type: 'usage', usage: { inputTokens: 170_000, cachedInputTokens: 40_000, cacheWriteInputTokens: 30_000, outputTokens: 5_000 } }
+      yield { type: 'finish', reason: 'completed', toolCalls: [], orderedItems: [], unknownItemTypes: [] }
+    })()
+    for await (const item of streamOneOpenaiAttempt({ _eventsForTesting: events as never, request: { model: sol, input: [], stream: true, store: false } as never, auth: { baseUrl: 'https://unused.invalid', headers: {}, account: { kind: 'api-key', label: 'fixture source' } } as never, signal: new AbortController().signal, tools: [] as never, options: { querySource: 'sdk' } as never, modelId: sol, messages: [] as never, settlementNotes: [], contractDigest: 'fixture' })) {
+      if (item.type === 'assistant') minted.push(item as unknown as Record<string, unknown>)
+    }
+  })
+  const settled = (minted.at(-1)?.message as { usage?: Record<string, unknown> } | undefined)?.usage
+  const metered = tracker.getTotalCost()
+  const midnight = '0b7a0c3e-3333-4222-8333-944455556666'
+  const readBack = await resumedOn('2026-12-20T12:00:00.000Z', midnight, stored(midnight, '/scratch/dated-price/midnight', minted))
+  check('openai: a GPT-5.6 Sol request that starts at 23:59:50 UTC on 30 November and ends at 00:00:20 on 1 December carries its start on the usage it settles and costs $0.666, on the meter as it settles and when the session is resumed on 20 December', settled?.request_started_at_ms === RealDate.parse('2026-11-30T23:59:50.000Z') && near(metered, 0.666) && near(readBack, 0.666), `start ${String(settled?.request_started_at_ms)} · metered ${metered.toFixed(6)} · resumed ${readBack.toFixed(6)}`)
+  tracker.resetCostState()
 }
 
 ollama.stop(true)
