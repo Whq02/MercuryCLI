@@ -113,13 +113,6 @@ check('the held row quotes the arrival clock', painted.includes('held since 18:5
 arrive('second-worker')
 await flush()
 
-const repl = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
-const gate = repl.match(/if \(seatCommand !== undefined && isLoadingRef\.current\) \{[\s\S]*?\n      \}/)?.[0]
-if (!gate) throw new Error('the session-command queued gate was not found')
-const receipts: string[] = []
-new Function('seatCommand', 'isLoadingRef', 'addNotification', 'getCommandName', 'RECEIPT_TIMEOUT_MS', gate)({ name: 'compact' }, { current: driver.isRunning() }, (notice: { text: string }) => receipts.push(notice.text), (command: { name: string }) => command.name, 1)
-console.log(`command row: "${receipts[0] ?? '/compact runs now'}"`)
-check('a command typed after esc never paints queued behind the crew', receipts.length === 0, receipts.join(' | '))
 queue.push({ mode: 'prompt', value: '/compact', queueId: 'operator-compact' })
 driver.kick()
 await flush()

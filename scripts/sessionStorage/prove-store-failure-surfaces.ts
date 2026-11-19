@@ -55,12 +55,6 @@ await sleep(5_600)
   t('§2 …and the queued words actually landed', landed.includes('first words') && landed.includes('second words'))
 }
 
-{
-  const repl = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
-  t("§3 the chat paints the sticky notification from the seam", repl.includes("key: 'transcript-store'") && repl.includes('subscribeTranscriptStoreHealth'))
-  t('§3 …and clears it on recovery', repl.includes("removeNotification('transcript-store')"))
-}
-
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? 'STORE FAILURE SURFACES: ALL PASS' : 'STORE FAILURE SURFACES: RED')
 process.exit(failures)

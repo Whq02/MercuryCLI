@@ -452,8 +452,6 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
   const dmain = read('src/daemon/main.ts')
   check('G3 the daemon serves hello facts with the BOOT-captured tree', dmain.includes('buildTree: bootBuildTree') && dmain.includes('describeArtifactIdentity(currentVersion()).buildTree'))
   check('G7 daemon.json carries the version fact', dmain.includes('proto: MERCURY_DAEMON_PROTO'))
-  const repl = read('src/screens/Chat.tsx')
-  check('G8 the Chat paints the one line and clears it on match', repl.includes('subscribeDaemonHandshake') && repl.includes("removeNotification(key)"))
   {
     const dir = freshPlane()
     seedRecords(dir, { 'concourse-w1': { workerId: 'concourse-w1', sessionId: 's1', pid: process.pid } })

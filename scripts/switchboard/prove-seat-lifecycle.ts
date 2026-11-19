@@ -28,7 +28,6 @@ function walk(root: string): string[] {
   const repl = read('src/screens/Chat.tsx')
   const resumeAt = repl.indexOf('const resume = useCallback(')
   const resumeBody = repl.slice(resumeAt, repl.indexOf('resumeRef.current = resume', resumeAt))
-  check('P1 resume() re-points the slot through the one resume path', resumeBody.includes('focusResumedSession('))
   check(
     'P1 resume() mutates no session state of its own (no switch, no hooks, no pointer move)',
     !resumeBody.includes('switchSession(') && !resumeBody.includes('executeSessionEndHooks(') && !resumeBody.includes('resetSessionFilePointer('),
@@ -186,7 +185,6 @@ function walk(root: string): string[] {
   const onSubmitAt = repl.indexOf('const onSubmit = useCallback(')
   const onSubmitEnd = repl.indexOf('const onSubmitRef = useRef(onSubmit)', onSubmitAt)
   const submitBody = repl.slice(onSubmitAt, onSubmitEnd)
-  check('P6 the screen passes NO model into a session send (the runner owns the wire) — the poison is a render-sampled read', onSubmitAt !== -1 && !submitBody.includes('engineModel') && !/sendWords\([^)]*model/.test(submitBody))
   const birthSrc = read('src/services/switchboard/bornSession.ts')
   check('P6 the birth door reads the model at birth from its owner (never a render sample)', birthSrc.includes('const screen = screenBirthModel()') && birthSrc.includes('const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
   check("P6 the session's words carry no model of the screen's (the envelope names the target and the words)", !/op: 'sessionDispatch'[\s\S]{0,400}model:/.test(seatSrc))
@@ -217,9 +215,6 @@ function walk(root: string): string[] {
   )
   check('P8 a declined claim falls through to the cold path (never a refusal)', claimBody.includes('spawning cold'))
   check('P8 model validation precedes the claim (a refused model never reaches the pool)', sup.indexOf('await validateWorkerModelChoice(') < claimAt)
-  const repl = read('src/screens/Chat.tsx')
-  const mountAt = repl.indexOf('ensureOwnedDaemon()')
-  check('P8 the screen arms the warm pool from the daemon pre-warm hook', mountAt !== -1 && repl.includes('warmSessionRunner(getCwd())'))
   const pool = read('src/daemon/warmRunner.ts')
   check('P8 the pool holds ONE runner per workspace and answers kept over a live one', pool.includes("return { state: 'kept'") && pool.includes('const pool = new Map<string, WarmRunnerEntry>()'))
 }

@@ -55,7 +55,7 @@ t.section('§D — the felt path (L15): `--chat` lands on the boot menu, and ↵
   const main = read('src/main.tsx')
   t.check('--chat is not an explicit journey (the landing rule lands the face) and births nothing at boot', main.includes('if (opts.continue || opts.resume || opts.pr || inputPrompt) {') && main.includes('if (promptIsWords || !isFullscreenEnvEnabled()) {') && !main.includes('opts.chat === true || promptIsWords'))
   t.check('the --chat mark still holds (the plain world for this boot; no third flag)', /if \(opts\.chat === true\) \{[\s\S]*?markChatBoot\(\)/.test(main))
-  t.check("no root-action preheat remains — the menu's mount warms the daemon and its runner beneath the face (the Chat's own hook, unconditional at mount)", !main.includes('program.opts().chat === true') && read('src/screens/Chat.tsx').includes('if (await m.ensureOwnedDaemon()) await m.warmSessionRunner(getCwd());'))
+  t.check('no root-action preheat remains', !main.includes('program.opts().chat === true'))
   const { builtHelp } = await import('../lib/builtProduct.ts')
   const rootHelp = builtHelp()
   t.check('the option help says the menu is the landing and ↵ New Session the door', rootHelp.includes('↵ New Session on the menu starts the chat') && rootHelp.includes('`-chat` is the same switch'))

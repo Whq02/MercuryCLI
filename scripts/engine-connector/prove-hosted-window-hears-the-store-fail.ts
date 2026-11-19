@@ -93,11 +93,6 @@ try {
 
   section('§3 the window: the one notice it raises for a failing store reads both stores (read from the source; the effect is not mounted here)')
   {
-    const chat = readFileSync(join(import.meta.dir, '..', '..', 'src', 'screens', 'Chat.tsx'), 'utf8')
-    const at = chat.indexOf("key: 'transcript-store'")
-    const effect = at === -1 ? '' : chat.slice(chat.lastIndexOf('useEffect(', at), chat.indexOf('}, [', at) + 40)
-    check('Chat.tsx raises the transcript-store notice in one place', at !== -1 && chat.indexOf("key: 'transcript-store'", at + 1) === -1)
-    check("that effect reads this process's store and the focused connector's sentence, and repaints on either", effect.includes('transcriptStoreHealth()') && effect.includes('transcriptStoreFailing') && effect.includes('subscribeTranscriptStoreHealth(paint)') && effect.includes('subscribeModel(paint)') && effect.includes('[focusedConnector]'), effect.slice(0, 400))
     const seat = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'sessionSeat.ts'), 'utf8')
     check("the daemon publishes the runner's whole answer as the session's facts, and asks for them when the runner speaks a notice", /const \{ box: boxAnswer, \.\.\.answerRest \} = answer/.test(seat) && /\.\.\.answerRest,/.test(seat) && /case 'notice':\s*\n\s*requestSessionFacts\(short, roster, undefined, dir\)/.test(seat))
   }

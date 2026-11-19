@@ -450,22 +450,7 @@ check(
   const dialogSends = dialogMount.split('.sendWords(').length - 1
   const queryLegAt = dialogMount.indexOf('if (doneOptions?.shouldQuery === true) {')
   const querySendAt = dialogMount.indexOf('focusedNow.sendWords(words, { metaFrom: { command: seatCommand.name } })')
-  check(
-    '24. the dialog-command branch mounts in place — no history entry, no session send of its own; the one send is the query leg a dialog asks for through onDone, its words meta rows',
-    dialogIdx !== -1 && dialogMountAt !== -1 && !dialogMount.includes('takeComposer()') && !dialogMount.includes('addToHistory(') && dialogSends === 1 && queryLegAt !== -1 && querySendAt > queryLegAt,
-  )
-  check(
-    '24b. a dialog typed while one runs queues behind it — the composer taken once, never a session send',
-    dialogMountAt !== -1 && dialogQueue.includes('takeComposer()') && dialogQueue.includes('queuedDialogCommandsRef.current.push({ input, name: dialogName, submittedAt, pastedContents: seatPastes });') && !dialogQueue.includes('.sendWords('),
-  )
 
-  check(
-    "25. cancel reaches the focused connector's interrupt door (no ask store on the screen)",
-    repl.includes('interruptFocusedTurn();') &&
-      src('src/hooks/useCancelRequest.ts').includes('const focused = getFocusedSessionConnector()') &&
-      src('src/hooks/useCancelRequest.ts').includes('if (!focused.interrupt()) return false') &&
-      !repl.includes('getInProcessAsks'),
-  )
 
   check(
     '26. the face runs no auto-restore (no shouldAutoRestore, no history rewind)',

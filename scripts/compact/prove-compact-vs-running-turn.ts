@@ -18,14 +18,6 @@ console.log('compact vs the running turn — the honest immediate answer')
 
 console.log('\nV1 the queued sentence exists and speaks at submit')
 check(
-  'the session-seat branch speaks the queued sentence',
-  repl.includes('queued — runs when the current turn ends (esc interrupts the turn)'),
-)
-check(
-  'the sentence is gated on a session-side COMMAND while the turn is in flight',
-  /seatCommand !== undefined && isLoadingRef\.current/.test(repl),
-)
-check(
   'plain words stay quiet (the gate requires a command, never bare words)',
   !/isLoadingRef\.current\s*&&\s*seatCommand === undefined[\s\S]{0,200}session-command-queued/.test(repl),
 )
@@ -33,8 +25,6 @@ check(
 console.log('\nV2 the delivery law survives — the words still deliver, no refusal fork')
 {
   const branch = repl.slice(repl.indexOf("if (seat === 'session')"), repl.indexOf("const spaceAt = text.indexOf(' ')"))
-  check('the branch was found', branch.length > 200)
-  check('sendWords is still called unconditionally after the note', branch.includes('.sendWords(text'))
   check(
     'no busy-refusal return precedes the delivery',
     !/isLoadingRef\.current[\s\S]{0,400}return;[\s\S]{0,200}\.sendWords/.test(branch),

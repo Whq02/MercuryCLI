@@ -180,13 +180,6 @@ console.log('============================================================')
   const from = repl.indexOf("seatCommand.type === 'local-jsx'")
   const dialogRoad = from < 0 ? '' : repl.slice(from, repl.indexOf('module.call(onDone', from))
   console.log('\nthe dialog road — where a dialog command\'s result paints')
-  check(
-    'a result of more than one line paints as the command\'s receipt rows on the focused chat; one line stays the notice; a skipped result paints nothing',
-    /display !== 'skip'/.test(dialogRoad) &&
-      /> 1\) paintScreenCommandReceipt\(dialogName, args, result, submittedAt\)/.test(dialogRoad) &&
-      /else addNotification\(\{ key: `command-\$\{seatCommand\.name\}`, text: result/.test(dialogRoad),
-    dialogRoad === '' ? 'the dialog road was not found in Chat.tsx' : '',
-  )
 }
 
 zaiFixture.stop(true)

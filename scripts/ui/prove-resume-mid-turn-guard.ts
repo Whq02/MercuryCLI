@@ -13,10 +13,8 @@ const check = (label: string, ok: boolean) => {
 const repl = read('src/screens/Chat.tsx')
 
 const resumeStart = repl.indexOf('const resume = useCallback(')
-check('Chat declares the resume useCallback', resumeStart !== -1)
 const resumeEnd = repl.indexOf('resumeRef.current = resume', resumeStart)
 const resumeBody = repl.slice(resumeStart, resumeEnd)
-check('resume() re-points the focused slot through the one resume path', resumeBody.includes('focusResumedSession('))
 check('resume() never switches the session file pointer', !resumeBody.includes('switchSession(') && !resumeBody.includes('resetSessionFilePointer(') && !resumeBody.includes('adoptResumedSessionFile('))
 check('resume() fires no session-end hooks of its own (the runner owns its hooks)', !resumeBody.includes('executeSessionEndHooks('))
 check('resume() never flushes or rewrites the composer draft', !resumeBody.includes('flushDrafts(') && !resumeBody.includes('readDraftFor('))

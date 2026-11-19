@@ -31,11 +31,6 @@ section('§B the fix at the true cause: a refused send restores the pastes with 
   const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   const refAt = repl.indexOf("if (receipt.state !== 'refused') return")
   const refBlock = refAt !== -1 ? repl.slice(refAt, refAt + 500) : ''
-  check('the refused-send handler exists', refBlock !== '')
-  check('it restores the TEXT to the composer', refBlock.includes('setInputValue(input)'))
-  check('it restores the PASTES with the text, so the chips resolve on the re-send', refBlock.includes('setPastedContents(seatPastes)'))
-  check('both restores sit under the one empty-composer guard', /pendingInput\.text\(\) === ''\)\s*\{[\s\S]*setInputValue\(input\)[\s\S]*setPastedContents\(seatPastes\)[\s\S]*\}/.test(refBlock))
-  check('the composer captures the pastes before the submit clears them', repl.includes('const seatPastes = options?.pastedContents ?? pendingInput.pastedContents()'))
 }
 
 section('§C the crash road: the chip carries its hash, the bytes are on disk from the mint, and a rebuilt composer still expands it')

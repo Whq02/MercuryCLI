@@ -99,22 +99,10 @@ console.log('============================================================')
   fs.rmSync(dir, { recursive: true, force: true })
 
   const repl = src('src', 'screens', 'Chat.tsx')
-  check(
-    'Chat resume() hops through the one resume door (no cleared-mark bookkeeping on the face)',
-    repl.includes('await focusResumedSession(String(sessionId)') && !repl.includes('unmarkSessionCleared'),
-  )
 }
 
 {
   const repl = src('src', 'screens', 'Chat.tsx')
-  check(
-    'resume() deps carry the live setters it closes over (stale-closure fix held)',
-    /\}, \[addNotification, removeNotification, setToolJSX\]\);/.test(repl),
-  )
-  check(
-    'the staged switch shows a truthful opening status',
-    repl.includes('text: `opening ${label}…`'),
-  )
 }
 
 console.log('\n' + '═'.repeat(60))

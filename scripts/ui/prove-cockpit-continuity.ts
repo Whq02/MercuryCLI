@@ -53,6 +53,10 @@ check(
   const suppressed = row();
   await slot({ textActive: true, toolUseConfirmQueue: [{ toolUseID: 'toolu_gate' }] as never });
   const streamingUnderCard = row();
+  await slot({ seatLive: IDLE_LIVE });
+  const restingQuiet = row();
+  await slot({ toolUseConfirmQueue: [{ toolUseID: 'toolu_gate' }] as never });
+  const thinkingUnderCard = row();
   await status.close();
   check(
     'spinnerSlotReserved carries every non-streaming gate',
@@ -61,8 +65,8 @@ check(
   );
   check(
     'showSpinner = slot && the streaming-prose swap only',
-    plain === 'spinner' && streaming === 'hold' && suppressed === 'spinner' && streamingUnderCard === 'none',
-    `${plain} · ${streaming} · ${suppressed} · ${streamingUnderCard}`,
+    plain === 'spinner' && streaming === 'hold' && suppressed === 'spinner' && streamingUnderCard === 'none' && restingQuiet === 'none' && thinkingUnderCard === 'none',
+    `${plain} · ${streaming} · ${suppressed} · ${streamingUnderCard} · ${restingQuiet} · ${thinkingUnderCard}`,
   );
   check(
     'the streaming hold keeps the 1-row slot while prose streams',

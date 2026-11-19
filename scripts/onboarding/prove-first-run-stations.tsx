@@ -21,7 +21,7 @@ if (scenario !== null) {
   const { Onboarding } = await import('../../src/components/Onboarding.js')
   const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.ts')
   const h = React.createElement
-  const element = h(AppStateProvider as never, { onChangeAppState: () => {} } as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never)))
+  const element = h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never)))
   const mounted = await mountOffscreen(element, 120, 40)
   const until = async (needle: string): Promise<boolean> => waitFor(() => mounted.screen().includes(needle), 15_000)
   const frames: Record<string, string> = {}

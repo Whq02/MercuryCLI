@@ -32,7 +32,7 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
   void render(
     h(
       AppStateProvider as never,
-      { onChangeAppState: () => {} } as never,
+      {} as never,
       h(
         KeybindingSetup as never,
         {} as never,

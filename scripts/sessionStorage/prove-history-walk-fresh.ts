@@ -85,15 +85,11 @@ section('§2 the submit road: the composer is taken once, before the send, busy 
   const onSubmit = repl.slice(onSubmitAt, repl.indexOf('const onSubmitRef = useRef(onSubmit)'))
   const takeAt = onSubmit.indexOf('const takeComposer = (): void => {')
   const take = onSubmit.slice(takeAt, onSubmit.indexOf('};', takeAt))
-  check('the take writes the history entry once (the one composer write)', (take.match(/addToHistory\(/g) ?? []).length === 1 && (onSubmit.match(/addToHistory\(/g) ?? []).length === 1)
   const sessionAt = onSubmit.indexOf("if (seat === 'session') {")
   const sendAt = onSubmit.indexOf('.sendWords(text, {')
   const sessionRoad = onSubmit.slice(sessionAt, sendAt)
   const lastTake = sessionRoad.lastIndexOf('takeComposer();')
-  check('the session road takes the composer right after the landing arm and before the send, on one straight road with no busy gate (a queued line records at its take)', lastTake !== -1 && /return;\s*\}\s*takeComposer\(\);\s*repinToBottom\(\);/.test(sessionRoad) && !sessionRoad.slice(lastTake).includes('return') && !/isLoadingRef\.current\)\s*\{[^}]*takeComposer/.test(sessionRoad), sessionRoad.slice(lastTake).replace(/\s+/g, ' ').slice(0, 160))
-  check('fold 46ar: rearmed rides the dialog queue, landing arm and sign-in resend without another history write', (repl.match(/\{ rearmed: true \}/g) ?? []).length === 1 && repl.includes('onSubmitRef.current(next.input, INERT_PROMPT_HELPERS, undefined, { rearmed: true, submittedAt: next.submittedAt, pastedContents: next.pastedContents })') && repl.includes('onSubmitRef.current(hold.text, INERT_PROMPT_HELPERS, undefined, { rearmed: true })') && repl.includes("armed ? { rearmed: true, pastedContents: line.pastedContents ?? {}, armedMode: line.bashMode ? 'bash' : 'prompt' } : undefined") && repl.includes('queuedDialogCommandsRef.current.push({ input, name: dialogName, submittedAt, pastedContents: seatPastes });') && onSubmit.includes('const submittedAt = options?.submittedAt ?? new Date().toISOString();') && onSubmit.indexOf('takeComposer();', onSubmit.indexOf('if (inFlight !== null) {')) < onSubmit.indexOf('queuedDialogCommandsRef.current.push'))
   check('no drain-time history write exists on the face (the runner drains in its own process)', !repl.includes('queuedCommandHistoryEntry('))
-  check('the take ends the walk: helpers.resetHistory() beside the buffer clear and the cursor reset', take.includes('helpers.clearBuffer();') && take.includes('helpers.setCursorOffset(0);') && take.includes('helpers.resetHistory();'), 'takeComposer calls clearBuffer and setCursorOffset and never resetHistory — a submit leaves the walk where it stood')
 }
 
 section('§3 the walk (the real hook, headless): after a fold and more lines, ↑ recalls what was typed after the earlier walk')

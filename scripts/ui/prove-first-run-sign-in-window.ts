@@ -39,7 +39,7 @@ function Journey() {
 }
 if (process.argv.includes('--pty-child')) {
   const { render } = await import('../../src/ink.js')
-  await render(h(AppStateProvider as never, { onChangeAppState: () => {} } as never, h(KeybindingSetup as never, {} as never, h(Journey))))
+  await render(h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Journey))))
   await new Promise(() => {})
 }
 for (const [cols, rows] of [[80, 24], [64, 20]]) {
@@ -63,7 +63,7 @@ for (const [cols, rows] of [[80, 24], [64, 20]]) {
 }
 for (const [cols, rows, shrink] of [[177, 49, false], [100, 30, false], [80, 24, false], [64, 20, false], [80, 24, true], [64, 20, true]] as const) {
   const tag = `${cols}x${rows}${shrink ? '-resized' : '-fresh'}`
-  const element = h(AppStateProvider as never, { onChangeAppState: () => {} } as never, h(KeybindingSetup as never, {} as never, h(Journey)))
+  const element = h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Journey)))
   const scene = await mountOffscreen(element, shrink ? 177 : cols, shrink ? 49 : rows)
   let liveCols: number = shrink ? 177 : cols
   let liveRows: number = shrink ? 49 : rows

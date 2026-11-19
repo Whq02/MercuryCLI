@@ -32,7 +32,7 @@ function section(title: string): void {
 
 const React = await import('react')
 const { Box } = await import('../../src/ink.js')
-const { AppStateProvider, getDefaultAppState } = await import('../../src/state/AppState.js')
+const { AppStateProvider, getDefaultAppState, useAppStateStore } = await import('../../src/state/AppState.js')
 const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
 const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
 const store = await import('../../src/utils/cockpit/settingsPopup.js')
@@ -51,6 +51,20 @@ const LEFT = 34
 const TOP = 4
 type Notice = { key?: string; text: string; priority?: string }
 let notices: Notice[] = []
+function NoticeTap(): null {
+  const appState = useAppStateStore()
+  React.useLayoutEffect(() => {
+    const read = (): void => {
+      const held = appState.getState().notifications as { current?: Notice | null; queue?: Notice[] } | undefined
+      const current = held?.current
+      if (current && !notices.some(n => n.text === current.text)) notices.push(current)
+      for (const queued of held?.queue ?? []) if (!notices.some(n => n.text === queued.text)) notices.push(queued)
+    }
+    read()
+    return appState.subscribe(read)
+  }, [appState])
+  return null
+}
 
 async function openPopup(model?: string): Promise<Mounted> {
   notices = []
@@ -58,12 +72,8 @@ async function openPopup(model?: string): Promise<Mounted> {
     AppStateProvider as never,
     {
       ...(model ? { initialState: { ...getDefaultAppState(), engineModel: model } } : {}),
-      onChangeAppState: ({ newState: state }: { newState: { notifications?: { current?: Notice | null; queue?: Notice[] } } }) => {
-        const current = state.notifications?.current
-        if (current && !notices.some(n => n.text === current.text)) notices.push(current)
-        for (const queued of state.notifications?.queue ?? []) if (!notices.some(n => n.text === queued.text)) notices.push(queued)
-      },
     },
+    React.createElement(NoticeTap),
     React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: COLS, height: ROWS }, React.createElement(SettingsPopupSlot, { overlay: true }))),
   )
   const m = await mountOffscreen(element, COLS, ROWS)
