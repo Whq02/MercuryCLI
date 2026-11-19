@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Box, Text } from '../ink.js'
+import '../ink.js'
 import type { CommandResultDisplay } from '../commands.js'
 import type { Message } from '../types/message.js'
-import TextInput from './TextInput.js'
-import { Select } from './CustomSelect/select.js'
+import './TextInput.js'
+import './CustomSelect/select.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useRegisterOverlay } from '../context/overlayContext.js'
 import { useInput } from '../ink.js'
@@ -36,32 +36,16 @@ import {
 import { getSessionId } from '../bootstrap/state.js'
 import { openBrowser } from '../utils/browser.js'
 import { logForDebugging } from '../utils/debug.js'
-import {
-  ISSUE_FORMS,
-  ISSUE_KINDS,
-  composeIssueBody,
-  healthPointer,
-  fullIssueTitle,
-  issueFormUrl,
-  noGhParagraph,
-  promptedFields,
-  type IssueForm,
-  type IssueKind,
-} from '../commands/feedback/issueForms.js'
+import { ISSUE_FORMS, composeIssueBody, healthPointer, fullIssueTitle, issueFormUrl, promptedFields, type IssueForm, type IssueKind } from '../commands/feedback/issueForms.js'
 import { gatherHealthSection } from '../commands/feedback/healthSection.js'
-import {
-  checkIssueAccess,
-  fileIssue,
-  issueRepoSlug,
-  issuesPageUrl,
-  type IssueAccess,
-} from '../services/repoHost/ghIssue.js'
+import { checkIssueAccess, fileIssue, issueRepoSlug, type IssueAccess } from '../services/repoHost/ghIssue.js'
 import { provenanceLine, resolveInstallProvenance } from '../services/privateChannel/installProvenance.js'
 import { getEngineModel } from '../utils/model/model.js'
 import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
 import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
 import { CREDENTIAL_VALUE_PASSES } from '../services/providers/credentialEnvSpellings.js'
+import { feedbackView } from './feedback/feedbackView.js'
 
 
 export function redactSensitiveInfo(text: string): string {
@@ -362,7 +346,7 @@ function bodyByteCount(body: string): number {
 }
 
 
-type Step =
+export type Step =
   | 'kind'
   | 'ask'
   | 'preparing'
@@ -627,126 +611,7 @@ export function Feedback({
 
   const slug = slugRef.current
 
-  return (
-    <Box
-      ref={surfaceRef}
-      flexDirection="column"
-      borderStyle="round"
-      borderColor={tokens.borderSubtle}
-      paddingX={1}
-      gap={1}
-    >
-      <Text bold>{surfaceTitle(form)}</Text>
-      {step === 'kind' ? (
-        <Box flexDirection="column" gap={1}>
-          <Text>Which form does this follow?</Text>
-          <Select
-            options={ISSUE_KINDS.map(k => ({
-              label: ISSUE_FORMS[k].name,
-              value: k,
-              description: ISSUE_FORMS[k].description,
-            }))}
-            onChange={value => {
-              const chosen = ISSUE_FORMS[value as IssueKind]
-              setForm(chosen)
-              setAskIndex(0)
-              setStep('ask')
-            }}
-            onCancel={cancel}
-          />
-          <Text dimColor>↑↓ choose · enter to continue · esc to cancel</Text>
-        </Box>
-      ) : null}
-      {step === 'ask' && field !== null ? (
-        <Box flexDirection="column" gap={1}>
-          <Text>
-            {field.label}
-            {field.source === 'ask' && !field.required ? <Text dimColor> (optional — enter to skip)</Text> : null}:
-          </Text>
-          {field.prompt !== undefined ? <Text dimColor>{field.prompt}</Text> : null}
-          <TextInput
-            value={draft}
-            onChange={setDraft}
-            onSubmit={advance}
-            onExit={cancel}
-            columns={Math.max(30, columns - 6)}
-            multiline
-            cursorOffset={cursorOffset}
-            onChangeCursorOffset={setCursorOffset}
-            placeholder={field.source === 'words' ? 'What happened?' : ''}
-          />
-          <Text dimColor>enter to continue · esc to cancel</Text>
-        </Box>
-      ) : null}
-      {step === 'preparing' ? <Text dimColor>Preparing the report…</Text> : null}
-      {step === 'review' && form !== null ? (
-        <Box flexDirection="column" gap={1}>
-          <Text>
-            This exact body ({bytes} bytes) will be filed as a new issue in {slug} through your own gh, titled:
-          </Text>
-          <Text bold>{title}</Text>
-          <Box flexDirection="column" borderStyle="single" borderColor={tokens.borderSubtle} paddingX={1}>
-            {lines.slice(scroll, scroll + viewRows).map((line, i) => (
-              <Text key={scroll + i}>{line === '' ? ' ' : line}</Text>
-            ))}
-          </Box>
-          <Text dimColor>
-            {lines.length > viewRows
-              ? `lines ${scroll + 1}–${Math.min(lines.length, scroll + viewRows)} of ${lines.length} · ↑↓ pgup pgdn scroll · `
-              : ''}
-            The session transcript stays in the local draft ({paths?.json}) and is not sent.
-          </Text>
-          <Text dimColor>enter to file it · esc to keep the draft only</Text>
-        </Box>
-      ) : null}
-      {step === 'filing' ? <Text dimColor>Filing through gh…</Text> : null}
-      {step === 'done' && form !== null ? (
-        <Box flexDirection="column" gap={1}>
-          <Text color={tokens.success}>Filed: {issueUrl}</Text>
-          <Text dimColor>
-            The body that left the box: {paths?.body} · the local draft (with the transcript): {paths?.json}
-          </Text>
-          <Text dimColor>press any key to close</Text>
-        </Box>
-      ) : null}
-      {step === 'unavailable' && access !== null && access.state !== 'ok' ? (
-        <Box flexDirection="column" gap={1}>
-          <Text>
-            {noGhParagraph({
-              note: access.note,
-              remedy: access.remedy,
-              slug,
-              draftPath: paths?.json ?? null,
-              bodyPath: paths?.body ?? null,
-            })}
-          </Text>
-          {formUrl !== null ? (
-            <Box flexDirection="column">
-              <Text>
-                {form?.kind === 'tester'
-                  ? "Or open the short issue form prefilled from this report; the transcript stays in the local draft:"
-                  : "Or open the repository's issue form prefilled from this report; the health --json block and the transcript stay in the local draft (paste the health block by hand):"}
-              </Text>
-              <Text dimColor>{formUrl}</Text>
-            </Box>
-          ) : null}
-          <Text dimColor>enter to open the prefilled form in your browser · any other key to close (the link stays in the transcript, to copy)</Text>
-        </Box>
-      ) : null}
-      {step === 'failed' && failure !== null ? (
-        <Box flexDirection="column" gap={1}>
-          <Text color={tokens.failureText}>Not filed: {failure.note}</Text>
-          <Text>
-            {failure.remedy}.
-            {paths !== null
-              ? ` The body to paste is at ${paths.body} and the local draft at ${paths.json}; the issues page is ${issuesPageUrl(slug)}.`
-              : ''}
-          </Text>
-          <Text dimColor>press any key to close</Text>
-        </Box>
-      ) : null}
-    </Box>
-  )
+  return feedbackView({ tokens, surfaceRef, columns, form, setForm, step, setStep, setAskIndex, draft, setDraft, cursorOffset, setCursorOffset, title, scroll, paths, access, failure, issueUrl, formUrl, cancel, field, advance, lines, viewRows, bytes, slug, surfaceTitle })
 }
 
 export default Feedback
