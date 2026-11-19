@@ -6,6 +6,8 @@ import { subscribeCwdState } from '../bootstrap/state.js'
 import { initializeProjectLocalEstate } from '../services/projectLocal/paths.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { getCwd } from './cwd.js'
+import { errorMessage } from './errors.js'
+import { logError } from './log.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
 import { getProjectsDir } from './sessionStorage/paths.js'
 import { getProjectDir, validateUuid } from './sessionStoragePortable.js'
@@ -456,7 +458,8 @@ export function catalogFirstChat(dir: string, sessionId: string): void {
       const card: ProjectCard = { schema: 1, dir, firstChatAt: Date.now(), firstSessionId: sessionId }
       durableAtomicPublishSync(join(store, PROJECT_CARD_FILE), JSON.stringify(card) + '\n')
     }
-  } catch {
+  } catch (error) {
+    logError(new Error(`the project card of ${dir} could not be written, so a later chat records itself as the project's first: ${errorMessage(error)}`))
   }
   emitCatalogChanged()
 }
