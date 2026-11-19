@@ -1,1302 +1,143 @@
-import { writeFileSync, readFileSync, statSync } from 'node:fs'
-import { basename, dirname, isAbsolute } from 'node:path'
-import { z } from 'zod/v4'
-import { buildTool, type ToolEffect, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
+import { readFileSync } from 'node:fs'
+import { type CanUseToolFn, type ToolEffect, type ToolEffectOutcome, type ToolUseContext, buildTool } from '../../Tool.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
-import { lazySchema } from '../../utils/lazySchema.js'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
-import { imageDimensionsFromHeader } from '../FileReadTool/imageProcessorJs.js'
-import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
-import { getImageProcessor } from '../FileReadTool/imageProcessor.js'
 import { isTerminalApplication, readTerminalText } from './terminalText.js'
 import { WEB_CONTENT_NOTICE } from '../BashTool/webContent.js'
-import { DENIAL_WORKAROUND_GUIDANCE } from '../../utils/messages/rejectionText.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
-import { compatImageRefusalWords, compatModelImageReading, refreshCompatModelImageReading } from '../../services/providers/openaicompat/compatProbe.js'
-import { getEngineModel, normalizeModelStringForAPI } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { sleep } from '../../utils/sleep.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
-import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
-import type { PermissionDecision, PermissionRule, ToolPermissionContext } from '../../types/permissions.js'
-import { classifyModelRoute, providerDisplayName } from '../../services/providers/routeLaw.js'
+import type { PermissionDecision, ToolPermissionContext } from '../../types/permissions.js'
 import { rememberDesktopPermissions, resolveDesktopDriver } from '../../services/desktop/resolveDriver.js'
-import { TREE_UNANSWERED_REASON } from '../../services/desktop/driver.js'
-import type {
-  DesktopAnswer,
-  DesktopApplication,
-  DesktopDriver,
-  DesktopError,
-  DesktopModifier,
-  DesktopPoint,
-  DesktopTree,
-  DesktopTreeElement,
-  DesktopTreeLimits,
-  DesktopBounds,
-} from '../../services/desktop/driver.js'
+import type { DesktopAnswer, DesktopBounds, DesktopError, DesktopTree, DesktopTreeElement } from '../../services/desktop/driver.js'
 import {
-  DESKTOP_SHOTS_KEEP,
+  type DesktopJudgedApp,
   appApproved,
   approveApp,
   consumeCheckedAct,
   desktopPostureRefusal,
-  imageRefusedFor,
   markCheckedActAsked,
   noteCheckedActApp,
-  noteScreenshot,
   noteTurnHome,
   peekCheckedActApp,
-  pruneDesktopShots,
   screenOf,
-  screenshotPath,
   setDrivingApp,
   setScreen,
   turnKeyOf,
-  type DesktopJudgedApp,
 } from '../../services/desktop/desktopSession.js'
 import { claimDesktop, desktopClaimBusyNote, renewDesktopClaim } from '../../services/desktop/desktopClaim.js'
-import { screenshotVisibleInContext } from '../../services/desktop/screenshotRetention.js'
-import { challengeGranted, grantChallenge, readComputerGrant, settleChallenge } from '../../services/desktop/computerGrant.js'
+import { readComputerGrant, settleChallenge } from '../../services/desktop/computerGrant.js'
 import { computerAccessPinnedToAsk, savedComputerAccess } from '../../services/desktop/computerAccess.js'
 import { resolveComputerAccess } from '../../substrate/startupMenu.js'
 import { postureBypassesAsks } from '../../utils/permissions/decision/engine.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
-import type { AssistantMessage, Message } from '../../types/message.js'
-import { KEY_CHORD_VOCABULARY, appSwitchChord, isAppSwitchChord, isKeyChordRefusal, parseKeyChord, type KeyChord } from './keyChord.js'
+import type { AssistantMessage } from '../../types/message.js'
 import {
-  isPixelOutside,
-  outlineTree,
-  outlineRowWords,
-  rememberTreeRefs,
-  resolveTreeRef,
   type DesktopOutline,
+  type ScreenMap,
+  outlineTree,
   pixelOfPoint,
   pixelOnScreen,
-  pointOfPixel,
-  screenMapOfCapture,
-  screenMapSizeWords,
-  type ScreenMap,
+  rememberTreeRefs,
+  resolveTreeRef,
 } from './screenMap.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
-import type { CanUseToolFn } from '../../Tool.js'
-import { type ScreenFacts, STATE_LINE, candidateWords, clippedWords, nearestOnScreen, regionRefusal, withOrdinal, sameWindow, settledCapture, stateWord, windowOnDisplay, targetMatches, targetElement, targetPoint, targetWords, readObservation, settledObservation, observationChanged, treeObservation, verificationWords, pageContentNote, type CaptureRegion, type DesktopObservation } from './fastRoad.js'
-import { CAPTCHA_ASK_UNAVAILABLE, CAPTCHA_OPERATOR_COMPLETES, CAPTCHA_QUESTION, captchaNote, titleSight, treeSight, type CaptchaSight } from './captcha.js'
+import {
+  type DesktopObservation,
+  STATE_LINE,
+  observationChanged,
+  pageContentNote,
+  readObservation,
+  regionRefusal,
+  sameWindow,
+  settledObservation,
+  stateWord,
+  targetElement,
+  targetMatches,
+  targetWords,
+  treeObservation,
+  verificationWords,
+  withOrdinal,
+} from './fastRoad.js'
+import { treeSight } from './captcha.js'
 import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from './operatorPause.js'
-
-import { waitConditionPassed, waitConditionRefusal, waitConditionWords } from './waitCondition.js'
+import { waitConditionPassed, waitConditionWords } from './waitCondition.js'
 import { COMPUTER_PROMPT } from './prompt.js'
+import {
+  ACTIONS,
+  ACT_ACTIONS,
+  ASK_ACTIONS,
+  FACT_ACTIONS,
+  FIELD_ROLES,
+  type Input,
+  type Output,
+  READ_ACTIONS,
+  SCREENSHOT_NOT_RETURNED,
+  SCREENSHOT_SUPERSEDED,
+  SCREENSHOT_UNSEEN,
+  SETTLE_CAP_MS,
+  SETTLE_DEFAULT_MS,
+  type SchemaType,
+  TREE_DEPTH_CAP,
+  TREE_DEPTH_DEFAULT,
+  TREE_LIMIT_CAP,
+  TREE_LIMIT_DEFAULT,
+  UNTIL_DEFAULT_MS,
+  WAIT_CAP_MS,
+  WAIT_DEFAULT_MS,
+  carriesScreenContent,
+  clamp,
+  computerToolEnabled,
+  inputSchema,
+  modelInputSchema,
+  permissionAction,
+  refuse,
+  tableRefusal,
+} from './computer/schema.js'
+import {
+  captchaLine,
+  challengeAction,
+  challengeRoad,
+  challengeVerdict,
+  frontAfterCard,
+  isPlanRefusal,
+  ownTerminalRefusal,
+  planOf,
+  resolveActTargets,
+  scrollClippedEnds,
+  settleActPoints,
+} from './computer/plan.js'
+import { type ActWords, actDetail, faultNote, faultText, performAct } from './computer/act.js'
+import {
+  applicationWords,
+  factsLine,
+  fieldsWords,
+  interruptedAfterActText,
+  interruptedText,
+  readRefElement,
+  readWords,
+  treeLimitsOf,
+  treeWords,
+} from './computer/words.js'
+import {
+  type Shot,
+  denied,
+  routeRefusal,
+  ruleFor,
+  ruleVerdict,
+  takeScreenshot,
+  toolUseIdOfParent,
+  toolUseIdsOfParent,
+} from './computer/shot.js'
 
 export { COMPUTER_TOOL_NAME }
-
-const ACTIONS = [
-  'screenshot',
-  'click',
-  'doubleClick',
-  'rightClick',
-  'move',
-  'drag',
-  'scroll',
-  'type',
-  'key',
-  'hold',
-  'wait',
-  'cursor',
-  'displays',
-  'frontmost',
-  'tree',
-  'find',
-  'sequence',
-  'read',
-  'focusApp',
-  'file',
-  'fill',
-  'fields',
-] as const
-type ComputerAction = (typeof ACTIONS)[number]
-
-const ACT_ACTIONS: ReadonlySet<string> = new Set([
-  'click',
-  'doubleClick',
-  'rightClick',
-  'move',
-  'drag',
-  'scroll',
-  'type',
-  'key',
-  'hold',
-  'file',
-  'fill',
-])
-const ASK_ACTIONS: ReadonlySet<string> = new Set([...ACT_ACTIONS, 'tree', 'focusApp'])
-const POINT_ACTIONS: ReadonlySet<string> = new Set(['click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'file'])
-const READ_ACTIONS: ReadonlySet<string> = new Set(['screenshot', 'wait', 'cursor', 'displays', 'frontmost', 'tree'])
-const FACT_ACTIONS: ReadonlySet<string> = new Set(['cursor', 'displays', 'frontmost'])
-const CONTENT_ACTIONS: ReadonlySet<string> = new Set(['screenshot', 'tree', 'find', 'read', 'fields'])
-const TREE_READS: ReadonlySet<string> = new Set(['tree', 'find', 'fields'])
-const FIELD_ROLES = /^(AX)?(TextField|TextArea|SearchField|SecureTextField|ComboBox|PopUpButton|MenuButton|CheckBox|RadioButton|Slider|DateField|TimeField|Incrementor|ToggleButton)(?:$| \()/i
-
-function carriesScreenContent(input: Input, image: boolean): boolean {
-  return image || CONTENT_ACTIONS.has(input.action) || (input.action === 'sequence' && (input.steps ?? []).some(step => CONTENT_ACTIONS.has(step.action)))
-}
-
-const MODIFIERS = ['Shift', 'Control', 'Alt', 'Meta'] as const
-type ModelModifier = (typeof MODIFIERS)[number]
-const MODIFIER_KEYS: Readonly<Record<ModelModifier, DesktopModifier>> = {
-  Shift: 'shift',
-  Control: 'control',
-  Alt: 'alt',
-  Meta: 'super',
-}
-
-const SETTLE_DEFAULT_MS = 300
-const SETTLE_CAP_MS = 5_000
-const WAIT_DEFAULT_MS = 1_000
-const UNTIL_DEFAULT_MS = 5_000
-const WAIT_CAP_MS = 10_000
-const FILE_DIALOG_MS = 3_000
-const FILE_CLOSE_MS = 8_000
-const FILE_KEY_GAP_MS = 400
-const FIELD_VALUE_CHARS = 300
-const HOLD_MIN_MS = 50
-export const HOLD_CAP_MS = 5_000
-export const TYPE_TEXT_CAP = 4_000
-export const TREE_DEPTH_DEFAULT = 12
-export const TREE_DEPTH_CAP = 32
-export const TREE_LIMIT_DEFAULT = 400
-export const TREE_LIMIT_CAP = 2_000
-
-export function computerToolEnabled(): boolean {
-  if (!flagEnabled('MERCURY_COMPUTER_USE')) return false
-  return resolveDesktopDriver().state === 'ok'
-}
-
-const targetSchema = lazySchema(() => z.strictObject({ role: z.string().optional(), name: z.string().optional(), text: z.string().optional(), nth: z.number().int().positive().optional() }))
-const baseSchema = lazySchema(() =>
-  z.strictObject({
-    action: z.enum(ACTIONS),
-    x: z.number().optional(),
-    y: z.number().optional(),
-    toX: z.number().optional(),
-    toY: z.number().optional(),
-    dx: z.number().optional(),
-    dy: z.number().optional(),
-    text: z.string().optional(),
-    key: z.string().optional(),
-    modifiers: z.array(z.enum(MODIFIERS)).optional(),
-    durationMs: z.number().optional(),
-    display: z.number().optional(),
-    settleMs: z.number().optional(),
-    capture: z.boolean().optional(),
-    full: z.boolean().optional(),
-    pixels: z.boolean().optional(),
-    scale: z.number().min(0.25).max(1).optional(),
-    label: z.string().optional(),
-    depth: z.number().optional(),
-    limit: z.number().optional(),
-    target: targetSchema().optional(),
-    ref: z.number().int().positive().optional(),
-    root: z.union([z.number().int().positive(), targetSchema()]).optional(),
-    all: z.boolean().optional(),
-    points: z.boolean().optional(),
-    clipboard: z.boolean().optional(),
-    focusApp: z.strictObject({ name: z.string() }).optional(),
-    toTarget: targetSchema().optional(),
-    until: z.strictObject({ role: z.string().optional(), name: z.string().optional(), text: z.string().optional(), title: z.string().optional(), url: z.string().optional(), dialog: z.boolean().optional(), focus: z.string().optional(), gone: z.boolean().optional() }).optional(),
-    count: z.number().optional(),
-    region: z.strictObject({ x: z.number(), y: z.number(), width: z.number(), height: z.number() }).optional(),
-    scope: z.enum(['window', 'app']).optional(),
-    verify: z.boolean().optional(),
-    captcha: z.boolean().optional(),
-    path: z.string().optional(),
-  }),
-)
-
-export type Input = z.infer<ReturnType<typeof baseSchema>> & { steps?: Input[] }
-type SchemaType = z.ZodType<Input>
-const inputSchema = lazySchema((): SchemaType => baseSchema().extend({ steps: z.array(z.lazy(() => inputSchema())).optional() }))
-const modelInputSchema = lazySchema(() => {
-  const base = baseSchema()
-  const step = base.extend({ action: z.enum(ACTIONS.filter(action => action !== 'sequence')) })
-  const f = base.shape
-  return base.extend({
-    x: f.x.describe('Last-screenshot x; paired with y.'),
-    y: f.y.describe('Last-screenshot y; paired with x.'),
-    toX: f.toX.describe('drag: destination x.'),
-    toY: f.toY.describe('drag: destination y.'),
-    dx: f.dx.describe('scroll: horizontal notches (+right).'),
-    dy: f.dy.describe('scroll: vertical notches (+down).'),
-    text: f.text.describe(`type or fill: ≤${TYPE_TEXT_CAP} chars; newline/tab are the only control chars.`),
-    key: f.key.describe(`Key chord: ${KEY_CHORD_VOCABULARY}.`),
-    durationMs: f.durationMs.describe(`hold: ${HOLD_MIN_MS}–${HOLD_CAP_MS} ms; wait: default ${WAIT_DEFAULT_MS} (${UNTIL_DEFAULT_MS} with until), max ${WAIT_CAP_MS} ms.`),
-    display: f.display.describe('Display index (default front window); applies with capture:true.'),
-    settleMs: f.settleMs.describe(`Post-act delay in ms (default ${SETTLE_DEFAULT_MS}, cap ${SETTLE_CAP_MS}); not readiness.`),
-    capture: f.capture.describe('Capture after act; sequence captures once at end (screenshot steps in place); wait-until on match; false suppresses.'),
-    full: f.full.describe('Capture display instead of front window (including capture:true).'),
-    pixels: f.pixels.describe('Terminal pixels instead of accessibility text.'),
-    scale: f.scale.describe('Capture scale (default 0.5 window, 1 display/region).'),
-    depth: f.depth.describe(`Tree depth (default ${TREE_DEPTH_DEFAULT}, clamped at ${TREE_DEPTH_CAP}; targets default to cap).`),
-    limit: f.limit.describe(`Tree rows (default ${TREE_LIMIT_DEFAULT}, clamped at ${TREE_LIMIT_CAP}; targets default to cap).`),
-    target: f.target.describe('Exact role/name, substring text; unique match, or 1-based nth.'),
-    ref: f.ref.describe('Node id from latest tree/find (stale once the list changes); alternative to target or x/y.'),
-    root: f.root.describe('Tree root: ref or target.'),
-    all: f.all.describe('Include hidden nodes.'),
-    points: f.points.describe('Include node pixel coordinates.'),
-    clipboard: f.clipboard.describe('read: clipboard text (separate consent) instead of target/ref.'),
-    focusApp: f.focusApp.describe('Focus running app by name or bundle id; capture after.'),
-    toTarget: f.toTarget.describe('drag: destination target instead of toX/toY.'),
-    until: f.until.describe('wait: text/title/url substring, role/name, dialog:true or focus role; gone waits for removal.'),
-    count: f.count.describe('click: 1–3.'),
-    region: f.region.describe('Capture box in last-screenshot pixels.'),
-    scope: f.scope.describe('Tree scope: window (default); app adds its other windows.'),
-    verify: f.verify.describe('Diff trees after act (reports change, not task success).'),
-    captcha: f.captcha.describe('Ask operator before acting on a visible challenge.'),
-    path: f.path.describe('file: absolute path for native file dialog.'),
-    steps: z.array(step).optional().describe('Non-nested sequence; stops on failure or wait-until timeout. Put capture/region/scale/settleMs on sequence.'),
-  })
-})
-
-export type Output = {
-  action: Input['action']
-  result: string
-  outcome: ToolEffectOutcome
-  imagePath?: string
-  inlinePath?: string
-  inlineMediaType?: string
-  screen?: ScreenMap
-}
-
-const ACT_FIELDS = ['settleMs', 'capture', 'region', 'label', 'verify']
-const TARGET_FIELDS = ['target', 'ref', 'depth', 'limit']
-const ACTION_FIELDS: Readonly<Record<ComputerAction, readonly string[]>> = {
-  screenshot: ['display', 'label', 'region', 'full', 'pixels', 'scale'],
-  click: ['x', 'y', 'modifiers', 'count', ...TARGET_FIELDS, ...ACT_FIELDS],
-  doubleClick: ['x', 'y', 'modifiers', ...TARGET_FIELDS, ...ACT_FIELDS],
-  rightClick: ['x', 'y', 'modifiers', ...TARGET_FIELDS, ...ACT_FIELDS],
-  move: ['x', 'y', ...TARGET_FIELDS, ...ACT_FIELDS],
-  drag: ['x', 'y', 'toX', 'toY', 'toTarget', 'modifiers', ...TARGET_FIELDS, ...ACT_FIELDS],
-  scroll: ['x', 'y', 'dx', 'dy', 'modifiers', ...TARGET_FIELDS, ...ACT_FIELDS],
-  type: ['text', ...ACT_FIELDS],
-  key: ['key', ...ACT_FIELDS],
-  hold: ['key', 'durationMs', ...ACT_FIELDS],
-  wait: ['durationMs', 'until', 'depth', 'limit', 'scope', 'capture', 'region', 'scale', 'label'],
-  cursor: [],
-  displays: [],
-  frontmost: [],
-  read: ['target', 'ref', 'clipboard', 'depth', 'limit'],
-  focusApp: ['focusApp', 'capture', 'settleMs', 'label'],
-  tree: ['depth', 'limit', 'scope', 'pixels', 'root', 'all', 'points'],
-  find: ['target', 'depth', 'limit', 'scope', 'root', 'all', 'points'],
-  sequence: ['steps', 'settleMs', 'capture', 'region', 'scale', 'label'],
-  file: ['x', 'y', 'path', 'durationMs', ...TARGET_FIELDS, ...ACT_FIELDS],
-  fill: ['text', ...TARGET_FIELDS, ...ACT_FIELDS],
-  fields: ['depth', 'limit', 'scope', 'root', 'all', 'points'],
-}
-
-function permissionAction(input: Input): ComputerAction {
-  return input.action === 'read' || input.action === 'find' || input.action === 'fields' || (input.action === 'wait' && input.until !== undefined) ? 'tree' : input.action
-}
-
-function typesKeys(input: Input, plan: ActPlan): boolean {
-  return input.action === 'type' || input.action === 'hold' || input.action === 'fill' || input.action === 'file' || (input.action === 'key' && !(plan.chord !== null && isAppSwitchChord(plan.chord)))
-}
-
-const NO_SCREENSHOT = 'no screenshot yet — coordinates are pixels of the last screenshot; take one first'
-const SCREENSHOT_GONE =
-  'the last screenshot is no longer in the conversation — coordinates are pixels of a screenshot you can see; take a new one first'
-const SCREENSHOT_UNSEEN =
-  'the last screenshot was taken in this same message — you have not seen it; take the screenshot alone, then the region or the act'
-const SCREENSHOT_NOT_RETURNED =
-  "screenshot taken by the step but not returned: a failed answer carries no image, so the previous screenshot's coordinates still apply — take the screenshot alone to see it"
-const SCREENSHOT_SUPERSEDED =
-  "screenshot taken by an earlier step but not returned: the terminal text below is this answer's content, so the previous screenshot's coordinates still apply — take the screenshot alone to see it"
-
-function refuse(message: string): { result: false; message: string; errorCode: number } {
-  return { result: false, message, errorCode: 1 }
-}
-
-function clamp(value: number, floor: number, cap: number): number {
-  return Math.min(Math.max(value, floor), cap)
-}
-
-function isNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value)
-}
-
-function controlCharacterOf(text: string): string | null {
-  for (const character of text) {
-    const code = character.codePointAt(0) ?? 0
-    if (code === 0x0a || code === 0x09) continue
-    if (code < 0x20 || code === 0x7f) return `U+${code.toString(16).toUpperCase().padStart(4, '0')}`
-  }
-  return null
-}
-
-function fieldRefusal(input: Input): string | null {
-  const allowed = ACTION_FIELDS[input.action]
-  for (const [field, value] of Object.entries(input)) {
-    if (field === 'action' || field === 'captcha' || value === undefined) continue
-    if (ACT_ACTIONS.has(input.action) && input.capture === true && ['scale', 'full', 'display'].includes(field)) continue
-    if (!allowed.includes(field)) return `${input.action} does not take ${field}`
-  }
-  return null
-}
-
-function tableRefusal(input: Input): string | null {
-  const stray = fieldRefusal(input)
-  if (stray !== null) return stray
-  const action = input.action
-  if (!TREE_READS.has(action) && action !== 'read' && input.target === undefined && input.ref === undefined && input.toTarget === undefined && input.until === undefined) {
-    for (const field of ['depth', 'limit'] as const) if (input[field] !== undefined) return `${action} does not take ${field}`
-  }
-  if (input.until !== undefined) {
-    const refusal = waitConditionRefusal(input.until)
-    if (refusal) return refusal
-  }
-  for (const ref of [input.ref, typeof input.root === 'number' ? input.root : undefined]) {
-    if (ref !== undefined && (!Number.isInteger(ref) || ref < 1)) return 'ref requires a positive row number from tree'
-  }
-  if (input.ref !== undefined && (input.target !== undefined || input.x !== undefined || input.y !== undefined)) return 'choose ref, target or x/y, not more than one'
-  if (action === 'read' && Number(input.clipboard === true) + Number(input.target !== undefined) + Number(input.ref !== undefined) !== 1) return 'read requires one target, ref or clipboard:true'
-  if (action === 'focusApp' && (typeof input.focusApp?.name !== 'string' || !input.focusApp.name.trim())) return 'focusApp requires a nonempty application name or bundle id'
-  for (const selector of [input.target, input.toTarget, typeof input.root === 'object' ? input.root : undefined]) {
-    if (selector === undefined) continue
-    if (![selector.role, selector.name, selector.text].some(value => typeof value === 'string' && value.trim() !== '') || [selector.role, selector.name, selector.text].some(value => value !== undefined && (typeof value !== 'string' || value.trim() === ''))) return 'a target needs a nonempty role, name or text — read tree first'
-    if (selector.nth !== undefined && (!Number.isInteger(selector.nth) || selector.nth < 1)) return 'target.nth must be a whole number starting at 1'
-  }
-  if (input.target !== undefined && (input.x !== undefined || input.y !== undefined)) return 'choose target or x/y, not both'
-  if (input.toTarget !== undefined && (input.toX !== undefined || input.toY !== undefined)) return 'choose toTarget or toX/toY, not both'
-  if (action === 'find' && input.target === undefined) return 'find requires target (role, name or text)'
-  if (input.count !== undefined && ![1, 2, 3].includes(input.count)) return 'click count must be 1, 2 or 3'
-  if (input.region !== undefined && input.display !== undefined) return 'region uses the last screenshot display — omit display'
-  if (input.label !== undefined) {
-    if (action === 'wait' && !(input.capture === true || (input.until !== undefined && input.capture !== false))) return 'wait takes label only with a capture'
-    if (action === 'sequence' && (input.capture === false || input.steps?.at(-1)?.action === 'screenshot')) return 'sequence takes label only for its final capture — put the label on the screenshot step, or drop capture: false'
-  }
-  if (action === 'sequence') {
-    if (!input.steps?.length) return 'sequence requires nonempty steps'
-    for (const [index, step] of input.steps.entries()) {
-      const parsed = inputSchema().safeParse(step)
-      if (!parsed.success || (!ACT_ACTIONS.has(parsed.data.action) && !['tree', 'find', 'fields', 'wait', 'screenshot', 'read', 'focusApp'].includes(parsed.data.action))) return `sequence step ${index + 1} must be an act, tree, find, fields, wait, screenshot, read or focusApp; no nested sequence`
-      if (parsed.data.action !== 'screenshot' && (parsed.data.capture !== undefined || parsed.data.region !== undefined || parsed.data.settleMs !== undefined || parsed.data.scale !== undefined)) return `sequence step ${index + 1}: put capture, region, scale and settleMs on the sequence`
-      if (parsed.data.action === 'wait' && parsed.data.label !== undefined) return `sequence step ${index + 1}: a wait step captures nothing — put the label on the sequence`
-      const refusal = tableRefusal(parsed.data)
-      if (refusal !== null) return `sequence step ${index + 1}: ${refusal}`
-    }
-  }
-  if (POINT_ACTIONS.has(action) && input.target === undefined && input.ref === undefined && !(isNumber(input.x) && isNumber(input.y))) {
-    return `${action} requires x and y (pixels of the last screenshot), or target from tree`
-  }
-  if (action === 'drag' && input.toTarget === undefined && !(isNumber(input.toX) && isNumber(input.toY))) {
-    return 'drag requires toX and toY (the end, in the same pixels), or toTarget from tree'
-  }
-  if (action === 'scroll' && !(isNumber(input.dx) || isNumber(input.dy))) {
-    return 'scroll requires dx or dy (wheel notches)'
-  }
-  if (action === 'type' || action === 'fill') {
-    if (typeof input.text !== 'string' || input.text.length === 0) return `${action} requires text (the characters to ${action === 'fill' ? 'set' : 'type'})`
-    if (input.text.length > TYPE_TEXT_CAP) {
-      return `${action} takes up to ${TYPE_TEXT_CAP} characters — this text is ${input.text.length}; split it`
-    }
-    const control = controlCharacterOf(input.text)
-    if (control !== null) return `${action} refuses the control character ${control} — newline and tab are the only control characters typed`
-  }
-  if (action === 'fill' && input.target === undefined && input.ref === undefined) return 'fill requires target or ref from tree (the text field to set)'
-  if (action === 'file') {
-    if (typeof input.path !== 'string' || !isAbsolute(input.path)) return 'file requires path: the absolute path of the file to upload'
-    let stat: ReturnType<typeof statSync> | null = null
-    try { stat = statSync(input.path) } catch { stat = null }
-    if (stat === null || !stat.isFile()) return `file: ${input.path} is not a file on this machine`
-    if (input.durationMs !== undefined && !(isNumber(input.durationMs) && input.durationMs >= 0 && input.durationMs <= WAIT_CAP_MS)) return `file takes durationMs as the milliseconds to wait for the dialog, up to ${WAIT_CAP_MS}`
-  }
-  if (action === 'key' || action === 'hold') {
-    if (typeof input.key !== 'string') return `${action} requires key (one chord)`
-    const chord = parseKeyChord(input.key)
-    if (isKeyChordRefusal(chord)) return `${action} refused: ${chord.reason}`
-  }
-  if (action === 'hold') {
-    if (!isNumber(input.durationMs)) return `hold requires durationMs (${HOLD_MIN_MS}–${HOLD_CAP_MS})`
-    if (input.durationMs < HOLD_MIN_MS || input.durationMs > HOLD_CAP_MS) {
-      return `hold takes durationMs between ${HOLD_MIN_MS} and ${HOLD_CAP_MS} — ${input.durationMs} is outside`
-    }
-  }
-  if (action === 'wait' && input.durationMs !== undefined && !(isNumber(input.durationMs) && input.durationMs >= 0)) {
-    return 'wait takes durationMs as a whole number of milliseconds'
-  }
-  if (input.display !== undefined && !(Number.isInteger(input.display) && input.display >= 0)) {
-    return 'screenshot takes display as a display number from displays'
-  }
-  if (input.scale !== undefined && !(isNumber(input.scale) && input.scale >= 0.25 && input.scale <= 1)) return 'scale must be between 0.25 and 1'
-  if (input.full && input.region) return 'choose full or region, not both'
-  if (input.settleMs !== undefined && !(isNumber(input.settleMs) && input.settleMs >= 0)) {
-    return `${action} takes settleMs as a number of milliseconds`
-  }
-  if (TREE_READS.has(action) || action === 'read' || input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined || input.until !== undefined) {
-    if (input.depth !== undefined && !(Number.isInteger(input.depth) && input.depth >= 0)) {
-      return `tree takes depth as a whole number from 0 to ${TREE_DEPTH_CAP} — ${String(input.depth)} is outside`
-    }
-    if (input.limit !== undefined && !(Number.isInteger(input.limit) && input.limit >= 1)) {
-      return `tree takes limit as a whole number from 1 to ${TREE_LIMIT_CAP} — ${String(input.limit)} is outside`
-    }
-  }
-  return null
-}
-
-interface ActPlan {
-  point: DesktopPoint | null
-  target: DesktopPoint | null
-  chord: KeyChord | null
-  modifiers: DesktopModifier[]
-  beforeTree?: DesktopTree
-  observe?: DesktopBounds
-  captcha?: CaptchaSight
-  element?: DesktopTreeElement
-  scrolled?: 'action' | 'wheel'
-  clipped?: Array<{ field: 'point' | 'target'; element: DesktopTreeElement; words: string; label: string }>
-  screens?: ScreenFacts
-  aimed?: string
-  returned?: string
-}
-
-async function backFromOwnTerminal(driver: DesktopDriver, judged: DesktopJudgedApp, front: DesktopApplication, signal: AbortSignal): Promise<DesktopApplication | null> {
-  if (driver.findApplication === undefined || driver.activateApplication === undefined) return null
-  const own = await driver.ownTerminalApplication(front)
-  if (!own.ok || own.value === null || own.value.identity !== front.identity) return null
-  const target = await driver.findApplication(judged.name)
-  if (!target.ok || target.value.identity !== judged.identity) return null
-  const activated = await driver.activateApplication(target.value, signal)
-  if (!activated.ok) return null
-  const after = await driver.frontmostApplication()
-  return after.ok && after.value.identity === judged.identity ? after.value : null
-}
-
-async function frontAfterCard(driver: DesktopDriver, checked: { app: DesktopJudgedApp; asked: boolean } | null, front: DesktopApplication, signal: AbortSignal): Promise<{ front: DesktopApplication; returned: string } | null> {
-  if (checked === null || !checked.asked || checked.app.identity === front.identity) return null
-  const back = await backFromOwnTerminal(driver, checked.app, front, signal)
-  return back === null ? null : { front: back, returned: `${checked.app.name} brought back in front (the terminal that asked had taken it)` }
-}
-
-function scrolledWords(plan: ActPlan): string {
-  return `${plan.scrolled ? ` · scrolled into view first (${plan.scrolled})` : ''}${plan.aimed ? ` · ${plan.aimed}` : ''}${plan.returned ? ` · ${plan.returned}` : ''}`
-}
-
-const AIMED_ACTS = new Set(['click', 'doubleClick', 'rightClick', 'move', 'drag', 'file'])
-
-async function settleActPoints(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal, map: ScreenMap | null): Promise<string | null> {
-  if (input.action === 'scroll') {
-    if (plan.point === null || plan.screens === undefined) return null
-    const moved = nearestOnScreen(plan.screens, plan.point, front.bounds)
-    if (moved !== null) {
-      plan.point = moved
-      plan.aimed = `wheeled at ${pointWords(moved)}, the nearest point of the window on the screen (the target lies past the screen's edge)`
-    }
-    return null
-  }
-  if (!AIMED_ACTS.has(input.action) || driver.clickablePoint === undefined) return null
-  const ends: Array<{ field: 'point' | 'target'; element: DesktopTreeElement; label: string }> = []
-  if (plan.element && plan.point !== null && (input.target !== undefined || input.ref !== undefined)) ends.push({ field: 'point', element: plan.element, label: 'its' })
-  if (input.action === 'drag' && input.toTarget !== undefined && plan.beforeTree) {
-    const other = targetElement(plan.beforeTree, input.toTarget, map)
-    if (!('refusal' in other)) ends.push({ field: 'target', element: other, label: `${targetWords(input.toTarget)}'s` })
-  }
-  for (const end of ends) {
-    const frame = end.element.frame
-    if (!frame) continue
-    const answer = await driver.clickablePoint(front, withOrdinal(plan.beforeTree ?? { elements: [end.element], truncated: false, reason: null }, end.element), signal)
-    if (!answer.ok) {
-      if (answer.error.kind === 'aborted') return interruptedText(input.action)
-      continue
-    }
-    const point = answer.value.point
-    if (point === null) continue
-    const inside = point.x >= frame.x && point.x <= frame.x + frame.width && point.y >= frame.y && point.y <= frame.y + frame.height
-    if (!inside) continue
-    const centre = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
-    if (Math.abs(point.x - centre.x) < 1 && Math.abs(point.y - centre.y) < 1) continue
-    plan[end.field] = point
-    if (end.field === 'point') plan.observe = { x: point.x - 24, y: point.y - 24, width: 48, height: 48 }
-    plan.aimed = `aimed at ${end.label} clickable point (${answer.value.road === 'hit-test' ? 'the middle of the run of its frame that hits it' : "the window's own"}, inside the part on view)`
-  }
-  return null
-}
-
-const UNSCROLLED = 'the pane has no scroll action and the wheel moved nothing'
-
-const stillClipped = (where: string, road: string, still: string, moved: boolean): string => {
-  const now = still.replace(' — scroll it into view first', '')
-  const advice = still.includes("display's edge") ? 'move or resize the window so the target lies on the screen, or scroll the page further, then re-issue' : 'it may be collapsed or covered: take a screenshot'
-  return `${where}; it was scrolled (${road}) and ${!moved && now === where ? 'did not move' : `is still clipped: ${now}`} — ${advice}`
-}
-
-const sameFrame = (a: DesktopBounds | null, b: DesktopBounds | null): boolean => JSON.stringify(a) === JSON.stringify(b)
-const EDGE_REACH_PT = 2
-const usableRowFrame = (row: DesktopTreeElement): boolean => row.frame !== null && [row.frame.x, row.frame.y, row.frame.width, row.frame.height].every(Number.isFinite) && row.frame.width > 0 && row.frame.height > 0
-
-async function scrollIntoView(driver: DesktopDriver, front: DesktopApplication, tree: DesktopTree, element: DesktopTreeElement, clipped: string, signal: AbortSignal, screens: ScreenFacts | undefined): Promise<{ element: DesktopTreeElement; road: 'action' | 'wheel' } | { refusal: string; aborted?: boolean }> {
-  const where = clipped.replace(' — scroll it into view first', '')
-  if (driver.scrollToVisible === undefined) return { refusal: `${where} — scroll it into view first (this desktop driver cannot scroll an element into view)` }
-  const source = (element as { sourceIndices?: number[] }).sourceIndices?.[0]
-  const answer = await driver.scrollToVisible(front, withOrdinal(tree, source === undefined ? element : tree.elements[source] ?? element), signal)
-  if (!answer.ok) return answer.error.kind === 'aborted' ? { refusal: interruptedText('scroll'), aborted: true } : { refusal: `${where}; scrolling it into view failed: ${answer.error.note}` }
-  const receipt = answer.value
-  const wheeledNothing = receipt.road === 'wheel' && receipt.note === null && sameFrame(receipt.frame, element.frame)
-  if (!receipt.scrolled || receipt.road === null || wheeledNothing) return { refusal: `${where}; it did not scroll into view (${receipt.note ?? UNSCROLLED}) — it may be collapsed or covered: take a screenshot` }
-  if (receipt.frame === null) return { refusal: `${where}; it was scrolled (${receipt.road}) but its frame could not be read afterwards — take a screenshot and use its pixels` }
-  const { offscreen: _before, ...rest } = element
-  const moved: DesktopTreeElement = { ...rest, frame: receipt.frame }
-  const still = clippedWords(tree, moved, front.bounds, screens)
-  if (still !== null) return { refusal: stillClipped(where, receipt.road, still, !sameFrame(element.frame, receipt.frame)) }
-  return { element: moved, road: receipt.road }
-}
-
-async function scrollClippedEnds(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal, map: ScreenMap | null): Promise<string | null> {
-  const ends = plan.clipped ?? []
-  if (ends.length === 0 || plan.beforeTree === undefined) return null
-  let tree = plan.beforeTree
-  const scrolledEnds: string[] = []
-  for (const end of ends) {
-    const scrolled = await scrollIntoView(driver, front, tree, end.element, end.words, signal, plan.screens)
-    if ('refusal' in scrolled) return scrolled.aborted ? scrolled.refusal : `${input.action} refused: ${end.label}: ${scrolled.refusal}${scrolledEnds.length ? ` (${scrolledEnds.join(', ')} was scrolled into view first)` : ''}`
-    plan.scrolled = scrolled.road
-    scrolledEnds.push(end.label)
-    const fresh = await driver.accessibilityTree(front, { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP, scope: 'window' }, signal)
-    if (fresh.ok) tree = fresh.value
-    let settled: DesktopTreeElement | undefined = scrolled.element
-    if (fresh.ok) {
-      const same = tree.elements.filter(row => row.role === scrolled.element.role && row.title === scrolled.element.title && row.value === scrolled.element.value && usableRowFrame(row))
-      const centre = (row: DesktopTreeElement) => ({ x: row.frame!.x + row.frame!.width / 2, y: row.frame!.y + row.frame!.height / 2 })
-      const wanted = centre(scrolled.element)
-      const reach = { x: scrolled.element.frame!.width / 2 + EDGE_REACH_PT, y: scrolled.element.frame!.height / 2 + EDGE_REACH_PT }
-      const near = same.filter(row => Math.abs(centre(row).x - wanted.x) <= reach.x && Math.abs(centre(row).y - wanted.y) <= reach.y)
-      settled = near.find(row => sameFrame(row.frame, scrolled.element.frame)) ?? near.sort((a, b) => Math.hypot(centre(a).x - wanted.x, centre(a).y - wanted.y) - Math.hypot(centre(b).x - wanted.x, centre(b).y - wanted.y))[0]
-      if (settled === undefined) return `${input.action} refused: ${end.label}: ${end.words.replace(' — scroll it into view first', '')}; it was scrolled (${scrolled.road}) but it is not where the window's tree shows it afterwards — take a screenshot and use its pixels`
-      const still = clippedWords(tree, settled, front.bounds, plan.screens)
-      if (still !== null) return `${input.action} refused: ${end.label}: ${stillClipped(end.words.replace(' — scroll it into view first', ''), scrolled.road, still, !sameFrame(end.element.frame, settled.frame))}`
-    }
-    const frame = settled.frame!
-    plan[end.field] = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 }
-    if (end.field === 'point') { plan.element = settled; plan.observe = frame }
-  }
-  plan.beforeTree = tree
-  if (input.action === 'drag') {
-    if (input.target === undefined || input.toTarget === undefined) return `drag refused: ${scrolledEnds.join(' and ')} was scrolled into view, so the drag's pixel end is stale — take a screenshot and re-issue, or name both ends as targets`
-    for (const [selector, field] of [[input.target, 'point'], [input.toTarget, 'target']] as const) {
-      const point = targetPoint(tree, selector, map)
-      if ('refusal' in point) return `drag refused after the scroll: ${point.refusal}`
-      const element = targetElement(tree, selector, map)
-      const still = 'refusal' in element ? null : clippedWords(tree, element, front.bounds, plan.screens)
-      if (still !== null) return `drag refused: the two ends are not in view together after scrolling (${targetWords(selector)}: ${still.replace(' — scroll it into view first', '')}) — scroll first or drag in steps`
-      plan[field] = point
-      if (field === 'point' && !('refusal' in element)) { plan.element = element; if (element.frame) plan.observe = element.frame }
-    }
-  }
-  return null
-}
-
-type Framed = { ok: true; point: DesktopPoint } | { ok: false; text: string }
-
-function framePixel(map: ScreenMap | null, messages: readonly Message[], x: number, y: number, sameMessage: ReadonlySet<string> = new Set()): Framed {
-  if (map === null) return { ok: false, text: NO_SCREENSHOT }
-  if (map.toolUseId !== '' && !screenshotVisibleInContext(messages, map.toolUseId)) return { ok: false, text: sameMessage.has(map.toolUseId) ? SCREENSHOT_UNSEEN : SCREENSHOT_GONE }
-  const point = pointOfPixel(map, x, y)
-  if (isPixelOutside(point)) {
-    return {
-      ok: false,
-      text: `(${x}, ${y}) is outside the last screenshot (${point.imageWidth}×${point.imageHeight} px) — ${map.region ? `coordinates refer to this region (origin ${map.originX},${map.originY} pt); take a full screenshot with full:true to return` : 'take a screenshot and use its pixels'}`,
-    }
-  }
-  return { ok: true, point }
-}
-
-function planOf(owner: OwnerKey, context: ToolUseContext, input: Input, sameMessage: ReadonlySet<string> = new Set()): ActPlan | { refusal: string } {
-  const map = screenOf(owner)
-  const messages: readonly Message[] = context.messages ?? []
-  let point: DesktopPoint | null = null
-  let target: DesktopPoint | null = null
-  if (POINT_ACTIONS.has(input.action)) {
-    if (input.target === undefined && input.ref === undefined) {
-      const framed = framePixel(map, messages, input.x!, input.y!, sameMessage)
-      if (!framed.ok) return { refusal: `${input.action} refused: ${framed.text}` }
-      point = framed.point
-    }
-    if (input.action === 'drag' && input.toTarget === undefined) {
-      const end = framePixel(map, messages, input.toX!, input.toY!, sameMessage)
-      if (!end.ok) return { refusal: `drag refused: ${end.text}` }
-      target = end.point
-    }
-  }
-  let chord: KeyChord | null = null
-  if (input.action === 'key' || input.action === 'hold') {
-    const parsed = parseKeyChord(input.key ?? '')
-    if (isKeyChordRefusal(parsed)) return { refusal: `${input.action} refused: ${parsed.reason}` }
-    chord = parsed
-  }
-  const modifiers = (input.modifiers ?? []).map(modifier => MODIFIER_KEYS[modifier])
-  return { point, target, chord, modifiers, ...(point ? { observe: { x: point.x - 24, y: point.y - 24, width: 48, height: 48 } } : {}) }
-}
-
-async function resolveActTargets(driver: DesktopDriver, input: Input, front: DesktopApplication, plan: ActPlan, signal: AbortSignal, owner: OwnerKey, map: ScreenMap | null): Promise<string | null> {
-  if (plan.chord !== null && isAppSwitchChord(plan.chord)) return null
-  const titled = titleSight(front.title ?? '')
-  plan.captcha = titled
-  const fullReach = input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined || input.verify === true
-  const limitsOf = (reach: boolean): DesktopTreeLimits => ({ depth: Math.min(input.depth ?? (reach ? TREE_DEPTH_CAP : TREE_DEPTH_DEFAULT), TREE_DEPTH_CAP), count: Math.min(input.limit ?? (reach ? TREE_LIMIT_CAP : TREE_LIMIT_DEFAULT), TREE_LIMIT_CAP), scope: 'window' })
-  let tree = await driver.accessibilityTree(front, limitsOf(fullReach), signal)
-  if (tree.ok && !fullReach && treeSight(tree.value, front.bounds) === 'widget') tree = await driver.accessibilityTree(front, limitsOf(true), signal)
-  if (!tree.ok) return input.ref !== undefined || input.target !== undefined || input.toTarget !== undefined ? faultText(input.action, tree.error) : null
-  const seen = treeSight(tree.value, front.bounds)
-  plan.captcha = titled === 'challenge' || seen === 'challenge' ? 'challenge' : seen ?? titled
-  plan.beforeTree = tree.value
-  const scrollsInto = input.action !== 'scroll'
-  plan.clipped = []
-  const displays = await driver.displays()
-  plan.screens = displays.ok ? { displays: displays.value.displays, spanning: displays.value.spanning ?? true } : undefined
-  if (input.ref !== undefined) {
-    const elements = resolveTreeRef(owner, front, tree.value, input.ref)
-    if (elements.length !== 1) return `${input.action} refused: ref:${input.ref}: ${elements.length === 0 ? 'no element of the latest tree matches it now' : `${elements.length} elements match it now`} — read the tree or find again${elements.length ? `\n${candidateWords(elements, map)}` : ''}`
-    const element = elements[0]!
-    const point = targetPoint({ ...tree.value, elements: [element] }, {}, map)
-    if ('refusal' in point) return `${input.action} refused: ref:${input.ref}${point.refusal}`
-    const clipped = scrollsInto ? clippedWords(tree.value, element, front.bounds, plan.screens) : null
-    if (clipped !== null) {
-      if (titleSight(`${element.role} ${element.title ?? ''} ${element.value ?? ''}`) === 'challenge') plan.captcha = 'challenge'
-      plan.clipped = [...(plan.clipped ?? []), { field: 'point', element, words: clipped, label: `ref:${input.ref}` }]
-    }
-    plan.point = point
-    plan.element = element
-    if (element.frame) plan.observe = element.frame
-  }
-  for (const [selector, field] of [[input.target, 'point'], [input.toTarget, 'target']] as const) {
-    if (selector === undefined) continue
-    const point = targetPoint(tree.value, selector, map)
-    if ('refusal' in point) return `${input.action} refused: ${point.refusal}${pageContentNote(front, tree.value) ? `\n${pageContentNote(front, tree.value)}` : ''}`
-    const element = targetElement(tree.value, selector, map)
-    const clipped = 'refusal' in element || !scrollsInto ? null : clippedWords(tree.value, element, front.bounds, plan.screens)
-    if (clipped !== null && !('refusal' in element)) {
-      if (titleSight(`${element.role} ${element.title ?? ''} ${element.value ?? ''}`) === 'challenge') plan.captcha = 'challenge'
-      plan.clipped = [...(plan.clipped ?? []), { field, element, words: clipped, label: targetWords(selector) }]
-    }
-    plan[field] = point
-    const frame = 'refusal' in element ? undefined : element.frame
-    if (field === 'point' && !('refusal' in element)) plan.element = element
-    if (field === 'point' && frame) plan.observe = frame
-  }
-  return null
-}
-
-function isPlanRefusal(plan: ActPlan | { refusal: string }): plan is { refusal: string } {
-  return 'refusal' in plan
-}
-
-type ChallengeVerdict = { verdict: 'deny'; text: string } | { verdict: 'allow' } | { verdict: 'ask'; decision: PermissionDecision }
-
-function challengeVerdict(input: Input, front: DesktopApplication, context: ToolUseContext): ChallengeVerdict {
-  const permissionContext = context.getAppState?.()?.toolPermissionContext as ToolPermissionContext | undefined
-  const rule = ruleFor(permissionContext, 'captcha')
-  if (rule?.ruleBehavior === 'deny') return { verdict: 'deny', text: `${ruleSentence('Trying a human-verification challenge', 'deny', rule)} The operator completes it — wait until it is gone, then re-issue` }
-  if (challengeGranted(String(getSessionId()), front) !== null || rule?.ruleBehavior === 'allow' || (permissionContext !== undefined && postureBypassesAsks(permissionContext))) return { verdict: 'allow' }
-  return {
-    verdict: 'ask',
-    decision: {
-      behavior: 'ask',
-      message: `Computer ${input.action}${actDetail(input)} in ${front.name} (${front.identity}) — ${CAPTCHA_QUESTION}`,
-      decisionReason: { type: 'safetyCheck', reason: `${front.name} shows a human-verification challenge; whether Mercury may try it is the operator's own call`, operatorOnly: true },
-      suggestions: suggestionForExactCommand(COMPUTER_TOOL_NAME, 'captcha'),
-    },
-  }
-}
-
-function challengeAction(action: string): string {
-  return `${action} captcha`
-}
-
-async function challengeRoad(input: Input, plan: ActPlan, front: DesktopApplication, context: ToolUseContext, canUseTool: CanUseToolFn | undefined, parent: AssistantMessage | undefined, toolUseId: string, answered: boolean): Promise<string | 'asked' | null> {
-  const sessionId = String(getSessionId())
-  const seen = plan.captcha === 'challenge'
-  settleChallenge(sessionId, front, seen)
-  if (!seen && input.captcha !== true) return null
-  const verdict = challengeVerdict(input, front, context)
-  if (verdict.verdict === 'deny') return `${input.action} not done: ${verdict.text}`
-  if (verdict.verdict === 'allow' || answered) {
-    grantChallenge(sessionId, front, seen)
-    return null
-  }
-  if (!canUseTool || !parent) return `${input.action} not done: ${CAPTCHA_ASK_UNAVAILABLE}`
-  const decision = await canUseTool(ComputerTool, { ...input, captcha: true }, context, parent, toolUseId, verdict.decision)
-  if (decision.behavior === 'allow') {
-    grantChallenge(sessionId, front, seen)
-    return 'asked'
-  }
-  const message = 'message' in decision && typeof decision.message === 'string' ? decision.message : ''
-  if (message.includes(CAPTCHA_OPERATOR_COMPLETES)) return `${input.action} not done: ${CAPTCHA_OPERATOR_COMPLETES}`
-  const cause = decision.behavior === 'ask' ? '' : message.replace(DENIAL_WORKAROUND_GUIDANCE, '').replace(/\s+/g, ' ').trim()
-  return `${input.action} not done: ${cause || 'no one answered the challenge question'} — a Computer(captcha) allow rule in guardrails.allow answers it without a card`
-}
-
-function captchaLine(tree: DesktopTree, app: DesktopApplication): string {
-  const note = captchaNote(treeSight(tree, app.bounds), challengeGranted(String(getSessionId()), app) !== null)
-  return note ? `\n${note}` : ''
-}
-
-function insideBounds(point: DesktopPoint, bounds: { x: number; y: number; width: number; height: number }): boolean {
-  return point.x >= bounds.x && point.y >= bounds.y && point.x < bounds.x + bounds.width && point.y < bounds.y + bounds.height
-}
-
-function switchChordWords(): string {
-  const chord = appSwitchChord()
-  return `${chord.modifiers.map(modifier => (modifier === 'super' ? 'cmd' : modifier)).join('+')}+${chord.key}`
-}
-
-async function ownTerminalRefusal(
-  driver: DesktopDriver,
-  input: Input,
-  front: DesktopApplication,
-  plan: ActPlan,
-): Promise<string | null> {
-  const own = await driver.ownTerminalApplication(front)
-  const action = input.action
-  if (!own.ok || own.value === null) {
-    if (typesKeys(input, plan)) return `${action} refused: the terminal running this session could not be identified — keep the cockpit attached in a supported terminal before sending keystrokes`
-    return null
-  }
-  if (own.value.identity !== front.identity) return null
-  if (own.value.tty) {
-    const current = await driver.frontmostApplication()
-    if (!current.ok || current.value.identity !== front.identity || current.value.windowId !== front.windowId) {
-      return `${action} refused: the front window changed while checking terminal ownership by tty — nothing done; take a screenshot and re-issue`
-    }
-  }
-  const windowKnown = own.value.windowId != null && front.windowId != null
-  if (windowKnown && own.value.windowId !== front.windowId) {
-    for (const point of [plan.point, plan.target]) {
-      if (point === null || (front.bounds !== null && insideBounds(point, front.bounds))) continue
-      if (own.value.bounds === null) return `${action} refused: the point is outside the target window and the terminal running this session has unknown bounds — keep the act inside the target window`
-      if (insideBounds(point, own.value.bounds)) return `${action} refused: ${pixelWordsOf(input, point, plan)} is inside the window of the terminal running this session`
-    }
-    return null
-  }
-  const windowCheck = windowKnown && own.value.tty ? '\nWindow ownership checked by tty.' : ''
-  const unknownWindow = 'the terminal application running this session is in front, but its window identity is unknown — all windows of this application remain protected; switch to another application first'
-  if (!windowKnown && typesKeys(input, plan)) {
-    return `${action} refused: ${unknownWindow}`
-  }
-  if (action === 'type' || action === 'hold' || action === 'fill' || action === 'file') {
-    return `${action} refused: the application in front is the terminal running this session — a keystroke there would land in this conversation; switch to the target application first${windowCheck}`
-  }
-  if (action === 'key') {
-    if (plan.chord !== null && isAppSwitchChord(plan.chord)) return null
-    return `key refused: the terminal running this session is in front — only the application switch chord (${switchChordWords()}) is allowed there; switch to the target application first${windowCheck}`
-  }
-  const points = [plan.point, plan.target].filter((point): point is DesktopPoint => point !== null)
-  if (front.bounds === null) {
-    if (!windowKnown) return `${action} refused: ${unknownWindow}; the front window's bounds are also unknown`
-    return `${action} refused: the terminal running this session is in front and its window bounds are unknown — switch to the target application first${windowCheck}`
-  }
-  for (const point of points) {
-    if (insideBounds(point, front.bounds)) {
-      const pixel = pixelWordsOf(input, point, plan)
-      if (!windowKnown) return `${action} refused: ${pixel} is inside the front window; ${unknownWindow}`
-      return `${action} refused: ${pixel} is inside the window of the terminal running this session${windowCheck}`
-    }
-  }
-  return null
-}
-
-function startWords(input: Input): string {
-  return input.ref !== undefined ? `ref:${input.ref}` : input.target ? targetWords(input.target) : `(${input.x}, ${input.y})`
-}
-
-function endWords(input: Input): string {
-  return input.toTarget ? targetWords(input.toTarget) : `(${input.toX}, ${input.toY})`
-}
-
-function pixelWordsOf(input: Input, point: DesktopPoint, plan: ActPlan): string {
-  if (plan.target !== null && point === plan.target) return `${endWords(input)}`
-  return `${startWords(input)}`
-}
-
-function modifierWords(modifiers: readonly ModelModifier[] | undefined): string {
-  return modifiers && modifiers.length > 0 ? ` +${modifiers.join('+')}` : ''
-}
-
-function actDetail(input: Input): string {
-  switch (input.action) {
-    case 'click':
-    case 'doubleClick':
-    case 'rightClick':
-    case 'move':
-      return ` ${startWords(input)}${modifierWords(input.modifiers)}`
-    case 'drag':
-      return ` ${startWords(input)} → ${endWords(input)}${modifierWords(input.modifiers)}`
-    case 'scroll':
-      return ` by ${input.dx ?? 0}, ${input.dy ?? 0} at ${startWords(input)}${modifierWords(input.modifiers)}`
-    case 'focusApp':
-      return ` ${input.focusApp?.name ?? ''}`
-    case 'type':
-      return ` ${(input.text ?? '').length} chars`
-    case 'fill':
-      return ` ${startWords(input)} ${(input.text ?? '').length} chars`
-    case 'file':
-      return ` ${startWords(input)} ← ${basename(input.path ?? '')}`
-    case 'key':
-    case 'hold':
-      return ` ${input.key ?? ''}`
-    default:
-      return ''
-  }
-}
-
-function faultNote(note: string): string {
-  if (!note.includes('\n') && !note.includes('Command failed:')) return note
-  const lines = note.split('\n').map(line => line.trim())
-  const head = lines[0]!.replace(/:?\s*Command failed:.*$/, '').trim()
-  const reason = lines.find(line => /^[A-Za-z]*Error:\s/.test(line))?.replace(/^[A-Za-z]*Error:\s*/, '').replace(/\/[^\s'"`)]+/g, '<path>')
-  const code = /\bcode:\s*'([^']+)'/.exec(note)?.[1]
-  return `${head || 'the native reader failed'}${reason ? ` — ${reason}` : ''}${code ? ` (${code})` : ''}`.slice(0, 300)
-}
-
-function faultText(action: string, error: DesktopError): string {
-  return `${action} failed: ${faultNote(error.note)}${error.remedy ? ` — ${error.remedy}` : ''}`
-}
-
-type ActWords = { ok: true; words: string } | { ok: false; aborted: boolean; text: string }
-
-class ActRun {
-  fault: ActWords | null = null
-  constructor(
-    readonly driver: DesktopDriver,
-    readonly action: string,
-    readonly signal: AbortSignal,
-  ) {}
-
-  async step<T>(answer: Promise<DesktopAnswer<T>>): Promise<T | null> {
-    const settled = await answer
-    if (settled.ok) return settled.value
-    this.fault =
-      settled.error.kind === 'aborted'
-        ? { ok: false, aborted: true, text: '' }
-        : { ok: false, aborted: false, text: faultText(this.action, settled.error) }
-    return null
-  }
-
-  async down(modifiers: readonly DesktopModifier[]): Promise<boolean> {
-    for (const modifier of modifiers) {
-      if ((await this.step(this.driver.keyDown(modifier, this.signal))) === null) return false
-    }
-    return true
-  }
-
-  async up(modifiers: readonly DesktopModifier[]): Promise<boolean> {
-    for (const modifier of [...modifiers].reverse()) {
-      if ((await this.step(this.driver.keyUp(modifier, this.signal))) === null) return false
-    }
-    return true
-  }
-
-  failed(): ActWords {
-    return this.fault ?? { ok: false, aborted: false, text: `${this.action} failed: the desktop driver answered nothing` }
-  }
-}
-
-function pointWords(point: DesktopPoint): string {
-  return `(${point.x}, ${point.y}) pt`
-}
-
-function fileDialogKeys(path: string): Array<{ key: string } | { text: string }> {
-  if (process.platform === 'win32') return [{ text: path }, { key: 'Enter' }]
-  return [{ key: process.platform === 'darwin' ? 'cmd+shift+g' : 'ctrl+l' }, { text: path }, { key: 'Enter' }]
-}
-
-async function dialogOpen(driver: DesktopDriver, signal: AbortSignal): Promise<boolean | null> {
-  const front = await driver.frontmostApplication()
-  if (!front.ok) return null
-  const tree = await driver.accessibilityTree(front.value, { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP, scope: 'window' }, signal)
-  if (!tree.ok) return null
-  return waitConditionPassed({ dialog: true }, front.value, tree.value)
-}
-
-async function awaitDialog(driver: DesktopDriver, signal: AbortSignal, open: boolean, deadline: number): Promise<'met' | 'unmet' | 'unread'> {
-  let read = false
-  for (;;) {
-    const state = await dialogOpen(driver, signal)
-    read ||= state !== null
-    if (state === open) return 'met'
-    if (signal.aborted || Date.now() >= deadline) return read ? 'unmet' : 'unread'
-    await sleep(Math.min(100, Math.max(0, deadline - Date.now())), signal)
-  }
-}
-
-async function performFile(driver: DesktopDriver, input: Input, plan: ActPlan, signal: AbortSignal): Promise<ActWords> {
-  const run = new ActRun(driver, 'file', signal)
-  const path = input.path!
-  if ((await run.step(driver.click(plan.point!, 'left', 1, signal))) === null) return run.failed()
-  const pause = clamp(input.durationMs ?? FILE_DIALOG_MS, 0, WAIT_CAP_MS)
-  const opened = await awaitDialog(driver, signal, true, Date.now() + pause)
-  if (opened === 'unread') return { ok: false, aborted: signal.aborted, text: `file failed: the window's tree could not be read, so whether ${startWords(input)} opened a file dialog is unknown — nothing typed; take a screenshot and drive the dialog with key and type` }
-  if (opened === 'unmet') return { ok: false, aborted: signal.aborted, text: `file failed: ${startWords(input)} opened no file dialog within ${pause}ms — nothing typed; take a screenshot and re-issue` }
-  for (const step of fileDialogKeys(path)) {
-    await sleep(FILE_KEY_GAP_MS, signal)
-    if ('key' in step) {
-      const chord = parseKeyChord(step.key)
-      if (isKeyChordRefusal(chord)) return { ok: false, aborted: false, text: `file failed: ${chord.reason}` }
-      if ((await run.step(driver.keyTap(chord.key, chord.modifiers, signal))) === null) return run.failed()
-    } else if ((await run.step(driver.typeText(step.text, {}, signal))) === null) return run.failed()
-  }
-  const closed = Date.now() + FILE_CLOSE_MS
-  if ((await awaitDialog(driver, signal, false, Date.now() + FILE_KEY_GAP_MS * 2)) !== 'met') {
-    const enter = parseKeyChord('Enter')
-    if (!isKeyChordRefusal(enter) && (await run.step(driver.keyTap(enter.key, enter.modifiers, signal))) === null) return run.failed()
-  }
-  const gone = await awaitDialog(driver, signal, false, closed)
-  if (gone === 'unread') return { ok: false, aborted: signal.aborted, text: `file failed: the window's tree could not be read after ${path}, so whether the dialog closed is unknown — take a screenshot` }
-  if (gone === 'unmet') return { ok: false, aborted: signal.aborted, text: `file failed: the file dialog is still open after ${path} — it may not accept that path; take a screenshot` }
-  return { ok: true, words: `file ${startWords(input)} ← ${basename(path)} → ${pointWords(plan.point!)}${scrolledWords(plan)} · the dialog opened and closed` }
-}
-
-function valueWords(value: string | null): string {
-  return value === null ? 'value not read back' : `value ${JSON.stringify(value.length > FIELD_VALUE_CHARS ? `${value.slice(0, FIELD_VALUE_CHARS)}…` : value)}`
-}
-
-async function performFill(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal): Promise<ActWords> {
-  const run = new ActRun(driver, 'fill', signal)
-  const element = plan.beforeTree ? withOrdinal(plan.beforeTree, plan.element!) : plan.element!
-  const text = input.text!
-  if (driver.setValue) {
-    const set = await run.step(driver.setValue(front, element, text, signal))
-    if (set === null) return run.failed()
-    if (set.set) return { ok: true, words: `fill ${startWords(input)} ← ${text.length} chars → ${valueWords(set.value)}${set.note ? ` · ${set.note}` : ''}${scrolledWords(plan)}` }
-  }
-  if ((await run.step(driver.click(plan.point!, 'left', 1, signal))) === null) return run.failed()
-  const all = parseKeyChord(process.platform === 'darwin' ? 'cmd+a' : 'ctrl+a')
-  if (isKeyChordRefusal(all)) return { ok: false, aborted: false, text: `fill failed: ${all.reason}` }
-  if ((await run.step(driver.keyTap(all.key, all.modifiers, signal))) === null) return run.failed()
-  if ((await run.step(driver.typeText(text, {}, signal))) === null) return run.failed()
-  let value: string | null = null
-  if (driver.readElement) {
-    const read = await driver.readElement(front, element, signal)
-    if (read.ok && read.value) value = read.value.text
-  }
-  return { ok: true, words: `fill ${startWords(input)} ← ${text.length} chars by keystrokes → ${valueWords(value)}${scrolledWords(plan)}` }
-}
-
-async function performAct(driver: DesktopDriver, input: Input, plan: ActPlan, front: DesktopApplication, signal: AbortSignal): Promise<ActWords> {
-  const run = new ActRun(driver, input.action, signal)
-  if (signal.aborted) return { ok: false, aborted: true, text: '' }
-  switch (input.action) {
-    case 'file':
-      return performFile(driver, input, plan, signal)
-    case 'fill':
-      return performFill(driver, input, plan, front, signal)
-    case 'click':
-    case 'doubleClick':
-    case 'rightClick': {
-      if (!(await run.down(plan.modifiers))) return run.failed()
-      const button = input.action === 'rightClick' ? 'right' : 'left'
-      const count = input.action === 'doubleClick' ? 2 : input.action === 'click' ? (input.count ?? 1) as 1 | 2 | 3 : 1
-      if ((await run.step(driver.click(plan.point!, button, count, signal))) === null) return run.failed()
-      if (!(await run.up(plan.modifiers))) return run.failed()
-      return { ok: true, words: `${input.action} ${startWords(input)}${input.count && input.count > 1 ? ` ×${input.count}` : ''}${modifierWords(input.modifiers)} → ${pointWords(plan.point!)}${scrolledWords(plan)}` }
-    }
-    case 'move': {
-      if ((await run.step(driver.mouseMove(plan.point!, signal))) === null) return run.failed()
-      return { ok: true, words: `move ${startWords(input)} → ${pointWords(plan.point!)}${scrolledWords(plan)}` }
-    }
-    case 'drag': {
-      if (!(await run.down(plan.modifiers))) return run.failed()
-      if ((await run.step(driver.drag(plan.point!, plan.target!, 'left', signal))) === null) return run.failed()
-      if (!(await run.up(plan.modifiers))) return run.failed()
-      return {
-        ok: true,
-        words: `drag ${startWords(input)} → ${endWords(input)}${modifierWords(input.modifiers)} · ${pointWords(plan.point!)} → ${pointWords(plan.target!)}${scrolledWords(plan)}`,
-      }
-    }
-    case 'scroll': {
-      if (!(await run.down(plan.modifiers))) return run.failed()
-      if ((await run.step(driver.scroll(plan.point!, input.dx ?? 0, input.dy ?? 0, signal))) === null) return run.failed()
-      if (!(await run.up(plan.modifiers))) return run.failed()
-      return {
-        ok: true,
-        words: `scroll ${startWords(input)} by ${input.dx ?? 0}, ${input.dy ?? 0}${modifierWords(input.modifiers)} → ${pointWords(plan.point!)}${scrolledWords(plan)}`,
-      }
-    }
-    case 'type': {
-      if ((await run.step(driver.typeText(input.text!, {}, signal))) === null) return run.failed()
-      return { ok: true, words: `type ${input.text!.length} chars` }
-    }
-    case 'key': {
-      if ((await run.step(driver.keyTap(plan.chord!.key, plan.chord!.modifiers, signal))) === null) return run.failed()
-      return { ok: true, words: `key ${input.key}` }
-    }
-    case 'hold': {
-      const chord = plan.chord!
-      if (!(await run.down(chord.modifiers))) return run.failed()
-      if ((await run.step(driver.keyDown(chord.key, signal))) === null) return run.failed()
-      await sleep(input.durationMs!, signal)
-      if (signal.aborted) return { ok: false, aborted: true, text: '' }
-      if ((await run.step(driver.keyUp(chord.key, signal))) === null) return run.failed()
-      if (!(await run.up(chord.modifiers))) return run.failed()
-      return { ok: true, words: `hold ${input.key} ${input.durationMs}ms` }
-    }
-    default:
-      return { ok: false, aborted: false, text: `${input.action} is not an act` }
-  }
-}
-
-function interruptedText(action: string): string {
-  return `${action} interrupted by the operator — the act in flight ended, held keys and buttons were released, nothing further was done`
-}
-
-function interruptedAfterActText(action: string): string {
-  return `${action} interrupted by the operator after the act — no screenshot was taken; held keys and buttons were released, nothing further was done`
-}
-
-function applicationWords(app: DesktopApplication): string {
-  return `${app.name}${app.title ? ` — ${app.title}` : ''}`
-}
-
-async function cursorWords(driver: DesktopDriver, map: ScreenMap | null): Promise<string> {
-  const cursor = await driver.cursor()
-  if (!cursor.ok) return `cursor unknown (${cursor.error.note})`
-  const at = cursor.value
-  if (map !== null && (at.display === null || at.display === map.display)) {
-    const pixel = pixelOfPoint(map, at)
-    if (pixelOnScreen(map, pixel)) return `cursor (${pixel.x}, ${pixel.y})`
-  }
-  if (map !== null) return `cursor on display ${at.display ?? '?'}`
-  return `cursor (${at.x}, ${at.y}) pt${at.display !== null ? ` on display ${at.display}` : ''}`
-}
-
-async function frontmostWords(driver: DesktopDriver): Promise<string> {
-  const front = await driver.frontmostApplication()
-  if (!front.ok) return `frontmost unknown (${front.error.note})`
-  return `frontmost ${applicationWords(front.value)}`
-}
-
-function readRefElement(owner: OwnerKey, app: DesktopApplication, tree: DesktopTree, ref: number, map: ScreenMap | null): DesktopTreeElement | { refusal: string } {
-  const elements = resolveTreeRef(owner, app, tree, ref)
-  if (!elements.length) return { refusal: `read ref ${ref}: unavailable or stale — read tree and use its current ref` }
-  return targetElement({ ...tree, elements }, {}, map)
-}
-
-function readWords(label: string, text: string, truncated = false): string {
-  return `read ${label}: ${JSON.stringify(text.slice(0, 20000))}${truncated || text.length > 20000 ? '\ntruncated: read stops at 20000 characters' : ''}`
-}
-
-function treeLimitsOf(input: Input): DesktopTreeLimits {
-  if (TREE_READS.has(input.action)) return { depth: TREE_DEPTH_CAP, count: TREE_LIMIT_CAP, scope: input.scope ?? 'window' }
-  const targeted = input.action === 'read' || input.until !== undefined
-  return { depth: Math.min(input.depth ?? (targeted ? TREE_DEPTH_CAP : TREE_DEPTH_DEFAULT), TREE_DEPTH_CAP), count: Math.min(input.limit ?? (targeted ? TREE_LIMIT_CAP : TREE_LIMIT_DEFAULT), TREE_LIMIT_CAP), scope: input.scope ?? 'window' }
-}
-
-function treeWords(app: DesktopApplication, tree: DesktopOutline, limits: { depth: number; count: number }, map: ScreenMap | null, points: boolean): string {
-  const deepest = tree.elements.reduce((most, element) => Math.max(most, element.depth), 0)
-  const lines = [
-    `tree: ${app.name} — ${tree.elements.length} element${tree.elements.length === 1 ? '' : 's'} to depth ${deepest}`,
-    ...tree.elements.map(element => outlineRowWords(element, map, points)),
-  ]
-  lines.push(tree.scope === undefined ? 'scope not reported by this driver' : `scope ${tree.scope}`)
-  const pageNote = pageContentNote(app, tree)
-  if (pageNote) lines.push(pageNote)
-  if (tree.truncated) {
-    lines.push(`truncated: the tree goes on past ${tree.reason !== null ? tree.reason : `the limit of ${limits.count} elements or depth ${limits.depth}`} — ${tree.reason === TREE_UNANSWERED_REASON ? 'read again, narrow with root or find, or act on what is shown' : 'narrow with root or find, raise limit or depth to read more, or act on what is shown'}`)
-  }
-  return lines.join('\n')
-}
-
-function fieldsWords(app: DesktopApplication, tree: DesktopOutline, limits: { count: number }, map: ScreenMap | null, points: boolean): string {
-  const rows = tree.elements.map(element => {
-    const secure = element.role.includes('Secure')
-    const value = element.value ?? ''
-    const parts = [`[${element.ref}]`, element.role]
-    if (element.title !== null && element.title.trim() !== '') parts.push(JSON.stringify(element.title))
-    parts.push(secure ? '(secure)' : JSON.stringify(value.length > FIELD_VALUE_CHARS ? `${value.slice(0, FIELD_VALUE_CHARS)}…` : value))
-    if (points && element.frame && map) {
-      const pixel = pixelOfPoint(map, { x: element.frame.x + element.frame.width / 2, y: element.frame.y + element.frame.height / 2 })
-      if (pixelOnScreen(map, pixel)) parts.push(`(${pixel.x},${pixel.y})px`)
-    }
-    return parts.join(' ')
-  })
-  const lines = [`fields: ${app.name} — ${rows.length} control${rows.length === 1 ? '' : 's'}`, ...rows]
-  if (tree.truncated) lines.push(`truncated: more controls past ${tree.reason ?? `the limit of ${limits.count} controls`} — ${tree.reason === TREE_UNANSWERED_REASON ? 'read again, or narrow with root' : 'raise limit, or narrow with root'}`)
-  return lines.join('\n')
-}
-
-async function factsLine(driver: DesktopDriver, map: ScreenMap | null): Promise<string> {
-  return `${await cursorWords(driver, map)} · ${await frontmostWords(driver)}`
-}
-
-type Shot =
-  | { ok: true; line: string; imagePath: string; inlinePath?: string; inlineMediaType?: string; screen: ScreenMap }
-  | { ok: false; aborted: boolean; text: string }
-
-function toolUseIdsOfParent(parent: AssistantMessage | undefined): string[] {
-  const content = (parent as { message?: { content?: unknown } } | undefined)?.message?.content
-  if (!Array.isArray(content)) return []
-  return content.flatMap(block => {
-    const typed = block as { type?: unknown; name?: unknown; id?: unknown }
-    return typed.type === 'tool_use' && typed.name === COMPUTER_TOOL_NAME && typeof typed.id === 'string' ? [typed.id] : []
-  })
-}
-
-function toolUseIdOfParent(parent: AssistantMessage | undefined): string | null {
-  return toolUseIdsOfParent(parent).at(-1) ?? null
-}
-
-async function takeScreenshot(
-  owner: OwnerKey,
-  driver: DesktopDriver,
-  context: ToolUseContext,
-  toolUseId: string,
-  wanted: number | undefined,
-  label: string | undefined,
-  signal: AbortSignal,
-  region?: CaptureRegion,
-  settleMs = 0,
-  observe?: DesktopBounds,
-  full = false,
-  requestedScale?: number,
-  publish = true,
-  sameMessage: ReadonlySet<string> = new Set(),
-): Promise<Shot> {
-  const displays = await driver.displays()
-  if (!displays.ok) return { ok: false, aborted: false, text: faultText('screenshot', displays.error) }
-  const list = displays.value.displays
-  if (list.length === 0) return { ok: false, aborted: false, text: 'screenshot failed: no display is attached' }
-  const map = screenOf(owner)
-  if (region !== undefined) {
-    const refusal = regionRefusal(region, map)
-    if (refusal !== null) return { ok: false, aborted: false, text: refusal }
-    const frame = framePixel(map, context.messages ?? [], region.x, region.y, sameMessage)
-    if (!frame.ok) return { ok: false, aborted: false, text: frame.text }
-  }
-  const front = region === undefined && wanted === undefined && !full ? await driver.frontmostApplication() : null
-  if (front && (!front.ok || !front.value.bounds)) return { ok: false, aborted: false, text: 'screenshot failed: the front window frame is unavailable — use full:true for the display' }
-  let index = region !== undefined ? map?.display : wanted
-  let window: DesktopBounds | undefined
-  if (front?.ok && front.value.bounds) {
-    const frames = list.map(display => ({ display, bounds: windowOnDisplay(front.value.bounds!, display) })).filter(frame => frame.bounds !== undefined).sort((a, b) => b.bounds!.width * b.bounds!.height - a.bounds!.width * a.bounds!.height)
-    window = frames[0]?.bounds
-    index = frames[0]?.display.index
-    if (!window) return { ok: false, aborted: false, text: 'screenshot failed: the front window is outside the attached displays — use full:true' }
-  }
-  if (index === undefined) {
-    const cursor = await driver.cursor()
-    index = cursor.ok && cursor.value.display !== null ? cursor.value.display : (list.find(d => d.primary) ?? list[0]!).index
-  }
-  const display = list.find(d => d.index === index)
-  if (display === undefined) {
-    return {
-      ok: false,
-      aborted: false,
-      text: `screenshot failed: display ${index} is not one of the displays — displays lists ${list.map(d => d.index).join(', ')}`,
-    }
-  }
-  let captured: Awaited<ReturnType<typeof settledCapture>>
-  try {
-    captured = await settledCapture(driver, display, signal, settleMs, region, map, observe, window)
-    if (front?.ok) {
-      const after = await driver.frontmostApplication()
-      if (!after.ok || !sameWindow(front.value, after.value)) return { ok: false, aborted: false, text: 'screenshot failed: the front window changed during capture — re-issue' }
-    }
-  } catch (error) {
-    return { ok: false, aborted: signal.aborted, text: `screenshot failed: ${error instanceof Error ? error.message : String(error)}` }
-  }
-  const capture = captured.capture
-  const factor = requestedScale ?? (window ? 0.5 : 1)
-  const sharp = await getImageProcessor()
-  const scaled = factor === 1 ? capture.png : await sharp(capture.png).resize(Math.max(1, Math.round(capture.width * factor)), Math.max(1, Math.round(capture.height * factor)), { fit: 'fill' }).png().toBuffer()
-  const dimensions = imageDimensionsFromHeader(scaled)
-  if (!dimensions) return { ok: false, aborted: false, text: 'screenshot failed: the scaled image has no readable dimensions' }
-  const file = screenshotPath(label ?? `display-${display.index}`)
-  writeFileSync(file, capture.png)
-  pruneDesktopShots(dirname(file), DESKTOP_SHOTS_KEEP)
-  let image = { width: dimensions.width, height: dimensions.height }
-  let inlinePath: string | undefined
-  let inlineMediaType: string | undefined
-  const model = context.options?.engineModel ?? getEngineModel()
-  if (modelReceivesImageBlocks(model)) {
-    try {
-      const resized = await maybeResizeAndDownsampleImageBuffer(scaled, scaled.length, 'png', { role: 'tool-result', model })
-      const bytes = resized.buffer
-      const header = imageDimensionsFromHeader(bytes)
-      if (header === null) throw new Error('the inline screenshot has no readable dimensions')
-      if (signal.aborted) return { ok: false, aborted: true, text: '' }
-      image = { width: header.width, height: header.height }
-      if (!bytes.equals(capture.png)) {
-        inlinePath = `${file}.inline`
-        writeFileSync(inlinePath, bytes)
-        inlineMediaType = `image/${resized.mediaType}`
-      }
-    } catch (error) {
-      return { ok: false, aborted: signal.aborted, text: `screenshot could not be prepared for the model: ${error instanceof Error ? error.message : String(error)}` }
-    }
-  }
-  const screen = screenMapOfCapture(toolUseId, capture, captured.points, image)
-  if (region || window) screen.region = true
-  const changedFrame = map !== null && ['displayId', 'originX', 'originY', 'pointWidth', 'pointHeight', 'imageWidth', 'imageHeight'].some(key => map[key as keyof ScreenMap] !== screen[key as keyof ScreenMap])
-  const scale = `scale ${(screen.imageWidth / screen.pointWidth).toFixed(3)} px/pt (native fraction ${factor}${image.width !== dimensions.width || image.height !== dimensions.height ? '; resized for the model route' : ''})`
-  const frameWords = `${scale}${changedFrame ? '; frame changed: display, region or route image limits changed — previous coordinates do not apply' : ''}${region || window ? `; coordinates now refer to this ${region ? 'region' : 'window'} (origin ${screen.originX},${screen.originY} pt); full:true takes a full screenshot of the display` : ''}`
-  if (publish) setScreen(owner, screen)
-  noteScreenshot(owner, screen.toolUseId, file)
-  const line = `screenshot: ${file} — display ${display.index} (${screenMapSizeWords(screen)}) at scale ${factor} · ${frameWords} · ${await factsLine(driver, screen)}`
-  return {
-    ok: true,
-    line,
-    imagePath: file,
-    ...(inlinePath !== undefined ? { inlinePath } : {}),
-    ...(inlineMediaType !== undefined ? { inlineMediaType } : {}),
-    screen,
-  }
-}
-
-function textOnlyRefusal(model: string, route: string | null): string {
-  const where = route !== null ? `on the ${providerDisplayName(route)} route` : 'on its route'
-  return `the Computer tool needs a model that receives images; ${model} ${where} receives text only in this release — switch to a model on a route that carries images (/model)`
-}
-
-function imageRefusalText(model: string, route: string | null, error: string): string {
-  const where = route !== null ? providerDisplayName(route) : 'its'
-  return `the model on the ${where} route refused the image: ${error} — ${model} cannot drive the screen until the route carries images; switch to a model that receives images (/model)`
-}
-
-async function routeRefusal(model: string, signal?: AbortSignal): Promise<string | null> {
-  const verdict = classifyModelRoute(model)
-  const route = verdict.kind === 'route' ? verdict.route : null
-  if (route === 'openai-compat') {
-    await refreshCompatModelImageReading(model, signal)
-    const reading = compatModelImageReading(model)
-    if (reading?.supported === true) return null
-    const serverRefusal = compatImageRefusalWords(model, imageRefusedFor(normalizeModelStringForAPI(model)) ?? undefined)
-    if (serverRefusal !== null) return `the Computer tool needs a model that receives images; ${serverRefusal}`
-  }
-  if (!modelReceivesImageBlocks(model)) return textOnlyRefusal(model, route)
-  if (route === 'openai') {
-    const { imagesSupportedForModel } = await import('../../services/providers/openai/openaiCallModel.js')
-    if (!imagesSupportedForModel(model)) return textOnlyRefusal(model, route)
-  }
-  const refused = imageRefusedFor(normalizeModelStringForAPI(model))
-  if (refused !== null) return imageRefusalText(model, route, refused)
-  return null
-}
-
-function ruleFor(permissionContext: ToolPermissionContext | undefined, content: string): PermissionRule | null {
-  if (!permissionContext) return null
-  for (const behavior of ['deny', 'ask', 'allow'] as const) {
-    const rule = getRuleByContentsForToolName(permissionContext, COMPUTER_TOOL_NAME, behavior).get(content)
-    if (rule) return rule
-  }
-  return null
-}
-
-function ruleVerdict(permissionContext: ToolPermissionContext | undefined, content: string): 'deny' | 'ask' | 'allow' | null {
-  return ruleFor(permissionContext, content)?.ruleBehavior ?? null
-}
-
-function denied(message: string, reason: string) {
-  return { behavior: 'deny' as const, message, decisionReason: { type: 'other' as const, reason } }
-}
+export { computerToolEnabled, HOLD_CAP_MS, TREE_DEPTH_CAP, TREE_DEPTH_DEFAULT, TREE_LIMIT_CAP, TREE_LIMIT_DEFAULT, TYPE_TEXT_CAP } from './computer/schema.js'
+export type { Input, Output } from './computer/schema.js'
 
 export const ComputerTool = buildTool({
   name: COMPUTER_TOOL_NAME,
@@ -1724,7 +565,7 @@ export const ComputerTool = buildTool({
             outcome = 'failed'
             return finish()
           }
-          const challenge = await challengeRoad(input, plan, front.value, context, canUseTool, parentAssistantMessage, toolUseId, challengeAnswered || pass > 0)
+          const challenge = await challengeRoad(ComputerTool, input, plan, front.value, context, canUseTool, parentAssistantMessage, toolUseId, challengeAnswered || pass > 0)
           if (challenge === 'asked') continue
           if (challenge !== null) {
             result = challenge
