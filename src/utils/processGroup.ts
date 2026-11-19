@@ -610,7 +610,7 @@ function readBirth(pid: number): Promise<number | null> {
 
 function readBirthNow(pid: number): number | null {
   if (process.platform === 'linux') return linuxBirth(pid)
-  return birthSaid(spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { ...BIRTH_ASKED, windowsHide: true, encoding: 'utf8' }).stdout)
+  return birthSaid(spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { ...BIRTH_ASKED, windowsHide: true, timeout: BIRTH_READ_BOUND_MS, encoding: 'utf8' }).stdout)
 }
 
 export function birthMark(pid: number | undefined, askedAtMs: number): BirthMark | null {
