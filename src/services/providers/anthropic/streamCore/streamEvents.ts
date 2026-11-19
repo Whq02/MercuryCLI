@@ -1,0 +1,188 @@
+import type {
+  ContentBlock as BetaContentBlock,
+  ApiStreamEvent as BetaRawMessageStreamEvent,
+} from '../../../../types/wire.js'
+import { addToTotalSessionCost } from 'src/cost-tracker.js'
+import { cacheClockObserve } from 'src/utils/cache/cacheClock.js'
+import { logForDebugging } from 'src/utils/debug.js'
+import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
+import { calculateUSDCost } from 'src/utils/modelCost.js'
+import type {
+  ConnectorTextBlock,
+  ConnectorTextDelta,
+} from '../../../../types/connectorText.js'
+import type {
+  AssistantMessage,
+  Message,
+} from '../../../../types/message.js'
+import { settleTranscriptMessage } from '../../../../utils/sessionStorage/writer.js'
+import {
+  clearAnthropicUsageLimit,
+  extractQuotaStatusFromHeaders,
+} from '../../../anthropicLimits.js'
+import { malformedStreamFrameText } from '../../../api/errors.js'
+import { checkResponseForCacheBreak } from '../../../api/promptCacheBreakDetection.js'
+import { updateUsage } from '../cacheAndUsage.js'
+import type { Options } from '../streamCore.js'
+import type { CallState, StreamPass } from './state.js'
+
+export function openContentBlock(contentBlocks: (BetaContentBlock | ConnectorTextBlock)[], part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_start' }>): void {
+  if (part.content_block == null) {
+    throw new Error(malformedStreamFrameText('content_block_start', 'content_block'))
+  }
+  switch (part.content_block.type) {
+    case 'tool_use':
+      contentBlocks[part.index] = {
+        ...part.content_block,
+        input: '',
+      }
+      break
+    case 'server_tool_use':
+      contentBlocks[part.index] = {
+        ...part.content_block,
+        input: '' as unknown as { [key: string]: unknown },
+      }
+      break
+    case 'text':
+      contentBlocks[part.index] = {
+        ...part.content_block,
+        text: '',
+      }
+      break
+    case 'thinking':
+      contentBlocks[part.index] = {
+        ...part.content_block,
+        thinking: '',
+        signature: '',
+      }
+      break
+    default:
+      contentBlocks[part.index] = { ...part.content_block }
+      break
+  }
+}
+
+export function applyBlockDelta(contentBlocks: (BetaContentBlock | ConnectorTextBlock)[], part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_delta' }>): void {
+  const contentBlock = contentBlocks[part.index]
+  const delta = part.delta as typeof part.delta | ConnectorTextDelta
+  if (!contentBlock) {
+    throw new RangeError('Content block not found')
+  }
+  if (delta == null) {
+    throw new Error(malformedStreamFrameText('content_block_delta', 'delta'))
+  }
+  switch (delta.type) {
+    case 'citations_delta':
+      break
+    case 'input_json_delta':
+      if (
+        contentBlock.type !== 'tool_use' &&
+        contentBlock.type !== 'server_tool_use'
+      ) {
+        throw new Error('Content block is not a input_json block')
+      }
+      if (typeof contentBlock.input !== 'string') {
+        throw new Error('Content block input is not a string')
+      }
+      contentBlock.input += delta.partial_json
+      break
+    case 'text_delta':
+      if (contentBlock.type !== 'text') {
+        throw new Error('Content block is not a text block')
+      }
+      contentBlock.text += delta.text
+      break
+    case 'signature_delta':
+      if (contentBlock.type !== 'thinking') {
+        throw new Error('Content block is not a thinking block')
+      }
+      contentBlock.signature = delta.signature
+      break
+    case 'thinking_delta':
+      if (contentBlock.type !== 'thinking') {
+        throw new Error('Content block is not a thinking block')
+      }
+      contentBlock.thinking += delta.thinking
+      break
+  }
+}
+
+export function settleMessageDelta(call: CallState, part: Extract<BetaRawMessageStreamEvent, { type: 'message_delta' }>, newMessages: AssistantMessage[], pricingModel: () => string, options: Options, messages: Message[]): void {
+  call.usage = updateUsage(call.usage, part.usage)
+
+  call.stopReason = part.delta.stop_reason
+
+  const lastMsg = newMessages.at(-1)
+  if (lastMsg) {
+    lastMsg.message.usage = call.usage as AssistantMessage['message']['usage']
+    lastMsg.message.stop_reason = call.stopReason
+    void settleTranscriptMessage(lastMsg)
+  }
+
+  const costUSDForPart = calculateUSDCost(pricingModel(), call.usage)
+  addToTotalSessionCost(costUSDForPart, call.usage, pricingModel())
+  call.ledgerSettled = true
+
+  void checkResponseForCacheBreak(
+    options.querySource,
+    call.usage.cache_read_input_tokens,
+    call.usage.cache_creation_input_tokens,
+    messages,
+    options.agentId,
+    call.clientRequestId ?? null,
+  )
+}
+
+export function noteWatchdogCleanExit(pass: StreamPass): void {
+  const exitDelayMs =
+    pass.streamWatchdogFiredAt !== null
+      ? Math.round(performance.now() - pass.streamWatchdogFiredAt)
+      : -1
+  logForDiagnosticsNoPII(
+    'info',
+    'cli_stream_loop_exited_after_watchdog_clean',
+  )
+  logForDebugging(
+    `stream loop exited ${exitDelayMs}ms after watchdog abort (clean exit)`,
+  )
+  pass.streamWatchdogFiredAt = null
+}
+
+export function observeStreamEnd(call: CallState, stallCount: number, totalStallTime: number, turnOwning: boolean, prefixKey: string): void {
+  if (stallCount > 0) {
+    logForDebugging(
+      `stream finished carrying ${stallCount} stall(s), ${(totalStallTime / 1000).toFixed(1)}s stalled in total`,
+      { level: 'warn' },
+    )
+  }
+
+  cacheClockObserve({
+    cacheReadTokens: call.usage.cache_read_input_tokens,
+    cacheCreationTotal: call.usage.cache_creation_input_tokens,
+    cacheCreation5m: call.usage.cache_creation?.ephemeral_5m_input_tokens ?? null,
+    cacheCreation1h: call.usage.cache_creation?.ephemeral_1h_input_tokens ?? null,
+    uncachedInputTokens: call.usage.input_tokens,
+    now: Date.now(),
+    prefixKey: turnOwning ? prefixKey : null,
+    startedAt: call.start,
+  })
+
+  const resp = call.streamResponse as unknown as Response | undefined
+  if (resp) {
+    extractQuotaStatusFromHeaders(resp.headers, call.start)
+    clearAnthropicUsageLimit(call.start)
+  }
+}
+
+export function noteWatchdogErrorExit(pass: StreamPass & { streamWatchdogFiredAt: number }): void {
+  const exitDelayMs = Math.round(
+    performance.now() - pass.streamWatchdogFiredAt,
+  )
+  logForDiagnosticsNoPII(
+    'info',
+    'cli_stream_loop_exited_after_watchdog_error',
+  )
+  logForDebugging(
+    `stream loop exited ${exitDelayMs}ms after watchdog abort (error exit)`,
+  )
+}
