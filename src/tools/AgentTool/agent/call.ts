@@ -18,7 +18,7 @@ import { errorMessage } from '../../../utils/errors.js'
 import { subagentConcurrencyCap } from '../../../utils/agentDefaults.js'
 import type { CanUseToolFn } from '../../../Tool.js'
 import { getQuerySourceForAgent } from '../../../utils/promptCategory.js'
-import { buildAgentLaunchPlan } from '../../../utils/crew/agentLaunchPlan.js'
+import { buildAgentLaunchPlan, type AgentLaunchPlan } from '../../../utils/crew/agentLaunchPlan.js'
 import { getAgentModel } from '../../../utils/model/agent.js'
 import { MODEL_LOOKUP_LADDER } from '../../../utils/model/modelLookup.js'
 import { matchReachableModelName, modelNameHeadlessRefusal } from '../../../utils/model/modelNameRoad.js'
@@ -299,116 +299,21 @@ export async function agentToolCall(
   const querySource = getQuerySourceForAgent(agentDef.agentType, isBuiltInAgent(agentDef))
 
   const definitionSchema = (agentDef as { outputSchema?: Record<string, unknown> }).outputSchema
-  const structuredOutputSpec = (() => {
-    const schema = input.output_schema ?? definitionSchema
-    if (schema === undefined) return undefined
-    const bound = getSchemaBoundStructuredOutputTool(schema)
-    if (bound.error !== undefined) {
-      throw new Error(`output_schema is not a valid JSON Schema: ${bound.error}`)
-    }
-    return {
-      schema,
-      mode: input.schema_mode ?? ('permissive' as const),
-      source: input.output_schema !== undefined ? ('dispatch' as const) : ('agent-definition' as const),
-    }
-  })()
+  const structuredOutputSpec = structuredOutputSpecOf(input, definitionSchema)
 
-  const metadata: ForegroundAgentMetadata = {
-    prompt: input.prompt,
-    resolvedAgentModel: plan.model,
-    isBuiltInAgent: isBuiltInAgent(agentDef),
-    startTime,
-    agentType: agentDef.agentType,
-    isAsync: metadataIsAsync,
-    ...(structuredOutputSpec
-      ? { structuredSpec: { mode: structuredOutputSpec.mode, source: structuredOutputSpec.source } }
-      : {}),
-  }
+  const metadata = metadataOf(input, plan, agentDef, startTime, metadataIsAsync, structuredOutputSpec)
 
   const cwdOverride = worktreeInfo?.worktreePath ?? cwdParam
   const launchDirectory = cwdParam ?? (getCwd() !== getCwdState() ? getCwd() : undefined)
 
   const effectiveSystemPromptOverride = cwdOverride ? undefined : systemPromptOverride
 
-  const runAgentParams: RunAgentParams = {
-    agentDefinition: agentDef,
-    seat: CREWMATE_SEAT,
-    promptMessages,
-    toolUseContext: context,
-    canUseTool,
-    isAsync: plan.shouldRunAsync,
-    querySource,
-    ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
-    override: {
-      ...(effectiveSystemPromptOverride
-        ? { systemPrompt: effectiveSystemPromptOverride }
-        : {}),
-    },
-    ...(modelForRunLoop !== undefined ? { model: modelForRunLoop } : {}),
-    ...(input.effort !== undefined ? { effortOverride: input.effort } : {}),
-    availableTools: workerTools,
-    ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
-    ...(worktreeInfo === undefined && launchDirectory !== undefined ? { cwd: launchDirectory } : {}),
-    ...(input.review_receipt !== undefined ? { reviewReceipt: input.review_receipt } : {}),
-    description: input.description,
-    ...(input.name ? { name: input.name } : {}),
-    ...(input.team ? { team: input.team } : {}),
-    ...(input.captain !== undefined ? { captain: input.captain } : {}),
-    launchedAt: startTime,
-    onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),
-    onPendingAsks: count => setAgentPendingAsks(earlyAgentId, count, rootSetAppState),
-  }
+  const runAgentParams = runAgentParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState })
 
-  const agentContext: SubagentContext = {
-    agentType: 'subagent',
-    agentId: earlyAgentId,
-    subagentName: agentDef.agentType,
-    isBuiltIn: isBuiltInAgent(agentDef),
-    invocationKind: 'spawn',
-    invokingRequestId: parentAssistantMessage.requestId,
-    invocationEmitted: false,
-  }
+  const agentContext = agentContextOf(earlyAgentId, agentDef, parentAssistantMessage)
 
   if (plan.shouldRunAsync) {
-    const task = registerAsyncAgent({
-      agentId: earlyAgentId,
-      description: input.description,
-      prompt: input.prompt,
-      setAppState: rootSetAppState,
-      selectedAgent: agentDef,
-      model: plan.model,
-      toolUseId: context.toolUseId,
-    })
-    watchSwarmLaunch(earlyAgentId, task.abortController!.signal)
-
-    if (input.name) registerAgentName(input.name, earlyAgentId, rootSetAppState)
-
-    const enableSummarization = getSdkAgentProgressSummariesEnabled()
-
-    const lifecycle = () =>
-      runAsyncAgentLifecycle({
-        taskId: earlyAgentId,
-        abortController: task.abortController!,
-        makeStream: (onCacheSafeParams, onQueryProgress) =>
-          runAgent({
-            ...runAgentParams,
-            override: {
-              ...runAgentParams.override,
-              agentId: earlyAgentId,
-              abortController: task.abortController!,
-            },
-            onCacheSafeParams: onCacheSafeParams as never,
-            ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
-          }),
-        metadata,
-        description: input.description,
-        toolUseContext: context,
-        rootSetAppState,
-        agentIdForCleanup: earlyAgentId,
-        enableSummarization,
-        getWorktreeResult: cleanupWorktreeIfNeeded,
-        canUseTool,
-      })
+    const lifecycle = asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan, context, runAgentParams, metadata, cleanupWorktreeIfNeeded, canUseTool })
 
     backgroundOwnsEnrollment = true
     void runWithAgentContext(agentContext, () =>
@@ -417,28 +322,7 @@ export async function agentToolCall(
         : runWithOwnShellCwd(lifecycle),
     ).finally(releaseEnrollment)
 
-    const canReadOutputFile = options.tools.some(
-      tool =>
-        toolMatchesName(tool, FILE_READ_TOOL_NAME) ||
-        toolMatchesName(tool, BASH_TOOL_NAME),
-    )
-    return {
-      data: {
-        isAsync: true as const,
-        status: 'async_launched' as const,
-        agentId: earlyAgentId,
-        description: input.description,
-        prompt: input.prompt,
-        outputFile: getTaskOutputPath(earlyAgentId),
-        canReadOutputFile,
-        ...(plan.modelNote ? { modelNote: plan.modelNote } : {}),
-        ...(input.name ? { agentName: input.name } : {}),
-        ...(input.run_in_background === false && agentDef.background === true
-          ? { backgroundReason: 'agent-type' as const }
-          : {}),
-        runtimeRef: describeAgentRuntimeRef(plan.model),
-      } as never,
-    }
+    return asyncLaunchAnswerOf(options, earlyAgentId, input, plan, agentDef)
   }
 
   const result = await runWithAgentContext(agentContext, () => {
@@ -474,6 +358,153 @@ export async function agentToolCall(
   return { data: result.data }
   } finally {
     if (!backgroundOwnsEnrollment) releaseEnrollment()
+  }
+}
+
+function structuredOutputSpecOf(input: AgentToolInput, definitionSchema: Record<string, unknown> | undefined) {
+  const schema = input.output_schema ?? definitionSchema
+  if (schema === undefined) return undefined
+  const bound = getSchemaBoundStructuredOutputTool(schema)
+  if (bound.error !== undefined) {
+    throw new Error(`output_schema is not a valid JSON Schema: ${bound.error}`)
+  }
+  return {
+    schema,
+    mode: input.schema_mode ?? ('permissive' as const),
+    source: input.output_schema !== undefined ? ('dispatch' as const) : ('agent-definition' as const),
+  }
+}
+
+function metadataOf(input: AgentToolInput, plan: AgentLaunchPlan, agentDef: AgentDefinition, startTime: number, metadataIsAsync: boolean, structuredOutputSpec: ReturnType<typeof structuredOutputSpecOf>): ForegroundAgentMetadata {
+  return {
+    prompt: input.prompt,
+    resolvedAgentModel: plan.model,
+    isBuiltInAgent: isBuiltInAgent(agentDef),
+    startTime,
+    agentType: agentDef.agentType,
+    isAsync: metadataIsAsync,
+    ...(structuredOutputSpec
+      ? { structuredSpec: { mode: structuredOutputSpec.mode, source: structuredOutputSpec.source } }
+      : {}),
+  }
+}
+
+function runAgentParamsOf({ agentDef, promptMessages, context, canUseTool, plan, querySource, structuredOutputSpec, effectiveSystemPromptOverride, modelForRunLoop, input, workerTools, worktreeInfo, launchDirectory, startTime, earlyAgentId, rootSetAppState }: {
+  agentDef: AgentDefinition; promptMessages: Message[]; context: ToolUseContext; canUseTool: CanUseToolFn; plan: AgentLaunchPlan; querySource: ReturnType<typeof getQuerySourceForAgent>
+  structuredOutputSpec: ReturnType<typeof structuredOutputSpecOf>; effectiveSystemPromptOverride: string[] | undefined; modelForRunLoop: string | undefined; input: AgentToolInput
+  workerTools: ReturnType<typeof resolveWorkerTools>; worktreeInfo: Awaited<ReturnType<typeof createAgentWorktree>> | undefined; launchDirectory: string | undefined
+  startTime: number; earlyAgentId: AgentId; rootSetAppState: ToolUseContext['setAppState']
+}): RunAgentParams {
+  return {
+    agentDefinition: agentDef,
+    seat: CREWMATE_SEAT,
+    promptMessages,
+    toolUseContext: context,
+    canUseTool,
+    isAsync: plan.shouldRunAsync,
+    querySource,
+    ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
+    override: {
+      ...(effectiveSystemPromptOverride
+        ? { systemPrompt: effectiveSystemPromptOverride }
+        : {}),
+    },
+    ...(modelForRunLoop !== undefined ? { model: modelForRunLoop } : {}),
+    ...(input.effort !== undefined ? { effortOverride: input.effort } : {}),
+    availableTools: workerTools,
+    ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
+    ...(worktreeInfo === undefined && launchDirectory !== undefined ? { cwd: launchDirectory } : {}),
+    ...(input.review_receipt !== undefined ? { reviewReceipt: input.review_receipt } : {}),
+    description: input.description,
+    ...(input.name ? { name: input.name } : {}),
+    ...(input.team ? { team: input.team } : {}),
+    ...(input.captain !== undefined ? { captain: input.captain } : {}),
+    launchedAt: startTime,
+    onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),
+    onPendingAsks: count => setAgentPendingAsks(earlyAgentId, count, rootSetAppState),
+  }
+}
+
+function agentContextOf(earlyAgentId: AgentId, agentDef: AgentDefinition, parentAssistantMessage: AssistantMessage): SubagentContext {
+  return {
+    agentType: 'subagent',
+    agentId: earlyAgentId,
+    subagentName: agentDef.agentType,
+    isBuiltIn: isBuiltInAgent(agentDef),
+    invocationKind: 'spawn',
+    invokingRequestId: parentAssistantMessage.requestId,
+    invocationEmitted: false,
+  }
+}
+
+function asyncLifecycleOf({ earlyAgentId, input, rootSetAppState, agentDef, plan, context, runAgentParams, metadata, cleanupWorktreeIfNeeded, canUseTool }: {
+  earlyAgentId: AgentId; input: AgentToolInput; rootSetAppState: ToolUseContext['setAppState']; agentDef: AgentDefinition; plan: AgentLaunchPlan; context: ToolUseContext
+  runAgentParams: RunAgentParams; metadata: ForegroundAgentMetadata; cleanupWorktreeIfNeeded: () => Promise<{ worktreePath?: string; worktreeBranch?: string }>; canUseTool: CanUseToolFn
+}) {
+  const task = registerAsyncAgent({
+    agentId: earlyAgentId,
+    description: input.description,
+    prompt: input.prompt,
+    setAppState: rootSetAppState,
+    selectedAgent: agentDef,
+    model: plan.model,
+    toolUseId: context.toolUseId,
+  })
+  watchSwarmLaunch(earlyAgentId, task.abortController!.signal)
+
+  if (input.name) registerAgentName(input.name, earlyAgentId, rootSetAppState)
+
+  const enableSummarization = getSdkAgentProgressSummariesEnabled()
+
+  const lifecycle = () =>
+    runAsyncAgentLifecycle({
+      taskId: earlyAgentId,
+      abortController: task.abortController!,
+      makeStream: (onCacheSafeParams, onQueryProgress) =>
+        runAgent({
+          ...runAgentParams,
+          override: {
+            ...runAgentParams.override,
+            agentId: earlyAgentId,
+            abortController: task.abortController!,
+          },
+          onCacheSafeParams: onCacheSafeParams as never,
+          ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
+        }),
+      metadata,
+      description: input.description,
+      toolUseContext: context,
+      rootSetAppState,
+      agentIdForCleanup: earlyAgentId,
+      enableSummarization,
+      getWorktreeResult: cleanupWorktreeIfNeeded,
+      canUseTool,
+    })
+  return lifecycle
+}
+
+function asyncLaunchAnswerOf(options: ToolUseContext['options'], earlyAgentId: AgentId, input: AgentToolInput, plan: AgentLaunchPlan, agentDef: AgentDefinition) {
+  const canReadOutputFile = options.tools.some(
+    tool =>
+      toolMatchesName(tool, FILE_READ_TOOL_NAME) ||
+      toolMatchesName(tool, BASH_TOOL_NAME),
+  )
+  return {
+    data: {
+      isAsync: true as const,
+      status: 'async_launched' as const,
+      agentId: earlyAgentId,
+      description: input.description,
+      prompt: input.prompt,
+      outputFile: getTaskOutputPath(earlyAgentId),
+      canReadOutputFile,
+      ...(plan.modelNote ? { modelNote: plan.modelNote } : {}),
+      ...(input.name ? { agentName: input.name } : {}),
+      ...(input.run_in_background === false && agentDef.background === true
+        ? { backgroundReason: 'agent-type' as const }
+        : {}),
+      runtimeRef: describeAgentRuntimeRef(plan.model),
+    } as never,
   }
 }
 
