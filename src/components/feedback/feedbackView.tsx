@@ -5,7 +5,16 @@ import { Select } from '../CustomSelect/select.js'
 import { ISSUE_FORMS, ISSUE_KINDS, noGhParagraph, type promptedFields, type IssueForm, type IssueKind } from '../../commands/feedback/issueForms.js'
 import { issuesPageUrl, type IssueAccess } from '../../services/repoHost/ghIssue.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
-import type { Step } from '../Feedback.js'
+
+export type Step =
+  | 'kind'
+  | 'ask'
+  | 'preparing'
+  | 'review'
+  | 'filing'
+  | 'done'
+  | 'unavailable'
+  | 'failed'
 
 export function feedbackView({
   tokens,

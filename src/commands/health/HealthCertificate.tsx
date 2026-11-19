@@ -36,7 +36,7 @@ import {
 } from '../../utils/healthReport.js'
 import { isFixable } from '../../utils/healthCertCore.js'
 import { applyRemedy, healthFixEnabled, type AppliedFix } from '../../utils/healthFix.js'
-import { healthCertificateView } from './healthCertificate/healthCertificateView.js'
+import { healthCertificateView, type FixFlow } from './healthCertificate/healthCertificateView.js'
 
 
 const TONE_COLOR: Record<(typeof HEALTH_STATUS_META)[HealthStatus]['tone'], string> = {
@@ -179,11 +179,6 @@ function CheckRow({
     </InteractiveRow>
   )
 }
-
-export type FixFlow =
-  | { phase: 'confirm'; check: HealthCheck }
-  | { phase: 'running'; check: HealthCheck }
-  | { phase: 'done'; check: HealthCheck; outcome: AppliedFix }
 
 const FIX_CARD_DESTRUCTIVE_WORDS = 'DESTRUCTIVE — this discards state that cannot be mechanically recovered. '
 const FIX_CARD_CONFIRM_WORDS = '↵ apply · esc cancel'

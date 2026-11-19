@@ -45,7 +45,7 @@ import { focusedSessionModelFacts } from '../services/engine-connector/focusedCo
 import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
 import { CREDENTIAL_VALUE_PASSES } from '../services/providers/credentialEnvSpellings.js'
-import { feedbackView } from './feedback/feedbackView.js'
+import { feedbackView, type Step } from './feedback/feedbackView.js'
 
 
 export function redactSensitiveInfo(text: string): string {
@@ -345,16 +345,6 @@ function bodyByteCount(body: string): number {
   return Buffer.byteLength(body, 'utf8')
 }
 
-
-export type Step =
-  | 'kind'
-  | 'ask'
-  | 'preparing'
-  | 'review'
-  | 'filing'
-  | 'done'
-  | 'unavailable'
-  | 'failed'
 
 function surfaceTitle(form: IssueForm | null): string {
   if (form === null) return 'Feedback — which kind?'
