@@ -39,6 +39,10 @@ export function stalledErrorOf(run: AgentRun, { agentDefinition, agentId, idleLi
   return stalledError
 }
 
+export function unarmedAgentRun(): AgentRun {
+  return { eventsSeen: 0, toolUsesSeen: 0, deferredTouch: null, retryStalledRequest: null, stoppedAfterRetry: false, watchdog: armInactivityDeadline({ seam: 'crewmate', limitMs: 0 }), throttled: null, cuttingWait: { declaredMs: 0, honoredMs: 0 }, pendingAsks: 0, askHeartbeat: null }
+}
+
 export function armWatchdogOf(run: AgentRun, { agentDefinition, agentId, idleLimitMs, stalledError, abortController }: { agentDefinition: RunAgentParams['agentDefinition']; agentId: AgentId; idleLimitMs: number; stalledError: () => DeadlineExceededError; abortController: AbortController }) {
   const armWatchdog = (): ReturnType<typeof armInactivityDeadline> => armInactivityDeadline({
     seam: `crewmate ${agentDefinition.agentType} (${agentId})`,

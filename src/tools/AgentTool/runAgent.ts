@@ -96,7 +96,7 @@ import './scoutPolicy.js'
 import './agentPermissionPosture.js'
 
 import { fireCrewmateEndOf } from './runAgent/crewmateEnd.js'
-import { type AgentRun, armWatchdogOf, askLivelyOf, callModelOf, cutAtBudgetOf, observeProgressOf, stalledErrorOf, touchThroughOf } from './runAgent/watch.js'
+import { armWatchdogOf, askLivelyOf, callModelOf, cutAtBudgetOf, observeProgressOf, stalledErrorOf, touchThroughOf, unarmedAgentRun } from './runAgent/watch.js'
 import { prepareAgentRun } from './runAgent/prepare.js'
 export function filterIncompleteToolCalls(messages: Message[]): Message[] {
   const resolvedToolUseIds = new Set<string>()
@@ -623,7 +623,7 @@ export async function* runAgent(
     (isAsync ? new AbortController() : toolUseContext.abortController)
   const abortController = createChildAbortController(ownerAbortController)
   const startedAt = Date.now()
-  const run: AgentRun = { eventsSeen: 0, toolUsesSeen: 0, deferredTouch: null, retryStalledRequest: null, stoppedAfterRetry: false, watchdog: undefined as never, throttled: null, cuttingWait: { declaredMs: 0, honoredMs: 0 }, pendingAsks: 0, askHeartbeat: null }
+  const run = unarmedAgentRun()
   const idleLimitMs = agentIdleLimitMs()
   const stalledError = stalledErrorOf(run, { agentDefinition, agentId, idleLimitMs, startedAt, agentStalledError })
   const armWatchdog = armWatchdogOf(run, { agentDefinition, agentId, idleLimitMs, stalledError, abortController })
