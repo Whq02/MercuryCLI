@@ -7,7 +7,7 @@ import { type ShellRead, UNREAD_PART, absolutePath, moveOf, printedBy, wordKnown
 import { placedUnder } from '../runtimeProtection.js'
 import { expandPath } from '../../path.js'
 import { credentialStorePath, protectedPathForms, spelling } from './paths.js'
-import { CONVENTIONAL_USER_HOME, GLOB_PART, floorsWorld, mercuryHomes, wildcardSource } from './homes.js'
+import { CONVENTIONAL_USER_HOME, GLOB_PART, floorsWorld, globPartSource, mercuryHomes, wildcardSource } from './homes.js'
 
 const CD_PROGRAMS = new Set(['cd', 'chdir', 'pushd', 'set-location', 'sl', 'push-location'])
 const FOLDER_CAP = 16
@@ -47,7 +47,7 @@ function foldersOnDisk(pattern: string): string[] {
       try {
         test = new RegExp(`^${wildcardSource(part)}$`)
       } catch {
-        continue
+        test = new RegExp(`^${globPartSource(part)}$`)
       }
       if (test.test('')) next.push(folder)
       let names: string[] = []
