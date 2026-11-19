@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
+import { isENOENT } from '../utils/errors.js'
 import { bufferTokens, readBuffer, readConsumingRows } from './mnemeBuffer.js'
 import {
   CONSOLIDATE_AGE_MS,
@@ -149,7 +150,8 @@ export function readMaintenanceReceipts(dir: string = mnemeLibraryDir(), n = 10)
       } catch {
       }
     }
-  } catch {
+  } catch (e) {
+    if (!isENOENT(e)) logForDebugging(`mneme maintenance receipts unreadable at ${p}: ${String(e)}`)
     return []
   }
   return out.slice(Math.max(0, out.length - n))

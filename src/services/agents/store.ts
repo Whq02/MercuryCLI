@@ -2,6 +2,7 @@ import { mkdirSync, readdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { isENOENT } from '../../utils/errors.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { findGitRoot } from '../../utils/git.js'
 import { projectLocalPath } from '../projectLocal/paths.js'
@@ -104,7 +105,12 @@ async function appendReceipt(record: Record<string, unknown>): Promise<void> {
       existing = readFileSync(receiptsPath(), 'utf-8')
         .split('\n')
         .filter(Boolean)
-    } catch {
+    } catch (e) {
+      if (!isENOENT(e)) {
+        logForDebugging(
+          `agent receipts unreadable at ${receiptsPath()}: ${e instanceof Error ? e.message : String(e)}`,
+        )
+      }
     }
     existing.push(JSON.stringify(record))
     const bounded = existing.slice(-RECEIPTS_KEEP)
@@ -173,7 +179,14 @@ export async function saveAgentDocument(
     try {
       readFileSync(path, 'utf-8')
       exists = true
-    } catch {
+    } catch (e) {
+      if (!isENOENT(e)) {
+        throw new AgentStoreError(
+          'io',
+          `Could not check for an existing agent file at ${path}: ${e instanceof Error ? e.message : String(e)} — nothing was written`,
+          { path },
+        )
+      }
     }
     if (exists) {
       throw new AgentStoreError(
@@ -348,7 +361,14 @@ export async function restoreAgentFromTrash(
     try {
       readFileSync(dest, 'utf-8')
       exists = true
-    } catch {
+    } catch (e) {
+      if (!isENOENT(e)) {
+        throw new AgentStoreError(
+          'io',
+          `Could not check for an existing file at ${dest}: ${e instanceof Error ? e.message : String(e)} — nothing was restored`,
+          { path: dest },
+        )
+      }
     }
     if (exists) {
       throw new AgentStoreError(

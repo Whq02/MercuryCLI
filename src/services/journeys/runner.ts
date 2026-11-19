@@ -417,6 +417,7 @@ export async function runJourney(spec: JourneySpec, opts: RunJourneyOptions): Pr
       continue
     }
     let evidenceRef: string | undefined
+    let evidenceLost = ''
     try {
       const ev = recordCanonicalEvidence({
         owner: opts.owner,
@@ -427,14 +428,15 @@ export async function runJourney(spec: JourneySpec, opts: RunJourneyOptions): Pr
       })
       evidenceRef = `mercury://evidence/${ev.id}`
       record.evidenceRefs.push(evidenceRef)
-    } catch {
+    } catch (err) {
+      evidenceLost = ` · this step's evidence was not recorded (${(err as Error).message.slice(0, 200)})`
     }
     record.steps.push({
       index,
       kind: step.kind,
       label,
       state: out.ok ? 'passed' : 'failed',
-      detail: bounded(out.detail),
+      detail: bounded(out.detail) + evidenceLost,
       ...(evidenceRef !== undefined && { evidenceRef }),
       elapsedMs: Date.now() - startedAt,
     })
@@ -463,6 +465,7 @@ export async function runJourney(spec: JourneySpec, opts: RunJourneyOptions): Pr
   if (failedStep !== undefined) record.failedStep = failedStep
   liveAborts.delete(id)
 
+  let settledLost = ''
   try {
     const ev = recordCanonicalEvidence({
       owner: opts.owner,
@@ -472,22 +475,23 @@ export async function runJourney(spec: JourneySpec, opts: RunJourneyOptions): Pr
       refs: [`mercury://journey/${id}`, record.executionRef],
     })
     record.evidenceRefs.push(`mercury://evidence/${ev.id}`)
-  } catch {
+  } catch (err) {
+    settledLost = ` · the journey's settled evidence was not recorded (${(err as Error).message.slice(0, 200)})`
   }
 
   if (cancelled) {
     try {
-      settleExecution(opts.owner, id, 'cancelled', { outcome: { reason: 'journey cancelled' } })
+      settleExecution(opts.owner, id, 'cancelled', { outcome: { reason: `journey cancelled${settledLost}` } })
     } catch {
-      transitionExecution(opts.owner, id, 'cancelled', { outcome: { reason: 'journey cancelled' } })
+      transitionExecution(opts.owner, id, 'cancelled', { outcome: { reason: `journey cancelled${settledLost}` } })
     }
   } else {
     settleExecution(opts.owner, id, failedStep !== undefined ? 'failed' : 'succeeded', {
       outcome: {
         reason:
-          failedStep !== undefined
+          (failedStep !== undefined
             ? `step ${failedStep} failed: ${record.steps[failedStep]?.detail.slice(0, 120)}`
-            : `${record.steps.length} step(s) passed`,
+            : `${record.steps.length} step(s) passed`) + settledLost,
       },
       evidenceRefs: record.evidenceRefs.slice(-1),
     })

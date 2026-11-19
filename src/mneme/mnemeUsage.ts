@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
+import { isENOENT } from '../utils/errors.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
@@ -69,7 +70,8 @@ export function readPins(dir: string = mnemeLibraryDir()): PinRecord[] {
     return parsed.pins
       .filter(p => Number.isInteger(p?.seq) && p.seq > 0 && typeof p?.at === 'string')
       .map(p => ({ seq: p.seq, at: p.at, ...(p.asked === true ? { asked: true as const } : {}), ...(validatedApplicability(p.applicability) ? { applicability: validatedApplicability(p.applicability) } : {}) }))
-  } catch {
+  } catch (e) {
+    if (!isENOENT(e)) logForDebugging(`memory pins unreadable at ${pinsPath(dir)}: ${e instanceof SyntaxError ? 'it is not valid JSON' : String(e)}`)
     return []
   }
 }
@@ -132,7 +134,8 @@ export function readUsage(dir: string = mnemeLibraryDir()): Record<string, Usage
   try {
     const parsed = JSON.parse(readFileSync(usagePath(dir), 'utf8')) as UsageFile
     return parsed?.rows && typeof parsed.rows === 'object' ? parsed.rows : {}
-  } catch {
+  } catch (e) {
+    if (!isENOENT(e)) logForDebugging(`memory usage unreadable at ${usagePath(dir)}: ${e instanceof SyntaxError ? 'it is not valid JSON' : String(e)}`)
     return {}
   }
 }
