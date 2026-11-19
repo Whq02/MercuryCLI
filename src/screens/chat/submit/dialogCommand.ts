@@ -12,7 +12,7 @@ type DialogCommand = Extract<Command, { type: 'local-jsx' }>;
 type DialogSlot = { name: string; mounted: boolean };
 type DialogDoneOptions = { display?: 'skip' | 'system' | 'user'; nextInput?: string; submitNextInput?: boolean; shouldQuery?: boolean; metaMessages?: string[] };
 
-function queueBehindDialog(deps: SubmitDeps, line: SubmitLine, dialogName: string): boolean {
+export function queueBehindDialog(deps: SubmitDeps, line: SubmitLine, dialogName: string): boolean {
   const { addNotification, dialogInFlightRef, queuedDialogCommandsRef } = deps;
   const { input, submittedAt, seatPastes } = line;
   const inFlight = dialogInFlightRef.current;
@@ -51,11 +51,9 @@ function queryAfterDialog({ addNotification }: SubmitDeps, { input, focusedNow }
   })();
 }
 
-export async function openDialogCommand(deps: SubmitDeps, line: SubmitLine, seatCommand: DialogCommand, { spaceAt, args, argsWithPastes }: CommandArgs): Promise<void> {
+export async function openDialogCommand(deps: SubmitDeps, line: SubmitLine, seatCommand: DialogCommand, dialogName: string, { spaceAt, args, argsWithPastes }: CommandArgs): Promise<void> {
   const { addNotification, setInputValue, authWallHold, setToolJSX, getToolUseContext, paintScreenCommandReceipt, dialogInFlightRef, onSubmitRef } = deps;
   const { input, options, submittedAt, text, focusedNow } = line;
-  const dialogName = getCommandName(seatCommand);
-  if (queueBehindDialog(deps, line, dialogName)) return;
   const slot = { name: dialogName, mounted: false };
   dialogInFlightRef.current = slot;
   submitTrace('repl-dialog-dispatch', input, { name: dialogName, rearmed: options?.rearmed === true });

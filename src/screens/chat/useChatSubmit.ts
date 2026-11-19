@@ -1,6 +1,6 @@
 import type { UUID } from 'node:crypto';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { Command, ResumeEntrypoint } from '../../commands.js';
+import { getCommandName, type Command, type ResumeEntrypoint } from '../../commands.js';
 import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js';
 import type { useNotifications } from '../../context/notifications.js';
 import type { useApiKeyVerification } from '../../hooks/useApiKeyVerification.js';
@@ -27,7 +27,7 @@ import { formatCommandLoadingMetadata } from '../../utils/processUserInput/proce
 import { submitTrace } from '../../utils/submitTrace.js';
 import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './limits.js';
 import type { PaintsRows, ResumableLog } from './sessionShapes.js';
-import { openDialogCommand } from './submit/dialogCommand.js';
+import { openDialogCommand, queueBehindDialog } from './submit/dialogCommand.js';
 import { followRouteAlias, holdCommandForLanding, readCommandArgs, runLocalCommand } from './submit/screenCommand.js';
 import { holdForLanding, sendToSession } from './submit/sessionSend.js';
 import { INERT_PROMPT_HELPERS, readSubmitLine, refuseUnknownSlash, takeComposer, type SubmitDeps, type SubmitOptions } from './submit/submitLine.js';
@@ -232,7 +232,9 @@ export function useChatSubmit({ addNotification, setAppState, setInputValue, set
       return;
     }
     if (seatCommand !== undefined && seatCommand.type === 'local-jsx') {
-      await openDialogCommand(deps, line, seatCommand, commandArgs);
+      const dialogName = getCommandName(seatCommand);
+      if (queueBehindDialog(deps, line, dialogName)) return;
+      await openDialogCommand(deps, line, seatCommand, dialogName, commandArgs);
     }
   }, [addNotification, authWallHold, drainQueuedDialogCommand, getToolUseContext, lastCompletedAt, paintScreenCommandReceipt, repinToBottom, setInputMode, setInputValue, setPastedContents, setToolJSX]);
   const onSubmitRef = useRef(onSubmit);
