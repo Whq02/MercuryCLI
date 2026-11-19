@@ -8,8 +8,6 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { basename } from 'node:path'
-import { isDeepStrictEqual } from 'node:util'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { enqueueNotification } from '../../context/notifications.js'
 import { ModalContext } from '../../context/modalContext.js'
@@ -18,8 +16,6 @@ import { settingsPopupMarker } from '../../utils/cockpit/settingsPopup.js'
 import { Box, Text, useInput } from '../../ink.js'
 import { usePopupListPaging, PopupListViewport } from '../CustomSelect/popup-list.js'
 import { escapeFromOutsidePress } from '../../ink/recessLayer.js'
-import wrapText from '../../ink/wrap-text.js'
-import { getFocusedWorkspaceCwd } from '../../hooks/useFocusedWorkspaceCwd.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
 import { getGlobalConfigCacheStamp, subscribeGlobalConfigCache } from '../../utils/config/globalConfig.js'
 import { getEffectivePermissionMode } from '../../utils/config/derived.js'
@@ -60,9 +56,7 @@ import {
   PERMISSION_MODES,
   permissionModeTitle,
 } from '../../utils/permissions/PermissionMode.js'
-import { getEngineModel, modelDisplayString, renderModelName } from '../../utils/model/model.js'
-import { glmThinkingLocked } from '../../services/providers/zai/glmPins.js'
-import { modelThinkingAlwaysOn } from '../../utils/model/capabilities.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
 import { customPatienceSetting, patienceEnvPins, patienceOf, patienceWords } from '../../services/providers/patience.js'
 import {
@@ -75,15 +69,10 @@ import {
 } from '../../utils/shell/engineSession.js'
 import { windowsBashAbsent } from '../../utils/shell/windowsShellRoad.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
-import {
-  providerFamilyPresences,
-  type ProviderFamilyPresence,
-} from '../../services/providers/providerUsage.js'
-import { shownIdentityWords } from '../../services/providers/providerIdentityLine.js'
-import { REACHABLE_THEME_SETTINGS, THEME_LABELS as THEME_NAMES_BY_SETTING } from '../../utils/theme.js'
+import { providerFamilyPresences } from '../../services/providers/providerUsage.js'
+import { REACHABLE_THEME_SETTINGS } from '../../utils/theme.js'
 import { DEFAULT_THEME_SETTING } from '../../utils/systemTheme.js'
 import { useTheme, useThemeSetting } from '../design-system/ThemeProvider.js'
-import { GLYPH } from '../mercury-ui/glyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
 import { SearchBox } from '../SearchBox.js'
@@ -106,281 +95,27 @@ import { EFFORT_LEVELS } from '../../utils/effort.js'
 import { MercuryModelChoicePicker, modelChoiceLabel, modelChoiceRow } from '../../commands/model/mercuryModel.js'
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
-import type { ModelChoice } from '../MercuryModelPicker.js'
-import { LOCAL_PULL_RECOMMENDATION } from '../../services/providers/local/localAccounts.js'
-import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
-import { heldLocalWindow, localWindowApplication, localWindowModelfileAutoWords, localWindowRefusalWords, localWindowRoomWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
+import { localWindowSettingOf, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
 import { HELPER_JOB_WORDS, helperChoiceWords, helperJobsWords, helperModelChoices, nextHelperModelSetting, readHelperModelSetting, readHelperModelState, writeHelperModelSetting } from '../../services/providers/local/tensorfoldHelper.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
 import { advisorConfigItems } from './Advisor.js'
 import { swarmMasterEnabled } from '../../services/crewBoard/seam.js'
-import { MediaConfigPicker, useMediaConfig, type MediaMenu } from './Media.js'
+import { MediaConfigPicker, useMediaConfig } from './Media.js'
 import { reloadExtensions, noteReloaded } from '../../extensions/boot.js'
 import { extensionsStateFrom } from '../../hooks/useExtensions.js'
 import { setAdvisorEnabled, setAdvisorMinutes } from '../../services/advisor/advisorSettings.js'
-import { isRecord as configObject } from '../../utils/isRecord.js'
+import { CONFIG_SEARCH_PLACEHOLDER, CONFIG_LIST_CHROME_ROWS, CONFIG_ROW_MARK, configPopupLine, configPopupFolder, configMoreRow, configWarningRows, configListWindow } from './config/configLayout.js'
+import { type SubMenu, AGENT_INHERIT_ROW, type SettingsItem, THEME_LABELS, cycleIn, nextSessionCeiling, validated } from './config/configItems.js'
+import { configRowApplicability, thinkingRowApplicability, mainLoopPointerText, localModelWindowRow, configProviderRows } from './config/configRowFacts.js'
+import { type ConfigUndo, configUndoLeaves, restoreConfigLeaf } from './config/configUndo.js'
+
+export { CONFIG_POPUP_WIDTH, CONFIG_POPUP_ROWS, CONFIG_POPUP_HINT, CONFIG_SEARCH_PLACEHOLDER, CONFIG_LIST_CHROME_ROWS, CONFIG_ROW_MARK, configPopupLine, configPopupFolder, configMoreRow, configWarningRows, configListWindow, type ConfigListWindow } from './config/configLayout.js'
+export { configRowApplicability, thinkingRowApplicability, mainLoopPointerText, localModelWindowRow, configProviderRows, type ConfigProviderRow } from './config/configRowFacts.js'
 
 const LABEL_CELLS = 36
 function valueOnOneLine(value: React.ReactNode): React.ReactNode {
   return isValidElement<{ wrap?: string }>(value) && value.type === Text && value.props.wrap === undefined ? cloneElement(value, { wrap: 'truncate-end' }) : value
-}
-
-export const CONFIG_POPUP_WIDTH = 110
-export const CONFIG_POPUP_ROWS = 44
-export const CONFIG_POPUP_HINT = '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes'
-export const CONFIG_SEARCH_PLACEHOLDER = 'Search settings…'
-export const CONFIG_LIST_CHROME_ROWS = 3
-export const CONFIG_ROW_MARK = GLYPH.chevronRight
-
-export function configPopupLine(folder: string, settings: number, setByYou: number): string {
-  return `${folder} · ${settings} setting${settings === 1 ? '' : 's'} · ${setByYou} set by you`
-}
-
-export function configPopupFolder(cwd: string = getFocusedWorkspaceCwd()): string {
-  const name = basename(cwd)
-  return name === '' ? cwd : name
-}
-
-export function configMoreRow(hiddenBelow: number): string {
-  return hiddenBelow > 0 ? `↓ ${hiddenBelow} more` : ''
-}
-
-export function configWarningRows(warning: string, width: number): number {
-  return wrapText(`  ${warning}`, Math.max(1, width), 'wrap').split('\n').length
-}
-
-export type ConfigListWindow = { sel: number; off: number; hiddenBelow: number; overflows: boolean }
-
-export function configListWindow(selected: number, offset: number, total: number, windowSize: number): ConfigListWindow {
-  const size = Math.max(1, windowSize)
-  const sel = Math.max(0, Math.min(selected, total - 1))
-  let off = offset
-  if (sel < off) off = sel
-  if (sel >= off + size) off = sel - size + 1
-  off = Math.max(0, Math.min(off, Math.max(0, total - size)))
-  return { sel, off, hiddenBelow: Math.max(0, total - off - size), overflows: total > size }
-}
-
-type SubMenu =
-  | 'theme'
-  | 'agent-model'
-  | 'external-includes'
-  | 'language'
-  | typeof LOCAL_SERVER_APPLY_MENU
-  | MediaMenu
-
-const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Crewmate', choice: "uses the parent session's model when spawning a crewmate" }
-
-type ItemKind = 'boolean' | 'enum' | 'managed-enum' | 'info'
-
-type SettingsItem = {
-  id: string
-  label: string
-  searchText?: string
-  kind: ItemKind
-  value: React.ReactNode
-  change?: (direction: 1 | -1) => void
-  open?: SubMenu
-  warning?: string
-  setByYou?: boolean
-}
-
-const THEME_LABELS: Record<string, string> = { auto: 'auto', ...THEME_NAMES_BY_SETTING }
-
-
-const CONFIG_PROVIDER_PRESENTATION: Record<
-  string,
-  { label: string; absent: string; manage?: string }
-> = {
-  anthropic: { label: 'Anthropic', absent: 'not signed in — /logins connects', manage: '/accounts' },
-  openai: { label: 'OpenAI', absent: 'not signed in — /logins connects', manage: '/accounts' },
-  zai: { label: 'Z.AI', absent: 'no key — /logins zai connects (or ZAI_API_KEY)', manage: '/accounts' },
-  openrouter: { label: 'OpenRouter', absent: 'not signed in — /logins connects', manage: '/accounts' },
-  gemini: { label: 'Gemini', absent: 'not signed in — /logins connects', manage: '/accounts' },
-  moonshot: { label: 'Moonshot', absent: 'not signed in — /logins moonshot connects (or MOONSHOT_API_KEY)', manage: '/accounts' },
-  deepseek: { label: 'DeepSeek', absent: 'no key — /logins deepseek connects (or DEEPSEEK_API_KEY)', manage: '/accounts' },
-  xai: { label: 'xAI', absent: 'no key — /logins xai connects (or XAI_API_KEY)', manage: '/accounts' },
-  meta: { label: 'Meta', absent: 'no key — /logins meta connects (or MODEL_API_KEY)', manage: '/accounts' },
-  mistral: { label: 'Mistral', absent: 'no key — /logins mistral connects (or MISTRAL_API_KEY)', manage: '/accounts' },
-  'openai-compat': { label: 'Custom endpoint', absent: 'not configured — MERCURY_COMPAT_BASE_URL' },
-  huggingface: { label: 'Hugging Face', absent: 'not signed in — /logins connects (or HF_TOKEN)', manage: '/accounts' },
-  local: { label: 'Local', absent: `no sign-in — start a local server or MERCURY_LOCAL_BASE_URL, then ${LOCAL_PULL_RECOMMENDATION}, ${LOCAL_SETUP_OFFER}` },
-  nous: { label: 'Nous Portal', absent: 'no key — /logins nous connects (or NOUS_API_KEY)', manage: '/accounts' },
-  zen: { label: 'OpenCode Zen', absent: 'no key — /logins zen connects (or OPENCODE_API_KEY)', manage: '/accounts' },
-  minimax: { label: 'MiniMax', absent: 'no key — /logins minimax connects (or MINIMAX_API_KEY)', manage: '/accounts' },
-  together: { label: 'Together AI', absent: 'no key — /logins together connects (or TOGETHER_API_KEY)', manage: '/accounts' },
-  cohere: { label: 'Cohere', absent: 'no key — /logins cohere connects (or COHERE_API_KEY)', manage: '/accounts' },
-  groq: { label: 'Groq', absent: 'no key — /logins groq connects (or GROQ_API_KEY)', manage: '/accounts' },
-  melious: { label: 'Melious AI', absent: 'no key — /logins melious connects (or MELIOUS_API_KEY)', manage: '/accounts' },
-  orcarouter: { label: 'OrcaRouter', absent: 'no key — /logins orcarouter connects (or ORCAROUTER_API_KEY)', manage: '/accounts' },
-  cerebras: { label: 'Cerebras', absent: 'no key — /logins cerebras connects (or CEREBRAS_API_KEY)', manage: '/accounts' },
-  fireworks: { label: 'Fireworks', absent: 'no key — /logins fireworks connects (or FIREWORKS_API_KEY)', manage: '/accounts' },
-  qwen: { label: 'Qwen', absent: 'no key — /logins qwen connects (or DASHSCOPE_API_KEY)', manage: '/accounts' },
-}
-
-
-export function configRowApplicability(
-  appliesTo: 'anthropic' | 'openrouter',
-  route: string,
-): { applies: true } | { applies: false; naText: string; refuseNote: string } {
-  if (route === appliesTo) return { applies: true }
-  const laneLabel = CONFIG_PROVIDER_PRESENTATION[appliesTo]?.label ?? appliesTo
-  const activeLabel = CONFIG_PROVIDER_PRESENTATION[route]?.label ?? route
-  return {
-    applies: false,
-    naText: `n/a — applies to ${laneLabel} models (${activeLabel} is active)`,
-    refuseNote: `This setting only affects ${laneLabel}; the session runs on ${activeLabel} — /model switches provider.`,
-  }
-}
-
-export function thinkingRowApplicability(
-  model: string,
-  reads?: { locked?: (id: string) => boolean; routeOf?: (id: string) => string | null; alwaysOn?: (id: string) => boolean; nameOf?: (id: string) => string },
-): { applies: true } | { applies: false; naText: string; refuseNote: string } {
-  const route = reads?.routeOf?.(model) ?? declaredRouteOf(model)
-  if (route === 'openai') {
-    return {
-      applies: false,
-      naText: `n/a — GPT models take the effort dial (${model} is active)`,
-      refuseNote: 'GPT reasoning is the effort level; /effort sets it, and /model switches provider.',
-    }
-  }
-  if (route === 'zai' && (reads?.locked ?? glmThinkingLocked)(model)) {
-    return {
-      applies: false,
-      naText: `n/a — ${model} keeps thinking on`,
-      refuseNote: 'This model locks thinking on at the provider; the setting cannot turn it off.',
-    }
-  }
-  if ((reads?.alwaysOn ?? modelThinkingAlwaysOn)(model)) {
-    return {
-      applies: false,
-      naText: `n/a — ${(reads?.nameOf ?? renderModelName)(model)} keeps thinking on`,
-      refuseNote: 'This model thinks on every request; the setting cannot turn it off — /effort is the lever.',
-    }
-  }
-  return { applies: true }
-}
-
-export function mainLoopPointerText(
-  effective: string | null,
-  reads?: { resolvedModel?: () => string; routeOf?: (model: string) => string },
-): string {
-  const resolved = reads?.resolvedModel?.() ?? getEngineModel()
-  const model = effective ?? resolved
-  const route = reads?.routeOf?.(model) ?? declaredRouteOf(model) ?? 'unrecognised'
-  const providerLabel = CONFIG_PROVIDER_PRESENTATION[route]?.label ?? route
-  const modelText =
-    effective !== null ? modelDisplayString(effective) : `default (${modelDisplayString(resolved)})`
-  return `${providerLabel} · ${modelText} — /model`
-}
-
-export function localModelWindowRow(
-  record: ReturnType<typeof localRecordFor>,
-  route: string,
-  _stamp?: number,
-): { applies: boolean; valueText: string; note: string; setByYou: boolean; overFit: boolean; tight: boolean } {
-  if (route !== 'local' || record === undefined) {
-    const activeLabel = CONFIG_PROVIDER_PRESENTATION[route]?.label ?? route
-    return {
-      applies: false,
-      valueText: `n/a — applies to local models (${activeLabel} is active)`,
-      note: 'The served context window of a local model — /model picks a local model first; then ←/→ choose server default · 32k · 64k · 128k · trained max, or auto (the biggest window that fits this machine, chosen at first send and held for the session).',
-      setByYou: false,
-      overFit: false,
-      tight: false,
-    }
-  }
-  const setting = localWindowSettingOf(record)
-  const application = localWindowApplication(record)
-  const applies = application === 'request' || application === 'load'
-  const refusal = applies ? localWindowRefusalWords(record, setting) : undefined
-  const room = applies && refusal === undefined ? localWindowRoomWords(record, setting) : undefined
-  const held = applies ? heldLocalWindow(record) : undefined
-  const rule = held !== undefined && held.setting === setting && held.window !== undefined ? ` Held this session: ${held.words}.` : ''
-  const note =
-    application === 'server-start'
-      ? `${record.id}: this server fixes its window when it starts; Mercury shows the served figure and cannot change it here.`
-      : application === 'none'
-        ? `${record.id}: an unknown server kind — the setting does not apply.`
-        : `${record.id}: auto = ${localWindowModelfileAutoWords(record) ?? "the biggest of 32k · 64k · 128k whose projected load (weights + the KV cache of the layers that keep one, at the server's cache type and slots; the server's measured size once the model is loaded) fits the memory usable for models, never above the trained max; 256k only when you choose trained max or a number yourself — the rule /localsetup's step 5 uses"}; held for the session; a change reloads the model on the next send (the ingested prompt is read again).${refusal !== undefined ? ` The setting is saved but does not fit: ${refusal}.` : room !== undefined ? ` The setting fits this small box but leaves little room: ${room}.` : ''}${rule} ${application === 'request' ? 'Ollama takes it as num_ctx on every request.' : 'LM Studio takes it when the model is loaded.'}`
-  return { applies, valueText: `${localWindowValueWords(record, setting)} · ${record.id}`, note, setByYou: applies && setting !== undefined, overFit: refusal !== undefined, tight: room !== undefined }
-}
-
-export interface ConfigProviderRow {
-  id: string
-  label: string
-  valueText: string
-  credentialed: boolean
-}
-
-export function configProviderRows(families: ProviderFamilyPresence[]): ConfigProviderRow[] {
-  return families
-    .map(family => {
-      const meta = CONFIG_PROVIDER_PRESENTATION[family.id] ?? {
-        label: family.id,
-        absent: 'not connected — see /capabilities',
-      }
-      return {
-        id: `account-${family.id}`,
-        label: `${meta.label} account`,
-        valueText: family.credentialed
-          ? `${shownIdentityWords(family.id, String(family.credentialLabel))}${meta.manage ? ` — ${meta.manage}` : ''}`
-          : meta.absent,
-        credentialed: family.credentialed,
-      }
-    })
-}
-
-function cycleIn<T>(list: readonly T[], current: T, direction: 1 | -1): T {
-  const at = list.indexOf(current)
-  const base = at < 0 ? 0 : at
-  return list[(base + direction + list.length) % list.length] as T
-}
-
-const SESSION_CEILING_LADDER: readonly number[] = [1, 2, 4, 8, 12, 16, 24, 32]
-function nextSessionCeiling(current: number, direction: 1 | -1): number {
-  if (direction === 1) return SESSION_CEILING_LADDER.find(rung => rung > current) ?? (SESSION_CEILING_LADDER[0] as number)
-  for (let i = SESSION_CEILING_LADDER.length - 1; i >= 0; i--) {
-    const rung = SESSION_CEILING_LADDER[i] as number
-    if (rung < current) return rung
-  }
-  return SESSION_CEILING_LADDER[SESSION_CEILING_LADDER.length - 1] as number
-}
-
-function validated<T extends string>(
-  list: readonly T[],
-  value: unknown,
-  fallback: T,
-): T {
-  return typeof value === 'string' && (list as readonly string[]).includes(value)
-    ? (value as T)
-    : fallback
-}
-
-type ConfigUndoSource = 'global' | 'localSettings' | 'userSettings' | 'app'
-type ConfigUndo = { source: ConfigUndoSource; path: string[]; previous: unknown }
-
-function configUndoLeaves(source: ConfigUndoSource, before: unknown, after: unknown, path: string[] = [], partial = false): ConfigUndo[] {
-  if (isDeepStrictEqual(before, after)) return []
-  if ((configObject(before) || before === undefined) && (configObject(after) || after === undefined)) {
-    const old = before ?? {}
-    const next = after ?? {}
-    const keys = partial && after !== undefined ? Object.keys(next) : new Set([...Object.keys(old), ...Object.keys(next)])
-    return [...keys].flatMap(key => configUndoLeaves(source, old[key], next[key], [...path, key], partial))
-  }
-  return [{ source, path, previous: structuredClone(before) }]
-}
-
-function restoreConfigLeaf(current: Record<string, unknown>, path: string[], previous: unknown): Record<string, unknown> {
-  const [key, ...tail] = path
-  if (key === undefined) return current
-  const restored = { ...current }
-  const value = tail.length === 0 ? previous : restoreConfigLeaf(configObject(current[key]) ? current[key] : {}, tail, previous)
-  if (value === undefined || (tail.length > 0 && configObject(value) && Object.keys(value).length === 0)) delete restored[key]
-  else Object.defineProperty(restored, key, { value, enumerable: true, configurable: true, writable: true })
-  return restored
 }
 
 export function Config({
