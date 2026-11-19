@@ -6,7 +6,6 @@ import { useAppState, useSetAppState } from '../../state/AppState.js'
 import { computeActiveSet } from '../../extensions/active.js'
 import { isExtensionsPending, noteReloaded, reloadExtensions, setExtensionsPending } from '../../extensions/boot.js'
 import { block, matchBlock, unblock } from '../../extensions/blocklist.js'
-import type { CardKind } from '../../extensions/card.js'
 import {
   approve,
   approveUpdate,
@@ -18,7 +17,7 @@ import {
   uninstallPreview,
   update,
 } from '../../extensions/install.js'
-import { contributionCounts, readManifest, type ManifestNeeds } from '../../extensions/manifest.js'
+import { contributionCounts, readManifest } from '../../extensions/manifest.js'
 import { isOptionSet, saveOptionValues, type OptionValue } from '../../extensions/options.js'
 import { rosterSummary, trustStateOf } from '../../extensions/roster.js'
 import {
@@ -46,15 +45,17 @@ import { charWord, resolveExtensionsBindings } from './bindings.js'
 import { ExtensionView, bytesWord } from './ExtensionView.js'
 import { SourceView } from './SourceView.js'
 import {
-  age,
   installedRollup,
   noteWords,
-  plainRowText,
   sourceStateWord,
   sourceWhereWords,
   sourcesRollup,
   trustWord,
 } from './rowWords.js'
+import { ExtensionSidePane, SourceSidePane } from './board/SidePanes.js'
+import { rowKeyOf, type BoardRow, type BoardSeed, type CardSpec, type Slot, type View } from './board/shapes.js'
+
+export type { CardSpec } from './board/shapes.js'
 
 
 export type ExtensionsRoute =
@@ -62,46 +63,6 @@ export type ExtensionsRoute =
   | { kind: 'open'; name: string }
   | { kind: 'add'; raw: string }
   | { kind: 'install'; target: string }
-
-
-type BoardRow =
-  | { kind: 'ext'; entry: RosterEntry; health: Health | null }
-  | { kind: 'src'; row: SourceRow }
-
-function rowKeyOf(row: BoardRow): string {
-  return row.kind === 'ext' ? `ext:${row.entry.id}` : `src:${row.row.label}`
-}
-
-
-export type CardSpec = {
-  id: string
-  cardKind: CardKind
-  root: string
-  label: string
-  where: string | null
-  commit: string | null
-  previous: { root: string; version: string } | null
-  back: BoardSeed
-}
-
-type BoardSeed = { section?: 'installed' | 'sources'; row?: string }
-
-type View =
-  | { kind: 'board'; seed: BoardSeed }
-  | { kind: 'source'; label: string }
-  | { kind: 'ext'; id: string }
-  | { kind: 'card'; card: CardSpec }
-
-
-type Slot =
-  | { mode: 'add'; text: string; busy: string | null; error: string | null }
-  | { mode: 'filter'; text: string }
-  | { mode: 'uninstall'; id: string; name: string; version: string; label: string; dataBytes: number; inPlace: boolean }
-  | { mode: 'remove-source'; label: string; installedIds: string[] }
-  | { mode: 'fetch'; id: string; name: string; url: string; ref: string | null }
-  | { mode: 'option'; id: string; schema: NonNullable<ManifestNeeds['options']>; keys: string[]; index: number; text: string }
-
-
 
 export function ExtensionsBoard({
   onClose,
@@ -1197,80 +1158,5 @@ export function ExtensionsBoard({
           : undefined
       }
     />
-  )
-}
-
-
-function ExtensionSidePane({ entry, health }: { entry: RosterEntry; health: Health | null }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const w = trustWord(trustStateOf(entry), health)
-  const counts = entry.manifest ? contributionCounts(entry.manifest) : {}
-  const addsParts = Object.entries(counts).map(([kind, n]) => `${n} ${n === 1 ? kind.replace(/s$/, '') : kind}`)
-  const lines: Array<{ k: string; v: string; tone?: string }> = []
-  if (entry.home === 'proposal') {
-    lines.push({ k: 'found', v: 'proposed by this project' })
-    lines.push({ k: 'from', v: entry.proposal?.source ?? '' })
-    lines.push({ k: 'next', v: 'i fetches, then the card' })
-  } else {
-    lines.push({ k: 'from', v: entry.home === 'project' ? 'this project' : entry.label })
-    if (entry.source?.where) lines.push({ k: '', v: entry.source.where })
-    else if (entry.home === 'project' && entry.root) lines.push({ k: '', v: entry.root })
-    lines.push({ k: 'health', v: `${w.glyph} ${w.word}`, tone: tokens[w.role] })
-    for (const reason of (health?.reasons ?? []).slice(0, 3)) lines.push({ k: '', v: reason, tone: tokens[w.role] })
-    if (addsParts.length > 0) {
-      lines.push({ k: 'adds', v: addsParts.slice(0, 2).join(' · ') })
-      for (let i = 2; i < addsParts.length; i += 2) lines.push({ k: '', v: addsParts.slice(i, i + 2).join(' · ') })
-    }
-    const needs = entry.manifest?.needs
-    if (needs?.binaries?.length) lines.push({ k: 'needs', v: needs.binaries.join(' · ') })
-    if (needs?.env?.length) lines.push({ k: needs.binaries?.length ? '' : 'needs', v: needs.env.join(' · ') })
-    if (entry.record?.approval) lines.push({ k: 'approved', v: `${entry.record.approval.at.slice(0, 10)} · ${entry.record.approval.version}` })
-    else if (entry.home !== 'bundled') lines.push({ k: 'approved', v: 'not yet · i approves' })
-    lines.push({ k: 'switch', v: entry.switchScope === 'project' ? 'this project' : entry.switchScope === 'everywhere' ? 'everywhere' : 'off' })
-    if (entry.availableVersion) lines.push({ k: 'update', v: `↑ ${entry.availableVersion} · U applies`, tone: tokens.warning })
-  }
-  return (
-    <Box flexDirection="column">
-      <Text bold color={tokens.accent} wrap="truncate-end">
-        {entry.name} {entry.version}
-      </Text>
-      {lines.map((l, i) => (
-        <Text key={i} wrap="truncate-end">
-          <Text color={tokens.textMuted}>{(l.k + '          ').slice(0, 10)}</Text>
-          <Text color={l.tone ?? tokens.textPrimary}>{l.v}</Text>
-        </Text>
-      ))}
-    </Box>
-  )
-}
-
-function SourceSidePane({ row }: { row: SourceRow }): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const w = sourceStateWord(row.state)
-  const lines: Array<{ k: string; v: string; tone?: string }> = [
-    { k: 'kind', v: `${row.record.kind}${row.record.ref ? ` · ${row.record.ref}` : ''}` },
-    { k: 'where', v: row.record.where },
-    ...(row.record.commit ? [{ k: 'commit', v: row.record.commit.slice(0, 7) }] : []),
-    { k: 'checked', v: `${age(row.record.checkedAt)} · ${w.word}`, tone: tokens[w.role] },
-    ...(row.record.lastError ? [{ k: 'error', v: plainRowText(row.record.lastError), tone: tokens.failure }] : []),
-    { k: 'offers', v: row.catalogue ? `${row.offered} extension${row.offered === 1 ? '' : 's'}` : row.catalogueError ? plainRowText(row.catalogueError) : 'unknown' },
-    ...(row.installed > 0 || row.updates > 0
-      ? [{ k: '', v: `${row.installed} installed${row.updates > 0 ? ` · ${row.updates} update${row.updates === 1 ? '' : 's'}` : ''}` }]
-      : []),
-    { k: 'added', v: row.record.addedAt.slice(0, 10) },
-  ]
-  return (
-    <Box flexDirection="column">
-      <Text bold color={tokens.accent} wrap="truncate-end">
-        {row.label}
-      </Text>
-      {lines.map((l, i) => (
-        <Text key={i} wrap="truncate-end">
-          <Text color={tokens.textMuted}>{(l.k + '          ').slice(0, 10)}</Text>
-          <Text color={l.tone ?? tokens.textPrimary}>{l.v}</Text>
-        </Text>
-      ))}
-      <Text color={tokens.textMuted}>↵ opens its extensions</Text>
-    </Box>
   )
 }
