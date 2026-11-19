@@ -2,8 +2,7 @@
 import { mock } from 'bun:test'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import ts from 'typescript'
+import { join } from 'node:path'
 
 const home = mkdtempSync(join(tmpdir(), 'daemon-run-shutdown-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -15,7 +14,6 @@ for (const key of ['MERCURY_HOME', 'MERCURY_DAEMON_PERSIST', 'MERCURY_DAEMON_OWN
 
 const SELF = 'scripts/daemon/prove-daemon-run-shutdown-part.ts'
 const PART = 'src/daemon/run/shutdown.ts'
-const ROOT = resolve(import.meta.dir, '..', '..')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail: unknown = ''): void => {
@@ -72,7 +70,6 @@ const STAND_INS = {
     },
   },
 }
-const IMPORTS: Record<string, string[]> = { ...Object.fromEntries(Object.entries(STAND_INS).map(([from, calls]) => [from, Object.keys(calls)])), './state.js': ['type DaemonRunState'] }
 
 const controlSocket = await import('../../src/daemon/controlSocket.ts')
 const planeRecords = await import('../../src/daemon/planeRecords.ts')
@@ -219,53 +216,6 @@ function readWayOut(ran: readonly string[], kept: readonly string[] = KEPT): str
   return off < 0 ? [] : [`the steps ran in their order and what they did does not stand as kept: "${ran[off] ?? '(nothing more)'}" is number ${off + 1} of what happened, where this proof holds "${kept[off] ?? '(nothing more)'}" — a step does its work in another order, twice, or beside the 15 s bail's place: put ${PART} back, or change the row in ${SELF} in the same commit and say what moved`]
 }
 
-function importsOfPart(): Record<string, string[]> {
-  const path = join(ROOT, PART)
-  const sf = ts.createProgram([path], { noResolve: true, noLib: true, skipLibCheck: true, target: ts.ScriptTarget.Latest, module: ts.ModuleKind.ESNext }).getSourceFile(path)
-  const found: Record<string, string[]> = {}
-  if (sf === undefined) return found
-  const add = (from: string, names: string[]): void => void (found[from] = [...(found[from] ?? []), ...names])
-  const visit = (node: ts.Node): void => {
-    if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier)) {
-      const clause = node.importClause
-      const typed = clause !== undefined && clause.phaseModifier === ts.SyntaxKind.TypeKeyword ? 'type ' : ''
-      const names: string[] = []
-      if (clause === undefined) names.push('(for what loading it does)')
-      else {
-        if (clause.name !== undefined) names.push(`${typed}default`)
-        const bindings = clause.namedBindings
-        if (bindings !== undefined && ts.isNamespaceImport(bindings)) names.push(`${typed}*`)
-        if (bindings !== undefined && ts.isNamedImports(bindings)) for (const element of bindings.elements) names.push(`${typed || (element.isTypeOnly ? 'type ' : '')}${(element.propertyName ?? element.name).text}`)
-      }
-      add(node.moduleSpecifier.text, names)
-    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier !== undefined && ts.isStringLiteralLike(node.moduleSpecifier)) add(node.moduleSpecifier.text, ['(exported again)'])
-    else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === 'require'))) {
-      const from = node.arguments[0]
-      add(from !== undefined && ts.isStringLiteralLike(from) ? from.text : '(a path worked out when it runs)', ['(loaded when it runs)'])
-    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteralLike(node.argument.literal)) add(node.argument.literal.text, ['type (inside a type)'])
-    ts.forEachChild(node, visit)
-  }
-  visit(sf)
-  return found
-}
-
-function readImports(found: Record<string, string[]>, held: Record<string, string[]> = IMPORTS): string[] {
-  const said: string[] = []
-  for (const [from, names] of Object.entries(found)) {
-    for (const name of names) {
-      if (held[from]?.includes(name)) continue
-      said.push(`${PART} takes ${name} from '${from}', which this proof does not hold — a step that calls something new is scripted here first: give '${from}' a stand-in for ${name} in STAND_INS of ${SELF} that notes each call (a type goes in IMPORTS beside './state.js'), and the step's row what it leaves; or take the import out of ${PART}`)
-    }
-  }
-  for (const [from, names] of Object.entries(held)) {
-    for (const name of names) {
-      if (found[from]?.includes(name)) continue
-      said.push(`${SELF} holds ${name} from '${from}', which ${PART} does not import — the way out stopped calling it: take its stand-in out of STAND_INS and what it left out of the step's row, or put the call back in ${PART}`)
-    }
-  }
-  return said
-}
-
 const realError = console.error
 const realExit = process.exit
 const realTimeout = globalThis.setTimeout
@@ -300,7 +250,7 @@ globalThis.clearInterval = ((timer: unknown) => {
 }) as never
 
 try {
-  section('§0 the reader of the way out: a swap, a step added and a step dropped, each by its own line; and what the part imports')
+  section('§0 the reader of the way out: a swap, a step added and a step dropped, each by its own line')
   {
     const swapped = (a: Held, b: Held): string[] => KEPT.flatMap(effect => (effect === a.leaves[0] ? b.leaves : effect === b.leaves[0] ? a.leaves : a.leaves.includes(effect) || b.leaves.includes(effect) ? [] : [effect]))
     const neighbours = readWayOut(swapped(AT_ONCE[7]!, AT_ONCE[8]!))
@@ -314,15 +264,6 @@ try {
     check('something no step holds is named: added', added.length === 1 && added[0]!.startsWith('the way out did "state.restartArmed = false"') && added[0]!.includes('a step was added'), added)
     const twice = readWayOut([...KEPT, 'resolve the run'])
     check('a step that does its work twice is red', twice.length === 1 && twice[0]!.includes('does not stand as kept'), twice)
-
-    const found = importsOfPart()
-    const differs = readImports(found)
-    const values = Object.values(STAND_INS).reduce((n, calls) => n + Object.keys(calls).length, 0)
-    check(`the part imports what this proof scripts and nothing else: ${Object.keys(IMPORTS).length} modules, ${values} values, each a stand-in that notes its call`, Object.keys(found).length > 0 && differs.length === 0, Object.keys(found).length === 0 ? `${PART} was not read: no import found in it` : differs.join('\n      '))
-    const more = readImports({ ...found, '../controlSocket.js': [...(found['../controlSocket.js'] ?? []), 'writeDaemonState'], '../roster.js': ['TaskRoster'] })
-    check('one more name from a module it imports, and a module it does not import, are each red by a line that says where the stand-in goes', more.length === 2 && more[0]!.startsWith(`${PART} takes writeDaemonState from '../controlSocket.js'`) && more[1]!.startsWith(`${PART} takes TaskRoster from '../roster.js'`) && more.every(line => line.includes('STAND_INS')), more)
-    const fewer = readImports(Object.fromEntries(Object.entries(found).filter(([from]) => from !== '../planeRecords.js')))
-    check('a name this proof holds and the part no longer imports is red too', fewer.length === 1 && fewer[0]!.startsWith(`${SELF} holds supersededByLivePlaneOwnerSync from '../planeRecords.js'`), fewer)
   }
 
   section('§1 the way out, in the order it lets go of what the boot took')

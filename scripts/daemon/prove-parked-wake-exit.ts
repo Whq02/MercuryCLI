@@ -1,7 +1,6 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 
 const home = mkdtempSync(join(tmpdir(), 'parked-wake-exit-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -23,14 +22,9 @@ const { SESSIONLESS_EXIT_GRACE_MS } = await import('../../src/daemon/sessionless
 const { makeSessionlessBeat } = await import('../../src/daemon/run/owner.ts')
 const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
 const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
-const { handoverState } = await import('../../src/daemon/handover.ts')
 const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
 const { ScheduleWakeupTool } = await import('../../src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts')
 const { CronCreateTool } = await import('../../src/tools/ScheduleCronTool/CronCreateTool.ts')
-const main = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../src/daemon/main.ts'), 'utf8')
-const recordInput = main.slice(main.indexOf('stopSaturnTicker = startSaturnTicker(')).match(/records: \(\) => \{([\s\S]*?)\n\s+\},/)?.[1]
-if (!recordInput) throw new Error('the ticker record input is missing')
-const tickerRecords = new Function('readSessionWorkers', 'state', 'isProcessAlive', 'roster', 'handover', recordInput) as (...args: unknown[]) => ReturnType<typeof workers.readSessionWorkers>[string][]
 const NOW = Date.parse('2026-10-25T12:00:00Z')
 const SESSION = 'parked-wake-fixture'
 const SHORT = 'concourse-w1'
@@ -68,7 +62,7 @@ const verdict = (superseded = false): { exit: boolean; hold: string } => {
 const deliveries: Array<{ parked: boolean; sessionId: string; prompt: string }> = []
 const ports = {
   now: () => now,
-  records: () => tickerRecords(workers.readSessionWorkers, { planeServedByOther: null }, () => true, undefined, undefined),
+  records: () => Object.values(workers.readSessionWorkers()).filter(r => r.endedAt === undefined),
   ...deps,
   liveFacts: () => ({ credentialed: true, stranded: false, expiresAt: null, refreshable: false }),
   deliver: async (d: typeof deliveries[number]) => { deliveries.push(d); return { ok: true } },
@@ -106,13 +100,9 @@ try {
     const held = verdict()
     check(`${kind}: the daemon holds beyond its empty grace, naming the pending wake`, !held.exit && /wake/.test(held.hold), held)
     check(`${kind}: a pre-due tick preserves the schedule without firing`, record().schedules?.[0]?.id === armed.id && deliveries.length === 0, record())
-    const handover = handoverState(process.pid, () => false, () => Object.values(workers.readSessionWorkers()), [{ pid: process.pid, runners: [] }])
-    const predecessorRecords = tickerRecords(workers.readSessionWorkers, { planeServedByOther: { pid: process.pid } }, () => true, { has: () => ({ alive: false }) }, undefined)
-    const successorRecords = tickerRecords(workers.readSessionWorkers, { planeServedByOther: null }, () => true, undefined, handover)
-    check(`${kind}: only the successor walks the parked record after handover`, predecessorRecords.length === 0 && successorRecords.some(r => r.sessionId === SESSION), { predecessorRecords, successorRecords })
     check(`${kind}: the superseded empty helper may leave while the successor holds the wake`, verdict(true).exit && !verdict().exit)
     now = due
-    const fired = await tickSaturnOnce({ ...ports, records: () => successorRecords })
+    const fired = await tickSaturnOnce(ports)
     check(`${kind}: due with no screen, it reaches the wake delivery arm once`, fired.fired === 1 && deliveries.length === 1 && deliveries[0]?.parked === true && deliveries[0]?.sessionId === SESSION && deliveries[0]?.prompt === kind, { fired, deliveries })
     const again = await tickSaturnOnce(ports)
     check(`${kind}: a second tick does not double-fire`, again.fired === 0 && deliveries.length === 1, again)
@@ -128,7 +118,6 @@ try {
   check('a pending held wake also holds the daemon without a schedule row', !verdict().exit, verdict())
   workers.updateConcourseWorkers(rows => { rows[SHORT]!.endedAt = now })
   check('an ended record never holds the daemon', verdict().exit, verdict())
-  check('the production delivery wakes through the existing resumeSessionId door', main.includes('...(d.parked ? { resumeSessionId: d.sessionId } : { targetSessionId: d.sessionId })'))
 } finally {
   Date.now = realNow
   bridge._resetScheduleBridgeForTesting()

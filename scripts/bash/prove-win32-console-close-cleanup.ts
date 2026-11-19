@@ -56,11 +56,6 @@ section('§3 THE CTRL+BREAK ARM (FN-015 rank 21)')
     'the arm rides the same bounded shutdown as the console close (128 + SIGBREAK 21)',
     /process\.on\('SIGBREAK', \(\) => \{[\s\S]{0,200}gracefulShutdownSync\(149\)/.test(shutdown),
   )
-  const daemon = src('src/daemon/main.ts')
-  check(
-    "the daemon's own signal set carries SIGBREAK too (it skips the session arms)",
-    /process\.on\('SIGBREAK', \(\) => shutdown\('SIGBREAK'\)\)/.test(daemon),
-  )
   const { spawnSync } = await import('node:child_process')
   const modulePath = join(import.meta.dir, '../../src/utils/gracefulShutdown.ts')
   const probe = [

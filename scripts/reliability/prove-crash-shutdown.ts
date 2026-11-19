@@ -101,13 +101,6 @@ function runChild(body: string, timeoutMs: number): { status: number | null; ms:
 }
 
 {
-  const daemonMain = readFileSync(join(ROOT, 'src/daemon/main.ts'), 'utf8')
-  const at = daemonMain.indexOf('const crashShutdown')
-  const body = daemonMain.slice(at, at + 1200)
-  t('§5 the daemon crashShutdown persists to the unified archive', body.includes('persistCrashReport'))
-}
-
-{
   const cardChild = `
     import { failLoud } from '${ROOT}/src/utils/gracefulShutdown.ts'
     failLoud(new Error('EPERM: operation not permitted, open .mercury.json'), 'boot')

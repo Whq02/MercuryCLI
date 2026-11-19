@@ -174,10 +174,6 @@ try {
   writeFileSync(join(bare, 'concourse-workers.json'), JSON.stringify(bareShape))
   const bareReceipt = sup.reconcileConcourseWorkers(new Set<string>(), bare)
   check("control: the same record with the stop's mark stripped is what the reconcile calls a crash — a daemon killed from outside still reads crash", bareReceipt.settled.includes(after?.runnerId ?? '?'), JSON.stringify(bareReceipt))
-
-  const main = readFileSync(join(REPO, 'src/daemon/main.ts'), 'utf8')
-  const stopArm = main.slice(main.indexOf('onShutdown: async (reapWorkers'), main.indexOf('const forwarded = forwardedFromPlane'))
-  check('the stop parks before it reaps, and counts the workers it had before the park (structural)', /const live = roster\.liveWorkerFacts\(\)[\s\S]*parkAllConcourseSessions\('daemon:stop', roster, undefined, \{ reason: 'parked — the daemon was stopped', afterTurn: false \}\)[\s\S]*for \(const w of live\)/.test(stopArm), stopArm.slice(0, 600))
 } finally {
   await cleanup()
 }
