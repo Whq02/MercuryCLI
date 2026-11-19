@@ -1,6 +1,6 @@
 
 import { truncateToWidth } from '../utils/truncate.js'
-import { exitChordNoticeText } from './PromptInput/ExitChordNotice.js'
+import './PromptInput/ExitChordNotice.js'
 import React, {
   useCallback,
   useEffect,
@@ -8,20 +8,20 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { Box, Text, useInput } from '../ink.js'
+import { useInput } from '../ink.js'
 import type { SessionListing } from '../types/logs.js'
 import { getLogDisplayTitle } from '../utils/log.js'
-import { SearchBox } from './SearchBox.js'
+import './SearchBox.js'
 import { SessionPreview } from './SessionPreview.js'
-import { TagTabs } from './TagTabs.js'
-import TextInput from './TextInput.js'
-import { TreeSelect } from './ui/TreeSelect.js'
-import { Select } from './CustomSelect/index.js'
+import './TagTabs.js'
+import './TextInput.js'
+import './ui/TreeSelect.js'
+import './CustomSelect/index.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useSearchInput } from '../hooks/useSearchInput.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
-import { packFooter } from './mercury-ui/footerHint.js'
+import './mercury-ui/footerHint.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { getSessionId } from '../bootstrap/state.js'
 import { getBranch } from '../utils/git.js'
@@ -36,6 +36,7 @@ import {
 } from '../utils/sessionStorage.js'
 import { logError } from '../utils/log.js'
 import type { UUID } from 'crypto'
+import { logSelectorView } from './logSelector/views.js'
 
 type LogSelectorProps = {
   logs: SessionListing[]
@@ -377,127 +378,7 @@ export function LogSelector({
 
   const emptyReasons: string[] = [...filterParts]
   if (query.trim() !== '') emptyReasons.push(`search: ${query.trim()}`)
-  const listBody = grouped.length === 0 ? (
-    <Text dimColor>
-      no sessions match{emptyReasons.length > 0 ? ` — ${emptyReasons.join(' · ')}` : ''}
-    </Text>
-  ) : renaming ? (
-    <TreeSelect<SessionListing>
-      isDisabled={searchMode}
-      nodes={grouped.map(row => ({
-        id: row.log.sessionId ?? `path:${row.log.fullPath ?? row.log.value}`,
-        value: row.log,
-        label: rowLabel(row.log, row.children.length > 0 ? 'header' : 'flat', row.children.length),
-        description: describeLogFitted(row.log, showAllProjects, labelWidth),
-        dimDescription: true,
-        children: row.children.map(child => ({
-          id: `${child.sessionId}:${child.value}`,
-          value: child,
-          label: rowLabel(child, 'child', 0),
-          description: `    ${describeLogFitted(child, showAllProjects, Math.max(MIN_LABEL_WIDTH, labelWidth - 4))}`,
-          dimDescription: true,
-        })),
-      }))}
-      visibleOptionCount={visibleCount}
-      isNodeExpanded={nodeId =>
-        forceExpanded || expanded.has(String(nodeId))
-      }
-      onExpand={nodeId =>
-        setExpanded(previous => new Set([...previous, String(nodeId)]))
-      }
-      onCollapse={nodeId =>
-        setExpanded(previous => {
-          const next = new Set(previous)
-          next.delete(String(nodeId))
-          return next
-        })
-      }
-      onFocus={node => setFocusedLog(node.value)}
-      onSelect={node => onSelect(node.value)}
-      onCancel={onCancel}
-      onUpFromFirstItem={() => setSearchMode(true)}
-    />
-  ) : (
-    <Select
-      isDisabled={searchMode}
-      options={grouped.map((row, index) => ({
-        label: rowLabel(row.log, 'flat', 0),
-        description: describeLogFitted(row.log, showAllProjects, labelWidth),
-        value: String(index),
-      }))}
-      visibleOptionCount={visibleCount}
-      onFocus={value => {
-        const row = grouped[Number(value)]
-        if (row) setFocusedLog(row.log)
-      }}
-      onChange={value => {
-        const row = grouped[Number(value)]
-        if (row) onSelect(row.log)
-      }}
-      onCancel={onCancel}
-      onUpFromFirstItem={() => setSearchMode(true)}
-    />
-  )
-
-  return (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderColor={tokens.borderSubtle}
-      paddingX={1}
-    >
-      <Text bold color={tokens.accent}>
-        Mercury · resume
-      </Text>
-      <Box height={1} />
-      {tagTabs.length > 0 ? (
-        <TagTabs
-          tabs={tagTabs.map((label, index) => ({ label, isAll: index === 0 }))}
-          selectedIndex={selectedTag === null ? 0 : Math.max(0, tagTabs.indexOf(selectedTag))}
-          availableWidth={columns - 4}
-          showAllProjects={showAllProjects}
-        />
-      ) : (
-        <Text bold>
-          Select a session{positionSuffix}
-        </Text>
-      )}
-      <SearchBox
-        query={query}
-        isFocused={searchMode}
-        isTerminalFocused
-        cursorOffset={search.cursorOffset}
-        placeholder="Search sessions…"
-        borderless
-      />
-      {filterParts.length > 0 ? (
-        <Text dimColor>{filterParts.join(' · ')}</Text>
-      ) : null}
-      {inRename ? (
-        <Box>
-          <Text color={tokens.info}>Rename: </Text>
-          <TextInput value={renameValue}
-            onChange={setRenameValue}
-            onSubmit={submitRename}
-            columns={Math.max(20, columns - 12)}
-            cursorOffset={renameCursor}
-            onChangeCursorOffset={setRenameCursor}
-          />
-        </Box>
-      ) : (
-        listBody
-      )}
-      <Text dimColor>
-        {exitState.pending
-          ? exitChordNoticeText(exitState.keyName)
-          :
-            packFooter(
-              [...hints, ...(expandHint ? [expandHint] : [])].join(' · '),
-              Math.max(0, columns - 4),
-            )}
-      </Text>
-    </Box>
-  )
+  return logSelectorView({ grouped, emptyReasons, renaming, searchMode, rowLabel, describeLogFitted, showAllProjects, labelWidth, MIN_LABEL_WIDTH, visibleCount, forceExpanded, expanded, setExpanded, setFocusedLog, onSelect, onCancel, setSearchMode, tokens, tagTabs, selectedTag, columns, positionSuffix, query, search, filterParts, inRename, renameValue, setRenameValue, submitRename, renameCursor, setRenameCursor, exitState, hints, expandHint })
 }
 
 export default LogSelector
