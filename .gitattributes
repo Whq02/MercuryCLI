@@ -19,3 +19,6 @@ vendor/python-licences/** -text
 vendor/grammar-licences/** -text
 scripts/host/fixtures/*.sha256 -text
 scripts/host/fixtures/*.sha256.sig -text
+scripts/**/recordings/*.txt text eol=lf
+scripts/**/recordings/*.jsonl text eol=lf
+scripts/**/members.txt text eol=lf
