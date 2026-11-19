@@ -6,7 +6,7 @@ import { getMercuryHome } from '../../../utils/envUtils.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { parseOwnerKey, type OwnerKey } from '../../run/ownerKey.js'
 import { driverNodeGate, resolveBrowser, type BrowserResolution } from '../browserResolver.js'
-import { MAIN_TAB, type Wiring, type Hold, type Session, type OwnerBrowserState, BROWSER_PROTOCOL_TIMEOUT_MS, EXITED, MOVE_FAILED, RESTARTED, type EnsureSessionRefusal, type EnsureBrowserSessionOptions, type PagePresented, type PageKit } from './shapes.js'
+import { MAIN_TAB, type Wiring, type Hold, type Session, type OwnerBrowserState, BROWSER_PROTOCOL_TIMEOUT_MS, EXITED, MOVE_FAILED, RESTARTED, type EnsureSessionRefusal, type EnsureBrowserSessionOptions, type PageIdentity, type PagePresented, type PageKit } from './shapes.js'
 import { clearIdleLease, armIdleLease, type CloseOutcome, tempProfileDirOf, tempProfiles, closeChild, closePage, type LaunchDriver, launchDriverForProof, ownerStates, installExitHook, browserSessionCap, liveBrowserSessionCensus, originOf, closeHoldNetwork, noteEnded, endDownloads, sweepDownloads, holdGone, reapDeadHolds, leaveHold } from './owners.js'
 import { resolveHostLanguages, resolveNavigatorPlatform, resolveHostTimeZone, pageKits, prepareDocuments } from './stealth.js'
 import { newWiring, listenProtocol, listenDownloads, targetIdOf, tabSession, listenPage } from './wiring.js'
@@ -156,6 +156,93 @@ export function abortReason(signal: AbortSignal): unknown {
   return err
 }
 
+function readyProfileDir(owner: OwnerKey, profileDir: string, opts: EnsureBrowserSessionOptions): void {
+  const profilesRoot = path.dirname(profileDir)
+  fs.mkdirSync(profilesRoot, { recursive: true, mode: 0o700 })
+  fs.mkdirSync(profileDir, { recursive: true, mode: 0o700 })
+  if (process.platform !== 'win32') {
+    try {
+      fs.chmodSync(profilesRoot, 0o700)
+      fs.chmodSync(profileDir, 0o700)
+    } catch {}
+  }
+  const heldElsewhere = ownerStates.owners().some(other => other !== owner && profileHeld(other, profileDir))
+  if (!heldElsewhere) {
+    for (const lockName of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
+      try {
+        fs.rmSync(path.join(profileDir, lockName), { force: true })
+      } catch {}
+    }
+    for (const earlier of ['Sessions', 'Sessions_Encrypted', 'Current Session', 'Current Tabs', 'Last Session', 'Last Tabs', ...(opts.downloads === undefined ? [] : ['History', 'History-journal', 'History-wal', 'History-shm'])]) {
+      try {
+        fs.rmSync(path.join(profileDir, 'Default', earlier), { recursive: true, force: true })
+      } catch {}
+    }
+  }
+}
+
+function launchArgsFor(proxy: Awaited<ReturnType<typeof startMetadataProxy>>, hostLang: ReturnType<typeof resolveHostLanguages>): { launchArgs: string[]; sandboxDowngraded: boolean } {
+  const launchArgs = [
+    `--proxy-server=http://127.0.0.1:${proxy.port}`,
+    '--proxy-bypass-list=<-loopback>',
+    '--disable-quic',
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-features=Translate',
+    '--disable-dev-shm-usage',
+    '--disable-blink-features=AutomationControlled',
+    '--window-size=1280,800',
+    `--lang=${hostLang.primary}`,
+  ]
+  const sandboxDowngraded =
+    process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0
+  if (sandboxDowngraded) launchArgs.push('--no-sandbox')
+  return { launchArgs, sandboxDowngraded }
+}
+
+function identityOf(resolution: BrowserResolution | null, versionStr: string, cleanUa: string, hostLang: ReturnType<typeof resolveHostLanguages>): PageIdentity {
+  const fullVersion =
+    resolution!.buildId ??
+    (/(\d+\.\d+\.\d+\.\d+)/.exec(versionStr)?.[1] ??
+      (/Chrome\/(\d+\.\d+\.\d+\.\d+)/.exec(cleanUa)?.[1] ?? '155.0.0.0'))
+  const major = fullVersion.split('.')[0] || '155'
+  const isMac = cleanUa.includes('Macintosh') || process.platform === 'darwin'
+  const isWin = !isMac && (cleanUa.includes('Windows') || process.platform === 'win32')
+  const navigatorPlatform = resolveNavigatorPlatform(cleanUa)
+  const chPlatform = isMac ? 'macOS' : isWin ? 'Windows' : 'Linux'
+  const chPlatformVersion = isMac
+    ? (cleanUa.match(/Mac OS X ([0-9_]+)/)?.[1]?.replace(/_/g, '.') ?? '10.15.7')
+    : isWin
+      ? '10.0.0'
+      : '6.5.0'
+  const architecture = process.arch === 'arm64' ? 'arm' : 'x86'
+  return {
+    userAgent: cleanUa,
+    acceptLanguage: hostLang.acceptLanguage,
+    platform: navigatorPlatform,
+    userAgentMetadata: {
+      brands: [
+        { brand: 'Not(A:Brand', version: '24' },
+        { brand: 'Chromium', version: major },
+        { brand: 'Google Chrome', version: major },
+      ],
+      fullVersionList: [
+        { brand: 'Not(A:Brand', version: '24.0.0.0' },
+        { brand: 'Chromium', version: fullVersion },
+        { brand: 'Google Chrome', version: fullVersion },
+      ],
+      fullVersion,
+      platform: chPlatform,
+      platformVersion: chPlatformVersion,
+      architecture,
+      bitness: '64',
+      model: '',
+      mobile: false,
+      wow64: false,
+    },
+  }
+}
+
 async function placeTab(
   owner: OwnerKey,
   state: OwnerBrowserState,
@@ -244,44 +331,9 @@ async function placeTab(
         }
       }
       if (profileDir && launchDriverForProof === null) {
-        const profilesRoot = path.dirname(profileDir)
-        fs.mkdirSync(profilesRoot, { recursive: true, mode: 0o700 })
-        fs.mkdirSync(profileDir, { recursive: true, mode: 0o700 })
-        if (process.platform !== 'win32') {
-          try {
-            fs.chmodSync(profilesRoot, 0o700)
-            fs.chmodSync(profileDir, 0o700)
-          } catch {}
-        }
-        const heldElsewhere = ownerStates.owners().some(other => other !== owner && profileHeld(other, profileDir))
-        if (!heldElsewhere) {
-          for (const lockName of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
-            try {
-              fs.rmSync(path.join(profileDir, lockName), { force: true })
-            } catch {}
-          }
-          for (const earlier of ['Sessions', 'Sessions_Encrypted', 'Current Session', 'Current Tabs', 'Last Session', 'Last Tabs', ...(opts.downloads === undefined ? [] : ['History', 'History-journal', 'History-wal', 'History-shm'])]) {
-            try {
-              fs.rmSync(path.join(profileDir, 'Default', earlier), { recursive: true, force: true })
-            } catch {}
-          }
-        }
+        readyProfileDir(owner, profileDir, opts)
       }
-      const launchArgs = [
-        `--proxy-server=http://127.0.0.1:${proxy.port}`,
-        '--proxy-bypass-list=<-loopback>',
-        '--disable-quic',
-        '--no-first-run',
-        '--no-default-browser-check',
-        '--disable-features=Translate',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled',
-        '--window-size=1280,800',
-        `--lang=${hostLang.primary}`,
-      ]
-      const sandboxDowngraded =
-        process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0
-      if (sandboxDowngraded) launchArgs.push('--no-sandbox')
+      const { launchArgs, sandboxDowngraded } = launchArgsFor(proxy, hostLang)
       const browser = await launch({
         executablePath: resolution!.executablePath,
         headless,
@@ -323,46 +375,7 @@ async function placeTab(
         const cleanUa = rawUa.replace(/HeadlessChrome\//g, 'Chrome/')
         if (cleanUa) {
           const versionStr = typeof browser.version === 'function' ? await browser.version().catch(() => '') : ''
-          const fullVersion =
-            resolution!.buildId ??
-            (/(\d+\.\d+\.\d+\.\d+)/.exec(versionStr)?.[1] ??
-              (/Chrome\/(\d+\.\d+\.\d+\.\d+)/.exec(cleanUa)?.[1] ?? '155.0.0.0'))
-          const major = fullVersion.split('.')[0] || '155'
-          const isMac = cleanUa.includes('Macintosh') || process.platform === 'darwin'
-          const isWin = !isMac && (cleanUa.includes('Windows') || process.platform === 'win32')
-          const navigatorPlatform = resolveNavigatorPlatform(cleanUa)
-          const chPlatform = isMac ? 'macOS' : isWin ? 'Windows' : 'Linux'
-          const chPlatformVersion = isMac
-            ? (cleanUa.match(/Mac OS X ([0-9_]+)/)?.[1]?.replace(/_/g, '.') ?? '10.15.7')
-            : isWin
-              ? '10.0.0'
-              : '6.5.0'
-          const architecture = process.arch === 'arm64' ? 'arm' : 'x86'
-          kit.identity = {
-            userAgent: cleanUa,
-            acceptLanguage: hostLang.acceptLanguage,
-            platform: navigatorPlatform,
-            userAgentMetadata: {
-              brands: [
-                { brand: 'Not(A:Brand', version: '24' },
-                { brand: 'Chromium', version: major },
-                { brand: 'Google Chrome', version: major },
-              ],
-              fullVersionList: [
-                { brand: 'Not(A:Brand', version: '24.0.0.0' },
-                { brand: 'Chromium', version: fullVersion },
-                { brand: 'Google Chrome', version: fullVersion },
-              ],
-              fullVersion,
-              platform: chPlatform,
-              platformVersion: chPlatformVersion,
-              architecture,
-              bitness: '64',
-              model: '',
-              mobile: false,
-              wow64: false,
-            },
-          }
+          kit.identity = identityOf(resolution, versionStr, cleanUa, hostLang)
           await cdp.send('Emulation.setUserAgentOverride', kit.identity).catch(() => undefined)
         }
       }
