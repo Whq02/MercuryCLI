@@ -90,12 +90,14 @@ const WINDOWS_TOOL_SHELL_DEFAULTS: Readonly<Record<string, string>> = {
   LC_ALL: 'C.UTF-8',
 }
 
+const toolShellKey = (key: string, platform: string): string => platform === 'win32' || /^(?:npm|pnpm)_config_/i.test(key) ? key.toUpperCase() : key
+
 export function toolShellEnv(
   env: NodeJS.ProcessEnv,
   overrides: NodeJS.ProcessEnv = {},
   platform: string = process.platform,
 ): NodeJS.ProcessEnv {
-  const keyOf = (key: string): string => platform === 'win32' || /^(?:npm|pnpm)_config_/i.test(key) ? key.toUpperCase() : key
+  const keyOf = (key: string): string => toolShellKey(key, platform)
   const child: NodeJS.ProcessEnv = {}
   const names = new Map<string, string>()
   for (const [key, value] of Object.entries(env)) {
@@ -149,6 +151,11 @@ export function subprocessEnv(options: { stripProviderCredentials?: boolean } = 
 
   const clone: NodeJS.ProcessEnv = { ...env }
   for (const name of owedDefaults) clone[name] = HEADLESS_CHILD_DEFAULTS[name]
+  scrub(clone, scrubForCI, isolateCredentials)
+  return clone
+}
+
+function scrub(clone: NodeJS.ProcessEnv, scrubForCI: boolean, isolateCredentials: boolean): void {
   deleteNames(clone, ALWAYS_STRIP_TOKEN_VARS)
   for (const key of Object.keys(clone)) {
     const folded = nameKey(key)
@@ -160,7 +167,42 @@ export function subprocessEnv(options: { stripProviderCredentials?: boolean } = 
   if (scrubForCI) {
     deleteNames(clone, CI_SCRUB_VARS.flatMap(name => [name, `INPUT_${name}`]))
   }
-  return clone
+}
+
+const SHELL_KEEPS_TO_ITSELF =
+  /^(?:_|SHLVL|PWD|OLDPWD|SHELLOPTS|BASHOPTS|BASHPID|PS[0-4]|PSVAR|PROMPT[2-4]?|PROMPT_COMMAND|PROMPT_DIRTRIM|PROMPT_EOL_MARK|RPROMPT2?|RPS[12]|SPROMPT|HIST\w*|SAVEHIST|(?:BASH|ZSH)(?:_\w*)?)$/
+
+export function loginExportsCarried(exported: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const carried: NodeJS.ProcessEnv = {}
+  for (const [name, value] of Object.entries(exported)) {
+    if (/^[A-Za-z_]\w*$/.test(name) && !SHELL_KEEPS_TO_ITSELF.test(name)) carried[name] = value
+  }
+  scrub(carried, isEnvTruthy(flagEnv('MERCURY_SUBPROCESS_ENV_SCRUB')), isEnvTruthy(flagEnv('MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION')))
+  return carried
+}
+
+export function pathWithLoginEntries(own: string, carried: NodeJS.ProcessEnv | undefined, platform: string = process.platform): string {
+  const exported = Object.entries(carried ?? {}).find(([name]) => toolShellKey(name, platform) === 'PATH')?.[1] ?? ''
+  const held = new Set(own.split(':'))
+  const added = [...new Set(exported.split(':'))].filter(entry => entry !== '' && !held.has(entry))
+  return added.length === 0 ? own : [...(own === '' ? [] : [own]), ...added].join(':')
+}
+
+export function withLoginExports(
+  env: NodeJS.ProcessEnv,
+  carried: NodeJS.ProcessEnv | undefined,
+  scrubbed: readonly string[],
+  platform: string = process.platform,
+): NodeJS.ProcessEnv {
+  if (carried === undefined) return env
+  const held = new Set([...Object.keys(env), ...scrubbed].map(key => toolShellKey(key, platform)))
+  const gained: NodeJS.ProcessEnv = {}
+  for (const [name, value] of Object.entries(carried)) {
+    if (toolShellKey(name, platform) !== 'PATH' && !held.has(toolShellKey(name, platform))) gained[name] = value
+  }
+  const path = platform === 'win32' ? undefined : pathWithLoginEntries(env.PATH ?? '', carried, platform)
+  if (path !== undefined && path !== (env.PATH ?? '')) gained.PATH = path
+  return Object.keys(gained).length === 0 ? env : { ...env, ...gained }
 }
 
 export function languageServerEnv(): NodeJS.ProcessEnv {

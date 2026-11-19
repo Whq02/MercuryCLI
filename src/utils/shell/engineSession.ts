@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { getOriginalCwd } from '../../bootstrap/state.js'
-import { createAndSaveSnapshot } from '../bash/ShellSnapshot.js'
+import { createAndSaveSnapshot, loginExports } from '../bash/ShellSnapshot.js'
 import { quote } from '../bash/shellQuote.js'
 import { quoteShellCommand } from '../bash/shellQuoting.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
@@ -17,7 +17,7 @@ import { endProcessTree } from '../processGroup.js'
 import { getPlatform } from '../platform.js'
 import { getSessionEnvironmentScript } from '../sessionEnvironment.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
-import { toolShellEnv, subprocessEnv } from '../subprocessEnv.js'
+import { toolShellEnv, subprocessEnv, withLoginExports } from '../subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
 import { TaskOutput } from '../task/TaskOutput.js'
 import { generateTaskId } from '../../Task.js'
@@ -294,11 +294,12 @@ async function spawnSession(binaryPath: string): Promise<LiveSession> {
   const nonce = randomBytes(16).toString('hex')
   const script = loopScript()
 
+  const snapshot = await getSnapshot(binaryPath)
   const base = scrubSessionEnvStamps(subprocessEnv())
   const live: LiveSession = {
     child: await spawnOwnedShell(binaryPath, [...ENGINE_FLAGS, '-c', script], {
       cwd: cwdThatResolves(),
-      env: withoutWhatTheEngineRefuses(withGitPrograms(toolShellEnv(base.env, { SHELL: binaryPath, ...envOverrides() }))),
+      env: withoutWhatTheEngineRefuses(withGitPrograms(withLoginExports(toolShellEnv(base.env, { SHELL: binaryPath, ...envOverrides() }), loginExports(binaryPath), base.scrubbed))),
       stdio: ['pipe', 'pipe', 'pipe'],
       detached: getPlatform() !== 'windows',
       windowsHide: true,
@@ -337,7 +338,6 @@ async function spawnSession(binaryPath: string): Promise<LiveSession> {
 
   live.child.stdin?.write(nonce + '\n')
   const seeds: string[] = []
-  const snapshot = await getSnapshot(binaryPath)
   if (snapshot) seeds.push(`source ${quote([snapshot])} 2>&1 || :`)
   const sessionScript = await getSessionEnvironmentScript()
   if (sessionScript) seeds.push(sessionScript)

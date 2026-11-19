@@ -4,7 +4,7 @@ import { isAbsolute, resolve as resolvePath } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
-import { createAndSaveSnapshot } from './bash/ShellSnapshot.js'
+import { createAndSaveSnapshot, loginExports } from './bash/ShellSnapshot.js'
 import { contextShellCwd, getCwd, getStartingCwd, setContextShellCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { diagnosticAsksFor, isReadOnlyDiagnostic } from './diagnosticReadOnly.js'
@@ -20,7 +20,7 @@ import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
 import { fallbackEngineBinary, systemShellRecord } from './shell/shellRecord.js'
 import { wrapSpawn, createAbortedCommand, createFailedCommand, type ShellCommand } from './ShellCommand.js'
-import { toolShellEnv, subprocessEnv } from './subprocessEnv.js'
+import { toolShellEnv, subprocessEnv, withLoginExports } from './subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../substrate/envStamps.js'
 import { getTaskOutputDir } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
@@ -91,7 +91,7 @@ async function commandEnvironment(
     ...(road.recordsBash ? {} : { SHELL: shellType === 'bash' ? road.provider.shellPath : undefined }),
     ...environmentOverrides,
   })
-  return { env, scrubbed: base.scrubbed }
+  return { env: shellType === 'bash' ? withLoginExports(env, loginExports(road.provider.shellPath), base.scrubbed) : env, scrubbed: base.scrubbed }
 }
 
 export async function terminalShellInvocation(
