@@ -98,15 +98,15 @@ export class MercuryChildSession {
   readonly peer: Peer
   readonly initialized: Promise<string | null>
   mercurySessionId: string | null = null
-  private readonly handlers: ChildEventHandlers
+  readonly handlers: ChildEventHandlers
   private closedByUs = false
   private dead = false
   private protocolFailure: RpcError | null = null
-  private queuedPromptId: string | null = null
-  private turnOpen = false
-  private interruptWhenTurnOpens = false
-  private lastRoundTripUsage: Record<string, unknown> | null = null
-  private lastRoundTripModel = ''
+  queuedPromptId: string | null = null
+  turnOpen = false
+  interruptWhenTurnOpens = false
+  lastRoundTripUsage: Record<string, unknown> | null = null
+  lastRoundTripModel = ''
 
   constructor(opts: SpawnChildOptions, handlers: ChildEventHandlers) {
     this.handlers = handlers
@@ -227,95 +227,7 @@ export class MercuryChildSession {
       })
   }
 
-  private onRow(row: LooseRow): void {
-    const tagged = typeof row.parent_call_id === 'string' ? row.parent_call_id : null
-    switch (row.type) {
-      case 'session': {
-        const sid = row.session_id
-        if (typeof sid === 'string' && !this.mercurySessionId) {
-          this.mercurySessionId = sid
-          this.handlers.onInit(sid)
-        }
-        return
-      }
-      case 'text': {
-        const text = typeof row.text === 'string' ? row.text : ''
-        if (text === '') return
-        if (tagged !== null) this.handlers.onToolProgress?.(tagged, text)
-        else this.handlers.onAssistantText(text)
-        return
-      }
-      case 'command_output': {
-        if (tagged === null && typeof row.text === 'string' && row.text !== '') this.handlers.onAssistantText(row.text)
-        return
-      }
-      case 'reasoning': {
-        if (tagged !== null) return
-        if (typeof row.text === 'string' && row.text !== '') this.handlers.onAssistantThought?.(row.text)
-        return
-      }
-      case 'tool_call': {
-        if (tagged !== null) return
-        if (typeof row.call_id === 'string') this.handlers.onToolUse(row.call_id, String(row.tool ?? 'tool'), row.input)
-        return
-      }
-      case 'tool_result': {
-        if (tagged !== null) return
-        if (typeof row.call_id === 'string') this.handlers.onToolResult(row.call_id, row.status !== 'ok', typeof row.output === 'string' && row.output !== '' ? row.output : undefined)
-        return
-      }
-      case 'step': {
-        if (tagged !== null) return
-        const usage = row.usage
-        if (usage !== null && typeof usage === 'object') {
-          const u = usage as Record<string, unknown>
-          const sum = ['input_tokens', 'output_tokens'].reduce((n, k) => n + (typeof u[k] === 'number' && Number.isFinite(u[k]) ? (u[k] as number) : 0), 0)
-          if (sum > 0) {
-            this.lastRoundTripUsage = u
-            if (typeof row.model === 'string') this.lastRoundTripModel = row.model
-          }
-        }
-        return
-      }
-      case 'mode': {
-        if (typeof row.mode === 'string') this.handlers.onMode?.(row.mode)
-        return
-      }
-      case 'turn': {
-        if (tagged !== null || row.state !== 'started') return
-        this.turnOpen = true
-        this.queuedPromptId = null
-        if (this.interruptWhenTurnOpens) {
-          this.interruptWhenTurnOpens = false
-          this.requestInterrupt()
-        }
-        return
-      }
-      case 'outcome': {
-        this.turnOpen = false
-        this.queuedPromptId = null
-        this.interruptWhenTurnOpens = false
-        if (this.lastRoundTripUsage !== null) {
-          this.handlers.onUsage?.(this.lastRoundTripUsage, this.lastRoundTripModel, typeof row.cost_usd === 'number' ? row.cost_usd : undefined)
-          this.lastRoundTripUsage = null
-        }
-        const status = String(row.status ?? 'failed')
-        const error = row.error as { message?: unknown; detail?: unknown } | undefined
-        const errors = [
-          ...(typeof error?.message === 'string' ? [error.message] : []),
-          ...(Array.isArray(error?.detail) ? (error.detail as unknown[]).filter((e): e is string => typeof e === 'string') : []),
-        ]
-        this.handlers.onTurnEnd(status === 'completed' ? 'success' : status === 'interrupted' ? 'cancelled' : 'error', {
-          status,
-          ...(typeof row.stop === 'string' ? { stopReason: row.stop } : {}),
-          errors,
-        })
-        return
-      }
-      default:
-        return
-    }
-  }
+  private onRow(row: LooseRow): void { return onRowOf.call(this, row) }
 
   async writeUserPrompt(content: Array<Record<string, unknown>>, signal?: AbortSignal): Promise<void> {
     if (this.protocolFailure) throw this.protocolFailure
@@ -379,7 +291,7 @@ export class MercuryChildSession {
       })
   }
 
-  private requestInterrupt(): void {
+  requestInterrupt(): void {
     void this.peer.request('turn/interrupt', {}).catch((error: unknown) => {
       logForDebugging(`[acp] interrupt not answered: ${error instanceof Error ? error.message : String(error)}`)
     })
@@ -430,5 +342,95 @@ export class MercuryChildSession {
         })
       })
     })
+  }
+}
+
+function onRowOf(this: MercuryChildSession, row: LooseRow): void {
+  const tagged = typeof row.parent_call_id === 'string' ? row.parent_call_id : null
+  switch (row.type) {
+    case 'session': {
+      const sid = row.session_id
+      if (typeof sid === 'string' && !this.mercurySessionId) {
+        this.mercurySessionId = sid
+        this.handlers.onInit(sid)
+      }
+      return
+    }
+    case 'text': {
+      const text = typeof row.text === 'string' ? row.text : ''
+      if (text === '') return
+      if (tagged !== null) this.handlers.onToolProgress?.(tagged, text)
+      else this.handlers.onAssistantText(text)
+      return
+    }
+    case 'command_output': {
+      if (tagged === null && typeof row.text === 'string' && row.text !== '') this.handlers.onAssistantText(row.text)
+      return
+    }
+    case 'reasoning': {
+      if (tagged !== null) return
+      if (typeof row.text === 'string' && row.text !== '') this.handlers.onAssistantThought?.(row.text)
+      return
+    }
+    case 'tool_call': {
+      if (tagged !== null) return
+      if (typeof row.call_id === 'string') this.handlers.onToolUse(row.call_id, String(row.tool ?? 'tool'), row.input)
+      return
+    }
+    case 'tool_result': {
+      if (tagged !== null) return
+      if (typeof row.call_id === 'string') this.handlers.onToolResult(row.call_id, row.status !== 'ok', typeof row.output === 'string' && row.output !== '' ? row.output : undefined)
+      return
+    }
+    case 'step': {
+      if (tagged !== null) return
+      const usage = row.usage
+      if (usage !== null && typeof usage === 'object') {
+        const u = usage as Record<string, unknown>
+        const sum = ['input_tokens', 'output_tokens'].reduce((n, k) => n + (typeof u[k] === 'number' && Number.isFinite(u[k]) ? (u[k] as number) : 0), 0)
+        if (sum > 0) {
+          this.lastRoundTripUsage = u
+          if (typeof row.model === 'string') this.lastRoundTripModel = row.model
+        }
+      }
+      return
+    }
+    case 'mode': {
+      if (typeof row.mode === 'string') this.handlers.onMode?.(row.mode)
+      return
+    }
+    case 'turn': {
+      if (tagged !== null || row.state !== 'started') return
+      this.turnOpen = true
+      this.queuedPromptId = null
+      if (this.interruptWhenTurnOpens) {
+        this.interruptWhenTurnOpens = false
+        this.requestInterrupt()
+      }
+      return
+    }
+    case 'outcome': {
+      this.turnOpen = false
+      this.queuedPromptId = null
+      this.interruptWhenTurnOpens = false
+      if (this.lastRoundTripUsage !== null) {
+        this.handlers.onUsage?.(this.lastRoundTripUsage, this.lastRoundTripModel, typeof row.cost_usd === 'number' ? row.cost_usd : undefined)
+        this.lastRoundTripUsage = null
+      }
+      const status = String(row.status ?? 'failed')
+      const error = row.error as { message?: unknown; detail?: unknown } | undefined
+      const errors = [
+        ...(typeof error?.message === 'string' ? [error.message] : []),
+        ...(Array.isArray(error?.detail) ? (error.detail as unknown[]).filter((e): e is string => typeof e === 'string') : []),
+      ]
+      this.handlers.onTurnEnd(status === 'completed' ? 'success' : status === 'interrupted' ? 'cancelled' : 'error', {
+        status,
+        ...(typeof row.stop === 'string' ? { stopReason: row.stop } : {}),
+        errors,
+      })
+      return
+    }
+    default:
+      return
   }
 }
