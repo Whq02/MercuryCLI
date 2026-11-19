@@ -21,6 +21,7 @@ import { getMercuryHome } from './envUtils.js'
 import { sanitizePath } from './sessionStoragePortable.js'
 import { getRipgrepStatus, warmRipgrepStatus } from './ripgrep.js'
 import { gitSnapshot } from './cockpit/gitSnapshot.js'
+import { logError } from './log.js'
 
 export function lastPreflightPath(): string {
   return join(getMercuryHome(), 'health', sanitizePath(healthStateRoot()), 'last-preflight.json')
@@ -118,7 +119,8 @@ export async function runAndRecordPreflight(): Promise<PreflightSummary> {
     const summary = await runPreflight()
     try {
       await publishAtomic(lastPreflightPath(), JSON.stringify({ _v: 1, ...summary }))
-    } catch {
+    } catch (err) {
+      logError(new Error(`the preflight summary could not be saved to ${lastPreflightPath()}, so the health views keep the older record: ${err instanceof Error ? err.message : String(err)}`))
     }
     return summary
   })()
