@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 import { localFixture } from './localFixture.ts'
-const COMPOSER = join(ROOT, 'src', 'components', 'PromptInput', 'PromptInput.tsx')
+const COMPOSER = join(ROOT, 'src', 'components', 'PromptInput', 'useComposerVoice.ts')
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'hold-to-talk-')))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
@@ -109,7 +109,7 @@ function extractComposerFilter(): { filter: Filter; source: string } {
   const src = readFileSync(COMPOSER, 'utf8')
   const anchor = 'const voiceInputFilter = useCallback('
   const at = src.indexOf(anchor)
-  if (at < 0) throw new Error('PromptInput.tsx has no voiceInputFilter useCallback')
+  if (at < 0) throw new Error('useComposerVoice.ts has no voiceInputFilter useCallback')
   let i = at + anchor.length
   let depth = 1
   for (; i < src.length; i++) {
@@ -265,7 +265,7 @@ session.setVoiceInputEnabled(true)
 check('voice input is on for the rig', session.voiceInputEnabled())
 const extracted = extractComposerFilter()
 const composer = new Composer(extracted.filter)
-check('the composer filter was lifted from PromptInput.tsx and runs', typeof extracted.filter === 'function', extracted.source.slice(0, 120))
+check('the composer filter was lifted from useComposerVoice.ts and runs', typeof extracted.filter === 'function', extracted.source.slice(0, 120))
 console.log(`  · hold module: ${hold === null ? 'ABSENT (the base)' : `present — threshold ${hold.HOLD_TO_TALK_MS} ms, gap floor ${hold.RELEASE_GAP_FLOOR_MS} ms, first-repeat window ${hold.FIRST_REPEAT_WINDOW_MS} ms`}`)
 
 const THRESHOLD = hold?.HOLD_TO_TALK_MS ?? 1_000
