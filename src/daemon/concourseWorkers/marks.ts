@@ -3,6 +3,7 @@ import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { runningBuildTree } from '../../utils/artifactIdentity.js'
 import { readSessionWorkers, updateConcourseWorkers } from './store.js'
 import { sessionActivityOf } from './record.js'
+import { errorMessage } from '../../utils/errors.js'
 
 export function markConcourseWorkerActivity(
   runnerId: string,
@@ -35,7 +36,8 @@ export function markConcourseWorkerDelivery(runnerId: string, dir?: string): voi
         }
       }
     }, dir)
-  } catch {
+  } catch (err) {
+    console.error(`[daemon] ${runnerId}: the delivery was not stamped on its session record: ${errorMessage(err)}`)
   }
 }
 
@@ -49,7 +51,8 @@ export function markConcourseWorkerTurnSettled(runnerId: string, dir?: string): 
         rec.activity = sessionActivityOf(false, undefined, count, rec.lastTurnSettledAt)
       }
     }, dir)
-  } catch {
+  } catch (err) {
+    console.error(`[daemon] ${runnerId}: the settled turn was not stamped on its session record, it reads as working until a later turn settles: ${errorMessage(err)}`)
   }
 }
 
@@ -66,7 +69,8 @@ export function markConcourseWorkerCrash(
         delete rec.restartReason
       }
     }, dir)
-  } catch {
+  } catch (err) {
+    console.error(`[daemon] ${runnerId}: the crash was not stamped on its session record, the board does not show it: ${errorMessage(err)}`)
   }
 }
 
@@ -93,6 +97,7 @@ export function markConcourseWorkerRespawn(runnerId: string, pid: number, dir?: 
         rec.lastLiveAt = Date.now()
       }
     }, dir)
-  } catch {
+  } catch (err) {
+    console.error(`[daemon] ${runnerId}: the respawned runner's pid ${pid} was not stamped on its session record, which still names the dead pid: ${errorMessage(err)}`)
   }
 }
