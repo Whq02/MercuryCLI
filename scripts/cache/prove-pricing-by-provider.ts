@@ -517,6 +517,13 @@ section('a price that turns on a date is the price of the day the request was ma
   const midnight = '0b7a0c3e-3333-4222-8333-944455556666'
   const readBack = await resumedOn('2026-12-20T12:00:00.000Z', midnight, stored(midnight, '/scratch/dated-price/midnight', minted))
   check('openai: a GPT-5.6 Sol request that starts at 23:59:50 UTC on 30 November and ends at 00:00:20 on 1 December carries its start on the usage it settles and costs $0.666, on the meter as it settles and when the session is resumed on 20 December', settled?.request_started_at_ms === RealDate.parse('2026-11-30T23:59:50.000Z') && near(metered, 0.666) && near(readBack, 0.666), `start ${String(settled?.request_started_at_ms)} · metered ${metered.toFixed(6)} · resumed ${readBack.toFixed(6)}`)
+  const { createAgentLedger, foldResponseIntoLedger } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
+  const ledger = createAgentLedger()
+  await on('2026-12-20T12:00:00.000Z', () => {
+    foldResponseIntoLedger(ledger, { type: 'assistant', timestamp: '2026-11-30T23:30:00.000Z', message: { id: 'resp_stored', model: sol, usage: turn } } as never)
+    foldResponseIntoLedger(ledger, { type: 'assistant', timestamp: '2026-12-01T00:30:00.000Z', message: { id: 'resp_stamped', model: sol, usage: startedAt('2026-11-30T23:59:59.999Z') } } as never)
+  })
+  check("a crewmate's ledger folded on 20 December prices two GPT-5.6 Sol requests of 30 November at $0.666 each: one by the timestamp of its message, one by the start on its usage", near(ledger.costUSD, 1.332), ledger.costUSD.toFixed(6))
   tracker.resetCostState()
 }
 

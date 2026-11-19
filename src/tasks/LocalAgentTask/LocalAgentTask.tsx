@@ -131,6 +131,7 @@ export function foldResponseIntoLedger(ledger: AgentLedger, assistant: Assistant
   const rawModel = (assistant.message as { model?: unknown }).model
   const model = typeof rawModel === 'string' && rawModel.trim() !== '' ? rawModel : undefined
   const priced = model !== undefined && modelPricingBasis(model) !== 'unpriced'
+  const startedAtMs = Number((usage as { request_started_at_ms?: number }).request_started_at_ms) || Date.parse(assistant.timestamp)
   const cost = priced
     ? calculateUSDCost(model, {
         input_tokens: usage.input_tokens ?? 0,
@@ -140,6 +141,7 @@ export function foldResponseIntoLedger(ledger: AgentLedger, assistant: Assistant
           ? { cache_creation_input_tokens: usage.cache_creation_input_tokens }
           : {}),
         ...(usage.cache_creation ? { cache_creation: usage.cache_creation } : {}),
+        ...(Number.isFinite(startedAtMs) ? { request_started_at_ms: startedAtMs } : {}),
       })
     : 0
   const next = { input, output, cached: usage.cache_read_input_tokens ?? 0, cost, unpriced: priced ? 0 : 1 }
