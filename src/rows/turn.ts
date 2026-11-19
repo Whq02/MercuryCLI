@@ -2,9 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { getSessionId, getSessionKind, isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import type { Command } from '../commands.js'
 import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
-import { armWorkerParentWatch } from '../daemon/workerParentWatch.js'
-import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
-import { query, queryEvents } from '../query.js'
+import { queryEvents } from '../query.js'
 import type { Terminal } from '../query/transitions.js'
 import type { RunEvent } from '../run-core/events.js'
 import { legacyYieldsOf } from '../run-core/project-legacy.js'
@@ -25,7 +23,6 @@ import type { ApiStreamEvent, ContentBlockParam } from '../types/wire.js'
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
 import { createAttachmentMessage } from '../utils/attachments/orchestrator.js'
 import { getQueuedCommandAttachments } from '../utils/attachments/queuedCommands.js'
-import { getGlobalConfig } from '../utils/config.js'
 import { createGetAppStateWithAllowedTools } from '../utils/forkedAgent.js'
 import { isBareMode, isEnvTruthy } from '../utils/envUtils.js'
 import type { FileStateCache } from '../utils/fileStateCache.js'
@@ -33,13 +30,8 @@ import { cloneFileStateCache } from '../utils/fileStateCache.js'
 import { reconstructContentReplacementState, type ContentReplacementState } from '../utils/toolResultStorage.js'
 import { fileHistoryMakeSnapshot } from '../utils/fileHistory.js'
 import { headlessProfilerCheckpoint } from '../utils/headlessProfiler.js'
-import { engageCommitGate } from '../guards/commitGate.js'
-import { registerForcedReadGuard } from '../guards/forcedRead.js'
-import { registerStructuredOutputGuard, releaseStructuredOutputGuard } from '../guards/structuredOutput.js'
-import { registerRunStopGuard } from '../guards/runStop.js'
-import { forgetWardFirings, registerWardsGuard, wardFiringsOf } from '../guards/wardsGuard.js'
-import { askNobodyAnswered, unansweredAsksBlocker } from '../services/run/unansweredAsk.js'
-import type { PermissionDecision } from '../types/permissions.js'
+import { forgetWardFirings, wardFiringsOf } from '../guards/wardsGuard.js'
+import { unansweredAsksBlocker } from '../services/run/unansweredAsk.js'
 import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
 import { isClaudeAISubscriber } from '../utils/auth.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
@@ -59,17 +51,12 @@ import { noteRunPhase } from '../utils/runPhases.js'
 import { processUserInput } from '../utils/processUserInput/processUserInput.js'
 import { getSlashCommandToolSkills } from '../commands.js'
 import { ensureExtensionsLoaded } from '../extensions/boot.js'
-import { fetchSystemPromptParts } from '../utils/queryContext.js'
-import { assertSingleRole } from '../utils/workerRole.js'
 import { flushSessionStorage, recordTranscript } from '../utils/sessionStorage.js'
 import { recordTurnEnd, recordTurnStart, settleTranscriptMessage } from '../utils/sessionStorage/writer.js'
 import { setCwd } from '../utils/Shell.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { shouldEnableThinkingByDefault } from '../utils/thinking.js'
-import { asSystemPrompt, type SystemPrompt } from '../utils/systemPromptType.js'
-import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
-import { hasMnemeHomeOverride } from '../mneme/paths.js'
 import { getCwd } from '../utils/cwd.js'
 import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import {
@@ -95,6 +82,10 @@ import { budgetCannotPaySentence, errorClassOf, statusOfTerminal, toolCallsRefus
 import { recoveryKindOf, type RecoveryKind } from './vocabulary.js'
 import { StepLedger } from './turn/steps.js'
 import { messageRowsOf } from './turn/messageRows.js'
+import { canUseToolKeepingDenials } from './turn/asks.js'
+import { systemPromptComposer } from './turn/prompt.js'
+import { armTurnGuards } from './turn/guards.js'
+import { contextBuilder } from './turn/context.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
 
@@ -222,28 +213,6 @@ export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 't
   }
 }
 
-function conversationOptions(config: ConversationConfig, model: string, thinkingConfig: ThinkingConfig): ToolUseContext['options'] {
-  return {
-    commands: config.commands,
-    debug: false,
-    verbose: false,
-    engineModel: model,
-    thinkingConfig,
-    tools: config.tools,
-    mcpClients: config.mcpClients,
-    mcpResources: {},
-    isNonInteractiveSession: true,
-    ...(config.hostHoldsAsks === true ? { hostHoldsAsks: true } : {}),
-    customSystemPrompt: config.customSystemPrompt,
-    appendSystemPrompt: config.appendSystemPrompt,
-    agentDefinitions: { activeAgents: config.agents ?? [], allAgents: [] },
-    theme: getGlobalConfig().theme,
-    maxBudgetUsd: config.maxBudgetUsd,
-    runDeadline: config.maxTime,
-    querySource: 'sdk',
-  }
-}
-
 export class Conversation {
   private readonly config: ConversationConfig
   private readonly mutableMessages: Message[]
@@ -352,94 +321,23 @@ export class Conversation {
     const denialsBefore = this.denials.length
     forgetWardFirings(scope.session_id)
 
-    const wrappedCanUseTool: CanUseTool = (async (
-      tool: { name: string },
-      input: Record<string, unknown>,
-      toolUseContext: ToolUseContext,
-      assistantMessage: AssistantMessage,
-      toolUseID: string,
-      forceDecision?: unknown,
-    ) => {
-      const decision = await (config.canUseTool as (...args: unknown[]) => Promise<PermissionDecision>)(tool, input, toolUseContext, assistantMessage, toolUseID, forceDecision)
-      if (decision?.behavior !== 'allow') {
-        this.denials.push({ tool: tool.name, call_id: toolUseID, input })
-        if (askNobodyAnswered(decision)) this.unansweredAsks.add(toolUseID)
-      }
-      return decision
-    }) as CanUseTool
+    const wrappedCanUseTool = canUseToolKeepingDenials(config, this.denials, this.unansweredAsks)
 
     const appStateSnapshot = config.getAppState()
     const resolvedModel = this.userSpecifiedModel ?? getEngineModel()
     const thinkingConfig: ThinkingConfig =
       config.thinkingConfig ?? (shouldEnableThinkingByDefault() ? ({ type: 'adaptive' } as ThinkingConfig) : ({ type: 'disabled' } as ThinkingConfig))
 
-    const compose = async (): Promise<{ systemPrompt: SystemPrompt; userContext: Record<string, string>; systemContext: Record<string, string> }> => {
-      const parts = await fetchSystemPromptParts({
-        tools: config.tools,
-        engineModel: resolvedModel,
-        mcpClients: config.mcpClients,
-        customSystemPrompt: config.customSystemPrompt,
-        permissionMode: appStateSnapshot.toolPermissionContext.mode,
-        memoryTask: { prompt: typeof prompt === 'string' ? prompt : prompt.filter(block => block.type === 'text').map(block => block.text).join('\n') },
-      })
-      let memoryMechanicsPrompt: string | null = null
-      if (config.customSystemPrompt !== undefined && hasMnemeHomeOverride()) memoryMechanicsPrompt = await loadMemoryPrompt()
-      const sections: string[] = config.customSystemPrompt !== undefined ? [MERCURY_CONSTITUTION, config.customSystemPrompt] : [...parts.defaultSystemPrompt]
-      if (memoryMechanicsPrompt) sections.push(memoryMechanicsPrompt)
-      if (config.appendSystemPrompt) sections.push(config.appendSystemPrompt)
-      return { systemPrompt: asSystemPrompt(sections), userContext: parts.userContext, systemContext: parts.systemContext }
-    }
+    const compose = systemPromptComposer(config, resolvedModel, appStateSnapshot, prompt)
     headlessProfilerCheckpoint('before_getSystemPrompt')
     const promptParts = await compose()
     headlessProfilerCheckpoint('after_getSystemPrompt')
     const systemPrompt = promptParts.systemPrompt
 
     const sessionId = getSessionId()
-    const hasSyntheticOutputTool = config.tools.some(tool => tool.name === SYNTHETIC_OUTPUT_TOOL_NAME)
-    if (config.jsonSchema && hasSyntheticOutputTool) registerStructuredOutputGuard(sessionId)
-    else releaseStructuredOutputGuard(sessionId)
-    const forcedReadList = (flagEnv('MERCURY_FORCE_READ_FILES') ?? '')
-      .split(',')
-      .map(entry => entry.trim())
-      .filter(entry => entry.length > 0)
-    if (forcedReadList.length > 0) registerForcedReadGuard(sessionId, forcedReadList)
-    registerWardsGuard(config.setAppState, sessionId)
-    registerRunStopGuard(sessionId)
-    engageCommitGate(sessionId)
-    assertSingleRole()
-    armWorkerParentWatch()
+    armTurnGuards(config, sessionId)
 
-    const buildContext = (messages: Message[], model: string): ToolUseContext => ({
-      options: conversationOptions(config, model, thinkingConfig),
-      startTurn: query,
-      abortController: this.abortController,
-      readFileState: this.readFileState,
-      contentReplacementState: this.contentReplacementState,
-      getAppState: config.getAppState,
-      setAppState: config.setAppState,
-      messages,
-      setResponseLength: () => {},
-      setInProgressToolUseIDs: () => {},
-      callChain: { key: turnId, hop: 0 },
-      updateFileHistoryState: updater => {
-        config.setAppState(prev => {
-          const next = updater(prev.fileHistory)
-          return next === prev.fileHistory ? prev : { ...prev, fileHistory: next }
-        })
-      },
-      updateAttributionState: updater => {
-        config.setAppState(prev => {
-          const next = updater(prev.attribution)
-          return next === prev.attribution ? prev : { ...prev, attribution: next }
-        })
-      },
-      handleElicitation: config.handleElicitation,
-      setSDKStatus: config.setSDKStatus,
-      discoveredSkillNames: this.discoveredSkillNames,
-      loadedNestedMemoryPaths: this.loadedNestedMemoryPaths,
-      nestedMemoryAttachmentTriggers: new Set<string>(),
-      dynamicSkillDirTriggers: new Set<string>(),
-    })
+    const buildContext = contextBuilder({ config, thinkingConfig, turnId, abortController: this.abortController, readFileState: this.readFileState, contentReplacementState: this.contentReplacementState, discoveredSkillNames: this.discoveredSkillNames, loadedNestedMemoryPaths: this.loadedNestedMemoryPaths })
     if (options?.initialNotices?.length) {
       const attachments = await getQueuedCommandAttachments(options.initialNotices, { messages: this.mutableMessages, model: resolvedModel })
       this.mutableMessages.push(...attachments.map(createAttachmentMessage))
