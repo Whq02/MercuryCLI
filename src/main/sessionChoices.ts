@@ -1,0 +1,142 @@
+import { setInitialEngineModel, setEngineModelOverride, setMainThreadAgentType } from '../bootstrap/state.js'
+import { addBootNote } from '../substrate/bootNotes.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
+import { getAgentDefinitionsWithOverrides, computeActiveAgents, parseAgentsFromJson, type AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import { logForDebugging } from '../utils/debug.js'
+import { isEnvTruthy } from '../utils/envUtils.js'
+import { logError } from '../utils/log.js'
+import { getDefaultEngineModelSetting, getEngineModel } from '../utils/model/model.js'
+import { initializeToolPermissionContext, stripDangerousPermissionsForFlow } from '../utils/permissions/permissionSetup.js'
+import { modeBypassesPermissions, type PermissionMode } from '../utils/permissions/PermissionMode.js'
+import { getInitialSettings } from '../utils/settings/settings.js'
+import { isSessionRunArgv as isRunArgv } from '../cli/sessionArgs.js'
+import { failCli, typedString, type RootOptions } from './cli.js'
+
+export async function resolvePermissions(opts: RootOptions) {
+  const bypassFromRegistry = isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS')) && !isRunArgv()
+  const dangerouslySkipPermissions = Boolean(opts.sovereign) || opts.mode === 'sovereign' || bypassFromRegistry
+  const allowDangerousSkip = Boolean(opts.allowSovereign)
+  const sovereignAvailable = allowDangerousSkip || !isRunArgv()
+  const { initialPermissionModeFromCLI, isSovereignDisabled } = await import('../utils/permissions/permissionSetup.js')
+  const explicitMode = typedString(opts.mode) as PermissionMode | undefined
+  if (opts.sovereign && explicitMode && !modeBypassesPermissions(explicitMode)) {
+    failCli(`mercury run: --sovereign conflicts with --mode ${explicitMode}; choose one permission posture`)
+  }
+  if ((opts.sovereign || opts.mode === 'sovereign' || allowDangerousSkip) && isSovereignDisabled()) {
+    const word = opts.sovereign ? '--sovereign' : opts.mode === 'sovereign' ? '--mode sovereign' : '--allow-sovereign'
+    failCli(`mercury run: ${word} is disabled by permissions policy`)
+  }
+  const resolved = initialPermissionModeFromCLI({
+    permissionModeCli: typedString(opts.mode),
+    dangerouslySkipPermissions,
+  })
+  const permissionMode: PermissionMode = resolved.mode
+  const { setSessionSovereign } = await import('../bootstrap/state.js')
+  setSessionSovereign(modeBypassesPermissions(permissionMode))
+
+  const permissionInit = await initializeToolPermissionContext({
+    allowedToolsCli: (opts.allowedTools as string[] | undefined) ?? [],
+    disallowedToolsCli: (opts.blockTools as string[] | undefined) ?? [],
+    baseToolsCli: opts.toolset as string[] | undefined,
+    permissionMode,
+    allowDangerouslySkipPermissions: sovereignAvailable,
+  })
+  let toolPermissionContext = permissionInit.toolPermissionContext
+  for (const warning of permissionInit.warnings) console.error(warning)
+  if (permissionInit.dangerousPermissions.length > 0) {
+    toolPermissionContext = stripDangerousPermissionsForFlow(toolPermissionContext)
+  }
+  return { allowDangerousSkip, permissionMode, toolPermissionContext }
+}
+
+export async function resolveThinkingConfig(opts: RootOptions) {
+  const thinkingOpt = typedString(opts.reasoningMode)
+  const { noteSessionThinkingConfig, shouldEnableThinkingByDefault } = await import('../utils/thinking.js')
+  let thinkingConfig: import('../utils/thinking.js').ThinkingConfig
+  if (thinkingOpt === 'enabled' || thinkingOpt === 'adaptive') thinkingConfig = { type: 'adaptive' }
+  else if (thinkingOpt === 'disabled') thinkingConfig = { type: 'disabled' }
+  else {
+    const envTokens = flagEnv('MERCURY_THINKING_BUDGET')
+    const budget = envTokens !== undefined ? Number.parseInt(envTokens, 10) : undefined
+    if (budget !== undefined && Number.isFinite(budget) && budget > 0) {
+      thinkingConfig = { type: 'enabled', budgetTokens: budget }
+    } else if (budget === 0) {
+      thinkingConfig = { type: 'disabled' }
+    } else {
+      thinkingConfig = shouldEnableThinkingByDefault() ? { type: 'adaptive' } : { type: 'disabled' }
+    }
+  }
+  noteSessionThinkingConfig(thinkingConfig)
+  return thinkingConfig
+}
+
+export async function resolveAgents(opts: RootOptions) {
+  const agentInfo = await getAgentDefinitionsWithOverrides()
+  let activeAgents = agentInfo.activeAgents
+  let allAgents = agentInfo.allAgents
+  if (typedString(opts.agentDefs)) {
+    try {
+      const cliAgents = parseAgentsFromJson(JSON.parse(typedString(opts.agentDefs)!) as unknown)
+      allAgents = [...allAgents, ...cliAgents]
+      activeAgents = computeActiveAgents(allAgents)
+    } catch (error) {
+      logError(error)
+    }
+  }
+  const { lspAgentNote } = await import('../services/lsp/toolFamily.js')
+  for (const agent of activeAgents) {
+    if (agent.tools?.includes('LSP')) console.error(lspAgentNote(agent.agentType))
+    if (agent.disallowedTools?.includes('LSP')) console.error(lspAgentNote(agent.agentType, true))
+  }
+  const requestedAgent = typedString(opts.agent) ?? getInitialSettings().engine?.agent
+  let mainThreadAgentDefinition: AgentDefinition | undefined
+  if (requestedAgent) {
+    mainThreadAgentDefinition = activeAgents.find(agent => agent.agentType === requestedAgent)
+    if (!mainThreadAgentDefinition) {
+      const refusal = `unknown agent '${requestedAgent}' — available: ${activeAgents.map(agent => agent.agentType).join(', ')}`
+      if (typedString(opts.agent) !== undefined) {
+        failCli(refusal)
+      }
+      process.stderr.write(`${refusal} (from settings.engine.agent — running without it)\n`)
+      logForDebugging(refusal)
+    } else {
+      setMainThreadAgentType(requestedAgent)
+      void import('../utils/sessionStorage.js')
+        .then(storage => storage.saveAgentSetting(requestedAgent))
+        .catch(() => {})
+    }
+  }
+  return { activeAgents, allAgents, mainThreadAgentDefinition }
+}
+
+export async function resolveModels(opts: RootOptions, runMode: boolean, mainThreadAgentDefinition: AgentDefinition | undefined) {
+  let userSpecifiedModel = typedString(opts.model)
+  if (userSpecifiedModel !== undefined && userSpecifiedModel !== 'default') {
+    const { matchReachableModelName, modelNameHeadlessRefusal } = await import('../utils/model/modelNameRoad.js')
+    const matched = matchReachableModelName(userSpecifiedModel, 'pass')
+    if (matched?.kind === 'match') {
+      addBootNote('info', `--model ${matched.said}`)
+      userSpecifiedModel = matched.id
+    } else if (matched?.kind === 'exact') {
+      userSpecifiedModel = matched.id
+    } else if (matched !== null && (matched.kind === 'ambiguous' || matched.kind === 'none')) {
+      if (runMode) failCli(modelNameHeadlessRefusal(matched, '--model'), 1)
+      addBootNote('warn', `${modelNameHeadlessRefusal(matched, '--model')} The session starts on its default model; /model picks another.`)
+      userSpecifiedModel = undefined
+    }
+  }
+  if (userSpecifiedModel === 'default') userSpecifiedModel = getDefaultEngineModelSetting() ?? undefined
+  let fallbackModel = typedString(opts.backupModel)
+  if (fallbackModel === 'default') fallbackModel = getDefaultEngineModelSetting() ?? undefined
+  if (!userSpecifiedModel && mainThreadAgentDefinition?.model && mainThreadAgentDefinition.model !== 'inherit') {
+    userSpecifiedModel = mainThreadAgentDefinition.model
+  }
+  if (userSpecifiedModel) setEngineModelOverride(userSpecifiedModel)
+  setInitialEngineModel(userSpecifiedModel ?? null)
+  if (runMode) {
+    const { readComputedDefaultCatalogue } = await import('../utils/model/computedDefault.js')
+    await readComputedDefaultCatalogue()
+  }
+  const resolvedInitialModel = getEngineModel()
+  return { userSpecifiedModel, fallbackModel, resolvedInitialModel }
+}
