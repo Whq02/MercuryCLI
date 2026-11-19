@@ -21,7 +21,6 @@ import { logForDebugging } from '../../../../utils/debug.js'
 import { type ApiShapedTool } from '../../zai/zaiCodec.js'
 import {
   type CompatChatRequest,
-  type CompatCompletedToolCall,
   type CompatDeferralFacts,
   type CompatFault,
   type CompatRuntimeReading,
