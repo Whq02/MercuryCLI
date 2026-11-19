@@ -3,7 +3,7 @@ import { DapCancelledError, throwIfDapAborted } from './dapCancellation.js'
 import '../../utils/combinedAbortSignal.js'
 import '../../utils/subprocessEnv.js'
 import '../../utils/execFileNoThrow.js'
-import { pythonSpawnEnv } from './debugpyResolver.js'
+import './debugpyResolver.js'
 import './optionalAdapters.js'
 import {
   registerOwnerDisposer,
@@ -12,36 +12,29 @@ import {
 import { registerExecutionDomain } from '../primitives/executionPlane.js'
 import { projectExternalState } from '../primitives/externalProjection.js'
 import '../../substrate/flagRegistry.js'
-import { logForDebugging } from '../../utils/debug.js'
+import '../../utils/debug.js'
 import '../../utils/envUtils.js'
 import '../../utils/cwd.js'
 import '../../utils/config/trust.js'
 import '../../bootstrap/state.js'
 import '../../utils/projectConfig.js'
 import '../../utils/settings/constants.js'
-import { strikeProcessGroupNow } from '../../utils/processGroup.js'
+import '../../utils/processGroup.js'
 import '../lsp/godotLane.js'
 import '../ide/pythonProject.js'
 import '../ide/unityProject.js'
 import './unityAdapter.js'
 import '../../utils/sleep.js'
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { DapTerminalRunner } from './dapTerminal.js'
 import { createServer as createNetServer, type Socket } from 'node:net'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { dormantBuiltinAdapterHints, knownAdapterKeys, resolveAdapter } from './client/adapters.js'
 import { dialListener, listenerAttachTarget, listenerRefusedLine } from './client/listener.js'
-import {
-  dataBreakpointInfo,
-  setBreakpoints,
-  setDataBreakpoints,
-  setFunctionBreakpoints,
-  setInstructionBreakpoints,
-  writeMemory,
-} from './client/breakpoints.js'
+import './client/breakpoints.js'
 import type { DapStartOptions } from './client/launch.js'
 import { FramePart } from './client/frame.js'
-import { disconnectArguments, LifePart } from './client/life.js'
+import { LifePart } from './client/life.js'
 import { MessagesPart } from './client/messages.js'
 import { OutputPart, pushOutput } from './client/output.js'
 import { StartPart } from './client/start.js'
@@ -49,29 +42,13 @@ import { childBoundRefusal, ReversePart } from './client/reverse.js'
 import { TerminalPart } from './client/terminal.js'
 import { WirePart } from './client/wire.js'
 import { drainOutput, waitForStop, waitForStopOutcome } from './client/stops.js'
-import {
-  debuggeeEndDetail,
-  debugTarget,
-  root,
-  treeExitDetail,
-  treeNewestStopStamp,
-  treeSessions,
-  treeStopped,
-  treeTerminated,
-  treeVerifiedBreakpoints,
-  treeVerifiedFunctionBreakpoints,
-} from './client/tree.js'
+import { treeTerminated } from './client/tree.js'
 import {
   REQUEST_TIMEOUT_MS,
   type DapAdapterSpec,
   type DapBreakpointSpec,
-  type DapBreakpointVerdict,
-  type DapDataBreakpointInfo,
-  type DapDataBreakpointSpec,
   type DapFunctionBreakpointSpec,
-  type DapInstructionBreakpointSpec,
   type DapListenerTarget,
-  type DapWriteMemoryReceipt,
   type StoppedInfo,
 } from './client/shared.js'
 
@@ -128,8 +105,9 @@ export {
   resolveAdapter,
   settleDapAdapterProbes,
 } from './client/adapters.js'
+import { DapSessionPublicLayer } from './client/publicLayer.js'
 
-export class DapSession {
+export class DapSession extends DapSessionPublicLayer {
   readonly adapterKey: string
   readonly program: string
   #spec: DapAdapterSpec
@@ -228,6 +206,7 @@ export class DapSession {
     treeInit?: { parent: DapSession | null; label: string },
     listener?: DapListenerTarget & { socket?: Socket },
   ) {
+    super()
     this.adapterKey = adapterKey
     this.program = program
     this.#spec = spec
@@ -240,46 +219,10 @@ export class DapSession {
       this.#resolveInitialized = res
     })
     if (this.parentSession) this.output = this.parentSession.root().output
-    if (wire === 'dial' && listener !== undefined) {
-      this.#child = null
-      this.#listener = { host: listener.host, port: listener.port }
-      this.#transportReady =
-        listener.socket !== undefined
-          ? this.#wire.adoptSocket(listener.socket, `the program listening at ${listener.host}:${listener.port} closed the connection`)
-          : this.#wire.connectTcp(listener.port, listener.host)
-      return
-    }
-    if (wire === 'dial') {
-      this.#child = null
-      if (tcpPort === undefined) {
-        this.terminated = true
-        this.exitDetail = 'dial session has no server port'
-        this.#transportReady = Promise.reject(new Error(this.exitDetail))
-        this.#transportReady.catch(() => {})
-        return
-      }
-      this.#transportReady = this.#wire.connectTcp(tcpPort)
-      return
-    }
-    const child = spawn(spec.command, spec.args, {
-      windowsHide: true,
-      cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      detached: process.platform !== 'win32',
-      env: pythonSpawnEnv(),
-    })
-    this.#child = child
-    child.stdin.on('error', err => logForDebugging(`dap: adapter stdin error: ${err.message}`))
-    if (spec.connect === 'tcp' && tcpPort !== undefined) {
-      child.stdout.on('data', (chunk: Buffer) => {
-        this.#pushOutput(`[adapter] ${String(chunk).trimEnd()}`)
-      })
-      this.#transportReady = this.#wire.connectTcp(tcpPort)
-    } else {
-      child.stdout.on('data', (chunk: Buffer) => this.#wire.onData(chunk))
-      this.#transportReady = Promise.resolve()
-    }
-    this.#life.watchChild(child)
+    const transport = this.#life.openTransport(spec, cwd, tcpPort, wire, listener)
+    this.#child = transport.child
+    this.#listener = transport.listener
+    this.#transportReady = transport.ready
   }
 
   #wakeStateWaiters(): void {
@@ -292,36 +235,8 @@ export class DapSession {
     if (this.parentSession) this.parentSession.#wakeStateWaiters()
   }
 
-
-  root(): DapSession {
-    return root(this)
-  }
-
-  treeSessions(): DapSession[] {
-    return treeSessions(this)
-  }
-
-  treeSize(): number {
-    return this.treeSessions().length
-  }
-
-  treeStopped(sinceStamp = 0): DapSession | null {
-    return treeStopped(this, sinceStamp)
-  }
-
-  treeNewestStopStamp(): number {
-    return treeNewestStopStamp(this)
-  }
-
   stoppedFrameId(): Promise<number | null> {
     return this.#frame.stoppedFrameId()
-  }
-
-  treeVerifiedBreakpoints(): Map<
-    string,
-    Array<{ line: number; verified: boolean; message?: string; id?: number; verifier?: string }>
-  > {
-    return treeVerifiedBreakpoints(this)
   }
 
   setBreakpointsTree(
@@ -329,14 +244,6 @@ export class DapSession {
     breakpoints: Array<number | DapBreakpointSpec>,
   ): Promise<Array<{ line: number; verified: boolean; message?: string; id?: number; verifier?: string }>> {
     return this.#start.setBreakpointsTree(path, breakpoints)
-  }
-
-  acceptsFunctionBreakpoints(): boolean {
-    return this.capabilities === null || this.capabilities.supportsFunctionBreakpoints === true
-  }
-
-  treeVerifiedFunctionBreakpoints(): Array<{ name: string; verified: boolean; message?: string; id?: number; verifier?: string }> {
-    return treeVerifiedFunctionBreakpoints(this)
   }
 
   setFunctionBreakpointsTree(
@@ -347,18 +254,6 @@ export class DapSession {
 
   treeTerminated(): boolean {
     return treeTerminated(this, this.#hostsDebuggee)
-  }
-
-  treeExitDetail(): string {
-    return treeExitDetail(this)
-  }
-
-  debuggeeEndDetail(): string {
-    return debuggeeEndDetail(this)
-  }
-
-  debugTarget(): { session: DapSession } | { ambiguousDetail: string } {
-    return debugTarget(this)
   }
 
   get listener(): DapListenerTarget | null {
@@ -437,42 +332,6 @@ export class DapSession {
     return this.#start.launch(options)
   }
 
-  setBreakpoints(
-    path: string,
-    breakpoints: Array<number | DapBreakpointSpec>,
-  ): Promise<Array<{ line: number; verified: boolean; message?: string; id?: number }>> {
-    return setBreakpoints(this, path, breakpoints)
-  }
-
-  setFunctionBreakpoints(specs: DapFunctionBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
-    return setFunctionBreakpoints(this, specs)
-  }
-
-  dataBreakpointInfo(args: {
-    name: string
-    variablesReference?: number
-    frameId?: number
-  }): Promise<DapDataBreakpointInfo> {
-    return dataBreakpointInfo(this, args)
-  }
-
-  setDataBreakpoints(specs: DapDataBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
-    return setDataBreakpoints(this, specs)
-  }
-
-  setInstructionBreakpoints(specs: DapInstructionBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
-    return setInstructionBreakpoints(this, specs)
-  }
-
-  writeMemory(args: {
-    memoryReference: string
-    data: string
-    offset?: number
-    allowPartial?: boolean
-  }): Promise<DapWriteMemoryReceipt> {
-    return writeMemory(this, args)
-  }
-
   waitForStopOutcome(
     timeoutMs = 10_000,
     signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal,
@@ -494,39 +353,12 @@ export class DapSession {
     return drainOutput(this, quietMs, maxMs, signal)
   }
 
-  disconnectArguments(): Record<string, unknown> {
-    return disconnectArguments(this)
-  }
-
   dispose(signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {
     return this.#life.dispose(signal)
   }
 
   killSync(): void {
-    this.#lifetime.abort()
-    for (const process of this.#terminal.processes()) {
-      strikeProcessGroupNow(process, 'SIGKILL')
-      process.kill('SIGKILL')
-    }
-    this.#terminal.processes().clear()
-    for (const child of [...this.children]) {
-      try {
-        child.killSync()
-      } catch {
-      }
-    }
-    try {
-      this.#wire.socket()?.destroy()
-    } catch {
-    }
-    if (this.#child && this.#child.exitCode === null) this.#child.kill('SIGKILL')
-    this.terminated = true
-    for (const [, p] of this.#wire.pending()) {
-      p.cancelDeadline()
-      p.reject(new Error('session disposed'))
-    }
-    this.#wire.pending().clear()
-    this.#wakeStateWaiters()
+    this.#life.killSync()
     this.#stateWaiters.clear()
   }
 

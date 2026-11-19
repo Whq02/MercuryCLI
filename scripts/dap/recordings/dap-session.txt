@@ -1,0 +1,61 @@
+## a dial with no port ends at once and leaves no rejection unhandled
+unhandled rejections=0
+label=recording depth=0 program=/tmp/demo.js children=0 terminated=true alive=false startMode=null listener=null exitDetail="dial session has no server port"
+tree size=1 terminated=true exit="dial session has no server port" end="dial session has no server port"
+request threads -> refused: dial session has no server port
+request disconnect -> refused: dial session has no server port
+pending=0 waiters=0
+wait for a stop -> {"state":"terminated"}
+after dispose: label=recording depth=0 program=/tmp/demo.js children=0 terminated=true alive=false startMode=null listener=null exitDetail="dial session has no server port"
+
+## a listening program is attached over the dialed socket, and the child it starts dials the same listener
+the program listens=true
+both ended=true
+root label=listener depth=0 program=port:<port> children=1 terminated=true alive=false startMode=attach listener={"host":"127.0.0.1","port":<port>} exitDetail="debuggee exited (code 0)"
+child label=child-1 depth=1 program=/tmp/demo.js children=0 terminated=true alive=false startMode=launch listener={"host":"127.0.0.1","port":<port>} exitDetail="debuggee exited (code 0)" parent is the root=true shares the root's output=true capabilities=supportsConditionalBreakpoints,supportsConfigurationDoneRequest,supportsFunctionBreakpoints,supportsHitConditionalBreakpoints
+tree size=2 terminated=true exit="debuggee exited (code 0)" end="debuggee exited (code 0)"
+wait for a stop -> {"state":"terminated"}
+output [mock] child target-1 up
+output [mock] startDebugging#1 success=true
+output mock-child: ran
+removed=true sessions=0
+the program left with code 0
+
+## an adapter that speaks tcp but was given no port: its child is refused, and its stderr is kept
+the adapter was answered=true
+label=tcp-no-port depth=0 program=/tmp/demo.js children=0 terminated=false alive=true startMode=launch listener=null exitDetail=""
+tree size=1 terminated=false exit="" end="debuggee ended (no non-zero exit code reported)"
+output [adapter] recording adapter: warming up
+output [dap] child session could not start: tcp adapter session has no known server port
+output [mock] startDebugging#1 success=false message=child session could not start: tcp adapter session has no known server port
+after dispose: terminated=true alive=false pending=0
+
+## killSync while a terminal process lives, a request waits and a waiter is parked
+ready=true terminal processes=1
+root label=terminal depth=0 program=/tmp/demo.js children=1 terminated=false alive=true startMode=launch listener=null exitDetail=""
+tree size=2 terminated=false exit="debuggee exited (code 0)" end="debuggee exited (code 0)"
+output [mock] child target-1 up
+output [mock] runInTerminal#1 success=true
+output [mock] startDebugging#2 success=true
+output mock-child: ran
+before the kill: pending=1 waiters=1
+after the kill: label=terminal depth=0 program=/tmp/demo.js children=1 terminated=true alive=false startMode=launch listener=null exitDetail=""
+after the kill: terminal processes=0 pending=0 waiters=0 child terminated=true
+the waiting request -> refused: session disposed
+the parked waiter -> {"state":"terminated"}
+the terminal process was killed=true
+removed=true sessions=0
+
+## an adapter that speaks tcp is started and dialed on its port, and the child it starts dials that port
+both ended=true
+root label=tcp depth=0 program=/tmp/demo.js children=1 terminated=true alive=false startMode=launch listener=null exitDetail="debuggee exited (code 0)"
+child label=child-1 depth=1 program=/tmp/demo.js children=0 terminated=true alive=false startMode=launch listener=null exitDetail="debuggee exited (code 0)" parent is the root=true shares the root's output=true capabilities=supportsConditionalBreakpoints,supportsConfigurationDoneRequest,supportsFunctionBreakpoints,supportsHitConditionalBreakpoints
+tree size=2 terminated=true exit="debuggee exited (code 0)" end="debuggee exited (code 0)"
+output [adapter] recording adapter: on its port
+output [mock] child target-1 up
+output [mock] startDebugging#1 success=true
+output mock-child: ran
+removed=true sessions=0
+
+## the whole run
+unhandled rejections=0

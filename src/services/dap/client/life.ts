@@ -1,6 +1,10 @@
-import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import type { Socket } from 'node:net'
 import type { DapSession } from '../dapClient.js'
-import { endProcessTree, endProcessTreeSurvivors } from '../../../utils/processGroup.js'
+import { pythonSpawnEnv } from '../debugpyResolver.js'
+import { logForDebugging } from '../../../utils/debug.js'
+import { endProcessTree, endProcessTreeSurvivors, strikeProcessGroupNow } from '../../../utils/processGroup.js'
+import type { DapAdapterSpec, DapListenerTarget } from './shared.js'
 import type { TerminalPart } from './terminal.js'
 import type { WirePart } from './wire.js'
 
@@ -13,11 +17,62 @@ interface LifeNeeds {
   pushOutput(line: string): void
 }
 
+type Transport = { child: ChildProcessWithoutNullStreams | null; listener: DapListenerTarget | null; ready: Promise<void> }
+
 export class LifePart {
   constructor(
     private readonly session: DapSession,
     private readonly needs: LifeNeeds,
   ) {}
+
+  openTransport(
+    spec: DapAdapterSpec,
+    cwd: string,
+    tcpPort: number | undefined,
+    wire: 'spawn' | 'dial',
+    listener: (DapListenerTarget & { socket?: Socket }) | undefined,
+  ): Transport {
+    if (wire === 'dial' && listener !== undefined) {
+      return {
+        child: null,
+        listener: { host: listener.host, port: listener.port },
+        ready:
+          listener.socket !== undefined
+            ? this.needs.wire().adoptSocket(listener.socket, `the program listening at ${listener.host}:${listener.port} closed the connection`)
+            : this.needs.wire().connectTcp(listener.port, listener.host),
+      }
+    }
+    if (wire === 'dial') {
+      if (tcpPort === undefined) {
+        this.session.terminated = true
+        this.session.exitDetail = 'dial session has no server port'
+        const ready: Promise<void> = Promise.reject(new Error(this.session.exitDetail))
+        ready.catch(() => {})
+        return { child: null, listener: null, ready }
+      }
+      return { child: null, listener: null, ready: this.needs.wire().connectTcp(tcpPort) }
+    }
+    const child = spawn(spec.command, spec.args, {
+      windowsHide: true,
+      cwd,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
+      env: pythonSpawnEnv(),
+    })
+    child.stdin.on('error', err => logForDebugging(`dap: adapter stdin error: ${err.message}`))
+    let ready: Promise<void>
+    if (spec.connect === 'tcp' && tcpPort !== undefined) {
+      child.stdout.on('data', (chunk: Buffer) => {
+        this.needs.pushOutput(`[adapter] ${String(chunk).trimEnd()}`)
+      })
+      ready = this.needs.wire().connectTcp(tcpPort)
+    } else {
+      child.stdout.on('data', (chunk: Buffer) => this.needs.wire().onData(chunk))
+      ready = Promise.resolve()
+    }
+    this.watchChild(child)
+    return { child, listener: null, ready }
+  }
 
   watchChild(child: ChildProcessWithoutNullStreams): void {
     child.stderr.on('data', (chunk: Buffer) => {
@@ -79,6 +134,34 @@ export class LifePart {
       }
     }
     this.session.killSync()
+  }
+
+  killSync(): void {
+    this.needs.lifetime().abort()
+    for (const process of this.needs.terminal().processes()) {
+      strikeProcessGroupNow(process, 'SIGKILL')
+      process.kill('SIGKILL')
+    }
+    this.needs.terminal().processes().clear()
+    for (const child of [...this.session.children]) {
+      try {
+        child.killSync()
+      } catch {
+      }
+    }
+    try {
+      this.needs.wire().socket()?.destroy()
+    } catch {
+    }
+    const adapter = this.needs.child()
+    if (adapter && adapter.exitCode === null) adapter.kill('SIGKILL')
+    this.session.terminated = true
+    for (const [, p] of this.needs.wire().pending()) {
+      p.cancelDeadline()
+      p.reject(new Error('session disposed'))
+    }
+    this.needs.wire().pending().clear()
+    this.needs.wakeStateWaiters()
   }
 }
 
