@@ -2,38 +2,28 @@
 import { join } from 'node:path';
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { type Command } from '../commands.js';
-import { ExitFlow } from '../components/ExitFlow.js';
-import { FullscreenLayout } from '../components/FullscreenLayout.js';
-import { TranscriptSwap } from '../components/CrewmateTranscript.js';
-import { Messages } from '../components/Messages.js';
-import type { ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
-import PromptInput from '../components/PromptInput/PromptInput.js';
-import { MessageActionsBar } from '../components/messageActions.js';
-import { FocusedSessionStatusRow } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
 import { useAgentNeedsYou } from '../hooks/useAgentNeedsYou.js';
 import { fluxMark, fluxWhy } from '../utils/flux/fluxProbe.js';
 import { useMercuryTokens } from '../components/mercury-ui/useMercuryTokens.js';
-import { CockpitBottomStatus } from '../context/cockpitActiveContext.js';
-import { MercuryFrame } from '../components/MercuryFrame.js';
 import { useNotifications } from '../context/notifications.js';
 import { currentSurfaceRoute, subscribeSurfaceRoute } from '../context/surfaceRoute.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTurnEndPing } from '../hooks/useTurnEndPing.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
-import { Box, Text, useTheme } from '../ink.js';
+import { useTheme } from '../ink.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
-import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
-import { getShortcutDisplay } from '../keybindings/shortcutFormat.js';
 import { useFocusedTailAnchor, useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
 import { getFocusedSessionConnector, hasFocusedSession, conversationIdHere } from '../services/engine-connector/focusedConnector.js';
 import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
 import type { Tool } from '../Tool.js';
-import { ChatKeys } from './chat/ChatKeys.js';
+import { chatBottomSlot } from './chat/chatBottomSlot.js';
+import { chatMessagesList, chatTranscriptBody } from './chat/chatMessagesList.js';
+import { chatLegacyTree, chatTree } from './chat/chatTree.js';
 import type { FocusedInputDialog } from './chat/focusedDialog.js';
 import type { Screen as ScreenName } from './chat/screen.js';
 import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
@@ -42,19 +32,17 @@ import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsV
 import { useChatDraft } from './chat/useChatDraft.js';
 import { getFocusedSeatLive, useChatFocusedSeat } from './chat/useChatFocusedSeat.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
-import { TranscriptFooter, TranscriptSearchBar, useChatSearch } from './chat/useChatSearch.js';
+import { useChatSearch } from './chat/useChatSearch.js';
 import { useChatSelector, useChatSelectorView } from './chat/useChatSelector.js';
 import { useChatConversation, useChatSession } from './chat/useChatSession.js';
 import { useChatSeatClock, useChatStatusStrip, useChatTurnBoundary, useChatTurnEnd, useChatTurnSignals } from './chat/useChatStatus.js';
 import { useChatReceipts, useChatSubmit, useChatSubmitTools } from './chat/useChatSubmit.js';
-import { AnimatedTitle, useChatTitle } from './chat/useChatTitle.js';
+import { useChatTitle } from './chat/useChatTitle.js';
 import { useChatTools } from './chat/useChatTools.js';
 import { setCrashConversationLocator } from '../utils/crashReport.js';
 import { getProjectDir } from '../utils/sessionStoragePortable.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled } from '../utils/fullscreen.js';
-import { getCurrentWorktreeSession } from '../utils/worktree.js';
-import type { StreamingToolUse } from '../utils/messages/streaming.js';
 
 export type Screen = ScreenName;
 
@@ -67,9 +55,6 @@ export type Props = {
 };
 
 
-const EMPTY_CONFIRM_QUEUE: ToolUseConfirm[] = [];
-const NO_STREAMING_TOOL_USES: StreamingToolUse[] = [];
-
 setCrashConversationLocator(() => {
   const sessionId = conversationIdHere();
   if (!hasFocusedSession()) return { sessionId, transcriptPath: null };
@@ -79,7 +64,6 @@ setCrashConversationLocator(() => {
     return { sessionId, transcriptPath: null };
   }
 });
-const NO_MCP_CLIENTS: never[] = [];
 
 
 function getFocusedInputDialog(args: {
@@ -240,170 +224,11 @@ export function Chat({
   useChatScrollFollow({ messages, repinToBottom });
   const { viewInProgressToolUseIDs, viewStreamMode, spinnerSlotReserved, workingStatusStrip } = useChatStatusStrip({ seatLive, messages, toolJSX, toolUseConfirmQueue, isLoading, isStopping, textActive, streamingSuppressed, isCompact, focusedConnector, spinnerTip, verbose, seatStartTimeRef, seatPausedMsRef, seatPauseStartRef });
 
-  const promptInput = !disabled && !isExiting && !showExitFlow && !toolJSX?.shouldHidePromptInput && (focusedInputDialog === undefined || compactFocus === 'detail') ? (
-    <PromptInput
-      compactWork={compactWork}
-      compactFocus={compactFocus}
-      debug={debug}
-      toolPermissionContext={toolPermissionContext}
-      setToolPermissionContext={setToolPermissionContext}
-      apiKeyStatus={apiKeyVerification.status}
-      commands={disableSlashCommands ? [] : commands}
-      agents={agentDefinitions.activeAgents}
-      isLoading={isLoading}
-      verbose={verbose}
-      submitCount={submitCount}
-      onShowMessageSelector={openMessageSelector}
-      onMessageActionsEnter={messageActionsDisabled ? undefined : messageActions.enter}
-      mcpClients={NO_MCP_CLIENTS}
-      vimMode={vimMode}
-      setVimMode={setVimMode}
-      showBashesDialog={showBashesDialog}
-      setShowBashesDialog={setShowBashesDialog}
-      onExit={handleExit}
-      getToolUseContext={getToolUseContext}
-      onSubmit={onSubmit}
-      isSearchingHistory={isSearchingHistory}
-      setIsSearchingHistory={setIsSearchingHistory}
-      helpOpen={helpOpen}
-      setHelpOpen={setHelpOpen}
-      hasSuppressedDialogs={dialogsHiddenWhileTyping}
-      isLocalJSXCommandActive={(toolJSX?.isLocalJSXCommand === true && dialogPaints) || focusedInputDialog !== undefined}
-      insertTextRef={insertTextRef}
-    />
-  ) : null;
+  const bottomSlot = chatBottomSlot({ isExiting, showExitFlow, toolJSX, showBashesDialog, setShowBashesDialog, handleExit, toolPermissionContext, apiKeyVerification, commands, agentDefinitions, verbose, setToolPermissionContext, submitCount, getToolUseContext, openMessageSelector, messageActionsDisabled, messageActions, messageCursorActive, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen, insertTextRef, onSubmit, dialogPaints, inTranscript, searchBarOpen, previewSearch, commitSearch, cancelSearch, warmSearchIndex, searchMatchCount, searchMatchCurrent, committedSearchQuery, inVirtualTranscript, dumpMode, showAllInTranscript, editorStatus, disabled, debug, disableSlashCommands, focusedInputDialog, compactWork, compactFocus, isLoading, dialogsHiddenWhileTyping, columns });
 
-  const composerGroup = promptInput ? <Box flexDirection="column" display={focusedInputDialog === undefined ? "flex" : "none"}>{promptInput}</Box> : null;
-  const composerSlot =
-    messageCursorActive && !messageActionsDisabled ? <MessageActionsBar /> : composerGroup;
+  const messagesList = chatMessagesList({ inVirtualTranscript, inTranscript, screen, showAllInTranscript, jumpRef, onSearchMatchesChange, scanElement, setPositions, dumpMode, displayedMessages, paintedMessages, mergedTools, commands, agentDefinitions, verbose, viewInProgressToolUseIDs, conversationId, isLoading, focusedTail, scrollRef, showMessageSelector, toolJSX, toolUseConfirmQueue, unseenDivider, messageNavRef, streamingSuppressed, messages, tailAnchor });
 
-  const bottomSlot = (
-    <Box flexDirection="column">
-      {inTranscript ? (
-        searchBarOpen ? (
-          <TranscriptSearchBar
-            columns={columns}
-            onQueryChange={previewSearch}
-            onCommit={commitSearch}
-            onCancel={cancelSearch}
-            warmSearchIndex={warmSearchIndex}
-            matchCount={searchMatchCount}
-            matchCurrent={searchMatchCurrent}
-          />
-        ) : (
-          <TranscriptFooter
-            toggleChord={getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o')}
-            expandChord={getShortcutDisplay('transcript:toggleShowAll', 'Transcript', 'ctrl+e')}
-            hasSearchBadge={committedSearchQuery !== '' && searchMatchCount !== null && searchMatchCount > 0}
-            virtualScroll={inVirtualTranscript}
-            showAllSuppressed={dumpMode}
-            showAll={showAllInTranscript}
-            status={editorStatus}
-            badge={committedSearchQuery !== '' && searchMatchCount !== null && searchMatchCount > 0 ? `${searchMatchCurrent}/${searchMatchCount}` : null}
-          />
-        )
-      ) : (
-        composerSlot
-      )}
-    </Box>
-  );
-
-  const messagesList = inVirtualTranscript ? (
-    <Messages
-      messages={displayedMessages}
-      tools={mergedTools}
-      commands={commands}
-      verbose
-      toolJSX={null}
-      toolUseConfirmQueue={EMPTY_CONFIRM_QUEUE}
-      inProgressToolUseIDs={viewInProgressToolUseIDs}
-      isMessageSelectorVisible={false}
-      conversationId={conversationId}
-      screen={screen}
-      streamingToolUses={NO_STREAMING_TOOL_USES}
-      showAllInTranscript={showAllInTranscript}
-      agentDefinitions={agentDefinitions}
-      isLoading={isLoading}
-      streamingThinking={null}
-      hidePastReasoning
-      streamingTail={focusedTail}
-      streamingTextSuppressed={streamingSuppressed}
-      scrollRef={scrollRef}
-      jumpRef={jumpRef}
-      onSearchMatchesChange={onSearchMatchesChange}
-      scanElement={scanElement}
-      setPositions={setPositions}
-      disableRenderCap={dumpMode}
-    />
-  ) : inTranscript ? (
-    <Messages
-      messages={displayedMessages}
-      tools={mergedTools}
-      commands={commands}
-      verbose
-      toolJSX={null}
-      toolUseConfirmQueue={EMPTY_CONFIRM_QUEUE}
-      inProgressToolUseIDs={viewInProgressToolUseIDs}
-      isMessageSelectorVisible={showMessageSelector}
-      conversationId={conversationId}
-      screen={screen}
-      streamingToolUses={NO_STREAMING_TOOL_USES}
-      showAllInTranscript={showAllInTranscript}
-      agentDefinitions={agentDefinitions}
-      isLoading={isLoading}
-      hidePastReasoning
-      streamingTail={focusedTail}
-      streamingTextSuppressed={streamingSuppressed}
-      disableRenderCap={dumpMode}
-    />
-  ) : (
-    <Messages
-      messages={displayedMessages}
-      tools={mergedTools}
-      commands={commands}
-      verbose={verbose}
-      toolJSX={toolJSX}
-      toolUseConfirmQueue={toolUseConfirmQueue}
-      inProgressToolUseIDs={viewInProgressToolUseIDs}
-      isMessageSelectorVisible={showMessageSelector}
-      conversationId={conversationId}
-      screen={screen}
-      streamingToolUses={NO_STREAMING_TOOL_USES}
-      showAllInTranscript={showAllInTranscript}
-      agentDefinitions={agentDefinitions}
-      isLoading={isLoading}
-      streamingTail={focusedTail}
-      streamingTextSuppressed={streamingSuppressed}
-      tailAnchor={inVirtualTranscript || paintedMessages !== messages ? undefined : tailAnchor}
-      unseenDivider={unseenDivider}
-      scrollRef={scrollRef}
-      jumpRef={jumpRef}
-      onSearchMatchesChange={onSearchMatchesChange}
-      scanElement={scanElement}
-      setPositions={setPositions}
-      disableRenderCap={dumpMode}
-      ownsCursor
-      cursorNavRef={messageNavRef}
-    />
-  );
-
-  const transcriptBody = inVirtualTranscript ? (
-    <Box flexDirection="column">
-      {messagesList}
-      {inlineToolJsx}
-    </Box>
-  ) : (
-    <Box flexDirection="column">
-      {entryLoadingLine !== null ? (
-        <Box paddingLeft={1} marginTop={1}>
-          <Text dimColor>{entryLoadingLine}</Text>
-        </Box>
-      ) : null}
-      {messagesList}
-      {inlineToolJsx}
-      <Box flexGrow={1} />
-    </Box>
-  );
+  const transcriptBody = chatTranscriptBody({ inVirtualTranscript, entryLoadingLine, inlineToolJsx, messagesList });
 
   const keys = {
     legacyTranscript,
@@ -443,85 +268,10 @@ export function Chat({
   };
 
   if (legacyTranscript) {
-    return (
-      <KeybindingSetup>
-        <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix animating={titleAnimating} />
-        <ChatKeys {...keys}>
-          <Box flexDirection="column">
-            {messagesList}
-            {toolJSX?.jsx ?? null}
-            <TranscriptFooter
-              toggleChord={getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o')}
-              expandChord={getShortcutDisplay('transcript:toggleShowAll', 'Transcript', 'ctrl+e')}
-              hasSearchBadge={false}
-              virtualScroll={false}
-              showAllSuppressed={dumpMode}
-              showAll={showAllInTranscript}
-              status={editorStatus}
-              badge={null}
-            />
-          </Box>
-        </ChatKeys>
-      </KeybindingSetup>
-    );
+    return chatLegacyTree({ title, titleAnimating, toolJSX, dumpMode, showAllInTranscript, editorStatus, terminalTitleEnabled, keys, messagesList });
   }
 
-  const tree = (
-    <KeybindingSetup>
-      <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix animating={titleAnimating} />
-      <ChatKeys {...keys}>
-        <FullscreenLayout
-          scrollRef={scrollRef}
-          statusBand={inVirtualTranscript ? undefined : workingStatusStrip}
-          statusBandActive={inVirtualTranscript ? undefined : spinnerSlotReserved}
-          overlay={inVirtualTranscript ? undefined : permissionOverlay}
-          modal={inVirtualTranscript ? undefined : centredModalUp ? centredModal : undefined}
-          modalActive={dialogOwnsKeys}
-          modalScrollRef={modalScrollRef}
-          dividerYRef={unseen.dividerYRef}
-          hidePill={inVirtualTranscript ? undefined : false}
-          newMessageCount={inVirtualTranscript ? 0 : newMessageCount}
-          onPillClick={inVirtualTranscript ? onTranscriptPillClick : onPillClick}
-          scrollable={
-            inVirtualTranscript ? transcriptBody : (
-              <TranscriptSwap
-                lead={transcriptBody}
-                tools={mergedTools}
-                commands={commands}
-                screen={screen}
-                agentDefinitions={agentDefinitions}
-                scrollRef={scrollRef}
-                showAllInTranscript={showAllInTranscript}
-              />
-            )
-          }
-          bottom={
-            <Box flexDirection="column">
-              {}
-              <Box flexDirection={isCompact ? "column-reverse" : "column"}>
-                <MercuryFrame model={focusedEffectiveModel} />
-                <CockpitBottomStatus>{workingStatusStrip}</CockpitBottomStatus>
-              </Box>
-              {}
-              {!isCompact ? <FocusedSessionStatusRow /> : null}
-              {bottomImmediateJsx}
-              {focusedBottomDialog}
-              {showExitFlow ? (
-                <ExitFlow
-                  onDone={() => setShowExitFlow(false)}
-                  onCancel={() => setShowExitFlow(false)}
-                  showWorktree={getCurrentWorktreeSession() !== null}
-                />
-              ) : null}
-              {exitCommandJsx}
-              {bottomSlot}
-              {messageSelector}
-            </Box>
-          }
-        />
-      </ChatKeys>
-    </KeybindingSetup>
-  );
+  const tree = chatTree({ title, titleAnimating, scrollRef, modalScrollRef, workingStatusStrip, spinnerSlotReserved, permissionOverlay, centredModalUp, centredModal, bottomImmediateJsx, focusedBottomDialog, dialogOwnsKeys, unseen, newMessageCount, onPillClick, inVirtualTranscript, onTranscriptPillClick, screen, showAllInTranscript, mergedTools, commands, agentDefinitions, showExitFlow, setShowExitFlow, exitCommandJsx, messageSelector, terminalTitleEnabled, keys, transcriptBody, isCompact, focusedEffectiveModel, bottomSlot });
 
   fluxWhy('repl-root', rootWhyRef, () => ({
     focusedConnector,
