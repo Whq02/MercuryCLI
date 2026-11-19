@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import memoize from 'lodash-es/memoize.js'
 import { logForDebugging } from '../debug.js'
@@ -39,6 +40,23 @@ const VERSION_ANSWER_LIMIT = 1024 * 1024
 
 let askedNow: string | null = null
 const whyNoAnswer = new Map<string, string>()
+const whyUnfit = new Map<string, string>()
+
+const VERSION_ASKED = 'printf %s $BASH_VERSION'
+
+export function windowsShellQuestion(temp: string): { text: string; drive: string | null } {
+  const drive = /^([A-Za-z]):[\\/]/.exec(temp)?.[1] ?? null
+  return { text: drive === null ? VERSION_ASKED : `${VERSION_ASKED}; cd ${drive}:/ && printf :%s $PWD; :`, drive }
+}
+
+export function windowsShellAnswer(said: string, drive: string | null): { version: string; unfit?: string } {
+  const last = (said.trim().split(/\r?\n/).pop() ?? '').trim()
+  const cut = drive === null ? -1 : last.indexOf(':/')
+  if (drive === null || cut < 0) return { version: last }
+  const reads = last.slice(cut + 1)
+  const wanted = `/${drive.toLowerCase()}`
+  return { version: last.slice(0, cut), ...(reads.toLowerCase() === wanted ? {} : { unfit: `its runtime reads drive ${drive.toUpperCase()} as ${reads}, and Mercury names its files ${wanted}/…` }) }
+}
 
 function questionEnvironment(): NodeJS.ProcessEnv {
   const env = withoutShellStartFiles({ ...subprocessEnv() })
@@ -51,7 +69,9 @@ export function startedBashVersion(path: string, limitMs: number = START_PROBE_T
     try {
       const ownGroup = process.platform !== 'win32'
       askedNow = path
-      const asked = spawn(path, ['--norc', '--noprofile', '-c', process.platform === 'win32' ? 'printf %s $BASH_VERSION' : 'printf %s "$BASH_VERSION"'], { windowsHide: true, detached: ownGroup, stdio: ['ignore', 'pipe', 'ignore'], env: questionEnvironment() })
+      const question = process.platform === 'win32' ? windowsShellQuestion(tmpdir()) : { text: 'printf %s "$BASH_VERSION"', drive: null }
+      whyUnfit.delete(path)
+      const asked = spawn(path, ['--norc', '--noprofile', '-c', question.text], { windowsHide: true, detached: ownGroup, stdio: ['ignore', 'pipe', 'ignore'], env: questionEnvironment() })
       let said = ''
       let open = true
       const end = (): void => {
@@ -85,8 +105,10 @@ export function startedBashVersion(path: string, limitMs: number = START_PROBE_T
         answer(null, `it could not be started (${errorMessage(error)})`)
       })
       asked.once('close', code => {
-        const version = (said.trim().split(/\r?\n/).pop() ?? '').trim()
-        answer(code !== 0 || !BASH_VERSION_SHAPE.test(version) ? null : version, code === 0 ? 'it printed no bash version' : code === null ? 'it was ended by a signal' : `it ended with exit ${code}`)
+        const { version, unfit } = windowsShellAnswer(said, question.drive)
+        const answered = code === 0 && BASH_VERSION_SHAPE.test(version)
+        if (answered && unfit !== undefined) whyUnfit.set(path, unfit)
+        answer(answered && unfit === undefined ? version : null, answered && unfit !== undefined ? unfit : code === 0 ? 'it printed no bash version' : code === null ? 'it was ended by a signal' : `it ended with exit ${code}`)
       })
       AbortSignal.timeout(limitMs).addEventListener('abort', () => unanswered(`it gave no answer within ${limitMs / 1000} s`), { once: true })
     } catch (error) {
@@ -186,6 +208,7 @@ async function windowsSystemRecord(): Promise<ShellRecord> {
     engineAllowed: engineMayServe(),
     start: startedBashVersion,
     why: path => whyNoAnswer.get(path),
+    unfit: path => whyUnfit.get(path),
     passed: passedOver,
   })
   for (const line of choice.passed) logForDebugging(`shell record: ${line}`)
