@@ -17,7 +17,7 @@ export const INERT_PROMPT_HELPERS: PromptInputHelpers = {
 };
 
 export type SubmitOptions = { fromKeybinding?: boolean; rearmed?: boolean; submittedAt?: string; pastedContents?: Record<number, PastedContent>; armedMode?: PromptInputMode };
-export type OnSubmit = (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: SubmitOptions) => Promise<void>;
+type OnSubmit = (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: SubmitOptions) => Promise<void>;
 export type SubmitDeps = Omit<Parameters<typeof useChatSubmit>[0], 'toolJSX' | 'lastCompletedAt'> & { drainQueuedDialogCommand: () => void; onSubmitRef: { current: OnSubmit } };
 export type SubmitLine = {
   input: string;

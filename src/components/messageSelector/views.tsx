@@ -10,13 +10,13 @@ import TextInput from '../TextInput.js'
 import { previewOf } from './preview.js'
 import { describeFiles, statsBetween, type CodeStats } from './stats.js'
 
-export const VISIBLE_ROWS = 7
+const VISIBLE_ROWS = 7
 export const CURRENT_PROMPT = Symbol('current-prompt')
 export const UNDO_REWIND = Symbol('undo-rewind')
 
 export type PickEntry = UserMessage | typeof CURRENT_PROMPT | typeof UNDO_REWIND
 
-export type ConfirmOption = { label: string; value: string; description: string }
+type ConfirmOption = { label: string; value: string; description: string }
 
 type Tokens = ReturnType<typeof useMercuryTokens>
 type Phase = 'pick' | 'confirm' | 'summarize'

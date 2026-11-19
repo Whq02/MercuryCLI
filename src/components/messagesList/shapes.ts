@@ -15,7 +15,6 @@ import type { MatchPosition } from '../../ink/render-to-screen.js'
 import type { useTranscriptRows } from './useTranscriptRows.js'
 import type { useVisibleRows } from './useVisibleRows.js'
 import type { useRowExpansion } from './useRowExpansion.js'
-import type { useSearchFacets } from './useSearchFacets.js'
 
 type UnseenDivider = { firstUnseenUuid: string; count: number }
 
@@ -55,4 +54,3 @@ export type MessagesProps = {
 export type TranscriptRowsState = ReturnType<typeof useTranscriptRows>
 export type VisibleRowsState = ReturnType<typeof useVisibleRows>
 export type RowExpansionState = ReturnType<typeof useRowExpansion>
-export type SearchFacetsState = ReturnType<typeof useSearchFacets>
