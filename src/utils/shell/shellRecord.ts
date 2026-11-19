@@ -51,7 +51,7 @@ export function startedBashVersion(path: string, limitMs: number = START_PROBE_T
     try {
       const ownGroup = process.platform !== 'win32'
       askedNow = path
-      const asked = spawn(path, ['--norc', '--noprofile', '-c', 'printf %s "$BASH_VERSION"'], { windowsHide: true, detached: ownGroup, stdio: ['ignore', 'pipe', 'ignore'], env: questionEnvironment() })
+      const asked = spawn(path, ['--norc', '--noprofile', '-c', process.platform === 'win32' ? 'printf %s $BASH_VERSION' : 'printf %s "$BASH_VERSION"'], { windowsHide: true, detached: ownGroup, stdio: ['ignore', 'pipe', 'ignore'], env: questionEnvironment() })
       let said = ''
       let open = true
       const end = (): void => {
