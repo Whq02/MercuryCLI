@@ -306,16 +306,16 @@ function queryAnswer(stdout: string): DesktopQueryAnswer | null {
 class NativeDesktopDriver implements DesktopDriver {
   private closed = false
   private grantsRequested = false
-  private readonly webRequests = new Map<string, number>()
-  private readonly pageWindows = new Set<string>()
-  private readonly pageApplications = new Set<string>()
+  readonly webRequests = new Map<string, number>()
+  readonly pageWindows = new Set<string>()
+  readonly pageApplications = new Set<string>()
 
   readonly captureRegion?: DesktopDriver['captureRegion']
 
   constructor(
-    private readonly addon: DesktopAddon,
+    readonly addon: DesktopAddon,
     private readonly facts: DesktopDriverFacts,
-    private readonly addonPath: string,
+    readonly addonPath: string,
   ) {
     if (addon.captureRegion) this.captureRegion = (display, bounds, signal) => this.capture(display, signal, bounds)
   }
@@ -324,11 +324,11 @@ class NativeDesktopDriver implements DesktopDriver {
     return { ...this.facts }
   }
 
-  private closedRefusal<T>(): DesktopAnswer<T> | null {
+  closedRefusal<T>(): DesktopAnswer<T> | null {
     return this.closed ? fail({ kind: 'unavailable', note: 'the desktop driver is closed — resolve it again to drive' }) : null
   }
 
-  private readPermissions(): DesktopAnswer<DesktopPermissions> {
+  readPermissions(): DesktopAnswer<DesktopPermissions> {
     try {
       return decodePermissions(this.addon.permissions())
     } catch (error) {
@@ -336,7 +336,7 @@ class NativeDesktopDriver implements DesktopDriver {
     }
   }
 
-  private refuseAndRequestGrants<T>(refusal: DesktopError): DesktopAnswer<T> {
+  refuseAndRequestGrants<T>(refusal: DesktopError): DesktopAnswer<T> {
     if (refusal.kind === 'permission' && !this.grantsRequested) {
       this.grantsRequested = true
       try {
@@ -348,42 +348,12 @@ class NativeDesktopDriver implements DesktopDriver {
     return fail(refusal)
   }
 
-  private async withCancel<T>(signal: AbortSignal, run: () => Promise<T>): Promise<T> {
-    const onAbort = (): void => {
-      try {
-        this.addon.cancel()
-      } catch (error) {
-        logForDebugging(`desktop driver: cancel threw: ${error instanceof Error ? error.message : String(error)}`)
-      }
-    }
-    signal.addEventListener('abort', onAbort, { once: true })
-    try {
-      return await run()
-    } finally {
-      signal.removeEventListener('abort', onAbort)
-    }
+  withCancel<T>(signal: AbortSignal, run: () => Promise<T>): Promise<T> {
+    return (nativeWithCancel<T>).call(this, signal, run)
   }
 
-  private async act(kind: DesktopActKind, at: DesktopPoint | null, signal: AbortSignal, run: () => void | Promise<void>): Promise<DesktopAnswer<DesktopActReceipt>> {
-    const closed = this.closedRefusal<DesktopActReceipt>()
-    if (closed !== null) return closed
-    if (signal.aborted) return desktopAbortedAnswer()
-    const permissions = this.readPermissions()
-    if (!permissions.ok) return fail(permissions.error)
-    const refusal = inputRefusal(permissions.value)
-    if (refusal !== null) return this.refuseAndRequestGrants(refusal)
-    try {
-      await this.withCancel(signal, async () => {
-        await run()
-      })
-    } catch (error) {
-      return fail(classifyThrown(error))
-    }
-    if (signal.aborted) {
-      await this.releaseAll()
-      return desktopAbortedAnswer()
-    }
-    return { ok: true, value: { act: kind, at, completedAt: Date.now() } }
+  private act(kind: DesktopActKind, at: DesktopPoint | null, signal: AbortSignal, run: () => void | Promise<void>): Promise<DesktopAnswer<DesktopActReceipt>> {
+    return nativeAct.call(this, kind, at, signal, run)
   }
 
   async keyboardIdleMs(): Promise<number | null> {
@@ -412,237 +382,36 @@ class NativeDesktopDriver implements DesktopDriver {
     }
   }
 
-  async displays(): Promise<DesktopAnswer<DesktopDisplays>> {
-    const closed = this.closedRefusal<DesktopDisplays>()
-    if (closed !== null) return closed
-    try {
-      const raw = this.addon.displays()
-      if (!Array.isArray(raw.displays)) return fail(contractDefect('displays', typeof raw.displays))
-      if (raw.displays.length === 0) return fail({ kind: 'session', note: raw.reason ?? 'no displays', remedy: desktopGrantWords() })
-      const displays: DesktopDisplay[] = []
-      for (const d of raw.displays) {
-        const numbers = [d.index, d.originX, d.originY, d.width, d.height, d.scale]
-        if (!numbers.every(n => typeof n === 'number' && Number.isFinite(n)) || typeof d.id !== 'string') return fail(contractDefect('display', JSON.stringify(d)))
-        const work = boundsOf(d.work)
-        displays.push({ index: d.index, id: d.id, originX: d.originX, originY: d.originY, width: d.width, height: d.height, scale: d.scale, primary: d.primary === true, ...(work ? { work } : {}) })
-      }
-      return { ok: true, value: { displays, fingerprint: displaysFingerprint(displays), spanning: displaysSpan() } }
-    } catch (error) {
-      return fail(classifyThrown(error))
-    }
+  displays(): Promise<DesktopAnswer<DesktopDisplays>> {
+    return nativeDisplays.call(this)
   }
 
-  async capture(display: number, signal: AbortSignal, region?: DesktopBounds): Promise<DesktopAnswer<DesktopCapture>> {
-    const closed = this.closedRefusal<DesktopCapture>()
-    if (closed !== null) return closed
-    if (signal.aborted) return desktopAbortedAnswer()
-    if (!Number.isInteger(display) || display < 0) return fail({ kind: 'display', note: `no display ${String(display)}` })
-    const permissions = this.readPermissions()
-    if (!permissions.ok) return fail(permissions.error)
-    const refusal = captureRefusal(permissions.value)
-    if (refusal !== null) return this.refuseAndRequestGrants(refusal)
-    let raw: DesktopAddonCapture
-    if (process.platform === 'darwin') {
-      const captured = await this.captureThroughChild(display, region, signal)
-      if (!captured.ok) return captured
-      raw = captured.value
-    } else {
-      try {
-        raw = await this.withCancel(signal, () => region ? this.addon.captureRegion!(display, region) : this.addon.capture(display))
-      } catch (error) {
-        return fail(classifyThrown(error))
-      }
-    }
-    if (signal.aborted) return desktopAbortedAnswer()
-    if (!pngSigned(raw.png)) return fail({ kind: 'defect', note: `the desktop addon answered a capture that is not a PNG — rebuild it: ${DESKTOP_BUILD_COMMAND}` })
-    const numbers = [raw.width, raw.height, raw.scale, raw.display, raw.originX, raw.originY]
-    if (!numbers.every(n => typeof n === 'number' && Number.isFinite(n)) || typeof raw.displayId !== 'string') return fail(contractDefect('capture', 'a record with a non-finite field'))
-    const png = Buffer.isBuffer(raw.png) ? raw.png : Buffer.from(raw.png.buffer, raw.png.byteOffset, raw.png.byteLength)
-    return {
-      ok: true,
-      value: {
-        png,
-        width: raw.width,
-        height: raw.height,
-        scale: raw.scale,
-        display: raw.display,
-        displayId: raw.displayId,
-        originX: raw.originX,
-        originY: raw.originY,
-        capturedAt: Date.now(),
-      },
-    }
+  capture(display: number, signal: AbortSignal, region?: DesktopBounds): Promise<DesktopAnswer<DesktopCapture>> {
+    return nativeCapture.call(this, display, signal, region)
   }
 
-  private captureInChild(display: number, region: DesktopBounds | undefined, signal: AbortSignal): Promise<CaptureChildOutcome> {
-    return new Promise(resolve => {
-      const child = execFile(process.execPath, ['-e', CAPTURE_CHILD_SCRIPT, this.addonPath], { timeout: CAPTURE_CHILD_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: CAPTURE_CHILD_BUFFER, encoding: 'buffer' }, (error, stdout) => {
-        signal.removeEventListener('abort', onAbort)
-        if (signal.aborted) return resolve({ kind: 'failed', note: ABORTED_PREFIX })
-        const answer = captureChildAnswer(Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout))
-        if (answer !== null && 'raw' in answer) return resolve({ kind: 'captured', raw: answer.raw })
-        if (error?.killed) return resolve({ kind: 'deadline' })
-        if (answer !== null) return resolve({ kind: 'failed', note: answer.error })
-        if (error?.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') return resolve({ kind: 'failed', note: `the capture child answered more than ${CAPTURE_CHILD_BUFFER / (1024 * 1024)} MiB` })
-        resolve({ kind: 'failed', note: error ? 'the capture child exited without an image' : 'the capture child answered an unreadable record' })
-      })
-      child.stdin?.on('error', () => {})
-      child.stdin?.end(JSON.stringify({ display, ...(region ? { region } : {}) }))
-      const onAbort = () => { child.kill('SIGKILL') }
-      signal.addEventListener('abort', onAbort, { once: true })
-      if (signal.aborted) onAbort()
-    })
+  captureInChild(display: number, region: DesktopBounds | undefined, signal: AbortSignal): Promise<CaptureChildOutcome> {
+    return nativeCaptureInChild.call(this, display, region, signal)
   }
 
-  private async captureThroughChild(display: number, region: DesktopBounds | undefined, signal: AbortSignal): Promise<DesktopAnswer<DesktopAddonCapture>> {
-    const first = await this.captureInChild(display, region, signal)
-    if (signal.aborted) return desktopAbortedAnswer()
-    if (first.kind === 'captured') return { ok: true, value: first.raw }
-    if (first.kind === 'failed') return fail(classifyThrown(new Error(first.note)))
-    const wait = CAPTURE_CHILD_RETRY_WAIT_MS[0] + Math.floor(Math.random() * (CAPTURE_CHILD_RETRY_WAIT_MS[1] - CAPTURE_CHILD_RETRY_WAIT_MS[0]))
-    await sleep(wait, signal)
-    if (signal.aborted) return desktopAbortedAnswer()
-    const second = await this.captureInChild(display, region, signal)
-    if (signal.aborted) return desktopAbortedAnswer()
-    if (second.kind === 'captured') return { ok: true, value: second.raw }
-    if (second.kind === 'failed') return fail(classifyThrown(new Error(second.note)))
-    return fail({ kind: 'busy', note: captureHeldNote() })
+  captureThroughChild(display: number, region: DesktopBounds | undefined, signal: AbortSignal): Promise<DesktopAnswer<DesktopAddonCapture>> {
+    return nativeCaptureThroughChild.call(this, display, region, signal)
   }
 
-  async frontmostApplication(): Promise<DesktopAnswer<DesktopApplication>> {
-    const closed = this.closedRefusal<DesktopApplication>()
-    if (closed !== null) return closed
-    try {
-      const raw = process.platform === 'darwin'
-        ? await new Promise<DesktopAddonApplication>((resolve, reject) => {
-            const args = ['-e', 'const a=require(process.argv[1]); process.stdout.write(JSON.stringify(a.frontmostApplication()))', this.addonPath]
-            execFile(process.execPath, args, { timeout: 5000, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: 64 * 1024, encoding: 'utf8' }, (error, stdout) => {
-              if (error) return reject(new Error('the frontmost application could not be read from macOS — no cached application was used'))
-              try {
-                const answer: unknown = JSON.parse(stdout)
-                if (answer === null || typeof answer !== 'object') return reject(new Error('macOS returned no application record'))
-                resolve(answer as DesktopAddonApplication)
-              } catch {
-                reject(new Error('the frontmost application query returned an unreadable record'))
-              }
-            })
-          })
-        : this.addon.frontmostApplication()
-      if (typeof raw.identity !== 'string' || raw.identity === '') return fail({ kind: 'display', note: raw.reason ?? 'no frontmost application' })
-      return { ok: true, value: application(raw, raw.identity) }
-    } catch (error) {
-      return fail(classifyThrown(error))
-    }
+  frontmostApplication(): Promise<DesktopAnswer<DesktopApplication>> {
+    return nativeFrontmostApplication.call(this)
   }
 
-  async ownTerminalApplication(front?: DesktopApplication): Promise<DesktopAnswer<DesktopApplication | null>> {
-    const closed = this.closedRefusal<DesktopApplication | null>()
-    if (closed !== null) return closed
-    let terminal: DesktopApplication | null = null
-    let stillOwned: (() => boolean) | undefined
-    if (flagEnv('MERCURY_CONCOURSE_WORKER') === '1') {
-      const { getSessionId } = await import('../../bootstrap/state.js')
-      const { readSessionWorkers, stampedTerminalPid } = await import('../../daemon/concourseWorkers.js')
-      const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
-      const record = Object.values(readSessionWorkers()).find(row => row.sessionId === String(getSessionId()) && row.endedAt === undefined)
-      const pid = stampedTerminalPid(record?.focusedBy)
-      const attached = record?.terminalApplication
-      if (record?.focusedAt === undefined || pid === undefined || pid <= 1 || !isProcessAlive(pid) || attached == null || typeof attached.identity !== 'string' || attached.identity === '' || typeof attached.name !== 'string' || attached.name === '') return { ok: true, value: null }
-      terminal = { identity: attached.identity, name: attached.name, pid: null, title: null, bounds: null, windowId: null, tty: attached.tty ?? null }
-      stillOwned = () => {
-        const current = readSessionWorkers()[record.runnerId]
-        return current?.endedAt === undefined && current?.focusedAt === record.focusedAt && current?.focusedBy === record.focusedBy && current?.terminalApplication?.identity === attached.identity && current?.terminalApplication?.tty === attached.tty && isProcessAlive(pid)
-      }
-    } else {
-      try {
-        const raw = this.addon.ownTerminalApplication()
-        if (typeof raw.identity === 'string' && raw.identity !== '') terminal = application(raw, raw.identity)
-      } catch (error) {
-        return fail(classifyThrown(error))
-      }
-      if (terminal === null) {
-        const program = (process.env.TERM_PROGRAM ?? '').trim()
-        const identity = process.platform === 'darwin' && Object.hasOwn(TERMINAL_IDENTITIES, program) ? TERMINAL_IDENTITIES[program] : undefined
-        if (identity !== undefined) terminal = { identity, name: program, pid: null, title: null, bounds: null }
-      }
-    }
-    if (terminal === null) return { ok: true, value: null }
-    terminal.windowId = null
-    if (process.platform !== 'darwin' || front?.identity !== terminal.identity || !terminal.tty || !['com.apple.Terminal', 'com.googlecode.iterm2'].includes(terminal.identity)) return { ok: true, value: terminal }
-    const configured = Number(flagEnv('MERCURY_DESKTOP_OWNER_TIMEOUT_MS') ?? 1000)
-    const timeout = Number.isInteger(configured) && configured > 0 && configured <= 5000 ? configured : 1000
-    const args = ['-e', 'const a=require(process.argv[1]); process.stdout.write(JSON.stringify(a.ownTerminalApplication(process.argv[2],process.argv[3],Number(process.argv[4]))))', this.addonPath, terminal.identity, terminal.tty, front.windowId ?? '0']
-    const raw = await new Promise<DesktopAddonApplication | null>(resolve => {
-      execFile(process.execPath, args, { timeout, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: 64 * 1024, encoding: 'utf8' }, (error, stdout) => {
-        if (error) return resolve(null)
-        try {
-          resolve(JSON.parse(stdout) as DesktopAddonApplication)
-        } catch {
-          resolve(null)
-        }
-      })
-    })
-    if (stillOwned !== undefined && !stillOwned()) return { ok: true, value: null }
-    if (raw?.identity === terminal.identity && raw.tty === terminal.tty && typeof raw.windowId === 'string' && raw.windowId !== '') terminal = application(raw, terminal.identity)
-    return { ok: true, value: terminal }
+  ownTerminalApplication(front?: DesktopApplication): Promise<DesktopAnswer<DesktopApplication | null>> {
+    return nativeOwnTerminalApplication.call(this, front)
   }
 
-  async focusedText(app: DesktopApplication, signal: AbortSignal): Promise<DesktopAnswer<DesktopFocusedText | null>> {
-    const closed = this.closedRefusal<DesktopFocusedText | null>()
-    if (closed) return closed
-    if (signal.aborted) return desktopAbortedAnswer()
-    if (process.platform !== 'darwin' || !this.addon.focusedText) return fail({ kind: 'unavailable', note: `terminal text needs the desktop pack's focusedText export — rebuild it: ${DESKTOP_BUILD_COMMAND}` })
-    if (app.pid === null || !Number.isInteger(app.pid) || app.pid <= 0) return fail({ kind: 'input', note: `${app.name} has no process id` })
-    const permissions = this.readPermissions()
-    if (!permissions.ok) return fail(permissions.error)
-    const refusal = inputRefusal(permissions.value)
-    if (refusal) return this.refuseAndRequestGrants(refusal)
-    try {
-      const value = await new Promise<DesktopFocusedText | null>((resolve, reject) => {
-        const child = execFile(process.execPath, ['-e', 'process.stdout.write(JSON.stringify(require(process.argv[1]).focusedText(Number(process.argv[2]))))', this.addonPath, String(app.pid)], { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
-          signal.removeEventListener('abort', onAbort)
-          if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
-          if (error) return reject(new Error(`the focused terminal text could not be read: ${error.message}`))
-          try { resolve(JSON.parse(stdout)) } catch { reject(new Error('the focused text query returned an unreadable record')) }
-        })
-        const onAbort = () => { child.kill('SIGKILL') }
-        signal.addEventListener('abort', onAbort, { once: true })
-      })
-      if (value !== null && (typeof value.text !== 'string' || value.role !== 'AXTextArea')) return fail(contractDefect('focused text', 'invalid value or role'))
-      return { ok: true, value }
-    } catch (error) { return fail(classifyThrown(error)) }
+  focusedText(app: DesktopApplication, signal: AbortSignal): Promise<DesktopAnswer<DesktopFocusedText | null>> {
+    return nativeFocusedText.call(this, app, signal)
   }
 
-  private async queryDesktop<T>(method: DesktopQuery, args: unknown[], signal: AbortSignal, needsInput = false): Promise<DesktopAnswer<T>> {
-    const closed = this.closedRefusal<T>()
-    if (closed) return closed
-    if (signal.aborted) return desktopAbortedAnswer()
-    if (!QUERY_PLATFORMS[method].includes(process.platform)) return fail({ kind: 'unavailable', note: `${method} is unsupported on ${process.platform} in this release` })
-    if (!this.addon[method]) return fail({ kind: 'unavailable', note: `${method} needs the desktop pack's ${method} export — rebuild it: ${DESKTOP_BUILD_COMMAND}` })
-    const permissions = this.readPermissions()
-    if (!permissions.ok) return fail(permissions.error)
-    const refusal = needsInput ? inputRefusal(permissions.value) : sessionRefusal(permissions.value)
-    if (refusal) return this.refuseAndRequestGrants(refusal)
-    try {
-      const value = await new Promise<T>((resolve, reject) => {
-        const script = 'const a=require(process.argv[1]); new Promise(r=>r(a[process.argv[2]](...JSON.parse(require("node:fs").readFileSync(0,"utf8"))))).then(v=>process.stdout.write(JSON.stringify({value:v??null})),e=>{process.stdout.write(JSON.stringify({error:e instanceof Error?e.message:String(e)}));process.exitCode=1})'
-        const child = execFile(process.execPath, ['-e', script, this.addonPath, method], { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
-          signal.removeEventListener('abort', onAbort)
-          if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
-          const answer = queryAnswer(stdout)
-          if (answer !== null && 'error' in answer) return reject(new Error(answer.error))
-          if (error) return reject(new Error(`${method} failed: ${readerExitWords(error)}`))
-          if (answer === null) return reject(new Error(`${method} returned an unreadable record`))
-          resolve(answer.value as T)
-        })
-        child.stdin?.on('error', () => {})
-        child.stdin?.end(JSON.stringify(args))
-        const onAbort = () => { child.kill('SIGKILL') }
-        signal.addEventListener('abort', onAbort, { once: true })
-        if (signal.aborted) onAbort()
-      })
-      return signal.aborted ? desktopAbortedAnswer() : { ok: true, value }
-    } catch (error) { return fail(classifyThrown(error)) }
+  private queryDesktop<T>(method: DesktopQuery, args: unknown[], signal: AbortSignal, needsInput = false): Promise<DesktopAnswer<T>> {
+    return (nativeQueryDesktop<T>).call(this, method, args, signal, needsInput)
   }
 
   async readElement(app: DesktopApplication, element: DesktopTreeElement, signal: AbortSignal): Promise<DesktopAnswer<DesktopFocusedText | null>> {
@@ -709,70 +478,8 @@ class NativeDesktopDriver implements DesktopDriver {
     return signal.aborted ? desktopAbortedAnswer() : fail({ kind: 'display', note: `${app.name} did not come to the front` })
   }
 
-  async accessibilityTree(app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>> {
-    const closed = this.closedRefusal<DesktopTree>()
-    if (closed !== null) return closed
-    if (signal.aborted) return desktopAbortedAnswer()
-    if (app.pid === null || !Number.isInteger(app.pid) || app.pid <= 0) return fail({ kind: 'input', note: `${app.name} has no process id to read the accessibility tree from` })
-    if (!Number.isInteger(limits.depth) || limits.depth < 0 || !Number.isInteger(limits.count) || limits.count < 1) return fail({ kind: 'input', note: `the tree limits must be a whole depth and a count of at least one (got depth ${String(limits.depth)}, count ${String(limits.count)})` })
-    const permissions = this.readPermissions()
-    if (!permissions.ok) return fail(permissions.error)
-    const refusal = inputRefusal(permissions.value)
-    if (refusal !== null) return this.refuseAndRequestGrants(refusal)
-    const requestKey = `${app.identity}:${app.pid}`
-    const requestWeb = !limits.observation && !this.webRequests.has(requestKey)
-    const scope = limits.scope ?? 'app'
-    let raw: DesktopAddonTree
-    try {
-      raw = process.platform === 'darwin'
-        ? await new Promise<DesktopAddonTree>((resolve, reject) => {
-            const args = ['-e', 'const a=require(process.argv[1]); process.stdout.write(JSON.stringify(a.accessibilityTree(Number(process.argv[2]),Number(process.argv[3]),Number(process.argv[4]),process.argv[5],process.argv[6]==="true",process.argv[7]==="true")))', this.addonPath, String(app.pid), String(limits.depth), String(limits.count), scope, String(requestWeb), String(limits.observation === true)]
-            const child = execFile(process.execPath, args, { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
-              signal.removeEventListener('abort', onAbort)
-              if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
-              if (error) return reject(new Error(`the accessibility tree of ${app.name} could not be read within ${TREE_SUBPROCESS_TIMEOUT_MS / 1000} seconds (the application may not be responding)`))
-              try {
-                const answer: unknown = JSON.parse(stdout)
-                if (answer === null || typeof answer !== 'object') return reject(new Error('macOS returned no accessibility record'))
-                resolve(answer as DesktopAddonTree)
-              } catch {
-                reject(new Error('the accessibility tree query returned an unreadable record'))
-              }
-            })
-            const onAbort = (): void => {
-              child.kill('SIGKILL')
-            }
-            signal.addEventListener('abort', onAbort, { once: true })
-          })
-        : this.addon.accessibilityTree(app.pid, limits.depth, limits.count, scope, requestWeb, limits.observation)
-      if (requestWeb && raw.webAccessibility === true) this.webRequests.set(requestKey, Date.now())
-    } catch (error) {
-      return fail(classifyThrown(error))
-    }
-    if (signal.aborted) return desktopAbortedAnswer()
-    if (!Array.isArray(raw.elements)) return fail(contractDefect('elements', typeof raw.elements))
-    if (raw.elements.length === 0) return fail({ kind: 'display', note: typeof raw.reason === 'string' && raw.reason !== '' ? raw.reason : `${app.name} answered no accessibility element` })
-    const elements: DesktopTreeElement[] = []
-    for (const e of raw.focused ? [...raw.elements, raw.focused] : raw.elements) {
-      if (typeof e.role !== 'string' || typeof e.depth !== 'number' || !Number.isInteger(e.depth)) return fail(contractDefect('element', JSON.stringify(e)))
-      const f = e.frame
-      const frame: DesktopBounds | null = f && [f.x, f.y, f.width, f.height].every(n => Number.isFinite(n)) ? { x: f.x, y: f.y, width: f.width, height: f.height } : null
-      elements.push({ depth: e.depth, role: e.role, title: typeof e.title === 'string' && e.title !== '' ? e.title : null, value: typeof e.value === 'string' && e.value !== '' ? e.value : null, frame, ...(typeof e.focused === 'boolean' ? { focused: e.focused } : {}), ...(typeof e.offscreen === 'boolean' ? { offscreen: e.offscreen } : {}) })
-    }
-    const stated = raw.webContent === 'available' && pageStillEmpty(raw.elements, limits.depth) ? 'pending' : raw.webContent
-    const webContent = stated === 'absent' && Date.now() - (this.webRequests.get(requestKey) ?? 0) < 2000 ? 'pending' : stated
-    const windowKey = raw.scope === 'window' && typeof raw.windowId === 'string' && raw.windowId !== '' ? `${requestKey}:${raw.windowId}` : null
-    if (webContent === 'available' && (raw.scope === 'window' || raw.scope === 'app')) {
-      this.pageApplications.add(requestKey)
-      if (windowKey !== null) this.pageWindows.add(windowKey)
-    }
-    const shownPage = raw.scope === 'app' ? this.pageApplications.has(requestKey) : windowKey !== null && this.pageWindows.has(windowKey)
-    return { ok: true, value: {
-      elements, ...(raw.focused !== undefined ? { focused: raw.focused ? elements.pop()! : null } : {}), truncated: raw.truncated === true, reason: typeof raw.reason === 'string' && raw.reason !== '' ? raw.reason : null,
-      ...(raw.scope === 'window' || raw.scope === 'app' ? { scope: raw.scope } : {}),
-      ...(webContent === 'available' || webContent === 'absent' || webContent === 'pending' ? { webContent } : {}),
-      ...(raw.webSurface === true || shownPage ? { webSurface: true } : {}),
-    } }
+  accessibilityTree(app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>> {
+    return nativeAccessibilityTree.call(this, app, limits, signal)
   }
 
   async cursor(): Promise<DesktopAnswer<DesktopCursor>> {
@@ -892,6 +599,343 @@ class NativeDesktopDriver implements DesktopDriver {
       logForDebugging(`desktop driver: release at close threw: ${error instanceof Error ? error.message : String(error)}`)
     }
     if (driverLoad !== null && driverLoad.state === 'ok' && driverLoad.driver === this) driverLoad = null
+  }
+}
+
+async function nativeAccessibilityTree(this: NativeDesktopDriver, app: DesktopApplication, limits: DesktopTreeLimits, signal: AbortSignal): Promise<DesktopAnswer<DesktopTree>> {
+  const closed = this.closedRefusal<DesktopTree>()
+  if (closed !== null) return closed
+  if (signal.aborted) return desktopAbortedAnswer()
+  if (app.pid === null || !Number.isInteger(app.pid) || app.pid <= 0) return fail({ kind: 'input', note: `${app.name} has no process id to read the accessibility tree from` })
+  if (!Number.isInteger(limits.depth) || limits.depth < 0 || !Number.isInteger(limits.count) || limits.count < 1) return fail({ kind: 'input', note: `the tree limits must be a whole depth and a count of at least one (got depth ${String(limits.depth)}, count ${String(limits.count)})` })
+  const permissions = this.readPermissions()
+  if (!permissions.ok) return fail(permissions.error)
+  const refusal = inputRefusal(permissions.value)
+  if (refusal !== null) return this.refuseAndRequestGrants(refusal)
+  const requestKey = `${app.identity}:${app.pid}`
+  const requestWeb = !limits.observation && !this.webRequests.has(requestKey)
+  const scope = limits.scope ?? 'app'
+  let raw: DesktopAddonTree
+  try {
+    raw = process.platform === 'darwin'
+      ? await new Promise<DesktopAddonTree>((resolve, reject) => {
+          const args = ['-e', 'const a=require(process.argv[1]); process.stdout.write(JSON.stringify(a.accessibilityTree(Number(process.argv[2]),Number(process.argv[3]),Number(process.argv[4]),process.argv[5],process.argv[6]==="true",process.argv[7]==="true")))', this.addonPath, String(app.pid), String(limits.depth), String(limits.count), scope, String(requestWeb), String(limits.observation === true)]
+          const child = execFile(process.execPath, args, { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
+            signal.removeEventListener('abort', onAbort)
+            if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
+            if (error) return reject(new Error(`the accessibility tree of ${app.name} could not be read within ${TREE_SUBPROCESS_TIMEOUT_MS / 1000} seconds (the application may not be responding)`))
+            try {
+              const answer: unknown = JSON.parse(stdout)
+              if (answer === null || typeof answer !== 'object') return reject(new Error('macOS returned no accessibility record'))
+              resolve(answer as DesktopAddonTree)
+            } catch {
+              reject(new Error('the accessibility tree query returned an unreadable record'))
+            }
+          })
+          const onAbort = (): void => {
+            child.kill('SIGKILL')
+          }
+          signal.addEventListener('abort', onAbort, { once: true })
+        })
+      : this.addon.accessibilityTree(app.pid, limits.depth, limits.count, scope, requestWeb, limits.observation)
+    if (requestWeb && raw.webAccessibility === true) this.webRequests.set(requestKey, Date.now())
+  } catch (error) {
+    return fail(classifyThrown(error))
+  }
+  if (signal.aborted) return desktopAbortedAnswer()
+  if (!Array.isArray(raw.elements)) return fail(contractDefect('elements', typeof raw.elements))
+  if (raw.elements.length === 0) return fail({ kind: 'display', note: typeof raw.reason === 'string' && raw.reason !== '' ? raw.reason : `${app.name} answered no accessibility element` })
+  const elements: DesktopTreeElement[] = []
+  for (const e of raw.focused ? [...raw.elements, raw.focused] : raw.elements) {
+    if (typeof e.role !== 'string' || typeof e.depth !== 'number' || !Number.isInteger(e.depth)) return fail(contractDefect('element', JSON.stringify(e)))
+    const f = e.frame
+    const frame: DesktopBounds | null = f && [f.x, f.y, f.width, f.height].every(n => Number.isFinite(n)) ? { x: f.x, y: f.y, width: f.width, height: f.height } : null
+    elements.push({ depth: e.depth, role: e.role, title: typeof e.title === 'string' && e.title !== '' ? e.title : null, value: typeof e.value === 'string' && e.value !== '' ? e.value : null, frame, ...(typeof e.focused === 'boolean' ? { focused: e.focused } : {}), ...(typeof e.offscreen === 'boolean' ? { offscreen: e.offscreen } : {}) })
+  }
+  const stated = raw.webContent === 'available' && pageStillEmpty(raw.elements, limits.depth) ? 'pending' : raw.webContent
+  const webContent = stated === 'absent' && Date.now() - (this.webRequests.get(requestKey) ?? 0) < 2000 ? 'pending' : stated
+  const windowKey = raw.scope === 'window' && typeof raw.windowId === 'string' && raw.windowId !== '' ? `${requestKey}:${raw.windowId}` : null
+  if (webContent === 'available' && (raw.scope === 'window' || raw.scope === 'app')) {
+    this.pageApplications.add(requestKey)
+    if (windowKey !== null) this.pageWindows.add(windowKey)
+  }
+  const shownPage = raw.scope === 'app' ? this.pageApplications.has(requestKey) : windowKey !== null && this.pageWindows.has(windowKey)
+  return { ok: true, value: {
+    elements, ...(raw.focused !== undefined ? { focused: raw.focused ? elements.pop()! : null } : {}), truncated: raw.truncated === true, reason: typeof raw.reason === 'string' && raw.reason !== '' ? raw.reason : null,
+    ...(raw.scope === 'window' || raw.scope === 'app' ? { scope: raw.scope } : {}),
+    ...(webContent === 'available' || webContent === 'absent' || webContent === 'pending' ? { webContent } : {}),
+    ...(raw.webSurface === true || shownPage ? { webSurface: true } : {}),
+  } }
+}
+
+async function nativeOwnTerminalApplication(this: NativeDesktopDriver, front?: DesktopApplication): Promise<DesktopAnswer<DesktopApplication | null>> {
+  const closed = this.closedRefusal<DesktopApplication | null>()
+  if (closed !== null) return closed
+  let terminal: DesktopApplication | null = null
+  let stillOwned: (() => boolean) | undefined
+  if (flagEnv('MERCURY_CONCOURSE_WORKER') === '1') {
+    const { getSessionId } = await import('../../bootstrap/state.js')
+    const { readSessionWorkers, stampedTerminalPid } = await import('../../daemon/concourseWorkers.js')
+    const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
+    const record = Object.values(readSessionWorkers()).find(row => row.sessionId === String(getSessionId()) && row.endedAt === undefined)
+    const pid = stampedTerminalPid(record?.focusedBy)
+    const attached = record?.terminalApplication
+    if (record?.focusedAt === undefined || pid === undefined || pid <= 1 || !isProcessAlive(pid) || attached == null || typeof attached.identity !== 'string' || attached.identity === '' || typeof attached.name !== 'string' || attached.name === '') return { ok: true, value: null }
+    terminal = { identity: attached.identity, name: attached.name, pid: null, title: null, bounds: null, windowId: null, tty: attached.tty ?? null }
+    stillOwned = () => {
+      const current = readSessionWorkers()[record.runnerId]
+      return current?.endedAt === undefined && current?.focusedAt === record.focusedAt && current?.focusedBy === record.focusedBy && current?.terminalApplication?.identity === attached.identity && current?.terminalApplication?.tty === attached.tty && isProcessAlive(pid)
+    }
+  } else {
+    try {
+      const raw = this.addon.ownTerminalApplication()
+      if (typeof raw.identity === 'string' && raw.identity !== '') terminal = application(raw, raw.identity)
+    } catch (error) {
+      return fail(classifyThrown(error))
+    }
+    if (terminal === null) {
+      const program = (process.env.TERM_PROGRAM ?? '').trim()
+      const identity = process.platform === 'darwin' && Object.hasOwn(TERMINAL_IDENTITIES, program) ? TERMINAL_IDENTITIES[program] : undefined
+      if (identity !== undefined) terminal = { identity, name: program, pid: null, title: null, bounds: null }
+    }
+  }
+  if (terminal === null) return { ok: true, value: null }
+  terminal.windowId = null
+  if (process.platform !== 'darwin' || front?.identity !== terminal.identity || !terminal.tty || !['com.apple.Terminal', 'com.googlecode.iterm2'].includes(terminal.identity)) return { ok: true, value: terminal }
+  const configured = Number(flagEnv('MERCURY_DESKTOP_OWNER_TIMEOUT_MS') ?? 1000)
+  const timeout = Number.isInteger(configured) && configured > 0 && configured <= 5000 ? configured : 1000
+  const args = ['-e', 'const a=require(process.argv[1]); process.stdout.write(JSON.stringify(a.ownTerminalApplication(process.argv[2],process.argv[3],Number(process.argv[4]))))', this.addonPath, terminal.identity, terminal.tty, front.windowId ?? '0']
+  const raw = await new Promise<DesktopAddonApplication | null>(resolve => {
+    execFile(process.execPath, args, { timeout, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: 64 * 1024, encoding: 'utf8' }, (error, stdout) => {
+      if (error) return resolve(null)
+      try {
+        resolve(JSON.parse(stdout) as DesktopAddonApplication)
+      } catch {
+        resolve(null)
+      }
+    })
+  })
+  if (stillOwned !== undefined && !stillOwned()) return { ok: true, value: null }
+  if (raw?.identity === terminal.identity && raw.tty === terminal.tty && typeof raw.windowId === 'string' && raw.windowId !== '') terminal = application(raw, terminal.identity)
+  return { ok: true, value: terminal }
+}
+
+async function nativeCapture(this: NativeDesktopDriver, display: number, signal: AbortSignal, region?: DesktopBounds): Promise<DesktopAnswer<DesktopCapture>> {
+  const closed = this.closedRefusal<DesktopCapture>()
+  if (closed !== null) return closed
+  if (signal.aborted) return desktopAbortedAnswer()
+  if (!Number.isInteger(display) || display < 0) return fail({ kind: 'display', note: `no display ${String(display)}` })
+  const permissions = this.readPermissions()
+  if (!permissions.ok) return fail(permissions.error)
+  const refusal = captureRefusal(permissions.value)
+  if (refusal !== null) return this.refuseAndRequestGrants(refusal)
+  let raw: DesktopAddonCapture
+  if (process.platform === 'darwin') {
+    const captured = await this.captureThroughChild(display, region, signal)
+    if (!captured.ok) return captured
+    raw = captured.value
+  } else {
+    try {
+      raw = await this.withCancel(signal, () => region ? this.addon.captureRegion!(display, region) : this.addon.capture(display))
+    } catch (error) {
+      return fail(classifyThrown(error))
+    }
+  }
+  if (signal.aborted) return desktopAbortedAnswer()
+  if (!pngSigned(raw.png)) return fail({ kind: 'defect', note: `the desktop addon answered a capture that is not a PNG — rebuild it: ${DESKTOP_BUILD_COMMAND}` })
+  const numbers = [raw.width, raw.height, raw.scale, raw.display, raw.originX, raw.originY]
+  if (!numbers.every(n => typeof n === 'number' && Number.isFinite(n)) || typeof raw.displayId !== 'string') return fail(contractDefect('capture', 'a record with a non-finite field'))
+  const png = Buffer.isBuffer(raw.png) ? raw.png : Buffer.from(raw.png.buffer, raw.png.byteOffset, raw.png.byteLength)
+  return {
+    ok: true,
+    value: {
+      png,
+      width: raw.width,
+      height: raw.height,
+      scale: raw.scale,
+      display: raw.display,
+      displayId: raw.displayId,
+      originX: raw.originX,
+      originY: raw.originY,
+      capturedAt: Date.now(),
+    },
+  }
+}
+
+async function nativeQueryDesktop<T>(this: NativeDesktopDriver, method: DesktopQuery, args: unknown[], signal: AbortSignal, needsInput = false): Promise<DesktopAnswer<T>> {
+  const closed = this.closedRefusal<T>()
+  if (closed) return closed
+  if (signal.aborted) return desktopAbortedAnswer()
+  if (!QUERY_PLATFORMS[method].includes(process.platform)) return fail({ kind: 'unavailable', note: `${method} is unsupported on ${process.platform} in this release` })
+  if (!this.addon[method]) return fail({ kind: 'unavailable', note: `${method} needs the desktop pack's ${method} export — rebuild it: ${DESKTOP_BUILD_COMMAND}` })
+  const permissions = this.readPermissions()
+  if (!permissions.ok) return fail(permissions.error)
+  const refusal = needsInput ? inputRefusal(permissions.value) : sessionRefusal(permissions.value)
+  if (refusal) return this.refuseAndRequestGrants(refusal)
+  try {
+    const value = await new Promise<T>((resolve, reject) => {
+      const script = 'const a=require(process.argv[1]); new Promise(r=>r(a[process.argv[2]](...JSON.parse(require("node:fs").readFileSync(0,"utf8"))))).then(v=>process.stdout.write(JSON.stringify({value:v??null})),e=>{process.stdout.write(JSON.stringify({error:e instanceof Error?e.message:String(e)}));process.exitCode=1})'
+      const child = execFile(process.execPath, ['-e', script, this.addonPath, method], { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
+        signal.removeEventListener('abort', onAbort)
+        if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
+        const answer = queryAnswer(stdout)
+        if (answer !== null && 'error' in answer) return reject(new Error(answer.error))
+        if (error) return reject(new Error(`${method} failed: ${readerExitWords(error)}`))
+        if (answer === null) return reject(new Error(`${method} returned an unreadable record`))
+        resolve(answer.value as T)
+      })
+      child.stdin?.on('error', () => {})
+      child.stdin?.end(JSON.stringify(args))
+      const onAbort = () => { child.kill('SIGKILL') }
+      signal.addEventListener('abort', onAbort, { once: true })
+      if (signal.aborted) onAbort()
+    })
+    return signal.aborted ? desktopAbortedAnswer() : { ok: true, value }
+  } catch (error) { return fail(classifyThrown(error)) }
+}
+
+async function nativeFrontmostApplication(this: NativeDesktopDriver): Promise<DesktopAnswer<DesktopApplication>> {
+  const closed = this.closedRefusal<DesktopApplication>()
+  if (closed !== null) return closed
+  try {
+    const raw = process.platform === 'darwin'
+      ? await new Promise<DesktopAddonApplication>((resolve, reject) => {
+          const args = ['-e', 'const a=require(process.argv[1]); process.stdout.write(JSON.stringify(a.frontmostApplication()))', this.addonPath]
+          execFile(process.execPath, args, { timeout: 5000, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: 64 * 1024, encoding: 'utf8' }, (error, stdout) => {
+            if (error) return reject(new Error('the frontmost application could not be read from macOS — no cached application was used'))
+            try {
+              const answer: unknown = JSON.parse(stdout)
+              if (answer === null || typeof answer !== 'object') return reject(new Error('macOS returned no application record'))
+              resolve(answer as DesktopAddonApplication)
+            } catch {
+              reject(new Error('the frontmost application query returned an unreadable record'))
+            }
+          })
+        })
+      : this.addon.frontmostApplication()
+    if (typeof raw.identity !== 'string' || raw.identity === '') return fail({ kind: 'display', note: raw.reason ?? 'no frontmost application' })
+    return { ok: true, value: application(raw, raw.identity) }
+  } catch (error) {
+    return fail(classifyThrown(error))
+  }
+}
+
+async function nativeFocusedText(this: NativeDesktopDriver, app: DesktopApplication, signal: AbortSignal): Promise<DesktopAnswer<DesktopFocusedText | null>> {
+  const closed = this.closedRefusal<DesktopFocusedText | null>()
+  if (closed) return closed
+  if (signal.aborted) return desktopAbortedAnswer()
+  if (process.platform !== 'darwin' || !this.addon.focusedText) return fail({ kind: 'unavailable', note: `terminal text needs the desktop pack's focusedText export — rebuild it: ${DESKTOP_BUILD_COMMAND}` })
+  if (app.pid === null || !Number.isInteger(app.pid) || app.pid <= 0) return fail({ kind: 'input', note: `${app.name} has no process id` })
+  const permissions = this.readPermissions()
+  if (!permissions.ok) return fail(permissions.error)
+  const refusal = inputRefusal(permissions.value)
+  if (refusal) return this.refuseAndRequestGrants(refusal)
+  try {
+    const value = await new Promise<DesktopFocusedText | null>((resolve, reject) => {
+      const child = execFile(process.execPath, ['-e', 'process.stdout.write(JSON.stringify(require(process.argv[1]).focusedText(Number(process.argv[2]))))', this.addonPath, String(app.pid)], { timeout: TREE_SUBPROCESS_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: TREE_SUBPROCESS_BUFFER, encoding: 'utf8' }, (error, stdout) => {
+        signal.removeEventListener('abort', onAbort)
+        if (signal.aborted) return reject(new Error(ABORTED_PREFIX))
+        if (error) return reject(new Error(`the focused terminal text could not be read: ${error.message}`))
+        try { resolve(JSON.parse(stdout)) } catch { reject(new Error('the focused text query returned an unreadable record')) }
+      })
+      const onAbort = () => { child.kill('SIGKILL') }
+      signal.addEventListener('abort', onAbort, { once: true })
+    })
+    if (value !== null && (typeof value.text !== 'string' || value.role !== 'AXTextArea')) return fail(contractDefect('focused text', 'invalid value or role'))
+    return { ok: true, value }
+  } catch (error) { return fail(classifyThrown(error)) }
+}
+
+async function nativeAct(this: NativeDesktopDriver, kind: DesktopActKind, at: DesktopPoint | null, signal: AbortSignal, run: () => void | Promise<void>): Promise<DesktopAnswer<DesktopActReceipt>> {
+  const closed = this.closedRefusal<DesktopActReceipt>()
+  if (closed !== null) return closed
+  if (signal.aborted) return desktopAbortedAnswer()
+  const permissions = this.readPermissions()
+  if (!permissions.ok) return fail(permissions.error)
+  const refusal = inputRefusal(permissions.value)
+  if (refusal !== null) return this.refuseAndRequestGrants(refusal)
+  try {
+    await this.withCancel(signal, async () => {
+      await run()
+    })
+  } catch (error) {
+    return fail(classifyThrown(error))
+  }
+  if (signal.aborted) {
+    await this.releaseAll()
+    return desktopAbortedAnswer()
+  }
+  return { ok: true, value: { act: kind, at, completedAt: Date.now() } }
+}
+
+function nativeCaptureInChild(this: NativeDesktopDriver, display: number, region: DesktopBounds | undefined, signal: AbortSignal): Promise<CaptureChildOutcome> {
+  return new Promise(resolve => {
+    const child = execFile(process.execPath, ['-e', CAPTURE_CHILD_SCRIPT, this.addonPath], { timeout: CAPTURE_CHILD_TIMEOUT_MS, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: CAPTURE_CHILD_BUFFER, encoding: 'buffer' }, (error, stdout) => {
+      signal.removeEventListener('abort', onAbort)
+      if (signal.aborted) return resolve({ kind: 'failed', note: ABORTED_PREFIX })
+      const answer = captureChildAnswer(Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout))
+      if (answer !== null && 'raw' in answer) return resolve({ kind: 'captured', raw: answer.raw })
+      if (error?.killed) return resolve({ kind: 'deadline' })
+      if (answer !== null) return resolve({ kind: 'failed', note: answer.error })
+      if (error?.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') return resolve({ kind: 'failed', note: `the capture child answered more than ${CAPTURE_CHILD_BUFFER / (1024 * 1024)} MiB` })
+      resolve({ kind: 'failed', note: error ? 'the capture child exited without an image' : 'the capture child answered an unreadable record' })
+    })
+    child.stdin?.on('error', () => {})
+    child.stdin?.end(JSON.stringify({ display, ...(region ? { region } : {}) }))
+    const onAbort = () => { child.kill('SIGKILL') }
+    signal.addEventListener('abort', onAbort, { once: true })
+    if (signal.aborted) onAbort()
+  })
+}
+
+async function nativeCaptureThroughChild(this: NativeDesktopDriver, display: number, region: DesktopBounds | undefined, signal: AbortSignal): Promise<DesktopAnswer<DesktopAddonCapture>> {
+  const first = await this.captureInChild(display, region, signal)
+  if (signal.aborted) return desktopAbortedAnswer()
+  if (first.kind === 'captured') return { ok: true, value: first.raw }
+  if (first.kind === 'failed') return fail(classifyThrown(new Error(first.note)))
+  const wait = CAPTURE_CHILD_RETRY_WAIT_MS[0] + Math.floor(Math.random() * (CAPTURE_CHILD_RETRY_WAIT_MS[1] - CAPTURE_CHILD_RETRY_WAIT_MS[0]))
+  await sleep(wait, signal)
+  if (signal.aborted) return desktopAbortedAnswer()
+  const second = await this.captureInChild(display, region, signal)
+  if (signal.aborted) return desktopAbortedAnswer()
+  if (second.kind === 'captured') return { ok: true, value: second.raw }
+  if (second.kind === 'failed') return fail(classifyThrown(new Error(second.note)))
+  return fail({ kind: 'busy', note: captureHeldNote() })
+}
+
+async function nativeDisplays(this: NativeDesktopDriver): Promise<DesktopAnswer<DesktopDisplays>> {
+  const closed = this.closedRefusal<DesktopDisplays>()
+  if (closed !== null) return closed
+  try {
+    const raw = this.addon.displays()
+    if (!Array.isArray(raw.displays)) return fail(contractDefect('displays', typeof raw.displays))
+    if (raw.displays.length === 0) return fail({ kind: 'session', note: raw.reason ?? 'no displays', remedy: desktopGrantWords() })
+    const displays: DesktopDisplay[] = []
+    for (const d of raw.displays) {
+      const numbers = [d.index, d.originX, d.originY, d.width, d.height, d.scale]
+      if (!numbers.every(n => typeof n === 'number' && Number.isFinite(n)) || typeof d.id !== 'string') return fail(contractDefect('display', JSON.stringify(d)))
+      const work = boundsOf(d.work)
+      displays.push({ index: d.index, id: d.id, originX: d.originX, originY: d.originY, width: d.width, height: d.height, scale: d.scale, primary: d.primary === true, ...(work ? { work } : {}) })
+    }
+    return { ok: true, value: { displays, fingerprint: displaysFingerprint(displays), spanning: displaysSpan() } }
+  } catch (error) {
+    return fail(classifyThrown(error))
+  }
+}
+
+async function nativeWithCancel<T>(this: NativeDesktopDriver, signal: AbortSignal, run: () => Promise<T>): Promise<T> {
+  const onAbort = (): void => {
+    try {
+      this.addon.cancel()
+    } catch (error) {
+      logForDebugging(`desktop driver: cancel threw: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  signal.addEventListener('abort', onAbort, { once: true })
+  try {
+    return await run()
+  } finally {
+    signal.removeEventListener('abort', onAbort)
   }
 }
 
