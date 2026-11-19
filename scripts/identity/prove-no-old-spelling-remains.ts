@@ -46,14 +46,14 @@ const XAI_BILLING_SURFACES = new Set([
   'scripts/settings/prove-xai-usage-popup.ts',
   'scripts/ui/fixtures/face-logins/logins-120x40-key-xai-management.txt',
   'scripts/ui/fixtures/face-logins/logins-80x24-key-xai-management.txt',
-  'src/components/Settings/Usage.tsx',
-  'src/services/providers/providerUsage.ts',
+  'src/components/Settings/usage/plan.ts',
+  'src/services/providers/providerUsage/xai.ts',
   'src/services/providers/xai/xaiLogin.ts',
   'src/services/providers/xai/xaiUsageState.ts',
   'src/skills/bundled/provider-apis/references/chat-completions.md',
 ])
 const XAI_BILLING_WORDS = /\bpersonal-team-blocked:spending-limit\b|team(?:_id|Id|-fixture|-cycle)|\/teams\/|\/team\/default\/management-keys|\bteam (?:usage|balance|permissions|meter|credits|record|spend|lookup|billing)|team[’']s prepaid credits|prepaid-only teams|identifies the team|optional management key for the (?:API )?team\b(?:[’']s)?|xAI's team|These are team/i
-const boardLabelSurface = (rel: string): boolean => rel.startsWith('src/services/crewBoard/') || /^scripts\/crew\/prove-(?:swarm|run)-/.test(rel) || rel === 'scripts/api/prove-cache-divergence-replay.ts' || ['docs/CREW.md', 'src/skills/bundled/deep-research/SKILL.md', 'scripts/skills/prove-crew-skills.ts', 'src/commands/swarmchat/index.ts', 'src/commands/swarmchat/swarmchat.ts', 'src/types/message.ts', 'src/components/messages/CrewChatRow.tsx', 'src/tools/AgentTool/AgentTool.tsx', 'src/tools/AgentTool/runAgent.ts', 'src/tools/AgentTool/prompt.ts', 'scripts/providers/prove-gemini-plan-shape.ts', 'scripts/builtin-tools/fixtures/tool-census.json', 'scripts/tool-economy/fixtures/definition-corpus.json', 'scripts/prompt/prove-briefing-replay.ts', 'src/commands.ts', 'src/commands/team/index.ts', 'src/utils/crew/channelCommand.ts', 'src/utils/suggestions/commandSuggestions.ts', 'scripts/command-catalogue/prove-swarm-channel-completion.ts', 'scripts/switchboard/prove-command-table.ts'].includes(rel)
+const boardLabelSurface = (rel: string): boolean => rel.startsWith('src/services/crewBoard/') || /^scripts\/crew\/prove-(?:swarm|run)-/.test(rel) || rel === 'scripts/api/prove-cache-divergence-replay.ts' || ['docs/CREW.md', 'src/skills/bundled/deep-research/SKILL.md', 'scripts/skills/prove-crew-skills.ts', 'src/commands/swarmchat/index.ts', 'src/commands/swarmchat/swarmchat.ts', 'src/types/message.ts', 'src/components/messages/CrewChatRow.tsx', 'src/tools/AgentTool/AgentTool.tsx', 'src/tools/AgentTool/agent/call.ts', 'src/tools/AgentTool/agent/schema.ts', 'src/tools/AgentTool/runAgent.ts', 'src/tools/AgentTool/prompt.ts', 'scripts/providers/prove-gemini-plan-shape.ts', 'scripts/builtin-tools/fixtures/tool-census.json', 'scripts/tool-economy/fixtures/definition-corpus.json', 'scripts/prompt/prove-briefing-replay.ts', 'src/commands.ts', 'src/commands/team/index.ts', 'src/utils/crew/channelCommand.ts', 'src/utils/suggestions/commandSuggestions.ts', 'scripts/command-catalogue/prove-swarm-channel-completion.ts', 'scripts/switchboard/prove-command-table.ts'].includes(rel)
 const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [/src\/commands\/team\/\*\*/g, 'The owner channel command path in its drive watch.', rel => rel === 'scripts/crew-drives/run-all.sh'],
   [/\bteamCandidates\b/g, 'The channel-completion proof names its label candidates.', rel => rel === 'scripts/command-catalogue/prove-swarm-channel-completion.ts'],
