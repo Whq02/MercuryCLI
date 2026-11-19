@@ -1,172 +1,86 @@
 
-import { appendFileSync } from 'node:fs'
-import { closeSync, openSync, readSync, constants as fsConstants } from 'node:fs'
-import { ReadStream as TtyReadStream } from 'node:tty'
-import { format as formatArgs } from 'node:util'
 import autoBind from 'auto-bind'
 import type { ReactNode } from 'react'
 import { ConcurrentRoot } from 'react-reconciler/constants.js'
 import { onExit } from 'signal-exit'
-import { flushInteractionTime } from '../bootstrap/state.js'
+import '../bootstrap/state.js'
 import { logForDebugging } from '../utils/debug.js'
-import { fluxFrame, fluxMark } from '../utils/flux/fluxProbe.js'
+import '../utils/flux/fluxProbe.js'
 import { isMouseCaptureEnabled } from '../utils/config/derived.js'
 import { isMouseTrackingEnabled as mouseTrackingEnabledByEnvironment } from '../utils/fullscreen.js'
-import { logError } from '../utils/log.js'
-import { markConsoleLent, markConsoleReturned, setStdinRecovery } from '../utils/process.js'
-import { applyPointerShape, resetPointerShape } from '../utils/cockpit/pointerShape.js'
-import { burnFrameCostPad, noteFrameCost, noteFrameWire } from '../utils/cockpit/motionGovernor.js'
-import {
-  CharPool,
-  charInCellAt,
-  cellAt,
-  CellWidth,
-  createScreen,
-  HyperlinkPool,
-  inkFlanksCellAt,
-  isEmptyCellAt,
-  isInklessCellAt,
-  migrateScreenPools,
-  StylePool,
-  type Screen,
-} from './cell-grid.js'
-import { colorize } from './colorize.js'
-import ComposeBuffer from './compose-buffer.js'
-import composeTree from './compose-walk.js'
+import '../utils/log.js'
+import { setStdinRecovery } from '../utils/process.js'
+import '../utils/cockpit/pointerShape.js'
+import '../utils/cockpit/motionGovernor.js'
+import { CharPool, HyperlinkPool, StylePool, type Screen } from './cell-grid.js'
+import './colorize.js'
+import './compose-buffer.js'
+import './compose-walk.js'
 import App from './components/App.js'
 import type { CursorDeclaration } from './components/CursorDeclarationContext.js'
 import { InkInstanceContext } from './components/InkInstanceContext.js'
-import { createNode, findOwnerChainAtRow, markDirty, type DOMElement } from './dom.js'
-import type { EventHandlerProps } from './events/event-handlers.js'
-import { KeyboardEvent } from './events/keyboard-event.js'
+import { createNode, type DOMElement } from './dom.js'
+import './events/keyboard-event.js'
 import type { TextGestureHandler } from './events/text-gesture.js'
 import { FocusManager } from './focus.js'
-import { emptyFrame, type FlickerRecord, type Frame, type FrameEvent, type Patch } from './frame.js'
+import './frame.js'
+import type { Frame, FrameEvent, Patch } from './frame.js'
 import { FrameWriter } from './frame-writer.js'
-import {
-  dispatchClick as dispatchClickInTree,
-  dispatchHover as dispatchHoverInTree,
-  hitTest,
-} from './geometry/hit.js'
-import { OverlayRecord } from './geometry/overlay.js'
-import {
-  clearSelection,
-  createSelectionState,
-  extendSelection,
-  findPlainTextUrlAt,
-  getSelectedText,
-  hasSelection,
-  moveFocus,
-  selectLineAt,
-  selectWordAt,
-  setSelectionClipBand,
-  startSelection,
-  updateSelection,
-  type FocusMove,
-  type Point,
-  type SelectionState,
-} from './geometry/selection.js'
+import './geometry/hit.js'
+import './geometry/overlay.js'
+import type { OverlayRecord } from './geometry/overlay.js'
+import { createSelectionState, hasSelection, type FocusMove, type SelectionState } from './geometry/selection.js'
 import type { ParsedKey } from './input/input-decoder.js'
-import instances from './instances.js'
+import './instances.js'
 import { getCellLayoutCounters } from './layout/cellLayout.js'
-import { unionRect } from './layout/geometry.js'
-import { nodeCache, type CachedLayout } from './node-cache.js'
-import { optimizePatches } from './patch-stream.js'
-import reconciler, {
-  dispatcher,
-  getLastCommitMs,
-  getLastYogaMs,
-  isDebugRepaintsEnabled,
-  noteSlowLayout,
-  recordLayoutMs,
-  resetProfileCounters,
-} from './reconciler.js'
-import { scanPositions, type MatchPosition } from './render-to-screen.js'
-import createRenderer, { type Renderer, type RenderResult } from './renderer.js'
-import { holdConsoleRead } from './root/console-read.js'
-import { refreshConsoleSize } from './root/console-size.js'
-import { planCursor, type CursorPoint } from './root/cursor-park.js'
+import './layout/geometry.js'
+import './node-cache.js'
+import type { CachedLayout } from './node-cache.js'
+import './patch-stream.js'
+import reconciler, { dispatcher } from './reconciler.js'
+import './render-to-screen.js'
+import type { MatchPosition } from './render-to-screen.js'
+import createRenderer, { type Renderer } from './renderer.js'
+import './root/console-read.js'
+import './root/console-size.js'
+import './root/cursor-park.js'
+import type { CursorPoint } from './root/cursor-park.js'
 import { FrameLedger } from './root/frame-ledger.js'
-import { readFrameWire } from './root/frame-trace.js'
-import { applyOverlayPass, type SearchPositions } from './root/overlay-pass.js'
+import './root/frame-trace.js'
+import './root/overlay-pass.js'
+import type { SearchPositions } from './root/overlay-pass.js'
 import { RenderScheduler } from './root/render-scheduler.js'
-import {
-  enterEditorBytes,
-  exitEditorBytes,
-  exitEditorRearmBytes,
-  reassertModesBytes,
-  reenterAltBytes,
-  wakeReenterAltBytes,
-  resizeReassertBytes,
-} from './root/screen-session.js'
+import './root/screen-session.js'
 import { termWrite } from './terminalOut.js'
-import { RESIZE_SETTLE_MS } from './constants.js'
-import { runTeardownSuite, type TeardownHost } from './root/teardown.js'
-import {
-  continueRearmBytes,
-  isStopSignal,
-  POSIX_STOP_SIGNALS,
-  restoreTerminalForStop,
-  stopSignalsSupported,
-} from './root/stop-continue.js'
-import { noteModeAcquired, noteModeReleased, shutdownReleaseObligations } from './root/terminalModeLedger.js'
-import { extendedKeysSupportedNow, regionScrollTrustedNow, shouldHoldFirstPaintForSyncProbe, syncOutputCapabilityNow, syncOutputSupportedNow } from './session/capabilities.js'
-import { terminalQuerierFor, terminalQuerySettleMs } from './session/querier.js'
-import { streamTakesWrites, writeAllSync, writeDiffToTerminal } from './session/delivery.js'
-import { cursorPosition, ERASE_SCREEN, CURSOR_HOME } from './termio/csi.js'
-import {
-  DISABLE_MOUSE_TRACKING,
-  ENABLE_MOUSE_TRACKING,
-  ENTER_ALT_SCREEN,
-  HIDE_CURSOR,
-} from './termio/dec.js'
-import { setClipboard, supportsTabStatus } from './termio/osc.js'
+import './constants.js'
+import './root/teardown.js'
+import type { TeardownHost } from './root/teardown.js'
+import './root/stop-continue.js'
+import './root/terminalModeLedger.js'
+import { shouldHoldFirstPaintForSyncProbe } from './session/capabilities.js'
+import './session/querier.js'
+import './session/delivery.js'
+import './termio/csi.js'
+import './termio/dec.js'
+import './termio/osc.js'
 import { TerminalWriteProvider } from './terminalWrite.js'
+import { TREE_DUMP_PATH, TREE_DUMP_BUDGET, teeCommitGeometry, rowText, teeBeforeDiff, teeAfterDiff, dumpTree } from './ink/tees.js'
+import { DEFAULT_COLUMNS, DEFAULT_ROWS, newEmptyFrame, buildParkPatch, liveSize, resetFramesForAltScreen, repaintMainScreen, resetLineCount, resetPools } from './ink/frames.js'
+import { handleResize, settleResize, handleWinch, paintResizeHold, consoleBufferOutlivesWindow, fitConsoleBufferToWindow, applySettledResize, applySize, clearResizeSettle, reconcileSize } from './ink/resize.js'
+import { calculateLayout, layoutAfterCommit, subscribeLayout } from './ink/layout.js'
+import { onRender, recoverFromRenderFault, renderFrame, subscribeFrame, resolveCursorTarget, setCursorDeclaration } from './ink/frame-loop.js'
+export { RENDER_FAULT_RETRY_BUDGET, renderFaultRecoveryPlan } from './ink/frame-loop.js'
+import { setAltScreenActive, registerTranscriptScrollTarget, registerArrowKeyOwner, arrowKeysOwned, setMouseTrackingEnabled, awaitTerminalQueries, drainUnsettledQueries, enterAlternateScreen, exitAlternateScreen, reassertScreenState, armScreenWatchdog, reenterAltScreen, reassertTerminalModes, repaintAfterNestedAltScreenClose, armAltScreenTakeover, armAltScreenEntry, forceRedraw, repaintAltScreen, overwriteScreen, repaint, pause, resume } from './ink/alt-screen.js'
+import { attachStopListeners, detachStopListeners, teardownHost, stopForSignal, resumeAfterContinue } from './ink/stop-continue.js'
+import { notifySelectionChange, subscribeToSelectionChange, applySelectionClipBand, offerTextGesture, textGestureTookPress, handleSelectionStart, handleMultiClick, handleSelectionDrag, handleSelectionRelease, moveSelectionFocus, copySelectionNoClear, copySelection, copyText, clearTextSelection, setSelectionBgColor } from './ink/selection.js'
+import { setSearchHighlight, setSearchPositions, scanElementSubtree } from './ink/search.js'
+import { getHyperlinkAt, dispatchClick, pointerOnBlank, dispatchHover, dispatchKeyboardEvent } from './ink/pointer.js'
+import { drainStdin, suspendStdin, resumeStdin, recoverStdin, rearmStdinAfterFault } from './ink/stdin.js'
+import { patchConsole, interceptStderr } from './ink/console-patch.js'
+import { unmount, waitUntilExit, detachForShutdown } from './ink/exit.js'
+import type { ExitOutcome } from './ink/record.js'
 
-export const RENDER_FAULT_RETRY_BUDGET = 3
-
-export function renderFaultRecoveryPlan(streak: number, budget: number = RENDER_FAULT_RETRY_BUDGET): 'repaint' | 'loud' {
-  return streak > budget ? 'loud' : 'repaint'
-}
-const POOL_RESET_INTERVAL_MS = 5 * 60_000
-const WATCHDOG_COMMIT_BUDGET = 12
-const STDIN_REARM_DELAY_MS = 50
-const OVERWRITE_MIN_GAP_MS = 250
-const STDIN_REARM_ATTEMPTS = 8
-
-function rawModeOn(stdin: NodeJS.ReadStream): boolean {
-  return (stdin as { isRaw?: boolean }).isRaw === true
-}
-const DEFAULT_COLUMNS = 80
-const DEFAULT_ROWS = 24
-const ALT_SCREEN_SESSION_OWNER = 'alt-screen-session'
-
-const TREE_DUMP_PATH = process.env.INK_TREE_DUMP
-const COMPOSED_TEE_PATH = process.env.INK_COMPOSED_TEE
-const COMMIT_TEE_PATH = process.env.INK_COMMIT_TEE
-const WRITE_TEE_PATH = process.env.INK_WRITE_TEE
-const WRITE_TEE_PROBE = process.env.INK_TEE_PROBE
-const TREE_DUMP_BUDGET = 24
-const TREE_DUMP_MAX_DEPTH = 16
-const TREE_DUMP_NODE_BUDGET = 700
-
-const CONSOLE_DEBUG_METHODS = [
-  'log',
-  'info',
-  'debug',
-  'dir',
-  'dirxml',
-  'count',
-  'countReset',
-  'group',
-  'groupCollapsed',
-  'groupEnd',
-  'table',
-  'time',
-  'timeEnd',
-  'timeLog',
-] as const
-const CONSOLE_ERROR_METHODS = ['warn', 'error', 'trace'] as const
+export { drainStdin }
 
 export type Options = {
   stdout: NodeJS.WriteStream
@@ -178,134 +92,70 @@ export type Options = {
   onFrame?: (event: FrameEvent) => void
 }
 
-type ExitOutcome = { kind: 'ok' } | { kind: 'error'; error: Error }
-
-const HOME_CURSOR = Object.freeze({ x: 0, y: 0, visible: false })
-
-function samePoint(a: Point | null, b: Point | null): boolean {
-  return a === b || (a !== null && b !== null && a.col === b.col && a.row === b.row)
-}
-
-function safeAppend(path: string, line: string): void {
-  try {
-    appendFileSync(path, line)
-  } catch {
-  }
-}
-
-export function drainStdin(stdin: NodeJS.ReadStream = process.stdin): void {
-  if (!stdin.isTTY) return
-  try {
-    while (stdin.read() !== null) {
-    }
-  } catch {
-  }
-  if (process.platform === 'win32') return
-
-  let fd: number | null = null
-  let rawWasOn = false
-  let rawChanged = false
-  try {
-    rawWasOn = stdin.isRaw === true
-    if (!rawWasOn) {
-      stdin.setRawMode(true)
-      rawChanged = true
-    }
-    fd = openSync('/dev/tty', fsConstants.O_RDONLY | fsConstants.O_NONBLOCK)
-    const buffer = Buffer.alloc(1024)
-    for (let i = 0; i < 64; i++) {
-      const read = readSync(fd, buffer, 0, buffer.length, null)
-      if (read <= 0) break
-    }
-  } catch {
-  } finally {
-    if (fd !== null) {
-      try {
-        closeSync(fd)
-      } catch {
-      }
-    }
-    if (rawChanged) {
-      try {
-        stdin.setRawMode(false)
-      } catch {
-      }
-    }
-  }
-}
-
 export default class Ink {
-  private readonly options: Options
-  private readonly isTTY: boolean
-
-  private readonly stylePool = new StylePool()
-  private charPool = new CharPool()
-  private hyperlinkPool = new HyperlinkPool()
-  private frontFrame: Frame
-  private backFrame: Frame
-  private cachedColumns: number
-  private cachedRows: number
-  private parkPatch: Patch
-  private pendingAltEntry: string | null = null
-  private lastPoolReset = Date.now()
-
-  private readonly rootNode: DOMElement
-  private readonly renderer: Renderer
-  private readonly container: unknown
-  private readonly writer: FrameWriter
-  private readonly scheduler: RenderScheduler
-  private readonly ledger = new FrameLedger()
-  private lastAssignedWidth: number | null = null
-  private lastAssignedMaxHeight: number | null = null
-  private layoutCounters = getCellLayoutCounters()
-  private currentTree: ReactNode | null = null
-
-  private isUnmounted = false
-  private isPaused = false
-  private isRendering = false
-  private lastRenderTime: number | null = null
-  private restoreConsole: (() => void) | null = null
-  private removeTtySubscriptions: (() => void) | null = null
-  private exitPromise: Promise<void> | null = null
-  private exitOutcomeLatch: ExitOutcome | null = null
-  private editorHandoverDepth = 0;
-
-  private altScreenActive = false
-  private mouseTracking: boolean
-  private mouseTrackingPref: boolean
-  private wheelReportingConfirmed = false
-  private transcriptScrollTarget: (() => boolean) | null = null
-  private readonly arrowKeyOwners = new Set<() => boolean>()
-  private displayCursor: CursorPoint | null = null
-  private wholeFrameDue = false
-  private wholeFrameAt = -Infinity
-  private overwriteTimer: ReturnType<typeof setTimeout> | null = null
-  private resizeSettleTimer: ReturnType<typeof setTimeout> | null = null
-  private watchdogCommitsRemaining = 0
-  private zeroByteRenderStreak = 0
-
+  readonly options: Options
+  readonly isTTY: boolean
+  readonly stylePool = new StylePool()
+  charPool = new CharPool()
+  hyperlinkPool = new HyperlinkPool()
+  frontFrame: Frame
+  backFrame: Frame
+  cachedColumns: number
+  cachedRows: number
+  parkPatch: Patch
+  pendingAltEntry: string | null = null
+  lastPoolReset = Date.now()
+  readonly rootNode: DOMElement
+  readonly renderer: Renderer
+  readonly container: unknown
+  readonly writer: FrameWriter
+  readonly scheduler: RenderScheduler
+  readonly ledger = new FrameLedger()
+  lastAssignedWidth: number | null = null
+  lastAssignedMaxHeight: number | null = null
+  layoutCounters = getCellLayoutCounters()
+  currentTree: ReactNode | null = null
+  isUnmounted = false
+  isPaused = false
+  isRendering = false
+  lastRenderTime: number | null = null
+  restoreConsole: (() => void) | null = null
+  removeTtySubscriptions: (() => void) | null = null
+  exitPromise: Promise<void> | null = null
+  exitOutcomeLatch: ExitOutcome | null = null
+  editorHandoverDepth = 0;
+  altScreenActive = false
+  mouseTracking: boolean
+  mouseTrackingPref: boolean
+  wheelReportingConfirmed = false
+  transcriptScrollTarget: (() => boolean) | null = null
+  readonly arrowKeyOwners = new Set<() => boolean>()
+  displayCursor: CursorPoint | null = null
+  wholeFrameDue = false
+  wholeFrameAt = -Infinity
+  overwriteTimer: ReturnType<typeof setTimeout> | null = null
+  resizeSettleTimer: ReturnType<typeof setTimeout> | null = null
+  watchdogCommitsRemaining = 0
+  zeroByteRenderStreak = 0
   readonly selection: SelectionState = createSelectionState()
-  private textGesture: { handler: TextGestureHandler; rect: CachedLayout } | null = null
-  private readonly selectionListeners = new Set<() => void>()
-  private glassOverlay: OverlayRecord | null = null
-  private searchQuery = ''
-  private searchPositions: SearchPositions | null = null
-  private readonly hoveredNodes = new Set<DOMElement>()
-  private cursorDeclaration: CursorDeclaration | null = null
-  private readonly frameListeners = new Set<() => void>()
-  private readonly layoutListeners = new Set<() => void>()
+  textGesture: { handler: TextGestureHandler; rect: CachedLayout } | null = null
+  readonly selectionListeners = new Set<() => void>()
+  glassOverlay: OverlayRecord | null = null
+  searchQuery = ''
+  searchPositions: SearchPositions | null = null
+  readonly hoveredNodes = new Set<DOMElement>()
+  cursorDeclaration: CursorDeclaration | null = null
+  readonly frameListeners = new Set<() => void>()
+  readonly layoutListeners = new Set<() => void>()
   onHyperlinkClick: ((url: string) => void) | undefined
-
-  private storedReadableListeners: Array<(...args: unknown[]) => void> | null = null
-  private wasRawMode = false
-  private consoleReadHeld = false
-  private fittingConsoleBuffer = false
-  private stdinRecoveryArmed = false
-  private rawModeOffForStop = false
-  private stopListenersAttached = false
-
-  private treeDumpBudget = TREE_DUMP_PATH ? TREE_DUMP_BUDGET : 0
-
+  storedReadableListeners: Array<(...args: unknown[]) => void> | null = null
+  wasRawMode = false
+  consoleReadHeld = false
+  fittingConsoleBuffer = false
+  stdinRecoveryArmed = false
+  rawModeOffForStop = false
+  stopListenersAttached = false
+  treeDumpBudget = TREE_DUMP_PATH ? TREE_DUMP_BUDGET : 0
   readonly focusManager: FocusManager
   screenReassertCount = 0
   exitOutcome: ExitOutcome | null = null
@@ -402,1548 +252,116 @@ export default class Ink {
     }
   }
 
-
-  private newEmptyFrame(): Frame {
-    return emptyFrame(
-      this.cachedRows,
-      this.cachedColumns,
-      this.stylePool,
-      this.charPool,
-      this.hyperlinkPool,
-    )
-  }
-
-  private buildParkPatch(): Patch {
-    return { type: 'stdout', content: cursorPosition(this.cachedRows, 1) }
-  }
-
-  private liveSize(): { columns: number; rows: number } {
-    return {
-      columns: this.options.stdout.columns || DEFAULT_COLUMNS,
-      rows: this.options.stdout.rows || DEFAULT_ROWS,
-    }
-  }
-
-  private resetFramesForAltScreen(): void {
-    const make = (): Frame => ({
-      screen: createScreen(
-        this.cachedColumns,
-        this.cachedRows,
-        this.stylePool,
-        this.charPool,
-        this.hyperlinkPool,
-      ),
-      viewport: { width: this.cachedColumns, height: this.cachedRows },
-      cursor: { x: 0, y: 0, visible: true },
-    })
-    this.frontFrame = make()
-    this.backFrame = make()
-    this.glassOverlay = null
-    this.ledger.syncAfterDeliberateReset()
-    this.displayCursor = null
-    this.ledger.contaminate('blank-reset')
-  }
-
-  private repaintMainScreen(): void {
-    const rebuild = (frame: Frame): Frame =>
-      emptyFrame(
-        frame.viewport.height,
-        frame.viewport.width,
-        this.stylePool,
-        this.charPool,
-        this.hyperlinkPool,
-      )
-    this.frontFrame = rebuild(this.frontFrame)
-    this.backFrame = rebuild(this.backFrame)
-    this.glassOverlay = null
-    this.ledger.syncAfterDeliberateReset()
-    this.displayCursor = null
-  }
-
-  resetLineCount(): void {
-    if (this.altScreenActive || !this.isTTY) return
-    this.backFrame = this.frontFrame
-    this.frontFrame = emptyFrame(
-      this.frontFrame.viewport.height,
-      this.frontFrame.viewport.width,
-      this.stylePool,
-      this.charPool,
-      this.hyperlinkPool,
-    )
-    this.displayCursor = null
-  }
-
-  resetPools(): void {
-    this.charPool = new CharPool()
-    this.hyperlinkPool = new HyperlinkPool()
-    migrateScreenPools(this.frontFrame.screen, this.charPool, this.hyperlinkPool)
-    this.backFrame.screen.charPool = this.charPool
-    this.backFrame.screen.hyperlinkPool = this.hyperlinkPool
-    this.lastPoolReset = Date.now()
-  }
-
-  private handleResize = (): void => {
-    if (this.isRendering || this.fittingConsoleBuffer) return
-    this.settleResize()
-  }
-
-  private settleResize(): void {
-    const { columns, rows } = this.liveSize()
-    if (this.resizeSettleTimer === null) {
-      if (columns === this.cachedColumns && rows === this.cachedRows) return
-      this.scheduler.holdForSettle()
-      this.paintResizeHold(columns, rows)
-    } else {
-      clearTimeout(this.resizeSettleTimer)
-    }
-    this.resizeSettleTimer = setTimeout(this.applySettledResize, RESIZE_SETTLE_MS)
-  }
-
-  private handleWinch = (): void => {
-    refreshConsoleSize(this.options.stdout)
-    if (this.resizeSettleTimer !== null) return
-    const { columns, rows } = this.liveSize()
-    if (columns === this.cachedColumns && rows === this.cachedRows) this.overwriteScreen()
-  }
-
-  private paintResizeHold(columns: number, rows: number): void {
-    if (!this.altScreenActive || this.isPaused || !this.isTTY || this.wholeFrameDue) return
-    const patches = this.writer.holdingClipPaint(this.frontFrame, columns, rows)
-    if (patches.length === 0) return
-    writeDiffToTerminal(
-      { stdout: this.options.stdout, stderr: this.options.stderr },
-      patches,
-      !syncOutputSupportedNow(),
-    )
-    this.displayCursor = null
-  }
-
-  private consoleBufferOutlivesWindow(): boolean {
-    return process.platform === 'win32' && !syncOutputCapabilityNow() && this.altScreenActive && !this.isPaused && this.isTTY
-  }
-
-  private fitConsoleBufferToWindow(): void {
-    if (!this.consoleBufferOutlivesWindow()) return
-    termWrite(this.options.stdout, ENTER_ALT_SCREEN)
-    this.fittingConsoleBuffer = true
+  private newEmptyFrame(): Frame { return newEmptyFrame.call(this) }
+  buildParkPatch(): Patch { return buildParkPatch.call(this) }
+  liveSize(): { columns: number; rows: number } { return liveSize.call(this) }
+  resetFramesForAltScreen(): void { resetFramesForAltScreen.call(this) }
+  repaintMainScreen(): void { repaintMainScreen.call(this) }
+  resetLineCount(): void { resetLineCount.call(this) }
+  resetPools(): void { resetPools.call(this) }
+  handleResize = (): void => handleResize.call(this)
+  settleResize(): void { settleResize.call(this) }
+  private handleWinch = (): void => handleWinch.call(this)
+  paintResizeHold(columns: number, rows: number): void { paintResizeHold.call(this, columns, rows) }
+  consoleBufferOutlivesWindow(): boolean { return consoleBufferOutlivesWindow.call(this) }
+  fitConsoleBufferToWindow(): void { fitConsoleBufferToWindow.call(this) }
+  applySettledResize = (): void => applySettledResize.call(this)
+  applySize(columns: number, rows: number): void { applySize.call(this, columns, rows) }
+  clearResizeSettle(): void { clearResizeSettle.call(this) }
+  reconcileSize(): void { reconcileSize.call(this) }
+  calculateLayout = (): void => calculateLayout.call(this)
+  private layoutAfterCommit = (): void => layoutAfterCommit.call(this)
+  subscribeLayout(listener: () => void): () => void { return subscribeLayout.call(this, listener) }
+  teeCommitGeometry(layoutMs: number): void { teeCommitGeometry.call(this, layoutMs) }
+  scheduleRender = (): void => { this.scheduler.requestFrame() }
+  renderFaultStreak = 0
+  firstFrameStamped = false
+  onRender = (): void => onRender.call(this)
+  stampFirstFrame(): void {
+    this.firstFrameStamped = true
     try {
-      refreshConsoleSize(this.options.stdout)
-    } finally {
-      this.fittingConsoleBuffer = false
-    }
-  }
-
-  private applySettledResize = (): void => {
-    this.resizeSettleTimer = null
-    this.fitConsoleBufferToWindow()
-    const { columns, rows } = this.liveSize()
-    this.applySize(columns, rows)
-    this.scheduler.releaseSettleHold(false)
-    if (this.currentTree !== null) this.render(this.currentTree)
-  }
-
-  private applySize(columns: number, rows: number): void {
-    this.cachedColumns = columns
-    this.cachedRows = rows
-    this.parkPatch = this.buildParkPatch()
-    if (this.altScreenActive && !this.isPaused && this.isTTY) {
-      termWrite(this.options.stdout, resizeReassertBytes(this.mouseTracking))
-      this.resetFramesForAltScreen()
-      this.wholeFrameDue = true
-    }
-  }
-
-  private clearResizeSettle(): void {
-    if (this.resizeSettleTimer !== null) {
-      clearTimeout(this.resizeSettleTimer)
-      this.resizeSettleTimer = null
-    }
-    this.scheduler.releaseSettleHold(false)
-  }
-
-  reconcileSize(): void {
-    if (process.platform !== 'win32') return;
-    if (!refreshConsoleSize(this.options.stdout)) this.handleResize();
-  }
-
-
-  private calculateLayout = (): void => {
-    if (this.isUnmounted) return
-    const layout = this.rootNode.layoutNode
-    if (!layout) return
-    if (this.lastAssignedWidth !== this.cachedColumns) {
-      layout.setWidth(this.cachedColumns)
-      this.lastAssignedWidth = this.cachedColumns
-    }
-    const maxHeight = this.altScreenActive ? this.cachedRows : null
-    if (this.lastAssignedMaxHeight !== maxHeight) {
-      layout.setMaxHeight(maxHeight ?? Number.NaN)
-      this.lastAssignedMaxHeight = maxHeight
-    }
-    const started = performance.now()
-    layout.calculateLayout(this.cachedColumns, undefined)
-    const elapsed = performance.now() - started
-    recordLayoutMs(elapsed)
-    this.layoutCounters = getCellLayoutCounters()
-    noteSlowLayout(elapsed, this.layoutCounters)
-    if (COMMIT_TEE_PATH) this.teeCommitGeometry(elapsed)
-  }
-
-  private layoutAfterCommit = (): void => {
-    if (this.isUnmounted) return
-    this.calculateLayout()
-    for (const listener of this.layoutListeners) {
-      try {
-        listener()
-      } catch (error) {
-        logForDebugging(`layout listener threw (ignored): ${error}`, { level: 'warn' })
-      }
-    }
-  }
-
-  subscribeLayout(listener: () => void): () => void {
-    this.layoutListeners.add(listener)
-    return () => {
-      this.layoutListeners.delete(listener)
-    }
-  }
-
-  private teeCommitGeometry(layoutMs: number): void {
-    try {
-      const rectOf = (node: DOMElement) => {
-        const l = node.layoutNode
-        return l
-          ? {
-              x: l.getComputedLeft(),
-              y: l.getComputedTop(),
-              w: l.getComputedWidth(),
-              h: l.getComputedHeight(),
-            }
-          : null
-      }
-      const elements = (node: DOMElement): DOMElement[] =>
-        node.childNodes.filter((c): c is DOMElement => c.nodeName !== '#text')
-      let rowNode: DOMElement | null = null
-      const find = (node: DOMElement, depth: number): void => {
-        if (rowNode || depth > 12) return
-        if (
-          node.style.flexDirection === 'row' &&
-          elements(node).some(c => typeof c.style.width === 'number')
-        ) {
-          rowNode = node
-          return
-        }
-        for (const child of elements(node)) find(child, depth + 1)
-      }
-      find(this.rootNode, 0)
-      let record: Record<string, unknown> = { phase: 'commit', at: Date.now(), layoutMs }
-      if (rowNode) {
-        const row = rowNode as DOMElement
-        const children = elements(row)
-        const flexible = children.find(c => typeof c.style.width !== 'number')
-        let scroll: DOMElement | null = null
-        const findScroll = (node: DOMElement, depth: number): void => {
-          if (scroll || depth > 12) return
-          if (node.scroll?.scrollHeight !== undefined) {
-            scroll = node
-            return
-          }
-          for (const child of elements(node)) findScroll(child, depth + 1)
-        }
-        if (flexible) findScroll(flexible, 0)
-        const scrollNode = scroll as DOMElement | null
-        record = {
-          ...record,
-          row: children.map(rectOf),
-          slot: flexible ? elements(flexible).map(rectOf) : [],
-          scroll: scrollNode
-            ? {
-                top: scrollNode.scroll?.scrollTop,
-                height: scrollNode.scroll?.scrollHeight,
-                viewport: scrollNode.scroll?.scrollViewportHeight,
-              }
-            : null,
-        }
-      }
-      safeAppend(COMMIT_TEE_PATH!, `${JSON.stringify(record)}\n`)
+      const { recordLaunchMilestone } = require('../substrate/launchMilestones.js') as typeof import('../substrate/launchMilestones.js')
+      recordLaunchMilestone('first-frame')
     } catch {
     }
   }
-
-
-  scheduleRender = (): void => {
-    this.scheduler.requestFrame()
-  }
-
-  private renderFaultStreak = 0
-  private firstFrameStamped = false
-
-  onRender = (): void => {
-    if (this.isUnmounted || this.isPaused || this.isRendering) return
-    if (this.resizeSettleTimer !== null) return
-    this.isRendering = true
-    try {
-      if (this.isTTY && process.platform === 'win32') refreshConsoleSize(this.options.stdout)
-      const { columns, rows } = this.liveSize()
-      if (columns !== this.cachedColumns || rows !== this.cachedRows) {
-        if (reconciler.isAlreadyRendering()) {
-          queueMicrotask(this.onRender)
-          return
-        }
-        if (this.consoleBufferOutlivesWindow()) {
-          this.settleResize()
-          return
-        }
-        this.applySize(columns, rows)
-        if (this.currentTree !== null) this.render(this.currentTree)
-        this.calculateLayout()
-      }
-      this.renderFrame()
-      this.renderFaultStreak = 0
-    } catch (error) {
-      this.recoverFromRenderFault(error)
-    } finally {
-      this.isRendering = false
-    }
-  }
-
-  private recoverFromRenderFault(error: unknown): void {
-    this.renderFaultStreak += 1
-    const message = error instanceof Error ? error.message : String(error)
-    logForDebugging(`[ink] render fault ${this.renderFaultStreak}/${RENDER_FAULT_RETRY_BUDGET}: ${message}`, { level: 'warn' })
-    if (renderFaultRecoveryPlan(this.renderFaultStreak) === 'loud') {
-      this.renderFaultStreak = 0
-      throw error
-    }
-    logError(error instanceof Error ? error : new Error(message))
-    if (this.altScreenActive) {
-      this.resetFramesForAltScreen()
-      this.wholeFrameDue = true
-    }
-    this.ledger.contaminate('self-heal')
-    this.scheduleRender()
-  }
-
-  private renderFrame(): void {
-    const frameStart = performance.now()
-    burnFrameCostPad()
-    fluxMark('paint:entry')
-    this.scheduler.onRenderEntry()
-    flushInteractionTime()
-
-    const now = Date.now()
-    if (
-      this.altScreenActive &&
-      this.lastRenderTime !== null &&
-      now - this.lastRenderTime > 30_000
-    ) {
-      this.resetFramesForAltScreen()
-      this.wholeFrameDue = true
-      this.ledger.contaminate('self-heal');
-    }
-    this.lastRenderTime = now
-
-    const { columns, rows } = this.liveSize()
-    const wasContaminated = this.ledger.isContaminated()
-    const regionScrollUsable =
-      this.altScreenActive && syncOutputSupportedNow() && regionScrollTrustedNow()
-    const rendererStart = performance.now()
-    const glassOverlay = this.glassOverlay
-    if (glassOverlay) glassOverlay.revert(this.frontFrame.screen)
-    let composed: RenderResult
-    try {
-      composed = this.renderer({
-        frontFrame: this.frontFrame,
-        backFrame: this.backFrame,
-        isTTY: this.isTTY,
-        terminalWidth: columns,
-        terminalRows: rows,
-        altScreen: this.altScreenActive,
-        prevFrameContaminated: wasContaminated,
-        regionScrollUsable,
-      })
-    } finally {
-      if (glassOverlay) glassOverlay.restore(this.frontFrame.screen)
-    }
-    const { frame, signals } = composed
-    const rendererMs = performance.now() - rendererStart
-
-    const overlayRecord = new OverlayRecord(frame.screen.width)
-    const overlay = applyOverlayPass({
-      altScreen: this.altScreenActive,
-      scrollTranslation: signals.consumeScrollTranslation(),
-      selection: this.selection,
-      captureScreen: this.frontFrame.screen,
-      screen: frame.screen,
-      stylePool: this.stylePool,
-      searchQuery: this.searchQuery,
-      searchPositions: this.searchPositions,
-      onSelectionCleared: () => {
-        for (const listener of this.selectionListeners) listener()
-      },
-      record: overlayRecord,
-    })
-    const vacated = glassOverlay ? glassOverlay.rect() : null
-    if (vacated) {
-      const screen = frame.screen
-      screen.damage = screen.damage ? unionRect(screen.damage, vacated) : vacated
-    }
-
-    if (signals.layoutShifted || wasContaminated) {
-      const screen = frame.screen
-      const bandTop = signals.shiftBandTop()
-      const shiftOnly = !wasContaminated
-      if (
-        shiftOnly &&
-        bandTop !== null &&
-        bandTop > 0 &&
-        bandTop < screen.height
-      ) {
-        const existing = screen.damage
-        const top = existing ? Math.min(existing.y, bandTop) : bandTop
-        screen.damage = { x: 0, y: top, width: screen.width, height: screen.height - top }
-      } else {
-        screen.damage = { x: 0, y: 0, width: screen.width, height: screen.height }
-      }
-      if (this.treeDumpBudget > 0 && signals.layoutShifted) this.dumpTree(signals.shiftReason)
-      if (COMPOSED_TEE_PATH && this.altScreenActive) {
-        safeAppend(
-          COMPOSED_TEE_PATH,
-          `${JSON.stringify({
-            fullDamage: true,
-            layoutShift: signals.layoutShifted,
-            shiftReason: signals.shiftReason,
-            shiftLog: signals.shiftLog,
-            selection: overlay.selActive,
-            highlight: overlay.hlActive,
-            contaminated: wasContaminated,
-          })}\n`,
-        )
-      }
-    }
-
-    this.ledger.assertBaseDeliverable()
-
-    const baseFrame: Frame = this.altScreenActive
-      ? { ...this.frontFrame, cursor: HOME_CURSOR }
-      : this.frontFrame
-
-    if (WRITE_TEE_PATH) this.teeBeforeDiff(baseFrame, frame)
-
-    const diffStart = performance.now()
-    const whole = this.wholeFrameDue && this.altScreenActive
-    const patches = whole
-      ? this.writer.overwriteAlt(frame)
-      : this.writer.render(baseFrame, frame, this.altScreenActive, regionScrollUsable)
-    if (whole) {
-      this.wholeFrameDue = false
-      this.wholeFrameAt = performance.now()
-    }
-    const diffMs = performance.now() - diffStart
-    if (!this.firstFrameStamped) {
-      this.firstFrameStamped = true
-      try {
-        const { recordLaunchMilestone } = require('../substrate/launchMilestones.js') as typeof import('../substrate/launchMilestones.js')
-        recordLaunchMilestone('first-frame')
-      } catch {
-      }
-    }
-
-    this.backFrame = this.frontFrame
-    this.frontFrame = frame
-    this.glassOverlay = overlayRecord.size > 0 ? overlayRecord : null
-    this.ledger.commitFrame(patches.length > 0)
-
-    if (Date.now() - this.lastPoolReset > POOL_RESET_INTERVAL_MS) this.resetPools()
-
-    const flickers: FlickerRecord[] = []
-    for (const patch of patches) {
-      if (patch.type !== 'clearTerminal') continue
-      flickers.push({
-        desiredHeight: frame.screen.height,
-        availableHeight: frame.viewport.height,
-        reason: patch.reason,
-      })
-      if (isDebugRepaintsEnabled() && patch.debug) {
-        const chain = findOwnerChainAtRow(this.rootNode, patch.debug.triggerY)
-        logForDebugging(
-          `Full reset (${patch.reason}) at row ${patch.debug.triggerY}: prev=${JSON.stringify(patch.debug.prevLine)} next=${JSON.stringify(patch.debug.nextLine)} owners=${chain.join(' > ')}`,
-          { level: 'warn' },
-        )
-      }
-    }
-
-    const optimizeStart = performance.now()
-    const optimized = optimizePatches(patches)
-    const optimizeMs = performance.now() - optimizeStart
-
-    const hasDiff = optimized.length > 0
-    const plan = planCursor({
-      altScreen: this.altScreenActive,
-      hasDiff,
-      parkPatch: this.parkPatch,
-      target: this.resolveCursorTarget(),
-      parked: this.displayCursor,
-      prevCursor: { x: baseFrame.cursor.x, y: baseFrame.cursor.y },
-      frameCursor: { x: frame.cursor.x, y: frame.cursor.y },
-      rows,
-      cols: columns,
-    })
-    this.displayCursor = plan.nextParked
-    const finalPatches = [...plan.prelude, ...optimized, ...plan.postlude]
-    if (this.pendingAltEntry !== null && this.altScreenActive && hasDiff) {
-      finalPatches.unshift({ type: 'stdout', content: this.pendingAltEntry })
-      this.pendingAltEntry = null
-    }
-
-    const writeStart = performance.now()
-    const delivered = writeDiffToTerminal(
-      { stdout: this.options.stdout, stderr: this.options.stderr },
-      finalPatches,
-      !syncOutputSupportedNow(),
-    )
-    const writeMs = performance.now() - writeStart
-    if (WRITE_TEE_PATH) this.teeAfterDiff(finalPatches)
-
-    this.ledger.settle(delivered, null)
-
-    if (!delivered) {
-      logForDebugging(
-        'Frame write was not fully delivered; the next frame will fully re-emit',
-        { level: 'warn' },
-      )
-      if (this.altScreenActive) this.wholeFrameDue = true
-    }
-
-    if (this.watchdogCommitsRemaining > 0) {
-      this.watchdogCommitsRemaining -= 1;
-      if (this.altScreenActive && !hasDiff) {
-        this.zeroByteRenderStreak += 1;
-        if (this.zeroByteRenderStreak >= 5) {
-          this.zeroByteRenderStreak = 0;
-          this.watchdogCommitsRemaining = 0;
-          this.reassertScreenState('zero-byte-watchdog', { repaint: false })
-          queueMicrotask(this.onRender)
-        }
-      } else {
-        this.zeroByteRenderStreak = 0;
-      }
-    }
-
-    if (frame.scrollDrainPending) this.scheduler.requestDrain()
-
-    const durationMs = performance.now() - frameStart
-    fluxFrame(durationMs, patches.length)
-    const commitMs = getLastCommitMs()
-    const yogaMs = getLastYogaMs()
-    resetProfileCounters()
-    this.options.onFrame?.({
-      durationMs,
-      phases: {
-        renderer: rendererMs,
-        diff: diffMs,
-        optimize: optimizeMs,
-        write: writeMs,
-        patches: patches.length,
-        yoga: yogaMs,
-        commit: commitMs,
-        yogaVisited: this.layoutCounters.visited,
-        yogaMeasured: this.layoutCounters.measured,
-        yogaCacheHits: this.layoutCounters.cacheHits,
-        yogaLive: this.layoutCounters.live,
-      },
-      flickers,
-    })
-    noteFrameWire(readFrameWire())
-    noteFrameCost(durationMs)
-    for (const listener of this.frameListeners) {
-      try {
-        listener()
-      } catch (error) {
-        logForDebugging(`frame listener threw (ignored): ${error}`, { level: 'warn' })
-      }
-    }
-  }
-
-  subscribeFrame(listener: () => void): () => void {
-    this.frameListeners.add(listener)
-    return () => {
-      this.frameListeners.delete(listener)
-    }
-  }
-
-  private resolveCursorTarget(): CursorPoint | null {
-    const declaration = this.cursorDeclaration
-    if (!declaration) return null
-    const rect = nodeCache.get(declaration.node)
-    if (!rect) return null
-    return { x: rect.x + declaration.relativeX, y: rect.y + declaration.relativeY }
-  }
-
-  private rowText(screen: Screen, y: number): string {
-    let text = ''
-    for (let x = 0; x < screen.width; x++) text += charInCellAt(screen, x, y) ?? ' '
-    return text
-  }
-
-  private teeBeforeDiff(base: Frame, next: Frame): void {
-    if (!WRITE_TEE_PATH) return
-    try {
-      const probe = WRITE_TEE_PROBE ?? ''
-      const rows = new Set<number>()
-      let differing = 0
-      const height = Math.max(base.screen.height, next.screen.height)
-      const width = Math.max(base.screen.width, next.screen.width)
-      let probeInBase = false
-      let probeInNext = false
-      for (let y = 0; y < height; y++) {
-        const a = y < base.screen.height ? this.rowText(base.screen, y) : ''
-        const b = y < next.screen.height ? this.rowText(next.screen, y) : ''
-        if (probe && a.includes(probe)) probeInBase = true
-        if (probe && b.includes(probe)) probeInNext = true
-        for (let x = 0; x < width; x++) {
-          if ((a[x] ?? ' ') !== (b[x] ?? ' ')) {
-            differing++
-            rows.add(y)
-          }
-        }
-      }
-      safeAppend(
-        WRITE_TEE_PATH,
-        `${JSON.stringify({
-          phase: 'before-diff',
-          sameScreen: base.screen === next.screen,
-          sharedCharPool: base.screen.charPool === next.screen.charPool,
-          probeInBase,
-          probeInNext,
-          differingCells: differing,
-          differingRows: [...rows].sort((p, q) => p - q),
-          baseDamage: base.screen.damage ?? null,
-          nextDamage: next.screen.damage ?? null,
-        })}\n`,
-      )
-    } catch {
-    }
-  }
-
-  private teeAfterDiff(patches: Patch[]): void {
-    if (!WRITE_TEE_PATH) return
-    try {
-      const probe = WRITE_TEE_PROBE ?? ''
-      let serialized = ''
-      const kinds = new Set<string>()
-      for (const patch of patches) {
-        kinds.add(patch.type)
-        if (patch.type === 'stdout') serialized += patch.content
-        else if (patch.type === 'styleStr') serialized += patch.str
-      }
-      safeAppend(
-        WRITE_TEE_PATH,
-        `${JSON.stringify({
-          phase: 'after-diff',
-          patches: patches.length,
-          bytes: serialized.length,
-          probeInOutput: probe ? serialized.includes(probe) : false,
-          kinds: [...kinds],
-        })}\n`,
-      )
-    } catch {
-    }
-  }
-
-  private dumpTree(reason: string | null): void {
-    if (!TREE_DUMP_PATH || this.treeDumpBudget <= 0) return
-    this.treeDumpBudget--
-    try {
-      const lines: string[] = [`--- tree dump (${reason ?? 'layout shift'}) ---`]
-      let budget = TREE_DUMP_NODE_BUDGET
-      const STYLE_KEYS = [
-        'width',
-        'minWidth',
-        'maxWidth',
-        'flexGrow',
-        'flexShrink',
-        'flexBasis',
-        'flexDirection',
-        'position',
-        'overflow',
-        'overflowX',
-        'display',
-        'alignItems',
-        'alignSelf',
-      ] as const
-      const visit = (node: DOMElement, depth: number): void => {
-        if (budget-- <= 0 || depth > TREE_DUMP_MAX_DEPTH) return
-        const indent = '  '.repeat(depth)
-        const layout = node.layoutNode
-        const geometry = layout
-          ? `${layout.getComputedLeft()},${layout.getComputedTop()} ${layout.getComputedWidth()}x${layout.getComputedHeight()}`
-          : 'no-layout'
-        const style = STYLE_KEYS.filter(key => node.style[key] !== undefined)
-          .map(key => `${key}=${String(node.style[key])}`)
-          .join(' ')
-        const owners = (node.debugOwnerChain ?? []).slice(0, 4).join('>')
-        lines.push(`${indent}${node.nodeName} [${geometry}] ${style} ${owners}`.trimEnd())
-        for (const child of node.childNodes) {
-          if (child.nodeName === '#text') {
-            lines.push(
-              `${indent}  #text ${JSON.stringify(child.nodeValue.slice(0, 28))}`,
-            )
-          } else {
-            visit(child, depth + 1)
-          }
-        }
-      }
-      visit(this.rootNode, 0)
-      safeAppend(COMPOSED_TEE_PATH ?? TREE_DUMP_PATH, `${lines.join('\n')}\n`)
-    } catch {
-    }
-  }
-
-
-  get isAltScreenActive(): boolean {
-    return this.altScreenActive
-  }
-
-  setAltScreenActive(active: boolean, mouseTracking = true): void {
-    if (active === this.altScreenActive) return
-    this.altScreenActive = active
-    this.mouseTracking = active && mouseTracking
-    this.wheelReportingConfirmed = false
-    if (active) {
-      this.resetFramesForAltScreen()
-    } else {
-      this.pendingAltEntry = null
-      resetPointerShape(s => termWrite(this.options.stdout, s))
-      this.repaintMainScreen()
-      this.ledger.contaminate('blank-reset')
-    }
-  }
-
-  isMouseTrackingEnabled(): boolean {
-    return this.mouseTracking
-  }
-
-  confirmWheelReporting(): void {
-    if (this.altScreenActive && this.mouseTracking) this.wheelReportingConfirmed = true
-  }
-
-  isWheelReportingConfirmed(): boolean {
-    return this.wheelReportingConfirmed
-  }
-
-  registerTranscriptScrollTarget(target: () => boolean): () => void {
-    this.transcriptScrollTarget = target
-    return () => {
-      if (this.transcriptScrollTarget === target) this.transcriptScrollTarget = null
-    }
-  }
-
-  hasScrollableTranscriptTarget(): boolean {
-    return this.transcriptScrollTarget?.() === true
-  }
-
-  registerArrowKeyOwner(owns: () => boolean): () => void {
-    this.arrowKeyOwners.add(owns)
-    return () => {
-      this.arrowKeyOwners.delete(owns)
-    }
-  }
-
-  arrowKeysOwned(): boolean {
-    for (const owns of this.arrowKeyOwners) if (owns()) return true
-    return false
-  }
-
-  isMouseTrackingPreferred(): boolean {
-    return this.mouseTrackingPref
-  }
-
-  setMouseTrackingEnabled(on: boolean): void {
-    this.mouseTrackingPref = on
-    if (on === this.mouseTracking) return
-    this.mouseTracking = on
-    this.wheelReportingConfirmed = false
-    if (!this.altScreenActive) return
-    if (!on) resetPointerShape(s => termWrite(this.options.stdout, s))
-    termWrite(this.options.stdout, on ? ENABLE_MOUSE_TRACKING : DISABLE_MOUSE_TRACKING)
-    if (on) noteModeAcquired(ALT_SCREEN_SESSION_OWNER, 'mouse-tracking')
-    else noteModeReleased(ALT_SCREEN_SESSION_OWNER, 'mouse-tracking')
-  }
-
-  async awaitTerminalQueries(): Promise<void> {
-    const querier = terminalQuerierFor(this.options.stdout)
-    if (querier === undefined || querier.settled()) return
-    await querier.whenSettled(terminalQuerySettleMs())
-  }
-
-  private drainUnsettledQueries(): void {
-    const querier = terminalQuerierFor(this.options.stdout)
-    if (querier === undefined || querier.settled()) return
-    drainStdin(this.options.stdin)
-  }
-
-  enterAlternateScreen(): void {
-    this.pause()
-    this.suspendStdin()
-    this.editorHandoverDepth += 1;
-    termWrite(
-      this.options.stdout,
-      enterEditorBytes({ altActive: this.altScreenActive, mouseTracking: this.mouseTracking }),
-    )
-  }
-
-  exitAlternateScreen(): void {
-    if (this.editorHandoverDepth === 0) {
-      this.reassertScreenState('unmatched-exit-collapsed');
-      return;
-    }
-    this.editorHandoverDepth -= 1;
-    termWrite(
-      this.options.stdout,
-      exitEditorBytes({ altActive: this.altScreenActive, mouseTracking: this.mouseTracking }),
-    )
-    this.resumeStdin()
-    if (this.altScreenActive) {
-      this.resetFramesForAltScreen();
-      this.wholeFrameDue = true;
-    } else {
-      this.repaintMainScreen()
-      this.ledger.contaminate('blank-reset')
-    }
-    this.resume()
-    termWrite(this.options.stdout, exitEditorRearmBytes(extendedKeysSupportedNow()))
-  }
-
-  reassertScreenState(reason: string, opts: { repaint?: boolean } = {}): void {
-    if (this.isUnmounted) return
-    this.screenReassertCount += 1
-    logForDebugging(
-      `Screen-state re-assert (${reason}): belief=${this.altScreenActive ? 'alt-screen' : 'main-screen'}`,
-    )
-    if (this.altScreenActive) {
-      termWrite(this.options.stdout, ENTER_ALT_SCREEN);
-      this.resetFramesForAltScreen();
-      this.wholeFrameDue = true;
-    }
-    this.ledger.contaminate('self-heal');
-    if (opts.repaint !== false) this.repaint();
-  }
-
-  armScreenWatchdog(): void {
-    this.watchdogCommitsRemaining = WATCHDOG_COMMIT_BUDGET
-    this.zeroByteRenderStreak = 0
-  }
-
-  private reenterAltScreen(): void {
-    termWrite(this.options.stdout, reenterAltBytes(this.mouseTracking))
-    this.resetFramesForAltScreen()
-  }
-
-  private attachStopListeners(): void {
-    if (this.stopListenersAttached || !stopSignalsSupported()) return
-    for (const signal of POSIX_STOP_SIGNALS) process.on(signal, this.stopForSignal)
-    this.stopListenersAttached = true
-  }
-
-  private detachStopListeners(): void {
-    if (!this.stopListenersAttached) return
-    for (const signal of POSIX_STOP_SIGNALS) process.off(signal, this.stopForSignal)
-    this.stopListenersAttached = false
-  }
-
-  private teardownHost(): TeardownHost {
-    return {
-      altScreenActive: this.altScreenActive,
-      tabStatusSupported: supportsTabStatus(),
-      write: bytes => {
-        writeAllSync(1, Buffer.from(bytes, 'utf8'))
-      },
-      drainStdin: () => drainStdin(this.options.stdin),
-      resetPointer: resetPointerShape,
-    }
-  }
-
-  private stopForSignal = (signal: NodeJS.Signals): void => {
-    if (!isStopSignal(signal)) return
-    this.detachStopListeners()
-    if (this.isTTY && !this.isUnmounted) {
-      const receipt = restoreTerminalForStop(signal, this.teardownHost(), this.options.stdin)
-      this.rawModeOffForStop = receipt.rawModeOff
-    }
-    try {
-      process.kill(process.pid, signal)
-    } catch {
-    }
-    if (!this.isUnmounted) this.attachStopListeners()
-  }
-
-  private resumeAfterContinue = (): void => {
-    if (!this.isTTY || this.isUnmounted) return
-    if (this.rawModeOffForStop) {
-      this.rawModeOffForStop = false
-      try {
-        this.options.stdin.setRawMode(true)
-      } catch {
-      }
-    }
-    this.attachStopListeners()
-    if (streamTakesWrites(this.options.stdout)) {
-      termWrite(
-        this.options.stdout,
-        continueRearmBytes({
-          extendedKeys: extendedKeysSupportedNow(),
-          altActive: this.altScreenActive,
-          mouseTracking: this.mouseTracking,
-        }),
-      )
-      if (shutdownReleaseObligations().includes('cursor-hidden')) {
-        termWrite(this.options.stdout, HIDE_CURSOR)
-      }
-    }
-    if (this.altScreenActive) {
-      this.reenterAltScreen();
-      this.armScreenWatchdog();
-      this.wholeFrameDue = true
-      this.scheduleRender()
-      return
-    }
-    this.frontFrame = emptyFrame(
-      this.frontFrame.viewport.height,
-      this.frontFrame.viewport.width,
-      this.stylePool,
-      this.charPool,
-      this.hyperlinkPool,
-    )
-    this.backFrame = emptyFrame(
-      this.backFrame.viewport.height,
-      this.backFrame.viewport.width,
-      this.stylePool,
-      this.charPool,
-      this.hyperlinkPool,
-    )
-    this.ledger.syncAfterDeliberateReset()
-    this.displayCursor = null
-    this.ledger.contaminate('blank-reset')
-    this.scheduleRender()
-  }
-
-  reassertTerminalModes(includeAltScreen = false): void {
-    if (!this.isTTY) return
-    if (this.isPaused || this.isUnmounted) return
-    if (!streamTakesWrites(this.options.stdout)) return
-    termWrite(
-      this.options.stdout,
-      reassertModesBytes({
-        extendedKeys: extendedKeysSupportedNow(),
-        altActive: this.altScreenActive,
-        mouseTracking: this.mouseTracking,
-      }),
-    )
-    if (includeAltScreen && this.altScreenActive) {
-      termWrite(this.options.stdout, wakeReenterAltBytes(this.mouseTracking))
-      this.resetFramesForAltScreen()
-      this.wholeFrameDue = true
-      this.scheduleRender()
-    }
-  }
-
-  repaintAfterNestedAltScreenClose(): void {
-    if (!this.altScreenActive) return
-    this.resetFramesForAltScreen()
-    this.wholeFrameDue = true
-    this.scheduleRender()
-  }
-
-  armAltScreenTakeover(): void {
-    this.wholeFrameDue = true;
-    this.ledger.contaminate('takeover')
-  }
-
-  armAltScreenEntry(bytes: string): void {
-    this.pendingAltEntry = bytes
-    this.ledger.contaminate('takeover')
-  }
-
-  isAltEntryPending(): boolean {
-    return this.pendingAltEntry !== null
-  }
-
-  forceRedraw(): void {
-    if (!this.isTTY || this.isUnmounted || this.isPaused) return
-    if (this.altScreenActive) {
-      this.resetFramesForAltScreen()
-      this.wholeFrameDue = true
-    } else {
-      termWrite(this.options.stdout, ERASE_SCREEN + CURSOR_HOME)
-      this.repaintMainScreen()
-    }
-    this.ledger.contaminate('force-redraw')
-    this.onRender()
-  }
-
-  repaintAltScreen(): void {
-    if (!this.isTTY || this.isUnmounted || this.isPaused) return
-    if (!this.altScreenActive) {
-      this.forceRedraw()
-      return
-    }
-    this.resetFramesForAltScreen()
-    this.wholeFrameDue = true
-    this.onRender()
-  }
-
-  overwriteScreen(): void {
-    if (!this.altScreenActive || this.isUnmounted || this.overwriteTimer !== null) return
-    const wait = OVERWRITE_MIN_GAP_MS - (performance.now() - this.wholeFrameAt)
-    if (wait > 0) {
-      this.overwriteTimer = setTimeout(() => {
-        this.overwriteTimer = null
-        this.overwriteScreen()
-      }, wait)
-      this.overwriteTimer.unref?.()
-      return
-    }
-    this.wholeFrameDue = true
-    this.scheduleRender()
-  }
-
-  invalidatePrevFrame(): void {
-    this.ledger.contaminate('overlay-unmount')
-  }
-
-  repaint(): void {
-    if (this.altScreenActive) {
-      this.resetFramesForAltScreen()
-    } else {
-      this.repaintMainScreen()
-      this.ledger.contaminate('blank-reset')
-    }
-    this.onRender()
-  }
-
-  pause(): void {
-    this.drainUnsettledQueries()
-    reconciler.flushSyncWork()
-    this.onRender()
-    this.isPaused = true
-  }
-
-  resume(): void {
-    this.isPaused = false
-    this.onRender()
-  }
-
-
-  private notifySelectionChange = (): void => {
-    this.onRender()
-    for (const listener of this.selectionListeners) listener()
-  }
-
-  subscribeToSelectionChange(callback: () => void): () => void {
-    this.selectionListeners.add(callback)
-    return () => {
-      this.selectionListeners.delete(callback)
-    }
-  }
-
-  hasTextSelection(): boolean {
-    return hasSelection(this.selection)
-  }
-
-  private applySelectionClipBand(col: number, row: number): void {
-    try {
-      const hit = hitTest(this.rootNode, col, row)
-      let owner: DOMElement | null = null
-      let node: DOMElement | undefined = hit ?? undefined
-      while (node) {
-        if (node.scroll?.scrollTop !== undefined || node.scroll?.scrollHeight !== undefined) {
-          owner = node
-          break
-        }
-        node = node.parentNode
-      }
-      const region = owner ?? hit
-      const rect = region ? nodeCache.get(region) : undefined
-      if (!rect) {
-        clearSelection(this.selection)
-        return
-      }
-      setSelectionClipBand(
-        this.selection,
-        rect.x,
-        rect.x + rect.width - 1,
-        this.frontFrame.screen.width,
-        rect.y,
-        rect.y + rect.height - 1,
-        this.frontFrame.screen.height,
-      )
-    } catch {
-      clearSelection(this.selection)
-    }
-  }
-
-  private offerTextGesture(col: number, row: number, clickCount: 1 | 2 | 3): boolean {
-    this.textGesture = null
-    let node: DOMElement | undefined = hitTest(this.rootNode, col, row) ?? undefined
-    while (node) {
-      const handler = (node._eventHandlers as EventHandlerProps | undefined)?.onTextGesture
-      if (handler) {
-        const rect = nodeCache.get(node)
-        if (!rect) return false
-        const claimed =
-          handler({ kind: 'press', localCol: col - rect.x, localRow: row - rect.y, clickCount }) === true
-        if (claimed) this.textGesture = { handler, rect }
-        return claimed
-      }
-      node = node.parentNode
-    }
-    return false
-  }
-
-  private textGestureTookPress(): void {
-    if (this.selection.anchor === null) return
-    clearSelection(this.selection)
-    this.notifySelectionChange()
-  }
-
-  handleSelectionStart(col: number, row: number, pressHadAlt = false): void {
-    if (!this.altScreenActive) return
-    if (this.offerTextGesture(col, row, 1)) {
-      this.textGestureTookPress()
-      return
-    }
-    startSelection(this.selection, col, row)
-    this.selection.lastPressHadAlt = pressHadAlt
-    this.applySelectionClipBand(col, row)
-    this.notifySelectionChange()
-  }
-
-  handleMultiClick(col: number, row: number, count: 2 | 3): void {
-    if (!this.altScreenActive) return
-    if (this.offerTextGesture(col, row, count)) {
-      this.textGestureTookPress()
-      return
-    }
-    startSelection(this.selection, col, row)
-    this.applySelectionClipBand(col, row)
-    const screen = this.frontFrame.screen
-    if (count === 2) selectWordAt(this.selection, screen, col, row)
-    else selectLineAt(this.selection, screen, row)
-    if (this.selection.focus === null && this.selection.anchor) {
-      this.selection.focus = { ...this.selection.anchor }
-    }
-    this.notifySelectionChange()
-  }
-
-  handleSelectionDrag(col: number, row: number): void {
-    if (!this.altScreenActive) return
-    if (this.textGesture) {
-      const { handler, rect } = this.textGesture
-      handler({ kind: 'drag', localCol: col - rect.x, localRow: row - rect.y, clickCount: 1 })
-      return
-    }
-    const s = this.selection
-    const anchor = s.anchor
-    const focus = s.focus
-    if (s.anchorSpan) {
-      extendSelection(s, this.frontFrame.screen, col, row)
-    } else {
-      updateSelection(s, col, row)
-    }
-    if (samePoint(s.anchor, anchor) && samePoint(s.focus, focus)) return
-    this.notifySelectionChange()
-  }
-
-  handleSelectionRelease(col: number, row: number): boolean {
-    const gesture = this.textGesture
-    if (!gesture) return false
-    this.textGesture = null
-    gesture.handler({ kind: 'release', localCol: col - gesture.rect.x, localRow: row - gesture.rect.y, clickCount: 1 })
-    return true
-  }
-
-  moveSelectionFocus(move: FocusMove): void {
-    if (!this.altScreenActive) return
-    const focus = this.selection.focus
-    if (!focus) return
-    const width = this.frontFrame.screen.width
-    const height = this.frontFrame.screen.height
-    let { col, row } = focus
-    switch (move) {
-      case 'left':
-        if (col > 0) col--
-        else if (row > 0) {
-          row--
-          col = width - 1
-        }
-        break
-      case 'right':
-        if (col < width - 1) col++
-        else if (row < height - 1) {
-          row++
-          col = 0
-        }
-        break
-      case 'up':
-        row = Math.max(0, row - 1)
-        break
-      case 'down':
-        row = Math.min(height - 1, row + 1)
-        break
-      case 'lineStart':
-        col = 0
-        break
-      case 'lineEnd':
-        col = width - 1
-        break
-    }
-    if (col === focus.col && row === focus.row) return
-    moveFocus(this.selection, col, row)
-    this.notifySelectionChange()
-  }
-
-  copySelectionNoClear(): string {
-    if (!hasSelection(this.selection)) return ''
-    const text = getSelectedText(this.selection, this.frontFrame.screen)
-    if (text) {
-      void setClipboard(text)
-        .then(sequence => {
-          if (sequence) termWrite(this.options.stdout, sequence)
-        })
-        .catch(logError)
-    }
-    return text
-  }
-
-  copySelection(): string {
-    if (!hasSelection(this.selection)) return ''
-    const text = this.copySelectionNoClear()
-    clearSelection(this.selection)
-    this.notifySelectionChange()
-    return text
-  }
-
-  copyText(text: string): void {
-    if (!text) return
-    void setClipboard(text)
-      .then(sequence => {
-        if (sequence) termWrite(this.options.stdout, sequence)
-      })
-      .catch(logError)
-  }
-
-  clearTextSelection(): void {
-    if (!hasSelection(this.selection)) return
-    clearSelection(this.selection)
-    this.notifySelectionChange()
-  }
-
-  setSelectionBgColor(color: string): void {
-    const marker = '\0'
-    const painted = colorize(marker, color, 'background')
-    const index = painted.indexOf(marker)
-    if (index <= 0 || index >= painted.length - 1) {
-      this.stylePool.setSelectionBg(null)
-      return
-    }
-    this.stylePool.setSelectionBg({
-      type: 'ansi',
-      code: painted.slice(0, index),
-      endCode: painted.slice(index + 1),
-    })
-  }
-
-  setSearchHighlight(query: string): void {
-    if (query === this.searchQuery) return
-    this.searchQuery = query
-    this.scheduleRender()
-  }
-
-  setSearchPositions(state: SearchPositions | null): void {
-    this.searchPositions = state
-    this.scheduleRender()
-  }
-
-  scanElementSubtree(el: DOMElement): MatchPosition[] {
-    if (!this.searchQuery) return []
-    const layout = el.layoutNode
-    if (!layout) return []
-    const width = Math.ceil(layout.getComputedWidth())
-    const height = Math.ceil(layout.getComputedHeight())
-    if (width <= 0 || height <= 0) return []
-    const screen = createScreen(width, height, this.stylePool, this.charPool, this.hyperlinkPool)
-    const buffer = new ComposeBuffer({ width, height, stylePool: this.stylePool, screen })
-    composeTree(el, buffer, {
-      offsetX: -layout.getComputedLeft(),
-      offsetY: -layout.getComputedTop(),
-      prevScreen: undefined,
-    })
-    const composed = buffer.get()
-    markDirty(el)
-    const positions = scanPositions(composed, this.searchQuery)
-    logForDebugging(
-      `scanElementSubtree: query=${JSON.stringify(this.searchQuery)} ${width}x${height} matches=${positions.length} first=${JSON.stringify(positions.slice(0, 3))}`,
-    )
-    return positions
-  }
-
-  getHyperlinkAt(col: number, row: number): string | undefined {
-    if (!this.altScreenActive) return undefined
-    const screen = this.frontFrame.screen
-    const cell = cellAt(screen, col, row)
-    if (cell?.hyperlink) return cell.hyperlink
-    if (cell?.width === CellWidth.SpacerTail && col > 0) {
-      const head = cellAt(screen, col - 1, row)
-      if (head?.hyperlink) return head.hyperlink
-    }
-    return findPlainTextUrlAt(screen, col, row)
-  }
-
-  openHyperlink = (url: string): void => {
-    this.onHyperlinkClick?.(url)
-  }
-
-  dispatchClick(col: number, row: number): boolean {
-    if (!this.altScreenActive) return false
-    return dispatchClickInTree(this.rootNode, col, row, this.pointerOnBlank(col, row))
-  }
-
-  private pointerOnBlank(col: number, row: number): boolean {
-    const screen = this.frontFrame.screen
-    if (!isInklessCellAt(screen, col, row, this.stylePool)) return false
-    const hit = hitTest(this.rootNode, col, row)
-    const box = hit === null ? undefined : nodeCache.get(hit)
-    return box === undefined || !inkFlanksCellAt(screen, col, row, Math.floor(box.x), Math.floor(box.x + box.width), this.stylePool)
-  }
-
-  dispatchHover(col: number, row: number): void {
-    if (!this.altScreenActive) return
-    const screen = this.frontFrame.screen
-    const selectable =
-      col >= 0 &&
-      row >= 0 &&
-      col < screen.width &&
-      row < screen.height &&
-      screen.noSelect[row * screen.width + col] !== 1 &&
-      !isEmptyCellAt(screen, col, row)
-    applyPointerShape(selectable, s => termWrite(this.options.stdout, s))
-    dispatchHoverInTree(this.rootNode, col, row, this.hoveredNodes)
-  }
-
-  dispatchKeyboardEvent(parsedKey: ParsedKey): void {
-    const target = this.focusManager.activeElement ?? this.rootNode
-    const event = new KeyboardEvent(parsedKey)
-    const notPrevented = dispatcher.dispatchDiscrete(target, event)
-    if (notPrevented && event.key === 'tab' && !event.ctrl && !event.meta) {
-      if (event.shift) this.focusManager.focusPrevious(this.rootNode)
-      else this.focusManager.focusNext(this.rootNode)
-    }
-  }
-
-  private setCursorDeclaration = (
-    declaration: CursorDeclaration | null,
-    clearIfNode?: DOMElement | null,
-  ): void => {
-    if (declaration === null && clearIfNode) {
-      if (this.cursorDeclaration?.node !== clearIfNode) return
-    }
-    this.cursorDeclaration = declaration
-  }
-
-
-  drainStdin(): void {
-    drainStdin(this.options.stdin)
-  }
-
-  suspendStdin(): void {
-    const { stdin } = this.options
-    if (!stdin.isTTY) return
-    markConsoleLent()
-    const listeners = stdin.listeners('readable') as Array<(...args: unknown[]) => void>
-    for (const listener of listeners) stdin.removeListener('readable', listener)
-    this.storedReadableListeners = listeners
-    const rawWasOn = stdin.isRaw === true
-    logForDebugging(
-      `suspendStdin: removed ${listeners.length} readable listener(s), raw=${rawWasOn}`,
-    )
-    if (rawWasOn) {
-      this.consoleReadHeld = holdConsoleRead(stdin)
-      stdin.setRawMode(false)
-      this.wasRawMode = true
-    }
-  }
-
-  resumeStdin(): void {
-    const { stdin } = this.options
-    if (!stdin.isTTY) return
-    if (
-      (this.storedReadableListeners === null || this.storedReadableListeners.length === 0) &&
-      !this.wasRawMode
-    ) {
-      logForDebugging('resumeStdin: nothing stored — possible desync, re-asserting screen state', {
-        level: 'warn',
-      })
-      this.reassertScreenState('resume-desync')
-    }
-    for (const listener of this.storedReadableListeners ?? []) {
-      stdin.addListener('readable', listener)
-    }
-    this.storedReadableListeners = null
-    markConsoleReturned()
-    if (this.wasRawMode) {
-      stdin.setRawMode(true)
-      if (this.consoleReadHeld) {
-        this.consoleReadHeld = false
-        stdin.read(0)
-      }
-      this.wasRawMode = false;
-    }
-    this.reconcileSize();
-    this.armScreenWatchdog();
-  }
-
-  recoverStdin = (code: string, syscall: string): void => {
-    if (this.isUnmounted || !this.isTTY || this.stdinRecoveryArmed) return
-    this.stdinRecoveryArmed = true
-    setTimeout(() => this.rearmStdinAfterFault(code, syscall, 1), STDIN_REARM_DELAY_MS)
-  }
-
-  private rearmStdinAfterFault(code: string, syscall: string, attempt: number): void {
-    if (this.isUnmounted) {
-      this.stdinRecoveryArmed = false
-      return
-    }
-    const stdin = this.options.stdin
-    const label = `stdin recovery after ${syscall} ${code}`
-    if (stdin.destroyed) {
-      let fresh: NodeJS.ReadStream
-      try {
-        fresh = new TtyReadStream(0) as unknown as NodeJS.ReadStream
-      } catch (error) {
-        logForDebugging(`${label}: the reader was destroyed and a fresh one could not open the terminal — ${String(error)}`, { level: 'warn' })
-        this.stdinRecoveryArmed = false
-        return
-      }
-      ;(this.options as { stdin: NodeJS.ReadStream }).stdin = fresh
-      this.storedReadableListeners = null
-      this.wasRawMode = false
-      this.consoleReadHeld = false
-      markConsoleLent()
-      try {
-        if (this.currentTree !== null) this.render(this.currentTree)
-      } finally {
-        markConsoleReturned()
-      }
-      logForDebugging(`${label}: the reader was destroyed by the hand-off — a fresh reader on the same terminal takes over (raw=${fresh.isRaw === true})`, { level: 'warn' })
-      this.stdinRecoveryArmed = false
-      return
-    }
-    if (!rawModeOn(stdin)) {
-      markConsoleLent()
-      try {
-        stdin.setRawMode(true)
-      } finally {
-        markConsoleReturned()
-      }
-      if (!rawModeOn(stdin)) {
-        if (attempt < STDIN_REARM_ATTEMPTS) {
-          setTimeout(() => this.rearmStdinAfterFault(code, syscall, attempt + 1), STDIN_REARM_DELAY_MS)
-          return
-        }
-        logForDebugging(`${label}: raw mode could not be re-armed in ${attempt} tries — keys may not arrive until the terminal is re-opened`, { level: 'warn' })
-        this.stdinRecoveryArmed = false
-        return
-      }
-    }
-    logForDebugging(`${label}: input re-armed on try ${attempt} (raw mode on, the session stays)`, { level: 'warn' })
-    this.stdinRecoveryArmed = false
-  }
-
-
-  patchConsole(): () => void {
-    const restorers: Array<() => void> = []
-    const consoleRecord = console as unknown as Record<string, (...args: unknown[]) => void>
-    for (const method of CONSOLE_DEBUG_METHODS) {
-      const original = consoleRecord[method]
-      if (typeof original !== 'function') continue
-      consoleRecord[method] = (...args: unknown[]) => {
-        logForDebugging(`[console.${method}] ${formatArgs(...args)}`)
-      }
-      restorers.push(() => {
-        consoleRecord[method] = original
-      })
-    }
-    for (const method of CONSOLE_ERROR_METHODS) {
-      const original = consoleRecord[method]
-      if (typeof original !== 'function') continue
-      consoleRecord[method] = (...args: unknown[]) => {
-        logError(new Error(`[console.${method}] ${formatArgs(...args)}`))
-      }
-      restorers.push(() => {
-        consoleRecord[method] = original
-      })
-    }
-    const originalAssert = console.assert
-    console.assert = (condition?: unknown, ...args: unknown[]) => {
-      if (!condition) logError(new Error(`[console.assert] ${formatArgs(...args)}`))
-    }
-    restorers.push(() => {
-      console.assert = originalAssert
-    })
-    restorers.push(this.interceptStderr())
-    return () => {
-      for (const restore of restorers) restore()
-    }
-  }
-
-  private interceptStderr(): () => void {
-    const stream = this.options.stderr
-    const originalWrite = stream.write.bind(stream)
-    let reentered = false
-    const intercept = (
-      chunk: unknown,
-      encodingOrCallback?: unknown,
-      maybeCallback?: unknown,
-    ): boolean => {
-      const callback =
-        typeof encodingOrCallback === 'function'
-          ? (encodingOrCallback as (error?: Error | null) => void)
-          : typeof maybeCallback === 'function'
-            ? (maybeCallback as (error?: Error | null) => void)
-            : undefined
-      if (reentered) {
-        return typeof encodingOrCallback === 'function'
-          ? originalWrite(chunk as string, encodingOrCallback as () => void)
-          : originalWrite(chunk as string, encodingOrCallback as BufferEncoding, maybeCallback as () => void)
-      }
-      reentered = true
-      try {
-        const text = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk)
-        logForDebugging(`[stderr] ${text}`, { level: 'warn' })
-        if (this.altScreenActive && !this.isUnmounted && !this.isPaused) {
-          this.ledger.contaminate('stderr-leak')
-          this.scheduleRender()
-        }
-      } catch {
-      } finally {
-        reentered = false
-        callback?.(null)
-      }
-      return true
-    }
-    stream.write = intercept as typeof stream.write
-    return () => {
-      if (stream.write === (intercept as typeof stream.write)) {
-        stream.write = originalWrite as typeof stream.write
-      }
-    }
-  }
-
-
-  private writeRaw = (data: string): void => {
-    termWrite(this.options.stdout, data)
-  }
+  recoverFromRenderFault(error: unknown): void { recoverFromRenderFault.call(this, error) }
+  renderFrame(): void { renderFrame.call(this) }
+  subscribeFrame(listener: () => void): () => void { return subscribeFrame.call(this, listener) }
+  resolveCursorTarget(): CursorPoint | null { return resolveCursorTarget.call(this) }
+  rowText(screen: Screen, y: number): string { return rowText.call(this, screen, y) }
+  teeBeforeDiff(base: Frame, next: Frame): void { teeBeforeDiff.call(this, base, next) }
+  teeAfterDiff(patches: Patch[]): void { teeAfterDiff.call(this, patches) }
+  dumpTree(reason: string | null): void { dumpTree.call(this, reason) }
+  get isAltScreenActive(): boolean { return this.altScreenActive }
+  setAltScreenActive(active: boolean, mouseTracking = true): void { setAltScreenActive.call(this, active, mouseTracking) }
+  isMouseTrackingEnabled(): boolean { return this.mouseTracking }
+  confirmWheelReporting(): void { if (this.altScreenActive && this.mouseTracking) this.wheelReportingConfirmed = true }
+  isWheelReportingConfirmed(): boolean { return this.wheelReportingConfirmed }
+  registerTranscriptScrollTarget(target: () => boolean): () => void { return registerTranscriptScrollTarget.call(this, target) }
+  hasScrollableTranscriptTarget(): boolean { return this.transcriptScrollTarget?.() === true }
+  registerArrowKeyOwner(owns: () => boolean): () => void { return registerArrowKeyOwner.call(this, owns) }
+  arrowKeysOwned(): boolean { return arrowKeysOwned.call(this) }
+  isMouseTrackingPreferred(): boolean { return this.mouseTrackingPref }
+  setMouseTrackingEnabled(on: boolean): void { setMouseTrackingEnabled.call(this, on) }
+  awaitTerminalQueries(): Promise<void> { return awaitTerminalQueries.call(this) }
+  drainUnsettledQueries(): void { drainUnsettledQueries.call(this) }
+  enterAlternateScreen(): void { enterAlternateScreen.call(this) }
+  exitAlternateScreen(): void { exitAlternateScreen.call(this) }
+  reassertScreenState(reason: string, opts: { repaint?: boolean } = {}): void { reassertScreenState.call(this, reason, opts) }
+  armScreenWatchdog(): void { armScreenWatchdog.call(this) }
+  reenterAltScreen(): void { reenterAltScreen.call(this) }
+  attachStopListeners(): void { attachStopListeners.call(this) }
+  detachStopListeners(): void { detachStopListeners.call(this) }
+  teardownHost(): TeardownHost { return teardownHost.call(this) }
+  stopForSignal = (signal: NodeJS.Signals): void => stopForSignal.call(this, signal)
+  private resumeAfterContinue = (): void => resumeAfterContinue.call(this)
+  reassertTerminalModes(includeAltScreen = false): void { reassertTerminalModes.call(this, includeAltScreen) }
+  repaintAfterNestedAltScreenClose(): void { repaintAfterNestedAltScreenClose.call(this) }
+  armAltScreenTakeover(): void { armAltScreenTakeover.call(this) }
+  armAltScreenEntry(bytes: string): void { armAltScreenEntry.call(this, bytes) }
+  isAltEntryPending(): boolean { return this.pendingAltEntry !== null }
+  forceRedraw(): void { forceRedraw.call(this) }
+  repaintAltScreen(): void { repaintAltScreen.call(this) }
+  overwriteScreen(): void { overwriteScreen.call(this) }
+  invalidatePrevFrame(): void { this.ledger.contaminate('overlay-unmount') }
+  repaint(): void { repaint.call(this) }
+  pause(): void { pause.call(this) }
+  resume(): void { resume.call(this) }
+  notifySelectionChange = (): void => notifySelectionChange.call(this)
+  subscribeToSelectionChange(callback: () => void): () => void { return subscribeToSelectionChange.call(this, callback) }
+  hasTextSelection(): boolean { return hasSelection(this.selection) }
+  applySelectionClipBand(col: number, row: number): void { applySelectionClipBand.call(this, col, row) }
+  offerTextGesture(col: number, row: number, clickCount: 1 | 2 | 3): boolean { return offerTextGesture.call(this, col, row, clickCount) }
+  textGestureTookPress(): void { textGestureTookPress.call(this) }
+  handleSelectionStart(col: number, row: number, pressHadAlt = false): void { handleSelectionStart.call(this, col, row, pressHadAlt) }
+  handleMultiClick(col: number, row: number, count: 2 | 3): void { handleMultiClick.call(this, col, row, count) }
+  handleSelectionDrag(col: number, row: number): void { handleSelectionDrag.call(this, col, row) }
+  handleSelectionRelease(col: number, row: number): boolean { return handleSelectionRelease.call(this, col, row) }
+  moveSelectionFocus(move: FocusMove): void { moveSelectionFocus.call(this, move) }
+  copySelectionNoClear(): string { return copySelectionNoClear.call(this) }
+  copySelection(): string { return copySelection.call(this) }
+  copyText(text: string): void { copyText.call(this, text) }
+  clearTextSelection(): void { clearTextSelection.call(this) }
+  setSelectionBgColor(color: string): void { setSelectionBgColor.call(this, color) }
+  setSearchHighlight(query: string): void { setSearchHighlight.call(this, query) }
+  setSearchPositions(state: SearchPositions | null): void { setSearchPositions.call(this, state) }
+  scanElementSubtree(el: DOMElement): MatchPosition[] { return scanElementSubtree.call(this, el) }
+  getHyperlinkAt(col: number, row: number): string | undefined { return getHyperlinkAt.call(this, col, row) }
+  openHyperlink = (url: string): void => { this.onHyperlinkClick?.(url) }
+  dispatchClick(col: number, row: number): boolean { return dispatchClick.call(this, col, row) }
+  pointerOnBlank(col: number, row: number): boolean { return pointerOnBlank.call(this, col, row) }
+  dispatchHover(col: number, row: number): void { dispatchHover.call(this, col, row) }
+  dispatchKeyboardEvent(parsedKey: ParsedKey): void { dispatchKeyboardEvent.call(this, parsedKey) }
+  private setCursorDeclaration = (declaration: CursorDeclaration | null, clearIfNode?: DOMElement | null): void => setCursorDeclaration.call(this, declaration, clearIfNode)
+  drainStdin(): void { drainStdin(this.options.stdin) }
+  suspendStdin(): void { suspendStdin.call(this) }
+  resumeStdin(): void { resumeStdin.call(this) }
+  recoverStdin = (code: string, syscall: string): void => recoverStdin.call(this, code, syscall)
+  rearmStdinAfterFault(code: string, syscall: string, attempt: number): void { rearmStdinAfterFault.call(this, code, syscall, attempt) }
+  patchConsole(): () => void { return patchConsole.call(this) }
+  interceptStderr(): () => void { return interceptStderr.call(this) }
+  private writeRaw = (data: string): void => { termWrite(this.options.stdout, data) }
 
   render(node: ReactNode): void {
     this.currentTree = node
@@ -1980,81 +398,9 @@ export default class Ink {
     reconciler.flushSyncWork()
   }
 
-  private onStdinResume = (): void => {
-    this.reassertTerminalModes(false)
-  }
-
-  unmount = (error?: Error | number | null): void => {
-    if (this.isUnmounted) return
-    this.onRender()
-    this.unsubscribeExit()
-    if (this.restoreConsole) {
-      this.restoreConsole()
-      this.restoreConsole = null
-    }
-    this.removeTtySubscriptions?.()
-    this.removeTtySubscriptions = null
-
-    const finish = optimizePatches(this.writer.finish(this.frontFrame))
-    writeDiffToTerminal(
-      { stdout: this.options.stdout, stderr: this.options.stderr },
-      finish,
-      true,
-    )
-
-    if (this.isTTY) {
-      runTeardownSuite(this.teardownHost())
-    }
-
-    this.isUnmounted = true
-    this.clearResizeSettle()
-    this.scheduler.cancel()
-    reconciler.updateContainerSync(null, this.container, null, null)
-    reconciler.flushSyncWork()
-    if (instances.get(this.options.stdout) === this) instances.delete(this.options.stdout)
-    const layout = this.rootNode.layoutNode
-    if (layout) {
-      layout.free()
-      this.rootNode.layoutNode = undefined
-    }
-
-    const outcome: ExitOutcome =
-      error instanceof Error ? { kind: 'error', error } : { kind: 'ok' }
-    this.exitOutcome = outcome
-    this.exitOutcomeLatch = outcome
-    if (outcome.kind === 'error') this.rejectExitPromise(outcome.error)
-    else this.resolveExitPromise()
-  }
-
-  lastFrameText(): string {
-    return this.writer.fullFrameText(this.frontFrame)
-  }
-
-  waitUntilExit(): Promise<void> {
-    if (this.options.waitUntilExit) return this.options.waitUntilExit()
-    if (this.exitPromise) return this.exitPromise
-    const latch = this.exitOutcomeLatch
-    if (latch) {
-      return latch.kind === 'error' ? Promise.reject(latch.error) : Promise.resolve()
-    }
-    this.exitPromise = new Promise<void>((resolve, reject) => {
-      this.resolveExitPromise = resolve
-      this.rejectExitPromise = reject
-    })
-    return this.exitPromise
-  }
-
-  detachForShutdown(): void {
-    this.isUnmounted = true
-    this.clearResizeSettle()
-    this.scheduler.cancel()
-    drainStdin(this.options.stdin)
-    const { stdin } = this.options
-    if (stdin.isTTY && stdin.isRaw) {
-      try {
-        stdin.setRawMode(false)
-      } catch {
-      }
-    }
-  }
+  private onStdinResume = (): void => { this.reassertTerminalModes(false) }
+  unmount = (error?: Error | number | null): void => unmount.call(this, error)
+  lastFrameText(): string { return this.writer.fullFrameText(this.frontFrame) }
+  waitUntilExit(): Promise<void> { return waitUntilExit.call(this) }
+  detachForShutdown(): void { detachForShutdown.call(this) }
 }
