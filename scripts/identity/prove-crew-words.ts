@@ -32,8 +32,8 @@ type Row = { path: string; fragment: string | null; why: string }
 const ALLOW: Row[] = [
   ...[
     ['src/components/Settings/Usage.tsx', 'the team’s prepaid credits'],
-    ['src/services/providers/providerUsage.ts', 'a management key unlocks the team balance'],
-    ['src/services/providers/providerUsage.ts', 'team usage ('],
+    ['src/services/providers/providerUsage/xai.ts', 'a management key unlocks the team balance'],
+    ['src/services/providers/providerUsage/xai.ts', 'team usage ('],
     ['src/services/providers/xai/xaiLogin.ts', 'its metadata identifies the team whose usage is read'],
     ['src/services/providers/xai/xaiLogin.ts', 'team usage confirmed'],
     ['src/services/providers/xai/xaiLogin.ts', '/usage reads the team meter'],
@@ -51,8 +51,9 @@ const ALLOW: Row[] = [
   { path: 'src/tools/', fragment: null, why: "a tool's prompt.ts is its instructions to the model, not a screen" },
   { path: 'src/tools/SendMessageTool/', fragment: null, why: 'SendMessage keeps working exactly as it does now: its schema, words and results are frozen' },
   { path: 'src/tools/AgentTool/AgentTool.tsx', fragment: null, why: "the Crewmate tool's schema words, launch refusals and receipts are the model's; the one start road rewrites them" },
+  { path: 'src/tools/AgentTool/agent/schema.ts', fragment: null, why: "the Crewmate tool's schema words, launch refusals and receipts are the model's; the one start road rewrites them" },
   ...['omit team for the general timeline', 'swarm_team needs seat and team.', 'swarm_captain needs seat and team.', 'lead-only swarm_team assigns a team', 'Assignment team, or read filter', 'Addressed seats or teams.', 'Additional addressed seats or teams.', 'lead-only team assignments'].map(fragment => ({ path: 'src/services/crewBoard/implementation.ts', fragment, why: 'Board team labels address delivery and channels, not a renamed crew.' })),
-  ...["SELECT DISTINCT json_extract(record, '$.team') AS team", 'Use a team label', 'Only the lead assigns teams.'].map(fragment => ({ path: 'src/services/crewBoard/store.ts', fragment, why: 'The board stores and validates its delivery label, not a crew identity.' })),
+  ...["SELECT DISTINCT json_extract(record, '$.team') AS team", 'Use a team label'].map(fragment => ({ path: 'src/services/crewBoard/store.ts', fragment, why: 'The board stores and validates its delivery label, not a crew identity.' })),
   ...[', team ,', '@team a team'].map(fragment => ({ path: 'src/services/crewBoard/seam.ts', fragment, why: "The enrolment brief names the seat's board team label and the @team address, not a renamed crew" })),
   ...[
     'CREATE TABLE IF NOT EXISTS captains',
@@ -61,14 +62,10 @@ const ALLOW: Row[] = [
     'SELECT team, agent FROM captains ORDER BY rowid',
     "SELECT agent, value FROM interests JOIN members USING (agent) WHERE kind = 'membership' AND enrolled = 1 UNION ALL SELECT agent, team AS value FROM enrollments",
     'DELETE FROM captains WHERE team = ? COLLATE BINARY',
-    'INSERT INTO enrollments (agent, name, team, captain)',
-    'SELECT name, team, captain FROM enrollments WHERE agent = ?',
     'Name a captain for team',
-    'A captain launch needs name and team.',
-    'Name one enrolled seat in that team.',
-    'Name one team on the board.',
-    'Use general, team or whisper.',
   ].map(fragment => ({ path: 'src/services/crewBoard/store.ts', fragment, why: 'Captain membership and owner-channel routing use the board delivery label.' })),
+  ...['A captain launch needs name and team.', 'INSERT INTO enrollments (agent, name, team, captain)', 'SELECT name, team, captain FROM enrollments WHERE agent = ?', 'Name one enrolled seat in that team.', 'Use a team label', 'Only the lead assigns teams.'].map(fragment => ({ path: 'src/services/crewBoard/store/enrollment.ts', fragment, why: 'Captain membership and owner-channel routing use the board delivery label.' })),
+  ...['Name one team on the board.', 'Use general, team or whisper.'].map(fragment => ({ path: 'src/services/crewBoard/store/posting.ts', fragment, why: 'Captain membership and owner-channel routing use the board delivery label.' })),
   ...[
     'A captain launch needs name and team.',
     'Wait grammar: seat <name-or-id> posts;',
