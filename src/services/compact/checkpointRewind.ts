@@ -1,4 +1,5 @@
 import type { Message, UserMessage } from '../../types/message.js'
+import { shellDirectoryLeftByCd } from '../../utils/cwd.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
 
 export const CHECKPOINT_TOOL_NAME = 'Checkpoint'
@@ -80,10 +81,12 @@ export function createRewindRecordMessage(args: {
   rootFallback: boolean
 }): UserMessage {
   const { checkpointId, goal, report, abandonedMessageCount, rootFallback } = args
+  const shellDirectory = shellDirectoryLeftByCd()
   const lines = [
     `<${REWIND_RECORD_TAG} checkpoint="${checkpointId}"${rootFallback ? ' fallback="root"' : ''}>`,
     `The conversation was rewound to the checkpoint${goal ? ` (goal: ${goal})` : ''}.`,
     `${abandonedMessageCount} message(s) of abandoned exploration were removed from the model context (the operator's transcript keeps them).`,
+    ...(shellDirectory === null ? [] : [shellDirectory]),
     'Report carried back from the exploration:',
     report,
     `</${REWIND_RECORD_TAG}>`,
@@ -93,9 +96,11 @@ export function createRewindRecordMessage(args: {
 
 
 export function createOperatorRewindRecordMessage(args: { turnUuid: string; removed: number }): UserMessage {
+  const shellDirectory = shellDirectoryLeftByCd()
   const lines = [
     `<${REWIND_RECORD_TAG} turn="${args.turnUuid}" by="operator">`,
     `The operator wound the conversation back to before this turn; ${args.removed} message(s) left the model's view (the transcript keeps them).`,
+    ...(shellDirectory === null ? [] : [shellDirectory]),
     `</${REWIND_RECORD_TAG}>`,
   ]
   return createUserMessage({ content: lines.join('\n'), isMeta: true })

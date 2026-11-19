@@ -127,6 +127,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-prefix-wraps-the-record.ts" || { _
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-editor-terminal-shell.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-editor-terminal-shell.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-recorded-shell-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-recorded-shell-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-engine-session-frame.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-engine-session-frame.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-cd-lasts-the-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-cd-lasts-the-session.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"
