@@ -88,24 +88,12 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const pause = options.pauseMs ?? 5000
   const timeout = options.timeoutMs ?? (hostSetupTimeout(hostRecipeOfRecord(initial)) + (['vast', 'lambda', 'hyperstack', 'verda', 'digitalocean'].includes(initial.vendor ?? '') ? bankUploadBudget(hostRecipeOfRecord(initial)) : 0))
   const vendor = initial.vendor ?? 'runpod'
-  let keyRefusal: string | undefined
-  const huggingfaceKey = async (): Promise<string | undefined> => { try { return (await hostHuggingfaceDispatchCredential(initial))?.key } catch (error) { keyRefusal = error instanceof Error ? error.message : String(error); return undefined } }
-  let key = vendor === 'huggingface' ? await huggingfaceKey() : vendorKey(vendor)
   const secrets: string[] = []
-  const clean = (text: string): string => [key, ...secrets].reduce<string>((out, secret) => secret ? out.split(secret).join('[redacted]') : out, text)
-  const mark = (step: string): void => {
-    const record = readHostRecord(id)
-    if (!record || record.generation !== generation || record.jobState === 'stopped') controller.abort()
-    signal.throwIfAborted()
-    if (!record) return
-    if (record.step === step || record.jobState === 'ready' || record.jobState === 'paused' || record.jobState === 'failed') return
-    const at = Date.now()
-    patchHostRecord(id, { step, advancedAt: at, steps: [...(record.steps ?? []), { step, at }] })
-  }
-  const log = (text: string): void => {
-    if (initial.log && text) appendFileSync(initial.log, clean(text) + '\n', { mode: 0o600 })
-    for (const match of text.matchAll(/MERCURY_STEP (.+)/g)) mark(match[1]!.trim().replace(/^downloading weights(?= ·|$)/, 'downloading weights on the machine'))
-  }
+  const run: HostJobRun = { key: undefined, keyRefusal: undefined }
+  const ports: HostJobPorts = { id, generation, initial, controller, signal, vendor, secrets }
+  const tools = hostJobTools(run, ports)
+  const { huggingfaceKey, clean, mark, log } = tools
+  run.key = vendor === 'huggingface' ? await huggingfaceKey() : vendorKey(vendor)
   let offset = 0
   let logBusy = false
   let target: SshTarget | undefined
@@ -146,20 +134,12 @@ export async function runHostJob(id: string, generation: string, options: { runn
       hostNotice(initial, 'banked', initial.name + ' · banked on ' + shortFolder(folder) + ' · ' + bytesWords(receipt.bytes))
       removeHostRecord(id)
     } catch (error) {
-      const current = readHostRecord(id)
-      if (current && current.generation === generation && current.jobState !== 'stopped') {
-        const detail = scrub(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 400)
-        const words = initial.name + ' · ' + (verifying ? 'verification failed: ' + detail + ' · b banks the weights again' : 'banking failed: ' + detail + ' · what was downloaded stays in the folder; b resumes') + ' · /llmhost → Bank'
-        if (recipe && initial.bankFolder) recordBankFailure(recipe, bankModelPath(initial.bankFolder, recipe), detail)
-        log(words)
-        hostNotice(current, 'failed', words)
-        removeHostRecord(id)
-      }
+      hostBankFailed(ports, tools, recipe, verifying, scrub, error)
     } finally { clearInterval(timer) }
     return
   }
   if (initial.jobKind === 'watch') {
-    let created: HostPod | undefined
+    const watch: HostWatchRun = { created: undefined, sshKey: undefined, wait: 0, refused: '' }
     try {
       if (!recipe) throw new Error('The saved host recipe is unavailable.')
       const vendors: HostVendorId[] = initial.watchVendors?.length ? initial.watchVendors : [vendor]
@@ -167,7 +147,6 @@ export async function runHostJob(id: string, generation: string, options: { runn
       for (const name of vendors) { const vendorApiKey = name === 'huggingface' ? await huggingfaceKey() : vendorKey(name); if (vendorApiKey) clients.set(name, vendorClient(name === vendor ? initial : name, { key: vendorApiKey })) }
       if (!clients.size) throw new Error('The saved ' + vendors.map(vendorLabel).join(', ') + ' key is unavailable.')
       const runpod = clients.get('runpod') && runpodOnly(clients.get('runpod')!, 'Fast-load weights disks')
-      let sshKey: Awaited<ReturnType<typeof ensureHostKey>> | undefined
       const pollMs = options.pauseMs ?? initial.pollIntervalMs ?? 5000
       const watchWindowMs = options.timeoutMs ?? initial.pollWindowMs ?? 12 * 3600_000
       const deadline = (initial.jobStartedAt ?? Date.now()) + watchWindowMs
@@ -179,8 +158,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           if (left > 60_000) patchHostRecord(id, { advancedAt: Date.now() })
         }
       }
-      let wait = pollMs
-      let refused = ''
+      watch.wait = pollMs
       while (!signal.aborted && Date.now() < deadline) {
         const current = readHostRecord(id)
         if (!current || current.generation !== generation || current.jobState === 'stopped') return
@@ -231,14 +209,14 @@ export async function runHostJob(id: string, generation: string, options: { runn
           }
         } catch (error) {
           if (signal.aborted || unauthorized(error)) throw error
-          wait = Math.max(Math.min(60_000, wait * 2), (error instanceof RunpodHttpError ? error.retryAfterSeconds ?? 0 : 0) * 1000)
-          const step = (error instanceof RunpodHttpError ? 'Runpod read failed' : stage) + ' · next read in ' + Math.ceil(wait / 1000) + ' s · ' + clean(String(error)).slice(0, 200)
+          watch.wait = Math.max(Math.min(60_000, watch.wait * 2), (error instanceof RunpodHttpError ? error.retryAfterSeconds ?? 0 : 0) * 1000)
+          const step = (error instanceof RunpodHttpError ? 'Runpod read failed' : stage) + ' · next read in ' + Math.ceil(watch.wait / 1000) + ' s · ' + clean(String(error)).slice(0, 200)
           log(step)
           patchHostRecord(id, { step })
-          await rest(wait)
+          await rest(watch.wait)
           continue
         }
-        wait = pollMs
+        watch.wait = pollMs
         const rateLimit = watchRateWords(pollMs, runpod ? runpod.rateLimitPolicy() ?? '' : undefined, [...clients.keys()])
         const afterPoll = readHostRecord(id)
         if (!afterPoll || afterPoll.generation !== generation || afterPoll.jobState === 'stopped') return
@@ -267,8 +245,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
         if (!marked || marked.generation !== generation || marked.jobState === 'stopped') return
         let pod: HostPod
         try {
-          if (!api.capabilities.managed) sshKey ??= await ensureHostKey(runner, signal)
-          pod = await createHostResource(api, offer, sshKey?.publicKey ?? '', podName, mount)
+          if (!api.capabilities.managed) watch.sshKey ??= await ensureHostKey(runner, signal)
+          pod = await createHostResource(api, offer, watch.sshKey?.publicKey ?? '', podName, mount)
         } catch (error) {
           const refusal = hostCreateRefusal(offer.recipe, error)
           if (!refusal) {
@@ -280,14 +258,14 @@ export async function runHostJob(id: string, generation: string, options: { runn
           }
           patchHostRecord(id, { creating: undefined })
           if (refusal.status !== 400 && refusal.status !== 429) throw error
-          refused = vendorLabel(hit) + ' could not place ' + shapeWords + (refusal.detail ? ' · ' + refusal.detail : '')
+          watch.refused = vendorLabel(hit) + ' could not place ' + shapeWords + (refusal.detail ? ' · ' + refusal.detail : '')
           const step = vendorLabel(hit) + ' could not place ' + shapeWords + ' · no ' + hostResourceKind(offer.recipe) + ' was created · still watching' + (refusal.detail ? ' · ' + refusal.detail : '')
           log(step)
           patchHostRecord(id, { step })
           await rest(Math.max(pollMs, (refusal.retryAfterSeconds ?? 0) * 1000))
           continue
         }
-        created = pod
+        watch.created = pod
         const rentedWords = 'Rented ' + model + ' · ' + shapeWords + ' · setting up'
         log(rentedWords)
         const setupRecord = queueHostSetup({
@@ -304,7 +282,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           status: pod.status,
           sessionId: afterPoll.sessionId,
           workspace: afterPoll.workspace,
-          sshKey: api.capabilities.managed ? undefined : sshKey?.path,
+          sshKey: api.capabilities.managed ? undefined : watch.sshKey?.path,
           watchedFrom: id,
           huggingfaceCredential: afterPoll.huggingfaceCredential,
           volumeId: mount?.id,
@@ -320,19 +298,12 @@ export async function runHostJob(id: string, generation: string, options: { runn
       }
       const ended = readHostRecord(id)
       if (ended && ended.generation === generation && ended.jobState !== 'stopped') {
-        const words = 'watch ended after ' + (watchWindowMs >= 3600_000 ? +(watchWindowMs / 3600_000).toFixed(1) + ' hours' : Math.round(watchWindowMs / 1000) + ' s') + (refused ? '' : ' without stock ≤ $' + maxPrice.toFixed(2) + '/hr') + ' · no pod was created' + (refused ? ' · last refusal: ' + refused : '')
+        const words = 'watch ended after ' + (watchWindowMs >= 3600_000 ? +(watchWindowMs / 3600_000).toFixed(1) + ' hours' : Math.round(watchWindowMs / 1000) + ' s') + (watch.refused ? '' : ' without stock ≤ $' + maxPrice.toFixed(2) + '/hr') + ' · no pod was created' + (watch.refused ? ' · last refusal: ' + watch.refused : '')
         const stoppedRecord = patchHostRecord(id, { jobState: 'stopped', status: 'EXPIRED', step: words })!
         hostNotice(stoppedRecord, 'expired', stoppedRecord.name + ' · ' + words)
       }
     } catch (error) {
-      const current = readHostRecord(id)
-      if (current && current.generation === generation && current.jobState !== 'stopped') {
-        const detail = clean(String(error))
-        const words = created ? created.id + ' was created but could not be recorded · ' + detail + ' · /llmhost → Machines I’m paying for' : 'stock watch stopped · ' + detail + (detail.includes('no pod was created') ? '' : ' · no pod was created')
-        const failedRecord = patchHostRecord(id, { jobState: 'failed', error: words })!
-        log(words)
-        hostNotice(failedRecord, 'failed', failedRecord.name + ' · ' + words)
-      }
+      hostWatchFailed(watch, ports, tools, error)
     } finally { clearInterval(timer) }
     return
   }
@@ -340,10 +311,10 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const readOnly = hostJobReadOnly({ label: vendorLabel(vendor), pauseMs: pause, timeoutMs: timeout, deadline, signal, mark })
   const cleanupRead = hostJobReadOnly({ label: vendorLabel(vendor), pauseMs: pause, timeoutMs: timeout, signal, mark })
   try {
-    if (!key) throw new Error(keyRefusal ?? 'The saved ' + vendorLabel(vendor) + ' key is unavailable.')
+    if (!run.key) throw new Error(run.keyRefusal ?? 'The saved ' + vendorLabel(vendor) + ' key is unavailable.')
     if (!recipe) throw new Error('The saved host recipe is unavailable.')
     const tensorfold = isTensorFoldRecipe(recipe) ? tensorFoldPodKey(id) : undefined
-    const api = vendorClient(initial, { key })
+    const api = vendorClient(initial, { key: run.key })
     const failureLog = (read: typeof readOnly): Promise<string> => read('log', readSignal => api.logs(id, readSignal)).catch(error => { signal.throwIfAborted(); return hostReadFailureWords(error) ?? (error instanceof Error ? error.message : String(error)) })
     let endpointBase: string | undefined
     let loadedWeights: string | undefined
@@ -433,7 +404,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       if (!keptWeights) throw new Error('The bank upload returned no folder on the machine; nothing was downloaded.')
     } else if (source.kind === 'private-repo') {
       const token = await huggingfaceKey()
-      if (!token) throw new Error(keyRefusal ?? 'The saved Hugging Face sign-in is unavailable, so ' + source.repo + ' cannot be read; nothing was downloaded. Connect with /logins huggingface and resume.')
+      if (!token) throw new Error(run.keyRefusal ?? 'The saved Hugging Face sign-in is unavailable, so ' + source.repo + ' cannot be read; nothing was downloaded. Connect with /logins huggingface and resume.')
       secrets.push(token)
       keptWeights = await downloadPrivateRepoForRental(source, recipe, token, target, runner, signal, mark, { docker, pod: !vm })
     }
@@ -462,7 +433,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         case 'action': return 'repoint'
         case 'address': return endpointBase!
         case 'dialect': return tensorfold ? 'chat-completions' : recipe.engine ?? 'sglang'
-        case 'key': if (tensorfold) return tensorfold; if (api.capabilities.managed) { key = await huggingfaceKey(); return key ?? null }; if (question.found === LLM_HOST_WORDS.keyOptional) return ''; break
+        case 'key': if (tensorfold) return tensorfold; if (api.capabilities.managed) { run.key = await huggingfaceKey(); return run.key ?? null }; if (question.found === LLM_HOST_WORDS.keyOptional) return ''; break
         case 'model': return question.rows?.find(row => row.value === recipe.model || row.value.startsWith(recipe.model + ':'))?.value ?? (question.rows?.length === 1 ? question.rows[0]!.value : null)
         case 'name':
           if (configuredCompatEndpoints().some(endpoint => endpoint.name === provider)) provider = 'pod-' + randomUUID().replaceAll('-', '').slice(0, 28)
@@ -519,8 +490,8 @@ export async function runHostJob(id: string, generation: string, options: { runn
         if (observed?.retuning && (hostRetuneLive(observed) || (await reconcileHostTune(id, runner, signal))?.retuning)) continue
         let response: Response
         try {
-          if (api.capabilities.managed) key = await huggingfaceKey()
-          response = await fetch(endpointBase + '/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), ...(api.capabilities.managed || tensorfold ? { headers: { Authorization: 'Bearer ' + (tensorfold ?? key) } } : {}), redirect: 'error' })
+          if (api.capabilities.managed) run.key = await huggingfaceKey()
+          response = await fetch(endpointBase + '/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), ...(api.capabilities.managed || tensorfold ? { headers: { Authorization: 'Bearer ' + (tensorfold ?? run.key) } } : {}), redirect: 'error' })
         } catch (error) {
           const current = readHostRecord(id)
           if (current && hostRetuneLive(current) || current?.advancedAt !== observed?.advancedAt) continue
@@ -538,23 +509,12 @@ export async function runHostJob(id: string, generation: string, options: { runn
     const failure = error
     const failedSetup = readHostRecord(id)
     if (error instanceof HostEngineDeath && failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped') {
-      const machine = hostMachineName(vendor, id)
-      const words = machine + ' · ' + clean(error.message) + ' · paused, $' + failedSetup.price.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
-      log(words)
-      const at = error.facts.at
-      const step = 'paused · the engine died after setup'
-      const paused = patchHostRecord(id, { jobState: 'paused', step, error: words, engineDeath: error.facts, linkLost: undefined, advancedAt: at, steps: [...(failedSetup.steps ?? []), { step, at }] }) ?? failedSetup
-      hostNotice(paused, 'paused', initial.name + ' · ' + words)
+      hostPausedByEngineDeath(ports, tools, error, failedSetup)
       closeHostTunnel(id)
       return
     }
     if (error instanceof HostLinkLost && failedSetup && failedSetup.generation === generation && failedSetup.jobState !== 'stopped') {
-      const words = clean(error.message) + ' · paused, $' + failedSetup.price.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
-      log(words)
-      const at = Date.now()
-      const step = 'paused · the link dropped after setup'
-      const paused = patchHostRecord(id, { jobState: 'paused', step, error: words, linkLost: true, advancedAt: at, steps: [...(failedSetup.steps ?? []), { step, at }] }) ?? failedSetup
-      hostNotice(paused, 'paused', initial.name + ' · ' + words + '\n' + error.engineLog)
+      hostPausedByLinkLoss(ports, tools, error, failedSetup)
       closeHostTunnel(id)
       return
     }
@@ -568,7 +528,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       if (error instanceof HostPodMissing) {
         const next = disk ? '/llmhost → Bank → d deletes the disk, or rent again' : '/llmhost to check the setup and rent again'
         try {
-          const cleanupApi = vendorClient(initial, key ? { key } : {})
+          const cleanupApi = vendorClient(initial, run.key ? { key: run.key } : {})
           let listed
           try { listed = await cleanupRead('pod listing', readSignal => cleanupApi.pods(readSignal)) } catch (listing) { throw new HostTerminationUnconfirmed(cleanupApi.label, listing) }
           if (listed.some(row => row.id === id && row.status !== 'TERMINATED')) throw new Error(cleanupApi.label + ' still lists the pod and it may still bill.')
@@ -589,32 +549,115 @@ export async function runHostJob(id: string, generation: string, options: { runn
         closeHostTunnel(id)
         return
       }
-      const machine = initial.cluster ? 'Runpod cluster ' + id + ' (' + (initial.nodes?.length ?? initial.cluster.compute.podCount) + ' nodes)' : hostMachineName(vendor, id)
-      const billing = failedSetup.status === 'EXITED' ? machine + (vendor === 'huggingface' ? ' · Paused · no compute bills' : ' · stopped; disk still bills until Terminate') : failedSetup.status === 'ERROR' ? machine + ' · may still bill' : machine + ' · $' + failedSetup.price.toFixed(2) + '/hr still billing'
-      const resume = failedSetup.status === 'RUNNING' || vendor === 'huggingface' && failedSetup.status === 'EXITED'
-      const words = 'setup paused · ' + detail + ' · ' + billing + (disk ? ' · ' + disk : '') + (resume ? ' · Resume or Terminate in /llmhost' : ' · Terminate in /llmhost')
-      log(words)
-      const at = Date.now()
-      const step = 'paused at ' + (failedSetup.step ?? 'setup').replace(/ · retrying until it does$/, '')
-      const paused = patchHostRecord(id, { jobState: 'paused', step, error: words, advancedAt: at, steps: [...(failedSetup.steps ?? []), { step, at }] }) ?? failedSetup
-      hostNotice(paused, 'paused', initial.name + ' · ' + words)
+      hostSetupPaused(ports, tools, failedSetup, detail, disk)
       closeHostTunnel(id)
       return
     }
-    const current = readHostRecord(id)
-    if (current && current.generation === generation && current.jobState !== 'stopped') {
-      const retried = hostReadFailureWords(failure)
-      const resource = initial.cluster ? 'cluster' : 'pod'
-      const bills = 'Mercury did not terminate the ' + resource + '; it bills $' + current.price.toFixed(2) + '/hr while it runs'
-      const wasReady = current.jobState === 'ready'
-      const detail = clean(retried ? retried + ' · setup paused · ' + bills + ' · Resume retries, Terminate stops the bill' : String(failure))
-      const at = Date.now()
-      const record = patchHostRecord(id, { jobState: retried ? 'paused' : 'failed', error: detail, ...(retried || failure instanceof HostTerminationUnconfirmed ? { step: detail } : {}), ...(retried ? { advancedAt: at, steps: [...(current.steps ?? []), { step: detail, at }] } : {}) })!
-      log(detail)
-      if (retried || failure instanceof HostTerminationUnconfirmed) hostNotice(record, 'failed', record.name + ' · ' + detail + (failure instanceof HostTerminationUnconfirmed ? ' · it may still bill' : '') + ' · /llmhost → Machines I’m paying for')
-      else if (wasReady) hostNotice(record, 'failed', record.name + ' · the tunnel to the ' + resource + ' dropped after setup: ' + detail + ' · ' + bills + ' · /llmhost → Machines I’m paying for → Resume to reconnect, Terminate to stop the bill')
-      else hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Machines I’m paying for → Resume or Terminate')
-    }
+    hostSetupFailed(ports, tools, failure)
     closeHostTunnel(id)
   } finally { clearInterval(timer) }
+}
+
+interface HostJobRun {
+  key: string | undefined
+  keyRefusal: string | undefined
+}
+interface HostJobPorts {
+  id: string
+  generation: string
+  initial: HostRecord
+  controller: AbortController
+  signal: AbortSignal
+  vendor: HostVendorId
+  secrets: string[]
+}
+type HostJobTools = ReturnType<typeof hostJobTools>
+interface HostWatchRun {
+  created: HostPod | undefined
+  sshKey: Awaited<ReturnType<typeof ensureHostKey>> | undefined
+  wait: number
+  refused: string
+}
+function hostJobTools(run: HostJobRun, { id, generation, initial, controller, signal, secrets }: HostJobPorts) {
+  const huggingfaceKey = async (): Promise<string | undefined> => { try { return (await hostHuggingfaceDispatchCredential(initial))?.key } catch (error) { run.keyRefusal = error instanceof Error ? error.message : String(error); return undefined } }
+  const clean = (text: string): string => [run.key, ...secrets].reduce<string>((out, secret) => secret ? out.split(secret).join('[redacted]') : out, text)
+  const mark = (step: string): void => {
+    const record = readHostRecord(id)
+    if (!record || record.generation !== generation || record.jobState === 'stopped') controller.abort()
+    signal.throwIfAborted()
+    if (!record) return
+    if (record.step === step || record.jobState === 'ready' || record.jobState === 'paused' || record.jobState === 'failed') return
+    const at = Date.now()
+    patchHostRecord(id, { step, advancedAt: at, steps: [...(record.steps ?? []), { step, at }] })
+  }
+  const log = (text: string): void => {
+    if (initial.log && text) appendFileSync(initial.log, clean(text) + '\n', { mode: 0o600 })
+    for (const match of text.matchAll(/MERCURY_STEP (.+)/g)) mark(match[1]!.trim().replace(/^downloading weights(?= ·|$)/, 'downloading weights on the machine'))
+  }
+  return { huggingfaceKey, clean, mark, log }
+}
+function hostBankFailed({ id, generation, initial }: HostJobPorts, { log }: HostJobTools, recipe: HostRecipe | undefined, verifying: boolean, scrub: (text: string) => string, error: unknown): void {
+  const current = readHostRecord(id)
+  if (current && current.generation === generation && current.jobState !== 'stopped') {
+    const detail = scrub(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 400)
+    const words = initial.name + ' · ' + (verifying ? 'verification failed: ' + detail + ' · b banks the weights again' : 'banking failed: ' + detail + ' · what was downloaded stays in the folder; b resumes') + ' · /llmhost → Bank'
+    if (recipe && initial.bankFolder) recordBankFailure(recipe, bankModelPath(initial.bankFolder, recipe), detail)
+    log(words)
+    hostNotice(current, 'failed', words)
+    removeHostRecord(id)
+  }
+}
+function hostWatchFailed(watch: HostWatchRun, { id, generation }: HostJobPorts, { clean, log }: HostJobTools, error: unknown): void {
+  const current = readHostRecord(id)
+  if (current && current.generation === generation && current.jobState !== 'stopped') {
+    const detail = clean(String(error))
+    const words = watch.created ? watch.created.id + ' was created but could not be recorded · ' + detail + ' · /llmhost → Machines I’m paying for' : 'stock watch stopped · ' + detail + (detail.includes('no pod was created') ? '' : ' · no pod was created')
+    const failedRecord = patchHostRecord(id, { jobState: 'failed', error: words })!
+    log(words)
+    hostNotice(failedRecord, 'failed', failedRecord.name + ' · ' + words)
+  }
+}
+function hostPausedByEngineDeath({ id, initial, vendor }: HostJobPorts, { clean, log }: HostJobTools, error: HostEngineDeath, failedSetup: HostRecord): void {
+  const machine = hostMachineName(vendor, id)
+  const words = machine + ' · ' + clean(error.message) + ' · paused, $' + failedSetup.price.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
+  log(words)
+  const at = error.facts.at
+  const step = 'paused · the engine died after setup'
+  const paused = patchHostRecord(id, { jobState: 'paused', step, error: words, engineDeath: error.facts, linkLost: undefined, advancedAt: at, steps: [...(failedSetup.steps ?? []), { step, at }] }) ?? failedSetup
+  hostNotice(paused, 'paused', initial.name + ' · ' + words)
+}
+function hostPausedByLinkLoss({ id, initial }: HostJobPorts, { clean, log }: HostJobTools, error: HostLinkLost, failedSetup: HostRecord): void {
+  const words = clean(error.message) + ' · paused, $' + failedSetup.price.toFixed(2) + '/hr still billing · Resume or Terminate in /llmhost'
+  log(words)
+  const at = Date.now()
+  const step = 'paused · the link dropped after setup'
+  const paused = patchHostRecord(id, { jobState: 'paused', step, error: words, linkLost: true, advancedAt: at, steps: [...(failedSetup.steps ?? []), { step, at }] }) ?? failedSetup
+  hostNotice(paused, 'paused', initial.name + ' · ' + words + '\n' + error.engineLog)
+}
+function hostSetupPaused({ id, initial, vendor }: HostJobPorts, { log }: HostJobTools, failedSetup: HostRecord, detail: string, disk: string): void {
+  const machine = initial.cluster ? 'Runpod cluster ' + id + ' (' + (initial.nodes?.length ?? initial.cluster.compute.podCount) + ' nodes)' : hostMachineName(vendor, id)
+  const billing = failedSetup.status === 'EXITED' ? machine + (vendor === 'huggingface' ? ' · Paused · no compute bills' : ' · stopped; disk still bills until Terminate') : failedSetup.status === 'ERROR' ? machine + ' · may still bill' : machine + ' · $' + failedSetup.price.toFixed(2) + '/hr still billing'
+  const resume = failedSetup.status === 'RUNNING' || vendor === 'huggingface' && failedSetup.status === 'EXITED'
+  const words = 'setup paused · ' + detail + ' · ' + billing + (disk ? ' · ' + disk : '') + (resume ? ' · Resume or Terminate in /llmhost' : ' · Terminate in /llmhost')
+  log(words)
+  const at = Date.now()
+  const step = 'paused at ' + (failedSetup.step ?? 'setup').replace(/ · retrying until it does$/, '')
+  const paused = patchHostRecord(id, { jobState: 'paused', step, error: words, advancedAt: at, steps: [...(failedSetup.steps ?? []), { step, at }] }) ?? failedSetup
+  hostNotice(paused, 'paused', initial.name + ' · ' + words)
+}
+function hostSetupFailed({ id, generation, initial }: HostJobPorts, { clean, log }: HostJobTools, failure: unknown): void {
+  const current = readHostRecord(id)
+  if (current && current.generation === generation && current.jobState !== 'stopped') {
+    const retried = hostReadFailureWords(failure)
+    const resource = initial.cluster ? 'cluster' : 'pod'
+    const bills = 'Mercury did not terminate the ' + resource + '; it bills $' + current.price.toFixed(2) + '/hr while it runs'
+    const wasReady = current.jobState === 'ready'
+    const detail = clean(retried ? retried + ' · setup paused · ' + bills + ' · Resume retries, Terminate stops the bill' : String(failure))
+    const at = Date.now()
+    const record = patchHostRecord(id, { jobState: retried ? 'paused' : 'failed', error: detail, ...(retried || failure instanceof HostTerminationUnconfirmed ? { step: detail } : {}), ...(retried ? { advancedAt: at, steps: [...(current.steps ?? []), { step: detail, at }] } : {}) })!
+    log(detail)
+    if (retried || failure instanceof HostTerminationUnconfirmed) hostNotice(record, 'failed', record.name + ' · ' + detail + (failure instanceof HostTerminationUnconfirmed ? ' · it may still bill' : '') + ' · /llmhost → Machines I’m paying for')
+    else if (wasReady) hostNotice(record, 'failed', record.name + ' · the tunnel to the ' + resource + ' dropped after setup: ' + detail + ' · ' + bills + ' · /llmhost → Machines I’m paying for → Resume to reconnect, Terminate to stop the bill')
+    else hostNotice(record, 'failed', record.name + ' · setup stalled at ' + record.step + ' · ' + detail + ' · /llmhost → Machines I’m paying for → Resume or Terminate')
+  }
 }
