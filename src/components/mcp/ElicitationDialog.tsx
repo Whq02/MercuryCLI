@@ -1,52 +1,24 @@
 
-import figures from 'figures'
+import 'figures'
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import type { PrimitiveSchemaDefinition } from '../../services/mcp/sdk.js'
 import { Box, Text } from '../../ink.js'
-import { PopupListViewport, popupListWindow, usePopupListPaging } from '../CustomSelect/popup-list.js'
+import { popupListWindow, usePopupListPaging } from '../CustomSelect/popup-list.js'
 import useInput from '../../ink/hooks/use-input.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
-import type { ElicitationRequestEvent } from '../../services/mcp/elicitationHandler.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import {
-  getEnumLabel,
-  getEnumLabels,
-  getEnumValues,
-  getMultiSelectLabel,
-  getMultiSelectLabels,
-  getMultiSelectValues,
-  isDateTimeSchema,
-  isEnumSchema,
-  isMultiSelectEnumSchema,
-  validateElicitationInput,
-  validateElicitationInputAsync,
-  type MultiSelectEnumSchema,
-} from '../../utils/mcp/elicitationValidation.js'
+import { getEnumLabels, getEnumValues, getMultiSelectLabels, getMultiSelectValues, isDateTimeSchema, isEnumSchema, isMultiSelectEnumSchema, validateElicitationInput, type MultiSelectEnumSchema } from '../../utils/mcp/elicitationValidation.js'
 import { openBrowser } from '../../utils/browser.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { useNowTick } from '../mercury-ui/components.js'
-import TextInput from '../TextInput.js'
+import '../TextInput.js'
+import { scheduleDateResolveOf, commitTextOf, formKeysOf, valueDisplayOf, formDialogView, type FieldValue, type FieldKind, type FieldState, type ElicitationDialogProps } from './elicitationDialog/form.js'
 
 const RESOLVE_DEBOUNCE_MS = 2_000
 const TYPEAHEAD_RESET_MS = 2_000
 const FIELD_LINE_ESTIMATE = 3
 const DIALOG_OVERHEAD_LINES = 14
-
-type FieldValue = string | number | boolean | string[]
-
-type FieldKind = 'multi' | 'enum' | 'boolean' | 'text' | 'raw'
-
-type FieldState = {
-  name: string
-  schema: PrimitiveSchemaDefinition
-  kind: FieldKind
-  required: boolean
-  value: FieldValue | undefined
-  text: string
-  error: string | undefined
-  resolving: boolean
-}
 
 function schemaOf(raw: unknown): PrimitiveSchemaDefinition {
   return (raw ?? { type: 'string' }) as PrimitiveSchemaDefinition
@@ -240,15 +212,6 @@ function UrlElicitationDialog({
 }
 
 
-type ElicitationDialogProps = {
-  event: ElicitationRequestEvent
-  onResponse: (
-    action: 'accept' | 'decline' | 'cancel',
-    content?: Record<string, string | number | boolean | string[]>,
-  ) => void
-  onWaitingDismiss: (action: 'cancel' | 'retry' | 'dismiss') => void
-}
-
 function FormElicitationDialog({
   event,
   onResponse,
@@ -338,72 +301,9 @@ function FormElicitationDialog({
     )
   }
 
-  const scheduleDateResolve = (field: FieldState, immediately: boolean) => {
-    const existingTimer = resolveTimersRef.current.get(field.name)
-    if (existingTimer) clearTimeout(existingTimer)
-    const run = () => {
-      resolveTimersRef.current.delete(field.name)
-      resolveAbortsRef.current.get(field.name)?.abort()
-      const controller = new AbortController()
-      resolveAbortsRef.current.set(field.name, controller)
-      typedSinceResolveRef.current.delete(field.name)
-      patchField(field.name, { resolving: true })
-      void validateElicitationInputAsync(field.text, field.schema, controller.signal)
-        .then(result => {
-          if (unmountedRef.current || controller.signal.aborted) return
-          if (result.isValid) {
-            const typedSince = typedSinceResolveRef.current.has(field.name)
-            patchField(field.name, {
-              resolving: false,
-              value: result.value,
-              error: undefined,
-              ...(typedSince ? {} : { text: String(result.value ?? '') }),
-            })
-          } else {
-            patchField(field.name, { resolving: false, error: result.error })
-          }
-        })
-        .catch(() => {
-          if (!unmountedRef.current && !controller.signal.aborted) patchField(field.name, { resolving: false })
-        })
-    }
-    if (immediately) run()
-    else {
-      resolveTimersRef.current.set(
-        field.name,
-        setTimeout(run, RESOLVE_DEBOUNCE_MS),
-      )
-    }
-  }
+  const scheduleDateResolve = (field: FieldState, immediately: boolean) => scheduleDateResolveOf({ resolveTimersRef, resolveAbortsRef, typedSinceResolveRef, patchField, unmountedRef, RESOLVE_DEBOUNCE_MS }, field, immediately)
 
-  const commitText = (field: FieldState, text: string) => {
-    const timer = resolveTimersRef.current.get(field.name)
-    if (timer !== undefined) clearTimeout(timer)
-    resolveTimersRef.current.delete(field.name)
-    resolveAbortsRef.current.get(field.name)?.abort()
-    resolveAbortsRef.current.delete(field.name)
-    patchField(field.name, { resolving: false })
-    typedSinceResolveRef.current.add(field.name)
-    const type = (field.schema as { type?: string }).type
-    if (text === '') {
-      if (type === 'string' && field.value !== undefined) {
-        const result = validateElicitationInput(text, field.schema)
-        patchField(field.name, { text, value: result.isValid ? result.value : undefined, error: result.error })
-      } else {
-        patchField(field.name, { text, value: undefined, error: undefined })
-      }
-      return
-    }
-    const result = validateElicitationInput(text, field.schema)
-    if (result.isValid) {
-      patchField(field.name, { text, value: result.value, error: undefined })
-    } else {
-      patchField(field.name, { text, value: undefined, error: result.error })
-      if (isDateTimeSchema(field.schema)) {
-        scheduleDateResolve({ ...field, text }, false)
-      }
-    }
-  }
+  const commitText = (field: FieldState, text: string) => commitTextOf({ resolveTimersRef, resolveAbortsRef, patchField, typedSinceResolveRef, scheduleDateResolve }, field, text)
 
   const commitOnLeave = (index: number) => {
     const field = fields[index]
@@ -541,108 +441,7 @@ function FormElicitationDialog({
     })
   }
 
-  useInput((input, key) => {
-    if (buttonFocused) {
-      if (key.leftArrow || key.rightArrow) {
-        setCursor(cursor === acceptIndex ? declineIndex : acceptIndex)
-      } else if (key.upArrow) {
-        moveCursor(-1)
-      } else if (key.downArrow) {
-        moveCursor(1)
-      } else if (key.return) {
-        if (cursor === acceptIndex) submitAccept()
-        else onResponse('decline')
-      }
-      return
-    }
-    const field = focusedField
-    if (!field) return
-
-    if (accordionOpen) {
-      const values =
-        field.kind === 'multi'
-          ? getMultiSelectValues(field.schema)
-          : getEnumValues(field.schema)
-      if (key.upArrow) {
-        if (accordionIndex === 0) setAccordionOpen(false)
-        else setAccordionIndex(accordionIndex - 1)
-      } else if (key.downArrow) {
-        if (accordionIndex >= values.length - 1) {
-          setAccordionOpen(false)
-          moveCursor(1)
-        } else {
-          setAccordionIndex(accordionIndex + 1)
-        }
-      } else if (key.leftArrow || key.escape) {
-        setAccordionOpen(false)
-      } else if (input === ' ') {
-        const value = values[accordionIndex]
-        if (value === undefined) return
-        if (field.kind === 'multi') {
-          toggleMultiValue(field, value, false)
-        } else {
-          patchField(field.name, { value, error: undefined })
-          setAccordionOpen(false)
-        }
-      } else if (key.return) {
-        const value = values[accordionIndex]
-        if (value === undefined) return
-        if (field.kind === 'multi') {
-          toggleMultiValue(field, value, true)
-        } else {
-          patchField(field.name, { value, error: undefined })
-        }
-        setAccordionOpen(false)
-        moveCursor(1, field.kind !== 'multi')
-      } else if (input && !key.ctrl && !key.meta) {
-        typeahead(field, input)
-      }
-      return
-    }
-
-    if (key.upArrow) {
-      moveCursor(-1)
-      return
-    }
-    if (key.downArrow) {
-      moveCursor(1)
-      return
-    }
-
-    switch (field.kind) {
-      case 'boolean':
-        if (input === ' ') {
-          patchField(field.name, {
-            value: field.value === undefined ? true : !field.value,
-            error: undefined,
-          })
-        } else if (key.backspace || key.delete) {
-          patchField(field.name, { value: undefined, error: undefined })
-        } else if (key.return) {
-          moveCursor(1)
-        } else if (input && !key.ctrl && !key.meta) {
-          typeahead(field, input)
-        }
-        return
-      case 'enum':
-      case 'multi':
-        if (key.rightArrow) expandAccordion(field)
-        else if (key.return) moveCursor(1)
-        else if (key.backspace || key.delete) {
-          patchField(field.name, { value: undefined, error: undefined })
-        } else if (input && !key.ctrl && !key.meta) {
-          typeahead(field, input)
-        }
-        return
-      case 'text':
-        if ((key.backspace || key.delete) && field.text === '') {
-          patchField(field.name, { value: undefined, error: undefined })
-        }
-        return
-      default:
-        if (key.return) moveCursor(1)
-    }
-  })
+  useInput((input, key) => formKeysOf({ buttonFocused, setCursor, cursor, acceptIndex, declineIndex, moveCursor, submitAccept, onResponse, focusedField, accordionOpen, accordionIndex, setAccordionOpen, setAccordionIndex, toggleMultiValue, patchField, typeahead, expandAccordion }, input, key))
 
   const maxVisible = accordionOpen ? 1 : Math.max(1, Math.floor((rows - DIALOG_OVERHEAD_LINES) / FIELD_LINE_ESTIMATE))
   const fieldWindow = popupListWindow(fields.length, buttonFocused ? fields.length - 1 : cursor, maxVisible)
@@ -669,56 +468,7 @@ function FormElicitationDialog({
     return { cell: <Text> </Text>, tone: undefined }
   }
 
-  const valueDisplay = (field: FieldState): React.ReactNode => {
-    switch (field.kind) {
-      case 'boolean':
-        return (
-          <Text dimColor={field.value === undefined}>
-            {field.value === undefined ? 'not set' : field.value ? 'yes' : 'no'}
-          </Text>
-        )
-      case 'enum':
-        return (
-          <Text dimColor={field.value === undefined}>
-            {'▸ '}
-            {typeof field.value === 'string'
-              ? getEnumLabel(field.schema, field.value)
-              : 'not set'}
-          </Text>
-        )
-      case 'multi': {
-        const selected = Array.isArray(field.value) ? field.value : []
-        return (
-          <Text dimColor={selected.length === 0}>
-            {'▸ '}
-            {selected.length > 0
-              ? selected
-                  .map(value => getMultiSelectLabel(field.schema, value))
-                  .join(', ')
-              : 'not set'}
-          </Text>
-        )
-      }
-      case 'raw':
-        return <Text dimColor>{JSON.stringify(field.value) ?? 'not set'}</Text>
-      default: {
-        if (
-          isDateTimeSchema(field.schema) &&
-          typeof field.value === 'string' &&
-          field.value !== ''
-        ) {
-          const isDateTime =
-            (field.schema as { format?: string }).format === 'date-time'
-          return <Text>{displayDate(field.value, isDateTime)}</Text>
-        }
-        return field.text !== '' ? (
-          <Text>{field.text}</Text>
-        ) : (
-          <Text dimColor>not set</Text>
-        )
-      }
-    }
-  }
+  const valueDisplay = valueDisplayOf({ displayDate })
 
   const footerHint = (() => {
     const parts = ['esc cancel', '↑↓ move', 'pgup/pgdn page']
@@ -732,111 +482,7 @@ function FormElicitationDialog({
     return parts.join(' · ')
   })()
 
-  return (
-    <Dialog
-      title={`"${event.serverName}"`}
-      subtitle={event.params.message}
-      onCancel={() => onResponse('cancel')}
-      isCancelActive={(!fieldFocused || buttonFocused) && !accordionOpen}
-      inputGuide={() => <Text italic dimColor>{footerHint}</Text>}
-    >
-      <Box flexDirection="column">
-        {windowStart > 0 ? (
-          <Text dimColor>{windowStart} more above</Text>
-        ) : null}
-        {fields.slice(windowStart, windowEnd).map((field, sliceIndex) => {
-          const index = windowStart + sliceIndex
-          const focused = index === cursor
-          const { cell, tone } = statusCell(field, focused)
-          const description = descriptionOf(field)
-          const values =
-            field.kind === 'multi'
-              ? getMultiSelectValues(field.schema)
-              : field.kind === 'enum'
-                ? getEnumValues(field.schema)
-                : []
-          const labels =
-            field.kind === 'multi'
-              ? getMultiSelectLabels(field.schema)
-              : field.kind === 'enum'
-                ? getEnumLabels(field.schema)
-                : []
-          return (
-            <Box key={field.name} flexDirection="column">
-              <Box>
-                <Text color={focused ? (tone ?? 'permission') : undefined}>
-                  {focused ? `${figures.pointer} ` : '  '}
-                </Text>
-                {cell}
-                <Text bold={focused}> {titleOf(field)} </Text>
-                {focused && field.kind === 'text' ? (
-                  <TextInput
-                    value={field.text}
-                    onChange={text => commitText(field, text)}
-                    cursorOffset={field.text.length}
-                    onChangeCursorOffset={() => {}}
-                    columns={Math.max(20, columns - titleOf(field).length - 10)}
-                    onSubmit={() => moveCursor(1)}
-                  />
-                ) : (
-                  valueDisplay(field)
-                )}
-              </Box>
-              {description ? (
-                <Box paddingLeft={4}>
-                  <Text dimColor wrap="wrap">
-                    {description}
-                  </Text>
-                </Box>
-              ) : null}
-              {focused && accordionOpen ? (
-                <Box flexDirection="column" paddingLeft={4}>
-                  <PopupListViewport above={accordionWindow.above} below={accordionWindow.below} rows={accordionWindow.end - accordionWindow.start}>
-                  {values.slice(accordionWindow.start, accordionWindow.end).map((value, sliceOptionIndex) => {
-                    const optionIndex = accordionWindow.start + sliceOptionIndex
-                    const selectedValues = Array.isArray(field.value)
-                      ? field.value
-                      : []
-                    const checked =
-                      field.kind === 'multi'
-                        ? selectedValues.includes(value)
-                        : field.value === value
-                    return (
-                      <Text
-                        key={value}
-                        inverse={optionIndex === accordionIndex}
-                      >
-                        {field.kind === 'multi'
-                          ? checked
-                            ? '[x] '
-                            : '[ ] '
-                          : checked
-                            ? '◉ '
-                            : '○ '}
-                        {labels[optionIndex] ?? value}
-                      </Text>
-                    )
-                  })}
-                  </PopupListViewport>
-                </Box>
-              ) : null}
-              {}
-              <Box paddingLeft={4} height={1}>
-                <Text color="error">{field.error ?? ' '}</Text>
-              </Box>
-            </Box>
-          )
-        })}
-        {windowEnd < fields.length ? (
-          <Text dimColor>{fields.length - windowEnd} more below</Text>
-        ) : null}
-        <Box gap={2} marginTop={1}>
-          <Text inverse={cursor === acceptIndex}> Accept </Text>
-          <Text inverse={cursor === declineIndex}> Decline </Text>
-        </Box>
-      </Box>
-    </Dialog>
-  )
+  return formDialogView({ event, onResponse, fieldFocused, buttonFocused, accordionOpen, footerHint, windowStart, fields, windowEnd, cursor, statusCell, descriptionOf, titleOf, commitText, columns, moveCursor, valueDisplay, accordionWindow, accordionIndex, acceptIndex, declineIndex })
 }
 
 
