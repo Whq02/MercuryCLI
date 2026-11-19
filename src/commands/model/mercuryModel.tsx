@@ -1,8 +1,5 @@
 import * as React from 'react'
-import { hostEndpointChoice, hostRunModelRows, modelDoorRoad, removeHostEndpoint, retryHostEndpoint } from '../../services/host/door.js'
-import { runHostedModel } from '../../services/host/index.js'
-import { llmHostPopupRequest } from '../llmhost/llmhost.js'
-import { openSettingsPopup } from '../../utils/cockpit/settingsPopup.js'
+import { hostEndpointChoice, hostRunModelRows } from '../../services/host/door.js'
 import type { CommandResultDisplay } from '../../commands.js'
 import { MercuryModelPicker, type ModelChoice } from '../../components/MercuryModelPicker.js'
 import { ModelPickerPopupLease } from '../../components/ModelPickerPopupSlot.js'
@@ -14,22 +11,17 @@ import type { LocalJSXCommandCall } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
 import { contextFillView } from '../../utils/contextFill.js'
 import { getDefaultEngineModel, getEngineModel, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
-import { crossProviderNote, providerFamilyOfSetting, seatWithFold, settleModelSelection, type SeatReceiptState } from '../../utils/model/modelTransition.js'
+import { seatWithFold, type SeatReceiptState } from '../../utils/model/modelTransition.js'
 import { focusedSessionModelFacts, getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { previewDaemonModelSelection } from './model.js'
-import {
-  previewForSelection,
-  reconfirmTransitionPlan,
-  transitionPlanSummary,
-} from '../../services/providers/transitionPreview.js'
+import { reconfirmTransitionPlan } from '../../services/providers/transitionPreview.js'
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, parseKeyConnectValue } from '../../utils/model/modelOptions.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, parseKeyConnectValue } from '../../utils/model/modelOptions.js'
 import { OPENROUTER_CONNECT_OPTION_VALUE } from '../../services/providers/openrouter/openrouterCatalogue.js'
-import { NOUS_CONNECT_OPTION_VALUE, getNousAvailability, refreshNousCatalogue } from '../../services/providers/nous/nousCatalogue.js'
+import { NOUS_CONNECT_OPTION_VALUE } from '../../services/providers/nous/nousCatalogue.js'
 import { GEMINI_CONNECT_OPTION_VALUE } from '../../services/providers/gemini/geminiCatalogue.js'
-import { HUGGINGFACE_CONNECT_OPTION_VALUE, getHuggingfaceAvailability } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
+import { HUGGINGFACE_CONNECT_OPTION_VALUE } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import type { TensorFoldAct } from '../../components/tensorfold/tensorfoldRows.js'
 import { pairTensorFoldHost, tensorFoldCapableMachine } from '../../components/tensorfold/tensorfoldFacts.js'
 import { useModelTensorFoldFacts } from '../../components/tensorfold/tensorfoldModelFacts.js'
@@ -37,20 +29,20 @@ import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { readModelUseLedger } from '../../utils/model/modelUseLedger.js'
 import { type EffortLevel, type EffortValue, getDisplayedEffortLabel, modelSupportsEffort, parseEffortValue, resolveStampedEffortTruth, selectableEffortLevels, toPersistableEffort, unpinAllLaunchEffort } from '../../utils/effort.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
-import { persistEffortChoice, persistModelChoice } from './persistModelChoice.js'
+import { persistEffortChoice } from './persistModelChoice.js'
 import { matchReachableModelName, modelNameAskWords } from '../../utils/model/modelNameRoad.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
 import { GPT_ROAD, OPENROUTER_ROAD, GEMINI_ROAD, ANTHROPIC_SUBSCRIPTION_ROAD, ANTHROPIC_KEY_ROAD, ANTHROPIC_BEARER_ROAD, NOUS_ROAD, HUGGINGFACE_ROAD, MOONSHOT_ROAD, DEEPSEEK_ROAD, ZAI_ROAD, XAI_ROAD, META_ROAD, MINIMAX_ROAD, TOGETHER_ROAD, COHERE_ROAD, GROQ_ROAD, MELIOUS_ROAD, CEREBRAS_ROAD, FIREWORKS_ROAD, QWEN_ROAD, MISTRAL_ROAD, LOCAL_ROAD, useCatalogueRefreshOnOpen } from './picker/roads.js'
 import { familyOfModelGroup, providerHeadingsOf } from './picker/headings.js'
-import { resolveCurrentRowId, subscribeFocusedModelFeed, getFocusedModelKey, modelChoiceOf, expandRowsOf, pickLabelOf, slotSwitchOf, seatGroupOf, orderedModelChoices, servedByTensorFold, tensorFoldPodEndpoints, runModelTensorFoldAct, noteModelUse, retryNamedCompatRow } from './picker/rows.js'
+import { resolveCurrentRowId, subscribeFocusedModelFeed, getFocusedModelKey, modelChoiceOf, expandRowsOf, pickLabelOf, slotSwitchOf, seatGroupOf, orderedModelChoices, servedByTensorFold, tensorFoldPodEndpoints, runModelTensorFoldAct } from './picker/rows.js'
+import { type PickRoad, type PickContext, selectHostRow, connectClaude, connectGpt, connectOpenrouter, connectNous, connectGemini, connectHuggingface, selectKeyLane, selectThroughGate } from './picker/select.js'
+import { applyOnSeat, applyLocally } from './picker/apply.js'
 
 export { familyOfModelGroup } from './picker/headings.js'
 export { servedByTensorFold, tensorFoldPodEndpoints, modelChoiceLabel, modelChoiceRow } from './picker/rows.js'
 export { MercuryModelDefaultPicker } from './picker/DefaultPicker.js'
 export { MercurySessionModelPicker } from './picker/SessionPicker.js'
 export { MercuryModelChoicePicker } from './picker/ChoicePicker.js'
-
-type PickRoad = { flip: boolean; door?: string }
 
 type ModelNameAsk = { notice: string; filter: string }
 
@@ -201,305 +193,54 @@ function MercuryModelWrapper({
     const receipt = handleSlotSwitch(ANTHROPIC_MODEL_GROUP)
     return receipt === null ? '' : ` · ${receipt}`
   }
+  const pickCtx: PickContext = { messages, onDone, store, setAppState, setNotice, setTransitionConfirm, applySelection, labelOf, flipDoorNote }
   function handleSelect(id: string, door?: string): void {
-    if (id.startsWith('host-retry:')) {
-      setNotice('Checking this server…')
-      void retryHostEndpoint(id.slice('host-retry:'.length)).then(setNotice)
-      return
-    }
-    if (id.startsWith('host-remove:')) {
-      void removeHostEndpoint(id.slice('host-remove:'.length)).then(setNotice)
-      return
-    }
-    if (id.startsWith('host-run:')) {
-      const title = id.slice('host-run:'.length)
-      onDone('Opening ' + title + ' in /llmhost', { display: 'system' })
-      openSettingsPopup(llmHostPopupRequest(modelDoorRoad(runHostedModel, title)))
-      return
-    }
+    if (selectHostRow(pickCtx, id)) return
     if (isCatalogueDoorRow(id)) return
     const otherDoor = door !== undefined && !isProviderActionRow(id) && headings[ANTHROPIC_MODEL_GROUP]?.doors.some(candidate => candidate.door === door && candidate.active !== true)
     const pick: PickRoad = { flip: otherDoor === true, ...(door !== undefined ? { door } : {}) }
     const value = id
     if (id === ANTHROPIC_CONNECT_OPTION_VALUE) {
-      onDone('Claude sign-in — running /logins (the picker re-opens when it settles)', {
-        nextInput: '/logins anthropic --return=/model',
-        submitNextInput: true,
-      })
+      connectClaude(pickCtx)
       return
     }
     if (id === GPT_CONNECT_OPTION_VALUE) {
-      const availability = getGptSeatAvailability()
-      const why = availability.state === 'disabled' ? availability.why : undefined
-      if (why === 'catalogue-pending' || why === 'catalogue-error') {
-        void (async () => {
-          const { refreshOpenaiCatalogue } = await import(
-            '../../services/providers/openai/openaiCatalogue.js'
-          )
-          const { resolveOpenaiAccount } = await import(
-            '../../services/providers/openai/openaiAccounts.js'
-          )
-          const account = resolveOpenaiAccount()
-          if (!account) {
-            onDone('GPT sign-in — running /logins (the picker re-opens when it settles)', {
-              nextInput: '/logins openai --return=/model',
-              submitNextInput: true,
-            })
-            return
-          }
-          setNotice(`GPT — refreshing the live catalogue from the ${account.label}…`)
-          const snapshot = await refreshOpenaiCatalogue(account.kind, { force: true }).catch(() => null)
-          setNotice(
-            snapshot && snapshot.models.length > 0 && !snapshot.lastError
-              ? `GPT catalogue landed: ${snapshot.models.length} model(s) from the ${account.label} — pick one above`
-              : `GPT catalogue unavailable — ↵ retries · /logins shows readiness${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
-          )
-        })()
-        return
-      }
-      onDone('GPT sign-in — running /logins (the picker re-opens when it settles)', {
-        nextInput: '/logins openai --return=/model',
-        submitNextInput: true,
-      })
+      connectGpt(pickCtx)
       return
     }
     if (id === OPENROUTER_CONNECT_OPTION_VALUE) {
-      void (async () => {
-        const { getOpenrouterAvailability, refreshOpenrouterCatalogue } = await import(
-          '../../services/providers/openrouter/openrouterCatalogue.js'
-        )
-        const availability = getOpenrouterAvailability()
-        if (
-          availability.state === 'ready' ||
-          availability.why === 'catalogue-pending' ||
-          availability.why === 'catalogue-error'
-        ) {
-          const { resolveOpenrouterRequestAuth } = await import(
-            '../../services/providers/openrouter/openrouterAccounts.js'
-          )
-          const auth = resolveOpenrouterRequestAuth()
-          if (auth) {
-            setNotice('OpenRouter — refreshing the live catalogue…')
-            const snapshot = await refreshOpenrouterCatalogue(auth.account.keySource, { force: true }).catch(() => null)
-            setNotice(
-              snapshot && snapshot.models.length > 0 && !snapshot.lastError
-                ? `OpenRouter catalogue landed: ${snapshot.models.length} model(s) — pick one above`
-                : `OpenRouter catalogue unavailable — ↵ retries${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
-            )
-            return
-          }
-        }
-        onDone('OpenRouter sign-in — running /logins (the picker re-opens when it settles)', {
-          nextInput: '/logins openrouter --return=/model',
-          submitNextInput: true,
-        })
-      })()
+      connectOpenrouter(pickCtx)
       return
     }
     if (id === NOUS_CONNECT_OPTION_VALUE) {
-      void (async () => {
-        const availability = getNousAvailability()
-        if (availability.state === 'ready' || availability.why === 'catalogue-pending' || availability.why === 'catalogue-error') {
-          setNotice('Nous Portal — refreshing the live catalogue…')
-          const snapshot = await refreshNousCatalogue({ force: true }).catch(() => null)
-          setNotice(
-            snapshot && snapshot.models.length > 0 && !snapshot.lastError
-              ? `Nous Portal catalogue landed: ${snapshot.models.length} model(s) — pick one above`
-              : `Nous Portal catalogue unavailable — ↵ retries${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
-          )
-          return
-        }
-        onDone('Nous Portal key — running /logins nous (the picker re-opens when it settles)', {
-          nextInput: '/logins nous --return=/model',
-          submitNextInput: true,
-        })
-      })()
+      connectNous(pickCtx)
       return
     }
     if (id === GEMINI_CONNECT_OPTION_VALUE) {
-      void (async () => {
-        const { getGeminiAvailability, refreshGeminiCatalogue } = await import(
-          '../../services/providers/gemini/geminiCatalogue.js'
-        )
-        const availability = getGeminiAvailability()
-        if (
-          availability.state === 'ready' ||
-          availability.why === 'catalogue-pending' ||
-          availability.why === 'catalogue-error'
-        ) {
-          const { resolveGeminiAccount } = await import(
-            '../../services/providers/gemini/geminiAccounts.js'
-          )
-          const account = resolveGeminiAccount()
-          if (account) {
-            const sourceKind = account.kind
-            setNotice('Gemini — refreshing the live catalogue…')
-            const snapshot = await refreshGeminiCatalogue(sourceKind, { force: true }).catch(() => null)
-            setNotice(
-              snapshot && snapshot.models.length > 0 && !snapshot.lastError
-                ? `Gemini catalogue landed: ${snapshot.models.length} model(s) — pick one above`
-                : `Gemini catalogue unavailable — ↵ retries${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
-            )
-            return
-          }
-        }
-        onDone('Gemini sign-in — running /logins (the picker re-opens when it settles)', {
-          nextInput: '/logins gemini --return=/model',
-          submitNextInput: true,
-        })
-      })()
+      connectGemini(pickCtx)
       return
     }
     if (id === HUGGINGFACE_CONNECT_OPTION_VALUE) {
-      void (async () => {
-        const { refreshHuggingfaceCatalogue } = await import(
-          '../../services/providers/huggingface/huggingfaceCatalogue.js'
-        )
-        const availability = getHuggingfaceAvailability()
-        if (availability.state === 'ready') {
-          setNotice('Hugging Face — refreshing the live catalogue…')
-          const snapshot = await refreshHuggingfaceCatalogue({ force: true }).catch(() => null)
-          setNotice(
-            snapshot && snapshot.models.length > 0 && !snapshot.lastError
-              ? `Hugging Face catalogue landed: ${snapshot.models.length} model(s) — pick one above (any listed id types as huggingface/<org>/<model>)`
-              : `Hugging Face catalogue unavailable — ↵ retries; the dated pins dispatch directly${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
-          )
-          return
-        }
-        requestCommandDispatch('/logins')
-        onDone('Hugging Face sign-in — running /logins (the rows go live once a credential connects; HF_TOKEN works too)')
-      })()
+      connectHuggingface(pickCtx)
       return
     }
     {
       const keyLane = parseKeyConnectValue(id)
       if (keyLane !== undefined) {
-        if (keyLane === 'compat') {
-          onDone(
-            'Custom endpoint: set MERCURY_COMPAT_BASE_URL (+ MERCURY_COMPAT_MODELS, optional MERCURY_COMPAT_API_KEY) — the rows go live next /model open',
-          )
-          return
-        }
-        if (keyLane.startsWith('compat/')) {
-          if (retryNamedCompatRow(id, setNotice)) return
-          const name = keyLane.slice('compat/'.length)
-          onDone(`Custom endpoint '${name}' — running /logins ${keyLane}; the picker re-opens afterwards`, { nextInput: `/logins ${keyLane} --return=/model`, submitNextInput: true })
-          return
-        }
-        if (keyLane === 'moonshot') {
-          void (async () => {
-            const { resolveMoonshotAccount } = await import('../../services/providers/moonshot/moonshotAccounts.js')
-            const account = resolveMoonshotAccount()
-            if (account) {
-              const { moonshotCatalogueRows, refreshMoonshotCatalogue } = await import('../../services/providers/moonshot/moonshotCatalogue.js')
-              setNotice(`Moonshot — reading the model list of the ${account.label}…`)
-              await refreshMoonshotCatalogue({ force: true }).catch(() => null)
-              const { source } = moonshotCatalogueRows()
-              setNotice(
-                source.kind === 'live'
-                  ? `Moonshot model list landed: ${source.count} model(s) from the ${account.label} — pick one above`
-                  : `Moonshot model list unavailable — ↵ retries${source.kind === 'unread' && source.error !== undefined ? ` (${source.error})` : ''}`,
-              )
-              return
-            }
-            onDone('Kimi (Moonshot) sign-in — running /logins moonshot; the picker re-opens when it settles', { nextInput: '/logins moonshot --return=/model', submitNextInput: true })
-          })()
-          return
-        }
-        const keyLaneLabels: Record<Exclude<typeof keyLane, 'compat' | 'moonshot' | `compat/${string}`>, string> = { zai: 'GLM (Z.AI)', deepseek: 'DeepSeek', xai: 'xAI', meta: 'Meta', mistral: 'Mistral', zen: 'OpenCode Zen', minimax: 'MiniMax', together: 'Together AI', cohere: 'Cohere', groq: 'Groq', orcarouter: 'OrcaRouter', melious: 'Melious AI', cerebras: 'Cerebras', fireworks: 'Fireworks', qwen: 'Qwen' }
-        onDone(
-          `${keyLaneLabels[keyLane as keyof typeof keyLaneLabels] ?? keyLane} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
-          { nextInput: `/logins ${keyLane} --return=/model`, submitNextInput: true },
-        )
+        selectKeyLane(pickCtx, id, keyLane)
         return
       }
     }
-    const daemonPreview = previewDaemonModelSelection(value)
-    if (daemonPreview !== null && 'reason' in daemonPreview) {
-      onDone(daemonPreview.reason, { display: 'system' })
-      return
-    }
-    let gatePlan = daemonPreview?.plan
-    if (daemonPreview === null) {
-      const probeState = store.getState()
-      const probe = settleModelSelection(probeState, value, {
-        turnActive: probeState.foregroundTurnActive || probeState.pendingModelSwitch !== null,
-      })
-      if (probe.kind === 'queued' || probe.kind === 'applied') {
-        gatePlan = previewForSelection(messages, probeState.engineModelForSession ?? probeState.engineModel, value)
-      }
-    }
-    if (gatePlan?.needsChoice) {
-      setTransitionConfirm({ value, id, plan: gatePlan, refreshed: false, pick })
-      return
-    }
-    applySelection(value, id, pick)
+    selectThroughGate(pickCtx, value, id, pick)
   }
 
   function applySelection(value: string, id: string, pick: PickRoad = { flip: false }, seated?: (state: SeatReceiptState) => void): void {
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
-      const label = labelOf(id)
-      const factsBefore = focused.modelFacts()
-      const messagesBefore = [...focused.records()]
-      const choice = persistModelChoice(value)
-      void focused.setModel(value).then(receipt => {
-        if (receipt.state === 'refused') {
-          choice.restore()
-          onDone(`The model switch was refused: ${receipt.detail}`)
-          return
-        }
-        const slotNote = flipDoorNote(pick)
-        const saved = choice.sentence
-        if (receipt.state === 'no-op') {
-          onDone(saved === '' && slotNote === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}${slotNote}`)
-          seated?.(receipt.state)
-          return
-        }
-        noteModelUse(value, pick.door)
-        const doorCross = providerFamilyOfSetting(factsBefore.effective) !== providerFamilyOfSetting(value) ? crossProviderNote(value) : ''
-        const plan = previewForSelection(messagesBefore, factsBefore.effective, value)
-        const lossNote = transitionPlanSummary(plan)
-        onDone(
-          receipt.state === 'queued'
-            ? `Model switch queued: ${label}${saved} — applies when this session's turn settles (the running turn keeps its model)${doorCross}${lossNote}${slotNote}`
-            : `Set model to ${label}${saved} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}${doorCross}${lossNote}${slotNote}`,
-        )
-        seated?.(receipt.state)
-      })
+      applyOnSeat(pickCtx, focused, value, id, pick, seated)
       return
     }
-    const label = labelOf(id)
-    const stateNow = store.getState()
-    const settled = settleModelSelection(stateNow, value, {
-      turnActive: stateNow.foregroundTurnActive || stateNow.pendingModelSwitch !== null,
-    })
-    const slotNote = flipDoorNote(pick)
-    const saved = persistModelChoice(value).sentence
-    if (settled.kind === 'no-op') {
-      onDone(saved === '' && slotNote === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}${slotNote}`)
-      return
-    }
-    noteModelUse(value, pick.door)
-    if (settled.kind === 'cancelled-pending') {
-      setAppState(prev => ({ ...prev, ...settled.patch }))
-      onDone(`Already on ${label} — queued switch cancelled${saved}${slotNote}`)
-      return
-    }
-    const effectiveFrom = stateNow.engineModelForSession ?? stateNow.engineModel
-    const plan = previewForSelection(messages, effectiveFrom, value)
-    const lossNote = transitionPlanSummary(plan)
-    if (settled.kind === 'queued') {
-      setAppState(prev => ({ ...prev, ...settled.patch }))
-      onDone(
-        `Model switch queued: ${label}${saved} — applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}${slotNote}`,
-      )
-      return
-    }
-    setAppState(prev => ({ ...prev, ...settled.patch }))
-    onDone(
-      `Set model to ${label}${saved}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}${slotNote}`,
-    )
+    applyLocally(pickCtx, value, id, pick)
   }
 
   if (transitionConfirm) {
