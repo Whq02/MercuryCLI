@@ -243,226 +243,11 @@ export async function runForegroundAgentExecution(
       : {}),
   })
 
-  const continueDetached = async (
+  const continueDetached = (
     backgroundedTaskId: string,
     pending: Promise<IteratorResult<Message, void>>,
-  ): Promise<void> => {
-    try {
-      let step = await pending
-      while (!step.done) {
-        const message = step.value
-        agentMessages.push(message)
-        emitBackgroundAgentRows(toolUseContext.toolUseId, message)
-        updateProgressFromMessage(
-          tracker,
-          message,
-          resolveActivity,
-          toolUseContext.options.tools,
-        )
-        publishAgentProgressSoon(backgroundedTaskId, tracker, rootSetAppState)
-        const lastToolName = getLastToolUseName(message)
-        if (lastToolName) {
-          emitTaskProgress(
-            tracker,
-            backgroundedTaskId,
-            toolUseContext.toolUseId,
-            description,
-            metadata.startTime,
-            lastToolName,
-          )
-        }
-        step = await agentIterator.next()
-      }
-
-      const finalized = finalizeAgentTool(agentMessages, backgroundedTaskId, metadata)
-      const declined =
-        finalized.outcome?.status === 'failed' ? finalized.outcome : undefined
-      const overload = declined ? overloadPauseOf(agentMessages, metadata.resolvedAgentModel) : null
-      const overloadEpisode = overload !== null ? overloadEpisodeOf(backgroundedTaskId) : null
-      if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
-      if (declined) {
-        failAsyncAgent(backgroundedTaskId, declined.error, rootSetAppState, undefined, { settleFrame: backgrounded ? !(overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) : false })
-        if (overload !== null && foregroundTask !== undefined) {
-          armOverloadProbe({
-            taskId: backgroundedTaskId,
-            description,
-            registration: foregroundTask.abortController,
-            toolUseContext,
-            rootSetAppState,
-            model: metadata.resolvedAgentModel,
-            pause: overload.pause,
-            afterDeath: true,
-          })
-        }
-      } else {
-        completeAgentTask(finalized, rootSetAppState, undefined, {
-          usage: { tokens: getTokenCountFromTracker(tracker), toolUses: tracker.toolUseCount, durationMs: Date.now() - agentStartTime },
-          settleFrame: backgrounded ? !(overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) : false,
-        })
-        closeOverloadEpisode(backgroundedTaskId)
-      }
-
-      let finalMessage = extractTextContent(finalized.content, '\n')
-      if (
-        finalized.outcome?.status === 'completed' &&
-        finalized.outcome.promotedNarration &&
-        finalMessage
-      ) {
-        finalMessage = `${PROMOTED_NARRATION_NOTE}\n${finalMessage}`
-      }
-
-      const worktreeResult = await cleanupWorktreeIfNeeded()
-
-      let envelopeBlock: string | undefined
-      try {
-        const { buildAgentResultEnvelope, formatEnvelopeBlock } = await import(
-          '../../services/agentResults/normalize.js'
-        )
-        envelopeBlock = formatEnvelopeBlock(
-          await buildAgentResultEnvelope({
-            agentId: String(backgroundedTaskId),
-            agentType: metadata.agentType,
-            status: declined ? 'failed' : 'completed',
-            finalText: finalMessage ?? '',
-            usage: {
-              totalTokens: getTokenCountFromTracker(tracker),
-              toolUseCount: finalized.totalToolUseCount,
-              durationMs: finalized.totalDurationMs,
-            },
-          }),
-        )
-      } catch {
-      }
-
-      const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)
-      if (notifies) enqueueAgentNotification({
-        taskId: backgroundedTaskId,
-        description,
-        status: declined ? 'failed' : 'completed',
-        ...(declined ? { error: declined.error, landedWrites: landedWritesOf(agentMessages), lastCalls: lastToolCallsOf(agentMessages) } : {}),
-        ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who, undefined, overload.status) } : {}),
-        setAppState: rootSetAppState,
-        finalMessage,
-        ...(finalized.structured !== undefined ? { structuredBlock: structuredResultBlock(finalized.structured) } : {}),
-        usage: {
-          totalTokens: getTokenCountFromTracker(tracker),
-          toolUses: finalized.totalToolUseCount,
-          durationMs: finalized.totalDurationMs,
-        },
-        toolUseId: toolUseContext.toolUseId,
-        ...worktreeResult,
-        ...(envelopeBlock ? { envelopeBlock } : {}),
-      })
-    } catch (error) {
-      await agentIterator.return(undefined).catch(() => undefined)
-      if (error instanceof AbortError) {
-        const stopReason = agentStopReasonOf(foregroundTask?.abortController.signal.reason)
-        killAsyncAgent(backgroundedTaskId, rootSetAppState, stopReason)
-        closeOverloadEpisode(backgroundedTaskId)
-        const worktreeResult = await cleanupWorktreeIfNeeded()
-        await flushSessionStorage()
-        const partialResult = extractPartialResult(agentMessages)
-        const usage = {
-          totalTokens: getTokenCountFromTracker(tracker),
-          toolUses: tracker.toolUseCount,
-          durationMs: Date.now() - agentStartTime,
-        }
-        const envelopeBlock = await partialResultEnvelopeBlock({
-          agentId: String(backgroundedTaskId),
-          agentType: metadata.agentType,
-          status: 'stopped',
-          partialText: partialResult,
-          usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
-        })
-        enqueueAgentNotification({
-          taskId: backgroundedTaskId,
-          description,
-          status: 'killed',
-          setAppState: rootSetAppState,
-          toolUseId: toolUseContext.toolUseId,
-          finalMessage: partialResult,
-          usage,
-          landedWrites: landedWritesOf(agentMessages),
-          lastCalls: lastToolCallsOf(agentMessages),
-          ...(stopReason !== undefined ? { stopReason } : {}),
-          ...worktreeResult,
-          ...(envelopeBlock ? { envelopeBlock } : {}),
-        })
-        return
-      }
-      const failure = errorMessage(error)
-      const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)
-      const overloadEpisode = overload !== null ? overloadEpisodeOf(backgroundedTaskId) : null
-      failAsyncAgent(backgroundedTaskId, failure, rootSetAppState, undefined, { settleFrame: backgrounded ? !(overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) : false })
-      if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
-      const worktreeResult = await cleanupWorktreeIfNeeded()
-      await flushSessionStorage()
-      const partialResult = extractPartialResult(agentMessages)
-      const usage = {
-        totalTokens: getTokenCountFromTracker(tracker),
-        toolUses: tracker.toolUseCount,
-        durationMs: Date.now() - agentStartTime,
-      }
-      const envelopeBlock = await partialResultEnvelopeBlock({
-        agentId: String(backgroundedTaskId),
-        agentType: metadata.agentType,
-        status: 'failed',
-        partialText: partialResult,
-        usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
-      })
-      const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)
-      if (notifies) enqueueAgentNotification({
-        taskId: backgroundedTaskId,
-        description,
-        status: 'failed',
-        error: failure,
-        ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who, undefined, overload.status) } : {}),
-        finalMessage: partialResult,
-        usage,
-        landedWrites: landedWritesOf(agentMessages),
-        lastCalls: lastToolCallsOf(agentMessages),
-        setAppState: rootSetAppState,
-        toolUseId: toolUseContext.toolUseId,
-        ...worktreeResult,
-        ...(envelopeBlock ? { envelopeBlock } : {}),
-      })
-      if (overload !== null && foregroundTask !== undefined) {
-        armOverloadProbe({
-          taskId: backgroundedTaskId,
-          description,
-          registration: foregroundTask.abortController,
-          toolUseContext,
-          rootSetAppState,
-          model: metadata.resolvedAgentModel,
-          pause: overload.pause,
-          afterDeath: true,
-        })
-        return
-      }
-      const budgetCut = recoveryBudgetCutOf(error)
-      if (budgetCut !== null && foregroundTask !== undefined) {
-        const delayMs = budgetCutResumeDelayMs(budgetCut)
-        armBudgetCutResume({
-          taskId: backgroundedTaskId,
-          description,
-          registration: foregroundTask.abortController,
-          toolUseContext,
-          rootSetAppState,
-          delayMs,
-          pause: { why: 'provider busy', words: budgetCut.words, resumesAtMs: Date.now() + delayMs },
-        })
-      }
-    } finally {
-      stopForegroundSummarization?.()
-      try {
-        clearInvokedSkillsForAgent(syncAgentId)
-      } catch (error) {
-        logForDebugging(
-          `foreground agent: backgrounded cleanup failed: ${errorMessage(error)}`,
-        )
-      }
-    }
-  }
+  ): Promise<void> =>
+    continueDetachedOf({ agentMessages, toolUseContext, tracker, resolveActivity, rootSetAppState, description, metadata, agentIterator, backgrounded, foregroundTask, agentStartTime, cleanupWorktreeIfNeeded, stopForegroundSummarization: () => stopForegroundSummarization?.(), syncAgentId }, backgroundedTaskId, pending)
 
   let backgrounded = false
   let hintShown = false
@@ -621,61 +406,7 @@ export async function runForegroundAgentExecution(
       if (backgrounded) {
         unregisterAgentForeground(foregroundTask.taskId, rootSetAppState)
       } else {
-        const outcome = heldError === undefined ? deriveAgentTerminalOutcome(agentMessages) : null
-        const status: 'completed' | 'failed' | 'stopped' =
-          heldError instanceof AbortError
-            ? 'stopped'
-            : heldError !== undefined
-              ? 'failed'
-              : outcome!.status
-        const why =
-          outcome !== null && outcome.status === 'failed'
-            ? { error: outcome.error }
-            : status === 'failed' && heldError !== undefined
-              ? { error: errorMessage(heldError) }
-              : undefined
-        settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)
-        const windowPause = outcome !== null && outcome.status === 'failed' ? usageWindowPauseOf(agentMessages, metadata.resolvedAgentModel) : null
-        const overload = heldError !== undefined
-          ? overloadBudgetCutOf(heldError, metadata.resolvedAgentModel)
-          : outcome !== null && outcome.status === 'failed' && windowPause === null ? overloadPauseOf(agentMessages, metadata.resolvedAgentModel) : null
-        seatPause = windowPause ?? overload?.pause ?? null
-        if (overload !== null) {
-          noteOverloadDeath(overloadEpisodeOf(foregroundTask.taskId))
-          armOverloadProbe({
-            taskId: foregroundTask.taskId,
-            description,
-            registration: foregroundTask.abortController,
-            toolUseContext,
-            rootSetAppState,
-            model: metadata.resolvedAgentModel,
-            pause: overload.pause,
-            afterDeath: true,
-          })
-        } else if (windowPause !== null) {
-          if (windowPause.resumesAtMs !== undefined) {
-            armBudgetCutResume({
-              taskId: foregroundTask.taskId,
-              description,
-              registration: foregroundTask.abortController,
-              toolUseContext,
-              rootSetAppState,
-              delayMs: Math.max(1_000, windowPause.resumesAtMs - Date.now() + 1_000),
-              pause: windowPause,
-              prompt: AGENT_WINDOW_RESUME_NOTE,
-              summary: `Agent "${description}" resumed by itself — the usage window reset; its partial work carried forward`,
-            })
-          } else {
-            pauseAgentTask(foregroundTask.taskId, windowPause, rootSetAppState, foregroundTask.abortController)
-          }
-        }
-        const mirrored = mirrorSwarmNotice(foregroundTask.taskId, `settled:${foregroundTask.taskId}:${agentStartTime}`, description, seatPause ? 'paused' : status)
-        if (mirrored && !mirrored.ok) logForDebugging(`crew board: ${mirrored.reason}`)
-        emitTaskEnded(foregroundTask.taskId, status, {
-          ...(toolUseContext.toolUseId !== undefined ? { toolUseId: toolUseContext.toolUseId } : {}),
-          summary: description,
-          usage: { tokens: getTokenCountFromTracker(tracker), toolUses: tracker.toolUseCount, durationMs: Date.now() - agentStartTime },
-        })
+        seatPause = foregroundSeatSettled({ heldError, agentMessages, foregroundTask, rootSetAppState, tracker, metadata, description, toolUseContext, agentStartTime })
       }
     }
     clearInvokedSkillsForAgent(syncAgentId)
@@ -749,4 +480,301 @@ export async function runForegroundAgentExecution(
   }
 
   return { data }
+}
+
+type ForegroundTaskHandle = { taskId: string; abortController: AbortController; backgroundSignal: Promise<void> }
+
+type DetachedNeeds = {
+  agentMessages: Message[]; toolUseContext: ToolUseContext; tracker: ReturnType<typeof createProgressTracker>; resolveActivity: ReturnType<typeof createActivityDescriptionResolver>
+  rootSetAppState: SetAppState; description: string; metadata: ForegroundAgentMetadata; agentIterator: ReturnType<typeof runAgent>; backgrounded: boolean
+  foregroundTask: ForegroundTaskHandle | undefined; agentStartTime: number; cleanupWorktreeIfNeeded: () => Promise<WorktreeFields>; stopForegroundSummarization: () => void; syncAgentId: AgentId
+}
+
+async function continueDetachedOf(
+  needs: DetachedNeeds,
+  backgroundedTaskId: string,
+  pending: Promise<IteratorResult<Message, void>>,
+): Promise<void> {
+  const { agentMessages, toolUseContext, tracker, resolveActivity, rootSetAppState, description, metadata, agentIterator, backgrounded, foregroundTask, agentStartTime, cleanupWorktreeIfNeeded, stopForegroundSummarization, syncAgentId } = needs
+  try {
+    let step = await pending
+    while (!step.done) {
+      const message = step.value
+      agentMessages.push(message)
+      emitBackgroundAgentRows(toolUseContext.toolUseId, message)
+      updateProgressFromMessage(
+        tracker,
+        message,
+        resolveActivity,
+        toolUseContext.options.tools,
+      )
+      publishAgentProgressSoon(backgroundedTaskId, tracker, rootSetAppState)
+      const lastToolName = getLastToolUseName(message)
+      if (lastToolName) {
+        emitTaskProgress(
+          tracker,
+          backgroundedTaskId,
+          toolUseContext.toolUseId,
+          description,
+          metadata.startTime,
+          lastToolName,
+        )
+      }
+      step = await agentIterator.next()
+    }
+
+    const finalized = finalizeAgentTool(agentMessages, backgroundedTaskId, metadata)
+    const declined =
+      finalized.outcome?.status === 'failed' ? finalized.outcome : undefined
+    const overload = declined ? overloadPauseOf(agentMessages, metadata.resolvedAgentModel) : null
+    const overloadEpisode = overload !== null ? overloadEpisodeOf(backgroundedTaskId) : null
+    if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
+    if (declined) {
+      failAsyncAgent(backgroundedTaskId, declined.error, rootSetAppState, undefined, { settleFrame: backgrounded ? !(overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) : false })
+      if (overload !== null && foregroundTask !== undefined) {
+        armOverloadProbe({
+          taskId: backgroundedTaskId,
+          description,
+          registration: foregroundTask.abortController,
+          toolUseContext,
+          rootSetAppState,
+          model: metadata.resolvedAgentModel,
+          pause: overload.pause,
+          afterDeath: true,
+        })
+      }
+    } else {
+      completeAgentTask(finalized, rootSetAppState, undefined, {
+        usage: { tokens: getTokenCountFromTracker(tracker), toolUses: tracker.toolUseCount, durationMs: Date.now() - agentStartTime },
+        settleFrame: backgrounded ? !(overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) : false,
+      })
+      closeOverloadEpisode(backgroundedTaskId)
+    }
+
+    let finalMessage = extractTextContent(finalized.content, '\n')
+    if (
+      finalized.outcome?.status === 'completed' &&
+      finalized.outcome.promotedNarration &&
+      finalMessage
+    ) {
+      finalMessage = `${PROMOTED_NARRATION_NOTE}\n${finalMessage}`
+    }
+
+    const worktreeResult = await cleanupWorktreeIfNeeded()
+
+    let envelopeBlock: string | undefined
+    try {
+      const { buildAgentResultEnvelope, formatEnvelopeBlock } = await import(
+        '../../services/agentResults/normalize.js'
+      )
+      envelopeBlock = formatEnvelopeBlock(
+        await buildAgentResultEnvelope({
+          agentId: String(backgroundedTaskId),
+          agentType: metadata.agentType,
+          status: declined ? 'failed' : 'completed',
+          finalText: finalMessage ?? '',
+          usage: {
+            totalTokens: getTokenCountFromTracker(tracker),
+            toolUseCount: finalized.totalToolUseCount,
+            durationMs: finalized.totalDurationMs,
+          },
+        }),
+      )
+    } catch {
+    }
+
+    const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)
+    if (notifies) enqueueAgentNotification({
+      taskId: backgroundedTaskId,
+      description,
+      status: declined ? 'failed' : 'completed',
+      ...(declined ? { error: declined.error, landedWrites: landedWritesOf(agentMessages), lastCalls: lastToolCallsOf(agentMessages) } : {}),
+      ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who, undefined, overload.status) } : {}),
+      setAppState: rootSetAppState,
+      finalMessage,
+      ...(finalized.structured !== undefined ? { structuredBlock: structuredResultBlock(finalized.structured) } : {}),
+      usage: {
+        totalTokens: getTokenCountFromTracker(tracker),
+        toolUses: finalized.totalToolUseCount,
+        durationMs: finalized.totalDurationMs,
+      },
+      toolUseId: toolUseContext.toolUseId,
+      ...worktreeResult,
+      ...(envelopeBlock ? { envelopeBlock } : {}),
+    })
+  } catch (error) {
+    await agentIterator.return(undefined).catch(() => undefined)
+    if (error instanceof AbortError) {
+      const stopReason = agentStopReasonOf(foregroundTask?.abortController.signal.reason)
+      killAsyncAgent(backgroundedTaskId, rootSetAppState, stopReason)
+      closeOverloadEpisode(backgroundedTaskId)
+      const worktreeResult = await cleanupWorktreeIfNeeded()
+      await flushSessionStorage()
+      const partialResult = extractPartialResult(agentMessages)
+      const usage = {
+        totalTokens: getTokenCountFromTracker(tracker),
+        toolUses: tracker.toolUseCount,
+        durationMs: Date.now() - agentStartTime,
+      }
+      const envelopeBlock = await partialResultEnvelopeBlock({
+        agentId: String(backgroundedTaskId),
+        agentType: metadata.agentType,
+        status: 'stopped',
+        partialText: partialResult,
+        usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
+      })
+      enqueueAgentNotification({
+        taskId: backgroundedTaskId,
+        description,
+        status: 'killed',
+        setAppState: rootSetAppState,
+        toolUseId: toolUseContext.toolUseId,
+        finalMessage: partialResult,
+        usage,
+        landedWrites: landedWritesOf(agentMessages),
+        lastCalls: lastToolCallsOf(agentMessages),
+        ...(stopReason !== undefined ? { stopReason } : {}),
+        ...worktreeResult,
+        ...(envelopeBlock ? { envelopeBlock } : {}),
+      })
+      return
+    }
+    const failure = errorMessage(error)
+    const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)
+    const overloadEpisode = overload !== null ? overloadEpisodeOf(backgroundedTaskId) : null
+    failAsyncAgent(backgroundedTaskId, failure, rootSetAppState, undefined, { settleFrame: backgrounded ? !(overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) : false })
+    if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
+    const worktreeResult = await cleanupWorktreeIfNeeded()
+    await flushSessionStorage()
+    const partialResult = extractPartialResult(agentMessages)
+    const usage = {
+      totalTokens: getTokenCountFromTracker(tracker),
+      toolUses: tracker.toolUseCount,
+      durationMs: Date.now() - agentStartTime,
+    }
+    const envelopeBlock = await partialResultEnvelopeBlock({
+      agentId: String(backgroundedTaskId),
+      agentType: metadata.agentType,
+      status: 'failed',
+      partialText: partialResult,
+      usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
+    })
+    const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)
+    if (notifies) enqueueAgentNotification({
+      taskId: backgroundedTaskId,
+      description,
+      status: 'failed',
+      error: failure,
+      ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who, undefined, overload.status) } : {}),
+      finalMessage: partialResult,
+      usage,
+      landedWrites: landedWritesOf(agentMessages),
+      lastCalls: lastToolCallsOf(agentMessages),
+      setAppState: rootSetAppState,
+      toolUseId: toolUseContext.toolUseId,
+      ...worktreeResult,
+      ...(envelopeBlock ? { envelopeBlock } : {}),
+    })
+    if (overload !== null && foregroundTask !== undefined) {
+      armOverloadProbe({
+        taskId: backgroundedTaskId,
+        description,
+        registration: foregroundTask.abortController,
+        toolUseContext,
+        rootSetAppState,
+        model: metadata.resolvedAgentModel,
+        pause: overload.pause,
+        afterDeath: true,
+      })
+      return
+    }
+    const budgetCut = recoveryBudgetCutOf(error)
+    if (budgetCut !== null && foregroundTask !== undefined) {
+      const delayMs = budgetCutResumeDelayMs(budgetCut)
+      armBudgetCutResume({
+        taskId: backgroundedTaskId,
+        description,
+        registration: foregroundTask.abortController,
+        toolUseContext,
+        rootSetAppState,
+        delayMs,
+        pause: { why: 'provider busy', words: budgetCut.words, resumesAtMs: Date.now() + delayMs },
+      })
+    }
+  } finally {
+    stopForegroundSummarization?.()
+    try {
+      clearInvokedSkillsForAgent(syncAgentId)
+    } catch (error) {
+      logForDebugging(
+        `foreground agent: backgrounded cleanup failed: ${errorMessage(error)}`,
+      )
+    }
+  }
+}
+
+type SeatSettledNeeds = {
+  heldError: unknown; agentMessages: Message[]; foregroundTask: ForegroundTaskHandle; rootSetAppState: SetAppState; tracker: ReturnType<typeof createProgressTracker>
+  metadata: ForegroundAgentMetadata; description: string; toolUseContext: ToolUseContext; agentStartTime: number
+}
+
+function foregroundSeatSettled(needs: SeatSettledNeeds): AgentPauseV1 | null {
+  const { heldError, agentMessages, foregroundTask, rootSetAppState, tracker, metadata, description, toolUseContext, agentStartTime } = needs
+  let seatPause: AgentPauseV1 | null = null
+  const outcome = heldError === undefined ? deriveAgentTerminalOutcome(agentMessages) : null
+  const status: 'completed' | 'failed' | 'stopped' =
+    heldError instanceof AbortError
+      ? 'stopped'
+      : heldError !== undefined
+        ? 'failed'
+        : outcome!.status
+  const why =
+    outcome !== null && outcome.status === 'failed'
+      ? { error: outcome.error }
+      : status === 'failed' && heldError !== undefined
+        ? { error: errorMessage(heldError) }
+        : undefined
+  settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)
+  const windowPause = outcome !== null && outcome.status === 'failed' ? usageWindowPauseOf(agentMessages, metadata.resolvedAgentModel) : null
+  const overload = heldError !== undefined
+    ? overloadBudgetCutOf(heldError, metadata.resolvedAgentModel)
+    : outcome !== null && outcome.status === 'failed' && windowPause === null ? overloadPauseOf(agentMessages, metadata.resolvedAgentModel) : null
+  seatPause = windowPause ?? overload?.pause ?? null
+  if (overload !== null) {
+    noteOverloadDeath(overloadEpisodeOf(foregroundTask.taskId))
+    armOverloadProbe({
+      taskId: foregroundTask.taskId,
+      description,
+      registration: foregroundTask.abortController,
+      toolUseContext,
+      rootSetAppState,
+      model: metadata.resolvedAgentModel,
+      pause: overload.pause,
+      afterDeath: true,
+    })
+  } else if (windowPause !== null) {
+    if (windowPause.resumesAtMs !== undefined) {
+      armBudgetCutResume({
+        taskId: foregroundTask.taskId,
+        description,
+        registration: foregroundTask.abortController,
+        toolUseContext,
+        rootSetAppState,
+        delayMs: Math.max(1_000, windowPause.resumesAtMs - Date.now() + 1_000),
+        pause: windowPause,
+        prompt: AGENT_WINDOW_RESUME_NOTE,
+        summary: `Agent "${description}" resumed by itself — the usage window reset; its partial work carried forward`,
+      })
+    } else {
+      pauseAgentTask(foregroundTask.taskId, windowPause, rootSetAppState, foregroundTask.abortController)
+    }
+  }
+  const mirrored = mirrorSwarmNotice(foregroundTask.taskId, `settled:${foregroundTask.taskId}:${agentStartTime}`, description, seatPause ? 'paused' : status)
+  if (mirrored && !mirrored.ok) logForDebugging(`crew board: ${mirrored.reason}`)
+  emitTaskEnded(foregroundTask.taskId, status, {
+    ...(toolUseContext.toolUseId !== undefined ? { toolUseId: toolUseContext.toolUseId } : {}),
+    summary: description,
+    usage: { tokens: getTokenCountFromTracker(tracker), toolUses: tracker.toolUseCount, durationMs: Date.now() - agentStartTime },
+  })
+  return seatPause
 }
