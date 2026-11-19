@@ -1,7 +1,7 @@
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
-import { rmSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 (globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.NOUS_API_KEY
@@ -43,7 +43,7 @@ try {
   check('the key makes Nous Portal usable, not another provider', resolveProviderUsability().nous.usable)
   const discovery = await refreshProviderDiscovery('nous', { force: true })
   check('discovery records Nous Portal rather than falling through to another family', discovery?.provider === 'nous' && discovery.keyPresent && discovery.keySource === 'env')
-  const engines = read('docs/ENGINES.md')
+  const engines = readFileSync(join(import.meta.dir, '..', '..', 'docs/ENGINES.md'), 'utf8')
   check('the engines document carries the family row and the meter, and describes the sign-in as it is: the device flow presenting the Portal client id, with the API key as the other road', engines.includes('| `nous` | `nous/<vendor>/<model>`') && engines.includes('/api/oauth/account') && engines.includes('/api/oauth/device/code') && engines.includes(`\`${NOUS_PORTAL_CLIENT_ID}\``) && /paste an API key/.test(engines) && !/sign-in flow is reserved for Nous/.test(engines))
   console.log(`NOUS CONTRACT GREEN (${count} checks; no provider request)`)
 } finally { rmSync(proofHome, { recursive: true, force: true }) }

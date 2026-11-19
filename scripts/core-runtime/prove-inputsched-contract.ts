@@ -509,7 +509,7 @@ console.log('native-core T13/T14 — input-scheduling contract')
   const slept = await toolBoundary(SLEEP_TOOL_NAME)
   check('lock: the steering drain snapshots through the queue-owned band view and removes by identity',
     plain.delivered === 'nextA,nowA' && plain.left === 'laterA,laterN,nowA' && plain.survivorsAreTheQueuesOwn && plain.twinStays
-      && slept.delivered === 'laterN,nextA,nowA' && slept.left === 'laterA,nowA' && slept.survivorsAreTheQueuesOwn && slept.twinStays
+      && slept.delivered === 'laterN,nextA,nowA' && slept.left === 'laterA,nowA' && slept.survivorsAreTheQueuesOwn && slept.twinStays,
     `a tool boundary over now, next, later and a later notification, with an equal twin of the first command queued while the drain ran — plain: ${JSON.stringify(plain)} (nextA,nowA delivered; laterA,laterN and the twin left); after Sleep: ${JSON.stringify(slept)} (the later notification joins; laterA and the twin left) — afterTools in src/run-core/turn/afterTools.ts takes its snapshot from getDrainableCommands and removes exactly those queue entries`)
 }
 

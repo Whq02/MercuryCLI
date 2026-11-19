@@ -4,7 +4,7 @@
 process.env.NODE_ENV = 'test'
 
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
@@ -279,7 +279,7 @@ section('RV — reasoning depth is not answer length; one balanced default + one
 
 section('UI-130 — windows-ui binds captures to ONE exact SHA with a live receipt')
 {
-  const wf = src('.github/workflows/windows-ui.yml')
+  const wf = readFileSync(join(ROOT, '.github/workflows/windows-ui.yml'), 'utf8')
   check(
     'UI-130: required sha input + exact-checkout assertion (the windows-functional ledger law, same spelling)',
     /sha:\n\s+description: 'Exact commit SHA to capture \(required/.test(wf) &&
