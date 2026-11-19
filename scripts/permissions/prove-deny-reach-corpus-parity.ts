@@ -22,7 +22,7 @@ if (!process.env.REACH_CORPUS_ROOT) {
   mkdirSync(home)
   mkdirSync(config)
   const child = Bun.spawnSync([process.execPath, ...process.argv.slice(1)], {
-    env: { ...process.env, HOME: home, USERPROFILE: home, REACH_CORPUS_ROOT: root, MERCURY_CONFIG_DIR: config, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: join(root, 'no-git-config') },
+    env: { ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_'))), HOME: home, USERPROFILE: home, REACH_CORPUS_ROOT: root, MERCURY_CONFIG_DIR: config, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: join(root, 'no-git-config') },
     stdio: ['inherit', 'inherit', 'inherit'],
   })
   removeScratch(root)
@@ -50,14 +50,17 @@ mkdirSync(join(HOME, 'vault'), { recursive: true })
 writeFileSync(join(HOME, 'vault', 'k.txt'), 'K\n')
 symlinkSync(join(RUN, 'secrets', 'k.txt'), join(RUN, 'link-to-k'))
 symlinkSync(join(RUN, 'secrets'), join(RUN, 'link-to-dir'))
+const TEMPLATE = join(ROOT, 'git-template')
+mkdirSync(TEMPLATE)
+const WHO = { GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@example.invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@example.invalid', GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' }
 const git = (...args: string[]): string =>
-  execFileSync('git', ['-c', 'user.name=proof', '-c', 'user.email=proof@example.invalid', '-c', 'commit.gpgsign=false', ...args], {
+  execFileSync('git', ['-c', 'user.name=proof', '-c', 'user.email=proof@example.invalid', '-c', 'commit.gpgsign=false', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false', '-c', 'core.logAllRefUpdates=true', ...args], {
     cwd: RUN,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' },
+    env: { ...process.env, ...WHO },
   })
-git('init', '-q', '-b', 'main', '.')
+git('init', '-q', '-b', 'main', '--object-format=sha1', '--template', TEMPLATE, '.')
 git('add', 'notes.txt', 'secrets/k.txt', 'plain/notes.txt', 'sub/notes.txt')
 git('commit', '-q', '-m', 'first: the secret arrives')
 put('notes.txt', 'notes\nmore\n')
