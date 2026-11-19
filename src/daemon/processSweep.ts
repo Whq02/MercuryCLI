@@ -431,7 +431,7 @@ export function composeProcessSweepFacts(table: ProcessSweepTable, records: Proc
           ownership: binding === 'bound' ? (strangerExe ? false : true) : null,
           sameHome: binding === 'bound' ? true : null,
           liveness: liveness({
-            terminal: terminalRead(),
+            terminal: records.platform === 'win32' ? false : terminalRead(),
             registration: runner.warm ? true : ended === undefined,
             owner: runner.warm ? false : seatHolderAlive(runner, observations),
             session,
