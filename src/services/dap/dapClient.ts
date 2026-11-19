@@ -100,7 +100,7 @@ export {
   type GdbProbe,
   type LldbDapResolution,
 } from './client/probes.js'
-export { jsDebugSourceLabel, resolveJsDebugServer, type JsDebugResolution } from './client/builtins.js'
+export { jsDebugSourceLabel, resolveJsDebugServer, type JsDebugResolution } from './jsDebugResolver.js'
 export {
   adapterKeyForExtension,
   dapAdapterProbePending,
