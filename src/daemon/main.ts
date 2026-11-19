@@ -242,7 +242,7 @@ async function daemonRun(args: string[]): Promise<void> {
   let handover: HandoverStateV1 | null = null
   let roster: TaskRoster | null = null
   const state = makeDaemonRunState({ dir, bootBuildTree, foreground, breaker, maxInflight: MAX_INFLIGHT, controlEnabled })
-  const { persist, readyPromise, startedAt } = state
+  const { persist, startedAt } = state
   const noteHosted = (): void => markHosted(state)
   const armPeriodic = periodicArmer(state)
   let requestShutdown: (signal: string) => void = signal => void (state.askedToLeave ??= signal)
