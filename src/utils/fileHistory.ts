@@ -362,8 +362,9 @@ async function driftedSinceLastTouch(entry: RestoreDriftEntry, filePath: string,
   let mtime: number
   try {
     mtime = Math.floor((await stat(filePath)).mtimeMs)
-  } catch {
-    return false
+  } catch (err) {
+    if (isENOENT(err)) return false
+    throw err
   }
   if (mtime <= entry.timestamp) return false
   const fullView = (entry.offset === undefined || entry.offset === 0) && entry.limit === undefined
@@ -448,7 +449,13 @@ export async function fileHistoryRestore(
     if (current === null && planned === null) continue
     if (current !== null && planned !== null && current.equals(planned)) continue
     const known = current !== null ? opts.drift?.get(filePath) : undefined
-    if (known !== undefined && current !== null && (await driftedSinceLastTouch(known, filePath, current))) {
+    let driftedHere: boolean
+    try {
+      driftedHere = known !== undefined && current !== null && (await driftedSinceLastTouch(known, filePath, current))
+    } catch (err) {
+      return { ok: false, kind: 'restore-failed', paths: [key], detail: `${key}: ${err instanceof Error ? err.message : String(err)} — nothing was restored` }
+    }
+    if (driftedHere) {
       drifted.push(key)
       continue
     }
