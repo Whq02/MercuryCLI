@@ -4,6 +4,7 @@ import { getOriginalCwd } from '../bootstrap/state.js'
 import { getGlobalConfig } from '../utils/config/globalConfig.js'
 import { MERCURY_PROJECT_DIR } from '../utils/projectConfig.js'
 import { getEnabledSettingsForSource, getSettingsForSource, removeSettingsFileIfEmpty, updateSettingsForSource } from '../utils/settings/settings.js'
+import { errorMessage, isENOENT } from '../utils/errors.js'
 import { blockReason, matchBlock, type BlockSurface } from './blocklist.js'
 import { bundledRoster } from './bundled/index.js'
 import { entryDirectory } from './catalogue.js'
@@ -274,8 +275,9 @@ function pruneEmptySettings(sources: Iterable<SwitchHome>): void {
   }
 }
 
-function removeSwitchFromKnownProjects(id: string): string[] {
+function removeSwitchFromKnownProjects(id: string): { touched: string[]; missed: string[] } {
   const touched: string[] = []
+  const missed: string[] = []
   const projects = getGlobalConfig().projects ?? {}
   const here = getOriginalCwd()
   for (const projectPath of Object.keys(projects)) {
@@ -288,10 +290,11 @@ function removeSwitchFromKnownProjects(id: string): string[] {
       delete parsed.extensions.enabled[id]
       writeFileSync(file, JSON.stringify(parsed, null, 2) + '\n')
       touched.push(file)
-    } catch {
+    } catch (error) {
+      if (!isENOENT(error)) missed.push(`switch could not be removed from ${file} (${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}) — delete ${id} from extensions.enabled there`)
     }
   }
-  return touched
+  return { touched, missed }
 }
 
 
@@ -316,8 +319,9 @@ export function uninstall(id: string, options: { keepData?: boolean } = {}): Uni
 
   const written = new Set<SwitchHome>(removeSwitchHere(id))
   steps.push('switch removed from both homes')
-  const others = removeSwitchFromKnownProjects(id)
+  const { touched: others, missed } = removeSwitchFromKnownProjects(id)
   if (others.length > 0) steps.push(`switch removed from ${others.length} other project file${others.length === 1 ? '' : 's'}`)
+  steps.push(...missed)
 
   const wrote = updateInstalled(current => {
     const next = { ...current }

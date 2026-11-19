@@ -20,6 +20,7 @@ import type { Message } from '../../types/message.js'
 import type { QueuedCommand } from '../../types/textInputTypes.js'
 import type { AgentId } from '../../types/ids.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { isENOENT } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { saturnQueueStamp, screenCommandQueueStamp } from '../../utils/messages/noticeRows.js'
 import { wrapInSystemReminder } from '../../utils/messages/text.js'
@@ -47,7 +48,8 @@ function transcriptTailLines(path: string): string[] {
     const size = statSync(path).size
     const read = readTranscriptBytesAfter(path, { offset: Math.max(0, size - MAX_TRANSCRIPT_READ_BYTES), carry: '' })
     return [...read.text.split('\n'), read.cursor.carry]
-  } catch {
+  } catch (error) {
+    if (!isENOENT(error)) logError(error)
     return []
   }
 }

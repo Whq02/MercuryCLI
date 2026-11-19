@@ -1,6 +1,7 @@
 import picomatch from 'picomatch'
 import { hasMalformedTokens, hasShellQuoteSingleQuoteBug, tryParseShellCommand } from '../utils/bash/shellQuote.js'
 import { basename } from 'node:path'
+import { errorMessage } from '../utils/errors.js'
 
 export const GENERATED_ASSETS_MAP = 'scripts/gate/generated-assets.tsv'
 
@@ -29,6 +30,14 @@ export function parseGeneratedAssetsMap(text: string): { rows: GeneratedAssetRow
     if (assets.length === 0 || generator.trim() === '' || sourceList.length === 0) {
       errors.push(`line ${index + 1}: an empty asset, generator or sources column`)
       return
+    }
+    for (const source of sourceList) {
+      if (!source.startsWith('re:')) continue
+      try {
+        new RegExp(source.slice('re:'.length))
+      } catch (error) {
+        errors.push(`line ${index + 1}: ${source} is not a regular expression that compiles (${errorMessage(error)})`)
+      }
     }
     rows.push({ assets, generator: generator.trim(), check: check.trim() === '-' || check.trim() === '' ? null : check.trim(), sources: sourceList, line: index + 1 })
   })
@@ -74,12 +83,7 @@ export function generatedAssetsOwed(input: AssetVerdictInput): OwedAsset[] {
         const named = new Set(repoPathsIn(input.readFile(source.slice('files-of:'.length)) ?? ''))
         for (const path of input.commitPaths) if (named.has(path)) touched.push({ path, source })
       } else if (source.startsWith('re:')) {
-        let pattern: RegExp
-        try {
-          pattern = new RegExp(source.slice('re:'.length))
-        } catch {
-          continue
-        }
+        const pattern = new RegExp(source.slice('re:'.length))
         for (const path of input.commitPaths) {
           const content = input.contentOf(path)
           const previous = input.previousContentOf?.(path) ?? null
