@@ -65,21 +65,9 @@ import '../../utils/messages/rejectionText.js'
 import '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { STRUCTURED_OUTPUT_TOOL_NAME } from '../SyntheticOutputTool/structuredOutputTool.js'
-import { armInactivityDeadline, DeadlineExceededError, minutesKnobToMs } from '../../utils/deadline.js'
-import {
-  honourRecoveryWait,
-  makeRecoveryBudget,
-  recoveryAnswerRefills,
-  RecoveryBudgetSpentError,
-  recoveryNoticeFacts,
-  refillRecoveryBudget,
-  retryWaitWords,
-  settleRecoveryWait,
-  type RecoveryBudget,
-  type RecoveryNoticeFacts,
-  type RecoveryReservation,
-} from '../../services/api/recoveryBudget.js'
-import { heldBusyRetryNotice } from '../../services/providers/busyRetry.js'
+import { DeadlineExceededError, minutesKnobToMs } from '../../utils/deadline.js'
+import { honourRecoveryWait, makeRecoveryBudget, retryWaitWords, settleRecoveryWait, type RecoveryBudget, type RecoveryNoticeFacts, type RecoveryReservation } from '../../services/api/recoveryBudget.js'
+import '../../services/providers/busyRetry.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createChildAbortController } from '../../utils/abortController.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
@@ -116,13 +104,14 @@ import { buildSubagentMercurySections } from '../../constants/subagentDoctrine.j
 import type { MercuryAgentSeat } from '../../prompt/mercuryContract.js'
 import type { AgentDefinition, AgentMcpServerSpec } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
-import { REVIEW_BRIEF, canonicalReviewerReceipt, reviewerRefusal } from './reviewerPolicy.js'
+import { REVIEW_BRIEF, canonicalReviewerReceipt } from './reviewerPolicy.js'
 import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
-import { scoutRefusal } from './scoutPolicy.js'
+import './scoutPolicy.js'
 import './agentPermissionPosture.js'
 
 import { fireCrewmateEndOf } from './runAgent/crewmateEnd.js'
 import { agentPostureOf, agentToolsOf, childContextOf, runStartRecordOf } from './runAgent/setup.js'
+import { type AgentRun, armWatchdogOf, askLivelyOf, callModelOf, cutAtBudgetOf, observeProgressOf, sdkStatusOf, stalledErrorOf, touchThroughOf } from './runAgent/watch.js'
 export function filterIncompleteToolCalls(messages: Message[]): Message[] {
   const resolvedToolUseIds = new Set<string>()
   for (const message of messages) {
@@ -637,88 +626,18 @@ export async function* runAgent(
     (isAsync ? new AbortController() : toolUseContext.abortController)
   const abortController = createChildAbortController(ownerAbortController)
   const startedAt = Date.now()
-  let eventsSeen = 0
-  let toolUsesSeen = 0
-  let deferredTouch: ReturnType<typeof setTimeout> | null = null
+  const run: AgentRun = { eventsSeen: 0, toolUsesSeen: 0, deferredTouch: null, retryStalledRequest: null, stoppedAfterRetry: false, watchdog: undefined as never, throttled: null, cuttingWait: { declaredMs: 0, honoredMs: 0 }, pendingAsks: 0, askHeartbeat: null }
   const idleLimitMs = agentIdleLimitMs()
-  let retryStalledRequest: ((error: DeadlineExceededError) => boolean) | null = null
-  let stoppedAfterRetry = false
-  const stalledError = (): DeadlineExceededError =>
-    agentStalledError({
-      agentType: agentDefinition.agentType,
-      agentId,
-      limitMs: idleLimitMs,
-      elapsedMs: Date.now() - startedAt,
-      events: eventsSeen,
-      toolUses: toolUsesSeen,
-      retried: stoppedAfterRetry,
-    })
-  const armWatchdog = (): ReturnType<typeof armInactivityDeadline> => armInactivityDeadline({
-    seam: `crewmate ${agentDefinition.agentType} (${agentId})`,
-    limitMs: idleLimitMs,
-    onExpire: error => {
-      if (retryStalledRequest?.(error)) {
-        watchdog = armWatchdog()
-        return
-      }
-      const stalled = stalledError()
-      logForDebugging(`runAgent: ${agentId} stalled${stoppedAfterRetry ? ' on the first and second attempts' : ''} — ${stalled.message}`)
-      abortController.abort(stalled)
-    },
-  })
-  let watchdog = armWatchdog()
+  const stalledError = stalledErrorOf(run, { agentDefinition, agentId, idleLimitMs, startedAt, agentStalledError })
+  const armWatchdog = armWatchdogOf(run, { agentDefinition, agentId, idleLimitMs, stalledError, abortController })
+  run.watchdog = armWatchdog()
   const recovery = makeRecoveryBudget()
-  let throttled: Error | null = null
-  let cuttingWait = { declaredMs: 0, honoredMs: 0 }
-  const cutAtBudget = (cutting: { declaredMs: number; honoredMs: number }): void => {
-    cuttingWait = cutting
-    throttled = new RecoveryBudgetSpentError(recovery, cuttingWait)
-    abortController.abort(throttled)
-  }
+  const cutAtBudget = cutAtBudgetOf(run, { recovery, abortController })
   const accountant = makeRecoveryAccountant({ budget: recovery, cut: cutAtBudget, words: line => onWait?.(line) })
-  const touchThrough = (declaredMs: number): void => {
-    watchdog.touch()
-    if (declaredMs <= 0) return
-    if (deferredTouch !== null) clearTimeout(deferredTouch)
-    deferredTouch = setTimeout(() => {
-      deferredTouch = null
-      watchdog.touch()
-    }, declaredMs)
-    deferredTouch.unref?.()
-  }
+  const touchThrough = touchThroughOf(run)
 
-  const askHeartbeatMs = Math.max(1_000, Math.min(30_000, Math.floor(idleLimitMs / 4)))
-  let pendingAsks = 0
-  let askHeartbeat: ReturnType<typeof setInterval> | null = null
   const canUseToolAskLively: typeof canUseTool = canUseTool
-    ? (async (...args: Parameters<NonNullable<typeof canUseTool>>) => {
-        if (reviewReceipt !== undefined) {
-          const refusal = await reviewerRefusal(args[0], args[1], reviewReceipt, worktreePath!)
-          if (refusal !== null) return { behavior: 'deny', message: refusal }
-        }
-        if (readOnlyScout) {
-          const refusal = await scoutRefusal(args[0], args[1])
-          if (refusal !== null) return { behavior: 'deny', message: refusal }
-        }
-        pendingAsks++
-        onPendingAsks?.(pendingAsks)
-        watchdog.touch()
-        if (askHeartbeat === null) {
-          askHeartbeat = setInterval(() => watchdog.touch(), askHeartbeatMs)
-          askHeartbeat.unref?.()
-        }
-        try {
-          return await canUseTool(...args)
-        } finally {
-          pendingAsks--
-          onPendingAsks?.(pendingAsks)
-          if (pendingAsks === 0 && askHeartbeat !== null) {
-            clearInterval(askHeartbeat)
-            askHeartbeat = null
-          }
-          watchdog.touch()
-        }
-      }) as NonNullable<typeof canUseTool>
+    ? askLivelyOf(run, canUseTool, { idleLimitMs, reviewReceipt, worktreePath, readOnlyScout, onPendingAsks })
     : canUseTool
 
   const rootSetAppState =
@@ -892,29 +811,7 @@ export async function* runAgent(
     if (swarmWords !== null) systemPrompt.push(swarmWords)
 
     const { childContext, thinkingOverride } = childContextOf({ toolUseContext, posture, thinkingConfigOverride, agentId, agentDefinition, abortController, agentGetAppState, isAsync, tools, resolvedAgentModel, mcp, isFork, querySource, readFileState, contentReplacementState, childContextRef, worktreePath, agentKind, seatHolder, description, onWait, preserveToolUseResults })
-    childContext.setSDKStatus = (status: unknown) => {
-      if (status === null || typeof status !== 'object') return
-      if ('streamActivity' in status) {
-        const atMs = (status as { streamActivity?: unknown }).streamActivity
-        if (typeof atMs !== 'number') return
-        watchdog.touch()
-        onQueryProgress?.({ type: 'stream_activity', atMs } as never)
-        return
-      }
-      if ('wait' in status) {
-        const wait = (status as { wait?: unknown }).wait ?? null
-        const heldNotice = heldBusyRetryNotice(wait)
-        if (heldNotice !== null) {
-          const facts = recoveryNoticeFacts(heldNotice)
-          if (facts !== null) {
-            accountant.wait(facts, false)
-            touchThrough(facts.declaredMs)
-          }
-          return
-        }
-        onQueryProgress?.({ type: 'request_wait', wait } as never)
-      }
-    }
+    childContext.setSDKStatus = sdkStatusOf(run, { onQueryProgress, accountant, touchThrough })
 
     const messages: Message[] = [
       ...initialMessages,
@@ -948,42 +845,7 @@ export async function* runAgent(
     const effectiveMaxTurns = maxTurns ?? agentDefinition.maxTurns
 
     const deps = productionDeps()
-    const callModel: typeof deps.callModel = async function* (request) {
-      let retried = false
-      for (;;) {
-        const requestController = new AbortController()
-        const forwardAbort = (): void => requestController.abort(request.signal.reason)
-        if (request.signal.aborted) forwardAbort()
-        else request.signal.addEventListener('abort', forwardAbort, { once: true })
-        let produced = false
-        let resend = false
-        stoppedAfterRetry = false
-        retryStalledRequest = error => {
-          if (request.signal.aborted) return false
-          if (retried) stoppedAfterRetry = true
-          if (requestController.signal.aborted || produced || retried) return false
-          retried = true
-          resend = true
-          logForDebugging(`runAgent: ${agentId} stalled request — retrying the same request once on ${request.options.model}`, { level: 'warn' })
-          requestController.abort(error)
-          return true
-        }
-        try {
-          for await (const message of deps.callModel({ ...request, signal: requestController.signal })) {
-            if (resend) continue
-            if (message.type === 'assistant' || message.type === 'stream_event') produced = true
-            yield message
-          }
-        } catch (error) {
-          if (!resend || request.signal.aborted) throw error
-        } finally {
-          retryStalledRequest = null
-          request.signal.removeEventListener('abort', forwardAbort)
-          requestController.abort()
-        }
-        if (!resend || request.signal.aborted) return
-      }
-    }
+    const callModel: typeof deps.callModel = callModelOf(run, { deps, agentId })
     const queryParams: QueryParams = {
       deps: { ...deps, callModel },
       messages,
@@ -996,24 +858,7 @@ export async function* runAgent(
       ...(effectiveMaxTurns !== undefined ? { maxTurns: effectiveMaxTurns } : {}),
     }
 
-    const observeProgress = (message: LegacyQueryYield): void => {
-      eventsSeen++
-      touchThrough(declaredRecoveryWaitMs(message))
-      const notice = recoveryNoticeFacts(message)
-      if (notice !== null) {
-        accountant.wait(notice, true)
-      } else if (accountant.standing() && (message as { type?: string }).type !== 'progress') {
-        accountant.spoke()
-      }
-      if (recoveryAnswerRefills(message)) refillRecoveryBudget(recovery)
-      if ((message as { type?: string }).type === 'assistant') {
-        const content = (message as { message?: { content?: unknown } }).message?.content
-        if (Array.isArray(content) && content.some(block => (block as { type?: string })?.type === 'tool_use')) {
-          toolUsesSeen++
-        }
-      }
-      onQueryProgress?.(message as Message)
-    }
+    const observeProgress = observeProgressOf(run, { recovery, accountant, onQueryProgress, touchThrough, declaredRecoveryWaitMs })
     const retriedRefusals = new Set<string>()
     let runMessages: Message[] = messages
     const pausableQuery = async function* (): AsyncGenerator<LegacyQueryYield, void> {
@@ -1097,7 +942,7 @@ export async function* runAgent(
     }
 
     const refusalRetry =
-      stoppedEarly || watchdog.fired || throttled !== null || abortController.signal.aborted
+      stoppedEarly || run.watchdog.fired || run.throttled !== null || abortController.signal.aborted
         ? null
         : refusalRetryRowOf(lastAssistantRow, retriedRefusals, resolvedAgentModel)
     if (refusalRetry === null) break
@@ -1116,10 +961,10 @@ export async function* runAgent(
     runMessages = [...(boundaryAt >= 0 ? carried.slice(boundaryAt) : carried), refusalRetry.row]
     }
 
-    if (watchdog.fired) {
+    if (run.watchdog.fired) {
       throw stalledError()
     }
-    if (throttled !== null) throw throttled
+    if (run.throttled !== null) throw run.throttled
     if (abortController.signal.aborted) {
       throw new AbortError()
     }
@@ -1127,7 +972,7 @@ export async function* runAgent(
       void agentDefinition.callback()
     }
   } catch (error) {
-    const thrown = watchdog.fired && !(error instanceof DeadlineExceededError) ? stalledError() : throttled !== null && error !== throttled ? throttled : error
+    const thrown = run.watchdog.fired && !(error instanceof DeadlineExceededError) ? stalledError() : run.throttled !== null && error !== run.throttled ? run.throttled : error
     if (!(thrown instanceof AbortError) && !abortController.signal.aborted) {
       crewmateRun.endedBy = 'failed'
       crewmateRun.reason = errorMessage(thrown)
@@ -1137,13 +982,13 @@ export async function* runAgent(
     if (runDeadlineTimer !== undefined) clearTimeout(runDeadlineTimer)
     await endProjectLeases()
     await fireCrewmateEnd()
-    watchdog.cancel()
+    run.watchdog.cancel()
     accountant.end()
-    if (askHeartbeat !== null) {
-      clearInterval(askHeartbeat)
-      askHeartbeat = null
+    if (run.askHeartbeat !== null) {
+      clearInterval(run.askHeartbeat)
+      run.askHeartbeat = null
     }
-    if (deferredTouch !== null) clearTimeout(deferredTouch)
+    if (run.deferredTouch !== null) clearTimeout(run.deferredTouch)
     await mcp.cleanup()
     readFileState.clear?.()
     initialMessages.length = 0
