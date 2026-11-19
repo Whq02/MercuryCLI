@@ -1,5 +1,23 @@
 import type { DapSession } from '../dapClient.js'
 
+export function root(session: DapSession): DapSession {
+  let s: DapSession = session
+  while (s.parentSession) s = s.parentSession
+  return s
+}
+
+export function treeSessions(session: DapSession): DapSession[] {
+  const out: DapSession[] = [session]
+  for (const child of session.children) out.push(...child.treeSessions())
+  return out
+}
+
+export function treeTerminated(session: DapSession, hostsDebuggee: boolean): boolean {
+  if (session.terminated) return true
+  if (hostsDebuggee) return false
+  return session.children.length > 0 && session.children.every(c => c.treeTerminated())
+}
+
 export function treeStopped(session: DapSession, sinceStamp: number): DapSession | null {
   let best: DapSession | null = null
   for (const s of session.treeSessions()) {

@@ -1,6 +1,6 @@
 import type { DapSession } from '../dapClient.js'
 import { sleep } from '../../../utils/sleep.js'
-import { dapDeadline, waitForDap } from '../dapCancellation.js'
+import { DapCancelledError, dapDeadline, waitForDap } from '../dapCancellation.js'
 import type { StoppedInfo } from './shared.js'
 
 export async function waitForStopOutcome(
@@ -48,6 +48,12 @@ export async function waitForStopOutcome(
     if (woke === 'timeout') return { state: 'timeout' }
     if (woke === 'aborted') return { state: 'aborted' }
   }
+}
+
+export async function waitForStop(session: DapSession, timeoutMs: number, signal: AbortSignal | undefined): Promise<StoppedInfo | null> {
+  const outcome = await session.waitForStopOutcome(timeoutMs, signal)
+  if (outcome.state === 'aborted') throw new DapCancelledError()
+  return outcome.state === 'stopped' ? outcome.info : null
 }
 
 export async function drainOutput(session: DapSession, quietMs: number, maxMs: number, signal: AbortSignal | undefined): Promise<void> {
