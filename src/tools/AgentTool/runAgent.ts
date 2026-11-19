@@ -538,6 +538,17 @@ export async function landAgentTranscriptRows(
   return writtenChainTail(messages, parentUuid)
 }
 
+function recordableRow(anyMessage: Message & { subtype?: string; attachment?: { type?: string } }): boolean {
+  const subtype = (anyMessage as { subtype?: string }).subtype
+  const recordable =
+    anyMessage.type === 'assistant' ||
+    anyMessage.type === 'user' ||
+    anyMessage.type === 'progress' ||
+    (anyMessage.type === 'system' &&
+      (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error' || subtype === 'stream_cut' || subtype === 'busy_recovery'))
+  return recordable
+}
+
 export async function* runAgent(
   params: RunAgentParams,
 ): AsyncGenerator<Message, void> {
@@ -744,13 +755,7 @@ export async function* runAgent(
         yield message as Message
         continue
       }
-      const subtype = (anyMessage as { subtype?: string }).subtype
-      const recordable =
-        anyMessage.type === 'assistant' ||
-        anyMessage.type === 'user' ||
-        anyMessage.type === 'progress' ||
-        (anyMessage.type === 'system' &&
-          (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error' || subtype === 'stream_cut' || subtype === 'busy_recovery'))
+      const recordable = recordableRow(anyMessage)
       if (!recordable) continue
 
       lastRecordedUuid = await landAgentTranscriptRows(
