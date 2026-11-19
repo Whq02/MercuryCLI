@@ -1,6 +1,6 @@
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage, getErrnoCode } from '../../utils/errors.js'
-import { concourseWorkersPath, readSessionWorkersSnapshot, reconcileConcourseWorkers } from '../concourseWorkers.js'
+import { concourseWorkersPath, readSessionWorkersSnapshot, reconcileConcourseWorkers, unreadSessionRecordsRefusal } from '../concourseWorkers.js'
 import type { ControlServerDeps } from '../controlServer.js'
 import { daemonHomeStands } from '../daemonHome.js'
 import { sweepIdleEmptyConcourseSessions } from '../idleRetirement.js'
@@ -30,7 +30,7 @@ export function armReconcile(state: DaemonRunState, { warmDeps, armPeriodic }: R
   const rosteredOrHeld = (): Set<string> =>
     new Set([...(state.roster ? state.roster.list().filter(j => !j.outcome).map(j => j.short) : []), ...(state.handover?.heldRunners() ?? [])])
   const liveShorts = rosteredOrHeld()
-  const bootReconcile = readSessionWorkersSnapshot().state === 'known' ? reconcileConcourseWorkers(liveShorts) : null
+  const bootReconcile = unreadSessionRecordsRefusal() === null ? reconcileConcourseWorkers(liveShorts) : null
   void recordProcessCensusAtBoot({ rpc: async () => ({ ok: false, code: 'ENOTSUP', error: 'the daemon reads its own facts in-process' }) })
     .then(census => logForDebugging(`[daemon] boot process census: ${census.entries.length} Mercury process(es) read, ${census.entries.filter(entry => entry.classification === 'stale').length} stale — nothing ended at boot`))
     .catch(error => logForDebugging(`[daemon] boot process census failed: ${error}`))

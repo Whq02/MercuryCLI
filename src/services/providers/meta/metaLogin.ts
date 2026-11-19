@@ -1,4 +1,4 @@
-import { errorMessageWithCause } from '../../../utils/errors.js'
+import { errorMessageWithCause, getErrnoCode } from '../../../utils/errors.js'
 import { formatAge } from '../../../utils/healthCertCore.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { sleep } from '../../../utils/sleep.js'
@@ -146,6 +146,7 @@ export function activateMetaSource(
   try {
     writePreferredMetaSource(kind)
   } catch (error) {
+    if (getErrnoCode(error) === undefined) throw error
     return { ok: false, receipt: `Could not make it the active source: ${errorMessageWithCause(error)}` }
   }
   const named = kind === 'api-key' ? 'the API key' : 'the Muse Code sign-in'

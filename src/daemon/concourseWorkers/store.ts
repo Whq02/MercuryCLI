@@ -168,7 +168,7 @@ function noteSessionRecordsRead(path: string): void {
   const unread = sessionRecordsUnread.get(path)
   if (unread === undefined) return
   sessionRecordsUnread.delete(path)
-  console.error(`[daemon] ${path}: the session records read again; ${unread.refused} change(s) were refused meanwhile`)
+  console.error(`[daemon] ${path}: the session records read again; changes to them were refused ${unread.refused} time(s) meanwhile`)
 }
 
 export function updateConcourseWorkers(

@@ -73,7 +73,8 @@ export function executeSlotRemoval(
   try {
     outcome = routeSlotRemoval(slot, owners)
   } catch (error) {
-    return { note: `Could not sign out: ${error instanceof Error ? error.message : String(error)}`, mutated: false, refused: true }
+    if (!(error instanceof Error) || typeof (error as NodeJS.ErrnoException).code !== 'string') throw error
+    return { note: `Could not sign out: ${error.message}`, mutated: false, refused: true }
   }
   if (outcome.mutated) afterCredentialLeft(slot)
   return outcome

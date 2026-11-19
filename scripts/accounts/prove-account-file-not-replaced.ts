@@ -247,6 +247,11 @@ else {
     check(`${family.label}: the sign-out answers a note that says why, changes nothing and says it was refused`, r.outcome === null && answered?.note === words && answered.mutated === false && answered.refused === true && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'}`)
   }
   const gemini = FAMILIES[0]!
+  const fault = runIn(gemini, `
+    const removal = await import(${JSON.stringify(join(SRC, 'services/providers/accountSlots/removal.ts'))})
+    out.threw = attempt(() => removal.executeSlotRemoval({ id: 'fixture-slot', family: 'gemini', kind: 'oauth', removal: { route: 'gemini-oauth' } }, { disconnectGeminiOauth: () => { throw new TypeError('a fault of the code, not a refusal') } }))
+  `)
+  check('a throw that is not a refusal of the store still leaves the sign-out as a throw, as before', (fault.threw as Threw)?.message === 'a fault of the code, not a refusal', JSON.stringify(fault.threw))
   const r = runIn(gemini, `
     const login = await import(${JSON.stringify(join(SRC, 'services/providers/gemini/geminiLogin.ts'))})
     fs.mkdirSync(dir, { recursive: true })

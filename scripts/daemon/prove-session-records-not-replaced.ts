@@ -80,7 +80,7 @@ try {
     said.length = 0
     const later = attempt(() => workers.updateConcourseWorkers(all => void (all['concourse-w4'] = record(4)), dir))
     check('once the file reads again a change lands and keeps every session', later.threw === undefined && sessionsOn(file).join() === 'concourse-w1,concourse-w2,concourse-w3,concourse-w4', `${later.threw ?? ''} ${sessionsOn(file).join(', ')}`)
-    check('…and the log says how many changes were refused meanwhile', said.includes(`[daemon] ${file}: the session records read again; 3 change(s) were refused meanwhile`), said)
+    check('…and the log says how many changes were refused meanwhile', said.includes(`[daemon] ${file}: the session records read again; changes to them were refused 3 time(s) meanwhile`), said)
   }
 
   for (const [title, bytes, why] of [
@@ -164,6 +164,7 @@ try {
       }),
     )
     check('the boot reconcile does not end the boot, and the file stands byte for byte', armed.threw === undefined && readFileSync(file, 'utf8') === OTHER_VERSION, armed.threw ?? `on disk now: ${sessionsOn(file).join(', ') || 'no session'}`)
+    check('the boot itself tells daemon.log, before any beat, what is refused, why, and what to do', said.filter(row => row === spoken(file, WHY)).length === 1, said)
     ;(tick as (() => void) | null)?.()
     ;(tick as (() => void) | null)?.()
     const line = `[daemon] the reconcile tick failed, so the records of ended sessions are not corrected and idle retirement does not run until it succeeds: ${refusal(file, WHY)}`

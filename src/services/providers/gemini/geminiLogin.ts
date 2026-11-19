@@ -1,5 +1,5 @@
 import { KEY_PAGES } from '../../../components/loginFamilyRows.js'
-import { errorMessageWithCause } from '../../../utils/errors.js'
+import { errorMessageWithCause, getErrnoCode } from '../../../utils/errors.js'
 import { readStoredGeminiApiKey, writeStoredGeminiApiKey } from '../providerSecrets.js'
 import { geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, readPreferredGeminiSource, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
 import { geminiPlanTierWords } from './geminiPlanAccess.js'
@@ -76,6 +76,7 @@ export function activateGeminiSource(kind: GeminiStoredSourceKind): { ok: boolea
   try {
     writePreferredGeminiSource(kind)
   } catch (error) {
+    if (getErrnoCode(error) === undefined) throw error
     return { ok: false, receipt: `Could not make it the active source: ${errorMessageWithCause(error)}` }
   }
   const facts = liveGeminiStoredSourceFacts()
