@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { getSessionId, getSessionKind, isSessionPersistenceDisabled } from '../bootstrap/state.js'
+import { getSessionId, isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import type { Command } from '../commands.js'
-import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
 import { queryEvents } from '../query.js'
 import type { Terminal } from '../query/transitions.js'
 import type { RunEvent } from '../run-core/events.js'
@@ -9,12 +8,6 @@ import { legacyYieldsOf } from '../run-core/project-legacy.js'
 import type { QueryParams } from '../run-core/turn-machine.js'
 import { retryReasonWords } from '../services/providers/streamIdleBudget.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/emptyUsage.js'
-import { INVALID_API_KEY_ERROR_MESSAGE, isStreamFaultRecoveryNudgeEcho } from '../services/api/errors.js'
-import { CHOOSE_A_MODEL_DOOR } from '../utils/model/computedDefault.js'
-import { localRoadBesideSignIn } from '../services/providers/local/localAccounts.js'
-import { toolCallShapedAnswer } from '../services/providers/local/toolCallMarkup.js'
-import { emptyReplyEndedLine, emptyReplyKindOf } from '../services/providers/emptyReply.js'
-import { localFitRefusalFacts } from '../services/providers/local/localCatalogue.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import type { Tools, ToolUseContext } from '../Tool.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/constants.js'
@@ -31,17 +24,11 @@ import { reconstructContentReplacementState, type ContentReplacementState } from
 import { fileHistoryMakeSnapshot } from '../utils/fileHistory.js'
 import { headlessProfilerCheckpoint } from '../utils/headlessProfiler.js'
 import { forgetWardFirings, wardFiringsOf } from '../guards/wardsGuard.js'
-import { unansweredAsksBlocker } from '../services/run/unansweredAsk.js'
-import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
+import { getInMemoryErrors, logError } from '../utils/log.js'
 import { isClaudeAISubscriber } from '../utils/auth.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
-import { createUserMessage } from '../utils/messages/factories.js'
-import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
-import { turnCutOf, turnCutResultText } from '../utils/messages/turnCut.js'
-import { fireHooks } from '../utils/hooks/fire.js'
+import { turnCutOf } from '../utils/messages/turnCut.js'
 import type { HookAttachment } from '../utils/attachments/types.js'
-import { hookRowsOfResult } from '../utils/hooks/rows.js'
-import { HOOK_CUT_BUDGET_MS } from '../utils/hooks/contract.js'
 import { getEngineModel } from '../utils/model/model.js'
 import { resolveModelPricing } from '../utils/modelCost.js'
 import { getTokenUsage, messageContextFill } from '../utils/tokens.js'
@@ -52,7 +39,7 @@ import { processUserInput } from '../utils/processUserInput/processUserInput.js'
 import { getSlashCommandToolSkills } from '../commands.js'
 import { ensureExtensionsLoaded } from '../extensions/boot.js'
 import { flushSessionStorage, recordTranscript } from '../utils/sessionStorage.js'
-import { recordTurnEnd, recordTurnStart, settleTranscriptMessage } from '../utils/sessionStorage/writer.js'
+import { recordTurnStart, settleTranscriptMessage } from '../utils/sessionStorage/writer.js'
 import { setCwd } from '../utils/Shell.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
@@ -60,9 +47,6 @@ import { shouldEnableThinkingByDefault } from '../utils/thinking.js'
 import { getCwd } from '../utils/cwd.js'
 import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import {
-  commandOutputRow,
-  commandOutputTextOf,
-  shellOutputTextOf,
   compactionEndedRow,
   modelUsageRows,
   noticeRow,
@@ -78,7 +62,7 @@ import {
   type RowScope,
   type SessionFacts,
 } from './project.js'
-import { budgetCannotPaySentence, errorClassOf, statusOfTerminal, toolCallsRefusedSentence, unexecutedToolCallSentence, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus, type Usage } from './vocabulary.js'
+import { budgetCannotPaySentence, statusOfTerminal, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, type Denial, type OutcomeStatus, type Usage } from './vocabulary.js'
 import { recoveryKindOf, type RecoveryKind } from './vocabulary.js'
 import { StepLedger } from './turn/steps.js'
 import { messageRowsOf } from './turn/messageRows.js'
@@ -86,12 +70,13 @@ import { canUseToolKeepingDenials } from './turn/asks.js'
 import { systemPromptComposer } from './turn/prompt.js'
 import { armTurnGuards } from './turn/guards.js'
 import { contextBuilder } from './turn/context.js'
+import { commandOutputRows } from './turn/command.js'
+import { latestAnswerOf } from './turn/answer.js'
+import { openCallsCutter } from './turn/cut.js'
+import { turnEnder } from './turn/end.js'
+import { MaxTimeCut, settledTurnRows } from './turn/settle.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
-
-class MaxTimeCut extends Error {
-  override readonly name = 'MaxTimeCut'
-}
 
 type CanUseTool = ToolUseContext extends never ? never : QueryParams['canUseTool']
 type GetAppState = ToolUseContext['getAppState']
@@ -143,16 +128,6 @@ export type TurnOptions = {
   turn?: number
 }
 
-function messageTextContent(message: Message): string | null {
-  const content = (message as { message?: { content?: unknown } }).message?.content
-  if (typeof content === 'string') return content
-  return null
-}
-
-function isLocalCommandOutputText(text: string): boolean {
-  return text.includes(LOCAL_COMMAND_STDOUT_TAG) || text.includes(LOCAL_COMMAND_STDERR_TAG)
-}
-
 
 function inputFloorUsd(messages: readonly Message[], model: string): number | null {
   const pricing = resolveModelPricing(model)
@@ -165,17 +140,6 @@ function inputFloorUsd(messages: readonly Message[], model: string): number | nu
     return (carried * Math.min(pricing.costs.promptCacheReadTokens, pricing.costs.inputTokens)) / 1e6
   }
   return null
-}
-
-function lastTextBlockOf(message: AssistantMessage): string {
-  const content = message.message.content
-  if (typeof content === 'string') return content
-  if (!Array.isArray(content)) return ''
-  for (let index = content.length - 1; index >= 0; index--) {
-    const block = content[index] as { type?: string; text?: string }
-    if (block.type === 'text' && typeof block.text === 'string') return block.text === NO_CONTENT_MESSAGE ? '' : block.text
-  }
-  return ''
 }
 
 const costUnknownIn = (unpricedTurns: Record<string, number>, subscriber: boolean) => (model: string): boolean => (unpricedTurns[model] ?? 0) > 0 || (subscriber && declaredRouteOf(model) === 'anthropic')
@@ -471,53 +435,14 @@ export class Conversation {
     }
     const closeTurn = (status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): RowDraft => outcomeRow({ ...scope, turn: turnOrdinal }, outcomeFactsOf(status, extra))
     let timeLimitTimer: ReturnType<typeof setTimeout> | null = null
+    const turnEnding = turnEnder({ scope, turnId, sessionId, abortController: this.abortController, toolUseContext, inputResult, mutableMessages: this.mutableMessages, turnMessages, seedMessages, persistenceDisabled, recordDelta: turnMessages => this.recordDelta(turnMessages), cutCalls, openCalls })
     const endTurn = async function* (this: Conversation, status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): AsyncGenerator<RowDraft> {
       if (timeLimitTimer !== null) {
         clearTimeout(timeLimitTimer)
         timeLimitTimer = null
       }
       const row = closeTurn(status, extra) as RowDraft & { stop?: string; error?: { message: string; class: string }; steps: number; wall_ms: number; cost_usd?: number; usage: Usage; answer?: string }
-      const aborted = this.abortController.signal.aborted
-      const cut = aborted ? turnCutOf(this.abortController.signal.reason) : null
-      try {
-        const ended = await fireHooks(
-          'turn.end',
-          {
-            turn_id: turnId,
-            status,
-            ...(row.stop !== undefined ? { stop: row.stop as never } : {}),
-            ...(row.error !== undefined ? { error: { message: row.error.message, class: row.error.class as never } } : {}),
-            ...(cut !== null ? { cut: { reason: cut.kind, ...(cut.detail !== undefined ? { detail: cut.detail } : {}), tools: [...cutCalls, ...openCalls.values()] } } : {}),
-            steps: row.steps,
-            wall_ms: row.wall_ms,
-            ...(row.cost_usd !== undefined ? { cost_usd: row.cost_usd } : {}),
-            usage: row.usage,
-            ...(row.answer !== undefined ? { answer: row.answer } : {}),
-          },
-          { scope: { sessionId: String(sessionId) }, toolUseContext, ...(cut !== null ? { budgetMs: HOOK_CUT_BUDGET_MS } : {}) },
-        )
-        const hookRows = hookRowsOfResult(ended)
-        if (hookRows.length > 0) {
-          const attachments = hookRows.map(hookRow => createAttachmentMessage(hookRow))
-          this.mutableMessages.push(...attachments)
-          turnMessages.push(...attachments)
-          if (!persistenceDisabled) await this.recordDelta(turnMessages)
-        }
-        for (const hookRow of hookRows) {
-          if (hookRow.outcome === 'failed' || hookRow.outcome === 'notice') yield noticeRow(scope, 'warning', hookRow.words, HOOK_NOTICE_CODES[hookRow.outcome])
-        }
-      } catch (error) {
-        logError(error)
-      }
-      if (!persistenceDisabled && (inputResult.messages.length > 0 || turnMessages.some(message => !seedMessages.has(message)))) {
-        try {
-          await this.recordDelta(turnMessages)
-          await recordTurnEnd(turnId, status)
-          if (!isBareMode()) await flushSessionStorage()
-        } catch (error) {
-          logError(error)
-        }
-      }
+      yield* turnEnding(status, row)
       yield row
     }.bind(this)
 
@@ -525,29 +450,7 @@ export class Conversation {
     noteRunPhase('assembly')
 
     if (!inputResult.shouldQuery) {
-      let commandAnswer = ''
-      for (const message of inputResult.messages) {
-        if (priorUuids.has(message.uuid)) continue
-        if (message.type === 'user') {
-          const text = messageTextContent(message)
-          const isCompactSummary = (message as { isCompactSummary?: boolean }).isCompactSummary === true
-          const shellOutput = text !== null && options?.mode === 'bash' ? shellOutputTextOf(text) : null
-          if (shellOutput !== null) {
-            commandAnswer = shellOutput
-            yield commandOutputRow(scope, shellOutput, typeof prompt === 'string' ? prompt : undefined)
-          } else if (text !== null && isLocalCommandOutputText(text) && !isCompactSummary) {
-            yield commandOutputRow(scope, commandOutputTextOf(text), typeof prompt === 'string' ? prompt.split(/\s+/)[0] : undefined)
-          }
-        } else if (message.type === 'system' && (message as { subtype?: string }).subtype === 'local_command') {
-          const content = (message as { content?: unknown }).content
-          if (typeof content === 'string' && isLocalCommandOutputText(content)) {
-            yield commandOutputRow(scope, commandOutputTextOf(content), typeof prompt === 'string' ? prompt.split(/\s+/)[0] : undefined)
-          }
-        } else if (message.type === 'system' && (message as { subtype?: string }).subtype === 'compact_boundary') {
-          const meta = (message as { compactMetadata?: CompactMetadata }).compactMetadata
-          yield compactionEndedRow(scope, { trigger: meta?.trigger ?? 'manual', tokensBefore: meta?.preTokens })
-        }
-      }
+      const commandAnswer = yield* commandOutputRows(inputResult, priorUuids, scope, prompt, options)
       if (!persistenceDisabled) {
         await this.recordDelta(turnMessages)
         if (eagerFlush) await flushSessionStorage()
@@ -595,34 +498,10 @@ export class Conversation {
       await this.recordDelta(turnMessages)
     }
     const messages = this.mutableMessages
-    const latestAnswer = (): string => {
-      for (let i = turnMessages.length - 1; i >= 0; i--) {
-        const message = turnMessages[i]!
-        if (message.type !== 'assistant') continue
-        if ((message as { isApiErrorMessage?: boolean }).isApiErrorMessage === true) continue
-        const answer = lastTextBlockOf(message as AssistantMessage)
-        if (answer !== '') return answer
-      }
-      return ''
-    }
+    const latestAnswer = latestAnswerOf(turnMessages)
     const maxTimeReached = (): boolean => config.maxTime !== undefined && Date.now() >= config.maxTime.at
     const timeLimitFacts = (): Partial<OutcomeFacts> => ({ error: { message: OUTCOME_SENTENCES.time_limit({ maxTimeMs: config.maxTime?.limitMs }), class: 'time_limit' } })
-    const cutOpenCalls = async function* (limit: string): AsyncGenerator<RowDraft> {
-      const words = turnCutResultText({ kind: 'cut', detail: limit })
-      for (const reply of [...turnMessages]) {
-        if (reply.type !== 'assistant') continue
-        for (const block of reply.message.content) {
-          if (block.type !== 'tool_use' || !openCalls.has(block.id)) continue
-          toolOutcomes.set(block.id, 'aborted')
-          const result = createUserMessage({ content: [{ type: 'tool_result', content: words, is_error: true, tool_use_id: block.id }], toolUseResult: words, sourceToolAssistantUUID: reply.uuid })
-          messages.push(result)
-          turnMessages.push(result)
-          await recordDelta()
-          for (const row of trackCalls(rowsOfMessage(result, undefined))) yield row
-        }
-      }
-      if (!persistenceDisabled) await flushSessionStorage().catch(() => {})
-    }
+    const cutOpenCalls = openCallsCutter({ turnMessages, messages, openCalls, toolOutcomes, persistenceDisabled, recordDelta, trackCalls, rowsOfMessage })
     if (maxTimeReached()) {
       yield* endTurn('time_limit', timeLimitFacts())
       return
@@ -918,92 +797,7 @@ export class Conversation {
 
     const answer = latestAnswer()
 
-    if (terminal === undefined) {
-      yield* endTurn('failed', { error: { message: 'The turn ended without a terminal', class: 'internal' } })
-      return
-    }
-    const aborted = terminal.reason === 'aborted_streaming' || terminal.reason === 'aborted_tools'
-    const cut = aborted ? turnCutOf(this.abortController.signal.reason).kind : null
-    if (aborted && this.abortController.signal.reason instanceof MaxTimeCut) {
-      yield* endTurn('time_limit', { ...timeLimitFacts(), ...(answer !== '' ? { answer } : {}) })
-      return
-    }
-    let lastAssistant: (AssistantMessage & { isApiErrorMessage?: boolean }) | undefined
-    for (let i = turnMessages.length - 1; i >= 0; i--) {
-      const message = turnMessages[i]!
-      if (message.type === 'assistant' && !seedMessages.has(message)) {
-        lastAssistant = message as AssistantMessage & { isApiErrorMessage?: boolean }
-        break
-      }
-    }
-    const endedOnApiError = terminal.reason === 'completed' && lastAssistant?.isApiErrorMessage === true
-    const settled = endedOnApiError ? { status: 'failed' as const, errorClass: 'model' as const } : statusOfTerminal(terminal, cut)
-    if (settled.status === 'completed') {
-      const unanswered = this.denials.slice(denialsBefore).filter(denial => this.unansweredAsks.has(denial.call_id))
-      if (unanswered.length > 0 && getSessionKind() !== 'oculus') {
-        const tools = [...new Set(unanswered.map(denial => denial.tool))]
-        if (!recoveredUnansweredAsk) {
-          yield* endTurn('blocked', { answer, error: unansweredAsksBlocker(unanswered) })
-          return
-        }
-        notices.push({ level: 'warning', text: `${tools.join(', ')} was not approved; the run continued with other tools.` })
-      }
-      const unexecuted = toolCallShapedAnswer(answer)
-      if (unexecuted !== undefined) {
-        yield* endTurn('failed', { error: { message: unexecutedToolCallSentence(unexecuted.names), class: 'model' } })
-        return
-      }
-      if (isStreamFaultRecoveryNudgeEcho(answer)) {
-        const faultWords = apiErrorMessage !== null ? lastTextBlockOf(apiErrorMessage) : ''
-        yield* endTurn('failed', {
-          error: {
-            message: faultWords !== '' ? faultWords : TERMINAL_FAILURE_SENTENCES.model_error,
-            class: apiErrorMessage?.error !== undefined ? errorClassOf(apiErrorMessage.error) : 'model',
-          },
-        })
-        return
-      }
-      if (answer === '' && lastAssistant !== undefined && emptyReplyKindOf(lastAssistant) === 'empty') {
-        const emptyReplies = turnMessages.filter(message => message.type === 'assistant' && !seedMessages.has(message) && emptyReplyKindOf(message as AssistantMessage) === 'empty').length
-        yield* endTurn('failed', { error: { message: emptyReplyEndedLine(Math.max(1, emptyReplies - 1)), class: 'model' } })
-        return
-      }
-      yield* endTurn('completed', { answer, ...(this.structuredOutput !== undefined ? { structured: this.structuredOutput } : {}) })
-      return
-    }
-    const allErrors = getInMemoryErrors()
-    const watermarkIndex = errorWatermark ? allErrors.indexOf(errorWatermark) : -1
-    const turnErrors = allErrors.slice(watermarkIndex + 1).map(entry => withoutStackFrames(entry.error))
-    const errorClass: ErrorClass = settled.errorClass ?? (settled.status === 'interrupted' ? 'interrupt' : 'internal')
-    const apiErrorText = apiErrorMessage !== null ? lastTextBlockOf(apiErrorMessage) : ''
-    const localFitRefused = localFitRefusalFacts(apiErrorText) !== null
-    let message: string
-    if (settled.status === 'interrupted') {
-      message = OUTCOME_SENTENCES.interrupted({})
-    } else if (terminal.reason === 'model_error' || endedOnApiError) {
-      message = apiErrorMessage !== null ? lastTextBlockOf(apiErrorMessage) : terminal.reason === 'model_error' ? (terminal.error instanceof Error ? terminal.error.message : String(terminal.error ?? 'The model call failed')) : 'The model call failed'
-      if (message === INVALID_API_KEY_ERROR_MESSAGE || message === CHOOSE_A_MODEL_DOOR) message = `${message}, ${localRoadBesideSignIn()}`
-    } else if (cut !== null) {
-      message = cut === 'idle-timeout' ? 'The turn was aborted after a no-progress timeout' : `The turn was cut: ${turnCutOf(this.abortController.signal.reason).detail ?? 'the run was aborted'}`
-    } else if (terminal.reason === 'max_turns') {
-      message = OUTCOME_SENTENCES.turn_limit({ maxTurns: config.maxTurns })
-    } else if (terminal.reason === 'loop_stopped') {
-      message = OUTCOME_SENTENCES.loop_stopped({})
-    } else if (terminal.reason === 'tool_calls_refused') {
-      message = toolCallsRefusedSentence(terminal)
-    } else if (terminal.reason === 'blocking_limit' && localFitRefused) {
-      message = apiErrorText
-    } else {
-      message = TERMINAL_FAILURE_SENTENCES[terminal.reason]
-    }
-    const finalClass: ErrorClass = localFitRefused ? 'context_limit' : (terminal.reason === 'model_error' || endedOnApiError) && apiErrorMessage?.error !== undefined ? errorClassOf(apiErrorMessage.error) : errorClass
-    yield* endTurn(settled.status, {
-      error: {
-        message,
-        class: finalClass,
-        ...(turnErrors.length > 0 ? { detail: turnErrors } : {}),
-      },
-    })
+    yield* settledTurnRows({ config, terminal, answer, abortController: this.abortController, turnMessages, seedMessages, denials: this.denials, denialsBefore, unansweredAsks: this.unansweredAsks, recoveredUnansweredAsk, notices, apiErrorMessage, structuredOutput: this.structuredOutput, errorWatermark, timeLimitFacts, endTurn })
   }
 }
 
