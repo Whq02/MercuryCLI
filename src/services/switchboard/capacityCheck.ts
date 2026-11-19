@@ -6,6 +6,8 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { availableCores } from '../../utils/availableCores.js'
 import { getGlobalConfig, saveGlobalConfig, isConfigReadingAllowed } from '../../utils/config.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
+import { errorMessage } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 
 export type SeatKind = 'agent' | 'runner'
@@ -263,6 +265,7 @@ export interface CapacityProbe {
 }
 
 const AGENT_CLI_NAMES = new Set(['claude', 'mercury', 'codex', 'gemini'])
+const OTHER_AGENT_CLIS_HOLDING_A_SEAT = 2
 const SCRIPT_HOSTS = new Set(['node', 'bun', 'deno'])
 
 function basenameOf(token: string): string {
@@ -305,7 +308,7 @@ async function countOtherAgentClis(): Promise<number> {
             useCwd: false,
             timeout: 3000,
           })
-    if (r.code !== 0) return 0
+    if (r.code !== 0) return otherAgentClisUnread(r.error ?? (r.stderr.split('\n')[0] || `exit ${r.code}`))
     let n = 0
     for (const line of r.stdout.split('\n')) {
       const m = line.match(/^\s*(\d+)\s+(.+)$/)
@@ -315,9 +318,14 @@ async function countOtherAgentClis(): Promise<number> {
       if (looksLikeAgentCli(m[2]!)) n++
     }
     return n
-  } catch {
-    return 0
+  } catch (error) {
+    return otherAgentClisUnread(errorMessage(error))
   }
+}
+
+function otherAgentClisUnread(reason: string): number {
+  logError(new Error(`other agent CLIs could not be counted (${reason}), so one seat is held back`))
+  return OTHER_AGENT_CLIS_HOLDING_A_SEAT
 }
 
 export async function probeCapacity(): Promise<CapacityProbe> {
@@ -332,7 +340,7 @@ export async function probeCapacity(): Promise<CapacityProbe> {
 
 export function recommendSeats(probe: CapacityProbe): number {
   const reading = machineSeatReading(probe.cores, probe.availableMemBytes)
-  return Math.max(SEAT_FLOOR, probe.otherAgentClis >= 2 ? reading - 1 : reading)
+  return Math.max(SEAT_FLOOR, probe.otherAgentClis >= OTHER_AGENT_CLIS_HOLDING_A_SEAT ? reading - 1 : reading)
 }
 
 export function capacityDecisionReceipt(allowed: boolean, recommendedSeats: number): string {
