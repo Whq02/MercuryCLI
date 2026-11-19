@@ -341,9 +341,14 @@ type LeftBehind = { shell: string; pgid: number; members: Array<[number, number]
 
 const leftBehindHere: LeftBehind[] = []
 let saysWhatEnded: ((line: string) => void) | undefined
+let shellThatServes: (() => string | undefined) | undefined
 
 export function tellWhatProcessGroupEnds(say: (line: string) => void): void {
   saysWhatEnded = say
+}
+
+export function tellProcessGroupTheShell(read: () => string | undefined): void {
+  shellThatServes = read
 }
 
 function leftBehindFile(winpid: number): string {
@@ -353,13 +358,19 @@ function leftBehindFile(winpid: number): string {
 function readLeftBehind(text: string): LeftBehind[] {
   const entries: LeftBehind[] = []
   for (const line of text.split('\n')) {
+    if (line.trim() === '') continue
+    let read: unknown
     try {
-      const entry = JSON.parse(line) as Partial<LeftBehind>
-      if (typeof entry.shell !== 'string' || !Number.isSafeInteger(entry.pgid) || (entry.pgid as number) <= 1 || !Array.isArray(entry.members)) continue
-      const members = entry.members.filter((pair): pair is [number, number] => Array.isArray(pair) && Number.isSafeInteger(pair[0]) && Number.isSafeInteger(pair[1]))
-      entries.push({ shell: entry.shell, pgid: entry.pgid as number, members })
-    } catch {
+      read = JSON.parse(line)
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error
+      saysWhatEnded?.(`a line of a jobs record is no record and is passed over: ${line.slice(0, 120)}`)
+      continue
     }
+    const entry = (typeof read === 'object' && read !== null ? read : {}) as Partial<LeftBehind>
+    if (typeof entry.shell !== 'string' || !Number.isSafeInteger(entry.pgid) || (entry.pgid as number) <= 1 || !Array.isArray(entry.members)) continue
+    const members = entry.members.filter((pair): pair is [number, number] => Array.isArray(pair) && Number.isSafeInteger(pair[0]) && Number.isSafeInteger(pair[1]))
+    entries.push({ shell: entry.shell, pgid: entry.pgid as number, members })
   }
   return entries
 }
@@ -385,7 +396,8 @@ function endLeftBehindHereNow(): void {
   }
   try {
     rmSync(leftBehindFile(process.pid), { force: true })
-  } catch {
+  } catch (error) {
+    saysWhatEnded?.(`the jobs record of this process was not removed: ${String(error)}`)
   }
 }
 
@@ -409,7 +421,8 @@ async function endLeftBehindOf(winpids: readonly number[]): Promise<number[]> {
     let text: string
     try {
       text = readFileSync(record, 'utf8')
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') saysWhatEnded?.(`the jobs record of process ${winpid} was not read: ${String(error)}`)
       continue
     }
     for (const entry of readLeftBehind(text)) {
@@ -430,7 +443,8 @@ async function endLeftBehindOf(winpids: readonly number[]): Promise<number[]> {
     }
     try {
       rmSync(record, { force: true })
-    } catch {
+    } catch (error) {
+      saysWhatEnded?.(`the jobs record of process ${winpid} was not removed: ${String(error)}`)
     }
   }
   return struck
@@ -438,7 +452,7 @@ async function endLeftBehindOf(winpids: readonly number[]): Promise<number[]> {
 
 async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTreeKillReceipt> {
   if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) return { ended: 0, survivors: [] }
-  const table = msysTableReaderOf(spawnfile) ?? (spawnfile === undefined || startsNode(spawnfile) ? msysTableReaderOf(process.env.SHELL) : undefined)
+  const table = msysTableReaderOf(spawnfile) ?? (spawnfile === undefined || startsNode(spawnfile) ? msysTableReaderOf(shellThatServes?.()) : undefined)
   const before = table === undefined ? [] : await readMsysTable(table)
   const { file, args } = win32TaskkillCommand(pid)
   const stdout = await new Promise<string>(resolve => {
@@ -585,11 +599,7 @@ export async function endProcessBornAfter(pid: number, mark: BirthMark | null, s
 }
 
 export function endProcessBornAt(pid: number, at: number, signal: NodeJS.Signals = 'SIGTERM'): boolean {
-  try {
-    if (readBirthNow(pid) !== at) return false
-  } catch {
-    return false
-  }
+  if (readBirthNow(pid) !== at) return false
   signalPid(pid, signal)
   return true
 }

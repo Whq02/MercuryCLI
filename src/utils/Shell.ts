@@ -21,7 +21,7 @@ import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
 import { fallbackEngineBinary, systemShellRecord } from './shell/shellRecord.js'
 import { wrapSpawn, createAbortedCommand, createFailedCommand, type ShellCommand } from './ShellCommand.js'
-import { noteMsysGroupLeftBehind, tellWhatProcessGroupEnds } from './processGroup.js'
+import { noteMsysGroupLeftBehind, tellProcessGroupTheShell, tellWhatProcessGroupEnds } from './processGroup.js'
 import { toolShellEnv, subprocessEnv, withLoginExports } from './subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../substrate/envStamps.js'
 import { getTaskOutputDir } from './task/diskOutput.js'
@@ -124,7 +124,10 @@ export async function terminalShellInvocation(
   }
 }
 
-if (process.platform === 'win32') tellWhatProcessGroupEnds(line => logForDebugging(`shell jobs: ${line}`))
+if (process.platform === 'win32') {
+  tellWhatProcessGroupEnds(line => logForDebugging(`shell jobs: ${line}`))
+  tellProcessGroupTheShell(() => subprocessEnv().SHELL)
+}
 
 async function noteJobsLeftBehind(shellPath: string, group: number): Promise<void> {
   try {
