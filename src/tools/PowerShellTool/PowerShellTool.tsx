@@ -123,6 +123,7 @@ type Out = {
   scrubbedSessionEnv?: readonly string[]
   sessionEnvNotice?: string
   outputBudgetNotice?: string
+  outputCopyNotice?: string
 }
 
 
@@ -368,6 +369,7 @@ async function* runPowerShell(
 
     let persistedOutputPath: string | undefined
     let persistedOutputSize: number | undefined
+    let outputCopyNotice: string | undefined
     if (result.outputFilePath && result.outputTaskId) {
       try {
         const stats = await stat(result.outputFilePath)
@@ -376,7 +378,9 @@ async function* runPowerShell(
         if (stats.size > MAX_OUTPUT_BYTES) await truncate(result.outputFilePath, MAX_OUTPUT_BYTES)
         await redactedCopy(result.outputFilePath, destination, redact)
         persistedOutputPath = destination
-      } catch {  }
+      } catch (error) {
+        outputCopyNotice = `[the full output could not be kept for reading (${errorMessage(error)}); only the excerpt above is shown — send the output to a file to read all of it]`
+      }
     }
 
     let isImage = isImageOutput(out)
@@ -390,6 +394,7 @@ async function* runPowerShell(
       stdout: formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective }).truncatedContent, stderr, interrupted: result.interrupted, isImage,
       returnCodeInterpretation: interpretation.message, gitOperation,
       ...(outputBudgetNotice !== undefined ? { outputBudgetNotice } : {}),
+      ...(outputCopyNotice !== undefined ? { outputCopyNotice } : {}),
       ...(persistedOutputPath ? { persistedOutputPath, persistedOutputSize } : {}),
       ...(scrubbedSessionEnv.length > 0 ? { scrubbedSessionEnv } : {}),
     }
@@ -414,7 +419,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   if (output.interrupted) errorText += `\n<error>The command was cut short before it finished.</error>`
   const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
   const scrubNotice = output.sessionEnvNotice ?? ''
-  const content = [stdout, errorText, output.outputBudgetNotice ?? '', backgroundNotice, scrubNotice].filter(p => p !== '').join('\n')
+  const content = [stdout, errorText, output.outputBudgetNotice ?? '', output.outputCopyNotice ?? '', backgroundNotice, scrubNotice].filter(p => p !== '').join('\n')
   return { tool_use_id: toolUseID, type: 'tool_result', content, is_error: output.interrupted }
 }
 
