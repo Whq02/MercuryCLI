@@ -16,7 +16,7 @@ async function clearedMarkWritten(sessionId: string): Promise<boolean> {
 }
 
 function clearedMarkMissedNote(): ControlNoteState {
-  return { state: 'failed', reason: 'released, but the board could not record it as cleared', next: `it may show again; ${keyHintLabel('⌃x ⌃x')} clears it then` }
+  return { state: 'failed', reason: 'removed from the board, but that could not be recorded', next: `it may show again; ${keyHintLabel('⌃x ⌃x')} clears it then` }
 }
 
 async function restFocusedSlotAfterRelease(
