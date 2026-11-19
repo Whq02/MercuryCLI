@@ -63,7 +63,7 @@ export async function clickOp(s: LiveSession, { input, owner, signalFor }: OpRun
 export async function uploadOp(s: LiveSession, { input, owner, context, signalFor }: OpRun, checked: UploadSource[] | null): Promise<OpDone> {
   let result: string
   let outcome: ToolEffectOutcome = 'no-change'
-  const judgedOrigin = await targetOrigin(s, input.frame).catch(() => null)
+  const judgedOrigin = await targetOrigin(s, input.frame)
   const originGate = await actOriginGate(owner, s, input)
   if (originGate !== null) {
     result = originGate
