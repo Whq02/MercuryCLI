@@ -83,7 +83,7 @@ async function readRecord(file: string): Promise<AgentMetadata | null> {
   try {
     return JSON.parse(await readFile(file, 'utf8')) as AgentMetadata
   } catch (error) {
-    if (!isENOENT(error)) logError(new Error(`crewmate metadata ${file} could not be read: ${errorMessage(error)}`))
+    if (!isENOENT(error)) logError(new Error(`crewmate metadata ${file} could not be read: ${error instanceof SyntaxError ? 'it is not valid JSON' : errorMessage(error)}`))
     return null
   }
 }
