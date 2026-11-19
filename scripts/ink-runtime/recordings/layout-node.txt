@@ -1,3 +1,9 @@
+## the first layout of the process, with no width given
+layout r - -: visited 11 measured 2 hits 1 live 5
+  rects r=0,0,16,2 r.0=0,0,4,2 r.1=4,0,9,2 r.2=13,0,3,2 r.2.0=0,0,3,1
+  asks r.1(NaN|undefined) r.1(9|exactly)
+closed: live 0
+
 ## direction row, justify flex-start
 layout r 80 -: visited 4 measured 0 hits 0 live 4
   rects r=0,0,41,13 r.0=0,0,6,2 r.1=6,0,9,3 r.2=15,0,4,1
@@ -352,6 +358,41 @@ layout r 80 -: visited 4 measured 0 hits 0 live 4
   rects r=0,0,40,2 r.0=0,0,10,1 r.1=10,0,NaN,1 r.2=NaN,0,NaN,1
 closed: live 0
 
+## an overflow a maximum already took, beside a child that grows by half
+layout r 80 -: visited 3 measured 0 hits 0 live 3
+  rects r=0,0,20,2 r.0=0,0,16,1 r.1=16,0,4,1
+closed: live 0
+
+## free cells a minimum already took, beside a child that shrinks by half
+layout r 80 -: visited 3 measured 0 hits 0 live 3
+  rects r=0,0,40,2 r.0=0,0,30,1 r.1=30,0,10,1
+closed: live 0
+
+## half a free cell left by a minimum
+layout r 80 -: visited 3 measured 0 hits 0 live 3
+  rects r=0,0,40,2 r.0=0,0,30,1 r.1=30,0,10,1
+closed: live 0
+
+## three quarters of a cell left by a maximum among the shrinking
+layout r 80 -: visited 3 measured 0 hits 0 live 3
+  rects r=0,0,20,2 r.0=0,0,9,1 r.1=9,0,10,1
+closed: live 0
+
+## violations of both signs that sum to half a cell
+layout r 80 -: visited 3 measured 0 hits 0 live 3
+  rects r=0,0,10,2 r.0=0,0,6,1 r.1=6,0,4,1
+closed: live 0
+
+## a basis and a width below zero on children that grow
+layout r 80 -: visited 7 measured 0 hits 0 live 7
+  rects r=0,0,50,4 r.0=0,0,50,2 r.0.0=0,0,20,1 r.0.1=20,0,30,1 r.1=0,2,50,2 r.1.0=0,0,20,1 r.1.1=20,0,30,1
+closed: live 0
+
+## a row whose width nobody gave, held by a maximum and a minimum, padded on one side
+layout r - -: visited 29 measured 0 hits 0 live 15
+  rects r=0,0,41,5 r.0=0,0,12,1 r.0.0=3,0,5,1 r.0.1=8,0,4,1 r.1=0,1,2,1 r.1.0=3,0,0,1 r.1.1=3,0,0,1 r.2=0,2,41,1 r.2.0=3,0,19,1 r.2.1=22,0,19,1 r.3=0,3,40,1 r.3.0=3,0,29,1 r.3.1=32,0,8,1 r.4=0,4,3,1 r.4.0=-2,0,5,1
+closed: live 0
+
 ## grow and shrink of zero among the flexible
 layout r 80 -: visited 4 measured 0 hits 0 live 4
   rects r=0,0,40,2 r.0=0,0,10,1 r.1=10,0,10,1 r.2=20,0,20,1
@@ -553,6 +594,21 @@ closed: live 0
 ## a gap of all under a gap by gutter
 layout r 80 -: visited 25 measured 0 hits 0 live 13
   rects r=0,0,40,6 r.0=0,0,40,1 r.0.0=0,0,4,1 r.0.1=7,0,4,1 r.1=0,1,40,1 r.1.0=0,0,4,1 r.1.1=5,0,4,1 r.2=0,2,40,2 r.2.0=0,0,4,1 r.2.1=0,1,4,1 r.3=0,4,40,2 r.3.0=0,0,4,1 r.3.1=0,1,4,1
+closed: live 0
+
+## a gap of all under the gutter between wrapped lines
+layout r 80 -: visited 13 measured 0 hits 0 live 9
+  rects r=0,0,40,9 r.0=0,0,10,5 r.0.0=0,0,6,1 r.0.1=0,2,6,1 r.0.2=0,4,6,1 r.1=0,5,40,4 r.1.0=0,0,2,3 r.1.1=3,0,2,3 r.1.2=6,0,2,3
+closed: live 0
+
+## a wrap at the very edge of its tolerance
+layout r 80 -: visited 3 measured 0 hits 0 live 3
+  rects r=0,0,20,1 r.0=0,0,10,1 r.1=10,0,10,1
+closed: live 0
+
+## a wrap decided by five billionths of a cell
+layout r 80 -: visited 3 measured 0 hits 0 live 3
+  rects r=0,0,20,2 r.0=0,0,10,1 r.1=0,1,10,1
 closed: live 0
 
 ## padding and border larger than the box
@@ -762,6 +818,21 @@ layout r 80 -: visited 19 measured 0 hits 0 live 10
   rects r=0,0,24,9 r.0=0,0,40,9 r.0.0=0,0,40,20 r.1=40,0,42,9 r.1.0=1,1,40,20 r.2=82,0,40,20 r.2.0=0,0,40,20 r.3=122,0,2,2 r.3.0=0,0,2,2 r.4=124,0,12,12
 closed: live 0
 
+## a scrolling box given less than its own padding on one side
+layout r 80 -: visited 9 measured 0 hits 0 live 5
+  rects r=0,0,20,4 r.0=0,0,1,6 r.0.0=0,6,1,1 r.1=1,0,1,6 r.1.0=0,6,1,1
+closed: live 0
+
+## children put under a hidden root, one new and one laid out before, then laid out
+layout r 10 -: visited 3 measured 0 hits 0 live 3
+  rects r=0,0,10,3 r.0=0,0,5,2 r.1=0,2,3,1
+read under a hidden root, before its layout: r=0,0,0,0 r.0=0,0,0,0 r.1=0,2,3,1 r+0=NaN,NaN,NaN,NaN
+layout r 10 -: visited 1 measured 0 hits 0 live 4
+  rects r=0,0,0,0 r.0=0,0,0,0 r.1=0,0,0,0 r+0=0,0,0,0
+layout r 10 -: visited 4 measured 0 hits 0 live 4
+  rects r=0,0,10,5 r.0=0,0,5,2 r.1=0,4,3,1 r+0=0,2,4,2
+closed: live 0
+
 ## a scrolling column as tall as it may be, as the transcript is
 layout r 40 -: visited 30 measured 3 hits 16 live 8
   rects r=0,0,40,12 r.0=0,0,40,1 r.1=0,1,40,9 r.1.0=0,0,40,17 r.1.0.0=0,0,40,5 r.1.0.1=0,5,40,8 r.1.0.2=0,13,10,4 r.2=0,10,40,2
@@ -877,6 +948,39 @@ layout r 80 -: visited 10 measured 4 hits 0 live 9
   asks r.7(40|at-most) r.5(2.00005|exactly) r.6(2.99995|exactly) r.7(3|exactly)
 closed: live 0
 
+## the thresholds of the grid, each met exactly
+layout r 80 -: visited 81 measured 15 hits 17 live 36
+  rects r=0,0,40,23 r.0=0,0,40,1 r.0.0=0,0,1,1 r.0.1=1,0,3,1 r.1=0,1,40,1 r.1.0=0,0,0,1 r.1.1=0,0,3,1 r.2=0,2,40,1 r.2.0=0,0,1,1 r.2.1=1,0,3,1 r.3=0,3,40,3 r.3.0=0,0,1,3 r.3.1=0,0,3,1 r.4=0,6,40,3 r.4.0=0,0,1,3 r.4.1=1,0,3,1 r.5=0,9,40,1 r.5.0=0,0,4,1 r.5.1=3,0,3,1 r.6=0,10,40,1 r.6.0=0,0,4,1 r.6.1=4,0,3,1 r.7=0,11,40,1 r.7.0=0,0,3,1 r.7.1=3,0,3,1 r.8=0,12,40,1 r.8.0=0,0,3,1 r.8.1=4,0,3,1 r.9=0,13,40,4 r.9.0=0,0,1,1 r.9.1=0,1,1,3 r.10=0,17,40,6 r.10.0=0,0,40,1 r.10.1=0,0,40,2 r.10.2=0,1,40,4 r.10.3=0,5,40,1
+  asks r.3.0(0.0001|exactly) r.4.0(0.9999|exactly) r.5.0(3.0005|exactly) r.6.0(40|at-most) r.6.0(3|exactly) r.7.0(40|at-most) r.7.0(3|exactly) r.8.0(40|at-most) r.8.1(40|at-most) r.8.0(3|exactly) r.8.1(3|exactly) r.10.3(40|exactly) r.10.0(40|exactly) r.10.1(40|exactly) r.10.2(40|exactly)
+closed: live 0
+
+## a child at the very edge of what a reused layout lets pass
+layout r.0 10 -: visited 2 measured 0 hits 0 live 5
+  rects r=NaN,NaN,NaN,NaN r.0=0,0,10,1 r.0.0=0,0,10,1 r.1=NaN,NaN,NaN,NaN r.1.0=NaN,NaN,NaN,NaN
+layout r.0 10 -: visited 1 measured 0 hits 1 live 5
+  rects r=NaN,NaN,NaN,NaN r.0=0,0,10,1 r.0.0=0,0,10,1 r.1=NaN,NaN,NaN,NaN r.1.0=NaN,NaN,NaN,NaN
+layout r.1 10 -: visited 2 measured 0 hits 0 live 5
+  rects r=NaN,NaN,NaN,NaN r.0=0,0,10,1 r.0.0=0,0,10,1 r.1=0,0,10,1 r.1.0=0,0,4,1
+layout r.1 10 -: visited 1 measured 0 hits 1 live 5
+  rects r=NaN,NaN,NaN,NaN r.0=0,0,10,1 r.0.0=0,0,10,1 r.1=0,0,10,1 r.1.0=0,0,4,1
+closed: live 0
+
+## a child wider than its parent by five millionths, seen when the layout is reused
+layout r 10 -: visited 2 measured 0 hits 0 live 2
+  rects r=0,0,10,1 r.0=0,0,10,1
+layout r 10 -: visited 1 measured 0 hits 1 live 2
+  rects r=0,0,10,1 r.0=0,0,10,1
+  trace {"kind":"skip-restore","restored":{"w":10,"h":1},"child":{"left":0,"top":0,"width":10.000005,"height":1}}
+closed: live 0
+
+## a child taller than its parent by five millionths, seen when the layout is reused
+layout r 10 -: visited 2 measured 0 hits 0 live 2
+  rects r=0,0,10,1 r.0=0,0,4,1
+layout r 10 -: visited 1 measured 0 hits 1 live 2
+  rects r=0,0,10,1 r.0=0,0,4,1
+  trace {"kind":"skip-restore","restored":{"w":10,"h":1},"child":{"left":0,"top":0,"width":4,"height":1.000005}}
+closed: live 0
+
 ## a measured node that has children is laid out by its children
 layout r 80 -: visited 11 measured 2 hits 4 live 5
   rects r=0,0,30,5 r.0=0,0,30,3 r.0.0=0,0,4,2 r.0.1=0,2,30,1 r.1=0,3,30,2
@@ -955,6 +1059,23 @@ layout r 20 -: visited 6 measured 3 hits 2 live 3
   asks r.0(20|at-most) r.1(20|at-most) r.0(20|exactly)
 layout r - -: visited 5 measured 0 hits 4 live 3
   rects r=0,0,32,1 r.0=0,0,23,1 r.1=23,0,9,1
+closed: live 0
+
+## a size measured with no height given, asked again at most its own height
+layout r 12 -: visited 9 measured 1 hits 3 live 4
+  rects r=0,0,12,10 r.0=0,0,4,10 r.0.0=0,0,4,1 r.0.1=0,1,4,9
+  asks r.0.0(12|at-most)
+layout r 12 -: visited 6 measured 1 hits 2 live 4
+  rects r=0,0,12,10 r.0=0,0,4,10 r.0.0=0,0,4,1 r.0.1=0,1,4,9
+  asks r.0.0(4|exactly)
+closed: live 0
+
+## a size measured at most a width, asked again at most the width it took
+layout r 30 -: visited 9 measured 1 hits 3 live 4
+  rects r=0,0,30,2 r.0=0,0,23,2 r.0.0=0,0,23,1 r.0.1=0,1,2,1
+  asks r.0.0(30|at-most)
+layout r 30 -: visited 3 measured 0 hits 2 live 4
+  rects r=0,0,30,2 r.0=7,0,23,2 r.0.0=0,0,23,1 r.0.1=0,1,2,1
 closed: live 0
 
 ## the same layout asked again costs one visit
