@@ -33,6 +33,8 @@ let frameFiles = 0
 
 const UTF8_CONSOLE = '{ chcp.com 65001 >/dev/null 2>&1 || true; }'
 
+const STARTS_A_JOB = /(?:^|[^&>|<\\])&(?![&>])/
+
 const CMD_SWITCHES_AS_WRITTEN =
   '{ cmd() { local a w=(); case "${1-}" in /[a-zA-Z]|/[a-zA-Z]:*) for a in "$@"; do case "$a" in /*/*) ;; /[a-zA-Z]*) a="/$a";; esac; w+=("$a"); done; set -- "${w[@]}";; esac; command cmd "$@"; }; alias cmd.exe=cmd 2>/dev/null || true; }'
 
@@ -100,6 +102,8 @@ export async function createBashShellProvider(
       if (preamble) parts.push(preamble)
       if (isWindows) parts.push(CMD_SWITCHES_AS_WRITTEN)
       if (isWindows) parts.push(UTF8_CONSOLE)
+      const jobsPath = isWindows && STARTS_A_JOB.test(raw) ? `${cwdFileForEngine}-jobs` : undefined
+      if (jobsPath !== undefined) parts.push(`{ { echo $$ >| ${quote([`${cwdFileInShell}-jobs`])}; } 2>/dev/null || true; }`)
       parts.push(`eval ${quotedCommand}`)
       parts.push(`{ { pwd -P >| ${quote([cwdFileInShell])}; } 2>/dev/null || true; }`)
       if (isWindows) {
@@ -122,7 +126,7 @@ export async function createBashShellProvider(
           const own = `-${process.pid}-${frameFiles++}-frame`
           return { args: msysSpawnArgs(msysSourceLine(`${cwdFileInShell}${own}`), noLoginFiles), file: { path: join(nativeTmp, `${name}${own}`), text: frame }, ...where }
         }
-        return { commandString, cwdFilePath: cwdFileForEngine, handOver, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
+        return { commandString, cwdFilePath: cwdFileForEngine, handOver, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }), ...(jobsPath === undefined ? {} : { jobsPath }) }
       }
       return { commandString, cwdFilePath: cwdFileForEngine, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
     },

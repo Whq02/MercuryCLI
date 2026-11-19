@@ -20,6 +20,7 @@ import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
 import { fallbackEngineBinary, systemShellRecord } from './shell/shellRecord.js'
 import { wrapSpawn, createAbortedCommand, createFailedCommand, type ShellCommand } from './ShellCommand.js'
+import { noteMsysGroupLeftBehind, tellWhatProcessGroupEnds } from './processGroup.js'
 import { toolShellEnv, subprocessEnv, withLoginExports } from './subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../substrate/envStamps.js'
 import { getTaskOutputDir } from './task/diskOutput.js'
@@ -120,7 +121,18 @@ export async function terminalShellInvocation(
     argsFor: line => road.provider.getSpawnArgs(line),
     env: road.provider.origin === undefined ? env : withRoadPrograms(env, road.provider.origin, road.provider.shellPath),
     scrubbed,
-    leftBehind: [...[built.cwdFilePath, ...(built.pipelineStatusPath === undefined ? [] : [built.pipelineStatusPath])].map(native), ...(handed?.file === undefined ? [] : [handed.file.path])],
+    leftBehind: [...[built.cwdFilePath, ...(built.pipelineStatusPath === undefined ? [] : [built.pipelineStatusPath]), ...(built.jobsPath === undefined ? [] : [built.jobsPath])].map(native), ...(handed?.file === undefined ? [] : [handed.file.path])],
+  }
+}
+
+if (process.platform === 'win32') tellWhatProcessGroupEnds(line => logForDebugging(`shell jobs: ${line}`))
+
+async function noteJobsLeftBehind(shellPath: string, group: number): Promise<void> {
+  try {
+    const left = await noteMsysGroupLeftBehind(shellPath, group)
+    if (left.length > 0) logForDebugging(`shell jobs: a finished command left ${left.length} program(s) running (MSYS group ${group}, Windows pid ${left.join(', ')}); they end with this process`)
+  } catch (error) {
+    logForDebugging(`shell jobs: what a finished command left running was not read: ${errorMessage(error)}`)
   }
 }
 
@@ -475,6 +487,15 @@ export async function exec(
         if (/^\d+(?:\s+\d+)+$/.test(text)) result.pipelineStatus = text.split(/\s+/).map(Number)
       } catch {}
       void getFsImplementation().unlink(file).catch(() => {})
+    }
+    if (built.jobsPath !== undefined) {
+      const file = posixPathToWindowsPath(built.jobsPath)
+      let group = Number.NaN
+      try {
+        group = Number(readFileSync(file, 'utf8').trim())
+      } catch {}
+      void getFsImplementation().unlink(file).catch(() => {})
+      if (Number.isSafeInteger(group) && result.backgroundTaskId === undefined) void noteJobsLeftBehind(spawnFile, group)
     }
     dropFrame()
     void getFsImplementation()

@@ -1,6 +1,7 @@
 import { execFile, spawnSync } from 'child_process'
 import type { ChildProcess } from 'child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { win32 as pathWin32 } from 'node:path'
 import { sleep } from './sleep.js'
 
@@ -334,6 +335,105 @@ export async function endMsysGroupBeside(spawnfile: string, pgid: number): Promi
   return taskkillActedPids(stdout)
 }
 
+type LeftBehind = { shell: string; pgid: number; members: Array<[number, number]> }
+
+const leftBehindHere: LeftBehind[] = []
+let saysWhatEnded: ((line: string) => void) | undefined
+
+export function tellWhatProcessGroupEnds(say: (line: string) => void): void {
+  saysWhatEnded = say
+}
+
+function leftBehindFile(winpid: number): string {
+  return pathWin32.join(tmpdir(), `mercury-jobs-${winpid}`)
+}
+
+function readLeftBehind(text: string): LeftBehind[] {
+  const entries: LeftBehind[] = []
+  for (const line of text.split('\n')) {
+    try {
+      const entry = JSON.parse(line) as Partial<LeftBehind>
+      if (typeof entry.shell !== 'string' || !Number.isSafeInteger(entry.pgid) || (entry.pgid as number) <= 1 || !Array.isArray(entry.members)) continue
+      const members = entry.members.filter((pair): pair is [number, number] => Array.isArray(pair) && Number.isSafeInteger(pair[0]) && Number.isSafeInteger(pair[1]))
+      entries.push({ shell: entry.shell, pgid: entry.pgid as number, members })
+    } catch {
+    }
+  }
+  return entries
+}
+
+function stillLeftBehind(table: readonly MsysProcessRow[], entry: LeftBehind): number[] {
+  const group = table.filter(row => row.pgid === entry.pgid)
+  if (!entry.members.some(([pid, winpid]) => group.some(row => row.pid === pid && row.winpid === winpid))) return []
+  return msysTreeRows(table, { pids: new Set(group.map(row => row.pid)), groups: new Set([entry.pgid]) })
+    .map(row => row.winpid)
+    .filter(winpid => winpid !== process.pid && isAlivePid(winpid))
+}
+
+function endLeftBehindHereNow(): void {
+  for (const entry of leftBehindHere) {
+    const ps = msysPsBeside(entry.shell)
+    if (ps === undefined) continue
+    const said = spawnSync(ps, ['-e', '-l'], { windowsHide: true, timeout: MSYS_TABLE_BOUND_MS, encoding: 'utf8' })
+    const live = stillLeftBehind(parseMsysProcessTable(typeof said.stdout === 'string' ? said.stdout : ''), entry)
+    if (live.length === 0) continue
+    const { file, args } = win32TaskkillSweepCommand(live)
+    spawnSync(file, args, { windowsHide: true, timeout: 5_000, stdio: 'ignore' })
+    saysWhatEnded?.(`ended with this process, left running by a finished command (MSYS group ${entry.pgid}): Windows pid ${live.join(', ')}`)
+  }
+  try {
+    rmSync(leftBehindFile(process.pid), { force: true })
+  } catch {
+  }
+}
+
+export async function noteMsysGroupLeftBehind(shellPath: string, pgid: number): Promise<number[]> {
+  if (process.platform !== 'win32' || !Number.isSafeInteger(pgid) || pgid <= 1) return []
+  const ps = msysPsBeside(shellPath)
+  if (ps === undefined) return []
+  const members = (await readMsysTable(ps)).filter(row => row.pgid === pgid && row.winpid > 1 && row.winpid !== process.pid)
+  if (members.length === 0) return []
+  const entry: LeftBehind = { shell: shellPath, pgid, members: members.map(row => [row.pid, row.winpid]) }
+  appendFileSync(leftBehindFile(process.pid), `${JSON.stringify(entry)}\n`)
+  if (leftBehindHere.length === 0) process.once('exit', endLeftBehindHereNow)
+  leftBehindHere.push(entry)
+  return members.map(row => row.winpid)
+}
+
+async function endLeftBehindOf(winpids: readonly number[]): Promise<number[]> {
+  const struck: number[] = []
+  for (const winpid of winpids) {
+    const record = leftBehindFile(winpid)
+    let text: string
+    try {
+      text = readFileSync(record, 'utf8')
+    } catch {
+      continue
+    }
+    for (const entry of readLeftBehind(text)) {
+      const ps = msysPsBeside(entry.shell)
+      if (ps === undefined) continue
+      const live = stillLeftBehind(await readMsysTable(ps), entry)
+      if (live.length === 0) continue
+      const { file, args } = win32TaskkillSweepCommand(live)
+      const stdout = await new Promise<string>(resolve => {
+        execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (_error, out) => {
+          resolve(typeof out === 'string' ? out : String(out ?? ''))
+        })
+      })
+      for (const ended of [...live, ...taskkillActedPids(stdout)]) {
+        if (!struck.includes(ended)) struck.push(ended)
+      }
+      saysWhatEnded?.(`ended with process ${winpid}, left running by a finished command of it (MSYS group ${entry.pgid}): Windows pid ${live.join(', ')}`)
+    }
+    try {
+      rmSync(record, { force: true })
+    } catch {
+    }
+  }
+  return struck
+}
+
 async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTreeKillReceipt> {
   if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) return { ended: 0, survivors: [] }
   const msysPs = msysPsBeside(spawnfile) ?? (spawnfile === undefined || startsNode(spawnfile) ? msysPsBeside(process.env.SHELL) : undefined)
@@ -349,6 +449,9 @@ async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTre
     for (const swept of await sweepMsysTree(msysPs, before, [pid, ...acted])) {
       if (!acted.includes(swept)) acted.push(swept)
     }
+  }
+  for (const left of await endLeftBehindOf([pid, ...acted])) {
+    if (!acted.includes(left)) acted.push(left)
   }
   const watched = acted.includes(pid) ? acted : [pid, ...acted]
   let remaining = watched.filter(isAlivePid)
