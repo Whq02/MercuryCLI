@@ -158,6 +158,12 @@ function sessionRecordsRefusal(path: string, why: string): Error {
   return new Error(`the session records at ${path} were not updated: the file is there and could not be read (${why}); nothing was written`)
 }
 
+export function unreadSessionRecordsRefusal(dir?: string): Error | null {
+  const path = concourseWorkersPath(dir)
+  const fresh = readMutableSessionWorkersFromDisk(path)
+  return fresh.kind === 'unavailable' ? sessionRecordsRefusal(path, fresh.why) : null
+}
+
 function noteSessionRecordsRead(path: string): void {
   const unread = sessionRecordsUnread.get(path)
   if (unread === undefined) return

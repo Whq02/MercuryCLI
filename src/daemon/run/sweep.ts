@@ -30,13 +30,13 @@ export function armReconcile(state: DaemonRunState, { warmDeps, armPeriodic }: R
   const rosteredOrHeld = (): Set<string> =>
     new Set([...(state.roster ? state.roster.list().filter(j => !j.outcome).map(j => j.short) : []), ...(state.handover?.heldRunners() ?? [])])
   const liveShorts = rosteredOrHeld()
-  const bootReconcile = reconcileConcourseWorkers(liveShorts)
+  const bootReconcile = readSessionWorkersSnapshot().state === 'known' ? reconcileConcourseWorkers(liveShorts) : null
   void recordProcessCensusAtBoot({ rpc: async () => ({ ok: false, code: 'ENOTSUP', error: 'the daemon reads its own facts in-process' }) })
     .then(census => logForDebugging(`[daemon] boot process census: ${census.entries.length} Mercury process(es) read, ${census.entries.filter(entry => entry.classification === 'stale').length} stale — nothing ended at boot`))
     .catch(error => logForDebugging(`[daemon] boot process census failed: ${error}`))
   let reconcileRosterSig = [...liveShorts].sort().join(' ')
   let reconcileRecordsStamp = fileMoveStamp(concourseWorkersPath())
-  let reconcileHadLive = bootReconcile.live.length > 0
+  let reconcileHadLive = bootReconcile === null || bootReconcile.live.length > 0
   const namedReconcileFailures = new Set<string>()
   const reconcileTick = (): void => {
     const roster = state.roster

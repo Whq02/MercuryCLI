@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -7,7 +7,14 @@ const home = realpathSync(mkdtempSync(join(tmpdir(), 'session-records-kept-')))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-for (const key of ['MERCURY_HOME', 'MERCURY_DAEMON_PERSIST', 'MERCURY_DAEMON_OWNER_PID', 'MERCURY_DAEMON_OWNER_FD']) delete process.env[key]
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+for (const key of [
+  'MERCURY_HOME', 'MERCURY_DAEMON_PERSIST', 'MERCURY_DAEMON_OWNER_PID', 'MERCURY_DAEMON_OWNER_FD', 'MERCURY_WARM_RUNNER', 'MERCURY_SESSION_KIT',
+  'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'DEEPSEEK_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY',
+  'GOOGLE_OAUTH_TOKEN', 'MERCURY_GEMINI_OAUTH_TOKEN', 'MOONSHOT_API_KEY', 'MOONSHOT_TOKEN', 'HF_TOKEN', 'HF_OAUTH_TOKEN', 'MERCURY_COMPAT_API_KEY', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'CI',
+]) delete process.env[key]
+if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
+mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
@@ -98,6 +105,72 @@ try {
     const second = attempt(() => workers.updateConcourseWorkers(all => void (all['concourse-w2'] = record(2)), dir))
     check('a second change keeps the first session', second.threw === undefined && sessionsOn(file).join() === 'concourse-w1,concourse-w2', second.threw ?? sessionsOn(file))
     check('and the log is told nothing', said.length === 0, said)
+  }
+
+  const OTHER_VERSION = THREE.replace('"version": 1', '"version": 2')
+  const WHY = 'it is not a version 1 session file'
+
+  console.log('the session records — an admission while they cannot be read starts no runner')
+  {
+    const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+    enableConfigs()
+    saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
+    const started: string[] = []
+    const roster = {
+      has: () => ({ present: false, alive: false, ready: false }),
+      list: () => started.map(short => ({ short })),
+      registerLongLived: (short: string) => {
+        started.push(short)
+        return { ok: true, pid: process.pid }
+      },
+      control: () => true,
+      kill: () => true,
+    }
+    const { dir, file } = fresh()
+    const workspace = realpathSync(mkdtempSync(join(home, 'workspace-')))
+    const admit = workers.makeConcourseAdmitHandler({ roster: () => roster as never, dir })
+    writeFileSync(file, OTHER_VERSION, { mode: 0o600 })
+    let refused: { ok: boolean; code?: string; error?: string } | { threw: string }
+    try {
+      refused = await admit({ workspaceDir: workspace, isolation: 'shared', bornBlank: true, birthKey: '7d0e3d7e-2a4c-4a0f-9c1b-000000000001' })
+    } catch (error) {
+      refused = { threw: error instanceof Error ? error.message : String(error) }
+    }
+    check('the admission is refused before anything is started, with the reason', 'ok' in refused && refused.ok === false && refused.code === 'not-ready' && refused.error === `no session was started: ${refusal(file, WHY)}`, refused)
+    check('no runner was started and the file stands byte for byte', started.length === 0 && readFileSync(file, 'utf8') === OTHER_VERSION, `${started.length} runner(s) started with no record to hold them; on disk now: ${sessionsOn(file).join(', ')}`)
+    unlinkSync(file)
+    const admitted = await admit({ workspaceDir: workspace, isolation: 'shared', bornBlank: true, birthKey: '7d0e3d7e-2a4c-4a0f-9c1b-000000000002' })
+    check('control: with no file the admission lands, one runner and one record', admitted.ok === true && started.length === 1 && sessionsOn(file).length === 1, admitted)
+  }
+
+  console.log('the session records — the daemon boots while they cannot be read, and its reconcile says so at each beat\'s first failure')
+  {
+    const sweep = await import('../../src/daemon/run/sweep.ts')
+    const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
+    const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
+    const file = workers.concourseWorkersPath()
+    writeFileSync(file, OTHER_VERSION, { mode: 0o600 })
+    said.length = 0
+    const state = makeDaemonRunState({ dir: home, bootBuildTree: 'aaaaaaaaaaaa', foreground: false, breaker: new DaemonBreaker(), maxInflight: 1, controlEnabled: true })
+    state.roster = { list: () => [], liveWorkerFacts: () => [], kill: () => false } as never
+    let tick: (() => void) | null = null
+    const armed = attempt(() =>
+      sweep.armReconcile(state, {
+        warmDeps: { roster: () => undefined },
+        armPeriodic: ((_name: string, work: () => void) => {
+          tick = work
+          return {} as never
+        }) as never,
+      }),
+    )
+    check('the boot reconcile does not end the boot, and the file stands byte for byte', armed.threw === undefined && readFileSync(file, 'utf8') === OTHER_VERSION, armed.threw ?? `on disk now: ${sessionsOn(file).join(', ') || 'no session'}`)
+    ;(tick as (() => void) | null)?.()
+    ;(tick as (() => void) | null)?.()
+    const line = `[daemon] the reconcile tick failed, so the records of ended sessions are not corrected and idle retirement does not run until it succeeds: ${refusal(file, WHY)}`
+    check('two beats: the reconcile says once why the records are not corrected, and the file still stands', said.filter(row => row === line).length === 1 && readFileSync(file, 'utf8') === OTHER_VERSION, said)
+    writeFileSync(file, THREE, { mode: 0o600 })
+    ;(tick as (() => void) | null)?.()
+    check('once the file reads again the beat reconciles it', sessionsOn(file).join() === 'concourse-w1,concourse-w2,concourse-w3' && said.some(row => row.includes('the session records read again')), said)
   }
 } finally {
   console.error = realError
