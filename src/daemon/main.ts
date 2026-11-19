@@ -39,7 +39,8 @@ import './signInView.js'
 import './saturnTicker.js'
 import './saturnBirth.js'
 import { makeConcourseDispatchHandler, reconcileWorkingDispatches } from './concourseDispatch.js'
-import { TaskRoster } from './roster.js'
+import './roster.js'
+import type { TaskRoster } from './roster.js'
 import {
   parseOwnerPid,
   isProcessAlive,
