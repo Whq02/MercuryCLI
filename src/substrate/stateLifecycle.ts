@@ -76,11 +76,15 @@ function overBudget(budget: LifecycleBudget): boolean {
   return budget.now() >= budget.deadlineMs || budget.removalsLeft <= 0
 }
 
-async function listDir(dir: string): Promise<Array<{ name: string; isDir: boolean }>> {
+async function listDir(dir: string, unlisted: 'empty' | 'throw' = 'empty'): Promise<Array<{ name: string; isDir: boolean }>> {
   try {
     const entries = await readdir(dir, { withFileTypes: true })
     return entries.map(e => ({ name: e.name, isDir: e.isDirectory() }))
-  } catch {
+  } catch (e) {
+    const code = getErrnoCode(e)
+    if (code === 'ENOENT' || code === 'ENOTDIR') return []
+    if (unlisted === 'throw') throw e
+    logForDebugging(`[lifecycle] ${dir} could not be listed (${code ?? String(e)}), so nothing in it is judged this pass`)
     return []
   }
 }
@@ -267,8 +271,9 @@ async function readBuildManifest(dir: string, facts: InstalledBuildFacts): Promi
   let raw: string
   try {
     raw = await readFile(join(dir, 'manifest.json'), 'utf8')
-  } catch {
-    return
+  } catch (e) {
+    if (getErrnoCode(e) === 'ENOENT') return
+    throw e
   }
   const manifest = safeParseJSON(raw, false) as { version?: unknown; runtime?: { version?: unknown } | null } | null
   if (!manifest || typeof manifest !== 'object') return
@@ -279,14 +284,10 @@ async function readBuildManifest(dir: string, facts: InstalledBuildFacts): Promi
 
 export async function installedBuildFacts(home: string = getMercuryHome()): Promise<InstalledBuildFacts> {
   const facts: InstalledBuildFacts = { versions: new Set([MERCURY_VERSION]), nodeVersions: new Set([process.version]) }
-  let versionsDir = join(home, 'versions')
-  try {
-    const { resolveLayoutRoots } = await import('../services/privateChannel/installLayout.js')
-    versionsDir = resolveLayoutRoots().versionsDir
-  } catch {
-  }
+  const { resolveLayoutRoots } = await import('../services/privateChannel/installLayout.js')
+  const versionsDir = resolveLayoutRoots().versionsDir
   for (const root of [versionsDir, join(home, 'runtime', 'builds')]) {
-    for (const entry of await listDir(root)) {
+    for (const entry of await listDir(root, 'throw')) {
       if (!entry.isDir || entry.name.startsWith('.')) continue
       await readBuildManifest(join(root, entry.name), facts)
     }
