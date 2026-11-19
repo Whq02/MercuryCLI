@@ -20,7 +20,7 @@ import { ripgrepCommand } from '../ripgrep.js'
 import { sleep } from '../sleep.js'
 import { loginExportsCarried, pathWithLoginEntries, subprocessEnv } from '../subprocessEnv.js'
 import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginExports, noteLoginFiles, snapshotProfileOf, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
-import { withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
+import { windowsShellRoadActive, withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
 import { quote } from './shellQuote.js'
 
 
@@ -422,7 +422,7 @@ function loginRunHandedOver(read: LoginFilesRead): LoginFilesAbsence {
 const LOGIN_RUN_HANDED_OVER = loginRunHandedOver(BASH_READS)
 
 function zshOfTheUser(): string | null {
-  if (getPlatform() === 'windows') return null
+  if (windowsShellRoadActive()) return null
   for (const shell of [subprocessEnv().SHELL, accountShell()]) {
     const name = basename(shell ?? '')
     if (name === 'bash') return null
@@ -449,7 +449,8 @@ export function loginExports(shellPath: string): NodeJS.ProcessEnv | undefined {
 const exportsReadByZsh = memoize(async (zsh: string, session: boolean): Promise<void> => {
   try {
     const run = await runBounded(zsh, ['-l', '-i', '-c', ZSH_PRINTS_EXPORTS], { ...subprocessEnv(), GIT_EDITOR: 'true', MERCURY: '1', SHELL_SESSIONS_DISABLE: '1' }, SNAPSHOT_CAPTURE_BOUND_MS, true)
-    carriedFromZsh = await carriedBy(run, session)
+    const carried = await carriedBy(run, session)
+    if (session) carriedFromZsh = carried
     const absence = run.killed || run.exitCode !== 0 ? loginRunLeftNothing(run, ZSH_READS) : (run.exported ?? null) === null ? loginRunHandedOver(ZSH_READS) : null
     noteLoginExports(absence)
     if (absence === null) return
@@ -459,7 +460,7 @@ const exportsReadByZsh = memoize(async (zsh: string, session: boolean): Promise<
     noteLoginExports(loginRunLeftNothing({ stdout: '', stderr: '', killed: false, overflowed: false, unstarted: errorMessage(error) }, ZSH_READS))
     logError(`the zsh login files were not read: ${errorMessage(error)} (${zsh})`)
   }
-})
+}, (zsh: string, session: boolean) => `${session ? 'session' : 'asked'} ${zsh}`)
 
 function randomSnapshotSuffix(): string {
   const alphabet = '0123456789abcdefghijklmnopqrstuvwxyz'
