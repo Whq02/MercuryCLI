@@ -213,6 +213,13 @@
       "why": "drives Shell.exec down each road on purpose — which process takes a Bash call on a box with and without bash.exe is the subject under test"
     },
     {
+      "file": "scripts/bash/prove-profile-environment.ts",
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "const home = realpathSync(mkdtempSync('/tmp/pe-'))",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
+    },
+    {
       "file": "scripts/bash/prove-session-shell-guard-drive.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
