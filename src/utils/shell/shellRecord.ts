@@ -55,7 +55,7 @@ export function windowsShellAnswer(said: string, drive: string | null): { versio
   if (drive === null || cut < 0) return { version: last }
   const reads = last.slice(cut + 1)
   const wanted = `/${drive.toLowerCase()}`
-  return { version: last.slice(0, cut), ...(reads.toLowerCase() === wanted ? {} : { unfit: `its runtime reads drive ${drive.toUpperCase()} as ${reads}, and Mercury names its files ${wanted}/…` }) }
+  return { version: last.slice(0, cut), ...(reads.toLowerCase() === wanted ? {} : { unfit: `its runtime reads drive ${drive.toUpperCase()} as ${reads}, where Mercury writes ${wanted}` }) }
 }
 
 function questionEnvironment(): NodeJS.ProcessEnv {
