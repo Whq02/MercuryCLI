@@ -49,12 +49,13 @@ const slash = (p: string): string => p.split('\\').join('/')
 const rel = (file: string): string => slash(relative(ROOT, file))
 const abs = (file: string): string => join(ROOT, file)
 
-type Law = 'field' | 'accessor' | 'import' | 'reach' | 'list' | 'private' | 'names' | 'needs' | 'built' | 'door' | 'unread' | 'state' | 'cast'
+type Law = 'field' | 'accessor' | 'import' | 'reach' | 'list' | 'private' | 'names' | 'needs' | 'built' | 'door' | 'unread' | 'state' | 'cast' | 'layer'
 type Script = { file: string; text: string }
 type Finding = { law: Law; at: string; what: string }
 type Planted = Readonly<Record<string, (text: string, source: ts.SourceFile) => string>>
 type Carried = { kind: 'class' | 'call'; name: string }
 type Tally = { members: number; built: number; bindings: number; files: number }
+type Chain = { layers: ts.ClassDeclaration[]; unread: ts.ExpressionWithTypeArguments | undefined }
 
 const parsed = ts.parseJsonConfigFileContent(ts.readConfigFile(abs('tsconfig.json'), ts.sys.readFile).config, ts.sys, ROOT)
 const options: ts.CompilerOptions = { ...parsed.options, noEmit: true }
@@ -91,6 +92,22 @@ function classNamed(source: ts.SourceFile, name: string): ts.ClassDeclaration | 
 
 function interfaceNamed(source: ts.SourceFile, name: string): ts.InterfaceDeclaration | undefined {
   return source.statements.find((node): node is ts.InterfaceDeclaration => ts.isInterfaceDeclaration(node) && node.name.text === name)
+}
+
+function layersUnder(program: ts.Program, connector: ts.ClassDeclaration): Chain {
+  const checker = program.getTypeChecker()
+  const layers: ts.ClassDeclaration[] = []
+  let at = connector
+  for (;;) {
+    const parent = at.heritageClauses?.find(clause => clause.token === ts.SyntaxKind.ExtendsKeyword)?.types[0]
+    if (parent === undefined) return { layers, unread: undefined }
+    const symbol = checker.getSymbolAtLocation(parent.expression)
+    const target = symbol !== undefined && (symbol.flags & ts.SymbolFlags.Alias) !== 0 ? checker.getAliasedSymbol(symbol) : symbol
+    const next = (target?.declarations ?? []).find(ts.isClassDeclaration)
+    if (next === undefined || next === connector || layers.includes(next) || !rel(next.getSourceFile().fileName).startsWith('src/')) return { layers, unread: parent }
+    layers.push(next)
+    at = next
+  }
 }
 
 function fieldsOf(node: ts.ClassDeclaration): Array<{ name: string; private: boolean; line: number }> {
@@ -175,6 +192,23 @@ function read(program: ts.Program, door: 'read' | 'declarations only' = 'declara
   const place = (n: ts.Node): string => {
     const source = n.getSourceFile()
     return `${rel(source.fileName)}:${source.getLineAndCharacterOfPosition(n.getStart(source)).line + 1}`
+  }
+  const chain = layersUnder(program, connector)
+  if (chain.unread !== undefined) found.push({ law: 'layer', at: place(chain.unread), what: `the chain under DaemonSessionConnector reaches ${chain.unread.expression.getText(chain.unread.getSourceFile())}, which is no class of src this law can read: a layer under the class is a class declaration of the estate, so that what it holds is read here` })
+  for (const layer of chain.layers) {
+    const source = layer.getSourceFile()
+    for (const member of layer.members) {
+      if (ts.isMethodDeclaration(member)) continue
+      if (ts.isPropertyDeclaration(member) && (ts.getCombinedModifierFlags(member) & ts.ModifierFlags.Abstract) !== 0) continue
+      const held = ts.isConstructorDeclaration(member)
+        ? 'a constructor'
+        : ts.isPropertyDeclaration(member)
+          ? member.initializer !== undefined
+            ? `the field ${member.name.getText(source)} with an initialiser`
+            : `the property ${member.name.getText(source)}, which is not abstract`
+          : `${member.name?.getText(source) ?? 'a member with no name'}, which is neither a method nor the abstract declaration of a field`
+      found.push({ law: 'layer', at: place(member), what: `the layer ${layer.name?.text ?? 'with no name'} under DaemonSessionConnector declares ${held}: a layer holds methods and the abstract declarations of what the class holds; a field, its initialiser and the constructor stand on DaemonSessionConnector, where this law reads them and the order they are built in` })
+    }
   }
   const resolved = (symbol: ts.Symbol | undefined): ts.Symbol | undefined => (symbol !== undefined && (symbol.flags & ts.SymbolFlags.Alias) !== 0 ? checker.getAliasedSymbol(symbol) : symbol)
   const targetOf = (spec: ts.StringLiteralLike): string | undefined => {
@@ -474,6 +508,29 @@ section('§1 the law on planted trees: each plant is refused by its own line')
   const accessorAdded = planted(programWith({ [DOOR]: intoClass('DaemonSessionConnector', '\n  private get plantedByTheLaw(): number {\n    return 0\n  }') }))
   check('an accessor added to DaemonSessionConnector for a name no proof reaches is refused by its name and line', lawsOf(accessorAdded) === 'accessor' && only(accessorAdded, 'accessor', `${DOOR}:${classLine(DOOR, 'DaemonSessionConnector')}`, 'plantedByTheLaw'), told(accessorAdded))
 
+  const chain = layersUnder(estate, classNamed(estate.getSourceFile(abs(DOOR))!, 'DaemonSessionConnector')!)
+  if (chain.layers.length === 0) check('the class stands alone: no layer stands under it to plant in', chain.unread === undefined)
+  for (const layer of chain.layers) {
+    const name = layer.name!.text
+    const file = rel(layer.getSourceFile().fileName)
+    const fieldInLayer = planted(programWith({ [file]: intoClass(name, '\n  private plantedByTheLaw = 0') }))
+    check(`a field with an initialiser added to the layer ${name} under the class is refused by the layer, its name and its line`, lawsOf(fieldInLayer) === 'layer' && only(fieldInLayer, 'layer', `${file}:${classLine(file, name)}`, 'plantedByTheLaw') && fieldInLayer[0]!.what.includes(`the layer ${name} `), told(fieldInLayer))
+  }
+  const deepest = chain.layers.at(-1)
+  if (deepest !== undefined) {
+    const name = deepest.name!.text
+    const file = rel(deepest.getSourceFile().fileName)
+    const at = `${file}:${classLine(file, name)}`
+    const makerInLayer = planted(programWith({ [file]: intoClass(name, '\n  constructor() {}') }))
+    check(`…and so is a constructor (${name})`, lawsOf(makerInLayer) === 'layer' && only(makerInLayer, 'layer', at, 'a constructor'), told(makerInLayer))
+    const bareInLayer = planted(programWith({ [file]: intoClass(name, '\n  protected plantedByTheLaw: number | undefined') }))
+    check('…and a property that is not abstract, with no initialiser', lawsOf(bareInLayer) === 'layer' && only(bareInLayer, 'layer', at, 'the property plantedByTheLaw, which is not abstract'), told(bareInLayer))
+    const accessorInLayer = planted(programWith({ [file]: intoClass(name, '\n  protected get plantedByTheLaw(): number {\n    return 0\n  }') }))
+    check('…and an accessor', lawsOf(accessorInLayer) === 'layer' && only(accessorInLayer, 'layer', at, 'plantedByTheLaw, which is neither a method nor the abstract declaration of a field'), told(accessorInLayer))
+    const lawfulInLayer = planted(programWith({ [file]: intoClass(name, '\n  protected abstract readonly plantedByTheLaw: number\n  plantedCall(): number {\n    return this.plantedByTheLaw\n  }') }))
+    check('a layer that gains an abstract declaration and a method passes', lawfulInLayer.length === 0, told(lawfulInLayer))
+  }
+
   const importsDoor = planted(programWith({ [firstFile]: text => `import type { DaemonSessionRecordV1 } from '../daemonConnector.js'\nexport type PlantedByTheLaw = DaemonSessionRecordV1\n${text}` }))
   check('a part that imports the door is refused at the import', only(importsDoor, 'import', `${firstFile}:1`, 'imports the door') && lawsOf(importsDoor) === 'import names', told(importsDoor))
 
@@ -549,6 +606,9 @@ section('§2 the estate: the class holds the parts and what the door needs; the 
   check(`no field is declared on DaemonSessionConnector beyond the list (${declared.length} with the record and the hands its constructor holds: ${Object.keys(PARTS).length} parts, ${OF_THE_DOOR.length} of the door, ${awaiting} awaiting their part)`, by('field').length === 0, told(by('field')))
   check('the list holds no field the class has let go, and each part is the class its file declares', by('list').length === 0, told(by('list')))
   check(`the class declares an accessor only for a name a proof reaches through a cast (${REACHED_BY_PROOFS.length}: ${REACHED_BY_PROOFS.join(', ') || 'none'})`, by('accessor').length === 0, told(by('accessor')))
+  const chain = layersUnder(estate, connector)
+  const declaredAbstract = chain.layers.reduce((n, layer) => n + layer.members.filter(ts.isPropertyDeclaration).length, 0)
+  check(`the layers under the class hold methods and abstract declarations alone: no field with an initialiser, no constructor, no property that is not abstract (${chain.layers.length} layers: ${chain.layers.map(layer => layer.name?.text).join(', ') || 'none'}; ${declaredAbstract} abstract declarations read)`, by('layer').length === 0, told(by('layer')))
   check(`no file under ${PARTS_DIR}/ imports the door (${partFiles(estate).length} files read)`, by('import').length === 0, told(by('import')))
   check(`no file under ${PARTS_DIR}/ names what the door declares, or a class another file of ${FOLDER}/ declares`, by('names').length === 0, told(by('names')))
   check("no part reads a field of another part, and the door reads no part's field", by('reach').length === 0, told(by('reach')))
@@ -559,10 +619,11 @@ section('§2 the estate: the class holds the parts and what the door needs; the 
   check(`every file under ${PARTS_DIR}/ is imported by the door, itself or through a file of that folder (${partFiles(estate).length} files)`, by('unread').length === 0, told(by('unread')))
   check(`no file under ${PARTS_DIR}/ keeps state beside its class (${tally.bindings} module-level bindings and statics read)`, by('state').length === 0, told(by('state')))
   check(`no script reaches a read of the door through a cast but the listed (${onDisk.length} scripts read; ${REACHED_THROUGH_A_CAST.length} listed: ${REACHED_THROUGH_A_CAST.map(row => `${row.script} reaches ${row.name}, ${row.reason}`).join(' · ') || 'none'})`, by('cast').length === 0 && onDisk.length > 0, told(by('cast')))
-  const methods = connector.members.filter(ts.isMethodDeclaration)
-  const privates = methods.filter(method => (ts.getCombinedModifierFlags(method) & ts.ModifierFlags.Private) !== 0).length
+  const classes = [connector, ...chain.layers]
+  const methods = classes.flatMap(one => one.members.filter(ts.isMethodDeclaration))
+  const privates = methods.filter(method => (ts.getCombinedModifierFlags(method) & (ts.ModifierFlags.Private | ts.ModifierFlags.Protected)) !== 0).length
   const lines = (n: ts.Node, source: ts.SourceFile): number => source.getLineAndCharacterOfPosition(n.getEnd()).line - source.getLineAndCharacterOfPosition(n.getStart(source)).line + 1
-  console.log(`  the door: ${connector.members.filter(ts.isPropertyDeclaration).length} fields declared in the class body · ${methods.length} methods (${privates} private) · the class ${lines(connector, door)} lines · the file ${door.getLineAndCharacterOfPosition(door.getEnd()).line} lines`)
+  console.log(`  the door: ${connector.members.filter(ts.isPropertyDeclaration).length} fields declared in the class body · ${methods.length} methods in the chain (${classes.map(one => `${one.name?.text} ${one.members.filter(ts.isMethodDeclaration).length}`).join(', ')}; ${privates} not public) · the class ${lines(connector, door)} lines${chain.layers.map(layer => `, ${layer.name?.text} ${lines(layer, layer.getSourceFile())}`).join('')} · the file ${door.getLineAndCharacterOfPosition(door.getEnd()).line} lines`)
   for (const source of partFiles(estate)) {
     source.forEachChild(node => {
       if (ts.isClassDeclaration(node)) console.log(`  ${rel(source.fileName)}: ${node.name?.text} · ${fieldsOf(node).length} fields · ${node.members.filter(ts.isMethodDeclaration).length} methods · ${source.getLineAndCharacterOfPosition(source.getEnd()).line} lines`)
