@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-export interface DoorUnits {
+interface DoorUnits {
   heads: string[]
   partsOf(head: string): string[]
   doorOf(file: string): string | null
