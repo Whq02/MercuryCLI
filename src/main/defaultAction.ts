@@ -7,6 +7,7 @@ import { getInstructionFiles } from '../services/instructions/engine.js'
 import { addBootNote } from '../substrate/bootNotes.js'
 import { flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
 import { recordLaunchMilestone } from '../substrate/launchMilestones.js'
+import { getAgentDefinitionsWithOverrides } from '../tools/AgentTool/loadAgentsDir.js'
 import { binaryName } from '../utils/config.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { startCapturingEarlyInput } from '../utils/earlyInput.js'
@@ -17,7 +18,7 @@ import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { setup } from '../setup.js'
 import { applyMergedConfigEnv, failCli, typedString, writeErr, type RootOptions } from './cli.js'
 import { readBriefFile, readRunFormats, refuseMissingTmux, refuseModeAndBriefClashes, refuseResumeClashes, refuseSchemaFlag, refuseSessionIdClash, refuseTerminalMismatch } from './bootFlags.js'
-import { resolveAgents, resolvePermissions, resolveThinkingConfig } from './sessionChoices.js'
+import { agentsWithCliDefs, mainThreadAgentOf, resolvePermissions, thinkingConfigOf } from './sessionChoices.js'
 import { noStdinChunks, readStdinChunks, readStdinWithPeek, refuseEmptyRunPrompt, refuseSwallowedPrompt } from './runPrompt.js'
 import { resolveMcpConfigs } from './mcpConfigs.js'
 import { interactiveLaunch } from './interactiveLaunch.js'
@@ -85,9 +86,15 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
   const { isWorktreeModeEnabled } = await import('../utils/worktreeModeEnabled.js')
   const worktreeEnabled = Boolean(worktreeOpt) && isWorktreeModeEnabled()
 
-  const thinkingConfig = await resolveThinkingConfig(opts)
+  const thinkingOpt = typedString(opts.reasoningMode)
+  const { noteSessionThinkingConfig, shouldEnableThinkingByDefault } = await import('../utils/thinking.js')
+  const thinkingConfig = thinkingConfigOf(thinkingOpt, shouldEnableThinkingByDefault)
+  noteSessionThinkingConfig(thinkingConfig)
 
-  const { activeAgents, allAgents, mainThreadAgentDefinition } = await resolveAgents(opts)
+  const agentInfo = await getAgentDefinitionsWithOverrides()
+  const { activeAgents, allAgents } = agentsWithCliDefs(opts, agentInfo)
+  const { lspAgentNote } = await import('../services/lsp/toolFamily.js')
+  const mainThreadAgentDefinition = mainThreadAgentOf(opts, activeAgents, lspAgentNote)
 
   let userSpecifiedModel = typedString(opts.model)
   if (userSpecifiedModel !== undefined && userSpecifiedModel !== 'default') {

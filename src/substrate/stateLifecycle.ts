@@ -526,7 +526,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
     id: 'concourse-worker-records',
     lane: 'semantic-state',
-    owner: 'src/daemon/concourseWorkers.ts',
+    owner: 'src/daemon/concourseWorkers/store.ts',
     root: '<daemon>/concourse-workers.json',
     kind: 'semantic',
     liveReference:
@@ -578,7 +578,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
     id: 'concourse-collision-evidence',
     lane: 'semantic-state',
-    owner: 'src/daemon/concourseWorkers.ts',
+    owner: 'src/daemon/concourseWorkers/collisions.ts',
     root: '<daemon>/concourse-collisions.json',
     kind: 'semantic',
     liveReference:

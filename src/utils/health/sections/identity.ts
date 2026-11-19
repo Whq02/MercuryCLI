@@ -264,14 +264,14 @@ export function identityChecks(context: HealthContext): CheckSpec[] {
           ...(healthFixEnabled() && a.drifted.length > 0
             ? {
                 remedy: {
-                  plan: `redeploy ${a.drifted.map(d => d.label).join(' + ')} (${a.drifted.map(d => d.redeploy).join(' && ')} in ${root})`,
+                  plan: `redeploy ${a.drifted.map(d => d.label).join(' + ')} (${[...new Set(a.drifted.map(d => d.redeploy))].join(' && ')} in ${root})`,
                   class: 'safe' as const,
                   apply: async () => {
-                    for (const d of a.drifted) {
-                      const argv = d.redeploy.split(' ')
+                    for (const redeploy of new Set(a.drifted.map(d => d.redeploy))) {
+                      const argv = redeploy.split(' ')
                       const res = await runRemedyCmd(argv[0]!, argv.slice(1), root, 60_000)
                       if (res.status !== 0) {
-                        return { ok: false, note: `${d.label} redeploy exited ${res.status}: ${res.tail.slice(-200)}` }
+                        return { ok: false, note: `${a.drifted.filter(d => d.redeploy === redeploy).map(d => d.label).join(' + ')} redeploy exited ${res.status}: ${res.tail.slice(-200)}` }
                       }
                     }
                     return { ok: true, note: 'redeploy script(s) exited 0' }

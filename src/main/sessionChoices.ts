@@ -47,9 +47,7 @@ export async function resolvePermissions(opts: RootOptions) {
   return { allowDangerousSkip, permissionMode, toolPermissionContext }
 }
 
-export async function resolveThinkingConfig(opts: RootOptions) {
-  const thinkingOpt = typedString(opts.reasoningMode)
-  const { noteSessionThinkingConfig, shouldEnableThinkingByDefault } = await import('../utils/thinking.js')
+export function thinkingConfigOf(thinkingOpt: string | undefined, shouldEnableThinkingByDefault: typeof import('../utils/thinking.js').shouldEnableThinkingByDefault): import('../utils/thinking.js').ThinkingConfig {
   let thinkingConfig: import('../utils/thinking.js').ThinkingConfig
   if (thinkingOpt === 'enabled' || thinkingOpt === 'adaptive') thinkingConfig = { type: 'adaptive' }
   else if (thinkingOpt === 'disabled') thinkingConfig = { type: 'disabled' }
@@ -64,12 +62,10 @@ export async function resolveThinkingConfig(opts: RootOptions) {
       thinkingConfig = shouldEnableThinkingByDefault() ? { type: 'adaptive' } : { type: 'disabled' }
     }
   }
-  noteSessionThinkingConfig(thinkingConfig)
   return thinkingConfig
 }
 
-export async function resolveAgents(opts: RootOptions) {
-  const agentInfo = await getAgentDefinitionsWithOverrides()
+export function agentsWithCliDefs(opts: RootOptions, agentInfo: Awaited<ReturnType<typeof getAgentDefinitionsWithOverrides>>) {
   let activeAgents = agentInfo.activeAgents
   let allAgents = agentInfo.allAgents
   if (typedString(opts.agentDefs)) {
@@ -81,7 +77,10 @@ export async function resolveAgents(opts: RootOptions) {
       logError(error)
     }
   }
-  const { lspAgentNote } = await import('../services/lsp/toolFamily.js')
+  return { activeAgents, allAgents }
+}
+
+export function mainThreadAgentOf(opts: RootOptions, activeAgents: AgentDefinition[], lspAgentNote: typeof import('../services/lsp/toolFamily.js').lspAgentNote): AgentDefinition | undefined {
   for (const agent of activeAgents) {
     if (agent.tools?.includes('LSP')) console.error(lspAgentNote(agent.agentType))
     if (agent.disallowedTools?.includes('LSP')) console.error(lspAgentNote(agent.agentType, true))
@@ -104,5 +103,5 @@ export async function resolveAgents(opts: RootOptions) {
         .catch(() => {})
     }
   }
-  return { activeAgents, allAgents, mainThreadAgentDefinition }
+  return mainThreadAgentDefinition
 }
