@@ -595,95 +595,7 @@ class PosixWalk {
   }
 
   node(node: Node, frame: Frame): void {
-    switch (node.type) {
-      case 'command':
-        this.command(node, frame, [], undefined, [])
-        return
-      case 'pipeline':
-        this.pipeline(node, frame)
-        return
-      case 'redirected_statement':
-        this.redirected(node, frame)
-        return
-      case 'subshell':
-        this.isolated(() => this.children(node, frame))
-        return
-      case 'command_substitution':
-      case 'process_substitution':
-        this.isolated(() => this.children(node, { ...frame, substituted: true }))
-        return
-      case 'if_statement': {
-        let body: Frame | undefined
-        node.children.forEach((child, at) => {
-          if (child.type === 'then') {
-            body = this.maybe(frame)
-            return
-          }
-          const base = child.type === 'elif_clause' || child.type === 'else_clause' ? this.maybe(frame) : (body ?? frame)
-          this.node(child, node.children[at + 1]?.type === '&' && !base.background ? { ...base, background: true } : base)
-        })
-        return
-      }
-      case 'do_group':
-      case 'case_item':
-        this.children(node, this.maybe(frame))
-        return
-      case 'list': {
-        const joined = node.children.findIndex(child => child.type === '&&')
-        const either = node.children.findIndex(child => child.type === '||')
-        if (joined <= 0 && either > 0) {
-          for (const child of node.children.slice(0, either)) this.node(child, frame)
-          const right = this.maybe(frame)
-          for (const child of node.children.slice(either + 1)) this.node(child, right)
-          return
-        }
-        if (joined <= 0) {
-          this.children(node, frame)
-          return
-        }
-        const from = this.reading.commands.length
-        for (const child of node.children.slice(0, joined)) this.node(child, frame)
-        const gate: readonly [number, number] = [from, this.reading.commands.length]
-        for (const child of node.children.slice(joined + 1)) this.node(child, { ...frame, gates: [...(frame.gates ?? []), gate] })
-        return
-      }
-      case 'for_statement':
-        this.loop(node, frame)
-        return
-      case 'function_definition': {
-        const name = node.children.find(child => child.type === 'word')?.text
-        const body = node.children.find(child => child.type === 'compound_statement' || child.type === 'subshell')?.text
-        if (name !== undefined && body !== undefined) this.reading.functions.set(name, body)
-        this.isolated(() => this.children(node, { ...frame, body: name ?? frame.body, background: false, stages: [] }))
-        return
-      }
-      case 'variable_assignment':
-        this.assignment(node, frame)
-        return
-      case 'regex':
-        this.buried(node, frame, true)
-        return
-      case 'declaration_command':
-        for (const child of node.children) {
-          if (child.type !== 'variable_assignment') {
-            this.node(child, frame)
-            continue
-          }
-          const assigned = this.assignment(child, frame)
-          if (assigned !== undefined && node.children[0]?.type === 'export') this.reading.exported.set(assigned.name, assigned.values)
-        }
-        return
-      case 'ERROR':
-        this.reading.markUnread('the shell parser found incomplete or invalid syntax in it', this.source)
-        this.children(node, frame)
-        return
-      default:
-        if (WORD_KINDS.has(node.type)) {
-          this.word(node, frame)
-          return
-        }
-        this.children(node, frame)
-    }
+    return posixNode.call(this, node, frame)
   }
 
   assignment(node: Node, frame: Frame): { name: string; values: string[] } | undefined {
@@ -738,65 +650,7 @@ class PosixWalk {
   }
 
   word(node: Node, frame: Frame): Words {
-    switch (node.type) {
-      case 'word': {
-        const text = unescapeBackslashes(node.text)
-        const stands = this.reading.cwd
-        const leads = node.startIndex === 0 || /[\s;&|(=:]/.test(this.source[node.startIndex - 1] ?? '')
-        return { values: [stands !== undefined && leads && /^~\+(?=\/|$)/.test(node.text) ? stands + text.slice(2) : text], inner: [] }
-      }
-      case 'raw_string':
-        return { values: [node.text.slice(1, -1)], inner: [] }
-      case 'ansi_c_string':
-        return { values: [ansiC(node.text.slice(2, -1))], inner: [] }
-      case 'simple_expansion':
-      case 'expansion':
-        return this.variable(node, frame)
-      case 'command_substitution':
-      case 'process_substitution': {
-        const before = this.reading.commands.length
-        this.node(node, frame)
-        const inner: number[] = []
-        for (let i = before; i < this.reading.commands.length; i++) inner.push(i)
-        const named = node.type === 'command_substitution' ? this.userPrintedBy(inner) : undefined
-        return { values: [named ?? UNREAD_PART], inner }
-      }
-      case 'arithmetic_expansion':
-        this.children(node, frame)
-        return { values: [UNREAD_PART], inner: [] }
-      case 'string':
-      case 'translated_string': {
-        let values = ['']
-        const inner: number[] = []
-        let cursor: number | undefined
-        for (const child of node.children) {
-          if (cursor !== undefined && child.startIndex > cursor) values = cross(values, [this.source.slice(cursor, child.startIndex).replace(/\\([$`"\\\n])/g, (_all, ch: string) => (ch === '\n' ? '' : ch))])
-          cursor = child.endIndex
-          if (child.type === '"' || child.type === '$"') continue
-          if (child.type === 'string_content') {
-            values = cross(values, [child.text.replace(/\\([$`"\\\n])/g, (_all, ch: string) => (ch === '\n' ? '' : ch))])
-            continue
-          }
-          const part = WORD_KINDS.has(child.type) ? this.word(child, frame) : { values: [child.text], inner: [] }
-          values = cross(values, part.values)
-          inner.push(...part.inner)
-        }
-        return { values, inner }
-      }
-      case 'concatenation': {
-        let values = ['']
-        const inner: number[] = []
-        for (const child of node.children) {
-          const part = this.word(child, frame)
-          values = cross(values, part.values)
-          inner.push(...part.inner)
-        }
-        return { values, inner }
-      }
-      default:
-        this.children(node, frame)
-        return { values: [node.text], inner: [] }
-    }
+    return posixWord.call(this, node, frame)
   }
 
   redirect(node: Node, frame: Frame, redirects: ReadRedirect[], inputInner: number[]): void {
@@ -960,6 +814,160 @@ class PosixWalk {
         if (!PASSTHROUGH.has(layer.program)) break
       }
     }
+  }
+}
+
+function posixNode(this: PosixWalk, node: Node, frame: Frame): void {
+  switch (node.type) {
+    case 'command':
+      this.command(node, frame, [], undefined, [])
+      return
+    case 'pipeline':
+      this.pipeline(node, frame)
+      return
+    case 'redirected_statement':
+      this.redirected(node, frame)
+      return
+    case 'subshell':
+      this.isolated(() => this.children(node, frame))
+      return
+    case 'command_substitution':
+    case 'process_substitution':
+      this.isolated(() => this.children(node, { ...frame, substituted: true }))
+      return
+    case 'if_statement': {
+      let body: Frame | undefined
+      node.children.forEach((child, at) => {
+        if (child.type === 'then') {
+          body = this.maybe(frame)
+          return
+        }
+        const base = child.type === 'elif_clause' || child.type === 'else_clause' ? this.maybe(frame) : (body ?? frame)
+        this.node(child, node.children[at + 1]?.type === '&' && !base.background ? { ...base, background: true } : base)
+      })
+      return
+    }
+    case 'do_group':
+    case 'case_item':
+      this.children(node, this.maybe(frame))
+      return
+    case 'list': {
+      const joined = node.children.findIndex(child => child.type === '&&')
+      const either = node.children.findIndex(child => child.type === '||')
+      if (joined <= 0 && either > 0) {
+        for (const child of node.children.slice(0, either)) this.node(child, frame)
+        const right = this.maybe(frame)
+        for (const child of node.children.slice(either + 1)) this.node(child, right)
+        return
+      }
+      if (joined <= 0) {
+        this.children(node, frame)
+        return
+      }
+      const from = this.reading.commands.length
+      for (const child of node.children.slice(0, joined)) this.node(child, frame)
+      const gate: readonly [number, number] = [from, this.reading.commands.length]
+      for (const child of node.children.slice(joined + 1)) this.node(child, { ...frame, gates: [...(frame.gates ?? []), gate] })
+      return
+    }
+    case 'for_statement':
+      this.loop(node, frame)
+      return
+    case 'function_definition': {
+      const name = node.children.find(child => child.type === 'word')?.text
+      const body = node.children.find(child => child.type === 'compound_statement' || child.type === 'subshell')?.text
+      if (name !== undefined && body !== undefined) this.reading.functions.set(name, body)
+      this.isolated(() => this.children(node, { ...frame, body: name ?? frame.body, background: false, stages: [] }))
+      return
+    }
+    case 'variable_assignment':
+      this.assignment(node, frame)
+      return
+    case 'regex':
+      this.buried(node, frame, true)
+      return
+    case 'declaration_command':
+      for (const child of node.children) {
+        if (child.type !== 'variable_assignment') {
+          this.node(child, frame)
+          continue
+        }
+        const assigned = this.assignment(child, frame)
+        if (assigned !== undefined && node.children[0]?.type === 'export') this.reading.exported.set(assigned.name, assigned.values)
+      }
+      return
+    case 'ERROR':
+      this.reading.markUnread('the shell parser found incomplete or invalid syntax in it', this.source)
+      this.children(node, frame)
+      return
+    default:
+      if (WORD_KINDS.has(node.type)) {
+        this.word(node, frame)
+        return
+      }
+      this.children(node, frame)
+  }
+}
+
+function posixWord(this: PosixWalk, node: Node, frame: Frame): Words {
+  switch (node.type) {
+    case 'word': {
+      const text = unescapeBackslashes(node.text)
+      const stands = this.reading.cwd
+      const leads = node.startIndex === 0 || /[\s;&|(=:]/.test(this.source[node.startIndex - 1] ?? '')
+      return { values: [stands !== undefined && leads && /^~\+(?=\/|$)/.test(node.text) ? stands + text.slice(2) : text], inner: [] }
+    }
+    case 'raw_string':
+      return { values: [node.text.slice(1, -1)], inner: [] }
+    case 'ansi_c_string':
+      return { values: [ansiC(node.text.slice(2, -1))], inner: [] }
+    case 'simple_expansion':
+    case 'expansion':
+      return this.variable(node, frame)
+    case 'command_substitution':
+    case 'process_substitution': {
+      const before = this.reading.commands.length
+      this.node(node, frame)
+      const inner: number[] = []
+      for (let i = before; i < this.reading.commands.length; i++) inner.push(i)
+      const named = node.type === 'command_substitution' ? this.userPrintedBy(inner) : undefined
+      return { values: [named ?? UNREAD_PART], inner }
+    }
+    case 'arithmetic_expansion':
+      this.children(node, frame)
+      return { values: [UNREAD_PART], inner: [] }
+    case 'string':
+    case 'translated_string': {
+      let values = ['']
+      const inner: number[] = []
+      let cursor: number | undefined
+      for (const child of node.children) {
+        if (cursor !== undefined && child.startIndex > cursor) values = cross(values, [this.source.slice(cursor, child.startIndex).replace(/\\([$`"\\\n])/g, (_all, ch: string) => (ch === '\n' ? '' : ch))])
+        cursor = child.endIndex
+        if (child.type === '"' || child.type === '$"') continue
+        if (child.type === 'string_content') {
+          values = cross(values, [child.text.replace(/\\([$`"\\\n])/g, (_all, ch: string) => (ch === '\n' ? '' : ch))])
+          continue
+        }
+        const part = WORD_KINDS.has(child.type) ? this.word(child, frame) : { values: [child.text], inner: [] }
+        values = cross(values, part.values)
+        inner.push(...part.inner)
+      }
+      return { values, inner }
+    }
+    case 'concatenation': {
+      let values = ['']
+      const inner: number[] = []
+      for (const child of node.children) {
+        const part = this.word(child, frame)
+        values = cross(values, part.values)
+        inner.push(...part.inner)
+      }
+      return { values, inner }
+    }
+    default:
+      this.children(node, frame)
+      return { values: [node.text], inner: [] }
   }
 }
 
@@ -1191,125 +1199,7 @@ class PowerShellWalk {
   }
 
   pipeline(closer: string | undefined, outer: readonly Stage[]): number[] {
-    const text = this.source
-    const made: number[] = []
-    const pipeline = this.reading.pipelineSizes.push(1) - 1
-    const begun = this.at
-    let stage = 0
-    let lone: PsValue | undefined
-    let given: RegExpExecArray | null = null
-    let before: string | undefined
-    for (;;) {
-      const stages = [...outer, { pipeline, stage }]
-      const start = this.at
-      const tokens: PsToken[] = []
-      const redirects: ReadRedirect[] = []
-      for (;;) {
-        this.blank(false)
-        const ch = text[this.at]
-        if (ch === undefined || ch === '\n' || ch === ';' || ch === '|' || (closer !== undefined && ch === closer) || ch === ')' || ch === '}') break
-        if (ch === '&' && (text[this.at + 1] === '&' || (tokens.length > 0 && this.valueOf(tokens).length > 0))) break
-        const redirect = /^(?:[0-9*]?>>?(?:&[0-9])?)/.exec(text.slice(this.at, this.at + 5))
-        if (redirect !== null) {
-          this.at += redirect[0].length
-          if (redirect[0].includes('&')) continue
-          this.blank(false)
-          const target = this.token(stages)
-          if (target !== undefined) redirects.push({ op: redirect[0].replace(/^[0-9*]/, ''), target: target.value })
-          continue
-        }
-        const kept = this.gates
-        if (this.previous !== undefined && this.asksSuccess(tokens)) this.gates = [...kept, this.previous]
-        const token = this.token(stages)
-        this.gates = kept
-        if (token === undefined) break
-        tokens.push(token)
-      }
-      const background = text[this.at] === '&' && text[this.at + 1] !== '&'
-      let words = this.valueOf(tokens)
-      const assigned = words !== tokens
-      if (words === tokens && words.length > 2 && words[0]!.bare && PS_LOOP_VARIABLE.test(words[0]!.value) && words[1]!.bare && words[1]!.value.toLowerCase() === 'in') words = words.slice(2)
-      const called = words[0] !== undefined && words[0].bare && (words[0].value === '&' || words[0].value === '.')
-      if (called) words = words.slice(1)
-      if (stage === 0) {
-        lone = called || redirects.length > 0 || background || this.frame.cmd === true ? undefined : this.literal(words)
-        given = assigned && this.frame.cmd !== true ? PS_GIVEN.exec(text.slice(start, this.at).trimStart()) : null
-        if (assigned && given === null && lone !== undefined && tokens[1]?.bare === true && tokens[1].value === '=') this.entries.push([tokens[0]!.value, lone.value])
-      }
-      const first = words[0]
-      const worded = (this.typed || assigned) && first?.bare === false && (words.length === 1 || first.text.endsWith(',') || (words[1]!.bare && PS_OPERATOR.test(words[1]!.value)))
-      const value = this.frame.cmd !== true && !called && (worded || (words.length === 1 && first?.value === UNREAD_PART && first.inner.length === 0))
-      const argv: string[] = []
-      const inner: number[][] = []
-      const second: string[] = []
-      const secondInner: number[][] = []
-      let varied = false
-      for (const [at, word] of (value ? [] : words).entries()) {
-        const parts = word.bare && word.value.includes(',') && !word.value.includes(UNREAD_PART) ? word.value.split(',').filter(part => part !== '') : [word.value]
-        const swapped = this.frame.cmd !== true && (at > 0 || called) ? (word.other ?? this.kept(word)) : undefined
-        const splatted = this.frame.cmd !== true && at > 0 && word.bare ? this.tables.get(/^@([a-z_]\w*)$/i.exec(word.value)?.[1]?.toLowerCase() ?? '') : undefined
-        if (swapped !== undefined || splatted !== undefined) varied = true
-        for (const part of parts) {
-          argv.push(part)
-          inner.push(word.inner)
-        }
-        for (const part of splatted !== undefined ? splatted.flatMap(([key, held]) => [`-${key}`, held]) : swapped !== undefined ? [swapped] : parts) {
-          second.push(part)
-          secondInner.push(word.inner)
-        }
-      }
-      const readings = varied && moveOf({ argv: second, dialect: 'powershell' }) === undefined ? [argv, second] : [argv]
-      if (argv.length > 0 || redirects.length > 0)
-        for (const reading of readings)
-          made.push(
-            this.reading.push({
-              argv: reading,
-              env: [],
-              redirects,
-              text: text.slice(start, this.at).trim(),
-              line: this.line(start),
-              cwd: this.reading.cwd,
-              background: background || this.frame.background,
-              stages,
-              input: undefined,
-              inner: reading === argv ? inner : secondInner,
-              inputInner: [],
-              body: this.frame.body,
-              dialect: 'powershell',
-              around: this.frame.around,
-              gates: this.gates.length > 0 ? this.gates : undefined,
-              maybes: this.maybes.length > 0 ? this.maybes : undefined,
-              called: called ? (words[0]?.text.startsWith('{') ? 'block' : 'name') : undefined,
-              handed: before,
-            }),
-          )
-      if (stage === 0 && given !== null) {
-        const table = given[2] === '=' && words.length === 1 ? words[0]!.table : undefined
-        if (table === undefined) this.tables.delete(given[1]!.toLowerCase())
-        else this.tables.set(given[1]!.toLowerCase(), table)
-      }
-      before = this.frame.cmd !== true && !called && redirects.length === 0 && words.length === 1 && first?.bare === false && !first.value.includes(UNREAD_PART) ? first.value : undefined
-      if (text[this.at] === '|' && text[this.at + 1] !== '|') {
-        this.at++
-        stage++
-        this.blank(true)
-        continue
-      }
-      break
-    }
-    this.reading.pipelineSizes[pipeline] = stage + 1
-    this.said = stage === 0 && lone?.sure === true ? lone.value : undefined
-    this.maybe = stage === 0 && lone?.sure === false ? lone.value : undefined
-    if (given !== null) {
-      if (stage === 0 && given[2] === '=' && lone !== undefined) this.values.set(given[1]!.toLowerCase(), lone.value)
-      else this.values.delete(given[1]!.toLowerCase())
-    }
-    const whole = text.slice(begun, this.at).trim()
-    for (const index of made) {
-      const command = this.reading.commands[index]
-      if (command !== undefined && command.around === undefined && stage > 0) command.around = whole
-    }
-    return made
+    return powerShellPipeline.call(this, closer, outer)
   }
 
   group(closer: string, stages: readonly Stage[], typed = this.typed): number[] {
@@ -1327,112 +1217,238 @@ class PowerShellWalk {
   }
 
   token(stages: readonly Stage[]): PsToken | undefined {
-    const text = this.source
-    const start = this.at
-    let value = ''
-    let bare = true
-    const inner: number[] = []
-    const swaps: Array<readonly [number, string]> = []
-    let table: PsTable | undefined
-    while (this.at < text.length) {
-      const ch = text[this.at]!
-      if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n' || ch === ';' || ch === '|' || ch === ')' || ch === '}') break
-      if (ch === '&') {
-        if (this.at === start) value += text[this.at++]
-        break
-      }
-      if (ch === '>' && this.at > start) break
-      if ((ch === '@' && (text[this.at + 1] === "'" || text[this.at + 1] === '"')) && text[this.at + 2] === '\n') {
-        const quote = text[this.at + 1]!
-        const end = text.indexOf(`\n${quote}@`, this.at + 2)
-        value += end < 0 ? text.slice(this.at + 3) : text.slice(this.at + 3, end)
-        this.at = end < 0 ? text.length : end + 3
-        bare = false
-        continue
-      }
-      if (ch === "'") {
-        bare = false
-        this.at++
-        for (; this.at < text.length; this.at++) {
-          if (text[this.at] !== "'") value += text[this.at]
-          else if (text[this.at + 1] === "'") {
-            value += "'"
-            this.at++
-          } else break
-        }
-        this.at++
-        continue
-      }
-      if (ch === '"') {
-        bare = false
-        this.at++
-        for (; this.at < text.length; this.at++) {
-          const c = text[this.at]!
-          if (c === '`' && this.at + 1 < text.length) {
-            const escaped = text[++this.at]!
-            value += escaped === 'n' ? '\n' : escaped === 't' ? '\t' : escaped === '0' ? '' : escaped
-          } else if (c === '"') {
-            if (text[this.at + 1] !== '"') break
-            value += '"'
-            this.at++
-          } else if (c === '$' && text[this.at + 1] === '(') {
-            this.at += 2
-            inner.push(...this.group(')', []))
-            this.at--
-            value += UNREAD_PART
-          } else value += c
-        }
-        this.at++
-        continue
-      }
-      if (ch === '`' && this.at + 1 < text.length) {
-        value += text[this.at + 1] === '\n' ? '' : text[this.at + 1]
-        this.at += 2
-        continue
-      }
-      if (ch === '(' && bare && PS_STATEMENT_HEAD.test(value)) break
-      if (ch === '(' || ((ch === '$' || ch === '@') && text[this.at + 1] === '(')) {
-        if (ch === '(' && value !== '' && /[\w\]]$/.test(value)) {
-          if (!PS_VALUE_START.test(text[start]!)) break
-          const open = this.at++
-          inner.push(...(value.endsWith(']') ? this.group(')', [], this.frame.cmd !== true) : this.handed(stages)))
-          const made = /^\[scriptblock\]::create$/i.test(value) && this.parts.length === 1 && !this.parts[0]!.bare && !this.parts[0]!.value.includes(UNREAD_PART) ? this.parts[0]!.value : undefined
-          if (made !== undefined && this.frame.cmd !== true) {
-            const from = this.reading.push({ argv: [], env: [], redirects: [], text: text.slice(start, this.at), line: this.line(start), cwd: this.reading.cwd, background: this.frame.background, stages, input: undefined, inner: [], inputInner: [], body: this.frame.body, dialect: 'powershell', around: this.frame.around })
-            this.reading.pending.push({ text: made, dialect: 'powershell', from })
-            inner.push(from)
-          }
-          value += text.slice(open, this.at)
-          continue
-        }
-        this.at += ch === '(' ? 1 : 2
-        inner.push(...this.group(')', [], this.frame.cmd !== true))
-        if (this.said === undefined) {
-          if (this.maybe !== undefined) swaps.push([value.length, this.maybe])
-          value += UNREAD_PART
-        } else {
-          value += this.said
-          bare = false
-        }
-        continue
-      }
-      if (ch === '{' || (ch === '@' && text[this.at + 1] === '{')) {
-        const outer = this.entries
-        this.entries = []
-        this.at += ch === '{' ? 1 : 2
-        inner.push(...this.group('}', stages))
-        if (ch === '@' && value === '') table = this.entries
-        this.entries = outer
-        value += UNREAD_PART
-        continue
-      }
-      value += ch
-      this.at++
-    }
-    if (this.at === start) return undefined
-    const other = swaps.length === 0 ? undefined : swaps.reduceRight((whole, [at, literal]) => whole.slice(0, at) + literal + whole.slice(at + 1), value)
-    return { value, text: text.slice(start, this.at), inner, bare, other, table: value === UNREAD_PART ? table : undefined }
+    return powerShellToken.call(this, stages)
   }
+}
+
+function powerShellPipeline(this: PowerShellWalk, closer: string | undefined, outer: readonly Stage[]): number[] {
+  const text = this.source
+  const made: number[] = []
+  const pipeline = this.reading.pipelineSizes.push(1) - 1
+  const begun = this.at
+  let stage = 0
+  let lone: PsValue | undefined
+  let given: RegExpExecArray | null = null
+  let before: string | undefined
+  for (;;) {
+    const stages = [...outer, { pipeline, stage }]
+    const start = this.at
+    const tokens: PsToken[] = []
+    const redirects: ReadRedirect[] = []
+    for (;;) {
+      this.blank(false)
+      const ch = text[this.at]
+      if (ch === undefined || ch === '\n' || ch === ';' || ch === '|' || (closer !== undefined && ch === closer) || ch === ')' || ch === '}') break
+      if (ch === '&' && (text[this.at + 1] === '&' || (tokens.length > 0 && this.valueOf(tokens).length > 0))) break
+      const redirect = /^(?:[0-9*]?>>?(?:&[0-9])?)/.exec(text.slice(this.at, this.at + 5))
+      if (redirect !== null) {
+        this.at += redirect[0].length
+        if (redirect[0].includes('&')) continue
+        this.blank(false)
+        const target = this.token(stages)
+        if (target !== undefined) redirects.push({ op: redirect[0].replace(/^[0-9*]/, ''), target: target.value })
+        continue
+      }
+      const kept = this.gates
+      if (this.previous !== undefined && this.asksSuccess(tokens)) this.gates = [...kept, this.previous]
+      const token = this.token(stages)
+      this.gates = kept
+      if (token === undefined) break
+      tokens.push(token)
+    }
+    const background = text[this.at] === '&' && text[this.at + 1] !== '&'
+    let words = this.valueOf(tokens)
+    const assigned = words !== tokens
+    if (words === tokens && words.length > 2 && words[0]!.bare && PS_LOOP_VARIABLE.test(words[0]!.value) && words[1]!.bare && words[1]!.value.toLowerCase() === 'in') words = words.slice(2)
+    const called = words[0] !== undefined && words[0].bare && (words[0].value === '&' || words[0].value === '.')
+    if (called) words = words.slice(1)
+    if (stage === 0) {
+      lone = called || redirects.length > 0 || background || this.frame.cmd === true ? undefined : this.literal(words)
+      given = assigned && this.frame.cmd !== true ? PS_GIVEN.exec(text.slice(start, this.at).trimStart()) : null
+      if (assigned && given === null && lone !== undefined && tokens[1]?.bare === true && tokens[1].value === '=') this.entries.push([tokens[0]!.value, lone.value])
+    }
+    const first = words[0]
+    const worded = (this.typed || assigned) && first?.bare === false && (words.length === 1 || first.text.endsWith(',') || (words[1]!.bare && PS_OPERATOR.test(words[1]!.value)))
+    const value = this.frame.cmd !== true && !called && (worded || (words.length === 1 && first?.value === UNREAD_PART && first.inner.length === 0))
+    const argv: string[] = []
+    const inner: number[][] = []
+    const second: string[] = []
+    const secondInner: number[][] = []
+    let varied = false
+    for (const [at, word] of (value ? [] : words).entries()) {
+      const parts = word.bare && word.value.includes(',') && !word.value.includes(UNREAD_PART) ? word.value.split(',').filter(part => part !== '') : [word.value]
+      const swapped = this.frame.cmd !== true && (at > 0 || called) ? (word.other ?? this.kept(word)) : undefined
+      const splatted = this.frame.cmd !== true && at > 0 && word.bare ? this.tables.get(/^@([a-z_]\w*)$/i.exec(word.value)?.[1]?.toLowerCase() ?? '') : undefined
+      if (swapped !== undefined || splatted !== undefined) varied = true
+      for (const part of parts) {
+        argv.push(part)
+        inner.push(word.inner)
+      }
+      for (const part of splatted !== undefined ? splatted.flatMap(([key, held]) => [`-${key}`, held]) : swapped !== undefined ? [swapped] : parts) {
+        second.push(part)
+        secondInner.push(word.inner)
+      }
+    }
+    const readings = varied && moveOf({ argv: second, dialect: 'powershell' }) === undefined ? [argv, second] : [argv]
+    if (argv.length > 0 || redirects.length > 0)
+      for (const reading of readings)
+        made.push(
+          this.reading.push({
+            argv: reading,
+            env: [],
+            redirects,
+            text: text.slice(start, this.at).trim(),
+            line: this.line(start),
+            cwd: this.reading.cwd,
+            background: background || this.frame.background,
+            stages,
+            input: undefined,
+            inner: reading === argv ? inner : secondInner,
+            inputInner: [],
+            body: this.frame.body,
+            dialect: 'powershell',
+            around: this.frame.around,
+            gates: this.gates.length > 0 ? this.gates : undefined,
+            maybes: this.maybes.length > 0 ? this.maybes : undefined,
+            called: called ? (words[0]?.text.startsWith('{') ? 'block' : 'name') : undefined,
+            handed: before,
+          }),
+        )
+    if (stage === 0 && given !== null) {
+      const table = given[2] === '=' && words.length === 1 ? words[0]!.table : undefined
+      if (table === undefined) this.tables.delete(given[1]!.toLowerCase())
+      else this.tables.set(given[1]!.toLowerCase(), table)
+    }
+    before = this.frame.cmd !== true && !called && redirects.length === 0 && words.length === 1 && first?.bare === false && !first.value.includes(UNREAD_PART) ? first.value : undefined
+    if (text[this.at] === '|' && text[this.at + 1] !== '|') {
+      this.at++
+      stage++
+      this.blank(true)
+      continue
+    }
+    break
+  }
+  this.reading.pipelineSizes[pipeline] = stage + 1
+  this.said = stage === 0 && lone?.sure === true ? lone.value : undefined
+  this.maybe = stage === 0 && lone?.sure === false ? lone.value : undefined
+  if (given !== null) {
+    if (stage === 0 && given[2] === '=' && lone !== undefined) this.values.set(given[1]!.toLowerCase(), lone.value)
+    else this.values.delete(given[1]!.toLowerCase())
+  }
+  const whole = text.slice(begun, this.at).trim()
+  for (const index of made) {
+    const command = this.reading.commands[index]
+    if (command !== undefined && command.around === undefined && stage > 0) command.around = whole
+  }
+  return made
+}
+
+function powerShellToken(this: PowerShellWalk, stages: readonly Stage[]): PsToken | undefined {
+  const text = this.source
+  const start = this.at
+  let value = ''
+  let bare = true
+  const inner: number[] = []
+  const swaps: Array<readonly [number, string]> = []
+  let table: PsTable | undefined
+  while (this.at < text.length) {
+    const ch = text[this.at]!
+    if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n' || ch === ';' || ch === '|' || ch === ')' || ch === '}') break
+    if (ch === '&') {
+      if (this.at === start) value += text[this.at++]
+      break
+    }
+    if (ch === '>' && this.at > start) break
+    if ((ch === '@' && (text[this.at + 1] === "'" || text[this.at + 1] === '"')) && text[this.at + 2] === '\n') {
+      const quote = text[this.at + 1]!
+      const end = text.indexOf(`\n${quote}@`, this.at + 2)
+      value += end < 0 ? text.slice(this.at + 3) : text.slice(this.at + 3, end)
+      this.at = end < 0 ? text.length : end + 3
+      bare = false
+      continue
+    }
+    if (ch === "'") {
+      bare = false
+      this.at++
+      for (; this.at < text.length; this.at++) {
+        if (text[this.at] !== "'") value += text[this.at]
+        else if (text[this.at + 1] === "'") {
+          value += "'"
+          this.at++
+        } else break
+      }
+      this.at++
+      continue
+    }
+    if (ch === '"') {
+      bare = false
+      this.at++
+      for (; this.at < text.length; this.at++) {
+        const c = text[this.at]!
+        if (c === '`' && this.at + 1 < text.length) {
+          const escaped = text[++this.at]!
+          value += escaped === 'n' ? '\n' : escaped === 't' ? '\t' : escaped === '0' ? '' : escaped
+        } else if (c === '"') {
+          if (text[this.at + 1] !== '"') break
+          value += '"'
+          this.at++
+        } else if (c === '$' && text[this.at + 1] === '(') {
+          this.at += 2
+          inner.push(...this.group(')', []))
+          this.at--
+          value += UNREAD_PART
+        } else value += c
+      }
+      this.at++
+      continue
+    }
+    if (ch === '`' && this.at + 1 < text.length) {
+      value += text[this.at + 1] === '\n' ? '' : text[this.at + 1]
+      this.at += 2
+      continue
+    }
+    if (ch === '(' && bare && PS_STATEMENT_HEAD.test(value)) break
+    if (ch === '(' || ((ch === '$' || ch === '@') && text[this.at + 1] === '(')) {
+      if (ch === '(' && value !== '' && /[\w\]]$/.test(value)) {
+        if (!PS_VALUE_START.test(text[start]!)) break
+        const open = this.at++
+        inner.push(...(value.endsWith(']') ? this.group(')', [], this.frame.cmd !== true) : this.handed(stages)))
+        const made = /^\[scriptblock\]::create$/i.test(value) && this.parts.length === 1 && !this.parts[0]!.bare && !this.parts[0]!.value.includes(UNREAD_PART) ? this.parts[0]!.value : undefined
+        if (made !== undefined && this.frame.cmd !== true) {
+          const from = this.reading.push({ argv: [], env: [], redirects: [], text: text.slice(start, this.at), line: this.line(start), cwd: this.reading.cwd, background: this.frame.background, stages, input: undefined, inner: [], inputInner: [], body: this.frame.body, dialect: 'powershell', around: this.frame.around })
+          this.reading.pending.push({ text: made, dialect: 'powershell', from })
+          inner.push(from)
+        }
+        value += text.slice(open, this.at)
+        continue
+      }
+      this.at += ch === '(' ? 1 : 2
+      inner.push(...this.group(')', [], this.frame.cmd !== true))
+      if (this.said === undefined) {
+        if (this.maybe !== undefined) swaps.push([value.length, this.maybe])
+        value += UNREAD_PART
+      } else {
+        value += this.said
+        bare = false
+      }
+      continue
+    }
+    if (ch === '{' || (ch === '@' && text[this.at + 1] === '{')) {
+      const outer = this.entries
+      this.entries = []
+      this.at += ch === '{' ? 1 : 2
+      inner.push(...this.group('}', stages))
+      if (ch === '@' && value === '') table = this.entries
+      this.entries = outer
+      value += UNREAD_PART
+      continue
+    }
+    value += ch
+    this.at++
+  }
+  if (this.at === start) return undefined
+  const other = swaps.length === 0 ? undefined : swaps.reduceRight((whole, [at, literal]) => whole.slice(0, at) + literal + whole.slice(at + 1), value)
+  return { value, text: text.slice(start, this.at), inner, bare, other, table: value === UNREAD_PART ? table : undefined }
 }
 
 async function readInto(reading: Reading, text: string, frame: Frame, depth: number): Promise<void> {
