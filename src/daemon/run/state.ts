@@ -93,7 +93,7 @@ export function makeDaemonRunState(boot: DaemonRunBootFacts): DaemonRunState {
   }
 }
 
-type BootStep = 'the seat ceiling' | 'the roster' | 'the control key' | 'the start token' | 'the handover take' | 'the runners left without a host' | 'the control server' | 'the daemon record' | 'the host job sweep'
+type BootStep = 'the seat ceiling' | 'the roster' | 'the control key' | 'the start token' | 'the handover take' | 'the runners left without a host' | 'the control server' | 'the daemon record' | 'the host job sweep' | 'the Saturn ticker'
 
 export function atBootStep(state: DaemonRunState, name: BootStep): <T>(started: T) => T {
   state.bootStep = name

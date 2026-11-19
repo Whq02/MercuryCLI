@@ -18,6 +18,7 @@ import {
 import {
   endRunnersLeftWithoutHost,
 } from './concourseWorkers.js'
+import './permissionAsks.js'
 import { seatCeilingFactsAsync, serveHeldReadingFromBackground } from '../services/switchboard/capacityCheck.js'
 import {
   onSeatSpawned,
@@ -31,8 +32,15 @@ import {
 } from './warmRunner.js'
 import { reviveConcourseWorker } from './concourseWorkers.js'
 import { readSessionWorkersSnapshot } from './concourseWorkers.js'
+import './sessionContract.js'
+import './saturn.js'
+import './saturnAccount.js'
+import './signInView.js'
+import './saturnTicker.js'
+import './saturnBirth.js'
 import { makeConcourseDispatchHandler, reconcileWorkingDispatches } from './concourseDispatch.js'
-import { TaskRoster } from './roster.js'
+import './roster.js'
+import type { TaskRoster } from './roster.js'
 import {
   parseOwnerPid,
   isProcessAlive,
@@ -63,6 +71,7 @@ import { holdBuild, invokedScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync } from './planeRecords.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidsOfHome } from './status.js'
+import '../components/mercury-ui/glyphs.js'
 import { sleep } from '../utils/sleep.js'
 import { atBootStep, makeDaemonRunState, markDaemonReady } from './run/state.js'
 import { armHandoverBeats } from './run/handover.js'
@@ -71,10 +80,10 @@ import { armOwnerWatch, makeSessionlessBeat, markHosted } from './run/owner.js'
 import { periodicArmer } from './run/periodic.js'
 import { armWaysOut, bindWayOut, giveHomeBack, shutdownDaemon } from './run/shutdown.js'
 import { armedRestartBeat, spawnSuccessorDaemon } from './run/restart.js'
+import { armReconcile } from './run/sweep.js'
 import { makeDaemonRoster } from './run/roster.js'
 import { armSaturn } from './run/saturn.js'
 import { controlServerDeps } from './run/control.js'
-import { armReconcile } from './run/sweep.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
