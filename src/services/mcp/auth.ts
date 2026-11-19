@@ -286,7 +286,7 @@ const inFlightRefresh = new Map<string, Promise<OAuthTokens | undefined>>()
 const metadataCache = new Map<string, AuthorizationServerMetadata>()
 
 export class MercuryMcpAuthProvider implements OAuthClientProvider {
-  private readonly serverKey: string
+  readonly serverKey: string
   private readonly config: RemoteServerConfig
   private readonly stateValue: string
   private metadata: AuthorizationServerMetadata | undefined
@@ -348,7 +348,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     return this.stateValue
   }
 
-  private serverUrl(): string {
+  serverUrl(): string {
     return this.config.url ?? ''
   }
 
@@ -387,11 +387,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     writeEntry(this.serverKey, entry)
   }
 
-  private stepUpPending(entry: StoredOAuthEntry): boolean {
-    if (!entry.stepUpScope) return false
-    const current = new Set((entry.scope ?? '').split(' ').filter(Boolean))
-    return entry.stepUpScope.split(' ').filter(Boolean).some(scope => !current.has(scope))
-  }
+  private stepUpPending(entry: StoredOAuthEntry): boolean { return stepUpPendingOf.call(this, entry) }
 
   async tokens(): Promise<OAuthTokens | undefined> {
     const entry = await readEntryAsync(this.serverKey)
@@ -538,7 +534,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     writeEntry(this.serverKey, entry)
   }
 
-  private async resolveMetadataForRefresh(): Promise<AuthorizationServerMetadata | undefined> {
+  async resolveMetadataForRefresh(): Promise<AuthorizationServerMetadata | undefined> {
     const cached = metadataCache.get(this.serverKey)
     if (cached) return cached
     const entry = readEntry(this.serverKey)
@@ -556,7 +552,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     return discoverMetadata(this.serverUrl(), this.config, this.fetchFn)
   }
 
-  private async withRefreshLock<T>(work: () => Promise<T>): Promise<T> {
+  async withRefreshLock<T>(work: () => Promise<T>): Promise<T> {
     const home = getMercuryHome()
     if (!existsSync(home)) mkdirSync(home, { recursive: true })
     const lockPath = join(home, `mcp-refresh-${this.serverKey.replace(/[^a-zA-Z0-9]/g, '_')}.lock`)
@@ -582,82 +578,92 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     }
   }
 
-  private freshStoredTokens(): OAuthTokens | undefined {
-    clearKeychainCache()
-    const entry = readEntry(this.serverKey)
-    if (entry && entry.accessToken && entry.expiresAt - Date.now() > REFRESH_LEAD_S * 1000) {
-      return {
-        access_token: entry.accessToken,
-        refresh_token: entry.refreshToken,
-        expires_in: Math.floor((entry.expiresAt - Date.now()) / 1000),
-        scope: entry.scope,
-        token_type: 'bearer',
-        ...(entry.tokenIssuer !== undefined ? { issuer: entry.tokenIssuer } : {}),
+  freshStoredTokens(): OAuthTokens | undefined { return freshStoredTokensOf.call(this) }
+
+  refreshAuthorization(refreshToken: string): Promise<OAuthTokens | undefined> { return refreshAuthorizationOf.call(this, refreshToken) }
+}
+
+function stepUpPendingOf(this: MercuryMcpAuthProvider, entry: StoredOAuthEntry): boolean {
+  if (!entry.stepUpScope) return false
+  const current = new Set((entry.scope ?? '').split(' ').filter(Boolean))
+  return entry.stepUpScope.split(' ').filter(Boolean).some(scope => !current.has(scope))
+}
+
+function freshStoredTokensOf(this: MercuryMcpAuthProvider): OAuthTokens | undefined {
+  clearKeychainCache()
+  const entry = readEntry(this.serverKey)
+  if (entry && entry.accessToken && entry.expiresAt - Date.now() > REFRESH_LEAD_S * 1000) {
+    return {
+      access_token: entry.accessToken,
+      refresh_token: entry.refreshToken,
+      expires_in: Math.floor((entry.expiresAt - Date.now()) / 1000),
+      scope: entry.scope,
+      token_type: 'bearer',
+      ...(entry.tokenIssuer !== undefined ? { issuer: entry.tokenIssuer } : {}),
+    }
+  }
+  return undefined
+}
+
+async function refreshAuthorizationOf(this: MercuryMcpAuthProvider, refreshToken: string): Promise<OAuthTokens | undefined> {
+  return this.withRefreshLock(async () => {
+    const fresh = this.freshStoredTokens()
+    if (fresh !== undefined) return fresh
+    const stored = readEntry(this.serverKey)
+    const tokenToUse = stored?.refreshToken ?? refreshToken
+
+    const metadata = await this.resolveMetadataForRefresh()
+    if (metadata === undefined) {
+      emitRefreshEvent('metadata_discovery_failed')
+      return undefined
+    }
+    metadataCache.set(this.serverKey, metadata)
+    const clientInformation = this.clientInformation()
+    if (clientInformation === undefined) {
+      emitRefreshEvent('no_client_info')
+      return undefined
+    }
+    let lastRetryable = false
+    for (let attempt = 1; attempt <= REFRESH_ATTEMPTS; attempt++) {
+      try {
+        const tokens = await sdkRefreshAuthorization(this.serverUrl(), {
+          metadata,
+          clientInformation,
+          refreshToken: tokenToUse,
+          resource: new URL(this.serverUrl()),
+          fetchFn: this.fetchFn as never,
+        })
+        if (!tokens) {
+          emitRefreshEvent('no_tokens_returned')
+          return undefined
+        }
+        const refreshed = { ...tokens, ...(stored?.tokenIssuer !== undefined ? { issuer: stored.tokenIssuer } : {}) }
+        this.saveTokens(refreshed)
+        emitRefreshEvent('success')
+        return refreshed
+      } catch (err) {
+        const oauthCode = err instanceof OAuthError ? err.code : undefined
+        if (oauthCode === OAuthErrorCode.InvalidGrant) {
+          const winner = this.freshStoredTokens()
+          if (winner !== undefined) return winner
+          this.invalidateCredentials('tokens')
+          emitRefreshEvent('invalid_grant')
+          return undefined
+        }
+        const message = err instanceof Error ? err.message : String(err)
+        const retryable =
+          /timeout|timed out|ETIMEDOUT|ECONNRESET/i.test(message) ||
+          oauthCode === OAuthErrorCode.ServerError ||
+          oauthCode === OAuthErrorCode.TemporarilyUnavailable ||
+          oauthCode === OAuthErrorCode.TooManyRequests
+        lastRetryable = retryable
+        if (!retryable || attempt === REFRESH_ATTEMPTS) break
+        await sleep(1000 * 2 ** (attempt - 1))
       }
     }
+    emitRefreshEvent(lastRetryable ? 'transient_retries_exhausted' : 'request_failed')
     return undefined
-  }
-
-  async refreshAuthorization(refreshToken: string): Promise<OAuthTokens | undefined> {
-    return this.withRefreshLock(async () => {
-      const fresh = this.freshStoredTokens()
-      if (fresh !== undefined) return fresh
-      const stored = readEntry(this.serverKey)
-      const tokenToUse = stored?.refreshToken ?? refreshToken
-
-      const metadata = await this.resolveMetadataForRefresh()
-      if (metadata === undefined) {
-        emitRefreshEvent('metadata_discovery_failed')
-        return undefined
-      }
-      metadataCache.set(this.serverKey, metadata)
-      const clientInformation = this.clientInformation()
-      if (clientInformation === undefined) {
-        emitRefreshEvent('no_client_info')
-        return undefined
-      }
-      let lastRetryable = false
-      for (let attempt = 1; attempt <= REFRESH_ATTEMPTS; attempt++) {
-        try {
-          const tokens = await sdkRefreshAuthorization(this.serverUrl(), {
-            metadata,
-            clientInformation,
-            refreshToken: tokenToUse,
-            resource: new URL(this.serverUrl()),
-            fetchFn: this.fetchFn as never,
-          })
-          if (!tokens) {
-            emitRefreshEvent('no_tokens_returned')
-            return undefined
-          }
-          const refreshed = { ...tokens, ...(stored?.tokenIssuer !== undefined ? { issuer: stored.tokenIssuer } : {}) }
-          this.saveTokens(refreshed)
-          emitRefreshEvent('success')
-          return refreshed
-        } catch (err) {
-          const oauthCode = err instanceof OAuthError ? err.code : undefined
-          if (oauthCode === OAuthErrorCode.InvalidGrant) {
-            const winner = this.freshStoredTokens()
-            if (winner !== undefined) return winner
-            this.invalidateCredentials('tokens')
-            emitRefreshEvent('invalid_grant')
-            return undefined
-          }
-          const message = err instanceof Error ? err.message : String(err)
-          const retryable =
-            /timeout|timed out|ETIMEDOUT|ECONNRESET/i.test(message) ||
-            oauthCode === OAuthErrorCode.ServerError ||
-            oauthCode === OAuthErrorCode.TemporarilyUnavailable ||
-            oauthCode === OAuthErrorCode.TooManyRequests
-          lastRetryable = retryable
-          if (!retryable || attempt === REFRESH_ATTEMPTS) break
-          await sleep(1000 * 2 ** (attempt - 1))
-        }
-      }
-      emitRefreshEvent(lastRetryable ? 'transient_retries_exhausted' : 'request_failed')
-      return undefined
-    })
-  }
+  })
 }
 
 
