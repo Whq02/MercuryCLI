@@ -6,7 +6,7 @@ import { logForDebugging } from '../debug.js'
 import { normalizePathForConfigKey } from '../path.js'
 
 import { DEFAULT_PROJECT_CONFIG, type GlobalConfig } from './schema.js'
-import { getGlobalConfig, saveGlobalConfig } from './globalConfig.js'
+import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from './globalConfig.js'
 import { getProjectPathForConfig, saveCurrentProjectConfigDeferred } from './projectConfig.js'
 
 let _trustAccepted = false
@@ -23,8 +23,10 @@ export function untrustedWorkspaceHeadless(): boolean {
   try {
     if (!getIsNonInteractiveSession()) return false
     return !checkHasTrustDialogAccepted()
-  } catch {
-    return false
+  } catch (error) {
+    if (!isConfigReadingAllowed()) return false
+    logForDebugging(`trust: whether this workspace is trusted could not be read, so this headless run loads no settings, hooks, servers or instructions from the checkout: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+    return true
   }
 }
 
