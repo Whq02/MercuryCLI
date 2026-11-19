@@ -18,6 +18,8 @@ import { CompatProbeError, compatServerBase, inspectCompatServer, type CompatDia
 import { writeStoredCompatApiKey } from '../providers/providerSecrets.js'
 import { hostModelEfforts } from '../providers/openaicompat/compatEffort.js'
 import { unregisterTensorFoldPod } from '../host/tensorfoldPod.js'
+import { errorMessage } from '../../utils/errors.js'
+import { logError } from '../../utils/log.js'
 
 export interface LlmHostQuestion {
   step: string
@@ -60,7 +62,12 @@ export function removeLlmHostProvider(name: string): void {
   if (!existing) return
   writeStoredCompatApiKey(null, name)
   writeEndpoint(name, undefined, existing)
-  if (existing.hostPodId) void unregisterTensorFoldPod(existing.hostPodId).catch(() => {})
+  if (existing.hostPodId) {
+    const podId = existing.hostPodId
+    void unregisterTensorFoldPod(podId).catch(error =>
+      logError(new Error(`the TensorFold pod ${podId} of the removed provider ${name} could not be unregistered, so its host record and key stay behind: ${error instanceof SyntaxError ? 'a hosts file is not valid JSON' : errorMessage(error)}`)),
+    )
+  }
 }
 
 function writeEndpoint(name: string, endpoint: CompatEndpointSettings | undefined, existing?: CompatEndpoint): void {
