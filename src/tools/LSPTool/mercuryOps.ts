@@ -3,28 +3,18 @@ import type { Dirent } from 'node:fs'
 import { realpathSync } from 'node:fs'
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { readLocationSourceLines, type Locationish } from './formatters.js'
-import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path'
-import { createHash, type UUID } from 'node:crypto'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-
+import { basename, dirname, extname, isAbsolute, resolve, sep } from 'node:path'
+import { createHash } from 'node:crypto'
+import { pathToFileURL } from 'node:url'
 import type { ServerCapabilities } from 'vscode-languageserver-protocol'
 import { z } from 'zod/v4'
-
 import { runVerbatimTextCommit } from '../../services/changeTransaction/changeSetCommit.js'
-import { canonicalPathKey, sha256Hex } from '../../services/changeTransaction/changeSetPlan.js'
+import { sha256Hex } from '../../services/changeTransaction/changeSetPlan.js'
 import { checkSeenLines, dropSeenLines, fileGeneration } from '../../services/changeTransaction/seenLines.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
-import {
-  clearDeliveredDiagnosticsForFile,
-  foldDriveCase,
-  snapshotDiagnosticsBeforeWrite,
-  subscribeLSPDiagnosticPublish,
-} from '../../services/lsp/LSPDiagnosticRegistry.js'
-import { builtinImplementationInfo } from '../../services/lsp/builtinServers.js'
-import { LSP_ONE_LINE_MAX, lspStartFailureWords, remedyForLanguageServer, serverTitle, startFailureCause, unclaimedCause } from '../../services/lsp/failureWords.js'
-import { isLspStartFailure, type LSPServerInstance, type LspStartFailure } from '../../services/lsp/LSPServerInstance.js'
-import type { LSPServerManager } from '../../services/lsp/LSPServerManager.js'
+import { LSP_ONE_LINE_MAX } from '../../services/lsp/failureWords.js'
+import { isLspStartFailure, type LSPServerInstance } from '../../services/lsp/LSPServerInstance.js'
 import {
   applyEditsToText,
   editRowsOf,
@@ -36,12 +26,10 @@ import {
   type NormalizedFileEdits,
   type WorkspaceEditLike,
 } from '../../services/lsp/workspaceEditApply.js'
-import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { noteRunEvent } from '../../services/run/runCoordinator.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { buildDiffHunks } from '../../services/structure/transform.js'
 import { renameWithWin32Retry } from '../../substrate/durablePublish.js'
-import type { ToolUseContext } from '../../Tool.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getFileModificationTime } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
@@ -54,619 +42,15 @@ import {
 } from '../../utils/permissions/filesystem.js'
 import { postureBypassesAsks } from '../../utils/permissions/decision/engine.js'
 import { MAX_LINES_TO_READ } from '../FileReadTool/prompt.js'
-
-
-type MercuryLspOperation =
-  | 'diagnostics'
-  | 'rename'
-  | 'codeActions'
-  | 'switchSourceHeader'
-  | 'typeDefinition'
-  | 'serverStatus'
-  | 'workspaceDiagnostics'
-  | 'pathRename'
-  | 'fixDiagnostic'
-  | 'formatDocument'
-  | 'formatRange'
-  | 'organizeImports'
-  | 'capabilities'
-  | 'rawRequest'
-  | 'moveSymbol'
-
-export type MercuryLspOpInput = {
-  operation: MercuryLspOperation
-  filePath: string
-  line: number
-  character: number
-  endLine?: number
-  endCharacter?: number
-  newName?: string
-  newPath?: string
-  apply?: boolean
-  actionId?: string
-  actionIndex?: number
-  paths?: string[]
-  method?: string
-  params?: string
-  plan?: string
-  kind?: string
-  targetPath?: string
-}
-
-type MercuryOpEffect = {
-  outcome: 'succeeded' | 'failed' | 'no-change' | 'indeterminate'
-  changedPaths: string[]
-  evidence: string
-  details?: Record<string, unknown>
-}
-
-type LspChangeViewFile = {
-  file: string
-  hunks: Array<{
-    oldStart: number
-    oldLines: number
-    newStart: number
-    newLines: number
-    lines: string[]
-  }>
-  omittedHunks?: number
-  changedLines: number
-}
-
-export type MercuryLspOpOutput = {
-  result: string
-  resultCount?: number
-  fileCount?: number
-  applied?: boolean
-  effect: MercuryOpEffect
-  changeView?: {
-    state: 'proposed' | 'applied'
-    action: string
-    files: LspChangeViewFile[]
-    refs: string[]
-  }
-  edits?: EditRow[]
-  omittedEdits?: number
-  plan?: string
-}
-
-type OpEnv = {
-  input: MercuryLspOpInput
-  absolutePath: string
-  cwd: string
-  manager: LSPServerManager
-  tool: { name: string; getPath?: (input: unknown) => string | undefined }
-  context: ToolUseContext
-  messageId?: UUID
-  requestWritePermission?: (path: string) => Promise<boolean>
-}
-
-
-const MAX_LSP_FILE_BYTES = 10_000_000
-const PREPARE_ROUNDS = 3
-const WORKSPACE_DIAG_FILE_CAP = 50
-const PATH_RENAME_FILE_CAP = 100
-const SERVER_SYNC_DEADLINE_MS = 4_000
-const STABILIZE_DEADLINE_MS = 3_000
-const STABILIZE_QUIET_WINDOW_MS = 300
-const IGNORED_WALK_DIRS = new Set(['node_modules', '.git', 'dist', '.build-tree'])
-
-
-function displayPathFor(cwd: string, fileOrUri: string): string {
-  const path = fileOrUri.startsWith('file://')
-    ? fileURLToPath(fileOrUri)
-    : fileOrUri
-  const rel = relative(cwd, path)
-  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return path
-  return rel
-}
-
-function uriToFilePath(uri: string): string {
-  if (uri.startsWith('file://')) return fileURLToPath(uri)
-  return uri
-}
-
-function foldFilesByPath(files: NormalizedFileEdits[]): NormalizedFileEdits[] {
-  const byKey = new Map<string, NormalizedFileEdits>()
-  for (const file of files) {
-    const key = canonicalPathKey(uriToFilePath(file.uri))
-    const prior = byKey.get(key)
-    if (prior === undefined) {
-      byKey.set(key, { uri: file.uri, edits: [...file.edits], ...(file.create === true ? { create: true } : {}) })
-      continue
-    }
-    if (file.create === true) prior.create = true
-    for (const edit of file.edits) {
-      const duplicate = prior.edits.some(
-        held =>
-          held.newText === edit.newText &&
-          held.range.start.line === edit.range.start.line &&
-          held.range.start.character === edit.range.start.character &&
-          held.range.end.line === edit.range.end.line &&
-          held.range.end.character === edit.range.end.character,
-      )
-      if (!duplicate) prior.edits.push(edit)
-    }
-  }
-  return [...byKey.values()]
-}
-
-function isMethodNotFoundError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error)
-  return /method not found|unhandled method|invalid request/i.test(message)
-}
-
-type LspWireDiagnostic = {
-  range: LspRangeLike
-  severity?: number
-  message: string
-  source?: string
-  code?: string | number
-}
-
-const SEVERITY_LABELS: Record<number, string> = {
-  1: 'error',
-  2: 'warning',
-  3: 'info',
-  4: 'hint',
-}
-
-function severityLabel(severity: number | undefined): string {
-  return SEVERITY_LABELS[severity ?? 1] ?? 'error'
-}
-
-function sortDiagnostics(items: LspWireDiagnostic[]): LspWireDiagnostic[] {
-  return [...items].sort(
-    (a, b) =>
-      (a.severity ?? 1) - (b.severity ?? 1) ||
-      a.range.start.line - b.range.start.line,
-  )
-}
-
-function formatDiagnosticLine(display: string, diagnostic: LspWireDiagnostic): string {
-  const label = severityLabel(diagnostic.severity)
-  const line = diagnostic.range.start.line + 1
-  const character = diagnostic.range.start.character + 1
-  const code =
-    diagnostic.code !== undefined && diagnostic.code !== null
-      ? ` ${diagnostic.source ?? 'lsp'} ${String(diagnostic.code)}`
-      : ''
-  const firstMessageLine = diagnostic.message.split('\n')[0] ?? ''
-  return `${label}: ${display}:${line}:${character}${code} ${firstMessageLine}`
-}
-
-function countBySeverity(items: LspWireDiagnostic[]): { errors: number; warnings: number } {
-  let errors = 0
-  let warnings = 0
-  for (const item of items) {
-    const severity = item.severity ?? 1
-    if (severity === 1) errors++
-    else if (severity === 2) warnings++
-  }
-  return { errors, warnings }
-}
-
-async function syncFileFromDisk(manager: LSPServerManager, absolutePath: string): Promise<string> {
-  const stats = await stat(absolutePath)
-  if (stats.size > MAX_LSP_FILE_BYTES) {
-    const megabytes = Math.ceil(stats.size / (1024 * 1024))
-    throw new Error(`file too large for LSP analysis (${megabytes}MB exceeds 10MB limit)`)
-  }
-  const text = await readFile(absolutePath, 'utf8')
-  if (manager.isFileOpen(absolutePath)) {
-    await manager.changeFile(absolutePath, text)
-  } else {
-    await manager.openFile(absolutePath, text)
-  }
-  return text
-}
-
-
-type DiagnosticsBaseline = {
-  generationKey: string
-  docVersion: number | undefined
-  resultId: string | undefined
-  items: LspWireDiagnostic[]
-}
-
-const diagnosticsBaselines = new Map<string, DiagnosticsBaseline>()
-
-export function clearDiagnosticsBaselines(): void {
-  diagnosticsBaselines.clear()
-}
-
-type ClaimantFailure = { server: LSPServerInstance; stage: 'start' | 'pull'; cause: string; startFailure?: LspStartFailure }
-
-type PullDiagnosticsOutcome =
-  | {
-      kind: 'fresh'
-      items: LspWireDiagnostic[]
-      docVersion: number | undefined
-      pulledFrom?: string[]
-      pushed?: string[]
-      failed?: ClaimantFailure[]
-    }
-  | {
-      kind: 'unchanged'
-      items: LspWireDiagnostic[]
-      docVersion: number | undefined
-      pulledFrom?: string[]
-      pushed?: string[]
-      failed?: ClaimantFailure[]
-    }
-  | { kind: 'unsupported'; pushOnly: string[] }
-  | { kind: 'unavailable'; failed: ClaimantFailure[] }
-  | { kind: 'no-claimant' }
-  | { kind: 'protocol-violation'; detail: string }
-
-function claimantFailureWords(failure: ClaimantFailure, path: string, cwd: string): { what: string; remedy: string } {
-  const title = serverTitle(failure.server, path)
-  const remedy = remedyForLanguageServer(failure.server, path, failure.cause, cwd)
-  const what = failure.startFailure
-    ? lspStartFailureWords(failure.startFailure, title, '', `${title} did not start: ${failure.cause}.`).replace(/\.$/, '')
-    : failure.stage === 'start'
-      ? `${title} did not start: ${failure.cause}`
-      : `${title} did not answer textDocument/diagnostic: ${failure.cause}`
-  return { what, remedy }
-}
-
-function requestFailureCause(server: LSPServerInstance, method: string, error: unknown): string {
-  const raw = error instanceof Error ? error.message : String(error)
-  return raw.replace(`LSP request ${method} to server ${server.name} `, '').replace(/^failed: /, '').trim()
-}
-
-function remedyForUnclaimedExtension(extension: string, cwd?: string): string {
-  try {
-    if (cwd !== undefined) {
-      const typescript = unclaimedCause(extension, cwd)
-      if (typescript.remedy !== '') return `${typescript.cause}. What helps: ${typescript.remedy}.`
-    }
-    if (extension === '.py' || extension === '.pyi') {
-      const { probeBuiltinPyright } = require('../../services/lsp/pyrightLane.js') as typeof import('../../services/lsp/pyrightLane.js')
-      const { probeRuff } = require('../../services/lsp/ruffLane.js') as typeof import('../../services/lsp/ruffLane.js')
-      const reasons = [probeBuiltinPyright(), probeRuff()]
-        .map(p => ('reason' in p ? p.reason : undefined))
-        .filter((r): r is string => r !== undefined && r.length > 0)
-      if (reasons.length > 0) return `Arm the Python lanes: ${reasons.join(' — and: ')}`
-    }
-    const { SERVER_CATALOGUE } = require('../../services/lsp/serverCatalogue.js') as typeof import('../../services/lsp/serverCatalogue.js')
-    const entries = SERVER_CATALOGUE.filter(e => extension in e.extensionToLanguage)
-    if (entries.length > 0) {
-      return `Install ${entries.map(e => `${e.label} (${e.remedy})`).join(' or ')}.`
-    }
-  } catch {
-  }
-  return `No built-in or catalogued server covers '${extension}' — add one via MERCURY_LSP_SERVERS or an extension that contributes a language server.`
-}
-
-function publishedToWire(diagnostic: {
-  message: string
-  severity: 'Error' | 'Warning' | 'Info' | 'Hint'
-  range: LspRangeLike
-  source?: string
-  code?: string
-}): LspWireDiagnostic {
-  const severityNumber = { Error: 1, Warning: 2, Info: 3, Hint: 4 }[diagnostic.severity] ?? 1
-  return {
-    range: diagnostic.range,
-    severity: severityNumber,
-    message: diagnostic.message,
-    ...(diagnostic.source !== undefined ? { source: diagnostic.source } : {}),
-    ...(diagnostic.code !== undefined ? { code: diagnostic.code } : {}),
-  }
-}
-
-async function harvestPublishedReports(
-  absolutePath: string,
-  serverNames: string[],
-  deadlineMs: number,
-): Promise<Array<{ serverName: string; items: LspWireDiagnostic[]; ageMs: number }>> {
-  if (serverNames.length === 0) return []
-  const registry = await import('../../services/lsp/LSPDiagnosticRegistry.js')
-  const abs = resolve(absolutePath)
-  const collect = (): Array<{ serverName: string; items: LspWireDiagnostic[]; ageMs: number }> => {
-    const out: Array<{ serverName: string; items: LspWireDiagnostic[]; ageMs: number }> = []
-    for (const name of serverNames) {
-      const report = registry.peekLastPublishedReport(name, abs)
-      if (report) {
-        out.push({
-          serverName: name,
-          items: report.file.diagnostics.map(publishedToWire),
-          ageMs: Date.now() - report.at,
-        })
-      }
-    }
-    return out
-  }
-  const immediate = collect()
-  if (immediate.length === serverNames.length) return immediate
-  return await new Promise(resolvePromise => {
-    const finish = (): void => {
-      clearTimeout(timer)
-      unsubscribe()
-      resolvePromise(collect())
-    }
-    const timer = setTimeout(finish, deadlineMs)
-    const unsubscribe = registry.subscribePublishedReports(event => {
-      if (!serverNames.includes(event.serverName)) return
-      const plain = event.file.uri.startsWith('file://')
-        ? event.file.uri.slice('file://'.length)
-        : event.file.uri
-      if (registry.foldDriveCase(plain) !== registry.foldDriveCase(abs)) return
-      if (collect().length === serverNames.length) finish()
-    })
-  })
-}
-
-async function pullFileDiagnostics(
-  manager: LSPServerManager,
-  absolutePath: string,
-): Promise<PullDiagnosticsOutcome> {
-  const claimants = manager.getServersForFile(absolutePath)
-  if (claimants.length === 0) {
-    return { kind: 'no-claimant' }
-  }
-  const uri = pathToFileURL(resolve(absolutePath)).href
-  const docVersion = manager.getDocumentVersion(absolutePath)
-  const pulledItems: LspWireDiagnostic[] = []
-  const pulledFrom: string[] = []
-  const pushOnlyNames: string[] = []
-  const failed: ClaimantFailure[] = []
-  let anyFresh = false
-  let violation: string | null = null
-  for (const server of claimants) {
-    if (server.state === 'stopped' || server.state === 'error') {
-      try {
-        await server.start()
-      } catch (err) {
-        failed.push({ server, stage: 'start', cause: isLspStartFailure(err) ? err.lspCause : startFailureCause(server.name, err), ...(isLspStartFailure(err) ? { startFailure: err } : {}) })
-        continue
-      }
-    }
-    const capabilities = server.capabilities as ServerCapabilities | undefined
-    if (!capabilities?.diagnosticProvider) {
-      pushOnlyNames.push(server.name)
-      continue
-    }
-    const generationKey = `${server.name}#${server.generation}`
-    const baselineKey = `${server.name}::${uri}`
-    const baseline = diagnosticsBaselines.get(baselineKey)
-    const baselineUsable =
-      baseline !== undefined &&
-      baseline.generationKey === generationKey &&
-      baseline.docVersion === docVersion &&
-      baseline.resultId !== undefined
-    const params: Record<string, unknown> = { textDocument: { uri } }
-    if (baselineUsable) params.previousResultId = baseline.resultId
-    let response: { kind?: string; resultId?: string; items?: LspWireDiagnostic[] } | undefined | null
-    try {
-      response = await server.sendRequest<{
-        kind?: string
-        resultId?: string
-        items?: LspWireDiagnostic[]
-      }>('textDocument/diagnostic', params)
-    } catch (err) {
-      logForDebugging(`lsp ops: pull from ${server.name} failed: ${String(err)}`)
-      failed.push({ server, stage: 'pull', cause: requestFailureCause(server, 'textDocument/diagnostic', err) })
-      continue
-    }
-    if (response === undefined || response === null) continue
-    if (response.kind === 'unchanged') {
-      if (!baselineUsable) {
-        violation = `${server.name} answered 'unchanged' without a baseline to be unchanged against (protocol violation)`
-        continue
-      }
-      pulledItems.push(...baseline.items)
-      pulledFrom.push(server.name)
-      continue
-    }
-    const items = Array.isArray(response.items) ? response.items : []
-    diagnosticsBaselines.set(baselineKey, {
-      generationKey,
-      docVersion,
-      resultId: response.resultId,
-      items,
-    })
-    pulledItems.push(...items)
-    pulledFrom.push(server.name)
-    anyFresh = true
-  }
-  const pushed = await harvestPublishedReports(
-    absolutePath,
-    pushOnlyNames,
-    pulledFrom.length > 0 ? 1_500 : 5_000,
-  )
-  const pushedNames = pushed.map(p =>
-    p.ageMs > 5_000 ? `${p.serverName} (${Math.round(p.ageMs / 1000)}s ago)` : p.serverName,
-  )
-  for (const p of pushed) pulledItems.push(...p.items)
-  if (pulledFrom.length === 0 && pushed.length === 0) {
-    if (violation) return { kind: 'protocol-violation', detail: violation }
-    if (failed.length > 0) return { kind: 'unavailable', failed }
-    return { kind: 'unsupported', pushOnly: pushOnlyNames }
-  }
-  return {
-    kind: anyFresh || pushed.length > 0 ? 'fresh' : 'unchanged',
-    items: pulledItems,
-    docVersion,
-    ...(pulledFrom.length > 0 ? { pulledFrom } : {}),
-    ...(pushedNames.length > 0 ? { pushed: pushedNames } : {}),
-    ...(failed.length > 0 ? { failed } : {}),
-  }
-}
-
-
-export async function syncServersAfterWrite(
-  manager: LSPServerManager,
-  absolutePath: string,
-  newText: string,
-  before: string | null = null,
-  owner?: OwnerKey,
-  deadlineMs: number = SERVER_SYNC_DEADLINE_MS,
-): Promise<{ ok: true } | { ok: false; reason: string }> {
-  snapshotDiagnosticsBeforeWrite(absolutePath, before, newText, manager.getDocumentVersion(absolutePath), owner)
-  clearDeliveredDiagnosticsForFile(absolutePath)
-  let timer: NodeJS.Timeout | undefined
-  try {
-    await Promise.race([
-      manager.changeAndSaveFile(absolutePath, newText),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error(`server sync timed out after ${deadlineMs}ms`)),
-          deadlineMs,
-        )
-      }),
-    ])
-    return { ok: true }
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
-    logForDebugging(`lsp ops: post-write server sync failed for ${absolutePath}: ${reason}`)
-    return { ok: false, reason }
-  } finally {
-    if (timer !== undefined) clearTimeout(timer)
-  }
-}
-
-
-type DiagnosticStabilization =
-  | { state: 'fresh'; errors: number; warnings: number; total: number }
-  | { state: 'unchanged'; errors: number; warnings: number; total: number }
-  | { state: 'unsupported' }
-  | { state: 'failed'; reason: string }
-  | { state: 'timed-out'; waitedMs: number }
-
-function uriMatchesFile(uri: string, absolutePath: string): boolean {
-  return foldDriveCase(uri).endsWith(foldDriveCase(absolutePath))
-}
-
-export async function awaitDiagnosticStabilization(
-  manager: LSPServerManager,
-  absolutePath: string,
-  opts?: { deadlineMs?: number; quietWindowMs?: number },
-): Promise<DiagnosticStabilization> {
-  const deadlineMs = opts?.deadlineMs ?? STABILIZE_DEADLINE_MS
-  const quietWindowMs = opts?.quietWindowMs ?? STABILIZE_QUIET_WINDOW_MS
-  const server = manager.getServerForFile(absolutePath)
-  if (!server) return { state: 'unsupported' }
-  const capabilities = server.capabilities as ServerCapabilities | undefined
-
-  if (capabilities?.diagnosticProvider) {
-    let timer: NodeJS.Timeout | undefined
-    try {
-      const outcome = await Promise.race([
-        pullFileDiagnostics(manager, absolutePath),
-        new Promise<'timeout'>(resolveRace => {
-          timer = setTimeout(() => resolveRace('timeout'), deadlineMs)
-        }),
-      ])
-      if (outcome === 'timeout') return { state: 'timed-out', waitedMs: deadlineMs }
-      if (outcome.kind === 'unsupported' || outcome.kind === 'no-claimant') return { state: 'unsupported' }
-      if (outcome.kind === 'protocol-violation') return { state: 'failed', reason: outcome.detail }
-      if (outcome.kind === 'unavailable') return { state: 'failed', reason: unavailableWords(outcome.failed, absolutePath, dirname(absolutePath)).what }
-      const { errors, warnings } = countBySeverity(outcome.items)
-      return {
-        state: outcome.kind === 'fresh' ? 'fresh' : 'unchanged',
-        errors,
-        warnings,
-        total: outcome.items.length,
-      }
-    } catch (error) {
-      return { state: 'failed', reason: error instanceof Error ? error.message : String(error) }
-    } finally {
-      if (timer !== undefined) clearTimeout(timer)
-    }
-  }
-
-  return new Promise<DiagnosticStabilization>(resolvePromise => {
-    let lastCounts: { errors: number; warnings: number; total: number } | undefined
-    let quietTimer: NodeJS.Timeout | undefined
-    let settled = false
-    const finish = (outcome: DiagnosticStabilization): void => {
-      if (settled) return
-      settled = true
-      if (quietTimer !== undefined) clearTimeout(quietTimer)
-      clearTimeout(deadlineTimer)
-      unsubscribe()
-      resolvePromise(outcome)
-    }
-    const unsubscribe = subscribeLSPDiagnosticPublish(event => {
-      const matched = event.files.filter(file => uriMatchesFile(file.uri, absolutePath))
-      if (matched.length === 0) return
-      let errors = 0
-      let warnings = 0
-      let total = 0
-      for (const file of matched) {
-        for (const diagnostic of file.diagnostics) {
-          total++
-          if (diagnostic.severity === 'Error') errors++
-          else if (diagnostic.severity === 'Warning') warnings++
-        }
-      }
-      lastCounts = { errors, warnings, total }
-      if (quietTimer !== undefined) clearTimeout(quietTimer)
-      quietTimer = setTimeout(() => {
-        finish({ state: 'fresh', ...lastCounts! })
-      }, quietWindowMs)
-    })
-    const deadlineTimer = setTimeout(() => {
-      if (lastCounts !== undefined) finish({ state: 'fresh', ...lastCounts })
-      else finish({ state: 'timed-out', waitedMs: deadlineMs })
-    }, deadlineMs)
-  })
-}
-
-
-type LspServerStatusRow = {
-  name: string
-  state: string
-  generation: number
-  restartCount: number
-  lastError: string | null
-  claimsFile: boolean
-  implementation?: { source: string; version?: string }
-  capabilities: {
-    rename: boolean
-    codeActions: boolean
-    pullDiagnostics: boolean
-    typeDefinition: boolean
-    pathRename: boolean
-    callHierarchy: boolean
-  }
-}
-
-function statusRowsFor(manager: LSPServerManager, filePath?: string): LspServerStatusRow[] {
-  const claimant = filePath ? manager.getServerForFile(filePath) : undefined
-  const rows: LspServerStatusRow[] = []
-  for (const server of manager.getAllServers().values()) {
-    const capabilities = server.capabilities as ServerCapabilities | undefined
-    const configSource = (server.config as { source?: string } | undefined)?.source
-    const implementation =
-      builtinImplementationInfo(server.name) ??
-      (configSource === 'mercury-env' ? { source: 'operator-configured' } : undefined)
-    rows.push({
-      name: server.name,
-      state: server.state,
-      generation: server.generation,
-      restartCount: server.restartCount,
-      lastError: server.lastError ? server.lastError.message : null,
-      claimsFile: claimant !== undefined && claimant.name === server.name,
-      ...(implementation ? { implementation } : {}),
-      capabilities: {
-        rename: Boolean(capabilities?.renameProvider),
-        codeActions: Boolean(capabilities?.codeActionProvider),
-        pullDiagnostics: Boolean(capabilities?.diagnosticProvider),
-        typeDefinition: Boolean(capabilities?.typeDefinitionProvider),
-        pathRename: Boolean(
-          (capabilities?.workspace as { fileOperations?: { willRename?: unknown } } | undefined)
-            ?.fileOperations?.willRename,
-        ),
-        callHierarchy: Boolean(capabilities?.callHierarchyProvider),
-      },
-    })
-  }
-  return rows
-}
-
+import type { MercuryLspOpInput, LspChangeViewFile, MercuryLspOpOutput, OpEnv } from './mercuryOps/types.js'
+import { PREPARE_ROUNDS, WORKSPACE_DIAG_FILE_CAP, PATH_RENAME_FILE_CAP, IGNORED_WALK_DIRS, displayPathFor, uriToFilePath, foldFilesByPath, isMethodNotFoundError, type LspWireDiagnostic, sortDiagnostics, formatDiagnosticLine, countBySeverity, syncFileFromDisk } from './mercuryOps/shared.js'
+import { type PullDiagnosticsOutcome, remedyForUnclaimedExtension, pullFileDiagnostics, unavailableWords } from './mercuryOps/pull.js'
+import { syncServersAfterWrite, awaitDiagnosticStabilization } from './mercuryOps/afterWrite.js'
+import { opServerStatus } from './mercuryOps/serverStatus.js'
+export type { MercuryLspOpInput, MercuryLspOpOutput } from './mercuryOps/types.js'
+export { clearDiagnosticsBaselines } from './mercuryOps/pull.js'
+export { syncServersAfterWrite, awaitDiagnosticStabilization } from './mercuryOps/afterWrite.js'
+export { NO_LSP_SERVERS_CONFIGURED, serverStatusLines } from './mercuryOps/serverStatus.js'
 
 type WireCodeAction = {
   title: string
@@ -686,7 +70,6 @@ export function actionIdentity(action: WireCodeAction): string {
   const material = JSON.stringify([action.title, action.kind ?? '', actionShape(action)])
   return `ca-${createHash('sha256').update(material).digest('hex').slice(0, 8)}`
 }
-
 
 type PreparedApply =
   | {
@@ -1269,13 +652,6 @@ async function applyPrepared(
   }
 }
 
-
-function unavailableWords(failed: ClaimantFailure[], path: string, cwd: string): { what: string; remedy: string; servers: Array<{ server: string; cause: string }> } {
-  const words = failed.map(failure => claimantFailureWords(failure, path, cwd))
-  const remedies = [...new Set(words.map(w => w.remedy).filter(r => r !== ''))]
-  return { what: words.map(w => w.what).join('; '), remedy: remedies.join('; '), servers: failed.map(f => ({ server: f.server.name, cause: f.cause })) }
-}
-
 async function opDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
   const display = displayPathFor(env.cwd, env.absolutePath)
   let pulled: PullDiagnosticsOutcome
@@ -1846,54 +1222,6 @@ async function opTypeDefinition(env: OpEnv): Promise<MercuryLspOpOutput> {
   }
 }
 
-export const NO_LSP_SERVERS_CONFIGURED = 'No LSP servers are configured for this workspace.'
-
-export function serverStatusLines(manager: LSPServerManager, filePath?: string): string[] {
-  return statusRowsFor(manager, filePath).map(row => {
-    const claims = row.claimsFile ? ' · claims this file' : ''
-    const impl = row.implementation
-      ? ` · impl: ${row.implementation.source}${row.implementation.version ? ` ${row.implementation.version}` : ''}`
-      : ''
-    const lastError = row.lastError ? ` · lastError: ${row.lastError.slice(0, 80)}` : ''
-    const enabled = Object.entries(row.capabilities)
-      .filter(([, on]) => on)
-      .map(([name]) => name)
-    const capabilitiesLine =
-      row.state === 'running'
-        ? `    capabilities: ${enabled.length > 0 ? enabled.join(', ') : '(none advertised)'}`
-        : '    capabilities: (none until running)'
-    return `${row.name} — ${row.state} (gen ${row.generation}, restarts ${row.restartCount})${claims}${impl}${lastError}\n${capabilitiesLine}`
-  })
-}
-
-async function opServerStatus(env: OpEnv): Promise<MercuryLspOpOutput> {
-  const filePath = env.input.filePath ? env.absolutePath : undefined
-  const rows = statusRowsFor(env.manager, filePath)
-  if (rows.length === 0) {
-    return {
-      result: NO_LSP_SERVERS_CONFIGURED,
-      resultCount: 0,
-      fileCount: 0,
-      effect: {
-        outcome: 'no-change',
-        changedPaths: [],
-        evidence: 'no servers configured',
-      },
-    }
-  }
-  return {
-    result: serverStatusLines(env.manager, filePath).join('\n'),
-    resultCount: rows.length,
-    fileCount: 0,
-    effect: {
-      outcome: 'succeeded',
-      changedPaths: [],
-      evidence: `${rows.length} server row(s)`,
-      details: { servers: rows },
-    },
-  }
-}
-
 async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
   const paths = env.input.paths ?? []
   const included: string[] = []
@@ -2167,6 +1495,7 @@ function coalesceWorkspaceEdits(
 }
 
 const renamePositionSchema = z.object({ line: z.number().int().nonnegative(), character: z.number().int().nonnegative() })
+
 const renameTextEditSchema = z.object({
   range: z.object({ start: renamePositionSchema, end: renamePositionSchema }).refine(
     ({ start, end }) => end.line > start.line || (end.line === start.line && end.character >= start.character),
@@ -2174,6 +1503,7 @@ const renameTextEditSchema = z.object({
   ),
   newText: z.string(),
 })
+
 const renameUriSchema = z.string().refine(uri => {
   try {
     return isAbsolute(uriToFilePath(uri))
@@ -2181,6 +1511,7 @@ const renameUriSchema = z.string().refine(uri => {
     return false
   }
 }, 'invalid file URI')
+
 const renameWorkspaceEditSchema = z.object({
   changes: z.record(renameUriSchema, z.array(renameTextEditSchema)).optional(),
   documentChanges: z.array(z.union([
@@ -2748,7 +2079,6 @@ async function opFixDiagnostic(env: OpEnv): Promise<MercuryLspOpOutput> {
   }
 }
 
-
 type FormatWant = 'formatDocument' | 'formatRange' | 'organizeImports'
 
 function advertisesWant(capabilities: ServerCapabilities | undefined, want: FormatWant): boolean {
@@ -2997,7 +2327,6 @@ async function opMoveSymbol(env: OpEnv): Promise<MercuryLspOpOutput> {
   return applied.output
 }
 
-
 const RAW_RESULT_CHAR_CAP = 20_000
 
 const RAW_REQUEST_EDIT_CLASS: Record<string, string> = {
@@ -3111,7 +2440,6 @@ async function opRawRequest(env: OpEnv): Promise<MercuryLspOpOutput> {
     }
   }
 }
-
 
 export async function runMercuryLspOp(env: OpEnv): Promise<MercuryLspOpOutput> {
   try {
