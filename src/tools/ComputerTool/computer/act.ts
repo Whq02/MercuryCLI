@@ -23,7 +23,7 @@ import {
   WAIT_CAP_MS,
   clamp,
 } from './schema.js'
-import { type ActPlan, scrolledWords } from './plan.js'
+import type { ActPlan } from './plan.js'
 
 function startWords(input: Input): string {
   return input.ref !== undefined ? `ref:${input.ref}` : input.target ? targetWords(input.target) : `(${input.x}, ${input.y})`
@@ -119,6 +119,10 @@ class ActRun {
   failed(): ActWords {
     return this.fault ?? { ok: false, aborted: false, text: `${this.action} failed: the desktop driver answered nothing` }
   }
+}
+
+export function scrolledWords(plan: ActPlan): string {
+  return `${plan.scrolled ? ` · scrolled into view first (${plan.scrolled})` : ''}${plan.aimed ? ` · ${plan.aimed}` : ''}${plan.returned ? ` · ${plan.returned}` : ''}`
 }
 
 export function pointWords(point: DesktopPoint): string {
