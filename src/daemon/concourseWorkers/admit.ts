@@ -1,4 +1,6 @@
 import { statSync, mkdirSync } from 'node:fs'
+import { validateUuid } from '../../utils/uuid.js'
+import { normalizeEffortLevelString, EFFORT_LEVELS } from '../../utils/effort.js'
 import type { GitInitRefusal } from '../../utils/projectBoundary.js'
 import { readSessionFacts } from '../../services/engine-connector/seatProjections.js'
 import type { RunnerChildSpec } from '../headlessRun.js'
@@ -127,9 +129,22 @@ export function makeConcourseAdmitHandler(
   deps: ConcourseAdmitDeps,
 ): (req: ConcourseAdmitRequest) => Promise<ConcourseAdmitResult> {
   return async req => {
+    if (req.resumeSessionId !== undefined && validateUuid(req.resumeSessionId) === null) {
+      return { ok: false, code: 'invalid-request', error: 'no live session record owns this id' }
+    }
+    if (req.effort !== undefined) {
+      const level = normalizeEffortLevelString(req.effort)
+      if (level === undefined) {
+        return {
+          ok: false,
+          code: 'invalid-request',
+          error: `effort refused ('${req.effort}' is not a valid level — the levels are ${EFFORT_LEVELS.join(' | ')})`,
+        }
+      }
+      req = { ...req, effort: level }
+    }
     const model = await admitModelOf(req, deps)
     if ('ok' in model) return model
-    req = model.req
     const { retainedNote, modelKey, modelDisplayName, keyless } = model
     let stat
     try {
