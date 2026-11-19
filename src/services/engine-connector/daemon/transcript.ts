@@ -13,7 +13,7 @@ import { withoutRetractedReplies, type CommittedTextRow } from '../midTurnText.j
 import { mergeRecordsContentKeyed } from '../recordIdentity.js'
 import { IDLE_LIVE, type SessionLiveV1 } from '../seatLive.js'
 import type { SessionFactsV1 } from '../seatProjections.js'
-import { HEARTBEAT_MS } from './feed.js'
+import { HEARTBEAT_MS } from '../projectionFeed.js'
 import { connectorTrace, emitAll, type Listeners } from './shared.js'
 
 const IDLE_TRANSCRIPT_FLOOR_MS = 2000

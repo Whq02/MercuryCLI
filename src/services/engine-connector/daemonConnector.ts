@@ -91,7 +91,7 @@ import '../compact/checkpointRewind.js'
 import { TranscriptPart } from './daemon/transcript.js'
 import { VerbsPart } from './daemon/verbs.js'
 import { DialsPart } from './daemon/dials.js'
-import { HEARTBEAT_MS, ProjectionFeed } from './daemon/feed.js'
+import { HEARTBEAT_MS, ProjectionFeed } from './projectionFeed.js'
 
 export interface DaemonSessionRecordV1 {
   sessionId: string
@@ -142,7 +142,7 @@ export function imageBlocksOf(pastes: Record<number, PastedContent>): ContentBlo
         }) as unknown as ContentBlockParam,
     )
 }
-export { HEARTBEAT_MS, PROJECTION_ABSENT, ProjectionFeed, projectionChangeKey } from './daemon/feed.js'
+export { HEARTBEAT_MS, PROJECTION_ABSENT, ProjectionFeed, projectionChangeKey } from './projectionFeed.js'
 const RPC_TIMEOUT_MS = 15_000
 export const IDLE_PROJECTION_FLOOR_MS = 10_000
 export { SEAT_VERB_SETTLE_MS } from './daemon/dials.js'

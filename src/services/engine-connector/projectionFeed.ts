@@ -1,5 +1,5 @@
 import { statSync, watch, mkdirSync, type FSWatcher } from 'node:fs'
-import { resolveWatchRoot } from '../../../utils/watchRoot.js'
+import { resolveWatchRoot } from '../../utils/watchRoot.js'
 
 export const HEARTBEAT_MS = 400
 
