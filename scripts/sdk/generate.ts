@@ -267,7 +267,7 @@ const visit = (node: ts.Node): void => {
   ts.forEachChild(node, visit)
 }
 for (const source of mainSources) {
-  visit(ts.createSourceFile(source.path, source.text, ts.ScriptTarget.Latest, true, source.path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS))
+  visit(ts.createSourceFile(source.path, source.text, ts.ScriptTarget.Latest, true, source.path === MAIN ? ts.ScriptKind.TSX : ts.ScriptKind.TS))
   sourceBase += source.text.length + 1
 }
 const programOptions = declared.sort((a, b) => a.at - b.at).map(entry => entry.option)
