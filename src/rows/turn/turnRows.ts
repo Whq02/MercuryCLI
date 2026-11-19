@@ -23,30 +23,26 @@ import { createGetAppStateWithAllowedTools } from '../../utils/forkedAgent.js'
 import { isBareMode, isEnvTruthy } from '../../utils/envUtils.js'
 import { fileHistoryMakeSnapshot } from '../../utils/fileHistory.js'
 import { headlessProfilerCheckpoint } from '../../utils/headlessProfiler.js'
-import { forgetWardFirings, wardFiringsOf } from '../../guards/wardsGuard.js'
+import { forgetWardFirings } from '../../guards/wardsGuard.js'
 import { unansweredAsksBlocker } from '../../services/run/unansweredAsk.js'
 import { getInMemoryErrors, logError, withoutStackFrames } from '../../utils/log.js'
-import { isClaudeAISubscriber } from '../../utils/auth.js'
 import { turnCutOf } from '../../utils/messages/turnCut.js'
-import { fireHooks } from '../../utils/hooks/fire.js'
 import type { HookAttachment } from '../../utils/attachments/types.js'
-import { hookRowsOfResult } from '../../utils/hooks/rows.js'
-import { HOOK_CUT_BUDGET_MS } from '../../utils/hooks/contract.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { resolveModelPricing } from '../../utils/modelCost.js'
 import { getTokenUsage, messageContextFill } from '../../utils/tokens.js'
 import { getModelUsage, getTotalCostUSD } from '../../bootstrap/state.js'
-import { advanceLedgerMark, ledgerMark, ledgerSpentSince, usageSince } from '../../utils/ledgerMark.js'
+import { advanceLedgerMark, ledgerMark } from '../../utils/ledgerMark.js'
 import { noteRunPhase } from '../../utils/runPhases.js'
 import { processUserInput } from '../../utils/processUserInput/processUserInput.js'
 import { flushSessionStorage, recordTranscript } from '../../utils/sessionStorage.js'
-import { recordTurnEnd, recordTurnStart, settleTranscriptMessage } from '../../utils/sessionStorage/writer.js'
+import { recordTurnStart, settleTranscriptMessage } from '../../utils/sessionStorage/writer.js'
 import { setCwd } from '../../utils/Shell.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import { shouldEnableThinkingByDefault } from '../../utils/thinking.js'
-import { commandOutputRow, commandOutputTextOf, shellOutputTextOf, compactionEndedRow, modelUsageRows, noticeRow, outcomeRow, partialRowsOf, retractedRow, retryWaitRow, toolResultRowsOf, turnStartedRow, type OutcomeFacts, type RowDraft, type RowScope } from '../project.js'
-import { budgetCannotPaySentence, errorClassOf, statusOfTerminal, toolCallsRefusedSentence, unexecutedToolCallSentence, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type ErrorClass, type OutcomeStatus, type Usage } from '../vocabulary.js'
+import { commandOutputRow, commandOutputTextOf, shellOutputTextOf, compactionEndedRow, noticeRow, outcomeRow, partialRowsOf, retractedRow, retryWaitRow, toolResultRowsOf, turnStartedRow, type OutcomeFacts, type RowDraft, type RowScope } from '../project.js'
+import { budgetCannotPaySentence, errorClassOf, statusOfTerminal, toolCallsRefusedSentence, unexecutedToolCallSentence, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type ErrorClass, type OutcomeStatus } from '../vocabulary.js'
 import { recoveryKindOf, type RecoveryKind } from '../vocabulary.js'
 import { StepLedger } from './steps.js'
 import { messageRowsOf } from './messageRows.js'
@@ -57,7 +53,9 @@ import { contextBuilder } from './context.js'
 import { lastTextBlockOf, latestAnswerOf } from './answer.js'
 import { openCallsCutter } from './cut.js'
 import { MaxTimeCut } from './settle.js'
-import { closeRowOf, costUnknownIn } from './close.js'
+import { closeRowOf } from './close.js'
+import { outcomeFacts } from './outcome.js'
+import { turnEnder } from './end.js'
 import type { TurnOptions } from '../turn.js'
 import type { ConversationState } from './state.js'
 
@@ -195,47 +193,7 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
 
   let capturedStopReason: string | null = null
 
-  const outcomeFactsOf = (status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): OutcomeFacts => {
-    for (const [messageId, usage] of this.settledUsageById) {
-      if (this.streamFoldedIds.has(messageId)) continue
-      this.streamFoldedIds.add(messageId)
-      if (usage.input_tokens === 0 && usage.output_tokens === 0) continue
-      this.accumulatedUsage = accumulateUsage(this.accumulatedUsage, usage)
-    }
-    noteRunPhase('settlement')
-    const spent = ledgerSpentSince(ledgerAtStart)
-    const unpricedModels = new Set(Object.keys(spent.unpricedTurns))
-    const apiMs = spent.apiDuration
-    const billed = usageSince(getModelUsage(), modelUsageAtStart)
-    const subscriber = isClaudeAISubscriber()
-    const hasUnknownCost = costUnknownIn(spent.unpricedTurns, subscriber)
-    const pricedModels = Object.keys(billed).filter(model => !hasUnknownCost(model))
-    const costUsd = subscriber ? pricedModels.reduce((sum, model) => sum + Math.max(0, billed[model]?.costUSD ?? 0), 0) : spent.costUSD
-    const costKnown = subscriber ? pricedModels.length > 0 : unpricedModels.size === 0 || costUsd > 0
-    const usage = Object.values(billed).reduce((sum, row) => ({
-      ...sum,
-      input_tokens: sum.input_tokens + row.inputTokens,
-      output_tokens: sum.output_tokens + row.outputTokens,
-      cache_read_input_tokens: sum.cache_read_input_tokens + row.cacheReadInputTokens,
-      cache_creation_input_tokens: sum.cache_creation_input_tokens + row.cacheCreationInputTokens,
-    }), { ...EMPTY_USAGE, output_tokens_details: this.accumulatedUsage.output_tokens_details })
-    return {
-      turnId,
-      status,
-      stopReason: capturedStopReason,
-      steps: steps.count,
-      wallMs: Date.now() - turnStartedAt,
-      ...(apiMs > 0 ? { apiMs } : {}),
-      ...(costKnown ? { costUsd } : {}),
-      ...(recoveries.length > 0 ? { recoveries: [...recoveries] } : {}),
-      usage,
-      models: modelUsageRows(billed, hasUnknownCost),
-      denials: this.denials.slice(denialsBefore),
-      ...(notices.length > 0 ? { notices: [...notices] } : {}),
-      wards: wardFiringsOf(scope.session_id),
-      ...extra,
-    }
-  }
+  const outcomeFactsOf = (status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): OutcomeFacts => outcomeFacts.call(this, { ledgerAtStart, modelUsageAtStart, turnId, capturedStopReason, steps, turnStartedAt, recoveries, denialsBefore, notices, scope }, status, extra)
   const openCalls = new Map<string, string>()
   let recoveredUnansweredAsk = false
   const containsUnansweredAsk = (callId: string): boolean => this.denials.slice(denialsBefore).some(denial => {
@@ -267,55 +225,13 @@ export async function* turnRows(this: ConversationState, prompt: string | Conten
   }
   const closeTurn = (status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): RowDraft => outcomeRow({ ...scope, turn: turnOrdinal }, outcomeFactsOf(status, extra))
   let timeLimitTimer: ReturnType<typeof setTimeout> | null = null
-  const endTurn = async function* (this: ConversationState, status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): AsyncGenerator<RowDraft> {
+  const clearTimeLimit = (): void => {
     if (timeLimitTimer !== null) {
       clearTimeout(timeLimitTimer)
       timeLimitTimer = null
     }
-    const row = closeTurn(status, extra) as RowDraft & { stop?: string; error?: { message: string; class: string }; steps: number; wall_ms: number; cost_usd?: number; usage: Usage; answer?: string }
-    const aborted = this.abortController.signal.aborted
-    const cut = aborted ? turnCutOf(this.abortController.signal.reason) : null
-    try {
-      const ended = await fireHooks(
-        'turn.end',
-        {
-          turn_id: turnId,
-          status,
-          ...(row.stop !== undefined ? { stop: row.stop as never } : {}),
-          ...(row.error !== undefined ? { error: { message: row.error.message, class: row.error.class as never } } : {}),
-          ...(cut !== null ? { cut: { reason: cut.kind, ...(cut.detail !== undefined ? { detail: cut.detail } : {}), tools: [...cutCalls, ...openCalls.values()] } } : {}),
-          steps: row.steps,
-          wall_ms: row.wall_ms,
-          ...(row.cost_usd !== undefined ? { cost_usd: row.cost_usd } : {}),
-          usage: row.usage,
-          ...(row.answer !== undefined ? { answer: row.answer } : {}),
-        },
-        { scope: { sessionId: String(sessionId) }, toolUseContext, ...(cut !== null ? { budgetMs: HOOK_CUT_BUDGET_MS } : {}) },
-      )
-      const hookRows = hookRowsOfResult(ended)
-      if (hookRows.length > 0) {
-        const attachments = hookRows.map(hookRow => createAttachmentMessage(hookRow))
-        this.mutableMessages.push(...attachments)
-        turnMessages.push(...attachments)
-        if (!persistenceDisabled) await this.recordDelta(turnMessages)
-      }
-      for (const hookRow of hookRows) {
-        if (hookRow.outcome === 'failed' || hookRow.outcome === 'notice') yield noticeRow(scope, 'warning', hookRow.words, HOOK_NOTICE_CODES[hookRow.outcome])
-      }
-    } catch (error) {
-      logError(error)
-    }
-    if (!persistenceDisabled && (inputResult.messages.length > 0 || turnMessages.some(message => !seedMessages.has(message)))) {
-      try {
-        await this.recordDelta(turnMessages)
-        await recordTurnEnd(turnId, status)
-        if (!isBareMode()) await flushSessionStorage()
-      } catch (error) {
-        logError(error)
-      }
-    }
-    yield row
-  }.bind(this)
+  }
+  const endTurn = turnEnder.call(this, { clearTimeLimit, closeTurn, turnId, cutCalls, openCalls, sessionId, toolUseContext, persistenceDisabled, turnMessages, scope, inputResult, seedMessages })
 
   headlessProfilerCheckpoint('turn_row_yielded')
   noteRunPhase('assembly')
