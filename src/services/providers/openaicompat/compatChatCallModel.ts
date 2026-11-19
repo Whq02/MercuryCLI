@@ -29,7 +29,7 @@ import {
 import { localServerKind } from '../../../constants/localPromptProfile.js'
 import { compatDispatchModelId, type CompatCallModelParams, type CompatLaneId, type CompatLaneProfile } from './compatChatCallModel/lane.js'
 import { apiErrorMessage, compatFaultToTypedError, compatTerminalFaultText, overflowOf } from './compatChatCallModel/faults.js'
-import { prepareCompatTurn } from './compatChatCallModel/prepare.js'
+import { openCompatTurn, prepareCompatTurn } from './compatChatCallModel/prepare.js'
 import { streamOneCompatAttempt } from './compatChatCallModel/attempt.js'
 
 export { compatDispatchModelId, imagesSupportedForCompatModel, laneExtrasWithOperatorEffort, type CompatCallModelParams, type CompatLaneProfile } from './compatChatCallModel/lane.js'
@@ -62,7 +62,13 @@ export async function* compatChatCallModel(
   )
   if (profile.lane === 'openai-compat' && messages.some(hasImage)) await refreshCompatModelImageReading(modelId, signal)
   if (signal.aborted) return
-  const prepared = await prepareCompatTurn(profile, { messages, systemPrompt, thinkingConfig, tools, options }, modelId, hasImage)
+  const turnParams = { messages, systemPrompt, thinkingConfig, tools, options }
+  const fitted = await prepareCompatTurn(profile, turnParams, modelId, hasImage)
+  if ('refusal' in fitted) {
+    yield fitted.refusal
+    return
+  }
+  const prepared = openCompatTurn(profile, turnParams, modelId, fitted)
   if ('refusal' in prepared) {
     yield prepared.refusal
     return
