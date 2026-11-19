@@ -62,6 +62,37 @@ function clampNumber(value: number, min: number, max: number): number {
 
 type ContentPin = { key: string; inner: number }
 type PaintedGeometry = { offsets: Float64Array; keys: readonly string[] | null; count: number; version: number; origin: number }
+type VirtualScrollView = {
+  scrollRef: { current: ScrollBoxHandle | null }
+  itemKeys: readonly string[]
+  forceResolve: () => void
+  heightCacheRef: { current: Map<string, number> }
+  elementsRef: { current: Map<string, DOMElement> }
+  refCallbacksRef: { current: Map<string, (el: DOMElement | null) => void> }
+  offsetsVersionRef: { current: number }
+  offsetsBufferRef: { current: Float64Array }
+  offsetsBuiltVersionRef: { current: number }
+  offsetsBuiltCountRef: { current: number }
+  offsetsBuiltKeysRef: { current: readonly string[] | null }
+  listOriginRef: { current: number }
+  spacerElementRef: { current: DOMElement | null }
+  prevColumnsRef: { current: number }
+  prevItemKeysRef: { current: readonly string[] }
+  measurementSkipRef: { current: boolean }
+  freezeRendersRef: { current: number }
+  prevScrollAtCommitRef: { current: number }
+  msPerItemEmaRef: { current: number }
+  contentPinRef: { current: ContentPin | null }
+  lastWrittenTopRef: { current: number | null }
+  keyIndexRef: { current: { keys: readonly string[] | null; map: Map<string, number>; indexed: number } }
+  minChangedIndexRef: { current: number }
+  reflowHoldRef: { current: boolean }
+  outOfLayoutRef: { current: boolean }
+  laidOutRef: { current: boolean }
+  paintedRef: { current: PaintedGeometry }
+}
+type VirtualScrollTools = ReturnType<typeof virtualScrollTools>
+type VirtualScrollPane = { box: ScrollBoxHandle | null; viewportHeight: number; pendingDelta: number; sticky: boolean; itemCount: number }
 
 function offsetsOf(keys: readonly string[], heights: ReadonlyMap<string, number>, into: Float64Array): Float64Array {
   const buffer = into.length < keys.length + 1 ? new Float64Array(keys.length + 1) : into
@@ -117,6 +148,215 @@ export function useVirtualScroll(
   const afterLayoutRef = useRef<() => void>(() => {})
   const [, forceResolve] = useReducer((n: number) => n + 1, 0)
 
+  const view: VirtualScrollView = {
+    scrollRef, itemKeys, forceResolve, heightCacheRef, elementsRef, refCallbacksRef, offsetsVersionRef, offsetsBufferRef,
+    offsetsBuiltVersionRef, offsetsBuiltCountRef, offsetsBuiltKeysRef, listOriginRef, spacerElementRef, prevColumnsRef, prevItemKeysRef,
+    measurementSkipRef, freezeRendersRef, prevScrollAtCommitRef, msPerItemEmaRef, contentPinRef, lastWrittenTopRef, keyIndexRef,
+    minChangedIndexRef, reflowHoldRef, outOfLayoutRef, laidOutRef, paintedRef,
+  }
+  const tools = virtualScrollTools(view)
+  const { indexByKey, pinWhereTheViewStands, ensureOffsets, recordMountedHeights, renderIfHeightsMovedThePane } = tools
+
+  pinWhereTheViewStands()
+
+  noteNewColumnsAndKeys(view, columns)
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const box = scrollRef.current
+      if (!box) return () => {}
+      return box.subscribe(onStoreChange)
+    },
+    [scrollRef],
+  )
+  const getScrollSnapshot = useCallback((): number => {
+    const box = scrollRef.current
+    if (!box) return NaN
+    const bin = Math.floor(
+      (box.getScrollTop() + box.getPendingDelta()) / SCROLL_BIN_ROWS,
+    )
+    return box.isSticky() ? ~bin : bin
+  }, [scrollRef])
+  useSyncExternalStore(subscribe, getScrollSnapshot)
+
+  const box = scrollRef.current
+  const viewportHeight = box?.getViewportHeight() ?? 0
+  let scrollTop = box?.getScrollTop() ?? NaN
+  const pendingDelta = box?.getPendingDelta() ?? 0
+  const sticky = box ? box.isSticky() : true
+  const pane: VirtualScrollPane = { box, viewportHeight, pendingDelta, sticky, itemCount }
+  scrollTop = scrollTopHeldByThePin(view, tools, pane, scrollTop)
+
+  const offsets = ensureOffsets()
+  const frozen = freezeRendersRef.current > 0
+  const prevRange = prevRangeRef.current
+  const { start, end, movedDown } = rangeToMount(view, tools, pane, scrollTop, offsets, frozen, prevRange)
+
+  const rangeStart = start
+  const rangeEnd = end
+  const immediateRange = useMemo(
+    (): readonly [number, number] => [rangeStart, rangeEnd],
+    [rangeStart, rangeEnd],
+  )
+  const deferredRange = useDeferredValue(immediateRange)
+  const [effectiveStart, effectiveEnd] = rangeToShow(view, tools, pane, scrollTop, offsets, immediateRange, deferredRange, movedDown)
+
+  const topSpacer = offsets[effectiveStart] ?? 0
+  const bottomSpacer = (offsets[itemCount] ?? 0) - (offsets[effectiveEnd] ?? 0)
+
+  const prevCommittedRangeRef = useRef<readonly [number, number] | null>(null)
+  useLayoutEffect(() => {
+    const prev = prevCommittedRangeRef.current
+    const freshCount = prev
+      ? Math.max(0, prev[0] - effectiveStart) +
+        Math.max(0, effectiveEnd - prev[1])
+      : effectiveEnd - effectiveStart
+    if (freshCount >= MOUNT_COST_SAMPLE_MIN) {
+      const perItem = clampNumber(
+        (performance.now() - renderStartMs) / freshCount,
+        MOUNT_COST_CLAMP_MIN_MS,
+        MOUNT_COST_CLAMP_MAX_MS,
+      )
+      msPerItemEmaRef.current =
+        msPerItemEmaRef.current * (1 - MOUNT_COST_EMA_WEIGHT) +
+        perItem * MOUNT_COST_EMA_WEIGHT
+    }
+    prevCommittedRangeRef.current = [effectiveStart, effectiveEnd]
+  })
+
+  useLayoutEffect(() => {
+    const handle = scrollRef.current
+    if (!handle) return
+    const origin = listOriginRef.current
+    const min = effectiveStart === 0 ? 0 : topSpacer + origin
+    if (sticky || effectiveEnd >= itemCount) {
+      handle.setClampBounds(min, Number.MAX_SAFE_INTEGER)
+      return
+    }
+    const max =
+      Math.max((offsets[effectiveEnd] ?? 0) - viewportHeight, topSpacer) +
+      origin
+    handle.setClampBounds(min, max)
+  })
+
+  useLayoutEffect(() => {
+    measureAfterTheCommit(view, tools, effectiveStart, effectiveEnd)
+  })
+
+  useLayoutEffect(() => {
+    listCommittingRef.current = false
+    afterLayoutRef.current = (): void => {
+      if (listCommittingRef.current || measurementSkipRef.current) return
+      if (freezeRendersRef.current > 0 || reflowHoldRef.current) return
+      recordMountedHeights()
+      renderIfHeightsMovedThePane(effectiveStart, effectiveEnd)
+    }
+    return () => {
+      listCommittingRef.current = true
+    }
+  })
+
+  useEffect(() => scrollRef.current?.subscribeLayout(() => afterLayoutRef.current()), [scrollRef])
+
+  const measureRef = useCallback(
+    (key: string): ((el: DOMElement | null) => void) => {
+      let callback = refCallbacksRef.current.get(key)
+      if (!callback) {
+        callback = (el: DOMElement | null): void => {
+          if (el) {
+            elementsRef.current.set(key, el)
+            return
+          }
+          const previous = elementsRef.current.get(key)
+          if (previous?.layoutNode && !measurementSkipRef.current) {
+            const height = previous.layoutNode.getComputedHeight()
+            const width = previous.layoutNode.getComputedWidth()
+            if (
+              (height > 0 || width > 0) &&
+              heightCacheRef.current.get(key) !== height
+            ) {
+              heightCacheRef.current.set(key, height)
+              offsetsVersionRef.current += 1
+              const idx = indexByKey(prevItemKeysRef.current, key)
+              minChangedIndexRef.current = Math.min(minChangedIndexRef.current, idx ?? 0)
+            }
+          }
+          elementsRef.current.delete(key)
+        }
+        refCallbacksRef.current.set(key, callback)
+      }
+      return callback
+    },
+    [],
+  )
+
+  const spacerRef = useCallback((el: DOMElement | null): void => {
+    spacerElementRef.current = el
+  }, [])
+
+  const getItemElement = useCallback(
+    (index: number): DOMElement | null => {
+      const key = itemKeys[index]
+      if (key === undefined) return null
+      return elementsRef.current.get(key) ?? null
+    },
+    [itemKeys],
+  )
+
+  const getItemTop = useCallback(
+    (index: number): number => {
+      const key = itemKeys[index]
+      if (key === undefined) return -1
+      const element = elementsRef.current.get(key)
+      const layout = element?.layoutNode
+      if (!layout || layout.getComputedWidth() <= 0) return -1
+      return layout.getComputedTop()
+    },
+    [itemKeys],
+  )
+
+  const getItemHeight = useCallback(
+    (index: number): number | undefined => {
+      const key = itemKeys[index]
+      if (key === undefined) return undefined
+      return heightCacheRef.current.get(key)
+    },
+    [itemKeys],
+  )
+
+  const scrollToIndex = useCallback(
+    (index: number): void => {
+      const handle = scrollRef.current
+      if (!handle) return
+      const keys = prevItemKeysRef.current
+      if (index < 0 || index >= keys.length) return
+      const buffer = ensureOffsets(keys)
+      handle.scrollTo(buffer[index]! + listOriginRef.current)
+    },
+    [scrollRef],
+  )
+
+  prevRangeRef.current = frozen && prevRange ? prevRange : immediateRange
+
+  return {
+    range: [effectiveStart, effectiveEnd],
+    topSpacer,
+    bottomSpacer,
+    measureRef,
+    spacerRef,
+    offsets,
+    getItemTop,
+    getItemElement,
+    getItemHeight,
+    scrollToIndex,
+  }
+}
+
+function virtualScrollTools({
+  scrollRef, itemKeys, forceResolve, heightCacheRef, elementsRef, offsetsVersionRef, offsetsBufferRef, offsetsBuiltVersionRef,
+  offsetsBuiltCountRef, offsetsBuiltKeysRef, listOriginRef, prevItemKeysRef, contentPinRef, lastWrittenTopRef, keyIndexRef,
+  minChangedIndexRef, reflowHoldRef, paintedRef,
+}: VirtualScrollView) {
   function indexByKey(keys: readonly string[], key: string): number | undefined {
     const ki = keyIndexRef.current
     if (ki.keys !== keys) {
@@ -162,37 +402,6 @@ export function useVirtualScroll(
     painted.keys = itemKeys
     painted.count = itemKeys.length
     painted.version = offsetsVersionRef.current
-  }
-
-  pinWhereTheViewStands()
-
-  if (columns !== prevColumnsRef.current) {
-    const ratio = prevColumnsRef.current / columns
-    prevColumnsRef.current = columns
-    const cache = heightCacheRef.current
-    for (const [key, height] of cache) {
-      cache.set(key, scaleHeightForWidth(height, ratio))
-    }
-    offsetsVersionRef.current += 1
-    measurementSkipRef.current = true
-    freezeRendersRef.current = 2
-    reflowHoldRef.current = true
-  }
-
-  if (itemKeys !== prevItemKeysRef.current) {
-    prevItemKeysRef.current = itemKeys
-    const alive = new Set(itemKeys)
-    let dropped = false
-    for (const key of heightCacheRef.current.keys()) {
-      if (!alive.has(key)) {
-        heightCacheRef.current.delete(key)
-        dropped = true
-      }
-    }
-    for (const key of refCallbacksRef.current.keys()) {
-      if (!alive.has(key)) refCallbacksRef.current.delete(key)
-    }
-    if (dropped) offsetsVersionRef.current += 1
   }
 
   function ensureOffsets(keys: readonly string[] = itemKeys): Float64Array {
@@ -285,30 +494,49 @@ export function useVirtualScroll(
     return heightsMoved
   }
 
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      const box = scrollRef.current
-      if (!box) return () => {}
-      return box.subscribe(onStoreChange)
-    },
-    [scrollRef],
-  )
-  const getScrollSnapshot = useCallback((): number => {
-    const box = scrollRef.current
-    if (!box) return NaN
-    const bin = Math.floor(
-      (box.getScrollTop() + box.getPendingDelta()) / SCROLL_BIN_ROWS,
-    )
-    return box.isSticky() ? ~bin : bin
-  }, [scrollRef])
-  useSyncExternalStore(subscribe, getScrollSnapshot)
+  return { indexByKey, pinWhereTheViewStands, ensureOffsets, bestKnownHeight, realHeight, mountedCoversPane, recordMountedHeights, renderIfHeightsMovedThePane }
+}
 
-  const box = scrollRef.current
-  const viewportHeight = box?.getViewportHeight() ?? 0
-  let scrollTop = box?.getScrollTop() ?? NaN
-  const pendingDelta = box?.getPendingDelta() ?? 0
-  const sticky = box ? box.isSticky() : true
+function noteNewColumnsAndKeys(
+  { itemKeys, heightCacheRef, refCallbacksRef, offsetsVersionRef, prevColumnsRef, prevItemKeysRef, measurementSkipRef, freezeRendersRef, reflowHoldRef }: VirtualScrollView,
+  columns: number,
+): void {
+  if (columns !== prevColumnsRef.current) {
+    const ratio = prevColumnsRef.current / columns
+    prevColumnsRef.current = columns
+    const cache = heightCacheRef.current
+    for (const [key, height] of cache) {
+      cache.set(key, scaleHeightForWidth(height, ratio))
+    }
+    offsetsVersionRef.current += 1
+    measurementSkipRef.current = true
+    freezeRendersRef.current = 2
+    reflowHoldRef.current = true
+  }
 
+  if (itemKeys !== prevItemKeysRef.current) {
+    prevItemKeysRef.current = itemKeys
+    const alive = new Set(itemKeys)
+    let dropped = false
+    for (const key of heightCacheRef.current.keys()) {
+      if (!alive.has(key)) {
+        heightCacheRef.current.delete(key)
+        dropped = true
+      }
+    }
+    for (const key of refCallbacksRef.current.keys()) {
+      if (!alive.has(key)) refCallbacksRef.current.delete(key)
+    }
+    if (dropped) offsetsVersionRef.current += 1
+  }
+}
+
+function scrollTopHeldByThePin(
+  { itemKeys, heightCacheRef, listOriginRef, contentPinRef, lastWrittenTopRef, reflowHoldRef, outOfLayoutRef, laidOutRef }: VirtualScrollView,
+  { indexByKey, ensureOffsets }: VirtualScrollTools,
+  { box, viewportHeight, sticky, itemCount }: VirtualScrollPane,
+  scrollTop: number,
+): number {
   if (
     box &&
     viewportHeight > 0 &&
@@ -380,12 +608,20 @@ export function useVirtualScroll(
       }
     }
   }
+  return scrollTop
+}
 
-  const offsets = ensureOffsets()
+function rangeToMount(
+  { itemKeys, heightCacheRef, elementsRef, listOriginRef, prevScrollAtCommitRef, msPerItemEmaRef }: VirtualScrollView,
+  { bestKnownHeight, realHeight }: VirtualScrollTools,
+  { viewportHeight, pendingDelta, sticky, itemCount }: VirtualScrollPane,
+  scrollTop: number,
+  offsets: Float64Array,
+  frozen: boolean,
+  prevRange: readonly [number, number] | null,
+): { start: number; end: number; movedDown: boolean } {
   let start: number
   let end: number
-  const frozen = freezeRendersRef.current > 0
-  const prevRange = prevRangeRef.current
   let movedDown = false
 
   if (frozen && prevRange) {
@@ -498,14 +734,19 @@ export function useVirtualScroll(
     }
     prevScrollAtCommitRef.current = committed
   }
+  return { start, end, movedDown }
+}
 
-  const rangeStart = start
-  const rangeEnd = end
-  const immediateRange = useMemo(
-    (): readonly [number, number] => [rangeStart, rangeEnd],
-    [rangeStart, rangeEnd],
-  )
-  const deferredRange = useDeferredValue(immediateRange)
+function rangeToShow(
+  { listOriginRef }: VirtualScrollView,
+  { mountedCoversPane }: VirtualScrollTools,
+  { viewportHeight, pendingDelta, sticky }: VirtualScrollPane,
+  scrollTop: number,
+  offsets: Float64Array,
+  immediateRange: readonly [number, number],
+  deferredRange: readonly [number, number],
+  movedDown: boolean,
+): readonly [number, number] {
   let effectiveStart = Math.max(immediateRange[0], deferredRange[0])
   let effectiveEnd = Math.min(immediateRange[1], deferredRange[1])
   const inverted = effectiveStart > effectiveEnd
@@ -532,184 +773,44 @@ export function useVirtualScroll(
       effectiveStart = effectiveEnd - MAX_MOUNTED_ITEMS
     }
   }
+  return [effectiveStart, effectiveEnd]
+}
 
-  const topSpacer = offsets[effectiveStart] ?? 0
-  const bottomSpacer = (offsets[itemCount] ?? 0) - (offsets[effectiveEnd] ?? 0)
-
-  const prevCommittedRangeRef = useRef<readonly [number, number] | null>(null)
-  useLayoutEffect(() => {
-    const prev = prevCommittedRangeRef.current
-    const freshCount = prev
-      ? Math.max(0, prev[0] - effectiveStart) +
-        Math.max(0, effectiveEnd - prev[1])
-      : effectiveEnd - effectiveStart
-    if (freshCount >= MOUNT_COST_SAMPLE_MIN) {
-      const perItem = clampNumber(
-        (performance.now() - renderStartMs) / freshCount,
-        MOUNT_COST_CLAMP_MIN_MS,
-        MOUNT_COST_CLAMP_MAX_MS,
-      )
-      msPerItemEmaRef.current =
-        msPerItemEmaRef.current * (1 - MOUNT_COST_EMA_WEIGHT) +
-        perItem * MOUNT_COST_EMA_WEIGHT
-    }
-    prevCommittedRangeRef.current = [effectiveStart, effectiveEnd]
-  })
-
-  useLayoutEffect(() => {
-    const handle = scrollRef.current
-    if (!handle) return
-    const origin = listOriginRef.current
-    const min = effectiveStart === 0 ? 0 : topSpacer + origin
-    if (sticky || effectiveEnd >= itemCount) {
-      handle.setClampBounds(min, Number.MAX_SAFE_INTEGER)
-      return
-    }
-    const max =
-      Math.max((offsets[effectiveEnd] ?? 0) - viewportHeight, topSpacer) +
-      origin
-    handle.setClampBounds(min, max)
-  })
-
-  useLayoutEffect(() => {
-    const spacer = spacerElementRef.current
-    if (spacer?.layoutNode && spacer.layoutNode.getComputedWidth() > 0) {
-      listOriginRef.current = spacer.layoutNode.getComputedTop()
-      laidOutRef.current = true
-      if (outOfLayoutRef.current) {
-        outOfLayoutRef.current = false
-        reflowHoldRef.current = true
-        forceResolve()
-      }
-    } else if (spacer?.layoutNode && laidOutRef.current && !outOfLayoutRef.current) {
-      outOfLayoutRef.current = true
+function measureAfterTheCommit(
+  { forceResolve, listOriginRef, spacerElementRef, measurementSkipRef, freezeRendersRef, reflowHoldRef, outOfLayoutRef, laidOutRef }: VirtualScrollView,
+  { recordMountedHeights, renderIfHeightsMovedThePane }: VirtualScrollTools,
+  effectiveStart: number,
+  effectiveEnd: number,
+): void {
+  const spacer = spacerElementRef.current
+  if (spacer?.layoutNode && spacer.layoutNode.getComputedWidth() > 0) {
+    listOriginRef.current = spacer.layoutNode.getComputedTop()
+    laidOutRef.current = true
+    if (outOfLayoutRef.current) {
+      outOfLayoutRef.current = false
       reflowHoldRef.current = true
+      forceResolve()
     }
-    if (freezeRendersRef.current > 0) freezeRendersRef.current -= 1
-    if (measurementSkipRef.current) {
-      measurementSkipRef.current = false
-      if (reflowHoldRef.current) forceResolve()
-      return
+  } else if (spacer?.layoutNode && laidOutRef.current && !outOfLayoutRef.current) {
+    outOfLayoutRef.current = true
+    reflowHoldRef.current = true
+  }
+  if (freezeRendersRef.current > 0) freezeRendersRef.current -= 1
+  if (measurementSkipRef.current) {
+    measurementSkipRef.current = false
+    if (reflowHoldRef.current) forceResolve()
+    return
+  }
+  recordMountedHeights()
+  const heightsMoved = renderIfHeightsMovedThePane(effectiveStart, effectiveEnd)
+  if (reflowHoldRef.current) {
+    if (freezeRendersRef.current > 0) {
+      forceResolve()
+    } else if (heightsMoved) {
+      forceResolve()
+    } else if (outOfLayoutRef.current) {
+    } else {
+      reflowHoldRef.current = false
     }
-    recordMountedHeights()
-    const heightsMoved = renderIfHeightsMovedThePane(effectiveStart, effectiveEnd)
-    if (reflowHoldRef.current) {
-      if (freezeRendersRef.current > 0) {
-        forceResolve()
-      } else if (heightsMoved) {
-        forceResolve()
-      } else if (outOfLayoutRef.current) {
-      } else {
-        reflowHoldRef.current = false
-      }
-    }
-  })
-
-  useLayoutEffect(() => {
-    listCommittingRef.current = false
-    afterLayoutRef.current = (): void => {
-      if (listCommittingRef.current || measurementSkipRef.current) return
-      if (freezeRendersRef.current > 0 || reflowHoldRef.current) return
-      recordMountedHeights()
-      renderIfHeightsMovedThePane(effectiveStart, effectiveEnd)
-    }
-    return () => {
-      listCommittingRef.current = true
-    }
-  })
-
-  useEffect(() => scrollRef.current?.subscribeLayout(() => afterLayoutRef.current()), [scrollRef])
-
-  const measureRef = useCallback(
-    (key: string): ((el: DOMElement | null) => void) => {
-      let callback = refCallbacksRef.current.get(key)
-      if (!callback) {
-        callback = (el: DOMElement | null): void => {
-          if (el) {
-            elementsRef.current.set(key, el)
-            return
-          }
-          const previous = elementsRef.current.get(key)
-          if (previous?.layoutNode && !measurementSkipRef.current) {
-            const height = previous.layoutNode.getComputedHeight()
-            const width = previous.layoutNode.getComputedWidth()
-            if (
-              (height > 0 || width > 0) &&
-              heightCacheRef.current.get(key) !== height
-            ) {
-              heightCacheRef.current.set(key, height)
-              offsetsVersionRef.current += 1
-              const idx = indexByKey(prevItemKeysRef.current, key)
-              minChangedIndexRef.current = Math.min(minChangedIndexRef.current, idx ?? 0)
-            }
-          }
-          elementsRef.current.delete(key)
-        }
-        refCallbacksRef.current.set(key, callback)
-      }
-      return callback
-    },
-    [],
-  )
-
-  const spacerRef = useCallback((el: DOMElement | null): void => {
-    spacerElementRef.current = el
-  }, [])
-
-  const getItemElement = useCallback(
-    (index: number): DOMElement | null => {
-      const key = itemKeys[index]
-      if (key === undefined) return null
-      return elementsRef.current.get(key) ?? null
-    },
-    [itemKeys],
-  )
-
-  const getItemTop = useCallback(
-    (index: number): number => {
-      const key = itemKeys[index]
-      if (key === undefined) return -1
-      const element = elementsRef.current.get(key)
-      const layout = element?.layoutNode
-      if (!layout || layout.getComputedWidth() <= 0) return -1
-      return layout.getComputedTop()
-    },
-    [itemKeys],
-  )
-
-  const getItemHeight = useCallback(
-    (index: number): number | undefined => {
-      const key = itemKeys[index]
-      if (key === undefined) return undefined
-      return heightCacheRef.current.get(key)
-    },
-    [itemKeys],
-  )
-
-  const scrollToIndex = useCallback(
-    (index: number): void => {
-      const handle = scrollRef.current
-      if (!handle) return
-      const keys = prevItemKeysRef.current
-      if (index < 0 || index >= keys.length) return
-      const buffer = ensureOffsets(keys)
-      handle.scrollTo(buffer[index]! + listOriginRef.current)
-    },
-    [scrollRef],
-  )
-
-  prevRangeRef.current = frozen && prevRange ? prevRange : immediateRange
-
-  return {
-    range: [effectiveStart, effectiveEnd],
-    topSpacer,
-    bottomSpacer,
-    measureRef,
-    spacerRef,
-    offsets,
-    getItemTop,
-    getItemElement,
-    getItemHeight,
-    scrollToIndex,
   }
 }
