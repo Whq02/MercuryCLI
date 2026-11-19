@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import figures from 'figures';
+import 'figures';
 import { getCwd } from '../utils/cwd.js';
-import { Box } from '../ink.js';
-import { adoptGroundFamily, createSplashCore, assembleCardRows, CARD_LABEL_W, WORD_W, type SplashComposeOpts } from '../../assets/splash/splash-core.mjs';
+import '../ink.js';
+import { adoptGroundFamily, createSplashCore, assembleCardRows, CARD_LABEL_W, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { useTheme } from './design-system/ThemeProvider.js';
 import {
   chatOnlyBoot,
@@ -17,7 +17,7 @@ import {
 import { getProjectDir } from '../utils/sessionStoragePortable.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
-import { truncateToWidth } from './mercury-ui/glyphs.js';
+import './mercury-ui/glyphs.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { getSessionId } from '../bootstrap/state.js';
@@ -37,24 +37,26 @@ import { peekWornPresetKit } from '../services/switchboard/bootBirthFacts.js';
 import { enterBootSettings, settleAbsentChat } from '../context/surfaceRoute.js';
 import { recordLaunchMilestone } from '../substrate/launchMilestones.js';
 import { mintImmediateReceipt, recentWarningReceipt, subscribeSeatReceipts } from '../utils/model/seatReceipts.js';
-import { BootAgentsScreen } from './BootAgentsScreen.js';
-import { BootHealthScreen } from './BootHealthScreen.js';
-import { BootLoginsScreen, loginsGlance } from './BootLoginsScreen.js';
-import { BootResumeScreen } from './BootResumeScreen.js';
-import { BootSaturnScreen, fireDeltaWords } from './BootSaturnScreen.js';
-import { BootSettingsScreen } from './BootSettingsScreen.js';
-import { KitMenuScreen } from './KitMenuScreen.js';
-import { MercuryModelDefaultPicker } from '../commands/model/mercuryModel.js';
-import { ModalContext } from '../context/modalContext.js';
-import { PopupGutter } from './PopupGutter.js';
-import { modelPickerPopupGeometry } from './ModelPickerPopupSlot.js';
+import './BootAgentsScreen.js';
+import './BootHealthScreen.js';
+import { loginsGlance } from './BootLoginsScreen.js';
+import './BootResumeScreen.js';
+import { fireDeltaWords } from './BootSaturnScreen.js';
+import './BootSettingsScreen.js';
+import './KitMenuScreen.js';
+import '../commands/model/mercuryModel.js';
+import '../context/modalContext.js';
+import './PopupGutter.js';
+import './ModelPickerPopupSlot.js';
 import { SESSION_DEFAULTS_KEY_HINT, sessionDefaultsKeyOn } from '../services/switchboard/sessionDefaultsKey.js';
-import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
-import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
+import './mercury-ui/InteractiveRow.js';
+import './mercury-ui/SceneCanvas.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList, type AsyncListNote } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
+import { openProjectOf, runRowOf, type BootRow } from './bootSplash/rowActions.js';
+import { bootSplashCompositionOf, bootSplashFaceView } from './bootSplash/face.js';
 
 
 let settingsLayerDeepLink = false;
@@ -66,14 +68,6 @@ function consumeBootSettingsLayerDeepLink(): boolean {
   settingsLayerDeepLink = false;
   return armed;
 }
-
-type BootRow = {
-  key: string;
-  icon: string;
-  label: string;
-  ctx: string;
-  dim?: boolean;
-};
 
 const KEY_MAP_ROW = (core: ReturnType<typeof createSplashCore>, hint: string): string =>
   '  ' + core.hexFg(core.FAINT, core.T256.faint) + hint + core.R;
@@ -283,40 +277,7 @@ export function BootSplashScreen(): React.ReactNode {
   };
 
   const openProject = (p: BootProjectFact): AsyncListNote => {
-    return {
-      pending: 'opening…',
-      result: (async (): Promise<string | null> => {
-        try {
-          const [{ isPathTrusted }, snap] = await Promise.all([
-            import('../utils/config.js'),
-            import('../services/concourse/concourseSnapshot.js'),
-          ]);
-          if (isPathTrusted(p.dir)) {
-            await snap.writeConcourseSeedOverride({ projectDir: p.dir });
-            const ground = await import('../services/switchboard/harnessGround.js');
-            await ground.applyHarnessGround(p.dir);
-          }
-          if (p.sessionId !== null) {
-            const hop = await import('../services/switchboard/hopIntoSession.js');
-            const outcome = await hop.focusResumedSession(p.sessionId, p.transcriptPath ?? undefined, { title: p.base });
-            if (!outcome.ok) return outcome.reason;
-          } else if (
-            p.firstSessionId !== null &&
-            (await import('../daemon/concourseWorkers.js')).sessionOwnedByLiveWorker(p.firstSessionId) !== null
-          ) {
-            const hop = await import('../services/switchboard/hopIntoSession.js');
-            const outcome = await hop.hopIntoBoardSession(p.firstSessionId);
-            if (!outcome.ok) return outcome.reason;
-          } else {
-            return await flipFirstBirth(bornSession => bornSession({ workspaceDir: p.dir }));
-          }
-        } catch (e) {
-          return e instanceof Error ? e.message : String(e);
-        }
-        enterRootChat();
-        return null;
-      })(),
-    };
+    return openProjectOf({ flipFirstBirth }, p);
   };
 
   const armedPresetName = peekWornPresetKit()?.name;
@@ -348,61 +309,7 @@ export function BootSplashScreen(): React.ReactNode {
   );
 
   const runRow = (row: BootRow | null): AsyncListNote | null => {
-    if (row == null || row.dim) return null;
-    switch (row.key) {
-      case 'new': {
-        return {
-          pending: 'starting a session…',
-          result: flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() })),
-        };
-      }
-      case 'continue': {
-        const target = facts.cwdProject;
-        if (!target?.sessionId) return null;
-        const sid = target.sessionId;
-        return {
-          pending: 'opening…',
-          result: (async (): Promise<string | null> => {
-            try {
-              const hop = await import('../services/switchboard/hopIntoSession.js');
-              const outcome = await hop.focusResumedSession(sid, target.transcriptPath ?? undefined, {
-                permissionMode: permissionModeRef.current,
-              });
-              if (!outcome.ok) return outcome.reason;
-            } catch (e) {
-              return e instanceof Error ? e.message : String(e);
-            }
-            enterRootChat();
-            return null;
-          })(),
-        };
-      }
-      case 'menu':
-        setSettingsOpen(true);
-        return null;
-      case 'kit':
-        setKitOpen(true);
-        return null;
-      case 'health':
-        setHealthOpen(true);
-        return null;
-      case 'saturn':
-        setSaturnOpen(true);
-        return null;
-      case 'agents':
-        setAgentsOpen(true);
-        return null;
-      case 'logins':
-        setLoginsOpen(true);
-        return null;
-      case 'concourse':
-        enterConcourse();
-        return null;
-      case 'sessions':
-        setResumeOpen(true);
-        return null;
-    }
-    return null;
+    return runRowOf({ flipFirstBirth, facts, permissionModeRef, setSettingsOpen, setKitOpen, setHealthOpen, setSaturnOpen, setAgentsOpen, setLoginsOpen, setResumeOpen }, row);
   };
 
   const [selCleared, setSelCleared] = useState(false);
@@ -511,217 +418,9 @@ export function BootSplashScreen(): React.ReactNode {
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {
-    if (isCompact) {
-      const selected = composedRows[Math.max(0, selectedIndex)];
-      const verb = selected && ['menu', 'kit', 'agents', 'health', 'saturn', 'logins'].includes(selected.key) ? 'open' : 'start';
-      const compact = core.composeCompactFace(columns, rows, {
-        cardRows: composedRows.map(r => ({ label: r.label, ctx: r.ctx, ...(r.dim ? { dim: true } : {}) })),
-        cardSel: selectedIndex,
-        hintSegments: [
-          { key: '↵ ', label: verb, tone: 'ivory' as const },
-          { key: '↑↓', label: ' choose', tone: 'faint' as const },
-          ...(modelDefaultDoor ? [] : [{ key: 'm', label: ' menu', tone: 'faint' as const }]),
-        ],
-        keyMap: stripHint,
-        pointer: figures.pointer,
-        glowWord: wordGlow,
-        glowRow: rowGlow,
-      });
-      const placed = [...compact.lines];
-      const corner = bottomRowWithNotice(core, columns, stripHint, updateLine, true);
-      if (corner !== null && ((stripHint !== '' && rows > 2) || placed[rows - 1] === '')) placed[rows - 1] = corner;
-      return {
-        placed,
-        actionAt: new Map<number, number>(compact.actions.map(a => [a.line, a.index])),
-        lastRowFree: false,
-      };
-    }
-    const lockupOptions: SplashComposeOpts = {
-      cardRows: composedRows.map(r => ({
-        icon: r.icon,
-        label: r.label,
-        ctx: r.ctx,
-        ...(r.dim ? { dim: true } : {}),
-      })),
-      cardSel: selectedIndex,
-      hintSegments: [
-        {
-          key: '↵ ',
-          label:
-            composedRows[Math.max(0, selectedIndex)] !== undefined &&
-            ['menu', 'kit', 'agents', 'health', 'saturn', 'logins'].includes(
-              composedRows[Math.max(0, selectedIndex)]!.key,
-            )
-              ? 'open'
-              : 'start',
-          tone: 'ivory' as const,
-        },
-        ...(modelDefaultDoor ? [] : [{ key: 'm', label: ' menu', tone: 'faint' as const }]),
-      ],
-      tinyHint: '↵ start',
-      stripLines: (w: number) => core.composeStrip(chips, w) as string[],
-      glowWord: wordGlow,
-      glowRow: rowGlow,
-    };
-    const composeOver = (faceRows: number) => {
-      const composed = core.composeLockup(columns, faceRows, lockupOptions);
-      return { faceRows, composed, ...core.placeBlock(composed.lines, faceRows) };
-    };
-    let fit = composeOver(plainWhy !== null && keyMapHint !== '' ? Math.max(1, rows - 1) : rows);
-    if (keyMapHint !== '' && fit.faceRows === rows && fit.top + fit.composed.lines.length > rows - 1) {
-      fit = composeOver(Math.max(1, rows - 1));
-    }
-    return {
-      placed: fit.placed,
-      actionAt: new Map<number, number>(fit.composed.actionLines.map((line, i) => [line + fit.top, i])),
-      lastRowFree: fit.faceRows !== rows || fit.top + fit.composed.lines.length <= rows - 1,
-    };
+    return bootSplashCompositionOf({ isCompact, composedRows, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, rowGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint });
   }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
 
-  if (settingsOpen) {
-    return (
-      <BootSettingsScreen
-        fullScene={{ columns, rows }}
-        onClose={() => setSettingsOpen(false)}
-      />
-    );
-  }
-  if (kitOpen) {
-    return (
-      <KitMenuScreen
-        fullScene={{ columns, rows }}
-        onClose={() => setKitOpen(false)}
-      />
-    );
-  }
-  if (healthOpen) {
-    return (
-      <BootHealthScreen
-        fullScene={{ columns, rows }}
-        onClose={() => setHealthOpen(false)}
-      />
-    );
-  }
-  if (saturnOpen) {
-    return (
-      <BootSaturnScreen
-        fullScene={{ columns, rows }}
-        onClose={() => setSaturnOpen(false)}
-      />
-    );
-  }
-  if (agentsOpen) {
-    return (
-      <>
-        <BootAgentsScreen
-          suspended={loginsOpen}
-          onOpenLogins={() => setLoginsOpen(true)}
-          fullScene={{ columns, rows }}
-          onClose={() => {
-            setAgentsOpen(false);
-            setAgentsEpoch(e => e + 1);
-          }}
-        />
-        {loginsOpen ? (
-          <BootLoginsScreen
-            fullScene={{ columns, rows }}
-            onClose={closeLogins}
-          />
-        ) : null}
-      </>
-    );
-  }
-  if (loginsOpen) {
-    return (
-      <BootLoginsScreen
-        fullScene={{ columns, rows }}
-        family={loginsFamily}
-        onClose={closeLogins}
-        {...(loginsBack !== null ? { onSignedIn: closeLogins } : {})}
-      />
-    );
-  }
-  if (resumeOpen) {
-    return (
-      <BootResumeScreen
-        fullScene={{ columns, rows }}
-        onClose={() => setResumeOpen(false)}
-        projects={facts.pickerProjects.map(p => {
-          const running = runningOf(p.dir);
-          return running > 0 ? { ...p, running } : p;
-        })}
-        openProject={openProject}
-      />
-    );
-  }
-
-  const pickerPopup = modelPickerPopupGeometry({ left: 0, top: 0, columns, rows }, rows);
-  return (
-    <Box flexDirection="column" width={columns} height={rows}>
-      {Array.from({ length: rows }, (_, i) => {
-        const line = composition.placed[i] ?? '';
-        if (i === rows - 1 && (list.note !== null || birthReceipt !== null)) {
-          const noteLine = '  ' + core.hexFg(core.FAINT, core.T256.faint) + (list.note ?? birthReceipt ?? '') + core.R;
-          return (
-            <Box key="boot-note" height={1} flexShrink={0}>
-              {renderSceneLine(isCompact ? truncateToWidth(noteLine, columns) : noteLine)}
-            </Box>
-          );
-        }
-        if (i === rows - 1 && composition.lastRowFree && (keyMapHint !== '' || updateLine !== null)) {
-          const bottomLine =
-            bottomRowWithNotice(core, columns, keyMapHint, updateLine, false) ?? (keyMapHint !== '' ? KEY_MAP_ROW(core, keyMapHint) : '');
-          return (
-            <Box key="boot-keymap" height={1} flexShrink={0}>
-              {bottomLine === '' ? null : renderSceneLine(isCompact ? truncateToWidth(bottomLine, columns) : bottomLine)}
-            </Box>
-          );
-        }
-        const actionIdx = composition.actionAt.get(i);
-        if (actionIdx !== undefined && composedRows[actionIdx] !== undefined) {
-          const row = composedRows[actionIdx]!;
-          const props = list.rowProps(row, actionIdx);
-          const glowLabel = row.label;
-          return (
-            <InteractiveRow
-              key={props.id}
-              id={props.id}
-              selected={props.selected}
-              unavailable={props.unavailable}
-              onSelect={props.onSelect}
-              onActivate={props.onActivate}
-              selectionBand={false}
-              hoverStyle="chrome-ink"
-              height={1}
-            >
-              {hover =>
-                renderSceneLine(line, hover && !props.selected ? { label: glowLabel, color: t.info } : undefined)
-              }
-            </InteractiveRow>
-          );
-        }
-        return (
-          <Box key={`bootline-${i}`} height={1} flexShrink={0}>
-            {line.length > 0 ? renderSceneLine(line) : null}
-          </Box>
-        );
-      })}
-      {modelDefaultOpen ? (
-        <PopupGutter {...pickerPopup}>
-          <ModalContext.Provider value={{ rows: pickerPopup.rows, columns: pickerPopup.columns, scrollRef: null }}>
-            <MercuryModelDefaultPicker
-              onDone={() => setModelDefaultOpen(false)}
-              onSignIn={family => {
-                setModelDefaultOpen(false);
-                setLoginsFamily(family);
-                setLoginsBack('picker');
-                setLoginsOpen(true);
-              }}
-            />
-          </ModalContext.Provider>
-        </PopupGutter>
-      ) : null}
-    </Box>
-  );
+  return bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, setAgentsEpoch, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack });
 }
