@@ -3,7 +3,6 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import type { AnthropicClientOptions as ClientOptions } from './anthropicClient.js'
 import {
   APIConnectionError,
-  APIConnectionTimeoutError,
   APIError,
   APIUserAbortError,
 } from '../../api/sdkErrors.js'
@@ -21,8 +20,6 @@ import type { NativeWebSearchRequest } from 'src/services/search/nativeSearchReq
 import { logForDebugging } from 'src/utils/debug.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
 import type { EffortValue } from 'src/utils/effort.js'
-import { headlessProfilerCheckpoint } from 'src/utils/headlessProfiler.js'
-import { noteRunPhase } from 'src/utils/runPhases.js'
 import { resetApiConnectionPool } from 'src/utils/proxy.js'
 import type { ThinkingConfig } from 'src/utils/thinking.js'
 import {
@@ -34,7 +31,6 @@ import {
 import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { planToolPayload } from '../toolEconomy.js'
-import { noteCacheDiagnostics } from './cacheDiagnostics.js'
 import type { ConnectorTextBlock } from '../../../types/connectorText.js'
 import type {
   AssistantMessage,
@@ -91,10 +87,8 @@ import { toolCallRefusalNote } from '../toolCallGate.js'
 import { safeParseJSON } from '../../../utils/json.js'
 import type { RefusedToolCall } from '../../../types/message.js'
 import { sleep } from '../../../utils/sleep.js'
-import { updateUsage } from './cacheAndUsage.js'
 import {
   retryNoticeWait,
-  retryReasonWords,
   type RequestWaitV1,
 } from '../streamIdleBudget.js'
 import { anthropicEffortWireFact } from './requestParams.js'
@@ -104,12 +98,12 @@ type BetaToolChoiceNone = Extract<BetaMessageStreamParams['tool_choice'], { type
 import type { CallState, QueryCtx, StreamPass } from './streamCore/state.js'
 import { createCallLedger } from './streamCore/callLedger.js'
 import { executeNonStreamingRequest } from './streamCore/nonStreaming.js'
-import { streamPassRetries } from './streamCore/passRetries.js'
+import { streamPassRetries, retryWaitOf } from './streamCore/passRetries.js'
 import { preEventReissueRow, streamCutReissueRow, oneShotNoticeRow, oneShotAnswerOf } from './streamCore/reissueRows.js'
 import { requestFailed } from './streamCore/requestFailed.js'
 import { messagesBeforeImages, requestBetas, toolRosterOf, wireRequestOf } from './streamCore/requestPlan.js'
 import { closeSucceededRequest, settleAttemptLedger } from './streamCore/settleCall.js'
-import { openContentBlock, applyBlockDelta, settleMessageDelta, noteWatchdogCleanExit, observeStreamEnd, noteWatchdogErrorExit } from './streamCore/streamEvents.js'
+import { resetStreamAttempt, noteStreamEvent, startMessage, openContentBlock, applyBlockDelta, settleMessageDelta, noteWatchdogCleanExit, observeStreamEnd, noteWatchdogErrorExit, sdkAbortError } from './streamCore/streamEvents.js'
 import { watchStream } from './streamCore/watchStream.js'
 import { wireParamsFor } from './streamCore/wireParams.js'
 
@@ -346,6 +340,10 @@ async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
       streamEventCount: 0,
       streamWatchdogFiredAt: null,
       sawMessageStop: false,
+      isFirstChunk: true,
+      lastEventTime: null,
+      totalStallTime: 0,
+      stallCount: 0,
     }
     const generator = streamPassRetries(call, pass, { messages, thinkingConfig, signal, options, paramsFromContext, captureModelRequest, rosterOwnerKey, heldWaitDoor })
 
@@ -355,14 +353,7 @@ async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
       if (!('controller' in e.value)) {
         const notice = e.value as SystemAPIErrorMessage
         if (notice.type === 'system' && notice.subtype === 'api_error') {
-          const retryWait: RequestWaitV1 = {
-            kind: 'retry',
-            attempt: notice.retryAttempt,
-            of: notice.maxRetries,
-            reason: retryReasonWords(notice.errorDetail?.status ?? (notice.error as { status?: number | null } | undefined)?.status, notice.error?.message),
-            delayMs: notice.retryInMs,
-            sinceMs: Date.now(),
-          }
+          const retryWait: RequestWaitV1 = retryWaitOf(notice)
           options.onWait?.(retryWait)
         }
         yield e.value
@@ -370,61 +361,17 @@ async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
     } while (!e.done)
     call.stream = e.value as AnthropicStream
 
-    settleUnpricedAttempt()
-    newMessages.length = 0
-    call.ttftMs = 0
-    call.partialMessage = undefined
-    contentBlocks.length = 0
-    stoppedBlockIndices.clear()
-    call.usage = EMPTY_USAGE
-    call.stopReason = null
-    call.ledgerSettled = false
+    resetStreamAttempt(call, settleUnpricedAttempt, newMessages, contentBlocks, stoppedBlockIndices)
     const { STREAM_IDLE_TIMEOUT_MS, modelWords, preEventSilenceWords, streamIdleWatchdog, activityRelay, clearStreamIdleTimers, settledTailType, settledTailStands, settleTypedEnd } = watchStream(ctx, call, pass)
 
     startSessionActivity('api_call')
     try {
-      let isFirstChunk = true
-      let lastEventTime: number | null = null
-      const STALL_THRESHOLD_MS = 30_000
-      let totalStallTime = 0
-      let stallCount = 0
-
       for await (const part of call.stream) {
-        streamIdleWatchdog.noteActivity()
-        activityRelay.noteEvent()
-        pass.sawFirstStreamEvent = true
-        pass.streamEventCount++
-        const now = Date.now()
-
-        if (lastEventTime !== null) {
-          const timeSinceLastEvent = now - lastEventTime
-          if (timeSinceLastEvent > STALL_THRESHOLD_MS) {
-            stallCount++
-            totalStallTime += timeSinceLastEvent
-            logForDebugging(
-              `stream stalled ${(timeSinceLastEvent / 1000).toFixed(1)}s between events (stall #${stallCount})`,
-              { level: 'warn' },
-            )
-          }
-        }
-        lastEventTime = now
-
-        if (isFirstChunk) {
-          logForDebugging('stream live — first chunk received')
-          if (!options.agentId) {
-            headlessProfilerCheckpoint('first_chunk')
-            noteRunPhase('first_byte')
-          }
-          isFirstChunk = false
-        }
+        noteStreamEvent(pass, streamIdleWatchdog, activityRelay, options)
 
         switch (part.type) {
           case 'message_start': {
-            call.partialMessage = part.message
-            call.ttftMs = Date.now() - call.start
-            call.usage = updateUsage(call.usage, part.message?.usage)
-            noteServedModel(part.message?.model)
-            noteCacheDiagnostics(part.message, part.message?.usage, call.ledgerFirstDifference)
+            startMessage(call, part, noteServedModel)
             break
           }
           case 'content_block_start':
@@ -480,27 +427,11 @@ async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
             }
 
             if (call.stopReason === 'max_tokens') {
-              yield {
-                ...createAssistantAPIErrorMessage({
-                  content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response exceeded the ${
-                    call.maxOutputTokens
-                  } output token maximum. To configure this behavior, set the MERCURY_MAX_OUTPUT_TOKENS environment variable.`,
-                  apiError: 'max_output_tokens',
-                  error: 'max_output_tokens',
-                }),
-                effort: call.effortOnWire,
-              }
+              yield maxOutputTokensRow(call)
             }
 
             if (call.stopReason === 'model_context_window_exceeded') {
-              yield {
-                ...createAssistantAPIErrorMessage({
-                  content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response stopped at the model's context window limit.`,
-                  apiError: 'max_output_tokens',
-                  error: 'max_output_tokens',
-                }),
-                effort: call.effortOnWire,
-              }
+              yield contextWindowRow(call)
             }
             break
           }
@@ -561,7 +492,7 @@ async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
         }
       }
 
-      observeStreamEnd(call, stallCount, totalStallTime, turnOwning, prefixKey)
+      observeStreamEnd(call, pass, turnOwning, prefixKey)
     } catch (streamingError) {
       clearStreamIdleTimers()
 
@@ -578,20 +509,7 @@ async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
         break
       }
 
-      if (streamingError instanceof APIUserAbortError) {
-        if (signal.aborted) {
-          logForDebugging(
-            `Streaming aborted by user: ${errorMessage(streamingError)}`,
-          )
-          throw streamingError
-        } else {
-          logForDebugging(
-            `Streaming timeout (SDK abort): ${streamingError.message}`,
-            { level: 'error' },
-          )
-          throw new APIConnectionTimeoutError({ message: 'Request timed out' })
-        }
-      }
+      if (streamingError instanceof APIUserAbortError) throw sdkAbortError(signal, streamingError)
 
       if (!pass.sawFirstStreamEvent && !pass.streamIdleAborted && !signal.aborted && !spokenByProvider(streamingError)) {
         call.emptyStreamEnds++
@@ -686,6 +604,30 @@ async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
   }
 
   closeSucceededRequest(ctx, call)
+}
+
+function maxOutputTokensRow(call: CallState) {
+  return {
+    ...createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response exceeded the ${
+        call.maxOutputTokens
+      } output token maximum. To configure this behavior, set the MERCURY_MAX_OUTPUT_TOKENS environment variable.`,
+      apiError: 'max_output_tokens',
+      error: 'max_output_tokens',
+    }),
+    effort: call.effortOnWire,
+  }
+}
+
+function contextWindowRow(call: CallState) {
+  return {
+    ...createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response stopped at the model's context window limit.`,
+      apiError: 'max_output_tokens',
+      error: 'max_output_tokens',
+    }),
+    effort: call.effortOnWire,
+  }
 }
 
 type UtilityOptions = Omit<Options, 'model' | 'getToolPermissionContext' | 'effortValue' | 'effortPinned' | 'ridesSessionEffort'>

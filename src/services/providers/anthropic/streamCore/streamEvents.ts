@@ -1,3 +1,7 @@
+import {
+  APIConnectionTimeoutError,
+  APIUserAbortError,
+} from '../../../api/sdkErrors.js'
 import type {
   ContentBlock as BetaContentBlock,
   ApiStreamEvent as BetaRawMessageStreamEvent,
@@ -6,7 +10,10 @@ import { addToTotalSessionCost } from 'src/cost-tracker.js'
 import { cacheClockObserve } from 'src/utils/cache/cacheClock.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
+import { headlessProfilerCheckpoint } from 'src/utils/headlessProfiler.js'
 import { calculateUSDCost } from 'src/utils/modelCost.js'
+import { noteRunPhase } from 'src/utils/runPhases.js'
+import { noteCacheDiagnostics } from '../cacheDiagnostics.js'
 import type {
   ConnectorTextBlock,
   ConnectorTextDelta,
@@ -15,16 +22,73 @@ import type {
   AssistantMessage,
   Message,
 } from '../../../../types/message.js'
+import { errorMessage } from '../../../../utils/errors.js'
 import { settleTranscriptMessage } from '../../../../utils/sessionStorage/writer.js'
 import {
   clearAnthropicUsageLimit,
   extractQuotaStatusFromHeaders,
 } from '../../../anthropicLimits.js'
 import { malformedStreamFrameText } from '../../../api/errors.js'
+import { EMPTY_USAGE } from '../../../api/logging.js'
 import { checkResponseForCacheBreak } from '../../../api/promptCacheBreakDetection.js'
 import { updateUsage } from '../cacheAndUsage.js'
+import {
+  createStreamActivityRelay,
+  createStreamIdleWatchdog,
+} from '../../streamIdleBudget.js'
 import type { Options } from '../streamCore.js'
 import type { CallState, StreamPass } from './state.js'
+
+export function resetStreamAttempt(call: CallState, settleUnpricedAttempt: () => void, newMessages: AssistantMessage[], contentBlocks: (BetaContentBlock | ConnectorTextBlock)[], stoppedBlockIndices: Set<number>): void {
+  settleUnpricedAttempt()
+  newMessages.length = 0
+  call.ttftMs = 0
+  call.partialMessage = undefined
+  contentBlocks.length = 0
+  stoppedBlockIndices.clear()
+  call.usage = EMPTY_USAGE
+  call.stopReason = null
+  call.ledgerSettled = false
+}
+
+export function noteStreamEvent(pass: StreamPass, streamIdleWatchdog: ReturnType<typeof createStreamIdleWatchdog>, activityRelay: ReturnType<typeof createStreamActivityRelay>, options: Options): void {
+  const STALL_THRESHOLD_MS = 30_000
+  streamIdleWatchdog.noteActivity()
+  activityRelay.noteEvent()
+  pass.sawFirstStreamEvent = true
+  pass.streamEventCount++
+  const now = Date.now()
+
+  if (pass.lastEventTime !== null) {
+    const timeSinceLastEvent = now - pass.lastEventTime
+    if (timeSinceLastEvent > STALL_THRESHOLD_MS) {
+      pass.stallCount++
+      pass.totalStallTime += timeSinceLastEvent
+      logForDebugging(
+        `stream stalled ${(timeSinceLastEvent / 1000).toFixed(1)}s between events (stall #${pass.stallCount})`,
+        { level: 'warn' },
+      )
+    }
+  }
+  pass.lastEventTime = now
+
+  if (pass.isFirstChunk) {
+    logForDebugging('stream live — first chunk received')
+    if (!options.agentId) {
+      headlessProfilerCheckpoint('first_chunk')
+      noteRunPhase('first_byte')
+    }
+    pass.isFirstChunk = false
+  }
+}
+
+export function startMessage(call: CallState, part: Extract<BetaRawMessageStreamEvent, { type: 'message_start' }>, noteServedModel: (model: string | undefined) => void): void {
+  call.partialMessage = part.message
+  call.ttftMs = Date.now() - call.start
+  call.usage = updateUsage(call.usage, part.message?.usage)
+  noteServedModel(part.message?.model)
+  noteCacheDiagnostics(part.message, part.message?.usage, call.ledgerFirstDifference)
+}
 
 export function openContentBlock(contentBlocks: (BetaContentBlock | ConnectorTextBlock)[], part: Extract<BetaRawMessageStreamEvent, { type: 'content_block_start' }>): void {
   if (part.content_block == null) {
@@ -148,10 +212,10 @@ export function noteWatchdogCleanExit(pass: StreamPass): void {
   pass.streamWatchdogFiredAt = null
 }
 
-export function observeStreamEnd(call: CallState, stallCount: number, totalStallTime: number, turnOwning: boolean, prefixKey: string): void {
-  if (stallCount > 0) {
+export function observeStreamEnd(call: CallState, pass: StreamPass, turnOwning: boolean, prefixKey: string): void {
+  if (pass.stallCount > 0) {
     logForDebugging(
-      `stream finished carrying ${stallCount} stall(s), ${(totalStallTime / 1000).toFixed(1)}s stalled in total`,
+      `stream finished carrying ${pass.stallCount} stall(s), ${(pass.totalStallTime / 1000).toFixed(1)}s stalled in total`,
       { level: 'warn' },
     )
   }
@@ -185,4 +249,19 @@ export function noteWatchdogErrorExit(pass: StreamPass & { streamWatchdogFiredAt
   logForDebugging(
     `stream loop exited ${exitDelayMs}ms after watchdog abort (error exit)`,
   )
+}
+
+export function sdkAbortError(signal: AbortSignal, streamingError: APIUserAbortError) {
+  if (signal.aborted) {
+    logForDebugging(
+      `Streaming aborted by user: ${errorMessage(streamingError)}`,
+    )
+    return streamingError
+  } else {
+    logForDebugging(
+      `Streaming timeout (SDK abort): ${streamingError.message}`,
+      { level: 'error' },
+    )
+    return new APIConnectionTimeoutError({ message: 'Request timed out' })
+  }
 }
