@@ -99,7 +99,7 @@ scripts/attention/prove-c3-idle-quiet.ts	11	2	f0431e25bda4
 scripts/attention/prove-c3-perf-slate.ts	1	2	0e7bfe6c5125
 scripts/attention/prove-composer-document.ts	1	3	d1755e9b9807
 scripts/attention/prove-dispatch-actions.ts	1	2	3a80cbcebf09
-scripts/attention/prove-paste-survives-refused-send.ts	4	11	5d899b1f492c
+scripts/attention/prove-paste-survives-refused-send.ts	3	9	4d471c92587f
 scripts/attention/prove-peek-reply.ts	2	3	c91a380d2295
 scripts/attention/prove-relations.ts	1	1	7717bc0990c0
 scripts/audit-fixes/run-all.sh	11	16	612a023bccd1
@@ -176,7 +176,7 @@ scripts/cockpit-interaction/prove-tool-projection.ts	5	18	10e23d1fd022
 scripts/command-catalogue/prove-effective-catalogue.ts	3	3	86b010ea25b5
 scripts/command-catalogue/prove-feedback-issue-road.ts	1	1	d41a137e2ea0
 scripts/command-catalogue/prove-settings-popup-commands.ts	3	9	e5263b8666d6
-scripts/command-catalogue/prove-surface-truth.ts	21	74	b078b398f23b
+scripts/command-catalogue/prove-surface-truth.ts	20	68	dfa3c1e2cb13
 scripts/command-catalogue/prove-swarm-channel-completion.ts	3	12	fdd9e4a32df2
 scripts/commit-gate/prove-commit-gate-wiring.ts	2	6	0e31d8eee36b
 scripts/commit-gate/prove-generated-assets.ts	1	3	96734be5187e
@@ -317,7 +317,7 @@ scripts/daemon/prove-kit-birth.ts	15	12	5f9025b3b5a0
 scripts/daemon/prove-leak-sweep.ts	32	41	793fe99e05f6
 scripts/daemon/prove-live-turn-chars.ts	6	13	5ba2929ab4d3
 scripts/daemon/prove-liveness-stamp.ts	4	14	18666354b261
-scripts/daemon/prove-midturn-line.ts	5	6	06275a850471
+scripts/daemon/prove-midturn-line.ts	4	5	a50112374984
 scripts/daemon/prove-newborn-grace.ts	5	12	b8fe90024a21
 scripts/daemon/prove-no-memory-guard.ts	3	14	92eca1f9b784
 scripts/daemon/prove-orphan-drain-screen-returns.ts	2	6	32ad32e907ed
@@ -343,7 +343,7 @@ scripts/daemon/prove-saturn-self-wake.ts	7	46	4179b6431fbb
 scripts/daemon/prove-schedule-control-roster.ts	2	3	eb1ba7001b57
 scripts/daemon/prove-schedule-roster-fresh.ts	1	6	c24dc3f7fbaa
 scripts/daemon/prove-seat-door-direct.ts	5	17	7109db76d33e
-scripts/daemon/prove-send-hops.ts	3	15	4da3397abdde
+scripts/daemon/prove-send-hops.ts	2	8	cdf305118c12
 scripts/daemon/prove-sessionless-daemon-exits.ts	1	3	c24dc3f7fbaa
 scripts/daemon/prove-start-token-forms.ts	15	29	c93e638f3d59
 scripts/daemon/prove-starting-door.ts	2	2	9a334474f2a6
@@ -413,7 +413,7 @@ scripts/engine-connector/prove-one-truth-delivery.ts	5	10	617b9bb63241
 scripts/engine-connector/prove-projection-twin-event.ts	1	4	82bc89e328ff
 scripts/engine-connector/prove-recall-withdraw.ts	2	16	1d2a16af2438
 scripts/engine-connector/prove-samples-status-words.ts	5	20	0f16fcd8c199
-scripts/engine-connector/prove-send-now-chord.ts	9	21	a39d6ac71757
+scripts/engine-connector/prove-send-now-chord.ts	9	20	a39d6ac71757
 scripts/engine-connector/prove-shell-background-words.ts	12	34	c9ecba6effde
 scripts/engine-connector/prove-turn-clock-owner.ts	3	3	9240f3342b62
 scripts/engine-connector/prove-work-counts.ts	4	7	1a2a3b2402cc
@@ -697,7 +697,7 @@ scripts/node-runtime/prove-spawn-window-discipline.ts	2	1	8729c25b34cb
 scripts/node-runtime/prove-static-banner-colour.ts	2	1	47f268e7f4f8
 scripts/node-runtime/prove-win32-console.ts	3	18	321fb57f5934
 scripts/node-runtime/prove-windows-seams.ts	13	49	5202c133d04a
-scripts/notifications/prove-board-control.ts	4	12	970194f7f680
+scripts/notifications/prove-board-control.ts	3	9	f2a31d7f72d1
 scripts/notifications/prove-concourse-critter.ts	2	7	f3c44f2107b8
 scripts/notifications/prove-concourse-dispatch.ts	2	4	e81a1c4f3f99
 scripts/notifications/prove-concourse-rail.ts	2	5	6d2aa34d5fbd
@@ -1059,7 +1059,7 @@ scripts/switchboard/prove-broadcast.ts	4	101	a6d516ef068a
 scripts/switchboard/prove-capacity-receipt-tail.ts	1	2	848e5fc01bab
 scripts/switchboard/prove-chat-birth.ts	2	5	0c79d8db1fed
 scripts/switchboard/prove-chat-forward-first-paint.ts	5	28	b8744fceaa3c
-scripts/switchboard/prove-chat-mode-polish.ts	18	70	44f7856789b2
+scripts/switchboard/prove-chat-mode-polish.ts	17	68	21d576a82de3
 scripts/switchboard/prove-chat-tag-live-title.ts	2	3	2407249275ae
 scripts/switchboard/prove-claude-door-capability.ts	12	6	cdff24c5d6a8
 scripts/switchboard/prove-close-chord.ts	4	68	d4fe9f684bc7
@@ -1074,7 +1074,7 @@ scripts/switchboard/prove-esc-one-owner.ts	1	4	848e5fc01bab
 scripts/switchboard/prove-exit-everywhere.ts	7	26	28695e521ece
 scripts/switchboard/prove-folder-project.ts	6	22	38439ca49f62
 scripts/switchboard/prove-keyless-with-signin.ts	4	12	799d831f4756
-scripts/switchboard/prove-launch-authority.ts	7	26	3f09d7fba087
+scripts/switchboard/prove-launch-authority.ts	7	25	3f09d7fba087
 scripts/switchboard/prove-mirror-grammar.ts	2	33	cd54f0035725
 scripts/switchboard/prove-mirror-header-facts.ts	1	5	3c0c566f8066
 scripts/switchboard/prove-model-verb-turn-open.ts	3	3	186d613e69e0

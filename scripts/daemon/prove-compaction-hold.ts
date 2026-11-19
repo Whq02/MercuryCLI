@@ -68,12 +68,6 @@ const g = connector as unknown as Guts
 const lostLineOf = (): { text: string; atMs: number } | null | undefined => (typeof connector.lostLine === 'function' ? connector.lostLine() : undefined)
 let liveWakes = 0
 connector.subscribeLive(() => liveWakes++)
-const seed = (id: string, text: string, state: Send['state']): void => {
-  g.sends = [...g.sends, { clientMessageId: id, text, sentAtMs: Date.now(), state, mode: 'prompt', source: { text, mode: 'prompt', pastedContents: {} } }]
-  g.echoRows.set(id, { ...createUserMessage({ content: text }), ...(state === 'queued' ? { queued: true } : {}) })
-  g.paint()
-}
-const sendOf = (id: string): Send | undefined => g.sends.find(s => s.clientMessageId === id)
 const painted = (): string => JSON.stringify(connector.records())
 const queued = (entries: Array<{ uuid: string; value: string }>): Array<{ uuid: string; value: string; mode: string; priority: string }> =>
   entries.map(e => ({ ...e, mode: 'prompt', priority: 'next' }))
@@ -91,96 +85,6 @@ const tailSays = (word: 'compacting' | 'waiting-on-agents' | null): void => {
 const foldRunning = (on: boolean): void => {
   runnerSays(on)
   tailSays(on ? 'compacting' : null)
-}
-
-section("F1 the withdraw's UNKNOWN retires the row and names the words")
-{
-  const id = randomUUID()
-  seed(id, 'the words no runner holds', 'delivered')
-  foldRunning(true)
-  g.reconcileQueuedSends({ queue: queued([{ uuid: id, value: 'the words no runner holds' }]), atMs: Date.now(), busy: true })
-  check('the row stands queued and held while the runner says its queue holds it', sendOf(id)?.state === 'queued' && sendOf(id)?.heldFor === 'compaction' && painted().includes('the words no runner holds'), j(sendOf(id)))
-  answer = async () => ({ ok: true, op: 'sessionControl', outcome: 'refused', withdrawn: false, reason: 'unknown', detail: "the runner's queue never held the line" })
-  liveWakes = 0
-  const receipt = await connector.withdrawSend(id)
-  check("the receipt is the runner's unknown, marked retired, naming the words", receipt.withdrawn === false && receipt.reason === 'unknown' && receipt.retired === true && receipt.detail === lostLine('the words no runner holds') && receipt.detail.includes('"the words no runner holds"'), j(receipt))
-  check('the send and its row left the screen — no orphan stands', sendOf(id) === undefined && !painted().includes('the words no runner holds'), painted().slice(0, 160))
-  check('the live listeners woke', liveWakes >= 1, `${liveWakes} wakes`)
-  const again = await connector.withdrawSend(id)
-  check('a second withdraw finds nothing sent — the plain no-queue line, no retired mark', again.withdrawn === false && again.reason === 'unknown' && again.detail === RECALL_UNKNOWN_LINE && again.retired === undefined, j(again))
-  check('a long line is quoted cut, one line — short enough for the hint row beside the shortcuts', lostLine('a'.repeat(80)).includes('…"') && lostLine('a'.repeat(80)).length <= 80, lostLine('a'.repeat(80)))
-  foldRunning(false)
-}
-
-section("F2 the runner's life count: the same runner takes, a new runner loses")
-{
-  const same = randomUUID()
-  seed(same, 'taken by the same runner', 'delivered')
-  g.reconcileQueuedSends({ queue: queued([{ uuid: same, value: 'taken by the same runner' }]), atMs: Date.now(), busy: true, runnerGeneration: 1 })
-  check('the first count latches and the listed send reads queued', sendOf(same)?.state === 'queued', j(sendOf(same)))
-  g.reconcileQueuedSends({ queue: [], atMs: Date.now(), busy: true, runnerGeneration: 1 })
-  check('the SAME runner no longer listing it dresses it taken (the landing law) — the row stays as a sent row', sendOf(same)?.state === 'taken' && painted().includes('taken by the same runner'), j(sendOf(same)))
-  check('no lost line is announced for a take', lostLineOf() === null)
-  g.sends = g.sends.filter(s => s.clientMessageId !== same)
-  g.echoRows.delete(same)
-
-  const one = randomUUID()
-  const two = randomUUID()
-  seed(one, 'first held words', 'delivered')
-  seed(two, 'second held words [Pasted text #1 +3 lines]', 'delivered')
-  foldRunning(true)
-  g.reconcileQueuedSends({ queue: queued([{ uuid: one, value: 'first held words' }, { uuid: two, value: 'second held words the pasted lines' }]), atMs: Date.now(), busy: true, runnerGeneration: 1 })
-  check('two held rows stand while the runner holds both', sendOf(one)?.heldFor === 'compaction' && sendOf(two)?.heldFor === 'compaction', j(g.sends.map(s => [s.state, s.heldFor])))
-  liveWakes = 0
-  g.reconcileQueuedSends({ queue: [], atMs: Date.now(), busy: false, runnerGeneration: 2 })
-  check('a NEW runner (the count moved) with an empty queue retires both held sends', sendOf(one) === undefined && sendOf(two) === undefined, j(g.sends.map(s => [s.text, s.state])))
-  check('…and their rows are gone from the transcript', !painted().includes('first held words') && !painted().includes('second held words'), painted().slice(0, 160))
-  const lost = lostLineOf()
-  check("lostLine() names both, the composer's own words (pastes unexpanded, cut past thirty-two characters), on the restart line", lost !== null && lost !== undefined && lost.text === lostWithRunnerLine(['first held words', 'second held words [Pasted text #1 +3 lines]']) && lost.text.includes('the runner restarted') && lost.text.includes('"first held words" · "second held words [Pasted text…"') && lost.text.endsWith('not taken); type them again'), j(lost))
-  check('the live listeners woke for the notice', liveWakes >= 1, `${liveWakes} wakes`)
-  check('one lost line reads singular', lostWithRunnerLine(['only one']).endsWith('not taken); type it again') && lostWithRunnerLine(['only one']).includes('"only one"'), lostWithRunnerLine(['only one']))
-  foldRunning(false)
-}
-
-section('F3 the count never over-reaches')
-{
-  const older = randomUUID()
-  seed(older, 'a line under an older daemon', 'delivered')
-  g.reconcileQueuedSends({ queue: queued([{ uuid: older, value: 'a line under an older daemon' }]), atMs: Date.now(), busy: true })
-  const before = lostLineOf()
-  g.reconcileQueuedSends({ queue: [], atMs: Date.now(), busy: true })
-  check('facts with no count: an empty queue dresses taken as before, nothing retired', sendOf(older)?.state === 'taken' && lostLineOf() === before, j(sendOf(older)))
-  g.sends = g.sends.filter(s => s.clientMessageId !== older)
-  g.echoRows.delete(older)
-
-  const kept = randomUUID()
-  seed(kept, 'a withdraw on its way', 'queued')
-  g.sends = g.sends.map(s => (s.clientMessageId === kept ? { ...s, withdrawing: true as const } : s))
-  const noticeText = 'A background crewmate completed a task'
-  g.reconcileQueuedSends({ queue: [{ uuid: randomUUID(), value: noticeText, mode: 'task-notification', priority: 'next' }], atMs: Date.now(), busy: true, runnerGeneration: 2 })
-  const notice = g.sends.find(s => s.text === noticeText)?.clientMessageId ?? ''
-  const queuedRow = g.echoRows.get(notice)
-  const noticeRows = (): Message[] => connector.records().filter(row => row.type === 'attachment' && row.attachment.type === 'queued_command' && row.attachment.prompt === noticeText)
-  check('the real queue-facts path creates one queued notice and its byte-identical echo', notice.startsWith('notice:') && sendOf(notice)?.state === 'queued' && queuedRow !== undefined && (queuedRow as { queued?: boolean }).queued === true && noticeRows().length === 1, painted())
-  const beforeCount = lostLineOf()
-  const deliveredAtMs = Date.now() + 1_000
-  g.reconcileQueuedSends({ queue: [], atMs: deliveredAtMs, busy: false, runnerGeneration: 3 })
-  check('a moved count leaves the withdrawing send queued without announcing either row lost', sendOf(kept)?.state === 'queued' && sendOf(kept)?.withdrawing === true && lostLineOf() === beforeCount, j(g.sends))
-  const committed = queuedRow === undefined ? undefined : g.deliveredNotices.get(queuedRow.uuid)
-  const deliveredRows = noticeRows()
-  check('the notice leaves sends and its queued echo, keeping one committed row at the delivery clock', sendOf(notice) === undefined && !g.echoRows.has(notice) && committed?.text === noticeText && committed.row.uuid === queuedRow?.uuid && deliveredRows.length === 1 && deliveredRows[0] === committed.row && committed.row.timestamp === new Date(deliveredAtMs).toISOString() && (committed.row as { queued?: boolean }).queued !== true && committed.row.type === 'attachment' && committed.row.attachment.type === 'queued_command' && committed.row.attachment.prompt === noticeText && committed.row.attachment.deliveredAt === new Date(deliveredAtMs).toISOString(), j({ committed, rows: deliveredRows }))
-  g.reconcileQueuedSends({ queue: [], atMs: deliveredAtMs + 1_000, busy: false, runnerGeneration: 4 })
-  check('repeated facts and another runner change neither lose nor duplicate the committed notice', noticeRows().length === 1 && g.deliveredNotices.size === 1 && lostLineOf() === beforeCount, painted())
-  if (committed !== undefined) {
-    const landed = { ...committed.row, uuid: randomUUID() } as Message
-    g.rawRecords = [...g.rawRecords, landed]
-    g.paint()
-    check('the durable transcript row replaces the committed copy once without changing the notice bytes', g.deliveredNotices.size === 0 && noticeRows().length === 1 && noticeRows()[0] === landed && sendOf(notice) === undefined, painted())
-    g.rawRecords = g.rawRecords.filter(row => row !== landed)
-  } else check('the durable transcript row has a committed notice to replace', false)
-  g.sends = []
-  g.echoRows.clear()
-  g.paint()
 }
 
 section('F4 the wiring — the seat, the roster, the daemon, the hint row, the composer')

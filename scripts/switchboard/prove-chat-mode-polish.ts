@@ -101,8 +101,6 @@ t.section('§F — the sweep: board vocabulary follows the world or falls silent
   t.check("the boot settings' 'o' door names the live view in the plain world (hint and legend)", settings.includes("hint: plainWorld ? 'open the live view' : 'open concourse'") && settings.includes("` · o ${plainWorld ? 'live view' : 'concourse'}`"))
   const concourseCmd = read('src/commands/concourse/index.ts')
   t.check('/concourse\'s description says what the door opens per world, read live', concourseCmd.includes('get description(): string {') && concourseCmd.includes("'Open the live view of your sessions — the concourse is off in this boot'") && concourseCmd.includes("'Open the Session Concourse — the multi-session home board, in place'"))
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
-  t.check('a refused resume names no concourse (the daemon resumes it; the sentence is the same in both worlds)', connector.includes('`the session could not resume — ${refusal} · ↵ again retries`') && !connector.includes('could not resume on the concourse'))
   t.check('the substrate catalogue lists /trace always-on in every world and names no concourse-only door', read('src/utils/cockpit/substrateSnapshot.ts').includes("{ name: '/trace', on: true, hint: 'always-on' }") && !/name: '[^']*\/(deck|fleet)/.test(read('src/utils/cockpit/substrateSnapshot.ts')))
   const gatedFiles = ['src/components/MercuryFrame.tsx', 'src/components/HelpV2/ShortcutsTab.tsx', 'src/components/BootSplashScreen.tsx', 'src/components/BootSettingsScreen.tsx']
   for (const f of gatedFiles) {

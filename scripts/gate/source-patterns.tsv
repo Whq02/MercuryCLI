@@ -102,8 +102,9 @@ setTimeout	src/services/crew/adapters/ndjsonChild.ts	4
 setTimeout	src/services/dap/dapCancellation.ts	2
 setTimeout	src/services/desktop/desktopClaim.ts	1
 setTimeout	src/services/desktop/fakeDesktopDriver.ts	1
+setTimeout	src/services/engine-connector/daemon/delivery.ts	1
 setTimeout	src/services/engine-connector/daemon/fold.ts	2
-setTimeout	src/services/engine-connector/daemonConnector.ts	3
+setTimeout	src/services/engine-connector/daemonConnector.ts	2
 setTimeout	src/services/eval/procKernel.ts	4
 setTimeout	src/services/host/jobs.ts	1
 setTimeout	src/services/host/retry.ts	1
@@ -621,7 +622,8 @@ as-unknown-as	src/services/changeTransaction/snapshotAnchor.ts	1
 as-unknown-as	src/services/compact/foldTransaction.ts	1
 as-unknown-as	src/services/desktop/nativeDriver.ts	1
 as-unknown-as	src/services/engine-connector/daemon/asks.ts	3
-as-unknown-as	src/services/engine-connector/daemonConnector.ts	7
+as-unknown-as	src/services/engine-connector/daemon/delivery.ts	1
+as-unknown-as	src/services/engine-connector/daemonConnector.ts	6
 as-unknown-as	src/services/engine-connector/endedRunCalls.ts	1
 as-unknown-as	src/services/engine-connector/midTurnText.ts	1
 as-unknown-as	src/services/engine-connector/queuedNotices.ts	1

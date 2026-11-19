@@ -14,9 +14,11 @@ const PARTS: Readonly<Record<string, { file: string; type: string }>> = {
   asksPart: { file: 'asks.ts', type: 'AsksPart' },
   carrierPart: { file: 'carrier.ts', type: 'CarrierPart' },
   completionPart: { file: 'completion.ts', type: 'CompletionPart' },
+  deliveryPart: { file: 'delivery.ts', type: 'DeliveryPart' },
   factsPart: { file: 'facts.ts', type: 'FactsPart' },
   foldPart: { file: 'fold.ts', type: 'FoldPart' },
   livePart: { file: 'live.ts', type: 'LivePart' },
+  sendsPart: { file: 'sends.ts', type: 'SendsPart' },
   tailPart: { file: 'tail.ts', type: 'TailPart' },
   workPart: { file: 'work.ts', type: 'WorkPart' },
 }
@@ -26,7 +28,6 @@ const OF_THE_DOOR: readonly string[] = ['carrier', 'record', 'hands', 'attached'
 const REACHED_BY_PROOFS: readonly string[] = ['textRows', 'liveStateWord']
 
 const AWAITING_THEIR_PART: Readonly<Record<string, readonly string[]>> = {
-  sends: ['sends', 'echoRows', 'deliveredNotices', 'sendSeq', 'textRetiredRowUuids', 'retainedSend', 'runnerGeneration', 'lostLineNotice', 'settleWaiters'],
   transcript: ['rawRecords', 'recordSigs', 'painted', 'keptRecords', 'answeredRows', 'liveState', 'displayRows', 'clearModelReceipt', 'rowsAfterTail', 'lastSize', 'lastLen', 'transcriptUnreadableFp', 'chainCursor', 'liveFold', 'releaseTranscript', 'transcriptWatcher', 'transcriptTimer', 'transcriptTimerMs', 'tickInFlight', 'tickDirty', 'transcriptPath', 'recordListeners'],
 }
 

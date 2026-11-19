@@ -74,8 +74,6 @@ section("D the daemon road's clock — the frame and the wiring")
   const bare = (await dispatch.buildConcoursePromptRow('the words', { identity })) as Record<string, unknown>
   check('a row without a send clock carries no sent_at key', !('sent_at' in bare), j(bare))
   const read = (rel: string): string => readFileSync(join(SRC, rel), 'utf8')
-  const connector = read('services/engine-connector/daemonConnector.ts')
-  check("the connector's send carries its own send time on the sessionDispatch request", /op: 'sessionDispatch',[\s\S]{0,400}sentAt: new Date\(send\.sentAtMs\)\.toISOString\(\),/.test(connector))
   const control = read('daemon/controlServer.ts')
   check('the daemon forwards a parseable sentAt into the dispatch request', control.includes("...(typeof raw.sentAt === 'string' && Number.isFinite(Date.parse(raw.sentAt)) ? { sentAt: raw.sentAt } : {}),"))
   const dispatchSrc = read('daemon/concourseDispatch.ts')

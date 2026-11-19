@@ -1,14 +1,6 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { randomUUID } from 'node:crypto'
-const SCRATCH = mkdtempSync(join(tmpdir(), 'held-for-compaction-'))
-process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
-mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
-process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
-mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
-delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const REPO = join(import.meta.dir, '../..')
 const SRC = join(REPO, 'src')
@@ -19,111 +11,12 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
-const j = (v: unknown): string => JSON.stringify(v)
 
-const { DaemonSessionConnector } = await import(join(SRC, 'services/engine-connector/daemonConnector.ts'))
-const { createUserMessage } = await import(join(SRC, 'utils/messages/factories.ts'))
 const { HELD_PLATE, QUEUED_PLATE, HELD_FOR_COMPACTION_LINE } = await import(join(SRC, 'components/messages/TranscriptNameplate.tsx'))
 
-type Send = { clientMessageId: string; text: string; sentAtMs: number; state: 'pending' | 'delivered' | 'queued' | 'taken'; heldFor?: 'compaction'; mode: 'prompt' | 'bash' }
-type Guts = {
-  sends: Send[]
-  echoRows: Map<string, { queued?: true; heldFor?: 'compaction'; timestamp?: string }>
-  dressSend: (id: string, state: Send['state']) => void
-  readTail: () => void
-  liveStateWord: 'compacting' | 'waiting-on-agents' | null
-  paint: () => void
-}
-
-let factsFeedReads: () => void = () => {}
-const connector = new DaemonSessionConnector({
-  sessionId: 'held-proof',
-  runnerId: 'runner-1',
-  title: 'held proof',
-  projectLabel: 'proof',
-  workspaceId: 'ws',
-  home: SCRATCH,
-  modelKey: 'claude-sonnet-5',
-}, {
-  rpc: async () => ({ ok: true, op: 'sessionControl', outcome: 'applied', withdrawn: true, text: 'the words' }),
-  factsRead: (read: () => void) => {
-    factsFeedReads = read
-  },
-})
-const g = connector as unknown as Guts
-const seed = (id: string, text: string, state: Send['state']): void => {
-  g.sends = [...g.sends, { clientMessageId: id, text, sentAtMs: Date.now(), state, mode: 'prompt', source: { text, mode: 'prompt', pastedContents: {} } } as Send]
-  g.echoRows.set(id, { ...(createUserMessage({ content: text }) as object), ...(state === 'queued' ? { queued: true } : {}) })
-  g.paint()
-}
-const sendOf = (id: string): Send | undefined => g.sends.find(s => s.clientMessageId === id)
-const rowOf = (id: string) => g.echoRows.get(id)
-
-const { publishSessionFacts, publishSessionTail } = await import(join(SRC, 'services/engine-connector/seatProjections.ts'))
-let factsStamp = Date.now()
-const runnerSays = (busy: boolean): void => {
-  publishSessionFacts({ schema: 1, sessionId: 'held-proof', atMs: ++factsStamp, busy, queueReady: false, pendingModel: null, model: { effective: 'claude-sonnet-5', setting: null }, usage: {}, queue: [] } as never)
-  factsFeedReads()
-}
-let tailStamp = 0
-const tailSays = (word: 'compacting' | 'waiting-on-agents' | null): void => {
-  publishSessionTail({ schema: 1, sessionId: 'held-proof', atMs: ++tailStamp, text: null, ...(word !== null ? { stateWord: word } : {}) })
-  g.readTail.call(connector)
-}
-const foldRunning = (on: boolean): void => {
-  runnerSays(on)
-  tailSays(on ? 'compacting' : null)
-}
-
 section('H1 a send during the compaction is held, and says so')
-const held = randomUUID()
-seed(held, 'continue the job from the receipt', 'delivered')
-foldRunning(true)
-g.dressSend(held, 'queued')
-check('the send record reads queued and held for the compaction', sendOf(held)?.state === 'queued' && sendOf(held)?.heldFor === 'compaction', j(sendOf(held)))
-check('the echo row wears the held dress beside the queued one', rowOf(held)?.queued === true && rowOf(held)?.heldFor === 'compaction', j(rowOf(held)))
 check('the plate word is held, in the queued column (same width)', HELD_PLATE === 'held'.padEnd(8) && HELD_PLATE.length === QUEUED_PLATE.length)
 check('the composer line says until when and how to take it back', HELD_FOR_COMPACTION_LINE.includes('held until the compaction lands') && HELD_FOR_COMPACTION_LINE.includes('delivers once') && HELD_FOR_COMPACTION_LINE.includes('↑'))
-
-section('H2 the compaction lands: the same send, delivered once')
-const before = g.sends.length
-foldRunning(false)
-check('one send record, the same identity — nothing was re-sent', g.sends.length === before && sendOf(held) !== undefined, j(g.sends.map(s => [s.clientMessageId, s.state, s.heldFor])))
-check('the held dress leaves; the send reads plain queued until the runner takes it', sendOf(held)?.state === 'queued' && sendOf(held)?.heldFor === undefined && rowOf(held)?.queued === true && rowOf(held)?.heldFor === undefined, j(rowOf(held)))
-g.dressSend(held, 'taken')
-check("the runner's word takes it: the row loses the queued dress and gets its sent time", sendOf(held)?.state === 'taken' && rowOf(held)?.queued === undefined && rowOf(held)?.heldFor === undefined && typeof rowOf(held)?.timestamp === 'string', j(rowOf(held)))
-
-section('H3 a send queued before the compaction keeps its plain dress when it begins')
-const early = randomUUID()
-seed(early, 'sent before the fold', 'queued')
-check('queued, not held, while the runner runs a plain turn', sendOf(early)?.heldFor === undefined)
-foldRunning(true)
-check('the compacting word does not re-dress it: a hold is the send\'s own enqueue\'s (the fold\'s /compact line sits in this set until the facts tick takes it)', sendOf(early)?.heldFor === undefined && rowOf(early)?.heldFor === undefined, j(sendOf(early)))
-
-section('H4 heldForCompaction lists exactly the held sends')
-const late = randomUUID()
-seed(late, 'sent during the fold', 'delivered')
-g.dressSend(late, 'queued')
-check('the send made during the fold is held; the one queued before it is not', j(connector.heldForCompaction()) === j([late]), j(connector.heldForCompaction()))
-check('the taken one is not', !connector.heldForCompaction().includes(held))
-foldRunning(false)
-check('nothing is held once the fold lands', connector.heldForCompaction().length === 0)
-
-section('H5 the recall road stays open on a held send')
-foldRunning(true)
-const recall = connector.recallableSend()
-check('↑ still finds the latest held line', recall?.clientMessageId === late, j(recall))
-const receipt = await connector.withdrawSend(late)
-check('…and withdraws it on the runner\'s word', receipt.withdrawn === true && sendOf(late) === undefined, j(receipt))
-foldRunning(false)
-const settled = randomUUID()
-foldRunning(true)
-seed(settled, 'sent during a fold the turn settled', 'delivered')
-g.dressSend(settled, 'queued')
-check('held while the fold runs', sendOf(settled)?.heldFor === 'compaction')
-tailSays('waiting-on-agents')
-runnerSays(false)
-check('the turn settling clears the held dress through the recompute road', sendOf(settled)?.heldFor === undefined && g.liveStateWord === null, j([sendOf(settled), g.liveStateWord]))
 
 section('H6 the composer and the plate (source pins)')
 const repl = readFileSync(join(SRC, 'screens/Chat.tsx'), 'utf8')

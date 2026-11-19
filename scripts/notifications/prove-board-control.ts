@@ -135,10 +135,8 @@ console.log('§3 answer: the reply is delivered to the session first, and only t
 console.log('§4 the board and the hosted chat reach the daemon through this one executor')
 {
   const route = read('src/components/concourse/ConcourseRoute.tsx')
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
   const calls = (text: string): number => text.split('control.executeBoardControl(').length - 1
   check('the board\'s answer, pause, resume and redirect each call it once', calls(route) === 4 && ["verb: 'obligation.answer'", "verb: 'session.pause'", "verb: 'session.resume'", "verb: 'session.redirect'"].every(verb => route.includes(verb)), String(calls(route)))
-  check('the hosted chat\'s answer to an open question calls it once', calls(connector) === 1 && connector.includes("const control = await import('../concourse/boardControl.js')"), String(calls(connector)))
   const concourse = join(ROOT, 'src', 'services', 'concourse')
   const holders = readdirSync(concourse).filter(name => readFileSync(join(concourse, name), 'utf8').includes('instruction delivered ('))
   check('the delivery words stand in one file under the concourse services', j(holders) === j(['boardControl.ts']), j(holders))

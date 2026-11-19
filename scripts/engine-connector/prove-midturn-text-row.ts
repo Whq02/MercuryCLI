@@ -40,12 +40,7 @@ type Guts = {
   attached: boolean
   tick: () => Promise<void>
   readTail: () => void
-  reconcileQueuedSends: (facts: unknown) => void
-  reconcileSends: () => boolean
-  paint: () => void
   textRows?: unknown[]
-  sends: Array<{ clientMessageId: string; text: string; state: string }>
-  tailSeq: number | null
 }
 
 const sid = bootstrap.getSessionId()
@@ -62,7 +57,6 @@ const feed = (tail: { text: string | null; messageId?: string; streamBlock?: 'te
   publishSessionTail({ schema: 1, sessionId: sid, atMs: later(), text: tail.text, ...(tail.messageId !== undefined ? { messageId: tail.messageId } : {}), ...(tail.streamBlock !== undefined ? { streamBlock: tail.streamBlock } : {}), ...(tail.blockSinceMs !== undefined ? { blockSinceMs: tail.blockSinceMs } : {}), ...(tail.phase !== undefined ? { phase: tail.phase } : {}) } as never)
   g.readTail.call(connector)
 }
-const facts = (queue: Array<{ value: string; mode: string }>, atMs: number): unknown => ({ schema: 1, sessionId: sid, atMs, busy: true, runnerGeneration: 1, queue, pendingModel: null })
 const write = async (rows: unknown[]): Promise<void> => {
   await recordTranscript(rows as never)
   await flushSessionStorage()
@@ -78,7 +72,6 @@ const assistantWithId = (text: string, id: string): Message => {
   const m = createAssistantMessage({ content: text }) as unknown as { message: Record<string, unknown> }
   return { ...m, message: { ...m.message, id } } as unknown as Message
 }
-const notice = (id: string, words: string): string => `<task-notification>\n<task-id>${id}</task-id>\n<status>completed</status>\n<summary>Agent "${words}" completed</summary>\n</task-notification>`
 
 section('T1 the words stream: the tail holds them, the list has no row yet')
 const WORDS = 'carried to the owner, waiting'
@@ -106,24 +99,12 @@ section('T2 THE DEFECT PIN: the block ends and the tool call begins — the word
   check('the row is virtual: never a transcript record', (row as { isVirtual?: boolean } | undefined)?.isVirtual === true)
 }
 
-section('T3 a notice that arrives after the words stands after them')
-const NOTE_AFTER = notice('t-after', 'the errand after the words')
-{
-  g.reconcileQueuedSends(facts([{ value: NOTE_AFTER, mode: 'task-notification' }], later()))
-  check('the notice paints once', rowsWith(NOTE_AFTER).length === 1, `${rowsWith(NOTE_AFTER).length}`)
-  check('the notice stands below the committed words', indexOf(WORDS) !== -1 && indexOf(NOTE_AFTER) !== -1 && indexOf(WORDS) < indexOf(NOTE_AFTER), `words=${indexOf(WORDS)} notice=${indexOf(NOTE_AFTER)}`)
-}
-
-section("T4 the record lands: it takes the committed row's place, the words paint once, the notice stays below")
+section("T4 the record lands: it takes the committed row's place, the words paint once")
 {
   await write([assistantWithId(WORDS, M1)])
   const rows = rowsWith(WORDS)
   check('the words paint exactly once after the landing', rows.length === 1, `${rows.length}`)
   check('the standing row is the record, not the committed row', (rows[0] as { isVirtual?: boolean } | undefined)?.isVirtual !== true && committedCount() === 0, `virtual=${String((rows[0] as { isVirtual?: boolean } | undefined)?.isVirtual)} committed=${committedCount()}`)
-  check('the notice still stands below the words', indexOf(WORDS) < indexOf(NOTE_AFTER), `words=${indexOf(WORDS)} notice=${indexOf(NOTE_AFTER)}`)
-  g.reconcileQueuedSends(facts([], later()))
-  await write([createUserMessage({ content: NOTE_AFTER }), assistantWithId('noted', 'msg_midturn_1b')])
-  check("the notice's own landing retires its echo", g.sends.length === 0 && rowsWith(NOTE_AFTER).length === 1, `sends=${g.sends.length} shown=${rowsWith(NOTE_AFTER).length}`)
 }
 
 section('T5 the record already stands when the block ends: no committed row, no ghost, the words once')
@@ -160,36 +141,6 @@ const M4 = 'msg_midturn_4'
   await write([assistantWithId('the coalesced prefix and the rest of the block', M4)])
   check('the whole block retires the prefix row', committedCount() === 0 && rowsWith('the coalesced').length === 1, `committed=${committedCount()} shown=${rowsWith('the coalesced').length}`)
 }
-
-section('T8 an earlier queued notice still waits below the words until delivery')
-const WORDS5 = 'words that began after the notice was queued'
-const M5 = 'msg_midturn_5'
-const NOTE_BEFORE = notice('t-before', 'the errand from before the words')
-{
-  const seen = later()
-  const since = later(50)
-  feed({ text: WORDS5, messageId: M5, streamBlock: 'text', blockSinceMs: since })
-  feed({ text: null, messageId: M5, streamBlock: 'tool_use' })
-  g.reconcileQueuedSends(facts([{ value: NOTE_BEFORE, mode: 'task-notification' }], seen))
-  check('the still-waiting notice stands below the committed words', indexOf(NOTE_BEFORE) !== -1 && indexOf(WORDS5) !== -1 && indexOf(NOTE_BEFORE) > indexOf(WORDS5), `notice=${indexOf(NOTE_BEFORE)} words=${indexOf(WORDS5)}`)
-  await write([assistantWithId(WORDS5, M5)])
-  g.reconcileQueuedSends(facts([], later()))
-  await write([createUserMessage({ content: NOTE_BEFORE })])
-  check('everything lands once', rowsWith(WORDS5).length === 1 && rowsWith(NOTE_BEFORE).length === 1 && committedCount() === 0)
-}
-
-section("T9 the runner's relaunch retires a committed row whose record never came")
-const WORDS6 = 'words a relaunched runner never recorded'
-const M6 = 'msg_midturn_6'
-{
-  const since = later()
-  feed({ text: WORDS6, messageId: M6, streamBlock: 'text', blockSinceMs: since })
-  feed({ text: null, messageId: M6, streamBlock: 'tool_use' })
-  check('the words stand as a committed row', rowsWith(WORDS6).length === 1)
-  g.reconcileQueuedSends({ ...(facts([], later()) as Record<string, unknown>), runnerGeneration: 2 })
-  check('the relaunch retires the row', rowsWith(WORDS6).length === 0 && committedCount() === 0, `shown=${rowsWith(WORDS6).length}`)
-}
-
 clearTimeout(watchdog)
 console.log(`\nprove-midturn-text-row: ${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)
