@@ -72,24 +72,24 @@ interface Pending {
 export class UnityBridgeClient {
   private readonly port: number
   private readonly token: string
-  private socket: net.Socket | null = null
-  private state: 'disconnected' | 'connecting' | 'ready' = 'disconnected'
+  socket: net.Socket | null = null
+  state: 'disconnected' | 'connecting' | 'ready' = 'disconnected'
   private closed = false
   private buf = ''
   private nextId = 1
-  private pending = new Map<number, Pending>()
-  private queue: Array<{ op: string; args: Record<string, unknown> | undefined; timeoutMs: number; resolve: (r: UnityBridgeResult) => void; queueTimer: NodeJS.Timeout | null }> = []
-  private helloTimer: NodeJS.Timeout | null = null
-  private events: UnityBridgeEvent[] = []
+  pending = new Map<number, Pending>()
+  queue: Array<{ op: string; args: Record<string, unknown> | undefined; timeoutMs: number; resolve: (r: UnityBridgeResult) => void; queueTimer: NodeJS.Timeout | null }> = []
+  helloTimer: NodeJS.Timeout | null = null
+  events: UnityBridgeEvent[] = []
   private heartbeat: NodeJS.Timeout | null = null
   private pongTimer: NodeJS.Timeout | null = null
-  private backoffMs: number
-  private backoffUntil = 0
-  private helloError: UnityBridgeError | null = null
-  private lastHello: UnityBridgeHelloInfo | null = null
+  backoffMs: number
+  backoffUntil = 0
+  helloError: UnityBridgeError | null = null
+  lastHello: UnityBridgeHelloInfo | null = null
   private readonly heartbeatMs: number
   private readonly pongTimeoutMs: number
-  private readonly backoffStartMs: number
+  readonly backoffStartMs: number
   private readonly backoffCapMs: number
   private readonly connectTimeoutMs: number
   private readonly helloTimeoutMs: number
@@ -240,59 +240,10 @@ export class UnityBridgeClient {
   }
 
   private onFrame(frame: Exclude<ReturnType<typeof parseUnityBridgeFrame>, { kind: 'unknown' }>): void {
-    if (this.state === 'connecting') {
-      if (this.helloTimer) {
-        clearTimeout(this.helloTimer)
-        this.helloTimer = null
-      }
-      if ((frame.kind === 'hello-reply' || frame.kind === 'response') && frame.ok === true) {
-        const info = (frame.result ?? null) as UnityBridgeHelloInfo | null
-        const remote = typeof info?.version === 'number' ? info.version : undefined
-        if (remote !== UNITY_BRIDGE_PROTOCOL_VERSION) {
-          this.helloError = {
-            code: 'BRIDGE_VERSION_SKEW',
-            message: `the bridge package speaks protocol ${remote ?? '(unstated)'} but this Mercury speaks ${UNITY_BRIDGE_PROTOCOL_VERSION}`,
-            hint: 'op:"unity_bridge_install" refreshes the bundled package so both halves match',
-          }
-          this.socket?.destroy(new Error('bridge protocol version skew'))
-          return
-        }
-        this.lastHello = info
-        this.state = 'ready'
-        this.backoffMs = this.backoffStartMs
-        this.backoffUntil = 0
-        this.armHeartbeat()
-        const queued = this.queue.splice(0)
-        for (const q of queued) {
-          if (q.queueTimer) clearTimeout(q.queueTimer)
-          void this.send(q.op, q.args, q.timeoutMs).then(q.resolve)
-        }
-      } else {
-        const e = 'error' in frame ? frame.error : undefined
-        this.helloError = e ?? { code: 'AUTH_FAILED', message: 'handshake refused' }
-      }
-      return
-    }
-    if (frame.kind === 'response' && this.pending.has(frame.id)) {
-      const p = this.pending.get(frame.id)!
-      this.pending.delete(frame.id)
-      clearTimeout(p.timer)
-      if (frame.ok === true) p.resolve({ ok: true, result: frame.result })
-      else {
-        p.resolve({
-          ok: false,
-          error: frame.error ?? { code: 'BAD_FRAME', message: 'error frame without error body' },
-        })
-      }
-      return
-    }
-    if (frame.kind === 'event') {
-      this.events.push({ event: frame.event, data: frame.data, at: Date.now() })
-      if (this.events.length > MAX_EVENTS) this.events.splice(0, this.events.length - MAX_EVENTS)
-    }
+    return onFrameOf.call(this, frame)
   }
 
-  private send(
+  send(
     op: string,
     args: Record<string, unknown> | undefined,
     timeoutMs: number,
@@ -319,7 +270,7 @@ export class UnityBridgeClient {
     })
   }
 
-  private armHeartbeat(): void {
+  armHeartbeat(): void {
     this.clearHeartbeat()
     this.heartbeat = setInterval(() => {
       const socket = this.socket
@@ -383,6 +334,59 @@ export class UnityBridgeClient {
       if (q.queueTimer) clearTimeout(q.queueTimer)
       q.resolve(reason)
     }
+  }
+}
+
+function onFrameOf(this: UnityBridgeClient, frame: Exclude<ReturnType<typeof parseUnityBridgeFrame>, { kind: 'unknown' }>): void {
+  if (this.state === 'connecting') {
+    if (this.helloTimer) {
+      clearTimeout(this.helloTimer)
+      this.helloTimer = null
+    }
+    if ((frame.kind === 'hello-reply' || frame.kind === 'response') && frame.ok === true) {
+      const info = (frame.result ?? null) as UnityBridgeHelloInfo | null
+      const remote = typeof info?.version === 'number' ? info.version : undefined
+      if (remote !== UNITY_BRIDGE_PROTOCOL_VERSION) {
+        this.helloError = {
+          code: 'BRIDGE_VERSION_SKEW',
+          message: `the bridge package speaks protocol ${remote ?? '(unstated)'} but this Mercury speaks ${UNITY_BRIDGE_PROTOCOL_VERSION}`,
+          hint: 'op:"unity_bridge_install" refreshes the bundled package so both halves match',
+        }
+        this.socket?.destroy(new Error('bridge protocol version skew'))
+        return
+      }
+      this.lastHello = info
+      this.state = 'ready'
+      this.backoffMs = this.backoffStartMs
+      this.backoffUntil = 0
+      this.armHeartbeat()
+      const queued = this.queue.splice(0)
+      for (const q of queued) {
+        if (q.queueTimer) clearTimeout(q.queueTimer)
+        void this.send(q.op, q.args, q.timeoutMs).then(q.resolve)
+      }
+    } else {
+      const e = 'error' in frame ? frame.error : undefined
+      this.helloError = e ?? { code: 'AUTH_FAILED', message: 'handshake refused' }
+    }
+    return
+  }
+  if (frame.kind === 'response' && this.pending.has(frame.id)) {
+    const p = this.pending.get(frame.id)!
+    this.pending.delete(frame.id)
+    clearTimeout(p.timer)
+    if (frame.ok === true) p.resolve({ ok: true, result: frame.result })
+    else {
+      p.resolve({
+        ok: false,
+        error: frame.error ?? { code: 'BAD_FRAME', message: 'error frame without error body' },
+      })
+    }
+    return
+  }
+  if (frame.kind === 'event') {
+    this.events.push({ event: frame.event, data: frame.data, at: Date.now() })
+    if (this.events.length > MAX_EVENTS) this.events.splice(0, this.events.length - MAX_EVENTS)
   }
 }
 
