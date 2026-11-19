@@ -7,7 +7,7 @@ import { Box, Text, useInput } from '../../../ink.js'
 import { usePopupListPaging } from '../../CustomSelect/popup-list.js'
 import type { SessionListing } from '../../../types/logs.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
-import { formatFileSize, formatRelativeTimeAgo } from '../../../utils/format.js'
+import '../../../utils/format.js'
 import { retentionWindowDays } from '../../../utils/cleanup.js'
 import {
   buildPruneOffer,
@@ -19,34 +19,24 @@ import { boardHomedSessionIds, readSessionWorkers } from '../../../daemon/concou
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { sanitizeLabel } from '../../../services/concourse/concourseSnapshot.js'
 import { sessionIdOfListing } from '../../../utils/sessionStorage.js'
-import { AMBER, CRIMSON, DUNE, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
+import { SECOND } from '../../mercuryPalette.js'
 import { useSessionPickerModel, type SessionScope } from './sessionPickerModel.js'
 import { useMercuryTokens } from '../useMercuryTokens.js'
-import {
-  CommandCenter,
-  EmptyState,
-  SectionHeader,
-} from '../components.js'
-import { truncateToWidth } from '../glyphs.js'
+import { CommandCenter, EmptyState } from '../components.js'
+import '../glyphs.js'
 import { useSessionAccent } from '../sessionAccent.js'
-import { critterForKey } from '../../../utils/cockpit/critterVariant.js'
+import '../../../utils/cockpit/critterVariant.js'
 import { Spinner } from '../../Spinner.js'
 import { useOpenEventGate } from '../useOpenEventGate.js'
 import { useStableSelection } from '../useStableSelection.js'
 import { decodeNavKey } from '../navSemantics.js'
-import { InteractiveRow } from '../InteractiveRow.js'
+import '../InteractiveRow.js'
+import { prunePaneOf, sessionListView, type OwnSessionStateWords } from './sessionManager/views.js'
 
 function shellInteriorWidth(columns: number): number {
   return Math.max(40, columns - 4)
 }
 
-
-interface OwnSessionStateWords {
-  glyph: string
-  state: string
-  tail: string
-  parked: boolean
-}
 
 export function ownSessionStateWords(rec: { parkedAt?: number; parkReason?: string; endedAt?: number } | undefined): OwnSessionStateWords {
   if (rec !== undefined && rec.endedAt === undefined && rec.parkedAt !== undefined) {
@@ -345,236 +335,8 @@ function LiveSessionManager({
   }
 
   if (prune !== null) {
-    const pruneFooter =
-      prune.stage === 'card'
-        ? prune.offer.candidates.length > 0
-          ? '↑↓ choose · ↵ commit (No is the default) · esc / n keep everything'
-          : '↵ / esc close'
-        : prune.stage === 'receipt'
-          ? '↵ / esc back to the list'
-          : 'deleting the named set…'
-    return (
-      <CommandCenter
-        view="sessions"
-        onClose={() => setPrune(null)}
-        captureInput={false}
-        closeKeys={prune.stage === 'deleting' ? 'none' : 'esc-arrow'}
-        footer={pruneFooter}
-      >
-        {prune.stage === 'card' ? (
-          <Box marginTop={1} flexDirection="column">
-            <Text wrap="truncate">
-              <Text bold color={AMBER}>prune transcripts</Text>
-              <Text color={FAINT}> · the one deleting door — nothing is ever deleted automatically</Text>
-            </Text>
-            <Box marginTop={1} flexDirection="column">
-              <Text wrap="truncate" color={SECOND}>
-                scope: <Text color={IVORY}>{prune.offer.scopeLabel}</Text> older than{' '}
-                <Text color={IVORY}>{prune.offer.windowDays} days</Text>
-              </Text>
-              {prune.offer.candidates.length > 0 ? (
-                <>
-                  <Text wrap="truncate" color={SECOND}>
-                    would delete:{' '}
-                    <Text color={IVORY}>
-                      {prune.offer.candidates.length} transcript
-                      {prune.offer.candidates.length === 1 ? '' : 's'}
-                    </Text>
-                    {' '}· total <Text color={IVORY}>{formatFileSize(prune.offer.totalBytes)}</Text>
-                  </Text>
-                  <Text wrap="truncate" color={SECOND}>
-                    age range:{' '}
-                    <Text color={IVORY}>
-                      {prune.offer.oldestModified
-                        ? formatRelativeTimeAgo(prune.offer.oldestModified, { style: 'short' })
-                        : '—'}
-                      {' → '}
-                      {prune.offer.newestModified
-                        ? formatRelativeTimeAgo(prune.offer.newestModified, { style: 'short' })
-                        : '—'}
-                    </Text>
-                  </Text>
-                </>
-              ) : (
-                <Text wrap="truncate" color={FAINT}>
-                  nothing to prune — no listed chat is older than {prune.offer.windowDays} days
-                </Text>
-              )}
-            </Box>
-            <Box marginTop={1} flexDirection="column">
-              <Text>
-                <Text color={prune.answer === 'no' ? accent : FAINT}>
-                  {prune.answer === 'no' ? '▸ ' : '  '}
-                </Text>
-                <Text bold={prune.answer === 'no'} color={prune.answer === 'no' ? IVORY : SECOND}>
-                  No — keep everything
-                </Text>
-                <Text color={FAINT}> (default)</Text>
-              </Text>
-              {prune.offer.candidates.length > 0 ? (
-                <Text>
-                  <Text color={prune.answer === 'yes' ? accent : FAINT}>
-                    {prune.answer === 'yes' ? '▸ ' : '  '}
-                  </Text>
-                  <Text bold={prune.answer === 'yes'} color={prune.answer === 'yes' ? CRIMSON : SECOND}>
-                    Yes — delete exactly this set, for good
-                  </Text>
-                </Text>
-              ) : null}
-            </Box>
-            <Box marginTop={1}>
-              <Text wrap="truncate" color={FAINT}>
-                deletes exactly the set named above · asked every time, never remembered
-              </Text>
-            </Box>
-          </Box>
-        ) : prune.stage === 'deleting' ? (
-          <Box marginTop={1}>
-            <Spinner />
-            <Text color={SECOND}> Deleting the named set…</Text>
-          </Box>
-        ) : (
-          <Box marginTop={1} flexDirection="column">
-            <Text wrap="truncate">
-              <Text bold color={TEAL}>pruned</Text>
-              <Text color={FAINT}> · the operator's own act</Text>
-            </Text>
-            <Box marginTop={1} flexDirection="column">
-              <Text wrap="truncate" color={SECOND}>
-                deleted{' '}
-                <Text color={IVORY}>
-                  {prune.receipt.deleted} transcript{prune.receipt.deleted === 1 ? '' : 's'}
-                </Text>
-                {' '}· freed <Text color={IVORY}>{formatFileSize(prune.receipt.bytesFreed)}</Text>
-                {' '}· <Text color={IVORY}>{formatRelativeTimeAgo(prune.receipt.at, { style: 'short' })}</Text>
-                {' '}· by the operator
-              </Text>
-              {prune.receipt.failed > 0 ? (
-                <Text wrap="truncate" color={AMBER}>
-                  {prune.receipt.failed} could not be deleted — still listed
-                </Text>
-              ) : null}
-            </Box>
-          </Box>
-        )}
-      </CommandCenter>
-    )
+    return prunePaneOf({ prune, setPrune, accent })
   }
 
-  return (
-    <CommandCenter view="sessions"
-      onClose={onClose}
-      captureInput={false} footer={footer} bodyOwnsPageKeys ><Box marginTop={1}>
-        <Text wrap="truncate">
-          <Text color={accent}>▣ </Text>
-          <Text bold color={IVORY}>this session</Text>
-          <Text color={ownState.parked ? AMBER : TEAL}> {ownState.glyph} {ownState.state}</Text>
-          <Text color={FAINT}>{ownState.tail}</Text>
-        </Text>
-      </Box>
-
-      <SectionHeader count={flat.length}>
-        {`${scope === 'project' ? 'Switch to' : 'Full history — every project, cleared included'}${pendingMore > 0 ? ` · loading ${pendingMore} more…` : ''}`}
-      </SectionHeader>
-      {logs === null || (flat.length === 0 && pendingMore > 0) ? (
-        <Box>
-          <Spinner />
-          <Text color={SECOND}> Loading sessions…</Text>
-        </Box>
-      ) : flat.length === 0 ? (
-        <EmptyState
-          tone="idle"
-          glyph="⦿"
-          title={
-            scope === 'project'
-              ? 'No other sessions in this project'
-              : 'No other sessions anywhere'
-          }
-          hint={
-            scope === 'project' && elsewhereCount > 0
-              ? `n starts a fresh session in-place · ${elsewhereCount} in other projects — a shows them`
-              : 'n starts a fresh session in-place · this is the only open session'
-          }
-        />
-      ) : (
-        <>
-          {newerHidden > 0 ? (
-            <Text color={FAINT}>  ↑ +{newerHidden} newer — ↑ scrolls</Text>
-          ) : null}
-          <Box flexDirection="row" flexWrap="wrap" marginTop={1}>
-            {shown.map((f, wi) => {
-              const i = winStart + wi
-              const on = i === sel
-              const pending = confirming === i
-              const def = critterForKey(sessionIdOfListing(f.row.log) ?? f.row.label)
-              const cardKey = navKeys[i] ?? (sessionIdOfListing(f.row.log) ?? f.row.label)
-              return (
-                <InteractiveRow
-                  key={cardKey}
-                  id={`sessions-live:card:${cardKey}`}
-                  selected={on}
-                  onSelect={() => moveTo(i)}
-                  onActivate={() => setConfirmingKey(navKeys[i] ?? null)}
-                  flexDirection="column"
-                  flexShrink={0}
-                >
-                {hover => (
-                <Box
-                  borderStyle="round"
-                  borderColor={pending ? AMBER : on ? def.hue : DUNE}
-                  backgroundColor={hover ? tokens.surface2 : undefined}
-                  paddingX={1}
-                  marginRight={1}
-                  marginBottom={1}
-                  width={26}
-                  flexDirection="column"
-                >
-                  <Text>
-                    <Text bold color={def.hue}>{truncateToWidth(f.project, 15)}</Text>
-                    {on ? <Text color={TEAL}> ▸</Text> : null}
-                  </Text>
-                  <Text color={on ? IVORY : SECOND}>{truncateToWidth(f.row.label, 22)}</Text>
-                  {}
-                  <Text color={FAINT}>
-                    {truncateToWidth(
-                      f.row.cleared ? `${f.row.seen} · cleared` : f.row.seen,
-                      22,
-                    )}
-                  </Text>
-                  {pending ? <Text color={AMBER}>are you sure? ↵ yes</Text> : null}
-                </Box>
-                )}
-                </InteractiveRow>
-              )
-            })}
-          </Box>
-        </>
-      )}
-      {olderHidden > 0 ? (
-        <Text color={FAINT}>  ↓ +{olderHidden} older — ↓ scrolls</Text>
-      ) : null}
-      {}
-      {scope === 'project' && flat.length > 0 && elsewhereCount > 0 ? (
-        <Text color={FAINT}>  +{elsewhereCount} in other projects — a shows all history</Text>
-      ) : null}
-
-      {}
-      {confirming !== null && targetAt(confirming) ? (
-        <Box marginTop={1}>
-          <Text bold color={AMBER}>are you sure? </Text>
-          <Text color={SECOND}>
-            {truncateToWidth(`switch to "${targetLabel(confirming)}" — this session pauses (state preserved). ↵ yes · esc cancel`, W - 16)}
-          </Text>
-        </Box>
-      ) : (
-        <Box marginTop={1}>
-          <Text color={FAINT}>
-            {truncateToWidth(
-              '↵ arms a confirm, then swaps in-place — both sessions keep their state; switch back any time',
-              W - 2,
-            )}
-          </Text>
-        </Box>
-      )}</CommandCenter>
-  )
+  return sessionListView({ onClose, footer, accent, ownState, flat, scope, pendingMore, logs, elsewhereCount, newerHidden, shown, winStart, sel, confirming, navKeys, moveTo, setConfirmingKey, tokens, olderHidden, targetAt, targetLabel, W })
 }
