@@ -1,0 +1,154 @@
+import { basename } from 'node:path';
+import type { chatOnlyBoot, stripFacts } from '../../context/surfaceRoute.js';
+import { menuRowValueLabel, menuRowWarning, type readBootDefaultsProfile, type resolveEffectiveSettingsSnapshot, type ExplicitApplyReceipt, type MenuRow } from '../../substrate/startupMenu.js';
+import { seatCeilingDetailLines, type SeatCeilingFacts, seatCeilingValueWords } from '../../services/switchboard/capacityCheck.js';
+import { motionDetailLines, motionValueWords, type readMotionSetting } from '../../utils/cockpit/motionSetting.js';
+import { jevValueWords, type readJevSettings } from '../../services/jev/jevSetting.js';
+import { backgroundLaunchValueWords, type backgroundSessionsLaunchCrewmates } from '../../services/switchboard/backgroundLaunch.js';
+import type { useEngineModel } from '../../hooks/useEngineModel.js';
+import { renderModelChip } from '../../utils/model/model.js';
+import { getSessionAccent, getSessionCritterKey } from '../mercury-ui/sessionAccent.js';
+import { isHelmHomeEnabled } from '../../utils/fullscreen.js';
+import type { useGreetingShimmer } from '../mercury-ui/useGreetingShimmer.js';
+import type { useInteractiveList } from '../mercury-ui/useInteractiveList.js';
+import { backgroundLaunchBootDetailLines } from './detailLines.js';
+
+export interface WorkerApplySummary {
+  runnerId: string;
+  sessionId: string;
+  snapshotRevision: number | null;
+  receipts: ExplicitApplyReceipt[] | null;
+}
+
+export type ApplyState = { phase: 'closed' } | { phase: 'loading' } | { phase: 'ready'; workers: WorkerApplySummary[] };
+
+export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot, concourseLive, dirTail, effectiveByEnv, isBackgroundLaunchRow, isJevRow, isMotionRow, isSeatsRow, jevDetailLines, jevSettings, lastReceipt, list, liveCount, mainModel, menuRows, motionSetting, plainWorld, profile, saved, seatFacts, wordGlow }: { apply: ApplyState; backgroundLaunchOn: ReturnType<typeof backgroundSessionsLaunchCrewmates>; changed: number; chatBoot: ReturnType<typeof stripFacts>['chatBoot']; concourseLive: boolean; dirTail: string; effectiveByEnv: Map<string, ReturnType<typeof resolveEffectiveSettingsSnapshot>['rows'][number]>; isBackgroundLaunchRow: (row: MenuRow) => boolean; isJevRow: (row: MenuRow) => boolean; isMotionRow: (row: MenuRow) => boolean; isSeatsRow: (row: MenuRow) => boolean; jevDetailLines: string[]; jevSettings: ReturnType<typeof readJevSettings>; lastReceipt: string | null; list: ReturnType<typeof useInteractiveList<MenuRow>>; liveCount: number | null; mainModel: ReturnType<typeof useEngineModel>; menuRows: readonly MenuRow[]; motionSetting: ReturnType<typeof readMotionSetting>; plainWorld: ReturnType<typeof chatOnlyBoot>; profile: ReturnType<typeof readBootDefaultsProfile>; saved: Record<string, string>; seatFacts: SeatCeilingFacts | null; wordGlow: ReturnType<typeof useGreetingShimmer> }) {
+  const entries = menuRows.map(row => {
+    if (isSeatsRow(row)) {
+      return {
+        label: row.label,
+        group: row.group,
+        summary: row.summary,
+        valueLabel: seatFacts === null ? 'reading capacity…' : seatCeilingValueWords(seatFacts),
+        valueIsDefault: seatFacts?.source !== 'operator',
+        pinnedVal: null,
+        detail: row.detail ?? null,
+        detailExtra: seatFacts === null ? ['reading capacity…'] : seatCeilingDetailLines(seatFacts),
+      };
+    }
+    if (isMotionRow(row)) {
+      return {
+        label: row.label,
+        group: row.group,
+        summary: row.summary,
+        valueLabel: motionValueWords(motionSetting),
+        valueIsDefault: motionSetting === 'auto',
+        pinnedVal: null,
+        detail: row.detail ?? null,
+        detailExtra: motionDetailLines(),
+      };
+    }
+    if (isJevRow(row)) {
+      return {
+        label: row.label,
+        group: row.group,
+        summary: row.summary,
+        valueLabel: jevValueWords(jevSettings),
+        valueIsDefault: !jevSettings.enabled,
+        pinnedVal: null,
+        detail: row.detail ?? null,
+        detailExtra: jevDetailLines,
+      };
+    }
+    if (isBackgroundLaunchRow(row)) {
+      return {
+        label: row.label,
+        group: row.group,
+        summary: row.summary,
+        valueLabel: backgroundLaunchValueWords(backgroundLaunchOn),
+        valueIsDefault: !backgroundLaunchOn,
+        pinnedVal: null,
+        detail: row.detail ?? null,
+        detailExtra: backgroundLaunchBootDetailLines(backgroundLaunchOn),
+      };
+    }
+    const effective = effectiveByEnv.get(row.env);
+    const envPinned = effective?.source === 'process-env';
+    return {
+      label: row.label,
+      group: row.group,
+      summary: row.summary,
+      valueLabel: menuRowValueLabel(row, saved[row.env] ?? null, env => {
+        const other = effectiveByEnv.get(env);
+        return other?.source === 'process-env' ? (other.value ?? null) : (saved[env] ?? null);
+      }),
+      valueIsDefault: saved[row.env] === undefined,
+      pinnedVal: envPinned ? (effective?.value ?? '') : null,
+      warn: menuRowWarning(row, envPinned ? (effective?.value ?? null) : (saved[row.env] ?? null)),
+      detail: row.detail ?? null,
+      detailExtra: [
+        `this session  ${effective ? (effective.value ?? 'default') : 'default'} (${effective?.source ?? 'default'})`,
+      ],
+    };
+  });
+  const harness = [
+    isHelmHomeEnabled() ? 'helm' : null,
+  ].filter(Boolean) as string[];
+  const critterKey = getSessionCritterKey();
+  const idleStatus =
+    (changed > 0 ? `${changed} choice${changed === 1 ? '' : 's'} saved — applies to new sessions` : 'changes reach new sessions') +
+    (liveCount !== null ? `  ·  ${liveCount} established session${liveCount === 1 ? '' : 's'} unchanged` : '');
+  const statusRight = list.note ?? lastReceipt ?? idleStatus;
+  return {
+    entries,
+    selIdx: list.selectedIndex,
+    summary: {
+      profile: `r${profile?.revision ?? 0} · ${changed > 0 ? `custom · ${changed} set` : 'default'}`,
+      harness: harness.join(' · ') || 'none',
+    },
+    environment: {
+      model: renderModelChip(mainModel),
+      critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
+      critterHue: getSessionAccent().accent,
+      dirBase: basename(process.cwd()) || process.cwd(),
+      dirTail,
+    },
+    statusRight,
+    glowWord: wordGlow,
+    legend: `↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts${concourseLive && !chatBoot ? ` · o ${plainWorld ? 'live view' : 'concourse'}` : ''} · esc ${apply.phase === 'closed' ? 'back' : 'close receipts'}`,
+    ...(apply.phase !== 'closed'
+      ? {
+          detailOverride:
+            apply.phase === 'loading'
+              ? ['reading established sessions…']
+              : applyOverrideRows(apply.workers),
+        }
+      : {}),
+  };
+}
+
+function applyOverrideRows(workers: WorkerApplySummary[]): string[] {
+  if (workers.length === 0) {
+    return [
+      'apply to established sessions',
+      'no established sessions — saved defaults reach',
+      'the next session at creation',
+    ];
+  }
+  const rows: string[] = [`apply to established sessions · ${workers.length}`];
+  for (const w of workers.slice(0, 6)) {
+    if (!w.receipts) {
+      rows.push(`${w.runnerId} · ${w.sessionId.slice(0, 8)} — no captured snapshot`);
+      continue;
+    }
+    const refused = w.receipts.filter(r => r.outcome === 'refused');
+    const noChange = w.receipts.filter(r => r.outcome === 'no-change');
+    const live = w.receipts.filter(r => r.outcome === 'applied' || r.outcome === 'queued');
+    rows.push(
+      `${w.runnerId} · ${w.sessionId.slice(0, 8)} — snapshot r${w.snapshotRevision ?? 0} · ${noChange.length} at profile · ${refused.length} refused${live.length > 0 ? ` · ${live.length} live (${live.map(r => r.outcome).join(', ')})` : ''}`,
+    );
+    if (live.length > 0 && live[0]?.reason) rows.push(`  · ${live[0].reason}`);
+    if (refused.length > 0 && refused[0]?.reason) rows.push(`  · ${refused[0].reason}`);
+  }
+  return rows;
+}
