@@ -65,7 +65,7 @@ type BoundedRun = { exitCode?: number; signal?: string; stdout: string; stderr: 
 
 const LOGIN_EXPORTS_MARK = '__MERCURY_LOGIN_EXPORTS__'
 const PRINTS_EXPORTS = `printf '\\0%s\\0' ${LOGIN_EXPORTS_MARK}; env -0; printf '%s\\0' ${LOGIN_EXPORTS_MARK}`
-const ZSH_PRINTS_EXPORTS = `'builtin' 'printf' '\\0%s\\0' '${LOGIN_EXPORTS_MARK}'; 'command' '-p' 'env' '-0'; 'builtin' 'printf' '%s\\0' '${LOGIN_EXPORTS_MARK}'; 'builtin' 'unsetopt' 'rcs'`
+const ZSH_PRINTS_EXPORTS = `'builtin' 'printf' '\\0%s\\0' '${LOGIN_EXPORTS_MARK}'; '/usr/bin/env' '-0'; 'builtin' 'printf' '%s\\0' '${LOGIN_EXPORTS_MARK}'; 'builtin' 'unsetopt' 'rcs'`
 
 function exportedBy(said: string, started: NodeJS.ProcessEnv): NodeJS.ProcessEnv | null {
   const parts = said.split('\0')
