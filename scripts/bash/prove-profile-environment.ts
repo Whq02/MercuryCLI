@@ -16,6 +16,7 @@ const DIST = distAt === -1 ? join(ROOT, 'dist', 'mercury.mjs') : resolve(process
 const KEEP = process.argv.includes('--keep')
 const MODEL = 'claude-opus-4-8'
 const ASK = 'profile-environment-probe'
+const ZSH = '/bin/zsh'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -115,7 +116,7 @@ function judge(situation: string, w: World, result: string, why: string): void {
   check(`${situation}: an alias from ~/.bashrc is carried`, lines.includes('alias-from-bashrc'), brief)
   check(`${situation}: a function from ~/.bashrc is carried`, lines.includes('fn-from-bashrc'), brief)
   check(`${situation}: a function from ~/.bash_profile is carried (the login files are read)`, lines.includes('fn-from-bash-profile'), brief)
-  check(`${situation}: what the user wrote for zsh is not read — no alias or function of ~/.zshrc, no variable of ~/.zshenv`, value('zsh-alias') === 'absent' && value('zsh-fn') === 'absent' && value('zshenv') === 'unset', brief)
+  check(`${situation}: no alias or function of ~/.zshrc reaches the command, and the variable ~/.zshenv exports does where the launcher's shell is zsh`, value('zsh-alias') === 'absent' && value('zsh-fn') === 'absent' && value('zshenv') === (existsSync(ZSH) ? '1' : 'unset'), brief)
 }
 
 const bounded = async <T,>(promise: Promise<T>, label: string, ms = 120_000): Promise<T> => {
@@ -373,6 +374,164 @@ async function whereNothingIsCarried(): Promise<void> {
   )
 }
 
+const SEES_EXPORTS = [
+  'echo "foo=${FOO:-unset}"',
+  'echo "path=$PATH"',
+  'echo "shell=${BASH_VERSION:+bash}${ZSH_VERSION:+zsh}"',
+  'echo "kept=${HISTFILE:-unset}/${PS1:-unset}"',
+  'echo "sock=${SSH_AUTH_SOCK:-unset}"',
+  'echo "agent-pid=${SSH_AGENT_PID:-unset}"',
+  'ssh-add -l > /dev/null 2>&1; echo "ssh-add=$?"',
+  'if kill -0 "$(cat "$HOME/agent.pid" 2> /dev/null)" 2> /dev/null; then echo started-agent=alive; else echo started-agent=gone; fi',
+  'env -0 > "$HOME/command-environment"',
+].join('\n')
+
+const exportsOf = (file: string): string => `export FOO=from-${file}\nexport PATH="$HOME/${file}-bin:$PATH"\nexport HISTFILE="$HOME/history-of-${file}"\nexport PS1='prompt> '\necho read >> "$HOME/login-reads"\n`
+const STARTS_AN_AGENT = 'eval "$(ssh-agent -s)" > /dev/null\necho "$SSH_AGENT_PID" > "$HOME/agent.pid"\n'
+const BASH_LOGIN = { shell: '/bin/bash', file: '.bash_profile', from: 'bash_profile', asked: ['-l', '-c'] }
+const ZSH_LOGIN = { shell: ZSH, file: '.zshrc', from: 'zshrc', asked: ['-l', '-i', '-c'] }
+type Login = typeof BASH_LOGIN
+
+type Seen = { value: (name: string) => string; home: string; brief: string }
+
+function homeWith(w: World, files: Record<string, string>, home = join(w.root, 'user-home')): string {
+  for (const file of ['.bash_profile', '.bashrc', '.zshenv', '.zshrc']) rmSync(join(w.root, 'user-home', file), { force: true })
+  for (const [file, text] of Object.entries(files)) writeFileSync(join(home, file), text)
+  return home
+}
+
+async function commandSees(w: World, home: string, launcher: Record<string, string>): Promise<Seen> {
+  const api = await startFixtureApi([{ kind: 'tool_use', name: 'Bash', id: 'toolu_exports', input: { command: SEES_EXPORTS, description: 'what a command sees of what the login files export' } }, { kind: 'text', text: 'exports probe done' }])
+  let why = ''
+  try {
+    const child = spawn(nodeBinPath(), [DIST, 'run', '--mode', 'sovereign', '--model', MODEL, '--format', 'text', ASK], { cwd: w.cwd, env: { ...launcher, HOME: home, ANTHROPIC_BASE_URL: api.url }, stdio: ['ignore', 'pipe', 'pipe'] })
+    let stderr = ''
+    child.stderr.on('data', chunk => { stderr += String(chunk) })
+    child.stdout.resume()
+    const code = await bounded(new Promise<number | null>(done => { child.once('close', exit => done(exit)); child.once('error', () => done(null)) }), 'the run').catch(error => { child.kill('SIGKILL'); return String(error) })
+    why = `exit ${String(code)} · stderr ${JSON.stringify(stderr.slice(-300))}`
+  } finally {
+    await api.close()
+  }
+  const result = resultOf(api)
+  const lines = result.split('\n').map(line => line.trim())
+  return { value: name => lines.find(line => line.startsWith(`${name}=`))?.slice(name.length + 1) ?? '', home, brief: `${why} · ${JSON.stringify(result.slice(0, 700))}` }
+}
+
+function pathKeepsItsOwnFirst(seen: Seen, w: World, added: string): boolean {
+  const own = w.launchPath.split(':')
+  const path = seen.value('path').split(':')
+  return own.every((entry, at) => path[at] === entry) && path.indexOf(added) >= own.length
+}
+
+const readsOf = (home: string): number => (existsSync(join(home, 'login-reads')) ? readFileSync(join(home, 'login-reads'), 'utf8').trim().split('\n').length : 0)
+
+function environmentOf(home: string): string {
+  const file = join(home, 'command-environment')
+  return existsSync(file) ? readFileSync(file, 'utf8').split('\0').filter(entry => entry !== '' && !entry.startsWith('ANTHROPIC_BASE_URL=')).sort().join('\n') : 'the command left no environment'
+}
+
+async function agentGoneAfter(home: string, waitMs: number): Promise<{ pid: number; alive: boolean }> {
+  const pid = Number(existsSync(join(home, 'agent.pid')) ? readFileSync(join(home, 'agent.pid'), 'utf8').trim() : NaN)
+  const alive = (): boolean => {
+    try {
+      process.kill(pid, 0)
+      return true
+    } catch {
+      return false
+    }
+  }
+  const began = Date.now()
+  while (alive() && Date.now() - began < waitMs) await new Promise(done => setTimeout(done, 25))
+  const left = alive()
+  if (left) process.kill(pid, 'SIGTERM')
+  return { pid, alive: left }
+}
+
+function handedOnBy(login: Login, launcher: Record<string, string>, cwd: string): Promise<Record<string, string>> {
+  return new Promise(done => {
+    const shell = spawn(login.shell, [...login.asked, 'env -0'], { cwd, env: launcher, detached: true, stdio: ['ignore', 'pipe', 'ignore'] })
+    let said = ''
+    shell.stdout.on('data', chunk => { said += String(chunk) })
+    const bound = setTimeout(() => shell.kill('SIGKILL'), 60_000)
+    shell.once('error', () => done({}))
+    shell.once('close', () => {
+      clearTimeout(bound)
+      done(Object.fromEntries(said.split('\0').filter(entry => entry.includes('=')).map(entry => [entry.slice(0, entry.indexOf('=')), entry.slice(entry.indexOf('=') + 1)])))
+    })
+  })
+}
+
+async function whatTheLoginFilesExport(): Promise<void> {
+  const unused = { url: 'http://127.0.0.1:9' } as FixtureApi
+  const bare = (w: World, login: Login, more: Record<string, string> = {}): Record<string, string> => ({ ...w.env, SHELL: login.shell, ...more })
+  const logins = [BASH_LOGIN, ...(existsSync(ZSH) ? [ZSH_LOGIN] : [])]
+  if (logins.length === 1) console.log(`  [SKIP] ${ZSH} is not on this machine: the rows where the login shell is zsh are not driven`)
+  const own = logins[logins.length - 1]!
+
+  for (const login of logins) {
+    const situation = `started bare, login shell ${login.shell}, ~/${login.file} exports`
+    const w = world(`exports-${login.from}`, unused)
+    const home = homeWith(w, { [login.file]: exportsOf(login.from) })
+    const seen = await commandSees(w, home, bare(w, login))
+    check(`${situation}: the variable reaches the command`, seen.value('foo') === `from-${login.from}`, seen.brief)
+    check(`${situation}: PATH keeps the launcher's folders first, in their order, and gains the folder the file adds`, pathKeepsItsOwnFirst(seen, w, join(home, `${login.from}-bin`)), `launcher ${w.launchPath} · command ${seen.value('path')}`)
+    check(`${situation}: the command still runs in bash, and what the shell keeps for itself is not carried (HISTFILE and PS1, which the file exports too)`, seen.value('shell') === 'bash' && seen.value('kept') === 'unset/unset', seen.brief)
+    check(`${situation}: the file was read once for the session`, readsOf(home) === 1, `${readsOf(home)} read(s)`)
+  }
+
+  {
+    const w = world('exports-mine', unused)
+    const home = homeWith(w, { [own.file]: exportsOf(own.from) })
+    const seen = await commandSees(w, home, bare(w, own, { FOO: 'mine' }))
+    check(`started with FOO=mine where ~/${own.file} exports FOO: the command reads mine, and PATH still gains the file's folder`, seen.value('foo') === 'mine' && pathKeepsItsOwnFirst(seen, w, join(home, `${own.from}-bin`)), seen.brief)
+  }
+
+  {
+    const w = world('exports-held', unused)
+    const home = homeWith(w, { [own.file]: exportsOf(own.from), ...(own === ZSH_LOGIN ? { '.zshenv': 'export FROM_ZSHENV=1\n' } : {}) })
+    const terminal = await handedOnBy(own, bare(w, own), w.cwd)
+    rmSync(join(home, 'login-reads'), { force: true })
+    const withFiles = await commandSees(w, home, terminal)
+    const read = readsOf(home)
+    const before = environmentOf(home)
+    homeWith(w, {})
+    rmSync(join(home, 'command-environment'), { force: true })
+    const withoutFiles = await commandSees(w, home, terminal)
+    const after = environmentOf(home)
+    check(
+      `started from an environment that already holds what ~/${own.file} exports (the one ${own.shell} hands on as a login shell): the session reads the file once and the command's environment is the one a session gets where no login file exists, name for name and value for value`,
+      terminal.FOO === `from-${own.from}` && read === 1 && before.split('\n').length > 10 && before === after,
+      `FOO in the launcher ${String(terminal.FOO)} · ${read} read(s) · ${before.split('\n').length} against ${after.split('\n').length} variables · only with the files ${JSON.stringify(before.split('\n').filter(entry => !after.split('\n').includes(entry)).slice(0, 6))} · only without ${JSON.stringify(after.split('\n').filter(entry => !before.split('\n').includes(entry)).slice(0, 6))} · ${withFiles.brief.slice(0, 200)} · ${withoutFiles.brief.slice(0, 200)}`,
+    )
+  }
+
+  if (spawnSync('ssh-agent', ['-h'], { env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin' } }).error !== undefined || spawnSync('ssh-add', ['-h'], { env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin' } }).error !== undefined) {
+    console.log('  [SKIP] ssh-agent or ssh-add is not on this machine: the rows of an agent the login file starts are not driven')
+    return
+  }
+  for (const had of [false, true]) {
+    const situation = `~/${own.file} holds eval "$(ssh-agent -s)", ${had ? 'and the launcher already names an agent in SSH_AUTH_SOCK' : 'started bare'}`
+    const w = world(had ? 'agent-held' : 'agent', unused)
+    const home = realpathSync(mkdtempSync('/tmp/pe-'))
+    const socketOfTheLauncher = join(home, 'the-agent-of-the-launcher')
+    try {
+      homeWith(w, { [own.file]: STARTS_AN_AGENT }, home)
+      const seen = await commandSees(w, home, bare(w, own, had ? { SSH_AUTH_SOCK: socketOfTheLauncher } : {}))
+      const left = await agentGoneAfter(home, 3_000)
+      if (had) {
+        check(`${situation}: the command keeps the launcher's agent, and the agent the file started is gone when the command runs`, left.pid > 1 && seen.value('sock') === socketOfTheLauncher && seen.value('agent-pid') === 'unset' && seen.value('started-agent') === 'gone', `${seen.brief} · pid ${left.pid}`)
+      } else {
+        check(`${situation}: ssh-add -l reaches the agent the file started from a command (exit 1: an agent with no identities)`, left.pid > 1 && seen.value('ssh-add') === '1' && seen.value('agent-pid') === String(left.pid) && seen.value('started-agent') === 'alive', `${seen.brief} · pid ${left.pid}`)
+      }
+      check(`${situation}: no agent is alive after the session has ended`, left.pid > 1 && !left.alive, `pid ${left.pid} alive ${String(left.alive)}`)
+    } finally {
+      await agentGoneAfter(home, 0)
+      rmSync(home, { recursive: true, force: true })
+    }
+  }
+}
+
 type EditorTerminal = 'not offered' | 'starts what it is asked' | 'starts nothing'
 type Asked = { command: string; args: string[] | null; shell: string | null }
 
@@ -458,6 +617,7 @@ try {
     await byAnEditor('editor-terminal', 'started by an editor that offers its terminal and starts what it is asked', 'starts what it is asked')
     await byAnEditor('editor-nothing', 'started by an editor whose terminal starts nothing', 'starts nothing')
     await whereNothingIsCarried()
+    await whatTheLoginFilesExport()
     await aRunnerNotHandedAPrompt()
     await aRunStillWaitingForItsPrompt()
     await aRunEndedWhileItsLoginRunGoes()

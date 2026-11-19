@@ -309,7 +309,7 @@ text (`COPYING`, GPL-3.0-or-later) and a `SOURCE` note naming the tarball, the
 patches and the build's flags. Mercury starts it as a separate program. It
 links nothing outside the operating system: the macOS binary uses the system's
 own libraries and the Linux binary is static. A command starts from the
-environment Mercury was started with, unchanged: `PATH` first, and `SHELL` as
+environment Mercury was started with: `PATH` first, and `SHELL` as
 the launcher had it (`$BASH` names the shell that runs; a program that starts
 `$SHELL` itself, as an editor's `!` command does, starts your own shell). No
 command is a login shell. Your bash login files are read once a session, in
@@ -320,20 +320,46 @@ whether or not `~/.bashrc` exists. Every function is carried, whatever its
 name, and an alias under `set -o posix` too. One option is not: `extglob` is
 off when a command starts, whatever the files set, because Mercury reads a
 command's words without it; a function whose patterns need it switches it on
-in its own body. What the files export, and a `PATH` they set, is not carried
-either: a command starts from the environment Mercury was started with.
+in its own body. What your login shell's files export is carried as well,
+where the environment Mercury was started with lacks it. Your login shell is
+the one `SHELL` names when that is bash or zsh, else the account's own; any
+other shell counts as bash here. Where it is bash, that same login run reads
+what the files export. Where it is zsh, Mercury starts zsh once a session as
+an interactive login shell, in a run with no input and no terminal that is
+ended after ten seconds, only to print its environment: `~/.zshenv`,
+`~/.zprofile`, `~/.zshrc` and `~/.zlogin` are read, `~/.zlogout` is not, and
+no command of the Bash tool runs in zsh. A variable Mercury was started with
+keeps its value; `PATH` keeps its own folders first, in their order, and
+gains the folders the files add after them. Never carried: what the shell
+keeps for itself (`SHLVL`, `PWD`, `OLDPWD`, `_`, `PS1` and the other prompt
+variables, `HISTFILE` and the other history variables, `SHELLOPTS`,
+`BASHOPTS`, `BASH_*`, `ZSH_*`), and what Mercury scrubs from a command's
+environment or sets there itself (`EDITOR`, `PAGER`, `NO_COLOR` and the
+like, where the launcher set none). So a Mercury started from a terminal,
+which holds these values already, hands a command the same environment as
+before, and one started by an editor, cron, an ssh one-liner or the daemon
+gains what the files export. On Windows the variables the bash login files
+export are carried by the same rule.
 A background job a login file starts in that run, under `nohup` too, is ended
-when the run ends, and so is an `ssh-agent` the files started, by the pid they
-export in `SSH_AGENT_PID` once they are read; an agent that was already
-running is left alone. Start such a helper only in an interactive shell
-(`case $- in *i*) … ;; esac`) or outside the login files: a command reaches
-an `ssh-agent` through the environment Mercury was started with. A
+when the run ends. An `ssh-agent` the files start (`eval "$(ssh-agent -s)"`)
+is kept for the session when Mercury was started with no `SSH_AUTH_SOCK`: the
+`SSH_AUTH_SOCK` and `SSH_AGENT_PID` the files export are carried, a command
+reaches the agent, and Mercury ends it when the session ends, by an exit or
+by a signal it can handle. When Mercury was started with `SSH_AUTH_SOCK` set,
+commands keep that agent, and the one the files started is ended when the run
+ends, by the pid they export in `SSH_AGENT_PID`; an agent that was already
+running is left alone. On Windows Mercury ends no agent. A
 `~/.bashrc` that returns early for a shell that is not interactive carries
 nothing written below that line. A login file that ends the shell, hands it
 to another program or runs past the ten seconds carries nothing; commands
 then run without it, and the session says so. A file that hands the shell
 over to zsh (`exec zsh -l`) carries what it defines once it hands over only
-in an interactive shell (`case $- in *i*) exec zsh -l ;; esac`). The login run
+in an interactive shell (`case $- in *i*) exec zsh -l ;; esac`). A zsh file
+that ends the shell, hands it over or runs past the ten seconds carries
+nothing of what it exports, and the session says so in a line of its own;
+since that read is an interactive shell, the way out there is to run such a
+line only where a terminal is attached (`if [[ -t 0 ]]; then … fi`). The
+login run
 begins in the first lines of the process that runs a session (a headless
 `mercury run`, or the runner a screen's session is served by), once its
 settings are read and before it takes its tool list, unless its arguments
@@ -343,10 +369,12 @@ first request that carries the Bash tool waits for that same run, so the Bash
 tool's description says there that no call carries your profile; the first
 result of the Bash tool has one line with the reason and what to change; and
 the health check's Bash tool shell row warns with the same reason and fix. A
-health check run outside a session takes a login run of its own to read this
-and keeps no file of it; asked for another row alone (`mercury health --only
-<id>`), it starts no login shell. What is written for zsh in `~/.zshrc`
-or `~/.zshenv` is not read. The session's shell line names the shell that runs
+health check run outside a session takes a login run of its own to read this,
+with the read of zsh's files where the login shell is zsh, and keeps no file
+and no agent of it; asked for another row alone (`mercury health --only
+<id>`), it starts no login shell. Of what is written for zsh only the
+variables its files export are carried: no alias, function or option of
+`~/.zshrc` reaches a command. The session's shell line names the shell that runs
 and its version. A `bash` the command starts by name, or a script that begins
 `#!/usr/bin/env bash`, runs whichever bash PATH finds, which on a Mac is the
 system's 3.2 unless a newer one stands earlier on PATH.

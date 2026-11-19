@@ -287,20 +287,33 @@ export function shellRoadWordsNow(): string {
 export type LoginFilesAbsence = { why: string; change: string }
 
 let loginFilesAbsence: LoginFilesAbsence | null = null
+let loginExportsAbsence: LoginFilesAbsence | null = null
 const toldOfLoginFiles = new Set<string>()
 
 export function noteLoginFiles(absence: LoginFilesAbsence | null): void {
   loginFilesAbsence = absence
 }
 
+export function noteLoginExports(absence: LoginFilesAbsence | null): void {
+  loginExportsAbsence = absence
+}
+
 export function loginFilesNotCarried(): LoginFilesAbsence | null {
   return loginFilesAbsence
 }
 
+function loginFilesAbsences(defined: LoginFilesAbsence | null): Array<LoginFilesAbsence & { of: string }> {
+  return [
+    ...(defined === null ? [] : [{ of: 'bash login files define', ...defined }]),
+    ...(loginExportsAbsence === null ? [] : [{ of: 'zsh login files export', ...loginExportsAbsence }]),
+  ]
+}
+
 export function loginFilesLineOnce(reader: string): string | null {
-  if (loginFilesAbsence === null || toldOfLoginFiles.has(reader)) return null
+  const absent = loginFilesAbsences(loginFilesAbsence)
+  if (absent.length === 0 || toldOfLoginFiles.has(reader)) return null
   toldOfLoginFiles.add(reader)
-  return `Nothing your bash login files define is carried in this session: ${loginFilesAbsence.why}. ${loginFilesAbsence.change}`
+  return absent.map(row => `Nothing your ${row.of} is carried in this session: ${row.why}. ${row.change}`).join('\n')
 }
 
 async function loginFilesSettled(): Promise<LoginFilesAbsence | null> {
@@ -360,11 +373,13 @@ function shellRowOf(record: ShellRecord | null, absent: LoginFilesAbsence | null
   if (record.origin === 'engine') {
     return { status: 'warn', evidence: `${describeShellRecord(record)}, because no bash starts on this machine${passedNow()}`, fix: skipped === null ? LAST_ROAD_FIX : `The bash pack is skipped in this install: ${skipped}` }
   }
-  if (absent !== null) {
+  const absences = loginFilesAbsences(absent)
+  if (absences.length > 0) {
+    const change = absences.map(row => row.change).join(' ')
     return {
       status: 'warn',
-      evidence: `${describeShellRecord(record)} — nothing the bash login files define is carried: ${absent.why}`,
-      fix: record.origin === 'shipped' || skipped === null ? absent.change : `${absent.change} The bash pack is skipped in this install: ${skipped}`,
+      evidence: `${describeShellRecord(record)} — ${absences.map(row => `nothing the ${row.of} is carried: ${row.why}`).join('; ')}`,
+      fix: record.origin === 'shipped' || skipped === null ? change : `${change} The bash pack is skipped in this install: ${skipped}`,
     }
   }
   if (record.origin === 'shipped') return { status: 'ok', evidence: describeShellRecord(record) }

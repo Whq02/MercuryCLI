@@ -1,4 +1,4 @@
-import { execFile } from 'child_process'
+import { execFile, spawnSync } from 'child_process'
 import type { ChildProcess } from 'child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { win32 as pathWin32 } from 'node:path'
@@ -420,19 +420,23 @@ function linuxBirth(pid: number): number | null {
   return Number.isSafeInteger(ticks) ? ticks : null
 }
 
+const BIRTH_ASKED = { windowsHide: true, timeout: BIRTH_READ_BOUND_MS, env: { LC_ALL: 'C', TZ: 'UTC', PATH: '/usr/bin:/bin' } }
+
+function birthSaid(stdout: unknown): number | null {
+  const at = typeof stdout !== 'string' ? Number.NaN : Date.parse(`${stdout.trim()} UTC`)
+  return Number.isFinite(at) ? Math.floor(at / 1000) : null
+}
+
 function readBirth(pid: number): Promise<number | null> {
   if (process.platform === 'linux') return Promise.resolve(linuxBirth(pid))
   return new Promise(resolve => {
-    execFile(
-      'ps',
-      ['-o', 'lstart=', '-p', String(pid)],
-      { windowsHide: true, timeout: BIRTH_READ_BOUND_MS, env: { LC_ALL: 'C', TZ: 'UTC', PATH: '/usr/bin:/bin' } },
-      (error, stdout) => {
-        const at = error || typeof stdout !== 'string' ? Number.NaN : Date.parse(`${stdout.trim()} UTC`)
-        resolve(Number.isFinite(at) ? Math.floor(at / 1000) : null)
-      },
-    )
+    execFile('ps', ['-o', 'lstart=', '-p', String(pid)], BIRTH_ASKED, (error, stdout) => resolve(error ? null : birthSaid(stdout)))
   })
+}
+
+function readBirthNow(pid: number): number | null {
+  if (process.platform === 'linux') return linuxBirth(pid)
+  return birthSaid(spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { ...BIRTH_ASKED, encoding: 'utf8' }).stdout)
 }
 
 export function birthMark(pid: number | undefined, askedAtMs: number): BirthMark | null {
@@ -441,10 +445,24 @@ export function birthMark(pid: number | undefined, askedAtMs: number): BirthMark
   return at === null ? null : { pid, at }
 }
 
-export async function endProcessBornAfter(pid: number, mark: BirthMark | null, signal: NodeJS.Signals = 'SIGTERM'): Promise<boolean> {
-  if (mark === null || !Number.isSafeInteger(pid) || pid <= 1 || pid === process.pid) return false
+export async function birthAfter(pid: number, mark: BirthMark | null): Promise<number | null> {
+  if (mark === null || !Number.isSafeInteger(pid) || pid <= 1 || pid === process.pid) return null
   const born = await readBirth(pid)
-  if (born === null || born < mark.at || (born === mark.at && pid <= mark.pid)) return false
+  return born === null || born < mark.at || (born === mark.at && pid <= mark.pid) ? null : born
+}
+
+export async function endProcessBornAfter(pid: number, mark: BirthMark | null, signal: NodeJS.Signals = 'SIGTERM'): Promise<boolean> {
+  if ((await birthAfter(pid, mark)) === null) return false
+  signalPid(pid, signal)
+  return true
+}
+
+export function endProcessBornAt(pid: number, at: number, signal: NodeJS.Signals = 'SIGTERM'): boolean {
+  try {
+    if (readBirthNow(pid) !== at) return false
+  } catch {
+    return false
+  }
   signalPid(pid, signal)
   return true
 }

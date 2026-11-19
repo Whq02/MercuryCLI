@@ -349,6 +349,7 @@ if (process.platform === 'win32') {
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'login-file-hands-over-')))
 const ZSH = '/bin/zsh'
 const realZsh = existsSync(ZSH)
+const readsByZsh = realZsh ? 1 : 0
 
 function home(name: string, files: Record<string, string>): string {
   const dir = join(scratch, name)
@@ -516,8 +517,8 @@ try {
   const handsOver = of('hands-over').row
   check('hands-over: neither the description nor the first command waits for the other shell', handsOver !== null && waited(handsOver) < FAST_MS, told('hands-over'))
   check(
-    `hands-over: the user's own file started ${realZsh ? 'zsh' : 'the other shell'} once, in the one login run, and no command started it again`,
-    handsOver !== null && handsOver.otherShellStarts === 1,
+    `hands-over: the user's own file started ${realZsh ? 'zsh' : 'the other shell'} once, in the one login run${realZsh ? ', Mercury started it once more to read what its files export' : ''}, and no command started it again`,
+    handsOver !== null && handsOver.otherShellStarts === 1 + readsByZsh,
     told('hands-over'),
   )
   check('hands-over: no snapshot stands, and the record of why says a login file ended the shell or handed it over', handsOver !== null && handsOver.snapshots === 0 && /a login file ended the shell or handed it to another program/.test(handsOver.absence ?? ''), told('hands-over'))
@@ -732,8 +733,8 @@ try {
   const shownAlone = (name: string): string => JSON.stringify(asked(name).row ?? asked(name).said).slice(0, 1400)
   const aloneHandsOver = asked('hands-over').row
   check(
-    'asked with no session, hands-over: the health check takes one login run of its own, and its shell row warns with the reason and what to change',
-    aloneHandsOver !== null && aloneHandsOver.said !== null && aloneHandsOver.said.status === 'warn' && HANDED.test(aloneHandsOver.said.evidence) && /run it only in an interactive shell/.test(aloneHandsOver.said.fix ?? '') && aloneHandsOver.otherShellStarts === 1,
+    `asked with no session, hands-over: the health check takes one login run of its own${realZsh ? ' and one read of what the zsh files export' : ''}, and its shell row warns with the reason and what to change`,
+    aloneHandsOver !== null && aloneHandsOver.said !== null && aloneHandsOver.said.status === 'warn' && HANDED.test(aloneHandsOver.said.evidence) && /run it only in an interactive shell/.test(aloneHandsOver.said.fix ?? '') && aloneHandsOver.otherShellStarts === 1 + readsByZsh,
     shownAlone('hands-over'),
   )
   const aloneSlow = asked('slow').row
@@ -760,7 +761,7 @@ try {
   )
   check(
     'where no tool list was settled first, the login run begins when a request that offers the Bash tool is prepared, beside the rest of that request: a request that does not offer it starts none, and the description then waits for that one run and takes no second',
-    firstPrompt.row !== null && firstPrompt.row.withoutBash === 0 && firstPrompt.row.begunMs !== null && firstPrompt.row.startsInAll === 1 && firstPrompt.row.described.endsWith('and no call carries the aliases, functions or options of your profile (bash) in this session.'),
+    firstPrompt.row !== null && firstPrompt.row.withoutBash === 0 && firstPrompt.row.begunMs !== null && firstPrompt.row.startsInAll === 1 + readsByZsh && firstPrompt.row.described.endsWith('and no call carries the aliases, functions or options of your profile (bash) in this session.'),
     JSON.stringify(firstPrompt.row ?? firstPrompt.said).slice(0, 900),
   )
   check(
