@@ -77,10 +77,7 @@ import { stopConcourseSession, reviveConcourseWorker, setConcourseSessionTitle }
 import { readSessionWorkersSnapshot } from './concourseWorkers.js'
 import { applyConcourseContractOp } from './sessionContract.js'
 import { dropSaturnSelfWakes, type SaturnSelfWakeDropWhy } from './saturn.js'
-import { deriveScheduleAccountForModel, liveFactsForSessionFire } from './saturnAccount.js'
-import { composeSignInView, refreshSignInReads } from './signInView.js'
-import { startSaturnTicker } from './saturnTicker.js'
-import { makeSaturnBirthPort } from './saturnBirth.js'
+import { composeSignInView } from './signInView.js'
 import { makeConcourseDispatchHandler, readConcourseControlOps, recordConcourseControlOp, buildConcoursePromptRow, failWorkingDispatchesForRunner, heldGitLaunchesFor, reconcileWorkingDispatches, replayGitBlockedDispatches, denyProceedLaunchesFor, replayDenyProceedDispatches } from './concourseDispatch.js'
 import { TaskRoster } from './roster.js'
 import {
@@ -122,6 +119,7 @@ import { armOwnerWatch, makeSessionlessBeat, markHosted } from './run/owner.js'
 import { periodicArmer } from './run/periodic.js'
 import { armWaysOut, bindWayOut, giveHomeBack, shutdownDaemon, stopVerb } from './run/shutdown.js'
 import { armedRestartBeat, restartWhenIdle, spawnSuccessorDaemon } from './run/restart.js'
+import { armSaturn } from './run/saturn.js'
 import { armReconcile, processSweep } from './run/sweep.js'
 
 function resolveDir(args: string[]): string {
@@ -935,64 +933,7 @@ async function daemonRun(args: string[]): Promise<void> {
       state.stopHostJobs = startHostJobSweep()
       markDaemonReady(state)
       console.error('[daemon] control socket up — RPC: list/has/status/dispatch/reply/kill/shutdown')
-      state.stopSaturnTicker = atBootStep(state, 'the Saturn ticker')(startSaturnTicker(
-        {
-          now: () => Date.now(),
-          records: () => {
-            const superseded = state.planeServedByOther !== null && isProcessAlive(state.planeServedByOther.pid)
-            return Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined && (superseded ? (roster?.has(r.runnerId).alive ?? false) : !(handover?.holds(r.runnerId) ?? false)))
-          },
-          liveFacts: (account, sessionId) => {
-            refreshSignInReads()
-            return liveFactsForSessionFire(account, sessionId)
-          },
-          deriveAccount: modelKey => {
-            refreshSignInReads()
-            return deriveScheduleAccountForModel(modelKey)
-          },
-          deliver: async d => {
-            const result = await concourseDispatchHandler({
-              clientMessageId: d.clientMessageId,
-              prompt: d.prompt,
-              workspaceDir: d.workspaceId,
-              by: d.by,
-              priority: 'later',
-              ...(d.origin !== undefined ? { origin: d.origin } : {}),
-              ...(d.parked ? { resumeSessionId: d.sessionId } : { targetSessionId: d.sessionId }),
-            })
-            return { ok: result.ok, ...(result.error !== undefined ? { detail: result.error } : {}) }
-          },
-          birth: makeSaturnBirthPort({
-            dispatch: async req => {
-              const r = await concourseDispatchHandler(req)
-              return {
-                ok: r.ok,
-                ...(r.sessionId !== undefined ? { sessionId: r.sessionId } : {}),
-                ...(r.error !== undefined ? { error: r.error } : {}),
-                ...(r.heldReason !== undefined ? { heldReason: r.heldReason } : {}),
-              }
-            },
-            withdraw: id => concourseDispatchHandler.withdraw(id),
-            admit: makeConcourseAdmitHandler({
-              roster: () => roster ?? undefined,
-              ...warmAdmitDoors,
-              onSpawned: (runnerId, _spec, pid) => {
-                console.error(`[daemon] schedule-born session admitted: ${runnerId} (pid ${pid})`)
-            noteHosted()
-            if (roster !== null) onSeatSpawned(runnerId, roster)
-              },
-            }),
-            contract: (sessionId, text, by) => applyConcourseContractOp(sessionId, { op: 'set', text }, by),
-          }),
-          screenOpen: () => (state.controlServer?.leaseCount() ?? 0) > 0,
-          rosterChanged: sessionId => {
-            if (roster !== null) pushScheduleRosterForSession(sessionId, roster)
-          },
-        },
-        r => {
-          console.error(`[daemon] saturn tick: ${r.fired} fired, ${r.replayed} replayed, ${r.held} held, ${r.missed} missed${r.dropped > 0 ? `, ${r.dropped} self-paced wake${r.dropped === 1 ? '' : 's'} dropped (stopped)` : ''}`)
-        },
-      ))
+      armSaturn(state, { concourseDispatchHandler, warmAdmitDoors })
       if (parseOwnerPid() !== null && flagEnv('MERCURY_DAEMON_NO_SELF_WARM') !== '1') {
         void ensureWarmRunner({ workspaceDir: dir, ...(flagEnv('MERCURY_DAEMON_SELF_WARM_CONSENT') === '1' ? { bypassConsent: true } : {}) }, warmDeps)
           .then(w => {
