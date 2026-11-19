@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
 import { proofHome } from '../lib/hermetic.ts'
-import { execFile, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { execFile, spawn, spawnSync } from 'node:child_process'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -103,6 +103,49 @@ section('§1 the MSYS table reader and the tree walk (pure)')
   check('the taskkill command for one tree is unchanged: /PID <pid> /T /F', JSON.stringify(group.win32TaskkillCommand(4242).args) === JSON.stringify(['/PID', '4242', '/T', '/F']))
   const sweepCommand = typeof group.win32TaskkillSweepCommand === 'function' ? group.win32TaskkillSweepCommand([11, 22]) : null
   check('the sweep names every pid, then /T /F, through the same System32 taskkill.exe', sweepCommand !== null && JSON.stringify(sweepCommand.args) === JSON.stringify(['/PID', '11', '/PID', '22', '/T', '/F']) && sweepCommand.file === group.win32TaskkillCommand(1).file)
+
+  type Reader = { file: string; args: string[] } | undefined
+  const readerOf = group.msysTableReaderOf as ((spawnfile: string | undefined, fileExists: (file: string) => boolean) => Reader) | undefined
+  check('processGroup owns the choice of who reads the MSYS table', typeof readerOf === 'function')
+  if (typeof readerOf === 'function') {
+    const world = (...files: string[]) => (file: string): boolean => files.some(held => held.toLowerCase() === file.toLowerCase())
+    const git = 'C:\\Program Files\\Git'
+    const gitWorld = world(`${git}\\usr\\bin\\ps.exe`, `${git}\\usr\\bin\\msys-2.0.dll`)
+    const launcher = readerOf(`${git}\\bin\\bash.exe`, gitWorld)
+    check("Git's launcher is read by the ps.exe of its usr\\bin, asked -e -l", launcher?.file === `${git}\\usr\\bin\\ps.exe` && JSON.stringify(launcher.args) === '["-e","-l"]', JSON.stringify(launcher))
+    const beside = readerOf(`${git}\\usr\\bin\\bash.exe`, gitWorld)
+    check('a usr\\bin bash is read by the ps.exe beside it', beside?.file === `${git}\\usr\\bin\\ps.exe`, JSON.stringify(beside))
+    const bare = readerOf('C:\\pin\\bin\\bash.exe', world('C:\\pin\\bin\\msys-2.0.dll'))
+    check('a bash with its runtime and no ps.exe beside it reads the table itself: -p -c and one line', bare?.file === 'C:\\pin\\bin\\bash.exe' && bare.args.length === 3 && bare.args[0] === '-p' && bare.args[1] === '-c', JSON.stringify(bare))
+    const line = bare?.args[2] ?? ''
+    check('…a line with no quote and no backslash in it, so MSYS=noglob has nothing to misread', line !== '' && !/["'\\\\]/.test(line), line)
+    check('a bash with no runtime beside it has no table to read, with a ps.exe there or without', readerOf('C:\\pin\\bin\\bash.exe', world()) === undefined && readerOf('C:\\pin\\bin\\bash.exe', world('C:\\pin\\bin\\ps.exe')) === undefined)
+    check('a program that is not a bash is never started as one', readerOf('C:\\pin\\bin\\rsync.exe', world('C:\\pin\\bin\\msys-2.0.dll')) === undefined)
+    check('a name that is no full Windows path has no reader', readerOf(undefined, world()) === undefined && readerOf('bash.exe', world('msys-2.0.dll')) === undefined)
+    const four = group.parseMsysProcessTable('101 1 101 5001\n202 101 101 5002\r\n') as Row[]
+    check('a row of four numbers and nothing after them is read too', JSON.stringify(four) === JSON.stringify([{ pid: 101, ppid: 1, pgid: 101, winpid: 5001 }, { pid: 202, ppid: 101, pgid: 101, winpid: 5002 }]), JSON.stringify(four))
+
+    const stand = mkdtempSync(join(tmpdir(), 'msys-table-'))
+    if (process.platform === 'win32' || !existsSync('/bin/bash') || /\s/.test(stand)) {
+      console.log('  [SKIP] the line is run against a stand-in folder where /bin/bash stands; on Windows §6b runs it against the runtime itself')
+    } else {
+      const put = (pid: number, files: Record<string, string>): void => {
+        mkdirSync(join(stand, String(pid)))
+        for (const [name, text] of Object.entries(files)) writeFileSync(join(stand, String(pid), name), text)
+      }
+      put(101, { winpid: '5001\n', ppid: '1\n', pgid: '101\n' })
+      put(202, { winpid: '5002\n', ppid: '101\n', pgid: '101\n' })
+      put(303, { winpid: '5003', ppid: '202', pgid: '303' })
+      put(404, { winpid: '5004\n', ppid: '1\n' })
+      mkdirSync(join(stand, 'self'))
+      writeFileSync(join(stand, 'start-file'), 'echo 9 9 9 9\n')
+      const ran = spawnSync('/bin/bash', ['-p', '-c', line.split('/proc/').join(`${stand}/`)], { encoding: 'utf8', env: { ...process.env, BASH_ENV: join(stand, 'start-file'), SHELLOPTS: 'noglob' } })
+      const rows = group.parseMsysProcessTable(ran.stdout ?? '') as Row[]
+      check('run by a bash against a stand-in folder, the line gives one row a process to the same parser, passes over one that left midway, and ends 0', ran.status === 0 && JSON.stringify(rows) === JSON.stringify([{ pid: 101, ppid: 1, pgid: 101, winpid: 5001 }, { pid: 202, ppid: 101, pgid: 101, winpid: 5002 }, { pid: 303, ppid: 202, pgid: 303, winpid: 5003 }]), `exit ${String(ran.status)} · ${JSON.stringify(ran.stdout)}`)
+      check('…and -p keeps a BASH_ENV file and an exported SHELLOPTS out of it', !(ran.stdout ?? '').includes('9 9 9 9') && rows.length === 3, JSON.stringify(ran.stdout))
+    }
+    rmSync(stand, { recursive: true, force: true })
+  }
 }
 
 type Tagged = { pid: number; ppid: number; name: string }
@@ -342,6 +385,47 @@ if (process.platform !== 'win32') {
     const left = await survivorsOf(up)
     check('§6 every process of the tree is gone', left.length === 0, `still alive: ${describe(left)}`)
     check('§6 the receipt names no survivor', receipt !== undefined && receipt.survivors.length === 0, JSON.stringify(receipt))
+    handle.cleanup()
+    reapAll(up)
+  }
+
+  section('§6b a bash with its runtime and no ps.exe beside it: the table is read by the bash itself')
+  if (!existsSync(realBash)) {
+    console.log(`  [SKIP] no ${realBash} on this host`)
+  } else {
+    const pin = join(PROJECT, 'pin-no-ps', 'bin')
+    mkdirSync(pin, { recursive: true })
+    const usrBin = join(realBash, '..')
+    for (const name of readdirSync(usrBin).filter(name => /^(?:bash\.exe|sleep\.exe|msys-2\.0\.dll|msys-intl-\d+\.dll|msys-iconv-\d+\.dll)$/i.test(name))) copyFileSync(join(usrBin, name), join(pin, name))
+    const pinned = join(pin, 'bash.exe')
+    const reader = group.msysTableReaderOf(pinned) as { file: string; args: string[] } | undefined
+    check('§6b the stand-in holds no ps.exe, and its reader is the bash itself', !existsSync(join(pin, 'ps.exe')) && reader?.file === pinned, JSON.stringify(reader))
+    const { withProgramsFirst } = (await import(join(ROOT, 'src/utils/shell/windowsShellRoad.ts'))) as { withProgramsFirst: (env: NodeJS.ProcessEnv, dir: string) => NodeJS.ProcessEnv }
+    const [a, b] = freshTags(2)
+    const child = spawn(pinned, ['-c', `sleep ${a} & sleep ${b}`], { stdio: ['pipe', 'ignore', 'ignore'], windowsHide: true, detached: false, env: withProgramsFirst(process.env, pin) })
+    child.stdin?.end()
+    const handle = wrapSpawn(child, new AbortController().signal, 900_000, new TaskOutput(generateTaskId('local_bash'), null))
+    let up: Tagged[] = []
+    for (const deadline = Date.now() + 60_000; Date.now() < deadline; await sleep(200)) {
+      up = (await tagged([a!, b!])).filter(p => alive(p.pid))
+      if (up.filter(p => p.name === 'sleep.exe').length >= 2) break
+    }
+    everySeen.push(...up)
+    check('§6b the tree is up', leavesOf(up) === 2, describe(up))
+    if (reader !== undefined) {
+      const said = spawnSync(reader.file, reader.args, { encoding: 'utf8', windowsHide: true, timeout: 30_000 })
+      const rows = group.parseMsysProcessTable(said.stdout ?? '') as Row[]
+      const sleepers = up.filter(p => p.name === 'sleep.exe').map(p => p.pid)
+      check('§6b the line, run by that bash, lists both sleeps by their Windows pids', sleepers.length === 2 && sleepers.every(pid => rows.some(row => row.winpid === pid)), `exit ${String(said.status)} · ${JSON.stringify((said.stdout ?? '').slice(0, 400))} · ${JSON.stringify((said.stderr ?? '').slice(0, 200))}`)
+      const noglob = spawnSync(reader.file, reader.args, { encoding: 'utf8', windowsHide: true, timeout: 30_000, env: { ...process.env, MSYS: 'noglob' } })
+      check('§6b …and the same with MSYS=noglob in its environment', sleepers.every(pid => (group.parseMsysProcessTable(noglob.stdout ?? '') as Row[]).some(row => row.winpid === pid)), `exit ${String(noglob.status)} · ${JSON.stringify((noglob.stdout ?? '').slice(0, 400))}`)
+    }
+    handle.kill()
+    const receipt = await handle.treeKillReceipt
+    const left = await survivorsOf(up)
+    check('§6b every process of the tree is gone, the programs the bash started too', left.length === 0, `still alive: ${describe(left)}`)
+    check('§6b the receipt names no survivor', receipt !== undefined && receipt.survivors.length === 0, JSON.stringify(receipt))
+    note(`the receipt: ${JSON.stringify(receipt)}`)
     handle.cleanup()
     reapAll(up)
   }

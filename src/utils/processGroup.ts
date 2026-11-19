@@ -208,7 +208,7 @@ export type MsysTreeMemory = { pids: Set<number>; groups: Set<number> }
 export function parseMsysProcessTable(stdout: string): MsysProcessRow[] {
   const rows: MsysProcessRow[] = []
   for (const line of stdout.split(/\r?\n/)) {
-    const match = /^[A-Z ]?\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s/.exec(line)
+    const match = /^[A-Z ]?\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)(?:\s|$)/.exec(line)
     if (!match) continue
     rows.push({ pid: Number(match[1]), ppid: Number(match[2]), pgid: Number(match[3]), winpid: Number(match[4]) })
   }
@@ -260,27 +260,29 @@ export function msysTreeRows(
   return [...found.values()].filter(row => row.winpid > 1)
 }
 
-function msysPsBeside(spawnfile: string | undefined): string | undefined {
+type MsysTableReader = { file: string; args: string[] }
+
+const MSYS_TABLE_BY_BUILTINS =
+  'for d in /proc/[0-9]*; do w= pp= pg=; { read w < $d/winpid; read pp < $d/ppid; read pg < $d/pgid; } 2>/dev/null; [[ -n $w && -n $pp && -n $pg ]] && echo ${d#/proc/} $pp $pg $w; done; :'
+
+export function msysTableReaderOf(spawnfile: string | undefined, fileExists: (file: string) => boolean = existsSync): MsysTableReader | undefined {
   if (typeof spawnfile !== 'string' || !pathWin32.isAbsolute(spawnfile)) return undefined
   const holder = pathWin32.dirname(spawnfile)
-  for (const dir of [holder, pathWin32.join(holder, '..', 'usr', 'bin')]) {
-    const ps = pathWin32.join(dir, 'ps.exe')
-    if (existsSync(ps) && (existsSync(pathWin32.join(dir, 'msys-2.0.dll')) || existsSync(pathWin32.join(dir, 'cygwin1.dll')))) {
-      return ps
-    }
-  }
-  return undefined
+  const runtimes = [holder, pathWin32.join(holder, '..', 'usr', 'bin')].filter(dir => fileExists(pathWin32.join(dir, 'msys-2.0.dll')) || fileExists(pathWin32.join(dir, 'cygwin1.dll')))
+  const ps = runtimes.map(dir => pathWin32.join(dir, 'ps.exe')).find(file => fileExists(file))
+  if (ps !== undefined) return { file: ps, args: ['-e', '-l'] }
+  return runtimes.length > 0 && /^bash(?:\.exe)?$/i.test(pathWin32.basename(spawnfile)) ? { file: spawnfile, args: ['-p', '-c', MSYS_TABLE_BY_BUILTINS] } : undefined
 }
 
 function startsNode(spawnfile: string): boolean {
   return spawnfile === process.execPath || /^(?:node|bun)(?:\.exe)?$/i.test(pathWin32.basename(spawnfile))
 }
 
-function readMsysTable(ps: string): Promise<MsysProcessRow[]> {
+function readMsysTable(reader: MsysTableReader): Promise<MsysProcessRow[]> {
   return new Promise(resolve => {
     execFile(
-      ps,
-      ['-e', '-l'],
+      reader.file,
+      reader.args,
       { windowsHide: true, timeout: MSYS_TABLE_BOUND_MS, maxBuffer: 8 * 1024 * 1024 },
       (error, stdout) => {
         resolve(error || typeof stdout !== 'string' ? [] : parseMsysProcessTable(stdout))
@@ -290,7 +292,7 @@ function readMsysTable(ps: string): Promise<MsysProcessRow[]> {
 }
 
 async function sweepMsysTree(
-  ps: string,
+  reader: MsysTableReader,
   before: readonly MsysProcessRow[],
   rootWinpids: readonly number[],
 ): Promise<number[]> {
@@ -307,7 +309,7 @@ async function sweepMsysTree(
           resolve(typeof out === 'string' ? out : String(out ?? ''))
         })
       }),
-      readMsysTable(ps),
+      readMsysTable(reader),
     ])
     for (const winpid of [...live, ...taskkillActedPids(stdout)]) {
       if (!struck.includes(winpid)) struck.push(winpid)
@@ -319,9 +321,9 @@ async function sweepMsysTree(
 
 export async function endMsysGroupBeside(spawnfile: string, pgid: number): Promise<number[]> {
   if (process.platform !== 'win32' || !Number.isSafeInteger(pgid) || pgid <= 1) return []
-  const ps = msysPsBeside(spawnfile)
-  if (ps === undefined) return []
-  const live = (await readMsysTable(ps))
+  const reader = msysTableReaderOf(spawnfile)
+  if (reader === undefined) return []
+  const live = (await readMsysTable(reader))
     .filter(row => row.pgid === pgid && row.winpid > 1 && row.winpid !== process.pid)
     .map(row => row.winpid)
     .filter(isAlivePid)
@@ -372,9 +374,9 @@ function stillLeftBehind(table: readonly MsysProcessRow[], entry: LeftBehind): n
 
 function endLeftBehindHereNow(): void {
   for (const entry of leftBehindHere) {
-    const ps = msysPsBeside(entry.shell)
-    if (ps === undefined) continue
-    const said = spawnSync(ps, ['-e', '-l'], { windowsHide: true, timeout: MSYS_TABLE_BOUND_MS, encoding: 'utf8' })
+    const reader = msysTableReaderOf(entry.shell)
+    if (reader === undefined) continue
+    const said = spawnSync(reader.file, reader.args, { windowsHide: true, timeout: MSYS_TABLE_BOUND_MS, encoding: 'utf8' })
     const live = stillLeftBehind(parseMsysProcessTable(typeof said.stdout === 'string' ? said.stdout : ''), entry)
     if (live.length === 0) continue
     const { file, args } = win32TaskkillSweepCommand(live)
@@ -389,9 +391,9 @@ function endLeftBehindHereNow(): void {
 
 export async function noteMsysGroupLeftBehind(shellPath: string, pgid: number): Promise<number[]> {
   if (process.platform !== 'win32' || !Number.isSafeInteger(pgid) || pgid <= 1) return []
-  const ps = msysPsBeside(shellPath)
-  if (ps === undefined) return []
-  const members = (await readMsysTable(ps)).filter(row => row.pgid === pgid && row.winpid > 1 && row.winpid !== process.pid)
+  const reader = msysTableReaderOf(shellPath)
+  if (reader === undefined) return []
+  const members = (await readMsysTable(reader)).filter(row => row.pgid === pgid && row.winpid > 1 && row.winpid !== process.pid)
   if (members.length === 0) return []
   const entry: LeftBehind = { shell: shellPath, pgid, members: members.map(row => [row.pid, row.winpid]) }
   appendFileSync(leftBehindFile(process.pid), `${JSON.stringify(entry)}\n`)
@@ -411,9 +413,9 @@ async function endLeftBehindOf(winpids: readonly number[]): Promise<number[]> {
       continue
     }
     for (const entry of readLeftBehind(text)) {
-      const ps = msysPsBeside(entry.shell)
-      if (ps === undefined) continue
-      const live = stillLeftBehind(await readMsysTable(ps), entry)
+      const reader = msysTableReaderOf(entry.shell)
+      if (reader === undefined) continue
+      const live = stillLeftBehind(await readMsysTable(reader), entry)
       if (live.length === 0) continue
       const { file, args } = win32TaskkillSweepCommand(live)
       const stdout = await new Promise<string>(resolve => {
@@ -436,8 +438,8 @@ async function endLeftBehindOf(winpids: readonly number[]): Promise<number[]> {
 
 async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTreeKillReceipt> {
   if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) return { ended: 0, survivors: [] }
-  const msysPs = msysPsBeside(spawnfile) ?? (spawnfile === undefined || startsNode(spawnfile) ? msysPsBeside(process.env.SHELL) : undefined)
-  const before = msysPs === undefined ? [] : await readMsysTable(msysPs)
+  const table = msysTableReaderOf(spawnfile) ?? (spawnfile === undefined || startsNode(spawnfile) ? msysTableReaderOf(process.env.SHELL) : undefined)
+  const before = table === undefined ? [] : await readMsysTable(table)
   const { file, args } = win32TaskkillCommand(pid)
   const stdout = await new Promise<string>(resolve => {
     execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (_error, out) => {
@@ -445,8 +447,8 @@ async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTre
     })
   })
   const acted = taskkillActedPids(stdout)
-  if (msysPs !== undefined && before.length > 0) {
-    for (const swept of await sweepMsysTree(msysPs, before, [pid, ...acted])) {
+  if (table !== undefined && before.length > 0) {
+    for (const swept of await sweepMsysTree(table, before, [pid, ...acted])) {
       if (!acted.includes(swept)) acted.push(swept)
     }
   }
