@@ -17,6 +17,7 @@ import {
   getTokenCountFromTracker,
   isLocalAgentTask,
   killAsyncAgent,
+  type LocalAgentTaskState,
   overloadPauseOf,
   pauseAgentTask,
   publishAgentProgressSoon,
@@ -308,22 +309,7 @@ export async function runForegroundAgentExecution(
                 toolMatchesName(tool, FILE_READ_TOOL_NAME) ||
                 toolMatchesName(tool, BASH_TOOL_NAME),
             )
-            return {
-              data: {
-                isAsync: true,
-                status: 'async_launched',
-                agentId: backgroundedTaskId,
-                description,
-                prompt,
-                outputFile: getTaskOutputPath(backgroundedTaskId),
-                canReadOutputFile,
-                ...(modelNote ? { modelNote } : {}),
-                ...(name !== undefined ? { agentName: name } : {}),
-                backgroundReason: handedByTurnAbort ? 'turn-interrupted' : sibling !== null ? 'sibling-ended' : task.handoverReason ?? 'backgrounded',
-                ...(sibling !== null && !handedByTurnAbort ? { siblingEnd: sibling } : {}),
-              },
-              detached,
-            }
+            return asyncLaunchedAnswer({ backgroundedTaskId, description, prompt, canReadOutputFile, modelNote, name, handedByTurnAbort, sibling, task, detached })
           }
           step = await nextPromise
         } else {
@@ -436,6 +422,35 @@ export async function runForegroundAgentExecution(
 
   const finalized = finalizeAgentTool(agentMessages, syncAgentId, metadata,
     heldError !== undefined && seatPause !== null ? { status: 'failed', reason: 'provider-declined', error: errorMessage(heldError) } : undefined)
+  const { failureText, data } = foregroundAnswerOf({ heldError, seatPause, finalized, prompt, agentMessages, worktreeFields })
+
+  await attachForegroundEnvelope({ syncAgentId, metadata, failureText, finalized, tracker, data })
+
+  return { data }
+}
+
+function asyncLaunchedAnswer(needs: { backgroundedTaskId: string; description: string; prompt: string; canReadOutputFile: boolean; modelNote: string | undefined; name: string | undefined; handedByTurnAbort: boolean; sibling: ReturnType<typeof takeSiblingEnd>; task: LocalAgentTaskState; detached: Promise<void> }): ForegroundAgentResult {
+  const { backgroundedTaskId, description, prompt, canReadOutputFile, modelNote, name, handedByTurnAbort, sibling, task, detached } = needs
+  return {
+    data: {
+      isAsync: true,
+      status: 'async_launched',
+      agentId: backgroundedTaskId,
+      description,
+      prompt,
+      outputFile: getTaskOutputPath(backgroundedTaskId),
+      canReadOutputFile,
+      ...(modelNote ? { modelNote } : {}),
+      ...(name !== undefined ? { agentName: name } : {}),
+      backgroundReason: handedByTurnAbort ? 'turn-interrupted' : sibling !== null ? 'sibling-ended' : task.handoverReason ?? 'backgrounded',
+      ...(sibling !== null && !handedByTurnAbort ? { siblingEnd: sibling } : {}),
+    },
+    detached,
+  }
+}
+
+function foregroundAnswerOf(needs: { heldError: unknown; seatPause: AgentPauseV1 | null; finalized: ReturnType<typeof finalizeAgentTool>; prompt: string; agentMessages: Message[]; worktreeFields: WorktreeFields }) {
+  const { heldError, seatPause, finalized, prompt, agentMessages, worktreeFields } = needs
   const failureText =
     heldError !== undefined
       ? seatPause !== null ? `${pauseLineWords(seatPause, Date.now())} — ${errorMessage(heldError)}` : errorMessage(heldError)
@@ -457,7 +472,11 @@ export async function runForegroundAgentExecution(
           ...worktreeFields,
         }
       : { status: 'completed', prompt, ...finalized, ...worktreeFields }
+  return { failureText, data }
+}
 
+async function attachForegroundEnvelope(needs: { syncAgentId: AgentId; metadata: ForegroundAgentMetadata; failureText: string | undefined; finalized: ReturnType<typeof finalizeAgentTool>; tracker: ReturnType<typeof createProgressTracker>; data: ForegroundAgentResult['data'] }): Promise<void> {
+  const { syncAgentId, metadata, failureText, finalized, tracker, data } = needs
   try {
     const [{ buildAgentResultEnvelope }, { attachAgentEnvelope }] =
       await Promise.all([
@@ -478,8 +497,6 @@ export async function runForegroundAgentExecution(
     attachAgentEnvelope(data, envelope)
   } catch {
   }
-
-  return { data }
 }
 
 type ForegroundTaskHandle = { taskId: string; abortController: AbortController; backgroundSignal: Promise<void> }
