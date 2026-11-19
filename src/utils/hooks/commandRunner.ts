@@ -147,7 +147,9 @@ function spawnUnderWindowsBash(shell: string, prepared: { command: string; env: 
     throw new HookNotHandedOver(`The hook did not run: on Windows a command this long, or any command while MSYS names glob, reaches bash through a file, and that file could not be written (${file}: ${errorMessage(error)}).`)
   }
   const drop = (): void => {
-    void unlink(file).catch(() => {})
+    void unlink(file).catch((error: unknown) => {
+      if (getErrnoCode(error) !== 'ENOENT') logForDebugging(`the file that carried a hook's command was not removed (${file}): ${errorMessage(error)}`)
+    })
   }
   try {
     const gone = { words: `The hook did not run: the file that carries its command to bash is gone (${file}).`, exit: 2 }
