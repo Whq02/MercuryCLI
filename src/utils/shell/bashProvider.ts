@@ -17,8 +17,8 @@ import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPlatform } from '../platform.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
-import { protectBackslashRunsFromMsysArgv } from './msysArgv.js'
-import type { BuildExecCommandOptions, ShellProvider } from './shellProvider.js'
+import { msysArgvCarries, protectBackslashRunsFromMsysArgv } from './msysArgv.js'
+import type { BuildExecCommandOptions, FrameHandOver, ShellProvider } from './shellProvider.js'
 import { PIPELINE_STATUS_ARRAY, loginFilesNotCarried, type ShellRecord } from './shellRecord.js'
 
 function cwdFileName(id: number | string): string {
@@ -29,7 +29,10 @@ function shellPrefix(): string {
   return flagEnv('MERCURY_SHELL_PREFIX') ?? ''
 }
 
-const MSYS_ARGUMENT_KEEPS = 8186
+function msysSpawnArgs(commandString: string, snapshotSourced: boolean): string[] {
+  const script = protectBackslashRunsFromMsysArgv(commandString)
+  return snapshotSourced ? ['-c', script] : ['-c', '-l', script]
+}
 
 function markFrameRead(cwdFileInShell: string): string {
   return `{ : >| ${quote([cwdFileInShell])}; } 2>/dev/null`
@@ -99,17 +102,20 @@ export async function createBashShellProvider(
       if (prefix) commandString = formatShellPrefixCommand(prefix, isWindows ? commandString : shellStartLine(shellPath, commandString))
       if (!isWindows) commandString = `${markFrameRead(cwdFileInShell)}; ${commandString}`
 
-      if (isWindows && Buffer.byteLength(protectBackslashRunsFromMsysArgv(commandString)) > MSYS_ARGUMENT_KEEPS) {
-        const frame = { path: join(nativeTmp, `${name}-frame`), text: commandString }
-        return { commandString: `source ${quote([`${cwdFileInShell}-frame`])}`, cwdFilePath: cwdFileForEngine, frame, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
+      if (isWindows) {
+        const snapshotSourced = snapshot !== undefined
+        const handOver = (env: NodeJS.ProcessEnv): FrameHandOver => {
+          if (msysArgvCarries(commandString, env)) return { args: msysSpawnArgs(commandString, snapshotSourced) }
+          return { args: msysSpawnArgs(`source ${quote([`${cwdFileInShell}-frame`])}`, snapshotSourced), file: { path: join(nativeTmp, `${name}-frame`), text: commandString } }
+        }
+        return { commandString, cwdFilePath: cwdFileForEngine, handOver, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
       }
       return { commandString, cwdFilePath: cwdFileForEngine, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
     },
 
     getSpawnArgs(commandString: string): string[] {
       if (getPlatform() !== 'windows') return ['-c', commandString]
-      const script = protectBackslashRunsFromMsysArgv(commandString)
-      return usedSnapshotThisExecution ? ['-c', script] : ['-c', '-l', script]
+      return msysSpawnArgs(commandString, usedSnapshotThisExecution)
     },
 
     async getEnvironmentOverrides(_command: string): Promise<Record<string, string>> {

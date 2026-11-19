@@ -112,14 +112,15 @@ export async function terminalShellInvocation(
   const built = await road.provider.buildExecCommand(command, { id: invocationId })
   const { env, scrubbed } = await commandEnvironment(road, 'bash', command, inheritSessionEnv)
   const native = (path: string): string => (getPlatform() === 'windows' ? posixPathToWindowsPath(path) : path)
-  if (built.frame !== undefined) writeFileSync(built.frame.path, built.frame.text)
+  const handed = built.handOver?.(env)
+  if (handed?.file !== undefined) writeFileSync(handed.file.path, handed.file.text)
   return {
     file: road.provider.shellPath,
-    args: road.provider.getSpawnArgs(built.commandString),
+    args: handed?.args ?? road.provider.getSpawnArgs(built.commandString),
     argsFor: line => road.provider.getSpawnArgs(line),
     env: road.provider.origin === undefined ? env : withRoadPrograms(env, road.provider.origin, road.provider.shellPath),
     scrubbed,
-    leftBehind: [...[built.cwdFilePath, ...(built.pipelineStatusPath === undefined ? [] : [built.pipelineStatusPath])].map(native), ...(built.frame === undefined ? [] : [built.frame.path])],
+    leftBehind: [...[built.cwdFilePath, ...(built.pipelineStatusPath === undefined ? [] : [built.pipelineStatusPath])].map(native), ...(handed?.file === undefined ? [] : [handed.file.path])],
   }
 }
 
@@ -335,11 +336,12 @@ export async function exec(
   let outputFd: number | undefined
   let shellCommand: ShellCommand
   if (road.recordsBash) markFrameUnread(built.cwdFilePath)
+  const handed = built.handOver?.(childEnv)
   const dropFrame = (): void => {
-    if (built.frame !== undefined) void getFsImplementation().unlink(built.frame.path).catch(() => {})
+    if (handed?.file !== undefined) void getFsImplementation().unlink(handed.file.path).catch(() => {})
   }
   try {
-    if (built.frame !== undefined) writeFileSync(built.frame.path, built.frame.text)
+    if (handed?.file !== undefined) writeFileSync(handed.file.path, handed.file.text)
     let stdio: ('pipe' | 'ignore' | number)[]
     if (pipeMode) {
       stdio = ['pipe', 'pipe', 'pipe']
@@ -348,7 +350,7 @@ export async function exec(
       stdio = ['pipe', outputFd, outputFd]
     }
 
-    const child = await spawnOwnedShell(spawnFile, spawnArgs, {
+    const child = await spawnOwnedShell(spawnFile, handed?.args ?? spawnArgs, {
       cwd,
       env: provider.origin === undefined ? childEnv : withRoadPrograms(childEnv, provider.origin, provider.shellPath),
       stdio,
