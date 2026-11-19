@@ -90,7 +90,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const vendor = initial.vendor ?? 'runpod'
   const secrets: string[] = []
   const run: HostJobRun = { key: undefined, keyRefusal: undefined }
-  const ports: HostJobPorts = { id, generation, initial, options, controller, signal, runner, vendor, secrets }
+  const ports: HostJobPorts = { id, generation, initial, options, controller, signal, runner, pause, vendor, secrets }
   const tools = hostJobTools(run, ports)
   const { huggingfaceKey, clean, mark, log } = tools
   run.key = vendor === 'huggingface' ? await huggingfaceKey() : vendorKey(vendor)
@@ -302,84 +302,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       endpointBase = 'http://127.0.0.1:' + port + '/v1'
     }
     const setupSignal = api.capabilities.managed ? AbortSignal.any([signal, AbortSignal.timeout(Math.max(1, deadline - Date.now()))]) : signal
-    let provider = initial.provider ?? ('pod-' + id.toLowerCase().replaceAll('_', '-')).slice(0, 32)
-    const result = await runLlmHost(async question => {
-      switch (question.step) {
-        case 'servers': return initial.provider ?? '__add__'
-        case 'action': return 'repoint'
-        case 'address': return endpointBase!
-        case 'dialect': return tensorfold ? 'chat-completions' : recipe.engine ?? 'sglang'
-        case 'key': if (tensorfold) return tensorfold; if (api.capabilities.managed) { run.key = await huggingfaceKey(); return run.key ?? null }; if (question.found === LLM_HOST_WORDS.keyOptional) return ''; break
-        case 'model': return question.rows?.find(row => row.value === recipe.model || row.value.startsWith(recipe.model + ':'))?.value ?? (question.rows?.length === 1 ? question.rows[0]!.value : null)
-        case 'name':
-          if (configuredCompatEndpoints().some(endpoint => endpoint.name === provider)) provider = 'pod-' + randomUUID().replaceAll('-', '').slice(0, 28)
-          return provider
-        case 'confirm': return 'run'
-      }
-      throw new Error('Setup needs input at ' + question.title + '. Resume from /llmhost.')
-    }, () => {}, setupSignal)
-    if (result.registered) {
-      patchHostRecord(id, { provider })
-      linkLlmHostPod(provider, id)
-      if (tensorfold && result.model && endpointBase) {
-        registerHostEfforts([result.model], recipe.efforts?.levels ?? [])
-        await registerTensorFoldPod({ id, vendor, recipe, baseUrl: endpointBase, key: tensorfold, served: result.model.slice(result.model.lastIndexOf('/') + 1), target })
-      }
-    }
-    if (!result.ok || !result.registered || !result.model) throw new Error(result.words)
-    mark('ready')
-    const record = patchHostRecord(id, { jobState: 'ready', engineDeath: undefined, linkLost: undefined, ...(loadedWeights ? { loadedWeights } : {}) })!
-    const modelBefore = await rentingSessionModel(record)
-    const switched = await switchRentingSession(record, result.model)
-    hostNotice(record, 'ready', hostReadyWords(recipe.label, result.model, record, switched))
-    if (switched && modelBefore && modelBefore !== result.model && !record.sessionModelBefore) patchHostRecord(id, { sessionModelBefore: modelBefore, sessionModel: result.model })
-    if (options.keepAlive !== false) {
-      const reconnects = 5
-      const reconnect = async (why: string): Promise<void> => {
-        if (api.capabilities.managed || !target || port === undefined) throw new Error('The HF endpoint no longer answers: ' + why)
-        let engineLog = 'engine log unread'
-        const death = await engineDeathAfterReady(target, recipe, runner, signal, text => {
-          const lines = clean(text).split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('MERCURY_')).slice(-8)
-          engineLog = lines.length ? 'Last engine lines:\n' + lines.join('\n') : 'engine log is empty'
-        }).catch(() => undefined)
-        if (death) throw death
-        for (let attempt = 1; ; attempt++) {
-          const words = hostLinkAttemptWords(noteHostLink({ ...record, vendor }, { outcome: 'reconnecting', attempt, why }), reconnects)
-          log(words)
-          patchHostRecord(id, { step: words })
-          try {
-            await openHostTunnel(id, target, runner, signal, port, tensorfold ? tensorFoldPodService(tensorfold) : undefined)
-            patchHostRecord(id, { step: 'ready' })
-            log(hostLinkRecoveredWords(noteHostLink({ ...record, vendor }, { outcome: 'recovered', attempt }), port))
-            return
-          } catch (error) {
-            signal.throwIfAborted()
-            why = clean(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 200)
-            if (attempt >= reconnects) throw new HostLinkLost(hostLinkLossWords(noteHostLink({ ...record, vendor }, { outcome: 'lost', attempt, why })), engineLog)
-            await sleep(Math.min(60_000, pause * 2 ** attempt), signal, { throwOnAbort: true })
-          }
-        }
-      }
-      while (!signal.aborted) {
-        await sleep(pause, signal, { throwOnAbort: true })
-        const observed = readHostRecord(id)
-        if (observed?.retuning && (hostRetuneLive(observed) || (await reconcileHostTune(id, runner, signal))?.retuning)) continue
-        let response: Response
-        try {
-          if (api.capabilities.managed) run.key = await huggingfaceKey()
-          response = await fetch(endpointBase + '/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), ...(api.capabilities.managed || tensorfold ? { headers: { Authorization: 'Bearer ' + (tensorfold ?? run.key) } } : {}), redirect: 'error' })
-        } catch (error) {
-          const current = readHostRecord(id)
-          if (current && hostRetuneLive(current) || current?.advancedAt !== observed?.advancedAt) continue
-          await reconnect(clean(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 200))
-          continue
-        }
-        const after = readHostRecord(id)
-        if (after && hostRetuneLive(after)) { await response.body?.cancel(); continue }
-        if (!response.ok) { await response.body?.cancel(); await reconnect('HTTP ' + response.status + ' from the ' + (api.capabilities.managed ? 'endpoint' : 'tunnel')); continue }
-        await response.body?.cancel()
-      }
-    }
+    await hostJobServe(run, ports, tools, { api, recipe, tensorfold, endpointBase, loadedWeights, port, target, setupSignal })
   } catch (error) {
     if (error instanceof HostPreparationCleanupFailed) { closeHostTunnel(id); return }
     const failure = error
@@ -447,6 +370,7 @@ interface HostJobPorts {
   controller: AbortController
   signal: AbortSignal
   runner: HostRunner
+  pause: number
   vendor: HostVendorId
   secrets: string[]
 }
@@ -465,6 +389,16 @@ interface HostWatchPorts {
   maxPrice: number
   model: string
   rest: (ms: number) => Promise<void>
+}
+interface HostServePorts {
+  api: HostVendor
+  recipe: HostRecipe
+  tensorfold: string | undefined
+  endpointBase: string | undefined
+  loadedWeights: string | undefined
+  port: number | undefined
+  target: SshTarget | undefined
+  setupSignal: AbortSignal
 }
 function hostJobTools(run: HostJobRun, { id, generation, initial, controller, signal, secrets }: HostJobPorts) {
   const huggingfaceKey = async (): Promise<string | undefined> => { try { return (await hostHuggingfaceDispatchCredential(initial))?.key } catch (error) { run.keyRefusal = error instanceof Error ? error.message : String(error); return undefined } }
@@ -630,6 +564,86 @@ function hostWatchFailed(watch: HostWatchRun, { id, generation }: HostJobPorts, 
     const failedRecord = patchHostRecord(id, { jobState: 'failed', error: words })!
     log(words)
     hostNotice(failedRecord, 'failed', failedRecord.name + ' · ' + words)
+  }
+}
+async function hostJobServe(run: HostJobRun, { id, initial, options, signal, runner, pause, vendor }: HostJobPorts, { huggingfaceKey, clean, mark, log }: HostJobTools, { api, recipe, tensorfold, endpointBase, loadedWeights, port, target, setupSignal }: HostServePorts): Promise<void> {
+  let provider = initial.provider ?? ('pod-' + id.toLowerCase().replaceAll('_', '-')).slice(0, 32)
+  const result = await runLlmHost(async question => {
+    switch (question.step) {
+      case 'servers': return initial.provider ?? '__add__'
+      case 'action': return 'repoint'
+      case 'address': return endpointBase!
+      case 'dialect': return tensorfold ? 'chat-completions' : recipe.engine ?? 'sglang'
+      case 'key': if (tensorfold) return tensorfold; if (api.capabilities.managed) { run.key = await huggingfaceKey(); return run.key ?? null }; if (question.found === LLM_HOST_WORDS.keyOptional) return ''; break
+      case 'model': return question.rows?.find(row => row.value === recipe.model || row.value.startsWith(recipe.model + ':'))?.value ?? (question.rows?.length === 1 ? question.rows[0]!.value : null)
+      case 'name':
+        if (configuredCompatEndpoints().some(endpoint => endpoint.name === provider)) provider = 'pod-' + randomUUID().replaceAll('-', '').slice(0, 28)
+        return provider
+      case 'confirm': return 'run'
+    }
+    throw new Error('Setup needs input at ' + question.title + '. Resume from /llmhost.')
+  }, () => {}, setupSignal)
+  if (result.registered) {
+    patchHostRecord(id, { provider })
+    linkLlmHostPod(provider, id)
+    if (tensorfold && result.model && endpointBase) {
+      registerHostEfforts([result.model], recipe.efforts?.levels ?? [])
+      await registerTensorFoldPod({ id, vendor, recipe, baseUrl: endpointBase, key: tensorfold, served: result.model.slice(result.model.lastIndexOf('/') + 1), target })
+    }
+  }
+  if (!result.ok || !result.registered || !result.model) throw new Error(result.words)
+  mark('ready')
+  const record = patchHostRecord(id, { jobState: 'ready', engineDeath: undefined, linkLost: undefined, ...(loadedWeights ? { loadedWeights } : {}) })!
+  const modelBefore = await rentingSessionModel(record)
+  const switched = await switchRentingSession(record, result.model)
+  hostNotice(record, 'ready', hostReadyWords(recipe.label, result.model, record, switched))
+  if (switched && modelBefore && modelBefore !== result.model && !record.sessionModelBefore) patchHostRecord(id, { sessionModelBefore: modelBefore, sessionModel: result.model })
+  if (options.keepAlive !== false) {
+    const reconnects = 5
+    const reconnect = async (why: string): Promise<void> => {
+      if (api.capabilities.managed || !target || port === undefined) throw new Error('The HF endpoint no longer answers: ' + why)
+      let engineLog = 'engine log unread'
+      const death = await engineDeathAfterReady(target, recipe, runner, signal, text => {
+        const lines = clean(text).split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('MERCURY_')).slice(-8)
+        engineLog = lines.length ? 'Last engine lines:\n' + lines.join('\n') : 'engine log is empty'
+      }).catch(() => undefined)
+      if (death) throw death
+      for (let attempt = 1; ; attempt++) {
+        const words = hostLinkAttemptWords(noteHostLink({ ...record, vendor }, { outcome: 'reconnecting', attempt, why }), reconnects)
+        log(words)
+        patchHostRecord(id, { step: words })
+        try {
+          await openHostTunnel(id, target, runner, signal, port, tensorfold ? tensorFoldPodService(tensorfold) : undefined)
+          patchHostRecord(id, { step: 'ready' })
+          log(hostLinkRecoveredWords(noteHostLink({ ...record, vendor }, { outcome: 'recovered', attempt }), port))
+          return
+        } catch (error) {
+          signal.throwIfAborted()
+          why = clean(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 200)
+          if (attempt >= reconnects) throw new HostLinkLost(hostLinkLossWords(noteHostLink({ ...record, vendor }, { outcome: 'lost', attempt, why })), engineLog)
+          await sleep(Math.min(60_000, pause * 2 ** attempt), signal, { throwOnAbort: true })
+        }
+      }
+    }
+    while (!signal.aborted) {
+      await sleep(pause, signal, { throwOnAbort: true })
+      const observed = readHostRecord(id)
+      if (observed?.retuning && (hostRetuneLive(observed) || (await reconcileHostTune(id, runner, signal))?.retuning)) continue
+      let response: Response
+      try {
+        if (api.capabilities.managed) run.key = await huggingfaceKey()
+        response = await fetch(endpointBase + '/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]), ...(api.capabilities.managed || tensorfold ? { headers: { Authorization: 'Bearer ' + (tensorfold ?? run.key) } } : {}), redirect: 'error' })
+      } catch (error) {
+        const current = readHostRecord(id)
+        if (current && hostRetuneLive(current) || current?.advancedAt !== observed?.advancedAt) continue
+        await reconnect(clean(error instanceof Error ? error.message : String(error)).replace(/\s+/g, ' ').trim().slice(0, 200))
+        continue
+      }
+      const after = readHostRecord(id)
+      if (after && hostRetuneLive(after)) { await response.body?.cancel(); continue }
+      if (!response.ok) { await response.body?.cancel(); await reconnect('HTTP ' + response.status + ' from the ' + (api.capabilities.managed ? 'endpoint' : 'tunnel')); continue }
+      await response.body?.cancel()
+    }
   }
 }
 function hostPausedByEngineDeath({ id, initial, vendor }: HostJobPorts, { clean, log }: HostJobTools, error: HostEngineDeath, failedSetup: HostRecord): void {
