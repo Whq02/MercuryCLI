@@ -645,154 +645,155 @@ export interface ConcourseDispatchHandler {
   withdraw(clientMessageId: string): Promise<boolean>
 }
 
-export function makeConcourseDispatchHandler(
+async function attemptRedirectDelivery(
   deps: ConcourseDispatchDeps,
-): ConcourseDispatchHandler {
-  const attemptRedirectDelivery = async (
-    rec: ConcourseDispatchRecordV1,
-    dispatches: Record<string, ConcourseDispatchRecordV1>,
-    target: string,
-    prompt: string,
-    extras?: ConcoursePromptExtras,
-  ): Promise<ConcourseDispatchResult> => {
-    const workers = readSessionWorkers(deps.dir)
-    let targetRec = Object.values(workers).find(w => w.sessionId === target && w.endedAt === undefined)
-    const report = isOutsideReportOrigin(extras?.origin)
-    const operatorSpoke = !report && (rec.by === 'operator' || rec.by?.startsWith('operator:') === true)
-    if (!report && targetRec && (targetRec.attachedAt !== undefined || targetRec.attachRequestedAt !== undefined)) {
-      rec.heldReason = 'session-with-you'
-      rec.sessionId = target
-      rec.workerId = targetRec.runnerId
-      publishDispatches(dispatches, deps.dir)
-      return {
-        ok: false,
-        clientMessageId: rec.clientMessageId,
-        state: rec.state,
-        stateRevision: rec.stateRevision,
-        runnerId: targetRec.runnerId,
-        sessionId: target,
-        heldReason: 'session-with-you',
-        error:
-          'this session is with you in the terminal — say it there, or leave it and this message delivers on its own',
-        moves: [{ verb: 'queue', label: 'it delivers on its own after you leave the session' }],
-      }
-    }
-    if (!report && targetRec && targetRec.pausedAt !== undefined) {
-      rec.heldReason = 'session-paused'
-      rec.sessionId = target
-      rec.workerId = targetRec.runnerId
-      publishDispatches(dispatches, deps.dir)
-      return {
-        ok: false,
-        clientMessageId: rec.clientMessageId,
-        state: rec.state,
-        stateRevision: rec.stateRevision,
-        runnerId: targetRec.runnerId,
-        sessionId: target,
-        heldReason: 'session-paused',
-        error: `paused by ${targetRec.pausedBy ?? 'operator'} — resume the session and this message delivers on its own`,
-        moves: [{ verb: 'retry', label: 'resume the session — the message delivers on its own' }],
-      }
-    }
-    const retiring = targetRec !== undefined && (targetRec.parkIntent !== undefined || retirementFenced(targetRec.runnerId))
-    const calledOff = retiring && operatorSpoke && targetRec?.parkIntent === undefined && operatorTookSessionBack(target, deps.dir)
-    if (targetRec && retiring && !calledOff) {
-      rec.heldReason = 'session-retiring'
-      rec.sessionId = target
-      rec.workerId = targetRec.runnerId
-      publishDispatches(dispatches, deps.dir)
-      return {
-        ok: false,
-        clientMessageId: rec.clientMessageId,
-        state: rec.state,
-        stateRevision: rec.stateRevision,
-        runnerId: targetRec.runnerId,
-        sessionId: target,
-        heldReason: 'session-retiring',
-        error: 'the session is parking — once its runner has left, a replay revives it and delivers into the same chat',
-        moves: [{ verb: 'retry', label: 'it delivers once the park has landed' }],
-      }
-    }
-    let reviveRefusal: { error: string; permanent: boolean } | undefined
-    if (
-      !report && targetRec &&
-      (targetRec.pid === undefined || !isProcessAlive(targetRec.pid)) &&
-      targetRec.stoppedAt === undefined &&
-      targetRec.attachedAt === undefined &&
-      deps.revive !== undefined
-    ) {
-      const rev = await deps.revive(target)
-      if (rev.ok) {
-        const refreshed = Object.values(readSessionWorkers(deps.dir)).find(
-          w => w.sessionId === target && w.endedAt === undefined,
-        )
-        if (refreshed) targetRec = refreshed
-      } else reviveRefusal = { error: rev.error ?? 'the revive was refused', permanent: rev.reason === 'transcript-lost' }
-    }
-    if (!targetRec || targetRec.pid === undefined || !isProcessAlive(targetRec.pid)) {
-      const stopped = targetRec?.stoppedAt !== undefined
-      const why = stopped
-        ? 'stopped — the session was stopped on purpose; resume it to bring it back'
-        : reviveRefusal !== undefined
-          ? `the session could not be revived: ${reviveRefusal.error}`
-          : 'the session has no live runner — a replay revives it and delivers into the same chat'
-      delete rec.heldReason
-      delete rec.heldOp
-      advance(rec, 'failed', { reason: why })
-      publishDispatches(dispatches, deps.dir)
-      return {
-        ok: false,
-        clientMessageId: rec.clientMessageId,
-        state: rec.state,
-        stateRevision: rec.stateRevision,
-        error: why,
-        moves: [
-          stopped
-            ? { verb: 'revive', label: 'resume the session — it comes back around its untouched chat' }
-            : reviveRefusal !== undefined
-              ? reviveRefusal.permanent
-                ? { verb: 'queue', label: 'start a new session — this one cannot come back' }
-                : { verb: 'retry', label: '↵ again retries — the refusal above is temporary; it revives and delivers once it clears' }
-              : { verb: 'revive', label: '↵ replays — it revives the runner and delivers' },
-        ],
-      }
-    }
-    delete rec.heldReason
-    delete rec.heldOp
-    advance(rec, 'starting', { workerId: targetRec.runnerId, sessionId: target })
-    if (rec.state !== 'starting') {
-      publishDispatches(dispatches, deps.dir)
-      return {
-        ok: false,
-        clientMessageId: rec.clientMessageId,
-        state: rec.state,
-        stateRevision: rec.stateRevision,
-        error: `replay refused: the message already settled '${rec.state}' — a terminal row never re-delivers`,
-      }
-    }
+  rec: ConcourseDispatchRecordV1,
+  dispatches: Record<string, ConcourseDispatchRecordV1>,
+  target: string,
+  prompt: string,
+  extras?: ConcoursePromptExtras,
+): Promise<ConcourseDispatchResult> {
+  const workers = readSessionWorkers(deps.dir)
+  let targetRec = Object.values(workers).find(w => w.sessionId === target && w.endedAt === undefined)
+  const report = isOutsideReportOrigin(extras?.origin)
+  const operatorSpoke = !report && (rec.by === 'operator' || rec.by?.startsWith('operator:') === true)
+  if (!report && targetRec && (targetRec.attachedAt !== undefined || targetRec.attachRequestedAt !== undefined)) {
+    rec.heldReason = 'session-with-you'
+    rec.sessionId = target
+    rec.workerId = targetRec.runnerId
     publishDispatches(dispatches, deps.dir)
-    if (operatorSpoke) operatorTookSessionBack(target, deps.dir)
-    const delivered = await deps.deliver(
-      targetRec.runnerId,
-      await buildConcoursePromptRow(prompt, { ...extras, identity: rec.clientMessageId }),
-    )
-    if (delivered) {
-      advance(rec, 'working', { deliveredAt: Date.now() })
-    } else {
-      advance(rec, 'failed', { reason: 'instruction delivery failed (stdin unavailable)' })
-    }
-    publishDispatchesAfterReply(dispatches, deps.dir)
     return {
-      ok: delivered,
+      ok: false,
       clientMessageId: rec.clientMessageId,
       state: rec.state,
       stateRevision: rec.stateRevision,
       runnerId: targetRec.runnerId,
       sessionId: target,
-      ...(delivered ? {} : { error: 'instruction delivery failed (stdin unavailable)' }),
+      heldReason: 'session-with-you',
+      error:
+        'this session is with you in the terminal — say it there, or leave it and this message delivers on its own',
+      moves: [{ verb: 'queue', label: 'it delivers on its own after you leave the session' }],
     }
   }
+  if (!report && targetRec && targetRec.pausedAt !== undefined) {
+    rec.heldReason = 'session-paused'
+    rec.sessionId = target
+    rec.workerId = targetRec.runnerId
+    publishDispatches(dispatches, deps.dir)
+    return {
+      ok: false,
+      clientMessageId: rec.clientMessageId,
+      state: rec.state,
+      stateRevision: rec.stateRevision,
+      runnerId: targetRec.runnerId,
+      sessionId: target,
+      heldReason: 'session-paused',
+      error: `paused by ${targetRec.pausedBy ?? 'operator'} — resume the session and this message delivers on its own`,
+      moves: [{ verb: 'retry', label: 'resume the session — the message delivers on its own' }],
+    }
+  }
+  const retiring = targetRec !== undefined && (targetRec.parkIntent !== undefined || retirementFenced(targetRec.runnerId))
+  const calledOff = retiring && operatorSpoke && targetRec?.parkIntent === undefined && operatorTookSessionBack(target, deps.dir)
+  if (targetRec && retiring && !calledOff) {
+    rec.heldReason = 'session-retiring'
+    rec.sessionId = target
+    rec.workerId = targetRec.runnerId
+    publishDispatches(dispatches, deps.dir)
+    return {
+      ok: false,
+      clientMessageId: rec.clientMessageId,
+      state: rec.state,
+      stateRevision: rec.stateRevision,
+      runnerId: targetRec.runnerId,
+      sessionId: target,
+      heldReason: 'session-retiring',
+      error: 'the session is parking — once its runner has left, a replay revives it and delivers into the same chat',
+      moves: [{ verb: 'retry', label: 'it delivers once the park has landed' }],
+    }
+  }
+  let reviveRefusal: { error: string; permanent: boolean } | undefined
+  if (
+    !report && targetRec &&
+    (targetRec.pid === undefined || !isProcessAlive(targetRec.pid)) &&
+    targetRec.stoppedAt === undefined &&
+    targetRec.attachedAt === undefined &&
+    deps.revive !== undefined
+  ) {
+    const rev = await deps.revive(target)
+    if (rev.ok) {
+      const refreshed = Object.values(readSessionWorkers(deps.dir)).find(
+        w => w.sessionId === target && w.endedAt === undefined,
+      )
+      if (refreshed) targetRec = refreshed
+    } else reviveRefusal = { error: rev.error ?? 'the revive was refused', permanent: rev.reason === 'transcript-lost' }
+  }
+  if (!targetRec || targetRec.pid === undefined || !isProcessAlive(targetRec.pid)) {
+    const stopped = targetRec?.stoppedAt !== undefined
+    const why = stopped
+      ? 'stopped — the session was stopped on purpose; resume it to bring it back'
+      : reviveRefusal !== undefined
+        ? `the session could not be revived: ${reviveRefusal.error}`
+        : 'the session has no live runner — a replay revives it and delivers into the same chat'
+    delete rec.heldReason
+    delete rec.heldOp
+    advance(rec, 'failed', { reason: why })
+    publishDispatches(dispatches, deps.dir)
+    return {
+      ok: false,
+      clientMessageId: rec.clientMessageId,
+      state: rec.state,
+      stateRevision: rec.stateRevision,
+      error: why,
+      moves: [
+        stopped
+          ? { verb: 'revive', label: 'resume the session — it comes back around its untouched chat' }
+          : reviveRefusal !== undefined
+            ? reviveRefusal.permanent
+              ? { verb: 'queue', label: 'start a new session — this one cannot come back' }
+              : { verb: 'retry', label: '↵ again retries — the refusal above is temporary; it revives and delivers once it clears' }
+            : { verb: 'revive', label: '↵ replays — it revives the runner and delivers' },
+      ],
+    }
+  }
+  delete rec.heldReason
+  delete rec.heldOp
+  advance(rec, 'starting', { workerId: targetRec.runnerId, sessionId: target })
+  if (rec.state !== 'starting') {
+    publishDispatches(dispatches, deps.dir)
+    return {
+      ok: false,
+      clientMessageId: rec.clientMessageId,
+      state: rec.state,
+      stateRevision: rec.stateRevision,
+      error: `replay refused: the message already settled '${rec.state}' — a terminal row never re-delivers`,
+    }
+  }
+  publishDispatches(dispatches, deps.dir)
+  if (operatorSpoke) operatorTookSessionBack(target, deps.dir)
+  const delivered = await deps.deliver(
+    targetRec.runnerId,
+    await buildConcoursePromptRow(prompt, { ...extras, identity: rec.clientMessageId }),
+  )
+  if (delivered) {
+    advance(rec, 'working', { deliveredAt: Date.now() })
+  } else {
+    advance(rec, 'failed', { reason: 'instruction delivery failed (stdin unavailable)' })
+  }
+  publishDispatchesAfterReply(dispatches, deps.dir)
+  return {
+    ok: delivered,
+    clientMessageId: rec.clientMessageId,
+    state: rec.state,
+    stateRevision: rec.stateRevision,
+    runnerId: targetRec.runnerId,
+    sessionId: target,
+    ...(delivered ? {} : { error: 'instruction delivery failed (stdin unavailable)' }),
+  }
+}
 
+export function makeConcourseDispatchHandler(
+  deps: ConcourseDispatchDeps,
+): ConcourseDispatchHandler {
   let tail: Promise<unknown> = Promise.resolve()
   const run = async (req: ConcourseDispatchRequest): Promise<ConcourseDispatchResult> => {
     const digest = promptDigestOf(req.prompt)
@@ -815,7 +816,7 @@ export function makeConcourseDispatchHandler(
         }
       }
       if (existing.heldReason !== undefined && existing.sessionId !== undefined) {
-        return attemptRedirectDelivery(existing, dispatches, existing.sessionId, req.prompt, promptExtrasOf(req))
+        return attemptRedirectDelivery(deps, existing, dispatches, existing.sessionId, req.prompt, promptExtrasOf(req))
       }
       if (existing.heldReason === undefined || existing.sessionId !== undefined) return {
         ok: existing.state !== 'failed',
@@ -855,7 +856,7 @@ export function makeConcourseDispatchHandler(
     publishDispatches(dispatches, deps.dir)
 
     if (req.targetSessionId !== undefined) {
-      return attemptRedirectDelivery(rec, dispatches, req.targetSessionId, req.prompt, promptExtrasOf(req))
+      return attemptRedirectDelivery(deps, rec, dispatches, req.targetSessionId, req.prompt, promptExtrasOf(req))
     }
 
     const { clientMessageId: _id, prompt, targetSessionId: _target, ...admitReq } = req
