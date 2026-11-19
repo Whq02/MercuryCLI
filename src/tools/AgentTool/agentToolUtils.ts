@@ -1195,37 +1195,7 @@ export async function runAsyncAgentLifecycle(args: {
     let continuedOnGuidance = false
     noticesOwed.add(args)
     if (declined) {
-      failAgentTask(taskId, declined.error, rootSetAppState, args.abortController, { settleFrame: !noticeFollows })
-      if (overload !== null) {
-        armOverloadProbe({
-          taskId,
-          description,
-          registration: args.abortController,
-          toolUseContext,
-          rootSetAppState,
-          canUseTool: args.canUseTool,
-          model: metadata.resolvedAgentModel,
-          pause: overload.pause,
-          afterDeath: true,
-        })
-      } else if (windowPause !== null) {
-        if (windowPause.resumesAtMs !== undefined && !args.automaticResume) {
-          armBudgetCutResume({
-            taskId,
-            description,
-            registration: args.abortController,
-            toolUseContext,
-            rootSetAppState,
-            canUseTool: args.canUseTool,
-            delayMs: windowPauseResumeDelayMs(windowPause.resumesAtMs),
-            pause: windowPause,
-            prompt: AGENT_WINDOW_RESUME_NOTE,
-            summary: `Crewmate "${description}" resumed by itself — the usage window reset; its partial work carried forward`,
-          })
-        } else {
-          pauseAgentTask(taskId, windowPause, rootSetAppState, args.abortController)
-        }
-      }
+      settleDeclinedRun(args, declined, noticeFollows, overload, windowPause)
     } else {
       completeAgentTask(result as { agentId: string }, rootSetAppState, args.abortController, {
         usage: { tokens: getTokenCountFromTracker(tracker), toolUses: result.totalToolUseCount, durationMs: result.totalDurationMs },
@@ -1303,37 +1273,7 @@ export async function runAsyncAgentLifecycle(args: {
     }
 
     const notifies = (overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) && !continuedOnGuidance
-    if (notifies) enqueueAgentNotification({
-      taskId,
-      description,
-      status: declined ? 'failed' : 'completed',
-      ...(declined ? { error: declined.error, landedWrites: landedWritesOf(accumulated), lastCalls: lastToolCallsOf(accumulated) } : {}),
-      ...(windowPause !== null
-        ? {
-            statusWord: 'paused',
-            summary: `Crewmate "${description}" paused — ${windowPause.words}; ${pauseResumeWords(windowPause, Date.now())} — its work so far is kept and rides below; ${AGENT_RESUME_DOOR}`,
-          }
-        : {}),
-      ...(overload !== null
-        ? {
-            statusWord: 'paused',
-            summary: overloadNoticeWords(description, overload.who, undefined, overload.status),
-          }
-        : {}),
-      setAppState: rootSetAppState,
-      controller: args.abortController,
-      replyTarget: args.replyTarget,
-      finalMessage,
-      ...(result.structured !== undefined ? { structuredBlock: structuredResultBlock(result.structured) } : {}),
-      usage: {
-        totalTokens: getTokenCountFromTracker(tracker),
-        toolUses: result.totalToolUseCount,
-        durationMs: result.totalDurationMs,
-      },
-      toolUseId: toolUseContext.toolUseId,
-      ...worktreeResult,
-      ...(envelopeBlock ? { envelopeBlock } : {}),
-    })
+    if (notifies) enqueueAgentNotification(completionNoticeOf(args, { declined, accumulated, windowPause, overload, finalMessage, result, tracker, worktreeResult, envelopeBlock }))
     noticesOwed.delete(args)
   } catch (error) {
     if (error instanceof AbortError) {
@@ -1358,23 +1298,7 @@ export async function runAsyncAgentLifecycle(args: {
         partialText: partialResult,
         usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
       })
-      enqueueAgentNotification({
-        taskId,
-        description,
-        status: 'killed',
-        setAppState: rootSetAppState,
-        controller: args.abortController,
-        replyTarget: args.replyTarget,
-        toolUseId: toolUseContext.toolUseId,
-        finalMessage: partialResult,
-        usage,
-        landedWrites: landedWritesOf(accumulated),
-        lastCalls: lastToolCallsOf(accumulated),
-        ...(stopReason !== undefined ? { stopReason } : {}),
-        ...(stopStatusWord !== undefined ? { statusWord: stopStatusWord } : {}),
-        ...worktreeResult,
-        ...(envelopeBlock ? { envelopeBlock } : {}),
-      })
+      enqueueAgentNotification(stoppedNoticeOf(args, { partialResult, usage, accumulated, stopReason, stopStatusWord, worktreeResult, envelopeBlock }))
       noticesOwed.delete(args)
       await deliverOperatorMessagesAfterStop(taskId, description, toolUseContext, rootSetAppState, args.canUseTool)
       return
@@ -1403,23 +1327,7 @@ export async function runAsyncAgentLifecycle(args: {
       usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
     })
     const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)
-    if (notifies) enqueueAgentNotification({
-      taskId,
-      description,
-      status: 'failed',
-      error: errMsg,
-      ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who, undefined, overload.status) } : {}),
-      finalMessage: partialResult,
-      usage,
-      landedWrites: landedWritesOf(accumulated),
-      lastCalls: lastToolCallsOf(accumulated),
-      setAppState: rootSetAppState,
-      controller: args.abortController,
-      replyTarget: args.replyTarget,
-      toolUseId: toolUseContext.toolUseId,
-      ...worktreeResult,
-      ...(envelopeBlock ? { envelopeBlock } : {}),
-    })
+    if (notifies) enqueueAgentNotification(failedNoticeOf(args, { errMsg, overload, partialResult, usage, accumulated, worktreeResult, envelopeBlock }))
     noticesOwed.delete(args)
     const budgetCut = recoveryBudgetCutOf(error)
     if (overload !== null) {
@@ -1450,5 +1358,125 @@ export async function runAsyncAgentLifecycle(args: {
         `agent lifecycle: final cleanup failed: ${errorMessage(error)}`,
       )
     }
+  }
+}
+
+type AsyncAgentLifecycleArgs = Parameters<typeof runAsyncAgentLifecycle>[0]
+type AgentNotice = Parameters<typeof enqueueAgentNotification>[0]
+type DeclinedOutcome = Extract<NonNullable<AgentToolResult['outcome']>, { status: 'failed' }>
+type PartialRunFacts = { partialResult: ReturnType<typeof extractPartialResult>; usage: { totalTokens: number; toolUses: number; durationMs: number }; accumulated: Message[]; worktreeResult: Awaited<ReturnType<AsyncAgentLifecycleArgs['getWorktreeResult']>>; envelopeBlock: Awaited<ReturnType<typeof partialResultEnvelopeBlock>> }
+
+function settleDeclinedRun(args: AsyncAgentLifecycleArgs, declined: DeclinedOutcome, noticeFollows: boolean, overload: ReturnType<typeof overloadPauseOf>, windowPause: AgentPauseV1 | null): void {
+  const { taskId, description, toolUseContext, rootSetAppState, metadata } = args
+  failAgentTask(taskId, declined.error, rootSetAppState, args.abortController, { settleFrame: !noticeFollows })
+  if (overload !== null) {
+    armOverloadProbe({
+      taskId,
+      description,
+      registration: args.abortController,
+      toolUseContext,
+      rootSetAppState,
+      canUseTool: args.canUseTool,
+      model: metadata.resolvedAgentModel,
+      pause: overload.pause,
+      afterDeath: true,
+    })
+  } else if (windowPause !== null) {
+    if (windowPause.resumesAtMs !== undefined && !args.automaticResume) {
+      armBudgetCutResume({
+        taskId,
+        description,
+        registration: args.abortController,
+        toolUseContext,
+        rootSetAppState,
+        canUseTool: args.canUseTool,
+        delayMs: windowPauseResumeDelayMs(windowPause.resumesAtMs),
+        pause: windowPause,
+        prompt: AGENT_WINDOW_RESUME_NOTE,
+        summary: `Crewmate "${description}" resumed by itself — the usage window reset; its partial work carried forward`,
+      })
+    } else {
+      pauseAgentTask(taskId, windowPause, rootSetAppState, args.abortController)
+    }
+  }
+}
+
+function completionNoticeOf(
+  args: AsyncAgentLifecycleArgs,
+  { declined, accumulated, windowPause, overload, finalMessage, result, tracker, worktreeResult, envelopeBlock }: Omit<PartialRunFacts, 'partialResult' | 'usage' | 'envelopeBlock'> & { declined: DeclinedOutcome | undefined; windowPause: AgentPauseV1 | null; overload: ReturnType<typeof overloadPauseOf>; finalMessage: string; result: AgentToolResult; tracker: ReturnType<typeof createProgressTracker>; envelopeBlock: string | undefined },
+): AgentNotice {
+  const { taskId, description, toolUseContext, rootSetAppState } = args
+  return {
+    taskId,
+    description,
+    status: declined ? 'failed' : 'completed',
+    ...(declined ? { error: declined.error, landedWrites: landedWritesOf(accumulated), lastCalls: lastToolCallsOf(accumulated) } : {}),
+    ...(windowPause !== null
+      ? {
+          statusWord: 'paused',
+          summary: `Crewmate "${description}" paused — ${windowPause.words}; ${pauseResumeWords(windowPause, Date.now())} — its work so far is kept and rides below; ${AGENT_RESUME_DOOR}`,
+        }
+      : {}),
+    ...(overload !== null
+      ? {
+          statusWord: 'paused',
+          summary: overloadNoticeWords(description, overload.who, undefined, overload.status),
+        }
+      : {}),
+    setAppState: rootSetAppState,
+    controller: args.abortController,
+    replyTarget: args.replyTarget,
+    finalMessage,
+    ...(result.structured !== undefined ? { structuredBlock: structuredResultBlock(result.structured) } : {}),
+    usage: {
+      totalTokens: getTokenCountFromTracker(tracker),
+      toolUses: result.totalToolUseCount,
+      durationMs: result.totalDurationMs,
+    },
+    toolUseId: toolUseContext.toolUseId,
+    ...worktreeResult,
+    ...(envelopeBlock ? { envelopeBlock } : {}),
+  }
+}
+
+function stoppedNoticeOf(args: AsyncAgentLifecycleArgs, { partialResult, usage, accumulated, stopReason, stopStatusWord, worktreeResult, envelopeBlock }: PartialRunFacts & { stopReason: string | undefined; stopStatusWord: string | undefined }): AgentNotice {
+  const { taskId, description, toolUseContext, rootSetAppState } = args
+  return {
+    taskId,
+    description,
+    status: 'killed',
+    setAppState: rootSetAppState,
+    controller: args.abortController,
+    replyTarget: args.replyTarget,
+    toolUseId: toolUseContext.toolUseId,
+    finalMessage: partialResult,
+    usage,
+    landedWrites: landedWritesOf(accumulated),
+    lastCalls: lastToolCallsOf(accumulated),
+    ...(stopReason !== undefined ? { stopReason } : {}),
+    ...(stopStatusWord !== undefined ? { statusWord: stopStatusWord } : {}),
+    ...worktreeResult,
+    ...(envelopeBlock ? { envelopeBlock } : {}),
+  }
+}
+
+function failedNoticeOf(args: AsyncAgentLifecycleArgs, { errMsg, overload, partialResult, usage, accumulated, worktreeResult, envelopeBlock }: PartialRunFacts & { errMsg: string; overload: ReturnType<typeof overloadPauseOf> }): AgentNotice {
+  const { taskId, description, toolUseContext, rootSetAppState } = args
+  return {
+    taskId,
+    description,
+    status: 'failed',
+    error: errMsg,
+    ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who, undefined, overload.status) } : {}),
+    finalMessage: partialResult,
+    usage,
+    landedWrites: landedWritesOf(accumulated),
+    lastCalls: lastToolCallsOf(accumulated),
+    setAppState: rootSetAppState,
+    controller: args.abortController,
+    replyTarget: args.replyTarget,
+    toolUseId: toolUseContext.toolUseId,
+    ...worktreeResult,
+    ...(envelopeBlock ? { envelopeBlock } : {}),
   }
 }
