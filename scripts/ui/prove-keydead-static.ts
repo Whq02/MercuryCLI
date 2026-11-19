@@ -7,15 +7,39 @@ const TREES = ['src/components', 'src/screens', 'src/commands']
 
 const ALLOW: Record<string, string> = {
   'src/components/MercuryFrame.tsx :: tab': 'statusbar hint for the global shift+tab mode carousel (keybindings layer)',
-  'src/components/concourse/SessionMirror.tsx :: enter': "the live pane's empty-state note for a ready-to-review newborn — its ↵ is the live box's empty-draft verb (the composer beside it, same region) entering the selected row",
-  'src/components/concourse/ConcourseRoute.tsx :: letter:y':
+  'src/components/concourse/sessionMirror/sessionMirrorView.tsx :: enter': "the live pane's empty-state note for a ready-to-review newborn — its ↵ is the live box's empty-draft verb (the composer beside it, same region) entering the selected row",
+  'src/components/concourse/route/useConcourseDraftDispatch.ts :: letter:y':
     'the daemon-start offer (the operator\'s word): ConcourseScreen routes y/n while daemonOfferArmed → callbacks.answerDaemonOffer (out-of-file binder across the ConcourseCallbacks seam)',
-  'src/components/concourse/ConcourseRoute.tsx :: letter:n':
+  'src/components/concourse/route/useConcourseDraftDispatch.ts :: letter:n':
     'the daemon-start offer: same ConcourseScreen y/n routing → callbacks.answerDaemonOffer (out-of-file binder)',
-  'src/components/concourse/ConcourseRoute.tsx :: enter':
+  'src/components/concourse/route/useConcourseDraftDispatch.ts :: enter':
+    'ConcourseScreen.tsx key.return → callbacks.submitSessionDraft (out-of-file binder across the ConcourseCallbacks seam)',
+  'src/components/concourse/route/receipts.ts :: enter':
     'ConcourseScreen.tsx key.return → callbacks.submitSessionDraft (out-of-file binder across the ConcourseCallbacks seam)',
   'src/components/concourse/ConcourseRoute.tsx :: arrows-lr':
     'the enter-while-attached refusal names ⇧← — bound in the attached session\'s tag bar (SwitchboardTagBar.tsx requestLeave), the surface the note sends the operator to',
+  'src/components/mercury-ui/parity/accountRows.tsx :: enter':
+    'AccountView.tsx hands its useInteractiveList the return action for the rows this file draws (out-of-file binder in the door)',
+  'src/components/mercury-ui/screens/sessionManager/views.tsx :: esc':
+    'the prune confirm beat: SessionManagerView.tsx useInput keeps on key.escape (out-of-file binder in the door)',
+  'src/components/mercury-ui/screens/sessionManager/views.tsx :: enter':
+    'the prune confirm beat: SessionManagerView.tsx useInput commits on key.return (out-of-file binder in the door)',
+  'src/components/mercury-ui/screens/sessionManager/views.tsx :: arrows-ud':
+    'the prune confirm beat: SessionManagerView.tsx useInput moves the choice on key.upArrow and key.downArrow (out-of-file binder in the door)',
+  'src/components/mercury-ui/screens/sessionManager/views.tsx :: letter:n':
+    'SessionManagerView.tsx useInput starts the fresh session on n (out-of-file binder in the door)',
+  'src/components/memory/MemoryCentreView.tsx :: letter:u':
+    'memory/centre/keys.ts unpins on u while the open fact is pinned (out-of-file binder in the part)',
+  'src/components/agents/studio/AgentStudio.tsx :: letter:o':
+    'agents/studio/agentStudioParts.tsx opens the row in the editor on o (out-of-file binder in the part)',
+  'src/components/agents/studio/AgentStudio.tsx :: tab':
+    'agents/studio/agentStudioParts.tsx widens the scope on key.tab (out-of-file binder in the part)',
+  'src/components/ConsoleOAuthFlow.tsx :: enter':
+    'the lists are the Select of consoleOAuth/flowCards.tsx and consoleOAuth/legCard.tsx (out-of-file binder in the parts)',
+  'src/components/ConsoleOAuthFlow.tsx :: arrows-ud':
+    'the lists are the Select of consoleOAuth/flowCards.tsx and consoleOAuth/legCard.tsx (out-of-file binder in the parts)',
+  'src/components/ConsoleOAuthFlow.tsx :: paging':
+    'the lists are the Select of consoleOAuth/flowCards.tsx and consoleOAuth/legCard.tsx (out-of-file binder in the parts)',
 }
 
 interface Site {
