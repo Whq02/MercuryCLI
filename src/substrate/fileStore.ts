@@ -180,6 +180,24 @@ type Runtime = {
   opChain: Promise<void>
 }
 
+interface StoreFactory<T, A extends unknown[]> {
+  encodeValue: (value: T) => string
+  cfg: StoreConfig<T, A>
+  revisionFor: (parsed: unknown, value: T) => StoreRevision | null
+  fanOut: (rt: Runtime, change: StoreChange<T>) => void
+  startPollUntilExists: (path: string, rt: Runtime) => void
+  scheduleEmit: (path: string, rt: Runtime) => void
+  startPollFallback: (path: string, rt: Runtime) => void
+  stopWatching: (path: string, rt: Runtime) => void
+  startPollFloor: (path: string, rt: Runtime) => void
+  startWatcher: (path: string, rt: Runtime) => void
+  emitIfChanged: (path: string, rt: Runtime) => Promise<void>
+  getRuntime: (path: string) => Runtime
+  ensureExists: (path: string) => Promise<void>
+  readResultAt: (path: string, rt: Runtime | null) => Promise<{ result: StoreReadResult<T>; raw: string | null }>
+  readAt: (path: string) => Promise<T>
+}
+
 let emitReadGateForProofs: (() => Promise<void>) | null = null
 export function _setEmitReadGateForProofs(
   gate: (() => Promise<void>) | null,
@@ -348,64 +366,7 @@ export function defineStore<T, A extends unknown[] = []>(
     }
   }
 
-  const emitOnce = async (path: string, rt: Runtime): Promise<void> => {
-    const epochAtRead = rt.publishEpoch
-    let statKey: string
-    try {
-      statKey = statKeyOf(await stat(path))
-    } catch (e) {
-      statKey = getErrnoCode(e) === 'ENOENT' ? STAT_KEY_ABSENT : ''
-    }
-    if (statKey !== '' && statKey === rt.lastStatKey && rt.publishEpoch === epochAtRead) return
-    let raw: string | null
-    try {
-      raw = await readFile(path, 'utf-8')
-    } catch (e) {
-      raw = getErrnoCode(e) === 'ENOENT' ? null : rt.lastEmittedRaw
-      if (raw === rt.lastEmittedRaw && raw !== null) return
-    }
-    if (statKey !== '' && rt.publishEpoch === epochAtRead) rt.lastStatKey = statKey
-    if (emitReadGateForProofs) await emitReadGateForProofs()
-    if (rt.publishEpoch !== epochAtRead) {
-      rt.emitDirty = true
-      return
-    }
-    if (rt.listeners.size === 0) return
-    if (raw === rt.lastEmittedRaw) return
-    if (rt.lastEmittedRaw === null && raw !== null && raw === encodeValue(cfg.empty())) {
-      rt.lastEmittedRaw = raw
-      return
-    }
-    let value: T
-    let revision: StoreRevision | null = null
-    try {
-      if (raw === null) {
-        value = cfg.empty()
-      } else {
-        const parsed = jsonParse(raw) as unknown
-        const decoded = cfg.decode(parsed)
-        if (decoded === null) throw new Error(`[${cfg.name}] store failed validation`)
-        value = decoded
-        revision = revisionFor(parsed, decoded)
-      }
-    } catch (e) {
-      logForDebugging(`[${cfg.name}] subscribe read failed, skipping emit: ${e}`)
-      return
-    }
-    if (revision?.operationId && revision.operationId === rt.lastEmittedOpId) {
-      rt.lastEmittedRaw = raw
-      return
-    }
-    rt.lastEmittedRaw = raw
-    const skipped = skippedBetween(rt.lastSeenRevision, revision)
-    if (revision) rt.lastSeenRevision = revision.revision
-    fanOut(rt, {
-      value,
-      revision,
-      cause: skipped > 0 ? 'catch-up' : 'watch',
-      skippedRevisions: skipped,
-    })
-  }
+  const emitOnce = (path: string, rt: Runtime): Promise<void> => emitOnceOf(ctx, path, rt)
 
   const fanOut = (rt: Runtime, change: StoreChange<T>): void => {
     rt.emissionSeq += 1
@@ -429,61 +390,7 @@ export function defineStore<T, A extends unknown[] = []>(
     rt.debounceTimer.unref?.()
   }
 
-  const startWatcher = (path: string, rt: Runtime): void => {
-    if (rt.watcher || rt.watcherStarting || rt.pollTimer) return
-    rt.watcherStarting = (async () => {
-      try {
-        try {
-          await stat(path)
-        } catch (e) {
-          if (getErrnoCode(e) === 'ENOENT') {
-            startPollUntilExists(path, rt)
-            return
-          }
-        }
-        const { default: chokidar } = await import('chokidar')
-        if (rt.listeners.size === 0) return
-        const watcher = chokidar.watch(resolveWatchRoot(path), {
-          persistent: false,
-          ignoreInitial: true,
-          atomic: true,
-          ignorePermissionErrors: true,
-        })
-        watcher.on('add', () => scheduleEmit(path, rt))
-        watcher.on('change', () => scheduleEmit(path, rt))
-        watcher.on('unlink', () => {
-          scheduleEmit(path, rt)
-          void watcher.close().catch(() => {})
-          if (rt.watcher === watcher) rt.watcher = null
-          if (rt.pollFloorStop) {
-            rt.pollFloorStop()
-            rt.pollFloorStop = null
-          }
-          if (rt.listeners.size > 0) startPollUntilExists(path, rt)
-        })
-        watcher.on('error', (e: unknown) => {
-          logForDebugging(`[${cfg.name}] watcher error, falling back to polling: ${e}`)
-          void watcher.close().catch(() => {})
-          if (rt.watcher === watcher) rt.watcher = null
-          startPollFallback(path, rt)
-        })
-        rt.watcher = watcher
-        if (rt.listeners.size === 0) {
-          stopWatching(path, rt)
-          return
-        }
-        scheduleEmit(path, rt)
-        startPollFloor(path, rt)
-      } catch (e) {
-        logForDebugging(
-          `[${cfg.name}] watch engine unavailable (${e}) — polling fallback at ${cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS}ms`,
-        )
-        startPollFallback(path, rt)
-      } finally {
-        rt.watcherStarting = null
-      }
-    })()
-  }
+  const startWatcher = (path: string, rt: Runtime): void => startWatcherOf(ctx, path, rt)
 
   const startPollFallback = (path: string, rt: Runtime): void => {
     if (rt.pollTimer || rt.listeners.size === 0) return
@@ -505,55 +412,7 @@ export function defineStore<T, A extends unknown[] = []>(
     rt.pollFloorStop = subscribeUiClock(floorMs, () => void emitIfChanged(path, rt))
   }
 
-  const startPollUntilExists = (path: string, rt: Runtime): void => {
-    if (rt.pollTimer || rt.listeners.size === 0) return
-    let ancestor: NodeFSWatcher | null = null
-    const upgrade = (): void => {
-      if (rt.pollTimer) {
-        clearInterval(rt.pollTimer)
-        rt.pollTimer = null
-      }
-      stopFloor()
-      try {
-        ancestor?.close()
-      } catch {
-      }
-      ancestor = null
-      startWatcher(path, rt)
-    }
-    const probe = async (): Promise<void> => {
-      await emitIfChanged(path, rt)
-      if (rt.pollTimer === null) return
-      if (rt.lastStatKey === STAT_KEY_ABSENT || rt.lastStatKey === null) return
-      upgrade()
-    }
-    let dir = dirname(path)
-    while (dir !== dirname(dir) && !existsSync(dir)) dir = dirname(dir)
-    try {
-      const w = fsWatch(resolveWatchRoot(dir), () => void probe())
-      w.on('error', () => {
-        try {
-          w.close()
-        } catch {
-        }
-        if (ancestor === w) ancestor = null
-      })
-      ancestor = w
-    } catch {
-    }
-    const floorMs = ancestor !== null ? (cfg.pollFloorMs ?? DEFAULT_POLL_FLOOR_MS) : (cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS)
-    const stopFloor = subscribeUiClock(floorMs, () => void probe())
-    rt.pollTimer = setInterval(() => {}, 0x7fffffff)
-    rt.pollTimer.unref?.()
-    rt.pollLadderStop = () => {
-      stopFloor()
-      try {
-        ancestor?.close()
-      } catch {
-      }
-      ancestor = null
-    }
-  }
+  const startPollUntilExists = (path: string, rt: Runtime): void => startPollUntilExistsOf(ctx, path, rt)
 
   const stopWatching = (path: string, rt: Runtime): void => {
     if (rt.watcher) {
@@ -604,161 +463,9 @@ export function defineStore<T, A extends unknown[] = []>(
     }
   }
 
-  const makeHandle = (path: string): StoreHandle<T> => {
-    const rt = getRuntime(path)
+  const makeHandle = (path: string): StoreHandle<T> => makeHandleOf(ctx, path)
 
-    const publish = async (
-      value: T,
-      prevRevision: StoreRevision | null,
-      cause: StoreChangeCause = 'local-commit',
-    ): Promise<void> => {
-      const encoded = (cfg.encode ?? (v => v as unknown))(value)
-      const isObjectShaped =
-        encoded !== null && typeof encoded === 'object' && !Array.isArray(encoded)
-      const revision = isObjectShaped
-        ? nextRevision(prevRevision, payloadDigest(jsonStringify(encoded)))
-        : null
-      const stampedPayload = isObjectShaped
-        ? {
-            ...(encoded as Record<string, unknown>),
-            [VERSION_KEY]: cfg.schemaVersion,
-            ...(revision ? { [REVISION_KEY]: revision } : {}),
-          }
-        : encoded
-      const raw = jsonStringify(stampedPayload, null, 2) + '\n'
-      await publishAtomic(path, raw)
-      rt.lastStatKey = null
-      const emitted = revision ?? revisionFor(null, value)
-      const echoed = rt.lastEmittedRaw === raw
-      rt.publishEpoch += 1
-      rt.lastEmittedRaw = raw
-      rt.lastEmittedOpId = revision?.operationId ?? null
-      if (emitted) {
-        rt.lastSeenRevision = Math.max(rt.lastSeenRevision ?? 0, emitted.revision)
-      }
-      if (!echoed && rt.listeners.size > 0) {
-        queueMicrotask(() =>
-          fanOut(rt, { value, revision: emitted, cause, skippedRevisions: 0 }),
-        )
-      }
-    }
-
-    const lane = groupCommitLane<T, { prevRevision: StoreRevision | null; cause: StoreChangeCause }>({
-      acquire: async () => {
-        await ensureExists(path)
-        compromisedLocks.delete(path)
-        return lockfile.lock(path, storeLockOptions(path))
-      },
-      read: async () => {
-        const { result: rr, raw } = await readResultAt(path, rt)
-        if (rr.state === 'recoverable') {
-          if (cfg.onReadFailure === 'throw') throw new Error(rr.reason)
-          const resumedFrom = rr.lastGood !== undefined ? 'last-good' : 'empty'
-          await quarantineDamagedStore({
-            store: cfg.name,
-            path,
-            rawBytes: raw,
-            reason: rr.reason,
-            resumedFrom,
-          })
-          logForDebugging(
-            `[${cfg.name}] recoverable store quarantined; mutation resumes from ${resumedFrom}`,
-            { level: 'warn' },
-          )
-          return {
-            value: rr.lastGood ?? cfg.empty(),
-            context: {
-              prevRevision:
-                rt.lastSeenRevision !== null
-                  ? {
-                      revision: rt.lastSeenRevision,
-                      writerId: 'recovery',
-                      operationId: '',
-                      committedAt: '',
-                      digest: '',
-                    }
-                  : null,
-              cause: 'recovery' as StoreChangeCause,
-            },
-          }
-        }
-        return {
-          value: rr.value,
-          context: {
-            prevRevision: rr.state === 'ready' ? rr.revision : null,
-            cause: 'local-commit' as StoreChangeCause,
-          },
-        }
-      },
-      beforePublish: () => assertStillHeld(path),
-      publish: (next, ctx) => publish(next, ctx.prevRevision, ctx.cause),
-    })
-
-    const locked = <R>(fn: (current: T) => Promise<{ next: T; result: R }>): Promise<R> =>
-      lane.submit(fn)
-
-    const subscribeChanges = (
-      listener: (change: StoreChange<T>) => void,
-      opts?: { immediate?: boolean },
-    ): (() => void) => {
-      const l = listener as (change: StoreChange<unknown>) => void
-      rt.listeners.add(l)
-      startWatcher(path, rt)
-      if (opts?.immediate !== false) {
-        const seqAtSubscribe = rt.emissionSeq
-        void readResultAt(path, rt)
-          .then(({ result: rr }) => {
-            if (!rt.listeners.has(l)) return
-            if (rt.emissionSeq !== seqAtSubscribe) return
-            if (rr.state === 'recoverable') return
-            const revision = rr.state === 'ready' ? rr.revision : null
-            if (revision && rt.lastSeenRevision === null) {
-              rt.lastSeenRevision = revision.revision
-            }
-            listener({
-              value: rr.value,
-              revision,
-              cause: 'catch-up',
-              skippedRevisions: 0,
-            })
-          })
-          .catch(e =>
-            logForDebugging(`[${cfg.name}] immediate subscribe read failed: ${e}`),
-          )
-      }
-      return () => {
-        rt.listeners.delete(l)
-        if (rt.listeners.size === 0) stopWatching(path, rt)
-      }
-    }
-
-    return {
-      path,
-      read: () => readAt(path),
-      readResult: async () => (await readResultAt(path, rt)).result,
-      update: fn => locked(async cur => await fn(cur)),
-      mutate: fn =>
-        locked(async cur => ({ next: await fn(cur), result: undefined })),
-      write: value => locked(async () => ({ next: value, result: undefined })),
-      subscribe: (listener, opts) =>
-        subscribeChanges(chg => listener(chg.value), opts),
-      subscribeChanges,
-      _statsForProofs: () => ({
-        listeners: rt.listeners.size,
-        watcher: rt.watcher !== null,
-        watcherStarting: rt.watcherStarting !== null,
-        pollTimer: rt.pollTimer !== null,
-        pollFloorTimer: rt.pollFloorStop !== null,
-        debounceTimer: rt.debounceTimer !== null,
-        emissionSeq: rt.emissionSeq,
-        publishEpoch: rt.publishEpoch,
-        lastSeenRevision: rt.lastSeenRevision,
-        lastEmittedOpId: rt.lastEmittedOpId,
-        lastStatKey: rt.lastStatKey,
-      }),
-    }
-  }
-
+  const ctx: StoreFactory<T, A> = { encodeValue, cfg, revisionFor, fanOut, startPollUntilExists, scheduleEmit, startPollFallback, stopWatching, startPollFloor, startWatcher, emitIfChanged, getRuntime, ensureExists, readResultAt, readAt }
   return (...args: A): StoreHandle<T> => {
     const path = cfg.path(...args)
     let handle = handles.get(path)
@@ -767,5 +474,329 @@ export function defineStore<T, A extends unknown[] = []>(
       handles.set(path, handle)
     }
     return handle
+  }
+}
+
+async function emitOnceOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path: string, rt: Runtime): Promise<void> {
+  const { encodeValue, cfg, revisionFor, fanOut } = ctx
+  const epochAtRead = rt.publishEpoch
+  let statKey: string
+  try {
+    statKey = statKeyOf(await stat(path))
+  } catch (e) {
+    statKey = getErrnoCode(e) === 'ENOENT' ? STAT_KEY_ABSENT : ''
+  }
+  if (statKey !== '' && statKey === rt.lastStatKey && rt.publishEpoch === epochAtRead) return
+  let raw: string | null
+  try {
+    raw = await readFile(path, 'utf-8')
+  } catch (e) {
+    raw = getErrnoCode(e) === 'ENOENT' ? null : rt.lastEmittedRaw
+    if (raw === rt.lastEmittedRaw && raw !== null) return
+  }
+  if (statKey !== '' && rt.publishEpoch === epochAtRead) rt.lastStatKey = statKey
+  if (emitReadGateForProofs) await emitReadGateForProofs()
+  if (rt.publishEpoch !== epochAtRead) {
+    rt.emitDirty = true
+    return
+  }
+  if (rt.listeners.size === 0) return
+  if (raw === rt.lastEmittedRaw) return
+  if (rt.lastEmittedRaw === null && raw !== null && raw === encodeValue(cfg.empty())) {
+    rt.lastEmittedRaw = raw
+    return
+  }
+  let value: T
+  let revision: StoreRevision | null = null
+  try {
+    if (raw === null) {
+      value = cfg.empty()
+    } else {
+      const parsed = jsonParse(raw) as unknown
+      const decoded = cfg.decode(parsed)
+      if (decoded === null) throw new Error(`[${cfg.name}] store failed validation`)
+      value = decoded
+      revision = revisionFor(parsed, decoded)
+    }
+  } catch (e) {
+    logForDebugging(`[${cfg.name}] subscribe read failed, skipping emit: ${e}`)
+    return
+  }
+  if (revision?.operationId && revision.operationId === rt.lastEmittedOpId) {
+    rt.lastEmittedRaw = raw
+    return
+  }
+  rt.lastEmittedRaw = raw
+  const skipped = skippedBetween(rt.lastSeenRevision, revision)
+  if (revision) rt.lastSeenRevision = revision.revision
+  fanOut(rt, {
+    value,
+    revision,
+    cause: skipped > 0 ? 'catch-up' : 'watch',
+    skippedRevisions: skipped,
+  })
+}
+
+function startWatcherOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path: string, rt: Runtime): void {
+  const { startPollUntilExists, scheduleEmit, cfg, startPollFallback, stopWatching, startPollFloor } = ctx
+  if (rt.watcher || rt.watcherStarting || rt.pollTimer) return
+  rt.watcherStarting = (async () => {
+    try {
+      try {
+        await stat(path)
+      } catch (e) {
+        if (getErrnoCode(e) === 'ENOENT') {
+          startPollUntilExists(path, rt)
+          return
+        }
+      }
+      const { default: chokidar } = await import('chokidar')
+      if (rt.listeners.size === 0) return
+      const watcher = chokidar.watch(resolveWatchRoot(path), {
+        persistent: false,
+        ignoreInitial: true,
+        atomic: true,
+        ignorePermissionErrors: true,
+      })
+      watcher.on('add', () => scheduleEmit(path, rt))
+      watcher.on('change', () => scheduleEmit(path, rt))
+      watcher.on('unlink', () => {
+        scheduleEmit(path, rt)
+        void watcher.close().catch(() => {})
+        if (rt.watcher === watcher) rt.watcher = null
+        if (rt.pollFloorStop) {
+          rt.pollFloorStop()
+          rt.pollFloorStop = null
+        }
+        if (rt.listeners.size > 0) startPollUntilExists(path, rt)
+      })
+      watcher.on('error', (e: unknown) => {
+        logForDebugging(`[${cfg.name}] watcher error, falling back to polling: ${e}`)
+        void watcher.close().catch(() => {})
+        if (rt.watcher === watcher) rt.watcher = null
+        startPollFallback(path, rt)
+      })
+      rt.watcher = watcher
+      if (rt.listeners.size === 0) {
+        stopWatching(path, rt)
+        return
+      }
+      scheduleEmit(path, rt)
+      startPollFloor(path, rt)
+    } catch (e) {
+      logForDebugging(
+        `[${cfg.name}] watch engine unavailable (${e}) — polling fallback at ${cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS}ms`,
+      )
+      startPollFallback(path, rt)
+    } finally {
+      rt.watcherStarting = null
+    }
+  })()
+}
+
+function startPollUntilExistsOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path: string, rt: Runtime): void {
+  const { startWatcher, emitIfChanged, cfg } = ctx
+  if (rt.pollTimer || rt.listeners.size === 0) return
+  let ancestor: NodeFSWatcher | null = null
+  const upgrade = (): void => {
+    if (rt.pollTimer) {
+      clearInterval(rt.pollTimer)
+      rt.pollTimer = null
+    }
+    stopFloor()
+    try {
+      ancestor?.close()
+    } catch {
+    }
+    ancestor = null
+    startWatcher(path, rt)
+  }
+  const probe = async (): Promise<void> => {
+    await emitIfChanged(path, rt)
+    if (rt.pollTimer === null) return
+    if (rt.lastStatKey === STAT_KEY_ABSENT || rt.lastStatKey === null) return
+    upgrade()
+  }
+  let dir = dirname(path)
+  while (dir !== dirname(dir) && !existsSync(dir)) dir = dirname(dir)
+  try {
+    const w = fsWatch(resolveWatchRoot(dir), () => void probe())
+    w.on('error', () => {
+      try {
+        w.close()
+      } catch {
+      }
+      if (ancestor === w) ancestor = null
+    })
+    ancestor = w
+  } catch {
+  }
+  const floorMs = ancestor !== null ? (cfg.pollFloorMs ?? DEFAULT_POLL_FLOOR_MS) : (cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS)
+  const stopFloor = subscribeUiClock(floorMs, () => void probe())
+  rt.pollTimer = setInterval(() => {}, 0x7fffffff)
+  rt.pollTimer.unref?.()
+  rt.pollLadderStop = () => {
+    stopFloor()
+    try {
+      ancestor?.close()
+    } catch {
+    }
+    ancestor = null
+  }
+}
+
+function makeHandleOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path: string): StoreHandle<T> {
+  const { getRuntime, cfg, revisionFor, fanOut, ensureExists, readResultAt, startWatcher, stopWatching, readAt } = ctx
+  const rt = getRuntime(path)
+
+  const publish = async (
+    value: T,
+    prevRevision: StoreRevision | null,
+    cause: StoreChangeCause = 'local-commit',
+  ): Promise<void> => {
+    const encoded = (cfg.encode ?? (v => v as unknown))(value)
+    const isObjectShaped =
+      encoded !== null && typeof encoded === 'object' && !Array.isArray(encoded)
+    const revision = isObjectShaped
+      ? nextRevision(prevRevision, payloadDigest(jsonStringify(encoded)))
+      : null
+    const stampedPayload = isObjectShaped
+      ? {
+          ...(encoded as Record<string, unknown>),
+          [VERSION_KEY]: cfg.schemaVersion,
+          ...(revision ? { [REVISION_KEY]: revision } : {}),
+        }
+      : encoded
+    const raw = jsonStringify(stampedPayload, null, 2) + '\n'
+    await publishAtomic(path, raw)
+    rt.lastStatKey = null
+    const emitted = revision ?? revisionFor(null, value)
+    const echoed = rt.lastEmittedRaw === raw
+    rt.publishEpoch += 1
+    rt.lastEmittedRaw = raw
+    rt.lastEmittedOpId = revision?.operationId ?? null
+    if (emitted) {
+      rt.lastSeenRevision = Math.max(rt.lastSeenRevision ?? 0, emitted.revision)
+    }
+    if (!echoed && rt.listeners.size > 0) {
+      queueMicrotask(() =>
+        fanOut(rt, { value, revision: emitted, cause, skippedRevisions: 0 }),
+      )
+    }
+  }
+
+  const lane = groupCommitLane<T, { prevRevision: StoreRevision | null; cause: StoreChangeCause }>({
+    acquire: async () => {
+      await ensureExists(path)
+      compromisedLocks.delete(path)
+      return lockfile.lock(path, storeLockOptions(path))
+    },
+    read: async () => {
+      const { result: rr, raw } = await readResultAt(path, rt)
+      if (rr.state === 'recoverable') {
+        if (cfg.onReadFailure === 'throw') throw new Error(rr.reason)
+        const resumedFrom = rr.lastGood !== undefined ? 'last-good' : 'empty'
+        await quarantineDamagedStore({
+          store: cfg.name,
+          path,
+          rawBytes: raw,
+          reason: rr.reason,
+          resumedFrom,
+        })
+        logForDebugging(
+          `[${cfg.name}] recoverable store quarantined; mutation resumes from ${resumedFrom}`,
+          { level: 'warn' },
+        )
+        return {
+          value: rr.lastGood ?? cfg.empty(),
+          context: {
+            prevRevision:
+              rt.lastSeenRevision !== null
+                ? {
+                    revision: rt.lastSeenRevision,
+                    writerId: 'recovery',
+                    operationId: '',
+                    committedAt: '',
+                    digest: '',
+                  }
+                : null,
+            cause: 'recovery' as StoreChangeCause,
+          },
+        }
+      }
+      return {
+        value: rr.value,
+        context: {
+          prevRevision: rr.state === 'ready' ? rr.revision : null,
+          cause: 'local-commit' as StoreChangeCause,
+        },
+      }
+    },
+    beforePublish: () => assertStillHeld(path),
+    publish: (next, ctx) => publish(next, ctx.prevRevision, ctx.cause),
+  })
+
+  const locked = <R>(fn: (current: T) => Promise<{ next: T; result: R }>): Promise<R> =>
+    lane.submit(fn)
+
+  const subscribeChanges = (
+    listener: (change: StoreChange<T>) => void,
+    opts?: { immediate?: boolean },
+  ): (() => void) => {
+    const l = listener as (change: StoreChange<unknown>) => void
+    rt.listeners.add(l)
+    startWatcher(path, rt)
+    if (opts?.immediate !== false) {
+      const seqAtSubscribe = rt.emissionSeq
+      void readResultAt(path, rt)
+        .then(({ result: rr }) => {
+          if (!rt.listeners.has(l)) return
+          if (rt.emissionSeq !== seqAtSubscribe) return
+          if (rr.state === 'recoverable') return
+          const revision = rr.state === 'ready' ? rr.revision : null
+          if (revision && rt.lastSeenRevision === null) {
+            rt.lastSeenRevision = revision.revision
+          }
+          listener({
+            value: rr.value,
+            revision,
+            cause: 'catch-up',
+            skippedRevisions: 0,
+          })
+        })
+        .catch(e =>
+          logForDebugging(`[${cfg.name}] immediate subscribe read failed: ${e}`),
+        )
+    }
+    return () => {
+      rt.listeners.delete(l)
+      if (rt.listeners.size === 0) stopWatching(path, rt)
+    }
+  }
+
+  return {
+    path,
+    read: () => readAt(path),
+    readResult: async () => (await readResultAt(path, rt)).result,
+    update: fn => locked(async cur => await fn(cur)),
+    mutate: fn =>
+      locked(async cur => ({ next: await fn(cur), result: undefined })),
+    write: value => locked(async () => ({ next: value, result: undefined })),
+    subscribe: (listener, opts) =>
+      subscribeChanges(chg => listener(chg.value), opts),
+    subscribeChanges,
+    _statsForProofs: () => ({
+      listeners: rt.listeners.size,
+      watcher: rt.watcher !== null,
+      watcherStarting: rt.watcherStarting !== null,
+      pollTimer: rt.pollTimer !== null,
+      pollFloorTimer: rt.pollFloorStop !== null,
+      debounceTimer: rt.debounceTimer !== null,
+      emissionSeq: rt.emissionSeq,
+      publishEpoch: rt.publishEpoch,
+      lastSeenRevision: rt.lastSeenRevision,
+      lastEmittedOpId: rt.lastEmittedOpId,
+      lastStatKey: rt.lastStatKey,
+    }),
   }
 }

@@ -1,36 +1,22 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { mkdirSync, renameSync, rmSync, watch, writeFileSync } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
-import { BOARD_PACKET_RULE, SEAT_NAME_REFUSAL, boardReachNote, boardSeatName, boardLabelKey, type BoardChannel, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReach, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
+import { SEAT_NAME_REFUSAL, boardSeatName, boardLabelKey, type BoardEvent, type BoardPacket, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
 import { CHAT_OFF, type BoardChat } from './party.js'
 import type { CrewChatLifecycle } from '../../types/message.js'
 import { sleep } from '../../utils/sleep.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
-import { boardAddressesSeat, boardWaitWords, parseBoardWait } from './waits.js'
 import { createWakeState } from './wakeState.js'
+import { digest, normalize, validTeam } from './store/shared.js'
+import type { Database, StoreContext } from './store/context.js'
+import { settle, complete, resumeAdmitted, claimWake, wakePacket, admitWake, holdWake } from './store/wakes.js'
+import { reserveEnrollment, cancelEnrollment, enroll, assignCaptain, assignTeam } from './store/enrollment.js'
+import { post, postOwner } from './store/posting.js'
+import { read, leadPosts, leadPainted, markLeadPainted, boundary, presented } from './store/reading.js'
 
-type Database = {
-  exec(sql: string): unknown
-  prepare(sql: string): { all(...values: (string | number)[]): Record<string, unknown>[]; get(...values: (string | number)[]): Record<string, unknown> | null | undefined; run(...values: (string | number)[]): unknown }
-  close(): void
-}
 const requireRuntime = createRequire(import.meta.url)
-const digest = (text: string): string => createHash('sha256').update(text).digest('hex')
-const normalize = (input: BoardPost) => ({
-  clientOpId: input.clientOpId, kind: input.kind, text: input.text,
-  ...(input.threadId === undefined ? {} : { threadId: input.threadId }),
-  ...(input.replyTo === undefined ? {} : { replyTo: input.replyTo }),
-  ...(input.corrects === undefined ? {} : { corrects: input.corrects }),
-  ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
-  ...(input.about === undefined ? {} : { about: input.about }),
-  ...(input.lifecycle === undefined ? {} : { lifecycle: input.lifecycle }),
-  mentions: [...new Set([...(input.mentions ?? []), ...(input.to ?? []), ...Array.from(input.text.matchAll(/(?<![\w@])@([\p{L}\p{N}_][\p{L}\p{N}_.-]*)/gu), match => match[1]!.replace(/[.]+$/, ''))].map(name => name.replace(/^@/, '')))].sort(),
-  relatedTasks: [...new Set(input.relatedTasks ?? [])].sort(),
-  files: [...new Set(input.files ?? [])].sort(), refs: input.refs ?? [],
-})
 const feeds = new Map<string, Set<() => void>>()
-const validTeam = (team: string): boolean => /^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$/u.test(team) && !['all', 'general'].includes(team.toLowerCase())
 const BOARD_WAKE_FLOOR_MS = 2000
 const watchBoard = (path: string, emit: () => void): (() => void) => {
   const watcher = watch(resolveWatchRoot(dirname(path)), { persistent: false }, (_event, file) => {
@@ -283,359 +269,36 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
       if (readOnly || !hasChat) return
       db.prepare('UPDATE chat_state SET intro = 0 WHERE id = 1').run()
     },
-    settle(p) {
-      transaction(() => {
-        checkPrincipal(p)
-        db.prepare('UPDATE seat_state SET active = 0 WHERE agent = ?').run(p.author.agentId)
-        wakes.settle(p.author.agentId, p.author.executionId, latest())
-      })
-      publish()
-    },
-    complete(p, outcome) {
-      const lifecycle = transaction((): CrewChatLifecycle | undefined => {
-        checkPrincipal(p)
-        const seat = seats().find(seat => seat.agent === p.author.agentId)!
-        if (!wakes.complete(seat, p.author.executionId, latest(), outcome)) return undefined
-        db.prepare('UPDATE seat_state SET active = 0 WHERE agent = ?').run(p.author.agentId)
-        if (outcome !== 'completed') return undefined
-        const wait = wakes.wait(seat.agent)
-        return wait ? { kind: 'parked', event: boardWaitWords(wait.predicate) } : { kind: 'done' }
-      })
-      publish()
-      return lifecycle
-    },
-    resumeAdmitted(p) {
-      transaction(() => { checkPrincipal(p); wakes.admit(p.author.agentId) })
-      publish()
-    },
+    settle(p) { settle(ctx, p) },
+    complete(p, outcome) { return complete(ctx, p, outcome) },
+    resumeAdmitted(p) { resumeAdmitted(ctx, p) },
     pendingWakes() { return wakes.pending().filter(wake => member(wake.agent)) },
-    claimWake(p, wake) {
-      const claim = transaction(() => {
-        checkPrincipal(p)
-        if (p.author.agentId !== 'main') throw new Error('Only the lead runner dispatches board wakes.')
-        return member(wake.agent) ? wakes.claim(wake) : null
-      })
-      if (claim) publish()
-      return claim
-    },
-    wakePacket(p, claim) {
-      checkPrincipal(p)
-      if (p.author.agentId !== 'main' || !wakes.holds(claim)) return null
-      const member = db.prepare('SELECT name, execution FROM members WHERE agent = ? AND enrolled = 1').get(claim.agent)
-      if (!member) return null
-      return store.boundary({ author: { sessionId, agentId: claim.agent, executionId: String(member.execution) }, name: String(member.name) }, new Set())
-    },
-    admitWake(p, claim) {
-      transaction(() => {
-        checkPrincipal(p)
-        if (p.author.agentId !== 'main') throw new Error('Only the lead runner dispatches board wakes.')
-        wakes.admitted(claim)
-      })
-      publish()
-    },
-    holdWake(p, claim, reason, problem) {
-      const held = transaction(() => {
-        checkPrincipal(p)
-        if (p.author.agentId !== 'main' || !wakes.holds(claim)) return false
-        wakes.hold(claim, reason, problem)
-        notice(claim.agent, `wake:${claim.id}`, `The board resume did not start: ${reason} The lead can use ResumeCrewmate.`)
-        return true
-      })
-      if (held) publish()
-      return held
-    },
-    reserveEnrollment(p, seat) {
-      const retired = transaction(() => {
-        checkPrincipal(p)
-        if (p.author.agentId !== 'main') throw new Error('Only the lead launches board seats.')
-        if (!seat.agent || !seat.name.trim() || seat.agent.toLowerCase() === 'owner' || seat.name.trim().toLowerCase() === 'owner') throw new Error('Owner is reserved for the operator.')
-        if (seat.name.trim().toLowerCase() === 'main') throw new Error('Main is reserved for the lead.')
-        if (seat.agent.toLowerCase() === 'all' || seat.name.trim().toLowerCase() === 'all') throw new Error('All is reserved for the whole crew.')
-        if (member(seat.agent)) throw new Error('This seat is already enrolled; use swarm_captain to appoint it.')
-        if (seat.captain && !seat.team) throw new Error('A captain launch needs name and team.')
-        const team = seat.team === undefined ? undefined : canonicalTeam(seat.team)
-        const took = seat.named === true && takeName(seat.name, seat.agent)
-        checkEnrollment(seat.agent, team, seat.captain)
-        db.prepare('INSERT INTO enrollments (agent, name, team, captain) VALUES (?, ?, ?, ?)').run(seat.agent, seat.name, team ?? '', seat.captain ? 1 : 0)
-        return took
-      })
-      if (retired) publish()
-    },
-    cancelEnrollment(p, agent) {
-      const back = transaction(() => {
-        checkPrincipal(p)
-        if (p.author.agentId !== 'main') throw new Error('Only the lead cancels a launch.')
-        const reinstated = reinstate('SELECT agent FROM enrollments WHERE agent = ?', agent)
-        db.prepare('DELETE FROM enrollments WHERE agent = ?').run(agent)
-        return reinstated
-      })
-      if (back) publish()
-    },
-    enroll(p) {
-      if (p.author.sessionId !== sessionId) throw new Error('A board cannot enroll another session.')
-      if (p.author.agentId.toLowerCase() === 'owner' || p.name.trim().toLowerCase() === 'owner') throw new Error('Owner is reserved for the operator.')
-      if (p.author.agentId !== 'main' && p.name.trim().toLowerCase() === 'main') throw new Error('Main is reserved for the lead.')
-      if (p.author.agentId.toLowerCase() === 'all' || p.name.trim().toLowerCase() === 'all') throw new Error('All is reserved for the whole crew.')
-      transaction(() => {
-        if (p.author.agentId === 'main') {
-          const stored = db.prepare('SELECT execution FROM members WHERE agent = ?').get('main')?.execution
-          if (stored !== undefined && stored !== p.author.executionId) {
-            reinstate('SELECT agent FROM enrollments')
-            db.prepare('DELETE FROM enrollments').run()
-          }
-        }
-        const reservation = db.prepare('SELECT name, team, captain FROM enrollments WHERE agent = ?').get(p.author.agentId)
-        const assigned = teamOf(p.author.agentId) ?? (reservation ? String(reservation.team) || undefined : p.team)
-        const team = assigned === undefined ? undefined : canonicalTeam(assigned)
-        const fresh = !member(p.author.agentId)
-        const returning = db.prepare('SELECT agent FROM retirements WHERE agent = ?').get(p.author.agentId) != null
-        if (returning) takeName(p.name, p.author.agentId)
-        if (!reservation && (fresh || teamOf(p.author.agentId) !== team)) checkEnrollment(p.author.agentId, team)
-        db.prepare('INSERT INTO members (agent, name, execution) VALUES (?, ?, ?) ON CONFLICT(agent) DO UPDATE SET name = excluded.name, execution = excluded.execution').run(p.author.agentId, p.name, p.author.executionId)
-        if (returning) {
-          db.prepare('UPDATE members SET enrolled = 1 WHERE agent = ?').run(p.author.agentId)
-          db.prepare('DELETE FROM retirements WHERE agent = ?').run(p.author.agentId)
-        }
-        db.prepare('INSERT INTO seat_state (agent, joined, cursor) VALUES (?, ?, ?) ON CONFLICT(agent) DO UPDATE SET active = 1').run(p.author.agentId, latest(), latest())
-        wakes.enroll(p.author.agentId, p.author.executionId)
-        if (team !== undefined && teamOf(p.author.agentId) === undefined) db.prepare("INSERT INTO interests VALUES (?, 'membership', ?)").run(p.author.agentId, team)
-        if (reservation?.captain === 1 && team !== undefined) appoint(team, p.author.agentId)
-        succeed(p.author.agentId, team)
-        db.prepare('DELETE FROM enrollments WHERE agent = ?').run(p.author.agentId)
-        if (fresh && !returning) lifecycleEvent(p, p.author.agentId === 'main' ? { kind: 'launched' } : { kind: 'joined' }, p.author.agentId === 'main' ? 'Swarm launched' : 'Joined')
-      })
-      publish()
-    },
+    claimWake(p, wake) { return claimWake(ctx, p, wake) },
+    wakePacket(p, claim) { return wakePacket(ctx, p, claim) },
+    admitWake(p, claim) { admitWake(ctx, p, claim) },
+    holdWake(p, claim, reason, problem) { return holdWake(ctx, p, claim, reason, problem) },
+    reserveEnrollment(p, seat) { reserveEnrollment(ctx, p, seat) },
+    cancelEnrollment(p, agent) { cancelEnrollment(ctx, p, agent) },
+    enroll(p) { enroll(ctx, p) },
     member,
     seats() { return closed ? [] : seats() },
     captain(team) { return closed ? undefined : seats().find(seat => seat.agent === captainId(team)) },
-    assignCaptain(p, team, seat) {
-      const result = transaction(() => {
-        checkPrincipal(p)
-        if (p.author.agentId !== 'main') return { ok: false, reason: 'Only the lead appoints a captain.' }
-        const matches = seats().filter(row => row.agent !== 'main' && (row.agent === seat || row.name.toLowerCase() === seat.toLowerCase()) && row.team !== undefined && boardLabelKey(row.team) === boardLabelKey(team))
-        if (matches.length !== 1) return { ok: false, reason: 'Name one enrolled seat in that team.' }
-        const row = matches[0]!
-        appoint(row.team!, row.agent)
-        return { ok: true, name: row.name, team: row.team }
-      })
-      if (result.ok) publish()
-      return result
-    },
-    assignTeam(p, seat, team) {
-      const result = transaction(() => {
-        checkPrincipal(p)
-        if (p.author.agentId !== 'main') return { ok: false, reason: 'Only the lead assigns teams.' }
-        if (!validTeam(team)) return { ok: false, reason: 'Use a team label of letters, numbers, dots, dashes or underscores; all and general are reserved.' }
-        const matches = roster().filter(row => row.agent === seat || row.name === seat)
-        if (matches.length !== 1) return { ok: false, reason: 'Name one enrolled seat.' }
-        const row = matches[0]!
-        const agent = String(row.agent), current = teamOf(agent)
-        team = canonicalTeam(team)
-        if (current !== team && captainId(current) === agent) return { ok: false, reason: `Name a replacement captain for ${current} before moving this seat.` }
-        try { checkEnrollment(agent, team) } catch (error) { return { ok: false, reason: error instanceof Error ? error.message : String(error) } }
-        db.prepare("DELETE FROM interests WHERE agent = ? AND kind = 'membership'").run(String(row.agent))
-        db.prepare("INSERT INTO interests VALUES (?, 'membership', ?)").run(String(row.agent), team)
-        return { ok: true, name: String(row.name), team }
-      })
-      if (result.ok) publish()
-      return result
-    },
-    post(p, input, delivery): BoardReceipt {
-      let result: BoardReceipt
-      try {
-        result = transaction(() => {
-          if (input.kind === 'message' || input.kind === 'notice') {
-            if (p.author.sessionId !== sessionId) throw new Error('This message belongs to another session.')
-            db.prepare('INSERT INTO members (agent, name, execution, enrolled) VALUES (?, ?, ?, 0) ON CONFLICT(agent) DO NOTHING').run(p.author.agentId, p.name, p.author.executionId)
-          } else checkPrincipal(p)
-          const post = normalize(input)
-          const mirrored = delivery === 'mirror' && (post.kind === 'message' || post.kind === 'notice')
-          if (!['ask', 'answer', 'blocker', 'result', 'correction', 'message', 'notice'].includes(post.kind)) return { ok: false, reason: 'The board accepts questions, answers, blockers, results and corrections, not ownership or control commands.' }
-          if (!post.clientOpId || post.clientOpId.length > 160) return { ok: false, reason: 'A post needs a retry key of at most 160 characters.' }
-          const hash = digest(JSON.stringify(post))
-          const prior = db.prepare('SELECT id, seq, digest, record FROM events WHERE author = ? AND op = ?').get(p.author.agentId, post.clientOpId)
-          if (prior != null) return prior.digest === hash ? { ok: true, eventId: String(prior.id), seq: Number(prior.seq), replay: true, ...(JSON.parse(String(prior.record)).unknownMentions?.length ? { unknownMentions: JSON.parse(String(prior.record)).unknownMentions } : {}) } : { ok: false, reason: 'That retry key already names a different post.' }
-          if (!post.text.trim()) return { ok: false, reason: 'A post needs text.' }
-          if (post.files.length > 32 || post.refs.length > 8) return { ok: false, reason: 'A post holds at most 32 files and 8 references.' }
-          if (post.files.some(file => !file || file.startsWith('/') || file.split(/[\\/]/).includes('..'))) return { ok: false, reason: 'Files must be exact paths relative to the task repository.' }
-          if (post.kind === 'correction' && !post.corrects) return { ok: false, reason: 'A correction names its earlier post with corrects.' }
-          const target = post.corrects ?? post.replyTo
-          const reply = target === undefined ? undefined : db.prepare('SELECT record FROM events WHERE id = ?').get(target)
-          if (target !== undefined && reply == null) return { ok: false, reason: 'The earlier post is not in this wave.' }
-          const question = reply == null ? undefined : JSON.parse(String(reply.record)) as BoardEvent
-          const ownReply = question?.author.agentId === p.author.agentId
-          if (post.kind === 'answer' && question?.kind !== 'ask' && !ownReply) return { ok: false, reason: 'An answer names an ask or your own earlier post with replyTo.' }
-          const thread = question?.threadId ?? post.threadId ?? randomUUID()
-          if (post.threadId !== undefined && question !== undefined && post.threadId !== question.threadId) return { ok: false, reason: 'The reply belongs to the earlier post’s thread.' }
-          const addressing = resolveMentions(post.mentions)
-          const team = teamOf(p.author.agentId)
-          if (!mirrored && addressing.unknownMentions.length > 0 && addressing.mentions.length === 0 && team === undefined && !post.mentions.some(name => name.toLowerCase() === 'main')) return { ok: false, reason: `no seat named ${addressing.unknownMentions.join(', ')} — a seat exists once Crewmate launches it` }
-          const time = now()
-          const own = seats().find(seat => seat.agent === p.author.agentId)
-          const declared = !mirrored && own ? parseBoardWait(post, own, seats()) : null
-          const eventId = randomUUID()
-          const event: BoardEvent = { ...post, addresses: post.mentions, mentions: addressing.mentions, recipients: seats().filter(seat => addressing.mentions.includes(seat.agent)), ...(post.lifecycle ? { authorRole: 'system' as const } : {}), ...(addressing.unknownMentions.length ? { unknownMentions: addressing.unknownMentions } : {}), ...(team === undefined ? {} : { team }), ...(captainId(team) === p.author.agentId ? { captain: true } : {}), ...(post.taskId === undefined && question?.taskId !== undefined ? { taskId: question.taskId } : {}), schema: 1, boardId, waveId, seq: 0, eventId, author: p.author, authorName: p.name, createdAt: new Date(time).toISOString(), payloadDigest: hash, threadId: thread, policyRevision: 1 }
-          appendEvent(event)
-          if (mirrored) db.prepare('INSERT INTO mirror_events VALUES (?)').run(eventId)
-          let reach: BoardReach | undefined
-          if (delivery !== 'mirror') {
-            if (declared) wakes.declare(p.author.agentId, event, declared)
-            const waiting = new Set(wakes.posted(event, seats()))
-            const root = db.prepare('SELECT author FROM events WHERE thread = ? ORDER BY seq LIMIT 1').get(thread)
-            const replies = new Set([...(question ? [question.author.agentId] : []), ...(root ? [String(root.author)] : [])])
-            const queued = new Set(wakes.pending().filter(wake => wake.eventId === eventId).map(wake => wake.agent))
-            const addressed = seats().filter(seat => seat.agent !== p.author.agentId && (event.mentions.includes(seat.agent) || replies.has(seat.agent) || waiting.has(seat.agent)))
-            const idle = addressed.filter(seat => seat.state === 'parked' && !queued.has(seat.agent))
-            reach = { running: addressed.filter(seat => seat.state !== 'parked').map(seat => seat.name), wakes: addressed.filter(seat => queued.has(seat.agent)).map(seat => seat.name), held: idle.filter(seat => boardAddressesSeat(event, seat)).map(seat => seat.name), parked: idle.filter(seat => !boardAddressesSeat(event, seat)).length }
-            const captains = new Set((post.kind === 'ask' || post.kind === 'blocker') ? seats().filter(seat => seat.captain && seat.team && (seat.team === team || event.recipients?.some(recipient => recipient.team === seat.team))).map(seat => seat.agent) : [])
-            const recipients = new Set([...event.mentions, ...replies, ...waiting, ...captains, ...roster().map(row => String(row.agent))])
-            recipients.delete(p.author.agentId)
-            for (const recipient of recipients) {
-              const named = (names: readonly string[]): boolean => post.mentions.some(name => names.includes(name.toLowerCase()))
-              const captain = captainId(team) === recipient && !named(['all']) && ((post.kind === 'ask' || post.kind === 'blocker') || (['result', 'answer', 'correction'].includes(post.kind) && named([recipient.toLowerCase(), String(db.prepare('SELECT name FROM members WHERE agent = ?').get(recipient)?.name).toLowerCase()])))
-              const wake = recipient === 'main' && ((post.kind === 'ask' || post.kind === 'blocker') ? named(['main', 'all']) : named(['main'])) || captain || captains.has(recipient) || waiting.has(recipient)
-              const mode = wake ? 'mention-wake-body' : event.mentions.includes(recipient) ? 'mention-body' : replies.has(recipient) ? 'thread-body' : 'body'
-              db.prepare('INSERT INTO deliveries (recipient, event, mode) VALUES (?, ?, ?)').run(recipient, eventId, mode)
-            }
-          }
-          const note = reach ? boardReachNote(reach) : undefined
-          return { ok: true, eventId, seq: event.seq, replay: false, ...(addressing.unknownMentions.length ? { unknownMentions: addressing.unknownMentions } : {}), ...(reach ? { reach } : {}), ...(note ? { note } : {}) }
-        })
-      } catch (error) { return { ok: false, reason: error instanceof Error ? error.message : String(error) } }
-      if (result.ok && !result.replay) publish()
-      return result
-    },
-    postOwner(p, input) {
-      let result: ReturnType<BoardStore['postOwner']>
-      try {
-        result = transaction(() => {
-          checkPrincipal(p)
-          if (p.author.agentId !== 'main') return { ok: false, reason: 'Only the operator command path posts as owner.' }
-          const hash = digest(JSON.stringify(input))
-          const prior = db.prepare("SELECT record, digest FROM events WHERE author = 'owner' AND op = ?").get(input.clientOpId)
-          if (prior) {
-            if (prior.digest !== hash) return { ok: false, reason: 'That retry key already names a different post.' }
-            const event = JSON.parse(String(prior.record)) as BoardEvent
-            return { ok: true, eventId: event.eventId, seq: event.seq, replay: true, channel: event.channel!, recipients: event.mentions }
-          }
-          if (!input.clientOpId || input.clientOpId.length > 160) return { ok: false, reason: 'A post needs a retry key of at most 160 characters.' }
-          if (!input.text.trim()) return { ok: false, reason: 'A post needs text.' }
-          const roster = seats().filter(seat => seat.agent !== 'main')
-          const target = (input.target ?? '').replace(/^@/, '')
-          let recipients: BoardSeat[], channel: BoardChannel, address: string
-          if (input.channel === 'general') {
-            recipients = roster; channel = { kind: 'general' }; address = 'all'
-          } else if (input.channel === 'team') {
-            const labels = [...new Set(roster.flatMap(seat => seat.team ? [seat.team] : []))]
-            const label = labels.find(label => boardLabelKey(label) === boardLabelKey(target))
-            if (!label) return { ok: false, reason: 'Name one team on the board.', candidates: labels }
-            const captain = captainId(label)
-            recipients = roster.filter(seat => captain ? seat.agent === captain : seat.team === label)
-            channel = { kind: 'team', target: label }; address = label
-          } else if (input.channel === 'whisper') {
-            if (['main', 'owner'].includes(target.toLowerCase())) return { ok: false, reason: 'Use the prompt line for main.' }
-            recipients = roster.filter(seat => seat.agent === target || seat.name.toLowerCase() === target.toLowerCase())
-            if (recipients.length !== 1) return { ok: false, reason: 'Name one enrolled crewmate.', candidates: (recipients.length ? recipients : roster).map(seat => roster.filter(other => other.name.toLowerCase() === seat.name.toLowerCase()).length > 1 ? `${seat.name} (${seat.agent})` : seat.name) }
-            channel = { kind: 'whisper', target: recipients[0]!.name }; address = recipients[0]!.name
-          } else return { ok: false, reason: 'Use general, team or whisper.' }
-          const event: BoardEvent = { schema: 1, boardId, waveId, seq: 0, eventId: randomUUID(), author: { ...p.author, agentId: 'owner' }, authorName: 'owner', authorRole: 'owner', kind: 'ask', text: input.text, clientOpId: input.clientOpId, channel, addresses: [address, 'main'], mentions: [...new Set(['main', ...recipients.map(seat => seat.agent)])], recipients: seats().filter(seat => seat.agent === 'main' || recipients.some(recipient => recipient.agent === seat.agent)), relatedTasks: [], files: [], refs: [], createdAt: new Date(now()).toISOString(), payloadDigest: hash, threadId: randomUUID(), policyRevision: 1 }
-          appendEvent(event)
-          const waiting = wakes.posted(event, seats())
-          for (const recipient of new Set([...event.mentions, ...waiting])) db.prepare('INSERT INTO deliveries (recipient, event, mode) VALUES (?, ?, ?)').run(recipient, event.eventId, recipient === 'main' || waiting.includes(recipient) ? 'mention-wake-body' : 'mention-body')
-          return { ok: true, eventId: event.eventId, seq: event.seq, replay: false, channel, recipients: event.mentions }
-        })
-      } catch (error) { return { ok: false, reason: error instanceof Error ? error.message : String(error) } }
-      if (result.ok && !result.replay) publish()
-      return result
-    },
-    read(p, input): BoardPacket {
-      return transaction(() => {
-        checkPrincipal(p)
-        const agent = p.author.agentId
-        const state = db.prepare('SELECT joined, cursor FROM seat_state WHERE agent = ?').get(agent)!
-        const top = Math.min(input.snapshot ?? latest(), latest())
-        const cursor = input.since ?? Number(state.cursor)
-        for (const id of input.acknowledge ?? []) db.prepare("UPDATE deliveries SET state = 'acknowledged' WHERE recipient = ? AND event = ? AND state = 'presented'").run(agent, id)
-        const where = ['seq <= ?', 'NOT EXISTS (SELECT 1 FROM mirror_events WHERE event = events.id)']
-        const args: (string | number)[] = [top]
-        if (input.thread !== undefined) { where.push('thread = ?'); args.push(input.thread) }
-        if (input.team !== undefined) { const labels = eventLabels(input.team); where.push(`json_extract(record, '$.team') IN (${labels.map(() => '?').join(',')})`); args.push(...labels) }
-        if (input.task !== undefined) { where.push("(json_extract(record, '$.taskId') = ? OR EXISTS (SELECT 1 FROM json_each(events.record, '$.relatedTasks') WHERE value = ?))"); args.push(input.task, input.task) }
-        if (input.mentions !== undefined) { where.push("EXISTS (SELECT 1 FROM json_each(events.record, '$.mentions') WHERE value = ?)"); args.push(input.mentions) }
-        if (input.files?.length) { where.push(`EXISTS (SELECT 1 FROM json_each(events.record, '$.files') WHERE value IN (${input.files.map(() => '?').join(',')}))`); args.push(...input.files) }
-        const seenClause = 'EXISTS (SELECT 1 FROM seen_events WHERE agent = ? AND event = events.id)'
-        const skippedSeen = input.since === undefined ? Number(db.prepare(`SELECT COUNT(*) AS n FROM events WHERE ${where.join(' AND ')} AND seq > ? AND ${seenClause}`).get(...args, Number(state.joined), agent)!.n) : 0
-        if (input.since === undefined) { where.push(`NOT ${seenClause}`); args.push(agent) }
-        const chosen = events(db.prepare(`SELECT record FROM events WHERE ${where.join(' AND ')} AND seq > ? ORDER BY seq`).all(...args, cursor))
-        const packetId = chosen.length ? randomUUID() : undefined
-        if (packetId !== undefined) for (const event of chosen) db.prepare('INSERT INTO read_events VALUES (?, ?, ?)').run(packetId, agent, event.eventId)
-        return { events: chosen, snapshot: top, cursor: chosen.at(-1)?.seq ?? cursor, skippedSeen, reread: 'Use since: 0 or since: <seq> to re-read deliberately.', ...(packetId === undefined ? {} : { packetId }) }
-      })
-    },
-    leadPosts(since) {
-      return events(db.prepare("SELECT e.record FROM deliveries d JOIN events e ON e.id = d.event WHERE d.recipient = 'main' AND d.mode LIKE 'mention-%' AND e.seq > ? ORDER BY e.seq").all(since))
-    },
-    leadPainted() {
-      const row = db.prepare("SELECT seq FROM lead_paint WHERE recipient = 'main'").get() as { seq?: number } | null
-      return Number(row?.seq ?? 0)
-    },
-    markLeadPainted(seq) {
-      if (readOnly) return
-      db.prepare("INSERT INTO lead_paint (recipient, seq) VALUES ('main', ?) ON CONFLICT(recipient) DO UPDATE SET seq = MAX(seq, excluded.seq)").run(seq)
-    },
+    assignCaptain(p, team, seat) { return assignCaptain(ctx, p, team, seat) },
+    assignTeam(p, seat, team) { return assignTeam(ctx, p, seat, team) },
+    post(p, input, delivery): BoardReceipt { return post(ctx, p, input, delivery) },
+    postOwner(p, input) { return postOwner(ctx, p, input) },
+    read(p, input): BoardPacket { return read(ctx, p, input) },
+    leadPosts(since) { return leadPosts(ctx, since) },
+    leadPainted() { return leadPainted(ctx) },
+    markLeadPainted(seq) { markLeadPainted(ctx, seq) },
     leadMention() {
       return leadPending('ASC')
     },
     leadMentionNewest() {
       return leadPending('DESC')
     },
-    boundary(p, seen) {
-      return transaction(() => {
-        checkPrincipal(p)
-        const agent = p.author.agentId
-        const parts: string[] = []
-        const ids: string[] = []
-        if (agent === 'main') {
-          const waits = wakes.open(seats())
-          const id = `waits:${digest(JSON.stringify(waits))}`
-          if (waits.length && !seen.has(id)) {
-            parts.push(`${JSON.stringify({ waits })}\n${waits.map(wait => `${wait.seat} · waiting on ${wait.event}`).join('\n')}`)
-            ids.push(id)
-          }
-        }
-        if (agent === 'main') for (const row of db.prepare('SELECT id, text FROM lead_notices WHERE presented = 0 ORDER BY rowid').all()) {
-          if (seen.has(String(row.id))) continue
-          parts.push(`crew-board-event:${row.id}\n${JSON.stringify({ notice: row.text })}`); ids.push(String(row.id))
-        }
-        for (const row of db.prepare('SELECT id, record FROM roster_changes WHERE recipient = ? ORDER BY rowid').all(agent)) {
-          if (seen.has(String(row.id))) continue
-          parts.push(`crew-board-event:${row.id}\n${JSON.stringify({ roster: JSON.parse(String(row.record)) })}`); ids.push(String(row.id))
-        }
-        const pending = db.prepare("SELECT e.record FROM deliveries d JOIN events e ON e.id = d.event WHERE d.recipient = ? AND d.state = 'pending' AND NOT EXISTS (SELECT 1 FROM seen_events WHERE agent = d.recipient AND event = d.event) ORDER BY CASE WHEN d.mode LIKE 'mention-%' THEN 0 WHEN d.mode LIKE 'thread-%' THEN 1 ELSE 2 END, e.seq").all(agent)
-        for (const row of pending) {
-          const event = JSON.parse(String(row.record)) as BoardEvent
-          if (seen.has(event.eventId)) continue
-          parts.push(`crew-board-event:${event.eventId}\n${packetText(event)}`); ids.push(event.eventId)
-        }
-        return parts.length ? { text: `${BOARD_PACKET_RULE}\n${parts.join('\n')}`, eventIds: ids } : null
-      })
-    },
-    presented(p, ids, requestId, packets = []) {
-      transaction(() => {
-        checkPrincipal(p)
-        const agent = p.author.agentId
-        for (const id of new Set(ids)) {
-          db.prepare('DELETE FROM roster_changes WHERE recipient = ? AND id = ?').run(agent, id)
-          if (agent === 'main') db.prepare('UPDATE lead_notices SET presented = 1 WHERE id = ?').run(id)
-          db.prepare("UPDATE deliveries SET state = 'presented', request = ? WHERE recipient = ? AND event = ? AND state = 'pending'").run(requestId, agent, id)
-          if (db.prepare('SELECT event FROM deliveries WHERE recipient = ? AND event = ?').get(agent, id)) markSeen(agent, id)
-        }
-        for (const id of new Set(packets)) for (const event of db.prepare('SELECT event FROM read_events WHERE recipient = ? AND packet = ?').all(agent, id)) markSeen(agent, String(event.event))
-        advance(agent)
-      })
-      publish()
-    },
+    boundary(p, seen) { return boundary(ctx, p, seen) },
+    presented(p, ids, requestId, packets = []) { presented(ctx, p, ids, requestId, packets) },
     view(before, thread, team) { return snapshot(before, thread, team) },
     subscribe(listener) {
       if (closed) throw new Error('The board is closed.')
@@ -654,5 +317,6 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
     },
     close() { if (closed) return; closed = true; unwatch?.(); listeners.clear(); feeds.get(feedKey)?.delete(emit); if (!feeds.get(feedKey)?.size) feeds.delete(feedKey); db.close() },
   }
+  const ctx: StoreContext = { transaction, checkPrincipal, db, wakes, latest, publish, seats, member, store, sessionId, notice, appoint, canonicalTeam, takeName, checkEnrollment, reinstate, teamOf, succeed, lifecycleEvent, roster, captainId, events, resolveMentions, now, boardId, waveId, appendEvent, eventLabels, readOnly, packetText, markSeen, advance }
   return store
 }
