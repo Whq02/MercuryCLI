@@ -646,6 +646,64 @@ mount {"mode":"create","base":null}
 < undefined
 = doc=doc#2 rev=undefined scope=user view=view#1{"kind":"guided","step":"destination","history":[]} note=- busy=false conflict=- recover=- buf="" cur=0
 
+## the autosave: a draft save that fails
+mount {"mode":"edit","base":{"filePath":"/repo/.mercury/agents/fixture-scout.md","read":true}}
+. readFile("/repo/.mercury/agents/fixture-scout.md")
+. listDrafts() -> 0
+  methods snapshot:snapshot/0 commit:commit/1 loadRaw:loadRaw/1 commitTextField:commitTextField/2 openFieldEditor:openFieldEditor/1 closeFieldEditor:closeFieldEditor/0 setView:setView/1 setTextBuffer:setTextBuffer/1 setTextCursor:setTextCursor/1 setScope:setScope/1 guidedDestination:guidedDestination/1 guidedMethod:guidedMethod/1 guidedDescribe:guidedDescribe/1 guidedIdentity:guidedIdentity/1 guidedPrompt:guidedPrompt/1 guidedDescription:guidedDescription/1 guidedTools:guidedTools/1 guidedModel:guidedModel/1 guidedBack:guidedBack/0 reviewEscape:reviewEscape/0 save:save/0 mergeOntoTheirs:mergeOntoTheirs/0 clearConflict:clearConflict/0 acceptRecover:acceptRecover/0 declineRecover:declineRecover/0 abortGeneration:abortGeneration/0 dispose:dispose/0
+  snapshot keys doc,baseRevision,scope,view,note,busy,conflict,recoverOffer,textBuffer,textCursor
+  doc#1 raw@f305b28d779e0cc8 {"raw":"---\nname: fixture-scout\ndescription: The base description as discovered on disk today.\nmaxTurns: 5\n---\nThe base body, long enough to be a lawful system prompt for the walk.\n","newline":"\n","hasFrontmatter":true,"frontmatterStart":4,"frontmatterEnd":99,"frontmatterLines":["name: fixture-scout","description: The base description as discovered on disk today.","maxTurns: 5"],"entries":[{"key":"name","startLine":0,"endLine":1,"style":"scalar"},{"key":"description","startLine":1,"endLine":2,"style":"scalar"},{"key":"maxTurns","startLine":2,"endLine":3,"style":"scalar"}],"body":"The base body, long enough to be a lawful system prompt for the walk.\n","fields":{"name":"fixture-scout","description":"The base description as discovered on disk today.","maxTurns":5},"unknownKeys":[],"diagnostics":[]}
+= doc=doc#1 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+> commit({"set":{"maxTurns":7}})
+. setTimer(800) -> timer#1
+  doc#2 raw@4d18593aa58adfe5 {"raw":"---\nname: fixture-scout\ndescription: The base description as discovered on disk today.\nmaxTurns: 7\n---\nThe base body, long enough to be a lawful system prompt for the walk.\n","newline":"\n","hasFrontmatter":true,"frontmatterStart":4,"frontmatterEnd":99,"frontmatterLines":["name: fixture-scout","description: The base description as discovered on disk today.","maxTurns: 7"],"entries":[{"key":"name","startLine":0,"endLine":1,"style":"scalar"},{"key":"description","startLine":1,"endLine":2,"style":"scalar"},{"key":"maxTurns","startLine":2,"endLine":3,"style":"scalar"}],"body":"The base body, long enough to be a lawful system prompt for the walk.\n","fields":{"name":"fixture-scout","description":"The base description as discovered on disk today.","maxTurns":7},"unknownKeys":[],"diagnostics":[]}
+~ emit doc=doc#2 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+< true
+= doc=doc#2 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+> fire timer#1
+. saveDraft({"baseIdentity":{"filePath":"/repo/.mercury/agents/fixture-scout.md","revision":"f305b28d779e0cc8"},"raw":"raw@4d18593aa58adfe5"})
+= doc=doc#2 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+= doc=doc#2 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+> commit({"set":{"maxTurns":8}})
+. setTimer(800) -> timer#2
+  doc#3 raw@f7f5040acd20899a {"raw":"---\nname: fixture-scout\ndescription: The base description as discovered on disk today.\nmaxTurns: 8\n---\nThe base body, long enough to be a lawful system prompt for the walk.\n","newline":"\n","hasFrontmatter":true,"frontmatterStart":4,"frontmatterEnd":99,"frontmatterLines":["name: fixture-scout","description: The base description as discovered on disk today.","maxTurns: 8"],"entries":[{"key":"name","startLine":0,"endLine":1,"style":"scalar"},{"key":"description","startLine":1,"endLine":2,"style":"scalar"},{"key":"maxTurns","startLine":2,"endLine":3,"style":"scalar"}],"body":"The base body, long enough to be a lawful system prompt for the walk.\n","fields":{"name":"fixture-scout","description":"The base description as discovered on disk today.","maxTurns":8},"unknownKeys":[],"diagnostics":[]}
+~ emit doc=doc#3 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+< true
+= doc=doc#3 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+> fire timer#2
+. saveDraft({"baseIdentity":{"filePath":"/repo/.mercury/agents/fixture-scout.md","revision":"f305b28d779e0cc8"},"raw":"raw@f7f5040acd20899a"})
+= doc=doc#3 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+= doc=doc#3 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+> commit({"set":{"maxTurns":9}})
+. setTimer(800) -> timer#3
+  doc#4 raw@dd17cc98bea65a33 {"raw":"---\nname: fixture-scout\ndescription: The base description as discovered on disk today.\nmaxTurns: 9\n---\nThe base body, long enough to be a lawful system prompt for the walk.\n","newline":"\n","hasFrontmatter":true,"frontmatterStart":4,"frontmatterEnd":99,"frontmatterLines":["name: fixture-scout","description: The base description as discovered on disk today.","maxTurns: 9"],"entries":[{"key":"name","startLine":0,"endLine":1,"style":"scalar"},{"key":"description","startLine":1,"endLine":2,"style":"scalar"},{"key":"maxTurns","startLine":2,"endLine":3,"style":"scalar"}],"body":"The base body, long enough to be a lawful system prompt for the walk.\n","fields":{"name":"fixture-scout","description":"The base description as discovered on disk today.","maxTurns":9},"unknownKeys":[],"diagnostics":[]}
+~ emit doc=doc#4 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+< true
+= doc=doc#4 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+> fire timer#3
+. saveDraft({"baseIdentity":{"filePath":"/repo/.mercury/agents/fixture-scout.md","revision":"f305b28d779e0cc8"},"raw":"raw@dd17cc98bea65a33"})
+= doc=doc#4 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+= doc=doc#4 rev="f305b28d779e0cc8" scope=project view=view#1{"kind":"advanced","cursor":0,"editing":null} note=- busy=false conflict=- recover=- buf="" cur=0
+mount {"mode":"create","base":null}
+. listDrafts() -> 0
+  methods snapshot:snapshot/0 commit:commit/1 loadRaw:loadRaw/1 commitTextField:commitTextField/2 openFieldEditor:openFieldEditor/1 closeFieldEditor:closeFieldEditor/0 setView:setView/1 setTextBuffer:setTextBuffer/1 setTextCursor:setTextCursor/1 setScope:setScope/1 guidedDestination:guidedDestination/1 guidedMethod:guidedMethod/1 guidedDescribe:guidedDescribe/1 guidedIdentity:guidedIdentity/1 guidedPrompt:guidedPrompt/1 guidedDescription:guidedDescription/1 guidedTools:guidedTools/1 guidedModel:guidedModel/1 guidedBack:guidedBack/0 reviewEscape:reviewEscape/0 save:save/0 mergeOntoTheirs:mergeOntoTheirs/0 clearConflict:clearConflict/0 acceptRecover:acceptRecover/0 declineRecover:declineRecover/0 abortGeneration:abortGeneration/0 dispose:dispose/0
+  snapshot keys doc,baseRevision,scope,view,note,busy,conflict,recoverOffer,textBuffer,textCursor
+  doc#1 raw@73a9c7b6375f88cc {"raw":"---\nname: ''\ndescription: \"\"\n---\n\n\n","newline":"\n","hasFrontmatter":true,"frontmatterStart":4,"frontmatterEnd":29,"frontmatterLines":["name: ''","description: \"\""],"entries":[{"key":"name","startLine":0,"endLine":1,"style":"scalar"},{"key":"description","startLine":1,"endLine":2,"style":"scalar"}],"body":"\n","fields":{"name":"","description":""},"unknownKeys":[],"diagnostics":[{"severity":"error","code":"missing-name","message":"Missing required 'name' field in frontmatter","field":"name"},{"severity":"error","code":"missing-description","message":"Missing required 'description' field in frontmatter","field":"description","line":3}]}
+= doc=doc#1 rev=undefined scope=project view=view#1{"kind":"guided","step":"destination","history":[]} note=- busy=false conflict=- recover=- buf="" cur=0
+> commit({"set":{"name":"late-scout"}})
+. setTimer(800) -> timer#1
+  doc#2 raw@babcd9d1c212562d {"raw":"---\nname: late-scout\ndescription: \"\"\n---\n\n\n","newline":"\n","hasFrontmatter":true,"frontmatterStart":4,"frontmatterEnd":37,"frontmatterLines":["name: late-scout","description: \"\""],"entries":[{"key":"name","startLine":0,"endLine":1,"style":"scalar"},{"key":"description","startLine":1,"endLine":2,"style":"scalar"}],"body":"\n","fields":{"name":"late-scout","description":""},"unknownKeys":[],"diagnostics":[{"severity":"error","code":"missing-description","message":"Missing required 'description' field in frontmatter","field":"description","line":3}]}
+~ emit doc=doc#2 rev=undefined scope=project view=view#1{"kind":"guided","step":"destination","history":[]} note=- busy=false conflict=- recover=- buf="" cur=0
+< true
+= doc=doc#2 rev=undefined scope=project view=view#1{"kind":"guided","step":"destination","history":[]} note=- busy=false conflict=- recover=- buf="" cur=0
+> fire timer#1
+. saveDraft({"newTarget":{"scope":"project","cwd":"/repo"},"raw":"raw@babcd9d1c212562d"})
+= doc=doc#2 rev=undefined scope=project view=view#1{"kind":"guided","step":"destination","history":[]} note=- busy=false conflict=- recover=- buf="" cur=0
+> dispose()
+< undefined
+= doc=doc#2 rev=undefined scope=project view=view#1{"kind":"guided","step":"destination","history":[]} note=- busy=false conflict=- recover=- buf="" cur=0
+= doc=doc#2 rev=undefined scope=project view=view#1{"kind":"guided","step":"destination","history":[]} note=- busy=false conflict=- recover=- buf="" cur=0
+
 ## edit: a base file that cannot be read, and the draft on offer
 mount {"mode":"edit","base":{"filePath":"/repo/.mercury/agents/fixture-scout.md","read":false}}
 . readFile("/repo/.mercury/agents/fixture-scout.md") throws

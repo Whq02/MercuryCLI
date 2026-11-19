@@ -362,7 +362,6 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
     s.fire(2)
     await s.drain()
     s.call('commit', { set: { maxTurns: 7 } })
-    s.plan.saveDraft = () => Promise.reject(new Error('the draft folder is full'))
     s.fire(3)
     await s.drain()
     s.call('commit', { set: { maxTurns: 8 } })
@@ -376,6 +375,29 @@ const scenes: [name: string, run: (lines: string[]) => Promise<void>][] = [
     created.fire(1)
     await created.drain()
     created.call('dispose')
+  }],
+  ['the autosave: a draft save that fails', async lines => {
+    const open = stage(lines, { mode: 'edit', base: { filePath: BASE_PATH, raw: BASE_RAW } })
+    open.plan.saveDraft = () => Promise.reject(new Error('the draft folder is full'))
+    open.call('commit', { set: { maxTurns: 7 } })
+    open.fire(1)
+    await open.drain()
+    open.call('commit', { set: { maxTurns: 8 } })
+    open.plan.saveDraft = () => Promise.reject('a failure that is no Error')
+    open.fire(2)
+    await open.drain()
+    open.plan.saveDraft = async () => '/drafts/x.json'
+    open.call('commit', { set: { maxTurns: 9 } })
+    open.fire(3)
+    await open.drain()
+    const closed = stage(lines, { mode: 'create' })
+    const late = hold<string>()
+    closed.plan.saveDraft = () => late.promise
+    closed.call('commit', { set: { name: 'late-scout' } })
+    closed.fire(1)
+    closed.call('dispose')
+    late.reject(new Error('the draft folder is full'))
+    await closed.drain()
   }],
   ['edit: a base file that cannot be read, and the draft on offer', async lines => {
     const accept = stage(lines, { mode: 'edit', base: { filePath: BASE_PATH, raw: null }, drafts: [draftOf('/drafts/new.json', CLEAN_RAW), draftOf('/drafts/edit.json', DRAFT_RAW, BASE_PATH)] })
