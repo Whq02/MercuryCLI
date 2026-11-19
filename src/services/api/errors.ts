@@ -457,71 +457,7 @@ function composeAssistantMessageFromError(
       errorDetails: message,
     }), retryAfterMs)
   }
-  if ((refusal === 'window' || refusal === 'rate-limit') && shouldProcessRateLimits(isClaudeAISubscriber())) {
-    const headers = errorHeaders(error)
-    const claim = headerValue(headers, 'anthropic-ratelimit-unified-representative-claim')
-    const overageStatus = headerValue(headers, 'anthropic-ratelimit-unified-overage-status')
-    const reset = headerValue(headers, 'anthropic-ratelimit-unified-reset')
-    const overageReset = headerValue(headers, 'anthropic-ratelimit-unified-overage-reset')
-    const overageDisabledReason = headerValue(
-      headers,
-      'anthropic-ratelimit-unified-overage-disabled-reason',
-    )
-
-    if (refusal === 'window' && ((claim !== undefined && claim !== '') || (overageStatus !== undefined && overageStatus !== ''))) {
-      const limits: AnthropicLimits = {
-        status: 'rejected',
-        unifiedRateLimitFallbackAvailable: false,
-        isUsingOverage: false,
-        ...(reset !== undefined && reset !== '' ? { resetsAt: Number(reset) } : {}),
-        ...(overageReset !== undefined && overageReset !== ''
-          ? { overageResetsAt: Number(overageReset) }
-          : {}),
-        ...(claim !== undefined && claim !== ''
-          ? { rateLimitType: rateLimitTypeOfClaim(claim) }
-          : {}),
-        ...(overageStatus !== undefined && overageStatus !== ''
-          ? { overageStatus: overageStatus as QuotaStatus }
-          : {}),
-        ...(overageDisabledReason !== undefined && overageDisabledReason !== ''
-          ? { overageDisabledReason: overageDisabledReason as OverageDisabledReason }
-          : {}),
-      }
-      const text = getRateLimitErrorMessage(limits, model)
-      if (text !== null && text !== '') {
-        return createAssistantAPIErrorMessage({
-          content: `${text}${composeAnthropicWallRemedies({ carryWords: () => anthropicCarryWords(limits) })}`,
-          error: 'rate_limit',
-        })
-      }
-      return createAssistantAPIErrorMessage({
-        content: NO_RESPONSE_REQUESTED,
-        error: 'rate_limit',
-      })
-    }
-
-    if (message.includes(LONG_CONTEXT_EXTRA_USAGE_PHRASE)) {
-      const hint = nonInteractive
-        ? 'Enable extra usage in your Claude settings on the web, or switch to standard context with --model.'
-        : 'Enable extra usage in your Claude settings on the web, or switch to standard context with /model.'
-      return createAssistantAPIErrorMessage({
-        content: `${API_ERROR_MESSAGE_PREFIX}: Anthropic says "${LONG_CONTEXT_EXTRA_USAGE_PHRASE}". ${hint}`,
-        error: 'rate_limit',
-        errorDetails: message,
-      })
-    }
-    const detail429 = extract429Detail(message)
-    return createAssistantAPIErrorMessage({
-      content:
-        detail429 === null
-          ? `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): Anthropic sent no detail; check https://status.anthropic.com.`
-          : detail429.providerSentence
-            ? `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): Anthropic says: ${detail429.text}`
-            : `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): ${detail429.text}`,
-      error: 'rate_limit',
-      errorDetails: message,
-    })
-  }
+  if ((refusal === 'window' || refusal === 'rate-limit') && shouldProcessRateLimits(isClaudeAISubscriber())) return composeRateLimitMessage(error, model, message, refusal, nonInteractive)
 
   if (message.toLowerCase().includes('prompt is too long')) {
     return createAssistantAPIErrorMessage({
@@ -682,44 +618,7 @@ function composeAssistantMessageFromError(
     })
   }
 
-  if (status === 401 || status === 403) {
-    logForDebugging(`[api] ${status} on ${model} — the wire said: ${message}`)
-    const detail = extractProviderDetail(status, message)
-    const family = providerNameOfModel(model)
-    const evidence =
-      detail === null
-        ? `${API_ERROR_MESSAGE_PREFIX} (${status}): ${family} sent no detail`
-        : detail.providerSentence
-          ? `${API_ERROR_MESSAGE_PREFIX} (${status}): ${family} says: ${detail.text}`
-          : `${API_ERROR_MESSAGE_PREFIX} (${status}): ${detail.text}`
-    const authSource = getAuthTokenSource().source
-    if (isEnvShadowedAuthSource(authSource)) {
-      const clearVerb =
-        process.platform === 'win32'
-          ? `clear ${authSource} (PowerShell: Remove-Item Env:\\${authSource} · cmd: set ${authSource}=)`
-          : `unset ${authSource}`
-      const fix = hasStoredOAuthToken()
-        ? `restart Mercury (or ${clearVerb}) to use your saved login`
-        : `${clearVerb} and then run /logins`
-      return createAssistantAPIErrorMessage({
-        content: `Authentication failed: ${authSource} is set and overrides /logins — ${fix}. ${evidence}`,
-        error: 'authentication_failed',
-      })
-    }
-    const credentialSource: WireCredentialSource = authSource === 'credentials.keyCommand'
-      ? { kind: 'helper' }
-      : wireCredentialSource(authSource === 'ANTHROPIC_AUTH_TOKEN' ? 'authorization' : 'x-api-key')
-    if (status === 401 && (credentialSource.kind === 'env' || credentialSource.kind === 'helper')) {
-      return createAssistantAPIErrorMessage({
-        content: `${invalidCredentialWords(credentialSource)}. ${evidence}`,
-        error: 'authentication_failed',
-      })
-    }
-    return createAssistantAPIErrorMessage({
-      content: nonInteractive ? `Authentication failed. ${evidence}` : `Run /logins. ${evidence}`,
-      error: 'authentication_failed',
-    })
-  }
+  if (status === 401 || status === 403) return composeAuthFailureMessage(status, model, message, nonInteractive)
 
   if (status === 404) {
     const switchCommand = nonInteractive ? '--model' : '/model'
@@ -761,6 +660,117 @@ function composeAssistantMessageFromError(
     })
   }
   return createAssistantAPIErrorMessage({ content: API_ERROR_MESSAGE_PREFIX, error: 'unknown' })
+}
+
+function composeRateLimitMessage(
+  error: unknown,
+  model: string,
+  message: string,
+  refusal: ReturnType<typeof classifyAnthropicRefusal>,
+  nonInteractive: boolean,
+): AssistantMessage {
+  const headers = errorHeaders(error)
+  const claim = headerValue(headers, 'anthropic-ratelimit-unified-representative-claim')
+  const overageStatus = headerValue(headers, 'anthropic-ratelimit-unified-overage-status')
+  const reset = headerValue(headers, 'anthropic-ratelimit-unified-reset')
+  const overageReset = headerValue(headers, 'anthropic-ratelimit-unified-overage-reset')
+  const overageDisabledReason = headerValue(
+    headers,
+    'anthropic-ratelimit-unified-overage-disabled-reason',
+  )
+
+  if (refusal === 'window' && ((claim !== undefined && claim !== '') || (overageStatus !== undefined && overageStatus !== ''))) {
+    const limits: AnthropicLimits = {
+      status: 'rejected',
+      unifiedRateLimitFallbackAvailable: false,
+      isUsingOverage: false,
+      ...(reset !== undefined && reset !== '' ? { resetsAt: Number(reset) } : {}),
+      ...(overageReset !== undefined && overageReset !== ''
+        ? { overageResetsAt: Number(overageReset) }
+        : {}),
+      ...(claim !== undefined && claim !== ''
+        ? { rateLimitType: rateLimitTypeOfClaim(claim) }
+        : {}),
+      ...(overageStatus !== undefined && overageStatus !== ''
+        ? { overageStatus: overageStatus as QuotaStatus }
+        : {}),
+      ...(overageDisabledReason !== undefined && overageDisabledReason !== ''
+        ? { overageDisabledReason: overageDisabledReason as OverageDisabledReason }
+        : {}),
+    }
+    const text = getRateLimitErrorMessage(limits, model)
+    if (text !== null && text !== '') {
+      return createAssistantAPIErrorMessage({
+        content: `${text}${composeAnthropicWallRemedies({ carryWords: () => anthropicCarryWords(limits) })}`,
+        error: 'rate_limit',
+      })
+    }
+    return createAssistantAPIErrorMessage({
+      content: NO_RESPONSE_REQUESTED,
+      error: 'rate_limit',
+    })
+  }
+
+  if (message.includes(LONG_CONTEXT_EXTRA_USAGE_PHRASE)) {
+    const hint = nonInteractive
+      ? 'Enable extra usage in your Claude settings on the web, or switch to standard context with --model.'
+      : 'Enable extra usage in your Claude settings on the web, or switch to standard context with /model.'
+    return createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: Anthropic says "${LONG_CONTEXT_EXTRA_USAGE_PHRASE}". ${hint}`,
+      error: 'rate_limit',
+      errorDetails: message,
+    })
+  }
+  const detail429 = extract429Detail(message)
+  return createAssistantAPIErrorMessage({
+    content:
+      detail429 === null
+        ? `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): Anthropic sent no detail; check https://status.anthropic.com.`
+        : detail429.providerSentence
+          ? `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): Anthropic says: ${detail429.text}`
+          : `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): ${detail429.text}`,
+    error: 'rate_limit',
+    errorDetails: message,
+  })
+}
+
+function composeAuthFailureMessage(status: number, model: string, message: string, nonInteractive: boolean): AssistantMessage {
+  logForDebugging(`[api] ${status} on ${model} — the wire said: ${message}`)
+  const detail = extractProviderDetail(status, message)
+  const family = providerNameOfModel(model)
+  const evidence =
+    detail === null
+      ? `${API_ERROR_MESSAGE_PREFIX} (${status}): ${family} sent no detail`
+      : detail.providerSentence
+        ? `${API_ERROR_MESSAGE_PREFIX} (${status}): ${family} says: ${detail.text}`
+        : `${API_ERROR_MESSAGE_PREFIX} (${status}): ${detail.text}`
+  const authSource = getAuthTokenSource().source
+  if (isEnvShadowedAuthSource(authSource)) {
+    const clearVerb =
+      process.platform === 'win32'
+        ? `clear ${authSource} (PowerShell: Remove-Item Env:\\${authSource} · cmd: set ${authSource}=)`
+        : `unset ${authSource}`
+    const fix = hasStoredOAuthToken()
+      ? `restart Mercury (or ${clearVerb}) to use your saved login`
+      : `${clearVerb} and then run /logins`
+    return createAssistantAPIErrorMessage({
+      content: `Authentication failed: ${authSource} is set and overrides /logins — ${fix}. ${evidence}`,
+      error: 'authentication_failed',
+    })
+  }
+  const credentialSource: WireCredentialSource = authSource === 'credentials.keyCommand'
+    ? { kind: 'helper' }
+    : wireCredentialSource(authSource === 'ANTHROPIC_AUTH_TOKEN' ? 'authorization' : 'x-api-key')
+  if (status === 401 && (credentialSource.kind === 'env' || credentialSource.kind === 'helper')) {
+    return createAssistantAPIErrorMessage({
+      content: `${invalidCredentialWords(credentialSource)}. ${evidence}`,
+      error: 'authentication_failed',
+    })
+  }
+  return createAssistantAPIErrorMessage({
+    content: nonInteractive ? `Authentication failed. ${evidence}` : `Run /logins. ${evidence}`,
+    error: 'authentication_failed',
+  })
 }
 
 function overflowFamilyOfModel(model: string): OverflowFamily {
