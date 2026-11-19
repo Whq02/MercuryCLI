@@ -97,7 +97,7 @@ function runBounded(
     }
     const quit = (): void => {
       end()
-      if (process.listenerCount('SIGQUIT') === 0) process.kill(process.pid, 'SIGQUIT')
+      process.kill(process.pid, 'SIGQUIT')
     }
     if (ownGroup) {
       process.once('exit', end)

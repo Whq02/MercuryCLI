@@ -304,6 +304,7 @@ if (process.argv.includes('--ends-early')) {
     },
   })
   const home = homedir()
+  if (process.argv.includes('--stays')) process.on('SIGQUIT', () => { if (process.listenerCount('SIGQUIT') === 1) process.exit(131) })
   const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
   if (process.argv.includes('--by-the-tool-list')) {
     const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -444,7 +445,7 @@ const HOST_MANAGED_VALUE = 'http://127.0.0.1:9/named-by-the-settings'
 mkdirSync(join(FIRST_LINES.pending!, 'config-home'))
 writeFileSync(join(FIRST_LINES.pending!, 'config-home', 'settings.json'), JSON.stringify({ environment: { values: { ANTHROPIC_BASE_URL: HOST_MANAGED_VALUE } } }))
 
-function drive<T>(dir: string, mode: string, mark: string, env: Record<string, string> = {}, cwd?: string, heard?: (child: ChildProcess, said: string) => void): Promise<{ row: T | null; said: string }> {
+function drive<T>(dir: string, mode: string, mark: string, env: Record<string, string> = {}, cwd?: string, heard?: (child: ChildProcess, said: string) => void): Promise<{ row: T | null; said: string; exit: number | null }> {
   const childEnv: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined || /^(?:BASH_ENV|ENV|MERCURY_SHELL_PREFIX|MERCURY_SHELL_ENGINE|MERCURY_WINDOWS_SHELL_ROAD)$/.test(key)) continue
@@ -460,21 +461,21 @@ function drive<T>(dir: string, mode: string, mark: string, env: Record<string, s
       heard?.(child, said)
     })
     child.stderr.on('data', chunk => { said += String(chunk) })
-    child.once('close', () => {
+    child.once('close', code => {
       const line = said.split('\n').find(text => text.startsWith(mark))
-      done({ row: line === undefined ? null : (JSON.parse(line.slice(mark.length)) as T), said: said.slice(-400) })
+      done({ row: line === undefined ? null : (JSON.parse(line.slice(mark.length)) as T), said: said.slice(-400), exit: code })
     })
   })
 }
 
-async function quitInFlight(dir: string): Promise<{ started: boolean; said: string; left: Helpers }> {
+async function quitInFlight(dir: string): Promise<{ started: boolean; said: string; left: Helpers; exit: number | null }> {
   let quitAt = 0
   const ended = await drive<{ started: boolean }>(dir, '--ends-early --stays', 'EARLY ', {}, undefined, (child, said) => {
     if (quitAt !== 0 || !said.includes('EARLY ')) return
     quitAt = Date.now()
     child.kill('SIGQUIT')
   })
-  return { started: ended.row?.started === true && quitAt !== 0, said: ended.said, left: await helpersAfter(dir, Math.max(0, 1_000 - (Date.now() - quitAt))) }
+  return { started: ended.row?.started === true && quitAt !== 0, said: ended.said, left: await helpersAfter(dir, Math.max(0, 1_000 - (Date.now() - quitAt))), exit: ended.exit }
 }
 
 const FAST_MS = 8_000
@@ -813,8 +814,8 @@ try {
     `${JSON.stringify(endsEarlyFirst.row ?? endsEarlyFirst.said).slice(0, 600)} · alive after the process ended: ${String(leftByTheEarlyEndFirst)}`,
   )
   check(
-    'a process that is sent SIGQUIT while its login run is still going leaves no login shell: the shell and what the login file waited on are gone within a second',
-    quit.started && ['login-shell', 'waited-on'].every(name => (quit.left[name]?.pid ?? 0) > 1 && quit.left[name]?.alive === false),
+    'a process that is sent SIGQUIT while its login run is still going leaves no login shell and ends by the signal: the shell and what the login file waited on are gone within a second, and the process, whose own SIGQUIT listener leaves the signal alone while another listener stands (as the exit hook of the product does), exits 131',
+    quit.started && quit.exit === 131 && ['login-shell', 'waited-on'].every(name => (quit.left[name]?.pid ?? 0) > 1 && quit.left[name]?.alive === false),
     JSON.stringify(quit).slice(0, 700),
   )
 } finally {
