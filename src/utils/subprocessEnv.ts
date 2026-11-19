@@ -188,6 +188,8 @@ export function pathWithLoginEntries(own: string, carried: NodeJS.ProcessEnv | u
   return added.length === 0 ? own : [...(own === '' ? [] : [own]), ...added].join(':')
 }
 
+const GIT_FOR_WINDOWS_ASKPASS_DISPLAY = 'needs-to-be-defined'
+
 export function withLoginExports(
   env: NodeJS.ProcessEnv,
   carried: NodeJS.ProcessEnv | undefined,
@@ -198,6 +200,7 @@ export function withLoginExports(
   const held = new Set([...Object.keys(env), ...scrubbed].map(key => toolShellKey(key, platform)))
   const gained: NodeJS.ProcessEnv = {}
   for (const [name, value] of Object.entries(carried)) {
+    if (platform === 'win32' && toolShellKey(name, platform) === 'DISPLAY' && value === GIT_FOR_WINDOWS_ASKPASS_DISPLAY) continue
     if (toolShellKey(name, platform) !== 'PATH' && !held.has(toolShellKey(name, platform))) gained[name] = value
   }
   const path = platform === 'win32' ? undefined : pathWithLoginEntries(env.PATH ?? '', carried, platform)
