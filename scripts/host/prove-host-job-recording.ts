@@ -491,7 +491,7 @@ else {
   while (at < was.length && at < now.length && was[at] === now[at]) at++
   const sceneAt = [...now.slice(0, at + 1)].reverse().find(line => line.startsWith('== ')) ?? '== the opening'
   check(
-    `${UNIT} behaves as recorded (${lines.filter(line => line.startsWith('== ')).length} scenes, ${lines.length} lines equal to scripts/host/recordings/host-job.txt)`,
+    `${UNIT} behaves as recorded in scripts/host/recordings/host-job.txt (this run: ${lines.filter(line => line.startsWith('== ')).length} scenes, ${lines.length} lines)`,
     recorded === text,
     `the recorded behaviour of ${UNIT} changed in "${sceneAt.slice(3)}" at line ${at + 1} | recorded: ${(was[at] ?? '<the recording ends>').trim().slice(0, 400)} | now: ${(now[at] ?? '<the run ends>').trim().slice(0, 400)} — when the change is meant, bun ${SELF} --write records it again`,
   )
