@@ -124,7 +124,9 @@ export async function createBashShellProvider(
               : { frame: commandString }
           if (msysArgvCarries(frame, env)) return { args: msysSpawnArgs(frame, noLoginFiles), ...where }
           const own = `-${process.pid}-${frameFiles++}-frame`
-          return { args: msysSpawnArgs(msysSourceLine(`${cwdFileInShell}${own}`), noLoginFiles), file: { path: join(nativeTmp, `${name}${own}`), text: frame }, ...where }
+          const file = join(nativeTmp, `${name}${own}`)
+          const gone = { words: `Mercury: the file that carries this command to bash is gone (${file}), so nothing ran.`, exit: 126 }
+          return { args: msysSpawnArgs(msysSourceLine(`${cwdFileInShell}${own}`, gone), noLoginFiles), file: { path: file, text: frame }, ...where }
         }
         return { commandString, cwdFilePath: cwdFileForEngine, handOver, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }), ...(jobsPath === undefined ? {} : { jobsPath }) }
       }

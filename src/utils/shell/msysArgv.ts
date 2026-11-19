@@ -13,6 +13,9 @@ export function msysArgvCarries(script: string, env: NodeJS.ProcessEnv): boolean
   return !MSYS_NAMES_GLOB.test(options) && Buffer.byteLength(protectBackslashRunsFromMsysArgv(script)) <= MSYS_ARGUMENT_KEEPS
 }
 
-export function msysSourceLine(fileInShell: string): string {
-  return `source '${fileInShell.split("'").join("'\\''")}'`
+const singleQuoted = (text: string): string => `'${text.split("'").join("'\\''")}'`
+
+export function msysSourceLine(fileInShell: string, gone?: { words: string; exit: number }): string {
+  const file = singleQuoted(fileInShell)
+  return gone === undefined ? `source ${file}` : `[ -r ${file} ] || { echo ${singleQuoted(gone.words)} >&2; exit ${gone.exit}; }; source ${file}`
 }

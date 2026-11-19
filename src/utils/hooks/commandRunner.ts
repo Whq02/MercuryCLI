@@ -150,7 +150,8 @@ function spawnUnderWindowsBash(shell: string, prepared: { command: string; env: 
     void unlink(file).catch(() => {})
   }
   try {
-    const child = spawn(msysSourceLine(windowsPathToPosixPath(file)), [], options) as ChildProcessWithoutNullStreams
+    const gone = { words: `The hook did not run: the file that carries its command to bash is gone (${file}).`, exit: 2 }
+    const child = spawn(protectBackslashRunsFromMsysArgv(msysSourceLine(windowsPathToPosixPath(file), gone)), [], options) as ChildProcessWithoutNullStreams
     child.once('close', drop)
     child.once('error', drop)
     return child
