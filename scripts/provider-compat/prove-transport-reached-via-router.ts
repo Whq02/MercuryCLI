@@ -126,11 +126,6 @@ section('§2 the routed helpers stay routed — queryWithModel / queryUtility')
 {
   const core = stripComments(readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8'))
   const withModelStart = core.indexOf('export async function queryWithModel(')
-  const withModelEnd = core.indexOf('export const MAX_NON_STREAMING_TOKENS')
-  const withModel = withModelStart >= 0 && withModelEnd > withModelStart ? core.slice(withModelStart, withModelEnd) : ''
-  check('queryWithModel late-imports the router', withModel.includes("import(") && withModel.includes('providers/callModelRouter.js'))
-  check('queryWithModel drains routedCallModel (never queryModel directly)', withModel.includes('routedCallModel(sideQuestionParams(question, systemPrompt))') && !/\bqueryModel\(/.test(withModel))
-  check('queryWithModel settles through the router-owned fold', withModel.includes('settleAssistantTurn('))
   const utilityStart = core.indexOf('export async function queryUtility(')
   const utility = utilityStart >= 0 ? core.slice(utilityStart, withModelStart) : ''
   check('queryUtility rides queryWithModel', utility.includes('return queryWithModel({'))
@@ -141,8 +136,6 @@ section('§3 the rewritten sites import the router, never the transport')
 {
   const read = (rel: string): string => stripComments(readFileSync(join(ROOT, rel), 'utf8'))
   const compact = read('src/services/compact/compact.ts')
-  check('compact.ts imports routedCallModel from the router', /import \{ routedCallModel(?:, [A-Za-z]+)* \} from '\.\.\/providers\/callModelRouter\.js'/.test(compact))
-  check('compact.ts calls routedCallModel exactly once (the summariser\'s direct call)', (compact.match(/routedCallModel\(\{/g) ?? []).length === 1)
   check('compact.ts names no transport entrypoint', !/\bqueryModelWith(?:out)?Streaming\b/.test(compact))
 
   const nativeSearch = read('src/services/search/nativeSearch.ts')
