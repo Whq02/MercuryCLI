@@ -29,6 +29,7 @@ import {
   type SessionFactsV1,
 } from './seatProjections.js'
 import type { LiveTurnFactsV1, LostLineV1, SeatLiveExtensionV1, SeatStatusV1, SessionLiveV1 } from './seatLive.js'
+import type { CommittedTextRow } from './midTurnText.js'
 import type { FoldStatusV1 } from '../compact/foldStatus.js'
 import { getFocusedSessionConnector, setFocusedSessionConnector, subscribeFocusedSessionConnector, claimHopEpoch, hopEpochIsCurrent } from './focusedConnector.js'
 import type {
@@ -320,7 +321,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       readFacts: () => this.readFacts(),
       recomputeLive: () => this.recomputeLive(),
       tailSeq: () => this.tailPart.seq(),
-      textRows: () => this.tailPart.committedRows(),
+      textRows: () => this.textRows,
       dropCommittedRows: () => this.tailPart.dropCommittedRows(),
       releaseTail: () => this.tailPart.releaseTail(),
       retireTextRows: () => this.tailPart.retireTextRows(),
@@ -784,6 +785,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   tail(): StreamingTailStore {
     return this.tailPart.store()
+  }
+
+  private get textRows(): readonly CommittedTextRow[] {
+    return this.tailPart.committedRows()
   }
 
   tailAnchor(): number {
