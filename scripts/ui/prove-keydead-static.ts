@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { doorUnits } from '../lib/doorUnits.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const TREES = ['src/components', 'src/screens', 'src/commands']
 
 const ALLOW: Record<string, string> = {
-  'src/components/MercuryFrame.tsx :: tab': 'statusbar hint for the global shift+tab mode carousel (keybindings layer)',
   'src/components/concourse/sessionMirror/sessionMirrorView.tsx :: enter': "the live pane's empty-state note for a ready-to-review newborn — its ↵ is the live box's empty-draft verb (the composer beside it, same region) entering the selected row",
   'src/components/concourse/route/useConcourseDraftDispatch.ts :: letter:y':
     'the daemon-start offer (the operator\'s word): ConcourseScreen routes y/n while daemonOfferArmed → callbacks.answerDaemonOffer (out-of-file binder across the ConcourseCallbacks seam)',
@@ -16,30 +16,12 @@ const ALLOW: Record<string, string> = {
     'ConcourseScreen.tsx key.return → callbacks.submitSessionDraft (out-of-file binder across the ConcourseCallbacks seam)',
   'src/components/concourse/route/receipts.ts :: enter':
     'ConcourseScreen.tsx key.return → callbacks.submitSessionDraft (out-of-file binder across the ConcourseCallbacks seam)',
-  'src/components/concourse/ConcourseRoute.tsx :: arrows-lr':
-    'the enter-while-attached refusal names ⇧← — bound in the attached session\'s tag bar (SwitchboardTagBar.tsx requestLeave), the surface the note sends the operator to',
   'src/components/mercury-ui/parity/accountRows.tsx :: enter':
     'AccountView.tsx hands its useInteractiveList the return action for the rows this file draws (out-of-file binder in the door)',
-  'src/components/mercury-ui/screens/sessionManager/views.tsx :: esc':
-    'the prune confirm beat: SessionManagerView.tsx useInput keeps on key.escape (out-of-file binder in the door)',
-  'src/components/mercury-ui/screens/sessionManager/views.tsx :: enter':
-    'the prune confirm beat: SessionManagerView.tsx useInput commits on key.return (out-of-file binder in the door)',
-  'src/components/mercury-ui/screens/sessionManager/views.tsx :: arrows-ud':
-    'the prune confirm beat: SessionManagerView.tsx useInput moves the choice on key.upArrow and key.downArrow (out-of-file binder in the door)',
-  'src/components/mercury-ui/screens/sessionManager/views.tsx :: letter:n':
-    'SessionManagerView.tsx useInput starts the fresh session on n (out-of-file binder in the door)',
-  'src/components/memory/MemoryCentreView.tsx :: letter:u':
-    'memory/centre/keys.ts unpins on u while the open fact is pinned (out-of-file binder in the part)',
   'src/components/agents/studio/AgentStudio.tsx :: letter:o':
     'agents/studio/agentStudioParts.tsx opens the row in the editor on o (out-of-file binder in the part)',
   'src/components/agents/studio/AgentStudio.tsx :: tab':
     'agents/studio/agentStudioParts.tsx widens the scope on key.tab (out-of-file binder in the part)',
-  'src/components/ConsoleOAuthFlow.tsx :: enter':
-    'the lists are the Select of consoleOAuth/flowCards.tsx and consoleOAuth/legCard.tsx (out-of-file binder in the parts)',
-  'src/components/ConsoleOAuthFlow.tsx :: arrows-ud':
-    'the lists are the Select of consoleOAuth/flowCards.tsx and consoleOAuth/legCard.tsx (out-of-file binder in the parts)',
-  'src/components/ConsoleOAuthFlow.tsx :: paging':
-    'the lists are the Select of consoleOAuth/flowCards.tsx and consoleOAuth/legCard.tsx (out-of-file binder in the parts)',
 }
 
 interface Site {
@@ -51,19 +33,6 @@ interface Site {
 
 const KEY_TOKEN_HINT = /esc|↵|↑↓|←|→|tab\b|pg(up|dn)|±/
 const LETTER_VERB = /(?:^|· |\/)([a-z])(?= [a-z])/g
-
-function walk(dir: string, out: string[]): void {
-  for (const e of readdirSync(dir)) {
-    const p = join(dir, e)
-    const s = statSync(p)
-    if (s.isDirectory()) {
-      if (e === 'node_modules' || e === '__snapshots__') continue
-      walk(p, out)
-    } else if (p.endsWith('.tsx')) {
-      out.push(p)
-    }
-  }
-}
 
 function hintStrings(text: string): Array<{ line: number; str: string }> {
   const out: Array<{ line: number; str: string }> = []
@@ -281,38 +250,53 @@ check('a ConsoleOAuthFlow without onSkip cannot claim the skip key', !hasBinding
 check('another component cannot lend its onSkip callback to ConsoleOAuthFlow', !hasBinding('<ConsoleOAuthFlow onDone={done} /><Other onSkip={advance} />', 'letter:s', 'fixture.tsx'))
 check('a similarly named component cannot claim the ConsoleOAuthFlow binding', !hasBinding('<ConsoleOAuthFlowOther onSkip={advance} />', 'letter:s', 'fixture.tsx'))
 check("an apostrophe inside a word opens no string: prose like Mercury's in a template literal is never read as a hint rail", hintStrings("  warning: `a local model for Mercury's own small jobs whatever the main model · ${choices.filter(choice => choice.size !== 'off')}`,").length === 0 && hintStrings("  hint: 'esc back · s skips',").length === 1)
-const files: string[] = []
-for (const t of TREES) walk(join(ROOT, t), files)
+const units = doorUnits(ROOT, 'src', TREES)
 
 const offenders: Site[] = []
+const allowed = new Set<string>()
 let sites = 0
 let presentationalSkipped = 0
-for (const abs of files) {
-  const rel = relative(ROOT, abs).split('\\').join('/')
-  const text = readFileSync(abs, 'utf8')
-  const bindsInput = hasInputMechanism(text)
-  for (const { line, str } of hintStrings(text)) {
-    if (!bindsInput) {
-      presentationalSkipped++
-      continue
-    }
-    for (const token of extractTokens(str)) {
-      sites++
-      if (ALLOW[`${rel} :: ${token === 'tab' ? 'tab' : token}`]) continue
-      if (!hasBinding(text, token, rel)) {
-        offenders.push({ file: rel, line, token, hint: str.slice(0, 60) })
+let heads = 0
+let parts = 0
+for (const head of units.heads) {
+  const members = [head, ...units.partsOf(head)]
+  if (!members.some(member => member.endsWith('.tsx'))) continue
+  heads++
+  parts += members.length - 1
+  const texts = members.map(member => readFileSync(join(ROOT, member), 'utf8'))
+  const whole = texts.join('\n')
+  const bindsInput = hasInputMechanism(whole)
+  members.forEach((rel, at) => {
+    for (const { line, str } of hintStrings(texts[at]!)) {
+      if (!bindsInput) {
+        presentationalSkipped++
+        continue
+      }
+      for (const token of extractTokens(str)) {
+        sites++
+        const row = `${rel} :: ${token}`
+        if (ALLOW[row]) {
+          if (!hasBinding(whole, token, rel)) allowed.add(row)
+          continue
+        }
+        if (!hasBinding(whole, token, rel)) {
+          offenders.push({ file: rel, line, token, hint: str.slice(0, 60) })
+        }
       }
     }
-  }
+  })
 }
 
 check(
-  `every advertised key token has a binder in scope (${sites} sites scanned; ${presentationalSkipped} presentational hint-rails skipped — parent-bound, workflow-audit turf)`,
+  `every advertised key token has a binder in scope, a door read with its parts (${sites} sites scanned in ${heads} files and ${parts} parts; ${presentationalSkipped} presentational hint-rails skipped — parent-bound, workflow-audit turf)`,
   offenders.length === 0,
   offenders.length
     ? `offenders:\n      - ${offenders.map(o => `${o.file}:${o.line} [${o.token}] "${o.hint}"`).join('\n      - ')}`
     : 'clean',
 )
+
+const unmet = Object.keys(ALLOW).filter(row => !allowed.has(row))
+check('every allowed row stands for a hint the scan meets and finds no binder for', unmet.length === 0, unmet.length ? `rows to take out of ALLOW:\n      - ${unmet.join('\n      - ')}` : 'clean')
 
 console.log(failures === 0 ? '\nALL keydead-STATIC PROOFS PASS' : `\n${failures} PROOF(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)
