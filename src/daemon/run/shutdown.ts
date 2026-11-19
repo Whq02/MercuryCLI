@@ -3,6 +3,7 @@ import { unlink } from 'fs/promises'
 import { basename } from 'path'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { treeEndsSettled } from '../../utils/processGroup.js'
 import { recordSpawnExit } from '../../utils/spawnLedger.js'
 import { parkAllConcourseSessions } from '../concourseWorkers.js'
 import { clearControlKey, clearDaemonState, controlKeyPath, controlSockPath, daemonDir, markDaemonStoppingSync } from '../controlSocket.js'
@@ -12,6 +13,7 @@ import { supersededByLivePlaneOwnerSync } from '../planeRecords.js'
 import type { DaemonRunState } from './state.js'
 
 const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
+const KILLED_TREES_BOUND_MS = 5_000
 
 interface ShutdownNeeds {
   keepAlive: ReturnType<typeof setInterval>
@@ -193,6 +195,12 @@ const WAY_OUT_THEN: readonly WayOutStep[] = [
     name: 'wait for the runners that were asked to end',
     run: async state => {
       await state.roster?.askedSettled()
+    },
+  },
+  {
+    name: 'wait for the trees of the runners that were killed',
+    run: async () => {
+      await treeEndsSettled(KILLED_TREES_BOUND_MS)
     },
   },
   {

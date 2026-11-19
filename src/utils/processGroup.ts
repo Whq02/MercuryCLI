@@ -557,13 +557,29 @@ export async function endProcessTreeSurvivors(
   return { ended, survivors: [...new Set([...walked.survivors, ...still])] }
 }
 
+const treeEndsStarted = new Set<Promise<ProcessTreeKillReceipt>>()
+
+export async function treeEndsSettled(boundMs: number): Promise<void> {
+  if (process.platform !== 'win32' || treeEndsStarted.size === 0) return
+  const bound = sleep(boundMs, undefined, { unref: true }).then(() => 'bound' as const)
+  while (treeEndsStarted.size > 0) {
+    const first = await Promise.race([Promise.allSettled([...treeEndsStarted]).then(() => 'ended' as const), bound])
+    if (first === 'bound') return
+  }
+}
+
 export function killProcessGroup(
   childProcess: Pick<ChildProcess, 'pid' | 'kill'>,
   signal: NodeJS.Signals = 'SIGKILL',
 ): void {
   const pid = childProcess.pid
   if (!pid || pid <= 0) return
-  void endProcessTree(childProcess, signal)
+  const end = endProcessTree(childProcess, signal)
+  treeEndsStarted.add(end)
+  const settled = (): void => {
+    treeEndsStarted.delete(end)
+  }
+  void end.then(settled, settled)
 }
 
 export function strikeProcessGroupNow(childProcess: Pick<ChildProcess, 'pid'>, signal: NodeJS.Signals = 'SIGKILL'): void {
