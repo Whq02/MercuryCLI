@@ -1,7 +1,5 @@
-import { validateUuid } from '../../utils/uuid.js'
 import { validateWorkerModelChoice, canonicalWorkerModelId } from '../../services/concourse/workerModels.js'
 import { refreshSignInReads, describeSignInRead } from '../signInView.js'
-import { normalizeEffortLevelString, EFFORT_LEVELS } from '../../utils/effort.js'
 import { sessionKindOfAsker } from '../../utils/sessionKind.js'
 import { isLocalModelId, localWireId } from '../../services/providers/local/localCatalogue.js'
 import { existsSync } from 'node:fs'
@@ -67,21 +65,7 @@ export function localModelNotServedNote(id: string): string {
 export async function admitModelOf(
   req: ConcourseAdmitRequest,
   deps: ConcourseAdmitDeps,
-): Promise<ConcourseAdmitResult | { req: ConcourseAdmitRequest; retainedNote: string | undefined; modelKey: string; modelDisplayName: string; keyless: boolean }> {
-  if (req.resumeSessionId !== undefined && validateUuid(req.resumeSessionId) === null) {
-    return { ok: false, code: 'invalid-request', error: 'no live session record owns this id' }
-  }
-  if (req.effort !== undefined) {
-    const level = normalizeEffortLevelString(req.effort)
-    if (level === undefined) {
-      return {
-        ok: false,
-        code: 'invalid-request',
-        error: `effort refused ('${req.effort}' is not a valid level — the levels are ${EFFORT_LEVELS.join(' | ')})`,
-      }
-    }
-    req = { ...req, effort: level }
-  }
+): Promise<ConcourseAdmitResult | { retainedNote: string | undefined; modelKey: string; modelDisplayName: string; keyless: boolean }> {
   const retainedModelKey =
     req.modelKey === undefined && req.resumeSessionId !== undefined
       ? resumeModelKeyOf(req.resumeSessionId, req.workspaceDir, deps.dir)
@@ -117,5 +101,5 @@ export async function admitModelOf(
   const modelDisplayName = admission.entry.displayName
   const keyless = admission.keyless === true
   if (keyless && admission.note !== undefined && retainedNote === undefined) retainedNote = admission.note
-  return { req, retainedNote, modelKey, modelDisplayName, keyless }
+  return { retainedNote, modelKey, modelDisplayName, keyless }
 }
