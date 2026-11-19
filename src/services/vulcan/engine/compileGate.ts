@@ -231,16 +231,29 @@ interface PreloadFinding {
   targetLine: number
 }
 
+class PreloadUnread extends Error {}
+
+function notThere(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | null)?.code
+  return code === 'ENOENT' || code === 'ENOTDIR'
+}
+
+function unreadWords(error: unknown): string {
+  return (error as NodeJS.ErrnoException | null)?.code ?? (error instanceof Error ? error.message : String(error))
+}
+
 export function preloadFindings(enginePath: string, suiteRes: string, autoloads: readonly string[]): PreloadFinding[] {
   const readRes = (res: string): string | null => {
     try {
       return readFileSync(path.join(enginePath, res.replace(/^res:\/\//, '')), 'utf8')
-    } catch {
-      return null
+    } catch (error) {
+      if (notThere(error)) return null
+      throw new PreloadUnread(`${res} could not be read (${unreadWords(error)}), so the preload chain of ${suiteRes} was not followed past it`)
     }
   }
+  if (autoloads.length === 0) return []
   const root = readRes(suiteRes)
-  if (root === null || autoloads.length === 0) return []
+  if (root === null) return []
   const findings: PreloadFinding[] = []
   const seen = new Set<string>([suiteRes])
   const own = autoloadMentions(root, autoloads)
@@ -265,15 +278,21 @@ export function preloadFindings(enginePath: string, suiteRes: string, autoloads:
   return findings
 }
 
-function walkFiles(root: string, suffixes: readonly string[]): string[] {
+function walkFiles(root: string, suffixes: readonly string[], failures: EngineCheckFailure[]): string[] {
   const out: string[] = []
   let visited = 0
+  const unread = (full: string, error: unknown): void => {
+    const res = `res://${path.relative(root, full).split(path.sep).join('/')}`
+    if (failures.some(failure => failure.file === res)) return
+    failures.push({ file: res, exitCode: null, signal: null, spawnError: `${res} could not be read (${unreadWords(error)}), so the scripts and shaders under it were not listed or checked`, timedOut: false })
+  }
   const walk = (dir: string): void => {
     if (visited > WALK_CAP) return
     let entries: string[]
     try {
       entries = readdirSync(dir).sort()
-    } catch {
+    } catch (error) {
+      if (!notThere(error)) unread(dir, error)
       return
     }
     for (const name of entries) {
@@ -283,7 +302,8 @@ function walkFiles(root: string, suffixes: readonly string[]): string[] {
       let st
       try {
         st = statSync(full)
-      } catch {
+      } catch (error) {
+        if (!notThere(error)) unread(full, error)
         continue
       }
       if (st.isDirectory()) walk(full)
@@ -379,7 +399,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
         candidates.push(norm)
       }
     } else if (args.all === true) {
-      candidates = [...walkFiles(enginePath, SCRIPT_SUFFIXES), ...walkFiles(enginePath, SHADER_SUFFIXES)]
+      candidates = [...walkFiles(enginePath, SCRIPT_SUFFIXES, result.failures), ...walkFiles(enginePath, SHADER_SUFFIXES, result.failures)]
     } else if (frozen && spec.files.length > 0) {
       candidates = spec.files.map(f => normalizeTreeFile(f) ?? '').filter(f => f.length > 0)
     } else {
@@ -390,7 +410,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
     const scripts = [...new Set(candidates.filter(f => f.endsWith('.gd') && present(f)))]
     let shaders = [...new Set(candidates.filter(f => f.endsWith('.gdshader') && present(f)))]
     if (args.shaders !== false && candidates.some(f => SHADER_INCLUDE_SUFFIXES.some(s => f.endsWith(s)))) {
-      shaders = [...new Set([...shaders, ...walkFiles(enginePath, SHADER_SUFFIXES)])]
+      shaders = [...new Set([...shaders, ...walkFiles(enginePath, SHADER_SUFFIXES, result.failures)])]
     }
     if (args.shaders === false) shaders = []
     result.checked = { scripts: scripts.map(s => `res://${s}`), shaders: shaders.map(s => `res://${s}`) }
@@ -400,7 +420,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
         Array.isArray(args.files) && args.files.length > 0
           ? 'none of the named files exist as .gd or .gdshader under the project'
           : 'no changed .gd or .gdshader files against HEAD (git status is clean) — pass files:[...] to check named files, or all:true for every script and shader'
-      result.ok = result.drift.length === 0
+      result.ok = result.drift.length === 0 && result.failures.length === 0
       return result
     }
     const userDir = engineCheckUserDir(checkDir)
@@ -470,7 +490,15 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
       }
     }
     for (const suiteRes of roots) {
-      for (const f of preloadFindings(enginePath, suiteRes, result.autoloads)) {
+      let found: PreloadFinding[]
+      try {
+        found = preloadFindings(enginePath, suiteRes, result.autoloads)
+      } catch (error) {
+        if (!(error instanceof PreloadUnread)) throw error
+        result.failures.push({ file: suiteRes, exitCode: null, signal: null, spawnError: error.message, timedOut: false })
+        continue
+      }
+      for (const f of found) {
         const message =
           f.target === f.suite
             ? `the --script suite itself names autoload ${f.autoload} (line ${f.targetLine}); a script-mode run compiles before autoloads exist, so the run fails with "Identifier not found: ${f.autoload}"`
