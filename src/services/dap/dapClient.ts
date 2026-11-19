@@ -25,6 +25,7 @@ import {
   writeMemory,
 } from './client/breakpoints.js'
 import type { DapStartOptions } from './client/launch.js'
+import { FramePart } from './client/frame.js'
 import { LifePart } from './client/life.js'
 import { MessagesPart } from './client/messages.js'
 import { OutputPart } from './client/output.js'
@@ -32,7 +33,7 @@ import { StartPart } from './client/start.js'
 import { childBoundRefusal, ReversePart } from './client/reverse.js'
 import { TerminalPart } from './client/terminal.js'
 import { WirePart } from './client/wire.js'
-import { drainOutput, waitForStopOutcome } from './client/stops.js'
+import { drainOutput, waitForStop, waitForStopOutcome } from './client/stops.js'
 import {
   debuggeeEndDetail,
   debugTarget,
@@ -173,6 +174,7 @@ export class DapSession {
     wakeStateWaiters: () => this.#wakeStateWaiters(),
     pushOutput: line => this.#pushOutput(line),
   })
+  #frame = new FramePart(this)
   #initializedEvent: Promise<void>
   #resolveInitialized!: () => void
   #stateWaiters = new Set<() => void>()
@@ -298,26 +300,8 @@ export class DapSession {
     return treeNewestStopStamp(this)
   }
 
-  #stoppedFrameMemo: { stamp: number; frameId: number } | null = null
-
-  async stoppedFrameId(): Promise<number | null> {
-    const stopped = this.lastStopped
-    if (!stopped) return null
-    const stamp = this.lastStoppedAt
-    if (this.#stoppedFrameMemo?.stamp === stamp) return this.#stoppedFrameMemo.frameId
-    let threadId = stopped.threadId
-    if (threadId === undefined) {
-      const body = await this.request('threads')
-      const threads = Array.isArray(body.threads) ? (body.threads as Array<{ id?: number }>) : []
-      threadId = threads[0]?.id
-      if (threadId === undefined) return null
-    }
-    const body = await this.request('stackTrace', { threadId, startFrame: 0, levels: 1 })
-    const frames = Array.isArray(body.stackFrames) ? (body.stackFrames as Array<{ id?: number }>) : []
-    const frameId = frames[0]?.id
-    if (typeof frameId !== 'number') return null
-    if (this.lastStoppedAt === stamp) this.#stoppedFrameMemo = { stamp, frameId }
-    return frameId
+  stoppedFrameId(): Promise<number | null> {
+    return this.#frame.stoppedFrameId()
   }
 
   treeVerifiedBreakpoints(): Map<
@@ -494,10 +478,8 @@ export class DapSession {
     return waitForStopOutcome(this, this.#stateWaiters, timeoutMs, signal, sinceStamp)
   }
 
-  async waitForStop(timeoutMs = 10_000, signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<StoppedInfo | null> {
-    const outcome = await this.waitForStopOutcome(timeoutMs, signal)
-    if (outcome.state === 'aborted') throw new DapCancelledError()
-    return outcome.state === 'stopped' ? outcome.info : null
+  waitForStop(timeoutMs = 10_000, signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<StoppedInfo | null> {
+    return waitForStop(this, timeoutMs, signal)
   }
 
   drainOutput(quietMs = 200, maxMs = 1_000, signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {
