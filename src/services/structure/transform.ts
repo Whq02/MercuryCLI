@@ -8,6 +8,7 @@ import { buildDiffHunks } from '../changeTransaction/diffBudget.js'
 import { mintFileAnchor } from '../changeTransaction/snapshotAnchor.js'
 import { recordCanonicalEvidence } from '../primitives/evidencePlane.js'
 import type { OwnerKey } from '../run/ownerKey.js'
+import { errorMessage } from '../../utils/errors.js'
 import type {
   StructureFileEdit,
   StructureMatch,
@@ -443,6 +444,7 @@ export async function applyPreview(
   })
 
   const evidenceRefs: string[] = []
+  let evidenceNote: string | undefined
   try {
     const applied = recordCanonicalEvidence({
       owner,
@@ -463,13 +465,15 @@ export async function applyPreview(
       details: { diagnostics },
     })
     evidenceRefs.push(`mercury://evidence/${checked.id}`)
-  } catch {
+  } catch (err) {
+    evidenceNote = `the files are written; the evidence of ${evidenceRefs.length === 0 ? 'the change and its parse check' : 'its parse check'} was not recorded (${errorMessage(err)})`
   }
 
   const updated = setPreviewState(owner, previewId, 'applied', {
     appliedAt: Date.now(),
     changedPaths,
     evidenceRefs,
+    ...(evidenceNote !== undefined && { note: evidenceNote }),
   })!
 
   return { state: 'applied', preview: updated, changedPaths, diagnostics, evidenceRefs }
