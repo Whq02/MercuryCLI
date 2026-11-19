@@ -14,7 +14,7 @@ import { errorMessage } from '../../../utils/errors.js'
 import { getAgentTranscriptPath } from '../../../utils/sessionStorage.js'
 import type { RunAgentParams } from '../runAgent.js'
 
-export interface CrewmateEndNeeds {
+interface CrewmateEndNeeds {
   abortController: AbortController
   crewmateRun: { usage: typeof EMPTY_USAGE; steps: number; answer: string | undefined; endedBy: OutcomeStatus; reason: string | undefined }
   startedAt: number

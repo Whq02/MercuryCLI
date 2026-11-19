@@ -23,7 +23,7 @@ export interface AgentRun {
   askHeartbeat: ReturnType<typeof setInterval> | null
 }
 
-export type StalledNeeds = { agentDefinition: RunAgentParams['agentDefinition']; agentId: AgentId; idleLimitMs: number; startedAt: number; agentStalledError: typeof agentStalledError }
+type StalledNeeds = { agentDefinition: RunAgentParams['agentDefinition']; agentId: AgentId; idleLimitMs: number; startedAt: number; agentStalledError: typeof agentStalledError }
 
 export function stalledErrorOf(run: AgentRun, { agentDefinition, agentId, idleLimitMs, startedAt, agentStalledError }: StalledNeeds) {
   const stalledError = (): DeadlineExceededError =>
@@ -151,7 +151,7 @@ export function callModelOf(run: AgentRun, { deps, agentId }: { deps: ReturnType
   return callModel
 }
 
-export type ObserveNeeds = { recovery: RecoveryBudget; accountant: RecoveryAccountant; onQueryProgress: RunAgentParams['onQueryProgress']; touchThrough: (declaredMs: number) => void; declaredRecoveryWaitMs: typeof declaredRecoveryWaitMs }
+type ObserveNeeds = { recovery: RecoveryBudget; accountant: RecoveryAccountant; onQueryProgress: RunAgentParams['onQueryProgress']; touchThrough: (declaredMs: number) => void; declaredRecoveryWaitMs: typeof declaredRecoveryWaitMs }
 
 export function observeProgressOf(run: AgentRun, { recovery, accountant, onQueryProgress, touchThrough, declaredRecoveryWaitMs }: ObserveNeeds) {
   const observeProgress = (message: LegacyQueryYield): void => {

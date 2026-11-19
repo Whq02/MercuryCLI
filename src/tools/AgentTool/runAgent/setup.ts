@@ -20,7 +20,7 @@ import { restrictScoutTools } from '../scoutPolicy.js'
 import { composeAgentAppState, definitionModeWithinConsent, resolveAgentPromptPosture } from '../agentPermissionPosture.js'
 import type { resolveAgentEffort, RunAgentParams } from '../runAgent.js'
 
-export type PostureNeeds = Pick<RunAgentParams, 'toolUseContext' | 'agentDefinition' | 'isAsync' | 'canShowPermissionPrompts' | 'allowedTools' | 'effortOverride' | 'useExactTools'> & {
+type PostureNeeds = Pick<RunAgentParams, 'toolUseContext' | 'agentDefinition' | 'isAsync' | 'canShowPermissionPrompts' | 'allowedTools' | 'effortOverride' | 'useExactTools'> & {
   resolveAgentEffort: typeof resolveAgentEffort
 }
 
@@ -69,7 +69,7 @@ export function agentPostureOf({ toolUseContext, agentDefinition, isAsync, canSh
   return { posture, agentGetAppState }
 }
 
-export type ToolsNeeds = Pick<RunAgentParams, 'availableTools' | 'structuredOutputSpec' | 'worktreePath'> & {
+type ToolsNeeds = Pick<RunAgentParams, 'availableTools' | 'structuredOutputSpec' | 'worktreePath'> & {
   swarm: boolean
   mcp: { tools: Tool[] }
   reviewReceipt: string | undefined
@@ -108,7 +108,7 @@ export function agentToolsOf({ availableTools, swarm, mcp, structuredOutputSpec,
   return tools
 }
 
-export type ChildContextNeeds = Pick<RunAgentParams, 'toolUseContext' | 'thinkingConfigOverride' | 'agentDefinition' | 'isAsync' | 'querySource' | 'contentReplacementState' | 'worktreePath' | 'seatHolder' | 'description' | 'onWait' | 'preserveToolUseResults'> & {
+type ChildContextNeeds = Pick<RunAgentParams, 'toolUseContext' | 'thinkingConfigOverride' | 'agentDefinition' | 'isAsync' | 'querySource' | 'contentReplacementState' | 'worktreePath' | 'seatHolder' | 'description' | 'onWait' | 'preserveToolUseResults'> & {
   posture: ReturnType<typeof resolveAgentPromptPosture>
   agentId: AgentId
   abortController: AbortController
@@ -169,7 +169,7 @@ export function childContextOf({ toolUseContext, posture, thinkingConfigOverride
   return { childContext, thinkingOverride }
 }
 
-export type RecordNeeds = Pick<RunAgentParams, 'model' | 'effortOverride' | 'agentDefinition' | 'worktreePath' | 'cwd' | 'description' | 'name' | 'launchedAt' | 'structuredOutputSpec'> & {
+type RecordNeeds = Pick<RunAgentParams, 'model' | 'effortOverride' | 'agentDefinition' | 'worktreePath' | 'cwd' | 'description' | 'name' | 'launchedAt' | 'structuredOutputSpec'> & {
   latestRecord: Parameters<typeof recordAtRunStart>[0]
   swarm: boolean
   swarmWords: ReturnType<typeof swarmBrief> | null
