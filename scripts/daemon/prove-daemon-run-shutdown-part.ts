@@ -55,6 +55,7 @@ const noting = <T extends object>(who: string, plantedCalls: T): T =>
 const STAND_INS = {
   '../../utils/debug.js': { logForDebugging: (line: string) => note(`debug: ${line}`) },
   '../../utils/spawnLedger.js': { recordSpawnExit: (row: { kind: string; event: string; id: string; reason: string }) => note(`ledger ${row.kind} ${row.event} ${row.id} ${row.reason}`) },
+  '../../utils/processGroup.js': { treeEndsSettled: (boundMs: number) => neighbour(`the killed trees settled within ${boundMs} ms`) },
   '../controlSocket.js': {
     clearControlKey: () => neighbour('clear the control key'),
     clearDaemonState: () => neighbour('clear the daemon record'),
@@ -75,10 +76,12 @@ const controlSocket = await import('../../src/daemon/controlSocket.ts')
 const planeRecords = await import('../../src/daemon/planeRecords.ts')
 const spawnLedger = await import('../../src/utils/spawnLedger.ts')
 const debug = await import('../../src/utils/debug.ts')
+const processGroup = await import('../../src/utils/processGroup.ts')
 mock.module('../../src/daemon/controlSocket.ts', () => ({ ...controlSocket, ...STAND_INS['../controlSocket.js'] }))
 mock.module('../../src/daemon/planeRecords.ts', () => ({ ...planeRecords, ...STAND_INS['../planeRecords.js'] }))
 mock.module('../../src/utils/spawnLedger.ts', () => ({ ...spawnLedger, ...STAND_INS['../../utils/spawnLedger.js'] }))
 mock.module('../../src/utils/debug.ts', () => ({ ...debug, ...STAND_INS['../../utils/debug.js'] }))
+mock.module('../../src/utils/processGroup.ts', () => ({ ...processGroup, ...STAND_INS['../../utils/processGroup.js'] }))
 
 const part = await import('../../src/daemon/run/shutdown.ts')
 const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
@@ -176,6 +179,7 @@ const THEN: Held[] = [
   { step: 'spawn the successor when the restart stands', leaves: ['spawn the successor'] },
   { step: 'release the daemon lock', leaves: ['release the daemon lock', 'state.daemonLock = null'] },
   { step: 'wait for the runners that were asked to end', leaves: ['the asked runners settled'] },
+  { step: 'wait for the trees of the runners that were killed', leaves: ['the killed trees settled within 5000 ms'] },
   { step: 'let the event loop go', leaves: ['let the event loop go'] },
   { step: 'resolve the run', leaves: ['resolve the run'] },
   { step: 'exit in 250 ms', leaves: ['timer 250'] },
@@ -188,6 +192,7 @@ const WAITS = [
   { neighbour: 'clear the daemon record', said: 'the clear of the daemon record', how: 'the step returns the promise of `clearDaemonState().catch(() => {})`, so the runner of the second list awaits it' },
   { neighbour: 'release the daemon lock', said: 'the release of the daemon lock', how: 'the step awaits `state.daemonLock?.release().catch(() => {})` before it lets go of the field' },
   { neighbour: 'the asked runners settled', said: 'the wait for the runners that were asked to end', how: 'the step awaits `state.roster?.askedSettled()`' },
+  { neighbour: 'the killed trees settled within 5000 ms', said: 'the wait for the trees of the runners that were killed', how: 'the step awaits `treeEndsSettled(KILLED_TREES_BOUND_MS)`' },
 ]
 const FAILS = [
   { neighbour: 'close the control server', said: 'a control server whose close fails is logged and', also: ['debug: [daemon] error closing control server: Error: close the control server: planted failure'], how: 'keep the try around the close' },
@@ -257,9 +262,9 @@ try {
     check('what the proof holds reads clean', readWayOut(KEPT).length === 0, readWayOut(KEPT))
     check('two steps that changed places are named, each with the place it ran at, and the line says the order is behaviour', neighbours.length === 1 && neighbours[0]!.includes('"say it is leaving" ran at place 8 of the 12 it does at once, where this proof holds "mark the record stopping", and "mark the record stopping" ran at place 9 of the 12 it does at once, where it holds "say it is leaving"') && neighbours[0]!.includes('the order the daemon lets go in is behaviour'), neighbours)
     const across = readWayOut(swapped(AT_ONCE[11]!, THEN[0]!))
-    check('a swap across the two lists is named the same way', across.length === 1 && across[0]!.includes('"close the control server" ran at place 12 of the 12 it does at once') && across[0]!.includes('"reap every rostered worker" ran at place 1 of the 12 that follow'), across)
+    check('a swap across the two lists is named the same way', across.length === 1 && across[0]!.includes('"close the control server" ran at place 12 of the 12 it does at once') && across[0]!.includes('"reap every rostered worker" ran at place 1 of the 13 that follow'), across)
     const dropped = readWayOut(KEPT.filter(effect => !THEN[6]!.leaves.includes(effect)))
-    check('a step that left nothing is named with its place: dropped', dropped.length === 1 && dropped[0]!.startsWith('"spawn the successor when the restart stands" (place 7 of the 12 that follow) did not happen') && dropped[0]!.includes('a step was dropped'), dropped)
+    check('a step that left nothing is named with its place: dropped', dropped.length === 1 && dropped[0]!.startsWith('"spawn the successor when the restart stands" (place 7 of the 13 that follow) did not happen') && dropped[0]!.includes('a step was dropped'), dropped)
     const added = readWayOut([...KEPT.slice(0, 5), 'state.restartArmed = false', ...KEPT.slice(5)])
     check('something no step holds is named: added', added.length === 1 && added[0]!.startsWith('the way out did "state.restartArmed = false"') && added[0]!.includes('a step was added'), added)
     const twice = readWayOut([...KEPT, 'resolve the run'])
@@ -278,6 +283,7 @@ try {
     check('the shutdown road marks its record before it closes the socket', at('mark the record stopping') >= 0 && at('mark the record stopping') < at('close the control server'))
     check('the teardown reaps every rostered worker that has no outcome, each with its row in the spawn ledger first, and none that has ended', at('kill concourse-w1') > at('ledger long-lived reap concourse-w1') && at('kill job-2') > at('ledger headless reap job-2') && at('kill done-3') === -1)
     check('it waits for the runners it asked to end after it has struck them and before its own exit', at('kill job-2') < at('the asked runners settled') && at('the asked runners settled') < at('timer 250'))
+    check('it waits for the trees of the runners it killed after the asked wait, with its bound of 5 s, and before it lets the event loop go', at('the asked runners settled') < at('the killed trees settled within 5000 ms') && at('the killed trees settled within 5000 ms') < at('let the event loop go'))
     check("it arms its own exit, 15 s out and unref'd, as it begins and outside the steps that can be held up", atOnce.includes('timer 15000') && !atOnce.includes('clear the control key') && timers.find(t => t.ms === 15000)?.unref === true, atOnce.slice(-3))
     check('the successor is spawned after the record is cleared and before the daemon lock is released', at('clear the daemon record') < at('spawn the successor') && at('spawn the successor') < at('release the daemon lock'))
     check('the daemon lock is released on the way out and the state lets go of it', at('release the daemon lock') >= 0 && state.daemonLock === null)
