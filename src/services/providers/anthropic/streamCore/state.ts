@@ -22,7 +22,7 @@ import type { HeldBusyRetryWait } from '../../busyRetry.js'
 import type { RequestWaitV1 } from '../../streamIdleBudget.js'
 import type { Options } from '../streamCore.js'
 import type { createCallLedger } from './callLedger.js'
-import type { planRequest } from './planRequest.js'
+import type { wireRequestOf } from './requestPlan.js'
 import type { watchStream } from './watchStream.js'
 import type { wireParamsFor } from './wireParams.js'
 
@@ -32,7 +32,7 @@ export type BetaStopReason = NonNullable<BetaMessage['stop_reason']>
 
 export type QueryYield = StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage
 
-export type PlannedRequest = Awaited<ReturnType<typeof planRequest>>
+export type PlannedRequest = ReturnType<typeof wireRequestOf>
 
 export type CallState = {
   signInRequest: ReturnType<SignInRefusal['captureSignInRequest']>

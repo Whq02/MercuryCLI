@@ -3,6 +3,7 @@ import type { AnthropicClientOptions as ClientOptions } from './anthropicClient.
 import { APIUserAbortError } from '../../api/sdkErrors.js'
 import type { ContentBlock as BetaContentBlock } from '../../../types/wire.js'
 import type { AnthropicMessageParams as BetaMessageStreamParams } from './anthropicWire.js'
+import { getCacheEditingHeaderLatched } from 'src/bootstrap/state.js'
 import type { QuerySource } from 'src/constants/querySource.js'
 import type { Notification } from 'src/context/notifications.js'
 import type { AgentId } from 'src/types/ids.js'
@@ -17,6 +18,7 @@ import {
 } from '../../../Tool.js'
 import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
+import { planToolPayload } from '../toolEconomy.js'
 import type { ConnectorTextBlock } from '../../../types/connectorText.js'
 import type {
   AssistantMessage,
@@ -30,15 +32,22 @@ import type {
   JsonOutputFormat,
   StreamCapabilityAdvertisement,
 } from '../../../types/wire.js'
-import { resolveEffortTruth } from '../../../utils/effort.js'
+import { toolToAPISchema } from '../../../utils/api.js'
+import { resolveAppliedEffort, resolveEffortTruth } from '../../../utils/effort.js'
 import { effortStampOf } from '../../../utils/effortStamp.js'
+import { fitImagesToRequestCap, manyImageLimitStatedIn } from '../../../utils/imageResizer.js'
 import { captureAPIRequest } from '../../../utils/log.js'
 import { createUserMessage } from '../../../utils/messages.js'
+import { processOwnerForLane } from '../../run/resolveOwner.js'
 import { utilityCallFor } from '../../../utils/model/utilityModel.js'
 import {
   asSystemPrompt,
   type SystemPrompt,
 } from '../../../utils/systemPromptType.js'
+import {
+  consumePendingCacheEdits,
+  getPinnedCacheEdits,
+} from '../../compact/microCompact.js'
 import { withStreamingVCR, withVCR } from '../../vcr.js'
 import { captureModelRefusalRequest, type ModelRefusalRequest } from './modelRefusal.js'
 import { EMPTY_USAGE } from '../../api/logging.js'
@@ -51,7 +60,7 @@ type BetaToolChoiceTool = Extract<BetaMessageStreamParams['tool_choice'], { type
 type BetaToolChoiceNone = Extract<BetaMessageStreamParams['tool_choice'], { type: 'none' }>
 import type { CallState, QueryCtx } from './streamCore/state.js'
 import { createCallLedger } from './streamCore/callLedger.js'
-import { planRequest } from './streamCore/planRequest.js'
+import { messagesBeforeImages, requestBetas, toolRosterOf, wireRequestOf } from './streamCore/requestPlan.js'
 import { requestFailed } from './streamCore/requestFailed.js'
 import { closeSucceededRequest, settleAttemptLedger } from './streamCore/settleCall.js'
 import { streamPass } from './streamCore/streamPass.js'
@@ -196,12 +205,53 @@ async function* queryModel(
     captureAPIRequest(params, options.querySource)
   }
 
-  const planned = await planRequest(messages, systemPrompt, thinkingConfig, tools, options)
-  const { rosterOwnerKey, messagesForAPI, prefixKey, turnOwning } = planned
-  const paramsFromContext = wireParamsFor(planned, messages, thinkingConfig, options, call, effortRides, effortPinned)
+  const betas = requestBetas(options)
+
+  const rosterOwnerKey = options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null))
+  const plan = await planToolPayload({
+    model: options.model,
+    tools,
+    messages,
+    getToolPermissionContext: options.getToolPermissionContext,
+    agents: options.agents,
+    hasPendingMcpServers: options.hasPendingMcpServers,
+    source: 'query',
+    latchKey: rosterOwnerKey,
+  })
+  const { useToolSearch, blockForm, filteredTools, willDefer } = toolRosterOf(plan, betas, tools, options, rosterOwnerKey)
+
+  const cachedMCEnabled = false
+
+  const toolSchemas = await Promise.all(
+    filteredTools.map(tool =>
+      toolToAPISchema(tool, {
+        getToolPermissionContext: options.getToolPermissionContext,
+        tools: filteredTools,
+        agents: options.agents,
+        allowedAgentTypes: options.allowedAgentTypes,
+        model: options.model,
+        deferLoading: willDefer(tool),
+        conversationKey: plan.conversationKey,
+        bound: plan.isBound(tool.name),
+      }),
+    ),
+  )
+
+  const unfittedMessages = messagesBeforeImages(messages, filteredTools, useToolSearch, blockForm, rosterOwnerKey)
+  const fittedImages = await fitImagesToRequestCap(unfittedMessages, { model: options.model, owner: rosterOwnerKey, statedSidePx: manyImageLimitStatedIn(messages) })
+  const planned = wireRequestOf(fittedImages, messages, systemPrompt, thinkingConfig, options, rosterOwnerKey, toolSchemas)
+  const { messagesForAPI, prefixKey, turnOwning } = planned
+
+  const cacheEditingHeaderLatched = getCacheEditingHeaderLatched() === true
+
+  const effort = effortRides ? resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId, pinned: effortPinned }) : undefined
 
   const startIncludingRetries = Date.now()
   call.start = Date.now()
+
+  const consumedCacheEdits = cachedMCEnabled ? consumePendingCacheEdits() : null
+  const consumedPinnedEdits = cachedMCEnabled ? getPinnedCacheEdits() : []
+  const paramsFromContext = wireParamsFor(call, { messages, thinkingConfig, options, betas, rosterOwnerKey, planned, cachedMCEnabled, cacheEditingHeaderLatched, effort, consumedCacheEdits, consumedPinnedEdits })
 
   const newMessages: AssistantMessage[] = []
   const contentBlocks: (BetaContentBlock | ConnectorTextBlock)[] = []

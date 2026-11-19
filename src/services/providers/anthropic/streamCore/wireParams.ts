@@ -1,7 +1,6 @@
 import { flagEnv } from '../../../../substrate/flagRegistry.js'
 import type { JsonOutputFormat as BetaJSONOutputFormat } from '../../../../types/wire.js'
 import type { AnthropicMessageParams as BetaMessageStreamParams, AnthropicOutputConfig as BetaOutputConfig } from '../anthropicWire.js'
-import { getCacheEditingHeaderLatched } from 'src/bootstrap/state.js'
 import { STRUCTURED_OUTPUTS_BETA_HEADER } from 'src/constants/betas.js'
 import { applyThinkingBinding } from '../thinkingBinding.js'
 import { applyThinkingDisplay } from '../thinkingDisplay.js'
@@ -48,26 +47,25 @@ import {
 import type { Options } from '../streamCore.js'
 import type { CallState, PlannedRequest } from './state.js'
 
-export function wireParamsFor(
-  planned: PlannedRequest,
-  messages: Message[],
-  thinkingConfig: ThinkingConfig,
-  options: Options,
-  call: CallState,
-  effortRides: boolean,
-  effortPinned: boolean,
-) {
-  const { betas, rosterOwnerKey, messagesForAPI, fingerprint, prefixKey, systemForAttribution, allTools } = planned
+type WireInputs = {
+  messages: Message[]
+  thinkingConfig: ThinkingConfig
+  options: Options
+  betas: string[]
+  rosterOwnerKey: string
+  planned: PlannedRequest
+  cachedMCEnabled: boolean
+  cacheEditingHeaderLatched: boolean
+  effort: ReturnType<typeof resolveAppliedEffort> | undefined
+  consumedCacheEdits: ReturnType<typeof consumePendingCacheEdits> | null
+  consumedPinnedEdits: ReturnType<typeof getPinnedCacheEdits>
+}
+
+export function wireParamsFor(call: CallState, wire: WireInputs) {
+  const { messages, thinkingConfig, options, betas, rosterOwnerKey, planned, cachedMCEnabled, cacheEditingHeaderLatched, effort, consumedCacheEdits, consumedPinnedEdits } = wire
+  const { messagesForAPI, fingerprint, prefixKey, systemForAttribution, allTools } = planned
   let { attributionLine, system } = planned
-  const cachedMCEnabled = false
   const cacheEditingBetaHeader = ''
-
-  const cacheEditingHeaderLatched = getCacheEditingHeaderLatched() === true
-
-  const effort = effortRides ? resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId, pinned: effortPinned }) : undefined
-
-  const consumedCacheEdits = cachedMCEnabled ? consumePendingCacheEdits() : null
-  const consumedPinnedEdits = cachedMCEnabled ? getPinnedCacheEdits() : []
 
   const paramsFromContext = (retryContext: RetryContext) => {
     const attribution = getAttributionHeader(fingerprint)

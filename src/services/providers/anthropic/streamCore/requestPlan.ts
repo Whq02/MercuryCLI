@@ -24,7 +24,6 @@ import { isToolSearchEnabledOptimistic, isToolSearchToolAvailable, modelSupports
 import { getMergedBetas } from '../../../../utils/betas.js'
 import { isTurnOwningQuerySource } from '../../../../utils/effort.js'
 import { computeFingerprintFromMessages } from '../../../../utils/fingerprint.js'
-import { fitImagesToRequestCap, manyImageLimitStatedIn } from '../../../../utils/imageResizer.js'
 import {
   normalizeMessagesForAPI,
   stripCallerFieldFromAssistantMessage,
@@ -33,7 +32,6 @@ import {
 } from '../../../../utils/messages.js'
 import { stripThinkingFromIndex, stripThinkingFromOtherModels } from '../../../../utils/messages/apiFilters.js'
 import { pairConversationMessages } from '../../../../utils/messages/pairing.js'
-import { processOwnerForLane } from '../../../run/resolveOwner.js'
 import type { SystemPrompt } from '../../../../utils/systemPromptType.js'
 import { getAnthropicClient } from '../../../api/client.js'
 import {
@@ -42,6 +40,7 @@ import {
 } from '../cacheAndUsage.js'
 import { retireOlderScreenshots } from '../../../desktop/screenshotRetention.js'
 import { getPromptCachingEnabled } from '../requestParams.js'
+import type { RequestImageFit } from '../../../../utils/imageResizer.js'
 import type { Options } from '../streamCore.js'
 
 const GATEWAY_PROBE_TIMEOUT_MS = 8_000
@@ -79,13 +78,7 @@ function withoutToolSearchFields(message: UserMessage | AssistantMessage): UserM
     : stripCallerFieldFromAssistantMessage(message)
 }
 
-export async function planRequest(
-  messages: Message[],
-  systemPrompt: SystemPrompt,
-  thinkingConfig: ThinkingConfig,
-  tools: Tools,
-  options: Options,
-) {
+export function requestBetas(options: Options) {
   const isAgenticQuery =
     options.querySource.startsWith('main_thread') ||
     options.querySource.startsWith('agent:') ||
@@ -93,18 +86,16 @@ export async function planRequest(
     options.querySource === 'hook_agent' ||
     options.querySource === 'verification_agent'
   const betas = getMergedBetas(options.model, { isAgenticQuery })
+  return betas
+}
 
-  const rosterOwnerKey = options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null))
-  const plan = await planToolPayload({
-    model: options.model,
-    tools,
-    messages,
-    getToolPermissionContext: options.getToolPermissionContext,
-    agents: options.agents,
-    hasPendingMcpServers: options.hasPendingMcpServers,
-    source: 'query',
-    latchKey: rosterOwnerKey,
-  })
+export function toolRosterOf(
+  plan: Awaited<ReturnType<typeof planToolPayload>>,
+  betas: string[],
+  tools: Tools,
+  options: Options,
+  rosterOwnerKey: string,
+) {
   const useToolSearch = plan.enabled
   const deferredToolNames = plan.deferredNames
   const blockForm = plan.wireForm === 'block'
@@ -136,22 +127,16 @@ export async function planRequest(
   }
 
   const willDefer = (t: Tool) => useToolSearch && blockForm && deferredToolNames.has(t.name)
+  return { useToolSearch, blockForm, filteredTools, willDefer }
+}
 
-  const toolSchemas = await Promise.all(
-    filteredTools.map(tool =>
-      toolToAPISchema(tool, {
-        getToolPermissionContext: options.getToolPermissionContext,
-        tools: filteredTools,
-        agents: options.agents,
-        allowedAgentTypes: options.allowedAgentTypes,
-        model: options.model,
-        deferLoading: willDefer(tool),
-        conversationKey: plan.conversationKey,
-        bound: plan.isBound(tool.name),
-      }),
-    ),
-  )
-
+export function messagesBeforeImages(
+  messages: Message[],
+  filteredTools: Tools,
+  useToolSearch: boolean,
+  blockForm: boolean,
+  rosterOwnerKey: string,
+) {
   let messagesForAPI = normalizeMessagesForAPI(messages, filteredTools)
 
   if (!useToolSearch) {
@@ -171,8 +156,19 @@ export async function planRequest(
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages
       : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
-  const fittedImages = await fitImagesToRequestCap(messagesForAPI, { model: options.model, owner: rosterOwnerKey, statedSidePx: manyImageLimitStatedIn(messages) })
-  messagesForAPI =
+  return messagesForAPI
+}
+
+export function wireRequestOf(
+  fittedImages: RequestImageFit<ReturnType<typeof messagesBeforeImages>[number]>,
+  messages: Message[],
+  systemPrompt: SystemPrompt,
+  thinkingConfig: ThinkingConfig,
+  options: Options,
+  rosterOwnerKey: string,
+  toolSchemas: Awaited<ReturnType<typeof toolToAPISchema>>[],
+) {
+  let messagesForAPI =
     fittedImages.firstEdited === -1
       ? fittedImages.messages
       : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
@@ -218,5 +214,5 @@ export async function planRequest(
     (_writer, target, row) => carriesThinking(row, target, carryPrefix, droppedThinking),
   )
 
-  return { betas, rosterOwnerKey, messagesForAPI, fingerprint, prefixKey, turnOwning, attributionLine, system, systemForAttribution, allTools }
+  return { messagesForAPI, fingerprint, prefixKey, turnOwning, attributionLine, system, systemForAttribution, allTools }
 }
