@@ -1,26 +1,9 @@
 import type { UUID } from 'crypto'
-import { isDeepStrictEqual } from 'node:util'
-import {
-  closeSync,
-  fstatSync,
-  ftruncateSync,
-  openSync,
-  readFileSync,
-  readSync,
-  writeFileSync,
-  writeSync,
-} from 'fs'
-import { appendFile as fsAppendFile, mkdir, readFile, stat } from 'fs/promises'
-import { basename, dirname } from 'path'
+import { readFile } from 'fs/promises'
+import { dirname } from 'path'
 import memoize from 'lodash-es/memoize.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import {
-  getPlanSlugCache,
-  getPromptId,
-  getSessionId,
-  isSessionPersistenceDisabled,
-} from '../../bootstrap/state.js'
-import { recordToEntry } from '../../fabric/entryCodec.js'
+import { getSessionId, isSessionPersistenceDisabled } from '../../bootstrap/state.js'
 import { type AgentId, asAgentId } from '../../types/ids.js'
 import type {
   ContentReplacementEntry,
@@ -33,51 +16,35 @@ import type { AttributionSnapshotEntry } from '../../types/logs.js'
 import type { Message } from '../../types/message.js'
 import { storageRowPolicy } from '../../rows/storage.js'
 import { SessionMeta, SESSION_META_COMPAT_FIELDS } from './sessionMeta.js'
-import { promptLabel } from './sessionIndex.js'
 import { readTranscriptRecordIds, readTranscriptTailSync } from './transcriptReader.js'
 import type { QueueOperationMessage } from '../../types/messageQueueTypes.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { registerExitCliffSeam } from '../exitCliffDrain.js'
-import { getCwd } from '../cwd.js'
-import { logForDebugging } from '../debug.js'
 import { isEnvTruthy } from '../envUtils.js'
-import { isFsInaccessible } from '../errors.js'
 import type { FileHistorySnapshot } from '../fileHistory.js'
-import { formatFileSize } from '../format.js'
 import { getFsImplementation } from '../fsOperations.js'
-import { getBranch } from '../git.js'
-import { logError } from '../log.js'
-import { isCompactBoundaryMessage } from '../messages.js'
 import { LITE_READ_BUF_SIZE } from '../sessionStoragePortable.js'
 import { getInitialSettings } from '../settings/settings.js'
-import { jsonParse, jsonStringify } from '../slowOperations.js'
-import { linkTaskOutputToTranscript } from '../task/diskOutput.js'
 import type { ContentReplacementRecord } from '../toolResultStorage.js'
-import { getWorkload } from '../workloadContext.js'
-import { effortNotOnWire } from '../effortStamp.js'
-import {
-  cleanForTranscript,
-  getFirstMeaningfulUserMessageTextContent,
-  type Transcript,
-} from './chain.js'
+import { cleanForTranscript, type Transcript } from './chain.js'
 import { sessionFilePath } from './loading.js'
 import {
   getAgentTranscriptPath,
-  getEntrypoint,
   getNodeEnv,
   getTranscriptPath,
-  getTranscriptPathForSession,
   isChainParticipant,
 } from './paths.js'
 import {
   encodeTranscriptLine,
   resetTranscriptFormatCacheForTesting,
 } from './vnext.js'
-
-const VERSION = typeof MACRO !== 'undefined' ? MACRO.VERSION : 'unknown'
-
-const MAX_TOMBSTONE_REWRITE_BYTES = 50 * 1024 * 1024
-const RECENT_CHAIN_LINKS = 512
+import { ChainPart } from './writer/chainLinks.js'
+import { FilesPart } from './writer/files.js'
+import { QueuePart } from './writer/queue.js'
+import { RemovePart } from './writer/remove.js'
+import { SettlePart } from './writer/settle.js'
+import { describeTranscriptStoreFailure } from './writer/storeHealth.js'
+export { describeTranscriptStoreFailure, subscribeTranscriptStoreHealth, transcriptStoreHealth } from './writer/storeHealth.js'
 
 const sessionRecordIds = new Map<string, Set<UUID>>()
 
@@ -91,22 +58,6 @@ export const getSessionMessages = memoize(
   },
   (sessionId: UUID) => sessionId,
 )
-
-type TranscriptStoreHealth = { failing: boolean; sentence: string | null }
-let storeHealth: TranscriptStoreHealth = { failing: false, sentence: null }
-const storeHealthListeners = new Set<() => void>()
-function setStoreHealth(next: TranscriptStoreHealth): void {
-  if (storeHealth.failing === next.failing && storeHealth.sentence === next.sentence) return
-  storeHealth = next
-  for (const listener of storeHealthListeners) listener()
-}
-export function transcriptStoreHealth(): TranscriptStoreHealth {
-  return storeHealth
-}
-export function subscribeTranscriptStoreHealth(listener: () => void): () => void {
-  storeHealthListeners.add(listener)
-  return () => storeHealthListeners.delete(listener)
-}
 
 const agentTranscriptDestinations = new Map<string, string>()
 
@@ -282,22 +233,6 @@ export async function removeTranscriptMessage(targetUuid: UUID): Promise<void> {
   await getProject().removeMessageByUuid(targetUuid)
 }
 
-function lineAround(tail: Buffer, matchIdx: number, matchLength: number, bytesRead: number, windowAtFileStart: boolean): { start: number; end: number } | null {
-  const prevNl = tail.lastIndexOf(0x0a, matchIdx)
-  if (prevNl < 0 && !windowAtFileStart) return null
-  const nextNl = tail.indexOf(0x0a, matchIdx + matchLength)
-  return { start: prevNl + 1, end: nextNl >= 0 ? nextNl + 1 : bytesRead }
-}
-
-function storedLineUuid(parsed: Record<string, unknown>): unknown {
-  const envelope =
-    typeof parsed.schemaVersion === 'number' &&
-    typeof parsed.payload === 'object' &&
-    parsed.payload !== null
-  const entry = envelope ? recordToEntry(parsed as never) : parsed
-  return entry.uuid
-}
-
 export async function recordFileHistorySnapshot(
   messageId: UUID,
   snapshot: FileHistorySnapshot,
@@ -384,7 +319,11 @@ class Project {
   currentSessionAgentColor: string | undefined
   currentSessionLastPrompt: string | undefined
   currentSessionChainLeaf: UUID | undefined
-  private readonly recentChainLinks = new Map<UUID, { parent: UUID | null; quiet: boolean }>()
+  private readonly chainPart = new ChainPart(this, {
+    trackWrite: fn => this.queuePart.trackWrite(fn),
+    serializeInsert: fn => this.queuePart.serializeInsert(fn),
+    materializeSessionFile: () => this.filesPart.materializeSessionFile(),
+  })
   currentSessionAgentSetting: string | undefined
   currentSessionMode: 'coordinator' | 'normal' | undefined
   currentSessionAdvisor: boolean | undefined
@@ -396,30 +335,18 @@ class Project {
   currentSessionPrRepository: string | undefined
 
   sessionFile: string | null = null
-  private pendingEntries: Entry[] = []
-  private pendingWriteCount: number = 0
-  private flushResolvers: Array<() => void> = []
-  private writeQueues = new Map<
-    string,
-    Array<{ line: string; resolve: () => void }>
-  >()
-  private settleState = new Map<
-    string,
-    {
-      file: string
-      entry: Entry
-      lastLine: string
-      semanticLine: string
-      creationOrdinal?: string
-      queued?: { line: string; resolve: () => void }
-    }
-  >()
-  private settledBeforeRecord = new Map<string, Message>()
-  private flushTimer: ReturnType<typeof setTimeout> | null = null
-  private activeDrain: Promise<void> | null = null
-  private FLUSH_INTERVAL_MS = 100
-  private readonly MAX_CHUNK_BYTES = 100 * 1024 * 1024
-  private fileWriteChain: Promise<unknown> = Promise.resolve()
+  private readonly filesPart = new FilesPart(this, { shouldSkipPersistence: () => this.shouldSkipPersistence() })
+  private readonly queuePart = new QueuePart()
+  private readonly settlePart = new SettlePart({
+    enqueueRawLine: (filePath, line, capture) => this.queuePart.enqueueRawLine(filePath, line, capture),
+    writeQueues: () => this.queuePart.writeQueues,
+    shouldSkipPersistence: () => this.shouldSkipPersistence(),
+  })
+  private readonly removePart = new RemovePart(this, {
+    trackWrite: fn => this.queuePart.trackWrite(fn),
+    serializeWrite: fn => this.queuePart.serializeWrite(fn),
+    _drainWriteQueueInner: () => this.queuePart._drainWriteQueueInner(),
+  })
 
   readonly metadata = new SessionMeta({
     currentId: () => getSessionId() as UUID,
@@ -440,193 +367,14 @@ class Project {
   }
 
   _resetFlushState(): void {
-    this.settleState = new Map()
-    this.settledBeforeRecord = new Map()
-    this.pendingWriteCount = 0
-    this.flushResolvers = []
-    if (this.flushTimer) clearTimeout(this.flushTimer)
-    this.flushTimer = null
-    this.activeDrain = null
-    this.fileWriteChain = Promise.resolve()
-    this.writeQueues = new Map()
-  }
-
-  private settleFlushWaiters(): void {
-    for (const resolve of this.flushResolvers.splice(0)) resolve()
-  }
-
-  private async trackWrite<T>(fn: () => Promise<T>): Promise<T> {
-    this.pendingWriteCount++
-    try {
-      return await fn()
-    } finally {
-      if (--this.pendingWriteCount === 0) this.settleFlushWaiters()
-    }
-  }
-
-  private insertChainQueue: Promise<unknown> = Promise.resolve()
-  private serializeInsert<T>(fn: () => Promise<T>): Promise<T> {
-    const run = this.insertChainQueue.then(
-      () => fn(),
-      () => fn(),
-    )
-    this.insertChainQueue = run.catch(() => {})
-    return run
-  }
-
-  private serializeWrite<T>(fn: () => Promise<T>): Promise<T> {
-    const run = this.fileWriteChain.then(
-      () => fn(),
-      () => fn(),
-    )
-    this.fileWriteChain = run.catch(() => {})
-    return run
-  }
-
-  private enqueueWrite(filePath: string, entry: Entry): Promise<void> {
-    return this.enqueueRawLine(
-      filePath,
-      encodeTranscriptLine(filePath, entry as Record<string, unknown>).line,
-    )
-  }
-
-  private enqueueRawLine(
-    filePath: string,
-    line: string,
-    capture?: (item: { line: string; resolve: () => void }) => void,
-  ): Promise<void> {
-    return new Promise<void>(resolve => {
-      let queue = this.writeQueues.get(filePath)
-      if (!queue) {
-        queue = []
-        this.writeQueues.set(filePath, queue)
-      }
-      const item = { line, resolve }
-      queue.push(item)
-      capture?.(item)
-      this.scheduleDrain()
-    })
-  }
-
-  private drainFailureStreak = 0
-
-  private scheduleDrain(): void {
-    if (this.flushTimer) {
-      return
-    }
-    const interval = Math.min(this.FLUSH_INTERVAL_MS * 2 ** this.drainFailureStreak, 5_000)
-    this.flushTimer = setTimeout(() => {
-      this.flushTimer = null
-      this.runDrain().catch(() => {})
-    }, interval)
-  }
-
-  private runDrain(): Promise<void> {
-    const run = this.drainWriteQueue()
-    this.activeDrain = run
-    return run
-      .then(
-        () => {
-          this.drainFailureStreak = 0
-          setStoreHealth({ failing: false, sentence: null })
-        },
-        err => {
-          if (this.drainFailureStreak === 0) logError(err)
-          this.drainFailureStreak++
-          if (this.drainFailureStreak >= 2) {
-            setStoreHealth({ failing: true, sentence: err instanceof Error ? err.message : String(err) })
-          }
-          throw err
-        },
-      )
-      .finally(() => {
-        if (this.activeDrain === run) this.activeDrain = null
-        if (this.writeQueues.size > 0) {
-          this.scheduleDrain()
-        }
-      })
-  }
-
-  private async appendToFile(filePath: string, data: string): Promise<void> {
-    try {
-      await fsAppendFile(filePath, data, { mode: 0o600 })
-    } catch {
-      try {
-        await mkdir(dirname(filePath), { recursive: true, mode: 0o700 })
-        await fsAppendFile(filePath, data, { mode: 0o600 })
-      } catch (error) {
-        throw describeTranscriptStoreFailure(filePath, error)
-      }
-    }
-    linkTaskOutputToTranscript(filePath)
-  }
-
-  private drainWriteQueue(): Promise<void> {
-    return this.serializeWrite(() => this._drainWriteQueueInner())
-  }
-
-  private async _drainWriteQueueInner(): Promise<void> {
-    const failures: Array<{ filePath: string; error: unknown }> = []
-    for (const [filePath, queue] of this.writeQueues) {
-      if (queue.length === 0) {
-        continue
-      }
-      const batch = queue.splice(0)
-
-      let landed = 0
-
-      try {
-        let content = ''
-        let pending = 0
-
-        for (const { line } of batch) {
-          if (content.length + line.length >= this.MAX_CHUNK_BYTES) {
-            await this.appendToFile(filePath, content)
-            for (let i = landed; i < landed + pending; i++) {
-              batch[i]!.resolve()
-            }
-            landed += pending
-            pending = 0
-            content = ''
-          }
-
-          content += line
-          pending++
-        }
-
-        if (content.length > 0) {
-          await this.appendToFile(filePath, content)
-          for (let i = landed; i < landed + pending; i++) {
-            batch[i]!.resolve()
-          }
-          landed += pending
-        }
-      } catch (err) {
-        queue.unshift(...batch.slice(landed))
-        failures.push({ filePath, error: err })
-      }
-    }
-
-    for (const [filePath, queue] of this.writeQueues) {
-      if (queue.length === 0) {
-        this.writeQueues.delete(filePath)
-      }
-    }
-
-    if (failures.length === 1) throw failures[0]!.error
-    if (failures.length > 1) {
-      const detail = failures
-        .map(({ filePath, error }) => `${basename(filePath)}: ${error instanceof Error ? error.message : String(error)}`)
-        .join('; ')
-      throw new Error(`${failures.length} transcript files could not be written — ${detail}`)
-    }
+    this.settlePart.resetSettled()
+    this.queuePart._resetFlushState()
   }
 
   resetSessionFile(): void {
     this.sessionFile = null
-    this.pendingEntries = []
-    this.settleState = new Map()
-    this.settledBeforeRecord = new Map()
+    this.filesPart.pendingEntries = []
+    this.settlePart.resetSettled()
     this.currentSessionChainLeaf = undefined
   }
 
@@ -634,76 +382,12 @@ class Project {
     this.metadata.restamp(skipTitleRefresh)
   }
 
-  async flush(): Promise<void> {
-    if (this.flushTimer) clearTimeout(this.flushTimer)
-    this.flushTimer = null
-    const inFlight = this.activeDrain
-    if (inFlight) await inFlight
-    await this.runDrain()
-    if (this.pendingWriteCount > 0) await this.trackedWritesLanded()
+  flush(): Promise<void> {
+    return this.queuePart.flush()
   }
 
-  private trackedWritesLanded(): Promise<void> {
-    return new Promise<void>(resolve => this.flushResolvers.push(resolve))
-  }
-
-  async removeMessageByUuid(targetUuid: UUID): Promise<void> {
-    return this.trackWrite(() =>
-      this.serializeWrite(async () => {
-        if (this.sessionFile === null) return
-        await this._drainWriteQueueInner()
-        try {
-          let fileSize = 0
-          const fd = openSync(this.sessionFile, 'r+')
-          try {
-            const { size } = fstatSync(fd)
-            fileSize = size
-            if (size === 0) return
-
-            const chunkLen = Math.min(size, LITE_READ_BUF_SIZE)
-            const tailStart = size - chunkLen
-            const buf = Buffer.allocUnsafe(chunkLen)
-            const bytesRead = readSync(fd, buf, 0, chunkLen, tailStart)
-            const tail = buf.subarray(0, bytesRead)
-
-            const needle = `"uuid":"${targetUuid}"`
-            const matchIdx = tail.lastIndexOf(needle)
-            const line = matchIdx >= 0 ? lineAround(tail, matchIdx, needle.length, bytesRead, tailStart === 0) : null
-            if (line) {
-              const { start: lineStart, end: lineEnd } = line
-              const absLineStart = tailStart + lineStart
-              const afterLen = bytesRead - lineEnd
-              ftruncateSync(fd, absLineStart)
-              if (afterLen > 0) writeSync(fd, tail, lineEnd, afterLen, absLineStart)
-              return
-            }
-          } finally {
-            closeSync(fd)
-          }
-
-          if (fileSize > MAX_TOMBSTONE_REWRITE_BYTES) {
-            logForDebugging(
-              `The removed row's bytes stay in the session file: it is ${formatFileSize(fileSize)}, past the rewrite ceiling`,
-              { level: 'warn' },
-            )
-            return
-          }
-          const content = readFileSync(this.sessionFile, { encoding: 'utf-8' })
-          const lines = content.split('\n').filter((line: string) => {
-            if (!line.trim()) return true
-            try {
-              return storedLineUuid(jsonParse(line)) !== targetUuid
-            } catch {
-              return true
-            }
-          })
-          writeFileSync(this.sessionFile, lines.join('\n'), {
-            encoding: 'utf8',
-          })
-        } catch {
-        }
-      }),
-    )
+  removeMessageByUuid(targetUuid: UUID): Promise<void> {
+    return this.removePart.removeMessageByUuid(targetUuid)
   }
 
   private shouldSkipPersistence(): boolean {
@@ -715,112 +399,18 @@ class Project {
     )
   }
 
-  private async materializeSessionFile(): Promise<void> {
-    if (this.shouldSkipPersistence()) return
-    this.ensureCurrentSessionFile()
-    this.reAppendSessionMetadata()
-    for (const entry of this.pendingEntries.splice(0)) await this.appendEntry(entry)
-  }
-
-  private noteChainLink(uuid: UUID, parent: UUID | null, quiet: boolean): void {
-    this.recentChainLinks.set(uuid, { parent, quiet })
-    while (this.recentChainLinks.size > RECENT_CHAIN_LINKS) {
-      const oldest = this.recentChainLinks.keys().next().value
-      if (oldest === undefined) break
-      this.recentChainLinks.delete(oldest)
-    }
-  }
-
-  private leafDescendsQuietly(leaf: UUID | null, source: UUID): boolean {
-    let cursor = leaf
-    for (let steps = 0; cursor !== null && steps < RECENT_CHAIN_LINKS; steps++) {
-      if (cursor === source) return true
-      const link = this.recentChainLinks.get(cursor)
-      if (link === undefined || !link.quiet) return false
-      cursor = link.parent
-    }
-    return false
-  }
-
-  async insertMessageChain(
+  insertMessageChain(
     messages: Transcript,
     isSidechain: boolean = false,
     agentId?: string,
     startingParentUuid?: UUID | null,
     preferLiveLeaf: boolean = false,
   ) {
-    return this.trackWrite(() => this.serializeInsert(async () => {
-      let parentUuid: UUID | null = startingParentUuid ?? null
-      if (!isSidechain && (preferLiveLeaf || parentUuid === null)) {
-        const leaf = this.currentSessionChainLeaf
-        if (leaf !== undefined) parentUuid = leaf
-      }
-
-      if (
-        this.sessionFile === null &&
-        messages.some(m => m.type === 'user' || m.type === 'assistant')
-      ) {
-        await this.materializeSessionFile()
-      }
-
-      let gitBranch: string | undefined
-      try {
-        gitBranch = await getBranch()
-      } catch {
-        gitBranch = undefined
-      }
-
-      const sessionId = getSessionId()
-      const slug = getPlanSlugCache().get(sessionId)
-
-      for (const message of messages) {
-        const isCompactBoundary = isCompactBoundaryMessage(message)
-
-        let effectiveParentUuid = parentUuid
-        if (
-          message.type === 'user' &&
-          'sourceToolAssistantUUID' in message &&
-          message.sourceToolAssistantUUID
-        ) {
-          effectiveParentUuid = this.leafDescendsQuietly(parentUuid, message.sourceToolAssistantUUID) ? parentUuid : message.sourceToolAssistantUUID
-        }
-
-        const transcriptMessage: TranscriptMessage = {
-          parentUuid: isCompactBoundary ? null : effectiveParentUuid,
-          logicalParentUuid: isCompactBoundary
-            ? (parentUuid ?? undefined)
-            : undefined,
-          isSidechain,
-          promptId:
-            message.type === 'user' ? (getPromptId() ?? undefined) : undefined,
-          workload: message.type === 'assistant' ? getWorkload() : undefined,
-          agentId,
-          ...(message.type === 'assistant' ? { effort: effortNotOnWire() } : {}),
-          ...message,
-          entrypoint: getEntrypoint(),
-          cwd: getCwd(),
-          sessionId,
-          version: VERSION,
-          gitBranch,
-          slug,
-        }
-        await this.appendEntry(transcriptMessage)
-        if (isChainParticipant(message)) {
-          this.noteChainLink(message.uuid as UUID, transcriptMessage.parentUuid, !isCompactBoundary && (message.type === 'attachment' || message.type === 'system'))
-          parentUuid = message.uuid
-          if (!isSidechain) this.currentSessionChainLeaf = message.uuid as UUID
-        }
-      }
-
-      if (!isSidechain) {
-        const text = getFirstMeaningfulUserMessageTextContent(messages)
-        if (text) this.metadata.cache('lastPrompt', promptLabel(text))
-      }
-    }))
+    return this.chainPart.insertMessageChain(messages, isSidechain, agentId, startingParentUuid, preferLiveLeaf)
   }
 
   private insertTracked(entry: Entry): Promise<void> {
-    return this.trackWrite(() => this.appendEntry(entry))
+    return this.queuePart.trackWrite(() => this.appendEntry(entry))
   }
 
   async insertFileHistorySnapshot(
@@ -848,33 +438,15 @@ class Project {
     return this.insertTracked(entry)
   }
 
-  private async sessionFileFor(sessionId: UUID, entry: Entry): Promise<string | null> {
-    if (sessionId === (getSessionId() as UUID)) {
-      if (this.sessionFile !== null) return this.sessionFile
-      this.pendingEntries.push(entry)
-      return null
-    }
-    const existing = await this.getExistingSessionFile(sessionId)
-    if (!existing) {
-      logError(
-        new Error(
-          `An append for session ${sessionId} found no transcript file for it`,
-        ),
-      )
-      return null
-    }
-    return existing
-  }
-
   async appendEntry(entry: Entry, sessionId: UUID = getSessionId() as UUID) {
     if (this.shouldSkipPersistence()) {
       return
     }
-    const sessionFile = await this.sessionFileFor(sessionId, entry)
+    const sessionFile = await this.filesPart.sessionFileFor(sessionId, entry)
     if (sessionFile === null) return
 
     if (storageRowPolicy(entry.type)?.write === 'append') {
-      void this.enqueueWrite(sessionFile, entry)
+      void this.queuePart.enqueueWrite(sessionFile, entry)
       return
     }
 
@@ -883,12 +455,12 @@ class Project {
         ? (agentTranscriptDestinations.get(entry.agentId) ??
           getAgentTranscriptPath(entry.agentId))
         : sessionFile
-      void this.enqueueWrite(targetFile, entry)
+      void this.queuePart.enqueueWrite(targetFile, entry)
       return
     }
 
     if (entry.type === 'queue-operation') {
-      void this.enqueueWrite(sessionFile, entry)
+      void this.queuePart.enqueueWrite(sessionFile, entry)
       return
     }
 
@@ -904,114 +476,21 @@ class Project {
       const agentSet = await getAgentFileMessages(targetFile)
       if (!agentSet.has(message.uuid)) {
         agentSet.add(message.uuid)
-        this.enqueueMessageWrite(targetFile, message)
+        this.settlePart.enqueueMessageWrite(targetFile, message)
       }
       return
     }
 
     const messageSet = await getSessionMessages(sessionId)
     if (!messageSet.has(message.uuid)) {
-      this.enqueueMessageWrite(targetFile, message)
+      this.settlePart.enqueueMessageWrite(targetFile, message)
       messageSet.add(message.uuid)
     }
   }
 
-  private enqueueMessageWrite(file: string, entry: Entry): void {
-    if (entry.type === 'user' || entry.type === 'assistant') {
-      const settled = this.settledBeforeRecord.get(entry.uuid)
-      if (settled !== undefined) {
-        this.settledBeforeRecord.delete(entry.uuid)
-        const [cleaned] = cleanForTranscript([settled])
-        if (cleaned) entry = { ...entry, ...cleaned } as Entry
-      }
-    }
-    const encoded = encodeTranscriptLine(file, entry as Record<string, unknown>)
-    const line = encoded.line
-    if (entry.type === 'user' || entry.type === 'assistant') {
-      const state: {
-        file: string
-        entry: Entry
-        lastLine: string
-        semanticLine: string
-        creationOrdinal?: string
-        queued?: { line: string; resolve: () => void }
-      } = {
-        file,
-        entry,
-        lastLine: line,
-        semanticLine: jsonStringify(entry) + '\n',
-        ...(encoded.record
-          ? { creationOrdinal: String(encoded.record.creationOrdinal) }
-          : {}),
-      }
-      void this.enqueueRawLine(file, line, item => {
-        state.queued = item
-      })
-      this.settleState.set(entry.uuid, state)
-    } else {
-      void this.enqueueRawLine(file, line)
-    }
+  settleMessage(message: Message): Promise<void> {
+    return this.settlePart.settleMessage(message)
   }
-
-  async settleMessage(message: Message): Promise<void> {
-    if (this.shouldSkipPersistence()) return
-    const cached = this.settleState.get(message.uuid)
-    if (!cached) {
-      this.settledBeforeRecord.set(message.uuid, message)
-      return
-    }
-    const [cleaned] = cleanForTranscript([message])
-    if (!cleaned) return
-    const settled = { ...cached.entry, ...cleaned } as Entry
-    const semanticLine = jsonStringify(settled) + '\n'
-    if (semanticLine === cached.semanticLine || isDeepStrictEqual(jsonParse(semanticLine), jsonParse(cached.semanticLine))) return
-    const line = encodeTranscriptLine(
-      cached.file,
-      settled as Record<string, unknown>,
-      {
-        ...(cached.creationOrdinal
-          ? { settleCreationOrdinal: cached.creationOrdinal }
-          : {}),
-      },
-    ).line
-    cached.entry = settled
-    cached.semanticLine = semanticLine
-    cached.lastLine = line
-    const queue = this.writeQueues.get(cached.file)
-    if (cached.queued && queue && queue.includes(cached.queued)) {
-      cached.queued.line = line
-      return
-    }
-    cached.queued = undefined
-    await this.enqueueRawLine(cached.file, line)
-  }
-
-  private ensureCurrentSessionFile(): string {
-    if (this.sessionFile === null) {
-      this.sessionFile = getTranscriptPath()
-    }
-    return this.sessionFile
-  }
-
-  private existingSessionFiles = new Map<string, string>()
-  private async getExistingSessionFile(
-    sessionId: UUID,
-  ): Promise<string | null> {
-    const known = this.existingSessionFiles.get(sessionId)
-    if (known) return known
-    const candidate = getTranscriptPathForSession(sessionId)
-    const present = await stat(candidate).then(
-      () => true,
-      (error: unknown) => {
-        if (isFsInaccessible(error)) return false
-        throw error
-      },
-    )
-    if (!present) return null
-    this.existingSessionFiles.set(sessionId, candidate)
-    return candidate
-  }
-
 }
 
 export function appendEntryToFile(
@@ -1032,11 +511,3 @@ export function appendEntryToFile(
   }
 }
 
-export function describeTranscriptStoreFailure(filePath: string, error: unknown): Error {
-  const raw = error instanceof Error ? error.message : String(error)
-  return new Error(
-    `the session transcript store is unwritable (${dirname(filePath)}): ${raw}. ` +
-      `Repair the directory, or run with --ephemeral to skip transcripts for this run.`,
-    { cause: error },
-  )
-}
