@@ -506,7 +506,14 @@ function studioEditorCore(state: StudioEditorState, { deps, base, cwd, onChange 
           ...(base ? { baseIdentity: base.identity } : { newTarget: { scope: state.scope, cwd } }),
           raw: state.doc.raw,
         })
-        .catch(() => {})
+        .catch(e => {
+          if (state.disposed) return
+          state.note = {
+            text: `draft not saved (${e instanceof Error ? e.message : String(e)}) — save the agent to keep these edits`,
+            tone: AMBER,
+          }
+          emit()
+        })
     }, STUDIO_AUTOSAVE_DEBOUNCE_MS)
   }
 
