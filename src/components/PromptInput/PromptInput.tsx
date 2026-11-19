@@ -3,7 +3,6 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -23,19 +22,16 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useArrowKeyHistory } from '../../hooks/useArrowKeyHistory.js'
 import { useHistorySearch } from '../../hooks/useHistorySearch.js'
 import { usePromptSuggestion } from '../../hooks/usePromptSuggestion.js'
-import { useTypeahead, type SuggestionsState } from '../../hooks/useTypeahead.js'
+import { useTypeahead } from '../../hooks/useTypeahead.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import * as pendingInput from '../../input-core/pending-input.js'
-import { holdToTalkKey, setHoldToTalkEditor } from '../../services/voice/holdToTalk.js'
-import { subscribeVoice, voiceSnapshot } from '../../services/voice/voiceSession.js'
 import { useAppState, useAppStateStore, useSetAppState, type AppState } from '../../state/AppState.js'
 import {
   enterCrewmateView,
   exitCrewmateView,
 } from '../../state/crewmateViewHelpers.js'
-import { useComposerCrewmate, useViewedCrewmate } from '../tasks/useCrewmateView.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { PastedContent } from '../../utils/config.js'
 import type { Message } from '../../types/message.js'
@@ -55,9 +51,6 @@ import HistorySearchInput from './HistorySearchInput.js'
 import { PromptInputFooter } from './PromptInputFooter.js'
 import { PromptInputModeIndicator } from './PromptInputModeIndicator.js'
 import { PromptInputStashNotice } from './PromptInputStashNotice.js'
-import {
-  setSelectedSuggestionStore,
-} from './suggestionSelectionStore.js'
 import { Notifications } from './Notifications.js'
 import { IssueFlagBanner } from './IssueFlagBanner.js'
 import TextInput from '../TextInput.js'
@@ -74,10 +67,13 @@ import { useComposerAttachments } from './useComposerAttachments.js'
 import { useComposerKeybindings } from './useComposerKeybindings.js'
 import { useComposerSelectionRoad, useComposerSelectionState } from './useComposerSelection.js'
 import { useComposerDraft } from './useComposerDraft.js'
+import { useComposerHoldToTalk, useComposerVoiceReceipt } from './useComposerVoice.js'
+import { useComposerSuggestions } from './useComposerSuggestions.js'
+import { useComposerCrewmateRefs } from './useComposerCrewmateRefs.js'
+import { useComposerCompactFocus } from './useComposerCompactFocus.js'
 import { MercuryContentSearch } from '../MercuryContentSearch.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
-import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
@@ -273,20 +269,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const seatEffort = useFocusedServedEffort()
   const sentEffort = useFocusedSentEffort()
   const bornEffort = useFocusedBornEffort()
-  const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
-  const voiceReceiptSeqRef = useRef(0)
-  useEffect(() => {
-    const receipt = voice.receipt
-    if (receipt === null || receipt.seq === voiceReceiptSeqRef.current) return
-    voiceReceiptSeqRef.current = receipt.seq
-    addNotification({
-      key: 'voice-receipt',
-      text: receipt.text,
-      priority: 'immediate',
-      ...(receipt.tone === 'error' ? { color: 'error' as const } : {}),
-      timeoutMs: 8000,
-    })
-  }, [voice.receipt, addNotification])
+  const voice = useComposerVoiceReceipt(addNotification)
   const composerWhyRef = useRef<Record<string, unknown> | null>(null)
   fluxWhy('composer', composerWhyRef, () => ({
     ...props,
@@ -334,18 +317,19 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     hasSuppressedDialogs ||
     popupUp
 
-  const canFocusSummary = (): boolean => summaryVisible && currentSurfaceRoute().kind === 'repl' && !modalOverlayUp && !externalEditorActive && !isSearchingHistory && !helpOpen && !exitState.pending && !anyModalOverlayActive() && !(pastePendingRef.current?.() ?? false)
-  compactWork?.bindToggle(() => {
-    if (compactWork.read() === 'summary') { compactWork.set('composer'); return }
-    if (canFocusSummary()) compactWork.set('summary')
+  const canFocusSummary = useComposerCompactFocus({
+    compactWork,
+    summaryVisible,
+    modalOverlayUp,
+    externalEditorActive,
+    isSearchingHistory,
+    helpOpen,
+    exitState,
+    pastePendingRef,
+    isCompact,
+    footerSelection,
+    setAppState,
   })
-  useEffect(() => () => compactWork?.bindToggle(null), [compactWork])
-  useLayoutEffect(() => {
-    if (isCompact && footerSelection !== null) setAppState(prev => ({ ...prev, footerSelection: null }))
-  }, [isCompact, footerSelection, setAppState])
-  useLayoutEffect(() => {
-    if (compactWork?.read() === 'summary' && !canFocusSummary()) compactWork.set('composer')
-  }, [summaryVisible, modalOverlayUp, externalEditorActive, isSearchingHistory, helpOpen, exitState.pending, compactWork])
 
   const doors = useComposerModelDoors({
     overlay,
@@ -364,23 +348,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   })
   const { capLaneLine, capLaneCut } = doors
 
-  const composerCrewmate = useComposerCrewmate()
-  const composerCrewmateRef = useRef(composerCrewmate)
-  composerCrewmateRef.current = composerCrewmate
-  const viewedCrewmate = useViewedCrewmate()
-  const viewedCrewmateRef = useRef(viewedCrewmate)
-  viewedCrewmateRef.current = viewedCrewmate
-  const commandCrewmate = viewedCrewmate ?? composerCrewmate
-  const commandCrewmateRef = useRef(commandCrewmate)
-  commandCrewmateRef.current = commandCrewmate
-  const viewedAgentName =
-    composerCrewmate?.name ??
-    (viewedTask !== undefined && isLocalAgentTask(viewedTask)
-      ? viewedTask.description !== ''
-        ? viewedTask.description
-        : viewedTask.agentType
-      : undefined)
-  const viewedAgentColor = undefined
+  const { composerCrewmateRef, viewedCrewmateRef, commandCrewmateRef, viewedAgentName, viewedAgentColor } = useComposerCrewmateRefs(viewedTask)
 
 
   const suggestionApi = usePromptSuggestion({
@@ -413,36 +381,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   })
   const { insertAtCursor, insertAtomic, handleImagePaste, handleImageError, handleTextPaste, cursorRef } = attachments
 
-  const [suggestionsState, setSuggestionsStateRaw] = useState<SuggestionsState>({
-    suggestions: [],
-    selectedSuggestion: 0,
-  })
-  const suggestionsMirrorRef = useRef(suggestionsState)
-  const setSuggestionsState = useCallback(
-    (
-      update:
-        | SuggestionsState
-        | ((prev: SuggestionsState) => SuggestionsState),
-    ): void => {
-      const previous = suggestionsMirrorRef.current
-      const next =
-        typeof update === 'function' ? update(previous) : update
-      setSelectedSuggestionStore(next.selectedSuggestion)
-      if (
-        next.suggestions !== previous.suggestions ||
-        next.commandArgumentHint !== previous.commandArgumentHint
-      ) {
-        suggestionsMirrorRef.current = next
-        setSuggestionsStateRaw(next)
-      } else {
-        suggestionsMirrorRef.current = {
-          ...previous,
-          selectedSuggestion: next.selectedSuggestion,
-        }
-      }
-    },
-    [],
-  )
+  const { suggestionsState, setSuggestionsState, suggestionsMirrorRef } = useComposerSuggestions()
 
   const historyRecallActiveRef = useRef(false)
   const typeahead = useTypeahead({
@@ -777,22 +716,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     setExitState({ pending: show, keyName: keyName ?? null })
   }, [])
 
-  const voiceInputFilter = useCallback((rawInput: string, key: Key): string => holdToTalkKey(rawInput, key), [])
-  useEffect(() => {
-    setHoldToTalkEditor({
-      text: () => pendingInput.text(),
-      cursor: () => cursorRef.current,
-      splice: (deleteBefore, insert) => {
-        const text = pendingInput.text()
-        const at = Math.max(0, Math.min(cursorRef.current, text.length))
-        const from = Math.max(0, at - deleteBefore)
-        const next = text.slice(0, from) + insert + text.slice(at)
-        writeDraft(next)
-        setCursorOffset(from + insert.length)
-      },
-    })
-    return () => setHoldToTalkEditor(null)
-  }, [setCursorOffset])
+  const voiceInputFilter = useComposerHoldToTalk({ cursorRef, writeDraft, setCursorOffset })
   if (externalEditorActive) {
     return (
       <Box
