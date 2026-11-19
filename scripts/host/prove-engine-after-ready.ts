@@ -44,7 +44,7 @@ const progressing = fakeRunner(remote => {
   return ''
 })
 const t0 = Date.now()
-await waitHostEngine(target, recipe, progressing, signal, 20, 60, () => {}, 400)
+await waitHostEngine(target, recipe, progressing, signal, 20, 60, () => {}, 10_000)
 check('an engine still printing progress is given time past the budget and reaches READY', line >= 12 && Date.now() - t0 >= 60, 'polls ' + line + ' · ' + (Date.now() - t0) + ' ms')
 const silent = fakeRunner(remote => poll(remote) ? 'loading weights\n' : health(remote) ? new Error('curl: (7) connection refused') : '')
 const t1 = Date.now()

@@ -9,15 +9,30 @@ const f = await llmhostFixture()
 const hf = await hfEndpointsFixture()
 const nativeFetch = globalThis.fetch
 const escaped: string[] = []
+const realNow = Date.now
+const realSetTimeout = globalThis.setTimeout
+const deadlineMs = 60_000
+let skew = 0
+let lapsing: { path: string; reads: number } | undefined
+let held: { path: string; cut: boolean; end: () => void } | undefined
+Date.now = () => realNow() + skew
 globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: RequestInit) => {
   const request = new Request(input, init)
   const url = new URL(request.url)
+  if (lapsing && request.method === 'GET' && url.pathname === lapsing.path && ++lapsing.reads === 3) skew += deadlineMs
+  if (held && request.method === 'GET' && url.pathname === held.path) {
+    const reading = held
+    return new Promise<Response>((_, reject) => {
+      request.signal.addEventListener('abort', () => { reading.cut = true; reject(request.signal.reason) }, { once: true })
+      queueMicrotask(reading.end)
+    })
+  }
   if (url.origin === 'https://api.endpoints.huggingface.cloud' || url.origin === 'https://huggingface.co') return nativeFetch(new Request(hf.origin + url.pathname + url.search, request))
   if (!['127.0.0.1', '[::1]'].includes(url.hostname)) { escaped.push(url.origin); throw new Error('HF proof permits loopback fixtures only') }
   return nativeFetch(input, init)
 }, nativeFetch)
 let checks = 0
-const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
+const check = (name: string, truth: unknown, detail = '') => { assert.ok(truth, name + (detail ? ': ' + detail : '')); checks++; console.log('PASS ' + name) }
 try {
   const { HOST_VENDORS, vendorKey, vendorClient } = await import('../../src/services/host/vendors/client.ts')
   check('Hugging Face is the fourth rental provider', HOST_VENDORS.includes('huggingface'))
@@ -78,20 +93,52 @@ try {
   const stuck = await api.create(offer, '', 'hf-never-ready')
   const deletesBeforeSetup = hf.state.deletes
   const queued = queueHostSetup({ id: stuck.id, name: stuck.name, vendor: 'huggingface', recipe: offer.recipe.id, recipeRow: offer.recipe, price: offer.price, startedAt: stuck.createdAt, status: stuck.status, apiBaseUrl: hf.baseUrl, sessionId: 'hf-never-ready' })
-  await runHostJob(queued.id, queued.generation!, { runner, pauseMs: 5, timeoutMs: 120, keepAlive: false })
+  const setup = (pod: { id: string; name: string; createdAt: string; status: string }) => queueHostSetup({ id: pod.id, name: pod.name, vendor: 'huggingface', recipe: offer.recipe.id, recipeRow: offer.recipe, price: offer.price, startedAt: pod.createdAt, status: pod.status, apiBaseUrl: hf.baseUrl, sessionId: pod.name })
+  const budgetWords = (pod: { id: string }): string => 'setup paused · HF endpoint did not reach running within the setup budget. · HF endpoint ' + pod.id + ' · $' + offer.price.toFixed(2) + '/hr still billing · Terminate in /llmhost'
+  const untilTheDeadline = async (record: { id: string; generation?: string }, name = stuck.name): Promise<void> => {
+    lapsing = { path: '/v2/endpoint/fixture-owner/' + name, reads: 0 }
+    try { await runHostJob(record.id, record.generation!, { runner, pauseMs: 5, timeoutMs: deadlineMs, keepAlive: false }) } finally { lapsing = undefined }
+  }
+  await untilTheDeadline(queued)
   const guarded = readHostRecord(queued.id)!
   check('never-running endpoint pauses without deletion', guarded.jobState === 'paused' && guarded.status !== 'TERMINATED' && hf.state.deletes === deletesBeforeSetup && hf.state.pods.has('hf-never-ready'))
   check('a provisioning endpoint names Terminate rather than an unavailable Resume', guarded.status === 'PROVISIONING' && guarded.error?.includes('/hr still billing') && guarded.error.includes('Terminate in /llmhost') && !guarded.error.includes('Resume'))
   const notices = readdirSync(join(f.home, 'host/notices')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8'))).filter(row => row.sessionId === 'hf-never-ready')
   check('never-ready guard publishes exactly one final notice', notices.length === 1 && !JSON.stringify(notices).includes(hf.key))
+  check('an endpoint that never becomes ready is told the setup budget ended', guarded.error === budgetWords(stuck), String(guarded.error))
   const pausedEndpoint = await api.stop(stuck.id)
   const pausedSetup = queueHostSetup({ ...guarded, status: pausedEndpoint.status })
-  await runHostJob(pausedSetup.id, pausedSetup.generation!, { runner, pauseMs: 5, timeoutMs: 120, keepAlive: false })
+  await untilTheDeadline(pausedSetup)
   const pausedRecord = readHostRecord(pausedSetup.id)!
   check('a paused managed endpoint keeps Resume but claims neither a disk nor compute billing', pausedRecord.status === 'EXITED' && pausedRecord.error?.includes('Paused · no compute bills') && pausedRecord.error.includes('Resume or Terminate') && !pausedRecord.error.includes('disk still bills') && !pausedRecord.error.includes('/hr still billing'))
+  const inFlight = await api.create(offer, '', 'hf-read-in-flight')
+  const inFlightSetup = setup(inFlight)
+  const withReadHeld = async (record: { id: string; generation?: string }, name: string, timeoutMs: number, passDeadline: boolean): Promise<boolean> => {
+    const budgetTimers: (() => void)[] = []
+    const reading = { path: '/v2/endpoint/fixture-owner/' + name, cut: false, end: () => { assert.equal(budgetTimers.length, 1, 'the read budget arms one timer while the read is held'); if (passDeadline) skew += timeoutMs; budgetTimers[0]!() } }
+    held = reading
+    globalThis.setTimeout = ((run: () => void, ms?: number) => { if ((ms ?? 0) >= 30_000) budgetTimers.push(run); return realSetTimeout(run, ms) }) as typeof setTimeout
+    try { await runHostJob(record.id, record.generation!, { runner, pauseMs: 5, timeoutMs, keepAlive: false }) } finally { globalThis.setTimeout = realSetTimeout; held = undefined }
+    return reading.cut
+  }
+  const cutAtTheDeadline = await withReadHeld(inFlightSetup, inFlight.name, deadlineMs, true)
+  const cutShort = readHostRecord(inFlightSetup.id)!
+  check('a status read in flight when the setup budget ends leaves the budget’s own words and offer, not a read failure with a Resume', cutAtTheDeadline && cutShort.jobState === 'paused' && cutShort.status === 'PROVISIONING' && cutShort.error === budgetWords(inFlight), JSON.stringify({ cut: cutAtTheDeadline, jobState: cutShort.jobState, status: cutShort.status, error: cutShort.error }))
+  const readFailure = (counted: string): string => 'Hugging Face did not answer endpoint reads for ' + counted + ' · setup paused · Mercury did not terminate the pod; it bills $' + offer.price.toFixed(2) + '/hr while it runs · Resume retries, Terminate stops the bill'
+  const silent = await api.create(offer, '', 'hf-no-answer')
+  const silentSetup = setup(silent)
+  hf.state.failNext = { route: 'GET /v2/endpoint/fixture-owner/' + silent.name, status: 503, times: 1000 }
+  await untilTheDeadline(silentSetup, silent.name)
+  hf.state.failNext = null
+  const unanswered = readHostRecord(silentSetup.id)!
+  check('a vendor that fails every status read until the budget ends keeps the read failure and its Resume', unanswered.jobState === 'paused' && unanswered.error === readFailure('1 min (HTTP 503 ×3)'), String(unanswered.error))
+  const hung = await api.create(offer, '', 'hf-hung-read')
+  const hungSetup = setup(hung)
+  const cutBeforeTheDeadline = await withReadHeld(hungSetup, hung.name, 10 * 60_000, false)
+  const givenUp = readHostRecord(hungSetup.id)!
+  check('a status read given up on while the setup budget still runs stays a read failure with its Resume', cutBeforeTheDeadline && givenUp.jobState === 'paused' && givenUp.error === readFailure('1 s (network error ×1)'), JSON.stringify({ cut: cutBeforeTheDeadline, error: givenUp.error }))
   hf.state.neverReady = false
-  await api.terminate(stuck.id)
-  removeHostRecord(stuck.id)
+  for (const pod of [stuck, inFlight, silent, hung]) { await api.terminate(pod.id); removeHostRecord(pod.id) }
   const marks: string[] = []
   hf.state.failNext = { route: 'GET /v2/endpoint/fixture-owner', status: 429, times: 1, retryAfter: 0.03 }
   const read = hostJobReadOnly({ label: api.label, pauseMs: 1, timeoutMs: 1000, signal, mark: words => marks.push(words) })
@@ -128,4 +175,4 @@ try {
   check('vendor factory returns managed HF client', vendorClient('huggingface', { apiBaseUrl: hf.baseUrl }).capabilities.managed)
   check('all HF requests stay on loopback', escaped.length === 0)
   console.log('HF ENDPOINTS GREEN — ' + checks + ' checks; no real token or endpoint')
-} finally { await hf.close(); f.close(); globalThis.fetch = nativeFetch }
+} finally { await hf.close(); f.close(); globalThis.fetch = nativeFetch; Date.now = realNow }
