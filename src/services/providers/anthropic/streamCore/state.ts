@@ -66,6 +66,8 @@ export type QueryCtx = {
   captureModelRequest: (params: BetaMessageStreamParams) => void
   observeSignInResponse: SignInRefusal['observeSignInResponse']
   rosterOwnerKey: string
+  prefixKey: string
+  turnOwning: boolean
   messagesForAPI: PlannedRequest['messagesForAPI']
   startIncludingRetries: number
   paramsFromContext: ReturnType<typeof wireParamsFor>

@@ -322,10 +322,17 @@ async function* queryModel(
   const contentBlocks: (BetaContentBlock | ConnectorTextBlock)[] = []
   const stoppedBlockIndices = new Set<number>()
   const ledger = createCallLedger(call, tools, options, resolvedModel, newMessages, contentBlocks, stoppedBlockIndices, observeSignInResponse)
-  const { releaseStreamResources, noteServedModel, pricingModel, mintAssistantMessage, yieldAbortedPartialText, settleUnpricedAttempt } = ledger
 
   const heldWaitDoor = options.agentId !== undefined ? (wait: HeldBusyRetryWait): void => options.onWait?.(wait) : undefined
-  const ctx: QueryCtx = { messages, thinkingConfig, signal, options, modelRefusalRequest, captureModelRequest, observeSignInResponse, rosterOwnerKey, messagesForAPI, startIncludingRetries, paramsFromContext, heldWaitDoor, newMessages, contentBlocks, stoppedBlockIndices, ...ledger }
+  const ctx: QueryCtx = { messages, thinkingConfig, signal, options, modelRefusalRequest, captureModelRequest, observeSignInResponse, rosterOwnerKey, prefixKey, turnOwning, messagesForAPI, startIncludingRetries, paramsFromContext, heldWaitDoor, newMessages, contentBlocks, stoppedBlockIndices, ...ledger }
+  yield* streamCall(ctx, call)
+}
+
+async function* streamCall(ctx: QueryCtx, call: CallState): AsyncGenerator<
+  StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage,
+  void
+> {
+  const { messages, thinkingConfig, signal, options, captureModelRequest, rosterOwnerKey, prefixKey, turnOwning, startIncludingRetries, paramsFromContext, heldWaitDoor, newMessages, contentBlocks, stoppedBlockIndices, releaseStreamResources, noteServedModel, pricingModel, mintAssistantMessage, yieldAbortedPartialText, settleUnpricedAttempt } = ctx
   try {
     streamingPass: for (;;) {
     const firstByte: { wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null } = { wait: null }
