@@ -39,6 +39,7 @@ import {
 } from '../../services/changeTransaction/changeSetPlan.js'
 import {
   runTextChangeSetCommit,
+  type CommitOutcome,
   type CommitTarget,
 } from '../../services/changeTransaction/changeSetCommit.js'
 import {
@@ -507,160 +508,17 @@ async function runApply(
     rememberChangeSetPlan(owner, plan)
     if (lowered) stashLowered(plan.id, lowered)
   } else {
-    const id = input.plan_id!
-    const stored = getChangeSetPlan(owner, id)
-    if (!stored) {
-      const wasEvicted = changeSetPlanEvicted(owner, id)
-      return {
-        op: 'apply',
-        result: wasEvicted
-          ? `Plan ${id} expired from the bounded plan ring (${CHANGESET_BOUNDS.planRing} retained) — re-plan with op:"preview". Nothing was written.`
-          : `No plan '${id}' in this conversation — plan ids come from op:"preview". Nothing was written.`,
-        outcome: 'failed',
-        effectOperation: 'file.changeSet',
-        changedPaths: [],
-      }
-    }
-    if (stored.ownerKey !== owner) {
-      return {
-        op: 'apply',
-        result: `Plan ${id} belongs to a different owner — plans never cross conversations. Re-plan with op:"preview". Nothing was written.`,
-        outcome: 'failed',
-        effectOperation: 'file.changeSet',
-        changedPaths: [],
-      }
-    }
-    if (stored.state === 'discarded') {
-      return {
-        op: 'apply',
-        result: `Plan ${id} was discarded — re-plan with op:"preview". Nothing was written.`,
-        outcome: 'failed',
-        effectOperation: 'file.changeSet',
-        changedPaths: [],
-      }
-    }
-    if (changeSetPlanExpired(stored)) {
-      setChangeSetPlanState(owner, id, 'expired')
-      return {
-        op: 'apply',
-        result: `Plan ${id} expired (${Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)} minute lifetime) — re-read the files and re-plan with op:"preview". Nothing was written.`,
-        outcome: 'failed',
-        planId: id,
-        changeView: changeViewOf(stored, 'expired', {
-          nextAction: 're-read the files, then op:"preview" again (plans are immutable)',
-        }),
-        effectOperation: 'file.changeSet',
-        changedPaths: [],
-      }
-    }
-    if (stored.state === 'applied') {
-      const drifted: string[] = []
-      for (const t of stored.targets.filter(x => x.changed)) {
-        let ok = false
-        try {
-          ok = sha256Hex(readFileSync(t.canonicalPath)) === t.plannedDigest
-        } catch {
-          ok = false
-        }
-        if (!ok) drifted.push(t.canonicalPath)
-      }
-      if (drifted.length > 0) {
-        return {
-          op: 'apply',
-          result:
-            `Plan ${id} was already applied, and ${drifted.length} file(s) have since changed again ` +
-            `(${drifted.map(displayPath).join(', ')}). Nothing was written. Re-read and re-plan with op:"preview".`,
-          outcome: 'failed',
-          planId: id,
-          effectOperation: 'file.changeSet',
-          changedPaths: [],
-          intent: intentOf(stored),
-        }
-      }
-      return {
-        op: 'apply',
-        result: `Plan ${id} was already committed — replayed the prior result without writing twice (files: ${stored.changedPaths.map(displayPath).join(', ')}; still verified on disk).`,
-        outcome: 'no-change',
-        planId: id,
-        changeView: changeViewOf(stored, 'applied'),
-        effectOperation: 'file.changeSet',
-        changedPaths: [],
-        details: {
-          planId: id,
-          ...(stored.operationId !== undefined && { replayedOperationId: stored.operationId }),
-          priorChangedPaths: stored.changedPaths,
-        },
-        intent: intentOf(stored),
-      }
-    }
-    if (stored.state === 'stale' || stored.state === 'failed' || stored.state === 'cancelled' || stored.state === 'indeterminate') {
-      return {
-        op: 'apply',
-        result: `Plan ${id} is '${stored.state}'${stored.note ? ` — ${stored.note}` : ''}. Re-read the files and re-plan with op:"preview". Nothing was written.`,
-        outcome: 'failed',
-        planId: id,
-        effectOperation: 'file.changeSet',
-        changedPaths: [],
-      }
-    }
-    lowered = loweredByPlanId.get(id)
-    const derived = rederiveBytes(stored)
-    if ('stalePaths' in derived) {
-      setChangeSetPlanState(owner, id, 'stale', {
-        note: `drifted since preview: ${derived.stalePaths.map(displayPath).join(', ')}`,
-      })
-      return {
-        op: 'apply',
-        result: staleRefusalText(stored, derived.stalePaths),
-        outcome: 'failed',
-        planId: id,
-        changeView: changeViewOf(stored, 'stale', {
-          nextAction: `re-read ${derived.stalePaths.map(displayPath).join(', ')}, then op:"preview" again`,
-        }),
-        effectOperation: 'file.changeSet',
-        changedPaths: [],
-        intent: intentOf(stored),
-      }
-    }
-    plan = stored
-    bytes = derived.bytes
+    const road = storedPlanRoad(input, owner)
+    if ('op' in road) return road
+    plan = road.plan
+    bytes = road.bytes
+    lowered = road.lowered
   }
 
   const changedTargets = plan.targets.filter(t => t.changed)
 
   if (changedTargets.length === 0) {
-    setChangeSetPlanState(owner, plan.id, 'no-change')
-    let verdict: RepetitionVerdict | null = null
-    for (const t of plan.targets) {
-      const v = recordNoChangeOutcome(owner, {
-        operation: 'file.changeSet',
-        path: t.canonicalPath,
-        revision: t.observedAnchor,
-        intentDigest: plan.digest.slice(0, 16),
-        displayPath: displayPath(t.canonicalPath),
-      })
-      if (verdict === null || v.streak < verdict.streak) verdict = v
-    }
-    const repetitionNote =
-      verdict && verdict.streak >= 2 ? ` ${verdict.guidance}` : ''
-    return {
-      op: 'apply',
-      result: `No changes needed — every member of plan ${plan.id} is already satisfied (${plan.noChangePaths.map(displayPath).join(', ')}). Nothing was written.${repetitionNote}`,
-      outcome: 'no-change',
-      planId: plan.id,
-      changeView: changeViewOf(plan, 'no-change'),
-      effectOperation: 'file.changeSet',
-      changedPaths: [],
-      ...(verdict?.atCeiling ? { repetitionStop: true } : {}),
-      details: {
-        planId: plan.id,
-        planDigest: plan.digest.slice(0, 12),
-        files: plan.targets.length,
-        hunks: plan.totalHunks,
-        noChangePaths: plan.noChangePaths,
-      },
-      intent: intentOf(plan),
-    }
+    return noChangeAnswer(owner, plan)
   }
 
   const denied: string[] = []
@@ -766,6 +624,236 @@ async function runApply(
     signal: context.abortController?.signal,
   })
 
+  if (outcome.kind !== 'committed') return uncommittedAnswer(owner, plan, outcome)!
+
+  const lspManager = getLspServerManager()
+  const syncFailures: string[] = []
+  const freshAnchors: Array<{ path: string; anchor: string }> = []
+  for (const t of changedTargets) {
+    context.nestedMemoryAttachmentTriggers?.add(t.canonicalPath)
+    if (t.fileOp === 'delete') {
+      context.readFileState.delete(t.canonicalPath)
+      dropSeenLines(owner, t.canonicalPath)
+      if (lspManager) await lspManager.closeFile(t.canonicalPath).catch(() => {})
+      continue
+    }
+    const landedPath = t.fileOp === 'move' && t.newPath !== undefined ? t.newPath : t.canonicalPath
+    if (t.fileOp === 'move') {
+      context.nestedMemoryAttachmentTriggers?.add(landedPath)
+      context.readFileState.delete(t.canonicalPath)
+      if (lspManager) await lspManager.closeFile(t.canonicalPath).catch(() => {})
+    }
+    context.readFileState.set(landedPath, {
+      content: t.plannedContent,
+      timestamp: getFileModificationTime(landedPath),
+      offset: undefined,
+      limit: undefined,
+    })
+    if (lspManager) {
+      const before = t.fileOp === 'move' ? null : (bytes.get(t.canonicalPath)?.originalBytes.toString(t.encoding) ?? null)
+      const sync = await syncServersAfterWrite(lspManager, landedPath, t.plannedContent, before, owner)
+      if (!sync.ok) syncFailures.push(`${displayPath(landedPath)}: ${sync.reason}`)
+    }
+    const anchor = mintFileAnchor(t.plannedContent)
+    freshAnchors.push({ path: landedPath, anchor })
+    rememberAnchoredSnapshot(owner, anchor, t.plannedContent, landedPath)
+    const generation = fileGeneration(landedPath)
+    if (generation !== null) {
+      if (t.fileOp === 'move') moveSeenLines(owner, t.canonicalPath, landedPath, generation)
+      shiftSeenLinesAfterApply(owner, landedPath, generation, t.hunkSpans, span =>
+        span.replace === ''
+          ? 0
+          : (span.replace.endsWith('\n') ? span.replace.slice(0, -1) : span.replace).split('\n')
+              .length,
+      )
+    }
+  }
+  const publishedRegisters: string[] = []
+  if (lowered) {
+    for (const [name, reg] of lowered.registerPublications) {
+      const res = publishPatchRegister(owner, name, {
+        content: reg.content,
+        fromPath: reg.fromPath,
+        cutAt: Date.now(),
+      })
+      if (res.ok) publishedRegisters.push(name)
+    }
+  }
+  if (!isEnvTruthy(flagEnv('MERCURY_BARE'))) {
+    const paths = changedTargets.flatMap(t => (t.fileOp === 'move' && t.newPath !== undefined ? [t.canonicalPath, t.newPath] : [t.canonicalPath]))
+    discoverSkillDirsForPaths(paths, getCwd())
+      .then(dirs => (dirs.length > 0 ? addSkillDirectories(dirs) : undefined))
+      .catch(() => {})
+    activateConditionalSkillsForPaths(paths, getCwd())
+  }
+
+  setChangeSetPlanState(owner, plan.id, 'applied', {
+    appliedAt: Date.now(),
+    operationId: outcome.operationId,
+  })
+  return appliedAnswer(plan, changedTargets, freshAnchors, lowered, publishedRegisters, syncFailures, outcome)
+}
+
+function storedPlanRoad(input: Input, owner: ReturnType<typeof ownerFromToolUseContext>): OpResult | { plan: ChangeSetPlan; bytes: Map<string, ChangeSetTargetBytes>; lowered: LoweredPatch | undefined } {
+  let plan: ChangeSetPlan
+  let bytes: Map<string, ChangeSetTargetBytes>
+  let lowered: LoweredPatch | undefined
+  const id = input.plan_id!
+  const stored = getChangeSetPlan(owner, id)
+  if (!stored) {
+    const wasEvicted = changeSetPlanEvicted(owner, id)
+    return {
+      op: 'apply',
+      result: wasEvicted
+        ? `Plan ${id} expired from the bounded plan ring (${CHANGESET_BOUNDS.planRing} retained) — re-plan with op:"preview". Nothing was written.`
+        : `No plan '${id}' in this conversation — plan ids come from op:"preview". Nothing was written.`,
+      outcome: 'failed',
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+    }
+  }
+  if (stored.ownerKey !== owner) {
+    return {
+      op: 'apply',
+      result: `Plan ${id} belongs to a different owner — plans never cross conversations. Re-plan with op:"preview". Nothing was written.`,
+      outcome: 'failed',
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+    }
+  }
+  if (stored.state === 'discarded') {
+    return {
+      op: 'apply',
+      result: `Plan ${id} was discarded — re-plan with op:"preview". Nothing was written.`,
+      outcome: 'failed',
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+    }
+  }
+  if (changeSetPlanExpired(stored)) {
+    setChangeSetPlanState(owner, id, 'expired')
+    return {
+      op: 'apply',
+      result: `Plan ${id} expired (${Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)} minute lifetime) — re-read the files and re-plan with op:"preview". Nothing was written.`,
+      outcome: 'failed',
+      planId: id,
+      changeView: changeViewOf(stored, 'expired', {
+        nextAction: 're-read the files, then op:"preview" again (plans are immutable)',
+      }),
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+    }
+  }
+  if (stored.state === 'applied') {
+    const drifted: string[] = []
+    for (const t of stored.targets.filter(x => x.changed)) {
+      let ok = false
+      try {
+        ok = sha256Hex(readFileSync(t.canonicalPath)) === t.plannedDigest
+      } catch {
+        ok = false
+      }
+      if (!ok) drifted.push(t.canonicalPath)
+    }
+    if (drifted.length > 0) {
+      return {
+        op: 'apply',
+        result:
+          `Plan ${id} was already applied, and ${drifted.length} file(s) have since changed again ` +
+          `(${drifted.map(displayPath).join(', ')}). Nothing was written. Re-read and re-plan with op:"preview".`,
+        outcome: 'failed',
+        planId: id,
+        effectOperation: 'file.changeSet',
+        changedPaths: [],
+        intent: intentOf(stored),
+      }
+    }
+    return {
+      op: 'apply',
+      result: `Plan ${id} was already committed — replayed the prior result without writing twice (files: ${stored.changedPaths.map(displayPath).join(', ')}; still verified on disk).`,
+      outcome: 'no-change',
+      planId: id,
+      changeView: changeViewOf(stored, 'applied'),
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+      details: {
+        planId: id,
+        ...(stored.operationId !== undefined && { replayedOperationId: stored.operationId }),
+        priorChangedPaths: stored.changedPaths,
+      },
+      intent: intentOf(stored),
+    }
+  }
+  if (stored.state === 'stale' || stored.state === 'failed' || stored.state === 'cancelled' || stored.state === 'indeterminate') {
+    return {
+      op: 'apply',
+      result: `Plan ${id} is '${stored.state}'${stored.note ? ` — ${stored.note}` : ''}. Re-read the files and re-plan with op:"preview". Nothing was written.`,
+      outcome: 'failed',
+      planId: id,
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+    }
+  }
+  lowered = loweredByPlanId.get(id)
+  const derived = rederiveBytes(stored)
+  if ('stalePaths' in derived) {
+    setChangeSetPlanState(owner, id, 'stale', {
+      note: `drifted since preview: ${derived.stalePaths.map(displayPath).join(', ')}`,
+    })
+    return {
+      op: 'apply',
+      result: staleRefusalText(stored, derived.stalePaths),
+      outcome: 'failed',
+      planId: id,
+      changeView: changeViewOf(stored, 'stale', {
+        nextAction: `re-read ${derived.stalePaths.map(displayPath).join(', ')}, then op:"preview" again`,
+      }),
+      effectOperation: 'file.changeSet',
+      changedPaths: [],
+      intent: intentOf(stored),
+    }
+  }
+  plan = stored
+  bytes = derived.bytes
+  return { plan, bytes, lowered }
+}
+
+function noChangeAnswer(owner: ReturnType<typeof ownerFromToolUseContext>, plan: ChangeSetPlan): OpResult {
+  setChangeSetPlanState(owner, plan.id, 'no-change')
+  let verdict: RepetitionVerdict | null = null
+  for (const t of plan.targets) {
+    const v = recordNoChangeOutcome(owner, {
+      operation: 'file.changeSet',
+      path: t.canonicalPath,
+      revision: t.observedAnchor,
+      intentDigest: plan.digest.slice(0, 16),
+      displayPath: displayPath(t.canonicalPath),
+    })
+    if (verdict === null || v.streak < verdict.streak) verdict = v
+  }
+  const repetitionNote =
+    verdict && verdict.streak >= 2 ? ` ${verdict.guidance}` : ''
+  return {
+    op: 'apply',
+    result: `No changes needed — every member of plan ${plan.id} is already satisfied (${plan.noChangePaths.map(displayPath).join(', ')}). Nothing was written.${repetitionNote}`,
+    outcome: 'no-change',
+    planId: plan.id,
+    changeView: changeViewOf(plan, 'no-change'),
+    effectOperation: 'file.changeSet',
+    changedPaths: [],
+    ...(verdict?.atCeiling ? { repetitionStop: true } : {}),
+    details: {
+      planId: plan.id,
+      planDigest: plan.digest.slice(0, 12),
+      files: plan.targets.length,
+      hunks: plan.totalHunks,
+      noChangePaths: plan.noChangePaths,
+    },
+    intent: intentOf(plan),
+  }
+}
+
+function uncommittedAnswer(owner: ReturnType<typeof ownerFromToolUseContext>, plan: ChangeSetPlan, outcome: CommitOutcome): OpResult | null {
   switch (outcome.kind) {
     case 'stale': {
       setChangeSetPlanState(owner, plan.id, 'stale', {
@@ -858,72 +946,10 @@ async function runApply(
     case 'committed':
       break
   }
+  return null
+}
 
-  const lspManager = getLspServerManager()
-  const syncFailures: string[] = []
-  const freshAnchors: Array<{ path: string; anchor: string }> = []
-  for (const t of changedTargets) {
-    context.nestedMemoryAttachmentTriggers?.add(t.canonicalPath)
-    if (t.fileOp === 'delete') {
-      context.readFileState.delete(t.canonicalPath)
-      dropSeenLines(owner, t.canonicalPath)
-      if (lspManager) await lspManager.closeFile(t.canonicalPath).catch(() => {})
-      continue
-    }
-    const landedPath = t.fileOp === 'move' && t.newPath !== undefined ? t.newPath : t.canonicalPath
-    if (t.fileOp === 'move') {
-      context.nestedMemoryAttachmentTriggers?.add(landedPath)
-      context.readFileState.delete(t.canonicalPath)
-      if (lspManager) await lspManager.closeFile(t.canonicalPath).catch(() => {})
-    }
-    context.readFileState.set(landedPath, {
-      content: t.plannedContent,
-      timestamp: getFileModificationTime(landedPath),
-      offset: undefined,
-      limit: undefined,
-    })
-    if (lspManager) {
-      const before = t.fileOp === 'move' ? null : (bytes.get(t.canonicalPath)?.originalBytes.toString(t.encoding) ?? null)
-      const sync = await syncServersAfterWrite(lspManager, landedPath, t.plannedContent, before, owner)
-      if (!sync.ok) syncFailures.push(`${displayPath(landedPath)}: ${sync.reason}`)
-    }
-    const anchor = mintFileAnchor(t.plannedContent)
-    freshAnchors.push({ path: landedPath, anchor })
-    rememberAnchoredSnapshot(owner, anchor, t.plannedContent, landedPath)
-    const generation = fileGeneration(landedPath)
-    if (generation !== null) {
-      if (t.fileOp === 'move') moveSeenLines(owner, t.canonicalPath, landedPath, generation)
-      shiftSeenLinesAfterApply(owner, landedPath, generation, t.hunkSpans, span =>
-        span.replace === ''
-          ? 0
-          : (span.replace.endsWith('\n') ? span.replace.slice(0, -1) : span.replace).split('\n')
-              .length,
-      )
-    }
-  }
-  const publishedRegisters: string[] = []
-  if (lowered) {
-    for (const [name, reg] of lowered.registerPublications) {
-      const res = publishPatchRegister(owner, name, {
-        content: reg.content,
-        fromPath: reg.fromPath,
-        cutAt: Date.now(),
-      })
-      if (res.ok) publishedRegisters.push(name)
-    }
-  }
-  if (!isEnvTruthy(flagEnv('MERCURY_BARE'))) {
-    const paths = changedTargets.flatMap(t => (t.fileOp === 'move' && t.newPath !== undefined ? [t.canonicalPath, t.newPath] : [t.canonicalPath]))
-    discoverSkillDirsForPaths(paths, getCwd())
-      .then(dirs => (dirs.length > 0 ? addSkillDirectories(dirs) : undefined))
-      .catch(() => {})
-    activateConditionalSkillsForPaths(paths, getCwd())
-  }
-
-  setChangeSetPlanState(owner, plan.id, 'applied', {
-    appliedAt: Date.now(),
-    operationId: outcome.operationId,
-  })
+function appliedAnswer(plan: ChangeSetPlan, changedTargets: ChangeSetPlan['targets'][number][], freshAnchors: Array<{ path: string; anchor: string }>, lowered: LoweredPatch | undefined, publishedRegisters: string[], syncFailures: string[], outcome: Extract<CommitOutcome, { kind: 'committed' }>): OpResult {
   const anchorByPath = new Map(freshAnchors.map(a => [a.path, a.anchor]))
   const changedList = changedTargets
     .map(t => {
