@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { getCommandName, type Command } from '../../../commands.js';
 import * as pendingInput from '../../../input-core/pending-input.js';
 import { createAbortController } from '../../../utils/abortController.js';
@@ -51,9 +52,9 @@ function queryAfterDialog({ addNotification }: SubmitDeps, { input, focusedNow }
   })();
 }
 
-export async function openDialogCommand(deps: SubmitDeps, line: SubmitLine, seatCommand: DialogCommand, dialogName: string, { spaceAt, args, argsWithPastes }: CommandArgs): Promise<void> {
+export function openDialogCommand(deps: SubmitDeps, line: SubmitLine, seatCommand: DialogCommand, dialogName: string, { args }: CommandArgs) {
   const { addNotification, setInputValue, authWallHold, setToolJSX, getToolUseContext, paintScreenCommandReceipt, dialogInFlightRef, onSubmitRef } = deps;
-  const { input, options, submittedAt, text, focusedNow } = line;
+  const { input, options, submittedAt, focusedNow } = line;
   const slot = { name: dialogName, mounted: false };
   dialogInFlightRef.current = slot;
   submitTrace('repl-dialog-dispatch', input, { name: dialogName, rearmed: options?.rearmed === true });
@@ -90,9 +91,7 @@ export async function openDialogCommand(deps: SubmitDeps, line: SubmitLine, seat
       });
     }
   };
-  try {
-    const module = await seatCommand.load();
-    const element = await module.call(onDone, context, await argsWithPastes(), text.slice(1, spaceAt === -1 ? undefined : spaceAt));
+  const mountDialog = (element: ReactNode): void => {
     if (element && !completed) {
       slot.mounted = true;
       setToolJSX({ jsx: element, shouldHidePromptInput: false, isLocalJSXCommand: true, isImmediate: true });
@@ -105,7 +104,8 @@ export async function openDialogCommand(deps: SubmitDeps, line: SubmitLine, seat
       });
       releaseDialogSlot(deps, slot);
     }
-  } catch (error) {
+  };
+  const failDialog = (error: unknown): void => {
     logForDebugging(`dialog command /${seatCommand.name} failed: ${String(error)}`);
     addNotification({
       key: `command-${seatCommand.name}`,
@@ -115,5 +115,6 @@ export async function openDialogCommand(deps: SubmitDeps, line: SubmitLine, seat
       timeoutMs: RECEIPT_TIMEOUT_MS,
     });
     releaseDialogSlot(deps, slot);
-  }
+  };
+  return { context, onDone, mountDialog, failDialog };
 }
