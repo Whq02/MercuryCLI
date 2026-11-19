@@ -258,62 +258,17 @@ export async function runWebLspSidecar(
         case 'shutdown':
           shutdownRequested = true
           return null
-        case 'textDocument/hover': {
-          const p = params as { textDocument: { uri: string }; position: unknown }
-          const doc = requireDoc(p.textDocument.uri)
-          const lang = languageIdOf(doc.uri)
-          switch (lang) {
-            case 'html':
-              return htmlService.doHover(doc, p.position as never, htmlService.parseHTMLDocument(doc))
-            case 'css':
-            case 'scss':
-            case 'less': {
-              const service = cssServiceFor(lang)
-              return service.doHover(doc, p.position as never, service.parseStylesheet(doc))
-            }
-            case 'json':
-            case 'jsonc':
-              return jsonService.doHover(doc, p.position as never, jsonService.parseJSONDocument(doc))
-            case 'yaml':
-              return yamlService.doHover(doc, p.position)
-          }
-        }
+        case 'textDocument/hover':
+          return hoverRequest(params, { requireDoc, languageIdOf, htmlService, cssServiceFor, jsonService, yamlService })
         case 'textDocument/formatting': {
           const p = params as { textDocument: { uri: string }; options?: { tabSize?: number; insertSpaces?: boolean } }
           const doc = requireDoc(p.textDocument.uri)
           return formatEdits(doc, undefined, formatOptionsOf(p))
         }
-        case 'textDocument/rangeFormatting': {
-          const p = params as {
-            textDocument: { uri: string }
-            range: unknown
-            options?: { tabSize?: number; insertSpaces?: boolean }
-          }
-          const doc = requireDoc(p.textDocument.uri)
-          return formatEdits(doc, p.range, formatOptionsOf(p))
-        }
-        case 'textDocument/documentSymbol': {
-          const p = params as { textDocument: { uri: string } }
-          const doc = requireDoc(p.textDocument.uri)
-          const lang = languageIdOf(doc.uri)
-          switch (lang) {
-            case 'html':
-              return htmlService.findDocumentSymbols(doc, htmlService.parseHTMLDocument(doc))
-            case 'css':
-            case 'scss':
-            case 'less': {
-              const service = cssServiceFor(lang)
-              return service.findDocumentSymbols(doc, service.parseStylesheet(doc))
-            }
-            case 'json':
-            case 'jsonc':
-              return jsonService.findDocumentSymbols(doc, jsonService.parseJSONDocument(doc))
-            case 'yaml':
-              return typeof yamlService.findDocumentSymbols2 === 'function'
-                ? yamlService.findDocumentSymbols2(doc)
-                : []
-          }
-        }
+        case 'textDocument/rangeFormatting':
+          return rangeFormattingRequest(params, requireDoc, formatEdits, formatOptionsOf)
+        case 'textDocument/documentSymbol':
+          return documentSymbolRequest(params, { requireDoc, languageIdOf, htmlService, cssServiceFor, jsonService, yamlService })
         case 'textDocument/diagnostic': {
           const p = params as { textDocument: { uri: string } }
           const doc = requireDoc(p.textDocument.uri)
@@ -410,4 +365,72 @@ export async function runWebLspSidecar(
     input.on('close', () => finish(0))
     input.on('error', () => finish(1))
   })
+}
+
+type WebServices = {
+  requireDoc: (uri: string) => TextDocument
+  languageIdOf: (uri: string) => WebLanguage
+  htmlService: ReturnType<typeof getHtmlLanguageService>
+  cssServiceFor: (lang: WebLanguage) => ReturnType<typeof getCSSLanguageService>
+  jsonService: ReturnType<typeof getJsonLanguageService>
+  yamlService: YamlServiceShape
+}
+
+function hoverRequest(params: unknown, { requireDoc, languageIdOf, htmlService, cssServiceFor, jsonService, yamlService }: WebServices): unknown {
+  const p = params as { textDocument: { uri: string }; position: unknown }
+  const doc = requireDoc(p.textDocument.uri)
+  const lang = languageIdOf(doc.uri)
+  switch (lang) {
+    case 'html':
+      return htmlService.doHover(doc, p.position as never, htmlService.parseHTMLDocument(doc))
+    case 'css':
+    case 'scss':
+    case 'less': {
+      const service = cssServiceFor(lang)
+      return service.doHover(doc, p.position as never, service.parseStylesheet(doc))
+    }
+    case 'json':
+    case 'jsonc':
+      return jsonService.doHover(doc, p.position as never, jsonService.parseJSONDocument(doc))
+    case 'yaml':
+      return yamlService.doHover(doc, p.position)
+  }
+}
+
+function rangeFormattingRequest(
+  params: unknown,
+  requireDoc: (uri: string) => TextDocument,
+  formatEdits: (doc: TextDocument, range: unknown | undefined, options: { tabSize: number; insertSpaces: boolean }) => Promise<unknown[]>,
+  formatOptionsOf: (params: { options?: { tabSize?: number; insertSpaces?: boolean } }) => { tabSize: number; insertSpaces: boolean },
+): unknown {
+  const p = params as {
+    textDocument: { uri: string }
+    range: unknown
+    options?: { tabSize?: number; insertSpaces?: boolean }
+  }
+  const doc = requireDoc(p.textDocument.uri)
+  return formatEdits(doc, p.range, formatOptionsOf(p))
+}
+
+function documentSymbolRequest(params: unknown, { requireDoc, languageIdOf, htmlService, cssServiceFor, jsonService, yamlService }: WebServices): unknown {
+  const p = params as { textDocument: { uri: string } }
+  const doc = requireDoc(p.textDocument.uri)
+  const lang = languageIdOf(doc.uri)
+  switch (lang) {
+    case 'html':
+      return htmlService.findDocumentSymbols(doc, htmlService.parseHTMLDocument(doc))
+    case 'css':
+    case 'scss':
+    case 'less': {
+      const service = cssServiceFor(lang)
+      return service.findDocumentSymbols(doc, service.parseStylesheet(doc))
+    }
+    case 'json':
+    case 'jsonc':
+      return jsonService.findDocumentSymbols(doc, jsonService.parseJSONDocument(doc))
+    case 'yaml':
+      return typeof yamlService.findDocumentSymbols2 === 'function'
+        ? yamlService.findDocumentSymbols2(doc)
+        : []
+  }
 }
