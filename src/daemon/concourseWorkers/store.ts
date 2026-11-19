@@ -52,11 +52,11 @@ function workersStatFingerprint(path: string): string | null {
 
 function readMutableSessionWorkersFromDisk(
   path: string,
-): { kind: 'known'; workers: Record<string, ConcourseWorkerRecordV1> } | { kind: 'absent' } | { kind: 'unavailable' } {
+): { kind: 'known'; workers: Record<string, ConcourseWorkerRecordV1> } | { kind: 'absent' } | { kind: 'unavailable'; why: string } {
   try {
     const raw = JSON.parse(readFileSync(path, 'utf8')) as ConcourseWorkerFileV1
     if (!raw || raw.version !== 1 || typeof raw.workers !== 'object' || raw.workers === null || Array.isArray(raw.workers)) {
-      return { kind: 'unavailable' }
+      return { kind: 'unavailable', why: 'it is not a version 1 session file' }
     }
     for (const rec of Object.values(raw.workers)) {
       const legacy = rec as ConcourseWorkerRecordV1 & { workerId?: string }
@@ -68,7 +68,9 @@ function readMutableSessionWorkersFromDisk(
     }
     return { kind: 'known', workers: raw.workers }
   } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? { kind: 'absent' } : { kind: 'unavailable' }
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return { kind: 'absent' }
+    return { kind: 'unavailable', why: error instanceof SyntaxError ? 'it is not valid JSON' : (code ?? (error instanceof Error ? error.message : String(error))) }
   }
 }
 
@@ -145,6 +147,24 @@ function publishConcourseWorkers(workers: Record<string, ConcourseWorkerRecordV1
 
 let sessionRecordsInFlight: { path: string; workers: Record<string, ConcourseWorkerRecordV1> } | null = null
 
+const sessionRecordsUnread = new Map<string, { why: string; refused: number }>()
+
+function sessionRecordsRefusal(path: string, why: string): Error {
+  const unread = sessionRecordsUnread.get(path)
+  if (unread === undefined || unread.why !== why) {
+    console.error(`[daemon] ${path}: the session records are there and could not be read (${why}), so changes to them are refused and the file is left as it stands — make it readable, or move it away and the next change writes a new one`)
+  }
+  sessionRecordsUnread.set(path, { why, refused: (unread?.refused ?? 0) + 1 })
+  return new Error(`the session records at ${path} were not updated: the file is there and could not be read (${why}); nothing was written`)
+}
+
+function noteSessionRecordsRead(path: string): void {
+  const unread = sessionRecordsUnread.get(path)
+  if (unread === undefined) return
+  sessionRecordsUnread.delete(path)
+  console.error(`[daemon] ${path}: the session records read again; ${unread.refused} change(s) were refused meanwhile`)
+}
+
 export function updateConcourseWorkers(
   mutate: (workers: Record<string, ConcourseWorkerRecordV1>) => void,
   dir?: string,
@@ -156,6 +176,8 @@ export function updateConcourseWorkers(
   }
   const workers = withDaemonStoreLock('the session records', path, dir, ({ assertStillHeld }) => {
     const fresh = readMutableSessionWorkersFromDisk(path)
+    if (fresh.kind === 'unavailable') throw sessionRecordsRefusal(path, fresh.why)
+    noteSessionRecordsRead(path)
     const next = fresh.kind === 'known' ? fresh.workers : {}
     const outer = sessionRecordsInFlight
     sessionRecordsInFlight = { path, workers: next }
