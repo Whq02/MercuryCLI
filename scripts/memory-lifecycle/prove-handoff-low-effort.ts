@@ -2,18 +2,19 @@
 // gate-watch: src/mneme/handoffAsk.ts src/services/providers/anthropic/messageEffort.ts src/services/providers/anthropic/streamCore/wireParams.ts src/services/providers/anthropic/streamCore/passRetries.ts src/services/api/withRetry.ts src/utils/model/capabilities.ts src/utils/forkedAgent.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import http from 'node:http'
 import type net from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { hostRunner } from '../lib/runnerHost.ts'
 
 delete process.env.NODE_ENV
 delete process.env.CI
 for (const key of Object.keys(process.env)) {
   if (
-    /^(ANTHROPIC_(AUTH_TOKEN|BASE_URL|API_KEY)|MERCURY_MODEL|MERCURY_OAUTH_TOKEN|MERCURY_BARE|MERCURY_HOME|MERCURY_EFFORT_LEVEL|MERCURY_THINKING_BUDGET|MERCURY_THINKING_BINDING|MERCURY_THINKING_DISPLAY|MERCURY_CACHE_DIAGNOSTICS|MERCURY_EXTRA_BODY|MERCURY_PROVIDER_BETAS|MERCURY_PROMPT_CACHING|MERCURY_CACHE_TTL|MERCURY_DAEMON_PERMISSION_MODE)$/.test(key) ||
+    /^(ANTHROPIC_(AUTH_TOKEN|BASE_URL|API_KEY)|MERCURY_MAX_RETRIES|MERCURY_MODEL|MERCURY_OAUTH_TOKEN|MERCURY_BARE|MERCURY_HOME|MERCURY_EFFORT_LEVEL|MERCURY_THINKING_BUDGET|MERCURY_THINKING_BINDING|MERCURY_THINKING_DISPLAY|MERCURY_CACHE_DIAGNOSTICS|MERCURY_EXTRA_BODY|MERCURY_PROVIDER_BETAS|MERCURY_PROMPT_CACHING|MERCURY_CACHE_TTL|MERCURY_DAEMON_PERMISSION_MODE)$/.test(key) ||
     /^(OPENAI|ZAI|OPENROUTER)_/.test(key) ||
     /^MERCURY_(OPENAI|ZAI|OPENROUTER)_/.test(key) ||
     /^(https?_proxy|no_proxy)$/i.test(key)
@@ -61,9 +62,11 @@ const REFUSALS = [
   'the request was refused in words no page of the provider holds',
 ]
 const LATER_REFUSAL = 'a refusal of another kind, answered to a request that carried no row'
+const TWICE_ARG = '--refused-twice'
 const REFUSAL_MARK = 'REFUSAL-LEG '
 const refusalAt = process.argv.indexOf('--refusal')
 const REFUSAL = refusalAt === -1 ? null : REFUSALS[Number(process.argv[refusalAt + 1])] ?? LATER_REFUSAL
+if (process.argv.includes('--no-retries')) process.env.MERCURY_MAX_RETRIES = '0'
 
 const { HANDOFF_ASK_MARK, handoffTurn, startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFixture.ts')
@@ -86,6 +89,7 @@ const refusing = await startFixtureApi(REFUSAL === LATER_REFUSAL
   : [
       { kind: 'error', status: 400, errorType: 'invalid_request_error', message: REFUSAL ?? REFUSALS[0]!, whenBody: '"role":"system"' },
       { kind: 'text', text: 'ANSWER-THREE', whenBody: 'third probe' },
+      ...(process.argv.includes(TWICE_ARG) ? [{ kind: 'error' as const, status: 400, errorType: 'invalid_request_error', message: LATER_REFUSAL, whenBody: HANDOFF_ASK_MARK }] : []),
       handoffTurn(NOTE),
       { kind: 'text', text: 'ANSWER-FOUR', whenBody: 'fourth probe' },
       handoffTurn(NOTE_LATER),
@@ -238,6 +242,13 @@ if (REFUSAL === LATER_REFUSAL) {
   console.log(REFUSAL_MARK + j({ asks: plainAsk.asks.length, rows: plainAsk.asks.filter(ask => ask.raw.includes('"role":"system"')).length, note: plainAsk.note, left: leftTheMachine }))
   process.exit(0)
 }
+if (REFUSAL !== null && process.argv.includes(TWICE_ARG)) {
+  upstream = refusing.port
+  address('first-party')
+  const twice = await session(refusing, 'claude-opus-5-5', 'max', 'third probe')
+  console.log(REFUSAL_MARK + j({ asks: twice.asks.length, rows: twice.asks.map(ask => ask.raw.includes('"role":"system"')), note: twice.note, left: leftTheMachine }))
+  process.exit(0)
+}
 if (REFUSAL !== null) {
   upstream = refusing.port
   address('first-party')
@@ -352,8 +363,8 @@ section('§7 the field rests nowhere: not in the session, not on disk, not in th
 }
 
 section('§8 the provider answers 400 to the request that carries the row: the base\'s request goes out once, the note is kept, the process sends the row no more')
-for (const [index, words] of REFUSALS.entries()) {
-  const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--refusal', String(index)], { encoding: 'utf8', timeout: 120_000 })
+for (const [index, words, flags] of [...REFUSALS.entries()].map(([at, text]) => [at, text, []] as const).concat([[0, `${REFUSALS[0]!.slice(0, 20)} (MERCURY_MAX_RETRIES=0)`, ['--no-retries']] as never])) {
+  const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--refusal', String(index), ...flags], { encoding: 'utf8', timeout: 120_000 })
   const line = child.stdout.split('\n').find(row => row.startsWith(REFUSAL_MARK))
   const leg = line === undefined ? null : JSON.parse(line.slice(REFUSAL_MARK.length)) as { asks: number; carried: boolean; againIsTheBase: boolean; note: { text: string; stored: boolean } | null; laterAsks: number; laterPlain: boolean; laterNote: { text: string; stored: boolean } | null; unrelatedAsks: number; unrelatedNote: unknown; left: string[] }
   const said = `400 "${words.slice(0, 44)}${words.length > 44 ? '…' : ''}"`
@@ -366,6 +377,63 @@ for (const [index, words] of REFUSALS.entries()) {
   const line = child.stdout.split('\n').find(row => row.startsWith(REFUSAL_MARK))
   const leg = line === undefined ? null : JSON.parse(line.slice(REFUSAL_MARK.length)) as { asks: number; rows: number; note: unknown; left: string[] }
   check('a 400 answered to an ask that never carried the row (Opus 4.8) is today\'s failure: one request, no note', leg !== null && leg.asks === 1 && leg.rows === 0 && leg.note === null && leg.left.length === 0, line ?? `${child.status} ${child.stderr.slice(-400)}`)
+}
+
+{
+  const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--refusal', '0', TWICE_ARG], { encoding: 'utf8', timeout: 120_000 })
+  const line = child.stdout.split('\n').find(row => row.startsWith(REFUSAL_MARK))
+  const leg = line === undefined ? null : JSON.parse(line.slice(REFUSAL_MARK.length)) as { asks: number; rows: boolean[]; note: unknown; left: string[] }
+  check('the resend answered 400 too is today\'s failure: two requests in all, the second without the row, no third, no note', leg !== null && leg.asks === 2 && j(leg.rows) === '[true,false]' && leg.note === null && leg.left.length === 0, line ?? `${child.status} ${child.stderr.slice(-400)}`)
+}
+
+section('§9 the built product: a hosted session leaves its note with the row, and resumed from its transcript it sends none')
+{
+  const DIST = join(resolve(dirname(fileURLToPath(import.meta.url)), '..', '..'), 'dist', 'mercury.mjs')
+  const nodeBin = Bun.which('node')
+  if (!existsSync(DIST) || nodeBin === null) check('dist/mercury.mjs and a node binary present (build first; the gate prebuilds it)', false, DIST)
+  else {
+    const built = await startFixtureApi([{ kind: 'text', text: 'ANSWER-BUILT', whenBody: 'built probe' }, handoffTurn(NOTE), { kind: 'text', text: 'ANSWER-RESUMED', whenBody: 'and then' }, ...plain(6)])
+    upstream = built.port
+    const world = mkdtempSync(join(tmpdir(), 'handoff-low-effort-built-'))
+    const home = join(world, 'home', '.mercury')
+    const project = join(realpathSync(world), 'project')
+    mkdirSync(home, { recursive: true })
+    mkdirSync(project, { recursive: true })
+    writeFileSync(join(project, 'README.md'), 'a project under proof\n')
+    const env = { HOME: join(world, 'home'), PATH: `/usr/bin:/bin:${dirname(nodeBin)}`, TERM: 'dumb', MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(world, 'home', 'daemon'), ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: 'http://api.anthropic.com', HTTP_PROXY: PROXY, http_proxy: PROXY }
+    const host = hostRunner({ node: nodeBin, dist: DIST, cwd: project, home, env, argv: ['--model', 'claude-opus-5-5', '--effort', 'max'] })
+    const killer = setTimeout(() => host.child.kill('SIGKILL'), 120_000)
+    let exit: number | null = null
+    try {
+      await host.initialize()
+      await host.prompt('built probe', { id: 'built-1' })
+      await host.waitFor('the outcome row', row => row.type === 'outcome', 60_000)
+      host.end()
+      exit = await host.exited
+    } finally {
+      clearTimeout(killer)
+      await host.stop()
+    }
+    const hosted = sent(built)
+    const ask = hosted.find(request => request.raw.includes(HANDOFF_ASK_MARK))
+    check('the hosted session: its turn, then one ask that ends on the row with the header, at the session\'s request-level effort', exit === 0 && hosted.length === 2 && j(ask?.body.messages?.at(-1)) === ROW && beta(ask).includes(HEADER) && !beta(hosted[0]).includes(HEADER) && j(ask?.body.output_config) === '{"effort":"max"}', j({ exit, requests: hosted.length, roles: ask?.body.messages?.map(row => row.role), beta: beta(ask), stderr: host.stderr().slice(0, 300) }))
+    const resumedRun = Bun.spawn([nodeBin, DIST, 'run', '--continue', '--format', 'rows', '--model', 'claude-opus-5-5', '--effort', 'max', '--', 'and then?'], { env, cwd: project, stdout: 'pipe', stderr: 'pipe' })
+    const [resumedOut, resumedErr, resumedExit] = await Promise.all([new Response(resumedRun.stdout).text(), new Response(resumedRun.stderr).text(), resumedRun.exited])
+    const after = sent(built).slice(hosted.length)
+    check('resumed from its transcript the session sends its history and no row, no header, no ask', resumedExit === 0 && /"resume_of":"[0-9a-f-]+"/.test(resumedOut) && after.length === 1 && after[0]!.raw.includes('built probe') && !after[0]!.raw.includes('"role":"system"') && !after[0]!.raw.includes(HANDOFF_ASK_MARK) && !beta(after[0]).includes(HEADER), j({ exit: resumedExit, requests: after.length, beta: beta(after[0]), stderr: resumedErr.slice(-300) }))
+    const files: string[] = []
+    const walk = (dir: string): void => {
+      for (const name of readdirSync(dir)) {
+        const full = join(dir, name)
+        if (statSync(full).isDirectory()) walk(full)
+        else if (statSync(full).isFile()) files.push(full)
+      }
+    }
+    walk(world)
+    const holding = files.filter(file => readFileSync(file).includes('replyEffort'))
+    check('no file the two runs left (the home, its transcript, the ledger, the daemon folder) holds the field', files.some(file => file.endsWith('.jsonl')) && holding.length === 0, j(holding))
+    await built.close()
+  }
 }
 
 check('no request left the machine', leftTheMachine.length === 0, j(leftTheMachine))

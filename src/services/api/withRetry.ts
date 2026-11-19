@@ -325,6 +325,7 @@ export async function* withRetry<T>(
 
       if (messageEffortRefusedBy(error)) {
         logForDebugging(`per-message effort: the provider refused the request that carried it (${errorMessage(error)}); this process sends it no more and the request goes out again without it`, { level: 'warn' })
+        attempt--
         continue
       }
 
