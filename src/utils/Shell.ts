@@ -470,7 +470,8 @@ export async function exec(
       getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
 
     const told = (line: string): void => {
-      result.stderr = result.stderr === '' ? line : `${result.stderr}\n${line}`
+      if (shellType === 'bash') result.stderr = result.stderr === '' ? line : `${result.stderr}\n${line}`
+      else result.stdout = `${result.stdout}${result.stdout === '' || result.stdout.endsWith('\n') ? '' : '\n'}${line}\n`
     }
     let named: string | undefined
     try {
