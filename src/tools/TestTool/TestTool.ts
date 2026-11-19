@@ -496,60 +496,13 @@ async function runOp(
         const ran = await runOp({ ...input, op: 'run' }, context, onProgress)
         return { result: `${debuggerMissingLine(debuggerMissing, remedy)}\n${ran.result}`, outcome: ran.outcome, ...(ran.record ? { record: ran.record } : {}) }
       }
-      const launchRunnerDebug = async (plan: {
-        runner: string
-        adapterKey: string
-        program: string
-        args: string[]
-        cwd: string
-        stop: { file: string; line: number; column?: number } | null
-        note: string
-        launchExtras?: Record<string, unknown>
-      }): Promise<{ result: string; outcome: ToolEffectOutcome }> => {
-        const owner = ownerFromToolUseContext(context)
-        const sessionId = input.session ?? 'test'
-        const breakpoints = new Map<string, Array<number | DapBreakpointSpec>>()
-        if (input.file && input.lines?.length) breakpoints.set(expandPath(input.file), input.lines)
-        else if (plan.stop) breakpoints.set(plan.stop.file, [plan.stop])
-        let session
-        try {
-          session = await createDapSession({
-            owner,
-            id: sessionId,
-            adapterKey: plan.adapterKey,
-            program: plan.program,
-            args: plan.args,
-            cwd: plan.cwd,
-            breakpoints: breakpoints.size ? breakpoints : undefined,
-            stopOnEntry: breakpoints.size === 0,
-            ...(plan.launchExtras ? { launchExtras: plan.launchExtras } : {}),
-          })
-        } catch (err) {
-          const missing = adapterUnavailable(err)
-          if (missing !== null) return ranWithoutStop(missing.debuggerMissing, missing.remedy)
-          return { result: `debug unavailable: ${err instanceof Error ? err.message : String(err)}`, outcome: 'failed' }
-        }
-        const stop = await session.waitForStopOutcome(20_000)
-        const state =
-          stop.state === 'stopped'
-            ? `stopped in '${stop.session.label}' — reason ${stop.info.reason}${stop.info.threadId !== undefined ? `, threadId ${stop.info.threadId}` : ''}`
-            : stop.state === 'terminated'
-              ? `debuggee terminated before any stop (${session.debuggeeEndDetail()}) — the test may have run to completion`
-              : 'still running (no stop within 20s) — inspect with the Debug tool'
-        return {
-          result:
-            `debugging ${input.node} (${plan.runner}) in Debug session '${sessionId}': ${state}${stop.state === 'stopped' ? `\n${plan.note}` : ''}\n` +
-            `continue with the Debug tool (op:"stack"/"scopes"/"variables"/"continue"; finish with op:"disconnect", session "${sessionId}")`,
-          outcome: stop.state === 'terminated' ? 'failed' : 'succeeded',
-        }
-      }
       if (debugLane.lane === 'runner' && (debugLane.profile.runner === 'vitest' || debugLane.profile.runner === 'jest')) {
         const runner = debugLane.profile.runner
         const shim = buildNodeRunnerDebugShim(runner, input.node, { from: anchor.from })
         if ('state' in shim) {
           return { result: `debug unavailable: ${shim.reason}\nremedy: ${shim.remedy}`, outcome: 'failed' }
         }
-        return launchRunnerDebug({ runner, adapterKey: 'js', program: shim.program, args: shim.args, cwd: shim.cwd, stop: shim.stop, note: shim.note })
+        return launchRunnerDebug({ runner, adapterKey: 'js', program: shim.program, args: shim.args, cwd: shim.cwd, stop: shim.stop, note: shim.note }, input, context, ranWithoutStop)
       }
       if (debugLane.lane === 'runner' && debugLane.profile.runner === 'go') {
         const plan = buildGoTestDebugPlan(input.node, { from: anchor.from })
@@ -557,7 +510,7 @@ async function runOp(
           if (plan.debuggerMissing !== undefined) return ranWithoutStop(plan.debuggerMissing, plan.remedy)
           return { result: `debug unavailable: ${plan.reason}\nremedy: ${plan.remedy}`, outcome: 'failed' }
         }
-        return launchRunnerDebug({ runner: 'go', adapterKey: 'go', program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note, launchExtras: plan.launchExtras })
+        return launchRunnerDebug({ runner: 'go', adapterKey: 'go', program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note, launchExtras: plan.launchExtras }, input, context, ranWithoutStop)
       }
       if (debugLane.lane === 'runner' && debugLane.profile.runner === 'cargo') {
         const plan = await buildCargoTestDebugPlan(input.node, { from: anchor.from, ...(signal ? { signal } : {}) })
@@ -565,7 +518,7 @@ async function runOp(
           if (plan.debuggerMissing !== undefined) return ranWithoutStop(plan.debuggerMissing, plan.remedy)
           return { result: `debug unavailable: ${plan.reason}\nremedy: ${plan.remedy}`, outcome: 'failed' }
         }
-        return launchRunnerDebug({ runner: 'cargo', adapterKey: plan.adapterKey, program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note })
+        return launchRunnerDebug({ runner: 'cargo', adapterKey: plan.adapterKey, program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note }, input, context, ranWithoutStop)
       }
       if (debugLane.lane === 'runner') {
         const jsShim = buildNodeTestDebugShim(input.node, { from: anchor.from })
@@ -665,6 +618,54 @@ async function runOp(
       }
       return { result: summarize(record), outcome: 'no-change', record }
     }
+  }
+}
+
+async function launchRunnerDebug(plan: {
+  runner: string
+  adapterKey: string
+  program: string
+  args: string[]
+  cwd: string
+  stop: { file: string; line: number; column?: number } | null
+  note: string
+  launchExtras?: Record<string, unknown>
+}, input: Input, context: ToolUseContext, ranWithoutStop: (debuggerMissing: string, remedy: string) => Promise<{ result: string; outcome: ToolEffectOutcome; record?: TestRunRecord }>): Promise<{ result: string; outcome: ToolEffectOutcome }> {
+  const owner = ownerFromToolUseContext(context)
+  const sessionId = input.session ?? 'test'
+  const breakpoints = new Map<string, Array<number | DapBreakpointSpec>>()
+  if (input.file && input.lines?.length) breakpoints.set(expandPath(input.file), input.lines)
+  else if (plan.stop) breakpoints.set(plan.stop.file, [plan.stop])
+  let session
+  try {
+    session = await createDapSession({
+      owner,
+      id: sessionId,
+      adapterKey: plan.adapterKey,
+      program: plan.program,
+      args: plan.args,
+      cwd: plan.cwd,
+      breakpoints: breakpoints.size ? breakpoints : undefined,
+      stopOnEntry: breakpoints.size === 0,
+      ...(plan.launchExtras ? { launchExtras: plan.launchExtras } : {}),
+    })
+  } catch (err) {
+    const missing = adapterUnavailable(err)
+    if (missing !== null) return ranWithoutStop(missing.debuggerMissing, missing.remedy)
+    return { result: `debug unavailable: ${err instanceof Error ? err.message : String(err)}`, outcome: 'failed' }
+  }
+  const stop = await session.waitForStopOutcome(20_000)
+  const state =
+    stop.state === 'stopped'
+      ? `stopped in '${stop.session.label}' — reason ${stop.info.reason}${stop.info.threadId !== undefined ? `, threadId ${stop.info.threadId}` : ''}`
+      : stop.state === 'terminated'
+        ? `debuggee terminated before any stop (${session.debuggeeEndDetail()}) — the test may have run to completion`
+        : 'still running (no stop within 20s) — inspect with the Debug tool'
+  return {
+    result:
+      `debugging ${input.node} (${plan.runner}) in Debug session '${sessionId}': ${state}${stop.state === 'stopped' ? `\n${plan.note}` : ''}\n` +
+      `continue with the Debug tool (op:"stack"/"scopes"/"variables"/"continue"; finish with op:"disconnect", session "${sessionId}")`,
+    outcome: stop.state === 'terminated' ? 'failed' : 'succeeded',
   }
 }
 
