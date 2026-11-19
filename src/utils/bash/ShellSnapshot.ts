@@ -15,7 +15,7 @@ import { pathExists } from '../file.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
 import { getPlatform } from '../platform.js'
-import { birthAfter, birthMark, endProcessBornAfter, endProcessBornAt, strikeProcessGroupNow, type BirthMark } from '../processGroup.js'
+import { birthAfter, birthMark, endMsysGroupBeside, endProcessBornAfter, endProcessBornAt, endProcessTree, strikeProcessGroupNow, type BirthMark } from '../processGroup.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { sleep } from '../sleep.js'
 import { loginExportsCarried, pathWithLoginEntries, subprocessEnv } from '../subprocessEnv.js'
@@ -83,6 +83,20 @@ function exportedBy(said: string, started: NodeJS.ProcessEnv): NodeJS.ProcessEnv
 
 const agentsOfTheSession = new Set<number>()
 
+const LOGIN_GROUP_MARK = '__MERCURY_LOGIN_GROUP__'
+const LOGIN_GROUP_LINE = new RegExp(`${LOGIN_GROUP_MARK}=(\\d+)\\n`)
+
+async function endGroupOfTheLoginRunOnWindows(shellPath: string, said: string): Promise<void> {
+  const group = Number(LOGIN_GROUP_LINE.exec(said)?.[1])
+  if (!Number.isSafeInteger(group) || group <= 1) return
+  try {
+    const ended = await endMsysGroupBeside(shellPath, group)
+    if (ended.length > 0) logForDebugging(`the login run ended ${ended.length} process(es) its files left in its group: ${ended.join(', ')}`)
+  } catch (error) {
+    logForDebugging(`the processes the login files left were not ended: ${errorMessage(error)}`)
+  }
+}
+
 async function settleAgentOfTheLoginFiles(exported: string | undefined, began: BirthMark | null, reached: boolean): Promise<void> {
   const pid = Number(exported)
   if (exported === undefined || agentsOfTheSession.has(pid)) return
@@ -125,12 +139,18 @@ function runBounded(
     let stdout = ''
     let stderr = ''
     const ownGroup = login && getPlatform() !== 'windows'
+    const windowsLogin = login && getPlatform() === 'windows'
     const askedAt = Date.now()
     const child = spawn(file, args, { windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'], detached: ownGroup })
     const began = ownGroup ? birthMark(child.pid, askedAt) : null
+    let treeEnded: Promise<unknown> = Promise.resolve()
     const end = (): void => {
       if (ownGroup) {
         strikeProcessGroupNow(child)
+        return
+      }
+      if (windowsLogin) {
+        if (child.exitCode === null && child.signalCode === null) treeEnded = endProcessTree(child, 'SIGKILL').catch(() => undefined)
         return
       }
       try {
@@ -157,7 +177,12 @@ function runBounded(
       process.removeListener('exit', end)
       process.removeListener('SIGQUIT', quit)
       if (ownGroup) end()
-      resolve(login ? { ...result, stdout: result.stdout.split('\0', 1)[0] ?? '', exported: exportedBy(stdout, env), began } : result)
+      const value = login ? { ...result, stdout: result.stdout.split('\0', 1)[0] ?? '', exported: exportedBy(stdout, env), began } : result
+      if (windowsLogin) {
+        void treeEnded.then(() => endGroupOfTheLoginRunOnWindows(file, stdout)).then(() => resolve(value))
+        return
+      }
+      resolve(value)
     }
     const read = (stream: NodeJS.ReadableStream, keep: (chunk: string) => void): void => {
       stream.setEncoding('utf8')
@@ -325,6 +350,7 @@ function buildCaptureScript(args: {
   const lines: string[] = []
 
   lines.push(`SNAPSHOT_FILE=${quote([snapshotFilePath])}`)
+  if (getPlatform() === 'windows') lines.push(`echo "${LOGIN_GROUP_MARK}=$$"`)
 
   if (configExists) {
     lines.push(`source ${quote([configFilePath])} < /dev/null`)

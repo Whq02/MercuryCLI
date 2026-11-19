@@ -312,6 +312,24 @@ async function sweepMsysTree(
   return struck
 }
 
+export async function endMsysGroupBeside(spawnfile: string, pgid: number): Promise<number[]> {
+  if (process.platform !== 'win32' || !Number.isSafeInteger(pgid) || pgid <= 1) return []
+  const ps = msysPsBeside(spawnfile)
+  if (ps === undefined) return []
+  const live = (await readMsysTable(ps))
+    .filter(row => row.pgid === pgid && row.winpid > 1 && row.winpid !== process.pid)
+    .map(row => row.winpid)
+    .filter(isAlivePid)
+  if (live.length === 0) return []
+  const { file, args } = win32TaskkillSweepCommand(live)
+  const stdout = await new Promise<string>(resolve => {
+    execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (_error, out) => {
+      resolve(typeof out === 'string' ? out : String(out ?? ''))
+    })
+  })
+  return taskkillActedPids(stdout)
+}
+
 async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTreeKillReceipt> {
   if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) return { ended: 0, survivors: [] }
   const msysPs = msysPsBeside(spawnfile)
