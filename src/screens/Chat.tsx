@@ -12,19 +12,14 @@ import { MessageActionsBar } from '../components/messageActions.js';
 import { FocusedSessionStatusRow } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
-import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
 import { useAgentNeedsYou } from '../hooks/useAgentNeedsYou.js';
-import { useMcpConnectivityStatus } from '../hooks/notifs/useMcpConnectivityStatus.js';
 import { fluxMark, fluxWhy } from '../utils/flux/fluxProbe.js';
 import { useMercuryTokens } from '../components/mercury-ui/useMercuryTokens.js';
 import { CockpitBottomStatus } from '../context/cockpitActiveContext.js';
 import { MercuryFrame } from '../components/MercuryFrame.js';
 import { useNotifications } from '../context/notifications.js';
 import { currentSurfaceRoute, subscribeSurfaceRoute } from '../context/surfaceRoute.js';
-import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
-import { useMergedCommands } from '../hooks/useMergedCommands.js';
-import { useMergedTools } from '../hooks/useMergedTools.js';
 import { useTurnEndPing } from '../hooks/useTurnEndPing.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { Box, Text, useTheme } from '../ink.js';
@@ -32,10 +27,9 @@ import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
 import { getShortcutDisplay } from '../keybindings/shortcutFormat.js';
-import { hasSeatLive, IDLE_LIVE, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
 import { useFocusedTailAnchor, useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
-import { getFocusedSessionConnector, hasFocusedSession, subscribeFocusedSessionConnector, subscribeThroughFocused, conversationIdHere } from '../services/engine-connector/focusedConnector.js';
+import { getFocusedSessionConnector, hasFocusedSession, conversationIdHere } from '../services/engine-connector/focusedConnector.js';
 import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
 import type { Tool } from '../Tool.js';
@@ -46,6 +40,7 @@ import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
 import { useChatBootLines, useChatBootNotices, useChatBootStart, useChatBootTips, useChatCrashResume } from './chat/useChatBoot.js';
 import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsView } from './chat/useChatDialogs.js';
 import { useChatDraft } from './chat/useChatDraft.js';
+import { getFocusedSeatLive, useChatFocusedSeat } from './chat/useChatFocusedSeat.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
 import { TranscriptFooter, TranscriptSearchBar, useChatSearch } from './chat/useChatSearch.js';
 import { useChatSelector, useChatSelectorView } from './chat/useChatSelector.js';
@@ -53,6 +48,7 @@ import { useChatConversation, useChatSession } from './chat/useChatSession.js';
 import { useChatSeatClock, useChatStatusStrip, useChatTurnBoundary, useChatTurnEnd, useChatTurnSignals } from './chat/useChatStatus.js';
 import { useChatReceipts, useChatSubmit, useChatSubmitTools } from './chat/useChatSubmit.js';
 import { AnimatedTitle, useChatTitle } from './chat/useChatTitle.js';
+import { useChatTools } from './chat/useChatTools.js';
 import { setCrashConversationLocator } from '../utils/crashReport.js';
 import { getProjectDir } from '../utils/sessionStoragePortable.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
@@ -74,13 +70,6 @@ export type Props = {
 const EMPTY_CONFIRM_QUEUE: ToolUseConfirm[] = [];
 const NO_STREAMING_TOOL_USES: StreamingToolUse[] = [];
 
-const subscribeFocusedSeatLive = subscribeThroughFocused((connector, listener) =>
-  hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {},
-);
-const getFocusedSeatLive = (): SessionLiveV1 => {
-  const connector = getFocusedSessionConnector();
-  return hasSeatLive(connector) ? connector.live() : IDLE_LIVE;
-};
 setCrashConversationLocator(() => {
   const sessionId = conversationIdHere();
   if (!hasFocusedSession()) return { sessionId, transcriptPath: null };
@@ -90,20 +79,6 @@ setCrashConversationLocator(() => {
     return { sessionId, transcriptPath: null };
   }
 });
-const subscribeFocusedModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener));
-const getFocusedEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective;
-const subscribeFocusedTail = subscribeThroughFocused((connector, listener) =>
-  hasSeatLive(connector) ? connector.tail().subscribe(listener) : () => {},
-);
-const getFocusedTailActive = (): boolean => {
-  const connector = getFocusedSessionConnector();
-  return hasSeatLive(connector) ? connector.tail().getSnapshot() !== null : false;
-};
-const getFocusedStatusKey = (): string => {
-  const connector = getFocusedSessionConnector();
-  return hasSeatLive(connector) ? `${connector.status().interrupting ? 1 : 0}` : '0';
-};
-
 const NO_MCP_CLIENTS: never[] = [];
 
 
@@ -158,16 +133,7 @@ export function Chat({
   const [virtualScrollEnabled] = useState(() => resolveTerminalExperience().virtualScroll.effective);
   const [terminalTitleEnabled] = useState(() => resolveTerminalExperience().terminalTitle.effective);
 
-  const focusedConnector = useSyncExternalStore(subscribeFocusedSessionConnector, getFocusedSessionConnector, getFocusedSessionConnector);
-  const seatLive = useSyncExternalStore(subscribeFocusedSeatLive, getFocusedSeatLive, getFocusedSeatLive);
-  const focusedEffectiveModel = useSyncExternalStore(subscribeFocusedModel, getFocusedEffectiveModel, getFocusedEffectiveModel);
-  const textActive = useSyncExternalStore(subscribeFocusedTail, getFocusedTailActive, getFocusedTailActive);
-  const interruptingKey = useSyncExternalStore(subscribeFocusedSeatLive, getFocusedStatusKey, getFocusedStatusKey);
-  const isStopping = interruptingKey === '1';
-  const focusedTail = hasSeatLive(focusedConnector) ? focusedConnector.tail() : null;
-  const isLoading = seatLive.inFlight;
-  const isLoadingRef = useRef(isLoading);
-  isLoadingRef.current = isLoading;
+  const { focusedConnector, seatLive, focusedEffectiveModel, textActive, interruptingKey, isStopping, focusedTail, isLoading, isLoadingRef } = useChatFocusedSeat();
 
   const { pendingModelSwitch } = useChatTurnBoundary({ isLoading, setAppState, addNotification });
 
@@ -178,21 +144,7 @@ export function Chat({
   const { showMessageSelector, setShowMessageSelector, openMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect } = useChatSelector();
   const { crashResumeStaged, setCrashResumeStaged, crashNoticeLatchedRef } = useChatCrashResume();
 
-  const mcpState = useAppState(state => state.mcp);
-  useEffect(() => {
-    publishMcpConnections(mcpState.clients);
-  }, [mcpState.clients]);
-  useMcpConnectivityStatus({ mcpClients: mcpState.clients });
-  const toolPermissionContext = useAppState(state => state.toolPermissionContext);
-  const agentDefinitions = useAppState(state => state.agentDefinitions);
-  const verbose = useAppState(state => state.verbose);
-  const spinnerTip = useAppState(state => state.spinnerTip);
-  const commands = useMergedCommands(initialCommands, mcpState.commands);
-  const mergedTools = useMergedTools(initialTools, mcpState.tools, toolPermissionContext);
-  const commandsRef = useRef(commands);
-  commandsRef.current = commands;
-  const apiKeyVerification = useApiKeyVerification();
-
+  const { mcpState, toolPermissionContext, agentDefinitions, verbose, spinnerTip, commands, mergedTools, commandsRef, apiKeyVerification } = useChatTools({ initialCommands, initialTools });
 
   const { scrollRef, scrollRestoreRef, modalScrollRef, lastUserScrollAtRef, repinToBottom, noteUserScroll } = useChatScrollPin();
   const { isPromptInputActive, setInputValue, setInputMode, setPastedContents, authWallHold, insertTextRef, vimMode, setVimMode, isSearchingHistory, setIsSearchingHistory, helpOpen, setHelpOpen } = useChatDraft({ messages, fullscreen, repinToBottom, lastUserScrollAtRef });
