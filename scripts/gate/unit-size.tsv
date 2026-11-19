@@ -1,5 +1,3 @@
-src/components/agents/studio/studioEditorModel.ts	unit	createStudioEditorMachine	440
-src/hooks/useVirtualScroll.ts	unit	useVirtualScroll	639
 src/ink/components/App.tsx	unit	App	508
 src/ink/compose-buffer.ts	unit	ComposeBuffer	305
 src/ink/ink.tsx	file	-	2060
