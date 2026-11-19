@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, posix as posixPath } from 'node:path'
-import { createAndSaveSnapshot } from '../bash/ShellSnapshot.js'
+import { createAndSaveSnapshot, loginRunFailed } from '../bash/ShellSnapshot.js'
 import { quote } from '../bash/shellQuote.js'
 import { rearrangePipeCommand } from '../bash/bashPipeCommand.js'
 import {
@@ -31,9 +31,9 @@ function shellPrefix(): string {
 
 let frameFiles = 0
 
-function msysSpawnArgs(commandString: string, snapshotSourced: boolean): string[] {
+function msysSpawnArgs(commandString: string, noLoginFiles: boolean): string[] {
   const script = protectBackslashRunsFromMsysArgv(commandString)
-  return snapshotSourced ? ['-c', script] : ['-c', '-l', script]
+  return noLoginFiles ? ['-c', script] : ['-c', '-l', script]
 }
 
 function markFrameRead(cwdFileInShell: string): string {
@@ -105,15 +105,15 @@ export async function createBashShellProvider(
       if (!isWindows) commandString = `${markFrameRead(cwdFileInShell)}; ${commandString}`
 
       if (isWindows) {
-        const snapshotSourced = snapshot !== undefined
+        const noLoginFiles = snapshot !== undefined || loginRunFailed(shellPath)
         const handOver = (env: NodeJS.ProcessEnv, cwd?: string): FrameHandOver => {
           const { frame, ...where } =
             cwd !== undefined && cwd.length > WINDOWS_STARTS_A_PROGRAM_IN
               ? { frame: `cd -- ${quote([windowsPathToPosixPath(cwd)])} || exit; ${commandString}`, startIn: folderWindowsStartsIn(cwd) }
               : { frame: commandString }
-          if (msysArgvCarries(frame, env)) return { args: msysSpawnArgs(frame, snapshotSourced), ...where }
+          if (msysArgvCarries(frame, env)) return { args: msysSpawnArgs(frame, noLoginFiles), ...where }
           const own = `-${process.pid}-${frameFiles++}-frame`
-          return { args: msysSpawnArgs(msysSourceLine(`${cwdFileInShell}${own}`), snapshotSourced), file: { path: join(nativeTmp, `${name}${own}`), text: frame }, ...where }
+          return { args: msysSpawnArgs(msysSourceLine(`${cwdFileInShell}${own}`), noLoginFiles), file: { path: join(nativeTmp, `${name}${own}`), text: frame }, ...where }
         }
         return { commandString, cwdFilePath: cwdFileForEngine, handOver, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
       }
@@ -122,7 +122,7 @@ export async function createBashShellProvider(
 
     getSpawnArgs(commandString: string): string[] {
       if (getPlatform() !== 'windows') return ['-c', commandString]
-      return msysSpawnArgs(commandString, usedSnapshotThisExecution)
+      return msysSpawnArgs(commandString, usedSnapshotThisExecution || loginRunFailed(shellPath))
     },
 
     async getEnvironmentOverrides(_command: string): Promise<Record<string, string>> {

@@ -443,6 +443,11 @@ function accountShell(): string | undefined {
 
 let carriedFromZsh: NodeJS.ProcessEnv | undefined
 const carriedFromBash = new Map<string, NodeJS.ProcessEnv>()
+const loginRunsThatFailed = new Set<string>()
+
+export function loginRunFailed(shellPath: string): boolean {
+  return loginRunsThatFailed.has(shellPath)
+}
 
 export function loginExports(shellPath: string): NodeJS.ProcessEnv | undefined {
   return carriedFromZsh ?? carriedFromBash.get(shellPath)
@@ -563,6 +568,7 @@ export async function createAndSaveSnapshot(
         ].join('\n'),
       )
       logError(`shell snapshot creation failed: ${absence.why} (${shellPath})`)
+      if (session && getPlatform() === 'windows') loginRunsThatFailed.add(shellPath)
       return nothing(absence)
     }
 
@@ -577,6 +583,7 @@ export async function createAndSaveSnapshot(
       } catch {
         logForDebugging(`snapshots directory ${snapshotsDir} no longer exists`)
       }
+      if (session && getPlatform() === 'windows') loginRunsThatFailed.add(shellPath)
       return nothing(LOGIN_RUN_HANDED_OVER)
     }
 
