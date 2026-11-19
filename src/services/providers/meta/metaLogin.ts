@@ -142,8 +142,12 @@ function otherSourceTail(active: MetaSourceKind, env: NodeJS.ProcessEnv = proces
 export function activateMetaSource(
   kind: MetaSourceKind,
   env: NodeJS.ProcessEnv = process.env,
-): { ok: true; receipt: string } {
-  writePreferredMetaSource(kind)
+): { ok: boolean; receipt: string } {
+  try {
+    writePreferredMetaSource(kind)
+  } catch (error) {
+    return { ok: false, receipt: `Could not make it the active source: ${errorMessageWithCause(error)}` }
+  }
   const named = kind === 'api-key' ? 'the API key' : 'the Muse Code sign-in'
   return {
     ok: true,

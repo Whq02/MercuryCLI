@@ -164,6 +164,17 @@ else {
   check('the writer refuses and the file stands byte for byte, its grant with it', threw !== null && r.same === true, threw === null ? 'it returned as if it had written, and the grant is gone' : JSON.stringify(threw))
   check('the refusal says what could not be read, the code, that nothing was written and what to do', threw?.message === words && threw.code === 'EACCES', `said: ${threw?.message ?? '(nothing)'} — wanted: ${words}`)
   check('the refusal holds no secret and nothing is kept aside', threw !== null && !threw.message.includes('fixture-muse') && (r.copies as string[]).length === 0)
+  const activate = runIn(`
+    const login = await import(${JSON.stringify(join(SRC, 'services/providers/meta/metaLogin.ts'))})
+    const FULL = ${JSON.stringify(JSON.stringify(FULL_META, null, 2) + '\n')}
+    fs.writeFileSync(metaFile, FULL, { mode: 0o600 })
+    fs.chmodSync(metaFile, 0o200)
+    out.outcome = attempt(() => { out.answered = login.activateMetaSource('api-key') })
+    fs.chmodSync(metaFile, 0o600)
+    out.same = raw(metaFile) === FULL
+  `)
+  const answered = activate.answered as { ok?: boolean; receipt?: string } | undefined
+  check('making a Meta source active answers a receipt that says why and is not ok, and the file stands', activate.outcome === null && answered?.ok === false && answered.receipt === `Could not make it the active source: ${words.replace(String(r.metaFile), String(activate.metaFile))}` && activate.same === true, `${JSON.stringify(activate.outcome ?? answered)} · file ${activate.same === true ? 'kept' : 'replaced'}`)
 }
 
 console.log('the auth file beside it — not valid JSON, or JSON that is no object: kept aside before the new one is written')

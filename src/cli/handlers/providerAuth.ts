@@ -416,11 +416,18 @@ export async function providerAuthLogout(familyRaw?: string, io: ProviderAuthIo 
     return { ok: true, code: 0, receipt: note }
   }
   const notes: string[] = []
+  let refused = false
   for (const slot of removable) {
     const outcome = executeSlotRemoval(slot)
     notes.push(outcome.note)
+    if (outcome.refused === true) refused = true
   }
   const receipt = notes.join(' ')
+  if (refused) {
+    err(`${receipt}\n`)
+    io.exit?.(1)
+    return { ok: false, code: 1, receipt }
+  }
   out(`${receipt}\n`)
   io.exit?.(0)
   return { ok: true, code: 0, receipt }

@@ -72,8 +72,12 @@ function geminiSourceRides(kind: GeminiStoredSourceKind): string {
   return kind === 'api-key' ? GEMINI_KEY_RIDES : kind === 'plan' ? GEMINI_PLAN_RIDES : GEMINI_ACCOUNT_RIDES
 }
 
-export function activateGeminiSource(kind: GeminiStoredSourceKind): { ok: true; receipt: string } {
-  writePreferredGeminiSource(kind)
+export function activateGeminiSource(kind: GeminiStoredSourceKind): { ok: boolean; receipt: string } {
+  try {
+    writePreferredGeminiSource(kind)
+  } catch (error) {
+    return { ok: false, receipt: `Could not make it the active source: ${errorMessageWithCause(error)}` }
+  }
   const facts = liveGeminiStoredSourceFacts()
   const named = kind === 'api-key' ? 'the API key' : sourceWords(kind, facts)
   return { ok: true, receipt: `Gemini: ${named} is now the active source — ${geminiSourceRides(kind)}.${otherSourceTail(kind)}` }

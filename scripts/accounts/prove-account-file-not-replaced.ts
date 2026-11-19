@@ -229,6 +229,37 @@ for (const family of FAMILIES) {
   }
 }
 
+console.log('\nthe sign-out of a slot and the choice of the active source — the refusal reaches the screen as the note, and the file stands')
+if (!POSIX_MODES) skip('the refused sign-out', 'a mode-0200 file needs a POSIX process that is not root')
+else {
+  for (const [family, route] of [[FAMILIES[0]!, 'gemini-oauth'], [FAMILIES[1]!, 'huggingface-oauth'], [FAMILIES[2]!, 'moonshot-oauth']] as const) {
+    const r = runIn(family, `
+      const removal = await import(${JSON.stringify(join(SRC, 'services/providers/accountSlots/removal.ts'))})
+      fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(file, FULL, { mode: 0o600 })
+      fs.chmodSync(file, 0o200)
+      out.outcome = attempt(() => { out.answered = removal.executeSlotRemoval({ id: 'fixture-slot', family: ${JSON.stringify(family.id)}, kind: 'oauth', removal: { route: ${JSON.stringify(route)} } }) })
+      fs.chmodSync(file, 0o600)
+      out.same = raw(file) === FULL
+    `)
+    const answered = r.answered as { note?: string; mutated?: boolean; refused?: boolean } | undefined
+    const words = `Could not sign out: The ${family.label} auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.`
+    check(`${family.label}: the sign-out answers a note that says why, changes nothing and says it was refused`, r.outcome === null && answered?.note === words && answered.mutated === false && answered.refused === true && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'}`)
+  }
+  const gemini = FAMILIES[0]!
+  const r = runIn(gemini, `
+    const login = await import(${JSON.stringify(join(SRC, 'services/providers/gemini/geminiLogin.ts'))})
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(file, FULL, { mode: 0o600 })
+    fs.chmodSync(file, 0o200)
+    out.outcome = attempt(() => { out.answered = login.activateGeminiSource('api-key') })
+    fs.chmodSync(file, 0o600)
+    out.same = raw(file) === FULL
+  `)
+  const answered = r.answered as { ok?: boolean; receipt?: string } | undefined
+  check('Gemini: making a source active answers a receipt that says why and is not ok', r.outcome === null && answered?.ok === false && answered.receipt === `Could not make it the active source: The Gemini auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.` && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'}`)
+}
+
 console.log('\nMoonshot — the served-model note, whose caller drops the refusal, leaves an unreadable file as it stands')
 if (!POSIX_MODES) skip('the dropped refusal', 'a mode-0200 file needs a POSIX process that is not root')
 else {
