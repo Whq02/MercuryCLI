@@ -119,5 +119,73 @@ else {
   )
 }
 
+console.log('\ngitFilesystem.ts — unreadable packed-refs, loose ref, symref and worktrees dir reject instead of returning empty')
+if (!POSIX_MODES) skip('gitFilesystem:unreadable-files-reject', 'mode 0000 needs POSIX non-root')
+else {
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const repo = path.join(PROJECT, 'repo')
+    const gitDir = path.join(repo, '.git')
+    fs.mkdirSync(path.join(gitDir, 'refs', 'heads'), { recursive: true })
+    fs.mkdirSync(path.join(gitDir, 'refs', 'remotes', 'origin'), { recursive: true })
+    fs.writeFileSync(path.join(gitDir, 'HEAD'), 'ref: refs/heads/main\\n')
+    const packed = path.join(gitDir, 'packed-refs')
+    fs.writeFileSync(packed, '0123456789abcdef0123456789abcdef01234567 refs/heads/main\\n')
+    process.chdir(repo)
+    const gf = await import(SRC + '/utils/git/gitFilesystem.ts')
+    out.absentWorktrees = await gf.getWorktreeCountFromFs()
+    fs.chmodSync(packed, 0o000)
+    gf.regroundGitWatch()
+    try {
+      await gf.getCachedHead()
+      out.packedErr = null
+    } catch (e) {
+      out.packedErr = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(packed, 0o600)
+    }
+    const loose = path.join(gitDir, 'refs', 'heads', 'main')
+    fs.writeFileSync(loose, '0123456789abcdef0123456789abcdef01234567\\n')
+    fs.chmodSync(loose, 0o000)
+    gf.regroundGitWatch()
+    try {
+      await gf.getCachedHead()
+      out.looseErr = null
+    } catch (e) {
+      out.looseErr = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(loose, 0o600)
+    }
+    const sym = path.join(gitDir, 'refs', 'remotes', 'origin', 'HEAD')
+    fs.writeFileSync(sym, 'ref: refs/remotes/origin/main\\n')
+    fs.chmodSync(sym, 0o000)
+    gf.regroundGitWatch()
+    try {
+      await gf.getCachedDefaultBranch()
+      out.symErr = null
+    } catch (e) {
+      out.symErr = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(sym, 0o600)
+    }
+    const wtDir = path.join(gitDir, 'worktrees')
+    fs.mkdirSync(wtDir, { recursive: true })
+    fs.chmodSync(wtDir, 0o000)
+    try {
+      await gf.getWorktreeCountFromFs()
+      out.wtErr = null
+    } catch (e) {
+      out.wtErr = e?.code ?? String(e)
+    } finally {
+      fs.chmodSync(wtDir, 0o700)
+    }
+  `)
+  check('gitFilesystem:unreadable-loose-ref-rejects', r.looseErr === 'EACCES', JSON.stringify(r))
+  check('gitFilesystem:unreadable-packed-refs-rejects', r.packedErr === 'EACCES', JSON.stringify(r))
+  check('gitFilesystem:unreadable-symref-rejects', r.symErr === 'EACCES', JSON.stringify(r))
+  check('gitFilesystem:unreadable-worktrees-dir-rejects', r.absentWorktrees === 1 && r.wtErr === 'EACCES', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
