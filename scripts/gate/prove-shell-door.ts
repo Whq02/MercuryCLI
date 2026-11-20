@@ -144,14 +144,10 @@ const UNREAD: Array<[string, number]> = [
 
 const GRAMMAR_READERS: Array<[string, number]> = [
   ['src/tools/AgentTool/reviewerPolicy.ts', 3],
-  ['src/tools/BashTool/bashCommandHelpers.ts', 1],
   ['src/tools/BashTool/bashPermissions.ts', 7],
   ['src/tools/BashTool/denyRuleReach.ts', 32],
-  ['src/tools/BashTool/readOnlyValidation.ts', 1],
   ['src/utils/bash/ast.ts', 89],
-  ['src/utils/bash/ast/preCheck.ts', 4],
   ['src/utils/permissions/flowLaw.ts', 27],
-  ['src/utils/permissions/serviceInputHistory.ts', 5],
   ['src/utils/permissions/shellProtectedPaths/walk.ts', 4],
   ['src/utils/wards/wardsShellRead.ts', 69],
 ]
@@ -420,7 +416,7 @@ section("(5) the walker — files under src/ outside the walker folder and parse
   const PARSER = 'src/utils/bash/parser.ts'
   const BASH_PARSER = 'src/utils/bash/bashParser.ts'
   const COMPLETION = 'src/utils/bash/shellCompletion.ts'
-  const SEED_WALKERS = ['src/utils/bash/ast.ts', 'src/utils/bash/ast/preCheck.ts', 'src/utils/wards/wardsShellRead.ts']
+  const SEED_WALKERS = ['src/utils/bash/ast.ts', 'src/utils/wards/wardsShellRead.ts']
   const WRITE = process.argv.includes('--write')
   const EQUALITY = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken])
   const SHARED_WORDS = new Set(['string', 'number', 'local', 'done', 'readonly', 'list', 'command', 'comment', 'ERROR', 'function_definition', 'compound_statement'])
