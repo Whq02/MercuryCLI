@@ -522,17 +522,17 @@ async function w08_10_browserAndPathOpenFailuresSurfaced(): Promise<void> {
     const gotPathErr = pathErr as string | null
     check('w08-10: openPath hands error message beside false for missing path', pOk === false && gotPathErr !== null && gotPathErr.length > 0, JSON.stringify({ pOk, gotPathErr }))
 
-    let memoryOpenErr: string | null = null
-    const memDir = join(dir, 'mem')
-    mkdirSync(memDir)
+    let folderOpenErr: string | null = null
+    const notesDir = join(dir, 'notes')
+    mkdirSync(notesDir)
     openMemoryFolder(
-      memDir,
+      notesDir,
       { mkdirSync, openPath: async () => false },
-      (msg: string) => { memoryOpenErr = msg },
+      (msg: string) => { folderOpenErr = msg },
     )
     await new Promise<void>(resolve => setTimeout(resolve, 30))
-    const gotMemErr = memoryOpenErr as string | null
-    check('w08-10: MemoryFileSelector openMemoryFolder reports failed open via callback', gotMemErr !== null && gotMemErr.includes('could not be opened (') && gotMemErr.includes('open it yourself'), JSON.stringify(gotMemErr))
+    const gotFolderErr = folderOpenErr as string | null
+    check('w08-10: MemoryFileSelector openMemoryFolder reports failed open via callback', gotFolderErr !== null && gotFolderErr.includes('could not be opened (') && gotFolderErr.includes('open it yourself'), JSON.stringify(gotFolderErr))
 
     const stdinStream = new PassThrough()
     const stdin = Object.assign(stdinStream, { isTTY: true, isRaw: false, setRawMode() { return this }, unref() { return this }, ref() { return this } }) as unknown as NodeJS.ReadStream
@@ -575,6 +575,28 @@ async function w08_10_browserAndPathOpenFailuresSurfaced(): Promise<void> {
   }
 }
 
+async function w08_11_videoProviderSettingReadErrorWithheldWhy(): Promise<void> {
+  const { enableConfigs, saveGlobalConfig } = await import(join(SRC, 'utils/config/globalConfig.ts'))
+  const { resetSettingsCache } = await import(join(SRC, 'utils/settings/settingsCache.ts'))
+  const { videoToolEnabled } = await import(join(SRC, 'services/video/registry.ts'))
+  const { withheldTools } = await import(join(SRC, 'utils/withheldTools.ts'))
+  enableConfigs()
+  saveGlobalConfig((prev: Record<string, unknown>) => ({ ...prev, videoProvider: { bad: { kind: 'unknown-provider' } } }))
+  resetSettingsCache()
+  try {
+    check('w08-11: videoToolEnabled returns false without throwing on invalid videoProvider', videoToolEnabled() === false)
+    const videoRow = withheldTools().find((w: { tool: string }) => w.tool === 'Video')
+    check('w08-11: withheldTools explains videoProvider setting could not be read', videoRow !== undefined && videoRow.why.includes('the videoProvider setting could not be read (') && videoRow.why.includes('fix it in settings'), JSON.stringify(videoRow))
+  } finally {
+    saveGlobalConfig((prev: Record<string, unknown>) => {
+      const next = { ...prev }
+      delete next.videoProvider
+      return next
+    })
+    resetSettingsCache()
+  }
+}
+
 const rows: Array<() => Promise<void>> = [
   w08_1_sedUncompilablePatternFallsBackToRealSed,
   w08_2_serviceListAndStatusReportReadErrors,
@@ -586,6 +608,7 @@ const rows: Array<() => Promise<void>> = [
   w08_8_contextUnserializableToolAndMessageBlockNoted,
   w08_9_gitOperationTrackingPrLinkFailureSurfaced,
   w08_10_browserAndPathOpenFailuresSurfaced,
+  w08_11_videoProviderSettingReadErrorWithheldWhy,
 ]
 for (const row of rows) {
   try {
