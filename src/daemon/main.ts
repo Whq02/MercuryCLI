@@ -41,7 +41,7 @@ import {
   getProcessStartInstantAsync,
   getProcessStartToken,
   getProcessStartTokenAsync,
-} from './ownerWatch.js'
+} from '../utils/ownerWatch.js'
 import { startControlServer } from './controlServer.js'
 import { DAEMON_USAGE, parseDaemonVerb, daemonRecordIdentity } from './verbs.js'
 import { hostedCallerOf, hostedCallerRefusalLine, restartEndsHostedCaller } from './hostedCaller.js'

@@ -1,4 +1,4 @@
-import { isProcessAlive } from './ownerWatch.js'
+import { isProcessAlive } from '../utils/ownerWatch.js'
 
 export const CLIENT_PRESENCE_BEAT_MS = 10_000
 export const CLIENT_PRESENCE_STALE_MS = 3 * CLIENT_PRESENCE_BEAT_MS

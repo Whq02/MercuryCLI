@@ -8,7 +8,7 @@ import { readCurrentVersion, resolveLayoutRoots } from '../services/privateChann
 import { payloadVendoredRuntime } from '../services/privateChannel/vendoredRuntime.js'
 import { controlSockPath } from './controlSocket.js'
 import { selfScriptPath, vendoredNodeBeside } from './daemonBuild.js'
-import { isProcessAlive } from './ownerWatch.js'
+import { isProcessAlive } from '../utils/ownerWatch.js'
 import { encodeFrame, readControlFrame, type DaemonReply } from './protocol.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
 

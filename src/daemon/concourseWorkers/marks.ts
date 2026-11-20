@@ -1,4 +1,4 @@
-import { getProcessStartInstant, getProcessStartInstantCachedOrRefresh } from '../ownerWatch.js'
+import { getProcessStartInstant, getProcessStartInstantCachedOrRefresh } from '../../utils/ownerWatch.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { runningBuildTree } from '../../utils/artifactIdentity.js'
 import { readSessionWorkers, rememberUnstampedRunnerPid, updateConcourseWorkers } from './store.js'

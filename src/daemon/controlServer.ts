@@ -31,7 +31,7 @@ import {
   daemonStatePath,
   verifyControlAuth,
 } from './controlSocket.js'
-import { isProcessAlive } from './ownerWatch.js'
+import { isProcessAlive } from '../utils/ownerWatch.js'
 import { predecessorSockPidOf } from './handover.js'
 import { clientPresenceKindOf, noteClientPresence } from './clientPresence.js'
 import { validateSessionKit, validateSessionKitEdit, type SessionKitEditV1, type SessionKitV1 } from './sessionKit.js'

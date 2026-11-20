@@ -10,7 +10,7 @@ import {
   readDaemonState,
   daemonStatePath,
 } from './controlSocket.js'
-import { getProcessStartInstantAsync, getProcessStartTokenAsync, isProcessAlive } from './ownerWatch.js'
+import { getProcessStartInstantAsync, getProcessStartTokenAsync, isProcessAlive } from '../utils/ownerWatch.js'
 import { daemonRecordIdentity } from './verbs.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 import { getErrnoCode } from '../utils/errors.js'

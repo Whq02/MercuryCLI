@@ -49,9 +49,9 @@ let memberBirth: string | null = null
 let memberProbes = 0
 let memberProbesAtAsk = -1
 
-const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
+const ownerWatch = await import('../../src/utils/ownerWatch.ts')
 const real = { isProcessAlive: ownerWatch.isProcessAlive, getProcessStartTokenAsync: ownerWatch.getProcessStartTokenAsync }
-mock.module('../../src/daemon/ownerWatch.ts', () => ({
+mock.module('../../src/utils/ownerWatch.ts', () => ({
   ...ownerWatch,
   isProcessAlive: (pid: number) => (pid === STAND_IN_PID ? alive : pid === MEMBER_PID ? memberAlive : real.isProcessAlive(pid)),
   getProcessStartTokenAsync: async (pid: number, like?: string | null) => {

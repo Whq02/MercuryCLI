@@ -10,7 +10,7 @@ import { sleep } from '../utils/sleep.js'
 import { readSessionWorkersSnapshot, stampedTerminalPid, type ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 import { daemonControlRpc, daemonDir } from './controlSocket.js'
 import { sessionParkDrainMs } from './idleRetirement.js'
-import { getProcessStartInstantAsync } from './ownerWatch.js'
+import { getProcessStartInstantAsync } from '../utils/ownerWatch.js'
 import type { DaemonReply, DaemonRequest } from './protocol.js'
 import {
   PROCESS_SWEEP_WORDS,

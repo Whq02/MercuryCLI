@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const workers = await import(join(SRC, 'daemon/concourseWorkers.ts'))
-const ownerWatch = await import(join(SRC, 'daemon/ownerWatch.ts'))
+const ownerWatch = await import(join(SRC, 'utils/ownerWatch.ts'))
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {

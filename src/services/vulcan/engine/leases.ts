@@ -6,7 +6,7 @@ import { logForDebugging } from '../../../utils/debug.js'
 import { procStartToken } from '../../../utils/genericProcessUtils.js'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { holderAlive } from '../../../substrate/pidLock.js'
-import { getProcessStartTokensAsync } from '../../../daemon/ownerWatch.js'
+import { getProcessStartTokensAsync } from '../../../utils/ownerWatch.js'
 import { selectedTreeChanges, type ProofTreeFacts } from './proofDrift.js'
 import { passedOver } from '../../../utils/passedOver.js'
 

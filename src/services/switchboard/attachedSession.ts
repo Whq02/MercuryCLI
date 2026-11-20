@@ -37,7 +37,7 @@ export async function healStaleAttachRecords(): Promise<number> {
   let healed = 0
   try {
     const sup = await import('../../daemon/concourseWorkers.js')
-    const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
+    const { isProcessAlive } = await import('../../utils/ownerWatch.js')
     for (const rec of Object.values(sup.readSessionWorkers())) {
       if (rec.endedAt !== undefined || rec.attachedAt === undefined) continue
       const pid = /^operator:(\d+)$/.exec(rec.attachedBy ?? '')?.[1]

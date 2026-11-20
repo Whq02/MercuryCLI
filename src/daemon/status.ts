@@ -19,7 +19,7 @@ import { daemonHandshakeEvidence, handshakeDaemon, type DaemonHandshakeVerdict }
 import { MERCURY_DAEMON_PROTO, type WireRosterEntry, type WireStatus } from './protocol.js'
 import { GLYPH } from '../utils/glyphs.js'
 import { forwardFrame, predecessorSockPath, predecessorSockPidOf } from './handover.js'
-import { isProcessAlive } from './ownerWatch.js'
+import { isProcessAlive } from '../utils/ownerWatch.js'
 import { readdirSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
