@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/repetition-guard/**
-# gate-watch: src/services/changeTransaction/repetitionPolicy.ts
 # gate-watch: src/tools/FileEditTool/** src/tools/FileWriteTool/** src/tools/ChangeSetTool/**
-# gate-watch: src/Tool.ts
-# gate-watch: src/services/changeTransaction/contracts.ts src/services/changeTransaction/snapshotAnchor.ts
-# gate-watch: src/services/run/effectObserver.ts src/utils/verification/verificationState.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

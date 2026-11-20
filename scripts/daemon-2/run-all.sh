@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: scripts/daemon/**
-# gate-watch: src/daemon/** src/types/permissions* src/components/SwitchboardTagBar.tsx
-# gate-watch: src/utils/boxLock* src/services/resources/adapters/health*
+# gate-watch: src/daemon/**
+# gate-watch: src/services/resources/adapters/health*
 # gate-watch: docs/DURABILITY.md
 # gate-watch: src/services/concourse/concourseEnabled.ts
-# gate-watch: src/tools/MonitorTool/** src/tools/ScheduleCronTool/** src/utils/cron.ts src/services/engine-connector/seatWire.ts
-# gate-watch: src/cli/headless/runnerAsks.ts src/cli/run* src/services/saturn/** src/tools/ScheduleWakeupTool/**
+# gate-watch: src/tools/MonitorTool/** src/tools/ScheduleCronTool/**
+# gate-watch: src/cli/headless/runnerAsks.ts src/cli/run* src/tools/ScheduleWakeupTool/**
 # gate-watch: scripts/dap/mock-dap-adapter.mjs
 # gate-watch: scripts/lib/* scripts/staleness/prove-stale-registry.ts
 # gate-watch: scripts/ops/deploy-runtime.sh scripts/ops/launcher-mercury.sh scripts/ops/deploy-launcher.sh scripts/splash/deploy.sh docs/TERMINAL-RUNTIME.md
-# gate-watch: src/cli/update.ts src/services/privateChannel/installLayout.ts src/services/privateChannel/vendoredRuntime.ts package.json
-# gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/services/privateChannel/installLayout.ts package.json
+# gate-watch: src/rows/*
 # gate-watch: scripts/lib/seatDoor.ts
 # gate-watch: src/tasks/LocalAgentTask/* src/input-core/*
 # gate-watch: src/cli/headless/*

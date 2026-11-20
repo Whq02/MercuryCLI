@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: scripts/switchboard/**
-# gate-watch: src/services/concourse/** src/components/concourse/**
+# gate-watch: src/components/concourse/**
 # gate-watch: src/services/switchboard/attachedSession.ts
-# gate-watch: src/constants/prompts.ts
 # gate-watch: src/screens/chat/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

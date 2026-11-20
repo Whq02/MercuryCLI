@@ -4,7 +4,7 @@
 # gate-watch: scripts/lib/fixtureApi.ts
 # gate-watch: scripts/streaming/artifactArena.ts
 # gate-watch: src/components/HelpV2/commandDomains.ts src/components/PromptInput/PromptInput.tsx
-# gate-watch: src/services/crew/obligations.ts src/services/crew/obligationsBridge.ts
+# gate-watch: src/services/crew/obligationsBridge.ts
 # gate-watch: src/utils/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

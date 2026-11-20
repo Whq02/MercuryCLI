@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: scripts/daemon/**
-# gate-watch: src/daemon/** src/types/permissions* src/components/SwitchboardTagBar.tsx
-# gate-watch: src/utils/boxLock* src/services/resources/adapters/health*
-# gate-watch: src/utils/spawnLedger* docs/DURABILITY.md
-# gate-watch: src/tools/MonitorTool/** src/tools/ScheduleCronTool/** src/utils/cron.ts
-# gate-watch: src/cli/headless/turnDriver* src/cli/headless/runnerAsks.ts src/cli/run* src/tools/ScheduleWakeupTool/**
+# gate-watch: src/daemon/**
+# gate-watch: src/services/resources/adapters/health*
+# gate-watch: docs/DURABILITY.md
+# gate-watch: src/tools/MonitorTool/** src/tools/ScheduleCronTool/**
+# gate-watch: src/cli/headless/runnerAsks.ts src/cli/run* src/tools/ScheduleWakeupTool/**
 # gate-watch: docs/SESSIONS.md scripts/dap/mock-dap-adapter.mjs scripts/journey/switch-fixture-server.ts
 # gate-watch: scripts/lib/* scripts/staleness/prove-stale-registry.ts
 # gate-watch: scripts/streaming/turn-end-fixture-server.ts
 # gate-watch: scripts/ops/deploy-runtime.sh scripts/ops/launcher-mercury.sh scripts/ops/deploy-launcher.sh scripts/splash/deploy.sh docs/TERMINAL-RUNTIME.md
-# gate-watch: src/utils/healthReport.ts src/cli/update.ts src/services/privateChannel/installLayout.ts src/services/privateChannel/vendoredRuntime.ts package.json
+# gate-watch: src/services/privateChannel/installLayout.ts package.json
 # gate-watch: src/rows/*
 # gate-watch: src/tasks/LocalAgentTask/* src/input-core/*
 # gate-watch: src/cli/headless/*

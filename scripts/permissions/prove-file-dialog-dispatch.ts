@@ -161,16 +161,16 @@ const inside = join(PROJ, 'target.txt')
 const outside = join(HOME, 'target.txt')
 writeFileSync(inside, 'inside')
 writeFileSync(outside, 'outside')
+const missing = join(PROJ, 'missing.txt')
 const links = [
   { path: join(PROJ, 'inside-link.txt'), target: inside, warning: `Symlink target: ${inside}` },
   { path: join(PROJ, 'outside-link.txt'), target: outside, warning: `This operation will modify ${outside} — outside the working directory via a symlink` },
+  { path: join(PROJ, 'dangling.txt'), target: missing, warning: `Symlink target: ${missing}` },
 ]
 for (const link of links) symlinkSync(link.target, link.path)
-const dangling = join(PROJ, 'dangling.txt')
-symlinkSync(join(PROJ, 'missing.txt'), dangling)
 const compact = (text: string): string => text.replace(/[│\s]+/g, '')
 for (const operationType of ['write', 'read'] as const) {
-  for (const entry of [...links, ...[inside, dangling, null].map(path => ({ path, target: '', warning: '' }))]) {
+  for (const entry of [...links, ...[inside, null].map(path => ({ path, target: '', warning: '' }))]) {
     const card = React.createElement(FilePermissionDialog, {
       toolUseConfirm: { ...toolUseConfirm, input: { file_path: entry.path }, permissionResult: { behavior: 'ask' } } as never,
       onDone,

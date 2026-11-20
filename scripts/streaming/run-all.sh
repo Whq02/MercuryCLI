@@ -3,7 +3,7 @@
 # gate-watch: src/components/Markdown* src/ink/**
 # gate-watch: src/utils/**
 # gate-watch: scripts/lib/*
-# gate-watch: src/services/engine-connector/* src/services/providers/streamIdleBudget.ts
+# gate-watch: src/services/engine-connector/*
 # gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

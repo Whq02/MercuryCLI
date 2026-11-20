@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
-import { registerOnlyRequested } from '../lib/generated-assets-map.mjs'
+import { executableBit, indexedExecutables, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { canonicalJson } from '../../src/extensions/manifest.js'
 import { bootstrapManifest } from '../../src/extensions/bundled/shared/bootstrap.mjs'
 
@@ -13,18 +13,40 @@ const ROW = {
   build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
-const root = resolve(import.meta.dir, '../../src/extensions/bundled')
+const rootFlag = process.argv.indexOf('--root')
+const root = rootFlag === -1 ? resolve(import.meta.dir, '../../src/extensions/bundled') : resolve(process.argv[rootFlag + 1]!)
+const target = join(root, 'content.generated.ts')
+const PAYLOADS = 'export const bundledPayloads: Record<string, Record<string, string | { base64: string; executable: boolean }>> = '
 type Payload = string | { base64: string; executable: boolean }
+const current = existsSync(target) ? readFileSync(target, 'utf8') : null
+function committedExecutables(): Set<string> {
+  const out = new Set<string>()
+  const at = current === null ? -1 : current.indexOf(PAYLOADS)
+  if (current === null || at === -1) return out
+  let recorded: Record<string, Record<string, Payload>>
+  try {
+    recorded = JSON.parse(current.slice(at + PAYLOADS.length))
+  } catch {
+    return out
+  }
+  for (const [name, files] of Object.entries(recorded)) {
+    for (const [path, value] of Object.entries(files)) if (typeof value !== 'string' && value.executable) out.add(path.startsWith('shared/') ? path : `${name}/${path}`)
+  }
+  return out
+}
+const indexed: Map<string, boolean> = indexedExecutables(root)
+const committed = committedExecutables()
 function textTree(dir: string): Record<string, Payload> {
   const out: Record<string, Payload> = {}
   function walk(path: string): void {
-    for (const item of readdirSync(path, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const item of readdirSync(path, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name, 'en'))) {
       const full = join(path, item.name)
       if (item.isSymbolicLink()) throw new Error(`Bundled sources must not contain links: ${full}`)
       if (item.isDirectory()) walk(full)
       else {
         const bytes = readFileSync(full)
-        out[relative(dir, full).replaceAll('\\', '/')] = bytes.includes(0) ? { base64: bytes.toString('base64'), executable: (statSync(full).mode & 0o111) !== 0 } : bytes.toString('utf8')
+        const tracked = relative(root, full).replaceAll('\\', '/')
+        out[relative(dir, full).replaceAll('\\', '/')] = bytes.includes(0) ? { base64: bytes.toString('base64'), executable: executableBit({ indexed: indexed.get(tracked), onDisk: (statSync(full).mode & 0o111) !== 0, committed: committed.has(tracked) }) } : bytes.toString('utf8')
       }
     }
   }
@@ -60,9 +82,8 @@ const metadata = Object.fromEntries(Object.entries(payloads).map(([name, files])
     ...(files['server/bootstrap.json'] ? { bootstrap: JSON.parse(files['server/bootstrap.json'] as string) } : {}),
   }]
 }))
-const content = 'import type { ExtensionManifest } from "../manifest.js"\nimport type { McpBootstrapManifest } from "../../services/mcp/lazyStdio.js"\n\nexport const bundledMetadata: Record<string, { digest: string; contentHash: string; contributionsHash: string; manifest: ExtensionManifest; bootstrap?: McpBootstrapManifest }> = ' + JSON.stringify(metadata, null, 2) + '\n\nexport const bundledPayloads: Record<string, Record<string, string | { base64: string; executable: boolean }>> = ' + JSON.stringify(payloads, null, 2) + '\n'
-const target = join(root, 'content.generated.ts')
+const content = 'import type { ExtensionManifest } from "../manifest.js"\nimport type { McpBootstrapManifest } from "../../services/mcp/lazyStdio.js"\n\nexport const bundledMetadata: Record<string, { digest: string; contentHash: string; contributionsHash: string; manifest: ExtensionManifest; bootstrap?: McpBootstrapManifest }> = ' + JSON.stringify(metadata, null, 2) + '\n\n' + PAYLOADS + JSON.stringify(payloads, null, 2) + '\n'
 if (process.argv.includes('--check')) {
-  if (!existsSync(target) || readFileSync(target, 'utf8') !== content) throw new Error('Bundled extensions changed; run bun scripts/extensions/gen-bundled.ts')
+  if (current !== content) throw new Error('Bundled extensions changed; run bun scripts/extensions/gen-bundled.ts')
 } else writeFileSync(target, content)
 console.log(`Bundled extension payloads: ${Object.keys(payloads).join(', ')}`)

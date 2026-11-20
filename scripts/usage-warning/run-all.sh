@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/fixtureApi.ts scripts/ui/renderScenarios.ts scripts/ui/vshot.py src/cli/run.ts
-# gate-watch: src/daemon/concourseWorkers.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

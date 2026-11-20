@@ -97,6 +97,7 @@ src/components/messages/transcriptMemory.ts :: memories :: keyed-by-truth
 src/components/tensorfold/tensorfoldFacts.ts :: announcedSnapshot :: invalidator=refreshTensorFoldAnnouncements
 src/components/tensorfold/tensorfoldFacts.ts :: offerSnapshot :: invalidator=refreshTensorFoldOffer
 src/components/tensorfold/tensorfoldModelFacts.ts :: factsSnapshot :: subscription-fed
+src/constants/changelog.ts :: changelogMemo :: static-for-process
 src/context.ts :: getGitStatus :: invalidator=applyHarnessGround
 src/context.ts :: getSystemContext :: invalidator=applyHarnessGround
 src/context.ts :: getUserContext :: invalidator=applyHarnessGround

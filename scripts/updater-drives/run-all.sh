@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/release/package.mjs
-# gate-watch: src/services/privateChannel/ghRelease.ts
 # gate-watch: src/services/privateChannel/channelTransport.ts
 # gate-watch: src/utils/privacyLevel.ts src/services/api/clientContractLearned.ts
-# gate-watch: src/services/privateChannel/installLayout.ts src/services/privateChannel/quietUpdateNotice.ts src/cli/update.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

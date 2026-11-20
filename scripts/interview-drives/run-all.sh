@@ -4,10 +4,10 @@
 # gate-watch: src/tools/AskUserQuestionTool/** src/components/permissions/AskUserQuestionPermissionRequest/**
 # gate-watch: src/utils/messages/attachmentText.ts
 # gate-watch: src/components/CustomSelect/*
-# gate-watch: src/input-core/composer-document.ts src/services/acp/** src/services/interview/*
-# gate-watch: src/substrate/flagRegistry.ts src/substrate/storeRecovery.ts src/utils/*
+# gate-watch: src/services/acp/**
+# gate-watch: src/substrate/flagRegistry.ts src/utils/*
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: scripts/lib/hermetic.ts src/Tool.ts src/services/providers/gemini/geminiCodec.ts src/services/providers/openai/responsesBridge.ts src/services/providers/zai/zaiCodec.ts src/services/schema/jsonSchemaEngine.ts
+# gate-watch: scripts/lib/hermetic.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

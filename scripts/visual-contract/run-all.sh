@@ -2,7 +2,6 @@
 # gate-class: pure
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: assets/splash/** src/components/mercury-ui/**
-# gate-watch: src/utils/helmGeometry.ts src/utils/hyperlink.ts
 # gate-watch: src/hooks/usePasteHandler.ts
 # gate-watch: README.md scripts/lib/captureDriver.ts
 # gate-watch: scripts/ui/render-tui.ts scripts/ui/vshot.py

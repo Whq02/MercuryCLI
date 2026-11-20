@@ -2,10 +2,8 @@
 # gate-class: pty
 # gate-env: MERCURY_CLOSE_CHORD_KEEP MERCURY_SOVEREIGN_DRIVE_CAPTURE_DIR
 # gate-watch: scripts/switchboard/**
-# gate-watch: src/services/concourse/** src/components/concourse/**
-# gate-watch: src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts
-# gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts
-# gate-watch: src/constants/prompts.ts
+# gate-watch: src/components/concourse/**
+# gate-watch: src/services/switchboard/attachedSession.ts
 # gate-watch: scripts/lib/*
 # gate-watch: src/keybindings/*
 # gate-watch: src/utils/model/*

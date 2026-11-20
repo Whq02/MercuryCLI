@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/ink/** src/services/agentResults/** src/services/changeTransaction/**
-# gate-watch: src/tools/ServiceTool/**
 # gate-watch: src/services/run/**
 # gate-watch: src/tools/**
 # gate-watch: src/utils/messages/attachmentText*
 # gate-watch: scripts/lib/proofHome.ts
-# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/ink.ts
+# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: src/utils/crew/agentTranscriptReader.ts
 # gate-watch: src/tools.ts
 set -u

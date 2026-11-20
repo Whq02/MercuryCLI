@@ -2,14 +2,10 @@
 # gate-class: pty
 # gate-env: MERCURY_RENDER_CWD
 # gate-watch: scripts/ui/**
-# gate-watch: src/bootstrap/state* src/components/** src/context/overlayContext*
-# gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/ink/**
-# gate-watch: src/services/run/** src/state/AppState* src/utils/**
+# gate-watch: src/components/**
+# gate-watch: src/daemon/** src/ink/**
+# gate-watch: src/services/run/** src/utils/**
 # gate-watch: scripts/lib/*
-# gate-watch: src/commands/feedback/issueForms.ts
-# gate-watch: src/history.ts src/native-ts/color-diff/index.ts
-# gate-watch: src/services/api/usage.ts src/services/anthropicLimits.ts src/services/mockRateLimits.ts
-# gate-watch: src/services/providers/providerUsage.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

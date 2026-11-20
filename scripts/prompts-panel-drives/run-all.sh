@@ -2,13 +2,11 @@
 # gate-class: pty
 # gate-watch: scripts/prompts-panel/**
 # gate-watch: src/components/prompts-panel/** src/commands/workbench/**
-# gate-watch: src/utils/savedPrompts/**
 # gate-watch: src/components/MessageSelector.tsx src/utils/messages/noticeRows.ts
 # gate-watch: src/ink.ts src/components/App.tsx src/state/AppStateStore.ts src/keybindings/KeybindingProviderSetup.tsx src/utils/staticRender.tsx
 # gate-watch: src/components/messages/UserTextMessage.tsx src/components/MessageRow.tsx src/components/concourse/workerTranscriptFold.ts
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/utils/messages.ts src/utils/config.ts src/types/message.ts
 # gate-watch: src/components/mercury-ui/NavigablePanes.tsx src/hooks/useSessionConnector.ts
-# gate-watch: src/constants/xml.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

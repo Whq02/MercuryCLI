@@ -451,14 +451,14 @@ export function buildMercuryChangelog(rootDir: string = defaultRoot()): string {
   return `# Mercury changelog\n\n${sections.join('\n\n')}\n`
 }
 
-let cachedChangelog: string | undefined
+let changelogMemo: string | undefined
 
 export function getMercuryChangelog(): string {
-  if (cachedChangelog !== undefined) return cachedChangelog
+  if (changelogMemo !== undefined) return changelogMemo
   if (typeof MERCURY_CHANGELOG_PACKED === 'string') {
-    cachedChangelog = gunzipSync(Buffer.from(MERCURY_CHANGELOG_PACKED, 'base64')).toString('utf8')
-    return cachedChangelog
+    changelogMemo = gunzipSync(Buffer.from(MERCURY_CHANGELOG_PACKED, 'base64')).toString('utf8')
+    return changelogMemo
   }
-  cachedChangelog = buildMercuryChangelog()
-  return cachedChangelog
+  changelogMemo = buildMercuryChangelog()
+  return changelogMemo
 }
