@@ -269,6 +269,65 @@ try {
       movedOutcome.state === 'skipped',
       JSON.stringify(movedOutcome),
     )
+
+    const { terminateTensorFoldPod } = await import('../../src/services/host/tensorfoldPod.ts')
+    const { writeHostRecord } = await import('../../src/services/host/store.ts')
+    const { HostVendorHttpError } = await import('../../src/services/host/vendors/http.ts')
+    const goneClient = {
+      vendor: 'runpod',
+      label: 'Runpod',
+      keyHelp: '',
+      capabilities: { stop: true, dataCenters: true, persistentDisk: 'volume' },
+      rateLimitPolicy: () => undefined,
+      shapes: () => [],
+      offers: async () => [],
+      watchOffer: async () => undefined,
+      pods: async () => [],
+      get: async () => { throw new HostVendorHttpError('Runpod GET /pods returned HTTP 404', 404) },
+      create: async () => { throw new Error('unused') },
+      stop: async () => { throw new Error('unused') },
+      terminate: async () => {},
+      logs: async () => '',
+    } as never
+
+    const podFailId = 'tf-restore-fail-1'
+    writeHostRecord({
+      id: podFailId,
+      vendor: 'runpod',
+      name: 'tf-restore-fail',
+      recipe: 'tensorfold-qwen',
+      price: 2.0,
+      startedAt: new Date(Date.now() - 60_000).toISOString(),
+      status: 'RUNNING',
+      sessionId,
+      sessionModel: hostedModel,
+      sessionModelBefore: priorModel,
+    })
+    const terminatedWithFailure = await terminateTensorFoldPod(podFailId, { client: goneClient })
+    check(
+      'terminateTensorFoldPod reports failed session restore in its terminated words',
+      terminatedWithFailure.ok &&
+        terminatedWithFailure.words.includes('this session stays on a model that is gone (') &&
+        terminatedWithFailure.words.includes(') — run /model ' + priorModel),
+      terminatedWithFailure.words,
+    )
+
+    const podSkipId = 'tf-restore-skip-1'
+    writeHostRecord({
+      id: podSkipId,
+      vendor: 'runpod',
+      name: 'tf-restore-skip',
+      recipe: 'tensorfold-qwen',
+      price: 2.0,
+      startedAt: new Date(Date.now() - 60_000).toISOString(),
+      status: 'RUNNING',
+    })
+    const terminatedClean = await terminateTensorFoldPod(podSkipId, { client: goneClient })
+    check(
+      'terminateTensorFoldPod adds no restore warning when no session restore was needed',
+      terminatedClean.ok && !terminatedClean.words.includes('stays on a model'),
+      terminatedClean.words,
+    )
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
