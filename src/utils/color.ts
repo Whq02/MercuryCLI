@@ -1,7 +1,7 @@
 
-import { colorize, type ColorType } from '../../ink/colorize.js'
-import type { Color } from '../../ink/styles.js'
-import { getTheme, type Theme, type ThemeName } from '../../utils/theme.js'
+import { colorize, type ColorType } from '../ink/colorize.js'
+import type { Color } from '../ink/styles.js'
+import { getTheme, type Theme, type ThemeName } from './theme.js'
 
 const RAW_COLOR_PREFIXES = ['rgb(', '#', 'ansi256(', 'ansi:'] as const
 

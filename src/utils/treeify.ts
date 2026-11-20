@@ -1,4 +1,4 @@
-import { color } from '../components/design-system/color.js'
+import { color } from './color.js'
 import { DEFAULT_THEME_SETTING } from './systemTheme.js'
 import type { Theme, ThemeName } from './theme.js'
 
