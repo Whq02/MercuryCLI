@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { utimes } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -98,9 +100,159 @@ async function runBaselineRows(): Promise<void> {
   }
 }
 
+async function runWorktreeRows(): Promise<void> {
+  const { cleanupStaleAgentWorktrees, createAgentWorktree, keepWorktree, prepareWorktreeFiles, restoreWorktreeSession } = await import('../../src/utils/worktree.ts')
+  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const gitEnv = {
+    ...process.env,
+    GIT_AUTHOR_NAME: 'proof',
+    GIT_AUTHOR_EMAIL: 'proof@invalid',
+    GIT_COMMITTER_NAME: 'proof',
+    GIT_COMMITTER_EMAIL: 'proof@invalid',
+  }
+  const git = (cwd: string, ...args: string[]): string =>
+    execFileSync('git', args, { cwd, encoding: 'utf8', env: gitEnv, stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+
+  const repo = join(SCRATCH, 'wt-repo')
+  mkdirSync(repo, { recursive: true })
+  git(repo, 'init', '-q', '-b', 'main')
+  writeFileSync(join(repo, '.gitignore'), 'node_modules/\nsecret.env\n')
+  writeFileSync(join(repo, 'app.ts'), 'export const x = 1\n')
+  git(repo, 'add', '.gitignore', 'app.ts')
+  git(repo, 'commit', '-q', '-m', 'init')
+
+  if (POSIX_MODES) {
+    const wt1 = join(SCRATCH, 'wt-prep-1')
+    mkdirSync(wt1, { recursive: true })
+    const includeFile = join(repo, '.worktreeinclude')
+    writeFileSync(includeFile, 'secret.env\n')
+    chmodSync(includeFile, 0o200)
+    let includeErr: unknown = null
+    try {
+      await prepareWorktreeFiles(repo, wt1)
+    } catch (error) {
+      includeErr = error
+    } finally {
+      chmodSync(includeFile, 0o600)
+    }
+    check('worktree: unreadable .worktreeinclude throws EACCES', (includeErr as NodeJS.ErrnoException | null)?.code === 'EACCES', String(includeErr))
+
+    chmodSync(includeFile, 0o200)
+    let launchErr: unknown = null
+    try {
+      await createAgentWorktree('agent-a1111111', { from: repo, foldersBehindLaunch: true })
+    } catch (error) {
+      launchErr = error
+    } finally {
+      chmodSync(includeFile, 0o600)
+      rmSync(includeFile, { force: true })
+    }
+    check('worktree: foldersBehindLaunch waits and throws on unreadable .worktreeinclude', (launchErr as NodeJS.ErrnoException | null)?.code === 'EACCES', String(launchErr))
+
+    const localSettingsDir = join(repo, '.mercury')
+    mkdirSync(localSettingsDir, { recursive: true })
+    const localSettings = join(localSettingsDir, 'settings.local.json')
+    writeFileSync(localSettings, '{"guardrails":{}}\n')
+    chmodSync(localSettings, 0o200)
+    const wt2 = join(SCRATCH, 'wt-prep-2')
+    mkdirSync(wt2, { recursive: true })
+    let settingsErr: unknown = null
+    try {
+      await prepareWorktreeFiles(repo, wt2, undefined, false)
+    } catch (error) {
+      settingsErr = error
+    } finally {
+      chmodSync(localSettings, 0o600)
+      rmSync(localSettings, { force: true })
+    }
+    check('worktree: unreadable settings.local.json throws on preserveExisting=false', settingsErr instanceof Error && settingsErr.message.includes('The worktree local settings could not be copied'), String(settingsErr))
+
+    const excludeFile = join(repo, '.git', 'info', 'exclude')
+    mkdirSync(join(repo, 'node_modules'), { recursive: true })
+    writeFileSync(join(repo, 'node_modules', 'pkg.txt'), 'ok\n')
+    const excludeBefore = '# keep-my-custom-exclude\n*.bak\n'
+    writeFileSync(excludeFile, excludeBefore)
+    const wt3 = join(SCRATCH, 'wt-prep-3')
+    git(repo, 'worktree', 'add', '-q', '-b', 'wt-prep-3-branch', wt3)
+    writeFileSync(join(wt3, '.gitignore'), 'other/\n')
+    chmodSync(excludeFile, 0o200)
+    try {
+      await prepareWorktreeFiles(repo, wt3, repo, false)
+      chmodSync(excludeFile, 0o600)
+      const excludeAfter = readFileSync(excludeFile, 'utf8')
+      check('worktree: unreadable .git/info/exclude is not overwritten', excludeAfter === excludeBefore, `after=${JSON.stringify(excludeAfter)}`)
+    } finally {
+      chmodSync(excludeFile, 0o600)
+    }
+  }
+
+  restoreWorktreeSession({
+    originalCwd: join(SCRATCH, 'does-not-exist-cwd'),
+    worktreePath: join(SCRATCH, 'wt-keep-dummy'),
+    worktreeName: 'dummy',
+    sessionId: 'sess-1',
+  })
+  let keepErr: unknown = null
+  try {
+    await keepWorktree()
+  } catch (error) {
+    keepErr = error
+  } finally {
+    restoreWorktreeSession(null)
+  }
+  check('worktree: keepWorktree rethrows when chdir fails', (keepErr as NodeJS.ErrnoException | null)?.code === 'ENOENT', String(keepErr))
+
+  if (POSIX_MODES) {
+    const jRepo = join(SCRATCH, 'wt-janitor-repo')
+    mkdirSync(jRepo, { recursive: true })
+    git(jRepo, 'init', '-q', '-b', 'main')
+    writeFileSync(join(jRepo, 'a.ts'), 'export const a = 1\n')
+    git(jRepo, 'add', '.')
+    git(jRepo, 'commit', '-q', '-m', 'init')
+    const wtHome = join(jRepo, '.mercury', 'worktrees')
+    mkdirSync(wtHome, { recursive: true })
+    const oldTime = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+
+    const badDotGitDir = join(wtHome, 'parcel-111111111111')
+    mkdirSync(badDotGitDir, { recursive: true })
+    writeFileSync(join(badDotGitDir, 'keep.txt'), 'precious\n')
+    const badDotGit = join(badDotGitDir, '.git')
+    writeFileSync(badDotGit, 'gitdir: /nonexistent\n')
+    chmodSync(badDotGit, 0o200)
+    await utimes(badDotGitDir, oldTime, oldTime)
+
+    const badAdmin = join(SCRATCH, 'wt-janitor-admin')
+    mkdirSync(badAdmin, { recursive: true })
+    const badGitdirFile = join(badAdmin, 'gitdir')
+    writeFileSync(badGitdirFile, join(wtHome, 'parcel-222222222222', '.git') + '\n')
+    chmodSync(badGitdirFile, 0o200)
+    const badReturnDir = join(wtHome, 'parcel-222222222222')
+    mkdirSync(badReturnDir, { recursive: true })
+    writeFileSync(join(badReturnDir, 'keep.txt'), 'precious\n')
+    writeFileSync(join(badReturnDir, '.git'), `gitdir: ${badAdmin}\n`)
+    await utimes(badReturnDir, oldTime, oldTime)
+
+    const realOrphan = join(wtHome, 'parcel-333333333333')
+    mkdirSync(realOrphan, { recursive: true })
+    writeFileSync(join(realOrphan, 'junk.txt'), 'x\n')
+    await utimes(realOrphan, oldTime, oldTime)
+
+    try {
+      await runWithCwdOverride(jRepo, () => cleanupStaleAgentWorktrees(new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)))
+    } finally {
+      if (existsSync(badDotGit)) chmodSync(badDotGit, 0o600)
+      if (existsSync(badGitdirFile)) chmodSync(badGitdirFile, 0o600)
+    }
+    check('worktree: janitor keeps ephemeral dir when .git is unreadable', existsSync(join(badDotGitDir, 'keep.txt')))
+    check('worktree: janitor keeps ephemeral dir when admin gitdir is unreadable', existsSync(join(badReturnDir, 'keep.txt')))
+    check('worktree: janitor still reaps real orphan dir without .git', !existsSync(realOrphan))
+  }
+}
+
 try {
   await runUsageHistoryRows()
   await runBaselineRows()
+  await runWorktreeRows()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }
