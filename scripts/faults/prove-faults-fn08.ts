@@ -1,13 +1,17 @@
 #!/usr/bin/env bun
+import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'prove-faults-fn08-')))
 const HOME = join(SCRATCH, 'home')
 const WORK = join(SCRATCH, 'work')
 mkdirSync(HOME, { recursive: true })
 mkdirSync(WORK, { recursive: true })
+const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
+const SRC = realpathSync(join(dirname(fileURLToPath(import.meta.url)), '../../src'))
 
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -147,6 +151,56 @@ async function main(): Promise<void> {
       await watch.stopAgentWatch()
       watch.setAgentWatchTimingForTests(null)
     }
+  })
+
+  await runRow('errors: route lookup and provider name bugs propagate instead of falling back to anthropic', () => {
+    const script = `
+      import { mock } from 'bun:test'
+      process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(HOME)}
+      process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+      process.env.NODE_ENV = 'test'
+      delete process.env.MERCURY_HOME
+      globalThis.MACRO = { VERSION: '1.0.0' }
+      const routePath = ${JSON.stringify(join(SRC, 'services/providers/routeLaw.ts'))}
+      const realRoute = await import(routePath)
+      let mode = 'declared'
+      mock.module(routePath, () => ({
+        ...realRoute,
+        declaredRouteOf: () => {
+          if (mode === 'declared') throw new Error('route-law-boom')
+          return 'openai'
+        },
+        providerDisplayName: () => {
+          throw new Error('display-name-boom')
+        },
+      }))
+      const errors = await import(${JSON.stringify(join(SRC, 'services/api/errors.ts'))})
+      const { APIError } = await import(${JSON.stringify(join(SRC, 'services/api/sdkErrors.ts'))})
+      const out = { routeThrew: false, overflowThrew: false, displayThrew: false }
+      try {
+        errors.getAssistantMessageFromError(new APIError(401, { error: { message: 'bad key' } }, 'bad key', new Headers()), 'gpt-5')
+      } catch (e) {
+        out.routeThrew = String(e).includes('route-law-boom')
+      }
+      try {
+        errors.getAssistantMessageFromError(new APIError(400, { error: { message: 'prompt is too long' } }, 'prompt is too long', new Headers()), 'gpt-5')
+      } catch (e) {
+        out.overflowThrew = String(e).includes('route-law-boom')
+      }
+      mode = 'display'
+      try {
+        errors.getAssistantMessageFromError(new APIError(400, { error: { message: 'bad req' } }, 'bad req', new Headers()), 'gpt-5')
+      } catch (e) {
+        out.displayThrew = String(e).includes('display-name-boom')
+      }
+      process.stdout.write('\\n' + JSON.stringify(out))
+    `
+    const res = spawnSync(BUN, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: HOME, MERCURY_HOME: '' } })
+    check('isolated errors check exited 0', res.status === 0, res.stderr.slice(-400))
+    const out = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { routeThrew?: boolean; overflowThrew?: boolean; displayThrew?: boolean }
+    check('routeOfModel bug propagates', out.routeThrew === true)
+    check('overflowFamilyOfModel bug propagates', out.overflowThrew === true)
+    check('providerNameOfModel bug propagates', out.displayThrew === true)
   })
 }
 

@@ -180,25 +180,16 @@ function headerValue(headers: unknown, name: string): string | undefined {
 
 
 function routeOfModel(model: string): string {
-  try {
-    const { declaredRouteOf } =
-      require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
-    return declaredRouteOf(model) ?? 'gateway'
-  } catch (error) {
-    passedOver(error)
-    return 'anthropic'
-  }
+  const { declaredRouteOf } =
+    require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
+  return declaredRouteOf(model) ?? 'gateway'
 }
 
 function providerNameOfModel(model: string): string {
   const route = routeOfModel(model)
-  try {
-    const { providerDisplayName } =
-      require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
-    return providerDisplayName(route)
-  } catch {
-    return route
-  }
+  const { providerDisplayName } =
+    require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
+  return providerDisplayName(route)
 }
 
 
@@ -777,14 +768,9 @@ function composeAuthFailureMessage(status: number, model: string, message: strin
 }
 
 function overflowFamilyOfModel(model: string): OverflowFamily {
-  try {
-    const { declaredRouteOf } =
-      require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
-    return declaredRouteOf(model) ?? 'unknown'
-  } catch (error) {
-    passedOver(error)
-    return 'anthropic'
-  }
+  const { declaredRouteOf } =
+    require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
+  return declaredRouteOf(model) ?? 'unknown'
 }
 
 
