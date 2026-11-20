@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
+const HERE = dirname(fileURLToPath(import.meta.url))
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -175,7 +177,7 @@ try {
         ...realFs,
         readlinkSync: () => { throw Object.assign(new Error('EIO readlink'), { code: 'EIO' }) },
       }))
-      const fileMod = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/file.ts'))})
+      const fileMod = await import(${JSON.stringify(join(HERE, '../../src/utils/file.ts'))})
       let code = null
       try {
         fileMod.writeFileAndFlushAtomically(${JSON.stringify(linkFile)}, 'replaced')
@@ -193,6 +195,73 @@ try {
     })
     const symResult = sub.exitCode === 0 ? JSON.parse(sub.stdout.toString('utf8').trim()) as { code: string | null; stillLink: boolean; targetText: string } : null
     check('file.writeFileAndFlushAtomically readlink EIO refuses and keeps symlink intact', symResult !== null && symResult.code === 'EIO' && symResult.stillLink === true && symResult.targetText === 'original-target', JSON.stringify(symResult ?? sub.stderr.toString('utf8').slice(-300)))
+  }
+  {
+    const fhDir = join(scratch, 'fh-stat')
+    const fhHome = join(fhDir, 'home')
+    const fhCwd = join(fhDir, 'cwd')
+    mkdirSync(fhHome, { recursive: true })
+    mkdirSync(fhCwd, { recursive: true })
+    const fhChild = `
+      const { mock } = await import('bun:test')
+      const { randomUUID } = await import('node:crypto')
+      const fsSync = await import('node:fs')
+      const realFsPromises = await import('node:fs/promises')
+      const { join } = await import('node:path')
+      let failPath = null
+      mock.module('node:fs/promises', () => ({
+        ...realFsPromises,
+        stat: async (p, opts) => {
+          if (failPath !== null && String(p) === failPath) {
+            throw Object.assign(new Error('EIO stat ' + failPath), { code: 'EIO' })
+          }
+          return opts === undefined ? realFsPromises.stat(p) : realFsPromises.stat(p, opts)
+        },
+      }))
+      ;(globalThis).MACRO = { VERSION: '1.0.0' }
+      process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(fhHome)}
+      delete process.env.MERCURY_HOME
+      delete process.env.NODE_ENV
+      const { enableConfigs } = await import(${JSON.stringify(join(HERE, '../../src/utils/config/globalConfig.ts'))})
+      enableConfigs()
+      const bootstrap = await import(${JSON.stringify(join(HERE, '../../src/bootstrap/state.ts'))})
+      bootstrap.setIsInteractive(true)
+      bootstrap.setOriginalCwd(${JSON.stringify(fhCwd)})
+      const fh = await import(${JSON.stringify(join(HERE, '../../src/utils/fileHistory.ts'))})
+      const target = join(${JSON.stringify(fhCwd)}, 'secret.txt')
+      fsSync.writeFileSync(target, 'after\\n', { mode: 0o600 })
+      const backupName = 'aaaaaaaaaaaaaaaa@v1'
+      const backupDir = join(${JSON.stringify(fhHome)}, 'file-history', String(bootstrap.getSessionId()))
+      fsSync.mkdirSync(backupDir, { recursive: true })
+      const blob = join(backupDir, backupName)
+      fsSync.writeFileSync(blob, 'before\\n', { mode: 0o600 })
+      const m1 = randomUUID()
+      const state = {
+        snapshots: [{ messageId: m1, timestamp: new Date(), trackedFileBackups: { 'secret.txt': { backupFileName: backupName, version: 1, backupTime: new Date(), sourceSize: 7 } } }],
+        trackedFiles: new Set(['secret.txt']),
+        snapshotSequence: 1,
+      }
+      failPath = blob
+      const blobRes = await fh.fileHistoryRestore(state, m1, { dryRun: true, ownerKey: 'fn30-blob' })
+      failPath = target
+      const fileRes = await fh.fileHistoryRestore(state, m1, { dryRun: true, ownerKey: 'fn30-file' })
+      failPath = null
+      const okRes = await fh.fileHistoryRestore(state, m1, { dryRun: true, ownerKey: 'fn30-ok' })
+      process.stdout.write(JSON.stringify({ blobRes, fileRes, okRes }))
+    `
+    const sub = Bun.spawnSync([process.execPath, '-e', fhChild], {
+      env: { ...process.env, MERCURY_CONFIG_DIR: fhHome },
+      stdout: 'pipe',
+      stderr: 'pipe',
+    })
+    const fhOut = sub.exitCode === 0 ? JSON.parse(sub.stdout.toString('utf8').trim()) as {
+      blobRes: { ok: boolean; kind?: string; detail?: string }
+      fileRes: { ok: boolean; kind?: string; detail?: string }
+      okRes: { ok: boolean }
+    } : null
+    check('fileHistory.fileHistoryRestore refuses when backup blob stat fails', fhOut !== null && fhOut.blobRes.ok === false && fhOut.blobRes.kind === 'restore-failed' && Boolean(fhOut.blobRes.detail?.includes('EIO stat')), JSON.stringify(fhOut?.blobRes ?? sub.stderr.toString('utf8').slice(-300)))
+    check('fileHistory.fileHistoryRestore refuses when target file stat fails', fhOut !== null && fhOut.fileRes.ok === false && fhOut.fileRes.kind === 'restore-failed' && Boolean(fhOut.fileRes.detail?.includes('EIO stat')), JSON.stringify(fhOut?.fileRes ?? sub.stderr.toString('utf8').slice(-300)))
+    check('fileHistory.fileHistoryRestore succeeds when stats succeed', fhOut !== null && fhOut.okRes.ok === true, JSON.stringify(fhOut?.okRes ?? null))
   }
 } finally {
   for (const fn of cleanupTasks.reverse()) fn()

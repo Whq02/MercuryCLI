@@ -445,8 +445,12 @@ export async function fileHistoryRestore(
       }
       try {
         plannedMode = (await stat(blob)).mode & 0o7777
-      } catch (error) {
-        passedOver(error)
+      } catch (err) {
+        if (isENOENT(err)) {
+          missing.push(key)
+          continue
+        }
+        return { ok: false, kind: 'restore-failed', paths: [key], detail: `${key}: ${err instanceof Error ? err.message : String(err)} — nothing was restored` }
       }
     }
     if (current === null && planned === null) continue
@@ -466,8 +470,8 @@ export async function fileHistoryRestore(
     if (current !== null) {
       try {
         mode = (await stat(filePath)).mode & 0o7777
-      } catch (error) {
-        passedOver(error)
+      } catch (err) {
+        return { ok: false, kind: 'restore-failed', paths: [key], detail: `${key}: ${err instanceof Error ? err.message : String(err)} — nothing was restored` }
       }
     }
     const originalBytes = current ?? Buffer.alloc(0)
