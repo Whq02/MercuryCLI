@@ -1,9 +1,10 @@
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js';
 import * as React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Box, Text, useInput } from '../ink.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { useDerivedState, useLoad } from '../hooks/effects.js'
 import TextInput from './TextInput.js'
 import { CommandCenter } from './mercury-ui/components.js'
 import { displayWidth, GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
@@ -110,7 +111,7 @@ export function MercuryContentSearch({
   const genRef = useRef(0)
   const abortRef = useRef<AbortController | null>(null)
 
-  useEffect(() => {
+  useLoad(() => {
     const gen = ++genRef.current
     abortRef.current?.abort()
     const q = query.trim()
@@ -148,7 +149,7 @@ export function MercuryContentSearch({
 
   const pastOpenEvent = useOpenEventGate()
 
-  useEffect(() => {
+  useDerivedState(() => {
     setSel(s => Math.min(s, Math.max(0, shown.length - 1)))
   }, [shown.length])
 

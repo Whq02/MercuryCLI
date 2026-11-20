@@ -1,5 +1,6 @@
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { useClaim } from './effects.js'
 import { basename } from 'node:path'
 import type { Key } from '../ink.js'
 import type { ImageDimensions } from '../utils/imageResizer.js'
@@ -62,7 +63,7 @@ export function usePasteHandler({
   const pendingNow = useCallback(() => pastingRef.current || timerRef.current !== null || clipboardTimerRef.current !== null, [])
   const mountedRef = useRef(true)
   const clipboardTimerRef = useRef<NodeJS.Timeout | null>(null)
-  useEffect(
+  useClaim(
     () => () => {
       mountedRef.current = false
       if (timerRef.current !== null) clearTimeout(timerRef.current)
