@@ -31,6 +31,7 @@ function fixtureFetch(chunks: Uint8Array[], complete: boolean): { fetchImpl: typ
       start(controller) {
         for (const c of chunks) controller.enqueue(c)
         if (complete) controller.close()
+        else wire.signal?.addEventListener('abort', () => controller.error(wire.signal?.reason), { once: true })
       },
       cancel() {
         wire.cancelled = true

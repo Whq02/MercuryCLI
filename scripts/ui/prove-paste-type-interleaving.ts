@@ -139,7 +139,7 @@ async function clearComposer(): Promise<void> {
   pending.edit('')
   pending.setPastedContents({})
   pending.setMode('prompt')
-  await waitFor(() => composerLine().includes('Type a prompt'), 3000)
+  await waitFor(() => composerLine().includes('Type a prompt') || /^│❯\s*│\s*$/.test(composerLine()), 3000)
   await settle(25)
 }
 
