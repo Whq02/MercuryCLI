@@ -48,7 +48,7 @@ import { plural } from '../../utils/stringUtils.js'
 import { getDescription, GREP_TOOL_NAME, rankedModeEnabled } from './prompt.js'
 import { discoveryArgs, documentTypeArgs, MAX_DOCUMENTS, searchDocuments } from './documentSearch.js'
 import { rankedRefusal, rankedScope, rankedSearch, renderRanked, type RankedPass } from './rankedSearch.js'
-import { isSearchableDocument, SEARCHABLE_DOCUMENT_EXTENSIONS } from '../../utils/documentText.js'
+import { isSearchableDocument, SEARCHABLE_DOCUMENT_EXTENSIONS } from '../shared/documentText.js'
 import {
   getToolUseSummary,
   isResultTruncated,
