@@ -12,6 +12,7 @@ import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
 import { getProjectsDir } from './sessionStorage/paths.js'
 import { getProjectDir, validateUuid } from './sessionStoragePortable.js'
 import { passedOver } from './passedOver.js'
+import { foldPathCase } from './platform/paths.js'
 
 export interface BootProjectFact {
   dir: string
@@ -54,7 +55,7 @@ function readHead(file: string, n = 4096): string {
   }
 }
 
-const normPath = (p: string): string => (process.platform === 'win32' ? p.toLowerCase() : p).replace(/\\/g, '/')
+const normPath = (p: string): string => foldPathCase(p).replace(/\\/g, '/')
 function isTmpPath(p: string): boolean {
   const n = normPath(p)
   const tmpN = tmpdir() ? normPath(tmpdir()).replace(/\/+$/, '') : ''
