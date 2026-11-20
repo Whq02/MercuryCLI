@@ -203,6 +203,43 @@ async function run(): Promise<void> {
       check('reliability-unreadable-kept: unreadable history file is byte-identical after noteHostLink and returns valid observation', returned !== null && returned.outages.length === 1 && afterBytes === beforeBytes, afterBytes === beforeBytes ? '' : 'file was overwritten')
     }
   }
+
+  {
+    const { bankManifest } = await import('../../src/services/host/bankManifest.ts')
+    const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
+    const recipe = HOST_RECIPES[0]!
+    const missing = bankManifest(recipe, join(scratch, 'no-such-bank-dir'))
+    check('bankManifest-enoent: absent bank folder returns not banked', missing.reason === 'not banked · b banks the weights', JSON.stringify(missing))
+
+    if (!POSIX_MODES) skip('bankManifest-eacces', 'needs non-root POSIX')
+    else {
+      const lockedParent = join(scratch, 'bm-locked-parent')
+      const childBank = join(lockedParent, 'model')
+      mkdirSync(childBank, { recursive: true })
+      chmodSync(lockedParent, 0o000)
+      let parentRes: ReturnType<typeof bankManifest>
+      try { parentRes = bankManifest(recipe, childBank) } finally { chmodSync(lockedParent, 0o700) }
+      check('bankManifest-lstat-eacces: unsearchable bank parent reports bank cannot be read instead of not banked', Boolean(parentRes.reason?.startsWith('the bank cannot be read:')), JSON.stringify(parentRes))
+
+      const sumsBank = join(scratch, 'bm-locked-sums')
+      mkdirSync(sumsBank, { recursive: true })
+      const sumsFile = join(sumsBank, 'SHA256SUMS')
+      writeFileSync(sumsFile, 'a'.repeat(64) + '  weights.gguf\n')
+      chmodSync(sumsFile, 0o000)
+      let sumsRes: ReturnType<typeof bankManifest>
+      try { sumsRes = bankManifest(recipe, sumsBank) } finally { chmodSync(sumsFile, 0o600) }
+      check('bankManifest-sums-eacces: unreadable SHA256SUMS reports cannot be read instead of no SHA256SUMS', Boolean(sumsRes.reason?.includes('cannot be read:')), JSON.stringify(sumsRes))
+
+      const subdirBank = join(scratch, 'bm-locked-subdir')
+      const lockedSub = join(subdirBank, 'sub')
+      mkdirSync(lockedSub, { recursive: true })
+      writeFileSync(join(subdirBank, 'SHA256SUMS'), 'a'.repeat(64) + '  sub/weights.gguf\n')
+      chmodSync(lockedSub, 0o000)
+      let subRes: ReturnType<typeof bankManifest>
+      try { subRes = bankManifest(recipe, subdirBank) } finally { chmodSync(lockedSub, 0o700) }
+      check('bankManifest-subdir-eacces: unreadable subdir inside bank reports bank cannot be read instead of missing file', Boolean(subRes.reason?.startsWith('the bank cannot be read:')), JSON.stringify(subRes))
+    }
+  }
 }
 
 try {
