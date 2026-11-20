@@ -199,5 +199,110 @@ function runSub(body: string, extraEnv: Record<string, string> = {}): Record<str
   )
 }
 
+if (POSIX_MODES) {
+  console.log('\ninstallLayout.ts — unreadable versionsDir or shim refuses instead of deleting or overwriting')
+  const r = runSub(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const layout = await import(path.join(SRC, 'services/privateChannel/installLayout.ts'))
+
+    const vDir = path.join(WORK, 'unreadable-versions')
+    fs.mkdirSync(vDir, { recursive: true })
+    const keepFile = path.join(vDir, 'user-note.txt')
+    fs.writeFileSync(keepFile, 'keep me')
+    const binDir = path.join(WORK, 'bin')
+    fs.mkdirSync(binDir, { recursive: true })
+    const roots = { versionsDir: vDir, binDir, shimPath: path.join(binDir, 'mercury'), isWindows: false }
+
+    fs.chmodSync(vDir, 0o300)
+    try {
+      let uninstallErr = null
+      try {
+        layout.uninstallLayout(roots)
+      } catch (e) {
+        uninstallErr = e.code ?? String(e)
+      }
+      out.uninstallErr = uninstallErr
+
+      let pruneErr = null
+      try {
+        layout.pruneSupersededVersions(roots)
+      } catch (e) {
+        pruneErr = e.code ?? String(e)
+      }
+      out.pruneErr = pruneErr
+    } finally {
+      fs.chmodSync(vDir, 0o700)
+    }
+    out.vDirKept = fs.existsSync(vDir) && fs.existsSync(keepFile) && fs.readFileSync(keepFile, 'utf8') === 'keep me'
+
+    const foreignShim = path.join(binDir, 'mercury')
+    fs.writeFileSync(foreignShim, '#!/bin/sh\\necho foreign\\n')
+    fs.chmodSync(foreignShim, 0o000)
+    try {
+      let writeErr = null
+      try {
+        layout.writeShim(roots)
+      } catch (e) {
+        writeErr = e.code ?? String(e)
+      }
+      out.writeShimErr = writeErr
+
+      let uninstallShimErr = null
+      try {
+        layout.uninstallLayout({ ...roots, versionsDir: path.join(WORK, 'absent-versions') })
+      } catch (e) {
+        uninstallShimErr = e.code ?? String(e)
+      }
+      out.uninstallShimErr = uninstallShimErr
+    } finally {
+      if (fs.existsSync(foreignShim)) fs.chmodSync(foreignShim, 0o600)
+    }
+    out.foreignKept = fs.existsSync(foreignShim) && fs.readFileSync(foreignShim, 'utf8') === '#!/bin/sh\\necho foreign\\n'
+
+    const roVersions = path.join(WORK, 'ro-versions')
+    fs.mkdirSync(roVersions, { recursive: true })
+    fs.chmodSync(roVersions, 0o500)
+    try {
+      let lockErr = null
+      let lockRes = null
+      try {
+        lockRes = layout.acquireUpdateLock({ ...roots, versionsDir: roVersions })
+      } catch (e) {
+        lockErr = e.code ?? String(e)
+      }
+      out.lockErr = lockErr
+      out.lockRes = lockRes
+    } finally {
+      fs.chmodSync(roVersions, 0o700)
+    }
+  `)
+  check(
+    'uninstallLayout throws EACCES on unreadable versionsDir and preserves it and its files',
+    r.uninstallErr === 'EACCES' && r.vDirKept === true,
+    JSON.stringify(r),
+  )
+  check(
+    'pruneSupersededVersions throws EACCES on unreadable versionsDir',
+    r.pruneErr === 'EACCES',
+    JSON.stringify(r),
+  )
+  check(
+    'writeShim throws EACCES on unreadable foreign shim and leaves it untouched',
+    r.writeShimErr === 'EACCES' && r.foreignKept === true,
+    JSON.stringify(r),
+  )
+  check(
+    'uninstallLayout throws EACCES on unreadable shim instead of treating it as absent',
+    r.uninstallShimErr === 'EACCES',
+    JSON.stringify(r),
+  )
+  check(
+    'acquireUpdateLock throws EACCES on unwritable versionsDir instead of reporting lock held',
+    r.lockErr === 'EACCES',
+    JSON.stringify(r),
+  )
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
