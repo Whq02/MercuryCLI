@@ -17,14 +17,14 @@ section('a file URL whose path does not decode does not reach the denied folder'
   check('curl file://<project>/secrets/k.txt%, a path in the denied folder that decodeURI refuses, is not allowed', decision.behavior !== 'allow', said(decision))
 }
 
-section('pathValidation: a grep --include glob the reader cannot translate does not ask on that account')
+section('pathValidation: a grep --include glob the reader cannot translate keeps the env-file ask')
 {
   mkdirSync(fill('<PROJECT>/envtree'), { recursive: true })
   writeFileSync(join(fill('<PROJECT>/envtree'), '.env'), 'SECRET=CANARY-ENVTREE\n')
   const plain = await decide('Bash', { command: "grep -r --include='.env' SECRET envtree" }, 'implement')
   const odd = await decide('Bash', { command: "grep -r --include='.en[v-\\z]' SECRET envtree" }, 'implement')
-  check('the plain include of .env asks first (the ask that was checked and found stays)', plain.behavior !== 'allow', said(plain))
-  check('an include of .en[v-\\z], which the reader cannot translate, goes on as before', odd.behavior === 'allow', said(odd))
+  check('the plain include of .env asks first (the floor this row leans on)', plain.behavior !== 'allow', said(plain))
+  check('an include of .en[v-\\z], which grep matches to .env, asks first too', odd.behavior !== 'allow', said(odd))
 }
 
 section('hopIntoSession: a transcript that cannot be read is not resumed in the current folder')
