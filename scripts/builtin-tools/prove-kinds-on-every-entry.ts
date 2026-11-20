@@ -46,7 +46,7 @@ interface Asked {
 interface Held {
   reached: number
   stood: boolean
-  settled: string
+  early: number
   listed: Array<string[] | string>
   resolved: Array<Answer | string>
   children: string[]
@@ -93,7 +93,7 @@ if (process.argv[2] === '--held') {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const out = process.argv[3]!
   const kinds = JSON.parse(process.argv[4]!) as string[]
-  const gate = { open: (): void => {}, reached: 0, settled: '' }
+  const gate = { open: (): void => {}, reached: 0, answered: 0 }
   const letGo = new Promise<void>(resolve => (gate.open = resolve))
   Bun.plugin({
     name: 'the table held',
@@ -116,9 +116,8 @@ if (process.argv[2] === '--held') {
     const made = ((await import(join(ROOT, file))) as Record<string, (() => Row[]) | undefined>)[maker]?.() ?? []
     specs.push({ id, run: made.find(row => row.id === id)?.run })
   }
-  const flight = import(join(ROOT, TOOL_LIST)).then(() => (gate.settled = 'loaded'), error => (gate.settled = threw(error)))
   const turn = (): Promise<void> => new Promise(resolve => setImmediate(resolve))
-  for (let waited = 0; waited < 5000 && gate.reached === 0 && gate.settled === ''; waited++) await turn()
+  const counted = <T>(asking: Promise<T>): Promise<T> => asking.finally(() => gate.answered++)
   const ask = (kind: string): Promise<Answer | string> =>
     (async (): Promise<Answer> => {
       const answer = await registry.resolveResource(`mercury://${kind}/${NO_RECORD}`, context)
@@ -127,28 +126,28 @@ if (process.argv[2] === '--held') {
   const rows = specs.map(spec => ({
     id: spec.id,
     found: spec.run !== undefined,
-    said: (async (): Promise<{ status: string; evidence: string }> => {
+    said: counted((async (): Promise<{ status: string; evidence: string }> => {
       const result = (await spec.run!({ signal: new AbortController().signal })) as { status: string; evidence: string }
       return { status: result.status, evidence: result.evidence }
-    })().catch(threw),
+    })().catch(threw)),
   }))
   const listed: Array<Promise<string[] | string>> = []
   const resolved: Array<Promise<Answer | string>> = []
   const children: Array<Promise<string>> = []
   for (let at = 0; at < HELD_TURNS; at++) {
     const kind = kinds[at % kinds.length]!
-    listed.push((async (): Promise<string[]> => (await registry.resourceAdapterKinds()).map(row => row.kind))().catch(threw))
-    resolved.push(ask(kind))
-    children.push((async (): Promise<string> => (await registry.listResourceKind(kind, context)).state)().catch(threw))
+    listed.push(counted((async (): Promise<string[]> => (await registry.resourceAdapterKinds()).map(row => row.kind))().catch(threw)))
+    resolved.push(counted(ask(kind)))
+    children.push(counted((async (): Promise<string> => (await registry.listResourceKind(kind, context)).state)().catch(threw)))
     await turn()
   }
-  const stood = gate.reached > 0 && gate.settled === ''
+  const early = gate.answered
+  const stood = gate.reached > 0 && early === 0
   gate.open()
-  await flight
   const held: Held = {
     reached: gate.reached,
     stood,
-    settled: gate.settled,
+    early,
     listed: await Promise.all(listed),
     resolved: await Promise.all(resolved),
     children: await Promise.all(children),
@@ -278,14 +277,14 @@ DOORS.forEach((door, at) => {
   check(`${door} asked first: the resolver knows each of the ${kinds.length} kinds`, kinds.length > 0 && unknown.length === 0, unknown.map(kind => `with ${RESOLVER} loaded by itself and ${door} asked first, mercury://${kind} is a kind the resolver does not know — ${remedy(kind)}`))
 })
 
-section(`(4) an import in flight — ${TABLE} held as a module still being fetched inside an import() of ${TOOL_LIST}, and every door of the resolver asked at each of ${HELD_TURNS} turns of the loop before the module is let go (bun cannot require() a module in that state; from the bundle there is no such state)`)
+section(`(4) an import in flight — ${TABLE} held as a module still being fetched, and every door of the resolver asked at each of ${HELD_TURNS} turns of the loop before the module is let go (bun cannot require() a module in that state; from the bundle there is no such state)`)
 {
   const awaited = await spawned<Held>('--held', [JSON.stringify(kinds)])
   const held = awaited.result
   check(
-    `the import of ${TOOL_LIST} asked for ${TABLE} and was still in flight after the ${HELD_TURNS} turns`,
+    `${TABLE} was asked for and was still being fetched after the ${HELD_TURNS} turns: no ask had its answer`,
     held !== null && held.stood,
-    [held === null ? awaited.why : `the module was asked for ${held.reached} time(s) and the import ${held.settled === '' ? 'did not settle' : `had settled (${held.settled})`}: this section held nothing — it stands on ${TOOL_LIST} importing ${TABLE} and on the loader hook in the --held arm of ${SELF}, which keeps that module's fetch open`],
+    [held === null ? awaited.why : `the module was asked for ${held.reached} time(s) and ${held.early} ask(s) had an answer before it was let go: this section held nothing — it stands on every door of ${RESOLVER} reading ${TABLE} by import() and on the loader hook in the --held arm of ${SELF}, which keeps that module's fetch open`],
   )
   if (held !== null) {
     const short = held.listed.flatMap((entry, at) => (typeof entry === 'string' ? [`turn ${at + 1}: ${entry}`] : kinds.every(kind => entry.includes(kind)) ? [] : [`turn ${at + 1}: ${entry.length} kinds listed, not ${kinds.length}`]))
