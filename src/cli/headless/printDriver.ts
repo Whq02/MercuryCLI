@@ -9,7 +9,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { dequeue, peek, getCommandQueue, enqueue } from '../../utils/messageQueueManager.js'
 import { notifyCommandLifecycle } from '../../utils/commandLifecycle.js'
 import { isOutcome } from '../../rows/read.js'
-import { type OutcomeRow, OUTCOME_SENTENCES } from '../../rows/vocabulary.js'
+import { OUTCOME_SENTENCES } from '../../rows/vocabulary.js'
 import { type RowDraft, turnStartedRow, turnWaitingRow, noticeRow, outcomeRow } from '../../rows/project.js'
 import { closeRowOf } from '../../rows/turn.js'
 import { ledgerMark, ledgerSpentSince } from '../../utils/ledgerMark.js'
@@ -64,7 +64,7 @@ export function printDriverPorts(ports: RunnerPorts): TurnDriverPorts {
     peek: () => peek(isMainThreadCommand),
     notifyLifecycle: notifyCommandLifecycle,
     enqueueOutput: message => {
-      if (isOutcome(message as never) && (message as OutcomeRow).status === 'completed' && maxTime !== undefined && Date.now() >= maxTime.at) {
+      if (isOutcome(message) && message.status === 'completed' && maxTime !== undefined && Date.now() >= maxTime.at) {
         io.outbound.enqueue({ ...message, status: 'time_limit', error: { class: 'time_limit', message: OUTCOME_SENTENCES.time_limit({ maxTimeMs: maxTime.limitMs }) } } as RowDraft)
       } else io.outbound.enqueue(message)
     },
