@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { codeOnlyText, syntaxShape } from '../lib/codeText.ts'
 import { shellstringCensus } from './gen-shellstring-census.ts'
+import { lockupCensus } from './gen-lockup-census.ts'
 const ROOT = join(import.meta.dir, '..', '..')
 let failed = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -12,7 +13,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
 }
 
-type Row = { file: string; excerpt: string } & Record<string, unknown>
+type Row = { file: string; excerpt: string }
 type Census = { sites: Row[] }
 const CODE = 'PLANTED-CODE'
 const COMMENT = 'PLANTED-COMMENT'
@@ -98,8 +99,7 @@ const CENSUSES: CensusSpec[] = [
   },
   {
     name: 'lockup',
-    generator: 'scripts/consistency-census/gen-lockup-census.ts',
-    asset: 'scripts/consistency-census/lockup-census.json',
+    run: lockupCensus,
     planted: 'src/planted/PlantedLockup.tsx',
     text: PLANTED_LOCKUP.join('\n'),
     codeRows: 7,
