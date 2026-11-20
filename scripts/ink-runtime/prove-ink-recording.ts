@@ -17,6 +17,11 @@ const NOT_OF_A_RECORDING: ReadonlyArray<[what: string, found: RegExp]> = [
   ['a signal by its name', /\bSIG[A-Z]{3,}\b/],
 ]
 
+if (process.platform === 'win32') {
+  console.log(`  [SKIP] ${SELF}: the recording holds the arms ${UNIT} takes on darwin and Linux, and win32 takes its own; nothing is played or compared on win32`)
+  process.exit(0)
+}
+
 const argOf = (flag: string): string | undefined => {
   const at = process.argv.indexOf(flag)
   return at < 0 ? undefined : process.argv[at + 1]
