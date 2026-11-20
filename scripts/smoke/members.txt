@@ -1,0 +1,7 @@
+prove-cli-verb-honesty.ts
+prove-mcp-verbs-truthful.ts
+prove-show-and-polyglot-honest.ts
+prove-headless-resume-honest.ts
+prove-config-write-contention.ts
+prove-field-w6-concourse-persist.ts
+prove-field-w6-flags.ts

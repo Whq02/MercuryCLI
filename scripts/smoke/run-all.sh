@@ -3,8 +3,10 @@
 # gate-watch: build.ts src/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-. "$(dirname "$0")/../lib/proof-runner.sh"
-here="$(cd "$(dirname "$0")" && pwd)"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
+
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/smoke"
 fail=0
 echo "############################################################"
 echo "# Interactive mount smoke"
@@ -12,14 +14,7 @@ echo "############################################################"
 if [ ! -f "$here/../../dist/mercury.mjs" ]; then
   echo "# ⚠ dist/mercury.mjs absent — skipping (build first to exercise this gate)"
 else
-  bun="${BUN:-$HOME/.bun/bin/bun}"
-  run_proof "$here/prove-cli-verb-honesty.ts" "$bun" run "$here/prove-cli-verb-honesty.ts" || fail=1
-  run_proof "$here/prove-mcp-verbs-truthful.ts" "$bun" run "$here/prove-mcp-verbs-truthful.ts" || fail=1
-  run_proof "$here/prove-show-and-polyglot-honest.ts" "$bun" run "$here/prove-show-and-polyglot-honest.ts" || fail=1
-  run_proof "$here/prove-headless-resume-honest.ts" "$bun" run "$here/prove-headless-resume-honest.ts" || fail=1
-  run_proof "$here/prove-config-write-contention.ts" "$bun" run "$here/prove-config-write-contention.ts" || fail=1
-  run_proof "$here/prove-field-w6-concourse-persist.ts" "$bun" run "$here/prove-field-w6-concourse-persist.ts" || fail=1
-  run_proof "$here/prove-field-w6-flags.ts" "$bun" run "$here/prove-field-w6-flags.ts" || fail=1
+  drive_members smoke 'scripts/smoke/$name' "$here/members.txt" || fail=1
 fi
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ MOUNT SMOKE PASS"; else echo "# ❌ MOUNT SMOKE FAILED"; fi
