@@ -1,8 +1,8 @@
-import { readFileSync } from 'node:fs'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
+import { logError } from '../../../utils/log.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { publishAuthScopedJson, readStoredMetaApiKey, signInLedgerPath } from '../providerSecrets.js'
+import { probeCredentialJson, publishAuthScopedJson, readStoredMetaApiKey, signInLedgerPath } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
@@ -79,15 +79,19 @@ export function metaAuthPathForDisplay(): string {
   return signInLedgerPath(META_AUTH_FILE_NAME)
 }
 
+let authFileUnreadSaid: string | undefined
+
 function readAuthFile(): MetaAuthFile | null {
-  try {
-    const parsed = JSON.parse(readFileSync(metaAuthPathForDisplay(), 'utf8')) as unknown
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
-    return parsed as MetaAuthFile
-  } catch (error) {
-    passedOver(error)
-    return null
+  const read = probeCredentialJson(metaAuthPathForDisplay())
+  if (read.state === 'ok') return read.file as MetaAuthFile
+  if (read.state !== 'absent') {
+    const why = read.state === 'unreadable' ? read.message : `it is ${read.why}`
+    if (why !== authFileUnreadSaid) {
+      authFileUnreadSaid = why
+      logError(new Error(`the Meta auth file ${META_AUTH_FILE_NAME} could not be read (${why}), so its stored Muse Code grant and preferred source are not used`))
+    }
   }
+  return null
 }
 
 export function parseMetaResetAtMs(value: unknown): number | undefined {

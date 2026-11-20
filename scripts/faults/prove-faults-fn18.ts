@@ -232,5 +232,39 @@ console.log('\nlocalLiveness — failed pace store rename cleans up its temp fil
   check('localLiveness-pace-tmp-cleaned: failed rename leaves no temp file behind', Array.isArray(r.leftovers) && r.leftovers.length === 0, JSON.stringify(r.leftovers))
 }
 
+console.log('\nmetaAccounts — corrupt or unreadable .meta-auth.json is reported via logError instead of silently passing over')
+{
+  const r = runScenario(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    const logged = []
+    mock.module(path.join(SRC, 'utils/log.js'), () => ({
+      logError: e => logged.push(e instanceof Error ? e.message : String(e)),
+    }))
+    const meta = await import(path.join(SRC, 'services/providers/meta/metaAccounts.ts'))
+    const authFile = meta.metaAuthPathForDisplay()
+    out.absentGrant = meta.readMetaMuseCodeGrant() ?? null
+    out.absentLogged = logged.length
+    fs.mkdirSync(path.dirname(authFile), { recursive: true })
+    fs.writeFileSync(authFile, '{ torn', { mode: 0o600 })
+    out.corruptGrant = meta.readMetaMuseCodeGrant() ?? null
+    out.corruptLogged = [...logged]
+    if (${JSON.stringify(POSIX_MODES)}) {
+      fs.writeFileSync(authFile, JSON.stringify({ version: 1 }), { mode: 0o600 })
+      fs.chmodSync(authFile, 0o200)
+      out.unreadableGrant = meta.readMetaMuseCodeGrant() ?? null
+      fs.chmodSync(authFile, 0o600)
+      out.unreadableLogged = [...logged]
+    } else {
+      out.unreadableGrant = null
+      out.unreadableLogged = ['skip']
+    }
+  `)
+  check('metaAccounts-corrupt-logged: absent logs nothing, corrupt .meta-auth.json logs reason via logError', r.absentGrant === null && r.absentLogged === 0 && r.corruptGrant === null && Array.isArray(r.corruptLogged) && r.corruptLogged.some(m => String(m).includes('.meta-auth.json') && String(m).includes('not valid JSON')), JSON.stringify({ absentLogged: r.absentLogged, corruptLogged: r.corruptLogged }))
+  if (!POSIX_MODES) skip('metaAccounts-unreadable-logged', 'mode 0200 needs non-root POSIX')
+  else check('metaAccounts-unreadable-logged: unreadable .meta-auth.json logs error via logError', r.unreadableGrant === null && Array.isArray(r.unreadableLogged) && r.unreadableLogged.length >= 2 && r.unreadableLogged.some(m => String(m).includes('.meta-auth.json') && /EACCES|permission/i.test(String(m))), JSON.stringify(r.unreadableLogged))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
