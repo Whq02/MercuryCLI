@@ -347,12 +347,58 @@ async function runProjectGatesRows(): Promise<void> {
   }
 }
 
+async function runVerificationStateRows(): Promise<void> {
+  const { _resetDeclaredGatesForTesting } = await import('../../src/utils/verification/projectGates.ts')
+  const { _resetVerificationStateForTesting, classifyVerifySegment, workspaceVerifiable } = await import('../../src/utils/verification/verificationState.ts')
+
+  const badJsonWs = join(SCRATCH, 'vs-bad-gates')
+  mkdirSync(join(badJsonWs, '.mercury'), { recursive: true })
+  writeFileSync(join(badJsonWs, '.mercury', 'gates.json'), '{broken')
+  _resetDeclaredGatesForTesting()
+  _resetVerificationStateForTesting()
+  check(
+    'verificationState: workspaceVerifiable fails closed on malformed gates.json',
+    workspaceVerifiable(badJsonWs) === true,
+  )
+  let clsErr: unknown = null
+  let cls: ReturnType<typeof classifyVerifySegment> = null
+  try {
+    cls = classifyVerifySegment('npm test', badJsonWs)
+  } catch (error) {
+    clsErr = error
+  }
+  check(
+    'verificationState: classifyVerifySegment does not crash on malformed gates.json',
+    clsErr === null && cls?.scope === 'test',
+    `err=${String(clsErr)} cls=${JSON.stringify(cls)}`,
+  )
+
+  if (POSIX_MODES) {
+    const unreadableWs = join(SCRATCH, 'vs-unreadable-gates')
+    mkdirSync(join(unreadableWs, '.mercury'), { recursive: true })
+    const gatesFile = join(unreadableWs, '.mercury', 'gates.json')
+    writeFileSync(gatesFile, JSON.stringify({ schema: 1, gates: [{ id: 'g1', argv: ['run.sh'] }] }))
+    chmodSync(gatesFile, 0o200)
+    _resetDeclaredGatesForTesting()
+    _resetVerificationStateForTesting()
+    try {
+      check(
+        'verificationState: workspaceVerifiable fails closed on unreadable gates.json',
+        workspaceVerifiable(unreadableWs) === true,
+      )
+    } finally {
+      chmodSync(gatesFile, 0o600)
+    }
+  }
+}
+
 try {
   await runUsageHistoryRows()
   await runBaselineRows()
   await runWorktreeRows()
   await runWorktreeCloneRows()
   await runProjectGatesRows()
+  await runVerificationStateRows()
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

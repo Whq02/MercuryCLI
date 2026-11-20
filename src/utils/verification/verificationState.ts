@@ -831,6 +831,7 @@ export function observeCompletedToolCall(
       recordShellCommandOutcome(command, shellOutcome?.code ?? (ok ? 0 : 1), cwd, owner, shellOutcome?.pipelineStatus)
     }
   } catch (error) {
+    logForDebugging(`[verify] observeCompletedToolCall failed: ${String(error)}`, { level: 'error' })
     passedOver(error)
   }
 }
@@ -862,7 +863,14 @@ export function workspaceVerifiable(cwd: string, owner?: OwnerKey): boolean {
       }
     }
     if (has('scripts/run-all-suites.sh')) verdict = true
-    if (!verdict && loadDeclaredGates(cwd).length > 0) verdict = true
+    if (!verdict) {
+      try {
+        if (loadDeclaredGates(cwd).length > 0) verdict = true
+      } catch (error) {
+        logForDebugging(`[verify] declared gates unreadable in ${cwd}: ${String(error)}`, { level: 'warn' })
+        verdict = true
+      }
+    }
     if (!verdict && has('project.godot')) verdict = true
     if (!verdict && has('package.json')) {
       try {
@@ -1062,8 +1070,12 @@ export function classifyVerifySegment(
   const c = stripVerificationPrefixes(segment)
   if (!c || NOOP_COMMAND_HEADS.has(leadingShellCommandToken(c))) return null
   if (cwd !== undefined) {
-    const declared = matchDeclaredGate(c, cwd)
-    if (declared) return declared
+    try {
+      const declared = matchDeclaredGate(c, cwd)
+      if (declared) return declared
+    } catch (error) {
+      logForDebugging(`[verify] declared gates unreadable in ${cwd}: ${String(error)}`, { level: 'warn' })
+    }
   }
   if (/run-all-suites\.sh/.test(c)) {
     const m = c.match(/run-all-suites\.sh\s+([a-z0-9 _-]+)/)
@@ -1316,6 +1328,7 @@ export function recordShellCommandOutcome(
       ownerStates.get(effectiveOwner(owner)).unscoredVerification = command.replace(/\s+/g, ' ').slice(0, 240)
     }
   } catch (error) {
+    logForDebugging(`[verify] recordShellCommandOutcome failed: ${String(error)}`, { level: 'error' })
     passedOver(error)
   }
 }
