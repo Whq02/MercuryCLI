@@ -355,7 +355,15 @@ async function connectAnthropicConnectors(store: {
       if (!connectorSignatures.has(signature)) continue
       suppressed.push(client.name)
       if (client.type === 'connected') {
-        await clearServerCache(client.name, client.config).catch(passedOver)
+        try {
+          const cleared = await clearServerCache(client.name, client.config)
+          if (cleared.cleanupError !== undefined) {
+            writeErr(`the duplicate MCP server ${client.name} could not be closed (${cleared.cleanupError}) and may still be running`)
+          }
+        } catch (error) {
+          passedOver(error)
+          writeErr(`the duplicate MCP server ${client.name} could not be closed (${error instanceof Error ? error.message : String(error)}) and may still be running`)
+        }
       }
     }
     const manualSignatures = new Set(
