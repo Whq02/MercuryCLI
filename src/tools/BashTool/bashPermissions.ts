@@ -558,7 +558,7 @@ async function namesMercuryConfiguration(input: BashInput, context: ToolPermissi
     const said = 'message' in reach.denied && typeof reach.denied.message === 'string' ? reach.denied.message : ''
     return reach.denied.behavior === 'ask' || /^Permission /.test(said) ? said : `Permission to run this command is required: ${said}.`
   }
-  return reach.hidden === null ? null : `Permission to run this command is required: ${reach.hidden.why}, which is Mercury's configuration.`
+  return reach.hidden === null ? null : `Permission to run this command is required: it may change Mercury's configuration, which could not be checked (${reach.hidden.why}).`
 }
 
 async function decideWithDenyRuleReach(

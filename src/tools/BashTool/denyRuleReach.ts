@@ -516,9 +516,10 @@ export async function denyRuleReach(
   if (bashRules.length === 0 && fileRules.length === 0 && ports.estate === undefined) return NOTHING
   try {
     return await reachOf(command, cwd, context, ports, depth, budget, bashRules, fileRules)
-  } catch {
+  } catch (error) {
     const rule = bashRules[0] ?? fileRules[0]
-    return rule === undefined ? NOTHING : { denied: null, hidden: { rule, why: 'the reading of it failed' } }
+    if (rule !== undefined) return { denied: null, hidden: { rule, why: 'the reading of it failed' } }
+    return ports.estate === undefined ? NOTHING : { denied: null, hidden: { rule: ESTATE_RULE, why: errorMessage(error) } }
   }
 }
 
