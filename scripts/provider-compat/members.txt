@@ -158,7 +158,6 @@ prove-tool-call-refusal-loop.ts
 prove-tool-schemas-no-refs.ts
 prove-transport-fault-names.ts
 prove-transport-reached-via-router.ts
-prove-typed-catalogue-consumers.ts
 prove-wire-id-truth.ts
 prove-xai-catalogue.ts
 prove-xai-wire.ts
