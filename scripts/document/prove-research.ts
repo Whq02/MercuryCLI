@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url'
 const root = join(import.meta.dir, '../..')
 try {
   const entry = join(proofHome, 'skill-entry.ts')
-  writeFileSync(entry, `export { registerResearchSkill } from ${JSON.stringify(join(root, 'src/skills/bundled/research.ts'))}\nexport { getBundledSkills } from ${JSON.stringify(join(root, 'src/skills/bundledSkills.ts'))}\n`)
+  writeFileSync(entry, `export { registerResearchSkill } from ${JSON.stringify(join(root, 'src/skills/bundled/research.ts'))}\nexport { SKILL_MD } from ${JSON.stringify(join(root, 'src/skills/bundled/researchContent.ts'))}\nexport { getBundledSkills } from ${JSON.stringify(join(root, 'src/skills/bundledSkills.ts'))}\n`)
   const built = await Bun.build({ entrypoints: [entry], outdir: join(proofHome, 'out'), target: 'bun', format: 'esm', loader: { '.md': 'text' }, define: { 'MACRO.VERSION': '"1.0.0"', 'process.env.NODE_ENV': '"test"' } })
   assert.equal(built.success, true, built.logs.map(String).join('\n'))
   const registry = await import(pathToFileURL(join(proofHome, 'out/skill-entry.js')).href)
@@ -26,6 +26,6 @@ try {
   assert.ok(expanded.endsWith(`\n\n${positive}`))
   assert.ok(!/loads this skill|does not\b.*this skill/.test(expanded), `the loaded guidance routes nothing; the description alone decides (${negative})`)
   for (const phrase of ['exact page', 'printed page label', 'OCR', 'Document inspect', 'Document create', 'Document cite', 'only when live Crossref resolution is wanted', 'Document create', 'Keep source files unchanged']) assert.ok(expanded.includes(phrase), phrase)
-  assert.equal(readFileSync(join(root, 'mercury-skills/research/SKILL.md'), 'utf8'), readFileSync(join(root, 'src/skills/bundled/research/SKILL.md'), 'utf8'))
+  assert.equal(readFileSync(join(root, 'mercury-skills/research/SKILL.md'), 'utf8'), registry.SKILL_MD)
   console.log('PASS research: real generated loader, model-only discovery, arguments appended, positive request expanded and routing left to the description; no live classifier call')
 } finally { rmSync(proofHome, { recursive: true, force: true }) }

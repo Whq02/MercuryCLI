@@ -5,7 +5,9 @@ import { join } from 'node:path'
 import { isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { FLAG_REGISTRY, flagEnabled, flagEnv } = await import('../../src/substrate/flagRegistry.ts')
+const { FLAG_REGISTRY, flagEnabled, flagEnv, flagSpellings } = await import('../../src/substrate/flagRegistry.ts')
+const { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS, assertSingleRole } = await import('../../src/utils/workerRole.ts')
+const { scrubDaemonRoleEnv } = await import('../../src/daemon/headlessRun.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -373,30 +375,67 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
     .split('\n')
     .filter(Boolean)
   check('no registry reader takes a swept literal', directHits.length === 0, directHits.slice(0, 4).join(' · '))
-  const gates = readFileSync(join(root, 'src/utils/workerRole.ts'), 'utf8')
-  const spawn = readFileSync(join(root, 'src/daemon/headlessRun.ts'), 'utf8')
-  const membersOf = (src: string): Set<string> => {
-    const m = src.match(/RETIRED_SEAT_ENV_VARS[^=]*=\s*\[([^\]]*)\]/)
-    return new Set([...(m?.[1] ?? '').matchAll(/'(MERCURY_[A-Z_0-9]+)'/g)].map(x => x[1]!))
-  }
   const sameFive = (s: Set<string>): boolean =>
     s.size === SWEPT_SPELLINGS.size && [...s].every(v => SWEPT_SPELLINGS.has(v))
-  check('workerRole sweeps exactly the five swept spellings (breadth never silently shrinks)', sameFive(membersOf(gates)))
-  check(
-    'headlessRun imports the roster from workerRole (one owner, never a second literal)',
-    /import \{ LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS \} from '\.\.\/utils\/workerRole\.js'/.test(spawn) &&
-      !/RETIRED_SEAT_ENV_VARS[^=\n]*=\s*\[/.test(spawn),
-  )
-  check(
-    'assertSingleRole reads the swept list RAW (process.env), the live roles through flagEnv',
-    /RETIRED_SEAT_ENV_VARS\.filter\(v => process\.env\[v\] === '1'\)/.test(gates) &&
-      /\.filter\(v => flagEnv\(v\) === '1'\)/.test(gates),
-  )
-  check(
-    "headlessRun's swept spellings = the live roles' registered spellings + the swept five appended RAW",
-    /LIVE_ROLE_ENV_VARS\.flatMap\(flagSpellings\), \.\.\.RETIRED_SEAT_ENV_VARS/.test(spawn) &&
-      !/RETIRED_SEAT_ENV_VARS\.flatMap\(flagSpellings\)/.test(spawn),
-  )
+  check('workerRole sweeps exactly the five swept spellings (breadth never silently shrinks)', sameFive(new Set(RETIRED_SEAT_ENV_VARS)))
+  {
+    const allRoleVars = [...LIVE_ROLE_ENV_VARS.flatMap(flagSpellings), ...RETIRED_SEAT_ENV_VARS]
+    const saved = new Map(allRoleVars.map(k => [k, process.env[k]]))
+    const clearRoles = (): void => {
+      for (const k of allRoleVars) delete process.env[k]
+    }
+    const threwWith = (setVars: string[]): string | null => {
+      clearRoles()
+      for (const k of setVars) process.env[k] = '1'
+      try {
+        assertSingleRole()
+        return null
+      } catch (e) {
+        return e instanceof Error ? e.message : String(e)
+      }
+    }
+    try {
+      const singleLive = threwWith([LIVE_ROLE_ENV_VARS[0]!])
+      const singleRetired = threwWith(['MERCURY_TANK'])
+      const livePlusRetired = threwWith([LIVE_ROLE_ENV_VARS[0]!, 'MERCURY_TANK'])
+      const twoRetired = threwWith(['MERCURY_TANK', 'MERCURY_HEALER'])
+      const roleOk =
+        singleLive === null &&
+        singleRetired === null &&
+        livePlusRetired !== null &&
+        livePlusRetired.includes(LIVE_ROLE_ENV_VARS[0]!) &&
+        livePlusRetired.includes('MERCURY_TANK') &&
+        twoRetired !== null &&
+        twoRetired.includes('MERCURY_TANK') &&
+        twoRetired.includes('MERCURY_HEALER')
+      check(
+        'assertSingleRole accepts a single live or retired role and throws when two roles are set together',
+        roleOk,
+        roleOk ? '' : JSON.stringify({ singleLive, singleRetired, livePlusRetired, twoRetired }),
+      )
+    } finally {
+      for (const [k, v] of saved) {
+        if (v === undefined) delete process.env[k]
+        else process.env[k] = v
+      }
+    }
+  }
+  {
+    const expectedSwept = [...LIVE_ROLE_ENV_VARS.flatMap(flagSpellings), ...SWEPT_SPELLINGS]
+    const fakeEnv: NodeJS.ProcessEnv = { UNRELATED_KEEP: '1' }
+    for (const k of expectedSwept) fakeEnv[k] = '1'
+    const removed = scrubDaemonRoleEnv(fakeEnv)
+    const removedSet = new Set(removed)
+    const scrubOk =
+      removedSet.size === expectedSwept.length &&
+      expectedSwept.every(k => removedSet.has(k) && fakeEnv[k] === undefined) &&
+      fakeEnv.UNRELATED_KEEP === '1'
+    check(
+      'scrubDaemonRoleEnv clears every live role spelling and all five retired spellings while leaving other env keys',
+      scrubOk,
+      scrubOk ? '' : JSON.stringify({ removed, remaining: Object.keys(fakeEnv) }),
+    )
+  }
   const READER_CALL = '(?:flagEnv|flagEnabled|flagSpellings|flagPair|stampFlagOnEnv|setFlagEnv|deleteFlagEnv)'
   const ARRAY_METHOD = '(?:flatMap|map|forEach|filter|some|every|find|findIndex|findLast)'
   const DECL_RE = /const (\w+)[^=\n]*=\s*\[((?:[^\][]|\n)*?)\]/g
