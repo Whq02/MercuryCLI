@@ -1,5 +1,6 @@
 
-import { useContext, useEffect, useRef } from 'react'
+import { useContext, useRef } from 'react'
+import { useClaim } from '../hooks/effects.js'
 import { currentSurfaceRoute, type SurfaceKind } from '../context/surfaceRoute.js'
 import type { InputEvent, Key } from '../ink/events/input-event.js'
 import useInput from '../ink/hooks/use-input.js'
@@ -47,7 +48,7 @@ export function useKeybinding(
   handlerRef.current = handler
 
   const registerHandler = keybindings?.registerHandler
-  useEffect(() => {
+  useClaim(() => {
     if (!registerHandler || !isActive) return
     const guarded = () => {
       if (!routeSafe && coveredFor(scope)) return
@@ -102,7 +103,7 @@ export function useKeybindings(
   const actionKey = Object.keys(handlers).sort().join(' ')
 
   const registerHandler = keybindings?.registerHandler
-  useEffect(() => {
+  useClaim(() => {
     if (!registerHandler || !isActive) return
     const unregisters = Object.keys(handlersRef.current).map(action =>
       registerHandler({
