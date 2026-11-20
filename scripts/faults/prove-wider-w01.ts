@@ -51,6 +51,8 @@ const { call: callMemoryCommand } = await import('../../src/commands/memory/memo
 const { MemoryCentreView } = await import('../../src/components/memory/MemoryCentreView.tsx')
 const { configMemoryRows } = await import('../../src/components/Settings/config/configRowsMemory.tsx')
 const { memoryChecks } = await import('../../src/utils/health/sections/memory.ts')
+const { runHealthReport } = await import('../../src/utils/healthReport.ts')
+const { readThinkingDropLedger, thinkingDropLedgerPath } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
 const { memoryLifecycleCheck } = await import('../../src/utils/health/sections/settings/prompt.ts')
 const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
 const { AppStateProvider } = await import('../../src/state/AppState.tsx')
@@ -335,6 +337,45 @@ try {
       const statsFinal = await memoryStatsText()
       check('clearing all unreadable files leaves /memory stats clean', !statsFinal.includes('could not be read'), statsFinal)
     }
+  }
+
+  section('§3 w01-3: unreadable or corrupt thinking-drop ledger in preserved-thinking health row')
+  {
+    const runPreservedThinkingRow = async () => {
+      const cert = await runHealthReport({}, [{ id: 'memory', title: 'Memory', checks: () => memoryChecks().filter(c => c.id === 'preserved-thinking') }])
+      return cert.sections[0]!.checks[0]!
+    }
+    const ledgerPath = thinkingDropLedgerPath()
+    const cleanRow = await runPreservedThinkingRow()
+    check('absent thinking-drop ledger reads ok in preserved-thinking health row', cleanRow.status === 'ok', JSON.stringify(cleanRow))
+
+    writeFileSync(ledgerPath, '{not json')
+    check('corrupt thinking-drop ledger keeps readThinkingDropLedger returning null', readThinkingDropLedger() === null)
+    const corruptRow = await runPreservedThinkingRow()
+    check(
+      'corrupt thinking-drop ledger reads unknown (probe threw) in preserved-thinking health row',
+      corruptRow.status === 'unknown' && corruptRow.evidence.startsWith('probe threw:'),
+      JSON.stringify(corruptRow),
+    )
+
+    if (POSIX_MODES) {
+      writeFileSync(ledgerPath, JSON.stringify({ last: { at: '2026-01-01T00:00:00.000Z', kind: 'first', lawful: null, reason: 'r', path: 'p', count: 1, consecutive: 1, model: 'm' }, longestRun: 1 }), { mode: 0o600 })
+      chmodSync(ledgerPath, 0o200)
+      try {
+        check('unreadable thinking-drop ledger keeps readThinkingDropLedger returning null', readThinkingDropLedger() === null)
+        const eaccesRow = await runPreservedThinkingRow()
+        check(
+          'unreadable thinking-drop ledger reads unknown (probe threw) in preserved-thinking health row',
+          eaccesRow.status === 'unknown' && eaccesRow.evidence.startsWith('probe threw:'),
+          JSON.stringify(eaccesRow),
+        )
+      } finally {
+        chmodSync(ledgerPath, 0o600)
+      }
+    }
+    unlinkSync(ledgerPath)
+    const afterRow = await runPreservedThinkingRow()
+    check('removing thinking-drop ledger restores preserved-thinking health row to ok', afterRow.status === 'ok', JSON.stringify(afterRow))
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

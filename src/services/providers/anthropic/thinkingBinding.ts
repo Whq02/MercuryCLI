@@ -9,6 +9,7 @@ import { isToolResultMessage } from '../../../utils/messages/merge.js'
 import { createAttachmentMessage } from '../../../utils/attachments/attachmentMessage.js'
 import type { InputTransformation } from '../../../types/wire.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { isENOENT } from '../../../utils/errors.js'
 import { getGlobalConfig } from '../../../utils/config/globalConfig.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { runningBuildTree } from '../../../utils/artifactIdentity.js'
@@ -794,13 +795,29 @@ export function forgetThinkingDropLedger(): boolean {
   }
 }
 
+export function readThinkingDropLedgerStrict(): ThinkingDropLedger | null {
+  const path = thinkingDropLedgerPath()
+  let raw: string
+  try {
+    raw = readFileSync(path, 'utf8')
+  } catch (error) {
+    if (isENOENT(error)) return null
+    throw error
+  }
+  const parsed = JSON.parse(raw) as unknown
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new Error(`thinking drop ledger at ${path} is malformed`)
+  }
+  const last = (parsed as { last?: unknown }).last
+  if (typeof last !== 'object' || last === null) {
+    throw new Error(`thinking drop ledger at ${path} is malformed`)
+  }
+  return parsed as ThinkingDropLedger
+}
+
 export function readThinkingDropLedger(): ThinkingDropLedger | null {
   try {
-    const parsed = JSON.parse(readFileSync(thinkingDropLedgerPath(), 'utf8')) as unknown
-    if (typeof parsed !== 'object' || parsed === null) return null
-    const last = (parsed as { last?: unknown }).last
-    if (typeof last !== 'object' || last === null) return null
-    return parsed as ThinkingDropLedger
+    return readThinkingDropLedgerStrict()
   } catch (error) {
     passedOver(error)
     return null

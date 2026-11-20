@@ -126,10 +126,10 @@ export function memoryChecks(): CheckSpec[] {
       id: 'preserved-thinking',
       label: 'Preserved thinking',
       run: async () => {
-        const { preservedThinkingHealth, readThinkingDropLedger, forgetThinkingDropLedger } = await import(
+        const { preservedThinkingHealth, readThinkingDropLedgerStrict, forgetThinkingDropLedger } = await import(
           '../../../services/providers/anthropic/thinkingBinding.js'
         )
-        const ledger = readThinkingDropLedger()
+        const ledger = readThinkingDropLedgerStrict()
         const row = preservedThinkingHealth(ledger)
         if (ledger === null || row.status !== 'warn' || !healthFixEnabled()) return row
         return {
@@ -138,7 +138,7 @@ export function memoryChecks(): CheckSpec[] {
             plan: 'forget the recorded thinking drop (derived evidence under the config home; a new drop is recorded again)',
             class: 'safe' as const,
             apply: async () => (forgetThinkingDropLedger() ? { ok: true, note: 'the record was removed' } : { ok: false, note: 'the record could not be removed' }),
-            verify: async () => (readThinkingDropLedger() === null ? { ok: true, note: 'no dropped thinking block recorded' } : { ok: false, note: 'the record still stands' }),
+            verify: async () => (readThinkingDropLedgerStrict() === null ? { ok: true, note: 'no dropped thinking block recorded' } : { ok: false, note: 'the record still stands' }),
           },
         }
       },
