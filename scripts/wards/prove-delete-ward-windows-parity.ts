@@ -146,6 +146,56 @@ const ORDINARY_DELETES = [
   'Get-ChildItem C:\\Windows -Recurse | Remove-Item -Recurse -WhatIf',
 ]
 
+const AFTER_CD_REFUSED = (project: string, home: string): Array<[string, string, string]> => [
+  ['cd ~ && rm -rf *', 'Bash', project],
+  ['cd ~ && rm -rf .', 'Bash', project],
+  ['cd ~; rm -rf ./*', 'Bash', project],
+  ['cd "$HOME" && rm -rf *', 'Bash', project],
+  ['cd $USERPROFILE && rm -rf *', 'Bash', project],
+  ['cd C:/Users/Alice && rm -rf *', 'Bash', project],
+  ["cd 'C:\\Users\\Alice' && rm -rf *", 'Bash', project],
+  ['cd /c/Users/Alice && rm -rf *', 'Bash', project],
+  ['cd /c/Users && rm -rf Alice', 'Bash', project],
+  ['cd && rm -rf *', 'Bash', project],
+  ['cd ~/proj; cd ..; rm -rf *', 'Bash', project],
+  ['cd ~ && rm -rf -- *', 'Bash', project],
+  ['cd ~ && find . -delete', 'Bash', project],
+  ['cmd /c "cd %USERPROFILE% && rd /s /q ."', 'Bash', project],
+  ['cd ~; Remove-Item -Recurse -Force *', 'PowerShell', project],
+  ['cd $env:USERPROFILE; Remove-Item -Recurse -Force *', 'PowerShell', project],
+  ['Set-Location $HOME; Remove-Item -Recurse -Force .', 'PowerShell', project],
+  ['cd C:\\Users\\Alice; Remove-Item -Recurse -Force *', 'PowerShell', project],
+  ['rm -rf *', 'Bash', home],
+  ['rm -rf .', 'Bash', home],
+  ['rm -rf ..', 'Bash', `${home}\\proj`],
+  ['Remove-Item -Recurse -Force *', 'PowerShell', home],
+  ['rm -rf ~', 'Bash', project],
+  ['rm -rf /*', 'Bash', project],
+  ['cd / && rm -rf *', 'Bash', project],
+  ['rm -rf //server/share', 'Bash', project],
+]
+const AFTER_CD_ALLOWED = (project: string, home: string): Array<[string, string, string]> => [
+  ['rm -rf *', 'Bash', project],
+  ['rm -rf build', 'Bash', project],
+  ['cd ~/proj && rm -rf *', 'Bash', project],
+  ['cd ~/proj && rm -rf build', 'Bash', project],
+  ['cd ~ && rm -rf node_modules', 'Bash', project],
+  ['(cd ~ && ls); rm -rf *', 'Bash', project],
+  ['pushd ~; popd; rm -rf *', 'Bash', project],
+  ['cd ~; cd -; rm -rf *', 'Bash', project],
+  ["cd ~ && find . -name '*.log' -delete", 'Bash', project],
+  ['cd /c/src/other && rm -rf *', 'Bash', project],
+  ['cd $SOMEWHERE && rm -rf *', 'Bash', project],
+  ['rm -rf dist && cd ~ && ls', 'Bash', project],
+  ['rm -rf build', 'Bash', home],
+  ['rm -rf ../other', 'Bash', `${home}\\proj`],
+  ['rm -rf //server/share/proj/build', 'Bash', project],
+  ['cmd //c "rd /s /q build"', 'Bash', project],
+  ['cd C:\\Users\\Alice\\proj; Remove-Item -Recurse -Force *', 'PowerShell', project],
+  ['Push-Location ~; Pop-Location; Remove-Item -Recurse -Force *', 'PowerShell', project],
+  ['Remove-Item -Recurse -Force .\\build', 'PowerShell', home],
+]
+
 async function main(): Promise<void> {
   delete process.env.MERCURY_WARDS
   const savedHome = process.env.HOME
@@ -187,6 +237,17 @@ async function main(): Promise<void> {
     for (const [command, tool] of BOX_SHAPES) check(`refused by no-other-user-delete (${tool}): ${JSON.stringify(command)}`, ruleOf(command, tool) === 'no-other-user-delete', ruleOf(command, tool))
     section('§6d win32 — the box\'s controls stay true: the own profile (F37W-5B-11), a folder outside any Users tree (F37W-5B-09) and an echo of the words are not this ward\'s business')
     for (const [command, tool] of BOX_CONTROLS) check(`not warded by no-other-user-delete (${tool}): ${JSON.stringify(command)}`, ruleOf(command, tool) !== 'no-other-user-delete', ruleOf(command, tool))
+    section('§6e win32 — the Windows box\'s SUBMIT 266: a recursive delete AFTER a cd into the home is refused as it is on the Mac, through the road the Bash and PowerShell tools take (the shell reader); nothing is executed')
+    const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.js')
+    const through = async (command: string, tool: string, cwd: string): Promise<string> => {
+      const verdict = await refusalOfShellCommand(pending(command, tool) as never, cwd)
+      return verdict.allow ? '(allowed)' : verdict.rule.name
+    }
+    const PROJECT = 'C:\\src\\project'
+    const HOME_FOLDER = 'C:\\Users\\Alice'
+    for (const [command, tool, cwd] of AFTER_CD_REFUSED(PROJECT, HOME_FOLDER)) check(`refused (${tool}, standing in ${cwd}): ${JSON.stringify(command)}`, (await through(command, tool, cwd)) === 'no-root-recursive-delete', await through(command, tool, cwd))
+    section('§6f win32 — what was allowed for a project folder stays allowed: a cd that does not end in the home, a cd undone, a cd inside a subshell, a subfolder of the home, a narrowed find, a share subfolder')
+    for (const [command, tool, cwd] of AFTER_CD_ALLOWED(PROJECT, HOME_FOLDER)) check(`not warded (${tool}, standing in ${cwd}): ${JSON.stringify(command)}`, (await through(command, tool, cwd)) === '(allowed)', await through(command, tool, cwd))
   } finally {
     restorePlatform()
     if (savedHome === undefined) delete process.env.HOME
