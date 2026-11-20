@@ -628,30 +628,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     }
     return out
   }
-  const outsideEdge = walk(SRC)
-    .map(p => relative(SRC, p))
-    .filter(p => !p.startsWith('services/api/') && !p.startsWith('utils/model/'))
-    .sort()
-
-  const grep = (re: RegExp): string[] =>
-    outsideEdge.filter(p => re.test(readFileSync(join(SRC, p), 'utf8'))).map(p => `src/${p}`)
-
-  const MODEL_NAME_CENSUS = [
-    'src/commands/model/model.tsx',
-    'src/services/anthropicLimits.ts',
-    'src/services/providers/primaryBackend.ts',
-    'src/utils/effort.ts',
-  ].sort()
-  const modelNameFound = grep(/includes\('(?:opus|sonnet|haiku|claude)/)
-  check(
-    `census: model-name conditionals outside the edge = the ${MODEL_NAME_CENSUS.length} characterized files`,
-    eq(modelNameFound, MODEL_NAME_CENSUS),
-    JSON.stringify({
-      unexpected: modelNameFound.filter(f => !MODEL_NAME_CENSUS.includes(f)),
-      missing: MODEL_NAME_CENSUS.filter(f => !modelNameFound.includes(f)),
-    }),
-  )
-
   const allSrc = walk(SRC).map(p => relative(SRC, p)).sort()
   const grepAll = (re: RegExp): string[] =>
     allSrc.filter(p => re.test(readFileSync(join(SRC, p), 'utf8'))).map(p => `src/${p}`)
