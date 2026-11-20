@@ -106,8 +106,9 @@ export function runnerLaunches(root: string): Array<{ suite: string; launched: s
     if (!parent) continue
     const set = new Set<string>()
     for (const line of readFileSync(mf, 'utf8').split('\n')) {
-      const n = line.split('#')[0]!.trim()
-      if (n && isFile(join(scriptsDir, parent, n))) set.add(join(scriptsDir, parent, n))
+      const n = line.split('#')[0]!.trim().split(/\s+/)[0]!
+      const f = n.startsWith('scripts/') ? join(root, n) : join(scriptsDir, parent, n)
+      if (n && isFile(f)) set.add(f)
     }
     members.set(s, set)
   }

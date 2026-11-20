@@ -16,16 +16,18 @@ members_cat() {
 }
 
 drive_member_run() {
-  local suite="$1" f="$2" name="$3" skip="${4:-}" bun="${BUN:-$HOME/.bun/bin/bun}" t0=$SECONDS rc=0
-  printf '── %s: %s\n' "$suite" "$name"
+  local suite="$1" f="$2" name="$3" skip="${4:-}" rest="${5:-}" form="${6:-}" bun="${BUN:-$HOME/.bun/bin/bun}" t0=$SECONDS rc=0
+  local -a words=()
+  read -r -a words <<<"${rest//\$root/$PWD}"
+  printf '── %s: %s\n' "$suite" "$name${rest:+ $rest}"
   case "$name" in
-    (*.py) /usr/bin/python3 "$f" || rc=$? ;;
-    (*.sh) bash "$f" || rc=$? ;;
-    (*) "$bun" "$f" || rc=$? ;;
+    (*.py) /usr/bin/python3 "$f" ${words[@]+"${words[@]}"} || rc=$? ;;
+    (*.sh) bash "$f" ${words[@]+"${words[@]}"} || rc=$? ;;
+    (*) "$bun" ${form:+"$form"} "$f" ${words[@]+"${words[@]}"} || rc=$? ;;
   esac
   local p="$f"
   case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac
-  printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - t0 ))" "$rc"
+  printf '── %s  %ss rc=%s\n' "$p${rest:+ $rest}" "$(( SECONDS - t0 ))" "$rc"
   if [ -n "$skip" ] && [ "$rc" = "$skip" ]; then
     printf '⏭  %s SKIP — machine gate honoured (exit %s is the skip code of %s)\n' "$name" "$rc" "$suite"
     return 0
@@ -34,20 +36,20 @@ drive_member_run() {
 }
 
 drive_members() {
-  local suite="$1" template="$2" members="$3" skip="${4:-}" jobs
+  local suite="$1" template="$2" members="$3" skip="${4:-}" form="${5:-}" jobs
   jobs=$(drive_member_jobs)
-  local failed=0 name f only="${MERCURY_SUITE_MEMBER:-}"
-  local -a names=() files=()
-  while IFS= read -r name; do
+  local failed=0 name rest f only="${MERCURY_SUITE_MEMBER:-}"
+  local -a names=() files=() rests=()
+  while read -r name rest; do
     case "$name" in (''|'#'*) continue ;; esac
     [ -n "$only" ] && [ "$name" != "$only" ] && continue
-    f="${template//\$name/$name}"
+    case "$name" in (scripts/*) f="$name" ;; (*) f="${template//\$name/$name}" ;; esac
     if [ ! -e "$f" ]; then
       printf '❌ %s: member %s has no file at %s — a stale member row is a red, never a silent skip\n' "$suite" "$name" "$f"
       failed=1
       continue
     fi
-    names+=("$name"); files+=("$f")
+    names+=("$name"); files+=("$f"); rests+=("$rest")
   done < "$members"
   if [ -n "$only" ]; then
     if [ "${#names[@]}" -eq 0 ] && [ "$failed" -eq 0 ]; then
@@ -59,7 +61,7 @@ drive_members() {
   if [ "$jobs" -le 1 ] || [ "${#names[@]}" -le 1 ]; then
     local i
     for i in "${!names[@]}"; do
-      drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" || failed=1
+      drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" "${rests[$i]}" "$form" || failed=1
     done
     return "$failed"
   fi
@@ -75,7 +77,7 @@ drive_members() {
   while [ "$next" -lt "$total" ] || [ "$running" -gt 0 ]; do
     while [ "$next" -lt "$total" ] && [ "$running" -lt "$jobs" ]; do
       i=$next
-      ( drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" > "$out/$i.out" 2>&1; echo "$?" > "$out/$i.rc" ) &
+      ( drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" "${rests[$i]}" "$form" > "$out/$i.out" 2>&1; echo "$?" > "$out/$i.rc" ) &
       pids+=("$!"); idxs+=("$i"); running=$(( running + 1 )); next=$(( next + 1 ))
     done
     sleep 1
