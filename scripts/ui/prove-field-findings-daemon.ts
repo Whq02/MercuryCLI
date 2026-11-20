@@ -13,7 +13,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
 
 console.log('§1 daemon roster — outcome first')
 {
-  const { deriveDaemonRows: deriveDaemonRows } = await import('../../src/utils/cockpit/daemonRows.ts')
+  const { deriveDaemonRows: deriveDaemonRows } = await import('../../src/services/cockpit/daemonRows.ts')
   const status = {
     daemon: { pid: 4242, version: '0.0.0', uptimeSec: 10, dir: '/tmp/x' },
     controlSock: '/tmp/x/control.sock',

@@ -1,12 +1,12 @@
 
-import { isMcpServerDisabled } from '../../services/mcp/config.js'
-import { describeMcpPolicy, getMaxExposedRisk, isMcpPolicyActive } from '../../services/mcp/toolPolicy.js'
-import { getProjectMcpConfigsFromCwd, mcpServersSkippedForTrustLine, PROJECT_MCP_FILE_SPELLING } from '../../services/mcp/config.js'
-import { untrustedWorkspaceHeadless } from '../config.js'
-import type { MCPServerConnection } from '../../services/mcp/types.js'
-import { getCurrentProjectConfig, getGlobalConfig } from '../config.js'
-import { withState, type Snapshot, type SnapshotState } from './types.js'
-import { passedOver } from '../passedOver.js'
+import { isMcpServerDisabled } from '../mcp/config.js'
+import { describeMcpPolicy, getMaxExposedRisk, isMcpPolicyActive } from '../mcp/toolPolicy.js'
+import { getProjectMcpConfigsFromCwd, mcpServersSkippedForTrustLine, PROJECT_MCP_FILE_SPELLING } from '../mcp/config.js'
+import { untrustedWorkspaceHeadless } from '../../utils/config.js'
+import type { MCPServerConnection } from '../mcp/types.js'
+import { getCurrentProjectConfig, getGlobalConfig } from '../../utils/config.js'
+import { withState, type Snapshot, type SnapshotState } from '../../utils/cockpit/types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type McpServerState =
   | 'ready'

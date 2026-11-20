@@ -1,12 +1,12 @@
 
-import { fluxMark } from '../flux/fluxProbe.js'
-import type { OwnerKey } from '../../services/run/ownerKey.js'
-import { registerOwnerScopedStore } from '../../services/run/ownerLifecycle.js'
-import { OwnerScopedStore } from '../../services/run/ownerScopedStore.js'
-import { processMainOwner } from '../../services/run/resolveOwner.js'
-import type { ContextResolution } from '../model/capabilities.js'
+import { fluxMark } from '../../utils/flux/fluxProbe.js'
+import type { OwnerKey } from '../run/ownerKey.js'
+import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
+import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { processMainOwner } from '../run/resolveOwner.js'
+import type { ContextResolution } from '../../utils/model/capabilities.js'
 import { ctxForecastEnabled, recordCtxSample } from './ctxForecast.js'
-import { passedOver } from '../passedOver.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type ContextFillSource = 'usage' | 'estimate'
 type ContextWindowSource = ContextResolution['source']

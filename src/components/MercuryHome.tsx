@@ -19,7 +19,7 @@ import {
   type GitData,
   type Snapshot,
   type TraceData,
-} from '../utils/cockpit/index.js'
+} from '../services/cockpit/index.js'
 import { SQUARE_DOCK_ART_LINES, critterDefForKey } from '../utils/cockpit/critterData.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useLayoutChrome } from '../context/layoutChromeContext.js'

@@ -84,8 +84,8 @@ async function main(): Promise<void> {
     const ok = await import('../../src/services/run/ownerKey.js')
     const lifecycle = await import('../../src/services/run/ownerLifecycle.js')
     const v = await import('../../src/utils/verification/verificationState.js')
-    const fc = await import('../../src/utils/cockpit/ctxForecast.js')
-    const live = await import('../../src/utils/cockpit/contextUsageLive.js')
+    const fc = await import('../../src/services/cockpit/ctxForecast.js')
+    const live = await import('../../src/services/cockpit/contextUsageLive.js')
     v._resetVerificationStateForTesting()
     fc.resetCtxForecastForTest()
     for (let i = 0; i < 400; i++) {

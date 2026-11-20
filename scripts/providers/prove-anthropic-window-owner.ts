@@ -5,7 +5,7 @@ import {
   getRawUtilization,
   resetLimitsForCredentialSwitch,
 } from '../../src/services/anthropicLimits.ts'
-import { quotaWindows } from '../../src/utils/cockpit/quota.ts'
+import { quotaWindows } from '../../src/services/cockpit/quota.ts'
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {

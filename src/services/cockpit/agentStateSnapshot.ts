@@ -5,8 +5,8 @@ import {
   type AgentStateVerdict,
   agentNeedsYouEnabled,
   getAgentStateVerdict,
-} from '../../services/agentNeedsYou.js'
-import { type Snapshot, withState } from './types.js'
+} from '../agentNeedsYou.js'
+import { type Snapshot, withState } from '../../utils/cockpit/types.js'
 
 type AgentStateData = {
   verdict: AgentStateVerdict | null

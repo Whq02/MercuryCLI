@@ -2,7 +2,7 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { daemonControlRpc } from '../../daemon/controlSocket.js'
 import type { DaemonRequest, WireRosterEntry } from '../../daemon/protocol.js'
 import { daemonSnapshot } from './daemonSnapshot.js'
-import { passedOver } from '../passedOver.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type DaemonCrewLiveness = {
   engaged: boolean
